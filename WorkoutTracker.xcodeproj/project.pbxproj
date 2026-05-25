@@ -7,10 +7,39 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		00091317945A6BC21A22942B /* BlockTabSelectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85DAA2ACBA4B64FF4A2A3895 /* BlockTabSelectorTests.swift */; };
+		0B4BF5AB6DD10A512C793BED /* BlockTabSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5204E40ABC910CEBB0F82816 /* BlockTabSelector.swift */; };
+		0D3E6DBCFE1881EE177EDEAE /* SessionProgressTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DE918A15498A36B4EC413FD /* SessionProgressTracker.swift */; };
+		220D586E2C3501A8CD100024 /* Block.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56BD19DDAA92AF5F6982BB5E /* Block.swift */; };
+		2FFD6423631AA90DA899A6F8 /* GoogleSheetsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3B15FEFD6BDE5D8F1A71800 /* GoogleSheetsClient.swift */; };
+		46E6FCB4ACD0D4AC6985A5A6 /* BlockBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EB277F74C7EEBC24BF4E813 /* BlockBuilder.swift */; };
+		4C707652469B53C5FEDE67A1 /* SheetParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDD12C158C127F6E87575212 /* SheetParserTests.swift */; };
+		523D8ACE56DCD7D006E06DD0 /* SettingsStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D44F8E841251ECBC223177C /* SettingsStoreTests.swift */; };
+		534BF64C12717F887A7C272C /* WorkoutStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECBE6989519E819A9FDB6608 /* WorkoutStore.swift */; };
+		6370263F171AC8EFE288A5E3 /* SetLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20D53666552036BF79EEB41F /* SetLog.swift */; };
+		6962F55A0A33D607CC9C4C22 /* SheetParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93A5CA6A951EC6FB3C319E0F /* SheetParser.swift */; };
+		7A7A9B87F7663034989F8EB4 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C9C69974B6867E8568AFBD0 /* OnboardingView.swift */; };
+		7B8CE914CEB343A88D109955 /* SyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF512CAF662AE6E54D7B864C /* SyncCoordinator.swift */; };
 		7DB5C219CA5F71B5CB978133 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 3977E6225F9526AF52619CA9 /* GoogleSignIn */; };
+		82D3353296627C46FED9C509 /* SheetGridFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = D66DA3EF58BF03C538C44EED /* SheetGridFixture.swift */; };
+		893458BAF187028AD2DBDE0A /* PersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDE48A550994CE6E35D99B17 /* PersistenceTests.swift */; };
+		8E3D0AC1569F1BA279AF054E /* GoogleAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = A12FDB0A5CCFB2C56907DE63 /* GoogleAuth.swift */; };
+		A0D6AE0098430800392564CB /* BlockBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95FD1C7F389BE2B862A81F88 /* BlockBuilderTests.swift */; };
+		A2F7E6D64D1518F978D7CFC2 /* SheetGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2244B0C3FEDB38CFA5D0128 /* SheetGrid.swift */; };
+		AAB1AF9D5F9324682EAF6B48 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9038CBF5AF997C5562D3A6E4 /* RootView.swift */; };
+		ABD873E424154FD3FB356B4B /* WorkoutStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C34F48B2A70097769AF75CFB /* WorkoutStoreTests.swift */; };
+		B0441BD9835254837C31369E /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2A79566B8F5D5A99B273AA3 /* SettingsStore.swift */; };
 		B5967ACAA3E4FE35D1E7CD9A /* Smoke.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5803AA2AB8CAF0A50C904688 /* Smoke.swift */; };
+		C32D7B3A93CB75699BC9D725 /* SetLogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27D2307B76B734B823D9ACD7 /* SetLogTests.swift */; };
+		C6BB8217B61B3816F100F3B3 /* SheetGridTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E25FBBA83323893F14B6554 /* SheetGridTests.swift */; };
+		D5E1746710FBCA626CE483A0 /* SyncCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16D76AE1D275F830D0A17662 /* SyncCoordinatorTests.swift */; };
+		DE361FE9C086242F4458F489 /* SpreadsheetIdTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D1C1DF322F4C1EC651AF67C /* SpreadsheetIdTests.swift */; };
 		E8F14E95FDFED307B2DC2042 /* WorkoutTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D48BD9386FBE1872BB0B6849 /* WorkoutTrackerApp.swift */; };
 		F04A880C4E2AE6D08487BC0A /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = CEF7E56EC8A77C77056ABE2A /* GoogleSignInSwift */; };
+		F42B73CE773749DB8D8051D9 /* SessionProgressTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BDD405FBD94AD2652A0216A /* SessionProgressTrackerTests.swift */; };
+		F58786858363A7A52D822F21 /* Exercise.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD5AE788CBF5DAF0C684F6D3 /* Exercise.swift */; };
+		FCA508FE3522CB7062267112 /* SessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31CB80B71F35E4D4A35FE87 /* SessionView.swift */; };
+		FD532690E409CC21380B5AC5 /* SheetsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = D25BC6F5BDADC735072B49F8 /* SheetsClient.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -24,11 +53,40 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		16D76AE1D275F830D0A17662 /* SyncCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinatorTests.swift; sourceTree = "<group>"; };
+		1D44F8E841251ECBC223177C /* SettingsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStoreTests.swift; sourceTree = "<group>"; };
+		1E25FBBA83323893F14B6554 /* SheetGridTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetGridTests.swift; sourceTree = "<group>"; };
+		20D53666552036BF79EEB41F /* SetLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetLog.swift; sourceTree = "<group>"; };
+		27D2307B76B734B823D9ACD7 /* SetLogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetLogTests.swift; sourceTree = "<group>"; };
+		2BDD405FBD94AD2652A0216A /* SessionProgressTrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionProgressTrackerTests.swift; sourceTree = "<group>"; };
+		2D1C1DF322F4C1EC651AF67C /* SpreadsheetIdTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpreadsheetIdTests.swift; sourceTree = "<group>"; };
+		3DE918A15498A36B4EC413FD /* SessionProgressTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionProgressTracker.swift; sourceTree = "<group>"; };
+		3EB277F74C7EEBC24BF4E813 /* BlockBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockBuilder.swift; sourceTree = "<group>"; };
 		435A665E1EE8F8F82EA527B3 /* WorkoutTracker.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = WorkoutTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5204E40ABC910CEBB0F82816 /* BlockTabSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockTabSelector.swift; sourceTree = "<group>"; };
+		56BD19DDAA92AF5F6982BB5E /* Block.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Block.swift; sourceTree = "<group>"; };
 		5803AA2AB8CAF0A50C904688 /* Smoke.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Smoke.swift; sourceTree = "<group>"; };
+		5C9C69974B6867E8568AFBD0 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		698FB46E5B1635F96AA0AA79 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		85DAA2ACBA4B64FF4A2A3895 /* BlockTabSelectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockTabSelectorTests.swift; sourceTree = "<group>"; };
+		9038CBF5AF997C5562D3A6E4 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		93A5CA6A951EC6FB3C319E0F /* SheetParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetParser.swift; sourceTree = "<group>"; };
+		95FD1C7F389BE2B862A81F88 /* BlockBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockBuilderTests.swift; sourceTree = "<group>"; };
+		A12FDB0A5CCFB2C56907DE63 /* GoogleAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAuth.swift; sourceTree = "<group>"; };
+		A2244B0C3FEDB38CFA5D0128 /* SheetGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetGrid.swift; sourceTree = "<group>"; };
+		C34F48B2A70097769AF75CFB /* WorkoutStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutStoreTests.swift; sourceTree = "<group>"; };
+		CDE48A550994CE6E35D99B17 /* PersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceTests.swift; sourceTree = "<group>"; };
+		CF512CAF662AE6E54D7B864C /* SyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinator.swift; sourceTree = "<group>"; };
 		CFB89BA958473D4799209DE5 /* WorkoutTrackerTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = WorkoutTrackerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D25BC6F5BDADC735072B49F8 /* SheetsClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetsClient.swift; sourceTree = "<group>"; };
 		D48BD9386FBE1872BB0B6849 /* WorkoutTrackerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutTrackerApp.swift; sourceTree = "<group>"; };
+		D66DA3EF58BF03C538C44EED /* SheetGridFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetGridFixture.swift; sourceTree = "<group>"; };
+		DD5AE788CBF5DAF0C684F6D3 /* Exercise.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Exercise.swift; sourceTree = "<group>"; };
+		E2A79566B8F5D5A99B273AA3 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
+		E31CB80B71F35E4D4A35FE87 /* SessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionView.swift; sourceTree = "<group>"; };
+		E3B15FEFD6BDE5D8F1A71800 /* GoogleSheetsClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleSheetsClient.swift; sourceTree = "<group>"; };
+		ECBE6989519E819A9FDB6608 /* WorkoutStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutStore.swift; sourceTree = "<group>"; };
+		EDD12C158C127F6E87575212 /* SheetParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetParserTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -44,10 +102,89 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0FF08B69E3C2E465E1D9E404 /* Sheets */ = {
+			isa = PBXGroup;
+			children = (
+				A12FDB0A5CCFB2C56907DE63 /* GoogleAuth.swift */,
+				E3B15FEFD6BDE5D8F1A71800 /* GoogleSheetsClient.swift */,
+				D25BC6F5BDADC735072B49F8 /* SheetsClient.swift */,
+			);
+			path = Sheets;
+			sourceTree = "<group>";
+		};
+		1997BFA49DE4750CC2EB3E93 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				5C9C69974B6867E8568AFBD0 /* OnboardingView.swift */,
+				9038CBF5AF997C5562D3A6E4 /* RootView.swift */,
+				E31CB80B71F35E4D4A35FE87 /* SessionView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		1AE8BFC61A79238DBEB0716A /* Progress */ = {
+			isa = PBXGroup;
+			children = (
+				3DE918A15498A36B4EC413FD /* SessionProgressTracker.swift */,
+			);
+			path = Progress;
+			sourceTree = "<group>";
+		};
+		4F44579DA49B4E25AC4AF656 /* Support */ = {
+			isa = PBXGroup;
+			children = (
+				D66DA3EF58BF03C538C44EED /* SheetGridFixture.swift */,
+			);
+			path = Support;
+			sourceTree = "<group>";
+		};
+		646C10C31A60F3960685BCF9 /* Parsing */ = {
+			isa = PBXGroup;
+			children = (
+				3EB277F74C7EEBC24BF4E813 /* BlockBuilder.swift */,
+				5204E40ABC910CEBB0F82816 /* BlockTabSelector.swift */,
+				A2244B0C3FEDB38CFA5D0128 /* SheetGrid.swift */,
+				93A5CA6A951EC6FB3C319E0F /* SheetParser.swift */,
+			);
+			path = Parsing;
+			sourceTree = "<group>";
+		};
+		65450F3822585C816058505E /* Stores */ = {
+			isa = PBXGroup;
+			children = (
+				E2A79566B8F5D5A99B273AA3 /* SettingsStore.swift */,
+				CF512CAF662AE6E54D7B864C /* SyncCoordinator.swift */,
+				ECBE6989519E819A9FDB6608 /* WorkoutStore.swift */,
+			);
+			path = Stores;
+			sourceTree = "<group>";
+		};
+		9F358C93B0B4F80F20812547 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				56BD19DDAA92AF5F6982BB5E /* Block.swift */,
+				DD5AE788CBF5DAF0C684F6D3 /* Exercise.swift */,
+				20D53666552036BF79EEB41F /* SetLog.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
 		A299D8FA2EE633EA50284A46 /* WorkoutTrackerTests */ = {
 			isa = PBXGroup;
 			children = (
+				95FD1C7F389BE2B862A81F88 /* BlockBuilderTests.swift */,
+				85DAA2ACBA4B64FF4A2A3895 /* BlockTabSelectorTests.swift */,
+				CDE48A550994CE6E35D99B17 /* PersistenceTests.swift */,
+				2BDD405FBD94AD2652A0216A /* SessionProgressTrackerTests.swift */,
+				27D2307B76B734B823D9ACD7 /* SetLogTests.swift */,
+				1D44F8E841251ECBC223177C /* SettingsStoreTests.swift */,
+				1E25FBBA83323893F14B6554 /* SheetGridTests.swift */,
+				EDD12C158C127F6E87575212 /* SheetParserTests.swift */,
 				5803AA2AB8CAF0A50C904688 /* Smoke.swift */,
+				2D1C1DF322F4C1EC651AF67C /* SpreadsheetIdTests.swift */,
+				16D76AE1D275F830D0A17662 /* SyncCoordinatorTests.swift */,
+				C34F48B2A70097769AF75CFB /* WorkoutStoreTests.swift */,
+				4F44579DA49B4E25AC4AF656 /* Support */,
 			);
 			path = WorkoutTrackerTests;
 			sourceTree = "<group>";
@@ -75,6 +212,12 @@
 			children = (
 				698FB46E5B1635F96AA0AA79 /* Info.plist */,
 				D48BD9386FBE1872BB0B6849 /* WorkoutTrackerApp.swift */,
+				9F358C93B0B4F80F20812547 /* Models */,
+				646C10C31A60F3960685BCF9 /* Parsing */,
+				1AE8BFC61A79238DBEB0716A /* Progress */,
+				0FF08B69E3C2E465E1D9E404 /* Sheets */,
+				65450F3822585C816058505E /* Stores */,
+				1997BFA49DE4750CC2EB3E93 /* Views */,
 			);
 			path = WorkoutTracker;
 			sourceTree = "<group>";
@@ -161,7 +304,19 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A0D6AE0098430800392564CB /* BlockBuilderTests.swift in Sources */,
+				00091317945A6BC21A22942B /* BlockTabSelectorTests.swift in Sources */,
+				893458BAF187028AD2DBDE0A /* PersistenceTests.swift in Sources */,
+				F42B73CE773749DB8D8051D9 /* SessionProgressTrackerTests.swift in Sources */,
+				C32D7B3A93CB75699BC9D725 /* SetLogTests.swift in Sources */,
+				523D8ACE56DCD7D006E06DD0 /* SettingsStoreTests.swift in Sources */,
+				82D3353296627C46FED9C509 /* SheetGridFixture.swift in Sources */,
+				C6BB8217B61B3816F100F3B3 /* SheetGridTests.swift in Sources */,
+				4C707652469B53C5FEDE67A1 /* SheetParserTests.swift in Sources */,
 				B5967ACAA3E4FE35D1E7CD9A /* Smoke.swift in Sources */,
+				DE361FE9C086242F4458F489 /* SpreadsheetIdTests.swift in Sources */,
+				D5E1746710FBCA626CE483A0 /* SyncCoordinatorTests.swift in Sources */,
+				ABD873E424154FD3FB356B4B /* WorkoutStoreTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -169,6 +324,23 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				220D586E2C3501A8CD100024 /* Block.swift in Sources */,
+				46E6FCB4ACD0D4AC6985A5A6 /* BlockBuilder.swift in Sources */,
+				0B4BF5AB6DD10A512C793BED /* BlockTabSelector.swift in Sources */,
+				F58786858363A7A52D822F21 /* Exercise.swift in Sources */,
+				8E3D0AC1569F1BA279AF054E /* GoogleAuth.swift in Sources */,
+				2FFD6423631AA90DA899A6F8 /* GoogleSheetsClient.swift in Sources */,
+				7A7A9B87F7663034989F8EB4 /* OnboardingView.swift in Sources */,
+				AAB1AF9D5F9324682EAF6B48 /* RootView.swift in Sources */,
+				0D3E6DBCFE1881EE177EDEAE /* SessionProgressTracker.swift in Sources */,
+				FCA508FE3522CB7062267112 /* SessionView.swift in Sources */,
+				6370263F171AC8EFE288A5E3 /* SetLog.swift in Sources */,
+				B0441BD9835254837C31369E /* SettingsStore.swift in Sources */,
+				A2F7E6D64D1518F978D7CFC2 /* SheetGrid.swift in Sources */,
+				6962F55A0A33D607CC9C4C22 /* SheetParser.swift in Sources */,
+				FD532690E409CC21380B5AC5 /* SheetsClient.swift in Sources */,
+				7B8CE914CEB343A88D109955 /* SyncCoordinator.swift in Sources */,
+				534BF64C12717F887A7C272C /* WorkoutStore.swift in Sources */,
 				E8F14E95FDFED307B2DC2042 /* WorkoutTrackerApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
