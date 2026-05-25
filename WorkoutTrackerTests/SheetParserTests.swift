@@ -78,3 +78,31 @@ import Testing
     #expect(exercises[1].sets[0].prescribedReps == "AMRAP")
     #expect(exercises[1].sets[0].prescribedLoad == "BW")
 }
+
+@Test func assemblesBlockFromTwoWeekSections() {
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2", "AI12": "Day 3", "AX12": "Day 4",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": "0:3:0 Standing Calve Raises", "D15": "2", "F15": "12", "H15": "RPE9, RPE10",
+            "C37": "Day 1", "S37": "Day 2", "AI37": "Day 3", "AX37": "Day 4",
+            "D39": "Sets", "F39": "Reps", "H39": "Load", "K39": "Notes",
+            "C40": "0:3:0 Standing Calve Raises", "D40": "2", "F40": "11 - 12", "H40": "RPE9, RPE10"
+        ],
+        rows: 45,
+        cols: 60
+    )
+
+    let parsed = SheetParser().parse(grid: grid, tabName: "Block 27")
+    #expect(parsed.warnings.isEmpty)
+    #expect(parsed.block.weeks.count == 2)
+    #expect(parsed.block.weeks[0].number == 1)
+    #expect(parsed.block.weeks[0].days.count == 4)
+    #expect(parsed.block.weeks[0].days[0].exercises[0].baseName == "Standing Calve Raises")
+    #expect(parsed.block.weeks[1].days[0].exercises[0].sets[0].prescribedReps == "11 - 12")
+}
+
+@Test func warnsWhenNoWeekSections() {
+    let parsed = SheetParser().parse(grid: gridFromA1([:], rows: 5, cols: 5), tabName: "Block 27")
+    #expect(parsed.warnings.contains { $0.contains("no week sections") })
+}

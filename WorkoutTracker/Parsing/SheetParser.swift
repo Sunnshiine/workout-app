@@ -134,6 +134,54 @@ func parseDay(in grid: SheetGrid, section: WeekSection, dayIndex: Int, endRow: I
     return result
 }
 
+struct ParsedSession {
+    var dayNumber: Int
+    var date: Date?
+    var exercises: [ParsedExercise]
+}
+struct ParsedWeek {
+    var number: Int
+    var days: [ParsedSession]
+}
+struct ParsedBlockModel {
+    var tabName: String
+    var weeks: [ParsedWeek]
+}
+struct ParsedBlock {
+    var block: ParsedBlockModel
+    var warnings: [String]
+}
+
+struct SheetParser {
+    func parse(grid: SheetGrid, tabName: String) -> ParsedBlock {
+        var warnings: [String] = []
+        let sections = locateWeekSections(in: grid)
+        if sections.isEmpty {
+            warnings.append("Parse warning: no week sections (no 'Day N' headers) in \(tabName)")
+            return ParsedBlock(block: ParsedBlockModel(tabName: tabName, weeks: []), warnings: warnings)
+        }
+        var weeks: [ParsedWeek] = []
+        for (i, section) in sections.enumerated() {
+            let endRow = (i + 1 < sections.count) ? sections[i + 1].headerRow : grid.count
+            var days: [ParsedSession] = []
+            for dayIndex in 0..<section.dayStartCols.count {
+                let date = parseDate(grid.cell(row: section.dateRow, col: section.dayStartCols[dayIndex]))
+                let exercises = parseDay(in: grid, section: section, dayIndex: dayIndex, endRow: endRow)
+                days.append(ParsedSession(dayNumber: dayIndex + 1, date: date, exercises: exercises))
+            }
+            weeks.append(ParsedWeek(number: i + 1, days: days))
+        }
+        return ParsedBlock(block: ParsedBlockModel(tabName: tabName, weeks: weeks), warnings: warnings)
+    }
+
+    private func parseDate(_ s: String) -> Date? {
+        let f = DateFormatter()
+        f.dateFormat = "M/d/yyyy"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        return f.date(from: s.trimmed)
+    }
+}
+
 extension String { var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) } }
 extension Array where Element == [String] {
     func cellOrEmpty(_ row: Int, _ col: Int?) -> String { col.map { cell(row: row, col: $0) } ?? "" }
