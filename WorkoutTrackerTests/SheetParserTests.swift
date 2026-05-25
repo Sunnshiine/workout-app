@@ -50,3 +50,31 @@ import Testing
     #expect(splitCadence("Lateral Raises").cadence == nil)
     #expect(splitCadence("Lateral Raises").base == "Lateral Raises")
 }
+
+@Test func parsesAnchorAndContinuationRows() {
+    // Real rows: C15 anchor "0:3:0 Standing Calve Raises", D15 Sets=2, F15 Reps=12,
+    // H15 Load "RPE9, RPE10", K15 coach/log "Superset cue". Next anchor C22.
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "G14": "%1RM", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
+            "C15": "0:3:0 Standing Calve Raises", "D15": "2", "F15": "12", "H15": "RPE9, RPE10", "K15": "Superset cue",
+            "C22": "0:2:0 Pull Up", "D22": "2", "F22": "AMRAP", "H22": "BW"
+        ],
+        rows: 30,
+        cols: 30
+    )
+    let section = locateWeekSections(in: grid)[0]
+
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+    #expect(exercises.count == 2)
+    #expect(exercises[0].name == "0:3:0 Standing Calve Raises")
+    #expect(exercises[0].baseName == "Standing Calve Raises")
+    #expect(exercises[0].coachNote == "Superset cue")
+    #expect(exercises[0].sets.count == 2)  // "2" sets
+    #expect(exercises[0].sets[0].prescribedReps == "12")
+    #expect(exercises[0].sets[0].prescribedLoad == "RPE9, RPE10")
+    #expect(exercises[1].baseName == "Pull Up")
+    #expect(exercises[1].sets[0].prescribedReps == "AMRAP")
+    #expect(exercises[1].sets[0].prescribedLoad == "BW")
+}
