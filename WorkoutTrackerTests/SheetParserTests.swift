@@ -42,3 +42,11 @@ import Testing
     #expect(sections[0].dayStartCols == [2, 18, 34, 49])  // C,S,AI,AX (0-based)
     #expect(sections[0].roleHeaderRow == 13)  // header + 2
 }
+
+@Test func splitsCadencePrefix() {
+    #expect(splitCadence("2-3:1:0 BB RDL").cadence == "2-3:1:0")
+    #expect(splitCadence("2-3:1:0 BB RDL").base == "BB RDL")
+    #expect(splitCadence("0:3:0 Standing Calve Raises").base == "Standing Calve Raises")
+    #expect(splitCadence("Lateral Raises").cadence == nil)
+    #expect(splitCadence("Lateral Raises").base == "Lateral Raises")
+}
