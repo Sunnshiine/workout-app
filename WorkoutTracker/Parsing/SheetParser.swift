@@ -61,3 +61,12 @@ func locateWeekSections(in grid: SheetGrid) -> [WeekSection] {
         return WeekSection(headerRow: row, roleHeaderRow: row + 2, dateRow: row + 1, dayStartCols: cols)
     }
 }
+
+/// Splits a leading tempo prefix (e.g. "2-3:1-2:0") from the base exercise name.
+func splitCadence(_ name: String) -> (cadence: String?, base: String) {
+    let pattern = /^(\d+(?:-\d+)?:\d+(?:-\d+)?:\d+(?:-\d+)?)\s+(.+)$/
+    if let m = name.wholeMatch(of: pattern) {
+        return (String(m.1), String(m.2))
+    }
+    return (nil, name)
+}
