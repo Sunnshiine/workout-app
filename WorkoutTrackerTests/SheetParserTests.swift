@@ -2,6 +2,30 @@ import Testing
 
 @testable import WorkoutTracker
 
+@Test func resolvesRoleColumnsByHeaderScan() {
+    // Day-1 role header row (real): D14 Sets, F14 Reps, G14 %1RM, H14 Load,
+    // I14 Last set RPE, K14 Notes. Name column = day start (C).
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "G14": "%1RM", "H14": "Load",
+            "I14": "Last set RPE", "K14": "Notes"
+        ],
+        rows: 20,
+        cols: 30
+    )
+    let section = locateWeekSections(in: grid)[0]
+
+    let cols = resolveDayColumns(in: grid, section: section, dayIndex: 0)
+    #expect(cols.name == 2)  // C
+    #expect(cols.sets == 3)  // D
+    #expect(cols.reps == 5)  // F
+    #expect(cols.percentOneRM == 6)  // G
+    #expect(cols.load == 7)  // H
+    #expect(cols.lastSetRPE == 8)  // I
+    #expect(cols.notes == 10)  // K
+}
+
 @Test func locatesFourDayGroupsPerWeekSection() {
     let grid = gridFromA1(
         [
