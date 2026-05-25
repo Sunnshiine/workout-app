@@ -70,3 +70,71 @@ func splitCadence(_ name: String) -> (cadence: String?, base: String) {
     }
     return (nil, name)
 }
+
+struct ParsedSet {
+    var index: Int
+    var prescribedReps: String
+    var prescribedLoad: String
+    var percentOneRM: String?
+}
+
+struct ParsedExercise {
+    var name: String
+    var baseName: String
+    var cadence: String?
+    var coachNote: String?
+    var sets: [ParsedSet]
+}
+
+/// Parses all exercises in one day group. Anchor rows have a non-empty name cell;
+/// the row count for an exercise is `max(Sets value, 1)` (continuation rows hold
+/// extra sets / set logs; logs are read in Plan 2).
+func parseDay(in grid: SheetGrid, section: WeekSection, dayIndex: Int, endRow: Int) -> [ParsedExercise] {
+    let cols = resolveDayColumns(in: grid, section: section, dayIndex: dayIndex)
+    let firstRow = section.roleHeaderRow + 1
+    let upper = min(endRow, grid.count)
+
+    // Collect anchor rows (name cell non-empty), stopping at the next week's day header.
+    var anchors: [Int] = []
+    if firstRow < upper {
+        for r in firstRow..<upper {
+            if grid.cell(row: r, col: cols.name).wholeMatch(of: dayHeaderPattern) != nil { break }
+            if !grid.cell(row: r, col: cols.name).trimmed.isEmpty { anchors.append(r) }
+        }
+    }
+
+    var result: [ParsedExercise] = []
+    for r in anchors {
+        let rawName = grid.cell(row: r, col: cols.name).trimmed
+        let (cadence, base) = splitCadence(rawName)
+        // Sets cell may be "2" or a range like "3 - 4"; take the leading integer.
+        let setCount = max(Int(grid.cellOrEmpty(r, cols.sets).prefix { $0.isNumber }) ?? 1, 1)
+        let reps = grid.cellOrEmpty(r, cols.reps)
+        let load = grid.cellOrEmpty(r, cols.load)
+        let pct = grid.cellOrEmpty(r, cols.percentOneRM)
+        let note = grid.cellOrEmpty(r, cols.notes).trimmed
+        let sets = (0..<setCount).map {
+            ParsedSet(
+                index: $0,
+                prescribedReps: reps,
+                prescribedLoad: load,
+                percentOneRM: pct.isEmpty ? nil : pct
+            )
+        }
+        result.append(
+            ParsedExercise(
+                name: rawName,
+                baseName: base,
+                cadence: cadence,
+                coachNote: note.isEmpty ? nil : note,
+                sets: sets
+            )
+        )
+    }
+    return result
+}
+
+extension String { var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) } }
+extension Array where Element == [String] {
+    func cellOrEmpty(_ row: Int, _ col: Int?) -> String { col.map { cell(row: row, col: $0) } ?? "" }
+}
