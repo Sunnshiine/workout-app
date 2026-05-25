@@ -1,0 +1,46 @@
+name: WorkoutTracker
+options:
+  bundleIdPrefix: com.sunnypatel
+  deploymentTarget:
+    iOS: "26.0"
+  defaultConfig: Debug
+
+packages:
+  GoogleSignIn:
+    url: https://github.com/google/GoogleSignIn-iOS
+    majorVersion: 8.0.0
+  SwiftLintPlugins:
+    url: https://github.com/SimplyDanny/SwiftLintPlugins
+    majorVersion: 0.58.0
+
+targets:
+  WorkoutTracker:
+    type: application
+    platform: iOS
+    sources: [WorkoutTracker]
+    info:
+      path: WorkoutTracker/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.sunnypatel.WorkoutTracker
+        SWIFT_VERSION: "6.0"
+        SWIFT_STRICT_CONCURRENCY: complete
+    dependencies:
+      - package: GoogleSignIn
+        product: GoogleSignIn
+      - package: GoogleSignIn
+        product: GoogleSignInSwift
+    buildToolPlugins:
+      - plugin: SwiftLintBuildToolPlugin
+        package: SwiftLintPlugins
+
+  WorkoutTrackerTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [WorkoutTrackerTests]
+    dependencies:
+      - target: WorkoutTracker
+    settings:
+      base:
+        SWIFT_VERSION: "6.0"
+        GENERATE_INFOPLIST_FILE: "YES"
