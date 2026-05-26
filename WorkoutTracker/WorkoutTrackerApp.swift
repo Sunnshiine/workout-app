@@ -27,7 +27,7 @@ struct WorkoutTrackerApp: App {
             }
         #endif
         // swiftlint:disable:next force_try
-        let container = try! ModelContainer(for: Block.self, PendingWrite.self)
+        let container = try! ModelContainer(for: Block.self, PendingWrite.self, LastPerformedEntry.self)
         self.container = container
         let ctx = container.mainContext
         _settings = State(initialValue: SettingsStore())
