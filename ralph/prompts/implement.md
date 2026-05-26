@@ -35,7 +35,7 @@ ALL of these must hold:
     `xcodegen generate`
   then:
     `xcodebuild -project WorkoutTracker.xcodeproj -scheme WorkoutTracker -configuration Debug \
-       -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build`
+       -destination "platform=iOS Simulator,name=${SIM_DEVICE:-iPhone 17 Pro}" build`
 - Every acceptance-criteria checkbox in the Agent Brief is satisfied.
 Do NOT run the simulator or take screenshots yourself — the loop performs UI verification separately.
 

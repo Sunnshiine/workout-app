@@ -15,7 +15,7 @@
 #
 # Usage:
 #   ralph/ralph.sh [--engine claude|codex] [--max-iterations N] [--no-push] [--select-only]
-#                  [--model NAME] [--device "iPhone 17 Pro"]
+#                  [--model NAME] [--device "iPhone 17 Pro"] [--codex-sandbox]
 #
 # WARNING: with defaults this PUSHES to origin/main and CLOSES issues unattended.
 #          Pass --no-push to keep commits local (issues are still closed on the remote).
@@ -28,7 +28,7 @@ MAX_ITER="${MAX_ITER:-5}"
 PUSH="${PUSH:-1}"
 SELECT_ONLY="${SELECT_ONLY:-0}"
 MODEL="${MODEL:-}"
-CODEX_BYPASS="${CODEX_BYPASS:-0}"
+CODEX_BYPASS="${CODEX_BYPASS:-1}"
 LABEL="${LABEL:-ready-for-agent}"
 HUMAN_LABEL="${HUMAN_LABEL:-ready-for-human}"
 SIM_DEVICE="${SIM_DEVICE:-iPhone 17 Pro}"
@@ -41,6 +41,7 @@ while [ $# -gt 0 ]; do
     --select-only) SELECT_ONLY=1; shift;;
     --model) MODEL="$2"; shift 2;;
     --device) SIM_DEVICE="$2"; shift 2;;
+    --codex-sandbox) CODEX_BYPASS=0; shift;;
     -h|--help) sed -n '2,28p' "$0"; exit 0;;
     *) echo "Unknown arg: $1" >&2; exit 2;;
   esac
@@ -67,9 +68,11 @@ run_agent() {
   local prompt="$1" workdir="$2" image="${3:-}"
   if [ "$ENGINE" = codex ]; then
     local last; last="$(mktemp)"
-    local -a a=(exec --skip-git-repo-check -C "$workdir" --sandbox workspace-write -o "$last")
+    local -a a=(exec --skip-git-repo-check -C "$workdir" -o "$last")
     if [ "$CODEX_BYPASS" = 1 ]; then
       a+=(--dangerously-bypass-approvals-and-sandbox --dangerously-bypass-hook-trust)
+    else
+      a+=(--sandbox workspace-write)
     fi
     [ -n "$MODEL" ] && a+=(-m "$MODEL")
     [ -n "$image" ] && a+=(-i "$image")
