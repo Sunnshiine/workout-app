@@ -4,8 +4,9 @@ import Testing
 @testable import WorkoutTracker
 
 @MainActor
-@Test func isConfiguredRequiresSpreadsheetIdAndAuth() {
-    let store = SettingsStore(defaults: UserDefaults(suiteName: "test.\(UUID())")!)
+@Test func isConfiguredRequiresSpreadsheetIdAndAuth() throws {
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let store = SettingsStore(defaults: defaults)
     store.isSignedIn = true
     #expect(store.isConfigured == false)  // no URL yet
     store.setSheetURL("https://docs.google.com/spreadsheets/d/SHEET123/edit")

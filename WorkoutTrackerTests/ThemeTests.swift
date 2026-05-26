@@ -8,9 +8,19 @@ import Testing
 #endif
 
 #if canImport(AppKit)
-    private func rgbComponents(of color: Color) -> (r: Double, g: Double, b: Double)? {
+    private struct RGBComponents {
+        let red: Double
+        let green: Double
+        let blue: Double
+    }
+
+    private func rgbComponents(of color: Color) -> RGBComponents? {
         NSColor(color).usingColorSpace(.deviceRGB).map {
-            (Double($0.redComponent), Double($0.greenComponent), Double($0.blueComponent))
+            RGBComponents(
+                red: Double($0.redComponent),
+                green: Double($0.greenComponent),
+                blue: Double($0.blueComponent)
+            )
         }
     }
 #endif
@@ -30,24 +40,24 @@ import Testing
 @Test func themeAccentIsAntiqueGold() {
     let accent = Theme.accent
     #if canImport(AppKit)
-        guard let (r, g, b) = rgbComponents(of: accent) else {
+        guard let rgb = rgbComponents(of: accent) else {
             Issue.record("Could not resolve accent to deviceRGB")
             return
         }
-        #expect(abs(r - 0.831) < 0.01, "Expected red ≈ 0.831, got \(r)")
-        #expect(abs(g - 0.686) < 0.01, "Expected green ≈ 0.686, got \(g)")
-        #expect(abs(b - 0.216) < 0.01, "Expected blue ≈ 0.216, got \(b)")
+        #expect(abs(rgb.red - 0.831) < 0.01, "Expected red ≈ 0.831, got \(rgb.red)")
+        #expect(abs(rgb.green - 0.686) < 0.01, "Expected green ≈ 0.686, got \(rgb.green)")
+        #expect(abs(rgb.blue - 0.216) < 0.01, "Expected blue ≈ 0.216, got \(rgb.blue)")
     #endif
 }
 
 @Test func themeGradientHasNoOrangeTones() {
     #if canImport(AppKit)
         for stop in Theme.gradientStops {
-            guard let (r, g, _) = rgbComponents(of: stop.color) else { continue }
+            guard let rgb = rgbComponents(of: stop.color) else { continue }
             // Orange: high red AND red significantly dominates green
             #expect(
-                !(r > 0.3 && r > 1.5 * g),
-                "Stop at location \(stop.location) is orange: r=\(r) g=\(g)"
+                !(rgb.red > 0.3 && rgb.red > 1.5 * rgb.green),
+                "Stop at location \(stop.location) is orange: r=\(rgb.red) g=\(rgb.green)"
             )
         }
     #endif
@@ -56,10 +66,10 @@ import Testing
 @Test func themeGradientIsNearBlackNeutral() {
     #if canImport(AppKit)
         for stop in Theme.gradientStops {
-            guard let (r, g, b) = rgbComponents(of: stop.color) else { continue }
-            #expect(r < 0.15, "Stop at \(stop.location): red \(r) too high for obsidian")
-            #expect(g < 0.15, "Stop at \(stop.location): green \(g) too high for obsidian")
-            #expect(b < 0.15, "Stop at \(stop.location): blue \(b) too high for obsidian")
+            guard let rgb = rgbComponents(of: stop.color) else { continue }
+            #expect(rgb.red < 0.15, "Stop at \(stop.location): red \(rgb.red) too high for obsidian")
+            #expect(rgb.green < 0.15, "Stop at \(stop.location): green \(rgb.green) too high for obsidian")
+            #expect(rgb.blue < 0.15, "Stop at \(stop.location): blue \(rgb.blue) too high for obsidian")
         }
     #endif
 }

@@ -5,7 +5,11 @@ func currentBlockTab(from titles: [String]) -> String? {
     var best: (number: Int, title: String)?
     for title in titles {
         guard let m = title.wholeMatch(of: regex), let n = Int(m.1) else { continue }
-        if best == nil || n > best!.number { best = (n, title) }
+        if let currentBest = best {
+            if n > currentBest.number { best = (n, title) }
+        } else {
+            best = (n, title)
+        }
     }
     return best?.title
 }
