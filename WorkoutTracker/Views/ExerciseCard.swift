@@ -17,7 +17,7 @@ struct ExerciseCard: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(exercise.sets.sorted(by: { $0.index < $1.index }), id: \.persistentModelID) { set in
-                    SetChip(index: set.index, reps: set.prescribedReps, load: set.prescribedLoad)
+                    SetChip(reps: set.prescribedReps, load: set.prescribedLoad)
                 }
             }
         }

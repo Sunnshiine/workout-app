@@ -1,15 +1,11 @@
 import SwiftUI
 
 struct SetChip: View {
-    let index: Int
     let reps: String
     let load: String
 
     var body: some View {
         HStack(spacing: 6) {
-            Text("S\(index + 1)")
-                .fontWeight(.medium)
-                .foregroundStyle(Theme.accent)
             Text(reps)
             Text(load)
                 .foregroundStyle(Theme.accent)
