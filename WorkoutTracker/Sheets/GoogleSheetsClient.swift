@@ -1,5 +1,32 @@
 import Foundation
 
+private struct GoogleSheetsListResponse: Decodable {
+    let sheets: [GoogleSheetsListSheet]
+}
+
+private struct GoogleSheetsListSheet: Decodable {
+    let properties: GoogleSheetsListProperties
+}
+
+private struct GoogleSheetsListProperties: Decodable {
+    let title: String
+}
+
+private struct GoogleSheetValuesResponse: Decodable {
+    let values: [[String]]?
+}
+
+private struct GoogleSheetsValueRange: Encodable {
+    let range: String
+    let majorDimension: String
+    let values: [[String]]
+}
+
+private struct GoogleSheetsBatchUpdateBody: Encodable {
+    let valueInputOption: String
+    let data: [GoogleSheetsValueRange]
+}
+
 struct GoogleSheetsClient: SheetsClient {
     private let tokenProvider: @Sendable () async throws -> String
 
@@ -8,48 +35,49 @@ struct GoogleSheetsClient: SheetsClient {
     }
 
     func listTabTitles(spreadsheetId: String) async throws -> [String] {
-        let url = URL(string: "https://sheets.googleapis.com/v4/spreadsheets/\(spreadsheetId)?fields=sheets.properties.title")!
-        let data = try await get(url)
-        struct Resp: Decodable {
-            struct S: Decodable {
-                struct P: Decodable { let title: String }
-                let properties: P
-            }
-            let sheets: [S]
+        guard
+            let url = URL(
+                string: "https://sheets.googleapis.com/v4/spreadsheets/\(spreadsheetId)?fields=sheets.properties.title"
+            )
+        else {
+            throw SheetsError.malformedResponse
         }
-        return (try JSONDecoder().decode(Resp.self, from: data)).sheets.map { $0.properties.title }
+        let data = try await get(url)
+        return (try JSONDecoder().decode(GoogleSheetsListResponse.self, from: data)).sheets.map { $0.properties.title }
     }
 
     func fetchTab(spreadsheetId: String, tabName: String) async throws -> SheetGrid {
         let range = tabName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? tabName
-        let url = URL(
-            string:
-                "https://sheets.googleapis.com/v4/spreadsheets/\(spreadsheetId)/values/\(range)?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS"
-        )!
+        let urlString =
+            "https://sheets.googleapis.com/v4/spreadsheets/\(spreadsheetId)/values/\(range)"
+            + "?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS"
+        guard
+            let url = URL(
+                string: urlString
+            )
+        else {
+            throw SheetsError.malformedResponse
+        }
         let data = try await get(url)
-        struct Resp: Decodable { let values: [[String]]? }
-        return (try JSONDecoder().decode(Resp.self, from: data)).values ?? []
+        return (try JSONDecoder().decode(GoogleSheetValuesResponse.self, from: data)).values ?? []
     }
 
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
-        let url = URL(string: "https://sheets.googleapis.com/v4/spreadsheets/\(spreadsheetId)/values:batchUpdate")!
-        struct ValueRange: Encodable {
-            let range: String
-            let majorDimension: String
-            let values: [[String]]
-        }
-        struct Body: Encodable {
-            let valueInputOption: String
-            let data: [ValueRange]
+        guard
+            let url = URL(
+                string: "https://sheets.googleapis.com/v4/spreadsheets/\(spreadsheetId)/values:batchUpdate"
+            )
+        else {
+            throw SheetsError.malformedResponse
         }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("Bearer \(try await tokenProvider())", forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.httpBody = try JSONEncoder().encode(
-            Body(
+            GoogleSheetsBatchUpdateBody(
                 valueInputOption: "USER_ENTERED",
-                data: [ValueRange(range: range, majorDimension: "ROWS", values: values)]
+                data: [GoogleSheetsValueRange(range: range, majorDimension: "ROWS", values: values)]
             )
         )
 
