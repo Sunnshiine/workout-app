@@ -54,6 +54,7 @@ final class WorkoutStore {
                 expectedCurrentValue: previousRPE
             )
         }
+        try updateLastPerformed(for: set, log: log)
         try context.save()
     }
 
@@ -121,6 +122,23 @@ final class WorkoutStore {
                 expectedCurrentValue: expectedCurrentValue
             )
         )
+    }
+
+    private func updateLastPerformed(for set: ExerciseSet, log: SetLog) throws {
+        guard let exercise = set.exercise else { throw WorkoutLoggingError.missingExercise }
+        guard let session = exercise.session else { throw WorkoutLoggingError.missingSession }
+        guard let week = session.week else { throw WorkoutLoggingError.missingWeek }
+        guard let block = week.block else { throw WorkoutLoggingError.missingBlock }
+
+        try LastPerformedIndex(context: context).ingest([
+            LastPerformedEntry(
+                fullName: exercise.name,
+                baseName: exercise.baseName,
+                result: log,
+                performedOn: session.date ?? Date(),
+                source: "\(block.tabName) · W\(week.number) D\(session.dayNumber)"
+            )
+        ])
     }
 
     private func isFinalSet(_ set: ExerciseSet) -> Bool {

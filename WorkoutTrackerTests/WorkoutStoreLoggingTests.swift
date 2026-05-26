@@ -9,6 +9,7 @@ private func loggingContainer() throws -> ModelContainer {
     try ModelContainer(
         for: Block.self,
         PendingWrite.self,
+        LastPerformedEntry.self,
         configurations: ModelConfiguration(
             "logging-\(UUID().uuidString)",
             isStoredInMemoryOnly: true
@@ -33,7 +34,7 @@ private func parsedLoggingBlock() -> ParsedBlockModel {
                 days: [
                     ParsedSession(
                         dayNumber: 1,
-                        date: nil,
+                        date: Date(timeIntervalSinceReferenceDate: 100),
                         exercises: [
                             ParsedExercise(
                                 name: "Squat",
@@ -126,4 +127,29 @@ private func seededStore() throws -> SeededLoggingStore {
     let pending = try #require(try fixture.context.fetch(FetchDescriptor<PendingWrite>()).last)
     #expect(pending.operation == .delete)
     #expect(pending.expectedCurrentValue == "185x5@8")
+}
+
+@MainActor
+@Test func logSetUpdatesLastPerformedIndexForExercise() throws {
+    let fixture = try seededStore()
+    withExtendedLifetime(fixture.container) {}
+
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+
+    let index = LastPerformedIndex(context: fixture.context)
+    let entry = try #require(index.lookup(exerciseName: "Squat", baseName: "Squat"))
+    #expect(entry.result == SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+    #expect(entry.performedOn == Date(timeIntervalSinceReferenceDate: 100))
+    #expect(entry.source == "Block 27 · W1 D1")
+}
+
+@MainActor
+@Test func skipSetDoesNotWriteLastPerformedEntry() throws {
+    let fixture = try seededStore()
+    withExtendedLifetime(fixture.container) {}
+
+    try fixture.store.skip(fixture.firstSet)
+
+    let index = LastPerformedIndex(context: fixture.context)
+    #expect(index.lookup(exerciseName: "Squat", baseName: "Squat") == nil)
 }
