@@ -16,7 +16,7 @@ struct SessionView: View {
 
                         ScrollView {
                             GlassEffectContainer(spacing: Theme.cardSpacing) {
-                                LazyVStack(spacing: Theme.cardSpacing) {
+                                LazyVStack(alignment: .leading, spacing: Theme.cardSpacing) {
                                     SessionProgressHeader(session: session)
 
                                     ForEach(
@@ -41,8 +41,9 @@ struct SessionView: View {
                                         )
                                     }
                                 }
-                                .padding()
                             }
+                            .padding(.horizontal)
+                            .padding(.vertical)
                         }
                         .task(id: session.persistentModelID) {
                             focusManager.reset(to: session)
