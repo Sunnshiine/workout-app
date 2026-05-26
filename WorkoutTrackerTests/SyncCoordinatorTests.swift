@@ -13,6 +13,7 @@ private struct StubClient: SheetsClient {
         return titles
     }
     func fetchTab(spreadsheetId: String, tabName: String) async throws -> SheetGrid { grid }
+    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
 }
 
 @MainActor

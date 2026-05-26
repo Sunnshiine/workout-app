@@ -44,6 +44,17 @@
 		C3D4E5F6A7B8C9D0E1F2A1B2 /* ExerciseCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3D4E5F6A7B8C9D0E1F2A1B3 /* ExerciseCard.swift */; };
 		E5F6A7B8C9D0E1F2A1B2C3D4 /* SetChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F6A7B8C9D0E1F2A1B2C3D5 /* SetChip.swift */; };
 		F1A2B3C4D5E6F7A8B9C0D1E2 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6F7A8B9C0D1E3 /* EmptyStateView.swift */; };
+		AA11BB22CC33DD44EE55FF02 /* PendingWrite.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF01 /* PendingWrite.swift */; };
+		AA11BB22CC33DD44EE55FF04 /* SheetWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF03 /* SheetWriter.swift */; };
+		AA11BB22CC33DD44EE55FF06 /* SetLogEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF05 /* SetLogEditor.swift */; };
+		AA11BB22CC33DD44EE55FF16 /* SyncStatusBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF15 /* SyncStatusBanner.swift */; };
+		AA11BB22CC33DD44EE55FF08 /* PendingWriteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF07 /* PendingWriteTests.swift */; };
+		AA11BB22CC33DD44EE55FF0A /* SheetA1Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF09 /* SheetA1Tests.swift */; };
+		AA11BB22CC33DD44EE55FF0C /* SheetWriterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF0B /* SheetWriterTests.swift */; };
+		AA11BB22CC33DD44EE55FF0E /* SyncCoordinatorWriteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF0D /* SyncCoordinatorWriteTests.swift */; };
+		AA11BB22CC33DD44EE55FF10 /* WorkoutStoreLoggingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF0F /* WorkoutStoreLoggingTests.swift */; };
+		AA11BB22CC33DD44EE55FF12 /* SetLogParsingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF11 /* SetLogParsingTests.swift */; };
+		AA11BB22CC33DD44EE55FF14 /* SheetParserLogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE55FF13 /* SheetParserLogTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -95,6 +106,17 @@
 		C3D4E5F6A7B8C9D0E1F2A1B3 /* ExerciseCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseCard.swift; sourceTree = "<group>"; };
 		E5F6A7B8C9D0E1F2A1B2C3D5 /* SetChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetChip.swift; sourceTree = "<group>"; };
 		F1A2B3C4D5E6F7A8B9C0D1E3 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE55FF01 /* PendingWrite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingWrite.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE55FF03 /* SheetWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetWriter.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE55FF05 /* SetLogEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetLogEditor.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE55FF15 /* SyncStatusBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatusBanner.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE55FF07 /* PendingWriteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingWriteTests.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE55FF09 /* SheetA1Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetA1Tests.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE55FF0B /* SheetWriterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetWriterTests.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE55FF0D /* SyncCoordinatorWriteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinatorWriteTests.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE55FF0F /* WorkoutStoreLoggingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutStoreLoggingTests.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE55FF11 /* SetLogParsingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetLogParsingTests.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE55FF13 /* SheetParserLogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetParserLogTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -116,6 +138,7 @@
 				A12FDB0A5CCFB2C56907DE63 /* GoogleAuth.swift */,
 				E3B15FEFD6BDE5D8F1A71800 /* GoogleSheetsClient.swift */,
 				D25BC6F5BDADC735072B49F8 /* SheetsClient.swift */,
+				AA11BB22CC33DD44EE55FF03 /* SheetWriter.swift */,
 			);
 			path = Sheets;
 			sourceTree = "<group>";
@@ -129,6 +152,8 @@
 				9038CBF5AF997C5562D3A6E4 /* RootView.swift */,
 				E31CB80B71F35E4D4A35FE87 /* SessionView.swift */,
 				E5F6A7B8C9D0E1F2A1B2C3D5 /* SetChip.swift */,
+				AA11BB22CC33DD44EE55FF05 /* SetLogEditor.swift */,
+				AA11BB22CC33DD44EE55FF15 /* SyncStatusBanner.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -176,6 +201,7 @@
 				56BD19DDAA92AF5F6982BB5E /* Block.swift */,
 				DD5AE788CBF5DAF0C684F6D3 /* Exercise.swift */,
 				20D53666552036BF79EEB41F /* SetLog.swift */,
+				AA11BB22CC33DD44EE55FF01 /* PendingWrite.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -195,6 +221,13 @@
 				2D1C1DF322F4C1EC651AF67C /* SpreadsheetIdTests.swift */,
 				16D76AE1D275F830D0A17662 /* SyncCoordinatorTests.swift */,
 				C34F48B2A70097769AF75CFB /* WorkoutStoreTests.swift */,
+				AA11BB22CC33DD44EE55FF07 /* PendingWriteTests.swift */,
+				AA11BB22CC33DD44EE55FF09 /* SheetA1Tests.swift */,
+				AA11BB22CC33DD44EE55FF0B /* SheetWriterTests.swift */,
+				AA11BB22CC33DD44EE55FF0D /* SyncCoordinatorWriteTests.swift */,
+				AA11BB22CC33DD44EE55FF0F /* WorkoutStoreLoggingTests.swift */,
+				AA11BB22CC33DD44EE55FF11 /* SetLogParsingTests.swift */,
+				AA11BB22CC33DD44EE55FF13 /* SheetParserLogTests.swift */,
 				4F44579DA49B4E25AC4AF656 /* Support */,
 			);
 			path = WorkoutTrackerTests;
@@ -329,6 +362,13 @@
 				DE361FE9C086242F4458F489 /* SpreadsheetIdTests.swift in Sources */,
 				D5E1746710FBCA626CE483A0 /* SyncCoordinatorTests.swift in Sources */,
 				ABD873E424154FD3FB356B4B /* WorkoutStoreTests.swift in Sources */,
+				AA11BB22CC33DD44EE55FF08 /* PendingWriteTests.swift in Sources */,
+				AA11BB22CC33DD44EE55FF0A /* SheetA1Tests.swift in Sources */,
+				AA11BB22CC33DD44EE55FF0C /* SheetWriterTests.swift in Sources */,
+				AA11BB22CC33DD44EE55FF0E /* SyncCoordinatorWriteTests.swift in Sources */,
+				AA11BB22CC33DD44EE55FF10 /* WorkoutStoreLoggingTests.swift in Sources */,
+				AA11BB22CC33DD44EE55FF12 /* SetLogParsingTests.swift in Sources */,
+				AA11BB22CC33DD44EE55FF14 /* SheetParserLogTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -358,6 +398,10 @@
 				C3D4E5F6A7B8C9D0E1F2A1B2 /* ExerciseCard.swift in Sources */,
 				E5F6A7B8C9D0E1F2A1B2C3D4 /* SetChip.swift in Sources */,
 				F1A2B3C4D5E6F7A8B9C0D1E2 /* EmptyStateView.swift in Sources */,
+				AA11BB22CC33DD44EE55FF02 /* PendingWrite.swift in Sources */,
+				AA11BB22CC33DD44EE55FF04 /* SheetWriter.swift in Sources */,
+				AA11BB22CC33DD44EE55FF06 /* SetLogEditor.swift in Sources */,
+				AA11BB22CC33DD44EE55FF16 /* SyncStatusBanner.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -31,6 +31,33 @@ struct GoogleSheetsClient: SheetsClient {
         return (try JSONDecoder().decode(Resp.self, from: data)).values ?? []
     }
 
+    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
+        let url = URL(string: "https://sheets.googleapis.com/v4/spreadsheets/\(spreadsheetId)/values:batchUpdate")!
+        struct ValueRange: Encodable {
+            let range: String
+            let majorDimension: String
+            let values: [[String]]
+        }
+        struct Body: Encodable {
+            let valueInputOption: String
+            let data: [ValueRange]
+        }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("Bearer \(try await tokenProvider())", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONEncoder().encode(
+            Body(
+                valueInputOption: "USER_ENTERED",
+                data: [ValueRange(range: range, majorDimension: "ROWS", values: values)]
+            )
+        )
+
+        let (_, resp) = try await URLSession.shared.data(for: req)
+        guard let http = resp as? HTTPURLResponse else { throw SheetsError.malformedResponse }
+        guard (200..<300).contains(http.statusCode) else { throw SheetsError.http(http.statusCode) }
+    }
+
     private func get(_ url: URL) async throws -> Data {
         var req = URLRequest(url: url)
         req.setValue("Bearer \(try await tokenProvider())", forHTTPHeaderField: "Authorization")
