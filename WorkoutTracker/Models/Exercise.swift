@@ -1,5 +1,8 @@
 import Foundation
+import OSLog
 import SwiftData
+
+private let exerciseModelLogger = Logger(subsystem: "WorkoutTracker", category: "ExerciseModel")
 
 @Model
 final class Exercise {
@@ -33,6 +36,43 @@ final class ExerciseSet {
     var state: SetState {
         get { SetState(rawValue: stateRaw) ?? .pending }
         set { stateRaw = newValue.rawValue }
+    }
+
+    var setLog: SetLog? {
+        get {
+            guard let setLogData else { return nil }
+            do {
+                return try JSONDecoder().decode(SetLog.self, from: setLogData)
+            } catch {
+                exerciseModelLogger.error("Failed to decode SetLog: \(error.localizedDescription)")
+                return nil
+            }
+        }
+        set {
+            guard let newValue else {
+                setLogData = nil
+                return
+            }
+            do {
+                setLogData = try JSONEncoder().encode(newValue)
+            } catch {
+                exerciseModelLogger.error("Failed to encode SetLog: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    var displayReps: String {
+        if state == .logged, let setLog {
+            return setLog.formatted
+        }
+        return prescribedReps
+    }
+
+    var displayLoad: String? {
+        if state == .logged, setLog != nil {
+            return nil
+        }
+        return prescribedLoad
     }
 
     init(index: Int, prescribedReps: String, prescribedLoad: String, percentOneRM: String?, state: SetState) {

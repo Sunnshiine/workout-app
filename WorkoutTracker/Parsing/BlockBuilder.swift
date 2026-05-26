@@ -10,13 +10,15 @@ enum BlockBuilder {
                 session.exercises = pd.exercises.enumerated().map { (i, pe) in
                     let ex = Exercise(name: pe.name, baseName: pe.baseName, cadence: pe.cadence, coachNote: pe.coachNote, order: i)
                     ex.sets = pe.sets.map {
-                        ExerciseSet(
+                        let set = ExerciseSet(
                             index: $0.index,
                             prescribedReps: $0.prescribedReps,
                             prescribedLoad: $0.prescribedLoad,
                             percentOneRM: $0.percentOneRM,
-                            state: .pending
+                            state: $0.state
                         )
+                        set.setLog = $0.setLog
+                        return set
                     }
                     return ex
                 }
