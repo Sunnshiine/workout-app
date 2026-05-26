@@ -1,0 +1,42 @@
+# SwiftLint configuration
+# Runs automatically via SwiftLintPlugins build tool plugin
+
+disabled_rules:
+  - trailing_whitespace
+  - todo
+
+opt_in_rules:
+  - empty_count
+  - closure_spacing
+  - force_unwrapping
+  - sorted_imports
+  - vertical_whitespace_opening_braces
+  - private_swiftui_state
+  - unhandled_throwing_task
+
+included:
+  - WorkoutTracker
+  - WorkoutTrackerTests
+
+excluded:
+  - .build
+  - DerivedData
+  - "**/.build"
+  - "**/Generated"
+
+identifier_name:
+  min_length:
+    warning: 1
+    error: 1
+
+line_length:
+  warning: 140
+  error: 200
+
+type_body_length:
+  warning: 300
+  error: 500
+
+file_length:
+  warning: 500
+  error: 1000
