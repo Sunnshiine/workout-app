@@ -32,6 +32,8 @@ struct SessionView: View {
                 }
             }
             .navigationTitle(breadcrumb)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .background(Theme.gradient.ignoresSafeArea())
             .refreshable {
                 if let id = settings.spreadsheetId {
                     await sync.sync(spreadsheetId: id)
