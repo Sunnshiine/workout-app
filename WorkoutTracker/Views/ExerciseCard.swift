@@ -15,7 +15,7 @@ struct ExerciseCard: View {
                     .foregroundStyle(.secondary)
             }
 
-            FlowLayout(spacing: 8) {
+            VStack(alignment: .leading, spacing: 8) {
                 ForEach(exercise.sets.sorted(by: { $0.index < $1.index }), id: \.persistentModelID) { set in
                     SetChip(index: set.index, reps: set.prescribedReps, load: set.prescribedLoad)
                 }

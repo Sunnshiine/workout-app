@@ -13,5 +13,6 @@ struct RootView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.gradient.ignoresSafeArea())
+        .preferredColorScheme(.dark)
     }
 }
