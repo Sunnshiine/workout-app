@@ -19,7 +19,12 @@
         static func makeContainer() -> ModelContainer {
             let config = ModelConfiguration(isStoredInMemoryOnly: true)
             // swiftlint:disable:next force_try
-            let container = try! ModelContainer(for: Block.self, PendingWrite.self, configurations: config)
+            let container = try! ModelContainer(
+                for: Block.self,
+                PendingWrite.self,
+                LastPerformedEntry.self,
+                configurations: config
+            )
             seed(into: container.mainContext)
             return container
         }

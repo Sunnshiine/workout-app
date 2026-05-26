@@ -1,0 +1,142 @@
+import Foundation
+import SwiftData
+import Testing
+
+@testable import WorkoutTracker
+
+@MainActor
+private func lastPerformedContainer() throws -> ModelContainer {
+    try ModelContainer(
+        for: LastPerformedEntry.self,
+        configurations: ModelConfiguration(
+            "last-performed-\(UUID().uuidString)",
+            isStoredInMemoryOnly: true
+        )
+    )
+}
+
+@MainActor
+@Test func lastPerformedLookupFindsExactCadenceMatch() throws {
+    let container = try lastPerformedContainer()
+    let context = container.mainContext
+    let index = LastPerformedIndex(context: context)
+    let entry = LastPerformedEntry(
+        fullName: "2-3:1:0 BB RDL",
+        baseName: "BB RDL",
+        result: SetLog(weight: .pounds(185), reps: 7, rpe: 6),
+        performedOn: Date(timeIntervalSinceReferenceDate: 100),
+        source: "Block 26 · W3 D1"
+    )
+    context.insert(entry)
+    try context.save()
+
+    let match = try #require(index.lookup(exerciseName: "2-3:1:0 BB RDL", baseName: "BB RDL"))
+
+    #expect(match.result == SetLog(weight: .pounds(185), reps: 7, rpe: 6))
+    #expect(match.source == "Block 26 · W3 D1")
+    withExtendedLifetime(container) {}
+}
+
+@MainActor
+@Test func lastPerformedLookupFallsBackToNewestBaseNameMatch() throws {
+    let container = try lastPerformedContainer()
+    let context = container.mainContext
+    let index = LastPerformedIndex(context: context)
+    context.insert(
+        LastPerformedEntry(
+            fullName: "1:0:1 BB RDL",
+            baseName: "BB RDL",
+            result: SetLog(weight: .pounds(175), reps: 7, rpe: 6),
+            performedOn: Date(timeIntervalSinceReferenceDate: 100),
+            source: "Block 25 · W4 D1"
+        )
+    )
+    context.insert(
+        LastPerformedEntry(
+            fullName: "2-3:1:0 BB RDL",
+            baseName: "BB RDL",
+            result: SetLog(weight: .pounds(185), reps: 7, rpe: 7),
+            performedOn: Date(timeIntervalSinceReferenceDate: 200),
+            source: "Block 26 · W3 D1"
+        )
+    )
+    try context.save()
+
+    let match = try #require(index.lookup(exerciseName: "3:1:0 BB RDL", baseName: "BB RDL"))
+
+    #expect(match.result == SetLog(weight: .pounds(185), reps: 7, rpe: 7))
+    #expect(match.source == "Block 26 · W3 D1")
+    withExtendedLifetime(container) {}
+}
+
+@MainActor
+@Test func lastPerformedLookupReturnsNilWhenNoHistoryExists() throws {
+    let container = try lastPerformedContainer()
+    let index = LastPerformedIndex(context: container.mainContext)
+
+    let match = index.lookup(exerciseName: "Bench Press", baseName: "Bench Press")
+
+    #expect(match == nil)
+    withExtendedLifetime(container) {}
+}
+
+@MainActor
+@Test func lastPerformedIngestIsIdempotentByFullName() throws {
+    let container = try lastPerformedContainer()
+    let context = container.mainContext
+    let index = LastPerformedIndex(context: context)
+    let entry = LastPerformedEntry(
+        fullName: "BB RDL",
+        baseName: "BB RDL",
+        result: SetLog(weight: .pounds(185), reps: 7, rpe: 6),
+        performedOn: Date(timeIntervalSinceReferenceDate: 100),
+        source: "Block 26 · W3 D1"
+    )
+
+    try index.ingest([entry])
+    try index.ingest([
+        LastPerformedEntry(
+            fullName: "BB RDL",
+            baseName: "BB RDL",
+            result: SetLog(weight: .pounds(185), reps: 7, rpe: 6),
+            performedOn: Date(timeIntervalSinceReferenceDate: 100),
+            source: "Block 26 · W3 D1"
+        )
+    ])
+
+    let entries = try context.fetch(FetchDescriptor<LastPerformedEntry>())
+    #expect(entries.count == 1)
+    #expect(entries[0].result == SetLog(weight: .pounds(185), reps: 7, rpe: 6))
+    withExtendedLifetime(container) {}
+}
+
+@MainActor
+@Test func lastPerformedIngestKeepsNewestEntryForFullName() throws {
+    let container = try lastPerformedContainer()
+    let context = container.mainContext
+    let index = LastPerformedIndex(context: context)
+    try index.ingest([
+        LastPerformedEntry(
+            fullName: "Bench Press",
+            baseName: "Bench Press",
+            result: SetLog(weight: .pounds(225), reps: 5, rpe: 8),
+            performedOn: Date(timeIntervalSinceReferenceDate: 200),
+            source: "Block 27 · W1 D1"
+        )
+    ])
+
+    try index.ingest([
+        LastPerformedEntry(
+            fullName: "Bench Press",
+            baseName: "Bench Press",
+            result: SetLog(weight: .pounds(205), reps: 5, rpe: 7),
+            performedOn: Date(timeIntervalSinceReferenceDate: 100),
+            source: "Block 26 · W4 D1"
+        )
+    ])
+
+    let match = try #require(index.lookup(exerciseName: "Bench Press", baseName: "Bench Press"))
+    #expect(match.result == SetLog(weight: .pounds(225), reps: 5, rpe: 8))
+    #expect(match.source == "Block 27 · W1 D1")
+    withExtendedLifetime(container) {}
+}
