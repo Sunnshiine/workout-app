@@ -8,3 +8,7 @@
 # Swift Package Manager
 .build/
 .swiftpm/
+
+# Ralph loop build/screenshot artifacts
+ralph/.artifacts/
+.ralph-dd/

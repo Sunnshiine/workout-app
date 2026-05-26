@@ -44,6 +44,8 @@ A mobile client for powerlifting athletes that surfaces and logs workouts from a
 
 **Last Performed**: The most recent Logged result for a given Exercise across all past Sessions. Displayed as a reference when the athlete views that Exercise in the Current Session. Lookup is two-tier: (1) match full exercise name including Cadence; (2) if no result, strip Cadence and match base name. If any occurrence was Skipped, continue backwards until a Logged result is found. Backed by a local index so the lookup is instant. Avoid: personal record, previous result, history.
 
+**Performance History**: A historical view of an Exercise's prior logged performances across Sessions, used to understand progress over time. Distinct from Last Performed, which is only the single most recent Logged result. Avoid: Last Performed, previous result.
+
 ### Progress
 
 **Current Session**: The most recently logged Session in the current Block — the session the athlete is actively working on. Derived from the sheet on each sync. Avoid: today's workout, active session.

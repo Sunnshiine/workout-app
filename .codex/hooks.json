@@ -12,9 +12,5 @@
         ]
       }
     ]
-  },
-  "enabledPlugins": {
-    "superpowers@claude-plugins-official": false,
-    "swift-core-skills@swift-ios-skills": true
   }
 }

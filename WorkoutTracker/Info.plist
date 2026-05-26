@@ -18,16 +18,5 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
-	<key>GIDClientID</key>
-	<string>728841697571-gh93u91vmiqrf1t26mao935h3gtgoo7e.apps.googleusercontent.com</string>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>com.googleusercontent.apps.728841697571-gh93u91vmiqrf1t26mao935h3gtgoo7e</string>
-			</array>
-		</dict>
-	</array>
 </dict>
 </plist>
