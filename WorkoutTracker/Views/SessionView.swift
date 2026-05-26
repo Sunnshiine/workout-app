@@ -9,29 +9,26 @@ struct SessionView: View {
         NavigationStack {
             Group {
                 if let session = workout.displayedSession {
-                    List {
-                        ForEach(session.exercises.sorted(by: { $0.order < $1.order }), id: \.persistentModelID) { ex in
-                            Section {
-                                if let note = ex.coachNote { Text(note).font(.callout).foregroundStyle(.secondary) }
-                                ForEach(ex.sets.sorted(by: { $0.index < $1.index }), id: \.persistentModelID) { set in
-                                    HStack {
-                                        Text("Set \(set.index + 1)")
-                                        Spacer()
-                                        Text(set.prescribedReps).foregroundStyle(.secondary)
-                                        Text(set.prescribedLoad).foregroundStyle(.secondary)
-                                    }.font(.subheadline)
+                    ScrollView {
+                        GlassEffectContainer(spacing: Theme.cardSpacing) {
+                            LazyVStack(spacing: Theme.cardSpacing) {
+                                ForEach(
+                                    session.exercises.sorted(by: { $0.order < $1.order }),
+                                    id: \.persistentModelID
+                                ) { exercise in
+                                    ExerciseCard(exercise: exercise)
                                 }
-                            } header: {
-                                Text(ex.cadence.map { "\($0)  " } ?? "") + Text(ex.baseName).bold()
                             }
+                            .padding()
                         }
                     }
                 } else {
-                    ContentUnavailableView(
-                        "No session yet",
-                        systemImage: "dumbbell",
-                        description: Text("Pull to refresh to sync your sheet.")
-                    )
+                    EmptyStateView {
+                        if let id = settings.spreadsheetId {
+                            await sync.sync(spreadsheetId: id)
+                            workout.reload()
+                        }
+                    }
                 }
             }
             .navigationTitle(breadcrumb)

@@ -40,6 +40,10 @@
 		F58786858363A7A52D822F21 /* Exercise.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD5AE788CBF5DAF0C684F6D3 /* Exercise.swift */; };
 		FCA508FE3522CB7062267112 /* SessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31CB80B71F35E4D4A35FE87 /* SessionView.swift */; };
 		FD532690E409CC21380B5AC5 /* SheetsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = D25BC6F5BDADC735072B49F8 /* SheetsClient.swift */; };
+		A1B2C3D4E5F6A7B8C9D0E1F2 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F3 /* Theme.swift */; };
+		C3D4E5F6A7B8C9D0E1F2A1B2 /* ExerciseCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3D4E5F6A7B8C9D0E1F2A1B3 /* ExerciseCard.swift */; };
+		E5F6A7B8C9D0E1F2A1B2C3D4 /* SetChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F6A7B8C9D0E1F2A1B2C3D5 /* SetChip.swift */; };
+		F1A2B3C4D5E6F7A8B9C0D1E2 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6F7A8B9C0D1E3 /* EmptyStateView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -87,6 +91,10 @@
 		E3B15FEFD6BDE5D8F1A71800 /* GoogleSheetsClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleSheetsClient.swift; sourceTree = "<group>"; };
 		ECBE6989519E819A9FDB6608 /* WorkoutStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutStore.swift; sourceTree = "<group>"; };
 		EDD12C158C127F6E87575212 /* SheetParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetParserTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A7B8C9D0E1F3 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		C3D4E5F6A7B8C9D0E1F2A1B3 /* ExerciseCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseCard.swift; sourceTree = "<group>"; };
+		E5F6A7B8C9D0E1F2A1B2C3D5 /* SetChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetChip.swift; sourceTree = "<group>"; };
+		F1A2B3C4D5E6F7A8B9C0D1E3 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -115,9 +123,12 @@
 		1997BFA49DE4750CC2EB3E93 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				C3D4E5F6A7B8C9D0E1F2A1B3 /* ExerciseCard.swift */,
+				F1A2B3C4D5E6F7A8B9C0D1E3 /* EmptyStateView.swift */,
 				5C9C69974B6867E8568AFBD0 /* OnboardingView.swift */,
 				9038CBF5AF997C5562D3A6E4 /* RootView.swift */,
 				E31CB80B71F35E4D4A35FE87 /* SessionView.swift */,
+				E5F6A7B8C9D0E1F2A1B2C3D5 /* SetChip.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -211,6 +222,7 @@
 			isa = PBXGroup;
 			children = (
 				698FB46E5B1635F96AA0AA79 /* Info.plist */,
+				A1B2C3D4E5F6A7B8C9D0E1F3 /* Theme.swift */,
 				D48BD9386FBE1872BB0B6849 /* WorkoutTrackerApp.swift */,
 				9F358C93B0B4F80F20812547 /* Models */,
 				646C10C31A60F3960685BCF9 /* Parsing */,
@@ -340,8 +352,12 @@
 				6962F55A0A33D607CC9C4C22 /* SheetParser.swift in Sources */,
 				FD532690E409CC21380B5AC5 /* SheetsClient.swift in Sources */,
 				7B8CE914CEB343A88D109955 /* SyncCoordinator.swift in Sources */,
+				A1B2C3D4E5F6A7B8C9D0E1F2 /* Theme.swift in Sources */,
 				534BF64C12717F887A7C272C /* WorkoutStore.swift in Sources */,
 				E8F14E95FDFED307B2DC2042 /* WorkoutTrackerApp.swift in Sources */,
+				C3D4E5F6A7B8C9D0E1F2A1B2 /* ExerciseCard.swift in Sources */,
+				E5F6A7B8C9D0E1F2A1B2C3D4 /* SetChip.swift in Sources */,
+				F1A2B3C4D5E6F7A8B9C0D1E2 /* EmptyStateView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
