@@ -2,13 +2,15 @@ import SwiftUI
 
 struct SetChip: View {
     let reps: String
-    let load: String
+    let load: String?
 
     var body: some View {
         HStack(spacing: 6) {
             Text(reps)
-            Text(load)
-                .foregroundStyle(Theme.accent)
+            if let load {
+                Text(load)
+                    .foregroundStyle(Theme.accent)
+            }
         }
         .font(.caption)
         .padding(.horizontal, 10)

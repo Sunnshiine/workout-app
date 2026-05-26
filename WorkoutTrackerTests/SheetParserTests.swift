@@ -128,7 +128,7 @@ import Testing
 
     let squat = exercises[0]
     #expect(squat.sets[0].prescribedLoad == "RPE 9")
-    #expect(squat.sets[1].prescribedLoad == "10")
+    #expect(squat.sets[1].prescribedLoad == "RPE 10")
     #expect(squat.sets[0].prescribedReps == "8")
     #expect(squat.sets[1].prescribedReps == "10")
 
@@ -136,4 +136,41 @@ import Testing
     #expect(deadlift.sets[0].prescribedLoad == "RPE 8")
     #expect(deadlift.sets[1].prescribedLoad == "RPE 8")
     #expect(deadlift.sets[2].prescribedLoad == "RPE 8")
+}
+
+@Test func perSetLoadCarriesPrefixToShorthandCommaValues() {
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load",
+            "C15": "Squat", "D15": "2", "F15": "8", "H15": "RPE 9, 10",
+        ],
+        rows: 20,
+        cols: 30
+    )
+    let section = locateWeekSections(in: grid)[0]
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+
+    #expect(exercises[0].sets[0].prescribedLoad == "RPE 9")
+    #expect(exercises[0].sets[1].prescribedLoad == "RPE 10")
+}
+
+@Test func continuationNotesBecomeSetLogsWithoutUsingAnchorCoachNote() {
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": "Chest Fly", "D15": "2", "F15": "12", "H15": "25", "K15": "Keep elbows soft",
+            "K16": "25x12@7",
+            "K17": "20x10@8",
+        ],
+        rows: 20,
+        cols: 30
+    )
+    let section = locateWeekSections(in: grid)[0]
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+
+    #expect(exercises[0].coachNote == "Keep elbows soft")
+    #expect(exercises[0].sets[0].setLog == SetLog(weight: .pounds(25), reps: 12, rpe: 7))
+    #expect(exercises[0].sets[1].setLog == SetLog(weight: .pounds(20), reps: 10, rpe: 8))
 }

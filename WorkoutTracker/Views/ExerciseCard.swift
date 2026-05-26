@@ -3,6 +3,9 @@ import SwiftUI
 
 struct ExerciseCard: View {
     let exercise: Exercise
+    let onLog: (ExerciseSet, SetLog) -> Void
+    let onSkip: (ExerciseSet) -> Void
+    let onDelete: (ExerciseSet) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -15,9 +18,27 @@ struct ExerciseCard: View {
                     .foregroundStyle(.secondary)
             }
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 10) {
                 ForEach(exercise.sets.sorted(by: { $0.index < $1.index }), id: \.persistentModelID) { set in
-                    SetChip(reps: set.prescribedReps, load: set.prescribedLoad)
+                    VStack(alignment: .leading, spacing: 8) {
+                        SetChip(reps: set.prescribedReps, load: set.prescribedLoad)
+                        if set.state == .logged, let log = set.setLog {
+                            Text(log.formatted)
+                                .font(.caption)
+                                .foregroundStyle(Theme.accent)
+                        } else if set.state == .skipped {
+                            Text("skip")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        SetLogEditor(
+                            set: set,
+                            onLog: { onLog(set, $0) },
+                            onSkip: { onSkip(set) },
+                            onDelete: { onDelete(set) }
+                        )
+                    }
+                    .padding(.vertical, 4)
                 }
             }
         }
