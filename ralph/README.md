@@ -80,6 +80,7 @@ The loop stops when the selector returns `SELECTED_ISSUE=NONE` or after `--max-i
 | `--no-push` | `PUSH=0` | push on | Merge to local `main` only; don't push to origin. |
 | `--model NAME` | `MODEL` | `opus` (claude) | Model alias passed to the engine. |
 | `--device "..."` | `SIM_DEVICE` | `iPhone 17 Pro` | Simulator for the build + screenshot. |
+| `--codex-sandbox` | `CODEX_BYPASS=0` | bypass on | Run Codex in `workspace-write` sandbox instead of full-access unattended mode. This is safer, but Xcode builds and simulator access may fail. |
 | — | `LABEL` | `ready-for-agent` | The label that marks an issue as AFK-ready. |
 | — | `HUMAN_LABEL` | `ready-for-human` | Label applied when the loop gives up on an issue. |
 
@@ -147,7 +148,9 @@ and the matching log has the detail.
   only changes via an explicit `--no-ff` merge after the gates pass.
 - **Engine permissions:** Ralph runs the agent with permission checks bypassed
   (`claude --permission-mode bypassPermissions` / `codex exec --dangerously-bypass-approvals-and-sandbox`)
-  so it can run unattended. Only run Ralph on a repo and issue set you trust.
+  so it can run unattended. Only run Ralph on a repo and issue set you trust. For Codex, pass
+  `--codex-sandbox` or set `CODEX_BYPASS=0` to force `workspace-write` sandboxing for diagnostic
+  runs; app builds and simulator access may not work in that mode.
 - **Stuck-proofing:** a failed issue is relabelled out of `ready-for-agent`, so the loop can't spin
   on the same failure.
 
