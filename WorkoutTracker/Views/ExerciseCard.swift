@@ -21,12 +21,8 @@ struct ExerciseCard: View {
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(exercise.sets.sorted(by: { $0.index < $1.index }), id: \.persistentModelID) { set in
                     VStack(alignment: .leading, spacing: 8) {
-                        SetChip(reps: set.prescribedReps, load: set.prescribedLoad)
-                        if set.state == .logged, let log = set.setLog {
-                            Text(log.formatted)
-                                .font(.caption)
-                                .foregroundStyle(Theme.accent)
-                        } else if set.state == .skipped {
+                        SetChip(reps: set.displayReps, load: set.displayLoad)
+                        if set.state == .skipped {
                             Text("skip")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
