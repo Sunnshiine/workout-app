@@ -26,11 +26,13 @@
 		7B8CE914CEB343A88D109955 /* SyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF512CAF662AE6E54D7B864C /* SyncCoordinator.swift */; };
 		7DB5C219CA5F71B5CB978133 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 3977E6225F9526AF52619CA9 /* GoogleSignIn */; };
 		82D3353296627C46FED9C509 /* SheetGridFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = D66DA3EF58BF03C538C44EED /* SheetGridFixture.swift */; };
+		856581A20DF9C7C18981ADAF /* LoadSuggestionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22EEE65D45B6DDC0D0563744 /* LoadSuggestionEngine.swift */; };
 		868CFA7A47AF7C4ABA3A9AD8 /* SetLogEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95C1F0BE417BCCC719D64965 /* SetLogEditor.swift */; };
 		893458BAF187028AD2DBDE0A /* PersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDE48A550994CE6E35D99B17 /* PersistenceTests.swift */; };
 		8E3D0AC1569F1BA279AF054E /* GoogleAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = A12FDB0A5CCFB2C56907DE63 /* GoogleAuth.swift */; };
 		8F67DC53DC67C4B9E7166631 /* WorkoutStoreLoggingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D316A254265E94AC6ABE255 /* WorkoutStoreLoggingTests.swift */; };
 		95991E9E161A648AAC3B6691 /* UITestFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02CBDEE06463224167F1FB18 /* UITestFixture.swift */; };
+		9E6BF6BC2C113ECF9863E0B0 /* LoadSuggestionEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0282648590A58BACDEC23FF /* LoadSuggestionEngineTests.swift */; };
 		A0D6AE0098430800392564CB /* BlockBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95FD1C7F389BE2B862A81F88 /* BlockBuilderTests.swift */; };
 		A17B4D3CFBBB7A17E5B5D851 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73043E31A40EFA8A57C38FAF /* EmptyStateView.swift */; };
 		A2F7E6D64D1518F978D7CFC2 /* SheetGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2244B0C3FEDB38CFA5D0128 /* SheetGrid.swift */; };
@@ -78,6 +80,7 @@
 		1E25FBBA83323893F14B6554 /* SheetGridTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetGridTests.swift; sourceTree = "<group>"; };
 		1F12BF86D18901B3ACD182BD /* ExerciseCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseCard.swift; sourceTree = "<group>"; };
 		20D53666552036BF79EEB41F /* SetLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetLog.swift; sourceTree = "<group>"; };
+		22EEE65D45B6DDC0D0563744 /* LoadSuggestionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadSuggestionEngine.swift; sourceTree = "<group>"; };
 		27D2307B76B734B823D9ACD7 /* SetLogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetLogTests.swift; sourceTree = "<group>"; };
 		2BDD405FBD94AD2652A0216A /* SessionProgressTrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionProgressTrackerTests.swift; sourceTree = "<group>"; };
 		2CC347CBCB45EC717781E8EF /* SyncStatusBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatusBanner.swift; sourceTree = "<group>"; };
@@ -121,6 +124,7 @@
 		ECA5D0F58BE44C1297D2C669 /* PendingWrite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingWrite.swift; sourceTree = "<group>"; };
 		ECBE6989519E819A9FDB6608 /* WorkoutStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutStore.swift; sourceTree = "<group>"; };
 		EDD12C158C127F6E87575212 /* SheetParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetParserTests.swift; sourceTree = "<group>"; };
+		F0282648590A58BACDEC23FF /* LoadSuggestionEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadSuggestionEngineTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -223,6 +227,7 @@
 			children = (
 				95FD1C7F389BE2B862A81F88 /* BlockBuilderTests.swift */,
 				85DAA2ACBA4B64FF4A2A3895 /* BlockTabSelectorTests.swift */,
+				F0282648590A58BACDEC23FF /* LoadSuggestionEngineTests.swift */,
 				83463443C7EC1FD887ECA142 /* PendingWriteTests.swift */,
 				CDE48A550994CE6E35D99B17 /* PersistenceTests.swift */,
 				2BDD405FBD94AD2652A0216A /* SessionProgressTrackerTests.swift */,
@@ -268,6 +273,7 @@
 			isa = PBXGroup;
 			children = (
 				698FB46E5B1635F96AA0AA79 /* Info.plist */,
+				22EEE65D45B6DDC0D0563744 /* LoadSuggestionEngine.swift */,
 				82C7E3B1CAB7C96142DCF1C7 /* Theme.swift */,
 				D48BD9386FBE1872BB0B6849 /* WorkoutTrackerApp.swift */,
 				08188E21C9C5EDF09B62BBBF /* Fixtures */,
@@ -365,6 +371,7 @@
 			files = (
 				A0D6AE0098430800392564CB /* BlockBuilderTests.swift in Sources */,
 				00091317945A6BC21A22942B /* BlockTabSelectorTests.swift in Sources */,
+				9E6BF6BC2C113ECF9863E0B0 /* LoadSuggestionEngineTests.swift in Sources */,
 				C767D2CE711954BE3CE178DC /* PendingWriteTests.swift in Sources */,
 				893458BAF187028AD2DBDE0A /* PersistenceTests.swift in Sources */,
 				F42B73CE773749DB8D8051D9 /* SessionProgressTrackerTests.swift in Sources */,
@@ -399,6 +406,7 @@
 				C1221B1E6F6ECD41E42E76FC /* ExerciseCard.swift in Sources */,
 				8E3D0AC1569F1BA279AF054E /* GoogleAuth.swift in Sources */,
 				2FFD6423631AA90DA899A6F8 /* GoogleSheetsClient.swift in Sources */,
+				856581A20DF9C7C18981ADAF /* LoadSuggestionEngine.swift in Sources */,
 				7A7A9B87F7663034989F8EB4 /* OnboardingView.swift in Sources */,
 				348182B266A444358BFC98BC /* PendingWrite.swift in Sources */,
 				AAB1AF9D5F9324682EAF6B48 /* RootView.swift in Sources */,
