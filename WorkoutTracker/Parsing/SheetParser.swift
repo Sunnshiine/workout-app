@@ -113,11 +113,13 @@ func parseDay(in grid: SheetGrid, section: WeekSection, dayIndex: Int, endRow: I
         let load = grid.cellOrEmpty(r, cols.load)
         let pct = grid.cellOrEmpty(r, cols.percentOneRM)
         let note = grid.cellOrEmpty(r, cols.notes).trimmed
-        let sets = (0..<setCount).map {
+        let loadValues = load.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        let repsValues = reps.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        let sets = (0..<setCount).map { i in
             ParsedSet(
-                index: $0,
-                prescribedReps: reps,
-                prescribedLoad: load,
+                index: i,
+                prescribedReps: i < repsValues.count ? repsValues[i] : (repsValues.last ?? reps),
+                prescribedLoad: i < loadValues.count ? loadValues[i] : (loadValues.last ?? load),
                 percentOneRM: pct.isEmpty ? nil : pct
             )
         }

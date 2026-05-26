@@ -9,7 +9,7 @@ import Testing
         [
             "C12": "Day 1", "S12": "Day 2",
             "D14": "Sets", "F14": "Reps", "G14": "%1RM", "H14": "Load",
-            "I14": "Last set RPE", "K14": "Notes"
+            "I14": "Last set RPE", "K14": "Notes",
         ],
         rows: 20,
         cols: 30
@@ -30,7 +30,7 @@ import Testing
     let grid = gridFromA1(
         [
             "C12": "Day 1", "S12": "Day 2", "AI12": "Day 3", "AX12": "Day 4",
-            "C37": "Day 1", "S37": "Day 2", "AI37": "Day 3", "AX37": "Day 4"
+            "C37": "Day 1", "S37": "Day 2", "AI37": "Day 3", "AX37": "Day 4",
         ],
         rows: 40,
         cols: 60
@@ -59,7 +59,7 @@ import Testing
             "C12": "Day 1", "S12": "Day 2",
             "D14": "Sets", "F14": "Reps", "G14": "%1RM", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
             "C15": "0:3:0 Standing Calve Raises", "D15": "2", "F15": "12", "H15": "RPE9, RPE10", "K15": "Superset cue",
-            "C22": "0:2:0 Pull Up", "D22": "2", "F22": "AMRAP", "H22": "BW"
+            "C22": "0:2:0 Pull Up", "D22": "2", "F22": "AMRAP", "H22": "BW",
         ],
         rows: 30,
         cols: 30
@@ -73,7 +73,8 @@ import Testing
     #expect(exercises[0].coachNote == "Superset cue")
     #expect(exercises[0].sets.count == 2)  // "2" sets
     #expect(exercises[0].sets[0].prescribedReps == "12")
-    #expect(exercises[0].sets[0].prescribedLoad == "RPE9, RPE10")
+    #expect(exercises[0].sets[0].prescribedLoad == "RPE9")
+    #expect(exercises[0].sets[1].prescribedLoad == "RPE10")
     #expect(exercises[1].baseName == "Pull Up")
     #expect(exercises[1].sets[0].prescribedReps == "AMRAP")
     #expect(exercises[1].sets[0].prescribedLoad == "BW")
@@ -87,7 +88,7 @@ import Testing
             "C15": "0:3:0 Standing Calve Raises", "D15": "2", "F15": "12", "H15": "RPE9, RPE10",
             "C37": "Day 1", "S37": "Day 2", "AI37": "Day 3", "AX37": "Day 4",
             "D39": "Sets", "F39": "Reps", "H39": "Load", "K39": "Notes",
-            "C40": "0:3:0 Standing Calve Raises", "D40": "2", "F40": "11 - 12", "H40": "RPE9, RPE10"
+            "C40": "0:3:0 Standing Calve Raises", "D40": "2", "F40": "11 - 12", "H40": "RPE9, RPE10",
         ],
         rows: 45,
         cols: 60
@@ -105,4 +106,34 @@ import Testing
 @Test func warnsWhenNoWeekSections() {
     let parsed = SheetParser().parse(grid: gridFromA1([:], rows: 5, cols: 5), tabName: "Block 27")
     #expect(parsed.warnings.contains { $0.contains("no week sections") })
+}
+
+@Test func perSetLoadAndRepsAreSplitByComma() {
+    // Issue #7: comma-separated values (e.g. "RPE 9, 10") map one token per set,
+    // repeating the last token when fewer tokens than sets.
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load",
+            // 2 sets, both fields have 2 comma-separated values
+            "C15": "Squat", "D15": "2", "F15": "8, 10", "H15": "RPE 9, 10",
+            // 3 sets, single value → repeats for all sets
+            "C22": "Deadlift", "D22": "3", "F22": "5", "H22": "RPE 8",
+        ],
+        rows: 30,
+        cols: 30
+    )
+    let section = locateWeekSections(in: grid)[0]
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+
+    let squat = exercises[0]
+    #expect(squat.sets[0].prescribedLoad == "RPE 9")
+    #expect(squat.sets[1].prescribedLoad == "10")
+    #expect(squat.sets[0].prescribedReps == "8")
+    #expect(squat.sets[1].prescribedReps == "10")
+
+    let deadlift = exercises[1]
+    #expect(deadlift.sets[0].prescribedLoad == "RPE 8")
+    #expect(deadlift.sets[1].prescribedLoad == "RPE 8")
+    #expect(deadlift.sets[2].prescribedLoad == "RPE 8")
 }
