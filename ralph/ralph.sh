@@ -67,7 +67,9 @@ note() { printf -- "- **%s** — %s\n" "$(ts)" "$*" >> "$ACTIVITY"; }
 run_agent() {
   local prompt="$1" workdir="$2" image="${3:-}"
   if [ "$ENGINE" = codex ]; then
-    local last; last="$(mktemp)"
+    local last trace
+    last="$(mktemp)"
+    trace="$(mktemp)"
     local -a a=(exec --skip-git-repo-check -C "$workdir" -o "$last")
     if [ "$CODEX_BYPASS" = 1 ]; then
       a+=(--dangerously-bypass-approvals-and-sandbox --dangerously-bypass-hook-trust)
@@ -76,8 +78,13 @@ run_agent() {
     fi
     [ -n "$MODEL" ] && a+=(-m "$MODEL")
     [ -n "$image" ] && a+=(-i "$image")
-    codex "${a[@]}" "$prompt" >/dev/null 2>&1 || true
-    cat "$last" 2>/dev/null; rm -f "$last"
+    codex "${a[@]}" "$prompt" > "$trace" 2>&1 || true
+    if [ -s "$last" ]; then
+      cat "$last" 2>/dev/null
+    else
+      cat "$trace" 2>/dev/null
+    fi
+    rm -f "$last" "$trace"
   else
     local m="${MODEL:-opus}"
     # For VERIFY, the screenshot path is named in the prompt; Claude reads it via the Read tool.
