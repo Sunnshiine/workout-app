@@ -3,6 +3,7 @@ import Foundation
 protocol SheetsClient: Sendable {
     func listTabTitles(spreadsheetId: String) async throws -> [String]
     func fetchTab(spreadsheetId: String, tabName: String) async throws -> SheetGrid
+    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws
 }
 
 enum SheetsError: Error, Equatable {

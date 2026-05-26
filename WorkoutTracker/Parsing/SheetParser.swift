@@ -56,8 +56,7 @@ func locateWeekSections(in grid: SheetGrid) -> [WeekSection] {
         }
     }
     return byRow.keys.sorted().compactMap { row in
-        let cols = byRow[row]!.sorted()
-        guard !cols.isEmpty else { return nil }
+        guard let cols = byRow[row]?.sorted(), !cols.isEmpty else { return nil }
         return WeekSection(headerRow: row, roleHeaderRow: row + 2, dateRow: row + 1, dayStartCols: cols)
     }
 }
@@ -71,11 +70,47 @@ func splitCadence(_ name: String) -> (cadence: String?, base: String) {
     return (nil, name)
 }
 
+private func splitLoadValues(_ load: String) -> [String] {
+    let values = load.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+    guard
+        values.count > 1,
+        let numberStart = values[0].firstIndex(where: { $0.isNumber })
+    else { return values }
+
+    let prefix = values[0][..<numberStart]
+    guard prefix.contains(where: { $0.isLetter }) else { return values }
+
+    return values.enumerated().map { index, value in
+        if index > 0, !value.contains(where: { $0.isLetter }) {
+            return "\(prefix)\(value)"
+        }
+        return value
+    }
+}
+
 struct ParsedSet {
     var index: Int
     var prescribedReps: String
     var prescribedLoad: String
     var percentOneRM: String?
+    var state: SetState
+    var setLog: SetLog?
+
+    init(
+        index: Int,
+        prescribedReps: String,
+        prescribedLoad: String,
+        percentOneRM: String?,
+        state: SetState? = nil,
+        setLog: SetLog? = nil
+    ) {
+        self.index = index
+        self.prescribedReps = prescribedReps
+        self.prescribedLoad = prescribedLoad
+        self.percentOneRM = percentOneRM
+        self.state = state ?? (setLog == nil ? .pending : .logged)
+        self.setLog = setLog
+    }
 }
 
 struct ParsedExercise {
@@ -84,6 +119,17 @@ struct ParsedExercise {
     var cadence: String?
     var coachNote: String?
     var sets: [ParsedSet]
+}
+
+private func parsedLogState(from raw: String) -> (SetState, SetLog?) {
+    let value = raw.trimmed
+    if value.caseInsensitiveCompare("skip") == .orderedSame {
+        return (.skipped, nil)
+    }
+    if let log = SetLog(formatted: value) {
+        return (.logged, log)
+    }
+    return (.pending, nil)
 }
 
 /// Parses all exercises in one day group. Anchor rows have a non-empty name cell;
@@ -104,7 +150,8 @@ func parseDay(in grid: SheetGrid, section: WeekSection, dayIndex: Int, endRow: I
     }
 
     var result: [ParsedExercise] = []
-    for r in anchors {
+    for (anchorIndex, r) in anchors.enumerated() {
+        let nextAnchor = anchorIndex + 1 < anchors.count ? anchors[anchorIndex + 1] : upper
         let rawName = grid.cell(row: r, col: cols.name).trimmed
         let (cadence, base) = splitCadence(rawName)
         // Sets cell may be "2" or a range like "3 - 4"; take the leading integer.
@@ -113,14 +160,19 @@ func parseDay(in grid: SheetGrid, section: WeekSection, dayIndex: Int, endRow: I
         let load = grid.cellOrEmpty(r, cols.load)
         let pct = grid.cellOrEmpty(r, cols.percentOneRM)
         let note = grid.cellOrEmpty(r, cols.notes).trimmed
-        let loadValues = load.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        let loadValues = splitLoadValues(load)
         let repsValues = reps.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
         let sets = (0..<setCount).map { i in
-            ParsedSet(
+            let logRow = r + i + 1
+            let rawLog = logRow < nextAnchor ? grid.cellOrEmpty(logRow, cols.notes) : ""
+            let (state, setLog) = parsedLogState(from: rawLog)
+            return ParsedSet(
                 index: i,
                 prescribedReps: i < repsValues.count ? repsValues[i] : (repsValues.last ?? reps),
                 prescribedLoad: i < loadValues.count ? loadValues[i] : (loadValues.last ?? load),
-                percentOneRM: pct.isEmpty ? nil : pct
+                percentOneRM: pct.isEmpty ? nil : pct,
+                state: state,
+                setLog: setLog
             )
         }
         result.append(
