@@ -77,7 +77,7 @@ run_agent() {
       a+=(--sandbox workspace-write)
     fi
     [ -n "$MODEL" ] && a+=(-m "$MODEL")
-    [ -n "$image" ] && a+=(-i "$image")
+    [ -n "$image" ] && a+=(-i "$image" --)
     codex "${a[@]}" "$prompt" > "$trace" 2>&1 || true
     if [ -s "$last" ]; then
       cat "$last" 2>/dev/null
