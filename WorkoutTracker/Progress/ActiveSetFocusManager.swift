@@ -10,6 +10,7 @@ struct ActiveSetID: Equatable, Sendable {
 @Observable
 final class ActiveSetFocusManager {
     private(set) var activeSetID: ActiveSetID?
+    private var expandedCompletedExerciseOrders: Set<Int> = []
 
     init(session: Session?) {
         activeSetID = session.flatMap(Self.firstPendingSetID)
@@ -17,18 +18,30 @@ final class ActiveSetFocusManager {
 
     func reset(to session: Session?) {
         activeSetID = session.flatMap(Self.firstPendingSetID)
+        expandedCompletedExerciseOrders = []
     }
 
     func advanceAfterLog(_ set: ExerciseSet, in session: Session) {
         activeSetID = Self.nextPendingSetID(after: set, in: session)
+        collapseCompletedExercise(containing: set)
     }
 
     func advanceAfterSkip(_ set: ExerciseSet, in session: Session) {
         activeSetID = Self.nextPendingSetID(after: set, in: session)
+        collapseCompletedExercise(containing: set)
     }
 
     func focus(on set: ExerciseSet) {
         activeSetID = Self.id(for: set)
+    }
+
+    func reexpand(_ exercise: Exercise) {
+        guard Self.isCompleted(exercise) else { return }
+        expandedCompletedExerciseOrders.insert(exercise.order)
+    }
+
+    func isCollapsed(_ exercise: Exercise) -> Bool {
+        Self.isCompleted(exercise) && !expandedCompletedExerciseOrders.contains(exercise.order)
     }
 
     static func id(for set: ExerciseSet) -> ActiveSetID? {
@@ -76,5 +89,14 @@ final class ActiveSetFocusManager {
 
     private static func sortedSets(in exercise: Exercise) -> [ExerciseSet] {
         exercise.sets.sorted { $0.index < $1.index }
+    }
+
+    private func collapseCompletedExercise(containing set: ExerciseSet) {
+        guard let exercise = set.exercise, Self.isCompleted(exercise) else { return }
+        expandedCompletedExerciseOrders.remove(exercise.order)
+    }
+
+    private static func isCompleted(_ exercise: Exercise) -> Bool {
+        !exercise.sets.isEmpty && exercise.sets.allSatisfy { $0.state == .logged || $0.state == .skipped }
     }
 }
