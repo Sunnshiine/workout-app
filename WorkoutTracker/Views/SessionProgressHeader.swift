@@ -60,6 +60,7 @@ struct SessionProgressHeader: View {
             .buttonStyle(.plain)
             .simultaneousGesture(TapGesture().onEnded(onNavigate))
             .accessibilityLabel(presentation.locationActionAccessibilityLabel)
+            .accessibilityIdentifier("session-location-button")
         } else {
             locationLabelText
         }

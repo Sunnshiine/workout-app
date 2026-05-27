@@ -5,6 +5,13 @@ struct SmartValuePills: View {
     private enum FocusedPill {
         case weight
         case reps
+
+        var accessibilityIdentifier: String {
+            switch self {
+            case .weight: "weight-pill"
+            case .reps: "reps-pill"
+            }
+        }
     }
 
     let set: ExerciseSet
@@ -120,6 +127,7 @@ struct SmartValuePills: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(label), \(display)")
+        .accessibilityIdentifier(pill.accessibilityIdentifier)
         .accessibilityAddTraits(.isButton)
     }
 
@@ -147,6 +155,7 @@ struct SmartValuePills: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("rpe-pill")
     }
 
     private var incrementButtons: some View {
@@ -196,6 +205,7 @@ struct SmartValuePills: View {
             .background(Theme.accent, in: .rect(cornerRadius: Theme.pillCornerRadius))
             .disabled(!form.canLog)
             .opacity(form.canLog ? 1 : 0.45)
+            .accessibilityIdentifier("log-active-set-button")
 
             HStack {
                 Button("Cancel") {
