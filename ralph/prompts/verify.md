@@ -5,7 +5,8 @@ the app running in the simulator with seeded sample data (the `-UITEST_FIXTURE` 
 showing the current SessionView after the change.
 
 ## Steps
-1. Read the issue's Agent Brief acceptance criteria: `gh issue view <n> --comments`.
+1. Read the issue contract: `gh issue view <n> --comments`. Prefer the Agent Brief comment when
+   present; otherwise use the issue body if it contains concrete acceptance criteria.
 2. View the screenshot at the given path.
 3. Judge ONLY what is visually verifiable from a single static image: layout, presence or
    absence of expected elements, text, and obvious broken rendering (blank/black screen,

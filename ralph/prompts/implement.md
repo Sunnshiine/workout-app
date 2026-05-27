@@ -6,9 +6,11 @@ You are already inside the worktree. Work ONLY on this one issue; do not touch u
 Do not explain Ralph, the loop, project conventions, or skills back to the user; use them.
 
 ## Contract
-- Read the issue and its "Agent Brief" comment: `gh issue view <n> --comments`.
-  The Agent Brief (acceptance criteria, key interfaces, out-of-scope) is the authoritative spec —
-  the issue body is supporting context.
+- Read the issue and comments: `gh issue view <n> --comments`.
+- Use the "Agent Brief" comment as the authoritative spec when one exists.
+- If there is no Agent Brief comment, use the issue body as the authoritative spec only when it
+  contains a concrete implementation brief with acceptance criteria. If the body is vague,
+  mostly links to other issues, or lacks acceptance criteria, report BLOCKED.
 - Do not read or use PRDs as implementation input. PRD issues and PRD documents are planning
   artifacts, not work contracts for this phase.
 - Read `CONTEXT.md` for the domain glossary.
@@ -18,7 +20,7 @@ Do not explain Ralph, the loop, project conventions, or skills back to the user;
 ## Work
 - Use the `tdd` skill when available; otherwise follow the TDD guidance in project instructions.
 - Use Swift-specific skills only when they are directly relevant to the issue.
-- Keep scope tied to the Agent Brief. No speculative features, unrelated refactors, or one-off
+- Keep scope tied to the issue contract. No speculative features, unrelated refactors, or one-off
   abstractions.
 - Commit the completed work on the current branch using the project's Git rules.
 - Do not push, merge, close the issue, or run UI screenshots; the loop owns those steps.
@@ -35,7 +37,7 @@ Do not explain Ralph, the loop, project conventions, or skills back to the user;
 - If you cannot invoke the `swift-reviewer` subagent, do not emit COMPLETE; report BLOCKED.
 
 ## Done signal
-When the issue is implemented, checked, committed, reviewed, and every Agent Brief acceptance
+When the issue is implemented, checked, committed, reviewed, and every issue-contract acceptance
 criterion is met, end your response with this exact line, on its own:
 
 <promise>COMPLETE</promise>
