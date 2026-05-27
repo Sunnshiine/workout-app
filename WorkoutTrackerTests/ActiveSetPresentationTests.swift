@@ -70,6 +70,8 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     #expect(presentation.completedSetCount == 2)
     #expect(presentation.totalSetCount == 3)
     #expect(presentation.remainingText == "1 left")
+    #expect(presentation.locationActionAccessibilityLabel == "Open Block Overview for Week 2, Day 3")
+    #expect(presentation.progressAccessibilityValue == "W2 D3, 1 left")
 }
 
 @MainActor

@@ -24,9 +24,14 @@ struct SessionView: View {
                         .padding(.top, 8)
                     }
 
-                    SessionProgressHeader(session: session, activeSetID: focusManager.activeSetID)
-                        .padding(.horizontal)
-                        .padding(.top, 12)
+                    SessionProgressHeader(
+                        session: session,
+                        activeSetID: focusManager.activeSetID,
+                        block: workout.block,
+                        currentSession: workout.currentSession
+                    )
+                    .padding(.horizontal)
+                    .padding(.top, 12)
 
                     ScrollView {
                         GlassEffectContainer(spacing: Theme.cardSpacing) {
@@ -102,24 +107,6 @@ struct SessionView: View {
             if workout.block == nil, let id = settings.spreadsheetId {
                 await sync.sync(spreadsheetId: id)
                 workout.reload()
-            }
-        }
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                if let session = workout.displayedSession, let block = workout.block {
-                    NavigationLink {
-                        BlockOverviewView(block: block, currentSession: workout.currentSession)
-                    } label: {
-                        let presentation = SessionProgressHeaderPresentation(session: session)
-                        HStack(spacing: 5) {
-                            Text(presentation.locationLabel)
-                                .font(.subheadline.weight(.semibold))
-                            Image(systemName: "chevron.down")
-                                .font(.caption.weight(.bold))
-                        }
-                    }
-                    .foregroundStyle(.primary)
-                }
             }
         }
     }
