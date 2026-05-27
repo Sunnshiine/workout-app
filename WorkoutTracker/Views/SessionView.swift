@@ -7,92 +7,89 @@ struct SessionView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(\.modelContext) private var modelContext
     @State private var focusManager = ActiveSetFocusManager(session: nil)
+    @State private var retiringTransition: ActiveSetTransition?
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if let session = workout.displayedSession {
-                    VStack(spacing: 0) {
-                        SyncStatusBanner(state: sync.state)
-                            .padding(.top, 8)
+        Group {
+            if let session = workout.displayedSession {
+                VStack(spacing: 0) {
+                    SyncStatusBanner(state: sync.state)
+                        .padding(.top, 8)
 
-                        ScrollView {
-                            GlassEffectContainer(spacing: Theme.cardSpacing) {
-                                LazyVStack(alignment: .leading, spacing: Theme.cardSpacing) {
-                                    SessionProgressHeader(session: session)
+                    ScrollView {
+                        GlassEffectContainer(spacing: Theme.cardSpacing) {
+                            LazyVStack(alignment: .leading, spacing: Theme.cardSpacing) {
+                                SessionProgressHeader(session: session)
 
-                                    ForEach(
-                                        session.exercises.sorted(by: { $0.order < $1.order }),
-                                        id: \.persistentModelID
-                                    ) { exercise in
-                                        ExerciseSection(
-                                            exercise: exercise,
-                                            lastPerformedIndex: LastPerformedIndex(context: modelContext),
-                                            activeSetID: focusManager.activeSetID,
-                                            isCollapsed: focusManager.isCollapsed(exercise),
-                                            onFocus: { set in
-                                                focusManager.focus(on: set)
-                                            },
-                                            onReexpand: {
-                                                focusManager.reexpand(exercise)
-                                            },
-                                            onLog: { set, log in
-                                                recordLog(set, as: log, in: session)
-                                            },
-                                            onSkip: { set in
-                                                skip(set, in: session)
-                                            },
-                                            onDelete: { set in
-                                                deleteLog(for: set)
-                                            }
-                                        )
-                                    }
+                                ForEach(
+                                    session.exercises.sorted(by: { $0.order < $1.order }),
+                                    id: \.persistentModelID
+                                ) { exercise in
+                                    ExerciseSection(
+                                        exercise: exercise,
+                                        lastPerformedIndex: LastPerformedIndex(context: modelContext),
+                                        activeSetID: focusManager.activeSetID,
+                                        activeSetTransition: focusManager.activeSetTransition,
+                                        retiringTransition: retiringTransition,
+                                        isCollapsed: focusManager.isCollapsed(exercise),
+                                        onFocus: { set in
+                                            focusManager.focus(on: set)
+                                        },
+                                        onReexpand: {
+                                            focusManager.reexpand(exercise)
+                                        },
+                                        onLog: { set, log in
+                                            recordLog(set, as: log, in: session)
+                                        },
+                                        onSkip: { set in
+                                            skip(set, in: session)
+                                        },
+                                        onDelete: { set in
+                                            deleteLog(for: set)
+                                        }
+                                    )
                                 }
                             }
-                            .padding(.horizontal)
-                            .padding(.vertical)
                         }
-                        .task(id: session.persistentModelID) {
-                            focusManager.reset(to: session)
-                        }
+                        .padding(.horizontal)
+                        .padding(.vertical)
                     }
-                } else {
-                    EmptyStateView {
-                        if let id = settings.spreadsheetId {
-                            await sync.sync(spreadsheetId: id)
-                            workout.reload()
-                        }
+                    .task(id: session.persistentModelID) {
+                        focusManager.reset(to: session)
                     }
                 }
-            }
-            .navigationTitle(breadcrumb)
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .background(Theme.gradient.ignoresSafeArea())
-            .refreshable {
-                if let id = settings.spreadsheetId {
-                    await sync.sync(spreadsheetId: id)
-                    workout.reload()
-                }
-            }
-            .task {
-                workout.reload()
-                if workout.block == nil, let id = settings.spreadsheetId {
-                    await sync.sync(spreadsheetId: id)
-                    workout.reload()
+            } else {
+                EmptyStateView {
+                    if let id = settings.spreadsheetId {
+                        await sync.sync(spreadsheetId: id)
+                        workout.reload()
+                    }
                 }
             }
         }
-    }
-
-    private var breadcrumb: String {
-        guard let s = workout.displayedSession else { return "Workout" }
-        return "Block · W\(s.week?.number ?? 0) D\(s.dayNumber)"
+        .background(Theme.gradient.ignoresSafeArea())
+        .refreshable {
+            if let id = settings.spreadsheetId {
+                await sync.sync(spreadsheetId: id)
+                workout.reload()
+            }
+        }
+        .task {
+            workout.reload()
+            if workout.block == nil, let id = settings.spreadsheetId {
+                await sync.sync(spreadsheetId: id)
+                workout.reload()
+            }
+        }
     }
 
     private func recordLog(_ set: ExerciseSet, as log: SetLog, in session: Session) {
         do {
             try workout.log(set, as: log)
-            focusManager.advanceAfterLog(set, in: session)
+            withAnimation(Theme.momentumFlowAnimation) {
+                focusManager.advanceAfterLog(set, in: session)
+            }
+            retireActiveSetTransition()
             flushPendingWrites()
         } catch {
             sync.reportLocalWriteFailure(error)
@@ -102,7 +99,10 @@ struct SessionView: View {
     private func skip(_ set: ExerciseSet, in session: Session) {
         do {
             try workout.skip(set)
-            focusManager.advanceAfterSkip(set, in: session)
+            withAnimation(Theme.skipFadeUpAnimation) {
+                focusManager.advanceAfterSkip(set, in: session)
+            }
+            retireActiveSetTransition()
             flushPendingWrites()
         } catch {
             sync.reportLocalWriteFailure(error)
@@ -113,6 +113,7 @@ struct SessionView: View {
         do {
             try workout.deleteLog(for: set)
             focusManager.focus(on: set)
+            retiringTransition = nil
             flushPendingWrites()
         } catch {
             sync.reportLocalWriteFailure(error)
@@ -122,5 +123,31 @@ struct SessionView: View {
     private func flushPendingWrites() {
         guard let id = settings.spreadsheetId else { return }
         Task { await sync.flushPending(spreadsheetId: id) }
+    }
+
+    private func retireActiveSetTransition() {
+        guard let transition = focusManager.activeSetTransition else { return }
+        retiringTransition = transition
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: transitionClearDelay(for: transition))
+            guard retiringTransition == transition else { return }
+            retiringTransition = nil
+            focusManager.clearTransition(transition)
+        }
+    }
+
+    private func transitionClearDelay(for transition: ActiveSetTransition) -> UInt64 {
+        let duration =
+            switch transition.kind {
+            case .momentumFlow:
+                Theme.momentumFlowTotalDuration
+            case .softFadeUp:
+                Theme.skipFadeUpDuration
+            case .collapseAndRise:
+                Theme.momentumDropDuration
+                    + Theme.exerciseCompletionBeatDuration
+                    + Theme.momentumRiseDuration
+            }
+        return UInt64(duration * 1_000_000_000)
     }
 }

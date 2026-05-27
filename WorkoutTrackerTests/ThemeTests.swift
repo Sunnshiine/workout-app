@@ -146,3 +146,15 @@ import Testing
     #expect(Theme.heavyWeightIncrementOptions == [5, 10])
     #expect(Theme.rpeGridCellHeight == 48)
 }
+
+@Test func themeIncludesActiveSetTransitionTimingConstants() {
+    #expect(Theme.logButtonCheckmarkDuration == 0.2)
+    #expect(Theme.momentumFlowTotalDuration == 0.65)
+    #expect(Theme.momentumDropDuration == 0.4)
+    #expect(Theme.momentumRiseDuration == 0.5)
+    #expect(Theme.momentumRiseDelay < Theme.momentumDropDuration)
+    #expect(Theme.skipFadeUpDuration == 0.45)
+    #expect(Theme.exerciseCompletionBeatDuration == 0.2)
+    #expect(Theme.momentumSpringStiffness > 0)
+    #expect(Theme.momentumSpringDamping > 0)
+}
