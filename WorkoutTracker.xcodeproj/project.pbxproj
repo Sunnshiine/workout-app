@@ -15,6 +15,7 @@
 		2116C497B60E0E1458BFEC89 /* SetChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 912B52B3212C5BA9E56BB793 /* SetChip.swift */; };
 		220D586E2C3501A8CD100024 /* Block.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56BD19DDAA92AF5F6982BB5E /* Block.swift */; };
 		23DC6090AF57EAF426C113C5 /* LastPerformedEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FE11A57FFD49F1221D2CA75 /* LastPerformedEntry.swift */; };
+		25D084E9516472D4282B4C04 /* ExerciseSummaryRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFBE67C176F894614182855E /* ExerciseSummaryRow.swift */; };
 		2C1686170E183C331B8BB888 /* SheetParserLogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A34D1DA15831C80113CC12A0 /* SheetParserLogTests.swift */; };
 		2D81789C6D294384201B7EBA /* ActiveSetPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59AE3C131FC717CD227EE12F /* ActiveSetPresentationTests.swift */; };
 		2FFD6423631AA90DA899A6F8 /* GoogleSheetsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3B15FEFD6BDE5D8F1A71800 /* GoogleSheetsClient.swift */; };
@@ -145,6 +146,7 @@
 		EDD12C158C127F6E87575212 /* SheetParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetParserTests.swift; sourceTree = "<group>"; };
 		F0282648590A58BACDEC23FF /* LoadSuggestionEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadSuggestionEngineTests.swift; sourceTree = "<group>"; };
 		FD5A40419517EF83C31555BC /* ActiveSetFocusManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveSetFocusManager.swift; sourceTree = "<group>"; };
+		FFBE67C176F894614182855E /* ExerciseSummaryRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseSummaryRow.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -185,6 +187,7 @@
 				61BD44A847304CF1B26D982D /* ActiveSetCard.swift */,
 				73043E31A40EFA8A57C38FAF /* EmptyStateView.swift */,
 				86387591F871B0FC0CA1FC82 /* ExerciseSection.swift */,
+				FFBE67C176F894614182855E /* ExerciseSummaryRow.swift */,
 				5C9C69974B6867E8568AFBD0 /* OnboardingView.swift */,
 				9038CBF5AF997C5562D3A6E4 /* RootView.swift */,
 				D190FFC3E7D57A123821D120 /* SessionProgressHeader.swift */,
@@ -440,6 +443,7 @@
 				A17B4D3CFBBB7A17E5B5D851 /* EmptyStateView.swift in Sources */,
 				F58786858363A7A52D822F21 /* Exercise.swift in Sources */,
 				04AE377A3BFD19D4F485AB00 /* ExerciseSection.swift in Sources */,
+				25D084E9516472D4282B4C04 /* ExerciseSummaryRow.swift in Sources */,
 				8E3D0AC1569F1BA279AF054E /* GoogleAuth.swift in Sources */,
 				2FFD6423631AA90DA899A6F8 /* GoogleSheetsClient.swift in Sources */,
 				23DC6090AF57EAF426C113C5 /* LastPerformedEntry.swift in Sources */,

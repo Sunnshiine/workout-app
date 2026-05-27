@@ -58,3 +58,24 @@ struct SessionProgressHeaderPresentation: Equatable, Sendable {
         completedSetCount = sets.filter { $0.state == .logged || $0.state == .skipped }.count
     }
 }
+
+struct ExerciseSummaryRowPresentation: Equatable, Sendable {
+    let title: String
+
+    init(exercise: Exercise) {
+        var previousWeight: Weight?
+        let setResults = exercise.sets
+            .sorted { $0.index < $1.index }
+            .compactMap { set -> String? in
+                guard set.state != .skipped else { return "skip" }
+                guard set.state == .logged, let setLog = set.setLog else { return nil }
+                defer { previousWeight = setLog.weight }
+                if previousWeight == setLog.weight {
+                    return "×\(setLog.reps)"
+                }
+                return "\(setLog.weight.label)×\(setLog.reps)"
+            }
+            .joined(separator: " / ")
+        title = "✓ \(exercise.baseName) · \(setResults)"
+    }
+}
