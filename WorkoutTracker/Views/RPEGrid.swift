@@ -32,6 +32,7 @@ struct RPEGrid: View {
             cellLabel(for: value)
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("rpe-\(value.value)")
     }
 
     private func cellLabel(for value: RPEGridValue) -> some View {

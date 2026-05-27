@@ -40,6 +40,7 @@ struct ActiveSetCard: View {
                 onDelete: onDelete,
                 showsLoggedCheckmarkInitially: showsLoggedCheckmark
             )
+            .id(set.persistentModelID)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
