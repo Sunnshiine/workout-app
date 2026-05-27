@@ -13,6 +13,7 @@ struct SmartValuePills: View {
     let onDelete: () -> Void
 
     @State private var form: SmartValuePillsForm
+    @State private var editingPill: FocusedPill?
     @State private var showsRPEGrid = false
     @State private var showsLoggedCheckmark = false
     @FocusState private var focusedPill: FocusedPill?
@@ -62,7 +63,7 @@ struct SmartValuePills: View {
                 rpePill
             }
 
-            if focusedPill == .weight {
+            if editingPill == .weight {
                 incrementButtons
             }
 
@@ -76,6 +77,9 @@ struct SmartValuePills: View {
 
             actionControls
         }
+        .task(id: editingPill) {
+            focusedPill = editingPill
+        }
     }
 
     private func valuePill(
@@ -85,40 +89,43 @@ struct SmartValuePills: View {
         pill: FocusedPill,
         keyboardType: UIKeyboardType
     ) -> some View {
-        Button {
-            showsRPEGrid = false
-            focusedPill = pill
-        } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(label)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 8) {
+            Text(label)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
 
-                if focusedPill == pill {
-                    TextField(display, text: text)
-                        .keyboardType(keyboardType)
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(.white)
-                        .focused($focusedPill, equals: pill)
-                } else {
-                    Text(display)
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(.white)
-                }
+            if editingPill == pill {
+                TextField(display, text: text)
+                    .keyboardType(keyboardType)
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(.white)
+                    .focused($focusedPill, equals: pill)
+            } else {
+                Text(display)
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(.white)
             }
-            .frame(maxWidth: .infinity, minHeight: Theme.pillMinHeight, alignment: .leading)
-            .padding(.horizontal, 12)
-            .background(Theme.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
-                    .strokeBorder(Theme.pillStroke, lineWidth: 1)
-            )
         }
-        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, minHeight: Theme.pillMinHeight, alignment: .leading)
+        .padding(.horizontal, 12)
+        .background(Theme.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
+                .strokeBorder(Theme.pillStroke, lineWidth: 1)
+        )
+        .contentShape(.rect)
+        .onTapGesture {
+            showsRPEGrid = false
+            editingPill = pill
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label), \(display)")
+        .accessibilityAddTraits(.isButton)
     }
 
     private var rpePill: some View {
         Button {
+            editingPill = nil
             focusedPill = nil
             showsRPEGrid.toggle()
         } label: {
@@ -193,6 +200,7 @@ struct SmartValuePills: View {
             HStack {
                 Button("Cancel") {
                     form.cancel()
+                    editingPill = nil
                     focusedPill = nil
                     showsRPEGrid = false
                 }
