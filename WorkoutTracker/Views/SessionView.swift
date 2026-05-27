@@ -8,8 +8,6 @@ struct SessionView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(\.modelContext) private var modelContext
     @State private var coordinator = SessionCoordinator(session: nil)
-    @State private var pairingSourceOrder: Int?
-    @State private var pairingConfirmationOrder: Int?
 
     var body: some View {
         Group {
@@ -31,7 +29,7 @@ struct SessionView: View {
                         activeSetID: coordinator.activeSetID,
                         block: workout.block,
                         currentSession: workout.currentSession,
-                        onNavigate: cancelPairingMode
+                        onNavigate: coordinator.cancelPairing
                     )
                     .padding(.horizontal)
                     .padding(.top, 12)
@@ -48,9 +46,7 @@ struct SessionView: View {
                                     )
                                     let exerciseRenderItemsByOrder = Dictionary(
                                         uniqueKeysWithValues: coordinator.exerciseRenderItems(
-                                            in: session,
-                                            pairingSourceOrder: pairingSourceOrder,
-                                            pairingConfirmationOrder: pairingConfirmationOrder
+                                            in: session
                                         ).map { ($0.exercise.order, $0) }
                                     )
 
@@ -86,7 +82,6 @@ struct SessionView: View {
                                                     coordinator.deleteLog(for: set)
                                                 },
                                                 onDismiss: {
-                                                    cancelPairingMode()
                                                     guard let exercise = supersetSection.exercises.first else { return }
                                                     withAnimation(Theme.momentumFlowAnimation) {
                                                         coordinator.dismissSuperset(containing: exercise, in: session)
@@ -129,10 +124,12 @@ struct SessionView: View {
                                                     coordinator.deleteLog(for: set)
                                                 },
                                                 onBeginPairing: {
-                                                    beginPairing(from: renderItem.exercise, in: session)
+                                                    coordinator.beginPairing(from: renderItem.exercise, in: session)
                                                 },
                                                 onPairingTap: {
-                                                    handlePairingTap(on: renderItem.exercise, in: session)
+                                                    if coordinator.handlePairingTap(on: renderItem.exercise, in: session) == .unavailable {
+                                                        warningHaptic()
+                                                    }
                                                 }
                                             )
                                         }
@@ -154,13 +151,13 @@ struct SessionView: View {
                                     Color.clear
                                         .frame(height: 44)
                                         .contentShape(Rectangle())
-                                        .onTapGesture(perform: cancelPairingMode)
+                                        .onTapGesture(perform: coordinator.cancelPairing)
                                 }
                                 .background {
-                                    if pairingSourceOrder != nil {
+                                    if coordinator.pairingMode != .inactive {
                                         Color.clear
                                             .contentShape(Rectangle())
-                                            .onTapGesture(perform: cancelPairingMode)
+                                            .onTapGesture(perform: coordinator.cancelPairing)
                                     }
                                 }
                             }
@@ -207,7 +204,6 @@ struct SessionView: View {
     }
 
     private func bindCoordinator(to session: Session) {
-        cancelPairingMode()
         coordinator.bind(
             to: session,
             logging: workout,
@@ -216,7 +212,7 @@ struct SessionView: View {
     }
 
     private func showSourceSession(for exercise: Exercise) {
-        cancelPairingMode()
+        coordinator.cancelPairing()
         guard let session = exercise.session, let week = session.week else { return }
         workout.show(week: week.number, day: session.dayNumber)
     }
@@ -245,42 +241,6 @@ struct SessionView: View {
 }
 
 extension SessionView {
-    fileprivate func beginPairing(from exercise: Exercise, in session: Session) {
-        guard coordinator.canPair(exercise, in: session) else { return }
-        pairingSourceOrder = exercise.order
-        pairingConfirmationOrder = nil
-    }
-
-    fileprivate func handlePairingTap(on exercise: Exercise, in session: Session) {
-        guard let sourceOrder = pairingSourceOrder else { return }
-        guard exercise.order != sourceOrder else {
-            cancelPairingMode()
-            return
-        }
-        guard coordinator.canPair(exercise, in: session) else {
-            warningHaptic()
-            return
-        }
-        guard let source = session.exercises.first(where: { $0.order == sourceOrder }) else {
-            cancelPairingMode()
-            return
-        }
-        pairingConfirmationOrder = exercise.order
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: UInt64(Theme.pairingConfirmationDuration * 1_000_000_000))
-            guard pairingSourceOrder == sourceOrder, pairingConfirmationOrder == exercise.order else { return }
-            withAnimation(Theme.momentumFlowAnimation) {
-                _ = coordinator.createSuperset(from: source, to: exercise, in: session)
-            }
-            cancelPairingMode()
-        }
-    }
-
-    fileprivate func cancelPairingMode() {
-        pairingSourceOrder = nil
-        pairingConfirmationOrder = nil
-    }
-
     fileprivate func warningHaptic() {
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
     }

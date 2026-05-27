@@ -24,6 +24,19 @@ enum SessionCoordinatorError: Error {
     case missingLoggingAdapter
 }
 
+enum PairingMode: Equatable, Sendable {
+    case inactive
+    case selecting(sourceOrder: Int)
+    case confirming(sourceOrder: Int, targetOrder: Int)
+}
+
+enum PairingTapResult: Equatable, Sendable {
+    case ignored
+    case cancelled
+    case unavailable
+    case confirming
+}
+
 extension WorkoutStore: SessionLoggingAdapter {}
 
 struct SessionPendingWriteSyncAdapter: SessionSyncAdapter {
@@ -92,12 +105,14 @@ final class SessionCoordinator {
     private(set) var retiringTransition: ActiveSetTransition?
     private(set) var scrollTargetID: ActiveSetID?
     private(set) var supersetScrollTargetOrder: Int?
+    private(set) var pairingMode: PairingMode = .inactive
 
     @ObservationIgnored private let focusManager: ActiveSetFocusManager
     @ObservationIgnored private var loggingAdapter: any SessionLoggingAdapter
     @ObservationIgnored private var syncAdapter: any SessionSyncAdapter
     @ObservationIgnored private let transitionClock: any SessionTransitionClock
     @ObservationIgnored private var retirementTask: Task<Void, Never>?
+    @ObservationIgnored private var pairingConfirmationTask: Task<Void, Never>?
     private var renderRevision = 0
 
     init(
@@ -116,6 +131,7 @@ final class SessionCoordinator {
 
     deinit {
         retirementTask?.cancel()
+        pairingConfirmationTask?.cancel()
     }
 
     func configure(
@@ -128,6 +144,7 @@ final class SessionCoordinator {
 
     func bind(to session: Session?) {
         self.session = session
+        cancelPairing()
         clearRetiringTransition()
         focusManager.reset(to: session)
         syncFocusState()
@@ -143,24 +160,15 @@ final class SessionCoordinator {
         bind(to: session)
     }
 
-    func exerciseRenderItems(
-        pairingSourceOrder: Int? = nil,
-        pairingConfirmationOrder: Int? = nil
-    ) -> [SessionExerciseRenderItem] {
+    func exerciseRenderItems() -> [SessionExerciseRenderItem] {
         guard let session else { return [] }
-        return exerciseRenderItems(
-            in: session,
-            pairingSourceOrder: pairingSourceOrder,
-            pairingConfirmationOrder: pairingConfirmationOrder
-        )
+        return exerciseRenderItems(in: session)
     }
 
-    func exerciseRenderItems(
-        in session: Session,
-        pairingSourceOrder: Int? = nil,
-        pairingConfirmationOrder: Int? = nil
-    ) -> [SessionExerciseRenderItem] {
+    func exerciseRenderItems(in session: Session) -> [SessionExerciseRenderItem] {
         _ = renderRevision
+        let pairingSourceOrder = pairingSourceOrder
+        let pairingConfirmationOrder = pairingConfirmationOrder
         let activeSupersetExerciseOrders = Set(
             supersetSections(in: session).flatMap { section in
                 section.exercises.map(\.order)
@@ -258,6 +266,7 @@ final class SessionCoordinator {
     }
 
     func dismissSuperset(containing exercise: Exercise, in session: Session) {
+        cancelPairing()
         focusManager.dismissSuperset(containing: exercise, in: session)
         syncFocusState()
         invalidateRenderItems()
@@ -378,5 +387,97 @@ final class SessionCoordinator {
                     + Theme.momentumRiseDuration
             }
         return .nanoseconds(Int64((seconds * 1_000_000_000).rounded()))
+    }
+}
+
+extension SessionCoordinator {
+    @discardableResult
+    func beginPairing(from exercise: Exercise, in session: Session) -> Bool {
+        guard canPair(exercise, in: session) else { return false }
+        pairingConfirmationTask?.cancel()
+        pairingConfirmationTask = nil
+        pairingMode = .selecting(sourceOrder: exercise.order)
+        invalidateRenderItems()
+        return true
+    }
+
+    func cancelPairing() {
+        pairingConfirmationTask?.cancel()
+        pairingConfirmationTask = nil
+        guard pairingMode != .inactive else { return }
+        pairingMode = .inactive
+        invalidateRenderItems()
+    }
+
+    @discardableResult
+    func handlePairingTap(on exercise: Exercise, in session: Session) -> PairingTapResult {
+        guard let sourceOrder = pairingSourceOrder else {
+            return .ignored
+        }
+        guard exercise.order != sourceOrder else {
+            cancelPairing()
+            return .cancelled
+        }
+        guard canPair(exercise, in: session) else {
+            return .unavailable
+        }
+        guard case .selecting = pairingMode else {
+            return .ignored
+        }
+        pairingMode = .confirming(sourceOrder: sourceOrder, targetOrder: exercise.order)
+        invalidateRenderItems()
+        confirmPairing(sourceOrder: sourceOrder, targetOrder: exercise.order, in: session)
+        return .confirming
+    }
+
+    private var pairingSourceOrder: Int? {
+        switch pairingMode {
+        case .inactive:
+            nil
+        case .selecting(let sourceOrder), .confirming(let sourceOrder, _):
+            sourceOrder
+        }
+    }
+
+    private var pairingConfirmationOrder: Int? {
+        switch pairingMode {
+        case .inactive, .selecting:
+            nil
+        case .confirming(_, let targetOrder):
+            targetOrder
+        }
+    }
+
+    private func confirmPairing(sourceOrder: Int, targetOrder: Int, in session: Session) {
+        pairingConfirmationTask?.cancel()
+        let expectedMode = PairingMode.confirming(sourceOrder: sourceOrder, targetOrder: targetOrder)
+        let clock = transitionClock
+        let duration = pairingConfirmationDuration()
+
+        pairingConfirmationTask = Task { @MainActor [weak self] in
+            await clock.sleep(for: duration)
+            guard
+                !Task.isCancelled,
+                let self,
+                self.pairingMode == expectedMode
+            else { return }
+
+            guard
+                let source = session.exercises.first(where: { $0.order == sourceOrder }),
+                let target = session.exercises.first(where: { $0.order == targetOrder })
+            else {
+                self.cancelPairing()
+                return
+            }
+
+            _ = self.createSuperset(from: source, to: target, in: session)
+            self.pairingMode = .inactive
+            self.pairingConfirmationTask = nil
+            self.invalidateRenderItems()
+        }
+    }
+
+    private func pairingConfirmationDuration() -> Duration {
+        .nanoseconds(Int64((Theme.pairingConfirmationDuration * 1_000_000_000).rounded()))
     }
 }
