@@ -119,6 +119,16 @@ final class SupersetState {
         dissolve(pair)
     }
 
+    func exercisePairs(in session: Session) -> [[Exercise]] {
+        refresh(in: session)
+        return pairs.compactMap { pair in
+            let exercises = [pair.first, pair.second].compactMap { identity in
+                exercise(matching: identity, in: session)
+            }
+            return exercises.count == 2 ? exercises : nil
+        }
+    }
+
     func activeExercises(in session: Session) -> [Exercise] {
         refresh(in: session)
         guard let activePair else { return [] }

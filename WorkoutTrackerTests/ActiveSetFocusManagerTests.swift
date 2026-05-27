@@ -330,3 +330,66 @@ private func makePlannedSupersetSession() -> Session {
     let switchedSurface = try #require(focus.activeSupersetPresentation(in: session))
     #expect(switchedSurface.sides.map(\.isActive) == [false, true])
 }
+
+@MainActor
+@Test func pairingEligibilityRejectsCompletedAndAlreadyPairedExercises() throws {
+    let session = makePlannedSupersetSession()
+    let row = try #require(session.exercises.first { $0.order == 0 })
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+    let focus = ActiveSetFocusManager(session: session)
+
+    #expect(focus.canPair(row, in: session))
+    #expect(focus.canPair(squat, in: session))
+    #expect(focus.canPair(bench, in: session))
+
+    #expect(focus.createSuperset(from: squat, to: bench, in: session))
+
+    #expect(!focus.canPair(squat, in: session))
+    #expect(!focus.canPair(bench, in: session))
+
+    focus.dismissSuperset(containing: squat, in: session)
+    bench.sets.forEach { $0.state = .logged }
+
+    #expect(focus.canPair(row, in: session))
+    #expect(focus.canPair(squat, in: session))
+    #expect(!focus.canPair(bench, in: session))
+}
+
+@MainActor
+@Test func creatingPlannedSupersetFormsSurfaceAndScrollTargetWithoutChangingFocus() throws {
+    let session = makePlannedSupersetSession()
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+    let focus = ActiveSetFocusManager(session: session)
+
+    #expect(focus.createSuperset(from: squat, to: bench, in: session))
+
+    #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+    #expect(focus.supersetScrollTargetOrder == 1)
+
+    let surface = try #require(focus.supersetSections(in: session).first?.presentation)
+    #expect(surface.activeSetID == nil)
+    #expect(surface.containerExerciseOrder == 1)
+    #expect(surface.sides.map(\.exerciseName) == ["Squat", "Bench Press"])
+    #expect(surface.sides.map(\.isActive) == [false, false])
+}
+
+@MainActor
+@Test func manualSupersetDismissRemovesSurfaceWithoutChangingSetLogs() throws {
+    let session = makeMultiExercisePendingSession()
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
+    let log = SetLog(weight: .pounds(185), reps: 5, rpe: 7)
+    firstSquatSet.setLog = log
+    firstSquatSet.state = .logged
+    let focus = ActiveSetFocusManager(session: session)
+
+    #expect(focus.createSuperset(from: squat, to: bench, in: session))
+    focus.dismissSuperset(containing: squat, in: session)
+
+    #expect(focus.supersetSections(in: session).isEmpty)
+    #expect(firstSquatSet.setLog == log)
+    #expect(firstSquatSet.state == .logged)
+}
