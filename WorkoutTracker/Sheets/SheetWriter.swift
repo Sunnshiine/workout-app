@@ -70,6 +70,17 @@ enum SheetWriterError: Error, Equatable, LocalizedError {
     }
 }
 
+struct SheetCellUpdate: Sendable, Equatable {
+    var tabName: String
+    var row: Int
+    var col: Int
+    var value: String
+
+    var range: String {
+        singleCellRange(tabName: tabName, row: row, col: col)
+    }
+}
+
 struct SheetWriter: Sendable {
     private let client: any SheetsClient
 
@@ -77,17 +88,37 @@ struct SheetWriter: Sendable {
         self.client = client
     }
 
-    func write(_ request: SheetWriteRequest, spreadsheetId: String) async throws {
-        let grid = try await client.fetchTab(spreadsheetId: spreadsheetId, tabName: request.blockTab)
+    func write(_ update: SheetCellUpdate, spreadsheetId: String) async throws {
+        try await client.updateCells(spreadsheetId: spreadsheetId, range: update.range, values: [[update.value]])
+    }
+}
+
+struct SheetWritePlanner: Sendable {
+    func plan(_ request: SheetWriteRequest, in grid: SheetGrid) throws -> SheetCellUpdate {
         let target = try resolveTarget(for: request, in: grid)
         let actual = grid.cell(row: target.row, col: target.col).trimmed
         guard actual == request.expectedCurrentValue else {
             throw SheetWriterError.unexpectedCurrentValue(expected: request.expectedCurrentValue, actual: actual)
         }
 
-        let range = singleCellRange(tabName: request.blockTab, row: target.row, col: target.col)
-        let value = request.operation == .delete ? "" : (request.valueToWrite ?? "")
-        try await client.updateCells(spreadsheetId: spreadsheetId, range: range, values: [[value]])
+        return SheetCellUpdate(
+            tabName: request.blockTab,
+            row: target.row,
+            col: target.col,
+            value: request.operation == .delete ? "" : (request.valueToWrite ?? "")
+        )
+    }
+
+    func applying(_ update: SheetCellUpdate, to grid: SheetGrid) -> SheetGrid {
+        var updated = grid
+        if update.row >= updated.count {
+            updated.append(contentsOf: SheetGrid(repeating: [], count: update.row - updated.count + 1))
+        }
+        if update.col >= updated[update.row].count {
+            updated[update.row].append(contentsOf: [String](repeating: "", count: update.col - updated[update.row].count + 1))
+        }
+        updated[update.row][update.col] = update.value
+        return updated
     }
 
     private func resolveColumn(_ column: PendingWriteColumn, cols: DayColumns) throws -> Int {

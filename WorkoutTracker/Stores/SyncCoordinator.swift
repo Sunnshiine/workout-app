@@ -36,11 +36,24 @@ final class SyncCoordinator {
 
         state = .syncing
         let writer = SheetWriter(client: client)
+        let planner = SheetWritePlanner()
+        var snapshots: [String: SheetGrid] = [:]
         var conflicts: [String] = []
 
         for write in pending {
             do {
-                try await writer.write(SheetWriteRequest(write), spreadsheetId: spreadsheetId)
+                let request = SheetWriteRequest(write)
+                let grid: SheetGrid
+                if let snapshot = snapshots[request.blockTab] {
+                    grid = snapshot
+                } else {
+                    let snapshot = try await client.fetchTab(spreadsheetId: spreadsheetId, tabName: request.blockTab)
+                    snapshots[request.blockTab] = snapshot
+                    grid = snapshot
+                }
+                let update = try planner.plan(request, in: grid)
+                try await writer.write(update, spreadsheetId: spreadsheetId)
+                snapshots[request.blockTab] = planner.applying(update, to: grid)
                 context.delete(write)
             } catch let error as SheetWriterError {
                 let message = error.errorDescription ?? String(describing: error)

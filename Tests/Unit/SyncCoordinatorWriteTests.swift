@@ -6,6 +6,7 @@ import Testing
 
 private final class FlushStubClient: SheetsClient, @unchecked Sendable {
     var grid: SheetGrid
+    var fetches: [String] = []
     var updates: [(String, [[String]])] = []
     var shouldThrowOffline = false
 
@@ -16,6 +17,7 @@ private final class FlushStubClient: SheetsClient, @unchecked Sendable {
     func listTabTitles(spreadsheetId: String) async throws -> [String] { ["Block 27"] }
     func fetchTab(spreadsheetId: String, tabName: String) async throws -> SheetGrid {
         if shouldThrowOffline { throw URLError(.notConnectedToInternet) }
+        fetches.append(tabName)
         return grid
     }
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
@@ -30,6 +32,61 @@ private func makeContainer() throws -> ModelContainer {
         PendingWrite.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
+}
+
+@MainActor
+@Test func flushReusesTabSnapshotForChainedWritesToSameSet() async throws {
+    let container = try makeContainer()
+    let ctx = container.mainContext
+    ctx.insert(
+        PendingWrite(
+            createdAt: Date(timeIntervalSince1970: 1),
+            blockTab: "Block 27",
+            week: 1,
+            day: 1,
+            exerciseName: "Squat",
+            setIndex: 0,
+            column: .notes,
+            operation: .upsert,
+            valueToWrite: "185x5@8",
+            expectedCurrentValue: ""
+        )
+    )
+    ctx.insert(
+        PendingWrite(
+            createdAt: Date(timeIntervalSince1970: 2),
+            blockTab: "Block 27",
+            week: 1,
+            day: 1,
+            exerciseName: "Squat",
+            setIndex: 0,
+            column: .notes,
+            operation: .upsert,
+            valueToWrite: "185x6@8",
+            expectedCurrentValue: "185x5@8"
+        )
+    )
+    try ctx.save()
+    let client = FlushStubClient(
+        grid: gridFromA1(
+            [
+                "C12": "Day 1", "S12": "Day 2",
+                "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+                "C15": "Squat", "D15": "1"
+            ],
+            rows: 24,
+            cols: 30
+        )
+    )
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(client.fetches == ["Block 27"])
+    #expect(client.updates.map(\.0) == ["'Block 27'!K16", "'Block 27'!K16"])
+    #expect(client.updates.map(\.1) == [[["185x5@8"]], [["185x6@8"]]])
+    #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
+    #expect(sync.state == .idle)
 }
 
 @MainActor
@@ -103,8 +160,10 @@ private func makeContainer() throws -> ModelContainer {
 
     await sync.flushPending(spreadsheetId: "sid")
 
+    #expect(client.fetches == ["Block 27"])
     let write = try #require(try ctx.fetch(FetchDescriptor<PendingWrite>()).first)
     #expect(write.status == .conflict)
+    #expect(client.updates.isEmpty)
     #expect(sync.state.isConflict)
 }
 
