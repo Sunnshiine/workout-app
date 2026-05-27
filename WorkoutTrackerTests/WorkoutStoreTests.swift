@@ -10,13 +10,13 @@ private struct WorkoutStoreFixture {
 }
 
 @MainActor
-private func makeStoreBlock() -> Block {
+private func makeStoreBlock(weekCount: Int = 1) -> Block {
     BlockBuilder.makeBlock(
         from: ParsedBlockModel(
             tabName: "Block 27",
-            weeks: [
+            weeks: (1...weekCount).map { week in
                 ParsedWeek(
-                    number: 1,
+                    number: week,
                     days: (1...4).map { day in
                         ParsedSession(
                             dayNumber: day,
@@ -40,13 +40,21 @@ private func makeStoreBlock() -> Block {
                         )
                     }
                 )
-            ]
+            }
         )
     )
 }
 
 @MainActor
-private func makeStore() throws -> WorkoutStoreFixture {
+private func makeDefaults() throws -> UserDefaults {
+    let suiteName = "test.\(UUID())"
+    let defaults = try #require(UserDefaults(suiteName: suiteName))
+    defaults.removePersistentDomain(forName: suiteName)
+    return defaults
+}
+
+@MainActor
+private func makeStore(weekCount: Int = 1, defaults: UserDefaults? = nil) throws -> WorkoutStoreFixture {
     let container = try ModelContainer(
         for: Block.self,
         configurations: ModelConfiguration(
@@ -55,9 +63,9 @@ private func makeStore() throws -> WorkoutStoreFixture {
         )
     )
     let ctx = container.mainContext
-    ctx.insert(makeStoreBlock())
+    ctx.insert(makeStoreBlock(weekCount: weekCount))
     try ctx.save()
-    let store = WorkoutStore(context: ctx)
+    let store = try WorkoutStore(context: ctx, defaults: defaults ?? makeDefaults())
     store.reload()
     return WorkoutStoreFixture(store: store, container: container)
 }
@@ -80,7 +88,7 @@ private func makeStore() throws -> WorkoutStoreFixture {
     ctx.insert(BlockBuilder.makeBlock(from: parsed))
     try ctx.save()
 
-    let store = WorkoutStore(context: ctx)
+    let store = try WorkoutStore(context: ctx, defaults: makeDefaults())
     store.reload()
 
     #expect(store.block?.tabName == "Block 27")
@@ -123,4 +131,90 @@ private func makeStore() throws -> WorkoutStoreFixture {
 
     #expect(store.displayedSession?.dayNumber == 3)
     #expect(store.isViewingLiveEdge)
+}
+
+@MainActor
+@Test func moveOnAdvancesCurrentSessionAndDisplayedSession() throws {
+    let fixture = try makeStore(defaults: makeDefaults())
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+
+    store.moveOn()
+
+    #expect(store.currentSession?.week?.number == 1)
+    #expect(store.currentSession?.dayNumber == 2)
+    #expect(store.displayedSession?.week?.number == 1)
+    #expect(store.displayedSession?.dayNumber == 2)
+}
+
+@MainActor
+@Test func moveOnAdvancePersistsAcrossReload() throws {
+    let fixture = try makeStore(defaults: makeDefaults())
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+
+    store.moveOn()
+    store.reload()
+
+    #expect(store.currentSession?.dayNumber == 2)
+    #expect(store.displayedSession?.dayNumber == 2)
+}
+
+@MainActor
+@Test func repeatedMoveOnsOverwriteStoredAdvance() throws {
+    let fixture = try makeStore(defaults: makeDefaults())
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+
+    store.moveOn()
+    store.moveOn()
+
+    #expect(store.currentSession?.dayNumber == 3)
+    #expect(store.displayedSession?.dayNumber == 3)
+}
+
+@MainActor
+@Test func moveOnCrossesWeekBoundaryAndDropsPriorWeekOpenExercises() throws {
+    let fixture = try makeStore(weekCount: 2, defaults: makeDefaults())
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+
+    store.moveOn()
+    store.moveOn()
+    store.moveOn()
+    store.moveOn()
+
+    #expect(store.currentSession?.week?.number == 2)
+    #expect(store.currentSession?.dayNumber == 1)
+    #expect(store.openExercises.isEmpty)
+}
+
+@MainActor
+@Test func loggedProgressPastStoredAdvanceBecomesCurrentSession() throws {
+    let fixture = try makeStore(defaults: makeDefaults())
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+    let day3Set = try #require(store.block?.weeks.first?.sessions.first { $0.dayNumber == 3 }?.exercises[0].sets[0])
+
+    store.moveOn()
+    try store.log(day3Set, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+
+    #expect(store.currentSession?.dayNumber == 3)
+}
+
+@MainActor
+@Test func canMoveOnIsFalseOnLastSession() throws {
+    let fixture = try makeStore(weekCount: 4, defaults: makeDefaults())
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+    let finalSet = try #require(
+        store.block?.weeks.first { $0.number == 4 }?.sessions.first { $0.dayNumber == 4 }?.exercises[0].sets[0]
+    )
+
+    finalSet.state = .logged
+    store.reload()
+
+    #expect(store.currentSession?.week?.number == 4)
+    #expect(store.currentSession?.dayNumber == 4)
+    #expect(!store.canMoveOn)
 }
