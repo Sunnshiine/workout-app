@@ -112,6 +112,25 @@ import Testing
     #endif
 }
 
+@Test func themeLastPerformedCardSurfaceIsSubtleDeepGreen() {
+    #if canImport(AppKit)
+        guard let fill = rgbComponents(of: Theme.lastPerformedCardFill) else {
+            Issue.record("Could not resolve Last Performed card fill to deviceRGB")
+            return
+        }
+        guard let stroke = rgbComponents(of: Theme.lastPerformedCardStroke) else {
+            Issue.record("Could not resolve Last Performed card stroke to deviceRGB")
+            return
+        }
+
+        #expect(fill.green > fill.red + 0.04)
+        #expect(fill.green > fill.blue + 0.02)
+        #expect(fill.green < 0.18)
+        #expect(stroke.green > stroke.red + 0.18)
+        #expect(stroke.green > stroke.blue + 0.10)
+    #endif
+}
+
 @Test func themeCardCornerRadiusIs16() {
     #expect(Theme.cardCornerRadius == 16)
 }
