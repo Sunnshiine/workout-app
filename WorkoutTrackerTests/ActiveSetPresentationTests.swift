@@ -59,3 +59,51 @@ import Testing
     #expect(presentation.remainingText == "1 left")
     #expect(abs(presentation.progress - 2.0 / 3.0) < 0.001)
 }
+
+@MainActor
+@Test func exerciseSummaryRowPresentationShowsBaseNameAndSetResults() {
+    let exercise = Exercise(
+        name: "2-3:1:0 Competition Squat",
+        baseName: "Competition Squat",
+        cadence: "2-3:1:0",
+        coachNote: nil
+    )
+    let firstSet = ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 6", percentOneRM: nil, state: .logged)
+    firstSet.setLog = SetLog(weight: .pounds(185), reps: 8, rpe: 6)
+    exercise.sets = [firstSet]
+
+    let presentation = ExerciseSummaryRowPresentation(exercise: exercise)
+
+    #expect(presentation.title == "✓ Competition Squat · 185×8")
+}
+
+@MainActor
+@Test func exerciseSummaryRowPresentationAbbreviatesConsecutiveSameWeightSets() {
+    let exercise = Exercise(name: "BB RDL", baseName: "BB RDL", cadence: nil, coachNote: nil)
+    let firstSet = ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 6", percentOneRM: nil, state: .logged)
+    firstSet.setLog = SetLog(weight: .pounds(225), reps: 8, rpe: 6)
+    let secondSet = ExerciseSet(index: 1, prescribedReps: "8", prescribedLoad: "RPE 6", percentOneRM: nil, state: .logged)
+    secondSet.setLog = SetLog(weight: .pounds(225), reps: 8, rpe: 6)
+    let thirdSet = ExerciseSet(index: 2, prescribedReps: "6", prescribedLoad: "RPE 7", percentOneRM: nil, state: .logged)
+    thirdSet.setLog = SetLog(weight: .pounds(245), reps: 6, rpe: 7)
+    exercise.sets = [firstSet, secondSet, thirdSet]
+
+    let presentation = ExerciseSummaryRowPresentation(exercise: exercise)
+
+    #expect(presentation.title == "✓ BB RDL · 225×8 / ×8 / 245×6")
+}
+
+@MainActor
+@Test func exerciseSummaryRowPresentationShowsSkippedSetsAsSkip() {
+    let exercise = Exercise(name: "BB RDL", baseName: "BB RDL", cadence: nil, coachNote: nil)
+    let firstSet = ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 6", percentOneRM: nil, state: .logged)
+    firstSet.setLog = SetLog(weight: .pounds(225), reps: 8, rpe: 6)
+    let secondSet = ExerciseSet(index: 1, prescribedReps: "8", prescribedLoad: "RPE 6", percentOneRM: nil, state: .logged)
+    secondSet.setLog = SetLog(weight: .pounds(225), reps: 8, rpe: 6)
+    let thirdSet = ExerciseSet(index: 2, prescribedReps: "8", prescribedLoad: "RPE 6", percentOneRM: nil, state: .skipped)
+    exercise.sets = [firstSet, secondSet, thirdSet]
+
+    let presentation = ExerciseSummaryRowPresentation(exercise: exercise)
+
+    #expect(presentation.title == "✓ BB RDL · 225×8 / ×8 / skip")
+}

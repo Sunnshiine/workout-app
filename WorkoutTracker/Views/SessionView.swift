@@ -26,8 +26,12 @@ struct SessionView: View {
                                         ExerciseSection(
                                             exercise: exercise,
                                             activeSetID: focusManager.activeSetID,
+                                            isCollapsed: focusManager.isCollapsed(exercise),
                                             onFocus: { set in
                                                 focusManager.focus(on: set)
+                                            },
+                                            onReexpand: {
+                                                focusManager.reexpand(exercise)
                                             },
                                             onLog: { set, log in
                                                 recordLog(set, as: log, in: session)

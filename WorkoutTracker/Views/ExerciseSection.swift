@@ -3,7 +3,9 @@ import SwiftUI
 struct ExerciseSection: View {
     let exercise: Exercise
     let activeSetID: ActiveSetID?
+    let isCollapsed: Bool
     let onFocus: (ExerciseSet) -> Void
+    let onReexpand: () -> Void
     let onLog: (ExerciseSet, SetLog) -> Void
     let onSkip: (ExerciseSet) -> Void
     let onDelete: (ExerciseSet) -> Void
@@ -14,30 +16,34 @@ struct ExerciseSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(exercise.name)
-                .font(.headline)
+            if isCollapsed {
+                ExerciseSummaryRow(exercise: exercise, onTap: onReexpand)
+            } else {
+                Text(exercise.name)
+                    .font(.headline)
 
-            if let note = exercise.coachNote {
-                Text(note)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
+                if let note = exercise.coachNote {
+                    Text(note)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
 
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(sortedSets, id: \.persistentModelID) { set in
-                    if ActiveSetFocusManager.id(for: set) == activeSetID {
-                        ActiveSetCard(
-                            exercise: exercise,
-                            set: set,
-                            setOrdinal: setOrdinal(for: set),
-                            setCount: sortedSets.count,
-                            onLog: { onLog(set, $0) },
-                            onSkip: { onSkip(set) },
-                            onDelete: { onDelete(set) }
-                        )
-                    } else {
-                        SetRow(set: set) {
-                            onFocus(set)
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(sortedSets, id: \.persistentModelID) { set in
+                        if ActiveSetFocusManager.id(for: set) == activeSetID {
+                            ActiveSetCard(
+                                exercise: exercise,
+                                set: set,
+                                setOrdinal: setOrdinal(for: set),
+                                setCount: sortedSets.count,
+                                onLog: { onLog(set, $0) },
+                                onSkip: { onSkip(set) },
+                                onDelete: { onDelete(set) }
+                            )
+                        } else {
+                            SetRow(set: set) {
+                                onFocus(set)
+                            }
                         }
                     }
                 }

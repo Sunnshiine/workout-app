@@ -72,6 +72,41 @@ private func makeMultiExercisePendingSession() -> Session {
 }
 
 @MainActor
+@Test func loggingFinalPendingSetCollapsesCompletedExercise() throws {
+    let session = makeMultiExercisePendingSession()
+    let squatSets = try #require(session.exercises.first { $0.order == 0 }?.sets)
+    squatSets.forEach { $0.state = .logged }
+    let finalSquatSet = try #require(squatSets.first { $0.index == 1 })
+    let squat = try #require(finalSquatSet.exercise)
+    let focus = ActiveSetFocusManager(session: session)
+
+    focus.advanceAfterLog(finalSquatSet, in: session)
+
+    #expect(focus.isCollapsed(squat))
+}
+
+@MainActor
+@Test func reexpandingCompletedExercisePreservesCurrentFocusAndAllowsSwapFocus() throws {
+    let session = makeMultiExercisePendingSession()
+    let squatSets = try #require(session.exercises.first { $0.order == 0 }?.sets)
+    squatSets.forEach { $0.state = .logged }
+    let firstSquatSet = try #require(squatSets.first { $0.index == 0 })
+    let finalSquatSet = try #require(squatSets.first { $0.index == 1 })
+    let squat = try #require(finalSquatSet.exercise)
+    let focus = ActiveSetFocusManager(session: session)
+
+    focus.advanceAfterLog(finalSquatSet, in: session)
+    focus.reexpand(squat)
+
+    #expect(!focus.isCollapsed(squat))
+    #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+
+    focus.focus(on: firstSquatSet)
+
+    #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+}
+
+@MainActor
 @Test func skippingActiveSetAdvancesToNextPendingSet() throws {
     let session = makePendingSession()
     let set = try #require(session.exercises.first?.sets.first { $0.index == 0 })
