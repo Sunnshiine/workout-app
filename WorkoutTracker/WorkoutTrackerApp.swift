@@ -15,14 +15,15 @@ struct WorkoutTrackerApp: App {
                 let container = UITestFixture.makeContainer()
                 self.container = container
                 let ctx = container.mainContext
-                let settings = SettingsStore()
+                let defaults = UITestFixture.makeDefaults()
+                let settings = SettingsStore(defaults: defaults)
                 settings.isSignedIn = true
                 settings.setSheetURL(UITestFixture.sheetURL)
-                let workout = WorkoutStore(context: ctx)
+                let workout = WorkoutStore(context: ctx, defaults: defaults)
                 workout.reload()
                 _settings = State(initialValue: settings)
                 _workout = State(initialValue: workout)
-                _sync = State(initialValue: SyncCoordinator(client: GoogleSheetsClient(), context: ctx))
+                _sync = State(initialValue: SyncCoordinator(client: UITestFixture.makeSheetsClient(), context: ctx))
                 return
             }
         #endif
@@ -43,6 +44,9 @@ struct WorkoutTrackerApp: App {
                 .environment(sync)
                 .onOpenURL { GIDSignIn.sharedInstance.handle($0) }
                 .task {
+                    #if DEBUG
+                        if UITestFixture.isEnabled { return }
+                    #endif
                     settings.isSignedIn = await GoogleAuth.restorePreviousSignIn()
                 }
         }

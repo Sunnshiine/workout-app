@@ -20,7 +20,8 @@ let package = Package(
         .testTarget(
             name: "WorkoutTrackerTests",
             dependencies: ["WorkoutTracker"],
-            path: "Tests"
+            path: "Tests",
+            exclude: ["UI"]
         ),
     ]
 )
