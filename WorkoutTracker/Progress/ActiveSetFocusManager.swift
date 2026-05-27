@@ -84,6 +84,28 @@ final class ActiveSetFocusManager {
         supersetState.createSuperset(with: exercises, in: session, currentActiveSetID: activeSetID)
     }
 
+    func activeSupersetPresentation(in session: Session) -> ActiveSupersetPresentation? {
+        ActiveSupersetPresentation(
+            exercises: supersetState.activeExercises(in: session),
+            activeSetID: activeSetID
+        )
+    }
+
+    func activeSupersetExercises(in session: Session) -> [Exercise] {
+        supersetState.activeExercises(in: session)
+    }
+
+    @discardableResult
+    func focusNextSupersetSet(for exercise: Exercise, in session: Session) -> Bool {
+        guard let nextSetID = supersetState.focusNextPendingSet(for: exercise, in: session) else {
+            return false
+        }
+        activeSetID = nextSetID
+        activeSetTransition = nil
+        scrollTargetID = nextSetID
+        return true
+    }
+
     func clearTransition(_ transition: ActiveSetTransition) {
         guard activeSetTransition == transition else { return }
         activeSetTransition = nil
