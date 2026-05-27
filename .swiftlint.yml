@@ -16,7 +16,7 @@ opt_in_rules:
 
 included:
   - WorkoutTracker
-  - WorkoutTrackerTests
+  - Tests
 
 excluded:
   - .build
