@@ -64,6 +64,12 @@ struct SessionView: View {
                                         onSelect: showSourceSession(for:)
                                     )
                                 }
+
+                                if workout.isViewingLiveEdge, workout.canMoveOn {
+                                    MoveOnButton {
+                                        workout.moveOn()
+                                    }
+                                }
                             }
                         }
                         .padding(.horizontal)
@@ -210,6 +216,20 @@ private struct BackToCurrentSessionBanner: View {
         }
         .buttonStyle(.plain)
         .accessibilityHint("Returns to the current session")
+    }
+}
+
+private struct MoveOnButton: View {
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            Label("Move On", systemImage: "arrow.right")
+                .font(.headline.weight(.semibold))
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.glass)
+        .accessibilityHint("Advances to the next session")
     }
 }
 
