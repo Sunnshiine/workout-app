@@ -12,45 +12,38 @@ struct BlockOverviewView: View {
         count: 4
     )
 
-    private var sessions: [Session] {
-        block.weeks
-            .sorted { $0.number < $1.number }
-            .flatMap { week in
-                week.sessions.sorted { $0.dayNumber < $1.dayNumber }
-            }
+    private var presentation: BlockOverviewPresentation {
+        BlockOverviewPresentation(block: block, currentSession: currentSession)
     }
 
     var body: some View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: Theme.sessionTileSpacing) {
-                ForEach(sessions, id: \.persistentModelID) { session in
+                ForEach(presentation.tiles, id: \.accessibilityIdentifier) { tile in
                     Button {
-                        show(session)
+                        show(week: tile.weekNumber, day: tile.dayNumber)
                     } label: {
                         SessionTile(
-                            weekNumber: session.week?.number ?? 0,
-                            dayNumber: session.dayNumber,
-                            state: SessionProgressTracker().tileState(for: session, currentSession: currentSession)
+                            weekNumber: tile.weekNumber,
+                            dayNumber: tile.dayNumber,
+                            state: tile.state
                         )
                     }
                     .buttonStyle(.plain)
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("Week \(session.week?.number ?? 0), Day \(session.dayNumber)")
-                    .accessibilityIdentifier(
-                        "session-tile-W\(session.week?.number ?? 0)-D\(session.dayNumber)"
-                    )
+                    .accessibilityLabel(tile.accessibilityLabel)
+                    .accessibilityIdentifier(tile.accessibilityIdentifier)
                 }
             }
             .padding()
         }
         .background(Theme.gradient.ignoresSafeArea())
-        .navigationTitle(block.tabName)
+        .navigationTitle(presentation.title)
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private func show(_ session: Session) {
-        guard let week = session.week else { return }
-        workout.show(week: week.number, day: session.dayNumber)
+    private func show(week: Int, day: Int) {
+        workout.show(week: week, day: day)
         dismiss()
     }
 }
