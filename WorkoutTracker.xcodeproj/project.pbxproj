@@ -28,6 +28,7 @@
 		534BF64C12717F887A7C272C /* WorkoutStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECBE6989519E819A9FDB6608 /* WorkoutStore.swift */; };
 		6370263F171AC8EFE288A5E3 /* SetLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20D53666552036BF79EEB41F /* SetLog.swift */; };
 		6962F55A0A33D607CC9C4C22 /* SheetParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93A5CA6A951EC6FB3C319E0F /* SheetParser.swift */; };
+		6C0253C40A84915E81AE47AF /* BlockOverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94076860F23B16098C27E60D /* BlockOverviewView.swift */; };
 		710C48A0C746C6116CDA0A30 /* LastPerformedIndexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2CDE5E888A1BB6181003F0D /* LastPerformedIndexTests.swift */; };
 		76AF3279365D2ACDBD02BB7A /* SmartValuePills.swift in Sources */ = {isa = PBXBuildFile; fileRef = 719E54DAA40D4D2D700AA91F /* SmartValuePills.swift */; };
 		77059DE974DF30B78249F399 /* ThemeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 884E96DE674620C329DE6DAF /* ThemeTests.swift */; };
@@ -56,6 +57,7 @@
 		B0441BD9835254837C31369E /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2A79566B8F5D5A99B273AA3 /* SettingsStore.swift */; };
 		B5967ACAA3E4FE35D1E7CD9A /* Smoke.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5803AA2AB8CAF0A50C904688 /* Smoke.swift */; };
 		BC21B2F65FD774B661EECFDA /* SyncStatusBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CC347CBCB45EC717781E8EF /* SyncStatusBanner.swift */; };
+		C284DB7EB4E8BFC59D3ECBB1 /* SessionTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7172E2B6F090D7F496DD6236 /* SessionTile.swift */; };
 		C32D7B3A93CB75699BC9D725 /* SetLogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27D2307B76B734B823D9ACD7 /* SetLogTests.swift */; };
 		C554580CFC38192B675DD0CA /* SheetWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D5E828A79B3360DCC9ED236 /* SheetWriter.swift */; };
 		C65658436C45C61CD6E26A77 /* SetRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2815DD33C0DD5F5D4C262151 /* SetRow.swift */; };
@@ -120,6 +122,7 @@
 		67135AA558123A1C244485B9 /* LastPerformedCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastPerformedCard.swift; sourceTree = "<group>"; };
 		698FB46E5B1635F96AA0AA79 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		6FE11A57FFD49F1221D2CA75 /* LastPerformedEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastPerformedEntry.swift; sourceTree = "<group>"; };
+		7172E2B6F090D7F496DD6236 /* SessionTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTile.swift; sourceTree = "<group>"; };
 		719E54DAA40D4D2D700AA91F /* SmartValuePills.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartValuePills.swift; sourceTree = "<group>"; };
 		73043E31A40EFA8A57C38FAF /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
 		82C7E3B1CAB7C96142DCF1C7 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
@@ -131,6 +134,7 @@
 		884E96DE674620C329DE6DAF /* ThemeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeTests.swift; sourceTree = "<group>"; };
 		9038CBF5AF997C5562D3A6E4 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		93A5CA6A951EC6FB3C319E0F /* SheetParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetParser.swift; sourceTree = "<group>"; };
+		94076860F23B16098C27E60D /* BlockOverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockOverviewView.swift; sourceTree = "<group>"; };
 		95FD1C7F389BE2B862A81F88 /* BlockBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockBuilderTests.swift; sourceTree = "<group>"; };
 		99901102A552A245156C78ED /* RPEGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RPEGrid.swift; sourceTree = "<group>"; };
 		A12FDB0A5CCFB2C56907DE63 /* GoogleAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAuth.swift; sourceTree = "<group>"; };
@@ -197,6 +201,7 @@
 			isa = PBXGroup;
 			children = (
 				61BD44A847304CF1B26D982D /* ActiveSetCard.swift */,
+				94076860F23B16098C27E60D /* BlockOverviewView.swift */,
 				73043E31A40EFA8A57C38FAF /* EmptyStateView.swift */,
 				86387591F871B0FC0CA1FC82 /* ExerciseSection.swift */,
 				FFBE67C176F894614182855E /* ExerciseSummaryRow.swift */,
@@ -205,6 +210,7 @@
 				9038CBF5AF997C5562D3A6E4 /* RootView.swift */,
 				99901102A552A245156C78ED /* RPEGrid.swift */,
 				D190FFC3E7D57A123821D120 /* SessionProgressHeader.swift */,
+				7172E2B6F090D7F496DD6236 /* SessionTile.swift */,
 				E31CB80B71F35E4D4A35FE87 /* SessionView.swift */,
 				2815DD33C0DD5F5D4C262151 /* SetRow.swift */,
 				719E54DAA40D4D2D700AA91F /* SmartValuePills.swift */,
@@ -471,6 +477,7 @@
 				C6DC904BF1DB120F03C23247 /* ActiveSetPresentation.swift in Sources */,
 				220D586E2C3501A8CD100024 /* Block.swift in Sources */,
 				46E6FCB4ACD0D4AC6985A5A6 /* BlockBuilder.swift in Sources */,
+				6C0253C40A84915E81AE47AF /* BlockOverviewView.swift in Sources */,
 				0B4BF5AB6DD10A512C793BED /* BlockTabSelector.swift in Sources */,
 				A17B4D3CFBBB7A17E5B5D851 /* EmptyStateView.swift in Sources */,
 				F58786858363A7A52D822F21 /* Exercise.swift in Sources */,
@@ -488,6 +495,7 @@
 				AAB1AF9D5F9324682EAF6B48 /* RootView.swift in Sources */,
 				DC4256E5E0BE527A4C3A3310 /* SessionProgressHeader.swift in Sources */,
 				0D3E6DBCFE1881EE177EDEAE /* SessionProgressTracker.swift in Sources */,
+				C284DB7EB4E8BFC59D3ECBB1 /* SessionTile.swift in Sources */,
 				FCA508FE3522CB7062267112 /* SessionView.swift in Sources */,
 				6370263F171AC8EFE288A5E3 /* SetLog.swift in Sources */,
 				C65658436C45C61CD6E26A77 /* SetRow.swift in Sources */,
