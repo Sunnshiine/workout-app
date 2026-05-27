@@ -165,6 +165,34 @@ private func makeFourExercisePairingSession() -> Session {
     return session
 }
 
+private func makeIntegratedCoordinatorSession() -> Session {
+    let session = Session(dayNumber: 1, date: nil)
+
+    let squat = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil, order: 0)
+    squat.sets = [
+        ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
+        ExerciseSet(index: 1, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
+    ]
+
+    let bench = Exercise(name: "Bench Press", baseName: "Bench Press", cadence: nil, coachNote: nil, order: 1)
+    bench.sets = [
+        ExerciseSet(index: 0, prescribedReps: "6", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
+    ]
+
+    let row = Exercise(name: "DB Row", baseName: "DB Row", cadence: nil, coachNote: nil, order: 2)
+    row.sets = [
+        ExerciseSet(index: 0, prescribedReps: "10", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
+    ]
+
+    let pulldown = Exercise(name: "Lat Pulldown", baseName: "Lat Pulldown", cadence: nil, coachNote: nil, order: 3)
+    pulldown.sets = [
+        ExerciseSet(index: 0, prescribedReps: "12", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
+    ]
+
+    session.exercises = [pulldown, row, bench, squat]
+    return session
+}
+
 private func makeSingleSetSession(dayNumber: Int) -> (session: Session, set: ExerciseSet) {
     let session = Session(dayNumber: dayNumber, date: nil)
     let exercise = Exercise(name: "Bench Press", baseName: "Bench Press", cadence: nil, coachNote: nil, order: 0)
@@ -416,6 +444,62 @@ private func makeActionFixture() throws -> CoordinatorActionFixture {
     #expect(coordinator.activeSetID == expectedSetID)
     #expect(coordinator.scrollTargetID == expectedSetID)
     #expect(coordinator.supersetScrollTargetOrder == nil)
+}
+
+@MainActor
+@Test func coordinatorPreservesCurrentSessionFlowThroughRenderItems() throws {
+    let session = makeIntegratedCoordinatorSession()
+    let logging = SpySessionLoggingAdapter()
+    let sync = SpySessionSyncAdapter()
+    let coordinator = SessionCoordinator(session: session, logging: logging, sync: sync)
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
+    let finalSquatSet = try #require(squat.sets.first { $0.index == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let row = try #require(session.exercises.first { $0.order == 2 })
+    let squatLog = SetLog(weight: .pounds(315), reps: 5, rpe: 7)
+
+    coordinator.log(firstSquatSet, as: squatLog)
+
+    #expect(firstSquatSet.state == .logged)
+    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 1))
+    #expect(sync.flushRequestCount == 1)
+
+    coordinator.deleteLog(for: firstSquatSet)
+
+    #expect(firstSquatSet.state == .pending)
+    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+    #expect(coordinator.exerciseRenderItems(in: session).first?.isCollapsed == false)
+
+    coordinator.log(firstSquatSet, as: squatLog)
+    coordinator.skip(finalSquatSet)
+
+    #expect(finalSquatSet.state == .skipped)
+    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    let afterSquatItems = coordinator.renderItems(in: session)
+    let completedSquat = try #require(afterSquatItems.compactMap(\.exerciseConfig).first { $0.exercise.order == 0 })
+    #expect(completedSquat.isCollapsed)
+
+    #expect(coordinator.createSuperset(from: bench, to: row, in: session))
+
+    let pairedItems = coordinator.renderItems(in: session)
+    #expect(pairedItems.map(\.id) == ["exercise-0", "superset-1", "hidden-paired-exercise-2", "exercise-3"])
+    let activeSuperset = try #require(coordinator.supersetSections(in: session).first?.presentation)
+    #expect(activeSuperset.activeExerciseOrder == 1)
+
+    #expect(coordinator.focusNextSupersetSet(for: row, in: session))
+    let focusedSuperset = try #require(coordinator.supersetSections(in: session).first?.presentation)
+    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 2, setIndex: 0))
+    #expect(focusedSuperset.activeExerciseOrder == 2)
+
+    coordinator.dismissSuperset(containing: row, in: session)
+
+    #expect(coordinator.supersetSections(in: session).isEmpty)
+    #expect(coordinator.renderItems(in: session).map(\.id) == ["exercise-0", "exercise-1", "exercise-2", "exercise-3"])
+    #expect(logging.loggedSets.map(\.set) == [firstSquatSet, firstSquatSet])
+    #expect(logging.skippedSets == [finalSquatSet])
+    #expect(logging.deletedSets == [firstSquatSet])
+    #expect(sync.reportedErrors.isEmpty)
 }
 
 @MainActor
