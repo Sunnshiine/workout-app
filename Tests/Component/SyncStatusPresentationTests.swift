@@ -5,9 +5,10 @@ import Testing
 @MainActor
 @Test func syncStatusPresentationBuildsVisibleSyncQueueAndFailureStates() throws {
     let syncing = try #require(SyncStatusBannerPresentation(state: .syncing))
-    let queued = try #require(SyncStatusBannerPresentation(state: .pendingWrites(3)))
+    let queuedWrite = WorkoutScenarios.queuedWrite()
+    let queued = try #require(SyncStatusBannerPresentation(state: .pendingWrites([queuedWrite].count)))
     let offline = try #require(SyncStatusBannerPresentation(state: .offline))
-    let failure = try #require(SyncStatusBannerPresentation(state: .conflict(["Sheet write failed"])))
+    let failure = try #require(SyncStatusBannerPresentation(state: WorkoutScenarios.syncFailure()))
 
     #expect(
         syncing
@@ -20,9 +21,9 @@ import Testing
     #expect(
         queued
             == SyncStatusBannerPresentation(
-                text: "3 unsynced",
+                text: "1 unsynced",
                 symbol: "icloud.slash",
-                accessibilityLabel: "Sync status: 3 unsynced"
+                accessibilityLabel: "Sync status: 1 unsynced"
             )
     )
     #expect(
