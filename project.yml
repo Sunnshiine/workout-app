@@ -39,10 +39,37 @@ targets:
   WorkoutTrackerTests:
     type: bundle.unit-test
     platform: iOS
-    sources: [WorkoutTrackerTests]
+    sources: [Tests]
     dependencies:
       - target: WorkoutTracker
     settings:
       base:
         SWIFT_VERSION: "6.0"
         GENERATE_INFOPLIST_FILE: "YES"
+
+schemes:
+  WorkoutTracker:
+    build:
+      targets:
+        WorkoutTracker: all
+    run:
+      config: Debug
+      commandLineArguments:
+        "-UITEST_FIXTURE": true
+    test:
+      config: Debug
+      targets:
+        - WorkoutTrackerTests
+
+  Copy of WorkoutTracker:
+    build:
+      targets:
+        WorkoutTracker: all
+    run:
+      config: Debug
+      commandLineArguments:
+        "-UITEST_FIXTURE": false
+    test:
+      config: Debug
+      targets:
+        - WorkoutTrackerTests
