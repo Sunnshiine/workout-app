@@ -137,3 +137,57 @@ struct LastPerformedCardPresentation: Equatable, Sendable {
         self.init(entry: entry)
     }
 }
+
+struct ActiveSupersetSidePresentation: Equatable, Sendable {
+    let exerciseOrder: Int
+    let exerciseName: String
+    let nextSetText: String
+    let prescriptionText: String
+    let isActive: Bool
+    let accessibilityLabel: String
+}
+
+struct ActiveSupersetPresentation: Equatable, Sendable {
+    let activeSetID: ActiveSetID
+    let sides: [ActiveSupersetSidePresentation]
+
+    var activeExerciseOrder: Int? {
+        sides.first { $0.isActive }?.exerciseOrder
+    }
+
+    var containerExerciseOrder: Int? {
+        sides.map(\.exerciseOrder).min()
+    }
+
+    @MainActor
+    init?(exercises: [Exercise], activeSetID: ActiveSetID?) {
+        guard exercises.count == 2, let activeSetID else { return nil }
+        let sides = exercises.compactMap { exercise -> ActiveSupersetSidePresentation? in
+            let sortedSets = exercise.sets.sorted { $0.index < $1.index }
+            let isActive = exercise.order == activeSetID.exerciseOrder
+            let nextSet =
+                if isActive {
+                    sortedSets.first { $0.index == activeSetID.setIndex && $0.state == .pending }
+                } else {
+                    sortedSets.first { $0.state == .pending }
+                }
+            guard let nextSet else { return nil }
+            let ordinal = (sortedSets.firstIndex { $0.persistentModelID == nextSet.persistentModelID } ?? nextSet.index) + 1
+            let nextSetText = "Set \(ordinal) of \(sortedSets.count)"
+            let prescriptionText = [nextSet.prescribedReps, nextSet.prescribedLoad]
+                .filter { !$0.isEmpty }
+                .joined(separator: " · ")
+            return ActiveSupersetSidePresentation(
+                exerciseOrder: exercise.order,
+                exerciseName: exercise.name,
+                nextSetText: nextSetText,
+                prescriptionText: prescriptionText,
+                isActive: isActive,
+                accessibilityLabel: "\(exercise.name), \(nextSetText), \(prescriptionText)"
+            )
+        }
+        guard sides.count == 2, sides.contains(where: \.isActive) else { return nil }
+        self.activeSetID = activeSetID
+        self.sides = sides
+    }
+}

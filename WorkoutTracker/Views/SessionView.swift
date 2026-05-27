@@ -37,33 +37,64 @@ struct SessionView: View {
                         ScrollView {
                             GlassEffectContainer(spacing: Theme.cardSpacing) {
                                 LazyVStack(alignment: .leading, spacing: Theme.cardSpacing) {
+                                    let activeSupersetPresentation = focusManager.activeSupersetPresentation(in: session)
+                                    let activeSupersetExercises = focusManager.activeSupersetExercises(in: session)
+                                    let activeSupersetExerciseOrders = Set(
+                                        activeSupersetPresentation?.sides.map(\.exerciseOrder) ?? []
+                                    )
+
                                     ForEach(
                                         session.exercises.sorted(by: { $0.order < $1.order }),
                                         id: \.persistentModelID
                                     ) { exercise in
-                                        ExerciseSection(
-                                            exercise: exercise,
-                                            lastPerformedIndex: LastPerformedIndex(context: modelContext),
-                                            activeSetID: focusManager.activeSetID,
-                                            activeSetTransition: focusManager.activeSetTransition,
-                                            retiringTransition: retiringTransition,
-                                            isCollapsed: focusManager.isCollapsed(exercise),
-                                            onFocus: { set in
-                                                focusManager.focus(on: set)
-                                            },
-                                            onReexpand: {
-                                                focusManager.reexpand(exercise)
-                                            },
-                                            onLog: { set, log in
-                                                recordLog(set, as: log, in: session)
-                                            },
-                                            onSkip: { set in
-                                                skip(set, in: session)
-                                            },
-                                            onDelete: { set in
-                                                deleteLog(for: set)
-                                            }
-                                        )
+                                        if let activeSupersetPresentation,
+                                            activeSupersetPresentation.containerExerciseOrder == exercise.order {
+                                            ActiveSupersetSection(
+                                                presentation: activeSupersetPresentation,
+                                                exercises: activeSupersetExercises,
+                                                lastPerformedIndex: LastPerformedIndex(context: modelContext),
+                                                activeSetTransition: focusManager.activeSetTransition,
+                                                retiringTransition: retiringTransition,
+                                                onFocusExercise: { focusedExercise in
+                                                    focusManager.focusNextSupersetSet(for: focusedExercise, in: session)
+                                                },
+                                                onLog: { set, log in
+                                                    recordLog(set, as: log, in: session)
+                                                },
+                                                onSkip: { set in
+                                                    skip(set, in: session)
+                                                },
+                                                onDelete: { set in
+                                                    deleteLog(for: set)
+                                                }
+                                            )
+                                        } else if activeSupersetExerciseOrders.contains(exercise.order) {
+                                            EmptyView()
+                                        } else {
+                                            ExerciseSection(
+                                                exercise: exercise,
+                                                lastPerformedIndex: LastPerformedIndex(context: modelContext),
+                                                activeSetID: focusManager.activeSetID,
+                                                activeSetTransition: focusManager.activeSetTransition,
+                                                retiringTransition: retiringTransition,
+                                                isCollapsed: focusManager.isCollapsed(exercise),
+                                                onFocus: { set in
+                                                    focusManager.focus(on: set)
+                                                },
+                                                onReexpand: {
+                                                    focusManager.reexpand(exercise)
+                                                },
+                                                onLog: { set, log in
+                                                    recordLog(set, as: log, in: session)
+                                                },
+                                                onSkip: { set in
+                                                    skip(set, in: session)
+                                                },
+                                                onDelete: { set in
+                                                    deleteLog(for: set)
+                                                }
+                                            )
+                                        }
                                     }
 
                                     if workout.isViewingLiveEdge, !workout.openExercises.isEmpty {
