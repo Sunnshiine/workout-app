@@ -8,6 +8,7 @@ struct WeekSection {
 }
 
 private nonisolated(unsafe) let dayHeaderPattern = /^Day [1-4]$/
+private let trainingMaxHeaderScanRowLimit = 15
 
 struct DayColumns {
     let name: Int
@@ -197,9 +198,68 @@ struct ParsedWeek {
     var number: Int
     var days: [ParsedSession]
 }
+struct ParsedTrainingMax {
+    var squat: Double?
+    var bench: Double?
+    var deadlift: Double?
+}
+
+func parseTrainingMax(from grid: SheetGrid) -> ParsedTrainingMax {
+    let scannedRows = min(grid.count, trainingMaxHeaderScanRowLimit)
+    for row in 0..<scannedRows {
+        for col in 0..<grid[row].count
+        where grid[row][col].trimmed.caseInsensitiveCompare("Training Max") == .orderedSame {
+            return trainingMaxValues(from: grid, valueCol: col, labelCol: col - 2, startRow: row + 1)
+        }
+    }
+
+    return ParsedTrainingMax()
+}
+
+private func trainingMaxValues(
+    from grid: SheetGrid,
+    valueCol: Int,
+    labelCol: Int,
+    startRow: Int
+) -> ParsedTrainingMax {
+    guard labelCol >= 0 else { return ParsedTrainingMax() }
+
+    func value(for expectedLabel: String) -> Double? {
+        let endRow = min(grid.count, startRow + 8)
+        return (startRow..<endRow).compactMap { row -> Double? in
+            let label = grid.cell(row: row, col: labelCol).trimmed
+            guard label.caseInsensitiveCompare(expectedLabel) == .orderedSame else { return nil }
+            return Double(grid.cell(row: row, col: valueCol).trimmed)
+        }.first
+    }
+
+    return ParsedTrainingMax(
+        squat: value(for: "Squat"),
+        bench: value(for: "Bench Press"),
+        deadlift: value(for: "Deadlift")
+    )
+}
+
 struct ParsedBlockModel {
     var tabName: String
     var weeks: [ParsedWeek]
+    var squatTM: Double?
+    var benchTM: Double?
+    var deadliftTM: Double?
+
+    init(
+        tabName: String,
+        weeks: [ParsedWeek],
+        squatTM: Double? = nil,
+        benchTM: Double? = nil,
+        deadliftTM: Double? = nil
+    ) {
+        self.tabName = tabName
+        self.weeks = weeks
+        self.squatTM = squatTM
+        self.benchTM = benchTM
+        self.deadliftTM = deadliftTM
+    }
 }
 struct ParsedBlock {
     var block: ParsedBlockModel
@@ -209,10 +269,20 @@ struct ParsedBlock {
 struct SheetParser {
     func parse(grid: SheetGrid, tabName: String) -> ParsedBlock {
         var warnings: [String] = []
+        let trainingMax = parseTrainingMax(from: grid)
         let sections = locateWeekSections(in: grid)
         if sections.isEmpty {
             warnings.append("Parse warning: no week sections (no 'Day N' headers) in \(tabName)")
-            return ParsedBlock(block: ParsedBlockModel(tabName: tabName, weeks: []), warnings: warnings)
+            return ParsedBlock(
+                block: ParsedBlockModel(
+                    tabName: tabName,
+                    weeks: [],
+                    squatTM: trainingMax.squat,
+                    benchTM: trainingMax.bench,
+                    deadliftTM: trainingMax.deadlift
+                ),
+                warnings: warnings
+            )
         }
         var weeks: [ParsedWeek] = []
         for (i, section) in sections.enumerated() {
@@ -225,7 +295,16 @@ struct SheetParser {
             }
             weeks.append(ParsedWeek(number: i + 1, days: days))
         }
-        return ParsedBlock(block: ParsedBlockModel(tabName: tabName, weeks: weeks), warnings: warnings)
+        return ParsedBlock(
+            block: ParsedBlockModel(
+                tabName: tabName,
+                weeks: weeks,
+                squatTM: trainingMax.squat,
+                benchTM: trainingMax.bench,
+                deadliftTM: trainingMax.deadlift
+            ),
+            warnings: warnings
+        )
     }
 
     private func parseDate(_ s: String) -> Date? {

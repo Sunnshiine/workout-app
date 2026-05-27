@@ -2,7 +2,7 @@ import Foundation
 
 enum BlockBuilder {
     static func makeBlock(from p: ParsedBlockModel) -> Block {
-        let block = Block(tabName: p.tabName, squatTM: nil, benchTM: nil, deadliftTM: nil)
+        let block = Block(tabName: p.tabName, squatTM: p.squatTM, benchTM: p.benchTM, deadliftTM: p.deadliftTM)
         block.weeks = p.weeks.map { pw in
             let week = Week(number: pw.number)
             week.sessions = pw.days.map { pd in
