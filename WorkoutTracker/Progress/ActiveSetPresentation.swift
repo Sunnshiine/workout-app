@@ -47,6 +47,8 @@ struct SessionProgressHeaderPresentation: Equatable, Sendable {
     let completedSetCount: Int
     let totalSetCount: Int
     let segments: [SessionProgressSegmentPresentation]
+    let locationActionAccessibilityLabel: String
+    let progressAccessibilityValue: String
 
     var remainingSetCount: Int {
         totalSetCount - completedSetCount
@@ -60,6 +62,7 @@ struct SessionProgressHeaderPresentation: Equatable, Sendable {
         let weekNumber = session.week?.number ?? 0
         locationLabel = "W\(weekNumber) D\(session.dayNumber)"
         locationText = "\(locationLabel) ›"
+        locationActionAccessibilityLabel = "Open Block Overview for Week \(weekNumber), Day \(session.dayNumber)"
 
         let sets = session.exercises
             .sorted { $0.order < $1.order }
@@ -70,6 +73,7 @@ struct SessionProgressHeaderPresentation: Equatable, Sendable {
             }
         totalSetCount = sets.count
         completedSetCount = sets.filter { $0.set.state == .logged || $0.set.state == .skipped }.count
+        progressAccessibilityValue = "\(locationLabel), \(totalSetCount - completedSetCount) left"
         let pendingSetIDs = sets.filter { $0.set.state == .pending }.map(\.id)
         let currentPendingID =
             if let activeSetID, pendingSetIDs.contains(activeSetID) {
