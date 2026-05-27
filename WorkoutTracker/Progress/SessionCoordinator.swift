@@ -84,14 +84,61 @@ enum ExercisePairingAvailability: Equatable, Sendable {
     case unavailable
 }
 
-struct SessionExerciseRenderItem {
+struct SessionExerciseRenderConfig {
     let exercise: Exercise
     let activeSetID: ActiveSetID?
     let activeSetTransition: ActiveSetTransition?
+    let retiringTransition: ActiveSetTransition?
     let isCollapsed: Bool
     let showsPairingGrip: Bool
     let pairingAvailability: ExercisePairingAvailability
     let isPairingConfirmation: Bool
+    let lastPerformedPresentation: LastPerformedCardPresentation?
+}
+
+typealias SessionExerciseRenderItem = SessionExerciseRenderConfig
+
+struct SessionSupersetRenderConfig {
+    let presentation: ActiveSupersetPresentation
+    let exercises: [Exercise]
+    let activeSetTransition: ActiveSetTransition?
+    let retiringTransition: ActiveSetTransition?
+    let lastPerformedPresentation: LastPerformedCardPresentation?
+}
+
+struct SessionHiddenPairedExerciseRenderConfig {
+    let exercise: Exercise
+    let containerExerciseOrder: Int
+}
+
+private struct SessionRenderContext {
+    let supersetByContainerOrder: [Int: SupersetSectionState]
+    let containerOrderByPairedExerciseOrder: [Int: Int]
+    let pairingSourceOrder: Int?
+    let pairingConfirmationOrder: Int?
+    let lastPerformedIndex: LastPerformedIndex?
+}
+
+enum SessionRenderItem {
+    case exercise(SessionExerciseRenderConfig)
+    case superset(SessionSupersetRenderConfig)
+    case hiddenPairedExercise(SessionHiddenPairedExerciseRenderConfig)
+
+    var id: String {
+        switch self {
+        case .exercise(let config):
+            "exercise-\(config.exercise.order)"
+        case .superset(let config):
+            "superset-\(config.presentation.containerExerciseOrder ?? Int.min)"
+        case .hiddenPairedExercise(let config):
+            "hidden-paired-exercise-\(config.exercise.order)"
+        }
+    }
+
+    var exerciseConfig: SessionExerciseRenderConfig? {
+        guard case .exercise(let config) = self else { return nil }
+        return config
+    }
 }
 
 typealias SessionFocusAnimation = (() -> Void) -> Void
@@ -158,41 +205,6 @@ final class SessionCoordinator {
     ) {
         configure(logging: logging, sync: sync)
         bind(to: session)
-    }
-
-    func exerciseRenderItems() -> [SessionExerciseRenderItem] {
-        guard let session else { return [] }
-        return exerciseRenderItems(in: session)
-    }
-
-    func exerciseRenderItems(in session: Session) -> [SessionExerciseRenderItem] {
-        _ = renderRevision
-        let pairingSourceOrder = pairingSourceOrder
-        let pairingConfirmationOrder = pairingConfirmationOrder
-        let activeSupersetExerciseOrders = Set(
-            supersetSections(in: session).flatMap { section in
-                section.exercises.map(\.order)
-            }
-        )
-
-        return session.exercises
-            .sorted { $0.order < $1.order }
-            .filter { !activeSupersetExerciseOrders.contains($0.order) }
-            .map { exercise in
-                SessionExerciseRenderItem(
-                    exercise: exercise,
-                    activeSetID: activeSetID,
-                    activeSetTransition: activeSetTransition,
-                    isCollapsed: focusManager.isCollapsed(exercise),
-                    showsPairingGrip: pairingSourceOrder != nil,
-                    pairingAvailability: pairingAvailability(
-                        for: exercise,
-                        in: session,
-                        pairingSourceOrder: pairingSourceOrder
-                    ),
-                    isPairingConfirmation: pairingConfirmationOrder == exercise.order
-                )
-            }
     }
 
     func advanceAfterLog(_ set: ExerciseSet, in session: Session) {
@@ -300,18 +312,6 @@ final class SessionCoordinator {
         ActiveSetFocusManager.id(for: set)
     }
 
-    private func pairingAvailability(
-        for exercise: Exercise,
-        in session: Session,
-        pairingSourceOrder: Int?
-    ) -> ExercisePairingAvailability {
-        guard let pairingSourceOrder else { return .inactive }
-        if exercise.order == pairingSourceOrder || canPair(exercise, in: session) {
-            return .available
-        }
-        return .unavailable
-    }
-
     private func syncFocusState() {
         activeSetID = focusManager.activeSetID
         activeSetTransition = focusManager.activeSetTransition
@@ -387,6 +387,170 @@ final class SessionCoordinator {
                     + Theme.momentumRiseDuration
             }
         return .nanoseconds(Int64((seconds * 1_000_000_000).rounded()))
+    }
+}
+
+extension SessionCoordinator {
+    func exerciseRenderItems() -> [SessionExerciseRenderItem] {
+        guard let session else { return [] }
+        return exerciseRenderItems(in: session)
+    }
+
+    func exerciseRenderItems(in session: Session) -> [SessionExerciseRenderItem] {
+        renderItems(in: session).compactMap(\.exerciseConfig)
+    }
+
+    func renderItems(
+        lastPerformedIndex: LastPerformedIndex? = nil
+    ) -> [SessionRenderItem] {
+        guard let session else { return [] }
+        return renderItems(in: session, lastPerformedIndex: lastPerformedIndex)
+    }
+
+    func renderItems(
+        in session: Session,
+        lastPerformedIndex: LastPerformedIndex? = nil
+    ) -> [SessionRenderItem] {
+        let supersetSections = self.supersetSections(in: session)
+        let context = SessionRenderContext(
+            supersetByContainerOrder: Dictionary(
+                uniqueKeysWithValues: supersetSections.compactMap { section in
+                    section.presentation.containerExerciseOrder.map { ($0, section) }
+                }
+            ),
+            containerOrderByPairedExerciseOrder: Dictionary(
+                uniqueKeysWithValues: supersetSections.flatMap { section in
+                    let containerOrder = section.presentation.containerExerciseOrder ?? Int.min
+                    return section.exercises
+                        .map(\.order)
+                        .filter { $0 != containerOrder }
+                        .map { ($0, containerOrder) }
+                }
+            ),
+            pairingSourceOrder: pairingSourceOrder,
+            pairingConfirmationOrder: pairingConfirmationOrder,
+            lastPerformedIndex: lastPerformedIndex
+        )
+
+        return session.exercises
+            .sorted { $0.order < $1.order }
+            .map { exercise in
+                renderItem(for: exercise, in: session, context: context)
+            }
+    }
+
+    private func renderItem(
+        for exercise: Exercise,
+        in session: Session,
+        context: SessionRenderContext
+    ) -> SessionRenderItem {
+        if let supersetSection = context.supersetByContainerOrder[exercise.order] {
+            return .superset(
+                supersetRenderConfig(
+                    for: supersetSection,
+                    lastPerformedIndex: context.lastPerformedIndex
+                )
+            )
+        }
+
+        if let containerExerciseOrder = context.containerOrderByPairedExerciseOrder[exercise.order] {
+            return .hiddenPairedExercise(
+                SessionHiddenPairedExerciseRenderConfig(
+                    exercise: exercise,
+                    containerExerciseOrder: containerExerciseOrder
+                )
+            )
+        }
+
+        return .exercise(exerciseRenderConfig(for: exercise, in: session, context: context))
+    }
+
+    private func supersetRenderConfig(
+        for section: SupersetSectionState,
+        lastPerformedIndex: LastPerformedIndex?
+    ) -> SessionSupersetRenderConfig {
+        let exerciseOrders = Set(section.exercises.map(\.order))
+        let activeExercise = section.exercises.first {
+            $0.order == section.presentation.activeExerciseOrder
+        }
+
+        return SessionSupersetRenderConfig(
+            presentation: section.presentation,
+            exercises: section.exercises,
+            activeSetTransition: transition(activeSetTransition, scopedTo: exerciseOrders),
+            retiringTransition: transition(retiringTransition, scopedTo: exerciseOrders),
+            lastPerformedPresentation: lastPerformedPresentation(
+                for: activeExercise,
+                index: lastPerformedIndex
+            )
+        )
+    }
+
+    private func exerciseRenderConfig(
+        for exercise: Exercise,
+        in session: Session,
+        context: SessionRenderContext
+    ) -> SessionExerciseRenderConfig {
+        SessionExerciseRenderConfig(
+            exercise: exercise,
+            activeSetID: activeSetID(scopedTo: exercise),
+            activeSetTransition: transition(activeSetTransition, scopedTo: [exercise.order]),
+            retiringTransition: transition(retiringTransition, scopedTo: [exercise.order]),
+            isCollapsed: focusManager.isCollapsed(exercise),
+            showsPairingGrip: context.pairingSourceOrder != nil,
+            pairingAvailability: pairingAvailability(
+                for: exercise,
+                in: session,
+                pairingSourceOrder: context.pairingSourceOrder
+            ),
+            isPairingConfirmation: context.pairingConfirmationOrder == exercise.order,
+            lastPerformedPresentation: lastPerformedPresentation(
+                for: exercise,
+                index: context.lastPerformedIndex
+            )
+        )
+    }
+
+    private func pairingAvailability(
+        for exercise: Exercise,
+        in session: Session,
+        pairingSourceOrder: Int?
+    ) -> ExercisePairingAvailability {
+        guard let pairingSourceOrder else { return .inactive }
+        if exercise.order == pairingSourceOrder || canPair(exercise, in: session) {
+            return .available
+        }
+        return .unavailable
+    }
+
+    private func activeSetID(scopedTo exercise: Exercise) -> ActiveSetID? {
+        guard activeSetID?.exerciseOrder == exercise.order else { return nil }
+        return activeSetID
+    }
+
+    private func transition(
+        _ transition: ActiveSetTransition?,
+        scopedTo exerciseOrders: Set<Int>
+    ) -> ActiveSetTransition? {
+        guard let transition else { return nil }
+        if exerciseOrders.contains(transition.outgoingSetID.exerciseOrder) {
+            return transition
+        }
+        if transition.incomingSetID.map({ exerciseOrders.contains($0.exerciseOrder) }) == true {
+            return transition
+        }
+        if transition.completedExerciseOrder.map(exerciseOrders.contains) == true {
+            return transition
+        }
+        return nil
+    }
+
+    private func lastPerformedPresentation(
+        for exercise: Exercise?,
+        index: LastPerformedIndex?
+    ) -> LastPerformedCardPresentation? {
+        guard let exercise, let index else { return nil }
+        return LastPerformedCardPresentation(exercise: exercise, index: index)
     }
 }
 

@@ -1,6 +1,19 @@
+import Foundation
+import SwiftData
 import Testing
 
 @testable import WorkoutTracker
+
+@MainActor
+private func sessionCoordinatorContainer() throws -> ModelContainer {
+    try ModelContainer(
+        for: LastPerformedEntry.self,
+        configurations: ModelConfiguration(
+            "session-coordinator-\(UUID().uuidString)",
+            isStoredInMemoryOnly: true
+        )
+    )
+}
 
 private enum TestLoggingError: Error, Equatable {
     case failed
@@ -219,11 +232,78 @@ private func makeActionFixture() throws -> CoordinatorActionFixture {
     #expect(items.map { $0.exercise.order } == [0, 1, 2])
     #expect(items.map(\.isCollapsed) == [true, false, false])
     let expectedActiveSetID = ActiveSetID(exerciseOrder: 1, setIndex: 1)
-    #expect(items.map(\.activeSetID) == [expectedActiveSetID, expectedActiveSetID, expectedActiveSetID])
-    #expect(items.allSatisfy { $0.activeSetTransition != nil })
+    #expect(items.map(\.activeSetID) == [nil, expectedActiveSetID, nil])
+    #expect(items.map { $0.activeSetTransition != nil } == [false, true, false])
     #expect(items.map(\.showsPairingGrip) == [true, true, true])
     #expect(items.map(\.pairingAvailability) == [.unavailable, .available, .available])
     #expect(items.map(\.isPairingConfirmation) == [false, false, true])
+}
+
+@MainActor
+@Test func coordinatorBuildsOrderedRenderItemsWithSupersetsAndHiddenPairedExercises() throws {
+    let session = makeFourExercisePairingSession()
+    let coordinator = SessionCoordinator(session: session)
+    let press = try #require(session.exercises.first { $0.order == 0 })
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+    let row = try #require(session.exercises.first { $0.order == 3 })
+
+    #expect(coordinator.createSuperset(from: squat, to: row, in: session))
+
+    let items = coordinator.renderItems(in: session)
+
+    #expect(items.map(\.id) == ["exercise-0", "superset-1", "exercise-2", "hidden-paired-exercise-3"])
+    guard case .exercise(let firstExercise) = items[0] else {
+        Issue.record("Expected ordinary Exercise render item for Press")
+        return
+    }
+    guard case .superset(let superset) = items[1] else {
+        Issue.record("Expected Superset render item for Squat and DB Row")
+        return
+    }
+    guard case .exercise(let thirdExercise) = items[2] else {
+        Issue.record("Expected ordinary Exercise render item for Bench Press")
+        return
+    }
+    guard case .hiddenPairedExercise(let hidden) = items[3] else {
+        Issue.record("Expected hidden paired Exercise placeholder for DB Row")
+        return
+    }
+
+    #expect(firstExercise.exercise === press)
+    #expect(superset.exercises.map(\.order) == [1, 3])
+    #expect(superset.presentation.containerExerciseOrder == 1)
+    #expect(thirdExercise.exercise === bench)
+    #expect(hidden.exercise === row)
+    #expect(hidden.containerExerciseOrder == 1)
+}
+
+@MainActor
+@Test func coordinatorRenderItemsCarryLastPerformedPresentations() throws {
+    let container = try sessionCoordinatorContainer()
+    let context = container.mainContext
+    context.insert(
+        LastPerformedEntry(
+            fullName: "Bench Press",
+            baseName: "Bench Press",
+            result: SetLog(weight: .pounds(185), reps: 6, rpe: 7),
+            performedOn: Date(timeIntervalSinceReferenceDate: 100),
+            source: "W3 D2"
+        )
+    )
+    try context.save()
+    let session = makeCoordinatorSession()
+    let coordinator = SessionCoordinator(session: session)
+
+    let items = coordinator.renderItems(
+        in: session,
+        lastPerformedIndex: LastPerformedIndex(context: context)
+    )
+
+    let benchConfig = try #require(items.compactMap(\.exerciseConfig).first { $0.exercise.order == 1 })
+    #expect(benchConfig.lastPerformedPresentation?.resultText == "185x6@7")
+    #expect(benchConfig.lastPerformedPresentation?.sourceText == "W3 D2")
+    withExtendedLifetime(container) {}
 }
 
 @MainActor
