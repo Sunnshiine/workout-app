@@ -16,6 +16,77 @@ private struct StubClient: SheetsClient {
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
 }
 
+private final class BackfillStubClient: SheetsClient, @unchecked Sendable {
+    let titles: [String]
+    let grids: [String: SheetGrid]
+    let failingTabs: Set<String>
+    let suspendedTabs: Set<String>
+    let recorder: FetchRecorder
+
+    init(
+        titles: [String],
+        grids: [String: SheetGrid],
+        failingTabs: Set<String> = [],
+        suspendedTabs: Set<String> = [],
+        recorder: FetchRecorder = FetchRecorder()
+    ) {
+        self.titles = titles
+        self.grids = grids
+        self.failingTabs = failingTabs
+        self.suspendedTabs = suspendedTabs
+        self.recorder = recorder
+    }
+
+    func listTabTitles(spreadsheetId: String) async throws -> [String] { titles }
+
+    func fetchTab(spreadsheetId: String, tabName: String) async throws -> SheetGrid {
+        await recorder.record(tabName)
+        if failingTabs.contains(tabName) { throw URLError(.notConnectedToInternet) }
+        if suspendedTabs.contains(tabName) {
+            await recorder.waitForRelease()
+        }
+        return grids[tabName] ?? []
+    }
+
+    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
+}
+
+private actor FetchRecorder {
+    private var fetchedTabs: [String] = []
+    private var syncReturned = false
+    private var released = false
+    private var releaseContinuation: CheckedContinuation<Void, Never>?
+
+    func record(_ tab: String) {
+        fetchedTabs.append(tab)
+    }
+
+    func tabs() -> [String] {
+        fetchedTabs
+    }
+
+    func markSyncReturned() {
+        syncReturned = true
+    }
+
+    func didSyncReturn() -> Bool {
+        syncReturned
+    }
+
+    func waitForRelease() async {
+        if released { return }
+        await withCheckedContinuation { continuation in
+            releaseContinuation = continuation
+        }
+    }
+
+    func release() {
+        released = true
+        releaseContinuation?.resume()
+        releaseContinuation = nil
+    }
+}
+
 @MainActor
 @Test func syncFetchesParsesAndPersistsCurrentBlock() async throws {
     let container = try ModelContainer(for: Block.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
@@ -86,6 +157,115 @@ private struct StubClient: SheetsClient {
     #expect(sync.state == .offline)
 }
 
+@MainActor
+@Test func syncBackfillsMissingLastPerformedEntriesFromHistoricalBlocksAndStopsWhenCovered() async throws {
+    let container = try makeSyncContainer()
+    let client = BackfillStubClient(
+        titles: ["Intro", "Block 25", "Block 26", "Block 27"],
+        grids: [
+            "Block 27": currentGridWithPendingSquat(),
+            "Block 26": historicalGrid(exerciseName: "Squat", log: "245x5@8", date: "4/24/2026"),
+            "Block 25": historicalGrid(exerciseName: "Squat", log: "235x5@8", date: "4/17/2026")
+        ]
+    )
+    let sync = SyncCoordinator(client: client, context: container.mainContext)
+
+    await sync.sync(spreadsheetId: "sid")
+
+    let entry = try #require(
+        await waitForLastPerformedEntry(
+            exerciseName: "Squat",
+            baseName: "Squat",
+            context: container.mainContext
+        )
+    )
+    #expect(entry.result == SetLog(weight: .pounds(245), reps: 5, rpe: 8))
+    #expect(entry.source == "Block 26 · W1 D1")
+    #expect(await client.recorder.tabs() == ["Block 27", "Block 26"])
+}
+
+@MainActor
+@Test func syncSkipsHistoricalBackfillWhenCurrentBlockAlreadyCoversExercises() async throws {
+    let container = try makeSyncContainer()
+    let client = BackfillStubClient(
+        titles: ["Intro", "Block 26", "Block 27"],
+        grids: [
+            "Block 27": historicalGrid(exerciseName: "Squat", log: "255x5@8", date: "5/1/2026"),
+            "Block 26": historicalGrid(exerciseName: "Squat", log: "245x5@8", date: "4/24/2026")
+        ]
+    )
+    let sync = SyncCoordinator(client: client, context: container.mainContext)
+
+    await sync.sync(spreadsheetId: "sid")
+    try await Task.sleep(nanoseconds: 50_000_000)
+
+    #expect(sync.state == .idle)
+    #expect(await client.recorder.tabs() == ["Block 27"])
+}
+
+@MainActor
+@Test func syncLaunchesHistoricalBackfillWithoutWaitingForIt() async throws {
+    let container = try makeSyncContainer()
+    let recorder = FetchRecorder()
+    let client = BackfillStubClient(
+        titles: ["Block 26", "Block 27"],
+        grids: [
+            "Block 27": currentGridWithPendingSquat(),
+            "Block 26": historicalGrid(exerciseName: "Squat", log: "245x5@8", date: "4/24/2026")
+        ],
+        suspendedTabs: ["Block 26"],
+        recorder: recorder
+    )
+    let sync = SyncCoordinator(client: client, context: container.mainContext)
+
+    let syncTask = Task {
+        await sync.sync(spreadsheetId: "sid")
+        await recorder.markSyncReturned()
+    }
+    _ = try #require(await waitForFetchedTab("Block 26", recorder: recorder))
+
+    #expect(await recorder.didSyncReturn())
+    #expect(sync.state == .idle)
+
+    await recorder.release()
+    await syncTask.value
+    _ = try #require(
+        await waitForLastPerformedEntry(
+            exerciseName: "Squat",
+            baseName: "Squat",
+            context: container.mainContext
+        )
+    )
+}
+
+@MainActor
+@Test func syncIgnoresHistoricalBackfillNetworkErrorsAndContinuesScanning() async throws {
+    let container = try makeSyncContainer()
+    let client = BackfillStubClient(
+        titles: ["Block 25", "Block 26", "Block 27"],
+        grids: [
+            "Block 27": currentGridWithPendingSquat(),
+            "Block 25": historicalGrid(exerciseName: "Squat", log: "235x5@8", date: "4/17/2026")
+        ],
+        failingTabs: ["Block 26"]
+    )
+    let sync = SyncCoordinator(client: client, context: container.mainContext)
+
+    await sync.sync(spreadsheetId: "sid")
+
+    let entry = try #require(
+        await waitForLastPerformedEntry(
+            exerciseName: "Squat",
+            baseName: "Squat",
+            context: container.mainContext
+        )
+    )
+
+    #expect(sync.state == .idle)
+    #expect(entry.source == "Block 25 · W1 D1")
+    #expect(await client.recorder.tabs() == ["Block 27", "Block 26", "Block 25"])
+}
+
 extension DateFormatter {
     fileprivate static let testDate: DateFormatter = {
         let formatter = DateFormatter()
@@ -93,4 +273,69 @@ extension DateFormatter {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter
     }()
+}
+
+@MainActor
+private func makeSyncContainer() throws -> ModelContainer {
+    try ModelContainer(
+        for: Block.self,
+        PendingWrite.self,
+        LastPerformedEntry.self,
+        configurations: ModelConfiguration(
+            "sync-backfill-\(UUID().uuidString)",
+            isStoredInMemoryOnly: true
+        )
+    )
+}
+
+private func currentGridWithPendingSquat() -> SheetGrid {
+    gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2", "AI12": "Day 3", "AX12": "Day 4",
+            "C13": "5/1/2026",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": "Squat", "D15": "1", "F15": "5", "H15": "RPE8"
+        ],
+        rows: 20,
+        cols: 60
+    )
+}
+
+private func historicalGrid(exerciseName: String, log: String, date: String) -> SheetGrid {
+    gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2", "AI12": "Day 3", "AX12": "Day 4",
+            "C13": date,
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": exerciseName, "D15": "1", "F15": "5", "H15": "RPE8",
+            "K16": log
+        ],
+        rows: 20,
+        cols: 60
+    )
+}
+
+@MainActor
+private func waitForLastPerformedEntry(
+    exerciseName: String,
+    baseName: String,
+    context: ModelContext
+) async throws -> LastPerformedEntry? {
+    for _ in 0..<50 {
+        if let entry = LastPerformedIndex(context: context).lookup(exerciseName: exerciseName, baseName: baseName) {
+            return entry
+        }
+        try await Task.sleep(nanoseconds: 10_000_000)
+    }
+    return nil
+}
+
+private func waitForFetchedTab(_ tab: String, recorder: FetchRecorder) async throws -> Bool {
+    for _ in 0..<100 {
+        if await recorder.tabs().contains(tab) {
+            return true
+        }
+        try await Task.sleep(nanoseconds: 10_000_000)
+    }
+    return false
 }
