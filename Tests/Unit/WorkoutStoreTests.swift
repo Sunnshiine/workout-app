@@ -99,20 +99,23 @@ private func makeStore(weekCount: Int = 1, defaults: UserDefaults? = nil) throws
 
 @MainActor
 @Test func openExercisesDelegatesToCurrentBlockAndCurrentSession() throws {
-    let fixture = try makeStore()
-    defer { withExtendedLifetime(fixture.container) {} }
-    let store = fixture.store
-    let day1 = try #require(store.block?.weeks.first?.sessions.first { $0.dayNumber == 1 })
-    let day3 = try #require(store.block?.weeks.first?.sessions.first { $0.dayNumber == 3 })
-    day1.exercises[0].sets.append(
-        ExerciseSet(index: 1, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil, state: .pending)
+    let container = try ModelContainer(
+        for: Block.self,
+        configurations: ModelConfiguration(
+            "open-exercises-\(UUID().uuidString)",
+            isStoredInMemoryOnly: true
+        )
     )
-    day1.exercises[0].sets[0].state = .logged
-    day3.exercises[0].sets[0].state = .logged
+    defer { withExtendedLifetime(container) {} }
+    let context = container.mainContext
+    context.insert(WorkoutScenarios.openExercises().block)
+    try context.save()
+
+    let store = try WorkoutStore(context: context, defaults: makeDefaults())
     store.reload()
 
     #expect(store.currentSession?.dayNumber == 3)
-    #expect(store.openExercises.map { $0.session?.dayNumber } == [1, 2])
+    #expect(store.openExercises.map(\.name) == ["Back Squat", "Bench Press"])
 }
 
 @MainActor
