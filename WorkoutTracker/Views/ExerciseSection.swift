@@ -47,6 +47,7 @@ struct ExerciseSection: View {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(sortedSets, id: \.persistentModelID) { set in
                         let setID = ActiveSetFocusManager.id(for: set)
+                        let scrollID = setID ?? ActiveSetID(exerciseOrder: exercise.order, setIndex: set.index)
                         ZStack(alignment: .topLeading) {
                             if setID == activeSetID {
                                 IncomingActiveSetCard(
@@ -75,6 +76,7 @@ struct ExerciseSection: View {
                                 )
                             }
                         }
+                        .id(scrollID)
                     }
                 }
             }
