@@ -38,101 +38,14 @@ struct SessionView: View {
                         ScrollView {
                             GlassEffectContainer(spacing: Theme.cardSpacing) {
                                 LazyVStack(alignment: .leading, spacing: Theme.cardSpacing) {
-                                    let supersetSections = coordinator.supersetSections(in: session)
-                                    let supersetByContainer = Dictionary(
-                                        uniqueKeysWithValues: supersetSections.compactMap { section in
-                                            section.presentation.containerExerciseOrder.map { ($0, section) }
-                                        }
-                                    )
-                                    let exerciseRenderItemsByOrder = Dictionary(
-                                        uniqueKeysWithValues: coordinator.exerciseRenderItems(
-                                            in: session
-                                        ).map { ($0.exercise.order, $0) }
-                                    )
-
                                     ForEach(
-                                        session.exercises.sorted(by: { $0.order < $1.order }),
-                                        id: \.persistentModelID
-                                    ) { exercise in
-                                        if let supersetSection = supersetByContainer[exercise.order] {
-                                            ActiveSupersetSection(
-                                                presentation: supersetSection.presentation,
-                                                exercises: supersetSection.exercises,
-                                                lastPerformedIndex: LastPerformedIndex(context: modelContext),
-                                                activeSetTransition: coordinator.activeSetTransition,
-                                                retiringTransition: coordinator.retiringTransition,
-                                                onFocusExercise: { focusedExercise in
-                                                    coordinator.focusNextSupersetSet(for: focusedExercise, in: session)
-                                                },
-                                                onLog: { set, log in
-                                                    coordinator.log(set, as: log) { updateFocus in
-                                                        withAnimation(Theme.momentumFlowAnimation) {
-                                                            updateFocus()
-                                                        }
-                                                    }
-                                                },
-                                                onSkip: { set in
-                                                    coordinator.skip(set) { updateFocus in
-                                                        withAnimation(Theme.skipFadeUpAnimation) {
-                                                            updateFocus()
-                                                        }
-                                                    }
-                                                },
-                                                onDelete: { set in
-                                                    coordinator.deleteLog(for: set)
-                                                },
-                                                onDismiss: {
-                                                    guard let exercise = supersetSection.exercises.first else { return }
-                                                    withAnimation(Theme.momentumFlowAnimation) {
-                                                        coordinator.dismissSuperset(containing: exercise, in: session)
-                                                    }
-                                                }
-                                            )
-                                            .id(supersetSurfaceID(for: supersetSection.presentation))
-                                        } else if let renderItem = exerciseRenderItemsByOrder[exercise.order] {
-                                            ExerciseSection(
-                                                exercise: renderItem.exercise,
-                                                lastPerformedIndex: LastPerformedIndex(context: modelContext),
-                                                activeSetID: renderItem.activeSetID,
-                                                activeSetTransition: renderItem.activeSetTransition,
-                                                retiringTransition: coordinator.retiringTransition,
-                                                isCollapsed: renderItem.isCollapsed,
-                                                showsPairingGrip: renderItem.showsPairingGrip,
-                                                pairingAvailability: renderItem.pairingAvailability,
-                                                isPairingConfirmation: renderItem.isPairingConfirmation,
-                                                onFocus: { set in
-                                                    coordinator.focus(on: set)
-                                                },
-                                                onReexpand: {
-                                                    coordinator.reexpand(renderItem.exercise)
-                                                },
-                                                onLog: { set, log in
-                                                    coordinator.log(set, as: log) { updateFocus in
-                                                        withAnimation(Theme.momentumFlowAnimation) {
-                                                            updateFocus()
-                                                        }
-                                                    }
-                                                },
-                                                onSkip: { set in
-                                                    coordinator.skip(set) { updateFocus in
-                                                        withAnimation(Theme.skipFadeUpAnimation) {
-                                                            updateFocus()
-                                                        }
-                                                    }
-                                                },
-                                                onDelete: { set in
-                                                    coordinator.deleteLog(for: set)
-                                                },
-                                                onBeginPairing: {
-                                                    coordinator.beginPairing(from: renderItem.exercise, in: session)
-                                                },
-                                                onPairingTap: {
-                                                    if coordinator.handlePairingTap(on: renderItem.exercise, in: session) == .unavailable {
-                                                        warningHaptic()
-                                                    }
-                                                }
-                                            )
-                                        }
+                                        coordinator.renderItems(
+                                            in: session,
+                                            lastPerformedIndex: LastPerformedIndex(context: modelContext)
+                                        ),
+                                        id: \.id
+                                    ) { item in
+                                        renderItem(item, in: session)
                                     }
 
                                     if workout.isViewingLiveEdge, !workout.openExercises.isEmpty {
@@ -215,6 +128,74 @@ struct SessionView: View {
         coordinator.cancelPairing()
         guard let session = exercise.session, let week = session.week else { return }
         workout.show(week: week.number, day: session.dayNumber)
+    }
+
+    @ViewBuilder
+    private func renderItem(_ item: SessionRenderItem, in session: Session) -> some View {
+        switch item {
+        case .exercise(let config):
+            ExerciseSection(
+                config: config,
+                onFocus: coordinator.focus(on:),
+                onReexpand: {
+                    coordinator.reexpand(config.exercise)
+                },
+                onLog: logWithMomentum,
+                onSkip: skipWithFade,
+                onDelete: coordinator.deleteLog(for:),
+                onBeginPairing: {
+                    coordinator.beginPairing(from: config.exercise, in: session)
+                },
+                onPairingTap: {
+                    handlePairingTap(on: config.exercise, in: session)
+                }
+            )
+        case .superset(let config):
+            ActiveSupersetSection(
+                config: config,
+                onFocusExercise: { focusedExercise in
+                    coordinator.focusNextSupersetSet(for: focusedExercise, in: session)
+                },
+                onLog: logWithMomentum,
+                onSkip: skipWithFade,
+                onDelete: coordinator.deleteLog(for:),
+                onDismiss: {
+                    dismissSuperset(config, in: session)
+                }
+            )
+            .id(supersetSurfaceID(for: config.presentation))
+        case .hiddenPairedExercise:
+            EmptyView()
+        }
+    }
+
+    private func logWithMomentum(_ set: ExerciseSet, _ log: SetLog) {
+        coordinator.log(set, as: log) { updateFocus in
+            withAnimation(Theme.momentumFlowAnimation) {
+                updateFocus()
+            }
+        }
+    }
+
+    private func skipWithFade(_ set: ExerciseSet) {
+        coordinator.skip(set) { updateFocus in
+            withAnimation(Theme.skipFadeUpAnimation) {
+                updateFocus()
+            }
+        }
+    }
+
+    private func dismissSuperset(_ config: SessionSupersetRenderConfig, in session: Session) {
+        guard let exercise = config.exercises.first else { return }
+        withAnimation(Theme.momentumFlowAnimation) {
+            coordinator.dismissSuperset(containing: exercise, in: session)
+        }
+    }
+
+    private func handlePairingTap(on exercise: Exercise, in session: Session) {
+        if coordinator.handlePairingTap(on: exercise, in: session) == .unavailable {
+            warningHaptic()
+        }
     }
 
     private func scrollToSet(_ targetID: ActiveSetID?, with proxy: ScrollViewProxy) {
