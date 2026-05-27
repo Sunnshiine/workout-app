@@ -95,6 +95,12 @@ final class SyncCoordinator {
                 state = parsed.warnings.isEmpty ? .idle : .conflict(parsed.warnings)
             }
             print("[Sync] Done, state: \(state)")
+            launchLastPerformedBackfill(
+                spreadsheetId: spreadsheetId,
+                titles: titles,
+                currentTab: tab,
+                currentBlock: parsed.block
+            )
         } catch {
             print("[Sync] ERROR: \(error)")
             state = .offline
@@ -145,5 +151,93 @@ final class SyncCoordinator {
             .sessions.first { $0.dayNumber == day }?
             .exercises.first { $0.name == exerciseName }?
             .sets.first { $0.index == setIndex }
+    }
+
+    private func launchLastPerformedBackfill(
+        spreadsheetId: String,
+        titles: [String],
+        currentTab: String,
+        currentBlock: ParsedBlockModel
+    ) {
+        let historicalTabs = sortedHistoricalTabs(from: titles, excluding: currentTab)
+        guard !historicalTabs.isEmpty else { return }
+
+        Task { [weak self] in
+            await self?.backfillLastPerformed(
+                spreadsheetId: spreadsheetId,
+                currentBlock: currentBlock,
+                historicalTabs: historicalTabs
+            )
+        }
+    }
+
+    private func backfillLastPerformed(
+        spreadsheetId: String,
+        currentBlock: ParsedBlockModel,
+        historicalTabs: [String]
+    ) async {
+        let currentExercises = uniqueExercises(in: currentBlock)
+        guard !currentExercises.isEmpty else { return }
+        guard !hasLastPerformedCoverage(for: currentExercises) else { return }
+
+        let client = client
+        for tab in historicalTabs {
+            let records: [LastPerformedRecord]
+            do {
+                records = try await Task.detached(priority: .background) {
+                    try await Self.historicalLastPerformedRecords(
+                        spreadsheetId: spreadsheetId,
+                        tab: tab,
+                        client: client
+                    )
+                }.value
+            } catch {
+                continue
+            }
+
+            if !records.isEmpty {
+                do {
+                    try LastPerformedIndex(context: context).ingest(records.map(\.entry))
+                } catch {
+                    state = .conflict(["Last Performed backfill failed: \(error.localizedDescription)"])
+                    return
+                }
+            }
+            if hasLastPerformedCoverage(for: currentExercises) {
+                return
+            }
+        }
+    }
+
+    nonisolated private static func historicalLastPerformedRecords(
+        spreadsheetId: String,
+        tab: String,
+        client: any SheetsClient
+    ) async throws -> [LastPerformedRecord] {
+        let grid = try await client.fetchTab(spreadsheetId: spreadsheetId, tabName: tab)
+        let parsed = SheetParser().parse(grid: grid, tabName: tab)
+        return LastPerformedExtractor.records(from: parsed.block)
+    }
+
+    private func uniqueExercises(in block: ParsedBlockModel) -> [(name: String, baseName: String)] {
+        var seenNames = Set<String>()
+        var exercises: [(name: String, baseName: String)] = []
+
+        for week in block.weeks {
+            for session in week.days {
+                for exercise in session.exercises where seenNames.insert(exercise.name).inserted {
+                    exercises.append((exercise.name, exercise.baseName))
+                }
+            }
+        }
+
+        return exercises
+    }
+
+    private func hasLastPerformedCoverage(for exercises: [(name: String, baseName: String)]) -> Bool {
+        let index = LastPerformedIndex(context: context)
+        return exercises.allSatisfy { exercise in
+            index.lookup(exerciseName: exercise.name, baseName: exercise.baseName) != nil
+        }
     }
 }
