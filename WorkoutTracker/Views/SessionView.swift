@@ -81,6 +81,23 @@ struct SessionView: View {
                 workout.reload()
             }
         }
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                if let session = workout.displayedSession, let block = workout.block {
+                    NavigationLink {
+                        BlockOverviewView(block: block, currentSession: workout.currentSession)
+                    } label: {
+                        HStack(spacing: 5) {
+                            Text(SessionProgressHeaderPresentation(session: session).breadcrumb)
+                                .font(.subheadline.weight(.semibold))
+                            Image(systemName: "chevron.down")
+                                .font(.caption.weight(.bold))
+                        }
+                    }
+                    .foregroundStyle(.primary)
+                }
+            }
+        }
     }
 
     private func recordLog(_ set: ExerciseSet, as log: SetLog, in session: Session) {
