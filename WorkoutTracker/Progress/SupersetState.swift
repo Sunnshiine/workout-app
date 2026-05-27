@@ -1,6 +1,6 @@
 import Foundation
 
-struct SupersetExerciseIdentity: Equatable, Hashable, Sendable {
+struct SupersetExerciseIdentity: Hashable, Sendable {
     let weekNumber: Int?
     let dayNumber: Int
     let exerciseOrder: Int
@@ -13,6 +13,20 @@ struct SupersetExerciseIdentity: Equatable, Hashable, Sendable {
         exerciseOrder = exercise.order
         exerciseName = exercise.name
         baseName = exercise.baseName
+    }
+
+    static func == (lhs: SupersetExerciseIdentity, rhs: SupersetExerciseIdentity) -> Bool {
+        lhs.weekNumber == rhs.weekNumber
+            && lhs.dayNumber == rhs.dayNumber
+            && lhs.exerciseName == rhs.exerciseName
+            && lhs.baseName == rhs.baseName
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(weekNumber)
+        hasher.combine(dayNumber)
+        hasher.combine(exerciseName)
+        hasher.combine(baseName)
     }
 }
 
@@ -30,6 +44,7 @@ final class SupersetState {
     private var pairs: [SupersetPair] = []
     private var activePair: SupersetPair?
     private var activeSetID: ActiveSetID?
+    private var activeSetExerciseIdentity: SupersetExerciseIdentity?
 
     var supersetCount: Int { pairs.count }
 
@@ -60,6 +75,7 @@ final class SupersetState {
         if let currentActiveSetID, self.pair(containing: currentActiveSetID, in: session) == pair {
             activePair = pair
             activeSetID = currentActiveSetID
+            activeSetExerciseIdentity = exercise(containing: currentActiveSetID, in: session).map(SupersetExerciseIdentity.init)
         }
         return true
     }
@@ -74,6 +90,7 @@ final class SupersetState {
         }
         activePair = pair
         activeSetID = normalFocus
+        activeSetExerciseIdentity = exercise(containing: normalFocus, in: session).map(SupersetExerciseIdentity.init)
         return normalFocus
     }
 
@@ -103,14 +120,17 @@ final class SupersetState {
         let nextSetID = nextPendingSetID(for: nextIdentity, in: session)
         activePair = pair
         activeSetID = nextSetID
+        activeSetExerciseIdentity = nextSetID == nil ? nil : nextIdentity
         return nextSetID
     }
 
     func focusNextPendingSet(for exercise: Exercise, in session: Session) -> ActiveSetID? {
         guard let pair = pair(containing: exercise) else { return nil }
-        let nextSetID = nextPendingSetID(for: SupersetExerciseIdentity(exercise: exercise), in: session)
+        let identity = SupersetExerciseIdentity(exercise: exercise)
+        guard let nextSetID = nextPendingSetID(for: identity, in: session) else { return nil }
         activePair = pair
         activeSetID = nextSetID
+        activeSetExerciseIdentity = identity
         return nextSetID
     }
 
@@ -145,6 +165,9 @@ final class SupersetState {
         if let activePair, !pairs.contains(activePair) {
             self.activePair = nil
             activeSetID = nil
+            activeSetExerciseIdentity = nil
+        } else {
+            reconcileActiveSet(in: session)
         }
     }
 
@@ -202,11 +225,30 @@ final class SupersetState {
             .state == .pending
     }
 
+    private func reconcileActiveSet(in session: Session) {
+        guard
+            let activeSetID,
+            let activeSetExerciseIdentity
+        else {
+            return
+        }
+        guard
+            let exercise = exercise(matching: activeSetExerciseIdentity, in: session),
+            exercise.sets.contains(where: { $0.index == activeSetID.setIndex })
+        else {
+            self.activeSetID = nil
+            self.activeSetExerciseIdentity = nil
+            return
+        }
+        self.activeSetID = ActiveSetID(exerciseOrder: exercise.order, setIndex: activeSetID.setIndex)
+    }
+
     private func dissolve(_ pair: SupersetPair) {
         pairs.removeAll { $0 == pair }
         if activePair == pair {
             activePair = nil
             activeSetID = nil
+            activeSetExerciseIdentity = nil
         }
     }
 }
