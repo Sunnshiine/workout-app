@@ -103,6 +103,55 @@ private func makeCoordinatorSession() -> Session {
     return session
 }
 
+private func makePlannedPairingSession() -> Session {
+    let session = Session(dayNumber: 1, date: nil)
+
+    let press = Exercise(name: "Press", baseName: "Press", cadence: nil, coachNote: nil, order: 0)
+    press.sets = [
+        ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
+    ]
+
+    let squat = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil, order: 1)
+    squat.sets = [
+        ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
+    ]
+
+    let bench = Exercise(name: "Bench Press", baseName: "Bench Press", cadence: nil, coachNote: nil, order: 2)
+    bench.sets = [
+        ExerciseSet(index: 0, prescribedReps: "6", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
+    ]
+
+    session.exercises = [bench, press, squat]
+    return session
+}
+
+private func makeFourExercisePairingSession() -> Session {
+    let session = Session(dayNumber: 1, date: nil)
+
+    let press = Exercise(name: "Press", baseName: "Press", cadence: nil, coachNote: nil, order: 0)
+    press.sets = [
+        ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
+    ]
+
+    let squat = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil, order: 1)
+    squat.sets = [
+        ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
+    ]
+
+    let bench = Exercise(name: "Bench Press", baseName: "Bench Press", cadence: nil, coachNote: nil, order: 2)
+    bench.sets = [
+        ExerciseSet(index: 0, prescribedReps: "6", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
+    ]
+
+    let row = Exercise(name: "DB Row", baseName: "DB Row", cadence: nil, coachNote: nil, order: 3)
+    row.sets = [
+        ExerciseSet(index: 0, prescribedReps: "10", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
+    ]
+
+    session.exercises = [row, bench, press, squat]
+    return session
+}
+
 private func makeSingleSetSession(dayNumber: Int) -> (session: Session, set: ExerciseSet) {
     let session = Session(dayNumber: dayNumber, date: nil)
     let exercise = Exercise(name: "Bench Press", baseName: "Bench Press", cadence: nil, coachNote: nil, order: 0)
@@ -154,17 +203,18 @@ private func makeActionFixture() throws -> CoordinatorActionFixture {
 @MainActor
 @Test func coordinatorBuildsOrdinaryExerciseRenderItemsInSessionOrder() throws {
     let session = makeCoordinatorSession()
-    let coordinator = SessionCoordinator(session: session)
+    let clock = ManualSessionTransitionClock()
+    let coordinator = SessionCoordinator(session: session, transitionClock: clock)
     let firstBenchSet = try #require(session.exercises.first { $0.order == 1 }?.sets.first { $0.index == 0 })
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let row = try #require(session.exercises.first { $0.order == 2 })
 
     firstBenchSet.state = .logged
     coordinator.advanceAfterLog(firstBenchSet, in: session)
+    #expect(coordinator.beginPairing(from: bench, in: session))
+    #expect(coordinator.handlePairingTap(on: row, in: session) == .confirming)
 
-    let items = coordinator.exerciseRenderItems(
-        in: session,
-        pairingSourceOrder: 1,
-        pairingConfirmationOrder: 2
-    )
+    let items = coordinator.exerciseRenderItems(in: session)
 
     #expect(items.map { $0.exercise.order } == [0, 1, 2])
     #expect(items.map(\.isCollapsed) == [true, false, false])
@@ -174,6 +224,118 @@ private func makeActionFixture() throws -> CoordinatorActionFixture {
     #expect(items.map(\.showsPairingGrip) == [true, true, true])
     #expect(items.map(\.pairingAvailability) == [.unavailable, .available, .available])
     #expect(items.map(\.isPairingConfirmation) == [false, false, true])
+}
+
+@MainActor
+@Test func coordinatorBeginsPairingOnlyFromEligibleExercise() throws {
+    let session = makeCoordinatorSession()
+    let coordinator = SessionCoordinator(session: session)
+    let completedSquat = try #require(session.exercises.first { $0.order == 0 })
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+
+    #expect(!coordinator.beginPairing(from: completedSquat, in: session))
+    #expect(coordinator.pairingMode == .inactive)
+
+    #expect(coordinator.beginPairing(from: bench, in: session))
+    #expect(coordinator.pairingMode == .selecting(sourceOrder: 1))
+}
+
+@MainActor
+@Test func coordinatorHandlesSourceAndUnavailablePairingTaps() throws {
+    let session = makeCoordinatorSession()
+    let coordinator = SessionCoordinator(session: session)
+    let completedSquat = try #require(session.exercises.first { $0.order == 0 })
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+
+    #expect(coordinator.beginPairing(from: bench, in: session))
+    #expect(coordinator.handlePairingTap(on: completedSquat, in: session) == .unavailable)
+    #expect(coordinator.pairingMode == .selecting(sourceOrder: 1))
+
+    #expect(coordinator.handlePairingTap(on: bench, in: session) == .cancelled)
+    #expect(coordinator.pairingMode == .inactive)
+}
+
+@MainActor
+@Test func coordinatorSourceTapCancelsPairingConfirmation() throws {
+    let session = makeCoordinatorSession()
+    let clock = ManualSessionTransitionClock()
+    let coordinator = SessionCoordinator(session: session, transitionClock: clock)
+    let completedSquat = try #require(session.exercises.first { $0.order == 0 })
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let row = try #require(session.exercises.first { $0.order == 2 })
+
+    #expect(coordinator.beginPairing(from: bench, in: session))
+    #expect(coordinator.handlePairingTap(on: row, in: session) == .confirming)
+    #expect(coordinator.handlePairingTap(on: completedSquat, in: session) == .unavailable)
+    #expect(coordinator.pairingMode == .confirming(sourceOrder: 1, targetOrder: 2))
+
+    #expect(coordinator.handlePairingTap(on: bench, in: session) == .cancelled)
+    #expect(coordinator.pairingMode == .inactive)
+    #expect(coordinator.supersetSections(in: session).isEmpty)
+}
+
+@MainActor
+@Test func coordinatorCreatesSupersetAfterClockControlledPairingConfirmation() async throws {
+    let session = makePlannedPairingSession()
+    let clock = ManualSessionTransitionClock()
+    let coordinator = SessionCoordinator(session: session, transitionClock: clock)
+    let initialActiveSetID = coordinator.activeSetID
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+
+    #expect(coordinator.beginPairing(from: squat, in: session))
+    #expect(coordinator.handlePairingTap(on: bench, in: session) == .confirming)
+    #expect(coordinator.pairingMode == .confirming(sourceOrder: 1, targetOrder: 2))
+    #expect(coordinator.supersetSections(in: session).isEmpty)
+
+    await clock.waitForSleep()
+
+    let expectedDuration = Duration.nanoseconds(Int64((Theme.pairingConfirmationDuration * 1_000_000_000).rounded()))
+    #expect(clock.sleptDurations == [expectedDuration])
+    #expect(coordinator.supersetSections(in: session).isEmpty)
+
+    clock.advance()
+    await Task.yield()
+
+    #expect(coordinator.pairingMode == .inactive)
+    #expect(coordinator.activeSetID == initialActiveSetID)
+    #expect(coordinator.supersetScrollTargetOrder == 1)
+    let section = try #require(coordinator.supersetSections(in: session).first)
+    #expect(section.exercises.map(\.order) == [1, 2])
+}
+
+@MainActor
+@Test func coordinatorDismissesSupersetClearsPairingModeAndReconcilesFocus() throws {
+    let session = makeFourExercisePairingSession()
+    let coordinator = SessionCoordinator(session: session)
+    let press = try #require(session.exercises.first { $0.order == 0 })
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+
+    #expect(coordinator.createSuperset(from: press, to: squat, in: session))
+    #expect(coordinator.beginPairing(from: bench, in: session))
+
+    coordinator.dismissSuperset(containing: press, in: session)
+
+    #expect(coordinator.pairingMode == .inactive)
+    #expect(coordinator.supersetSections(in: session).isEmpty)
+    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+}
+
+@MainActor
+@Test func coordinatorFocusesPairedExerciseNextPendingSetAndScrollTarget() throws {
+    let session = makePlannedPairingSession()
+    let coordinator = SessionCoordinator(session: session)
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+
+    #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
+    #expect(coordinator.focusNextSupersetSet(for: bench, in: session))
+
+    let expectedSetID = ActiveSetID(exerciseOrder: 2, setIndex: 0)
+    #expect(coordinator.activeSetID == expectedSetID)
+    #expect(coordinator.scrollTargetID == expectedSetID)
+    #expect(coordinator.supersetScrollTargetOrder == nil)
 }
 
 @MainActor
