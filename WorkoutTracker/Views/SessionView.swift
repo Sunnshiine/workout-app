@@ -24,11 +24,13 @@ struct SessionView: View {
                         .padding(.top, 8)
                     }
 
+                    SessionProgressHeader(session: session, activeSetID: focusManager.activeSetID)
+                        .padding(.horizontal)
+                        .padding(.top, 12)
+
                     ScrollView {
                         GlassEffectContainer(spacing: Theme.cardSpacing) {
                             LazyVStack(alignment: .leading, spacing: Theme.cardSpacing) {
-                                SessionProgressHeader(session: session, activeSetID: focusManager.activeSetID)
-
                                 ForEach(
                                     session.exercises.sorted(by: { $0.order < $1.order }),
                                     id: \.persistentModelID
