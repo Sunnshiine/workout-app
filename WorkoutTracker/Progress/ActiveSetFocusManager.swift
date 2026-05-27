@@ -19,12 +19,18 @@ struct ActiveSetTransition: Equatable, Sendable {
     let completedExerciseOrder: Int?
 }
 
+struct SupersetSectionState {
+    let presentation: ActiveSupersetPresentation
+    let exercises: [Exercise]
+}
+
 @MainActor
 @Observable
 final class ActiveSetFocusManager {
     private(set) var activeSetID: ActiveSetID?
     private(set) var activeSetTransition: ActiveSetTransition?
     private(set) var scrollTargetID: ActiveSetID?
+    private(set) var supersetScrollTargetOrder: Int?
     private let supersetState = SupersetState()
     private var expandedCompletedExerciseOrders: Set<Int> = []
 
@@ -42,6 +48,7 @@ final class ActiveSetFocusManager {
         }
         activeSetTransition = nil
         scrollTargetID = nil
+        supersetScrollTargetOrder = nil
         expandedCompletedExerciseOrders = []
     }
 
@@ -77,18 +84,47 @@ final class ActiveSetFocusManager {
         activeSetID = Self.id(for: set)
         activeSetTransition = nil
         scrollTargetID = nil
+        supersetScrollTargetOrder = nil
+    }
+
+    func canPair(_ exercise: Exercise, in session: Session) -> Bool {
+        session.exercises.contains { candidate in
+            candidate !== exercise
+                && supersetState.canCreateSuperset(with: [exercise, candidate], in: session)
+        }
     }
 
     @discardableResult
     func createSuperset(with exercises: [Exercise], in session: Session) -> Bool {
-        supersetState.createSuperset(with: exercises, in: session, currentActiveSetID: activeSetID)
+        guard supersetState.createSuperset(with: exercises, in: session, currentActiveSetID: activeSetID) else {
+            return false
+        }
+        supersetScrollTargetOrder = exercises.map(\.order).min()
+        return true
+    }
+
+    @discardableResult
+    func createSuperset(from source: Exercise, to target: Exercise, in session: Session) -> Bool {
+        createSuperset(with: [source, target], in: session)
+    }
+
+    func dismissSuperset(containing exercise: Exercise, in session: Session) {
+        supersetState.dismissSuperset(containing: exercise)
+        supersetScrollTargetOrder = nil
+        activeSetID = supersetState.focusedSetID(whenNormalFocusIs: activeSetID, in: session)
+    }
+
+    func supersetSections(in session: Session) -> [SupersetSectionState] {
+        let pairs = supersetState.exercisePairs(in: session)
+        let sections = pairs.compactMap { sectionState(for: $0) }
+        return sections.sorted {
+            ($0.presentation.containerExerciseOrder ?? Int.max)
+                < ($1.presentation.containerExerciseOrder ?? Int.max)
+        }
     }
 
     func activeSupersetPresentation(in session: Session) -> ActiveSupersetPresentation? {
-        ActiveSupersetPresentation(
-            exercises: supersetState.activeExercises(in: session),
-            activeSetID: activeSetID
-        )
+        supersetSections(in: session).first { $0.presentation.activeExerciseOrder != nil }?.presentation
     }
 
     func activeSupersetExercises(in session: Session) -> [Exercise] {
@@ -103,6 +139,7 @@ final class ActiveSetFocusManager {
         activeSetID = nextSetID
         activeSetTransition = nil
         scrollTargetID = nextSetID
+        supersetScrollTargetOrder = nil
         return true
     }
 
@@ -165,6 +202,19 @@ final class ActiveSetFocusManager {
 
     private static func sortedSets(in exercise: Exercise) -> [ExerciseSet] {
         exercise.sets.sorted { $0.index < $1.index }
+    }
+
+    private func sectionState(for exercises: [Exercise]) -> SupersetSectionState? {
+        let sectionActiveSetID = activeSetID(containedIn: exercises)
+        guard let presentation = ActiveSupersetPresentation(exercises: exercises, activeSetID: sectionActiveSetID) else {
+            return nil
+        }
+        return SupersetSectionState(presentation: presentation, exercises: exercises)
+    }
+
+    private func activeSetID(containedIn exercises: [Exercise]) -> ActiveSetID? {
+        guard let activeSetID else { return nil }
+        return exercises.contains { $0.order == activeSetID.exerciseOrder } ? activeSetID : nil
     }
 
     private func collapseCompletedExercise(containing set: ExerciseSet) {

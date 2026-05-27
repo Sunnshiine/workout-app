@@ -54,6 +54,8 @@ enum Theme {
     static let skipFadeUpOffset: CGFloat = -24
     static let exerciseRiseOffset: CGFloat = 36
     static let exerciseCompressionScale: CGFloat = 0.02
+    static let pairingUnavailableOpacity = 0.3
+    static let pairingConfirmationDuration = 0.22
 
     static var logButtonCheckmarkAnimation: Animation {
         .easeOut(duration: logButtonCheckmarkDuration)
