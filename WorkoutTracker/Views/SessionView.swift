@@ -19,7 +19,7 @@ struct SessionView: View {
                     ScrollView {
                         GlassEffectContainer(spacing: Theme.cardSpacing) {
                             LazyVStack(alignment: .leading, spacing: Theme.cardSpacing) {
-                                SessionProgressHeader(session: session)
+                                SessionProgressHeader(session: session, activeSetID: focusManager.activeSetID)
 
                                 ForEach(
                                     session.exercises.sorted(by: { $0.order < $1.order }),
@@ -87,8 +87,9 @@ struct SessionView: View {
                     NavigationLink {
                         BlockOverviewView(block: block, currentSession: workout.currentSession)
                     } label: {
+                        let presentation = SessionProgressHeaderPresentation(session: session)
                         HStack(spacing: 5) {
-                            Text(SessionProgressHeaderPresentation(session: session).breadcrumb)
+                            Text(presentation.locationLabel)
                                 .font(.subheadline.weight(.semibold))
                             Image(systemName: "chevron.down")
                                 .font(.caption.weight(.bold))

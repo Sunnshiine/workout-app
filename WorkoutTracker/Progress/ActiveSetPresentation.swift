@@ -30,10 +30,23 @@ struct SetRowPresentation: Equatable, Sendable {
     }
 }
 
+enum SessionProgressSegmentState: Equatable, Sendable {
+    case logged
+    case skipped
+    case currentPending
+    case futurePending
+}
+
+struct SessionProgressSegmentPresentation: Equatable, Sendable {
+    let state: SessionProgressSegmentState
+}
+
 struct SessionProgressHeaderPresentation: Equatable, Sendable {
-    let breadcrumb: String
+    let locationLabel: String
+    let locationText: String
     let completedSetCount: Int
     let totalSetCount: Int
+    let segments: [SessionProgressSegmentPresentation]
 
     var remainingSetCount: Int {
         totalSetCount - completedSetCount
@@ -43,19 +56,40 @@ struct SessionProgressHeaderPresentation: Equatable, Sendable {
         "\(remainingSetCount) left"
     }
 
-    var progress: Double {
-        guard totalSetCount > 0 else { return 0 }
-        return Double(completedSetCount) / Double(totalSetCount)
-    }
-
-    init(session: Session) {
+    init(session: Session, activeSetID: ActiveSetID? = nil) {
         let weekNumber = session.week?.number ?? 0
-        let blockName = session.week?.block?.tabName ?? "Block"
-        breadcrumb = "\(blockName) · W\(weekNumber) D\(session.dayNumber)"
+        locationLabel = "W\(weekNumber) D\(session.dayNumber)"
+        locationText = "\(locationLabel) ›"
 
-        let sets = session.exercises.flatMap(\.sets)
+        let sets = session.exercises
+            .sorted { $0.order < $1.order }
+            .flatMap { exercise in
+                exercise.sets.sorted { $0.index < $1.index }.map { set in
+                    (id: ActiveSetID(exerciseOrder: exercise.order, setIndex: set.index), set: set)
+                }
+            }
         totalSetCount = sets.count
-        completedSetCount = sets.filter { $0.state == .logged || $0.state == .skipped }.count
+        completedSetCount = sets.filter { $0.set.state == .logged || $0.set.state == .skipped }.count
+        let pendingSetIDs = sets.filter { $0.set.state == .pending }.map(\.id)
+        let currentPendingID =
+            if let activeSetID, pendingSetIDs.contains(activeSetID) {
+                activeSetID
+            } else {
+                pendingSetIDs.first
+            }
+        segments = sets.map { pair in
+            switch pair.set.state {
+            case .logged:
+                return SessionProgressSegmentPresentation(state: .logged)
+            case .skipped:
+                return SessionProgressSegmentPresentation(state: .skipped)
+            case .pending:
+                if pair.id == currentPendingID {
+                    return SessionProgressSegmentPresentation(state: .currentPending)
+                }
+                return SessionProgressSegmentPresentation(state: .futurePending)
+            }
+        }
     }
 }
 
