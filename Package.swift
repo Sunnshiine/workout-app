@@ -20,7 +20,7 @@ let package = Package(
         .testTarget(
             name: "WorkoutTrackerTests",
             dependencies: ["WorkoutTracker"],
-            path: "WorkoutTrackerTests"
+            path: "Tests"
         ),
     ]
 )
