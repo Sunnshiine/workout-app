@@ -6,10 +6,24 @@ struct ActiveSetID: Equatable, Sendable {
     let setIndex: Int
 }
 
+struct ActiveSetTransition: Equatable, Sendable {
+    enum Kind: Equatable, Sendable {
+        case momentumFlow
+        case softFadeUp
+        case collapseAndRise
+    }
+
+    let kind: Kind
+    let outgoingSetID: ActiveSetID
+    let incomingSetID: ActiveSetID?
+    let completedExerciseOrder: Int?
+}
+
 @MainActor
 @Observable
 final class ActiveSetFocusManager {
     private(set) var activeSetID: ActiveSetID?
+    private(set) var activeSetTransition: ActiveSetTransition?
     private var expandedCompletedExerciseOrders: Set<Int> = []
 
     init(session: Session?) {
@@ -18,21 +32,44 @@ final class ActiveSetFocusManager {
 
     func reset(to session: Session?) {
         activeSetID = session.flatMap(Self.firstPendingSetID)
+        activeSetTransition = nil
         expandedCompletedExerciseOrders = []
     }
 
     func advanceAfterLog(_ set: ExerciseSet, in session: Session) {
-        activeSetID = Self.nextPendingSetID(after: set, in: session)
+        let nextSetID = Self.nextPendingSetID(after: set, in: session)
+        let completedExerciseOrder = completedExerciseOrder(containing: set)
+        activeSetTransition = transition(
+            kind: completedExerciseOrder == nil ? .momentumFlow : .collapseAndRise,
+            from: set,
+            to: nextSetID,
+            completedExerciseOrder: completedExerciseOrder
+        )
+        activeSetID = nextSetID
         collapseCompletedExercise(containing: set)
     }
 
     func advanceAfterSkip(_ set: ExerciseSet, in session: Session) {
-        activeSetID = Self.nextPendingSetID(after: set, in: session)
+        let nextSetID = Self.nextPendingSetID(after: set, in: session)
+        let completedExerciseOrder = completedExerciseOrder(containing: set)
+        activeSetTransition = transition(
+            kind: completedExerciseOrder == nil ? .softFadeUp : .collapseAndRise,
+            from: set,
+            to: nextSetID,
+            completedExerciseOrder: completedExerciseOrder
+        )
+        activeSetID = nextSetID
         collapseCompletedExercise(containing: set)
     }
 
     func focus(on set: ExerciseSet) {
         activeSetID = Self.id(for: set)
+        activeSetTransition = nil
+    }
+
+    func clearTransition(_ transition: ActiveSetTransition) {
+        guard activeSetTransition == transition else { return }
+        activeSetTransition = nil
     }
 
     func reexpand(_ exercise: Exercise) {
@@ -94,6 +131,26 @@ final class ActiveSetFocusManager {
     private func collapseCompletedExercise(containing set: ExerciseSet) {
         guard let exercise = set.exercise, Self.isCompleted(exercise) else { return }
         expandedCompletedExerciseOrders.remove(exercise.order)
+    }
+
+    private func transition(
+        kind: ActiveSetTransition.Kind,
+        from set: ExerciseSet,
+        to incomingSetID: ActiveSetID?,
+        completedExerciseOrder: Int?
+    ) -> ActiveSetTransition? {
+        guard let outgoingSetID = Self.id(for: set) else { return nil }
+        return ActiveSetTransition(
+            kind: kind,
+            outgoingSetID: outgoingSetID,
+            incomingSetID: incomingSetID,
+            completedExerciseOrder: completedExerciseOrder
+        )
+    }
+
+    private func completedExerciseOrder(containing set: ExerciseSet) -> Int? {
+        guard let exercise = set.exercise, Self.isCompleted(exercise) else { return nil }
+        return exercise.order
     }
 
     private static func isCompleted(_ exercise: Exercise) -> Bool {
