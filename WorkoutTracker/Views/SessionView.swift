@@ -1,9 +1,11 @@
+import SwiftData
 import SwiftUI
 
 struct SessionView: View {
     @Environment(WorkoutStore.self) private var workout
     @Environment(SyncCoordinator.self) private var sync
     @Environment(SettingsStore.self) private var settings
+    @Environment(\.modelContext) private var modelContext
     @State private var focusManager = ActiveSetFocusManager(session: nil)
 
     var body: some View {
@@ -25,6 +27,7 @@ struct SessionView: View {
                                     ) { exercise in
                                         ExerciseSection(
                                             exercise: exercise,
+                                            lastPerformedIndex: LastPerformedIndex(context: modelContext),
                                             activeSetID: focusManager.activeSetID,
                                             isCollapsed: focusManager.isCollapsed(exercise),
                                             onFocus: { set in
