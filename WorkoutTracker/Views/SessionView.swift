@@ -356,6 +356,7 @@ private struct BackToCurrentSessionBanner: View {
         }
         .buttonStyle(.plain)
         .accessibilityHint("Returns to the current session")
+        .accessibilityIdentifier("back-to-current-session-button")
     }
 }
 
@@ -370,6 +371,7 @@ private struct MoveOnButton: View {
         }
         .buttonStyle(.glass)
         .accessibilityHint("Advances to the next session")
+        .accessibilityIdentifier("move-on-button")
     }
 }
 

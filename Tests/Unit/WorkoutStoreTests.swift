@@ -116,6 +116,33 @@ private func makeStore(weekCount: Int = 1, defaults: UserDefaults? = nil) throws
 }
 
 @MainActor
+@Test func reloadPreservesDisplayedSessionWhenStillPresent() throws {
+    let fixture = try makeStore()
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+
+    store.show(week: 1, day: 3)
+    store.reload()
+
+    #expect(store.displayedSession?.week?.number == 1)
+    #expect(store.displayedSession?.dayNumber == 3)
+}
+
+@MainActor
+@Test func reloadAdvancesDisplayedSessionWhenViewingCurrentSession() throws {
+    let fixture = try makeStore()
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+    let day3Set = try #require(store.block?.weeks.first?.sessions.first { $0.dayNumber == 3 }?.exercises[0].sets[0])
+
+    day3Set.state = .logged
+    store.reload()
+
+    #expect(store.currentSession?.dayNumber == 3)
+    #expect(store.displayedSession?.dayNumber == 3)
+}
+
+@MainActor
 @Test func showCurrentResetsDisplayedSessionToCurrentSession() throws {
     let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }

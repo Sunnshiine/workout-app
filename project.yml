@@ -39,13 +39,28 @@ targets:
   WorkoutTrackerTests:
     type: bundle.unit-test
     platform: iOS
-    sources: [Tests]
+    sources:
+      - path: Tests
+        excludes:
+          - UI
     dependencies:
       - target: WorkoutTracker
     settings:
       base:
         SWIFT_VERSION: "6.0"
         GENERATE_INFOPLIST_FILE: "YES"
+
+  WorkoutTrackerUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [Tests/UI]
+    dependencies:
+      - target: WorkoutTracker
+    settings:
+      base:
+        SWIFT_VERSION: "6.0"
+        GENERATE_INFOPLIST_FILE: "YES"
+        TEST_TARGET_NAME: WorkoutTracker
 
 schemes:
   WorkoutTracker:
@@ -60,6 +75,7 @@ schemes:
       config: Debug
       targets:
         - WorkoutTrackerTests
+        - WorkoutTrackerUITests
 
   Copy of WorkoutTracker:
     build:

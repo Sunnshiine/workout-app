@@ -34,6 +34,11 @@ struct BlockOverviewView: View {
                         )
                     }
                     .buttonStyle(.plain)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Week \(session.week?.number ?? 0), Day \(session.dayNumber)")
+                    .accessibilityIdentifier(
+                        "session-tile-W\(session.week?.number ?? 0)-D\(session.dayNumber)"
+                    )
                 }
             }
             .padding()

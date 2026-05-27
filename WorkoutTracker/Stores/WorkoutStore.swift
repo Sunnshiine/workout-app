@@ -13,6 +13,7 @@ enum WorkoutLoggingError: Error, Equatable {
 final class WorkoutStore {
     private(set) var block: Block?
     private(set) var displayedSession: Session?
+    private var shouldPreserveDisplayedSessionOnReload = false
 
     private let context: ModelContext
     private let tracker = SessionProgressTracker()
@@ -39,16 +40,36 @@ final class WorkoutStore {
     }
 
     func reload() {
+        let displayedWeek = displayedSession?.week?.number
+        let displayedDay = displayedSession?.dayNumber
         block = try? context.fetch(FetchDescriptor<Block>()).first
+
+        let preservedSession: Session?
+        if shouldPreserveDisplayedSessionOnReload, let displayedWeek, let displayedDay {
+            preservedSession = block?.weeks.first(where: { $0.number == displayedWeek })?
+                .sessions.first(where: { $0.dayNumber == displayedDay })
+        } else {
+            preservedSession = nil
+        }
+
+        if let displayedSession = preservedSession {
+            self.displayedSession = displayedSession
+            shouldPreserveDisplayedSessionOnReload = !isViewingLiveEdge
+            return
+        }
+
         displayedSession = currentSession
+        shouldPreserveDisplayedSessionOnReload = false
     }
 
     func show(week: Int, day: Int) {
         displayedSession = block?.weeks.first { $0.number == week }?.sessions.first { $0.dayNumber == day }
+        shouldPreserveDisplayedSessionOnReload = !isViewingLiveEdge
     }
 
     func showCurrent() {
         displayedSession = currentSession
+        shouldPreserveDisplayedSessionOnReload = false
     }
 
     func moveOn() {
@@ -60,6 +81,7 @@ final class WorkoutStore {
 
         defaults.set(tracker.order(of: nextSession), forKey: advanceKey(for: block.tabName))
         displayedSession = nextSession
+        shouldPreserveDisplayedSessionOnReload = false
     }
 
     // MARK: - Optimistic Logging
