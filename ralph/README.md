@@ -1,9 +1,9 @@
 # Ralph — autonomous issue-remediation loop
 
 Ralph runs an AI coding agent (Claude Code **or** Codex) in a loop. Each iteration picks one
-GitHub issue labelled `ready-for-agent`, fixes it end-to-end with test-driven development in an
-isolated git worktree, gates the result on tests + a build + a UI screenshot check, then merges
-to `main`, pushes, and closes the issue. It stops when no eligible issues remain.
+GitHub issue labelled `ready-for-agent`, fixes it end-to-end in an isolated git worktree, gates
+the result on tests + a build + a UI screenshot check when needed, then merges to `main`, pushes,
+and closes the issue. It stops when no eligible issues remain.
 
 It is the issue-driven adaptation of the [Ralph Wiggum loop](https://github.com/coleam00/ralph-loop-quickstart):
 GitHub issues replace the quickstart's `prd.md`, and every iteration runs in a **fresh agent
@@ -55,8 +55,9 @@ Each iteration:
 1. SELECT   An agent lists open `ready-for-agent` issues, skips PRDs/epics, respects
             dependencies, and picks ONE highest-priority unblocked issue.   (read-only)
 2. ISOLATE  A fresh worktree + branch `agent/issue-<N>` is created off main.
-3. IMPLEMENT The agent reads the issue's Agent Brief, CONTEXT.md, and ADRs, then does
-            red-green-refactor TDD. It commits to the branch and emits <promise>COMPLETE</promise>.
+3. IMPLEMENT The agent reads the issue's Agent Brief, CONTEXT.md, relevant ADRs, and project
+            instructions. It runs Swift Review during verification, remediates blocking findings,
+            commits to the branch, and emits <promise>COMPLETE</promise>.
 4. GATE     The loop independently runs `swift test` and a full `xcodebuild` build.
 5. UI GATE  If the change touched Views/Theme, it screenshots the app (via the UITEST
             fixture) and a vision agent checks it against the acceptance criteria.
@@ -101,6 +102,29 @@ Write issues with a clear **Agent Brief** (acceptance criteria, key interfaces, 
 that comment is the contract the implement agent works from. Use the `triage` skill / its
 `AGENT-BRIEF.md` format. The richer the acceptance criteria, the more reliably the loop succeeds
 and the more the UI vision check can verify.
+
+PRDs are intentionally excluded. Ralph should not select `PRD:` issues or use PRD documents as
+implementation input; the Agent Brief is the work contract.
+
+---
+
+## Swift Review
+
+Swift Review happens inside the implementer's verification loop before it emits
+`<promise>COMPLETE</promise>`:
+
+- Claude and Codex implementers must invoke the configured `swift-reviewer` custom agent as a
+  separate subagent, so review comes from a fresh context rather than self-review.
+- Codex CLI supports subagent workflows and custom agents; Ralph expects Codex to spawn the
+  configured `swift-reviewer` agent rather than falling back to copied reviewer instructions.
+- Blocking reviewer findings are not final loop failures. The implementer fixes them in the same
+  worktree, reruns required checks, and requests review again before completing.
+- If the implementer cannot invoke the `swift-reviewer` subagent, it must report BLOCKED instead of
+  emitting `<promise>COMPLETE</promise>`.
+
+Ralph does not currently set Codex subagent depth. If Codex refuses to spawn `swift-reviewer` due
+to depth limits, configure Codex `[agents] max_depth` high enough for one implementer-owned review
+subagent.
 
 ---
 
@@ -161,8 +185,8 @@ and the matching log has the detail.
 - **"built .app not found" / simulator errors** — confirm the iPhone 17 Pro runtime exists, or pass
   `--device "<name>"` / set `SIM_DEVICE` to a unique device (or a UDID if you have duplicates).
 - **Build fails only in the loop, not in `swift test`** — the agent likely added files without
-  running `xcodegen generate`; the regenerated `WorkoutTracker.xcodeproj` must be committed. The
-  implement prompt instructs this; check the implement log.
+  regenerating the Xcode project; the regenerated `WorkoutTracker.xcodeproj` must be committed.
+  Check the implement log.
 - **Selector returns NONE unexpectedly** — verify `gh auth status` and that issues still carry the
   `ready-for-agent` label (a prior failed run may have moved them to `ready-for-human`).
 - **Nothing happens / agent output empty** — check the engine is installed and authenticated
