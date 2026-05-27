@@ -1,11 +1,5 @@
 import SwiftUI
 
-enum ExercisePairingAvailability: Equatable {
-    case inactive
-    case available
-    case unavailable
-}
-
 struct ExerciseSection: View {
     let exercise: Exercise
     let lastPerformedIndex: LastPerformedIndex
@@ -68,7 +62,7 @@ struct ExerciseSection: View {
 
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(sortedSets, id: \.persistentModelID) { set in
-                        let setID = ActiveSetFocusManager.id(for: set)
+                        let setID = SessionCoordinator.activeSetID(for: set)
                         let scrollID = setID ?? ActiveSetID(exerciseOrder: exercise.order, setIndex: set.index)
                         ZStack(alignment: .topLeading) {
                             if setID == activeSetID {

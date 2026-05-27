@@ -16,6 +16,7 @@
 		150FD5018848ACCE1FE8B8AE /* PendingWriteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8629437B46CD9B6B87AA05B /* PendingWriteTests.swift */; };
 		1C87BAF1D8F3626D46102EBF /* SheetGridFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5AD19394F523316075E92C3 /* SheetGridFixture.swift */; };
 		1EC5B09B643D618463A4B4E7 /* SyncCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0618D41A9127F527B1A3DBBD /* SyncCoordinatorTests.swift */; };
+		1FD78DA6ACD2DC16713C59E1 /* SessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2694D7B8CE96A7BA65917D8A /* SessionCoordinator.swift */; };
 		220D586E2C3501A8CD100024 /* Block.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56BD19DDAA92AF5F6982BB5E /* Block.swift */; };
 		23DC6090AF57EAF426C113C5 /* LastPerformedEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FE11A57FFD49F1221D2CA75 /* LastPerformedEntry.swift */; };
 		25D084E9516472D4282B4C04 /* ExerciseSummaryRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFBE67C176F894614182855E /* ExerciseSummaryRow.swift */; };
@@ -62,6 +63,7 @@
 		AAB1AF9D5F9324682EAF6B48 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9038CBF5AF997C5562D3A6E4 /* RootView.swift */; };
 		AC29BD0F002AFBF37ABA216E /* SessionProgressTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34CCE3516AF8BD080F2B73C1 /* SessionProgressTrackerTests.swift */; };
 		AC784F11021F09F1A5C5A62B /* ActiveSetCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61BD44A847304CF1B26D982D /* ActiveSetCard.swift */; };
+		AE646579607F94F85A4BC0B7 /* SessionCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D613549E805C2F0EF82FE4C6 /* SessionCoordinatorTests.swift */; };
 		B0441BD9835254837C31369E /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2A79566B8F5D5A99B273AA3 /* SettingsStore.swift */; };
 		B1A03F30DB8DFC71A1C8C562 /* ThemeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7824F6B3D40B1310C078953A /* ThemeTests.swift */; };
 		B6E514D1A4F1E94B00B8F542 /* Smoke.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEC43682656CC2E8CF1BD804 /* Smoke.swift */; };
@@ -110,6 +112,7 @@
 		2024ACD32981CDD3B13CC16E /* SetLogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetLogTests.swift; sourceTree = "<group>"; };
 		20D53666552036BF79EEB41F /* SetLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetLog.swift; sourceTree = "<group>"; };
 		22EEE65D45B6DDC0D0563744 /* LoadSuggestionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadSuggestionEngine.swift; sourceTree = "<group>"; };
+		2694D7B8CE96A7BA65917D8A /* SessionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCoordinator.swift; sourceTree = "<group>"; };
 		2815DD33C0DD5F5D4C262151 /* SetRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetRow.swift; sourceTree = "<group>"; };
 		2CC347CBCB45EC717781E8EF /* SyncStatusBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatusBanner.swift; sourceTree = "<group>"; };
 		34CCE3516AF8BD080F2B73C1 /* SessionProgressTrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionProgressTrackerTests.swift; sourceTree = "<group>"; };
@@ -165,6 +168,7 @@
 		D190FFC3E7D57A123821D120 /* SessionProgressHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionProgressHeader.swift; sourceTree = "<group>"; };
 		D25BC6F5BDADC735072B49F8 /* SheetsClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetsClient.swift; sourceTree = "<group>"; };
 		D48BD9386FBE1872BB0B6849 /* WorkoutTrackerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutTrackerApp.swift; sourceTree = "<group>"; };
+		D613549E805C2F0EF82FE4C6 /* SessionCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCoordinatorTests.swift; sourceTree = "<group>"; };
 		D8629437B46CD9B6B87AA05B /* PendingWriteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingWriteTests.swift; sourceTree = "<group>"; };
 		DD5AE788CBF5DAF0C684F6D3 /* Exercise.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Exercise.swift; sourceTree = "<group>"; };
 		E2A79566B8F5D5A99B273AA3 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
@@ -240,6 +244,7 @@
 				45F91B801F53F1BE850F7194 /* ActiveSetPresentation.swift */,
 				EBC777FCDEC9F7D51883113F /* LastPerformedExtractor.swift */,
 				667584F2EFDE6375E3486E56 /* LastPerformedIndex.swift */,
+				2694D7B8CE96A7BA65917D8A /* SessionCoordinator.swift */,
 				3DE918A15498A36B4EC413FD /* SessionProgressTracker.swift */,
 				FCE536596991762BAEEF006D /* SmartValuePillsForm.swift */,
 				0A7DE7A3ADF7567E4E60F24E /* SupersetState.swift */,
@@ -258,6 +263,7 @@
 				607A9CA778D25DBBAB685004 /* LoadSuggestionEngineTests.swift */,
 				D8629437B46CD9B6B87AA05B /* PendingWriteTests.swift */,
 				8ADEBBADB9046E8CA563F0AB /* PersistenceTests.swift */,
+				D613549E805C2F0EF82FE4C6 /* SessionCoordinatorTests.swift */,
 				34CCE3516AF8BD080F2B73C1 /* SessionProgressTrackerTests.swift */,
 				86FF8383D7EC3E723F39F3EC /* SetLogParsingTests.swift */,
 				2024ACD32981CDD3B13CC16E /* SetLogTests.swift */,
@@ -520,6 +526,7 @@
 				26399018B2461BEF70C23851 /* LoadSuggestionEngineTests.swift in Sources */,
 				150FD5018848ACCE1FE8B8AE /* PendingWriteTests.swift in Sources */,
 				8CAE526FB04320D7A0957080 /* PersistenceTests.swift in Sources */,
+				AE646579607F94F85A4BC0B7 /* SessionCoordinatorTests.swift in Sources */,
 				AC29BD0F002AFBF37ABA216E /* SessionProgressTrackerTests.swift in Sources */,
 				6066800343BAD1A6BE3AA3DE /* SetLogParsingTests.swift in Sources */,
 				5E67D3B4E5C8B9E6945FC2FC /* SetLogTests.swift in Sources */,
@@ -568,6 +575,7 @@
 				348182B266A444358BFC98BC /* PendingWrite.swift in Sources */,
 				7CDFDA32B138EFA224F89B49 /* RPEGrid.swift in Sources */,
 				AAB1AF9D5F9324682EAF6B48 /* RootView.swift in Sources */,
+				1FD78DA6ACD2DC16713C59E1 /* SessionCoordinator.swift in Sources */,
 				DC4256E5E0BE527A4C3A3310 /* SessionProgressHeader.swift in Sources */,
 				0D3E6DBCFE1881EE177EDEAE /* SessionProgressTracker.swift in Sources */,
 				C284DB7EB4E8BFC59D3ECBB1 /* SessionTile.swift in Sources */,
