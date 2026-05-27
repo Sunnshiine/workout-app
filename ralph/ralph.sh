@@ -5,8 +5,9 @@
 # Each iteration runs a FRESH agent context that:
 #   1. selects the highest-priority unblocked `ready-for-agent` GitHub issue (skipping PRDs),
 #   2. works it to completion in an isolated git worktree using TDD,
-#   3. is gated on `swift test` + a full `xcodebuild` build, plus a screenshot + vision check
-#      for View-touching changes,
+#   3. is gated on the full documented framework: `swift test`, Xcode unit/component tests,
+#      Xcode UI integration tests, `swiftlint lint --quiet`, plus a screenshot + vision check
+#      for View/Theme changes,
 #   4. on success: merges the branch to main, pushes origin, and closes the issue;
 #      on failure: relabels the issue `ready-for-human` and moves on.
 # The loop stops when no eligible issues remain, or after MAX_ITER iterations.
@@ -163,20 +164,37 @@ $(cat "$PROMPTS/implement.md")"
     flag_for_human "$issue" "${reason:-Agent did not report completion.}"; continue
   fi
 
-  # 5. GATE — authoritative build/test in the worktree
-  log "gate: swift test"
-  if ! ( cd "$wt" && swift test ) > "$LOGS/iter-$iter-issue-$issue-swifttest.log" 2>&1; then
-    flag_for_human "$issue" "swift test failed at the loop gate (see logs)."; continue
+  # 5. GATE — authoritative full testing framework in the worktree
+  log "gate: swift test (package unit/component)"
+  if ! ( cd "$wt" && swift test ) > "$LOGS/iter-$iter-issue-$issue-swift-test.log" 2>&1; then
+    flag_for_human "$issue" "Package unit/component tests failed at the loop gate: swift test (see logs)."; continue
   fi
-  log "gate: xcodebuild build"
-  if ! ( cd "$wt" && xcodegen generate >/dev/null && \
+  log "gate: xcodegen generate"
+  if ! ( cd "$wt" && xcodegen generate ) > "$LOGS/iter-$iter-issue-$issue-xcodegen.log" 2>&1; then
+    flag_for_human "$issue" "Project generation failed at the loop gate: xcodegen generate (see logs)."; continue
+  fi
+  log "gate: xcodebuild test (unit/component target)"
+  if ! ( cd "$wt" && \
          xcodebuild -project WorkoutTracker.xcodeproj -scheme WorkoutTracker -configuration Debug \
-           -destination "platform=iOS Simulator,name=$SIM_DEVICE" -derivedDataPath "$wt/.ralph-dd" build ) \
-         > "$LOGS/iter-$iter-issue-$issue-build.log" 2>&1; then
-    flag_for_human "$issue" "xcodebuild failed at the loop gate (see logs)."; continue
+           -destination "platform=iOS Simulator,name=$SIM_DEVICE" -derivedDataPath "$wt/.ralph-dd" \
+           test -only-testing:WorkoutTrackerTests ) \
+         > "$LOGS/iter-$iter-issue-$issue-xcode-unit-component-tests.log" 2>&1; then
+    flag_for_human "$issue" "Xcode unit/component tests failed at the loop gate: WorkoutTrackerTests (see logs)."; continue
+  fi
+  log "gate: xcodebuild test (UI integration target)"
+  if ! ( cd "$wt" && \
+         xcodebuild -project WorkoutTracker.xcodeproj -scheme WorkoutTracker -configuration Debug \
+           -destination "platform=iOS Simulator,name=$SIM_DEVICE" -derivedDataPath "$wt/.ralph-dd" \
+           test -only-testing:WorkoutTrackerUITests ) \
+         > "$LOGS/iter-$iter-issue-$issue-xcode-ui-tests.log" 2>&1; then
+    flag_for_human "$issue" "UI integration tests failed at the loop gate: WorkoutTrackerUITests (see logs)."; continue
+  fi
+  log "gate: swiftlint lint"
+  if ! ( cd "$wt" && swiftlint lint --quiet ) > "$LOGS/iter-$iter-issue-$issue-swiftlint.log" 2>&1; then
+    flag_for_human "$issue" "Lint failed at the loop gate: swiftlint lint --quiet (see logs)."; continue
   fi
 
-  # 5b. UI GATE — screenshot + vision check for View-touching changes
+  # 5b. UI GATE — screenshot + vision check for View/Theme changes
   if git -C "$wt" diff --name-only main -- 'WorkoutTracker/Views/' 'WorkoutTracker/Theme.swift' | grep -q .; then
     log "View change detected → screenshot + vision verify"
     shot="$ART/iter-$iter-issue-$issue.png"
