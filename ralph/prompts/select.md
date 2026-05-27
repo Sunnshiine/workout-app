@@ -14,11 +14,13 @@ there is nothing to do. Do NOT write code, create branches, or modify anything.
      concrete, self-contained change.
    - Anything also labelled `ready-for-human`.
 
-3. Consider DEPENDENCIES. Read each remaining candidate's body and its "Agent Brief" comment
-   (`gh issue view <n> --comments`). A foundational, pure-computation or data module (e.g. an
-   engine or index that other features consume) must be completed BEFORE the features that
-   depend on it. If a candidate depends on another `ready-for-agent` issue that is still open,
-   it is BLOCKED — do not pick it this run.
+3. Consider SPEC QUALITY and DEPENDENCIES. Read each remaining candidate's body and comments
+   (`gh issue view <n> --comments`). An issue is implementable when it has either an Agent Brief
+   comment or a concrete issue body with acceptance criteria. If neither exists, it is BLOCKED —
+   do not pick it this run. A foundational, pure-computation or data module (e.g. an engine or
+   index that other features consume) must be completed BEFORE the features that depend on it.
+   If a candidate depends on another `ready-for-agent` issue that is still open, it is BLOCKED —
+   do not pick it this run.
 
 4. Among the unblocked candidates, pick the single highest-priority one, in this order:
    a. `bug`-labelled issues before enhancements,

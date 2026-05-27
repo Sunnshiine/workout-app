@@ -55,7 +55,7 @@ Each iteration:
 1. SELECT   An agent lists open `ready-for-agent` issues, skips PRDs/epics, respects
             dependencies, and picks ONE highest-priority unblocked issue.   (read-only)
 2. ISOLATE  A fresh worktree + branch `agent/issue-<N>` is created off main.
-3. IMPLEMENT The agent reads the issue's Agent Brief, CONTEXT.md, relevant ADRs, and project
+3. IMPLEMENT The agent reads the issue contract, CONTEXT.md, relevant ADRs, and project
             instructions. It runs Swift Review during verification, remediates blocking findings,
             commits to the branch, and emits <promise>COMPLETE</promise>.
 4. GATE     The loop independently runs `swift test` and a full `xcodebuild` build.
@@ -98,13 +98,14 @@ The selector picks an issue only if it:
 - is **not** also labelled `ready-for-human`,
 - has **no unfinished dependency** (a foundational module must close before its consumers run).
 
-Write issues with a clear **Agent Brief** (acceptance criteria, key interfaces, out-of-scope) —
-that comment is the contract the implement agent works from. Use the `triage` skill / its
-`AGENT-BRIEF.md` format. The richer the acceptance criteria, the more reliably the loop succeeds
-and the more the UI vision check can verify.
+Write issues with a clear implementation contract: either an **Agent Brief** comment or a concrete
+issue body with acceptance criteria, key interfaces, and out-of-scope notes. When an Agent Brief
+comment exists, it wins. When it does not, the issue body may be used as the contract if it is
+specific enough to implement directly. The richer the acceptance criteria, the more reliably the
+loop succeeds and the more the UI vision check can verify.
 
 PRDs are intentionally excluded. Ralph should not select `PRD:` issues or use PRD documents as
-implementation input; the Agent Brief is the work contract.
+implementation input; the issue contract must come from a non-PRD work issue.
 
 ---
 
