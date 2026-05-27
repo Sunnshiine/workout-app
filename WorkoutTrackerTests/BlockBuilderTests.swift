@@ -55,3 +55,20 @@ import Testing
     #expect(pendingSet.state == .pending)
     #expect(pendingSet.setLogData == nil)
 }
+
+@MainActor
+@Test func persistsTrainingMaxValuesFromParsedBlock() {
+    let parsed = ParsedBlockModel(
+        tabName: "Block 27",
+        weeks: [],
+        squatTM: 365,
+        benchTM: 245,
+        deadliftTM: 455
+    )
+
+    let block = BlockBuilder.makeBlock(from: parsed)
+
+    #expect(block.squatTM == 365)
+    #expect(block.benchTM == 245)
+    #expect(block.deadliftTM == 455)
+}
