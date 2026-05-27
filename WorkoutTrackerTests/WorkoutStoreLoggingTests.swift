@@ -69,13 +69,21 @@ private func parsedLoggingBlock() -> ParsedBlockModel {
 }
 
 @MainActor
+private func makeLoggingDefaults() throws -> UserDefaults {
+    let suiteName = "test.\(UUID())"
+    let defaults = try #require(UserDefaults(suiteName: suiteName))
+    defaults.removePersistentDomain(forName: suiteName)
+    return defaults
+}
+
+@MainActor
 private func seededStore() throws -> SeededLoggingStore {
     let container = try loggingContainer()
     let ctx = container.mainContext
     let block = BlockBuilder.makeBlock(from: parsedLoggingBlock())
     ctx.insert(block)
     try ctx.save()
-    let store = WorkoutStore(context: ctx)
+    let store = try WorkoutStore(context: ctx, defaults: makeLoggingDefaults())
     store.reload()
     let set = try #require(
         store.block?.weeks.first?.sessions.first?.exercises.first?.sets.sorted {

@@ -59,6 +59,49 @@ private func sortedSessions(in block: Block) -> [Session] {
 }
 
 @MainActor
+@Test func nextSessionCrossesWeekBoundaryAndEndsAtLastSession() throws {
+    let block = makeBlock()
+    let sessions = sortedSessions(in: block)
+    let tracker = SessionProgressTracker()
+
+    let week1Day4 = sessions[3]
+    let week2Day1 = try #require(tracker.nextSession(after: week1Day4, in: block))
+
+    #expect(week2Day1.week?.number == 2)
+    #expect(week2Day1.dayNumber == 1)
+    #expect(tracker.nextSession(after: sessions[7], in: block) == nil)
+}
+
+@MainActor
+@Test func sessionOrderRoundTripsAcrossBlock() throws {
+    let block = makeBlock()
+    let tracker = SessionProgressTracker()
+
+    for session in sortedSessions(in: block) {
+        let order = tracker.order(of: session)
+        let roundTripped = try #require(tracker.session(at: order, in: block))
+
+        #expect(roundTripped.persistentModelID == session.persistentModelID)
+    }
+}
+
+@MainActor
+@Test func currentSessionUsesAdvanceOnlyWhenAheadOfDerivedProgress() {
+    let block = makeBlock()
+    let sessions = sortedSessions(in: block)
+    sessions[2].exercises[0].sets[0].state = .logged
+    let tracker = SessionProgressTracker()
+
+    let advanced = tracker.currentSession(in: block, advancedToOrder: 5)
+    let behind = tracker.currentSession(in: block, advancedToOrder: 2)
+
+    #expect(advanced?.week?.number == 2)
+    #expect(advanced?.dayNumber == 1)
+    #expect(behind?.week?.number == 1)
+    #expect(behind?.dayNumber == 3)
+}
+
+@MainActor
 @Test func tileStatePrioritizesCurrentSession() {
     let block = makeBlock()
     let session = block.weeks[0].sessions[0]

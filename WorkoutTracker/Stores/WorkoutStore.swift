@@ -16,10 +16,22 @@ final class WorkoutStore {
 
     private let context: ModelContext
     private let tracker = SessionProgressTracker()
+    private let defaults: UserDefaults
 
-    init(context: ModelContext) { self.context = context }
+    init(context: ModelContext, defaults: UserDefaults = .standard) {
+        self.context = context
+        self.defaults = defaults
+    }
 
-    var currentSession: Session? { block.flatMap { tracker.currentSession(in: $0) } }
+    var currentSession: Session? {
+        block.flatMap { tracker.currentSession(in: $0, advancedToOrder: advancedToOrder(in: $0)) }
+    }
+
+    var canMoveOn: Bool {
+        guard let block, let currentSession else { return false }
+        return tracker.nextSession(after: currentSession, in: block) != nil
+    }
+
     var isViewingLiveEdge: Bool { displayedSession?.persistentModelID == currentSession?.persistentModelID }
     var openExercises: [Exercise] {
         guard let block, let currentSession else { return [] }
@@ -37,6 +49,17 @@ final class WorkoutStore {
 
     func showCurrent() {
         displayedSession = currentSession
+    }
+
+    func moveOn() {
+        guard
+            let block,
+            let currentSession,
+            let nextSession = tracker.nextSession(after: currentSession, in: block)
+        else { return }
+
+        defaults.set(tracker.order(of: nextSession), forKey: advanceKey(for: block.tabName))
+        displayedSession = nextSession
     }
 
     // MARK: - Optimistic Logging
@@ -156,5 +179,15 @@ final class WorkoutStore {
 
     private func rpeLabel(_ rpe: Double) -> String {
         rpe.rounded() == rpe ? String(Int(rpe)) : String(rpe)
+    }
+
+    private func advancedToOrder(in block: Block) -> Int? {
+        let key = advanceKey(for: block.tabName)
+        guard defaults.object(forKey: key) != nil else { return nil }
+        return defaults.integer(forKey: key)
+    }
+
+    private func advanceKey(for tabName: String) -> String {
+        "advancedToOrder_\(tabName)"
     }
 }

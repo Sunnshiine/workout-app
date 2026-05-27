@@ -9,18 +9,35 @@ enum SessionTileState: Equatable, Sendable {
 
 struct SessionProgressTracker {
     /// Order index across the block: (week-1)*4 + day.
-    private func order(_ s: Session) -> Int { ((s.week?.number ?? 1) - 1) * 4 + s.dayNumber }
+    func order(of session: Session) -> Int { ((session.week?.number ?? 1) - 1) * 4 + session.dayNumber }
 
-    private func allSessions(_ block: Block) -> [Session] {
-        block.weeks.flatMap { $0.sessions }.sorted { order($0) < order($1) }
+    func session(at order: Int, in block: Block) -> Session? {
+        allSessions(block).first { self.order(of: $0) == order }
     }
 
-    func currentSession(in block: Block) -> Session? {
+    func nextSession(after session: Session, in block: Block) -> Session? {
+        let nextOrder = order(of: session) + 1
+        return self.session(at: nextOrder, in: block)
+    }
+
+    private func allSessions(_ block: Block) -> [Session] {
+        block.weeks.flatMap { $0.sessions }.sorted { order(of: $0) < order(of: $1) }
+    }
+
+    func currentSession(in block: Block, advancedToOrder: Int? = nil) -> Session? {
         let sessions = allSessions(block)
         let logged = sessions.filter { s in
             s.exercises.contains { $0.sets.contains { $0.state == .logged } }
         }
-        return logged.last ?? sessions.first
+        guard let derived = logged.last ?? sessions.first else { return nil }
+        guard
+            let advancedToOrder,
+            advancedToOrder > order(of: derived),
+            let advancedSession = session(at: advancedToOrder, in: block)
+        else {
+            return derived
+        }
+        return advancedSession
     }
 
     func currentWeek(in block: Block) -> Week? {
