@@ -21,9 +21,16 @@ enum Theme {
     static let lastPerformedCardStroke = Color(red: 0.13, green: 0.36, blue: 0.25)
     static let pillFill = Color(red: 0.03, green: 0.06, blue: 0.05).opacity(0.88)
     static let pillStroke = Color(red: 0.24, green: 0.68, blue: 0.42).opacity(0.75)
+    static let sessionTileComplete = Color(red: 0.03, green: 0.32, blue: 0.16)
+    static let sessionTileHasOpenExercises = Color(red: 0.86, green: 0.58, blue: 0.16)
+    static let sessionTileCurrent = accent
+    static let sessionTileUpcoming = Color(red: 0.025, green: 0.055, blue: 0.045)
 
     static let cardCornerRadius: CGFloat = 16
     static let cardSpacing: CGFloat = 16
+    static let sessionTileCornerRadius: CGFloat = 8
+    static let sessionTileMinHeight: CGFloat = 86
+    static let sessionTileSpacing: CGFloat = 10
     static let pillCornerRadius: CGFloat = 8
     static let pillMinHeight: CGFloat = 86
     static let pillSpacing: CGFloat = 10

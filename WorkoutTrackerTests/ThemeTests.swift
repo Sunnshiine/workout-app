@@ -147,6 +147,19 @@ import Testing
     #expect(Theme.rpeGridCellHeight == 48)
 }
 
+@Test func themeIncludesSessionTileConstants() {
+    #expect(Theme.sessionTileCornerRadius == 8)
+    #expect(Theme.sessionTileMinHeight == 86)
+    #expect(Theme.sessionTileSpacing == 10)
+
+    #if canImport(AppKit)
+        #expect(rgbComponents(of: Theme.sessionTileComplete) != nil)
+        #expect(rgbComponents(of: Theme.sessionTileHasOpenExercises) != nil)
+        #expect(rgbComponents(of: Theme.sessionTileCurrent) != nil)
+        #expect(rgbComponents(of: Theme.sessionTileUpcoming) != nil)
+    #endif
+}
+
 @Test func themeIncludesActiveSetTransitionTimingConstants() {
     #expect(Theme.logButtonCheckmarkDuration == 0.2)
     #expect(Theme.momentumFlowTotalDuration == 0.65)
