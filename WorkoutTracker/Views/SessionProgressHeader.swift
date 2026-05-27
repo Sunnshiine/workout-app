@@ -5,17 +5,20 @@ struct SessionProgressHeader: View {
     let activeSetID: ActiveSetID?
     let block: Block?
     let currentSession: Session?
+    let onNavigate: () -> Void
 
     init(
         session: Session,
         activeSetID: ActiveSetID?,
         block: Block? = nil,
-        currentSession: Session? = nil
+        currentSession: Session? = nil,
+        onNavigate: @escaping () -> Void = {}
     ) {
         self.session = session
         self.activeSetID = activeSetID
         self.block = block
         self.currentSession = currentSession
+        self.onNavigate = onNavigate
     }
 
     private var presentation: SessionProgressHeaderPresentation {
@@ -55,6 +58,7 @@ struct SessionProgressHeader: View {
                 locationLabelText
             }
             .buttonStyle(.plain)
+            .simultaneousGesture(TapGesture().onEnded(onNavigate))
             .accessibilityLabel(presentation.locationActionAccessibilityLabel)
         } else {
             locationLabelText

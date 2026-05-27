@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UIKit
 
 struct SessionView: View {
     @Environment(WorkoutStore.self) private var workout
@@ -8,6 +9,8 @@ struct SessionView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var focusManager = ActiveSetFocusManager(session: nil)
     @State private var retiringTransition: ActiveSetTransition?
+    @State private var pairingSourceOrder: Int?
+    @State private var pairingConfirmationOrder: Int?
 
     var body: some View {
         Group {
@@ -28,7 +31,8 @@ struct SessionView: View {
                         session: session,
                         activeSetID: focusManager.activeSetID,
                         block: workout.block,
-                        currentSession: workout.currentSession
+                        currentSession: workout.currentSession,
+                        onNavigate: cancelPairingMode
                     )
                     .padding(.horizontal)
                     .padding(.top, 12)
@@ -37,21 +41,26 @@ struct SessionView: View {
                         ScrollView {
                             GlassEffectContainer(spacing: Theme.cardSpacing) {
                                 LazyVStack(alignment: .leading, spacing: Theme.cardSpacing) {
-                                    let activeSupersetPresentation = focusManager.activeSupersetPresentation(in: session)
-                                    let activeSupersetExercises = focusManager.activeSupersetExercises(in: session)
+                                    let supersetSections = focusManager.supersetSections(in: session)
+                                    let supersetByContainer = Dictionary(
+                                        uniqueKeysWithValues: supersetSections.compactMap { section in
+                                            section.presentation.containerExerciseOrder.map { ($0, section) }
+                                        }
+                                    )
                                     let activeSupersetExerciseOrders = Set(
-                                        activeSupersetPresentation?.sides.map(\.exerciseOrder) ?? []
+                                        supersetSections.flatMap { section in
+                                            section.exercises.map(\.order)
+                                        }
                                     )
 
                                     ForEach(
                                         session.exercises.sorted(by: { $0.order < $1.order }),
                                         id: \.persistentModelID
                                     ) { exercise in
-                                        if let activeSupersetPresentation,
-                                            activeSupersetPresentation.containerExerciseOrder == exercise.order {
+                                        if let supersetSection = supersetByContainer[exercise.order] {
                                             ActiveSupersetSection(
-                                                presentation: activeSupersetPresentation,
-                                                exercises: activeSupersetExercises,
+                                                presentation: supersetSection.presentation,
+                                                exercises: supersetSection.exercises,
                                                 lastPerformedIndex: LastPerformedIndex(context: modelContext),
                                                 activeSetTransition: focusManager.activeSetTransition,
                                                 retiringTransition: retiringTransition,
@@ -66,8 +75,16 @@ struct SessionView: View {
                                                 },
                                                 onDelete: { set in
                                                     deleteLog(for: set)
+                                                },
+                                                onDismiss: {
+                                                    cancelPairingMode()
+                                                    guard let exercise = supersetSection.exercises.first else { return }
+                                                    withAnimation(Theme.momentumFlowAnimation) {
+                                                        focusManager.dismissSuperset(containing: exercise, in: session)
+                                                    }
                                                 }
                                             )
+                                            .id(supersetSurfaceID(for: supersetSection.presentation))
                                         } else if activeSupersetExerciseOrders.contains(exercise.order) {
                                             EmptyView()
                                         } else {
@@ -78,6 +95,9 @@ struct SessionView: View {
                                                 activeSetTransition: focusManager.activeSetTransition,
                                                 retiringTransition: retiringTransition,
                                                 isCollapsed: focusManager.isCollapsed(exercise),
+                                                showsPairingGrip: pairingSourceOrder != nil,
+                                                pairingAvailability: pairingAvailability(for: exercise, in: session),
+                                                isPairingConfirmation: pairingConfirmationOrder == exercise.order,
                                                 onFocus: { set in
                                                     focusManager.focus(on: set)
                                                 },
@@ -92,6 +112,12 @@ struct SessionView: View {
                                                 },
                                                 onDelete: { set in
                                                     deleteLog(for: set)
+                                                },
+                                                onBeginPairing: {
+                                                    beginPairing(from: exercise, in: session)
+                                                },
+                                                onPairingTap: {
+                                                    handlePairingTap(on: exercise, in: session)
                                                 }
                                             )
                                         }
@@ -109,6 +135,18 @@ struct SessionView: View {
                                             workout.moveOn()
                                         }
                                     }
+
+                                    Color.clear
+                                        .frame(height: 44)
+                                        .contentShape(Rectangle())
+                                        .onTapGesture(perform: cancelPairingMode)
+                                }
+                                .background {
+                                    if pairingSourceOrder != nil {
+                                        Color.clear
+                                            .contentShape(Rectangle())
+                                            .onTapGesture(perform: cancelPairingMode)
+                                    }
                                 }
                             }
                             .padding(.horizontal)
@@ -117,8 +155,12 @@ struct SessionView: View {
                         .onChange(of: focusManager.scrollTargetID) { _, targetID in
                             scrollToSet(targetID, with: proxy)
                         }
+                        .onChange(of: focusManager.supersetScrollTargetOrder) { _, order in
+                            scrollToSuperset(order, with: proxy)
+                        }
                     }
                     .task(id: session.persistentModelID) {
+                        cancelPairingMode()
                         focusManager.reset(to: session)
                     }
                 }
@@ -190,6 +232,7 @@ struct SessionView: View {
     }
 
     private func showSourceSession(for exercise: Exercise) {
+        cancelPairingMode()
         guard let session = exercise.session, let week = session.week else { return }
         workout.show(week: week.number, day: session.dayNumber)
     }
@@ -212,6 +255,21 @@ struct SessionView: View {
         }
     }
 
+    private func scrollToSuperset(_ order: Int?, with proxy: ScrollViewProxy) {
+        guard let order else { return }
+        withAnimation(Theme.momentumFlowAnimation) {
+            proxy.scrollTo(supersetSurfaceID(for: order), anchor: .center)
+        }
+    }
+
+    private func supersetSurfaceID(for presentation: ActiveSupersetPresentation) -> String {
+        supersetSurfaceID(for: presentation.containerExerciseOrder ?? Int.min)
+    }
+
+    private func supersetSurfaceID(for order: Int) -> String {
+        "superset-\(order)"
+    }
+
     private func transitionClearDelay(for transition: ActiveSetTransition) -> UInt64 {
         let duration =
             switch transition.kind {
@@ -225,6 +283,56 @@ struct SessionView: View {
                     + Theme.momentumRiseDuration
             }
         return UInt64(duration * 1_000_000_000)
+    }
+}
+
+extension SessionView {
+    fileprivate func beginPairing(from exercise: Exercise, in session: Session) {
+        guard focusManager.canPair(exercise, in: session) else { return }
+        pairingSourceOrder = exercise.order
+        pairingConfirmationOrder = nil
+    }
+
+    fileprivate func handlePairingTap(on exercise: Exercise, in session: Session) {
+        guard let sourceOrder = pairingSourceOrder else { return }
+        guard exercise.order != sourceOrder else {
+            cancelPairingMode()
+            return
+        }
+        guard focusManager.canPair(exercise, in: session) else {
+            warningHaptic()
+            return
+        }
+        guard let source = session.exercises.first(where: { $0.order == sourceOrder }) else {
+            cancelPairingMode()
+            return
+        }
+        pairingConfirmationOrder = exercise.order
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(Theme.pairingConfirmationDuration * 1_000_000_000))
+            guard pairingSourceOrder == sourceOrder, pairingConfirmationOrder == exercise.order else { return }
+            withAnimation(Theme.momentumFlowAnimation) {
+                _ = focusManager.createSuperset(from: source, to: exercise, in: session)
+            }
+            cancelPairingMode()
+        }
+    }
+
+    fileprivate func pairingAvailability(for exercise: Exercise, in session: Session) -> ExercisePairingAvailability {
+        guard pairingSourceOrder != nil else { return .inactive }
+        if exercise.order == pairingSourceOrder || focusManager.canPair(exercise, in: session) {
+            return .available
+        }
+        return .unavailable
+    }
+
+    fileprivate func cancelPairingMode() {
+        pairingSourceOrder = nil
+        pairingConfirmationOrder = nil
+    }
+
+    fileprivate func warningHaptic() {
+        UINotificationFeedbackGenerator().notificationOccurred(.warning)
     }
 }
 

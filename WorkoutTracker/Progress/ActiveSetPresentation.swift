@@ -148,7 +148,7 @@ struct ActiveSupersetSidePresentation: Equatable, Sendable {
 }
 
 struct ActiveSupersetPresentation: Equatable, Sendable {
-    let activeSetID: ActiveSetID
+    let activeSetID: ActiveSetID?
     let sides: [ActiveSupersetSidePresentation]
 
     var activeExerciseOrder: Int? {
@@ -161,13 +161,17 @@ struct ActiveSupersetPresentation: Equatable, Sendable {
 
     @MainActor
     init?(exercises: [Exercise], activeSetID: ActiveSetID?) {
-        guard exercises.count == 2, let activeSetID else { return nil }
+        guard exercises.count == 2 else { return nil }
+        let activeExerciseOrder = activeSetID?.exerciseOrder
+        let activeSetIndex = activeSetID?.setIndex
         let sides = exercises.compactMap { exercise -> ActiveSupersetSidePresentation? in
             let sortedSets = exercise.sets.sorted { $0.index < $1.index }
-            let isActive = exercise.order == activeSetID.exerciseOrder
+            let isActive = exercise.order == activeExerciseOrder
             let nextSet =
                 if isActive {
-                    sortedSets.first { $0.index == activeSetID.setIndex && $0.state == .pending }
+                    sortedSets.first { set in
+                        set.index == activeSetIndex && set.state == .pending
+                    }
                 } else {
                     sortedSets.first { $0.state == .pending }
                 }
@@ -186,7 +190,7 @@ struct ActiveSupersetPresentation: Equatable, Sendable {
                 accessibilityLabel: "\(exercise.name), \(nextSetText), \(prescriptionText)"
             )
         }
-        guard sides.count == 2, sides.contains(where: \.isActive) else { return nil }
+        guard sides.count == 2 else { return nil }
         self.activeSetID = activeSetID
         self.sides = sides
     }
