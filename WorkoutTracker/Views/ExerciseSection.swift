@@ -1,15 +1,7 @@
 import SwiftUI
 
 struct ExerciseSection: View {
-    let exercise: Exercise
-    let lastPerformedIndex: LastPerformedIndex
-    let activeSetID: ActiveSetID?
-    let activeSetTransition: ActiveSetTransition?
-    let retiringTransition: ActiveSetTransition?
-    let isCollapsed: Bool
-    var showsPairingGrip = false
-    var pairingAvailability: ExercisePairingAvailability = .inactive
-    var isPairingConfirmation = false
+    let config: SessionExerciseRenderConfig
     let onFocus: (ExerciseSet) -> Void
     let onReexpand: () -> Void
     let onLog: (ExerciseSet, SetLog) -> Void
@@ -19,17 +11,17 @@ struct ExerciseSection: View {
     var onPairingTap: () -> Void = {}
     @State private var hasCompletedRise = true
 
+    private var exercise: Exercise {
+        config.exercise
+    }
+
     private var sortedSets: [ExerciseSet] {
         exercise.sets.sorted { $0.index < $1.index }
     }
 
-    private var lastPerformedPresentation: LastPerformedCardPresentation? {
-        LastPerformedCardPresentation(exercise: exercise, index: lastPerformedIndex)
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if isCollapsed {
+            if config.isCollapsed {
                 ExerciseSummaryRow(exercise: exercise, onTap: onReexpand)
                     .transition(
                         .scale(scale: Theme.exerciseCompressionScale, anchor: .top)
@@ -42,7 +34,7 @@ struct ExerciseSection: View {
 
                     Spacer(minLength: 0)
 
-                    if showsPairingGrip {
+                    if config.showsPairingGrip {
                         Image(systemName: "line.3.horizontal")
                             .font(.caption.weight(.bold))
                             .foregroundStyle(.secondary)
@@ -56,7 +48,7 @@ struct ExerciseSection: View {
                         .foregroundStyle(.secondary)
                 }
 
-                if let lastPerformedPresentation {
+                if let lastPerformedPresentation = config.lastPerformedPresentation {
                     LastPerformedCard(presentation: lastPerformedPresentation)
                 }
 
@@ -65,7 +57,7 @@ struct ExerciseSection: View {
                         let setID = SessionCoordinator.activeSetID(for: set)
                         let scrollID = setID ?? ActiveSetID(exerciseOrder: exercise.order, setIndex: set.index)
                         ZStack(alignment: .topLeading) {
-                            if setID == activeSetID {
+                            if setID == config.activeSetID {
                                 IncomingActiveSetCard(
                                     transition: incomingTransition(for: setID),
                                     exercise: exercise,
@@ -82,7 +74,7 @@ struct ExerciseSection: View {
                                 }
                             }
 
-                            if let transition = retiringTransition, transition.outgoingSetID == setID {
+                            if let transition = config.retiringTransition, transition.outgoingSetID == setID {
                                 RetiringActiveSetCard(
                                     transition: transition,
                                     exercise: exercise,
@@ -101,39 +93,39 @@ struct ExerciseSection: View {
         .padding()
         .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
         .overlay {
-            if isPairingConfirmation {
+            if config.isPairingConfirmation {
                 RoundedRectangle(cornerRadius: Theme.cardCornerRadius)
                     .stroke(Theme.accent, lineWidth: 2)
                     .shadow(color: Theme.accent.opacity(0.65), radius: 12)
             }
         }
         .overlay {
-            if pairingAvailability != .inactive {
+            if config.pairingAvailability != .inactive {
                 Color.clear
                     .contentShape(Rectangle())
                     .onTapGesture(perform: onPairingTap)
             }
         }
-        .opacity(pairingAvailability == .unavailable ? Theme.pairingUnavailableOpacity : 1)
+        .opacity(config.pairingAvailability == .unavailable ? Theme.pairingUnavailableOpacity : 1)
         .offset(y: shouldRiseAfterCompletion && !hasCompletedRise ? Theme.exerciseRiseOffset : 0)
         .opacity(shouldRiseAfterCompletion && !hasCompletedRise ? 0.35 : 1)
-        .animation(Theme.exerciseCollapseAnimation, value: isCollapsed)
-        .animation(.easeInOut(duration: 0.18), value: pairingAvailability == .unavailable)
+        .animation(Theme.exerciseCollapseAnimation, value: config.isCollapsed)
+        .animation(.easeInOut(duration: 0.18), value: config.pairingAvailability == .unavailable)
         .onLongPressGesture(perform: onBeginPairing)
         .onAppear(perform: runCompletionRiseIfNeeded)
-        .onChange(of: activeSetTransition) { _, _ in
+        .onChange(of: config.activeSetTransition) { _, _ in
             runCompletionRiseIfNeeded()
         }
     }
 
     private var shouldRiseAfterCompletion: Bool {
-        activeSetTransition?.kind == .collapseAndRise
-            && activeSetTransition?.incomingSetID?.exerciseOrder == exercise.order
+        config.activeSetTransition?.kind == .collapseAndRise
+            && config.activeSetTransition?.incomingSetID?.exerciseOrder == exercise.order
     }
 
     private func incomingTransition(for setID: ActiveSetID?) -> ActiveSetTransition? {
-        guard let setID, activeSetTransition?.incomingSetID == setID else { return nil }
-        return activeSetTransition
+        guard let setID, config.activeSetTransition?.incomingSetID == setID else { return nil }
+        return config.activeSetTransition
     }
 
     private func runCompletionRiseIfNeeded() {
@@ -153,11 +145,7 @@ struct ExerciseSection: View {
 }
 
 struct ActiveSupersetSection: View {
-    let presentation: ActiveSupersetPresentation
-    let exercises: [Exercise]
-    let lastPerformedIndex: LastPerformedIndex
-    let activeSetTransition: ActiveSetTransition?
-    let retiringTransition: ActiveSetTransition?
+    let config: SessionSupersetRenderConfig
     let onFocusExercise: (Exercise) -> Void
     let onLog: (ExerciseSet, SetLog) -> Void
     let onSkip: (ExerciseSet) -> Void
@@ -165,21 +153,16 @@ struct ActiveSupersetSection: View {
     let onDismiss: () -> Void
 
     private var activeExercise: Exercise? {
-        exercises.first { $0.order == presentation.activeExerciseOrder }
+        config.exercises.first { $0.order == config.presentation.activeExerciseOrder }
     }
 
     private var activeSet: ExerciseSet? {
-        guard let activeSetID = presentation.activeSetID else { return nil }
+        guard let activeSetID = config.presentation.activeSetID else { return nil }
         return activeExercise?.sets.first { $0.index == activeSetID.setIndex }
     }
 
     private var sortedActiveSets: [ExerciseSet] {
         activeExercise?.sets.sorted { $0.index < $1.index } ?? []
-    }
-
-    private var lastPerformedPresentation: LastPerformedCardPresentation? {
-        guard let activeExercise else { return nil }
-        return LastPerformedCardPresentation(exercise: activeExercise, index: lastPerformedIndex)
     }
 
     var body: some View {
@@ -201,12 +184,12 @@ struct ActiveSupersetSection: View {
             }
 
             VStack(spacing: 8) {
-                ForEach(presentation.sides, id: \.exerciseOrder) { side in
+                ForEach(config.presentation.sides, id: \.exerciseOrder) { side in
                     if side.isActive {
                         SupersetSideCard(side: side)
-                    } else if presentation.activeSetID != nil {
+                    } else if config.presentation.activeSetID != nil {
                         Button {
-                            guard let exercise = exercises.first(where: { $0.order == side.exerciseOrder }) else {
+                            guard let exercise = config.exercises.first(where: { $0.order == side.exerciseOrder }) else {
                                 return
                             }
                             onFocusExercise(exercise)
@@ -221,11 +204,11 @@ struct ActiveSupersetSection: View {
                 }
             }
 
-            if let lastPerformedPresentation {
+            if let lastPerformedPresentation = config.lastPerformedPresentation {
                 LastPerformedCard(presentation: lastPerformedPresentation)
             }
 
-            if let activeSetID = presentation.activeSetID, let activeExercise, let activeSet {
+            if let activeSetID = config.presentation.activeSetID, let activeExercise, let activeSet {
                 ZStack(alignment: .topLeading) {
                     IncomingActiveSetCard(
                         transition: incomingTransition,
@@ -238,7 +221,7 @@ struct ActiveSupersetSection: View {
                         onDelete: { onDelete(activeSet) }
                     )
 
-                    if let transition = retiringTransition, transition.outgoingSetID == activeSetID {
+                    if let transition = config.retiringTransition, transition.outgoingSetID == activeSetID {
                         RetiringActiveSetCard(
                             transition: transition,
                             exercise: activeExercise,
@@ -257,8 +240,8 @@ struct ActiveSupersetSection: View {
     }
 
     private var incomingTransition: ActiveSetTransition? {
-        guard activeSetTransition?.incomingSetID == presentation.activeSetID else { return nil }
-        return activeSetTransition
+        guard config.activeSetTransition?.incomingSetID == config.presentation.activeSetID else { return nil }
+        return config.activeSetTransition
     }
 
     private func setOrdinal(for set: ExerciseSet) -> Int {
