@@ -14,6 +14,7 @@ struct SmartValuePills: View {
 
     @State private var form: SmartValuePillsForm
     @State private var showsRPEGrid = false
+    @State private var showsLoggedCheckmark = false
     @FocusState private var focusedPill: FocusedPill?
 
     init(
@@ -22,7 +23,8 @@ struct SmartValuePills: View {
         trainingMax: Double?,
         onLog: @escaping (SetLog) -> Void,
         onSkip: @escaping () -> Void,
-        onDelete: @escaping () -> Void
+        onDelete: @escaping () -> Void,
+        showsLoggedCheckmarkInitially: Bool = false
     ) {
         self.set = set
         self.onLog = onLog
@@ -35,6 +37,7 @@ struct SmartValuePills: View {
                 trainingMax: trainingMax
             )
         )
+        _showsLoggedCheckmark = State(initialValue: showsLoggedCheckmarkInitially)
     }
 
     var body: some View {
@@ -162,13 +165,26 @@ struct SmartValuePills: View {
 
     private var actionControls: some View {
         VStack(spacing: 8) {
-            Button(form.logButtonTitle) {
+            Button {
                 guard let log = form.makeLog() else { return }
+                withAnimation(Theme.logButtonCheckmarkAnimation) {
+                    showsLoggedCheckmark = true
+                }
                 onLog(log)
+            } label: {
+                HStack(spacing: 8) {
+                    if showsLoggedCheckmark {
+                        Image(systemName: "checkmark")
+                            .font(.headline.weight(.bold))
+                            .transition(.scale.combined(with: .opacity))
+                    }
+
+                    Text(form.logButtonTitle)
+                }
+                .frame(maxWidth: .infinity)
             }
             .font(.headline.weight(.bold))
             .foregroundStyle(Theme.accentDarkText)
-            .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
             .background(Theme.accent, in: .rect(cornerRadius: Theme.pillCornerRadius))
             .disabled(!form.canLog)

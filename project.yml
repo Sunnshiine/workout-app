@@ -20,6 +20,8 @@ targets:
     sources: [WorkoutTracker]
     info:
       path: WorkoutTracker/Info.plist
+      properties:
+        UILaunchStoryboardName: LaunchScreen
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.sunnypatel.WorkoutTracker

@@ -8,6 +8,7 @@ struct ActiveSetCard: View {
     let onLog: (SetLog) -> Void
     let onSkip: () -> Void
     let onDelete: () -> Void
+    var showsLoggedCheckmark = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -36,7 +37,8 @@ struct ActiveSetCard: View {
                 trainingMax: trainingMax,
                 onLog: onLog,
                 onSkip: onSkip,
-                onDelete: onDelete
+                onDelete: onDelete,
+                showsLoggedCheckmarkInitially: showsLoggedCheckmark
             )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
