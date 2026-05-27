@@ -9,9 +9,85 @@ View and Theme regressions.
 Layer duties:
 
 - `swift test` proves domain and module behavior through public interfaces with realistic inputs.
+- Component tests prove SwiftUI component state contracts at unit-test speed, without rendering
+  pixels.
 - `xcodebuild test` proves the app target compiles and simulator-hosted tests run.
 - UI tests prove critical user flows through real controls.
 - Ralph screenshots prove static rendering did not obviously break; they are not behavior tests.
+
+Component tests are not full app launches. They do not touch Google auth, the network, or complete
+navigation flows. They cover view-facing labels, accessibility strings, enabled states, form state,
+and progression state. Snapshot testing is intentionally deferred until a specific visual regression
+problem justifies the maintenance cost.
+
+Initial component-test scope:
+
+- `ActiveSetPresentation`: pending, logged/checkmark, bodyweight, and drop-percent suggestion
+  states.
+- `SmartValuePillsForm`: empty/disabled, valid log preview, and selected RPE states.
+- `SessionProgressHeaderPresentation`: mixed Session progress with the Current Session highlighted.
+- `BlockOverview` presentation state: the 4x4 Session grid with representative Session states.
+- `SyncStatusBanner` presentation state: syncing, queued writes, and failed states.
+
+Target directory structure:
+
+- `Tests/Unit`: domain, parser, store, persistence, sync, and write-path tests. Runs in the
+  existing fast `WorkoutTrackerTests` target.
+- `Tests/Component`: SwiftUI component state-contract tests that still run at unit-test speed.
+  Runs in the existing fast `WorkoutTrackerTests` target.
+- `Tests/UI`: simulator UI integration tests that launch the app and drive real controls.
+  Uses a separate Xcode UI-test target.
+
+Migration policy: move the existing flat `WorkoutTrackerTests` files into this structure in one
+mechanical change before adding new coverage. Update `Package.swift`, `project.yml`, regenerate the
+Xcode project, and verify with `swift test` plus `xcodebuild test` immediately after the move.
+
+Test doubles policy:
+
+- `Tests/Unit` may use pure fixtures and protocol stubs at true I/O boundaries only: Sheets client,
+  auth/defaults, and SwiftData in-memory containers.
+- `Tests/Component` may use deterministic domain objects and presentation-state builders. It should
+  assert component state contracts, not fake complete app flows.
+- `Tests/UI` launches the real app with deterministic fixture mode, fakes external services at
+  launch boundaries, and drives real controls through accessibility.
+- Automated tests must not hit live Google auth, live Google Sheets, or real network connectivity.
+
+Shared fixture policy:
+
+- Put shared builders and named scenarios under `Tests/Support`.
+- Reuse the same canonical scenarios across layers, with layer-specific assertions.
+- Initial scenarios: fresh configured app, Current Session with Pending Sets, partially Logged
+  Session, Open Exercises, sync failure, queued write, and Block Overview with mixed Session states.
+
+Per-change test selection:
+
+- Parser, write-path, progression, persistence, and store changes require unit tests.
+- View-facing labels, enabled states, accessibility text, and active-card state changes require
+  component tests.
+- Navigation, launch state, real control interaction, and cross-store workflows require UI
+  integration tests.
+- Pure visual restyling requires Ralph screenshot verification. Component or UI tests are required
+  only when behavior or state contracts change.
+
+Agent gate policy:
+
+- During implementation, agents should run the narrowest relevant tests for the layer being changed.
+- Before an issue is complete or merged, it must pass the entire automated testing framework:
+  `swift test`, `xcodebuild test` for unit/component tests, `xcodebuild test` for UI integration
+  tests, and `swiftlint lint --quiet`.
+- If View or Theme files changed, Ralph screenshot verification is also part of the final gate.
+- After the UI target exists and is stable, update Ralph's README, implement prompt, and gate script
+  so autonomous issues cannot complete without the full framework.
+
+Implementation slices:
+
+1. Mechanical structure migration: move the existing tests, update project configuration, regenerate
+   Xcode, and verify the current suite still passes.
+2. Component/state-contract expansion: add missing component tests using shared `Tests/Support`
+   builders.
+3. UI integration target: add `Tests/UI` and cover the agreed fixture-driven user flows.
+4. Fixture unification: promote ad hoc fixtures and the launch fixture into named shared scenarios.
+5. Ralph gate update: run the full framework before autonomous issues can complete.
 
 Initial UI-test scope:
 
