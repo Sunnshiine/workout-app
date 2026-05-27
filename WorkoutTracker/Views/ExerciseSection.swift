@@ -119,6 +119,160 @@ struct ExerciseSection: View {
     }
 }
 
+struct ActiveSupersetSection: View {
+    let presentation: ActiveSupersetPresentation
+    let exercises: [Exercise]
+    let lastPerformedIndex: LastPerformedIndex
+    let activeSetTransition: ActiveSetTransition?
+    let retiringTransition: ActiveSetTransition?
+    let onFocusExercise: (Exercise) -> Void
+    let onLog: (ExerciseSet, SetLog) -> Void
+    let onSkip: (ExerciseSet) -> Void
+    let onDelete: (ExerciseSet) -> Void
+
+    private var activeExercise: Exercise? {
+        exercises.first { $0.order == presentation.activeExerciseOrder }
+    }
+
+    private var activeSet: ExerciseSet? {
+        activeExercise?.sets.first { $0.index == presentation.activeSetID.setIndex }
+    }
+
+    private var sortedActiveSets: [ExerciseSet] {
+        activeExercise?.sets.sorted { $0.index < $1.index } ?? []
+    }
+
+    private var lastPerformedPresentation: LastPerformedCardPresentation? {
+        guard let activeExercise else { return nil }
+        return LastPerformedCardPresentation(exercise: activeExercise, index: lastPerformedIndex)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Superset")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Theme.accent)
+                .textCase(.uppercase)
+
+            VStack(spacing: 8) {
+                ForEach(presentation.sides, id: \.exerciseOrder) { side in
+                    if side.isActive {
+                        SupersetSideCard(side: side)
+                    } else {
+                        Button {
+                            guard let exercise = exercises.first(where: { $0.order == side.exerciseOrder }) else {
+                                return
+                            }
+                            onFocusExercise(exercise)
+                        } label: {
+                            SupersetSideCard(side: side)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Focuses this exercise's next pending set")
+                    }
+                }
+            }
+
+            if let lastPerformedPresentation {
+                LastPerformedCard(presentation: lastPerformedPresentation)
+            }
+
+            if let activeExercise, let activeSet {
+                ZStack(alignment: .topLeading) {
+                    IncomingActiveSetCard(
+                        transition: incomingTransition,
+                        exercise: activeExercise,
+                        set: activeSet,
+                        setOrdinal: setOrdinal(for: activeSet),
+                        setCount: sortedActiveSets.count,
+                        onLog: { onLog(activeSet, $0) },
+                        onSkip: { onSkip(activeSet) },
+                        onDelete: { onDelete(activeSet) }
+                    )
+
+                    if let transition = retiringTransition, transition.outgoingSetID == presentation.activeSetID {
+                        RetiringActiveSetCard(
+                            transition: transition,
+                            exercise: activeExercise,
+                            set: activeSet,
+                            setOrdinal: setOrdinal(for: activeSet),
+                            setCount: sortedActiveSets.count
+                        )
+                    }
+                }
+                .id(presentation.activeSetID)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
+    }
+
+    private var incomingTransition: ActiveSetTransition? {
+        guard activeSetTransition?.incomingSetID == presentation.activeSetID else { return nil }
+        return activeSetTransition
+    }
+
+    private func setOrdinal(for set: ExerciseSet) -> Int {
+        (sortedActiveSets.firstIndex { $0.persistentModelID == set.persistentModelID } ?? set.index) + 1
+    }
+}
+
+private struct SupersetSideCard: View {
+    let side: ActiveSupersetSidePresentation
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text(side.exerciseName)
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(side.isActive ? Theme.accent : .primary)
+
+                Text(side.nextSetText)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                if !side.prescriptionText.isEmpty {
+                    Text(side.prescriptionText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            if side.isActive {
+                Text("Active")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Theme.accentDarkText)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(Theme.accent, in: .capsule)
+            } else {
+                Image(systemName: "arrow.right.circle")
+                    .font(.title3)
+                    .foregroundStyle(Theme.accent)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            side.isActive ? Theme.activeCardFill : Theme.lastPerformedCardFill,
+            in: .rect(cornerRadius: Theme.pillCornerRadius)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
+                .strokeBorder(
+                    side.isActive ? Theme.activeCardStroke.opacity(0.85) : Theme.lastPerformedCardStroke.opacity(0.85),
+                    lineWidth: 1
+                )
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(side.accessibilityLabel)
+    }
+}
+
 private struct IncomingActiveSetCard: View {
     let transition: ActiveSetTransition?
     let exercise: Exercise
