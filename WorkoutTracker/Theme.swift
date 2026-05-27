@@ -32,4 +32,54 @@ enum Theme {
     static let weightIncrementThreshold = 100.0
     static let lightWeightIncrementOptions = [2.5, 5.0]
     static let heavyWeightIncrementOptions = [5.0, 10.0]
+
+    static let logButtonCheckmarkDuration = 0.2
+    static let momentumFlowTotalDuration = 0.65
+    static let momentumDropDuration = 0.4
+    static let momentumRiseDuration = 0.5
+    static let momentumRiseDelay = 0.15
+    static let skipFadeUpDuration = 0.45
+    static let exerciseCompletionBeatDuration = 0.2
+    static let momentumSpringStiffness = 220.0
+    static let momentumSpringDamping = 22.0
+    static let momentumDropOffset: CGFloat = 180
+    static let momentumRiseOffset: CGFloat = 44
+    static let skipFadeUpOffset: CGFloat = -24
+    static let exerciseRiseOffset: CGFloat = 36
+    static let exerciseCompressionScale: CGFloat = 0.02
+
+    static var logButtonCheckmarkAnimation: Animation {
+        .easeOut(duration: logButtonCheckmarkDuration)
+    }
+
+    static var momentumFlowAnimation: Animation {
+        .easeInOut(duration: momentumFlowTotalDuration)
+    }
+
+    static var momentumDropAnimation: Animation {
+        .timingCurve(0.2, 0.0, 0.12, 1.0, duration: momentumDropDuration)
+    }
+
+    static var momentumRiseAnimation: Animation {
+        .interpolatingSpring(
+            mass: 1,
+            stiffness: momentumSpringStiffness,
+            damping: momentumSpringDamping,
+            initialVelocity: 0
+        )
+        .delay(momentumRiseDelay)
+    }
+
+    static var skipFadeUpAnimation: Animation {
+        .easeOut(duration: skipFadeUpDuration)
+    }
+
+    static var exerciseCollapseAnimation: Animation {
+        .easeInOut(duration: momentumDropDuration)
+    }
+
+    static var exerciseRiseAnimation: Animation {
+        .easeOut(duration: momentumRiseDuration)
+            .delay(exerciseCompletionBeatDuration)
+    }
 }

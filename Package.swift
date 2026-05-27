@@ -13,13 +13,14 @@ let package = Package(
                 "Sheets/GoogleAuth.swift",
                 "Sheets/GoogleSheetsClient.swift",
                 "WorkoutTrackerApp.swift",
-                "Info.plist"
+                "Info.plist",
+                "LaunchScreen.storyboard",
             ]
         ),
         .testTarget(
             name: "WorkoutTrackerTests",
             dependencies: ["WorkoutTracker"],
             path: "WorkoutTrackerTests"
-        )
+        ),
     ]
 )
