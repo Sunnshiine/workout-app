@@ -37,16 +37,16 @@ import Testing
     #expect(Theme.gradientStops[1].location == 1)
 }
 
-@Test func themeAccentIsAntiqueGold() {
+@Test func themeAccentIsMintGreen() {
     let accent = Theme.accent
     #if canImport(AppKit)
         guard let rgb = rgbComponents(of: accent) else {
             Issue.record("Could not resolve accent to deviceRGB")
             return
         }
-        #expect(abs(rgb.red - 0.831) < 0.01, "Expected red ≈ 0.831, got \(rgb.red)")
-        #expect(abs(rgb.green - 0.686) < 0.01, "Expected green ≈ 0.686, got \(rgb.green)")
-        #expect(abs(rgb.blue - 0.216) < 0.01, "Expected blue ≈ 0.216, got \(rgb.blue)")
+        #expect(abs(rgb.red - 0.45) < 0.01, "Expected red ≈ 0.45, got \(rgb.red)")
+        #expect(abs(rgb.green - 1.0) < 0.01, "Expected green ≈ 1.0, got \(rgb.green)")
+        #expect(abs(rgb.blue - 0.72) < 0.01, "Expected blue ≈ 0.72, got \(rgb.blue)")
     #endif
 }
 
@@ -80,4 +80,12 @@ import Testing
 
 @Test func themeCardSpacingExists() {
     #expect(Theme.cardSpacing > 0)
+}
+
+@Test func themeIncludesSmartValuePillAndRPEGridConstants() {
+    #expect(Theme.pillMinHeight == 86)
+    #expect(Theme.weightIncrementThreshold == 100)
+    #expect(Theme.lightWeightIncrementOptions == [2.5, 5])
+    #expect(Theme.heavyWeightIncrementOptions == [5, 10])
+    #expect(Theme.rpeGridCellHeight == 48)
 }
