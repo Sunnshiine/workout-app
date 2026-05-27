@@ -1,3 +1,24 @@
+# Testing
+
+## AI-Generated Code Gate
+
+The acceptance gate prioritizes behavior correctness first. Simulator user-flow tests protect the
+small number of workflows where app wiring matters, and static screenshot checks protect obvious
+View and Theme regressions.
+
+Layer duties:
+
+- `swift test` proves domain and module behavior through public interfaces with realistic inputs.
+- `xcodebuild test` proves the app target compiles and simulator-hosted tests run.
+- UI tests prove critical user flows through real controls.
+- Ralph screenshots prove static rendering did not obviously break; they are not behavior tests.
+
+Initial UI-test scope:
+
+- Launch with a deterministic fixture and verify the Current Session renders.
+- Log the active Set through the real controls and verify the next active Set advances.
+- Move On, open Block Overview, switch Sessions, and return to the Current Session.
+
 # Manual Testing on the iOS Simulator
 
 ## Prerequisites

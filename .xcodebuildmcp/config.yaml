@@ -1,0 +1,12 @@
+schemaVersion: 1
+enabledWorkflows:
+  - simulator
+  - ui-automation
+  - debugging
+sessionDefaults:
+  projectPath: ./WorkoutTracker.xcodeproj
+  scheme: WorkoutTracker
+  configuration: Debug
+  simulatorName: iPhone 17 Pro
+  simulatorId: 6FF057C4-9A97-4754-80D9-2B87B120D1D3
+  simulatorPlatform: iOS Simulator
