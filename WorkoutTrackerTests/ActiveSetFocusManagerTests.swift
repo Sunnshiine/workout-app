@@ -38,6 +38,25 @@ private func makeMultiExercisePendingSession() -> Session {
     return session
 }
 
+private func makePlannedSupersetSession() -> Session {
+    let session = Session(dayNumber: 1, date: nil)
+    let row = Exercise(name: "DB Row", baseName: "DB Row", cadence: nil, coachNote: nil, order: 0)
+    row.sets = [
+        ExerciseSet(index: 0, prescribedReps: "10", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
+    ]
+    let squat = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil, order: 1)
+    squat.sets = [
+        ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
+        ExerciseSet(index: 1, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
+    ]
+    let bench = Exercise(name: "Bench Press", baseName: "Bench Press", cadence: nil, coachNote: nil, order: 2)
+    bench.sets = [
+        ExerciseSet(index: 0, prescribedReps: "6", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
+    ]
+    session.exercises = [row, squat, bench]
+    return session
+}
+
 @MainActor
 @Test func initialActiveSetIsFirstPendingSetInSessionOrder() {
     let session = makeSession()
@@ -224,4 +243,69 @@ private func makeMultiExercisePendingSession() -> Session {
     focus.advanceAfterLog(finalSet, in: session)
 
     #expect(focus.activeSetID == nil)
+}
+
+@MainActor
+@Test func creatingSupersetAroundCurrentActiveSetKeepsThatSetActiveAndFirst() throws {
+    let session = makeMultiExercisePendingSession()
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
+    let focus = ActiveSetFocusManager(session: session)
+
+    #expect(focus.createSuperset(with: [bench, squat], in: session))
+
+    #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+    #expect(focus.scrollTargetID == nil)
+
+    firstSquatSet.state = .logged
+    focus.advanceAfterLog(firstSquatSet, in: session)
+
+    #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    #expect(focus.scrollTargetID == nil)
+}
+
+@MainActor
+@Test func creatingPlannedSupersetFromOutOfFocusExercisesDoesNotChangeCurrentActiveSet() throws {
+    let session = makePlannedSupersetSession()
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+    let focus = ActiveSetFocusManager(session: session)
+
+    #expect(focus.createSuperset(with: [squat, bench], in: session))
+
+    #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+}
+
+@MainActor
+@Test func plannedSupersetActivatesWhenNormalProgressionReachesEitherPairedExercise() throws {
+    let session = makePlannedSupersetSession()
+    let row = try #require(session.exercises.first { $0.order == 0 })
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+    let rowSet = try #require(row.sets.first { $0.index == 0 })
+    let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
+    let focus = ActiveSetFocusManager(session: session)
+    focus.createSuperset(with: [squat, bench], in: session)
+
+    rowSet.state = .logged
+    focus.advanceAfterLog(rowSet, in: session)
+
+    #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    #expect(focus.scrollTargetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    #expect(
+        focus.activeSetTransition
+            == ActiveSetTransition(
+                kind: .collapseAndRise,
+                outgoingSetID: ActiveSetID(exerciseOrder: 0, setIndex: 0),
+                incomingSetID: ActiveSetID(exerciseOrder: 1, setIndex: 0),
+                completedExerciseOrder: 0
+            )
+    )
+
+    firstSquatSet.state = .logged
+    focus.advanceAfterLog(firstSquatSet, in: session)
+
+    #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 2, setIndex: 0))
+    #expect(focus.scrollTargetID == nil)
 }
