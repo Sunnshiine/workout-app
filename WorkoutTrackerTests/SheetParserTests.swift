@@ -51,6 +51,67 @@ import Testing
     #expect(splitCadence("Lateral Raises").base == "Lateral Raises")
 }
 
+@Test func parsesTrainingMaxValuesFromHeaderArea() {
+    let grid = gridFromA1(
+        [
+            "E6": "Training Max",
+            "C7": "Squat", "E7": "365",
+            "C8": "Bench Press", "E8": "245",
+            "C9": "Deadlift", "E9": "455"
+        ],
+        rows: 20,
+        cols: 10
+    )
+
+    let tm = parseTrainingMax(from: grid)
+
+    #expect(tm.squat == 365)
+    #expect(tm.bench == 245)
+    #expect(tm.deadlift == 455)
+}
+
+@Test func parsesTrainingMaxValuesFromShiftedHeaderArea() {
+    let grid = gridFromA1(
+        [
+            "G7": "Training Max",
+            "E8": "Squat", "G8": "405",
+            "E9": "Bench Press", "G9": "275",
+            "E10": "Deadlift", "G10": "495"
+        ],
+        rows: 20,
+        cols: 10
+    )
+
+    let tm = parseTrainingMax(from: grid)
+
+    #expect(tm.squat == 405)
+    #expect(tm.bench == 275)
+    #expect(tm.deadlift == 495)
+}
+
+@Test func trainingMaxValuesAreNilWhenHeaderIsMissingOrValuesAreBlank() {
+    let missingHeader = parseTrainingMax(from: gridFromA1([:], rows: 20, cols: 10))
+    #expect(missingHeader.squat == nil)
+    #expect(missingHeader.bench == nil)
+    #expect(missingHeader.deadlift == nil)
+
+    let blankValues = parseTrainingMax(
+        from: gridFromA1(
+            [
+                "E6": "Training Max",
+                "C7": "Squat", "E7": "",
+                "C8": "Bench Press", "E8": " ",
+                "C9": "Deadlift"
+            ],
+            rows: 20,
+            cols: 10
+        )
+    )
+    #expect(blankValues.squat == nil)
+    #expect(blankValues.bench == nil)
+    #expect(blankValues.deadlift == nil)
+}
+
 @Test func parsesAnchorAndContinuationRows() {
     // Real rows: C15 anchor "0:3:0 Standing Calve Raises", D15 Sets=2, F15 Reps=12,
     // H15 Load "RPE9, RPE10", K15 coach/log "Superset cue". Next anchor C22.
@@ -83,6 +144,10 @@ import Testing
 @Test func assemblesBlockFromTwoWeekSections() {
     let grid = gridFromA1(
         [
+            "E6": "Training Max",
+            "C7": "Squat", "E7": "365",
+            "C8": "Bench Press", "E8": "245",
+            "C9": "Deadlift", "E9": "455",
             "C12": "Day 1", "S12": "Day 2", "AI12": "Day 3", "AX12": "Day 4",
             "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
             "C15": "0:3:0 Standing Calve Raises", "D15": "2", "F15": "12", "H15": "RPE9, RPE10",
@@ -97,6 +162,9 @@ import Testing
     let parsed = SheetParser().parse(grid: grid, tabName: "Block 27")
     #expect(parsed.warnings.isEmpty)
     #expect(parsed.block.weeks.count == 2)
+    #expect(parsed.block.squatTM == 365)
+    #expect(parsed.block.benchTM == 245)
+    #expect(parsed.block.deadliftTM == 455)
     #expect(parsed.block.weeks[0].number == 1)
     #expect(parsed.block.weeks[0].days.count == 4)
     #expect(parsed.block.weeks[0].days[0].exercises[0].baseName == "Standing Calve Raises")
