@@ -20,6 +20,10 @@ Do not explain Ralph, the loop, project conventions, or skills back to the user;
 ## Work
 - Use the `tdd` skill when available; otherwise follow the TDD guidance in project instructions.
 - Use Swift-specific skills only when they are directly relevant to the issue.
+- During implementation, run the narrowest relevant tests for the layer being changed so each TDD
+  slice has a fast feedback loop.
+- Before completion, run the full non-screenshot testing framework: `swift test`, Xcode
+  unit/component tests, Xcode UI integration tests, and `swiftlint lint --quiet`.
 - Keep scope tied to the issue contract. No speculative features, unrelated refactors, or one-off
   abstractions.
 - Commit the completed work on the current branch using the project's Git rules.
