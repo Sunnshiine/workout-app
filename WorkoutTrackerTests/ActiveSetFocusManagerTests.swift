@@ -309,3 +309,24 @@ private func makePlannedSupersetSession() -> Session {
     #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 2, setIndex: 0))
     #expect(focus.scrollTargetID == nil)
 }
+
+@MainActor
+@Test func activeSupersetSurfaceShowsBothSidesAndFocusesPairedExerciseNextPendingSet() throws {
+    let session = makeMultiExercisePendingSession()
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let focus = ActiveSetFocusManager(session: session)
+
+    #expect(focus.createSuperset(with: [squat, bench], in: session))
+
+    let initialSurface = try #require(focus.activeSupersetPresentation(in: session))
+    #expect(initialSurface.sides.map(\.exerciseName) == ["Squat", "Bench Press"])
+    #expect(initialSurface.sides.map(\.isActive) == [true, false])
+    #expect(initialSurface.sides.map(\.nextSetText) == ["Set 1 of 2", "Set 1 of 1"])
+
+    #expect(focus.focusNextSupersetSet(for: bench, in: session))
+
+    #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    let switchedSurface = try #require(focus.activeSupersetPresentation(in: session))
+    #expect(switchedSurface.sides.map(\.isActive) == [false, true])
+}

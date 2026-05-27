@@ -119,6 +119,14 @@ final class SupersetState {
         dissolve(pair)
     }
 
+    func activeExercises(in session: Session) -> [Exercise] {
+        refresh(in: session)
+        guard let activePair else { return [] }
+        return [activePair.first, activePair.second].compactMap { identity in
+            exercise(matching: identity, in: session)
+        }
+    }
+
     func refresh(in session: Session) {
         pairs.removeAll { pair in
             !hasPendingSet(for: pair.first, in: session)
