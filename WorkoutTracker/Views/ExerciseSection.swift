@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ExerciseSection: View {
     let exercise: Exercise
+    let lastPerformedIndex: LastPerformedIndex
     let activeSetID: ActiveSetID?
     let isCollapsed: Bool
     let onFocus: (ExerciseSet) -> Void
@@ -12,6 +13,10 @@ struct ExerciseSection: View {
 
     private var sortedSets: [ExerciseSet] {
         exercise.sets.sorted { $0.index < $1.index }
+    }
+
+    private var lastPerformedPresentation: LastPerformedCardPresentation? {
+        LastPerformedCardPresentation(exercise: exercise, index: lastPerformedIndex)
     }
 
     var body: some View {
@@ -26,6 +31,10 @@ struct ExerciseSection: View {
                     Text(note)
                         .font(.callout)
                         .foregroundStyle(.secondary)
+                }
+
+                if let lastPerformedPresentation {
+                    LastPerformedCard(presentation: lastPerformedPresentation)
                 }
 
                 VStack(alignment: .leading, spacing: 8) {

@@ -60,6 +60,7 @@
 		C6BB8217B61B3816F100F3B3 /* SheetGridTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E25FBBA83323893F14B6554 /* SheetGridTests.swift */; };
 		C6DC904BF1DB120F03C23247 /* ActiveSetPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45F91B801F53F1BE850F7194 /* ActiveSetPresentation.swift */; };
 		C767D2CE711954BE3CE178DC /* PendingWriteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83463443C7EC1FD887ECA142 /* PendingWriteTests.swift */; };
+		CD228894689CDEFA80FF7DA1 /* LastPerformedCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67135AA558123A1C244485B9 /* LastPerformedCard.swift */; };
 		D5E1746710FBCA626CE483A0 /* SyncCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16D76AE1D275F830D0A17662 /* SyncCoordinatorTests.swift */; };
 		D63A9D9B12FDDEFEC1E9799D /* SheetWriterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85C42B789FFA817C30682E2D /* SheetWriterTests.swift */; };
 		DA18B95BE71A08ECEE00FFCD /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82C7E3B1CAB7C96142DCF1C7 /* Theme.swift */; };
@@ -111,6 +112,7 @@
 		5C9C69974B6867E8568AFBD0 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		61BD44A847304CF1B26D982D /* ActiveSetCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveSetCard.swift; sourceTree = "<group>"; };
 		667584F2EFDE6375E3486E56 /* LastPerformedIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastPerformedIndex.swift; sourceTree = "<group>"; };
+		67135AA558123A1C244485B9 /* LastPerformedCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastPerformedCard.swift; sourceTree = "<group>"; };
 		698FB46E5B1635F96AA0AA79 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		6FE11A57FFD49F1221D2CA75 /* LastPerformedEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastPerformedEntry.swift; sourceTree = "<group>"; };
 		719E54DAA40D4D2D700AA91F /* SmartValuePills.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartValuePills.swift; sourceTree = "<group>"; };
@@ -192,6 +194,7 @@
 				73043E31A40EFA8A57C38FAF /* EmptyStateView.swift */,
 				86387591F871B0FC0CA1FC82 /* ExerciseSection.swift */,
 				FFBE67C176F894614182855E /* ExerciseSummaryRow.swift */,
+				67135AA558123A1C244485B9 /* LastPerformedCard.swift */,
 				5C9C69974B6867E8568AFBD0 /* OnboardingView.swift */,
 				9038CBF5AF997C5562D3A6E4 /* RootView.swift */,
 				99901102A552A245156C78ED /* RPEGrid.swift */,
@@ -453,6 +456,7 @@
 				25D084E9516472D4282B4C04 /* ExerciseSummaryRow.swift in Sources */,
 				8E3D0AC1569F1BA279AF054E /* GoogleAuth.swift in Sources */,
 				2FFD6423631AA90DA899A6F8 /* GoogleSheetsClient.swift in Sources */,
+				CD228894689CDEFA80FF7DA1 /* LastPerformedCard.swift in Sources */,
 				23DC6090AF57EAF426C113C5 /* LastPerformedEntry.swift in Sources */,
 				14B6CF78AC54878F220CEFDE /* LastPerformedIndex.swift in Sources */,
 				856581A20DF9C7C18981ADAF /* LoadSuggestionEngine.swift in Sources */,

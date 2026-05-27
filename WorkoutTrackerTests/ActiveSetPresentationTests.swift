@@ -1,6 +1,19 @@
+import Foundation
+import SwiftData
 import Testing
 
 @testable import WorkoutTracker
+
+@MainActor
+private func activeSetPresentationContainer() throws -> ModelContainer {
+    try ModelContainer(
+        for: LastPerformedEntry.self,
+        configurations: ModelConfiguration(
+            "active-set-presentation-\(UUID().uuidString)",
+            isStoredInMemoryOnly: true
+        )
+    )
+}
 
 @MainActor
 @Test func setRowPresentationShowsLoggedSetWithAccentAndCheckmark() {
@@ -106,4 +119,70 @@ import Testing
     let presentation = ExerciseSummaryRowPresentation(exercise: exercise)
 
     #expect(presentation.title == "✓ BB RDL · 225×8 / ×8 / skip")
+}
+
+@MainActor
+@Test func lastPerformedCardPresentationShowsLabelSetLogAndSource() {
+    let entry = LastPerformedEntry(
+        fullName: "DB Fly",
+        baseName: "DB Fly",
+        result: SetLog(weight: .pounds(25), reps: 12, rpe: 9),
+        performedOn: Date(timeIntervalSinceReferenceDate: 100),
+        source: "W4 D3"
+    )
+
+    let presentation = LastPerformedCardPresentation(entry: entry)
+
+    #expect(presentation.label == "Last Performed")
+    #expect(presentation.resultText == "25x12@9")
+    #expect(presentation.sourceText == "W4 D3")
+}
+
+@MainActor
+@Test func lastPerformedCardPresentationUsesIndexLookupForExercise() throws {
+    let container = try activeSetPresentationContainer()
+    let context = container.mainContext
+    context.insert(
+        LastPerformedEntry(
+            fullName: "2-3:1:0 BB RDL",
+            baseName: "BB RDL",
+            result: SetLog(weight: .pounds(185), reps: 7, rpe: 6),
+            performedOn: Date(timeIntervalSinceReferenceDate: 100),
+            source: "W3 D1"
+        )
+    )
+    try context.save()
+    let exercise = Exercise(
+        name: "2-3:1:0 BB RDL",
+        baseName: "BB RDL",
+        cadence: "2-3:1:0",
+        coachNote: nil
+    )
+
+    let presentation = try #require(
+        LastPerformedCardPresentation(exercise: exercise, index: LastPerformedIndex(context: context))
+    )
+
+    #expect(presentation.resultText == "185x7@6")
+    #expect(presentation.sourceText == "W3 D1")
+    withExtendedLifetime(container) {}
+}
+
+@MainActor
+@Test func lastPerformedCardPresentationIsNilWhenIndexHasNoEntry() throws {
+    let container = try activeSetPresentationContainer()
+    let exercise = Exercise(
+        name: "Bench Press",
+        baseName: "Bench Press",
+        cadence: nil,
+        coachNote: nil
+    )
+
+    let presentation = LastPerformedCardPresentation(
+        exercise: exercise,
+        index: LastPerformedIndex(context: container.mainContext)
+    )
+
+    #expect(presentation == nil)
+    withExtendedLifetime(container) {}
 }

@@ -65,6 +65,15 @@
             block.weeks = [week]
 
             context.insert(block)
+            context.insert(
+                LastPerformedEntry(
+                    fullName: "Back Squat",
+                    baseName: "Back Squat",
+                    result: SetLog(weight: .pounds(255), reps: 5, rpe: 7),
+                    performedOn: Date(timeIntervalSinceReferenceDate: 100),
+                    source: "Block 26 · W4 D3"
+                )
+            )
             // swiftlint:disable:next force_try
             try! context.save()
         }

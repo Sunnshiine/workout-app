@@ -79,3 +79,23 @@ struct ExerciseSummaryRowPresentation: Equatable, Sendable {
         title = "✓ \(exercise.baseName) · \(setResults)"
     }
 }
+
+struct LastPerformedCardPresentation: Equatable, Sendable {
+    let label: String
+    let resultText: String
+    let sourceText: String
+
+    init(entry: LastPerformedEntry) {
+        label = "Last Performed"
+        resultText = entry.result.formatted
+        sourceText = entry.source
+    }
+
+    @MainActor
+    init?(exercise: Exercise, index: LastPerformedIndex) {
+        guard let entry = index.lookup(exerciseName: exercise.name, baseName: exercise.baseName) else {
+            return nil
+        }
+        self.init(entry: entry)
+    }
+}
