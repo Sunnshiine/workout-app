@@ -50,7 +50,7 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 }
 
 @MainActor
-@Test func sessionProgressHeaderPresentationShowsBreadcrumbProgressAndRemainingCount() {
+@Test func sessionProgressHeaderPresentationShowsCompactLocationAndRemainingCount() {
     let block = Block(tabName: "Block 27", squatTM: nil, benchTM: nil, deadliftTM: nil)
     let week = Week(number: 2)
     let session = Session(dayNumber: 3, date: nil)
@@ -66,11 +66,48 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 
     let presentation = SessionProgressHeaderPresentation(session: session)
 
-    #expect(presentation.breadcrumb == "Block 27 · W2 D3")
+    #expect(presentation.locationText == "W2 D3 ›")
     #expect(presentation.completedSetCount == 2)
     #expect(presentation.totalSetCount == 3)
     #expect(presentation.remainingText == "1 left")
-    #expect(abs(presentation.progress - 2.0 / 3.0) < 0.001)
+}
+
+@MainActor
+@Test func sessionProgressHeaderPresentationBuildsOrderedRailSegments() {
+    let session = Session(dayNumber: 1, date: nil)
+    let firstExercise = Exercise(name: "Bench", baseName: "Bench", cadence: nil, coachNote: nil, order: 1)
+    firstExercise.sets = [
+        ExerciseSet(index: 1, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .skipped),
+        ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .logged)
+    ]
+    let secondExercise = Exercise(name: "Row", baseName: "Row", cadence: nil, coachNote: nil, order: 2)
+    secondExercise.sets = [
+        ExerciseSet(index: 1, prescribedReps: "8", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending),
+        ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
+    ]
+    session.exercises = [secondExercise, firstExercise]
+
+    let presentation = SessionProgressHeaderPresentation(session: session)
+
+    #expect(presentation.segments.map(\.state) == [.logged, .skipped, .currentPending, .futurePending])
+}
+
+@MainActor
+@Test func sessionProgressHeaderPresentationUsesFocusedPendingSetForCurrentSegment() {
+    let session = Session(dayNumber: 1, date: nil)
+    let exercise = Exercise(name: "Bench", baseName: "Bench", cadence: nil, coachNote: nil, order: 0)
+    exercise.sets = [
+        ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
+        ExerciseSet(index: 1, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
+    ]
+    session.exercises = [exercise]
+
+    let presentation = SessionProgressHeaderPresentation(
+        session: session,
+        activeSetID: ActiveSetID(exerciseOrder: 0, setIndex: 1)
+    )
+
+    #expect(presentation.segments.map(\.state) == [.futurePending, .currentPending])
 }
 
 @MainActor
