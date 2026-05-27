@@ -211,3 +211,4 @@ guard let apiKey, !apiKey.isEmpty else {
 - Sanitize all user input before display to prevent injection
 - Use `URL(string:)` with validation rather than force-unwrapping
 - Validate data from external sources (APIs, deep links, pasteboard) before processing
+- If using XcodeBuildMCP, use the installed XcodeBuildMCP skill before calling XcodeBuildMCP tools.
