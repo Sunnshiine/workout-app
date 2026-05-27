@@ -32,6 +32,13 @@ private func makeBlock() -> Block {
 }
 
 @MainActor
+private func sortedSessions(in block: Block) -> [Session] {
+    block.weeks
+        .sorted { $0.number < $1.number }
+        .flatMap { $0.sessions.sorted { $0.dayNumber < $1.dayNumber } }
+}
+
+@MainActor
 @Test func currentSessionIsLatestWithALoggedSet() {
     let block = makeBlock()
     // Mark Week 1 / Day 3's only set as logged.
@@ -98,4 +105,70 @@ private func makeBlock() -> Block {
 
     #expect(tracker.tileState(for: pendingSession, currentSession: nil) == .upcoming)
     #expect(tracker.tileState(for: emptySession, currentSession: nil) == .upcoming)
+}
+
+@MainActor
+@Test func openExercisesReturnsPendingExercisesFromPastSessionsInCurrentWeek() throws {
+    let block = makeBlock()
+    let sessions = sortedSessions(in: block)
+    let day1 = sessions[0]
+    let day2 = sessions[1]
+    let day3 = sessions[2]
+    day1.exercises[0].sets.append(
+        ExerciseSet(index: 1, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil, state: .pending)
+    )
+    day1.exercises[0].sets[0].state = .logged
+    day2.exercises[0].sets[0].state = .pending
+    day3.exercises[0].sets[0].state = .logged
+
+    let current = try #require(SessionProgressTracker().currentSession(in: block))
+    let openExercises = SessionProgressTracker().openExercises(in: block, currentSession: current)
+
+    #expect(openExercises.map(\.baseName) == ["Squat", "Squat"])
+    #expect(openExercises.map { $0.session?.dayNumber } == [1, 2])
+}
+
+@MainActor
+@Test func openExercisesEmptyOnFirstSessionOfWeek() throws {
+    let block = makeBlock()
+    let current = try #require(SessionProgressTracker().currentSession(in: block))
+
+    let openExercises = SessionProgressTracker().openExercises(in: block, currentSession: current)
+
+    #expect(openExercises.isEmpty)
+}
+
+@MainActor
+@Test func openExercisesEmptyAfterAdvancingToNewWeek() throws {
+    let block = makeBlock()
+    let sessions = sortedSessions(in: block)
+    let week1Day1 = sessions[0]
+    let week2Day1 = sessions[4]
+    week1Day1.exercises[0].sets.append(
+        ExerciseSet(index: 1, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil, state: .pending)
+    )
+    week1Day1.exercises[0].sets[0].state = .logged
+    week2Day1.exercises[0].sets[0].state = .logged
+
+    let current = try #require(SessionProgressTracker().currentSession(in: block))
+    let openExercises = SessionProgressTracker().openExercises(in: block, currentSession: current)
+
+    #expect(current.week?.number == 2)
+    #expect(openExercises.isEmpty)
+}
+
+@MainActor
+@Test func openExercisesExcludesFullyLoggedPastSessions() throws {
+    let block = makeBlock()
+    let sessions = sortedSessions(in: block)
+    let day1 = sessions[0]
+    let day2 = sessions[1]
+    day1.exercises[0].sets[0].state = .logged
+    day2.exercises[0].sets[0].state = .logged
+
+    let current = try #require(SessionProgressTracker().currentSession(in: block))
+    let openExercises = SessionProgressTracker().openExercises(in: block, currentSession: current)
+
+    #expect(current.dayNumber == 2)
+    #expect(openExercises.isEmpty)
 }
