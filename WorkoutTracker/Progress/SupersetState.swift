@@ -77,6 +77,12 @@ final class SupersetState {
         return normalFocus
     }
 
+    func willActivatePlannedSuperset(whenNormalFocusIs normalFocus: ActiveSetID?, in session: Session) -> Bool {
+        refresh(in: session)
+        guard activePair == nil, let normalFocus else { return false }
+        return pair(containing: normalFocus, in: session) != nil
+    }
+
     func nextSetID(after set: ExerciseSet, in session: Session) -> ActiveSetID? {
         guard
             let exercise = set.exercise,

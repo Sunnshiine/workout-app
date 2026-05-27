@@ -33,54 +33,59 @@ struct SessionView: View {
                     .padding(.horizontal)
                     .padding(.top, 12)
 
-                    ScrollView {
-                        GlassEffectContainer(spacing: Theme.cardSpacing) {
-                            LazyVStack(alignment: .leading, spacing: Theme.cardSpacing) {
-                                ForEach(
-                                    session.exercises.sorted(by: { $0.order < $1.order }),
-                                    id: \.persistentModelID
-                                ) { exercise in
-                                    ExerciseSection(
-                                        exercise: exercise,
-                                        lastPerformedIndex: LastPerformedIndex(context: modelContext),
-                                        activeSetID: focusManager.activeSetID,
-                                        activeSetTransition: focusManager.activeSetTransition,
-                                        retiringTransition: retiringTransition,
-                                        isCollapsed: focusManager.isCollapsed(exercise),
-                                        onFocus: { set in
-                                            focusManager.focus(on: set)
-                                        },
-                                        onReexpand: {
-                                            focusManager.reexpand(exercise)
-                                        },
-                                        onLog: { set, log in
-                                            recordLog(set, as: log, in: session)
-                                        },
-                                        onSkip: { set in
-                                            skip(set, in: session)
-                                        },
-                                        onDelete: { set in
-                                            deleteLog(for: set)
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            GlassEffectContainer(spacing: Theme.cardSpacing) {
+                                LazyVStack(alignment: .leading, spacing: Theme.cardSpacing) {
+                                    ForEach(
+                                        session.exercises.sorted(by: { $0.order < $1.order }),
+                                        id: \.persistentModelID
+                                    ) { exercise in
+                                        ExerciseSection(
+                                            exercise: exercise,
+                                            lastPerformedIndex: LastPerformedIndex(context: modelContext),
+                                            activeSetID: focusManager.activeSetID,
+                                            activeSetTransition: focusManager.activeSetTransition,
+                                            retiringTransition: retiringTransition,
+                                            isCollapsed: focusManager.isCollapsed(exercise),
+                                            onFocus: { set in
+                                                focusManager.focus(on: set)
+                                            },
+                                            onReexpand: {
+                                                focusManager.reexpand(exercise)
+                                            },
+                                            onLog: { set, log in
+                                                recordLog(set, as: log, in: session)
+                                            },
+                                            onSkip: { set in
+                                                skip(set, in: session)
+                                            },
+                                            onDelete: { set in
+                                                deleteLog(for: set)
+                                            }
+                                        )
+                                    }
+
+                                    if workout.isViewingLiveEdge, !workout.openExercises.isEmpty {
+                                        OpenExercisesSection(
+                                            exercises: workout.openExercises,
+                                            onSelect: showSourceSession(for:)
+                                        )
+                                    }
+
+                                    if workout.isViewingLiveEdge, workout.canMoveOn {
+                                        MoveOnButton {
+                                            workout.moveOn()
                                         }
-                                    )
-                                }
-
-                                if workout.isViewingLiveEdge, !workout.openExercises.isEmpty {
-                                    OpenExercisesSection(
-                                        exercises: workout.openExercises,
-                                        onSelect: showSourceSession(for:)
-                                    )
-                                }
-
-                                if workout.isViewingLiveEdge, workout.canMoveOn {
-                                    MoveOnButton {
-                                        workout.moveOn()
                                     }
                                 }
                             }
+                            .padding(.horizontal)
+                            .padding(.vertical)
                         }
-                        .padding(.horizontal)
-                        .padding(.vertical)
+                        .onChange(of: focusManager.scrollTargetID) { _, targetID in
+                            scrollToSet(targetID, with: proxy)
+                        }
                     }
                     .task(id: session.persistentModelID) {
                         focusManager.reset(to: session)
@@ -166,6 +171,13 @@ struct SessionView: View {
             guard retiringTransition == transition else { return }
             retiringTransition = nil
             focusManager.clearTransition(transition)
+        }
+    }
+
+    private func scrollToSet(_ targetID: ActiveSetID?, with proxy: ScrollViewProxy) {
+        guard let targetID else { return }
+        withAnimation(Theme.momentumFlowAnimation) {
+            proxy.scrollTo(targetID, anchor: .center)
         }
     }
 
