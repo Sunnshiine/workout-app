@@ -2,8 +2,8 @@
 
 Ralph runs an AI coding agent (Claude Code **or** Codex) in a loop. Each iteration picks one
 GitHub issue labelled `ready-for-agent`, fixes it end-to-end in an isolated git worktree, gates
-the result on tests + a build + a UI screenshot check when needed, then merges to `main`, pushes,
-and closes the issue. It stops when no eligible issues remain.
+the result on the full documented testing framework, then merges to `main`, pushes, and closes the
+issue. It stops when no eligible issues remain.
 
 It is the issue-driven adaptation of the [Ralph Wiggum loop](https://github.com/coleam00/ralph-loop-quickstart):
 GitHub issues replace the quickstart's `prd.md`, and every iteration runs in a **fresh agent
@@ -58,7 +58,8 @@ Each iteration:
 3. IMPLEMENT The agent reads the issue contract, CONTEXT.md, relevant ADRs, and project
             instructions. It runs Swift Review during verification, remediates blocking findings,
             commits to the branch, and emits <promise>COMPLETE</promise>.
-4. GATE     The loop independently runs `swift test` and a full `xcodebuild` build.
+4. GATE     The loop independently runs `swift test`, Xcode unit/component tests,
+            Xcode UI integration tests, and `swiftlint lint --quiet`.
 5. UI GATE  If the change touched Views/Theme, it screenshots the app (via the UITEST
             fixture) and a vision agent checks it against the acceptance criteria.
 6. SHIP     Merge the branch into main → push origin (unless --no-push) → close the issue.
@@ -162,6 +163,15 @@ Everything runtime lands under `ralph/.artifacts/` (gitignored):
 
 Start here when an issue gets flagged `ready-for-human` — the comment on the issue says *why*,
 and the matching log has the detail.
+
+Gate failures are reported by layer:
+
+- Package unit/component tests: `swift test`.
+- Xcode unit/component tests: `WorkoutTrackerTests`.
+- UI integration tests: `WorkoutTrackerUITests`.
+- Lint: `swiftlint lint --quiet`.
+- UI screenshot verification: only when `WorkoutTracker/Views/` or `WorkoutTracker/Theme.swift`
+  changed.
 
 ---
 
