@@ -8,7 +8,6 @@ struct SessionView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(\.modelContext) private var modelContext
     @State private var coordinator = SessionCoordinator(session: nil)
-    @State private var retiringTransition: ActiveSetTransition?
     @State private var pairingSourceOrder: Int?
     @State private var pairingConfirmationOrder: Int?
 
@@ -65,18 +64,26 @@ struct SessionView: View {
                                                 exercises: supersetSection.exercises,
                                                 lastPerformedIndex: LastPerformedIndex(context: modelContext),
                                                 activeSetTransition: coordinator.activeSetTransition,
-                                                retiringTransition: retiringTransition,
+                                                retiringTransition: coordinator.retiringTransition,
                                                 onFocusExercise: { focusedExercise in
                                                     coordinator.focusNextSupersetSet(for: focusedExercise, in: session)
                                                 },
                                                 onLog: { set, log in
-                                                    recordLog(set, as: log, in: session)
+                                                    coordinator.log(set, as: log) { updateFocus in
+                                                        withAnimation(Theme.momentumFlowAnimation) {
+                                                            updateFocus()
+                                                        }
+                                                    }
                                                 },
                                                 onSkip: { set in
-                                                    skip(set, in: session)
+                                                    coordinator.skip(set) { updateFocus in
+                                                        withAnimation(Theme.skipFadeUpAnimation) {
+                                                            updateFocus()
+                                                        }
+                                                    }
                                                 },
                                                 onDelete: { set in
-                                                    deleteLog(for: set)
+                                                    coordinator.deleteLog(for: set)
                                                 },
                                                 onDismiss: {
                                                     cancelPairingMode()
@@ -93,7 +100,7 @@ struct SessionView: View {
                                                 lastPerformedIndex: LastPerformedIndex(context: modelContext),
                                                 activeSetID: renderItem.activeSetID,
                                                 activeSetTransition: renderItem.activeSetTransition,
-                                                retiringTransition: retiringTransition,
+                                                retiringTransition: coordinator.retiringTransition,
                                                 isCollapsed: renderItem.isCollapsed,
                                                 showsPairingGrip: renderItem.showsPairingGrip,
                                                 pairingAvailability: renderItem.pairingAvailability,
@@ -105,13 +112,21 @@ struct SessionView: View {
                                                     coordinator.reexpand(renderItem.exercise)
                                                 },
                                                 onLog: { set, log in
-                                                    recordLog(set, as: log, in: session)
+                                                    coordinator.log(set, as: log) { updateFocus in
+                                                        withAnimation(Theme.momentumFlowAnimation) {
+                                                            updateFocus()
+                                                        }
+                                                    }
                                                 },
                                                 onSkip: { set in
-                                                    skip(set, in: session)
+                                                    coordinator.skip(set) { updateFocus in
+                                                        withAnimation(Theme.skipFadeUpAnimation) {
+                                                            updateFocus()
+                                                        }
+                                                    }
                                                 },
                                                 onDelete: { set in
-                                                    deleteLog(for: set)
+                                                    coordinator.deleteLog(for: set)
                                                 },
                                                 onBeginPairing: {
                                                     beginPairing(from: renderItem.exercise, in: session)
@@ -159,9 +174,11 @@ struct SessionView: View {
                             scrollToSuperset(order, with: proxy)
                         }
                     }
-                    .task(id: session.persistentModelID) {
-                        cancelPairingMode()
-                        coordinator.bind(to: session)
+                    .onAppear {
+                        bindCoordinator(to: session)
+                    }
+                    .onChange(of: session.persistentModelID) { _, _ in
+                        bindCoordinator(to: session)
                     }
                 }
             } else {
@@ -189,63 +206,19 @@ struct SessionView: View {
         }
     }
 
-    private func recordLog(_ set: ExerciseSet, as log: SetLog, in session: Session) {
-        do {
-            try workout.log(set, as: log)
-            withAnimation(Theme.momentumFlowAnimation) {
-                coordinator.advanceAfterLog(set, in: session)
-            }
-            retireActiveSetTransition()
-            flushPendingWrites()
-        } catch {
-            sync.reportLocalWriteFailure(error)
-        }
-    }
-
-    private func skip(_ set: ExerciseSet, in session: Session) {
-        do {
-            try workout.skip(set)
-            withAnimation(Theme.skipFadeUpAnimation) {
-                coordinator.advanceAfterSkip(set, in: session)
-            }
-            retireActiveSetTransition()
-            flushPendingWrites()
-        } catch {
-            sync.reportLocalWriteFailure(error)
-        }
-    }
-
-    private func deleteLog(for set: ExerciseSet) {
-        do {
-            try workout.deleteLog(for: set)
-            coordinator.focus(on: set)
-            retiringTransition = nil
-            flushPendingWrites()
-        } catch {
-            sync.reportLocalWriteFailure(error)
-        }
-    }
-
-    private func flushPendingWrites() {
-        guard let id = settings.spreadsheetId else { return }
-        Task { await sync.flushPending(spreadsheetId: id) }
+    private func bindCoordinator(to session: Session) {
+        cancelPairingMode()
+        coordinator.bind(
+            to: session,
+            logging: workout,
+            sync: SessionPendingWriteSyncAdapter(sync: sync, settings: settings)
+        )
     }
 
     private func showSourceSession(for exercise: Exercise) {
         cancelPairingMode()
         guard let session = exercise.session, let week = session.week else { return }
         workout.show(week: week.number, day: session.dayNumber)
-    }
-
-    private func retireActiveSetTransition() {
-        guard let transition = coordinator.activeSetTransition else { return }
-        retiringTransition = transition
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: transitionClearDelay(for: transition))
-            guard retiringTransition == transition else { return }
-            retiringTransition = nil
-            coordinator.clearTransition(transition)
-        }
     }
 
     private func scrollToSet(_ targetID: ActiveSetID?, with proxy: ScrollViewProxy) {
@@ -268,21 +241,6 @@ struct SessionView: View {
 
     private func supersetSurfaceID(for order: Int) -> String {
         "superset-\(order)"
-    }
-
-    private func transitionClearDelay(for transition: ActiveSetTransition) -> UInt64 {
-        let duration =
-            switch transition.kind {
-            case .momentumFlow:
-                Theme.momentumFlowTotalDuration
-            case .softFadeUp:
-                Theme.skipFadeUpDuration
-            case .collapseAndRise:
-                Theme.momentumDropDuration
-                    + Theme.exerciseCompletionBeatDuration
-                    + Theme.momentumRiseDuration
-            }
-        return UInt64(duration * 1_000_000_000)
     }
 }
 
