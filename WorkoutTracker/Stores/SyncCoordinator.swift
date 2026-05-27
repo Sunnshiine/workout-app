@@ -85,6 +85,10 @@ final class SyncCoordinator {
             let parsed = SheetParser().parse(grid: grid, tabName: tab)
             print("[Sync] Parsed: \(parsed.block.weeks.count) weeks, warnings: \(parsed.warnings)")
             replacePersistedBlock(with: BlockBuilder.makeBlock(from: parsed.block))
+            let lastPerformedEntries = LastPerformedExtractor.entries(from: parsed.block)
+            if !lastPerformedEntries.isEmpty {
+                try LastPerformedIndex(context: context).ingest(lastPerformedEntries)
+            }
             if case .conflict = stateAfterFlush {
                 state = stateAfterFlush
             } else {
