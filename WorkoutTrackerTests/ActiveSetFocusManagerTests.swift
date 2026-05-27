@@ -393,3 +393,16 @@ private func makePlannedSupersetSession() -> Session {
     #expect(firstSquatSet.setLog == log)
     #expect(firstSquatSet.state == .logged)
 }
+
+@MainActor
+@Test func supersetStateDoesNotPersistAcrossNewFocusManagerInstance() throws {
+    let session = makeMultiExercisePendingSession()
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let focus = ActiveSetFocusManager(session: session)
+    #expect(focus.createSuperset(from: squat, to: bench, in: session))
+
+    let relaunchedFocus = ActiveSetFocusManager(session: session)
+
+    #expect(relaunchedFocus.supersetSections(in: session).isEmpty)
+}

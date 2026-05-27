@@ -162,6 +162,109 @@ private func makeSupersetSession() -> Session {
 }
 
 @MainActor
+@Test func supersetReconcilesRefreshWhenExerciseOrderChanges() throws {
+    let session = makeSupersetSession()
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let state = SupersetState()
+    state.createSuperset(with: [squat, bench], in: session)
+
+    let refreshedSession = makeSupersetSession()
+    let refreshedRow = try #require(refreshedSession.exercises.first { $0.name == "DB Row" })
+    let refreshedSquat = try #require(refreshedSession.exercises.first { $0.name == "Squat" })
+    let refreshedBench = try #require(refreshedSession.exercises.first { $0.name == "Bench Press" })
+    refreshedRow.order = 0
+    refreshedSquat.order = 1
+    refreshedBench.order = 2
+
+    state.refresh(in: refreshedSession)
+
+    #expect(state.supersetCount == 1)
+    #expect(state.isPaired(refreshedSquat))
+    #expect(state.isPaired(refreshedBench))
+}
+
+@MainActor
+@Test func activeSupersetFocusReconcilesWhenExerciseOrderChanges() throws {
+    let session = makeSupersetSession()
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let state = SupersetState()
+    state.createSuperset(
+        with: [squat, bench],
+        in: session,
+        currentActiveSetID: ActiveSetID(exerciseOrder: 0, setIndex: 0)
+    )
+
+    let refreshedSession = makeSupersetSession()
+    let refreshedRow = try #require(refreshedSession.exercises.first { $0.name == "DB Row" })
+    let refreshedSquat = try #require(refreshedSession.exercises.first { $0.name == "Squat" })
+    let refreshedBench = try #require(refreshedSession.exercises.first { $0.name == "Bench Press" })
+    refreshedRow.order = 0
+    refreshedSquat.order = 1
+    refreshedBench.order = 2
+
+    #expect(state.focusedSetID(whenNormalFocusIs: nil, in: refreshedSession) == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+}
+
+@MainActor
+@Test func supersetDissolvesAcrossRefreshWhenPairedExerciseIsMissing() throws {
+    let session = makeSupersetSession()
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let state = SupersetState()
+    state.createSuperset(with: [squat, bench], in: session)
+
+    let refreshedSession = makeSupersetSession()
+    refreshedSession.exercises.removeAll { $0.name == "Bench Press" }
+    state.refresh(in: refreshedSession)
+
+    #expect(state.supersetCount == 0)
+    #expect(!state.isPaired(squat))
+}
+
+@MainActor
+@Test func deletingSetLogInsideActiveSupersetKeepsPairWhenBothExercisesStillHavePendingSets() throws {
+    let session = makeSupersetSession()
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
+    let state = SupersetState()
+    state.createSuperset(
+        with: [squat, bench],
+        in: session,
+        currentActiveSetID: ActiveSetID(exerciseOrder: 0, setIndex: 0)
+    )
+
+    firstSquatSet.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: 7)
+    firstSquatSet.state = .logged
+    state.refresh(in: session)
+    firstSquatSet.setLog = nil
+    firstSquatSet.state = .pending
+    state.refresh(in: session)
+
+    #expect(state.supersetCount == 1)
+    #expect(state.focusedSetID(whenNormalFocusIs: nil, in: session) == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+}
+
+@MainActor
+@Test func skippingFinalPendingSetInsideSupersetDissolvesPair() throws {
+    let session = makeSupersetSession()
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
+    let finalSquatSet = try #require(squat.sets.first { $0.index == 1 })
+    let state = SupersetState()
+    firstSquatSet.state = .logged
+    state.createSuperset(with: [squat, bench], in: session)
+
+    finalSquatSet.state = .skipped
+
+    #expect(state.nextSetID(after: finalSquatSet, in: session) == nil)
+    #expect(state.supersetCount == 0)
+}
+
+@MainActor
 @Test func supersetStateDoesNotMutateSetLogsOrSetStates() throws {
     let session = makeSupersetSession()
     let squat = try #require(session.exercises.first { $0.order == 0 })
