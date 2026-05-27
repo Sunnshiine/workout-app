@@ -4,15 +4,11 @@ import Testing
 
 @MainActor
 @Test func blockOverviewPresentationBuildsOrderedTilesWithMixedSessionStates() {
-    let complete = makeSession(weekNumber: 1, dayNumber: 1, setStates: [.logged, .skipped])
-    let hasOpenExercises = makeSession(weekNumber: 1, dayNumber: 2, setStates: [.logged, .pending])
-    let current = makeSession(weekNumber: 1, dayNumber: 3, setStates: [.pending, .pending])
-    let upcoming = makeSession(weekNumber: 2, dayNumber: 1, setStates: [.pending, .pending])
-    let block = makeBlock(sessions: [upcoming, current, hasOpenExercises, complete])
+    let scenario = WorkoutScenarios.blockOverviewWithMixedSessionStates()
 
-    let presentation = BlockOverviewPresentation(block: block, currentSession: current)
+    let presentation = BlockOverviewPresentation(block: scenario.block, currentSession: scenario.currentSession)
 
-    #expect(presentation.title == "Block 40")
+    #expect(presentation.title == "Block 27")
     #expect(presentation.tiles.map(\.weekNumber) == [1, 1, 1, 2])
     #expect(presentation.tiles.map(\.dayNumber) == [1, 2, 3, 1])
     #expect(presentation.tiles.map(\.state) == [.complete, .hasOpenExercises, .current, .upcoming])
