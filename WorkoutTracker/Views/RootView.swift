@@ -6,7 +6,9 @@ struct RootView: View {
     var body: some View {
         Group {
             if settings.isConfigured {
-                SessionView()
+                NavigationStack {
+                    SessionView()
+                }
             } else {
                 OnboardingView()
             }
