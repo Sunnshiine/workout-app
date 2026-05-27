@@ -1,7 +1,13 @@
 # ADR 0004: Liquid Glass Design System
 
-**Status:** Accepted  
+**Status:** Superseded for Active Set Focus color direction  
 **Date:** 2025-05-25
+
+> Superseded note, 2026-05-26: the Active Set Focus redesign now uses the
+> mint/emerald reference captured in
+> `docs/superpowers/specs/2026-05-26-active-set-visual-direction.md`.
+> Keep the Liquid Glass layering decisions from this ADR, but do not implement
+> the older charcoal-to-warm-amber palette.
 
 ## Context
 

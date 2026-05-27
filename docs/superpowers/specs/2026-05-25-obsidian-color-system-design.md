@@ -1,7 +1,12 @@
 # Obsidian Color System
 
 **Date:** 2026-05-25
-**Status:** Approved
+**Status:** Superseded by `2026-05-26-active-set-visual-direction.md`
+
+> Superseded note, 2026-05-26: do not use the antique-gold accent direction for
+> new Active Set Focus work. The approved visual reference is now the
+> mint/emerald logging screenshot documented in
+> `docs/superpowers/specs/2026-05-26-active-set-visual-direction.md`.
 
 ## Problem
 
