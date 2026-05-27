@@ -27,6 +27,23 @@ struct SessionProgressTracker {
         currentSession(in: block)?.week
     }
 
+    func openExercises(in block: Block, currentSession: Session) -> [Exercise] {
+        guard let currentWeekNumber = currentSession.week?.number else { return [] }
+
+        return allSessions(block)
+            .filter { session in
+                session.week?.number == currentWeekNumber
+                    && session.dayNumber < currentSession.dayNumber
+            }
+            .flatMap { session in
+                session.exercises
+                    .sorted { $0.order < $1.order }
+                    .filter { exercise in
+                        exercise.sets.contains { $0.state == .pending }
+                    }
+            }
+    }
+
     func tileState(for session: Session, currentSession: Session?) -> SessionTileState {
         if session.persistentModelID == currentSession?.persistentModelID {
             return .current

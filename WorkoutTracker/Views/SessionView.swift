@@ -16,6 +16,14 @@ struct SessionView: View {
                     SyncStatusBanner(state: sync.state)
                         .padding(.top, 8)
 
+                    if !workout.isViewingLiveEdge {
+                        BackToCurrentSessionBanner {
+                            workout.showCurrent()
+                        }
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                    }
+
                     ScrollView {
                         GlassEffectContainer(spacing: Theme.cardSpacing) {
                             LazyVStack(alignment: .leading, spacing: Theme.cardSpacing) {
@@ -47,6 +55,13 @@ struct SessionView: View {
                                         onDelete: { set in
                                             deleteLog(for: set)
                                         }
+                                    )
+                                }
+
+                                if workout.isViewingLiveEdge, !workout.openExercises.isEmpty {
+                                    OpenExercisesSection(
+                                        exercises: workout.openExercises,
+                                        onSelect: showSourceSession(for:)
                                     )
                                 }
                             }
@@ -143,6 +158,11 @@ struct SessionView: View {
         Task { await sync.flushPending(spreadsheetId: id) }
     }
 
+    private func showSourceSession(for exercise: Exercise) {
+        guard let session = exercise.session, let week = session.week else { return }
+        workout.show(week: week.number, day: session.dayNumber)
+    }
+
     private func retireActiveSetTransition() {
         guard let transition = focusManager.activeSetTransition else { return }
         retiringTransition = transition
@@ -167,5 +187,99 @@ struct SessionView: View {
                     + Theme.momentumRiseDuration
             }
         return UInt64(duration * 1_000_000_000)
+    }
+}
+
+private struct BackToCurrentSessionBanner: View {
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 10) {
+                Image(systemName: "arrow.left")
+                    .font(.subheadline.weight(.semibold))
+                Text("Back to Current Session")
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .foregroundStyle(Theme.accentDarkText)
+            .background(Theme.accent, in: .rect(cornerRadius: Theme.sessionTileCornerRadius))
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Returns to the current session")
+    }
+}
+
+private struct OpenExercisesSection: View {
+    let exercises: [Exercise]
+    let onSelect: (Exercise) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Open Exercises")
+                .font(.headline)
+
+            ForEach(exercises, id: \.persistentModelID) { exercise in
+                Button {
+                    onSelect(exercise)
+                } label: {
+                    OpenExerciseCard(exercise: exercise)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
+    }
+}
+
+private struct OpenExerciseCard: View {
+    let exercise: Exercise
+
+    private var pendingSetCount: Int {
+        exercise.sets.filter { $0.state == .pending }.count
+    }
+
+    private var sourceLabel: String {
+        guard let session = exercise.session, let week = session.week else { return "" }
+        return "W\(week.number) D\(session.dayNumber)"
+    }
+
+    private var pendingSetLabel: String {
+        pendingSetCount == 1 ? "1 pending set" : "\(pendingSetCount) pending sets"
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(exercise.baseName)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Text(pendingSetLabel)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 12)
+
+            HStack(spacing: 6) {
+                Text(sourceLabel)
+                    .font(.caption.weight(.semibold))
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+            }
+            .foregroundStyle(Theme.accent)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Theme.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
+        .overlay {
+            RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
+                .stroke(Theme.pillStroke, lineWidth: 1)
+        }
     }
 }
