@@ -9,6 +9,8 @@ We derive every write target dynamically at write-time by scanning the live shee
 
 Before every write (new log, edit, or delete), the app reads the current cell value and verifies it matches expectations (empty for new writes; previously-written value for edits/deletes). If verification fails — because a header was renamed, a row was inserted, or the coach edited the cell — the write is aborted and the athlete is warned. The app never guesses or overwrites unexpected content.
 
+For a pending-write flush batch, the app may reuse one freshly fetched grid snapshot per Block tab and apply each successful write to that in-memory snapshot before resolving the next queued write. This reduces redundant fetches while preserving dynamic targeting: targets are still resolved from semantic anchors at flush time, and raw cell addresses are never persisted across syncs or app launches.
+
 **Consequence**: if the coach renames a column header (e.g. "Notes" → "Athlete Log"), the app cannot locate the write target and will surface a warning until the next sync resolves the mismatch. This is the correct safe failure mode.
 
 **Considered alternative**: cache raw cell addresses (e.g. "Block 27 · J15") at first write. Simpler to implement but silently corrupts data after any structural change — unacceptable given the coach actively edits the sheet.
