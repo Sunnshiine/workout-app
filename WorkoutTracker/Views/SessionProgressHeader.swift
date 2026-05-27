@@ -3,6 +3,20 @@ import SwiftUI
 struct SessionProgressHeader: View {
     let session: Session
     let activeSetID: ActiveSetID?
+    let block: Block?
+    let currentSession: Session?
+
+    init(
+        session: Session,
+        activeSetID: ActiveSetID?,
+        block: Block? = nil,
+        currentSession: Session? = nil
+    ) {
+        self.session = session
+        self.activeSetID = activeSetID
+        self.block = block
+        self.currentSession = currentSession
+    }
 
     private var presentation: SessionProgressHeaderPresentation {
         SessionProgressHeaderPresentation(session: session, activeSetID: activeSetID)
@@ -11,9 +25,7 @@ struct SessionProgressHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack(spacing: 10) {
-                Text(presentation.locationText)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.primary)
+                locationLabel
 
                 Spacer()
 
@@ -29,9 +41,30 @@ struct SessionProgressHeader: View {
             }
             .frame(height: 8)
             .accessibilityLabel("Session progress")
-            .accessibilityValue("\(presentation.locationText) \(presentation.remainingText)")
+            .accessibilityValue(presentation.progressAccessibilityValue)
         }
         .padding(.vertical, 2)
+    }
+
+    @ViewBuilder
+    private var locationLabel: some View {
+        if let block {
+            NavigationLink {
+                BlockOverviewView(block: block, currentSession: currentSession)
+            } label: {
+                locationLabelText
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(presentation.locationActionAccessibilityLabel)
+        } else {
+            locationLabelText
+        }
+    }
+
+    private var locationLabelText: some View {
+        Text(presentation.locationText)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.primary)
     }
 }
 
