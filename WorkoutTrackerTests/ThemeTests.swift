@@ -63,14 +63,52 @@ import Testing
     #endif
 }
 
-@Test func themeGradientIsNearBlackNeutral() {
+@Test func themeGradientMovesToDarkBlackGreenDirection() {
     #if canImport(AppKit)
         for stop in Theme.gradientStops {
             guard let rgb = rgbComponents(of: stop.color) else { continue }
-            #expect(rgb.red < 0.15, "Stop at \(stop.location): red \(rgb.red) too high for obsidian")
-            #expect(rgb.green < 0.15, "Stop at \(stop.location): green \(rgb.green) too high for obsidian")
-            #expect(rgb.blue < 0.15, "Stop at \(stop.location): blue \(rgb.blue) too high for obsidian")
+            #expect(rgb.red < 0.12, "Stop at \(stop.location): red \(rgb.red) too high for dark green")
+            #expect(rgb.green < 0.18, "Stop at \(stop.location): green \(rgb.green) too high for dark green")
+            #expect(rgb.blue < 0.12, "Stop at \(stop.location): blue \(rgb.blue) too high for dark green")
         }
+
+        guard let bottom = rgbComponents(of: Theme.gradientStops[1].color) else {
+            Issue.record("Could not resolve bottom gradient stop to deviceRGB")
+            return
+        }
+        #expect(bottom.green > bottom.red + 0.03, "Expected bottom stop to lean green")
+        #expect(bottom.green > bottom.blue + 0.02, "Expected bottom stop to lean green")
+    #endif
+}
+
+@Test func themeSessionProgressTrackIsDarkBehindMintFill() {
+    #if canImport(AppKit)
+        guard let rgb = rgbComponents(of: Theme.progressTrack) else {
+            Issue.record("Could not resolve progress track to deviceRGB")
+            return
+        }
+        #expect(rgb.red < 0.08)
+        #expect(rgb.green < 0.12)
+        #expect(rgb.blue < 0.10)
+        #expect(rgb.green >= rgb.red)
+    #endif
+}
+
+@Test func themeActiveCardSurfaceUsesGreenFillAndStroke() {
+    #if canImport(AppKit)
+        guard let fill = rgbComponents(of: Theme.activeCardFill) else {
+            Issue.record("Could not resolve active card fill to deviceRGB")
+            return
+        }
+        guard let stroke = rgbComponents(of: Theme.activeCardStroke) else {
+            Issue.record("Could not resolve active card stroke to deviceRGB")
+            return
+        }
+
+        #expect(fill.green > fill.red + 0.10)
+        #expect(fill.green > fill.blue + 0.05)
+        #expect(stroke.green > stroke.red + 0.30)
+        #expect(stroke.green > stroke.blue + 0.20)
     #endif
 }
 

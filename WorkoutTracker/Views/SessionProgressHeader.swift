@@ -8,7 +8,7 @@ struct SessionProgressHeader: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(presentation.breadcrumb)
                     .font(.subheadline.weight(.semibold))
@@ -17,17 +17,30 @@ struct SessionProgressHeader: View {
                 Spacer()
 
                 Text(presentation.remainingText)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.caption.weight(.bold))
                     .foregroundStyle(Theme.accent)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Theme.progressTrack, in: .capsule)
             }
 
-            ProgressView(value: presentation.progress)
-                .tint(Theme.accent)
-                .accessibilityLabel("Session progress")
-                .accessibilityValue("\(presentation.completedSetCount) of \(presentation.totalSetCount) sets")
+            GeometryReader { geometry in
+                let progress = min(max(presentation.progress, 0), 1)
+
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Theme.progressTrack)
+
+                    Capsule()
+                        .fill(Theme.accent)
+                        .frame(width: geometry.size.width * CGFloat(progress))
+                }
+            }
+            .frame(height: 5)
+            .accessibilityLabel("Session progress")
+            .accessibilityValue("\(presentation.completedSetCount) of \(presentation.totalSetCount) sets")
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
+        .padding(.top, 4)
+        .padding(.bottom, 2)
     }
 }

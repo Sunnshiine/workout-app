@@ -2,8 +2,8 @@ import SwiftUI
 
 enum Theme {
     static let gradientStops: [Gradient.Stop] = [
-        .init(color: Color(red: 0.04, green: 0.04, blue: 0.04), location: 0),
-        .init(color: Color(red: 0.07, green: 0.07, blue: 0.075), location: 1)
+        .init(color: Color(red: 0.02, green: 0.03, blue: 0.025), location: 0),
+        .init(color: Color(red: 0.015, green: 0.11, blue: 0.065), location: 1)
     ]
 
     static let gradient = LinearGradient(
@@ -14,6 +14,7 @@ enum Theme {
 
     static let accent = Color(red: 0.45, green: 1.0, blue: 0.72)
     static let accentDarkText = Color(red: 0.02, green: 0.12, blue: 0.07)
+    static let progressTrack = Color(red: 0.025, green: 0.055, blue: 0.04)
     static let activeCardFill = Color(red: 0.03, green: 0.20, blue: 0.12).opacity(0.72)
     static let activeCardStroke = Color(red: 0.23, green: 0.82, blue: 0.48)
     static let pillFill = Color(red: 0.03, green: 0.06, blue: 0.05).opacity(0.88)
