@@ -14,3 +14,9 @@ import Testing
 @Test func returnsNilWhenNoBlockTabs() {
     #expect(currentBlockTab(from: ["Intro", "Mobility Drills"]) == nil)
 }
+
+@Test func sortsHistoricalBlockTabsDescendingExcludingCurrentAndNonBlocks() {
+    let titles = ["Intro", "Block 1", "Block - 26", "Block 27", "Sub workout", "Block 3"]
+
+    #expect(sortedHistoricalTabs(from: titles, excluding: "Block 27") == ["Block - 26", "Block 3", "Block 1"])
+}

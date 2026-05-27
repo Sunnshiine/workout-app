@@ -1,7 +1,29 @@
 import Foundation
 
+struct LastPerformedRecord: Sendable, Equatable {
+    var fullName: String
+    var baseName: String
+    var result: SetLog
+    var performedOn: Date
+    var source: String
+
+    var entry: LastPerformedEntry {
+        LastPerformedEntry(
+            fullName: fullName,
+            baseName: baseName,
+            result: result,
+            performedOn: performedOn,
+            source: source
+        )
+    }
+}
+
 enum LastPerformedExtractor {
     static func entries(from block: ParsedBlockModel) -> [LastPerformedEntry] {
+        records(from: block).map(\.entry)
+    }
+
+    static func records(from block: ParsedBlockModel) -> [LastPerformedRecord] {
         var latestByExercise: [String: LastPerformedCandidate] = [:]
 
         for week in block.weeks {
@@ -32,7 +54,7 @@ enum LastPerformedExtractor {
         return latestByExercise.values
             .sorted { $0.fullName < $1.fullName }
             .map {
-                LastPerformedEntry(
+                LastPerformedRecord(
                     fullName: $0.fullName,
                     baseName: $0.baseName,
                     result: $0.result,
