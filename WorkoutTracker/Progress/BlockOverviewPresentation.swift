@@ -5,6 +5,7 @@ struct BlockOverviewTilePresentation: Equatable, Sendable {
     let dayNumber: Int
     let state: SessionTileState
     let accessibilityLabel: String
+    let accessibilityValue: String
     let accessibilityIdentifier: String
 }
 
@@ -23,11 +24,13 @@ struct BlockOverviewPresentation: Equatable, Sendable {
                     .sorted { $0.dayNumber < $1.dayNumber }
                     .map { session in
                         let weekNumber = session.week?.number ?? week.number
+                        let state = tracker.tileState(for: session, currentSession: currentSession)
                         return BlockOverviewTilePresentation(
                             weekNumber: weekNumber,
                             dayNumber: session.dayNumber,
-                            state: tracker.tileState(for: session, currentSession: currentSession),
+                            state: state,
                             accessibilityLabel: "Week \(weekNumber), Day \(session.dayNumber)",
+                            accessibilityValue: state.accessibilityValue,
                             accessibilityIdentifier: "session-tile-W\(weekNumber)-D\(session.dayNumber)"
                         )
                     }

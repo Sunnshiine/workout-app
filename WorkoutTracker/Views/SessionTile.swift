@@ -6,6 +6,20 @@ struct SessionTile: View {
     let state: SessionTileState
 
     var body: some View {
+        Group {
+            if state == .complete {
+                tileContent
+            } else {
+                tileContent
+                    .glassEffect(.regular, in: .rect(cornerRadius: Theme.sessionTileCornerRadius))
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Week \(weekNumber), Day \(dayNumber)")
+        .accessibilityValue(state.accessibilityValue)
+    }
+
+    private var tileContent: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Week \(weekNumber)")
                 .font(.caption.weight(.semibold))
@@ -20,45 +34,49 @@ struct SessionTile: View {
         .frame(maxWidth: .infinity, minHeight: Theme.sessionTileMinHeight, alignment: .topLeading)
         .padding(12)
         .background(backgroundColor, in: .rect(cornerRadius: Theme.sessionTileCornerRadius))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Week \(weekNumber), Day \(dayNumber)")
-        .accessibilityValue(accessibilityValue)
+        .overlay {
+            RoundedRectangle(cornerRadius: Theme.sessionTileCornerRadius)
+                .stroke(borderColor, lineWidth: borderWidth)
+        }
     }
 
     private var backgroundColor: Color {
         switch state {
         case .complete:
             Theme.sessionTileComplete
-        case .hasOpenExercises:
-            Theme.sessionTileHasOpenExercises
-        case .current:
-            Theme.sessionTileCurrent
-        case .upcoming:
-            Theme.sessionTileUpcoming
+        case .current, .incomplete:
+            Theme.sessionTileIncomplete
         }
     }
 
     private var foregroundStyle: Color {
         switch state {
-        case .hasOpenExercises, .current:
-            Theme.accentDarkText
+        case .current:
+            Theme.sessionTileCurrentBorder
         case .complete:
             .white
-        case .upcoming:
-            .white.opacity(0.72)
+        case .incomplete:
+            .white.opacity(0.64)
         }
     }
 
-    private var accessibilityValue: String {
+    private var borderColor: Color {
         switch state {
-        case .complete:
-            "Complete"
-        case .hasOpenExercises:
-            "Has open exercises"
         case .current:
-            "Current"
-        case .upcoming:
-            "Upcoming"
+            Theme.sessionTileCurrentBorder
+        case .incomplete:
+            .white.opacity(0.10)
+        case .complete:
+            .clear
+        }
+    }
+
+    private var borderWidth: CGFloat {
+        switch state {
+        case .current:
+            Theme.sessionTileCurrentBorderWidth
+        case .complete, .incomplete:
+            1
         }
     }
 }

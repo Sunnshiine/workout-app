@@ -32,6 +32,7 @@ struct BlockOverviewView: View {
                     .buttonStyle(.plain)
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(tile.accessibilityLabel)
+                    .accessibilityValue(tile.accessibilityValue)
                     .accessibilityIdentifier(tile.accessibilityIdentifier)
                 }
             }
