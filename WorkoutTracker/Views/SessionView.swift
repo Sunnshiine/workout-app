@@ -132,7 +132,7 @@ struct SessionView: View {
         }
         .animation(.easeInOut(duration: 0.18), value: overscrollToolbarVisibility.isVisible)
         .sheet(isPresented: $isSettingsPresented) {
-            SettingsPlaceholderView()
+            SettingsView()
         }
         .task {
             workout.reload()
@@ -300,26 +300,6 @@ private struct SessionOverscrollToolbar: View {
             .buttonStyle(.glass)
             .disabled(isSyncDisabled)
             .accessibilityIdentifier("session-toolbar-sync-button")
-        }
-    }
-}
-
-private struct SettingsPlaceholderView: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            Color.clear
-                .background(Theme.gradient.ignoresSafeArea())
-                .navigationTitle("Settings")
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Done") {
-                            dismiss()
-                        }
-                        .accessibilityIdentifier("settings-done-button")
-                    }
-                }
         }
     }
 }

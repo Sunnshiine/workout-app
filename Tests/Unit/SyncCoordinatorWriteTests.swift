@@ -25,6 +25,32 @@ private final class FlushStubClient: SheetsClient, @unchecked Sendable {
     }
 }
 
+private final class ControlledFlushClient: SheetsClient, @unchecked Sendable {
+    private let coordinator = ControlledFlushCoordinator()
+
+    func listTabTitles(spreadsheetId: String) async throws -> [String] { ["Block 27"] }
+
+    func fetchTab(spreadsheetId: String, tabName: String) async throws -> SheetGrid {
+        try await coordinator.fetchTab()
+    }
+
+    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
+        await coordinator.recordUpdate(range: range, values: values)
+    }
+
+    func waitForFetch() async {
+        await coordinator.waitForFetch()
+    }
+
+    func completeFetch(with grid: SheetGrid) async {
+        await coordinator.completeFetch(with: grid)
+    }
+
+    func updates() async -> [(String, [[String]])] {
+        await coordinator.updates
+    }
+}
+
 @MainActor
 private func makeContainer() throws -> ModelContainer {
     try ModelContainer(
@@ -32,6 +58,53 @@ private func makeContainer() throws -> ModelContainer {
         PendingWrite.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
+}
+
+@MainActor
+@Test func discardPendingWritesFailsWhileFlushIsInFlight() async throws {
+    let container = try makeContainer()
+    let ctx = container.mainContext
+    ctx.insert(
+        PendingWrite(
+            blockTab: "Block 27",
+            week: 1,
+            day: 1,
+            exerciseName: "Squat",
+            setIndex: 0,
+            column: .notes,
+            operation: .upsert,
+            valueToWrite: "185x5@8",
+            expectedCurrentValue: ""
+        )
+    )
+    try ctx.save()
+    let client = ControlledFlushClient()
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    let flushTask = Task { await sync.flushPending(spreadsheetId: "old-sheet") }
+    await client.waitForFetch()
+
+    await #expect(throws: (any Error).self) {
+        try await sync.discardPendingWrites()
+    }
+
+    await client.completeFetch(
+        with: gridFromA1(
+            [
+                "C12": "Day 1", "S12": "Day 2",
+                "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+                "C15": "Squat", "D15": "1"
+            ],
+            rows: 24,
+            cols: 30
+        )
+    )
+
+    await flushTask.value
+
+    #expect(await client.updates().count == 1)
+    #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
+    #expect(sync.state == .idle)
 }
 
 @MainActor
@@ -168,6 +241,48 @@ private func makeContainer() throws -> ModelContainer {
 }
 
 @MainActor
+@Test func discardPendingWritesRemovesQueuedAndConflictedWrites() async throws {
+    let container = try makeContainer()
+    let ctx = container.mainContext
+    ctx.insert(
+        PendingWrite(
+            blockTab: "Block 27",
+            week: 1,
+            day: 1,
+            exerciseName: "Squat",
+            setIndex: 0,
+            column: .notes,
+            operation: .upsert,
+            valueToWrite: "185x5@8",
+            expectedCurrentValue: ""
+        )
+    )
+    let conflicted = PendingWrite(
+        blockTab: "Block 27",
+        week: 1,
+        day: 1,
+        exerciseName: "Bench Press",
+        setIndex: 0,
+        column: .notes,
+        operation: .upsert,
+        valueToWrite: "135x5@7",
+        expectedCurrentValue: ""
+    )
+    conflicted.markConflict("coach edited")
+    ctx.insert(conflicted)
+    try ctx.save()
+    let sync = SyncCoordinator(client: FlushStubClient(grid: []), context: ctx)
+
+    #expect(try sync.hasPendingWrites() == true)
+
+    try await sync.discardPendingWrites()
+
+    #expect(try sync.hasPendingWrites() == false)
+    #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
+    #expect(sync.state == .idle)
+}
+
+@MainActor
 @Test func syncOverlaysStillPendingWritesOntoFreshBlock() async throws {
     let container = try makeContainer()
     let ctx = container.mainContext
@@ -207,6 +322,41 @@ private func makeContainer() throws -> ModelContainer {
     let set = try #require(exercise.sets.first { $0.index == 0 })
     #expect(set.state == .logged)
     #expect(set.setLog?.formatted == "185x5@8")
+}
+
+private actor ControlledFlushCoordinator {
+    private var fetchContinuation: CheckedContinuation<SheetGrid, Error>?
+    private var hasFetchStarted = false
+    private var fetchWaiters: [CheckedContinuation<Void, Never>] = []
+    private(set) var updates: [(String, [[String]])] = []
+
+    func fetchTab() async throws -> SheetGrid {
+        hasFetchStarted = true
+        for waiter in fetchWaiters {
+            waiter.resume()
+        }
+        fetchWaiters = []
+
+        return try await withCheckedThrowingContinuation { continuation in
+            fetchContinuation = continuation
+        }
+    }
+
+    func waitForFetch() async {
+        if hasFetchStarted { return }
+        await withCheckedContinuation { continuation in
+            fetchWaiters.append(continuation)
+        }
+    }
+
+    func completeFetch(with grid: SheetGrid) {
+        fetchContinuation?.resume(returning: grid)
+        fetchContinuation = nil
+    }
+
+    func recordUpdate(range: String, values: [[String]]) {
+        updates.append((range, values))
+    }
 }
 
 extension SyncCoordinator.State {

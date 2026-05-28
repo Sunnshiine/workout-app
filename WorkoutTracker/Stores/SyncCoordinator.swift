@@ -13,6 +13,15 @@ final class SyncCoordinator {
 
     private let client: any SheetsClient
     private let context: ModelContext
+    private var activePendingWriteFlushCount = 0
+    private var pendingWriteFlushGeneration = 0
+
+    func hasPendingWrites() throws -> Bool {
+        guard activePendingWriteFlushCount == 0 else {
+            throw PendingWriteFlushInProgress()
+        }
+        return try !fetchPendingWriteRecords().isEmpty
+    }
 
     init(client: any SheetsClient, context: ModelContext) {
         self.client = client
@@ -23,7 +32,27 @@ final class SyncCoordinator {
         state = .conflict(["Local write failed: \(error.localizedDescription)"])
     }
 
+    func discardPendingWrites() async throws {
+        guard activePendingWriteFlushCount == 0 else {
+            throw PendingWriteFlushInProgress()
+        }
+        pendingWriteFlushGeneration += 1
+        do {
+            for write in try fetchPendingWriteRecords() {
+                context.delete(write)
+            }
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
+        state = .idle
+    }
+
     func flushPending(spreadsheetId: String) async {
+        let generation = beginPendingWriteFlush()
+        defer { endPendingWriteFlush() }
+
         let descriptor = FetchDescriptor<PendingWrite>(
             predicate: #Predicate { $0.statusRaw == "pending" },
             sortBy: [SortDescriptor(\.createdAt)]
@@ -37,24 +66,20 @@ final class SyncCoordinator {
         state = .syncing
         let writer = SheetWriter(client: client)
         let planner = SheetWritePlanner()
+        let flushContext = PendingWriteFlushContext(spreadsheetId: spreadsheetId, generation: generation, writer: writer, planner: planner)
         var snapshots: [String: SheetGrid] = [:]
         var conflicts: [String] = []
 
         for write in pending {
             do {
-                let request = SheetWriteRequest(write)
-                let grid: SheetGrid
-                if let snapshot = snapshots[request.blockTab] {
-                    grid = snapshot
-                } else {
-                    let snapshot = try await client.fetchTab(spreadsheetId: spreadsheetId, tabName: request.blockTab)
-                    snapshots[request.blockTab] = snapshot
-                    grid = snapshot
-                }
-                let update = try planner.plan(request, in: grid)
-                try await writer.write(update, spreadsheetId: spreadsheetId)
-                snapshots[request.blockTab] = planner.applying(update, to: grid)
-                context.delete(write)
+                try await flush(
+                    write,
+                    context: flushContext,
+                    snapshots: &snapshots
+                )
+            } catch is PendingWriteFlushInvalidated {
+                state = .idle
+                return
             } catch let error as SheetWriterError {
                 let message = error.errorDescription ?? String(describing: error)
                 write.markConflict(message)
@@ -76,7 +101,8 @@ final class SyncCoordinator {
         }
     }
 
-    func sync(spreadsheetId: String) async {
+    @discardableResult
+    func sync(spreadsheetId: String) async -> Bool {
         state = .syncing
         print("[Sync] Starting sync for spreadsheetId: \(spreadsheetId)")
 
@@ -90,14 +116,14 @@ final class SyncCoordinator {
             guard let tab = currentBlockTab(from: titles) else {
                 print("[Sync] ERROR: No block tab matched from titles: \(titles)")
                 state = .conflict(["No block tab found in the spreadsheet"])
-                return
+                return false
             }
             print("[Sync] Selected tab: \(tab)")
             let grid = try await client.fetchTab(spreadsheetId: spreadsheetId, tabName: tab)
             print("[Sync] Grid: \(grid.count) rows, first row: \(grid.first ?? [])")
             let parsed = SheetParser().parse(grid: grid, tabName: tab)
             print("[Sync] Parsed: \(parsed.block.weeks.count) weeks, warnings: \(parsed.warnings)")
-            replacePersistedBlock(with: BlockBuilder.makeBlock(from: parsed.block))
+            try replacePersistedBlock(with: BlockBuilder.makeBlock(from: parsed.block))
             let lastPerformedEntries = LastPerformedExtractor.entries(from: parsed.block)
             if !lastPerformedEntries.isEmpty {
                 try LastPerformedIndex(context: context).ingest(lastPerformedEntries)
@@ -114,17 +140,19 @@ final class SyncCoordinator {
                 currentTab: tab,
                 currentBlock: parsed.block
             )
+            return true
         } catch {
             print("[Sync] ERROR: \(error)")
             state = .offline
+            return false
         }
     }
 
-    private func replacePersistedBlock(with block: Block) {
+    private func replacePersistedBlock(with block: Block) throws {
         overlayPendingWrites(on: block)
-        for existing in (try? context.fetch(FetchDescriptor<Block>())) ?? [] { context.delete(existing) }
+        for existing in try context.fetch(FetchDescriptor<Block>()) { context.delete(existing) }
         context.insert(block)
-        try? context.save()
+        try context.save()
     }
 
     private func overlayPendingWrites(on block: Block) {
@@ -251,6 +279,73 @@ final class SyncCoordinator {
         let index = LastPerformedIndex(context: context)
         return exercises.allSatisfy { exercise in
             index.lookup(exerciseName: exercise.name, baseName: exercise.baseName) != nil
+        }
+    }
+
+}
+
+extension SyncCoordinator: SheetSwitchSyncing {}
+
+private struct PendingWriteFlushContext {
+    let spreadsheetId: String
+    let generation: Int
+    let writer: SheetWriter
+    let planner: SheetWritePlanner
+}
+
+private struct PendingWriteFlushInvalidated: Error {}
+
+private struct PendingWriteFlushInProgress: Error {}
+
+extension SyncCoordinator {
+    fileprivate func fetchPendingWriteRecords() throws -> [PendingWrite] {
+        let descriptor = FetchDescriptor<PendingWrite>(sortBy: [SortDescriptor(\.createdAt)])
+        return try context.fetch(descriptor)
+    }
+
+    fileprivate func flush(
+        _ write: PendingWrite,
+        context flushContext: PendingWriteFlushContext,
+        snapshots: inout [String: SheetGrid]
+    ) async throws {
+        try ensurePendingWriteFlushIsCurrent(flushContext.generation)
+        let request = SheetWriteRequest(write)
+        let grid = try await gridSnapshot(for: request.blockTab, context: flushContext, snapshots: &snapshots)
+        let update = try flushContext.planner.plan(request, in: grid)
+        try ensurePendingWriteFlushIsCurrent(flushContext.generation)
+        try await flushContext.writer.write(update, spreadsheetId: flushContext.spreadsheetId)
+        try ensurePendingWriteFlushIsCurrent(flushContext.generation)
+        snapshots[request.blockTab] = flushContext.planner.applying(update, to: grid)
+        context.delete(write)
+    }
+
+    fileprivate func gridSnapshot(
+        for tab: String,
+        context flushContext: PendingWriteFlushContext,
+        snapshots: inout [String: SheetGrid]
+    ) async throws -> SheetGrid {
+        if let snapshot = snapshots[tab] {
+            return snapshot
+        }
+
+        let snapshot = try await client.fetchTab(spreadsheetId: flushContext.spreadsheetId, tabName: tab)
+        try ensurePendingWriteFlushIsCurrent(flushContext.generation)
+        snapshots[tab] = snapshot
+        return snapshot
+    }
+
+    fileprivate func beginPendingWriteFlush() -> Int {
+        activePendingWriteFlushCount += 1
+        return pendingWriteFlushGeneration
+    }
+
+    fileprivate func endPendingWriteFlush() {
+        activePendingWriteFlushCount -= 1
+    }
+
+    fileprivate func ensurePendingWriteFlushIsCurrent(_ generation: Int) throws {
+        guard generation == pendingWriteFlushGeneration else {
+            throw PendingWriteFlushInvalidated()
         }
     }
 }

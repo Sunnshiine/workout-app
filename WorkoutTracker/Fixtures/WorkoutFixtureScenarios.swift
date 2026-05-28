@@ -3,7 +3,9 @@
     import SwiftData
 
     enum WorkoutFixtureScenarios {
-        static let sheetURL = "https://docs.google.com/spreadsheets/d/FIXTURE/edit"
+        static let sheetId = "FIXTURE"
+        static let replacementSheetId = "REPLACEMENT"
+        static let sheetURL = "https://docs.google.com/spreadsheets/d/\(sheetId)/edit"
         static let blockTab = "Block 27"
 
         @MainActor
