@@ -10,21 +10,30 @@ struct OnboardingView: View {
 
     var body: some View {
         GlassEffectContainer {
-            if settings.isSignedIn {
-                if showsURLFallback {
-                    urlEntryCard
-                } else {
-                    SheetPickerView {
-                        withAnimation { showsURLFallback = true }
-                    }
-                    .glassEffectID("onboarding", in: ns)
-                }
-            } else {
+            switch destination {
+            case .signIn:
                 signInCard
+            case .sheetPicker:
+                SheetPickerView {
+                    withAnimation { showsURLFallback = true }
+                }
+                .glassEffectID("onboarding", in: ns)
+            case .urlEntry:
+                urlEntryCard
+            case .session:
+                EmptyView()
             }
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var destination: AppEntryDestination {
+        AppEntryDestination(
+            isSignedIn: settings.isSignedIn,
+            hasSpreadsheet: settings.spreadsheetId != nil,
+            showsURLFallback: showsURLFallback
+        )
     }
 
     // MARK: - Phase 1: Sign-In Card
@@ -54,6 +63,19 @@ struct OnboardingView: View {
 
     private var urlEntryCard: some View {
         VStack(spacing: 20) {
+            HStack {
+                Button {
+                    urlError = false
+                    withAnimation { showsURLFallback = false }
+                } label: {
+                    Label("Back", systemImage: "chevron.left")
+                }
+                .buttonStyle(.glass)
+                .accessibilityIdentifier("onboarding-url-back-button")
+
+                Spacer()
+            }
+
             Text("Paste your sheet URL")
                 .font(.title2.bold())
 

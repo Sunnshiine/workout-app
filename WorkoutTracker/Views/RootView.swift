@@ -5,7 +5,7 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if settings.isConfigured {
+            if destination == .session {
                 NavigationStack {
                     SessionView()
                 }
@@ -16,5 +16,13 @@ struct RootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.gradient.ignoresSafeArea())
         .preferredColorScheme(.dark)
+    }
+
+    private var destination: AppEntryDestination {
+        AppEntryDestination(
+            isSignedIn: settings.isSignedIn,
+            hasSpreadsheet: settings.spreadsheetId != nil,
+            showsURLFallback: false
+        )
     }
 }
