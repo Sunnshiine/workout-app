@@ -55,3 +55,5 @@ A mobile client for powerlifting athletes that surfaces and logs workouts from a
 **Current Week**: The Week containing the Current Session. Open Exercises are tracked only within the Current Week. Starting any Session in Week N+1 closes Week N — its Open Exercises are silently abandoned. Avoid: active week.
 
 **Move On**: The athlete's explicit action to advance past the Current Session regardless of whether all sets are logged. Any remaining Open Exercises stay surfaced until logged or skipped. Avoid: Finish Session, Complete.
+
+**Move On Celebration**: The athlete-facing acknowledgement shown after the athlete chooses Move On to close the Current Session. The celebration can be enhanced when every Set in the Session is Logged or Skipped, but Set completion alone does not close the Session or advance to the next Session. Avoid: workout completion, finish celebration.
