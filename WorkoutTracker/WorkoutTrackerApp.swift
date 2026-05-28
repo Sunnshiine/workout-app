@@ -18,7 +18,7 @@ struct WorkoutTrackerApp: App {
                 let defaults = UITestFixture.makeDefaults()
                 let settings = SettingsStore(defaults: defaults)
                 settings.isSignedIn = true
-                settings.setSheetURL(WorkoutFixtureScenarios.sheetURL)
+                settings.setSpreadsheet(id: WorkoutFixtureScenarios.sheetId, title: "Fixture Training Log")
                 let workout = WorkoutStore(context: ctx, defaults: defaults)
                 workout.reload()
                 _settings = State(initialValue: settings)
