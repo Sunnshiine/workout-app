@@ -68,6 +68,7 @@
 		981E179B026B8751661D3228 /* SupersetState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A7DE7A3ADF7567E4E60F24E /* SupersetState.swift */; };
 		A62000000000000000000002 /* MoveOnCelebrationPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A62000000000000000000001 /* MoveOnCelebrationPresentation.swift */; };
 		A62000000000000000000004 /* MoveOnCelebrationPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A62000000000000000000003 /* MoveOnCelebrationPresentationTests.swift */; };
+		A63000000000000000000002 /* MoveOnCelebrationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A63000000000000000000001 /* MoveOnCelebrationView.swift */; };
 		A02F44FF07FD393EE8A24ADA /* LastPerformedExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBC777FCDEC9F7D51883113F /* LastPerformedExtractor.swift */; };
 		A17B4D3CFBBB7A17E5B5D851 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73043E31A40EFA8A57C38FAF /* EmptyStateView.swift */; };
 		A2F7E6D64D1518F978D7CFC2 /* SheetGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2244B0C3FEDB38CFA5D0128 /* SheetGrid.swift */; };
@@ -179,6 +180,7 @@
 		A3A2EA6D2FC7D57A006C3883 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		A62000000000000000000001 /* MoveOnCelebrationPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveOnCelebrationPresentation.swift; sourceTree = "<group>"; };
 		A62000000000000000000003 /* MoveOnCelebrationPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveOnCelebrationPresentationTests.swift; sourceTree = "<group>"; };
+		A63000000000000000000001 /* MoveOnCelebrationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveOnCelebrationView.swift; sourceTree = "<group>"; };
 		A53E53000000000000000002 /* SheetPickerStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetPickerStoreTests.swift; sourceTree = "<group>"; };
 		A54E54000000000000000002 /* OnboardingPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingPresentation.swift; sourceTree = "<group>"; };
 		A54E54000000000000000004 /* OnboardingPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingPresentationTests.swift; sourceTree = "<group>"; };
@@ -258,6 +260,7 @@
 				86387591F871B0FC0CA1FC82 /* ExerciseSection.swift */,
 				FFBE67C176F894614182855E /* ExerciseSummaryRow.swift */,
 				67135AA558123A1C244485B9 /* LastPerformedCard.swift */,
+				A63000000000000000000001 /* MoveOnCelebrationView.swift */,
 				5C9C69974B6867E8568AFBD0 /* OnboardingView.swift */,
 				9038CBF5AF997C5562D3A6E4 /* RootView.swift */,
 				99901102A552A245156C78ED /* RPEGrid.swift */,
@@ -633,6 +636,7 @@
 				14B6CF78AC54878F220CEFDE /* LastPerformedIndex.swift in Sources */,
 				856581A20DF9C7C18981ADAF /* LoadSuggestionEngine.swift in Sources */,
 				A62000000000000000000002 /* MoveOnCelebrationPresentation.swift in Sources */,
+				A63000000000000000000002 /* MoveOnCelebrationView.swift in Sources */,
 				7A7A9B87F7663034989F8EB4 /* OnboardingView.swift in Sources */,
 				A54E54000000000000000001 /* OnboardingPresentation.swift in Sources */,
 				348182B266A444358BFC98BC /* PendingWrite.swift in Sources */,

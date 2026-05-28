@@ -4,10 +4,18 @@ struct MoveOnCelebrationStatPresentation: Equatable, Sendable {
 }
 
 struct MoveOnCelebrationPresentation: Equatable, Sendable {
+    static let approvedQuotes = [
+        "You're fucking amazing.",
+        "God damn!",
+        "Get it girl!",
+        "Shake it!"
+    ]
+
     let weekText: String
     let titleText: String
     let sublineText: String
     let stats: [MoveOnCelebrationStatPresentation]
+    let quotes: [String]
     let accessibilityLabel: String
     let accessibilityValue: String
 
@@ -27,6 +35,7 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
             MoveOnCelebrationStatPresentation(value: "\(exerciseCount)", label: "Exercises"),
             MoveOnCelebrationStatPresentation(value: "\(pendingSetCount)", label: "Left")
         ]
+        quotes = Self.approvedQuotes
         accessibilityLabel = "\(weekText), \(titleText)"
         accessibilityValue = (stats.map { "\($0.value) \($0.label)" } + [sublineText])
             .joined(separator: ", ")
