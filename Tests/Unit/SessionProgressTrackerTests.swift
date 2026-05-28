@@ -126,10 +126,25 @@ private func sortedSessions(in block: Block) -> [Session] {
 }
 
 @MainActor
-@Test func tileStatePrioritizesCurrentSession() {
+@Test func sessionTileStateHasExactlyThreeCases() {
+    #expect(SessionTileState.allCases == [.complete, .current, .incomplete])
+}
+
+@MainActor
+@Test func tileStatePrioritizesCompletionOverCurrentSession() {
     let block = makeBlock()
     let session = block.weeks[0].sessions[0]
     session.exercises[0].sets[0].state = .logged
+
+    let state = SessionProgressTracker().tileState(for: session, currentSession: session)
+
+    #expect(state == .complete)
+}
+
+@MainActor
+@Test func tileStateIsCurrentWhenCurrentSessionHasPendingWork() {
+    let block = makeBlock()
+    let session = block.weeks[0].sessions[0]
 
     let state = SessionProgressTracker().tileState(for: session, currentSession: session)
 
@@ -148,7 +163,7 @@ private func sortedSessions(in block: Block) -> [Session] {
 }
 
 @MainActor
-@Test func tileStateHasOpenExercisesWhenSomeSetsAreCompleted() {
+@Test func tileStateIsIncompleteWhenNonCurrentSessionIsPartiallyLogged() {
     let block = makeBlock()
     let session = block.weeks[0].sessions[0]
     session.exercises[0].sets.append(
@@ -158,11 +173,11 @@ private func sortedSessions(in block: Block) -> [Session] {
 
     let state = SessionProgressTracker().tileState(for: session, currentSession: nil)
 
-    #expect(state == .hasOpenExercises)
+    #expect(state == .incomplete)
 }
 
 @MainActor
-@Test func tileStateIsUpcomingWhenSessionHasNoSetProgress() {
+@Test func tileStateIsIncompleteWhenNonCurrentSessionHasNoSetProgress() {
     let block = makeBlock()
     let pendingSession = block.weeks[0].sessions[0]
     let emptySession = block.weeks[0].sessions[1]
@@ -170,8 +185,8 @@ private func sortedSessions(in block: Block) -> [Session] {
 
     let tracker = SessionProgressTracker()
 
-    #expect(tracker.tileState(for: pendingSession, currentSession: nil) == .upcoming)
-    #expect(tracker.tileState(for: emptySession, currentSession: nil) == .upcoming)
+    #expect(tracker.tileState(for: pendingSession, currentSession: nil) == .incomplete)
+    #expect(tracker.tileState(for: emptySession, currentSession: nil) == .incomplete)
 }
 
 @MainActor

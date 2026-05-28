@@ -154,9 +154,8 @@ import Testing
 
     #if canImport(AppKit)
         #expect(rgbComponents(of: Theme.sessionTileComplete) != nil)
-        #expect(rgbComponents(of: Theme.sessionTileHasOpenExercises) != nil)
-        #expect(rgbComponents(of: Theme.sessionTileCurrent) != nil)
-        #expect(rgbComponents(of: Theme.sessionTileUpcoming) != nil)
+        #expect(rgbComponents(of: Theme.sessionTileIncomplete) != nil)
+        #expect(rgbComponents(of: Theme.sessionTileCurrentBorder) != nil)
     #endif
 }
 
