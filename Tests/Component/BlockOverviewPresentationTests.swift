@@ -11,7 +11,8 @@ import Testing
     #expect(presentation.title == "Block 27")
     #expect(presentation.tiles.map(\.weekNumber) == [1, 1, 1, 2])
     #expect(presentation.tiles.map(\.dayNumber) == [1, 2, 3, 1])
-    #expect(presentation.tiles.map(\.state) == [.complete, .hasOpenExercises, .current, .upcoming])
+    #expect(presentation.tiles.map(\.state) == [.complete, .incomplete, .current, .incomplete])
+    #expect(presentation.tiles.map(\.accessibilityValue) == ["Complete", "Incomplete", "Current", "Incomplete"])
     let identifiers = presentation.tiles.map(\.accessibilityIdentifier)
     #expect(identifiers == ["session-tile-W1-D1", "session-tile-W1-D2", "session-tile-W1-D3", "session-tile-W2-D1"])
 }

@@ -49,5 +49,5 @@ import Testing
 
     let overview = WorkoutScenarios.blockOverviewWithMixedSessionStates()
     let presentation = BlockOverviewPresentation(block: overview.block, currentSession: overview.currentSession)
-    #expect(presentation.tiles.map(\.state) == [.complete, .hasOpenExercises, .current, .upcoming])
+    #expect(presentation.tiles.map(\.state) == [.complete, .incomplete, .current, .incomplete])
 }
