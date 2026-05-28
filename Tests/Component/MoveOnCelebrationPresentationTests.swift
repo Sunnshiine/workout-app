@@ -68,6 +68,26 @@ import Testing
 }
 
 @MainActor
+@Test func moveOnCelebrationPresentationUsesApprovedQuoteRotation() {
+    let session = makeMoveOnSession(
+        exercises: [
+            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged])
+        ]
+    )
+
+    let presentation = MoveOnCelebrationPresentation(session: session)
+
+    #expect(
+        presentation.quotes == [
+            "You're fucking amazing.",
+            "God damn!",
+            "Get it girl!",
+            "Shake it!"
+        ]
+    )
+}
+
+@MainActor
 private func makeMoveOnSession(
     weekNumber: Int = 1,
     dayNumber: Int = 1,
