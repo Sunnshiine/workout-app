@@ -60,7 +60,7 @@ struct SessionView: View {
 
                                     if workout.isViewingLiveEdge, workout.canMoveOn {
                                         MoveOnButton {
-                                            workout.moveOn()
+                                            workout.requestMoveOnCelebration()
                                         }
                                     }
 
@@ -130,7 +130,16 @@ struct SessionView: View {
                 .transition(.opacity.combined(with: .scale(scale: 0.94, anchor: .topTrailing)))
             }
         }
+        .overlay {
+            if let session = workout.moveOnCelebrationSession {
+                MoveOnCelebrationView(session: session) {
+                    workout.dismissMoveOnCelebration()
+                }
+                .transition(.opacity)
+            }
+        }
         .animation(.easeInOut(duration: 0.18), value: overscrollToolbarVisibility.isVisible)
+        .animation(.easeInOut(duration: 0.18), value: workout.moveOnCelebrationSession?.persistentModelID)
         .sheet(isPresented: $isSettingsPresented) {
             SettingsView()
         }
@@ -340,6 +349,47 @@ private struct MoveOnButton: View {
         .buttonStyle(.glass)
         .accessibilityHint("Advances to the next session")
         .accessibilityIdentifier("move-on-button")
+    }
+}
+
+private struct MoveOnCelebrationView: View {
+    let session: Session
+    let onDismiss: () -> Void
+
+    private var locationLabel: String {
+        guard let week = session.week?.number else { return "Day \(session.dayNumber)" }
+        return "Week \(week) Day \(session.dayNumber)"
+    }
+
+    var body: some View {
+        Button(action: onDismiss) {
+            ZStack {
+                Rectangle()
+                    .fill(.regularMaterial)
+                    .ignoresSafeArea()
+
+                VStack(spacing: 14) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 56, weight: .semibold))
+                        .foregroundStyle(Theme.accent)
+
+                    VStack(spacing: 6) {
+                        Text("Move On")
+                            .font(.largeTitle.weight(.bold))
+                        Text(locationLabel)
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(32)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Move On Celebration, \(locationLabel)")
+        .accessibilityHint("Advances to the next session")
+        .accessibilityIdentifier("move-on-celebration")
     }
 }
 
