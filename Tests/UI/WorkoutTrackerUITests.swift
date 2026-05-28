@@ -18,10 +18,11 @@ final class WorkoutTrackerUITests: XCTestCase {
         waitForLabel("Weight, 252.5", on: app.buttons["weight-pill"])
 
         tapWhenReady(app.buttons["move-on-button"], in: app)
-        let celebration = app.buttons["move-on-celebration"]
+        let celebration = moveOnCelebration(in: app)
         XCTAssertTrue(celebration.waitForExistence(timeout: 3))
         waitForLabel("Week 1, Day 1 Done", on: celebration)
         waitForValue("5 Sets, 2 Exercises, 4 Left, Moved on with 4 left", on: celebration)
+        assertMoveOnCelebrationCopyIsReadable(in: app)
         XCTAssertFalse(app.staticTexts["Back Squat"].exists)
 
         celebration.tap()
@@ -231,5 +232,57 @@ final class WorkoutTrackerUITests: XCTestCase {
             RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         }
         XCTFail("Expected \(element) to become hittable")
+    }
+
+    @MainActor
+    private func moveOnCelebration(in app: XCUIApplication) -> XCUIElement {
+        let button = app.buttons["move-on-celebration"]
+        if button.waitForExistence(timeout: 1) {
+            return button
+        }
+
+        let scrollView = app.scrollViews["move-on-celebration"]
+        if scrollView.waitForExistence(timeout: 1) {
+            return scrollView
+        }
+
+        let element = app.otherElements["move-on-celebration"]
+        XCTAssertTrue(element.waitForExistence(timeout: 3))
+        return element
+    }
+
+    @MainActor
+    private func assertMoveOnCelebrationCopyIsReadable(in app: XCUIApplication) {
+        let approvedQuotes = [
+            "You're fucking amazing.",
+            "God damn!",
+            "Get it girl!",
+            "Shake it!"
+        ]
+        let quote = app.staticTexts["move-on-celebration-quote"]
+        let title = app.staticTexts["move-on-celebration-title"]
+        let subline = app.staticTexts["move-on-celebration-subline"]
+        let stats = [
+            app.staticTexts["move-on-celebration-sets-value"],
+            app.staticTexts["move-on-celebration-exercises-value"],
+            app.staticTexts["move-on-celebration-left-value"],
+            app.staticTexts["move-on-celebration-sets-label"],
+            app.staticTexts["move-on-celebration-exercises-label"],
+            app.staticTexts["move-on-celebration-left-label"]
+        ]
+        let hint = app.staticTexts["move-on-celebration-hint"]
+        let windowFrame = app.windows.element(boundBy: 0).frame
+
+        XCTAssertTrue(quote.waitForExistence(timeout: 6))
+        XCTAssertTrue(approvedQuotes.contains(quote.label))
+
+        for element in [quote, title, subline, hint] + stats {
+            XCTAssertTrue(element.waitForExistence(timeout: 3))
+            XCTAssertTrue(windowFrame.contains(element.frame), "\(element) is clipped outside \(windowFrame)")
+        }
+
+        XCTAssertLessThanOrEqual(quote.frame.maxY, title.frame.minY)
+        XCTAssertLessThanOrEqual(title.frame.maxY, subline.frame.minY)
+        XCTAssertLessThan(stats.map(\.frame.maxY).max() ?? 0, hint.frame.minY)
     }
 }
