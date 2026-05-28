@@ -51,8 +51,17 @@ final class WorkoutTrackerUITests: XCTestCase {
 
         settingsButton.tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["settings-training-sheet-row"].exists)
+        XCTAssertTrue(app.staticTexts["Fixture Training Log"].exists)
+
+        app.buttons["settings-training-sheet-row"].tap()
+        XCTAssertTrue(app.staticTexts["Choose your training sheet"].waitForExistence(timeout: 3))
+        app.buttons["sheet-picker-done-button"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
+
         app.buttons["settings-done-button"].tap()
 
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 3))
         XCTAssertTrue(syncButton.waitForExistence(timeout: 3))
         syncButton.tap()
         XCTAssertTrue(app.staticTexts["Offline"].waitForExistence(timeout: 3))
@@ -62,10 +71,91 @@ final class WorkoutTrackerUITests: XCTestCase {
     }
 
     @MainActor
-    private func launchFixtureApp() -> XCUIApplication {
+    func testSettingsSignOutReturnsToOnboarding() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+            .press(
+                forDuration: 0.1,
+                thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
+            )
+
+        app.buttons["session-toolbar-settings-button"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
+
+        app.buttons["settings-sign-out-button"].tap()
+
+        XCTAssertTrue(app.staticTexts["Connect your training sheet"].waitForExistence(timeout: 3))
+    }
+
+    @MainActor
+    func testSettingsSignOutWithPendingWritesRequiresConfirmation() throws {
+        let app = launchFixtureApp(extraArguments: ["-UITEST_PENDING_WRITE"])
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+            .press(
+                forDuration: 0.1,
+                thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
+            )
+
+        app.buttons["session-toolbar-settings-button"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
+
+        app.buttons["settings-sign-out-button"].tap()
+        XCTAssertTrue(app.alerts["You have unsynced changes. Sign out anyway?"].waitForExistence(timeout: 3))
+        app.alerts.buttons["Cancel"].tap()
+
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
+        app.buttons["settings-sign-out-button"].tap()
+        XCTAssertTrue(app.alerts["You have unsynced changes. Sign out anyway?"].waitForExistence(timeout: 3))
+        app.alerts.buttons["Sign Out"].tap()
+
+        XCTAssertTrue(app.staticTexts["Connect your training sheet"].waitForExistence(timeout: 3))
+    }
+
+    @MainActor
+    func testSheetSwitchWithPendingWritesShowsConfirmation() throws {
+        let app = launchFixtureApp(extraArguments: ["-UITEST_PENDING_WRITE"])
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+            .press(
+                forDuration: 0.1,
+                thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
+            )
+
+        app.buttons["session-toolbar-settings-button"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
+
+        app.buttons["settings-training-sheet-row"].tap()
+        XCTAssertTrue(app.staticTexts["Replacement Training Log"].waitForExistence(timeout: 3))
+        app.staticTexts["Replacement Training Log"].tap()
+
+        XCTAssertTrue(app.alerts["You have unsynced changes. Switch anyway?"].waitForExistence(timeout: 3))
+        app.alerts.buttons["Cancel"].tap()
+
+        XCTAssertTrue(app.staticTexts["Replacement Training Log"].waitForExistence(timeout: 3))
+        app.staticTexts["Replacement Training Log"].tap()
+        XCTAssertTrue(app.alerts["You have unsynced changes. Switch anyway?"].waitForExistence(timeout: 3))
+        app.alerts.buttons["Switch Anyway"].tap()
+
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Replacement Training Log"].waitForExistence(timeout: 3))
+
+        tapWhenHittable(app.buttons["settings-done-button"])
+        XCTAssertTrue(app.staticTexts["Replacement Squat"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    private func launchFixtureApp(extraArguments: [String] = []) -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = ["-UITEST_FIXTURE"]
+        app.launchArguments = ["-UITEST_FIXTURE"] + extraArguments
         app.launch()
         return app
     }
@@ -107,5 +197,19 @@ final class WorkoutTrackerUITests: XCTestCase {
             RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         }
         XCTFail("Expected \(element) to become enabled")
+    }
+
+    @MainActor
+    private func tapWhenHittable(_ element: XCUIElement) {
+        XCTAssertTrue(element.waitForExistence(timeout: 3))
+        let deadline = Date().addingTimeInterval(3)
+        while Date() < deadline {
+            if element.isHittable {
+                element.tap()
+                return
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        XCTFail("Expected \(element) to become hittable")
     }
 }

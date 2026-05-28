@@ -14,9 +14,9 @@ struct OnboardingView: View {
             case .signIn:
                 signInCard
             case .sheetPicker:
-                SheetPickerView {
+                SheetPickerView(onPasteURL: {
                     withAnimation { showsURLFallback = true }
-                }
+                })
                 .glassEffectID("onboarding", in: ns)
             case .urlEntry:
                 urlEntryCard
@@ -100,17 +100,29 @@ struct OnboardingView: View {
     }
 }
 
-private struct SheetPickerView: View {
+struct SheetPickerView: View {
     @Environment(SettingsStore.self) private var settings
     @State private var store: SheetPickerStore?
 
-    let onPasteURL: () -> Void
+    let onPasteURL: (() -> Void)?
     private let client: any SheetsClient
+    private let onValidatedSelection: ((SpreadsheetFile) async -> Void)?
+    private let onDone: (() -> Void)?
+    private let isSelectionDisabled: Bool
     private let relativeFormatter: RelativeDateTimeFormatter
 
-    init(client: any SheetsClient = GoogleSheetsClient(), onPasteURL: @escaping () -> Void) {
+    init(
+        client: any SheetsClient = GoogleSheetsClient(),
+        onValidatedSelection: ((SpreadsheetFile) async -> Void)? = nil,
+        onPasteURL: (() -> Void)? = nil,
+        onDone: (() -> Void)? = nil,
+        isSelectionDisabled: Bool = false
+    ) {
         self.client = client
+        self.onValidatedSelection = onValidatedSelection
         self.onPasteURL = onPasteURL
+        self.onDone = onDone
+        self.isSelectionDisabled = isSelectionDisabled
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
         self.relativeFormatter = formatter
@@ -123,23 +135,43 @@ private struct SheetPickerView: View {
 
             content
 
-            Button {
-                store?.cancelSelection()
-                onPasteURL()
-            } label: {
-                Text("Paste a URL instead")
+            if let onPasteURL {
+                Button {
+                    store?.cancelSelection()
+                    onPasteURL()
+                } label: {
+                    Text("Paste a URL instead")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.accent)
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(Theme.accent)
         }
         .padding()
         .frame(maxWidth: 520)
         .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
         .task {
             guard store == nil else { return }
-            let pickerStore = SheetPickerStore(client: client, settings: settings)
+            let pickerStore = SheetPickerStore(
+                client: client,
+                settings: settings,
+                onValidatedSelection: onValidatedSelection
+            )
             store = pickerStore
             await pickerStore.loadInitial()
+        }
+        .toolbar {
+            if let onDone {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        store?.cancelSelection()
+                        onDone()
+                    }
+                    .accessibilityIdentifier("sheet-picker-done-button")
+                }
+            }
+        }
+        .onDisappear {
+            store?.cancelSelection()
         }
     }
 
@@ -169,7 +201,8 @@ private struct SheetPickerView: View {
                                     relativeTo: Date()
                                 ),
                                 errorMessage: store.rowError(for: spreadsheet),
-                                isValidating: store.validatingSpreadsheetId == spreadsheet.spreadsheetId
+                                isValidating: store.validatingSpreadsheetId == spreadsheet.spreadsheetId,
+                                isDisabled: store.validatingSpreadsheetId != nil || isSelectionDisabled
                             ) {
                                 store.select(spreadsheet)
                             }
@@ -210,6 +243,7 @@ private struct SheetPickerRow: View {
     let modifiedText: String
     let errorMessage: String?
     let isValidating: Bool
+    let isDisabled: Bool
     let action: () -> Void
 
     var body: some View {
@@ -249,7 +283,7 @@ private struct SheetPickerRow: View {
             )
         }
         .buttonStyle(.plain)
-        .disabled(isValidating)
+        .disabled(isDisabled)
     }
 }
 
