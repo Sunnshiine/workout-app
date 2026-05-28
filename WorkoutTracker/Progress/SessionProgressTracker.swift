@@ -1,10 +1,20 @@
 import Foundation
 
-enum SessionTileState: Equatable, Sendable {
+enum SessionTileState: Equatable, Sendable, CaseIterable {
     case complete
-    case hasOpenExercises
     case current
-    case upcoming
+    case incomplete
+
+    var accessibilityValue: String {
+        switch self {
+        case .complete:
+            "Complete"
+        case .current:
+            "Current"
+        case .incomplete:
+            "Incomplete"
+        }
+    }
 }
 
 struct SessionProgressTracker {
@@ -62,20 +72,15 @@ struct SessionProgressTracker {
     }
 
     func tileState(for session: Session, currentSession: Session?) -> SessionTileState {
+        let sets = session.exercises.flatMap(\.sets)
+        if !sets.isEmpty, sets.allSatisfy({ $0.state == .logged || $0.state == .skipped }) {
+            return .complete
+        }
+
         if session.persistentModelID == currentSession?.persistentModelID {
             return .current
         }
 
-        let sets = session.exercises.flatMap(\.sets)
-        guard !sets.isEmpty else { return .upcoming }
-
-        let completedCount = sets.filter { $0.state == .logged || $0.state == .skipped }.count
-        if completedCount == sets.count {
-            return .complete
-        }
-        if completedCount > 0 {
-            return .hasOpenExercises
-        }
-        return .upcoming
+        return .incomplete
     }
 }
