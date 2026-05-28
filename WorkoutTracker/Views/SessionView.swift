@@ -8,6 +8,9 @@ struct SessionView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(\.modelContext) private var modelContext
     @State private var coordinator = SessionCoordinator(session: nil)
+    @State private var overscrollToolbarVisibility = OverscrollToolbarVisibility.hidden
+    @State private var isSettingsPresented = false
+    @State private var isToolbarSyncInFlight = false
 
     var body: some View {
         Group {
@@ -77,6 +80,10 @@ struct SessionView: View {
                             .padding(.horizontal)
                             .padding(.vertical)
                         }
+                        .scrollBounceBehavior(.always)
+                        .onScrollGeometryChange(for: CGFloat.self, of: topContentOffset) { _, offset in
+                            updateOverscrollToolbar(topContentOffset: offset)
+                        }
                         .onChange(of: coordinator.scrollTargetID) { _, targetID in
                             scrollToSet(targetID, with: proxy)
                         }
@@ -92,20 +99,40 @@ struct SessionView: View {
                     }
                 }
             } else {
-                EmptyStateView {
-                    if let id = settings.spreadsheetId {
-                        await sync.sync(spreadsheetId: id)
-                        workout.reload()
+                ScrollView {
+                    EmptyStateView {
+                        await syncConfiguredSheet()
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal)
+                    .padding(.vertical, 80)
+                }
+                .scrollBounceBehavior(.always)
+                .onScrollGeometryChange(for: CGFloat.self, of: topContentOffset) { _, offset in
+                    updateOverscrollToolbar(topContentOffset: offset)
                 }
             }
         }
         .background(Theme.gradient.ignoresSafeArea())
-        .refreshable {
-            if let id = settings.spreadsheetId {
-                await sync.sync(spreadsheetId: id)
-                workout.reload()
+        .overlay(alignment: .topTrailing) {
+            if overscrollToolbarVisibility.isVisible {
+                SessionOverscrollToolbar(
+                    isSyncDisabled: isToolbarSyncDisabled,
+                    onSettings: {
+                        isSettingsPresented = true
+                    },
+                    onSync: {
+                        Task { await syncConfiguredSheet() }
+                    }
+                )
+                .padding(.top, 8)
+                .padding(.trailing)
+                .transition(.opacity.combined(with: .scale(scale: 0.94, anchor: .topTrailing)))
             }
+        }
+        .animation(.easeInOut(duration: 0.18), value: overscrollToolbarVisibility.isVisible)
+        .sheet(isPresented: $isSettingsPresented) {
+            SettingsPlaceholderView()
         }
         .task {
             workout.reload()
@@ -114,6 +141,29 @@ struct SessionView: View {
                 workout.reload()
             }
         }
+    }
+
+    private func updateOverscrollToolbar(topContentOffset: CGFloat) {
+        let updatedVisibility = overscrollToolbarVisibility.updated(topContentOffset: topContentOffset)
+        guard updatedVisibility != overscrollToolbarVisibility else { return }
+        overscrollToolbarVisibility = updatedVisibility
+    }
+
+    private func topContentOffset(_ geometry: ScrollGeometry) -> CGFloat {
+        -(geometry.contentOffset.y + geometry.contentInsets.top)
+    }
+
+    private var isToolbarSyncDisabled: Bool {
+        isToolbarSyncInFlight || sync.state == .syncing
+    }
+
+    @MainActor
+    private func syncConfiguredSheet() async {
+        guard let id = settings.spreadsheetId, !isToolbarSyncDisabled else { return }
+        isToolbarSyncInFlight = true
+        defer { isToolbarSyncInFlight = false }
+        await sync.sync(spreadsheetId: id)
+        workout.reload()
     }
 
     private func bindCoordinator(to session: Session) {
@@ -224,6 +274,53 @@ struct SessionView: View {
 extension SessionView {
     fileprivate func warningHaptic() {
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
+    }
+}
+
+private struct SessionOverscrollToolbar: View {
+    let isSyncDisabled: Bool
+    let onSettings: () -> Void
+    let onSync: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Button(action: onSettings) {
+                Label("Settings", systemImage: "gearshape")
+                    .labelStyle(.iconOnly)
+                    .frame(width: 44, height: 44)
+            }
+            .buttonStyle(.glass)
+            .accessibilityIdentifier("session-toolbar-settings-button")
+
+            Button(action: onSync) {
+                Label("Sync", systemImage: "arrow.triangle.2.circlepath")
+                    .labelStyle(.iconOnly)
+                    .frame(width: 44, height: 44)
+            }
+            .buttonStyle(.glass)
+            .disabled(isSyncDisabled)
+            .accessibilityIdentifier("session-toolbar-sync-button")
+        }
+    }
+}
+
+private struct SettingsPlaceholderView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Color.clear
+                .background(Theme.gradient.ignoresSafeArea())
+                .navigationTitle("Settings")
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") {
+                            dismiss()
+                        }
+                        .accessibilityIdentifier("settings-done-button")
+                    }
+                }
+        }
     }
 }
 
