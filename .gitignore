@@ -1,6 +1,9 @@
 # Visual brainstorming companion mockups
 .superpowers/
 
+# Secrets (xcconfig with Google Client ID, etc.)
+Secrets.xcconfig
+
 # Claude Code — machine-local settings and nested worktrees (not for the shared repo)
 .claude/settings.local.json
 .claude/worktrees/
