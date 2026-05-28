@@ -3,6 +3,11 @@ struct MoveOnCelebrationStatPresentation: Equatable, Sendable {
     let label: String
 }
 
+enum MoveOnCelebrationHapticStyle: Equatable, Hashable, Sendable {
+    case success
+    case successWithImpact
+}
+
 struct MoveOnCelebrationPresentation: Equatable, Sendable {
     static let approvedQuotes = [
         "You're fucking amazing.",
@@ -18,6 +23,7 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
     let quotes: [String]
     let accessibilityLabel: String
     let accessibilityValue: String
+    let hapticStyle: MoveOnCelebrationHapticStyle
 
     @MainActor
     init(session: Session) {
@@ -39,5 +45,6 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
         accessibilityLabel = "\(weekText), \(titleText)"
         accessibilityValue = (stats.map { "\($0.value) \($0.label)" } + [sublineText])
             .joined(separator: ", ")
+        hapticStyle = pendingSetCount == 0 ? .successWithImpact : .success
     }
 }
