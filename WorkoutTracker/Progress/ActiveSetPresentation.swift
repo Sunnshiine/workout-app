@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 enum SetRowTone: Equatable, Sendable {
@@ -94,6 +95,28 @@ struct SessionProgressHeaderPresentation: Equatable, Sendable {
                 return SessionProgressSegmentPresentation(state: .futurePending)
             }
         }
+    }
+}
+
+struct OverscrollToolbarVisibility: Equatable, Sendable {
+    static let hidden = OverscrollToolbarVisibility(isVisible: false)
+    static let visible = OverscrollToolbarVisibility(isVisible: true)
+
+    private static let revealOffset: CGFloat = 32
+    private static let dismissOffset: CGFloat = -24
+
+    let isVisible: Bool
+
+    func updated(topContentOffset: CGFloat) -> Self {
+        if topContentOffset >= Self.revealOffset {
+            return .visible
+        }
+
+        if isVisible, topContentOffset > Self.dismissOffset {
+            return .visible
+        }
+
+        return .hidden
     }
 }
 

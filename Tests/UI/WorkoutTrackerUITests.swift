@@ -32,6 +32,36 @@ final class WorkoutTrackerUITests: XCTestCase {
     }
 
     @MainActor
+    func testOverscrollToolbarRevealsSettingsAndSyncControls() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["session-toolbar-settings-button"].exists)
+
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+            .press(
+                forDuration: 0.1,
+                thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
+            )
+
+        let settingsButton = app.buttons["session-toolbar-settings-button"]
+        let syncButton = app.buttons["session-toolbar-sync-button"]
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 3))
+        XCTAssertTrue(syncButton.exists)
+
+        settingsButton.tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
+        app.buttons["settings-done-button"].tap()
+
+        XCTAssertTrue(syncButton.waitForExistence(timeout: 3))
+        syncButton.tap()
+        XCTAssertTrue(app.staticTexts["Offline"].waitForExistence(timeout: 3))
+
+        app.swipeUp()
+        XCTAssertFalse(settingsButton.waitForExistence(timeout: 1))
+    }
+
+    @MainActor
     private func launchFixtureApp() -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
