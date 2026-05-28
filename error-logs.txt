@@ -1,0 +1,52 @@
+
+Showing Recent Issues
+
+Prepare packages
+
+/usr/bin/sandbox-exec -p "(version 1)
+(deny default)
+(import \"system.sb\")
+(allow file-read*)
+(allow process*)
+(allow mach-lookup (global-name \"com.apple.lsd.mapdb\"))
+(allow mach-lookup (global-name \"com.apple.mobileassetd.v2\"))
+(allow file-write*
+    (subpath \"/private/tmp\")
+    (subpath \"/private/var/tmp\")
+    (subpath \"/private/var/folders/v1/jtl6jcg956nb7lg1jkcl61sw0000gp/T\")
+    (subpath \"/private/var/folders/v1/jtl6jcg956nb7lg1jkcl61sw0000gp/C\")
+)
+(deny file-write*
+    (subpath \"/Users/sunny/Projects/workout-app\")
+)
+(allow file-write*
+    (subpath \"/Users/sunny/Library/Developer/Xcode/DerivedData/WorkoutTracker-bblalqtwhnnwkeghwhvaxefqvzlk/Build/Intermediates.noindex/BuildToolPluginIntermediates/WorkoutTracker.output/WorkoutTracker/SwiftLintBuildToolPlugin\")
+    (subpath \"/private/var/folders/v1/jtl6jcg956nb7lg1jkcl61sw0000gp/T/TemporaryItems\")
+)
+" /Users/sunny/Library/Developer/Xcode/DerivedData/WorkoutTracker-bblalqtwhnnwkeghwhvaxefqvzlk/SourcePackages/artifacts/swiftlintplugins/SwiftLintBinary/SwiftLintBinary.artifactbundle/macos/swiftlint lint --quiet --force-exclude --cache-path /Users/sunny/Library/Developer/Xcode/DerivedData/WorkoutTracker-bblalqtwhnnwkeghwhvaxefqvzlk/Build/Intermediates.noindex/BuildToolPluginIntermediates/WorkoutTracker.output/WorkoutTracker/SwiftLintBuildToolPlugin/Cache /Users/sunny/Projects/workout-app/WorkoutTracker/Views/ActiveSetCard.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Progress/ActiveSetFocusManager.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Progress/ActiveSetPresentation.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Models/Block.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Parsing/BlockBuilder.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Progress/BlockOverviewPresentation.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Views/BlockOverviewView.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Parsing/BlockTabSelector.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Views/EmptyStateView.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Models/Exercise.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Views/ExerciseSection.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Views/ExerciseSummaryRow.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Sheets/GoogleAuth.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Sheets/GoogleSheetsClient.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Views/LastPerformedCard.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Models/LastPerformedEntry.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Progress/LastPerformedExtractor.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Progress/LastPerformedIndex.swift /Users/sunny/Projects/workout-app/WorkoutTracker/LoadSuggestionEngine.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Views/OnboardingView.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Models/PendingWrite.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Views/RPEGrid.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Views/RootView.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Progress/SessionCoordinator.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Views/SessionProgressHeader.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Progress/SessionProgressTracker.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Views/SessionTile.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Views/SessionView.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Models/SetLog.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Views/SetRow.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Stores/SettingsStore.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Parsing/SheetGrid.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Parsing/SheetParser.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Sheets/SheetWriter.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Sheets/SheetsClient.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Views/SmartValuePills.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Progress/SmartValuePillsForm.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Progress/SupersetState.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Stores/SyncCoordinator.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Views/SyncStatusBanner.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Stores/SyncStatusBannerPresentation.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Theme.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Fixtures/UITestFixture.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Fixtures/WorkoutFixtureScenarios.swift /Users/sunny/Projects/workout-app/WorkoutTracker/Stores/WorkoutStore.swift /Users/sunny/Projects/workout-app/WorkoutTracker/WorkoutTrackerApp.swift
+
+/Users/sunny/Projects/workout-app/WorkoutTracker/Progress/SessionCoordinator.swift:647:1: warning: File Length Violation: File should contain 500 lines or less: currently contains 647 (file_length)
+
+/Users/sunny/Projects/workout-app/WorkoutTracker/Progress/SessionCoordinator.swift:647:1: File Length Violation: File should contain 500 lines or less: currently contains 647 (file_length)
+
+
+Build target WorkoutTracker of project WorkoutTracker with configuration Debug
+
+CodeSign /Users/sunny/Library/Developer/Xcode/DerivedData/WorkoutTracker-bblalqtwhnnwkeghwhvaxefqvzlk/Build/Products/Debug-iphoneos/WorkoutTracker.app/WorkoutTracker.debug.dylib (in target 'WorkoutTracker' from project 'WorkoutTracker')
+    cd /Users/sunny/Projects/workout-app
+    
+    Signing Identity:     "Apple Development: sunnythejolly@gmail.com (LM9AVP5G49)"
+    Provisioning Profile: "iOS Team Provisioning Profile: com.sunnypatel.WorkoutTracker"
+                          (e6bccc7b-2c9f-43f7-a9a3-e9bbeaedc161)
+    
+    /usr/bin/codesign --force --sign 70790CC899AE06E55132DD9DFF36540A33B4DB7C --timestamp\=none --generate-entitlement-der /Users/sunny/Library/Developer/Xcode/DerivedData/WorkoutTracker-bblalqtwhnnwkeghwhvaxefqvzlk/Build/Products/Debug-iphoneos/WorkoutTracker.app/WorkoutTracker.debug.dylib
+
+Warning: unable to build chain to self-signed root for signer "Apple Development: sunnythejolly@gmail.com (LM9AVP5G49)"
+/Users/sunny/Library/Developer/Xcode/DerivedData/WorkoutTracker-bblalqtwhnnwkeghwhvaxefqvzlk/Build/Products/Debug-iphoneos/WorkoutTracker.app/WorkoutTracker.debug.dylib: errSecInternalComponent
+Command CodeSign failed with a nonzero exit code
+
+Command CodeSign failed with a nonzero exit code
+
+
+
+Build failed    5/27/26, 9:13 PM    8.0 seconds
