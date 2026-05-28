@@ -72,6 +72,46 @@ import Testing
 }
 
 @MainActor
+@Test func sheetPickerRunsCustomSelectionAfterBlockTabValidation() async throws {
+    let file = SpreadsheetFile(name: "Training Log", spreadsheetId: "sheet-1", modifiedDate: .distantPast)
+    let client = StubPickerClient(pages: [], tabTitles: ["Overview", "Block - 27"])
+    let settings = SettingsStore(defaults: try makeDefaults())
+    var selected: [SpreadsheetFile] = []
+    let store = SheetPickerStore(client: client, settings: settings) { spreadsheet in
+        selected.append(spreadsheet)
+    }
+
+    await store.select(file).value
+
+    #expect(client.validatedSpreadsheetIds == ["sheet-1"])
+    #expect(selected == [file])
+    #expect(settings.spreadsheetId == nil)
+    #expect(settings.spreadsheetTitle == nil)
+    #expect(store.rowError(for: file) == nil)
+}
+
+@MainActor
+@Test func sheetPickerDoesNotRunCustomSelectionAfterCancellation() async throws {
+    let file = SpreadsheetFile(name: "Training Log", spreadsheetId: "sheet-1", modifiedDate: .distantPast)
+    let client = ControlledValidationClient()
+    let settings = SettingsStore(defaults: try makeDefaults())
+    var selected: [SpreadsheetFile] = []
+    let store = SheetPickerStore(client: client, settings: settings) { spreadsheet in
+        selected.append(spreadsheet)
+    }
+
+    let task = store.select(file)
+    await client.waitForRequest(spreadsheetId: "sheet-1")
+    store.cancelSelection()
+    await client.complete(spreadsheetId: "sheet-1", titles: ["Block 27"])
+    await task.value
+
+    #expect(selected.isEmpty)
+    #expect(settings.spreadsheetId == nil)
+    #expect(settings.spreadsheetTitle == nil)
+}
+
+@MainActor
 @Test func sheetPickerShowsInlineErrorWhenSheetHasNoBlockTabs() async throws {
     let file = SpreadsheetFile(name: "Budget", spreadsheetId: "sheet-1", modifiedDate: .distantPast)
     let client = StubPickerClient(pages: [], tabTitles: ["Overview", "RPE Chart"])

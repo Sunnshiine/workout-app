@@ -12,6 +12,10 @@
             ProcessInfo.processInfo.arguments.contains("-UITEST_FIXTURE")
         }
 
+        static var startsWithPendingWrite: Bool {
+            ProcessInfo.processInfo.arguments.contains("-UITEST_PENDING_WRITE")
+        }
+
         private static let defaultsSuiteName = "WorkoutTracker.UITestFixture"
 
         /// An in-memory container seeded with one sample Block.
@@ -43,6 +47,9 @@
         private static func seed(into context: ModelContext) {
             context.insert(WorkoutFixtureScenarios.uiLaunchBlock())
             context.insert(WorkoutFixtureScenarios.lastPerformedBackSquat())
+            if startsWithPendingWrite {
+                context.insert(WorkoutFixtureScenarios.queuedWrite())
+            }
             // swiftlint:disable:next force_try
             try! context.save()
         }
@@ -53,10 +60,47 @@
             ["Block 27"]
         }
 
+        func listSpreadsheets(pageToken: String?) async throws -> SpreadsheetListPage {
+            SpreadsheetListPage(
+                spreadsheets: [
+                    SpreadsheetFile(
+                        name: "Replacement Training Log",
+                        spreadsheetId: WorkoutFixtureScenarios.replacementSheetId,
+                        modifiedDate: Date(timeIntervalSinceReferenceDate: 0)
+                    )
+                ],
+                nextPageToken: nil
+            )
+        }
+
         func fetchTab(spreadsheetId: String, tabName: String) async throws -> SheetGrid {
-            throw SheetsError.malformedResponse
+            guard spreadsheetId == WorkoutFixtureScenarios.replacementSheetId else {
+                throw SheetsError.malformedResponse
+            }
+
+            return gridFromA1(
+                [
+                    "C12": "Day 1", "S12": "Day 2", "AI12": "Day 3", "AX12": "Day 4",
+                    "C13": "5/1/2026",
+                    "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+                    "C15": "Replacement Squat", "D15": "1", "F15": "5", "H15": "RPE8"
+                ],
+                rows: 20,
+                cols: 60
+            )
         }
 
         func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
+    }
+
+    private func gridFromA1(_ cells: [String: String], rows: Int, cols: Int) -> SheetGrid {
+        var grid = SheetGrid(repeating: [String](repeating: "", count: cols), count: rows)
+        for (a1, value) in cells {
+            let index = a1ToIndex(a1)
+            if index.row < rows, index.col < cols {
+                grid[index.row][index.col] = value
+            }
+        }
+        return grid
     }
 #endif
