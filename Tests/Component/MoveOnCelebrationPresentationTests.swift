@@ -21,6 +21,19 @@ import Testing
 }
 
 @MainActor
+@Test func moveOnCelebrationPresentationSelectsSuccessHapticForIncompleteSession() {
+    let session = makeMoveOnSession(
+        exercises: [
+            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .pending])
+        ]
+    )
+
+    let presentation = MoveOnCelebrationPresentation(session: session)
+
+    #expect(presentation.hapticStyle == .success)
+}
+
+@MainActor
 @Test func moveOnCelebrationPresentationShowsStatsInStableOrder() {
     let session = makeMoveOnSession(
         exercises: [
@@ -48,6 +61,19 @@ import Testing
     #expect(presentation.sublineText == "Perfect session")
     #expect(presentation.stats.map(\.label) == ["Sets", "Exercises", "Left"])
     #expect(presentation.stats.map(\.value) == ["3", "1", "0"])
+}
+
+@MainActor
+@Test func moveOnCelebrationPresentationSelectsSuccessWithImpactHapticForPerfectSession() {
+    let session = makeMoveOnSession(
+        exercises: [
+            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .skipped])
+        ]
+    )
+
+    let presentation = MoveOnCelebrationPresentation(session: session)
+
+    #expect(presentation.hapticStyle == .successWithImpact)
 }
 
 @MainActor
