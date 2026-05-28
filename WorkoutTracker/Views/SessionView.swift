@@ -357,65 +357,6 @@ private struct MoveOnButton: View {
     }
 }
 
-private struct MoveOnCelebrationView: View {
-    let presentation: MoveOnCelebrationPresentation
-    let onDismiss: () -> Void
-
-    init(session: Session, onDismiss: @escaping () -> Void) {
-        self.presentation = MoveOnCelebrationPresentation(session: session)
-        self.onDismiss = onDismiss
-    }
-
-    var body: some View {
-        Button(action: onDismiss) {
-            ZStack {
-                Rectangle()
-                    .fill(.regularMaterial)
-                    .ignoresSafeArea()
-
-                VStack(spacing: 14) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 56, weight: .semibold))
-                        .foregroundStyle(Theme.accent)
-
-                    VStack(spacing: 8) {
-                        Text(presentation.weekText)
-                            .font(.headline.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                        Text(presentation.titleText)
-                            .font(.largeTitle.weight(.bold))
-                        Text(presentation.sublineText)
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(Theme.accent)
-                    }
-
-                    HStack(spacing: 18) {
-                        ForEach(presentation.stats, id: \.label) { stat in
-                            VStack(spacing: 4) {
-                                Text(stat.value)
-                                    .font(.title2.weight(.bold))
-                                Text(stat.label)
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.secondary)
-                            }
-                            .frame(minWidth: 72)
-                        }
-                    }
-                    .padding(.top, 6)
-                }
-                .padding(32)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .contentShape(Rectangle())
-            }
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(presentation.accessibilityLabel)
-        .accessibilityValue(presentation.accessibilityValue)
-        .accessibilityHint("Advances to the next session")
-        .accessibilityIdentifier("move-on-celebration")
-    }
-}
-
 private struct OpenExercisesSection: View {
     let exercises: [Exercise]
     let onSelect: (Exercise) -> Void
