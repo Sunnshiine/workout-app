@@ -2,8 +2,26 @@ import Foundation
 
 protocol SheetsClient: Sendable {
     func listTabTitles(spreadsheetId: String) async throws -> [String]
+    func listSpreadsheets(pageToken: String?) async throws -> SpreadsheetListPage
     func fetchTab(spreadsheetId: String, tabName: String) async throws -> SheetGrid
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws
+}
+
+extension SheetsClient {
+    func listSpreadsheets(pageToken: String?) async throws -> SpreadsheetListPage {
+        throw SheetsError.malformedResponse
+    }
+}
+
+struct SpreadsheetListPage: Equatable, Sendable {
+    let spreadsheets: [SpreadsheetFile]
+    let nextPageToken: String?
+}
+
+struct SpreadsheetFile: Equatable, Sendable {
+    let name: String
+    let spreadsheetId: String
+    let modifiedDate: Date
 }
 
 enum SheetsError: Error, Equatable {
