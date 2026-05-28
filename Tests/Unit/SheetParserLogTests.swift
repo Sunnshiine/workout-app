@@ -43,6 +43,27 @@ import Testing
     #expect(exercises[0].sets[0].setLog == nil)
 }
 
+@Test func treatsPartialNotesContinuationRowsAsLoggedWithoutSetLog() {
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": "Hack SQ", "D15": "3", "F15": "7", "H15": "RPE 8",
+            "K16": "185",
+            "K17": "185x7",
+            "K18": "did 3 sets"
+        ],
+        rows: 22,
+        cols: 30
+    )
+    let section = locateWeekSections(in: grid)[0]
+
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+
+    #expect(exercises[0].sets.map(\.state) == [.logged, .logged, .logged])
+    #expect(exercises[0].sets.allSatisfy { $0.setLog == nil })
+}
+
 @Test func ignoresAnchorNotesAsSetLogs() {
     let grid = gridFromA1(
         [
