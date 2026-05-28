@@ -18,6 +18,12 @@ final class WorkoutTrackerUITests: XCTestCase {
         waitForLabel("Weight, 252.5", on: app.buttons["weight-pill"])
 
         tapWhenReady(app.buttons["move-on-button"], in: app)
+        let celebration = app.buttons["move-on-celebration"]
+        XCTAssertTrue(celebration.waitForExistence(timeout: 3))
+        waitForLabel("Move On Celebration, Week 1 Day 1", on: celebration)
+        XCTAssertTrue(app.staticTexts["Back Squat"].exists)
+
+        celebration.tap()
         XCTAssertTrue(app.staticTexts["Bench Press"].waitForExistence(timeout: 3))
 
         app.buttons["session-location-button"].tap()
