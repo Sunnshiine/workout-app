@@ -20,8 +20,9 @@ final class WorkoutTrackerUITests: XCTestCase {
         tapWhenReady(app.buttons["move-on-button"], in: app)
         let celebration = app.buttons["move-on-celebration"]
         XCTAssertTrue(celebration.waitForExistence(timeout: 3))
-        waitForLabel("Move On Celebration, Week 1 Day 1", on: celebration)
-        XCTAssertTrue(app.staticTexts["Back Squat"].exists)
+        waitForLabel("Week 1, Day 1 Done", on: celebration)
+        waitForValue("5 Sets, 2 Exercises, 4 Left, Moved on with 4 left", on: celebration)
+        XCTAssertFalse(app.staticTexts["Back Squat"].exists)
 
         celebration.tap()
         XCTAssertTrue(app.staticTexts["Bench Press"].waitForExistence(timeout: 3))
@@ -190,6 +191,19 @@ final class WorkoutTrackerUITests: XCTestCase {
             RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         }
         XCTFail("Expected \(element) to have label '\(label)', got '\(element.label)'")
+    }
+
+    @MainActor
+    private func waitForValue(_ value: String, on element: XCUIElement) {
+        XCTAssertTrue(element.waitForExistence(timeout: 3))
+        let deadline = Date().addingTimeInterval(3)
+        while Date() < deadline {
+            if element.value as? String == value {
+                return
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        XCTFail("Expected \(element) to have value '\(value)', got '\(String(describing: element.value))'")
     }
 
     @MainActor

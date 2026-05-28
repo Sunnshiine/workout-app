@@ -113,9 +113,10 @@ struct SessionView: View {
                 }
             }
         }
+        .accessibilityHidden(workout.moveOnCelebrationSession != nil)
         .background(Theme.gradient.ignoresSafeArea())
         .overlay(alignment: .topTrailing) {
-            if overscrollToolbarVisibility.isVisible {
+            if shouldShowOverscrollToolbar {
                 SessionOverscrollToolbar(
                     isSyncDisabled: isToolbarSyncDisabled,
                     onSettings: {
@@ -164,6 +165,10 @@ struct SessionView: View {
 
     private var isToolbarSyncDisabled: Bool {
         isToolbarSyncInFlight || sync.state == .syncing
+    }
+
+    private var shouldShowOverscrollToolbar: Bool {
+        overscrollToolbarVisibility.isVisible && workout.moveOnCelebrationSession == nil
     }
 
     @MainActor
@@ -353,12 +358,12 @@ private struct MoveOnButton: View {
 }
 
 private struct MoveOnCelebrationView: View {
-    let session: Session
+    let presentation: MoveOnCelebrationPresentation
     let onDismiss: () -> Void
 
-    private var locationLabel: String {
-        guard let week = session.week?.number else { return "Day \(session.dayNumber)" }
-        return "Week \(week) Day \(session.dayNumber)"
+    init(session: Session, onDismiss: @escaping () -> Void) {
+        self.presentation = MoveOnCelebrationPresentation(session: session)
+        self.onDismiss = onDismiss
     }
 
     var body: some View {
@@ -373,13 +378,30 @@ private struct MoveOnCelebrationView: View {
                         .font(.system(size: 56, weight: .semibold))
                         .foregroundStyle(Theme.accent)
 
-                    VStack(spacing: 6) {
-                        Text("Move On")
-                            .font(.largeTitle.weight(.bold))
-                        Text(locationLabel)
+                    VStack(spacing: 8) {
+                        Text(presentation.weekText)
                             .font(.headline.weight(.semibold))
                             .foregroundStyle(.secondary)
+                        Text(presentation.titleText)
+                            .font(.largeTitle.weight(.bold))
+                        Text(presentation.sublineText)
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(Theme.accent)
                     }
+
+                    HStack(spacing: 18) {
+                        ForEach(presentation.stats, id: \.label) { stat in
+                            VStack(spacing: 4) {
+                                Text(stat.value)
+                                    .font(.title2.weight(.bold))
+                                Text(stat.label)
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(minWidth: 72)
+                        }
+                    }
+                    .padding(.top, 6)
                 }
                 .padding(32)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -387,7 +409,8 @@ private struct MoveOnCelebrationView: View {
             }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Move On Celebration, \(locationLabel)")
+        .accessibilityLabel(presentation.accessibilityLabel)
+        .accessibilityValue(presentation.accessibilityValue)
         .accessibilityHint("Advances to the next session")
         .accessibilityIdentifier("move-on-celebration")
     }
