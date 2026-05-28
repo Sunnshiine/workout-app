@@ -178,6 +178,58 @@ private func makeStore(weekCount: Int = 1, defaults: UserDefaults? = nil) throws
 }
 
 @MainActor
+@Test func requestingMoveOnCelebrationCapturesCurrentSessionWithoutAdvancing() throws {
+    let fixture = try makeStore(defaults: makeDefaults())
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+
+    store.requestMoveOnCelebration()
+
+    #expect(store.moveOnCelebrationSession?.week?.number == 1)
+    #expect(store.moveOnCelebrationSession?.dayNumber == 1)
+    #expect(store.currentSession?.week?.number == 1)
+    #expect(store.currentSession?.dayNumber == 1)
+    #expect(store.displayedSession?.week?.number == 1)
+    #expect(store.displayedSession?.dayNumber == 1)
+}
+
+@MainActor
+@Test func dismissingMoveOnCelebrationAdvancesFromCapturedSession() throws {
+    let fixture = try makeStore(defaults: makeDefaults())
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+
+    store.requestMoveOnCelebration()
+    store.dismissMoveOnCelebration()
+
+    #expect(store.moveOnCelebrationSession == nil)
+    #expect(store.currentSession?.week?.number == 1)
+    #expect(store.currentSession?.dayNumber == 2)
+    #expect(store.displayedSession?.week?.number == 1)
+    #expect(store.displayedSession?.dayNumber == 2)
+}
+
+@MainActor
+@Test func reachingZeroLeftDoesNotShowCelebrationOrAdvanceCurrentSession() throws {
+    let fixture = try makeStore(defaults: makeDefaults())
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+    let currentSet = try #require(store.currentSession?.exercises[0].sets[0])
+
+    currentSet.state = .logged
+    store.reload()
+
+    let currentSession = try #require(store.currentSession)
+    let presentation = SessionProgressHeaderPresentation(session: currentSession)
+    #expect(presentation.remainingSetCount == 0)
+    #expect(store.moveOnCelebrationSession == nil)
+    #expect(store.currentSession?.week?.number == 1)
+    #expect(store.currentSession?.dayNumber == 1)
+    #expect(store.displayedSession?.week?.number == 1)
+    #expect(store.displayedSession?.dayNumber == 1)
+}
+
+@MainActor
 @Test func moveOnAdvancePersistsAcrossReload() throws {
     let fixture = try makeStore(defaults: makeDefaults())
     defer { withExtendedLifetime(fixture.container) {} }
