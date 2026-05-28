@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct MoveOnCelebrationView: View {
     let presentation: MoveOnCelebrationPresentation
@@ -9,6 +10,7 @@ struct MoveOnCelebrationView: View {
 
     private static let quoteRotationInterval: Duration = .seconds(2.4)
     private static let quoteAnimation = Animation.easeInOut(duration: 0.28)
+    private static let perfectImpactDelay: Duration = .milliseconds(120)
     private static let stampSize: CGFloat = 112
     private static let rippleDiameter: CGFloat = 188
 
@@ -70,6 +72,9 @@ struct MoveOnCelebrationView: View {
         .onAppear {
             ripplesExpanded = true
         }
+        .task(id: presentation.hapticStyle) {
+            await playHaptics(for: presentation.hapticStyle)
+        }
         .task {
             guard presentation.quotes.count > 1 else { return }
             while !Task.isCancelled {
@@ -80,6 +85,18 @@ struct MoveOnCelebrationView: View {
                 }
             }
         }
+    }
+
+    @MainActor
+    private func playHaptics(for style: MoveOnCelebrationHapticStyle) async {
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        guard style == .successWithImpact else { return }
+        do {
+            try await Task.sleep(for: Self.perfectImpactDelay)
+        } catch {
+            return
+        }
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 
     private var copyStack: some View {
