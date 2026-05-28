@@ -27,11 +27,33 @@ private struct GoogleSheetsBatchUpdateBody: Encodable {
     let data: [GoogleSheetsValueRange]
 }
 
+private struct GoogleDriveFilesResponse: Decodable {
+    let nextPageToken: String?
+    let files: [GoogleDriveFile]
+}
+
+private struct GoogleDriveFile: Decodable {
+    let id: String
+    let name: String
+    let modifiedTime: String
+}
+
+private enum GoogleDriveListQuery {
+    static let endpoint = "https://www.googleapis.com/drive/v3/files"
+    static let spreadsheetMimeType = "application/vnd.google-apps.spreadsheet"
+    static let pageSize = 20
+}
+
 struct GoogleSheetsClient: SheetsClient {
     private let tokenProvider: @Sendable () async throws -> String
+    private let load: @Sendable (URLRequest) async throws -> (Data, Int)
 
-    init(tokenProvider: @escaping @Sendable () async throws -> String = { try await GoogleAuth.accessToken() }) {
+    init(
+        tokenProvider: @escaping @Sendable () async throws -> String = GoogleSheetsClient.defaultToken,
+        load: @escaping @Sendable (URLRequest) async throws -> (Data, Int) = GoogleSheetsClient.loadWithURLSession
+    ) {
         self.tokenProvider = tokenProvider
+        self.load = load
     }
 
     func listTabTitles(spreadsheetId: String) async throws -> [String] {
@@ -44,6 +66,32 @@ struct GoogleSheetsClient: SheetsClient {
         }
         let data = try await get(url)
         return (try JSONDecoder().decode(GoogleSheetsListResponse.self, from: data)).sheets.map { $0.properties.title }
+    }
+
+    func listSpreadsheets(pageToken: String?) async throws -> SpreadsheetListPage {
+        var components = URLComponents(string: GoogleDriveListQuery.endpoint)
+        components?.queryItems = [
+            URLQueryItem(name: "q", value: "mimeType = '\(GoogleDriveListQuery.spreadsheetMimeType)'"),
+            URLQueryItem(name: "orderBy", value: "modifiedTime desc"),
+            URLQueryItem(name: "pageSize", value: String(GoogleDriveListQuery.pageSize)),
+            URLQueryItem(name: "fields", value: "nextPageToken,files(id,name,modifiedTime)")
+        ]
+        if let pageToken {
+            components?.queryItems?.append(URLQueryItem(name: "pageToken", value: pageToken))
+        }
+        guard let url = components?.url else {
+            throw SheetsError.malformedResponse
+        }
+
+        let data = try await get(url)
+        let response = try JSONDecoder().decode(GoogleDriveFilesResponse.self, from: data)
+        let spreadsheets = try response.files.map { file in
+            guard let modifiedDate = GoogleSheetsClient.driveModifiedDate(from: file.modifiedTime) else {
+                throw SheetsError.malformedResponse
+            }
+            return SpreadsheetFile(name: file.name, spreadsheetId: file.id, modifiedDate: modifiedDate)
+        }
+        return SpreadsheetListPage(spreadsheets: spreadsheets, nextPageToken: response.nextPageToken)
     }
 
     func fetchTab(spreadsheetId: String, tabName: String) async throws -> SheetGrid {
@@ -89,9 +137,36 @@ struct GoogleSheetsClient: SheetsClient {
     private func get(_ url: URL) async throws -> Data {
         var req = URLRequest(url: url)
         req.setValue("Bearer \(try await tokenProvider())", forHTTPHeaderField: "Authorization")
-        let (data, resp) = try await URLSession.shared.data(for: req)
-        guard let http = resp as? HTTPURLResponse else { throw SheetsError.malformedResponse }
-        guard (200..<300).contains(http.statusCode) else { throw SheetsError.http(http.statusCode) }
+        let (data, statusCode) = try await load(req)
+        guard (200..<300).contains(statusCode) else { throw SheetsError.http(statusCode) }
         return data
+    }
+
+    private static func driveModifiedDate(from value: String) -> Date? {
+        let fractionalFormatter = ISO8601DateFormatter()
+        fractionalFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = fractionalFormatter.date(from: value) {
+            return date
+        }
+
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: value)
+    }
+
+    private static func defaultToken() async throws -> String {
+        #if canImport(GoogleSignIn)
+            return try await GoogleAuth.accessToken()
+        #else
+            throw SheetsError.notAuthorized
+        #endif
+    }
+
+    private static func loadWithURLSession(_ request: URLRequest) async throws -> (Data, Int) {
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw SheetsError.malformedResponse
+        }
+        return (data, http.statusCode)
     }
 }

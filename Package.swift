@@ -11,7 +11,6 @@ let package = Package(
             exclude: [
                 "Views",
                 "Sheets/GoogleAuth.swift",
-                "Sheets/GoogleSheetsClient.swift",
                 "WorkoutTrackerApp.swift",
                 "Info.plist",
                 "LaunchScreen.storyboard",
@@ -21,7 +20,7 @@ let package = Package(
             name: "WorkoutTrackerTests",
             dependencies: ["WorkoutTracker"],
             path: "Tests",
-            exclude: ["UI"]
+            exclude: ["UI", "Unit/GoogleAuthTests.swift"]
         ),
     ]
 )
