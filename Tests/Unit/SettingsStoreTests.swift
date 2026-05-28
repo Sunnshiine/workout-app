@@ -13,3 +13,15 @@ import Testing
     #expect(store.spreadsheetId == "SHEET123")
     #expect(store.isConfigured == true)
 }
+
+@MainActor
+@Test func selectedSpreadsheetPersistsIdAndTitle() throws {
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let store = SettingsStore(defaults: defaults)
+
+    store.setSpreadsheet(id: "SHEET123", title: "Training Log")
+
+    let reloaded = SettingsStore(defaults: defaults)
+    #expect(reloaded.spreadsheetId == "SHEET123")
+    #expect(reloaded.spreadsheetTitle == "Training Log")
+}

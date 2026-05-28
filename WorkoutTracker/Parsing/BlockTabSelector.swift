@@ -22,7 +22,7 @@ func sortedHistoricalTabs(from titles: [String], excluding currentTab: String) -
     .map(\.title)
 }
 
-private func blockNumber(from title: String) -> Int? {
+func blockNumber(from title: String) -> Int? {
     let regex = /^Block\s*-?\s*(\d+)$/
     guard let match = title.wholeMatch(of: regex) else { return nil }
     return Int(match.1)
