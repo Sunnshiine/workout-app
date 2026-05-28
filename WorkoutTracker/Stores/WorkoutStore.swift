@@ -13,6 +13,7 @@ enum WorkoutLoggingError: Error, Equatable {
 final class WorkoutStore {
     private(set) var block: Block?
     private(set) var displayedSession: Session?
+    private(set) var moveOnCelebrationSession: Session?
     private var shouldPreserveDisplayedSessionOnReload = false
 
     private let context: ModelContext
@@ -72,11 +73,33 @@ final class WorkoutStore {
         shouldPreserveDisplayedSessionOnReload = false
     }
 
-    func moveOn() {
+    func requestMoveOnCelebration() {
         guard
             let block,
             let currentSession,
-            let nextSession = tracker.nextSession(after: currentSession, in: block)
+            tracker.nextSession(after: currentSession, in: block) != nil
+        else { return }
+
+        moveOnCelebrationSession = currentSession
+        displayedSession = currentSession
+        shouldPreserveDisplayedSessionOnReload = false
+    }
+
+    func dismissMoveOnCelebration() {
+        guard let session = moveOnCelebrationSession else { return }
+        moveOnCelebrationSession = nil
+        advance(after: session)
+    }
+
+    func moveOn() {
+        guard let currentSession else { return }
+        advance(after: currentSession)
+    }
+
+    private func advance(after session: Session) {
+        guard
+            let block,
+            let nextSession = tracker.nextSession(after: session, in: block)
         else { return }
 
         defaults.set(tracker.order(of: nextSession), forKey: advanceKey(for: block.tabName))
