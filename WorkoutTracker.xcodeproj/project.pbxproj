@@ -57,6 +57,7 @@
 		7D73B4A734A389E428D9DA4B /* ActiveSetFocusManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD5A40419517EF83C31555BC /* ActiveSetFocusManager.swift */; };
 		7DB5C219CA5F71B5CB978133 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 3977E6225F9526AF52619CA9 /* GoogleSignIn */; };
 		8114C284243CB50799C29F3E /* SettingsStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0499FE101F8EA75B5C6D2562 /* SettingsStoreTests.swift */; };
+		A53E53000000000000000001 /* SheetPickerStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A53E53000000000000000002 /* SheetPickerStoreTests.swift */; };
 		856581A20DF9C7C18981ADAF /* LoadSuggestionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22EEE65D45B6DDC0D0563744 /* LoadSuggestionEngine.swift */; };
 		85F8688C58D742521E17C5E9 /* SheetGridTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6BBB0700280BA9330BB8F60 /* SheetGridTests.swift */; };
 		8CAE526FB04320D7A0957080 /* PersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ADEBBADB9046E8CA563F0AB /* PersistenceTests.swift */; };
@@ -171,6 +172,7 @@
 		A12FDB0A5CCFB2C56907DE63 /* GoogleAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAuth.swift; sourceTree = "<group>"; };
 		A2244B0C3FEDB38CFA5D0128 /* SheetGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetGrid.swift; sourceTree = "<group>"; };
 		A3A2EA6D2FC7D57A006C3883 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
+		A53E53000000000000000002 /* SheetPickerStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetPickerStoreTests.swift; sourceTree = "<group>"; };
 		A87608B03C722AD31186659D /* WorkoutModelFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutModelFixture.swift; sourceTree = "<group>"; };
 		A9C6CF59C7F6F897516AFFE7 /* BlockTabSelectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockTabSelectorTests.swift; sourceTree = "<group>"; };
 		ACD0CE14935AD19164A5C62E /* BlockOverviewPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockOverviewPresentation.swift; sourceTree = "<group>"; };
@@ -295,6 +297,7 @@
 				0499FE101F8EA75B5C6D2562 /* SettingsStoreTests.swift */,
 				492A8D172E85B6A0372E0C8C /* SheetA1Tests.swift */,
 				B6BBB0700280BA9330BB8F60 /* SheetGridTests.swift */,
+				A53E53000000000000000002 /* SheetPickerStoreTests.swift */,
 				18C3B37DF33E327032E126B0 /* SheetParserLogTests.swift */,
 				396D9CC61F31C144A588BE7D /* SheetParserTests.swift */,
 				AE7A4D22498359AE35A9EAB6 /* SheetWriterTests.swift */,
@@ -569,6 +572,7 @@
 				4C41F717F6D84DB68492574D /* SheetA1Tests.swift in Sources */,
 				1C87BAF1D8F3626D46102EBF /* SheetGridFixture.swift in Sources */,
 				85F8688C58D742521E17C5E9 /* SheetGridTests.swift in Sources */,
+				A53E53000000000000000001 /* SheetPickerStoreTests.swift in Sources */,
 				57C6C6B94D5C7E277F2E038F /* SheetParserLogTests.swift in Sources */,
 				2B7FBCA4F41C346E3624E263 /* SheetParserTests.swift in Sources */,
 				69CC713B83C49CDF66F74D5C /* SheetWriterTests.swift in Sources */,
