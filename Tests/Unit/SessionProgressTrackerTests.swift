@@ -102,6 +102,30 @@ private func sortedSessions(in block: Block) -> [Session] {
 }
 
 @MainActor
+@Test func currentSessionUsesPartialNotesLogsAsProgress() throws {
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": "Squat", "D15": "1", "F15": "5", "H15": "RPE 8",
+            "C37": "Day 1",
+            "D39": "Sets", "F39": "Reps", "H39": "Load", "K39": "Notes",
+            "C40": "Bench Press", "D40": "1", "F40": "5", "H40": "RPE 8",
+            "K41": "185x5"
+        ],
+        rows: 45,
+        cols: 30
+    )
+    let parsed = SheetParser().parse(grid: grid, tabName: "Block 27")
+    let block = BlockBuilder.makeBlock(from: parsed.block)
+
+    let current = try #require(SessionProgressTracker().currentSession(in: block))
+
+    #expect(current.week?.number == 2)
+    #expect(current.dayNumber == 1)
+}
+
+@MainActor
 @Test func tileStatePrioritizesCurrentSession() {
     let block = makeBlock()
     let session = block.weeks[0].sessions[0]

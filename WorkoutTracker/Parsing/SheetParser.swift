@@ -124,13 +124,16 @@ struct ParsedExercise {
 
 private func parsedLogState(from raw: String) -> (SetState, SetLog?) {
     let value = raw.trimmed
+    guard !value.isEmpty else {
+        return (.pending, nil)
+    }
     if value.caseInsensitiveCompare("skip") == .orderedSame {
         return (.skipped, nil)
     }
     if let log = SetLog(formatted: value) {
         return (.logged, log)
     }
-    return (.pending, nil)
+    return (.logged, nil)
 }
 
 /// Parses all exercises in one day group. Anchor rows have a non-empty name cell;
