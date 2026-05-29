@@ -171,12 +171,13 @@ struct LastPerformedCardPresentation: Equatable, Sendable {
         sourceText = entry.source
     }
 
-    @MainActor
-    init?(exercise: Exercise, index: LastPerformedIndex) {
-        guard let entry = index.lookup(exerciseName: exercise.name, baseName: exercise.baseName) else {
+    init?(exercise: Exercise, lookup: LastPerformedLookupSnapshot) {
+        guard let entry = lookup.lookup(exerciseName: exercise.name, baseName: exercise.baseName) else {
             return nil
         }
-        self.init(entry: entry)
+        label = "Last Performed"
+        resultText = entry.resultText
+        sourceText = entry.sourceText
     }
 }
 

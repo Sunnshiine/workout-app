@@ -14,6 +14,7 @@ final class SyncCoordinator {
     private let client: any SheetsClient
     private let context: ModelContext
     private let sheetWritePlanner: SheetWritePlanner
+    private let lastPerformedLookupRefresher: any LastPerformedLookupRefreshing
     private var activePendingWriteFlushCount = 0
     private var pendingWriteFlushGeneration = 0
 
@@ -24,10 +25,16 @@ final class SyncCoordinator {
         return try !fetchPendingWriteRecords().isEmpty
     }
 
-    init(client: any SheetsClient, context: ModelContext, sheetWritePlanner: SheetWritePlanner = SheetWritePlanner()) {
+    init(
+        client: any SheetsClient,
+        context: ModelContext,
+        sheetWritePlanner: SheetWritePlanner = SheetWritePlanner(),
+        lastPerformedLookupRefresher: any LastPerformedLookupRefreshing = NoopLastPerformedLookupRefresher()
+    ) {
         self.client = client
         self.context = context
         self.sheetWritePlanner = sheetWritePlanner
+        self.lastPerformedLookupRefresher = lastPerformedLookupRefresher
     }
 
     func reportLocalWriteFailure(_ error: any Error) {
@@ -133,6 +140,7 @@ final class SyncCoordinator {
             let lastPerformedEntries = LastPerformedExtractor.entries(from: parsed.block)
             if !lastPerformedEntries.isEmpty {
                 try LastPerformedIndex(context: context).ingest(lastPerformedEntries)
+                lastPerformedLookupRefresher.refresh()
             }
             if case .conflict = stateAfterFlush {
                 state = stateAfterFlush
@@ -245,6 +253,7 @@ final class SyncCoordinator {
             if !records.isEmpty {
                 do {
                     try LastPerformedIndex(context: context).ingest(records.map(\.entry))
+                    lastPerformedLookupRefresher.refresh()
                 } catch {
                     state = .conflict(["Last Performed backfill failed: \(error.localizedDescription)"])
                     return
