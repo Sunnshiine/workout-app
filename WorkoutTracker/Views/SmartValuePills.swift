@@ -300,11 +300,11 @@ private struct HoldToSkipLogButton: View {
             }
             .clipShape(.rect(cornerRadius: Theme.pillCornerRadius))
         }
-        .opacity(canLog ? 1 : 0.45)
+        .opacity(presentation.controlOpacity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
         .accessibilityValue(skipProgress > 0 ? "\(Int((skipProgress * 100).rounded()))% Skip" : "")
-        .accessibilityHint("Double tap to log. Press and hold to skip.")
+        .accessibilityHint(presentation.accessibilityHint)
         .accessibilityIdentifier("log-active-set-button")
         .accessibilityAddTraits(.isButton)
         .accessibilityAction(named: "Skip") {
@@ -325,6 +325,19 @@ private struct HoldToSkipLogButton: View {
             }
             .opacity(presentation.logOpacity)
 
+            if presentation.showsSkipAffordance {
+                HStack {
+                    Spacer()
+
+                    Label("Skip", systemImage: "forward.end.fill")
+                        .font(.caption.weight(.bold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.red.opacity(0.86), in: .capsule)
+                }
+                .padding(.horizontal, 10)
+            }
+
             Text("Skipped")
                 .opacity(presentation.skipOpacity)
         }
@@ -332,7 +345,7 @@ private struct HoldToSkipLogButton: View {
     }
 
     private var presentation: HoldToSkipButtonPresentation {
-        HoldToSkipButtonPresentation(progress: skipProgress, logTitle: logTitle)
+        HoldToSkipButtonPresentation(progress: skipProgress, logTitle: logTitle, canLog: canLog)
     }
 
     private var policy: HoldToSkipPolicy {

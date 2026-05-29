@@ -55,6 +55,14 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     #expect(presentation.accessibilityLabel == "Skipped")
 }
 
+@Test func holdToSkipButtonPresentationKeepsSkipAvailableWhenLogIsUnavailable() {
+    let presentation = HoldToSkipButtonPresentation(progress: 0, logTitle: "Log", canLog: false)
+
+    #expect(presentation.controlOpacity == 1)
+    #expect(presentation.showsSkipAffordance)
+    #expect(presentation.accessibilityHint == "Double tap to validate the Set Log. Press and hold to skip.")
+}
+
 @MainActor
 @Test func setRowPresentationShowsLoggedSetWithAccentAndCheckmark() {
     let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .logged)

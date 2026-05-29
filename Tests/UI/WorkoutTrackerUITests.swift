@@ -372,3 +372,42 @@ final class WorkoutTrackerUITests: XCTestCase {
         XCTAssertLessThan(stats.map(\.frame.maxY).max() ?? 0, hint.frame.minY)
     }
 }
+
+final class WorkoutTrackerSkipUITests: XCTestCase {
+    @MainActor
+    func testIncompleteSetLogCanStillBeSkippedWithHold() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
+        let logButton = app.buttons["log-active-set-button"]
+        waitForLabel("Log", on: logButton)
+
+        logButton.press(forDuration: 1.0)
+
+        XCTAssertTrue(app.buttons["Set 1, skip"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Set 2 of 3"].waitForExistence(timeout: 3))
+    }
+
+    @MainActor
+    private func launchFixtureApp() -> XCUIApplication {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITEST_FIXTURE"]
+        app.launch()
+        return app
+    }
+
+    @MainActor
+    private func waitForLabel(_ label: String, on element: XCUIElement) {
+        XCTAssertTrue(element.waitForExistence(timeout: 3), "Expected element for label '\(label)' to exist")
+        let deadline = Date().addingTimeInterval(3)
+        while Date() < deadline {
+            if element.label == label {
+                return
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        XCTFail("Expected \(element) to have label '\(label)', got '\(element.label)'")
+    }
+}
