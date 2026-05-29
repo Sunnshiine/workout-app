@@ -51,6 +51,10 @@ Use these as target colors, not as a demand for pixel-perfect matching:
 - Progress bar is compact, low-height, and mint-filled over a dark track.
 - Horizontal margins align with the Last Performed and active set cards below.
 - Header should be visually quiet; the active set card owns the screen.
+- Pull-revealed gear/sync actions are Session Controls. When visible, they live
+  in reserved header layout space and use localized Liquid Glass treatment around
+  the controls only. They should not float over workout content, obscure the
+  remaining-set count, or blur the full Session header.
 
 ### Last Performed card
 
@@ -69,6 +73,14 @@ Use these as target colors, not as a demand for pixel-perfect matching:
 - Prescription row is oversized: reps large on the left, RPE in mint on the
   right.
 - The card should feel like the one place to act, not one card among many.
+- Only one card should be visually in focus at a time. When a Logged or
+  Unstructured Set Log is opened for review/editing, that review/edit card owns
+  focus and the normal "Up next" card should visually step back until the edit
+  is collapsed or saved.
+- Card focus is persistent: tapping outside the focused card should not collapse
+  or defocus it. Background taps may dismiss active field UI only. The focused
+  card changes when the athlete logs, skips, selects another Set, or opens a
+  Logged/Unstructured Set Log for review/editing.
 
 ### Smart value pills
 
@@ -77,12 +89,20 @@ Use these as target colors, not as a demand for pixel-perfect matching:
 - Pills are large enough for gym use and should not resemble small form fields.
 - A selected or edited pill may strengthen the mint stroke, but should not
   introduce a new hue.
+- Do not show a generic Cancel button in the normal logging card. Tapping
+  outside a pill should dismiss only the active field UI, such as the keyboard
+  or RPE picker, while the card remains the single focused card.
 
 ### Primary action
 
 - Full-width rounded mint button near the bottom of the active card.
 - Button text is dark, bold, and previews the exact Set Log.
 - Use the same mint family as the progress fill.
+- Skip remains a supported Set State, but should be a deliberate hold action on
+  the primary button instead of a menu-first action. Pressing and holding should
+  fill/progress the button, transition its label toward "Skipped", and shift the
+  button color enough to signal that the athlete is about to skip; releasing
+  early cancels the skip.
 
 ## Implementation notes
 
