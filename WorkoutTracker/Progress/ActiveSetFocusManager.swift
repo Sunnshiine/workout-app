@@ -6,6 +6,18 @@ struct ActiveSetID: Equatable, Hashable, Sendable {
     let setIndex: Int
 }
 
+enum ActiveSetVisualFocusOwner: Equatable, Sendable {
+    case activeSet(ActiveSetID)
+    case loggedSetReview(ActiveSetID)
+
+    var setID: ActiveSetID {
+        switch self {
+        case .activeSet(let setID), .loggedSetReview(let setID):
+            setID
+        }
+    }
+}
+
 struct ActiveSetTransition: Equatable, Sendable {
     enum Kind: Equatable, Sendable {
         case momentumFlow
@@ -37,6 +49,13 @@ final class ActiveSetFocusManager {
 
     init(session: Session?) {
         activeSetID = session.flatMap(Self.firstPendingSetID)
+    }
+
+    var visualFocusOwner: ActiveSetVisualFocusOwner? {
+        if let expandedLoggedSetID {
+            return .loggedSetReview(expandedLoggedSetID)
+        }
+        return activeSetID.map(ActiveSetVisualFocusOwner.activeSet)
     }
 
     func reset(to session: Session?) {
@@ -223,15 +242,15 @@ final class ActiveSetFocusManager {
     }
 
     private func sectionState(for exercises: [Exercise]) -> SupersetSectionState? {
-        let sectionActiveSetID = activeSetID(containedIn: exercises)
+        let sectionActiveSetID = visualActiveSetID(containedIn: exercises)
         guard let presentation = ActiveSupersetPresentation(exercises: exercises, activeSetID: sectionActiveSetID) else {
             return nil
         }
         return SupersetSectionState(presentation: presentation, exercises: exercises)
     }
 
-    private func activeSetID(containedIn exercises: [Exercise]) -> ActiveSetID? {
-        guard let activeSetID else { return nil }
+    private func visualActiveSetID(containedIn exercises: [Exercise]) -> ActiveSetID? {
+        guard case .activeSet(let activeSetID) = visualFocusOwner else { return nil }
         return exercises.contains { $0.order == activeSetID.exerciseOrder } ? activeSetID : nil
     }
 
