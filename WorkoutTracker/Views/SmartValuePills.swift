@@ -18,6 +18,7 @@ struct SmartValuePills: View {
     let onLog: (SetLog) -> Void
     let onSkip: () -> Void
     let onDelete: () -> Void
+    let dismissFieldUIRequest: Int
 
     @State private var form: SmartValuePillsForm
     @State private var editingPill: FocusedPill?
@@ -32,12 +33,14 @@ struct SmartValuePills: View {
         onLog: @escaping (SetLog) -> Void,
         onSkip: @escaping () -> Void,
         onDelete: @escaping () -> Void,
+        dismissFieldUIRequest: Int = 0,
         showsLoggedCheckmarkInitially: Bool = false
     ) {
         self.set = set
         self.onLog = onLog
         self.onSkip = onSkip
         self.onDelete = onDelete
+        self.dismissFieldUIRequest = dismissFieldUIRequest
         _form = State(
             initialValue: SmartValuePillsForm(
                 set: set,
@@ -86,6 +89,14 @@ struct SmartValuePills: View {
         }
         .task(id: editingPill) {
             focusedPill = editingPill
+        }
+        .background {
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture(perform: dismissFieldUI)
+        }
+        .onChange(of: dismissFieldUIRequest) { _, _ in
+            dismissFieldUI()
         }
     }
 
@@ -218,14 +229,6 @@ struct SmartValuePills: View {
             .accessibilityIdentifier("log-active-set-button")
 
             HStack {
-                Button("Cancel") {
-                    form.cancel()
-                    editingPill = nil
-                    focusedPill = nil
-                    showsRPEGrid = false
-                }
-                .buttonStyle(.glass)
-
                 Spacer()
 
                 Menu {
@@ -240,6 +243,12 @@ struct SmartValuePills: View {
                 .buttonStyle(.glass)
             }
         }
+    }
+
+    private func dismissFieldUI() {
+        editingPill = nil
+        focusedPill = nil
+        showsRPEGrid = false
     }
 
     private func formField(for pill: FocusedPill) -> SmartValuePillsForm.Field {
