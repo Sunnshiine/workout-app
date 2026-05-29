@@ -30,6 +30,7 @@ struct LastPerformedIndex {
                 if entry.performedOn >= existing.performedOn {
                     existing.baseName = entry.baseName
                     existing.result = entry.result
+                    existing.resultText = entry.resultText
                     existing.performedOn = entry.performedOn
                     existing.source = entry.source
                 }

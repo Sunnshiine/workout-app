@@ -8,7 +8,14 @@ enum BlockBuilder {
             week.sessions = pw.days.map { pd in
                 let session = Session(dayNumber: pd.dayNumber, date: pd.date)
                 session.exercises = pd.exercises.enumerated().map { (i, pe) in
-                    let ex = Exercise(name: pe.name, baseName: pe.baseName, cadence: pe.cadence, coachNote: pe.coachNote, order: i)
+                    let ex = Exercise(
+                        name: pe.name,
+                        baseName: pe.baseName,
+                        cadence: pe.cadence,
+                        coachNote: pe.coachNote,
+                        legacyLog: pe.legacyLog,
+                        order: i
+                    )
                     ex.sets = pe.sets.map {
                         let set = ExerciseSet(
                             index: $0.index,
