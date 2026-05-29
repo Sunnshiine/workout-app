@@ -140,3 +140,37 @@ private func lastPerformedContainer() throws -> ModelContainer {
     #expect(match.source == "Block 27 · W1 D1")
     withExtendedLifetime(container) {}
 }
+
+@MainActor
+@Test func lastPerformedSnapshotPreservesCadencePriorityAndBaseFallback() throws {
+    let container = try lastPerformedContainer()
+    let context = container.mainContext
+    let index = LastPerformedIndex(context: context)
+    try index.ingest([
+        LastPerformedEntry(
+            fullName: "1:0:1 BB RDL",
+            baseName: "BB RDL",
+            result: SetLog(weight: .pounds(175), reps: 7, rpe: 6),
+            performedOn: Date(timeIntervalSinceReferenceDate: 100),
+            source: "Block 25 · W4 D1"
+        ),
+        LastPerformedEntry(
+            fullName: "2-3:1:0 BB RDL",
+            baseName: "BB RDL",
+            result: SetLog(weight: .pounds(185), reps: 7, rpe: 7),
+            performedOn: Date(timeIntervalSinceReferenceDate: 200),
+            source: "Block 26 · W3 D1"
+        )
+    ])
+
+    let lookup = index.snapshot()
+
+    let exact = try #require(lookup.lookup(exerciseName: "2-3:1:0 BB RDL", baseName: "BB RDL"))
+    #expect(exact.resultText == "185x7@7")
+    #expect(exact.sourceText == "Block 26 · W3 D1")
+    let fallback = try #require(lookup.lookup(exerciseName: "3:1:0 BB RDL", baseName: "BB RDL"))
+    #expect(fallback.resultText == "185x7@7")
+    #expect(fallback.sourceText == "Block 26 · W3 D1")
+    #expect(lookup.lookup(exerciseName: "Bench Press", baseName: "Bench Press") == nil)
+    withExtendedLifetime(container) {}
+}

@@ -345,13 +345,34 @@ private func makeActionFixture() throws -> CoordinatorActionFixture {
 
     let items = coordinator.renderItems(
         in: session,
-        lastPerformedIndex: LastPerformedIndex(context: context)
+        lastPerformedLookup: LastPerformedIndex(context: context).snapshot()
     )
 
     let benchConfig = try #require(items.compactMap(\.exerciseConfig).first { $0.exercise.order == 1 })
     #expect(benchConfig.lastPerformedPresentation?.resultText == "185x6@7")
     #expect(benchConfig.lastPerformedPresentation?.sourceText == "W3 D2")
     withExtendedLifetime(container) {}
+}
+
+@MainActor
+@Test func coordinatorRenderItemsBuildFromPureLastPerformedLookup() throws {
+    let session = makeCoordinatorSession()
+    let coordinator = SessionCoordinator(session: session)
+    let lookup = LastPerformedLookupSnapshot(
+        exactMatches: [
+            "Bench Press": LastPerformedLookupEntry(
+                resultText: "185x6@7",
+                sourceText: "W3 D2",
+                performedOn: Date(timeIntervalSinceReferenceDate: 100)
+            )
+        ]
+    )
+
+    let items = coordinator.renderItems(in: session, lastPerformedLookup: lookup)
+
+    let benchConfig = try #require(items.compactMap(\.exerciseConfig).first { $0.exercise.order == 1 })
+    #expect(benchConfig.lastPerformedPresentation?.resultText == "185x6@7")
+    #expect(benchConfig.lastPerformedPresentation?.sourceText == "W3 D2")
 }
 
 @MainActor

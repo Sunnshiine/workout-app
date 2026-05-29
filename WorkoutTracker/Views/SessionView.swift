@@ -1,4 +1,3 @@
-import SwiftData
 import SwiftUI
 import UIKit
 
@@ -6,7 +5,7 @@ struct SessionView: View {
     @Environment(WorkoutStore.self) private var workout
     @Environment(SyncCoordinator.self) private var sync
     @Environment(SettingsStore.self) private var settings
-    @Environment(\.modelContext) private var modelContext
+    @Environment(LastPerformedLookupStore.self) private var lastPerformedLookup
     @State private var coordinator = SessionCoordinator(session: nil)
     @State private var overscrollToolbarVisibility = OverscrollToolbarVisibility.hidden
     @State private var isSettingsPresented = false
@@ -44,7 +43,7 @@ struct SessionView: View {
                                     ForEach(
                                         coordinator.renderItems(
                                             in: session,
-                                            lastPerformedIndex: LastPerformedIndex(context: modelContext)
+                                            lastPerformedLookup: lastPerformedLookup.snapshot
                                         ),
                                         id: \.id
                                     ) { item in
