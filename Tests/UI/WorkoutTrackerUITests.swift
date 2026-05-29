@@ -40,6 +40,33 @@ final class WorkoutTrackerUITests: XCTestCase {
     }
 
     @MainActor
+    func testActiveSetFieldFocusDismissesWithoutCardCancel() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
+        XCTAssertFalse(app.buttons["Cancel"].exists)
+
+        app.buttons["weight-pill"].tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
+
+        app.staticTexts["Set 1 of 3"].tap()
+
+        XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 1))
+        XCTAssertTrue(app.buttons["log-active-set-button"].exists)
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
+
+        app.buttons["rpe-pill"].tap()
+        XCTAssertTrue(app.buttons["rpe-6"].waitForExistence(timeout: 3))
+
+        app.staticTexts["Set 1 of 3"].tap()
+
+        XCTAssertFalse(app.buttons["rpe-6"].waitForExistence(timeout: 1))
+        XCTAssertTrue(app.buttons["log-active-set-button"].exists)
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
+    }
+
+    @MainActor
     func testOverscrollToolbarRevealsSettingsAndSyncControls() throws {
         let app = launchFixtureApp()
 
