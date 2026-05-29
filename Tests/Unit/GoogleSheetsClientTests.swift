@@ -88,8 +88,48 @@ private final class RequestRecorder: @unchecked Sendable {
     }
 }
 
+@Test func updateCellsSendsMultipleRangesInOneBatchRequest() async throws {
+    let recorder = RequestRecorder()
+    let client = GoogleSheetsClient(tokenProvider: { "token" }, load: recorder.load)
+
+    try await client.updateCells(
+        spreadsheetId: "spreadsheet-id",
+        updates: [
+            SheetValueRangeUpdate(range: "'Block 27'!K16", values: [["185x5@8"]]),
+            SheetValueRangeUpdate(range: "'Block 27'!I15", values: [["8"]])
+        ]
+    )
+
+    let request = try #require(recorder.requests.first)
+    let url = try #require(request.url)
+    let bodyData = try #require(request.httpBody)
+    let body = try JSONDecoder().decode(RecordedBatchUpdateBody.self, from: bodyData)
+
+    #expect(recorder.requests.count == 1)
+    #expect(request.httpMethod == "POST")
+    #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer token")
+    #expect(url.scheme == "https")
+    #expect(url.host == "sheets.googleapis.com")
+    #expect(url.path == "/v4/spreadsheets/spreadsheet-id/values:batchUpdate")
+    #expect(body.valueInputOption == "USER_ENTERED")
+    #expect(body.data.map(\.range) == ["'Block 27'!K16", "'Block 27'!I15"])
+    #expect(body.data.map(\.majorDimension) == ["ROWS", "ROWS"])
+    #expect(body.data.map(\.values) == [[["185x5@8"]], [["8"]]])
+}
+
 private func driveModifiedDate(from value: String) -> Date? {
     let formatter = ISO8601DateFormatter()
     formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     return formatter.date(from: value)
+}
+
+private struct RecordedBatchUpdateBody: Decodable {
+    let valueInputOption: String
+    let data: [RecordedValueRange]
+}
+
+private struct RecordedValueRange: Decodable {
+    let range: String
+    let majorDimension: String
+    let values: [[String]]
 }

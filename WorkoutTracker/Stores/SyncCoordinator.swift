@@ -80,37 +80,16 @@ final class SyncCoordinator {
             writer: writer,
             planner: sheetWritePlanner
         )
-        var snapshots: [String: SheetWritePlanningSnapshot] = [:]
-        var conflicts: [String] = []
 
-        for write in pending {
-            do {
-                try await flush(
-                    write,
-                    context: flushContext,
-                    snapshots: &snapshots
-                )
-            } catch is PendingWriteFlushInvalidated {
-                state = .idle
-                return
-            } catch let error as SheetWriterError {
-                let message = error.errorDescription ?? String(describing: error)
-                write.markConflict(message)
-                conflicts.append("\(write.exerciseName): \(message)")
-            } catch {
-                write.retryCount += 1
-                write.lastError = String(describing: error)
-                try? context.save()
-                state = .pendingWrites(pending.count)
-                return
-            }
-        }
-
-        try? context.save()
-        if conflicts.isEmpty {
+        let result = await flushPendingWrites(pending, context: flushContext)
+        switch result {
+        case .completed(let conflicts):
+            try? context.save()
+            state = conflicts.isEmpty ? .idle : .conflict(conflicts)
+        case .invalidated:
             state = .idle
-        } else {
-            state = .conflict(conflicts)
+        case .stoppedForRetry:
+            break
         }
     }
 
@@ -308,7 +287,45 @@ private struct PendingWriteFlushContext {
     let planner: SheetWritePlanner
 }
 
+private enum PendingWriteFlushResult {
+    case completed(conflicts: [String])
+    case invalidated
+    case stoppedForRetry
+}
+
+private struct PlannedPendingWrite {
+    let write: PendingWrite
+    let update: SheetCellUpdate
+    let snapshot: SheetWritePlanningSnapshot
+}
+
+private struct PendingWriteBatch {
+    private(set) var items: [PlannedPendingWrite] = []
+
+    var isEmpty: Bool {
+        items.isEmpty
+    }
+
+    var updates: [SheetCellUpdate] {
+        items.map(\.update)
+    }
+
+    mutating func append(_ item: PlannedPendingWrite) {
+        items.append(item)
+    }
+
+    mutating func removeAll() {
+        items.removeAll()
+    }
+
+    func overlaps(_ target: SheetWriteTarget) -> Bool {
+        items.contains { $0.update.target == target }
+    }
+}
+
 private struct PendingWriteFlushInvalidated: Error {}
+
+private struct PendingWriteBatchFailed: Error {}
 
 private struct PendingWriteFlushInProgress: Error {}
 
@@ -318,20 +335,134 @@ extension SyncCoordinator {
         return try context.fetch(descriptor)
     }
 
-    fileprivate func flush(
+    fileprivate func flushPendingWrites(
+        _ pending: [PendingWrite],
+        context flushContext: PendingWriteFlushContext
+    ) async -> PendingWriteFlushResult {
+        var snapshots: [String: SheetWritePlanningSnapshot] = [:]
+        var conflicts: [String] = []
+        var batch = PendingWriteBatch()
+
+        for write in pending {
+            do {
+                let plannedWrite = try await plan(
+                    write,
+                    context: flushContext,
+                    snapshots: &snapshots,
+                    batch: &batch
+                )
+                try await append(
+                    plannedWrite,
+                    to: &batch,
+                    snapshots: &snapshots,
+                    context: flushContext
+                )
+            } catch is PendingWriteFlushInvalidated {
+                return .invalidated
+            } catch is PendingWriteBatchFailed {
+                return .stoppedForRetry
+            } catch let error as SheetWriterError {
+                conflicts.append(recordConflict(error, for: write))
+            } catch {
+                recordRetry(for: write, error: error, pendingCount: pending.count)
+                return .stoppedForRetry
+            }
+        }
+
+        do {
+            try await flush(batch, context: flushContext)
+            return .completed(conflicts: conflicts)
+        } catch is PendingWriteFlushInvalidated {
+            return .invalidated
+        } catch is PendingWriteBatchFailed {
+            return .stoppedForRetry
+        } catch {
+            state = .pendingWrites(pending.count)
+            return .stoppedForRetry
+        }
+    }
+
+    fileprivate func append(
+        _ plannedWrite: PlannedPendingWrite,
+        to batch: inout PendingWriteBatch,
+        snapshots: inout [String: SheetWritePlanningSnapshot],
+        context flushContext: PendingWriteFlushContext
+    ) async throws {
+        if batch.overlaps(plannedWrite.update.target) {
+            try await flush(batch, context: flushContext)
+            batch.removeAll()
+        }
+        batch.append(plannedWrite)
+        snapshots[plannedWrite.update.tabName] = flushContext.planner.applying(
+            plannedWrite.update,
+            to: plannedWrite.snapshot
+        )
+    }
+
+    fileprivate func recordConflict(_ error: SheetWriterError, for write: PendingWrite) -> String {
+        let message = error.errorDescription ?? String(describing: error)
+        write.markConflict(message)
+        return "\(write.exerciseName): \(message)"
+    }
+
+    fileprivate func recordRetry(for write: PendingWrite, error: any Error, pendingCount: Int) {
+        write.retryCount += 1
+        write.lastError = String(describing: error)
+        try? context.save()
+        state = .pendingWrites(pendingCount)
+    }
+
+    fileprivate func plan(
         _ write: PendingWrite,
         context flushContext: PendingWriteFlushContext,
-        snapshots: inout [String: SheetWritePlanningSnapshot]
-    ) async throws {
+        snapshots: inout [String: SheetWritePlanningSnapshot],
+        batch: inout PendingWriteBatch
+    ) async throws -> PlannedPendingWrite {
         try ensurePendingWriteFlushIsCurrent(flushContext.generation)
         let request = SheetWriteRequest(write)
-        let snapshot = try await gridSnapshot(for: request.blockTab, context: flushContext, snapshots: &snapshots)
-        let update = try flushContext.planner.plan(request, in: snapshot)
+        var snapshot = try await gridSnapshot(for: request.blockTab, context: flushContext, snapshots: &snapshots)
+        let target = try flushContext.planner.target(for: request, in: snapshot)
+
+        do {
+            let update = try flushContext.planner.plan(request, target: target, in: snapshot)
+            return PlannedPendingWrite(write: write, update: update, snapshot: snapshot)
+        } catch let planningError as SheetWriterError where batch.overlaps(target) {
+            try await flush(batch, context: flushContext)
+            batch.removeAll()
+            snapshot = try await gridSnapshot(for: request.blockTab, context: flushContext, snapshots: &snapshots)
+            do {
+                let update = try flushContext.planner.plan(request, target: target, in: snapshot)
+                return PlannedPendingWrite(write: write, update: update, snapshot: snapshot)
+            } catch let replannedError as SheetWriterError {
+                throw replannedError
+            } catch {
+                throw planningError
+            }
+        }
+    }
+
+    fileprivate func flush(
+        _ batch: PendingWriteBatch,
+        context flushContext: PendingWriteFlushContext
+    ) async throws {
+        guard !batch.isEmpty else { return }
         try ensurePendingWriteFlushIsCurrent(flushContext.generation)
-        try await flushContext.writer.write(update, spreadsheetId: flushContext.spreadsheetId)
+        do {
+            try await flushContext.writer.write(batch.updates, spreadsheetId: flushContext.spreadsheetId)
+        } catch {
+            for item in batch.items {
+                item.write.retryCount += 1
+                item.write.lastError = String(describing: error)
+            }
+            try? context.save()
+            state = .pendingWrites((try? fetchPendingWriteRecords().count) ?? batch.items.count)
+            throw PendingWriteBatchFailed()
+        }
         try ensurePendingWriteFlushIsCurrent(flushContext.generation)
-        snapshots[request.blockTab] = flushContext.planner.applying(update, to: snapshot)
-        context.delete(write)
+        for item in batch.items {
+            context.delete(item.write)
+        }
+        try? context.save()
     }
 
     fileprivate func gridSnapshot(

@@ -1,15 +1,31 @@
 import Foundation
 
+struct SheetValueRangeUpdate: Sendable, Equatable {
+    let range: String
+    let values: [[String]]
+}
+
 protocol SheetsClient: Sendable {
     func listTabTitles(spreadsheetId: String) async throws -> [String]
     func listSpreadsheets(pageToken: String?) async throws -> SpreadsheetListPage
     func fetchTab(spreadsheetId: String, tabName: String) async throws -> SheetGrid
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws
+    /// Throws unless callers can treat every update as applied.
+    func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws
 }
 
 extension SheetsClient {
     func listSpreadsheets(pageToken: String?) async throws -> SpreadsheetListPage {
         throw SheetsError.malformedResponse
+    }
+
+    func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
+        guard updates.count <= 1 else {
+            throw SheetsError.unsupportedBatchUpdate
+        }
+        if let update = updates.first {
+            try await updateCells(spreadsheetId: spreadsheetId, range: update.range, values: update.values)
+        }
     }
 }
 
@@ -28,6 +44,7 @@ enum SheetsError: Error, Equatable {
     case notAuthorized
     case http(Int)
     case malformedResponse
+    case unsupportedBatchUpdate
 }
 
 func extractSpreadsheetId(from url: String) -> String? {

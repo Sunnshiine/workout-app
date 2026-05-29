@@ -56,6 +56,23 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
     #expect(client.updates[0].values == [["185x5@8"]])
 }
 
+@Test func defaultClientBatchUpdateRejectsMultipleUpdatesWithoutPartialWrites() async throws {
+    let client = writerFixture(["C15": "Squat", "D15": "2"])
+    let writer = SheetWriter(client: client)
+
+    await #expect(throws: SheetsError.unsupportedBatchUpdate) {
+        try await writer.write(
+            [
+                SheetCellUpdate(tabName: "Block 27", row: 15, col: 10, value: "185x5@8"),
+                SheetCellUpdate(tabName: "Block 27", row: 16, col: 10, value: "195x5@8")
+            ],
+            spreadsheetId: "sid"
+        )
+    }
+
+    #expect(client.updates.isEmpty)
+}
+
 @Test func protectsAnchorNotesByWritingBelowAnchor() async throws {
     let client = writerFixture(["C15": "Squat", "D15": "1", "K15": "Coach note"])
     let planner = SheetWritePlanner()
