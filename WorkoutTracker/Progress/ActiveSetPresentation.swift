@@ -1,6 +1,63 @@
 import CoreGraphics
 import Foundation
 
+enum HoldToSkipReleaseOutcome: Equatable, Sendable {
+    case log
+    case cancelSkip
+    case skip
+    case ignore
+}
+
+struct HoldToSkipPolicy: Equatable, Sendable {
+    let holdDuration: TimeInterval
+    let tapMaximumDuration: TimeInterval
+
+    init(
+        holdDuration: TimeInterval = Theme.holdToSkipDuration,
+        tapMaximumDuration: TimeInterval = Theme.holdToSkipTapMaximumDuration
+    ) {
+        self.holdDuration = holdDuration
+        self.tapMaximumDuration = tapMaximumDuration
+    }
+
+    func releaseOutcome(elapsed: TimeInterval, skipCompleted: Bool) -> HoldToSkipReleaseOutcome {
+        if skipCompleted {
+            return .ignore
+        }
+
+        if elapsed >= holdDuration {
+            return .skip
+        }
+
+        if elapsed <= tapMaximumDuration {
+            return .log
+        }
+
+        return .cancelSkip
+    }
+}
+
+struct HoldToSkipButtonPresentation: Equatable, Sendable {
+    let progress: Double
+    let logTitle: String
+
+    var skipOpacity: Double {
+        clampedProgress
+    }
+
+    var logOpacity: Double {
+        1 - clampedProgress
+    }
+
+    var accessibilityLabel: String {
+        clampedProgress > 0 ? "Skipped" : logTitle
+    }
+
+    private var clampedProgress: Double {
+        min(max(progress, 0), 1)
+    }
+}
+
 enum SetRowTone: Equatable, Sendable {
     case accent
     case muted
