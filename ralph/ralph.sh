@@ -6,8 +6,8 @@
 #   1. selects the highest-priority unblocked `ready-for-agent` GitHub issue (skipping PRDs),
 #   2. works it to completion in an isolated git worktree using TDD,
 #   3. is gated on the full documented framework: `swift test`, Xcode unit/component tests,
-#      Xcode UI integration tests, `swiftlint lint --quiet`, plus a screenshot + vision check
-#      for View/Theme changes,
+#      Xcode UI integration tests, and `swiftlint lint --quiet`; View/Theme changes are screenshot
+#      reviewed by an implementer-owned subagent before completion,
 #   4. on success: merges the branch to main, pushes origin, and closes the issue;
 #      on failure: relabels the issue `ready-for-human` and moves on.
 # The loop stops when no eligible issues remain, or after MAX_ITER iterations.
@@ -88,7 +88,6 @@ run_agent() {
     rm -f "$last" "$trace"
   else
     local m="${MODEL:-opus}"
-    # For VERIFY, the screenshot path is named in the prompt; Claude reads it via the Read tool.
     ( cd "$workdir" && claude -p "$prompt" \
         --permission-mode bypassPermissions --model "$m" --add-dir "$REPO_ROOT" 2>/dev/null ) || true
   fi
@@ -194,27 +193,24 @@ $(cat "$PROMPTS/implement.md")"
     flag_for_human "$issue" "Lint failed at the loop gate: swiftlint lint --quiet (see logs)."; continue
   fi
 
-  # 5b. UI GATE — screenshot + vision check for View/Theme changes
+  # 5b. UI ARTIFACT GATE — screenshot review is implementer-owned for View/Theme changes
   if git -C "$wt" diff --name-only main -- 'WorkoutTracker/Views/' 'WorkoutTracker/Theme.swift' | grep -q .; then
-    log "View change detected → screenshot + vision verify"
-    shot="$ART/iter-$iter-issue-$issue.png"
-    if PROJECT_DIR="$wt" "$SCRIPT_DIR/snapshot.sh" "$shot" > "$LOGS/iter-$iter-issue-$issue-snapshot.log" 2>&1; then
-      v_prompt="Engine: $ENGINE. This is the VERIFY phase.
-GitHub issue: #$issue.
-Screenshot path: $shot
-
-$(cat "$PROMPTS/verify.md")"
-      v_out="$(run_agent "$v_prompt" "$REPO_ROOT" "$shot")"
-      echo "$v_out" > "$LOGS/iter-$iter-issue-$issue-verify.log"
-      if printf '%s' "$v_out" | grep -q 'VERDICT=PASS'; then
-        log "vision verify: PASS"
-      else
-        vr="$(printf '%s' "$v_out" | grep -oE 'VERDICT=FAIL.*' | head -1)"
-        flag_for_human "$issue" "UI vision check failed: ${vr:-see verify log}. Screenshot: $shot"; continue
-      fi
-    else
-      flag_for_human "$issue" "Could not capture a verification screenshot (see snapshot log)."; continue
+    log "View change detected → checking implementer-owned UI screenshot review"
+    ui_shot_rel="ralph/.artifacts/issue-$issue-ui-review.png"
+    ui_review_rel="ralph/.artifacts/issue-$issue-ui-review.md"
+    ui_shot="$wt/$ui_shot_rel"
+    ui_review="$wt/$ui_review_rel"
+    if [ ! -s "$ui_shot" ]; then
+      flag_for_human "$issue" "View/Theme changes require a non-empty UI screenshot artifact: $ui_shot_rel."; continue
     fi
+    if [ ! -s "$ui_review" ]; then
+      flag_for_human "$issue" "View/Theme changes require a saved UI Screenshot Review artifact: $ui_review_rel."; continue
+    fi
+    if ! tail -n 1 "$ui_review" | grep -Fxq "PASS: no blocking static visual findings."; then
+      flag_for_human "$issue" "UI Screenshot Review did not end with PASS. Review artifact: $ui_review_rel."; continue
+    fi
+    cp "$ui_shot" "$ART/iter-$iter-issue-$issue.png"
+    cp "$ui_review" "$ART/iter-$iter-issue-$issue-ui-review.md"
   fi
 
   # 6. SHIP — merge to main, push, close
