@@ -16,6 +16,10 @@
             ProcessInfo.processInfo.arguments.contains("-UITEST_PENDING_WRITE")
         }
 
+        static var startsWithOpenExercises: Bool {
+            ProcessInfo.processInfo.arguments.contains("-UITEST_OPEN_EXERCISES")
+        }
+
         private static let defaultsSuiteName = "WorkoutTracker.UITestFixture"
 
         /// An in-memory container seeded with one sample Block.
@@ -45,7 +49,11 @@
 
         @MainActor
         private static func seed(into context: ModelContext) {
-            context.insert(WorkoutFixtureScenarios.uiLaunchBlock())
+            let block =
+                startsWithOpenExercises
+                ? WorkoutFixtureScenarios.openExercisesBlock()
+                : WorkoutFixtureScenarios.uiLaunchBlock()
+            context.insert(block)
             context.insert(WorkoutFixtureScenarios.lastPerformedBackSquat())
             if startsWithPendingWrite {
                 context.insert(WorkoutFixtureScenarios.queuedWrite())

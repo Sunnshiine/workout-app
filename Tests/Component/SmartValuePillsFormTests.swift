@@ -65,7 +65,28 @@ import Testing
     #expect(prescribed.repsText == "8")
     #expect(prescribed.repsDisplay == "8")
     #expect(amrap.repsText == "")
-    #expect(amrap.repsDisplay == "—")
+    #expect(amrap.repsDisplay == "AMRAP")
+}
+
+@MainActor
+@Test func repsPillShowsNonIntegerPrescriptionAsHint() {
+    let range = SmartValuePillsForm(
+        set: ExerciseSet(index: 0, prescribedReps: "10-15", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
+        previousSetWeight: nil,
+        trainingMax: nil
+    )
+    let amrap = SmartValuePillsForm(
+        set: ExerciseSet(index: 0, prescribedReps: "AMRAP", prescribedLoad: "BW", percentOneRM: nil, state: .pending),
+        previousSetWeight: nil,
+        trainingMax: nil
+    )
+
+    #expect(range.repsText == "")
+    #expect(range.repsDisplay == "10-15")
+    #expect(range.isRepsDisplayingPlaceholder)
+    #expect(amrap.repsText == "")
+    #expect(amrap.repsDisplay == "AMRAP")
+    #expect(amrap.isRepsDisplayingPlaceholder)
 }
 
 @MainActor
@@ -126,6 +147,81 @@ import Testing
     #expect(form.logButtonTitle == "Log 185×8@7")
     #expect(form.canLog)
     #expect(form.makeLog() == SetLog(weight: .pounds(185), reps: 8, rpe: 7))
+}
+
+@MainActor
+@Test func formValidationMarksInvalidFieldsAndClearsThemAsTheyBecomeValid() {
+    var form = SmartValuePillsForm(
+        set: ExerciseSet(index: 0, prescribedReps: "10-15", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
+        previousSetWeight: nil,
+        trainingMax: nil
+    )
+
+    #expect(form.invalidFields.isEmpty)
+    #expect(form.markInvalidFieldsForDisplay() == [.weight, .reps, .rpe])
+    #expect(form.invalidFields == [.weight, .reps, .rpe])
+
+    form.weightText = "182.5"
+    #expect(form.invalidFields == [.reps, .rpe])
+
+    form.repsText = "12"
+    #expect(form.invalidFields == [.rpe])
+
+    form.rpeText = "7.5"
+    #expect(form.invalidFields.isEmpty)
+    #expect(form.makeLog() == SetLog(weight: .pounds(182.5), reps: 12, rpe: 7.5))
+}
+
+@MainActor
+@Test func submittingInvalidLogMarksInvalidFieldsWithoutProducingLog() {
+    var form = SmartValuePillsForm(
+        set: ExerciseSet(index: 0, prescribedReps: "AMRAP", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
+        previousSetWeight: nil,
+        trainingMax: nil
+    )
+
+    #expect(form.submitLog() == nil)
+    #expect(form.invalidFields == [.weight, .reps, .rpe])
+
+    form.weightText = "BW"
+    form.repsText = "12"
+    form.rpeText = "7"
+
+    #expect(form.invalidFields.isEmpty)
+    #expect(form.submitLog() == SetLog(weight: .bodyweight, reps: 12, rpe: 7))
+}
+
+@MainActor
+@Test func logFormAcceptsOnlyBodyweightOrFiniteWeightIntegerRepsAndFiveToTenHalfStepRPE() {
+    var form = SmartValuePillsForm(
+        set: ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "BW", percentOneRM: nil, state: .pending),
+        previousSetWeight: nil,
+        trainingMax: nil
+    )
+    form.repsText = "8"
+    form.rpeText = "5"
+    #expect(form.makeLog() == SetLog(weight: .bodyweight, reps: 8, rpe: 5))
+
+    form.weightText = "182.5"
+    form.rpeText = "10"
+    #expect(form.makeLog() == SetLog(weight: .pounds(182.5), reps: 8, rpe: 10))
+
+    form.weightText = "nan"
+    #expect(form.makeLog() == nil)
+    #expect(form.markInvalidFieldsForDisplay() == [.weight])
+    form.weightText = "182.5"
+
+    form.repsText = "8.5"
+    #expect(form.makeLog() == nil)
+    #expect(form.invalidFields == [.reps])
+    form.repsText = "8"
+
+    form.rpeText = "4.5"
+    #expect(form.makeLog() == nil)
+    #expect(form.invalidFields == [.rpe])
+    form.rpeText = "7.25"
+    #expect(form.makeLog() == nil)
+    #expect(form.invalidFields == [.rpe])
 }
 
 @MainActor

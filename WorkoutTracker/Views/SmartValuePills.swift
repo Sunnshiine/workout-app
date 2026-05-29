@@ -96,7 +96,14 @@ struct SmartValuePills: View {
         pill: FocusedPill,
         keyboardType: UIKeyboardType
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let field = formField(for: pill)
+        let isInvalid = form.invalidFields.contains(field)
+        let isPlaceholder = pill == .reps && form.isRepsDisplayingPlaceholder && editingPill != pill
+        let textColor = isPlaceholder ? Color.secondary : Color.white
+        let strokeColor = isInvalid ? Color.red : Theme.pillStroke
+        let strokeWidth = isInvalid ? 2.0 : 1.0
+
+        return VStack(alignment: .leading, spacing: 8) {
             Text(label)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
@@ -110,7 +117,7 @@ struct SmartValuePills: View {
             } else {
                 Text(display)
                     .font(.title3.weight(.bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(textColor)
             }
         }
         .frame(maxWidth: .infinity, minHeight: Theme.pillMinHeight, alignment: .leading)
@@ -118,7 +125,7 @@ struct SmartValuePills: View {
         .background(Theme.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
-                .strokeBorder(Theme.pillStroke, lineWidth: 1)
+                .strokeBorder(strokeColor, lineWidth: strokeWidth)
         )
         .contentShape(.rect)
         .onTapGesture {
@@ -132,7 +139,11 @@ struct SmartValuePills: View {
     }
 
     private var rpePill: some View {
-        Button {
+        let isInvalid = form.invalidFields.contains(.rpe)
+        let strokeColor = isInvalid ? Color.red : Theme.pillStroke
+        let strokeWidth = isInvalid ? 2.0 : 1.0
+
+        return Button {
             editingPill = nil
             focusedPill = nil
             showsRPEGrid.toggle()
@@ -151,7 +162,7 @@ struct SmartValuePills: View {
             .background(Theme.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
-                    .strokeBorder(Theme.pillStroke, lineWidth: 1)
+                    .strokeBorder(strokeColor, lineWidth: strokeWidth)
             )
         }
         .buttonStyle(.plain)
@@ -182,7 +193,7 @@ struct SmartValuePills: View {
     private var actionControls: some View {
         VStack(spacing: 8) {
             Button {
-                guard let log = form.makeLog() else { return }
+                guard let log = form.submitLog() else { return }
                 withAnimation(Theme.logButtonCheckmarkAnimation) {
                     showsLoggedCheckmark = true
                 }
@@ -203,7 +214,6 @@ struct SmartValuePills: View {
             .foregroundStyle(Theme.accentDarkText)
             .padding(.vertical, 14)
             .background(Theme.accent, in: .rect(cornerRadius: Theme.pillCornerRadius))
-            .disabled(!form.canLog)
             .opacity(form.canLog ? 1 : 0.45)
             .accessibilityIdentifier("log-active-set-button")
 
@@ -229,6 +239,13 @@ struct SmartValuePills: View {
                 }
                 .buttonStyle(.glass)
             }
+        }
+    }
+
+    private func formField(for pill: FocusedPill) -> SmartValuePillsForm.Field {
+        switch pill {
+        case .weight: .weight
+        case .reps: .reps
         }
     }
 }

@@ -79,6 +79,28 @@ final class WorkoutTrackerUITests: XCTestCase {
     }
 
     @MainActor
+    func testOpenExerciseMakeupFlowShowsLastPerformedAndLogsSet() throws {
+        let app = launchFixtureApp(extraArguments: ["-UITEST_OPEN_EXERCISES"])
+
+        app.swipeUp()
+        let openBackSquat = app.buttons.containing(.staticText, identifier: "Back Squat").firstMatch
+        tapWhenHittable(openBackSquat)
+
+        XCTAssertTrue(app.buttons["back-to-current-session-button"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Back Squat"].exists)
+        XCTAssertTrue(app.staticTexts["Last Performed"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["255x5@7"].exists)
+        XCTAssertTrue(app.staticTexts["Block 26 · W4 D3"].exists)
+
+        app.buttons["rpe-pill"].tap()
+        app.buttons["rpe-7"].tap()
+        waitForLabel("Log 252.5×5@7", on: app.buttons["log-active-set-button"])
+        app.buttons["log-active-set-button"].tap()
+
+        XCTAssertFalse(app.buttons["log-active-set-button"].waitForExistence(timeout: 3))
+    }
+
+    @MainActor
     func testSettingsSignOutReturnsToOnboarding() throws {
         let app = launchFixtureApp()
 
@@ -183,7 +205,7 @@ final class WorkoutTrackerUITests: XCTestCase {
 
     @MainActor
     private func waitForLabel(_ label: String, on element: XCUIElement) {
-        XCTAssertTrue(element.waitForExistence(timeout: 3))
+        XCTAssertTrue(element.waitForExistence(timeout: 3), "Expected element for label '\(label)' to exist")
         let deadline = Date().addingTimeInterval(3)
         while Date() < deadline {
             if element.label == label {
