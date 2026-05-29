@@ -8,6 +8,7 @@ struct WorkoutTrackerApp: App {
     @State private var settings: SettingsStore
     @State private var workout: WorkoutStore
     @State private var sync: SyncCoordinator
+    @State private var lastPerformedLookup: LastPerformedLookupStore
 
     init() {
         #if DEBUG
@@ -19,11 +20,23 @@ struct WorkoutTrackerApp: App {
                 let settings = SettingsStore(defaults: defaults)
                 settings.isSignedIn = true
                 settings.setSpreadsheet(id: WorkoutFixtureScenarios.sheetId, title: "Fixture Training Log")
-                let workout = WorkoutStore(context: ctx, defaults: defaults)
+                let lastPerformedLookup = LastPerformedLookupStore(context: ctx)
+                let workout = WorkoutStore(
+                    context: ctx,
+                    defaults: defaults,
+                    lastPerformedLookupRefresher: lastPerformedLookup
+                )
                 workout.reload()
                 _settings = State(initialValue: settings)
                 _workout = State(initialValue: workout)
-                _sync = State(initialValue: SyncCoordinator(client: UITestFixture.makeSheetsClient(), context: ctx))
+                _sync = State(
+                    initialValue: SyncCoordinator(
+                        client: UITestFixture.makeSheetsClient(),
+                        context: ctx,
+                        lastPerformedLookupRefresher: lastPerformedLookup
+                    )
+                )
+                _lastPerformedLookup = State(initialValue: lastPerformedLookup)
                 return
             }
         #endif
@@ -31,9 +44,22 @@ struct WorkoutTrackerApp: App {
         let container = try! ModelContainer(for: Block.self, PendingWrite.self, LastPerformedEntry.self)
         self.container = container
         let ctx = container.mainContext
+        let lastPerformedLookup = LastPerformedLookupStore(context: ctx)
         _settings = State(initialValue: SettingsStore())
-        _workout = State(initialValue: WorkoutStore(context: ctx))
-        _sync = State(initialValue: SyncCoordinator(client: GoogleSheetsClient(), context: ctx))
+        _workout = State(
+            initialValue: WorkoutStore(
+                context: ctx,
+                lastPerformedLookupRefresher: lastPerformedLookup
+            )
+        )
+        _sync = State(
+            initialValue: SyncCoordinator(
+                client: GoogleSheetsClient(),
+                context: ctx,
+                lastPerformedLookupRefresher: lastPerformedLookup
+            )
+        )
+        _lastPerformedLookup = State(initialValue: lastPerformedLookup)
     }
 
     var body: some Scene {
@@ -42,6 +68,7 @@ struct WorkoutTrackerApp: App {
                 .environment(settings)
                 .environment(workout)
                 .environment(sync)
+                .environment(lastPerformedLookup)
                 .onOpenURL { GIDSignIn.sharedInstance.handle($0) }
                 .task {
                     #if DEBUG
