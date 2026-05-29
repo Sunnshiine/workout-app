@@ -92,11 +92,11 @@ final class WorkoutTrackerUITests: XCTestCase {
     }
 
     @MainActor
-    func testOverscrollToolbarRevealsSettingsAndSyncControls() throws {
+    func testOverscrollRevealsSessionControlsInHeaderLayout() throws {
         let app = launchFixtureApp()
 
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["session-toolbar-settings-button"].exists)
+        XCTAssertFalse(app.buttons["session-controls-settings-button"].exists)
 
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
             .press(
@@ -104,10 +104,23 @@ final class WorkoutTrackerUITests: XCTestCase {
                 thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
             )
 
-        let settingsButton = app.buttons["session-toolbar-settings-button"]
-        let syncButton = app.buttons["session-toolbar-sync-button"]
+        let sessionControls = app.otherElements["session-controls"]
+        let settingsButton = app.buttons["session-controls-settings-button"]
+        let syncButton = app.buttons["session-controls-sync-button"]
+        let locationButton = app.buttons["session-location-button"]
+        let progressRail = app.otherElements["session-progress-rail"]
+        let activeSetCard = app.otherElements["active-set-card"]
+
+        XCTAssertTrue(sessionControls.waitForExistence(timeout: 3))
         XCTAssertTrue(settingsButton.waitForExistence(timeout: 3))
         XCTAssertTrue(syncButton.exists)
+        XCTAssertTrue(locationButton.exists)
+        XCTAssertTrue(progressRail.exists)
+        XCTAssertTrue(activeSetCard.exists)
+        XCTAssertFalse(sessionControls.frame.intersects(locationButton.frame))
+        XCTAssertFalse(sessionControls.frame.intersects(progressRail.frame))
+        XCTAssertFalse(sessionControls.frame.intersects(activeSetCard.frame))
+        XCTAssertLessThanOrEqual(sessionControls.frame.maxY, activeSetCard.frame.minY)
 
         settingsButton.tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
@@ -122,8 +135,9 @@ final class WorkoutTrackerUITests: XCTestCase {
         app.buttons["settings-done-button"].tap()
 
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 3))
-        XCTAssertTrue(syncButton.waitForExistence(timeout: 3))
-        syncButton.tap()
+        let revealedSyncButton = app.buttons["session-controls-sync-button"]
+        XCTAssertTrue(revealedSyncButton.waitForExistence(timeout: 3))
+        revealedSyncButton.tap()
         XCTAssertTrue(app.staticTexts["Offline"].waitForExistence(timeout: 3))
 
         app.swipeUp()
@@ -164,7 +178,7 @@ final class WorkoutTrackerUITests: XCTestCase {
                 thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
             )
 
-        app.buttons["session-toolbar-settings-button"].tap()
+        app.buttons["session-controls-settings-button"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
 
         app.buttons["settings-sign-out-button"].tap()
@@ -184,7 +198,7 @@ final class WorkoutTrackerUITests: XCTestCase {
                 thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
             )
 
-        app.buttons["session-toolbar-settings-button"].tap()
+        app.buttons["session-controls-settings-button"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
 
         app.buttons["settings-sign-out-button"].tap()
@@ -211,7 +225,7 @@ final class WorkoutTrackerUITests: XCTestCase {
                 thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
             )
 
-        app.buttons["session-toolbar-settings-button"].tap()
+        app.buttons["session-controls-settings-button"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
 
         app.buttons["settings-training-sheet-row"].tap()
