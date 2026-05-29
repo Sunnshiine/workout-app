@@ -123,6 +123,21 @@ private func seededStore() throws -> SeededLoggingStore {
 }
 
 @MainActor
+@Test func editingLoggedSetQueuesWriteLockedToPreviousSetLog() throws {
+    let fixture = try seededStore()
+    withExtendedLifetime(fixture.container) {}
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(195), reps: 5, rpe: 8.5))
+
+    let pending = try #require(try fixture.context.fetch(FetchDescriptor<PendingWrite>()).last)
+    #expect(pending.operation == .upsert)
+    #expect(pending.column == .notes)
+    #expect(pending.valueToWrite == "195x5@8.5")
+    #expect(pending.expectedCurrentValue == "185x5@8")
+}
+
+@MainActor
 @Test func deleteSetClearsLocalSetAndQueuesDelete() throws {
     let fixture = try seededStore()
     withExtendedLifetime(fixture.container) {}

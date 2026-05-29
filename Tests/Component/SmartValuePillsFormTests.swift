@@ -155,6 +155,23 @@ import Testing
 }
 
 @MainActor
+@Test func loggedSetDraftOnlyProducesChangedValidLog() {
+    let loggedSet = ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 7", percentOneRM: nil, state: .logged)
+    loggedSet.setLog = SetLog(weight: .pounds(185), reps: 7, rpe: 8)
+    var form = SmartValuePillsForm(set: loggedSet, previousSetWeight: nil, trainingMax: nil)
+
+    #expect(form.changedValidLog == nil)
+
+    form.weightText = "200"
+
+    #expect(form.changedValidLog == SetLog(weight: .pounds(200), reps: 7, rpe: 8))
+
+    form.rpeText = ""
+
+    #expect(form.changedValidLog == nil)
+}
+
+@MainActor
 @Test func prescribedRPEComesFromPrescribedLoad() {
     let form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending),

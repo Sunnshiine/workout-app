@@ -87,6 +87,8 @@ enum ExercisePairingAvailability: Equatable, Sendable {
 struct SessionExerciseRenderConfig {
     let exercise: Exercise
     let activeSetID: ActiveSetID?
+    let expandedLoggedSetID: ActiveSetID?
+    let savedLoggedSetID: ActiveSetID?
     let activeSetTransition: ActiveSetTransition?
     let retiringTransition: ActiveSetTransition?
     let isCollapsed: Bool
@@ -148,6 +150,8 @@ typealias SessionFocusAnimation = (() -> Void) -> Void
 final class SessionCoordinator {
     private(set) var session: Session?
     private(set) var activeSetID: ActiveSetID?
+    private(set) var expandedLoggedSetID: ActiveSetID?
+    private(set) var savedLoggedSetID: ActiveSetID?
     private(set) var activeSetTransition: ActiveSetTransition?
     private(set) var retiringTransition: ActiveSetTransition?
     private(set) var scrollTargetID: ActiveSetID?
@@ -191,6 +195,7 @@ final class SessionCoordinator {
 
     func bind(to session: Session?) {
         self.session = session
+        savedLoggedSetID = nil
         cancelPairing()
         clearRetiringTransition()
         focusManager.reset(to: session)
@@ -221,6 +226,12 @@ final class SessionCoordinator {
 
     func focus(on set: ExerciseSet) {
         focusManager.focus(on: set)
+        syncFocusState()
+        invalidateRenderItems()
+    }
+
+    func collapseLoggedSetReview() {
+        focusManager.collapseLoggedSetReview()
         syncFocusState()
         invalidateRenderItems()
     }
@@ -259,6 +270,24 @@ final class SessionCoordinator {
             try loggingAdapter.deleteLog(for: set)
             focus(on: set)
             clearRetiringTransition()
+            syncAdapter.requestPendingWriteFlush()
+        } catch {
+            syncAdapter.reportLocalWriteFailure(error)
+        }
+    }
+
+    func updateLoggedSet(_ set: ExerciseSet, as log: SetLog) {
+        do {
+            _ = try actionSession(for: set)
+            let updatedSetID = Self.activeSetID(for: set)
+            try loggingAdapter.log(set, as: log)
+            savedLoggedSetID = updatedSetID
+            if focusManager.expandedLoggedSetID == updatedSetID {
+                focusManager.collapseLoggedSetReview()
+            }
+            syncFocusState()
+            clearRetiringTransition()
+            invalidateRenderItems()
             syncAdapter.requestPendingWriteFlush()
         } catch {
             syncAdapter.reportLocalWriteFailure(error)
@@ -314,6 +343,7 @@ final class SessionCoordinator {
 
     private func syncFocusState() {
         activeSetID = focusManager.activeSetID
+        expandedLoggedSetID = focusManager.expandedLoggedSetID
         activeSetTransition = focusManager.activeSetTransition
         scrollTargetID = focusManager.scrollTargetID
         supersetScrollTargetOrder = focusManager.supersetScrollTargetOrder
@@ -494,6 +524,8 @@ extension SessionCoordinator {
         SessionExerciseRenderConfig(
             exercise: exercise,
             activeSetID: activeSetID(scopedTo: exercise),
+            expandedLoggedSetID: expandedLoggedSetID(scopedTo: exercise),
+            savedLoggedSetID: savedLoggedSetID(scopedTo: exercise),
             activeSetTransition: transition(activeSetTransition, scopedTo: [exercise.order]),
             retiringTransition: transition(retiringTransition, scopedTo: [exercise.order]),
             isCollapsed: focusManager.isCollapsed(exercise),
@@ -526,6 +558,16 @@ extension SessionCoordinator {
     private func activeSetID(scopedTo exercise: Exercise) -> ActiveSetID? {
         guard activeSetID?.exerciseOrder == exercise.order else { return nil }
         return activeSetID
+    }
+
+    private func expandedLoggedSetID(scopedTo exercise: Exercise) -> ActiveSetID? {
+        guard expandedLoggedSetID?.exerciseOrder == exercise.order else { return nil }
+        return expandedLoggedSetID
+    }
+
+    private func savedLoggedSetID(scopedTo exercise: Exercise) -> ActiveSetID? {
+        guard savedLoggedSetID?.exerciseOrder == exercise.order else { return nil }
+        return savedLoggedSetID
     }
 
     private func transition(
