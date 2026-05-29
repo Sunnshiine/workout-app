@@ -22,7 +22,7 @@ A mobile client for powerlifting athletes that surfaces and logs workouts from a
 
 **Prescribed Load**: The coach's intensity instruction for a given Set (e.g. "RPE6", "Drop 17.5%", "BW"). Read-only from the athlete's perspective. Avoid: target load.
 
-**RPE** (Rate of Perceived Exertion): A 1–10 scale of effort. Used prescriptively ("RPE6" = end set 4 reps from failure) and as athlete feedback in Last Set RPE. Distinct from %1RM, which is a separate column.
+**RPE** (Rate of Perceived Exertion): A 1–10 scale of effort, valid in whole-point and half-point increments (e.g. 6, 6.5, 7). Used prescriptively ("RPE6" = end set 4 reps from failure) and as athlete feedback in Last Set RPE. Distinct from %1RM, which is a separate column.
 
 ### Logging
 
