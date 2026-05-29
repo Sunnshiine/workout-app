@@ -28,8 +28,7 @@ there is nothing to do. Do NOT write code, create branches, or modify anything.
    c. then the lowest issue number.
 
 ## Output
-
-Reason briefly, then end your response with EXACTLY ONE line, on its own:
+Output ONLY the final line below — no explanation, no candidate list.
 
 SELECTED_ISSUE=<number>
 

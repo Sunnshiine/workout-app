@@ -153,6 +153,8 @@ $(cat "$PROMPTS/select.md")"
   impl_prompt="Engine: $ENGINE. This is the IMPLEMENT phase.
 You are working GitHub issue #$issue.
 You are inside an isolated git worktree at: $wt   (branch: $branch).
+UI_SHOT_PATH (relative to the worktree root): ralph/.artifacts/issue-$issue-ui-review.png
+UI_REVIEW_PATH (relative to the worktree root): ralph/.artifacts/issue-$issue-ui-review.md
 
 $(cat "$PROMPTS/implement.md")"
   impl_out="$(run_agent "$impl_prompt" "$wt")"
