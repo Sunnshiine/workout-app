@@ -33,6 +33,7 @@ final class ExerciseSet {
     var percentOneRM: String?
     var stateRaw: String
     var setLogData: Data?
+    var unstructuredSetLog: String?
     var exercise: Exercise?
 
     var state: SetState {
@@ -67,6 +68,9 @@ final class ExerciseSet {
         if state == .logged, let setLog {
             return setLog.formatted
         }
+        if state == .logged, let unstructuredSetLog {
+            return unstructuredSetLog
+        }
         return prescribedReps
     }
 
@@ -77,11 +81,19 @@ final class ExerciseSet {
         return prescribedLoad
     }
 
-    init(index: Int, prescribedReps: String, prescribedLoad: String, percentOneRM: String?, state: SetState) {
+    init(
+        index: Int,
+        prescribedReps: String,
+        prescribedLoad: String,
+        percentOneRM: String?,
+        state: SetState,
+        unstructuredSetLog: String? = nil
+    ) {
         self.index = index
         self.prescribedReps = prescribedReps
         self.prescribedLoad = prescribedLoad
         self.percentOneRM = percentOneRM
         self.stateRaw = state.rawValue
+        self.unstructuredSetLog = unstructuredSetLog
     }
 }

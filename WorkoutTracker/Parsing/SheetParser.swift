@@ -96,6 +96,7 @@ struct ParsedSet {
     var percentOneRM: String?
     var state: SetState
     var setLog: SetLog?
+    var unstructuredSetLog: String?
 
     init(
         index: Int,
@@ -103,7 +104,8 @@ struct ParsedSet {
         prescribedLoad: String,
         percentOneRM: String?,
         state: SetState? = nil,
-        setLog: SetLog? = nil
+        setLog: SetLog? = nil,
+        unstructuredSetLog: String? = nil
     ) {
         self.index = index
         self.prescribedReps = prescribedReps
@@ -111,6 +113,7 @@ struct ParsedSet {
         self.percentOneRM = percentOneRM
         self.state = state ?? (setLog == nil ? .pending : .logged)
         self.setLog = setLog
+        self.unstructuredSetLog = unstructuredSetLog
     }
 }
 
@@ -157,18 +160,24 @@ private func isLegacyLog(_ raw: String) -> Bool {
     }
 }
 
-private func parsedLogState(from raw: String) -> (SetState, SetLog?) {
+private struct ParsedLogState {
+    let state: SetState
+    let setLog: SetLog?
+    let unstructuredSetLog: String?
+}
+
+private func parsedLogState(from raw: String) -> ParsedLogState {
     let value = raw.trimmed
     guard !value.isEmpty else {
-        return (.pending, nil)
+        return ParsedLogState(state: .pending, setLog: nil, unstructuredSetLog: nil)
     }
     if value.caseInsensitiveCompare("skip") == .orderedSame {
-        return (.skipped, nil)
+        return ParsedLogState(state: .skipped, setLog: nil, unstructuredSetLog: nil)
     }
     if let log = SetLog(formatted: value) {
-        return (.logged, log)
+        return ParsedLogState(state: .logged, setLog: log, unstructuredSetLog: nil)
     }
-    return (.logged, nil)
+    return ParsedLogState(state: .logged, setLog: nil, unstructuredSetLog: value)
 }
 
 private struct ParsedSetContext {
@@ -188,14 +197,15 @@ private func parsedSets(_ context: ParsedSetContext) -> [ParsedSet] {
     (0..<context.setCount).map { i in
         let logRow = context.anchorRow + i + 1
         let rawLog = logRow < context.nextAnchor ? context.grid.cellOrEmpty(logRow, context.cols.notes) : ""
-        let (state, setLog) = parsedLogState(from: rawLog)
+        let logState = parsedLogState(from: rawLog)
         return ParsedSet(
             index: i,
             prescribedReps: i < context.repsValues.count ? context.repsValues[i] : (context.repsValues.last ?? context.reps),
             prescribedLoad: i < context.loadValues.count ? context.loadValues[i] : (context.loadValues.last ?? context.load),
             percentOneRM: context.percentOneRM.isEmpty ? nil : context.percentOneRM,
-            state: state,
-            setLog: setLog
+            state: logState.state,
+            setLog: logState.setLog,
+            unstructuredSetLog: logState.unstructuredSetLog
         )
     }
 }
@@ -210,9 +220,56 @@ private func completionSets(_ sets: [ParsedSet], legacyLog: String?) -> [ParsedS
             prescribedLoad: $0.prescribedLoad,
             percentOneRM: $0.percentOneRM,
             state: $0.state == .skipped ? .skipped : .logged,
-            setLog: $0.setLog
+            setLog: $0.setLog,
+            unstructuredSetLog: $0.unstructuredSetLog
         )
     }
+}
+
+private func anchorRows(in grid: SheetGrid, cols: DayColumns, firstRow: Int, upper: Int) -> [Int] {
+    guard firstRow < upper else { return [] }
+
+    var rows: [Int] = []
+    for r in firstRow..<upper {
+        if grid.cell(row: r, col: cols.name).wholeMatch(of: dayHeaderPattern) != nil { break }
+        if !grid.cell(row: r, col: cols.name).trimmed.isEmpty { rows.append(r) }
+    }
+    return rows
+}
+
+private func parsedExercise(grid: SheetGrid, cols: DayColumns, anchorRow: Int, nextAnchor: Int) -> ParsedExercise {
+    let rawName = grid.cell(row: anchorRow, col: cols.name).trimmed
+    let (cadence, base) = splitCadence(rawName)
+    let reps = grid.cellOrEmpty(anchorRow, cols.reps)
+    let load = grid.cellOrEmpty(anchorRow, cols.load)
+    let note = grid.cellOrEmpty(anchorRow, cols.notes).trimmed
+    let legacyLog = isLegacyLog(note) ? note : nil
+    let sets = completionSets(
+        parsedSets(
+            ParsedSetContext(
+                setCount: max(Int(grid.cellOrEmpty(anchorRow, cols.sets).prefix { $0.isNumber }) ?? 1, 1),
+                anchorRow: anchorRow,
+                nextAnchor: nextAnchor,
+                cols: cols,
+                grid: grid,
+                reps: reps,
+                repsValues: reps.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) },
+                load: load,
+                loadValues: splitLoadValues(load),
+                percentOneRM: grid.cellOrEmpty(anchorRow, cols.percentOneRM)
+            )
+        ),
+        legacyLog: legacyLog
+    )
+
+    return ParsedExercise(
+        name: rawName,
+        baseName: base,
+        cadence: cadence,
+        coachNote: legacyLog == nil && !note.isEmpty ? note : nil,
+        legacyLog: legacyLog,
+        sets: sets
+    )
 }
 
 /// Parses all exercises in one day group. Anchor rows have a non-empty name cell;
@@ -222,57 +279,12 @@ func parseDay(in grid: SheetGrid, section: WeekSection, dayIndex: Int, endRow: I
     let cols = resolveDayColumns(in: grid, section: section, dayIndex: dayIndex)
     let firstRow = section.roleHeaderRow + 1
     let upper = min(endRow, grid.count)
+    let anchors = anchorRows(in: grid, cols: cols, firstRow: firstRow, upper: upper)
 
-    // Collect anchor rows (name cell non-empty), stopping at the next week's day header.
-    var anchors: [Int] = []
-    if firstRow < upper {
-        for r in firstRow..<upper {
-            if grid.cell(row: r, col: cols.name).wholeMatch(of: dayHeaderPattern) != nil { break }
-            if !grid.cell(row: r, col: cols.name).trimmed.isEmpty { anchors.append(r) }
-        }
-    }
-
-    var result: [ParsedExercise] = []
-    for (anchorIndex, r) in anchors.enumerated() {
+    return anchors.enumerated().map { anchorIndex, anchorRow in
         let nextAnchor = anchorIndex + 1 < anchors.count ? anchors[anchorIndex + 1] : upper
-        let rawName = grid.cell(row: r, col: cols.name).trimmed
-        let (cadence, base) = splitCadence(rawName)
-        // Sets cell may be "2" or a range like "3 - 4"; take the leading integer.
-        let setCount = max(Int(grid.cellOrEmpty(r, cols.sets).prefix { $0.isNumber }) ?? 1, 1)
-        let reps = grid.cellOrEmpty(r, cols.reps)
-        let load = grid.cellOrEmpty(r, cols.load)
-        let pct = grid.cellOrEmpty(r, cols.percentOneRM)
-        let note = grid.cellOrEmpty(r, cols.notes).trimmed
-        let loadValues = splitLoadValues(load)
-        let repsValues = reps.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-        let legacyLog = isLegacyLog(note) ? note : nil
-        let sets = completionSets(
-            parsedSets(ParsedSetContext(
-                setCount: setCount,
-                anchorRow: r,
-                nextAnchor: nextAnchor,
-                cols: cols,
-                grid: grid,
-                reps: reps,
-                repsValues: repsValues,
-                load: load,
-                loadValues: loadValues,
-                percentOneRM: pct
-            )),
-            legacyLog: legacyLog
-        )
-        result.append(
-            ParsedExercise(
-                name: rawName,
-                baseName: base,
-                cadence: cadence,
-                coachNote: legacyLog == nil && !note.isEmpty ? note : nil,
-                legacyLog: legacyLog,
-                sets: sets
-            )
-        )
+        return parsedExercise(grid: grid, cols: cols, anchorRow: anchorRow, nextAnchor: nextAnchor)
     }
-    return result
 }
 
 struct ParsedSession {

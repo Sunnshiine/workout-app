@@ -76,6 +76,15 @@ struct LoggedSetReviewCard: View {
             }
 
             if presentation.allowsEditing {
+                if let referenceText = presentation.referenceText {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Original Unstructured Set Log")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        Text(referenceText)
+                            .font(.callout.weight(.semibold))
+                    }
+                }
                 editableFields
             } else {
                 VStack(alignment: .leading, spacing: 6) {

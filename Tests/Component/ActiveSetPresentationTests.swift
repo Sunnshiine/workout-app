@@ -54,16 +54,39 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     let structured = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .logged)
     structured.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: 8)
     let unstructured = ExerciseSet(index: 1, prescribedReps: "AMRAP", prescribedLoad: "BW", percentOneRM: nil, state: .logged)
+    unstructured.unstructuredSetLog = "BW and vest for 12"
 
     let structuredPresentation = LoggedSetReviewPresentation(set: structured)
     let unstructuredPresentation = LoggedSetReviewPresentation(set: unstructured)
 
-    #expect(structuredPresentation.statusText == "Already logged")
+    #expect(structuredPresentation.statusText == "Set Log")
     #expect(structuredPresentation.detailText == "185x5@8")
+    #expect(structuredPresentation.referenceText == nil)
     #expect(structuredPresentation.allowsEditing)
-    #expect(unstructuredPresentation.statusText == "Already logged")
-    #expect(unstructuredPresentation.detailText == "Completed from sheet")
-    #expect(!unstructuredPresentation.allowsEditing)
+    #expect(unstructuredPresentation.statusText == "Unstructured Set Log")
+    #expect(unstructuredPresentation.detailText == "BW and vest for 12")
+    #expect(unstructuredPresentation.referenceText == "BW and vest for 12")
+    #expect(unstructuredPresentation.allowsEditing)
+}
+
+@MainActor
+@Test func loggedSetReviewPresentationKeepsLegacyLogsExerciseLevel() {
+    let exercise = Exercise(
+        name: "Standing Calve Raises",
+        baseName: "Standing Calve Raises",
+        cadence: nil,
+        coachNote: nil,
+        legacyLog: "25x12, 12"
+    )
+    let set = ExerciseSet(index: 0, prescribedReps: "12", prescribedLoad: "RPE 9", percentOneRM: nil, state: .logged)
+    exercise.sets = [set]
+
+    let presentation = LoggedSetReviewPresentation(set: set)
+
+    #expect(presentation.statusText == "Legacy Log")
+    #expect(presentation.detailText == "25x12, 12")
+    #expect(presentation.referenceText == nil)
+    #expect(!presentation.allowsEditing)
 }
 
 @MainActor
