@@ -1,9 +1,18 @@
 import SwiftUI
 
 struct RPEGrid: View {
+    private enum Layout {
+        static let halfStepBubbleOffset: CGFloat = -34
+        static let highlightedHalfStepScale = 1.08
+        static let longPressDuration = 0.35
+        static let bubbleAnimationDuration = 0.12
+    }
+
     let presentation: RPEGridPresentation
     @Binding var selection: String
     @Binding var isPresented: Bool
+    @State private var revealedHalfStepValue: Int?
+    @State private var activeDragHeight = 0.0
 
     var body: some View {
         VStack(spacing: Theme.rpeGridSpacing) {
@@ -16,23 +25,88 @@ struct RPEGrid: View {
     private func rowView(_ row: [RPEGridValue]) -> some View {
         HStack(spacing: Theme.rpeGridSpacing) {
             ForEach(row) { value in
-                cellButton(for: value)
+                cellControl(for: value)
             }
         }
     }
 
-    private func cellButton(for value: RPEGridValue) -> some View {
-        Button {
-            selection = String(value.value)
-            Task {
-                try? await Task.sleep(for: presentation.autoCloseDelay)
-                isPresented = false
-            }
-        } label: {
+    @ViewBuilder
+    private func cellControl(for value: RPEGridValue) -> some View {
+        let control = ZStack(alignment: .top) {
             cellLabel(for: value)
+
+            if revealedHalfStepValue == value.value, let halfStepLabel = value.halfStepLabel {
+                Text(halfStepLabel)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Theme.accentDarkText)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(Theme.accent, in: .capsule)
+                    .scaleEffect(
+                        activeDragHeight <= -RPEGridValue.halfStepActivationOffset
+                            ? Layout.highlightedHalfStepScale
+                            : 1
+                    )
+                    .offset(y: Layout.halfStepBubbleOffset)
+                    .accessibilityIdentifier("rpe-\(value.value)-half")
+            }
         }
-        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .gesture(dragGesture(for: value))
+        .simultaneousGesture(longPressGesture(for: value))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("RPE \(value.value)")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction {
+            select(String(value.value))
+        }
         .accessibilityIdentifier("rpe-\(value.value)")
+        .zIndex(revealedHalfStepValue == value.value ? 1 : 0)
+
+        if let halfStepLabel = value.halfStepLabel {
+            control.accessibilityAction(named: Text("Select \(halfStepLabel)")) {
+                select(halfStepLabel)
+            }
+        } else {
+            control
+        }
+    }
+
+    private func dragGesture(for value: RPEGridValue) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { drag in
+                guard revealedHalfStepValue == value.value else { return }
+                activeDragHeight = drag.translation.height
+            }
+            .onEnded { drag in
+                select(
+                    value.selectionText(
+                        halfStepWasRevealed: revealedHalfStepValue == value.value,
+                        verticalDrag: drag.translation.height
+                    )
+                )
+            }
+    }
+
+    private func longPressGesture(for value: RPEGridValue) -> some Gesture {
+        LongPressGesture(minimumDuration: Layout.longPressDuration)
+            .onEnded { _ in
+                guard value.halfStepLabel != nil else { return }
+                withAnimation(.easeOut(duration: Layout.bubbleAnimationDuration)) {
+                    revealedHalfStepValue = value.value
+                    activeDragHeight = 0
+                }
+            }
+    }
+
+    private func select(_ text: String) {
+        selection = text
+        revealedHalfStepValue = nil
+        activeDragHeight = 0
+        Task {
+            try? await Task.sleep(for: presentation.autoCloseDelay)
+            isPresented = false
+        }
     }
 
     private func cellLabel(for value: RPEGridValue) -> some View {
