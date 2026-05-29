@@ -194,7 +194,7 @@ private func pendingWrite(
     await sync.flushPending(spreadsheetId: "sid")
 
     #expect(client.fetches == ["Block 27"])
-    #expect(client.updates.map(\.0) == ["'Block 27'!K16", "'Block 27'!K16"])
+    #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!K15"])
     #expect(client.updates.map(\.1) == [[["185x5@8"]], [["185x6@8"]]])
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
     #expect(sync.state == .idle)
@@ -227,7 +227,7 @@ private func pendingWrite(
 
     #expect(client.fetches == ["Block 27"])
     #expect(counter.count == 1)
-    #expect(client.updates.map(\.0) == ["'Block 27'!K16", "'Block 27'!K17", "'Block 27'!I15"])
+    #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!K16", "'Block 27'!I15"])
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
 }
 
@@ -264,7 +264,7 @@ private func pendingWrite(
 
     await sync.flushPending(spreadsheetId: "sid")
 
-    #expect(client.updates.map(\.0) == ["'Block 27'!K16"])
+    #expect(client.updates.map(\.0) == ["'Block 27'!K15"])
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
     #expect(sync.state == .idle)
 }
@@ -292,7 +292,7 @@ private func pendingWrite(
             [
                 "C12": "Day 1", "S12": "Day 2",
                 "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
-                "C15": "Squat", "D15": "1", "K16": "coach edited"
+                "C15": "Squat", "D15": "1", "K15": "Coach note", "K16": "coach edited"
             ],
             rows: 24,
             cols: 30
@@ -322,7 +322,7 @@ private func pendingWrite(
                 "C12": "Day 1", "S12": "Day 2",
                 "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
                 "C15": "Squat", "D15": "1",
-                "C17": "Bench Press", "D17": "1", "K18": "coach edited"
+                "C17": "Bench Press", "D17": "1", "K17": "Coach note", "K18": "coach edited"
             ],
             rows: 24,
             cols: 30
@@ -332,7 +332,7 @@ private func pendingWrite(
 
     await sync.flushPending(spreadsheetId: "sid")
 
-    #expect(client.updates.map(\.0) == ["'Block 27'!K16"])
+    #expect(client.updates.map(\.0) == ["'Block 27'!K15"])
     #expect(client.updates.map(\.1) == [[["185x5@8"]]])
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(writes.count == 1)
@@ -407,7 +407,7 @@ private func pendingWrite(
             [
                 "C12": "Day 1", "S12": "Day 2",
                 "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
-                "C15": "Squat", "D15": "1", "K16": "coach edited"
+                "C15": "Squat", "D15": "1", "K15": "Coach note", "K16": "coach edited"
             ],
             rows: 24,
             cols: 30

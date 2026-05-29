@@ -33,7 +33,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
 }
 
 @Test func writesSetLogToNotesContinuationRow() async throws {
-    let client = writerFixture(["C15": "Squat", "D15": "2"])
+    let client = writerFixture(["C15": "Squat", "D15": "2", "K15": "Coach note"])
     let planner = SheetWritePlanner()
     let writer = SheetWriter(client: client)
     let request = SheetWriteRequest(
@@ -54,6 +54,149 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
     #expect(client.updates.count == 1)
     #expect(client.updates[0].range == "'Block 27'!K16")
     #expect(client.updates[0].values == [["185x5@8"]])
+}
+
+@Test func writesSetOneToEmptyCompactHeaderNotes() throws {
+    let client = writerFixture(["C15": "Ab of Choice", "D15": "1", "C16": "Bench"])
+    let planner = SheetWritePlanner()
+    let request = SheetWriteRequest(
+        blockTab: "Block 27",
+        week: 1,
+        day: 1,
+        exerciseName: "Ab of Choice",
+        setIndex: 0,
+        column: .notes,
+        operation: .upsert,
+        valueToWrite: "25x12@7",
+        expectedCurrentValue: ""
+    )
+
+    let update = try planner.plan(request, in: client.grid)
+
+    #expect(update.range == "'Block 27'!K15")
+    #expect(update.value == "25x12@7")
+}
+
+@Test func writesCompactSetTwoToFirstContinuationRow() throws {
+    let client = writerFixture(["C15": "Ab of Choice", "D15": "2", "C17": "Bench"])
+    let planner = SheetWritePlanner()
+
+    let setOneUpdate = try planner.plan(
+        SheetWriteRequest(
+            blockTab: "Block 27",
+            week: 1,
+            day: 1,
+            exerciseName: "Ab of Choice",
+            setIndex: 0,
+            column: .notes,
+            operation: .upsert,
+            valueToWrite: "25x12@7",
+            expectedCurrentValue: ""
+        ),
+        in: client.grid
+    )
+    let setTwoUpdate = try planner.plan(
+        SheetWriteRequest(
+            blockTab: "Block 27",
+            week: 1,
+            day: 1,
+            exerciseName: "Ab of Choice",
+            setIndex: 1,
+            column: .notes,
+            operation: .upsert,
+            valueToWrite: "25x12@8",
+            expectedCurrentValue: ""
+        ),
+        in: client.grid
+    )
+
+    #expect(setOneUpdate.range == "'Block 27'!K15")
+    #expect(setTwoUpdate.range == "'Block 27'!K16")
+}
+
+@Test func writesCompactSetTwoAfterApplyingSetOneToSnapshot() throws {
+    let client = writerFixture(["C15": "Ab of Choice", "D15": "2", "C17": "Bench"])
+    let planner = SheetWritePlanner()
+    let snapshot = planner.snapshot(for: client.grid)
+
+    let setOneUpdate = try planner.plan(
+        SheetWriteRequest(
+            blockTab: "Block 27",
+            week: 1,
+            day: 1,
+            exerciseName: "Ab of Choice",
+            setIndex: 0,
+            column: .notes,
+            operation: .upsert,
+            valueToWrite: "25x12@7",
+            expectedCurrentValue: ""
+        ),
+        in: snapshot
+    )
+    let updatedSnapshot = planner.applying(setOneUpdate, to: snapshot)
+    let setTwoUpdate = try planner.plan(
+        SheetWriteRequest(
+            blockTab: "Block 27",
+            week: 1,
+            day: 1,
+            exerciseName: "Ab of Choice",
+            setIndex: 1,
+            column: .notes,
+            operation: .upsert,
+            valueToWrite: "25x12@8",
+            expectedCurrentValue: ""
+        ),
+        in: updatedSnapshot
+    )
+
+    #expect(setOneUpdate.range == "'Block 27'!K15")
+    #expect(setTwoUpdate.range == "'Block 27'!K16")
+}
+
+@Test func editsExistingCompactHeaderSetLogWhenExpectedValueMatches() throws {
+    let client = writerFixture(["C15": "Ab of Choice", "D15": "1", "K15": "25x12@7", "C16": "Bench"])
+    let planner = SheetWritePlanner()
+    let request = SheetWriteRequest(
+        blockTab: "Block 27",
+        week: 1,
+        day: 1,
+        exerciseName: "Ab of Choice",
+        setIndex: 0,
+        column: .notes,
+        operation: .upsert,
+        valueToWrite: "30x12@8",
+        expectedCurrentValue: "25x12@7"
+    )
+
+    let update = try planner.plan(request, in: client.grid)
+
+    #expect(update.range == "'Block 27'!K15")
+    #expect(update.value == "30x12@8")
+}
+
+@Test func matchingCoachNoteStillDoesNotMakeHeaderWritable() throws {
+    let client = writerFixture(["C15": "Squat", "D15": "1", "K15": "Coach note", "C16": "Bench"])
+    let planner = SheetWritePlanner()
+    let request = SheetWriteRequest(
+        blockTab: "Block 27",
+        week: 1,
+        day: 1,
+        exerciseName: "Squat",
+        setIndex: 0,
+        column: .notes,
+        operation: .upsert,
+        valueToWrite: "185x5@8",
+        expectedCurrentValue: "Coach note"
+    )
+
+    do {
+        _ = try planner.plan(request, in: client.grid)
+        Issue.record("Expected protected Coach Note to keep header unwritable")
+    } catch let error as SheetWriterError {
+        #expect(error == .setRowNotFound(exerciseName: "Squat", setIndex: 0))
+    } catch {
+        Issue.record("Expected SheetWriterError, got \(error)")
+    }
 }
 
 @Test func defaultClientBatchUpdateRejectsMultipleUpdatesWithoutPartialWrites() async throws {
@@ -119,7 +262,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
         [
             "C12": "Day 1", "S12": "Day 2",
             "D14": "Sets", "E14": "Notes", "G14": "Last set RPE",
-            "C15": "Squat", "D15": "2"
+            "C15": "Squat", "D15": "2", "E15": "Coach note"
         ],
         rows: 30,
         cols: 30
@@ -186,11 +329,11 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
         in: grid
     )
 
-    #expect(update.range == "'Block 27'!K20")
+    #expect(update.range == "'Block 27'!K19")
 }
 
 @Test func refusesUnexpectedCurrentCellValue() async throws {
-    let client = writerFixture(["C15": "Squat", "D15": "1", "K16": "coach edited"])
+    let client = writerFixture(["C15": "Squat", "D15": "1", "K15": "Coach note", "K16": "coach edited"])
     let planner = SheetWritePlanner()
     let request = SheetWriteRequest(
         blockTab: "Block 27",
@@ -216,7 +359,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
 }
 
 @Test func refusesMissingContinuationRow() async throws {
-    let client = writerFixture(["C15": "Squat", "D15": "1", "C16": "Bench"])
+    let client = writerFixture(["C15": "Squat", "D15": "1", "K15": "Coach note", "C16": "Bench"])
     let planner = SheetWritePlanner()
     let request = SheetWriteRequest(
         blockTab: "Block 27",
