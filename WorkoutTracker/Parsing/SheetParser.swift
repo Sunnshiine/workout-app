@@ -119,7 +119,42 @@ struct ParsedExercise {
     var baseName: String
     var cadence: String?
     var coachNote: String?
+    var legacyLog: String?
     var sets: [ParsedSet]
+
+    init(
+        name: String,
+        baseName: String,
+        cadence: String?,
+        coachNote: String?,
+        legacyLog: String? = nil,
+        sets: [ParsedSet]
+    ) {
+        self.name = name
+        self.baseName = baseName
+        self.cadence = cadence
+        self.coachNote = coachNote
+        self.legacyLog = legacyLog
+        self.sets = sets
+    }
+}
+
+private nonisolated(unsafe) let legacyLogTokenPattern =
+    /^(?:BW|\d+(?:\.\d+)?)(?:(?:x\d+)|(?:@\d+(?:\.\d+)?))(?:@\d+(?:\.\d+)?)?$/
+private nonisolated(unsafe) let legacyNumberTokenPattern = /^\d+(?:\.\d+)?$/
+
+private func isLegacyLog(_ raw: String) -> Bool {
+    let tokens =
+        raw
+        .split(separator: ",", omittingEmptySubsequences: true)
+        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    guard !tokens.isEmpty else { return false }
+
+    return tokens.allSatisfy { token in
+        token.wholeMatch(of: legacyLogTokenPattern) != nil
+            || token.wholeMatch(of: legacyNumberTokenPattern) != nil
+    }
 }
 
 private func parsedLogState(from raw: String) -> (SetState, SetLog?) {
@@ -134,6 +169,50 @@ private func parsedLogState(from raw: String) -> (SetState, SetLog?) {
         return (.logged, log)
     }
     return (.logged, nil)
+}
+
+private struct ParsedSetContext {
+    let setCount: Int
+    let anchorRow: Int
+    let nextAnchor: Int
+    let cols: DayColumns
+    let grid: SheetGrid
+    let reps: String
+    let repsValues: [String]
+    let load: String
+    let loadValues: [String]
+    let percentOneRM: String
+}
+
+private func parsedSets(_ context: ParsedSetContext) -> [ParsedSet] {
+    (0..<context.setCount).map { i in
+        let logRow = context.anchorRow + i + 1
+        let rawLog = logRow < context.nextAnchor ? context.grid.cellOrEmpty(logRow, context.cols.notes) : ""
+        let (state, setLog) = parsedLogState(from: rawLog)
+        return ParsedSet(
+            index: i,
+            prescribedReps: i < context.repsValues.count ? context.repsValues[i] : (context.repsValues.last ?? context.reps),
+            prescribedLoad: i < context.loadValues.count ? context.loadValues[i] : (context.loadValues.last ?? context.load),
+            percentOneRM: context.percentOneRM.isEmpty ? nil : context.percentOneRM,
+            state: state,
+            setLog: setLog
+        )
+    }
+}
+
+private func completionSets(_ sets: [ParsedSet], legacyLog: String?) -> [ParsedSet] {
+    guard legacyLog != nil, !sets.contains(where: { $0.setLog != nil }) else { return sets }
+
+    return sets.map {
+        ParsedSet(
+            index: $0.index,
+            prescribedReps: $0.prescribedReps,
+            prescribedLoad: $0.prescribedLoad,
+            percentOneRM: $0.percentOneRM,
+            state: $0.state == .skipped ? .skipped : .logged,
+            setLog: $0.setLog
+        )
+    }
 }
 
 /// Parses all exercises in one day group. Anchor rows have a non-empty name cell;
@@ -166,25 +245,29 @@ func parseDay(in grid: SheetGrid, section: WeekSection, dayIndex: Int, endRow: I
         let note = grid.cellOrEmpty(r, cols.notes).trimmed
         let loadValues = splitLoadValues(load)
         let repsValues = reps.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-        let sets = (0..<setCount).map { i in
-            let logRow = r + i + 1
-            let rawLog = logRow < nextAnchor ? grid.cellOrEmpty(logRow, cols.notes) : ""
-            let (state, setLog) = parsedLogState(from: rawLog)
-            return ParsedSet(
-                index: i,
-                prescribedReps: i < repsValues.count ? repsValues[i] : (repsValues.last ?? reps),
-                prescribedLoad: i < loadValues.count ? loadValues[i] : (loadValues.last ?? load),
-                percentOneRM: pct.isEmpty ? nil : pct,
-                state: state,
-                setLog: setLog
-            )
-        }
+        let legacyLog = isLegacyLog(note) ? note : nil
+        let sets = completionSets(
+            parsedSets(ParsedSetContext(
+                setCount: setCount,
+                anchorRow: r,
+                nextAnchor: nextAnchor,
+                cols: cols,
+                grid: grid,
+                reps: reps,
+                repsValues: repsValues,
+                load: load,
+                loadValues: loadValues,
+                percentOneRM: pct
+            )),
+            legacyLog: legacyLog
+        )
         result.append(
             ParsedExercise(
                 name: rawName,
                 baseName: base,
                 cadence: cadence,
-                coachNote: note.isEmpty ? nil : note,
+                coachNote: legacyLog == nil && !note.isEmpty ? note : nil,
+                legacyLog: legacyLog,
                 sets: sets
             )
         )

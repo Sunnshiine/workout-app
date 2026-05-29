@@ -10,15 +10,17 @@ final class Exercise {
     var baseName: String
     var cadence: String?
     var coachNote: String?
+    var legacyLog: String?
     var order: Int
     var session: Session?
     @Relationship(deleteRule: .cascade, inverse: \ExerciseSet.exercise) var sets: [ExerciseSet] = []
 
-    init(name: String, baseName: String, cadence: String?, coachNote: String?, order: Int = 0) {
+    init(name: String, baseName: String, cadence: String?, coachNote: String?, legacyLog: String? = nil, order: Int = 0) {
         self.name = name
         self.baseName = baseName
         self.cadence = cadence
         self.coachNote = coachNote
+        self.legacyLog = legacyLog
         self.order = order
     }
 }

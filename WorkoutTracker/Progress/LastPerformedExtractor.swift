@@ -3,15 +3,25 @@ import Foundation
 struct LastPerformedRecord: Sendable, Equatable {
     var fullName: String
     var baseName: String
-    var result: SetLog
+    var result: SetLog?
+    var resultText: String
     var performedOn: Date
     var source: String
 
     var entry: LastPerformedEntry {
-        LastPerformedEntry(
+        if let result {
+            return LastPerformedEntry(
+                fullName: fullName,
+                baseName: baseName,
+                result: result,
+                performedOn: performedOn,
+                source: source
+            )
+        }
+        return LastPerformedEntry(
             fullName: fullName,
             baseName: baseName,
-            result: result,
+            resultText: resultText,
             performedOn: performedOn,
             source: source
         )
@@ -29,13 +39,14 @@ enum LastPerformedExtractor {
         for week in block.weeks {
             for session in week.days {
                 for exercise in session.exercises {
-                    guard let log = lastLoggedSet(in: exercise)?.setLog else { continue }
+                    guard let evidence = lastPerformedEvidence(in: exercise) else { continue }
 
                     let performedOn = session.date ?? .distantPast
                     let candidate = LastPerformedCandidate(
                         fullName: exercise.name,
                         baseName: exercise.baseName,
-                        result: log,
+                        result: evidence.result,
+                        resultText: evidence.resultText,
                         performedOn: performedOn,
                         source: "\(block.tabName) · W\(week.number) D\(session.dayNumber)"
                     )
@@ -58,23 +69,33 @@ enum LastPerformedExtractor {
                     fullName: $0.fullName,
                     baseName: $0.baseName,
                     result: $0.result,
+                    resultText: $0.resultText,
                     performedOn: $0.performedOn,
                     source: $0.source
                 )
             }
     }
 
-    private static func lastLoggedSet(in exercise: ParsedExercise) -> ParsedSet? {
-        exercise.sets
+    private static func lastPerformedEvidence(in exercise: ParsedExercise) -> (result: SetLog?, resultText: String)? {
+        let structuredLog = exercise.sets
             .filter { $0.state == .logged && $0.setLog != nil }
             .max { $0.index < $1.index }
+            .flatMap(\.setLog)
+
+        if let setLog = structuredLog {
+            return (setLog, setLog.formatted)
+        }
+
+        guard let legacyLog = exercise.legacyLog else { return nil }
+        return (nil, legacyLog)
     }
 }
 
 private struct LastPerformedCandidate {
     var fullName: String
     var baseName: String
-    var result: SetLog
+    var result: SetLog?
+    var resultText: String
     var performedOn: Date
     var source: String
 }

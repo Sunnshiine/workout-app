@@ -196,6 +196,62 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 }
 
 @MainActor
+@Test func exerciseSummaryRowPresentationShowsRawLegacyLog() {
+    let exercise = Exercise(
+        name: "Standing Calve Raises",
+        baseName: "Standing Calve Raises",
+        cadence: nil,
+        coachNote: nil,
+        legacyLog: "25x12, 12"
+    )
+    exercise.sets = [
+        ExerciseSet(index: 0, prescribedReps: "12", prescribedLoad: "RPE 9", percentOneRM: nil, state: .logged),
+        ExerciseSet(index: 1, prescribedReps: "12", prescribedLoad: "RPE 9", percentOneRM: nil, state: .logged)
+    ]
+
+    let presentation = ExerciseSummaryRowPresentation(exercise: exercise)
+
+    #expect(presentation.title == "✓ Standing Calve Raises · 25x12, 12")
+}
+
+@MainActor
+@Test func exerciseSummaryRowPresentationPrefersStructuredLogsOverLegacyLog() {
+    let exercise = Exercise(
+        name: "Standing Calve Raises",
+        baseName: "Standing Calve Raises",
+        cadence: nil,
+        coachNote: nil,
+        legacyLog: "25x12, 12"
+    )
+    let set = ExerciseSet(index: 0, prescribedReps: "12", prescribedLoad: "RPE 9", percentOneRM: nil, state: .logged)
+    set.setLog = SetLog(weight: .pounds(35), reps: 12, rpe: 9)
+    exercise.sets = [set]
+
+    let presentation = ExerciseSummaryRowPresentation(exercise: exercise)
+
+    #expect(presentation.title == "✓ Standing Calve Raises · 35×12")
+}
+
+@MainActor
+@Test func exerciseSummaryRowPresentationShowsRawLegacyLogWhenSetLevelSkipExists() {
+    let exercise = Exercise(
+        name: "Standing Calve Raises",
+        baseName: "Standing Calve Raises",
+        cadence: nil,
+        coachNote: nil,
+        legacyLog: "25x12, 12"
+    )
+    exercise.sets = [
+        ExerciseSet(index: 0, prescribedReps: "12", prescribedLoad: "RPE 9", percentOneRM: nil, state: .logged),
+        ExerciseSet(index: 1, prescribedReps: "12", prescribedLoad: "RPE 9", percentOneRM: nil, state: .skipped)
+    ]
+
+    let presentation = ExerciseSummaryRowPresentation(exercise: exercise)
+
+    #expect(presentation.title == "✓ Standing Calve Raises · 25x12, 12")
+}
+
+@MainActor
 @Test func lastPerformedCardPresentationShowsLabelSetLogAndSource() {
     let entry = LastPerformedEntry(
         fullName: "DB Fly",
@@ -209,6 +265,22 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 
     #expect(presentation.label == "Last Performed")
     #expect(presentation.resultText == "25x12@9")
+    #expect(presentation.sourceText == "W4 D3")
+}
+
+@MainActor
+@Test func lastPerformedCardPresentationShowsRawLegacyResultText() {
+    let entry = LastPerformedEntry(
+        fullName: "Standing Calve Raises",
+        baseName: "Standing Calve Raises",
+        resultText: "25x12, 12",
+        performedOn: Date(timeIntervalSinceReferenceDate: 100),
+        source: "W4 D3"
+    )
+
+    let presentation = LastPerformedCardPresentation(entry: entry)
+
+    #expect(presentation.resultText == "25x12, 12")
     #expect(presentation.sourceText == "W4 D3")
 }
 

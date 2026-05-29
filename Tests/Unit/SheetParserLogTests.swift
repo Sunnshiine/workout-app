@@ -64,12 +64,12 @@ import Testing
     #expect(exercises[0].sets.allSatisfy { $0.setLog == nil })
 }
 
-@Test func ignoresAnchorNotesAsSetLogs() {
+@Test func legacyAnchorNotesCompletePrescribedSetsWithoutStructuredSetLogs() {
     let grid = gridFromA1(
         [
             "C12": "Day 1", "S12": "Day 2",
             "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
-            "C15": "Standing Calve Raises", "D15": "1", "F15": "12", "H15": "RPE 9", "K15": "25x12, 12"
+            "C15": "Standing Calve Raises", "D15": "2", "F15": "12", "H15": "RPE 9", "K15": "25x12, 12"
         ],
         rows: 20,
         cols: 30
@@ -78,7 +78,88 @@ import Testing
 
     let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
 
-    #expect(exercises[0].coachNote == "25x12, 12")
-    #expect(exercises[0].sets[0].state == .pending)
-    #expect(exercises[0].sets[0].setLog == nil)
+    #expect(exercises[0].coachNote == nil)
+    #expect(exercises[0].legacyLog == "25x12, 12")
+    #expect(exercises[0].sets.map(\.state) == [.logged, .logged])
+    #expect(exercises[0].sets.allSatisfy { $0.setLog == nil })
+}
+
+@Test func classifiesResultShapedAnchorNotesAsLegacyLogs() {
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": "Standing Calve Raises", "D15": "2", "F15": "12", "H15": "RPE 9", "K15": "25x12, 12"
+        ],
+        rows: 20,
+        cols: 30
+    )
+    let section = locateWeekSections(in: grid)[0]
+
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+
+    #expect(exercises[0].coachNote == nil)
+    #expect(exercises[0].legacyLog == "25x12, 12")
+}
+
+@Test func keepsInstructionShapedAnchorNotesAsCoachNotes() {
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": "Split Squat", "D15": "2", "F15": "8", "H15": "RPE 8", "K15": "Start w/ 10 sec hold",
+            "C18": "Cable Row", "D18": "2", "F18": "10", "H18": "RPE 7", "K18": "Superset w/ curls"
+        ],
+        rows: 24,
+        cols: 30
+    )
+    let section = locateWeekSections(in: grid)[0]
+
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+
+    #expect(exercises[0].coachNote == "Start w/ 10 sec hold")
+    #expect(exercises[0].legacyLog == nil)
+    #expect(exercises[1].coachNote == "Superset w/ curls")
+    #expect(exercises[1].legacyLog == nil)
+}
+
+@Test func structuredContinuationSetLogsTakePrecedenceOverLegacyAnchorLog() {
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": "Standing Calve Raises", "D15": "2", "F15": "12", "H15": "RPE 9", "K15": "25x12, 12",
+            "K16": "35x12@9"
+        ],
+        rows: 22,
+        cols: 30
+    )
+    let section = locateWeekSections(in: grid)[0]
+
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+
+    #expect(exercises[0].legacyLog == "25x12, 12")
+    #expect(exercises[0].sets[0].state == .logged)
+    #expect(exercises[0].sets[0].setLog?.formatted == "35x12@9")
+    #expect(exercises[0].sets[1].state == .pending)
+    #expect(exercises[0].sets[1].setLog == nil)
+}
+
+@Test func legacyAnchorLogPreservesSetLevelSkipMarkers() {
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": "Standing Calve Raises", "D15": "2", "F15": "12", "H15": "RPE 9", "K15": "25x12, 12",
+            "K17": "skip"
+        ],
+        rows: 22,
+        cols: 30
+    )
+    let section = locateWeekSections(in: grid)[0]
+
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+
+    #expect(exercises[0].sets.map(\.state) == [.logged, .skipped])
+    #expect(exercises[0].sets.allSatisfy { $0.setLog == nil })
 }
