@@ -197,7 +197,41 @@ private func batchPendingWrite(
     #expect(writes.count == 2)
     #expect(writes.allSatisfy { $0.status == .conflict })
     let messages = try #require(conflictMessages(sync.state))
-    #expect(messages.contains { $0.contains("Squat") && $0.contains("Set 1 row") })
+    #expect(
+        messages.contains {
+            $0.contains("Squat") && $0.contains("Set 1") && $0.contains("existing header Notes")
+        }
+    )
+}
+
+@MainActor
+@Test func compactSetConflictExplainsHeaderNotesBlockSafeFallbackRow() async throws {
+    let container = try makeBatchContainer()
+    let ctx = container.mainContext
+    ctx.insert(
+        batchPendingWrite(
+            createdAt: 1,
+            exerciseName: "0:2:0 Hip Thrust of Choice",
+            setIndex: 1,
+            valueToWrite: "135x8@8"
+        )
+    )
+    try ctx.save()
+    let client = BatchFlushStubClient(grid: hipThrustHeaderNotesConflictGrid())
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    let write = try #require(try ctx.fetch(FetchDescriptor<PendingWrite>()).first)
+    let messages = try #require(conflictMessages(sync.state))
+    let message = try #require(messages.first)
+    #expect(client.updates.isEmpty)
+    #expect(write.status == .conflict)
+    #expect(message.contains("0:2:0 Hip Thrust of Choice"))
+    #expect(message.contains("Set 2"))
+    #expect(message.contains("existing header Notes"))
+    #expect(message.contains("no safe Set row"))
+    #expect(message.contains("Add a row in the Sheet"))
 }
 
 @MainActor
@@ -328,6 +362,21 @@ private func missingContinuationRowGrid() -> SheetGrid {
             "C12": "Day 1", "S12": "Day 2",
             "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
             "C15": "Squat", "D15": "1", "K15": "Coach note",
+            "C16": "Bench Press", "D16": "1"
+        ],
+        rows: 24,
+        cols: 30
+    )
+}
+
+private func hipThrustHeaderNotesConflictGrid() -> SheetGrid {
+    gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load",
+            "I14": "Last set RPE", "K14": "Notes",
+            "C15": "0:2:0 Hip Thrust of Choice", "D15": "2",
+            "K15": "70@10, 55; keep hips tucked",
             "C16": "Bench Press", "D16": "1"
         ],
         rows: 24,
