@@ -116,9 +116,10 @@ final class WorkoutStore {
     // MARK: - Optimistic Logging
 
     func log(_ set: ExerciseSet, as log: SetLog) throws {
-        let previousValue = set.setLog?.formatted ?? ""
+        let previousValue = notesValue(for: set)
         let previousRPE = set.setLog.map { rpeLabel($0.rpe) } ?? ""
         set.setLog = log
+        set.unstructuredSetLog = nil
         set.state = .logged
         try enqueue(
             for: set,
@@ -141,8 +142,9 @@ final class WorkoutStore {
     }
 
     func skip(_ set: ExerciseSet) throws {
-        let previousValue = set.setLog?.formatted ?? (set.state == .skipped ? "skip" : "")
+        let previousValue = notesValue(for: set)
         set.setLog = nil
+        set.unstructuredSetLog = nil
         set.state = .skipped
         try enqueue(
             for: set,
@@ -155,9 +157,10 @@ final class WorkoutStore {
     }
 
     func deleteLog(for set: ExerciseSet) throws {
-        let previousValue = set.setLog?.formatted ?? (set.state == .skipped ? "skip" : "")
+        let previousValue = notesValue(for: set)
         let previousRPE = set.setLog.map { rpeLabel($0.rpe) } ?? ""
         set.setLog = nil
+        set.unstructuredSetLog = nil
         set.state = .pending
         try enqueue(
             for: set,
@@ -179,6 +182,19 @@ final class WorkoutStore {
     }
 
     // MARK: - Private Helpers
+
+    private func notesValue(for set: ExerciseSet) -> String {
+        if let setLog = set.setLog {
+            return setLog.formatted
+        }
+        if let unstructuredSetLog = set.unstructuredSetLog {
+            return unstructuredSetLog
+        }
+        if set.state == .skipped {
+            return "skip"
+        }
+        return ""
+    }
 
     private func enqueue(
         for set: ExerciseSet,

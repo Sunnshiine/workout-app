@@ -150,6 +150,24 @@ private func seededStore() throws -> SeededLoggingStore {
 }
 
 @MainActor
+@Test func editingUnstructuredSetLogQueuesWriteLockedToRawNotesValue() throws {
+    let fixture = try seededStore()
+    withExtendedLifetime(fixture.container) {}
+    fixture.firstSet.state = .logged
+    fixture.firstSet.unstructuredSetLog = "185, 185, backed off"
+
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+
+    #expect(fixture.firstSet.setLog?.formatted == "185x5@8")
+    #expect(fixture.firstSet.unstructuredSetLog == nil)
+    let pending = try #require(try fixture.context.fetch(FetchDescriptor<PendingWrite>()).last)
+    #expect(pending.operation == .upsert)
+    #expect(pending.column == .notes)
+    #expect(pending.valueToWrite == "185x5@8")
+    #expect(pending.expectedCurrentValue == "185, 185, backed off")
+}
+
+@MainActor
 @Test func deleteSetClearsLocalSetAndQueuesDelete() throws {
     let fixture = try seededStore()
     withExtendedLifetime(fixture.container) {}

@@ -62,6 +62,7 @@ import Testing
 
     #expect(exercises[0].sets.map(\.state) == [.logged, .logged, .logged])
     #expect(exercises[0].sets.allSatisfy { $0.setLog == nil })
+    #expect(exercises[0].sets.map(\.unstructuredSetLog) == ["185", "185x7", "did 3 sets"])
 }
 
 @Test func legacyAnchorNotesCompletePrescribedSetsWithoutStructuredSetLogs() {
