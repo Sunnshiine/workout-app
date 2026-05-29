@@ -22,7 +22,8 @@ enum BlockBuilder {
                             prescribedReps: $0.prescribedReps,
                             prescribedLoad: $0.prescribedLoad,
                             percentOneRM: $0.percentOneRM,
-                            state: $0.state
+                            state: $0.state,
+                            unstructuredSetLog: $0.unstructuredSetLog
                         )
                         set.setLog = $0.setLog
                         return set
