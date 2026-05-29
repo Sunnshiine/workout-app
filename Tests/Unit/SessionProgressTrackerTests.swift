@@ -126,6 +126,29 @@ private func sortedSessions(in block: Block) -> [Session] {
 }
 
 @MainActor
+@Test func legacyLogCountsAllPrescribedSetsCompleteForSessionProgress() throws {
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": "Standing Calve Raises", "D15": "2", "F15": "12", "H15": "RPE 9", "K15": "25x12, 12"
+        ],
+        rows: 24,
+        cols: 30
+    )
+    let parsed = SheetParser().parse(grid: grid, tabName: "Block 27")
+    let block = BlockBuilder.makeBlock(from: parsed.block)
+    let session = try #require(block.weeks.first?.sessions.first)
+
+    let presentation = SessionProgressHeaderPresentation(session: session)
+    let tileState = SessionProgressTracker().tileState(for: session, currentSession: session)
+
+    #expect(presentation.remainingSetCount == 0)
+    #expect(presentation.completedSetCount == 2)
+    #expect(tileState == .complete)
+}
+
+@MainActor
 @Test func sessionTileStateHasExactlyThreeCases() {
     #expect(SessionTileState.allCases == [.complete, .current, .incomplete])
 }

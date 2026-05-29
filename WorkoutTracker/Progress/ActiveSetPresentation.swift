@@ -154,7 +154,9 @@ struct ExerciseSummaryRowPresentation: Equatable, Sendable {
                 return "\(setLog.weight.label)×\(setLog.reps)"
             }
             .joined(separator: " / ")
-        title = "✓ \(exercise.baseName) · \(setResults)"
+        let hasStructuredSetLog = exercise.sets.contains { $0.setLog != nil }
+        let resultText = !hasStructuredSetLog ? exercise.legacyLog ?? setResults : setResults
+        title = "✓ \(exercise.baseName) · \(resultText)"
     }
 }
 
@@ -165,7 +167,7 @@ struct LastPerformedCardPresentation: Equatable, Sendable {
 
     init(entry: LastPerformedEntry) {
         label = "Last Performed"
-        resultText = entry.result.formatted
+        resultText = entry.displayResultText
         sourceText = entry.source
     }
 

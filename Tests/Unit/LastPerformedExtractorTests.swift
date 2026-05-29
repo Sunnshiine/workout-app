@@ -77,6 +77,63 @@ import Testing
     #expect(LastPerformedExtractor.entries(from: block).isEmpty)
 }
 
+@Test func extractsLegacyLogWhenStructuredSetLogsAreAbsent() throws {
+    let performedDate = try #require(DateFormatter.testDate.date(from: "5/8/2026"))
+    let block = ParsedBlockModel(
+        tabName: "Block 27",
+        weeks: [
+            week(
+                1,
+                date: performedDate,
+                exercises: [
+                    exercise(
+                        "Standing Calve Raises",
+                        legacyLog: "25x12, 12",
+                        sets: [
+                            loggedUnstructuredSet(index: 0),
+                            loggedUnstructuredSet(index: 1)
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
+
+    let entry = try #require(LastPerformedExtractor.entries(from: block).first)
+
+    #expect(entry.fullName == "Standing Calve Raises")
+    #expect(entry.resultText == "25x12, 12")
+    #expect(entry.result == nil)
+    #expect(entry.performedOn == performedDate)
+    #expect(entry.source == "Block 27 · W1 D1")
+}
+
+@Test func structuredSetLogsTakePrecedenceOverLegacyLogsForLastPerformed() throws {
+    let block = ParsedBlockModel(
+        tabName: "Block 27",
+        weeks: [
+            week(
+                1,
+                date: nil,
+                exercises: [
+                    exercise(
+                        "Standing Calve Raises",
+                        legacyLog: "25x12, 12",
+                        sets: [
+                            loggedSet(index: 0, weight: 35, reps: 12, rpe: 9)
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
+
+    let entry = try #require(LastPerformedExtractor.entries(from: block).first)
+
+    #expect(entry.displayResultText == "35x12@9")
+    #expect(entry.result == SetLog(weight: .pounds(35), reps: 12, rpe: 9))
+}
+
 private func week(_ number: Int, date: Date?, exercises: [ParsedExercise]) -> ParsedWeek {
     ParsedWeek(
         number: number,
@@ -86,8 +143,8 @@ private func week(_ number: Int, date: Date?, exercises: [ParsedExercise]) -> Pa
     )
 }
 
-private func exercise(_ name: String, sets: [ParsedSet]) -> ParsedExercise {
-    ParsedExercise(name: name, baseName: name, cadence: nil, coachNote: nil, sets: sets)
+private func exercise(_ name: String, legacyLog: String? = nil, sets: [ParsedSet]) -> ParsedExercise {
+    ParsedExercise(name: name, baseName: name, cadence: nil, coachNote: nil, legacyLog: legacyLog, sets: sets)
 }
 
 private func loggedSet(index: Int, weight: Double, reps: Int, rpe: Double) -> ParsedSet {
@@ -102,6 +159,10 @@ private func loggedSet(index: Int, weight: Double, reps: Int, rpe: Double) -> Pa
 
 private func pendingSet(index: Int) -> ParsedSet {
     ParsedSet(index: index, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil)
+}
+
+private func loggedUnstructuredSet(index: Int) -> ParsedSet {
+    ParsedSet(index: index, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .logged)
 }
 
 private func skippedSet(index: Int) -> ParsedSet {
