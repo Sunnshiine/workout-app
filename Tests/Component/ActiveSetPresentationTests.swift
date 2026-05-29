@@ -15,6 +15,46 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     )
 }
 
+@Test func holdToSkipPolicyTreatsQuickReleaseAsLogTap() {
+    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18)
+
+    let outcome = policy.releaseOutcome(elapsed: 0.1, skipCompleted: false)
+
+    #expect(outcome == .log)
+}
+
+@Test func holdToSkipPolicyCancelsSkipOnEarlyHoldRelease() {
+    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18)
+
+    let outcome = policy.releaseOutcome(elapsed: 0.4, skipCompleted: false)
+
+    #expect(outcome == .cancelSkip)
+}
+
+@Test func holdToSkipPolicyIgnoresReleaseAfterCompletedSkip() {
+    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18)
+
+    let outcome = policy.releaseOutcome(elapsed: 0.9, skipCompleted: true)
+
+    #expect(outcome == .ignore)
+}
+
+@Test func holdToSkipPolicyCompletesSkipWhenReleaseReachesHoldDuration() {
+    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18)
+
+    let outcome = policy.releaseOutcome(elapsed: 0.9, skipCompleted: false)
+
+    #expect(outcome == .skip)
+}
+
+@Test func holdToSkipButtonPresentationFadesTowardSkippedState() {
+    let presentation = HoldToSkipButtonPresentation(progress: 0.65, logTitle: "Log 185×5@8")
+
+    #expect(abs(presentation.logOpacity - 0.35) < 0.001)
+    #expect(abs(presentation.skipOpacity - 0.65) < 0.001)
+    #expect(presentation.accessibilityLabel == "Skipped")
+}
+
 @MainActor
 @Test func setRowPresentationShowsLoggedSetWithAccentAndCheckmark() {
     let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .logged)

@@ -46,6 +46,7 @@ final class WorkoutTrackerUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
         XCTAssertFalse(app.buttons["Cancel"].exists)
+        XCTAssertFalse(app.buttons["Skip"].exists)
 
         app.buttons["weight-pill"].tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))

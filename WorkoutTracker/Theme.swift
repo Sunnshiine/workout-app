@@ -41,6 +41,8 @@ enum Theme {
     static let heavyWeightIncrementOptions = [5.0, 10.0]
 
     static let logButtonCheckmarkDuration = 0.2
+    static let holdToSkipDuration = 0.8
+    static let holdToSkipTapMaximumDuration = 0.18
     static let momentumFlowTotalDuration = 0.65
     static let momentumDropDuration = 0.4
     static let momentumRiseDuration = 0.5
@@ -59,6 +61,10 @@ enum Theme {
 
     static var logButtonCheckmarkAnimation: Animation {
         .easeOut(duration: logButtonCheckmarkDuration)
+    }
+
+    static var holdToSkipProgressAnimation: Animation {
+        .linear(duration: holdToSkipDuration)
     }
 
     static var momentumFlowAnimation: Animation {
