@@ -50,6 +50,23 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 }
 
 @MainActor
+@Test func loggedSetReviewPresentationDistinguishesStructuredAndUnstructuredLogs() {
+    let structured = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .logged)
+    structured.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: 8)
+    let unstructured = ExerciseSet(index: 1, prescribedReps: "AMRAP", prescribedLoad: "BW", percentOneRM: nil, state: .logged)
+
+    let structuredPresentation = LoggedSetReviewPresentation(set: structured)
+    let unstructuredPresentation = LoggedSetReviewPresentation(set: unstructured)
+
+    #expect(structuredPresentation.statusText == "Already logged")
+    #expect(structuredPresentation.detailText == "185x5@8")
+    #expect(structuredPresentation.allowsEditing)
+    #expect(unstructuredPresentation.statusText == "Already logged")
+    #expect(unstructuredPresentation.detailText == "Completed from sheet")
+    #expect(!unstructuredPresentation.allowsEditing)
+}
+
+@MainActor
 @Test func sessionProgressHeaderPresentationShowsCompactLocationAndRemainingCount() {
     let block = Block(tabName: "Block 27", squatTM: nil, benchTM: nil, deadliftTM: nil)
     let week = Week(number: 2)

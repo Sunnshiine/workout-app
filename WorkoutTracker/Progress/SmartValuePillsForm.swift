@@ -59,6 +59,15 @@ struct SmartValuePillsForm {
         makeLog() != nil
     }
 
+    var hasChanges: Bool {
+        weightText != initialWeightText || repsText != initialRepsText || rpeText != initialRPEText
+    }
+
+    var changedValidLog: SetLog? {
+        guard hasChanges else { return nil }
+        return makeLog()
+    }
+
     var logButtonTitle: String {
         guard let log = makeLog() else { return "Log" }
         return "Log \(log.weight.label)×\(log.reps)@\(Self.rpeLabel(log.rpe))"
@@ -114,7 +123,8 @@ struct SmartValuePillsForm {
         if set.prescribedLoad.caseInsensitiveCompare("BW") == .orderedSame {
             return "BW"
         }
-        return LoadSuggestionEngine
+        return
+            LoadSuggestionEngine
             .suggest(
                 prescribedLoad: loadSuggestionPrescription(for: set),
                 previousSetWeight: previousSetWeight,

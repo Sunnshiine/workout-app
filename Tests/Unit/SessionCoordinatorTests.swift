@@ -268,6 +268,26 @@ private func makeActionFixture() throws -> CoordinatorActionFixture {
 }
 
 @MainActor
+@Test func coordinatorExpandsLoggedSetReviewWithoutChangingActivePendingSet() throws {
+    let session = makeCoordinatorSession()
+    let coordinator = SessionCoordinator(session: session)
+    let completedSquatSet = try #require(session.exercises.first { $0.order == 0 }?.sets.first)
+
+    coordinator.focus(on: completedSquatSet)
+
+    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    #expect(coordinator.expandedLoggedSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+
+    let squatConfig = try #require(coordinator.exerciseRenderItems(in: session).first { $0.exercise.order == 0 })
+    #expect(squatConfig.activeSetID == nil)
+    #expect(squatConfig.expandedLoggedSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+
+    coordinator.focus(on: completedSquatSet)
+
+    #expect(coordinator.expandedLoggedSetID == nil)
+}
+
+@MainActor
 @Test func coordinatorBuildsOrderedRenderItemsWithSupersetsAndHiddenPairedExercises() throws {
     let session = makeFourExercisePairingSession()
     let coordinator = SessionCoordinator(session: session)
@@ -528,6 +548,56 @@ private func makeActionFixture() throws -> CoordinatorActionFixture {
     #expect(fixture.coordinator.retiringTransition == transition)
     #expect(fixture.sync.flushRequestCount == 1)
     #expect(fixture.sync.reportedErrors.isEmpty)
+}
+
+@MainActor
+@Test func updatingLoggedSetUsesAdaptersWithoutAdvancingActivePendingSet() throws {
+    let fixture = try makeActionFixture()
+    let squatSet = try #require(fixture.session.exercises.first { $0.order == 0 }?.sets.first)
+    let updatedLog = SetLog(weight: .pounds(205), reps: 5, rpe: 8)
+
+    fixture.coordinator.focus(on: squatSet)
+    fixture.coordinator.updateLoggedSet(squatSet, as: updatedLog)
+
+    #expect(fixture.logging.loggedSets.count == 1)
+    #expect(fixture.logging.loggedSets.first?.set === squatSet)
+    #expect(fixture.logging.loggedSets.first?.log == updatedLog)
+    #expect(fixture.coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    #expect(fixture.coordinator.expandedLoggedSetID == nil)
+    #expect(fixture.coordinator.savedLoggedSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+    #expect(fixture.coordinator.activeSetTransition == nil)
+    #expect(fixture.sync.flushRequestCount == 1)
+    #expect(fixture.sync.reportedErrors.isEmpty)
+}
+
+@MainActor
+@Test func updatingPreviousLoggedSetDoesNotCollapseNewlyExpandedLoggedSet() throws {
+    let fixture = try makeActionFixture()
+    let squatSet = try #require(fixture.session.exercises.first { $0.order == 0 }?.sets.first)
+    let rowSet = try #require(fixture.session.exercises.first { $0.order == 2 }?.sets.first)
+    rowSet.state = .logged
+    let updatedLog = SetLog(weight: .pounds(205), reps: 5, rpe: 8)
+
+    fixture.coordinator.focus(on: squatSet)
+    fixture.coordinator.focus(on: rowSet)
+    fixture.coordinator.updateLoggedSet(squatSet, as: updatedLog)
+
+    #expect(fixture.coordinator.expandedLoggedSetID == ActiveSetID(exerciseOrder: 2, setIndex: 0))
+    #expect(fixture.coordinator.savedLoggedSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+}
+
+@MainActor
+@Test func bindingNewSessionClearsSavedLoggedSetFeedback() throws {
+    let fixture = try makeActionFixture()
+    let squatSet = try #require(fixture.session.exercises.first { $0.order == 0 }?.sets.first)
+    let updatedLog = SetLog(weight: .pounds(205), reps: 5, rpe: 8)
+    let next = makeSingleSetSession(dayNumber: 2)
+
+    fixture.coordinator.focus(on: squatSet)
+    fixture.coordinator.updateLoggedSet(squatSet, as: updatedLog)
+    fixture.coordinator.bind(to: next.session)
+
+    #expect(fixture.coordinator.savedLoggedSetID == nil)
 }
 
 @MainActor

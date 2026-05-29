@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SetRow: View {
     let set: ExerciseSet
+    var showsSavedConfirmation = false
     let onTap: () -> Void
 
     private var presentation: SetRowPresentation {
@@ -24,6 +25,12 @@ struct SetRow: View {
                 Text(presentation.title)
                     .font(.callout.weight(.medium))
                     .foregroundStyle(presentation.tone == .accent ? Theme.accent : .secondary)
+
+                if showsSavedConfirmation {
+                    Label("Saved", systemImage: "checkmark.circle.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.accent)
+                }
 
                 Spacer(minLength: 0)
             }

@@ -5,6 +5,7 @@ struct ExerciseSection: View {
     let onFocus: (ExerciseSet) -> Void
     let onReexpand: () -> Void
     let onLog: (ExerciseSet, SetLog) -> Void
+    let onUpdateLoggedSet: (ExerciseSet, SetLog) -> Void
     let onSkip: (ExerciseSet) -> Void
     let onDelete: (ExerciseSet) -> Void
     var onBeginPairing: () -> Void = {}
@@ -57,7 +58,16 @@ struct ExerciseSection: View {
                         let setID = SessionCoordinator.activeSetID(for: set)
                         let scrollID = setID ?? ActiveSetID(exerciseOrder: exercise.order, setIndex: set.index)
                         ZStack(alignment: .topLeading) {
-                            if setID == config.activeSetID {
+                            if setID == config.expandedLoggedSetID {
+                                LoggedSetReviewCard(
+                                    set: set,
+                                    setOrdinal: setOrdinal(for: set),
+                                    setCount: sortedSets.count,
+                                    showsSavedConfirmation: setID == config.savedLoggedSetID,
+                                    onCommit: { onUpdateLoggedSet(set, $0) },
+                                    onCollapse: { onFocus(set) }
+                                )
+                            } else if setID == config.activeSetID {
                                 IncomingActiveSetCard(
                                     transition: incomingTransition(for: setID),
                                     exercise: exercise,
@@ -69,7 +79,10 @@ struct ExerciseSection: View {
                                     onDelete: { onDelete(set) }
                                 )
                             } else {
-                                SetRow(set: set) {
+                                SetRow(
+                                    set: set,
+                                    showsSavedConfirmation: setID == config.savedLoggedSetID
+                                ) {
                                     onFocus(set)
                                 }
                             }
