@@ -173,6 +173,41 @@ private func makePlannedSupersetSession() -> Session {
 }
 
 @MainActor
+@Test func loggedSetReviewOwnsVisualFocusWhileRememberingActivePendingSet() throws {
+    let session = makeSession()
+    let loggedSet = try #require(session.exercises.first { $0.order == 0 }?.sets.first { $0.index == 0 })
+    let focus = ActiveSetFocusManager(session: session)
+
+    #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 1))
+    #expect(focus.visualFocusOwner == .activeSet(ActiveSetID(exerciseOrder: 0, setIndex: 1)))
+
+    focus.focus(on: loggedSet)
+
+    #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 1))
+    #expect(focus.expandedLoggedSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+    #expect(focus.visualFocusOwner == .loggedSetReview(ActiveSetID(exerciseOrder: 0, setIndex: 0)))
+
+    focus.collapseLoggedSetReview()
+
+    #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 1))
+    #expect(focus.expandedLoggedSetID == nil)
+    #expect(focus.visualFocusOwner == .activeSet(ActiveSetID(exerciseOrder: 0, setIndex: 1)))
+}
+
+@MainActor
+@Test func unstructuredLoggedSetReviewOwnsVisualFocusWhileRememberingActivePendingSet() throws {
+    let session = makeSession()
+    let loggedSet = try #require(session.exercises.first { $0.order == 0 }?.sets.first { $0.index == 0 })
+    loggedSet.setLog = nil
+    let focus = ActiveSetFocusManager(session: session)
+
+    focus.focus(on: loggedSet)
+
+    #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 1))
+    #expect(focus.visualFocusOwner == .loggedSetReview(ActiveSetID(exerciseOrder: 0, setIndex: 0)))
+}
+
+@MainActor
 @Test func skippingActiveSetAdvancesToNextPendingSet() throws {
     let session = makePendingSession()
     let set = try #require(session.exercises.first?.sets.first { $0.index == 0 })
