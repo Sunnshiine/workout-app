@@ -161,6 +161,8 @@ import Testing
 
 @Test func themeIncludesActiveSetTransitionTimingConstants() {
     #expect(Theme.logButtonCheckmarkDuration == 0.2)
+    #expect(Theme.holdToSkipDuration == 0.8)
+    #expect(Theme.holdToSkipTapMaximumDuration < Theme.holdToSkipDuration)
     #expect(Theme.momentumFlowTotalDuration == 0.65)
     #expect(Theme.momentumDropDuration == 0.4)
     #expect(Theme.momentumRiseDuration == 0.5)

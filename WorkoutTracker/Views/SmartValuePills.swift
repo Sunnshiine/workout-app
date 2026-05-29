@@ -203,46 +203,37 @@ struct SmartValuePills: View {
 
     private var actionControls: some View {
         VStack(spacing: 8) {
-            Button {
-                guard let log = form.submitLog() else { return }
-                withAnimation(Theme.logButtonCheckmarkAnimation) {
-                    showsLoggedCheckmark = true
-                }
-                onLog(log)
-            } label: {
-                HStack(spacing: 8) {
-                    if showsLoggedCheckmark {
-                        Image(systemName: "checkmark")
-                            .font(.headline.weight(.bold))
-                            .transition(.scale.combined(with: .opacity))
-                    }
+            HoldToSkipLogButton(
+                logTitle: form.logButtonTitle,
+                canLog: form.canLog,
+                showsLoggedCheckmark: showsLoggedCheckmark,
+                onLogTap: submitLog,
+                onSkip: onSkip,
+                onPressStarted: dismissFieldUI
+            )
 
-                    Text(form.logButtonTitle)
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .font(.headline.weight(.bold))
-            .foregroundStyle(Theme.accentDarkText)
-            .padding(.vertical, 14)
-            .background(Theme.accent, in: .rect(cornerRadius: Theme.pillCornerRadius))
-            .opacity(form.canLog ? 1 : 0.45)
-            .accessibilityIdentifier("log-active-set-button")
+            if set.state != .pending {
+                HStack {
+                    Spacer()
 
-            HStack {
-                Spacer()
-
-                Menu {
-                    Button("Skip", action: onSkip)
-                    if set.state != .pending {
+                    Menu {
                         Button("Clear", role: .destructive, action: onDelete)
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .imageScale(.large)
                     }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .imageScale(.large)
+                    .buttonStyle(.glass)
                 }
-                .buttonStyle(.glass)
             }
         }
+    }
+
+    private func submitLog() {
+        guard let log = form.submitLog() else { return }
+        withAnimation(Theme.logButtonCheckmarkAnimation) {
+            showsLoggedCheckmark = true
+        }
+        onLog(log)
     }
 
     private func dismissFieldUI() {
@@ -255,6 +246,160 @@ struct SmartValuePills: View {
         switch pill {
         case .weight: .weight
         case .reps: .reps
+        }
+    }
+}
+
+private struct HoldToSkipLogButton: View {
+    let logTitle: String
+    let canLog: Bool
+    let showsLoggedCheckmark: Bool
+    let onLogTap: () -> Void
+    let onSkip: () -> Void
+    let onPressStarted: () -> Void
+
+    @State private var skipProgress = 0.0
+    @State private var skipPressStartedAt: Date?
+    @State private var skipCompleted = false
+    @State private var suppressNextLogTap = false
+    @State private var skipTask: Task<Void, Never>?
+    @State private var suppressLogTapTask: Task<Void, Never>?
+
+    var body: some View {
+        Button {
+            guard !suppressNextLogTap else {
+                suppressNextLogTap = false
+                return
+            }
+            onLogTap()
+        } label: {
+            buttonContent
+        }
+        .buttonStyle(.plain)
+        .contentShape(.rect)
+        .onLongPressGesture(
+            minimumDuration: policy.holdDuration,
+            maximumDistance: 44,
+            pressing: { isPressing in
+                if isPressing {
+                    startSkipHoldIfNeeded()
+                } else {
+                    finishSkipHold()
+                }
+            },
+            perform: completeSkip
+        )
+        .font(.headline.weight(.bold))
+        .foregroundStyle(Theme.accentDarkText)
+        .padding(.vertical, 14)
+        .background {
+            ZStack(alignment: .leading) {
+                Theme.accent
+                Color.red.opacity(0.86)
+                    .scaleEffect(x: skipProgress, y: 1, anchor: .leading)
+            }
+            .clipShape(.rect(cornerRadius: Theme.pillCornerRadius))
+        }
+        .opacity(canLog ? 1 : 0.45)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(presentation.accessibilityLabel)
+        .accessibilityValue(skipProgress > 0 ? "\(Int((skipProgress * 100).rounded()))% Skip" : "")
+        .accessibilityHint("Double tap to log. Press and hold to skip.")
+        .accessibilityIdentifier("log-active-set-button")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction(named: "Skip") {
+            completeSkip()
+        }
+    }
+
+    private var buttonContent: some View {
+        ZStack {
+            HStack(spacing: 8) {
+                if showsLoggedCheckmark {
+                    Image(systemName: "checkmark")
+                        .font(.headline.weight(.bold))
+                        .transition(.scale.combined(with: .opacity))
+                }
+
+                Text(logTitle)
+            }
+            .opacity(presentation.logOpacity)
+
+            Text("Skipped")
+                .opacity(presentation.skipOpacity)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var presentation: HoldToSkipButtonPresentation {
+        HoldToSkipButtonPresentation(progress: skipProgress, logTitle: logTitle)
+    }
+
+    private var policy: HoldToSkipPolicy {
+        HoldToSkipPolicy()
+    }
+
+    private func startSkipHoldIfNeeded() {
+        guard skipPressStartedAt == nil else { return }
+        onPressStarted()
+        skipPressStartedAt = Date()
+        skipCompleted = false
+        skipTask?.cancel()
+        withAnimation(Theme.holdToSkipProgressAnimation) {
+            skipProgress = 1
+        }
+        skipTask = Task { @MainActor in
+            try? await Task.sleep(for: .nanoseconds(Int64((policy.holdDuration * 1_000_000_000).rounded())))
+            guard !Task.isCancelled else { return }
+            completeSkip()
+        }
+    }
+
+    private func finishSkipHold() {
+        let elapsed = skipPressStartedAt.map { Date().timeIntervalSince($0) } ?? 0
+        let outcome = policy.releaseOutcome(elapsed: elapsed, skipCompleted: skipCompleted)
+        skipTask?.cancel()
+        skipTask = nil
+        skipPressStartedAt = nil
+
+        switch outcome {
+        case .log:
+            resetSkipProgress()
+            onLogTap()
+            suppressLogTapOnce()
+        case .cancelSkip:
+            resetSkipProgress()
+            suppressLogTapOnce()
+        case .skip:
+            completeSkip()
+        case .ignore:
+            suppressLogTapOnce()
+        }
+    }
+
+    private func completeSkip() {
+        guard !skipCompleted else { return }
+        suppressLogTapOnce()
+        skipCompleted = true
+        skipTask?.cancel()
+        skipTask = nil
+        onSkip()
+    }
+
+    private func suppressLogTapOnce() {
+        suppressNextLogTap = true
+        suppressLogTapTask?.cancel()
+        suppressLogTapTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled else { return }
+            suppressNextLogTap = false
+            suppressLogTapTask = nil
+        }
+    }
+
+    private func resetSkipProgress() {
+        withAnimation(.easeOut(duration: Theme.logButtonCheckmarkDuration)) {
+            skipProgress = 0
         }
     }
 }
