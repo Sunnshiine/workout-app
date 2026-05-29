@@ -193,7 +193,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
         _ = try planner.plan(request, in: client.grid)
         Issue.record("Expected protected Coach Note to keep header unwritable")
     } catch let error as SheetWriterError {
-        #expect(error == .setRowNotFound(exerciseName: "Squat", setIndex: 0))
+        #expect(error == .headerNotesBlockSetRow(exerciseName: "Squat", setIndex: 0))
     } catch {
         Issue.record("Expected SheetWriterError, got \(error)")
     }
@@ -377,7 +377,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
         _ = try planner.plan(request, in: client.grid)
         Issue.record("Expected missing set row")
     } catch let error as SheetWriterError {
-        #expect(error == .setRowNotFound(exerciseName: "Squat", setIndex: 0))
+        #expect(error == .headerNotesBlockSetRow(exerciseName: "Squat", setIndex: 0))
     } catch {
         Issue.record("Expected SheetWriterError, got \(error)")
     }

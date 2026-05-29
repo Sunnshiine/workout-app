@@ -55,6 +55,7 @@ enum SheetWriterError: Error, Equatable, LocalizedError {
     case columnNotFound(String)
     case exerciseNotFound(String)
     case setRowNotFound(exerciseName: String, setIndex: Int)
+    case headerNotesBlockSetRow(exerciseName: String, setIndex: Int)
     case unexpectedCurrentValue(expected: String, actual: String)
 
     var errorDescription: String? {
@@ -64,6 +65,12 @@ enum SheetWriterError: Error, Equatable, LocalizedError {
         case .columnNotFound(let column): return "\(column) column was not found"
         case .exerciseNotFound(let name): return "\(name) was not found in the sheet"
         case .setRowNotFound(let name, let index): return "Set \(index + 1) row was not found for \(name)"
+        case .headerNotesBlockSetRow(let name, let index):
+            return """
+                Set \(index + 1) for \(name) cannot be written because existing header Notes prevent writing there, \
+                and no safe Set row exists before the next Exercise. Add a row in the Sheet, clear or migrate the \
+                existing header note, then sync again.
+                """
         case .unexpectedCurrentValue(let expected, let actual):
             return "Expected '\(expected)', found '\(actual)'"
         }
@@ -171,6 +178,12 @@ struct SheetWritePlanningIndex: Sendable {
         let setRowOffset = usesCompactHeaderRow ? request.setIndex : request.setIndex + 1
         let setRow = anchor.row + setRowOffset
         guard setRow < nextAnchor else {
+            if request.column == .notes, !headerNotes.isEmpty, !usesCompactHeaderRow {
+                throw SheetWriterError.headerNotesBlockSetRow(
+                    exerciseName: request.exerciseName,
+                    setIndex: request.setIndex
+                )
+            }
             throw SheetWriterError.setRowNotFound(exerciseName: request.exerciseName, setIndex: request.setIndex)
         }
         return (setRow, col)
