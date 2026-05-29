@@ -76,9 +76,19 @@ struct SheetCellUpdate: Sendable, Equatable {
     var col: Int
     var value: String
 
+    var target: SheetWriteTarget {
+        SheetWriteTarget(tabName: tabName, row: row, col: col)
+    }
+
     var range: String {
         singleCellRange(tabName: tabName, row: row, col: col)
     }
+}
+
+struct SheetWriteTarget: Sendable, Equatable {
+    let tabName: String
+    let row: Int
+    let col: Int
 }
 
 struct SheetWriter: Sendable {
@@ -90,6 +100,14 @@ struct SheetWriter: Sendable {
 
     func write(_ update: SheetCellUpdate, spreadsheetId: String) async throws {
         try await client.updateCells(spreadsheetId: spreadsheetId, range: update.range, values: [[update.value]])
+    }
+
+    func write(_ updates: [SheetCellUpdate], spreadsheetId: String) async throws {
+        guard !updates.isEmpty else { return }
+        try await client.updateCells(
+            spreadsheetId: spreadsheetId,
+            updates: updates.map { SheetValueRangeUpdate(range: $0.range, values: [[$0.value]]) }
+        )
     }
 }
 
@@ -192,14 +210,27 @@ struct SheetWritePlanner: Sendable {
     }
 
     func plan(_ request: SheetWriteRequest, in snapshot: SheetWritePlanningSnapshot) throws -> SheetCellUpdate {
+        let target = try target(for: request, in: snapshot)
+        return try plan(request, target: target, in: snapshot)
+    }
+
+    func target(for request: SheetWriteRequest, in snapshot: SheetWritePlanningSnapshot) throws -> SheetWriteTarget {
         let target = try snapshot.index.target(for: request, in: snapshot.grid)
+        return SheetWriteTarget(tabName: request.blockTab, row: target.row, col: target.col)
+    }
+
+    func plan(
+        _ request: SheetWriteRequest,
+        target: SheetWriteTarget,
+        in snapshot: SheetWritePlanningSnapshot
+    ) throws -> SheetCellUpdate {
         let actual = snapshot.grid.cell(row: target.row, col: target.col).trimmed
         guard actual == request.expectedCurrentValue else {
             throw SheetWriterError.unexpectedCurrentValue(expected: request.expectedCurrentValue, actual: actual)
         }
 
         return SheetCellUpdate(
-            tabName: request.blockTab,
+            tabName: target.tabName,
             row: target.row,
             col: target.col,
             value: request.operation == .delete ? "" : (request.valueToWrite ?? "")
