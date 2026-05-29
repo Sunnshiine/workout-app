@@ -23,6 +23,10 @@ private final class FlushStubClient: SheetsClient, @unchecked Sendable {
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
         updates.append((range, values))
     }
+
+    func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
+        self.updates.append(contentsOf: updates.map { ($0.range, $0.values) })
+    }
 }
 
 private final class PlanningIndexBuildCounter: @unchecked Sendable {

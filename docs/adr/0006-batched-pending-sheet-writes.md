@@ -1,0 +1,9 @@
+# Batched pending Sheet writes preserve local-first safety
+
+The Google Sheets values API can write multiple ranges in one request, but the app only batches after dynamic planning has resolved each semantic pending write to a concrete cell against the current Sheet snapshot. Pending writes continue to persist only semantic targets: Block tab, Week, Day, Exercise, Set index, target column, operation, value, and expected current value. Raw A1 ranges and cell coordinates remain transient planning results.
+
+A flush may batch planned writes for the same spreadsheet only when their target cells do not overlap. The flush planner processes pending writes in creation order and applies each planned update to the in-memory snapshot before considering the next write. If a later write targets a cell already present in the current batch, the current batch is sent first and the later write starts a new ordered batch. This keeps dependent writes, including multiple queued writes to the same target cell or writes whose expected current value is produced by an earlier queued write, in queue order.
+
+Conflict handling remains per pending write. A write that cannot be planned or whose expected current value does not match the planning snapshot is marked as a conflict and excluded from any batch. Compatible writes before or after that conflict can still be sent.
+
+The app treats a batch update as an all-or-nothing boundary for pending-write deletion. Writes included in a batch are deleted only after the batch request returns success. If the request throws or returns a non-success status, every included write remains pending for retry and records the failure. The app does not model partial success inside a batch; if Google Sheets ever exposed partial success in a way we could observe safely, that would need a separate decision before deleting only part of a batch.
