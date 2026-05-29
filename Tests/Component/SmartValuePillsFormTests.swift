@@ -131,6 +131,20 @@ import Testing
 }
 
 @MainActor
+@Test func rpeGridHalfStepSelectionKeepsWholeGridAndOnlySupportsSixThroughNine() {
+    let grid = RPEGridPresentation(prescribedRPE: 8)
+    let values = grid.rows.flatMap { $0 }
+
+    #expect(values.map(\.value) == [5, 6, 7, 8, 9, 10])
+    #expect(values.map(\.halfStepLabel) == [nil, "6.5", "7.5", "8.5", "9.5", nil])
+    #expect(values[1].selectionText(halfStepWasRevealed: true, verticalDrag: -40) == "6.5")
+    #expect(values[1].selectionText(halfStepWasRevealed: true, verticalDrag: -8) == "6")
+    #expect(values[1].selectionText(halfStepWasRevealed: false, verticalDrag: -40) == "6")
+    #expect(values[0].selectionText(halfStepWasRevealed: true, verticalDrag: -40) == "5")
+    #expect(values[5].selectionText(halfStepWasRevealed: true, verticalDrag: -40) == "10")
+}
+
+@MainActor
 @Test func logButtonPreviewUpdatesAndRequiresCompleteSetLog() {
     var form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),

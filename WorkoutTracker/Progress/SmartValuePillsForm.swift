@@ -13,16 +13,33 @@ struct RPEGridPresentation: Equatable, Sendable {
 }
 
 struct RPEGridValue: Equatable, Hashable, Identifiable, Sendable {
+    static let halfStepActivationOffset = 30.0
+
     let value: Int
     let isDimmed: Bool
     let showsPrescriptionBadge: Bool
 
     var id: Int { value }
+    var halfStepLabel: String? {
+        guard (6...9).contains(value) else { return nil }
+        return "\(value).5"
+    }
 
     init(value: Int, prescribedRPE: Int?) {
         self.value = value
         isDimmed = value == 5
         showsPrescriptionBadge = value == prescribedRPE
+    }
+
+    func selectionText(halfStepWasRevealed: Bool, verticalDrag: Double) -> String {
+        guard
+            halfStepWasRevealed,
+            let halfStepLabel,
+            verticalDrag <= -Self.halfStepActivationOffset
+        else {
+            return String(value)
+        }
+        return halfStepLabel
     }
 }
 
