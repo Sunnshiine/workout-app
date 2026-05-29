@@ -19,10 +19,16 @@ final class WorkoutStore {
     private let context: ModelContext
     private let tracker = SessionProgressTracker()
     private let defaults: UserDefaults
+    private let lastPerformedLookupRefresher: any LastPerformedLookupRefreshing
 
-    init(context: ModelContext, defaults: UserDefaults = .standard) {
+    init(
+        context: ModelContext,
+        defaults: UserDefaults = .standard,
+        lastPerformedLookupRefresher: any LastPerformedLookupRefreshing = NoopLastPerformedLookupRefresher()
+    ) {
         self.context = context
         self.defaults = defaults
+        self.lastPerformedLookupRefresher = lastPerformedLookupRefresher
     }
 
     var currentSession: Session? {
@@ -215,6 +221,7 @@ final class WorkoutStore {
                 source: "\(block.tabName) · W\(week.number) D\(session.dayNumber)"
             )
         ])
+        lastPerformedLookupRefresher.refresh()
     }
 
     private func isFinalSet(_ set: ExerciseSet) -> Bool {

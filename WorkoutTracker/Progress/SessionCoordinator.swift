@@ -118,7 +118,7 @@ private struct SessionRenderContext {
     let containerOrderByPairedExerciseOrder: [Int: Int]
     let pairingSourceOrder: Int?
     let pairingConfirmationOrder: Int?
-    let lastPerformedIndex: LastPerformedIndex?
+    let lastPerformedLookup: LastPerformedLookupSnapshot?
 }
 
 enum SessionRenderItem {
@@ -431,15 +431,15 @@ extension SessionCoordinator {
     }
 
     func renderItems(
-        lastPerformedIndex: LastPerformedIndex? = nil
+        lastPerformedLookup: LastPerformedLookupSnapshot? = nil
     ) -> [SessionRenderItem] {
         guard let session else { return [] }
-        return renderItems(in: session, lastPerformedIndex: lastPerformedIndex)
+        return renderItems(in: session, lastPerformedLookup: lastPerformedLookup)
     }
 
     func renderItems(
         in session: Session,
-        lastPerformedIndex: LastPerformedIndex? = nil
+        lastPerformedLookup: LastPerformedLookupSnapshot? = nil
     ) -> [SessionRenderItem] {
         let supersetSections = self.supersetSections(in: session)
         let context = SessionRenderContext(
@@ -459,7 +459,7 @@ extension SessionCoordinator {
             ),
             pairingSourceOrder: pairingSourceOrder,
             pairingConfirmationOrder: pairingConfirmationOrder,
-            lastPerformedIndex: lastPerformedIndex
+            lastPerformedLookup: lastPerformedLookup
         )
 
         return session.exercises
@@ -478,7 +478,7 @@ extension SessionCoordinator {
             return .superset(
                 supersetRenderConfig(
                     for: supersetSection,
-                    lastPerformedIndex: context.lastPerformedIndex
+                    lastPerformedLookup: context.lastPerformedLookup
                 )
             )
         }
@@ -497,7 +497,7 @@ extension SessionCoordinator {
 
     private func supersetRenderConfig(
         for section: SupersetSectionState,
-        lastPerformedIndex: LastPerformedIndex?
+        lastPerformedLookup: LastPerformedLookupSnapshot?
     ) -> SessionSupersetRenderConfig {
         let exerciseOrders = Set(section.exercises.map(\.order))
         let activeExercise = section.exercises.first {
@@ -511,7 +511,7 @@ extension SessionCoordinator {
             retiringTransition: transition(retiringTransition, scopedTo: exerciseOrders),
             lastPerformedPresentation: lastPerformedPresentation(
                 for: activeExercise,
-                index: lastPerformedIndex
+                lookup: lastPerformedLookup
             )
         )
     }
@@ -538,7 +538,7 @@ extension SessionCoordinator {
             isPairingConfirmation: context.pairingConfirmationOrder == exercise.order,
             lastPerformedPresentation: lastPerformedPresentation(
                 for: exercise,
-                index: context.lastPerformedIndex
+                lookup: context.lastPerformedLookup
             )
         )
     }
@@ -589,10 +589,10 @@ extension SessionCoordinator {
 
     private func lastPerformedPresentation(
         for exercise: Exercise?,
-        index: LastPerformedIndex?
+        lookup: LastPerformedLookupSnapshot?
     ) -> LastPerformedCardPresentation? {
-        guard let exercise, let index else { return nil }
-        return LastPerformedCardPresentation(exercise: exercise, index: index)
+        guard let exercise, let lookup else { return nil }
+        return LastPerformedCardPresentation(exercise: exercise, lookup: lookup)
     }
 }
 

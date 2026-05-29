@@ -135,7 +135,12 @@ private actor FetchRecorder {
         cols: 60
     )
     let client = StubClient(titles: ["Intro", "Block 27"], grid: grid)
-    let sync = SyncCoordinator(client: client, context: container.mainContext)
+    let lookupStore = LastPerformedLookupStore(context: container.mainContext)
+    let sync = SyncCoordinator(
+        client: client,
+        context: container.mainContext,
+        lastPerformedLookupRefresher: lookupStore
+    )
 
     await sync.sync(spreadsheetId: "sid")
 
@@ -146,6 +151,11 @@ private actor FetchRecorder {
     #expect(entry.result == SetLog(weight: .pounds(195), reps: 5, rpe: 9))
     #expect(entry.performedOn == expectedDate)
     #expect(entry.source == "Block 27 · W1 D1")
+    let lookupEntry = try #require(
+        lookupStore.snapshot.lookup(exerciseName: "Squat", baseName: "Squat")
+    )
+    #expect(lookupEntry.resultText == "195x5@9")
+    #expect(lookupEntry.sourceText == "Block 27 · W1 D1")
 }
 
 @MainActor
@@ -168,7 +178,12 @@ private actor FetchRecorder {
             "Block 25": historicalGrid(exerciseName: "Squat", log: "235x5@8", date: "4/17/2026")
         ]
     )
-    let sync = SyncCoordinator(client: client, context: container.mainContext)
+    let lookupStore = LastPerformedLookupStore(context: container.mainContext)
+    let sync = SyncCoordinator(
+        client: client,
+        context: container.mainContext,
+        lastPerformedLookupRefresher: lookupStore
+    )
 
     await sync.sync(spreadsheetId: "sid")
 
@@ -182,6 +197,11 @@ private actor FetchRecorder {
     #expect(entry.result == SetLog(weight: .pounds(245), reps: 5, rpe: 8))
     #expect(entry.source == "Block 26 · W1 D1")
     #expect(await client.recorder.tabs() == ["Block 27", "Block 26"])
+    let lookupEntry = try #require(
+        lookupStore.snapshot.lookup(exerciseName: "Squat", baseName: "Squat")
+    )
+    #expect(lookupEntry.resultText == "245x5@8")
+    #expect(lookupEntry.sourceText == "Block 26 · W1 D1")
 }
 
 @MainActor

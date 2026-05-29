@@ -24,6 +24,11 @@ struct LastPerformedIndex {
         return try? context.fetch(fallbackDescriptor).first
     }
 
+    func snapshot() -> LastPerformedLookupSnapshot {
+        let entries = (try? context.fetch(FetchDescriptor<LastPerformedEntry>())) ?? []
+        return LastPerformedLookupSnapshot(entries: entries)
+    }
+
     func ingest(_ entries: [LastPerformedEntry]) throws {
         for entry in entries {
             if let existing = existingEntry(fullName: entry.fullName) {

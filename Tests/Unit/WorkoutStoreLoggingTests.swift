@@ -23,6 +23,7 @@ private struct SeededLoggingStore {
     let context: ModelContext
     let firstSet: ExerciseSet
     let container: ModelContainer
+    let lookupStore: LastPerformedLookupStore
 }
 
 private func parsedLoggingBlock() -> ParsedBlockModel {
@@ -83,14 +84,25 @@ private func seededStore() throws -> SeededLoggingStore {
     let block = BlockBuilder.makeBlock(from: parsedLoggingBlock())
     ctx.insert(block)
     try ctx.save()
-    let store = try WorkoutStore(context: ctx, defaults: makeLoggingDefaults())
+    let lookupStore = LastPerformedLookupStore(context: ctx)
+    let store = try WorkoutStore(
+        context: ctx,
+        defaults: makeLoggingDefaults(),
+        lastPerformedLookupRefresher: lookupStore
+    )
     store.reload()
     let set = try #require(
         store.block?.weeks.first?.sessions.first?.exercises.first?.sets.sorted {
             $0.index < $1.index
         }.first
     )
-    return SeededLoggingStore(store: store, context: ctx, firstSet: set, container: container)
+    return SeededLoggingStore(
+        store: store,
+        context: ctx,
+        firstSet: set,
+        container: container,
+        lookupStore: lookupStore
+    )
 }
 
 @MainActor
@@ -164,6 +176,30 @@ private func seededStore() throws -> SeededLoggingStore {
     #expect(entry.result == SetLog(weight: .pounds(185), reps: 5, rpe: 8))
     #expect(entry.performedOn == Date(timeIntervalSinceReferenceDate: 100))
     #expect(entry.source == "Block 27 · W1 D1")
+}
+
+@MainActor
+@Test func logSetRefreshesLastPerformedLookupSnapshotForDisplay() throws {
+    let fixture = try seededStore()
+    withExtendedLifetime(fixture.container) {}
+
+    #expect(
+        fixture.lookupStore.snapshot.lookup(
+            exerciseName: "Squat",
+            baseName: "Squat"
+        ) == nil
+    )
+
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+
+    let entry = try #require(
+        fixture.lookupStore.snapshot.lookup(
+            exerciseName: "Squat",
+            baseName: "Squat"
+        )
+    )
+    #expect(entry.resultText == "185x5@8")
+    #expect(entry.sourceText == "Block 27 · W1 D1")
 }
 
 @MainActor
