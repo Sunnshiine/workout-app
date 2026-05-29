@@ -25,6 +25,47 @@ import Testing
     #expect(exercises[0].sets[1].setLog?.formatted == "195x5@9")
 }
 
+@Test func parsesCompactHeaderSetLogAsSetOne() throws {
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": "Ab of Choice", "D15": "1", "F15": "12", "H15": "BW", "K15": "BWx12@7",
+            "C16": "Bench Press", "D16": "1", "F16": "5", "H16": "RPE 8"
+        ],
+        rows: 22,
+        cols: 30
+    )
+    let section = locateWeekSections(in: grid)[0]
+
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+
+    #expect(exercises[0].coachNote == nil)
+    #expect(exercises[0].legacyLog == nil)
+    #expect(exercises[0].sets[0].state == .logged)
+    #expect(exercises[0].sets[0].setLog == SetLog(weight: .bodyweight, reps: 12, rpe: 7))
+}
+
+@Test func parsesCompactHeaderSetLogBeforeContinuationSetLogs() throws {
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": "Ab of Choice", "D15": "2", "F15": "12", "H15": "BW", "K15": "BWx12@7",
+            "K16": "BWx10@8",
+            "C17": "Bench Press", "D17": "1", "F17": "5", "H17": "RPE 8"
+        ],
+        rows: 22,
+        cols: 30
+    )
+    let section = locateWeekSections(in: grid)[0]
+
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+
+    #expect(exercises[0].sets[0].setLog?.formatted == "BWx12@7")
+    #expect(exercises[0].sets[1].setLog?.formatted == "BWx10@8")
+}
+
 @Test func parsesSkipMarkerFromNotesContinuationRow() {
     let grid = gridFromA1(
         [
