@@ -13,6 +13,7 @@ final class SyncCoordinator {
 
     private let client: any SheetsClient
     private let context: ModelContext
+    private let sheetWritePlanner: SheetWritePlanner
     private var activePendingWriteFlushCount = 0
     private var pendingWriteFlushGeneration = 0
 
@@ -23,9 +24,10 @@ final class SyncCoordinator {
         return try !fetchPendingWriteRecords().isEmpty
     }
 
-    init(client: any SheetsClient, context: ModelContext) {
+    init(client: any SheetsClient, context: ModelContext, sheetWritePlanner: SheetWritePlanner = SheetWritePlanner()) {
         self.client = client
         self.context = context
+        self.sheetWritePlanner = sheetWritePlanner
     }
 
     func reportLocalWriteFailure(_ error: any Error) {
@@ -65,9 +67,13 @@ final class SyncCoordinator {
 
         state = .syncing
         let writer = SheetWriter(client: client)
-        let planner = SheetWritePlanner()
-        let flushContext = PendingWriteFlushContext(spreadsheetId: spreadsheetId, generation: generation, writer: writer, planner: planner)
-        var snapshots: [String: SheetGrid] = [:]
+        let flushContext = PendingWriteFlushContext(
+            spreadsheetId: spreadsheetId,
+            generation: generation,
+            writer: writer,
+            planner: sheetWritePlanner
+        )
+        var snapshots: [String: SheetWritePlanningSnapshot] = [:]
         var conflicts: [String] = []
 
         for write in pending {
@@ -306,30 +312,31 @@ extension SyncCoordinator {
     fileprivate func flush(
         _ write: PendingWrite,
         context flushContext: PendingWriteFlushContext,
-        snapshots: inout [String: SheetGrid]
+        snapshots: inout [String: SheetWritePlanningSnapshot]
     ) async throws {
         try ensurePendingWriteFlushIsCurrent(flushContext.generation)
         let request = SheetWriteRequest(write)
-        let grid = try await gridSnapshot(for: request.blockTab, context: flushContext, snapshots: &snapshots)
-        let update = try flushContext.planner.plan(request, in: grid)
+        let snapshot = try await gridSnapshot(for: request.blockTab, context: flushContext, snapshots: &snapshots)
+        let update = try flushContext.planner.plan(request, in: snapshot)
         try ensurePendingWriteFlushIsCurrent(flushContext.generation)
         try await flushContext.writer.write(update, spreadsheetId: flushContext.spreadsheetId)
         try ensurePendingWriteFlushIsCurrent(flushContext.generation)
-        snapshots[request.blockTab] = flushContext.planner.applying(update, to: grid)
+        snapshots[request.blockTab] = flushContext.planner.applying(update, to: snapshot)
         context.delete(write)
     }
 
     fileprivate func gridSnapshot(
         for tab: String,
         context flushContext: PendingWriteFlushContext,
-        snapshots: inout [String: SheetGrid]
-    ) async throws -> SheetGrid {
+        snapshots: inout [String: SheetWritePlanningSnapshot]
+    ) async throws -> SheetWritePlanningSnapshot {
         if let snapshot = snapshots[tab] {
             return snapshot
         }
 
-        let snapshot = try await client.fetchTab(spreadsheetId: flushContext.spreadsheetId, tabName: tab)
+        let grid = try await client.fetchTab(spreadsheetId: flushContext.spreadsheetId, tabName: tab)
         try ensurePendingWriteFlushIsCurrent(flushContext.generation)
+        let snapshot = flushContext.planner.snapshot(for: grid)
         snapshots[tab] = snapshot
         return snapshot
     }
