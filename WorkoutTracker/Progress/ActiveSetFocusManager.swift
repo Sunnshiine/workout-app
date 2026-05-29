@@ -28,6 +28,7 @@ struct SupersetSectionState {
 @Observable
 final class ActiveSetFocusManager {
     private(set) var activeSetID: ActiveSetID?
+    private(set) var expandedLoggedSetID: ActiveSetID?
     private(set) var activeSetTransition: ActiveSetTransition?
     private(set) var scrollTargetID: ActiveSetID?
     private(set) var supersetScrollTargetOrder: Int?
@@ -47,12 +48,14 @@ final class ActiveSetFocusManager {
             activeSetID = nil
         }
         activeSetTransition = nil
+        expandedLoggedSetID = nil
         scrollTargetID = nil
         supersetScrollTargetOrder = nil
         expandedCompletedExerciseOrders = []
     }
 
     func advanceAfterLog(_ set: ExerciseSet, in session: Session) {
+        expandedLoggedSetID = nil
         let nextSet = nextActiveSet(after: set, in: session)
         let completedExerciseOrder = completedExerciseOrder(containing: set)
         activeSetTransition = transition(
@@ -67,6 +70,7 @@ final class ActiveSetFocusManager {
     }
 
     func advanceAfterSkip(_ set: ExerciseSet, in session: Session) {
+        expandedLoggedSetID = nil
         let nextSet = nextActiveSet(after: set, in: session)
         let completedExerciseOrder = completedExerciseOrder(containing: set)
         activeSetTransition = transition(
@@ -81,10 +85,24 @@ final class ActiveSetFocusManager {
     }
 
     func focus(on set: ExerciseSet) {
-        activeSetID = Self.id(for: set)
+        guard let setID = Self.id(for: set) else { return }
+        if set.state == .logged {
+            expandedLoggedSetID = expandedLoggedSetID == setID ? nil : setID
+            activeSetTransition = nil
+            scrollTargetID = nil
+            supersetScrollTargetOrder = nil
+            return
+        }
+
+        expandedLoggedSetID = nil
+        activeSetID = setID
         activeSetTransition = nil
         scrollTargetID = nil
         supersetScrollTargetOrder = nil
+    }
+
+    func collapseLoggedSetReview() {
+        expandedLoggedSetID = nil
     }
 
     func canPair(_ exercise: Exercise, in session: Session) -> Bool {

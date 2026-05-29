@@ -31,6 +31,23 @@ struct SetRowPresentation: Equatable, Sendable {
     }
 }
 
+struct LoggedSetReviewPresentation: Equatable, Sendable {
+    let statusText: String
+    let detailText: String
+    let allowsEditing: Bool
+
+    init(set: ExerciseSet) {
+        statusText = "Already logged"
+        if let setLog = set.setLog {
+            detailText = setLog.formatted
+            allowsEditing = true
+        } else {
+            detailText = "Completed from sheet"
+            allowsEditing = false
+        }
+    }
+}
+
 enum SessionProgressSegmentState: Equatable, Sendable {
     case logged
     case skipped
