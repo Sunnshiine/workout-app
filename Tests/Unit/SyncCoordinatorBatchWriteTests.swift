@@ -181,6 +181,26 @@ private func batchPendingWrite(
 }
 
 @MainActor
+@Test func missingFinalSetContinuationRowDoesNotWriteLastSetRPE() async throws {
+    let container = try makeBatchContainer()
+    let ctx = container.mainContext
+    ctx.insert(batchPendingWrite(createdAt: 1, setIndex: 0, valueToWrite: "185x5@8"))
+    ctx.insert(batchPendingWrite(createdAt: 2, setIndex: 0, column: .lastSetRPE, valueToWrite: "8"))
+    try ctx.save()
+    let client = BatchFlushStubClient(grid: missingContinuationRowGrid())
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
+    #expect(client.updates.isEmpty)
+    #expect(writes.count == 2)
+    #expect(writes.allSatisfy { $0.status == .conflict })
+    let messages = try #require(conflictMessages(sync.state))
+    #expect(messages.contains { $0.contains("Squat") && $0.contains("Set 1 row") })
+}
+
+@MainActor
 @Test func failedBatchLeavesIncludedPendingWritesForRetry() async throws {
     let container = try makeBatchContainer()
     let ctx = container.mainContext
@@ -199,6 +219,28 @@ private func batchPendingWrite(
     #expect(writes.allSatisfy { $0.status == .pending && $0.retryCount == 1 })
     #expect(client.grid.cell(row: 15, col: 10) == "")
     #expect(client.grid.cell(row: 16, col: 10) == "")
+}
+
+@MainActor
+@Test func failedFinalSetBatchDoesNotWriteLastSetRPE() async throws {
+    let container = try makeBatchContainer()
+    let ctx = container.mainContext
+    ctx.insert(batchPendingWrite(createdAt: 1, setIndex: 1, valueToWrite: "195x5@9"))
+    ctx.insert(batchPendingWrite(createdAt: 2, setIndex: 1, column: .lastSetRPE, valueToWrite: "9"))
+    try ctx.save()
+    let client = BatchFlushStubClient(grid: twoSetGrid())
+    client.failedUpdateRequestNumbers = [1]
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
+    #expect(client.updateRequestCount == 1)
+    #expect(client.updates.isEmpty)
+    #expect(client.grid.cell(row: 16, col: 10) == "")
+    #expect(client.grid.cell(row: 14, col: 8) == "")
+    #expect(writes.count == 2)
+    #expect(writes.allSatisfy { $0.status == .pending && $0.retryCount == 1 })
 }
 
 @MainActor
@@ -280,7 +322,25 @@ private func multiExerciseConflictGrid() -> SheetGrid {
     )
 }
 
+private func missingContinuationRowGrid() -> SheetGrid {
+    gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
+            "C15": "Squat", "D15": "1",
+            "C16": "Bench Press", "D16": "1"
+        ],
+        rows: 24,
+        cols: 30
+    )
+}
+
 private func isConflict(_ state: SyncCoordinator.State) -> Bool {
     if case .conflict = state { return true }
     return false
+}
+
+private func conflictMessages(_ state: SyncCoordinator.State) -> [String]? {
+    if case .conflict(let messages) = state { return messages }
+    return nil
 }
