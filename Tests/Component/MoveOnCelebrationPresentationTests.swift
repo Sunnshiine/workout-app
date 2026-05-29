@@ -94,7 +94,7 @@ import Testing
 }
 
 @MainActor
-@Test func moveOnCelebrationPresentationUsesApprovedQuoteRotation() {
+@Test func moveOnCelebrationPresentationSelectsOneStableApprovedQuote() {
     let session = makeMoveOnSession(
         exercises: [
             makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged])
@@ -102,15 +102,10 @@ import Testing
     )
 
     let presentation = MoveOnCelebrationPresentation(session: session)
+    let selectedQuote = presentation.quoteText
 
-    #expect(
-        presentation.quotes == [
-            "You're fucking amazing.",
-            "God damn!",
-            "Get it girl!",
-            "Shake it!"
-        ]
-    )
+    #expect(MoveOnCelebrationPresentation.approvedQuotes.contains(selectedQuote))
+    #expect(presentation.quoteText == selectedQuote)
 }
 
 @MainActor
