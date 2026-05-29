@@ -25,6 +25,18 @@ private final class FlushStubClient: SheetsClient, @unchecked Sendable {
     }
 }
 
+private final class PlanningIndexBuildCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private(set) var count = 0
+
+    func build(from grid: SheetGrid) -> SheetWritePlanningIndex {
+        lock.lock()
+        count += 1
+        lock.unlock()
+        return SheetWritePlanningIndex(grid: grid)
+    }
+}
+
 private final class ControlledFlushClient: SheetsClient, @unchecked Sendable {
     private let coordinator = ControlledFlushCoordinator()
 
@@ -57,6 +69,28 @@ private func makeContainer() throws -> ModelContainer {
         for: Block.self,
         PendingWrite.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+}
+
+private func pendingWrite(
+    createdAt: TimeInterval? = nil,
+    exerciseName: String = "Squat",
+    setIndex: Int = 0,
+    column: PendingWriteColumn = .notes,
+    valueToWrite: String? = "185x5@8",
+    expectedCurrentValue: String = ""
+) -> PendingWrite {
+    PendingWrite(
+        createdAt: createdAt.map(Date.init(timeIntervalSince1970:)) ?? Date(),
+        blockTab: "Block 27",
+        week: 1,
+        day: 1,
+        exerciseName: exerciseName,
+        setIndex: setIndex,
+        column: column,
+        operation: .upsert,
+        valueToWrite: valueToWrite,
+        expectedCurrentValue: expectedCurrentValue
     )
 }
 
@@ -163,6 +197,37 @@ private func makeContainer() throws -> ModelContainer {
 }
 
 @MainActor
+@Test func flushBuildsPlanningIndexOnceForMultipleWritesToFetchedSnapshot() async throws {
+    let container = try makeContainer()
+    let ctx = container.mainContext
+    ctx.insert(pendingWrite(createdAt: 1))
+    ctx.insert(pendingWrite(createdAt: 2, setIndex: 1, valueToWrite: "195x5@8"))
+    ctx.insert(pendingWrite(createdAt: 3, setIndex: 1, column: .lastSetRPE, valueToWrite: "8"))
+    try ctx.save()
+    let client = FlushStubClient(
+        grid: gridFromA1(
+            [
+                "C12": "Day 1", "S12": "Day 2",
+                "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
+                "C15": "Squat", "D15": "2"
+            ],
+            rows: 24,
+            cols: 30
+        )
+    )
+    let counter = PlanningIndexBuildCounter()
+    let planner = SheetWritePlanner(indexBuilder: counter.build(from:))
+    let sync = SyncCoordinator(client: client, context: ctx, sheetWritePlanner: planner)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(client.fetches == ["Block 27"])
+    #expect(counter.count == 1)
+    #expect(client.updates.map(\.0) == ["'Block 27'!K16", "'Block 27'!K17", "'Block 27'!I15"])
+    #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
+}
+
+@MainActor
 @Test func flushPendingWritesDeletesSuccessfulQueueItem() async throws {
     let container = try makeContainer()
     let ctx = container.mainContext
@@ -237,6 +302,39 @@ private func makeContainer() throws -> ModelContainer {
     let write = try #require(try ctx.fetch(FetchDescriptor<PendingWrite>()).first)
     #expect(write.status == .conflict)
     #expect(client.updates.isEmpty)
+    #expect(sync.state.isConflict)
+}
+
+@MainActor
+@Test func flushMarksOnlyUnexpectedWriteAsConflictWithoutOverwritingSheet() async throws {
+    let container = try makeContainer()
+    let ctx = container.mainContext
+    ctx.insert(pendingWrite(createdAt: 1))
+    ctx.insert(pendingWrite(createdAt: 2, exerciseName: "Bench Press", valueToWrite: "135x5@7"))
+    try ctx.save()
+    let client = FlushStubClient(
+        grid: gridFromA1(
+            [
+                "C12": "Day 1", "S12": "Day 2",
+                "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+                "C15": "Squat", "D15": "1",
+                "C17": "Bench Press", "D17": "1", "K18": "coach edited"
+            ],
+            rows: 24,
+            cols: 30
+        )
+    )
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(client.updates.map(\.0) == ["'Block 27'!K16"])
+    #expect(client.updates.map(\.1) == [[["185x5@8"]]])
+    let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
+    #expect(writes.count == 1)
+    let conflict = try #require(writes.first)
+    #expect(conflict.exerciseName == "Bench Press")
+    #expect(conflict.status == .conflict)
     #expect(sync.state.isConflict)
 }
 
