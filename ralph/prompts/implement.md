@@ -3,6 +3,9 @@ You are an autonomous engineer completing ONE GitHub issue end-to-end on an iOS 
 
 The issue number and your isolated git worktree + branch are given in the preamble above.
 You are already inside the worktree. Work ONLY on this one issue; do not touch unrelated code.
+Stay inside this worktree: do not modify files outside it, rewrite `main`'s history, or change the
+loop's own scripts or prompts (`ralph/*.sh`, `ralph/prompts/`). Writing review artifacts under
+`ralph/.artifacts/` is expected.
 Do not explain Ralph, the loop, project conventions, or skills back to the user; use them.
 
 ## Contract
@@ -30,36 +33,30 @@ Do not explain Ralph, the loop, project conventions, or skills back to the user;
 - Do not push, merge, or close the issue; the loop owns those steps.
 
 ## Verify before completion
-- Run the checks required by project instructions.
-- Invoke the configured `swift-reviewer` custom agent as a separate subagent before declaring done.
-  This is required for both Claude and Codex so review has fresh eyes; do not substitute a
+- Run the checks required by project instructions, then the full non-screenshot framework:
+  `swift test`, Xcode unit/component tests, Xcode UI integration tests, `swiftlint lint --quiet`.
+- Spawn the `swift-reviewer` custom agent as a separate subagent for fresh-eyes review; do not
   self-review in the implementer context.
-- In Codex CLI, explicitly spawn the custom `swift-reviewer` subagent rather than reviewing with
-  copied reviewer instructions in the current context.
-- Treat blocking Swift Reviewer findings as unfinished work. Fix them in this same worktree,
-  rerun the required checks, and request Swift Review again.
-- If you cannot invoke the `swift-reviewer` subagent, do not emit COMPLETE; report BLOCKED.
-- If the final diff touches `WorkoutTracker/Views/` or `WorkoutTracker/Theme.swift`, run
-  `PROJECT_DIR="$PWD" ralph/snapshot.sh "ralph/.artifacts/issue-<issue-number>-ui-review.png"`
-  after replacing `<issue-number>` with the numeric issue number. Then invoke the configured
-  `ui-screenshot-reviewer` custom agent as a separate subagent with the issue contract and
-  screenshot path, and save the exact subagent output to
-  `ralph/.artifacts/issue-<issue-number>-ui-review.md`. This is required for both Claude and
-  Codex.
-- Treat blocking UI screenshot findings as unfinished work. Fix them in this same worktree, rerun
-  the required checks and screenshot capture, and request UI Screenshot Review again.
-- If you cannot capture the screenshot or invoke the `ui-screenshot-reviewer` subagent for a
-  View/Theme change, do not emit COMPLETE; report BLOCKED.
-- For View/Theme changes, do not emit COMPLETE unless the saved UI Screenshot Review artifact ends
-  with this exact line: `PASS: no blocking static visual findings.`
+- If the final diff touches `WorkoutTracker/Views/` or `WorkoutTracker/Theme.swift`: capture a
+  screenshot with `PROJECT_DIR="$PWD" ralph/snapshot.sh "<UI_SHOT_PATH>"`, using the UI_SHOT_PATH
+  value given in the preamble. Then spawn the `ui-screenshot-reviewer` custom agent with the issue
+  contract and that screenshot, and save its exact output to the UI_REVIEW_PATH value given in the
+  preamble.
+- Treat any blocking review finding as unfinished work: fix it in this same worktree, rerun the
+  required checks (and re-capture the screenshot for View/Theme changes), and request review again.
 
-## Done signal
-When the issue is implemented, checked, committed, reviewed, and every issue-contract acceptance
-criterion is met, end your response with this exact line, on its own:
+## Completion gate — emit COMPLETE only when ALL of these hold
+- The issue is implemented, committed on this branch, and every issue-contract acceptance criterion
+  is met.
+- All required checks pass and `swift-reviewer` reported no blocking findings.
+- For View/Theme changes: the saved UI review artifact's last line is exactly
+  `PASS: no blocking static visual findings.`
 
-<promise>COMPLETE</promise>
-
-If you cannot finish (ambiguous spec, missing access, an unmet dependency, an error you can't
-resolve), do NOT emit COMPLETE. Instead end with:
+If any condition fails — including being unable to spawn a required review subagent — do NOT emit
+COMPLETE. End with:
 
 <promise>BLOCKED: one-line reason</promise>
+
+When every condition holds, end your response with this exact line, on its own:
+
+<promise>COMPLETE</promise>
