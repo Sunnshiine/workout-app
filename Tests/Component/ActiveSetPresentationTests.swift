@@ -192,20 +192,20 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     #expect(presentation.segments.map(\.state) == [.futurePending, .currentPending])
 }
 
-@Test func overscrollToolbarVisibilityRevealsAfterPullingPastThreshold() {
-    let visibility = OverscrollToolbarVisibility.hidden.updated(topContentOffset: 36)
+@Test func sessionControlsVisibilityRevealsAfterPullingPastThreshold() {
+    let visibility = SessionControlsVisibility.hidden.updated(topContentOffset: 36)
 
     #expect(visibility == .visible)
 }
 
-@Test func overscrollToolbarVisibilityRemainsVisibleNearTop() {
-    let visibility = OverscrollToolbarVisibility.visible.updated(topContentOffset: 0)
+@Test func sessionControlsVisibilityRemainsVisibleNearTop() {
+    let visibility = SessionControlsVisibility.visible.updated(topContentOffset: 0)
 
     #expect(visibility == .visible)
 }
 
-@Test func overscrollToolbarVisibilityDismissesAfterScrollingIntoContent() {
-    let visibility = OverscrollToolbarVisibility.visible.updated(topContentOffset: -28)
+@Test func sessionControlsVisibilityDismissesAfterScrollingIntoContent() {
+    let visibility = SessionControlsVisibility.visible.updated(topContentOffset: -28)
 
     #expect(visibility == .hidden)
 }
