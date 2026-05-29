@@ -55,6 +55,8 @@ struct ActiveSetCard: View {
             RoundedRectangle(cornerRadius: Theme.cardCornerRadius)
                 .strokeBorder(Theme.activeCardStroke.opacity(0.8), lineWidth: 1)
         )
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("active-set-card")
     }
 
     private func dismissFieldUI() {

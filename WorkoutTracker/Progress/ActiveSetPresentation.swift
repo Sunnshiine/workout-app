@@ -186,9 +186,9 @@ struct SessionProgressHeaderPresentation: Equatable, Sendable {
     }
 }
 
-struct OverscrollToolbarVisibility: Equatable, Sendable {
-    static let hidden = OverscrollToolbarVisibility(isVisible: false)
-    static let visible = OverscrollToolbarVisibility(isVisible: true)
+struct SessionControlsVisibility: Equatable, Sendable {
+    static let hidden = SessionControlsVisibility(isVisible: false)
+    static let visible = SessionControlsVisibility(isVisible: true)
 
     private static let revealOffset: CGFloat = 32
     private static let dismissOffset: CGFloat = -24
