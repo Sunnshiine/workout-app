@@ -9,6 +9,7 @@ struct ActiveSetCard: View {
     let onSkip: () -> Void
     let onDelete: () -> Void
     var showsLoggedCheckmark = false
+    @State private var dismissFieldUIRequest = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -27,9 +28,13 @@ struct ActiveSetCard: View {
                     .padding(.vertical, 5)
                     .background(.white.opacity(0.12), in: .capsule)
             }
+            .contentShape(.rect)
+            .onTapGesture(perform: dismissFieldUI)
 
             Text(exercise.name)
                 .font(.headline.weight(.bold))
+                .contentShape(.rect)
+                .onTapGesture(perform: dismissFieldUI)
 
             SmartValuePills(
                 set: set,
@@ -38,6 +43,7 @@ struct ActiveSetCard: View {
                 onLog: onLog,
                 onSkip: onSkip,
                 onDelete: onDelete,
+                dismissFieldUIRequest: dismissFieldUIRequest,
                 showsLoggedCheckmarkInitially: showsLoggedCheckmark
             )
             .id(set.persistentModelID)
@@ -49,6 +55,10 @@ struct ActiveSetCard: View {
             RoundedRectangle(cornerRadius: Theme.cardCornerRadius)
                 .strokeBorder(Theme.activeCardStroke.opacity(0.8), lineWidth: 1)
         )
+    }
+
+    private func dismissFieldUI() {
+        dismissFieldUIRequest += 1
     }
 
     private var previousSetWeight: Double? {
