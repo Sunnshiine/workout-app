@@ -86,6 +86,7 @@ enum ExercisePairingAvailability: Equatable, Sendable {
 
 struct SessionExerciseRenderConfig {
     let exercise: Exercise
+    let visualFocusOwner: ActiveSetVisualFocusOwner?
     let activeSetID: ActiveSetID?
     let expandedLoggedSetID: ActiveSetID?
     let savedLoggedSetID: ActiveSetID?
@@ -103,6 +104,7 @@ typealias SessionExerciseRenderItem = SessionExerciseRenderConfig
 struct SessionSupersetRenderConfig {
     let presentation: ActiveSupersetPresentation
     let exercises: [Exercise]
+    let visualFocusOwner: ActiveSetVisualFocusOwner?
     let activeSetTransition: ActiveSetTransition?
     let retiringTransition: ActiveSetTransition?
     let lastPerformedPresentation: LastPerformedCardPresentation?
@@ -151,6 +153,7 @@ final class SessionCoordinator {
     private(set) var session: Session?
     private(set) var activeSetID: ActiveSetID?
     private(set) var expandedLoggedSetID: ActiveSetID?
+    private(set) var visualFocusOwner: ActiveSetVisualFocusOwner?
     private(set) var savedLoggedSetID: ActiveSetID?
     private(set) var activeSetTransition: ActiveSetTransition?
     private(set) var retiringTransition: ActiveSetTransition?
@@ -226,6 +229,9 @@ final class SessionCoordinator {
 
     func focus(on set: ExerciseSet) {
         focusManager.focus(on: set)
+        if case .loggedSetReview = focusManager.visualFocusOwner {
+            clearRetiringTransition()
+        }
         syncFocusState()
         invalidateRenderItems()
     }
@@ -344,6 +350,7 @@ final class SessionCoordinator {
     private func syncFocusState() {
         activeSetID = focusManager.activeSetID
         expandedLoggedSetID = focusManager.expandedLoggedSetID
+        visualFocusOwner = focusManager.visualFocusOwner
         activeSetTransition = focusManager.activeSetTransition
         scrollTargetID = focusManager.scrollTargetID
         supersetScrollTargetOrder = focusManager.supersetScrollTargetOrder
@@ -507,6 +514,7 @@ extension SessionCoordinator {
         return SessionSupersetRenderConfig(
             presentation: section.presentation,
             exercises: section.exercises,
+            visualFocusOwner: section.presentation.activeSetID.map(ActiveSetVisualFocusOwner.activeSet),
             activeSetTransition: transition(activeSetTransition, scopedTo: exerciseOrders),
             retiringTransition: transition(retiringTransition, scopedTo: exerciseOrders),
             lastPerformedPresentation: lastPerformedPresentation(
@@ -523,6 +531,7 @@ extension SessionCoordinator {
     ) -> SessionExerciseRenderConfig {
         SessionExerciseRenderConfig(
             exercise: exercise,
+            visualFocusOwner: visualFocusOwner(scopedTo: exercise),
             activeSetID: activeSetID(scopedTo: exercise),
             expandedLoggedSetID: expandedLoggedSetID(scopedTo: exercise),
             savedLoggedSetID: savedLoggedSetID(scopedTo: exercise),
@@ -556,18 +565,23 @@ extension SessionCoordinator {
     }
 
     private func activeSetID(scopedTo exercise: Exercise) -> ActiveSetID? {
-        guard activeSetID?.exerciseOrder == exercise.order else { return nil }
+        guard case .activeSet(let activeSetID) = visualFocusOwner(scopedTo: exercise) else { return nil }
         return activeSetID
     }
 
     private func expandedLoggedSetID(scopedTo exercise: Exercise) -> ActiveSetID? {
-        guard expandedLoggedSetID?.exerciseOrder == exercise.order else { return nil }
+        guard case .loggedSetReview(let expandedLoggedSetID) = visualFocusOwner(scopedTo: exercise) else { return nil }
         return expandedLoggedSetID
     }
 
     private func savedLoggedSetID(scopedTo exercise: Exercise) -> ActiveSetID? {
         guard savedLoggedSetID?.exerciseOrder == exercise.order else { return nil }
         return savedLoggedSetID
+    }
+
+    private func visualFocusOwner(scopedTo exercise: Exercise) -> ActiveSetVisualFocusOwner? {
+        guard visualFocusOwner?.setID.exerciseOrder == exercise.order else { return nil }
+        return visualFocusOwner
     }
 
     private func transition(

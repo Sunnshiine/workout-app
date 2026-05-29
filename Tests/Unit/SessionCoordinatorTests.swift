@@ -277,14 +277,26 @@ private func makeActionFixture() throws -> CoordinatorActionFixture {
 
     #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
     #expect(coordinator.expandedLoggedSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+    #expect(coordinator.visualFocusOwner == .loggedSetReview(ActiveSetID(exerciseOrder: 0, setIndex: 0)))
 
-    let squatConfig = try #require(coordinator.exerciseRenderItems(in: session).first { $0.exercise.order == 0 })
+    let renderItems = coordinator.exerciseRenderItems(in: session)
+    let squatConfig = try #require(renderItems.first { $0.exercise.order == 0 })
+    let benchConfig = try #require(renderItems.first { $0.exercise.order == 1 })
     #expect(squatConfig.activeSetID == nil)
     #expect(squatConfig.expandedLoggedSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+    #expect(squatConfig.visualFocusOwner == .loggedSetReview(ActiveSetID(exerciseOrder: 0, setIndex: 0)))
+    #expect(benchConfig.activeSetID == nil)
+    #expect(benchConfig.visualFocusOwner == nil)
+    #expect(renderItems.filter { $0.visualFocusOwner != nil }.count == 1)
 
     coordinator.focus(on: completedSquatSet)
 
     #expect(coordinator.expandedLoggedSetID == nil)
+    #expect(coordinator.visualFocusOwner == .activeSet(ActiveSetID(exerciseOrder: 1, setIndex: 0)))
+    #expect(
+        coordinator.exerciseRenderItems(in: session).map(\.visualFocusOwner)
+            == [nil, .activeSet(ActiveSetID(exerciseOrder: 1, setIndex: 0)), nil]
+    )
 }
 
 @MainActor
@@ -585,10 +597,29 @@ private func makeActionFixture() throws -> CoordinatorActionFixture {
     #expect(fixture.logging.loggedSets.first?.log == updatedLog)
     #expect(fixture.coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
     #expect(fixture.coordinator.expandedLoggedSetID == nil)
+    #expect(fixture.coordinator.visualFocusOwner == .activeSet(ActiveSetID(exerciseOrder: 1, setIndex: 0)))
     #expect(fixture.coordinator.savedLoggedSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
     #expect(fixture.coordinator.activeSetTransition == nil)
     #expect(fixture.sync.flushRequestCount == 1)
     #expect(fixture.sync.reportedErrors.isEmpty)
+}
+
+@MainActor
+@Test func openingLoggedSetReviewClearsRetiringActiveCard() throws {
+    let fixture = try makeActionFixture()
+    let bench = try #require(fixture.session.exercises.first { $0.order == 1 })
+    let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
+
+    fixture.coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    #expect(fixture.coordinator.retiringTransition != nil)
+
+    fixture.coordinator.focus(on: firstBenchSet)
+
+    #expect(fixture.coordinator.visualFocusOwner == .loggedSetReview(ActiveSetID(exerciseOrder: 1, setIndex: 0)))
+    #expect(fixture.coordinator.retiringTransition == nil)
+    let benchConfig = try #require(fixture.coordinator.exerciseRenderItems(in: fixture.session).first { $0.exercise.order == 1 })
+    #expect(benchConfig.expandedLoggedSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    #expect(benchConfig.retiringTransition == nil)
 }
 
 @MainActor
