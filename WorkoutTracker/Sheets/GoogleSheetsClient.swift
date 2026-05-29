@@ -111,6 +111,14 @@ struct GoogleSheetsClient: SheetsClient {
     }
 
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
+        try await updateCells(
+            spreadsheetId: spreadsheetId,
+            updates: [SheetValueRangeUpdate(range: range, values: values)]
+        )
+    }
+
+    func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
+        guard !updates.isEmpty else { return }
         guard
             let url = URL(
                 string: "https://sheets.googleapis.com/v4/spreadsheets/\(spreadsheetId)/values:batchUpdate"
@@ -125,13 +133,14 @@ struct GoogleSheetsClient: SheetsClient {
         req.httpBody = try JSONEncoder().encode(
             GoogleSheetsBatchUpdateBody(
                 valueInputOption: "USER_ENTERED",
-                data: [GoogleSheetsValueRange(range: range, majorDimension: "ROWS", values: values)]
+                data: updates.map { update in
+                    GoogleSheetsValueRange(range: update.range, majorDimension: "ROWS", values: update.values)
+                }
             )
         )
 
-        let (_, resp) = try await URLSession.shared.data(for: req)
-        guard let http = resp as? HTTPURLResponse else { throw SheetsError.malformedResponse }
-        guard (200..<300).contains(http.statusCode) else { throw SheetsError.http(http.statusCode) }
+        let (_, statusCode) = try await load(req)
+        guard (200..<300).contains(statusCode) else { throw SheetsError.http(statusCode) }
     }
 
     private func get(_ url: URL) async throws -> Data {
