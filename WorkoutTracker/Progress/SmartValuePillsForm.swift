@@ -28,10 +28,18 @@ struct RPEGridValue: Equatable, Hashable, Identifiable, Sendable {
 
 @MainActor
 struct SmartValuePillsForm {
+    enum Field: Hashable, Sendable {
+        case weight
+        case reps
+        case rpe
+    }
+
     var weightText: String
     var repsText: String
     var rpeText: String
     let prescribedRPE: Int?
+    let repsPlaceholder: String?
+    private var showsInvalidFields = false
     private let initialWeightText: String
     private let initialRepsText: String
     private let initialRPEText: String
@@ -41,11 +49,20 @@ struct SmartValuePillsForm {
     }
 
     var repsDisplay: String {
-        repsText.isEmpty ? "—" : repsText
+        repsText.isEmpty ? repsPlaceholder ?? "—" : repsText
     }
 
     var rpeDisplay: String {
         rpeText.isEmpty ? "—" : rpeText
+    }
+
+    var isRepsDisplayingPlaceholder: Bool {
+        repsText.isEmpty && repsPlaceholder != nil
+    }
+
+    var invalidFields: Set<Field> {
+        guard showsInvalidFields else { return [] }
+        return currentInvalidFields
     }
 
     var weightIncrementOptions: [Double] {
@@ -85,9 +102,10 @@ struct SmartValuePillsForm {
                 previousSetWeight: previousSetWeight,
                 trainingMax: trainingMax
             )
-            repsText = set.prescribedReps.caseInsensitiveCompare("AMRAP") == .orderedSame ? "" : set.prescribedReps
+            repsText = Self.initialRepsText(for: set.prescribedReps)
             rpeText = ""
         }
+        repsPlaceholder = repsText.isEmpty ? set.prescribedReps : nil
         initialWeightText = weightText
         initialRepsText = repsText
         initialRPEText = rpeText
@@ -99,13 +117,80 @@ struct SmartValuePillsForm {
     }
 
     func makeLog() -> SetLog? {
-        SetLog(formatted: "\(weightText)x\(repsText)@\(rpeText)")
+        guard
+            let weight = validWeight,
+            let reps = validReps,
+            let rpe = validRPE
+        else {
+            return nil
+        }
+        return SetLog(weight: weight, reps: reps, rpe: rpe)
+    }
+
+    @discardableResult
+    mutating func markInvalidFieldsForDisplay() -> Set<Field> {
+        showsInvalidFields = true
+        return invalidFields
+    }
+
+    mutating func submitLog() -> SetLog? {
+        guard let log = makeLog() else {
+            markInvalidFieldsForDisplay()
+            return nil
+        }
+        return log
     }
 
     mutating func cancel() {
         weightText = initialWeightText
         repsText = initialRepsText
         rpeText = initialRPEText
+        showsInvalidFields = false
+    }
+
+    private var currentInvalidFields: Set<Field> {
+        var fields: Set<Field> = []
+        if validWeight == nil {
+            fields.insert(.weight)
+        }
+        if validReps == nil {
+            fields.insert(.reps)
+        }
+        if validRPE == nil {
+            fields.insert(.rpe)
+        }
+        return fields
+    }
+
+    private var validWeight: Weight? {
+        let trimmed = weightText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.caseInsensitiveCompare("BW") == .orderedSame {
+            return .bodyweight
+        }
+        guard let pounds = Double(trimmed), pounds.isFinite else {
+            return nil
+        }
+        return .pounds(pounds)
+    }
+
+    private var validReps: Int? {
+        let trimmed = repsText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let reps = Int(trimmed), String(reps) == trimmed else {
+            return nil
+        }
+        return reps
+    }
+
+    private var validRPE: Double? {
+        let trimmed = rpeText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let rpe = Double(trimmed), rpe >= 5, rpe <= 10 else {
+            return nil
+        }
+        let doubled = rpe * 2
+        guard doubled.rounded() == doubled else {
+            return nil
+        }
+        return rpe
     }
 
     private static func loadSuggestionPrescription(for set: ExerciseSet) -> String {
@@ -131,6 +216,10 @@ struct SmartValuePillsForm {
                 trainingMax: trainingMax
             )?
             .weightLabel ?? ""
+    }
+
+    private static func initialRepsText(for prescribedReps: String) -> String {
+        Int(prescribedReps).map { String($0) } ?? ""
     }
 
     private static func rpeLabel(_ rpe: Double) -> String {
