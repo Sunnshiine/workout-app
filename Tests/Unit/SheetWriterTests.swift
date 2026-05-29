@@ -142,6 +142,36 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
     #expect(rpeUpdate.range == "'Block 27'!G15")
 }
 
+@Test func resolvesShiftedExerciseRowsFromExerciseAnchors() throws {
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C18": "Squat", "D18": "2"
+        ],
+        rows: 30,
+        cols: 30
+    )
+    let planner = SheetWritePlanner()
+
+    let update = try planner.plan(
+        SheetWriteRequest(
+            blockTab: "Block 27",
+            week: 1,
+            day: 1,
+            exerciseName: "Squat",
+            setIndex: 1,
+            column: .notes,
+            operation: .upsert,
+            valueToWrite: "195x5@8",
+            expectedCurrentValue: ""
+        ),
+        in: grid
+    )
+
+    #expect(update.range == "'Block 27'!K20")
+}
+
 @Test func refusesUnexpectedCurrentCellValue() async throws {
     let client = writerFixture(["C15": "Squat", "D15": "1", "K16": "coach edited"])
     let planner = SheetWritePlanner()

@@ -1,6 +1,6 @@
 import Foundation
 
-struct WeekSection {
+struct WeekSection: Sendable {
     let headerRow: Int  // 0-based row holding "Day N"
     let roleHeaderRow: Int  // headerRow + 2
     let dateRow: Int  // headerRow + 1
@@ -10,7 +10,7 @@ struct WeekSection {
 private nonisolated(unsafe) let dayHeaderPattern = /^Day [1-4]$/
 private let trainingMaxHeaderScanRowLimit = 15
 
-struct DayColumns {
+struct DayColumns: Sendable {
     let name: Int
     let sets: Int?
     let reps: Int?

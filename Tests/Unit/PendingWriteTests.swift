@@ -31,6 +31,19 @@ import Testing
     #expect(fetched.operation == .upsert)
     #expect(fetched.status == .pending)
     #expect(fetched.expectedCurrentValue == "")
+
+    let durableText = [
+        fetched.blockTab,
+        fetched.exerciseName,
+        fetched.columnRaw,
+        fetched.operationRaw,
+        fetched.valueToWrite,
+        fetched.expectedCurrentValue,
+        fetched.statusRaw,
+        fetched.lastError
+    ].compactMap { $0 }
+    #expect(durableText.allSatisfy { !$0.contains("!") })
+    #expect(durableText.allSatisfy { $0.range(of: #"[A-Z]+[0-9]+"#, options: .regularExpression) == nil })
 }
 
 @MainActor
