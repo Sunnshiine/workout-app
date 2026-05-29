@@ -41,11 +41,14 @@ The celebration uses the previously chosen stats summary layout:
 - `Week N` label.
 - `Day X Done` heading.
 - Stats row: `Sets` | `Exercises` | `Left`.
-- Rotating motivational quote.
+- One randomly selected approved quote that remains stable for that celebration
+  display.
 - `Tap anywhere to continue` hint.
 
 The stamp should feel decisive: a bold checkmark slams in with expanding ripple
 rings, consistent with the app's mint/emerald motion language.
+The celebration should keep the app's dark green gradient visible; avoid a
+full-screen gray material veil that mutes the screen.
 
 ## Copy Rules
 
@@ -67,7 +70,8 @@ Set State for unfinished Sets.
 
 ## Quotes
 
-Rotate through these exact quotes:
+Select one quote at random from these exact quotes when the celebration appears,
+then keep that quote stable until the celebration is dismissed:
 
 - "You're fucking amazing."
 - "God damn!"
@@ -116,7 +120,7 @@ Before implementation is considered complete, verify:
 - Perfect Sessions show `Perfect session`, `0 Left`, and the richer haptic beat.
 - The stats row is `Sets · Exercises · Left` in both incomplete and perfect
   cases.
-- The quote rotation uses the approved quote list.
+- The stable random quote uses the approved quote list.
 - Existing `WorkoutStore.moveOn()` tests still prove advancement behavior.
 - iOS simulator verification confirms the overlay, animation, layout, and no
   text overlap on the target device family.
