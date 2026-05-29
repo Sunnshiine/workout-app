@@ -147,7 +147,7 @@ private func makePlannedSupersetSession() -> Session {
 }
 
 @MainActor
-@Test func reexpandingCompletedExercisePreservesCurrentFocusAndAllowsSwapFocus() throws {
+@Test func reexpandingCompletedExercisePreservesCurrentFocusAndExpandsLoggedSetReview() throws {
     let session = makeMultiExercisePendingSession()
     let squatSets = try #require(session.exercises.first { $0.order == 0 }?.sets)
     squatSets.forEach { $0.state = .logged }
@@ -164,7 +164,12 @@ private func makePlannedSupersetSession() -> Session {
 
     focus.focus(on: firstSquatSet)
 
-    #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+    #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    #expect(focus.expandedLoggedSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+
+    focus.focus(on: firstSquatSet)
+
+    #expect(focus.expandedLoggedSetID == nil)
 }
 
 @MainActor

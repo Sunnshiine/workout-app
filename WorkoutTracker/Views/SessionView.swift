@@ -67,7 +67,10 @@ struct SessionView: View {
                                     Color.clear
                                         .frame(height: 44)
                                         .contentShape(Rectangle())
-                                        .onTapGesture(perform: coordinator.cancelPairing)
+                                        .onTapGesture {
+                                            coordinator.cancelPairing()
+                                            coordinator.collapseLoggedSetReview()
+                                        }
                                 }
                                 .background {
                                     if coordinator.pairingMode != .inactive {
@@ -205,6 +208,7 @@ struct SessionView: View {
                     coordinator.reexpand(config.exercise)
                 },
                 onLog: logWithMomentum,
+                onUpdateLoggedSet: coordinator.updateLoggedSet(_:as:),
                 onSkip: skipWithFade,
                 onDelete: coordinator.deleteLog(for:),
                 onBeginPairing: {
