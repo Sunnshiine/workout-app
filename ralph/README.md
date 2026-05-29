@@ -56,12 +56,13 @@ Each iteration:
             dependencies, and picks ONE highest-priority unblocked issue.   (read-only)
 2. ISOLATE  A fresh worktree + branch `agent/issue-<N>` is created off main.
 3. IMPLEMENT The agent reads the issue contract, CONTEXT.md, relevant ADRs, and project
-            instructions. It runs Swift Review during verification, remediates blocking findings,
-            commits to the branch, and emits <promise>COMPLETE</promise>.
+            instructions. It runs Swift Review, and for View/Theme changes UI Screenshot Review,
+            during verification. It remediates blocking findings, commits to the branch, and emits
+            <promise>COMPLETE</promise>.
 4. GATE     The loop independently runs `swift test`, Xcode unit/component tests,
             Xcode UI integration tests, and `swiftlint lint --quiet`.
-5. UI GATE  If the change touched Views/Theme, it screenshots the app (via the UITEST
-            fixture) and a vision agent checks it against the acceptance criteria.
+5. UI GATE  If the change touched Views/Theme, the loop confirms the implementer produced a
+            reviewed screenshot artifact.
 6. SHIP     Merge the branch into main → push origin (unless --no-push) → close the issue.
 7. CLEANUP  Remove the worktree and delete the branch.
 ```
@@ -103,30 +104,34 @@ Write issues with a clear implementation contract: either an **Agent Brief** com
 issue body with acceptance criteria, key interfaces, and out-of-scope notes. When an Agent Brief
 comment exists, it wins. When it does not, the issue body may be used as the contract if it is
 specific enough to implement directly. The richer the acceptance criteria, the more reliably the
-loop succeeds and the more the UI vision check can verify.
+loop succeeds and the more the UI screenshot review can verify.
 
 PRDs are intentionally excluded. Ralph should not select `PRD:` issues or use PRD documents as
 implementation input; the issue contract must come from a non-PRD work issue.
 
 ---
 
-## Swift Review
+## Implementer-Owned Review
 
-Swift Review happens inside the implementer's verification loop before it emits
+Fresh-context review happens inside the implementer's verification loop before it emits
 `<promise>COMPLETE</promise>`:
 
 - Claude and Codex implementers must invoke the configured `swift-reviewer` custom agent as a
-  separate subagent, so review comes from a fresh context rather than self-review.
+  separate subagent for Swift code changes, so review comes from a fresh context rather than
+  self-review.
+- For `WorkoutTracker/Views/` or `WorkoutTracker/Theme.swift` changes, implementers must capture a
+  UITEST fixture screenshot with `ralph/snapshot.sh` and invoke the configured
+  `ui-screenshot-reviewer` custom agent as a separate subagent.
 - Codex CLI supports subagent workflows and custom agents; Ralph expects Codex to spawn the
-  configured `swift-reviewer` agent rather than falling back to copied reviewer instructions.
+  configured review agents rather than falling back to copied reviewer instructions.
 - Blocking reviewer findings are not final loop failures. The implementer fixes them in the same
-  worktree, reruns required checks, and requests review again before completing.
-- If the implementer cannot invoke the `swift-reviewer` subagent, it must report BLOCKED instead of
+  worktree, reruns required checks or screenshot capture, and requests review again before
+  completing.
+- If the implementer cannot invoke a required review subagent, it must report BLOCKED instead of
   emitting `<promise>COMPLETE</promise>`.
 
-Ralph does not currently set Codex subagent depth. If Codex refuses to spawn `swift-reviewer` due
-to depth limits, configure Codex `[agents] max_depth` high enough for one implementer-owned review
-subagent.
+Ralph does not currently set Codex subagent depth. If Codex refuses to spawn a reviewer due to depth
+limits, configure Codex `[agents] max_depth` high enough for implementer-owned review subagents.
 
 ---
 
@@ -147,9 +152,9 @@ ralph/snapshot.sh                       # writes ralph/.artifacts/screenshot.png
 PROJECT_DIR=/path/to/worktree ralph/snapshot.sh /tmp/out.png
 ```
 
-The vision check only judges what a **static image** can show (layout, missing/clipped elements,
-blank screens). It deliberately does **not** fail issues for animations or interaction — those
-ride on the build/test gate and your review.
+The UI screenshot review only judges what a **static image** can show (layout, missing/clipped
+elements, blank screens). It deliberately does **not** fail issues for animations or interaction —
+those ride on the build/test gate and Swift review.
 
 ---
 
@@ -170,8 +175,9 @@ Gate failures are reported by layer:
 - Xcode unit/component tests: `WorkoutTrackerTests`.
 - UI integration tests: `WorkoutTrackerUITests`.
 - Lint: `swiftlint lint --quiet`.
-- UI screenshot verification: only when `WorkoutTracker/Views/` or `WorkoutTracker/Theme.swift`
-  changed.
+- UI screenshot artifact check: only when `WorkoutTracker/Views/` or `WorkoutTracker/Theme.swift`
+  changed. The screenshot review itself happens inside IMPLEMENT via the `ui-screenshot-reviewer`
+  subagent.
 
 ---
 
@@ -213,8 +219,7 @@ ralph/
 ├── snapshot.sh         # build + launch fixture + capture screenshot
 ├── prompts/
 │   ├── select.md       # SELECT phase: choose one issue
-│   ├── implement.md    # IMPLEMENT phase: TDD contract
-│   └── verify.md       # VERIFY phase: vision-check a screenshot
+│   └── implement.md    # IMPLEMENT phase: TDD + review contract
 └── .artifacts/         # logs, activity.md, screenshots (gitignored)
 ```
 

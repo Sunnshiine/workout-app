@@ -27,7 +27,7 @@ Do not explain Ralph, the loop, project conventions, or skills back to the user;
 - Keep scope tied to the issue contract. No speculative features, unrelated refactors, or one-off
   abstractions.
 - Commit the completed work on the current branch using the project's Git rules.
-- Do not push, merge, close the issue, or run UI screenshots; the loop owns those steps.
+- Do not push, merge, or close the issue; the loop owns those steps.
 
 ## Verify before completion
 - Run the checks required by project instructions.
@@ -39,6 +39,19 @@ Do not explain Ralph, the loop, project conventions, or skills back to the user;
 - Treat blocking Swift Reviewer findings as unfinished work. Fix them in this same worktree,
   rerun the required checks, and request Swift Review again.
 - If you cannot invoke the `swift-reviewer` subagent, do not emit COMPLETE; report BLOCKED.
+- If the final diff touches `WorkoutTracker/Views/` or `WorkoutTracker/Theme.swift`, run
+  `PROJECT_DIR="$PWD" ralph/snapshot.sh "ralph/.artifacts/issue-<issue-number>-ui-review.png"`
+  after replacing `<issue-number>` with the numeric issue number. Then invoke the configured
+  `ui-screenshot-reviewer` custom agent as a separate subagent with the issue contract and
+  screenshot path, and save the exact subagent output to
+  `ralph/.artifacts/issue-<issue-number>-ui-review.md`. This is required for both Claude and
+  Codex.
+- Treat blocking UI screenshot findings as unfinished work. Fix them in this same worktree, rerun
+  the required checks and screenshot capture, and request UI Screenshot Review again.
+- If you cannot capture the screenshot or invoke the `ui-screenshot-reviewer` subagent for a
+  View/Theme change, do not emit COMPLETE; report BLOCKED.
+- For View/Theme changes, do not emit COMPLETE unless the saved UI Screenshot Review artifact ends
+  with this exact line: `PASS: no blocking static visual findings.`
 
 ## Done signal
 When the issue is implemented, checked, committed, reviewed, and every issue-contract acceptance
