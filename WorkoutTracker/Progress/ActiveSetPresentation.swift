@@ -40,6 +40,13 @@ struct HoldToSkipPolicy: Equatable, Sendable {
 struct HoldToSkipButtonPresentation: Equatable, Sendable {
     let progress: Double
     let logTitle: String
+    let canLog: Bool
+
+    init(progress: Double, logTitle: String, canLog: Bool = true) {
+        self.progress = progress
+        self.logTitle = logTitle
+        self.canLog = canLog
+    }
 
     var skipOpacity: Double {
         clampedProgress
@@ -51,6 +58,21 @@ struct HoldToSkipButtonPresentation: Equatable, Sendable {
 
     var accessibilityLabel: String {
         clampedProgress > 0 ? "Skipped" : logTitle
+    }
+
+    var accessibilityHint: String {
+        if canLog {
+            return "Double tap to log. Press and hold to skip."
+        }
+        return "Double tap to validate the Set Log. Press and hold to skip."
+    }
+
+    var controlOpacity: Double {
+        1
+    }
+
+    var showsSkipAffordance: Bool {
+        !canLog && clampedProgress == 0
     }
 
     private var clampedProgress: Double {
