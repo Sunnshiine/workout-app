@@ -34,15 +34,29 @@ struct SetRowPresentation: Equatable, Sendable {
 struct LoggedSetReviewPresentation: Equatable, Sendable {
     let statusText: String
     let detailText: String
+    let referenceText: String?
     let allowsEditing: Bool
 
     init(set: ExerciseSet) {
-        statusText = "Already logged"
         if let setLog = set.setLog {
+            statusText = "Set Log"
             detailText = setLog.formatted
+            referenceText = nil
             allowsEditing = true
+        } else if let unstructuredSetLog = set.unstructuredSetLog {
+            statusText = "Unstructured Set Log"
+            detailText = unstructuredSetLog
+            referenceText = unstructuredSetLog
+            allowsEditing = true
+        } else if let legacyLog = set.exercise?.legacyLog {
+            statusText = "Legacy Log"
+            detailText = legacyLog
+            referenceText = nil
+            allowsEditing = false
         } else {
-            detailText = "Completed from sheet"
+            statusText = "Logged Set"
+            detailText = set.displayReps
+            referenceText = nil
             allowsEditing = false
         }
     }
