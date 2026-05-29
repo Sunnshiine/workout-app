@@ -186,6 +186,8 @@ private struct ParsedSetContext {
     let nextAnchor: Int
     let cols: DayColumns
     let grid: SheetGrid
+    let headerNote: String
+    let compactHeaderLogState: ParsedLogState?
     let reps: String
     let repsValues: [String]
     let load: String
@@ -195,8 +197,14 @@ private struct ParsedSetContext {
 
 private func parsedSets(_ context: ParsedSetContext) -> [ParsedSet] {
     (0..<context.setCount).map { i in
-        let logRow = context.anchorRow + i + 1
-        let rawLog = logRow < context.nextAnchor ? context.grid.cellOrEmpty(logRow, context.cols.notes) : ""
+        let rawLog: String
+        if context.compactHeaderLogState != nil, i == 0 {
+            rawLog = context.headerNote
+        } else {
+            let rowOffset = context.compactHeaderLogState == nil ? i + 1 : i
+            let logRow = context.anchorRow + rowOffset
+            rawLog = logRow < context.nextAnchor ? context.grid.cellOrEmpty(logRow, context.cols.notes) : ""
+        }
         let logState = parsedLogState(from: rawLog)
         return ParsedSet(
             index: i,
@@ -243,7 +251,12 @@ private func parsedExercise(grid: SheetGrid, cols: DayColumns, anchorRow: Int, n
     let reps = grid.cellOrEmpty(anchorRow, cols.reps)
     let load = grid.cellOrEmpty(anchorRow, cols.load)
     let note = grid.cellOrEmpty(anchorRow, cols.notes).trimmed
-    let legacyLog = isLegacyLog(note) ? note : nil
+    let headerLogState = parsedLogState(from: note)
+    let compactHeaderLogState =
+        headerLogState.setLog != nil || headerLogState.state == .skipped
+        ? headerLogState
+        : nil
+    let legacyLog = compactHeaderLogState == nil && isLegacyLog(note) ? note : nil
     let sets = completionSets(
         parsedSets(
             ParsedSetContext(
@@ -252,6 +265,8 @@ private func parsedExercise(grid: SheetGrid, cols: DayColumns, anchorRow: Int, n
                 nextAnchor: nextAnchor,
                 cols: cols,
                 grid: grid,
+                headerNote: note,
+                compactHeaderLogState: compactHeaderLogState,
                 reps: reps,
                 repsValues: reps.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) },
                 load: load,
@@ -266,7 +281,7 @@ private func parsedExercise(grid: SheetGrid, cols: DayColumns, anchorRow: Int, n
         name: rawName,
         baseName: base,
         cadence: cadence,
-        coachNote: legacyLog == nil && !note.isEmpty ? note : nil,
+        coachNote: legacyLog == nil && compactHeaderLogState == nil && !note.isEmpty ? note : nil,
         legacyLog: legacyLog,
         sets: sets
     )

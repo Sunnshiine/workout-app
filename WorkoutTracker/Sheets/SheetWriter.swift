@@ -160,11 +160,26 @@ struct SheetWritePlanningIndex: Sendable {
         }
 
         let nextAnchor = anchorIndex + 1 < day.anchors.count ? day.anchors[anchorIndex + 1].row : week.endRow
-        let setRow = anchor.row + request.setIndex + 1
+        let headerNotes = grid.cell(row: anchor.row, col: col).trimmed
+        let usesCompactHeaderRow = request.column == .notes && isCompactHeaderSetOne(headerNotes)
+        if request.column == .notes, request.setIndex == 0 {
+            if usesCompactHeaderRow, headerNotes == request.expectedCurrentValue {
+                return (anchor.row, col)
+            }
+        }
+
+        let setRowOffset = usesCompactHeaderRow ? request.setIndex : request.setIndex + 1
+        let setRow = anchor.row + setRowOffset
         guard setRow < nextAnchor else {
             throw SheetWriterError.setRowNotFound(exerciseName: request.exerciseName, setIndex: request.setIndex)
         }
         return (setRow, col)
+    }
+
+    private func isCompactHeaderSetOne(_ headerNotes: String) -> Bool {
+        headerNotes.isEmpty
+            || headerNotes.caseInsensitiveCompare("skip") == .orderedSame
+            || SetLog(formatted: headerNotes) != nil
     }
 
     private func resolveColumn(_ column: PendingWriteColumn, cols: DayColumns) throws -> Int {
