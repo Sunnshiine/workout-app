@@ -20,7 +20,7 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
     let titleText: String
     let sublineText: String
     let stats: [MoveOnCelebrationStatPresentation]
-    let quotes: [String]
+    let quoteText: String
     let accessibilityLabel: String
     let accessibilityValue: String
     let hapticStyle: MoveOnCelebrationHapticStyle
@@ -41,7 +41,7 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
             MoveOnCelebrationStatPresentation(value: "\(exerciseCount)", label: "Exercises"),
             MoveOnCelebrationStatPresentation(value: "\(pendingSetCount)", label: "Left")
         ]
-        quotes = Self.approvedQuotes
+        quoteText = Self.approvedQuotes.randomElement() ?? ""
         accessibilityLabel = "\(weekText), \(titleText)"
         accessibilityValue = (stats.map { "\($0.value) \($0.label)" } + [sublineText])
             .joined(separator: ", ")
