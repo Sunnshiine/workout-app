@@ -66,7 +66,7 @@ final class SyncCoordinator {
             predicate: #Predicate { $0.statusRaw == "pending" },
             sortBy: [SortDescriptor(\.createdAt)]
         )
-        let pending = (try? context.fetch(descriptor)) ?? []
+        let pending = orderPendingWritesForFlush((try? context.fetch(descriptor)) ?? [])
         guard !pending.isEmpty else {
             state = .idle
             return
@@ -279,7 +279,6 @@ final class SyncCoordinator {
 }
 
 extension SyncCoordinator: SheetSwitchSyncing {}
-
 private struct PendingWriteFlushContext {
     let spreadsheetId: String
     let generation: Int
@@ -344,6 +343,7 @@ extension SyncCoordinator {
         var batch = PendingWriteBatch()
 
         for write in pending {
+            guard write.status == .pending else { continue }
             do {
                 let plannedWrite = try await plan(
                     write,
@@ -362,7 +362,9 @@ extension SyncCoordinator {
             } catch is PendingWriteBatchFailed {
                 return .stoppedForRetry
             } catch let error as SheetWriterError {
-                conflicts.append(recordConflict(error, for: write))
+                let message = recordConflict(error, for: write)
+                conflicts.append(message)
+                conflicts.append(contentsOf: recordDependentLastSetRPEConflicts(message, for: write, in: pending))
             } catch {
                 recordRetry(for: write, error: error, pendingCount: pending.count)
                 return .stoppedForRetry
