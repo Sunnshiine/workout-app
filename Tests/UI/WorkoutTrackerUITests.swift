@@ -341,12 +341,7 @@ final class WorkoutTrackerUITests: XCTestCase {
 
     @MainActor
     private func assertMoveOnCelebrationCopyIsReadable(in app: XCUIApplication) {
-        let approvedQuotes = [
-            "You're fucking amazing.",
-            "God damn!",
-            "Get it girl!",
-            "Shake it!"
-        ]
+        let approvedQuotes = ["You're fucking amazing.", "God damn!", "Get it girl!", "Shake it!"]
         let quote = app.staticTexts["move-on-celebration-quote"]
         let title = app.staticTexts["move-on-celebration-title"]
         let subline = app.staticTexts["move-on-celebration-subline"]
@@ -363,6 +358,9 @@ final class WorkoutTrackerUITests: XCTestCase {
 
         XCTAssertTrue(quote.waitForExistence(timeout: 6))
         XCTAssertTrue(approvedQuotes.contains(quote.label))
+        let selectedQuote = quote.label
+        RunLoop.current.run(until: Date().addingTimeInterval(3))
+        XCTAssertEqual(quote.label, selectedQuote)
 
         for element in [quote, title, subline, hint] + stats {
             XCTAssertTrue(element.waitForExistence(timeout: 3))

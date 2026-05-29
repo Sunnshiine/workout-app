@@ -2,34 +2,23 @@ import SwiftUI
 import UIKit
 
 struct MoveOnCelebrationView: View {
-    let presentation: MoveOnCelebrationPresentation
     let onDismiss: () -> Void
 
-    @State private var quoteIndex = 0
+    @State private var presentation: MoveOnCelebrationPresentation
     @State private var ripplesExpanded = false
 
-    private static let quoteRotationInterval: Duration = .seconds(2.4)
-    private static let quoteAnimation = Animation.easeInOut(duration: 0.28)
     private static let perfectImpactDelay: Duration = .milliseconds(120)
     private static let stampSize: CGFloat = 112
     private static let rippleDiameter: CGFloat = 188
 
     init(session: Session, onDismiss: @escaping () -> Void) {
-        self.presentation = MoveOnCelebrationPresentation(session: session)
+        _presentation = State(initialValue: MoveOnCelebrationPresentation(session: session))
         self.onDismiss = onDismiss
-    }
-
-    private var quoteText: String {
-        guard !presentation.quotes.isEmpty else { return "" }
-        return presentation.quotes[quoteIndex % presentation.quotes.count]
     }
 
     var body: some View {
         ZStack {
             Theme.gradient
-                .ignoresSafeArea()
-            Rectangle()
-                .fill(.regularMaterial)
                 .ignoresSafeArea()
 
             GeometryReader { proxy in
@@ -68,22 +57,11 @@ struct MoveOnCelebrationView: View {
                 .onTapGesture(perform: onDismiss)
             }
         }
-        .animation(Self.quoteAnimation, value: quoteText)
         .onAppear {
             ripplesExpanded = true
         }
         .task(id: presentation.hapticStyle) {
             await playHaptics(for: presentation.hapticStyle)
-        }
-        .task {
-            guard presentation.quotes.count > 1 else { return }
-            while !Task.isCancelled {
-                try? await Task.sleep(for: Self.quoteRotationInterval)
-                guard !Task.isCancelled else { return }
-                withAnimation(Self.quoteAnimation) {
-                    quoteIndex = (quoteIndex + 1) % presentation.quotes.count
-                }
-            }
         }
     }
 
@@ -101,14 +79,12 @@ struct MoveOnCelebrationView: View {
 
     private var copyStack: some View {
         VStack(spacing: 10) {
-            Text(quoteText)
-                .id(quoteText)
+            Text(presentation.quoteText)
                 .font(.title2.weight(.heavy))
                 .foregroundStyle(Theme.accent)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
                 .minimumScaleFactor(0.72)
-                .transition(.opacity.combined(with: .scale(scale: 0.98)))
                 .accessibilityIdentifier("move-on-celebration-quote")
 
             Text(presentation.weekText)
