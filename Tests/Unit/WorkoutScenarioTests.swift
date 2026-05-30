@@ -13,7 +13,8 @@ import Testing
             "open exercises",
             "sync failure",
             "queued write",
-            "block overview with mixed session states"
+            "block overview with mixed session states",
+            "partially uploaded block"
         ]
     )
 
@@ -50,4 +51,12 @@ import Testing
     let overview = WorkoutScenarios.blockOverviewWithMixedSessionStates()
     let presentation = BlockOverviewPresentation(block: overview.block, currentSession: overview.currentSession)
     #expect(presentation.tiles.map(\.state) == [.complete, .incomplete, .current, .incomplete])
+
+    let partiallyUploaded = WorkoutScenarios.partiallyUploadedBlock()
+    let partialPresentation = BlockOverviewPresentation(
+        block: partiallyUploaded.block,
+        currentSession: partiallyUploaded.currentSession
+    )
+    #expect(partialPresentation.tiles.count == 16)
+    #expect(partialPresentation.tiles.filter { $0.state == .unavailable }.count == 11)
 }

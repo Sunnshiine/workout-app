@@ -140,6 +140,11 @@ struct SessionView: View {
         }
         .animation(.easeInOut(duration: 0.18), value: sessionControlsVisibility.isVisible)
         .animation(.easeInOut(duration: 0.18), value: workout.moveOnCelebrationSession?.persistentModelID)
+        .navigationDestination(isPresented: blockOverviewRequestBinding) {
+            if let block = workout.block {
+                BlockOverviewView(block: block, currentSession: workout.currentSession)
+            }
+        }
         .sheet(isPresented: $isSettingsPresented) {
             SettingsView()
         }
@@ -168,6 +173,16 @@ struct SessionView: View {
 
     private var shouldShowSessionControls: Bool {
         sessionControlsVisibility.isVisible && workout.moveOnCelebrationSession == nil
+    }
+
+    private var blockOverviewRequestBinding: Binding<Bool> {
+        Binding {
+            workout.pendingBlockOverviewRequest != nil
+        } set: { isPresented in
+            if !isPresented {
+                workout.clearBlockOverviewRequest()
+            }
+        }
     }
 
     @MainActor

@@ -20,20 +20,29 @@ struct BlockOverviewView: View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: Theme.sessionTileSpacing) {
                 ForEach(presentation.tiles, id: \.accessibilityIdentifier) { tile in
-                    Button {
-                        show(week: tile.weekNumber, day: tile.dayNumber)
-                    } label: {
+                    if tile.state == .unavailable {
                         SessionTile(
                             weekNumber: tile.weekNumber,
                             dayNumber: tile.dayNumber,
                             state: tile.state
                         )
+                        .accessibilityIdentifier(tile.accessibilityIdentifier)
+                    } else {
+                        Button {
+                            show(week: tile.weekNumber, day: tile.dayNumber)
+                        } label: {
+                            SessionTile(
+                                weekNumber: tile.weekNumber,
+                                dayNumber: tile.dayNumber,
+                                state: tile.state
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(tile.accessibilityLabel)
+                        .accessibilityValue(tile.accessibilityValue)
+                        .accessibilityIdentifier(tile.accessibilityIdentifier)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(tile.accessibilityLabel)
-                    .accessibilityValue(tile.accessibilityValue)
-                    .accessibilityIdentifier(tile.accessibilityIdentifier)
                 }
             }
             .padding()
