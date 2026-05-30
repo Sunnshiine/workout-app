@@ -96,6 +96,17 @@ import Testing
     #expect(batches[0].map(\.range) == ["'Block 27'!A1", "'Block 27'!B1"])
 }
 
+@Test func localWorkbookEmptyBatchWriteIsNoOpAndUnrecorded() async throws {
+    let original = gridFromA1(["A1": "original"], rows: 1, cols: 1)
+    let client = LocalWorkbookSheetsClient(tabs: ["Block 27": original])
+
+    try await client.updateCells(spreadsheetId: "sid", updates: [])
+
+    let fetched = try await client.fetchTab(spreadsheetId: "sid", tabName: "Block 27")
+    #expect(fetched == original)
+    #expect(await client.recordedBatches.isEmpty)
+}
+
 @Test func localWorkbookRectangularWritePersistsEveryCell() async throws {
     let client = LocalWorkbookSheetsClient(
         tabs: ["Block 27": gridFromA1([:], rows: 1, cols: 1)]

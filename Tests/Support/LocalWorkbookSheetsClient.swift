@@ -44,6 +44,7 @@ actor LocalWorkbookSheetsClient: SheetsClient {
     }
 
     func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
+        guard !updates.isEmpty else { return }
         let staged = try Self.applying(updates, to: tabs)
         recordedBatches.append(updates)
         tabs = staged
