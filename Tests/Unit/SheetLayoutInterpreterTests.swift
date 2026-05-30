@@ -73,18 +73,7 @@ import Testing
 }
 
 @Test func layoutInterpreterDescribesProtectedHeaderAndContinuationRows() throws {
-    let grid = gridFromA1(
-        [
-            "C12": "Day 1", "S12": "Day 2",
-            "D14": "Sets", "K14": "Notes",
-            "C18": "Chest Fly", "D18": "2", "K18": "Keep elbows soft",
-            "K19": "25x12@7",
-            "K20": "20x10@8",
-            "C25": "Bench Press", "D25": "1"
-        ],
-        rows: 32,
-        cols: 30
-    )
+    let grid = coachNoteLayoutGrid()
 
     let day = try #require(SheetLayoutInterpreter().interpret(grid).day(week: 1, day: 1))
     let anchor = try #require(day.exerciseAnchors.first)
