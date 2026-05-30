@@ -419,3 +419,48 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
         Issue.record("Expected SheetWriterError, got \(error)")
     }
 }
+
+@Test func protectsLegacyLogByWritingSetLogToContinuationRow() throws {
+    let client = writerFixture(["C15": "Squat", "D15": "2", "K15": "70@10, 80"])
+    let planner = SheetWritePlanner()
+    let request = SheetWriteRequest(
+        blockTab: "Block 27",
+        week: 1,
+        day: 1,
+        exerciseName: "Squat",
+        setIndex: 0,
+        column: .notes,
+        operation: .upsert,
+        valueToWrite: "185x5@8",
+        expectedCurrentValue: ""
+    )
+
+    let update = try planner.plan(request, in: client.grid)
+
+    #expect(update.range == "'Block 27'!K16")
+}
+
+@Test func refusesMissingContinuationRowWhenLegacyLogFillsHeader() throws {
+    let client = writerFixture(["C15": "Squat", "D15": "1", "K15": "70@10", "C16": "Bench"])
+    let planner = SheetWritePlanner()
+    let request = SheetWriteRequest(
+        blockTab: "Block 27",
+        week: 1,
+        day: 1,
+        exerciseName: "Squat",
+        setIndex: 0,
+        column: .notes,
+        operation: .upsert,
+        valueToWrite: "185x5@8",
+        expectedCurrentValue: ""
+    )
+
+    do {
+        _ = try planner.plan(request, in: client.grid)
+        Issue.record("Expected legacy log header to block writes when no safe continuation row")
+    } catch let error as SheetWriterError {
+        #expect(error == .headerNotesBlockSetRow(exerciseName: "Squat", setIndex: 0))
+    } catch {
+        Issue.record("Expected SheetWriterError, got \(error)")
+    }
+}
