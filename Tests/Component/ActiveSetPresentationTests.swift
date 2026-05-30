@@ -69,12 +69,21 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     #expect(presentation.accessibilityLabel == "Skipped")
 }
 
-@Test func holdToSkipButtonPresentationKeepsSkipAvailableWhenLogIsUnavailable() {
+@Test func holdToSkipButtonPresentationKeepsIncompleteLogIdleStateClean() {
     let presentation = HoldToSkipButtonPresentation(progress: 0, logTitle: "Log", canLog: false)
 
     #expect(presentation.controlOpacity == 1)
-    #expect(presentation.showsSkipAffordance)
+    #expect(!presentation.showsSkipAffordance)
+    #expect(presentation.skipOpacity == 0)
     #expect(presentation.accessibilityHint == "Double tap to validate the Set Log. Press and hold to skip.")
+}
+
+@Test func holdToSkipButtonPresentationShowsSkippedFeedbackOnlyDuringHoldProgress() {
+    let presentation = HoldToSkipButtonPresentation(progress: 0.65, logTitle: "Log", canLog: false)
+
+    #expect(!presentation.showsSkipAffordance)
+    #expect(abs(presentation.skipOpacity - 0.65) < 0.001)
+    #expect(presentation.accessibilityLabel == "Skipped")
 }
 
 @MainActor

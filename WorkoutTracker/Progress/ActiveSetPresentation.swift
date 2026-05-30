@@ -83,7 +83,7 @@ struct HoldToSkipButtonPresentation: Equatable, Sendable {
     }
 
     var showsSkipAffordance: Bool {
-        !canLog && clampedProgress == 0
+        false
     }
 
     private var clampedProgress: Double {
