@@ -92,6 +92,7 @@ import Testing
 
     #expect(headerNotes.value == "Keep elbows soft")
     #expect(headerNotes.usesCompactHeaderSetOne == false)
+    #expect(anchor.usesCompactHeaderSetOne(headerNotes: headerNotes) == false)
     #expect(headerNotes.hasProtectedValue)
     #expect(anchor.continuationSetRow(for: 0) == 18)
     #expect(anchor.continuationSetRow(for: 1) == 19)

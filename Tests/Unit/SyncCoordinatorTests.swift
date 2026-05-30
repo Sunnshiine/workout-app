@@ -150,8 +150,8 @@ private final class BackfillCompletionProbe: LastPerformedBackfillObserving {
             "C13": "5/1/2026",
             "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
             "C15": "Squat", "D15": "2", "F15": "5", "H15": "RPE8",
-            "K16": "185x5@8",
-            "K17": "195x5@9"
+            "K15": "185x5@8",
+            "K16": "195x5@9"
         ],
         rows: 20,
         cols: 60
@@ -361,7 +361,7 @@ private func historicalGrid(exerciseName: String, log: String, date: String) -> 
             "C13": date,
             "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
             "C15": exerciseName, "D15": "1", "F15": "5", "H15": "RPE8",
-            "K16": log
+            "K15": log
         ],
         rows: 20,
         cols: 60
