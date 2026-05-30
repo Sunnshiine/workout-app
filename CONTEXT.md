@@ -8,9 +8,15 @@ A mobile client for powerlifting athletes that surfaces and logs workouts from a
 
 **Block**: A distinct training phase occupying one tab in the Sheet. Each Block spans 4 weeks with 4 training days per week (16 Sessions total). Blocks are numbered sequentially. Avoid: phase, cycle, mesocycle.
 
+**Partially Uploaded Block**: A Block in which at least one Session is an Unavailable Session — the coach has populated some Sessions but not yet all 16. A normal, expected state, not an error: the athlete works the Available Sessions while the rest remain to be uploaded. Availability is decided per Session, so populated Sessions need not be contiguous (e.g. Day 1 of every Week can be Available while Days 2–4 of later Weeks are not). Avoid: incomplete block, draft block, unfinished block.
+
 **Week**: One of four consecutive 7-day windows within a Block. Represented as a row-section in the Sheet tab. Avoid: microcycle.
 
 **Session**: A single training day within a Block — one of Day 1–4 in a given Week. The atomic unit the athlete plans around ("what am I doing today?"). Avoid: workout, training day, day.
+
+**Available Session**: A Session that has at least one Exercise — the athlete can open it and log. The state of any Session the coach has populated. Availability is determined per Session from whether it holds Exercises, independently of any other Session. Avoid: open session, ready session, unlocked session.
+
+**Unavailable Session**: A Session the coach has not yet populated, holding zero Exercises. Visible in the Block grid as a clearly non-interactive tile so the athlete sees the Session exists but cannot open it. Becomes an Available Session automatically once the coach uploads its Exercises and the app next syncs — no athlete action unlocks it. Avoid: locked session, empty session, missing session, disabled session.
 
 **Exercise**: A movement in a Session, identified by name (optionally prefixed with a tempo notation, e.g. "2-3:1:0 BB RDL"). Each Exercise has one or more prescribed Sets; each Set occupies its own row in the Sheet. Avoid: lift, movement.
 
@@ -54,10 +60,10 @@ A mobile client for powerlifting athletes that surfaces and logs workouts from a
 
 ### Progress
 
-**Current Session**: The most recently logged Session in the current Block — the session the athlete is actively working on. Derived from the sheet on each sync. Avoid: today's workout, active session.
+**Current Session**: The most recently logged Session in the current Block — the session the athlete is actively working on. Derived from the sheet on each sync. Always an Available Session: when no Session has been logged yet it defaults to the first Available Session in Block order, never an Unavailable Session. Avoid: today's workout, active session.
 
 **Current Week**: The Week containing the Current Session. Open Exercises are tracked only within the Current Week. Starting any Session in Week N+1 closes Week N — its Open Exercises are silently abandoned. Avoid: active week.
 
-**Move On**: The athlete's explicit action to advance past the Current Session regardless of whether all sets are logged. Any remaining Open Exercises stay surfaced until logged or skipped. Avoid: Finish Session, Complete.
+**Move On**: The athlete's explicit action to advance past the Current Session regardless of whether all sets are logged. Advances to the next Available Session, skipping any Unavailable Sessions in between; when no Available Session remains ahead but the Block still holds Unavailable Sessions, Move On returns the athlete to the Block grid instead of advancing. Offered whenever any Session — Available or Unavailable — lies ahead in the Block. Any remaining Open Exercises stay surfaced until logged or skipped. Avoid: Finish Session, Complete.
 
 **Move On Celebration**: The athlete-facing acknowledgement shown after the athlete chooses Move On to close the Current Session. The celebration can be enhanced when every Set in the Session is Logged or Skipped, but Set completion alone does not close the Session or advance to the next Session. Avoid: workout completion, finish celebration.
