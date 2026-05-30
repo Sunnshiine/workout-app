@@ -223,6 +223,35 @@ final class WorkoutTrackerUITests: XCTestCase {
     }
 
     @MainActor
+    func testDeveloperToolsShowsCurrentSessionDebugInfoAndResetsOverride() throws {
+        let app = launchFixtureApp(extraArguments: ["-UITEST_DEVELOPER_TOOLS", "-UITEST_CURRENT_SESSION_OVERRIDE"])
+
+        XCTAssertTrue(app.navigationBars["Developer Tools"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Current Session Debug Info"].exists)
+        XCTAssertEqual(app.staticTexts["current-session-debug-block-value"].label, "Block 27")
+        XCTAssertEqual(app.staticTexts["current-session-debug-sheet-derived-value"].label, "Week 1, Day 1")
+        XCTAssertEqual(app.staticTexts["current-session-debug-manual-override-value"].label, "Week 1, Day 3")
+        XCTAssertEqual(app.staticTexts["current-session-debug-displayed-value"].label, "Week 1, Day 3")
+        XCTAssertEqual(app.staticTexts["current-session-debug-resolved-value"].label, "Week 1, Day 3")
+        XCTAssertEqual(
+            app.staticTexts["current-session-debug-reason-value"].label,
+            "Manual override is active for this Block."
+        )
+        XCTAssertTrue(app.staticTexts["current-session-debug-local-only-note"].exists)
+        XCTAssertTrue(app.buttons["copy-current-session-debug-info-button"].exists)
+
+        let resetButton = app.buttons["reset-current-session-override-button"]
+        XCTAssertTrue(resetButton.exists)
+        XCTAssertTrue(resetButton.isEnabled)
+        resetButton.tap()
+
+        XCTAssertEqual(app.staticTexts["current-session-debug-manual-override-value"].label, "None")
+        XCTAssertEqual(app.staticTexts["current-session-debug-displayed-value"].label, "Week 1, Day 1")
+        XCTAssertEqual(app.staticTexts["current-session-debug-resolved-value"].label, "Week 1, Day 1")
+        XCTAssertFalse(resetButton.isEnabled)
+    }
+
+    @MainActor
     func testOpenExerciseMakeupFlowShowsLastPerformedAndLogsSet() throws {
         let app = launchFixtureApp(extraArguments: ["-UITEST_OPEN_EXERCISES"])
 

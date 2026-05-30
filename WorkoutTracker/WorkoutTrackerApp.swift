@@ -27,6 +27,7 @@ struct WorkoutTrackerApp: App {
                     lastPerformedLookupRefresher: lastPerformedLookup
                 )
                 workout.reload()
+                Self.applyCurrentSessionOverrideFixture(to: workout)
                 _settings = State(initialValue: settings)
                 _workout = State(initialValue: workout)
                 _sync = State(
@@ -61,6 +62,14 @@ struct WorkoutTrackerApp: App {
         )
         _lastPerformedLookup = State(initialValue: lastPerformedLookup)
     }
+
+    #if DEBUG
+        private static func applyCurrentSessionOverrideFixture(to workout: WorkoutStore) {
+            guard UITestFixture.startsWithCurrentSessionOverride else { return }
+            workout.show(week: 1, day: 3)
+            workout.makeDisplayedSessionCurrent()
+        }
+    #endif
 
     var body: some Scene {
         WindowGroup {
