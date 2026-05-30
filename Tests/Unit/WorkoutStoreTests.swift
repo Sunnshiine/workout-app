@@ -97,7 +97,7 @@ private func makeStore(
     store.reload()
 
     #expect(store.block?.tabName == "Block 27")
-    #expect(store.displayedSession?.dayNumber == 1)  // defaults to current
+    #expect(store.displayedSession == nil)
     store.show(week: 1, day: 3)
     #expect(store.displayedSession?.dayNumber == 3)
 }

@@ -7,7 +7,7 @@ struct SessionTile: View {
 
     var body: some View {
         Group {
-            if state == .complete {
+            if state == .complete || state == .unavailable {
                 tileContent
             } else {
                 tileContent
@@ -30,6 +30,13 @@ struct SessionTile: View {
                 .foregroundStyle(foregroundStyle)
 
             Spacer(minLength: 0)
+
+            if state == .unavailable {
+                Label("Not uploaded", systemImage: "lock.fill")
+                    .font(.caption2.weight(.semibold))
+                    .labelStyle(.titleAndIcon)
+                    .foregroundStyle(foregroundStyle)
+            }
         }
         .frame(maxWidth: .infinity, minHeight: Theme.sessionTileMinHeight, alignment: .topLeading)
         .padding(12)
@@ -38,6 +45,7 @@ struct SessionTile: View {
             RoundedRectangle(cornerRadius: Theme.sessionTileCornerRadius)
                 .stroke(borderColor, lineWidth: borderWidth)
         }
+        .opacity(state == .unavailable ? Theme.sessionTileUnavailableOpacity : 1)
     }
 
     private var backgroundColor: Color {
@@ -46,6 +54,8 @@ struct SessionTile: View {
             Theme.sessionTileComplete
         case .current, .incomplete:
             Theme.sessionTileIncomplete
+        case .unavailable:
+            Theme.sessionTileUnavailable
         }
     }
 
@@ -57,6 +67,8 @@ struct SessionTile: View {
             .white
         case .incomplete:
             .white.opacity(0.64)
+        case .unavailable:
+            .white.opacity(0.4)
         }
     }
 
@@ -66,7 +78,7 @@ struct SessionTile: View {
             Theme.sessionTileCurrentBorder
         case .incomplete:
             .white.opacity(0.10)
-        case .complete:
+        case .complete, .unavailable:
             .clear
         }
     }
@@ -75,7 +87,7 @@ struct SessionTile: View {
         switch state {
         case .current:
             Theme.sessionTileCurrentBorderWidth
-        case .complete, .incomplete:
+        case .complete, .incomplete, .unavailable:
             1
         }
     }

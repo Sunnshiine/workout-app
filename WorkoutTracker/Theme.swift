@@ -23,6 +23,7 @@ enum Theme {
     static let pillStroke = Color(red: 0.24, green: 0.68, blue: 0.42).opacity(0.75)
     static let sessionTileComplete = Color(red: 0.03, green: 0.32, blue: 0.16)
     static let sessionTileIncomplete = Color(red: 0.025, green: 0.055, blue: 0.045).opacity(0.24)
+    static let sessionTileUnavailable = Color(red: 0.025, green: 0.055, blue: 0.045).opacity(0.12)
     static let sessionTileCurrentBorder = accent
 
     static let cardCornerRadius: CGFloat = 16
@@ -31,6 +32,7 @@ enum Theme {
     static let sessionTileMinHeight: CGFloat = 86
     static let sessionTileSpacing: CGFloat = 10
     static let sessionTileCurrentBorderWidth: CGFloat = 1.5
+    static let sessionTileUnavailableOpacity = 0.55
     static let pillCornerRadius: CGFloat = 8
     static let pillMinHeight: CGFloat = 86
     static let pillSpacing: CGFloat = 10
