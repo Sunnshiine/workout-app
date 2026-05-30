@@ -55,10 +55,40 @@ struct SheetLayoutDay: Sendable {
     let exerciseAnchors: [SheetLayoutExerciseAnchor]
 }
 
+struct SheetLayoutHeaderNotes: Sendable, Equatable {
+    let value: String
+
+    var usesCompactHeaderSetOne: Bool {
+        value.isEmpty
+            || value.caseInsensitiveCompare("skip") == .orderedSame
+            || SetLog(formatted: value) != nil
+    }
+
+    var hasProtectedValue: Bool {
+        !value.isEmpty && !usesCompactHeaderSetOne
+    }
+}
+
 struct SheetLayoutExerciseAnchor: Sendable {
     let name: String
     let row: Int
     let nextAnchorRow: Int
+
+    func headerNotes(in grid: SheetGrid, notesColumn: Int?) -> SheetLayoutHeaderNotes {
+        SheetLayoutHeaderNotes(value: grid.cellOrEmpty(row, notesColumn).trimmed)
+    }
+
+    func continuationSetRow(for setIndex: Int) -> Int? {
+        setLogRow(for: setIndex, compactHeaderSetOne: false)
+    }
+
+    func setLogRow(for setIndex: Int, compactHeaderSetOne: Bool) -> Int? {
+        guard setIndex >= 0 else { return nil }
+        let rowOffset = compactHeaderSetOne ? setIndex : setIndex + 1
+        let setRow = row + rowOffset
+        guard setRow < nextAnchorRow else { return nil }
+        return setRow
+    }
 }
 
 struct SheetLayoutInterpreter: Sendable {

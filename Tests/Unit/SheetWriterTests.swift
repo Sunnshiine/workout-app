@@ -332,6 +332,43 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
     #expect(update.range == "'Block 27'!K19")
 }
 
+@Test func parserAndWriterAgreeOnShiftedCoachNoteContinuationRows() throws {
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "E14": "Notes", "G14": "Last set RPE",
+            "C18": "Chest Fly", "D18": "2", "E18": "Keep elbows soft",
+            "E19": "25x12@7",
+            "E20": "20x10@8",
+            "C25": "Bench Press", "D25": "1"
+        ],
+        rows: 32,
+        cols: 30
+    )
+
+    let parsed = SheetParser().parse(grid: grid, tabName: "Block 27")
+    let exercise = try #require(parsed.block.weeks.first?.days.first?.exercises.first)
+    #expect(exercise.coachNote == "Keep elbows soft")
+    #expect(exercise.sets.map { $0.setLog?.formatted } == ["25x12@7", "20x10@8"])
+
+    let update = try SheetWritePlanner().plan(
+        SheetWriteRequest(
+            blockTab: "Block 27",
+            week: 1,
+            day: 1,
+            exerciseName: "Chest Fly",
+            setIndex: 1,
+            column: .notes,
+            operation: .upsert,
+            valueToWrite: "22.5x10@8",
+            expectedCurrentValue: "20x10@8"
+        ),
+        in: grid
+    )
+
+    #expect(update.range == "'Block 27'!E20")
+}
+
 @Test func refusesUnexpectedCurrentCellValue() async throws {
     let client = writerFixture(["C15": "Squat", "D15": "1", "K15": "Coach note", "K16": "coach edited"])
     let planner = SheetWritePlanner()
