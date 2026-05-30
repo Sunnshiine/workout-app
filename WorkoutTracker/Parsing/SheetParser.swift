@@ -122,8 +122,7 @@ private func parsedLogState(from raw: String) -> ParsedLogState {
 
 private struct ParsedSetContext {
     let setCount: Int
-    let anchorRow: Int
-    let nextAnchor: Int
+    let anchor: SheetLayoutExerciseAnchor
     let cols: DayColumns
     let grid: SheetGrid
     let headerNote: String
@@ -141,9 +140,11 @@ private func parsedSets(_ context: ParsedSetContext) -> [ParsedSet] {
         if context.compactHeaderLogState != nil, i == 0 {
             rawLog = context.headerNote
         } else {
-            let rowOffset = context.compactHeaderLogState == nil ? i + 1 : i
-            let logRow = context.anchorRow + rowOffset
-            rawLog = logRow < context.nextAnchor ? context.grid.cellOrEmpty(logRow, context.cols.notes) : ""
+            let logRow = context.anchor.setLogRow(
+                for: i,
+                compactHeaderSetOne: context.compactHeaderLogState != nil
+            )
+            rawLog = logRow.map { context.grid.cellOrEmpty($0, context.cols.notes) } ?? ""
         }
         let logState = parsedLogState(from: rawLog)
         return ParsedSet(
@@ -174,12 +175,14 @@ private func completionSets(_ sets: [ParsedSet], legacyLog: String?) -> [ParsedS
     }
 }
 
-private func parsedExercise(grid: SheetGrid, cols: DayColumns, anchorRow: Int, nextAnchor: Int) -> ParsedExercise {
+private func parsedExercise(grid: SheetGrid, day: SheetLayoutDay, anchor: SheetLayoutExerciseAnchor) -> ParsedExercise {
+    let cols = day.columns
+    let anchorRow = anchor.row
     let rawName = grid.cell(row: anchorRow, col: cols.name).trimmed
     let (cadence, base) = splitCadence(rawName)
     let reps = grid.cellOrEmpty(anchorRow, cols.reps)
     let load = grid.cellOrEmpty(anchorRow, cols.load)
-    let note = grid.cellOrEmpty(anchorRow, cols.notes).trimmed
+    let note = anchor.headerNotes(in: grid, notesColumn: cols.notes).value
     let headerLogState = parsedLogState(from: note)
     let compactHeaderLogState =
         headerLogState.setLog != nil || headerLogState.state == .skipped
@@ -190,8 +193,7 @@ private func parsedExercise(grid: SheetGrid, cols: DayColumns, anchorRow: Int, n
         parsedSets(
             ParsedSetContext(
                 setCount: max(Int(grid.cellOrEmpty(anchorRow, cols.sets).prefix { $0.isNumber }) ?? 1, 1),
-                anchorRow: anchorRow,
-                nextAnchor: nextAnchor,
+                anchor: anchor,
                 cols: cols,
                 grid: grid,
                 headerNote: note,
@@ -220,14 +222,18 @@ private func parsedExercise(grid: SheetGrid, cols: DayColumns, anchorRow: Int, n
 /// the row count for an exercise is `max(Sets value, 1)` (continuation rows hold
 /// extra sets / set logs; logs are read in Plan 2).
 func parseDay(in grid: SheetGrid, section: WeekSection, dayIndex: Int, endRow: Int) -> [ParsedExercise] {
-    let cols = resolveDayColumns(in: grid, section: section, dayIndex: dayIndex)
-    let firstRow = section.roleHeaderRow + 1
-    let upper = min(endRow, grid.count)
-    let anchors = anchorRows(in: grid, cols: cols, firstRow: firstRow, upper: upper)
+    let layout = SheetLayoutInterpreter().interpret(grid)
+    guard
+        let week = layout.weeks.first(where: { $0.headerRow == section.headerRow }),
+        dayIndex < week.days.count
+    else { return [] }
 
-    return anchors.enumerated().map { anchorIndex, anchorRow in
-        let nextAnchor = anchorIndex + 1 < anchors.count ? anchors[anchorIndex + 1] : upper
-        return parsedExercise(grid: grid, cols: cols, anchorRow: anchorRow, nextAnchor: nextAnchor)
+    return parseDay(in: grid, day: week.days[dayIndex])
+}
+
+private func parseDay(in grid: SheetGrid, day: SheetLayoutDay) -> [ParsedExercise] {
+    day.exerciseAnchors.map { anchor in
+        parsedExercise(grid: grid, day: day, anchor: anchor)
     }
 }
 
@@ -312,8 +318,8 @@ struct SheetParser {
     func parse(grid: SheetGrid, tabName: String) -> ParsedBlock {
         var warnings: [String] = []
         let trainingMax = parseTrainingMax(from: grid)
-        let sections = locateWeekSections(in: grid)
-        if sections.isEmpty {
+        let layout = SheetLayoutInterpreter().interpret(grid)
+        if layout.weeks.isEmpty {
             warnings.append("Parse warning: no week sections (no 'Day N' headers) in \(tabName)")
             return ParsedBlock(
                 block: ParsedBlockModel(
@@ -326,17 +332,16 @@ struct SheetParser {
                 warnings: warnings
             )
         }
-        var weeks: [ParsedWeek] = []
-        for (i, section) in sections.enumerated() {
-            let endRow = (i + 1 < sections.count) ? sections[i + 1].headerRow : grid.count
-            var days: [ParsedSession] = []
-            for dayIndex in 0..<section.dayStartCols.count {
-                let date = parseDate(grid.cell(row: section.dateRow, col: section.dayStartCols[dayIndex]))
-                let exercises = parseDay(in: grid, section: section, dayIndex: dayIndex, endRow: endRow)
-                days.append(ParsedSession(dayNumber: dayIndex + 1, date: date, exercises: exercises))
+
+        let weeks = layout.weeks.map { week in
+            let days = week.days.map { day in
+                let date = parseDate(grid.cell(row: week.dateRow, col: day.columns.name))
+                let exercises = parseDay(in: grid, day: day)
+                return ParsedSession(dayNumber: day.number, date: date, exercises: exercises)
             }
-            weeks.append(ParsedWeek(number: i + 1, days: days))
+            return ParsedWeek(number: week.number, days: days)
         }
+
         return ParsedBlock(
             block: ParsedBlockModel(
                 tabName: tabName,

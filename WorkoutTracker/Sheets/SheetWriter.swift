@@ -149,19 +149,20 @@ struct SheetWritePlanningIndex: Sendable {
             return (anchor.row, col)
         }
 
-        let nextAnchor = anchor.nextAnchorRow
-        let headerNotes = grid.cell(row: anchor.row, col: col).trimmed
-        let usesCompactHeaderRow = request.column == .notes && isCompactHeaderSetOne(headerNotes)
+        let headerNotes = anchor.headerNotes(in: grid, notesColumn: day.columns.notes)
         if request.column == .notes, request.setIndex == 0 {
-            if usesCompactHeaderRow, headerNotes == request.expectedCurrentValue {
+            if headerNotes.usesCompactHeaderSetOne, headerNotes.value == request.expectedCurrentValue {
                 return (anchor.row, col)
             }
         }
 
-        let setRowOffset = usesCompactHeaderRow ? request.setIndex : request.setIndex + 1
-        let setRow = anchor.row + setRowOffset
-        guard setRow < nextAnchor else {
-            if request.column == .notes, !headerNotes.isEmpty, !usesCompactHeaderRow {
+        guard
+            let setRow = anchor.setLogRow(
+                for: request.setIndex,
+                compactHeaderSetOne: headerNotes.usesCompactHeaderSetOne
+            )
+        else {
+            if request.column == .notes, headerNotes.hasProtectedValue {
                 throw SheetWriterError.headerNotesBlockSetRow(
                     exerciseName: request.exerciseName,
                     setIndex: request.setIndex
@@ -170,12 +171,6 @@ struct SheetWritePlanningIndex: Sendable {
             throw SheetWriterError.setRowNotFound(exerciseName: request.exerciseName, setIndex: request.setIndex)
         }
         return (setRow, col)
-    }
-
-    private func isCompactHeaderSetOne(_ headerNotes: String) -> Bool {
-        headerNotes.isEmpty
-            || headerNotes.caseInsensitiveCompare("skip") == .orderedSame
-            || SetLog(formatted: headerNotes) != nil
     }
 
     private func resolveColumn(_ column: PendingWriteColumn, cols: DayColumns) throws -> Int {
