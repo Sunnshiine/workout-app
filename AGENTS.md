@@ -1,4 +1,39 @@
-# AGENTS.md
+# Workout App — Agent Guide
+
+> `CLAUDE.md` and `AGENTS.md` are kept byte-identical. Edit both together.
+
+A mobile client for powerlifting athletes that surfaces and logs workouts from a
+coach-managed Google Sheet. The Sheet is the single source of truth; the app is a
+read-write client with a local cache (ADR-0001).
+
+## Build, Test & Run
+
+Scheme is `WorkoutTracker` for all runs; default simulator is `iPhone 17 Pro`.
+
+```bash
+# Fast unit + component tests (no Secrets.xcconfig needed)
+swift test
+
+# Unit + component tests via Xcode
+xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -only-testing:WorkoutTrackerTests
+
+# UI integration tests
+xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -only-testing:WorkoutTrackerUITests
+
+# Build & run on the simulator
+xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+```
+
+- The `WorkoutTracker` scheme launches with `-UITEST_FIXTURE true` — it runs
+  against deterministic local fixtures, **not** the live Google Sheet. To run
+  against live data, use the `Copy of WorkoutTracker` scheme (`-UITEST_FIXTURE false`).
+- Prefer XcodeBuildMCP for build/run/test on the simulator. If using XcodeBuildMCP,
+  use the installed XcodeBuildMCP skill before calling XcodeBuildMCP tools.
 
 ## Linting & Formatting
 
@@ -16,6 +51,28 @@ cp /path/to/workout-app/Secrets.xcconfig ./Secrets.xcconfig
 ```
 
 `swift test` does not require it; only `xcodebuild` does.
+
+XcodeBuildMCP session defaults point at the main project path and do not apply inside a worktree. Pass `-project <worktree-path>/WorkoutTracker.xcodeproj` explicitly when calling xcodebuild from a worktree.
+
+## Architecture
+
+A navigation map; see `CONTEXT.md` for the domain glossary and `docs/adr/` for decisions.
+
+```text
+WorkoutTracker/
+├── WorkoutTrackerApp.swift     App entry point (@main)
+├── Models/                     Domain types (Block, Week, Session, Exercise, Set …)
+├── Parsing/                    Sheet → domain interpretation (layout interpreter)
+├── Sheets/                     Google Sheets client + auth (GoogleAuth.swift)
+├── Stores/                     Local cache & persisted state
+├── Progress/                   Session/Week progression (Current Session, Move On, Open Exercises)
+├── LoadSuggestionEngine.swift  Load Suggestion calculations
+├── Theme.swift                 Liquid Glass design system (ADR-0004)
+├── Views/                      SwiftUI views (excluded from the SPM library target)
+└── Fixtures/                   UI-test fixture data (-UITEST_FIXTURE)
+
+Tests/  →  Unit/ · Component/ · UI/ · Support/
+```
 
 ## Agent skills
 
@@ -183,7 +240,7 @@ This section applies when working on `**/*.swift` and `**/Package.swift`.
 
 ### Post-edit Checks
 
-Codex does not use `~/.claude/settings.json` hooks. Preserve the intended behavior manually after editing Swift files:
+Some agent harnesses (e.g. Codex) don't run the `~/.claude/settings.json` hooks that automate these. If yours doesn't, run them manually after editing Swift files:
 
 - **SwiftFormat**: Auto-format `.swift` files after edit
 - **SwiftLint**: Run lint checks after editing `.swift` files
@@ -221,4 +278,3 @@ guard let apiKey, !apiKey.isEmpty else {
 - Sanitize all user input before display to prevent injection
 - Use `URL(string:)` with validation rather than force-unwrapping
 - Validate data from external sources (APIs, deep links, pasteboard) before processing
-- If using XcodeBuildMCP, use the installed XcodeBuildMCP skill before calling XcodeBuildMCP tools.

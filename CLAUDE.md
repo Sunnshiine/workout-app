@@ -1,11 +1,46 @@
 # CLAUDE.md
 
+A mobile client for powerlifting athletes that surfaces and logs workouts from a
+coach-managed Google Sheet. The Sheet is the single source of truth; the app is a
+read-write client with a local cache (ADR-0001).
+
+> Generic Swift conventions (style, testing, patterns, security) are loaded automatically
+> from `~/.claude/rules/swift/` — they are intentionally not duplicated here.
+
+## Build, Test & Run
+
+Scheme is `WorkoutTracker` for all runs; default simulator is `iPhone 17 Pro`.
+
+```bash
+# Fast unit + component tests (no Secrets.xcconfig needed)
+swift test
+
+# Unit + component tests via Xcode
+xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -only-testing:WorkoutTrackerTests
+
+# UI integration tests
+xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -only-testing:WorkoutTrackerUITests
+
+# Build & run on the simulator
+xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+```
+
+- The `WorkoutTracker` scheme launches with `-UITEST_FIXTURE true` — it runs
+  against deterministic local fixtures, **not** the live Google Sheet. To run
+  against live data, use the `Copy of WorkoutTracker` scheme (`-UITEST_FIXTURE false`).
+- Prefer XcodeBuildMCP for build/run/test on the simulator. If using XcodeBuildMCP,
+  use the installed XcodeBuildMCP skill before calling XcodeBuildMCP tools.
+
 ## Linting & Formatting
 
 - **SwiftLint** runs automatically via the `SwiftLintPlugins` build tool plugin (added to `Package.swift`). Config: `.swiftlint.yml`.
 - **swift-format** is installed via Homebrew. Config: `.swift-format`. Run manually: `swift-format -i -r WorkoutTracker/ WorkoutTrackerTests/`
 - Do not run `swiftlint --fix` in build phases — run it manually when needed.
-- When creating the Xcode project / `Package.swift`, add the SwiftLintPlugins dependency and apply the plugin to each target.
 
 ## Git Worktrees
 
@@ -19,18 +54,24 @@ cp /path/to/workout-app/Secrets.xcconfig ./Secrets.xcconfig
 
 XcodeBuildMCP session defaults point at the main project path and do not apply inside a worktree. Pass `-project <worktree-path>/WorkoutTracker.xcodeproj` explicitly when calling xcodebuild from a worktree.
 
-The scheme is `WorkoutTracker` for all test runs. Split unit and UI tests with `-only-testing`:
+## Architecture
 
-```bash
-# Unit + component tests
-xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-  -only-testing:WorkoutTrackerTests
+A navigation map; see `CONTEXT.md` for the domain glossary and `docs/adr/` for decisions.
 
-# UI integration tests
-xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-  -only-testing:WorkoutTrackerUITests
+```text
+WorkoutTracker/
+├── WorkoutTrackerApp.swift     App entry point (@main)
+├── Models/                     Domain types (Block, Week, Session, Exercise, Set …)
+├── Parsing/                    Sheet → domain interpretation (layout interpreter)
+├── Sheets/                     Google Sheets client + auth (GoogleAuth.swift)
+├── Stores/                     Local cache, sync coordination & persisted state
+├── Progress/                   Session/Week progression (Current Session, Move On, Open Exercises, Supersets)
+├── LoadSuggestionEngine.swift  Load Suggestion calculations
+├── Theme.swift                 Liquid Glass design system (ADR-0004)
+├── Views/                      SwiftUI views (excluded from the SPM library target)
+└── Fixtures/                   UI-test fixture data (-UITEST_FIXTURE)
+
+Tests/  →  Unit/ · Component/ · UI/ · Support/
 ```
 
 ## Agent skills
