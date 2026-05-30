@@ -103,6 +103,83 @@ $reason" >/dev/null 2>&1 || true
   log  "issue #$issue flagged for human: $reason"
 }
 
+run_full_gate() {
+  local issue="$1" iter="$2" gate_wt="$3"
+
+  log "gate: swift test (package unit/component)"
+  if ! ( cd "$gate_wt" && swift test ) > "$LOGS/iter-$iter-issue-$issue-swift-test.log" 2>&1; then
+    flag_for_human "$issue" "Package unit/component tests failed at the loop gate: swift test (see logs)."
+    return 1
+  fi
+  log "gate: xcodegen generate"
+  if ! ( cd "$gate_wt" && xcodegen generate ) > "$LOGS/iter-$iter-issue-$issue-xcodegen.log" 2>&1; then
+    flag_for_human "$issue" "Project generation failed at the loop gate: xcodegen generate (see logs)."
+    return 1
+  fi
+  log "gate: xcodebuild test (unit/component target)"
+  if ! ( cd "$gate_wt" && \
+         xcodebuild -project WorkoutTracker.xcodeproj -scheme WorkoutTracker -configuration Debug \
+           -destination "platform=iOS Simulator,name=$SIM_DEVICE" -derivedDataPath "$gate_wt/.ralph-dd" \
+           test -only-testing:WorkoutTrackerTests ) \
+         > "$LOGS/iter-$iter-issue-$issue-xcode-unit-component-tests.log" 2>&1; then
+    flag_for_human "$issue" "Xcode unit/component tests failed at the loop gate: WorkoutTrackerTests (see logs)."
+    return 1
+  fi
+  log "gate: xcodebuild test (UI integration target)"
+  if ! ( cd "$gate_wt" && \
+         xcodebuild -project WorkoutTracker.xcodeproj -scheme WorkoutTracker -configuration Debug \
+           -destination "platform=iOS Simulator,name=$SIM_DEVICE" -derivedDataPath "$gate_wt/.ralph-dd" \
+           test -only-testing:WorkoutTrackerUITests ) \
+         > "$LOGS/iter-$iter-issue-$issue-xcode-ui-tests.log" 2>&1; then
+    flag_for_human "$issue" "UI integration tests failed at the loop gate: WorkoutTrackerUITests (see logs)."
+    return 1
+  fi
+  log "gate: swiftlint lint"
+  if ! ( cd "$gate_wt" && swiftlint lint --quiet ) > "$LOGS/iter-$iter-issue-$issue-swiftlint.log" 2>&1; then
+    flag_for_human "$issue" "Lint failed at the loop gate: swiftlint lint --quiet (see logs)."
+    return 1
+  fi
+  return 0
+}
+
+check_ui_artifacts() {
+  local issue="$1" iter="$2" wt="$3" issue_base="$4" issue_tip="$5"
+  local ui_shot_rel ui_review_rel ui_shot ui_review
+
+  if git -C "$wt" diff --name-only "$issue_base" "$issue_tip" -- \
+      'WorkoutTracker/Views/' 'WorkoutTracker/Theme.swift' | grep -q .; then
+    log "View change detected → checking implementer-owned UI screenshot review"
+    ui_shot_rel="ralph/.artifacts/issue-$issue-ui-review.png"
+    ui_review_rel="ralph/.artifacts/issue-$issue-ui-review.md"
+    ui_shot="$wt/$ui_shot_rel"
+    ui_review="$wt/$ui_review_rel"
+    if [ ! -s "$ui_shot" ]; then
+      flag_for_human "$issue" "View/Theme changes require a non-empty UI screenshot artifact: $ui_shot_rel."
+      return 1
+    fi
+    if [ ! -s "$ui_review" ]; then
+      flag_for_human "$issue" "View/Theme changes require a saved UI Screenshot Review artifact: $ui_review_rel."
+      return 1
+    fi
+    if ! tail -n 1 "$ui_review" | grep -Fxq "PASS: no blocking static visual findings."; then
+      flag_for_human "$issue" "UI Screenshot Review did not end with PASS. Review artifact: $ui_review_rel."
+      return 1
+    fi
+    cp "$ui_shot" "$ART/iter-$iter-issue-$issue.png"
+    cp "$ui_review" "$ART/iter-$iter-issue-$issue-ui-review.md"
+  fi
+  return 0
+}
+
+cleanup_integration_worktree() {
+  local integration_wt="$1" integration_branch="$2"
+
+  git -C "$integration_wt" merge --abort >/dev/null 2>&1 || true
+  git -C "$REPO_ROOT" worktree remove --force "$integration_wt" >/dev/null 2>&1 || true
+  git -C "$REPO_ROOT" branch -D "$integration_branch" >/dev/null 2>&1 || true
+  git -C "$REPO_ROOT" worktree prune >/dev/null 2>&1 || true
+}
+
 # ---- main loop -----------------------------------------------------------
 log "Ralph loop starting — engine=$ENGINE max-iter=$MAX_ITER push=$PUSH device='$SIM_DEVICE'"
 [ -f "$ACTIVITY" ] || printf "# Ralph Activity Log\n\n" > "$ACTIVITY"
@@ -148,11 +225,13 @@ $(cat "$PROMPTS/select.md")"
   if ! git -C "$REPO_ROOT" worktree add -b "$branch" "$wt" main >/dev/null 2>&1; then
     flag_for_human "$issue" "Could not create the worktree/branch."; continue
   fi
+  issue_base="$(git -C "$wt" rev-parse HEAD)"
 
   # 3+4. IMPLEMENT (TDD) inside the worktree
   impl_prompt="Engine: $ENGINE. This is the IMPLEMENT phase.
 You are working GitHub issue #$issue.
 You are inside an isolated git worktree at: $wt   (branch: $branch).
+ISSUE_BASE_REF: $issue_base
 UI_SHOT_PATH (relative to the worktree root): ralph/.artifacts/issue-$issue-ui-review.png
 UI_REVIEW_PATH (relative to the worktree root): ralph/.artifacts/issue-$issue-ui-review.md
 
@@ -164,62 +243,41 @@ $(cat "$PROMPTS/implement.md")"
     reason="$(printf '%s' "$impl_out" | grep -oE '<promise>BLOCKED:.*</promise>' | head -1 | sed 's/<[^>]*>//g')"
     flag_for_human "$issue" "${reason:-Agent did not report completion.}"; continue
   fi
+  issue_tip="$(git -C "$wt" rev-parse HEAD)"
 
-  # 5. GATE — authoritative full testing framework in the worktree
-  log "gate: swift test (package unit/component)"
-  if ! ( cd "$wt" && swift test ) > "$LOGS/iter-$iter-issue-$issue-swift-test.log" 2>&1; then
-    flag_for_human "$issue" "Package unit/component tests failed at the loop gate: swift test (see logs)."; continue
-  fi
-  log "gate: xcodegen generate"
-  if ! ( cd "$wt" && xcodegen generate ) > "$LOGS/iter-$iter-issue-$issue-xcodegen.log" 2>&1; then
-    flag_for_human "$issue" "Project generation failed at the loop gate: xcodegen generate (see logs)."; continue
-  fi
-  log "gate: xcodebuild test (unit/component target)"
-  if ! ( cd "$wt" && \
-         xcodebuild -project WorkoutTracker.xcodeproj -scheme WorkoutTracker -configuration Debug \
-           -destination "platform=iOS Simulator,name=$SIM_DEVICE" -derivedDataPath "$wt/.ralph-dd" \
-           test -only-testing:WorkoutTrackerTests ) \
-         > "$LOGS/iter-$iter-issue-$issue-xcode-unit-component-tests.log" 2>&1; then
-    flag_for_human "$issue" "Xcode unit/component tests failed at the loop gate: WorkoutTrackerTests (see logs)."; continue
-  fi
-  log "gate: xcodebuild test (UI integration target)"
-  if ! ( cd "$wt" && \
-         xcodebuild -project WorkoutTracker.xcodeproj -scheme WorkoutTracker -configuration Debug \
-           -destination "platform=iOS Simulator,name=$SIM_DEVICE" -derivedDataPath "$wt/.ralph-dd" \
-           test -only-testing:WorkoutTrackerUITests ) \
-         > "$LOGS/iter-$iter-issue-$issue-xcode-ui-tests.log" 2>&1; then
-    flag_for_human "$issue" "UI integration tests failed at the loop gate: WorkoutTrackerUITests (see logs)."; continue
-  fi
-  log "gate: swiftlint lint"
-  if ! ( cd "$wt" && swiftlint lint --quiet ) > "$LOGS/iter-$iter-issue-$issue-swiftlint.log" 2>&1; then
-    flag_for_human "$issue" "Lint failed at the loop gate: swiftlint lint --quiet (see logs)."; continue
+  # 5. UI ARTIFACT GATE — compare only this issue's own implementation range.
+  if ! check_ui_artifacts "$issue" "$iter" "$wt" "$issue_base" "$issue_tip"; then
+    continue
   fi
 
-  # 5b. UI ARTIFACT GATE — screenshot review is implementer-owned for View/Theme changes
-  if git -C "$wt" diff --name-only main -- 'WorkoutTracker/Views/' 'WorkoutTracker/Theme.swift' | grep -q .; then
-    log "View change detected → checking implementer-owned UI screenshot review"
-    ui_shot_rel="ralph/.artifacts/issue-$issue-ui-review.png"
-    ui_review_rel="ralph/.artifacts/issue-$issue-ui-review.md"
-    ui_shot="$wt/$ui_shot_rel"
-    ui_review="$wt/$ui_review_rel"
-    if [ ! -s "$ui_shot" ]; then
-      flag_for_human "$issue" "View/Theme changes require a non-empty UI screenshot artifact: $ui_shot_rel."; continue
-    fi
-    if [ ! -s "$ui_review" ]; then
-      flag_for_human "$issue" "View/Theme changes require a saved UI Screenshot Review artifact: $ui_review_rel."; continue
-    fi
-    if ! tail -n 1 "$ui_review" | grep -Fxq "PASS: no blocking static visual findings."; then
-      flag_for_human "$issue" "UI Screenshot Review did not end with PASS. Review artifact: $ui_review_rel."; continue
-    fi
-    cp "$ui_shot" "$ART/iter-$iter-issue-$issue.png"
-    cp "$ui_review" "$ART/iter-$iter-issue-$issue-ui-review.md"
+  # 6. INTEGRATE — merge into a temporary worktree, then gate the exact tree to be shipped.
+  integration_branch="agent/issue-$issue-integration"
+  integration_wt="$REPO_ROOT/.claude/worktrees/issue-$issue-integration"
+  cleanup_integration_worktree "$integration_wt" "$integration_branch"
+  if ! git -C "$REPO_ROOT" worktree add -b "$integration_branch" "$integration_wt" main >/dev/null 2>&1; then
+    flag_for_human "$issue" "Could not create the integration worktree/branch."; continue
   fi
 
-  # 6. SHIP — merge to main, push, close
-  log "merging #$issue into main"
-  if ! git -C "$REPO_ROOT" merge --no-ff "$branch" -m "merge: resolve #$issue via Ralph ($ENGINE)" >/dev/null 2>&1; then
-    git -C "$REPO_ROOT" merge --abort >/dev/null 2>&1 || true
-    flag_for_human "$issue" "Merge into main conflicted."; continue
+  log "merging #$issue into integration worktree"
+  if ! git -C "$integration_wt" merge --no-ff --no-commit "$branch" >/dev/null 2>&1; then
+    cleanup_integration_worktree "$integration_wt" "$integration_branch"
+    flag_for_human "$issue" "Merge into current main conflicted."; continue
+  fi
+
+  # 7. GATE — authoritative full testing framework on the integrated tree.
+  if ! run_full_gate "$issue" "$iter" "$integration_wt"; then
+    cleanup_integration_worktree "$integration_wt" "$integration_branch"
+    continue
+  fi
+
+  # 8. SHIP — commit the already-gated merge, fast-forward main, push, close
+  if ! git -C "$integration_wt" commit -m "merge: resolve #$issue via Ralph ($ENGINE)" >/dev/null 2>&1; then
+    cleanup_integration_worktree "$integration_wt" "$integration_branch"
+    flag_for_human "$issue" "Could not create the integrated merge commit."; continue
+  fi
+  if ! git -C "$REPO_ROOT" merge --ff-only "$integration_branch" >/dev/null 2>&1; then
+    cleanup_integration_worktree "$integration_wt" "$integration_branch"
+    flag_for_human "$issue" "Could not fast-forward main to the gated integration branch."; continue
   fi
   if [ "$PUSH" = 1 ]; then
     if git -C "$REPO_ROOT" push origin main >/dev/null 2>&1; then
@@ -232,7 +290,8 @@ $(cat "$PROMPTS/implement.md")"
 
 Merged to \`main\`." >/dev/null 2>&1 || true
 
-  # 7. CLEANUP
+  # 9. CLEANUP
+  cleanup_integration_worktree "$integration_wt" "$integration_branch"
   git -C "$REPO_ROOT" worktree remove --force "$wt" >/dev/null 2>&1 || true
   git -C "$REPO_ROOT" branch -d "$branch" >/dev/null 2>&1 || git -C "$REPO_ROOT" branch -D "$branch" >/dev/null 2>&1 || true
   note "issue #$issue resolved & merged to main$( [ "$PUSH" = 1 ] && echo ', pushed' )"
