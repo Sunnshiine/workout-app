@@ -82,24 +82,6 @@ struct ParsedExercise {
     }
 }
 
-private nonisolated(unsafe) let legacyLogTokenPattern =
-    /^(?:BW|\d+(?:\.\d+)?)(?:(?:x\d+)|(?:@\d+(?:\.\d+)?))(?:@\d+(?:\.\d+)?)?$/
-private nonisolated(unsafe) let legacyNumberTokenPattern = /^\d+(?:\.\d+)?$/
-
-private func isLegacyLog(_ raw: String) -> Bool {
-    let tokens =
-        raw
-        .split(separator: ",", omittingEmptySubsequences: true)
-        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-
-    guard !tokens.isEmpty else { return false }
-
-    return tokens.allSatisfy { token in
-        token.wholeMatch(of: legacyLogTokenPattern) != nil
-            || token.wholeMatch(of: legacyNumberTokenPattern) != nil
-    }
-}
-
 private struct ParsedLogState {
     let state: SetState
     let setLog: SetLog?
@@ -186,7 +168,7 @@ private func parsedExercise(grid: SheetGrid, day: SheetLayoutDay, anchor: SheetL
     let note = headerNotes.value
     let setCount = anchor.prescribedSetCount(in: grid, setsColumn: cols.sets)
     let compactHeaderSetOne = anchor.usesCompactHeaderSetOne(headerNotes: headerNotes)
-    let legacyLog = !compactHeaderSetOne && isLegacyLog(note) ? note : nil
+    let legacyLog = headerNotes.isLegacyLog ? note : nil
     let sets = completionSets(
         parsedSets(
             ParsedSetContext(
@@ -210,7 +192,7 @@ private func parsedExercise(grid: SheetGrid, day: SheetLayoutDay, anchor: SheetL
         name: rawName,
         baseName: base,
         cadence: cadence,
-        coachNote: legacyLog == nil && !compactHeaderSetOne && !note.isEmpty ? note : nil,
+        coachNote: headerNotes.isCoachNote ? note : nil,
         legacyLog: legacyLog,
         sets: sets
     )
