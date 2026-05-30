@@ -57,6 +57,7 @@ private func makeDefaults() throws -> UserDefaults {
 private func makeStore(weekCount: Int = 1, defaults: UserDefaults? = nil) throws -> WorkoutStoreFixture {
     let container = try ModelContainer(
         for: Block.self,
+        PendingWrite.self,
         configurations: ModelConfiguration(
             "workout-store-\(UUID().uuidString)",
             isStoredInMemoryOnly: true
@@ -164,6 +165,67 @@ private func makeStore(weekCount: Int = 1, defaults: UserDefaults? = nil) throws
 }
 
 @MainActor
+@Test func showingSessionDoesNotChangeCurrentSession() throws {
+    let fixture = try makeStore()
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+
+    store.show(week: 1, day: 3)
+
+    #expect(store.currentSession?.dayNumber == 1)
+    #expect(store.displayedSession?.dayNumber == 3)
+    #expect(!store.isViewingLiveEdge)
+}
+
+@MainActor
+@Test func makeDisplayedSessionCurrentCanTargetSessionBehindLoggedProgress() throws {
+    let fixture = try makeStore(defaults: makeDefaults())
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+    let day3Set = try #require(store.block?.weeks.first?.sessions.first { $0.dayNumber == 3 }?.exercises[0].sets[0])
+    day3Set.state = .logged
+    store.reload()
+    #expect(store.currentSession?.dayNumber == 3)
+
+    store.show(week: 1, day: 1)
+    store.makeDisplayedSessionCurrent()
+
+    #expect(store.currentSession?.dayNumber == 1)
+    #expect(store.displayedSession?.dayNumber == 1)
+    #expect(store.isViewingLiveEdge)
+}
+
+@MainActor
+@Test func reloadPreservesManualCurrentSessionOverrideAgainstSheetDerivedProgress() throws {
+    let fixture = try makeStore(defaults: makeDefaults())
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+    let day3Set = try #require(store.block?.weeks.first?.sessions.first { $0.dayNumber == 3 }?.exercises[0].sets[0])
+    day3Set.state = .logged
+    store.reload()
+
+    store.show(week: 1, day: 1)
+    store.makeDisplayedSessionCurrent()
+    store.reload()
+
+    #expect(store.currentSession?.dayNumber == 1)
+    #expect(store.displayedSession?.dayNumber == 1)
+}
+
+@MainActor
+@Test func makingDisplayedSessionCurrentDoesNotQueueSheetWrite() throws {
+    let fixture = try makeStore(defaults: makeDefaults())
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+
+    store.show(week: 1, day: 2)
+    store.makeDisplayedSessionCurrent()
+
+    let writes = try fixture.container.mainContext.fetch(FetchDescriptor<PendingWrite>())
+    #expect(writes.isEmpty)
+}
+
+@MainActor
 @Test func moveOnAdvancesCurrentSessionAndDisplayedSession() throws {
     let fixture = try makeStore(defaults: makeDefaults())
     defer { withExtendedLifetime(fixture.container) {} }
@@ -175,6 +237,22 @@ private func makeStore(weekCount: Int = 1, defaults: UserDefaults? = nil) throws
     #expect(store.currentSession?.dayNumber == 2)
     #expect(store.displayedSession?.week?.number == 1)
     #expect(store.displayedSession?.dayNumber == 2)
+}
+
+@MainActor
+@Test func moveOnAdvancesFromManualCurrentSessionOverride() throws {
+    let fixture = try makeStore(defaults: makeDefaults())
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+
+    store.show(week: 1, day: 3)
+    store.makeDisplayedSessionCurrent()
+    store.moveOn()
+
+    #expect(store.currentSession?.week?.number == 1)
+    #expect(store.currentSession?.dayNumber == 4)
+    #expect(store.displayedSession?.week?.number == 1)
+    #expect(store.displayedSession?.dayNumber == 4)
 }
 
 @MainActor
@@ -272,7 +350,7 @@ private func makeStore(weekCount: Int = 1, defaults: UserDefaults? = nil) throws
 }
 
 @MainActor
-@Test func loggedProgressPastStoredAdvanceBecomesCurrentSession() throws {
+@Test func loggedProgressPastStoredOverrideDoesNotReplaceCurrentSession() throws {
     let fixture = try makeStore(defaults: makeDefaults())
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
@@ -281,7 +359,7 @@ private func makeStore(weekCount: Int = 1, defaults: UserDefaults? = nil) throws
     store.moveOn()
     try store.log(day3Set, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
 
-    #expect(store.currentSession?.dayNumber == 3)
+    #expect(store.currentSession?.dayNumber == 2)
 }
 
 @MainActor
