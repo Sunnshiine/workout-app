@@ -5,17 +5,33 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if destination == .session {
-                NavigationStack {
-                    SessionView()
+            #if DEBUG
+                if UITestFixture.isEnabled, UITestFixture.startsInDeveloperTools {
+                    NavigationStack {
+                        DeveloperToolsView()
+                    }
+                } else if destination == .session {
+                    sessionDestination
+                } else {
+                    OnboardingView()
                 }
-            } else {
-                OnboardingView()
-            }
+            #else
+                if destination == .session {
+                    sessionDestination
+                } else {
+                    OnboardingView()
+                }
+            #endif
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.gradient.ignoresSafeArea())
         .preferredColorScheme(.dark)
+    }
+
+    private var sessionDestination: some View {
+        NavigationStack {
+            SessionView()
+        }
     }
 
     private var destination: AppEntryDestination {

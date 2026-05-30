@@ -329,7 +329,7 @@ private struct PendingWriteBatchFailed: Error {}
 private struct PendingWriteFlushInProgress: Error {}
 
 extension SyncCoordinator {
-    fileprivate func fetchPendingWriteRecords() throws -> [PendingWrite] {
+    func fetchPendingWriteRecords() throws -> [PendingWrite] {
         let descriptor = FetchDescriptor<PendingWrite>(sortBy: [SortDescriptor(\.createdAt)])
         return try context.fetch(descriptor)
     }
