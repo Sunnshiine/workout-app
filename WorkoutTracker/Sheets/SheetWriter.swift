@@ -120,81 +120,18 @@ struct SheetWriter: Sendable {
 
 struct SheetWritePlanningSnapshot: Sendable {
     var grid: SheetGrid
-    let index: SheetWritePlanningIndex
-}
-
-struct SheetWritePlanningIndex: Sendable {
-    private let layout: SheetLayout
-
-    init(grid: SheetGrid) {
-        self.layout = SheetLayoutInterpreter().interpret(grid)
-    }
-
-    func target(for request: SheetWriteRequest, in grid: SheetGrid) throws -> (row: Int, col: Int) {
-        guard layout.week(number: request.week) != nil else {
-            throw SheetWriterError.weekNotFound(request.week)
-        }
-        guard let day = layout.day(week: request.week, day: request.day) else {
-            throw SheetWriterError.dayNotFound(request.day)
-        }
-        let col = try resolveColumn(request.column, cols: day.columns)
-
-        guard
-            let anchor = day.exerciseAnchors.first(where: { $0.name == request.exerciseName })
-        else {
-            throw SheetWriterError.exerciseNotFound(request.exerciseName)
-        }
-
-        if request.column == .lastSetRPE {
-            return (anchor.row, col)
-        }
-
-        let headerNotes = anchor.headerNotes(in: grid, notesColumn: day.columns.notes)
-        let compactHeaderSetOne = anchor.usesCompactHeaderSetOne(headerNotes: headerNotes)
-        if request.column == .notes, request.setIndex == 0 {
-            if compactHeaderSetOne, headerNotes.value == request.expectedCurrentValue {
-                return (anchor.row, col)
-            }
-        }
-
-        guard
-            let setRow = anchor.setLogRow(
-                for: request.setIndex,
-                compactHeaderSetOne: compactHeaderSetOne
-            )
-        else {
-            if request.column == .notes, headerNotes.hasProtectedValue {
-                throw SheetWriterError.headerNotesBlockSetRow(
-                    exerciseName: request.exerciseName,
-                    setIndex: request.setIndex
-                )
-            }
-            throw SheetWriterError.setRowNotFound(exerciseName: request.exerciseName, setIndex: request.setIndex)
-        }
-        return (setRow, col)
-    }
-
-    private func resolveColumn(_ column: PendingWriteColumn, cols: DayColumns) throws -> Int {
-        switch column {
-        case .notes:
-            guard let notes = cols.notes else { throw SheetWriterError.columnNotFound("Notes") }
-            return notes
-        case .lastSetRPE:
-            guard let rpe = cols.lastSetRPE else { throw SheetWriterError.columnNotFound("Last set RPE") }
-            return rpe
-        }
-    }
+    let layout: SheetLayout
 }
 
 struct SheetWritePlanner: Sendable {
-    private let indexBuilder: @Sendable (SheetGrid) -> SheetWritePlanningIndex
+    private let layoutBuilder: @Sendable (SheetGrid) -> SheetLayout
 
-    init(indexBuilder: @escaping @Sendable (SheetGrid) -> SheetWritePlanningIndex = { SheetWritePlanningIndex(grid: $0) }) {
-        self.indexBuilder = indexBuilder
+    init(layoutBuilder: @escaping @Sendable (SheetGrid) -> SheetLayout = { SheetLayoutInterpreter().interpret($0) }) {
+        self.layoutBuilder = layoutBuilder
     }
 
     func snapshot(for grid: SheetGrid) -> SheetWritePlanningSnapshot {
-        SheetWritePlanningSnapshot(grid: grid, index: indexBuilder(grid))
+        SheetWritePlanningSnapshot(grid: grid, layout: layoutBuilder(grid))
     }
 
     func plan(_ request: SheetWriteRequest, in grid: SheetGrid) throws -> SheetCellUpdate {
@@ -207,8 +144,8 @@ struct SheetWritePlanner: Sendable {
     }
 
     func target(for request: SheetWriteRequest, in snapshot: SheetWritePlanningSnapshot) throws -> SheetWriteTarget {
-        let target = try snapshot.index.target(for: request, in: snapshot.grid)
-        return SheetWriteTarget(tabName: request.blockTab, row: target.row, col: target.col)
+        let (row, col) = try resolveTarget(for: request, layout: snapshot.layout, grid: snapshot.grid)
+        return SheetWriteTarget(tabName: request.blockTab, row: row, col: col)
     }
 
     func plan(
@@ -230,7 +167,7 @@ struct SheetWritePlanner: Sendable {
     }
 
     func applying(_ update: SheetCellUpdate, to snapshot: SheetWritePlanningSnapshot) -> SheetWritePlanningSnapshot {
-        SheetWritePlanningSnapshot(grid: applying(update, to: snapshot.grid), index: snapshot.index)
+        SheetWritePlanningSnapshot(grid: applying(update, to: snapshot.grid), layout: snapshot.layout)
     }
 
     func applying(_ update: SheetCellUpdate, to grid: SheetGrid) -> SheetGrid {
@@ -243,5 +180,57 @@ struct SheetWritePlanner: Sendable {
         }
         updated[update.row][update.col] = update.value
         return updated
+    }
+
+    private func resolveTarget(
+        for request: SheetWriteRequest,
+        layout: SheetLayout,
+        grid: SheetGrid
+    ) throws -> (row: Int, col: Int) {
+        guard layout.week(number: request.week) != nil else {
+            throw SheetWriterError.weekNotFound(request.week)
+        }
+        guard let day = layout.day(week: request.week, day: request.day) else {
+            throw SheetWriterError.dayNotFound(request.day)
+        }
+        let col = try resolveColumn(request.column, cols: day.columns)
+
+        guard let anchor = day.exerciseAnchors.first(where: { $0.name == request.exerciseName }) else {
+            throw SheetWriterError.exerciseNotFound(request.exerciseName)
+        }
+
+        if request.column == .lastSetRPE {
+            return (anchor.row, col)
+        }
+
+        let headerNotes = anchor.headerNotes(in: grid, notesColumn: day.columns.notes)
+        let compactHeaderSetOne = anchor.usesCompactHeaderSetOne(headerNotes: headerNotes)
+        if request.column == .notes, request.setIndex == 0 {
+            if compactHeaderSetOne, headerNotes.value == request.expectedCurrentValue {
+                return (anchor.row, col)
+            }
+        }
+
+        guard let setRow = anchor.setLogRow(for: request.setIndex, compactHeaderSetOne: compactHeaderSetOne) else {
+            if request.column == .notes, headerNotes.hasProtectedValue {
+                throw SheetWriterError.headerNotesBlockSetRow(
+                    exerciseName: request.exerciseName,
+                    setIndex: request.setIndex
+                )
+            }
+            throw SheetWriterError.setRowNotFound(exerciseName: request.exerciseName, setIndex: request.setIndex)
+        }
+        return (setRow, col)
+    }
+
+    private func resolveColumn(_ column: PendingWriteColumn, cols: DayColumns) throws -> Int {
+        switch column {
+        case .notes:
+            guard let notes = cols.notes else { throw SheetWriterError.columnNotFound("Notes") }
+            return notes
+        case .lastSetRPE:
+            guard let rpe = cols.lastSetRPE else { throw SheetWriterError.columnNotFound("Last set RPE") }
+            return rpe
+        }
     }
 }
