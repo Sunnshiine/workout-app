@@ -110,3 +110,31 @@ import Testing
     #expect(oneDayLayout.week(number: 2) == nil)
     #expect(oneDayLayout.day(week: 1, day: 2) == nil)
 }
+
+@Test func headerNotesClassifiesResultShapedValuesAsLegacyLog() {
+    #expect(SheetLayoutHeaderNotes(value: "25x12, 12").isLegacyLog == true)
+    #expect(SheetLayoutHeaderNotes(value: "70@10, 55").isLegacyLog == true)
+    #expect(SheetLayoutHeaderNotes(value: "55x8, 60x7@9.5").isLegacyLog == true)
+    #expect(SheetLayoutHeaderNotes(value: "70, 80, 90x6").isLegacyLog == true)
+    #expect(SheetLayoutHeaderNotes(value: "BWx12@7").isLegacyLog == false)  // single valid SetLog → compact
+}
+
+@Test func headerNotesDoesNotClassifyInstructionShapedNotesAsLegacyLog() {
+    #expect(SheetLayoutHeaderNotes(value: "Start w/ 10 sec hold").isLegacyLog == false)
+    #expect(SheetLayoutHeaderNotes(value: "Superset w/ curls").isLegacyLog == false)
+    #expect(SheetLayoutHeaderNotes(value: "Keep elbows soft").isLegacyLog == false)
+}
+
+@Test func headerNotesDoesNotClassifyCompactValuesAsLegacyLog() {
+    #expect(SheetLayoutHeaderNotes(value: "").isLegacyLog == false)
+    #expect(SheetLayoutHeaderNotes(value: "skip").isLegacyLog == false)
+    #expect(SheetLayoutHeaderNotes(value: "185x5@8").isLegacyLog == false)
+}
+
+@Test func headerNotesIsCoachNoteForInstructionShapedProtectedValues() {
+    #expect(SheetLayoutHeaderNotes(value: "Start w/ 10 sec hold").isCoachNote == true)
+    #expect(SheetLayoutHeaderNotes(value: "Superset w/ curls").isCoachNote == true)
+    #expect(SheetLayoutHeaderNotes(value: "").isCoachNote == false)
+    #expect(SheetLayoutHeaderNotes(value: "25x12, 12").isCoachNote == false)
+    #expect(SheetLayoutHeaderNotes(value: "185x5@8").isCoachNote == false)
+}
