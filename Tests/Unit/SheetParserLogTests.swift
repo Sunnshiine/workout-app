@@ -71,7 +71,7 @@ import Testing
         [
             "C12": "Day 1", "S12": "Day 2",
             "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
-            "C15": "Hack SQ", "D15": "1", "F15": "7", "H15": "RPE 8", "K16": "skip"
+            "C15": "Hack SQ", "D15": "1", "F15": "7", "H15": "RPE 8", "K15": "Coach note", "K16": "skip"
         ],
         rows: 22,
         cols: 30
@@ -89,7 +89,7 @@ import Testing
         [
             "C12": "Day 1", "S12": "Day 2",
             "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
-            "C15": "Hack SQ", "D15": "3", "F15": "7", "H15": "RPE 8",
+            "C15": "Hack SQ", "D15": "3", "F15": "7", "H15": "RPE 8", "K15": "Coach note",
             "K16": "185",
             "K17": "185x7",
             "K18": "did 3 sets"

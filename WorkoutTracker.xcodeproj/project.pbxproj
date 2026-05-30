@@ -111,6 +111,7 @@
 		FCA508FE3522CB7062267112 /* SessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31CB80B71F35E4D4A35FE87 /* SessionView.swift */; };
 		FD532690E409CC21380B5AC5 /* SheetsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = D25BC6F5BDADC735072B49F8 /* SheetsClient.swift */; };
 		FE0CDF7FEC81BD73504F3500 /* DeveloperToolsDiagnosticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC241C86417778FD72BF2A6A /* DeveloperToolsDiagnosticsTests.swift */; };
+		FF265786A316602F2AD3BA99 /* SheetCompactLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2913603B7A42BABD66A2404 /* SheetCompactLayoutTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -230,6 +231,7 @@
 		ECA5D0F58BE44C1297D2C669 /* PendingWrite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingWrite.swift; sourceTree = "<group>"; };
 		ECBE6989519E819A9FDB6608 /* WorkoutStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutStore.swift; sourceTree = "<group>"; };
 		F1B26E931108B06FD2B281FA /* WorkoutStoreLoggingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutStoreLoggingTests.swift; sourceTree = "<group>"; };
+		F2913603B7A42BABD66A2404 /* SheetCompactLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetCompactLayoutTests.swift; sourceTree = "<group>"; };
 		F8614CD78C778EBC3EEC9690 /* SheetPickerStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetPickerStoreTests.swift; sourceTree = "<group>"; };
 		FB0C7093B0FA64E072875DD6 /* OnboardingPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingPresentationTests.swift; sourceTree = "<group>"; };
 		FBC4B91909CBE1C1FA3A0E7E /* WorkoutFixtureScenarios.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutFixtureScenarios.swift; sourceTree = "<group>"; };
@@ -337,6 +339,7 @@
 				2024ACD32981CDD3B13CC16E /* SetLogTests.swift */,
 				0499FE101F8EA75B5C6D2562 /* SettingsStoreTests.swift */,
 				492A8D172E85B6A0372E0C8C /* SheetA1Tests.swift */,
+				F2913603B7A42BABD66A2404 /* SheetCompactLayoutTests.swift */,
 				B6BBB0700280BA9330BB8F60 /* SheetGridTests.swift */,
 				31ECE7AE0773E6603044F847 /* SheetLayoutInterpreterTests.swift */,
 				18C3B37DF33E327032E126B0 /* SheetParserLogTests.swift */,
@@ -624,6 +627,7 @@
 				5E67D3B4E5C8B9E6945FC2FC /* SetLogTests.swift in Sources */,
 				8114C284243CB50799C29F3E /* SettingsStoreTests.swift in Sources */,
 				4C41F717F6D84DB68492574D /* SheetA1Tests.swift in Sources */,
+				FF265786A316602F2AD3BA99 /* SheetCompactLayoutTests.swift in Sources */,
 				1C87BAF1D8F3626D46102EBF /* SheetGridFixture.swift in Sources */,
 				85F8688C58D742521E17C5E9 /* SheetGridTests.swift in Sources */,
 				A60579D252AB90232D3ED29C /* SheetLayoutInterpreterTests.swift in Sources */,

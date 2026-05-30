@@ -78,6 +78,15 @@ struct SheetLayoutExerciseAnchor: Sendable {
         SheetLayoutHeaderNotes(value: grid.cellOrEmpty(row, notesColumn).trimmed)
     }
 
+    func prescribedSetCount(in grid: SheetGrid, setsColumn: Int?) -> Int {
+        let rawValue = setsColumn.map { grid.cell(row: row, col: $0).trimmed } ?? ""
+        return max(Int(rawValue.prefix { $0.isNumber }) ?? 1, 1)
+    }
+
+    func usesCompactHeaderSetOne(headerNotes: SheetLayoutHeaderNotes) -> Bool {
+        headerNotes.usesCompactHeaderSetOne
+    }
+
     func continuationSetRow(for setIndex: Int) -> Int? {
         setLogRow(for: setIndex, compactHeaderSetOne: false)
     }

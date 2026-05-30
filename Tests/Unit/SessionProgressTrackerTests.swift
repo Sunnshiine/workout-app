@@ -122,7 +122,7 @@ private func sortedSessions(in block: Block) -> [Session] {
             "C15": "Squat", "D15": "1", "F15": "5", "H15": "RPE 8",
             "C37": "Day 1",
             "D39": "Sets", "F39": "Reps", "H39": "Load", "K39": "Notes",
-            "C40": "Bench Press", "D40": "1", "F40": "5", "H40": "RPE 8",
+            "C40": "Bench Press", "D40": "1", "F40": "5", "H40": "RPE 8", "K40": "Coach note",
             "K41": "185x5"
         ],
         rows: 45,
