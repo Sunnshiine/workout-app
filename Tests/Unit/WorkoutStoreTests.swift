@@ -10,10 +10,10 @@ private struct WorkoutStoreFixture {
 }
 
 @MainActor
-private func makeStoreBlock(weekCount: Int = 1) -> Block {
+private func makeStoreBlock(tabName: String = "Block 27", weekCount: Int = 1) -> Block {
     BlockBuilder.makeBlock(
         from: ParsedBlockModel(
-            tabName: "Block 27",
+            tabName: tabName,
             weeks: (1...weekCount).map { week in
                 ParsedWeek(
                     number: week,
@@ -54,7 +54,11 @@ private func makeDefaults() throws -> UserDefaults {
 }
 
 @MainActor
-private func makeStore(weekCount: Int = 1, defaults: UserDefaults? = nil) throws -> WorkoutStoreFixture {
+private func makeStore(
+    tabName: String = "Block 27",
+    weekCount: Int = 1,
+    defaults: UserDefaults? = nil
+) throws -> WorkoutStoreFixture {
     let container = try ModelContainer(
         for: Block.self,
         PendingWrite.self,
@@ -64,7 +68,7 @@ private func makeStore(weekCount: Int = 1, defaults: UserDefaults? = nil) throws
         )
     )
     let ctx = container.mainContext
-    ctx.insert(makeStoreBlock(weekCount: weekCount))
+    ctx.insert(makeStoreBlock(tabName: tabName, weekCount: weekCount))
     try ctx.save()
     let store = try WorkoutStore(context: ctx, defaults: defaults ?? makeDefaults())
     store.reload()
@@ -223,6 +227,96 @@ private func makeStore(weekCount: Int = 1, defaults: UserDefaults? = nil) throws
 
     let writes = try fixture.container.mainContext.fetch(FetchDescriptor<PendingWrite>())
     #expect(writes.isEmpty)
+}
+
+@MainActor
+@Test func currentSessionDebugInfoShowsSheetDerivedResolutionWhenNoManualOverride() throws {
+    let fixture = try makeStore(defaults: makeDefaults())
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+    let day3Set = try #require(store.block?.weeks.first?.sessions.first { $0.dayNumber == 3 }?.exercises[0].sets[0])
+    day3Set.state = .logged
+    store.reload()
+
+    store.show(week: 1, day: 1)
+
+    let info = store.currentSessionDebugInfo
+
+    #expect(info.currentBlockTab == "Block 27")
+    #expect(info.sheetDerivedSession == "Week 1, Day 3")
+    #expect(info.manualOverrideSession == "None")
+    #expect(info.displayedSession == "Week 1, Day 1")
+    #expect(info.resolvedCurrentSession == "Week 1, Day 3")
+    #expect(info.reason == "No manual override is active, so Sheet-derived progress wins.")
+    #expect(info.localOnlyNote == nil)
+    #expect(info.copyText.contains("Sheet-derived Session: Week 1, Day 3"))
+}
+
+@MainActor
+@Test func currentSessionDebugInfoShowsLocalOnlyManualOverrideWhenPresent() throws {
+    let fixture = try makeStore(defaults: makeDefaults())
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+    let day3Set = try #require(store.block?.weeks.first?.sessions.first { $0.dayNumber == 3 }?.exercises[0].sets[0])
+    day3Set.state = .logged
+    store.reload()
+
+    store.show(week: 1, day: 1)
+    store.makeDisplayedSessionCurrent()
+
+    let info = store.currentSessionDebugInfo
+
+    #expect(info.sheetDerivedSession == "Week 1, Day 3")
+    #expect(info.manualOverrideSession == "Week 1, Day 1")
+    #expect(info.displayedSession == "Week 1, Day 1")
+    #expect(info.resolvedCurrentSession == "Week 1, Day 1")
+    #expect(info.reason == "Manual override is active for this Block.")
+    #expect(info.localOnlyNote == "Manual Current Session override is local-only and is not Sheet data.")
+    #expect(info.copyText.contains("Manual Current Session override is local-only and is not Sheet data."))
+}
+
+@MainActor
+@Test func resetCurrentSessionOverrideReturnsDisplayedSessionToSheetDerivedWithoutSheetWrite() throws {
+    let fixture = try makeStore(defaults: makeDefaults())
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+    let day3Set = try #require(store.block?.weeks.first?.sessions.first { $0.dayNumber == 3 }?.exercises[0].sets[0])
+    day3Set.state = .logged
+    store.reload()
+    store.show(week: 1, day: 1)
+    store.makeDisplayedSessionCurrent()
+
+    store.resetCurrentSessionOverride()
+
+    let info = store.currentSessionDebugInfo
+    let writes = try fixture.container.mainContext.fetch(FetchDescriptor<PendingWrite>())
+    #expect(info.manualOverrideSession == "None")
+    #expect(store.currentSession?.dayNumber == 3)
+    #expect(store.displayedSession?.dayNumber == 3)
+    #expect(writes.isEmpty)
+}
+
+@MainActor
+@Test func resetCurrentSessionOverrideDoesNotClearOtherBlockOverride() throws {
+    let defaults = try makeDefaults()
+    let block27 = try makeStore(tabName: "Block 27", defaults: defaults)
+    let block28 = try makeStore(tabName: "Block 28", defaults: defaults)
+    defer {
+        withExtendedLifetime(block27.container) {}
+        withExtendedLifetime(block28.container) {}
+    }
+    block27.store.show(week: 1, day: 2)
+    block27.store.makeDisplayedSessionCurrent()
+    block28.store.show(week: 1, day: 3)
+    block28.store.makeDisplayedSessionCurrent()
+
+    block27.store.resetCurrentSessionOverride()
+    block28.store.reload()
+
+    #expect(block27.store.currentSessionDebugInfo.manualOverrideSession == "None")
+    #expect(block27.store.currentSession?.dayNumber == 1)
+    #expect(block28.store.currentSessionDebugInfo.manualOverrideSession == "Week 1, Day 3")
+    #expect(block28.store.currentSession?.dayNumber == 3)
 }
 
 @MainActor
