@@ -77,24 +77,10 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
     #expect(update.value == "25x12@7")
 }
 
-@Test func writesCompactSetTwoToFirstContinuationRow() throws {
-    let client = writerFixture(["C15": "Ab of Choice", "D15": "2", "C17": "Bench"])
+@Test func writesCompactSetTwoToHeaderNotesAggregate() throws {
+    let client = writerFixture(["C15": "Ab of Choice", "D15": "2", "K15": "25x12@7", "C17": "Bench"])
     let planner = SheetWritePlanner()
 
-    let setOneUpdate = try planner.plan(
-        SheetWriteRequest(
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
-            exerciseName: "Ab of Choice",
-            setIndex: 0,
-            column: .notes,
-            operation: .upsert,
-            valueToWrite: "25x12@7",
-            expectedCurrentValue: ""
-        ),
-        in: client.grid
-    )
     let setTwoUpdate = try planner.plan(
         SheetWriteRequest(
             blockTab: "Block 27",
@@ -110,8 +96,29 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
         in: client.grid
     )
 
-    #expect(setOneUpdate.range == "'Block 27'!K15")
-    #expect(setTwoUpdate.range == "'Block 27'!K16")
+    #expect(setTwoUpdate.range == "'Block 27'!K15")
+    #expect(setTwoUpdate.value == "25x12@7, 25x12@8")
+}
+
+@Test func writesCoachNoteLayoutSetTwoToContinuationRow() throws {
+    let planner = SheetWritePlanner()
+
+    let setTwoUpdate = try planner.plan(
+        SheetWriteRequest(
+            blockTab: "Block 27",
+            week: 1,
+            day: 1,
+            exerciseName: "Ab of Choice",
+            setIndex: 1,
+            column: .notes,
+            operation: .upsert,
+            valueToWrite: "25x12@8",
+            expectedCurrentValue: ""
+        ),
+        in: writerFixture(["C15": "Ab of Choice", "D15": "2", "K15": "Coach note", "C18": "Bench"]).grid
+    )
+
+    #expect(setTwoUpdate.range == "'Block 27'!K17")
 }
 
 @Test func writesCompactSetTwoAfterApplyingSetOneToSnapshot() throws {
@@ -150,7 +157,9 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
     )
 
     #expect(setOneUpdate.range == "'Block 27'!K15")
-    #expect(setTwoUpdate.range == "'Block 27'!K16")
+    #expect(setOneUpdate.value == "25x12@7")
+    #expect(setTwoUpdate.range == "'Block 27'!K15")
+    #expect(setTwoUpdate.value == "25x12@7, 25x12@8")
 }
 
 @Test func editsExistingCompactHeaderSetLogWhenExpectedValueMatches() throws {
@@ -329,7 +338,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
         in: grid
     )
 
-    #expect(update.range == "'Block 27'!K19")
+    #expect(update.range == "'Block 27'!K18")
 }
 
 @Test func parserAndWriterAgreeOnShiftedCoachNoteContinuationRows() throws {

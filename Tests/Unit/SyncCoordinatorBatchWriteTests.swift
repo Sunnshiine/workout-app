@@ -92,6 +92,50 @@ private func batchPendingWrite(
 }
 
 @MainActor
+@Test func flushAggregatesCompactMultiSetLogsIntoHeaderNotes() async throws {
+    let container = try makeBatchContainer()
+    let ctx = container.mainContext
+    ctx.insert(
+        batchPendingWrite(
+            createdAt: 1,
+            exerciseName: "0:2:0 Hamstring Curl",
+            setIndex: 0,
+            valueToWrite: "100x10@6"
+        )
+    )
+    ctx.insert(
+        batchPendingWrite(
+            createdAt: 2,
+            exerciseName: "0:2:0 Hamstring Curl",
+            setIndex: 1,
+            valueToWrite: "100x10@6"
+        )
+    )
+    ctx.insert(
+        batchPendingWrite(
+            createdAt: 3,
+            exerciseName: "0:2:0 Hamstring Curl",
+            setIndex: 1,
+            column: .lastSetRPE,
+            valueToWrite: "6"
+        )
+    )
+    try ctx.save()
+    let client = BatchFlushStubClient(grid: compactHamstringCurlGrid())
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(client.updateRequestCount == 2)
+    #expect(client.updates.map(\.0) == ["'Block 27'!K30", "'Block 27'!K30", "'Block 27'!I30"])
+    #expect(client.updates.map(\.1) == [[["100x10@6"]], [["100x10@6, 100x10@6"]], [["6"]]])
+    #expect(client.grid.cell(row: 29, col: 10) == "100x10@6, 100x10@6")
+    #expect(client.grid.cell(row: 30, col: 10) == "")
+    #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
+    #expect(sync.state == .idle)
+}
+
+@MainActor
 @Test func flushBatchesIndependentNonOverlappingPendingWrites() async throws {
     let container = try makeBatchContainer()
     let ctx = container.mainContext
@@ -250,7 +294,8 @@ private func batchPendingWrite(
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(client.updateRequestCount == 1)
     #expect(writes.count == 2)
-    #expect(writes.allSatisfy { $0.status == .pending && $0.retryCount == 1 })
+    #expect(writes.allSatisfy { $0.status == .pending })
+    #expect(writes.map(\.retryCount).sorted() == [0, 1])
     #expect(client.grid.cell(row: 15, col: 10) == "")
     #expect(client.grid.cell(row: 16, col: 10) == "")
 }
@@ -262,7 +307,7 @@ private func batchPendingWrite(
     ctx.insert(batchPendingWrite(createdAt: 1, setIndex: 1, valueToWrite: "195x5@9"))
     ctx.insert(batchPendingWrite(createdAt: 2, setIndex: 1, column: .lastSetRPE, valueToWrite: "9"))
     try ctx.save()
-    let client = BatchFlushStubClient(grid: twoSetGrid())
+    let client = BatchFlushStubClient(grid: twoSetGrid(firstSetLog: "185x5@8"))
     client.failedUpdateRequestNumbers = [1]
     let sync = SyncCoordinator(client: client, context: ctx)
 
@@ -307,14 +352,14 @@ private func batchPendingWrite(
     ctx.insert(batchPendingWrite(createdAt: 1, setIndex: 1, valueToWrite: "195x5@9"))
     ctx.insert(batchPendingWrite(createdAt: 2, setIndex: 1, column: .lastSetRPE, valueToWrite: "9"))
     try ctx.save()
-    let client = BatchFlushStubClient(grid: twoSetGrid())
+    let client = BatchFlushStubClient(grid: twoSetGrid(firstSetLog: "185x5@8"))
     let sync = SyncCoordinator(client: client, context: ctx)
 
     await sync.flushPending(spreadsheetId: "sid")
 
     #expect(client.updateRequestCount == 1)
-    #expect(client.updates.map(\.0) == ["'Block 27'!K16", "'Block 27'!I15"])
-    #expect(client.updates.map(\.1) == [[["195x5@9"]], [["9"]]])
+    #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!I15"])
+    #expect(client.updates.map(\.1) == [[["185x5@8, 195x5@9"]], [["9"]]])
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
 }
 
@@ -330,16 +375,32 @@ private func oneSetGrid() -> SheetGrid {
     )
 }
 
-private func twoSetGrid(notesOnly: Bool = false) -> SheetGrid {
+private func twoSetGrid(notesOnly: Bool = false, firstSetLog: String? = nil) -> SheetGrid {
     var cells = [
         "C12": "Day 1", "S12": "Day 2",
         "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
         "C15": "Squat", "D15": "2"
     ]
+    if let firstSetLog {
+        cells["K15"] = firstSetLog
+    }
     if !notesOnly {
         cells["I14"] = "Last set RPE"
     }
     return gridFromA1(cells, rows: 24, cols: 30)
+}
+
+private func compactHamstringCurlGrid() -> SheetGrid {
+    gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
+            "C30": "0:2:0 Hamstring Curl", "D30": "2", "F30": "10", "H30": "RPE7, RF",
+            "C32": "0:1:0 Lateral Neck Flexion", "D32": "2"
+        ],
+        rows: 36,
+        cols: 30
+    )
 }
 
 private func multiExerciseConflictGrid() -> SheetGrid {

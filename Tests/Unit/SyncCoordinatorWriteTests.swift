@@ -227,7 +227,8 @@ private func pendingWrite(
 
     #expect(client.fetches == ["Block 27"])
     #expect(counter.count == 1)
-    #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!K16", "'Block 27'!I15"])
+    #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!K15", "'Block 27'!I15"])
+    #expect(client.updates.map(\.1) == [[["185x5@8"]], [["185x5@8, 195x5@8"]], [["8"]]])
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
 }
 

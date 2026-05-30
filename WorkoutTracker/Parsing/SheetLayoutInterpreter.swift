@@ -90,6 +90,20 @@ struct SheetLayoutHeaderNotes: Sendable, Equatable {
     }
 }
 
+func splitSheetNotesList(_ value: String) -> [String] {
+    value
+        .split(separator: ",", omittingEmptySubsequences: false)
+        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+}
+
+func joinedSheetNotesList(_ values: [String]) -> String {
+    var trimmed = values.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+    while trimmed.last?.isEmpty == true {
+        trimmed.removeLast()
+    }
+    return trimmed.joined(separator: ", ")
+}
+
 struct SheetLayoutExerciseAnchor: Sendable {
     let name: String
     let row: Int

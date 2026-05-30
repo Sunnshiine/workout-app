@@ -154,6 +154,20 @@ struct SheetWritePlanner: Sendable {
         in snapshot: SheetWritePlanningSnapshot
     ) throws -> SheetCellUpdate {
         let actual = snapshot.grid.cell(row: target.row, col: target.col).trimmed
+        if let aggregateValue = try compactAggregateHeaderValue(
+            for: request,
+            target: target,
+            actual: actual,
+            in: snapshot
+        ) {
+            return SheetCellUpdate(
+                tabName: target.tabName,
+                row: target.row,
+                col: target.col,
+                value: aggregateValue
+            )
+        }
+
         guard actual == request.expectedCurrentValue else {
             throw SheetWriterError.unexpectedCurrentValue(expected: request.expectedCurrentValue, actual: actual)
         }
@@ -204,9 +218,22 @@ struct SheetWritePlanner: Sendable {
         }
 
         let headerNotes = anchor.headerNotes(in: grid, notesColumn: day.columns.notes)
-        let compactHeaderSetOne = anchor.usesCompactHeaderSetOne(headerNotes: headerNotes)
-        if request.column == .notes, request.setIndex == 0 {
-            if compactHeaderSetOne, headerNotes.value == request.expectedCurrentValue {
+        let setCount = anchor.prescribedSetCount(in: grid, setsColumn: day.columns.sets)
+        let compactHeaderSetOne =
+            anchor.usesCompactHeaderSetOne(headerNotes: headerNotes)
+            || isCompactAggregateHeader(headerNotes.value, setCount: setCount)
+        if request.column == .notes {
+            if compactHeaderSetOne, request.setIndex < setCount {
+                if request.setIndex > 0,
+                    let continuationRow = anchor.setLogRow(
+                        for: request.setIndex,
+                        compactHeaderSetOne: compactHeaderSetOne
+                    ) {
+                    let continuationValue = grid.cell(row: continuationRow, col: col).trimmed
+                    if !continuationValue.isEmpty {
+                        return (continuationRow, col)
+                    }
+                }
                 return (anchor.row, col)
             }
         }
@@ -231,6 +258,59 @@ struct SheetWritePlanner: Sendable {
         case .lastSetRPE:
             guard let rpe = cols.lastSetRPE else { throw SheetWriterError.columnNotFound("Last set RPE") }
             return rpe
+        }
+    }
+
+    private func compactAggregateHeaderValue(
+        for request: SheetWriteRequest,
+        target: SheetWriteTarget,
+        actual: String,
+        in snapshot: SheetWritePlanningSnapshot
+    ) throws -> String? {
+        guard
+            request.column == .notes,
+            let day = snapshot.layout.day(week: request.week, day: request.day),
+            day.columns.notes == target.col,
+            let anchor = day.exerciseAnchors.first(where: { $0.name == request.exerciseName }),
+            anchor.row == target.row
+        else { return nil }
+
+        let headerNotes = anchor.headerNotes(in: snapshot.grid, notesColumn: day.columns.notes)
+        let setCount = anchor.prescribedSetCount(in: snapshot.grid, setsColumn: day.columns.sets)
+        guard
+            setCount > 1,
+            request.setIndex < setCount,
+            anchor.usesCompactHeaderSetOne(headerNotes: headerNotes)
+                || isCompactAggregateHeader(headerNotes.value, setCount: setCount)
+        else { return nil }
+
+        var values = splitSheetNotesList(actual)
+        if values.count == 1, values[0].isEmpty {
+            values = []
+        }
+        while values.count <= request.setIndex {
+            values.append("")
+        }
+
+        let currentSetValue = values[request.setIndex]
+        guard currentSetValue == request.expectedCurrentValue else {
+            throw SheetWriterError.unexpectedCurrentValue(
+                expected: request.expectedCurrentValue,
+                actual: currentSetValue
+            )
+        }
+
+        values[request.setIndex] = request.operation == .delete ? "" : (request.valueToWrite ?? "")
+        return joinedSheetNotesList(values)
+    }
+
+    private func isCompactAggregateHeader(_ value: String, setCount: Int) -> Bool {
+        let values = splitSheetNotesList(value)
+        guard values.count > 1, values.count <= setCount else { return false }
+        return values.allSatisfy { value in
+            value.isEmpty
+                || value.caseInsensitiveCompare("skip") == .orderedSame
+                || SetLog(formatted: value) != nil
         }
     }
 }
