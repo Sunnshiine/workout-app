@@ -48,6 +48,48 @@ final class WorkoutStore {
         return tracker.openExercises(in: block, currentSession: currentSession)
     }
 
+    var currentSessionDebugInfo: CurrentSessionDebugInfo {
+        _ = currentSessionOverrideRevision
+        guard let block else {
+            return CurrentSessionDebugInfo(
+                currentBlockTab: "None",
+                sheetDerivedSession: "None",
+                manualOverrideSession: "None",
+                displayedSession: sessionLabel(for: displayedSession),
+                resolvedCurrentSession: "None",
+                reason: "No Block is loaded, so no Current Session is resolved.",
+                localOnlyNote: nil
+            )
+        }
+
+        let overrideOrder = currentSessionOverrideOrder(in: block)
+        let overrideSession = overrideOrder.flatMap { tracker.session(at: $0, in: block) }
+        let sheetDerivedSession = tracker.currentSession(in: block)
+        let resolvedSession = tracker.currentSession(in: block, overrideOrder: overrideOrder)
+        let isManualOverrideActive = overrideSession?.persistentModelID == resolvedSession?.persistentModelID
+
+        return CurrentSessionDebugInfo(
+            currentBlockTab: block.tabName,
+            sheetDerivedSession: sessionLabel(for: sheetDerivedSession),
+            manualOverrideSession: manualOverrideLabel(order: overrideOrder, session: overrideSession),
+            displayedSession: sessionLabel(for: displayedSession),
+            resolvedCurrentSession: sessionLabel(for: resolvedSession),
+            reason: resolutionReason(
+                hasOverride: overrideOrder != nil,
+                isManualOverrideActive: isManualOverrideActive,
+                hasSheetDerivedSession: sheetDerivedSession != nil
+            ),
+            localOnlyNote: isManualOverrideActive
+                ? "Manual Current Session override is local-only and is not Sheet data."
+                : nil
+        )
+    }
+
+    var hasCurrentSessionOverride: Bool {
+        guard let block else { return false }
+        return currentSessionOverrideOrder(in: block) != nil
+    }
+
     func reload() {
         let displayedWeek = displayedSession?.week?.number
         let displayedDay = displayedSession?.dayNumber
@@ -85,6 +127,14 @@ final class WorkoutStore {
         guard let block, let displayedSession else { return }
         defaults.set(tracker.order(of: displayedSession), forKey: currentSessionOverrideKey(for: block.tabName))
         currentSessionOverrideRevision += 1
+        shouldPreserveDisplayedSessionOnReload = false
+    }
+
+    func resetCurrentSessionOverride() {
+        guard let block else { return }
+        defaults.removeObject(forKey: currentSessionOverrideKey(for: block.tabName))
+        currentSessionOverrideRevision += 1
+        displayedSession = tracker.currentSession(in: block)
         shouldPreserveDisplayedSessionOnReload = false
     }
 
@@ -267,5 +317,36 @@ final class WorkoutStore {
 
     private func currentSessionOverrideKey(for tabName: String) -> String {
         "advancedToOrder_\(tabName)"
+    }
+
+    private func sessionLabel(for session: Session?) -> String {
+        guard let session, let week = session.week else { return "None" }
+        return "Week \(week.number), Day \(session.dayNumber)"
+    }
+
+    private func manualOverrideLabel(order: Int?, session: Session?) -> String {
+        guard order != nil else { return "None" }
+        guard let session else { return "Saved override no longer matches this Block" }
+        return sessionLabel(for: session)
+    }
+
+    private func resolutionReason(
+        hasOverride: Bool,
+        isManualOverrideActive: Bool,
+        hasSheetDerivedSession: Bool
+    ) -> String {
+        if isManualOverrideActive {
+            return "Manual override is active for this Block."
+        }
+
+        if hasOverride {
+            return "Saved manual override no longer matches this Block, so Sheet-derived progress wins."
+        }
+
+        if hasSheetDerivedSession {
+            return "No manual override is active, so Sheet-derived progress wins."
+        }
+
+        return "No Sheet-derived Session is available for this Block."
     }
 }

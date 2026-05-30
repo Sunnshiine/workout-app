@@ -24,6 +24,10 @@
             ProcessInfo.processInfo.arguments.contains("-UITEST_DEVELOPER_TOOLS")
         }
 
+        static var startsWithCurrentSessionOverride: Bool {
+            ProcessInfo.processInfo.arguments.contains("-UITEST_CURRENT_SESSION_OVERRIDE")
+        }
+
         private static let defaultsSuiteName = "WorkoutTracker.UITestFixture"
 
         /// An in-memory container seeded with one sample Block.
