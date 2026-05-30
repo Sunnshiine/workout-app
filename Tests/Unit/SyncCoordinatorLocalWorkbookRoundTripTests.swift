@@ -34,32 +34,39 @@ private func localWorkbookPendingWrite(
     )
 }
 
+private func parsedInclineDBBenchPress(from parsed: ParsedBlock) throws -> ParsedExercise {
+    try #require(
+        parsed.block.weeks.first?.days.first?.exercises.first {
+            $0.name == "2-3:1:0 Incline DB BP"
+        }
+    )
+}
+
 @MainActor
 @Test func localWorkbookRoundTripFlushWritesCoachNoteContinuationLogsAndParsesDomainState() async throws {
     let container = try makeLocalWorkbookRoundTripContainer()
     let context = container.mainContext
-    context.insert(
+    let writes = [
         localWorkbookPendingWrite(
             createdAt: 1,
             setIndex: 0,
             valueToWrite: "100x8@6"
-        )
-    )
-    context.insert(
+        ),
         localWorkbookPendingWrite(
             createdAt: 2,
             setIndex: 1,
             valueToWrite: "105x7@7"
-        )
-    )
-    context.insert(
+        ),
         localWorkbookPendingWrite(
             createdAt: 3,
             setIndex: 1,
             column: .lastSetRPE,
             valueToWrite: "7"
         )
-    )
+    ]
+    for write in writes {
+        context.insert(write)
+    }
     try context.save()
 
     let client = LocalWorkbookSheetsClient(
@@ -71,11 +78,7 @@ private func localWorkbookPendingWrite(
 
     let updated = try await client.fetchTab(spreadsheetId: "sid", tabName: "Block 27")
     let parsed = SheetParser().parse(grid: updated, tabName: "Block 27")
-    let exercise = try #require(
-        parsed.block.weeks.first?.days.first?.exercises.first {
-            $0.name == "2-3:1:0 Incline DB BP"
-        }
-    )
+    let exercise = try parsedInclineDBBenchPress(from: parsed)
     let firstSet = try #require(exercise.sets.first { $0.index == 0 })
     let secondSet = try #require(exercise.sets.first { $0.index == 1 })
     let batches = await client.recordedBatches
