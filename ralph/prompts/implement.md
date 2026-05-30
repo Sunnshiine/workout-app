@@ -6,6 +6,7 @@ You are already inside the worktree. Work ONLY on this one issue; do not touch u
 Stay inside this worktree: do not modify files outside it, rewrite `main`'s history, or change the
 loop's own scripts or prompts (`ralph/*.sh`, `ralph/prompts/`). Writing review artifacts under
 `ralph/.artifacts/` is expected.
+Use the ISSUE_BASE_REF value from the preamble as the fixed base for this issue's own diff.
 Do not explain Ralph, the loop, project conventions, or skills back to the user; use them.
 
 ## Contract
@@ -37,11 +38,11 @@ Do not explain Ralph, the loop, project conventions, or skills back to the user;
   `swift test`, Xcode unit/component tests, Xcode UI integration tests, `swiftlint lint --quiet`.
 - Spawn the `swift-reviewer` custom agent as a separate subagent for fresh-eyes review; do not
   self-review in the implementer context.
-- If the final diff touches `WorkoutTracker/Views/` or `WorkoutTracker/Theme.swift`: capture a
-  screenshot with `PROJECT_DIR="$PWD" ralph/snapshot.sh "<UI_SHOT_PATH>"`, using the UI_SHOT_PATH
-  value given in the preamble. Then spawn the `ui-screenshot-reviewer` custom agent with the issue
-  contract and that screenshot, and save its exact output to the UI_REVIEW_PATH value given in the
-  preamble.
+- If `git diff --name-only "$ISSUE_BASE_REF" HEAD -- WorkoutTracker/Views/ WorkoutTracker/Theme.swift`
+  returns any paths: capture a screenshot with
+  `PROJECT_DIR="$PWD" ralph/snapshot.sh "<UI_SHOT_PATH>"`, using the UI_SHOT_PATH value given in
+  the preamble. Then spawn the `ui-screenshot-reviewer` custom agent with the issue contract and
+  that screenshot, and save its exact output to the UI_REVIEW_PATH value given in the preamble.
 - Treat any blocking review finding as unfinished work: fix it in this same worktree, rerun the
   required checks (and re-capture the screenshot for View/Theme changes), and request review again.
 
