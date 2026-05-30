@@ -42,6 +42,7 @@ enum Theme {
 
     static let logButtonCheckmarkDuration = 0.2
     static let holdToSkipDuration = 0.8
+    static let holdToSkipRevealDelay = 0.25
     static let holdToSkipTapMaximumDuration = 0.18
     static let momentumFlowTotalDuration = 0.65
     static let momentumDropDuration = 0.4

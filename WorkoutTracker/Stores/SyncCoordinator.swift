@@ -5,9 +5,7 @@ import SwiftData
 @Observable
 final class SyncCoordinator {
     enum State: Equatable {
-        case idle, syncing, offline
-        case pendingWrites(Int)
-        case conflict([String])
+        case idle, syncing, offline, pendingWrites(Int), conflict([String])
     }
     private(set) var state: State = .idle
 
@@ -15,6 +13,7 @@ final class SyncCoordinator {
     private let context: ModelContext
     private let sheetWritePlanner: SheetWritePlanner
     private let lastPerformedLookupRefresher: any LastPerformedLookupRefreshing
+    private let lastPerformedBackfillObserver: any LastPerformedBackfillObserving
     private var activePendingWriteFlushCount = 0
     private var pendingWriteFlushGeneration = 0
 
@@ -29,12 +28,14 @@ final class SyncCoordinator {
         client: any SheetsClient,
         context: ModelContext,
         sheetWritePlanner: SheetWritePlanner = SheetWritePlanner(),
-        lastPerformedLookupRefresher: any LastPerformedLookupRefreshing = NoopLastPerformedLookupRefresher()
+        lastPerformedLookupRefresher: any LastPerformedLookupRefreshing = NoopLastPerformedLookupRefresher(),
+        lastPerformedBackfillObserver: any LastPerformedBackfillObserving = NoopLastPerformedBackfillObserver()
     ) {
         self.client = client
         self.context = context
         self.sheetWritePlanner = sheetWritePlanner
         self.lastPerformedLookupRefresher = lastPerformedLookupRefresher
+        self.lastPerformedBackfillObserver = lastPerformedBackfillObserver
     }
 
     func reportLocalWriteFailure(_ error: any Error) {
@@ -197,11 +198,13 @@ final class SyncCoordinator {
         guard !historicalTabs.isEmpty else { return }
 
         Task { [weak self] in
-            await self?.backfillLastPerformed(
+            guard let self else { return }
+            await backfillLastPerformed(
                 spreadsheetId: spreadsheetId,
                 currentBlock: currentBlock,
                 historicalTabs: historicalTabs
             )
+            lastPerformedBackfillObserver.lastPerformedBackfillDidFinish()
         }
     }
 
@@ -277,7 +280,6 @@ final class SyncCoordinator {
     }
 
 }
-
 extension SyncCoordinator: SheetSwitchSyncing {}
 private struct PendingWriteFlushContext {
     let spreadsheetId: String
@@ -323,9 +325,7 @@ private struct PendingWriteBatch {
 }
 
 private struct PendingWriteFlushInvalidated: Error {}
-
 private struct PendingWriteBatchFailed: Error {}
-
 private struct PendingWriteFlushInProgress: Error {}
 
 extension SyncCoordinator {

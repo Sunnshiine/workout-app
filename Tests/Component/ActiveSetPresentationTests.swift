@@ -16,23 +16,37 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 }
 
 @Test func holdToSkipPolicyTreatsQuickReleaseAsLogTap() {
-    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18)
+    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18, revealDelay: 0.25)
 
     let outcome = policy.releaseOutcome(elapsed: 0.1, skipCompleted: false)
 
     #expect(outcome == .log)
+    #expect(!policy.shouldRevealProgress(elapsed: 0.1))
+
+    let presentation = HoldToSkipButtonPresentation(progress: 0, logTitle: "Log 185×5@8")
+    #expect(presentation.logOpacity == 1)
+    #expect(presentation.skipOpacity == 0)
+    #expect(presentation.accessibilityLabel == "Log 185×5@8")
 }
 
 @Test func holdToSkipPolicyCancelsSkipOnEarlyHoldRelease() {
-    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18)
+    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18, revealDelay: 0.25)
 
     let outcome = policy.releaseOutcome(elapsed: 0.4, skipCompleted: false)
 
     #expect(outcome == .cancelSkip)
 }
 
+@Test func holdToSkipPolicyRevealsProgressOnlyAfterDelay() {
+    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18, revealDelay: 0.25)
+
+    #expect(!policy.shouldRevealProgress(elapsed: 0.249))
+    #expect(policy.shouldRevealProgress(elapsed: 0.25))
+    #expect(policy.progressAnimationDuration == 0.55)
+}
+
 @Test func holdToSkipPolicyIgnoresReleaseAfterCompletedSkip() {
-    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18)
+    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18, revealDelay: 0.25)
 
     let outcome = policy.releaseOutcome(elapsed: 0.9, skipCompleted: true)
 
@@ -40,7 +54,7 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 }
 
 @Test func holdToSkipPolicyCompletesSkipWhenReleaseReachesHoldDuration() {
-    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18)
+    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18, revealDelay: 0.25)
 
     let outcome = policy.releaseOutcome(elapsed: 0.9, skipCompleted: false)
 

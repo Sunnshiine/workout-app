@@ -11,13 +11,16 @@ enum HoldToSkipReleaseOutcome: Equatable, Sendable {
 struct HoldToSkipPolicy: Equatable, Sendable {
     let holdDuration: TimeInterval
     let tapMaximumDuration: TimeInterval
+    let revealDelay: TimeInterval
 
     init(
         holdDuration: TimeInterval = Theme.holdToSkipDuration,
-        tapMaximumDuration: TimeInterval = Theme.holdToSkipTapMaximumDuration
+        tapMaximumDuration: TimeInterval = Theme.holdToSkipTapMaximumDuration,
+        revealDelay: TimeInterval = Theme.holdToSkipRevealDelay
     ) {
         self.holdDuration = holdDuration
         self.tapMaximumDuration = tapMaximumDuration
+        self.revealDelay = revealDelay
     }
 
     func releaseOutcome(elapsed: TimeInterval, skipCompleted: Bool) -> HoldToSkipReleaseOutcome {
@@ -34,6 +37,14 @@ struct HoldToSkipPolicy: Equatable, Sendable {
         }
 
         return .cancelSkip
+    }
+
+    func shouldRevealProgress(elapsed: TimeInterval) -> Bool {
+        elapsed >= revealDelay && elapsed < holdDuration
+    }
+
+    var progressAnimationDuration: TimeInterval {
+        max(holdDuration - revealDelay, 0)
     }
 }
 
