@@ -7,6 +7,16 @@
 - Do not run `swiftlint --fix` in build phases — run it manually when needed.
 - When creating the Xcode project / `Package.swift`, add the SwiftLintPlugins dependency and apply the plugin to each target.
 
+## Git Worktrees
+
+When running `xcodebuild test` from a git worktree, copy `Secrets.xcconfig` from the project root first — it is git-ignored so worktrees don't get it automatically, and xcodebuild fails with a build error rather than a clear diagnostic:
+
+```bash
+cp /path/to/workout-app/Secrets.xcconfig ./Secrets.xcconfig
+```
+
+`swift test` does not require it; only `xcodebuild` does.
+
 ## Agent skills
 
 ### Issue tracker
