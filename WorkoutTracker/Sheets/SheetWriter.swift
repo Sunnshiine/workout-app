@@ -124,49 +124,32 @@ struct SheetWritePlanningSnapshot: Sendable {
 }
 
 struct SheetWritePlanningIndex: Sendable {
-    private let weeks: [SheetWriteWeekIndex]
+    private let layout: SheetLayout
 
     init(grid: SheetGrid) {
-        let sections = locateWeekSections(in: grid)
-        self.weeks = sections.enumerated().map { index, section in
-            let endRow = index + 1 < sections.count ? sections[index + 1].headerRow : grid.count
-            let days = section.dayStartCols.indices.map { dayIndex in
-                let columns = resolveDayColumns(in: grid, section: section, dayIndex: dayIndex)
-                let firstExerciseRow = section.roleHeaderRow + 1
-                let anchors = (firstExerciseRow..<endRow).compactMap { row -> SheetWriteExerciseAnchor? in
-                    let name = grid.cell(row: row, col: columns.name).trimmed
-                    guard !name.isEmpty else { return nil }
-                    return SheetWriteExerciseAnchor(name: name, row: row)
-                }
-                return SheetWriteDayIndex(columns: columns, anchors: anchors)
-            }
-            return SheetWriteWeekIndex(endRow: endRow, days: Array(days))
-        }
+        self.layout = SheetLayoutInterpreter().interpret(grid)
     }
 
     func target(for request: SheetWriteRequest, in grid: SheetGrid) throws -> (row: Int, col: Int) {
-        guard request.week > 0, request.week <= weeks.count else {
+        guard layout.week(number: request.week) != nil else {
             throw SheetWriterError.weekNotFound(request.week)
         }
-        let week = weeks[request.week - 1]
-        guard request.day > 0, request.day <= week.days.count else {
+        guard let day = layout.day(week: request.week, day: request.day) else {
             throw SheetWriterError.dayNotFound(request.day)
         }
-        let day = week.days[request.day - 1]
         let col = try resolveColumn(request.column, cols: day.columns)
 
         guard
-            let anchorIndex = day.anchors.firstIndex(where: { $0.name == request.exerciseName })
+            let anchor = day.exerciseAnchors.first(where: { $0.name == request.exerciseName })
         else {
             throw SheetWriterError.exerciseNotFound(request.exerciseName)
         }
 
-        let anchor = day.anchors[anchorIndex]
         if request.column == .lastSetRPE {
             return (anchor.row, col)
         }
 
-        let nextAnchor = anchorIndex + 1 < day.anchors.count ? day.anchors[anchorIndex + 1].row : week.endRow
+        let nextAnchor = anchor.nextAnchorRow
         let headerNotes = grid.cell(row: anchor.row, col: col).trimmed
         let usesCompactHeaderRow = request.column == .notes && isCompactHeaderSetOne(headerNotes)
         if request.column == .notes, request.setIndex == 0 {
@@ -205,21 +188,6 @@ struct SheetWritePlanningIndex: Sendable {
             return rpe
         }
     }
-}
-
-private struct SheetWriteWeekIndex: Sendable {
-    let endRow: Int
-    let days: [SheetWriteDayIndex]
-}
-
-private struct SheetWriteDayIndex: Sendable {
-    let columns: DayColumns
-    let anchors: [SheetWriteExerciseAnchor]
-}
-
-private struct SheetWriteExerciseAnchor: Sendable {
-    let name: String
-    let row: Int
 }
 
 struct SheetWritePlanner: Sendable {
