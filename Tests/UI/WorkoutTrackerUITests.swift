@@ -33,10 +33,32 @@ final class WorkoutTrackerUITests: XCTestCase {
 
         app.buttons["Week 1, Day 3"].tap()
         waitForLabel("Open Block Overview for Week 1, Day 3", on: app.buttons["session-location-button"])
-        XCTAssertTrue(app.buttons["back-to-current-session-button"].exists)
+        XCTAssertTrue(app.buttons["go-back-current-session-button"].exists)
+        XCTAssertTrue(app.buttons["make-current-session-button"].exists)
 
-        app.buttons["back-to-current-session-button"].tap()
-        XCTAssertTrue(app.staticTexts["Bench Press"].waitForExistence(timeout: 3))
+        app.buttons["make-current-session-button"].tap()
+        XCTAssertFalse(app.buttons["go-back-current-session-button"].waitForExistence(timeout: 1))
+        XCTAssertFalse(app.buttons["make-current-session-button"].exists)
+        waitForLabel("Open Block Overview for Week 1, Day 3", on: app.buttons["session-location-button"])
+
+        tapWhenReady(app.buttons["move-on-button"], in: app)
+        let secondCelebration = moveOnCelebration(in: app)
+        XCTAssertTrue(secondCelebration.waitForExistence(timeout: 3))
+        waitForLabel("Week 1, Day 3 Done", on: secondCelebration)
+        secondCelebration.tap()
+        XCTAssertTrue(app.staticTexts["Accessory W1 D4"].waitForExistence(timeout: 3))
+
+        app.buttons["session-location-button"].tap()
+        XCTAssertTrue(app.navigationBars["Block 27"].waitForExistence(timeout: 3))
+
+        app.buttons["Week 1, Day 2"].tap()
+        waitForLabel("Open Block Overview for Week 1, Day 2", on: app.buttons["session-location-button"])
+        XCTAssertTrue(app.buttons["go-back-current-session-button"].exists)
+        XCTAssertTrue(app.buttons["make-current-session-button"].exists)
+
+        app.buttons["go-back-current-session-button"].tap()
+        XCTAssertTrue(app.staticTexts["Accessory W1 D4"].waitForExistence(timeout: 3))
+        waitForLabel("Open Block Overview for Week 1, Day 4", on: app.buttons["session-location-button"])
     }
 
     @MainActor
@@ -152,7 +174,8 @@ final class WorkoutTrackerUITests: XCTestCase {
         let openBackSquat = app.buttons.containing(.staticText, identifier: "Back Squat").firstMatch
         tapWhenHittable(openBackSquat)
 
-        XCTAssertTrue(app.buttons["back-to-current-session-button"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["go-back-current-session-button"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["make-current-session-button"].exists)
         XCTAssertTrue(app.staticTexts["Back Squat"].exists)
         XCTAssertTrue(app.staticTexts["Last Performed"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["255x5@7"].exists)
@@ -255,122 +278,122 @@ final class WorkoutTrackerUITests: XCTestCase {
         app.launch()
         return app
     }
+}
 
-    @MainActor
-    private func tapWhenReady(_ element: XCUIElement, in app: XCUIApplication) {
-        XCTAssertTrue(element.waitForExistence(timeout: 3))
+@MainActor
+private func tapWhenReady(_ element: XCUIElement, in app: XCUIApplication) {
+    XCTAssertTrue(element.waitForExistence(timeout: 3))
+    if element.isHittable {
+        element.tap()
+        return
+    }
+
+    app.swipeUp()
+    XCTAssertTrue(element.waitForExistence(timeout: 3))
+    element.tap()
+}
+
+@MainActor
+private func waitForLabel(_ label: String, on element: XCUIElement) {
+    XCTAssertTrue(element.waitForExistence(timeout: 3), "Expected element for label '\(label)' to exist")
+    let deadline = Date().addingTimeInterval(3)
+    while Date() < deadline {
+        if element.label == label {
+            return
+        }
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+    }
+    XCTFail("Expected \(element) to have label '\(label)', got '\(element.label)'")
+}
+
+@MainActor
+private func waitForValue(_ value: String, on element: XCUIElement) {
+    XCTAssertTrue(element.waitForExistence(timeout: 3))
+    let deadline = Date().addingTimeInterval(3)
+    while Date() < deadline {
+        if element.value as? String == value {
+            return
+        }
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+    }
+    XCTFail("Expected \(element) to have value '\(value)', got '\(String(describing: element.value))'")
+}
+
+@MainActor
+private func waitUntilEnabled(_ element: XCUIElement) {
+    XCTAssertTrue(element.waitForExistence(timeout: 3))
+    let deadline = Date().addingTimeInterval(3)
+    while Date() < deadline {
+        if element.isEnabled {
+            return
+        }
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+    }
+    XCTFail("Expected \(element) to become enabled")
+}
+
+@MainActor
+private func tapWhenHittable(_ element: XCUIElement) {
+    XCTAssertTrue(element.waitForExistence(timeout: 3))
+    let deadline = Date().addingTimeInterval(3)
+    while Date() < deadline {
         if element.isHittable {
             element.tap()
             return
         }
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+    }
+    XCTFail("Expected \(element) to become hittable")
+}
 
-        app.swipeUp()
+@MainActor
+private func moveOnCelebration(in app: XCUIApplication) -> XCUIElement {
+    let button = app.buttons["move-on-celebration"]
+    if button.waitForExistence(timeout: 1) {
+        return button
+    }
+
+    let scrollView = app.scrollViews["move-on-celebration"]
+    if scrollView.waitForExistence(timeout: 1) {
+        return scrollView
+    }
+
+    let element = app.otherElements["move-on-celebration"]
+    XCTAssertTrue(element.waitForExistence(timeout: 3))
+    return element
+}
+
+@MainActor
+private func assertMoveOnCelebrationCopyIsReadable(in app: XCUIApplication) {
+    let approvedQuotes = ["You're fucking amazing.", "God damn!", "Get it girl!", "Shake it!"]
+    let quote = app.staticTexts["move-on-celebration-quote"]
+    let title = app.staticTexts["move-on-celebration-title"]
+    let subline = app.staticTexts["move-on-celebration-subline"]
+    let stats = [
+        app.staticTexts["move-on-celebration-sets-value"],
+        app.staticTexts["move-on-celebration-exercises-value"],
+        app.staticTexts["move-on-celebration-left-value"],
+        app.staticTexts["move-on-celebration-sets-label"],
+        app.staticTexts["move-on-celebration-exercises-label"],
+        app.staticTexts["move-on-celebration-left-label"]
+    ]
+    let hint = app.staticTexts["move-on-celebration-hint"]
+    let windowFrame = app.windows.element(boundBy: 0).frame
+
+    XCTAssertTrue(quote.waitForExistence(timeout: 6))
+    XCTAssertTrue(approvedQuotes.contains(quote.label))
+    let selectedQuote = quote.label
+    RunLoop.current.run(until: Date().addingTimeInterval(3))
+    XCTAssertEqual(quote.label, selectedQuote)
+
+    for element in [quote, title, subline, hint] + stats {
         XCTAssertTrue(element.waitForExistence(timeout: 3))
-        element.tap()
+        XCTAssertTrue(windowFrame.contains(element.frame), "\(element) is clipped outside \(windowFrame)")
     }
 
-    @MainActor
-    private func waitForLabel(_ label: String, on element: XCUIElement) {
-        XCTAssertTrue(element.waitForExistence(timeout: 3), "Expected element for label '\(label)' to exist")
-        let deadline = Date().addingTimeInterval(3)
-        while Date() < deadline {
-            if element.label == label {
-                return
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-        }
-        XCTFail("Expected \(element) to have label '\(label)', got '\(element.label)'")
-    }
-
-    @MainActor
-    private func waitForValue(_ value: String, on element: XCUIElement) {
-        XCTAssertTrue(element.waitForExistence(timeout: 3))
-        let deadline = Date().addingTimeInterval(3)
-        while Date() < deadline {
-            if element.value as? String == value {
-                return
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-        }
-        XCTFail("Expected \(element) to have value '\(value)', got '\(String(describing: element.value))'")
-    }
-
-    @MainActor
-    private func waitUntilEnabled(_ element: XCUIElement) {
-        XCTAssertTrue(element.waitForExistence(timeout: 3))
-        let deadline = Date().addingTimeInterval(3)
-        while Date() < deadline {
-            if element.isEnabled {
-                return
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-        }
-        XCTFail("Expected \(element) to become enabled")
-    }
-
-    @MainActor
-    private func tapWhenHittable(_ element: XCUIElement) {
-        XCTAssertTrue(element.waitForExistence(timeout: 3))
-        let deadline = Date().addingTimeInterval(3)
-        while Date() < deadline {
-            if element.isHittable {
-                element.tap()
-                return
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-        }
-        XCTFail("Expected \(element) to become hittable")
-    }
-
-    @MainActor
-    private func moveOnCelebration(in app: XCUIApplication) -> XCUIElement {
-        let button = app.buttons["move-on-celebration"]
-        if button.waitForExistence(timeout: 1) {
-            return button
-        }
-
-        let scrollView = app.scrollViews["move-on-celebration"]
-        if scrollView.waitForExistence(timeout: 1) {
-            return scrollView
-        }
-
-        let element = app.otherElements["move-on-celebration"]
-        XCTAssertTrue(element.waitForExistence(timeout: 3))
-        return element
-    }
-
-    @MainActor
-    private func assertMoveOnCelebrationCopyIsReadable(in app: XCUIApplication) {
-        let approvedQuotes = ["You're fucking amazing.", "God damn!", "Get it girl!", "Shake it!"]
-        let quote = app.staticTexts["move-on-celebration-quote"]
-        let title = app.staticTexts["move-on-celebration-title"]
-        let subline = app.staticTexts["move-on-celebration-subline"]
-        let stats = [
-            app.staticTexts["move-on-celebration-sets-value"],
-            app.staticTexts["move-on-celebration-exercises-value"],
-            app.staticTexts["move-on-celebration-left-value"],
-            app.staticTexts["move-on-celebration-sets-label"],
-            app.staticTexts["move-on-celebration-exercises-label"],
-            app.staticTexts["move-on-celebration-left-label"]
-        ]
-        let hint = app.staticTexts["move-on-celebration-hint"]
-        let windowFrame = app.windows.element(boundBy: 0).frame
-
-        XCTAssertTrue(quote.waitForExistence(timeout: 6))
-        XCTAssertTrue(approvedQuotes.contains(quote.label))
-        let selectedQuote = quote.label
-        RunLoop.current.run(until: Date().addingTimeInterval(3))
-        XCTAssertEqual(quote.label, selectedQuote)
-
-        for element in [quote, title, subline, hint] + stats {
-            XCTAssertTrue(element.waitForExistence(timeout: 3))
-            XCTAssertTrue(windowFrame.contains(element.frame), "\(element) is clipped outside \(windowFrame)")
-        }
-
-        XCTAssertLessThanOrEqual(quote.frame.maxY, title.frame.minY)
-        XCTAssertLessThanOrEqual(title.frame.maxY, subline.frame.minY)
-        XCTAssertLessThan(stats.map(\.frame.maxY).max() ?? 0, hint.frame.minY)
-    }
+    XCTAssertLessThanOrEqual(quote.frame.maxY, title.frame.minY)
+    XCTAssertLessThanOrEqual(title.frame.maxY, subline.frame.minY)
+    XCTAssertLessThan(stats.map(\.frame.maxY).max() ?? 0, hint.frame.minY)
 }
 
 final class WorkoutTrackerSkipUITests: XCTestCase {

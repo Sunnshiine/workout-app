@@ -19,9 +19,14 @@ struct SessionView: View {
                         .padding(.top, 8)
 
                     if !workout.isViewingLiveEdge {
-                        BackToCurrentSessionBanner {
-                            workout.showCurrent()
-                        }
+                        CurrentSessionOverrideControls(
+                            onGoBack: {
+                                workout.showCurrent()
+                            },
+                            onMakeCurrent: {
+                                workout.makeDisplayedSessionCurrent()
+                            }
+                        )
                         .padding(.horizontal)
                         .padding(.top, 8)
                     }
@@ -286,27 +291,51 @@ extension SessionView {
     }
 }
 
-private struct BackToCurrentSessionBanner: View {
-    let onTap: () -> Void
+private struct CurrentSessionOverrideControls: View {
+    let onGoBack: () -> Void
+    let onMakeCurrent: () -> Void
 
     var body: some View {
-        Button(action: onTap) {
+        ViewThatFits(in: .horizontal) {
             HStack(spacing: 10) {
-                Image(systemName: "arrow.left")
-                    .font(.subheadline.weight(.semibold))
-                Text("Back to Current Session")
-                    .font(.subheadline.weight(.semibold))
-                Spacer()
+                goBackButton
+                makeCurrentButton
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .foregroundStyle(Theme.accentDarkText)
-            .background(Theme.accent, in: .rect(cornerRadius: Theme.sessionTileCornerRadius))
+
+            VStack(spacing: 10) {
+                goBackButton
+                makeCurrentButton
+            }
         }
-        .buttonStyle(.plain)
+        .padding(4)
+        .glassEffect(.regular, in: .rect(cornerRadius: Theme.sessionTileCornerRadius))
+        .accessibilityElement(children: .contain)
+    }
+
+    private var goBackButton: some View {
+        Button(action: onGoBack) {
+            Label("Go back", systemImage: "arrow.uturn.left")
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(2)
+                .minimumScaleFactor(0.82)
+                .frame(maxWidth: .infinity, minHeight: 44)
+        }
+        .buttonStyle(.glass)
         .accessibilityHint("Returns to the current session")
-        .accessibilityIdentifier("back-to-current-session-button")
+        .accessibilityIdentifier("go-back-current-session-button")
+    }
+
+    private var makeCurrentButton: some View {
+        Button(action: onMakeCurrent) {
+            Label("Make Current", systemImage: "pin.fill")
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(2)
+                .minimumScaleFactor(0.82)
+                .frame(maxWidth: .infinity, minHeight: 44)
+        }
+        .buttonStyle(.glass)
+        .accessibilityHint("Makes the viewed session the current session")
+        .accessibilityIdentifier("make-current-session-button")
     }
 }
 
