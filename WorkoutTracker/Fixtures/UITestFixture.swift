@@ -20,6 +20,10 @@
             ProcessInfo.processInfo.arguments.contains("-UITEST_OPEN_EXERCISES")
         }
 
+        static var startsInDeveloperTools: Bool {
+            ProcessInfo.processInfo.arguments.contains("-UITEST_DEVELOPER_TOOLS")
+        }
+
         private static let defaultsSuiteName = "WorkoutTracker.UITestFixture"
 
         /// An in-memory container seeded with one sample Block.
