@@ -1,5 +1,9 @@
 import Foundation
 
+private nonisolated(unsafe) let legacyLogTokenPattern =
+    /^(?:BW|\d+(?:\.\d+)?)(?:(?:x\d+)|(?:@\d+(?:\.\d+)?))(?:@\d+(?:\.\d+)?)?$/
+private nonisolated(unsafe) let legacyNumberTokenPattern = /^\d+(?:\.\d+)?$/
+
 struct WeekSection: Sendable {
     let headerRow: Int  // 0-based row holding "Day N"
     let roleHeaderRow: Int  // headerRow + 2
@@ -66,6 +70,23 @@ struct SheetLayoutHeaderNotes: Sendable, Equatable {
 
     var hasProtectedValue: Bool {
         !value.isEmpty && !usesCompactHeaderSetOne
+    }
+
+    var isLegacyLog: Bool {
+        guard hasProtectedValue else { return false }
+        let tokens =
+            value
+            .split(separator: ",", omittingEmptySubsequences: true)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        guard !tokens.isEmpty else { return false }
+        return tokens.allSatisfy { token in
+            token.wholeMatch(of: legacyLogTokenPattern) != nil
+                || token.wholeMatch(of: legacyNumberTokenPattern) != nil
+        }
+    }
+
+    var isCoachNote: Bool {
+        hasProtectedValue && !isLegacyLog
     }
 }
 
