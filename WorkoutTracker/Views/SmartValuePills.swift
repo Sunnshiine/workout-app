@@ -262,6 +262,7 @@ private struct HoldToSkipLogButton: View {
     @State private var skipPressStartedAt: Date?
     @State private var skipCompleted = false
     @State private var suppressNextLogTap = false
+    @State private var skipRevealTask: Task<Void, Never>?
     @State private var skipTask: Task<Void, Never>?
     @State private var suppressLogTapTask: Task<Void, Never>?
 
@@ -357,9 +358,16 @@ private struct HoldToSkipLogButton: View {
         onPressStarted()
         skipPressStartedAt = Date()
         skipCompleted = false
+        skipProgress = 0
+        skipRevealTask?.cancel()
         skipTask?.cancel()
-        withAnimation(Theme.holdToSkipProgressAnimation) {
-            skipProgress = 1
+        skipRevealTask = Task { @MainActor in
+            try? await Task.sleep(for: .nanoseconds(Int64((policy.revealDelay * 1_000_000_000).rounded())))
+            let elapsed = skipPressStartedAt.map { Date().timeIntervalSince($0) } ?? 0
+            guard !Task.isCancelled, policy.shouldRevealProgress(elapsed: elapsed), !skipCompleted else { return }
+            withAnimation(.linear(duration: policy.progressAnimationDuration)) {
+                skipProgress = 1
+            }
         }
         skipTask = Task { @MainActor in
             try? await Task.sleep(for: .nanoseconds(Int64((policy.holdDuration * 1_000_000_000).rounded())))
@@ -371,6 +379,8 @@ private struct HoldToSkipLogButton: View {
     private func finishSkipHold() {
         let elapsed = skipPressStartedAt.map { Date().timeIntervalSince($0) } ?? 0
         let outcome = policy.releaseOutcome(elapsed: elapsed, skipCompleted: skipCompleted)
+        skipRevealTask?.cancel()
+        skipRevealTask = nil
         skipTask?.cancel()
         skipTask = nil
         skipPressStartedAt = nil
@@ -394,6 +404,8 @@ private struct HoldToSkipLogButton: View {
         guard !skipCompleted else { return }
         suppressLogTapOnce()
         skipCompleted = true
+        skipRevealTask?.cancel()
+        skipRevealTask = nil
         skipTask?.cancel()
         skipTask = nil
         onSkip()
