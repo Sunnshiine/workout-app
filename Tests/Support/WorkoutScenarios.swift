@@ -27,7 +27,8 @@ enum WorkoutScenarios {
         "open exercises",
         "sync failure",
         "queued write",
-        "block overview with mixed session states"
+        "block overview with mixed session states",
+        "partially uploaded block"
     ]
 
     @MainActor
@@ -84,6 +85,11 @@ enum WorkoutScenarios {
             .first { $0.number == 1 }?
             .sessions.first { $0.dayNumber == 3 }
         return BlockScenario(block: block, currentSession: currentSession)
+    }
+
+    @MainActor
+    static func partiallyUploadedBlock() -> BlockScenario {
+        scenario(from: WorkoutFixtureScenarios.partiallyUploadedBlock())
     }
 
     @MainActor

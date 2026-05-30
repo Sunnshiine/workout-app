@@ -51,7 +51,7 @@ private func sortedSessions(in block: Block) -> [Session] {
 }
 
 @MainActor
-@Test func fallsBackToFirstSessionWhenNothingLogged() {
+@Test func fallsBackToFirstAvailableSessionWhenNothingLogged() {
     let block = makeBlock()
     let current = SessionProgressTracker().currentSession(in: block)
     #expect(current?.week?.number == 1)
@@ -59,17 +59,57 @@ private func sortedSessions(in block: Block) -> [Session] {
 }
 
 @MainActor
-@Test func nextSessionCrossesWeekBoundaryAndEndsAtLastSession() throws {
+@Test func fallsBackToFirstAvailableSessionWhenEarlierSessionsAreUnavailable() {
+    let block = makeBlock()
+    let sessions = sortedSessions(in: block)
+    sessions[0].exercises = []
+    sessions[1].exercises = []
+
+    let current = SessionProgressTracker().currentSession(in: block)
+
+    #expect(current?.week?.number == 1)
+    #expect(current?.dayNumber == 3)
+}
+
+@MainActor
+@Test func currentSessionIsNilWhenNoSessionsAreAvailable() {
+    let block = makeBlock()
+    for session in sortedSessions(in: block) {
+        session.exercises = []
+    }
+
+    let current = SessionProgressTracker().currentSession(in: block)
+
+    #expect(current == nil)
+}
+
+@MainActor
+@Test func nextSessionSkipsUnavailableSessionsAndEndsAtLastAvailableSession() throws {
     let block = makeBlock()
     let sessions = sortedSessions(in: block)
     let tracker = SessionProgressTracker()
+    sessions[3].exercises = []
 
-    let week1Day4 = sessions[3]
-    let week2Day1 = try #require(tracker.nextSession(after: week1Day4, in: block))
+    let week1Day3 = sessions[2]
+    let week2Day1 = try #require(tracker.nextSession(after: week1Day3, in: block))
 
     #expect(week2Day1.week?.number == 2)
     #expect(week2Day1.dayNumber == 1)
     #expect(tracker.nextSession(after: sessions[7], in: block) == nil)
+}
+
+@MainActor
+@Test func hasSessionAheadIncludesUnavailableSessions() {
+    let block = makeBlock()
+    let sessions = sortedSessions(in: block)
+    sessions[1].exercises = []
+    sessions[2].exercises = []
+    sessions[3].exercises = []
+
+    let tracker = SessionProgressTracker()
+
+    #expect(tracker.hasSessionAhead(after: sessions[0], in: block))
+    #expect(!tracker.hasSessionAhead(after: sessions[7], in: block))
 }
 
 @MainActor
@@ -99,6 +139,18 @@ private func sortedSessions(in block: Block) -> [Session] {
     #expect(ahead?.dayNumber == 1)
     #expect(behind?.week?.number == 1)
     #expect(behind?.dayNumber == 2)
+}
+
+@MainActor
+@Test func currentSessionIgnoresUnavailableOverride() {
+    let block = makeBlock()
+    let sessions = sortedSessions(in: block)
+    sessions[1].exercises = []
+
+    let current = SessionProgressTracker().currentSession(in: block, overrideOrder: 2)
+
+    #expect(current?.week?.number == 1)
+    #expect(current?.dayNumber == 1)
 }
 
 @MainActor
@@ -161,8 +213,8 @@ private func sortedSessions(in block: Block) -> [Session] {
 }
 
 @MainActor
-@Test func sessionTileStateHasExactlyThreeCases() {
-    #expect(SessionTileState.allCases == [.complete, .current, .incomplete])
+@Test func sessionTileStateHasFourCases() {
+    #expect(SessionTileState.allCases == [.complete, .current, .incomplete, .unavailable])
 }
 
 @MainActor
@@ -212,16 +264,27 @@ private func sortedSessions(in block: Block) -> [Session] {
 }
 
 @MainActor
-@Test func tileStateIsIncompleteWhenNonCurrentSessionHasNoSetProgress() {
+@Test func tileStateDistinguishesPendingAvailableFromUnavailableSessions() {
     let block = makeBlock()
     let pendingSession = block.weeks[0].sessions[0]
-    let emptySession = block.weeks[0].sessions[1]
-    emptySession.exercises = []
+    let unavailableSession = block.weeks[0].sessions[1]
+    unavailableSession.exercises = []
 
     let tracker = SessionProgressTracker()
 
     #expect(tracker.tileState(for: pendingSession, currentSession: nil) == .incomplete)
-    #expect(tracker.tileState(for: emptySession, currentSession: nil) == .incomplete)
+    #expect(tracker.tileState(for: unavailableSession, currentSession: nil) == .unavailable)
+}
+
+@MainActor
+@Test func tileStateIsUnavailableEvenWhenItIsTheCurrentSession() {
+    let block = makeBlock()
+    let session = block.weeks[0].sessions[0]
+    session.exercises = []
+
+    let state = SessionProgressTracker().tileState(for: session, currentSession: session)
+
+    #expect(state == .unavailable)
 }
 
 @MainActor

@@ -28,6 +28,18 @@
             ProcessInfo.processInfo.arguments.contains("-UITEST_CURRENT_SESSION_OVERRIDE")
         }
 
+        static var startsInSession: Bool {
+            ProcessInfo.processInfo.arguments.contains("-UITEST_SESSION")
+        }
+
+        static var startsInBlockOverview: Bool {
+            !startsInSession && !startsInDeveloperTools
+        }
+
+        static var startsWithFullBlock: Bool {
+            ProcessInfo.processInfo.arguments.contains("-UITEST_FULL_BLOCK")
+        }
+
         private static let defaultsSuiteName = "WorkoutTracker.UITestFixture"
 
         /// An in-memory container seeded with one sample Block.
@@ -60,7 +72,9 @@
             let block =
                 startsWithOpenExercises
                 ? WorkoutFixtureScenarios.openExercisesBlock()
-                : WorkoutFixtureScenarios.uiLaunchBlock()
+                : startsWithFullBlock
+                    ? WorkoutFixtureScenarios.uiLaunchBlock()
+                    : WorkoutFixtureScenarios.partiallyUploadedBlock()
             context.insert(block)
             context.insert(WorkoutFixtureScenarios.lastPerformedBackSquat())
             if startsWithPendingWrite {

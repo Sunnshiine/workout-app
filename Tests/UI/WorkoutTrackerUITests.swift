@@ -359,7 +359,7 @@ final class WorkoutTrackerUITests: XCTestCase {
     private func launchFixtureApp(extraArguments: [String] = []) -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = ["-UITEST_FIXTURE"] + extraArguments
+        app.launchArguments = ["-UITEST_FIXTURE", "-UITEST_SESSION", "-UITEST_FULL_BLOCK"] + extraArguments
         app.launch()
         return app
     }
@@ -501,7 +501,7 @@ final class WorkoutTrackerSkipUITests: XCTestCase {
     private func launchFixtureApp() -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = ["-UITEST_FIXTURE"]
+        app.launchArguments = ["-UITEST_FIXTURE", "-UITEST_SESSION", "-UITEST_FULL_BLOCK"]
         app.launch()
         return app
     }

@@ -29,6 +29,11 @@
         }
 
         @MainActor
+        static func partiallyUploadedBlock() -> Block {
+            WorkoutFixtureBlocks.partiallyUploadedBlock()
+        }
+
+        @MainActor
         static func uiLaunchBlock() -> Block {
             WorkoutFixtureBlocks.uiLaunchBlock()
         }
@@ -135,6 +140,20 @@
         }
 
         @MainActor
+        static func partiallyUploadedBlock() -> Block {
+            Factory.block(
+                weeks: (1...4).map { weekNumber in
+                    Factory.week(
+                        weekNumber,
+                        sessions: (1...4).map { dayNumber in
+                            partialUploadSession(weekNumber: weekNumber, dayNumber: dayNumber)
+                        }
+                    )
+                }
+            )
+        }
+
+        @MainActor
         static func uiLaunchBlock() -> Block {
             Factory.block(
                 weeks: (1...4).map { weekNumber in
@@ -159,6 +178,23 @@
                     [Factory.deadlift()]
                 default:
                     [Factory.accessory(weekNumber: weekNumber, dayNumber: dayNumber)]
+                }
+            return Factory.session(weekNumber: weekNumber, dayNumber: dayNumber, exercises: exercises)
+        }
+
+        private static func partialUploadSession(weekNumber: Int, dayNumber: Int) -> Session {
+            let exercises: [Exercise] =
+                switch (weekNumber, dayNumber) {
+                case (1, 1):
+                    [Factory.backSquat(), Factory.rdl()]
+                case (1, 2):
+                    [Factory.benchPress(), Factory.pullUp()]
+                case (2, 1):
+                    [Factory.deadlift()]
+                case (3, 1), (4, 1):
+                    [Factory.accessory(weekNumber: weekNumber, dayNumber: dayNumber)]
+                default:
+                    []
                 }
             return Factory.session(weekNumber: weekNumber, dayNumber: dayNumber, exercises: exercises)
         }
