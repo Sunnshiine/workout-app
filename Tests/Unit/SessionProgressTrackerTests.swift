@@ -86,19 +86,31 @@ private func sortedSessions(in block: Block) -> [Session] {
 }
 
 @MainActor
-@Test func currentSessionUsesAdvanceOnlyWhenAheadOfDerivedProgress() {
+@Test func currentSessionUsesValidOverrideEvenWhenBehindDerivedProgress() {
     let block = makeBlock()
     let sessions = sortedSessions(in: block)
     sessions[2].exercises[0].sets[0].state = .logged
     let tracker = SessionProgressTracker()
 
-    let advanced = tracker.currentSession(in: block, advancedToOrder: 5)
-    let behind = tracker.currentSession(in: block, advancedToOrder: 2)
+    let ahead = tracker.currentSession(in: block, overrideOrder: 5)
+    let behind = tracker.currentSession(in: block, overrideOrder: 2)
 
-    #expect(advanced?.week?.number == 2)
-    #expect(advanced?.dayNumber == 1)
+    #expect(ahead?.week?.number == 2)
+    #expect(ahead?.dayNumber == 1)
     #expect(behind?.week?.number == 1)
-    #expect(behind?.dayNumber == 3)
+    #expect(behind?.dayNumber == 2)
+}
+
+@MainActor
+@Test func currentSessionIgnoresInvalidOverride() {
+    let block = makeBlock()
+    let sessions = sortedSessions(in: block)
+    sessions[2].exercises[0].sets[0].state = .logged
+
+    let current = SessionProgressTracker().currentSession(in: block, overrideOrder: 99)
+
+    #expect(current?.week?.number == 1)
+    #expect(current?.dayNumber == 3)
 }
 
 @MainActor

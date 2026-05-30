@@ -34,20 +34,18 @@ struct SessionProgressTracker {
         block.weeks.flatMap { $0.sessions }.sorted { order(of: $0) < order(of: $1) }
     }
 
-    func currentSession(in block: Block, advancedToOrder: Int? = nil) -> Session? {
+    func currentSession(in block: Block, overrideOrder: Int? = nil) -> Session? {
         let sessions = allSessions(block)
         let logged = sessions.filter { s in
             s.exercises.contains { $0.sets.contains { $0.state == .logged } }
         }
         guard let derived = logged.last ?? sessions.first else { return nil }
-        guard
-            let advancedToOrder,
-            advancedToOrder > order(of: derived),
-            let advancedSession = session(at: advancedToOrder, in: block)
-        else {
-            return derived
+
+        if let overrideOrder, let overrideSession = session(at: overrideOrder, in: block) {
+            return overrideSession
         }
-        return advancedSession
+
+        return derived
     }
 
     func currentWeek(in block: Block) -> Week? {
