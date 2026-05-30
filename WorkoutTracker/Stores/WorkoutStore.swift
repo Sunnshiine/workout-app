@@ -15,6 +15,7 @@ final class WorkoutStore {
     private(set) var displayedSession: Session?
     private(set) var moveOnCelebrationSession: Session?
     private var shouldPreserveDisplayedSessionOnReload = false
+    private var currentSessionOverrideRevision = 0
 
     private let context: ModelContext
     private let tracker = SessionProgressTracker()
@@ -32,7 +33,8 @@ final class WorkoutStore {
     }
 
     var currentSession: Session? {
-        block.flatMap { tracker.currentSession(in: $0, advancedToOrder: advancedToOrder(in: $0)) }
+        _ = currentSessionOverrideRevision
+        return block.flatMap { tracker.currentSession(in: $0, overrideOrder: currentSessionOverrideOrder(in: $0)) }
     }
 
     var canMoveOn: Bool {
@@ -79,6 +81,13 @@ final class WorkoutStore {
         shouldPreserveDisplayedSessionOnReload = false
     }
 
+    func makeDisplayedSessionCurrent() {
+        guard let block, let displayedSession else { return }
+        defaults.set(tracker.order(of: displayedSession), forKey: currentSessionOverrideKey(for: block.tabName))
+        currentSessionOverrideRevision += 1
+        shouldPreserveDisplayedSessionOnReload = false
+    }
+
     func requestMoveOnCelebration() {
         guard
             let block,
@@ -108,7 +117,8 @@ final class WorkoutStore {
             let nextSession = tracker.nextSession(after: session, in: block)
         else { return }
 
-        defaults.set(tracker.order(of: nextSession), forKey: advanceKey(for: block.tabName))
+        defaults.set(tracker.order(of: nextSession), forKey: currentSessionOverrideKey(for: block.tabName))
+        currentSessionOverrideRevision += 1
         displayedSession = nextSession
         shouldPreserveDisplayedSessionOnReload = false
     }
@@ -249,13 +259,13 @@ final class WorkoutStore {
         rpe.rounded() == rpe ? String(Int(rpe)) : String(rpe)
     }
 
-    private func advancedToOrder(in block: Block) -> Int? {
-        let key = advanceKey(for: block.tabName)
+    private func currentSessionOverrideOrder(in block: Block) -> Int? {
+        let key = currentSessionOverrideKey(for: block.tabName)
         guard defaults.object(forKey: key) != nil else { return nil }
         return defaults.integer(forKey: key)
     }
 
-    private func advanceKey(for tabName: String) -> String {
+    private func currentSessionOverrideKey(for tabName: String) -> String {
         "advancedToOrder_\(tabName)"
     }
 }
