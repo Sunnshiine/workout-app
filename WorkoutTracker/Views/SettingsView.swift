@@ -33,6 +33,22 @@ struct SettingsView: View {
                             .overlay(.white.opacity(0.16))
                             .padding(.leading, 56)
 
+                        NavigationLink {
+                            DeveloperToolsView()
+                        } label: {
+                            SettingsRow(
+                                systemImage: "wrench.and.screwdriver",
+                                title: "Developer Tools",
+                                detail: nil
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("settings-developer-tools-row")
+
+                        Divider()
+                            .overlay(.white.opacity(0.16))
+                            .padding(.leading, 56)
+
                         Button(role: .destructive) {
                             requestSignOut()
                         } label: {

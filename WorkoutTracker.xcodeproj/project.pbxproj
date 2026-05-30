@@ -29,6 +29,7 @@
 		348182B266A444358BFC98BC /* PendingWrite.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECA5D0F58BE44C1297D2C669 /* PendingWrite.swift */; };
 		34953DAF43A033C86A3D9E65 /* ActiveSetPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D3E5BD7F617C986C835A7C1 /* ActiveSetPresentationTests.swift */; };
 		37A4A63BB53FDDB3F147C4EE /* SyncStatusPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D550038AEDE59912E21E5C00 /* SyncStatusPresentationTests.swift */; };
+		3B53DB2E82EE26FFBE0983D2 /* DeveloperToolsDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05971BB0A9FEBCA99597C7FE /* DeveloperToolsDiagnostics.swift */; };
 		3DEF9DC695D38CC516DA389E /* WorkoutModelFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = A87608B03C722AD31186659D /* WorkoutModelFixture.swift */; };
 		400D915B9DE0BD9C6963294E /* LoggedSetReviewCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D92CDF9A3131D2FF682B82FE /* LoggedSetReviewCard.swift */; };
 		41CDBD5D297B4036E473DEC3 /* SmartValuePillsForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCE536596991762BAEEF006D /* SmartValuePillsForm.swift */; };
@@ -99,6 +100,7 @@
 		D9FFF165728ADB37092CF550 /* GoogleAuthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85019258AFD1ABB430C201E0 /* GoogleAuthTests.swift */; };
 		DA18B95BE71A08ECEE00FFCD /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82C7E3B1CAB7C96142DCF1C7 /* Theme.swift */; };
 		DC4256E5E0BE527A4C3A3310 /* SessionProgressHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D190FFC3E7D57A123821D120 /* SessionProgressHeader.swift */; };
+		E6298E9C10999070CD34B8C0 /* DeveloperToolsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F622271C453C1C22E76B829 /* DeveloperToolsView.swift */; };
 		E73224AE3C41ED69721C8601 /* PendingWriteFlushOrdering.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8815732F9CDEFACE5019CD05 /* PendingWriteFlushOrdering.swift */; };
 		E8F14E95FDFED307B2DC2042 /* WorkoutTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D48BD9386FBE1872BB0B6849 /* WorkoutTrackerApp.swift */; };
 		EC96EB4BF5CEA6C5F19B5F0B /* SpreadsheetIdTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6911BBEB42C06D9FB34EB7 /* SpreadsheetIdTests.swift */; };
@@ -106,6 +108,7 @@
 		F58786858363A7A52D822F21 /* Exercise.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD5AE788CBF5DAF0C684F6D3 /* Exercise.swift */; };
 		FCA508FE3522CB7062267112 /* SessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31CB80B71F35E4D4A35FE87 /* SessionView.swift */; };
 		FD532690E409CC21380B5AC5 /* SheetsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = D25BC6F5BDADC735072B49F8 /* SheetsClient.swift */; };
+		FE0CDF7FEC81BD73504F3500 /* DeveloperToolsDiagnosticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC241C86417778FD72BF2A6A /* DeveloperToolsDiagnosticsTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -128,10 +131,12 @@
 /* Begin PBXFileReference section */
 		02CBDEE06463224167F1FB18 /* UITestFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestFixture.swift; sourceTree = "<group>"; };
 		0499FE101F8EA75B5C6D2562 /* SettingsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStoreTests.swift; sourceTree = "<group>"; };
+		05971BB0A9FEBCA99597C7FE /* DeveloperToolsDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperToolsDiagnostics.swift; sourceTree = "<group>"; };
 		0618D41A9127F527B1A3DBBD /* SyncCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinatorTests.swift; sourceTree = "<group>"; };
 		0A7DE7A3ADF7567E4E60F24E /* SupersetState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupersetState.swift; sourceTree = "<group>"; };
 		0B3961CCCF9E1E80C9759016 /* WorkoutStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutStoreTests.swift; sourceTree = "<group>"; };
 		18C3B37DF33E327032E126B0 /* SheetParserLogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetParserLogTests.swift; sourceTree = "<group>"; };
+		1F622271C453C1C22E76B829 /* DeveloperToolsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperToolsView.swift; sourceTree = "<group>"; };
 		2024ACD32981CDD3B13CC16E /* SetLogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetLogTests.swift; sourceTree = "<group>"; };
 		20D53666552036BF79EEB41F /* SetLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetLog.swift; sourceTree = "<group>"; };
 		22EEE65D45B6DDC0D0563744 /* LoadSuggestionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadSuggestionEngine.swift; sourceTree = "<group>"; };
@@ -224,6 +229,7 @@
 		F8614CD78C778EBC3EEC9690 /* SheetPickerStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetPickerStoreTests.swift; sourceTree = "<group>"; };
 		FB0C7093B0FA64E072875DD6 /* OnboardingPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingPresentationTests.swift; sourceTree = "<group>"; };
 		FBC4B91909CBE1C1FA3A0E7E /* WorkoutFixtureScenarios.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutFixtureScenarios.swift; sourceTree = "<group>"; };
+		FC241C86417778FD72BF2A6A /* DeveloperToolsDiagnosticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperToolsDiagnosticsTests.swift; sourceTree = "<group>"; };
 		FCE536596991762BAEEF006D /* SmartValuePillsForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartValuePillsForm.swift; sourceTree = "<group>"; };
 		FD5A40419517EF83C31555BC /* ActiveSetFocusManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveSetFocusManager.swift; sourceTree = "<group>"; };
 		FF7F63038DE0B69F173CD7CD /* WorkoutScenarioTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutScenarioTests.swift; sourceTree = "<group>"; };
@@ -268,6 +274,7 @@
 			children = (
 				61BD44A847304CF1B26D982D /* ActiveSetCard.swift */,
 				94076860F23B16098C27E60D /* BlockOverviewView.swift */,
+				1F622271C453C1C22E76B829 /* DeveloperToolsView.swift */,
 				73043E31A40EFA8A57C38FAF /* EmptyStateView.swift */,
 				86387591F871B0FC0CA1FC82 /* ExerciseSection.swift */,
 				FFBE67C176F894614182855E /* ExerciseSummaryRow.swift */,
@@ -358,6 +365,7 @@
 		65450F3822585C816058505E /* Stores */ = {
 			isa = PBXGroup;
 			children = (
+				05971BB0A9FEBCA99597C7FE /* DeveloperToolsDiagnostics.swift */,
 				DCA6A8711A04E8180DF17F9B /* LastPerformedBackfillObserver.swift */,
 				4CCC3ED1AD659427B54B3596 /* LastPerformedLookupStore.swift */,
 				8815732F9CDEFACE5019CD05 /* PendingWriteFlushOrdering.swift */,
@@ -455,6 +463,7 @@
 			children = (
 				8D3E5BD7F617C986C835A7C1 /* ActiveSetPresentationTests.swift */,
 				61A043E3B096C5472C35B63F /* BlockOverviewPresentationTests.swift */,
+				FC241C86417778FD72BF2A6A /* DeveloperToolsDiagnosticsTests.swift */,
 				BD0ADA4AF2047FB6DE169C71 /* MoveOnCelebrationPresentationTests.swift */,
 				FB0C7093B0FA64E072875DD6 /* OnboardingPresentationTests.swift */,
 				63390CF33C9BDD5A5209795E /* SmartValuePillsFormTests.swift */,
@@ -593,6 +602,7 @@
 				0FCFEE8BE8B4EEBA73F6E728 /* BlockBuilderTests.swift in Sources */,
 				D230D54F4635D5F526C4836B /* BlockOverviewPresentationTests.swift in Sources */,
 				4F5E2344135FD235D3E09527 /* BlockTabSelectorTests.swift in Sources */,
+				FE0CDF7FEC81BD73504F3500 /* DeveloperToolsDiagnosticsTests.swift in Sources */,
 				D9FFF165728ADB37092CF550 /* GoogleAuthTests.swift in Sources */,
 				AA03C02A43503E1353EB3EB1 /* GoogleSheetsClientTests.swift in Sources */,
 				A51C3FCE73119E023435FBDE /* LastPerformedExtractorTests.swift in Sources */,
@@ -643,6 +653,8 @@
 				0A3A294C9B0DC72E6107B413 /* BlockOverviewPresentation.swift in Sources */,
 				6C0253C40A84915E81AE47AF /* BlockOverviewView.swift in Sources */,
 				0B4BF5AB6DD10A512C793BED /* BlockTabSelector.swift in Sources */,
+				3B53DB2E82EE26FFBE0983D2 /* DeveloperToolsDiagnostics.swift in Sources */,
+				E6298E9C10999070CD34B8C0 /* DeveloperToolsView.swift in Sources */,
 				A17B4D3CFBBB7A17E5B5D851 /* EmptyStateView.swift in Sources */,
 				F58786858363A7A52D822F21 /* Exercise.swift in Sources */,
 				04AE377A3BFD19D4F485AB00 /* ExerciseSection.swift in Sources */,

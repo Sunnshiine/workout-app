@@ -167,6 +167,62 @@ final class WorkoutTrackerUITests: XCTestCase {
     }
 
     @MainActor
+    func testDeveloperToolsShowsDiagnosticsAndPreviewOnlyCelebration() throws {
+        let app = launchFixtureApp(extraArguments: ["-UITEST_PENDING_WRITE"])
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+            .press(
+                forDuration: 0.1,
+                thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
+            )
+        app.buttons["session-controls-settings-button"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
+
+        let trainingSheetRow = app.buttons["settings-training-sheet-row"]
+        let developerToolsRow = app.buttons["settings-developer-tools-row"]
+        let signOutButton = app.buttons["settings-sign-out-button"]
+        XCTAssertTrue(trainingSheetRow.exists)
+        XCTAssertTrue(developerToolsRow.exists)
+        XCTAssertTrue(signOutButton.exists)
+        XCTAssertLessThan(trainingSheetRow.frame.maxY, developerToolsRow.frame.minY)
+        XCTAssertLessThan(developerToolsRow.frame.maxY, signOutButton.frame.minY)
+
+        developerToolsRow.tap()
+        XCTAssertTrue(app.navigationBars["Developer Tools"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Move On Celebration"].exists)
+        XCTAssertTrue(app.staticTexts["Pending Sheet Writes"].exists)
+        XCTAssertTrue(app.staticTexts["Back Squat"].exists)
+        XCTAssertTrue(app.staticTexts["Block 27"].exists)
+        XCTAssertTrue(app.staticTexts["Week 1"].exists)
+        XCTAssertTrue(app.staticTexts["Day 1"].exists)
+        XCTAssertTrue(app.staticTexts["Set 1"].exists)
+        XCTAssertTrue(app.staticTexts["Notes"].exists)
+        XCTAssertTrue(app.staticTexts["185x5@8"].exists)
+        XCTAssertTrue(app.staticTexts["Pending"].exists)
+        XCTAssertFalse(app.buttons["Discard"].exists)
+        XCTAssertFalse(app.buttons["Delete"].exists)
+        XCTAssertFalse(app.buttons["Reset Queue"].exists)
+
+        app.buttons["developer-tools-force-celebration-button"].tap()
+        let celebration = moveOnCelebration(in: app)
+        XCTAssertTrue(celebration.waitForExistence(timeout: 3))
+        waitForLabel("Week 1, Day 1 Done", on: celebration)
+        celebration.tap()
+        XCTAssertTrue(app.navigationBars["Developer Tools"].waitForExistence(timeout: 3))
+
+        app.buttons["developer-tools-sync-button"].tap()
+        XCTAssertTrue(app.staticTexts["Offline"].waitForExistence(timeout: 3))
+
+        app.navigationBars["Developer Tools"].buttons["Settings"].tap()
+        app.buttons["settings-done-button"].tap()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.staticTexts["Bench Press"].exists)
+    }
+
+    @MainActor
     func testOpenExerciseMakeupFlowShowsLastPerformedAndLogsSet() throws {
         let app = launchFixtureApp(extraArguments: ["-UITEST_OPEN_EXERCISES"])
 
