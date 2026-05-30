@@ -150,8 +150,9 @@ struct SheetWritePlanningIndex: Sendable {
         }
 
         let headerNotes = anchor.headerNotes(in: grid, notesColumn: day.columns.notes)
+        let compactHeaderSetOne = anchor.usesCompactHeaderSetOne(headerNotes: headerNotes)
         if request.column == .notes, request.setIndex == 0 {
-            if headerNotes.usesCompactHeaderSetOne, headerNotes.value == request.expectedCurrentValue {
+            if compactHeaderSetOne, headerNotes.value == request.expectedCurrentValue {
                 return (anchor.row, col)
             }
         }
@@ -159,7 +160,7 @@ struct SheetWritePlanningIndex: Sendable {
         guard
             let setRow = anchor.setLogRow(
                 for: request.setIndex,
-                compactHeaderSetOne: headerNotes.usesCompactHeaderSetOne
+                compactHeaderSetOne: compactHeaderSetOne
             )
         else {
             if request.column == .notes, headerNotes.hasProtectedValue {
