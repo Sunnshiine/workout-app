@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct DeveloperToolsView: View {
     @Environment(SettingsStore.self) private var settings
@@ -15,6 +16,7 @@ struct DeveloperToolsView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.cardSpacing) {
+                    currentSessionSection
                     celebrationSection
                     pendingWritesSection
                     syncSection
@@ -35,6 +37,73 @@ struct DeveloperToolsView: View {
             }
         }
         .animation(.easeInOut(duration: 0.18), value: previewSession?.persistentModelID)
+    }
+
+    private var currentSessionSection: some View {
+        let info = workout.currentSessionDebugInfo
+
+        return DeveloperToolsSection(title: "Current Session Debug Info") {
+            VStack(alignment: .leading, spacing: 10) {
+                CurrentSessionDebugRow(
+                    label: "Current Block Tab",
+                    value: info.currentBlockTab,
+                    valueIdentifier: "current-session-debug-block-value"
+                )
+                CurrentSessionDebugRow(
+                    label: "Sheet-derived Session",
+                    value: info.sheetDerivedSession,
+                    valueIdentifier: "current-session-debug-sheet-derived-value"
+                )
+                CurrentSessionDebugRow(
+                    label: "Manual Current Session Override",
+                    value: info.manualOverrideSession,
+                    valueIdentifier: "current-session-debug-manual-override-value"
+                )
+                CurrentSessionDebugRow(
+                    label: "Displayed Session",
+                    value: info.displayedSession,
+                    valueIdentifier: "current-session-debug-displayed-value"
+                )
+                CurrentSessionDebugRow(
+                    label: "Resolved Current Session",
+                    value: info.resolvedCurrentSession,
+                    valueIdentifier: "current-session-debug-resolved-value"
+                )
+                CurrentSessionDebugRow(
+                    label: "Reason",
+                    value: info.reason,
+                    valueIdentifier: "current-session-debug-reason-value"
+                )
+
+                if let localOnlyNote = info.localOnlyNote {
+                    Text(localOnlyNote)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.accent)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("current-session-debug-local-only-note")
+                }
+            }
+            .textSelection(.enabled)
+
+            Button {
+                UIPasteboard.general.string = info.copyText
+            } label: {
+                Label("Copy Current Session Debug Info", systemImage: "doc.on.doc")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.glass)
+            .accessibilityIdentifier("copy-current-session-debug-info-button")
+
+            Button(role: .destructive) {
+                workout.resetCurrentSessionOverride()
+            } label: {
+                Label("Reset Current Session Override", systemImage: "arrow.counterclockwise")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.glass)
+            .disabled(!workout.hasCurrentSessionOverride)
+            .accessibilityIdentifier("reset-current-session-override-button")
+        }
     }
 
     private var celebrationSection: some View {
@@ -114,6 +183,27 @@ struct DeveloperToolsView: View {
     }
 }
 
+private struct CurrentSessionDebugRow: View {
+    let label: String
+    let value: String
+    let valueIdentifier: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Text(value)
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier(valueIdentifier)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 private struct DeveloperToolsSection<Content: View>: View {
     let title: String
     @ViewBuilder let content: Content
@@ -178,7 +268,8 @@ private struct PendingWriteDiagnosticRow: View {
     }
 
     private var accessibilityLabel: String {
-        let baseLabel = "\(diagnostic.block), \(diagnostic.week), \(diagnostic.day), \(diagnostic.exercise), "
+        let baseLabel =
+            "\(diagnostic.block), \(diagnostic.week), \(diagnostic.day), \(diagnostic.exercise), "
             + "\(diagnostic.set), \(diagnostic.column), \(diagnostic.value), \(diagnostic.status)"
         guard let error = diagnostic.error else { return baseLabel }
         return "\(baseLabel), \(error)"
