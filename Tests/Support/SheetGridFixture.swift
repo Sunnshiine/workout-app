@@ -27,3 +27,20 @@ func coachNoteLayoutGrid() -> SheetGrid {
         cols: 30
     )
 }
+
+/// Day 1/2 week with a two-set Incline DB Bench Press whose header Notes cell
+/// holds a protected AMRAP Coach Note. Set Logs must land on continuation rows,
+/// and Last Set RPE must land on the exercise anchor row.
+func coachNoteBenchPressRoundTripGrid() -> SheetGrid {
+    gridFromA1(
+        [
+            "C37": "Day 1", "S37": "Day 2",
+            "D39": "Sets", "F39": "Reps", "H39": "Load", "I39": "Last set RPE", "K39": "Notes",
+            "C51": "2-3:1:0 Incline DB BP", "D51": "2", "F51": "7 - 8", "H51": "RPE8, RF",
+            "K51": "AMRAP w/ 0:3:0 BW Push Up",
+            "C55": "0:2:0 Hamstring Curl", "D55": "2"
+        ],
+        rows: 60,
+        cols: 30
+    )
+}
