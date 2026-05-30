@@ -4,6 +4,7 @@ enum SessionTileState: Equatable, Sendable, CaseIterable {
     case complete
     case current
     case incomplete
+    case unavailable
 
     var accessibilityValue: String {
         switch self {
@@ -13,6 +14,8 @@ enum SessionTileState: Equatable, Sendable, CaseIterable {
             "Current"
         case .incomplete:
             "Incomplete"
+        case .unavailable:
+            "Not uploaded"
         }
     }
 }
@@ -26,8 +29,15 @@ struct SessionProgressTracker {
     }
 
     func nextSession(after session: Session, in block: Block) -> Session? {
-        let nextOrder = order(of: session) + 1
-        return self.session(at: nextOrder, in: block)
+        let currentOrder = order(of: session)
+        return allSessions(block).first {
+            order(of: $0) > currentOrder && isAvailable($0)
+        }
+    }
+
+    func hasSessionAhead(after session: Session, in block: Block) -> Bool {
+        let currentOrder = order(of: session)
+        return allSessions(block).contains { order(of: $0) > currentOrder }
     }
 
     private func allSessions(_ block: Block) -> [Session] {
@@ -39,9 +49,9 @@ struct SessionProgressTracker {
         let logged = sessions.filter { s in
             s.exercises.contains { $0.sets.contains { $0.state == .logged } }
         }
-        guard let derived = logged.last ?? sessions.first else { return nil }
+        guard let derived = logged.last ?? sessions.first(where: isAvailable) else { return nil }
 
-        if let overrideOrder, let overrideSession = session(at: overrideOrder, in: block) {
+        if let overrideOrder, let overrideSession = session(at: overrideOrder, in: block), isAvailable(overrideSession) {
             return overrideSession
         }
 
@@ -70,6 +80,10 @@ struct SessionProgressTracker {
     }
 
     func tileState(for session: Session, currentSession: Session?) -> SessionTileState {
+        if !isAvailable(session) {
+            return .unavailable
+        }
+
         let sets = session.exercises.flatMap(\.sets)
         if !sets.isEmpty, sets.allSatisfy({ $0.state == .logged || $0.state == .skipped }) {
             return .complete
@@ -81,4 +95,6 @@ struct SessionProgressTracker {
 
         return .incomplete
     }
+
+    func isAvailable(_ session: Session) -> Bool { !session.exercises.isEmpty }
 }

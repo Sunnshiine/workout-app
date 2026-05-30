@@ -8,12 +8,17 @@ enum WorkoutLoggingError: Error, Equatable {
     case missingBlock
 }
 
+struct BlockOverviewNavigationRequest: Equatable, Identifiable {
+    let id = UUID()
+}
+
 @MainActor
 @Observable
 final class WorkoutStore {
     private(set) var block: Block?
     private(set) var displayedSession: Session?
     private(set) var moveOnCelebrationSession: Session?
+    private(set) var pendingBlockOverviewRequest: BlockOverviewNavigationRequest?
     private var shouldPreserveDisplayedSessionOnReload = false
     private var currentSessionOverrideRevision = 0
 
@@ -39,7 +44,7 @@ final class WorkoutStore {
 
     var canMoveOn: Bool {
         guard let block, let currentSession else { return false }
-        return tracker.nextSession(after: currentSession, in: block) != nil
+        return tracker.hasSessionAhead(after: currentSession, in: block)
     }
 
     var isViewingLiveEdge: Bool { displayedSession?.persistentModelID == currentSession?.persistentModelID }
@@ -138,11 +143,15 @@ final class WorkoutStore {
         shouldPreserveDisplayedSessionOnReload = false
     }
 
+    func requestBlockOverviewPresentation() { pendingBlockOverviewRequest = BlockOverviewNavigationRequest() }
+
+    func clearBlockOverviewRequest() { pendingBlockOverviewRequest = nil }
+
     func requestMoveOnCelebration() {
         guard
             let block,
             let currentSession,
-            tracker.nextSession(after: currentSession, in: block) != nil
+            tracker.hasSessionAhead(after: currentSession, in: block)
         else { return }
 
         moveOnCelebrationSession = currentSession
@@ -162,10 +171,14 @@ final class WorkoutStore {
     }
 
     private func advance(after session: Session) {
-        guard
-            let block,
-            let nextSession = tracker.nextSession(after: session, in: block)
-        else { return }
+        guard let block else { return }
+
+        guard tracker.hasSessionAhead(after: session, in: block) else { return }
+
+        guard let nextSession = tracker.nextSession(after: session, in: block) else {
+            requestBlockOverviewPresentation()
+            return
+        }
 
         defaults.set(tracker.order(of: nextSession), forKey: currentSessionOverrideKey(for: block.tabName))
         currentSessionOverrideRevision += 1
