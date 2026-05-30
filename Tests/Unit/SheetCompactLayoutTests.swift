@@ -28,6 +28,26 @@ import Testing
     #expect(setTwoUpdate.range == "'Block 27'!E19")
 }
 
+@Test func parserAndWriterAgreeOnCompactHeaderAggregateSetLogs() throws {
+    let grid = compactLayoutGrid(
+        headerNotes: "BWx12@7, BWx10@8",
+        continuationNotes: ""
+    )
+
+    let exercise = try compactParsedExercise(from: grid)
+    #expect(exercise.coachNote == nil)
+    #expect(exercise.legacyLog == nil)
+    #expect(exercise.sets.map { $0.setLog?.formatted } == ["BWx12@7", "BWx10@8"])
+
+    let update = try SheetWritePlanner().plan(
+        compactWriteRequest(setIndex: 1, valueToWrite: "BWx11@8", expectedCurrentValue: "BWx10@8"),
+        in: grid
+    )
+
+    #expect(update.range == "'Block 27'!E18")
+    #expect(update.value == "BWx12@7, BWx11@8")
+}
+
 @Test func parserAndWriterAgreeOnCompactHeaderSkipMarker() throws {
     let grid = compactLayoutGrid(
         headerNotes: "skip",
