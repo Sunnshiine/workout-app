@@ -96,6 +96,7 @@ enum Theme {
 
     static let cardCornerRadius: CGFloat = 16
     static let cardSpacing: CGFloat = 16
+    static let supersetRestingSpacing: CGFloat = 24
     static let rowCornerRadius: CGFloat = 8
     static let sessionTileCornerRadius: CGFloat = 8
     static let sessionTileMinHeight: CGFloat = 86
