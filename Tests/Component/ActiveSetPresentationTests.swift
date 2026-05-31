@@ -27,6 +27,7 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     #expect(presentation.logOpacity == 1)
     #expect(presentation.skipOpacity == 0)
     #expect(presentation.accessibilityLabel == "Log 185×5@8")
+    #expect(presentation.tone == .primary)
 }
 
 @Test func holdToSkipPolicyCancelsSkipOnEarlyHoldRelease() {
@@ -70,12 +71,13 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 }
 
 @Test func holdToSkipButtonPresentationKeepsIncompleteLogIdleStateClean() {
-    let presentation = HoldToSkipButtonPresentation(progress: 0, logTitle: "Log", canLog: false)
+    let presentation = HoldToSkipButtonPresentation(progress: 0, logTitle: "Choose RPE to log", canLog: false)
 
     #expect(presentation.controlOpacity == 1)
     #expect(!presentation.showsSkipAffordance)
     #expect(presentation.skipOpacity == 0)
-    #expect(presentation.accessibilityHint == "Double tap to validate the Set Log. Press and hold to skip.")
+    #expect(presentation.tone == .incomplete)
+    #expect(presentation.accessibilityHint == "Double tap to show what is missing. Press and hold to skip this Set.")
 }
 
 @Test func holdToSkipButtonPresentationShowsSkippedFeedbackOnlyDuringHoldProgress() {

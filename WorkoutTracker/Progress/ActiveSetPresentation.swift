@@ -48,6 +48,11 @@ struct HoldToSkipPolicy: Equatable, Sendable {
     }
 }
 
+enum HoldToSkipButtonTone: Equatable, Sendable {
+    case primary
+    case incomplete
+}
+
 struct HoldToSkipButtonPresentation: Equatable, Sendable {
     let progress: Double
     let logTitle: String
@@ -75,7 +80,11 @@ struct HoldToSkipButtonPresentation: Equatable, Sendable {
         if canLog {
             return "Double tap to log. Press and hold to skip."
         }
-        return "Double tap to validate the Set Log. Press and hold to skip."
+        return "Double tap to show what is missing. Press and hold to skip this Set."
+    }
+
+    var tone: HoldToSkipButtonTone {
+        canLog ? .primary : .incomplete
     }
 
     var controlOpacity: Double {
