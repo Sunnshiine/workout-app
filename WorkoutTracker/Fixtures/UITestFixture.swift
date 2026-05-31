@@ -20,6 +20,10 @@
             ProcessInfo.processInfo.arguments.contains("-UITEST_OPEN_EXERCISES")
         }
 
+        static var startsWithLongSession: Bool {
+            ProcessInfo.processInfo.arguments.contains("-UITEST_LONG_SESSION")
+        }
+
         static var startsInDeveloperTools: Bool {
             ProcessInfo.processInfo.arguments.contains("-UITEST_DEVELOPER_TOOLS")
         }
@@ -73,9 +77,11 @@
             let block =
                 startsWithOpenExercises
                 ? WorkoutFixtureScenarios.openExercisesBlock()
-                : startsWithFullBlock
-                    ? WorkoutFixtureScenarios.uiLaunchBlock()
-                    : WorkoutFixtureScenarios.partiallyUploadedBlock()
+                : startsWithLongSession
+                    ? WorkoutFixtureScenarios.longSessionBlock()
+                    : startsWithFullBlock
+                        ? WorkoutFixtureScenarios.uiLaunchBlock()
+                        : WorkoutFixtureScenarios.partiallyUploadedBlock()
             context.insert(block)
             context.insert(WorkoutFixtureScenarios.lastPerformedBackSquat())
             if startsWithPendingWrite {

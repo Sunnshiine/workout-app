@@ -17,6 +17,7 @@
 # Usage:
 #   ralph/ralph.sh [--engine claude|codex] [--max-iterations N] [--no-push] [--select-only]
 #                  [--model NAME] [--device "iPhone 17 Pro"] [--codex-sandbox]
+#                  [--implement-timeout-seconds N]
 #
 # WARNING: with defaults this PUSHES to origin/main and CLOSES issues unattended.
 #          Pass --no-push to keep commits local (issues are still closed on the remote).
@@ -33,6 +34,7 @@ CODEX_BYPASS="${CODEX_BYPASS:-1}"
 LABEL="${LABEL:-ready-for-agent}"
 HUMAN_LABEL="${HUMAN_LABEL:-ready-for-human}"
 SIM_DEVICE="${SIM_DEVICE:-iPhone 17 Pro}"
+IMPLEMENT_TIMEOUT_SECONDS="${IMPLEMENT_TIMEOUT_SECONDS:-2700}"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -43,6 +45,7 @@ while [ $# -gt 0 ]; do
     --model) MODEL="$2"; shift 2;;
     --device) SIM_DEVICE="$2"; shift 2;;
     --codex-sandbox) CODEX_BYPASS=0; shift;;
+    --implement-timeout-seconds) IMPLEMENT_TIMEOUT_SECONDS="$2"; shift 2;;
     -h|--help) sed -n '2,28p' "$0"; exit 0;;
     *) echo "Unknown arg: $1" >&2; exit 2;;
   esac
@@ -63,6 +66,42 @@ export SIM_DEVICE
 ts()   { date "+%Y-%m-%d %H:%M:%S"; }
 log()  { echo "[$(ts)] $*"; }
 note() { printf -- "- **%s** — %s\n" "$(ts)" "$*" >> "$ACTIVITY"; }
+
+secrets_xcconfig_source() {
+  local source
+  if [ -n "${SECRETS_XCCONFIG_SOURCE:-}" ]; then
+    if [ -f "$SECRETS_XCCONFIG_SOURCE" ]; then
+      printf '%s\n' "$SECRETS_XCCONFIG_SOURCE"
+      return 0
+    fi
+    return 2
+  fi
+
+  for source in "$REPO_ROOT/Secrets.xcconfig" "/path/to/workout-app/Secrets.xcconfig"; do
+    if [ -n "$source" ] && [ -f "$source" ]; then
+      printf '%s\n' "$source"
+      return 0
+    fi
+  done
+  return 1
+}
+
+copy_secrets_xcconfig() {
+  local destination="$1" source
+  source="$(secrets_xcconfig_source)"
+  case "$?" in
+    0) ;;
+    1) return 0 ;;
+    *)
+      log "SECRETS_XCCONFIG_SOURCE is set but does not point to a file: $SECRETS_XCCONFIG_SOURCE"
+      return 1
+      ;;
+  esac
+  if ! cp "$source" "$destination/Secrets.xcconfig"; then
+    log "failed to copy Secrets.xcconfig from $source to $destination"
+    return 1
+  fi
+}
 
 # ---- engine abstraction --------------------------------------------------
 # run_agent <prompt-text> <workdir> [image]  ->  prints the agent's final message to stdout
@@ -92,6 +131,33 @@ run_agent() {
     ( cd "$workdir" && claude -p "$prompt" \
         --permission-mode bypassPermissions --model "$m" --add-dir "$REPO_ROOT" 2>/dev/null ) || true
   fi
+}
+
+run_agent_to_file_with_timeout() {
+  local prompt="$1" workdir="$2" timeout_seconds="$3" outfile="$4"
+  local pid started_at elapsed status
+
+  ( run_agent "$prompt" "$workdir" > "$outfile" ) &
+  pid=$!
+  started_at="$(date +%s)"
+
+  while kill -0 "$pid" >/dev/null 2>&1; do
+    elapsed=$(( $(date +%s) - started_at ))
+    if [ "$elapsed" -ge "$timeout_seconds" ]; then
+      pkill -TERM -P "$pid" >/dev/null 2>&1 || true
+      kill -TERM "$pid" >/dev/null 2>&1 || true
+      sleep 2
+      pkill -KILL -P "$pid" >/dev/null 2>&1 || true
+      kill -KILL "$pid" >/dev/null 2>&1 || true
+      wait "$pid" >/dev/null 2>&1 || true
+      return 124
+    fi
+    sleep 10
+  done
+
+  wait "$pid"
+  status=$?
+  return "$status"
 }
 
 flag_for_human() {
@@ -261,6 +327,12 @@ $(cat "$PROMPTS/select.md")"
   if ! git -C "$REPO_ROOT" worktree add -b "$branch" "$wt" main >/dev/null 2>&1; then
     flag_for_human "$issue" "Could not create the worktree/branch."; continue
   fi
+  if ! copy_secrets_xcconfig "$wt"; then
+    git -C "$REPO_ROOT" worktree remove --force "$wt" >/dev/null 2>&1 || true
+    git -C "$REPO_ROOT" branch -D "$branch" >/dev/null 2>&1 || true
+    git -C "$REPO_ROOT" worktree prune >/dev/null 2>&1 || true
+    flag_for_human "$issue" "Could not copy Secrets.xcconfig into the issue worktree."; continue
+  fi
   issue_base="$(git -C "$wt" rev-parse HEAD)"
 
   # 3+4. IMPLEMENT (TDD) inside the worktree
@@ -273,8 +345,16 @@ UI_REVIEW_PATH (relative to the worktree root): ralph/.artifacts/issue-$issue-ui
 OBSERVATIONS_LOG_PATH (absolute; the persistent main-repo log to tail for recurrence, read-only): $OBS
 
 $(cat "$PROMPTS/implement.md")"
-  impl_out="$(run_agent "$impl_prompt" "$wt")"
-  echo "$impl_out" > "$LOGS/iter-$iter-issue-$issue-implement.log"
+  impl_log="$LOGS/iter-$iter-issue-$issue-implement.log"
+  note "issue #$issue implement started — timeout ${IMPLEMENT_TIMEOUT_SECONDS}s"
+  run_agent_to_file_with_timeout "$impl_prompt" "$wt" "$IMPLEMENT_TIMEOUT_SECONDS" "$impl_log"
+  impl_status=$?
+  impl_out="$(cat "$impl_log" 2>/dev/null || true)"
+  if [ "$impl_status" -eq 124 ]; then
+    harvest_observations "$iter" "$issue" "BLOCKED" "$impl_out"
+    flag_for_human "$issue" "IMPLEMENT timed out after ${IMPLEMENT_TIMEOUT_SECONDS}s without reporting completion."
+    continue
+  fi
 
   if printf '%s' "$impl_out" | grep -q '<promise>COMPLETE</promise>'; then
     harvest_observations "$iter" "$issue" "COMPLETE" "$impl_out"
@@ -296,6 +376,10 @@ $(cat "$PROMPTS/implement.md")"
   cleanup_integration_worktree "$integration_wt" "$integration_branch"
   if ! git -C "$REPO_ROOT" worktree add -b "$integration_branch" "$integration_wt" main >/dev/null 2>&1; then
     flag_for_human "$issue" "Could not create the integration worktree/branch."; continue
+  fi
+  if ! copy_secrets_xcconfig "$integration_wt"; then
+    cleanup_integration_worktree "$integration_wt" "$integration_branch"
+    flag_for_human "$issue" "Could not copy Secrets.xcconfig into the integration worktree." gate; continue
   fi
 
   log "merging #$issue into integration worktree"

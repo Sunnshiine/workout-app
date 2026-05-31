@@ -8,7 +8,7 @@
 # wall. The fixture (-UITEST_FIXTURE) boots straight into a populated session in-memory.
 #
 # Usage:   ralph/snapshot.sh [output.png]
-# Env:     SIM_DEVICE (default "iPhone 17 Pro"), SCHEME, BUNDLE_ID
+# Env:     SIM_DEVICE (default "iPhone 17 Pro"), SCHEME, BUNDLE_ID, UITEST_ARGS
 #
 set -euo pipefail
 
@@ -41,10 +41,13 @@ APP="$(find "$DD/Build/Products" -name "$SCHEME.app" -path '*Debug-iphonesimulat
 echo "==> Booting '$SIM_DEVICE' (waits until ready)"
 xcrun simctl bootstatus "$SIM_DEVICE" -b >/dev/null 2>&1 || xcrun simctl boot "$SIM_DEVICE" || true
 
-echo "==> Installing + launching with -UITEST_FIXTURE"
+read -r -a route_args <<< "${UITEST_ARGS:--UITEST_SESSION}"
+launch_args=(-UITEST_FIXTURE "${route_args[@]}")
+
+echo "==> Installing + launching with ${launch_args[*]}"
 xcrun simctl uninstall "$SIM_DEVICE" "$BUNDLE_ID" 2>/dev/null || true
 xcrun simctl install "$SIM_DEVICE" "$APP"
-xcrun simctl launch "$SIM_DEVICE" "$BUNDLE_ID" -UITEST_FIXTURE >/dev/null
+xcrun simctl launch "$SIM_DEVICE" "$BUNDLE_ID" "${launch_args[@]}" >/dev/null
 
 # Let SwiftUI render the seeded session before capturing.
 sleep 4

@@ -30,11 +30,17 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 ```
 
-- The `WorkoutTracker` scheme launches with `-UITEST_FIXTURE true` — it runs
-  against deterministic local fixtures, **not** the live Google Sheet. To run
-  against live data, use the `Copy of WorkoutTracker` scheme (`-UITEST_FIXTURE false`).
+- The `WorkoutTracker` scheme launches with `-UITEST_FIXTURE true` and
+  `-UITEST_SESSION true` — it runs against deterministic local fixtures, **not**
+  the live Google Sheet. Ralph's `snapshot.sh` defaults to the seeded
+  SessionView; set `UITEST_ARGS` for other fixture routes. To run against live
+  data, use the `Copy of WorkoutTracker` scheme (`-UITEST_FIXTURE false`).
 - Prefer XcodeBuildMCP for build/run/test on the simulator. If using XcodeBuildMCP,
   use the installed XcodeBuildMCP skill before calling XcodeBuildMCP tools.
+- If XcodeBuildMCP accessibility snapshots return an empty AXApplication, reboot
+  the simulator before diagnosing app code.
+- For target-specific UI gates, prefer raw `xcodebuild ... -only-testing:WorkoutTrackerUITests`
+  or verify the output actually ran `WorkoutTrackerUITests`.
 
 ## Linting & Formatting
 
@@ -44,7 +50,7 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
 
 ## Git Worktrees
 
-When running `xcodebuild test` from a git worktree, copy `Secrets.xcconfig` from the project root first — it is git-ignored so worktrees don't get it automatically, and xcodebuild fails with a build error rather than a clear diagnostic:
+When running `xcodebuild test` from a git worktree, copy `Secrets.xcconfig` from the project root first — it is git-ignored so worktrees don't get it automatically, and xcodebuild fails with a build error rather than a clear diagnostic. Ralph copies it automatically for issue and integration worktrees when a source file exists:
 
 ```bash
 cp /path/to/workout-app/Secrets.xcconfig ./Secrets.xcconfig
@@ -86,4 +92,4 @@ Use the default five-label triage vocabulary. See `docs/agents/triage-labels.md`
 
 ### Domain docs
 
-This is a single-context repo: read root `CONTEXT.md` and root `docs/adr/`. See `docs/agents/domain.md`.
+This is a single-context repo: read root `CONTEXT.md` for domain language and root `docs/adr/` for decisions. For product or UI work, also read `PRODUCT.md` and `DESIGN.md`. See `docs/agents/domain.md`.

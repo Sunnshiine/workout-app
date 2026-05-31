@@ -22,6 +22,9 @@ context** so the work never accumulates context bloat.
 - **`gh`** authenticated against this repo (`gh auth status`). Used to list/close issues and post comments.
 - **`xcodegen`** (`brew install xcodegen`) — new Swift files must be added to the project before `xcodebuild` sees them.
 - **Xcode 26+** and the **iPhone 17 Pro** simulator runtime (see `../docs/TESTING.md`).
+- **`Secrets.xcconfig`** for Xcode gates in worktrees. Ralph copies it automatically
+  from `SECRETS_XCCONFIG_SOURCE`, repo root, or `/path/to/workout-app`
+  when a source exists.
 - Run from anywhere inside the repo; the script locates the repo root itself.
 
 ---
@@ -142,7 +145,8 @@ the app supports a `-UITEST_FIXTURE` launch argument (DEBUG only) that boots str
 populated `SessionView` using in-memory seeded data and a faked sign-in. No network, no auth, no
 real data touched.
 
-`snapshot.sh` uses it to produce a verification screenshot:
+`snapshot.sh` launches with `-UITEST_FIXTURE -UITEST_SESSION` by default to produce
+a seeded SessionView verification screenshot:
 
 ```bash
 # Screenshot the current working tree:
@@ -150,6 +154,9 @@ ralph/snapshot.sh                       # writes ralph/.artifacts/screenshot.png
 
 # Screenshot a specific checkout/worktree, to a chosen path:
 PROJECT_DIR=/path/to/worktree ralph/snapshot.sh /tmp/out.png
+
+# Screenshot a different fixture route:
+UITEST_ARGS="-UITEST_DEVELOPER_TOOLS" ralph/snapshot.sh /tmp/tools.png
 ```
 
 The UI screenshot review only judges what a **static image** can show (layout, missing/clipped

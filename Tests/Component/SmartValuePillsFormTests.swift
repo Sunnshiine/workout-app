@@ -146,16 +146,28 @@ import Testing
         previousSetWeight: nil,
         trainingMax: nil
     )
+    form.weightText = "185"
 
-    #expect(form.logButtonTitle == "Log")
+    #expect(form.logButtonTitle == "Choose RPE to log")
     #expect(!form.canLog)
 
-    form.weightText = "185"
     form.rpeText = "7"
 
     #expect(form.logButtonTitle == "Log 185×8@7")
     #expect(form.canLog)
     #expect(form.makeLog() == SetLog(weight: .pounds(185), reps: 8, rpe: 7))
+}
+
+@MainActor
+@Test func logButtonTitleUsesGenericIncompletePromptWhenMultipleFieldsAreMissing() {
+    let form = SmartValuePillsForm(
+        set: ExerciseSet(index: 0, prescribedReps: "AMRAP", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
+        previousSetWeight: nil,
+        trainingMax: nil
+    )
+
+    #expect(form.logButtonTitle == "Complete Set Log")
+    #expect(!form.canLog)
 }
 
 @MainActor
