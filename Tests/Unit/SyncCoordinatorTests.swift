@@ -152,8 +152,7 @@ private final class BackfillCompletionProbe: LastPerformedBackfillObserving {
             "C13": "5/1/2026",
             "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
             "C15": "Squat", "D15": "2", "F15": "5", "H15": "RPE8",
-            "K15": "185x5@8",
-            "K16": "195x5@9"
+            "K15": "185x5@8, 195x5@9"
         ],
         rows: 20,
         cols: 60
