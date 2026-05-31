@@ -327,10 +327,21 @@ final class SessionCoordinator {
     }
 
     @discardableResult
-    func focusNextSupersetSet(for exercise: Exercise, in session: Session) -> Bool {
-        let focused = focusManager.focusNextSupersetSet(for: exercise, in: session)
-        syncFocusState()
-        invalidateRenderItems()
+    func focusNextSupersetSet(
+        for exercise: Exercise,
+        in session: Session,
+        animateFocus: SessionFocusAnimation? = nil
+    ) -> Bool {
+        guard supersetFocusTargetID(for: exercise, in: session) != nil else {
+            return false
+        }
+
+        var focused = false
+        performFocusUpdate(animateFocus) {
+            focused = focusManager.focusNextSupersetSet(for: exercise, in: session)
+            syncFocusState()
+            invalidateRenderItems()
+        }
         return focused
     }
 
@@ -371,6 +382,21 @@ final class SessionCoordinator {
         } else {
             update()
         }
+    }
+
+    private func supersetFocusTargetID(for exercise: Exercise, in session: Session) -> ActiveSetID? {
+        let isInSuperset = focusManager.supersetSections(in: session).contains { section in
+            section.exercises.contains { $0 === exercise }
+        }
+        guard isInSuperset else { return nil }
+
+        let targetID = exercise.sets
+            .filter { $0.state == .pending }
+            .sorted { $0.index < $1.index }
+            .first
+            .flatMap(Self.activeSetID(for:))
+        guard targetID != activeSetID else { return nil }
+        return targetID
     }
 
     private func actionSession(for set: ExerciseSet) throws -> Session {

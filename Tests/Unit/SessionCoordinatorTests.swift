@@ -500,6 +500,46 @@ private func makeActionFixture() throws -> CoordinatorActionFixture {
 }
 
 @MainActor
+@Test func coordinatorSupersetSideSwitchUsesInjectedFocusAnimationWithoutTransition() throws {
+    let session = makePlannedPairingSession()
+    let coordinator = SessionCoordinator(session: session)
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+    var animationCallCount = 0
+    let animation: SessionFocusAnimation = { update in
+        animationCallCount += 1
+        update()
+    }
+
+    #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
+    #expect(coordinator.focusNextSupersetSet(for: bench, in: session, animateFocus: animation))
+
+    let expectedSetID = ActiveSetID(exerciseOrder: 2, setIndex: 0)
+    #expect(animationCallCount == 1)
+    #expect(coordinator.activeSetID == expectedSetID)
+    #expect(coordinator.scrollTargetID == expectedSetID)
+    #expect(coordinator.activeSetTransition == nil)
+}
+
+@MainActor
+@Test func coordinatorFailedSupersetSideSwitchDoesNotUseInjectedFocusAnimation() throws {
+    let session = makePlannedPairingSession()
+    let coordinator = SessionCoordinator(session: session)
+    let press = try #require(session.exercises.first { $0.order == 0 })
+    var animationCallCount = 0
+    let animation: SessionFocusAnimation = { update in
+        animationCallCount += 1
+        update()
+    }
+
+    #expect(!coordinator.focusNextSupersetSet(for: press, in: session, animateFocus: animation))
+
+    #expect(animationCallCount == 0)
+    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+    #expect(coordinator.scrollTargetID == nil)
+}
+
+@MainActor
 @Test func coordinatorPreservesCurrentSessionFlowThroughRenderItems() throws {
     let session = makeIntegratedCoordinatorSession()
     let logging = SpySessionLoggingAdapter()

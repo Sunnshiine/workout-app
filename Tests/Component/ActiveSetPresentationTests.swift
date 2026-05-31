@@ -162,6 +162,54 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     #expect(!presentation.allowsEditing)
 }
 
+@Test func focusMorphPolicyAnimatesPendingFocusWhenMotionIsAllowed() {
+    let policy = SessionFocusMorphPolicy(reduceMotion: false)
+
+    #expect(policy.shouldAnimate(.pendingFocus))
+}
+
+@Test func focusMorphPolicyDisablesPendingFocusWhenReduceMotionIsEnabled() {
+    let policy = SessionFocusMorphPolicy(reduceMotion: true)
+
+    #expect(!policy.shouldAnimate(.pendingFocus))
+}
+
+@Test func focusMorphPolicyAnimatesLoggedReviewOpenWhenMotionIsAllowed() {
+    let policy = SessionFocusMorphPolicy(reduceMotion: false)
+
+    #expect(policy.shouldAnimate(.loggedReviewOpen))
+}
+
+@Test func focusMorphPolicyDoesNotAnimateLoggedReviewCollapse() {
+    let policy = SessionFocusMorphPolicy(reduceMotion: false)
+
+    #expect(!policy.shouldAnimate(.loggedReviewCollapse))
+}
+
+@Test func focusMorphPolicyDisablesLoggedReviewOpenWhenReduceMotionIsEnabled() {
+    let policy = SessionFocusMorphPolicy(reduceMotion: true)
+
+    #expect(!policy.shouldAnimate(.loggedReviewOpen))
+}
+
+@Test func focusMorphPolicyAnimatesSuccessfulSupersetSwitchWhenMotionIsAllowed() {
+    let policy = SessionFocusMorphPolicy(reduceMotion: false)
+
+    #expect(policy.shouldAnimate(.supersetSwitchSucceeded))
+}
+
+@Test func focusMorphPolicyDoesNotAnimateFailedSupersetSwitch() {
+    let policy = SessionFocusMorphPolicy(reduceMotion: false)
+
+    #expect(!policy.shouldAnimate(.supersetSwitchFailed))
+}
+
+@Test func focusMorphPolicyDisablesSupersetSwitchWhenReduceMotionIsEnabled() {
+    let policy = SessionFocusMorphPolicy(reduceMotion: true)
+
+    #expect(!policy.shouldAnimate(.supersetSwitchSucceeded))
+}
+
 @MainActor
 @Test func sessionProgressHeaderPresentationShowsCompactLocationAndRemainingCount() {
     let block = Block(tabName: "Block 27", squatTM: nil, benchTM: nil, deadliftTM: nil)
@@ -220,6 +268,30 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     let presentation = SessionProgressHeaderPresentation(
         session: session,
         activeSetID: ActiveSetID(exerciseOrder: 0, setIndex: 1)
+    )
+
+    #expect(presentation.segments.map(\.state) == [.futurePending, .currentPending])
+}
+
+@MainActor
+@Test func sessionProgressHeaderPresentationMovesCurrentSegmentAfterSupersetSideSwitch() throws {
+    let session = Session(dayNumber: 1, date: nil)
+    let squat = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil, order: 0)
+    squat.sets = [
+        ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
+    ]
+    let bench = Exercise(name: "Bench", baseName: "Bench", cadence: nil, coachNote: nil, order: 1)
+    bench.sets = [
+        ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
+    ]
+    session.exercises = [squat, bench]
+    let coordinator = SessionCoordinator(session: session)
+
+    #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
+    #expect(coordinator.focusNextSupersetSet(for: bench, in: session))
+    let presentation = SessionProgressHeaderPresentation(
+        session: session,
+        activeSetID: coordinator.activeSetID
     )
 
     #expect(presentation.segments.map(\.state) == [.futurePending, .currentPending])
