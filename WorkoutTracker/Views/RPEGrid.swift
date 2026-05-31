@@ -2,135 +2,127 @@ import SwiftUI
 
 struct RPEGrid: View {
     private enum Layout {
-        static let halfStepBubbleOffset: CGFloat = -34
-        static let highlightedHalfStepScale = 1.08
-        static let longPressDuration = 0.35
-        static let bubbleAnimationDuration = 0.12
+        static let halfStepSelectorHeight: CGFloat = 44
+        static let horizontalPadding: CGFloat = 4
+        static let rowSpacing: CGFloat = 2
+        static let separatorHeight: CGFloat = 1
+
+        static var wholeStepHeight: CGFloat {
+            Theme.rpeGridCellHeight - 4
+        }
+
+        static var totalHeight: CGFloat {
+            wholeStepHeight + separatorHeight + rowSpacing * 2 + halfStepSelectorHeight
+        }
     }
 
     let presentation: RPEGridPresentation
     @Binding var selection: String
     @Binding var isPresented: Bool
-    @State private var revealedHalfStepValue: Int?
-    @State private var activeDragHeight = 0.0
 
     var body: some View {
-        VStack(spacing: Theme.rpeGridSpacing) {
-            ForEach(presentation.rows.indices, id: \.self) { rowIndex in
-                rowView(presentation.rows[rowIndex])
-            }
-        }
+        scaleContent
+            .frame(height: Layout.totalHeight)
     }
 
-    private func rowView(_ row: [RPEGridValue]) -> some View {
-        HStack(spacing: Theme.rpeGridSpacing) {
-            ForEach(row) { value in
-                cellControl(for: value)
+    private var scaleContent: some View {
+        VStack(spacing: Layout.rowSpacing) {
+            HStack(spacing: 0) {
+                ForEach(values) { value in
+                    wholeStepLabel(for: value)
+                }
             }
+            .frame(height: Layout.wholeStepHeight)
+            .clipped()
+
+            Rectangle()
+                .fill(Theme.pillStroke.opacity(0.32))
+                .frame(height: Layout.separatorHeight)
+
+            HStack(spacing: 0) {
+                ForEach(values) { value in
+                    halfStepSlot(for: value)
+                }
+            }
+            .frame(height: Layout.halfStepSelectorHeight)
+            .clipped()
         }
+        .padding(.horizontal, Layout.horizontalPadding)
     }
 
     @ViewBuilder
-    private func cellControl(for value: RPEGridValue) -> some View {
-        let control = ZStack(alignment: .top) {
-            cellLabel(for: value)
-
-            if revealedHalfStepValue == value.value, let halfStepLabel = value.halfStepLabel {
-                Text(halfStepLabel)
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(Theme.accentDarkText)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
-                    .background(Theme.accent, in: .capsule)
-                    .scaleEffect(
-                        activeDragHeight <= -RPEGridValue.halfStepActivationOffset
-                            ? Layout.highlightedHalfStepScale
-                            : 1
-                    )
-                    .offset(y: Layout.halfStepBubbleOffset)
-                    .accessibilityIdentifier("rpe-\(value.value)-half")
-            }
-        }
-        .contentShape(Rectangle())
-        .gesture(dragGesture(for: value))
-        .simultaneousGesture(longPressGesture(for: value))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("RPE \(value.value)")
-        .accessibilityAddTraits(.isButton)
-        .accessibilityAction {
-            select(String(value.value))
-        }
-        .accessibilityIdentifier("rpe-\(value.value)")
-        .zIndex(revealedHalfStepValue == value.value ? 1 : 0)
-
+    private func halfStepSlot(for value: RPEGridValue) -> some View {
         if let halfStepLabel = value.halfStepLabel {
-            control.accessibilityAction(named: Text("Select \(halfStepLabel)")) {
+            Button {
                 select(halfStepLabel)
+            } label: {
+                halfStepLabelView(label: halfStepLabel)
             }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            .accessibilityLabel("RPE \(halfStepLabel)")
+            .accessibilityIdentifier("rpe-\(value.value)-half")
         } else {
-            control
+            Color.clear
+                .frame(maxWidth: .infinity)
+                .frame(height: Layout.halfStepSelectorHeight)
+                .accessibilityHidden(true)
         }
     }
 
-    private func dragGesture(for value: RPEGridValue) -> some Gesture {
-        DragGesture(minimumDistance: 0)
-            .onChanged { drag in
-                guard revealedHalfStepValue == value.value else { return }
-                activeDragHeight = drag.translation.height
-            }
-            .onEnded { drag in
-                select(
-                    value.selectionText(
-                        halfStepWasRevealed: revealedHalfStepValue == value.value,
-                        verticalDrag: drag.translation.height
-                    )
-                )
-            }
-    }
+    private func wholeStepLabel(for value: RPEGridValue) -> some View {
+        Button {
+            select(String(value.value))
+        } label: {
+            ZStack {
+                Color.clear
 
-    private func longPressGesture(for value: RPEGridValue) -> some Gesture {
-        LongPressGesture(minimumDuration: Layout.longPressDuration)
-            .onEnded { _ in
-                guard value.halfStepLabel != nil else { return }
-                withAnimation(.easeOut(duration: Layout.bubbleAnimationDuration)) {
-                    revealedHalfStepValue = value.value
-                    activeDragHeight = 0
+                Text(String(value.value))
+                    .font(.headline.weight(.bold))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: Layout.wholeStepHeight)
+                    .foregroundStyle(value.isDimmed ? Color.secondary : Color.white)
+
+                if value.showsPrescriptionBadge {
+                    Capsule()
+                        .fill(Theme.accent)
+                        .frame(width: 18, height: 3)
+                        .offset(y: 14)
+                        .accessibilityHidden(true)
                 }
             }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: Layout.wholeStepHeight)
+        .contentShape(Rectangle())
+        .buttonStyle(.plain)
+        .accessibilityLabel("RPE \(value.value)")
+        .accessibilityIdentifier("rpe-\(value.value)")
+        .opacity(value.isDimmed ? 0.55 : 1)
+    }
+
+    private func halfStepLabelView(label: String) -> some View {
+        ZStack {
+            Color.clear
+
+            Text(label)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(Theme.accent)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: Layout.halfStepSelectorHeight)
     }
 
     private func select(_ text: String) {
         selection = text
-        revealedHalfStepValue = nil
-        activeDragHeight = 0
         Task {
             try? await Task.sleep(for: presentation.autoCloseDelay)
             isPresented = false
         }
     }
 
-    private func cellLabel(for value: RPEGridValue) -> some View {
-        ZStack(alignment: .topTrailing) {
-            Text(String(value.value))
-                .font(.headline.weight(.bold))
-                .frame(maxWidth: .infinity, minHeight: Theme.rpeGridCellHeight)
-                .foregroundStyle(value.isDimmed ? Color.secondary : Color.white)
-
-            if value.showsPrescriptionBadge {
-                Text("Rx")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(Theme.accentDarkText)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background(Theme.accent, in: .capsule)
-                    .padding(6)
-            }
-        }
-        .background(Theme.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
-                .strokeBorder(Theme.pillStroke, lineWidth: 1)
-        )
-        .opacity(value.isDimmed ? 0.55 : 1)
+    private var values: [RPEGridValue] {
+        presentation.rows.flatMap { $0 }
     }
 }
