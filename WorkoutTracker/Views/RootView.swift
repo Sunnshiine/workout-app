@@ -25,7 +25,7 @@ struct RootView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.gradient.ignoresSafeArea())
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(Theme.preferredColorScheme)
     }
 
     private var sessionDestination: some View {

@@ -167,7 +167,7 @@ struct LoggedSetReviewCard: View {
             TextField(display, text: text)
                 .keyboardType(keyboardType)
                 .font(.title3.weight(.bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.valueText)
                 .focused($focusedField, equals: field)
         }
         .frame(maxWidth: .infinity, minHeight: Theme.pillMinHeight, alignment: .leading)
@@ -188,7 +188,7 @@ struct LoggedSetReviewCard: View {
 
             Text(display)
                 .font(.title3.weight(.bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.valueText)
         }
         .frame(maxWidth: .infinity, minHeight: Theme.pillMinHeight, alignment: .leading)
         .padding(.horizontal, 12)

@@ -110,7 +110,7 @@ struct SmartValuePills: View {
         let field = formField(for: pill)
         let isInvalid = form.invalidFields.contains(field)
         let isPlaceholder = pill == .reps && form.isRepsDisplayingPlaceholder && editingPill != pill
-        let textColor = isPlaceholder ? Color.secondary : Color.white
+        let textColor = isPlaceholder ? Color.secondary : Theme.valueText
         let strokeColor = isInvalid ? Color.red : Theme.pillStroke
         let strokeWidth = isInvalid ? 2.0 : 1.0
 
@@ -123,7 +123,7 @@ struct SmartValuePills: View {
                 TextField(display, text: text)
                     .keyboardType(keyboardType)
                     .font(.title3.weight(.bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.valueText)
                     .focused($focusedPill, equals: pill)
             } else {
                 Text(display)
@@ -166,7 +166,7 @@ struct SmartValuePills: View {
 
                 Text(form.rpeDisplay)
                     .font(.title3.weight(.bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.valueText)
             }
             .frame(maxWidth: .infinity, minHeight: Theme.pillMinHeight, alignment: .leading)
             .padding(.horizontal, 12)

@@ -114,7 +114,7 @@ struct RPEGrid: View {
             Text(String(value.value))
                 .font(.headline.weight(.bold))
                 .frame(maxWidth: .infinity, minHeight: Theme.rpeGridCellHeight)
-                .foregroundStyle(value.isDimmed ? Color.secondary : Color.white)
+                .foregroundStyle(value.isDimmed ? Color.secondary : Theme.valueText)
 
             if value.showsPrescriptionBadge {
                 Text("Rx")

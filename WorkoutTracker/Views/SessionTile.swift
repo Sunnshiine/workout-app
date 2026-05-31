@@ -64,11 +64,11 @@ struct SessionTile: View {
         case .current:
             Theme.sessionTileCurrentBorder
         case .complete:
-            .white
+            Theme.sessionTileCompleteText
         case .incomplete:
-            .white.opacity(0.64)
+            Theme.sessionTileIncompleteText
         case .unavailable:
-            .white.opacity(0.4)
+            Theme.sessionTileUnavailableText
         }
     }
 
@@ -77,7 +77,7 @@ struct SessionTile: View {
         case .current:
             Theme.sessionTileCurrentBorder
         case .incomplete:
-            .white.opacity(0.10)
+            Theme.sessionTileRestingBorder
         case .complete, .unavailable:
             .clear
         }

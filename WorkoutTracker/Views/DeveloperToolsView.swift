@@ -318,7 +318,7 @@ private struct PendingWriteDiagnosticRow: View {
             }
         }
         .padding(12)
-        .background(.white.opacity(0.08), in: .rect(cornerRadius: 8))
+        .background(Theme.badgeFill, in: .rect(cornerRadius: 8))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
     }
@@ -377,7 +377,7 @@ private struct WriteTargetAuditDiagnosticRow: View {
             }
         }
         .padding(12)
-        .background(.white.opacity(0.08), in: .rect(cornerRadius: 8))
+        .background(Theme.badgeFill, in: .rect(cornerRadius: 8))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
     }
