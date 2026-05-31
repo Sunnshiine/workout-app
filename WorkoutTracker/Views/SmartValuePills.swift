@@ -291,16 +291,20 @@ private struct HoldToSkipLogButton: View {
             perform: completeSkip
         )
         .font(.headline.weight(.bold))
-        .foregroundStyle(Theme.accentDarkText)
+        .foregroundStyle(logForegroundStyle)
         .padding(.vertical, 14)
         .background {
             ZStack(alignment: .leading) {
-                Theme.accent
+                logBackgroundStyle
                 Color.red.opacity(0.86)
                     .scaleEffect(x: skipProgress, y: 1, anchor: .leading)
             }
             .clipShape(.rect(cornerRadius: Theme.pillCornerRadius))
         }
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
+                .strokeBorder(logStrokeStyle, lineWidth: logStrokeWidth)
+        )
         .opacity(presentation.controlOpacity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
@@ -347,6 +351,34 @@ private struct HoldToSkipLogButton: View {
 
     private var presentation: HoldToSkipButtonPresentation {
         HoldToSkipButtonPresentation(progress: skipProgress, logTitle: logTitle, canLog: canLog)
+    }
+
+    private var logBackgroundStyle: Color {
+        switch presentation.tone {
+        case .primary: Theme.accent
+        case .incomplete: Theme.pillFill
+        }
+    }
+
+    private var logForegroundStyle: Color {
+        switch presentation.tone {
+        case .primary: Theme.accentDarkText
+        case .incomplete: .white
+        }
+    }
+
+    private var logStrokeStyle: Color {
+        switch presentation.tone {
+        case .primary: .clear
+        case .incomplete: Theme.pillStroke
+        }
+    }
+
+    private var logStrokeWidth: CGFloat {
+        switch presentation.tone {
+        case .primary: 0
+        case .incomplete: 1
+        }
     }
 
     private var policy: HoldToSkipPolicy {
