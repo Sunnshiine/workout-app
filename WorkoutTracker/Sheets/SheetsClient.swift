@@ -8,7 +8,7 @@ struct SheetValueRangeUpdate: Sendable, Equatable {
 protocol SheetsClient: Sendable {
     func listTabTitles(spreadsheetId: String) async throws -> [String]
     func listSpreadsheets(pageToken: String?) async throws -> SpreadsheetListPage
-    func fetchTab(spreadsheetId: String, tabName: String) async throws -> SheetGrid
+    func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws
     /// Throws unless callers can treat every update as applied.
     func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws
@@ -17,6 +17,10 @@ protocol SheetsClient: Sendable {
 extension SheetsClient {
     func listSpreadsheets(pageToken: String?) async throws -> SpreadsheetListPage {
         throw SheetsError.malformedResponse
+    }
+
+    func fetchTab(spreadsheetId: String, tabName: String) async throws -> SheetGrid {
+        try await fetchTabSnapshot(spreadsheetId: spreadsheetId, tabName: tabName).values
     }
 
     func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {

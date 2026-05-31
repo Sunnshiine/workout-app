@@ -119,19 +119,33 @@ struct SheetWriter: Sendable {
 }
 
 struct SheetWritePlanningSnapshot: Sendable {
-    var grid: SheetGrid
+    var snapshot: SheetSnapshot
     let layout: SheetLayout
+
+    var grid: SheetGrid {
+        snapshot.values
+    }
 }
 
 struct SheetWritePlanner: Sendable {
-    private let layoutBuilder: @Sendable (SheetGrid) -> SheetLayout
+    private let layoutBuilder: @Sendable (SheetSnapshot) -> SheetLayout
 
-    init(layoutBuilder: @escaping @Sendable (SheetGrid) -> SheetLayout = { SheetLayoutInterpreter().interpret($0) }) {
+    init(
+        layoutBuilder: @escaping @Sendable (SheetSnapshot) -> SheetLayout = { SheetLayoutInterpreter().interpret($0) }
+    ) {
         self.layoutBuilder = layoutBuilder
     }
 
+    init(layoutBuilder: @escaping @Sendable (SheetGrid) -> SheetLayout) {
+        self.layoutBuilder = { snapshot in layoutBuilder(snapshot.values) }
+    }
+
     func snapshot(for grid: SheetGrid) -> SheetWritePlanningSnapshot {
-        SheetWritePlanningSnapshot(grid: grid, layout: layoutBuilder(grid))
+        snapshot(for: SheetSnapshot(values: grid))
+    }
+
+    func snapshot(for snapshot: SheetSnapshot) -> SheetWritePlanningSnapshot {
+        SheetWritePlanningSnapshot(snapshot: snapshot, layout: layoutBuilder(snapshot))
     }
 
     func plan(_ request: SheetWriteRequest, in grid: SheetGrid) throws -> SheetCellUpdate {
@@ -144,7 +158,7 @@ struct SheetWritePlanner: Sendable {
     }
 
     func target(for request: SheetWriteRequest, in snapshot: SheetWritePlanningSnapshot) throws -> SheetWriteTarget {
-        let (row, col) = try resolveTarget(for: request, layout: snapshot.layout, grid: snapshot.grid)
+        let (row, col) = try resolveTarget(for: request, in: snapshot)
         return SheetWriteTarget(tabName: request.blockTab, row: row, col: col)
     }
 
@@ -181,7 +195,11 @@ struct SheetWritePlanner: Sendable {
     }
 
     func applying(_ update: SheetCellUpdate, to snapshot: SheetWritePlanningSnapshot) -> SheetWritePlanningSnapshot {
-        SheetWritePlanningSnapshot(grid: applying(update, to: snapshot.grid), layout: snapshot.layout)
+        let updatedSnapshot = SheetSnapshot(
+            values: applying(update, to: snapshot.grid),
+            rowVisibility: snapshot.snapshot.rowVisibility
+        )
+        return SheetWritePlanningSnapshot(snapshot: updatedSnapshot, layout: snapshot.layout)
     }
 
     func applying(_ update: SheetCellUpdate, to grid: SheetGrid) -> SheetGrid {
@@ -198,9 +216,10 @@ struct SheetWritePlanner: Sendable {
 
     private func resolveTarget(
         for request: SheetWriteRequest,
-        layout: SheetLayout,
-        grid: SheetGrid
+        in snapshot: SheetWritePlanningSnapshot
     ) throws -> (row: Int, col: Int) {
+        let layout = snapshot.layout
+
         guard layout.week(number: request.week) != nil else {
             throw SheetWriterError.weekNotFound(request.week)
         }
@@ -214,31 +233,44 @@ struct SheetWritePlanner: Sendable {
         }
 
         if request.column == .lastSetRPE {
+            guard snapshot.snapshot.isRowVisible(anchor.row) else {
+                throw SheetWriterError.setRowNotFound(exerciseName: request.exerciseName, setIndex: request.setIndex)
+            }
             return (anchor.row, col)
         }
 
-        let headerNotes = anchor.headerNotes(in: grid, notesColumn: day.columns.notes)
-        let setCount = anchor.prescribedSetCount(in: grid, setsColumn: day.columns.sets)
+        return try resolveNotesTarget(for: request, day: day, anchor: anchor, col: col, in: snapshot)
+    }
+
+    private func resolveNotesTarget(
+        for request: SheetWriteRequest,
+        day: SheetLayoutDay,
+        anchor: SheetLayoutExerciseAnchor,
+        col: Int,
+        in snapshot: SheetWritePlanningSnapshot
+    ) throws -> (row: Int, col: Int) {
+        let headerNotes = anchor.headerNotes(in: snapshot.grid, notesColumn: day.columns.notes)
+        let setCount = anchor.prescribedSetCount(in: snapshot.grid, setsColumn: day.columns.sets)
         let compactHeaderSetOne =
             anchor.usesCompactHeaderSetOne(headerNotes: headerNotes)
             || isCompactAggregateHeader(headerNotes.value, setCount: setCount)
-        if request.column == .notes {
-            if compactHeaderSetOne, request.setIndex < setCount {
-                if request.setIndex > 0,
-                    let continuationRow = anchor.setLogRow(
-                        for: request.setIndex,
-                        compactHeaderSetOne: compactHeaderSetOne
-                    ) {
-                    let continuationValue = grid.cell(row: continuationRow, col: col).trimmed
-                    if !continuationValue.isEmpty {
-                        return (continuationRow, col)
-                    }
-                }
-                return (anchor.row, col)
-            }
+
+        if compactHeaderSetOne, request.setIndex < setCount {
+            return try resolveCompactNotesTarget(
+                for: request,
+                anchor: anchor,
+                col: col,
+                in: snapshot
+            )
         }
 
-        guard let setRow = anchor.setLogRow(for: request.setIndex, compactHeaderSetOne: compactHeaderSetOne) else {
+        guard
+            let setRow = anchor.visibleSetLogRow(
+                for: request.setIndex,
+                compactHeaderSetOne: compactHeaderSetOne,
+                in: snapshot.snapshot
+            )
+        else {
             if request.column == .notes, headerNotes.hasProtectedValue {
                 throw SheetWriterError.headerNotesBlockSetRow(
                     exerciseName: request.exerciseName,
@@ -248,6 +280,30 @@ struct SheetWritePlanner: Sendable {
             throw SheetWriterError.setRowNotFound(exerciseName: request.exerciseName, setIndex: request.setIndex)
         }
         return (setRow, col)
+    }
+
+    private func resolveCompactNotesTarget(
+        for request: SheetWriteRequest,
+        anchor: SheetLayoutExerciseAnchor,
+        col: Int,
+        in snapshot: SheetWritePlanningSnapshot
+    ) throws -> (row: Int, col: Int) {
+        if request.setIndex > 0,
+            let continuationRow = anchor.visibleSetLogRow(
+                for: request.setIndex,
+                compactHeaderSetOne: true,
+                in: snapshot.snapshot
+            ) {
+            let continuationValue = snapshot.grid.cell(row: continuationRow, col: col).trimmed
+            if !continuationValue.isEmpty {
+                return (continuationRow, col)
+            }
+        }
+
+        guard snapshot.snapshot.isRowVisible(anchor.row) else {
+            throw SheetWriterError.setRowNotFound(exerciseName: request.exerciseName, setIndex: request.setIndex)
+        }
+        return (anchor.row, col)
     }
 
     private func resolveColumn(_ column: PendingWriteColumn, cols: DayColumns) throws -> Int {

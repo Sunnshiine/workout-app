@@ -133,9 +133,28 @@ struct SheetLayoutExerciseAnchor: Sendable {
         guard setRow < nextAnchorRow else { return nil }
         return setRow
     }
+
+    func visibleSetLogRow(for setIndex: Int, compactHeaderSetOne: Bool, in snapshot: SheetSnapshot) -> Int? {
+        guard setIndex >= 0 else { return nil }
+        let firstRow = row + (compactHeaderSetOne ? 0 : 1)
+        guard firstRow < nextAnchorRow else { return nil }
+
+        var visibleIndex = 0
+        for candidate in firstRow..<nextAnchorRow where snapshot.isRowVisible(candidate) {
+            if visibleIndex == setIndex {
+                return candidate
+            }
+            visibleIndex += 1
+        }
+        return nil
+    }
 }
 
 struct SheetLayoutInterpreter: Sendable {
+    func interpret(_ snapshot: SheetSnapshot) -> SheetLayout {
+        interpret(snapshot.values)
+    }
+
     func interpret(_ grid: SheetGrid) -> SheetLayout {
         let sections = locateWeekSections(in: grid)
         let weeks = sections.enumerated().map { index, section in
