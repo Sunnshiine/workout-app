@@ -119,8 +119,8 @@ struct SettingsView: View {
         } message: {
             Text(currentSettingsErrorMessage)
         }
-        .preferredColorScheme(palette.preferredColorScheme)
-        .toolbarColorScheme(palette.preferredColorScheme, for: .navigationBar)
+        .preferredColorScheme(Theme.colorSchemeOverride(for: settings.appearance))
+        .toolbarColorScheme(Theme.colorSchemeOverride(for: settings.appearance), for: .navigationBar)
     }
 
     private var sheetDisplayName: String {

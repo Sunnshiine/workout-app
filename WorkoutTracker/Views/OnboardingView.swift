@@ -102,6 +102,7 @@ struct OnboardingView: View {
 
 struct SheetPickerView: View {
     @Environment(SettingsStore.self) private var settings
+    @Environment(\.themePalette) private var palette
     @State private var store: SheetPickerStore?
 
     let onPasteURL: (() -> Void)?
@@ -143,7 +144,7 @@ struct SheetPickerView: View {
                     Text("Paste a URL instead")
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(Theme.accent)
+                .foregroundStyle(palette.accent)
             }
         }
         .padding()
@@ -239,6 +240,8 @@ struct SheetPickerView: View {
 }
 
 private struct SheetPickerRow: View {
+    @Environment(\.themePalette) private var palette
+
     let spreadsheet: SpreadsheetFile
     let modifiedText: String
     let errorMessage: String?
@@ -276,10 +279,10 @@ private struct SheetPickerRow: View {
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
+            .background(palette.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
-                    .stroke(Theme.pillStroke, lineWidth: 1)
+                    .stroke(palette.pillStroke, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)

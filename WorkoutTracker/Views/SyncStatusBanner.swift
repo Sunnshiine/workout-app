@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SyncStatusBanner: View {
     let state: SyncCoordinator.State
+    @Environment(\.themePalette) private var palette
 
     var body: some View {
         if let presentation = SyncStatusBannerPresentation(state: state) {
@@ -22,8 +23,8 @@ struct SyncStatusBanner: View {
         .font(.caption)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Theme.bannerFill, in: Capsule())
-        .overlay(Capsule().strokeBorder(Theme.bannerStroke, lineWidth: 0.5))
+        .background(palette.bannerFill, in: Capsule())
+        .overlay(Capsule().strokeBorder(palette.bannerStroke, lineWidth: 0.5))
         .padding(.horizontal)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(presentation.accessibilityLabel)

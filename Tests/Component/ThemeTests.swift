@@ -96,6 +96,22 @@ import Testing
     #expect(Theme.palette(for: AppearancePreference.system).preferredColorScheme == .dark)
 }
 
+@Test func themeSystemAppearanceFollowsCurrentColorScheme() {
+    #expect(Theme.palette(for: AppearancePreference.system, colorScheme: .light).preferredColorScheme == .light)
+    #expect(Theme.palette(for: AppearancePreference.system, colorScheme: .dark).preferredColorScheme == .dark)
+}
+
+@Test func themeForcedAppearancesIgnoreCurrentColorScheme() {
+    #expect(Theme.palette(for: AppearancePreference.light, colorScheme: .dark).preferredColorScheme == .light)
+    #expect(Theme.palette(for: AppearancePreference.dark, colorScheme: .light).preferredColorScheme == .dark)
+}
+
+@Test func themePreferredColorSchemeOnlyForForcedAppearances() {
+    #expect(Theme.colorSchemeOverride(for: AppearancePreference.system) == nil)
+    #expect(Theme.colorSchemeOverride(for: AppearancePreference.light) == .light)
+    #expect(Theme.colorSchemeOverride(for: AppearancePreference.dark) == .dark)
+}
+
 @Test func themePalettesUseApprovedDarkAndSageLightColors() {
     #if canImport(AppKit)
         let dark = Theme.palette(for: Theme.PaletteVariant.dark)

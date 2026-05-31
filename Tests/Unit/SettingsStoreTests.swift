@@ -27,17 +27,60 @@ import Testing
 }
 
 @MainActor
-@Test func appearanceDefaultsToDarkAndPersistsManualChoices() throws {
+@Test func newInstallSeedsSystemAppearance() throws {
     let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
     let store = SettingsStore(defaults: defaults)
 
+    #expect(store.appearance == .system)
+    #expect(defaults.string(forKey: "appearance") == AppearancePreference.system.rawValue)
+}
+
+@MainActor
+@Test func existingInstallWithoutAppearanceSeedsDark() throws {
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    defaults.set("SHEET123", forKey: "spreadsheetId")
+
+    let store = SettingsStore(defaults: defaults)
+
     #expect(store.appearance == .dark)
+    #expect(defaults.string(forKey: "appearance") == AppearancePreference.dark.rawValue)
+}
+
+@MainActor
+@Test func cachedInstallWithoutAppearanceSeedsDark() throws {
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+
+    let store = SettingsStore(defaults: defaults, hasPriorAppState: true)
+
+    #expect(store.appearance == .dark)
+    #expect(defaults.string(forKey: "appearance") == AppearancePreference.dark.rawValue)
+}
+
+@MainActor
+@Test func invalidAppearanceFallsBackToDark() throws {
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    defaults.set("legacy", forKey: "appearance")
+
+    let store = SettingsStore(defaults: defaults)
+
+    #expect(store.appearance == .dark)
+    #expect(defaults.string(forKey: "appearance") == AppearancePreference.dark.rawValue)
+}
+
+@MainActor
+@Test func appearancePersistsManualChoicesAndDoesNotReseed() throws {
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let store = SettingsStore(defaults: defaults)
 
     store.setAppearance(.light)
     #expect(SettingsStore(defaults: defaults).appearance == .light)
 
     store.setAppearance(.dark)
     #expect(SettingsStore(defaults: defaults).appearance == .dark)
+
+    store.setAppearance(.system)
+    defaults.set("SHEET123", forKey: "spreadsheetId")
+    #expect(SettingsStore(defaults: defaults).appearance == .system)
 }
 
 @MainActor

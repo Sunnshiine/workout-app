@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(SettingsStore.self) private var settings
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Group {
@@ -26,11 +27,11 @@ struct RootView: View {
         .environment(\.themePalette, palette)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.gradient.ignoresSafeArea())
-        .preferredColorScheme(palette.preferredColorScheme)
+        .preferredColorScheme(Theme.colorSchemeOverride(for: settings.appearance))
     }
 
     private var palette: Theme.Palette {
-        Theme.palette(for: settings.appearance)
+        Theme.palette(for: settings.appearance, colorScheme: colorScheme)
     }
 
     private var sessionDestination: some View {
