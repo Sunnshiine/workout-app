@@ -117,6 +117,60 @@ private final class RequestRecorder: @unchecked Sendable {
     #expect(body.data.map(\.values) == [[["185x5@8"]], [["8"]]])
 }
 
+@Test func fetchTabSnapshotRequestsFormattedGridDataAndParsesRowVisibility() async throws {
+    let recorder = RequestRecorder()
+    recorder.data = Data(
+        """
+        {
+          "sheets": [
+            {
+              "data": [
+                {
+                  "startRow": 0,
+                  "startColumn": 2,
+                  "rowData": [
+                    { "values": [{ "formattedValue": "Day 1" }] },
+                    { "values": [{ "formattedValue": "Squat" }, { "formattedValue": "2" }] },
+                    { "values": [{ "formattedValue": "Bench" }] }
+                  ],
+                  "rowMetadata": [
+                    {},
+                    { "hiddenByUser": true },
+                    { "hiddenByFilter": true }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+        """.utf8
+    )
+    let client = GoogleSheetsClient(tokenProvider: { "token" }, load: recorder.load)
+
+    let snapshot = try await client.fetchTabSnapshot(spreadsheetId: "spreadsheet-id", tabName: "Block 27")
+
+    let request = try #require(recorder.requests.first)
+    let url = try #require(request.url)
+    let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
+    let query = Dictionary(uniqueKeysWithValues: components.queryItems?.map { ($0.name, $0.value ?? "") } ?? [])
+
+    #expect(url.scheme == "https")
+    #expect(url.host == "sheets.googleapis.com")
+    #expect(url.path == "/v4/spreadsheets/spreadsheet-id")
+    #expect(query["includeGridData"] == "true")
+    #expect(query["ranges"] == "Block 27")
+    #expect(query["fields"]?.contains("formattedValue") == true)
+    #expect(query["fields"]?.contains("hiddenByUser") == true)
+    #expect(query["fields"]?.contains("hiddenByFilter") == true)
+    #expect(snapshot.values.cell(row: 0, col: 2) == "Day 1")
+    #expect(snapshot.values.cell(row: 1, col: 2) == "Squat")
+    #expect(snapshot.values.cell(row: 1, col: 3) == "2")
+    #expect(snapshot.isRowVisible(0) == true)
+    #expect(snapshot.isRowVisible(1) == false)
+    #expect(snapshot.isRowVisible(2) == false)
+    #expect(snapshot.isRowVisible(99) == true)
+}
+
 private func driveModifiedDate(from value: String) -> Date? {
     let formatter = ISO8601DateFormatter()
     formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]

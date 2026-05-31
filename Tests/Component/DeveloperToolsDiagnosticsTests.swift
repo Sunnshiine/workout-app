@@ -87,6 +87,8 @@ private func makeDiagnosticWrite(
 
 private struct DiagnosticStubClient: SheetsClient {
     func listTabTitles(spreadsheetId: String) async throws -> [String] { [] }
-    func fetchTab(spreadsheetId: String, tabName: String) async throws -> SheetGrid { [] }
+    func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
+        SheetSnapshot(values: [])
+    }
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
 }
