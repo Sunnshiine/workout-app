@@ -288,18 +288,6 @@ struct SheetWritePlanner: Sendable {
         col: Int,
         in snapshot: SheetWritePlanningSnapshot
     ) throws -> (row: Int, col: Int) {
-        if request.setIndex > 0,
-            let continuationRow = anchor.visibleSetLogRow(
-                for: request.setIndex,
-                compactHeaderSetOne: true,
-                in: snapshot.snapshot
-            ) {
-            let continuationValue = snapshot.grid.cell(row: continuationRow, col: col).trimmed
-            if !continuationValue.isEmpty {
-                return (continuationRow, col)
-            }
-        }
-
         guard snapshot.snapshot.isRowVisible(anchor.row) else {
             throw SheetWriterError.setRowNotFound(exerciseName: request.exerciseName, setIndex: request.setIndex)
         }
