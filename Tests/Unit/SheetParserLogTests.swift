@@ -8,8 +8,7 @@ import Testing
             "C12": "Day 1", "S12": "Day 2",
             "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
             "C15": "Squat", "D15": "2", "F15": "5", "H15": "RPE 8", "K15": "Coach note",
-            "K16": "185x5@8",
-            "K17": "195x5@9"
+            "K16": "185x5@8, 195x5@9"
         ],
         rows: 24,
         cols: 30
@@ -23,6 +22,32 @@ import Testing
     #expect(exercises[0].sets[0].setLog?.formatted == "185x5@8")
     #expect(exercises[0].sets[1].state == .logged)
     #expect(exercises[0].sets[1].setLog?.formatted == "195x5@9")
+}
+
+@Test func parsesProtectedHeaderSetLogsFromFirstVisibleWritableRowSkippingHiddenRows() throws {
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
+            "C15": "2-3:1:0 Incline DB BP", "D15": "2", "F15": "7 - 8", "H15": "RPE8, RF",
+            "K15": "AMRAP w/ 0:3:0 BW Push Up",
+            "K16": "stale hidden log",
+            "K17": "100x8@6, 105x7@7",
+            "C20": "0:2:0 Hamstring Curl", "D20": "2"
+        ],
+        rows: 24,
+        cols: 30
+    )
+    let snapshot = SheetSnapshot(
+        values: grid,
+        rowVisibility: [15: SheetRowVisibility(hiddenByUser: true)]
+    )
+
+    let parsed = SheetParser().parse(snapshot: snapshot, tabName: "Block 27")
+    let exercise = try #require(parsed.block.weeks.first?.days.first?.exercises.first)
+
+    #expect(exercise.coachNote == "AMRAP w/ 0:3:0 BW Push Up")
+    #expect(exercise.sets.map { $0.setLog?.formatted } == ["100x8@6", "105x7@7"])
 }
 
 @Test func parsesCompactHeaderSetLogAsSetOne() throws {
@@ -91,9 +116,7 @@ import Testing
             "C12": "Day 1", "S12": "Day 2",
             "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
             "C15": "Hack SQ", "D15": "3", "F15": "7", "H15": "RPE 8", "K15": "Coach note",
-            "K16": "185",
-            "K17": "185x7",
-            "K18": "did 3 sets"
+            "K16": "185, 185x7, did 3 sets"
         ],
         rows: 22,
         cols: 30
@@ -194,7 +217,7 @@ import Testing
             "C12": "Day 1", "S12": "Day 2",
             "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
             "C15": "Standing Calve Raises", "D15": "2", "F15": "12", "H15": "RPE 9", "K15": "25x12, 12",
-            "K17": "skip"
+            "K16": ", skip"
         ],
         rows: 22,
         cols: 30
