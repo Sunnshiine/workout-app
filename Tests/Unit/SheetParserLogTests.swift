@@ -46,7 +46,7 @@ import Testing
     #expect(exercises[0].sets[0].setLog == SetLog(weight: .bodyweight, reps: 12, rpe: 7))
 }
 
-@Test func parsesCompactHeaderSetLogBeforeContinuationSetLogs() throws {
+@Test func ignoresContinuationRowsWhenHeaderNotesHoldsSetLog() throws {
     let grid = gridFromA1(
         [
             "C12": "Day 1", "S12": "Day 2",
@@ -63,7 +63,8 @@ import Testing
     let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
 
     #expect(exercises[0].sets[0].setLog?.formatted == "BWx12@7")
-    #expect(exercises[0].sets[1].setLog?.formatted == "BWx10@8")
+    #expect(exercises[0].sets[1].state == .pending)
+    #expect(exercises[0].sets[1].setLog == nil)
 }
 
 @Test func parsesSkipMarkerFromNotesContinuationRow() {

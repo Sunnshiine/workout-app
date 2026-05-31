@@ -124,6 +124,8 @@ private func parsedSets(_ context: ParsedSetContext) -> [ParsedSet] {
             rawLog = values[i]
         } else if context.compactHeaderSetOne, i == 0 {
             rawLog = context.headerNote
+        } else if context.compactHeaderSetOne {
+            rawLog = ""
         } else {
             let logRow = context.anchor.setLogRow(
                 for: i,
