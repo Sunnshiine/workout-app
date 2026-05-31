@@ -103,7 +103,7 @@ struct SmartValuePillsForm {
     }
 
     var logButtonTitle: String {
-        guard let log = makeLog() else { return "Log" }
+        guard let log = makeLog() else { return incompleteLogButtonTitle }
         return "Log \(log.weight.label)×\(log.reps)@\(Self.rpeLabel(log.rpe))"
     }
 
@@ -177,6 +177,10 @@ struct SmartValuePillsForm {
             fields.insert(.rpe)
         }
         return fields
+    }
+
+    private var incompleteLogButtonTitle: String {
+        currentInvalidFields == [.rpe] ? "Choose RPE to log" : "Complete Set Log"
     }
 
     private var validWeight: Weight? {
