@@ -6,6 +6,7 @@ struct SessionView: View {
     @Environment(SyncCoordinator.self) private var sync
     @Environment(SettingsStore.self) private var settings
     @Environment(LastPerformedLookupStore.self) private var lastPerformedLookup
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var coordinator = SessionCoordinator(session: nil)
     @State private var sessionControlsVisibility = SessionControlsVisibility.hidden
     @State private var isSettingsPresented = false
@@ -214,7 +215,7 @@ struct SessionView: View {
         case .exercise(let config):
             ExerciseSection(
                 config: config,
-                onFocus: coordinator.focus(on:),
+                onFocus: focusWithMorph,
                 onReexpand: {
                     coordinator.reexpand(config.exercise)
                 },
@@ -245,6 +246,19 @@ struct SessionView: View {
             .id(supersetSurfaceID(for: config.presentation))
         case .hiddenPairedExercise:
             EmptyView()
+        }
+    }
+
+    private func focusWithMorph(_ set: ExerciseSet) {
+        guard set.state == .pending, !reduceMotion else {
+            coordinator.focus(on: set)
+            return
+        }
+
+        coordinator.focus(on: set) { updateFocus in
+            withAnimation(Theme.focusMorphAnimation) {
+                updateFocus()
+            }
         }
     }
 

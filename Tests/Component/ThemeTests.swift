@@ -171,6 +171,7 @@ import Testing
     #expect(Theme.momentumRiseDelay < Theme.momentumDropDuration)
     #expect(Theme.skipFadeUpDuration == 0.45)
     #expect(Theme.exerciseCompletionBeatDuration == 0.2)
+    #expect(Theme.focusMorphDuration == 0.28)
     #expect(Theme.momentumSpringStiffness > 0)
     #expect(Theme.momentumSpringDamping > 0)
 }
