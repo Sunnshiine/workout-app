@@ -148,6 +148,12 @@ struct SheetLayoutExerciseAnchor: Sendable {
         }
         return nil
     }
+
+    func firstVisibleWritableRow(in snapshot: SheetSnapshot) -> Int? {
+        let firstRow = row + 1
+        guard firstRow < nextAnchorRow else { return nil }
+        return (firstRow..<nextAnchorRow).first { snapshot.isRowVisible($0) }
+    }
 }
 
 struct SheetLayoutInterpreter: Sendable {
