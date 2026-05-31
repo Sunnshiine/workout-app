@@ -5,7 +5,9 @@ import SwiftData
 @Observable
 final class SyncCoordinator {
     enum State: Equatable {
-        case idle, syncing, offline, pendingWrites(Int), conflict([String])
+        case idle, syncing, offline
+        case pendingWrites(Int)
+        case conflict([String])
     }
     private(set) var state: State = .idle
 
@@ -298,6 +300,7 @@ private struct PlannedPendingWrite {
     let write: PendingWrite
     let update: SheetCellUpdate
     let snapshot: SheetWritePlanningSnapshot
+    let auditDetails: SheetWriteAuditDetails
 }
 
 private struct PendingWriteBatch {
@@ -327,11 +330,37 @@ private struct PendingWriteBatch {
 private struct PendingWriteFlushInvalidated: Error {}
 private struct PendingWriteBatchFailed: Error {}
 private struct PendingWriteFlushInProgress: Error {}
+private struct PendingWritePlanningConflict: Error {
+    let error: SheetWriterError
+    let request: SheetWriteRequest
+    let snapshot: SheetWritePlanningSnapshot
+    let target: SheetWriteTarget?
+}
 
 extension SyncCoordinator {
     func fetchPendingWriteRecords() throws -> [PendingWrite] {
         let descriptor = FetchDescriptor<PendingWrite>(sortBy: [SortDescriptor(\.createdAt)])
         return try context.fetch(descriptor)
+    }
+
+    func fetchWriteTargetAuditRecords() throws -> [WriteTargetAuditEntry] {
+        var descriptor = FetchDescriptor<WriteTargetAuditEntry>(
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = WriteTargetAuditEntry.limit
+        return try context.fetch(descriptor)
+    }
+
+    func clearWriteTargetAuditLog() throws {
+        do {
+            for entry in try context.fetch(FetchDescriptor<WriteTargetAuditEntry>()) {
+                context.delete(entry)
+            }
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
     }
 
     fileprivate func flushPendingWrites(
@@ -361,6 +390,10 @@ extension SyncCoordinator {
                 return .invalidated
             } catch is PendingWriteBatchFailed {
                 return .stoppedForRetry
+            } catch let planningConflict as PendingWritePlanningConflict {
+                let message = recordConflict(planningConflict, for: write, planner: flushContext.planner)
+                conflicts.append(message)
+                conflicts.append(contentsOf: recordDependentLastSetRPEConflicts(message, for: write, in: pending))
             } catch let error as SheetWriterError {
                 let message = recordConflict(error, for: write)
                 conflicts.append(message)
@@ -404,6 +437,38 @@ extension SyncCoordinator {
     fileprivate func recordConflict(_ error: SheetWriterError, for write: PendingWrite) -> String {
         let message = error.errorDescription ?? String(describing: error)
         write.markConflict(message)
+        recordWriteTargetAudit(
+            for: write,
+            details: SheetWriteAuditDetails(
+                selectedA1Target: nil,
+                rowScanDetails: "No row selected: \(message)",
+                currentValue: nil,
+                valueCheckOutcome: "Not checked because no target was selected."
+            ),
+            finalStatus: .conflict,
+            message: message
+        )
+        return "\(write.exerciseName): \(message)"
+    }
+
+    fileprivate func recordConflict(
+        _ conflict: PendingWritePlanningConflict,
+        for write: PendingWrite,
+        planner: SheetWritePlanner
+    ) -> String {
+        let message = conflict.error.errorDescription ?? String(describing: conflict.error)
+        write.markConflict(message)
+        recordWriteTargetAudit(
+            for: write,
+            details: planner.auditDetails(
+                for: conflict.request,
+                error: conflict.error,
+                in: conflict.snapshot,
+                target: conflict.target
+            ),
+            finalStatus: .conflict,
+            message: message
+        )
         return "\(write.exerciseName): \(message)"
     }
 
@@ -423,23 +488,45 @@ extension SyncCoordinator {
         try ensurePendingWriteFlushIsCurrent(flushContext.generation)
         let request = SheetWriteRequest(write)
         var snapshot = try await gridSnapshot(for: request.blockTab, context: flushContext, snapshots: &snapshots)
-        let target = try flushContext.planner.target(for: request, in: snapshot)
+        let target: SheetWriteTarget
+        do {
+            target = try flushContext.planner.target(for: request, in: snapshot)
+        } catch let error as SheetWriterError {
+            throw PendingWritePlanningConflict(error: error, request: request, snapshot: snapshot, target: nil)
+        }
 
         do {
             let update = try flushContext.planner.plan(request, target: target, in: snapshot)
-            return PlannedPendingWrite(write: write, update: update, snapshot: snapshot)
+            return PlannedPendingWrite(
+                write: write,
+                update: update,
+                snapshot: snapshot,
+                auditDetails: flushContext.planner.auditDetails(for: request, target: target, in: snapshot)
+            )
         } catch let planningError as SheetWriterError where batch.overlaps(target) {
             try await flush(batch, context: flushContext)
             batch.removeAll()
             snapshot = try await gridSnapshot(for: request.blockTab, context: flushContext, snapshots: &snapshots)
             do {
                 let update = try flushContext.planner.plan(request, target: target, in: snapshot)
-                return PlannedPendingWrite(write: write, update: update, snapshot: snapshot)
+                return PlannedPendingWrite(
+                    write: write,
+                    update: update,
+                    snapshot: snapshot,
+                    auditDetails: flushContext.planner.auditDetails(for: request, target: target, in: snapshot)
+                )
             } catch let replannedError as SheetWriterError {
-                throw replannedError
+                throw PendingWritePlanningConflict(
+                    error: replannedError,
+                    request: request,
+                    snapshot: snapshot,
+                    target: target
+                )
             } catch {
                 throw planningError
             }
+        } catch let planningError as SheetWriterError {
+            throw PendingWritePlanningConflict(error: planningError, request: request, snapshot: snapshot, target: target)
         }
     }
 
@@ -462,6 +549,12 @@ extension SyncCoordinator {
         }
         try ensurePendingWriteFlushIsCurrent(flushContext.generation)
         for item in batch.items {
+            recordWriteTargetAudit(
+                for: item.write,
+                details: item.auditDetails,
+                finalStatus: .succeeded,
+                message: nil
+            )
             context.delete(item.write)
         }
         try? context.save()
@@ -495,6 +588,57 @@ extension SyncCoordinator {
     fileprivate func ensurePendingWriteFlushIsCurrent(_ generation: Int) throws {
         guard generation == pendingWriteFlushGeneration else {
             throw PendingWriteFlushInvalidated()
+        }
+    }
+
+    func recordWriteTargetAudit(
+        for write: PendingWrite,
+        details: SheetWriteAuditDetails,
+        finalStatus: WriteTargetAuditStatus,
+        message: String?
+    ) {
+        context.insert(
+            WriteTargetAuditEntry(
+                blockTab: write.blockTab,
+                week: write.week,
+                day: write.day,
+                exerciseName: write.exerciseName,
+                setIndex: write.setIndex,
+                column: write.column,
+                selectedA1Target: details.selectedA1Target,
+                rowScanDetails: details.rowScanDetails,
+                expectedCurrentValue: write.expectedCurrentValue,
+                currentValue: details.currentValue,
+                valueCheckOutcome: details.valueCheckOutcome,
+                finalStatus: finalStatus,
+                message: message
+            )
+        )
+        pruneWriteTargetAuditLog()
+    }
+
+    func recordWriteTargetAuditConflictWithoutPlanning(for write: PendingWrite, message: String) {
+        recordWriteTargetAudit(
+            for: write,
+            details: SheetWriteAuditDetails(
+                selectedA1Target: nil,
+                rowScanDetails: "Not evaluated: paired Set Log failed before this write was planned.",
+                currentValue: nil,
+                valueCheckOutcome: "Not checked because no target was selected."
+            ),
+            finalStatus: .conflict,
+            message: message
+        )
+    }
+
+    func pruneWriteTargetAuditLog() {
+        var descriptor = FetchDescriptor<WriteTargetAuditEntry>(
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = WriteTargetAuditEntry.limit + 1
+        guard let entries = try? context.fetch(descriptor), entries.count > WriteTargetAuditEntry.limit else { return }
+        for entry in entries.dropFirst(WriteTargetAuditEntry.limit) {
+            context.delete(entry)
         }
     }
 }

@@ -139,6 +139,7 @@ private final class BackfillCompletionProbe: LastPerformedBackfillObserving {
     let container = try ModelContainer(
         for: Block.self,
         PendingWrite.self,
+        WriteTargetAuditEntry.self,
         LastPerformedEntry.self,
         configurations: ModelConfiguration(
             "sync-last-performed-\(UUID().uuidString)",
@@ -334,6 +335,7 @@ private func makeSyncContainer() throws -> ModelContainer {
     try ModelContainer(
         for: Block.self,
         PendingWrite.self,
+        WriteTargetAuditEntry.self,
         LastPerformedEntry.self,
         configurations: ModelConfiguration(
             "sync-backfill-\(UUID().uuidString)",

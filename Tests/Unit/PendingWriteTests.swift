@@ -8,6 +8,7 @@ import Testing
     let container = try ModelContainer(
         for: Block.self,
         PendingWrite.self,
+        WriteTargetAuditEntry.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
     let ctx = container.mainContext

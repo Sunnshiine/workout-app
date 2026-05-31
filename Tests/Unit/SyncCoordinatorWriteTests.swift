@@ -72,6 +72,7 @@ private func makeContainer() throws -> ModelContainer {
     try ModelContainer(
         for: Block.self,
         PendingWrite.self,
+        WriteTargetAuditEntry.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
 }

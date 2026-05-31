@@ -6,7 +6,9 @@ struct DeveloperToolsView: View {
     @Environment(SyncCoordinator.self) private var sync
     @Environment(WorkoutStore.self) private var workout
     @State private var diagnostics: [PendingWriteDiagnostic] = []
+    @State private var writeAuditDiagnostics: [WriteTargetAuditDiagnostic] = []
     @State private var diagnosticsErrorMessage: String?
+    @State private var writeAuditErrorMessage: String?
     @State private var isSyncInFlight = false
     @State private var previewSession: Session?
 
@@ -19,6 +21,7 @@ struct DeveloperToolsView: View {
                     currentSessionSection
                     celebrationSection
                     pendingWritesSection
+                    writeAuditSection
                     syncSection
                 }
                 .padding()
@@ -140,6 +143,46 @@ struct DeveloperToolsView: View {
         }
     }
 
+    private var writeAuditSection: some View {
+        DeveloperToolsSection(title: "Write Target Audit Log") {
+            if let writeAuditErrorMessage {
+                Text(writeAuditErrorMessage)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else if writeAuditDiagnostics.isEmpty {
+                Text("No write-target audit entries")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(writeAuditDiagnostics) { diagnostic in
+                        WriteTargetAuditDiagnosticRow(diagnostic: diagnostic)
+                    }
+                }
+            }
+
+            Button {
+                UIPasteboard.general.string = WriteTargetAuditDiagnostic.copyText(for: writeAuditDiagnostics)
+            } label: {
+                Label("Copy Write Log", systemImage: "doc.on.doc")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.glass)
+            .disabled(writeAuditDiagnostics.isEmpty)
+            .accessibilityIdentifier("copy-write-log-button")
+
+            Button(role: .destructive) {
+                clearWriteAuditLog()
+            } label: {
+                Label("Clear Write Log", systemImage: "trash")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.glass)
+            .disabled(writeAuditDiagnostics.isEmpty)
+            .accessibilityIdentifier("clear-write-log-button")
+        }
+    }
+
     private var syncSection: some View {
         DeveloperToolsSection(title: "Sync") {
             Button {
@@ -179,6 +222,23 @@ struct DeveloperToolsView: View {
         } catch {
             diagnostics = []
             diagnosticsErrorMessage = "Couldn't load pending Sheet writes."
+        }
+
+        do {
+            writeAuditDiagnostics = try sync.writeTargetAuditDiagnostics()
+            writeAuditErrorMessage = nil
+        } catch {
+            writeAuditDiagnostics = []
+            writeAuditErrorMessage = "Couldn't load write-target audit log."
+        }
+    }
+
+    private func clearWriteAuditLog() {
+        do {
+            try sync.clearWriteTargetAuditLog()
+            loadDiagnostics()
+        } catch {
+            writeAuditErrorMessage = "Couldn't clear write-target audit log."
         }
     }
 }
@@ -285,6 +345,69 @@ private struct PendingWriteDiagnosticRow: View {
                 .foregroundStyle(.primary)
                 .lineLimit(2)
                 .minimumScaleFactor(0.85)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct WriteTargetAuditDiagnosticRow: View {
+    let diagnostic: WriteTargetAuditDiagnostic
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(diagnostic.semanticTarget)
+                    .font(.caption.weight(.semibold))
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer()
+                Text(diagnostic.status)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(statusColor)
+            }
+
+            diagnosticField("Selected Target", diagnostic.target)
+            diagnosticField("Value Check", diagnostic.valueCheckOutcome)
+            diagnosticField("Row Scan", diagnostic.rowScanDetails)
+
+            if let message = diagnostic.message, !message.isEmpty {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(12)
+        .background(.white.opacity(0.08), in: .rect(cornerRadius: 8))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var statusColor: Color {
+        diagnostic.status == "Conflict" ? .red : Theme.accent
+    }
+
+    private var accessibilityLabel: String {
+        [
+            diagnostic.semanticTarget,
+            diagnostic.target,
+            diagnostic.valueCheckOutcome,
+            diagnostic.rowScanDetails,
+            diagnostic.status,
+            diagnostic.message
+        ]
+        .compactMap { $0 }
+        .joined(separator: ", ")
+    }
+
+    private func diagnosticField(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.caption)
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
