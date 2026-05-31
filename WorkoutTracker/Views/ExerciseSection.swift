@@ -114,6 +114,12 @@ struct ExerciseSection: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(Theme.exerciseGroupFill, in: .rect(cornerRadius: Theme.cardCornerRadius))
+        .overlay {
+            RoundedRectangle(cornerRadius: Theme.cardCornerRadius)
+                .strokeBorder(Theme.exerciseGroupStroke, lineWidth: 1)
+        }
         .overlay {
             if config.isPairingConfirmation {
                 RoundedRectangle(cornerRadius: Theme.cardCornerRadius)
@@ -304,6 +310,13 @@ struct ActiveSupersetSection: View {
                 }
             }
             .id(activeSetID)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(Theme.exerciseGroupFill, in: .rect(cornerRadius: Theme.cardCornerRadius))
+        .overlay {
+            RoundedRectangle(cornerRadius: Theme.cardCornerRadius)
+                .strokeBorder(Theme.exerciseGroupStroke, lineWidth: 1)
         }
     }
 

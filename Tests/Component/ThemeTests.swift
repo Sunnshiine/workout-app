@@ -294,6 +294,16 @@ import Testing
     #expect(Theme.cardSpacing > 0)
 }
 
+@Test func themeIncludesQuietInactiveWorkoutSurfaces() {
+    #expect(Theme.rowCornerRadius == 8)
+
+    #if canImport(AppKit)
+        #expect(rgbComponents(of: Theme.exerciseGroupFill) != nil)
+        #expect(rgbComponents(of: Theme.exerciseGroupStroke) != nil)
+        #expect(rgbComponents(of: Theme.rowFill) != nil)
+    #endif
+}
+
 @Test func themeIncludesSmartValuePillAndRPEGridConstants() {
     #expect(Theme.pillMinHeight == 86)
     #expect(Theme.weightIncrementThreshold == 100)

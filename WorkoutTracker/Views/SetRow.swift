@@ -37,7 +37,7 @@ struct SetRow: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(.white.opacity(0.035), in: .rect(cornerRadius: Theme.rowCornerRadius))
+            .background(Theme.rowFill, in: .rect(cornerRadius: Theme.rowCornerRadius))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
