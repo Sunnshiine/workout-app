@@ -320,7 +320,9 @@ struct ActiveSupersetPresentation: Equatable, Sendable {
         guard exercises.count == 2 else { return nil }
         let activeExerciseOrder = activeSetID?.exerciseOrder
         let activeSetIndex = activeSetID?.setIndex
-        let sides = exercises.compactMap { exercise -> ActiveSupersetSidePresentation? in
+        // A / B identity follows Session (sheet) order: the higher Exercise is A.
+        let orderedExercises = exercises.sorted { $0.order < $1.order }
+        let sides = orderedExercises.compactMap { exercise -> ActiveSupersetSidePresentation? in
             let sortedSets = exercise.sets.sorted { $0.index < $1.index }
             let isActive = exercise.order == activeExerciseOrder
             let nextSet =

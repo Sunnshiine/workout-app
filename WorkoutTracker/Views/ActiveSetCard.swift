@@ -9,6 +9,7 @@ struct ActiveSetCard: View {
     let onSkip: () -> Void
     let onDelete: () -> Void
     var showsLoggedCheckmark = false
+    var identityLabel: String?
     @Environment(\.themePalette) private var palette
     @State private var dismissFieldUIRequest = 0
 
@@ -32,10 +33,18 @@ struct ActiveSetCard: View {
             .contentShape(.rect)
             .onTapGesture(perform: dismissFieldUI)
 
-            Text(exercise.name)
-                .font(.headline.weight(.bold))
-                .contentShape(.rect)
-                .onTapGesture(perform: dismissFieldUI)
+            HStack(alignment: .center, spacing: 8) {
+                if let identityLabel {
+                    SupersetIdentityBadge(label: identityLabel, isActive: true)
+                }
+
+                Text(exercise.name)
+                    .font(.headline.weight(.bold))
+
+                Spacer(minLength: 0)
+            }
+            .contentShape(.rect)
+            .onTapGesture(perform: dismissFieldUI)
 
             SmartValuePills(
                 set: set,
