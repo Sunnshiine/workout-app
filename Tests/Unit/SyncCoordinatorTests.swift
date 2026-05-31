@@ -12,7 +12,9 @@ private struct StubClient: SheetsClient {
         if failOffline { throw URLError(.notConnectedToInternet) }
         return titles
     }
-    func fetchTab(spreadsheetId: String, tabName: String) async throws -> SheetGrid { grid }
+    func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
+        SheetSnapshot(values: grid)
+    }
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
 }
 
@@ -39,13 +41,13 @@ private final class BackfillStubClient: SheetsClient, @unchecked Sendable {
 
     func listTabTitles(spreadsheetId: String) async throws -> [String] { titles }
 
-    func fetchTab(spreadsheetId: String, tabName: String) async throws -> SheetGrid {
+    func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
         await recorder.record(tabName)
         if failingTabs.contains(tabName) { throw URLError(.notConnectedToInternet) }
         if suspendedTabs.contains(tabName) {
             await recorder.waitForRelease()
         }
-        return grids[tabName] ?? []
+        return SheetSnapshot(values: grids[tabName] ?? [])
     }
 
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}

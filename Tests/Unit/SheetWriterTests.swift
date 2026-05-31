@@ -13,7 +13,9 @@ private final class StubWriteClient: SheetsClient, @unchecked Sendable {
     }
 
     func listTabTitles(spreadsheetId: String) async throws -> [String] { titles }
-    func fetchTab(spreadsheetId: String, tabName: String) async throws -> SheetGrid { grid }
+    func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
+        SheetSnapshot(values: grid)
+    }
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
         updates.append((range, values))
     }

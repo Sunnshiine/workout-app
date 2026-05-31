@@ -18,10 +18,14 @@ enum LocalWorkbookSheetsClientError: Error, Equatable, Sendable, CustomStringCon
 }
 
 actor LocalWorkbookSheetsClient: SheetsClient {
-    private var tabs: [String: SheetGrid]
+    private var tabs: [String: SheetSnapshot]
     private(set) var recordedBatches: [[SheetValueRangeUpdate]] = []
 
     init(spreadsheetId: String = "sid", tabs: [String: SheetGrid]) {
+        self.tabs = tabs.mapValues { SheetSnapshot(values: $0) }
+    }
+
+    init(spreadsheetId: String = "sid", tabs: [String: SheetSnapshot]) {
         self.tabs = tabs
     }
 
@@ -29,11 +33,11 @@ actor LocalWorkbookSheetsClient: SheetsClient {
         tabs.keys.sorted()
     }
 
-    func fetchTab(spreadsheetId: String, tabName: String) async throws -> SheetGrid {
-        guard let grid = tabs[tabName] else {
+    func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
+        guard let snapshot = tabs[tabName] else {
             throw LocalWorkbookSheetsClientError.unknownTab(tabName)
         }
-        return grid
+        return snapshot
     }
 
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
@@ -51,8 +55,8 @@ actor LocalWorkbookSheetsClient: SheetsClient {
     }
 }
 
-private extension LocalWorkbookSheetsClient {
-    struct ParsedRange {
+extension LocalWorkbookSheetsClient {
+    fileprivate struct ParsedRange {
         let tabName: String
         let startRow: Int
         let startCol: Int
@@ -60,22 +64,25 @@ private extension LocalWorkbookSheetsClient {
         let colCount: Int
     }
 
-    static func applying(
+    fileprivate static func applying(
         _ updates: [SheetValueRangeUpdate],
-        to workbook: [String: SheetGrid]
-    ) throws -> [String: SheetGrid] {
+        to workbook: [String: SheetSnapshot]
+    ) throws -> [String: SheetSnapshot] {
         var staged = workbook
         for update in updates {
             let range = try parseRange(update.range)
-            guard let grid = staged[range.tabName] else {
+            guard let snapshot = staged[range.tabName] else {
                 throw LocalWorkbookSheetsClientError.unknownTab(range.tabName)
             }
-            staged[range.tabName] = try applying(update.values, to: grid, range: range)
+            staged[range.tabName] = SheetSnapshot(
+                values: try applying(update.values, to: snapshot.values, range: range),
+                rowVisibility: snapshot.rowVisibility
+            )
         }
         return staged
     }
 
-    static func applying(
+    fileprivate static func applying(
         _ values: [[String]],
         to grid: SheetGrid,
         range: ParsedRange
@@ -114,7 +121,7 @@ private extension LocalWorkbookSheetsClient {
         return updated
     }
 
-    static func parseRange(_ range: String) throws -> ParsedRange {
+    fileprivate static func parseRange(_ range: String) throws -> ParsedRange {
         let split = try splitA1Range(range)
         let references = split.reference
             .split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
@@ -143,7 +150,7 @@ private extension LocalWorkbookSheetsClient {
         )
     }
 
-    static func splitA1Range(_ range: String) throws -> (tabName: String, reference: String) {
+    fileprivate static func splitA1Range(_ range: String) throws -> (tabName: String, reference: String) {
         var inQuotedTab = false
         var index = range.startIndex
         while index < range.endIndex {
@@ -170,7 +177,7 @@ private extension LocalWorkbookSheetsClient {
         throw LocalWorkbookSheetsClientError.malformedRange(range)
     }
 
-    static func unquotedTabName(_ raw: String, sourceRange: String) throws -> String {
+    fileprivate static func unquotedTabName(_ raw: String, sourceRange: String) throws -> String {
         guard raw.hasPrefix("'") || raw.hasSuffix("'") else { return raw }
         guard raw.hasPrefix("'"), raw.hasSuffix("'"), raw.count >= 2 else {
             throw LocalWorkbookSheetsClientError.malformedRange(sourceRange)
@@ -180,7 +187,7 @@ private extension LocalWorkbookSheetsClient {
         return inner.replacingOccurrences(of: "''", with: "'")
     }
 
-    static func parseCellReference(_ reference: String, sourceRange: String) throws -> (row: Int, col: Int) {
+    fileprivate static func parseCellReference(_ reference: String, sourceRange: String) throws -> (row: Int, col: Int) {
         let upper = reference.uppercased()
         var letters = ""
         var digits = ""

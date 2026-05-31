@@ -311,6 +311,10 @@ struct ParsedBlock {
 }
 
 struct SheetParser {
+    func parse(snapshot: SheetSnapshot, tabName: String) -> ParsedBlock {
+        parse(grid: snapshot.values, tabName: tabName)
+    }
+
     func parse(grid: SheetGrid, tabName: String) -> ParsedBlock {
         var warnings: [String] = []
         let trainingMax = parseTrainingMax(from: grid)

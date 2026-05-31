@@ -17,9 +17,9 @@ private final class BatchFlushStubClient: SheetsClient, @unchecked Sendable {
 
     func listTabTitles(spreadsheetId: String) async throws -> [String] { ["Block 27"] }
 
-    func fetchTab(spreadsheetId: String, tabName: String) async throws -> SheetGrid {
+    func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
         fetches.append(tabName)
-        return grid
+        return SheetSnapshot(values: grid)
     }
 
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
