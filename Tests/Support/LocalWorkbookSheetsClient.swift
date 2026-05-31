@@ -2,6 +2,7 @@
 
 enum LocalWorkbookSheetsClientError: Error, Equatable, Sendable, CustomStringConvertible {
     case unknownTab(String)
+    case writeFailed(Int)
     case malformedRange(String)
     case unsupportedValues(String)
 
@@ -9,6 +10,8 @@ enum LocalWorkbookSheetsClientError: Error, Equatable, Sendable, CustomStringCon
         switch self {
         case .unknownTab(let tab):
             "Unknown tab: \(tab)"
+        case .writeFailed(let requestNumber):
+            "Write request \(requestNumber) failed"
         case .malformedRange(let range):
             "Malformed A1 range: \(range)"
         case .unsupportedValues(let details):
@@ -19,14 +22,26 @@ enum LocalWorkbookSheetsClientError: Error, Equatable, Sendable, CustomStringCon
 
 actor LocalWorkbookSheetsClient: SheetsClient {
     private var tabs: [String: SheetSnapshot]
+    private let failedUpdateRequestNumbers: Set<Int>
+    private var updateRequestCount = 0
     private(set) var recordedBatches: [[SheetValueRangeUpdate]] = []
 
-    init(spreadsheetId: String = "sid", tabs: [String: SheetGrid]) {
+    init(
+        spreadsheetId: String = "sid",
+        tabs: [String: SheetGrid],
+        failedUpdateRequestNumbers: Set<Int> = []
+    ) {
         self.tabs = tabs.mapValues { SheetSnapshot(values: $0) }
+        self.failedUpdateRequestNumbers = failedUpdateRequestNumbers
     }
 
-    init(spreadsheetId: String = "sid", tabs: [String: SheetSnapshot]) {
+    init(
+        spreadsheetId: String = "sid",
+        tabs: [String: SheetSnapshot],
+        failedUpdateRequestNumbers: Set<Int> = []
+    ) {
         self.tabs = tabs
+        self.failedUpdateRequestNumbers = failedUpdateRequestNumbers
     }
 
     func listTabTitles(spreadsheetId: String) async throws -> [String] {
@@ -49,6 +64,10 @@ actor LocalWorkbookSheetsClient: SheetsClient {
 
     func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
         guard !updates.isEmpty else { return }
+        updateRequestCount += 1
+        if failedUpdateRequestNumbers.contains(updateRequestCount) {
+            throw LocalWorkbookSheetsClientError.writeFailed(updateRequestCount)
+        }
         let staged = try Self.applying(updates, to: tabs)
         recordedBatches.append(updates)
         tabs = staged
