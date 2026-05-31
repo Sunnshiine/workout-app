@@ -30,7 +30,7 @@ struct SettingsView: View {
                         .accessibilityIdentifier("settings-training-sheet-row")
 
                         Divider()
-                            .overlay(.white.opacity(0.16))
+                            .overlay(Theme.bannerStroke)
                             .padding(.leading, 56)
 
                         NavigationLink {
@@ -46,7 +46,7 @@ struct SettingsView: View {
                         .accessibilityIdentifier("settings-developer-tools-row")
 
                         Divider()
-                            .overlay(.white.opacity(0.16))
+                            .overlay(Theme.bannerStroke)
                             .padding(.leading, 56)
 
                         Button(role: .destructive) {

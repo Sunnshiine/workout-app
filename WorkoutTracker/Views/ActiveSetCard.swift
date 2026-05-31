@@ -26,7 +26,7 @@ struct ActiveSetCard: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .background(.white.opacity(0.12), in: .capsule)
+                    .background(Theme.badgeFill, in: .capsule)
             }
             .contentShape(.rect)
             .onTapGesture(perform: dismissFieldUI)

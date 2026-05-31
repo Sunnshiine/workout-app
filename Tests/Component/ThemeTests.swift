@@ -50,15 +50,41 @@ import Testing
     #endif
 }
 
+@Test func themeIncludesPaletteVariantsForExploration() {
+    #expect(Theme.PaletteVariant.allCases == [.dark, .black, .mintGreen, .sageLight, .blueLight])
+}
+
+@Test func themePaletteLaunchArgumentDefaultsToDark() {
+    #expect(Theme.paletteVariant(from: ["WorkoutTracker"]) == .dark)
+    #expect(Theme.paletteVariant(from: ["WorkoutTracker", Theme.paletteLaunchArgument]) == .dark)
+    #expect(Theme.paletteVariant(from: ["WorkoutTracker", Theme.paletteLaunchArgument, "unknown"]) == .dark)
+}
+
+@Test func themePaletteLaunchArgumentSelectsRequestedVariant() {
+    #expect(Theme.paletteVariant(from: ["WorkoutTracker", Theme.paletteLaunchArgument, "black"]) == .black)
+    #expect(Theme.paletteVariant(from: ["WorkoutTracker", Theme.paletteLaunchArgument, "sageLight"]) == .sageLight)
+    #expect(Theme.paletteVariant(from: ["WorkoutTracker", Theme.paletteLaunchArgument, "blueLight"]) == .blueLight)
+}
+
+@Test func themePaletteVariantsSetExpectedColorScheme() {
+    #expect(Theme.palette(for: .dark).preferredColorScheme == .dark)
+    #expect(Theme.palette(for: .black).preferredColorScheme == .dark)
+    #expect(Theme.palette(for: .mintGreen).preferredColorScheme == .dark)
+    #expect(Theme.palette(for: .sageLight).preferredColorScheme == .light)
+    #expect(Theme.palette(for: .blueLight).preferredColorScheme == .light)
+}
+
 @Test func themeGradientHasNoOrangeTones() {
     #if canImport(AppKit)
-        for stop in Theme.gradientStops {
-            guard let rgb = rgbComponents(of: stop.color) else { continue }
-            // Orange: high red AND red significantly dominates green
-            #expect(
-                !(rgb.red > 0.3 && rgb.red > 1.5 * rgb.green),
-                "Stop at location \(stop.location) is orange: r=\(rgb.red) g=\(rgb.green)"
-            )
+        for variant in Theme.PaletteVariant.allCases {
+            for stop in Theme.palette(for: variant).gradientStops {
+                guard let rgb = rgbComponents(of: stop.color) else { continue }
+                // Orange: high red AND red significantly dominates green.
+                #expect(
+                    !(rgb.red > 0.3 && rgb.red > 1.5 * rgb.green),
+                    "\(variant.rawValue) stop at \(stop.location) is orange: r=\(rgb.red) g=\(rgb.green)"
+                )
+            }
         }
     #endif
 }
@@ -78,6 +104,53 @@ import Testing
         }
         #expect(bottom.green > bottom.red + 0.03, "Expected bottom stop to lean green")
         #expect(bottom.green > bottom.blue + 0.02, "Expected bottom stop to lean green")
+    #endif
+}
+
+@Test func themePaletteVariantsKeepActionAccentReadableAndPurposeful() {
+    #if canImport(AppKit)
+        for variant in Theme.PaletteVariant.allCases {
+            let palette = Theme.palette(for: variant)
+            guard let accent = rgbComponents(of: palette.accent) else {
+                Issue.record("Could not resolve \(variant.rawValue) accent")
+                return
+            }
+
+            switch variant {
+            case .dark, .black, .mintGreen, .sageLight:
+                #expect(accent.green > accent.red + 0.15, "\(variant.rawValue) accent should lean green")
+            case .blueLight:
+                #expect(accent.blue > accent.red + 0.35, "blueLight accent should lean blue")
+                #expect(accent.blue > accent.green + 0.20, "blueLight accent should lean blue")
+            }
+        }
+    #endif
+}
+
+@Test func themeSageLightPaletteUsesSoftSageCreamWithoutAmber() {
+    #if canImport(AppKit)
+        for stop in Theme.palette(for: .sageLight).gradientStops {
+            guard let rgb = rgbComponents(of: stop.color) else { continue }
+            #expect(rgb.red > 0.70)
+            #expect(rgb.green > 0.78)
+            #expect(rgb.blue > 0.70)
+            #expect(rgb.green >= rgb.red, "Sage cream should stay green-led, not amber")
+            #expect(rgb.red > rgb.blue, "Sage cream should be softer than a cool white")
+            #expect(rgb.red < rgb.blue + 0.08, "Sage cream should not become beige")
+            #expect(max(rgb.red, rgb.green, rgb.blue) <= 0.94, "Sage cream should be less bright than white")
+        }
+    #endif
+}
+
+@Test func themeBlueLightPaletteUsesCoolLightBackground() {
+    #if canImport(AppKit)
+        for stop in Theme.palette(for: .blueLight).gradientStops {
+            guard let rgb = rgbComponents(of: stop.color) else { continue }
+            #expect(rgb.red > 0.70)
+            #expect(rgb.green > 0.78)
+            #expect(rgb.blue > 0.78)
+            #expect(rgb.blue >= rgb.red, "Blue Light should stay cool")
+        }
     #endif
 }
 
