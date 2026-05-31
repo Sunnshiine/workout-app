@@ -195,7 +195,7 @@ The palette is a restrained green system with two product appearances: original 
 - **Headline** (700, 17px, 1.25): The in-card Exercise name, primary button labels, and important card values.
 - **Title** (700, 20px, 1.2): Exercise section headings in the Session, Session tiles, large value pills, and compact screen-level emphasis.
 - **Body** (400, 17px, 1.35): Standard Settings copy, explanatory text, and editable values.
-- **Label** (600, 12px, 1.2): Pill labels, breadcrumb text, badges, progress labels, and source labels. Uppercase is allowed only for short UI labels like "Up next" and Last Performed labels.
+- **Label** (600, 12px, 1.2): Pill labels, breadcrumb text, badges, progress labels, and source labels. Uppercase is allowed only for short UI labels like "Up next."
 
 ### Named Rules
 
@@ -213,7 +213,7 @@ Workout App uses tonal layering, strokes, and selective Liquid Glass instead of 
 
 ### Named Rules
 
-**The Glass Has a Job Rule.** Glass belongs on active Exercise cards, Last Performed, onboarding, empty states, Session Controls, Settings surfaces, and system button affordances. Do not apply glass everywhere.
+**The Glass Has a Job Rule.** Glass belongs on active Exercise cards, onboarding, empty states, Session Controls, Settings surfaces, and system button affordances. Do not apply glass everywhere.
 
 **The Flat At Rest Rule.** Ordinary rows, pills, and tiles are flat at rest. Use fill, stroke, and type hierarchy before adding shadow.
 
@@ -231,10 +231,10 @@ Workout App uses tonal layering, strokes, and selective Liquid Glass instead of 
 
 ### Cards / Containers
 - **Corner Style:** Cards use 16px radius. Tiles and pills use 8px radius. Do not exceed these values for rectangular app surfaces.
-- **Background:** Active Set cards use the active green fill. Last Performed cards use the quieter historical fill. Settings groups use a single glass container, not nested cards.
+- **Background:** Active Set cards use the active green fill. Settings groups use a single glass container, not nested cards.
 - **Shadow Strategy:** Use tonal layering, strokes, and Liquid Glass before shadows.
 - **Border:** Use 1px strokes for cards and pills. The active or current item may use stronger mint or green.
-- **Internal Padding:** Cards default to 16px. Last Performed uses 14px horizontal and 12px vertical. Value pills use 12px horizontal padding.
+- **Internal Padding:** Cards default to 16px. Value pills use 12px horizontal padding.
 
 ### Inputs / Fields
 - **Style:** Weight and Reps edit in-place inside the value pill, preserving the same pill frame.
@@ -258,9 +258,9 @@ Session tiles are compact Block-grid controls. Complete, incomplete, current, an
 
 Settings rows use SF Symbols, semibold row labels, secondary detail text, and a chevron for navigable rows. Appearance belongs here as an app-level preference, not in the Session flow.
 
-### Last Performed Card
+### Last Performed
 
-Last Performed is a quiet reference card above the active Set. It is static, non-tappable, and visually subordinate to the Active Set Card.
+Last Performed is a quiet inline reference line above the active Set — plain muted text, not a card. It is static, non-tappable, and visually subordinate to the Active Set Card so it never reads as an action.
 
 ### Move On Celebration
 
@@ -270,7 +270,7 @@ Move On Celebration is the only large celebratory moment. It can use heavy type,
 
 ### Do:
 - **Do** keep coach-authored spreadsheet structure hidden behind Sessions, Exercises, Sets, and Set Logs.
-- **Do** separate Exercises in a Session with a Title-scale section heading and spacing rhythm, not a wrapping group card — the inner Active Set, Last Performed, and Set rows are the only cards.
+- **Do** separate Exercises in a Session with a Title-scale section heading and spacing rhythm, not a wrapping group card — the inner Active Set and Set rows are the only cards.
 - **Do** make the next logging action obvious and reachable with one hand.
 - **Do** show sync and pending-write state honestly. Never imply a Set Log has landed if it has not.
 - **Do** use mint and saturated green only for current, active, selected, and completed progress states that are real.
