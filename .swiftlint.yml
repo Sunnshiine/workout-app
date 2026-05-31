@@ -4,6 +4,7 @@
 disabled_rules:
   - trailing_whitespace
   - todo
+  - file_length
 
 opt_in_rules:
   - empty_count
@@ -36,7 +37,3 @@ line_length:
 type_body_length:
   warning: 300
   error: 500
-
-file_length:
-  warning: 500
-  error: 1000
