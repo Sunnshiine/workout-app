@@ -120,14 +120,9 @@ final class WorkoutTrackerUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["session-controls-settings-button"].exists)
 
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
-            .press(
-                forDuration: 0.1,
-                thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
-            )
+        let settingsButton = revealSessionControlsAndSettingsButton(in: app)
 
         let sessionControls = app.otherElements["session-controls"]
-        let settingsButton = app.buttons["session-controls-settings-button"]
         let syncButton = app.buttons["session-controls-sync-button"]
         let locationButton = app.buttons["session-location-button"]
         let progressRail = app.otherElements["session-progress-rail"]
@@ -172,12 +167,7 @@ final class WorkoutTrackerUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
 
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
-            .press(
-                forDuration: 0.1,
-                thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
-            )
-        app.buttons["session-controls-settings-button"].tap()
+        revealSessionControlsAndSettingsButton(in: app).tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
 
         let trainingSheetRow = app.buttons["settings-training-sheet-row"]
@@ -269,13 +259,7 @@ final class WorkoutTrackerUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
 
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
-            .press(
-                forDuration: 0.1,
-                thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
-            )
-
-        app.buttons["session-controls-settings-button"].tap()
+        revealSessionControlsAndSettingsButton(in: app).tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
 
         app.buttons["settings-sign-out-button"].tap()
@@ -289,13 +273,7 @@ final class WorkoutTrackerUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
 
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
-            .press(
-                forDuration: 0.1,
-                thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
-            )
-
-        app.buttons["session-controls-settings-button"].tap()
+        revealSessionControlsAndSettingsButton(in: app).tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
 
         app.buttons["settings-sign-out-button"].tap()
@@ -316,13 +294,7 @@ final class WorkoutTrackerUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
 
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
-            .press(
-                forDuration: 0.1,
-                thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
-            )
-
-        app.buttons["session-controls-settings-button"].tap()
+        revealSessionControlsAndSettingsButton(in: app).tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
 
         app.buttons["settings-training-sheet-row"].tap()
@@ -410,6 +382,31 @@ private func tapWhenReady(_ element: XCUIElement, in app: XCUIApplication) {
 }
 
 @MainActor
+private func revealSessionControlsAndSettingsButton(in app: XCUIApplication) -> XCUIElement {
+    let settingsButton = app.buttons["session-controls-settings-button"]
+    if settingsButton.waitForExistence(timeout: 1), settingsButton.isHittable {
+        return settingsButton
+    }
+
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+        .press(
+            forDuration: 0.1,
+            thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
+        )
+
+    XCTAssertTrue(settingsButton.waitForExistence(timeout: 3))
+    let deadline = Date().addingTimeInterval(3)
+    while Date() < deadline {
+        if settingsButton.isHittable {
+            return settingsButton
+        }
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+    }
+    XCTFail("Expected session controls settings button to become hittable")
+    return settingsButton
+}
+
+@MainActor
 private func waitForLabel(_ label: String, on element: XCUIElement) {
     XCTAssertTrue(element.waitForExistence(timeout: 3), "Expected element for label '\(label)' to exist")
     let deadline = Date().addingTimeInterval(3)
@@ -491,7 +488,7 @@ private func assertMoveOnCelebrationCopyIsReadable(in app: XCUIApplication) {
         app.staticTexts["move-on-celebration-left-value"],
         app.staticTexts["move-on-celebration-sets-label"],
         app.staticTexts["move-on-celebration-exercises-label"],
-        app.staticTexts["move-on-celebration-left-label"]
+        app.staticTexts["move-on-celebration-left-label"],
     ]
     let hint = app.staticTexts["move-on-celebration-hint"]
     let windowFrame = app.windows.element(boundBy: 0).frame
