@@ -16,6 +16,7 @@ struct LoggedSetReviewCard: View {
 
     @State private var form: SmartValuePillsForm
     @State private var showsRPEGrid = false
+    @Environment(\.themePalette) private var palette
     @FocusState private var focusedField: FocusedField?
 
     private var presentation: LoggedSetReviewPresentation {
@@ -51,7 +52,7 @@ struct LoggedSetReviewCard: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(presentation.statusText)
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(Theme.accent)
+                        .foregroundStyle(palette.accent)
                         .textCase(.uppercase)
 
                     Text("Set \(setOrdinal) of \(setCount)")
@@ -64,7 +65,7 @@ struct LoggedSetReviewCard: View {
                 if showsSavedConfirmation {
                     Label("Saved", systemImage: "checkmark.circle.fill")
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(Theme.accent)
+                        .foregroundStyle(palette.accent)
                 }
 
                 Button(action: onCollapse) {
@@ -104,10 +105,10 @@ struct LoggedSetReviewCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Theme.activeCardFill, in: .rect(cornerRadius: Theme.cardCornerRadius))
+        .background(palette.activeCardFill, in: .rect(cornerRadius: Theme.cardCornerRadius))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.cardCornerRadius)
-                .strokeBorder(Theme.activeCardStroke.opacity(0.8), lineWidth: 1)
+                .strokeBorder(palette.activeCardStroke.opacity(0.8), lineWidth: 1)
         )
         .onDisappear(perform: commitValidDraft)
         .accessibilityElement(children: .contain)
@@ -167,15 +168,15 @@ struct LoggedSetReviewCard: View {
             TextField(display, text: text)
                 .keyboardType(keyboardType)
                 .font(.title3.weight(.bold))
-                .foregroundStyle(Theme.valueText)
+                .foregroundStyle(palette.valueText)
                 .focused($focusedField, equals: field)
         }
         .frame(maxWidth: .infinity, minHeight: Theme.pillMinHeight, alignment: .leading)
         .padding(.horizontal, 12)
-        .background(Theme.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
+        .background(palette.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
-                .strokeBorder(Theme.pillStroke, lineWidth: 1)
+                .strokeBorder(palette.pillStroke, lineWidth: 1)
         )
         .accessibilityLabel("\(label), \(display)")
     }
@@ -188,14 +189,14 @@ struct LoggedSetReviewCard: View {
 
             Text(display)
                 .font(.title3.weight(.bold))
-                .foregroundStyle(Theme.valueText)
+                .foregroundStyle(palette.valueText)
         }
         .frame(maxWidth: .infinity, minHeight: Theme.pillMinHeight, alignment: .leading)
         .padding(.horizontal, 12)
-        .background(Theme.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
+        .background(palette.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
-                .strokeBorder(Theme.pillStroke, lineWidth: 1)
+                .strokeBorder(palette.pillStroke, lineWidth: 1)
         )
     }
 

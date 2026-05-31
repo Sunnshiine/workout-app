@@ -2,6 +2,7 @@ import SwiftUI
 
 struct BlockOverviewView: View {
     @Environment(WorkoutStore.self) private var workout
+    @Environment(\.themePalette) private var palette
     @Environment(\.dismiss) private var dismiss
 
     let block: Block
@@ -47,7 +48,7 @@ struct BlockOverviewView: View {
             }
             .padding()
         }
-        .background(Theme.gradient.ignoresSafeArea())
+        .background(palette.gradient.ignoresSafeArea())
         .navigationTitle(presentation.title)
         .navigationBarTitleDisplayMode(.inline)
     }

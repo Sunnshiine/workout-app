@@ -11,6 +11,7 @@ struct SessionProgressHeader: View {
     let onSettings: () -> Void
     let onSync: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.themePalette) private var palette
     @Namespace private var focusMarkerNamespace
 
     init(
@@ -61,7 +62,7 @@ struct SessionProgressHeader: View {
 
                 Text(presentation.remainingText)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(Theme.accent)
+                    .foregroundStyle(palette.accent)
                     .accessibilityIdentifier("session-remaining-count")
             }
 
@@ -142,6 +143,7 @@ private struct SessionProgressSegment: View {
     let segment: SessionProgressSegmentPresentation
     let focusMarkerNamespace: Namespace.ID
     let usesTravelingFocusMarker: Bool
+    @Environment(\.themePalette) private var palette
 
     var body: some View {
         RoundedRectangle(cornerRadius: 3, style: .continuous)
@@ -157,20 +159,20 @@ private struct SessionProgressSegment: View {
     private var fill: Color {
         switch segment.state {
         case .logged:
-            Theme.accent
+            palette.accent
         case .skipped:
             .gray.opacity(0.45)
         case .currentPending:
             .clear
         case .futurePending:
-            Theme.progressTrack.opacity(0.85)
+            palette.progressTrack.opacity(0.85)
         }
     }
 
     @ViewBuilder
     private var focusMarker: some View {
         let marker = RoundedRectangle(cornerRadius: 3, style: .continuous)
-            .stroke(Theme.accent, lineWidth: 1.25)
+            .stroke(palette.accent, lineWidth: 1.25)
 
         if usesTravelingFocusMarker {
             marker.matchedGeometryEffect(id: "session-progress-focus-marker", in: focusMarkerNamespace)
