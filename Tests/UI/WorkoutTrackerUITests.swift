@@ -323,6 +323,31 @@ final class WorkoutTrackerUITests: XCTestCase {
 
 final class WorkoutTrackerAppearanceUITests: XCTestCase {
     @MainActor
+    func testDarkAppearanceCoversCurrentSessionAndSettingsSurfaces() throws {
+        let app = launchFixtureApp(appearance: "dark")
+
+        assertCurrentSessionAppearanceCoverage(in: app)
+        revealSessionControlsAndSettingsButton(in: app).tap()
+        assertSettingsAppearanceCoverage(in: app)
+    }
+
+    @MainActor
+    func testLightAppearanceCoversCurrentSessionAndSettingsSurfaces() throws {
+        let app = launchFixtureApp(appearance: "light")
+
+        assertCurrentSessionAppearanceCoverage(in: app)
+        revealSessionControlsAndSettingsButton(in: app).tap()
+        assertSettingsAppearanceCoverage(in: app)
+    }
+
+    @MainActor
+    func testSettingsFixtureRouteLaunchesSettingsForScreenshotCoverage() throws {
+        let app = launchSettingsFixtureApp(appearance: "light")
+
+        assertSettingsAppearanceCoverage(in: app)
+    }
+
+    @MainActor
     func testSettingsAppearancePickerSwitchesManualLightAndDark() throws {
         let app = launchFixtureApp()
 
@@ -375,12 +400,49 @@ final class WorkoutTrackerAppearanceUITests: XCTestCase {
     }
 
     @MainActor
-    private func launchFixtureApp() -> XCUIApplication {
+    private func launchFixtureApp(appearance: String? = nil) -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchArguments = ["-UITEST_FIXTURE", "-UITEST_SESSION", "-UITEST_FULL_BLOCK"]
+        if let appearance {
+            app.launchArguments += ["-UITEST_APPEARANCE", appearance]
+        }
         app.launch()
         return app
+    }
+
+    @MainActor
+    private func launchSettingsFixtureApp(appearance: String) -> XCUIApplication {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITEST_FIXTURE", "-UITEST_SETTINGS", "-UITEST_APPEARANCE", appearance]
+        app.launch()
+        return app
+    }
+
+    @MainActor
+    private func assertCurrentSessionAppearanceCoverage(in app: XCUIApplication) {
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.otherElements["active-set-card"].exists)
+        XCTAssertTrue(app.buttons["weight-pill"].exists)
+        XCTAssertTrue(app.buttons["reps-pill"].exists)
+        XCTAssertTrue(app.buttons["rpe-pill"].exists)
+        XCTAssertTrue(app.buttons["log-active-set-button"].exists)
+        XCTAssertTrue(app.buttons["session-location-button"].exists)
+        XCTAssertTrue(app.staticTexts["Last Performed"].exists)
+    }
+
+    @MainActor
+    private func assertSettingsAppearanceCoverage(in app: XCUIApplication) {
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.segmentedControls["settings-appearance-picker"].exists)
+        XCTAssertTrue(app.buttons["settings-training-sheet-row"].exists)
+        XCTAssertTrue(app.buttons["settings-developer-tools-row"].exists)
+        XCTAssertTrue(app.buttons["settings-sign-out-button"].exists)
+        XCTAssertTrue(app.staticTexts["Fixture Training Log"].exists)
+        XCTAssertFalse(app.buttons["Black"].exists)
+        XCTAssertFalse(app.buttons["Mint Green"].exists)
+        XCTAssertFalse(app.buttons["Blue Light"].exists)
     }
 }
 

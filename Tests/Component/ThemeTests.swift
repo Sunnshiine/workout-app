@@ -185,6 +185,30 @@ import Testing
     #endif
 }
 
+@Test func themePaletteVariantsExposeDangerAsDistinctDestructiveState() {
+    #if canImport(AppKit)
+        for variant in Theme.PaletteVariant.allCases {
+            let palette = Theme.palette(for: variant)
+            guard let accent = rgbComponents(of: palette.accent) else {
+                Issue.record("Could not resolve \(variant.rawValue) accent")
+                return
+            }
+            guard let danger = rgbComponents(of: palette.danger) else {
+                Issue.record("Could not resolve \(variant.rawValue) danger")
+                return
+            }
+
+            #expect(danger.red > 0.85, "\(variant.rawValue) danger should read as red")
+            #expect(danger.green < 0.35, "\(variant.rawValue) danger should not drift orange or green")
+            #expect(danger.blue < 0.25, "\(variant.rawValue) danger should not drift purple")
+            #expect(
+                abs(danger.red - accent.red) > 0.20 || abs(danger.green - accent.green) > 0.20,
+                "\(variant.rawValue) danger should stay distinct from the action accent"
+            )
+        }
+    #endif
+}
+
 @Test func themeSageLightPaletteUsesSoftSageCreamWithoutAmber() {
     #if canImport(AppKit)
         for stop in Theme.palette(for: Theme.PaletteVariant.sageLight).gradientStops {

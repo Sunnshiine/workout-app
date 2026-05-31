@@ -11,6 +11,10 @@ struct RootView: View {
                     NavigationStack {
                         DeveloperToolsView()
                     }
+                } else if UITestFixture.isEnabled, UITestFixture.startsInSettings {
+                    NavigationStack {
+                        SettingsView()
+                    }
                 } else if destination == .session {
                     sessionDestination
                 } else {
