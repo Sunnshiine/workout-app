@@ -1,7 +1,5 @@
 # Workout App — Agent Guide
 
-> `CLAUDE.md` and `AGENTS.md` are kept byte-identical. Edit both together.
-
 A mobile client for powerlifting athletes that surfaces and logs workouts from a
 coach-managed Google Sheet. The Sheet is the single source of truth; the app is a
 read-write client with a local cache (ADR-0001).
@@ -40,7 +38,6 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
 - **SwiftLint** runs automatically via the `SwiftLintPlugins` build tool plugin (added to `Package.swift`). Config: `.swiftlint.yml`.
 - **swift-format** is installed via Homebrew. Config: `.swift-format`. Run manually: `swift-format -i -r WorkoutTracker/ WorkoutTrackerTests/`
 - Do not run `swiftlint --fix` in build phases — run it manually when needed.
-- When creating the Xcode project / `Package.swift`, add the SwiftLintPlugins dependency and apply the plugin to each target.
 
 ## Git Worktrees
 
@@ -64,8 +61,8 @@ WorkoutTracker/
 ├── Models/                     Domain types (Block, Week, Session, Exercise, Set …)
 ├── Parsing/                    Sheet → domain interpretation (layout interpreter)
 ├── Sheets/                     Google Sheets client + auth (GoogleAuth.swift)
-├── Stores/                     Local cache & persisted state
-├── Progress/                   Session/Week progression (Current Session, Move On, Open Exercises)
+├── Stores/                     Local cache, sync coordination & persisted state
+├── Progress/                   Session/Week progression (Current Session, Move On, Open Exercises, Supersets)
 ├── LoadSuggestionEngine.swift  Load Suggestion calculations
 ├── Theme.swift                 Liquid Glass design system (ADR-0004)
 ├── Views/                      SwiftUI views (excluded from the SPM library target)
