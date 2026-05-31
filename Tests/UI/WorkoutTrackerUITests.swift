@@ -481,6 +481,37 @@ private func assertMoveOnCelebrationCopyIsReadable(in app: XCUIApplication) {
     XCTAssertLessThan(stats.map(\.frame.maxY).max() ?? 0, hint.frame.minY)
 }
 
+final class WorkoutTrackerLongSessionUITests: XCTestCase {
+    @MainActor
+    func testLongSessionCardsStayAliveAndProgrammaticSupersetScrollLands() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.otherElements["active-set-card"].exists)
+
+        app.buttons["rpe-pill"].tap()
+        app.buttons["rpe-6"].tap()
+        let logButton = app.buttons["log-active-set-button"]
+        waitUntilEnabled(logButton)
+        logButton.tap()
+
+        XCTAssertTrue(app.staticTexts["Bench Press"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Bench Press"].isHittable)
+
+        app.swipeUp()
+        XCTAssertTrue(app.staticTexts["Farmer Carry"].waitForExistence(timeout: 3))
+    }
+
+    @MainActor
+    private func launchFixtureApp() -> XCUIApplication {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITEST_FIXTURE", "-UITEST_SESSION", "-UITEST_LONG_SESSION"]
+        app.launch()
+        return app
+    }
+}
+
 final class WorkoutTrackerSkipUITests: XCTestCase {
     @MainActor
     func testIncompleteSetLogCanStillBeSkippedWithHold() throws {
