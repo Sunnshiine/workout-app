@@ -18,6 +18,7 @@ struct DayColumns: Sendable {
     let percentOneRM: Int?
     let load: Int?
     let lastSetRPE: Int?
+    let setLog: Int?
     let notes: Int?
     let span: Range<Int>  // [dayStart, nextDayStart)
 }
@@ -186,13 +187,20 @@ func resolveDayColumns(in grid: SheetGrid, section: WeekSection, dayIndex: Int) 
             grid.cell(row: section.roleHeaderRow, col: $0).caseInsensitiveCompare(label) == .orderedSame
         }
     }
+    let lastSetRPE = find("Last set RPE")
+    let setLog = lastSetRPE.flatMap { column -> Int? in
+        let adjacent = column + 1
+        return span.contains(adjacent) ? adjacent : nil
+    }
+
     return DayColumns(
         name: start,
         sets: find("Sets"),
         reps: find("Reps"),
         percentOneRM: find("%1RM"),
         load: find("Load"),
-        lastSetRPE: find("Last set RPE"),
+        lastSetRPE: lastSetRPE,
+        setLog: setLog,
         notes: find("Notes"),
         span: span
     )
