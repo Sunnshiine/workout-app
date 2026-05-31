@@ -27,8 +27,6 @@ enum Theme {
         let accent: Color
         let accentDarkText: Color
         let progressTrack: Color
-        let exerciseGroupFill: Color
-        let exerciseGroupStroke: Color
         let activeCardFill: Color
         let activeCardStroke: Color
         let lastPerformedCardFill: Color
@@ -73,8 +71,6 @@ enum Theme {
     static let accent = activePalette.accent
     static let accentDarkText = activePalette.accentDarkText
     static let progressTrack = activePalette.progressTrack
-    static let exerciseGroupFill = activePalette.exerciseGroupFill
-    static let exerciseGroupStroke = activePalette.exerciseGroupStroke
     static let activeCardFill = activePalette.activeCardFill
     static let activeCardStroke = activePalette.activeCardStroke
     static let lastPerformedCardFill = activePalette.lastPerformedCardFill
@@ -96,6 +92,7 @@ enum Theme {
 
     static let cardCornerRadius: CGFloat = 16
     static let cardSpacing: CGFloat = 16
+    static let sectionSpacing: CGFloat = 28
     static let rowCornerRadius: CGFloat = 8
     static let sessionTileCornerRadius: CGFloat = 8
     static let sessionTileMinHeight: CGFloat = 86
@@ -131,6 +128,7 @@ enum Theme {
     static let exerciseCompressionScale: CGFloat = 0.02
     static let pairingUnavailableOpacity = 0.3
     static let pairingConfirmationDuration = 0.22
+    static let pairingConfirmationRingBleed: CGFloat = 12
 
     static var logButtonCheckmarkAnimation: Animation {
         .easeOut(duration: logButtonCheckmarkDuration)
@@ -221,8 +219,6 @@ extension Theme {
         accent: Color(red: 0.45, green: 1.0, blue: 0.72),
         accentDarkText: Color(red: 0.02, green: 0.12, blue: 0.07),
         progressTrack: Color(red: 0.025, green: 0.055, blue: 0.04),
-        exerciseGroupFill: Color(red: 0.025, green: 0.055, blue: 0.045).opacity(0.34),
-        exerciseGroupStroke: .white.opacity(0.07),
         activeCardFill: Color(red: 0.03, green: 0.20, blue: 0.12).opacity(0.72),
         activeCardStroke: Color(red: 0.23, green: 0.82, blue: 0.48),
         lastPerformedCardFill: Color(red: 0.03, green: 0.10, blue: 0.07).opacity(0.82),
@@ -251,8 +247,6 @@ extension Theme {
         accent: Color(red: 0.40, green: 0.96, blue: 0.66),
         accentDarkText: Color(red: 0.0, green: 0.08, blue: 0.045),
         progressTrack: Color(red: 0.008, green: 0.02, blue: 0.014),
-        exerciseGroupFill: Color(red: 0.008, green: 0.02, blue: 0.014).opacity(0.34),
-        exerciseGroupStroke: .white.opacity(0.06),
         activeCardFill: Color(red: 0.008, green: 0.07, blue: 0.04).opacity(0.9),
         activeCardStroke: Color(red: 0.14, green: 0.66, blue: 0.36),
         lastPerformedCardFill: Color(red: 0.006, green: 0.04, blue: 0.026).opacity(0.88),
@@ -281,8 +275,6 @@ extension Theme {
         accent: Color(red: 0.52, green: 1.0, blue: 0.78),
         accentDarkText: Color(red: 0.01, green: 0.13, blue: 0.08),
         progressTrack: Color(red: 0.026, green: 0.085, blue: 0.055),
-        exerciseGroupFill: Color(red: 0.026, green: 0.085, blue: 0.055).opacity(0.34),
-        exerciseGroupStroke: .white.opacity(0.08),
         activeCardFill: Color(red: 0.045, green: 0.25, blue: 0.16).opacity(0.74),
         activeCardStroke: Color(red: 0.33, green: 0.89, blue: 0.58),
         lastPerformedCardFill: Color(red: 0.035, green: 0.16, blue: 0.105).opacity(0.82),
@@ -311,8 +303,6 @@ extension Theme {
         accent: Color(red: 0.05, green: 0.42, blue: 0.25),
         accentDarkText: Color(red: 0.95, green: 0.97, blue: 0.91),
         progressTrack: Color(red: 0.70, green: 0.78, blue: 0.68),
-        exerciseGroupFill: Color(red: 0.91, green: 0.94, blue: 0.87).opacity(0.60),
-        exerciseGroupStroke: .black.opacity(0.08),
         activeCardFill: Color(red: 0.88, green: 0.93, blue: 0.84).opacity(0.96),
         activeCardStroke: Color(red: 0.12, green: 0.52, blue: 0.32),
         lastPerformedCardFill: Color(red: 0.82, green: 0.89, blue: 0.80).opacity(0.94),
@@ -341,8 +331,6 @@ extension Theme {
         accent: Color(red: 0.08, green: 0.30, blue: 0.78),
         accentDarkText: .white,
         progressTrack: Color(red: 0.75, green: 0.82, blue: 0.92),
-        exerciseGroupFill: Color(red: 0.95, green: 0.97, blue: 1.0).opacity(0.60),
-        exerciseGroupStroke: .black.opacity(0.08),
         activeCardFill: Color(red: 0.90, green: 0.95, blue: 1.0).opacity(0.96),
         activeCardStroke: Color(red: 0.16, green: 0.39, blue: 0.84),
         lastPerformedCardFill: Color(red: 0.88, green: 0.92, blue: 0.98).opacity(0.94),

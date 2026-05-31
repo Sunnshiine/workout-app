@@ -20,7 +20,6 @@ struct ExerciseSummaryRow: View {
 
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .contentShape(Rectangle())
         }
