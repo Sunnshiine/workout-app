@@ -46,6 +46,53 @@ Do not explain Ralph, the loop, project conventions, or skills back to the user;
 - Treat any blocking review finding as unfinished work: fix it in this same worktree, rerun the
   required checks (and re-capture the screenshot for View/Theme changes), and request review again.
 
+## Observations (read-only signal — emit only when warranted)
+
+After verification, just before your final `<promise>` line, emit ONE observations
+block. This is a read-only channel for improving the loop and its docs. It MUST NOT
+change any file to "apply" a note — do not edit CLAUDE.md, AGENTS.md, CONTEXT.md, ADRs,
+or anything else here. You only report; a human acts later.
+
+Emit a bullet ONLY when you have concrete, reusable signal that would help a future
+iteration or a maintainer. If you have nothing that clears that bar, emit exactly:
+
+<observations>NONE</observations>
+
+Do NOT manufacture entries to fill the block. "Tests passed, code was clean, docs were
+fine" is NOT an observation — emit NONE instead. An empty block is the expected, common
+case.
+
+Use these three tags, one line each. Every bullet MUST end with a `— cost:` clause
+naming the concrete impact (a wasted build cycle, ~N minutes, a failed gate). No real
+cost → not an observation → omit it.
+
+- `[doc-gap]` — a project doc (CLAUDE.md / AGENTS.md / CONTEXT.md / an ADR) was missing
+  or wrong about something you needed. Name the exact doc and the missing fact.
+- `[friction]` — a real obstacle in the issue contract, tooling, or workflow that slowed
+  correct completion.
+- `[recurring?]` — the friction you hit also appears in the recent observations you read
+  (below). State how many times you can see it.
+
+Recurrence check — bounded, do NOT read the whole file:
+- Read only the tail of the observations log at OBSERVATIONS_LOG_PATH (given in the
+  preamble): `tail -n 150 "<OBSERVATIONS_LOG_PATH>"`. Use it solely to mark genuine
+  repeats as `[recurring?]`. Never read the file in full; never load older history.
+- Cheaply check its length: `wc -l "<OBSERVATIONS_LOG_PATH>"`. If it exceeds 600 lines,
+  add exactly one extra bullet:
+  `[friction] observations.md is large (<N> lines) — consider a consolidation pass. — cost: growing review burden.`
+  Do NOT consolidate or prune the file yourself.
+
+Format — bullets only, no header (the loop writes the timestamp/issue/outcome header):
+
+<observations>
+[doc-gap] CLAUDE.md omits that `xcodegen generate` must run before xcodebuild sees new files — cost: one failed build cycle.
+[recurring?] Same xcodegen-not-run failure appears 2× in the recent log — cost: repeated dead-ends across iterations.
+</observations>
+
+Emit this block on BOTH exit paths — immediately before `<promise>COMPLETE</promise>`
+AND immediately before any `<promise>BLOCKED: ...</promise>`. The BLOCKED path is often
+where the highest-signal observation lives, so never skip it there.
+
 ## Completion gate — emit COMPLETE only when ALL of these hold
 - The issue is implemented, committed on this branch, and every issue-contract acceptance criterion
   is met.
