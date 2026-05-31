@@ -33,7 +33,7 @@ struct ExerciseSection: View {
             } else {
                 HStack(alignment: .firstTextBaseline, spacing: 12) {
                     Text(exercise.name)
-                        .font(.headline)
+                        .font(.title3.weight(.bold))
 
                     Spacer(minLength: 0)
 
@@ -114,17 +114,12 @@ struct ExerciseSection: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(palette.exerciseGroupFill, in: .rect(cornerRadius: Theme.cardCornerRadius))
-        .overlay {
-            RoundedRectangle(cornerRadius: Theme.cardCornerRadius)
-                .strokeBorder(palette.exerciseGroupStroke, lineWidth: 1)
-        }
         .overlay {
             if config.isPairingConfirmation {
                 RoundedRectangle(cornerRadius: Theme.cardCornerRadius)
                     .stroke(palette.accent, lineWidth: 2)
                     .shadow(color: palette.accent.opacity(0.65), radius: 12)
+                    .padding(-Theme.pairingConfirmationRingBleed)
             }
         }
         .overlay {
@@ -290,12 +285,6 @@ struct ActiveSupersetSection: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(palette.exerciseGroupFill, in: .rect(cornerRadius: Theme.cardCornerRadius))
-        .overlay {
-            RoundedRectangle(cornerRadius: Theme.cardCornerRadius)
-                .strokeBorder(palette.exerciseGroupStroke, lineWidth: 1)
-        }
     }
 
     private var incomingTransition: ActiveSetTransition? {
