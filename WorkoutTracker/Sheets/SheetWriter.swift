@@ -217,18 +217,18 @@ struct SheetWritePlanner: Sendable {
             return (anchor.row, col)
         }
 
-        let headerNotes = anchor.headerNotes(in: grid, notesColumn: day.columns.notes)
+        let setLogHeader = anchor.headerNotes(in: grid, notesColumn: day.columns.setLog)
         let setCount = anchor.prescribedSetCount(in: grid, setsColumn: day.columns.sets)
         let compactHeaderSetOne =
-            anchor.usesCompactHeaderSetOne(headerNotes: headerNotes)
-            || isCompactAggregateHeader(headerNotes.value, setCount: setCount)
+            anchor.usesCompactHeaderSetOne(headerNotes: setLogHeader)
+            || isCompactAggregateHeader(setLogHeader.value, setCount: setCount)
         if request.column == .notes {
             if compactHeaderSetOne, request.setIndex < setCount {
-                if request.setIndex > 0,
-                    let continuationRow = anchor.setLogRow(
-                        for: request.setIndex,
-                        compactHeaderSetOne: compactHeaderSetOne
-                    ) {
+                let continuationRow = anchor.setLogRow(
+                    for: request.setIndex,
+                    compactHeaderSetOne: compactHeaderSetOne
+                )
+                if request.setIndex > 0, let continuationRow {
                     let continuationValue = grid.cell(row: continuationRow, col: col).trimmed
                     if !continuationValue.isEmpty {
                         return (continuationRow, col)
@@ -239,7 +239,7 @@ struct SheetWritePlanner: Sendable {
         }
 
         guard let setRow = anchor.setLogRow(for: request.setIndex, compactHeaderSetOne: compactHeaderSetOne) else {
-            if request.column == .notes, headerNotes.hasProtectedValue {
+            if request.column == .notes, setLogHeader.hasProtectedValue {
                 throw SheetWriterError.headerNotesBlockSetRow(
                     exerciseName: request.exerciseName,
                     setIndex: request.setIndex
@@ -253,8 +253,8 @@ struct SheetWritePlanner: Sendable {
     private func resolveColumn(_ column: PendingWriteColumn, cols: DayColumns) throws -> Int {
         switch column {
         case .notes:
-            guard let notes = cols.notes else { throw SheetWriterError.columnNotFound("Notes") }
-            return notes
+            guard let setLog = cols.setLog else { throw SheetWriterError.columnNotFound("Set Log") }
+            return setLog
         case .lastSetRPE:
             guard let rpe = cols.lastSetRPE else { throw SheetWriterError.columnNotFound("Last set RPE") }
             return rpe
@@ -270,12 +270,12 @@ struct SheetWritePlanner: Sendable {
         guard
             request.column == .notes,
             let day = snapshot.layout.day(week: request.week, day: request.day),
-            day.columns.notes == target.col,
+            day.columns.setLog == target.col,
             let anchor = day.exerciseAnchors.first(where: { $0.name == request.exerciseName }),
             anchor.row == target.row
         else { return nil }
 
-        let headerNotes = anchor.headerNotes(in: snapshot.grid, notesColumn: day.columns.notes)
+        let headerNotes = anchor.headerNotes(in: snapshot.grid, notesColumn: day.columns.setLog)
         let setCount = anchor.prescribedSetCount(in: snapshot.grid, setsColumn: day.columns.sets)
         guard
             setCount > 1,
