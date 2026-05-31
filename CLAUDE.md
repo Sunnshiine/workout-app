@@ -86,4 +86,4 @@ Use the default five-label triage vocabulary. See `docs/agents/triage-labels.md`
 
 ### Domain docs
 
-This is a single-context repo: read root `CONTEXT.md` and root `docs/adr/`. See `docs/agents/domain.md`.
+This is a single-context repo: read root `CONTEXT.md` for domain language and root `docs/adr/` for decisions. For product or UI work, also read `PRODUCT.md` and `DESIGN.md`. See `docs/agents/domain.md`.
