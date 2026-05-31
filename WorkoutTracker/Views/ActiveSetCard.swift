@@ -9,6 +9,7 @@ struct ActiveSetCard: View {
     let onSkip: () -> Void
     let onDelete: () -> Void
     var showsLoggedCheckmark = false
+    @Environment(\.themePalette) private var palette
     @State private var dismissFieldUIRequest = 0
 
     var body: some View {
@@ -16,7 +17,7 @@ struct ActiveSetCard: View {
             HStack(alignment: .firstTextBaseline) {
                 Text("Up next")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(Theme.accent)
+                    .foregroundStyle(palette.accent)
                     .textCase(.uppercase)
 
                 Spacer()
@@ -26,7 +27,7 @@ struct ActiveSetCard: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .background(.white.opacity(0.12), in: .capsule)
+                    .background(Theme.badgeFill, in: .capsule)
             }
             .contentShape(.rect)
             .onTapGesture(perform: dismissFieldUI)
@@ -50,10 +51,10 @@ struct ActiveSetCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(Theme.activeCardFill, in: .rect(cornerRadius: Theme.cardCornerRadius))
+        .background(palette.activeCardFill, in: .rect(cornerRadius: Theme.cardCornerRadius))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.cardCornerRadius)
-                .strokeBorder(Theme.activeCardStroke.opacity(0.8), lineWidth: 1)
+                .strokeBorder(palette.activeCardStroke.opacity(0.8), lineWidth: 1)
         )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("active-set-card")

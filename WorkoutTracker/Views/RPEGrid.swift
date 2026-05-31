@@ -19,6 +19,7 @@ struct RPEGrid: View {
     let presentation: RPEGridPresentation
     @Binding var selection: String
     @Binding var isPresented: Bool
+    @Environment(\.themePalette) private var palette
 
     var body: some View {
         scaleContent
@@ -36,7 +37,7 @@ struct RPEGrid: View {
             .clipped()
 
             Rectangle()
-                .fill(Theme.pillStroke.opacity(0.32))
+                .fill(palette.pillStroke.opacity(0.32))
                 .frame(height: Layout.separatorHeight)
 
             HStack(spacing: 0) {
@@ -82,11 +83,11 @@ struct RPEGrid: View {
                     .font(.headline.weight(.bold))
                     .frame(maxWidth: .infinity)
                     .frame(height: Layout.wholeStepHeight)
-                    .foregroundStyle(value.isDimmed ? Color.secondary : Color.white)
+                    .foregroundStyle(value.isDimmed ? Color.secondary : palette.valueText)
 
                 if value.showsPrescriptionBadge {
                     Capsule()
-                        .fill(Theme.accent)
+                        .fill(palette.accent)
                         .frame(width: 18, height: 3)
                         .offset(y: 14)
                         .accessibilityHidden(true)
@@ -108,7 +109,7 @@ struct RPEGrid: View {
 
             Text(label)
                 .font(.caption.weight(.bold))
-                .foregroundStyle(Theme.accent)
+                .foregroundStyle(palette.accent)
         }
         .frame(maxWidth: .infinity)
         .frame(height: Layout.halfStepSelectorHeight)

@@ -7,6 +7,7 @@ struct SessionView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(LastPerformedLookupStore.self) private var lastPerformedLookup
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.themePalette) private var palette
     @State private var coordinator = SessionCoordinator(session: nil)
     @State private var sessionControlsVisibility = SessionControlsVisibility.hidden
     @State private var isSettingsPresented = false
@@ -130,7 +131,7 @@ struct SessionView: View {
             }
         }
         .accessibilityHidden(workout.moveOnCelebrationSession != nil)
-        .background(Theme.gradient.ignoresSafeArea())
+        .background(palette.gradient.ignoresSafeArea())
         .overlay {
             if let session = workout.moveOnCelebrationSession {
                 MoveOnCelebrationView(session: session) {
@@ -433,6 +434,7 @@ private struct OpenExercisesSection: View {
 
 private struct OpenExerciseCard: View {
     let exercise: Exercise
+    @Environment(\.themePalette) private var palette
 
     private var pendingSetCount: Int {
         exercise.sets.filter { $0.state == .pending }.count
@@ -466,14 +468,14 @@ private struct OpenExerciseCard: View {
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.bold))
             }
-            .foregroundStyle(Theme.accent)
+            .foregroundStyle(palette.accent)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(Theme.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
+        .background(palette.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
         .overlay {
             RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
-                .stroke(Theme.pillStroke, lineWidth: 1)
+                .stroke(palette.pillStroke, lineWidth: 1)
         }
     }
 }

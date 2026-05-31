@@ -321,6 +321,42 @@ final class WorkoutTrackerUITests: XCTestCase {
     }
 }
 
+final class WorkoutTrackerAppearanceUITests: XCTestCase {
+    @MainActor
+    func testSettingsAppearancePickerSwitchesManualLightAndDark() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+
+        revealSessionControlsAndSettingsButton(in: app).tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
+
+        let picker = app.segmentedControls["settings-appearance-picker"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["System"].exists)
+        XCTAssertTrue(app.buttons["Light"].exists)
+        XCTAssertTrue(app.buttons["Dark"].exists)
+        XCTAssertFalse(app.buttons["Black"].exists)
+        XCTAssertFalse(app.buttons["Mint Green"].exists)
+        XCTAssertFalse(app.buttons["Blue Light"].exists)
+
+        app.buttons["Light"].tap()
+        app.buttons["Dark"].tap()
+
+        app.buttons["settings-done-button"].tap()
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 3))
+    }
+
+    @MainActor
+    private func launchFixtureApp() -> XCUIApplication {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITEST_FIXTURE", "-UITEST_SESSION", "-UITEST_FULL_BLOCK"]
+        app.launch()
+        return app
+    }
+}
+
 @MainActor
 private func assertDeveloperToolsActionsAndDiagnosticsLayout(in app: XCUIApplication) {
     XCTAssertTrue(app.staticTexts["Actions"].exists)
@@ -483,7 +519,7 @@ private func assertMoveOnCelebrationCopyIsReadable(in app: XCUIApplication) {
         app.staticTexts["move-on-celebration-left-value"],
         app.staticTexts["move-on-celebration-sets-label"],
         app.staticTexts["move-on-celebration-exercises-label"],
-        app.staticTexts["move-on-celebration-left-label"],
+        app.staticTexts["move-on-celebration-left-label"]
     ]
     let hint = app.staticTexts["move-on-celebration-hint"]
     let windowFrame = app.windows.element(boundBy: 0).frame
