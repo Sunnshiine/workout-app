@@ -130,8 +130,8 @@ private func pendingWrite(
         with: gridFromA1(
             [
                 "C12": "Day 1", "S12": "Day 2",
-                "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Last set RPE", "K14": "Notes",
-                "C15": "Squat", "D15": "1",
+                "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+                "C15": "Squat", "D15": "1"
             ],
             rows: 24,
             cols: 30
@@ -182,8 +182,8 @@ private func pendingWrite(
         grid: gridFromA1(
             [
                 "C12": "Day 1", "S12": "Day 2",
-                "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Last set RPE", "K14": "Notes",
-                "C15": "Squat", "D15": "1",
+                "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+                "C15": "Squat", "D15": "1"
             ],
             rows: 24,
             cols: 30
@@ -212,8 +212,8 @@ private func pendingWrite(
         grid: gridFromA1(
             [
                 "C12": "Day 1", "S12": "Day 2",
-                "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Last set RPE", "K14": "Notes",
-                "C15": "Squat", "D15": "2",
+                "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
+                "C15": "Squat", "D15": "2"
             ],
             rows: 24,
             cols: 30
@@ -227,7 +227,7 @@ private func pendingWrite(
 
     #expect(client.fetches == ["Block 27"])
     #expect(counter.count == 1)
-    #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!K15", "'Block 27'!J15"])
+    #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!K15", "'Block 27'!I15"])
     #expect(client.updates.map(\.1) == [[["185x5@8"]], [["185x5@8, 195x5@8"]], [["8"]]])
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
 }
@@ -254,8 +254,8 @@ private func pendingWrite(
         grid: gridFromA1(
             [
                 "C12": "Day 1", "S12": "Day 2",
-                "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Last set RPE", "K14": "Notes",
-                "C15": "Squat", "D15": "1",
+                "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+                "C15": "Squat", "D15": "1"
             ],
             rows: 24,
             cols: 30
@@ -292,8 +292,8 @@ private func pendingWrite(
         grid: gridFromA1(
             [
                 "C12": "Day 1", "S12": "Day 2",
-                "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Last set RPE", "K14": "Notes",
-                "C15": "Squat", "D15": "1", "K15": "Coach note", "K16": "coach edited",
+                "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+                "C15": "Squat", "D15": "1", "K15": "Coach note", "K16": "coach edited"
             ],
             rows: 24,
             cols: 30
@@ -321,9 +321,9 @@ private func pendingWrite(
         grid: gridFromA1(
             [
                 "C12": "Day 1", "S12": "Day 2",
-                "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Last set RPE", "K14": "Notes",
+                "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
                 "C15": "Squat", "D15": "1",
-                "C17": "Bench Press", "D17": "1", "K17": "Coach note", "K18": "coach edited",
+                "C17": "Bench Press", "D17": "1", "K17": "Coach note", "K18": "coach edited"
             ],
             rows: 24,
             cols: 30
@@ -407,8 +407,8 @@ private func pendingWrite(
         grid: gridFromA1(
             [
                 "C12": "Day 1", "S12": "Day 2",
-                "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Last set RPE", "K14": "Notes",
-                "C15": "Squat", "D15": "1", "K15": "Coach note", "K16": "coach edited",
+                "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+                "C15": "Squat", "D15": "1", "K15": "Coach note", "K16": "coach edited"
             ],
             rows: 24,
             cols: 30

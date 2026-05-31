@@ -115,8 +115,8 @@ private final class BackfillCompletionProbe: LastPerformedBackfillObserving {
     let grid = gridFromA1(
         [
             "C12": "Day 1", "S12": "Day 2", "AI12": "Day 3", "AX12": "Day 4",
-            "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Last set RPE", "K14": "Notes",
-            "C15": "Squat", "D15": "1", "F15": "5", "H15": "RPE8",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": "Squat", "D15": "1", "F15": "5", "H15": "RPE8"
         ],
         rows: 20,
         cols: 60
@@ -148,10 +148,10 @@ private final class BackfillCompletionProbe: LastPerformedBackfillObserving {
         [
             "C12": "Day 1", "S12": "Day 2", "AI12": "Day 3", "AX12": "Day 4",
             "C13": "5/1/2026",
-            "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Last set RPE", "K14": "Notes",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
             "C15": "Squat", "D15": "2", "F15": "5", "H15": "RPE8",
             "K15": "185x5@8",
-            "K16": "195x5@9",
+            "K16": "195x5@9"
         ],
         rows: 20,
         cols: 60
@@ -198,7 +198,7 @@ private final class BackfillCompletionProbe: LastPerformedBackfillObserving {
         grids: [
             "Block 27": currentGridWithPendingSquat(),
             "Block 26": historicalGrid(exerciseName: "Squat", log: "245x5@8", date: "4/24/2026"),
-            "Block 25": historicalGrid(exerciseName: "Squat", log: "235x5@8", date: "4/17/2026"),
+            "Block 25": historicalGrid(exerciseName: "Squat", log: "235x5@8", date: "4/17/2026")
         ]
     )
     let lookupStore = LastPerformedLookupStore(context: container.mainContext)
@@ -234,7 +234,7 @@ private final class BackfillCompletionProbe: LastPerformedBackfillObserving {
         titles: ["Intro", "Block 26", "Block 27"],
         grids: [
             "Block 27": historicalGrid(exerciseName: "Squat", log: "255x5@8", date: "5/1/2026"),
-            "Block 26": historicalGrid(exerciseName: "Squat", log: "245x5@8", date: "4/24/2026"),
+            "Block 26": historicalGrid(exerciseName: "Squat", log: "245x5@8", date: "4/24/2026")
         ]
     )
     let sync = SyncCoordinator(
@@ -259,7 +259,7 @@ private final class BackfillCompletionProbe: LastPerformedBackfillObserving {
         titles: ["Block 26", "Block 27"],
         grids: [
             "Block 27": currentGridWithPendingSquat(),
-            "Block 26": historicalGrid(exerciseName: "Squat", log: "245x5@8", date: "4/24/2026"),
+            "Block 26": historicalGrid(exerciseName: "Squat", log: "245x5@8", date: "4/24/2026")
         ],
         suspendedTabs: ["Block 26"],
         recorder: recorder
@@ -296,7 +296,7 @@ private final class BackfillCompletionProbe: LastPerformedBackfillObserving {
         titles: ["Block 25", "Block 26", "Block 27"],
         grids: [
             "Block 27": currentGridWithPendingSquat(),
-            "Block 25": historicalGrid(exerciseName: "Squat", log: "235x5@8", date: "4/17/2026"),
+            "Block 25": historicalGrid(exerciseName: "Squat", log: "235x5@8", date: "4/17/2026")
         ],
         failingTabs: ["Block 26"]
     )
@@ -346,8 +346,8 @@ private func currentGridWithPendingSquat() -> SheetGrid {
         [
             "C12": "Day 1", "S12": "Day 2", "AI12": "Day 3", "AX12": "Day 4",
             "C13": "5/1/2026",
-            "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Last set RPE", "K14": "Notes",
-            "C15": "Squat", "D15": "1", "F15": "5", "H15": "RPE8",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": "Squat", "D15": "1", "F15": "5", "H15": "RPE8"
         ],
         rows: 20,
         cols: 60
@@ -359,9 +359,9 @@ private func historicalGrid(exerciseName: String, log: String, date: String) -> 
         [
             "C12": "Day 1", "S12": "Day 2", "AI12": "Day 3", "AX12": "Day 4",
             "C13": date,
-            "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Last set RPE", "K14": "Notes",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
             "C15": exerciseName, "D15": "1", "F15": "5", "H15": "RPE8",
-            "K15": log,
+            "K15": log
         ],
         rows: 20,
         cols: 60

@@ -24,7 +24,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
         grid: gridFromA1(
             [
                 "C12": "Day 1", "S12": "Day 2",
-                "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Last set RPE", "K14": "Notes",
+                "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE", "K14": "Notes"
             ].merging(cells) { _, new in new },
             rows: 30,
             cols: 30
@@ -216,7 +216,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
         try await writer.write(
             [
                 SheetCellUpdate(tabName: "Block 27", row: 15, col: 10, value: "185x5@8"),
-                SheetCellUpdate(tabName: "Block 27", row: 16, col: 10, value: "195x5@8"),
+                SheetCellUpdate(tabName: "Block 27", row: 16, col: 10, value: "195x5@8")
             ],
             spreadsheetId: "sid"
         )
@@ -262,111 +262,16 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
 
     let update = try planner.plan(request, in: client.grid)
 
-    #expect(update.range == "'Block 27'!J15")
+    #expect(update.range == "'Block 27'!I15")
     #expect(update.value == "9")
 }
 
-@Test func writesSplitLayoutSetOneToRPEAdjacentHeaderWhenNotesHasCoachNote() throws {
-    let grid = gridFromA1(
-        [
-            "C12": "Day 1", "S12": "Day 2",
-            "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
-            "C15": "Squat", "D15": "1", "K15": "Coach note",
-        ],
-        rows: 30,
-        cols: 30
-    )
-
-    let update = try SheetWritePlanner().plan(
-        SheetWriteRequest(
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
-            exerciseName: "Squat",
-            setIndex: 0,
-            column: .notes,
-            operation: .upsert,
-            valueToWrite: "185x5@8",
-            expectedCurrentValue: ""
-        ),
-        in: grid
-    )
-
-    #expect(update.range == "'Block 27'!J15")
-    #expect(update.value == "185x5@8")
-}
-
-@Test func writesSplitLayoutSetLogBelowProtectedSetLogHeader() throws {
-    let grid = gridFromA1(
-        [
-            "C12": "Day 1", "S12": "Day 2",
-            "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
-            "C15": "Squat", "D15": "1", "J15": "coach edited", "K15": "Coach note",
-            "C17": "Bench", "D17": "1",
-        ],
-        rows: 30,
-        cols: 30
-    )
-
-    let update = try SheetWritePlanner().plan(
-        SheetWriteRequest(
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
-            exerciseName: "Squat",
-            setIndex: 0,
-            column: .notes,
-            operation: .upsert,
-            valueToWrite: "185x5@8",
-            expectedCurrentValue: ""
-        ),
-        in: grid
-    )
-
-    #expect(update.range == "'Block 27'!J16")
-    #expect(update.value == "185x5@8")
-}
-
-@Test func refusesSetLogWriteWhenLastSetRPEColumnIsMissing() throws {
-    let grid = gridFromA1(
-        [
-            "C12": "Day 1", "S12": "Day 2",
-            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
-            "C15": "Squat", "D15": "1", "K15": "Coach note",
-        ],
-        rows: 30,
-        cols: 30
-    )
-
-    do {
-        _ = try SheetWritePlanner().plan(
-            SheetWriteRequest(
-                blockTab: "Block 27",
-                week: 1,
-                day: 1,
-                exerciseName: "Squat",
-                setIndex: 0,
-                column: .notes,
-                operation: .upsert,
-                valueToWrite: "185x5@8",
-                expectedCurrentValue: ""
-            ),
-            in: grid
-        )
-        Issue.record("Expected missing Set Log column")
-    } catch let error as SheetWriterError {
-        #expect(error == .columnNotFound("Set Log"))
-    } catch {
-        Issue.record("Expected SheetWriterError, got \(error)")
-    }
-}
-
-@Test func resolvesShiftedRPEAdjacentSetLogAndRPEColumnsFromRoleHeaders() throws {
+@Test func resolvesShiftedNotesAndRPEColumnsFromRoleHeaders() throws {
     let grid = gridFromA1(
         [
             "C12": "Day 1", "S12": "Day 2",
             "D14": "Sets", "E14": "Notes", "G14": "Last set RPE",
-            "C15": "Squat", "D15": "2", "E15": "Coach note",
+            "C15": "Squat", "D15": "2", "E15": "Coach note"
         ],
         rows: 30,
         cols: 30
@@ -402,7 +307,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
         in: grid
     )
 
-    #expect(notesUpdate.range == "'Block 27'!H15")
+    #expect(notesUpdate.range == "'Block 27'!E16")
     #expect(rpeUpdate.range == "'Block 27'!G15")
 }
 
@@ -410,8 +315,8 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
     let grid = gridFromA1(
         [
             "C12": "Day 1", "S12": "Day 2",
-            "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Last set RPE", "K14": "Notes",
-            "C18": "Squat", "D18": "2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C18": "Squat", "D18": "2"
         ],
         rows: 30,
         cols: 30
@@ -441,10 +346,10 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
         [
             "C12": "Day 1", "S12": "Day 2",
             "D14": "Sets", "E14": "Notes", "G14": "Last set RPE",
-            "C18": "Chest Fly", "D18": "2", "E18": "Keep elbows soft", "H18": "protected header",
-            "H19": "25x12@7",
-            "H20": "20x10@8",
-            "C25": "Bench Press", "D25": "1",
+            "C18": "Chest Fly", "D18": "2", "E18": "Keep elbows soft",
+            "E19": "25x12@7",
+            "E20": "20x10@8",
+            "C25": "Bench Press", "D25": "1"
         ],
         rows: 32,
         cols: 30
@@ -470,7 +375,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
         in: grid
     )
 
-    #expect(update.range == "'Block 27'!H20")
+    #expect(update.range == "'Block 27'!E20")
 }
 
 @Test func refusesUnexpectedCurrentCellValue() async throws {

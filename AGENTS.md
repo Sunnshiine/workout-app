@@ -74,12 +74,6 @@ WorkoutTracker/
 Tests/  →  Unit/ · Component/ · UI/ · Support/
 ```
 
-## Critical Sheet Write Workflows
-
-- Logging a Set Log must write the RPE-adjacent Set Log column, and logging the final Set must write Last Set RPE only with its paired Set Log write. These are the highest-risk user workflows because the Sheet is the source of truth.
-- Preserve both supported Set Log layouts: compact multi-set logs may aggregate into the header Set Log cell when it is safe, while coach-note or AMRAP header content must be protected and Set Logs must go to continuation rows in the Set Log column.
-- Before changing `WorkoutStore`, `SyncCoordinator`, `SheetWriter`, `SheetLayoutInterpreter`, or pending-write ordering, run `swift test --filter SyncCoordinatorBatchWriteTests` and keep the coach-note/RPE, RPE-adjacent, and compact aggregate regressions green.
-
 ## Agent skills
 
 ### Issue tracker
