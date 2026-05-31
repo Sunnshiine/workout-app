@@ -11,6 +11,7 @@ struct ExerciseSection: View {
     var onBeginPairing: () -> Void = {}
     var onPairingTap: () -> Void = {}
     @State private var hasCompletedRise = true
+    @Environment(\.themePalette) private var palette
     @Namespace private var focusMorphNamespace
 
     private var exercise: Exercise {
@@ -111,12 +112,16 @@ struct ExerciseSection: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
+        .background(palette.exerciseGroupFill, in: .rect(cornerRadius: Theme.cardCornerRadius))
+        .overlay {
+            RoundedRectangle(cornerRadius: Theme.cardCornerRadius)
+                .strokeBorder(palette.exerciseGroupStroke, lineWidth: 1)
+        }
         .overlay {
             if config.isPairingConfirmation {
                 RoundedRectangle(cornerRadius: Theme.cardCornerRadius)
-                    .stroke(Theme.accent, lineWidth: 2)
-                    .shadow(color: Theme.accent.opacity(0.65), radius: 12)
+                    .stroke(palette.accent, lineWidth: 2)
+                    .shadow(color: palette.accent.opacity(0.65), radius: 12)
             }
         }
         .overlay {
@@ -187,6 +192,7 @@ struct ActiveSupersetSection: View {
     let onSkip: (ExerciseSet) -> Void
     let onDelete: (ExerciseSet) -> Void
     let onDismiss: () -> Void
+    @Environment(\.themePalette) private var palette
 
     private var activeExercise: Exercise? {
         config.exercises.first { $0.order == config.presentation.activeExerciseOrder }
@@ -206,7 +212,7 @@ struct ActiveSupersetSection: View {
             HStack(alignment: .center) {
                 Text("Superset")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(Theme.accent)
+                    .foregroundStyle(palette.accent)
                     .textCase(.uppercase)
 
                 Spacer(minLength: 0)
@@ -272,7 +278,11 @@ struct ActiveSupersetSection: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
+        .background(palette.exerciseGroupFill, in: .rect(cornerRadius: Theme.cardCornerRadius))
+        .overlay {
+            RoundedRectangle(cornerRadius: Theme.cardCornerRadius)
+                .strokeBorder(palette.exerciseGroupStroke, lineWidth: 1)
+        }
     }
 
     private var incomingTransition: ActiveSetTransition? {
@@ -287,13 +297,14 @@ struct ActiveSupersetSection: View {
 
 private struct SupersetSideCard: View {
     let side: ActiveSupersetSidePresentation
+    @Environment(\.themePalette) private var palette
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .leading, spacing: 5) {
                 Text(side.exerciseName)
                     .font(.callout.weight(.semibold))
-                    .foregroundStyle(side.isActive ? Theme.accent : .primary)
+                    .foregroundStyle(side.isActive ? palette.accent : .primary)
 
                 Text(side.nextSetText)
                     .font(.caption.weight(.semibold))
@@ -311,27 +322,27 @@ private struct SupersetSideCard: View {
             if side.isActive {
                 Text("Active")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(Theme.accentDarkText)
+                    .foregroundStyle(palette.accentDarkText)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
-                    .background(Theme.accent, in: .capsule)
+                    .background(palette.accent, in: .capsule)
             } else {
                 Image(systemName: "arrow.right.circle")
                     .font(.title3)
-                    .foregroundStyle(Theme.accent)
+                    .foregroundStyle(palette.accent)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background(
-            side.isActive ? Theme.activeCardFill : Theme.lastPerformedCardFill,
+            side.isActive ? palette.activeCardFill : palette.lastPerformedCardFill,
             in: .rect(cornerRadius: Theme.pillCornerRadius)
         )
         .overlay(
             RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
                 .strokeBorder(
-                    side.isActive ? Theme.activeCardStroke.opacity(0.85) : Theme.lastPerformedCardStroke.opacity(0.85),
+                    side.isActive ? palette.activeCardStroke.opacity(0.85) : palette.lastPerformedCardStroke.opacity(0.85),
                     lineWidth: 1
                 )
         )

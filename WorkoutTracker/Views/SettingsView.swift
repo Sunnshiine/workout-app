@@ -4,6 +4,7 @@ struct SettingsView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(SyncCoordinator.self) private var sync
     @Environment(WorkoutStore.self) private var workout
+    @Environment(\.themePalette) private var palette
     @Environment(\.dismiss) private var dismiss
     @State private var isSheetPickerPresented = false
     @State private var isSignOutConfirmationPresented = false
@@ -13,10 +14,29 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Theme.gradient.ignoresSafeArea()
+                palette.gradient.ignoresSafeArea()
 
                 GlassEffectContainer(spacing: 12) {
                     VStack(spacing: 0) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Appearance")
+                                .font(.body.weight(.semibold))
+
+                            Picker("Appearance", selection: appearanceSelection) {
+                                ForEach(AppearancePreference.allCases, id: \.self) { appearance in
+                                    Text(appearance.label).tag(appearance)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .accessibilityIdentifier("settings-appearance-picker")
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+
+                        Divider()
+                            .overlay(palette.bannerStroke)
+                            .padding(.leading, 16)
+
                         Button {
                             isSheetPickerPresented = true
                         } label: {
@@ -30,7 +50,7 @@ struct SettingsView: View {
                         .accessibilityIdentifier("settings-training-sheet-row")
 
                         Divider()
-                            .overlay(Theme.bannerStroke)
+                            .overlay(palette.bannerStroke)
                             .padding(.leading, 56)
 
                         NavigationLink {
@@ -46,7 +66,7 @@ struct SettingsView: View {
                         .accessibilityIdentifier("settings-developer-tools-row")
 
                         Divider()
-                            .overlay(Theme.bannerStroke)
+                            .overlay(palette.bannerStroke)
                             .padding(.leading, 56)
 
                         Button(role: .destructive) {
@@ -99,10 +119,20 @@ struct SettingsView: View {
         } message: {
             Text(currentSettingsErrorMessage)
         }
+        .preferredColorScheme(palette.preferredColorScheme)
+        .toolbarColorScheme(palette.preferredColorScheme, for: .navigationBar)
     }
 
     private var sheetDisplayName: String {
         settings.spreadsheetTitle ?? "Google Sheet"
+    }
+
+    private var appearanceSelection: Binding<AppearancePreference> {
+        Binding {
+            settings.appearance
+        } set: { preference in
+            settings.setAppearance(preference)
+        }
     }
 
     private func ensureSheetSwitchStore() {
@@ -159,7 +189,7 @@ struct SettingsView: View {
                     },
                     isSelectionDisabled: sheetSwitchStore.isSwitching
                 )
-                .background(Theme.gradient.ignoresSafeArea())
+                .background(palette.gradient.ignoresSafeArea())
                 .navigationTitle("Training Sheet")
             }
             .alert(
@@ -233,6 +263,7 @@ private struct SettingsRow: View {
     let title: String
     let detail: String?
     var role = RowRole.normal
+    @Environment(\.themePalette) private var palette
 
     var body: some View {
         HStack(spacing: 14) {
@@ -268,7 +299,7 @@ private struct SettingsRow: View {
     }
 
     private var iconStyle: Color {
-        role == .destructive ? .red : Theme.accent
+        role == .destructive ? .red : palette.accent
     }
 
     private var titleStyle: Color {

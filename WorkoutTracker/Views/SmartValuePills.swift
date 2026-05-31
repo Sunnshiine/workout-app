@@ -24,6 +24,7 @@ struct SmartValuePills: View {
     @State private var editingPill: FocusedPill?
     @State private var showsRPEGrid = false
     @State private var showsLoggedCheckmark = false
+    @Environment(\.themePalette) private var palette
     @FocusState private var focusedPill: FocusedPill?
 
     init(
@@ -110,8 +111,8 @@ struct SmartValuePills: View {
         let field = formField(for: pill)
         let isInvalid = form.invalidFields.contains(field)
         let isPlaceholder = pill == .reps && form.isRepsDisplayingPlaceholder && editingPill != pill
-        let textColor = isPlaceholder ? Color.secondary : Theme.valueText
-        let strokeColor = isInvalid ? Color.red : Theme.pillStroke
+        let textColor = isPlaceholder ? Color.secondary : palette.valueText
+        let strokeColor = isInvalid ? Color.red : palette.pillStroke
         let strokeWidth = isInvalid ? 2.0 : 1.0
 
         return VStack(alignment: .leading, spacing: 8) {
@@ -123,7 +124,7 @@ struct SmartValuePills: View {
                 TextField(display, text: text)
                     .keyboardType(keyboardType)
                     .font(.title3.weight(.bold))
-                    .foregroundStyle(Theme.valueText)
+                    .foregroundStyle(palette.valueText)
                     .focused($focusedPill, equals: pill)
             } else {
                 Text(display)
@@ -133,7 +134,7 @@ struct SmartValuePills: View {
         }
         .frame(maxWidth: .infinity, minHeight: Theme.pillMinHeight, alignment: .leading)
         .padding(.horizontal, 12)
-        .background(Theme.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
+        .background(palette.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
                 .strokeBorder(strokeColor, lineWidth: strokeWidth)
@@ -151,7 +152,7 @@ struct SmartValuePills: View {
 
     private var rpePill: some View {
         let isInvalid = form.invalidFields.contains(.rpe)
-        let strokeColor = isInvalid ? Color.red : Theme.pillStroke
+        let strokeColor = isInvalid ? Color.red : palette.pillStroke
         let strokeWidth = isInvalid ? 2.0 : 1.0
 
         return Button {
@@ -166,11 +167,11 @@ struct SmartValuePills: View {
 
                 Text(form.rpeDisplay)
                     .font(.title3.weight(.bold))
-                    .foregroundStyle(Theme.valueText)
+                    .foregroundStyle(palette.valueText)
             }
             .frame(maxWidth: .infinity, minHeight: Theme.pillMinHeight, alignment: .leading)
             .padding(.horizontal, 12)
-            .background(Theme.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
+            .background(palette.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
                     .strokeBorder(strokeColor, lineWidth: strokeWidth)
@@ -194,11 +195,11 @@ struct SmartValuePills: View {
             form.adjustWeight(by: increment)
         }
         .font(.caption.weight(.bold))
-        .foregroundStyle(Theme.accent)
+        .foregroundStyle(palette.accent)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Theme.pillFill, in: .capsule)
-        .overlay(Capsule().strokeBorder(Theme.pillStroke, lineWidth: 1))
+        .background(palette.pillFill, in: .capsule)
+        .overlay(Capsule().strokeBorder(palette.pillStroke, lineWidth: 1))
     }
 
     private var actionControls: some View {
@@ -248,6 +249,7 @@ struct SmartValuePills: View {
         case .reps: .reps
         }
     }
+
 }
 
 private struct HoldToSkipLogButton: View {
@@ -265,6 +267,7 @@ private struct HoldToSkipLogButton: View {
     @State private var skipRevealTask: Task<Void, Never>?
     @State private var skipTask: Task<Void, Never>?
     @State private var suppressLogTapTask: Task<Void, Never>?
+    @Environment(\.themePalette) private var palette
 
     var body: some View {
         Button {
@@ -291,16 +294,20 @@ private struct HoldToSkipLogButton: View {
             perform: completeSkip
         )
         .font(.headline.weight(.bold))
-        .foregroundStyle(Theme.accentDarkText)
+        .foregroundStyle(logForegroundStyle)
         .padding(.vertical, 14)
         .background {
             ZStack(alignment: .leading) {
-                Theme.accent
+                logBackgroundStyle
                 Color.red.opacity(0.86)
                     .scaleEffect(x: skipProgress, y: 1, anchor: .leading)
             }
             .clipShape(.rect(cornerRadius: Theme.pillCornerRadius))
         }
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
+                .strokeBorder(logStrokeStyle, lineWidth: logStrokeWidth)
+        )
         .opacity(presentation.controlOpacity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
@@ -347,6 +354,22 @@ private struct HoldToSkipLogButton: View {
 
     private var presentation: HoldToSkipButtonPresentation {
         HoldToSkipButtonPresentation(progress: skipProgress, logTitle: logTitle, canLog: canLog)
+    }
+
+    private var logBackgroundStyle: Color {
+        palette.accent
+    }
+
+    private var logForegroundStyle: Color {
+        palette.accentDarkText
+    }
+
+    private var logStrokeStyle: Color {
+        .clear
+    }
+
+    private var logStrokeWidth: CGFloat {
+        0
     }
 
     private var policy: HoldToSkipPolicy {
