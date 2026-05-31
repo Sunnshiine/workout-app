@@ -12,8 +12,32 @@ private struct GoogleSheetsListProperties: Decodable {
     let title: String
 }
 
-private struct GoogleSheetValuesResponse: Decodable {
-    let values: [[String]]?
+private struct GoogleSheetsSnapshotResponse: Decodable {
+    let sheets: [GoogleSheetsSnapshotSheet]
+}
+
+private struct GoogleSheetsSnapshotSheet: Decodable {
+    let data: [GoogleSheetsGridData]?
+}
+
+private struct GoogleSheetsGridData: Decodable {
+    let startRow: Int?
+    let startColumn: Int?
+    let rowData: [GoogleSheetsRowData]?
+    let rowMetadata: [GoogleSheetsDimensionProperties]?
+}
+
+private struct GoogleSheetsRowData: Decodable {
+    let values: [GoogleSheetsCellData]?
+}
+
+private struct GoogleSheetsCellData: Decodable {
+    let formattedValue: String?
+}
+
+private struct GoogleSheetsDimensionProperties: Decodable {
+    let hiddenByUser: Bool?
+    let hiddenByFilter: Bool?
 }
 
 private struct GoogleSheetsValueRange: Encodable {
@@ -94,20 +118,22 @@ struct GoogleSheetsClient: SheetsClient {
         return SpreadsheetListPage(spreadsheets: spreadsheets, nextPageToken: response.nextPageToken)
     }
 
-    func fetchTab(spreadsheetId: String, tabName: String) async throws -> SheetGrid {
-        let range = tabName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? tabName
-        let urlString =
-            "https://sheets.googleapis.com/v4/spreadsheets/\(spreadsheetId)/values/\(range)"
-            + "?valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS"
-        guard
-            let url = URL(
-                string: urlString
+    func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
+        var components = URLComponents(string: "https://sheets.googleapis.com/v4/spreadsheets/\(spreadsheetId)")
+        components?.queryItems = [
+            URLQueryItem(name: "includeGridData", value: "true"),
+            URLQueryItem(name: "ranges", value: tabName),
+            URLQueryItem(
+                name: "fields",
+                value: "sheets(data(startRow,startColumn,rowData(values(formattedValue)),rowMetadata(hiddenByUser,hiddenByFilter)))"
             )
-        else {
+        ]
+        guard let url = components?.url else {
             throw SheetsError.malformedResponse
         }
         let data = try await get(url)
-        return (try JSONDecoder().decode(GoogleSheetValuesResponse.self, from: data)).values ?? []
+        let response = try JSONDecoder().decode(GoogleSheetsSnapshotResponse.self, from: data)
+        return Self.snapshot(from: response)
     }
 
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
@@ -161,6 +187,56 @@ struct GoogleSheetsClient: SheetsClient {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
         return formatter.date(from: value)
+    }
+
+    private static func snapshot(from response: GoogleSheetsSnapshotResponse) -> SheetSnapshot {
+        var values: SheetGrid = []
+        var rowVisibility: [Int: SheetRowVisibility] = [:]
+
+        for gridData in response.sheets.flatMap({ $0.data ?? [] }) {
+            let startRow = gridData.startRow ?? 0
+            let startColumn = gridData.startColumn ?? 0
+
+            for (rowOffset, rowData) in (gridData.rowData ?? []).enumerated() {
+                let rowIndex = startRow + rowOffset
+                let formattedValues = (rowData.values ?? []).map { $0.formattedValue ?? "" }
+                values = applying(formattedValues, atRow: rowIndex, startColumn: startColumn, to: values)
+            }
+
+            for (rowOffset, metadata) in (gridData.rowMetadata ?? []).enumerated() {
+                let visibility = SheetRowVisibility(
+                    hiddenByUser: metadata.hiddenByUser ?? false,
+                    hiddenByFilter: metadata.hiddenByFilter ?? false
+                )
+                if visibility != SheetRowVisibility() {
+                    rowVisibility[startRow + rowOffset] = visibility
+                }
+            }
+        }
+
+        return SheetSnapshot(values: values, rowVisibility: rowVisibility)
+    }
+
+    private static func applying(
+        _ rowValues: [String],
+        atRow rowIndex: Int,
+        startColumn: Int,
+        to grid: SheetGrid
+    ) -> SheetGrid {
+        var updated = grid
+        if rowIndex >= updated.count {
+            updated.append(contentsOf: SheetGrid(repeating: [], count: rowIndex - updated.count + 1))
+        }
+        let requiredColumns = startColumn + rowValues.count
+        if requiredColumns > updated[rowIndex].count {
+            updated[rowIndex].append(
+                contentsOf: [String](repeating: "", count: requiredColumns - updated[rowIndex].count)
+            )
+        }
+        for (offset, value) in rowValues.enumerated() {
+            updated[rowIndex][startColumn + offset] = value
+        }
+        return updated
     }
 
     private static func defaultToken() async throws -> String {

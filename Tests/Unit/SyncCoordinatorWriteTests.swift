@@ -15,10 +15,10 @@ private final class FlushStubClient: SheetsClient, @unchecked Sendable {
     }
 
     func listTabTitles(spreadsheetId: String) async throws -> [String] { ["Block 27"] }
-    func fetchTab(spreadsheetId: String, tabName: String) async throws -> SheetGrid {
+    func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
         if shouldThrowOffline { throw URLError(.notConnectedToInternet) }
         fetches.append(tabName)
-        return grid
+        return SheetSnapshot(values: grid)
     }
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
         updates.append((range, values))
@@ -46,8 +46,8 @@ private final class ControlledFlushClient: SheetsClient, @unchecked Sendable {
 
     func listTabTitles(spreadsheetId: String) async throws -> [String] { ["Block 27"] }
 
-    func fetchTab(spreadsheetId: String, tabName: String) async throws -> SheetGrid {
-        try await coordinator.fetchTab()
+    func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
+        try await coordinator.fetchTabSnapshot()
     }
 
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
@@ -428,12 +428,12 @@ private func pendingWrite(
 }
 
 private actor ControlledFlushCoordinator {
-    private var fetchContinuation: CheckedContinuation<SheetGrid, Error>?
+    private var fetchContinuation: CheckedContinuation<SheetSnapshot, Error>?
     private var hasFetchStarted = false
     private var fetchWaiters: [CheckedContinuation<Void, Never>] = []
     private(set) var updates: [(String, [[String]])] = []
 
-    func fetchTab() async throws -> SheetGrid {
+    func fetchTabSnapshot() async throws -> SheetSnapshot {
         hasFetchStarted = true
         for waiter in fetchWaiters {
             waiter.resume()
@@ -453,7 +453,7 @@ private actor ControlledFlushCoordinator {
     }
 
     func completeFetch(with grid: SheetGrid) {
-        fetchContinuation?.resume(returning: grid)
+        fetchContinuation?.resume(returning: SheetSnapshot(values: grid))
         fetchContinuation = nil
     }
 

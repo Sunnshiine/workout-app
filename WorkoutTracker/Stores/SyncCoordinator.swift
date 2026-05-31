@@ -112,9 +112,9 @@ final class SyncCoordinator {
                 return false
             }
             print("[Sync] Selected tab: \(tab)")
-            let grid = try await client.fetchTab(spreadsheetId: spreadsheetId, tabName: tab)
-            print("[Sync] Grid: \(grid.count) rows, first row: \(grid.first ?? [])")
-            let parsed = SheetParser().parse(grid: grid, tabName: tab)
+            let snapshot = try await client.fetchTabSnapshot(spreadsheetId: spreadsheetId, tabName: tab)
+            print("[Sync] Grid: \(snapshot.values.count) rows, first row: \(snapshot.values.first ?? [])")
+            let parsed = SheetParser().parse(snapshot: snapshot, tabName: tab)
             print("[Sync] Parsed: \(parsed.block.weeks.count) weeks, warnings: \(parsed.warnings)")
             try replacePersistedBlock(with: BlockBuilder.makeBlock(from: parsed.block))
             let lastPerformedEntries = LastPerformedExtractor.entries(from: parsed.block)
@@ -252,8 +252,8 @@ final class SyncCoordinator {
         tab: String,
         client: any SheetsClient
     ) async throws -> [LastPerformedRecord] {
-        let grid = try await client.fetchTab(spreadsheetId: spreadsheetId, tabName: tab)
-        let parsed = SheetParser().parse(grid: grid, tabName: tab)
+        let snapshot = try await client.fetchTabSnapshot(spreadsheetId: spreadsheetId, tabName: tab)
+        let parsed = SheetParser().parse(snapshot: snapshot, tabName: tab)
         return LastPerformedExtractor.records(from: parsed.block)
     }
 
@@ -476,9 +476,9 @@ extension SyncCoordinator {
             return snapshot
         }
 
-        let grid = try await client.fetchTab(spreadsheetId: flushContext.spreadsheetId, tabName: tab)
+        let sheetSnapshot = try await client.fetchTabSnapshot(spreadsheetId: flushContext.spreadsheetId, tabName: tab)
         try ensurePendingWriteFlushIsCurrent(flushContext.generation)
-        let snapshot = flushContext.planner.snapshot(for: grid)
+        let snapshot = flushContext.planner.snapshot(for: sheetSnapshot)
         snapshots[tab] = snapshot
         return snapshot
     }

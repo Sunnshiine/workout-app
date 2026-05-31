@@ -35,6 +35,34 @@ import Testing
     #expect(fetched.cell(row: 2, col: 2) == "grown")
 }
 
+@Test func localWorkbookPreservesSeededRowVisibilityAcrossWrites() async throws {
+    let client = LocalWorkbookSheetsClient(
+        tabs: [
+            "Block 27": SheetSnapshot(
+                values: gridFromA1(["A1": "seed"], rows: 2, cols: 2),
+                rowVisibility: [
+                    0: SheetRowVisibility(hiddenByUser: true),
+                    1: SheetRowVisibility(hiddenByFilter: true)
+                ]
+            )
+        ]
+    )
+
+    try await client.updateCells(
+        spreadsheetId: "sid",
+        range: "'Block 27'!B2",
+        values: [["changed"]]
+    )
+
+    let snapshot = try await client.fetchTabSnapshot(spreadsheetId: "sid", tabName: "Block 27")
+    let valuesOnly = try await client.fetchTab(spreadsheetId: "sid", tabName: "Block 27")
+    #expect(snapshot.values.cell(row: 1, col: 1) == "changed")
+    #expect(snapshot.isRowVisible(0) == false)
+    #expect(snapshot.isRowVisible(1) == false)
+    #expect(snapshot.isRowVisible(2) == true)
+    #expect(valuesOnly.cell(row: 1, col: 1) == "changed")
+}
+
 @Test func localWorkbookBlankWritePersistsEmptyString() async throws {
     let client = LocalWorkbookSheetsClient(
         tabs: ["Block 27": gridFromA1(["K15": "185x5@8"], rows: 20, cols: 12)]

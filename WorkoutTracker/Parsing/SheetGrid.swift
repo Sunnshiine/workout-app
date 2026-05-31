@@ -2,6 +2,34 @@ import Foundation
 
 typealias SheetGrid = [[String]]
 
+struct SheetRowVisibility: Sendable, Equatable {
+    let hiddenByUser: Bool
+    let hiddenByFilter: Bool
+
+    init(hiddenByUser: Bool = false, hiddenByFilter: Bool = false) {
+        self.hiddenByUser = hiddenByUser
+        self.hiddenByFilter = hiddenByFilter
+    }
+
+    var isVisible: Bool {
+        !hiddenByUser && !hiddenByFilter
+    }
+}
+
+struct SheetSnapshot: Sendable, Equatable {
+    let values: SheetGrid
+    let rowVisibility: [Int: SheetRowVisibility]
+
+    init(values: SheetGrid, rowVisibility: [Int: SheetRowVisibility] = [:]) {
+        self.values = values
+        self.rowVisibility = rowVisibility
+    }
+
+    func isRowVisible(_ row: Int) -> Bool {
+        rowVisibility[row]?.isVisible ?? true
+    }
+}
+
 extension Array where Element == [String] {
     func cell(row: Int, col: Int) -> String {
         guard row >= 0, row < count, col >= 0, col < self[row].count else { return "" }
