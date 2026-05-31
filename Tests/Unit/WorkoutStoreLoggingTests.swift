@@ -9,6 +9,7 @@ private func loggingContainer() throws -> ModelContainer {
     try ModelContainer(
         for: Block.self,
         PendingWrite.self,
+        WriteTargetAuditEntry.self,
         LastPerformedEntry.self,
         configurations: ModelConfiguration(
             "logging-\(UUID().uuidString)",

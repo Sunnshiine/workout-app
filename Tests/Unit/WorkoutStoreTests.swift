@@ -62,6 +62,7 @@ private func makeStore(
     let container = try ModelContainer(
         for: Block.self,
         PendingWrite.self,
+        WriteTargetAuditEntry.self,
         configurations: ModelConfiguration(
             "workout-store-\(UUID().uuidString)",
             isStoredInMemoryOnly: true

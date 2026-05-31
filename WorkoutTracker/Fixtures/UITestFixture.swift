@@ -50,6 +50,7 @@
             let container = try! ModelContainer(
                 for: Block.self,
                 PendingWrite.self,
+                WriteTargetAuditEntry.self,
                 LastPerformedEntry.self,
                 configurations: config
             )

@@ -38,6 +38,7 @@ extension SyncCoordinator {
     func recordDependentLastSetRPEConflict(_ setLogConflict: String, for write: PendingWrite) -> String {
         let message = "Last Set RPE was not written because the paired Set Log failed: \(setLogConflict)"
         write.markConflict(message)
+        recordWriteTargetAuditConflictWithoutPlanning(for: write, message: message)
         return "\(write.exerciseName): \(message)"
     }
 

@@ -14,6 +14,7 @@ private func makePartiallyUploadedBlockStore() throws -> PartiallyUploadedBlockS
     let container = try ModelContainer(
         for: Block.self,
         PendingWrite.self,
+        WriteTargetAuditEntry.self,
         configurations: ModelConfiguration(
             "partially-uploaded-block-store-\(UUID().uuidString)",
             isStoredInMemoryOnly: true
