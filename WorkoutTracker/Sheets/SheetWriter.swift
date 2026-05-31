@@ -264,6 +264,16 @@ struct SheetWritePlanner: Sendable {
             )
         }
 
+        if headerNotes.hasProtectedValue, request.setIndex < setCount {
+            guard let targetRow = anchor.firstVisibleWritableRow(in: snapshot.snapshot) else {
+                throw SheetWriterError.headerNotesBlockSetRow(
+                    exerciseName: request.exerciseName,
+                    setIndex: request.setIndex
+                )
+            }
+            return (targetRow, col)
+        }
+
         guard
             let setRow = anchor.visibleSetLogRow(
                 for: request.setIndex,
@@ -315,22 +325,28 @@ struct SheetWritePlanner: Sendable {
             request.column == .notes,
             let day = snapshot.layout.day(week: request.week, day: request.day),
             day.columns.notes == target.col,
-            let anchor = day.exerciseAnchors.first(where: { $0.name == request.exerciseName }),
-            anchor.row == target.row
+            let anchor = day.exerciseAnchors.first(where: { $0.name == request.exerciseName })
         else { return nil }
 
         let headerNotes = anchor.headerNotes(in: snapshot.grid, notesColumn: day.columns.notes)
         let setCount = anchor.prescribedSetCount(in: snapshot.grid, setsColumn: day.columns.sets)
+        let usesHeaderTarget =
+            anchor.row == target.row
+            && (anchor.usesCompactHeaderSetOne(headerNotes: headerNotes)
+                || isCompactAggregateHeader(headerNotes.value, setCount: setCount))
+        let usesVisibleWritableTarget = anchor.row != target.row && headerNotes.hasProtectedValue
         guard
             setCount > 1,
             request.setIndex < setCount,
-            anchor.usesCompactHeaderSetOne(headerNotes: headerNotes)
-                || isCompactAggregateHeader(headerNotes.value, setCount: setCount)
+            usesHeaderTarget || usesVisibleWritableTarget
         else { return nil }
 
         var values = splitSheetNotesList(actual)
         if values.count == 1, values[0].isEmpty {
             values = []
+        }
+        if usesVisibleWritableTarget, !actual.isEmpty, !values.allSatisfy(isSetLogListValue) {
+            throw SheetWriterError.unexpectedCurrentValue(expected: request.expectedCurrentValue, actual: actual)
         }
         while values.count <= request.setIndex {
             values.append("")
@@ -348,13 +364,15 @@ struct SheetWritePlanner: Sendable {
         return joinedSheetNotesList(values)
     }
 
+    private func isSetLogListValue(_ value: String) -> Bool {
+        value.isEmpty
+            || value.caseInsensitiveCompare("skip") == .orderedSame
+            || SetLog(formatted: value) != nil
+    }
+
     private func isCompactAggregateHeader(_ value: String, setCount: Int) -> Bool {
         let values = splitSheetNotesList(value)
         guard values.count > 1, values.count <= setCount else { return false }
-        return values.allSatisfy { value in
-            value.isEmpty
-                || value.caseInsensitiveCompare("skip") == .orderedSame
-                || SetLog(formatted: value) != nil
-        }
+        return values.allSatisfy(isSetLogListValue)
     }
 }

@@ -106,10 +106,12 @@ private struct ParsedSetContext {
     let setCount: Int
     let anchor: SheetLayoutExerciseAnchor
     let cols: DayColumns
-    let grid: SheetGrid
+    let snapshot: SheetSnapshot
     let headerNote: String
     let headerSetLogValues: [String]?
     let compactHeaderSetOne: Bool
+    let usesVisibleWritableRow: Bool
+    let visibleWritableRowSetLogValues: [String]?
     let reps: String
     let repsValues: [String]
     let load: String
@@ -126,12 +128,14 @@ private func parsedSets(_ context: ParsedSetContext) -> [ParsedSet] {
             rawLog = context.headerNote
         } else if context.compactHeaderSetOne {
             rawLog = ""
+        } else if context.usesVisibleWritableRow {
+            rawLog = context.visibleWritableRowSetLogValues.flatMap { i < $0.count ? $0[i] : nil } ?? ""
         } else {
             let logRow = context.anchor.setLogRow(
                 for: i,
                 compactHeaderSetOne: context.compactHeaderSetOne
             )
-            rawLog = logRow.map { context.grid.cellOrEmpty($0, context.cols.notes) } ?? ""
+            rawLog = logRow.map { context.snapshot.values.cellOrEmpty($0, context.cols.notes) } ?? ""
         }
         let logState = parsedLogState(from: rawLog)
         return ParsedSet(
@@ -173,7 +177,8 @@ private func completionSets(_ sets: [ParsedSet], legacyLog: String?) -> [ParsedS
     }
 }
 
-private func parsedExercise(grid: SheetGrid, day: SheetLayoutDay, anchor: SheetLayoutExerciseAnchor) -> ParsedExercise {
+private func parsedExercise(snapshot: SheetSnapshot, day: SheetLayoutDay, anchor: SheetLayoutExerciseAnchor) -> ParsedExercise {
+    let grid = snapshot.values
     let cols = day.columns
     let anchorRow = anchor.row
     let rawName = grid.cell(row: anchorRow, col: cols.name).trimmed
@@ -186,16 +191,23 @@ private func parsedExercise(grid: SheetGrid, day: SheetLayoutDay, anchor: SheetL
     let headerSetLogValues = headerSetLogValues(from: note, setCount: setCount)
     let compactHeaderSetOne = headerSetLogValues != nil || anchor.usesCompactHeaderSetOne(headerNotes: headerNotes)
     let legacyLog = headerSetLogValues == nil && headerNotes.isLegacyLog ? note : nil
+    let usesVisibleWritableRow = !compactHeaderSetOne && headerNotes.hasProtectedValue
+    let visibleWritableRowSetLogValues =
+        anchor
+        .firstVisibleWritableRow(in: snapshot)
+        .map { splitSheetNotesList(grid.cellOrEmpty($0, cols.notes)) }
     let sets = completionSets(
         parsedSets(
             ParsedSetContext(
                 setCount: setCount,
                 anchor: anchor,
                 cols: cols,
-                grid: grid,
+                snapshot: snapshot,
                 headerNote: note,
                 headerSetLogValues: headerSetLogValues,
                 compactHeaderSetOne: compactHeaderSetOne,
+                usesVisibleWritableRow: usesVisibleWritableRow,
+                visibleWritableRowSetLogValues: visibleWritableRowSetLogValues,
                 reps: reps,
                 repsValues: reps.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) },
                 load: load,
@@ -217,21 +229,21 @@ private func parsedExercise(grid: SheetGrid, day: SheetLayoutDay, anchor: SheetL
 }
 
 /// Parses all exercises in one day group. Anchor rows have a non-empty name cell;
-/// the row count for an exercise is `max(Sets value, 1)` (continuation rows hold
-/// extra sets / set logs; logs are read in Plan 2).
+/// the row count for an exercise is `max(Sets value, 1)`.
 func parseDay(in grid: SheetGrid, section: WeekSection, dayIndex: Int, endRow: Int) -> [ParsedExercise] {
-    let layout = SheetLayoutInterpreter().interpret(grid)
+    let snapshot = SheetSnapshot(values: grid)
+    let layout = SheetLayoutInterpreter().interpret(snapshot)
     guard
         let week = layout.weeks.first(where: { $0.headerRow == section.headerRow }),
         dayIndex < week.days.count
     else { return [] }
 
-    return parseDay(in: grid, day: week.days[dayIndex])
+    return parseDay(in: snapshot, day: week.days[dayIndex])
 }
 
-private func parseDay(in grid: SheetGrid, day: SheetLayoutDay) -> [ParsedExercise] {
+private func parseDay(in snapshot: SheetSnapshot, day: SheetLayoutDay) -> [ParsedExercise] {
     day.exerciseAnchors.map { anchor in
-        parsedExercise(grid: grid, day: day, anchor: anchor)
+        parsedExercise(snapshot: snapshot, day: day, anchor: anchor)
     }
 }
 
@@ -314,13 +326,18 @@ struct ParsedBlock {
 
 struct SheetParser {
     func parse(snapshot: SheetSnapshot, tabName: String) -> ParsedBlock {
-        parse(grid: snapshot.values, tabName: tabName)
+        parse(snapshot, tabName: tabName)
     }
 
     func parse(grid: SheetGrid, tabName: String) -> ParsedBlock {
+        parse(SheetSnapshot(values: grid), tabName: tabName)
+    }
+
+    private func parse(_ snapshot: SheetSnapshot, tabName: String) -> ParsedBlock {
+        let grid = snapshot.values
         var warnings: [String] = []
         let trainingMax = parseTrainingMax(from: grid)
-        let layout = SheetLayoutInterpreter().interpret(grid)
+        let layout = SheetLayoutInterpreter().interpret(snapshot)
         if layout.weeks.isEmpty {
             warnings.append("Parse warning: no week sections (no 'Day N' headers) in \(tabName)")
             return ParsedBlock(
@@ -338,7 +355,7 @@ struct SheetParser {
         let weeks = layout.weeks.map { week in
             let days = week.days.map { day in
                 let date = parseDate(grid.cell(row: week.dateRow, col: day.columns.name))
-                let exercises = parseDay(in: grid, day: day)
+                let exercises = parseDay(in: snapshot, day: day)
                 return ParsedSession(dayNumber: day.number, date: date, exercises: exercises)
             }
             return ParsedWeek(number: week.number, days: days)

@@ -229,8 +229,7 @@ import Testing
             "C12": "Day 1", "S12": "Day 2",
             "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
             "C15": "Chest Fly", "D15": "2", "F15": "12", "H15": "25", "K15": "Keep elbows soft",
-            "K16": "25x12@7",
-            "K17": "20x10@8"
+            "K16": "25x12@7, 20x10@8"
         ],
         rows: 20,
         cols: 30

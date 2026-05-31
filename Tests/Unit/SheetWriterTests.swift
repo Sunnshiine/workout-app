@@ -120,7 +120,8 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
         in: writerFixture(["C15": "Ab of Choice", "D15": "2", "K15": "Coach note", "C18": "Bench"]).grid
     )
 
-    #expect(setTwoUpdate.range == "'Block 27'!K17")
+    #expect(setTwoUpdate.range == "'Block 27'!K16")
+    #expect(setTwoUpdate.value == ", 25x12@8")
 }
 
 @Test func writesCompactSetTwoAfterApplyingSetOneToSnapshot() throws {
@@ -349,8 +350,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
             "C12": "Day 1", "S12": "Day 2",
             "D14": "Sets", "E14": "Notes", "G14": "Last set RPE",
             "C18": "Chest Fly", "D18": "2", "E18": "Keep elbows soft",
-            "E19": "25x12@7",
-            "E20": "20x10@8",
+            "E19": "25x12@7, 20x10@8",
             "C25": "Bench Press", "D25": "1"
         ],
         rows: 32,
@@ -377,7 +377,8 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
         in: grid
     )
 
-    #expect(update.range == "'Block 27'!E20")
+    #expect(update.range == "'Block 27'!E19")
+    #expect(update.value == "25x12@7, 22.5x10@8")
 }
 
 @Test func refusesUnexpectedCurrentCellValue() async throws {
