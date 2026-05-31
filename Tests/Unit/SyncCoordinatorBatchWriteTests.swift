@@ -6,24 +6,28 @@ import Testing
 
 private final class BatchFlushStubClient: SheetsClient, @unchecked Sendable {
     var grid: SheetGrid
+    var rowVisibility: [Int: SheetRowVisibility]
     var fetches: [String] = []
+    var attemptedRanges: [String] = []
     var updates: [(String, [[String]])] = []
     var updateRequestCount = 0
     var failedUpdateRequestNumbers: Set<Int> = []
 
-    init(grid: SheetGrid) {
+    init(grid: SheetGrid, rowVisibility: [Int: SheetRowVisibility] = [:]) {
         self.grid = grid
+        self.rowVisibility = rowVisibility
     }
 
     func listTabTitles(spreadsheetId: String) async throws -> [String] { ["Block 27"] }
 
     func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
         fetches.append(tabName)
-        return SheetSnapshot(values: grid)
+        return SheetSnapshot(values: grid, rowVisibility: rowVisibility)
     }
 
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
         updateRequestCount += 1
+        attemptedRanges.append(range)
         if failedUpdateRequestNumbers.contains(updateRequestCount) {
             throw URLError(.cannotConnectToHost)
         }
@@ -33,6 +37,7 @@ private final class BatchFlushStubClient: SheetsClient, @unchecked Sendable {
 
     func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
         updateRequestCount += 1
+        attemptedRanges.append(contentsOf: updates.map(\.range))
         if failedUpdateRequestNumbers.contains(updateRequestCount) {
             throw URLError(.cannotConnectToHost)
         }
@@ -189,15 +194,19 @@ private func batchPendingWrite(
         )
     )
     try ctx.save()
-    let client = BatchFlushStubClient(grid: oneSetGrid())
+    let client = BatchFlushStubClient(
+        grid: coachNoteHiddenContinuationGrid(),
+        rowVisibility: [15: SheetRowVisibility(hiddenByUser: true)]
+    )
     let sync = SyncCoordinator(client: client, context: ctx)
 
     await sync.flushPending(spreadsheetId: "sid")
 
     #expect(client.updateRequestCount == 2)
-    #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!K15"])
+    #expect(client.updates.map(\.0) == ["'Block 27'!K17", "'Block 27'!K17"])
     #expect(client.updates.map(\.1) == [[["185x5@8"]], [[""]]])
-    #expect(client.grid.cell(row: 14, col: 10) == "")
+    #expect(client.grid.cell(row: 15, col: 10) == "")
+    #expect(client.grid.cell(row: 16, col: 10) == "")
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
 }
 
@@ -209,7 +218,10 @@ private func batchPendingWrite(
     ctx.insert(batchPendingWrite(createdAt: 2, exerciseName: "Bench Press", valueToWrite: "135x5@7"))
     ctx.insert(batchPendingWrite(createdAt: 3, exerciseName: "Deadlift", valueToWrite: "275x5@8"))
     try ctx.save()
-    let client = BatchFlushStubClient(grid: multiExerciseConflictGrid())
+    let client = BatchFlushStubClient(
+        grid: multiExerciseConflictGrid(),
+        rowVisibility: [17: SheetRowVisibility(hiddenByUser: true)]
+    )
     let sync = SyncCoordinator(client: client, context: ctx)
 
     await sync.flushPending(spreadsheetId: "sid")
@@ -285,7 +297,10 @@ private func batchPendingWrite(
     ctx.insert(batchPendingWrite(createdAt: 1, setIndex: 0, valueToWrite: "185x5@8"))
     ctx.insert(batchPendingWrite(createdAt: 2, setIndex: 1, valueToWrite: "195x5@8"))
     try ctx.save()
-    let client = BatchFlushStubClient(grid: twoSetGrid(notesOnly: true))
+    let client = BatchFlushStubClient(
+        grid: coachNoteHiddenContinuationGrid(),
+        rowVisibility: [15: SheetRowVisibility(hiddenByUser: true)]
+    )
     client.failedUpdateRequestNumbers = [1]
     let sync = SyncCoordinator(client: client, context: ctx)
 
@@ -293,6 +308,7 @@ private func batchPendingWrite(
 
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(client.updateRequestCount == 1)
+    #expect(client.attemptedRanges == ["'Block 27'!K17"])
     #expect(writes.count == 2)
     #expect(writes.allSatisfy { $0.status == .pending })
     #expect(writes.map(\.retryCount).sorted() == [0, 1])
@@ -307,7 +323,10 @@ private func batchPendingWrite(
     ctx.insert(batchPendingWrite(createdAt: 1, setIndex: 1, valueToWrite: "195x5@9"))
     ctx.insert(batchPendingWrite(createdAt: 2, setIndex: 1, column: .lastSetRPE, valueToWrite: "9"))
     try ctx.save()
-    let client = BatchFlushStubClient(grid: twoSetGrid(firstSetLog: "185x5@8"))
+    let client = BatchFlushStubClient(
+        grid: coachNoteHiddenContinuationGrid(firstVisibleLog: "185x5@8", includesLastSetRPE: true),
+        rowVisibility: [15: SheetRowVisibility(hiddenByUser: true)]
+    )
     client.failedUpdateRequestNumbers = [1]
     let sync = SyncCoordinator(client: client, context: ctx)
 
@@ -315,8 +334,10 @@ private func batchPendingWrite(
 
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(client.updateRequestCount == 1)
+    #expect(client.attemptedRanges == ["'Block 27'!K17", "'Block 27'!I15"])
     #expect(client.updates.isEmpty)
-    #expect(client.grid.cell(row: 16, col: 10) == "")
+    #expect(client.grid.cell(row: 15, col: 10) == "")
+    #expect(client.grid.cell(row: 16, col: 10) == "185x5@8")
     #expect(client.grid.cell(row: 14, col: 8) == "")
     #expect(writes.count == 2)
     #expect(writes.allSatisfy { $0.status == .pending && $0.retryCount == 1 })
@@ -349,17 +370,24 @@ private func batchPendingWrite(
 @Test func flushBatchesFinalSetNotesAndLastSetRPEWrites() async throws {
     let container = try makeBatchContainer()
     let ctx = container.mainContext
-    ctx.insert(batchPendingWrite(createdAt: 1, setIndex: 1, valueToWrite: "195x5@9"))
-    ctx.insert(batchPendingWrite(createdAt: 2, setIndex: 1, column: .lastSetRPE, valueToWrite: "9"))
+    ctx.insert(batchPendingWrite(createdAt: 1, setIndex: 0, valueToWrite: "185x5@8"))
+    ctx.insert(batchPendingWrite(createdAt: 2, setIndex: 1, valueToWrite: "195x5@9"))
+    ctx.insert(batchPendingWrite(createdAt: 3, setIndex: 1, column: .lastSetRPE, valueToWrite: "9"))
     try ctx.save()
-    let client = BatchFlushStubClient(grid: twoSetGrid(firstSetLog: "185x5@8"))
+    let client = BatchFlushStubClient(
+        grid: coachNoteHiddenContinuationGrid(includesLastSetRPE: true),
+        rowVisibility: [15: SheetRowVisibility(hiddenByUser: true)]
+    )
     let sync = SyncCoordinator(client: client, context: ctx)
 
     await sync.flushPending(spreadsheetId: "sid")
 
-    #expect(client.updateRequestCount == 1)
-    #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!I15"])
-    #expect(client.updates.map(\.1) == [[["185x5@8, 195x5@9"]], [["9"]]])
+    #expect(client.fetches == ["Block 27"])
+    #expect(client.updateRequestCount == 2)
+    #expect(client.updates.map(\.0) == ["'Block 27'!K17", "'Block 27'!K17", "'Block 27'!I15"])
+    #expect(client.updates.map(\.1) == [[["185x5@8"]], [["185x5@8, 195x5@9"]], [["9"]]])
+    #expect(client.grid.cell(row: 15, col: 10) == "")
+    #expect(client.grid.cell(row: 16, col: 10) == "185x5@8, 195x5@9")
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
 }
 
@@ -390,6 +418,22 @@ private func twoSetGrid(notesOnly: Bool = false, firstSetLog: String? = nil) -> 
     return gridFromA1(cells, rows: 24, cols: 30)
 }
 
+private func coachNoteHiddenContinuationGrid(firstVisibleLog: String? = nil, includesLastSetRPE: Bool = false) -> SheetGrid {
+    var cells = [
+        "C12": "Day 1", "S12": "Day 2",
+        "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+        "C15": "Squat", "D15": "2", "K15": "Coach note",
+        "C19": "Bench Press", "D19": "1"
+    ]
+    if let firstVisibleLog {
+        cells["K17"] = firstVisibleLog
+    }
+    if includesLastSetRPE {
+        cells["I14"] = "Last set RPE"
+    }
+    return gridFromA1(cells, rows: 24, cols: 30)
+}
+
 private func compactHamstringCurlGrid() -> SheetGrid {
     gridFromA1(
         [
@@ -409,7 +453,7 @@ private func multiExerciseConflictGrid() -> SheetGrid {
             "C12": "Day 1", "S12": "Day 2",
             "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
             "C15": "Squat", "D15": "1",
-            "C17": "Bench Press", "D17": "1", "K17": "Coach note", "K18": "coach edited",
+            "C17": "Bench Press", "D17": "1", "K17": "Coach note",
             "C19": "Deadlift", "D19": "1"
         ],
         rows: 28,
