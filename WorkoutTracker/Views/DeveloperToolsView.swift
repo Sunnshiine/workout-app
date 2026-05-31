@@ -19,10 +19,9 @@ struct DeveloperToolsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.cardSpacing) {
                     currentSessionSection
-                    celebrationSection
                     pendingWritesSection
+                    actionsSection
                     writeAuditSection
-                    syncSection
                 }
                 .padding()
             }
@@ -88,29 +87,35 @@ struct DeveloperToolsView: View {
             }
             .textSelection(.enabled)
 
-            Button {
-                UIPasteboard.general.string = info.copyText
-            } label: {
-                Label("Copy Current Session Debug Info", systemImage: "doc.on.doc")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .buttonStyle(.glass)
-            .accessibilityIdentifier("copy-current-session-debug-info-button")
+            HStack(spacing: 10) {
+                Button {
+                    UIPasteboard.general.string = info.copyText
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
+                .accessibilityLabel("Copy Current Session Debug Info")
+                .accessibilityIdentifier("copy-current-session-debug-info-button")
 
-            Button(role: .destructive) {
-                workout.resetCurrentSessionOverride()
-            } label: {
-                Label("Reset Current Session Override", systemImage: "arrow.counterclockwise")
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                Button(role: .destructive) {
+                    workout.resetCurrentSessionOverride()
+                } label: {
+                    Image(systemName: "arrow.counterclockwise")
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
+                .disabled(!workout.hasCurrentSessionOverride)
+                .accessibilityLabel("Reset Current Session Override")
+                .accessibilityIdentifier("reset-current-session-override-button")
             }
-            .buttonStyle(.glass)
-            .disabled(!workout.hasCurrentSessionOverride)
-            .accessibilityIdentifier("reset-current-session-override-button")
         }
     }
 
-    private var celebrationSection: some View {
-        DeveloperToolsSection(title: "Move On Celebration") {
+    private var actionsSection: some View {
+        DeveloperToolsSection(title: "Actions") {
             Button {
                 previewSession = workout.displayedSession
             } label: {
@@ -120,6 +125,19 @@ struct DeveloperToolsView: View {
             .buttonStyle(.glass)
             .disabled(workout.displayedSession == nil)
             .accessibilityIdentifier("developer-tools-force-celebration-button")
+
+            Button {
+                Task { await syncConfiguredSheet() }
+            } label: {
+                Label("Sync", systemImage: "arrow.triangle.2.circlepath")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.glass)
+            .disabled(isSyncDisabled)
+            .accessibilityIdentifier("developer-tools-sync-button")
+
+            SyncStatusBanner(state: sync.state)
+                .accessibilityIdentifier("developer-tools-sync-status-banner")
         }
     }
 
@@ -180,22 +198,6 @@ struct DeveloperToolsView: View {
             .buttonStyle(.glass)
             .disabled(writeAuditDiagnostics.isEmpty)
             .accessibilityIdentifier("clear-write-log-button")
-        }
-    }
-
-    private var syncSection: some View {
-        DeveloperToolsSection(title: "Sync") {
-            Button {
-                Task { await syncConfiguredSheet() }
-            } label: {
-                Label("Sync", systemImage: "arrow.triangle.2.circlepath")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .buttonStyle(.glass)
-            .disabled(isSyncDisabled)
-            .accessibilityIdentifier("developer-tools-sync-button")
-
-            SyncStatusBanner(state: sync.state)
         }
     }
 

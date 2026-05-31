@@ -17,6 +17,7 @@
 # Usage:
 #   ralph/ralph.sh [--engine claude|codex] [--max-iterations N] [--no-push] [--select-only]
 #                  [--model NAME] [--device "iPhone 17 Pro"] [--codex-sandbox]
+#                  [--implement-timeout-seconds N]
 #
 # WARNING: with defaults this PUSHES to origin/main and CLOSES issues unattended.
 #          Pass --no-push to keep commits local (issues are still closed on the remote).
@@ -33,6 +34,7 @@ CODEX_BYPASS="${CODEX_BYPASS:-1}"
 LABEL="${LABEL:-ready-for-agent}"
 HUMAN_LABEL="${HUMAN_LABEL:-ready-for-human}"
 SIM_DEVICE="${SIM_DEVICE:-iPhone 17 Pro}"
+IMPLEMENT_TIMEOUT_SECONDS="${IMPLEMENT_TIMEOUT_SECONDS:-2700}"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -43,6 +45,7 @@ while [ $# -gt 0 ]; do
     --model) MODEL="$2"; shift 2;;
     --device) SIM_DEVICE="$2"; shift 2;;
     --codex-sandbox) CODEX_BYPASS=0; shift;;
+    --implement-timeout-seconds) IMPLEMENT_TIMEOUT_SECONDS="$2"; shift 2;;
     -h|--help) sed -n '2,28p' "$0"; exit 0;;
     *) echo "Unknown arg: $1" >&2; exit 2;;
   esac
@@ -92,6 +95,33 @@ run_agent() {
     ( cd "$workdir" && claude -p "$prompt" \
         --permission-mode bypassPermissions --model "$m" --add-dir "$REPO_ROOT" 2>/dev/null ) || true
   fi
+}
+
+run_agent_to_file_with_timeout() {
+  local prompt="$1" workdir="$2" timeout_seconds="$3" outfile="$4"
+  local pid started_at elapsed status
+
+  ( run_agent "$prompt" "$workdir" > "$outfile" ) &
+  pid=$!
+  started_at="$(date +%s)"
+
+  while kill -0 "$pid" >/dev/null 2>&1; do
+    elapsed=$(( $(date +%s) - started_at ))
+    if [ "$elapsed" -ge "$timeout_seconds" ]; then
+      pkill -TERM -P "$pid" >/dev/null 2>&1 || true
+      kill -TERM "$pid" >/dev/null 2>&1 || true
+      sleep 2
+      pkill -KILL -P "$pid" >/dev/null 2>&1 || true
+      kill -KILL "$pid" >/dev/null 2>&1 || true
+      wait "$pid" >/dev/null 2>&1 || true
+      return 124
+    fi
+    sleep 10
+  done
+
+  wait "$pid"
+  status=$?
+  return "$status"
 }
 
 flag_for_human() {
@@ -273,8 +303,16 @@ UI_REVIEW_PATH (relative to the worktree root): ralph/.artifacts/issue-$issue-ui
 OBSERVATIONS_LOG_PATH (absolute; the persistent main-repo log to tail for recurrence, read-only): $OBS
 
 $(cat "$PROMPTS/implement.md")"
-  impl_out="$(run_agent "$impl_prompt" "$wt")"
-  echo "$impl_out" > "$LOGS/iter-$iter-issue-$issue-implement.log"
+  impl_log="$LOGS/iter-$iter-issue-$issue-implement.log"
+  note "issue #$issue implement started — timeout ${IMPLEMENT_TIMEOUT_SECONDS}s"
+  run_agent_to_file_with_timeout "$impl_prompt" "$wt" "$IMPLEMENT_TIMEOUT_SECONDS" "$impl_log"
+  impl_status=$?
+  impl_out="$(cat "$impl_log" 2>/dev/null || true)"
+  if [ "$impl_status" -eq 124 ]; then
+    harvest_observations "$iter" "$issue" "BLOCKED" "$impl_out"
+    flag_for_human "$issue" "IMPLEMENT timed out after ${IMPLEMENT_TIMEOUT_SECONDS}s without reporting completion."
+    continue
+  fi
 
   if printf '%s' "$impl_out" | grep -q '<promise>COMPLETE</promise>'; then
     harvest_observations "$iter" "$issue" "COMPLETE" "$impl_out"
