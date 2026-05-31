@@ -192,8 +192,8 @@ The palette is a restrained green system with two product appearances: original 
 
 ### Hierarchy
 - **Display** (900, 34px, 1.08): Celebration titles and rare milestone moments only.
-- **Headline** (700, 17px, 1.25): Exercise names, primary button labels, and important card values.
-- **Title** (700, 20px, 1.2): Session tiles, large value pills, and compact screen-level emphasis.
+- **Headline** (700, 17px, 1.25): The in-card Exercise name, primary button labels, and important card values.
+- **Title** (700, 20px, 1.2): Exercise section headings in the Session, Session tiles, large value pills, and compact screen-level emphasis.
 - **Body** (400, 17px, 1.35): Standard Settings copy, explanatory text, and editable values.
 - **Label** (600, 12px, 1.2): Pill labels, breadcrumb text, badges, progress labels, and source labels. Uppercase is allowed only for short UI labels like "Up next" and Last Performed labels.
 
@@ -270,6 +270,7 @@ Move On Celebration is the only large celebratory moment. It can use heavy type,
 
 ### Do:
 - **Do** keep coach-authored spreadsheet structure hidden behind Sessions, Exercises, Sets, and Set Logs.
+- **Do** separate Exercises in a Session with a Title-scale section heading and spacing rhythm, not a wrapping group card — the inner Active Set, Last Performed, and Set rows are the only cards.
 - **Do** make the next logging action obvious and reachable with one hand.
 - **Do** show sync and pending-write state honestly. Never imply a Set Log has landed if it has not.
 - **Do** use mint and saturated green only for current, active, selected, and completed progress states that are real.
