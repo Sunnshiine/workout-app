@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		04AE377A3BFD19D4F485AB00 /* ExerciseSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86387591F871B0FC0CA1FC82 /* ExerciseSection.swift */; };
+		AABBCCDD0000000000000002 /* SupersetIdentityBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABBCCDD0000000000000001 /* SupersetIdentityBadge.swift */; };
 		0A3A294C9B0DC72E6107B413 /* BlockOverviewPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACD0CE14935AD19164A5C62E /* BlockOverviewPresentation.swift */; };
 		0B4BF5AB6DD10A512C793BED /* BlockTabSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5204E40ABC910CEBB0F82816 /* BlockTabSelector.swift */; };
 		0BBCA1519A513B30631E2250 /* LastPerformedLookup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FBC487F560A6B0CBC07067A /* LastPerformedLookup.swift */; };
@@ -201,6 +202,7 @@
 		841FCA4737E7B8C2DD9B2A08 /* SyncStatusBannerPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatusBannerPresentation.swift; sourceTree = "<group>"; };
 		85019258AFD1ABB430C201E0 /* GoogleAuthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAuthTests.swift; sourceTree = "<group>"; };
 		86387591F871B0FC0CA1FC82 /* ExerciseSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseSection.swift; sourceTree = "<group>"; };
+		AABBCCDD0000000000000001 /* SupersetIdentityBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupersetIdentityBadge.swift; sourceTree = "<group>"; };
 		86FF8383D7EC3E723F39F3EC /* SetLogParsingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetLogParsingTests.swift; sourceTree = "<group>"; };
 		8815732F9CDEFACE5019CD05 /* PendingWriteFlushOrdering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingWriteFlushOrdering.swift; sourceTree = "<group>"; };
 		8A6911BBEB42C06D9FB34EB7 /* SpreadsheetIdTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpreadsheetIdTests.swift; sourceTree = "<group>"; };
@@ -297,6 +299,7 @@
 				1F622271C453C1C22E76B829 /* DeveloperToolsView.swift */,
 				73043E31A40EFA8A57C38FAF /* EmptyStateView.swift */,
 				86387591F871B0FC0CA1FC82 /* ExerciseSection.swift */,
+				AABBCCDD0000000000000001 /* SupersetIdentityBadge.swift */,
 				FFBE67C176F894614182855E /* ExerciseSummaryRow.swift */,
 				67135AA558123A1C244485B9 /* LastPerformedCard.swift */,
 				D92CDF9A3131D2FF682B82FE /* LoggedSetReviewCard.swift */,
@@ -708,6 +711,7 @@
 				A17B4D3CFBBB7A17E5B5D851 /* EmptyStateView.swift in Sources */,
 				F58786858363A7A52D822F21 /* Exercise.swift in Sources */,
 				04AE377A3BFD19D4F485AB00 /* ExerciseSection.swift in Sources */,
+				AABBCCDD0000000000000002 /* SupersetIdentityBadge.swift in Sources */,
 				25D084E9516472D4282B4C04 /* ExerciseSummaryRow.swift in Sources */,
 				8E3D0AC1569F1BA279AF054E /* GoogleAuth.swift in Sources */,
 				2FFD6423631AA90DA899A6F8 /* GoogleSheetsClient.swift in Sources */,

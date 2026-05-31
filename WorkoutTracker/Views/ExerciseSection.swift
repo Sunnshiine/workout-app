@@ -212,81 +212,24 @@ struct ActiveSupersetSection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .center) {
-                Text("Superset")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(palette.accent)
-                    .textCase(.uppercase)
-
-                Spacer(minLength: 0)
-
-                Button(action: onDismiss) {
-                    Image(systemName: "link.badge.minus")
-                        .font(.callout.weight(.semibold))
-                        .accessibilityLabel("Dismiss superset")
-                }
-                .buttonStyle(.glass)
-            }
-
-            VStack(spacing: 8) {
-                ForEach(config.presentation.sides, id: \.exerciseOrder) { side in
-                    if side.isActive {
-                        SupersetSideCard(side: side)
-                    } else if config.presentation.activeSetID != nil {
-                        Button {
-                            guard let exercise = config.exercises.first(where: { $0.order == side.exerciseOrder }) else {
-                                return
-                            }
-                            onFocusExercise(exercise)
-                        } label: {
-                            focusMorphSurface(
-                                for: nextPendingSetID(for: side.exerciseOrder),
-                                content: SupersetSideCard(side: side)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityHint("Focuses this exercise's next pending set")
-                    } else {
-                        focusMorphSurface(
-                            for: nextPendingSetID(for: side.exerciseOrder),
-                            content: SupersetSideCard(side: side)
-                        )
-                    }
-                }
-            }
-
-            if let lastPerformedPresentation = config.lastPerformedPresentation {
-                LastPerformedCard(presentation: lastPerformedPresentation)
-            }
+        VStack(alignment: .leading, spacing: 0) {
+            header
 
             if let activeSetID = config.presentation.activeSetID, let activeExercise, let activeSet {
-                ZStack(alignment: .topLeading) {
-                    focusMorphSurface(
-                        for: activeSetID,
-                        content: IncomingActiveSetCard(
-                            transition: incomingTransition,
-                            exercise: activeExercise,
-                            set: activeSet,
-                            setOrdinal: setOrdinal(for: activeSet),
-                            setCount: sortedActiveSets.count,
-                            onLog: { onLog(activeSet, $0) },
-                            onSkip: { onSkip(activeSet) },
-                            onDelete: { onDelete(activeSet) }
-                        )
-                    )
+                activeRegion(activeSetID: activeSetID, activeExercise: activeExercise, activeSet: activeSet)
+                    .padding(.top, Theme.cardSpacing)
 
-                    if let transition = config.retiringTransition, transition.outgoingSetID == activeSetID {
-                        RetiringActiveSetCard(
-                            transition: transition,
-                            exercise: activeExercise,
-                            set: activeSet,
-                            setOrdinal: setOrdinal(for: activeSet),
-                            setCount: sortedActiveSets.count
-                        )
+                if let restingSide = config.presentation.sides.first(where: { !$0.isActive }) {
+                    restingStrip(for: restingSide)
+                        .padding(.top, Theme.supersetRestingSpacing)
+                }
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(config.presentation.sides, id: \.exerciseOrder) { side in
+                        restingStrip(for: side)
                     }
                 }
-                .id(activeSetID)
+                .padding(.top, Theme.cardSpacing)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -296,6 +239,119 @@ struct ActiveSupersetSection: View {
             RoundedRectangle(cornerRadius: Theme.cardCornerRadius)
                 .strokeBorder(palette.exerciseGroupStroke, lineWidth: 1)
         }
+    }
+
+    private var header: some View {
+        HStack(alignment: .center, spacing: 10) {
+            Text("Superset")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(palette.accent)
+                .textCase(.uppercase)
+
+            pairIndicator
+
+            Spacer(minLength: 0)
+
+            Button(action: onDismiss) {
+                Image(systemName: "link.badge.minus")
+                    .font(.callout.weight(.semibold))
+                    .accessibilityLabel("Dismiss superset")
+            }
+            .buttonStyle(.glass)
+        }
+    }
+
+    private var pairIndicator: some View {
+        HStack(spacing: 6) {
+            ForEach(Array(config.presentation.sides.enumerated()), id: \.element.exerciseOrder) { index, side in
+                if index > 0 {
+                    Image(systemName: "arrow.left.arrow.right")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.secondary)
+                }
+
+                SupersetIdentityBadge(label: identityLabel(forSideIndex: index), isActive: side.isActive)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private func activeRegion(
+        activeSetID: ActiveSetID,
+        activeExercise: Exercise,
+        activeSet: ExerciseSet
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let lastPerformedPresentation = config.lastPerformedPresentation {
+                LastPerformedCard(presentation: lastPerformedPresentation)
+            }
+
+            ZStack(alignment: .topLeading) {
+                focusMorphSurface(
+                    for: activeSetID,
+                    content: IncomingActiveSetCard(
+                        transition: incomingTransition,
+                        exercise: activeExercise,
+                        set: activeSet,
+                        setOrdinal: setOrdinal(for: activeSet),
+                        setCount: sortedActiveSets.count,
+                        identityLabel: identityLabel(forExerciseOrder: activeSetID.exerciseOrder),
+                        onLog: { onLog(activeSet, $0) },
+                        onSkip: { onSkip(activeSet) },
+                        onDelete: { onDelete(activeSet) }
+                    )
+                )
+
+                if let transition = config.retiringTransition, transition.outgoingSetID == activeSetID {
+                    RetiringActiveSetCard(
+                        transition: transition,
+                        exercise: activeExercise,
+                        set: activeSet,
+                        setOrdinal: setOrdinal(for: activeSet),
+                        setCount: sortedActiveSets.count,
+                        identityLabel: identityLabel(forExerciseOrder: activeSetID.exerciseOrder)
+                    )
+                }
+            }
+            .id(activeSetID)
+        }
+    }
+
+    @ViewBuilder
+    private func restingStrip(for side: ActiveSupersetSidePresentation) -> some View {
+        let isInteractive = config.presentation.activeSetID != nil
+        let strip = SupersetRestingStrip(
+            side: side,
+            identityLabel: identityLabel(forExerciseOrder: side.exerciseOrder),
+            isInteractive: isInteractive
+        )
+
+        if isInteractive {
+            Button {
+                guard let exercise = config.exercises.first(where: { $0.order == side.exerciseOrder }) else {
+                    return
+                }
+                onFocusExercise(exercise)
+            } label: {
+                focusMorphSurface(for: nextPendingSetID(for: side.exerciseOrder), content: strip)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Switches to this exercise's next pending set")
+        } else {
+            focusMorphSurface(for: nextPendingSetID(for: side.exerciseOrder), content: strip)
+        }
+    }
+
+    private func identityLabel(forSideIndex index: Int) -> String {
+        index == 0 ? "A" : "B"
+    }
+
+    private func identityLabel(forExerciseOrder order: Int) -> String {
+        guard let index = config.presentation.sides.firstIndex(where: { $0.exerciseOrder == order }) else {
+            return ""
+        }
+        return identityLabel(forSideIndex: index)
     }
 
     private var incomingTransition: ActiveSetTransition? {
@@ -334,59 +390,52 @@ struct ActiveSupersetSection: View {
     }
 }
 
-private struct SupersetSideCard: View {
+/// The resting Superset side: a slim strip beneath the active card. Tapping it
+/// brings its next pending Set up into the active card (matched-geometry morph).
+private struct SupersetRestingStrip: View {
     let side: ActiveSupersetSidePresentation
+    let identityLabel: String
+    var isInteractive = true
     @Environment(\.themePalette) private var palette
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            VStack(alignment: .leading, spacing: 5) {
+        HStack(alignment: .center, spacing: 10) {
+            SupersetIdentityBadge(label: identityLabel, isActive: false)
+
+            VStack(alignment: .leading, spacing: 3) {
                 Text(side.exerciseName)
                     .font(.callout.weight(.semibold))
-                    .foregroundStyle(side.isActive ? palette.accent : .primary)
+                    .foregroundStyle(.primary)
 
-                Text(side.nextSetText)
-                    .font(.caption.weight(.semibold))
+                Text(detailText)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
-
-                if !side.prescriptionText.isEmpty {
-                    Text(side.prescriptionText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
             }
 
             Spacer(minLength: 0)
 
-            if side.isActive {
-                Text("Active")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(palette.accentDarkText)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
-                    .background(palette.accent, in: .capsule)
-            } else {
-                Image(systemName: "arrow.right.circle")
+            if isInteractive {
+                Image(systemName: "arrow.up.circle")
                     .font(.title3)
                     .foregroundStyle(palette.accent)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(
-            side.isActive ? palette.activeCardFill : palette.lastPerformedCardFill,
-            in: .rect(cornerRadius: Theme.pillCornerRadius)
-        )
+        .padding(.vertical, 12)
+        .background(palette.lastPerformedCardFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
-                .strokeBorder(
-                    side.isActive ? palette.activeCardStroke.opacity(0.85) : palette.lastPerformedCardStroke.opacity(0.85),
-                    lineWidth: 1
-                )
+                .strokeBorder(palette.lastPerformedCardStroke.opacity(0.85), lineWidth: 1)
         )
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(side.accessibilityLabel)
+    }
+
+    private var detailText: String {
+        side.prescriptionText.isEmpty
+            ? side.nextSetText
+            : "\(side.nextSetText) · \(side.prescriptionText)"
     }
 }
 
@@ -396,6 +445,7 @@ private struct IncomingActiveSetCard: View {
     let set: ExerciseSet
     let setOrdinal: Int
     let setCount: Int
+    var identityLabel: String?
     let onLog: (SetLog) -> Void
     let onSkip: () -> Void
     let onDelete: () -> Void
@@ -409,7 +459,8 @@ private struct IncomingActiveSetCard: View {
             setCount: setCount,
             onLog: onLog,
             onSkip: onSkip,
-            onDelete: onDelete
+            onDelete: onDelete,
+            identityLabel: identityLabel
         )
         .offset(y: shouldAnimate && !hasSettled ? incomingOffset : 0)
         .opacity(shouldAnimate && !hasSettled ? 0 : 1)
@@ -465,6 +516,7 @@ private struct RetiringActiveSetCard: View {
     let set: ExerciseSet
     let setOrdinal: Int
     let setCount: Int
+    var identityLabel: String?
     @State private var hasRetired = false
 
     var body: some View {
@@ -476,7 +528,8 @@ private struct RetiringActiveSetCard: View {
             onLog: { _ in },
             onSkip: {},
             onDelete: {},
-            showsLoggedCheckmark: transition.kind == .momentumFlow
+            showsLoggedCheckmark: transition.kind == .momentumFlow,
+            identityLabel: identityLabel
         )
         .allowsHitTesting(false)
         .offset(y: retiringOffset)
