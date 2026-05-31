@@ -17,9 +17,7 @@ struct WorkoutTrackerApp: App {
                 self.container = container
                 let ctx = container.mainContext
                 let defaults = UITestFixture.makeDefaults()
-                let settings = SettingsStore(defaults: defaults)
-                settings.isSignedIn = true
-                settings.setSpreadsheet(id: WorkoutFixtureScenarios.sheetId, title: "Fixture Training Log")
+                let settings = Self.makeUITestSettings(defaults: defaults)
                 let lastPerformedLookup = LastPerformedLookupStore(context: ctx)
                 let workout = WorkoutStore(
                     context: ctx,
@@ -74,6 +72,16 @@ struct WorkoutTrackerApp: App {
             if UITestFixture.startsInBlockOverview {
                 workout.requestBlockOverviewPresentation()
             }
+        }
+
+        private static func makeUITestSettings(defaults: UserDefaults) -> SettingsStore {
+            let settings = SettingsStore(defaults: defaults)
+            if let appearanceOverride = UITestFixture.appearanceOverride {
+                settings.setAppearance(appearanceOverride)
+            }
+            settings.isSignedIn = true
+            settings.setSpreadsheet(id: WorkoutFixtureScenarios.sheetId, title: "Fixture Training Log")
+            return settings
         }
 
         private static func applyCurrentSessionOverrideFixture(to workout: WorkoutStore) {

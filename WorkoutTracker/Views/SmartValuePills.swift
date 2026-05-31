@@ -112,7 +112,7 @@ struct SmartValuePills: View {
         let isInvalid = form.invalidFields.contains(field)
         let isPlaceholder = pill == .reps && form.isRepsDisplayingPlaceholder && editingPill != pill
         let textColor = isPlaceholder ? Color.secondary : palette.valueText
-        let strokeColor = isInvalid ? Color.red : palette.pillStroke
+        let strokeColor = isInvalid ? palette.danger : palette.pillStroke
         let strokeWidth = isInvalid ? 2.0 : 1.0
 
         return VStack(alignment: .leading, spacing: 8) {
@@ -152,7 +152,7 @@ struct SmartValuePills: View {
 
     private var rpePill: some View {
         let isInvalid = form.invalidFields.contains(.rpe)
-        let strokeColor = isInvalid ? Color.red : palette.pillStroke
+        let strokeColor = isInvalid ? palette.danger : palette.pillStroke
         let strokeWidth = isInvalid ? 2.0 : 1.0
 
         return Button {
@@ -299,7 +299,7 @@ private struct HoldToSkipLogButton: View {
         .background {
             ZStack(alignment: .leading) {
                 logBackgroundStyle
-                Color.red.opacity(0.86)
+                palette.danger.opacity(0.86)
                     .scaleEffect(x: skipProgress, y: 1, anchor: .leading)
             }
             .clipShape(.rect(cornerRadius: Theme.pillCornerRadius))
@@ -341,7 +341,7 @@ private struct HoldToSkipLogButton: View {
                         .font(.caption.weight(.bold))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
-                        .background(Color.red.opacity(0.86), in: .capsule)
+                        .background(palette.danger.opacity(0.86), in: .capsule)
                 }
                 .padding(.horizontal, 10)
             }

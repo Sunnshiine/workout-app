@@ -44,6 +44,7 @@ enum Theme {
         let sessionTileIncompleteText: Color
         let sessionTileUnavailableText: Color
         let sessionTileRestingBorder: Color
+        let danger: Color
 
         var gradient: LinearGradient {
             LinearGradient(
@@ -89,6 +90,7 @@ enum Theme {
     static let sessionTileIncompleteText = activePalette.sessionTileIncompleteText
     static let sessionTileUnavailableText = activePalette.sessionTileUnavailableText
     static let sessionTileRestingBorder = activePalette.sessionTileRestingBorder
+    static let danger = activePalette.danger
 
     static let cardCornerRadius: CGFloat = 16
     static let cardSpacing: CGFloat = 16
@@ -256,7 +258,8 @@ extension Theme {
         sessionTileCompleteText: .white,
         sessionTileIncompleteText: .white.opacity(0.64),
         sessionTileUnavailableText: .white.opacity(0.4),
-        sessionTileRestingBorder: .white.opacity(0.10)
+        sessionTileRestingBorder: .white.opacity(0.10),
+        danger: Color(red: 1.0, green: 0.23, blue: 0.19)
     )
 
     private static let blackPalette = Palette(
@@ -284,7 +287,8 @@ extension Theme {
         sessionTileCompleteText: .white,
         sessionTileIncompleteText: .white.opacity(0.62),
         sessionTileUnavailableText: .white.opacity(0.36),
-        sessionTileRestingBorder: .white.opacity(0.09)
+        sessionTileRestingBorder: .white.opacity(0.09),
+        danger: Color(red: 1.0, green: 0.23, blue: 0.19)
     )
 
     private static let mintGreenPalette = Palette(
@@ -312,7 +316,8 @@ extension Theme {
         sessionTileCompleteText: .white,
         sessionTileIncompleteText: .white.opacity(0.68),
         sessionTileUnavailableText: .white.opacity(0.42),
-        sessionTileRestingBorder: .white.opacity(0.11)
+        sessionTileRestingBorder: .white.opacity(0.11),
+        danger: Color(red: 1.0, green: 0.23, blue: 0.19)
     )
 
     private static let sageLightPalette = Palette(
@@ -340,7 +345,8 @@ extension Theme {
         sessionTileCompleteText: .white,
         sessionTileIncompleteText: .primary.opacity(0.70),
         sessionTileUnavailableText: .secondary.opacity(0.86),
-        sessionTileRestingBorder: .black.opacity(0.10)
+        sessionTileRestingBorder: .black.opacity(0.10),
+        danger: Color(red: 1.0, green: 0.23, blue: 0.19)
     )
 
     private static let blueLightPalette = Palette(
@@ -368,6 +374,7 @@ extension Theme {
         sessionTileCompleteText: .white,
         sessionTileIncompleteText: .primary.opacity(0.70),
         sessionTileUnavailableText: .secondary.opacity(0.86),
-        sessionTileRestingBorder: .black.opacity(0.10)
+        sessionTileRestingBorder: .black.opacity(0.10),
+        danger: Color(red: 1.0, green: 0.23, blue: 0.19)
     )
 }
