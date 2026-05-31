@@ -38,6 +38,11 @@
             WorkoutFixtureBlocks.uiLaunchBlock()
         }
 
+        @MainActor
+        static func longSessionBlock() -> Block {
+            WorkoutFixtureBlocks.longSessionBlock()
+        }
+
         static func syncFailureState() -> SyncCoordinator.State {
             .conflict(["Sheet write failed"])
         }
@@ -164,6 +169,59 @@
                         }
                     )
                 }
+            )
+        }
+
+        @MainActor
+        static func longSessionBlock() -> Block {
+            Factory.block(
+                weeks: [
+                    Factory.week(
+                        1,
+                        sessions: [
+                            Factory.session(
+                                weekNumber: 1,
+                                dayNumber: 1,
+                                exercises: longSessionExercises()
+                            )
+                        ]
+                    )
+                ]
+            )
+        }
+
+        private static func longSessionExercises() -> [Exercise] {
+            [
+                Factory.exercise(
+                    name: "Primer Row",
+                    baseName: "Primer Row",
+                    coachNote: "Move crisply.",
+                    order: 0,
+                    sets: [Factory.loggedSet(0, reps: "8", load: "RPE6", weight: 95, rpe: 6)]
+                ),
+                longSessionExercise("Back Squat", order: 1, reps: "5", load: "RPE6", note: "Brace hard."),
+                longSessionExercise("Bench Press", order: 2, reps: "5", load: "RPE6", note: "Pause every rep."),
+                longSessionExercise("Chest-Supported Row", order: 3, reps: "10", load: "RPE7", note: "Pause at the top."),
+                longSessionExercise("Split Squat", order: 4, reps: "8", load: "RPE7", note: "Keep the front foot planted."),
+                longSessionExercise("Hamstring Curl", order: 5, reps: "12", load: "RPE8", note: "Control the eccentric."),
+                longSessionExercise("Cable Crunch", order: 6, reps: "12", load: "RPE8", note: "Exhale hard."),
+                longSessionExercise("Farmer Carry", order: 7, reps: "40 sec", load: "RPE7", note: "Tall posture.")
+            ]
+        }
+
+        private static func longSessionExercise(
+            _ name: String,
+            order: Int,
+            reps: String,
+            load: String,
+            note: String
+        ) -> Exercise {
+            Factory.exercise(
+                name: name,
+                baseName: name,
+                coachNote: note,
+                order: order,
+                sets: [Factory.set(0, reps: reps, load: load)]
             )
         }
 
