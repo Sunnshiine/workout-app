@@ -10,6 +10,8 @@ struct SessionProgressHeader: View {
     let onNavigate: () -> Void
     let onSettings: () -> Void
     let onSync: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Namespace private var focusMarkerNamespace
 
     init(
         session: Session,
@@ -65,7 +67,11 @@ struct SessionProgressHeader: View {
 
             HStack(spacing: 3) {
                 ForEach(Array(presentation.segments.enumerated()), id: \.offset) { _, segment in
-                    SessionProgressSegment(segment: segment)
+                    SessionProgressSegment(
+                        segment: segment,
+                        focusMarkerNamespace: focusMarkerNamespace,
+                        usesTravelingFocusMarker: !reduceMotion
+                    )
                 }
             }
             .frame(height: 8)
@@ -134,13 +140,16 @@ private struct SessionControls: View {
 
 private struct SessionProgressSegment: View {
     let segment: SessionProgressSegmentPresentation
+    let focusMarkerNamespace: Namespace.ID
+    let usesTravelingFocusMarker: Bool
 
     var body: some View {
         RoundedRectangle(cornerRadius: 3, style: .continuous)
             .fill(fill)
             .overlay {
-                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .stroke(stroke, lineWidth: strokeWidth)
+                if segment.state == .currentPending {
+                    focusMarker
+                }
             }
             .frame(maxWidth: .infinity, minHeight: 8, maxHeight: 8)
     }
@@ -158,21 +167,15 @@ private struct SessionProgressSegment: View {
         }
     }
 
-    private var stroke: Color {
-        switch segment.state {
-        case .currentPending:
-            Theme.accent
-        default:
-            .clear
-        }
-    }
+    @ViewBuilder
+    private var focusMarker: some View {
+        let marker = RoundedRectangle(cornerRadius: 3, style: .continuous)
+            .stroke(Theme.accent, lineWidth: 1.25)
 
-    private var strokeWidth: CGFloat {
-        switch segment.state {
-        case .currentPending:
-            1.25
-        default:
-            0
+        if usesTravelingFocusMarker {
+            marker.matchedGeometryEffect(id: "session-progress-focus-marker", in: focusMarkerNamespace)
+        } else {
+            marker
         }
     }
 }
