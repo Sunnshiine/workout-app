@@ -90,7 +90,7 @@ final class WorkoutTrackerUITests: XCTestCase {
     }
 
     @MainActor
-    func testRPEPickerHalfStepGestureSelectsHalfStepAndTapResetsToWhole() throws {
+    func testRPEPickerHalfStepRowSelectsHalfStepAndTapResetsToWhole() throws {
         let app = launchFixtureApp()
 
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
@@ -98,12 +98,7 @@ final class WorkoutTrackerUITests: XCTestCase {
         app.buttons["rpe-pill"].tap()
         let rpe6 = app.buttons["rpe-6"]
         XCTAssertTrue(rpe6.waitForExistence(timeout: 3))
-        rpe6
-            .coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-            .press(
-                forDuration: 0.45,
-                thenDragTo: rpe6.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: -0.8))
-            )
+        app.buttons["rpe-6-half"].tap()
         waitForLabel("Log 237.5×5@6.5", on: app.buttons["log-active-set-button"])
 
         app.buttons["rpe-pill"].tap()
