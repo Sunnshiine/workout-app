@@ -15,6 +15,8 @@ enum Theme {
     static let accent = Color(red: 0.45, green: 1.0, blue: 0.72)
     static let accentDarkText = Color(red: 0.02, green: 0.12, blue: 0.07)
     static let progressTrack = Color(red: 0.025, green: 0.055, blue: 0.04)
+    static let exerciseGroupFill = Color(red: 0.025, green: 0.055, blue: 0.045).opacity(0.34)
+    static let exerciseGroupStroke = Color.white.opacity(0.07)
     static let activeCardFill = Color(red: 0.03, green: 0.20, blue: 0.12).opacity(0.72)
     static let activeCardStroke = Color(red: 0.23, green: 0.82, blue: 0.48)
     static let lastPerformedCardFill = Color(red: 0.03, green: 0.10, blue: 0.07).opacity(0.82)
@@ -28,6 +30,7 @@ enum Theme {
 
     static let cardCornerRadius: CGFloat = 16
     static let cardSpacing: CGFloat = 16
+    static let rowCornerRadius: CGFloat = 8
     static let sessionTileCornerRadius: CGFloat = 8
     static let sessionTileMinHeight: CGFloat = 86
     static let sessionTileSpacing: CGFloat = 10
