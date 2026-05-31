@@ -28,6 +28,10 @@
             ProcessInfo.processInfo.arguments.contains("-UITEST_DEVELOPER_TOOLS")
         }
 
+        static var startsInSettings: Bool {
+            ProcessInfo.processInfo.arguments.contains("-UITEST_SETTINGS")
+        }
+
         static var startsWithCurrentSessionOverride: Bool {
             ProcessInfo.processInfo.arguments.contains("-UITEST_CURRENT_SESSION_OVERRIDE")
         }
@@ -37,11 +41,25 @@
         }
 
         static var startsInBlockOverview: Bool {
-            !startsInSession && !startsInDeveloperTools
+            !startsInSession && !startsInDeveloperTools && !startsInSettings
         }
 
         static var startsWithFullBlock: Bool {
             ProcessInfo.processInfo.arguments.contains("-UITEST_FULL_BLOCK")
+        }
+
+        static var appearanceOverride: AppearancePreference? {
+            appearanceOverride(from: ProcessInfo.processInfo.arguments)
+        }
+
+        static func appearanceOverride(from arguments: [String]) -> AppearancePreference? {
+            guard
+                let argumentIndex = arguments.firstIndex(of: "-UITEST_APPEARANCE"),
+                arguments.indices.contains(arguments.index(after: argumentIndex))
+            else {
+                return nil
+            }
+            return AppearancePreference(rawValue: arguments[arguments.index(after: argumentIndex)])
         }
 
         private static let defaultsSuiteName = "WorkoutTracker.UITestFixture"
