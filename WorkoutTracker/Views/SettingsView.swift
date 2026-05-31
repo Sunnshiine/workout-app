@@ -299,10 +299,10 @@ private struct SettingsRow: View {
     }
 
     private var iconStyle: Color {
-        role == .destructive ? .red : palette.accent
+        role == .destructive ? palette.danger : palette.accent
     }
 
     private var titleStyle: Color {
-        role == .destructive ? .red : .primary
+        role == .destructive ? palette.danger : .primary
     }
 }
