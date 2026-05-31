@@ -27,6 +27,20 @@ import Testing
 }
 
 @MainActor
+@Test func appearanceDefaultsToDarkAndPersistsManualChoices() throws {
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let store = SettingsStore(defaults: defaults)
+
+    #expect(store.appearance == .dark)
+
+    store.setAppearance(.light)
+    #expect(SettingsStore(defaults: defaults).appearance == .light)
+
+    store.setAppearance(.dark)
+    #expect(SettingsStore(defaults: defaults).appearance == .dark)
+}
+
+@MainActor
 @Test func signOutClearsAuthAndSpreadsheetSelection() throws {
     let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
     let store = SettingsStore(defaults: defaults)
