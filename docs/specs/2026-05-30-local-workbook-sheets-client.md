@@ -9,8 +9,8 @@ project rule that default automated tests never touch live Google auth, live Goo
 or real network connectivity.
 
 This spec covers the main confidence layer from the Google Sheets write-testing design:
-seed a realistic `SheetGrid`, run the real app write flow through `SyncCoordinator` and
-`SheetWriter`, fetch the mutated grid through the same `SheetsClient` protocol, parse it
+seed a realistic Sheet snapshot, run the real app write flow through `SyncCoordinator` and
+`SheetWriter`, fetch the mutated snapshot through the same `SheetsClient` protocol, parse it
 again, and assert final domain state.
 
 ## Background
@@ -38,12 +38,13 @@ tests.
 - Decision: Add a shared test-only workbook client under `Tests/Support`.
   Source: Adversarial Google Sheets testing design consensus.
   Consequence: Production `SheetsClient`, `GoogleSheetsClient`, `SheetWriter`, and
-  `SyncCoordinator` contracts stay unchanged.
+  `SyncCoordinator` contracts can evolve to carry row visibility metadata, while the local
+  workbook remains a test-only implementation of the same boundary.
 
 - Decision: The local workbook is the main confidence layer for broad Sheet write-path
   behavior.
   Source: [Testing strategy](../TESTING.md) and design consensus.
-  Consequence: Normal tests can cover compact headers, continuation rows, Coach Notes,
+  Consequence: Normal tests can cover Visible Writable Rows, hidden row exclusion, Coach Notes,
   Legacy Logs, shifted columns, deletes, conflicts, batching, and parse-after-write
   behavior without live Google credentials.
 
@@ -70,8 +71,8 @@ tests.
 ### In
 
 - A shared `LocalWorkbookSheetsClient` test double that implements `SheetsClient`.
-- Workbook state represented as tabs backed by `SheetGrid` values.
-- Support for `listTabTitles`, `fetchTab`, single-range writes, and multi-range batch writes.
+- Workbook state represented as tabs backed by Sheet values plus row visibility metadata.
+- Support for `listTabTitles`, snapshot fetches, single-range writes, and multi-range batch writes.
 - A1 range parsing compatible with ranges produced by `singleCellRange(tabName:row:col:)`,
   including quoted tab names.
 - Literal value persistence, including blank writes used for deletes.
@@ -86,8 +87,7 @@ tests.
 - Live Google Sheets tests.
 - Google Drive file creation, cleanup, or deletion tests.
 - Production read-after-write verification before pending-write deletion.
-- Changes to `SheetsClient`, `GoogleSheetsClient`, `PendingWrite`, or production persistence
-  shape.
+- Changes to `PendingWrite` or production persistence shape.
 - Simulation of Google `USER_ENTERED`, locale, formula, date, or formatted-value behavior.
 - UI integration test rewrites.
 - A broad test-suite reorganization.
@@ -98,12 +98,13 @@ tests.
 spreadsheet listing, tab fetches, single updates, and multi-range batch updates. The default
 batch implementation throws for multiple updates unless a concrete client opts in.
 
-`GoogleSheetsClient` is the production adapter. It fetches tab values with
-`valueRenderOption=FORMATTED_VALUE&majorDimension=ROWS` and writes with
+`GoogleSheetsClient` is the production adapter. The old values-only tab fetch is insufficient for the
+Visible Writable Row model because it cannot distinguish visible rows from rows hidden by user action or
+filter. Production fetches must provide formatted values plus row metadata, while writes still use
 `values:batchUpdate`, `valueInputOption=USER_ENTERED`, and `majorDimension=ROWS`.
 
 `SheetWritePlanner` resolves semantic pending writes into transient cell updates by reading
-a current `SheetGrid` snapshot and applying dynamic layout rules from the Sheet layout
+a current Sheet snapshot and applying dynamic layout rules from the Sheet layout
 interpreter. `SheetWriter` converts planned updates into A1 ranges and calls `SheetsClient`.
 
 `SyncCoordinator` owns pending-write flush orchestration. It fetches one grid snapshot per
@@ -127,11 +128,11 @@ workbook state and recorded batches behind a concurrency-safe boundary.
 
 The preferred workflow shape is:
 
-1. Seed a workbook tab with a realistic `SheetGrid`.
+1. Seed a workbook tab with realistic values and row visibility metadata.
 2. Insert semantic `PendingWrite` records into an in-memory SwiftData context.
 3. Run `SyncCoordinator.flushPending(spreadsheetId:)`.
-4. Fetch the tab through `LocalWorkbookSheetsClient.fetchTab`.
-5. Parse the fetched grid with `SheetParser`.
+4. Fetch the tab snapshot through `LocalWorkbookSheetsClient`.
+5. Parse the fetched snapshot with `SheetParser`.
 6. Assert final domain state, protected Coach Notes, Set Logs, Last Set RPE, conflicts, and
    pending-write deletion or retry behavior as appropriate.
 
@@ -147,10 +148,10 @@ Test-only `SheetsClient` implementation backed by local workbook state.
 
 ```swift
 actor LocalWorkbookSheetsClient: SheetsClient {
-    init(spreadsheetId: String = "sid", tabs: [String: SheetGrid])
+    init(spreadsheetId: String = "sid", tabs: [String: SheetSnapshot])
 
     func listTabTitles(spreadsheetId: String) async throws -> [String]
-    func fetchTab(spreadsheetId: String, tabName: String) async throws -> SheetGrid
+    func fetchSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws
     func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws
 }
@@ -162,13 +163,16 @@ production-only APIs or direct `SyncCoordinator` internals.
 
 ### [ADDED] Local Workbook State Contract
 
-The workbook stores tab titles mapped to `SheetGrid` values. `fetchTab` returns the current
-grid snapshot for the requested tab. Writes must update workbook state so later reads see
-the new values.
+The workbook stores tab titles mapped to Sheet snapshots. A fetched snapshot returns current values and row
+visibility facts for the requested tab. Writes must update workbook values so later reads see the new values;
+writes do not mutate row visibility.
 
 The workbook may grow rows or columns when a valid update targets a cell outside the seeded
 grid bounds. This matches existing planner test behavior and keeps fixtures focused on
 meaningful cells instead of padding.
+
+Rows default to visible unless a test fixture marks them hidden by user action or hidden by filter.
+Hidden-row metadata must survive writes and later reads.
 
 ### [ADDED] A1 Range Contract
 
@@ -218,7 +222,7 @@ workbook-state confidence. The minimum expected assertion path is:
 
 - pending writes are flushed through `SyncCoordinator`;
 - the workbook reflects the expected Notes and Last Set RPE cells;
-- parsing the fetched workbook yields the expected `Set` states;
+- parsing the fetched workbook snapshot yields the expected `Set` states;
 - pending writes are deleted only after successful workbook writes, or retained on failure.
 
 ### [REMOVED] Duplicated Generic Workbook Mutation Helpers
@@ -243,9 +247,10 @@ they test concurrency or retry paths that the shared workbook does not own.
 ### Phase 2: First End-to-End Write-Path Round Trip
 
 - Change: Add one high-risk round-trip test using the shared workbook: seed a Coach Note or
-  AMRAP header Notes layout, insert Set Log plus paired Last Set RPE pending writes, flush
-  through `SyncCoordinator`, fetch the updated tab, parse it, and assert protected Coach Note,
-  continuation Set Logs, Last Set RPE, and pending-write deletion.
+  AMRAP header Notes layout with hidden rows before the visible target row, insert Set Log plus paired
+  Last Set RPE pending writes, flush through `SyncCoordinator`, fetch the updated tab snapshot, parse it,
+  and assert protected Coach Note, visible comma-separated Set Logs, hidden-row exclusion, Last Set RPE,
+  and pending-write deletion.
 - Compatibility: Existing planner and batch tests remain available as narrower regression
   tests.
 - Acceptance criteria: The test proves final workbook state and parsed domain state, not
@@ -273,15 +278,15 @@ they test concurrency or retry paths that the shared workbook does not own.
 
 ## Acceptance Criteria
 
-- [ ] A shared test-only `LocalWorkbookSheetsClient` implements the `SheetsClient` read and
+- [ ] A shared test-only `LocalWorkbookSheetsClient` implements the `SheetsClient` snapshot read and
       write contract without live Google auth, live Google Sheets, or real network access.
 - [ ] Batch writes are atomic in the local workbook: a failed multi-update batch leaves all
       workbook tabs unchanged.
 - [ ] Blank writes, quoted tab names, dynamically grown rows or columns, and read-after-write
       fetches are covered by focused tests.
 - [ ] At least one high-risk write workflow runs through `SyncCoordinator.flushPending`,
-      fetches the mutated workbook, reparses it with `SheetParser`, and asserts final domain
-      state.
+      fetches the mutated workbook snapshot, reparses it with `SheetParser`, and asserts final domain
+      state, including hidden-row exclusion.
 - [ ] Existing request-shape tests for `GoogleSheetsClient` remain responsible for
       `USER_ENTERED`, endpoint, authorization, and JSON body assertions.
 

@@ -3,12 +3,13 @@
 ## Goal
 
 Create a shared Sheet layout interpretation module at `WorkoutTracker/Parsing/SheetLayoutInterpreter.swift`.
-The module concentrates Week, Day, Exercise anchor, Set row, role-column, header Notes, and write-target
-layout rules that are currently split between parsing and write planning.
+The module concentrates Week, Day, Session boundary, Exercise anchor, row visibility, Visible Writable Row,
+role-column, header Notes, and write-target layout rules that are currently split between parsing and write
+planning.
 
-The change is behavior-preserving. It should make Sheet-shape edge cases testable once, then let
-`SheetParser` and `SheetWritePlanner` consume the same interpreted layout without weakening dynamic
-cell targeting or local-first write safety.
+The change updates the Set Log row model and centralizes it. It should make Sheet-shape edge cases testable
+once, then let `SheetParser` and `SheetWritePlanner` consume the same interpreted layout without weakening
+dynamic cell targeting or local-first write safety.
 
 ## Background
 
@@ -23,9 +24,9 @@ Notes cells. Existing rules are documented in:
 - [Testing strategy](../TESTING.md)
 
 Today, `SheetParser` owns `WeekSection`, `DayColumns`, role-column scanning, anchor row discovery,
-header Notes classification, continuation-row Set Log parsing, and Legacy Log completion behavior.
+header Notes classification, Set Log parsing, and Legacy Log completion behavior.
 `SheetWritePlanningIndex` separately rebuilds a write-side view of weeks, days, anchors, role columns,
-compact header Set 1, continuation Set rows, Last Set RPE targets, and header Notes conflicts.
+Set Log target rows, Last Set RPE targets, and header Notes conflicts.
 
 This duplication is risky because the highest-risk bugs are Sheet-shape bugs: a parser change and a writer
 change can accidentally diverge on the same Sheet row.
@@ -42,11 +43,21 @@ change can accidentally diverge on the same Sheet row.
 
 - Decision: Preserve fully dynamic targeting.
   Source: [ADR 0003](../adr/0003-dynamic-cell-targeting.md).
-  Consequence: The layout module scans live `SheetGrid` contents for Day headers, role headers, and Exercise anchors. It must not persist or cache raw A1 addresses across syncs or app launches.
+  Consequence: The layout module scans live Sheet values for Day headers, role headers, and Exercise anchors,
+  and uses live row visibility metadata to exclude hidden rows. It must not persist or cache raw A1 addresses
+  across syncs or app launches.
+
+- Decision: Set Logs use one Visible Writable Row per Exercise.
+  Source: Spreadsheet-write targeting design update after hidden-row workbook evidence.
+  Consequence: Parser and writer must select the same Visible Writable Row inside the same Session. If the
+  Exercise header Notes cell is available, the Exercise row is the target. If the header Notes cell contains
+  a Coach Note, the search moves downward from the Exercise row to the next Visible Writable Row and stops
+  before the next Session boundary. Hidden rows are ignored for reads and writes.
 
 - Decision: Preserve Legacy Log semantics.
   Source: [ADR 0005](../adr/0005-legacy-logs.md).
-  Consequence: Header Notes classification must distinguish Coach Note, Legacy Log, compact Set Log, compact skip, and empty header Notes.
+  Consequence: Header Notes classification must distinguish Coach Note, Legacy Log, current Set Log list,
+  current skip list, and empty header Notes.
 
 - Decision: Preserve batched pending-write safety.
   Source: [ADR 0006](../adr/0006-batched-pending-sheet-writes.md).
@@ -56,15 +67,18 @@ change can accidentally diverge on the same Sheet row.
 
 ### In
 
-- A shared layout module for interpreting `SheetGrid` row and column structure.
-- Behavior-preserving migration of parser and writer layout rules into that module.
-- Typed layout facts for Week sections, Day role columns, Exercise anchors, header Notes role, Set row addresses, and Last Set RPE addresses.
+- A shared layout module for interpreting Sheet value and row visibility structure.
+- Migration of parser and writer layout rules into that module while adopting the Visible Writable Row model.
+- Typed layout facts for Week sections, Day role columns, Session boundaries, Exercise anchors, row visibility,
+  header Notes role, Visible Writable Row addresses, and Last Set RPE addresses.
+- Sheet snapshot values plus row visibility metadata, including rows hidden by user action or by filters.
+- Write-target audit details that explain the row scan used for Set Log target selection.
 - Characterization tests for the shared module using existing Sheet edge cases.
 - Focused fixture improvements only where they reduce repeated raw A1 setup for layout edge cases.
 
 ### Out
 
-- New user-facing logging behavior.
+- New athlete-facing logging behavior.
 - Live Google Sheet exploration or source-sheet reanalysis.
 - A broad test-suite redesign.
 - A protocol seam for layout interpretation. There is only one real adapter, so a protocol would be speculative.
@@ -75,23 +89,23 @@ change can accidentally diverge on the same Sheet row.
 
 ## Current Architecture
 
-`SheetParser` currently builds parsed domain data directly from `SheetGrid`:
+`SheetParser` currently builds parsed domain data directly from Sheet values:
 
 - `locateWeekSections(in:)` finds rows with `Day 1` through `Day 4` headers.
 - `resolveDayColumns(in:section:dayIndex:)` scans each Day span for role headers such as `Sets`,
   `Reps`, `%1RM`, `Load`, `Last set RPE`, and `Notes`.
 - `parseDay(in:section:dayIndex:endRow:)` discovers Exercise anchor rows by non-empty cells in the
-  Day name column, then derives each Exercise's `nextAnchor`.
+  Day name column, then derives each Exercise's next anchor and Session boundary.
 - Header Notes classification happens inside parser flow: empty, structured Set Log, skip marker,
   Legacy Log, or Coach Note.
-- Set Log parsing reads continuation rows relative to the anchor row and `nextAnchor`.
+- Set Log parsing reads the Exercise's selected Visible Writable Row and ignores hidden rows.
 
 `SheetWritePlanner` currently builds a separate write planning index:
 
 - `SheetWritePlanningIndex` calls `locateWeekSections` and `resolveDayColumns`, then independently
   scans Exercise anchors.
 - `target(for:in:)` resolves the Notes or Last Set RPE target row and column.
-- Compact header Set 1 and protected header Notes behavior is implemented again on the write side.
+- Visible Writable Row selection and protected header Notes behavior is implemented again on the write side.
 - `plan(_:target:in:)` verifies the expected current value and produces a transient `SheetCellUpdate`.
 
 `SyncCoordinator` depends on `SheetWritePlanner` for pending write flushes. It may reuse one planning
@@ -100,12 +114,13 @@ queued writes.
 
 ## Target Architecture
 
-`SheetLayoutInterpreter` becomes the single owner of Sheet layout interpretation. It reads a
-`SheetGrid` and returns immutable layout values that parser and writer code can consume.
+`SheetLayoutInterpreter` becomes the single owner of Sheet layout interpretation. It reads a Sheet snapshot
+containing values and row visibility metadata, then returns immutable layout values that parser and writer
+code can consume.
 
 `SheetParser` remains responsible for producing `ParsedBlock`, `ParsedWeek`, `ParsedSession`,
 `ParsedExercise`, and `ParsedSet`. It uses interpreted layout values instead of rediscovering Weeks,
-Days, Exercise anchors, header Notes roles, and Set row boundaries itself.
+Days, Exercise anchors, header Notes roles, row visibility, and Visible Writable Rows itself.
 
 `SheetWritePlanner` remains responsible for semantic write planning, expected-current-value
 verification, transient `SheetCellUpdate` creation, and mapping layout errors into the current
@@ -123,16 +138,37 @@ to a thin compatibility wrapper during migration.
 
 ### [ADDED] `SheetLayoutInterpreter`
 
-Concrete value type that interprets a grid.
+Concrete value type that interprets a Sheet snapshot.
 
 ```swift
 struct SheetLayoutInterpreter: Sendable {
-    func layout(for grid: SheetGrid) -> SheetLayout
+    func layout(for snapshot: SheetSnapshot) -> SheetLayout
 }
 ```
 
 The interpreter must be deterministic and side-effect free. It must not perform network I/O, read live
 Google Sheets, or store raw cell addresses outside the returned in-memory layout.
+
+### [ADDED] `SheetSnapshot`
+
+Values and row visibility facts for one Block tab.
+
+```swift
+struct SheetSnapshot: Sendable {
+    let grid: SheetGrid
+    let rowVisibility: [Int: SheetRowVisibility]
+}
+
+struct SheetRowVisibility: Sendable, Equatable {
+    let hiddenByUser: Bool
+    let hiddenByFilter: Bool
+
+    var isVisible: Bool { !hiddenByUser && !hiddenByFilter }
+}
+```
+
+Production snapshots must be built from Google Sheets data that includes both values and row metadata.
+Rows hidden by user action or by filters are not Visible Writable Rows.
 
 ### [ADDED] `SheetLayout`
 
@@ -182,8 +218,7 @@ struct DayLayout: Sendable {
 ```
 
 The existing `DayColumns` value may move into this file or remain shared if that produces the smallest
-behavior-preserving change. Either way, role columns are still discovered by header text inside the Day
-span.
+clear change. Either way, role columns are still discovered by header text inside the Day span.
 
 ### [ADDED] `ExerciseLayout`
 
@@ -194,21 +229,25 @@ struct ExerciseLayout: Sendable {
     let name: String
     let anchorRow: Int
     let nextAnchorRow: Int
+    let sessionEndRow: Int
     let headerNotesRole: HeaderNotesRole
 
-    func notesAddress(forSetIndex index: Int) throws -> SheetCellAddress
+    func setLogAddress() throws -> SheetCellAddress
     func lastSetRPEAddress() throws -> SheetCellAddress
 }
 ```
 
-`notesAddress(forSetIndex:)` returns the row and column for a Set-level Notes write or read. It must
-preserve the current compact-header behavior:
+`setLogAddress()` returns the row and column for the Exercise-level comma-separated Set Log list. It must
+follow the Visible Writable Row behavior:
 
-- Empty header Notes can represent compact Set 1.
-- Header Notes containing a structured Set Log can represent compact Set 1.
-- Header Notes containing `skip` can represent compact Set 1.
-- Header Notes classified as Coach Note or Legacy Log are protected; Set Logs target continuation rows
-  when safe, or produce a layout error when no safe row exists before the next Exercise anchor.
+- Empty header Notes means the Exercise row is the Visible Writable Row.
+- Header Notes containing the expected current comma-separated Set Log list means the Exercise row remains
+  the Visible Writable Row for edits or deletes.
+- Header Notes containing a Coach Note is protected; scan downward from the Exercise row to the next Visible
+  Writable Row in the same Session.
+- Hidden rows are skipped.
+- The scan stops before `sessionEndRow`; it must not cross into the next Week or Session.
+- If no Visible Writable Row exists inside the Session, produce a layout error.
 
 `lastSetRPEAddress()` returns the Exercise anchor row and the dynamically resolved `Last set RPE`
 column.
@@ -222,8 +261,8 @@ enum HeaderNotesRole: Sendable, Equatable {
     case empty
     case coachNote(String)
     case legacyLog(String)
-    case compactSetLog(SetLog)
-    case compactSkip
+    case setLogList(String)
+    case skipList(String)
 }
 ```
 
@@ -231,8 +270,10 @@ The role must preserve current semantics:
 
 - Instruction-shaped non-empty header Notes are Coach Notes.
 - Legacy result-shaped header Notes are Legacy Logs.
-- A single structured Set Log or `skip` in header Notes is Set 1 state in compact layout, not a Legacy Log.
-- Structured continuation-row Set Logs take precedence over Legacy Log completion behavior in parser output.
+- A structured comma-separated Set Log list or skip list in the selected Visible Writable Row is current
+  Set-level state, not a Legacy Log.
+- Current Set Logs in the selected Visible Writable Row take precedence over Legacy Log completion behavior
+  in parser output.
 
 ### [ADDED] `SheetColumnRole`
 
@@ -273,8 +314,8 @@ enum SheetLayoutError: Error, Equatable {
     case dayNotFound(Int)
     case columnNotFound(SheetColumnRole)
     case exerciseNotFound(String)
-    case setRowNotFound(exerciseName: String, setIndex: Int)
-    case protectedHeaderNotesWithoutSafeSetRow(exerciseName: String, setIndex: Int)
+    case visibleWritableRowNotFound(exerciseName: String)
+    case unexpectedSetLogTargetValue(exerciseName: String, expected: String, actual: String)
 }
 ```
 
@@ -283,32 +324,50 @@ the existing `SheetWriterError` behavior.
 
 ### [CHANGED] `SheetParser`
 
-`SheetParser` consumes `SheetLayout` to iterate Week, Day, and Exercise row blocks. Its public parsing
-contract remains unchanged:
+`SheetParser` consumes `SheetLayout` to iterate Week, Day, and Exercise row blocks. Its parsing contract
+must accept row visibility metadata so it can ignore hidden Set Log rows:
 
 ```swift
 struct SheetParser {
-    func parse(grid: SheetGrid, tabName: String) -> ParsedBlock
+    func parse(snapshot: SheetSnapshot, tabName: String) -> ParsedBlock
 }
 ```
 
-Parser warning ownership remains unchanged.
+Parser warning ownership remains unchanged. A temporary `parse(grid:tabName:)` compatibility wrapper is
+acceptable only for tests that do not exercise hidden-row behavior.
 
 ### [CHANGED] `SheetWritePlanner`
 
 `SheetWritePlanner` uses `SheetLayout` inside its snapshot instead of a writer-local duplicated index.
-Its caller-facing methods remain unchanged:
+Its caller-facing methods keep the same planning responsibilities while accepting Sheet snapshots:
 
 ```swift
 struct SheetWritePlanner: Sendable {
-    func snapshot(for grid: SheetGrid) -> SheetWritePlanningSnapshot
-    func plan(_ request: SheetWriteRequest, in grid: SheetGrid) throws -> SheetCellUpdate
+    func snapshot(for sheet: SheetSnapshot) -> SheetWritePlanningSnapshot
+    func plan(_ request: SheetWriteRequest, in sheet: SheetSnapshot) throws -> SheetCellUpdate
     func plan(_ request: SheetWriteRequest, in snapshot: SheetWritePlanningSnapshot) throws -> SheetCellUpdate
     func target(for request: SheetWriteRequest, in snapshot: SheetWritePlanningSnapshot) throws -> SheetWriteTarget
 }
 ```
 
 Expected-current-value verification remains in `SheetWritePlanner`, not in `SheetLayoutInterpreter`.
+Set-specific upserts and deletes edit the comma-separated Set Log list in the selected Visible Writable Row.
+
+### [ADDED] Write Target Audit Diagnostics
+
+The write path records a capped local diagnostic log for Developer Tools. It must include both successful
+writes and conflicts, because successful pending writes are deleted after a batch succeeds.
+
+Each audit entry should include:
+
+- semantic target: Block, Week, Day, Exercise, Set, and column;
+- chosen A1 target when one was selected;
+- row scan details, including hidden rows skipped and why the selected row was writable;
+- expected/current value check result;
+- final status: planned, written, conflict, or retry.
+
+Developer Tools must expose the rolling log separately from Pending Sheet Writes, with Copy Write Log and
+Clear Write Log actions.
 
 ### [REMOVED] Duplicated Writer-Local Layout Index
 
@@ -323,8 +382,8 @@ are removed before the spec is complete.
 ### Phase 1: Characterize Shared Layout
 
 - Change: Add `SheetLayoutInterpreter` and focused unit tests for interpreted Week/Day columns,
-  Exercise anchors, header Notes roles, Set row addresses, Last Set RPE addresses, and protected header
-  conflicts.
+  Session boundaries, Exercise anchors, row visibility, header Notes roles, Visible Writable Row addresses,
+  Last Set RPE addresses, and protected header conflicts.
 - Compatibility: No production callers are required in this phase.
 - Acceptance criteria: New layout tests pass and reflect current parser/writer behavior for existing
   edge cases.
@@ -332,23 +391,31 @@ are removed before the spec is complete.
 ### Phase 2: Parser Consumes Layout
 
 - Change: Rewire `SheetParser` and `parseDay` internals to use `SheetLayout` for Week, Day, Exercise,
-  `nextAnchor`, and header Notes role facts.
-- Compatibility: `SheetParser.parse(grid:tabName:)`, `ParsedBlock`, `ParsedExercise`, `ParsedSet`, and
-  parser warning output remain unchanged.
-- Acceptance criteria: Existing parser tests pass, especially Set Log, Legacy Log, Coach Note, compact
-  header, cadence, load splitting, and no-week warning tests.
+  `nextAnchor`, Session boundary, row visibility, Visible Writable Row, and header Notes role facts.
+- Compatibility: `ParsedBlock`, `ParsedExercise`, `ParsedSet`, and parser warning output remain unchanged.
+  A temporary `parse(grid:tabName:)` wrapper may remain only for tests that do not need row visibility.
+- Acceptance criteria: Existing parser tests pass or are updated to the Visible Writable Row model, especially
+  Set Log, Legacy Log, Coach Note, cadence, load splitting, and no-week warning tests.
 
 ### Phase 3: Writer Consumes Layout
 
 - Change: Rewire `SheetWritePlanner` snapshots and target planning to use `SheetLayout` for target
   addresses and layout failures.
-- Compatibility: `SheetWritePlanner` and `SheetWriterError` caller-facing behavior remains unchanged.
+- Compatibility: `SheetWritePlanner` and `SheetWriterError` caller-facing API shape remains unchanged.
   `SyncCoordinator` continues to call `SheetWritePlanner`.
-- Acceptance criteria: Existing writer and pending-write batch tests pass, including shifted role
-  columns, shifted Exercise anchors, compact header writes, protected header Notes, unexpected current
-  values, overlapping targets, and batch failure behavior.
+- Acceptance criteria: Writer and pending-write batch tests cover shifted role columns, shifted Exercise
+  anchors, header-row Set Log writes, Coach Note downward scans to visible rows, hidden-row rejection,
+  same-Session scan boundaries, unexpected current values, overlapping targets, and batch failure behavior.
 
-### Phase 4: Delete Duplicate Index and Consolidate Fixtures
+### Phase 4: Write Target Audit Log
+
+- Change: Persist a capped local write-target audit log and expose it in Developer Tools with Copy Write Log
+  and Clear Write Log actions.
+- Compatibility: Pending writes remain the source of retry/conflict state; the audit log is diagnostic only.
+- Acceptance criteria: Successful writes and conflicts both produce audit entries with compact row scan
+  details.
+
+### Phase 5: Delete Duplicate Index and Consolidate Fixtures
 
 - Change: Remove writer-local duplicated layout index types and promote only the repeated Sheet layout
   edge cases into named `Tests/Support` fixtures.
@@ -368,8 +435,11 @@ are removed before the spec is complete.
 
 - [ ] `WorkoutTracker/Parsing/SheetLayoutInterpreter.swift` exists and owns shared Sheet layout interpretation.
 - [ ] `SheetParser` and `SheetWritePlanner` consume the shared interpreted layout.
-- [ ] Dynamic role-column and Exercise-anchor targeting remains based on the live `SheetGrid`.
-- [ ] Coach Notes, Legacy Logs, compact Set 1, continuation Set rows, and Last Set RPE targets preserve current behavior.
+- [ ] Dynamic role-column, Exercise-anchor, and row-visibility targeting remains based on the live Sheet snapshot.
+- [ ] Parser and writer share the same Visible Writable Row selection rule for Set Logs.
+- [ ] Hidden rows are ignored for Set Log reads and writes.
+- [ ] Coach Notes, Legacy Logs, visible Set Log lists, and Last Set RPE targets preserve the updated behavior.
+- [ ] Developer Tools exposes a capped write-target audit log with copy and clear actions.
 - [ ] Pending writes still persist semantic targets only; raw cell addresses remain transient.
 - [ ] Existing parser, writer, and batch-write tests pass.
 - [ ] New focused layout tests cover the edge cases currently duplicated across parser and writer tests.
@@ -383,10 +453,12 @@ Layout tests should cover:
 - Week and Day discovery from `Day N` headers.
 - Role-column discovery when `Notes` and `Last set RPE` columns shift.
 - Exercise anchor and `nextAnchor` discovery when rows shift.
-- Header Notes role classification for empty, Coach Note, Legacy Log, compact Set Log, and compact skip.
-- Notes address resolution for continuation rows and compact header Set 1.
+- Header Notes role classification for empty, Coach Note, Legacy Log, Set Log list, and skip list.
+- Visible Writable Row resolution for header-row writes and Coach Note downward scans.
 - Last Set RPE address resolution to the Exercise anchor row.
-- Protected header Notes conflict when no safe continuation row exists before the next Exercise.
+- Hidden row exclusion using row visibility metadata.
+- Same-Session scan boundaries so a last Exercise never targets the next Week or Session.
+- Protected header Notes conflict when no Visible Writable Row exists before the Session boundary.
 
 Verification for implementation should include:
 
