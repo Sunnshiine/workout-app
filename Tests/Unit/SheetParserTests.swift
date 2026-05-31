@@ -9,7 +9,7 @@ import Testing
         [
             "C12": "Day 1", "S12": "Day 2",
             "D14": "Sets", "F14": "Reps", "G14": "%1RM", "H14": "Load",
-            "I14": "Last set RPE", "K14": "Notes",
+            "I14": "Last set RPE", "K14": "Notes"
         ],
         rows: 20,
         cols: 30
@@ -30,7 +30,7 @@ import Testing
     let grid = gridFromA1(
         [
             "C12": "Day 1", "S12": "Day 2", "AI12": "Day 3", "AX12": "Day 4",
-            "C37": "Day 1", "S37": "Day 2", "AI37": "Day 3", "AX37": "Day 4",
+            "C37": "Day 1", "S37": "Day 2", "AI37": "Day 3", "AX37": "Day 4"
         ],
         rows: 40,
         cols: 60
@@ -57,7 +57,7 @@ import Testing
             "E6": "Training Max",
             "C7": "Squat", "E7": "365",
             "C8": "Bench Press", "E8": "245",
-            "C9": "Deadlift", "E9": "455",
+            "C9": "Deadlift", "E9": "455"
         ],
         rows: 20,
         cols: 10
@@ -76,7 +76,7 @@ import Testing
             "G7": "Training Max",
             "E8": "Squat", "G8": "405",
             "E9": "Bench Press", "G9": "275",
-            "E10": "Deadlift", "G10": "495",
+            "E10": "Deadlift", "G10": "495"
         ],
         rows: 20,
         cols: 10
@@ -101,7 +101,7 @@ import Testing
                 "E6": "Training Max",
                 "C7": "Squat", "E7": "",
                 "C8": "Bench Press", "E8": " ",
-                "C9": "Deadlift",
+                "C9": "Deadlift"
             ],
             rows: 20,
             cols: 10
@@ -120,7 +120,7 @@ import Testing
             "C12": "Day 1", "S12": "Day 2",
             "D14": "Sets", "F14": "Reps", "G14": "%1RM", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
             "C15": "0:3:0 Standing Calve Raises", "D15": "2", "F15": "12", "H15": "RPE9, RPE10", "K15": "Superset cue",
-            "C22": "0:2:0 Pull Up", "D22": "2", "F22": "AMRAP", "H22": "BW",
+            "C22": "0:2:0 Pull Up", "D22": "2", "F22": "AMRAP", "H22": "BW"
         ],
         rows: 30,
         cols: 30
@@ -149,11 +149,11 @@ import Testing
             "C8": "Bench Press", "E8": "245",
             "C9": "Deadlift", "E9": "455",
             "C12": "Day 1", "S12": "Day 2", "AI12": "Day 3", "AX12": "Day 4",
-            "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Last set RPE", "K14": "Notes",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
             "C15": "0:3:0 Standing Calve Raises", "D15": "2", "F15": "12", "H15": "RPE9, RPE10",
             "C37": "Day 1", "S37": "Day 2", "AI37": "Day 3", "AX37": "Day 4",
             "D39": "Sets", "F39": "Reps", "H39": "Load", "K39": "Notes",
-            "C40": "0:3:0 Standing Calve Raises", "D40": "2", "F40": "11 - 12", "H40": "RPE9, RPE10",
+            "C40": "0:3:0 Standing Calve Raises", "D40": "2", "F40": "11 - 12", "H40": "RPE9, RPE10"
         ],
         rows: 45,
         cols: 60
@@ -186,7 +186,7 @@ import Testing
             // 2 sets, both fields have 2 comma-separated values
             "C15": "Squat", "D15": "2", "F15": "8, 10", "H15": "RPE 9, 10",
             // 3 sets, single value → repeats for all sets
-            "C22": "Deadlift", "D22": "3", "F22": "5", "H22": "RPE 8",
+            "C22": "Deadlift", "D22": "3", "F22": "5", "H22": "RPE 8"
         ],
         rows: 30,
         cols: 30
@@ -211,7 +211,7 @@ import Testing
         [
             "C12": "Day 1", "S12": "Day 2",
             "D14": "Sets", "F14": "Reps", "H14": "Load",
-            "C15": "Squat", "D15": "2", "F15": "8", "H15": "RPE 9, 10",
+            "C15": "Squat", "D15": "2", "F15": "8", "H15": "RPE 9, 10"
         ],
         rows: 20,
         cols: 30
@@ -227,10 +227,10 @@ import Testing
     let grid = gridFromA1(
         [
             "C12": "Day 1", "S12": "Day 2",
-            "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Last set RPE", "K14": "Notes",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
             "C15": "Chest Fly", "D15": "2", "F15": "12", "H15": "25", "K15": "Keep elbows soft",
             "K16": "25x12@7",
-            "K17": "20x10@8",
+            "K17": "20x10@8"
         ],
         rows: 20,
         cols: 30

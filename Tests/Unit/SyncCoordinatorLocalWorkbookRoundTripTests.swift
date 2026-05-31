@@ -62,7 +62,7 @@ private func parsedInclineDBBenchPress(from parsed: ParsedBlock) throws -> Parse
             setIndex: 1,
             column: .lastSetRPE,
             valueToWrite: "7"
-        ),
+        )
     ]
     for write in writes {
         context.insert(write)
@@ -86,7 +86,7 @@ private func parsedInclineDBBenchPress(from parsed: ParsedBlock) throws -> Parse
     #expect(updated.cell(row: 50, col: 10) == "AMRAP w/ 0:3:0 BW Push Up")
     #expect(updated.cell(row: 51, col: 10) == "100x8@6")
     #expect(updated.cell(row: 52, col: 10) == "105x7@7")
-    #expect(updated.cell(row: 50, col: 9) == "7")
+    #expect(updated.cell(row: 50, col: 8) == "7")
     #expect(exercise.coachNote == "AMRAP w/ 0:3:0 BW Push Up")
     #expect(firstSet.state == .logged)
     #expect(firstSet.setLog?.formatted == "100x8@6")
@@ -96,59 +96,5 @@ private func parsedInclineDBBenchPress(from parsed: ParsedBlock) throws -> Parse
     #expect(try context.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
     #expect(sync.state == .idle)
     #expect(batches.count == 1)
-    #expect(batches[0].map(\.range) == ["'Block 27'!K52", "'Block 27'!K53", "'Block 27'!J51"])
-}
-
-@MainActor
-@Test func localWorkbookRoundTripFlushWritesRPEAdjacentSetLogAndParsesDomainState() async throws {
-    let container = try makeLocalWorkbookRoundTripContainer()
-    let context = container.mainContext
-    let writes = [
-        localWorkbookPendingWrite(
-            createdAt: 1,
-            exerciseName: "Squat",
-            setIndex: 0,
-            valueToWrite: "185x5@8"
-        ),
-        localWorkbookPendingWrite(
-            createdAt: 2,
-            exerciseName: "Squat",
-            setIndex: 0,
-            column: .lastSetRPE,
-            valueToWrite: "8"
-        ),
-    ]
-    for write in writes {
-        context.insert(write)
-    }
-    try context.save()
-
-    let client = LocalWorkbookSheetsClient(
-        tabs: ["Block 27": rpeAdjacentCoachNoteRoundTripGrid()]
-    )
-    let sync = SyncCoordinator(client: client, context: context)
-
-    await sync.flushPending(spreadsheetId: "sid")
-
-    let updated = try await client.fetchTab(spreadsheetId: "sid", tabName: "Block 27")
-    let parsed = SheetParser().parse(grid: updated, tabName: "Block 27")
-    let exercise = try #require(
-        parsed.block.weeks.first?.days.first?.exercises.first {
-            $0.name == "Squat"
-        }
-    )
-    let set = try #require(exercise.sets.first)
-    let batches = await client.recordedBatches
-
-    #expect(updated.cell(row: 14, col: 9) == "185x5@8")
-    #expect(updated.cell(row: 14, col: 10) == "Coach note")
-    #expect(updated.cell(row: 14, col: 8) == "8")
-    #expect(exercise.coachNote == "Coach note")
-    #expect(set.state == .logged)
-    #expect(set.setLog?.formatted == "185x5@8")
-    #expect(parsed.warnings.isEmpty)
-    #expect(try context.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
-    #expect(sync.state == .idle)
-    #expect(batches.count == 1)
-    #expect(batches[0].map(\.range) == ["'Block 27'!J15", "'Block 27'!I15"])
+    #expect(batches[0].map(\.range) == ["'Block 27'!K52", "'Block 27'!K53", "'Block 27'!I51"])
 }

@@ -5,9 +5,7 @@ import SwiftData
 @Observable
 final class SyncCoordinator {
     enum State: Equatable {
-        case idle, syncing, offline
-        case pendingWrites(Int)
-        case conflict([String])
+        case idle, syncing, offline, pendingWrites(Int), conflict([String])
     }
     private(set) var state: State = .idle
 
@@ -18,7 +16,6 @@ final class SyncCoordinator {
     private let lastPerformedBackfillObserver: any LastPerformedBackfillObserving
     private var activePendingWriteFlushCount = 0
     private var pendingWriteFlushGeneration = 0
-    private var deferredPendingWriteFlushSpreadsheetId: String?
 
     func hasPendingWrites() throws -> Bool {
         guard activePendingWriteFlushCount == 0 else {
@@ -63,20 +60,6 @@ final class SyncCoordinator {
     }
 
     func flushPending(spreadsheetId: String) async {
-        guard activePendingWriteFlushCount == 0 else {
-            deferredPendingWriteFlushSpreadsheetId = spreadsheetId
-            return
-        }
-
-        var nextSpreadsheetId: String? = spreadsheetId
-        while let currentSpreadsheetId = nextSpreadsheetId {
-            deferredPendingWriteFlushSpreadsheetId = nil
-            let shouldDrainDeferredFlush = await flushPendingOnce(spreadsheetId: currentSpreadsheetId)
-            nextSpreadsheetId = shouldDrainDeferredFlush ? deferredPendingWriteFlushSpreadsheetId : nil
-        }
-    }
-
-    private func flushPendingOnce(spreadsheetId: String) async -> Bool {
         let generation = beginPendingWriteFlush()
         defer { endPendingWriteFlush() }
 
@@ -87,7 +70,7 @@ final class SyncCoordinator {
         let pending = orderPendingWritesForFlush((try? context.fetch(descriptor)) ?? [])
         guard !pending.isEmpty else {
             state = .idle
-            return true
+            return
         }
 
         state = .syncing
@@ -104,12 +87,10 @@ final class SyncCoordinator {
         case .completed(let conflicts):
             try? context.save()
             state = conflicts.isEmpty ? .idle : .conflict(conflicts)
-            return true
         case .invalidated:
             state = .idle
-            return true
         case .stoppedForRetry:
-            return false
+            break
         }
     }
 
@@ -383,7 +364,7 @@ extension SyncCoordinator {
             } catch let error as SheetWriterError {
                 let message = recordConflict(error, for: write)
                 conflicts.append(message)
-                conflicts.append(contentsOf: recordDependentExerciseWriteConflicts(message, for: write, in: pending))
+                conflicts.append(contentsOf: recordDependentLastSetRPEConflicts(message, for: write, in: pending))
             } catch {
                 recordRetry(for: write, error: error, pendingCount: pending.count)
                 return .stoppedForRetry

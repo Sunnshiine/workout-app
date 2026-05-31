@@ -105,9 +105,9 @@ private func parsedLogState(from raw: String) -> ParsedLogState {
 private struct ParsedSetContext {
     let setCount: Int
     let anchor: SheetLayoutExerciseAnchor
-    let setLogColumn: Int?
+    let cols: DayColumns
     let grid: SheetGrid
-    let headerSetLog: String
+    let headerNote: String
     let headerSetLogValues: [String]?
     let compactHeaderSetOne: Bool
     let reps: String
@@ -123,13 +123,13 @@ private func parsedSets(_ context: ParsedSetContext) -> [ParsedSet] {
         if context.compactHeaderSetOne, let values = context.headerSetLogValues, i < values.count {
             rawLog = values[i]
         } else if context.compactHeaderSetOne, i == 0 {
-            rawLog = context.headerSetLog
+            rawLog = context.headerNote
         } else {
             let logRow = context.anchor.setLogRow(
                 for: i,
                 compactHeaderSetOne: context.compactHeaderSetOne
             )
-            rawLog = logRow.map { context.grid.cellOrEmpty($0, context.setLogColumn) } ?? ""
+            rawLog = logRow.map { context.grid.cellOrEmpty($0, context.cols.notes) } ?? ""
         }
         let logState = parsedLogState(from: rawLog)
         return ParsedSet(
@@ -178,22 +178,20 @@ private func parsedExercise(grid: SheetGrid, day: SheetLayoutDay, anchor: SheetL
     let (cadence, base) = splitCadence(rawName)
     let reps = grid.cellOrEmpty(anchorRow, cols.reps)
     let load = grid.cellOrEmpty(anchorRow, cols.load)
-    let coachNotes = anchor.headerNotes(in: grid, notesColumn: cols.notes)
-    let setLogHeader = anchor.headerNotes(in: grid, notesColumn: cols.setLog)
-    let setLogHeaderValue = setLogHeader.value
+    let headerNotes = anchor.headerNotes(in: grid, notesColumn: cols.notes)
+    let note = headerNotes.value
     let setCount = anchor.prescribedSetCount(in: grid, setsColumn: cols.sets)
-    let headerSetLogValues = headerSetLogValues(from: setLogHeaderValue, setCount: setCount)
-    let compactHeaderSetOne = headerSetLogValues != nil || anchor.usesCompactHeaderSetOne(headerNotes: setLogHeader)
-    let sameHeaderCell = cols.notes == cols.setLog
-    let legacyLog = sameHeaderCell && headerSetLogValues != nil ? nil : (coachNotes.isLegacyLog ? coachNotes.value : nil)
+    let headerSetLogValues = headerSetLogValues(from: note, setCount: setCount)
+    let compactHeaderSetOne = headerSetLogValues != nil || anchor.usesCompactHeaderSetOne(headerNotes: headerNotes)
+    let legacyLog = headerSetLogValues == nil && headerNotes.isLegacyLog ? note : nil
     let sets = completionSets(
         parsedSets(
             ParsedSetContext(
                 setCount: setCount,
                 anchor: anchor,
-                setLogColumn: cols.setLog,
+                cols: cols,
                 grid: grid,
-                headerSetLog: setLogHeaderValue,
+                headerNote: note,
                 headerSetLogValues: headerSetLogValues,
                 compactHeaderSetOne: compactHeaderSetOne,
                 reps: reps,
@@ -210,7 +208,7 @@ private func parsedExercise(grid: SheetGrid, day: SheetLayoutDay, anchor: SheetL
         name: rawName,
         baseName: base,
         cadence: cadence,
-        coachNote: coachNotes.isCoachNote ? coachNotes.value : nil,
+        coachNote: headerNotes.isCoachNote ? note : nil,
         legacyLog: legacyLog,
         sets: sets
     )
