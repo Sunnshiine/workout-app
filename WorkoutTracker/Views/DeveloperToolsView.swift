@@ -5,6 +5,7 @@ struct DeveloperToolsView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(SyncCoordinator.self) private var sync
     @Environment(WorkoutStore.self) private var workout
+    @Environment(\.themePalette) private var palette
     @State private var diagnostics: [PendingWriteDiagnostic] = []
     @State private var writeAuditDiagnostics: [WriteTargetAuditDiagnostic] = []
     @State private var diagnosticsErrorMessage: String?
@@ -14,7 +15,7 @@ struct DeveloperToolsView: View {
 
     var body: some View {
         ZStack {
-            Theme.gradient.ignoresSafeArea()
+            palette.gradient.ignoresSafeArea()
 
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.cardSpacing) {
@@ -80,7 +81,7 @@ struct DeveloperToolsView: View {
                 if let localOnlyNote = info.localOnlyNote {
                     Text(localOnlyNote)
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(Theme.accent)
+                        .foregroundStyle(palette.accent)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("current-session-debug-local-only-note")
                 }
@@ -284,6 +285,8 @@ private struct DeveloperToolsSection<Content: View>: View {
 }
 
 private struct PendingWriteDiagnosticRow: View {
+    @Environment(\.themePalette) private var palette
+
     let diagnostic: PendingWriteDiagnostic
 
     var body: some View {
@@ -320,13 +323,13 @@ private struct PendingWriteDiagnosticRow: View {
             }
         }
         .padding(12)
-        .background(Theme.badgeFill, in: .rect(cornerRadius: 8))
+        .background(palette.badgeFill, in: .rect(cornerRadius: 8))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
     }
 
     private var statusColor: Color {
-        diagnostic.status == "Conflict" ? .red : Theme.accent
+        diagnostic.status == "Conflict" ? .red : palette.accent
     }
 
     private var accessibilityLabel: String {
@@ -353,6 +356,8 @@ private struct PendingWriteDiagnosticRow: View {
 }
 
 private struct WriteTargetAuditDiagnosticRow: View {
+    @Environment(\.themePalette) private var palette
+
     let diagnostic: WriteTargetAuditDiagnostic
 
     var body: some View {
@@ -379,13 +384,13 @@ private struct WriteTargetAuditDiagnosticRow: View {
             }
         }
         .padding(12)
-        .background(Theme.badgeFill, in: .rect(cornerRadius: 8))
+        .background(palette.badgeFill, in: .rect(cornerRadius: 8))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
     }
 
     private var statusColor: Color {
-        diagnostic.status == "Conflict" ? .red : Theme.accent
+        diagnostic.status == "Conflict" ? .red : palette.accent
     }
 
     private var accessibilityLabel: String {

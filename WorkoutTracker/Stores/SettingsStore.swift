@@ -29,18 +29,16 @@ final class SettingsStore {
     private(set) var spreadsheetId: String?
     private(set) var spreadsheetTitle: String?
     private let defaults: UserDefaults
-    private let appearanceKey = "appearance"
-    private let spreadsheetIdKey = "spreadsheetId"
-    private let spreadsheetTitleKey = "spreadsheetTitle"
+    private static let appearanceKey = "appearance"
+    private static let spreadsheetIdKey = "spreadsheetId"
+    private static let spreadsheetTitleKey = "spreadsheetTitle"
+    private static let currentSessionOverrideKeyPrefix = "advancedToOrder_"
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, hasPriorAppState: Bool = false) {
         self.defaults = defaults
-        self.appearance =
-            defaults
-            .string(forKey: appearanceKey)
-            .flatMap(AppearancePreference.init(rawValue:)) ?? .dark
-        self.spreadsheetId = defaults.string(forKey: spreadsheetIdKey)
-        self.spreadsheetTitle = defaults.string(forKey: spreadsheetTitleKey)
+        self.spreadsheetId = defaults.string(forKey: Self.spreadsheetIdKey)
+        self.spreadsheetTitle = defaults.string(forKey: Self.spreadsheetTitleKey)
+        self.appearance = Self.loadAppearance(defaults: defaults, hasPriorAppState: hasPriorAppState)
     }
 
     var isConfigured: Bool { isSignedIn && spreadsheetId != nil }
@@ -51,21 +49,21 @@ final class SettingsStore {
         guard let id = extractSpreadsheetId(from: url) else { return false }
         spreadsheetId = id
         spreadsheetTitle = nil
-        defaults.set(id, forKey: spreadsheetIdKey)
-        defaults.removeObject(forKey: spreadsheetTitleKey)
+        defaults.set(id, forKey: Self.spreadsheetIdKey)
+        defaults.removeObject(forKey: Self.spreadsheetTitleKey)
         return true
     }
 
     func setSpreadsheet(id: String, title: String) {
         spreadsheetId = id
         spreadsheetTitle = title
-        defaults.set(id, forKey: spreadsheetIdKey)
-        defaults.set(title, forKey: spreadsheetTitleKey)
+        defaults.set(id, forKey: Self.spreadsheetIdKey)
+        defaults.set(title, forKey: Self.spreadsheetTitleKey)
     }
 
     func setAppearance(_ preference: AppearancePreference) {
         appearance = preference
-        defaults.set(preference.rawValue, forKey: appearanceKey)
+        defaults.set(preference.rawValue, forKey: Self.appearanceKey)
     }
 
     func signOut() {
@@ -76,8 +74,30 @@ final class SettingsStore {
     private func clearSpreadsheet() {
         spreadsheetId = nil
         spreadsheetTitle = nil
-        defaults.removeObject(forKey: spreadsheetIdKey)
-        defaults.removeObject(forKey: spreadsheetTitleKey)
+        defaults.removeObject(forKey: Self.spreadsheetIdKey)
+        defaults.removeObject(forKey: Self.spreadsheetTitleKey)
+    }
+
+    private static func loadAppearance(defaults: UserDefaults, hasPriorAppState: Bool) -> AppearancePreference {
+        if let storedValue = defaults.string(forKey: appearanceKey),
+            let preference = AppearancePreference(rawValue: storedValue) {
+            return preference
+        }
+
+        let seededPreference: AppearancePreference =
+            hasPriorAppState || hasStoredAppState(in: defaults) || defaults.object(forKey: appearanceKey) != nil
+            ? .dark
+            : .system
+        defaults.set(seededPreference.rawValue, forKey: appearanceKey)
+        return seededPreference
+    }
+
+    private static func hasStoredAppState(in defaults: UserDefaults) -> Bool {
+        defaults.object(forKey: spreadsheetIdKey) != nil
+            || defaults.object(forKey: spreadsheetTitleKey) != nil
+            || defaults.dictionaryRepresentation().keys.contains { key in
+                key.hasPrefix(currentSessionOverrideKeyPrefix)
+            }
     }
 }
 

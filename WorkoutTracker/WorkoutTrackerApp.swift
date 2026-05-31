@@ -46,7 +46,7 @@ struct WorkoutTrackerApp: App {
         self.container = container
         let ctx = container.mainContext
         let lastPerformedLookup = LastPerformedLookupStore(context: ctx)
-        _settings = State(initialValue: SettingsStore())
+        _settings = State(initialValue: SettingsStore(hasPriorAppState: Self.hasPriorAppState(in: ctx)))
         _workout = State(
             initialValue: WorkoutStore(
                 context: ctx,
@@ -61,6 +61,11 @@ struct WorkoutTrackerApp: App {
             )
         )
         _lastPerformedLookup = State(initialValue: lastPerformedLookup)
+    }
+
+    @MainActor
+    private static func hasPriorAppState(in context: ModelContext) -> Bool {
+        ((try? context.fetch(FetchDescriptor<Block>()).isEmpty) == false)
     }
 
     #if DEBUG
