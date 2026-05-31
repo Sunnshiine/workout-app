@@ -4,18 +4,41 @@ import OSLog
 
 private let sheetPickerLogger = Logger(subsystem: "WorkoutTracker", category: "SheetPicker")
 
+enum AppearancePreference: String, CaseIterable {
+    case system
+    case light
+    case dark
+
+    var label: String {
+        switch self {
+        case .system:
+            "System"
+        case .light:
+            "Light"
+        case .dark:
+            "Dark"
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class SettingsStore {
     var isSignedIn = false
+    private(set) var appearance: AppearancePreference
     private(set) var spreadsheetId: String?
     private(set) var spreadsheetTitle: String?
     private let defaults: UserDefaults
+    private let appearanceKey = "appearance"
     private let spreadsheetIdKey = "spreadsheetId"
     private let spreadsheetTitleKey = "spreadsheetTitle"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        self.appearance =
+            defaults
+            .string(forKey: appearanceKey)
+            .flatMap(AppearancePreference.init(rawValue:)) ?? .dark
         self.spreadsheetId = defaults.string(forKey: spreadsheetIdKey)
         self.spreadsheetTitle = defaults.string(forKey: spreadsheetTitleKey)
     }
@@ -38,6 +61,11 @@ final class SettingsStore {
         spreadsheetTitle = title
         defaults.set(id, forKey: spreadsheetIdKey)
         defaults.set(title, forKey: spreadsheetTitleKey)
+    }
+
+    func setAppearance(_ preference: AppearancePreference) {
+        appearance = preference
+        defaults.set(preference.rawValue, forKey: appearanceKey)
     }
 
     func signOut() {

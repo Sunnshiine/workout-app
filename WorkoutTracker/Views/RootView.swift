@@ -23,9 +23,14 @@ struct RootView: View {
                 }
             #endif
         }
+        .environment(\.themePalette, palette)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Theme.gradient.ignoresSafeArea())
-        .preferredColorScheme(Theme.preferredColorScheme)
+        .background(palette.gradient.ignoresSafeArea())
+        .preferredColorScheme(palette.preferredColorScheme)
+    }
+
+    private var palette: Theme.Palette {
+        Theme.palette(for: settings.appearance)
     }
 
     private var sessionDestination: some View {

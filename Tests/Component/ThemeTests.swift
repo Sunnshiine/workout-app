@@ -23,6 +23,22 @@ import Testing
             )
         }
     }
+
+    private func expectRGB(
+        _ color: Color,
+        red: Double,
+        green: Double,
+        blue: Double,
+        sourceLocation: SourceLocation = #_sourceLocation
+    ) {
+        guard let rgb = rgbComponents(of: color) else {
+            Issue.record("Could not resolve color to deviceRGB", sourceLocation: sourceLocation)
+            return
+        }
+        #expect(abs(rgb.red - red) < 0.01, "Expected red ≈ \(red), got \(rgb.red)", sourceLocation: sourceLocation)
+        #expect(abs(rgb.green - green) < 0.01, "Expected green ≈ \(green), got \(rgb.green)", sourceLocation: sourceLocation)
+        #expect(abs(rgb.blue - blue) < 0.01, "Expected blue ≈ \(blue), got \(rgb.blue)", sourceLocation: sourceLocation)
+    }
 #endif
 
 @Test func themeGradientHasTwoStops() {
@@ -67,11 +83,37 @@ import Testing
 }
 
 @Test func themePaletteVariantsSetExpectedColorScheme() {
-    #expect(Theme.palette(for: .dark).preferredColorScheme == .dark)
-    #expect(Theme.palette(for: .black).preferredColorScheme == .dark)
-    #expect(Theme.palette(for: .mintGreen).preferredColorScheme == .dark)
-    #expect(Theme.palette(for: .sageLight).preferredColorScheme == .light)
-    #expect(Theme.palette(for: .blueLight).preferredColorScheme == .light)
+    #expect(Theme.palette(for: Theme.PaletteVariant.dark).preferredColorScheme == .dark)
+    #expect(Theme.palette(for: Theme.PaletteVariant.black).preferredColorScheme == .dark)
+    #expect(Theme.palette(for: Theme.PaletteVariant.mintGreen).preferredColorScheme == .dark)
+    #expect(Theme.palette(for: Theme.PaletteVariant.sageLight).preferredColorScheme == .light)
+    #expect(Theme.palette(for: Theme.PaletteVariant.blueLight).preferredColorScheme == .light)
+}
+
+@Test func themePaletteResolvesAppearancePreference() {
+    #expect(Theme.palette(for: AppearancePreference.light).preferredColorScheme == .light)
+    #expect(Theme.palette(for: AppearancePreference.dark).preferredColorScheme == .dark)
+    #expect(Theme.palette(for: AppearancePreference.system).preferredColorScheme == .dark)
+}
+
+@Test func themePalettesUseApprovedDarkAndSageLightColors() {
+    #if canImport(AppKit)
+        let dark = Theme.palette(for: Theme.PaletteVariant.dark)
+        #expect(dark.gradientStops.count == 2)
+        expectRGB(dark.gradientStops[0].color, red: 0.02, green: 0.03, blue: 0.025)
+        expectRGB(dark.gradientStops[1].color, red: 0.015, green: 0.11, blue: 0.065)
+        expectRGB(dark.accent, red: 0.45, green: 1.0, blue: 0.72)
+        expectRGB(dark.activeCardStroke, red: 0.23, green: 0.82, blue: 0.48)
+        expectRGB(dark.sessionTileComplete, red: 0.03, green: 0.32, blue: 0.16)
+
+        let sageLight = Theme.palette(for: Theme.PaletteVariant.sageLight)
+        #expect(sageLight.gradientStops.count == 2)
+        expectRGB(sageLight.gradientStops[0].color, red: 0.91, green: 0.93, blue: 0.86)
+        expectRGB(sageLight.gradientStops[1].color, red: 0.78, green: 0.88, blue: 0.75)
+        expectRGB(sageLight.accent, red: 0.05, green: 0.42, blue: 0.25)
+        expectRGB(sageLight.activeCardStroke, red: 0.12, green: 0.52, blue: 0.32)
+        expectRGB(sageLight.sessionTileComplete, red: 0.06, green: 0.38, blue: 0.22)
+    #endif
 }
 
 @Test func themeGradientHasNoOrangeTones() {
@@ -129,7 +171,7 @@ import Testing
 
 @Test func themeSageLightPaletteUsesSoftSageCreamWithoutAmber() {
     #if canImport(AppKit)
-        for stop in Theme.palette(for: .sageLight).gradientStops {
+        for stop in Theme.palette(for: Theme.PaletteVariant.sageLight).gradientStops {
             guard let rgb = rgbComponents(of: stop.color) else { continue }
             #expect(rgb.red > 0.70)
             #expect(rgb.green > 0.78)
@@ -144,7 +186,7 @@ import Testing
 
 @Test func themeBlueLightPaletteUsesCoolLightBackground() {
     #if canImport(AppKit)
-        for stop in Theme.palette(for: .blueLight).gradientStops {
+        for stop in Theme.palette(for: Theme.PaletteVariant.blueLight).gradientStops {
             guard let rgb = rgbComponents(of: stop.color) else { continue }
             #expect(rgb.red > 0.70)
             #expect(rgb.green > 0.78)

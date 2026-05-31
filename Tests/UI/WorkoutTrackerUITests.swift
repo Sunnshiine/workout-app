@@ -365,6 +365,42 @@ final class WorkoutTrackerUITests: XCTestCase {
     }
 }
 
+final class WorkoutTrackerAppearanceUITests: XCTestCase {
+    @MainActor
+    func testSettingsAppearancePickerSwitchesManualLightAndDark() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+
+        revealSessionControlsAndSettingsButton(in: app).tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
+
+        let picker = app.segmentedControls["settings-appearance-picker"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["System"].exists)
+        XCTAssertTrue(app.buttons["Light"].exists)
+        XCTAssertTrue(app.buttons["Dark"].exists)
+        XCTAssertFalse(app.buttons["Black"].exists)
+        XCTAssertFalse(app.buttons["Mint Green"].exists)
+        XCTAssertFalse(app.buttons["Blue Light"].exists)
+
+        app.buttons["Light"].tap()
+        app.buttons["Dark"].tap()
+
+        app.buttons["settings-done-button"].tap()
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 3))
+    }
+
+    @MainActor
+    private func launchFixtureApp() -> XCUIApplication {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITEST_FIXTURE", "-UITEST_SESSION", "-UITEST_FULL_BLOCK"]
+        app.launch()
+        return app
+    }
+}
+
 @MainActor
 private func tapWhenReady(_ element: XCUIElement, in app: XCUIApplication) {
     XCTAssertTrue(element.waitForExistence(timeout: 3))
@@ -429,6 +465,22 @@ private func tapWhenHittable(_ element: XCUIElement) {
         RunLoop.current.run(until: Date().addingTimeInterval(0.1))
     }
     XCTFail("Expected \(element) to become hittable")
+}
+
+@MainActor
+private func revealSessionControlsAndSettingsButton(in app: XCUIApplication) -> XCUIElement {
+    let settingsButton = app.buttons["session-controls-settings-button"]
+    if settingsButton.waitForExistence(timeout: 1) {
+        return settingsButton
+    }
+
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+        .press(
+            forDuration: 0.1,
+            thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
+        )
+    XCTAssertTrue(settingsButton.waitForExistence(timeout: 3))
+    return settingsButton
 }
 
 @MainActor
