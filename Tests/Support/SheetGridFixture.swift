@@ -44,3 +44,38 @@ func coachNoteBenchPressRoundTripGrid() -> SheetGrid {
         cols: 30
     )
 }
+
+/// Repeated Week sections with Coach Notes, hidden continuation rows, and
+/// visible writable rows inside Week 2 / Day 1. The non-last Exercise must skip
+/// row 42 and write to row 43. The last Exercise must skip row 47 and stay
+/// inside the Session boundary before the next Week section at row 60.
+func visibleWritableRowRoundTripSnapshot() -> SheetSnapshot {
+    SheetSnapshot(
+        values: gridFromA1(
+            [
+                "C12": "Day 1", "S12": "Day 2",
+                "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
+                "C16": "Paused Squat", "D16": "1", "F16": "5", "H16": "RPE7",
+
+                "C37": "Day 1", "S37": "Day 2",
+                "D39": "Sets", "F39": "Reps", "H39": "Load", "I39": "Last set RPE", "K39": "Notes",
+                "C41": "2-3:1:0 Incline DB BP", "D41": "2", "F41": "7 - 8", "H41": "RPE8, RF",
+                "K41": "AMRAP w/ 0:3:0 BW Push Up",
+                "K42": "999x1@10",
+                "C46": "0:2:0 Hamstring Curl", "D46": "1", "F46": "12", "H46": "RPE8",
+                "K46": "Controlled eccentric",
+                "K47": "100x1@10",
+
+                "C60": "Day 1", "S60": "Day 2",
+                "D62": "Sets", "F62": "Reps", "H62": "Load", "I62": "Last set RPE", "K62": "Notes",
+                "C64": "Bench Press", "D64": "1"
+            ],
+            rows: 70,
+            cols: 30
+        ),
+        rowVisibility: [
+            41: SheetRowVisibility(hiddenByUser: true),
+            46: SheetRowVisibility(hiddenByFilter: true)
+        ]
+    )
+}
