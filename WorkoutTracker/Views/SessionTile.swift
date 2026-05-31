@@ -4,6 +4,7 @@ struct SessionTile: View {
     let weekNumber: Int
     let dayNumber: Int
     let state: SessionTileState
+    @Environment(\.themePalette) private var palette
 
     var body: some View {
         Group {
@@ -51,33 +52,33 @@ struct SessionTile: View {
     private var backgroundColor: Color {
         switch state {
         case .complete:
-            Theme.sessionTileComplete
+            palette.sessionTileComplete
         case .current, .incomplete:
-            Theme.sessionTileIncomplete
+            palette.sessionTileIncomplete
         case .unavailable:
-            Theme.sessionTileUnavailable
+            palette.sessionTileUnavailable
         }
     }
 
     private var foregroundStyle: Color {
         switch state {
         case .current:
-            Theme.sessionTileCurrentBorder
+            palette.accent
         case .complete:
-            Theme.sessionTileCompleteText
+            palette.sessionTileCompleteText
         case .incomplete:
-            Theme.sessionTileIncompleteText
+            palette.sessionTileIncompleteText
         case .unavailable:
-            Theme.sessionTileUnavailableText
+            palette.sessionTileUnavailableText
         }
     }
 
     private var borderColor: Color {
         switch state {
         case .current:
-            Theme.sessionTileCurrentBorder
+            palette.accent
         case .incomplete:
-            Theme.sessionTileRestingBorder
+            palette.sessionTileRestingBorder
         case .complete, .unavailable:
             .clear
         }

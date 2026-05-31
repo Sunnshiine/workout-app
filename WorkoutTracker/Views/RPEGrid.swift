@@ -13,6 +13,7 @@ struct RPEGrid: View {
     @Binding var isPresented: Bool
     @State private var revealedHalfStepValue: Int?
     @State private var activeDragHeight = 0.0
+    @Environment(\.themePalette) private var palette
 
     var body: some View {
         VStack(spacing: Theme.rpeGridSpacing) {
@@ -38,10 +39,10 @@ struct RPEGrid: View {
             if revealedHalfStepValue == value.value, let halfStepLabel = value.halfStepLabel {
                 Text(halfStepLabel)
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(Theme.accentDarkText)
+                    .foregroundStyle(palette.accentDarkText)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
-                    .background(Theme.accent, in: .capsule)
+                    .background(palette.accent, in: .capsule)
                     .scaleEffect(
                         activeDragHeight <= -RPEGridValue.halfStepActivationOffset
                             ? Layout.highlightedHalfStepScale
@@ -114,23 +115,24 @@ struct RPEGrid: View {
             Text(String(value.value))
                 .font(.headline.weight(.bold))
                 .frame(maxWidth: .infinity, minHeight: Theme.rpeGridCellHeight)
-                .foregroundStyle(value.isDimmed ? Color.secondary : Theme.valueText)
+                .foregroundStyle(value.isDimmed ? Color.secondary : palette.valueText)
 
             if value.showsPrescriptionBadge {
                 Text("Rx")
                     .font(.caption2.weight(.bold))
-                    .foregroundStyle(Theme.accentDarkText)
+                    .foregroundStyle(palette.accentDarkText)
                     .padding(.horizontal, 5)
                     .padding(.vertical, 2)
-                    .background(Theme.accent, in: .capsule)
+                    .background(palette.accent, in: .capsule)
                     .padding(6)
             }
         }
-        .background(Theme.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
+        .background(palette.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
-                .strokeBorder(Theme.pillStroke, lineWidth: 1)
+                .strokeBorder(palette.pillStroke, lineWidth: 1)
         )
         .opacity(value.isDimmed ? 0.55 : 1)
     }
+
 }

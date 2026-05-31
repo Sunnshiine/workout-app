@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LastPerformedCard: View {
     let presentation: LastPerformedCardPresentation
+    @Environment(\.themePalette) private var palette
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -27,10 +28,10 @@ struct LastPerformedCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background(Theme.lastPerformedCardFill, in: .rect(cornerRadius: Theme.cardCornerRadius))
+        .background(palette.lastPerformedCardFill, in: .rect(cornerRadius: Theme.cardCornerRadius))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.cardCornerRadius)
-                .strokeBorder(Theme.lastPerformedCardStroke.opacity(0.85), lineWidth: 1)
+                .strokeBorder(palette.lastPerformedCardStroke.opacity(0.85), lineWidth: 1)
         )
         .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
     }

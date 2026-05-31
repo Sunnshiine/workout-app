@@ -3,6 +3,7 @@ import SwiftUI
 struct ExerciseSummaryRow: View {
     let exercise: Exercise
     let onTap: () -> Void
+    @Environment(\.themePalette) private var palette
 
     private var presentation: ExerciseSummaryRowPresentation {
         ExerciseSummaryRowPresentation(exercise: exercise)
@@ -13,7 +14,7 @@ struct ExerciseSummaryRow: View {
             HStack(spacing: 10) {
                 Text(presentation.title)
                     .font(.callout.weight(.semibold))
-                    .foregroundStyle(Theme.accent)
+                    .foregroundStyle(palette.accent)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
 

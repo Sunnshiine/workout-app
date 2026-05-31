@@ -4,6 +4,7 @@ struct SetRow: View {
     let set: ExerciseSet
     var showsSavedConfirmation = false
     let onTap: () -> Void
+    @Environment(\.themePalette) private var palette
 
     private var presentation: SetRowPresentation {
         SetRowPresentation(set: set)
@@ -14,7 +15,7 @@ struct SetRow: View {
             HStack(spacing: 10) {
                 if presentation.showsCheckmark {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(Theme.accent)
+                        .foregroundStyle(palette.accent)
                 }
 
                 Text("Set \(set.index + 1)")
@@ -24,12 +25,12 @@ struct SetRow: View {
 
                 Text(presentation.title)
                     .font(.callout.weight(.medium))
-                    .foregroundStyle(presentation.tone == .accent ? Theme.accent : .secondary)
+                    .foregroundStyle(presentation.tone == .accent ? palette.accent : .secondary)
 
                 if showsSavedConfirmation {
                     Label("Saved", systemImage: "checkmark.circle.fill")
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(Theme.accent)
+                        .foregroundStyle(palette.accent)
                 }
 
                 Spacer(minLength: 0)
