@@ -170,12 +170,12 @@ private func sortedSessions(in block: Block) -> [Session] {
     let grid = gridFromA1(
         [
             "C12": "Day 1",
-            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Last set RPE", "K14": "Notes",
             "C15": "Squat", "D15": "1", "F15": "5", "H15": "RPE 8",
             "C37": "Day 1",
-            "D39": "Sets", "F39": "Reps", "H39": "Load", "K39": "Notes",
+            "D39": "Sets", "F39": "Reps", "H39": "Load", "J39": "Last set RPE", "K39": "Notes",
             "C40": "Bench Press", "D40": "1", "F40": "5", "H40": "RPE 8", "K40": "Coach note",
-            "K41": "185x5"
+            "K41": "185x5",
         ],
         rows: 45,
         cols: 30
@@ -194,8 +194,8 @@ private func sortedSessions(in block: Block) -> [Session] {
     let grid = gridFromA1(
         [
             "C12": "Day 1",
-            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
-            "C15": "Standing Calve Raises", "D15": "2", "F15": "12", "H15": "RPE 9", "K15": "25x12, 12"
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Last set RPE", "K14": "Notes",
+            "C15": "Standing Calve Raises", "D15": "2", "F15": "12", "H15": "RPE 9", "K15": "25x12, 12",
         ],
         rows: 24,
         cols: 30

@@ -59,6 +59,74 @@ private final class BatchFlushStubClient: SheetsClient, @unchecked Sendable {
     }
 }
 
+private actor BlockingBatchFlushClient: SheetsClient {
+    var grid: SheetGrid
+    private(set) var updates: [(String, [[String]])] = []
+    private(set) var updateRequestCount = 0
+    private var firstUpdateStarted: CheckedContinuation<Void, Never>?
+    private var firstUpdateRelease: CheckedContinuation<Void, Never>?
+
+    init(grid: SheetGrid) {
+        self.grid = grid
+    }
+
+    func listTabTitles(spreadsheetId: String) async throws -> [String] { ["Block 27"] }
+
+    func fetchTab(spreadsheetId: String, tabName: String) async throws -> SheetGrid {
+        grid
+    }
+
+    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
+        try await updateCells(
+            spreadsheetId: spreadsheetId,
+            updates: [SheetValueRangeUpdate(range: range, values: values)]
+        )
+    }
+
+    func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
+        updateRequestCount += 1
+        if updateRequestCount == 1 {
+            firstUpdateStarted?.resume()
+            firstUpdateStarted = nil
+            await withCheckedContinuation { continuation in
+                firstUpdateRelease = continuation
+            }
+        }
+        self.updates.append(contentsOf: updates.map { ($0.range, $0.values) })
+        for update in updates {
+            apply(range: update.range, values: update.values)
+        }
+    }
+
+    func waitForFirstUpdateToStart() async {
+        if updateRequestCount > 0 { return }
+        await withCheckedContinuation { continuation in
+            firstUpdateStarted = continuation
+        }
+    }
+
+    func releaseFirstUpdate() {
+        firstUpdateRelease?.resume()
+        firstUpdateRelease = nil
+    }
+
+    private func apply(range: String, values: [[String]]) {
+        guard
+            let reference = range.split(separator: "!").last,
+            let value = values.first?.first
+        else { return }
+
+        let target = a1ToIndex(String(reference))
+        if target.row >= grid.count {
+            grid.append(contentsOf: SheetGrid(repeating: [], count: target.row - grid.count + 1))
+        }
+        if target.col >= grid[target.row].count {
+            grid[target.row].append(contentsOf: [String](repeating: "", count: target.col - grid[target.row].count + 1))
+        }
+        grid[target.row][target.col] = value
+    }
+}
+
 @MainActor
 private func makeBatchContainer() throws -> ModelContainer {
     try ModelContainer(
@@ -127,12 +195,166 @@ private func batchPendingWrite(
     await sync.flushPending(spreadsheetId: "sid")
 
     #expect(client.updateRequestCount == 2)
-    #expect(client.updates.map(\.0) == ["'Block 27'!K30", "'Block 27'!K30", "'Block 27'!I30"])
+    #expect(client.updates.map(\.0) == ["'Block 27'!K30", "'Block 27'!K30", "'Block 27'!J30"])
     #expect(client.updates.map(\.1) == [[["100x10@6"]], [["100x10@6, 100x10@6"]], [["6"]]])
     #expect(client.grid.cell(row: 29, col: 10) == "100x10@6, 100x10@6")
     #expect(client.grid.cell(row: 30, col: 10) == "")
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
     #expect(sync.state == .idle)
+}
+
+@MainActor
+@Test func flushWritesCoachNoteLayoutSetLogsAndFinalRPE() async throws {
+    let container = try makeBatchContainer()
+    let ctx = container.mainContext
+    ctx.insert(
+        batchPendingWrite(
+            createdAt: 1,
+            exerciseName: "2-3:1:0 Incline DB BP",
+            setIndex: 0,
+            valueToWrite: "100x8@6"
+        )
+    )
+    ctx.insert(
+        batchPendingWrite(
+            createdAt: 2,
+            exerciseName: "2-3:1:0 Incline DB BP",
+            setIndex: 1,
+            valueToWrite: "100x8@6"
+        )
+    )
+    ctx.insert(
+        batchPendingWrite(
+            createdAt: 3,
+            exerciseName: "2-3:1:0 Incline DB BP",
+            setIndex: 1,
+            column: .lastSetRPE,
+            valueToWrite: "6"
+        )
+    )
+    try ctx.save()
+    let client = BatchFlushStubClient(grid: coachNoteBenchPressGrid())
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(client.updateRequestCount == 1)
+    #expect(client.updates.map(\.0) == ["'Block 27'!K52", "'Block 27'!K53", "'Block 27'!J51"])
+    #expect(client.updates.map(\.1) == [[["100x8@6"]], [["100x8@6"]], [["6"]]])
+    #expect(client.grid.cell(row: 50, col: 10) == "AMRAP w/ 0:3:0 BW Push Up")
+    #expect(client.grid.cell(row: 51, col: 10) == "100x8@6")
+    #expect(client.grid.cell(row: 52, col: 10) == "100x8@6")
+    #expect(client.grid.cell(row: 50, col: 9) == "6")
+    #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
+    #expect(sync.state == .idle)
+}
+
+@MainActor
+@Test func staleFirstSetConflictBlocksRemainingExerciseWritesAndFinalRPE() async throws {
+    let container = try makeBatchContainer()
+    let ctx = container.mainContext
+    ctx.insert(
+        batchPendingWrite(
+            createdAt: 1,
+            exerciseName: "2-3:1:0 Incline DB BP",
+            setIndex: 0,
+            valueToWrite: "100x8@6"
+        )
+    )
+    ctx.insert(
+        batchPendingWrite(
+            createdAt: 2,
+            exerciseName: "2-3:1:0 Incline DB BP",
+            setIndex: 1,
+            valueToWrite: "100x8@6"
+        )
+    )
+    ctx.insert(
+        batchPendingWrite(
+            createdAt: 3,
+            exerciseName: "2-3:1:0 Incline DB BP",
+            setIndex: 1,
+            column: .lastSetRPE,
+            valueToWrite: "6"
+        )
+    )
+    try ctx.save()
+    let client = BatchFlushStubClient(grid: coachNoteBenchPressGrid(firstSetLog: "100x6@8"))
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
+    #expect(client.updates.isEmpty)
+    #expect(writes.count == 3)
+    #expect(writes.allSatisfy { $0.status == .conflict })
+    #expect(client.grid.cell(row: 51, col: 10) == "100x6@8")
+    #expect(client.grid.cell(row: 52, col: 10) == "")
+    #expect(client.grid.cell(row: 50, col: 9) == "")
+    let messages = try #require(conflictMessages(sync.state))
+    #expect(
+        messages.contains {
+            $0.contains("2-3:1:0 Incline DB BP") && $0.contains("Expected ''") && $0.contains("100x6@8")
+        }
+    )
+    #expect(
+        messages.contains {
+            $0.contains("Set Log failed")
+        }
+    )
+}
+
+@MainActor
+@Test func concurrentFlushRequestWaitsForActiveSheetWriteThenDrainsNewWrites() async throws {
+    let container = try makeBatchContainer()
+    let ctx = container.mainContext
+    ctx.insert(
+        batchPendingWrite(
+            createdAt: 1,
+            exerciseName: "2-3:1:0 Incline DB BP",
+            setIndex: 0,
+            valueToWrite: "100x8@6"
+        )
+    )
+    try ctx.save()
+    let client = BlockingBatchFlushClient(grid: coachNoteBenchPressGrid())
+    let sync = SyncCoordinator(client: client, context: ctx)
+    let firstFlush = Task { await sync.flushPending(spreadsheetId: "sid") }
+    await client.waitForFirstUpdateToStart()
+
+    ctx.insert(
+        batchPendingWrite(
+            createdAt: 2,
+            exerciseName: "2-3:1:0 Incline DB BP",
+            setIndex: 1,
+            valueToWrite: "100x8@6"
+        )
+    )
+    ctx.insert(
+        batchPendingWrite(
+            createdAt: 3,
+            exerciseName: "2-3:1:0 Incline DB BP",
+            setIndex: 1,
+            column: .lastSetRPE,
+            valueToWrite: "6"
+        )
+    )
+    try ctx.save()
+    let secondFlush = Task { await sync.flushPending(spreadsheetId: "sid") }
+    try await Task.sleep(for: .milliseconds(50))
+
+    #expect(await client.updateRequestCount == 1)
+
+    await client.releaseFirstUpdate()
+    await firstFlush.value
+    await secondFlush.value
+
+    #expect(await client.updateRequestCount == 2)
+    #expect(await client.updates.map(\.0) == ["'Block 27'!K52", "'Block 27'!K53", "'Block 27'!J51"])
+    #expect(await client.grid.cell(row: 51, col: 10) == "100x8@6")
+    #expect(await client.grid.cell(row: 52, col: 10) == "100x8@6")
+    #expect(await client.grid.cell(row: 50, col: 9) == "6")
+    #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
 }
 
 @MainActor
@@ -149,7 +371,7 @@ private func batchPendingWrite(
 
     #expect(client.fetches == ["Block 27"])
     #expect(client.updateRequestCount == 1)
-    #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!I15"])
+    #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!J15"])
     #expect(client.updates.map(\.1) == [[["185x5@8"]], [["8"]]])
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
     #expect(sync.state == .idle)
@@ -285,7 +507,7 @@ private func batchPendingWrite(
     ctx.insert(batchPendingWrite(createdAt: 1, setIndex: 0, valueToWrite: "185x5@8"))
     ctx.insert(batchPendingWrite(createdAt: 2, setIndex: 1, valueToWrite: "195x5@8"))
     try ctx.save()
-    let client = BatchFlushStubClient(grid: twoSetGrid(notesOnly: true))
+    let client = BatchFlushStubClient(grid: twoSetGrid())
     client.failedUpdateRequestNumbers = [1]
     let sync = SyncCoordinator(client: client, context: ctx)
 
@@ -317,7 +539,7 @@ private func batchPendingWrite(
     #expect(client.updateRequestCount == 1)
     #expect(client.updates.isEmpty)
     #expect(client.grid.cell(row: 16, col: 10) == "")
-    #expect(client.grid.cell(row: 14, col: 8) == "")
+    #expect(client.grid.cell(row: 14, col: 9) == "")
     #expect(writes.count == 2)
     #expect(writes.allSatisfy { $0.status == .pending && $0.retryCount == 1 })
 }
@@ -358,7 +580,7 @@ private func batchPendingWrite(
     await sync.flushPending(spreadsheetId: "sid")
 
     #expect(client.updateRequestCount == 1)
-    #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!I15"])
+    #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!J15"])
     #expect(client.updates.map(\.1) == [[["185x5@8, 195x5@9"]], [["9"]]])
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
 }
@@ -367,25 +589,22 @@ private func oneSetGrid() -> SheetGrid {
     gridFromA1(
         [
             "C12": "Day 1", "S12": "Day 2",
-            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
-            "C15": "Squat", "D15": "1"
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Last set RPE", "K14": "Notes",
+            "C15": "Squat", "D15": "1",
         ],
         rows: 24,
         cols: 30
     )
 }
 
-private func twoSetGrid(notesOnly: Bool = false, firstSetLog: String? = nil) -> SheetGrid {
+private func twoSetGrid(firstSetLog: String? = nil) -> SheetGrid {
     var cells = [
         "C12": "Day 1", "S12": "Day 2",
-        "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
-        "C15": "Squat", "D15": "2"
+        "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Last set RPE", "K14": "Notes",
+        "C15": "Squat", "D15": "2",
     ]
     if let firstSetLog {
         cells["K15"] = firstSetLog
-    }
-    if !notesOnly {
-        cells["I14"] = "Last set RPE"
     }
     return gridFromA1(cells, rows: 24, cols: 30)
 }
@@ -394,11 +613,29 @@ private func compactHamstringCurlGrid() -> SheetGrid {
     gridFromA1(
         [
             "C12": "Day 1", "S12": "Day 2",
-            "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Last set RPE", "K14": "Notes",
             "C30": "0:2:0 Hamstring Curl", "D30": "2", "F30": "10", "H30": "RPE7, RF",
-            "C32": "0:1:0 Lateral Neck Flexion", "D32": "2"
+            "C32": "0:1:0 Lateral Neck Flexion", "D32": "2",
         ],
         rows: 36,
+        cols: 30
+    )
+}
+
+private func coachNoteBenchPressGrid(firstSetLog: String? = nil) -> SheetGrid {
+    var cells = [
+        "C37": "Day 1", "S37": "Day 2",
+        "D39": "Sets", "F39": "Reps", "H39": "Load", "J39": "Last set RPE", "K39": "Notes",
+        "C51": "2-3:1:0 Incline DB BP", "D51": "2", "F51": "7 - 8", "H51": "RPE8, RF",
+        "K51": "AMRAP w/ 0:3:0 BW Push Up",
+        "C55": "0:2:0 Hamstring Curl", "D55": "2",
+    ]
+    if let firstSetLog {
+        cells["K52"] = firstSetLog
+    }
+    return gridFromA1(
+        cells,
+        rows: 60,
         cols: 30
     )
 }
@@ -407,10 +644,10 @@ private func multiExerciseConflictGrid() -> SheetGrid {
     gridFromA1(
         [
             "C12": "Day 1", "S12": "Day 2",
-            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Last set RPE", "K14": "Notes",
             "C15": "Squat", "D15": "1",
             "C17": "Bench Press", "D17": "1", "K17": "Coach note", "K18": "coach edited",
-            "C19": "Deadlift", "D19": "1"
+            "C19": "Deadlift", "D19": "1",
         ],
         rows: 28,
         cols: 30
@@ -421,9 +658,9 @@ private func missingContinuationRowGrid() -> SheetGrid {
     gridFromA1(
         [
             "C12": "Day 1", "S12": "Day 2",
-            "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Last set RPE", "K14": "Notes",
             "C15": "Squat", "D15": "1", "K15": "Coach note",
-            "C16": "Bench Press", "D16": "1"
+            "C16": "Bench Press", "D16": "1",
         ],
         rows: 24,
         cols: 30
@@ -435,10 +672,10 @@ private func hipThrustHeaderNotesConflictGrid() -> SheetGrid {
         [
             "C12": "Day 1", "S12": "Day 2",
             "D14": "Sets", "F14": "Reps", "H14": "Load",
-            "I14": "Last set RPE", "K14": "Notes",
+            "J14": "Last set RPE", "K14": "Notes",
             "C15": "0:2:0 Hip Thrust of Choice", "D15": "2",
             "K15": "70@10, 55; keep hips tucked",
-            "C16": "Bench Press", "D16": "1"
+            "C16": "Bench Press", "D16": "1",
         ],
         rows: 24,
         cols: 30
