@@ -6,7 +6,7 @@ import Testing
     let grid = gridFromA1(
         [
             "D10": "Day 1", "N10": "Day 2", "X10": "Day 3", "AH10": "Day 4",
-            "D30": "Day 1", "N30": "Day 2", "X30": "Day 3", "AH30": "Day 4"
+            "D30": "Day 1", "N30": "Day 2", "X30": "Day 3", "AH30": "Day 4",
         ],
         rows: 40,
         cols: 45
@@ -36,7 +36,7 @@ import Testing
         [
             "C12": "Day 1", "S12": "Day 2",
             "E14": "Sets", "G14": "Reps", "H14": "%1RM", "J14": "Load",
-            "L14": "Last set RPE", "N14": "Notes"
+            "L14": "Last set RPE", "N14": "Notes",
         ],
         rows: 20,
         cols: 30
@@ -53,13 +53,63 @@ import Testing
     #expect(day.columns.notes == 13)
 }
 
+@Test func layoutInterpreterDerivesSetLogColumnFromLastSetRPE() throws {
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "I14": "Last set RPE", "K14": "Notes",
+            "T14": "Sets", "Y14": "Last set RPE", "Z14": "Notes",
+        ],
+        rows: 20,
+        cols: 32
+    )
+
+    let layout = SheetLayoutInterpreter().interpret(grid)
+    let day1 = try #require(layout.day(week: 1, day: 1))
+    let day2 = try #require(layout.day(week: 1, day: 2))
+
+    #expect(day1.columns.lastSetRPE == 8)
+    #expect(day1.columns.setLog == 9)
+    #expect(day1.columns.notes == 10)
+    #expect(day2.columns.lastSetRPE == 24)
+    #expect(day2.columns.setLog == 25)
+    #expect(day2.columns.notes == 25)
+}
+
+@Test func layoutInterpreterDoesNotInventSetLogColumnWithoutSafeRPEAdjacentCell() throws {
+    let missingRPEGrid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "K14": "Notes",
+        ],
+        rows: 20,
+        cols: 30
+    )
+    let missingRPEDay = try #require(SheetLayoutInterpreter().interpret(missingRPEGrid).day(week: 1, day: 1))
+    #expect(missingRPEDay.columns.lastSetRPE == nil)
+    #expect(missingRPEDay.columns.setLog == nil)
+    #expect(missingRPEDay.columns.notes == 10)
+
+    let outOfSpanGrid = gridFromA1(
+        [
+            "C12": "Day 1", "E12": "Day 2",
+            "D14": "Last set RPE",
+        ],
+        rows: 20,
+        cols: 10
+    )
+    let outOfSpanDay = try #require(SheetLayoutInterpreter().interpret(outOfSpanGrid).day(week: 1, day: 1))
+    #expect(outOfSpanDay.columns.lastSetRPE == 3)
+    #expect(outOfSpanDay.columns.setLog == nil)
+}
+
 @Test func layoutInterpreterDiscoversShiftedExerciseAnchorsAndNextBoundaries() throws {
     let grid = gridFromA1(
         [
             "C12": "Day 1", "S12": "Day 2",
             "D14": "Sets", "K14": "Notes",
             "C18": "Squat", "D18": "2",
-            "C25": "Bench Press", "D25": "1"
+            "C25": "Bench Press", "D25": "1",
         ],
         rows: 32,
         cols: 30

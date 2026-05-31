@@ -24,8 +24,8 @@ import Testing
         in: grid
     )
 
-    #expect(setOneUpdate.range == "'Block 27'!E18")
-    #expect(setTwoUpdate.range == "'Block 27'!E19")
+    #expect(setOneUpdate.range == "'Block 27'!G18")
+    #expect(setTwoUpdate.range == "'Block 27'!G19")
 }
 
 @Test func parserAndWriterAgreeOnCompactHeaderAggregateSetLogs() throws {
@@ -44,7 +44,7 @@ import Testing
         in: grid
     )
 
-    #expect(update.range == "'Block 27'!E18")
+    #expect(update.range == "'Block 27'!G18")
     #expect(update.value == "BWx12@7, BWx11@8")
 }
 
@@ -66,17 +66,17 @@ import Testing
         in: grid
     )
 
-    #expect(setOneUpdate.range == "'Block 27'!E18")
+    #expect(setOneUpdate.range == "'Block 27'!G18")
 }
 
 private func compactLayoutGrid(headerNotes: String, continuationNotes: String) -> SheetGrid {
     gridFromA1(
         [
             "C12": "Day 1", "S12": "Day 2",
-            "D14": "Sets", "E14": "Notes",
-            "C18": "Ab of Choice", "D18": "2", "E18": headerNotes,
-            "E19": continuationNotes,
-            "C20": "Bench Press", "D20": "1"
+            "D14": "Sets", "F14": "Last set RPE", "G14": "Notes",
+            "C18": "Ab of Choice", "D18": "2", "G18": headerNotes,
+            "G19": continuationNotes,
+            "C20": "Bench Press", "D20": "1",
         ],
         rows: 32,
         cols: 30
