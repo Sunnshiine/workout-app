@@ -67,6 +67,42 @@ ts()   { date "+%Y-%m-%d %H:%M:%S"; }
 log()  { echo "[$(ts)] $*"; }
 note() { printf -- "- **%s** — %s\n" "$(ts)" "$*" >> "$ACTIVITY"; }
 
+secrets_xcconfig_source() {
+  local source
+  if [ -n "${SECRETS_XCCONFIG_SOURCE:-}" ]; then
+    if [ -f "$SECRETS_XCCONFIG_SOURCE" ]; then
+      printf '%s\n' "$SECRETS_XCCONFIG_SOURCE"
+      return 0
+    fi
+    return 2
+  fi
+
+  for source in "$REPO_ROOT/Secrets.xcconfig" "/Users/sunny/Projects/workout-app/Secrets.xcconfig"; do
+    if [ -n "$source" ] && [ -f "$source" ]; then
+      printf '%s\n' "$source"
+      return 0
+    fi
+  done
+  return 1
+}
+
+copy_secrets_xcconfig() {
+  local destination="$1" source
+  source="$(secrets_xcconfig_source)"
+  case "$?" in
+    0) ;;
+    1) return 0 ;;
+    *)
+      log "SECRETS_XCCONFIG_SOURCE is set but does not point to a file: $SECRETS_XCCONFIG_SOURCE"
+      return 1
+      ;;
+  esac
+  if ! cp "$source" "$destination/Secrets.xcconfig"; then
+    log "failed to copy Secrets.xcconfig from $source to $destination"
+    return 1
+  fi
+}
+
 # ---- engine abstraction --------------------------------------------------
 # run_agent <prompt-text> <workdir> [image]  ->  prints the agent's final message to stdout
 run_agent() {
@@ -291,6 +327,12 @@ $(cat "$PROMPTS/select.md")"
   if ! git -C "$REPO_ROOT" worktree add -b "$branch" "$wt" main >/dev/null 2>&1; then
     flag_for_human "$issue" "Could not create the worktree/branch."; continue
   fi
+  if ! copy_secrets_xcconfig "$wt"; then
+    git -C "$REPO_ROOT" worktree remove --force "$wt" >/dev/null 2>&1 || true
+    git -C "$REPO_ROOT" branch -D "$branch" >/dev/null 2>&1 || true
+    git -C "$REPO_ROOT" worktree prune >/dev/null 2>&1 || true
+    flag_for_human "$issue" "Could not copy Secrets.xcconfig into the issue worktree."; continue
+  fi
   issue_base="$(git -C "$wt" rev-parse HEAD)"
 
   # 3+4. IMPLEMENT (TDD) inside the worktree
@@ -334,6 +376,10 @@ $(cat "$PROMPTS/implement.md")"
   cleanup_integration_worktree "$integration_wt" "$integration_branch"
   if ! git -C "$REPO_ROOT" worktree add -b "$integration_branch" "$integration_wt" main >/dev/null 2>&1; then
     flag_for_human "$issue" "Could not create the integration worktree/branch."; continue
+  fi
+  if ! copy_secrets_xcconfig "$integration_wt"; then
+    cleanup_integration_worktree "$integration_wt" "$integration_branch"
+    flag_for_human "$issue" "Could not copy Secrets.xcconfig into the integration worktree." gate; continue
   fi
 
   log "merging #$issue into integration worktree"
