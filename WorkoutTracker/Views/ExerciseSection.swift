@@ -111,7 +111,11 @@ struct ExerciseSection: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
+        .background(Theme.exerciseGroupFill, in: .rect(cornerRadius: Theme.cardCornerRadius))
+        .overlay {
+            RoundedRectangle(cornerRadius: Theme.cardCornerRadius)
+                .strokeBorder(Theme.exerciseGroupStroke, lineWidth: 1)
+        }
         .overlay {
             if config.isPairingConfirmation {
                 RoundedRectangle(cornerRadius: Theme.cardCornerRadius)
@@ -272,7 +276,11 @@ struct ActiveSupersetSection: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
+        .background(Theme.exerciseGroupFill, in: .rect(cornerRadius: Theme.cardCornerRadius))
+        .overlay {
+            RoundedRectangle(cornerRadius: Theme.cardCornerRadius)
+                .strokeBorder(Theme.exerciseGroupStroke, lineWidth: 1)
+        }
     }
 
     private var incomingTransition: ActiveSetTransition? {

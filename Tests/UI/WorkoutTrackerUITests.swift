@@ -115,14 +115,9 @@ final class WorkoutTrackerUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["session-controls-settings-button"].exists)
 
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
-            .press(
-                forDuration: 0.1,
-                thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
-            )
+        let settingsButton = revealSessionControlsAndSettingsButton(in: app)
 
         let sessionControls = app.otherElements["session-controls"]
-        let settingsButton = app.buttons["session-controls-settings-button"]
         let syncButton = app.buttons["session-controls-sync-button"]
         let locationButton = app.buttons["session-location-button"]
         let progressRail = app.otherElements["session-progress-rail"]
@@ -167,12 +162,7 @@ final class WorkoutTrackerUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
 
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
-            .press(
-                forDuration: 0.1,
-                thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
-            )
-        app.buttons["session-controls-settings-button"].tap()
+        revealSessionControlsAndSettingsButton(in: app).tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
 
         let trainingSheetRow = app.buttons["settings-training-sheet-row"]
@@ -186,19 +176,7 @@ final class WorkoutTrackerUITests: XCTestCase {
 
         developerToolsRow.tap()
         XCTAssertTrue(app.navigationBars["Developer Tools"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["Move On Celebration"].exists)
-        XCTAssertTrue(app.staticTexts["Pending Sheet Writes"].exists)
-        XCTAssertTrue(app.staticTexts["Back Squat"].exists)
-        XCTAssertTrue(app.staticTexts["Block 27"].exists)
-        XCTAssertTrue(app.staticTexts["Week 1"].exists)
-        XCTAssertTrue(app.staticTexts["Day 1"].exists)
-        XCTAssertTrue(app.staticTexts["Set 1"].exists)
-        XCTAssertTrue(app.staticTexts["Notes"].exists)
-        XCTAssertTrue(app.staticTexts["185x5@8"].exists)
-        XCTAssertTrue(app.staticTexts["Pending"].exists)
-        XCTAssertFalse(app.buttons["Discard"].exists)
-        XCTAssertFalse(app.buttons["Delete"].exists)
-        XCTAssertFalse(app.buttons["Reset Queue"].exists)
+        assertDeveloperToolsActionsAndDiagnosticsLayout(in: app)
 
         app.buttons["developer-tools-force-celebration-button"].tap()
         let celebration = moveOnCelebration(in: app)
@@ -207,8 +185,7 @@ final class WorkoutTrackerUITests: XCTestCase {
         celebration.tap()
         XCTAssertTrue(app.navigationBars["Developer Tools"].waitForExistence(timeout: 3))
 
-        app.buttons["developer-tools-sync-button"].tap()
-        XCTAssertTrue(app.staticTexts["Offline"].waitForExistence(timeout: 3))
+        assertDeveloperToolsSyncStatusFollowsSyncButton(in: app)
 
         app.navigationBars["Developer Tools"].buttons["Settings"].tap()
         app.buttons["settings-done-button"].tap()
@@ -233,10 +210,12 @@ final class WorkoutTrackerUITests: XCTestCase {
             "Manual override is active for this Block."
         )
         XCTAssertTrue(app.staticTexts["current-session-debug-local-only-note"].exists)
-        XCTAssertTrue(app.buttons["copy-current-session-debug-info-button"].exists)
+        let copyButton = app.buttons["copy-current-session-debug-info-button"]
+        XCTAssertTrue(copyButton.exists)
 
         let resetButton = app.buttons["reset-current-session-override-button"]
         XCTAssertTrue(resetButton.exists)
+        XCTAssertLessThan(copyButton.frame.maxX, resetButton.frame.minX)
         XCTAssertTrue(resetButton.isEnabled)
         resetButton.tap()
 
@@ -275,13 +254,7 @@ final class WorkoutTrackerUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
 
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
-            .press(
-                forDuration: 0.1,
-                thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
-            )
-
-        app.buttons["session-controls-settings-button"].tap()
+        revealSessionControlsAndSettingsButton(in: app).tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
 
         app.buttons["settings-sign-out-button"].tap()
@@ -295,13 +268,7 @@ final class WorkoutTrackerUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
 
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
-            .press(
-                forDuration: 0.1,
-                thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
-            )
-
-        app.buttons["session-controls-settings-button"].tap()
+        revealSessionControlsAndSettingsButton(in: app).tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
 
         app.buttons["settings-sign-out-button"].tap()
@@ -322,13 +289,7 @@ final class WorkoutTrackerUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
 
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
-            .press(
-                forDuration: 0.1,
-                thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
-            )
-
-        app.buttons["session-controls-settings-button"].tap()
+        revealSessionControlsAndSettingsButton(in: app).tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
 
         app.buttons["settings-training-sheet-row"].tap()
@@ -361,6 +322,48 @@ final class WorkoutTrackerUITests: XCTestCase {
 }
 
 @MainActor
+private func assertDeveloperToolsActionsAndDiagnosticsLayout(in app: XCUIApplication) {
+    XCTAssertTrue(app.staticTexts["Actions"].exists)
+    XCTAssertFalse(app.staticTexts["Move On Celebration"].exists)
+    XCTAssertTrue(app.staticTexts["Pending Sheet Writes"].exists)
+    XCTAssertTrue(app.buttons["developer-tools-force-celebration-button"].exists)
+    XCTAssertTrue(app.buttons["developer-tools-sync-button"].exists)
+    XCTAssertLessThan(
+        app.staticTexts["Current Session Debug Info"].frame.maxY,
+        app.staticTexts["Pending Sheet Writes"].frame.minY
+    )
+    XCTAssertLessThan(
+        app.staticTexts["Pending Sheet Writes"].frame.maxY,
+        app.staticTexts["Actions"].frame.minY
+    )
+    XCTAssertLessThan(
+        app.buttons["developer-tools-force-celebration-button"].frame.maxY,
+        app.buttons["developer-tools-sync-button"].frame.minY
+    )
+    XCTAssertTrue(app.staticTexts["Back Squat"].exists)
+    XCTAssertTrue(app.staticTexts["Block 27"].exists)
+    XCTAssertTrue(app.staticTexts["Week 1"].exists)
+    XCTAssertTrue(app.staticTexts["Day 1"].exists)
+    XCTAssertTrue(app.staticTexts["Set 1"].exists)
+    XCTAssertTrue(app.staticTexts["Notes"].exists)
+    XCTAssertTrue(app.staticTexts["185x5@8"].exists)
+    XCTAssertTrue(app.staticTexts["Pending"].exists)
+    XCTAssertFalse(app.buttons["Discard"].exists)
+    XCTAssertFalse(app.buttons["Delete"].exists)
+    XCTAssertFalse(app.buttons["Reset Queue"].exists)
+}
+
+@MainActor
+private func assertDeveloperToolsSyncStatusFollowsSyncButton(in app: XCUIApplication) {
+    let syncButton = app.buttons["developer-tools-sync-button"]
+    syncButton.tap()
+    XCTAssertTrue(app.staticTexts["Offline"].firstMatch.waitForExistence(timeout: 3))
+    let syncStatusBanner = app.descendants(matching: .any)["developer-tools-sync-status-banner"].firstMatch
+    XCTAssertTrue(syncStatusBanner.waitForExistence(timeout: 3))
+    XCTAssertLessThan(syncButton.frame.maxY, syncStatusBanner.frame.minY)
+}
+
+@MainActor
 private func tapWhenReady(_ element: XCUIElement, in app: XCUIApplication) {
     XCTAssertTrue(element.waitForExistence(timeout: 3))
     if element.isHittable {
@@ -371,6 +374,31 @@ private func tapWhenReady(_ element: XCUIElement, in app: XCUIApplication) {
     app.swipeUp()
     XCTAssertTrue(element.waitForExistence(timeout: 3))
     element.tap()
+}
+
+@MainActor
+private func revealSessionControlsAndSettingsButton(in app: XCUIApplication) -> XCUIElement {
+    let settingsButton = app.buttons["session-controls-settings-button"]
+    if settingsButton.waitForExistence(timeout: 1), settingsButton.isHittable {
+        return settingsButton
+    }
+
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+        .press(
+            forDuration: 0.1,
+            thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
+        )
+
+    XCTAssertTrue(settingsButton.waitForExistence(timeout: 3))
+    let deadline = Date().addingTimeInterval(3)
+    while Date() < deadline {
+        if settingsButton.isHittable {
+            return settingsButton
+        }
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+    }
+    XCTFail("Expected session controls settings button to become hittable")
+    return settingsButton
 }
 
 @MainActor
@@ -455,7 +483,7 @@ private func assertMoveOnCelebrationCopyIsReadable(in app: XCUIApplication) {
         app.staticTexts["move-on-celebration-left-value"],
         app.staticTexts["move-on-celebration-sets-label"],
         app.staticTexts["move-on-celebration-exercises-label"],
-        app.staticTexts["move-on-celebration-left-label"]
+        app.staticTexts["move-on-celebration-left-label"],
     ]
     let hint = app.staticTexts["move-on-celebration-hint"]
     let windowFrame = app.windows.element(boundBy: 0).frame
@@ -474,6 +502,37 @@ private func assertMoveOnCelebrationCopyIsReadable(in app: XCUIApplication) {
     XCTAssertLessThanOrEqual(quote.frame.maxY, title.frame.minY)
     XCTAssertLessThanOrEqual(title.frame.maxY, subline.frame.minY)
     XCTAssertLessThan(stats.map(\.frame.maxY).max() ?? 0, hint.frame.minY)
+}
+
+final class WorkoutTrackerLongSessionUITests: XCTestCase {
+    @MainActor
+    func testLongSessionCardsStayAliveAndProgrammaticSupersetScrollLands() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.otherElements["active-set-card"].exists)
+
+        app.buttons["rpe-pill"].tap()
+        app.buttons["rpe-6"].tap()
+        let logButton = app.buttons["log-active-set-button"]
+        waitUntilEnabled(logButton)
+        logButton.tap()
+
+        XCTAssertTrue(app.staticTexts["Bench Press"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Bench Press"].isHittable)
+
+        app.swipeUp()
+        XCTAssertTrue(app.staticTexts["Farmer Carry"].waitForExistence(timeout: 3))
+    }
+
+    @MainActor
+    private func launchFixtureApp() -> XCUIApplication {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITEST_FIXTURE", "-UITEST_SESSION", "-UITEST_LONG_SESSION"]
+        app.launch()
+        return app
+    }
 }
 
 final class WorkoutTrackerSkipUITests: XCTestCase {

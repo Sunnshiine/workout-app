@@ -53,7 +53,7 @@ struct SessionView: View {
                     ScrollViewReader { proxy in
                         ScrollView {
                             GlassEffectContainer(spacing: Theme.cardSpacing) {
-                                LazyVStack(alignment: .leading, spacing: Theme.cardSpacing) {
+                                VStack(alignment: .leading, spacing: Theme.cardSpacing) {
                                     ForEach(
                                         coordinator.renderItems(
                                             in: session,

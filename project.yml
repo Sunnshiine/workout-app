@@ -4,6 +4,9 @@ options:
   deploymentTarget:
     iOS: "26.0"
   defaultConfig: Debug
+configFiles:
+  Debug: Secrets.xcconfig
+  Release: Secrets.xcconfig
 
 packages:
   GoogleSignIn:
@@ -21,12 +24,19 @@ targets:
     info:
       path: WorkoutTracker/Info.plist
       properties:
+        GIDClientID: $(GID_CLIENT_ID)
+        CFBundleURLTypes:
+          - CFBundleURLSchemes:
+              - $(GID_REVERSED_CLIENT_ID)
         UILaunchStoryboardName: LaunchScreen
     settings:
       base:
+        CODE_SIGN_IDENTITY: iPhone Developer
+        DEVELOPMENT_TEAM: K74Q6RKFBY
         PRODUCT_BUNDLE_IDENTIFIER: com.sunnypatel.WorkoutTracker
         SWIFT_VERSION: "6.0"
         SWIFT_STRICT_CONCURRENCY: complete
+        TARGETED_DEVICE_FAMILY: "1,2"
     dependencies:
       - package: GoogleSignIn
         product: GoogleSignIn
@@ -47,8 +57,12 @@ targets:
       - target: WorkoutTracker
     settings:
       base:
+        BUNDLE_LOADER: "$(TEST_HOST)"
         SWIFT_VERSION: "6.0"
         GENERATE_INFOPLIST_FILE: "YES"
+        PRODUCT_BUNDLE_IDENTIFIER: com.sunnypatel.WorkoutTrackerTests
+        TARGETED_DEVICE_FAMILY: "1,2"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/WorkoutTracker.app/WorkoutTracker"
 
   WorkoutTrackerUITests:
     type: bundle.ui-testing
@@ -58,8 +72,11 @@ targets:
       - target: WorkoutTracker
     settings:
       base:
+        BUNDLE_LOADER: "$(TEST_HOST)"
         SWIFT_VERSION: "6.0"
         GENERATE_INFOPLIST_FILE: "YES"
+        PRODUCT_BUNDLE_IDENTIFIER: com.sunnypatel.WorkoutTrackerUITests
+        TARGETED_DEVICE_FAMILY: "1,2"
         TEST_TARGET_NAME: WorkoutTracker
 
 schemes:
@@ -71,6 +88,7 @@ schemes:
       config: Debug
       commandLineArguments:
         "-UITEST_FIXTURE": true
+        "-UITEST_SESSION": true
     test:
       config: Debug
       targets:

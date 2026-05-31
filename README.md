@@ -17,4 +17,6 @@ swift test   # fast unit + component tests, no Secrets.xcconfig needed
 
 - **`AGENTS.md`** / **`CLAUDE.md`** — build, test, and contribution guide for AI agents
 - **`CONTEXT.md`** — domain glossary (Block, Session, Set Log, Load Suggestion …)
+- **`PRODUCT.md`** — product purpose, user context, brand personality, and anti-references
+- **`DESIGN.md`** — design system, visual rules, and component guidance
 - **`docs/adr/`** — architecture decision records
