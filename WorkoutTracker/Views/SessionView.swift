@@ -234,7 +234,7 @@ struct SessionView: View {
             ActiveSupersetSection(
                 config: config,
                 onFocusExercise: { focusedExercise in
-                    coordinator.focusNextSupersetSet(for: focusedExercise, in: session)
+                    focusSupersetWithMorph(focusedExercise, in: session)
                 },
                 onLog: logWithMomentum,
                 onSkip: skipWithFade,
@@ -250,7 +250,9 @@ struct SessionView: View {
     }
 
     private func focusWithMorph(_ set: ExerciseSet) {
-        guard set.state == .pending, !reduceMotion else {
+        let action = focusMorphAction(for: set)
+        let policy = SessionFocusMorphPolicy(reduceMotion: reduceMotion)
+        guard policy.shouldAnimate(action) else {
             coordinator.focus(on: set)
             return
         }
@@ -315,6 +317,28 @@ struct SessionView: View {
 }
 
 extension SessionView {
+    private func focusMorphAction(for set: ExerciseSet) -> SessionFocusMorphAction {
+        guard set.state == .logged else {
+            return set.state == .pending ? .pendingFocus : .loggedReviewCollapse
+        }
+        let setID = SessionCoordinator.activeSetID(for: set)
+        return setID == coordinator.expandedLoggedSetID ? .loggedReviewCollapse : .loggedReviewOpen
+    }
+
+    private func focusSupersetWithMorph(_ exercise: Exercise, in session: Session) {
+        let policy = SessionFocusMorphPolicy(reduceMotion: reduceMotion)
+        guard policy.shouldAnimate(.supersetSwitchSucceeded) else {
+            _ = coordinator.focusNextSupersetSet(for: exercise, in: session)
+            return
+        }
+
+        _ = coordinator.focusNextSupersetSet(for: exercise, in: session) { updateFocus in
+            withAnimation(Theme.focusMorphAnimation) {
+                updateFocus()
+            }
+        }
+    }
+
     fileprivate func warningHaptic() {
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
     }

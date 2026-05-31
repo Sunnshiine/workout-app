@@ -60,13 +60,16 @@ struct ExerciseSection: View {
                         let scrollID = setID ?? ActiveSetID(exerciseOrder: exercise.order, setIndex: set.index)
                         ZStack(alignment: .topLeading) {
                             if setID == config.expandedLoggedSetID {
-                                LoggedSetReviewCard(
-                                    set: set,
-                                    setOrdinal: setOrdinal(for: set),
-                                    setCount: sortedSets.count,
-                                    showsSavedConfirmation: setID == config.savedLoggedSetID,
-                                    onCommit: { onUpdateLoggedSet(set, $0) },
-                                    onCollapse: { onFocus(set) }
+                                focusMorphSurface(
+                                    for: set,
+                                    content: LoggedSetReviewCard(
+                                        set: set,
+                                        setOrdinal: setOrdinal(for: set),
+                                        setCount: sortedSets.count,
+                                        showsSavedConfirmation: setID == config.savedLoggedSetID,
+                                        onCommit: { onUpdateLoggedSet(set, $0) },
+                                        onCollapse: { onFocus(set) }
+                                    )
                                 )
                             } else if setID == config.activeSetID {
                                 focusMorphSurface(
@@ -191,6 +194,7 @@ struct ActiveSupersetSection: View {
     let onSkip: (ExerciseSet) -> Void
     let onDelete: (ExerciseSet) -> Void
     let onDismiss: () -> Void
+    @Namespace private var focusMorphNamespace
 
     private var activeExercise: Exercise? {
         config.exercises.first { $0.order == config.presentation.activeExerciseOrder }
@@ -234,12 +238,18 @@ struct ActiveSupersetSection: View {
                             }
                             onFocusExercise(exercise)
                         } label: {
-                            SupersetSideCard(side: side)
+                            focusMorphSurface(
+                                for: nextPendingSetID(for: side.exerciseOrder),
+                                content: SupersetSideCard(side: side)
+                            )
                         }
                         .buttonStyle(.plain)
                         .accessibilityHint("Focuses this exercise's next pending set")
                     } else {
-                        SupersetSideCard(side: side)
+                        focusMorphSurface(
+                            for: nextPendingSetID(for: side.exerciseOrder),
+                            content: SupersetSideCard(side: side)
+                        )
                     }
                 }
             }
@@ -250,15 +260,18 @@ struct ActiveSupersetSection: View {
 
             if let activeSetID = config.presentation.activeSetID, let activeExercise, let activeSet {
                 ZStack(alignment: .topLeading) {
-                    IncomingActiveSetCard(
-                        transition: incomingTransition,
-                        exercise: activeExercise,
-                        set: activeSet,
-                        setOrdinal: setOrdinal(for: activeSet),
-                        setCount: sortedActiveSets.count,
-                        onLog: { onLog(activeSet, $0) },
-                        onSkip: { onSkip(activeSet) },
-                        onDelete: { onDelete(activeSet) }
+                    focusMorphSurface(
+                        for: activeSetID,
+                        content: IncomingActiveSetCard(
+                            transition: incomingTransition,
+                            exercise: activeExercise,
+                            set: activeSet,
+                            setOrdinal: setOrdinal(for: activeSet),
+                            setCount: sortedActiveSets.count,
+                            onLog: { onLog(activeSet, $0) },
+                            onSkip: { onSkip(activeSet) },
+                            onDelete: { onDelete(activeSet) }
+                        )
                     )
 
                     if let transition = config.retiringTransition, transition.outgoingSetID == activeSetID {
@@ -290,6 +303,32 @@ struct ActiveSupersetSection: View {
 
     private func setOrdinal(for set: ExerciseSet) -> Int {
         (sortedActiveSets.firstIndex { $0.persistentModelID == set.persistentModelID } ?? set.index) + 1
+    }
+
+    private var shouldUseFocusMorph: Bool {
+        config.activeSetTransition == nil && config.retiringTransition == nil
+    }
+
+    private func nextPendingSetID(for exerciseOrder: Int) -> ActiveSetID? {
+        config.exercises
+            .first { $0.order == exerciseOrder }?
+            .sets
+            .filter { $0.state == .pending }
+            .sorted { $0.index < $1.index }
+            .first
+            .flatMap(SessionCoordinator.activeSetID(for:))
+    }
+
+    @ViewBuilder
+    private func focusMorphSurface<Content: View>(for setID: ActiveSetID?, content: Content) -> some View {
+        if let setID, shouldUseFocusMorph {
+            content.matchedGeometryEffect(
+                id: "superset-focus-morph-\(setID.exerciseOrder)-\(setID.setIndex)",
+                in: focusMorphNamespace
+            )
+        } else {
+            content
+        }
     }
 }
 
