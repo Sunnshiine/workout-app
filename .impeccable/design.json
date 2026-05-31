@@ -1,0 +1,333 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-31T06:34:27Z",
+  "title": "Design System: Workout App",
+  "extensions": {
+    "colorMeta": {
+      "background-top": {
+        "role": "neutral",
+        "displayName": "Background Top",
+        "canonical": "#050806",
+        "tonalRamp": [
+          "oklch(15% 0.02 160)",
+          "oklch(25% 0.02 160)",
+          "oklch(35% 0.02 160)",
+          "oklch(45% 0.02 160)",
+          "oklch(55% 0.02 160)",
+          "oklch(70% 0.02 160)",
+          "oklch(85% 0.02 160)",
+          "oklch(95% 0.02 160)"
+        ]
+      },
+      "background-bottom": {
+        "role": "neutral",
+        "displayName": "Background Bottom",
+        "canonical": "#041C11",
+        "tonalRamp": [
+          "oklch(15% 0.03 160)",
+          "oklch(25% 0.03 160)",
+          "oklch(35% 0.03 160)",
+          "oklch(45% 0.03 160)",
+          "oklch(55% 0.03 160)",
+          "oklch(70% 0.03 160)",
+          "oklch(85% 0.03 160)",
+          "oklch(95% 0.03 160)"
+        ]
+      },
+      "primary-mint": {
+        "role": "primary",
+        "displayName": "Primary Mint",
+        "canonical": "#73FFB8",
+        "tonalRamp": [
+          "oklch(15% 0.12 160)",
+          "oklch(25% 0.12 160)",
+          "oklch(35% 0.12 160)",
+          "oklch(45% 0.12 160)",
+          "oklch(55% 0.12 160)",
+          "oklch(70% 0.12 160)",
+          "oklch(85% 0.12 160)",
+          "oklch(95% 0.12 160)"
+        ]
+      },
+      "accent-ink": {
+        "role": "neutral",
+        "displayName": "Accent Ink",
+        "canonical": "#051F12",
+        "tonalRamp": [
+          "oklch(15% 0.04 160)",
+          "oklch(25% 0.04 160)",
+          "oklch(35% 0.04 160)",
+          "oklch(45% 0.04 160)",
+          "oklch(55% 0.04 160)",
+          "oklch(70% 0.04 160)",
+          "oklch(85% 0.04 160)",
+          "oklch(95% 0.04 160)"
+        ]
+      },
+      "active-card-fill": {
+        "role": "secondary",
+        "displayName": "Green Glass Fill",
+        "canonical": "#08331F",
+        "tonalRamp": [
+          "oklch(15% 0.05 160)",
+          "oklch(25% 0.05 160)",
+          "oklch(35% 0.05 160)",
+          "oklch(45% 0.05 160)",
+          "oklch(55% 0.05 160)",
+          "oklch(70% 0.05 160)",
+          "oklch(85% 0.05 160)",
+          "oklch(95% 0.05 160)"
+        ]
+      },
+      "active-card-stroke": {
+        "role": "secondary",
+        "displayName": "Green Stroke",
+        "canonical": "#3BD17A",
+        "tonalRamp": [
+          "oklch(15% 0.10 155)",
+          "oklch(25% 0.10 155)",
+          "oklch(35% 0.10 155)",
+          "oklch(45% 0.10 155)",
+          "oklch(55% 0.10 155)",
+          "oklch(70% 0.10 155)",
+          "oklch(85% 0.10 155)",
+          "oklch(95% 0.10 155)"
+        ]
+      },
+      "pill-fill": {
+        "role": "neutral",
+        "displayName": "Pill Fill",
+        "canonical": "#080F0D",
+        "tonalRamp": [
+          "oklch(15% 0.02 160)",
+          "oklch(25% 0.02 160)",
+          "oklch(35% 0.02 160)",
+          "oklch(45% 0.02 160)",
+          "oklch(55% 0.02 160)",
+          "oklch(70% 0.02 160)",
+          "oklch(85% 0.02 160)",
+          "oklch(95% 0.02 160)"
+        ]
+      },
+      "pill-stroke": {
+        "role": "secondary",
+        "displayName": "Pill Stroke",
+        "canonical": "#3DAD6B",
+        "tonalRamp": [
+          "oklch(15% 0.08 155)",
+          "oklch(25% 0.08 155)",
+          "oklch(35% 0.08 155)",
+          "oklch(45% 0.08 155)",
+          "oklch(55% 0.08 155)",
+          "oklch(70% 0.08 155)",
+          "oklch(85% 0.08 155)",
+          "oklch(95% 0.08 155)"
+        ]
+      },
+      "text-primary": {
+        "role": "neutral",
+        "displayName": "Primary Text",
+        "canonical": "#F5F7F3",
+        "tonalRamp": [
+          "oklch(15% 0.01 150)",
+          "oklch(25% 0.01 150)",
+          "oklch(35% 0.01 150)",
+          "oklch(45% 0.01 150)",
+          "oklch(55% 0.01 150)",
+          "oklch(70% 0.01 150)",
+          "oklch(85% 0.01 150)",
+          "oklch(95% 0.01 150)"
+        ]
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "Muted Text",
+        "canonical": "#AAB8B0",
+        "tonalRamp": [
+          "oklch(15% 0.01 150)",
+          "oklch(25% 0.01 150)",
+          "oklch(35% 0.01 150)",
+          "oklch(45% 0.01 150)",
+          "oklch(55% 0.01 150)",
+          "oklch(70% 0.01 150)",
+          "oklch(85% 0.01 150)",
+          "oklch(95% 0.01 150)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Celebration titles and rare milestone moments only."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Exercise names, primary button labels, and important card values."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Session tiles, large value pills, and compact emphasis."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Standard settings copy, explanatory text, and editable values."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Pill labels, breadcrumb text, badges, progress labels, and source labels."
+      }
+    },
+    "shadows": [
+      {
+        "name": "celebration-glow",
+        "value": "0 12px 28px rgba(115, 255, 184, 0.55)",
+        "purpose": "Soft mint glow under the Move On Celebration stamp."
+      },
+      {
+        "name": "active-focus-glow",
+        "value": "0 0 12px rgba(115, 255, 184, 0.65)",
+        "purpose": "Short-lived focus emphasis for the active Exercise section."
+      }
+    ],
+    "motion": [
+      {
+        "name": "log-button-checkmark",
+        "value": "ease-out 200ms",
+        "purpose": "Confirm a logged Set without turning the tap into a celebration."
+      },
+      {
+        "name": "hold-to-skip",
+        "value": "linear 800ms with 250ms reveal delay",
+        "purpose": "Make Skip deliberate and reversible before completion."
+      },
+      {
+        "name": "focus-morph",
+        "value": "ease-in-out 280ms",
+        "purpose": "Move focus between active Set surfaces."
+      },
+      {
+        "name": "momentum-flow",
+        "value": "ease-in-out 650ms",
+        "purpose": "Transition between Sets after logging or skipping."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "iphone",
+        "value": "native iPhone layout"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Log Button",
+      "kind": "button",
+      "refersTo": "button-log",
+      "description": "Full-width mint action button that previews the exact Set Log.",
+      "html": "<button class=\"ds-log-button\"><span>Log 185x7@6</span></button>",
+      "css": ".ds-log-button { width: 100%; border: 0; border-radius: 8px; background: #73FFB8; color: #051F12; padding: 14px 16px; font: 700 17px/1.25 -apple-system, BlinkMacSystemFont, 'SF Pro', system-ui, sans-serif; transition: transform 180ms ease-out, opacity 180ms ease-out; } .ds-log-button:hover { transform: translateY(-1px); } .ds-log-button:focus-visible { outline: 2px solid #F5F7F3; outline-offset: 3px; } .ds-log-button:active { transform: translateY(0); opacity: 0.9; }"
+    },
+    {
+      "name": "Active Set Card",
+      "kind": "card",
+      "refersTo": "card-active-set",
+      "description": "The signature card that owns the next Set logging action.",
+      "html": "<section class=\"ds-active-card\"><div class=\"ds-card-row\"><span class=\"ds-kicker\">Up next</span><span class=\"ds-badge\">Set 2 of 4</span></div><h3>Competition Squat</h3><div class=\"ds-pill-row\"><div class=\"ds-pill\"><span>Weight</span><strong>185</strong></div><div class=\"ds-pill\"><span>Reps</span><strong>7</strong></div><div class=\"ds-pill\"><span>RPE</span><strong>6</strong></div></div></section>",
+      "css": ".ds-active-card { border-radius: 16px; background: rgba(8, 51, 31, 0.72); color: #F5F7F3; padding: 16px; border: 1px solid rgba(59, 209, 122, 0.8); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', system-ui, sans-serif; } .ds-card-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; } .ds-kicker { color: #73FFB8; font-size: 12px; font-weight: 600; text-transform: uppercase; } .ds-badge { color: #AAB8B0; background: rgba(255,255,255,0.12); border-radius: 999px; padding: 5px 10px; font-size: 12px; font-weight: 600; } .ds-active-card h3 { margin: 0 0 14px; font-size: 17px; line-height: 1.25; font-weight: 700; } .ds-pill-row { display: flex; gap: 10px; } .ds-pill { flex: 1; min-height: 86px; border-radius: 8px; background: rgba(8, 15, 13, 0.88); border: 1px solid rgba(61, 173, 107, 0.75); padding: 12px; } .ds-pill span { display: block; color: #AAB8B0; font-size: 12px; font-weight: 600; margin-bottom: 8px; } .ds-pill strong { color: #F5F7F3; font-size: 20px; line-height: 1.2; }"
+    },
+    {
+      "name": "Last Performed Card",
+      "kind": "card",
+      "refersTo": "card-last-performed",
+      "description": "Quiet historical reference above the Active Set Card.",
+      "html": "<aside class=\"ds-last-card\"><span>Last performed</span><p><strong>180x6@7</strong><em>Past Session</em></p></aside>",
+      "css": ".ds-last-card { border-radius: 16px; background: rgba(8, 26, 18, 0.82); color: #F5F7F3; padding: 12px 14px; border: 1px solid rgba(33, 92, 64, 0.85); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', system-ui, sans-serif; } .ds-last-card span { display: block; color: #AAB8B0; font-size: 12px; font-weight: 600; text-transform: uppercase; margin-bottom: 6px; } .ds-last-card p { display: flex; align-items: baseline; gap: 6px; margin: 0; } .ds-last-card strong { font-size: 17px; font-weight: 700; } .ds-last-card em { color: #AAB8B0; font-style: normal; font-size: 15px; font-weight: 600; }"
+    },
+    {
+      "name": "Session Progress Header",
+      "kind": "nav",
+      "refersTo": "session-progress-header",
+      "description": "Lightweight Session chrome with location, remaining count, and segmented progress.",
+      "html": "<header class=\"ds-session-header\"><div class=\"ds-header-line\"><span>Block 1 · Week 2 · Day 3</span><strong>8 left</strong></div><div class=\"ds-progress\"><i class=\"done\"></i><i class=\"done\"></i><i class=\"current\"></i><i></i><i></i></div></header>",
+      "css": ".ds-session-header { color: #F5F7F3; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', system-ui, sans-serif; } .ds-header-line { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; font-size: 12px; font-weight: 600; } .ds-header-line strong { color: #73FFB8; font-weight: 600; } .ds-progress { display: flex; gap: 3px; height: 8px; } .ds-progress i { flex: 1; border-radius: 3px; background: rgba(6, 14, 10, 0.85); } .ds-progress i.done { background: #73FFB8; } .ds-progress i.current { background: transparent; box-shadow: inset 0 0 0 1.25px #73FFB8; }"
+    },
+    {
+      "name": "Session Tile",
+      "kind": "card",
+      "refersTo": "tile-session",
+      "description": "Block grid tile for Available, Current, complete, and Unavailable Sessions.",
+      "html": "<article class=\"ds-session-tile\"><span>Week 2</span><strong>Day 3</strong></article>",
+      "css": ".ds-session-tile { min-height: 86px; border-radius: 8px; background: rgba(6, 14, 11, 0.24); color: #F5F7F3; border: 1.5px solid #73FFB8; padding: 12px; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', system-ui, sans-serif; } .ds-session-tile span { display: block; color: rgba(115, 255, 184, 0.78); font-size: 12px; font-weight: 600; margin-bottom: 6px; } .ds-session-tile strong { font-size: 20px; line-height: 1.2; font-weight: 700; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Warm Training Cockpit",
+    "overview": "Workout App is a native iOS tool for a single powerlifting athlete using it between Sets on the gym floor. The visual system should feel immediate and grounded: the athlete sees the Current Session, understands the next Set, logs the exact Set Log, and returns attention to the bar.\n\nThe current implementation uses a dark green canvas with mint action states, selective Liquid Glass, and compact card hierarchy. That code is the baseline, but it is not a permanent brand constraint. Future redesign work should keep the cockpit clarity and native iOS familiarity while moving the mood closer to PRODUCT.md's \"warm, focused, trustworthy\" promise. Warmth comes from calm hierarchy, honest sync state, tactile controls, and earned acknowledgement, not from hype graphics or constant celebration.\n\nThe system rejects bro-y hype, spreadsheet-shaped density, generic fitness SaaS cards, and over-gamified feedback. It should feel like a supportive training partner that respects the athlete's expertise and shows real numbers plainly.",
+    "keyCharacteristics": [
+      "One focused action area owns the screen.",
+      "Dark green depth is functional, never decorative.",
+      "Mint is reserved for action, current state, and trustworthy progress.",
+      "Liquid Glass is selective and platform-native.",
+      "Celebration is rare and tied to Move On, not individual taps."
+    ],
+    "rules": [
+      {
+        "name": "The Mint Means Current Rule",
+        "body": "Mint is for the next action, the current Set, selected state, or progress that has actually happened. Do not use it as decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The Warmth Without Beige Rule",
+        "body": "If the palette moves warmer, do it through richer state colors, calmer contrast, and friendlier spacing. Do not switch to cream, tan, or generic wellness neutrals unless the product strategy changes.",
+        "section": "colors"
+      },
+      {
+        "name": "The No Amber Regression Rule",
+        "body": "ADR-0004's older amber direction is superseded. Do not introduce antique gold, amber, burnt orange, or flat obsidian with rare accent hits.",
+        "section": "colors"
+      },
+      {
+        "name": "The Numbers Stay Plain Rule",
+        "body": "Loads, reps, RPE, Set counts, and sync state must use direct native type. Do not stylize numbers with novelty fonts, outlines, gradient text, or decorative tracking.",
+        "section": "typography"
+      },
+      {
+        "name": "The Product Scale Rule",
+        "body": "Use fixed native type sizes. Do not introduce fluid display typography into the app UI.",
+        "section": "typography"
+      },
+      {
+        "name": "The Glass Has a Job Rule",
+        "body": "Glass belongs on active Exercise cards, Last Performed, onboarding, empty states, Session Controls, and system button affordances. Do not apply glass everywhere.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Flat At Rest Rule",
+        "body": "Ordinary rows, pills, and tiles are flat at rest. Use fill, stroke, and type hierarchy before adding shadow.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep coach-authored spreadsheet structure hidden behind Sessions, Exercises, Sets, and Set Logs.",
+      "Do make the next logging action obvious and reachable with one hand.",
+      "Do show sync and pending-write state honestly. Never imply a Set Log has landed if it has not.",
+      "Do use Primary Mint for current, active, and completed progress states that are real.",
+      "Do keep Liquid Glass selective so important workout surfaces keep their weight.",
+      "Do use exact domain language from CONTEXT.md: Block, Week, Session, Exercise, Set, Set Log, Last Performed, Move On.",
+      "Do preserve native iOS affordances for Settings, Sync, sheets, navigation, and text input.",
+      "Do keep celebration tied to Move On and genuine Session progress."
+    ],
+    "donts": [
+      "Don't use Bro-y hype / aggro fitness styling: no beast-mode copy, flames, neon-on-black aggression, or all-caps shouting.",
+      "Don't make a Spreadsheet-in-an-app UI: no raw cell editing, dense grids, tiny tap targets, or visible row and column plumbing.",
+      "Don't use Generic fitness SaaS patterns: no interchangeable rounded-card dashboards, stock gradients, badge spam, ring charts everywhere, or cheerful clip art.",
+      "Don't over-gamify: no XP bars, points, levels, streak pressure, mascots, or confetti on normal logging taps.",
+      "Don't use amber, gold, burnt orange, or the superseded warm-amber palette from ADR-0004.",
+      "Don't use gradient text, side-stripe borders, broad decorative glass, or repeated identical card grids.",
+      "Don't add decorative motion. Motion must convey state: logging, focusing, skipping, syncing, or moving on.",
+      "Don't introduce cards inside cards. Surfaces can be stacked, but each layer must have a distinct job.",
+      "Don't exceed 16px radius on rectangular cards or 8px on tiles and value pills.",
+      "Don't use \"workout\", \"training day\", \"lift\", \"working set\", \"actual load\", or \"Finish Session\" where the domain glossary says to use Session, Exercise, Set, Set Log, or Move On."
+    ]
+  }
+}
