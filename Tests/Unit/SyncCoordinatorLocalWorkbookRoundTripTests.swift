@@ -84,8 +84,8 @@ private func parsedInclineDBBenchPress(from parsed: ParsedBlock) throws -> Parse
     let batches = await client.recordedBatches
 
     #expect(updated.cell(row: 50, col: 10) == "AMRAP w/ 0:3:0 BW Push Up")
-    #expect(updated.cell(row: 51, col: 10) == "100x8@6")
-    #expect(updated.cell(row: 52, col: 10) == "105x7@7")
+    #expect(updated.cell(row: 51, col: 10) == "100x8@6, 105x7@7")
+    #expect(updated.cell(row: 52, col: 10) == "")
     #expect(updated.cell(row: 50, col: 8) == "7")
     #expect(exercise.coachNote == "AMRAP w/ 0:3:0 BW Push Up")
     #expect(firstSet.state == .logged)
@@ -95,6 +95,7 @@ private func parsedInclineDBBenchPress(from parsed: ParsedBlock) throws -> Parse
     #expect(parsed.warnings.isEmpty)
     #expect(try context.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
     #expect(sync.state == .idle)
-    #expect(batches.count == 1)
-    #expect(batches[0].map(\.range) == ["'Block 27'!K52", "'Block 27'!K53", "'Block 27'!I51"])
+    #expect(batches.count == 2)
+    #expect(batches[0].map(\.range) == ["'Block 27'!K52"])
+    #expect(batches[1].map(\.range) == ["'Block 27'!K52", "'Block 27'!I51"])
 }
