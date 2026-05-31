@@ -187,12 +187,32 @@ extension Theme {
         return variant
     }
 
-    static func palette(for preference: AppearancePreference) -> Palette {
+    static func palette(for preference: AppearancePreference, colorScheme: ColorScheme = .dark) -> Palette {
         switch preference {
         case .light:
             palette(for: .sageLight)
-        case .dark, .system:
+        case .dark:
             palette(for: Theme.PaletteVariant.dark)
+        case .system:
+            switch colorScheme {
+            case .light:
+                palette(for: .sageLight)
+            case .dark:
+                palette(for: Theme.PaletteVariant.dark)
+            @unknown default:
+                palette(for: Theme.PaletteVariant.dark)
+            }
+        }
+    }
+
+    static func colorSchemeOverride(for preference: AppearancePreference) -> ColorScheme? {
+        switch preference {
+        case .system:
+            nil
+        case .light:
+            .light
+        case .dark:
+            .dark
         }
     }
 
