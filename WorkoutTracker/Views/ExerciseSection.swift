@@ -11,6 +11,7 @@ struct ExerciseSection: View {
     var onBeginPairing: () -> Void = {}
     var onPairingTap: () -> Void = {}
     @State private var hasCompletedRise = true
+    @Namespace private var focusMorphNamespace
 
     private var exercise: Exercise {
         config.exercise
@@ -68,23 +69,29 @@ struct ExerciseSection: View {
                                     onCollapse: { onFocus(set) }
                                 )
                             } else if setID == config.activeSetID {
-                                IncomingActiveSetCard(
-                                    transition: incomingTransition(for: setID),
-                                    exercise: exercise,
-                                    set: set,
-                                    setOrdinal: setOrdinal(for: set),
-                                    setCount: sortedSets.count,
-                                    onLog: { onLog(set, $0) },
-                                    onSkip: { onSkip(set) },
-                                    onDelete: { onDelete(set) }
+                                focusMorphSurface(
+                                    for: set,
+                                    content: IncomingActiveSetCard(
+                                        transition: incomingTransition(for: setID),
+                                        exercise: exercise,
+                                        set: set,
+                                        setOrdinal: setOrdinal(for: set),
+                                        setCount: sortedSets.count,
+                                        onLog: { onLog(set, $0) },
+                                        onSkip: { onSkip(set) },
+                                        onDelete: { onDelete(set) }
+                                    )
                                 )
                             } else {
-                                SetRow(
-                                    set: set,
-                                    showsSavedConfirmation: setID == config.savedLoggedSetID
-                                ) {
-                                    onFocus(set)
-                                }
+                                focusMorphSurface(
+                                    for: set,
+                                    content: SetRow(
+                                        set: set,
+                                        showsSavedConfirmation: setID == config.savedLoggedSetID
+                                    ) {
+                                        onFocus(set)
+                                    }
+                                )
                             }
 
                             if let transition = config.retiringTransition, transition.outgoingSetID == setID {
@@ -154,6 +161,22 @@ struct ExerciseSection: View {
 
     private func setOrdinal(for set: ExerciseSet) -> Int {
         (sortedSets.firstIndex { $0.persistentModelID == set.persistentModelID } ?? set.index) + 1
+    }
+
+    private var shouldUseFocusMorph: Bool {
+        config.activeSetTransition == nil && config.retiringTransition == nil
+    }
+
+    @ViewBuilder
+    private func focusMorphSurface<Content: View>(for set: ExerciseSet, content: Content) -> some View {
+        if shouldUseFocusMorph {
+            content.matchedGeometryEffect(
+                id: "focus-morph-\(exercise.order)-\(set.index)",
+                in: focusMorphNamespace
+            )
+        } else {
+            content
+        }
     }
 }
 

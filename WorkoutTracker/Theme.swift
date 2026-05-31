@@ -52,6 +52,7 @@ enum Theme {
     static let momentumRiseDelay = 0.15
     static let skipFadeUpDuration = 0.45
     static let exerciseCompletionBeatDuration = 0.2
+    static let focusMorphDuration = 0.28
     static let momentumSpringStiffness = 220.0
     static let momentumSpringDamping = 22.0
     static let momentumDropOffset: CGFloat = 180
@@ -99,5 +100,9 @@ enum Theme {
     static var exerciseRiseAnimation: Animation {
         .easeOut(duration: momentumRiseDuration)
             .delay(exerciseCompletionBeatDuration)
+    }
+
+    static var focusMorphAnimation: Animation {
+        .easeInOut(duration: focusMorphDuration)
     }
 }

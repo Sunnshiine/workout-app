@@ -623,6 +623,29 @@ private func makeActionFixture() throws -> CoordinatorActionFixture {
 }
 
 @MainActor
+@Test func pendingFocusUsesInjectedAnimationForEachRetargetWithoutActiveSetTransition() throws {
+    let fixture = try makeActionFixture()
+    let bench = try #require(fixture.session.exercises.first { $0.order == 1 })
+    let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
+    let secondBenchSet = try #require(bench.sets.first { $0.index == 1 })
+    let rowSet = try #require(fixture.session.exercises.first { $0.order == 2 }?.sets.first)
+    var animationCallCount = 0
+    let animation: SessionFocusAnimation = { update in
+        animationCallCount += 1
+        update()
+    }
+
+    fixture.coordinator.focus(on: rowSet, animateFocus: animation)
+    fixture.coordinator.focus(on: secondBenchSet, animateFocus: animation)
+    fixture.coordinator.focus(on: firstBenchSet, animateFocus: animation)
+
+    #expect(animationCallCount == 3)
+    #expect(fixture.coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    #expect(fixture.coordinator.activeSetTransition == nil)
+    #expect(fixture.coordinator.retiringTransition == nil)
+}
+
+@MainActor
 @Test func updatingPreviousLoggedSetDoesNotCollapseNewlyExpandedLoggedSet() throws {
     let fixture = try makeActionFixture()
     let squatSet = try #require(fixture.session.exercises.first { $0.order == 0 }?.sets.first)

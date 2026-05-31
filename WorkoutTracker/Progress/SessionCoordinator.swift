@@ -227,13 +227,15 @@ final class SessionCoordinator {
         invalidateRenderItems()
     }
 
-    func focus(on set: ExerciseSet) {
-        focusManager.focus(on: set)
-        if case .loggedSetReview = focusManager.visualFocusOwner {
-            clearRetiringTransition()
+    func focus(on set: ExerciseSet, animateFocus: SessionFocusAnimation? = nil) {
+        performFocusUpdate(animateFocus) {
+            focusManager.focus(on: set)
+            if case .loggedSetReview = focusManager.visualFocusOwner {
+                clearRetiringTransition()
+            }
+            syncFocusState()
+            invalidateRenderItems()
         }
-        syncFocusState()
-        invalidateRenderItems()
     }
 
     func collapseLoggedSetReview() {
