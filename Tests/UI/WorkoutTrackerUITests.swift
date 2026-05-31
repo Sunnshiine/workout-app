@@ -348,6 +348,33 @@ final class WorkoutTrackerAppearanceUITests: XCTestCase {
     }
 
     @MainActor
+    func testLightAppearanceMoveOnCelebrationRendersAndDismisses() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+
+        revealSessionControlsAndSettingsButton(in: app).tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
+
+        let picker = app.segmentedControls["settings-appearance-picker"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 3))
+        app.buttons["Light"].tap()
+        app.buttons["settings-done-button"].tap()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 3))
+        tapWhenReady(app.buttons["move-on-button"], in: app)
+
+        let celebration = moveOnCelebration(in: app)
+        XCTAssertTrue(celebration.waitForExistence(timeout: 3))
+        waitForLabel("Week 1, Day 1 Done", on: celebration)
+        assertMoveOnCelebrationCopyIsReadable(in: app)
+
+        celebration.tap()
+        XCTAssertTrue(app.staticTexts["Bench Press"].waitForExistence(timeout: 3))
+        XCTAssertFalse(celebration.exists)
+    }
+
+    @MainActor
     private func launchFixtureApp() -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
@@ -579,7 +606,7 @@ final class WorkoutTrackerSkipUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
         let logButton = app.buttons["log-active-set-button"]
-        waitForLabel("Log", on: logButton)
+        waitForLabel("Choose RPE to log", on: logButton)
 
         logButton.press(forDuration: 1.0)
 

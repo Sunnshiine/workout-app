@@ -4,6 +4,7 @@ import UIKit
 struct MoveOnCelebrationView: View {
     let onDismiss: () -> Void
 
+    @Environment(\.themePalette) private var palette
     @State private var presentation: MoveOnCelebrationPresentation
     @State private var ripplesExpanded = false
 
@@ -18,7 +19,7 @@ struct MoveOnCelebrationView: View {
 
     var body: some View {
         ZStack {
-            Theme.gradient
+            palette.gradient
                 .ignoresSafeArea()
 
             GeometryReader { proxy in
@@ -81,7 +82,7 @@ struct MoveOnCelebrationView: View {
         VStack(spacing: 10) {
             Text(presentation.quoteText)
                 .font(.title2.weight(.heavy))
-                .foregroundStyle(Theme.accent)
+                .foregroundStyle(palette.accent)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
                 .minimumScaleFactor(0.72)
@@ -100,7 +101,7 @@ struct MoveOnCelebrationView: View {
 
             Text(presentation.sublineText)
                 .font(.title3.weight(.semibold))
-                .foregroundStyle(Theme.accent)
+                .foregroundStyle(palette.accent)
                 .multilineTextAlignment(.center)
                 .lineLimit(1)
                 .minimumScaleFactor(0.78)
@@ -117,10 +118,10 @@ struct MoveOnCelebrationView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 14)
         .frame(maxWidth: 380)
-        .background(Theme.pillFill, in: .rect(cornerRadius: Theme.cardCornerRadius))
+        .background(palette.pillFill, in: .rect(cornerRadius: Theme.cardCornerRadius))
         .overlay {
             RoundedRectangle(cornerRadius: Theme.cardCornerRadius)
-                .stroke(Theme.pillStroke.opacity(0.7), lineWidth: 1)
+                .stroke(palette.pillStroke.opacity(0.7), lineWidth: 1)
         }
     }
 
@@ -128,7 +129,7 @@ struct MoveOnCelebrationView: View {
         ZStack {
             ForEach(0..<3, id: \.self) { index in
                 Circle()
-                    .stroke(Theme.accent.opacity(ripplesExpanded ? 0 : 0.34), lineWidth: 2)
+                    .stroke(palette.accent.opacity(ripplesExpanded ? 0 : 0.34), lineWidth: 2)
                     .frame(width: Self.stampSize, height: Self.stampSize)
                     .scaleEffect(ripplesExpanded ? 1.34 + CGFloat(index) * 0.22 : 0.72)
                     .animation(
@@ -140,18 +141,18 @@ struct MoveOnCelebrationView: View {
             }
 
             Circle()
-                .fill(Theme.accent)
+                .fill(palette.accent)
                 .frame(width: Self.stampSize, height: Self.stampSize)
-                .shadow(color: Theme.accent.opacity(0.55), radius: 28, y: 12)
+                .shadow(color: palette.accent.opacity(0.55), radius: 28, y: 12)
                 .overlay {
                     Circle()
-                        .stroke(Theme.accentDarkText.opacity(0.34), lineWidth: 5)
+                        .stroke(palette.accentDarkText.opacity(0.34), lineWidth: 5)
                         .padding(8)
                 }
                 .overlay {
                     Circle()
                         .stroke(
-                            Theme.accentDarkText.opacity(0.48),
+                            palette.accentDarkText.opacity(0.48),
                             style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [8, 6])
                         )
                         .padding(20)
@@ -159,7 +160,7 @@ struct MoveOnCelebrationView: View {
 
             Image(systemName: "checkmark")
                 .font(.system(size: 54, weight: .black, design: .rounded))
-                .foregroundStyle(Theme.accentDarkText)
+                .foregroundStyle(palette.accentDarkText)
                 .offset(y: 2)
         }
         .frame(width: Self.rippleDiameter, height: Self.rippleDiameter)
