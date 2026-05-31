@@ -163,8 +163,17 @@ those ride on the build/test gate and Swift review.
 Everything runtime lands under `ralph/.artifacts/` (gitignored):
 
 - `activity.md` — human-readable timeline of every run (selections, outcomes, failures).
+- `observations.md` — append-only, read-only signal harvested from each iteration: doc
+  gaps, friction, and possible recurrences the implementer flagged, plus loop-written
+  `GATE-FAIL` entries. Never auto-applied to docs — review it periodically and consolidate
+  manually when an entry flags the file as large (see below).
 - `logs/iter-<n>-*.log` — raw agent output and gate logs per phase, per iteration.
 - `iter-<n>-issue-<m>.png` — the verification screenshot for View-touching issues.
+
+Each IMPLEMENT agent emits a `<observations>…</observations>` block (or `NONE`) before its
+completion promise; the loop appends it under a `## <ts> · iter N · #issue · OUTCOME` header.
+The agent reads only the tail of `observations.md` to flag repeats and trips a one-line
+"large, consider consolidation" note past a line threshold — it never rewrites the file.
 
 Start here when an issue gets flagged `ready-for-human` — the comment on the issue says *why*,
 and the matching log has the detail.

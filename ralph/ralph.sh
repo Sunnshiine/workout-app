@@ -56,6 +56,7 @@ PROMPTS="$SCRIPT_DIR/prompts"
 ART="$SCRIPT_DIR/.artifacts"
 LOGS="$ART/logs"
 ACTIVITY="$ART/activity.md"
+OBS="$ART/observations.md"
 mkdir -p "$LOGS"
 export SIM_DEVICE
 
@@ -94,13 +95,46 @@ run_agent() {
 }
 
 flag_for_human() {
-  local issue="$1" reason="$2"
+  local issue="$1" reason="$2" kind="${3:-}"
   gh issue edit "$issue" --add-label "$HUMAN_LABEL" --remove-label "$LABEL" >/dev/null 2>&1 || true
   gh issue comment "$issue" --body "> *Ralph loop ($ENGINE) could not complete this autonomously.*
 
 $reason" >/dev/null 2>&1 || true
   note "issue #$issue → $HUMAN_LABEL: $reason"
   log  "issue #$issue flagged for human: $reason"
+  # Gate failures happen after the agent context is gone; record the loop's own
+  # factual one-liner so "which gate fails most" is visible in the observations log.
+  if [ "$kind" = gate ]; then
+    {
+      printf '## %s · iter %s · #%s · GATE-FAIL\n' "$(ts)" "${CURRENT_ITER:-?}" "$issue"
+      printf -- '[friction] %s\n\n' "$reason"
+    } >> "$OBS"
+  fi
+}
+
+# Harvest the agent's <observations>…</observations> block from its captured output and
+# append it under a loop-written header. Writes nothing when the block is absent or NONE.
+harvest_observations() {
+  local iter="$1" issue="$2" outcome="$3" out="$4" body trimmed
+  body="$(printf '%s\n' "$out" | awk '
+    {
+      s = $0
+      if (!inside) {
+        p = index(s, "<observations>")
+        if (p == 0) next
+        inside = 1
+        s = substr(s, p + 14)            # 14 = length("<observations>")
+      }
+      q = index(s, "</observations>")
+      if (q > 0) { s = substr(s, 1, q - 1); if (s != "") print s; exit }
+      if (s != "") print s
+    }')"
+  trimmed="$(printf '%s' "$body" | tr -d '[:space:]')"
+  if [ -z "$trimmed" ] || [ "$trimmed" = "NONE" ]; then return 0; fi
+  {
+    printf '## %s · iter %s · #%s · %s\n' "$(ts)" "$iter" "$issue" "$outcome"
+    printf '%s\n\n' "$body"
+  } >> "$OBS"
 }
 
 run_full_gate() {
@@ -108,12 +142,12 @@ run_full_gate() {
 
   log "gate: swift test (package unit/component)"
   if ! ( cd "$gate_wt" && swift test ) > "$LOGS/iter-$iter-issue-$issue-swift-test.log" 2>&1; then
-    flag_for_human "$issue" "Package unit/component tests failed at the loop gate: swift test (see logs)."
+    flag_for_human "$issue" "Package unit/component tests failed at the loop gate: swift test (see logs)." gate
     return 1
   fi
   log "gate: xcodegen generate"
   if ! ( cd "$gate_wt" && xcodegen generate ) > "$LOGS/iter-$iter-issue-$issue-xcodegen.log" 2>&1; then
-    flag_for_human "$issue" "Project generation failed at the loop gate: xcodegen generate (see logs)."
+    flag_for_human "$issue" "Project generation failed at the loop gate: xcodegen generate (see logs)." gate
     return 1
   fi
   log "gate: xcodebuild test (unit/component target)"
@@ -122,7 +156,7 @@ run_full_gate() {
            -destination "platform=iOS Simulator,name=$SIM_DEVICE" -derivedDataPath "$gate_wt/.ralph-dd" \
            test -only-testing:WorkoutTrackerTests ) \
          > "$LOGS/iter-$iter-issue-$issue-xcode-unit-component-tests.log" 2>&1; then
-    flag_for_human "$issue" "Xcode unit/component tests failed at the loop gate: WorkoutTrackerTests (see logs)."
+    flag_for_human "$issue" "Xcode unit/component tests failed at the loop gate: WorkoutTrackerTests (see logs)." gate
     return 1
   fi
   log "gate: xcodebuild test (UI integration target)"
@@ -131,12 +165,12 @@ run_full_gate() {
            -destination "platform=iOS Simulator,name=$SIM_DEVICE" -derivedDataPath "$gate_wt/.ralph-dd" \
            test -only-testing:WorkoutTrackerUITests ) \
          > "$LOGS/iter-$iter-issue-$issue-xcode-ui-tests.log" 2>&1; then
-    flag_for_human "$issue" "UI integration tests failed at the loop gate: WorkoutTrackerUITests (see logs)."
+    flag_for_human "$issue" "UI integration tests failed at the loop gate: WorkoutTrackerUITests (see logs)." gate
     return 1
   fi
   log "gate: swiftlint lint"
   if ! ( cd "$gate_wt" && swiftlint lint --quiet ) > "$LOGS/iter-$iter-issue-$issue-swiftlint.log" 2>&1; then
-    flag_for_human "$issue" "Lint failed at the loop gate: swiftlint lint --quiet (see logs)."
+    flag_for_human "$issue" "Lint failed at the loop gate: swiftlint lint --quiet (see logs)." gate
     return 1
   fi
   return 0
@@ -154,15 +188,15 @@ check_ui_artifacts() {
     ui_shot="$wt/$ui_shot_rel"
     ui_review="$wt/$ui_review_rel"
     if [ ! -s "$ui_shot" ]; then
-      flag_for_human "$issue" "View/Theme changes require a non-empty UI screenshot artifact: $ui_shot_rel."
+      flag_for_human "$issue" "View/Theme changes require a non-empty UI screenshot artifact: $ui_shot_rel." gate
       return 1
     fi
     if [ ! -s "$ui_review" ]; then
-      flag_for_human "$issue" "View/Theme changes require a saved UI Screenshot Review artifact: $ui_review_rel."
+      flag_for_human "$issue" "View/Theme changes require a saved UI Screenshot Review artifact: $ui_review_rel." gate
       return 1
     fi
     if ! tail -n 1 "$ui_review" | grep -Fxq "PASS: no blocking static visual findings."; then
-      flag_for_human "$issue" "UI Screenshot Review did not end with PASS. Review artifact: $ui_review_rel."
+      flag_for_human "$issue" "UI Screenshot Review did not end with PASS. Review artifact: $ui_review_rel." gate
       return 1
     fi
     cp "$ui_shot" "$ART/iter-$iter-issue-$issue.png"
@@ -183,6 +217,7 @@ cleanup_integration_worktree() {
 # ---- main loop -----------------------------------------------------------
 log "Ralph loop starting — engine=$ENGINE max-iter=$MAX_ITER push=$PUSH device='$SIM_DEVICE'"
 [ -f "$ACTIVITY" ] || printf "# Ralph Activity Log\n\n" > "$ACTIVITY"
+[ -f "$OBS" ] || printf "# Ralph Observations\n\n> Append-only, gitignored. Read-only signal harvested from IMPLEMENT iterations — never auto-applied to docs. Consolidate manually when an entry flags the file as large.\n\n" > "$OBS"
 note "run start — engine=$ENGINE max-iter=$MAX_ITER push=$PUSH"
 
 if [ "$SELECT_ONLY" != 1 ] && [ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]; then
@@ -192,6 +227,7 @@ if [ "$SELECT_ONLY" != 1 ] && [ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]
 fi
 
 for (( iter=1; iter<=MAX_ITER; iter++ )); do
+  CURRENT_ITER="$iter"
   log "──────── iteration $iter/$MAX_ITER ────────"
 
   # 1. SELECT (read-only, in the main checkout)
@@ -234,12 +270,16 @@ You are inside an isolated git worktree at: $wt   (branch: $branch).
 ISSUE_BASE_REF: $issue_base
 UI_SHOT_PATH (relative to the worktree root): ralph/.artifacts/issue-$issue-ui-review.png
 UI_REVIEW_PATH (relative to the worktree root): ralph/.artifacts/issue-$issue-ui-review.md
+OBSERVATIONS_LOG_PATH (absolute; the persistent main-repo log to tail for recurrence, read-only): $OBS
 
 $(cat "$PROMPTS/implement.md")"
   impl_out="$(run_agent "$impl_prompt" "$wt")"
   echo "$impl_out" > "$LOGS/iter-$iter-issue-$issue-implement.log"
 
-  if ! printf '%s' "$impl_out" | grep -q '<promise>COMPLETE</promise>'; then
+  if printf '%s' "$impl_out" | grep -q '<promise>COMPLETE</promise>'; then
+    harvest_observations "$iter" "$issue" "COMPLETE" "$impl_out"
+  else
+    harvest_observations "$iter" "$issue" "BLOCKED" "$impl_out"
     reason="$(printf '%s' "$impl_out" | grep -oE '<promise>BLOCKED:.*</promise>' | head -1 | sed 's/<[^>]*>//g')"
     flag_for_human "$issue" "${reason:-Agent did not report completion.}"; continue
   fi
@@ -261,7 +301,7 @@ $(cat "$PROMPTS/implement.md")"
   log "merging #$issue into integration worktree"
   if ! git -C "$integration_wt" merge --no-ff --no-commit "$branch" >/dev/null 2>&1; then
     cleanup_integration_worktree "$integration_wt" "$integration_branch"
-    flag_for_human "$issue" "Merge into current main conflicted."; continue
+    flag_for_human "$issue" "Merge into current main conflicted." gate; continue
   fi
 
   # 7. GATE — authoritative full testing framework on the integrated tree.
