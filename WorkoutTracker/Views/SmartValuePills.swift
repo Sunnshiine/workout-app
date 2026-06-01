@@ -5,24 +5,15 @@ struct SmartValuePills: View {
     private enum FocusedPill {
         case weight
         case reps
-
-        var accessibilityIdentifier: String {
-            switch self {
-            case .weight: "weight-pill"
-            case .reps: "reps-pill"
-            }
-        }
     }
 
     let set: ExerciseSet
     let onLog: (SetLog) -> Void
     let onSkip: () -> Void
     let onDelete: () -> Void
-    let dismissFieldUIRequest: Int
 
     @State private var form: SmartValuePillsForm
     @State private var editingPill: FocusedPill?
-    @State private var showsRPEGrid = false
     @State private var showsLoggedCheckmark = false
     @Environment(\.themePalette) private var palette
     @FocusState private var focusedPill: FocusedPill?
@@ -34,14 +25,12 @@ struct SmartValuePills: View {
         onLog: @escaping (SetLog) -> Void,
         onSkip: @escaping () -> Void,
         onDelete: @escaping () -> Void,
-        dismissFieldUIRequest: Int = 0,
         showsLoggedCheckmarkInitially: Bool = false
     ) {
         self.set = set
         self.onLog = onLog
         self.onSkip = onSkip
         self.onDelete = onDelete
-        self.dismissFieldUIRequest = dismissFieldUIRequest
         _form = State(
             initialValue: SmartValuePillsForm(
                 set: set,
@@ -55,36 +44,17 @@ struct SmartValuePills: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: Theme.pillSpacing) {
-                valuePill(
-                    label: "Weight",
-                    display: form.weightDisplay,
-                    text: $form.weightText,
-                    pill: .weight,
-                    keyboardType: .decimalPad
-                )
-
-                valuePill(
-                    label: "Reps",
-                    display: form.repsDisplay,
-                    text: $form.repsText,
-                    pill: .reps,
-                    keyboardType: .numberPad
-                )
-
-                rpePill
+                weightPill
+                repsPill
             }
 
-            if editingPill == .weight {
-                incrementButtons
-            }
-
-            if showsRPEGrid {
-                RPEGrid(
-                    presentation: RPEGridPresentation(prescribedRPE: form.prescribedRPE),
-                    selection: $form.rpeText,
-                    isPresented: $showsRPEGrid
-                )
-            }
+            RPEScaleScroller(
+                presentation: RPEScalePresentation(
+                    prescribedRPE: form.prescribedRPE,
+                    selection: form.rpeText
+                ),
+                onSelect: { form.rpeText = $0 }
+            )
 
             actionControls
         }
@@ -96,110 +66,102 @@ struct SmartValuePills: View {
                 .contentShape(Rectangle())
                 .onTapGesture(perform: dismissFieldUI)
         }
-        .onChange(of: dismissFieldUIRequest) { _, _ in
-            dismissFieldUI()
-        }
     }
 
-    private func valuePill(
-        label: String,
-        display: String,
-        text: Binding<String>,
-        pill: FocusedPill,
-        keyboardType: UIKeyboardType
-    ) -> some View {
-        let field = formField(for: pill)
-        let isInvalid = form.invalidFields.contains(field)
-        let isPlaceholder = pill == .reps && form.isRepsDisplayingPlaceholder && editingPill != pill
-        let textColor = isPlaceholder ? Color.secondary : palette.valueText
-        let strokeColor = isInvalid ? Color.red : palette.pillStroke
-        let strokeWidth = isInvalid ? 2.0 : 1.0
-
-        return VStack(alignment: .leading, spacing: 8) {
-            Text(label)
+    private var weightPill: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Weight")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
 
-            if editingPill == pill {
-                TextField(display, text: text)
-                    .keyboardType(keyboardType)
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(palette.valueText)
-                    .focused($focusedPill, equals: pill)
-            } else {
-                Text(display)
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(textColor)
+            HStack(spacing: 8) {
+                if form.allowsWeightStepping {
+                    stepperButton("minus", by: -form.fineWeightIncrement, id: "weight-decrement")
+                }
+
+                weightValueField
+
+                if form.allowsWeightStepping {
+                    stepperButton("plus", by: form.fineWeightIncrement, id: "weight-increment")
+                }
             }
         }
-        .frame(maxWidth: .infinity, minHeight: Theme.pillMinHeight, alignment: .leading)
-        .padding(.horizontal, 12)
-        .background(palette.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
-                .strokeBorder(strokeColor, lineWidth: strokeWidth)
-        )
-        .contentShape(.rect)
-        .onTapGesture {
-            showsRPEGrid = false
-            editingPill = pill
+        .modifier(PillChrome(isFocused: editingPill == .weight, isInvalid: form.invalidFields.contains(.weight)))
+        .opacity(dimmedOpacity(for: .weight))
+        .accessibilityElement(children: .contain)
+    }
+
+    @ViewBuilder
+    private var weightValueField: some View {
+        if editingPill == .weight {
+            TextField(form.weightDisplay, text: $form.weightText)
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.center)
+                .font(.title3.weight(.bold))
+                .foregroundStyle(palette.valueText)
+                .focused($focusedPill, equals: .weight)
+                .accessibilityIdentifier("weight-pill")
+        } else {
+            Text(form.weightDisplay)
+                .font(.title3.weight(.bold))
+                .foregroundStyle(palette.valueText)
+                .frame(maxWidth: .infinity)
+                .contentShape(.rect)
+                .onTapGesture { editingPill = .weight }
+                .accessibilityLabel("Weight, \(form.weightDisplay)")
+                .accessibilityIdentifier("weight-pill")
+                .accessibilityAddTraits(.isButton)
         }
+    }
+
+    private func stepperButton(_ systemName: String, by increment: Double, id: String) -> some View {
+        Button {
+            form.adjustWeight(by: increment)
+        } label: {
+            Image(systemName: systemName)
+                .font(.headline.weight(.bold))
+                .foregroundStyle(palette.accent)
+                .frame(width: 36, height: 36)
+                .background(palette.pillFill, in: .capsule)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(id)
+    }
+
+    private var repsPill: some View {
+        let isPlaceholder = form.isRepsDisplayingPlaceholder && editingPill != .reps
+
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("Reps")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            if editingPill == .reps {
+                TextField(form.repsDisplay, text: $form.repsText)
+                    .keyboardType(.numberPad)
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(palette.valueText)
+                    .focused($focusedPill, equals: .reps)
+            } else {
+                Text(form.repsDisplay)
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(isPlaceholder ? Color.secondary : palette.valueText)
+            }
+        }
+        .modifier(PillChrome(isFocused: editingPill == .reps, isInvalid: form.invalidFields.contains(.reps)))
+        .opacity(dimmedOpacity(for: .reps))
+        .contentShape(.rect)
+        .onTapGesture { editingPill = .reps }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(label), \(display)")
-        .accessibilityIdentifier(pill.accessibilityIdentifier)
+        .accessibilityLabel("Reps, \(form.repsDisplay)")
+        .accessibilityIdentifier("reps-pill")
         .accessibilityAddTraits(.isButton)
     }
 
-    private var rpePill: some View {
-        let isInvalid = form.invalidFields.contains(.rpe)
-        let strokeColor = isInvalid ? Color.red : palette.pillStroke
-        let strokeWidth = isInvalid ? 2.0 : 1.0
-
-        return Button {
-            editingPill = nil
-            focusedPill = nil
-            showsRPEGrid.toggle()
-        } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("RPE")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-
-                Text(form.rpeDisplay)
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(palette.valueText)
-            }
-            .frame(maxWidth: .infinity, minHeight: Theme.pillMinHeight, alignment: .leading)
-            .padding(.horizontal, 12)
-            .background(palette.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
-                    .strokeBorder(strokeColor, lineWidth: strokeWidth)
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("rpe-pill")
-    }
-
-    private var incrementButtons: some View {
-        HStack(spacing: 8) {
-            ForEach(form.weightIncrementOptions, id: \.self) { increment in
-                incrementButton("-\(increment.weightLabel)", by: -increment)
-                incrementButton("+\(increment.weightLabel)", by: increment)
-            }
-        }
-    }
-
-    private func incrementButton(_ title: String, by increment: Double) -> some View {
-        Button(title) {
-            form.adjustWeight(by: increment)
-        }
-        .font(.caption.weight(.bold))
-        .foregroundStyle(palette.accent)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(palette.pillFill, in: .capsule)
-        .overlay(Capsule().strokeBorder(palette.pillStroke, lineWidth: 1))
+    /// Dims the field that is not being typed in, so the focused field reads as active.
+    private func dimmedOpacity(for pill: FocusedPill) -> Double {
+        guard let editingPill, editingPill != pill else { return 1 }
+        return 0.5
     }
 
     private var actionControls: some View {
@@ -240,16 +202,34 @@ struct SmartValuePills: View {
     private func dismissFieldUI() {
         editingPill = nil
         focusedPill = nil
-        showsRPEGrid = false
+    }
+}
+
+/// Pill background plus a stroke that turns accent while focused and red when invalid.
+private struct PillChrome: ViewModifier {
+    let isFocused: Bool
+    let isInvalid: Bool
+    @Environment(\.themePalette) private var palette
+
+    func body(content: Content) -> some View {
+        content
+            .frame(maxWidth: .infinity, minHeight: Theme.pillMinHeight, alignment: .leading)
+            .padding(.horizontal, 12)
+            .background(palette.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
+                    .strokeBorder(strokeColor, lineWidth: strokeWidth)
+            )
     }
 
-    private func formField(for pill: FocusedPill) -> SmartValuePillsForm.Field {
-        switch pill {
-        case .weight: .weight
-        case .reps: .reps
-        }
+    private var strokeColor: Color {
+        if isInvalid { return .red }
+        return isFocused ? palette.accent : palette.pillStroke
     }
 
+    private var strokeWidth: CGFloat {
+        isInvalid || isFocused ? 2 : 1
+    }
 }
 
 private struct HoldToSkipLogButton: View {
@@ -461,11 +441,5 @@ private struct HoldToSkipLogButton: View {
         withAnimation(.easeOut(duration: Theme.logButtonCheckmarkDuration)) {
             skipProgress = 0
         }
-    }
-}
-
-extension Double {
-    fileprivate var weightLabel: String {
-        rounded() == self ? String(Int(self)) : String(self)
     }
 }

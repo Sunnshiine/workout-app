@@ -59,6 +59,8 @@
 		7A7A9B87F7663034989F8EB4 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C9C69974B6867E8568AFBD0 /* OnboardingView.swift */; };
 		7B8CE914CEB343A88D109955 /* SyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF512CAF662AE6E54D7B864C /* SyncCoordinator.swift */; };
 		7CDFDA32B138EFA224F89B49 /* RPEGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99901102A552A245156C78ED /* RPEGrid.swift */; };
+		F1A2B3C4D5E6F70819203141 /* RPEScalePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6F70819203140 /* RPEScalePresentation.swift */; };
+		F1A2B3C4D5E6F70819203143 /* RPEScaleScroller.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6F70819203142 /* RPEScaleScroller.swift */; };
 		7D73B4A734A389E428D9DA4B /* ActiveSetFocusManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD5A40419517EF83C31555BC /* ActiveSetFocusManager.swift */; };
 		7DB5C219CA5F71B5CB978133 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 3977E6225F9526AF52619CA9 /* GoogleSignIn */; };
 		7DECE64103CB92F88EEE1FA7 /* SheetPickerStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8614CD78C778EBC3EEC9690 /* SheetPickerStoreTests.swift */; };
@@ -213,6 +215,8 @@
 		93A5CA6A951EC6FB3C319E0F /* SheetParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetParser.swift; sourceTree = "<group>"; };
 		94076860F23B16098C27E60D /* BlockOverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockOverviewView.swift; sourceTree = "<group>"; };
 		99901102A552A245156C78ED /* RPEGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RPEGrid.swift; sourceTree = "<group>"; };
+		F1A2B3C4D5E6F70819203140 /* RPEScalePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RPEScalePresentation.swift; sourceTree = "<group>"; };
+		F1A2B3C4D5E6F70819203142 /* RPEScaleScroller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RPEScaleScroller.swift; sourceTree = "<group>"; };
 		9C6C296CFC0A07488672154D /* SheetSnapshotWriterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetSnapshotWriterTests.swift; sourceTree = "<group>"; };
 		A12FDB0A5CCFB2C56907DE63 /* GoogleAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAuth.swift; sourceTree = "<group>"; };
 		A2244B0C3FEDB38CFA5D0128 /* SheetGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetGrid.swift; sourceTree = "<group>"; };
@@ -307,6 +311,7 @@
 				5C9C69974B6867E8568AFBD0 /* OnboardingView.swift */,
 				9038CBF5AF997C5562D3A6E4 /* RootView.swift */,
 				99901102A552A245156C78ED /* RPEGrid.swift */,
+				F1A2B3C4D5E6F70819203142 /* RPEScaleScroller.swift */,
 				D190FFC3E7D57A123821D120 /* SessionProgressHeader.swift */,
 				7172E2B6F090D7F496DD6236 /* SessionTile.swift */,
 				E31CB80B71F35E4D4A35FE87 /* SessionView.swift */,
@@ -333,6 +338,7 @@
 				5F8B4D7C184A40A79E037B23 /* SessionFocusMorphPolicy.swift */,
 				3DE918A15498A36B4EC413FD /* SessionProgressTracker.swift */,
 				FCE536596991762BAEEF006D /* SmartValuePillsForm.swift */,
+				F1A2B3C4D5E6F70819203140 /* RPEScalePresentation.swift */,
 				0A7DE7A3ADF7567E4E60F24E /* SupersetState.swift */,
 			);
 			path = Progress;
@@ -731,6 +737,8 @@
 				348182B266A444358BFC98BC /* PendingWrite.swift in Sources */,
 				E73224AE3C41ED69721C8601 /* PendingWriteFlushOrdering.swift in Sources */,
 				7CDFDA32B138EFA224F89B49 /* RPEGrid.swift in Sources */,
+				F1A2B3C4D5E6F70819203141 /* RPEScalePresentation.swift in Sources */,
+				F1A2B3C4D5E6F70819203143 /* RPEScaleScroller.swift in Sources */,
 				AAB1AF9D5F9324682EAF6B48 /* RootView.swift in Sources */,
 				1FD78DA6ACD2DC16713C59E1 /* SessionCoordinator.swift in Sources */,
 				20A7CC2E1C4A4120A6DB1171 /* SessionFocusMorphPolicy.swift in Sources */,

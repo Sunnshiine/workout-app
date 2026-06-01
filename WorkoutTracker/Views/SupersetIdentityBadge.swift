@@ -8,21 +8,25 @@ struct SupersetIdentityBadge: View {
     @Environment(\.themePalette) private var palette
 
     var body: some View {
-        Text(label)
-            .font(.caption.weight(.bold))
-            .foregroundStyle(isActive ? palette.accentDarkText : .secondary)
-            .frame(width: 20, height: 20)
-            .background(
-                isActive ? palette.accent : palette.pillFill,
-                in: .rect(cornerRadius: 6)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .strokeBorder(
-                        isActive ? Color.clear : palette.pillStroke.opacity(0.6),
-                        lineWidth: 1
-                    )
-            )
-            .accessibilityHidden(true)
+        // No identity to show (e.g. a side lookup miss) renders nothing rather than
+        // an empty coloured square.
+        if !label.isEmpty {
+            Text(label)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(isActive ? palette.accentDarkText : .secondary)
+                .frame(width: 20, height: 20)
+                .background(
+                    isActive ? palette.accent : palette.pillFill,
+                    in: .rect(cornerRadius: 6)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(
+                            isActive ? Color.clear : palette.pillStroke.opacity(0.6),
+                            lineWidth: 1
+                        )
+                )
+                .accessibilityHidden(true)
+        }
     }
 }

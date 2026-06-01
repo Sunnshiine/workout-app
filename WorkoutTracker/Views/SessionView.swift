@@ -33,24 +33,6 @@ struct SessionView: View {
                         .padding(.top, 8)
                     }
 
-                    SessionProgressHeader(
-                        session: session,
-                        activeSetID: coordinator.activeSetID,
-                        block: workout.block,
-                        currentSession: workout.currentSession,
-                        showsSessionControls: shouldShowSessionControls,
-                        isSessionControlsSyncDisabled: isSessionControlsSyncDisabled,
-                        onNavigate: coordinator.cancelPairing,
-                        onSettings: {
-                            isSettingsPresented = true
-                        },
-                        onSync: {
-                            Task { await syncConfiguredSheet() }
-                        }
-                    )
-                    .padding(.horizontal)
-                    .padding(.top, 12)
-
                     ScrollViewReader { proxy in
                         ScrollView {
                             GlassEffectContainer(spacing: Theme.cardSpacing) {
@@ -98,6 +80,10 @@ struct SessionView: View {
                             .padding(.vertical)
                         }
                         .scrollBounceBehavior(.always)
+                        .scrollEdgeEffectStyle(.soft, for: .top)
+                        .safeAreaInset(edge: .top, spacing: 0) {
+                            sessionHeaderHUD(session: session)
+                        }
                         .onScrollGeometryChange(for: CGFloat.self, of: topContentOffset) { _, offset in
                             updateSessionControls(topContentOffset: offset)
                         }
@@ -163,6 +149,33 @@ struct SessionView: View {
         let updatedVisibility = sessionControlsVisibility.updated(topContentOffset: topContentOffset)
         guard updatedVisibility != sessionControlsVisibility else { return }
         sessionControlsVisibility = updatedVisibility
+    }
+
+    /// The W1D1 · N-left · progress-rail header, floated as an inset Liquid Glass
+    /// HUD pinned to the top. Content scrolls beneath it; over-pulling past the
+    /// reveal threshold morphs it open to expose Settings + Sync on top.
+    @ViewBuilder
+    private func sessionHeaderHUD(session: Session) -> some View {
+        SessionProgressHeader(
+            session: session,
+            activeSetID: coordinator.activeSetID,
+            block: workout.block,
+            currentSession: workout.currentSession,
+            showsSessionControls: shouldShowSessionControls,
+            isSessionControlsSyncDisabled: isSessionControlsSyncDisabled,
+            onNavigate: coordinator.cancelPairing,
+            onSettings: {
+                isSettingsPresented = true
+            },
+            onSync: {
+                Task { await syncConfiguredSheet() }
+            }
+        )
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
+        .padding(.horizontal)
+        .padding(.top, 8)
     }
 
     private func topContentOffset(_ geometry: ScrollGeometry) -> CGFloat {
