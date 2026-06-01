@@ -319,6 +319,10 @@ struct SessionSettingsOverpullState: Equatable, Sendable {
         let rawProgress = (topContentOffset - previewThreshold) / range
         return min(max(rawProgress, 0), 1)
     }
+
+    func dismissedByInertAllClearTap() -> Self {
+        .hidden
+    }
 }
 
 struct ExerciseSummaryRowPresentation: Equatable, Sendable {

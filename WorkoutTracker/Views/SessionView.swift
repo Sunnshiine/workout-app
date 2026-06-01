@@ -9,6 +9,7 @@ struct SessionView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.themePalette) private var palette
     @State private var coordinator = SessionCoordinator(session: nil)
+    @State private var sessionAllClearRevision = 0
     @State private var sessionSettingsOverpullState = SessionSettingsOverpullState.hidden
     @State private var sessionSettingsOverpullTopContentOffset: CGFloat = 0
     @State private var isSessionSettingsOverpullGestureActive = false
@@ -40,50 +41,47 @@ struct SessionView: View {
 
                     ScrollViewReader { proxy in
                         ScrollView {
-                            GlassEffectContainer(spacing: Theme.cardSpacing) {
-                                VStack(alignment: .leading, spacing: Theme.sectionSpacing) {
-                                    ForEach(
-                                        coordinator.renderItems(
-                                            in: session,
-                                            lastPerformedLookup: lastPerformedLookup.snapshot
-                                        ),
-                                        id: \.id
-                                    ) { item in
-                                        renderItem(item, in: session)
-                                    }
-
-                                    if workout.isViewingLiveEdge, !workout.openExercises.isEmpty {
-                                        OpenExercisesSection(
-                                            exercises: workout.openExercises,
-                                            onSelect: showSourceSession(for:)
-                                        )
-                                    }
-
-                                    if workout.isViewingLiveEdge, workout.canMoveOn {
-                                        MoveOnButton {
-                                            workout.requestMoveOnCelebration()
+                            ZStack(alignment: .topLeading) {
+                                GlassEffectContainer(spacing: Theme.cardSpacing) {
+                                    VStack(alignment: .leading, spacing: Theme.sectionSpacing) {
+                                        ForEach(
+                                            coordinator.renderItems(
+                                                in: session,
+                                                lastPerformedLookup: lastPerformedLookup.snapshot
+                                            ),
+                                            id: \.id
+                                        ) { item in
+                                            renderItem(item, in: session)
                                         }
-                                    }
 
-                                    Color.clear
-                                        .frame(height: 44)
-                                        .contentShape(Rectangle())
-                                        .onTapGesture {
-                                            coordinator.cancelPairing()
-                                            coordinator.collapseLoggedSetReview()
+                                        if workout.isViewingLiveEdge, !workout.openExercises.isEmpty {
+                                            OpenExercisesSection(
+                                                exercises: workout.openExercises,
+                                                onSelect: showSourceSession(for:)
+                                            )
                                         }
-                                }
-                                .background {
-                                    if coordinator.pairingMode != .inactive {
+
+                                        if workout.isViewingLiveEdge, workout.canMoveOn {
+                                            MoveOnButton {
+                                                workout.requestMoveOnCelebration()
+                                            }
+                                        }
+
                                         Color.clear
+                                            .frame(height: 44)
                                             .contentShape(Rectangle())
-                                            .onTapGesture(perform: coordinator.cancelPairing)
+                                            .onTapGesture(perform: clearTransientSessionUI)
                                     }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(inertSessionTapArea)
                                 }
+                                .padding(.horizontal)
                             }
-                            .padding(.horizontal)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .background(inertSessionTapArea)
                             .padding(.vertical)
                         }
+                        .background(inertSessionTapArea)
                         .scrollBounceBehavior(.always)
                         .scrollEdgeEffectStyle(.soft, for: .top)
                         .highPriorityGesture(sessionSettingsOverpullGesture)
@@ -123,6 +121,7 @@ struct SessionView: View {
             }
         }
         .accessibilityHidden(workout.moveOnCelebrationSession != nil)
+        .environment(\.sessionAllClearRevision, sessionAllClearRevision)
         .background(palette.gradient.ignoresSafeArea())
         .overlay {
             if let session = workout.moveOnCelebrationSession {
@@ -171,6 +170,12 @@ struct SessionView: View {
         coordinator.cancelPairing()
         guard let session = exercise.session, let week = session.week else { return }
         workout.show(week: week.number, day: session.dayNumber)
+    }
+
+    private func clearTransientSessionUI() {
+        sessionSettingsOverpullState = sessionSettingsOverpullState.dismissedByInertAllClearTap()
+        sessionAllClearRevision += 1
+        coordinator.clearTransientUI()
     }
 
     @ViewBuilder
@@ -434,6 +439,23 @@ extension SessionView {
 
     fileprivate func warningHaptic() {
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
+    }
+
+    private var inertSessionTapArea: some View {
+        Color.clear
+            .contentShape(Rectangle())
+            .onTapGesture(perform: clearTransientSessionUI)
+    }
+}
+
+private struct SessionAllClearRevisionKey: EnvironmentKey {
+    static let defaultValue = 0
+}
+
+extension EnvironmentValues {
+    var sessionAllClearRevision: Int {
+        get { self[SessionAllClearRevisionKey.self] }
+        set { self[SessionAllClearRevisionKey.self] = newValue }
     }
 }
 

@@ -12,6 +12,7 @@ struct LoggedSetReviewCard: View {
     @State private var form: SmartValuePillsForm
     @State private var showsRPEGrid = false
     @State private var editingField: LoggedSetReviewEditableField?
+    @Environment(\.sessionAllClearRevision) private var sessionAllClearRevision
     @Environment(\.themePalette) private var palette
     @FocusState private var focusedField: LoggedSetReviewEditableField?
 
@@ -113,7 +114,11 @@ struct LoggedSetReviewCard: View {
         .onChange(of: focusedField) { _, newValue in
             editingField = newValue
         }
+        .onChange(of: sessionAllClearRevision) { _, _ in
+            dismissFieldUI()
+        }
         .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("logged-set-review-card")
     }
 
     private var editableFields: some View {
@@ -144,6 +149,7 @@ struct LoggedSetReviewCard: View {
                 }
                 .buttonStyle(.plain)
                 .contentShape(.rect)
+                .accessibilityIdentifier(LoggedSetReviewEditableField.rpe.accessibilityIdentifier)
             }
 
             if showsRPEGrid {
@@ -207,6 +213,11 @@ struct LoggedSetReviewCard: View {
         showsRPEGrid = false
         editingField = target
         focusedField = target
+    }
+
+    private func dismissFieldUI() {
+        editingField = nil
+        focusedField = nil
     }
 
     private func commitValidDraft() {

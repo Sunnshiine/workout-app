@@ -244,6 +244,13 @@ final class SessionCoordinator {
         invalidateRenderItems()
     }
 
+    func clearTransientUI() {
+        cancelPairing()
+        focusManager.collapseLoggedSetReview()
+        syncFocusState()
+        invalidateRenderItems()
+    }
+
     func log(_ set: ExerciseSet, as log: SetLog, animateFocus: SessionFocusAnimation? = nil) {
         do {
             let session = try actionSession(for: set)
