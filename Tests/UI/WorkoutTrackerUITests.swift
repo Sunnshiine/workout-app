@@ -9,7 +9,6 @@ final class WorkoutTrackerUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
         XCTAssertTrue(app.buttons["session-location-button"].exists)
 
-        app.buttons["rpe-pill"].tap()
         app.buttons["rpe-6"].tap()
         let logButton = app.buttons["log-active-set-button"]
         waitUntilEnabled(logButton)
@@ -73,35 +72,32 @@ final class WorkoutTrackerUITests: XCTestCase {
         app.buttons["weight-pill"].tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
 
-        app.staticTexts["Set 1 of 3"].tap()
+        dismissActiveSetInputBackground(in: app)
 
         XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 1))
         XCTAssertTrue(app.buttons["log-active-set-button"].exists)
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
 
-        app.buttons["rpe-pill"].tap()
         XCTAssertTrue(app.buttons["rpe-6"].waitForExistence(timeout: 3))
-
-        app.staticTexts["Set 1 of 3"].tap()
-
-        XCTAssertFalse(app.buttons["rpe-6"].waitForExistence(timeout: 1))
+        app.buttons["rpe-7"].tap()
+        waitForLabel("Log 237.5×5@7", on: app.buttons["log-active-set-button"])
+        app.buttons["rpe-6"].tap()
+        waitForLabel("Log 237.5×5@6", on: app.buttons["log-active-set-button"])
         XCTAssertTrue(app.buttons["log-active-set-button"].exists)
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
     }
 
     @MainActor
-    func testRPEPickerHalfStepRowSelectsHalfStepAndTapResetsToWhole() throws {
+    func testRPEScaleSelectsHalfStepAndTapResetsToWhole() throws {
         let app = launchFixtureApp()
 
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
 
-        app.buttons["rpe-pill"].tap()
         let rpe6 = app.buttons["rpe-6"]
         XCTAssertTrue(rpe6.waitForExistence(timeout: 3))
-        app.buttons["rpe-6-half"].tap()
+        app.buttons["rpe-6.5"].tap()
         waitForLabel("Log 237.5×5@6.5", on: app.buttons["log-active-set-button"])
 
-        app.buttons["rpe-pill"].tap()
         XCTAssertTrue(rpe6.waitForExistence(timeout: 3))
         rpe6.tap()
 
@@ -240,7 +236,6 @@ final class WorkoutTrackerUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["255x5@7"].exists)
         XCTAssertTrue(app.staticTexts["Block 26 · W4 D3"].exists)
 
-        app.buttons["rpe-pill"].tap()
         app.buttons["rpe-7"].tap()
         waitForLabel("Log 252.5×5@7", on: app.buttons["log-active-set-button"])
         app.buttons["log-active-set-button"].tap()
@@ -426,7 +421,7 @@ final class WorkoutTrackerAppearanceUITests: XCTestCase {
         XCTAssertTrue(app.otherElements["active-set-card"].exists)
         XCTAssertTrue(app.buttons["weight-pill"].exists)
         XCTAssertTrue(app.buttons["reps-pill"].exists)
-        XCTAssertTrue(app.buttons["rpe-pill"].exists)
+        XCTAssertTrue(app.buttons["rpe-6"].exists)
         XCTAssertTrue(app.buttons["log-active-set-button"].exists)
         XCTAssertTrue(app.buttons["session-location-button"].exists)
         XCTAssertTrue(app.staticTexts["Last Performed"].exists)
@@ -499,6 +494,13 @@ private func tapWhenReady(_ element: XCUIElement, in app: XCUIApplication) {
     app.swipeUp()
     XCTAssertTrue(element.waitForExistence(timeout: 3))
     element.tap()
+}
+
+@MainActor
+private func dismissActiveSetInputBackground(in app: XCUIApplication) {
+    let activeSetCard = app.otherElements["active-set-card"]
+    XCTAssertTrue(activeSetCard.waitForExistence(timeout: 3))
+    activeSetCard.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.56)).tap()
 }
 
 @MainActor
@@ -608,7 +610,7 @@ private func assertMoveOnCelebrationCopyIsReadable(in app: XCUIApplication) {
         app.staticTexts["move-on-celebration-left-value"],
         app.staticTexts["move-on-celebration-sets-label"],
         app.staticTexts["move-on-celebration-exercises-label"],
-        app.staticTexts["move-on-celebration-left-label"]
+        app.staticTexts["move-on-celebration-left-label"],
     ]
     let hint = app.staticTexts["move-on-celebration-hint"]
     let windowFrame = app.windows.element(boundBy: 0).frame
@@ -637,7 +639,6 @@ final class WorkoutTrackerLongSessionUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.otherElements["active-set-card"].exists)
 
-        app.buttons["rpe-pill"].tap()
         app.buttons["rpe-6"].tap()
         let logButton = app.buttons["log-active-set-button"]
         waitUntilEnabled(logButton)
