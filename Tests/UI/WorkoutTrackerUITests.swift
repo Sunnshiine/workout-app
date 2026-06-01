@@ -143,6 +143,25 @@ final class WorkoutTrackerSessionChromeUITests: XCTestCase {
     }
 
     @MainActor
+    func testSessionContentScrollsWithOrdinaryVerticalSwipe() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+
+        let firstCard = app.otherElements["active-set-card"]
+        XCTAssertTrue(firstCard.waitForExistence(timeout: 3))
+        let initialMinY = firstCard.frame.minY
+
+        app.scrollViews.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
+            .press(
+                forDuration: 0.1,
+                thenDragTo: app.scrollViews.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+            )
+
+        XCTAssertLessThan(firstCard.frame.minY, initialMinY - 40)
+    }
+
+    @MainActor
     func testOverscrollRevealsSessionControlsInHeaderLayout() throws {
         let app = launchFixtureApp()
 
@@ -765,12 +784,13 @@ private func overPullSessionHeader(in app: XCUIApplication) {
 
 @MainActor
 private func pullSessionHeader(in app: XCUIApplication, endY: CGFloat) {
-    let scrollView = app.scrollViews.firstMatch
-    XCTAssertTrue(scrollView.waitForExistence(timeout: 3))
-    scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2))
+    let headerButton = app.buttons["session-location-button"]
+    XCTAssertTrue(headerButton.waitForExistence(timeout: 3))
+    let start = headerButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+    start
         .press(
             forDuration: 0.1,
-            thenDragTo: scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: endY))
+            thenDragTo: start.withOffset(CGVector(dx: 0, dy: app.frame.height * (endY - 0.25)))
         )
 }
 
