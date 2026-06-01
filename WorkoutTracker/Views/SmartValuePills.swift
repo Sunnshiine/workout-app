@@ -465,10 +465,8 @@ private struct HoldToSkipLogButton: View {
         skipPressStartedAt = nil
 
         switch outcome {
-        case .log:
+        case .deferToTap:
             resetSkipProgress()
-            onLogTap()
-            suppressLogTapOnce()
         case .cancelSkip:
             resetSkipProgress()
             suppressLogTapOnce()

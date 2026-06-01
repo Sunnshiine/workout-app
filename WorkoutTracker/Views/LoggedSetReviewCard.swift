@@ -2,11 +2,6 @@ import SwiftUI
 import UIKit
 
 struct LoggedSetReviewCard: View {
-    private enum FocusedField {
-        case weight
-        case reps
-    }
-
     let set: ExerciseSet
     let setOrdinal: Int
     let setCount: Int
@@ -16,8 +11,9 @@ struct LoggedSetReviewCard: View {
 
     @State private var form: SmartValuePillsForm
     @State private var showsRPEGrid = false
+    @State private var editingField: LoggedSetReviewEditableField?
     @Environment(\.themePalette) private var palette
-    @FocusState private var focusedField: FocusedField?
+    @FocusState private var focusedField: LoggedSetReviewEditableField?
 
     private var presentation: LoggedSetReviewPresentation {
         LoggedSetReviewPresentation(set: set)
@@ -111,6 +107,12 @@ struct LoggedSetReviewCard: View {
                 .strokeBorder(palette.activeCardStroke.opacity(0.8), lineWidth: 1)
         )
         .onDisappear(perform: commitValidDraft)
+        .task(id: editingField) {
+            focusedField = editingField
+        }
+        .onChange(of: focusedField) { _, newValue in
+            editingField = newValue
+        }
         .accessibilityElement(children: .contain)
     }
 
@@ -135,12 +137,13 @@ struct LoggedSetReviewCard: View {
 
                 Button {
                     focusedField = nil
+                    editingField = nil
                     showsRPEGrid.toggle()
                 } label: {
-                    fieldLabel(label: "RPE", display: form.rpeDisplay)
+                    fieldLabel(label: "RPE", display: form.rpeDisplay, field: .rpe)
                 }
                 .buttonStyle(.plain)
-                .accessibilityIdentifier("logged-rpe-pill")
+                .contentShape(.rect)
             }
 
             if showsRPEGrid {
@@ -157,7 +160,7 @@ struct LoggedSetReviewCard: View {
         label: String,
         display: String,
         text: Binding<String>,
-        field: FocusedField,
+        field: LoggedSetReviewEditableField,
         keyboardType: UIKeyboardType
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -165,23 +168,27 @@ struct LoggedSetReviewCard: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
 
-            TextField(display, text: text)
-                .keyboardType(keyboardType)
-                .font(.title3.weight(.bold))
-                .foregroundStyle(palette.valueText)
-                .focused($focusedField, equals: field)
+            if editingField == field {
+                TextField(display, text: text)
+                    .keyboardType(keyboardType)
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(palette.valueText)
+                    .focused($focusedField, equals: field)
+            } else {
+                Text(display)
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(palette.valueText)
+            }
         }
-        .frame(maxWidth: .infinity, minHeight: Theme.pillMinHeight, alignment: .leading)
-        .padding(.horizontal, 12)
-        .background(palette.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
-                .strokeBorder(palette.pillStroke, lineWidth: 1)
-        )
+        .modifier(LoggedReviewPillChrome(isFocused: editingField == field))
+        .contentShape(.rect)
+        .onTapGesture { focus(field, from: .padding) }
         .accessibilityLabel("\(label), \(display)")
+        .accessibilityIdentifier(field.accessibilityIdentifier)
+        .accessibilityAddTraits(.isButton)
     }
 
-    private func fieldLabel(label: String, display: String) -> some View {
+    private func fieldLabel(label: String, display: String, field: LoggedSetReviewEditableField) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(label)
                 .font(.caption.weight(.semibold))
@@ -191,17 +198,35 @@ struct LoggedSetReviewCard: View {
                 .font(.title3.weight(.bold))
                 .foregroundStyle(palette.valueText)
         }
-        .frame(maxWidth: .infinity, minHeight: Theme.pillMinHeight, alignment: .leading)
-        .padding(.horizontal, 12)
-        .background(palette.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
-                .strokeBorder(palette.pillStroke, lineWidth: 1)
-        )
+        .modifier(LoggedReviewPillChrome(isFocused: showsRPEGrid))
+        .accessibilityIdentifier(field.accessibilityIdentifier)
+    }
+
+    private func focus(_ field: LoggedSetReviewEditableField, from region: LoggedSetReviewPillHitRegion) {
+        let target = field.editTarget(for: region)
+        showsRPEGrid = false
+        editingField = target
+        focusedField = target
     }
 
     private func commitValidDraft() {
         guard let log = form.changedValidLog else { return }
         onCommit(log)
+    }
+}
+
+private struct LoggedReviewPillChrome: ViewModifier {
+    let isFocused: Bool
+    @Environment(\.themePalette) private var palette
+
+    func body(content: Content) -> some View {
+        content
+            .frame(maxWidth: .infinity, minHeight: Theme.pillMinHeight, alignment: .leading)
+            .padding(.horizontal, 12)
+            .background(palette.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
+                    .strokeBorder(isFocused ? palette.accent : palette.pillStroke, lineWidth: isFocused ? 2 : 1)
+            )
     }
 }
