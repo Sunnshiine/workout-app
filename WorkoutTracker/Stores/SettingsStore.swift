@@ -109,10 +109,63 @@ enum SettingsSheetSwitchResult: Equatable {
 }
 
 @MainActor
-protocol SheetSwitchSyncing: AnyObject {
+protocol ConfiguredSheetSyncing: AnyObject {
+    func sync(spreadsheetId: String) async -> Bool
+}
+
+@MainActor
+protocol SheetSwitchSyncing: ConfiguredSheetSyncing {
     func hasPendingWrites() throws -> Bool
     func discardPendingWrites() async throws
-    func sync(spreadsheetId: String) async -> Bool
+}
+
+@MainActor
+@Observable
+final class SettingsSyncActivity {
+    private(set) var isSyncInFlight = false
+
+    func run<T>(_ operation: () async -> T) async -> T? {
+        guard !isSyncInFlight else { return nil }
+
+        isSyncInFlight = true
+        defer { isSyncInFlight = false }
+
+        return await operation()
+    }
+}
+
+@MainActor
+@Observable
+final class SettingsManualSyncStore {
+    private let settings: SettingsStore
+    private let sync: any ConfiguredSheetSyncing
+    private let syncActivity: SettingsSyncActivity
+    private let onSynced: () -> Void
+
+    init(
+        settings: SettingsStore,
+        sync: any ConfiguredSheetSyncing,
+        syncActivity: SettingsSyncActivity = SettingsSyncActivity(),
+        onSynced: @escaping () -> Void = {}
+    ) {
+        self.settings = settings
+        self.sync = sync
+        self.syncActivity = syncActivity
+        self.onSynced = onSynced
+    }
+
+    var isSyncInFlight: Bool { syncActivity.isSyncInFlight }
+
+    @discardableResult
+    func syncNow() async -> Bool {
+        guard let spreadsheetId = settings.spreadsheetId else { return false }
+
+        return await syncActivity.run {
+            let didSync = await sync.sync(spreadsheetId: spreadsheetId)
+            onSynced()
+            return didSync
+        } ?? false
+    }
 }
 
 @MainActor
@@ -124,18 +177,25 @@ final class SettingsSheetSwitchStore {
 
     private let settings: SettingsStore
     private let sync: any SheetSwitchSyncing
+    private let syncActivity: SettingsSyncActivity
     private let onSynced: () -> Void
 
-    init(settings: SettingsStore, sync: any SheetSwitchSyncing, onSynced: @escaping () -> Void = {}) {
+    init(
+        settings: SettingsStore,
+        sync: any SheetSwitchSyncing,
+        syncActivity: SettingsSyncActivity = SettingsSyncActivity(),
+        onSynced: @escaping () -> Void = {}
+    ) {
         self.settings = settings
         self.sync = sync
+        self.syncActivity = syncActivity
         self.onSynced = onSynced
     }
 
     func requestSwitch(to spreadsheet: SpreadsheetFile) async -> SettingsSheetSwitchResult {
         errorMessage = nil
-        guard !isSwitching else {
-            errorMessage = "A sheet switch is already in progress."
+        guard canBeginSwitch else {
+            errorMessage = "A sync is already in progress."
             return .failed
         }
 
@@ -162,8 +222,8 @@ final class SettingsSheetSwitchStore {
     func confirmPendingSwitch() async -> Bool {
         errorMessage = nil
         guard let spreadsheet = pendingConfirmation else { return false }
-        guard !isSwitching else {
-            errorMessage = "A sheet switch is already in progress."
+        guard canBeginSwitch else {
+            errorMessage = "A sync is already in progress."
             return false
         }
 
@@ -188,8 +248,21 @@ final class SettingsSheetSwitchStore {
         errorMessage = nil
     }
 
+    private var canBeginSwitch: Bool {
+        !isSwitching && !syncActivity.isSyncInFlight
+    }
+
     private func switchNow(to spreadsheet: SpreadsheetFile) async -> Bool {
-        guard await sync.sync(spreadsheetId: spreadsheet.spreadsheetId) else {
+        guard
+            let didSync = await syncActivity.run({
+                await sync.sync(spreadsheetId: spreadsheet.spreadsheetId)
+            })
+        else {
+            errorMessage = "A sync is already in progress."
+            return false
+        }
+
+        guard didSync else {
             errorMessage = "Couldn't sync selected sheet. Try again."
             return false
         }

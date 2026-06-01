@@ -9,6 +9,8 @@ struct SettingsView: View {
     @State private var isSheetPickerPresented = false
     @State private var isSignOutConfirmationPresented = false
     @State private var settingsErrorMessage: String?
+    @State private var syncActivity = SettingsSyncActivity()
+    @State private var manualSyncStore: SettingsManualSyncStore?
     @State private var sheetSwitchStore: SettingsSheetSwitchStore?
 
     var body: some View {
@@ -47,7 +49,29 @@ struct SettingsView: View {
                             )
                         }
                         .buttonStyle(.plain)
+                        .disabled(isSheetRouteDisabled)
+                        .opacity(isSheetRouteDisabled ? 0.6 : 1)
                         .accessibilityIdentifier("settings-training-sheet-row")
+
+                        Divider()
+                            .overlay(palette.bannerStroke)
+                            .padding(.leading, 56)
+
+                        Button {
+                            syncNow()
+                        } label: {
+                            SettingsRow(
+                                systemImage: "arrow.triangle.2.circlepath",
+                                title: "Sync now",
+                                detail: manualSyncDetail,
+                                showsChevron: false
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(isManualSyncDisabled)
+                        .opacity(isManualSyncDisabled ? 0.6 : 1)
+                        .accessibilityIdentifier("settings-sync-now-button")
+                        .accessibilityValue(manualSyncDetail ?? "")
 
                         Divider()
                             .overlay(palette.bannerStroke)
@@ -97,7 +121,7 @@ struct SettingsView: View {
                 }
             }
         }
-        .onAppear(perform: ensureSheetSwitchStore)
+        .onAppear(perform: ensureSettingsStores)
         .sheet(isPresented: $isSheetPickerPresented) {
             sheetPickerSheet
         }
@@ -135,15 +159,58 @@ struct SettingsView: View {
         }
     }
 
+    private var isManualSyncDisabled: Bool {
+        settings.spreadsheetId == nil || syncActivity.isSyncInFlight || sync.state == .syncing
+            || sheetSwitchStore?.isSwitching == true
+    }
+
+    private var isSheetRouteDisabled: Bool {
+        syncActivity.isSyncInFlight || sync.state == .syncing || sheetSwitchStore?.isSwitching == true
+    }
+
+    private var manualSyncDetail: String? {
+        if syncActivity.isSyncInFlight || sync.state == .syncing {
+            return "Syncing..."
+        }
+
+        switch sync.state {
+        case .idle:
+            return settings.spreadsheetId == nil ? "Connect a sheet first" : "Refresh workout state"
+        case .offline:
+            return "Offline"
+        case .pendingWrites(let count):
+            return count == 1 ? "1 unsynced log" : "\(count) unsynced logs"
+        case .conflict:
+            return "Needs attention"
+        case .syncing:
+            return "Syncing..."
+        }
+    }
+
+    private func ensureSettingsStores() {
+        ensureManualSyncStore()
+        ensureSheetSwitchStore()
+    }
+
+    private func ensureManualSyncStore() {
+        guard manualSyncStore == nil else { return }
+        manualSyncStore = SettingsManualSyncStore(settings: settings, sync: sync, syncActivity: syncActivity) {
+            workout.reload()
+        }
+    }
+
     private func ensureSheetSwitchStore() {
         guard sheetSwitchStore == nil else { return }
-        sheetSwitchStore = SettingsSheetSwitchStore(
-            settings: settings,
-            sync: sync,
-            onSynced: {
-                workout.reload()
-            }
-        )
+        sheetSwitchStore = SettingsSheetSwitchStore(settings: settings, sync: sync, syncActivity: syncActivity) {
+            workout.reload()
+        }
+    }
+
+    private func syncNow() {
+        ensureManualSyncStore()
+        Task {
+            await manualSyncStore?.syncNow()
+        }
     }
 
     private func requestSignOut() {
@@ -187,7 +254,7 @@ struct SettingsView: View {
                     onDone: {
                         isSheetPickerPresented = false
                     },
-                    isSelectionDisabled: sheetSwitchStore.isSwitching
+                    isSelectionDisabled: isSheetSelectionDisabled
                 )
                 .background(palette.gradient.ignoresSafeArea())
                 .navigationTitle("Training Sheet")
@@ -233,6 +300,10 @@ struct SettingsView: View {
         }
     }
 
+    private var isSheetSelectionDisabled: Bool {
+        sheetSwitchStore?.isSwitching == true || syncActivity.isSyncInFlight || sync.state == .syncing
+    }
+
     private var settingsErrorPresented: Binding<Bool> {
         Binding {
             settingsErrorMessage != nil || sheetSwitchStore?.errorMessage != nil
@@ -262,6 +333,7 @@ private struct SettingsRow: View {
     let systemImage: String
     let title: String
     let detail: String?
+    var showsChevron = true
     var role = RowRole.normal
     @Environment(\.themePalette) private var palette
 
@@ -287,7 +359,7 @@ private struct SettingsRow: View {
 
             Spacer()
 
-            if role == .normal {
+            if role == .normal, showsChevron {
                 Image(systemName: "chevron.right")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.secondary)
