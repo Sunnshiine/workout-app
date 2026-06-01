@@ -5,7 +5,7 @@ struct SessionProgressHeader: View {
     let activeSetID: ActiveSetID?
     let block: Block?
     let currentSession: Session?
-    let showsSessionControls: Bool
+    let sessionSettingsOverpullState: SessionSettingsOverpullState
     let onNavigate: () -> Void
     let onSettings: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -17,7 +17,7 @@ struct SessionProgressHeader: View {
         activeSetID: ActiveSetID?,
         block: Block? = nil,
         currentSession: Session? = nil,
-        showsSessionControls: Bool = false,
+        sessionSettingsOverpullState: SessionSettingsOverpullState = .hidden,
         onNavigate: @escaping () -> Void = {},
         onSettings: @escaping () -> Void = {}
     ) {
@@ -25,7 +25,7 @@ struct SessionProgressHeader: View {
         self.activeSetID = activeSetID
         self.block = block
         self.currentSession = currentSession
-        self.showsSessionControls = showsSessionControls
+        self.sessionSettingsOverpullState = sessionSettingsOverpullState
         self.onNavigate = onNavigate
         self.onSettings = onSettings
     }
@@ -36,15 +36,18 @@ struct SessionProgressHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if showsSessionControls {
+            if sessionSettingsOverpullState.isVisible {
                 HStack {
                     Spacer(minLength: 0)
 
                     SessionControls(
                         onSettings: onSettings
                     )
+                    .opacity(sessionControlsOpacity)
+                    .scaleEffect(sessionControlsScale, anchor: .topTrailing)
+                    .offset(y: sessionControlsOffset)
                 }
-                .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .topTrailing)))
+                .transition(sessionControlsTransition)
             }
 
             HStack(spacing: 10) {
@@ -73,6 +76,32 @@ struct SessionProgressHeader: View {
             .accessibilityIdentifier("session-progress-rail")
         }
         .padding(.vertical, 2)
+    }
+
+    private var sessionControlsOpacity: Double {
+        if reduceMotion {
+            return Double(sessionSettingsOverpullState.progress)
+        }
+        return Double(0.35 + (0.65 * sessionSettingsOverpullState.progress))
+    }
+
+    private var sessionControlsScale: CGFloat {
+        if reduceMotion {
+            return 0.98 + (0.02 * sessionSettingsOverpullState.progress)
+        }
+        return 0.88 + (0.12 * sessionSettingsOverpullState.progress)
+    }
+
+    private var sessionControlsOffset: CGFloat {
+        reduceMotion ? 0 : 10 * (1 - sessionSettingsOverpullState.progress)
+    }
+
+    private var sessionControlsTransition: AnyTransition {
+        if reduceMotion {
+            .opacity
+        } else {
+            .opacity.combined(with: .scale(scale: 0.92, anchor: .topTrailing))
+        }
     }
 
     @ViewBuilder
