@@ -255,25 +255,69 @@ struct SessionProgressHeaderPresentation: Equatable, Sendable {
     }
 }
 
-struct SessionControlsVisibility: Equatable, Sendable {
-    static let hidden = SessionControlsVisibility(isVisible: false)
-    static let visible = SessionControlsVisibility(isVisible: true)
+struct SessionSettingsOverpullState: Equatable, Sendable {
+    enum Phase: Equatable, Sendable {
+        case hidden
+        case preview
+        case pinned
+    }
 
-    private static let revealOffset: CGFloat = 72
-    private static let dismissOffset: CGFloat = -24
+    static let hidden = SessionSettingsOverpullState(phase: .hidden, progress: 0)
+    static let pinned = SessionSettingsOverpullState(phase: .pinned, progress: 1)
 
-    let isVisible: Bool
+    static let idleDismissDelay: TimeInterval = 2.5
 
-    func updated(topContentOffset: CGFloat) -> Self {
-        if topContentOffset >= Self.revealOffset {
-            return .visible
+    private static let previewThreshold: CGFloat = 140
+    private static let commitThreshold: CGFloat = 200
+    private static let contentDismissOffset: CGFloat = -16
+
+    let phase: Phase
+    let progress: CGFloat
+
+    var isVisible: Bool {
+        phase != .hidden
+    }
+
+    var isPinned: Bool {
+        phase == .pinned
+    }
+
+    func tracking(topContentOffset: CGFloat) -> Self {
+        if topContentOffset <= Self.contentDismissOffset {
+            return .hidden
         }
 
-        if isVisible, topContentOffset > Self.dismissOffset {
-            return .visible
+        if isPinned {
+            return self
         }
 
-        return .hidden
+        guard topContentOffset >= Self.previewThreshold else {
+            return .hidden
+        }
+
+        return SessionSettingsOverpullState(
+            phase: .preview,
+            progress: Self.progress(for: topContentOffset)
+        )
+    }
+
+    func released(topContentOffset: CGFloat) -> Self {
+        topContentOffset >= Self.commitThreshold ? .pinned : .hidden
+    }
+
+    func dismissedAfterIdle() -> Self {
+        .hidden
+    }
+
+    static func overpullDistance(startTopContentOffset: CGFloat, translationHeight: CGFloat) -> CGFloat {
+        max(0, startTopContentOffset + translationHeight)
+    }
+
+    private static func progress(for topContentOffset: CGFloat) -> CGFloat {
+        let range = commitThreshold - previewThreshold
+        guard range > 0 else { return 1 }
+        let rawProgress = (topContentOffset - previewThreshold) / range
+        return min(max(rawProgress, 0), 1)
     }
 }
 

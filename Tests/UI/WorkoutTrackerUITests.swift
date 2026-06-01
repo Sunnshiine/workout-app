@@ -118,8 +118,8 @@ final class WorkoutTrackerUITests: XCTestCase {
         let progressRail = app.otherElements["session-progress-rail"]
         let activeSetCard = app.otherElements["active-set-card"]
 
-        XCTAssertTrue(sessionControls.waitForExistence(timeout: 3))
-        XCTAssertTrue(settingsButton.waitForExistence(timeout: 3))
+        XCTAssertTrue(sessionControls.exists)
+        XCTAssertTrue(settingsButton.exists)
         XCTAssertFalse(app.buttons["session-controls-sync-button"].exists)
         XCTAssertTrue(locationButton.exists)
         XCTAssertTrue(progressRail.exists)
@@ -152,8 +152,36 @@ final class WorkoutTrackerUITests: XCTestCase {
         app.buttons["settings-done-button"].tap()
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 3))
 
+        waitForNonExistence(settingsButton, timeout: 1)
+
+        let pinnedSettingsButton = revealSessionControlsAndSettingsButton(in: app)
         app.swipeUp()
-        XCTAssertFalse(settingsButton.waitForExistence(timeout: 1))
+        waitForNonExistence(pinnedSettingsButton, timeout: 1)
+    }
+
+    @MainActor
+    func testOrdinaryBounceAndPrecommitReleaseDoNotPinSessionSettings() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+
+        pullSessionHeader(in: app, endY: 0.34)
+        XCTAssertFalse(app.buttons["session-controls-settings-button"].waitForExistence(timeout: 1))
+        XCTAssertFalse(app.otherElements["session-controls"].exists)
+
+        pullSessionHeader(in: app, endY: 0.43)
+        XCTAssertFalse(app.buttons["session-controls-settings-button"].waitForExistence(timeout: 1))
+        XCTAssertFalse(app.otherElements["session-controls"].exists)
+    }
+
+    @MainActor
+    func testPinnedSessionSettingsDismissesAfterIdle() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+        let settingsButton = revealSessionControlsAndSettingsButton(in: app)
+
+        waitForNonExistence(settingsButton, timeout: 4)
     }
 
     @MainActor
@@ -562,10 +590,15 @@ private func revealSessionControlsAndSettingsButton(in app: XCUIApplication) -> 
 
 @MainActor
 private func overPullSessionHeader(in app: XCUIApplication) {
+    pullSessionHeader(in: app, endY: 0.75)
+}
+
+@MainActor
+private func pullSessionHeader(in app: XCUIApplication, endY: CGFloat) {
     app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
         .press(
             forDuration: 0.1,
-            thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
+            thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: endY))
         )
 }
 
@@ -606,6 +639,18 @@ private func waitUntilEnabled(_ element: XCUIElement) {
         RunLoop.current.run(until: Date().addingTimeInterval(0.1))
     }
     XCTFail("Expected \(element) to become enabled")
+}
+
+@MainActor
+private func waitForNonExistence(_ element: XCUIElement, timeout: TimeInterval) {
+    let deadline = Date().addingTimeInterval(timeout)
+    while Date() < deadline {
+        if !element.exists {
+            return
+        }
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+    }
+    XCTFail("Expected \(element) to stop existing")
 }
 
 @MainActor
