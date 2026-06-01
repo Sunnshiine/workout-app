@@ -2,7 +2,7 @@ import CoreGraphics
 import Foundation
 
 enum HoldToSkipReleaseOutcome: Equatable, Sendable {
-    case log
+    case deferToTap
     case cancelSkip
     case skip
     case ignore
@@ -33,7 +33,7 @@ struct HoldToSkipPolicy: Equatable, Sendable {
         }
 
         if elapsed <= tapMaximumDuration {
-            return .log
+            return .deferToTap
         }
 
         return .cancelSkip
@@ -158,6 +158,33 @@ struct LoggedSetReviewPresentation: Equatable, Sendable {
             referenceText = nil
             allowsEditing = false
         }
+    }
+}
+
+enum LoggedSetReviewPillHitRegion: CaseIterable, Equatable, Sendable {
+    case label
+    case value
+    case padding
+}
+
+enum LoggedSetReviewEditableField: CaseIterable, Equatable, Hashable, Sendable {
+    case weight
+    case reps
+    case rpe
+
+    var accessibilityIdentifier: String {
+        switch self {
+        case .weight:
+            return "logged-weight-pill"
+        case .reps:
+            return "logged-reps-pill"
+        case .rpe:
+            return "logged-rpe-pill"
+        }
+    }
+
+    func editTarget(for _: LoggedSetReviewPillHitRegion) -> Self {
+        self
     }
 }
 
