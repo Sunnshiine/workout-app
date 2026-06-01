@@ -297,10 +297,9 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     #expect(presentation.segments.map(\.state) == [.futurePending, .currentPending])
 }
 
-@Test func sessionControlsVisibilityRevealsAfterPullingPastThreshold() {
-    let visibility = SessionControlsVisibility.hidden.updated(topContentOffset: 36)
-
-    #expect(visibility == .visible)
+@Test func sessionControlsVisibilityRevealsOnlyAfterADeliberateOverPull() {
+    #expect(SessionControlsVisibility.hidden.updated(topContentOffset: 60) == .hidden)
+    #expect(SessionControlsVisibility.hidden.updated(topContentOffset: 80) == .visible)
 }
 
 @Test func sessionControlsVisibilityRemainsVisibleNearTop() {

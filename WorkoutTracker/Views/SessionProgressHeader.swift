@@ -131,8 +131,8 @@ private struct SessionControls: View {
             .disabled(isSyncDisabled)
             .accessibilityIdentifier("session-controls-sync-button")
         }
-        .padding(4)
-        .glassEffect(.regular, in: .capsule)
+        // The glass buttons sit directly on the glass HUD — no wrapping capsule, to
+        // avoid stacking glass on glass.
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Session Controls")
         .accessibilityIdentifier("session-controls")

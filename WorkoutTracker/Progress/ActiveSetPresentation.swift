@@ -232,7 +232,7 @@ struct SessionControlsVisibility: Equatable, Sendable {
     static let hidden = SessionControlsVisibility(isVisible: false)
     static let visible = SessionControlsVisibility(isVisible: true)
 
-    private static let revealOffset: CGFloat = 32
+    private static let revealOffset: CGFloat = 72
     private static let dismissOffset: CGFloat = -24
 
     let isVisible: Bool
