@@ -37,40 +37,44 @@ struct SessionView: View {
 
                     ScrollViewReader { proxy in
                         ScrollView {
-                            GlassEffectContainer(spacing: Theme.cardSpacing) {
-                                VStack(alignment: .leading, spacing: Theme.sectionSpacing) {
-                                    ForEach(
-                                        coordinator.renderItems(
-                                            in: session,
-                                            lastPerformedLookup: lastPerformedLookup.snapshot
-                                        ),
-                                        id: \.id
-                                    ) { item in
-                                        renderItem(item, in: session)
-                                    }
-
-                                    if workout.isViewingLiveEdge, !workout.openExercises.isEmpty {
-                                        OpenExercisesSection(
-                                            exercises: workout.openExercises,
-                                            onSelect: showSourceSession(for:)
-                                        )
-                                    }
-
-                                    if workout.isViewingLiveEdge, workout.canMoveOn {
-                                        MoveOnButton {
-                                            workout.requestMoveOnCelebration()
+                            ZStack(alignment: .topLeading) {
+                                GlassEffectContainer(spacing: Theme.cardSpacing) {
+                                    VStack(alignment: .leading, spacing: Theme.sectionSpacing) {
+                                        ForEach(
+                                            coordinator.renderItems(
+                                                in: session,
+                                                lastPerformedLookup: lastPerformedLookup.snapshot
+                                            ),
+                                            id: \.id
+                                        ) { item in
+                                            renderItem(item, in: session)
                                         }
-                                    }
 
-                                    Color.clear
-                                        .frame(height: 44)
-                                        .contentShape(Rectangle())
-                                        .onTapGesture(perform: clearTransientSessionUI)
+                                        if workout.isViewingLiveEdge, !workout.openExercises.isEmpty {
+                                            OpenExercisesSection(
+                                                exercises: workout.openExercises,
+                                                onSelect: showSourceSession(for:)
+                                            )
+                                        }
+
+                                        if workout.isViewingLiveEdge, workout.canMoveOn {
+                                            MoveOnButton {
+                                                workout.requestMoveOnCelebration()
+                                            }
+                                        }
+
+                                        Color.clear
+                                            .frame(height: 44)
+                                            .contentShape(Rectangle())
+                                            .onTapGesture(perform: clearTransientSessionUI)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(inertSessionTapArea)
                                 }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(inertSessionTapArea)
+                                .padding(.horizontal)
                             }
-                            .padding(.horizontal)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .background(inertSessionTapArea)
                             .padding(.vertical)
                         }
                         .background(inertSessionTapArea)
