@@ -4,12 +4,18 @@ import UIKit
 struct MoveOnCelebrationView: View {
     let onDismiss: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var presentation: MoveOnCelebrationPresentation
+    @State private var bloomHasAppeared = false
 
     private static let perfectImpactDelay: Duration = .milliseconds(120)
     private static let lensWidth: CGFloat = 210
     private static let lensHeight: CGFloat = 74
     private static let lensCornerRadius: CGFloat = 28
+    private static let bloomWidth: CGFloat = 258
+    private static let bloomHeight: CGFloat = 104
+    private static let bloomCornerRadius: CGFloat = 36
+    private static let bloomDuration = 0.36
     private static let ink = Color(red: 0.08, green: 0.22, blue: 0.14)
 
     init(session: Session, onDismiss: @escaping () -> Void) {
@@ -62,6 +68,9 @@ struct MoveOnCelebrationView: View {
         .task(id: presentation.hapticStyle) {
             await playHaptics(for: presentation.hapticStyle)
         }
+        .task(id: visualTreatment) {
+            await prepareBloom(for: visualTreatment)
+        }
     }
 
     private var palette: Theme.Palette {
@@ -76,6 +85,10 @@ struct MoveOnCelebrationView: View {
         Self.ink.opacity(0.68)
     }
 
+    private var visualTreatment: MoveOnCelebrationVisualTreatment {
+        presentation.visualTreatment(reduceMotion: reduceMotion)
+    }
+
     @MainActor
     private func playHaptics(for style: MoveOnCelebrationHapticStyle) async {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
@@ -88,6 +101,19 @@ struct MoveOnCelebrationView: View {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 
+    @MainActor
+    private func prepareBloom(for treatment: MoveOnCelebrationVisualTreatment) async {
+        guard treatment == .animatedPerfectBloom else {
+            bloomHasAppeared = false
+            return
+        }
+        guard !bloomHasAppeared else { return }
+
+        withAnimation(.easeOut(duration: Self.bloomDuration)) {
+            bloomHasAppeared = true
+        }
+    }
+
     private var contextText: some View {
         Text(presentation.contextText)
             .font(.caption.weight(.semibold))
@@ -96,6 +122,17 @@ struct MoveOnCelebrationView: View {
     }
 
     private var logoLens: some View {
+        GlassEffectContainer(spacing: 0) {
+            ZStack {
+                if visualTreatment == .animatedPerfectBloom {
+                    perfectBloom
+                }
+                logoMark
+            }
+        }
+    }
+
+    private var logoMark: some View {
         Text("TFN")
             .font(.system(size: 34, weight: .black, design: .rounded))
             .foregroundStyle(primaryTextColor)
@@ -108,10 +145,42 @@ struct MoveOnCelebrationView: View {
             }
             .overlay {
                 RoundedRectangle(cornerRadius: Self.lensCornerRadius, style: .continuous)
-                    .stroke(palette.activeCardStroke.opacity(0.52), lineWidth: 1)
+                    .stroke(lensStrokeColor, lineWidth: lensStrokeWidth)
             }
             .glassEffect(.regular, in: .rect(cornerRadius: Self.lensCornerRadius))
             .accessibilityIdentifier("move-on-celebration-logo")
+    }
+
+    private var perfectBloom: some View {
+        RoundedRectangle(cornerRadius: Self.bloomCornerRadius, style: .continuous)
+            .fill(palette.activeCardFill.opacity(0.58))
+            .frame(width: Self.bloomWidth, height: Self.bloomHeight)
+            .overlay {
+                RoundedRectangle(cornerRadius: Self.bloomCornerRadius, style: .continuous)
+                    .stroke(palette.accent.opacity(0.44), lineWidth: 1)
+            }
+            .scaleEffect(bloomHasAppeared ? 1 : 0.88)
+            .opacity(bloomHasAppeared ? 1 : 0)
+            .glassEffect(.regular, in: .rect(cornerRadius: Self.bloomCornerRadius))
+            .accessibilityHidden(true)
+    }
+
+    private var lensStrokeColor: Color {
+        switch visualTreatment {
+        case .standardLens:
+            palette.activeCardStroke.opacity(0.52)
+        case .animatedPerfectBloom, .reducedMotionPerfectLens:
+            palette.accent.opacity(0.78)
+        }
+    }
+
+    private var lensStrokeWidth: CGFloat {
+        switch visualTreatment {
+        case .standardLens:
+            1
+        case .animatedPerfectBloom, .reducedMotionPerfectLens:
+            1.25
+        }
     }
 
     private var quoteText: some View {

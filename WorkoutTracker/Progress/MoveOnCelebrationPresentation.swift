@@ -10,6 +10,12 @@ enum MoveOnCelebrationHapticStyle: Equatable, Hashable, Sendable {
     case successWithImpact
 }
 
+enum MoveOnCelebrationVisualTreatment: Equatable, Sendable {
+    case standardLens
+    case animatedPerfectBloom
+    case reducedMotionPerfectLens
+}
+
 struct MoveOnCelebrationPresentation: Equatable, Sendable {
     static let longQuoteFixture = "Strong work is still strong when you leave a few Sets for later."
     static let approvedQuotes = [
@@ -48,6 +54,13 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
             .joined(separator: ", ")
         accessibilityHint = "Tap anywhere to continue"
         hapticStyle = pendingSetCount == 0 ? .successWithImpact : .success
+    }
+
+    func visualTreatment(reduceMotion: Bool) -> MoveOnCelebrationVisualTreatment {
+        guard hapticStyle == .successWithImpact else {
+            return .standardLens
+        }
+        return reduceMotion ? .reducedMotionPerfectLens : .animatedPerfectBloom
     }
 
     private static var launchQuoteOverride: String? {

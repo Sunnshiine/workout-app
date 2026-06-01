@@ -34,6 +34,11 @@
         }
 
         @MainActor
+        static func perfectMoveOnCelebrationBlock() -> Block {
+            WorkoutFixtureBlocks.perfectMoveOnCelebrationBlock()
+        }
+
+        @MainActor
         static func uiLaunchBlock() -> Block {
             WorkoutFixtureBlocks.uiLaunchBlock()
         }
@@ -155,6 +160,40 @@
                         }
                     )
                 }
+            )
+        }
+
+        @MainActor
+        static func perfectMoveOnCelebrationBlock() -> Block {
+            Factory.block(
+                weeks: [
+                    Factory.week(
+                        1,
+                        sessions: [
+                            Factory.session(
+                                weekNumber: 1,
+                                dayNumber: 1,
+                                exercises: [
+                                    Factory.exercise(
+                                        name: "Back Squat",
+                                        baseName: "Back Squat",
+                                        coachNote: "Perfect Session fixture.",
+                                        order: 0,
+                                        sets: [
+                                            Factory.loggedSet(0, reps: "5", load: "RPE6", weight: 185, rpe: 6),
+                                            Factory.set(1, reps: "5", load: "RPE7", state: .skipped)
+                                        ]
+                                    )
+                                ]
+                            ),
+                            Factory.session(
+                                weekNumber: 1,
+                                dayNumber: 2,
+                                exercises: []
+                            )
+                        ]
+                    )
+                ]
             )
         }
 
