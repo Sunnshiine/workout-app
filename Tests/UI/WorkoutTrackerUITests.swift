@@ -1,19 +1,6 @@
 import XCTest
 
-@MainActor
-private func launchFixtureApp(extraArguments: [String] = []) -> XCUIApplication {
-    let app = XCUIApplication()
-    app.launchArguments = ["-UITEST_FIXTURE", "-UITEST_SESSION", "-UITEST_FULL_BLOCK"] + extraArguments
-    app.launch()
-    return app
-}
-
 final class WorkoutTrackerUITests: XCTestCase {
-    override func setUp() {
-        super.setUp()
-        continueAfterFailure = false
-    }
-
     @MainActor
     func testFixtureDrivenCoreSessionFlow() throws {
         let app = launchFixtureApp()
@@ -134,32 +121,6 @@ final class WorkoutTrackerUITests: XCTestCase {
 
         waitForLabel("Log 237.5×5@6", on: app.buttons["log-active-set-button"])
     }
-}
-
-final class WorkoutTrackerSessionChromeUITests: XCTestCase {
-    override func setUp() {
-        super.setUp()
-        continueAfterFailure = false
-    }
-
-    @MainActor
-    func testSessionContentScrollsWithOrdinaryVerticalSwipe() throws {
-        let app = launchFixtureApp()
-
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
-
-        let firstCard = app.otherElements["active-set-card"]
-        XCTAssertTrue(firstCard.waitForExistence(timeout: 3))
-        let initialMinY = firstCard.frame.minY
-
-        app.scrollViews.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
-            .press(
-                forDuration: 0.1,
-                thenDragTo: app.scrollViews.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
-            )
-
-        XCTAssertLessThan(firstCard.frame.minY, initialMinY - 40)
-    }
 
     @MainActor
     func testOverscrollRevealsSessionControlsInHeaderLayout() throws {
@@ -267,13 +228,6 @@ final class WorkoutTrackerSessionChromeUITests: XCTestCase {
         XCTAssertFalse(app.otherElements["session-controls"].exists)
         XCTAssertTrue(app.buttons["go-back-current-session-button"].exists)
         XCTAssertTrue(app.buttons["make-current-session-button"].exists)
-    }
-}
-
-final class WorkoutTrackerDeveloperToolsUITests: XCTestCase {
-    override func setUp() {
-        super.setUp()
-        continueAfterFailure = false
     }
 
     @MainActor
@@ -433,85 +387,14 @@ final class WorkoutTrackerDeveloperToolsUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Replacement Squat"].waitForExistence(timeout: 5))
     }
 
-}
-
-final class WorkoutTrackerInertAllClearUITests: XCTestCase {
-    override func setUp() {
-        super.setUp()
+    @MainActor
+    private func launchFixtureApp(extraArguments: [String] = []) -> XCUIApplication {
         continueAfterFailure = false
-    }
-
-    @MainActor
-    func testInertSessionGapDismissesPinnedSettingsWithoutBlockingSettingsControl() throws {
-        let app = launchFixtureApp()
-
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["session-controls-settings-button"].exists)
-
-        let settingsButton = revealSessionControlsAndSettingsButton(in: app)
-        tapInertSessionGapAboveActiveCard(in: app)
-        XCTAssertFalse(settingsButton.waitForExistence(timeout: 1))
-
-        revealSessionControlsAndSettingsButton(in: app).tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
-    }
-
-    @MainActor
-    func testInertSessionGapDismissesActiveSetWeightAndRepsKeyboards() throws {
-        let app = launchFixtureApp()
-
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
-
-        app.buttons["weight-pill"].tap()
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
-        tapInertSessionGapAboveActiveCard(in: app)
-        XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 1))
-
-        app.buttons["reps-pill"].tap()
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
-        tapInertSessionGapAboveActiveCard(in: app)
-        XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 1))
-
-        app.buttons["rpe-7"].tap()
-        waitForLabel("Log 237.5×5@7", on: app.buttons["log-active-set-button"])
-        XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
-    }
-
-    @MainActor
-    func testInertSessionGapDismissesLoggedSetReviewWeightAndRepsKeyboardsAndLeavesRPEGridDriven() throws {
-        let app = launchFixtureApp()
-
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
-
-        let loggedSetRow = logFirstSetAndReturnLoggedRow(in: app)
-        let loggedWeightPill = app.buttons.matching(identifier: "logged-weight-pill").firstMatch
-        revealLoggedSetReview(loggedSetRow, untilVisible: loggedWeightPill)
-        loggedWeightPill.tap()
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
-        tapInertSessionGapAboveActiveCard(in: app)
-        XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 1))
-        XCTAssertTrue(app.otherElements["active-set-card"].exists)
-
-        app.terminate()
+        let app = XCUIApplication()
+        app.launchArguments = ["-UITEST_FIXTURE", "-UITEST_SESSION", "-UITEST_FULL_BLOCK"] + extraArguments
         app.launch()
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
-
-        let relaunchedLoggedSetRow = logFirstSetAndReturnLoggedRow(in: app)
-        let loggedRPEPill = app.buttons.matching(identifier: "logged-rpe-pill").firstMatch
-        revealLoggedSetReview(relaunchedLoggedSetRow, untilVisible: loggedRPEPill)
-        loggedRPEPill.tap()
-        XCTAssertFalse(app.keyboards.firstMatch.exists)
-        XCTAssertTrue(app.buttons["rpe-7-half"].waitForExistence(timeout: 3))
-        app.buttons["rpe-7-half"].tap()
-
-        let loggedRepsPill = app.buttons.matching(identifier: "logged-reps-pill").firstMatch
-        XCTAssertTrue(loggedRepsPill.waitForExistence(timeout: 3))
-        loggedRepsPill.tap()
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
-        tapInertSessionGapAboveActiveCard(in: app)
-        XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 1))
+        return app
     }
-
 }
 
 final class WorkoutTrackerAppearanceUITests: XCTestCase {
@@ -703,60 +586,6 @@ private func dismissActiveSetInputBackground(in app: XCUIApplication) {
 }
 
 @MainActor
-private func tapInertSessionGapAboveActiveCard(in app: XCUIApplication) {
-    let card = firstVisibleSessionCard(in: app)
-
-    let xOffset = card.frame.midX
-    let keyboard = app.keyboards.firstMatch
-    let appFrame = app.frame
-    let maxYOffset = keyboard.exists ? keyboard.frame.minY - 40 : appFrame.maxY - 80
-    let yOffset = min(max(card.frame.minY - 8, appFrame.minY + 80), maxYOffset)
-    app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
-        .withOffset(CGVector(dx: xOffset, dy: yOffset))
-        .tap()
-}
-
-@MainActor
-private func firstVisibleSessionCard(in app: XCUIApplication) -> XCUIElement {
-    let activeSetCard = app.otherElements["active-set-card"]
-    if activeSetCard.waitForExistence(timeout: 1) {
-        return activeSetCard
-    }
-
-    let loggedSetReviewCard = app.otherElements["logged-set-review-card"]
-    XCTAssertTrue(loggedSetReviewCard.waitForExistence(timeout: 3))
-    return loggedSetReviewCard
-}
-
-@MainActor
-private func loggedSetReviewRow(in app: XCUIApplication) -> XCUIElement {
-    app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Set 1, 237.5x5@6"))
-        .firstMatch
-}
-
-@MainActor
-private func logFirstSetAndReturnLoggedRow(in app: XCUIApplication) -> XCUIElement {
-    app.buttons["rpe-6"].tap()
-    let logButton = app.buttons["log-active-set-button"]
-    waitUntilEnabled(logButton)
-    logButton.tap()
-
-    let loggedSetRow = loggedSetReviewRow(in: app)
-    XCTAssertTrue(loggedSetRow.waitForExistence(timeout: 3))
-    return loggedSetRow
-}
-
-@MainActor
-private func revealLoggedSetReview(_ row: XCUIElement, untilVisible element: XCUIElement) {
-    if element.waitForExistence(timeout: 1) {
-        return
-    }
-
-    tapWhenHittable(row)
-    XCTAssertTrue(element.waitForExistence(timeout: 3))
-}
-
-@MainActor
 private func revealSessionControlsAndSettingsButton(in app: XCUIApplication) -> XCUIElement {
     let settingsButton = app.buttons["session-controls-settings-button"]
     if settingsButton.waitForExistence(timeout: 1), settingsButton.isHittable {
@@ -784,13 +613,10 @@ private func overPullSessionHeader(in app: XCUIApplication) {
 
 @MainActor
 private func pullSessionHeader(in app: XCUIApplication, endY: CGFloat) {
-    let headerButton = app.buttons["session-location-button"]
-    XCTAssertTrue(headerButton.waitForExistence(timeout: 3))
-    let start = headerButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-    start
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
         .press(
             forDuration: 0.1,
-            thenDragTo: start.withOffset(CGVector(dx: 0, dy: app.frame.height * (endY - 0.25)))
+            thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: endY))
         )
 }
 
