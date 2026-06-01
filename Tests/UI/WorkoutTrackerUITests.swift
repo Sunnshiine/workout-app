@@ -19,8 +19,8 @@ final class WorkoutTrackerUITests: XCTestCase {
         tapWhenReady(app.buttons["move-on-button"], in: app)
         let celebration = moveOnCelebration(in: app)
         XCTAssertTrue(celebration.waitForExistence(timeout: 3))
-        waitForLabel("Week 1, Day 1 Done", on: celebration)
-        waitForValue("5 Sets, 2 Exercises, 4 Left, Moved on with 4 left", on: celebration)
+        waitForLabel("Week 1, Day 1", on: celebration)
+        waitForValueContaining("5 Sets, 2 Exercises, 4 Left", on: celebration)
         assertMoveOnCelebrationCopyIsReadable(in: app)
         XCTAssertFalse(app.staticTexts["Back Squat"].exists)
 
@@ -43,7 +43,7 @@ final class WorkoutTrackerUITests: XCTestCase {
         tapWhenReady(app.buttons["move-on-button"], in: app)
         let secondCelebration = moveOnCelebration(in: app)
         XCTAssertTrue(secondCelebration.waitForExistence(timeout: 3))
-        waitForLabel("Week 1, Day 3 Done", on: secondCelebration)
+        waitForLabel("Week 1, Day 3", on: secondCelebration)
         secondCelebration.tap()
         XCTAssertTrue(app.staticTexts["Accessory W1 D4"].waitForExistence(timeout: 3))
 
@@ -58,6 +58,24 @@ final class WorkoutTrackerUITests: XCTestCase {
         app.buttons["go-back-current-session-button"].tap()
         XCTAssertTrue(app.staticTexts["Accessory W1 D4"].waitForExistence(timeout: 3))
         waitForLabel("Open Block Overview for Week 1, Day 4", on: app.buttons["session-location-button"])
+    }
+
+    @MainActor
+    func testMoveOnCelebrationLongQuoteKeepsStatsAndHintVisible() throws {
+        let app = launchFixtureApp(extraArguments: ["-UITEST_LONG_CELEBRATION_QUOTE"])
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+
+        tapWhenReady(app.buttons["move-on-button"], in: app)
+        let celebration = moveOnCelebration(in: app)
+        XCTAssertTrue(celebration.waitForExistence(timeout: 3))
+        waitForLabel("Week 1, Day 1", on: celebration)
+        waitForValueContaining("5 Sets, 2 Exercises, 5 Left", on: celebration)
+        XCTAssertEqual(
+            app.staticTexts["move-on-celebration-quote"].label,
+            "Strong work is still strong when you leave a few Sets for later."
+        )
+        assertMoveOnCelebrationCopyIsReadable(in: app)
     }
 
     @MainActor
@@ -212,7 +230,7 @@ final class WorkoutTrackerUITests: XCTestCase {
         app.buttons["developer-tools-force-celebration-button"].tap()
         let celebration = moveOnCelebration(in: app)
         XCTAssertTrue(celebration.waitForExistence(timeout: 3))
-        waitForLabel("Week 1, Day 1 Done", on: celebration)
+        waitForLabel("Week 1, Day 1", on: celebration)
         celebration.tap()
         XCTAssertTrue(app.navigationBars["Developer Tools"].waitForExistence(timeout: 3))
 
@@ -421,7 +439,7 @@ final class WorkoutTrackerAppearanceUITests: XCTestCase {
 
         let celebration = moveOnCelebration(in: app)
         XCTAssertTrue(celebration.waitForExistence(timeout: 3))
-        waitForLabel("Week 1, Day 1 Done", on: celebration)
+        waitForLabel("Week 1, Day 1", on: celebration)
         assertMoveOnCelebrationCopyIsReadable(in: app)
 
         celebration.tap()
@@ -596,6 +614,19 @@ private func waitForValue(_ value: String, on element: XCUIElement) {
 }
 
 @MainActor
+private func waitForValueContaining(_ value: String, on element: XCUIElement) {
+    XCTAssertTrue(element.waitForExistence(timeout: 3))
+    let deadline = Date().addingTimeInterval(3)
+    while Date() < deadline {
+        if let elementValue = element.value as? String, elementValue.contains(value) {
+            return
+        }
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+    }
+    XCTFail("Expected \(element) to have value containing '\(value)', got '\(String(describing: element.value))'")
+}
+
+@MainActor
 private func waitUntilEnabled(_ element: XCUIElement) {
     XCTAssertTrue(element.waitForExistence(timeout: 3))
     let deadline = Date().addingTimeInterval(3)
@@ -641,10 +672,16 @@ private func moveOnCelebration(in app: XCUIApplication) -> XCUIElement {
 
 @MainActor
 private func assertMoveOnCelebrationCopyIsReadable(in app: XCUIApplication) {
-    let approvedQuotes = ["You're fucking amazing.", "God damn!", "Get it girl!", "Shake it!"]
+    let approvedQuotes = [
+        "You're fucking amazing.",
+        "God damn!",
+        "Get it girl!",
+        "Shake it!",
+        "Strong work is still strong when you leave a few Sets for later."
+    ]
+    let context = app.staticTexts["move-on-celebration-context"]
+    let logo = app.staticTexts["move-on-celebration-logo"]
     let quote = app.staticTexts["move-on-celebration-quote"]
-    let title = app.staticTexts["move-on-celebration-title"]
-    let subline = app.staticTexts["move-on-celebration-subline"]
     let stats = [
         app.staticTexts["move-on-celebration-sets-value"],
         app.staticTexts["move-on-celebration-exercises-value"],
@@ -662,13 +699,21 @@ private func assertMoveOnCelebrationCopyIsReadable(in app: XCUIApplication) {
     RunLoop.current.run(until: Date().addingTimeInterval(3))
     XCTAssertEqual(quote.label, selectedQuote)
 
-    for element in [quote, title, subline, hint] + stats {
+    for element in [context, logo, quote, hint] + stats {
         XCTAssertTrue(element.waitForExistence(timeout: 3))
         XCTAssertTrue(windowFrame.contains(element.frame), "\(element) is clipped outside \(windowFrame)")
     }
 
-    XCTAssertLessThanOrEqual(quote.frame.maxY, title.frame.minY)
-    XCTAssertLessThanOrEqual(title.frame.maxY, subline.frame.minY)
+    XCTAssertEqual(logo.label, "TFN")
+    XCTAssertFalse(app.staticTexts["move-on-celebration-title"].exists)
+    XCTAssertFalse(app.staticTexts["move-on-celebration-subline"].exists)
+    XCTAssertFalse(app.staticTexts["Day 1 Done"].exists)
+    XCTAssertFalse(app.staticTexts["Moved on with 4 left"].exists)
+    XCTAssertLessThanOrEqual(context.frame.maxY, logo.frame.minY)
+    XCTAssertLessThanOrEqual(logo.frame.maxY, quote.frame.minY)
+    XCTAssertLessThanOrEqual(quote.frame.maxY, stats.map(\.frame.minY).min() ?? quote.frame.maxY)
+    XCTAssertLessThan(stats[0].frame.maxX, stats[1].frame.minX)
+    XCTAssertLessThan(stats[1].frame.maxX, stats[2].frame.minX)
     XCTAssertLessThan(stats.map(\.frame.maxY).max() ?? 0, hint.frame.minY)
 }
 
