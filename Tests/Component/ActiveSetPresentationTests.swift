@@ -15,12 +15,12 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     )
 }
 
-@Test func holdToSkipPolicyTreatsQuickReleaseAsLogTap() {
+@Test func holdToSkipPolicyDefersQuickReleaseToButtonTap() {
     let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18, revealDelay: 0.25)
 
     let outcome = policy.releaseOutcome(elapsed: 0.1, skipCompleted: false)
 
-    #expect(outcome == .log)
+    #expect(outcome == .deferToTap)
     #expect(!policy.shouldRevealProgress(elapsed: 0.1))
 
     let presentation = HoldToSkipButtonPresentation(progress: 0, logTitle: "Log 185×5@8")
@@ -28,6 +28,13 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     #expect(presentation.skipOpacity == 0)
     #expect(presentation.accessibilityLabel == "Log 185×5@8")
     #expect(presentation.tone == .primary)
+}
+
+@Test func holdToSkipPolicyDoesNotTreatCanceledHoldAsLogTap() {
+    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18, revealDelay: 0.25)
+
+    #expect(policy.releaseOutcome(elapsed: 0.19, skipCompleted: false) == .cancelSkip)
+    #expect(policy.releaseOutcome(elapsed: 0.4, skipCompleted: false) == .cancelSkip)
 }
 
 @Test func holdToSkipPolicyCancelsSkipOnEarlyHoldRelease() {
@@ -160,6 +167,18 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     #expect(presentation.detailText == "25x12, 12")
     #expect(presentation.referenceText == nil)
     #expect(!presentation.allowsEditing)
+}
+
+@Test func loggedSetReviewEditTargetsUseTheWholePill() {
+    let fields = LoggedSetReviewEditableField.allCases
+
+    #expect(fields.map(\.accessibilityIdentifier) == ["logged-weight-pill", "logged-reps-pill", "logged-rpe-pill"])
+
+    for field in fields {
+        #expect(field.editTarget(for: .label) == field)
+        #expect(field.editTarget(for: .value) == field)
+        #expect(field.editTarget(for: .padding) == field)
+    }
 }
 
 @Test func focusMorphPolicyAnimatesPendingFocusWhenMotionIsAllowed() {
