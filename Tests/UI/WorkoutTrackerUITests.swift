@@ -628,10 +628,13 @@ private func overPullSessionHeader(in app: XCUIApplication) {
 
 @MainActor
 private func pullSessionHeader(in app: XCUIApplication, endY: CGFloat) {
-    app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+    let headerButton = app.buttons["session-location-button"]
+    XCTAssertTrue(headerButton.waitForExistence(timeout: 3))
+    let start = headerButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+    start
         .press(
             forDuration: 0.1,
-            thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: endY))
+            thenDragTo: start.withOffset(CGVector(dx: 0, dy: app.frame.height * (endY - 0.25)))
         )
 }
 
@@ -776,6 +779,27 @@ private func assertMoveOnCelebrationCopyIsReadable(in app: XCUIApplication) {
 }
 
 final class WorkoutTrackerLongSessionUITests: XCTestCase {
+    @MainActor
+    func testLongSessionContentScrollsWithOrdinaryBodyDrag() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+
+        let firstCard = app.otherElements["active-set-card"]
+        XCTAssertTrue(firstCard.waitForExistence(timeout: 3))
+        let initialMinY = firstCard.frame.minY
+
+        let scrollView = app.scrollViews.firstMatch
+        XCTAssertTrue(scrollView.waitForExistence(timeout: 3))
+        scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
+            .press(
+                forDuration: 0.1,
+                thenDragTo: scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+            )
+
+        XCTAssertLessThan(firstCard.frame.minY, initialMinY - 40)
+    }
+
     @MainActor
     func testLongSessionCardsStayAliveAndProgrammaticSupersetScrollLands() throws {
         let app = launchFixtureApp()
