@@ -275,6 +275,10 @@ struct SessionControlsVisibility: Equatable, Sendable {
 
         return .hidden
     }
+
+    func dismissedByInertAllClearTap() -> Self {
+        .hidden
+    }
 }
 
 struct ExerciseSummaryRowPresentation: Equatable, Sendable {
