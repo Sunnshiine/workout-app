@@ -44,6 +44,10 @@
             ProcessInfo.processInfo.arguments.contains("-UITEST_MOVE_ON_CELEBRATION")
         }
 
+        static var startsWithPerfectMoveOnCelebration: Bool {
+            ProcessInfo.processInfo.arguments.contains("-UITEST_PERFECT_MOVE_ON_CELEBRATION")
+        }
+
         static var startsInBlockOverview: Bool {
             !startsInSession && !startsInDeveloperTools && !startsInSettings
         }
@@ -97,7 +101,9 @@
         @MainActor
         private static func seed(into context: ModelContext) {
             let block =
-                startsWithOpenExercises
+                startsWithPerfectMoveOnCelebration
+                ? WorkoutFixtureScenarios.perfectMoveOnCelebrationBlock()
+                : startsWithOpenExercises
                 ? WorkoutFixtureScenarios.openExercisesBlock()
                 : startsWithLongSession
                     ? WorkoutFixtureScenarios.longSessionBlock()
