@@ -1,3 +1,5 @@
+import Foundation
+
 struct MoveOnCelebrationStatPresentation: Equatable, Sendable {
     let value: String
     let label: String
@@ -9,6 +11,7 @@ enum MoveOnCelebrationHapticStyle: Equatable, Hashable, Sendable {
 }
 
 struct MoveOnCelebrationPresentation: Equatable, Sendable {
+    static let longQuoteFixture = "Strong work is still strong when you leave a few Sets for later."
     static let approvedQuotes = [
         "You're fucking amazing.",
         "God damn!",
@@ -16,35 +19,41 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
         "Shake it!"
     ]
 
-    let weekText: String
-    let titleText: String
-    let sublineText: String
+    let contextText: String
     let stats: [MoveOnCelebrationStatPresentation]
     let quoteText: String
     let accessibilityLabel: String
     let accessibilityValue: String
+    let accessibilityHint: String
     let hapticStyle: MoveOnCelebrationHapticStyle
 
     @MainActor
-    init(session: Session) {
+    init(session: Session, quoteText requestedQuoteText: String? = nil) {
         let weekNumber = session.week?.number ?? 0
         let sets = session.exercises.flatMap(\.sets)
         let totalSetCount = sets.count
         let exerciseCount = session.exercises.count
         let pendingSetCount = sets.filter { $0.state == .pending }.count
+        let selectedQuote = requestedQuoteText ?? Self.launchQuoteOverride ?? Self.approvedQuotes.randomElement() ?? ""
 
-        weekText = "Week \(weekNumber)"
-        titleText = "Day \(session.dayNumber) Done"
-        sublineText = pendingSetCount == 0 ? "Perfect session" : "Moved on with \(pendingSetCount) left"
+        contextText = "Week \(weekNumber) · Day \(session.dayNumber)"
         stats = [
             MoveOnCelebrationStatPresentation(value: "\(totalSetCount)", label: "Sets"),
             MoveOnCelebrationStatPresentation(value: "\(exerciseCount)", label: "Exercises"),
             MoveOnCelebrationStatPresentation(value: "\(pendingSetCount)", label: "Left")
         ]
-        quoteText = Self.approvedQuotes.randomElement() ?? ""
-        accessibilityLabel = "\(weekText), \(titleText)"
-        accessibilityValue = (stats.map { "\($0.value) \($0.label)" } + [sublineText])
+        quoteText = selectedQuote
+        accessibilityLabel = "Week \(weekNumber), Day \(session.dayNumber)"
+        accessibilityValue = ([selectedQuote] + stats.map { "\($0.value) \($0.label)" })
             .joined(separator: ", ")
+        accessibilityHint = "Tap anywhere to continue"
         hapticStyle = pendingSetCount == 0 ? .successWithImpact : .success
+    }
+
+    private static var launchQuoteOverride: String? {
+        guard ProcessInfo.processInfo.arguments.contains("-UITEST_LONG_CELEBRATION_QUOTE") else {
+            return nil
+        }
+        return longQuoteFixture
     }
 }
