@@ -316,26 +316,54 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     #expect(presentation.segments.map(\.state) == [.futurePending, .currentPending])
 }
 
-@Test func sessionControlsVisibilityRevealsOnlyAfterADeliberateOverPull() {
-    #expect(SessionControlsVisibility.hidden.updated(topContentOffset: 60) == .hidden)
-    #expect(SessionControlsVisibility.hidden.updated(topContentOffset: 80) == .visible)
+@Test func sessionSettingsOverpullDoesNotPreviewBelowHighThreshold() {
+    let state = SessionSettingsOverpullState.hidden.tracking(topContentOffset: 139)
+
+    #expect(state == .hidden)
 }
 
-@Test func sessionControlsVisibilityRemainsVisibleNearTop() {
-    let visibility = SessionControlsVisibility.visible.updated(topContentOffset: 0)
+@Test func sessionSettingsOverpullPreviewsAfterHighThreshold() {
+    let state = SessionSettingsOverpullState.hidden.tracking(topContentOffset: 170)
 
-    #expect(visibility == .visible)
+    #expect(state.phase == .preview)
+    #expect(abs(state.progress - 0.5) < 0.001)
 }
 
-@Test func sessionControlsVisibilityDismissesAfterScrollingIntoContent() {
-    let visibility = SessionControlsVisibility.visible.updated(topContentOffset: -28)
+@Test func sessionSettingsOverpullContractsWhenReleasedBeforeCommitThreshold() {
+    let preview = SessionSettingsOverpullState.hidden.tracking(topContentOffset: 210)
 
-    #expect(visibility == .hidden)
+    #expect(preview.released(topContentOffset: 190) == .hidden)
 }
 
-@Test func sessionControlsVisibilityDismissesOnInertAllClearTap() {
-    #expect(SessionControlsVisibility.visible.dismissedByInertAllClearTap() == .hidden)
-    #expect(SessionControlsVisibility.hidden.dismissedByInertAllClearTap() == .hidden)
+@Test func sessionSettingsOverpullPinsWhenReleasedBeyondCommitThreshold() {
+    let preview = SessionSettingsOverpullState.hidden.tracking(topContentOffset: 210)
+
+    #expect(preview.released(topContentOffset: 210) == .pinned)
+}
+
+@Test func pinnedSessionSettingsDismissesWhenScrollingIntoContent() {
+    let state = SessionSettingsOverpullState.pinned.tracking(topContentOffset: -20)
+
+    #expect(state == .hidden)
+}
+
+@Test func pinnedSessionSettingsDismissesAfterIdleDelay() {
+    #expect(SessionSettingsOverpullState.pinned.dismissedAfterIdle() == .hidden)
+}
+
+@Test func sessionSettingsOverpullCountsOnlyDistanceBeyondScrolledContent() {
+    let distance = SessionSettingsOverpullState.overpullDistance(
+        startTopContentOffset: -70,
+        translationHeight: 210
+    )
+
+    #expect(distance == 140)
+    #expect(SessionSettingsOverpullState.hidden.released(topContentOffset: distance) == .hidden)
+}
+
+@Test func sessionSettingsOverpullDismissesOnInertAllClearTap() {
+    #expect(SessionSettingsOverpullState.pinned.dismissedByInertAllClearTap() == .hidden)
+    #expect(SessionSettingsOverpullState.hidden.dismissedByInertAllClearTap() == .hidden)
 }
 
 @MainActor

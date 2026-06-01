@@ -9,8 +9,12 @@ struct SessionView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.themePalette) private var palette
     @State private var coordinator = SessionCoordinator(session: nil)
-    @State private var sessionControlsVisibility = SessionControlsVisibility.hidden
     @State private var sessionAllClearRevision = 0
+    @State private var sessionSettingsOverpullState = SessionSettingsOverpullState.hidden
+    @State private var sessionSettingsOverpullTopContentOffset: CGFloat = 0
+    @State private var isSessionSettingsOverpullGestureActive = false
+    @State private var sessionSettingsOverpullStartOffset: CGFloat = 0
+    @State private var sessionSettingsOverpullDismissalID = 0
     @State private var isSettingsPresented = false
 
     var body: some View {
@@ -23,11 +27,11 @@ struct SessionView: View {
                     if !workout.isViewingLiveEdge {
                         CurrentSessionOverrideControls(
                             onGoBack: {
-                                sessionControlsVisibility = .hidden
+                                sessionSettingsOverpullState = .hidden
                                 workout.showCurrent()
                             },
                             onMakeCurrent: {
-                                sessionControlsVisibility = .hidden
+                                sessionSettingsOverpullState = .hidden
                                 workout.makeDisplayedSessionCurrent()
                             }
                         )
@@ -80,11 +84,12 @@ struct SessionView: View {
                         .background(inertSessionTapArea)
                         .scrollBounceBehavior(.always)
                         .scrollEdgeEffectStyle(.soft, for: .top)
+                        .highPriorityGesture(sessionSettingsOverpullGesture)
                         .safeAreaInset(edge: .top, spacing: 0) {
                             sessionHeaderHUD(session: session)
                         }
                         .onScrollGeometryChange(for: CGFloat.self, of: topContentOffset) { _, offset in
-                            updateSessionControls(topContentOffset: offset)
+                            updateSessionSettingsOverpull(topContentOffset: offset)
                         }
                         .onChange(of: coordinator.scrollTargetID) { _, targetID in
                             scrollToSet(targetID, with: proxy)
@@ -111,7 +116,7 @@ struct SessionView: View {
                 }
                 .scrollBounceBehavior(.always)
                 .onScrollGeometryChange(for: CGFloat.self, of: topContentOffset) { _, offset in
-                    updateSessionControls(topContentOffset: offset)
+                    updateSessionSettingsOverpull(topContentOffset: offset)
                 }
             }
         }
@@ -126,7 +131,7 @@ struct SessionView: View {
                 .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.18), value: sessionControlsVisibility.isVisible)
+        .animation(sessionSettingsOverpullAnimation, value: sessionSettingsOverpullState)
         .animation(.easeInOut(duration: 0.18), value: workout.moveOnCelebrationSession?.persistentModelID)
         .navigationDestination(isPresented: blockOverviewRequestBinding) {
             if let block = workout.block {
@@ -142,6 +147,14 @@ struct SessionView: View {
                 await sync.sync(spreadsheetId: id)
                 workout.reload()
             }
+        }
+        .task(id: sessionSettingsOverpullDismissalID) {
+            guard sessionSettingsOverpullState.isPinned else { return }
+            try? await Task.sleep(
+                nanoseconds: UInt64(SessionSettingsOverpullState.idleDismissDelay * 1_000_000_000)
+            )
+            guard !Task.isCancelled, sessionSettingsOverpullState.isPinned else { return }
+            sessionSettingsOverpullState = sessionSettingsOverpullState.dismissedAfterIdle()
         }
     }
 
@@ -160,7 +173,7 @@ struct SessionView: View {
     }
 
     private func clearTransientSessionUI() {
-        sessionControlsVisibility = sessionControlsVisibility.dismissedByInertAllClearTap()
+        sessionSettingsOverpullState = sessionSettingsOverpullState.dismissedByInertAllClearTap()
         sessionAllClearRevision += 1
         coordinator.clearTransientUI()
     }
@@ -273,17 +286,87 @@ struct SessionView: View {
 }
 
 extension SessionView {
-    private func updateSessionControls(topContentOffset: CGFloat) {
+    private func updateSessionSettingsOverpull(topContentOffset: CGFloat) {
+        sessionSettingsOverpullTopContentOffset = topContentOffset
         guard canRevealSessionControls else {
-            if sessionControlsVisibility != .hidden {
-                sessionControlsVisibility = .hidden
+            if sessionSettingsOverpullState != .hidden {
+                sessionSettingsOverpullState = .hidden
             }
             return
         }
 
-        let updatedVisibility = sessionControlsVisibility.updated(topContentOffset: topContentOffset)
-        guard updatedVisibility != sessionControlsVisibility else { return }
-        sessionControlsVisibility = updatedVisibility
+        applySessionSettingsOverpullState(
+            sessionSettingsOverpullState.tracking(topContentOffset: topContentOffset)
+        )
+    }
+
+    private var sessionSettingsOverpullGesture: some Gesture {
+        DragGesture(minimumDistance: 12, coordinateSpace: .global)
+            .onChanged { value in
+                updateSessionSettingsOverpullGesture(translationHeight: value.translation.height)
+            }
+            .onEnded { value in
+                releaseSessionSettingsOverpullGesture(translationHeight: value.translation.height)
+            }
+    }
+
+    private func updateSessionSettingsOverpullGesture(translationHeight: CGFloat) {
+        guard canRevealSessionControls else {
+            if sessionSettingsOverpullState != .hidden {
+                sessionSettingsOverpullState = .hidden
+            }
+            return
+        }
+
+        if translationHeight < -16 {
+            applySessionSettingsOverpullState(.hidden)
+            return
+        }
+
+        guard !sessionSettingsOverpullState.isPinned else { return }
+
+        if !isSessionSettingsOverpullGestureActive {
+            guard translationHeight > 0, sessionSettingsOverpullTopContentOffset >= -80 else { return }
+            isSessionSettingsOverpullGestureActive = true
+            sessionSettingsOverpullStartOffset = sessionSettingsOverpullTopContentOffset
+        }
+
+        let pullDistance = SessionSettingsOverpullState.overpullDistance(
+            startTopContentOffset: sessionSettingsOverpullStartOffset,
+            translationHeight: translationHeight
+        )
+
+        applySessionSettingsOverpullState(
+            sessionSettingsOverpullState.tracking(topContentOffset: pullDistance)
+        )
+    }
+
+    private func releaseSessionSettingsOverpullGesture(translationHeight: CGFloat) {
+        defer {
+            isSessionSettingsOverpullGestureActive = false
+            sessionSettingsOverpullStartOffset = 0
+        }
+
+        guard canRevealSessionControls, isSessionSettingsOverpullGestureActive else { return }
+        guard !sessionSettingsOverpullState.isPinned else { return }
+
+        let releaseDistance = SessionSettingsOverpullState.overpullDistance(
+            startTopContentOffset: sessionSettingsOverpullStartOffset,
+            translationHeight: translationHeight
+        )
+
+        applySessionSettingsOverpullState(
+            sessionSettingsOverpullState.released(topContentOffset: releaseDistance)
+        )
+    }
+
+    private func applySessionSettingsOverpullState(_ state: SessionSettingsOverpullState) {
+        guard state != sessionSettingsOverpullState else { return }
+        let startsPinned = state.isPinned && !sessionSettingsOverpullState.isPinned
+        sessionSettingsOverpullState = state
+        if startsPinned {
+            sessionSettingsOverpullDismissalID += 1
+        }
     }
 
     /// The W1D1 · N-left · progress-rail header, floated as an inset Liquid Glass
@@ -296,10 +379,10 @@ extension SessionView {
             activeSetID: coordinator.activeSetID,
             block: workout.block,
             currentSession: workout.currentSession,
-            showsSessionControls: shouldShowSessionControls,
+            sessionSettingsOverpullState: sessionSettingsOverpullState,
             onNavigate: coordinator.cancelPairing,
             onSettings: {
-                sessionControlsVisibility = .hidden
+                sessionSettingsOverpullState = .hidden
                 isSettingsPresented = true
             }
         )
@@ -314,12 +397,12 @@ extension SessionView {
         -(geometry.contentOffset.y + geometry.contentInsets.top)
     }
 
-    private var shouldShowSessionControls: Bool {
-        sessionControlsVisibility.isVisible && canRevealSessionControls
+    private var canRevealSessionControls: Bool {
+        workout.displayedSession != nil && workout.isViewingLiveEdge && workout.moveOnCelebrationSession == nil
     }
 
-    private var canRevealSessionControls: Bool {
-        workout.isViewingLiveEdge && workout.moveOnCelebrationSession == nil
+    private var sessionSettingsOverpullAnimation: Animation {
+        reduceMotion ? .easeOut(duration: 0.12) : .smooth(duration: 0.22)
     }
 
     private var blockOverviewRequestBinding: Binding<Bool> {
