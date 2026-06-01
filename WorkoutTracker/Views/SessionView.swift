@@ -11,7 +11,6 @@ struct SessionView: View {
     @State private var coordinator = SessionCoordinator(session: nil)
     @State private var sessionControlsVisibility = SessionControlsVisibility.hidden
     @State private var isSettingsPresented = false
-    @State private var isSessionControlsSyncInFlight = false
 
     var body: some View {
         Group {
@@ -106,7 +105,7 @@ struct SessionView: View {
             } else {
                 ScrollView {
                     EmptyStateView {
-                        await syncConfiguredSheet()
+                        isSettingsPresented = true
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal)
@@ -284,7 +283,7 @@ extension SessionView {
 
     /// The W1D1 · N-left · progress-rail header, floated as an inset Liquid Glass
     /// HUD pinned to the top. Content scrolls beneath it; over-pulling past the
-    /// reveal threshold morphs it open to expose Settings + Sync on top.
+    /// reveal threshold morphs it open to expose Settings on top.
     @ViewBuilder
     private func sessionHeaderHUD(session: Session) -> some View {
         SessionProgressHeader(
@@ -293,13 +292,9 @@ extension SessionView {
             block: workout.block,
             currentSession: workout.currentSession,
             showsSessionControls: shouldShowSessionControls,
-            isSessionControlsSyncDisabled: isSessionControlsSyncDisabled,
             onNavigate: coordinator.cancelPairing,
             onSettings: {
                 isSettingsPresented = true
-            },
-            onSync: {
-                Task { await syncConfiguredSheet() }
             }
         )
         .padding(.horizontal, 14)
@@ -311,10 +306,6 @@ extension SessionView {
 
     private func topContentOffset(_ geometry: ScrollGeometry) -> CGFloat {
         -(geometry.contentOffset.y + geometry.contentInsets.top)
-    }
-
-    private var isSessionControlsSyncDisabled: Bool {
-        isSessionControlsSyncInFlight || sync.state == .syncing
     }
 
     private var shouldShowSessionControls: Bool {
@@ -333,15 +324,6 @@ extension SessionView {
                 workout.clearBlockOverviewRequest()
             }
         }
-    }
-
-    @MainActor
-    private func syncConfiguredSheet() async {
-        guard let id = settings.spreadsheetId, !isSessionControlsSyncDisabled else { return }
-        isSessionControlsSyncInFlight = true
-        defer { isSessionControlsSyncInFlight = false }
-        await sync.sync(spreadsheetId: id)
-        workout.reload()
     }
 
     private func focusMorphAction(for set: ExerciseSet) -> SessionFocusMorphAction {

@@ -114,14 +114,13 @@ final class WorkoutTrackerUITests: XCTestCase {
         let settingsButton = revealSessionControlsAndSettingsButton(in: app)
 
         let sessionControls = app.otherElements["session-controls"]
-        let syncButton = app.buttons["session-controls-sync-button"]
         let locationButton = app.buttons["session-location-button"]
         let progressRail = app.otherElements["session-progress-rail"]
         let activeSetCard = app.otherElements["active-set-card"]
 
         XCTAssertTrue(sessionControls.waitForExistence(timeout: 3))
         XCTAssertTrue(settingsButton.waitForExistence(timeout: 3))
-        XCTAssertTrue(syncButton.exists)
+        XCTAssertFalse(app.buttons["session-controls-sync-button"].exists)
         XCTAssertTrue(locationButton.exists)
         XCTAssertTrue(progressRail.exists)
         XCTAssertTrue(activeSetCard.exists)
@@ -132,21 +131,26 @@ final class WorkoutTrackerUITests: XCTestCase {
 
         settingsButton.tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["settings-training-sheet-row"].exists)
+        let trainingSheetRow = app.buttons["settings-training-sheet-row"]
+        let syncNowButton = app.buttons["settings-sync-now-button"]
+        let developerToolsRow = app.buttons["settings-developer-tools-row"]
+        XCTAssertTrue(trainingSheetRow.exists)
+        XCTAssertTrue(syncNowButton.exists)
+        XCTAssertTrue(developerToolsRow.exists)
         XCTAssertTrue(app.staticTexts["Fixture Training Log"].exists)
+        XCTAssertLessThan(trainingSheetRow.frame.maxY, syncNowButton.frame.minY)
+        XCTAssertLessThan(syncNowButton.frame.maxY, developerToolsRow.frame.minY)
 
-        app.buttons["settings-training-sheet-row"].tap()
+        trainingSheetRow.tap()
         XCTAssertTrue(app.staticTexts["Choose your training sheet"].waitForExistence(timeout: 3))
         app.buttons["sheet-picker-done-button"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
 
-        app.buttons["settings-done-button"].tap()
-
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 3))
-        let revealedSyncButton = app.buttons["session-controls-sync-button"]
-        XCTAssertTrue(revealedSyncButton.waitForExistence(timeout: 3))
-        revealedSyncButton.tap()
+        app.buttons["settings-sync-now-button"].tap()
         XCTAssertTrue(app.staticTexts["Offline"].waitForExistence(timeout: 3))
+
+        app.buttons["settings-done-button"].tap()
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 3))
 
         app.swipeUp()
         XCTAssertFalse(settingsButton.waitForExistence(timeout: 1))
@@ -190,12 +194,15 @@ final class WorkoutTrackerUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
 
         let trainingSheetRow = app.buttons["settings-training-sheet-row"]
+        let syncNowButton = app.buttons["settings-sync-now-button"]
         let developerToolsRow = app.buttons["settings-developer-tools-row"]
         let signOutButton = app.buttons["settings-sign-out-button"]
         XCTAssertTrue(trainingSheetRow.exists)
+        XCTAssertTrue(syncNowButton.exists)
         XCTAssertTrue(developerToolsRow.exists)
         XCTAssertTrue(signOutButton.exists)
-        XCTAssertLessThan(trainingSheetRow.frame.maxY, developerToolsRow.frame.minY)
+        XCTAssertLessThan(trainingSheetRow.frame.maxY, syncNowButton.frame.minY)
+        XCTAssertLessThan(syncNowButton.frame.maxY, developerToolsRow.frame.minY)
         XCTAssertLessThan(developerToolsRow.frame.maxY, signOutButton.frame.minY)
 
         developerToolsRow.tap()
@@ -460,6 +467,7 @@ final class WorkoutTrackerAppearanceUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.segmentedControls["settings-appearance-picker"].exists)
         XCTAssertTrue(app.buttons["settings-training-sheet-row"].exists)
+        XCTAssertTrue(app.buttons["settings-sync-now-button"].exists)
         XCTAssertTrue(app.buttons["settings-developer-tools-row"].exists)
         XCTAssertTrue(app.buttons["settings-sign-out-button"].exists)
         XCTAssertTrue(app.staticTexts["Fixture Training Log"].exists)
