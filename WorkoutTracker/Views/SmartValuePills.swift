@@ -15,6 +15,7 @@ struct SmartValuePills: View {
     @State private var form: SmartValuePillsForm
     @State private var editingPill: FocusedPill?
     @State private var showsLoggedCheckmark = false
+    @Environment(\.sessionAllClearRevision) private var sessionAllClearRevision
     @Environment(\.themePalette) private var palette
     @FocusState private var focusedPill: FocusedPill?
 
@@ -60,6 +61,9 @@ struct SmartValuePills: View {
         }
         .task(id: editingPill) {
             focusedPill = editingPill
+        }
+        .onChange(of: sessionAllClearRevision) { _, _ in
+            dismissFieldUI()
         }
         .background {
             Color.clear

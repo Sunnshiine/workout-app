@@ -333,6 +333,11 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     #expect(visibility == .hidden)
 }
 
+@Test func sessionControlsVisibilityDismissesOnInertAllClearTap() {
+    #expect(SessionControlsVisibility.visible.dismissedByInertAllClearTap() == .hidden)
+    #expect(SessionControlsVisibility.hidden.dismissedByInertAllClearTap() == .hidden)
+}
+
 @MainActor
 @Test func exerciseSummaryRowPresentationShowsBaseNameAndSetResults() {
     let exercise = Exercise(

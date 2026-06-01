@@ -10,6 +10,7 @@ struct SessionView: View {
     @Environment(\.themePalette) private var palette
     @State private var coordinator = SessionCoordinator(session: nil)
     @State private var sessionControlsVisibility = SessionControlsVisibility.hidden
+    @State private var sessionAllClearRevision = 0
     @State private var isSettingsPresented = false
 
     var body: some View {
@@ -64,22 +65,15 @@ struct SessionView: View {
                                     Color.clear
                                         .frame(height: 44)
                                         .contentShape(Rectangle())
-                                        .onTapGesture {
-                                            coordinator.cancelPairing()
-                                            coordinator.collapseLoggedSetReview()
-                                        }
+                                        .onTapGesture(perform: clearTransientSessionUI)
                                 }
-                                .background {
-                                    if coordinator.pairingMode != .inactive {
-                                        Color.clear
-                                            .contentShape(Rectangle())
-                                            .onTapGesture(perform: coordinator.cancelPairing)
-                                    }
-                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(inertSessionTapArea)
                             }
                             .padding(.horizontal)
                             .padding(.vertical)
                         }
+                        .background(inertSessionTapArea)
                         .scrollBounceBehavior(.always)
                         .scrollEdgeEffectStyle(.soft, for: .top)
                         .safeAreaInset(edge: .top, spacing: 0) {
@@ -118,6 +112,7 @@ struct SessionView: View {
             }
         }
         .accessibilityHidden(workout.moveOnCelebrationSession != nil)
+        .environment(\.sessionAllClearRevision, sessionAllClearRevision)
         .background(palette.gradient.ignoresSafeArea())
         .overlay {
             if let session = workout.moveOnCelebrationSession {
@@ -158,6 +153,12 @@ struct SessionView: View {
         coordinator.cancelPairing()
         guard let session = exercise.session, let week = session.week else { return }
         workout.show(week: week.number, day: session.dayNumber)
+    }
+
+    private func clearTransientSessionUI() {
+        sessionControlsVisibility = sessionControlsVisibility.dismissedByInertAllClearTap()
+        sessionAllClearRevision += 1
+        coordinator.clearTransientUI()
     }
 
     @ViewBuilder
@@ -294,6 +295,7 @@ extension SessionView {
             showsSessionControls: shouldShowSessionControls,
             onNavigate: coordinator.cancelPairing,
             onSettings: {
+                sessionControlsVisibility = .hidden
                 isSettingsPresented = true
             }
         )
@@ -350,6 +352,23 @@ extension SessionView {
 
     fileprivate func warningHaptic() {
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
+    }
+
+    private var inertSessionTapArea: some View {
+        Color.clear
+            .contentShape(Rectangle())
+            .onTapGesture(perform: clearTransientSessionUI)
+    }
+}
+
+private struct SessionAllClearRevisionKey: EnvironmentKey {
+    static let defaultValue = 0
+}
+
+extension EnvironmentValues {
+    var sessionAllClearRevision: Int {
+        get { self[SessionAllClearRevisionKey.self] }
+        set { self[SessionAllClearRevisionKey.self] = newValue }
     }
 }
 
