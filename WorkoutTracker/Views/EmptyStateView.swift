@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct EmptyStateView: View {
-    let onSync: () async -> Void
+    let onSettings: () -> Void
 
     var body: some View {
         VStack(spacing: 16) {
@@ -11,12 +11,12 @@ struct EmptyStateView: View {
             Text("No session yet")
                 .font(.title2)
                 .fontWeight(.semibold)
-            Text("Pull to refresh to sync your sheet.")
+            Text("Automatic sync keeps checking your Sheet. Use Settings for manual recovery.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-            Button("Sync") {
-                Task { await onSync() }
+            Button("Open Settings") {
+                onSettings()
             }
             .buttonStyle(.glass)
             .padding(.top, 4)

@@ -29,6 +29,7 @@ A supportive training partner, not a hype machine. Encouraging and warm: it ackn
 - **Hide the spreadsheet.** The Sheet's structure is an implementation detail. The athlete sees Sessions, Exercises, Sets, and Set Logs, never plumbing.
 - **Earned celebration.** Acknowledgement scales with the achievement. Finishing or moving on from a Session earns a moment; a single logged Set does not.
 - **Trust the round-trip.** The athlete must feel certain their Set Logs reach the coach correctly. Surface sync state and pending writes honestly; never imply a save that has not landed.
+- **Sync automatically, recover manually.** The app should keep the Sheet fresh without making the athlete manage sync during a Session. Manual sync is a recovery action for Settings, not a primary Session control.
 - **Respect the athlete's expertise.** Warmth is not coddling. Show real numbers, loads, RPE, and history plainly, and trust the athlete to read them.
 
 ## Accessibility & Inclusion
