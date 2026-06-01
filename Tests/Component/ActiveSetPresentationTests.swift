@@ -341,14 +341,8 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     #expect(preview.released(topContentOffset: 210) == .pinned)
 }
 
-@Test func sessionSettingsOverpullPinsWhenScrollBounceCrossesCommitThreshold() {
-    let state = SessionSettingsOverpullState.hidden.trackingScroll(topContentOffset: 210)
-
-    #expect(state == .pinned)
-}
-
 @Test func pinnedSessionSettingsDismissesWhenScrollingIntoContent() {
-    let state = SessionSettingsOverpullState.pinned.trackingScroll(topContentOffset: -20)
+    let state = SessionSettingsOverpullState.pinned.tracking(topContentOffset: -20)
 
     #expect(state == .hidden)
 }
@@ -365,11 +359,6 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 
     #expect(distance == 140)
     #expect(SessionSettingsOverpullState.hidden.released(topContentOffset: distance) == .hidden)
-}
-
-@Test func sessionSettingsOverpullDismissesOnInertAllClearTap() {
-    #expect(SessionSettingsOverpullState.pinned.dismissedByInertAllClearTap() == .hidden)
-    #expect(SessionSettingsOverpullState.hidden.dismissedByInertAllClearTap() == .hidden)
 }
 
 @MainActor

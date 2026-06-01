@@ -9,8 +9,10 @@ struct SessionView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.themePalette) private var palette
     @State private var coordinator = SessionCoordinator(session: nil)
-    @State private var sessionAllClearRevision = 0
     @State private var sessionSettingsOverpullState = SessionSettingsOverpullState.hidden
+    @State private var sessionSettingsOverpullTopContentOffset: CGFloat = 0
+    @State private var isSessionSettingsOverpullGestureActive = false
+    @State private var sessionSettingsOverpullStartOffset: CGFloat = 0
     @State private var sessionSettingsOverpullDismissalID = 0
     @State private var isSettingsPresented = false
 
@@ -38,48 +40,53 @@ struct SessionView: View {
 
                     ScrollViewReader { proxy in
                         ScrollView {
-                            ZStack(alignment: .topLeading) {
-                                GlassEffectContainer(spacing: Theme.cardSpacing) {
-                                    VStack(alignment: .leading, spacing: Theme.sectionSpacing) {
-                                        ForEach(
-                                            coordinator.renderItems(
-                                                in: session,
-                                                lastPerformedLookup: lastPerformedLookup.snapshot
-                                            ),
-                                            id: \.id
-                                        ) { item in
-                                            renderItem(item, in: session)
-                                        }
-
-                                        if workout.isViewingLiveEdge, !workout.openExercises.isEmpty {
-                                            OpenExercisesSection(
-                                                exercises: workout.openExercises,
-                                                onSelect: showSourceSession(for:)
-                                            )
-                                        }
-
-                                        if workout.isViewingLiveEdge, workout.canMoveOn {
-                                            MoveOnButton {
-                                                workout.requestMoveOnCelebration()
-                                            }
-                                        }
-
-                                        Color.clear
-                                            .frame(height: 44)
-                                            .contentShape(Rectangle())
-                                            .onTapGesture(perform: clearTransientSessionUI)
+                            GlassEffectContainer(spacing: Theme.cardSpacing) {
+                                VStack(alignment: .leading, spacing: Theme.sectionSpacing) {
+                                    ForEach(
+                                        coordinator.renderItems(
+                                            in: session,
+                                            lastPerformedLookup: lastPerformedLookup.snapshot
+                                        ),
+                                        id: \.id
+                                    ) { item in
+                                        renderItem(item, in: session)
                                     }
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(inertSessionTapArea)
+
+                                    if workout.isViewingLiveEdge, !workout.openExercises.isEmpty {
+                                        OpenExercisesSection(
+                                            exercises: workout.openExercises,
+                                            onSelect: showSourceSession(for:)
+                                        )
+                                    }
+
+                                    if workout.isViewingLiveEdge, workout.canMoveOn {
+                                        MoveOnButton {
+                                            workout.requestMoveOnCelebration()
+                                        }
+                                    }
+
+                                    Color.clear
+                                        .frame(height: 44)
+                                        .contentShape(Rectangle())
+                                        .onTapGesture {
+                                            coordinator.cancelPairing()
+                                            coordinator.collapseLoggedSetReview()
+                                        }
                                 }
-                                .padding(.horizontal)
+                                .background {
+                                    if coordinator.pairingMode != .inactive {
+                                        Color.clear
+                                            .contentShape(Rectangle())
+                                            .onTapGesture(perform: coordinator.cancelPairing)
+                                    }
+                                }
                             }
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .background(inertSessionTapArea)
+                            .padding(.horizontal)
                             .padding(.vertical)
                         }
                         .scrollBounceBehavior(.always)
                         .scrollEdgeEffectStyle(.soft, for: .top)
+                        .highPriorityGesture(sessionSettingsOverpullGesture)
                         .safeAreaInset(edge: .top, spacing: 0) {
                             sessionHeaderHUD(session: session)
                         }
@@ -116,7 +123,6 @@ struct SessionView: View {
             }
         }
         .accessibilityHidden(workout.moveOnCelebrationSession != nil)
-        .environment(\.sessionAllClearRevision, sessionAllClearRevision)
         .background(palette.gradient.ignoresSafeArea())
         .overlay {
             if let session = workout.moveOnCelebrationSession {
@@ -165,12 +171,6 @@ struct SessionView: View {
         coordinator.cancelPairing()
         guard let session = exercise.session, let week = session.week else { return }
         workout.show(week: week.number, day: session.dayNumber)
-    }
-
-    private func clearTransientSessionUI() {
-        sessionSettingsOverpullState = sessionSettingsOverpullState.dismissedByInertAllClearTap()
-        sessionAllClearRevision += 1
-        coordinator.clearTransientUI()
     }
 
     @ViewBuilder
@@ -282,6 +282,7 @@ struct SessionView: View {
 
 extension SessionView {
     private func updateSessionSettingsOverpull(topContentOffset: CGFloat) {
+        sessionSettingsOverpullTopContentOffset = topContentOffset
         guard canRevealSessionControls else {
             if sessionSettingsOverpullState != .hidden {
                 sessionSettingsOverpullState = .hidden
@@ -290,21 +291,21 @@ extension SessionView {
         }
 
         applySessionSettingsOverpullState(
-            sessionSettingsOverpullState.trackingScroll(topContentOffset: topContentOffset)
+            sessionSettingsOverpullState.tracking(topContentOffset: topContentOffset)
         )
     }
 
-    private var sessionSettingsHeaderPullGesture: some Gesture {
+    private var sessionSettingsOverpullGesture: some Gesture {
         DragGesture(minimumDistance: 12, coordinateSpace: .global)
             .onChanged { value in
-                updateSessionSettingsHeaderPull(translationHeight: value.translation.height)
+                updateSessionSettingsOverpullGesture(translationHeight: value.translation.height)
             }
             .onEnded { value in
-                releaseSessionSettingsHeaderPull(translationHeight: value.translation.height)
+                releaseSessionSettingsOverpullGesture(translationHeight: value.translation.height)
             }
     }
 
-    private func updateSessionSettingsHeaderPull(translationHeight: CGFloat) {
+    private func updateSessionSettingsOverpullGesture(translationHeight: CGFloat) {
         guard canRevealSessionControls else {
             if sessionSettingsOverpullState != .hidden {
                 sessionSettingsOverpullState = .hidden
@@ -312,21 +313,45 @@ extension SessionView {
             return
         }
 
-        guard translationHeight >= 0 else {
+        if translationHeight < -16 {
             applySessionSettingsOverpullState(.hidden)
             return
         }
 
+        guard !sessionSettingsOverpullState.isPinned else { return }
+
+        if !isSessionSettingsOverpullGestureActive {
+            guard translationHeight > 0, sessionSettingsOverpullTopContentOffset >= -80 else { return }
+            isSessionSettingsOverpullGestureActive = true
+            sessionSettingsOverpullStartOffset = sessionSettingsOverpullTopContentOffset
+        }
+
+        let pullDistance = SessionSettingsOverpullState.overpullDistance(
+            startTopContentOffset: sessionSettingsOverpullStartOffset,
+            translationHeight: translationHeight
+        )
+
         applySessionSettingsOverpullState(
-            sessionSettingsOverpullState.tracking(topContentOffset: translationHeight)
+            sessionSettingsOverpullState.tracking(topContentOffset: pullDistance)
         )
     }
 
-    private func releaseSessionSettingsHeaderPull(translationHeight: CGFloat) {
-        guard canRevealSessionControls else { return }
+    private func releaseSessionSettingsOverpullGesture(translationHeight: CGFloat) {
+        defer {
+            isSessionSettingsOverpullGestureActive = false
+            sessionSettingsOverpullStartOffset = 0
+        }
+
+        guard canRevealSessionControls, isSessionSettingsOverpullGestureActive else { return }
+        guard !sessionSettingsOverpullState.isPinned else { return }
+
+        let releaseDistance = SessionSettingsOverpullState.overpullDistance(
+            startTopContentOffset: sessionSettingsOverpullStartOffset,
+            translationHeight: translationHeight
+        )
 
         applySessionSettingsOverpullState(
-            sessionSettingsOverpullState.released(topContentOffset: translationHeight)
+            sessionSettingsOverpullState.released(topContentOffset: releaseDistance)
         )
     }
 
@@ -361,7 +386,6 @@ extension SessionView {
         .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
         .padding(.horizontal)
         .padding(.top, 8)
-        .highPriorityGesture(sessionSettingsHeaderPullGesture)
     }
 
     private func topContentOffset(_ geometry: ScrollGeometry) -> CGFloat {
@@ -410,23 +434,6 @@ extension SessionView {
 
     fileprivate func warningHaptic() {
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
-    }
-
-    private var inertSessionTapArea: some View {
-        Color.clear
-            .contentShape(Rectangle())
-            .onTapGesture(perform: clearTransientSessionUI)
-    }
-}
-
-private struct SessionAllClearRevisionKey: EnvironmentKey {
-    static let defaultValue = 0
-}
-
-extension EnvironmentValues {
-    var sessionAllClearRevision: Int {
-        get { self[SessionAllClearRevisionKey.self] }
-        set { self[SessionAllClearRevisionKey.self] = newValue }
     }
 }
 

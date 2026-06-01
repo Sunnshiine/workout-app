@@ -484,23 +484,6 @@ private func makeActionFixture() throws -> CoordinatorActionFixture {
 }
 
 @MainActor
-@Test func coordinatorAllClearDismissesPairingAndLoggedSetReviewWithoutChangingActiveSet() throws {
-    let session = makeCoordinatorSession()
-    let coordinator = SessionCoordinator(session: session)
-    let squatSet = try #require(session.exercises.first { $0.order == 0 }?.sets.first)
-    let bench = try #require(session.exercises.first { $0.order == 1 })
-
-    #expect(coordinator.beginPairing(from: bench, in: session))
-    coordinator.focus(on: squatSet)
-
-    coordinator.clearTransientUI()
-
-    #expect(coordinator.pairingMode == .inactive)
-    #expect(coordinator.expandedLoggedSetID == nil)
-    #expect(coordinator.visualFocusOwner == .activeSet(ActiveSetID(exerciseOrder: 1, setIndex: 0)))
-}
-
-@MainActor
 @Test func coordinatorFocusesPairedExerciseNextPendingSetAndScrollTarget() throws {
     let session = makePlannedPairingSession()
     let coordinator = SessionCoordinator(session: session)

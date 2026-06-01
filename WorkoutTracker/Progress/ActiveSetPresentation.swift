@@ -301,22 +301,6 @@ struct SessionSettingsOverpullState: Equatable, Sendable {
         )
     }
 
-    func trackingScroll(topContentOffset: CGFloat) -> Self {
-        if topContentOffset <= Self.contentDismissOffset {
-            return .hidden
-        }
-
-        if isPinned {
-            return self
-        }
-
-        if topContentOffset >= Self.commitThreshold {
-            return .pinned
-        }
-
-        return tracking(topContentOffset: topContentOffset)
-    }
-
     func released(topContentOffset: CGFloat) -> Self {
         topContentOffset >= Self.commitThreshold ? .pinned : .hidden
     }
@@ -334,10 +318,6 @@ struct SessionSettingsOverpullState: Equatable, Sendable {
         guard range > 0 else { return 1 }
         let rawProgress = (topContentOffset - previewThreshold) / range
         return min(max(rawProgress, 0), 1)
-    }
-
-    func dismissedByInertAllClearTap() -> Self {
-        .hidden
     }
 }
 
