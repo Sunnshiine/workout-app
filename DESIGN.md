@@ -223,7 +223,7 @@ Workout App uses tonal layering, strokes, and selective Liquid Glass instead of 
 - **Shape:** Gently squared native controls for logging (8px radius), capsules for icon-only Session Controls.
 - **Primary:** Full-width Log button with dark text on mint in Dark mode and cream text on green in Sage Light. Use bold headline type and 14px vertical padding. The label previews the exact Set Log the athlete is about to write.
 - **Hover / Focus:** Native iOS state feedback. During hold-to-skip, the button fills with Skip Danger and reveals a Skip affordance after the configured delay.
-- **Secondary / Ghost / Tertiary:** Use `.buttonStyle(.glass)` for Settings, Sync, Move On, contextual menus, and compact icon actions. Use `.buttonStyle(.plain)` only when the surface itself already carries the affordance.
+- **Secondary / Ghost / Tertiary:** Use `.buttonStyle(.glass)` for Settings, Move On, contextual menus, and compact icon actions. Use `.buttonStyle(.plain)` only when the surface itself already carries the affordance. Manual sync is a Settings row/action labeled **Sync now**, not a Session HUD icon.
 
 ### Chips
 - **Style:** Value pills use an 8px radius, semibold muted labels, bold values, and a quiet fill with a 1px stroke. In Dark mode, the fill is near-black green. In Sage Light, the fill is sage-cream.
@@ -239,12 +239,13 @@ Workout App uses tonal layering, strokes, and selective Liquid Glass instead of 
 ### Inputs / Fields
 - **Style:** Weight and Reps edit in-place inside the value pill, preserving the same pill frame.
 - **Focus:** Tapping a pill focuses only that field. Tapping outside dismisses field UI, not the active card.
+**Inert-Space All-Clear Rule.** Tapping inert Session background or gaps clears transient UI without swallowing real controls. It dismisses Weight/Reps keyboard editing wherever keyboard-driven Set Log editing appears and may dismiss transient Session utility state. RPE remains chip/grid-driven, and taps on Log, Set rows, Weight/Reps pills, RPE chips, Go back, Make Current, or Settings perform their normal actions.
 - **Error / Disabled:** Invalid fields use a 2px red stroke. Disabled states reduce opacity rather than changing hue families.
 
 ### Navigation
 - **Style:** Standard `NavigationStack` and platform chrome. The Session header is lightweight chrome, not a floating card.
 - **Active State:** Remaining Set count and current progress use the primary action color for the active appearance. The progress rail is compact, dark or sage-muted, and segmented.
-- **Mobile Treatment:** This is an iPhone-first layout. Header controls reveal in reserved top space and must not obscure Session content.
+- **Mobile Treatment:** This is an iPhone-first layout. The Current Session HUD may reveal a Settings-only utility pill through an intentional high-effort overpull. Do not show a visible cue for this expert gesture. Do not expose this reveal on non-current Session views, where Go back and Make Current own the top override area.
 
 ### Active Set Card
 
@@ -257,6 +258,8 @@ Session tiles are compact Block-grid controls. Complete, incomplete, current, an
 ### Settings Row
 
 Settings rows use SF Symbols, semibold row labels, secondary detail text, and a chevron for navigable rows. Appearance belongs here as an app-level preference, not in the Session flow.
+
+**Settings Own Manual Sync Rule.** Manual sync appears in Settings as **Sync now**, grouped near the Training Sheet connection. Do not expose manual sync as a Session HUD action, progress control, or pull-to-refresh affordance. The Session screen may show sync state honestly, but it should not teach the athlete to manage sync as part of normal Set logging.
 
 ### Last Performed
 
@@ -273,6 +276,7 @@ Move On Celebration is the only large celebratory moment. It can use heavy type,
 - **Do** separate Exercises in a Session with a Title-scale section heading and spacing rhythm, not a wrapping group card — the inner Active Set and Set rows are the only cards.
 - **Do** make the next logging action obvious and reachable with one hand.
 - **Do** show sync and pending-write state honestly. Never imply a Set Log has landed if it has not.
+- **Do** use motion to explain the Settings overpull state: the Current Session HUD can subtly stretch and materialize the icon-only Settings pill after the high preview threshold, then contract if the gesture is released before commit. Reduced motion should use a simpler fade/contract treatment.
 - **Do** use mint and saturated green only for current, active, selected, and completed progress states that are real.
 - **Do** keep Dark mode as the original deep green and black cockpit.
 - **Do** keep Sage Light soft, sage-led, and less bright than pure white.

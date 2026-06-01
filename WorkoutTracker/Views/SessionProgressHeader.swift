@@ -6,10 +6,8 @@ struct SessionProgressHeader: View {
     let block: Block?
     let currentSession: Session?
     let showsSessionControls: Bool
-    let isSessionControlsSyncDisabled: Bool
     let onNavigate: () -> Void
     let onSettings: () -> Void
-    let onSync: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.themePalette) private var palette
     @Namespace private var focusMarkerNamespace
@@ -20,20 +18,16 @@ struct SessionProgressHeader: View {
         block: Block? = nil,
         currentSession: Session? = nil,
         showsSessionControls: Bool = false,
-        isSessionControlsSyncDisabled: Bool = false,
         onNavigate: @escaping () -> Void = {},
-        onSettings: @escaping () -> Void = {},
-        onSync: @escaping () -> Void = {}
+        onSettings: @escaping () -> Void = {}
     ) {
         self.session = session
         self.activeSetID = activeSetID
         self.block = block
         self.currentSession = currentSession
         self.showsSessionControls = showsSessionControls
-        self.isSessionControlsSyncDisabled = isSessionControlsSyncDisabled
         self.onNavigate = onNavigate
         self.onSettings = onSettings
-        self.onSync = onSync
     }
 
     private var presentation: SessionProgressHeaderPresentation {
@@ -47,9 +41,7 @@ struct SessionProgressHeader: View {
                     Spacer(minLength: 0)
 
                     SessionControls(
-                        isSyncDisabled: isSessionControlsSyncDisabled,
-                        onSettings: onSettings,
-                        onSync: onSync
+                        onSettings: onSettings
                     )
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .topTrailing)))
@@ -108,9 +100,7 @@ struct SessionProgressHeader: View {
 }
 
 private struct SessionControls: View {
-    let isSyncDisabled: Bool
     let onSettings: () -> Void
-    let onSync: () -> Void
 
     var body: some View {
         HStack(spacing: 8) {
@@ -121,17 +111,8 @@ private struct SessionControls: View {
             }
             .buttonStyle(.glass)
             .accessibilityIdentifier("session-controls-settings-button")
-
-            Button(action: onSync) {
-                Label("Sync", systemImage: "arrow.triangle.2.circlepath")
-                    .labelStyle(.iconOnly)
-                    .frame(width: 44, height: 44)
-            }
-            .buttonStyle(.glass)
-            .disabled(isSyncDisabled)
-            .accessibilityIdentifier("session-controls-sync-button")
         }
-        // The glass buttons sit directly on the glass HUD — no wrapping capsule, to
+        // The glass button sits directly on the glass HUD — no wrapping capsule, to
         // avoid stacking glass on glass.
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Session Controls")

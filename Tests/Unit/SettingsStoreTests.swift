@@ -132,6 +132,85 @@ import Testing
 }
 
 @MainActor
+@Test func settingsManualSyncUsesConfiguredSheetAndReloadsWorkoutState() async throws {
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let settings = SettingsStore(defaults: defaults)
+    settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
+    let sync = StubConfiguredSheetSync()
+    var reloadCount = 0
+    let store = SettingsManualSyncStore(settings: settings, sync: sync) {
+        reloadCount += 1
+    }
+
+    let didSync = await store.syncNow()
+
+    #expect(didSync == true)
+    #expect(sync.syncedSpreadsheetIds == ["current-sheet"])
+    #expect(reloadCount == 1)
+    #expect(store.isSyncInFlight == false)
+}
+
+@MainActor
+@Test func settingsManualSyncRejectsRepeatTapWhileSyncIsRunning() async throws {
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let settings = SettingsStore(defaults: defaults)
+    settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
+    let sync = SuspendedConfiguredSheetSync()
+    var reloadCount = 0
+    let store = SettingsManualSyncStore(settings: settings, sync: sync) {
+        reloadCount += 1
+    }
+
+    let firstSync = Task { await store.syncNow() }
+    await sync.waitForSyncStart()
+
+    #expect(store.isSyncInFlight == true)
+
+    let repeatTapResult = await store.syncNow()
+    sync.completeSync()
+    let firstSyncResult = await firstSync.value
+
+    #expect(firstSyncResult == true)
+    #expect(repeatTapResult == false)
+    #expect(sync.syncedSpreadsheetIds == ["current-sheet"])
+    #expect(reloadCount == 1)
+    #expect(store.isSyncInFlight == false)
+}
+
+@MainActor
+@Test func sheetSwitchIsRejectedWhileSettingsManualSyncIsRunning() async throws {
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let settings = SettingsStore(defaults: defaults)
+    settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
+    let syncActivity = SettingsSyncActivity()
+    let manualSync = SuspendedConfiguredSheetSync()
+    let manualStore = SettingsManualSyncStore(
+        settings: settings,
+        sync: manualSync,
+        syncActivity: syncActivity
+    )
+    let switchSync = StubSheetSwitchSync()
+    let switchStore = SettingsSheetSwitchStore(
+        settings: settings,
+        sync: switchSync,
+        syncActivity: syncActivity
+    )
+    let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
+
+    let manualTask = Task { await manualStore.syncNow() }
+    await manualSync.waitForSyncStart()
+
+    let switchResult = await switchStore.requestSwitch(to: newSheet)
+    manualSync.completeSync()
+    _ = await manualTask.value
+
+    #expect(switchResult == .failed)
+    #expect(settings.spreadsheetId == "old-sheet")
+    #expect(switchSync.syncedSpreadsheetIds.isEmpty)
+    #expect(switchStore.errorMessage != nil)
+}
+
+@MainActor
 @Test func sheetSwitchWithoutPendingWritesCommitsAndSyncsNewSheet() async throws {
     let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
     let settings = SettingsStore(defaults: defaults)
@@ -362,6 +441,46 @@ private final class StubSheetSwitchSync: SheetSwitchSyncing {
 
 private enum StubSheetSwitchError: Error {
     case discardFailed
+}
+
+@MainActor
+private final class StubConfiguredSheetSync: ConfiguredSheetSyncing {
+    private let syncSucceeds: Bool
+    private(set) var syncedSpreadsheetIds: [String] = []
+
+    init(syncSucceeds: Bool = true) {
+        self.syncSucceeds = syncSucceeds
+    }
+
+    func sync(spreadsheetId: String) async -> Bool {
+        syncedSpreadsheetIds.append(spreadsheetId)
+        return syncSucceeds
+    }
+}
+
+@MainActor
+private final class SuspendedConfiguredSheetSync: ConfiguredSheetSyncing {
+    private var syncContinuation: CheckedContinuation<Void, Never>?
+    private(set) var syncedSpreadsheetIds: [String] = []
+
+    func sync(spreadsheetId: String) async -> Bool {
+        syncedSpreadsheetIds.append(spreadsheetId)
+        await withCheckedContinuation { continuation in
+            syncContinuation = continuation
+        }
+        return true
+    }
+
+    func waitForSyncStart() async {
+        while syncContinuation == nil {
+            await Task.yield()
+        }
+    }
+
+    func completeSync() {
+        syncContinuation?.resume()
+        syncContinuation = nil
+    }
 }
 
 @MainActor
