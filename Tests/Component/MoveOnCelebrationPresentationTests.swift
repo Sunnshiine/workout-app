@@ -88,6 +88,46 @@ import Testing
 }
 
 @MainActor
+@Test func moveOnCelebrationPresentationSelectsAnimatedBloomForPerfectSession() {
+    let session = makeMoveOnSession(
+        exercises: [
+            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .skipped])
+        ]
+    )
+
+    let presentation = MoveOnCelebrationPresentation(session: session)
+
+    #expect(presentation.visualTreatment(reduceMotion: false) == .animatedPerfectBloom)
+}
+
+@MainActor
+@Test func moveOnCelebrationPresentationKeepsStaticLensForReducedMotionPerfectSession() {
+    let session = makeMoveOnSession(
+        exercises: [
+            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .skipped])
+        ]
+    )
+
+    let presentation = MoveOnCelebrationPresentation(session: session)
+
+    #expect(presentation.visualTreatment(reduceMotion: true) == .reducedMotionPerfectLens)
+}
+
+@MainActor
+@Test func moveOnCelebrationPresentationKeepsStandardLensForIncompleteSession() {
+    let session = makeMoveOnSession(
+        exercises: [
+            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .pending])
+        ]
+    )
+
+    let presentation = MoveOnCelebrationPresentation(session: session)
+
+    #expect(presentation.visualTreatment(reduceMotion: false) == .standardLens)
+    #expect(presentation.visualTreatment(reduceMotion: true) == .standardLens)
+}
+
+@MainActor
 @Test func moveOnCelebrationPresentationProvidesAccessibilityTextForClosedSessionAndStats() {
     let session = makeMoveOnSession(
         weekNumber: 2,

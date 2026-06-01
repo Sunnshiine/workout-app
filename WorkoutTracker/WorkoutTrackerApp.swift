@@ -69,7 +69,7 @@ struct WorkoutTrackerApp: App {
     #if DEBUG
         private static func applyUITestNavigationFixtures(to workout: WorkoutStore) {
             applyCurrentSessionOverrideFixture(to: workout)
-            if UITestFixture.startsWithMoveOnCelebration {
+            if UITestFixture.startsWithMoveOnCelebration || UITestFixture.startsWithPerfectMoveOnCelebration {
                 workout.requestMoveOnCelebration()
             }
             if UITestFixture.startsInBlockOverview {
