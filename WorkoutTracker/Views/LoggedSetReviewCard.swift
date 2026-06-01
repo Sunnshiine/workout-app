@@ -118,6 +118,7 @@ struct LoggedSetReviewCard: View {
             dismissFieldUI()
         }
         .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("logged-set-review-card")
     }
 
     private var editableFields: some View {
@@ -148,6 +149,7 @@ struct LoggedSetReviewCard: View {
                 }
                 .buttonStyle(.plain)
                 .contentShape(.rect)
+                .accessibilityIdentifier(LoggedSetReviewEditableField.rpe.accessibilityIdentifier)
             }
 
             if showsRPEGrid {
