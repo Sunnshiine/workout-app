@@ -40,6 +40,10 @@
             ProcessInfo.processInfo.arguments.contains("-UITEST_SESSION")
         }
 
+        static var startsWithMoveOnCelebration: Bool {
+            ProcessInfo.processInfo.arguments.contains("-UITEST_MOVE_ON_CELEBRATION")
+        }
+
         static var startsInBlockOverview: Bool {
             !startsInSession && !startsInDeveloperTools && !startsInSettings
         }

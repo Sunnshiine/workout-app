@@ -15,9 +15,7 @@ import Testing
 
     let presentation = MoveOnCelebrationPresentation(session: session)
 
-    #expect(presentation.weekText == "Week 2")
-    #expect(presentation.titleText == "Day 3 Done")
-    #expect(presentation.sublineText == "Moved on with 2 left")
+    #expect(presentation.contextText == "Week 2 · Day 3")
 }
 
 @MainActor
@@ -58,9 +56,22 @@ import Testing
 
     let presentation = MoveOnCelebrationPresentation(session: session)
 
-    #expect(presentation.sublineText == "Perfect session")
     #expect(presentation.stats.map(\.label) == ["Sets", "Exercises", "Left"])
     #expect(presentation.stats.map(\.value) == ["3", "1", "0"])
+}
+
+@MainActor
+@Test func moveOnCelebrationPresentationCarriesPendingSetCountInLeftStat() {
+    let session = makeMoveOnSession(
+        exercises: [
+            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.pending, .skipped, .pending]),
+            makeMoveOnExercise(name: "Bench Press", order: 1, states: [.logged, .pending])
+        ]
+    )
+
+    let presentation = MoveOnCelebrationPresentation(session: session)
+
+    #expect(presentation.stats.first { $0.label == "Left" }?.value == "3")
 }
 
 @MainActor
@@ -87,10 +98,11 @@ import Testing
         ]
     )
 
-    let presentation = MoveOnCelebrationPresentation(session: session)
+    let presentation = MoveOnCelebrationPresentation(session: session, quoteText: "Steady work travels.")
 
-    #expect(presentation.accessibilityLabel == "Week 2, Day 3 Done")
-    #expect(presentation.accessibilityValue == "5 Sets, 2 Exercises, 2 Left, Moved on with 2 left")
+    #expect(presentation.accessibilityLabel == "Week 2, Day 3")
+    #expect(presentation.accessibilityValue == "Steady work travels., 5 Sets, 2 Exercises, 2 Left")
+    #expect(presentation.accessibilityHint == "Tap anywhere to continue")
 }
 
 @MainActor

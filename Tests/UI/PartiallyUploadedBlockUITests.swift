@@ -34,8 +34,8 @@ final class PartiallyUploadedBlockUITests: XCTestCase {
 
         let celebration = moveOnCelebration(in: app)
         XCTAssertTrue(celebration.waitForExistence(timeout: 3))
-        XCTAssertEqual(celebration.label, "Week 4, Day 1 Done")
-        XCTAssertEqual(celebration.value as? String, "1 Sets, 1 Exercises, 1 Left, Moved on with 1 left")
+        XCTAssertEqual(celebration.label, "Week 4, Day 1")
+        waitForValueContaining("1 Sets, 1 Exercises, 1 Left", on: celebration)
 
         celebration.tap()
 
@@ -65,6 +65,19 @@ final class PartiallyUploadedBlockUITests: XCTestCase {
             RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         }
         XCTFail("Expected \(element) to have value '\(value)', got '\(String(describing: element.value))'")
+    }
+
+    @MainActor
+    private func waitForValueContaining(_ value: String, on element: XCUIElement) {
+        XCTAssertTrue(element.waitForExistence(timeout: 3))
+        let deadline = Date().addingTimeInterval(3)
+        while Date() < deadline {
+            if let elementValue = element.value as? String, elementValue.contains(value) {
+                return
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        XCTFail("Expected \(element) to have value containing '\(value)', got '\(String(describing: element.value))'")
     }
 
     @MainActor

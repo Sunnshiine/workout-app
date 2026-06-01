@@ -4,13 +4,13 @@ import UIKit
 struct MoveOnCelebrationView: View {
     let onDismiss: () -> Void
 
-    @Environment(\.themePalette) private var palette
     @State private var presentation: MoveOnCelebrationPresentation
-    @State private var ripplesExpanded = false
 
     private static let perfectImpactDelay: Duration = .milliseconds(120)
-    private static let stampSize: CGFloat = 112
-    private static let rippleDiameter: CGFloat = 188
+    private static let lensWidth: CGFloat = 210
+    private static let lensHeight: CGFloat = 74
+    private static let lensCornerRadius: CGFloat = 28
+    private static let ink = Color(red: 0.08, green: 0.22, blue: 0.14)
 
     init(session: Session, onDismiss: @escaping () -> Void) {
         _presentation = State(initialValue: MoveOnCelebrationPresentation(session: session))
@@ -25,21 +25,21 @@ struct MoveOnCelebrationView: View {
             GeometryReader { proxy in
                 ScrollView {
                     VStack(spacing: 0) {
-                        Spacer(minLength: 26)
+                        Spacer(minLength: 24)
 
-                        VStack(spacing: 20) {
-                            stamp
-                            copyStack
+                        VStack(spacing: 22) {
+                            contextText
+                            logoLens
+                            quoteText
                             statsRow
                         }
                         .frame(maxWidth: .infinity)
 
-                        Spacer(minLength: 20)
+                        Spacer(minLength: 24)
 
                         Text("Tap anywhere to continue")
                             .font(.footnote.weight(.medium))
-                            .foregroundStyle(.secondary)
-                            .opacity(0.72)
+                            .foregroundStyle(supportingTextColor)
                             .multilineTextAlignment(.center)
                             .accessibilityIdentifier("move-on-celebration-hint")
                     }
@@ -51,19 +51,29 @@ struct MoveOnCelebrationView: View {
                 .scrollIndicators(.hidden)
                 .accessibilityLabel(presentation.accessibilityLabel)
                 .accessibilityValue(presentation.accessibilityValue)
-                .accessibilityHint("Advances to the next session")
+                .accessibilityHint(presentation.accessibilityHint)
                 .accessibilityAddTraits(.isButton)
                 .accessibilityIdentifier("move-on-celebration")
                 .contentShape(Rectangle())
                 .onTapGesture(perform: onDismiss)
             }
         }
-        .onAppear {
-            ripplesExpanded = true
-        }
+        .preferredColorScheme(palette.preferredColorScheme)
         .task(id: presentation.hapticStyle) {
             await playHaptics(for: presentation.hapticStyle)
         }
+    }
+
+    private var palette: Theme.Palette {
+        Theme.palette(for: .sageLight)
+    }
+
+    private var primaryTextColor: Color {
+        Self.ink
+    }
+
+    private var supportingTextColor: Color {
+        Self.ink.opacity(0.68)
     }
 
     @MainActor
@@ -78,41 +88,51 @@ struct MoveOnCelebrationView: View {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 
-    private var copyStack: some View {
-        VStack(spacing: 10) {
-            Text(presentation.quoteText)
-                .font(.title2.weight(.heavy))
-                .foregroundStyle(palette.accent)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-                .minimumScaleFactor(0.72)
-                .accessibilityIdentifier("move-on-celebration-quote")
+    private var contextText: some View {
+        Text(presentation.contextText)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(supportingTextColor)
+            .accessibilityIdentifier("move-on-celebration-context")
+    }
 
-            Text(presentation.weekText)
-                .font(.headline.weight(.semibold))
-                .foregroundStyle(.secondary)
+    private var logoLens: some View {
+        Text("TFN")
+            .font(.system(size: 34, weight: .black, design: .rounded))
+            .foregroundStyle(primaryTextColor)
+            .lineLimit(1)
+            .minimumScaleFactor(0.82)
+            .frame(width: Self.lensWidth, height: Self.lensHeight)
+            .background {
+                RoundedRectangle(cornerRadius: Self.lensCornerRadius, style: .continuous)
+                    .fill(palette.activeCardFill)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: Self.lensCornerRadius, style: .continuous)
+                    .stroke(palette.activeCardStroke.opacity(0.52), lineWidth: 1)
+            }
+            .glassEffect(.regular, in: .rect(cornerRadius: Self.lensCornerRadius))
+            .accessibilityIdentifier("move-on-celebration-logo")
+    }
 
-            Text(presentation.titleText)
-                .font(.largeTitle.weight(.black))
-                .multilineTextAlignment(.center)
-                .lineLimit(1)
-                .minimumScaleFactor(0.76)
-                .accessibilityIdentifier("move-on-celebration-title")
-
-            Text(presentation.sublineText)
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(palette.accent)
-                .multilineTextAlignment(.center)
-                .lineLimit(1)
-                .minimumScaleFactor(0.78)
-                .accessibilityIdentifier("move-on-celebration-subline")
-        }
+    private var quoteText: some View {
+        Text(presentation.quoteText)
+            .font(.title2.weight(.heavy))
+            .foregroundStyle(palette.accent)
+            .multilineTextAlignment(.center)
+            .lineLimit(3)
+            .minimumScaleFactor(0.72)
+            .frame(maxWidth: 340, minHeight: 92)
+            .accessibilityIdentifier("move-on-celebration-quote")
     }
 
     private var statsRow: some View {
         HStack(spacing: 10) {
             ForEach(presentation.stats, id: \.label) { stat in
-                MoveOnCelebrationStatView(stat: stat)
+                MoveOnCelebrationStatView(
+                    stat: stat,
+                    primaryTextColor: primaryTextColor,
+                    supportingTextColor: supportingTextColor
+                )
             }
         }
         .padding(.horizontal, 12)
@@ -125,52 +145,12 @@ struct MoveOnCelebrationView: View {
         }
     }
 
-    private var stamp: some View {
-        ZStack {
-            ForEach(0..<3, id: \.self) { index in
-                Circle()
-                    .stroke(palette.accent.opacity(ripplesExpanded ? 0 : 0.34), lineWidth: 2)
-                    .frame(width: Self.stampSize, height: Self.stampSize)
-                    .scaleEffect(ripplesExpanded ? 1.34 + CGFloat(index) * 0.22 : 0.72)
-                    .animation(
-                        .easeOut(duration: 1.15)
-                            .delay(Double(index) * 0.18)
-                            .repeatForever(autoreverses: false),
-                        value: ripplesExpanded
-                    )
-            }
-
-            Circle()
-                .fill(palette.accent)
-                .frame(width: Self.stampSize, height: Self.stampSize)
-                .shadow(color: palette.accent.opacity(0.55), radius: 28, y: 12)
-                .overlay {
-                    Circle()
-                        .stroke(palette.accentDarkText.opacity(0.34), lineWidth: 5)
-                        .padding(8)
-                }
-                .overlay {
-                    Circle()
-                        .stroke(
-                            palette.accentDarkText.opacity(0.48),
-                            style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [8, 6])
-                        )
-                        .padding(20)
-                }
-
-            Image(systemName: "checkmark")
-                .font(.system(size: 54, weight: .black, design: .rounded))
-                .foregroundStyle(palette.accentDarkText)
-                .offset(y: 2)
-        }
-        .frame(width: Self.rippleDiameter, height: Self.rippleDiameter)
-        .rotationEffect(.degrees(-7))
-        .accessibilityHidden(true)
-    }
 }
 
 private struct MoveOnCelebrationStatView: View {
     let stat: MoveOnCelebrationStatPresentation
+    let primaryTextColor: Color
+    let supportingTextColor: Color
 
     private var identifierKey: String {
         stat.label.lowercased()
@@ -180,13 +160,14 @@ private struct MoveOnCelebrationStatView: View {
         VStack(spacing: 4) {
             Text(stat.value)
                 .font(.title2.weight(.black))
+                .foregroundStyle(primaryTextColor)
                 .lineLimit(1)
                 .minimumScaleFactor(0.78)
                 .accessibilityIdentifier("move-on-celebration-\(identifierKey)-value")
 
             Text(stat.label)
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(supportingTextColor)
                 .lineLimit(1)
                 .minimumScaleFactor(0.82)
                 .accessibilityIdentifier("move-on-celebration-\(identifierKey)-label")
