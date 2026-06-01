@@ -5,18 +5,25 @@ import SwiftUI
 /// selects any visible chip; the scroller starts centered on the prescribed or
 /// selected value.
 struct RPEScaleScroller: View {
+    private enum Layout {
+        static let edgeFadeWidth: CGFloat = 16
+        static let trackVerticalPadding: CGFloat = 4
+    }
+
     let presentation: RPEScalePresentation
     let onSelect: (String) -> Void
     @Environment(\.themePalette) private var palette
+    @State private var didPositionInitialTarget = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .center, spacing: 8) {
             Text("RPE")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
 
             ScrollViewReader { proxy in
-                GeometryReader { geometry in
+                selectorTrack {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: Theme.rpeScaleChipSpacing) {
                             ForEach(presentation.chips) { chip in
@@ -24,20 +31,23 @@ struct RPEScaleScroller: View {
                                     .id(chip.value)
                             }
                         }
+                        .padding(.vertical, Layout.trackVerticalPadding)
                         .scrollTargetLayout()
-                        .padding(.horizontal, chipInset(forTrackWidth: geometry.size.width))
                     }
                     .scrollTargetBehavior(.viewAligned)
-                    .onAppear {
+                    .task {
+                        guard !didPositionInitialTarget else { return }
+                        didPositionInitialTarget = true
+                        await Task.yield()
                         // Centre once on mount (prescribed/selected value). Later taps move
                         // the selection in place — we deliberately do not re-scroll, so do
                         // not add `.id(scrollTarget)` here or every tap would jump the track.
                         proxy.scrollTo(presentation.scrollTarget, anchor: .center)
                     }
                 }
-                .frame(height: Theme.rpeScaleHeight)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .center)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("RPE")
     }
@@ -76,9 +86,32 @@ struct RPEScaleScroller: View {
         .accessibilityAddTraits(chip.isSelected ? [.isButton, .isSelected] : .isButton)
     }
 
-    /// Half the track minus half a chip, so the first and last chips can scroll all
-    /// the way to the centre regardless of screen width.
-    private func chipInset(forTrackWidth width: CGFloat) -> CGFloat {
-        max(Theme.rpeScaleChipWidth, (width - Theme.rpeScaleChipWidth) / 2)
+    private func selectorTrack<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .frame(maxWidth: .infinity)
+            .frame(height: Theme.rpeScaleHeight)
+            .background(palette.pillFill.opacity(0.72), in: .rect(cornerRadius: Theme.pillCornerRadius))
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
+                    .strokeBorder(palette.pillStroke.opacity(0.7), lineWidth: 1)
+            )
+            .clipShape(.rect(cornerRadius: Theme.pillCornerRadius))
+            .overlay(alignment: .leading) {
+                edgeFade(startsOpaque: true)
+            }
+            .overlay(alignment: .trailing) {
+                edgeFade(startsOpaque: false)
+            }
+    }
+
+    private func edgeFade(startsOpaque: Bool) -> some View {
+        LinearGradient(
+            colors: startsOpaque ? [palette.pillFill, palette.pillFill.opacity(0)] : [palette.pillFill.opacity(0), palette.pillFill],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+        .frame(width: Layout.edgeFadeWidth)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }

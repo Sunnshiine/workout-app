@@ -43,7 +43,7 @@ struct SmartValuePills: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: Theme.pillSpacing) {
+            WeightedValuePillRow(spacing: Theme.pillSpacing, weightColumnFraction: 2.0 / 3.0) {
                 weightPill
                 repsPill
             }
@@ -99,12 +99,17 @@ struct SmartValuePills: View {
                 .multilineTextAlignment(.center)
                 .font(.title3.weight(.bold))
                 .foregroundStyle(palette.valueText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
                 .focused($focusedPill, equals: .weight)
                 .accessibilityIdentifier("weight-pill")
         } else {
             Text(form.weightDisplay)
                 .font(.title3.weight(.bold))
                 .foregroundStyle(palette.valueText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .layoutPriority(1)
                 .frame(maxWidth: .infinity)
                 .contentShape(.rect)
                 .onTapGesture { editingPill = .weight }
@@ -131,24 +136,37 @@ struct SmartValuePills: View {
     private var repsPill: some View {
         let isPlaceholder = form.isRepsDisplayingPlaceholder && editingPill != .reps
 
-        return VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .center, spacing: 8) {
             Text("Reps")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
 
             if editingPill == .reps {
                 TextField(form.repsDisplay, text: $form.repsText)
                     .keyboardType(.numberPad)
+                    .multilineTextAlignment(.center)
                     .font(.title3.weight(.bold))
                     .foregroundStyle(palette.valueText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                     .focused($focusedPill, equals: .reps)
             } else {
                 Text(form.repsDisplay)
                     .font(.title3.weight(.bold))
                     .foregroundStyle(isPlaceholder ? Color.secondary : palette.valueText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .frame(maxWidth: .infinity, alignment: .center)
             }
         }
-        .modifier(PillChrome(isFocused: editingPill == .reps, isInvalid: form.invalidFields.contains(.reps)))
+        .modifier(
+            PillChrome(
+                isFocused: editingPill == .reps,
+                isInvalid: form.invalidFields.contains(.reps),
+                alignment: .center
+            )
+        )
         .opacity(dimmedOpacity(for: .reps))
         .contentShape(.rect)
         .onTapGesture { editingPill = .reps }
@@ -205,15 +223,61 @@ struct SmartValuePills: View {
     }
 }
 
+private struct WeightedValuePillRow: Layout {
+    let spacing: CGFloat
+    let weightColumnFraction: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard subviews.count == 2 else { return .zero }
+
+        let totalWidth = proposal.width ?? intrinsicWidth(for: subviews)
+        let columnWidths = columns(for: totalWidth)
+        let heights = subviews.enumerated().map { index, subview in
+            subview.sizeThatFits(
+                ProposedViewSize(width: columnWidths[index], height: proposal.height)
+            ).height
+        }
+
+        return CGSize(width: totalWidth, height: heights.max() ?? 0)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard subviews.count == 2 else { return }
+
+        let columnWidths = columns(for: bounds.width)
+        var x = bounds.minX
+        for (index, subview) in subviews.enumerated() {
+            subview.place(
+                at: CGPoint(x: x, y: bounds.minY),
+                proposal: ProposedViewSize(width: columnWidths[index], height: bounds.height)
+            )
+            x += columnWidths[index] + spacing
+        }
+    }
+
+    private func intrinsicWidth(for subviews: Subviews) -> CGFloat {
+        subviews.reduce(0) { width, subview in
+            width + subview.sizeThatFits(.unspecified).width
+        } + spacing
+    }
+
+    private func columns(for totalWidth: CGFloat) -> [CGFloat] {
+        let availableWidth = max(totalWidth - spacing, 0)
+        let weightWidth = floor(availableWidth * weightColumnFraction)
+        return [weightWidth, availableWidth - weightWidth]
+    }
+}
+
 /// Pill background plus a stroke that turns accent while focused and red when invalid.
 private struct PillChrome: ViewModifier {
     let isFocused: Bool
     let isInvalid: Bool
+    var alignment: Alignment = .leading
     @Environment(\.themePalette) private var palette
 
     func body(content: Content) -> some View {
         content
-            .frame(maxWidth: .infinity, minHeight: Theme.pillMinHeight, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: Theme.pillMinHeight, alignment: alignment)
             .padding(.horizontal, 12)
             .background(palette.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
             .overlay(
