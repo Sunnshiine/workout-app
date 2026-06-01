@@ -23,9 +23,11 @@ struct SessionView: View {
                     if !workout.isViewingLiveEdge {
                         CurrentSessionOverrideControls(
                             onGoBack: {
+                                sessionControlsVisibility = .hidden
                                 workout.showCurrent()
                             },
                             onMakeCurrent: {
+                                sessionControlsVisibility = .hidden
                                 workout.makeDisplayedSessionCurrent()
                             }
                         )
@@ -143,70 +145,6 @@ struct SessionView: View {
                 workout.reload()
             }
         }
-    }
-
-    private func updateSessionControls(topContentOffset: CGFloat) {
-        let updatedVisibility = sessionControlsVisibility.updated(topContentOffset: topContentOffset)
-        guard updatedVisibility != sessionControlsVisibility else { return }
-        sessionControlsVisibility = updatedVisibility
-    }
-
-    /// The W1D1 · N-left · progress-rail header, floated as an inset Liquid Glass
-    /// HUD pinned to the top. Content scrolls beneath it; over-pulling past the
-    /// reveal threshold morphs it open to expose Settings + Sync on top.
-    @ViewBuilder
-    private func sessionHeaderHUD(session: Session) -> some View {
-        SessionProgressHeader(
-            session: session,
-            activeSetID: coordinator.activeSetID,
-            block: workout.block,
-            currentSession: workout.currentSession,
-            showsSessionControls: shouldShowSessionControls,
-            isSessionControlsSyncDisabled: isSessionControlsSyncDisabled,
-            onNavigate: coordinator.cancelPairing,
-            onSettings: {
-                isSettingsPresented = true
-            },
-            onSync: {
-                Task { await syncConfiguredSheet() }
-            }
-        )
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
-        .padding(.horizontal)
-        .padding(.top, 8)
-    }
-
-    private func topContentOffset(_ geometry: ScrollGeometry) -> CGFloat {
-        -(geometry.contentOffset.y + geometry.contentInsets.top)
-    }
-
-    private var isSessionControlsSyncDisabled: Bool {
-        isSessionControlsSyncInFlight || sync.state == .syncing
-    }
-
-    private var shouldShowSessionControls: Bool {
-        sessionControlsVisibility.isVisible && workout.moveOnCelebrationSession == nil
-    }
-
-    private var blockOverviewRequestBinding: Binding<Bool> {
-        Binding {
-            workout.pendingBlockOverviewRequest != nil
-        } set: { isPresented in
-            if !isPresented {
-                workout.clearBlockOverviewRequest()
-            }
-        }
-    }
-
-    @MainActor
-    private func syncConfiguredSheet() async {
-        guard let id = settings.spreadsheetId, !isSessionControlsSyncDisabled else { return }
-        isSessionControlsSyncInFlight = true
-        defer { isSessionControlsSyncInFlight = false }
-        await sync.sync(spreadsheetId: id)
-        workout.reload()
     }
 
     private func bindCoordinator(to session: Session) {
@@ -331,6 +269,81 @@ struct SessionView: View {
 }
 
 extension SessionView {
+    private func updateSessionControls(topContentOffset: CGFloat) {
+        guard canRevealSessionControls else {
+            if sessionControlsVisibility != .hidden {
+                sessionControlsVisibility = .hidden
+            }
+            return
+        }
+
+        let updatedVisibility = sessionControlsVisibility.updated(topContentOffset: topContentOffset)
+        guard updatedVisibility != sessionControlsVisibility else { return }
+        sessionControlsVisibility = updatedVisibility
+    }
+
+    /// The W1D1 · N-left · progress-rail header, floated as an inset Liquid Glass
+    /// HUD pinned to the top. Content scrolls beneath it; over-pulling past the
+    /// reveal threshold morphs it open to expose Settings + Sync on top.
+    @ViewBuilder
+    private func sessionHeaderHUD(session: Session) -> some View {
+        SessionProgressHeader(
+            session: session,
+            activeSetID: coordinator.activeSetID,
+            block: workout.block,
+            currentSession: workout.currentSession,
+            showsSessionControls: shouldShowSessionControls,
+            isSessionControlsSyncDisabled: isSessionControlsSyncDisabled,
+            onNavigate: coordinator.cancelPairing,
+            onSettings: {
+                isSettingsPresented = true
+            },
+            onSync: {
+                Task { await syncConfiguredSheet() }
+            }
+        )
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
+        .padding(.horizontal)
+        .padding(.top, 8)
+    }
+
+    private func topContentOffset(_ geometry: ScrollGeometry) -> CGFloat {
+        -(geometry.contentOffset.y + geometry.contentInsets.top)
+    }
+
+    private var isSessionControlsSyncDisabled: Bool {
+        isSessionControlsSyncInFlight || sync.state == .syncing
+    }
+
+    private var shouldShowSessionControls: Bool {
+        sessionControlsVisibility.isVisible && canRevealSessionControls
+    }
+
+    private var canRevealSessionControls: Bool {
+        workout.isViewingLiveEdge && workout.moveOnCelebrationSession == nil
+    }
+
+    private var blockOverviewRequestBinding: Binding<Bool> {
+        Binding {
+            workout.pendingBlockOverviewRequest != nil
+        } set: { isPresented in
+            if !isPresented {
+                workout.clearBlockOverviewRequest()
+            }
+        }
+    }
+
+    @MainActor
+    private func syncConfiguredSheet() async {
+        guard let id = settings.spreadsheetId, !isSessionControlsSyncDisabled else { return }
+        isSessionControlsSyncInFlight = true
+        defer { isSessionControlsSyncInFlight = false }
+        await sync.sync(spreadsheetId: id)
+        workout.reload()
+    }
+
     private func focusMorphAction(for set: ExerciseSet) -> SessionFocusMorphAction {
         guard set.state == .logged else {
             return set.state == .pending ? .pendingFocus : .loggedReviewCollapse
@@ -363,29 +376,20 @@ private struct CurrentSessionOverrideControls: View {
     let onMakeCurrent: () -> Void
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 10) {
-                goBackButton
-                makeCurrentButton
-            }
-
-            VStack(spacing: 10) {
-                goBackButton
-                makeCurrentButton
-            }
+        HStack {
+            goBackButton
+            Spacer(minLength: 0)
+            makeCurrentButton
         }
-        .padding(4)
-        .glassEffect(.regular, in: .rect(cornerRadius: Theme.sessionTileCornerRadius))
         .accessibilityElement(children: .contain)
     }
 
     private var goBackButton: some View {
         Button(action: onGoBack) {
             Label("Go back", systemImage: "arrow.uturn.left")
-                .font(.subheadline.weight(.semibold))
-                .lineLimit(2)
-                .minimumScaleFactor(0.82)
-                .frame(maxWidth: .infinity, minHeight: 44)
+                .labelStyle(.iconOnly)
+                .font(.title3.weight(.semibold))
+                .frame(width: 44, height: 44)
         }
         .buttonStyle(.glass)
         .accessibilityHint("Returns to the current session")
@@ -395,10 +399,9 @@ private struct CurrentSessionOverrideControls: View {
     private var makeCurrentButton: some View {
         Button(action: onMakeCurrent) {
             Label("Make Current", systemImage: "pin.fill")
-                .font(.subheadline.weight(.semibold))
-                .lineLimit(2)
-                .minimumScaleFactor(0.82)
-                .frame(maxWidth: .infinity, minHeight: 44)
+                .labelStyle(.iconOnly)
+                .font(.title3.weight(.semibold))
+                .frame(width: 44, height: 44)
         }
         .buttonStyle(.glass)
         .accessibilityHint("Makes the viewed session the current session")
