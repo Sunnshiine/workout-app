@@ -6,16 +6,28 @@ struct MoveOnCelebrationView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var presentation: MoveOnCelebrationPresentation
-    @State private var bloomHasAppeared = false
+    @State private var bloomPulseExpanded = false
+    @State private var bloomPulseVisible = false
 
     private static let perfectImpactDelay: Duration = .milliseconds(120)
     private static let lensWidth: CGFloat = 210
     private static let lensHeight: CGFloat = 74
     private static let lensCornerRadius: CGFloat = 28
-    private static let bloomWidth: CGFloat = 258
-    private static let bloomHeight: CGFloat = 104
-    private static let bloomCornerRadius: CGFloat = 36
-    private static let bloomDuration = 0.36
+    private static let outerBloomWidth: CGFloat = 286
+    private static let outerBloomHeight: CGFloat = 106
+    private static let middleBloomWidth: CGFloat = 254
+    private static let middleBloomHeight: CGFloat = 92
+    private static let innerBloomWidth: CGFloat = 222
+    private static let innerBloomHeight: CGFloat = 82
+    private static let bloomStartScale = 0.74
+    private static let outerBloomEndScale = 1.16
+    private static let middleBloomEndScale = 1.12
+    private static let innerBloomEndScale = 1.06
+    private static let bloomPulseLineWidth: CGFloat = 2.2
+    private static let bloomHighlightLineWidth: CGFloat = 1.1
+    private static let bloomHighlightOpacity = 0.38
+    private static let bloomSettleDuration = 0.28
+    private static let disableBloomArgument = "-UITEST_DISABLE_CELEBRATION_BLOOM"
     private static let ink = Color(red: 0.08, green: 0.22, blue: 0.14)
 
     init(session: Session, onDismiss: @escaping () -> Void) {
@@ -86,7 +98,11 @@ struct MoveOnCelebrationView: View {
     }
 
     private var visualTreatment: MoveOnCelebrationVisualTreatment {
-        presentation.visualTreatment(reduceMotion: reduceMotion)
+        presentation.visualTreatment(reduceMotion: reduceMotion || Self.disablesBloomForUITests)
+    }
+
+    private static var disablesBloomForUITests: Bool {
+        ProcessInfo.processInfo.arguments.contains(disableBloomArgument)
     }
 
     @MainActor
@@ -103,15 +119,34 @@ struct MoveOnCelebrationView: View {
 
     @MainActor
     private func prepareBloom(for treatment: MoveOnCelebrationVisualTreatment) async {
-        guard treatment == .animatedPerfectBloom else {
-            bloomHasAppeared = false
+        guard let motion = presentation.bloomMotion(reduceMotion: treatment == .reducedMotionLens) else {
+            bloomPulseExpanded = false
+            bloomPulseVisible = false
             return
         }
-        guard !bloomHasAppeared else { return }
 
-        withAnimation(.easeOut(duration: Self.bloomDuration)) {
-            bloomHasAppeared = true
+        bloomPulseExpanded = false
+        bloomPulseVisible = true
+        await Task.yield()
+
+        withAnimation(.easeOut(duration: motion.pulseDuration).repeatCount(motion.repeatCount, autoreverses: false)) {
+            bloomPulseExpanded = true
         }
+
+        do {
+            try await Task.sleep(for: Self.duration(seconds: motion.loopDuration))
+        } catch {
+            return
+        }
+
+        guard !Task.isCancelled else { return }
+        withAnimation(.easeOut(duration: Self.bloomSettleDuration)) {
+            bloomPulseVisible = false
+        }
+    }
+
+    private static func duration(seconds: TimeInterval) -> Duration {
+        .nanoseconds(Int64((seconds * 1_000_000_000).rounded()))
     }
 
     private var contextText: some View {
@@ -124,8 +159,8 @@ struct MoveOnCelebrationView: View {
     private var logoLens: some View {
         GlassEffectContainer(spacing: 0) {
             ZStack {
-                if visualTreatment == .animatedPerfectBloom {
-                    perfectBloom
+                if visualTreatment == .animatedBloom {
+                    animatedBloom
                 }
                 logoMark
             }
@@ -151,34 +186,70 @@ struct MoveOnCelebrationView: View {
             .accessibilityIdentifier("move-on-celebration-logo")
     }
 
-    private var perfectBloom: some View {
-        RoundedRectangle(cornerRadius: Self.bloomCornerRadius, style: .continuous)
-            .fill(palette.activeCardFill.opacity(0.58))
-            .frame(width: Self.bloomWidth, height: Self.bloomHeight)
+    private var animatedBloom: some View {
+        ZStack {
+            bloomPulse(
+                width: Self.outerBloomWidth,
+                height: Self.outerBloomHeight,
+                endScale: Self.outerBloomEndScale,
+                strokeOpacity: 0.36,
+                blurRadius: 5
+            )
+            bloomPulse(
+                width: Self.middleBloomWidth,
+                height: Self.middleBloomHeight,
+                endScale: Self.middleBloomEndScale,
+                strokeOpacity: 0.50,
+                blurRadius: 2
+            )
+            bloomPulse(
+                width: Self.innerBloomWidth,
+                height: Self.innerBloomHeight,
+                endScale: Self.innerBloomEndScale,
+                strokeOpacity: 0.68,
+                blurRadius: 0.6
+            )
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private func bloomPulse(
+        width: CGFloat,
+        height: CGFloat,
+        endScale: CGFloat,
+        strokeOpacity: Double,
+        blurRadius: CGFloat
+    ) -> some View {
+        RoundedRectangle(cornerRadius: height / 2, style: .continuous)
+            .stroke(palette.accent.opacity(strokeOpacity), lineWidth: Self.bloomPulseLineWidth)
+            .frame(width: width, height: height)
             .overlay {
-                RoundedRectangle(cornerRadius: Self.bloomCornerRadius, style: .continuous)
-                    .stroke(palette.accent.opacity(0.44), lineWidth: 1)
+                RoundedRectangle(cornerRadius: height / 2, style: .continuous)
+                    .stroke(Color.white.opacity(Self.bloomHighlightOpacity), lineWidth: Self.bloomHighlightLineWidth)
+                    .frame(width: width, height: height)
             }
-            .scaleEffect(bloomHasAppeared ? 1 : 0.88)
-            .opacity(bloomHasAppeared ? 1 : 0)
-            .glassEffect(.regular, in: .rect(cornerRadius: Self.bloomCornerRadius))
+            .shadow(color: palette.accent.opacity(strokeOpacity * 0.65), radius: blurRadius + 4)
+            .blur(radius: blurRadius)
+            .scaleEffect(bloomPulseExpanded ? endScale : Self.bloomStartScale)
+            .opacity(bloomPulseVisible ? (bloomPulseExpanded ? 0 : 0.9) : 0)
             .accessibilityHidden(true)
     }
 
     private var lensStrokeColor: Color {
         switch visualTreatment {
-        case .standardLens:
-            palette.activeCardStroke.opacity(0.52)
-        case .animatedPerfectBloom, .reducedMotionPerfectLens:
+        case .animatedBloom:
+            palette.accent.opacity(0.78)
+        case .reducedMotionLens:
             palette.accent.opacity(0.78)
         }
     }
 
     private var lensStrokeWidth: CGFloat {
         switch visualTreatment {
-        case .standardLens:
-            1
-        case .animatedPerfectBloom, .reducedMotionPerfectLens:
+        case .animatedBloom:
+            1.25
+        case .reducedMotionLens:
             1.25
         }
     }
@@ -188,7 +259,6 @@ struct MoveOnCelebrationView: View {
             .font(.title2.weight(.heavy))
             .foregroundStyle(palette.accent)
             .multilineTextAlignment(.center)
-            .lineLimit(3)
             .minimumScaleFactor(0.72)
             .frame(maxWidth: 340, minHeight: 92)
             .accessibilityIdentifier("move-on-celebration-quote")

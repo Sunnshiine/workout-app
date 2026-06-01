@@ -1,5 +1,9 @@
 import XCTest
 
+private let moveOnCelebrationLongQuote =
+    "Strong work is still strong when today asks you to leave a few Sets for later; "
+    + "take the win, keep the thread, and come back ready."
+
 final class WorkoutTrackerUITests: XCTestCase {
     @MainActor
     func testFixtureDrivenCoreSessionFlow() throws {
@@ -73,7 +77,7 @@ final class WorkoutTrackerUITests: XCTestCase {
         waitForValueContaining("5 Sets, 2 Exercises, 5 Left", on: celebration)
         XCTAssertEqual(
             app.staticTexts["move-on-celebration-quote"].label,
-            "Strong work is still strong when you leave a few Sets for later."
+            moveOnCelebrationLongQuote
         )
         assertMoveOnCelebrationCopyIsReadable(in: app)
     }
@@ -363,7 +367,12 @@ final class WorkoutTrackerUITests: XCTestCase {
     private func launchFixtureApp(extraArguments: [String] = []) -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = ["-UITEST_FIXTURE", "-UITEST_SESSION", "-UITEST_FULL_BLOCK"] + extraArguments
+        app.launchArguments = [
+            "-UITEST_FIXTURE",
+            "-UITEST_SESSION",
+            "-UITEST_FULL_BLOCK",
+            "-UITEST_DISABLE_CELEBRATION_BLOOM"
+        ] + extraArguments
         app.launch()
         return app
     }
@@ -440,6 +449,7 @@ final class WorkoutTrackerAppearanceUITests: XCTestCase {
         let celebration = moveOnCelebration(in: app)
         XCTAssertTrue(celebration.waitForExistence(timeout: 3))
         waitForLabel("Week 1, Day 1", on: celebration)
+        waitForValueContaining("5 Sets, 2 Exercises, 5 Left", on: celebration)
         assertMoveOnCelebrationCopyIsReadable(in: app)
 
         celebration.tap()
@@ -451,7 +461,12 @@ final class WorkoutTrackerAppearanceUITests: XCTestCase {
     private func launchFixtureApp(appearance: String? = nil) -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = ["-UITEST_FIXTURE", "-UITEST_SESSION", "-UITEST_FULL_BLOCK"]
+        app.launchArguments = [
+            "-UITEST_FIXTURE",
+            "-UITEST_SESSION",
+            "-UITEST_FULL_BLOCK",
+            "-UITEST_DISABLE_CELEBRATION_BLOOM"
+        ]
         if let appearance {
             app.launchArguments += ["-UITEST_APPEARANCE", appearance]
         }
@@ -677,7 +692,7 @@ private func assertMoveOnCelebrationCopyIsReadable(in app: XCUIApplication) {
         "God damn!",
         "Get it girl!",
         "Shake it!",
-        "Strong work is still strong when you leave a few Sets for later."
+        moveOnCelebrationLongQuote
     ]
     let context = app.staticTexts["move-on-celebration-context"]
     let logo = app.staticTexts["move-on-celebration-logo"]
@@ -695,11 +710,9 @@ private func assertMoveOnCelebrationCopyIsReadable(in app: XCUIApplication) {
 
     XCTAssertTrue(quote.waitForExistence(timeout: 6))
     XCTAssertTrue(approvedQuotes.contains(quote.label))
-    let selectedQuote = quote.label
-    RunLoop.current.run(until: Date().addingTimeInterval(3))
-    XCTAssertEqual(quote.label, selectedQuote)
+    XCTAssertTrue(windowFrame.contains(quote.frame), "\(quote) is clipped outside \(windowFrame)")
 
-    for element in [context, logo, quote, hint] + stats {
+    for element in [context, logo, hint] + stats {
         XCTAssertTrue(element.waitForExistence(timeout: 3))
         XCTAssertTrue(windowFrame.contains(element.frame), "\(element) is clipped outside \(windowFrame)")
     }

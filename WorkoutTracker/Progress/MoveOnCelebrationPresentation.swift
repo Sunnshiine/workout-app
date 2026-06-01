@@ -11,19 +11,32 @@ enum MoveOnCelebrationHapticStyle: Equatable, Hashable, Sendable {
 }
 
 enum MoveOnCelebrationVisualTreatment: Equatable, Sendable {
-    case standardLens
-    case animatedPerfectBloom
-    case reducedMotionPerfectLens
+    case animatedBloom
+    case reducedMotionLens
+}
+
+struct MoveOnCelebrationBloomMotion: Equatable, Sendable {
+    let pulseDuration: TimeInterval
+    let loopDuration: TimeInterval
+
+    var repeatCount: Int {
+        max(Int((loopDuration / pulseDuration).rounded(.down)), 1)
+    }
 }
 
 struct MoveOnCelebrationPresentation: Equatable, Sendable {
-    static let longQuoteFixture = "Strong work is still strong when you leave a few Sets for later."
+    static let longQuoteFixture =
+        "Strong work is still strong when today asks you to leave a few Sets for later; take the win, keep the thread, and come back ready."
     static let approvedQuotes = [
         "You're fucking amazing.",
         "God damn!",
         "Get it girl!",
         "Shake it!"
     ]
+    static let animatedBloomMotion = MoveOnCelebrationBloomMotion(
+        pulseDuration: 1.2,
+        loopDuration: 7.2
+    )
 
     let contextText: String
     let stats: [MoveOnCelebrationStatPresentation]
@@ -57,10 +70,11 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
     }
 
     func visualTreatment(reduceMotion: Bool) -> MoveOnCelebrationVisualTreatment {
-        guard hapticStyle == .successWithImpact else {
-            return .standardLens
-        }
-        return reduceMotion ? .reducedMotionPerfectLens : .animatedPerfectBloom
+        reduceMotion ? .reducedMotionLens : .animatedBloom
+    }
+
+    func bloomMotion(reduceMotion: Bool) -> MoveOnCelebrationBloomMotion? {
+        reduceMotion ? nil : Self.animatedBloomMotion
     }
 
     private static var launchQuoteOverride: String? {

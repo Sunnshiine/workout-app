@@ -97,7 +97,7 @@ import Testing
 
     let presentation = MoveOnCelebrationPresentation(session: session)
 
-    #expect(presentation.visualTreatment(reduceMotion: false) == .animatedPerfectBloom)
+    #expect(presentation.visualTreatment(reduceMotion: false) == .animatedBloom)
 }
 
 @MainActor
@@ -110,11 +110,11 @@ import Testing
 
     let presentation = MoveOnCelebrationPresentation(session: session)
 
-    #expect(presentation.visualTreatment(reduceMotion: true) == .reducedMotionPerfectLens)
+    #expect(presentation.visualTreatment(reduceMotion: true) == .reducedMotionLens)
 }
 
 @MainActor
-@Test func moveOnCelebrationPresentationKeepsStandardLensForIncompleteSession() {
+@Test func moveOnCelebrationPresentationSelectsAnimatedBloomForIncompleteSession() {
     let session = makeMoveOnSession(
         exercises: [
             makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .pending])
@@ -123,8 +123,25 @@ import Testing
 
     let presentation = MoveOnCelebrationPresentation(session: session)
 
-    #expect(presentation.visualTreatment(reduceMotion: false) == .standardLens)
-    #expect(presentation.visualTreatment(reduceMotion: true) == .standardLens)
+    #expect(presentation.visualTreatment(reduceMotion: false) == .animatedBloom)
+    #expect(presentation.visualTreatment(reduceMotion: true) == .reducedMotionLens)
+}
+
+@MainActor
+@Test func moveOnCelebrationPresentationLoopsBloomForSeveralSecondsUnlessMotionIsReduced() {
+    let session = makeMoveOnSession(
+        exercises: [
+            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .pending])
+        ]
+    )
+
+    let presentation = MoveOnCelebrationPresentation(session: session)
+    let motion = presentation.bloomMotion(reduceMotion: false)
+
+    #expect(motion?.loopDuration == 7.2)
+    #expect(motion?.pulseDuration == 1.2)
+    #expect(motion?.repeatCount == 6)
+    #expect(presentation.bloomMotion(reduceMotion: true) == nil)
 }
 
 @MainActor
@@ -158,6 +175,24 @@ import Testing
 
     #expect(MoveOnCelebrationPresentation.approvedQuotes.contains(selectedQuote))
     #expect(presentation.quoteText == selectedQuote)
+}
+
+@MainActor
+@Test func moveOnCelebrationLongQuoteFixtureExercisesWrappingState() {
+    let session = makeMoveOnSession(
+        exercises: [
+            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.pending, .pending, .logged])
+        ]
+    )
+
+    let presentation = MoveOnCelebrationPresentation(
+        session: session,
+        quoteText: MoveOnCelebrationPresentation.longQuoteFixture
+    )
+
+    #expect(MoveOnCelebrationPresentation.longQuoteFixture.count >= 110)
+    #expect(!MoveOnCelebrationPresentation.approvedQuotes.contains(presentation.quoteText))
+    #expect(presentation.accessibilityValue.hasPrefix(MoveOnCelebrationPresentation.longQuoteFixture))
 }
 
 @MainActor
