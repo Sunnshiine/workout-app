@@ -11,7 +11,6 @@ struct ActiveSetCard: View {
     var showsLoggedCheckmark = false
     var identityLabel: String?
     @Environment(\.themePalette) private var palette
-    @State private var dismissFieldUIRequest = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -30,8 +29,6 @@ struct ActiveSetCard: View {
                     .padding(.vertical, 5)
                     .background(palette.badgeFill, in: .capsule)
             }
-            .contentShape(.rect)
-            .onTapGesture(perform: dismissFieldUI)
 
             HStack(alignment: .center, spacing: 8) {
                 if let identityLabel {
@@ -43,8 +40,6 @@ struct ActiveSetCard: View {
 
                 Spacer(minLength: 0)
             }
-            .contentShape(.rect)
-            .onTapGesture(perform: dismissFieldUI)
 
             SmartValuePills(
                 set: set,
@@ -53,7 +48,6 @@ struct ActiveSetCard: View {
                 onLog: onLog,
                 onSkip: onSkip,
                 onDelete: onDelete,
-                dismissFieldUIRequest: dismissFieldUIRequest,
                 showsLoggedCheckmarkInitially: showsLoggedCheckmark
             )
             .id(set.persistentModelID)
@@ -67,10 +61,6 @@ struct ActiveSetCard: View {
         )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("active-set-card")
-    }
-
-    private func dismissFieldUI() {
-        dismissFieldUIRequest += 1
     }
 
     private var previousSetWeight: Double? {

@@ -69,11 +69,20 @@ struct SmartValuePillsForm {
         return currentInvalidFields
     }
 
-    var weightIncrementOptions: [Double] {
+    /// The single contextual step for the inline weight stepper: ±2.5 below the
+    /// gym-friendly threshold, ±5 at or above it. The coarse step is retired —
+    /// tap the weight to type a big jump.
+    var fineWeightIncrement: Double {
         guard let weight = Double(weightText), weight > Theme.weightIncrementThreshold else {
-            return Theme.lightWeightIncrementOptions
+            return Theme.lightWeightIncrementOptions.first ?? 2.5
         }
-        return Theme.heavyWeightIncrementOptions
+        return Theme.heavyWeightIncrementOptions.first ?? 5
+    }
+
+    /// Stepping only makes sense for a numeric weight — hidden for bodyweight and
+    /// while the field is empty.
+    var allowsWeightStepping: Bool {
+        Double(weightText) != nil
     }
 
     var canLog: Bool {
@@ -107,7 +116,7 @@ struct SmartValuePillsForm {
                 trainingMax: trainingMax
             )
             repsText = Self.initialRepsText(for: set.prescribedReps)
-            rpeText = ""
+            rpeText = prescribedRPE.map(String.init) ?? ""
         }
         repsPlaceholder = repsText.isEmpty ? set.prescribedReps : nil
         initialWeightText = weightText
