@@ -153,6 +153,34 @@ final class WorkoutTrackerUITests: XCTestCase {
     }
 
     @MainActor
+    func testNonCurrentSessionChromeHidesCurrentSessionControlsThroughOverscroll() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+
+        app.buttons["session-location-button"].tap()
+        XCTAssertTrue(app.navigationBars["Block 27"].waitForExistence(timeout: 3))
+
+        app.buttons["Week 1, Day 3"].tap()
+        waitForLabel("Open Block Overview for Week 1, Day 3", on: app.buttons["session-location-button"])
+
+        XCTAssertTrue(app.buttons["go-back-current-session-button"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["make-current-session-button"].exists)
+        XCTAssertFalse(app.staticTexts["Go back"].exists)
+        XCTAssertFalse(app.staticTexts["Make Current"].exists)
+        XCTAssertFalse(app.buttons["session-controls-settings-button"].exists)
+        XCTAssertFalse(app.buttons["session-controls-sync-button"].exists)
+
+        overPullSessionHeader(in: app)
+
+        XCTAssertFalse(app.buttons["session-controls-settings-button"].waitForExistence(timeout: 1))
+        XCTAssertFalse(app.buttons["session-controls-sync-button"].exists)
+        XCTAssertFalse(app.otherElements["session-controls"].exists)
+        XCTAssertTrue(app.buttons["go-back-current-session-button"].exists)
+        XCTAssertTrue(app.buttons["make-current-session-button"].exists)
+    }
+
+    @MainActor
     func testDeveloperToolsShowsDiagnosticsAndPreviewOnlyCelebration() throws {
         let app = launchFixtureApp(extraArguments: ["-UITEST_PENDING_WRITE"])
 
@@ -510,11 +538,7 @@ private func revealSessionControlsAndSettingsButton(in app: XCUIApplication) -> 
         return settingsButton
     }
 
-    app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
-        .press(
-            forDuration: 0.1,
-            thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
-        )
+    overPullSessionHeader(in: app)
 
     XCTAssertTrue(settingsButton.waitForExistence(timeout: 3))
     let deadline = Date().addingTimeInterval(3)
@@ -526,6 +550,15 @@ private func revealSessionControlsAndSettingsButton(in app: XCUIApplication) -> 
     }
     XCTFail("Expected session controls settings button to become hittable")
     return settingsButton
+}
+
+@MainActor
+private func overPullSessionHeader(in app: XCUIApplication) {
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+        .press(
+            forDuration: 0.1,
+            thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
+        )
 }
 
 @MainActor
@@ -610,7 +643,7 @@ private func assertMoveOnCelebrationCopyIsReadable(in app: XCUIApplication) {
         app.staticTexts["move-on-celebration-left-value"],
         app.staticTexts["move-on-celebration-sets-label"],
         app.staticTexts["move-on-celebration-exercises-label"],
-        app.staticTexts["move-on-celebration-left-label"],
+        app.staticTexts["move-on-celebration-left-label"]
     ]
     let hint = app.staticTexts["move-on-celebration-hint"]
     let windowFrame = app.windows.element(boundBy: 0).frame
@@ -663,13 +696,13 @@ final class WorkoutTrackerLongSessionUITests: XCTestCase {
 
 final class WorkoutTrackerSkipUITests: XCTestCase {
     @MainActor
-    func testIncompleteSetLogCanStillBeSkippedWithHold() throws {
+    func testActiveSetCanBeSkippedWithHold() throws {
         let app = launchFixtureApp()
 
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
         let logButton = app.buttons["log-active-set-button"]
-        waitForLabel("Choose RPE to log", on: logButton)
+        waitUntilEnabled(logButton)
 
         logButton.press(forDuration: 1.0)
 
@@ -684,18 +717,5 @@ final class WorkoutTrackerSkipUITests: XCTestCase {
         app.launchArguments = ["-UITEST_FIXTURE", "-UITEST_SESSION", "-UITEST_FULL_BLOCK"]
         app.launch()
         return app
-    }
-
-    @MainActor
-    private func waitForLabel(_ label: String, on element: XCUIElement) {
-        XCTAssertTrue(element.waitForExistence(timeout: 3), "Expected element for label '\(label)' to exist")
-        let deadline = Date().addingTimeInterval(3)
-        while Date() < deadline {
-            if element.label == label {
-                return
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-        }
-        XCTFail("Expected \(element) to have label '\(label)', got '\(element.label)'")
     }
 }
