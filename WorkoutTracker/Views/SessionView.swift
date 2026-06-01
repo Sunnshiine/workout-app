@@ -10,9 +10,6 @@ struct SessionView: View {
     @Environment(\.themePalette) private var palette
     @State private var coordinator = SessionCoordinator(session: nil)
     @State private var sessionSettingsOverpullState = SessionSettingsOverpullState.hidden
-    @State private var sessionSettingsOverpullTopContentOffset: CGFloat = 0
-    @State private var isSessionSettingsOverpullGestureActive = false
-    @State private var sessionSettingsOverpullStartOffset: CGFloat = 0
     @State private var sessionSettingsOverpullDismissalID = 0
     @State private var isSettingsPresented = false
 
@@ -86,7 +83,6 @@ struct SessionView: View {
                         }
                         .scrollBounceBehavior(.always)
                         .scrollEdgeEffectStyle(.soft, for: .top)
-                        .highPriorityGesture(sessionSettingsOverpullGesture)
                         .safeAreaInset(edge: .top, spacing: 0) {
                             sessionHeaderHUD(session: session)
                         }
@@ -282,7 +278,6 @@ struct SessionView: View {
 
 extension SessionView {
     private func updateSessionSettingsOverpull(topContentOffset: CGFloat) {
-        sessionSettingsOverpullTopContentOffset = topContentOffset
         guard canRevealSessionControls else {
             if sessionSettingsOverpullState != .hidden {
                 sessionSettingsOverpullState = .hidden
@@ -295,17 +290,17 @@ extension SessionView {
         )
     }
 
-    private var sessionSettingsOverpullGesture: some Gesture {
+    private var sessionSettingsHeaderPullGesture: some Gesture {
         DragGesture(minimumDistance: 12, coordinateSpace: .global)
             .onChanged { value in
-                updateSessionSettingsOverpullGesture(translationHeight: value.translation.height)
+                updateSessionSettingsHeaderPull(translationHeight: value.translation.height)
             }
             .onEnded { value in
-                releaseSessionSettingsOverpullGesture(translationHeight: value.translation.height)
+                releaseSessionSettingsHeaderPull(translationHeight: value.translation.height)
             }
     }
 
-    private func updateSessionSettingsOverpullGesture(translationHeight: CGFloat) {
+    private func updateSessionSettingsHeaderPull(translationHeight: CGFloat) {
         guard canRevealSessionControls else {
             if sessionSettingsOverpullState != .hidden {
                 sessionSettingsOverpullState = .hidden
@@ -313,45 +308,21 @@ extension SessionView {
             return
         }
 
-        if translationHeight < -16 {
+        guard translationHeight >= 0 else {
             applySessionSettingsOverpullState(.hidden)
             return
         }
 
-        guard !sessionSettingsOverpullState.isPinned else { return }
-
-        if !isSessionSettingsOverpullGestureActive {
-            guard translationHeight > 0, sessionSettingsOverpullTopContentOffset >= -80 else { return }
-            isSessionSettingsOverpullGestureActive = true
-            sessionSettingsOverpullStartOffset = sessionSettingsOverpullTopContentOffset
-        }
-
-        let pullDistance = SessionSettingsOverpullState.overpullDistance(
-            startTopContentOffset: sessionSettingsOverpullStartOffset,
-            translationHeight: translationHeight
-        )
-
         applySessionSettingsOverpullState(
-            sessionSettingsOverpullState.tracking(topContentOffset: pullDistance)
+            sessionSettingsOverpullState.tracking(topContentOffset: translationHeight)
         )
     }
 
-    private func releaseSessionSettingsOverpullGesture(translationHeight: CGFloat) {
-        defer {
-            isSessionSettingsOverpullGestureActive = false
-            sessionSettingsOverpullStartOffset = 0
-        }
-
-        guard canRevealSessionControls, isSessionSettingsOverpullGestureActive else { return }
-        guard !sessionSettingsOverpullState.isPinned else { return }
-
-        let releaseDistance = SessionSettingsOverpullState.overpullDistance(
-            startTopContentOffset: sessionSettingsOverpullStartOffset,
-            translationHeight: translationHeight
-        )
+    private func releaseSessionSettingsHeaderPull(translationHeight: CGFloat) {
+        guard canRevealSessionControls else { return }
 
         applySessionSettingsOverpullState(
-            sessionSettingsOverpullState.released(topContentOffset: releaseDistance)
+            sessionSettingsOverpullState.released(topContentOffset: translationHeight)
         )
     }
 
@@ -386,6 +357,7 @@ extension SessionView {
         .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
         .padding(.horizontal)
         .padding(.top, 8)
+        .highPriorityGesture(sessionSettingsHeaderPullGesture)
     }
 
     private func topContentOffset(_ geometry: ScrollGeometry) -> CGFloat {
