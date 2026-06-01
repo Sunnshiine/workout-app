@@ -361,6 +361,11 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     #expect(SessionSettingsOverpullState.hidden.released(topContentOffset: distance) == .hidden)
 }
 
+@Test func sessionSettingsOverpullDismissesOnInertAllClearTap() {
+    #expect(SessionSettingsOverpullState.pinned.dismissedByInertAllClearTap() == .hidden)
+    #expect(SessionSettingsOverpullState.hidden.dismissedByInertAllClearTap() == .hidden)
+}
+
 @MainActor
 @Test func exerciseSummaryRowPresentationShowsBaseNameAndSetResults() {
     let exercise = Exercise(
