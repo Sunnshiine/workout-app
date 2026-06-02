@@ -19,6 +19,7 @@ final class RestTimer {
     private(set) var deadline: Date?
     private(set) var origin: ActiveSetID?
     private(set) var duration: TimeInterval = 0
+    private(set) var restartRevision = 0
 
     @ObservationIgnored private let clock: any RestClock
 
@@ -38,6 +39,12 @@ final class RestTimer {
         self.duration = duration
         self.origin = origin
         deadline = clock.now.addingTimeInterval(duration)
+        restartRevision += 1
+    }
+
+    func cancel(ifOriginMatches origin: ActiveSetID?) {
+        guard self.origin == origin else { return }
+        dismiss()
     }
 
     func dismiss() {
