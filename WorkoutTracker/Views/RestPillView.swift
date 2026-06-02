@@ -4,6 +4,7 @@ struct RestPillView: View {
     let restTimer: RestTimer
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.themePalette) private var palette
+    @State private var restartPulse = false
 
     var body: some View {
         TimelineView(.periodic(from: Date(), by: 1)) { context in
@@ -13,6 +14,13 @@ struct RestPillView: View {
                     .padding(.horizontal)
                     .padding(.bottom, 8)
                     .transition(transition)
+                    .scaleEffect(restartPulseScale)
+                    .brightness(restartPulseBrightness)
+                    .opacity(restartPulseOpacity)
+                    .animation(restartAnimation, value: restartPulse)
+                    .task(id: restTimer.restartRevision) {
+                        await playRestartBeat(for: restTimer.restartRevision)
+                    }
             }
         }
     }
@@ -79,6 +87,33 @@ struct RestPillView: View {
                 .combined(with: .scale(scale: 0.92, anchor: .bottom))
                 .combined(with: .offset(y: 16))
         }
+    }
+
+    private var restartPulseScale: CGFloat {
+        guard !reduceMotion, restartPulse else { return 1 }
+        return 1.025
+    }
+
+    private var restartPulseBrightness: Double {
+        guard !reduceMotion, restartPulse else { return 0 }
+        return 0.035
+    }
+
+    private var restartPulseOpacity: Double {
+        guard reduceMotion, restartPulse else { return 1 }
+        return 0.82
+    }
+
+    private var restartAnimation: Animation {
+        reduceMotion ? .easeInOut(duration: 0.12) : .smooth(duration: 0.18)
+    }
+
+    private func playRestartBeat(for revision: Int) async {
+        guard revision > 1 else { return }
+        restartPulse = true
+        try? await Task.sleep(for: .milliseconds(160))
+        guard !Task.isCancelled else { return }
+        restartPulse = false
     }
 
     private func countdownColor(for remaining: TimeInterval) -> Color {

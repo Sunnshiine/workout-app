@@ -684,6 +684,67 @@ private func makeRestActionFixture() throws -> CoordinatorRestActionFixture {
 }
 
 @MainActor
+@Test func loggingAnotherSetRestartsExistingRestTimer() throws {
+    let session = makeCoordinatorSession()
+    let logging = SpySessionLoggingAdapter()
+    let sync = SpySessionSyncAdapter()
+    let clock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
+    let restTimer = RestTimer(clock: clock)
+    let coordinator = SessionCoordinator(
+        session: session,
+        logging: logging,
+        sync: sync,
+        restTimer: restTimer,
+        standardRestDuration: { 210 }
+    )
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
+    let rowSet = try #require(session.exercises.first { $0.order == 2 }?.sets.first)
+
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    clock.now.addTimeInterval(60)
+    coordinator.log(rowSet, as: SetLog(weight: .pounds(95), reps: 10, rpe: 7))
+
+    #expect(restTimer.deadline == Date(timeIntervalSinceReferenceDate: 2_270))
+    #expect(restTimer.remaining == 210)
+    #expect(restTimer.origin == ActiveSetID(exerciseOrder: 2, setIndex: 0))
+    #expect(restTimer.restartRevision == 2)
+}
+
+@MainActor
+@Test func deletingOriginSetCancelsRunningRestTimer() throws {
+    let fixture = try makeRestActionFixture()
+    let bench = try #require(fixture.session.exercises.first { $0.order == 1 })
+    let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
+    let secondBenchSet = try #require(bench.sets.first { $0.index == 1 })
+
+    fixture.coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    fixture.coordinator.deleteLog(for: secondBenchSet)
+
+    #expect(fixture.restTimer.isRunning)
+
+    fixture.coordinator.deleteLog(for: firstBenchSet)
+
+    #expect(fixture.restTimer.deadline == nil)
+    #expect(fixture.restTimer.origin == nil)
+    #expect(!fixture.restTimer.isRunning)
+}
+
+@MainActor
+@Test func cancellingSessionRestForMoveOnDismissesRunningRestTimer() throws {
+    let fixture = try makeRestActionFixture()
+    let bench = try #require(fixture.session.exercises.first { $0.order == 1 })
+    let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
+
+    fixture.coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    fixture.coordinator.cancelRestForSessionExit()
+
+    #expect(fixture.restTimer.deadline == nil)
+    #expect(fixture.restTimer.origin == nil)
+    #expect(!fixture.restTimer.isRunning)
+}
+
+@MainActor
 @Test func loggingLastCurrentWeekPendingSetDoesNotStartRestTimer() throws {
     let current = makeSingleSetSession(dayNumber: 1)
     connectCoordinatorWeek([current.session])
