@@ -27,11 +27,13 @@ final class SettingsStore {
     var isSignedIn = false
     private(set) var appearance: AppearancePreference
     private(set) var standardRestDuration: RestDurationSetting
+    private(set) var supersetRestDuration: RestDurationSetting
     private(set) var spreadsheetId: String?
     private(set) var spreadsheetTitle: String?
     private let defaults: UserDefaults
     private static let appearanceKey = "appearance"
     private static let standardRestDurationSecondsKey = "standardRestDurationSeconds"
+    private static let supersetRestDurationSecondsKey = "supersetRestDurationSeconds"
     private static let spreadsheetIdKey = "spreadsheetId"
     private static let spreadsheetTitleKey = "spreadsheetTitle"
     private static let currentSessionOverrideKeyPrefix = "advancedToOrder_"
@@ -42,6 +44,7 @@ final class SettingsStore {
         self.spreadsheetTitle = defaults.string(forKey: Self.spreadsheetTitleKey)
         self.appearance = Self.loadAppearance(defaults: defaults, hasPriorAppState: hasPriorAppState)
         self.standardRestDuration = Self.loadStandardRestDuration(defaults: defaults)
+        self.supersetRestDuration = Self.loadSupersetRestDuration(defaults: defaults)
     }
 
     var isConfigured: Bool { isSignedIn && spreadsheetId != nil }
@@ -74,6 +77,11 @@ final class SettingsStore {
         defaults.set(duration.seconds, forKey: Self.standardRestDurationSecondsKey)
     }
 
+    func setSupersetRestDuration(_ duration: RestDurationSetting) {
+        supersetRestDuration = duration
+        defaults.set(duration.seconds, forKey: Self.supersetRestDurationSecondsKey)
+    }
+
     func signOut() {
         isSignedIn = false
         clearSpreadsheet()
@@ -87,8 +95,7 @@ final class SettingsStore {
     }
 
     private static func loadAppearance(defaults: UserDefaults, hasPriorAppState: Bool) -> AppearancePreference {
-        if let storedValue = defaults.string(forKey: appearanceKey),
-            let preference = AppearancePreference(rawValue: storedValue) {
+        if let preference = defaults.string(forKey: appearanceKey).flatMap(AppearancePreference.init(rawValue:)) {
             return preference
         }
 
@@ -106,6 +113,14 @@ final class SettingsStore {
         }
 
         return RestDurationSetting(seconds: defaults.integer(forKey: standardRestDurationSecondsKey))
+    }
+
+    private static func loadSupersetRestDuration(defaults: UserDefaults) -> RestDurationSetting {
+        guard defaults.object(forKey: supersetRestDurationSecondsKey) != nil else {
+            return .superset
+        }
+
+        return RestDurationSetting(seconds: defaults.integer(forKey: supersetRestDurationSecondsKey))
     }
 
     private static func hasStoredAppState(in defaults: UserDefaults) -> Bool {

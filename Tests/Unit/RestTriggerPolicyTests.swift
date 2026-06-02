@@ -19,9 +19,9 @@ import Testing
     let session = try #require(loggedSet.exercise?.session)
     connectCurrentWeek([session, try #require(makeupSet.exercise?.session)])
 
-    let decision = RestTriggerPolicy.decision(afterLogging: loggedSet, in: session)
+    let decision = RestTriggerPolicy.decision(afterLogging: loggedSet, in: session, isSupersetMember: false)
 
-    #expect(decision == .start)
+    #expect(decision == .start(superset: false))
 }
 
 @MainActor
@@ -29,9 +29,19 @@ import Testing
     let loggedSet = makeCurrentWeekSet(states: [.logged, .pending], dayNumber: 1)
     let session = try #require(loggedSet.exercise?.session)
 
-    let decision = RestTriggerPolicy.decision(afterLogging: loggedSet, in: session)
+    let decision = RestTriggerPolicy.decision(afterLogging: loggedSet, in: session, isSupersetMember: false)
 
-    #expect(decision == .start)
+    #expect(decision == .start(superset: false))
+}
+
+@MainActor
+@Test func restTriggerMarksSupersetStartWhenLoggedSetBelongsToSuperset() throws {
+    let loggedSet = makeCurrentWeekSet(states: [.logged, .pending], dayNumber: 1)
+    let session = try #require(loggedSet.exercise?.session)
+
+    let decision = RestTriggerPolicy.decision(afterLogging: loggedSet, in: session, isSupersetMember: true)
+
+    #expect(decision == .start(superset: true))
 }
 
 @MainActor

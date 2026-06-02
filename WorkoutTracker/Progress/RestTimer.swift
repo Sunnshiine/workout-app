@@ -13,12 +13,27 @@ final class SystemRestClock: RestClock {
     }
 }
 
+enum RestKind: Equatable, Sendable {
+    case standard
+    case superset
+
+    var label: String {
+        switch self {
+        case .standard:
+            "Rest"
+        case .superset:
+            "Superset rest"
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class RestTimer {
     private(set) var deadline: Date?
     private(set) var origin: ActiveSetID?
     private(set) var duration: TimeInterval = 0
+    private(set) var kind: RestKind = .standard
     private(set) var restartRevision = 0
     @ObservationIgnored private var originSetObjectID: ObjectIdentifier?
 
@@ -41,14 +56,20 @@ final class RestTimer {
         remaining > 0
     }
 
+    var label: String {
+        kind.label
+    }
+
     func start(
         duration: TimeInterval,
         origin: ActiveSetID?,
-        originSetObjectID: ObjectIdentifier? = nil
+        originSetObjectID: ObjectIdentifier? = nil,
+        kind: RestKind = .standard
     ) {
         self.duration = duration
         self.origin = origin
         self.originSetObjectID = originSetObjectID
+        self.kind = kind
         if deadline != nil {
             notificationScheduler?.cancel()
         }
@@ -70,6 +91,7 @@ final class RestTimer {
         duration = 0
         origin = nil
         originSetObjectID = nil
+        kind = .standard
         deadline = nil
         notificationScheduler?.cancel()
     }
