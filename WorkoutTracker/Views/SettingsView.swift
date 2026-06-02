@@ -39,6 +39,20 @@ struct SettingsView: View {
                             .overlay(palette.bannerStroke)
                             .padding(.leading, 16)
 
+                        SettingsRestSection(
+                            duration: settings.standardRestDuration,
+                            onDecrement: {
+                                settings.setStandardRestDuration(settings.standardRestDuration.decremented())
+                            },
+                            onIncrement: {
+                                settings.setStandardRestDuration(settings.standardRestDuration.incremented())
+                            }
+                        )
+
+                        Divider()
+                            .overlay(palette.bannerStroke)
+                            .padding(.leading, 16)
+
                         Button {
                             isSheetPickerPresented = true
                         } label: {
@@ -321,6 +335,59 @@ struct SettingsView: View {
     private func clearSettingsError() {
         settingsErrorMessage = nil
         sheetSwitchStore?.clearError()
+    }
+}
+
+private struct SettingsRestSection: View {
+    let duration: RestDurationSetting
+    let onDecrement: () -> Void
+    let onIncrement: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Rest")
+                .font(.body.weight(.semibold))
+
+            HStack(spacing: 14) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Standard")
+                        .font(.body.weight(.semibold))
+
+                    Text("30 sec steps")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 12)
+
+                HStack(spacing: 8) {
+                    PillStepperButton(
+                        systemName: "minus",
+                        accessibilityIdentifier: "settings-standard-rest-decrement",
+                        isEnabled: duration.canDecrement,
+                        action: onDecrement
+                    )
+
+                    Text(duration.displayText)
+                        .font(.title3.weight(.bold))
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .frame(width: 58)
+                        .accessibilityIdentifier("settings-standard-rest-value")
+
+                    PillStepperButton(
+                        systemName: "plus",
+                        accessibilityIdentifier: "settings-standard-rest-increment",
+                        isEnabled: duration.canIncrement,
+                        action: onIncrement
+                    )
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .accessibilityElement(children: .contain)
     }
 }
 

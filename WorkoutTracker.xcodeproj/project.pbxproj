@@ -26,6 +26,7 @@
 		25D084E9516472D4282B4C04 /* ExerciseSummaryRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFBE67C176F894614182855E /* ExerciseSummaryRow.swift */; };
 		26399018B2461BEF70C23851 /* LoadSuggestionEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607A9CA778D25DBBAB685004 /* LoadSuggestionEngineTests.swift */; };
 		2B7FBCA4F41C346E3624E263 /* SheetParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 396D9CC61F31C144A588BE7D /* SheetParserTests.swift */; };
+		2E89825B7CE73BA93E856219 /* RestDurationSettingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04BC574D25534E5FA13DE8B1 /* RestDurationSettingTests.swift */; };
 		2FFD6423631AA90DA899A6F8 /* GoogleSheetsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3B15FEFD6BDE5D8F1A71800 /* GoogleSheetsClient.swift */; };
 		348182B266A444358BFC98BC /* PendingWrite.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECA5D0F58BE44C1297D2C669 /* PendingWrite.swift */; };
 		34953DAF43A033C86A3D9E65 /* ActiveSetPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D3E5BD7F617C986C835A7C1 /* ActiveSetPresentationTests.swift */; };
@@ -103,6 +104,7 @@
 		C65658436C45C61CD6E26A77 /* SetRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2815DD33C0DD5F5D4C262151 /* SetRow.swift */; };
 		C6DC904BF1DB120F03C23247 /* ActiveSetPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45F91B801F53F1BE850F7194 /* ActiveSetPresentation.swift */; };
 		C87ECF69561BD6EB9CF88D34 /* MoveOnCelebrationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D31B56C933A2BA56D448FAC8 /* MoveOnCelebrationView.swift */; };
+		C922073179505394019F37F3 /* PillStepperButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 084BC3BB6CECB164739792A0 /* PillStepperButton.swift */; };
 		CD228894689CDEFA80FF7DA1 /* LastPerformedCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67135AA558123A1C244485B9 /* LastPerformedCard.swift */; };
 		D230D54F4635D5F526C4836B /* BlockOverviewPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61A043E3B096C5472C35B63F /* BlockOverviewPresentationTests.swift */; };
 		D2E358C5A56BEE3A126D926F /* OnboardingPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB0C7093B0FA64E072875DD6 /* OnboardingPresentationTests.swift */; };
@@ -114,6 +116,7 @@
 		D9FFF165728ADB37092CF550 /* GoogleAuthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85019258AFD1ABB430C201E0 /* GoogleAuthTests.swift */; };
 		DA18B95BE71A08ECEE00FFCD /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82C7E3B1CAB7C96142DCF1C7 /* Theme.swift */; };
 		DC4256E5E0BE527A4C3A3310 /* SessionProgressHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D190FFC3E7D57A123821D120 /* SessionProgressHeader.swift */; };
+		E3BF0E131108872ACF22EC6D /* RestDurationSetting.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAF4B32774225208D31F362E /* RestDurationSetting.swift */; };
 		E6298E9C10999070CD34B8C0 /* DeveloperToolsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F622271C453C1C22E76B829 /* DeveloperToolsView.swift */; };
 		E73224AE3C41ED69721C8601 /* PendingWriteFlushOrdering.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8815732F9CDEFACE5019CD05 /* PendingWriteFlushOrdering.swift */; };
 		E8F14E95FDFED307B2DC2042 /* WorkoutTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D48BD9386FBE1872BB0B6849 /* WorkoutTrackerApp.swift */; };
@@ -148,8 +151,10 @@
 /* Begin PBXFileReference section */
 		02CBDEE06463224167F1FB18 /* UITestFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestFixture.swift; sourceTree = "<group>"; };
 		0499FE101F8EA75B5C6D2562 /* SettingsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStoreTests.swift; sourceTree = "<group>"; };
+		04BC574D25534E5FA13DE8B1 /* RestDurationSettingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestDurationSettingTests.swift; sourceTree = "<group>"; };
 		05971BB0A9FEBCA99597C7FE /* DeveloperToolsDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperToolsDiagnostics.swift; sourceTree = "<group>"; };
 		0618D41A9127F527B1A3DBBD /* SyncCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinatorTests.swift; sourceTree = "<group>"; };
+		084BC3BB6CECB164739792A0 /* PillStepperButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PillStepperButton.swift; sourceTree = "<group>"; };
 		0A7DE7A3ADF7567E4E60F24E /* SupersetState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupersetState.swift; sourceTree = "<group>"; };
 		0B3961CCCF9E1E80C9759016 /* WorkoutStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutStoreTests.swift; sourceTree = "<group>"; };
 		18C3B37DF33E327032E126B0 /* SheetParserLogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetParserLogTests.swift; sourceTree = "<group>"; };
@@ -235,6 +240,7 @@
 		B6BBB0700280BA9330BB8F60 /* SheetGridTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetGridTests.swift; sourceTree = "<group>"; };
 		B73C4E487CCAF7C536F0485E /* BlockBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockBuilderTests.swift; sourceTree = "<group>"; };
 		B7AB55701E90E154D77C4E32 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
+		BAF4B32774225208D31F362E /* RestDurationSetting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestDurationSetting.swift; sourceTree = "<group>"; };
 		BD0ADA4AF2047FB6DE169C71 /* MoveOnCelebrationPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveOnCelebrationPresentationTests.swift; sourceTree = "<group>"; };
 		C703F549688F120A123589E3 /* ActiveSetFocusManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveSetFocusManagerTests.swift; sourceTree = "<group>"; };
 		CC47CE1DE98286E2DA318F0D /* WorkoutTrackerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutTrackerUITests.swift; sourceTree = "<group>"; };
@@ -316,6 +322,7 @@
 				D92CDF9A3131D2FF682B82FE /* LoggedSetReviewCard.swift */,
 				D31B56C933A2BA56D448FAC8 /* MoveOnCelebrationView.swift */,
 				5C9C69974B6867E8568AFBD0 /* OnboardingView.swift */,
+				084BC3BB6CECB164739792A0 /* PillStepperButton.swift */,
 				61A0E7DC223D895437B136E4 /* RestPillView.swift */,
 				9038CBF5AF997C5562D3A6E4 /* RootView.swift */,
 				99901102A552A245156C78ED /* RPEGrid.swift */,
@@ -369,6 +376,7 @@
 				1C7300339A281CFE0D307569 /* PartiallyUploadedBlockWorkoutStoreTests.swift */,
 				D8629437B46CD9B6B87AA05B /* PendingWriteTests.swift */,
 				8ADEBBADB9046E8CA563F0AB /* PersistenceTests.swift */,
+				04BC574D25534E5FA13DE8B1 /* RestDurationSettingTests.swift */,
 				9E22CF1CC45C50BC480D0ADD /* RestTimerTests.swift */,
 				D613549E805C2F0EF82FE4C6 /* SessionCoordinatorTests.swift */,
 				34CCE3516AF8BD080F2B73C1 /* SessionProgressTrackerTests.swift */,
@@ -463,6 +471,7 @@
 				DD5AE788CBF5DAF0C684F6D3 /* Exercise.swift */,
 				6FE11A57FFD49F1221D2CA75 /* LastPerformedEntry.swift */,
 				ECA5D0F58BE44C1297D2C669 /* PendingWrite.swift */,
+				BAF4B32774225208D31F362E /* RestDurationSetting.swift */,
 				20D53666552036BF79EEB41F /* SetLog.swift */,
 			);
 			path = Models;
@@ -680,6 +689,7 @@
 				150FD5018848ACCE1FE8B8AE /* PendingWriteTests.swift in Sources */,
 				8CAE526FB04320D7A0957080 /* PersistenceTests.swift in Sources */,
 				D7BCBC8801C61C86B5BA9C5A /* RPEScalePresentationTests.swift in Sources */,
+				2E89825B7CE73BA93E856219 /* RestDurationSettingTests.swift in Sources */,
 				353AB34049E35B9E32D7F353 /* RestTimerTests.swift in Sources */,
 				AE646579607F94F85A4BC0B7 /* SessionCoordinatorTests.swift in Sources */,
 				AC29BD0F002AFBF37ABA216E /* SessionProgressTrackerTests.swift in Sources */,
@@ -749,9 +759,11 @@
 				7A7A9B87F7663034989F8EB4 /* OnboardingView.swift in Sources */,
 				348182B266A444358BFC98BC /* PendingWrite.swift in Sources */,
 				E73224AE3C41ED69721C8601 /* PendingWriteFlushOrdering.swift in Sources */,
+				C922073179505394019F37F3 /* PillStepperButton.swift in Sources */,
 				7CDFDA32B138EFA224F89B49 /* RPEGrid.swift in Sources */,
 				62C47D84D01FC02141D4DDA2 /* RPEScalePresentation.swift in Sources */,
 				AAE0298CD6180CE49F179D7C /* RPEScaleScroller.swift in Sources */,
+				E3BF0E131108872ACF22EC6D /* RestDurationSetting.swift in Sources */,
 				FBD7C9EAC29A366FA58E151A /* RestPillView.swift in Sources */,
 				F3718BD9273E7015B3CC6396 /* RestTimer.swift in Sources */,
 				AAB1AF9D5F9324682EAF6B48 /* RootView.swift in Sources */,
