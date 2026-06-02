@@ -258,8 +258,12 @@ final class SessionCoordinator {
         do {
             let session = try actionSession(for: set)
             try loggingAdapter.log(set, as: log)
-            if RestTriggerPolicy.decision(afterLogging: set, in: session) == .start {
-                restTimer?.start(duration: standardRestDuration(), origin: Self.activeSetID(for: set))
+            if RestTriggerPolicy.decision(afterLogging: set, in: session) == .start || restTimer?.isRunning == true {
+                restTimer?.start(
+                    duration: standardRestDuration(),
+                    origin: Self.activeSetID(for: set),
+                    originSetObjectID: ObjectIdentifier(set)
+                )
             }
             performFocusUpdate(animateFocus) {
                 advanceAfterLog(set, in: session)
@@ -289,12 +293,20 @@ final class SessionCoordinator {
         do {
             _ = try actionSession(for: set)
             try loggingAdapter.deleteLog(for: set)
+            restTimer?.cancel(
+                ifOriginMatches: Self.activeSetID(for: set),
+                originSetObjectID: ObjectIdentifier(set)
+            )
             focus(on: set)
             clearRetiringTransition()
             syncAdapter.requestPendingWriteFlush()
         } catch {
             syncAdapter.reportLocalWriteFailure(error)
         }
+    }
+
+    func cancelRestForSessionExit() {
+        restTimer?.dismiss()
     }
 
     func updateLoggedSet(_ set: ExerciseSet, as log: SetLog) {
