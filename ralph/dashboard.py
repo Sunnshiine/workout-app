@@ -80,6 +80,397 @@ def escape(s: str) -> str:
     return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
 
+# ── Inline CSS additions (sortable headers + charts) ──────────────────────────
+
+_CSS_EXTRA = """
+  /* ─── sortable headers ─── */
+  thead th { cursor: pointer; user-select: none; }
+  thead th::after { content: ''; display: inline-block; width: 14px; }
+  thead th[data-sort="asc"]::after { content: ' ▲'; color: var(--mint); font-size: 8px; }
+  thead th[data-sort="desc"]::after { content: ' ▼'; color: var(--mint); font-size: 8px; }
+  thead th:hover { color: var(--text); }
+
+  /* ─── chart layout ─── */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .chart-full { grid-column: 1 / -1; }
+  .chart-card {
+    background: var(--bg2);
+    border: 1px solid var(--stroke);
+    border-radius: var(--radius-card);
+    overflow: hidden;
+  }
+  .chart-head {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--stroke);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    background: var(--bg3);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .chart-legend {
+    display: flex;
+    gap: 12px;
+    margin-left: auto;
+  }
+  .chart-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 9px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-weight: 500;
+  }
+  .legend-swatch {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  canvas { display: block; width: 100%; }
+  #chart-tokens  { height: 260px; }
+  #chart-iters   { height: 240px; }
+  #chart-scatter { height: 240px; }
+  .chart-tooltip {
+    position: fixed;
+    background: var(--bg2);
+    border: 1px solid var(--stroke-active);
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+    font-size: 11px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    pointer-events: none;
+    display: none;
+    z-index: 100;
+    white-space: nowrap;
+    line-height: 1.6;
+  }
+  @media (max-width: 720px) {
+    .charts-grid { grid-template-columns: 1fr; }
+    .chart-full  { grid-column: 1; }
+  }
+"""
+
+# ── Inline JavaScript (table sorting + canvas charts) ─────────────────────────
+# Uses __CHART_DATA__ as a placeholder; replaced with JSON before embedding.
+
+_JS_TEMPLATE = """
+(function () {
+  'use strict';
+
+  const DATA = __CHART_DATA__;
+
+  const C = {
+    bg2: '#060E0A', bg3: '#081A12', stroke: '#215C40',
+    mint: '#73FFB8', muted: '#AAB8B0', blue: '#0A84FF', text: '#F5F7F3'
+  };
+
+  function outcomeColor(o) {
+    return o === 'resolved' ? C.mint : o === 'ready-for-human' ? C.blue : C.muted;
+  }
+
+  function fmtTok(n) {
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+    if (n >= 1e3) return Math.round(n / 1e3) + 'K';
+    return String(n);
+  }
+
+  function fmtDur(s) {
+    if (!s) return '—';
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    if (h) return h + 'h ' + m + 'm';
+    if (m) return m + 'm ' + sec + 's';
+    return sec + 's';
+  }
+
+  function setupCanvas(id) {
+    const cv = document.getElementById(id);
+    if (!cv) return null;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = cv.getBoundingClientRect();
+    if (!rect.width) return null;
+    cv.width = Math.round(rect.width * dpr);
+    cv.height = Math.round(rect.height * dpr);
+    const ctx = cv.getContext('2d');
+    ctx.scale(dpr, dpr);
+    return { ctx, W: rect.width, H: rect.height };
+  }
+
+  // ── Token consumption bar chart ──────────────────────────────────────────
+  function drawTokens() {
+    const r = setupCanvas('chart-tokens');
+    if (!r) return;
+    const { ctx, W, H } = r;
+    const pad = { t: 20, r: 12, b: 40, l: 56 };
+    const cW = W - pad.l - pad.r, cH = H - pad.t - pad.b;
+    const pts = [...DATA.attempts].sort((a, b) => a.issue - b.issue || a.iteration - b.iteration);
+    const maxT = Math.max(...pts.map(a => a.total_tokens));
+
+    ctx.fillStyle = C.bg2; ctx.fillRect(0, 0, W, H);
+
+    ctx.font = '9px SF Mono, ui-monospace, monospace';
+    for (let i = 0; i <= 4; i++) {
+      const y = pad.t + cH * (1 - i / 4);
+      ctx.strokeStyle = C.stroke + '55'; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cW, y); ctx.stroke();
+      ctx.fillStyle = C.muted; ctx.textAlign = 'right';
+      ctx.fillText(fmtTok(maxT * i / 4), pad.l - 4, y + 3);
+    }
+
+    const slotW = cW / pts.length;
+    const barW = Math.max(1.5, slotW * 0.82);
+    pts.forEach((a, i) => {
+      const x = pad.l + slotW * i + (slotW - barW) / 2;
+      const bH = (a.total_tokens / maxT) * cH;
+      ctx.fillStyle = outcomeColor(a.outcome); ctx.globalAlpha = 0.82;
+      ctx.fillRect(x, pad.t + cH - bH, barW, bH);
+    });
+    ctx.globalAlpha = 1;
+
+    const step = Math.max(1, Math.floor(pts.length / 14));
+    ctx.fillStyle = C.muted; ctx.textAlign = 'center';
+    ctx.font = '9px SF Mono, ui-monospace, monospace';
+    pts.forEach((a, i) => {
+      if (i % step === 0)
+        ctx.fillText('#' + a.issue, pad.l + slotW * i + slotW / 2, H - pad.b + 14);
+    });
+
+    ctx.strokeStyle = C.stroke; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + cH); ctx.lineTo(pad.l + cW, pad.t + cH); ctx.stroke();
+  }
+
+  // ── Iteration depth stacked bar chart ────────────────────────────────────
+  function drawIterations() {
+    const r = setupCanvas('chart-iters');
+    if (!r) return;
+    const { ctx, W, H } = r;
+    const pad = { t: 24, r: 20, b: 44, l: 44 };
+    const cW = W - pad.l - pad.r, cH = H - pad.t - pad.b;
+
+    const maxIter = Math.max(...DATA.attempts.map(a => a.iteration));
+    const buckets = {};
+    for (let i = 1; i <= maxIter; i++) buckets[i] = { res: 0, hum: 0, inc: 0 };
+    DATA.attempts.forEach(a => {
+      const b = buckets[a.iteration];
+      if (a.outcome === 'resolved') b.res++;
+      else if (a.outcome === 'ready-for-human') b.hum++;
+      else b.inc++;
+    });
+
+    const allTotals = Object.values(buckets).map(b => b.res + b.hum + b.inc);
+    const gridMax = Math.ceil(Math.max(...allTotals) / 5) * 5 || 5;
+
+    ctx.fillStyle = C.bg2; ctx.fillRect(0, 0, W, H);
+    ctx.font = '9px SF Mono, ui-monospace, monospace';
+    for (let i = 0; i <= 4; i++) {
+      const y = pad.t + cH * (1 - i / 4);
+      ctx.strokeStyle = C.stroke + '55'; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cW, y); ctx.stroke();
+      ctx.fillStyle = C.muted; ctx.textAlign = 'right';
+      ctx.fillText(Math.round(gridMax * i / 4), pad.l - 4, y + 3);
+    }
+
+    const iters = Object.keys(buckets).map(Number).sort((a, b) => a - b);
+    const slotW = cW / iters.length;
+    const barW = Math.min(52, Math.max(18, slotW * 0.62));
+
+    iters.forEach((iter, i) => {
+      const x = pad.l + slotW * i + (slotW - barW) / 2;
+      const b = buckets[iter];
+      const total = b.res + b.hum + b.inc;
+      let yBase = pad.t + cH;
+
+      [[b.res, C.mint, 0.85], [b.hum, C.blue, 0.8], [b.inc, C.muted, 0.55]].forEach(([n, col, alpha]) => {
+        if (!n) return;
+        const bH = (n / gridMax) * cH;
+        yBase -= bH;
+        ctx.fillStyle = col; ctx.globalAlpha = alpha;
+        ctx.fillRect(x, yBase, barW, bH);
+      });
+      ctx.globalAlpha = 1;
+
+      ctx.fillStyle = C.muted; ctx.textAlign = 'center';
+      ctx.font = '9px SF Mono, ui-monospace, monospace';
+      ctx.fillText('iter ' + iter, x + barW / 2, pad.t + cH + 14);
+
+      if (total > 0) {
+        const topY = pad.t + cH - (total / gridMax) * cH;
+        ctx.fillStyle = C.text;
+        ctx.font = 'bold 10px SF Mono, ui-monospace, monospace';
+        ctx.fillText(total, x + barW / 2, topY - 5);
+      }
+    });
+
+    ctx.strokeStyle = C.stroke; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + cH); ctx.lineTo(pad.l + cW, pad.t + cH); ctx.stroke();
+  }
+
+  // ── Duration vs Tokens scatter ────────────────────────────────────────────
+  function drawScatter() {
+    const r = setupCanvas('chart-scatter');
+    if (!r) return;
+    const { ctx, W, H } = r;
+    const pad = { t: 20, r: 20, b: 44, l: 56 };
+    const cW = W - pad.l - pad.r, cH = H - pad.t - pad.b;
+    const pts = DATA.attempts.filter(a => a.duration_seconds > 0);
+    if (!pts.length) return;
+    const maxD = Math.max(...pts.map(a => a.duration_seconds));
+    const maxT = Math.max(...pts.map(a => a.total_tokens));
+
+    ctx.fillStyle = C.bg2; ctx.fillRect(0, 0, W, H);
+    ctx.font = '9px SF Mono, ui-monospace, monospace';
+
+    for (let i = 0; i <= 4; i++) {
+      const y = pad.t + cH * (1 - i / 4);
+      const x = pad.l + cW * i / 4;
+      ctx.strokeStyle = C.stroke + '55'; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cW, y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, pad.t + cH); ctx.stroke();
+      ctx.fillStyle = C.muted;
+      ctx.textAlign = 'right';
+      ctx.fillText(fmtTok(maxT * i / 4), pad.l - 4, y + 3);
+      ctx.textAlign = 'center';
+      const secs = maxD * i / 4;
+      ctx.fillText(secs >= 3600 ? (secs / 3600).toFixed(1) + 'h' : Math.round(secs / 60) + 'm', x, pad.t + cH + 14);
+    }
+
+    pts.forEach(a => {
+      const x = pad.l + (a.duration_seconds / maxD) * cW;
+      const y = pad.t + cH - (a.total_tokens / maxT) * cH;
+      ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = outcomeColor(a.outcome); ctx.globalAlpha = 0.72;
+      ctx.fill(); ctx.globalAlpha = 1;
+    });
+
+    ctx.strokeStyle = C.stroke; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + cH); ctx.lineTo(pad.l + cW, pad.t + cH); ctx.stroke();
+
+    ctx.fillStyle = C.muted; ctx.textAlign = 'center';
+    ctx.font = '9px SF Mono, ui-monospace, monospace';
+    ctx.fillText('Duration →', pad.l + cW / 2, H - 4);
+    ctx.save(); ctx.translate(10, pad.t + cH / 2); ctx.rotate(-Math.PI / 2);
+    ctx.fillText('Tokens →', 0, 0); ctx.restore();
+  }
+
+  // ── Tooltips ──────────────────────────────────────────────────────────────
+  function makeTip() {
+    const el = document.createElement('div');
+    el.className = 'chart-tooltip';
+    document.body.appendChild(el);
+    return el;
+  }
+
+  function showTip(tip, e, html) {
+    tip.innerHTML = html;
+    tip.style.display = 'block';
+    tip.style.left = (e.pageX + 14) + 'px';
+    tip.style.top  = (e.pageY - 54) + 'px';
+  }
+
+  function hideTip(tip) { tip.style.display = 'none'; }
+
+  function outcomeLabel(o) {
+    return o === 'resolved' ? '✓ resolved' : o === 'ready-for-human' ? '⊙ needs human' : '○ incomplete';
+  }
+
+  function initTokenTooltip() {
+    const cv = document.getElementById('chart-tokens');
+    if (!cv) return;
+    const tip = makeTip();
+    const sorted = [...DATA.attempts].sort((a, b) => a.issue - b.issue || a.iteration - b.iteration);
+    cv.addEventListener('mousemove', e => {
+      const rect = cv.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const cW = rect.width - 56 - 12;
+      const idx = Math.floor((x - 56) / (cW / sorted.length));
+      if (idx >= 0 && idx < sorted.length) {
+        const a = sorted[idx];
+        showTip(tip, e, '<b>#' + a.issue + '</b> iter ' + a.iteration + '<br>' + outcomeLabel(a.outcome) + '<br>' + fmtTok(a.total_tokens) + ' · ' + fmtDur(a.duration_seconds));
+      } else hideTip(tip);
+    });
+    cv.addEventListener('mouseleave', () => hideTip(tip));
+  }
+
+  function initScatterTooltip() {
+    const cv = document.getElementById('chart-scatter');
+    if (!cv) return;
+    const tip = makeTip();
+    const pts = DATA.attempts.filter(a => a.duration_seconds > 0);
+    const maxD = Math.max(...pts.map(a => a.duration_seconds));
+    const maxT = Math.max(...pts.map(a => a.total_tokens));
+    cv.addEventListener('mousemove', e => {
+      const rect = cv.getBoundingClientRect();
+      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      const cW = rect.width - 76, cH = rect.height - 64;
+      const pl = 56, pt = 20;
+      let near = null, dist = Infinity;
+      pts.forEach(a => {
+        const d = Math.hypot(mx - (pl + (a.duration_seconds / maxD) * cW), my - (pt + cH - (a.total_tokens / maxT) * cH));
+        if (d < dist) { dist = d; near = a; }
+      });
+      if (near && dist < 20) {
+        showTip(tip, e, '<b>#' + near.issue + '</b> iter ' + near.iteration + '<br>' + outcomeLabel(near.outcome) + '<br>' + fmtTok(near.total_tokens) + ' · ' + fmtDur(near.duration_seconds));
+      } else hideTip(tip);
+    });
+    cv.addEventListener('mouseleave', () => hideTip(tip));
+  }
+
+  // ── Table sorting ─────────────────────────────────────────────────────────
+  function initSortable(tableId) {
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    const ths = Array.from(table.querySelectorAll('thead th'));
+    ths.forEach((th, col) => {
+      th.addEventListener('click', () => {
+        const cur = th.getAttribute('data-sort');
+        const dir = cur === 'asc' ? 'desc' : 'asc';
+        ths.forEach(h => h.removeAttribute('data-sort'));
+        th.setAttribute('data-sort', dir);
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        rows.sort((ra, rb) => {
+          const ca = ra.querySelectorAll('td')[col];
+          const cb = rb.querySelectorAll('td')[col];
+          const va = ca?.getAttribute('data-value') ?? (ca?.textContent ?? '').trim();
+          const vb = cb?.getAttribute('data-value') ?? (cb?.textContent ?? '').trim();
+          const na = parseFloat(va), nb = parseFloat(vb);
+          const cmp = (!isNaN(na) && !isNaN(nb)) ? na - nb : va.localeCompare(vb);
+          return dir === 'asc' ? cmp : -cmp;
+        });
+        rows.forEach(r => tbody.appendChild(r));
+      });
+    });
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  function drawAll() { drawTokens(); drawIterations(); drawScatter(); }
+
+  window.addEventListener('load', () => {
+    ['table-resolved', 'table-not-afk', 'table-phases'].forEach(initSortable);
+    drawAll();
+    initTokenTooltip();
+    initScatterTooltip();
+  });
+
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(drawAll, 120);
+  });
+})();
+"""
+
+
 def build_html(data: dict, generated_at: str) -> str:
     attempts = data["attempts"]
     resolved = [a for a in attempts if a["outcome"] == "resolved"]
@@ -109,6 +500,23 @@ def build_html(data: dict, generated_at: str) -> str:
     top_ctx = sorted(attempts, key=lambda a: a["tokens"]["max_context_percent"], reverse=True)[:5]
     top_compactions = sorted(attempts, key=lambda a: a["tokens"]["compactions"], reverse=True)[:5]
 
+    # Chart data (compact, embedded in JS)
+    chart_attempts = sorted(attempts, key=lambda x: (x["issue"], x["iteration"]))
+    chart_data = {
+        "attempts": [
+            {
+                "issue": a["issue"],
+                "iteration": a["iteration"],
+                "outcome": a["outcome"],
+                "total_tokens": a["tokens"]["total_tokens"],
+                "duration_seconds": a["duration_seconds"],
+            }
+            for a in chart_attempts
+        ]
+    }
+    chart_data_json = json.dumps(chart_data, separators=(",", ":"))
+    js_code = _JS_TEMPLATE.replace("__CHART_DATA__", chart_data_json)
+
     # Build resolved rows
     resolved_rows = []
     for a in sorted(resolved, key=lambda x: x["issue"]):
@@ -120,12 +528,12 @@ def build_html(data: dict, generated_at: str) -> str:
         <tr>
           <td class="num">#{a['issue']}</td>
           <td class="num">{a['iteration']}</td>
-          <td>{a['duration']}</td>
-          <td class="num">{fmt_tokens(tok['total_tokens'])}</td>
-          <td class="num">{fmt_tokens(tok['uncached_input_tokens'])}</td>
-          <td class="num {cc}">{tok['max_context_percent']}%</td>
-          <td class="num">{tok['compactions'] or '—'}</td>
-          <td class="num">{tok['session_count']}</td>
+          <td data-value="{a['duration_seconds']}">{a['duration']}</td>
+          <td class="num" data-value="{tok['total_tokens']}">{fmt_tokens(tok['total_tokens'])}</td>
+          <td class="num" data-value="{tok['uncached_input_tokens']}">{fmt_tokens(tok['uncached_input_tokens'])}</td>
+          <td class="num {cc}" data-value="{tok['max_context_percent']}">{tok['max_context_percent']}%</td>
+          <td class="num" data-value="{tok['compactions']}">{tok['compactions'] or '—'}</td>
+          <td class="num" data-value="{tok['session_count']}">{tok['session_count']}</td>
           <td>{phases_html}</td>
           <td>{roles_html}</td>
         </tr>""")
@@ -143,12 +551,12 @@ def build_html(data: dict, generated_at: str) -> str:
           <td class="num">#{a['issue']}</td>
           <td class="num">{a['iteration']}</td>
           <td><span class="badge {oc}">{label}</span></td>
-          <td>{a['duration'] if a['duration_seconds'] else '—'}</td>
-          <td class="num">{fmt_tokens(tok['total_tokens'])}</td>
+          <td data-value="{a['duration_seconds']}">{a['duration'] if a['duration_seconds'] else '—'}</td>
+          <td class="num" data-value="{tok['total_tokens']}">{fmt_tokens(tok['total_tokens'])}</td>
           <td class="reason">{reason_short or '<span class="muted">—</span>'}</td>
         </tr>""")
 
-    # Build outlier rows helper
+    # Build outlier row helper
     def outlier_row(a: dict, metric: str) -> str:
         tok = a["tokens"]
         oc = outcome_class(a["outcome"])
@@ -172,16 +580,31 @@ def build_html(data: dict, generated_at: str) -> str:
         if name not in phase_totals:
             continue
         s = phase_totals[name]
+        avg = s["tokens"] // s["count"] if s["count"] else 0
         phase_rows.append(f"""
         <tr>
           <td>{phase_label.get(name, name)}</td>
-          <td class="num">{s['count']}</td>
-          <td>{fmt_dur(s['dur'])}</td>
-          <td class="num">{fmt_tokens(s['tokens'])}</td>
-          <td class="num">{fmt_tokens(s['tokens'] // s['count']) if s['count'] else '—'}</td>
+          <td class="num" data-value="{s['count']}">{s['count']}</td>
+          <td data-value="{s['dur']}">{fmt_dur(s['dur'])}</td>
+          <td class="num" data-value="{s['tokens']}">{fmt_tokens(s['tokens'])}</td>
+          <td class="num" data-value="{avg}">{fmt_tokens(avg) if avg else '—'}</td>
         </tr>""")
 
     resolve_rate = round(len(resolved) / len(attempts) * 100, 1)
+
+    legend_html = """
+          <span class="chart-legend">
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#73FFB8"></span>resolved</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#0A84FF"></span>needs human</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#AAB8B0"></span>incomplete</span>
+          </span>"""
+
+    scatter_legend = """
+          <span class="chart-legend">
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#73FFB8;border-radius:50%"></span>resolved</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#0A84FF;border-radius:50%"></span>needs human</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#AAB8B0;border-radius:50%"></span>incomplete</span>
+          </span>"""
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -450,6 +873,8 @@ def build_html(data: dict, generated_at: str) -> str:
     left: 0;
   }}
 
+{_CSS_EXTRA}
+
   @media (max-width: 640px) {{
     .summary {{ flex-wrap: wrap; }}
     .stat {{ min-width: calc(33% - 1px); }}
@@ -507,6 +932,34 @@ def build_html(data: dict, generated_at: str) -> str:
     </div>
   </div>
 
+  <!-- Charts -->
+  <section class="section">
+    <div class="section-title">Charts</div>
+    <div class="charts-grid">
+      <div class="chart-card chart-full">
+        <div class="chart-head">
+          Token Consumption by Issue
+          {legend_html}
+        </div>
+        <canvas id="chart-tokens"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-head">
+          Iteration Depth
+          {legend_html}
+        </div>
+        <canvas id="chart-iters"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-head">
+          Duration vs Tokens
+          {scatter_legend}
+        </div>
+        <canvas id="chart-scatter"></canvas>
+      </div>
+    </div>
+  </section>
+
   <!-- AFK Solved -->
   <section class="section">
     <div class="section-title">
@@ -514,7 +967,7 @@ def build_html(data: dict, generated_at: str) -> str:
       <span class="count resolved">{len(resolved)}</span>
     </div>
     <div class="table-wrap">
-      <table>
+      <table id="table-resolved">
         <thead>
           <tr>
             <th>Issue</th>
@@ -543,7 +996,7 @@ def build_html(data: dict, generated_at: str) -> str:
       <span class="count">{len(not_afk)}</span>
     </div>
     <div class="table-wrap">
-      <table>
+      <table id="table-not-afk">
         <thead>
           <tr>
             <th>Issue</th>
@@ -565,7 +1018,7 @@ def build_html(data: dict, generated_at: str) -> str:
   <section class="section">
     <div class="section-title">Phase Analysis</div>
     <div class="table-wrap">
-      <table>
+      <table id="table-phases">
         <thead>
           <tr>
             <th>Phase</th>
@@ -633,6 +1086,7 @@ def build_html(data: dict, generated_at: str) -> str:
   </div>
 
 </div>
+<script>{js_code}</script>
 </body>
 </html>"""
 
