@@ -11,6 +11,9 @@ struct WorkoutTrackerApp: App {
     @State private var lastPerformedLookup: LastPerformedLookupStore
 
     init() {
+        #if canImport(UserNotifications)
+            RestNotificationCenterScheduler.shared.installForegroundDelegate()
+        #endif
         #if DEBUG
             if UITestFixture.isEnabled {
                 let container = UITestFixture.makeContainer()

@@ -26,6 +26,7 @@
 		23DC6090AF57EAF426C113C5 /* LastPerformedEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FE11A57FFD49F1221D2CA75 /* LastPerformedEntry.swift */; };
 		25D084E9516472D4282B4C04 /* ExerciseSummaryRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFBE67C176F894614182855E /* ExerciseSummaryRow.swift */; };
 		26399018B2461BEF70C23851 /* LoadSuggestionEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607A9CA778D25DBBAB685004 /* LoadSuggestionEngineTests.swift */; };
+		298DEFE8D99B3F6C97CAAE38 /* RestNotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFBA3AF5C9A8A37438C43F0D /* RestNotificationScheduler.swift */; };
 		2B7FBCA4F41C346E3624E263 /* SheetParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 396D9CC61F31C144A588BE7D /* SheetParserTests.swift */; };
 		2E89825B7CE73BA93E856219 /* RestDurationSettingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04BC574D25534E5FA13DE8B1 /* RestDurationSettingTests.swift */; };
 		2FFD6423631AA90DA899A6F8 /* GoogleSheetsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3B15FEFD6BDE5D8F1A71800 /* GoogleSheetsClient.swift */; };
@@ -177,6 +178,7 @@
 		2815DD33C0DD5F5D4C262151 /* SetRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetRow.swift; sourceTree = "<group>"; };
 		2B20D8C8042E63AE48DC73C6 /* SyncCoordinatorLocalWorkbookRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinatorLocalWorkbookRoundTripTests.swift; sourceTree = "<group>"; };
 		2CC347CBCB45EC717781E8EF /* SyncStatusBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatusBanner.swift; sourceTree = "<group>"; };
+		304C9856D661C3EABBB28B1E /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		31126E1DC357E16E1B75D98D /* OnboardingPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingPresentation.swift; sourceTree = "<group>"; };
 		31ECE7AE0773E6603044F847 /* SheetLayoutInterpreterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetLayoutInterpreterTests.swift; sourceTree = "<group>"; };
 		34CCE3516AF8BD080F2B73C1 /* SessionProgressTrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionProgressTrackerTests.swift; sourceTree = "<group>"; };
@@ -214,7 +216,6 @@
 		67135AA558123A1C244485B9 /* LastPerformedCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastPerformedCard.swift; sourceTree = "<group>"; };
 		698FB46E5B1635F96AA0AA79 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		6FE11A57FFD49F1221D2CA75 /* LastPerformedEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastPerformedEntry.swift; sourceTree = "<group>"; };
-		7010D1D1F501E4A4674A35F0 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		7172E2B6F090D7F496DD6236 /* SessionTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTile.swift; sourceTree = "<group>"; };
 		719E54DAA40D4D2D700AA91F /* SmartValuePills.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartValuePills.swift; sourceTree = "<group>"; };
 		73043E31A40EFA8A57C38FAF /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
@@ -285,6 +286,7 @@
 		FCE536596991762BAEEF006D /* SmartValuePillsForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartValuePillsForm.swift; sourceTree = "<group>"; };
 		FD5A40419517EF83C31555BC /* ActiveSetFocusManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveSetFocusManager.swift; sourceTree = "<group>"; };
 		FF7F63038DE0B69F173CD7CD /* WorkoutScenarioTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutScenarioTests.swift; sourceTree = "<group>"; };
+		FFBA3AF5C9A8A37438C43F0D /* RestNotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestNotificationScheduler.swift; sourceTree = "<group>"; };
 		FFBE67C176F894614182855E /* ExerciseSummaryRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseSummaryRow.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -364,6 +366,7 @@
 				31126E1DC357E16E1B75D98D /* OnboardingPresentation.swift */,
 				ACF6881367727170008AC93C /* RestHapticPlayer.swift */,
 				1396E247C762E3B6CE7A945F /* RestHapticSchedule.swift */,
+				FFBA3AF5C9A8A37438C43F0D /* RestNotificationScheduler.swift */,
 				64B19CCD3F77D3DFDE9A9A8E /* RestTimer.swift */,
 				C452CB917A65913E44B18E15 /* RestTriggerPolicy.swift */,
 				DF7F7CD5D8F394F75F33E69D /* RPEScalePresentation.swift */,
@@ -498,21 +501,12 @@
 		AD6248B3D6F5FB51D1B71926 = {
 			isa = PBXGroup;
 			children = (
-				C6B52434493F35DCCBE524A4 /* issue-161 */,
+				D6648FAECA6FD2A58F1C05BD /* issue-162 */,
 				9B5D2614740AB0F48B97C160 /* Tests */,
 				6C91FD23A5DEAAB4EF7F986B /* UI */,
 				E4E43F24E68521EDECD85406 /* WorkoutTracker */,
 				C91759DD6A5BDB578F6ECD07 /* Products */,
 			);
-			sourceTree = "<group>";
-		};
-		C6B52434493F35DCCBE524A4 /* issue-161 */ = {
-			isa = PBXGroup;
-			children = (
-				7010D1D1F501E4A4674A35F0 /* Secrets.xcconfig */,
-			);
-			name = "issue-161";
-			path = .;
 			sourceTree = "<group>";
 		};
 		C91759DD6A5BDB578F6ECD07 /* Products */ = {
@@ -523,6 +517,15 @@
 				45AEC5243B4F982899183AC2 /* WorkoutTrackerUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		D6648FAECA6FD2A58F1C05BD /* issue-162 */ = {
+			isa = PBXGroup;
+			children = (
+				304C9856D661C3EABBB28B1E /* Secrets.xcconfig */,
+			);
+			name = "issue-162";
+			path = .;
 			sourceTree = "<group>";
 		};
 		E4E43F24E68521EDECD85406 /* WorkoutTracker */ = {
@@ -787,6 +790,7 @@
 				E3BF0E131108872ACF22EC6D /* RestDurationSetting.swift in Sources */,
 				956265DB4A42BBF0BB5DAAB3 /* RestHapticPlayer.swift in Sources */,
 				217F85CA4B87806AB31ABF84 /* RestHapticSchedule.swift in Sources */,
+				298DEFE8D99B3F6C97CAAE38 /* RestNotificationScheduler.swift in Sources */,
 				FBD7C9EAC29A366FA58E151A /* RestPillView.swift in Sources */,
 				F3718BD9273E7015B3CC6396 /* RestTimer.swift in Sources */,
 				6EBAC50C5CD9AE6FED2A1822 /* RestTriggerPolicy.swift in Sources */,
@@ -898,7 +902,7 @@
 		};
 		8EBE64E8BA6EAC5943905B78 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 7010D1D1F501E4A4674A35F0 /* Secrets.xcconfig */;
+			baseConfigurationReference = 304C9856D661C3EABBB28B1E /* Secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -974,7 +978,7 @@
 		};
 		BE08E80469AD6F14E590565E /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 7010D1D1F501E4A4674A35F0 /* Secrets.xcconfig */;
+			baseConfigurationReference = 304C9856D661C3EABBB28B1E /* Secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
