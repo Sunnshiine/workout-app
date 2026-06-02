@@ -258,7 +258,9 @@ final class SessionCoordinator {
         do {
             let session = try actionSession(for: set)
             try loggingAdapter.log(set, as: log)
-            restTimer?.start(duration: standardRestDuration(), origin: Self.activeSetID(for: set))
+            if RestTriggerPolicy.decision(afterLogging: set, in: session) == .start {
+                restTimer?.start(duration: standardRestDuration(), origin: Self.activeSetID(for: set))
+            }
             performFocusUpdate(animateFocus) {
                 advanceAfterLog(set, in: session)
             }

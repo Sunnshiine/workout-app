@@ -55,6 +55,7 @@
 		6BF78E5ABEEF662D2FC166CF /* LastPerformedIndexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BE10429AAA3746BDF812086 /* LastPerformedIndexTests.swift */; };
 		6C0253C40A84915E81AE47AF /* BlockOverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94076860F23B16098C27E60D /* BlockOverviewView.swift */; };
 		6E311B93FD26344D5B375D33 /* WorkoutScenarioTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF7F63038DE0B69F173CD7CD /* WorkoutScenarioTests.swift */; };
+		6EBAC50C5CD9AE6FED2A1822 /* RestTriggerPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = C452CB917A65913E44B18E15 /* RestTriggerPolicy.swift */; };
 		6FC6F102BFDC8605D2744087 /* WorkoutStoreLoggingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B26E931108B06FD2B281FA /* WorkoutStoreLoggingTests.swift */; };
 		76AF3279365D2ACDBD02BB7A /* SmartValuePills.swift in Sources */ = {isa = PBXBuildFile; fileRef = 719E54DAA40D4D2D700AA91F /* SmartValuePills.swift */; };
 		7A7A9B87F7663034989F8EB4 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C9C69974B6867E8568AFBD0 /* OnboardingView.swift */; };
@@ -120,6 +121,7 @@
 		E6298E9C10999070CD34B8C0 /* DeveloperToolsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F622271C453C1C22E76B829 /* DeveloperToolsView.swift */; };
 		E73224AE3C41ED69721C8601 /* PendingWriteFlushOrdering.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8815732F9CDEFACE5019CD05 /* PendingWriteFlushOrdering.swift */; };
 		E8F14E95FDFED307B2DC2042 /* WorkoutTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D48BD9386FBE1872BB0B6849 /* WorkoutTrackerApp.swift */; };
+		EB4BB6FD85F50189B24F652B /* RestTriggerPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D993897ABC03D27E06C54E26 /* RestTriggerPolicyTests.swift */; };
 		EC96EB4BF5CEA6C5F19B5F0B /* SpreadsheetIdTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6911BBEB42C06D9FB34EB7 /* SpreadsheetIdTests.swift */; };
 		F04A880C4E2AE6D08487BC0A /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = CEF7E56EC8A77C77056ABE2A /* GoogleSignInSwift */; };
 		F3718BD9273E7015B3CC6396 /* RestTimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64B19CCD3F77D3DFDE9A9A8E /* RestTimer.swift */; };
@@ -242,6 +244,7 @@
 		B7AB55701E90E154D77C4E32 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		BAF4B32774225208D31F362E /* RestDurationSetting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestDurationSetting.swift; sourceTree = "<group>"; };
 		BD0ADA4AF2047FB6DE169C71 /* MoveOnCelebrationPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveOnCelebrationPresentationTests.swift; sourceTree = "<group>"; };
+		C452CB917A65913E44B18E15 /* RestTriggerPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestTriggerPolicy.swift; sourceTree = "<group>"; };
 		C703F549688F120A123589E3 /* ActiveSetFocusManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveSetFocusManagerTests.swift; sourceTree = "<group>"; };
 		CC47CE1DE98286E2DA318F0D /* WorkoutTrackerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutTrackerUITests.swift; sourceTree = "<group>"; };
 		CEC43682656CC2E8CF1BD804 /* Smoke.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Smoke.swift; sourceTree = "<group>"; };
@@ -255,6 +258,7 @@
 		D613549E805C2F0EF82FE4C6 /* SessionCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCoordinatorTests.swift; sourceTree = "<group>"; };
 		D8629437B46CD9B6B87AA05B /* PendingWriteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingWriteTests.swift; sourceTree = "<group>"; };
 		D92CDF9A3131D2FF682B82FE /* LoggedSetReviewCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoggedSetReviewCard.swift; sourceTree = "<group>"; };
+		D993897ABC03D27E06C54E26 /* RestTriggerPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestTriggerPolicyTests.swift; sourceTree = "<group>"; };
 		DCA6A8711A04E8180DF17F9B /* LastPerformedBackfillObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastPerformedBackfillObserver.swift; sourceTree = "<group>"; };
 		DD5AE788CBF5DAF0C684F6D3 /* Exercise.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Exercise.swift; sourceTree = "<group>"; };
 		DF7F7CD5D8F394F75F33E69D /* RPEScalePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RPEScalePresentation.swift; sourceTree = "<group>"; };
@@ -351,6 +355,7 @@
 				3F6EDFF80291EB8FA87175F3 /* MoveOnCelebrationPresentation.swift */,
 				31126E1DC357E16E1B75D98D /* OnboardingPresentation.swift */,
 				64B19CCD3F77D3DFDE9A9A8E /* RestTimer.swift */,
+				C452CB917A65913E44B18E15 /* RestTriggerPolicy.swift */,
 				DF7F7CD5D8F394F75F33E69D /* RPEScalePresentation.swift */,
 				2694D7B8CE96A7BA65917D8A /* SessionCoordinator.swift */,
 				51D77DD81D71D5E9E046E80F /* SessionFocusMorphPolicy.swift */,
@@ -378,6 +383,7 @@
 				8ADEBBADB9046E8CA563F0AB /* PersistenceTests.swift */,
 				04BC574D25534E5FA13DE8B1 /* RestDurationSettingTests.swift */,
 				9E22CF1CC45C50BC480D0ADD /* RestTimerTests.swift */,
+				D993897ABC03D27E06C54E26 /* RestTriggerPolicyTests.swift */,
 				D613549E805C2F0EF82FE4C6 /* SessionCoordinatorTests.swift */,
 				34CCE3516AF8BD080F2B73C1 /* SessionProgressTrackerTests.swift */,
 				86FF8383D7EC3E723F39F3EC /* SetLogParsingTests.swift */,
@@ -691,6 +697,7 @@
 				D7BCBC8801C61C86B5BA9C5A /* RPEScalePresentationTests.swift in Sources */,
 				2E89825B7CE73BA93E856219 /* RestDurationSettingTests.swift in Sources */,
 				353AB34049E35B9E32D7F353 /* RestTimerTests.swift in Sources */,
+				EB4BB6FD85F50189B24F652B /* RestTriggerPolicyTests.swift in Sources */,
 				AE646579607F94F85A4BC0B7 /* SessionCoordinatorTests.swift in Sources */,
 				AC29BD0F002AFBF37ABA216E /* SessionProgressTrackerTests.swift in Sources */,
 				6066800343BAD1A6BE3AA3DE /* SetLogParsingTests.swift in Sources */,
@@ -766,6 +773,7 @@
 				E3BF0E131108872ACF22EC6D /* RestDurationSetting.swift in Sources */,
 				FBD7C9EAC29A366FA58E151A /* RestPillView.swift in Sources */,
 				F3718BD9273E7015B3CC6396 /* RestTimer.swift in Sources */,
+				6EBAC50C5CD9AE6FED2A1822 /* RestTriggerPolicy.swift in Sources */,
 				AAB1AF9D5F9324682EAF6B48 /* RootView.swift in Sources */,
 				1FD78DA6ACD2DC16713C59E1 /* SessionCoordinator.swift in Sources */,
 				B7E24AB5D1E5BF887EBB4BA8 /* SessionFocusMorphPolicy.swift in Sources */,

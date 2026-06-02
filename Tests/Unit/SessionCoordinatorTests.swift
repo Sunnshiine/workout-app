@@ -211,6 +211,12 @@ private func makeSingleSetSession(dayNumber: Int) -> (session: Session, set: Exe
     return (session, set)
 }
 
+@MainActor
+private func connectCoordinatorWeek(_ sessions: [Session]) {
+    let week = Week(number: 1)
+    week.sessions = sessions
+}
+
 private struct CoordinatorActionFixture {
     let session: Session
     let coordinator: SessionCoordinator
@@ -675,6 +681,79 @@ private func makeRestActionFixture() throws -> CoordinatorRestActionFixture {
     #expect(restTimer.deadline == Date(timeIntervalSinceReferenceDate: 2_210))
     #expect(restTimer.remaining == 210)
     #expect(restTimer.origin == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+}
+
+@MainActor
+@Test func loggingLastCurrentWeekPendingSetDoesNotStartRestTimer() throws {
+    let current = makeSingleSetSession(dayNumber: 1)
+    connectCoordinatorWeek([current.session])
+    let logging = SpySessionLoggingAdapter()
+    let sync = SpySessionSyncAdapter()
+    let clock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
+    let restTimer = RestTimer(clock: clock)
+    let coordinator = SessionCoordinator(
+        session: current.session,
+        logging: logging,
+        sync: sync,
+        restTimer: restTimer,
+        standardRestDuration: { 210 }
+    )
+
+    coordinator.log(current.set, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+
+    #expect(restTimer.deadline == nil)
+    #expect(restTimer.origin == nil)
+    #expect(logging.loggedSets.map(\.set) == [current.set])
+    #expect(sync.flushRequestCount == 1)
+}
+
+@MainActor
+@Test func loggingDayLastSetStartsRestWhenMakeupOpenExerciseRemains() throws {
+    let current = makeSingleSetSession(dayNumber: 1)
+    let makeup = makeSingleSetSession(dayNumber: 2)
+    connectCoordinatorWeek([current.session, makeup.session])
+    let logging = SpySessionLoggingAdapter()
+    let sync = SpySessionSyncAdapter()
+    let clock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
+    let restTimer = RestTimer(clock: clock)
+    let coordinator = SessionCoordinator(
+        session: current.session,
+        logging: logging,
+        sync: sync,
+        restTimer: restTimer,
+        standardRestDuration: { 210 }
+    )
+
+    coordinator.log(current.set, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+
+    #expect(restTimer.deadline == Date(timeIntervalSinceReferenceDate: 2_210))
+    #expect(restTimer.remaining == 210)
+    #expect(restTimer.origin == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+}
+
+@MainActor
+@Test func bindingSheetOriginLogsDoesNotStartRestTimer() {
+    let current = makeSingleSetSession(dayNumber: 1)
+    current.set.state = .logged
+    current.set.unstructuredSetLog = "185 for reps"
+    connectCoordinatorWeek([current.session])
+    let logging = SpySessionLoggingAdapter()
+    let sync = SpySessionSyncAdapter()
+    let clock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
+    let restTimer = RestTimer(clock: clock)
+    let coordinator = SessionCoordinator(
+        session: nil,
+        logging: logging,
+        sync: sync,
+        restTimer: restTimer,
+        standardRestDuration: { 210 }
+    )
+
+    coordinator.bind(to: current.session)
+
+    #expect(restTimer.deadline == nil)
+    #expect(logging.loggedSets.isEmpty)
+    #expect(sync.flushRequestCount == 0)
 }
 
 @MainActor
