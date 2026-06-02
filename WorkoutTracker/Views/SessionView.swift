@@ -9,6 +9,7 @@ struct SessionView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.themePalette) private var palette
     @State private var coordinator = SessionCoordinator(session: nil)
+    @State private var restTimer = RestTimer()
     @State private var sessionSettingsOverpullState = SessionSettingsOverpullState.hidden
     @State private var sessionSettingsOverpullDismissalID = 0
     @State private var isSettingsPresented = false
@@ -86,6 +87,11 @@ struct SessionView: View {
                         .safeAreaInset(edge: .top, spacing: 0) {
                             sessionHeaderHUD(session: session)
                         }
+                        .safeAreaInset(edge: .bottom, spacing: 0) {
+                            if restTimer.isRunning {
+                                RestPillView(restTimer: restTimer)
+                            }
+                        }
                         .onScrollGeometryChange(for: CGFloat.self, of: topContentOffset) { _, offset in
                             updateSessionSettingsOverpull(topContentOffset: offset)
                         }
@@ -159,7 +165,8 @@ struct SessionView: View {
         coordinator.bind(
             to: session,
             logging: workout,
-            sync: SessionPendingWriteSyncAdapter(sync: sync, settings: settings)
+            sync: SessionPendingWriteSyncAdapter(sync: sync, settings: settings),
+            restTimer: restTimer
         )
     }
 

@@ -94,6 +94,15 @@ private final class ManualSessionTransitionClock: SessionTransitionClock {
     }
 }
 
+@MainActor
+private final class ManualCoordinatorRestClock: RestClock {
+    var now: Date
+
+    init(now: Date) {
+        self.now = now
+    }
+}
+
 private func makeCoordinatorSession() -> Session {
     let session = Session(dayNumber: 1, date: nil)
 
@@ -210,6 +219,12 @@ private struct CoordinatorActionFixture {
     let clock: ManualSessionTransitionClock
 }
 
+private struct CoordinatorRestActionFixture {
+    let session: Session
+    let coordinator: SessionCoordinator
+    let restTimer: RestTimer
+}
+
 @MainActor
 private func makeActionFixture() throws -> CoordinatorActionFixture {
     let session = makeCoordinatorSession()
@@ -228,6 +243,21 @@ private func makeActionFixture() throws -> CoordinatorActionFixture {
         logging: logging,
         sync: sync,
         clock: clock
+    )
+}
+
+@MainActor
+private func makeRestActionFixture() throws -> CoordinatorRestActionFixture {
+    let session = makeCoordinatorSession()
+    let logging = SpySessionLoggingAdapter()
+    let sync = SpySessionSyncAdapter()
+    let clock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
+    let restTimer = RestTimer(clock: clock)
+    let coordinator = SessionCoordinator(session: session, logging: logging, sync: sync, restTimer: restTimer)
+    return CoordinatorRestActionFixture(
+        session: session,
+        coordinator: coordinator,
+        restTimer: restTimer
     )
 }
 
@@ -621,6 +651,46 @@ private func makeActionFixture() throws -> CoordinatorActionFixture {
     #expect(fixture.coordinator.retiringTransition == transition)
     #expect(fixture.sync.flushRequestCount == 1)
     #expect(fixture.sync.reportedErrors.isEmpty)
+}
+
+@MainActor
+@Test func loggingSetStartsStandardRestTimer() throws {
+    let session = makeCoordinatorSession()
+    let logging = SpySessionLoggingAdapter()
+    let sync = SpySessionSyncAdapter()
+    let clock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
+    let restTimer = RestTimer(clock: clock)
+    let coordinator = SessionCoordinator(session: session, logging: logging, sync: sync, restTimer: restTimer)
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
+
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+
+    #expect(restTimer.deadline == Date(timeIntervalSinceReferenceDate: 2_120))
+    #expect(restTimer.remaining == 120)
+    #expect(restTimer.origin == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+}
+
+@MainActor
+@Test func editSkipAndDeleteDoNotStartRestTimer() throws {
+    let log = SetLog(weight: .pounds(185), reps: 6, rpe: 7)
+
+    let editFixture = try makeRestActionFixture()
+    let squatSet = try #require(editFixture.session.exercises.first { $0.order == 0 }?.sets.first)
+    editFixture.coordinator.updateLoggedSet(squatSet, as: log)
+    #expect(editFixture.restTimer.deadline == nil)
+
+    let skipFixture = try makeRestActionFixture()
+    let skipSet = try #require(skipFixture.session.exercises.first { $0.order == 1 }?.sets.first)
+    skipFixture.coordinator.skip(skipSet)
+    #expect(skipFixture.restTimer.deadline == nil)
+
+    let deleteFixture = try makeRestActionFixture()
+    let deleteSet = try #require(deleteFixture.session.exercises.first { $0.order == 1 }?.sets.first)
+    deleteSet.state = .logged
+    deleteSet.setLog = log
+    deleteFixture.coordinator.deleteLog(for: deleteSet)
+    #expect(deleteFixture.restTimer.deadline == nil)
 }
 
 @MainActor
