@@ -9,7 +9,11 @@ struct SessionView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.themePalette) private var palette
     @State private var coordinator = SessionCoordinator(session: nil)
-    @State private var restTimer = RestTimer()
+    #if canImport(UserNotifications)
+        @State private var restTimer = RestTimer(notificationScheduler: RestNotificationCenterScheduler.shared)
+    #else
+        @State private var restTimer = RestTimer()
+    #endif
     @State private var sessionSettingsOverpullState = SessionSettingsOverpullState.hidden
     @State private var sessionSettingsOverpullDismissalID = 0
     @State private var isSettingsPresented = false
