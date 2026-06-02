@@ -120,17 +120,9 @@ struct SmartValuePills: View {
     }
 
     private func stepperButton(_ systemName: String, by increment: Double, id: String) -> some View {
-        Button {
+        PillStepperButton(systemName: systemName, accessibilityIdentifier: id) {
             form.adjustWeight(by: increment)
-        } label: {
-            Image(systemName: systemName)
-                .font(.headline.weight(.bold))
-                .foregroundStyle(palette.accent)
-                .frame(width: 36, height: 36)
-                .background(palette.pillFill, in: .capsule)
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier(id)
     }
 
     private var repsPill: some View {

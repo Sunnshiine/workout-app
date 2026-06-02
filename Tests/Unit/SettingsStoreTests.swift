@@ -83,6 +83,19 @@ import Testing
     #expect(SettingsStore(defaults: defaults).appearance == .system)
 }
 
+@MainActor
+@Test func standardRestDurationPersistsRoundTrip() throws {
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let store = SettingsStore(defaults: defaults)
+
+    #expect(store.standardRestDuration == .standard)
+
+    store.setStandardRestDuration(RestDurationSetting(seconds: 210))
+
+    let reloaded = SettingsStore(defaults: defaults)
+    #expect(reloaded.standardRestDuration == RestDurationSetting(seconds: 210))
+}
+
 #if DEBUG
     @Test func uiTestAppearanceLaunchArgumentParsesSupportedAppearances() {
         #expect(

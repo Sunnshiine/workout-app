@@ -26,10 +26,12 @@ enum AppearancePreference: String, CaseIterable {
 final class SettingsStore {
     var isSignedIn = false
     private(set) var appearance: AppearancePreference
+    private(set) var standardRestDuration: RestDurationSetting
     private(set) var spreadsheetId: String?
     private(set) var spreadsheetTitle: String?
     private let defaults: UserDefaults
     private static let appearanceKey = "appearance"
+    private static let standardRestDurationSecondsKey = "standardRestDurationSeconds"
     private static let spreadsheetIdKey = "spreadsheetId"
     private static let spreadsheetTitleKey = "spreadsheetTitle"
     private static let currentSessionOverrideKeyPrefix = "advancedToOrder_"
@@ -39,6 +41,7 @@ final class SettingsStore {
         self.spreadsheetId = defaults.string(forKey: Self.spreadsheetIdKey)
         self.spreadsheetTitle = defaults.string(forKey: Self.spreadsheetTitleKey)
         self.appearance = Self.loadAppearance(defaults: defaults, hasPriorAppState: hasPriorAppState)
+        self.standardRestDuration = Self.loadStandardRestDuration(defaults: defaults)
     }
 
     var isConfigured: Bool { isSignedIn && spreadsheetId != nil }
@@ -66,6 +69,11 @@ final class SettingsStore {
         defaults.set(preference.rawValue, forKey: Self.appearanceKey)
     }
 
+    func setStandardRestDuration(_ duration: RestDurationSetting) {
+        standardRestDuration = duration
+        defaults.set(duration.seconds, forKey: Self.standardRestDurationSecondsKey)
+    }
+
     func signOut() {
         isSignedIn = false
         clearSpreadsheet()
@@ -90,6 +98,14 @@ final class SettingsStore {
             : .system
         defaults.set(seededPreference.rawValue, forKey: appearanceKey)
         return seededPreference
+    }
+
+    private static func loadStandardRestDuration(defaults: UserDefaults) -> RestDurationSetting {
+        guard defaults.object(forKey: standardRestDurationSecondsKey) != nil else {
+            return .standard
+        }
+
+        return RestDurationSetting(seconds: defaults.integer(forKey: standardRestDurationSecondsKey))
     }
 
     private static func hasStoredAppState(in defaults: UserDefaults) -> Bool {

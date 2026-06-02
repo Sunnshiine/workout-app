@@ -166,6 +166,7 @@ final class SessionCoordinator {
     @ObservationIgnored private var syncAdapter: any SessionSyncAdapter
     @ObservationIgnored private let transitionClock: any SessionTransitionClock
     @ObservationIgnored private var restTimer: RestTimer?
+    @ObservationIgnored private var standardRestDuration: () -> TimeInterval
     @ObservationIgnored private var retirementTask: Task<Void, Never>?
     @ObservationIgnored private var pairingConfirmationTask: Task<Void, Never>?
     private var renderRevision = 0
@@ -175,7 +176,8 @@ final class SessionCoordinator {
         logging: any SessionLoggingAdapter = MissingSessionLoggingAdapter(),
         sync: any SessionSyncAdapter = NoopSessionSyncAdapter(),
         transitionClock: any SessionTransitionClock = TaskSessionTransitionClock(),
-        restTimer: RestTimer? = nil
+        restTimer: RestTimer? = nil,
+        standardRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.standard.timeInterval }
     ) {
         self.session = session
         self.focusManager = ActiveSetFocusManager(session: session)
@@ -183,6 +185,7 @@ final class SessionCoordinator {
         self.syncAdapter = sync
         self.transitionClock = transitionClock
         self.restTimer = restTimer
+        self.standardRestDuration = standardRestDuration
         syncFocusState()
     }
 
@@ -213,9 +216,11 @@ final class SessionCoordinator {
         to session: Session?,
         logging: any SessionLoggingAdapter,
         sync: any SessionSyncAdapter,
-        restTimer: RestTimer? = nil
+        restTimer: RestTimer? = nil,
+        standardRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.standard.timeInterval }
     ) {
         self.restTimer = restTimer
+        self.standardRestDuration = standardRestDuration
         configure(logging: logging, sync: sync)
         bind(to: session)
     }
@@ -253,7 +258,7 @@ final class SessionCoordinator {
         do {
             let session = try actionSession(for: set)
             try loggingAdapter.log(set, as: log)
-            restTimer?.start(origin: Self.activeSetID(for: set))
+            restTimer?.start(duration: standardRestDuration(), origin: Self.activeSetID(for: set))
             performFocusUpdate(animateFocus) {
                 advanceAfterLog(set, in: session)
             }
