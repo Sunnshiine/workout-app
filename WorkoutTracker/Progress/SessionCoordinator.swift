@@ -165,6 +165,7 @@ final class SessionCoordinator {
     @ObservationIgnored private var loggingAdapter: any SessionLoggingAdapter
     @ObservationIgnored private var syncAdapter: any SessionSyncAdapter
     @ObservationIgnored private let transitionClock: any SessionTransitionClock
+    @ObservationIgnored private var restTimer: RestTimer?
     @ObservationIgnored private var retirementTask: Task<Void, Never>?
     @ObservationIgnored private var pairingConfirmationTask: Task<Void, Never>?
     private var renderRevision = 0
@@ -173,13 +174,15 @@ final class SessionCoordinator {
         session: Session? = nil,
         logging: any SessionLoggingAdapter = MissingSessionLoggingAdapter(),
         sync: any SessionSyncAdapter = NoopSessionSyncAdapter(),
-        transitionClock: any SessionTransitionClock = TaskSessionTransitionClock()
+        transitionClock: any SessionTransitionClock = TaskSessionTransitionClock(),
+        restTimer: RestTimer? = nil
     ) {
         self.session = session
         self.focusManager = ActiveSetFocusManager(session: session)
         self.loggingAdapter = logging
         self.syncAdapter = sync
         self.transitionClock = transitionClock
+        self.restTimer = restTimer
         syncFocusState()
     }
 
@@ -209,8 +212,10 @@ final class SessionCoordinator {
     func bind(
         to session: Session?,
         logging: any SessionLoggingAdapter,
-        sync: any SessionSyncAdapter
+        sync: any SessionSyncAdapter,
+        restTimer: RestTimer? = nil
     ) {
+        self.restTimer = restTimer
         configure(logging: logging, sync: sync)
         bind(to: session)
     }
@@ -248,6 +253,7 @@ final class SessionCoordinator {
         do {
             let session = try actionSession(for: set)
             try loggingAdapter.log(set, as: log)
+            restTimer?.start(origin: Self.activeSetID(for: set))
             performFocusUpdate(animateFocus) {
                 advanceAfterLog(set, in: session)
             }
