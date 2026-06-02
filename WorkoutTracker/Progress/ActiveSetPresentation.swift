@@ -258,7 +258,6 @@ struct SessionProgressHeaderPresentation: Equatable, Sendable {
 struct SessionSettingsOverpullState: Equatable, Sendable {
     enum Phase: Equatable, Sendable {
         case hidden
-        case preview
         case pinned
     }
 
@@ -267,8 +266,7 @@ struct SessionSettingsOverpullState: Equatable, Sendable {
 
     static let idleDismissDelay: TimeInterval = 2.5
 
-    private static let previewThreshold: CGFloat = 80
-    private static let commitThreshold: CGFloat = 140
+    private static let revealThreshold: CGFloat = 72
     private static let contentDismissOffset: CGFloat = -16
 
     let phase: Phase
@@ -283,26 +281,25 @@ struct SessionSettingsOverpullState: Equatable, Sendable {
     }
 
     func tracking(topContentOffset: CGFloat) -> Self {
+        // An active upward scroll into the content dismisses the reveal.
         if topContentOffset <= Self.contentDismissOffset {
             return .hidden
         }
 
-        if isPinned {
+        // Once revealed, stay revealed. Revealing grows the top header HUD, which
+        // lives in the scroll view's top safe-area inset and therefore shrinks the
+        // measured `topContentOffset`. Latching here stops that feedback from
+        // retracting the reveal mid-pull — the snap-back that read as scroll jank.
+        if isVisible {
             return self
         }
 
-        if topContentOffset >= Self.commitThreshold {
-            return .pinned
-        }
-
-        guard topContentOffset >= Self.previewThreshold else {
+        // Reveal as soon as the overpull clears the threshold.
+        guard topContentOffset >= Self.revealThreshold else {
             return .hidden
         }
 
-        return SessionSettingsOverpullState(
-            phase: .preview,
-            progress: Self.progress(for: topContentOffset)
-        )
+        return .pinned
     }
 
     func dismissedAfterIdle() -> Self {
@@ -311,13 +308,6 @@ struct SessionSettingsOverpullState: Equatable, Sendable {
 
     static func overpullDistance(startTopContentOffset: CGFloat, translationHeight: CGFloat) -> CGFloat {
         max(0, startTopContentOffset + translationHeight)
-    }
-
-    private static func progress(for topContentOffset: CGFloat) -> CGFloat {
-        let range = commitThreshold - previewThreshold
-        guard range > 0 else { return 1 }
-        let rawProgress = (topContentOffset - previewThreshold) / range
-        return min(max(rawProgress, 0), 1)
     }
 }
 
