@@ -59,6 +59,7 @@ struct SessionView: View {
 
                                     if workout.isViewingLiveEdge, workout.canMoveOn {
                                         MoveOnButton {
+                                            coordinator.cancelRestForSessionExit()
                                             workout.requestMoveOnCelebration()
                                         }
                                     }

@@ -151,6 +151,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		011347956970C615B5C1BCD5 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		02CBDEE06463224167F1FB18 /* UITestFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestFixture.swift; sourceTree = "<group>"; };
 		0499FE101F8EA75B5C6D2562 /* SettingsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStoreTests.swift; sourceTree = "<group>"; };
 		04BC574D25534E5FA13DE8B1 /* RestDurationSettingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestDurationSettingTests.swift; sourceTree = "<group>"; };
@@ -241,7 +242,6 @@
 		B5AD19394F523316075E92C3 /* SheetGridFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetGridFixture.swift; sourceTree = "<group>"; };
 		B6BBB0700280BA9330BB8F60 /* SheetGridTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetGridTests.swift; sourceTree = "<group>"; };
 		B73C4E487CCAF7C536F0485E /* BlockBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockBuilderTests.swift; sourceTree = "<group>"; };
-		B7AB55701E90E154D77C4E32 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		BAF4B32774225208D31F362E /* RestDurationSetting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestDurationSetting.swift; sourceTree = "<group>"; };
 		BD0ADA4AF2047FB6DE169C71 /* MoveOnCelebrationPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveOnCelebrationPresentationTests.swift; sourceTree = "<group>"; };
 		C452CB917A65913E44B18E15 /* RestTriggerPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestTriggerPolicy.swift; sourceTree = "<group>"; };
@@ -412,6 +412,15 @@
 			path = Unit;
 			sourceTree = "<group>";
 		};
+		4AA0F24B925E61FEF9B73102 /* issue-158 */ = {
+			isa = PBXGroup;
+			children = (
+				011347956970C615B5C1BCD5 /* Secrets.xcconfig */,
+			);
+			name = "issue-158";
+			path = .;
+			sourceTree = "<group>";
+		};
 		646C10C31A60F3960685BCF9 /* Parsing */ = {
 			isa = PBXGroup;
 			children = (
@@ -486,21 +495,12 @@
 		AD6248B3D6F5FB51D1B71926 = {
 			isa = PBXGroup;
 			children = (
-				BEF55F68A53FFB42BEA94594 /* issue-157 */,
+				4AA0F24B925E61FEF9B73102 /* issue-158 */,
 				9B5D2614740AB0F48B97C160 /* Tests */,
 				6C91FD23A5DEAAB4EF7F986B /* UI */,
 				E4E43F24E68521EDECD85406 /* WorkoutTracker */,
 				C91759DD6A5BDB578F6ECD07 /* Products */,
 			);
-			sourceTree = "<group>";
-		};
-		BEF55F68A53FFB42BEA94594 /* issue-157 */ = {
-			isa = PBXGroup;
-			children = (
-				B7AB55701E90E154D77C4E32 /* Secrets.xcconfig */,
-			);
-			name = "issue-157";
-			path = .;
 			sourceTree = "<group>";
 		};
 		C91759DD6A5BDB578F6ECD07 /* Products */ = {
@@ -882,7 +882,7 @@
 		};
 		8EBE64E8BA6EAC5943905B78 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = B7AB55701E90E154D77C4E32 /* Secrets.xcconfig */;
+			baseConfigurationReference = 011347956970C615B5C1BCD5 /* Secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -958,7 +958,7 @@
 		};
 		BE08E80469AD6F14E590565E /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = B7AB55701E90E154D77C4E32 /* Secrets.xcconfig */;
+			baseConfigurationReference = 011347956970C615B5C1BCD5 /* Secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
