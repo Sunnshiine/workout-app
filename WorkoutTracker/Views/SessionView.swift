@@ -166,7 +166,8 @@ struct SessionView: View {
             to: session,
             logging: workout,
             sync: SessionPendingWriteSyncAdapter(sync: sync, settings: settings),
-            restTimer: restTimer
+            restTimer: restTimer,
+            standardRestDuration: { settings.standardRestDuration.timeInterval }
         )
     }
 

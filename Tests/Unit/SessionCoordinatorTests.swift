@@ -654,20 +654,26 @@ private func makeRestActionFixture() throws -> CoordinatorRestActionFixture {
 }
 
 @MainActor
-@Test func loggingSetStartsStandardRestTimer() throws {
+@Test func loggingSetStartsConfiguredStandardRestTimer() throws {
     let session = makeCoordinatorSession()
     let logging = SpySessionLoggingAdapter()
     let sync = SpySessionSyncAdapter()
     let clock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
     let restTimer = RestTimer(clock: clock)
-    let coordinator = SessionCoordinator(session: session, logging: logging, sync: sync, restTimer: restTimer)
+    let coordinator = SessionCoordinator(
+        session: session,
+        logging: logging,
+        sync: sync,
+        restTimer: restTimer,
+        standardRestDuration: { 210 }
+    )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
 
     coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
 
-    #expect(restTimer.deadline == Date(timeIntervalSinceReferenceDate: 2_120))
-    #expect(restTimer.remaining == 120)
+    #expect(restTimer.deadline == Date(timeIntervalSinceReferenceDate: 2_210))
+    #expect(restTimer.remaining == 210)
     #expect(restTimer.origin == ActiveSetID(exerciseOrder: 1, setIndex: 0))
 }
 
