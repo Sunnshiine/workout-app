@@ -14,6 +14,8 @@ history, or change the loop's own scripts or prompts (`ralph/*.sh`,
 - Use the "Agent Brief" comment as the authoritative spec when one exists.
 - If there is no Agent Brief comment, use the concrete issue body acceptance
   criteria as the contract. Do not expand scope from PRDs.
+- Read related PRD/spec context if it helps evaluate the issue, but never let
+  PRDs/specs override or expand the issue contract.
 - Read `CONTEXT.md`, relevant ADRs, and `AGENTS.md` / `CLAUDE.md` only as needed
   to review the current diff.
 - Review the current issue diff from ISSUE_BASE_REF to HEAD.
