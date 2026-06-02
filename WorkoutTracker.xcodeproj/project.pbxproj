@@ -178,7 +178,6 @@
 		2815DD33C0DD5F5D4C262151 /* SetRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetRow.swift; sourceTree = "<group>"; };
 		2B20D8C8042E63AE48DC73C6 /* SyncCoordinatorLocalWorkbookRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinatorLocalWorkbookRoundTripTests.swift; sourceTree = "<group>"; };
 		2CC347CBCB45EC717781E8EF /* SyncStatusBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatusBanner.swift; sourceTree = "<group>"; };
-		304C9856D661C3EABBB28B1E /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		31126E1DC357E16E1B75D98D /* OnboardingPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingPresentation.swift; sourceTree = "<group>"; };
 		31ECE7AE0773E6603044F847 /* SheetLayoutInterpreterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetLayoutInterpreterTests.swift; sourceTree = "<group>"; };
 		34CCE3516AF8BD080F2B73C1 /* SessionProgressTrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionProgressTrackerTests.swift; sourceTree = "<group>"; };
@@ -270,6 +269,7 @@
 		D993897ABC03D27E06C54E26 /* RestTriggerPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestTriggerPolicyTests.swift; sourceTree = "<group>"; };
 		DCA6A8711A04E8180DF17F9B /* LastPerformedBackfillObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastPerformedBackfillObserver.swift; sourceTree = "<group>"; };
 		DD5AE788CBF5DAF0C684F6D3 /* Exercise.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Exercise.swift; sourceTree = "<group>"; };
+		DDF8DCF97169C6767C351A66 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		DF7F7CD5D8F394F75F33E69D /* RPEScalePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RPEScalePresentation.swift; sourceTree = "<group>"; };
 		E2A79566B8F5D5A99B273AA3 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
 		E31CB80B71F35E4D4A35FE87 /* SessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionView.swift; sourceTree = "<group>"; };
@@ -501,7 +501,7 @@
 		AD6248B3D6F5FB51D1B71926 = {
 			isa = PBXGroup;
 			children = (
-				D6648FAECA6FD2A58F1C05BD /* issue-162 */,
+				E2E8FA81820FED86436B3B73 /* issue-163 */,
 				9B5D2614740AB0F48B97C160 /* Tests */,
 				6C91FD23A5DEAAB4EF7F986B /* UI */,
 				E4E43F24E68521EDECD85406 /* WorkoutTracker */,
@@ -519,12 +519,12 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		D6648FAECA6FD2A58F1C05BD /* issue-162 */ = {
+		E2E8FA81820FED86436B3B73 /* issue-163 */ = {
 			isa = PBXGroup;
 			children = (
-				304C9856D661C3EABBB28B1E /* Secrets.xcconfig */,
+				DDF8DCF97169C6767C351A66 /* Secrets.xcconfig */,
 			);
-			name = "issue-162";
+			name = "issue-163";
 			path = .;
 			sourceTree = "<group>";
 		};
@@ -902,7 +902,7 @@
 		};
 		8EBE64E8BA6EAC5943905B78 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 304C9856D661C3EABBB28B1E /* Secrets.xcconfig */;
+			baseConfigurationReference = DDF8DCF97169C6767C351A66 /* Secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -978,7 +978,7 @@
 		};
 		BE08E80469AD6F14E590565E /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 304C9856D661C3EABBB28B1E /* Secrets.xcconfig */;
+			baseConfigurationReference = DDF8DCF97169C6767C351A66 /* Secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;

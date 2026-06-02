@@ -5,6 +5,7 @@ struct RestDurationSetting: Equatable, Sendable {
     static let maximumSeconds = 600
     static let stepSeconds = 30
     static let standard = RestDurationSetting(seconds: 120)
+    static let superset = RestDurationSetting(seconds: 30)
 
     let seconds: Int
 

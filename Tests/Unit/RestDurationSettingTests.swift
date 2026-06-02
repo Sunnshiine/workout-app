@@ -9,6 +9,12 @@ import Testing
     #expect(RestDurationSetting.standard.displayText == "2:00")
 }
 
+@Test func restDurationSettingDefaultsToSupersetRest() {
+    #expect(RestDurationSetting.superset.seconds == 30)
+    #expect(RestDurationSetting.superset.timeInterval == 30)
+    #expect(RestDurationSetting.superset.displayText == "0:30")
+}
+
 @Test func restDurationSettingClampsAtBounds() {
     #expect(RestDurationSetting(seconds: 1).seconds == 30)
     #expect(RestDurationSetting(seconds: 30).seconds == 30)

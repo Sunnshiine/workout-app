@@ -96,6 +96,19 @@ import Testing
     #expect(reloaded.standardRestDuration == RestDurationSetting(seconds: 210))
 }
 
+@MainActor
+@Test func supersetRestDurationPersistsRoundTrip() throws {
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let store = SettingsStore(defaults: defaults)
+
+    #expect(store.supersetRestDuration == .superset)
+
+    store.setSupersetRestDuration(RestDurationSetting(seconds: 90))
+
+    let reloaded = SettingsStore(defaults: defaults)
+    #expect(reloaded.supersetRestDuration == RestDurationSetting(seconds: 90))
+}
+
 #if DEBUG
     @Test func uiTestAppearanceLaunchArgumentParsesSupportedAppearances() {
         #expect(
