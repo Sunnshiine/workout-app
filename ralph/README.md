@@ -58,16 +58,19 @@ Each iteration:
 1. SELECT   An agent lists open `ready-for-agent` issues, skips PRDs/epics, respects
             dependencies, and picks ONE highest-priority unblocked issue.   (read-only)
 2. ISOLATE  A fresh worktree + branch `agent/issue-<N>` is created off main.
-3. IMPLEMENT The agent reads the issue contract, CONTEXT.md, relevant ADRs, and project
-            instructions. It runs Swift Review, and for View/Theme changes UI Screenshot Review,
-            during verification. It remediates blocking findings, commits to the branch, and emits
-            <promise>COMPLETE</promise>.
-4. GATE     The loop independently runs `swift test`, Xcode unit/component tests,
+3. IMPLEMENT A fresh TDD agent reads the issue contract, implements the issue, runs non-UI
+            checks, commits, and emits the exact phase promise.
+4. SWIFT    A fresh review agent invokes `swift-reviewer`, remediates blocking findings,
+            commits fixes, and emits the exact phase promise.
+5. UI       A fresh UI verification agent owns UI integration tests, screenshots, and
+            `ui-screenshot-reviewer`; if it changes production Swift/project files, Ralph
+            runs SWIFT again before accepting the issue.
+6. GATE     The loop independently runs `swift test`, Xcode unit/component tests,
             Xcode UI integration tests, and `swiftlint lint --quiet`.
-5. UI GATE  If the change touched Views/Theme, the loop confirms the implementer produced a
+7. UI GATE  If the change touched Views/Theme, the loop confirms the UI phase produced a
             reviewed screenshot artifact.
-6. SHIP     Merge the branch into main → push origin (unless --no-push) → close the issue.
-7. CLEANUP  Remove the worktree and delete the branch.
+8. SHIP     Merge the branch into main → push origin (unless --no-push) → close the issue.
+9. CLEANUP  Remove the worktree and delete the branch.
 ```
 
 If any step fails, the issue is relabelled **`ready-for-human`** with an explanatory comment, and
@@ -114,27 +117,34 @@ implementation input; the issue contract must come from a non-PRD work issue.
 
 ---
 
-## Implementer-Owned Review
+## Phase-Owned Review
 
-Fresh-context review happens inside the implementer's verification loop before it emits
-`<promise>COMPLETE</promise>`:
+Each mutating phase is a separate fresh agent context and must end with its exact
+phase-specific promise line, for example `<promise phase="swift-review">COMPLETE</promise>`.
+Generic wording such as "done" or the old `<promise>COMPLETE</promise>` marker does not advance
+the loop.
 
-- Claude and Codex implementers must invoke the configured `swift-reviewer` custom agent as a
-  separate subagent for Swift code changes, so review comes from a fresh context rather than
-  self-review.
-- For `WorkoutTracker/Views/` or `WorkoutTracker/Theme.swift` changes, implementers must capture a
-  UITEST fixture screenshot with `ralph/snapshot.sh` and invoke the configured
-  `ui-screenshot-reviewer` custom agent as a separate subagent.
+- The TDD implementation phase must not run UI integration tests, screenshots, `swift-reviewer`,
+  or `ui-screenshot-reviewer`.
+- The Swift review phase must invoke the configured `swift-reviewer` custom agent as a separate
+  subagent, so review comes from a fresh context rather than self-review. It must not run UI
+  integration tests or screenshot review.
+- The UI verification phase must own Xcode UI integration tests. For `WorkoutTracker/Views/` or
+  `WorkoutTracker/Theme.swift` changes, it must capture a UITEST fixture screenshot with
+  `ralph/snapshot.sh` and invoke the configured `ui-screenshot-reviewer` custom agent as a separate
+  subagent.
+- If the UI verification phase changes production Swift or project files, Ralph runs a fresh
+  `swift-review-after-ui` phase before integration.
 - Codex CLI supports subagent workflows and custom agents; Ralph expects Codex to spawn the
   configured review agents rather than falling back to copied reviewer instructions.
-- Blocking reviewer findings are not final loop failures. The implementer fixes them in the same
-  worktree, reruns required checks or screenshot capture, and requests review again before
-  completing.
+- Blocking reviewer findings are not final loop failures. The owning phase fixes them in the same
+  worktree, reruns required checks or screenshot capture, commits any changes, and requests review
+  again before completing.
 - If the implementer cannot invoke a required review subagent, it must report BLOCKED instead of
-  emitting `<promise>COMPLETE</promise>`.
+  emitting its phase-specific COMPLETE promise.
 
 Ralph does not currently set Codex subagent depth. If Codex refuses to spawn a reviewer due to depth
-limits, configure Codex `[agents] max_depth` high enough for implementer-owned review subagents.
+limits, configure Codex `[agents] max_depth` high enough for phase-owned review subagents.
 
 ---
 
@@ -192,8 +202,8 @@ Gate failures are reported by layer:
 - UI integration tests: `WorkoutTrackerUITests`.
 - Lint: `swiftlint lint --quiet`.
 - UI screenshot artifact check: only when `WorkoutTracker/Views/` or `WorkoutTracker/Theme.swift`
-  changed. The screenshot review itself happens inside IMPLEMENT via the `ui-screenshot-reviewer`
-  subagent.
+  changed. The screenshot review itself happens inside the UI verification phase via the
+  `ui-screenshot-reviewer` subagent.
 
 ---
 
@@ -235,7 +245,9 @@ ralph/
 ├── snapshot.sh         # build + launch fixture + capture screenshot
 ├── prompts/
 │   ├── select.md       # SELECT phase: choose one issue
-│   └── implement.md    # IMPLEMENT phase: TDD + review contract
+│   ├── implement.md    # IMPLEMENT phase: TDD + non-UI checks only
+│   ├── swift-review.md # SWIFT phase: fresh swift-reviewer + remediation
+│   └── ui-verify.md    # UI phase: UI tests + screenshot review
 └── .artifacts/         # logs, activity.md, screenshots (gitignored)
 ```
 

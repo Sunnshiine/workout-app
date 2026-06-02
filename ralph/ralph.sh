@@ -4,11 +4,11 @@
 #
 # Each iteration runs a FRESH agent context that:
 #   1. selects the highest-priority unblocked `ready-for-agent` GitHub issue (skipping PRDs),
-#   2. works it to completion in an isolated git worktree using TDD,
-#   3. is gated on the full documented framework: `swift test`, Xcode unit/component tests,
-#      Xcode UI integration tests, and `swiftlint lint --quiet`; View/Theme changes are screenshot
-#      reviewed by an implementer-owned subagent before completion,
-#   4. on success: merges the branch to main, pushes origin, and closes the issue;
+#   2. implements it with TDD in an isolated git worktree,
+#   3. hands the result to a fresh Swift-review phase,
+#   4. hands the reviewed result to a fresh UI-verification phase,
+#   5. is gated on the full documented framework before shipping,
+#   6. on success: merges the branch to main, pushes origin, and closes the issue;
 #      on failure: relabels the issue `ready-for-human` and moves on.
 # The loop stops when no eligible issues remain, or after MAX_ITER iterations.
 #
@@ -203,6 +203,82 @@ harvest_observations() {
   } >> "$OBS"
 }
 
+phase_complete_line() {
+  printf '<promise phase="%s">COMPLETE</promise>\n' "$1"
+}
+
+phase_blocked_reason() {
+  local phase="$1" out="$2"
+  printf '%s\n' "$out" | awk -v phase="$phase" '
+    {
+      start = "<promise phase=\"" phase "\">BLOCKED:"
+      p = index($0, start)
+      if (p == 0) next
+      reason = substr($0, p + length(start))
+      q = index(reason, "</promise>")
+      if (q > 0) reason = substr(reason, 1, q - 1)
+      sub(/^[[:space:]]+/, "", reason)
+      print reason
+      exit
+    }'
+}
+
+production_swift_changed() {
+  local wt="$1" base="$2" tip="$3"
+  git -C "$wt" diff --name-only "$base" "$tip" -- \
+    'WorkoutTracker/*.swift' \
+    ':(glob)WorkoutTracker/**/*.swift' \
+    'Package.swift' \
+    'project.yml' \
+    'WorkoutTracker.xcodeproj/project.pbxproj' | grep -q .
+}
+
+run_issue_phase() {
+  local phase="$1" prompt_file="$2" iter="$3" issue="$4" wt="$5" branch="$6" issue_base="$7"
+  local complete_line blocked_prefix phase_prompt phase_log phase_status phase_out reason
+
+  complete_line="$(phase_complete_line "$phase")"
+  blocked_prefix="<promise phase=\"$phase\">BLOCKED:"
+  phase_prompt="Engine: $ENGINE. This is the $phase phase.
+You are working GitHub issue #$issue.
+You are inside an isolated git worktree at: $wt   (branch: $branch).
+ISSUE_BASE_REF: $issue_base
+PHASE_NAME: $phase
+COMPLETE_PROMISE_LINE: $complete_line
+BLOCKED_PROMISE_PREFIX: $blocked_prefix
+UI_SHOT_PATH (relative to the worktree root): ralph/.artifacts/issue-$issue-ui-review.png
+UI_REVIEW_PATH (relative to the worktree root): ralph/.artifacts/issue-$issue-ui-review.md
+OBSERVATIONS_LOG_PATH (absolute; the persistent main-repo log to tail for recurrence, read-only): $OBS
+
+Gate handoff is strict: Ralph advances only when your final output contains the exact
+COMPLETE_PROMISE_LINE above. Words like done, completed, success, or the old
+<promise>COMPLETE</promise> marker do not count and will fail this phase.
+
+$(cat "$PROMPTS/$prompt_file")"
+  phase_log="$LOGS/iter-$iter-issue-$issue-$phase.log"
+  note "issue #$issue $phase started — timeout ${IMPLEMENT_TIMEOUT_SECONDS}s"
+  run_agent_to_file_with_timeout "$phase_prompt" "$wt" "$IMPLEMENT_TIMEOUT_SECONDS" "$phase_log"
+  phase_status=$?
+  phase_out="$(cat "$phase_log" 2>/dev/null || true)"
+
+  if [ "$phase_status" -eq 124 ]; then
+    harvest_observations "$iter" "$issue" "$phase BLOCKED" "$phase_out"
+    flag_for_human "$issue" "$phase timed out after ${IMPLEMENT_TIMEOUT_SECONDS}s without reporting completion."
+    return 1
+  fi
+
+  if printf '%s\n' "$phase_out" | grep -Fxq "$complete_line"; then
+    harvest_observations "$iter" "$issue" "$phase COMPLETE" "$phase_out"
+    note "issue #$issue $phase complete"
+    return 0
+  fi
+
+  harvest_observations "$iter" "$issue" "$phase BLOCKED" "$phase_out"
+  reason="$(phase_blocked_reason "$phase" "$phase_out")"
+  flag_for_human "$issue" "${reason:-$phase did not report the exact completion promise. Expected: $complete_line}"
+  return 1
+}
+
 run_full_gate() {
   local issue="$1" iter="$2" gate_wt="$3"
 
@@ -248,7 +324,7 @@ check_ui_artifacts() {
 
   if git -C "$wt" diff --name-only "$issue_base" "$issue_tip" -- \
       'WorkoutTracker/Views/' 'WorkoutTracker/Theme.swift' | grep -q .; then
-    log "View change detected → checking implementer-owned UI screenshot review"
+    log "View change detected → checking UI phase screenshot review"
     ui_shot_rel="ralph/.artifacts/issue-$issue-ui-review.png"
     ui_review_rel="ralph/.artifacts/issue-$issue-ui-review.md"
     ui_shot="$wt/$ui_shot_rel"
@@ -335,42 +411,41 @@ $(cat "$PROMPTS/select.md")"
   fi
   issue_base="$(git -C "$wt" rev-parse HEAD)"
 
-  # 3+4. IMPLEMENT (TDD) inside the worktree
-  impl_prompt="Engine: $ENGINE. This is the IMPLEMENT phase.
-You are working GitHub issue #$issue.
-You are inside an isolated git worktree at: $wt   (branch: $branch).
-ISSUE_BASE_REF: $issue_base
-UI_SHOT_PATH (relative to the worktree root): ralph/.artifacts/issue-$issue-ui-review.png
-UI_REVIEW_PATH (relative to the worktree root): ralph/.artifacts/issue-$issue-ui-review.md
-OBSERVATIONS_LOG_PATH (absolute; the persistent main-repo log to tail for recurrence, read-only): $OBS
-
-$(cat "$PROMPTS/implement.md")"
-  impl_log="$LOGS/iter-$iter-issue-$issue-implement.log"
-  note "issue #$issue implement started — timeout ${IMPLEMENT_TIMEOUT_SECONDS}s"
-  run_agent_to_file_with_timeout "$impl_prompt" "$wt" "$IMPLEMENT_TIMEOUT_SECONDS" "$impl_log"
-  impl_status=$?
-  impl_out="$(cat "$impl_log" 2>/dev/null || true)"
-  if [ "$impl_status" -eq 124 ]; then
-    harvest_observations "$iter" "$issue" "BLOCKED" "$impl_out"
-    flag_for_human "$issue" "IMPLEMENT timed out after ${IMPLEMENT_TIMEOUT_SECONDS}s without reporting completion."
+  # 3. IMPLEMENT (TDD) inside the worktree. No UI tests or review subagents here.
+  if ! run_issue_phase "implement-tdd" "implement.md" "$iter" "$issue" "$wt" "$branch" "$issue_base"; then
     continue
   fi
 
-  if printf '%s' "$impl_out" | grep -q '<promise>COMPLETE</promise>'; then
-    harvest_observations "$iter" "$issue" "COMPLETE" "$impl_out"
-  else
-    harvest_observations "$iter" "$issue" "BLOCKED" "$impl_out"
-    reason="$(printf '%s' "$impl_out" | grep -oE '<promise>BLOCKED:.*</promise>' | head -1 | sed 's/<[^>]*>//g')"
-    flag_for_human "$issue" "${reason:-Agent did not report completion.}"; continue
+  # 4. SWIFT REVIEW — fresh context, reviewer subagent, non-UI remediation only.
+  if ! run_issue_phase "swift-review" "swift-review.md" "$iter" "$issue" "$wt" "$branch" "$issue_base"; then
+    continue
   fi
+
+  # 5. UI VERIFY — fresh context owns UI tests, screenshots, and UI screenshot review.
+  ui_phase_base="$(git -C "$wt" rev-parse HEAD)"
+  if ! run_issue_phase "ui-verify" "ui-verify.md" "$iter" "$issue" "$wt" "$branch" "$issue_base"; then
+    continue
+  fi
+  ui_phase_tip="$(git -C "$wt" rev-parse HEAD)"
+
+  # If UI verification changed production Swift/project files, review that new code
+  # before the loop accepts the issue implementation.
+  if production_swift_changed "$wt" "$ui_phase_base" "$ui_phase_tip"; then
+    log "UI verification changed production Swift/project files → running fresh Swift re-review"
+    note "issue #$issue swift-review-after-ui required"
+    if ! run_issue_phase "swift-review-after-ui" "swift-review.md" "$iter" "$issue" "$wt" "$branch" "$issue_base"; then
+      continue
+    fi
+  fi
+
   issue_tip="$(git -C "$wt" rev-parse HEAD)"
 
-  # 5. UI ARTIFACT GATE — compare only this issue's own implementation range.
+  # 6. UI ARTIFACT GATE — compare only this issue's own implementation range.
   if ! check_ui_artifacts "$issue" "$iter" "$wt" "$issue_base" "$issue_tip"; then
     continue
   fi
 
-  # 6. INTEGRATE — merge into a temporary worktree, then gate the exact tree to be shipped.
+  # 7. INTEGRATE — merge into a temporary worktree, then gate the exact tree to be shipped.
   integration_branch="agent/issue-$issue-integration"
   integration_wt="$REPO_ROOT/.claude/worktrees/issue-$issue-integration"
   cleanup_integration_worktree "$integration_wt" "$integration_branch"
@@ -388,13 +463,13 @@ $(cat "$PROMPTS/implement.md")"
     flag_for_human "$issue" "Merge into current main conflicted." gate; continue
   fi
 
-  # 7. GATE — authoritative full testing framework on the integrated tree.
+  # 8. GATE — authoritative full testing framework on the integrated tree.
   if ! run_full_gate "$issue" "$iter" "$integration_wt"; then
     cleanup_integration_worktree "$integration_wt" "$integration_branch"
     continue
   fi
 
-  # 8. SHIP — commit the already-gated merge, fast-forward main, push, close
+  # 9. SHIP — commit the already-gated merge, fast-forward main, push, close
   if ! git -C "$integration_wt" commit -m "merge: resolve #$issue via Ralph ($ENGINE)" >/dev/null 2>&1; then
     cleanup_integration_worktree "$integration_wt" "$integration_branch"
     flag_for_human "$issue" "Could not create the integrated merge commit."; continue
@@ -414,7 +489,7 @@ $(cat "$PROMPTS/implement.md")"
 
 Merged to \`main\`." >/dev/null 2>&1 || true
 
-  # 9. CLEANUP
+  # 10. CLEANUP
   cleanup_integration_worktree "$integration_wt" "$integration_branch"
   git -C "$REPO_ROOT" worktree remove --force "$wt" >/dev/null 2>&1 || true
   git -C "$REPO_ROOT" branch -d "$branch" >/dev/null 2>&1 || git -C "$REPO_ROOT" branch -D "$branch" >/dev/null 2>&1 || true
