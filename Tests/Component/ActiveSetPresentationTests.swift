@@ -316,23 +316,27 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     #expect(presentation.segments.map(\.state) == [.futurePending, .currentPending])
 }
 
-@Test func sessionSettingsOverpullDoesNotPreviewBelowHighThreshold() {
-    let state = SessionSettingsOverpullState.hidden.tracking(topContentOffset: 79)
+@Test func sessionSettingsOverpullStaysHiddenBelowRevealThreshold() {
+    let state = SessionSettingsOverpullState.hidden.tracking(topContentOffset: 60)
 
     #expect(state == .hidden)
 }
 
-@Test func sessionSettingsOverpullPreviewsAfterHighThreshold() {
-    let state = SessionSettingsOverpullState.hidden.tracking(topContentOffset: 110)
-
-    #expect(state.phase == .preview)
-    #expect(abs(state.progress - 0.5) < 0.001)
-}
-
-@Test func sessionSettingsOverpullPinsWhenReachingCommitThreshold() {
-    let state = SessionSettingsOverpullState.hidden.tracking(topContentOffset: 140)
+@Test func sessionSettingsOverpullRevealsWhenOverpullClearsThreshold() {
+    let state = SessionSettingsOverpullState.hidden.tracking(topContentOffset: 72)
 
     #expect(state == .pinned)
+}
+
+@Test func sessionSettingsOverpullStaysRevealedWhenHeaderGrowthShrinksOverpull() {
+    // Revealing grows the top header HUD, which lives in the scroll view's top
+    // safe-area inset and shrinks the measured overpull. The reveal must latch so
+    // that feedback cannot snap it back to hidden mid-pull (the scroll jank).
+    let revealed = SessionSettingsOverpullState.hidden.tracking(topContentOffset: 80)
+    #expect(revealed == .pinned)
+
+    let afterHeaderGrowth = revealed.tracking(topContentOffset: 20)
+    #expect(afterHeaderGrowth == .pinned)
 }
 
 @Test func pinnedSessionSettingsDismissesWhenScrollingIntoContent() {
