@@ -2,12 +2,16 @@ import Foundation
 
 enum RestTriggerDecision: Equatable, Sendable {
     case none
-    case start
+    case start(superset: Bool)
 }
 
 @MainActor
 struct RestTriggerPolicy {
-    static func decision(afterLogging loggedSet: ExerciseSet, in session: Session) -> RestTriggerDecision {
+    static func decision(
+        afterLogging loggedSet: ExerciseSet,
+        in session: Session,
+        isSupersetMember: Bool = false
+    ) -> RestTriggerDecision {
         let sessions = currentWeekSessions(for: session)
         let hasPendingSet = sessions.contains { session in
             session.exercises.contains { exercise in
@@ -16,7 +20,7 @@ struct RestTriggerPolicy {
                 }
             }
         }
-        return hasPendingSet ? .start : .none
+        return hasPendingSet ? .start(superset: isSupersetMember) : .none
     }
 
     private static func currentWeekSessions(for session: Session) -> [Session] {
