@@ -15,14 +15,13 @@ Do not explain Ralph, the loop, project conventions, or skills back to the user;
 - If there is no Agent Brief comment, use the issue body as the authoritative spec only when it
   contains a concrete implementation brief with acceptance criteria. If the body is vague,
   mostly links to other issues, or lacks acceptance criteria, report BLOCKED.
-- Do not read or use PRDs as implementation input. PRD issues and PRD documents are planning
-  artifacts, not work contracts for this phase.
+- Read related PRD (if possible), for context.
 - Read `CONTEXT.md` for the domain glossary.
 - Read any ADRs under `docs/adr/` relevant to the area you touch, and respect them.
 - Read `AGENTS.md` / `CLAUDE.md` for coding, testing, concurrency, and lint conventions.
 
 ## Work
-- Use the `tdd` skill when available; otherwise follow the TDD guidance in project instructions.
+- Must invoke `tdd` skill
 - Use Swift-specific skills only when they are directly relevant to the issue.
 - During implementation, run the narrowest relevant tests for the layer being changed so each TDD
   slice has a fast feedback loop.
