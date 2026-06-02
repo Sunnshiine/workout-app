@@ -23,9 +23,14 @@ final class RestTimer {
     @ObservationIgnored private var originSetObjectID: ObjectIdentifier?
 
     @ObservationIgnored private let clock: any RestClock
+    @ObservationIgnored private let notificationScheduler: (any RestNotificationScheduling)?
 
-    init(clock: any RestClock = SystemRestClock()) {
+    init(
+        clock: any RestClock = SystemRestClock(),
+        notificationScheduler: (any RestNotificationScheduling)? = nil
+    ) {
         self.clock = clock
+        self.notificationScheduler = notificationScheduler
     }
 
     var remaining: TimeInterval {
@@ -44,7 +49,12 @@ final class RestTimer {
         self.duration = duration
         self.origin = origin
         self.originSetObjectID = originSetObjectID
-        deadline = clock.now.addingTimeInterval(duration)
+        if deadline != nil {
+            notificationScheduler?.cancel()
+        }
+        let deadline = clock.now.addingTimeInterval(duration)
+        self.deadline = deadline
+        notificationScheduler?.schedule(deadline: deadline)
         restartRevision += 1
     }
 
@@ -61,6 +71,7 @@ final class RestTimer {
         origin = nil
         originSetObjectID = nil
         deadline = nil
+        notificationScheduler?.cancel()
     }
 
     func remaining(at now: Date) -> TimeInterval {

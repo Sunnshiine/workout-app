@@ -32,6 +32,9 @@ struct RootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.gradient.ignoresSafeArea())
         .preferredColorScheme(Theme.colorSchemeOverride(for: settings.appearance))
+        .task(id: settings.isConfigured) {
+            requestRestNotificationAuthorizationIfNeeded()
+        }
     }
 
     private var palette: Theme.Palette {
@@ -50,5 +53,15 @@ struct RootView: View {
             hasSpreadsheet: settings.spreadsheetId != nil,
             showsURLFallback: false
         )
+    }
+
+    private func requestRestNotificationAuthorizationIfNeeded() {
+        guard settings.isConfigured else { return }
+        #if DEBUG
+            if UITestFixture.isEnabled { return }
+        #endif
+        #if canImport(UserNotifications)
+            RestNotificationCenterScheduler.shared.requestAuthorizationIfNeeded()
+        #endif
     }
 }
