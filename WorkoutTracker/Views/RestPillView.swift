@@ -44,7 +44,7 @@ struct RestPillView: View {
 
         return VStack(spacing: 6) {
             HStack(spacing: 14) {
-                Text("Rest")
+                Text(restTimer.label)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
 
@@ -250,11 +250,11 @@ struct RestPillView: View {
         let minutes = totalSeconds / 60
         let seconds = totalSeconds % 60
         if minutes > 0, seconds > 0 {
-            return "Rest, \(minutes) minutes \(seconds) seconds remaining"
+            return "\(restTimer.label), \(minutes) minutes \(seconds) seconds remaining"
         }
         if minutes > 0 {
-            return "Rest, \(minutes) minutes remaining"
+            return "\(restTimer.label), \(minutes) minutes remaining"
         }
-        return "Rest, \(seconds) seconds remaining"
+        return "\(restTimer.label), \(seconds) seconds remaining"
     }
 }

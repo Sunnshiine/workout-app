@@ -62,6 +62,20 @@ private final class MockRestNotificationScheduler: RestNotificationScheduling {
 }
 
 @MainActor
+@Test func restTimerStartStoresStandardAndSupersetLabels() {
+    let clock = ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 1_000))
+    let timer = RestTimer(clock: clock)
+
+    timer.start(duration: 120, origin: ActiveSetID(exerciseOrder: 1, setIndex: 0), kind: .standard)
+
+    #expect(timer.label == "Rest")
+
+    timer.start(duration: 30, origin: ActiveSetID(exerciseOrder: 2, setIndex: 0), kind: .superset)
+
+    #expect(timer.label == "Superset rest")
+}
+
+@MainActor
 @Test func restTimerSchedulesNotificationAtDeadlineOnStart() {
     let clock = ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 1_000))
     let scheduler = MockRestNotificationScheduler()

@@ -167,6 +167,7 @@ final class SessionCoordinator {
     @ObservationIgnored private let transitionClock: any SessionTransitionClock
     @ObservationIgnored private var restTimer: RestTimer?
     @ObservationIgnored private var standardRestDuration: () -> TimeInterval
+    @ObservationIgnored private var supersetRestDuration: () -> TimeInterval
     @ObservationIgnored private var retirementTask: Task<Void, Never>?
     @ObservationIgnored private var pairingConfirmationTask: Task<Void, Never>?
     private var renderRevision = 0
@@ -177,7 +178,8 @@ final class SessionCoordinator {
         sync: any SessionSyncAdapter = NoopSessionSyncAdapter(),
         transitionClock: any SessionTransitionClock = TaskSessionTransitionClock(),
         restTimer: RestTimer? = nil,
-        standardRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.standard.timeInterval }
+        standardRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.standard.timeInterval },
+        supersetRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.superset.timeInterval }
     ) {
         self.session = session
         self.focusManager = ActiveSetFocusManager(session: session)
@@ -186,6 +188,7 @@ final class SessionCoordinator {
         self.transitionClock = transitionClock
         self.restTimer = restTimer
         self.standardRestDuration = standardRestDuration
+        self.supersetRestDuration = supersetRestDuration
         syncFocusState()
     }
 
@@ -217,10 +220,12 @@ final class SessionCoordinator {
         logging: any SessionLoggingAdapter,
         sync: any SessionSyncAdapter,
         restTimer: RestTimer? = nil,
-        standardRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.standard.timeInterval }
+        standardRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.standard.timeInterval },
+        supersetRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.superset.timeInterval }
     ) {
         self.restTimer = restTimer
         self.standardRestDuration = standardRestDuration
+        self.supersetRestDuration = supersetRestDuration
         configure(logging: logging, sync: sync)
         bind(to: session)
     }
@@ -257,12 +262,20 @@ final class SessionCoordinator {
     func log(_ set: ExerciseSet, as log: SetLog, animateFocus: SessionFocusAnimation? = nil) {
         do {
             let session = try actionSession(for: set)
+            let wasSupersetMember = isSupersetMember(set, in: session)
             try loggingAdapter.log(set, as: log)
-            if RestTriggerPolicy.decision(afterLogging: set, in: session) == .start || restTimer?.isRunning == true {
+            let decision = RestTriggerPolicy.decision(
+                afterLogging: set,
+                in: session,
+                isSupersetMember: wasSupersetMember
+            )
+            let restKind = restKind(for: decision, wasSupersetMember: wasSupersetMember)
+            if let restKind {
                 restTimer?.start(
-                    duration: standardRestDuration(),
+                    duration: restDuration(for: restKind),
                     origin: Self.activeSetID(for: set),
-                    originSetObjectID: ObjectIdentifier(set)
+                    originSetObjectID: ObjectIdentifier(set),
+                    kind: restKind
                 )
             }
             performFocusUpdate(animateFocus) {
@@ -409,21 +422,6 @@ final class SessionCoordinator {
         }
     }
 
-    private func supersetFocusTargetID(for exercise: Exercise, in session: Session) -> ActiveSetID? {
-        let isInSuperset = focusManager.supersetSections(in: session).contains { section in
-            section.exercises.contains { $0 === exercise }
-        }
-        guard isInSuperset else { return nil }
-
-        let targetID = exercise.sets
-            .filter { $0.state == .pending }
-            .sorted { $0.index < $1.index }
-            .first
-            .flatMap(Self.activeSetID(for:))
-        guard targetID != activeSetID else { return nil }
-        return targetID
-    }
-
     private func actionSession(for set: ExerciseSet) throws -> Session {
         guard let session = set.exercise?.session else {
             throw SessionCoordinatorError.missingSession
@@ -477,6 +475,47 @@ final class SessionCoordinator {
                     + Theme.momentumRiseDuration
             }
         return .nanoseconds(Int64((seconds * 1_000_000_000).rounded()))
+    }
+}
+
+private extension SessionCoordinator {
+    func supersetFocusTargetID(for exercise: Exercise, in session: Session) -> ActiveSetID? {
+        let isInSuperset = focusManager.supersetSections(in: session).contains { section in
+            section.exercises.contains { $0 === exercise }
+        }
+        guard isInSuperset else { return nil }
+
+        let targetID = exercise.sets
+            .filter { $0.state == .pending }
+            .sorted { $0.index < $1.index }
+            .first
+            .flatMap(Self.activeSetID(for:))
+        guard targetID != activeSetID else { return nil }
+        return targetID
+    }
+
+    func isSupersetMember(_ set: ExerciseSet, in session: Session) -> Bool {
+        guard let exercise = set.exercise else { return false }
+        return focusManager.supersetSections(in: session).contains { section in
+            section.exercises.contains { $0 === exercise }
+        }
+    }
+
+    func restKind(for decision: RestTriggerDecision, wasSupersetMember: Bool) -> RestKind? {
+        if case .start(let superset) = decision {
+            return superset ? .superset : .standard
+        }
+        guard restTimer?.isRunning == true else { return nil }
+        return wasSupersetMember ? .superset : .standard
+    }
+
+    func restDuration(for kind: RestKind) -> TimeInterval {
+        switch kind {
+        case .standard:
+            standardRestDuration()
+        case .superset:
+            supersetRestDuration()
+        }
     }
 }
 

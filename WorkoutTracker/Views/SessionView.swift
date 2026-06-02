@@ -172,7 +172,8 @@ struct SessionView: View {
             logging: workout,
             sync: SessionPendingWriteSyncAdapter(sync: sync, settings: settings),
             restTimer: restTimer,
-            standardRestDuration: { settings.standardRestDuration.timeInterval }
+            standardRestDuration: { settings.standardRestDuration.timeInterval },
+            supersetRestDuration: { settings.supersetRestDuration.timeInterval }
         )
     }
 
