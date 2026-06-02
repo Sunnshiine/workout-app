@@ -205,6 +205,23 @@ Gate failures are reported by layer:
   changed. The screenshot review itself happens inside the UI verification phase via the
   `ui-screenshot-reviewer` subagent.
 
+### Execution report
+
+Use the read-only report script when you want per-issue Ralph telemetry from the local artifacts
+and Codex sessions:
+
+```bash
+uv run --python 3.11 python ralph/report.py
+uv run --python 3.11 python ralph/report.py --issue 157 --format json
+uv run --python 3.11 python ralph/report.py --format csv
+```
+
+The report derives issue attempts and durations from `ralph/.artifacts/activity.md`, attaches
+matching phase/gate logs from `ralph/.artifacts/logs/`, and joins Codex token telemetry from
+`~/.codex/sessions`. It reports total/cached/uncached tokens, output and reasoning tokens,
+compaction counts and timestamps, session/subagent counts, reviewer roles, per-phase token totals,
+max per-call context size, and tokens per minute. GitHub and git are not touched.
+
 ---
 
 ## Safety
