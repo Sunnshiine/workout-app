@@ -317,28 +317,22 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 }
 
 @Test func sessionSettingsOverpullDoesNotPreviewBelowHighThreshold() {
-    let state = SessionSettingsOverpullState.hidden.tracking(topContentOffset: 139)
+    let state = SessionSettingsOverpullState.hidden.tracking(topContentOffset: 79)
 
     #expect(state == .hidden)
 }
 
 @Test func sessionSettingsOverpullPreviewsAfterHighThreshold() {
-    let state = SessionSettingsOverpullState.hidden.tracking(topContentOffset: 170)
+    let state = SessionSettingsOverpullState.hidden.tracking(topContentOffset: 110)
 
     #expect(state.phase == .preview)
     #expect(abs(state.progress - 0.5) < 0.001)
 }
 
-@Test func sessionSettingsOverpullContractsWhenReleasedBeforeCommitThreshold() {
-    let preview = SessionSettingsOverpullState.hidden.tracking(topContentOffset: 210)
+@Test func sessionSettingsOverpullPinsWhenReachingCommitThreshold() {
+    let state = SessionSettingsOverpullState.hidden.tracking(topContentOffset: 140)
 
-    #expect(preview.released(topContentOffset: 190) == .hidden)
-}
-
-@Test func sessionSettingsOverpullPinsWhenReleasedBeyondCommitThreshold() {
-    let preview = SessionSettingsOverpullState.hidden.tracking(topContentOffset: 210)
-
-    #expect(preview.released(topContentOffset: 210) == .pinned)
+    #expect(state == .pinned)
 }
 
 @Test func pinnedSessionSettingsDismissesWhenScrollingIntoContent() {
@@ -358,7 +352,6 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     )
 
     #expect(distance == 140)
-    #expect(SessionSettingsOverpullState.hidden.released(topContentOffset: distance) == .hidden)
 }
 
 @MainActor

@@ -267,8 +267,8 @@ struct SessionSettingsOverpullState: Equatable, Sendable {
 
     static let idleDismissDelay: TimeInterval = 2.5
 
-    private static let previewThreshold: CGFloat = 140
-    private static let commitThreshold: CGFloat = 200
+    private static let previewThreshold: CGFloat = 80
+    private static let commitThreshold: CGFloat = 140
     private static let contentDismissOffset: CGFloat = -16
 
     let phase: Phase
@@ -291,6 +291,10 @@ struct SessionSettingsOverpullState: Equatable, Sendable {
             return self
         }
 
+        if topContentOffset >= Self.commitThreshold {
+            return .pinned
+        }
+
         guard topContentOffset >= Self.previewThreshold else {
             return .hidden
         }
@@ -299,10 +303,6 @@ struct SessionSettingsOverpullState: Equatable, Sendable {
             phase: .preview,
             progress: Self.progress(for: topContentOffset)
         )
-    }
-
-    func released(topContentOffset: CGFloat) -> Self {
-        topContentOffset >= Self.commitThreshold ? .pinned : .hidden
     }
 
     func dismissedAfterIdle() -> Self {

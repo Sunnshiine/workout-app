@@ -304,42 +304,6 @@ extension SessionView {
         )
     }
 
-    private var sessionSettingsHeaderPullGesture: some Gesture {
-        DragGesture(minimumDistance: 12, coordinateSpace: .global)
-            .onChanged { value in
-                updateSessionSettingsHeaderPull(translationHeight: value.translation.height)
-            }
-            .onEnded { value in
-                releaseSessionSettingsHeaderPull(translationHeight: value.translation.height)
-            }
-    }
-
-    private func updateSessionSettingsHeaderPull(translationHeight: CGFloat) {
-        guard canRevealSessionControls else {
-            if sessionSettingsOverpullState != .hidden {
-                sessionSettingsOverpullState = .hidden
-            }
-            return
-        }
-
-        guard translationHeight >= 0 else {
-            applySessionSettingsOverpullState(.hidden)
-            return
-        }
-
-        applySessionSettingsOverpullState(
-            sessionSettingsOverpullState.tracking(topContentOffset: translationHeight)
-        )
-    }
-
-    private func releaseSessionSettingsHeaderPull(translationHeight: CGFloat) {
-        guard canRevealSessionControls else { return }
-
-        applySessionSettingsOverpullState(
-            sessionSettingsOverpullState.released(topContentOffset: translationHeight)
-        )
-    }
-
     private func applySessionSettingsOverpullState(_ state: SessionSettingsOverpullState) {
         guard state != sessionSettingsOverpullState else { return }
         let startsPinned = state.isPinned && !sessionSettingsOverpullState.isPinned
@@ -371,7 +335,6 @@ extension SessionView {
         .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
         .padding(.horizontal)
         .padding(.top, 8)
-        .highPriorityGesture(sessionSettingsHeaderPullGesture)
     }
 
     private func topContentOffset(_ geometry: ScrollGeometry) -> CGFloat {
