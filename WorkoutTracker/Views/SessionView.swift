@@ -175,7 +175,10 @@ struct SessionView: View {
             restTimer: restTimer,
             standardRestDuration: { settings.standardRestDuration.timeInterval },
             supersetRestDuration: { settings.supersetRestDuration.timeInterval },
-            liveActivity: liveActivityAdapter
+            liveActivity: liveActivityAdapter,
+            isCurrentSessionScope: { [workout] session in
+                session.persistentModelID == workout.currentSession?.persistentModelID
+            }
         )
     }
 

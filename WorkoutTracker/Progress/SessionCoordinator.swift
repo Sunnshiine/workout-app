@@ -174,6 +174,7 @@ final class SessionCoordinator {
     @ObservationIgnored private var loggingAdapter: any SessionLoggingAdapter
     @ObservationIgnored private var syncAdapter: any SessionSyncAdapter
     @ObservationIgnored private var liveActivityAdapter: any SessionLiveActivityAdapter
+    @ObservationIgnored private var isCurrentSessionScope: (Session) -> Bool
     @ObservationIgnored private let transitionClock: any SessionTransitionClock
     @ObservationIgnored private var restTimer: RestTimer?
     @ObservationIgnored private var standardRestDuration: () -> TimeInterval
@@ -190,13 +191,15 @@ final class SessionCoordinator {
         restTimer: RestTimer? = nil,
         standardRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.standard.timeInterval },
         supersetRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.superset.timeInterval },
-        liveActivity: any SessionLiveActivityAdapter = NoopSessionLiveActivityAdapter()
+        liveActivity: any SessionLiveActivityAdapter = NoopSessionLiveActivityAdapter(),
+        isCurrentSessionScope: @escaping (Session) -> Bool = { _ in true }
     ) {
         self.session = session
         self.focusManager = ActiveSetFocusManager(session: session)
         self.loggingAdapter = logging
         self.syncAdapter = sync
         self.liveActivityAdapter = liveActivity
+        self.isCurrentSessionScope = isCurrentSessionScope
         self.transitionClock = transitionClock
         self.restTimer = restTimer
         self.standardRestDuration = standardRestDuration
@@ -234,7 +237,8 @@ final class SessionCoordinator {
         restTimer: RestTimer? = nil,
         standardRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.standard.timeInterval },
         supersetRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.superset.timeInterval },
-        liveActivity: (any SessionLiveActivityAdapter)? = nil
+        liveActivity: (any SessionLiveActivityAdapter)? = nil,
+        isCurrentSessionScope: ((Session) -> Bool)? = nil
     ) {
         self.restTimer = restTimer
         self.standardRestDuration = standardRestDuration
@@ -242,6 +246,7 @@ final class SessionCoordinator {
         if let liveActivity {
             liveActivityAdapter = liveActivity
         }
+        self.isCurrentSessionScope = isCurrentSessionScope ?? self.isCurrentSessionScope
         configure(logging: logging, sync: sync)
         bind(to: session)
     }
@@ -277,7 +282,6 @@ final class SessionCoordinator {
 
     func log(_ set: ExerciseSet, as log: SetLog, animateFocus: SessionFocusAnimation? = nil) {
         do {
-            let wasCurrentSession = set.exercise?.session === self.session
             let session = try actionSession(for: set)
             let wasSupersetMember = isSupersetMember(set, in: session)
             try loggingAdapter.log(set, as: log)
@@ -294,7 +298,7 @@ final class SessionCoordinator {
                     originSetObjectID: ObjectIdentifier(set),
                     kind: restKind
                 )
-                startOrUpdateLiveActivity(afterLogging: set, in: session, wasCurrentSession: wasCurrentSession)
+                startOrUpdateLiveActivity(afterLogging: set, in: session, isCurrentSession: isCurrentSessionScope(session))
             }
             performFocusUpdate(animateFocus) {
                 advanceAfterLog(set, in: session)
@@ -539,12 +543,12 @@ extension SessionCoordinator {
     fileprivate func startOrUpdateLiveActivity(
         afterLogging set: ExerciseSet,
         in session: Session,
-        wasCurrentSession: Bool
+        isCurrentSession: Bool
     ) {
         let event = LiveActivityProductionEvent(
             source: .userSetLog,
             outcome: .success,
-            sessionScope: wasCurrentSession ? .currentSession : .nonCurrentSession
+            sessionScope: isCurrentSession ? .currentSession : .nonCurrentSession
         )
         guard
             LiveActivityCreationPolicy.shouldCreateOrUpdate(for: event),

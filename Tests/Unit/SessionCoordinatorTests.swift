@@ -901,18 +901,21 @@ private func makeRestActionFixture(
 @Test func loggingSetFromNonCurrentSessionDoesNotStartLiveActivity() throws {
     let current = makeSingleSetSession(dayNumber: 1)
     let browsed = makeCoordinatorSession()
+    browsed.dayNumber = 2
+    connectCoordinatorWeek([current.session, browsed])
     let logging = SpySessionLoggingAdapter()
     let sync = SpySessionSyncAdapter()
     let liveActivity = SpySessionLiveActivityAdapter()
     let clock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
     let restTimer = RestTimer(clock: clock)
     let coordinator = SessionCoordinator(
-        session: current.session,
+        session: browsed,
         logging: logging,
         sync: sync,
         restTimer: restTimer,
         standardRestDuration: { 210 },
-        liveActivity: liveActivity
+        liveActivity: liveActivity,
+        isCurrentSessionScope: { $0 === current.session }
     )
     let bench = try #require(browsed.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
