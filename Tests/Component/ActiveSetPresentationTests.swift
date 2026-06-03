@@ -328,15 +328,14 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     #expect(state == .pinned)
 }
 
-@Test func sessionSettingsOverpullStaysRevealedWhenHeaderGrowthShrinksOverpull() {
-    // Revealing grows the top header HUD, which lives in the scroll view's top
-    // safe-area inset and shrinks the measured overpull. The reveal must latch so
-    // that feedback cannot snap it back to hidden mid-pull (the scroll jank).
+@Test func sessionSettingsOverpullStaysRevealedWhenSettlingShrinksOverpull() {
+    // The reveal must latch so top-edge geometry settling cannot snap it back to
+    // hidden mid-pull.
     let revealed = SessionSettingsOverpullState.hidden.tracking(topContentOffset: 80)
     #expect(revealed == .pinned)
 
-    let afterHeaderGrowth = revealed.tracking(topContentOffset: 20)
-    #expect(afterHeaderGrowth == .pinned)
+    let afterSettling = revealed.tracking(topContentOffset: 20)
+    #expect(afterSettling == .pinned)
 }
 
 @Test func pinnedSessionSettingsDismissesWhenScrollingIntoContent() {
