@@ -22,9 +22,9 @@ context** so the work never accumulates context bloat.
 - **`gh`** authenticated against this repo (`gh auth status`). Used to list/close issues and post comments.
 - **`xcodegen`** (`brew install xcodegen`) — new Swift files must be added to the project before `xcodebuild` sees them.
 - **Xcode 26+** and the **iPhone 17 Pro** simulator runtime (see `../docs/TESTING.md`).
-- **`Secrets.xcconfig`** for Xcode gates in worktrees. Ralph copies it automatically
-  from `SECRETS_XCCONFIG_SOURCE`, repo root, or `/path/to/workout-app`
-  when a source exists.
+- **`Secrets.xcconfig`** for Xcode gates in worktrees. Ralph copies it
+  automatically from `SECRETS_XCCONFIG_SOURCE` or the repo root when a source
+  exists.
 - Run from anywhere inside the repo; the script locates the repo root itself.
 
 ---

@@ -5,8 +5,18 @@
 Secrets.xcconfig
 
 # Claude Code — machine-local settings and nested worktrees (not for the shared repo)
+.claude/
 .claude/settings.local.json
 .claude/worktrees/
+
+# Codex, XcodeBuildMCP, and design-tool local state
+.codex/
+.xcodebuildmcp/
+.impeccable/
+
+# Xcode user state
+xcuserdata/
+*.xcuserstate
 
 # Swift Package Manager
 .build/
@@ -14,4 +24,8 @@ Secrets.xcconfig
 
 # Ralph loop build/screenshot artifacts
 ralph/.artifacts/
+ralph/reports/
 .ralph-dd/
+
+# Local troubleshooting logs
+error-logs.txt

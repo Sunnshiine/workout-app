@@ -77,7 +77,7 @@ secrets_xcconfig_source() {
     return 2
   fi
 
-  for source in "$REPO_ROOT/Secrets.xcconfig" "/path/to/workout-app/Secrets.xcconfig"; do
+  for source in "$REPO_ROOT/Secrets.xcconfig"; do
     if [ -n "$source" ] && [ -f "$source" ]; then
       printf '%s\n' "$source"
       return 0

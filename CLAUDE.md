@@ -50,10 +50,15 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
 
 ## Git Worktrees
 
-When running `xcodebuild test` from a git worktree, copy `Secrets.xcconfig` from the project root first — it is git-ignored so worktrees don't get it automatically, and xcodebuild fails with a build error rather than a clear diagnostic. Ralph copies it automatically for issue and integration worktrees when a source file exists:
+When running `xcodebuild test` from a git worktree, provide `Secrets.xcconfig`
+from a trusted private checkout first — it is git-ignored so worktrees don't get
+it automatically, and xcodebuild fails with a build error rather than a clear
+diagnostic. Ralph copies it automatically for issue and integration worktrees
+when `SECRETS_XCCONFIG_SOURCE` points to a file, or when a source file exists in
+the repo root:
 
 ```bash
-cp /path/to/workout-app/Secrets.xcconfig ./Secrets.xcconfig
+cp /path/to/private/Secrets.xcconfig ./Secrets.xcconfig
 ```
 
 `swift test` does not require it; only `xcodebuild` does.
