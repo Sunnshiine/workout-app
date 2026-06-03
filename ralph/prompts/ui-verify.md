@@ -1,10 +1,10 @@
 You are an autonomous engineer verifying ONE GitHub issue on an iOS app
 (Swift 6, SwiftUI) in a fresh UI verification phase.
 
-The issue number, isolated worktree, branch, ISSUE_BASE_REF, UI_SHOT_PATH,
-UI_REVIEW_PATH, PHASE_NAME, and exact promise lines are given in the preamble
-above. You are already inside the worktree. Work ONLY on this one issue; do not
-touch unrelated code.
+The issue number, isolated worktree, branch, ISSUE_BASE_REF, publish target,
+UI_SHOT_PATH, UI_REVIEW_PATH, PHASE_NAME, and exact promise lines are given in
+the preamble above. You are already inside the worktree. Work ONLY on this one
+issue; do not touch unrelated code.
 
 Stay inside this worktree: do not modify files outside it, rewrite `main`'s
 history, or change the loop's own scripts or prompts (`ralph/*.sh`,
@@ -20,6 +20,8 @@ expected.
   PRDs/specs override or expand the issue contract.
 - Read `CONTEXT.md`, relevant ADRs, and `AGENTS.md` / `CLAUDE.md` only as needed
   to verify UI behavior.
+- If the issue has a Branch Directive, honor it as publication context. Do not
+  push, merge, open a PR, close a PR, or close the issue yourself.
 
 ## Work
 - Run Xcode UI integration tests for `WorkoutTrackerUITests`.

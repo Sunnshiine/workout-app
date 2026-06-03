@@ -4,11 +4,12 @@
 #
 # Each iteration runs a FRESH agent context that:
 #   1. selects the highest-priority unblocked `ready-for-agent` GitHub issue (skipping PRDs),
-#   2. implements it with TDD in an isolated git worktree,
-#   3. hands the result to a fresh Swift-review phase,
-#   4. hands the reviewed result to a fresh UI-verification phase,
-#   5. is gated on the full documented framework before shipping,
-#   6. on success: merges the branch to main, pushes origin, and closes the issue;
+#   2. resolves whether the issue ships to main or an existing PR branch,
+#   3. implements it with TDD in an isolated git worktree,
+#   4. hands the result to a fresh Swift-review phase,
+#   5. hands the reviewed result to a fresh UI-verification phase,
+#   6. is gated on the full documented framework before shipping,
+#   7. on success: merges the branch to the resolved target, pushes, and closes the issue;
 #      on failure: relabels the issue `ready-for-human` and moves on.
 # The loop stops when no eligible issues remain, or after MAX_ITER iterations.
 #
@@ -17,10 +18,11 @@
 # Usage:
 #   ralph/ralph.sh [--engine claude|codex] [--max-iterations N] [--no-push] [--select-only]
 #                  [--model NAME] [--device "iPhone 17 Pro"] [--codex-sandbox]
-#                  [--implement-timeout-seconds N]
+#                  [--implement-timeout-seconds N] [--publish-target auto|main|branch]
+#                  [--target-branch BRANCH] [--target-pr N]
 #
-# WARNING: with defaults this PUSHES to origin/main and CLOSES issues unattended.
-#          Pass --no-push to keep commits local (issues are still closed on the remote).
+# WARNING: with defaults this PUSHES to the resolved target and CLOSES issues unattended.
+#          Pass --no-push to keep commits local while you build trust.
 #
 set -uo pipefail
 
@@ -35,6 +37,9 @@ LABEL="${LABEL:-ready-for-agent}"
 HUMAN_LABEL="${HUMAN_LABEL:-ready-for-human}"
 SIM_DEVICE="${SIM_DEVICE:-iPhone 17 Pro}"
 IMPLEMENT_TIMEOUT_SECONDS="${IMPLEMENT_TIMEOUT_SECONDS:-2700}"
+PUBLISH_TARGET="${PUBLISH_TARGET:-auto}"
+TARGET_BRANCH="${TARGET_BRANCH:-}"
+TARGET_PR="${TARGET_PR:-}"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -46,12 +51,16 @@ while [ $# -gt 0 ]; do
     --device) SIM_DEVICE="$2"; shift 2;;
     --codex-sandbox) CODEX_BYPASS=0; shift;;
     --implement-timeout-seconds) IMPLEMENT_TIMEOUT_SECONDS="$2"; shift 2;;
+    --publish-target|--ship-target) PUBLISH_TARGET="$2"; shift 2;;
+    --target-branch|--pr-branch) TARGET_BRANCH="$2"; shift 2;;
+    --target-pr) TARGET_PR="$2"; shift 2;;
     -h|--help) sed -n '2,28p' "$0"; exit 0;;
     *) echo "Unknown arg: $1" >&2; exit 2;;
   esac
 done
 
 case "$ENGINE" in claude|codex) ;; *) echo "engine must be 'claude' or 'codex'" >&2; exit 2;; esac
+case "$PUBLISH_TARGET" in auto|main|branch) ;; *) echo "publish target must be 'auto', 'main', or 'branch'" >&2; exit 2;; esac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
@@ -100,6 +109,86 @@ copy_secrets_xcconfig() {
   if ! cp "$source" "$destination/Secrets.xcconfig"; then
     log "failed to copy Secrets.xcconfig from $source to $destination"
     return 1
+  fi
+}
+
+issue_branch_directive() {
+  local issue="$1"
+  gh issue view "$issue" --json body --jq .body 2>/dev/null \
+    | sed -n '/Target branch:/,/^$/p' \
+    | sed -n 's/.*`\([^`][^`]*\)`.*/\1/p' \
+    | head -1
+}
+
+issue_pr_directive() {
+  local issue="$1"
+  gh issue view "$issue" --json body --jq .body 2>/dev/null \
+    | grep -Eo 'https://github.com/[^[:space:]]+/pull/[0-9]+' \
+    | head -1 \
+    | sed 's#.*/pull/##'
+}
+
+resolve_issue_publish_target() {
+  local issue="$1" branch_directive pr_directive
+  branch_directive="$(issue_branch_directive "$issue")"
+  pr_directive="$(issue_pr_directive "$issue")"
+
+  ISSUE_TARGET_BRANCH="$TARGET_BRANCH"
+  ISSUE_TARGET_PR="$TARGET_PR"
+
+  if [ -z "$ISSUE_TARGET_BRANCH" ]; then
+    ISSUE_TARGET_BRANCH="$branch_directive"
+  fi
+  if [ -z "$ISSUE_TARGET_PR" ]; then
+    ISSUE_TARGET_PR="$pr_directive"
+  fi
+
+  case "$PUBLISH_TARGET" in
+    main)
+      ISSUE_PUBLISH_TARGET="main"
+      ISSUE_TARGET_BRANCH=""
+      ;;
+    branch)
+      ISSUE_PUBLISH_TARGET="branch"
+      ;;
+    auto)
+      if [ -n "$ISSUE_TARGET_BRANCH" ]; then
+        ISSUE_PUBLISH_TARGET="branch"
+      else
+        ISSUE_PUBLISH_TARGET="main"
+      fi
+      ;;
+  esac
+
+  if [ "$ISSUE_PUBLISH_TARGET" = branch ] && [ -z "$ISSUE_TARGET_BRANCH" ]; then
+    return 1
+  fi
+  return 0
+}
+
+resolve_publish_base_ref() {
+  if [ "${ISSUE_PUBLISH_TARGET:-main}" = main ]; then
+    printf '%s\n' main
+    return 0
+  fi
+
+  git -C "$REPO_ROOT" fetch origin "$ISSUE_TARGET_BRANCH" >/dev/null 2>&1 || true
+  if git -C "$REPO_ROOT" show-ref --verify --quiet "refs/remotes/origin/$ISSUE_TARGET_BRANCH"; then
+    printf 'origin/%s\n' "$ISSUE_TARGET_BRANCH"
+    return 0
+  fi
+  if git -C "$REPO_ROOT" show-ref --verify --quiet "refs/heads/$ISSUE_TARGET_BRANCH"; then
+    printf '%s\n' "$ISSUE_TARGET_BRANCH"
+    return 0
+  fi
+  return 1
+}
+
+publish_description() {
+  if [ "${ISSUE_PUBLISH_TARGET:-main}" = branch ]; then
+    printf 'existing PR branch `%s`' "$ISSUE_TARGET_BRANCH"
+  else
+    printf '`main`'
   fi
 }
 
@@ -243,12 +332,21 @@ run_issue_phase() {
 You are working GitHub issue #$issue.
 You are inside an isolated git worktree at: $wt   (branch: $branch).
 ISSUE_BASE_REF: $issue_base
+PUBLISH_TARGET: $ISSUE_PUBLISH_TARGET
+TARGET_BRANCH: ${ISSUE_TARGET_BRANCH:-main}
+TARGET_PR: ${ISSUE_TARGET_PR:-}
 PHASE_NAME: $phase
 COMPLETE_PROMISE_LINE: $complete_line
 BLOCKED_PROMISE_PREFIX: $blocked_prefix
 UI_SHOT_PATH (relative to the worktree root): ralph/.artifacts/issue-$issue-ui-review.png
 UI_REVIEW_PATH (relative to the worktree root): ralph/.artifacts/issue-$issue-ui-review.md
 OBSERVATIONS_LOG_PATH (absolute; the persistent main-repo log to tail for recurrence, read-only): $OBS
+
+Ralph resolved this issue's publication target before creating your worktree. If
+PUBLISH_TARGET is branch, the issue ships back to TARGET_BRANCH and must not
+open a replacement PR, push main, merge main, or close TARGET_PR. If
+PUBLISH_TARGET is main, the issue ships through Ralph's normal direct-to-main
+gate.
 
 Gate handoff is strict: Ralph advances only when your final output contains the exact
 COMPLETE_PROMISE_LINE above. Words like done, completed, success, or the old
@@ -357,10 +455,10 @@ cleanup_integration_worktree() {
 }
 
 # ---- main loop -----------------------------------------------------------
-log "Ralph loop starting — engine=$ENGINE max-iter=$MAX_ITER push=$PUSH device='$SIM_DEVICE'"
+log "Ralph loop starting — engine=$ENGINE max-iter=$MAX_ITER push=$PUSH publish-target=$PUBLISH_TARGET device='$SIM_DEVICE'"
 [ -f "$ACTIVITY" ] || printf "# Ralph Activity Log\n\n" > "$ACTIVITY"
 [ -f "$OBS" ] || printf "# Ralph Observations\n\n> Append-only, gitignored. Read-only signal harvested from IMPLEMENT iterations — never auto-applied to docs. Consolidate manually when an entry flags the file as large.\n\n" > "$OBS"
-note "run start — engine=$ENGINE max-iter=$MAX_ITER push=$PUSH"
+note "run start — engine=$ENGINE max-iter=$MAX_ITER push=$PUSH publish-target=$PUBLISH_TARGET"
 
 if [ "$SELECT_ONLY" != 1 ] && [ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]; then
   log "working tree is dirty; refusing to run mutating phases."
@@ -388,19 +486,32 @@ $(cat "$PROMPTS/select.md")"
   fi
   log "selected issue #$issue"; note "iteration $iter: selected issue #$issue"
 
+  if ! resolve_issue_publish_target "$issue"; then
+    flag_for_human "$issue" "Publish target is branch, but no target branch was configured or found in the issue body."
+    continue
+  fi
+  log "issue #$issue publish target: $(publish_description)"
+  note "issue #$issue publish target: $(publish_description)"
+
   if [ "$SELECT_ONLY" = 1 ]; then
     log "select-only mode — stopping before worktree creation."
     note "select-only selected issue #$issue"
     break
   fi
 
-  # 2. ISOLATE — fresh worktree + branch off main
+  issue_base_ref="$(resolve_publish_base_ref)"
+  if [ -z "$issue_base_ref" ]; then
+    flag_for_human "$issue" "Could not resolve publish base ref for $(publish_description)."
+    continue
+  fi
+
+  # 2. ISOLATE — fresh worktree + branch off the resolved publish target
   branch="agent/issue-$issue"
   wt="$REPO_ROOT/.claude/worktrees/issue-$issue"
   git -C "$REPO_ROOT" worktree remove --force "$wt" >/dev/null 2>&1 || true
   git -C "$REPO_ROOT" branch -D "$branch" >/dev/null 2>&1 || true
   git -C "$REPO_ROOT" worktree prune >/dev/null 2>&1 || true
-  if ! git -C "$REPO_ROOT" worktree add -b "$branch" "$wt" main >/dev/null 2>&1; then
+  if ! git -C "$REPO_ROOT" worktree add -b "$branch" "$wt" "$issue_base_ref" >/dev/null 2>&1; then
     flag_for_human "$issue" "Could not create the worktree/branch."; continue
   fi
   if ! copy_secrets_xcconfig "$wt"; then
@@ -449,7 +560,11 @@ $(cat "$PROMPTS/select.md")"
   integration_branch="agent/issue-$issue-integration"
   integration_wt="$REPO_ROOT/.claude/worktrees/issue-$issue-integration"
   cleanup_integration_worktree "$integration_wt" "$integration_branch"
-  if ! git -C "$REPO_ROOT" worktree add -b "$integration_branch" "$integration_wt" main >/dev/null 2>&1; then
+  integration_base_ref="$(resolve_publish_base_ref)"
+  if [ -z "$integration_base_ref" ]; then
+    flag_for_human "$issue" "Could not resolve current publish base ref for $(publish_description)." gate; continue
+  fi
+  if ! git -C "$REPO_ROOT" worktree add -b "$integration_branch" "$integration_wt" "$integration_base_ref" >/dev/null 2>&1; then
     flag_for_human "$issue" "Could not create the integration worktree/branch."; continue
   fi
   if ! copy_secrets_xcconfig "$integration_wt"; then
@@ -457,10 +572,10 @@ $(cat "$PROMPTS/select.md")"
     flag_for_human "$issue" "Could not copy Secrets.xcconfig into the integration worktree." gate; continue
   fi
 
-  log "merging #$issue into integration worktree"
+  log "merging #$issue into integration worktree for $(publish_description)"
   if ! git -C "$integration_wt" merge --no-ff --no-commit "$branch" >/dev/null 2>&1; then
     cleanup_integration_worktree "$integration_wt" "$integration_branch"
-    flag_for_human "$issue" "Merge into current main conflicted." gate; continue
+    flag_for_human "$issue" "Merge into current publish target ($(publish_description)) conflicted." gate; continue
   fi
 
   # 8. GATE — authoritative full testing framework on the integrated tree.
@@ -469,31 +584,58 @@ $(cat "$PROMPTS/select.md")"
     continue
   fi
 
-  # 9. SHIP — commit the already-gated merge, fast-forward main, push, close
+  # 9. SHIP — commit the already-gated merge, fast-forward/push the target, close
   if ! git -C "$integration_wt" commit -m "merge: resolve #$issue via Ralph ($ENGINE)" >/dev/null 2>&1; then
     cleanup_integration_worktree "$integration_wt" "$integration_branch"
     flag_for_human "$issue" "Could not create the integrated merge commit."; continue
   fi
-  if ! git -C "$REPO_ROOT" merge --ff-only "$integration_branch" >/dev/null 2>&1; then
-    cleanup_integration_worktree "$integration_wt" "$integration_branch"
-    flag_for_human "$issue" "Could not fast-forward main to the gated integration branch."; continue
-  fi
-  if [ "$PUSH" = 1 ]; then
-    if git -C "$REPO_ROOT" push origin main >/dev/null 2>&1; then
-      log "pushed origin/main"
+
+  if [ "$ISSUE_PUBLISH_TARGET" = branch ]; then
+    if [ "$PUSH" = 1 ]; then
+      if git -C "$integration_wt" push origin "HEAD:$ISSUE_TARGET_BRANCH" >/dev/null 2>&1; then
+        log "pushed origin/$ISSUE_TARGET_BRANCH"
+      else
+        flag_for_human "$issue" "Could not push gated merge commit to origin/$ISSUE_TARGET_BRANCH; integration worktree left at $integration_wt." gate
+        git -C "$REPO_ROOT" worktree remove --force "$wt" >/dev/null 2>&1 || true
+        git -C "$REPO_ROOT" branch -d "$branch" >/dev/null 2>&1 || git -C "$REPO_ROOT" branch -D "$branch" >/dev/null 2>&1 || true
+        continue
+      fi
     else
-      log "WARN: push to origin failed (the merge is on local main)."; note "issue #$issue: push to origin failed"
+      log "no-push branch mode — gated commit left at $integration_wt on $integration_branch; issue left open."
+      note "issue #$issue gated for origin/$ISSUE_TARGET_BRANCH but not pushed because --no-push was set"
+      git -C "$REPO_ROOT" worktree remove --force "$wt" >/dev/null 2>&1 || true
+      git -C "$REPO_ROOT" branch -d "$branch" >/dev/null 2>&1 || git -C "$REPO_ROOT" branch -D "$branch" >/dev/null 2>&1 || true
+      break
     fi
-  fi
-  gh issue close "$issue" --comment "> *Resolved autonomously by the Ralph loop ($ENGINE).*
+    gh issue close "$issue" --comment "> *Resolved autonomously by the Ralph loop ($ENGINE).*
+
+Pushed to \`origin/$ISSUE_TARGET_BRANCH\`. PR ${ISSUE_TARGET_PR:+#$ISSUE_TARGET_PR }remains open for review/merge." >/dev/null 2>&1 || true
+  else
+    if ! git -C "$REPO_ROOT" merge --ff-only "$integration_branch" >/dev/null 2>&1; then
+      cleanup_integration_worktree "$integration_wt" "$integration_branch"
+      flag_for_human "$issue" "Could not fast-forward main to the gated integration branch."; continue
+    fi
+    if [ "$PUSH" = 1 ]; then
+      if git -C "$REPO_ROOT" push origin main >/dev/null 2>&1; then
+        log "pushed origin/main"
+      else
+        log "WARN: push to origin failed (the merge is on local main)."; note "issue #$issue: push to origin failed"
+      fi
+    fi
+    gh issue close "$issue" --comment "> *Resolved autonomously by the Ralph loop ($ENGINE).*
 
 Merged to \`main\`." >/dev/null 2>&1 || true
+  fi
 
   # 10. CLEANUP
   cleanup_integration_worktree "$integration_wt" "$integration_branch"
   git -C "$REPO_ROOT" worktree remove --force "$wt" >/dev/null 2>&1 || true
   git -C "$REPO_ROOT" branch -d "$branch" >/dev/null 2>&1 || git -C "$REPO_ROOT" branch -D "$branch" >/dev/null 2>&1 || true
-  note "issue #$issue resolved & merged to main$( [ "$PUSH" = 1 ] && echo ', pushed' )"
+  if [ "$ISSUE_PUBLISH_TARGET" = branch ]; then
+    note "issue #$issue resolved & pushed to origin/$ISSUE_TARGET_BRANCH"
+  else
+    note "issue #$issue resolved & merged to main$( [ "$PUSH" = 1 ] && echo ', pushed' )"
+  fi
   log "issue #$issue DONE"
 done
 
