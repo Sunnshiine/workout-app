@@ -55,6 +55,17 @@
             parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
+               BlueprintIdentifier = "46A520FBEB182FC7E179EBD1"
+               BuildableName = "WorkoutTrackerSnapshotTests.xctest"
+               BlueprintName = "WorkoutTrackerSnapshotTests"
+               ReferencedContainer = "container:WorkoutTracker.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
                BlueprintIdentifier = "6A8555F0D3FB8289CC2AA8CA"
                BuildableName = "WorkoutTrackerUITests.xctest"
                BlueprintName = "WorkoutTrackerUITests"

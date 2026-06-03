@@ -20,7 +20,7 @@ let package = Package(
             name: "WorkoutTrackerTests",
             dependencies: ["WorkoutTracker"],
             path: "Tests",
-            exclude: ["UI", "Unit/GoogleAuthTests.swift"]
+            exclude: ["UI", "Visual", "Unit/GoogleAuthTests.swift"]
         ),
     ]
 )
