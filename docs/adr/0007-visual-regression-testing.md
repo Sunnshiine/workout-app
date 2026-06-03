@@ -64,6 +64,11 @@ load-bearing decisions:
   baseline-policy plumbing in `ralph/ralph.sh`. Baseline changes become reviewed artifacts.
 - Adoption is contingent on the spike. If glass renders non-deterministically, the fallback
   is perceptual tolerance or structural snapshots — or reassessment — before cost is sunk.
+- The Phase 0 spike completed on 2026-06-03. A temporary glass-heavy SwiftUI view rendered
+  deterministically at exact image precision (`1.0`) on the available `iPhone 17 Pro`
+  simulator runtime reported by XcodeBuildMCP as iOS 26.3, including a second run after
+  clean build plus simulator shutdown/boot. Proceed with exact precision; no
+  `perceptualPrecision` tolerance is required for the initial baselines.
 - Proposal §3 is superseded. The proposal's "hard adoption gate" (a package must delete
   app-owned code to earn its place) is consciously not applied here: this dependency is
   test-only and earns its place by strengthening the feedback loop, not by deleting runtime
