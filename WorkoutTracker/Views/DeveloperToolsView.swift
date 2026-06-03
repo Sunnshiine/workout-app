@@ -20,6 +20,7 @@ struct DeveloperToolsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.cardSpacing) {
                     currentSessionSection
+                    liveActivitySection
                     pendingWritesSection
                     actionsSection
                     writeAuditSection
@@ -139,6 +140,19 @@ struct DeveloperToolsView: View {
 
             SyncStatusBanner(state: sync.state)
                 .accessibilityIdentifier("developer-tools-sync-status-banner")
+        }
+    }
+
+    private var liveActivitySection: some View {
+        DeveloperToolsSection(title: "Live Activity (prototype)") {
+            NavigationLink {
+                LiveActivityLabView()
+            } label: {
+                Label("Open Live Activity Lab", systemImage: "rectangle.stack.badge.play")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.glass)
+            .accessibilityIdentifier("developer-tools-live-activity-lab-link")
         }
     }
 

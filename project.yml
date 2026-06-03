@@ -20,7 +20,7 @@ targets:
   WorkoutTracker:
     type: application
     platform: iOS
-    sources: [WorkoutTracker]
+    sources: [WorkoutTracker, WorkoutShared]
     info:
       path: WorkoutTracker/Info.plist
       properties:
@@ -29,6 +29,7 @@ targets:
           - CFBundleURLSchemes:
               - $(GID_REVERSED_CLIENT_ID)
         UILaunchStoryboardName: LaunchScreen
+        NSSupportsLiveActivities: true
     settings:
       base:
         CODE_SIGN_IDENTITY: iPhone Developer
@@ -38,6 +39,7 @@ targets:
         SWIFT_STRICT_CONCURRENCY: complete
         TARGETED_DEVICE_FAMILY: "1,2"
     dependencies:
+      - target: WorkoutWidgets
       - package: GoogleSignIn
         product: GoogleSignIn
       - package: GoogleSignIn
@@ -78,6 +80,24 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.sunnypatel.WorkoutTrackerUITests
         TARGETED_DEVICE_FAMILY: "1,2"
         TEST_TARGET_NAME: WorkoutTracker
+
+  WorkoutWidgets:
+    type: app-extension
+    platform: iOS
+    sources: [WorkoutWidgets, WorkoutShared]
+    info:
+      path: WorkoutWidgets/Info.plist
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        CODE_SIGN_IDENTITY: iPhone Developer
+        DEVELOPMENT_TEAM: K74Q6RKFBY
+        PRODUCT_BUNDLE_IDENTIFIER: com.sunnypatel.WorkoutTracker.Widgets
+        SWIFT_VERSION: "6.0"
+        SWIFT_STRICT_CONCURRENCY: complete
+        TARGETED_DEVICE_FAMILY: "1,2"
 
 schemes:
   WorkoutTracker:
