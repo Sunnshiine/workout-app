@@ -63,6 +63,62 @@ import Testing
     }
 }
 
+@Test func liveActivityReadyStateStartsAtRestDeadlineAndKeepsSetContext() {
+    let restEndDate = Date(timeIntervalSinceReferenceDate: 1_090)
+    let content = LiveActivityRestContent(
+        exerciseName: "Bench Press",
+        prescribedReps: "5",
+        prescribedLoad: "RPE 8",
+        weightValue: "",
+        weightUnit: "lbs",
+        setsDone: 1,
+        setsTotal: 3,
+        variant: .restTimerSetsLeft,
+        restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
+        restEndDate: restEndDate
+    )
+
+    #expect(!LiveActivityInvalidationPolicy.isReady(content, at: restEndDate.addingTimeInterval(-1)))
+    #expect(LiveActivityInvalidationPolicy.isReady(content, at: restEndDate))
+    #expect(content.exerciseName == "Bench Press")
+    #expect(content.prescribedReps == "5")
+    #expect(content.prescribedLoad == "RPE 8")
+    #expect(content.setsLeftText == "2 sets left")
+}
+
+@Test func liveActivityReadyReminderExpiresAtThirtyMinuteCap() {
+    let restEndDate = Date(timeIntervalSinceReferenceDate: 1_090)
+    let content = LiveActivityRestContent(
+        exerciseName: "Bench Press",
+        prescribedReps: "5",
+        prescribedLoad: "RPE 8",
+        weightValue: "",
+        weightUnit: "lbs",
+        setsDone: 1,
+        setsTotal: 3,
+        variant: .restTimerSetsLeft,
+        restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
+        restEndDate: restEndDate
+    )
+    let capDate = restEndDate.addingTimeInterval(30 * 60)
+
+    #expect(LiveActivityInvalidationPolicy.postRestCapEndDate(for: content) == capDate)
+    #expect(!LiveActivityInvalidationPolicy.shouldEndReadyReminder(for: content, at: capDate.addingTimeInterval(-1)))
+    #expect(LiveActivityInvalidationPolicy.shouldEndReadyReminder(for: content, at: capDate))
+}
+
+@MainActor
+@Test func liveActivityInvalidationPolicyEndsForSheetAndAuthEventsButNotAmbientEvents() {
+    #expect(LiveActivityInvalidationPolicy.shouldEnd(for: .moveOn))
+    #expect(LiveActivityInvalidationPolicy.shouldEnd(for: .sheetSwitch))
+    #expect(LiveActivityInvalidationPolicy.shouldEnd(for: .signOut))
+    #expect(!LiveActivityInvalidationPolicy.shouldEnd(for: .restExpired))
+    #expect(!LiveActivityInvalidationPolicy.shouldEnd(for: .appBackgrounded))
+    #expect(!LiveActivityInvalidationPolicy.shouldEnd(for: .syncStateChanged))
+    #expect(!LiveActivityInvalidationPolicy.shouldEnd(for: .settingsOpened))
+    #expect(!LiveActivityInvalidationPolicy.shouldEnd(for: .developerToolsOpened))
+}
+
 @MainActor
 @Test func liveActivityContentTargetsNextPendingSetInSameExerciseAndCountsDisplayedExercisePendingSets() throws {
     let startDate = Date(timeIntervalSinceReferenceDate: 1_000)
@@ -90,6 +146,8 @@ import Testing
     #expect(content.variant == .restTimerSetsLeft)
     #expect(content.restStartDate == startDate)
     #expect(content.restEndDate == endDate)
+    #expect(content.target?.setID == ActiveSetID(exerciseOrder: 0, setIndex: 1))
+    #expect(content.target?.session == LiveActivitySessionIdentity(blockTab: nil, weekNumber: 1, dayNumber: 1))
 }
 
 @MainActor
@@ -160,6 +218,7 @@ import Testing
 
     #expect(content.exerciseName == "DB Row")
     #expect(content.setsLeftText == "1 set left")
+    #expect(content.target?.session == LiveActivitySessionIdentity(blockTab: nil, weekNumber: 1, dayNumber: 1))
 }
 
 @MainActor
@@ -176,6 +235,115 @@ import Testing
     )
 
     #expect(content == nil)
+}
+
+@MainActor
+@Test func liveActivityTargetValidationKeepsMatchingCurrentDisplayedPendingSet() throws {
+    let exercise = makeExercise(name: "Bench Press", order: 0, setStates: [.logged, .pending])
+    let session = makeSingleSession(exercises: [exercise])
+    let loggedSet = try #require(exercise.sets.first { $0.index == 0 })
+    let content = try #require(
+        LiveActivityRestContentBuilder.content(
+            afterLogging: loggedSet,
+            in: session,
+            restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
+            restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
+        )
+    )
+
+    #expect(
+        LiveActivityInvalidationPolicy.shouldEnd(
+            content,
+            displayedSession: session,
+            currentSession: session
+        ) == false
+    )
+}
+
+@MainActor
+@Test func liveActivityTargetValidationKeepsOpenExerciseTargetFromCurrentWeek() throws {
+    let openExercise = makeExercise(name: "DB Row", order: 0, setStates: [.pending])
+    let openSession = makeSingleSession(dayNumber: 1, exercises: [openExercise])
+    let currentExercise = makeExercise(name: "Bench Press", order: 0, setStates: [.logged])
+    let currentSession = makeSingleSession(dayNumber: 3, exercises: [currentExercise])
+    connectCurrentWeek([openSession, currentSession])
+    let loggedSet = try #require(currentExercise.sets.first)
+    let content = try #require(
+        LiveActivityRestContentBuilder.content(
+            afterLogging: loggedSet,
+            in: currentSession,
+            restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
+            restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
+        )
+    )
+
+    #expect(
+        !LiveActivityInvalidationPolicy.shouldEnd(
+            content,
+            displayedSession: currentSession,
+            currentSession: currentSession
+        )
+    )
+
+    openExercise.sets[0].state = .skipped
+
+    #expect(
+        LiveActivityInvalidationPolicy.shouldEnd(
+            content,
+            displayedSession: currentSession,
+            currentSession: currentSession
+        )
+    )
+}
+
+@MainActor
+@Test func liveActivityTargetValidationEndsWhenCurrentOrDisplayedSessionChanges() throws {
+    let first = makeSingleSession(
+        dayNumber: 1,
+        exercises: [
+            makeExercise(name: "Bench Press", order: 0, setStates: [.logged, .pending])
+        ]
+    )
+    let second = makeSingleSession(
+        dayNumber: 2,
+        exercises: [
+            makeExercise(name: "Bench Press", order: 0, setStates: [.pending])
+        ]
+    )
+    connectCurrentWeek([first, second])
+    let loggedSet = try #require(first.exercises.first?.sets.first { $0.index == 0 })
+    let content = try #require(
+        LiveActivityRestContentBuilder.content(
+            afterLogging: loggedSet,
+            in: first,
+            restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
+            restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
+        )
+    )
+
+    #expect(LiveActivityInvalidationPolicy.shouldEnd(content, displayedSession: first, currentSession: second))
+    #expect(LiveActivityInvalidationPolicy.shouldEnd(content, displayedSession: second, currentSession: first))
+    #expect(LiveActivityInvalidationPolicy.shouldEnd(content, displayedSession: nil, currentSession: first))
+}
+
+@MainActor
+@Test func liveActivityTargetValidationEndsWhenTargetSetIsNoLongerPending() throws {
+    let exercise = makeExercise(name: "Bench Press", order: 0, setStates: [.logged, .pending])
+    let session = makeSingleSession(exercises: [exercise])
+    let loggedSet = try #require(exercise.sets.first { $0.index == 0 })
+    let targetSet = try #require(exercise.sets.first { $0.index == 1 })
+    let content = try #require(
+        LiveActivityRestContentBuilder.content(
+            afterLogging: loggedSet,
+            in: session,
+            restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
+            restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
+        )
+    )
+
+    targetSet.state = .logged
+
+    #expect(LiveActivityInvalidationPolicy.shouldEnd(content, displayedSession: session, currentSession: session))
 }
 
 @MainActor

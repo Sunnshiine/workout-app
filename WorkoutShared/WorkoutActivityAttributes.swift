@@ -178,6 +178,15 @@ extension WorkoutActivityAttributes.ContentState {
         return now...restEndDate
     }
 
+    var isRestReady: Bool {
+        isRestReady(at: Date.now)
+    }
+
+    func isRestReady(at date: Date) -> Bool {
+        guard let restEndDate else { return false }
+        return date >= restEndDate
+    }
+
     var restProgress: Double {
         restProgress(at: Date.now)
     }

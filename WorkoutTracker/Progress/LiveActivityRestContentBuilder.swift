@@ -37,8 +37,30 @@ enum LiveActivityCreationPolicy {
     }
 }
 
+enum LiveActivityInvalidationEvent: Equatable, Sendable {
+    case moveOn
+    case sheetSwitch
+    case signOut
+    case restExpired
+    case appBackgrounded
+    case syncStateChanged
+    case settingsOpened
+    case developerToolsOpened
+}
+
 enum LiveActivityRestContentVariant: Equatable, Sendable {
     case restTimerSetsLeft
+}
+
+struct LiveActivitySessionIdentity: Equatable, Sendable {
+    let blockTab: String?
+    let weekNumber: Int?
+    let dayNumber: Int
+}
+
+struct LiveActivityRestTarget: Equatable, Sendable {
+    let session: LiveActivitySessionIdentity
+    let setID: ActiveSetID
 }
 
 struct LiveActivityRestContent: Equatable, Sendable {
@@ -52,6 +74,33 @@ struct LiveActivityRestContent: Equatable, Sendable {
     let variant: LiveActivityRestContentVariant
     let restStartDate: Date
     let restEndDate: Date
+    var target: LiveActivityRestTarget?
+
+    init(
+        exerciseName: String,
+        prescribedReps: String,
+        prescribedLoad: String,
+        weightValue: String,
+        weightUnit: String,
+        setsDone: Int,
+        setsTotal: Int,
+        variant: LiveActivityRestContentVariant,
+        restStartDate: Date,
+        restEndDate: Date,
+        target: LiveActivityRestTarget? = nil
+    ) {
+        self.exerciseName = exerciseName
+        self.prescribedReps = prescribedReps
+        self.prescribedLoad = prescribedLoad
+        self.weightValue = weightValue
+        self.weightUnit = weightUnit
+        self.setsDone = setsDone
+        self.setsTotal = setsTotal
+        self.variant = variant
+        self.restStartDate = restStartDate
+        self.restEndDate = restEndDate
+        self.target = target
+    }
 
     var setsLeft: Int {
         max(setsTotal - setsDone, 0)
@@ -62,8 +111,79 @@ struct LiveActivityRestContent: Equatable, Sendable {
     }
 }
 
+enum LiveActivityInvalidationPolicy {
+    static let postRestReadyDuration: TimeInterval = 30 * 60
+
+    static func isReady(_ content: LiveActivityRestContent, at date: Date) -> Bool {
+        date >= content.restEndDate
+    }
+
+    static func postRestCapEndDate(for content: LiveActivityRestContent) -> Date {
+        content.restEndDate.addingTimeInterval(postRestReadyDuration)
+    }
+
+    static func shouldEndReadyReminder(for content: LiveActivityRestContent, at date: Date) -> Bool {
+        date >= postRestCapEndDate(for: content)
+    }
+
+    static func shouldEnd(for event: LiveActivityInvalidationEvent) -> Bool {
+        switch event {
+        case .moveOn, .sheetSwitch, .signOut:
+            true
+        case .restExpired, .appBackgrounded, .syncStateChanged, .settingsOpened, .developerToolsOpened:
+            false
+        }
+    }
+
+    @MainActor
+    static func shouldEnd(
+        _ content: LiveActivityRestContent,
+        displayedSession: Session?,
+        currentSession: Session?
+    ) -> Bool {
+        guard let displayedSession, let currentSession else { return true }
+        guard displayedSession === currentSession else { return true }
+        guard let target = content.target else { return true }
+        guard
+            let targetSession = currentWeekSessions(for: currentSession).first(where: {
+                sessionIdentity(for: $0) == target.session
+            })
+        else {
+            return true
+        }
+
+        let set = targetSession.exercises
+            .first { $0.order == target.setID.exerciseOrder }?
+            .sets
+            .first { $0.index == target.setID.setIndex }
+        return set?.state != .pending
+    }
+
+    @MainActor
+    private static func sessionIdentity(for session: Session) -> LiveActivitySessionIdentity {
+        LiveActivitySessionIdentity(
+            blockTab: session.week?.block?.tabName,
+            weekNumber: session.week?.number,
+            dayNumber: session.dayNumber
+        )
+    }
+
+    private static func currentWeekSessions(for session: Session) -> [Session] {
+        guard let week = session.week, !week.sessions.isEmpty else {
+            return [session]
+        }
+        return week.sessions
+    }
+}
+
 @MainActor
 enum LiveActivityRestContentBuilder {
+    private struct RestTargetSet {
+        let session: Session
+        let exercise: Exercise
+        let set: ExerciseSet
+    }
+
     static func content(
         afterLogging loggedSet: ExerciseSet,
         in session: Session,
@@ -88,7 +208,11 @@ enum LiveActivityRestContentBuilder {
             setsTotal: totalCount,
             variant: .restTimerSetsLeft,
             restStartDate: restStartDate,
-            restEndDate: restEndDate
+            restEndDate: restEndDate,
+            target: LiveActivityRestTarget(
+                session: sessionIdentity(for: target.session),
+                setID: ActiveSetID(exerciseOrder: target.exercise.order, setIndex: target.set.index)
+            )
         )
     }
 
@@ -96,14 +220,15 @@ enum LiveActivityRestContentBuilder {
         afterLogging loggedSet: ExerciseSet,
         in session: Session,
         supersetState: SupersetState?
-    ) -> (exercise: Exercise, set: ExerciseSet)? {
-        if let supersetSetID = supersetState?.nextSetID(after: loggedSet, in: session),
-           let target = set(for: supersetSetID, in: session) {
-            return target
+    ) -> RestTargetSet? {
+        if let supersetSetID = supersetState?.nextSetID(after: loggedSet, in: session) {
+            if let target = set(for: supersetSetID, in: session) {
+                return RestTargetSet(session: session, exercise: target.exercise, set: target.set)
+            }
         }
 
         if let sessionTarget = nextPendingSet(after: loggedSet, in: session) {
-            return sessionTarget
+            return RestTargetSet(session: session, exercise: sessionTarget.exercise, set: sessionTarget.set)
         }
 
         return openExerciseFallback(for: session)
@@ -128,13 +253,17 @@ enum LiveActivityRestContentBuilder {
             ?? orderedSets.first { $0.set.state == .pending }
     }
 
-    private static func openExerciseFallback(for session: Session) -> (exercise: Exercise, set: ExerciseSet)? {
+    private static func openExerciseFallback(for session: Session) -> RestTargetSet? {
         currentWeekSessions(for: session)
             .filter { $0.dayNumber < session.dayNumber }
             .sorted { $0.dayNumber < $1.dayNumber }
             .lazy
-            .flatMap(orderedSets(in:))
-            .first { $0.set.state == .pending }
+            .compactMap { openSession in
+                firstPendingSet(in: openSession).map {
+                    RestTargetSet(session: openSession, exercise: $0.exercise, set: $0.set)
+                }
+            }
+            .first
     }
 
     private static func set(
@@ -167,5 +296,13 @@ enum LiveActivityRestContentBuilder {
             return [session]
         }
         return week.sessions
+    }
+
+    private static func sessionIdentity(for session: Session) -> LiveActivitySessionIdentity {
+        LiveActivitySessionIdentity(
+            blockTab: session.week?.block?.tabName,
+            weekNumber: session.week?.number,
+            dayNumber: session.dayNumber
+        )
     }
 }

@@ -17,6 +17,8 @@ protocol SessionSyncAdapter {
 @MainActor
 protocol SessionLiveActivityAdapter {
     func startOrUpdate(restContent: LiveActivityRestContent, sessionLabel: String)
+    func end()
+    func endIfInvalidated(displayedSession: Session?, currentSession: Session?)
 }
 
 @MainActor
@@ -79,6 +81,8 @@ private struct NoopSessionSyncAdapter: SessionSyncAdapter {
 
 private struct NoopSessionLiveActivityAdapter: SessionLiveActivityAdapter {
     func startOrUpdate(restContent: LiveActivityRestContent, sessionLabel: String) {}
+    func end() {}
+    func endIfInvalidated(displayedSession: Session?, currentSession: Session?) {}
 }
 
 private struct TaskSessionTransitionClock: SessionTransitionClock {
@@ -274,12 +278,6 @@ final class SessionCoordinator {
         }
     }
 
-    func collapseLoggedSetReview() {
-        focusManager.collapseLoggedSetReview()
-        syncFocusState()
-        invalidateRenderItems()
-    }
-
     func log(_ set: ExerciseSet, as log: SetLog, animateFocus: SessionFocusAnimation? = nil) {
         do {
             let session = try actionSession(for: set)
@@ -300,6 +298,7 @@ final class SessionCoordinator {
                 )
                 startOrUpdateLiveActivity(afterLogging: set, in: session, isCurrentSession: isCurrentSessionScope(session))
             }
+            reconcileLiveActivityIfCurrent(session)
             performFocusUpdate(animateFocus) {
                 advanceAfterLog(set, in: session)
             }
@@ -314,6 +313,7 @@ final class SessionCoordinator {
         do {
             let session = try actionSession(for: set)
             try loggingAdapter.skip(set)
+            reconcileLiveActivityIfCurrent(session)
             performFocusUpdate(animateFocus) {
                 advanceAfterSkip(set, in: session)
             }
@@ -326,12 +326,13 @@ final class SessionCoordinator {
 
     func deleteLog(for set: ExerciseSet) {
         do {
-            _ = try actionSession(for: set)
+            let session = try actionSession(for: set)
             try loggingAdapter.deleteLog(for: set)
             restTimer?.cancel(
                 ifOriginMatches: Self.activeSetID(for: set),
                 originSetObjectID: ObjectIdentifier(set)
             )
+            reconcileLiveActivityIfCurrent(session)
             focus(on: set)
             clearRetiringTransition()
             syncAdapter.requestPendingWriteFlush()
@@ -340,16 +341,13 @@ final class SessionCoordinator {
         }
     }
 
-    func cancelRestForSessionExit() {
-        restTimer?.dismiss()
-    }
-
     func updateLoggedSet(_ set: ExerciseSet, as log: SetLog) {
         do {
-            _ = try actionSession(for: set)
+            let session = try actionSession(for: set)
             let updatedSetID = Self.activeSetID(for: set)
             try loggingAdapter.log(set, as: log)
             savedLoggedSetID = updatedSetID
+            reconcileLiveActivityIfCurrent(session)
             if focusManager.expandedLoggedSetID == updatedSetID {
                 focusManager.collapseLoggedSetReview()
             }
@@ -501,6 +499,19 @@ final class SessionCoordinator {
 }
 
 extension SessionCoordinator {
+    func collapseLoggedSetReview() {
+        focusManager.collapseLoggedSetReview()
+        syncFocusState()
+        invalidateRenderItems()
+    }
+
+    func cancelRestForSessionExit() {
+        restTimer?.dismiss()
+        liveActivityAdapter.end()
+    }
+}
+
+extension SessionCoordinator {
     fileprivate func supersetFocusTargetID(for exercise: Exercise, in session: Session) -> ActiveSetID? {
         let isInSuperset = focusManager.supersetSections(in: session).contains { section in
             section.exercises.contains { $0 === exercise }
@@ -570,6 +581,11 @@ extension SessionCoordinator {
             restContent: content,
             sessionLabel: liveActivitySessionLabel(for: session)
         )
+    }
+
+    fileprivate func reconcileLiveActivityIfCurrent(_ session: Session) {
+        guard isCurrentSessionScope(session) else { return }
+        liveActivityAdapter.endIfInvalidated(displayedSession: session, currentSession: session)
     }
 
     fileprivate func liveActivitySessionLabel(for session: Session) -> String {

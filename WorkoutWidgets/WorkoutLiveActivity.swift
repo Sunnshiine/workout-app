@@ -266,7 +266,9 @@ private struct RestCountdownText: View {
     let state: WorkoutActivityAttributes.ContentState
 
     var body: some View {
-        if let restInterval = state.restInterval {
+        if state.isRestReady {
+            Text("Ready")
+        } else if let restInterval = state.restInterval {
             Text(timerInterval: restInterval, countsDown: true)
         } else {
             Text("--:--")
