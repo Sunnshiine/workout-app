@@ -69,8 +69,10 @@ session (below).
 - Any visual or behavioral change to glass surfaces (pure refactor; pixel-identical output).
 - New glass features, new tinted/interactive/prominent usages (the vocabulary exists, but no
   call site adopts it as part of this work).
-- Adoption of the proposal's other priorities (`swift-dependencies`, snapshot testing,
-  collections, etc.) — separate work.
+- Adoption of the proposal's other priorities (`swift-dependencies`, collections, etc.) — separate
+  work.
+- Visual regression testing — prerequisite for this refactor, not part of the refactor
+  implementation itself.
 - Any change to `Theme.swift`'s membership in the SPM library target.
 
 ## Current Architecture

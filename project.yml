@@ -15,6 +15,9 @@ packages:
   SwiftLintPlugins:
     url: https://github.com/SimplyDanny/SwiftLintPlugins
     majorVersion: 0.58.0
+  SnapshotTesting:
+    url: https://github.com/pointfreeco/swift-snapshot-testing
+    from: 1.19.2
 
 targets:
   WorkoutTracker:
@@ -53,6 +56,7 @@ targets:
       - path: Tests
         excludes:
           - UI
+          - Visual
     dependencies:
       - target: WorkoutTracker
     settings:
@@ -61,6 +65,27 @@ targets:
         SWIFT_VERSION: "6.0"
         GENERATE_INFOPLIST_FILE: "YES"
         PRODUCT_BUNDLE_IDENTIFIER: com.sunnypatel.WorkoutTrackerTests
+        TARGETED_DEVICE_FAMILY: "1,2"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/WorkoutTracker.app/WorkoutTracker"
+
+  WorkoutTrackerSnapshotTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+        includes:
+          - Visual/**
+          - Support/**
+    dependencies:
+      - target: WorkoutTracker
+      - package: SnapshotTesting
+        product: SnapshotTesting
+    settings:
+      base:
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        SWIFT_VERSION: "6.0"
+        GENERATE_INFOPLIST_FILE: "YES"
+        PRODUCT_BUNDLE_IDENTIFIER: com.sunnypatel.WorkoutTrackerSnapshotTests
         TARGETED_DEVICE_FAMILY: "1,2"
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/WorkoutTracker.app/WorkoutTracker"
 
@@ -93,6 +118,7 @@ schemes:
       config: Debug
       targets:
         - WorkoutTrackerTests
+        - WorkoutTrackerSnapshotTests
         - WorkoutTrackerUITests
 
   Copy of WorkoutTracker:
