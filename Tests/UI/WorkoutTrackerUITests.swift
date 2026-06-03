@@ -608,6 +608,9 @@ private func revealSessionControlsAndSettingsButton(in app: XCUIApplication) -> 
     }
 
     overPullSessionHeader(in: app)
+    if !settingsButton.waitForExistence(timeout: 3) {
+        overPullSessionBody(in: app)
+    }
 
     XCTAssertTrue(settingsButton.waitForExistence(timeout: 3))
     let deadline = Date().addingTimeInterval(3)
@@ -624,6 +627,13 @@ private func revealSessionControlsAndSettingsButton(in app: XCUIApplication) -> 
 @MainActor
 private func overPullSessionHeader(in app: XCUIApplication) {
     pullSessionHeader(in: app, endY: 0.75)
+}
+
+@MainActor
+private func overPullSessionBody(in app: XCUIApplication) {
+    let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
+    let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85))
+    start.press(forDuration: 0.1, thenDragTo: end)
 }
 
 @MainActor
