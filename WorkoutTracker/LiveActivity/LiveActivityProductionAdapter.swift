@@ -4,6 +4,8 @@ import Foundation
 final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
     private let controller: LiveActivityController
     private var currentRestContent: LiveActivityRestContent?
+    private var startUpdateTask: Task<Void, Never>?
+    private var startUpdateID: UUID?
     private var readyUpdateTask: Task<Void, Never>?
     private var capEndTask: Task<Void, Never>?
 
@@ -13,24 +15,40 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
 
     func startOrUpdate(restContent: LiveActivityRestContent, sessionLabel: String) {
         currentRestContent = restContent
+        startUpdateTask?.cancel()
+        let operationID = UUID()
+        startUpdateID = operationID
         scheduleLifecycleTasks(for: restContent)
         let state = WorkoutActivityAttributes.ContentState(restContent: restContent)
         let staleDate = LiveActivityInvalidationPolicy.postRestCapEndDate(for: restContent)
 
-        Task { @MainActor [controller] in
+        startUpdateTask = Task { @MainActor [weak self, controller] in
+            guard self?.isCurrentOperation(operationID, content: restContent) == true else { return }
+
             controller.refreshAuthorizationStatus()
             if controller.isActive {
                 await controller.update(state: state, staleDate: staleDate)
+                guard self?.isCurrentOperation(operationID, content: restContent) == true else {
+                    await self?.endIfOperationWasInvalidated()
+                    return
+                }
                 if controller.isActive { return }
             }
 
             await controller.start(state: state, sessionLabel: sessionLabel, staleDate: staleDate)
+            guard self?.isCurrentOperation(operationID, content: restContent) == true else {
+                await self?.endIfOperationWasInvalidated()
+                return
+            }
         }
     }
 
     func end() {
         clearLifecycleTasks()
         currentRestContent = nil
+        startUpdateTask?.cancel()
+        startUpdateTask = nil
+        startUpdateID = nil
         Task { @MainActor [controller] in
             await controller.end()
         }
@@ -38,6 +56,10 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
 
     func endIfInvalidated(displayedSession: Session?, currentSession: Session?) {
         guard let currentRestContent else { return }
+        guard !LiveActivityInvalidationPolicy.shouldEndReadyReminder(for: currentRestContent, at: Date()) else {
+            end()
+            return
+        }
         guard
             !LiveActivityInvalidationPolicy.shouldEnd(
                 currentRestContent,
@@ -48,6 +70,16 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
             end()
             return
         }
+    }
+
+    func endIfReadyCapExpired(at date: Date = Date()) {
+        guard
+            let currentRestContent,
+            LiveActivityInvalidationPolicy.shouldEndReadyReminder(for: currentRestContent, at: date)
+        else {
+            return
+        }
+        end()
     }
 
     private func scheduleLifecycleTasks(for content: LiveActivityRestContent) {
@@ -72,6 +104,15 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
         readyUpdateTask = nil
         capEndTask?.cancel()
         capEndTask = nil
+    }
+
+    private func isCurrentOperation(_ operationID: UUID, content: LiveActivityRestContent) -> Bool {
+        !Task.isCancelled && startUpdateID == operationID && currentRestContent == content
+    }
+
+    private func endIfOperationWasInvalidated() async {
+        guard startUpdateID == nil else { return }
+        await controller.end()
     }
 
     private static func sleep(until date: Date) async {

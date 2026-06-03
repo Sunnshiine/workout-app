@@ -66,6 +66,7 @@ private final class SpySessionSyncAdapter: SessionSyncAdapter {
 private final class SpySessionLiveActivityAdapter: SessionLiveActivityAdapter {
     private(set) var calls: [(content: LiveActivityRestContent, sessionLabel: String)] = []
     private(set) var endCallCount = 0
+    private(set) var invalidationCalls: [(displayedSession: Session?, currentSession: Session?)] = []
 
     func startOrUpdate(restContent: LiveActivityRestContent, sessionLabel: String) {
         calls.append((restContent, sessionLabel))
@@ -73,6 +74,10 @@ private final class SpySessionLiveActivityAdapter: SessionLiveActivityAdapter {
 
     func end() {
         endCallCount += 1
+    }
+
+    func endIfInvalidated(displayedSession: Session?, currentSession: Session?) {
+        invalidationCalls.append((displayedSession, currentSession))
     }
 }
 
@@ -836,6 +841,7 @@ private func makeRestActionFixture(
 
     let call = try #require(liveActivity.calls.first)
     #expect(liveActivity.calls.count == 1)
+    #expect(liveActivity.invalidationCalls.count == 1)
     #expect(call.sessionLabel == "Week 1 - Day 1")
     #expect(call.content.exerciseName == "Bench Press")
     #expect(call.content.prescribedReps == "6")
@@ -872,6 +878,7 @@ private func makeRestActionFixture(
     coordinator.log(secondBenchSet, as: SetLog(weight: .pounds(195), reps: 6, rpe: 8))
 
     #expect(liveActivity.calls.count == 2)
+    #expect(liveActivity.invalidationCalls.count == 2)
     #expect(liveActivity.calls[1].content.exerciseName == "DB Row")
     #expect(liveActivity.calls[1].content.restStartDate == Date(timeIntervalSinceReferenceDate: 2_060))
     #expect(liveActivity.calls[1].content.restEndDate == Date(timeIntervalSinceReferenceDate: 2_270))
@@ -939,12 +946,14 @@ private func makeRestActionFixture(
     let squatSet = try #require(editFixture.session.exercises.first { $0.order == 0 }?.sets.first)
     editFixture.coordinator.updateLoggedSet(squatSet, as: log)
     #expect(editLiveActivity.calls.isEmpty)
+    #expect(editLiveActivity.invalidationCalls.count == 1)
 
     let skipLiveActivity = SpySessionLiveActivityAdapter()
     let skipFixture = try makeRestActionFixture(liveActivity: skipLiveActivity)
     let skipSet = try #require(skipFixture.session.exercises.first { $0.order == 1 }?.sets.first)
     skipFixture.coordinator.skip(skipSet)
     #expect(skipLiveActivity.calls.isEmpty)
+    #expect(skipLiveActivity.invalidationCalls.count == 1)
 
     let deleteLiveActivity = SpySessionLiveActivityAdapter()
     let deleteFixture = try makeRestActionFixture(liveActivity: deleteLiveActivity)
@@ -953,6 +962,7 @@ private func makeRestActionFixture(
     deleteSet.setLog = log
     deleteFixture.coordinator.deleteLog(for: deleteSet)
     #expect(deleteLiveActivity.calls.isEmpty)
+    #expect(deleteLiveActivity.invalidationCalls.count == 1)
 }
 
 @MainActor

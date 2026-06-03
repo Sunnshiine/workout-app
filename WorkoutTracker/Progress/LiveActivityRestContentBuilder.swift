@@ -144,9 +144,15 @@ enum LiveActivityInvalidationPolicy {
         guard let displayedSession, let currentSession else { return true }
         guard displayedSession === currentSession else { return true }
         guard let target = content.target else { return true }
-        guard sessionIdentity(for: currentSession) == target.session else { return true }
+        guard
+            let targetSession = currentWeekSessions(for: currentSession).first(where: {
+                sessionIdentity(for: $0) == target.session
+            })
+        else {
+            return true
+        }
 
-        let set = currentSession.exercises
+        let set = targetSession.exercises
             .first { $0.order == target.setID.exerciseOrder }?
             .sets
             .first { $0.index == target.setID.setIndex }
@@ -161,10 +167,23 @@ enum LiveActivityInvalidationPolicy {
             dayNumber: session.dayNumber
         )
     }
+
+    private static func currentWeekSessions(for session: Session) -> [Session] {
+        guard let week = session.week, !week.sessions.isEmpty else {
+            return [session]
+        }
+        return week.sessions
+    }
 }
 
 @MainActor
 enum LiveActivityRestContentBuilder {
+    private struct RestTargetSet {
+        let session: Session
+        let exercise: Exercise
+        let set: ExerciseSet
+    }
+
     static func content(
         afterLogging loggedSet: ExerciseSet,
         in session: Session,
@@ -191,7 +210,7 @@ enum LiveActivityRestContentBuilder {
             restStartDate: restStartDate,
             restEndDate: restEndDate,
             target: LiveActivityRestTarget(
-                session: sessionIdentity(for: session),
+                session: sessionIdentity(for: target.session),
                 setID: ActiveSetID(exerciseOrder: target.exercise.order, setIndex: target.set.index)
             )
         )
@@ -201,14 +220,15 @@ enum LiveActivityRestContentBuilder {
         afterLogging loggedSet: ExerciseSet,
         in session: Session,
         supersetState: SupersetState?
-    ) -> (exercise: Exercise, set: ExerciseSet)? {
-        if let supersetSetID = supersetState?.nextSetID(after: loggedSet, in: session),
-            let target = set(for: supersetSetID, in: session) {
-            return target
+    ) -> RestTargetSet? {
+        if let supersetSetID = supersetState?.nextSetID(after: loggedSet, in: session) {
+            if let target = set(for: supersetSetID, in: session) {
+                return RestTargetSet(session: session, exercise: target.exercise, set: target.set)
+            }
         }
 
         if let sessionTarget = nextPendingSet(after: loggedSet, in: session) {
-            return sessionTarget
+            return RestTargetSet(session: session, exercise: sessionTarget.exercise, set: sessionTarget.set)
         }
 
         return openExerciseFallback(for: session)
@@ -233,13 +253,17 @@ enum LiveActivityRestContentBuilder {
             ?? orderedSets.first { $0.set.state == .pending }
     }
 
-    private static func openExerciseFallback(for session: Session) -> (exercise: Exercise, set: ExerciseSet)? {
+    private static func openExerciseFallback(for session: Session) -> RestTargetSet? {
         currentWeekSessions(for: session)
             .filter { $0.dayNumber < session.dayNumber }
             .sorted { $0.dayNumber < $1.dayNumber }
             .lazy
-            .flatMap(orderedSets(in:))
-            .first { $0.set.state == .pending }
+            .compactMap { openSession in
+                firstPendingSet(in: openSession).map {
+                    RestTargetSet(session: openSession, exercise: $0.exercise, set: $0.set)
+                }
+            }
+            .first
     }
 
     private static func set(

@@ -218,6 +218,7 @@ import Testing
 
     #expect(content.exerciseName == "DB Row")
     #expect(content.setsLeftText == "1 set left")
+    #expect(content.target?.session == LiveActivitySessionIdentity(blockTab: nil, weekNumber: 1, dayNumber: 1))
 }
 
 @MainActor
@@ -256,6 +257,42 @@ import Testing
             displayedSession: session,
             currentSession: session
         ) == false
+    )
+}
+
+@MainActor
+@Test func liveActivityTargetValidationKeepsOpenExerciseTargetFromCurrentWeek() throws {
+    let openExercise = makeExercise(name: "DB Row", order: 0, setStates: [.pending])
+    let openSession = makeSingleSession(dayNumber: 1, exercises: [openExercise])
+    let currentExercise = makeExercise(name: "Bench Press", order: 0, setStates: [.logged])
+    let currentSession = makeSingleSession(dayNumber: 3, exercises: [currentExercise])
+    connectCurrentWeek([openSession, currentSession])
+    let loggedSet = try #require(currentExercise.sets.first)
+    let content = try #require(
+        LiveActivityRestContentBuilder.content(
+            afterLogging: loggedSet,
+            in: currentSession,
+            restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
+            restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
+        )
+    )
+
+    #expect(
+        !LiveActivityInvalidationPolicy.shouldEnd(
+            content,
+            displayedSession: currentSession,
+            currentSession: currentSession
+        )
+    )
+
+    openExercise.sets[0].state = .skipped
+
+    #expect(
+        LiveActivityInvalidationPolicy.shouldEnd(
+            content,
+            displayedSession: currentSession,
+            currentSession: currentSession
+        )
     )
 }
 
