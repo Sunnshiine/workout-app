@@ -168,6 +168,21 @@ final class ActiveSetFocusManager {
         supersetState.activeExercises(in: session)
     }
 
+    func liveActivityRestContent(
+        afterLogging set: ExerciseSet,
+        in session: Session,
+        restStartDate: Date,
+        restEndDate: Date
+    ) -> LiveActivityRestContent? {
+        LiveActivityRestContentBuilder.content(
+            afterLogging: set,
+            in: session,
+            supersetState: supersetState,
+            restStartDate: restStartDate,
+            restEndDate: restEndDate
+        )
+    }
+
     @discardableResult
     func focusNextSupersetSet(for exercise: Exercise, in session: Session) -> Bool {
         guard let nextSetID = supersetState.focusNextPendingSet(for: exercise, in: session) else {

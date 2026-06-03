@@ -129,6 +129,7 @@
 		D9FFF165728ADB37092CF550 /* GoogleAuthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85019258AFD1ABB430C201E0 /* GoogleAuthTests.swift */; };
 		DA18B95BE71A08ECEE00FFCD /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82C7E3B1CAB7C96142DCF1C7 /* Theme.swift */; };
 		DC4256E5E0BE527A4C3A3310 /* SessionProgressHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D190FFC3E7D57A123821D120 /* SessionProgressHeader.swift */; };
+		E2E406AD7AF76A326FFD09DD /* LiveActivityProductionAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8844DDE0A7128C83E86154D5 /* LiveActivityProductionAdapter.swift */; };
 		E3BF0E131108872ACF22EC6D /* RestDurationSetting.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAF4B32774225208D31F362E /* RestDurationSetting.swift */; };
 		E6298E9C10999070CD34B8C0 /* DeveloperToolsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F622271C453C1C22E76B829 /* DeveloperToolsView.swift */; };
 		E73224AE3C41ED69721C8601 /* PendingWriteFlushOrdering.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8815732F9CDEFACE5019CD05 /* PendingWriteFlushOrdering.swift */; };
@@ -236,6 +237,7 @@
 		5BE10429AAA3746BDF812086 /* LastPerformedIndexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastPerformedIndexTests.swift; sourceTree = "<group>"; };
 		5C9C69974B6867E8568AFBD0 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		5D3ED66AB7F5A473400AB8A4 /* SyncCoordinatorBatchWriteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinatorBatchWriteTests.swift; sourceTree = "<group>"; };
+		5F743E96A446DC7E1FCD2311 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		607A9CA778D25DBBAB685004 /* LoadSuggestionEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadSuggestionEngineTests.swift; sourceTree = "<group>"; };
 		61A043E3B096C5472C35B63F /* BlockOverviewPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockOverviewPresentationTests.swift; sourceTree = "<group>"; };
 		61A0E7DC223D895437B136E4 /* RestPillView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestPillView.swift; sourceTree = "<group>"; };
@@ -266,10 +268,10 @@
 		86387591F871B0FC0CA1FC82 /* ExerciseSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseSection.swift; sourceTree = "<group>"; };
 		86FF8383D7EC3E723F39F3EC /* SetLogParsingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetLogParsingTests.swift; sourceTree = "<group>"; };
 		8815732F9CDEFACE5019CD05 /* PendingWriteFlushOrdering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingWriteFlushOrdering.swift; sourceTree = "<group>"; };
+		8844DDE0A7128C83E86154D5 /* LiveActivityProductionAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityProductionAdapter.swift; sourceTree = "<group>"; };
 		8A6911BBEB42C06D9FB34EB7 /* SpreadsheetIdTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpreadsheetIdTests.swift; sourceTree = "<group>"; };
 		8A866D6743EC6DA86540A5E6 /* LocalWorkbookSheetsClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalWorkbookSheetsClient.swift; sourceTree = "<group>"; };
 		8ADEBBADB9046E8CA563F0AB /* PersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceTests.swift; sourceTree = "<group>"; };
-		BDE239394917F6AD12CA9B07 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		8D3E5BD7F617C986C835A7C1 /* ActiveSetPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveSetPresentationTests.swift; sourceTree = "<group>"; };
 		9038CBF5AF997C5562D3A6E4 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		93A5CA6A951EC6FB3C319E0F /* SheetParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetParser.swift; sourceTree = "<group>"; };
@@ -359,6 +361,15 @@
 				FBC4B91909CBE1C1FA3A0E7E /* WorkoutFixtureScenarios.swift */,
 			);
 			path = Fixtures;
+			sourceTree = "<group>";
+		};
+		0C89E93A5090A551070C1D16 /* issue-181 */ = {
+			isa = PBXGroup;
+			children = (
+				5F743E96A446DC7E1FCD2311 /* Secrets.xcconfig */,
+			);
+			name = "issue-181";
+			path = .;
 			sourceTree = "<group>";
 		};
 		0FF08B69E3C2E465E1D9E404 /* Sheets */ = {
@@ -563,7 +574,7 @@
 		AD6248B3D6F5FB51D1B71926 = {
 			isa = PBXGroup;
 			children = (
-				770A4DE5455BDCC0893DE48C /* workout-app */,
+				0C89E93A5090A551070C1D16 /* issue-181 */,
 				9B5D2614740AB0F48B97C160 /* Tests */,
 				6C91FD23A5DEAAB4EF7F986B /* UI */,
 				03ACB56E89F83509C55FF27E /* WorkoutShared */,
@@ -571,15 +582,6 @@
 				178FD0A2C129EA839A4A0272 /* WorkoutWidgets */,
 				C91759DD6A5BDB578F6ECD07 /* Products */,
 			);
-			sourceTree = "<group>";
-		};
-		770A4DE5455BDCC0893DE48C /* workout-app */ = {
-			isa = PBXGroup;
-			children = (
-				BDE239394917F6AD12CA9B07 /* Secrets.xcconfig */,
-			);
-			name = "workout-app";
-			path = .;
 			sourceTree = "<group>";
 		};
 		C91759DD6A5BDB578F6ECD07 /* Products */ = {
@@ -633,6 +635,7 @@
 			isa = PBXGroup;
 			children = (
 				A532C86E57DD5B6F6FCE9FBD /* LiveActivityController.swift */,
+				8844DDE0A7128C83E86154D5 /* LiveActivityProductionAdapter.swift */,
 				39ECEE8F938629B5C76D6531 /* LiveActivityRestContentStateFactory.swift */,
 			);
 			path = LiveActivity;
@@ -886,6 +889,7 @@
 				D9BC449C5F52EA35023DFEE9 /* LastPerformedLookupStore.swift in Sources */,
 				CCB670937DB572392AB72D02 /* LiveActivityController.swift in Sources */,
 				D0FAC1DFCA7DF208F94A387D /* LiveActivityLabView.swift in Sources */,
+				E2E406AD7AF76A326FFD09DD /* LiveActivityProductionAdapter.swift in Sources */,
 				BDAEF170ED92A211919CF347 /* LiveActivityRestContentBuilder.swift in Sources */,
 				FBD7F27846824EE734DF61AA /* LiveActivityRestContentStateFactory.swift in Sources */,
 				856581A20DF9C7C18981ADAF /* LoadSuggestionEngine.swift in Sources */,
@@ -1040,7 +1044,7 @@
 		};
 		8EBE64E8BA6EAC5943905B78 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = BDE239394917F6AD12CA9B07 /* Secrets.xcconfig */;
+			baseConfigurationReference = 5F743E96A446DC7E1FCD2311 /* Secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -1135,7 +1139,7 @@
 		};
 		BE08E80469AD6F14E590565E /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = BDE239394917F6AD12CA9B07 /* Secrets.xcconfig */;
+			baseConfigurationReference = 5F743E96A446DC7E1FCD2311 /* Secrets.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
