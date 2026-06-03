@@ -36,20 +36,6 @@ struct SessionProgressHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if sessionSettingsOverpullState.isVisible {
-                HStack {
-                    Spacer(minLength: 0)
-
-                    SessionControls(
-                        onSettings: onSettings
-                    )
-                    .opacity(sessionControlsOpacity)
-                    .scaleEffect(sessionControlsScale, anchor: .topTrailing)
-                    .offset(y: sessionControlsOffset)
-                }
-                .transition(sessionControlsTransition)
-            }
-
             HStack(spacing: 10) {
                 locationLabel
 
@@ -58,7 +44,21 @@ struct SessionProgressHeader: View {
                 Text(presentation.remainingText)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(palette.accent)
+                    .opacity(sessionSettingsOverpullState.isVisible ? 0 : 1)
+                    .accessibilityHidden(sessionSettingsOverpullState.isVisible)
                     .accessibilityIdentifier("session-remaining-count")
+            }
+            .frame(minHeight: 44)
+            .overlay(alignment: .trailing) {
+                if sessionSettingsOverpullState.isVisible {
+                    SessionControls(
+                        onSettings: onSettings
+                    )
+                    .opacity(sessionControlsOpacity)
+                    .scaleEffect(sessionControlsScale, anchor: .topTrailing)
+                    .offset(y: sessionControlsOffset)
+                    .transition(sessionControlsTransition)
+                }
             }
 
             HStack(spacing: 3) {

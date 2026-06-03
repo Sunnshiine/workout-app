@@ -286,10 +286,8 @@ struct SessionSettingsOverpullState: Equatable, Sendable {
             return .hidden
         }
 
-        // Once revealed, stay revealed. Revealing grows the top header HUD, which
-        // lives in the scroll view's top safe-area inset and therefore shrinks the
-        // measured `topContentOffset`. Latching here stops that feedback from
-        // retracting the reveal mid-pull — the snap-back that read as scroll jank.
+        // Once revealed, stay revealed so transient top-edge geometry settling
+        // cannot retract the control mid-pull.
         if isVisible {
             return self
         }
