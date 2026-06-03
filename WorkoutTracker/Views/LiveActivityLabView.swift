@@ -4,7 +4,7 @@ import SwiftUI
 struct LiveActivityLabView: View {
     @Environment(\.themePalette) private var palette
     @State private var controller = LiveActivityController()
-    @State private var variant = DesignVariant.setProgress
+    @State private var variant = LiveActivityLabDefaults.defaultVariant
     @State private var appearance = LiveActivityAppearance.dark
     @State private var setsDone = 3
     @State private var setsTotal = 5
@@ -83,11 +83,12 @@ struct LiveActivityLabView: View {
     }
 
     private var variantSection: some View {
-        LiveActivityLabSection(title: "Design Direction") {
-            LabField(label: "Current", value: variant.title)
+        LiveActivityLabSection(title: "Prototype Variants") {
+            LabField(label: "Production", value: LiveActivityLabDefaults.productionVariantTitle)
+            LabField(label: "Prototype", value: variant.title)
 
-            Picker("Design Direction", selection: $variant) {
-                ForEach(DesignVariant.allCases) { variant in
+            Picker("Prototype Variant", selection: $variant) {
+                ForEach(LiveActivityLabDefaults.prototypeVariants) { variant in
                     Text(variant.title).tag(variant)
                 }
             }
@@ -275,6 +276,12 @@ struct LiveActivityLabView: View {
             restEndDate: restEndDate
         )
     }
+}
+
+enum LiveActivityLabDefaults {
+    static let defaultVariant = DesignVariant.restTimerSetsLeft
+    static let productionVariantTitle = DesignVariant.restTimerSetsLeft.title
+    static let prototypeVariants = DesignVariant.allCases
 }
 
 private struct LiveActivityLabSection<Content: View>: View {
