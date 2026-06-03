@@ -17,7 +17,11 @@ final class LiveActivityController {
         isActive = currentActivity != nil
     }
 
-    func start(state: WorkoutActivityAttributes.ContentState, sessionLabel: String) async {
+    func start(
+        state: WorkoutActivityAttributes.ContentState,
+        sessionLabel: String,
+        staleDate: Date? = nil
+    ) async {
         refreshAuthorizationStatus()
         guard areActivitiesEnabled else {
             lastError = "Live Activities are disabled for this device or app."
@@ -29,7 +33,7 @@ final class LiveActivityController {
         do {
             let activity = try Activity.request(
                 attributes: WorkoutActivityAttributes(sessionLabel: sessionLabel),
-                content: ActivityContent(state: state, staleDate: nil),
+                content: ActivityContent(state: state, staleDate: staleDate),
                 pushType: nil
             )
             activityID = activity.id
@@ -42,7 +46,7 @@ final class LiveActivityController {
         }
     }
 
-    func update(state: WorkoutActivityAttributes.ContentState) async {
+    func update(state: WorkoutActivityAttributes.ContentState, staleDate: Date? = nil) async {
         guard let activity = currentActivity else {
             activityID = nil
             isActive = false
@@ -51,7 +55,7 @@ final class LiveActivityController {
         }
 
         activityID = activity.id
-        await activity.update(ActivityContent(state: state, staleDate: nil))
+        await activity.update(ActivityContent(state: state, staleDate: staleDate))
         isActive = true
         lastError = nil
     }

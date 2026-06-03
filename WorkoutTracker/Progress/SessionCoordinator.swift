@@ -17,6 +17,7 @@ protocol SessionSyncAdapter {
 @MainActor
 protocol SessionLiveActivityAdapter {
     func startOrUpdate(restContent: LiveActivityRestContent, sessionLabel: String)
+    func end()
 }
 
 @MainActor
@@ -79,6 +80,7 @@ private struct NoopSessionSyncAdapter: SessionSyncAdapter {
 
 private struct NoopSessionLiveActivityAdapter: SessionLiveActivityAdapter {
     func startOrUpdate(restContent: LiveActivityRestContent, sessionLabel: String) {}
+    func end() {}
 }
 
 private struct TaskSessionTransitionClock: SessionTransitionClock {
@@ -340,10 +342,6 @@ final class SessionCoordinator {
         }
     }
 
-    func cancelRestForSessionExit() {
-        restTimer?.dismiss()
-    }
-
     func updateLoggedSet(_ set: ExerciseSet, as log: SetLog) {
         do {
             _ = try actionSession(for: set)
@@ -497,6 +495,13 @@ final class SessionCoordinator {
                     + Theme.momentumRiseDuration
             }
         return .nanoseconds(Int64((seconds * 1_000_000_000).rounded()))
+    }
+}
+
+extension SessionCoordinator {
+    func cancelRestForSessionExit() {
+        restTimer?.dismiss()
+        liveActivityAdapter.end()
     }
 }
 

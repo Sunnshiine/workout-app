@@ -65,9 +65,14 @@ private final class SpySessionSyncAdapter: SessionSyncAdapter {
 @MainActor
 private final class SpySessionLiveActivityAdapter: SessionLiveActivityAdapter {
     private(set) var calls: [(content: LiveActivityRestContent, sessionLabel: String)] = []
+    private(set) var endCallCount = 0
 
     func startOrUpdate(restContent: LiveActivityRestContent, sessionLabel: String) {
         calls.append((restContent, sessionLabel))
+    }
+
+    func end() {
+        endCallCount += 1
     }
 }
 
@@ -1000,7 +1005,8 @@ private func makeRestActionFixture(
 
 @MainActor
 @Test func cancellingSessionRestForMoveOnDismissesRunningRestTimer() throws {
-    let fixture = try makeRestActionFixture()
+    let liveActivity = SpySessionLiveActivityAdapter()
+    let fixture = try makeRestActionFixture(liveActivity: liveActivity)
     let bench = try #require(fixture.session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
 
@@ -1010,6 +1016,7 @@ private func makeRestActionFixture(
     #expect(fixture.restTimer.deadline == nil)
     #expect(fixture.restTimer.origin == nil)
     #expect(!fixture.restTimer.isRunning)
+    #expect(liveActivity.endCallCount == 1)
 }
 
 @MainActor
