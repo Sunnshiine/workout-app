@@ -1,37 +1,36 @@
 /* =================================================================
    WorkoutTracker — "I only design. The loop ships."
-   A dark engine-room deck about an autonomous agent harness.
-   Aesthetic: deep green-black void, frosted glass panels, an
-   emerald machine accent + a warm sand "human" accent, mono for
-   every verbatim prompt. Built to be presented (scroll-snap + keys).
+   A Sage Light deck about an autonomous agent harness.
+   Aesthetic: the app's soft sage surfaces, grounded green action
+   states, and mono for every verbatim prompt. Built to be presented.
    ================================================================= */
 
 /* ---------- Fonts ---------- */
 /* Bricolage Grotesque = display, Hanken Grotesk = body, JetBrains Mono = code */
 
 :root {
-  --void:   #050d09;
-  --bg-0:   #07120c;
-  --bg-1:   #0a190f;
-  --panel:  rgba(20, 38, 28, 0.45);
-  --panel-2:rgba(12, 26, 18, 0.66);
-  --line:   rgba(126, 196, 156, 0.14);
-  --line-2: rgba(126, 196, 156, 0.28);
+  --void:   #e8eddb;
+  --bg-0:   #f2f7e8;
+  --bg-1:   #c7e0bf;
+  --panel:  rgba(242, 247, 232, 0.76);
+  --panel-2:rgba(232, 240, 222, 0.90);
+  --line:   rgba(31, 133, 82, 0.18);
+  --line-2: rgba(31, 133, 82, 0.34);
 
-  --ink:    #ecf5ee;
-  --ink-2:  #a6c2b1;
-  --ink-3:  #6c8678;
+  --ink:    #152118;
+  --ink-2:  #526457;
+  --ink-3:  #718071;
 
-  --green:   #4fe89a;   /* the machine / loop accent */
-  --green-2: #21c878;
-  --green-3: #0c5a39;
-  --green-ink:#063220;
+  --green:   #0d6b40;   /* the machine / loop accent */
+  --green-2: #1f8552;
+  --green-3: #528c66;
+  --green-ink:#f2f7e8;
 
-  --sand:   #ecc187;    /* the human / design accent */
-  --sand-2: #f4d9ad;
+  --sand:   #5e6f42;    /* the human / design accent, sage-led */
+  --sand-2: #d1e3cc;
 
-  --danger: #ff7a6b;    /* BLOCKED */
-  --wire:   rgba(126, 196, 156, 0.06);
+  --danger: #b8271f;    /* BLOCKED */
+  --wire:   rgba(31, 133, 82, 0.09);
 
   --maxw: 1180px;
   --ease: cubic-bezier(.22,.61,.36,1);
@@ -48,7 +47,9 @@ html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
 
 body {
   font-family: var(--font-body);
-  background: var(--void);
+  background:
+    radial-gradient(75% 65% at 75% 12%, rgba(199, 224, 191, 0.86), transparent 64%),
+    linear-gradient(160deg, var(--bg-0), var(--void) 48%, var(--bg-1));
   color: var(--ink);
   line-height: 1.55;
   font-weight: 380;
@@ -58,21 +59,18 @@ body {
 }
 
 /* ============================================================
-   ATMOSPHERE — fixed layered background (mesh + grid + grain)
+   ATMOSPHERE — fixed layered background (sage field + grid)
    ============================================================ */
 .atmosphere { position: fixed; inset: 0; z-index: -2; pointer-events: none; }
 .atmosphere::before {
-  /* emerald mesh glows */
   content: ""; position: absolute; inset: -10%;
   background:
-    radial-gradient(60% 50% at 18% 8%, rgba(33,200,120,0.20), transparent 60%),
-    radial-gradient(50% 45% at 88% 22%, rgba(79,232,154,0.12), transparent 60%),
-    radial-gradient(70% 60% at 78% 95%, rgba(12,90,57,0.40), transparent 65%),
-    radial-gradient(50% 50% at 10% 92%, rgba(236,193,135,0.07), transparent 60%),
-    linear-gradient(160deg, var(--bg-0), var(--void) 70%);
+    radial-gradient(58% 48% at 18% 8%, rgba(31,133,82,0.13), transparent 62%),
+    radial-gradient(50% 45% at 88% 22%, rgba(117,168,135,0.18), transparent 60%),
+    radial-gradient(70% 60% at 78% 95%, rgba(199,224,191,0.72), transparent 65%),
+    linear-gradient(160deg, var(--bg-0), var(--void) 68%);
 }
 .atmosphere::after {
-  /* blueprint grid */
   content: ""; position: absolute; inset: 0;
   background-image:
     linear-gradient(var(--wire) 1px, transparent 1px),
@@ -81,9 +79,7 @@ body {
   mask-image: radial-gradient(120% 120% at 50% 30%, #000 30%, transparent 80%);
 }
 .grain {
-  position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: 0.5;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+  display: none;
 }
 
 /* ============================================================
@@ -92,7 +88,7 @@ body {
 .progress-bar {
   position: fixed; top: 0; left: 0; height: 3px; width: 0%;
   background: linear-gradient(90deg, var(--green-2), var(--green));
-  z-index: 80; box-shadow: 0 0 18px rgba(79,232,154,0.6);
+  z-index: 80; box-shadow: 0 0 18px rgba(31,133,82,0.34);
   transition: width .15s linear;
 }
 
@@ -157,7 +153,7 @@ h3 { font-size: clamp(1.15rem, 2vw, 1.5rem); letter-spacing: -0.01em; }
 .em { color: var(--ink); }
 .em-g { color: var(--green); }
 .em-s { color: var(--sand); }
-mark { background: linear-gradient(transparent 62%, rgba(79,232,154,.22) 0); color: inherit; padding: 0 .1em; }
+mark { background: linear-gradient(transparent 62%, rgba(31,133,82,.16) 0); color: inherit; padding: 0 .1em; }
 
 /* ---------- glass panel primitive ---------- */
 .glass {
@@ -166,7 +162,7 @@ mark { background: linear-gradient(transparent 62%, rgba(79,232,154,.22) 0); col
   -webkit-backdrop-filter: blur(16px) saturate(1.25);
   border: 1px solid var(--line);
   border-radius: 18px;
-  box-shadow: 0 1px 0 rgba(255,255,255,0.05) inset, 0 24px 60px -30px rgba(0,0,0,0.8);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.58) inset, 0 8px 8px -8px rgba(21,33,24,0.28);
   position: relative;
 }
 .glass::after {
@@ -189,10 +185,10 @@ mark { background: linear-gradient(transparent 62%, rgba(79,232,154,.22) 0); col
 }
 .hero-eyebrow .pill {
   border: 1px solid var(--line-2); border-radius: 999px; padding: 3px 11px;
-  color: var(--green); background: rgba(79,232,154,0.06);
+  color: var(--green); background: rgba(31,133,82,0.08);
 }
 .hero h1 {
-  font-size: clamp(2.7rem, 8.2vw, 6.6rem);
+  font-size: clamp(2.55rem, 7.2vw, 5.6rem);
   line-height: 0.95; letter-spacing: -0.035em;
 }
 .hero h1 .ship { color: var(--green); position: relative; }
@@ -214,18 +210,18 @@ mark { background: linear-gradient(transparent 62%, rgba(79,232,154,.22) 0); col
   --r: 12.5%;
   position: relative; aspect-ratio: 1206 / 2622;
   border-radius: 14% / 6.5%;
-  padding: 2.4%;
-  background: linear-gradient(155deg, #1b2a22, #060b08 60%);
+  padding: 2.2% 2.2% 5.0%;
+  background: linear-gradient(155deg, #203428, #07120c 62%);
   box-shadow:
-    0 0 0 1.5px rgba(160,210,180,0.10),
-    0 40px 90px -30px rgba(0,0,0,0.9),
-    0 0 70px -10px rgba(79,232,154,0.18);
+    0 0 0 1.5px rgba(21,33,24,0.18),
+    0 28px 56px -32px rgba(21,33,24,0.54),
+    0 0 46px -22px rgba(31,133,82,0.34);
 }
 .device .screen {
   position: relative; width: 100%; height: 100%; overflow: hidden;
-  border-radius: 11% / 5.4%; background: #dfe9dc;
+  border-radius: 11% / 5.4%; background: #dfe9dc; z-index: 1;
 }
-.device .screen img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.device .screen img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .device .screen::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(135deg, rgba(255,255,255,0.18), transparent 26%);
@@ -234,7 +230,19 @@ mark { background: linear-gradient(transparent 62%, rgba(79,232,154,.22) 0); col
   position: absolute; top: 4.2%; left: 50%; transform: translateX(-50%);
   width: 30%; height: 3.0%; background: #040805; border-radius: 999px; z-index: 3;
 }
-.hero-device { max-width: 312px; margin: 0 auto; animation: floaty 7s var(--ease) infinite; }
+.hero-device {
+  max-width: min(300px, 32vw, calc((100svh - 128px) * 0.46));
+  margin: 0 auto;
+  padding: 0;
+  animation: floaty 7s var(--ease) infinite;
+}
+.hero-device .screen {
+  position: absolute;
+  inset: 2.2% 4.9% 7.6%;
+  width: auto;
+  height: auto;
+}
+.hero-device .screen img { object-fit: contain; object-position: center; }
 @keyframes floaty { 0%,100%{ transform: translateY(0) } 50%{ transform: translateY(-14px) } }
 
 /* ============================================================
@@ -242,8 +250,8 @@ mark { background: linear-gradient(transparent 62%, rgba(79,232,154,.22) 0); col
    ============================================================ */
 .split { display: grid; grid-template-columns: 1fr auto 1fr; gap: clamp(18px,3vw,40px); align-items: stretch; margin-top: 44px; }
 .split .col { padding: 30px; border-radius: 18px; }
-.col.human { border-left: 3px solid var(--sand); }
-.col.machine { border-left: 3px solid var(--green); }
+.col.human { border-color: rgba(94,111,66,0.34); }
+.col.machine { border-color: var(--line-2); }
 .col h3 { margin-bottom: 6px; }
 .col.human h3 { color: var(--sand); }
 .col.machine h3 { color: var(--green); }
@@ -287,7 +295,7 @@ mark { background: linear-gradient(transparent 62%, rgba(79,232,154,.22) 0); col
 .ring { position: relative; aspect-ratio: 1/1; max-width: 460px; margin: 0 auto; width: 100%; }
 .ring .sweep {
   position: absolute; inset: 6%; border-radius: 50%;
-  background: conic-gradient(from 0deg, transparent 0 78%, rgba(79,232,154,0.22) 86%, transparent 92%);
+  background: conic-gradient(from 0deg, transparent 0 78%, rgba(31,133,82,0.20) 86%, transparent 92%);
   animation: spin 6.5s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -295,7 +303,7 @@ mark { background: linear-gradient(transparent 62%, rgba(79,232,154,.22) 0); col
   position: absolute; inset: 27%; border-radius: 50%;
   border: 1px solid var(--line-2);
   display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
-  background: radial-gradient(circle at 50% 40%, rgba(79,232,154,0.10), transparent 70%);
+  background: radial-gradient(circle at 50% 40%, rgba(31,133,82,0.10), transparent 70%);
 }
 .ring .core .lbl { font-family: var(--font-mono); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-3); }
 .ring .core .big { font-family: var(--font-display); font-weight: 800; font-size: clamp(1.4rem,4vw,2.2rem); color: var(--ink); letter-spacing: -0.02em; line-height: 1; margin: 4px 0; }
@@ -310,7 +318,7 @@ mark { background: linear-gradient(transparent 62%, rgba(79,232,154,.22) 0); col
   border-radius: 999px; padding: 5px 11px; white-space: nowrap;
   transition: all .4s var(--ease); backdrop-filter: blur(6px);
 }
-.node.on .chip { color: var(--green-ink); background: var(--green); border-color: var(--green); box-shadow: 0 0 22px rgba(79,232,154,0.55); transform: translate(-50%,-50%) scale(1.08); }
+.node.on .chip { color: var(--green-ink); background: var(--green); border-color: var(--green); box-shadow: 0 0 12px rgba(31,133,82,0.36); transform: translate(-50%,-50%) scale(1.08); }
 
 .loop-principles { display: flex; flex-direction: column; gap: 16px; }
 .principle { padding: 18px 20px; border-radius: 14px; }
@@ -342,7 +350,7 @@ mark { background: linear-gradient(transparent 62%, rgba(79,232,154,.22) 0); col
 .term .body p { margin-bottom: 9px; }
 .term .body p:last-child { margin-bottom: 0; }
 .handoff-note {
-  margin-top: 22px; padding: 18px 22px; border-radius: 14px; border-left: 3px solid var(--green);
+  margin-top: 22px; padding: 18px 22px; border-radius: 14px; border-color: var(--line-2);
   font-size: 0.98rem; color: var(--ink-2);
 }
 .handoff-note b { color: var(--ink); }
@@ -362,7 +370,7 @@ mark { background: linear-gradient(transparent 62%, rgba(79,232,154,.22) 0); col
 .rung .cmd { font-family: var(--font-mono); font-size: 13px; color: var(--ink); }
 .rung .desc { margin-left: auto; font-size: 12px; color: var(--ink-3); text-align: right; }
 .rung .check { color: var(--green); flex: none; font-size: 1rem; }
-.rung.visual { border-color: var(--line-2); background: rgba(79,232,154,0.05); }
+.rung.visual { border-color: var(--line-2); background: rgba(31,133,82,0.08); }
 .rung.visual .cmd { color: var(--green); }
 .gate-aside h3 { color: var(--ink); margin-bottom: 14px; }
 .gate-aside p { color: var(--ink-2); margin-bottom: 14px; }
@@ -378,12 +386,29 @@ mark { background: linear-gradient(transparent 62%, rgba(79,232,154,.22) 0); col
    UI VERIFY
    ============================================================ */
 .verify-grid { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: clamp(30px,5vw,60px); align-items: center; margin-top: 30px; }
-.verify-device { max-width: 256px; margin: 0 auto; }
+#verify h2 { font-size: clamp(2rem, 4.8vw, 3.35rem); }
+#verify .verify-grid {
+  grid-template-columns: 0.72fr 1.28fr;
+  gap: clamp(26px, 4vw, 50px);
+  margin-top: 20px;
+}
+.verify-device { max-width: min(210px, calc((100svh - 310px) * 0.46)); margin: 0 auto; }
+.artifact-caption {
+  width: min(100%, 34ch);
+  margin: 12px auto 0;
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: .03em;
+  line-height: 1.45;
+  text-align: center;
+  text-wrap: balance;
+}
 .verify-points { display: flex; flex-direction: column; gap: 18px; }
-.vp { padding: 20px 22px; border-radius: 14px; }
+.vp { padding: 16px 20px; border-radius: 14px; }
 .vp .t { font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--green); margin-bottom: 8px; }
-.vp p { color: var(--ink-2); font-size: 0.96rem; }
-.vp .passline { font-family: var(--font-mono); font-size: 12.5px; color: var(--green); margin-top: 12px; padding: 10px 14px; border-radius: 9px; background: rgba(79,232,154,0.08); border: 1px solid var(--line-2); }
+.vp p { color: var(--ink-2); font-size: 0.92rem; }
+.vp .passline { font-family: var(--font-mono); font-size: 12.5px; color: var(--green); margin-top: 12px; padding: 10px 14px; border-radius: 9px; background: rgba(31,133,82,0.08); border: 1px solid var(--line-2); }
 .vp code { font-family: var(--font-mono); color: var(--sand); font-size: 0.88em; }
 
 /* ============================================================
@@ -405,7 +430,7 @@ mark { background: linear-gradient(transparent 62%, rgba(79,232,154,.22) 0); col
 .metric .num .unit { font-size: 0.42em; color: var(--green); margin-left: 3px; letter-spacing: 0; }
 .metric .cap { font-family: var(--font-mono); font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); margin-top: 12px; }
 .metric .sub { font-size: 12.5px; color: var(--ink-2); margin-top: 7px; }
-.metric.feature { grid-column: span 2; border: 1px solid var(--line-2); background: linear-gradient(150deg, rgba(79,232,154,0.10), var(--panel)); }
+.metric.feature { grid-column: span 2; border: 1px solid var(--line-2); background: linear-gradient(150deg, rgba(31,133,82,0.08), var(--panel)); }
 .metric.feature .num { color: var(--green); font-size: clamp(2.6rem,5vw,4rem); }
 .metric .spark { position: absolute; right: 18px; top: 18px; font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3); letter-spacing: .05em; }
 
@@ -465,6 +490,11 @@ mark { background: linear-gradient(transparent 62%, rgba(79,232,154,.22) 0); col
   .metric.feature { grid-column: span 2; }
   .step .link { display: none; }
   .keyhint { display: none; }
+}
+
+@media (max-height: 760px) {
+  .keyhint { display: none; }
+  .verify-points { gap: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

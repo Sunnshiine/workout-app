@@ -1,0 +1,27 @@
+{
+  "name": "workout-app",
+  "version": "1.0.0",
+  "description": "A mobile client for powerlifting athletes that surfaces and logs workouts from a coach-managed Google Sheet. The Sheet is the single source of truth; the app is a read-write client with a local cache.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sunnshiine/workout-app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Sunnshiine/workout-app/issues"
+  },
+  "homepage": "https://github.com/Sunnshiine/workout-app#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
+  }
+}

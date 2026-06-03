@@ -30,6 +30,8 @@ def run_report(artifacts_dir: str, sessions_dir: str | None = None) -> dict:
 
 
 def fmt_tokens(n: int) -> str:
+    if n >= 1_000_000_000:
+        return f"{n / 1_000_000_000:.1f}B"
     if n >= 1_000_000:
         return f"{n / 1_000_000:.1f}M"
     if n >= 1_000:
@@ -95,6 +97,7 @@ _CSS_EXTRA = """
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
+    min-width: 0;
   }
   .chart-full { grid-column: 1 / -1; }
   .chart-card {
@@ -102,6 +105,7 @@ _CSS_EXTRA = """
     border: 1px solid var(--stroke);
     border-radius: var(--radius-card);
     overflow: hidden;
+    min-width: 0;
   }
   .chart-head {
     padding: 8px 12px;
@@ -118,6 +122,7 @@ _CSS_EXTRA = """
   }
   .chart-legend {
     display: flex;
+    flex-wrap: wrap;
     gap: 12px;
     margin-left: auto;
   }
@@ -171,8 +176,8 @@ _JS_TEMPLATE = """
   const DATA = __CHART_DATA__;
 
   const C = {
-    bg2: '#060E0A', bg3: '#081A12', stroke: '#215C40',
-    mint: '#73FFB8', muted: '#AAB8B0', blue: '#0A84FF', text: '#F5F7F3'
+    bg2: '#F2F6E8', bg3: '#E0EDD6', stroke: '#75A887',
+    mint: '#0D6B40', muted: '#526457', blue: '#0A4FAD', text: '#152118'
   };
 
   function outcomeColor(o) {
@@ -180,6 +185,7 @@ _JS_TEMPLATE = """
   }
 
   function fmtTok(n) {
+    if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
     if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
     if (n >= 1e3) return Math.round(n / 1e3) + 'K';
     return String(n);
@@ -594,16 +600,16 @@ def build_html(data: dict, generated_at: str) -> str:
 
     legend_html = """
           <span class="chart-legend">
-            <span class="chart-legend-item"><span class="legend-swatch" style="background:#73FFB8"></span>resolved</span>
-            <span class="chart-legend-item"><span class="legend-swatch" style="background:#0A84FF"></span>needs human</span>
-            <span class="chart-legend-item"><span class="legend-swatch" style="background:#AAB8B0"></span>incomplete</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#0D6B40"></span>resolved</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#0A4FAD"></span>needs human</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#526457"></span>incomplete</span>
           </span>"""
 
     scatter_legend = """
           <span class="chart-legend">
-            <span class="chart-legend-item"><span class="legend-swatch" style="background:#73FFB8;border-radius:50%"></span>resolved</span>
-            <span class="chart-legend-item"><span class="legend-swatch" style="background:#0A84FF;border-radius:50%"></span>needs human</span>
-            <span class="chart-legend-item"><span class="legend-swatch" style="background:#AAB8B0;border-radius:50%"></span>incomplete</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#0D6B40;border-radius:50%"></span>resolved</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#0A4FAD;border-radius:50%"></span>needs human</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#526457;border-radius:50%"></span>incomplete</span>
           </span>"""
 
     return f"""<!DOCTYPE html>
@@ -616,19 +622,21 @@ def build_html(data: dict, generated_at: str) -> str:
   *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
 
   :root {{
-    --bg: #050806;
-    --bg2: #060E0A;
-    --bg3: #081A12;
-    --surface: #080F0D;
-    --card: #08331F;
-    --stroke: #215C40;
-    --stroke-active: #3BD17A;
-    --mint: #73FFB8;
-    --text: #F5F7F3;
-    --muted: #AAB8B0;
+    --bg: #E8EDDB;
+    --bg-bottom: #C7E0BF;
+    --bg2: #F2F6E8;
+    --bg3: #E0EDD6;
+    --surface: #E8F0DE;
+    --card: #E0EDD6;
+    --stroke: #75A887;
+    --stroke-active: #1F8552;
+    --mint: #0D6B40;
+    --text: #152118;
+    --muted: #526457;
     --danger: #FF3B30;
-    --warn: #FF9500;
-    --human: #0A84FF;
+    --warn: #8F4E00;
+    --human: #0A4FAD;
+    --human-fill: #D7E7F8;
     --radius-card: 12px;
     --radius-sm: 6px;
     --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
@@ -636,18 +644,21 @@ def build_html(data: dict, generated_at: str) -> str:
   }}
 
   html, body {{
-    background: var(--bg);
+    background: linear-gradient(180deg, var(--bg), var(--bg-bottom));
     color: var(--text);
     font-family: var(--font);
     font-size: 13px;
     line-height: 1.4;
     min-height: 100vh;
+    overflow-x: hidden;
   }}
 
   .page {{
+    width: 100%;
     max-width: 1200px;
     margin: 0 auto;
     padding: 28px 20px 64px;
+    overflow-x: hidden;
   }}
 
   /* ─── header ─── */
@@ -674,7 +685,8 @@ def build_html(data: dict, generated_at: str) -> str:
 
   /* ─── summary bar ─── */
   .summary {{
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(124px, 1fr));
     gap: 1px;
     background: var(--stroke);
     border: 1px solid var(--stroke);
@@ -683,13 +695,12 @@ def build_html(data: dict, generated_at: str) -> str:
     margin-bottom: 28px;
   }}
   .stat {{
-    flex: 1;
     background: var(--bg2);
     padding: 12px 14px;
     display: flex;
     flex-direction: column;
     gap: 3px;
-    min-width: 80px;
+    min-width: 0;
   }}
   .stat-val {{
     font-size: 17px;
@@ -712,6 +723,7 @@ def build_html(data: dict, generated_at: str) -> str:
   /* ─── sections ─── */
   .section {{
     margin-bottom: 32px;
+    min-width: 0;
   }}
   .section-title {{
     font-size: 11px;
@@ -740,6 +752,7 @@ def build_html(data: dict, generated_at: str) -> str:
     overflow-x: auto;
     border-radius: var(--radius-card);
     border: 1px solid var(--stroke);
+    max-width: 100%;
   }}
   table {{
     width: 100%;
@@ -798,7 +811,7 @@ def build_html(data: dict, generated_at: str) -> str:
     margin-right: 2px;
     font-family: var(--font-mono);
   }}
-  .role-chip {{ border-color: #3BD17A44; color: #73FFB880; }}
+  .role-chip {{ border-color: #1F855259; color: var(--mint); }}
 
   /* ─── badges ─── */
   .badge {{
@@ -810,8 +823,8 @@ def build_html(data: dict, generated_at: str) -> str:
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }}
-  .badge.resolved {{ background: #08331F; color: var(--mint); border: 1px solid var(--stroke-active); }}
-  .badge.human {{ background: #001829; color: var(--human); border: 1px solid #0A84FF44; }}
+  .badge.resolved {{ background: var(--bg3); color: var(--mint); border: 1px solid var(--stroke-active); }}
+  .badge.human {{ background: var(--human-fill); color: var(--human); border: 1px solid #0A4FAD59; }}
   .badge.incomplete {{ background: var(--bg3); color: var(--muted); border: 1px solid var(--stroke); }}
 
   /* ─── outliers grid ─── */
@@ -825,6 +838,7 @@ def build_html(data: dict, generated_at: str) -> str:
     border: 1px solid var(--stroke);
     border-radius: var(--radius-card);
     overflow: hidden;
+    min-width: 0;
   }}
   .outlier-card-head {{
     padding: 8px 12px;
@@ -876,8 +890,13 @@ def build_html(data: dict, generated_at: str) -> str:
 {_CSS_EXTRA}
 
   @media (max-width: 640px) {{
-    .summary {{ flex-wrap: wrap; }}
-    .stat {{ min-width: calc(33% - 1px); }}
+    .page {{ padding: 28px 14px 56px; }}
+    .header {{ align-items: flex-start; }}
+    .header-meta {{ margin-left: 0; }}
+    .summary {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+    .summary .stat:last-child {{ grid-column: 1 / -1; }}
+    .chart-head {{ align-items: flex-start; flex-direction: column; }}
+    .chart-legend {{ margin-left: 0; gap: 8px; }}
   }}
 
   @media (prefers-reduced-motion: reduce) {{

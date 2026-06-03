@@ -22,6 +22,9 @@ xcuserdata/
 .build/
 .swiftpm/
 
+# Node tooling
+node_modules/
+
 # Ralph loop build/screenshot artifacts
 ralph/.artifacts/
 ralph/reports/
