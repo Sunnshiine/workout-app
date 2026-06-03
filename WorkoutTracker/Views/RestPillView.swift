@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RestPillView: View {
     let restTimer: RestTimer
+    private let visualBaselineDate: Date?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.themePalette) private var palette
@@ -11,30 +12,45 @@ struct RestPillView: View {
     @State private var finalFivePulse = false
     @State private var restartPulse = false
 
+    init(restTimer: RestTimer, visualBaselineDate: Date? = nil) {
+        self.restTimer = restTimer
+        self.visualBaselineDate = visualBaselineDate
+    }
+
     var body: some View {
-        TimelineView(.periodic(from: Date(), by: 1)) { context in
-            let remaining = restTimer.remaining(at: context.date)
-            ZStack {
-                if restTimer.deadline != nil {
-                    pill(remaining: remaining)
-                        .padding(.horizontal)
-                        .padding(.bottom, 8)
-                        .transition(transition)
-                        .scaleEffect(restartPulseScale)
-                        .brightness(restartPulseBrightness)
-                        .opacity(restartPulseOpacity)
-                        .animation(restartAnimation, value: restartPulse)
-                }
+        if let visualBaselineDate {
+            pillContainer(at: visualBaselineDate)
+        } else {
+            TimelineView(.periodic(from: Date(), by: 1)) { context in
+                let remaining = restTimer.remaining(at: context.date)
+                pillContainer(at: context.date)
+                    .task(id: restTimer.restartRevision) {
+                        resetHapticProgress()
+                        await playRestartBeat(for: restTimer.restartRevision)
+                    }
+                    .task(id: hapticTickID(for: context.date)) {
+                        await fireDueHaptics(at: context.date)
+                    }
+                    .task(id: finalFivePulseID(for: remaining)) {
+                        await playFinalFivePulse(for: remaining)
+                    }
             }
-            .task(id: restTimer.restartRevision) {
-                resetHapticProgress()
-                await playRestartBeat(for: restTimer.restartRevision)
-            }
-            .task(id: hapticTickID(for: context.date)) {
-                await fireDueHaptics(at: context.date)
-            }
-            .task(id: finalFivePulseID(for: remaining)) {
-                await playFinalFivePulse(for: remaining)
+        }
+    }
+
+    private func pillContainer(at date: Date) -> some View {
+        let remaining = restTimer.remaining(at: date)
+
+        return ZStack {
+            if restTimer.deadline != nil {
+                pill(remaining: remaining)
+                    .padding(.horizontal)
+                    .padding(.bottom, 8)
+                    .transition(transition)
+                    .scaleEffect(restartPulseScale)
+                    .brightness(restartPulseBrightness)
+                    .opacity(restartPulseOpacity)
+                    .animation(restartAnimation, value: restartPulse)
             }
         }
     }
