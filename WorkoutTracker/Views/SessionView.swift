@@ -14,6 +14,7 @@ struct SessionView: View {
     #else
         @State private var restTimer = RestTimer()
     #endif
+    @State private var liveActivityAdapter = LiveActivityProductionAdapter()
     @State private var sessionSettingsOverpullState = SessionSettingsOverpullState.hidden
     @State private var sessionSettingsOverpullDismissalID = 0
     @State private var isSettingsPresented = false
@@ -173,7 +174,11 @@ struct SessionView: View {
             sync: SessionPendingWriteSyncAdapter(sync: sync, settings: settings),
             restTimer: restTimer,
             standardRestDuration: { settings.standardRestDuration.timeInterval },
-            supersetRestDuration: { settings.supersetRestDuration.timeInterval }
+            supersetRestDuration: { settings.supersetRestDuration.timeInterval },
+            liveActivity: liveActivityAdapter,
+            isCurrentSessionScope: { [workout] session in
+                session.persistentModelID == workout.currentSession?.persistentModelID
+            }
         )
     }
 

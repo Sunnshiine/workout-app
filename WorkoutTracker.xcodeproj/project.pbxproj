@@ -129,6 +129,7 @@
 		D9FFF165728ADB37092CF550 /* GoogleAuthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85019258AFD1ABB430C201E0 /* GoogleAuthTests.swift */; };
 		DA18B95BE71A08ECEE00FFCD /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82C7E3B1CAB7C96142DCF1C7 /* Theme.swift */; };
 		DC4256E5E0BE527A4C3A3310 /* SessionProgressHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D190FFC3E7D57A123821D120 /* SessionProgressHeader.swift */; };
+		E2E406AD7AF76A326FFD09DD /* LiveActivityProductionAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8844DDE0A7128C83E86154D5 /* LiveActivityProductionAdapter.swift */; };
 		E3BF0E131108872ACF22EC6D /* RestDurationSetting.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAF4B32774225208D31F362E /* RestDurationSetting.swift */; };
 		E6298E9C10999070CD34B8C0 /* DeveloperToolsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F622271C453C1C22E76B829 /* DeveloperToolsView.swift */; };
 		E73224AE3C41ED69721C8601 /* PendingWriteFlushOrdering.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8815732F9CDEFACE5019CD05 /* PendingWriteFlushOrdering.swift */; };
@@ -266,6 +267,7 @@
 		86387591F871B0FC0CA1FC82 /* ExerciseSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseSection.swift; sourceTree = "<group>"; };
 		86FF8383D7EC3E723F39F3EC /* SetLogParsingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetLogParsingTests.swift; sourceTree = "<group>"; };
 		8815732F9CDEFACE5019CD05 /* PendingWriteFlushOrdering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingWriteFlushOrdering.swift; sourceTree = "<group>"; };
+		8844DDE0A7128C83E86154D5 /* LiveActivityProductionAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityProductionAdapter.swift; sourceTree = "<group>"; };
 		8A6911BBEB42C06D9FB34EB7 /* SpreadsheetIdTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpreadsheetIdTests.swift; sourceTree = "<group>"; };
 		8A866D6743EC6DA86540A5E6 /* LocalWorkbookSheetsClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalWorkbookSheetsClient.swift; sourceTree = "<group>"; };
 		8ADEBBADB9046E8CA563F0AB /* PersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceTests.swift; sourceTree = "<group>"; };
@@ -633,6 +635,7 @@
 			isa = PBXGroup;
 			children = (
 				A532C86E57DD5B6F6FCE9FBD /* LiveActivityController.swift */,
+				8844DDE0A7128C83E86154D5 /* LiveActivityProductionAdapter.swift */,
 				39ECEE8F938629B5C76D6531 /* LiveActivityRestContentStateFactory.swift */,
 			);
 			path = LiveActivity;
@@ -886,6 +889,7 @@
 				D9BC449C5F52EA35023DFEE9 /* LastPerformedLookupStore.swift in Sources */,
 				CCB670937DB572392AB72D02 /* LiveActivityController.swift in Sources */,
 				D0FAC1DFCA7DF208F94A387D /* LiveActivityLabView.swift in Sources */,
+				E2E406AD7AF76A326FFD09DD /* LiveActivityProductionAdapter.swift in Sources */,
 				BDAEF170ED92A211919CF347 /* LiveActivityRestContentBuilder.swift in Sources */,
 				FBD7F27846824EE734DF61AA /* LiveActivityRestContentStateFactory.swift in Sources */,
 				856581A20DF9C7C18981ADAF /* LoadSuggestionEngine.swift in Sources */,
