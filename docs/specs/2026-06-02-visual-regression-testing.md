@@ -236,6 +236,18 @@ answering "is every changed pixel explained by the issue?" and ending in the exi
 - Acceptance criteria: PASS → proceed. Flaky → evaluate `perceptualPrecision`, document the
   chosen tolerance, then proceed. Blank glass → image baselines cannot prove glass
   pixel-identity; stop and reassess (structural fallback or abandon).
+- Outcome (2026-06-03): **deterministic; proceed at exact precision (`1.0`)**.
+  - Temporary target/test: `WorkoutTrackerVisualSpikeTests` with one glass-heavy SwiftUI
+    view using `.glassEffect` cards and interactive glass pills.
+  - Environment: `iPhone 17 Pro` simulator, light mode, `en_US`, fixed Dynamic Type
+    `.large`, exact image precision `1.0`. XcodeBuildMCP listed the available runtime as
+    `iOS 26.3`.
+  - Evidence: after recording the temporary baseline, two `record: .never` renders in the
+    same test process passed with zero diff. After `xcodebuildmcp simulator clean`,
+    `xcrun simctl shutdown`, `xcodebuildmcp simulator-management boot`, and a fresh test
+    run, the same exact-precision assertion passed again.
+  - Cleanup: the temporary target, test, dependency, and generated baseline were removed;
+    no Visual Baseline is committed by this spike.
 
 ### Phase 1: Visual layer infrastructure
 
@@ -285,7 +297,7 @@ answering "is every changed pixel explained by the issue?" and ending in the exi
 
 ## Acceptance Criteria
 
-- [ ] Phase 0 spike has a recorded outcome (deterministic / tolerance / fallback).
+- [x] Phase 0 spike has a recorded outcome (deterministic / tolerance / fallback).
 - [ ] A `WorkoutTrackerSnapshotTests` Visual layer exists and runs under xcodebuild, isolated
       from `swift test` and the Component fast loop.
 - [ ] `swift-snapshot-testing` is present as a test-only dependency; the app's runtime
@@ -309,8 +321,8 @@ layer asserts pixels only — never behavior.
 
 ## Open Questions
 
-- Precision policy: exact (`1.0`) is the default; the Phase 0 spike decides whether a
-  `perceptualPrecision` tolerance is required and, if so, its value.
+- Precision policy: resolved by Phase 0. Use exact image precision (`1.0`); no
+  `perceptualPrecision` tolerance is required for the initial Visual Baselines.
 - Flaky-baseline handling: if a committed baseline later proves intermittently flaky in the
   loop, is the policy to quarantine that single baseline (skip + flag) or to hard-block?
   Defer until the spike establishes the real flakiness floor.
