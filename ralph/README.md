@@ -2,15 +2,17 @@
 
 Ralph runs an AI coding agent (Claude Code **or** Codex) in a loop. Each iteration picks one
 GitHub issue labelled `ready-for-agent`, fixes it end-to-end in an isolated git worktree, gates
-the result on the full documented testing framework, then merges to `main`, pushes, and closes the
-issue. It stops when no eligible issues remain.
+the result on the full documented testing framework, then ships to the issue's resolved target and
+closes the issue. Normal issues still merge to `main`; issues with a `Target branch` directive
+push back to that existing PR branch instead. It stops when no eligible issues remain.
 
 It is the issue-driven adaptation of the [Ralph Wiggum loop](https://github.com/coleam00/ralph-loop-quickstart):
 GitHub issues replace the quickstart's `prd.md`, and every iteration runs in a **fresh agent
 context** so the work never accumulates context bloat.
 
-> ⚠️ **By default Ralph is fully autonomous: it pushes to `origin/main` and closes issues without
-> asking.** Read [Safety](#safety) before your first un-gated run. Use `--no-push` while you build trust.
+> ⚠️ **By default Ralph is fully autonomous: it pushes to the resolved target and closes issues
+> without asking.** Read [Safety](#safety) before your first un-gated run. Use `--no-push` while
+> you build trust.
 
 ---
 
@@ -32,14 +34,17 @@ context** so the work never accumulates context bloat.
 ## Quick start
 
 ```bash
-# Safest first run: one issue, keep commits local (still closes the issue on GitHub).
+# Safest first run: one issue, keep commits local.
 ralph/ralph.sh --engine claude --max-iterations 1 --no-push
 
-# Full autonomous run with Claude (pushes to main, closes issues):
+# Full autonomous run with Claude (auto-detects main vs existing PR branch, closes issues):
 ralph/ralph.sh
 
 # Same, driven by Codex:
 ralph/ralph.sh --engine codex
+
+# Force a PR-branch queue, useful when every selected issue belongs to the same existing PR:
+ralph/ralph.sh --publish-target branch --target-branch codex/live-activity-rest-sets-left --target-pr 177
 
 # See the inline help:
 ralph/ralph.sh --help
@@ -57,20 +62,24 @@ Each iteration:
 ```
 1. SELECT   An agent lists open `ready-for-agent` issues, skips PRDs/epics, respects
             dependencies, and picks ONE highest-priority unblocked issue.   (read-only)
-2. ISOLATE  A fresh worktree + branch `agent/issue-<N>` is created off main.
-3. IMPLEMENT A fresh TDD agent reads the issue contract, implements the issue, runs non-UI
+2. TARGET   Ralph resolves the publication target. Default `auto` mode uses main unless the issue
+            has a `Target branch` directive, or the operator passed `--target-branch`.
+3. ISOLATE  A fresh worktree + branch `agent/issue-<N>` is created off the resolved target.
+4. IMPLEMENT A fresh TDD agent reads the issue contract, implements the issue, runs non-UI
             checks, commits, and emits the exact phase promise.
-4. SWIFT    A fresh review agent invokes `swift-reviewer`, remediates blocking findings,
+5. SWIFT    A fresh review agent invokes `swift-reviewer`, remediates blocking findings,
             commits fixes, and emits the exact phase promise.
-5. UI       A fresh UI verification agent owns UI integration tests, screenshots, and
+6. UI       A fresh UI verification agent owns UI integration tests, screenshots, and
             `ui-screenshot-reviewer`; if it changes production Swift/project files, Ralph
             runs SWIFT again before accepting the issue.
-6. GATE     The loop independently runs `swift test`, Xcode unit/component tests,
+7. GATE     The loop independently runs `swift test`, Xcode unit/component tests,
             Xcode UI integration tests, and `swiftlint lint --quiet`.
-7. UI GATE  If the change touched Views/Theme, the loop confirms the UI phase produced a
+8. UI GATE  If the change touched Views/Theme, the loop confirms the UI phase produced a
             reviewed screenshot artifact.
-8. SHIP     Merge the branch into main → push origin (unless --no-push) → close the issue.
-9. CLEANUP  Remove the worktree and delete the branch.
+9. SHIP     Merge the issue branch into the resolved target. Main-target issues fast-forward
+            local main and push origin/main. Branch-target issues push the gated merge commit to
+            origin/<target-branch>, leave the PR open, and close only the child issue.
+10. CLEANUP Remove the worktree and delete the branch.
 ```
 
 If any step fails, the issue is relabelled **`ready-for-human`** with an explanatory comment, and
@@ -86,10 +95,13 @@ The loop stops when the selector returns `SELECTED_ISSUE=NONE` or after `--max-i
 |------|---------|---------|---------|
 | `--engine claude\|codex` | `ENGINE` | `claude` | Which agent CLI drives the loop. |
 | `--max-iterations N` | `MAX_ITER` | `5` | Max issues to process this run. |
-| `--no-push` | `PUSH=0` | push on | Merge to local `main` only; don't push to origin. |
+| `--no-push` | `PUSH=0` | push on | Keep successful work local; main-target issues merge to local `main`, branch-target issues leave the gated integration worktree in place. |
 | `--model NAME` | `MODEL` | `opus` (claude) | Model alias passed to the engine. |
 | `--device "..."` | `SIM_DEVICE` | `iPhone 17 Pro` | Simulator for the build + screenshot. |
 | `--codex-sandbox` | `CODEX_BYPASS=0` | bypass on | Run Codex in `workspace-write` sandbox instead of full-access unattended mode. This is safer, but Xcode builds and simulator access may fail. |
+| `--publish-target auto\|main\|branch` | `PUBLISH_TARGET` | `auto` | `auto` ships to main unless the issue has a target branch directive; `main` forces direct-to-main; `branch` forces an existing PR branch. |
+| `--target-branch BRANCH` | `TARGET_BRANCH` | issue directive | Existing PR branch to use when `--publish-target branch`, or to override issue body detection in `auto`. |
+| `--target-pr N` | `TARGET_PR` | detected from issue body | Optional PR number used only in closeout text. Ralph never merges or closes this PR. |
 | — | `LABEL` | `ready-for-agent` | The label that marks an issue as AFK-ready. |
 | — | `HUMAN_LABEL` | `ready-for-human` | Label applied when the loop gives up on an issue. |
 
@@ -114,6 +126,41 @@ loop succeeds and the more the UI screenshot review can verify.
 
 PRDs are intentionally excluded. Ralph should not select `PRD:` issues or use PRD documents as
 implementation input; the issue contract must come from a non-PRD work issue.
+
+### Existing PR Branch Queues
+
+Use a Branch Directive when an issue should build on and push back to an existing PR instead of
+shipping directly to `main`:
+
+```markdown
+## Agent Brief / Branch Directive
+
+This issue is part of PR #177:
+https://github.com/Sunnshiine/workout-app/pull/177
+
+Target branch:
+`codex/live-activity-rest-sets-left`
+
+Work from and push back to the PR branch. Do not push `origin/main`, do not merge to `main`,
+do not open a new PR, and do not merge or close PR #177. Close this issue only after the PR branch
+push succeeds.
+```
+
+In default `auto` mode Ralph detects the `Target branch` value, creates the implementation and
+integration worktrees from that branch, pushes the gated merge commit to `origin/<target-branch>`,
+and leaves the PR open. For a whole queue with the same target, operators can pass
+`--publish-target branch --target-branch <branch>` instead of repeating the directive.
+
+Operator recipe for the Live Activity queue:
+
+```bash
+ralph/ralph.sh --publish-target branch --target-branch codex/live-activity-rest-sets-left --target-pr 177
+```
+
+That command makes every selected child issue start from and push back to
+`origin/codex/live-activity-rest-sets-left`. It must not push `origin/main`, merge to `main`, open
+a replacement PR, or merge or close PR #177. Ralph closes only the child issue after the PR branch
+push succeeds.
 
 ---
 
@@ -226,10 +273,14 @@ max per-call context size, and tokens per minute. GitHub and git are not touched
 
 ## Safety
 
-- **Pushing to `origin/main`:** on by default. Use `--no-push` until you trust a given issue set.
-  Even with `--no-push`, issues are still **closed on GitHub** when merged locally.
+- **Pushing to `origin/main`:** on by default for main-target issues. Use `--no-push` until you
+  trust a given issue set. Even with `--no-push`, main-target issues are still **closed on GitHub**
+  when merged locally.
+- **Pushing to existing PR branches:** on by default for branch-target issues. Branch-target issues
+  are closed only after Ralph successfully pushes `origin/<target-branch>`. With `--no-push`, Ralph
+  leaves the gated integration worktree in place and leaves the issue open.
 - **Isolation:** all agent work happens in a throwaway worktree under `.claude/worktrees/`; `main`
-  only changes via an explicit `--no-ff` merge after the gates pass.
+  only changes for main-target issues via an explicit `--no-ff` merge after the gates pass.
 - **Engine permissions:** Ralph runs the agent with permission checks bypassed
   (`claude --permission-mode bypassPermissions` / `codex exec --dangerously-bypass-approvals-and-sandbox`)
   so it can run unattended. Only run Ralph on a repo and issue set you trust. For Codex, pass
