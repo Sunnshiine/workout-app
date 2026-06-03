@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>I only design. The loop ships. — Building WorkoutTracker with Claude Code + Ralph</title>
+<meta name="description" content="How an iOS powerlifting app was built almost entirely by an autonomous Claude Code agent harness — design-only human, issues instead of prompts, a fresh-context Ralph loop, and a real CI gate before every merge.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Hanken+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<noscript><style>.reveal>*,.stagger>*{opacity:1!important;transform:none!important}</style></noscript>
+</head>
+<body>
+<div class="atmosphere"></div>
+<div class="grain"></div>
+<div class="progress-bar" id="progress"></div>
+
+<!-- section rail -->
+<nav class="rail" id="rail" aria-label="Slide navigation"></nav>
+
+<div class="keyhint">
+  <span>navigate</span>
+  <kbd>↑</kbd><kbd>↓</kbd>
+  <span>or scroll</span>
+</div>
+
+<main class="deck" id="deck">
+
+  <!-- ============ 1 · HERO ============ -->
+  <section class="slide hero" id="hero" data-label="Intro">
+    <div class="slide-inner hero-grid">
+      <div class="reveal">
+        <div class="hero-eyebrow">
+          <span class="pill">WorkoutTracker</span>
+          <span>iOS · Swift 6 · SwiftUI · Liquid Glass</span>
+        </div>
+        <h1>I only <span class="design">design.</span><br>The loop <span class="ship">ships.</span></h1>
+        <p class="hero-sub">
+          A powerlifting app built almost entirely by an autonomous Claude Code
+          harness. The human never writes the code — they write <code>issues</code>.
+          A standing loop called <strong class="em-g">Ralph</strong> does the rest:
+          selects, implements, reviews, verifies, gates, merges.
+        </p>
+        <div class="ticker stagger">
+          <div class="stat"><span class="num" data-count="97">0</span><span class="cap">commits shipped by the loop</span></div>
+          <div class="stat"><span class="num" data-count="28" data-suffix="%">0</span><span class="cap">of all history, autonomous</span></div>
+          <div class="stat"><span class="num" data-count="159">0</span><span class="cap">issues filed · 141 closed</span></div>
+          <div class="stat"><span class="num" data-count="11">0</span><span class="cap">days, start to here</span></div>
+        </div>
+      </div>
+      <div class="reveal">
+        <div class="device hero-device">
+          <div class="island"></div>
+          <div class="screen"><img src="assets/hero-session.png" alt="WorkoutTracker current session screen with a Liquid Glass active set card"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 2 · THESIS ============ -->
+  <section class="slide" id="thesis" data-label="The split">
+    <div class="slide-inner reveal">
+      <span class="kicker"><span class="idx">01 /</span> The premise</span>
+      <h2>Taste stays human.<br>Toil goes to the&nbsp;machine.</h2>
+      <p class="lead">The whole system draws one hard line: the human owns judgment and design;
+        the loop owns implementation and verification. Nothing crosses that line by accident.</p>
+
+      <div class="split stagger">
+        <div class="col human glass">
+          <div class="role">Human · one role</div>
+          <h3>Design</h3>
+          <ul>
+            <li>Shapes features and sharpens the domain language</li>
+            <li>Makes the subjective calls — what's good, what ships</li>
+            <li>Writes specs &amp; PRDs, then breaks them into issues</li>
+            <li>Labels an issue <code>ready-for-agent</code> — and walks away</li>
+          </ul>
+        </div>
+        <div class="bridge">
+          <span class="handoff">hand-off</span>
+          <span class="arrow">→</span>
+          <span>ready-for-agent</span>
+        </div>
+        <div class="col machine glass">
+          <div class="role">Ralph · one loop</div>
+          <h3>Build</h3>
+          <ul>
+            <li>Selects the next unblocked issue, no prompt needed</li>
+            <li>Implements it test-first in an isolated worktree</li>
+            <li>Reviews, UI-verifies, and runs the full gate</li>
+            <li>Merges, pushes, and closes the issue — unattended</li>
+          </ul>
+        </div>
+      </div>
+      <p class="thesis-foot">
+        <b>“GitHub issues replace the quickstart’s prd.md, and every iteration runs in a fresh agent context.”</b>
+        &nbsp;— the standing input is a backlog, not a chat thread.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 3 · DESIGN PIPELINE (SKILLS) ============ -->
+  <section class="slide" id="pipeline" data-label="Design → Issues">
+    <div class="slide-inner reveal">
+      <span class="kicker"><span class="idx">02 /</span> The design pipeline</span>
+      <h2>From an idea to a grabbable&nbsp;issue</h2>
+      <p class="lead">Design isn’t a doc dump — it’s a chain of Claude Code <em class="em">skills</em>,
+        each one producing a durable artifact the next step consumes.</p>
+
+      <div class="chain stagger">
+        <div class="step glass">
+          <span class="n">STEP 01</span>
+          <div class="skill"><span class="slash">/</span>grill-with-docs</div>
+          <p class="what">Stress-tests the design against the existing domain model, sharpens
+            terminology, and resolves each open decision branch by branch.</p>
+          <div class="makes">updates <b>CONTEXT.md</b> + <b>ADRs</b></div>
+          <span class="link">→</span>
+        </div>
+        <div class="step glass">
+          <span class="n">STEP 02a</span>
+          <div class="skill"><span class="slash">/</span>to-prd</div>
+          <p class="what">Product work with user stories becomes a PRD published straight to the
+            tracker — the “why” and the acceptance criteria.</p>
+          <div class="makes">makes a <b>PRD</b></div>
+          <span class="link">→</span>
+        </div>
+        <div class="step glass">
+          <span class="n">STEP 02b</span>
+          <div class="skill"><span class="slash">/</span>to-spec</div>
+          <p class="what">Technical work becomes an engineering spec — implementation-neutral, with
+            every contract tagged <code style="color:var(--sand)">ADDED / CHANGED / REMOVED</code>.</p>
+          <div class="makes">makes a <b>SPEC</b></div>
+          <span class="link">→</span>
+        </div>
+        <div class="step glass">
+          <span class="n">STEP 03</span>
+          <div class="skill"><span class="slash">/</span>to-issues</div>
+          <p class="what">Slices the PRD or spec into tracer-bullet vertical slices — independently
+            grabbable issues, each with its own acceptance criteria.</p>
+          <div class="makes">files <b>ready-for-agent</b> issues</div>
+          <span class="link">→</span>
+        </div>
+      </div>
+
+      <div class="chain-foot stagger">
+        <div class="out"><span class="big">14</span><span>design artifacts on disk —<br>7 ADRs + 7 specs, written as the decisions crystallised</span></div>
+        <div class="out"><span class="big">→</span><span>every artifact is the executable<br>contract the loop is held to</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 4 · RALPH LOOP ANATOMY ============ -->
+  <section class="slide" id="loop" data-label="The Ralph loop">
+    <div class="slide-inner reveal">
+      <span class="kicker"><span class="idx">03 /</span> Anatomy of the loop</span>
+      <h2>One issue in. Ten stages.<br>A shippable merge&nbsp;out.</h2>
+
+      <div class="loop-grid">
+        <div class="ring" id="ring" aria-hidden="true">
+          <div class="sweep"></div>
+          <div class="core">
+            <span class="lbl">ralph.sh</span>
+            <span class="big">FRESH<br>CONTEXT</span>
+            <span class="sub">× every phase</span>
+          </div>
+          <!-- nodes positioned via inline left/top (10-point circle) -->
+          <div class="node" data-stage="0" style="left:50%;top:4%"><span class="chip">1 · SELECT</span></div>
+          <div class="node" data-stage="1" style="left:77%;top:12.8%"><span class="chip">2 · TARGET</span></div>
+          <div class="node" data-stage="2" style="left:93.7%;top:35.8%"><span class="chip">3 · ISOLATE</span></div>
+          <div class="node" data-stage="3" style="left:93.7%;top:64.2%"><span class="chip">4 · IMPLEMENT</span></div>
+          <div class="node" data-stage="4" style="left:77%;top:87.2%"><span class="chip">5 · SWIFT REVIEW</span></div>
+          <div class="node" data-stage="5" style="left:50%;top:96%"><span class="chip">6 · UI VERIFY</span></div>
+          <div class="node" data-stage="6" style="left:23%;top:87.2%"><span class="chip">7 · GATE</span></div>
+          <div class="node" data-stage="7" style="left:6.3%;top:64.2%"><span class="chip">8 · UI GATE</span></div>
+          <div class="node" data-stage="8" style="left:6.3%;top:35.8%"><span class="chip">9 · SHIP</span></div>
+          <div class="node" data-stage="9" style="left:23%;top:12.8%"><span class="chip">10 · CLEANUP</span></div>
+        </div>
+
+        <div class="loop-principles stagger">
+          <div class="principle glass">
+            <h3><span class="tag">no bloat</span> Fresh context per phase</h3>
+            <p>Implement, review and verify each run as a brand-new agent. Work never accumulates in one context window, so quality doesn’t decay over an issue.</p>
+          </div>
+          <div class="principle glass">
+            <h3><span class="tag">isolation</span> A worktree per issue</h3>
+            <p>Each issue builds on its own throwaway branch <code>agent/issue-N</code> under <code>.claude/worktrees/</code>. 12 of them ran across the project.</p>
+          </div>
+          <div class="principle glass">
+            <h3><span class="tag">correctness</span> Gate the merged tree</h3>
+            <p>The final gate doesn’t test the branch — it does a <code>--no-ff</code> merge into a temp worktree and tests <em class="em">the exact tree that will ship</em>.</p>
+          </div>
+          <div class="principle glass">
+            <h3><span class="tag">self-heal</span> No infinite spin</h3>
+            <p>A failure auto-relabels the issue to <code>ready-for-human</code> and moves on. Stop conditions: <code>SELECTED_ISSUE=NONE</code>, a max-iteration cap, and a 45-min per-phase timeout.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 5 · HOW I PROMPT THE HARNESS ============ -->
+  <section class="slide" id="prompts" data-label="The prompts">
+    <div class="slide-inner reveal">
+      <span class="kicker"><span class="idx">04 /</span> How I prompt the harness</span>
+      <h2>Four prompts. Four single-role agents.</h2>
+      <p class="lead">Every stage is one file in <code style="font-family:var(--font-mono);color:var(--ink)">ralph/prompts/</code>.
+        Each frames Claude in exactly one role, bans everything off-task, and ends in a machine-checkable promise. Verbatim:</p>
+
+      <div class="prompts stagger">
+        <!-- SELECT -->
+        <div class="term glass">
+          <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="file">select.md</span><span class="phase">SELECT</span></div>
+          <div class="body">
+            <p class="role">You are the issue selector for an autonomous "Ralph" remediation loop on an iOS app.</p>
+            <p>Your <span class="k">ONLY</span> job this run is to choose exactly <span class="k">ONE</span> GitHub issue to work next… <span class="bad">Do NOT write code, create branches, or modify anything.</span></p>
+            <p class="cmt"># priority: bugs → the dependency that unblocks the most work → lowest issue number</p>
+            <p>Output ONLY the final line:</p>
+            <p><span class="ok">SELECTED_ISSUE=&lt;number&gt;</span> &nbsp;<span class="cmt">|</span>&nbsp; <span class="warn">SELECTED_ISSUE=NONE</span></p>
+          </div>
+        </div>
+        <!-- IMPLEMENT -->
+        <div class="term glass">
+          <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="file">implement.md</span><span class="phase">IMPLEMENT · TDD</span></div>
+          <div class="body">
+            <p class="role">You are an autonomous engineer implementing ONE GitHub issue… in the TDD implementation phase.</p>
+            <p><span class="k">Must invoke the <strong>tdd</strong> skill.</span></p>
+            <p>Run non-UI verification before completion: <span class="k">swift test</span>, <span class="k">xcodegen generate</span>, Xcode unit/component tests, and <span class="k">swiftlint lint --quiet</span>.</p>
+            <p class="warn">Stay inside this worktree… do not rewrite main's history, or change the loop's own scripts or prompts.</p>
+            <p class="cmt"># emit one &lt;observations&gt; block · tags [doc-gap] [friction] [recurring?] · each ends "— cost:"</p>
+          </div>
+        </div>
+        <!-- SWIFT REVIEW -->
+        <div class="term glass">
+          <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="file">swift-review.md</span><span class="phase">SWIFT REVIEW</span></div>
+          <div class="body">
+            <p class="role">You are an autonomous engineer reviewing and remediating ONE GitHub issue… in a fresh Swift review phase.</p>
+            <p><span class="k">Spawn the <strong>swift-reviewer</strong> custom agent as a separate subagent for fresh-eyes review.</span> <span class="bad">Do not self-review in this phase.</span></p>
+            <p>Repeat review / remediation until <span class="k">swift-reviewer</span> reports <span class="ok">no blocking findings</span>.</p>
+            <p class="cmt"># no agent grades its own homework</p>
+          </div>
+        </div>
+        <!-- UI VERIFY -->
+        <div class="term glass">
+          <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="file">ui-verify.md</span><span class="phase">UI VERIFY</span></div>
+          <div class="body">
+            <p class="role">You are an autonomous engineer verifying ONE GitHub issue… in a fresh UI verification phase.</p>
+            <p>Run Xcode UI integration tests for <span class="k">WorkoutTrackerUITests</span>.</p>
+            <p class="cmt"># if Views/ or Theme.swift changed →</p>
+            <p>capture a screenshot, spawn the <span class="k">ui-screenshot-reviewer</span>, and require its last line be exactly:</p>
+            <p class="ok">PASS: no blocking static visual findings.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="handoff-note glass">
+        <b>The handoff is a string match, not a vibe.</b> The loop advances only when the agent’s final
+        output contains the exact <code>COMPLETE</code> promise line. Words like
+        <span class="strike">done</span>, <span class="strike">completed</span>, <span class="strike">success</span>
+        — or the old marker — don’t count, and fail the phase. Every prompt also has a <code>BLOCKED</code>
+        escape hatch for vague specs, unresolved dependencies, or an un-spawnable reviewer.
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 6 · THE GATE ============ -->
+  <section class="slide" id="gates" data-label="The gate">
+    <div class="slide-inner reveal">
+      <span class="kicker"><span class="idx">05 /</span> The merge gate</span>
+      <h2>Nothing merges until the<br>whole ladder is&nbsp;green</h2>
+
+      <div class="gate-grid">
+        <div class="ladder stagger">
+          <div class="rung"><span class="step-n">01</span><span class="cmd">swift test</span><span class="desc">unit + component (SPM)</span><span class="check">✓</span></div>
+          <div class="rung"><span class="step-n">02</span><span class="cmd">xcodegen generate</span><span class="desc">project regenerates clean</span><span class="check">✓</span></div>
+          <div class="rung"><span class="step-n">03</span><span class="cmd">xcodebuild · WorkoutTrackerTests</span><span class="desc">unit / component in Xcode</span><span class="check">✓</span></div>
+          <div class="rung"><span class="step-n">04</span><span class="cmd">xcodebuild · WorkoutTrackerUITests</span><span class="desc">UI integration on simulator</span><span class="check">✓</span></div>
+          <div class="rung"><span class="step-n">05</span><span class="cmd">swiftlint lint --quiet</span><span class="desc">zero violations</span><span class="check">✓</span></div>
+          <div class="rung visual"><span class="step-n">06</span><span class="cmd">visual review → PASS</span><span class="desc">for View / Theme changes</span><span class="check">✓</span></div>
+        </div>
+
+        <div class="gate-aside stagger">
+          <h3>It tests what actually ships.</h3>
+          <p>The gate runs on a separate integration worktree holding the exact merged result — not the
+            feature branch in isolation.</p>
+          <div class="codeblock">
+            <span class="c"># integrate, then gate the exact tree</span><br>
+            <span class="k">git merge</span> --no-ff --no-commit agent/issue-N<br>
+            <span class="k">run-gate</span> &nbsp;<span class="c"># ☑ all six rungs</span><br>
+            <span class="k">git commit</span> &nbsp;<span class="c"># merge: resolve #N via Ralph</span><br>
+            <span class="k">git push</span> · <span class="k">gh issue close</span>
+          </div>
+          <p style="margin-top:18px">The loop also refuses to start if the working tree is dirty, and by default runs
+            with permission checks bypassed for unattended operation — with <code style="font-family:var(--font-mono);color:var(--sand)">--no-push</code> as the trust-building safety valve.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 7 · UI VERIFICATION ============ -->
+  <section class="slide" id="verify" data-label="Visual gate">
+    <div class="slide-inner reveal">
+      <span class="kicker"><span class="idx">06 /</span> The loop has eyes</span>
+      <h2>It screenshots its own work<br>and grades the pixels</h2>
+
+      <div class="verify-grid">
+        <div class="reveal">
+          <div class="device verify-device">
+            <div class="screen"><img src="assets/ralph-verify.png" alt="A screenshot Ralph captured during UI verification — the Move On celebration"></div>
+          </div>
+          <p style="text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--ink-3);margin-top:14px;letter-spacing:.05em">ralph/.artifacts/iter-8-issue-143.png — captured by the loop</p>
+        </div>
+
+        <div class="verify-points stagger">
+          <div class="vp glass">
+            <div class="t">Capture</div>
+            <p>When a View or <code>Theme.swift</code> actually changes, <code>snapshot.sh</code> boots the app
+              on deterministic fixtures and captures a screenshot — <strong>76</strong> of them across the project.</p>
+          </div>
+          <div class="vp glass">
+            <div class="t">Review</div>
+            <p>A separate <code>ui-screenshot-reviewer</code> agent inspects the frame against the issue
+              contract. The phase only completes if the saved artifact’s last line is, exactly:</p>
+            <div class="passline">PASS: no blocking static visual findings.</div>
+          </div>
+          <div class="vp glass">
+            <div class="t">Regress · ADR-0007</div>
+            <p>12 glass-bearing views are pinned as visual-regression baselines, rendered at exact
+              <strong>1.0</strong> precision — proof that even iOS 26 Liquid Glass effects render
+              deterministically, and a hard gate against silent visual drift.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 8 · GALLERY ============ -->
+  <section class="slide" id="gallery" data-label="What shipped">
+    <div class="slide-inner reveal">
+      <span class="kicker"><span class="idx">07 /</span> What the loop shipped</span>
+      <h2>A real, polished product</h2>
+      <p class="lead">A <em class="em">Liquid Glass</em> powerlifting client over a coach-managed Google Sheet.
+        Every screen below was implemented, reviewed and visually gated by the loop.</p>
+
+      <div class="gallery stagger">
+        <div class="gcard">
+          <div class="device"><div class="island"></div><div class="screen"><img src="assets/active-card.png" alt="Active set card"></div></div>
+          <div class="meta"><div class="name">Active Set Card</div><div class="desc">The signature glass surface — Up Next, value pills, last-performed.</div></div>
+        </div>
+        <div class="gcard">
+          <div class="device"><div class="island"></div><div class="screen"><img src="assets/value-pills.png" alt="Smart value pills"></div></div>
+          <div class="meta"><div class="name">Smart Value Pills</div><div class="desc">Weight, reps &amp; RPE edit in place — log a set without leaving the card.</div></div>
+        </div>
+        <div class="gcard">
+          <div class="device"><div class="island"></div><div class="screen"><img src="assets/rest-pill.png" alt="Rest timer pill"></div></div>
+          <div class="meta"><div class="name">Ambient Rest Pill</div><div class="desc">A glass pill with a smoothly depleting bar that counts down end-to-end.</div></div>
+        </div>
+        <div class="gcard">
+          <div class="device"><div class="island"></div><div class="screen"><img src="assets/celebration.png" alt="Move On celebration glass bloom"></div></div>
+          <div class="meta"><div class="name">Glass Bloom Celebration</div><div class="desc">The one big moment — a logo in a floating Liquid Glass lens.</div></div>
+        </div>
+        <div class="gcard">
+          <div class="device"><div class="island"></div><div class="screen"><img src="assets/settings.png" alt="Settings screen"></div></div>
+          <div class="meta"><div class="name">Settings</div><div class="desc">Rest steppers, appearance, and the live Google&nbsp;Sheet sync controls.</div></div>
+        </div>
+        <div class="gcard">
+          <div class="device"><div class="island"></div><div class="screen"><img src="assets/empty-state.png" alt="Empty state"></div></div>
+          <div class="meta"><div class="name">Empty State</div><div class="desc">A glass card that keeps polling the Sheet until a session appears.</div></div>
+        </div>
+      </div>
+      <p class="gallery-foot">… and more — the progress header, pull-to-reveal settings gesture and morphing onboarding, all gated the same way.</p>
+    </div>
+  </section>
+
+  <!-- ============ 9 · NUMBERS ============ -->
+  <section class="slide" id="numbers" data-label="By the numbers">
+    <div class="slide-inner reveal">
+      <span class="kicker"><span class="idx">08 /</span> By the numbers</span>
+      <h2>The receipts</h2>
+      <p class="lead">Every figure pulled straight from <code style="font-family:var(--font-mono);color:var(--ink)">git</code>,
+        <code style="font-family:var(--font-mono);color:var(--ink)">gh</code> and the filesystem — no estimates.</p>
+
+      <div class="metrics stagger">
+        <div class="metric feature glass">
+          <span class="spark">git log · grep "via Ralph"</span>
+          <div class="num"><span data-count="97">0</span> <span style="font-size:.5em;color:var(--ink-2)">/ 343</span></div>
+          <div class="cap">commits merged autonomously</div>
+          <div class="sub">≈ 28% of all history is agent-authored — roughly 1 in 4 commits.</div>
+        </div>
+        <div class="metric feature glass">
+          <span class="spark">gh issue list</span>
+          <div class="num"><span data-count="141">0</span> <span style="font-size:.5em;color:var(--ink-2)">/ 159</span></div>
+          <div class="cap">issues closed</div>
+          <div class="sub">An 89% close rate in an 11-day window (May 24 → Jun 3, 2026).</div>
+        </div>
+        <div class="metric glass"><div class="num"><span data-count="493">0</span></div><div class="cap">test declarations</div><div class="sub">across 55 test files</div></div>
+        <div class="metric glass"><div class="num"><span data-count="12687">0</span></div><div class="cap">lines of Swift</div><div class="sub">in the app target</div></div>
+        <div class="metric glass"><div class="num"><span data-count="120">0</span></div><div class="cap">issues traced in commits</div><div class="sub">near-total code↔work traceability</div></div>
+        <div class="metric glass"><div class="num"><span data-count="14">0</span></div><div class="cap">design artifacts</div><div class="sub">7 ADRs + 7 specs</div></div>
+        <div class="metric glass"><div class="num"><span data-count="76">0</span></div><div class="cap">UI-verification shots</div><div class="sub">+ 12 regression baselines</div></div>
+        <div class="metric glass"><div class="num"><span data-count="12">0</span></div><div class="cap">parallel worktrees</div><div class="sub">concurrent issue resolution</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 10 · CLOSE ============ -->
+  <section class="slide close" id="close" data-label="Takeaways">
+    <div class="slide-inner reveal">
+      <span class="kicker" style="justify-content:center"><span class="idx">09 /</span> Why it works</span>
+      <h2>Issues, not prompts.<br>Gates, not trust.</h2>
+      <p class="lead">A design-only human and an autonomous-but-gated loop, meeting at a backlog.</p>
+
+      <div class="takeaways stagger">
+        <div class="takeaway glass"><span class="i">01</span><p><b>The standing input is a backlog.</b> A human labels issues once; the loop drives select → implement → review → verify → gate → merge with zero per-step prompting.</p></div>
+        <div class="takeaway glass"><span class="i">02</span><p><b>Fresh context per phase.</b> Every mutating stage is a new agent, so quality never decays inside a bloated window — and phases hand off only via an exact promise line.</p></div>
+        <div class="takeaway glass"><span class="i">03</span><p><b>No agent grades its own homework.</b> Implement can’t review; review must spawn a separate reviewer; UI verification spawns a separate screenshot critic.</p></div>
+        <div class="takeaway glass"><span class="i">04</span><p><b>Autonomy is earned with gates.</b> A real CI ladder plus a pixel-level visual PASS runs on the exact merged tree before anything ships — and failures self-heal back to a human.</p></div>
+      </div>
+
+      <div class="stack">
+        <div class="lbl">The harness stack</div>
+        <div class="row">
+          <span class="chip"><b>Claude Code</b> + Codex</span>
+          <span class="chip"><b>Ralph</b> loop · bash</span>
+          <span class="chip">GitHub Issues</span>
+          <span class="chip">git worktrees</span>
+          <span class="chip">XcodeGen</span>
+          <span class="chip">Swift Testing + XCUITest</span>
+          <span class="chip">SwiftLint · swift-format</span>
+          <span class="chip">snapshot regression</span>
+          <span class="chip">iOS 26 <b>Liquid Glass</b></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script src="script.js"></script>
+</body>
+</html>
