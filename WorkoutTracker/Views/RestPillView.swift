@@ -21,7 +21,7 @@ struct RestPillView: View {
         if let visualBaselineDate {
             pillContainer(at: visualBaselineDate)
         } else {
-            TimelineView(.periodic(from: Date(), by: 1)) { context in
+            TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
                 let remaining = restTimer.remaining(at: context.date)
                 pillContainer(at: context.date)
                     .task(id: restTimer.restartRevision) {
@@ -40,10 +40,18 @@ struct RestPillView: View {
 
     private func pillContainer(at date: Date) -> some View {
         let remaining = restTimer.remaining(at: date)
+        let presentation = RestPillPresentation(
+            kind: restTimer.kind,
+            remaining: remaining,
+            duration: restTimer.duration
+        )
 
         return ZStack {
             if restTimer.deadline != nil {
-                pill(remaining: remaining)
+                pill(remaining: remaining, presentation: presentation)
+                    .containerRelativeFrame(.horizontal) { length, _ in
+                        length * 0.4
+                    }
                     .padding(.horizontal)
                     .padding(.bottom, 8)
                     .transition(transition)
@@ -55,62 +63,45 @@ struct RestPillView: View {
         }
     }
 
-    private func pill(remaining: TimeInterval) -> some View {
+    private func pill(remaining: TimeInterval, presentation: RestPillPresentation) -> some View {
         let cue = RestPillUrgencyCue(remaining: remaining, reduceMotion: reduceMotion)
 
         return VStack(spacing: 6) {
-            HStack(spacing: 14) {
-                Text(restTimer.label)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+            Text(presentation.countdownText)
+                .font(.title2.weight(.bold).monospacedDigit())
+                .foregroundStyle(countdownColor(for: cue))
+                .opacity(countdownOpacity(for: cue))
+                .scaleEffect(finalFiveScale(for: cue))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .contentTransition(.numericText())
+                .animation(finalFiveAnimation(for: cue), value: finalFivePulse)
+                .accessibilityHidden(true)
 
-                Text(formatted(remaining))
-                    .font(.title2.weight(.bold).monospacedDigit())
-                    .foregroundStyle(countdownColor(for: cue))
-                    .opacity(countdownOpacity(for: cue))
-                    .scaleEffect(finalFiveScale(for: cue))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                    .contentTransition(.numericText())
-                    .animation(finalFiveAnimation(for: cue), value: finalFivePulse)
-                    .accessibilityHidden(true)
-
-                Button(action: restTimer.dismiss) {
-                    Image(systemName: "xmark")
-                        .font(.headline.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Dismiss rest")
-                .accessibilityIdentifier("rest-pill-dismiss")
-            }
-
-            hairline(remaining: remaining, cue: cue)
+            hairline(presentation: presentation, cue: cue)
         }
-        .padding(.leading, 16)
-        .padding(.trailing, 8)
+        .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .frame(minHeight: 52)
+        .frame(maxWidth: .infinity, minHeight: 52)
         .background(palette.pillFill, in: Capsule())
         .overlay {
             Capsule()
                 .stroke(palette.pillStroke, lineWidth: 1)
         }
         .glassEffect(.regular, in: .capsule)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(accessibilityLabel(for: remaining))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(presentation.accessibilityLabel)
         .accessibilityIdentifier("rest-pill")
     }
 
-    private func hairline(remaining: TimeInterval, cue: RestPillUrgencyCue) -> some View {
+    private func hairline(presentation: RestPillPresentation, cue: RestPillUrgencyCue) -> some View {
         GeometryReader { proxy in
             RoundedRectangle(cornerRadius: 3, style: .continuous)
                 .fill(countdownColor(for: cue).opacity(countdownOpacity(for: cue)))
-                .frame(width: proxy.size.width * progressFraction(for: remaining), height: 3)
+                .frame(width: proxy.size.width * CGFloat(presentation.progressFraction), height: 3)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .scaleEffect(x: 1, y: finalFiveScale(for: cue), anchor: .center)
+                .animation(.linear(duration: 1.0 / 30), value: presentation.progressFraction)
                 .animation(finalFiveAnimation(for: cue), value: finalFivePulse)
         }
         .frame(height: 3)
@@ -173,7 +164,7 @@ struct RestPillView: View {
         if scenePhase != .active {
             lastHapticElapsed = elapsed
             if elapsed >= restTimer.duration {
-                restTimer.dismiss()
+                restTimer.expireIfNeeded(at: now)
             }
             return
         }
@@ -181,7 +172,7 @@ struct RestPillView: View {
         guard let previousElapsed = lastHapticElapsed else {
             lastHapticElapsed = elapsed
             if elapsed >= restTimer.duration {
-                restTimer.dismiss()
+                restTimer.expireIfNeeded(at: now)
             }
             return
         }
@@ -202,7 +193,7 @@ struct RestPillView: View {
         lastHapticElapsed = elapsed
         let expiryEvent = RestHapticEvent(offset: restTimer.duration, kind: .expiryBuzz)
         if elapsed >= restTimer.duration && !playedHapticEvents.contains(expiryEvent) {
-            restTimer.dismiss()
+            restTimer.expireIfNeeded(at: now)
         }
     }
 
@@ -210,7 +201,7 @@ struct RestPillView: View {
         let deadline = restTimer.deadline
         try? await Task.sleep(for: .milliseconds(500))
         guard !Task.isCancelled, restTimer.deadline == deadline else { return }
-        restTimer.dismiss()
+        restTimer.expireIfNeeded(at: Date())
     }
 
     private func resetHapticProgress() {
@@ -249,28 +240,4 @@ struct RestPillView: View {
         cue.shouldBreathe ? .smooth(duration: 0.22) : nil
     }
 
-    private func progressFraction(for remaining: TimeInterval) -> CGFloat {
-        guard restTimer.duration > 0 else { return 0 }
-        return CGFloat(max(0, min(1, remaining / restTimer.duration)))
-    }
-
-    private func formatted(_ remaining: TimeInterval) -> String {
-        let totalSeconds = max(0, Int(ceil(remaining)))
-        let minutes = totalSeconds / 60
-        let seconds = totalSeconds % 60
-        return "\(minutes):\(String(format: "%02d", seconds))"
-    }
-
-    private func accessibilityLabel(for remaining: TimeInterval) -> String {
-        let totalSeconds = max(0, Int(ceil(remaining)))
-        let minutes = totalSeconds / 60
-        let seconds = totalSeconds % 60
-        if minutes > 0, seconds > 0 {
-            return "\(restTimer.label), \(minutes) minutes \(seconds) seconds remaining"
-        }
-        if minutes > 0 {
-            return "\(restTimer.label), \(minutes) minutes remaining"
-        }
-        return "\(restTimer.label), \(seconds) seconds remaining"
-    }
 }
