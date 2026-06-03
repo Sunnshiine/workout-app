@@ -3,6 +3,40 @@ import Testing
 
 @testable import WorkoutTracker
 
+#if os(iOS)
+    @MainActor
+    @Test func liveActivityLabDefaultsToAcceptedRestSetsLeftVariant() {
+        #expect(LiveActivityLabDefaults.defaultVariant == .restTimerSetsLeft)
+        #expect(LiveActivityLabDefaults.productionVariantTitle == "Rest + Sets Left")
+    }
+
+    @MainActor
+    @Test func liveActivityLabRetainsAllPrototypeVariants() {
+        #expect(LiveActivityLabDefaults.prototypeVariants == DesignVariant.allCases)
+    }
+
+    @MainActor
+    @Test func productionContentStateUsesAcceptedRestSetsLeftVariant() {
+        let restContent = LiveActivityRestContent(
+            exerciseName: "Bench Press",
+            prescribedReps: "5",
+            prescribedLoad: "RPE 8",
+            weightValue: "",
+            weightUnit: "lbs",
+            setsDone: 1,
+            setsTotal: 3,
+            variant: .restTimerSetsLeft,
+            restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
+            restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
+        )
+
+        let state = WorkoutActivityAttributes.ContentState(restContent: restContent)
+
+        #expect(state.variant == .restTimerSetsLeft)
+        #expect(state.restContextText == "2 sets left")
+    }
+#endif
+
 @MainActor
 @Test func liveActivityCreationPolicyAllowsOnlySuccessfulUserSetLogInCurrentSession() {
     let allowedEvent = LiveActivityProductionEvent(
