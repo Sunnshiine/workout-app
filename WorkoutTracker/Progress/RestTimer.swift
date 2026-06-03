@@ -96,6 +96,11 @@ final class RestTimer {
         notificationScheduler?.cancel()
     }
 
+    func expireIfNeeded(at now: Date) {
+        guard deadline != nil, remaining(at: now) <= 0 else { return }
+        dismiss()
+    }
+
     func remaining(at now: Date) -> TimeInterval {
         guard let deadline else { return 0 }
         return max(0, deadline.timeIntervalSince(now))
