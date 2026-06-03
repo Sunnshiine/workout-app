@@ -43,8 +43,8 @@
           selects, implements, reviews, verifies, gates, merges.
         </p>
         <div class="ticker stagger">
-          <div class="stat"><span class="num" data-count="97">0</span><span class="cap">commits shipped by the loop</span></div>
-          <div class="stat"><span class="num" data-count="28" data-suffix="%">0</span><span class="cap">of all history, autonomous</span></div>
+          <div class="stat"><span class="num" data-count="257">0</span><span class="cap">commits written by the loop</span></div>
+          <div class="stat"><span class="num" data-count="75" data-suffix="%">0</span><span class="cap">of all commits, agent-written</span></div>
           <div class="stat"><span class="num" data-count="159">0</span><span class="cap">issues filed · 141 closed</span></div>
           <div class="stat"><span class="num" data-count="11">0</span><span class="cap">days, start to here</span></div>
         </div>
@@ -382,10 +382,10 @@
 
       <div class="metrics stagger">
         <div class="metric feature glass">
-          <span class="spark">git log · grep "via Ralph"</span>
-          <div class="num"><span data-count="97">0</span> <span style="font-size:.5em;color:var(--ink-2)">/ 343</span></div>
-          <div class="cap">commits merged autonomously</div>
-          <div class="sub">≈ 28% of all history is agent-authored — roughly 1 in 4 commits.</div>
+          <span class="spark">git · branches + merges</span>
+          <div class="num"><span data-count="257">0</span> <span style="font-size:.5em;color:var(--ink-2)">/ 343</span></div>
+          <div class="cap">commits are agent-authored — ≈ 75%</div>
+          <div class="sub">160 implementation commits on agent branches + 97 Ralph merges. The human’s hand-written footprint is just ~64 mainline commits — the harness, specs &amp; ADRs.</div>
         </div>
         <div class="metric feature glass">
           <span class="spark">gh issue list</span>
@@ -403,10 +403,57 @@
     </div>
   </section>
 
+  <!-- ============ META · THIS DECK ============ -->
+  <section class="slide" id="meta" data-label="This deck">
+    <div class="slide-inner reveal">
+      <span class="kicker"><span class="idx">09 /</span> Meta — this very deck</span>
+      <h2>This slide was built the same&nbsp;way</h2>
+      <p class="lead">No template, no hand-assembly. This presentation was produced in essentially
+        <em class="em">one shot</em> with Claude Code’s <code style="font-family:var(--font-mono);color:var(--ink)">ultracode</code>
+        dynamic Workflows — the same fan-out-then-verify pattern the app is built on.</p>
+
+      <div class="chain stagger" style="grid-template-columns:repeat(3,1fr)">
+        <div class="step glass">
+          <span class="n">PHASE 01</span>
+          <div class="skill">Fan&nbsp;out · evidence</div>
+          <p class="what">One dynamic Workflow spawned <strong>5 parallel agents</strong> — loop mechanics,
+            verbatim prompts, the skills flow, hard metrics, and screenshot triage — each returning
+            structured, cited evidence straight from the repo.</p>
+          <div class="makes">grounded in <b>git · gh · the filesystem</b></div>
+          <span class="link">→</span>
+        </div>
+        <div class="step glass">
+          <span class="n">PHASE 02</span>
+          <div class="skill">Synthesize · design</div>
+          <p class="what">A single design pass turned that evidence into the deck — copy, the dark
+            engine-room system, the animated loop, and the device frames — built as plain
+            <code style="color:var(--sand)">HTML · CSS · JS</code>.</p>
+          <div class="makes">no framework, no slop fonts</div>
+          <span class="link">→</span>
+        </div>
+        <div class="step glass">
+          <span class="n">PHASE 03</span>
+          <div class="skill">Self-verify · ship</div>
+          <p class="what">Rendered with headless Chrome and inspected section-by-section before shipping —
+            then opened a PR. The deck verifies itself, just like the loop screenshots its own work.</p>
+          <div class="makes">verified, then <b>one PR</b></div>
+          <span class="link">→</span>
+        </div>
+      </div>
+
+      <div class="ticker stagger" style="margin-top:34px">
+        <div class="stat"><span class="num" data-count="5">0</span><span class="cap">parallel evidence agents</span></div>
+        <div class="stat"><span class="num" data-count="346" data-suffix="K">0</span><span class="cap">subagent tokens, one sweep</span></div>
+        <div class="stat"><span class="num" data-count="77">0</span><span class="cap">tool calls, fully traced</span></div>
+        <div class="stat"><span class="num" data-count="10" data-suffix=" min">0</span><span class="cap">evidence gather, wall-clock</span></div>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ 10 · CLOSE ============ -->
   <section class="slide close" id="close" data-label="Takeaways">
     <div class="slide-inner reveal">
-      <span class="kicker" style="justify-content:center"><span class="idx">09 /</span> Why it works</span>
+      <span class="kicker" style="justify-content:center"><span class="idx">10 /</span> Why it works</span>
       <h2>Issues, not prompts.<br>Gates, not trust.</h2>
       <p class="lead">A design-only human and an autonomous-but-gated loop, meeting at a backlog.</p>
 

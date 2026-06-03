@@ -107,7 +107,7 @@
     } else if (/^[1-9]$/.test(k)) {
       e.preventDefault(); goTo(parseInt(k, 10) - 1);
     } else if (k === "0") {
-      e.preventDefault(); goTo(9);
+      e.preventDefault(); goTo(slides.length - 1);
     }
   });
 
