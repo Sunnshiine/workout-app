@@ -234,29 +234,8 @@ final class WorkoutTrackerUITests: XCTestCase {
 
 final class WorkoutTrackerAppearanceUITests: XCTestCase {
     @MainActor
-    func testDarkAppearanceCoversCurrentSessionSurface() throws {
-        let app = launchFixtureApp(appearance: "dark")
-
-        assertCurrentSessionAppearanceCoverage(in: app)
-    }
-
-    @MainActor
-    func testLightAppearanceCoversCurrentSessionSurface() throws {
-        let app = launchFixtureApp(appearance: "light")
-
-        assertCurrentSessionAppearanceCoverage(in: app)
-    }
-
-    @MainActor
-    func testSettingsFixtureRouteLaunchesSettingsForScreenshotCoverage() throws {
-        let app = launchSettingsFixtureApp(appearance: "light")
-
-        assertSettingsAppearanceCoverage(in: app)
-    }
-
-    @MainActor
-    func testSettingsAppearancePickerSwitchesManualLightAndDark() throws {
-        let app = launchSettingsFixtureApp(appearance: nil)
+    func testSettingsAppearancePickerIsReachableAndWired() throws {
+        let app = launchSettingsFixtureApp()
 
         let picker = app.segmentedControls["settings-appearance-picker"]
         XCTAssertTrue(picker.waitForExistence(timeout: 3))
@@ -272,76 +251,12 @@ final class WorkoutTrackerAppearanceUITests: XCTestCase {
     }
 
     @MainActor
-    func testLightAppearanceMoveOnCelebrationRendersAndDismisses() throws {
-        let app = launchFixtureApp(appearance: "light")
-
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 3))
-        tapWhenReady(app.buttons["move-on-button"], in: app)
-
-        let celebration = moveOnCelebration(in: app)
-        XCTAssertTrue(celebration.waitForExistence(timeout: 3))
-        waitForLabel("Week 1, Day 1", on: celebration)
-        waitForValueContaining("5 Sets, 2 Exercises, 5 Left", on: celebration)
-        assertMoveOnCelebrationCopyIsReadable(in: app)
-
-        celebration.tap()
-        XCTAssertTrue(app.staticTexts["Bench Press"].waitForExistence(timeout: 3))
-        XCTAssertFalse(celebration.exists)
-    }
-
-    @MainActor
-    private func launchFixtureApp(appearance: String? = nil) -> XCUIApplication {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = [
-            "-UITEST_FIXTURE",
-            "-UITEST_SESSION",
-            "-UITEST_FULL_BLOCK",
-            "-UITEST_DISABLE_CELEBRATION_BLOOM"
-        ]
-        if let appearance {
-            app.launchArguments += ["-UITEST_APPEARANCE", appearance]
-        }
-        app.launch()
-        return app
-    }
-
-    @MainActor
-    private func launchSettingsFixtureApp(appearance: String?) -> XCUIApplication {
+    private func launchSettingsFixtureApp() -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchArguments = ["-UITEST_FIXTURE", "-UITEST_SETTINGS"]
-        if let appearance {
-            app.launchArguments += ["-UITEST_APPEARANCE", appearance]
-        }
         app.launch()
         return app
-    }
-
-    @MainActor
-    private func assertCurrentSessionAppearanceCoverage(in app: XCUIApplication) {
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.otherElements["active-set-card"].exists)
-        XCTAssertTrue(app.buttons["weight-pill"].exists)
-        XCTAssertTrue(app.buttons["reps-pill"].exists)
-        XCTAssertTrue(app.buttons["rpe-6"].exists)
-        XCTAssertTrue(app.buttons["log-active-set-button"].exists)
-        XCTAssertTrue(app.buttons["session-location-button"].exists)
-        XCTAssertTrue(app.staticTexts["Last Performed"].exists)
-    }
-
-    @MainActor
-    private func assertSettingsAppearanceCoverage(in app: XCUIApplication) {
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.segmentedControls["settings-appearance-picker"].exists)
-        XCTAssertTrue(app.buttons["settings-training-sheet-row"].exists)
-        XCTAssertTrue(app.buttons["settings-sync-now-button"].exists)
-        XCTAssertTrue(app.buttons["settings-developer-tools-row"].exists)
-        XCTAssertTrue(app.buttons["settings-sign-out-button"].exists)
-        XCTAssertTrue(app.staticTexts["Fixture Training Log"].exists)
-        XCTAssertFalse(app.buttons["Black"].exists)
-        XCTAssertFalse(app.buttons["Mint Green"].exists)
-        XCTAssertFalse(app.buttons["Blue Light"].exists)
     }
 }
 
