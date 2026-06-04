@@ -8,19 +8,21 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg: #050806;
-    --bg2: #060E0A;
-    --bg3: #081A12;
-    --surface: #080F0D;
-    --card: #08331F;
-    --stroke: #215C40;
-    --stroke-active: #3BD17A;
-    --mint: #73FFB8;
-    --text: #F5F7F3;
-    --muted: #AAB8B0;
+    --bg: #E8EDDB;
+    --bg-bottom: #C7E0BF;
+    --bg2: #F2F6E8;
+    --bg3: #E0EDD6;
+    --surface: #E8F0DE;
+    --card: #E0EDD6;
+    --stroke: #75A887;
+    --stroke-active: #1F8552;
+    --mint: #0D6B40;
+    --text: #152118;
+    --muted: #526457;
     --danger: #FF3B30;
-    --warn: #FF9500;
-    --human: #0A84FF;
+    --warn: #8F4E00;
+    --human: #0A4FAD;
+    --human-fill: #D7E7F8;
     --radius-card: 12px;
     --radius-sm: 6px;
     --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
@@ -28,18 +30,21 @@
   }
 
   html, body {
-    background: var(--bg);
+    background: linear-gradient(180deg, var(--bg), var(--bg-bottom));
     color: var(--text);
     font-family: var(--font);
     font-size: 13px;
     line-height: 1.4;
     min-height: 100vh;
+    overflow-x: hidden;
   }
 
   .page {
+    width: 100%;
     max-width: 1200px;
     margin: 0 auto;
     padding: 28px 20px 64px;
+    overflow-x: hidden;
   }
 
   /* ─── header ─── */
@@ -66,7 +71,8 @@
 
   /* ─── summary bar ─── */
   .summary {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(124px, 1fr));
     gap: 1px;
     background: var(--stroke);
     border: 1px solid var(--stroke);
@@ -75,13 +81,12 @@
     margin-bottom: 28px;
   }
   .stat {
-    flex: 1;
     background: var(--bg2);
     padding: 12px 14px;
     display: flex;
     flex-direction: column;
     gap: 3px;
-    min-width: 80px;
+    min-width: 0;
   }
   .stat-val {
     font-size: 17px;
@@ -104,6 +109,7 @@
   /* ─── sections ─── */
   .section {
     margin-bottom: 32px;
+    min-width: 0;
   }
   .section-title {
     font-size: 11px;
@@ -132,6 +138,7 @@
     overflow-x: auto;
     border-radius: var(--radius-card);
     border: 1px solid var(--stroke);
+    max-width: 100%;
   }
   table {
     width: 100%;
@@ -190,7 +197,7 @@
     margin-right: 2px;
     font-family: var(--font-mono);
   }
-  .role-chip { border-color: #3BD17A44; color: #73FFB880; }
+  .role-chip { border-color: #1F855259; color: var(--mint); }
 
   /* ─── badges ─── */
   .badge {
@@ -202,8 +209,8 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
-  .badge.resolved { background: #08331F; color: var(--mint); border: 1px solid var(--stroke-active); }
-  .badge.human { background: #001829; color: var(--human); border: 1px solid #0A84FF44; }
+  .badge.resolved { background: var(--bg3); color: var(--mint); border: 1px solid var(--stroke-active); }
+  .badge.human { background: var(--human-fill); color: var(--human); border: 1px solid #0A4FAD59; }
   .badge.incomplete { background: var(--bg3); color: var(--muted); border: 1px solid var(--stroke); }
 
   /* ─── outliers grid ─── */
@@ -217,6 +224,7 @@
     border: 1px solid var(--stroke);
     border-radius: var(--radius-card);
     overflow: hidden;
+    min-width: 0;
   }
   .outlier-card-head {
     padding: 8px 12px;
@@ -278,6 +286,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
+    min-width: 0;
   }
   .chart-full { grid-column: 1 / -1; }
   .chart-card {
@@ -285,6 +294,7 @@
     border: 1px solid var(--stroke);
     border-radius: var(--radius-card);
     overflow: hidden;
+    min-width: 0;
   }
   .chart-head {
     padding: 8px 12px;
@@ -301,6 +311,7 @@
   }
   .chart-legend {
     display: flex;
+    flex-wrap: wrap;
     gap: 12px;
     margin-left: auto;
   }
@@ -345,8 +356,13 @@
 
 
   @media (max-width: 640px) {
-    .summary { flex-wrap: wrap; }
-    .stat { min-width: calc(33% - 1px); }
+    .page { padding: 28px 14px 56px; }
+    .header { align-items: flex-start; }
+    .header-meta { margin-left: 0; }
+    .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .summary .stat:last-child { grid-column: 1 / -1; }
+    .chart-head { align-items: flex-start; flex-direction: column; }
+    .chart-legend { margin-left: 0; gap: 8px; }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -359,7 +375,7 @@
 
   <header class="header">
     <h1>Ralph Session Dashboard</h1>
-    <span class="header-meta">Generated 2026-06-04 01:37 UTC &middot; ralph/.artifacts</span>
+    <span class="header-meta">Generated 2026-06-03 23:35 UTC &middot; ralph/.artifacts</span>
   </header>
 
   <div class="summary">
@@ -384,7 +400,7 @@
       <span class="stat-label">Incomplete</span>
     </div>
     <div class="stat">
-      <span class="stat-val">1407.4M</span>
+      <span class="stat-val">1.4B</span>
       <span class="stat-label">Total Tokens</span>
     </div>
     <div class="stat">
@@ -410,9 +426,9 @@
           Token Consumption by Issue
           
           <span class="chart-legend">
-            <span class="chart-legend-item"><span class="legend-swatch" style="background:#73FFB8"></span>resolved</span>
-            <span class="chart-legend-item"><span class="legend-swatch" style="background:#0A84FF"></span>needs human</span>
-            <span class="chart-legend-item"><span class="legend-swatch" style="background:#AAB8B0"></span>incomplete</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#0D6B40"></span>resolved</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#0A4FAD"></span>needs human</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#526457"></span>incomplete</span>
           </span>
         </div>
         <canvas id="chart-tokens"></canvas>
@@ -422,9 +438,9 @@
           Iteration Depth
           
           <span class="chart-legend">
-            <span class="chart-legend-item"><span class="legend-swatch" style="background:#73FFB8"></span>resolved</span>
-            <span class="chart-legend-item"><span class="legend-swatch" style="background:#0A84FF"></span>needs human</span>
-            <span class="chart-legend-item"><span class="legend-swatch" style="background:#AAB8B0"></span>incomplete</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#0D6B40"></span>resolved</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#0A4FAD"></span>needs human</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#526457"></span>incomplete</span>
           </span>
         </div>
         <canvas id="chart-iters"></canvas>
@@ -434,9 +450,9 @@
           Duration vs Tokens
           
           <span class="chart-legend">
-            <span class="chart-legend-item"><span class="legend-swatch" style="background:#73FFB8;border-radius:50%"></span>resolved</span>
-            <span class="chart-legend-item"><span class="legend-swatch" style="background:#0A84FF;border-radius:50%"></span>needs human</span>
-            <span class="chart-legend-item"><span class="legend-swatch" style="background:#AAB8B0;border-radius:50%"></span>incomplete</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#0D6B40;border-radius:50%"></span>resolved</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#0A4FAD;border-radius:50%"></span>needs human</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#526457;border-radius:50%"></span>incomplete</span>
           </span>
         </div>
         <canvas id="chart-scatter"></canvas>
@@ -1874,7 +1890,7 @@
           <td>select</td>
           <td class="num" data-value="122">122</td>
           <td data-value="22687">6h 18m</td>
-          <td class="num" data-value="1023987822">1024.0M</td>
+          <td class="num" data-value="1023987822">1.0B</td>
           <td class="num" data-value="8393342">8.4M</td>
         </tr>
         <tr>
@@ -1968,8 +1984,8 @@
   const DATA = {"attempts":[{"issue":2,"iteration":2,"outcome":"ready-for-human","total_tokens":4323369,"duration_seconds":294},{"issue":12,"iteration":1,"outcome":"incomplete","total_tokens":119712,"duration_seconds":0},{"issue":12,"iteration":1,"outcome":"ready-for-human","total_tokens":2813825,"duration_seconds":286},{"issue":12,"iteration":1,"outcome":"ready-for-human","total_tokens":976310,"duration_seconds":161},{"issue":14,"iteration":2,"outcome":"resolved","total_tokens":2596017,"duration_seconds":287},{"issue":15,"iteration":3,"outcome":"resolved","total_tokens":5282056,"duration_seconds":468},{"issue":16,"iteration":1,"outcome":"ready-for-human","total_tokens":6430153,"duration_seconds":532},{"issue":17,"iteration":3,"outcome":"resolved","total_tokens":16963919,"duration_seconds":1023},{"issue":18,"iteration":1,"outcome":"resolved","total_tokens":5642652,"duration_seconds":507},{"issue":19,"iteration":1,"outcome":"resolved","total_tokens":4523850,"duration_seconds":471},{"issue":20,"iteration":2,"outcome":"ready-for-human","total_tokens":5915662,"duration_seconds":725},{"issue":21,"iteration":4,"outcome":"resolved","total_tokens":2624479,"duration_seconds":407},{"issue":22,"iteration":7,"outcome":"resolved","total_tokens":5291051,"duration_seconds":628},{"issue":23,"iteration":5,"outcome":"resolved","total_tokens":6646940,"duration_seconds":700},{"issue":24,"iteration":8,"outcome":"resolved","total_tokens":8601137,"duration_seconds":1104},{"issue":25,"iteration":2,"outcome":"resolved","total_tokens":5771816,"duration_seconds":746},{"issue":26,"iteration":6,"outcome":"resolved","total_tokens":4771318,"duration_seconds":641},{"issue":27,"iteration":9,"outcome":"resolved","total_tokens":6379893,"duration_seconds":790},{"issue":28,"iteration":3,"outcome":"resolved","total_tokens":6613298,"duration_seconds":702},{"issue":29,"iteration":10,"outcome":"resolved","total_tokens":3366736,"duration_seconds":431},{"issue":30,"iteration":11,"outcome":"resolved","total_tokens":5139193,"duration_seconds":585},{"issue":33,"iteration":1,"outcome":"incomplete","total_tokens":5966340,"duration_seconds":0},{"issue":33,"iteration":1,"outcome":"resolved","total_tokens":307070,"duration_seconds":90},{"issue":34,"iteration":1,"outcome":"resolved","total_tokens":8292863,"duration_seconds":1180},{"issue":34,"iteration":4,"outcome":"ready-for-human","total_tokens":748211,"duration_seconds":51},{"issue":35,"iteration":2,"outcome":"resolved","total_tokens":7467484,"duration_seconds":1173},{"issue":36,"iteration":1,"outcome":"resolved","total_tokens":12049007,"duration_seconds":1240},{"issue":37,"iteration":2,"outcome":"resolved","total_tokens":6404513,"duration_seconds":866},{"issue":38,"iteration":1,"outcome":"ready-for-human","total_tokens":3984401,"duration_seconds":494},{"issue":39,"iteration":1,"outcome":"resolved","total_tokens":4641606,"duration_seconds":495},{"issue":40,"iteration":6,"outcome":"resolved","total_tokens":8233860,"duration_seconds":841},{"issue":41,"iteration":2,"outcome":"resolved","total_tokens":22902161,"duration_seconds":1712},{"issue":42,"iteration":7,"outcome":"resolved","total_tokens":10373012,"duration_seconds":1045},{"issue":43,"iteration":9,"outcome":"resolved","total_tokens":5110079,"duration_seconds":536},{"issue":45,"iteration":3,"outcome":"resolved","total_tokens":7068994,"duration_seconds":819},{"issue":46,"iteration":4,"outcome":"resolved","total_tokens":11457045,"duration_seconds":1315},{"issue":47,"iteration":5,"outcome":"resolved","total_tokens":13165261,"duration_seconds":1310},{"issue":48,"iteration":8,"outcome":"resolved","total_tokens":5370079,"duration_seconds":758},{"issue":49,"iteration":10,"outcome":"resolved","total_tokens":27066054,"duration_seconds":1827},{"issue":50,"iteration":11,"outcome":"resolved","total_tokens":5980798,"duration_seconds":650},{"issue":52,"iteration":1,"outcome":"resolved","total_tokens":10455411,"duration_seconds":1084},{"issue":53,"iteration":2,"outcome":"resolved","total_tokens":21657511,"duration_seconds":2324},{"issue":54,"iteration":5,"outcome":"resolved","total_tokens":9127511,"duration_seconds":1435},{"issue":55,"iteration":4,"outcome":"resolved","total_tokens":10295177,"duration_seconds":1415},{"issue":56,"iteration":6,"outcome":"resolved","total_tokens":62647507,"duration_seconds":6699},{"issue":57,"iteration":3,"outcome":"resolved","total_tokens":4217118,"duration_seconds":542},{"issue":59,"iteration":9,"outcome":"resolved","total_tokens":10381094,"duration_seconds":1030},{"issue":61,"iteration":7,"outcome":"resolved","total_tokens":4689233,"duration_seconds":1044},{"issue":62,"iteration":8,"outcome":"resolved","total_tokens":15922613,"duration_seconds":1967},{"issue":63,"iteration":10,"outcome":"resolved","total_tokens":28524133,"duration_seconds":2624},{"issue":64,"iteration":11,"outcome":"resolved","total_tokens":6720069,"duration_seconds":1183},{"issue":65,"iteration":1,"outcome":"resolved","total_tokens":23032796,"duration_seconds":1898},{"issue":66,"iteration":1,"outcome":"resolved","total_tokens":16583750,"duration_seconds":1627},{"issue":67,"iteration":2,"outcome":"incomplete","total_tokens":1509002,"duration_seconds":0},{"issue":68,"iteration":2,"outcome":"resolved","total_tokens":6938483,"duration_seconds":1055},{"issue":70,"iteration":3,"outcome":"resolved","total_tokens":9524797,"duration_seconds":1106},{"issue":71,"iteration":4,"outcome":"resolved","total_tokens":19190041,"duration_seconds":2079},{"issue":72,"iteration":1,"outcome":"resolved","total_tokens":13876866,"duration_seconds":2600},{"issue":73,"iteration":4,"outcome":"resolved","total_tokens":13267019,"duration_seconds":1529},{"issue":74,"iteration":5,"outcome":"resolved","total_tokens":15935606,"duration_seconds":1369},{"issue":75,"iteration":2,"outcome":"resolved","total_tokens":10486781,"duration_seconds":1299},{"issue":76,"iteration":3,"outcome":"resolved","total_tokens":3933471,"duration_seconds":862},{"issue":77,"iteration":6,"outcome":"resolved","total_tokens":12826168,"duration_seconds":1177},{"issue":78,"iteration":7,"outcome":"resolved","total_tokens":13128440,"duration_seconds":1989},{"issue":79,"iteration":8,"outcome":"resolved","total_tokens":8232295,"duration_seconds":1011},{"issue":80,"iteration":9,"outcome":"resolved","total_tokens":4677927,"duration_seconds":906},{"issue":81,"iteration":1,"outcome":"incomplete","total_tokens":18425776,"duration_seconds":0},{"issue":81,"iteration":1,"outcome":"resolved","total_tokens":1329226,"duration_seconds":1553},{"issue":82,"iteration":1,"outcome":"resolved","total_tokens":5291984,"duration_seconds":750},{"issue":83,"iteration":2,"outcome":"ready-for-human","total_tokens":6931509,"duration_seconds":697},{"issue":84,"iteration":3,"outcome":"resolved","total_tokens":12385554,"duration_seconds":1349},{"issue":85,"iteration":4,"outcome":"resolved","total_tokens":27292412,"duration_seconds":3164},{"issue":86,"iteration":6,"outcome":"resolved","total_tokens":20961951,"duration_seconds":2139},{"issue":87,"iteration":1,"outcome":"resolved","total_tokens":965956,"duration_seconds":1246},{"issue":87,"iteration":7,"outcome":"incomplete","total_tokens":8862301,"duration_seconds":0},{"issue":88,"iteration":1,"outcome":"resolved","total_tokens":5693729,"duration_seconds":809},{"issue":88,"iteration":5,"outcome":"ready-for-human","total_tokens":5137480,"duration_seconds":842},{"issue":89,"iteration":1,"outcome":"resolved","total_tokens":12609227,"duration_seconds":1496},{"issue":90,"iteration":2,"outcome":"resolved","total_tokens":12813136,"duration_seconds":1187},{"issue":91,"iteration":3,"outcome":"resolved","total_tokens":19885814,"duration_seconds":1747},{"issue":94,"iteration":1,"outcome":"resolved","total_tokens":20274557,"duration_seconds":2528},{"issue":104,"iteration":1,"outcome":"resolved","total_tokens":11953808,"duration_seconds":1788},{"issue":106,"iteration":2,"outcome":"resolved","total_tokens":16030039,"duration_seconds":1359},{"issue":107,"iteration":3,"outcome":"resolved","total_tokens":7261004,"duration_seconds":1291},{"issue":108,"iteration":4,"outcome":"resolved","total_tokens":12773867,"duration_seconds":1845},{"issue":109,"iteration":5,"outcome":"resolved","total_tokens":19530143,"duration_seconds":2163},{"issue":110,"iteration":6,"outcome":"ready-for-human","total_tokens":31694582,"duration_seconds":3662},{"issue":110,"iteration":8,"outcome":"resolved","total_tokens":22763315,"duration_seconds":2118},{"issue":111,"iteration":9,"outcome":"resolved","total_tokens":8239851,"duration_seconds":1802},{"issue":113,"iteration":1,"outcome":"resolved","total_tokens":36903371,"duration_seconds":2818},{"issue":113,"iteration":10,"outcome":"ready-for-human","total_tokens":30563815,"duration_seconds":3360},{"issue":114,"iteration":2,"outcome":"incomplete","total_tokens":127663,"duration_seconds":0},{"issue":114,"iteration":11,"outcome":"incomplete","total_tokens":684065,"duration_seconds":0},{"issue":116,"iteration":7,"outcome":"resolved","total_tokens":9108173,"duration_seconds":1147},{"issue":123,"iteration":2,"outcome":"resolved","total_tokens":16823921,"duration_seconds":2157},{"issue":124,"iteration":3,"outcome":"resolved","total_tokens":15902842,"duration_seconds":2172},{"issue":131,"iteration":1,"outcome":"resolved","total_tokens":21371573,"duration_seconds":2327},{"issue":135,"iteration":2,"outcome":"resolved","total_tokens":19492870,"duration_seconds":1740},{"issue":136,"iteration":1,"outcome":"resolved","total_tokens":22429457,"duration_seconds":2203},{"issue":139,"iteration":3,"outcome":"resolved","total_tokens":23900355,"duration_seconds":2979},{"issue":140,"iteration":4,"outcome":"ready-for-human","total_tokens":31194398,"duration_seconds":2709},{"issue":142,"iteration":7,"outcome":"resolved","total_tokens":23721220,"duration_seconds":2290},{"issue":143,"iteration":8,"outcome":"resolved","total_tokens":23162289,"duration_seconds":2122},{"issue":145,"iteration":5,"outcome":"resolved","total_tokens":8242506,"duration_seconds":1758},{"issue":146,"iteration":6,"outcome":"resolved","total_tokens":6065999,"duration_seconds":1345},{"issue":157,"iteration":1,"outcome":"resolved","total_tokens":10857676,"duration_seconds":2113},{"issue":158,"iteration":4,"outcome":"resolved","total_tokens":9899861,"duration_seconds":2449},{"issue":159,"iteration":2,"outcome":"resolved","total_tokens":10559716,"duration_seconds":2039},{"issue":160,"iteration":3,"outcome":"resolved","total_tokens":5680260,"duration_seconds":1774},{"issue":161,"iteration":5,"outcome":"resolved","total_tokens":10024893,"duration_seconds":2439},{"issue":162,"iteration":6,"outcome":"resolved","total_tokens":8459011,"duration_seconds":1706},{"issue":163,"iteration":7,"outcome":"resolved","total_tokens":13700108,"duration_seconds":2009},{"issue":165,"iteration":1,"outcome":"ready-for-human","total_tokens":16529428,"duration_seconds":3394},{"issue":172,"iteration":2,"outcome":"ready-for-human","total_tokens":13628155,"duration_seconds":1598},{"issue":173,"iteration":3,"outcome":"resolved","total_tokens":9459013,"duration_seconds":2094},{"issue":175,"iteration":6,"outcome":"resolved","total_tokens":7733983,"duration_seconds":2023},{"issue":180,"iteration":1,"outcome":"incomplete","total_tokens":11031162,"duration_seconds":1923},{"issue":180,"iteration":3,"outcome":"ready-for-human","total_tokens":5741866,"duration_seconds":654},{"issue":181,"iteration":2,"outcome":"incomplete","total_tokens":14535610,"duration_seconds":2695},{"issue":182,"iteration":4,"outcome":"incomplete","total_tokens":6200785,"duration_seconds":1413},{"issue":183,"iteration":5,"outcome":"incomplete","total_tokens":16133176,"duration_seconds":2738},{"issue":184,"iteration":7,"outcome":"incomplete","total_tokens":3250585,"duration_seconds":1102}]};
 
   const C = {
-    bg2: '#060E0A', bg3: '#081A12', stroke: '#215C40',
-    mint: '#73FFB8', muted: '#AAB8B0', blue: '#0A84FF', text: '#F5F7F3'
+    bg2: '#F2F6E8', bg3: '#E0EDD6', stroke: '#75A887',
+    mint: '#0D6B40', muted: '#526457', blue: '#0A4FAD', text: '#152118'
   };
 
   function outcomeColor(o) {
@@ -1977,6 +1993,7 @@
   }
 
   function fmtTok(n) {
+    if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
     if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
     if (n >= 1e3) return Math.round(n / 1e3) + 'K';
     return String(n);
