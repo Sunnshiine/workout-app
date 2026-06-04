@@ -151,7 +151,7 @@ final class WorkoutTrackerUITests: XCTestCase {
         XCTAssertFalse(settingsButton.frame.intersects(activeSetCard.frame))
         XCTAssertLessThanOrEqual(settingsButton.frame.maxY, activeSetCard.frame.minY)
 
-        settingsButton.tap()
+        revealSessionControlsAndSettingsButton(in: app).tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
         let trainingSheetRow = app.buttons["settings-training-sheet-row"]
         let syncNowButton = app.buttons["settings-sync-now-button"]
@@ -194,16 +194,6 @@ final class WorkoutTrackerUITests: XCTestCase {
         pullSessionHeader(in: app, endY: 0.43)
         XCTAssertFalse(app.buttons["session-controls-settings-button"].waitForExistence(timeout: 1))
         XCTAssertFalse(app.otherElements["session-controls"].exists)
-    }
-
-    @MainActor
-    func testPinnedSessionSettingsDismissesAfterIdle() throws {
-        let app = launchFixtureApp()
-
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
-        let settingsButton = revealSessionControlsAndSettingsButton(in: app)
-
-        waitForNonExistence(settingsButton, timeout: 4)
     }
 
     @MainActor

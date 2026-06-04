@@ -406,7 +406,8 @@ extension SessionView {
             .onChanged { value in
                 updateSessionSettingsOverpullDrag(translationHeight: value.translation.height)
             }
-            .onEnded { _ in
+            .onEnded { value in
+                updateSessionSettingsOverpullDrag(translationHeight: value.translation.height)
                 finishSessionSettingsOverpullDrag()
             }
     }
