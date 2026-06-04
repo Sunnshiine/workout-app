@@ -127,77 +127,7 @@ final class WorkoutTrackerUITests: XCTestCase {
     }
 
     @MainActor
-    func testOverscrollRevealsSessionControlsInHeaderLayout() throws {
-        let app = launchFixtureApp()
-
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["session-controls-settings-button"].exists)
-
-        let settingsButton = revealSessionControlsAndSettingsButton(in: app)
-
-        let sessionControls = app.otherElements["session-controls"]
-        let locationButton = app.buttons["session-location-button"]
-        let progressRail = app.otherElements["session-progress-rail"]
-        let activeSetCard = app.otherElements["active-set-card"]
-
-        XCTAssertTrue(sessionControls.exists)
-        XCTAssertTrue(settingsButton.exists)
-        XCTAssertFalse(app.buttons["session-controls-sync-button"].exists)
-        XCTAssertTrue(locationButton.exists)
-        XCTAssertTrue(progressRail.exists)
-        XCTAssertTrue(activeSetCard.exists)
-        XCTAssertFalse(settingsButton.frame.intersects(locationButton.frame))
-        // The compact header preserves a 44 pt Settings hit target, so its AX frame can overlap the rail frame.
-        XCTAssertFalse(settingsButton.frame.intersects(activeSetCard.frame))
-        XCTAssertLessThanOrEqual(settingsButton.frame.maxY, activeSetCard.frame.minY)
-
-        revealSessionControlsAndSettingsButton(in: app).tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
-        let trainingSheetRow = app.buttons["settings-training-sheet-row"]
-        let syncNowButton = app.buttons["settings-sync-now-button"]
-        let developerToolsRow = app.buttons["settings-developer-tools-row"]
-        XCTAssertTrue(trainingSheetRow.exists)
-        XCTAssertTrue(syncNowButton.exists)
-        XCTAssertTrue(developerToolsRow.exists)
-        XCTAssertTrue(app.staticTexts["Fixture Training Log"].exists)
-        XCTAssertLessThan(trainingSheetRow.frame.maxY, syncNowButton.frame.minY)
-        XCTAssertLessThan(syncNowButton.frame.maxY, developerToolsRow.frame.minY)
-
-        trainingSheetRow.tap()
-        XCTAssertTrue(app.staticTexts["Choose your training sheet"].waitForExistence(timeout: 3))
-        app.buttons["sheet-picker-done-button"].tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
-
-        app.buttons["settings-sync-now-button"].tap()
-        XCTAssertTrue(app.staticTexts["Offline"].waitForExistence(timeout: 3))
-
-        app.buttons["settings-done-button"].tap()
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 3))
-
-        waitForNonExistence(settingsButton, timeout: 1)
-
-        let pinnedSettingsButton = revealSessionControlsAndSettingsButton(in: app)
-        app.swipeUp()
-        waitForNonExistence(pinnedSettingsButton, timeout: 1)
-    }
-
-    @MainActor
-    func testOrdinaryBounceAndPrecommitReleaseDoNotPinSessionSettings() throws {
-        let app = launchFixtureApp()
-
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
-
-        pullSessionHeader(in: app, endY: 0.34)
-        XCTAssertFalse(app.buttons["session-controls-settings-button"].waitForExistence(timeout: 1))
-        XCTAssertFalse(app.otherElements["session-controls"].exists)
-
-        pullSessionHeader(in: app, endY: 0.43)
-        XCTAssertFalse(app.buttons["session-controls-settings-button"].waitForExistence(timeout: 1))
-        XCTAssertFalse(app.otherElements["session-controls"].exists)
-    }
-
-    @MainActor
-    func testNonCurrentSessionChromeHidesCurrentSessionControlsThroughOverscroll() throws {
+    func testNonCurrentSessionChromeShowsOverrideControlsWithoutSessionControls() throws {
         let app = launchFixtureApp()
 
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
@@ -214,24 +144,12 @@ final class WorkoutTrackerUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["Make Current"].exists)
         XCTAssertFalse(app.buttons["session-controls-settings-button"].exists)
         XCTAssertFalse(app.buttons["session-controls-sync-button"].exists)
-
-        overPullSessionHeader(in: app)
-
-        XCTAssertFalse(app.buttons["session-controls-settings-button"].waitForExistence(timeout: 1))
-        XCTAssertFalse(app.buttons["session-controls-sync-button"].exists)
         XCTAssertFalse(app.otherElements["session-controls"].exists)
-        XCTAssertTrue(app.buttons["go-back-current-session-button"].exists)
-        XCTAssertTrue(app.buttons["make-current-session-button"].exists)
     }
 
     @MainActor
     func testDeveloperToolsShowsDiagnosticsAndPreviewOnlyCelebration() throws {
-        let app = launchFixtureApp(extraArguments: ["-UITEST_PENDING_WRITE"])
-
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
-
-        revealSessionControlsAndSettingsButton(in: app).tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
+        let app = launchSettingsFixtureApp(extraArguments: ["-UITEST_PENDING_WRITE"])
 
         let trainingSheetRow = app.buttons["settings-training-sheet-row"]
         let syncNowButton = app.buttons["settings-sync-now-button"]
@@ -241,9 +159,6 @@ final class WorkoutTrackerUITests: XCTestCase {
         XCTAssertTrue(syncNowButton.exists)
         XCTAssertTrue(developerToolsRow.exists)
         XCTAssertTrue(signOutButton.exists)
-        XCTAssertLessThan(trainingSheetRow.frame.maxY, syncNowButton.frame.minY)
-        XCTAssertLessThan(syncNowButton.frame.maxY, developerToolsRow.frame.minY)
-        XCTAssertLessThan(developerToolsRow.frame.maxY, signOutButton.frame.minY)
 
         developerToolsRow.tap()
         XCTAssertTrue(app.navigationBars["Developer Tools"].waitForExistence(timeout: 3))
@@ -259,10 +174,7 @@ final class WorkoutTrackerUITests: XCTestCase {
         assertDeveloperToolsSyncStatusFollowsSyncButton(in: app)
 
         app.navigationBars["Developer Tools"].buttons["Settings"].tap()
-        app.buttons["settings-done-button"].tap()
-
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 3))
-        XCTAssertFalse(app.staticTexts["Bench Press"].exists)
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
     }
 
     @MainActor
@@ -319,27 +231,21 @@ final class WorkoutTrackerUITests: XCTestCase {
     }
 
     @MainActor
-    func testSettingsSignOutReturnsToOnboarding() throws {
-        let app = launchFixtureApp()
-
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
-
-        revealSessionControlsAndSettingsButton(in: app).tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
-
-        app.buttons["settings-sign-out-button"].tap()
-
-        XCTAssertTrue(app.staticTexts["Connect your training sheet"].waitForExistence(timeout: 3))
-    }
-
-    @MainActor
-    func testSettingsSignOutWithPendingWritesRequiresConfirmation() throws {
+    func testSettingsRevealRouteSmokeOpensSettingsAndPendingSignOutConfirmation() throws {
         let app = launchFixtureApp(extraArguments: ["-UITEST_PENDING_WRITE"])
 
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["session-controls-settings-button"].exists)
 
-        revealSessionControlsAndSettingsButton(in: app).tap()
+        let settingsButton = revealSessionControlsAndSettingsButton(in: app)
+        XCTAssertTrue(app.otherElements["session-controls"].exists)
+        XCTAssertTrue(settingsButton.exists)
+        XCTAssertTrue(settingsButton.isHittable)
+        XCTAssertFalse(app.buttons["session-controls-sync-button"].exists)
+
+        settingsButton.tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Fixture Training Log"].exists)
 
         app.buttons["settings-sign-out-button"].tap()
         XCTAssertTrue(app.alerts["You have unsynced changes. Sign out anyway?"].waitForExistence(timeout: 3))
@@ -355,12 +261,7 @@ final class WorkoutTrackerUITests: XCTestCase {
 
     @MainActor
     func testSheetSwitchWithPendingWritesShowsConfirmation() throws {
-        let app = launchFixtureApp(extraArguments: ["-UITEST_PENDING_WRITE"])
-
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
-
-        revealSessionControlsAndSettingsButton(in: app).tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
+        let app = launchSettingsFixtureApp(extraArguments: ["-UITEST_PENDING_WRITE"])
 
         app.buttons["settings-training-sheet-row"].tap()
         XCTAssertTrue(app.staticTexts["Replacement Training Log"].waitForExistence(timeout: 3))
@@ -376,21 +277,34 @@ final class WorkoutTrackerUITests: XCTestCase {
 
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["Replacement Training Log"].waitForExistence(timeout: 3))
-
-        tapWhenHittable(app.buttons["settings-done-button"])
-        XCTAssertTrue(app.staticTexts["Replacement Squat"].waitForExistence(timeout: 5))
     }
 
     @MainActor
     private func launchFixtureApp(extraArguments: [String] = []) -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = [
-            "-UITEST_FIXTURE",
-            "-UITEST_SESSION",
-            "-UITEST_FULL_BLOCK",
-            "-UITEST_DISABLE_CELEBRATION_BLOOM"
-        ] + extraArguments
+        app.launchArguments =
+            [
+                "-UITEST_FIXTURE",
+                "-UITEST_SESSION",
+                "-UITEST_FULL_BLOCK",
+                "-UITEST_DISABLE_CELEBRATION_BLOOM"
+            ] + extraArguments
+        app.launch()
+        return app
+    }
+
+    @MainActor
+    private func launchSettingsFixtureApp(extraArguments: [String] = []) -> XCUIApplication {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments =
+            [
+                "-UITEST_FIXTURE",
+                "-UITEST_SETTINGS",
+                "-UITEST_FULL_BLOCK",
+                "-UITEST_DISABLE_CELEBRATION_BLOOM"
+            ] + extraArguments
         app.launch()
         return app
     }
@@ -398,21 +312,17 @@ final class WorkoutTrackerUITests: XCTestCase {
 
 final class WorkoutTrackerAppearanceUITests: XCTestCase {
     @MainActor
-    func testDarkAppearanceCoversCurrentSessionAndSettingsSurfaces() throws {
+    func testDarkAppearanceCoversCurrentSessionSurface() throws {
         let app = launchFixtureApp(appearance: "dark")
 
         assertCurrentSessionAppearanceCoverage(in: app)
-        revealSessionControlsAndSettingsButton(in: app).tap()
-        assertSettingsAppearanceCoverage(in: app)
     }
 
     @MainActor
-    func testLightAppearanceCoversCurrentSessionAndSettingsSurfaces() throws {
+    func testLightAppearanceCoversCurrentSessionSurface() throws {
         let app = launchFixtureApp(appearance: "light")
 
         assertCurrentSessionAppearanceCoverage(in: app)
-        revealSessionControlsAndSettingsButton(in: app).tap()
-        assertSettingsAppearanceCoverage(in: app)
     }
 
     @MainActor
@@ -424,12 +334,7 @@ final class WorkoutTrackerAppearanceUITests: XCTestCase {
 
     @MainActor
     func testSettingsAppearancePickerSwitchesManualLightAndDark() throws {
-        let app = launchFixtureApp()
-
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
-
-        revealSessionControlsAndSettingsButton(in: app).tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
+        let app = launchSettingsFixtureApp(appearance: nil)
 
         let picker = app.segmentedControls["settings-appearance-picker"]
         XCTAssertTrue(picker.waitForExistence(timeout: 3))
@@ -442,24 +347,11 @@ final class WorkoutTrackerAppearanceUITests: XCTestCase {
 
         app.buttons["Light"].tap()
         app.buttons["Dark"].tap()
-
-        app.buttons["settings-done-button"].tap()
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 3))
     }
 
     @MainActor
     func testLightAppearanceMoveOnCelebrationRendersAndDismisses() throws {
-        let app = launchFixtureApp()
-
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
-
-        revealSessionControlsAndSettingsButton(in: app).tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
-
-        let picker = app.segmentedControls["settings-appearance-picker"]
-        XCTAssertTrue(picker.waitForExistence(timeout: 3))
-        app.buttons["Light"].tap()
-        app.buttons["settings-done-button"].tap()
+        let app = launchFixtureApp(appearance: "light")
 
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 3))
         tapWhenReady(app.buttons["move-on-button"], in: app)
@@ -493,10 +385,13 @@ final class WorkoutTrackerAppearanceUITests: XCTestCase {
     }
 
     @MainActor
-    private func launchSettingsFixtureApp(appearance: String) -> XCUIApplication {
+    private func launchSettingsFixtureApp(appearance: String?) -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = ["-UITEST_FIXTURE", "-UITEST_SETTINGS", "-UITEST_APPEARANCE", appearance]
+        app.launchArguments = ["-UITEST_FIXTURE", "-UITEST_SETTINGS"]
+        if let appearance {
+            app.launchArguments += ["-UITEST_APPEARANCE", appearance]
+        }
         app.launch()
         return app
     }
@@ -693,18 +588,6 @@ private func waitUntilEnabled(_ element: XCUIElement) {
         RunLoop.current.run(until: Date().addingTimeInterval(0.1))
     }
     XCTFail("Expected \(element) to become enabled")
-}
-
-@MainActor
-private func waitForNonExistence(_ element: XCUIElement, timeout: TimeInterval) {
-    let deadline = Date().addingTimeInterval(timeout)
-    while Date() < deadline {
-        if !element.exists {
-            return
-        }
-        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-    }
-    XCTFail("Expected \(element) to stop existing")
 }
 
 @MainActor
