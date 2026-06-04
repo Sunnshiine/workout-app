@@ -17,6 +17,8 @@ struct SessionView: View {
     #endif
     @State private var sessionSettingsOverpullState = SessionSettingsOverpullState.hidden
     @State private var sessionSettingsOverpullDismissalID = 0
+    @State private var sessionSettingsTopContentOffset: CGFloat = 0
+    @State private var sessionSettingsDragStartTopContentOffset: CGFloat?
     @State private var isSettingsPresented = false
 
     init(liveActivityAdapter: LiveActivityProductionAdapter = LiveActivityProductionAdapter()) {
@@ -320,6 +322,7 @@ struct SessionView: View {
 
 extension SessionView {
     private func updateSessionSettingsOverpull(topContentOffset: CGFloat) {
+        sessionSettingsTopContentOffset = topContentOffset
         guard canRevealSessionControls else {
             if sessionSettingsOverpullState != .hidden {
                 sessionSettingsOverpullState = .hidden
@@ -327,9 +330,29 @@ extension SessionView {
             return
         }
 
+        guard sessionSettingsDragStartTopContentOffset == nil else { return }
+
         applySessionSettingsOverpullState(
             sessionSettingsOverpullState.tracking(topContentOffset: topContentOffset)
         )
+    }
+
+    private func updateSessionSettingsOverpullDrag(translationHeight: CGFloat) {
+        guard canRevealSessionControls, translationHeight > 0 else { return }
+        let startTopContentOffset = sessionSettingsDragStartTopContentOffset ?? sessionSettingsTopContentOffset
+        sessionSettingsDragStartTopContentOffset = startTopContentOffset
+        applySessionSettingsOverpullState(
+            sessionSettingsOverpullState.tracking(
+                topContentOffset: SessionSettingsOverpullState.overpullDistance(
+                    startTopContentOffset: startTopContentOffset,
+                    translationHeight: translationHeight * SessionSettingsHeaderDrag.overpullDamping
+                )
+            )
+        )
+    }
+
+    private func finishSessionSettingsOverpullDrag() {
+        sessionSettingsDragStartTopContentOffset = nil
     }
 
     private func applySessionSettingsOverpullState(_ state: SessionSettingsOverpullState) {
@@ -363,6 +386,17 @@ extension SessionView {
         .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
         .padding(.horizontal)
         .padding(.top, 8)
+        .simultaneousGesture(sessionSettingsOverpullGesture)
+    }
+
+    private var sessionSettingsOverpullGesture: some Gesture {
+        DragGesture(minimumDistance: 12)
+            .onChanged { value in
+                updateSessionSettingsOverpullDrag(translationHeight: value.translation.height)
+            }
+            .onEnded { _ in
+                finishSessionSettingsOverpullDrag()
+            }
     }
 
     private func topContentOffset(_ geometry: ScrollGeometry) -> CGFloat {
@@ -412,6 +446,10 @@ extension SessionView {
     fileprivate func warningHaptic() {
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
     }
+}
+
+private enum SessionSettingsHeaderDrag {
+    static let overpullDamping: CGFloat = 0.4
 }
 
 private struct CurrentSessionOverrideControls: View {

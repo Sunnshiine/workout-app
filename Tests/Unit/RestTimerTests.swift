@@ -144,6 +144,23 @@ private final class MockRestNotificationScheduler: RestNotificationScheduling {
 }
 
 @MainActor
+@Test func restTimerExpireIfNeededClearsOnlyElapsedRest() {
+    let clock = ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 1_000))
+    let timer = RestTimer(clock: clock)
+
+    timer.start(duration: 120, origin: ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    timer.expireIfNeeded(at: Date(timeIntervalSinceReferenceDate: 1_119))
+
+    #expect(timer.deadline == Date(timeIntervalSinceReferenceDate: 1_120))
+
+    timer.expireIfNeeded(at: Date(timeIntervalSinceReferenceDate: 1_120))
+
+    #expect(timer.deadline == nil)
+    #expect(timer.remaining == 0)
+    #expect(!timer.isRunning)
+}
+
+@MainActor
 @Test func restTimerRestartReplacesDeadlineOriginAndAdvancesRestartRevision() {
     let clock = ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 1_000))
     let timer = RestTimer(clock: clock)

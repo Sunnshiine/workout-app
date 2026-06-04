@@ -3,6 +3,7 @@ import UIKit
 
 struct MoveOnCelebrationView: View {
     let onDismiss: () -> Void
+    private let disablesBloom: Bool
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var presentation: MoveOnCelebrationPresentation
@@ -30,8 +31,14 @@ struct MoveOnCelebrationView: View {
     private static let disableBloomArgument = "-UITEST_DISABLE_CELEBRATION_BLOOM"
     private static let ink = Color(red: 0.08, green: 0.22, blue: 0.14)
 
-    init(session: Session, onDismiss: @escaping () -> Void) {
-        _presentation = State(initialValue: MoveOnCelebrationPresentation(session: session))
+    init(
+        session: Session,
+        disablesBloom: Bool = Self.disablesBloomForUITests,
+        quoteText: String? = nil,
+        onDismiss: @escaping () -> Void
+    ) {
+        _presentation = State(initialValue: MoveOnCelebrationPresentation(session: session, quoteText: quoteText))
+        self.disablesBloom = disablesBloom
         self.onDismiss = onDismiss
     }
 
@@ -98,7 +105,7 @@ struct MoveOnCelebrationView: View {
     }
 
     private var visualTreatment: MoveOnCelebrationVisualTreatment {
-        presentation.visualTreatment(reduceMotion: reduceMotion || Self.disablesBloomForUITests)
+        presentation.visualTreatment(reduceMotion: reduceMotion || disablesBloom)
     }
 
     private static var disablesBloomForUITests: Bool {

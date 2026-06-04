@@ -73,9 +73,11 @@ Each iteration:
             `ui-screenshot-reviewer`; if it changes production Swift/project files, Ralph
             runs SWIFT again before accepting the issue.
 7. GATE     The loop independently runs `swift test`, Xcode unit/component tests,
-            Xcode UI integration tests, and `swiftlint lint --quiet`.
+            Visual Regression tests when Views/Theme changed, Xcode UI integration tests,
+            and `swiftlint lint --quiet`.
 8. UI GATE  If the change touched Views/Theme, the loop confirms the UI phase produced a
-            reviewed screenshot artifact.
+            reviewed screenshot artifact. The loop also enforces the Visual Baseline
+            authority policy for added, modified, and deleted baseline PNGs.
 9. SHIP     Merge the issue branch into the resolved target. Main-target issues fast-forward
             local main and push origin/main. Branch-target issues push the gated merge commit to
             origin/<target-branch>, leave the PR open, and close only the child issue.
@@ -180,6 +182,10 @@ the loop.
   `WorkoutTracker/Theme.swift` changes, it must capture a UITEST fixture screenshot with
   `ralph/snapshot.sh` and invoke the configured `ui-screenshot-reviewer` custom agent as a separate
   subagent.
+- If Visual Baselines under `Tests/Visual/__Snapshots__` are modified, the UI verification phase
+  must create an old/new/diff image bundle and invoke `ui-screenshot-reviewer` in baseline-diff mode.
+  The reviewer answers whether every changed pixel is explained by the issue acceptance criteria.
+  Added baselines need no baseline-diff review; deleted baselines must block for a human.
 - If the UI verification phase changes production Swift or project files, Ralph runs a fresh
   `swift-review-after-ui` phase before integration.
 - Codex CLI supports subagent workflows and custom agents; Ralph expects Codex to spawn the
@@ -220,6 +226,34 @@ The UI screenshot review only judges what a **static image** can show (layout, m
 elements, blank screens). It deliberately does **not** fail issues for animations or interaction —
 those ride on the build/test gate and Swift review.
 
+## Visual Regression gate and baseline authority
+
+Ralph keeps the screenshot review and the Visual Regression gate as separate checks. The screenshot
+review catches obvious static rendering failures in one fixture route. The Visual Regression gate
+compares hosted SwiftUI renders against committed Visual Baselines under
+`Tests/Visual/__Snapshots__`.
+
+During the final gate, Ralph runs `WorkoutTrackerSnapshotTests` only when the issue changed
+`WorkoutTracker/Views/` or `WorkoutTracker/Theme.swift`. Visual tests run with recording disabled,
+so a pixel drift fails instead of silently updating a baseline. The normal autonomous fix path is to
+change code until the Visual diff returns to zero.
+
+Ralph also checks baseline file changes with `git diff --name-status HEAD -- Tests/Visual/__Snapshots__`
+on the integrated tree:
+
+- `A` added baseline: allowed. This represents a net-new screen or Visual test; the normal UI
+  reviewer still judges the new UI surface where applicable.
+- `M` modified baseline: allowed only when the UI phase saved a matching baseline-diff review under
+  `ralph/.artifacts/visual-baseline-reviews/` and the final line is exactly
+  `PASS: no blocking static visual findings.`
+- `D` deleted baseline: blocked and flagged for human review.
+- Any other status, including rename/copy, is blocked and flagged for human review.
+
+The baseline-diff bundle contains the old baseline from `ISSUE_BASE_REF`, the new baseline from the
+issue worktree, and a generated old/new/diff PNG from `ralph/visual-baseline-diff.swift`. The
+`ui-screenshot-reviewer` reviews that bundle against the issue acceptance criteria and answers
+whether every changed pixel is explained by the issue.
+
 ---
 
 ## Output & logs
@@ -246,8 +280,11 @@ Gate failures are reported by layer:
 
 - Package unit/component tests: `swift test`.
 - Xcode unit/component tests: `WorkoutTrackerTests`.
+- Visual Regression tests: `WorkoutTrackerSnapshotTests` when Views/Theme changed.
 - UI integration tests: `WorkoutTrackerUITests`.
 - Lint: `swiftlint lint --quiet`.
+- Visual Baseline authority policy: added baselines allowed, modified baselines require a saved
+  PASS review, deleted baselines block.
 - UI screenshot artifact check: only when `WorkoutTracker/Views/` or `WorkoutTracker/Theme.swift`
   changed. The screenshot review itself happens inside the UI verification phase via the
   `ui-screenshot-reviewer` subagent.

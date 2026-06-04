@@ -3,8 +3,8 @@
 ## AI-Generated Code Gate
 
 The acceptance gate prioritizes behavior correctness first. Simulator user-flow tests protect the
-small number of workflows where app wiring matters, and static screenshot checks protect obvious
-View and Theme regressions.
+small number of workflows where app wiring matters. Visual Regression tests protect known-good
+pixels, while static screenshot checks still protect obvious View and Theme regressions.
 
 Layer duties:
 
@@ -12,13 +12,27 @@ Layer duties:
 - Component tests prove SwiftUI component state contracts at unit-test speed, without rendering
   pixels.
 - `xcodebuild test` proves the app target compiles and simulator-hosted tests run.
+- Visual Regression tests prove rendered screens match committed Visual Baselines.
 - UI tests prove critical user flows through real controls.
 - Ralph screenshots prove static rendering did not obviously break; they are not behavior tests.
 
 Component tests are not full app launches. They do not touch Google auth, the network, or complete
 navigation flows. They cover view-facing labels, accessibility strings, enabled states, form state,
-and progression state. Snapshot testing is intentionally deferred until a specific visual regression
-problem justifies the maintenance cost.
+and progression state. Visual Regression tests are the separate pixel layer; do not use component
+tests to assert screenshots.
+
+Visual vocabulary:
+
+- **Visual Regression test**: a hosted unit test under `Tests/Visual` that renders a deterministic
+  SwiftUI view and compares it to a committed reference image.
+- **Visual Baseline**: the committed PNG under `Tests/Visual/__Snapshots__` that defines the
+  known-good pixels for one Visual Regression test.
+
+Visual tests use `swift-snapshot-testing` as a test-only dependency. Recording is disabled by
+default, so a missing or changed Visual Baseline fails instead of silently re-recording. New or
+intentional baseline changes must be recorded deliberately and reviewed as changed artifacts.
+The shared Visual trait configuration is pinned to iPhone 17 Pro on the iOS 26.3.1 runtime, light
+mode, `en_US`, fixed default Dynamic Type, and exact precision (`1.0`).
 
 Initial component-test scope:
 
@@ -35,6 +49,8 @@ Target directory structure:
   existing fast `WorkoutTrackerTests` target.
 - `Tests/Component`: SwiftUI component state-contract tests that still run at unit-test speed.
   Runs in the existing fast `WorkoutTrackerTests` target.
+- `Tests/Visual`: hosted Visual Regression tests plus Visual Baselines. Runs in the
+  `WorkoutTrackerSnapshotTests` target via xcodebuild, not `swift test`.
 - `Tests/UI`: simulator UI integration tests that launch the app and drive real controls.
   Uses a separate Xcode UI-test target.
 
@@ -64,6 +80,8 @@ Per-change test selection:
 - Parser, write-path, progression, persistence, and store changes require unit tests.
 - View-facing labels, enabled states, accessibility text, and active-card state changes require
   component tests.
+- Known visual surface changes require the relevant Visual Regression tests to pass with recording
+  disabled.
 - Navigation, launch state, real control interaction, and cross-store workflows require UI
   integration tests.
 - Pure visual restyling requires Ralph screenshot verification. Component or UI tests are required
@@ -73,8 +91,8 @@ Agent gate policy:
 
 - During implementation, agents should run the narrowest relevant tests for the layer being changed.
 - Before an issue is complete or merged, it must pass the entire automated testing framework:
-  `swift test`, `xcodebuild test` for unit/component tests, `xcodebuild test` for UI integration
-  tests, and `swiftlint lint --quiet`.
+  `swift test`, `xcodebuild test` for unit/component tests, `xcodebuild test` for Visual Regression
+  tests when applicable, `xcodebuild test` for UI integration tests, and `swiftlint lint --quiet`.
 - If View or Theme files changed, Ralph screenshot verification is also part of the final gate.
 - After the UI target exists and is stable, update Ralph's README, implement prompt, and gate script
   so autonomous issues cannot complete without the full framework.
