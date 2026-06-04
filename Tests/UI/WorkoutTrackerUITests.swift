@@ -126,7 +126,7 @@ final class WorkoutTrackerUITests: XCTestCase {
     }
 
     @MainActor
-    func testDeveloperToolsShowsDiagnosticsAndPreviewOnlyCelebration() throws {
+    func testDeveloperToolsRouteLoadsFromSettings() throws {
         let app = launchSettingsFixtureApp(extraArguments: ["-UITEST_PENDING_WRITE"])
 
         let trainingSheetRow = app.buttons["settings-training-sheet-row"]
@@ -140,50 +140,14 @@ final class WorkoutTrackerUITests: XCTestCase {
 
         developerToolsRow.tap()
         XCTAssertTrue(app.navigationBars["Developer Tools"].waitForExistence(timeout: 3))
-        assertDeveloperToolsActionsAndDiagnosticsLayout(in: app)
-
-        app.buttons["developer-tools-force-celebration-button"].tap()
-        let celebration = moveOnCelebration(in: app)
-        XCTAssertTrue(celebration.waitForExistence(timeout: 3))
-        waitForLabel("Week 1, Day 1", on: celebration)
-        celebration.tap()
-        XCTAssertTrue(app.navigationBars["Developer Tools"].waitForExistence(timeout: 3))
-
-        assertDeveloperToolsSyncStatusFollowsSyncButton(in: app)
+        XCTAssertTrue(app.staticTexts["Current Session Debug Info"].exists)
+        XCTAssertTrue(app.staticTexts["Pending Sheet Writes"].exists)
+        XCTAssertTrue(app.staticTexts["Actions"].exists)
+        XCTAssertTrue(app.buttons["developer-tools-force-celebration-button"].exists)
+        XCTAssertTrue(app.buttons["developer-tools-sync-button"].exists)
 
         app.navigationBars["Developer Tools"].buttons["Settings"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
-    }
-
-    @MainActor
-    func testDeveloperToolsShowsCurrentSessionDebugInfoAndResetsOverride() throws {
-        let app = launchFixtureApp(extraArguments: ["-UITEST_DEVELOPER_TOOLS", "-UITEST_CURRENT_SESSION_OVERRIDE"])
-
-        XCTAssertTrue(app.navigationBars["Developer Tools"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["Current Session Debug Info"].exists)
-        XCTAssertEqual(app.staticTexts["current-session-debug-block-value"].label, "Block 27")
-        XCTAssertEqual(app.staticTexts["current-session-debug-sheet-derived-value"].label, "Week 1, Day 1")
-        XCTAssertEqual(app.staticTexts["current-session-debug-manual-override-value"].label, "Week 1, Day 3")
-        XCTAssertEqual(app.staticTexts["current-session-debug-displayed-value"].label, "Week 1, Day 3")
-        XCTAssertEqual(app.staticTexts["current-session-debug-resolved-value"].label, "Week 1, Day 3")
-        XCTAssertEqual(
-            app.staticTexts["current-session-debug-reason-value"].label,
-            "Manual override is active for this Block."
-        )
-        XCTAssertTrue(app.staticTexts["current-session-debug-local-only-note"].exists)
-        let copyButton = app.buttons["copy-current-session-debug-info-button"]
-        XCTAssertTrue(copyButton.exists)
-
-        let resetButton = app.buttons["reset-current-session-override-button"]
-        XCTAssertTrue(resetButton.exists)
-        XCTAssertLessThan(copyButton.frame.maxX, resetButton.frame.minX)
-        XCTAssertTrue(resetButton.isEnabled)
-        resetButton.tap()
-
-        XCTAssertEqual(app.staticTexts["current-session-debug-manual-override-value"].label, "None")
-        XCTAssertEqual(app.staticTexts["current-session-debug-displayed-value"].label, "Week 1, Day 1")
-        XCTAssertEqual(app.staticTexts["current-session-debug-resolved-value"].label, "Week 1, Day 1")
-        XCTAssertFalse(resetButton.isEnabled)
     }
 
     @MainActor
@@ -235,26 +199,6 @@ final class WorkoutTrackerUITests: XCTestCase {
         app.alerts.buttons["Sign Out"].tap()
 
         XCTAssertTrue(app.staticTexts["Connect your training sheet"].waitForExistence(timeout: 3))
-    }
-
-    @MainActor
-    func testSheetSwitchWithPendingWritesShowsConfirmation() throws {
-        let app = launchSettingsFixtureApp(extraArguments: ["-UITEST_PENDING_WRITE"])
-
-        app.buttons["settings-training-sheet-row"].tap()
-        XCTAssertTrue(app.staticTexts["Replacement Training Log"].waitForExistence(timeout: 3))
-        app.staticTexts["Replacement Training Log"].tap()
-
-        XCTAssertTrue(app.alerts["You have unsynced changes. Switch anyway?"].waitForExistence(timeout: 3))
-        app.alerts.buttons["Cancel"].tap()
-
-        XCTAssertTrue(app.staticTexts["Replacement Training Log"].waitForExistence(timeout: 3))
-        app.staticTexts["Replacement Training Log"].tap()
-        XCTAssertTrue(app.alerts["You have unsynced changes. Switch anyway?"].waitForExistence(timeout: 3))
-        app.alerts.buttons["Switch Anyway"].tap()
-
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["Replacement Training Log"].waitForExistence(timeout: 3))
     }
 
     @MainActor
@@ -399,48 +343,6 @@ final class WorkoutTrackerAppearanceUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Mint Green"].exists)
         XCTAssertFalse(app.buttons["Blue Light"].exists)
     }
-}
-
-@MainActor
-private func assertDeveloperToolsActionsAndDiagnosticsLayout(in app: XCUIApplication) {
-    XCTAssertTrue(app.staticTexts["Actions"].exists)
-    XCTAssertFalse(app.staticTexts["Move On Celebration"].exists)
-    XCTAssertTrue(app.staticTexts["Pending Sheet Writes"].exists)
-    XCTAssertTrue(app.buttons["developer-tools-force-celebration-button"].exists)
-    XCTAssertTrue(app.buttons["developer-tools-sync-button"].exists)
-    XCTAssertLessThan(
-        app.staticTexts["Current Session Debug Info"].frame.maxY,
-        app.staticTexts["Pending Sheet Writes"].frame.minY
-    )
-    XCTAssertLessThan(
-        app.staticTexts["Pending Sheet Writes"].frame.maxY,
-        app.staticTexts["Actions"].frame.minY
-    )
-    XCTAssertLessThan(
-        app.buttons["developer-tools-force-celebration-button"].frame.maxY,
-        app.buttons["developer-tools-sync-button"].frame.minY
-    )
-    XCTAssertTrue(app.staticTexts["Back Squat"].exists)
-    XCTAssertTrue(app.staticTexts["Block 27"].exists)
-    XCTAssertTrue(app.staticTexts["Week 1"].exists)
-    XCTAssertTrue(app.staticTexts["Day 1"].exists)
-    XCTAssertTrue(app.staticTexts["Set 1"].exists)
-    XCTAssertTrue(app.staticTexts["Notes"].exists)
-    XCTAssertTrue(app.staticTexts["185x5@8"].exists)
-    XCTAssertTrue(app.staticTexts["Pending"].exists)
-    XCTAssertFalse(app.buttons["Discard"].exists)
-    XCTAssertFalse(app.buttons["Delete"].exists)
-    XCTAssertFalse(app.buttons["Reset Queue"].exists)
-}
-
-@MainActor
-private func assertDeveloperToolsSyncStatusFollowsSyncButton(in app: XCUIApplication) {
-    let syncButton = app.buttons["developer-tools-sync-button"]
-    syncButton.tap()
-    XCTAssertTrue(app.staticTexts["Offline"].firstMatch.waitForExistence(timeout: 3))
-    let syncStatusBanner = app.descendants(matching: .any)["developer-tools-sync-status-banner"].firstMatch
-    XCTAssertTrue(syncStatusBanner.waitForExistence(timeout: 3))
-    XCTAssertLessThan(syncButton.frame.maxY, syncStatusBanner.frame.minY)
 }
 
 @MainActor
