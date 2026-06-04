@@ -72,6 +72,10 @@ OBS="$ART/observations.md"
 mkdir -p "$LOGS"
 export SIM_DEVICE
 
+VISUAL_BASELINE_DIR="Tests/Visual/__Snapshots__"
+VISUAL_BASELINE_REVIEW_DIR="ralph/.artifacts/visual-baseline-reviews"
+UI_REVIEW_PASS_LINE="PASS: no blocking static visual findings."
+
 ts()   { date "+%Y-%m-%d %H:%M:%S"; }
 log()  { echo "[$(ts)] $*"; }
 note() { printf -- "- **%s** — %s\n" "$(ts)" "$*" >> "$ACTIVITY"; }
@@ -322,6 +326,64 @@ production_swift_changed() {
     'WorkoutTracker.xcodeproj/project.pbxproj' | grep -q .
 }
 
+view_or_theme_changed() {
+  local wt="$1" base="$2" tip="${3:-}"
+
+  if [ -n "$tip" ]; then
+    git -C "$wt" diff --name-only "$base" "$tip" -- \
+      'WorkoutTracker/Views/' 'WorkoutTracker/Theme.swift' | grep -q .
+    return "$?"
+  fi
+
+  git -C "$wt" diff --name-only "$base" -- \
+    'WorkoutTracker/Views/' 'WorkoutTracker/Theme.swift' | grep -q .
+}
+
+visual_baseline_review_relpath() {
+  local baseline_path="$1" digest
+
+  digest="$(printf '%s' "$baseline_path" | shasum -a 256 | awk '{print $1}')"
+  printf '%s/%s.md\n' "$VISUAL_BASELINE_REVIEW_DIR" "$digest"
+}
+
+check_visual_baseline_authority() {
+  local issue="$1" iter="$2" diff_wt="$3" review_wt="${4:-$3}"
+  local status path extra review_rel review
+
+  while IFS=$'\t' read -r status path extra; do
+    [ -n "$status" ] || continue
+
+    case "$status" in
+      A)
+        log "gate: added Visual Baseline allowed: $path"
+        ;;
+      M)
+        review_rel="$(visual_baseline_review_relpath "$path")"
+        review="$review_wt/$review_rel"
+        if [ ! -s "$review" ]; then
+          flag_for_human "$issue" "Modified Visual Baseline requires a saved baseline-diff review artifact: $review_rel." gate
+          return 1
+        fi
+        if ! tail -n 1 "$review" | grep -Fxq "$UI_REVIEW_PASS_LINE"; then
+          flag_for_human "$issue" "Modified Visual Baseline review did not end with PASS. Review artifact: $review_rel." gate
+          return 1
+        fi
+        log "gate: modified Visual Baseline approved by review: $path"
+        ;;
+      D)
+        flag_for_human "$issue" "Deleted Visual Baseline is not allowed without human review: $path." gate
+        return 1
+        ;;
+      *)
+        flag_for_human "$issue" "Unsupported Visual Baseline change status '$status' for $path${extra:+ -> $extra}; human review required." gate
+        return 1
+        ;;
+    esac
+  done < <(git -C "$diff_wt" diff --name-status HEAD -- "$VISUAL_BASELINE_DIR")
+
+  return 0
+}
+
 run_issue_phase() {
   local phase="$1" prompt_file="$2" iter="$3" issue="$4" wt="$5" branch="$6" issue_base="$7"
   local complete_line blocked_prefix phase_prompt phase_log phase_status phase_out reason
@@ -340,6 +402,8 @@ COMPLETE_PROMISE_LINE: $complete_line
 BLOCKED_PROMISE_PREFIX: $blocked_prefix
 UI_SHOT_PATH (relative to the worktree root): ralph/.artifacts/issue-$issue-ui-review.png
 UI_REVIEW_PATH (relative to the worktree root): ralph/.artifacts/issue-$issue-ui-review.md
+VISUAL_BASELINE_DIR (relative to the worktree root): $VISUAL_BASELINE_DIR
+VISUAL_BASELINE_REVIEW_DIR (relative to the worktree root): $VISUAL_BASELINE_REVIEW_DIR
 OBSERVATIONS_LOG_PATH (absolute; the persistent main-repo log to tail for recurrence, read-only): $OBS
 
 Ralph resolved this issue's publication target before creating your worktree. If
@@ -378,7 +442,7 @@ $(cat "$PROMPTS/$prompt_file")"
 }
 
 run_full_gate() {
-  local issue="$1" iter="$2" gate_wt="$3"
+  local issue="$1" iter="$2" gate_wt="$3" review_wt="${4:-$3}"
 
   log "gate: swift test (package unit/component)"
   if ! ( cd "$gate_wt" && swift test ) > "$LOGS/iter-$iter-issue-$issue-swift-test.log" 2>&1; then
@@ -398,6 +462,21 @@ run_full_gate() {
          > "$LOGS/iter-$iter-issue-$issue-xcode-unit-component-tests.log" 2>&1; then
     flag_for_human "$issue" "Xcode unit/component tests failed at the loop gate: WorkoutTrackerTests (see logs)." gate
     return 1
+  fi
+  log "gate: Visual Baseline authority policy"
+  if ! check_visual_baseline_authority "$issue" "$iter" "$gate_wt" "$review_wt"; then
+    return 1
+  fi
+  if view_or_theme_changed "$gate_wt" HEAD; then
+    log "gate: xcodebuild test (Visual Regression target)"
+    if ! ( cd "$gate_wt" && \
+           xcodebuild -project WorkoutTracker.xcodeproj -scheme WorkoutTracker -configuration Debug \
+             -destination "platform=iOS Simulator,name=$SIM_DEVICE" -derivedDataPath "$gate_wt/.ralph-dd" \
+             test -only-testing:WorkoutTrackerSnapshotTests ) \
+           > "$LOGS/iter-$iter-issue-$issue-xcode-visual-tests.log" 2>&1; then
+      flag_for_human "$issue" "Visual Regression tests failed at the loop gate: WorkoutTrackerSnapshotTests (see logs)." gate
+      return 1
+    fi
   fi
   log "gate: xcodebuild test (UI integration target)"
   if ! ( cd "$gate_wt" && \
@@ -435,7 +514,7 @@ check_ui_artifacts() {
       flag_for_human "$issue" "View/Theme changes require a saved UI Screenshot Review artifact: $ui_review_rel." gate
       return 1
     fi
-    if ! tail -n 1 "$ui_review" | grep -Fxq "PASS: no blocking static visual findings."; then
+    if ! tail -n 1 "$ui_review" | grep -Fxq "$UI_REVIEW_PASS_LINE"; then
       flag_for_human "$issue" "UI Screenshot Review did not end with PASS. Review artifact: $ui_review_rel." gate
       return 1
     fi
@@ -579,7 +658,7 @@ $(cat "$PROMPTS/select.md")"
   fi
 
   # 8. GATE — authoritative full testing framework on the integrated tree.
-  if ! run_full_gate "$issue" "$iter" "$integration_wt"; then
+  if ! run_full_gate "$issue" "$iter" "$integration_wt" "$wt"; then
     cleanup_integration_worktree "$integration_wt" "$integration_branch"
     continue
   fi

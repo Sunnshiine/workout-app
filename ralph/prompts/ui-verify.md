@@ -39,6 +39,30 @@ expected.
   output to `UI_REVIEW_PATH`.
 - Treat any blocking UI screenshot finding as unfinished work: fix it in this
   worktree, re-capture the screenshot, and request UI screenshot review again.
+- Inspect Visual Baseline changes with:
+  `git diff --name-status "$ISSUE_BASE_REF" HEAD -- Tests/Visual/__Snapshots__`
+- Added Visual Baselines (`A`) need no baseline-diff review in this phase.
+- Deleted Visual Baselines (`D`) cannot be approved autonomously; report BLOCKED.
+- For every modified Visual Baseline (`M`), create a review bundle under
+  `ralph/.artifacts/visual-baseline-reviews/` using this exact naming contract:
+  - `digest="$(printf '%s' "$baseline_path" | shasum -a 256 | awk '{print $1}')"`
+  - old image: `ralph/.artifacts/visual-baseline-reviews/$digest-old.png`
+  - new image: `ralph/.artifacts/visual-baseline-reviews/$digest-new.png`
+  - diff image: `ralph/.artifacts/visual-baseline-reviews/$digest-diff.png`
+  - review markdown: `ralph/.artifacts/visual-baseline-reviews/$digest.md`
+- Build the modified-baseline review bundle with:
+  - `mkdir -p ralph/.artifacts/visual-baseline-reviews`
+  - `git show "$ISSUE_BASE_REF:$baseline_path" > "ralph/.artifacts/visual-baseline-reviews/$digest-old.png"`
+  - `cp "$baseline_path" "ralph/.artifacts/visual-baseline-reviews/$digest-new.png"`
+  - `swift ralph/visual-baseline-diff.swift "ralph/.artifacts/visual-baseline-reviews/$digest-old.png" "ralph/.artifacts/visual-baseline-reviews/$digest-new.png" "ralph/.artifacts/visual-baseline-reviews/$digest-diff.png"`
+- For each modified baseline, spawn the `ui-screenshot-reviewer` custom agent as a
+  separate subagent in baseline-diff mode. Give it the issue contract, baseline
+  path, old image path, new image path, and diff image path, and ask it to answer
+  whether every changed pixel is explained by the issue acceptance criteria. Save
+  its exact output to the matching `$digest.md` review markdown path.
+- Treat any blocking baseline-diff finding as unfinished work: either fix the code
+  so the baseline diff returns to zero, or report BLOCKED if the intended baseline
+  change requires human judgement.
 - If you changed files, commit the UI remediation on the current branch.
 - Do not push, merge, or close the issue; the loop owns those steps.
 
@@ -55,6 +79,10 @@ Emit COMPLETE only when ALL of these hold:
 - For View/Theme changes, the screenshot exists and the saved UI review
   artifact's last line is exactly:
   `PASS: no blocking static visual findings.`
+- Every modified Visual Baseline has a saved baseline-diff review artifact under
+  `ralph/.artifacts/visual-baseline-reviews/` whose last line is exactly:
+  `PASS: no blocking static visual findings.`
+- No Visual Baseline was deleted.
 - Any files changed by this phase were committed.
 - You did not run Swift review.
 
