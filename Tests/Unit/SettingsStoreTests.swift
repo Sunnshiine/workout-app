@@ -83,6 +83,11 @@ import Testing
     #expect(SettingsStore(defaults: defaults).appearance == .system)
 }
 
+@Test func appearancePickerOptionsExposeOnlySupportedPreferences() {
+    #expect(AppearancePreference.allCases.map(\.rawValue) == ["system", "light", "dark"])
+    #expect(AppearancePreference.allCases.map(\.label) == ["System", "Light", "Dark"])
+}
+
 @MainActor
 @Test func standardRestDurationPersistsRoundTrip() throws {
     let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
