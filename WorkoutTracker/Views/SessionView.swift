@@ -354,7 +354,7 @@ extension SessionView {
             }
         )
         .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.vertical, 2)
         .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
         .padding(.horizontal)
         .padding(.top, 8)

@@ -35,31 +35,15 @@ struct SessionProgressHeader: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 10) {
                 locationLabel
 
                 Spacer()
 
-                Text(presentation.remainingText)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(palette.accent)
-                    .opacity(sessionSettingsOverpullState.isVisible ? 0 : 1)
-                    .accessibilityHidden(sessionSettingsOverpullState.isVisible)
-                    .accessibilityIdentifier("session-remaining-count")
+                trailingHeaderControl
             }
-            .frame(minHeight: 44)
-            .overlay(alignment: .trailing) {
-                if sessionSettingsOverpullState.isVisible {
-                    SessionControls(
-                        onSettings: onSettings
-                    )
-                    .opacity(sessionControlsOpacity)
-                    .scaleEffect(sessionControlsScale, anchor: .topTrailing)
-                    .offset(y: sessionControlsOffset)
-                    .transition(sessionControlsTransition)
-                }
-            }
+            .frame(minHeight: 32)
 
             HStack(spacing: 3) {
                 ForEach(Array(presentation.segments.enumerated()), id: \.offset) { _, segment in
@@ -75,7 +59,6 @@ struct SessionProgressHeader: View {
             .accessibilityValue(presentation.progressAccessibilityValue)
             .accessibilityIdentifier("session-progress-rail")
         }
-        .padding(.vertical, 2)
     }
 
     private var sessionControlsOpacity: Double {
@@ -94,14 +77,6 @@ struct SessionProgressHeader: View {
 
     private var sessionControlsOffset: CGFloat {
         reduceMotion ? 0 : 10 * (1 - sessionSettingsOverpullState.progress)
-    }
-
-    private var sessionControlsTransition: AnyTransition {
-        if reduceMotion {
-            .opacity
-        } else {
-            .opacity.combined(with: .scale(scale: 0.92, anchor: .topTrailing))
-        }
     }
 
     @ViewBuilder
@@ -124,25 +99,51 @@ struct SessionProgressHeader: View {
     private var locationLabelText: some View {
         Text(presentation.locationText)
             .font(.caption.weight(.semibold))
-            .foregroundStyle(.primary)
+            .foregroundStyle(palette.valueText)
+    }
+
+    private var trailingHeaderControl: some View {
+        ZStack(alignment: .trailing) {
+            Text(presentation.remainingText)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(palette.accent)
+                .opacity(sessionSettingsOverpullState.isVisible ? 0 : 1)
+                .accessibilityHidden(sessionSettingsOverpullState.isVisible)
+                .accessibilityIdentifier("session-remaining-count")
+
+            if sessionSettingsOverpullState.isVisible {
+                SessionControls(onSettings: onSettings)
+                    .opacity(sessionControlsOpacity)
+                    .scaleEffect(sessionControlsScale, anchor: .center)
+                    .offset(y: sessionControlsOffset)
+            }
+        }
+        .frame(minHeight: 32, alignment: .trailing)
     }
 }
 
 private struct SessionControls: View {
     let onSettings: () -> Void
 
+    @Environment(\.themePalette) private var palette
+
     var body: some View {
         HStack(spacing: 8) {
             Button(action: onSettings) {
-                Label("Settings", systemImage: "gearshape")
-                    .labelStyle(.iconOnly)
-                    .frame(width: 44, height: 44)
+                Image(systemName: "gearshape")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(palette.accent)
+                    .frame(width: 32, height: 32)
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.plain)
+            .frame(width: 32, height: 32)
+            .contentShape(Rectangle())
+            .padding(6)
+            .contentShape(Rectangle())
+            .padding(-6)
+            .accessibilityLabel("Settings")
             .accessibilityIdentifier("session-controls-settings-button")
         }
-        // The glass button sits directly on the glass HUD — no wrapping capsule, to
-        // avoid stacking glass on glass.
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Session Controls")
         .accessibilityIdentifier("session-controls")
