@@ -55,6 +55,7 @@ struct SessionProgressHeader: View {
                 }
             }
             .frame(height: 8)
+            .offset(y: -2)
             .accessibilityLabel("Session progress")
             .accessibilityValue(presentation.progressAccessibilityValue)
             .accessibilityIdentifier("session-progress-rail")
