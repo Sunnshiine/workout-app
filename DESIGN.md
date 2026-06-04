@@ -245,7 +245,7 @@ Workout App uses tonal layering, strokes, and selective Liquid Glass instead of 
 ### Navigation
 - **Style:** Standard `NavigationStack` and platform chrome. The Session header is lightweight chrome, not a floating card.
 - **Active State:** Remaining Set count and current progress use the primary action color for the active appearance. The progress rail is compact, dark or sage-muted, and segmented.
-- **Mobile Treatment:** This is an iPhone-first layout. The Current Session HUD may reveal a Settings-only utility pill through an intentional high-effort overpull. Do not show a visible cue for this expert gesture. Do not expose this reveal on non-current Session views, where Go back and Make Current own the top override area.
+- **Mobile Treatment:** This is an iPhone-first layout. The Current Session HUD may reveal an inline Settings gear through an intentional high-effort overpull, replacing the remaining Set count inside the existing header glass. Preserve the native 44 pt Settings hit target even when the visible gear and progress rail stay visually compact. Do not show a visible cue for this expert gesture. Do not expose this reveal on non-current Session views, where Go back and Make Current own the top override area.
 
 ### Active Set Card
 
