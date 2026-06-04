@@ -44,7 +44,7 @@ ralph/ralph.sh
 ralph/ralph.sh --engine codex
 
 # Force a PR-branch queue, useful when every selected issue belongs to the same existing PR:
-ralph/ralph.sh --publish-target branch --target-branch codex/live-activity-rest-sets-left
+ralph/ralph.sh --publish-target branch --target-branch codex/live-activity-rest-sets-left --target-pr 177
 
 # See the inline help:
 ralph/ralph.sh --help
@@ -152,6 +152,17 @@ In default `auto` mode Ralph detects the `Target branch` value, creates the impl
 integration worktrees from that branch, pushes the gated merge commit to `origin/<target-branch>`,
 and leaves the PR open. For a whole queue with the same target, operators can pass
 `--publish-target branch --target-branch <branch>` instead of repeating the directive.
+
+Operator recipe for the Live Activity queue:
+
+```bash
+ralph/ralph.sh --publish-target branch --target-branch codex/live-activity-rest-sets-left --target-pr 177
+```
+
+That command makes every selected child issue start from and push back to
+`origin/codex/live-activity-rest-sets-left`. It must not push `origin/main`, merge to `main`, open
+a replacement PR, or merge or close PR #177. Ralph closes only the child issue after the PR branch
+push succeeds.
 
 ---
 

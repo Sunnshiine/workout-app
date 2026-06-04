@@ -10,6 +10,7 @@ let package = Package(
             path: "WorkoutTracker",
             exclude: [
                 "Views",
+                "LiveActivity",
                 "Sheets/GoogleAuth.swift",
                 "WorkoutTrackerApp.swift",
                 "Info.plist",

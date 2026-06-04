@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 
 struct SessionView: View {
+    let liveActivityAdapter: LiveActivityProductionAdapter
     @Environment(WorkoutStore.self) private var workout
     @Environment(SyncCoordinator.self) private var sync
     @Environment(SettingsStore.self) private var settings
@@ -19,6 +20,10 @@ struct SessionView: View {
     @State private var sessionSettingsTopContentOffset: CGFloat = 0
     @State private var sessionSettingsDragStartTopContentOffset: CGFloat?
     @State private var isSettingsPresented = false
+
+    init(liveActivityAdapter: LiveActivityProductionAdapter = LiveActivityProductionAdapter()) {
+        self.liveActivityAdapter = liveActivityAdapter
+    }
 
     var body: some View {
         Group {
@@ -153,10 +158,21 @@ struct SessionView: View {
         }
         .task {
             workout.reload()
+            reconcileLiveActivity()
             if workout.block == nil, let id = settings.spreadsheetId {
                 await sync.sync(spreadsheetId: id)
                 workout.reload()
+                reconcileLiveActivity()
             }
+        }
+        .onChange(of: workout.block?.persistentModelID) { _, _ in
+            reconcileLiveActivity()
+        }
+        .onChange(of: workout.currentSession?.persistentModelID) { _, _ in
+            reconcileLiveActivity()
+        }
+        .onChange(of: workout.displayedSession?.persistentModelID) { _, _ in
+            reconcileLiveActivity()
         }
         .task(id: sessionSettingsOverpullDismissalID) {
             guard sessionSettingsOverpullState.isPinned else { return }
@@ -175,7 +191,19 @@ struct SessionView: View {
             sync: SessionPendingWriteSyncAdapter(sync: sync, settings: settings),
             restTimer: restTimer,
             standardRestDuration: { settings.standardRestDuration.timeInterval },
-            supersetRestDuration: { settings.supersetRestDuration.timeInterval }
+            supersetRestDuration: { settings.supersetRestDuration.timeInterval },
+            liveActivity: liveActivityAdapter,
+            isCurrentSessionScope: { [workout] session in
+                session.persistentModelID == workout.currentSession?.persistentModelID
+            }
+        )
+        reconcileLiveActivity()
+    }
+
+    private func reconcileLiveActivity() {
+        liveActivityAdapter.endIfInvalidated(
+            displayedSession: workout.displayedSession,
+            currentSession: workout.currentSession
         )
     }
 

@@ -15,6 +15,13 @@ protocol SessionSyncAdapter {
 }
 
 @MainActor
+protocol SessionLiveActivityAdapter {
+    func startOrUpdate(restContent: LiveActivityRestContent, sessionLabel: String)
+    func end()
+    func endIfInvalidated(displayedSession: Session?, currentSession: Session?)
+}
+
+@MainActor
 protocol SessionTransitionClock {
     func sleep(for duration: Duration) async
 }
@@ -70,6 +77,12 @@ private struct MissingSessionLoggingAdapter: SessionLoggingAdapter {
 private struct NoopSessionSyncAdapter: SessionSyncAdapter {
     func reportLocalWriteFailure(_ error: any Error) {}
     func requestPendingWriteFlush() {}
+}
+
+private struct NoopSessionLiveActivityAdapter: SessionLiveActivityAdapter {
+    func startOrUpdate(restContent: LiveActivityRestContent, sessionLabel: String) {}
+    func end() {}
+    func endIfInvalidated(displayedSession: Session?, currentSession: Session?) {}
 }
 
 private struct TaskSessionTransitionClock: SessionTransitionClock {
@@ -164,6 +177,8 @@ final class SessionCoordinator {
     @ObservationIgnored private let focusManager: ActiveSetFocusManager
     @ObservationIgnored private var loggingAdapter: any SessionLoggingAdapter
     @ObservationIgnored private var syncAdapter: any SessionSyncAdapter
+    @ObservationIgnored private var liveActivityAdapter: any SessionLiveActivityAdapter
+    @ObservationIgnored private var isCurrentSessionScope: (Session) -> Bool
     @ObservationIgnored private let transitionClock: any SessionTransitionClock
     @ObservationIgnored private var restTimer: RestTimer?
     @ObservationIgnored private var standardRestDuration: () -> TimeInterval
@@ -179,12 +194,16 @@ final class SessionCoordinator {
         transitionClock: any SessionTransitionClock = TaskSessionTransitionClock(),
         restTimer: RestTimer? = nil,
         standardRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.standard.timeInterval },
-        supersetRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.superset.timeInterval }
+        supersetRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.superset.timeInterval },
+        liveActivity: any SessionLiveActivityAdapter = NoopSessionLiveActivityAdapter(),
+        isCurrentSessionScope: @escaping (Session) -> Bool = { _ in true }
     ) {
         self.session = session
         self.focusManager = ActiveSetFocusManager(session: session)
         self.loggingAdapter = logging
         self.syncAdapter = sync
+        self.liveActivityAdapter = liveActivity
+        self.isCurrentSessionScope = isCurrentSessionScope
         self.transitionClock = transitionClock
         self.restTimer = restTimer
         self.standardRestDuration = standardRestDuration
@@ -221,11 +240,17 @@ final class SessionCoordinator {
         sync: any SessionSyncAdapter,
         restTimer: RestTimer? = nil,
         standardRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.standard.timeInterval },
-        supersetRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.superset.timeInterval }
+        supersetRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.superset.timeInterval },
+        liveActivity: (any SessionLiveActivityAdapter)? = nil,
+        isCurrentSessionScope: ((Session) -> Bool)? = nil
     ) {
         self.restTimer = restTimer
         self.standardRestDuration = standardRestDuration
         self.supersetRestDuration = supersetRestDuration
+        if let liveActivity {
+            liveActivityAdapter = liveActivity
+        }
+        self.isCurrentSessionScope = isCurrentSessionScope ?? self.isCurrentSessionScope
         configure(logging: logging, sync: sync)
         bind(to: session)
     }
@@ -253,12 +278,6 @@ final class SessionCoordinator {
         }
     }
 
-    func collapseLoggedSetReview() {
-        focusManager.collapseLoggedSetReview()
-        syncFocusState()
-        invalidateRenderItems()
-    }
-
     func log(_ set: ExerciseSet, as log: SetLog, animateFocus: SessionFocusAnimation? = nil) {
         do {
             let session = try actionSession(for: set)
@@ -277,7 +296,9 @@ final class SessionCoordinator {
                     originSetObjectID: ObjectIdentifier(set),
                     kind: restKind
                 )
+                startOrUpdateLiveActivity(afterLogging: set, in: session, isCurrentSession: isCurrentSessionScope(session))
             }
+            reconcileLiveActivityIfCurrent(session)
             performFocusUpdate(animateFocus) {
                 advanceAfterLog(set, in: session)
             }
@@ -292,6 +313,7 @@ final class SessionCoordinator {
         do {
             let session = try actionSession(for: set)
             try loggingAdapter.skip(set)
+            reconcileLiveActivityIfCurrent(session)
             performFocusUpdate(animateFocus) {
                 advanceAfterSkip(set, in: session)
             }
@@ -304,12 +326,13 @@ final class SessionCoordinator {
 
     func deleteLog(for set: ExerciseSet) {
         do {
-            _ = try actionSession(for: set)
+            let session = try actionSession(for: set)
             try loggingAdapter.deleteLog(for: set)
             restTimer?.cancel(
                 ifOriginMatches: Self.activeSetID(for: set),
                 originSetObjectID: ObjectIdentifier(set)
             )
+            reconcileLiveActivityIfCurrent(session)
             focus(on: set)
             clearRetiringTransition()
             syncAdapter.requestPendingWriteFlush()
@@ -318,16 +341,13 @@ final class SessionCoordinator {
         }
     }
 
-    func cancelRestForSessionExit() {
-        restTimer?.dismiss()
-    }
-
     func updateLoggedSet(_ set: ExerciseSet, as log: SetLog) {
         do {
-            _ = try actionSession(for: set)
+            let session = try actionSession(for: set)
             let updatedSetID = Self.activeSetID(for: set)
             try loggingAdapter.log(set, as: log)
             savedLoggedSetID = updatedSetID
+            reconcileLiveActivityIfCurrent(session)
             if focusManager.expandedLoggedSetID == updatedSetID {
                 focusManager.collapseLoggedSetReview()
             }
@@ -478,8 +498,21 @@ final class SessionCoordinator {
     }
 }
 
-private extension SessionCoordinator {
-    func supersetFocusTargetID(for exercise: Exercise, in session: Session) -> ActiveSetID? {
+extension SessionCoordinator {
+    func collapseLoggedSetReview() {
+        focusManager.collapseLoggedSetReview()
+        syncFocusState()
+        invalidateRenderItems()
+    }
+
+    func cancelRestForSessionExit() {
+        restTimer?.dismiss()
+        liveActivityAdapter.end()
+    }
+}
+
+extension SessionCoordinator {
+    fileprivate func supersetFocusTargetID(for exercise: Exercise, in session: Session) -> ActiveSetID? {
         let isInSuperset = focusManager.supersetSections(in: session).contains { section in
             section.exercises.contains { $0 === exercise }
         }
@@ -494,14 +527,14 @@ private extension SessionCoordinator {
         return targetID
     }
 
-    func isSupersetMember(_ set: ExerciseSet, in session: Session) -> Bool {
+    fileprivate func isSupersetMember(_ set: ExerciseSet, in session: Session) -> Bool {
         guard let exercise = set.exercise else { return false }
         return focusManager.supersetSections(in: session).contains { section in
             section.exercises.contains { $0 === exercise }
         }
     }
 
-    func restKind(for decision: RestTriggerDecision, wasSupersetMember: Bool) -> RestKind? {
+    fileprivate func restKind(for decision: RestTriggerDecision, wasSupersetMember: Bool) -> RestKind? {
         if case .start(let superset) = decision {
             return superset ? .superset : .standard
         }
@@ -509,13 +542,57 @@ private extension SessionCoordinator {
         return wasSupersetMember ? .superset : .standard
     }
 
-    func restDuration(for kind: RestKind) -> TimeInterval {
+    fileprivate func restDuration(for kind: RestKind) -> TimeInterval {
         switch kind {
         case .standard:
             standardRestDuration()
         case .superset:
             supersetRestDuration()
         }
+    }
+
+    fileprivate func startOrUpdateLiveActivity(
+        afterLogging set: ExerciseSet,
+        in session: Session,
+        isCurrentSession: Bool
+    ) {
+        let event = LiveActivityProductionEvent(
+            source: .userSetLog,
+            outcome: .success,
+            sessionScope: isCurrentSession ? .currentSession : .nonCurrentSession
+        )
+        guard
+            LiveActivityCreationPolicy.shouldCreateOrUpdate(for: event),
+            let restTimer,
+            let restEndDate = restTimer.deadline
+        else { return }
+
+        let restStartDate = restEndDate.addingTimeInterval(-restTimer.duration)
+        guard
+            let content = focusManager.liveActivityRestContent(
+                afterLogging: set,
+                in: session,
+                restStartDate: restStartDate,
+                restEndDate: restEndDate
+            )
+        else { return }
+
+        liveActivityAdapter.startOrUpdate(
+            restContent: content,
+            sessionLabel: liveActivitySessionLabel(for: session)
+        )
+    }
+
+    fileprivate func reconcileLiveActivityIfCurrent(_ session: Session) {
+        guard isCurrentSessionScope(session) else { return }
+        liveActivityAdapter.endIfInvalidated(displayedSession: session, currentSession: session)
+    }
+
+    fileprivate func liveActivitySessionLabel(for session: Session) -> String {
+        if let week = session.week {
+            return "Week \(week.number) - Day \(session.dayNumber)"
+        }
+        return "Day \(session.dayNumber)"
     }
 }
 
