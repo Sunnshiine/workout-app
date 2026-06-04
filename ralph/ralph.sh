@@ -172,8 +172,16 @@ resolve_issue_publish_target() {
 
 resolve_publish_base_ref() {
   if [ "${ISSUE_PUBLISH_TARGET:-main}" = main ]; then
-    printf '%s\n' main
-    return 0
+    git -C "$REPO_ROOT" fetch origin main >/dev/null 2>&1 || return 1
+    if git -C "$REPO_ROOT" show-ref --verify --quiet refs/remotes/origin/main; then
+      printf '%s\n' origin/main
+      return 0
+    fi
+    if git -C "$REPO_ROOT" show-ref --verify --quiet refs/heads/main; then
+      printf '%s\n' main
+      return 0
+    fi
+    return 1
   fi
 
   git -C "$REPO_ROOT" fetch origin "$ISSUE_TARGET_BRANCH" >/dev/null 2>&1 || true
@@ -186,6 +194,39 @@ resolve_publish_base_ref() {
     return 0
   fi
   return 1
+}
+
+validate_main_publish_checkout() {
+  local issue="$1" current_branch
+  [ "${ISSUE_PUBLISH_TARGET:-main}" = main ] || return 0
+
+  if ! git -C "$REPO_ROOT" fetch origin main >/dev/null 2>&1; then
+    flag_for_human "$issue" "Could not fetch origin/main for main publish target."
+    return 1
+  fi
+  if ! git -C "$REPO_ROOT" show-ref --verify --quiet refs/remotes/origin/main; then
+    flag_for_human "$issue" "Could not find origin/main for main publish target."
+    return 1
+  fi
+  current_branch="$(git -C "$REPO_ROOT" symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+  if [ "$current_branch" != main ]; then
+    flag_for_human "$issue" "Publish target is main, but Ralph is not running from the local main checkout."
+    return 1
+  fi
+  if ! git -C "$REPO_ROOT" merge-base --is-ancestor main origin/main; then
+    flag_for_human "$issue" "Publish target is main, but local main has commits that are not in origin/main; reconcile main before running Ralph."
+    return 1
+  fi
+}
+
+validate_main_integration_current() {
+  local issue="$1" integration_branch="$2"
+  [ "${ISSUE_PUBLISH_TARGET:-main}" = main ] || return 0
+
+  if ! git -C "$REPO_ROOT" merge-base --is-ancestor origin/main "$integration_branch"; then
+    flag_for_human "$issue" "origin/main advanced after the full gate; rerun Ralph so the integration branch is gated against the current main." gate
+    return 1
+  fi
 }
 
 publish_description() {
@@ -583,6 +624,9 @@ $(cat "$PROMPTS/select.md")"
     flag_for_human "$issue" "Could not resolve publish base ref for $(publish_description)."
     continue
   fi
+  if ! validate_main_publish_checkout "$issue"; then
+    continue
+  fi
 
   # 2. ISOLATE — fresh worktree + branch off the resolved publish target
   branch="agent/issue-$issue"
@@ -690,6 +734,14 @@ $(cat "$PROMPTS/select.md")"
 
 Pushed to \`origin/$ISSUE_TARGET_BRANCH\`. PR ${ISSUE_TARGET_PR:+#$ISSUE_TARGET_PR }remains open for review/merge." >/dev/null 2>&1 || true
   else
+    if ! validate_main_publish_checkout "$issue"; then
+      cleanup_integration_worktree "$integration_wt" "$integration_branch"
+      continue
+    fi
+    if ! validate_main_integration_current "$issue" "$integration_branch"; then
+      cleanup_integration_worktree "$integration_wt" "$integration_branch"
+      continue
+    fi
     if ! git -C "$REPO_ROOT" merge --ff-only "$integration_branch" >/dev/null 2>&1; then
       cleanup_integration_worktree "$integration_wt" "$integration_branch"
       flag_for_human "$issue" "Could not fast-forward main to the gated integration branch."; continue
@@ -698,7 +750,10 @@ Pushed to \`origin/$ISSUE_TARGET_BRANCH\`. PR ${ISSUE_TARGET_PR:+#$ISSUE_TARGET_
       if git -C "$REPO_ROOT" push origin main >/dev/null 2>&1; then
         log "pushed origin/main"
       else
-        log "WARN: push to origin failed (the merge is on local main)."; note "issue #$issue: push to origin failed"
+        flag_for_human "$issue" "Could not push gated merge commit to origin/main; local main now contains the merge and needs human reconciliation." gate
+        git -C "$REPO_ROOT" worktree remove --force "$wt" >/dev/null 2>&1 || true
+        git -C "$REPO_ROOT" branch -d "$branch" >/dev/null 2>&1 || git -C "$REPO_ROOT" branch -D "$branch" >/dev/null 2>&1 || true
+        break
       fi
     fi
     gh issue close "$issue" --comment "> *Resolved autonomously by the Ralph loop ($ENGINE).*
