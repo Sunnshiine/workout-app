@@ -150,10 +150,55 @@
     </div>
   </section>
 
-  <!-- ============ 4 · RALPH LOOP ANATOMY ============ -->
+  <!-- ============ 4 · PROTOTYPE AS QUESTION-ANSWERING ============ -->
+  <section class="slide prototype" id="prototype" data-label="Prototype">
+    <div class="slide-inner reveal">
+      <span class="kicker"><span class="idx">03 /</span> Prototype the high-fidelity question</span>
+      <h2>Some questions need pixels,<br>not prose.</h2>
+      <p class="lead">Grilling separates structural questions from feel questions. The Live Activity
+        could not be settled by a spec alone; the real question was how a lifter should read rest,
+        reps, load, and sets-left from a glance on the phone.</p>
+
+      <div class="prototype-grid">
+        <div class="live-shot glass">
+          <img src="assets/live-activity-lockscreen.png" alt="WorkoutTracker Live Activity on a phone lock screen showing a rest countdown, progress bar, reps, RPE, and sets left">
+          <p class="artifact-caption">real phone screenshot — accepted Rest + Sets Left direction</p>
+        </div>
+
+        <div class="prototype-story stagger">
+          <div class="fidelity-card glass">
+            <span class="label">Low fidelity</span>
+            <p>Route names, ownership boundaries, lifecycle events, and issue slices can be resolved in words.</p>
+          </div>
+          <div class="fidelity-card glass hot">
+            <span class="label">High fidelity</span>
+            <p>Does this glance feel right during rest? That needed a live phone, a Dynamic Island host, and side-by-side variants.</p>
+          </div>
+          <div class="variant-board glass">
+            <div class="variant-title">Prototype variants kept alive</div>
+            <div class="variants">
+              <span>Rest Timer</span>
+              <span class="chosen">Rest + Sets Left</span>
+              <span>Rest + Set Count</span>
+              <span>Rest Clean</span>
+            </div>
+          </div>
+          <div class="lab-proof glass">
+            <div>
+              <span class="label">Developer Tools Lab</span>
+              <p>The picker stayed in Settings so design options could be tested on-device before the production code was wired into Session behavior.</p>
+            </div>
+            <img src="assets/live-activity-lab.png" alt="Live Activity Lab prototype picker in Developer Tools">
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 5 · RALPH LOOP ANATOMY ============ -->
   <section class="slide" id="loop" data-label="The Ralph loop">
     <div class="slide-inner reveal">
-      <span class="kicker"><span class="idx">03 /</span> Anatomy of the loop</span>
+      <span class="kicker"><span class="idx">04 /</span> Anatomy of the loop</span>
       <h2>One issue in. Ten stages.<br>A shippable merge&nbsp;out.</h2>
 
       <div class="loop-grid">
@@ -199,10 +244,10 @@
     </div>
   </section>
 
-  <!-- ============ 5 · HOW I PROMPT THE HARNESS ============ -->
+  <!-- ============ 6 · HOW I PROMPT THE HARNESS ============ -->
   <section class="slide" id="prompts" data-label="The prompts">
     <div class="slide-inner reveal">
-      <span class="kicker"><span class="idx">04 /</span> How I prompt the harness</span>
+      <span class="kicker"><span class="idx">05 /</span> How I prompt the harness</span>
       <h2>Four prompts. Four single-role agents.</h2>
       <p class="lead">Every stage is one file in <code style="font-family:var(--font-mono);color:var(--ink)">ralph/prompts/</code>.
         Each frames Claude in exactly one role, bans everything off-task, and ends in a machine-checkable promise. Verbatim:</p>
@@ -263,10 +308,10 @@
     </div>
   </section>
 
-  <!-- ============ 6 · THE GATE ============ -->
+  <!-- ============ 7 · THE GATE ============ -->
   <section class="slide" id="gates" data-label="The gate">
     <div class="slide-inner reveal">
-      <span class="kicker"><span class="idx">05 /</span> The merge gate</span>
+      <span class="kicker"><span class="idx">06 /</span> The merge gate</span>
       <h2>Nothing merges until the<br>whole ladder is&nbsp;green</h2>
 
       <div class="gate-grid">
@@ -297,10 +342,10 @@
     </div>
   </section>
 
-  <!-- ============ 7 · UI VERIFICATION ============ -->
+  <!-- ============ 8 · UI VERIFICATION ============ -->
   <section class="slide" id="verify" data-label="Visual gate">
     <div class="slide-inner reveal">
-      <span class="kicker"><span class="idx">06 /</span> The loop has eyes</span>
+      <span class="kicker"><span class="idx">07 /</span> The loop has eyes</span>
       <h2>It screenshots its own work<br>and grades the pixels</h2>
 
       <div class="verify-grid">
@@ -334,10 +379,10 @@
     </div>
   </section>
 
-  <!-- ============ 8 · GALLERY ============ -->
+  <!-- ============ 9 · GALLERY ============ -->
   <section class="slide" id="gallery" data-label="What shipped">
     <div class="slide-inner reveal">
-      <span class="kicker"><span class="idx">07 /</span> What the loop shipped</span>
+      <span class="kicker"><span class="idx">08 /</span> What the loop shipped</span>
       <h2>A real, polished product</h2>
       <p class="lead">A <em class="em">Liquid Glass</em> powerlifting client over a coach-managed Google Sheet.
         Every screen below was implemented, reviewed and visually gated by the loop.</p>
@@ -372,10 +417,10 @@
     </div>
   </section>
 
-  <!-- ============ 9 · NUMBERS ============ -->
+  <!-- ============ 10 · NUMBERS ============ -->
   <section class="slide" id="numbers" data-label="By the numbers">
     <div class="slide-inner reveal">
-      <span class="kicker"><span class="idx">08 /</span> By the numbers</span>
+      <span class="kicker"><span class="idx">09 /</span> By the numbers</span>
       <h2>The receipts</h2>
       <p class="lead">Every figure pulled straight from <code style="font-family:var(--font-mono);color:var(--ink)">git</code>,
         <code style="font-family:var(--font-mono);color:var(--ink)">gh</code> and the filesystem — no estimates.</p>
@@ -406,7 +451,7 @@
   <!-- ============ META · THIS DECK ============ -->
   <section class="slide" id="meta" data-label="This deck">
     <div class="slide-inner reveal">
-      <span class="kicker"><span class="idx">09 /</span> Meta — this very deck</span>
+      <span class="kicker"><span class="idx">10 /</span> Meta — this very deck</span>
       <h2>This slide was built the same&nbsp;way</h2>
       <p class="lead">No template, no hand-assembly. This presentation was produced in essentially
         <em class="em">one shot</em> with Claude Code’s <code style="font-family:var(--font-mono);color:var(--ink)">ultracode</code>
@@ -450,10 +495,10 @@
     </div>
   </section>
 
-  <!-- ============ 10 · CLOSE ============ -->
+  <!-- ============ 11 · CLOSE ============ -->
   <section class="slide close" id="close" data-label="Takeaways">
     <div class="slide-inner reveal">
-      <span class="kicker" style="justify-content:center"><span class="idx">10 /</span> Why it works</span>
+      <span class="kicker" style="justify-content:center"><span class="idx">11 /</span> Why it works</span>
       <h2>Issues, not prompts.<br>Gates, not trust.</h2>
       <p class="lead">A design-only human and an autonomous-but-gated loop, meeting at a backlog.</p>
 

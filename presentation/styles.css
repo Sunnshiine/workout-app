@@ -289,6 +289,110 @@ mark { background: linear-gradient(transparent 62%, rgba(31,133,82,.16) 0); colo
 .chain-foot .out .big { font-family: var(--font-display); font-weight: 800; font-size: 2rem; color: var(--green); letter-spacing: -0.02em; }
 
 /* ============================================================
+   PROTOTYPE — high-fidelity question answering
+   ============================================================ */
+.prototype-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.16fr) minmax(310px, 0.84fr);
+  gap: clamp(24px, 4vw, 54px);
+  align-items: center;
+  margin-top: 38px;
+}
+.live-shot {
+  padding: clamp(12px, 1.5vw, 18px);
+  border-radius: 28px;
+  background:
+    linear-gradient(145deg, rgba(21, 33, 24, 0.88), rgba(31, 133, 82, 0.12)),
+    var(--panel);
+}
+.live-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 22px;
+  box-shadow: 0 20px 45px -28px rgba(21,33,24,0.55);
+}
+.prototype .artifact-caption {
+  width: 100%;
+  margin-top: 14px;
+  text-align: left;
+  color: rgba(242, 247, 232, 0.72);
+}
+.prototype-story {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.fidelity-card,
+.variant-board,
+.lab-proof {
+  padding: 18px 20px;
+  border-radius: 16px;
+}
+.fidelity-card .label,
+.lab-proof .label {
+  display: block;
+  margin-bottom: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--green);
+}
+.fidelity-card p,
+.lab-proof p {
+  color: var(--ink-2);
+  font-size: 0.94rem;
+}
+.fidelity-card.hot {
+  border-color: var(--line-2);
+  background: linear-gradient(145deg, rgba(31,133,82,0.10), var(--panel));
+}
+.variant-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 12px;
+}
+.variants {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.variants span {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-2);
+  padding: 6px 10px;
+}
+.variants .chosen {
+  color: var(--green-ink);
+  border-color: var(--green);
+  background: var(--green);
+  box-shadow: 0 9px 22px -17px rgba(13,107,64,0.75);
+}
+.lab-proof {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px;
+  gap: 16px;
+  align-items: center;
+}
+.lab-proof img {
+  width: 92px;
+  height: 174px;
+  object-fit: cover;
+  object-position: top center;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  box-shadow: 0 14px 28px -24px rgba(21,33,24,0.5);
+}
+
+/* ============================================================
    RALPH LOOP RING
    ============================================================ */
 .loop-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: clamp(30px,5vw,64px); align-items: center; margin-top: 30px; }
@@ -475,7 +579,7 @@ mark { background: linear-gradient(transparent 62%, rgba(31,133,82,.16) 0); colo
 @media (max-width: 1080px) {
   .hero-grid { grid-template-columns: 1fr; }
   .hero-device { display: none; }
-  .loop-grid, .gate-grid, .verify-grid { grid-template-columns: 1fr; }
+  .prototype-grid, .loop-grid, .gate-grid, .verify-grid { grid-template-columns: 1fr; }
   .gallery { grid-template-columns: repeat(3, 1fr); }
   .metrics { grid-template-columns: repeat(2, 1fr); }
   .rail { display: none; }
@@ -490,6 +594,8 @@ mark { background: linear-gradient(transparent 62%, rgba(31,133,82,.16) 0); colo
   .metric.feature { grid-column: span 2; }
   .step .link { display: none; }
   .keyhint { display: none; }
+  .lab-proof { grid-template-columns: 1fr; }
+  .lab-proof img { width: 100%; height: 220px; }
 }
 
 @media (max-height: 760px) {
