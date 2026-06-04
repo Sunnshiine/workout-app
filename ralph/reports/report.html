@@ -1,0 +1,2270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ralph Session Dashboard</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #050806;
+    --bg2: #060E0A;
+    --bg3: #081A12;
+    --surface: #080F0D;
+    --card: #08331F;
+    --stroke: #215C40;
+    --stroke-active: #3BD17A;
+    --mint: #73FFB8;
+    --text: #F5F7F3;
+    --muted: #AAB8B0;
+    --danger: #FF3B30;
+    --warn: #FF9500;
+    --human: #0A84FF;
+    --radius-card: 12px;
+    --radius-sm: 6px;
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "SF Mono", "Fira Code", "Cascadia Code", ui-monospace, monospace;
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 13px;
+    line-height: 1.4;
+    min-height: 100vh;
+  }
+
+  .page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 28px 20px 64px;
+  }
+
+  /* ─── header ─── */
+  .header {
+    border-bottom: 1px solid var(--stroke);
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .header h1 {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+  .header-meta {
+    font-size: 11px;
+    color: var(--muted);
+    margin-left: auto;
+  }
+
+  /* ─── summary bar ─── */
+  .summary {
+    display: flex;
+    gap: 1px;
+    background: var(--stroke);
+    border: 1px solid var(--stroke);
+    border-radius: var(--radius-card);
+    overflow: hidden;
+    margin-bottom: 28px;
+  }
+  .stat {
+    flex: 1;
+    background: var(--bg2);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 80px;
+  }
+  .stat-val {
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-val.accent { color: var(--mint); }
+  .stat-val.human-color { color: var(--human); }
+  .stat-val.warn { color: var(--warn); }
+  .stat-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  /* ─── sections ─── */
+  .section {
+    margin-bottom: 32px;
+  }
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title .count {
+    background: var(--bg3);
+    border: 1px solid var(--stroke);
+    border-radius: 99px;
+    padding: 1px 7px;
+    font-size: 10px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .section-title .count.resolved { border-color: var(--stroke-active); color: var(--mint); }
+
+  /* ─── tables ─── */
+  .table-wrap {
+    overflow-x: auto;
+    border-radius: var(--radius-card);
+    border: 1px solid var(--stroke);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  thead th {
+    background: var(--bg2);
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--stroke);
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+  }
+  thead th.num { text-align: right; }
+  tbody tr {
+    border-bottom: 1px solid var(--bg3);
+    transition: background 120ms ease;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--bg3); }
+  tbody td {
+    padding: 7px 10px;
+    vertical-align: middle;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  td.num { text-align: right; font-family: var(--font-mono); font-size: 11px; }
+  td.reason {
+    white-space: normal;
+    max-width: 360px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  td.ctx-danger { color: var(--danger); }
+  td.ctx-warn { color: var(--warn); }
+  .muted { color: var(--muted); }
+
+  /* ─── chips ─── */
+  .phase-chip, .role-chip {
+    display: inline-block;
+    background: var(--bg3);
+    border: 1px solid var(--stroke);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--muted);
+    margin-right: 2px;
+    font-family: var(--font-mono);
+  }
+  .role-chip { border-color: #3BD17A44; color: #73FFB880; }
+
+  /* ─── badges ─── */
+  .badge {
+    display: inline-block;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .badge.resolved { background: #08331F; color: var(--mint); border: 1px solid var(--stroke-active); }
+  .badge.human { background: #001829; color: var(--human); border: 1px solid #0A84FF44; }
+  .badge.incomplete { background: var(--bg3); color: var(--muted); border: 1px solid var(--stroke); }
+
+  /* ─── outliers grid ─── */
+  .outlier-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+  }
+  .outlier-card {
+    background: var(--bg2);
+    border: 1px solid var(--stroke);
+    border-radius: var(--radius-card);
+    overflow: hidden;
+  }
+  .outlier-card-head {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--stroke);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    background: var(--bg3);
+  }
+  .outlier-card table { font-size: 11px; }
+  .outlier-card tbody td { padding: 5px 10px; }
+
+  /* ─── caveats ─── */
+  .caveats {
+    background: var(--bg2);
+    border: 1px solid var(--stroke);
+    border-radius: var(--radius-card);
+    padding: 12px 16px;
+    margin-top: 32px;
+  }
+  .caveats-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .caveats ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .caveats li {
+    font-size: 11px;
+    color: var(--muted);
+    padding-left: 12px;
+    position: relative;
+  }
+  .caveats li::before {
+    content: "–";
+    position: absolute;
+    left: 0;
+  }
+
+
+  /* ─── sortable headers ─── */
+  thead th { cursor: pointer; user-select: none; }
+  thead th::after { content: ''; display: inline-block; width: 14px; }
+  thead th[data-sort="asc"]::after { content: ' ▲'; color: var(--mint); font-size: 8px; }
+  thead th[data-sort="desc"]::after { content: ' ▼'; color: var(--mint); font-size: 8px; }
+  thead th:hover { color: var(--text); }
+
+  /* ─── chart layout ─── */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .chart-full { grid-column: 1 / -1; }
+  .chart-card {
+    background: var(--bg2);
+    border: 1px solid var(--stroke);
+    border-radius: var(--radius-card);
+    overflow: hidden;
+  }
+  .chart-head {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--stroke);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    background: var(--bg3);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .chart-legend {
+    display: flex;
+    gap: 12px;
+    margin-left: auto;
+  }
+  .chart-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 9px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-weight: 500;
+  }
+  .legend-swatch {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  canvas { display: block; width: 100%; }
+  #chart-tokens  { height: 260px; }
+  #chart-iters   { height: 240px; }
+  #chart-scatter { height: 240px; }
+  .chart-tooltip {
+    position: fixed;
+    background: var(--bg2);
+    border: 1px solid var(--stroke-active);
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+    font-size: 11px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    pointer-events: none;
+    display: none;
+    z-index: 100;
+    white-space: nowrap;
+    line-height: 1.6;
+  }
+  @media (max-width: 720px) {
+    .charts-grid { grid-template-columns: 1fr; }
+    .chart-full  { grid-column: 1; }
+  }
+
+
+  @media (max-width: 640px) {
+    .summary { flex-wrap: wrap; }
+    .stat { min-width: calc(33% - 1px); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    tbody tr { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="header">
+    <h1>Ralph Session Dashboard</h1>
+    <span class="header-meta">Generated 2026-06-04 01:37 UTC &middot; ralph/.artifacts</span>
+  </header>
+
+  <div class="summary">
+    <div class="stat">
+      <span class="stat-val accent">95</span>
+      <span class="stat-label">AFK Solved</span>
+    </div>
+    <div class="stat">
+      <span class="stat-val">122</span>
+      <span class="stat-label">Total Attempts</span>
+    </div>
+    <div class="stat">
+      <span class="stat-val">111</span>
+      <span class="stat-label">Unique Issues</span>
+    </div>
+    <div class="stat">
+      <span class="stat-val human-color">15</span>
+      <span class="stat-label">Needs Human</span>
+    </div>
+    <div class="stat">
+      <span class="stat-val warn">12</span>
+      <span class="stat-label">Incomplete</span>
+    </div>
+    <div class="stat">
+      <span class="stat-val">1407.4M</span>
+      <span class="stat-label">Total Tokens</span>
+    </div>
+    <div class="stat">
+      <span class="stat-val">23</span>
+      <span class="stat-label">Compactions</span>
+    </div>
+    <div class="stat">
+      <span class="stat-val">21m 55s</span>
+      <span class="stat-label">Median Duration</span>
+    </div>
+    <div class="stat">
+      <span class="stat-val accent">77.9%</span>
+      <span class="stat-label">Solve Rate</span>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <section class="section">
+    <div class="section-title">Charts</div>
+    <div class="charts-grid">
+      <div class="chart-card chart-full">
+        <div class="chart-head">
+          Token Consumption by Issue
+          
+          <span class="chart-legend">
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#73FFB8"></span>resolved</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#0A84FF"></span>needs human</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#AAB8B0"></span>incomplete</span>
+          </span>
+        </div>
+        <canvas id="chart-tokens"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-head">
+          Iteration Depth
+          
+          <span class="chart-legend">
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#73FFB8"></span>resolved</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#0A84FF"></span>needs human</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#AAB8B0"></span>incomplete</span>
+          </span>
+        </div>
+        <canvas id="chart-iters"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-head">
+          Duration vs Tokens
+          
+          <span class="chart-legend">
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#73FFB8;border-radius:50%"></span>resolved</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#0A84FF;border-radius:50%"></span>needs human</span>
+            <span class="chart-legend-item"><span class="legend-swatch" style="background:#AAB8B0;border-radius:50%"></span>incomplete</span>
+          </span>
+        </div>
+        <canvas id="chart-scatter"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- AFK Solved -->
+  <section class="section">
+    <div class="section-title">
+      AFK Solved
+      <span class="count resolved">95</span>
+    </div>
+    <div class="table-wrap">
+      <table id="table-resolved">
+        <thead>
+          <tr>
+            <th>Issue</th>
+            <th>Iter</th>
+            <th>Duration</th>
+            <th class="num">Tokens</th>
+            <th class="num">Uncached</th>
+            <th class="num">Max Ctx</th>
+            <th class="num">Compact</th>
+            <th class="num">Sessions</th>
+            <th>Phases</th>
+            <th>Reviewers</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+        <tr>
+          <td class="num">#14</td>
+          <td class="num">2</td>
+          <td data-value="287">4m 47s</td>
+          <td class="num" data-value="2596017">2.6M</td>
+          <td class="num" data-value="144255">144K</td>
+          <td class="num " data-value="34.0">34.0%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="2">2</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="muted">—</span></td>
+        </tr>
+        <tr>
+          <td class="num">#15</td>
+          <td class="num">3</td>
+          <td data-value="468">7m 48s</td>
+          <td class="num" data-value="5282056">5.3M</td>
+          <td class="num" data-value="336641">337K</td>
+          <td class="num " data-value="40.4">40.4%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="muted">—</span></td>
+        </tr>
+        <tr>
+          <td class="num">#17</td>
+          <td class="num">3</td>
+          <td data-value="1023">17m 3s</td>
+          <td class="num" data-value="16963919">17.0M</td>
+          <td class="num" data-value="245976">246K</td>
+          <td class="num " data-value="63.9">63.9%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="2">2</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="muted">—</span></td>
+        </tr>
+        <tr>
+          <td class="num">#18</td>
+          <td class="num">1</td>
+          <td data-value="507">8m 27s</td>
+          <td class="num" data-value="5642652">5.6M</td>
+          <td class="num" data-value="267217">267K</td>
+          <td class="num " data-value="52.8">52.8%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="2">2</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="muted">—</span></td>
+        </tr>
+        <tr>
+          <td class="num">#19</td>
+          <td class="num">1</td>
+          <td data-value="471">7m 51s</td>
+          <td class="num" data-value="4523850">4.5M</td>
+          <td class="num" data-value="167771">168K</td>
+          <td class="num " data-value="48.7">48.7%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="2">2</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="muted">—</span></td>
+        </tr>
+        <tr>
+          <td class="num">#21</td>
+          <td class="num">4</td>
+          <td data-value="407">6m 47s</td>
+          <td class="num" data-value="2624479">2.6M</td>
+          <td class="num" data-value="255648">256K</td>
+          <td class="num " data-value="38.2">38.2%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="2">2</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="muted">—</span></td>
+        </tr>
+        <tr>
+          <td class="num">#22</td>
+          <td class="num">7</td>
+          <td data-value="628">10m 28s</td>
+          <td class="num" data-value="5291051">5.3M</td>
+          <td class="num" data-value="235305">235K</td>
+          <td class="num " data-value="46.9">46.9%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#23</td>
+          <td class="num">5</td>
+          <td data-value="700">11m 40s</td>
+          <td class="num" data-value="6646940">6.6M</td>
+          <td class="num" data-value="284393">284K</td>
+          <td class="num " data-value="55.2">55.2%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="2">2</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#24</td>
+          <td class="num">8</td>
+          <td data-value="1104">18m 24s</td>
+          <td class="num" data-value="8601137">8.6M</td>
+          <td class="num" data-value="600439">600K</td>
+          <td class="num " data-value="57.7">57.7%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="4">4</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#25</td>
+          <td class="num">2</td>
+          <td data-value="746">12m 26s</td>
+          <td class="num" data-value="5771816">5.8M</td>
+          <td class="num" data-value="499868">500K</td>
+          <td class="num " data-value="53.4">53.4%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#26</td>
+          <td class="num">6</td>
+          <td data-value="641">10m 41s</td>
+          <td class="num" data-value="4771318">4.8M</td>
+          <td class="num" data-value="422647">423K</td>
+          <td class="num " data-value="44.0">44.0%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#27</td>
+          <td class="num">9</td>
+          <td data-value="790">13m 10s</td>
+          <td class="num" data-value="6379893">6.4M</td>
+          <td class="num" data-value="418925">419K</td>
+          <td class="num " data-value="53.0">53.0%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#28</td>
+          <td class="num">3</td>
+          <td data-value="702">11m 42s</td>
+          <td class="num" data-value="6613298">6.6M</td>
+          <td class="num" data-value="384480">384K</td>
+          <td class="num " data-value="39.2">39.2%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#29</td>
+          <td class="num">10</td>
+          <td data-value="431">7m 11s</td>
+          <td class="num" data-value="3366736">3.4M</td>
+          <td class="num" data-value="198138">198K</td>
+          <td class="num " data-value="36.6">36.6%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#30</td>
+          <td class="num">11</td>
+          <td data-value="585">9m 45s</td>
+          <td class="num" data-value="5139193">5.1M</td>
+          <td class="num" data-value="250796">251K</td>
+          <td class="num " data-value="46.6">46.6%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#33</td>
+          <td class="num">1</td>
+          <td data-value="90">1m 30s</td>
+          <td class="num" data-value="307070">307K</td>
+          <td class="num" data-value="61690">62K</td>
+          <td class="num " data-value="14.9">14.9%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="1">1</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="muted">—</span></td>
+        </tr>
+        <tr>
+          <td class="num">#34</td>
+          <td class="num">1</td>
+          <td data-value="1180">19m 40s</td>
+          <td class="num" data-value="8292863">8.3M</td>
+          <td class="num" data-value="447932">448K</td>
+          <td class="num " data-value="55.3">55.3%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="4">4</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#35</td>
+          <td class="num">2</td>
+          <td data-value="1173">19m 33s</td>
+          <td class="num" data-value="7467484">7.5M</td>
+          <td class="num" data-value="394102">394K</td>
+          <td class="num " data-value="50.3">50.3%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#36</td>
+          <td class="num">1</td>
+          <td data-value="1240">20m 40s</td>
+          <td class="num" data-value="12049007">12.0M</td>
+          <td class="num" data-value="633871">634K</td>
+          <td class="num ctx-warn" data-value="79.5">79.5%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#37</td>
+          <td class="num">2</td>
+          <td data-value="866">14m 26s</td>
+          <td class="num" data-value="6404513">6.4M</td>
+          <td class="num" data-value="398091">398K</td>
+          <td class="num " data-value="42.9">42.9%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="4">4</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#39</td>
+          <td class="num">1</td>
+          <td data-value="495">8m 15s</td>
+          <td class="num" data-value="4641606">4.6M</td>
+          <td class="num" data-value="313045">313K</td>
+          <td class="num " data-value="46.6">46.6%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#40</td>
+          <td class="num">6</td>
+          <td data-value="841">14m 1s</td>
+          <td class="num" data-value="8233860">8.2M</td>
+          <td class="num" data-value="466720">467K</td>
+          <td class="num " data-value="53.7">53.7%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="4">4</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#41</td>
+          <td class="num">2</td>
+          <td data-value="1712">28m 32s</td>
+          <td class="num" data-value="22902161">22.9M</td>
+          <td class="num" data-value="767382">767K</td>
+          <td class="num ctx-danger" data-value="94.1">94.1%</td>
+          <td class="num" data-value="1">1</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#42</td>
+          <td class="num">7</td>
+          <td data-value="1045">17m 25s</td>
+          <td class="num" data-value="10373012">10.4M</td>
+          <td class="num" data-value="296862">297K</td>
+          <td class="num " data-value="60.4">60.4%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#43</td>
+          <td class="num">9</td>
+          <td data-value="536">8m 56s</td>
+          <td class="num" data-value="5110079">5.1M</td>
+          <td class="num" data-value="277731">278K</td>
+          <td class="num " data-value="53.1">53.1%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="4">4</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#45</td>
+          <td class="num">3</td>
+          <td data-value="819">13m 39s</td>
+          <td class="num" data-value="7068994">7.1M</td>
+          <td class="num" data-value="229080">229K</td>
+          <td class="num " data-value="53.0">53.0%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#46</td>
+          <td class="num">4</td>
+          <td data-value="1315">21m 55s</td>
+          <td class="num" data-value="11457045">11.5M</td>
+          <td class="num" data-value="592207">592K</td>
+          <td class="num ctx-warn" data-value="73.3">73.3%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="5">5</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#47</td>
+          <td class="num">5</td>
+          <td data-value="1310">21m 50s</td>
+          <td class="num" data-value="13165261">13.2M</td>
+          <td class="num" data-value="690089">690K</td>
+          <td class="num " data-value="61.5">61.5%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="4">4</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#48</td>
+          <td class="num">8</td>
+          <td data-value="758">12m 38s</td>
+          <td class="num" data-value="5370079">5.4M</td>
+          <td class="num" data-value="395238">395K</td>
+          <td class="num " data-value="55.4">55.4%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#49</td>
+          <td class="num">10</td>
+          <td data-value="1827">30m 27s</td>
+          <td class="num" data-value="27066054">27.1M</td>
+          <td class="num" data-value="594192">594K</td>
+          <td class="num ctx-danger" data-value="93.4">93.4%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#50</td>
+          <td class="num">11</td>
+          <td data-value="650">10m 50s</td>
+          <td class="num" data-value="5980798">6.0M</td>
+          <td class="num" data-value="295929">296K</td>
+          <td class="num " data-value="43.0">43.0%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#52</td>
+          <td class="num">1</td>
+          <td data-value="1084">18m 4s</td>
+          <td class="num" data-value="10455411">10.5M</td>
+          <td class="num" data-value="514921">515K</td>
+          <td class="num ctx-warn" data-value="75.9">75.9%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="4">4</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#53</td>
+          <td class="num">2</td>
+          <td data-value="2324">38m 44s</td>
+          <td class="num" data-value="21657511">21.7M</td>
+          <td class="num" data-value="734802">735K</td>
+          <td class="num ctx-warn" data-value="76.5">76.5%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="6">6</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#54</td>
+          <td class="num">5</td>
+          <td data-value="1435">23m 55s</td>
+          <td class="num" data-value="9127511">9.1M</td>
+          <td class="num" data-value="460252">460K</td>
+          <td class="num " data-value="55.4">55.4%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="4">4</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#55</td>
+          <td class="num">4</td>
+          <td data-value="1415">23m 35s</td>
+          <td class="num" data-value="10295177">10.3M</td>
+          <td class="num" data-value="455403">455K</td>
+          <td class="num " data-value="53.6">53.6%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="4">4</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#56</td>
+          <td class="num">6</td>
+          <td data-value="6699">1h 51m 39s</td>
+          <td class="num" data-value="62647507">62.6M</td>
+          <td class="num" data-value="1865669">1.9M</td>
+          <td class="num ctx-danger" data-value="93.0">93.0%</td>
+          <td class="num" data-value="2">2</td>
+          <td class="num" data-value="9">9</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#57</td>
+          <td class="num">3</td>
+          <td data-value="542">9m 2s</td>
+          <td class="num" data-value="4217118">4.2M</td>
+          <td class="num" data-value="278493">278K</td>
+          <td class="num " data-value="41.3">41.3%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#59</td>
+          <td class="num">9</td>
+          <td data-value="1030">17m 10s</td>
+          <td class="num" data-value="10381094">10.4M</td>
+          <td class="num" data-value="356115">356K</td>
+          <td class="num ctx-warn" data-value="78.2">78.2%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#61</td>
+          <td class="num">7</td>
+          <td data-value="1044">17m 24s</td>
+          <td class="num" data-value="4689233">4.7M</td>
+          <td class="num" data-value="345876">346K</td>
+          <td class="num " data-value="38.0">38.0%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#62</td>
+          <td class="num">8</td>
+          <td data-value="1967">32m 47s</td>
+          <td class="num" data-value="15922613">15.9M</td>
+          <td class="num" data-value="701610">702K</td>
+          <td class="num ctx-warn" data-value="78.9">78.9%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="5">5</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#63</td>
+          <td class="num">10</td>
+          <td data-value="2624">43m 44s</td>
+          <td class="num" data-value="28524133">28.5M</td>
+          <td class="num" data-value="773826">774K</td>
+          <td class="num ctx-danger" data-value="94.4">94.4%</td>
+          <td class="num" data-value="1">1</td>
+          <td class="num" data-value="4">4</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#64</td>
+          <td class="num">11</td>
+          <td data-value="1183">19m 43s</td>
+          <td class="num" data-value="6720069">6.7M</td>
+          <td class="num" data-value="444744">445K</td>
+          <td class="num " data-value="43.0">43.0%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#65</td>
+          <td class="num">1</td>
+          <td data-value="1898">31m 38s</td>
+          <td class="num" data-value="23032796">23.0M</td>
+          <td class="num" data-value="728660">729K</td>
+          <td class="num ctx-danger" data-value="94.3">94.3%</td>
+          <td class="num" data-value="1">1</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#66</td>
+          <td class="num">1</td>
+          <td data-value="1627">27m 7s</td>
+          <td class="num" data-value="16583750">16.6M</td>
+          <td class="num" data-value="671996">672K</td>
+          <td class="num ctx-danger" data-value="94.7">94.7%</td>
+          <td class="num" data-value="1">1</td>
+          <td class="num" data-value="4">4</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#68</td>
+          <td class="num">2</td>
+          <td data-value="1055">17m 35s</td>
+          <td class="num" data-value="6938483">6.9M</td>
+          <td class="num" data-value="333274">333K</td>
+          <td class="num " data-value="63.9">63.9%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#70</td>
+          <td class="num">3</td>
+          <td data-value="1106">18m 26s</td>
+          <td class="num" data-value="9524797">9.5M</td>
+          <td class="num" data-value="396412">396K</td>
+          <td class="num ctx-warn" data-value="70.5">70.5%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="4">4</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#71</td>
+          <td class="num">4</td>
+          <td data-value="2079">34m 39s</td>
+          <td class="num" data-value="19190041">19.2M</td>
+          <td class="num" data-value="625373">625K</td>
+          <td class="num " data-value="69.4">69.4%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="4">4</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#72</td>
+          <td class="num">1</td>
+          <td data-value="2600">43m 20s</td>
+          <td class="num" data-value="13876866">13.9M</td>
+          <td class="num" data-value="472407">472K</td>
+          <td class="num " data-value="66.8">66.8%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#73</td>
+          <td class="num">4</td>
+          <td data-value="1529">25m 29s</td>
+          <td class="num" data-value="13267019">13.3M</td>
+          <td class="num" data-value="713572">714K</td>
+          <td class="num ctx-danger" data-value="93.7">93.7%</td>
+          <td class="num" data-value="1">1</td>
+          <td class="num" data-value="5">5</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#74</td>
+          <td class="num">5</td>
+          <td data-value="1369">22m 49s</td>
+          <td class="num" data-value="15935606">15.9M</td>
+          <td class="num" data-value="668213">668K</td>
+          <td class="num " data-value="66.1">66.1%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#75</td>
+          <td class="num">2</td>
+          <td data-value="1299">21m 39s</td>
+          <td class="num" data-value="10486781">10.5M</td>
+          <td class="num" data-value="723994">724K</td>
+          <td class="num ctx-warn" data-value="76.2">76.2%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#76</td>
+          <td class="num">3</td>
+          <td data-value="862">14m 22s</td>
+          <td class="num" data-value="3933471">3.9M</td>
+          <td class="num" data-value="424196">424K</td>
+          <td class="num " data-value="43.8">43.8%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#77</td>
+          <td class="num">6</td>
+          <td data-value="1177">19m 37s</td>
+          <td class="num" data-value="12826168">12.8M</td>
+          <td class="num" data-value="550946">551K</td>
+          <td class="num ctx-warn" data-value="76.6">76.6%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#78</td>
+          <td class="num">7</td>
+          <td data-value="1989">33m 9s</td>
+          <td class="num" data-value="13128440">13.1M</td>
+          <td class="num" data-value="611307">611K</td>
+          <td class="num " data-value="61.4">61.4%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="4">4</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#79</td>
+          <td class="num">8</td>
+          <td data-value="1011">16m 51s</td>
+          <td class="num" data-value="8232295">8.2M</td>
+          <td class="num" data-value="455575">456K</td>
+          <td class="num ctx-warn" data-value="70.1">70.1%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#80</td>
+          <td class="num">9</td>
+          <td data-value="906">15m 6s</td>
+          <td class="num" data-value="4677927">4.7M</td>
+          <td class="num" data-value="270928">271K</td>
+          <td class="num " data-value="42.9">42.9%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#81</td>
+          <td class="num">1</td>
+          <td data-value="1553">25m 53s</td>
+          <td class="num" data-value="1329226">1.3M</td>
+          <td class="num" data-value="272356">272K</td>
+          <td class="num " data-value="32.3">32.3%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#82</td>
+          <td class="num">1</td>
+          <td data-value="750">12m 30s</td>
+          <td class="num" data-value="5291984">5.3M</td>
+          <td class="num" data-value="277443">277K</td>
+          <td class="num " data-value="54.9">54.9%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#84</td>
+          <td class="num">3</td>
+          <td data-value="1349">22m 29s</td>
+          <td class="num" data-value="12385554">12.4M</td>
+          <td class="num" data-value="654908">655K</td>
+          <td class="num ctx-warn" data-value="80.9">80.9%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="4">4</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span> <span class="role-chip">ui</span></td>
+        </tr>
+        <tr>
+          <td class="num">#85</td>
+          <td class="num">4</td>
+          <td data-value="3164">52m 44s</td>
+          <td class="num" data-value="27292412">27.3M</td>
+          <td class="num" data-value="1366506">1.4M</td>
+          <td class="num ctx-danger" data-value="94.7">94.7%</td>
+          <td class="num" data-value="1">1</td>
+          <td class="num" data-value="7">7</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span> <span class="role-chip">ui</span></td>
+        </tr>
+        <tr>
+          <td class="num">#86</td>
+          <td class="num">6</td>
+          <td data-value="2139">35m 39s</td>
+          <td class="num" data-value="20961951">21.0M</td>
+          <td class="num" data-value="675181">675K</td>
+          <td class="num ctx-warn" data-value="81.5">81.5%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="6">6</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span> <span class="role-chip">ui</span></td>
+        </tr>
+        <tr>
+          <td class="num">#87</td>
+          <td class="num">1</td>
+          <td data-value="1246">20m 46s</td>
+          <td class="num" data-value="965956">966K</td>
+          <td class="num" data-value="178526">179K</td>
+          <td class="num " data-value="26.3">26.3%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="4">4</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span> <span class="role-chip">ui</span></td>
+        </tr>
+        <tr>
+          <td class="num">#88</td>
+          <td class="num">1</td>
+          <td data-value="809">13m 29s</td>
+          <td class="num" data-value="5693729">5.7M</td>
+          <td class="num" data-value="222046">222K</td>
+          <td class="num " data-value="56.5">56.5%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#89</td>
+          <td class="num">1</td>
+          <td data-value="1496">24m 56s</td>
+          <td class="num" data-value="12609227">12.6M</td>
+          <td class="num" data-value="619799">620K</td>
+          <td class="num ctx-warn" data-value="85.5">85.5%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="4">4</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#90</td>
+          <td class="num">2</td>
+          <td data-value="1187">19m 47s</td>
+          <td class="num" data-value="12813136">12.8M</td>
+          <td class="num" data-value="663991">664K</td>
+          <td class="num ctx-warn" data-value="86.3">86.3%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#91</td>
+          <td class="num">3</td>
+          <td data-value="1747">29m 7s</td>
+          <td class="num" data-value="19885814">19.9M</td>
+          <td class="num" data-value="519131">519K</td>
+          <td class="num ctx-danger" data-value="94.7">94.7%</td>
+          <td class="num" data-value="1">1</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#94</td>
+          <td class="num">1</td>
+          <td data-value="2528">42m 8s</td>
+          <td class="num" data-value="20274557">20.3M</td>
+          <td class="num" data-value="803446">803K</td>
+          <td class="num ctx-danger" data-value="93.4">93.4%</td>
+          <td class="num" data-value="1">1</td>
+          <td class="num" data-value="5">5</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span> <span class="role-chip">ui</span></td>
+        </tr>
+        <tr>
+          <td class="num">#104</td>
+          <td class="num">1</td>
+          <td data-value="1788">29m 48s</td>
+          <td class="num" data-value="11953808">12.0M</td>
+          <td class="num" data-value="620392">620K</td>
+          <td class="num ctx-warn" data-value="71.4">71.4%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#106</td>
+          <td class="num">2</td>
+          <td data-value="1359">22m 39s</td>
+          <td class="num" data-value="16030039">16.0M</td>
+          <td class="num" data-value="385135">385K</td>
+          <td class="num ctx-warn" data-value="87.2">87.2%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#107</td>
+          <td class="num">3</td>
+          <td data-value="1291">21m 31s</td>
+          <td class="num" data-value="7261004">7.3M</td>
+          <td class="num" data-value="405482">405K</td>
+          <td class="num " data-value="54.9">54.9%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#108</td>
+          <td class="num">4</td>
+          <td data-value="1845">30m 45s</td>
+          <td class="num" data-value="12773867">12.8M</td>
+          <td class="num" data-value="590228">590K</td>
+          <td class="num " data-value="64.9">64.9%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="4">4</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#109</td>
+          <td class="num">5</td>
+          <td data-value="2163">36m 3s</td>
+          <td class="num" data-value="19530143">19.5M</td>
+          <td class="num" data-value="690221">690K</td>
+          <td class="num ctx-warn" data-value="84.2">84.2%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#110</td>
+          <td class="num">8</td>
+          <td data-value="2118">35m 18s</td>
+          <td class="num" data-value="22763315">22.8M</td>
+          <td class="num" data-value="943392">943K</td>
+          <td class="num ctx-danger" data-value="94.5">94.5%</td>
+          <td class="num" data-value="1">1</td>
+          <td class="num" data-value="6">6</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span> <span class="role-chip">ui</span></td>
+        </tr>
+        <tr>
+          <td class="num">#111</td>
+          <td class="num">9</td>
+          <td data-value="1802">30m 2s</td>
+          <td class="num" data-value="8239851">8.2M</td>
+          <td class="num" data-value="665717">666K</td>
+          <td class="num ctx-warn" data-value="82.7">82.7%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#113</td>
+          <td class="num">1</td>
+          <td data-value="2818">46m 58s</td>
+          <td class="num" data-value="36903371">36.9M</td>
+          <td class="num" data-value="1063445">1.1M</td>
+          <td class="num ctx-danger" data-value="94.7">94.7%</td>
+          <td class="num" data-value="1">1</td>
+          <td class="num" data-value="6">6</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span> <span class="role-chip">ui</span></td>
+        </tr>
+        <tr>
+          <td class="num">#116</td>
+          <td class="num">7</td>
+          <td data-value="1147">19m 7s</td>
+          <td class="num" data-value="9108173">9.1M</td>
+          <td class="num" data-value="635560">636K</td>
+          <td class="num " data-value="54.1">54.1%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="5">5</td>
+          <td><span class="phase-chip">sel</span></td>
+          <td><span class="role-chip">swift</span> <span class="role-chip">ui</span></td>
+        </tr>
+        <tr>
+          <td class="num">#123</td>
+          <td class="num">2</td>
+          <td data-value="2157">35m 57s</td>
+          <td class="num" data-value="16823921">16.8M</td>
+          <td class="num" data-value="849351">849K</td>
+          <td class="num ctx-warn" data-value="71.8">71.8%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="6">6</td>
+          <td><span class="phase-chip">sel</span> <span class="phase-chip">impl</span></td>
+          <td><span class="role-chip">swift</span> <span class="role-chip">ui</span></td>
+        </tr>
+        <tr>
+          <td class="num">#124</td>
+          <td class="num">3</td>
+          <td data-value="2172">36m 12s</td>
+          <td class="num" data-value="15902842">15.9M</td>
+          <td class="num" data-value="851877">852K</td>
+          <td class="num ctx-danger" data-value="91.2">91.2%</td>
+          <td class="num" data-value="1">1</td>
+          <td class="num" data-value="4">4</td>
+          <td><span class="phase-chip">sel</span> <span class="phase-chip">impl</span></td>
+          <td><span class="role-chip">swift</span> <span class="role-chip">ui</span></td>
+        </tr>
+        <tr>
+          <td class="num">#131</td>
+          <td class="num">1</td>
+          <td data-value="2327">38m 47s</td>
+          <td class="num" data-value="21371573">21.4M</td>
+          <td class="num" data-value="730462">730K</td>
+          <td class="num ctx-danger" data-value="94.2">94.2%</td>
+          <td class="num" data-value="1">1</td>
+          <td class="num" data-value="4">4</td>
+          <td><span class="phase-chip">sel</span> <span class="phase-chip">impl</span></td>
+          <td><span class="role-chip">swift</span> <span class="role-chip">ui</span></td>
+        </tr>
+        <tr>
+          <td class="num">#135</td>
+          <td class="num">2</td>
+          <td data-value="1740">29m 0s</td>
+          <td class="num" data-value="19492870">19.5M</td>
+          <td class="num" data-value="717232">717K</td>
+          <td class="num ctx-warn" data-value="84.2">84.2%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="4">4</td>
+          <td><span class="phase-chip">sel</span> <span class="phase-chip">impl</span></td>
+          <td><span class="role-chip">swift</span> <span class="role-chip">ui</span></td>
+        </tr>
+        <tr>
+          <td class="num">#136</td>
+          <td class="num">1</td>
+          <td data-value="2203">36m 43s</td>
+          <td class="num" data-value="22429457">22.4M</td>
+          <td class="num" data-value="1011927">1.0M</td>
+          <td class="num ctx-danger" data-value="94.5">94.5%</td>
+          <td class="num" data-value="1">1</td>
+          <td class="num" data-value="5">5</td>
+          <td><span class="phase-chip">sel</span> <span class="phase-chip">impl</span></td>
+          <td><span class="role-chip">swift</span> <span class="role-chip">ui</span></td>
+        </tr>
+        <tr>
+          <td class="num">#139</td>
+          <td class="num">3</td>
+          <td data-value="2979">49m 39s</td>
+          <td class="num" data-value="23900355">23.9M</td>
+          <td class="num" data-value="680568">681K</td>
+          <td class="num ctx-warn" data-value="75.0">75.0%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="6">6</td>
+          <td><span class="phase-chip">sel</span> <span class="phase-chip">impl</span></td>
+          <td><span class="role-chip">swift</span> <span class="role-chip">ui</span></td>
+        </tr>
+        <tr>
+          <td class="num">#142</td>
+          <td class="num">7</td>
+          <td data-value="2290">38m 10s</td>
+          <td class="num" data-value="23721220">23.7M</td>
+          <td class="num" data-value="1369544">1.4M</td>
+          <td class="num ctx-danger" data-value="94.5">94.5%</td>
+          <td class="num" data-value="1">1</td>
+          <td class="num" data-value="5">5</td>
+          <td><span class="phase-chip">sel</span> <span class="phase-chip">impl</span></td>
+          <td><span class="role-chip">swift</span> <span class="role-chip">ui</span></td>
+        </tr>
+        <tr>
+          <td class="num">#143</td>
+          <td class="num">8</td>
+          <td data-value="2122">35m 22s</td>
+          <td class="num" data-value="23162289">23.2M</td>
+          <td class="num" data-value="999418">999K</td>
+          <td class="num ctx-danger" data-value="94.3">94.3%</td>
+          <td class="num" data-value="1">1</td>
+          <td class="num" data-value="6">6</td>
+          <td><span class="phase-chip">sel</span> <span class="phase-chip">impl</span></td>
+          <td><span class="role-chip">swift</span> <span class="role-chip">ui</span></td>
+        </tr>
+        <tr>
+          <td class="num">#145</td>
+          <td class="num">5</td>
+          <td data-value="1758">29m 18s</td>
+          <td class="num" data-value="8242506">8.2M</td>
+          <td class="num" data-value="508309">508K</td>
+          <td class="num ctx-warn" data-value="86.5">86.5%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span> <span class="phase-chip">impl</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#146</td>
+          <td class="num">6</td>
+          <td data-value="1345">22m 25s</td>
+          <td class="num" data-value="6065999">6.1M</td>
+          <td class="num" data-value="365211">365K</td>
+          <td class="num ctx-warn" data-value="71.8">71.8%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="3">3</td>
+          <td><span class="phase-chip">sel</span> <span class="phase-chip">impl</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#157</td>
+          <td class="num">1</td>
+          <td data-value="2113">35m 13s</td>
+          <td class="num" data-value="10857676">10.9M</td>
+          <td class="num" data-value="824790">825K</td>
+          <td class="num ctx-warn" data-value="71.9">71.9%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="7">7</td>
+          <td><span class="phase-chip">sel</span> <span class="phase-chip">tdd</span> <span class="phase-chip">rev</span> <span class="phase-chip">ui</span></td>
+          <td><span class="role-chip">swift</span> <span class="role-chip">ui</span></td>
+        </tr>
+        <tr>
+          <td class="num">#158</td>
+          <td class="num">4</td>
+          <td data-value="2449">40m 49s</td>
+          <td class="num" data-value="9899861">9.9M</td>
+          <td class="num" data-value="806785">807K</td>
+          <td class="num " data-value="53.3">53.3%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="6">6</td>
+          <td><span class="phase-chip">sel</span> <span class="phase-chip">tdd</span> <span class="phase-chip">rev</span> <span class="phase-chip">ui</span></td>
+          <td><span class="role-chip">swift</span> <span class="role-chip">ui</span></td>
+        </tr>
+        <tr>
+          <td class="num">#159</td>
+          <td class="num">2</td>
+          <td data-value="2039">33m 59s</td>
+          <td class="num" data-value="10559716">10.6M</td>
+          <td class="num" data-value="550834">551K</td>
+          <td class="num ctx-warn" data-value="77.8">77.8%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="7">7</td>
+          <td><span class="phase-chip">sel</span> <span class="phase-chip">tdd</span> <span class="phase-chip">rev</span> <span class="phase-chip">ui</span></td>
+          <td><span class="role-chip">swift</span> <span class="role-chip">ui</span></td>
+        </tr>
+        <tr>
+          <td class="num">#160</td>
+          <td class="num">3</td>
+          <td data-value="1774">29m 34s</td>
+          <td class="num" data-value="5680260">5.7M</td>
+          <td class="num" data-value="357647">358K</td>
+          <td class="num " data-value="51.2">51.2%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="5">5</td>
+          <td><span class="phase-chip">sel</span> <span class="phase-chip">tdd</span> <span class="phase-chip">rev</span> <span class="phase-chip">ui</span></td>
+          <td><span class="role-chip">swift</span></td>
+        </tr>
+        <tr>
+          <td class="num">#161</td>
+          <td class="num">5</td>
+          <td data-value="2439">40m 39s</td>
+          <td class="num" data-value="10024893">10.0M</td>
+          <td class="num" data-value="708416">708K</td>
+          <td class="num " data-value="56.5">56.5%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="7">7</td>
+          <td><span class="phase-chip">sel</span> <span class="phase-chip">tdd</span> <span class="phase-chip">rev</span> <span class="phase-chip">ui</span></td>
+          <td><span class="role-chip">swift</span> <span class="role-chip">ui</span></td>
+        </tr>
+        <tr>
+          <td class="num">#162</td>
+          <td class="num">6</td>
+          <td data-value="1706">28m 26s</td>
+          <td class="num" data-value="8459011">8.5M</td>
+          <td class="num" data-value="555403">555K</td>
+          <td class="num " data-value="65.9">65.9%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="6">6</td>
+          <td><span class="phase-chip">sel</span> <span class="phase-chip">tdd</span> <span class="phase-chip">rev</span> <span class="phase-chip">ui</span></td>
+          <td><span class="role-chip">swift</span> <span class="role-chip">ui</span></td>
+        </tr>
+        <tr>
+          <td class="num">#163</td>
+          <td class="num">7</td>
+          <td data-value="2009">33m 29s</td>
+          <td class="num" data-value="13700108">13.7M</td>
+          <td class="num" data-value="687594">688K</td>
+          <td class="num ctx-warn" data-value="89.0">89.0%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="7">7</td>
+          <td><span class="phase-chip">sel</span> <span class="phase-chip">tdd</span> <span class="phase-chip">rev</span> <span class="phase-chip">ui</span></td>
+          <td><span class="role-chip">swift</span> <span class="role-chip">ui</span></td>
+        </tr>
+        <tr>
+          <td class="num">#173</td>
+          <td class="num">3</td>
+          <td data-value="2094">34m 54s</td>
+          <td class="num" data-value="9459013">9.5M</td>
+          <td class="num" data-value="684548">685K</td>
+          <td class="num ctx-danger" data-value="91.7">91.7%</td>
+          <td class="num" data-value="1">1</td>
+          <td class="num" data-value="6">6</td>
+          <td><span class="phase-chip">sel</span> <span class="phase-chip">tdd</span> <span class="phase-chip">rev</span> <span class="phase-chip">ui</span></td>
+          <td><span class="role-chip">swift</span> <span class="role-chip">ui</span></td>
+        </tr>
+        <tr>
+          <td class="num">#175</td>
+          <td class="num">6</td>
+          <td data-value="2023">33m 43s</td>
+          <td class="num" data-value="7733983">7.7M</td>
+          <td class="num" data-value="521639">522K</td>
+          <td class="num " data-value="59.7">59.7%</td>
+          <td class="num" data-value="0">—</td>
+          <td class="num" data-value="7">7</td>
+          <td><span class="phase-chip">sel</span> <span class="phase-chip">tdd</span> <span class="phase-chip">rev</span> <span class="phase-chip">ui</span></td>
+          <td><span class="role-chip">swift</span> <span class="role-chip">ui</span></td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Needs Human -->
+  <section class="section">
+    <div class="section-title">
+      Needs Human
+      <span class="count">27</span>
+    </div>
+    <div class="table-wrap">
+      <table id="table-not-afk">
+        <thead>
+          <tr>
+            <th>Issue</th>
+            <th>Iter</th>
+            <th>Outcome</th>
+            <th>Duration</th>
+            <th class="num">Tokens</th>
+            <th>Reason</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+        <tr>
+          <td class="num">#2</td>
+          <td class="num">2</td>
+          <td><span class="badge human">human</span></td>
+          <td data-value="294">4m 54s</td>
+          <td class="num" data-value="4323369">4.3M</td>
+          <td class="reason">UI vision check failed: VERDICT=FAIL: screenshot still uses the superseded amber/gold/brown palette …</td>
+        </tr>
+        <tr>
+          <td class="num">#12</td>
+          <td class="num">1</td>
+          <td><span class="badge human">human</span></td>
+          <td data-value="286">4m 46s</td>
+          <td class="num" data-value="2813825">2.8M</td>
+          <td class="reason">BLOCKED: xcodebuild app build cannot run in this sandbox due denied Xcode/SwiftPM cache writes and u…</td>
+        </tr>
+        <tr>
+          <td class="num">#12</td>
+          <td class="num">1</td>
+          <td><span class="badge human">human</span></td>
+          <td data-value="161">2m 41s</td>
+          <td class="num" data-value="976310">976K</td>
+          <td class="reason">UI vision check failed: see verify log. Screenshot: /Users/sunny/Projects/workout-app/ralph/.artifac…</td>
+        </tr>
+        <tr>
+          <td class="num">#12</td>
+          <td class="num">1</td>
+          <td><span class="badge incomplete">incomplete</span></td>
+          <td data-value="0">—</td>
+          <td class="num" data-value="119712">120K</td>
+          <td class="reason"><span class="muted">—</span></td>
+        </tr>
+        <tr>
+          <td class="num">#16</td>
+          <td class="num">1</td>
+          <td><span class="badge human">human</span></td>
+          <td data-value="532">8m 52s</td>
+          <td class="num" data-value="6430153">6.4M</td>
+          <td class="reason">UI vision check failed: see verify log. Screenshot: /Users/sunny/Projects/workout-app/ralph/.artifac…</td>
+        </tr>
+        <tr>
+          <td class="num">#20</td>
+          <td class="num">2</td>
+          <td><span class="badge human">human</span></td>
+          <td data-value="725">12m 5s</td>
+          <td class="num" data-value="5915662">5.9M</td>
+          <td class="reason">UI vision check failed: VERDICT=FAIL: active set card content is visibly clipped by a full-width bla…</td>
+        </tr>
+        <tr>
+          <td class="num">#33</td>
+          <td class="num">1</td>
+          <td><span class="badge incomplete">incomplete</span></td>
+          <td data-value="0">—</td>
+          <td class="num" data-value="5966340">6.0M</td>
+          <td class="reason"><span class="muted">—</span></td>
+        </tr>
+        <tr>
+          <td class="num">#34</td>
+          <td class="num">4</td>
+          <td><span class="badge human">human</span></td>
+          <td data-value="51">51s</td>
+          <td class="num" data-value="748211">748K</td>
+          <td class="reason">BLOCKED: issue #34 has no Agent Brief comment to implement against</td>
+        </tr>
+        <tr>
+          <td class="num">#38</td>
+          <td class="num">1</td>
+          <td><span class="badge human">human</span></td>
+          <td data-value="494">8m 14s</td>
+          <td class="num" data-value="3984401">4.0M</td>
+          <td class="reason">xcodebuild failed at the loop gate (see logs).</td>
+        </tr>
+        <tr>
+          <td class="num">#67</td>
+          <td class="num">2</td>
+          <td><span class="badge incomplete">incomplete</span></td>
+          <td data-value="0">—</td>
+          <td class="num" data-value="1509002">1.5M</td>
+          <td class="reason"><span class="muted">—</span></td>
+        </tr>
+        <tr>
+          <td class="num">#81</td>
+          <td class="num">1</td>
+          <td><span class="badge incomplete">incomplete</span></td>
+          <td data-value="0">—</td>
+          <td class="num" data-value="18425776">18.4M</td>
+          <td class="reason"><span class="muted">—</span></td>
+        </tr>
+        <tr>
+          <td class="num">#83</td>
+          <td class="num">2</td>
+          <td><span class="badge human">human</span></td>
+          <td data-value="697">11m 37s</td>
+          <td class="num" data-value="6931509">6.9M</td>
+          <td class="reason">Xcode unit/component tests failed at the loop gate: WorkoutTrackerTests (see logs).</td>
+        </tr>
+        <tr>
+          <td class="num">#87</td>
+          <td class="num">7</td>
+          <td><span class="badge incomplete">incomplete</span></td>
+          <td data-value="0">—</td>
+          <td class="num" data-value="8862301">8.9M</td>
+          <td class="reason"><span class="muted">—</span></td>
+        </tr>
+        <tr>
+          <td class="num">#88</td>
+          <td class="num">5</td>
+          <td><span class="badge human">human</span></td>
+          <td data-value="842">14m 2s</td>
+          <td class="num" data-value="5137480">5.1M</td>
+          <td class="reason">View/Theme changes require a non-empty UI screenshot artifact: ralph/.artifacts/issue-88-ui-review.p…</td>
+        </tr>
+        <tr>
+          <td class="num">#110</td>
+          <td class="num">6</td>
+          <td><span class="badge human">human</span></td>
+          <td data-value="3662">1h 1m 2s</td>
+          <td class="num" data-value="31694582">31.7M</td>
+          <td class="reason">Could not fast-forward main to the gated integration branch.</td>
+        </tr>
+        <tr>
+          <td class="num">#113</td>
+          <td class="num">10</td>
+          <td><span class="badge human">human</span></td>
+          <td data-value="3360">56m 0s</td>
+          <td class="num" data-value="30563815">30.6M</td>
+          <td class="reason">UI integration tests failed at the loop gate: WorkoutTrackerUITests (see logs).</td>
+        </tr>
+        <tr>
+          <td class="num">#114</td>
+          <td class="num">2</td>
+          <td><span class="badge incomplete">incomplete</span></td>
+          <td data-value="0">—</td>
+          <td class="num" data-value="127663">128K</td>
+          <td class="reason"><span class="muted">—</span></td>
+        </tr>
+        <tr>
+          <td class="num">#114</td>
+          <td class="num">11</td>
+          <td><span class="badge incomplete">incomplete</span></td>
+          <td data-value="0">—</td>
+          <td class="num" data-value="684065">684K</td>
+          <td class="reason"><span class="muted">—</span></td>
+        </tr>
+        <tr>
+          <td class="num">#140</td>
+          <td class="num">4</td>
+          <td><span class="badge human">human</span></td>
+          <td data-value="2709">45m 9s</td>
+          <td class="num" data-value="31194398">31.2M</td>
+          <td class="reason">IMPLEMENT timed out after 2700s without reporting completion.</td>
+        </tr>
+        <tr>
+          <td class="num">#165</td>
+          <td class="num">1</td>
+          <td><span class="badge human">human</span></td>
+          <td data-value="3394">56m 34s</td>
+          <td class="num" data-value="16529428">16.5M</td>
+          <td class="reason">Could not fast-forward main to the gated integration branch.</td>
+        </tr>
+        <tr>
+          <td class="num">#172</td>
+          <td class="num">2</td>
+          <td><span class="badge human">human</span></td>
+          <td data-value="1598">26m 38s</td>
+          <td class="num" data-value="13628155">13.6M</td>
+          <td class="reason">WorkoutTrackerUITests failed: full suite had 10 failures at Tests/UI/WorkoutTrackerUITests.swift:612…</td>
+        </tr>
+        <tr>
+          <td class="num">#180</td>
+          <td class="num">1</td>
+          <td><span class="badge incomplete">incomplete</span></td>
+          <td data-value="1923">32m 3s</td>
+          <td class="num" data-value="11031162">11.0M</td>
+          <td class="reason"><span class="muted">—</span></td>
+        </tr>
+        <tr>
+          <td class="num">#180</td>
+          <td class="num">3</td>
+          <td><span class="badge human">human</span></td>
+          <td data-value="654">10m 54s</td>
+          <td class="num" data-value="5741866">5.7M</td>
+          <td class="reason">implement-tdd did not report the exact completion promise. Expected: &lt;promise phase=&quot;impleme…</td>
+        </tr>
+        <tr>
+          <td class="num">#181</td>
+          <td class="num">2</td>
+          <td><span class="badge incomplete">incomplete</span></td>
+          <td data-value="2695">44m 55s</td>
+          <td class="num" data-value="14535610">14.5M</td>
+          <td class="reason"><span class="muted">—</span></td>
+        </tr>
+        <tr>
+          <td class="num">#182</td>
+          <td class="num">4</td>
+          <td><span class="badge incomplete">incomplete</span></td>
+          <td data-value="1413">23m 33s</td>
+          <td class="num" data-value="6200785">6.2M</td>
+          <td class="reason"><span class="muted">—</span></td>
+        </tr>
+        <tr>
+          <td class="num">#183</td>
+          <td class="num">5</td>
+          <td><span class="badge incomplete">incomplete</span></td>
+          <td data-value="2738">45m 38s</td>
+          <td class="num" data-value="16133176">16.1M</td>
+          <td class="reason"><span class="muted">—</span></td>
+        </tr>
+        <tr>
+          <td class="num">#184</td>
+          <td class="num">7</td>
+          <td><span class="badge incomplete">incomplete</span></td>
+          <td data-value="1102">18m 22s</td>
+          <td class="num" data-value="3250585">3.3M</td>
+          <td class="reason"><span class="muted">—</span></td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Phase Analysis -->
+  <section class="section">
+    <div class="section-title">Phase Analysis</div>
+    <div class="table-wrap">
+      <table id="table-phases">
+        <thead>
+          <tr>
+            <th>Phase</th>
+            <th class="num">Runs</th>
+            <th>Total Duration</th>
+            <th class="num">Total Tokens</th>
+            <th class="num">Avg Tokens/Run</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+        <tr>
+          <td>select</td>
+          <td class="num" data-value="122">122</td>
+          <td data-value="22687">6h 18m</td>
+          <td class="num" data-value="1023987822">1024.0M</td>
+          <td class="num" data-value="8393342">8.4M</td>
+        </tr>
+        <tr>
+          <td>implement (mono)</td>
+          <td class="num" data-value="11">11</td>
+          <td data-value="23802">6h 36m</td>
+          <td class="num" data-value="210622816">210.6M</td>
+          <td class="num" data-value="19147528">19.1M</td>
+        </tr>
+        <tr>
+          <td>implement-tdd</td>
+          <td class="num" data-value="17">17</td>
+          <td data-value="9586">2h 39m</td>
+          <td class="num" data-value="89272222">89.3M</td>
+          <td class="num" data-value="5251307">5.3M</td>
+        </tr>
+        <tr>
+          <td>swift-review</td>
+          <td class="num" data-value="16">16</td>
+          <td data-value="5705">1h 35m</td>
+          <td class="num" data-value="33620809">33.6M</td>
+          <td class="num" data-value="2101300">2.1M</td>
+        </tr>
+        <tr>
+          <td>ui-verify</td>
+          <td class="num" data-value="16">16</td>
+          <td data-value="14004">3h 53m</td>
+          <td class="num" data-value="46038068">46.0M</td>
+          <td class="num" data-value="2877379">2.9M</td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Outliers -->
+  <section class="section">
+    <div class="section-title">Outliers</div>
+    <div class="outlier-grid">
+      <div class="outlier-card">
+        <div class="outlier-card-head">Top Tokens</div>
+        <table>
+          <tbody>
+            <tr><td class="num">#56 iter 6</td><td class="num">62.6M</td><td><span class="badge resolved">✓</span></td></tr><tr><td class="num">#113 iter 1</td><td class="num">36.9M</td><td><span class="badge resolved">✓</span></td></tr><tr><td class="num">#110 iter 6</td><td class="num">31.7M</td><td><span class="badge human">human</span></td></tr><tr><td class="num">#140 iter 4</td><td class="num">31.2M</td><td><span class="badge human">human</span></td></tr><tr><td class="num">#113 iter 10</td><td class="num">30.6M</td><td><span class="badge human">human</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="outlier-card">
+        <div class="outlier-card-head">Longest Runs</div>
+        <table>
+          <tbody>
+            <tr><td class="num">#56 iter 6</td><td class="num">1h 51m 39s</td><td><span class="badge resolved">✓</span></td></tr><tr><td class="num">#110 iter 6</td><td class="num">1h 1m 2s</td><td><span class="badge human">human</span></td></tr><tr><td class="num">#165 iter 1</td><td class="num">56m 34s</td><td><span class="badge human">human</span></td></tr><tr><td class="num">#113 iter 10</td><td class="num">56m 0s</td><td><span class="badge human">human</span></td></tr><tr><td class="num">#85 iter 4</td><td class="num">52m 44s</td><td><span class="badge resolved">✓</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="outlier-card">
+        <div class="outlier-card-head">Max Context %</div>
+        <table>
+          <tbody>
+            <tr><td class="num">#140 iter 4</td><td class="num">94.8%</td><td><span class="badge human">human</span></td></tr><tr><td class="num">#172 iter 2</td><td class="num">94.8%</td><td><span class="badge human">human</span></td></tr><tr><td class="num">#66 iter 1</td><td class="num">94.7%</td><td><span class="badge resolved">✓</span></td></tr><tr><td class="num">#85 iter 4</td><td class="num">94.7%</td><td><span class="badge resolved">✓</span></td></tr><tr><td class="num">#91 iter 3</td><td class="num">94.7%</td><td><span class="badge resolved">✓</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="outlier-card">
+        <div class="outlier-card-head">Most Compactions</div>
+        <table>
+          <tbody>
+            <tr><td class="num">#56 iter 6</td><td class="num">2</td><td><span class="badge resolved">✓</span></td></tr><tr><td class="num">#41 iter 2</td><td class="num">1</td><td><span class="badge resolved">✓</span></td></tr><tr><td class="num">#63 iter 10</td><td class="num">1</td><td><span class="badge resolved">✓</span></td></tr><tr><td class="num">#65 iter 1</td><td class="num">1</td><td><span class="badge resolved">✓</span></td></tr><tr><td class="num">#66 iter 1</td><td class="num">1</td><td><span class="badge resolved">✓</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <div class="caveats">
+    <div class="caveats-title">Notes</div>
+    <ul>
+      <li>Report covers local artifacts only; attempts on other machines are not reflected.</li>
+      <li>Shell and Xcode gate time is included in duration but not in token telemetry.</li>
+      <li>Incomplete attempts with no terminal activity log event show zero duration.</li>
+      <li>Older monolithic runs use a single "implement" phase; split-loop runs use select / implement-tdd / swift-review / ui-verify.</li>
+      <li>Max context % is the highest recorded single-turn input for any session within the attempt.</li>
+    </ul>
+  </div>
+
+</div>
+<script>
+(function () {
+  'use strict';
+
+  const DATA = {"attempts":[{"issue":2,"iteration":2,"outcome":"ready-for-human","total_tokens":4323369,"duration_seconds":294},{"issue":12,"iteration":1,"outcome":"incomplete","total_tokens":119712,"duration_seconds":0},{"issue":12,"iteration":1,"outcome":"ready-for-human","total_tokens":2813825,"duration_seconds":286},{"issue":12,"iteration":1,"outcome":"ready-for-human","total_tokens":976310,"duration_seconds":161},{"issue":14,"iteration":2,"outcome":"resolved","total_tokens":2596017,"duration_seconds":287},{"issue":15,"iteration":3,"outcome":"resolved","total_tokens":5282056,"duration_seconds":468},{"issue":16,"iteration":1,"outcome":"ready-for-human","total_tokens":6430153,"duration_seconds":532},{"issue":17,"iteration":3,"outcome":"resolved","total_tokens":16963919,"duration_seconds":1023},{"issue":18,"iteration":1,"outcome":"resolved","total_tokens":5642652,"duration_seconds":507},{"issue":19,"iteration":1,"outcome":"resolved","total_tokens":4523850,"duration_seconds":471},{"issue":20,"iteration":2,"outcome":"ready-for-human","total_tokens":5915662,"duration_seconds":725},{"issue":21,"iteration":4,"outcome":"resolved","total_tokens":2624479,"duration_seconds":407},{"issue":22,"iteration":7,"outcome":"resolved","total_tokens":5291051,"duration_seconds":628},{"issue":23,"iteration":5,"outcome":"resolved","total_tokens":6646940,"duration_seconds":700},{"issue":24,"iteration":8,"outcome":"resolved","total_tokens":8601137,"duration_seconds":1104},{"issue":25,"iteration":2,"outcome":"resolved","total_tokens":5771816,"duration_seconds":746},{"issue":26,"iteration":6,"outcome":"resolved","total_tokens":4771318,"duration_seconds":641},{"issue":27,"iteration":9,"outcome":"resolved","total_tokens":6379893,"duration_seconds":790},{"issue":28,"iteration":3,"outcome":"resolved","total_tokens":6613298,"duration_seconds":702},{"issue":29,"iteration":10,"outcome":"resolved","total_tokens":3366736,"duration_seconds":431},{"issue":30,"iteration":11,"outcome":"resolved","total_tokens":5139193,"duration_seconds":585},{"issue":33,"iteration":1,"outcome":"incomplete","total_tokens":5966340,"duration_seconds":0},{"issue":33,"iteration":1,"outcome":"resolved","total_tokens":307070,"duration_seconds":90},{"issue":34,"iteration":1,"outcome":"resolved","total_tokens":8292863,"duration_seconds":1180},{"issue":34,"iteration":4,"outcome":"ready-for-human","total_tokens":748211,"duration_seconds":51},{"issue":35,"iteration":2,"outcome":"resolved","total_tokens":7467484,"duration_seconds":1173},{"issue":36,"iteration":1,"outcome":"resolved","total_tokens":12049007,"duration_seconds":1240},{"issue":37,"iteration":2,"outcome":"resolved","total_tokens":6404513,"duration_seconds":866},{"issue":38,"iteration":1,"outcome":"ready-for-human","total_tokens":3984401,"duration_seconds":494},{"issue":39,"iteration":1,"outcome":"resolved","total_tokens":4641606,"duration_seconds":495},{"issue":40,"iteration":6,"outcome":"resolved","total_tokens":8233860,"duration_seconds":841},{"issue":41,"iteration":2,"outcome":"resolved","total_tokens":22902161,"duration_seconds":1712},{"issue":42,"iteration":7,"outcome":"resolved","total_tokens":10373012,"duration_seconds":1045},{"issue":43,"iteration":9,"outcome":"resolved","total_tokens":5110079,"duration_seconds":536},{"issue":45,"iteration":3,"outcome":"resolved","total_tokens":7068994,"duration_seconds":819},{"issue":46,"iteration":4,"outcome":"resolved","total_tokens":11457045,"duration_seconds":1315},{"issue":47,"iteration":5,"outcome":"resolved","total_tokens":13165261,"duration_seconds":1310},{"issue":48,"iteration":8,"outcome":"resolved","total_tokens":5370079,"duration_seconds":758},{"issue":49,"iteration":10,"outcome":"resolved","total_tokens":27066054,"duration_seconds":1827},{"issue":50,"iteration":11,"outcome":"resolved","total_tokens":5980798,"duration_seconds":650},{"issue":52,"iteration":1,"outcome":"resolved","total_tokens":10455411,"duration_seconds":1084},{"issue":53,"iteration":2,"outcome":"resolved","total_tokens":21657511,"duration_seconds":2324},{"issue":54,"iteration":5,"outcome":"resolved","total_tokens":9127511,"duration_seconds":1435},{"issue":55,"iteration":4,"outcome":"resolved","total_tokens":10295177,"duration_seconds":1415},{"issue":56,"iteration":6,"outcome":"resolved","total_tokens":62647507,"duration_seconds":6699},{"issue":57,"iteration":3,"outcome":"resolved","total_tokens":4217118,"duration_seconds":542},{"issue":59,"iteration":9,"outcome":"resolved","total_tokens":10381094,"duration_seconds":1030},{"issue":61,"iteration":7,"outcome":"resolved","total_tokens":4689233,"duration_seconds":1044},{"issue":62,"iteration":8,"outcome":"resolved","total_tokens":15922613,"duration_seconds":1967},{"issue":63,"iteration":10,"outcome":"resolved","total_tokens":28524133,"duration_seconds":2624},{"issue":64,"iteration":11,"outcome":"resolved","total_tokens":6720069,"duration_seconds":1183},{"issue":65,"iteration":1,"outcome":"resolved","total_tokens":23032796,"duration_seconds":1898},{"issue":66,"iteration":1,"outcome":"resolved","total_tokens":16583750,"duration_seconds":1627},{"issue":67,"iteration":2,"outcome":"incomplete","total_tokens":1509002,"duration_seconds":0},{"issue":68,"iteration":2,"outcome":"resolved","total_tokens":6938483,"duration_seconds":1055},{"issue":70,"iteration":3,"outcome":"resolved","total_tokens":9524797,"duration_seconds":1106},{"issue":71,"iteration":4,"outcome":"resolved","total_tokens":19190041,"duration_seconds":2079},{"issue":72,"iteration":1,"outcome":"resolved","total_tokens":13876866,"duration_seconds":2600},{"issue":73,"iteration":4,"outcome":"resolved","total_tokens":13267019,"duration_seconds":1529},{"issue":74,"iteration":5,"outcome":"resolved","total_tokens":15935606,"duration_seconds":1369},{"issue":75,"iteration":2,"outcome":"resolved","total_tokens":10486781,"duration_seconds":1299},{"issue":76,"iteration":3,"outcome":"resolved","total_tokens":3933471,"duration_seconds":862},{"issue":77,"iteration":6,"outcome":"resolved","total_tokens":12826168,"duration_seconds":1177},{"issue":78,"iteration":7,"outcome":"resolved","total_tokens":13128440,"duration_seconds":1989},{"issue":79,"iteration":8,"outcome":"resolved","total_tokens":8232295,"duration_seconds":1011},{"issue":80,"iteration":9,"outcome":"resolved","total_tokens":4677927,"duration_seconds":906},{"issue":81,"iteration":1,"outcome":"incomplete","total_tokens":18425776,"duration_seconds":0},{"issue":81,"iteration":1,"outcome":"resolved","total_tokens":1329226,"duration_seconds":1553},{"issue":82,"iteration":1,"outcome":"resolved","total_tokens":5291984,"duration_seconds":750},{"issue":83,"iteration":2,"outcome":"ready-for-human","total_tokens":6931509,"duration_seconds":697},{"issue":84,"iteration":3,"outcome":"resolved","total_tokens":12385554,"duration_seconds":1349},{"issue":85,"iteration":4,"outcome":"resolved","total_tokens":27292412,"duration_seconds":3164},{"issue":86,"iteration":6,"outcome":"resolved","total_tokens":20961951,"duration_seconds":2139},{"issue":87,"iteration":1,"outcome":"resolved","total_tokens":965956,"duration_seconds":1246},{"issue":87,"iteration":7,"outcome":"incomplete","total_tokens":8862301,"duration_seconds":0},{"issue":88,"iteration":1,"outcome":"resolved","total_tokens":5693729,"duration_seconds":809},{"issue":88,"iteration":5,"outcome":"ready-for-human","total_tokens":5137480,"duration_seconds":842},{"issue":89,"iteration":1,"outcome":"resolved","total_tokens":12609227,"duration_seconds":1496},{"issue":90,"iteration":2,"outcome":"resolved","total_tokens":12813136,"duration_seconds":1187},{"issue":91,"iteration":3,"outcome":"resolved","total_tokens":19885814,"duration_seconds":1747},{"issue":94,"iteration":1,"outcome":"resolved","total_tokens":20274557,"duration_seconds":2528},{"issue":104,"iteration":1,"outcome":"resolved","total_tokens":11953808,"duration_seconds":1788},{"issue":106,"iteration":2,"outcome":"resolved","total_tokens":16030039,"duration_seconds":1359},{"issue":107,"iteration":3,"outcome":"resolved","total_tokens":7261004,"duration_seconds":1291},{"issue":108,"iteration":4,"outcome":"resolved","total_tokens":12773867,"duration_seconds":1845},{"issue":109,"iteration":5,"outcome":"resolved","total_tokens":19530143,"duration_seconds":2163},{"issue":110,"iteration":6,"outcome":"ready-for-human","total_tokens":31694582,"duration_seconds":3662},{"issue":110,"iteration":8,"outcome":"resolved","total_tokens":22763315,"duration_seconds":2118},{"issue":111,"iteration":9,"outcome":"resolved","total_tokens":8239851,"duration_seconds":1802},{"issue":113,"iteration":1,"outcome":"resolved","total_tokens":36903371,"duration_seconds":2818},{"issue":113,"iteration":10,"outcome":"ready-for-human","total_tokens":30563815,"duration_seconds":3360},{"issue":114,"iteration":2,"outcome":"incomplete","total_tokens":127663,"duration_seconds":0},{"issue":114,"iteration":11,"outcome":"incomplete","total_tokens":684065,"duration_seconds":0},{"issue":116,"iteration":7,"outcome":"resolved","total_tokens":9108173,"duration_seconds":1147},{"issue":123,"iteration":2,"outcome":"resolved","total_tokens":16823921,"duration_seconds":2157},{"issue":124,"iteration":3,"outcome":"resolved","total_tokens":15902842,"duration_seconds":2172},{"issue":131,"iteration":1,"outcome":"resolved","total_tokens":21371573,"duration_seconds":2327},{"issue":135,"iteration":2,"outcome":"resolved","total_tokens":19492870,"duration_seconds":1740},{"issue":136,"iteration":1,"outcome":"resolved","total_tokens":22429457,"duration_seconds":2203},{"issue":139,"iteration":3,"outcome":"resolved","total_tokens":23900355,"duration_seconds":2979},{"issue":140,"iteration":4,"outcome":"ready-for-human","total_tokens":31194398,"duration_seconds":2709},{"issue":142,"iteration":7,"outcome":"resolved","total_tokens":23721220,"duration_seconds":2290},{"issue":143,"iteration":8,"outcome":"resolved","total_tokens":23162289,"duration_seconds":2122},{"issue":145,"iteration":5,"outcome":"resolved","total_tokens":8242506,"duration_seconds":1758},{"issue":146,"iteration":6,"outcome":"resolved","total_tokens":6065999,"duration_seconds":1345},{"issue":157,"iteration":1,"outcome":"resolved","total_tokens":10857676,"duration_seconds":2113},{"issue":158,"iteration":4,"outcome":"resolved","total_tokens":9899861,"duration_seconds":2449},{"issue":159,"iteration":2,"outcome":"resolved","total_tokens":10559716,"duration_seconds":2039},{"issue":160,"iteration":3,"outcome":"resolved","total_tokens":5680260,"duration_seconds":1774},{"issue":161,"iteration":5,"outcome":"resolved","total_tokens":10024893,"duration_seconds":2439},{"issue":162,"iteration":6,"outcome":"resolved","total_tokens":8459011,"duration_seconds":1706},{"issue":163,"iteration":7,"outcome":"resolved","total_tokens":13700108,"duration_seconds":2009},{"issue":165,"iteration":1,"outcome":"ready-for-human","total_tokens":16529428,"duration_seconds":3394},{"issue":172,"iteration":2,"outcome":"ready-for-human","total_tokens":13628155,"duration_seconds":1598},{"issue":173,"iteration":3,"outcome":"resolved","total_tokens":9459013,"duration_seconds":2094},{"issue":175,"iteration":6,"outcome":"resolved","total_tokens":7733983,"duration_seconds":2023},{"issue":180,"iteration":1,"outcome":"incomplete","total_tokens":11031162,"duration_seconds":1923},{"issue":180,"iteration":3,"outcome":"ready-for-human","total_tokens":5741866,"duration_seconds":654},{"issue":181,"iteration":2,"outcome":"incomplete","total_tokens":14535610,"duration_seconds":2695},{"issue":182,"iteration":4,"outcome":"incomplete","total_tokens":6200785,"duration_seconds":1413},{"issue":183,"iteration":5,"outcome":"incomplete","total_tokens":16133176,"duration_seconds":2738},{"issue":184,"iteration":7,"outcome":"incomplete","total_tokens":3250585,"duration_seconds":1102}]};
+
+  const C = {
+    bg2: '#060E0A', bg3: '#081A12', stroke: '#215C40',
+    mint: '#73FFB8', muted: '#AAB8B0', blue: '#0A84FF', text: '#F5F7F3'
+  };
+
+  function outcomeColor(o) {
+    return o === 'resolved' ? C.mint : o === 'ready-for-human' ? C.blue : C.muted;
+  }
+
+  function fmtTok(n) {
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+    if (n >= 1e3) return Math.round(n / 1e3) + 'K';
+    return String(n);
+  }
+
+  function fmtDur(s) {
+    if (!s) return '—';
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    if (h) return h + 'h ' + m + 'm';
+    if (m) return m + 'm ' + sec + 's';
+    return sec + 's';
+  }
+
+  function setupCanvas(id) {
+    const cv = document.getElementById(id);
+    if (!cv) return null;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = cv.getBoundingClientRect();
+    if (!rect.width) return null;
+    cv.width = Math.round(rect.width * dpr);
+    cv.height = Math.round(rect.height * dpr);
+    const ctx = cv.getContext('2d');
+    ctx.scale(dpr, dpr);
+    return { ctx, W: rect.width, H: rect.height };
+  }
+
+  // ── Token consumption bar chart ──────────────────────────────────────────
+  function drawTokens() {
+    const r = setupCanvas('chart-tokens');
+    if (!r) return;
+    const { ctx, W, H } = r;
+    const pad = { t: 20, r: 12, b: 40, l: 56 };
+    const cW = W - pad.l - pad.r, cH = H - pad.t - pad.b;
+    const pts = [...DATA.attempts].sort((a, b) => a.issue - b.issue || a.iteration - b.iteration);
+    const maxT = Math.max(...pts.map(a => a.total_tokens));
+
+    ctx.fillStyle = C.bg2; ctx.fillRect(0, 0, W, H);
+
+    ctx.font = '9px SF Mono, ui-monospace, monospace';
+    for (let i = 0; i <= 4; i++) {
+      const y = pad.t + cH * (1 - i / 4);
+      ctx.strokeStyle = C.stroke + '55'; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cW, y); ctx.stroke();
+      ctx.fillStyle = C.muted; ctx.textAlign = 'right';
+      ctx.fillText(fmtTok(maxT * i / 4), pad.l - 4, y + 3);
+    }
+
+    const slotW = cW / pts.length;
+    const barW = Math.max(1.5, slotW * 0.82);
+    pts.forEach((a, i) => {
+      const x = pad.l + slotW * i + (slotW - barW) / 2;
+      const bH = (a.total_tokens / maxT) * cH;
+      ctx.fillStyle = outcomeColor(a.outcome); ctx.globalAlpha = 0.82;
+      ctx.fillRect(x, pad.t + cH - bH, barW, bH);
+    });
+    ctx.globalAlpha = 1;
+
+    const step = Math.max(1, Math.floor(pts.length / 14));
+    ctx.fillStyle = C.muted; ctx.textAlign = 'center';
+    ctx.font = '9px SF Mono, ui-monospace, monospace';
+    pts.forEach((a, i) => {
+      if (i % step === 0)
+        ctx.fillText('#' + a.issue, pad.l + slotW * i + slotW / 2, H - pad.b + 14);
+    });
+
+    ctx.strokeStyle = C.stroke; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + cH); ctx.lineTo(pad.l + cW, pad.t + cH); ctx.stroke();
+  }
+
+  // ── Iteration depth stacked bar chart ────────────────────────────────────
+  function drawIterations() {
+    const r = setupCanvas('chart-iters');
+    if (!r) return;
+    const { ctx, W, H } = r;
+    const pad = { t: 24, r: 20, b: 44, l: 44 };
+    const cW = W - pad.l - pad.r, cH = H - pad.t - pad.b;
+
+    const maxIter = Math.max(...DATA.attempts.map(a => a.iteration));
+    const buckets = {};
+    for (let i = 1; i <= maxIter; i++) buckets[i] = { res: 0, hum: 0, inc: 0 };
+    DATA.attempts.forEach(a => {
+      const b = buckets[a.iteration];
+      if (a.outcome === 'resolved') b.res++;
+      else if (a.outcome === 'ready-for-human') b.hum++;
+      else b.inc++;
+    });
+
+    const allTotals = Object.values(buckets).map(b => b.res + b.hum + b.inc);
+    const gridMax = Math.ceil(Math.max(...allTotals) / 5) * 5 || 5;
+
+    ctx.fillStyle = C.bg2; ctx.fillRect(0, 0, W, H);
+    ctx.font = '9px SF Mono, ui-monospace, monospace';
+    for (let i = 0; i <= 4; i++) {
+      const y = pad.t + cH * (1 - i / 4);
+      ctx.strokeStyle = C.stroke + '55'; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cW, y); ctx.stroke();
+      ctx.fillStyle = C.muted; ctx.textAlign = 'right';
+      ctx.fillText(Math.round(gridMax * i / 4), pad.l - 4, y + 3);
+    }
+
+    const iters = Object.keys(buckets).map(Number).sort((a, b) => a - b);
+    const slotW = cW / iters.length;
+    const barW = Math.min(52, Math.max(18, slotW * 0.62));
+
+    iters.forEach((iter, i) => {
+      const x = pad.l + slotW * i + (slotW - barW) / 2;
+      const b = buckets[iter];
+      const total = b.res + b.hum + b.inc;
+      let yBase = pad.t + cH;
+
+      [[b.res, C.mint, 0.85], [b.hum, C.blue, 0.8], [b.inc, C.muted, 0.55]].forEach(([n, col, alpha]) => {
+        if (!n) return;
+        const bH = (n / gridMax) * cH;
+        yBase -= bH;
+        ctx.fillStyle = col; ctx.globalAlpha = alpha;
+        ctx.fillRect(x, yBase, barW, bH);
+      });
+      ctx.globalAlpha = 1;
+
+      ctx.fillStyle = C.muted; ctx.textAlign = 'center';
+      ctx.font = '9px SF Mono, ui-monospace, monospace';
+      ctx.fillText('iter ' + iter, x + barW / 2, pad.t + cH + 14);
+
+      if (total > 0) {
+        const topY = pad.t + cH - (total / gridMax) * cH;
+        ctx.fillStyle = C.text;
+        ctx.font = 'bold 10px SF Mono, ui-monospace, monospace';
+        ctx.fillText(total, x + barW / 2, topY - 5);
+      }
+    });
+
+    ctx.strokeStyle = C.stroke; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + cH); ctx.lineTo(pad.l + cW, pad.t + cH); ctx.stroke();
+  }
+
+  // ── Duration vs Tokens scatter ────────────────────────────────────────────
+  function drawScatter() {
+    const r = setupCanvas('chart-scatter');
+    if (!r) return;
+    const { ctx, W, H } = r;
+    const pad = { t: 20, r: 20, b: 44, l: 56 };
+    const cW = W - pad.l - pad.r, cH = H - pad.t - pad.b;
+    const pts = DATA.attempts.filter(a => a.duration_seconds > 0);
+    if (!pts.length) return;
+    const maxD = Math.max(...pts.map(a => a.duration_seconds));
+    const maxT = Math.max(...pts.map(a => a.total_tokens));
+
+    ctx.fillStyle = C.bg2; ctx.fillRect(0, 0, W, H);
+    ctx.font = '9px SF Mono, ui-monospace, monospace';
+
+    for (let i = 0; i <= 4; i++) {
+      const y = pad.t + cH * (1 - i / 4);
+      const x = pad.l + cW * i / 4;
+      ctx.strokeStyle = C.stroke + '55'; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cW, y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, pad.t + cH); ctx.stroke();
+      ctx.fillStyle = C.muted;
+      ctx.textAlign = 'right';
+      ctx.fillText(fmtTok(maxT * i / 4), pad.l - 4, y + 3);
+      ctx.textAlign = 'center';
+      const secs = maxD * i / 4;
+      ctx.fillText(secs >= 3600 ? (secs / 3600).toFixed(1) + 'h' : Math.round(secs / 60) + 'm', x, pad.t + cH + 14);
+    }
+
+    pts.forEach(a => {
+      const x = pad.l + (a.duration_seconds / maxD) * cW;
+      const y = pad.t + cH - (a.total_tokens / maxT) * cH;
+      ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = outcomeColor(a.outcome); ctx.globalAlpha = 0.72;
+      ctx.fill(); ctx.globalAlpha = 1;
+    });
+
+    ctx.strokeStyle = C.stroke; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + cH); ctx.lineTo(pad.l + cW, pad.t + cH); ctx.stroke();
+
+    ctx.fillStyle = C.muted; ctx.textAlign = 'center';
+    ctx.font = '9px SF Mono, ui-monospace, monospace';
+    ctx.fillText('Duration →', pad.l + cW / 2, H - 4);
+    ctx.save(); ctx.translate(10, pad.t + cH / 2); ctx.rotate(-Math.PI / 2);
+    ctx.fillText('Tokens →', 0, 0); ctx.restore();
+  }
+
+  // ── Tooltips ──────────────────────────────────────────────────────────────
+  function makeTip() {
+    const el = document.createElement('div');
+    el.className = 'chart-tooltip';
+    document.body.appendChild(el);
+    return el;
+  }
+
+  function showTip(tip, e, html) {
+    tip.innerHTML = html;
+    tip.style.display = 'block';
+    tip.style.left = (e.pageX + 14) + 'px';
+    tip.style.top  = (e.pageY - 54) + 'px';
+  }
+
+  function hideTip(tip) { tip.style.display = 'none'; }
+
+  function outcomeLabel(o) {
+    return o === 'resolved' ? '✓ resolved' : o === 'ready-for-human' ? '⊙ needs human' : '○ incomplete';
+  }
+
+  function initTokenTooltip() {
+    const cv = document.getElementById('chart-tokens');
+    if (!cv) return;
+    const tip = makeTip();
+    const sorted = [...DATA.attempts].sort((a, b) => a.issue - b.issue || a.iteration - b.iteration);
+    cv.addEventListener('mousemove', e => {
+      const rect = cv.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const cW = rect.width - 56 - 12;
+      const idx = Math.floor((x - 56) / (cW / sorted.length));
+      if (idx >= 0 && idx < sorted.length) {
+        const a = sorted[idx];
+        showTip(tip, e, '<b>#' + a.issue + '</b> iter ' + a.iteration + '<br>' + outcomeLabel(a.outcome) + '<br>' + fmtTok(a.total_tokens) + ' · ' + fmtDur(a.duration_seconds));
+      } else hideTip(tip);
+    });
+    cv.addEventListener('mouseleave', () => hideTip(tip));
+  }
+
+  function initScatterTooltip() {
+    const cv = document.getElementById('chart-scatter');
+    if (!cv) return;
+    const tip = makeTip();
+    const pts = DATA.attempts.filter(a => a.duration_seconds > 0);
+    const maxD = Math.max(...pts.map(a => a.duration_seconds));
+    const maxT = Math.max(...pts.map(a => a.total_tokens));
+    cv.addEventListener('mousemove', e => {
+      const rect = cv.getBoundingClientRect();
+      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      const cW = rect.width - 76, cH = rect.height - 64;
+      const pl = 56, pt = 20;
+      let near = null, dist = Infinity;
+      pts.forEach(a => {
+        const d = Math.hypot(mx - (pl + (a.duration_seconds / maxD) * cW), my - (pt + cH - (a.total_tokens / maxT) * cH));
+        if (d < dist) { dist = d; near = a; }
+      });
+      if (near && dist < 20) {
+        showTip(tip, e, '<b>#' + near.issue + '</b> iter ' + near.iteration + '<br>' + outcomeLabel(near.outcome) + '<br>' + fmtTok(near.total_tokens) + ' · ' + fmtDur(near.duration_seconds));
+      } else hideTip(tip);
+    });
+    cv.addEventListener('mouseleave', () => hideTip(tip));
+  }
+
+  // ── Table sorting ─────────────────────────────────────────────────────────
+  function initSortable(tableId) {
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    const ths = Array.from(table.querySelectorAll('thead th'));
+    ths.forEach((th, col) => {
+      th.addEventListener('click', () => {
+        const cur = th.getAttribute('data-sort');
+        const dir = cur === 'asc' ? 'desc' : 'asc';
+        ths.forEach(h => h.removeAttribute('data-sort'));
+        th.setAttribute('data-sort', dir);
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        rows.sort((ra, rb) => {
+          const ca = ra.querySelectorAll('td')[col];
+          const cb = rb.querySelectorAll('td')[col];
+          const va = ca?.getAttribute('data-value') ?? (ca?.textContent ?? '').trim();
+          const vb = cb?.getAttribute('data-value') ?? (cb?.textContent ?? '').trim();
+          const na = parseFloat(va), nb = parseFloat(vb);
+          const cmp = (!isNaN(na) && !isNaN(nb)) ? na - nb : va.localeCompare(vb);
+          return dir === 'asc' ? cmp : -cmp;
+        });
+        rows.forEach(r => tbody.appendChild(r));
+      });
+    });
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  function drawAll() { drawTokens(); drawIterations(); drawScatter(); }
+
+  window.addEventListener('load', () => {
+    ['table-resolved', 'table-not-afk', 'table-phases'].forEach(initSortable);
+    drawAll();
+    initTokenTooltip();
+    initScatterTooltip();
+  });
+
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(drawAll, 120);
+  });
+})();
+</script>
+</body>
+</html>
