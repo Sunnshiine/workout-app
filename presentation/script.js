@@ -12,7 +12,7 @@
   var slides = Array.prototype.slice.call(document.querySelectorAll(".slide"));
   var rail = document.getElementById("rail");
   var progress = document.getElementById("progress");
-  var current = 0;
+  var current = -1;
 
   /* ---------- build the rail ---------- */
   slides.forEach(function (slide, i) {
@@ -115,9 +115,23 @@
   var ring = document.getElementById("ring");
   if (ring) {
     var nodes = Array.prototype.slice.call(ring.querySelectorAll(".node"));
+    var status = document.getElementById("ring-status");
+    var labels = [
+      "selecting issue",
+      "choosing target",
+      "isolating worktree",
+      "implementing",
+      "reviewing Swift",
+      "checking pixels",
+      "running gate",
+      "running UI gate",
+      "shipping merge",
+      "cleaning up"
+    ];
     var lit = 0, ringTimer = null;
     function step() {
       nodes.forEach(function (n, j) { n.classList.toggle("on", j === lit); });
+      if (status) status.textContent = labels[lit] || "x every phase";
       lit = (lit + 1) % nodes.length;
     }
     var ringIO = new IntersectionObserver(function (entries) {
@@ -131,4 +145,6 @@
     }, { threshold: 0.4 });
     ringIO.observe(ring);
   }
+
+  setActive(0);
 })();

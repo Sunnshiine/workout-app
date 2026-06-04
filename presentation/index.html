@@ -38,10 +38,23 @@
         <h1>I only <span class="design">design.</span><br>The loop <span class="ship">ships.</span></h1>
         <p class="hero-sub">
           A powerlifting app built almost entirely by an autonomous Claude Code
-          harness. The human never writes the code — they write <code>issues</code>.
+          harness. The human never writes the code; they write <code>issues</code>.
           A standing loop called <strong class="em-g">Ralph</strong> does the rest:
           selects, implements, reviews, verifies, gates, merges.
         </p>
+        <div class="handoff-token" aria-label="Example Ralph issue handoff token">
+          <div class="token-top">
+            <span class="token-dot"></span>
+            <span>ready-for-agent</span>
+            <span class="token-issue">#159</span>
+          </div>
+          <div class="token-body">
+            <span class="token-label">Human hands over</span>
+            <strong>Generate the Ralph execution report</strong>
+            <span class="token-label">Ralph returns</span>
+            <strong>PR, gate log, closed issue</strong>
+          </div>
+        </div>
         <div class="ticker stagger">
           <div class="stat"><span class="num" data-count="257">0</span><span class="cap">commits written by the loop</span></div>
           <div class="stat"><span class="num" data-count="75" data-suffix="%">0</span><span class="cap">of all commits, agent-written</span></div>
@@ -207,7 +220,7 @@
           <div class="core">
             <span class="lbl">ralph.sh</span>
             <span class="big">FRESH<br>CONTEXT</span>
-            <span class="sub">× every phase</span>
+            <span class="sub" id="ring-status">selecting issue</span>
           </div>
           <!-- nodes positioned via inline left/top (10-point circle) -->
           <div class="node" data-stage="0" style="left:50%;top:4%"><span class="chip">1 · SELECT</span></div>
@@ -391,26 +404,32 @@
         <div class="gcard">
           <div class="device"><div class="island"></div><div class="screen"><img src="assets/active-card.png" alt="Active set card"></div></div>
           <div class="meta"><div class="name">Active Set Card</div><div class="desc">The signature glass surface — Up Next, value pills, last-performed.</div></div>
+          <div class="proof-strip"><span>visual gate</span><span>current action</span></div>
         </div>
         <div class="gcard">
           <div class="device"><div class="island"></div><div class="screen"><img src="assets/value-pills.png" alt="Smart value pills"></div></div>
           <div class="meta"><div class="name">Smart Value Pills</div><div class="desc">Weight, reps &amp; RPE edit in place — log a set without leaving the card.</div></div>
+          <div class="proof-strip"><span>in-place edit</span><span>set log</span></div>
         </div>
         <div class="gcard">
           <div class="device"><div class="island"></div><div class="screen"><img src="assets/rest-pill.png" alt="Rest timer pill"></div></div>
           <div class="meta"><div class="name">Ambient Rest Pill</div><div class="desc">A glass pill with a smoothly depleting bar that counts down end-to-end.</div></div>
+          <div class="proof-strip"><span>state motion</span><span>rest</span></div>
         </div>
         <div class="gcard">
           <div class="device"><div class="island"></div><div class="screen"><img src="assets/celebration.png" alt="Move On celebration glass bloom"></div></div>
           <div class="meta"><div class="name">Glass Bloom Celebration</div><div class="desc">The one big moment — a logo in a floating Liquid Glass lens.</div></div>
+          <div class="proof-strip"><span>earned moment</span><span>Move On</span></div>
         </div>
         <div class="gcard">
           <div class="device"><div class="island"></div><div class="screen"><img src="assets/settings.png" alt="Settings screen"></div></div>
           <div class="meta"><div class="name">Settings</div><div class="desc">Rest steppers, appearance, and the live Google&nbsp;Sheet sync controls.</div></div>
+          <div class="proof-strip"><span>sync truth</span><span>recovery</span></div>
         </div>
         <div class="gcard">
           <div class="device"><div class="island"></div><div class="screen"><img src="assets/empty-state.png" alt="Empty state"></div></div>
           <div class="meta"><div class="name">Empty State</div><div class="desc">A glass card that keeps polling the Sheet until a session appears.</div></div>
+          <div class="proof-strip"><span>polling</span><span>sheet-ready</span></div>
         </div>
       </div>
       <p class="gallery-foot">… and more — the progress header, pull-to-reveal settings gesture and morphing onboarding, all gated the same way.</p>
