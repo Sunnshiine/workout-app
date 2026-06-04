@@ -339,7 +339,7 @@ extension SessionView {
 
     private func updateSessionSettingsOverpullDrag(translationHeight: CGFloat) {
         guard canRevealSessionControls, translationHeight > 0 else { return }
-        let startTopContentOffset = sessionSettingsDragStartTopContentOffset ?? sessionSettingsTopContentOffset
+        let startTopContentOffset = sessionSettingsDragStartTopContentOffset ?? max(0, sessionSettingsTopContentOffset)
         sessionSettingsDragStartTopContentOffset = startTopContentOffset
         applySessionSettingsOverpullState(
             sessionSettingsOverpullState.tracking(
@@ -352,16 +352,24 @@ extension SessionView {
     }
 
     private func finishSessionSettingsOverpullDrag() {
+        let shouldStartIdleDismissal = sessionSettingsOverpullState.isPinned
         sessionSettingsDragStartTopContentOffset = nil
+        if shouldStartIdleDismissal {
+            startSessionSettingsOverpullIdleDismissal()
+        }
     }
 
     private func applySessionSettingsOverpullState(_ state: SessionSettingsOverpullState) {
         guard state != sessionSettingsOverpullState else { return }
         let startsPinned = state.isPinned && !sessionSettingsOverpullState.isPinned
         sessionSettingsOverpullState = state
-        if startsPinned {
-            sessionSettingsOverpullDismissalID += 1
+        if startsPinned, sessionSettingsDragStartTopContentOffset == nil {
+            startSessionSettingsOverpullIdleDismissal()
         }
+    }
+
+    private func startSessionSettingsOverpullIdleDismissal() {
+        sessionSettingsOverpullDismissalID += 1
     }
 
     /// The W1D1 · N-left · progress-rail header, floated as an inset Liquid Glass
@@ -387,7 +395,10 @@ extension SessionView {
         .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
         .padding(.horizontal)
         .padding(.top, 8)
+        .contentShape(Rectangle())
         .simultaneousGesture(sessionSettingsOverpullGesture)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("session-header-hud")
     }
 
     private var sessionSettingsOverpullGesture: some Gesture {

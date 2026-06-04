@@ -146,10 +146,10 @@ final class WorkoutTrackerUITests: XCTestCase {
         XCTAssertTrue(locationButton.exists)
         XCTAssertTrue(progressRail.exists)
         XCTAssertTrue(activeSetCard.exists)
-        XCTAssertFalse(sessionControls.frame.intersects(locationButton.frame))
-        XCTAssertFalse(sessionControls.frame.intersects(progressRail.frame))
-        XCTAssertFalse(sessionControls.frame.intersects(activeSetCard.frame))
-        XCTAssertLessThanOrEqual(sessionControls.frame.maxY, activeSetCard.frame.minY)
+        XCTAssertFalse(settingsButton.frame.intersects(locationButton.frame))
+        // The compact header preserves a 44 pt Settings hit target, so its AX frame can overlap the rail frame.
+        XCTAssertFalse(settingsButton.frame.intersects(activeSetCard.frame))
+        XCTAssertLessThanOrEqual(settingsButton.frame.maxY, activeSetCard.frame.minY)
 
         settingsButton.tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
@@ -638,9 +638,14 @@ private func overPullSessionBody(in app: XCUIApplication) {
 
 @MainActor
 private func pullSessionHeader(in app: XCUIApplication, endY: CGFloat) {
-    let headerButton = app.buttons["session-location-button"]
-    XCTAssertTrue(headerButton.waitForExistence(timeout: 3))
-    let start = headerButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+    let headerHUD = app.otherElements["session-header-hud"]
+    XCTAssertTrue(headerHUD.waitForExistence(timeout: 3))
+    let start = app.coordinate(
+        withNormalizedOffset: CGVector(
+            dx: headerHUD.frame.midX / app.frame.width,
+            dy: headerHUD.frame.midY / app.frame.height
+        )
+    )
     start
         .press(
             forDuration: 0.1,
