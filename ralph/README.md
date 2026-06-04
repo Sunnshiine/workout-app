@@ -258,6 +258,73 @@ matching phase/gate logs from `ralph/.artifacts/logs/`, and joins Codex token te
 compaction counts and timestamps, session/subagent counts, reviewer roles, per-phase token totals,
 max per-call context size, and tokens per minute. GitHub and git are not touched.
 
+### Dashboard update guide
+
+Use this when you have run more Ralph iterations and want the HTML dashboard to reflect the
+latest local artifacts.
+
+1. From the repo root, confirm the Ralph activity log contains the latest run:
+
+   ```bash
+   tail -80 ralph/.artifacts/activity.md
+   ```
+
+   The dashboard reads from `ralph/.artifacts/activity.md`, `ralph/.artifacts/logs/`, and
+   `~/.codex/sessions`. If the activity log does not include the run you expect, the dashboard will
+   not include it either.
+
+2. Create or update the HTML dashboard:
+
+   ```bash
+   UV_CACHE_DIR=/private/tmp/uv-cache uv run --python 3.11 python ralph/dashboard.py \
+     --artifacts-dir ralph/.artifacts \
+     --output /private/tmp/ralph-session-dashboard.html
+   ```
+
+   This overwrites `/private/tmp/ralph-session-dashboard.html` with a fresh dashboard. Use a
+   different `--output` path if you want to keep older dashboard snapshots.
+
+3. To update the default gitignored dashboard path instead:
+
+   ```bash
+   UV_CACHE_DIR=/private/tmp/uv-cache uv run --python 3.11 python ralph/dashboard.py \
+     --artifacts-dir ralph/.artifacts
+   ```
+
+   The default output is `ralph/reports/ralph-session-dashboard.html`. That directory is gitignored,
+   so it is safe for local reports but will not show up in normal commits.
+
+4. Open the generated HTML file in a browser and read the summary row:
+
+   - `AFK Solved`: attempts with outcome `resolved`.
+   - `Needs Human`: attempts with outcome `ready-for-human`.
+   - `Incomplete`: attempts without a terminal resolved or ready-for-human event.
+   - `Solve Rate`: resolved attempts divided by total attempts.
+
+5. If the dashboard does not show the latest run, check the source data before editing code:
+
+   ```bash
+   find ralph/.artifacts/logs -maxdepth 1 -type f | sort | tail -40
+   UV_CACHE_DIR=/private/tmp/uv-cache uv run --python 3.11 python ralph/report.py \
+     --artifacts-dir ralph/.artifacts \
+     --format text
+   ```
+
+   Use `--sessions-dir <path>` only when the Codex sessions live outside the default
+   `~/.codex/sessions`. Do not rerun Ralph just to refresh the dashboard; regenerate the dashboard
+   from the existing artifacts.
+
+6. If you edited `ralph/dashboard.py`, verify it before handing off:
+
+   ```bash
+   UV_CACHE_DIR=/private/tmp/uv-cache uv run --python 3.11 python -m py_compile ralph/report.py ralph/dashboard.py
+   ```
+
+   If touching the dashboard UI, render the generated HTML at desktop and mobile widths. A local
+   browser screenshot is enough; do not run another Ralph loop just to verify a report. If browser
+   tooling files such as `package.json`, `package-lock.json`, or `node_modules/` are present, treat
+   them as project tooling and do not remove them as cleanup.
+
 ---
 
 ## Safety
