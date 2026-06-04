@@ -217,6 +217,10 @@
       <div class="loop-grid">
         <div class="ring" id="ring" aria-hidden="true">
           <div class="sweep"></div>
+          <div class="orbit-token" id="orbit-token">
+            <span class="ticket">#159</span>
+            <span id="orbit-token-label">ready-for-agent</span>
+          </div>
           <div class="core">
             <span class="lbl">ralph.sh</span>
             <span class="big">FRESH<br>CONTEXT</span>
@@ -236,6 +240,15 @@
         </div>
 
         <div class="loop-principles stagger">
+          <div class="phase-console glass" id="phase-console" aria-live="polite">
+            <div class="console-top">
+              <span class="console-dot"></span>
+              <span>issue #159 run log</span>
+            </div>
+            <div class="console-line"><span>phase</span><strong id="console-phase">SELECT</strong></div>
+            <div class="console-line"><span>handoff</span><strong id="console-handoff">SELECTED_ISSUE=159</strong></div>
+            <div class="console-line"><span>artifact</span><strong id="console-artifact">ready-for-agent</strong></div>
+          </div>
           <div class="principle glass">
             <h3><span class="tag">no bloat</span> Fresh context per phase</h3>
             <p>Implement, review and verify each run as a brand-new agent. Work never accumulates in one context window, so quality doesn’t decay over an issue.</p>
@@ -328,13 +341,24 @@
       <h2>Nothing merges until the<br>whole ladder is&nbsp;green</h2>
 
       <div class="gate-grid">
-        <div class="ladder stagger">
-          <div class="rung"><span class="step-n">01</span><span class="cmd">swift test</span><span class="desc">unit + component (SPM)</span><span class="check">✓</span></div>
-          <div class="rung"><span class="step-n">02</span><span class="cmd">xcodegen generate</span><span class="desc">project regenerates clean</span><span class="check">✓</span></div>
-          <div class="rung"><span class="step-n">03</span><span class="cmd">xcodebuild · WorkoutTrackerTests</span><span class="desc">unit / component in Xcode</span><span class="check">✓</span></div>
-          <div class="rung"><span class="step-n">04</span><span class="cmd">xcodebuild · WorkoutTrackerUITests</span><span class="desc">UI integration on simulator</span><span class="check">✓</span></div>
-          <div class="rung"><span class="step-n">05</span><span class="cmd">swiftlint lint --quiet</span><span class="desc">zero violations</span><span class="check">✓</span></div>
-          <div class="rung visual"><span class="step-n">06</span><span class="cmd">visual review → PASS</span><span class="desc">for View / Theme changes</span><span class="check">✓</span></div>
+        <div class="gate-proof">
+          <div class="gate-status glass" id="gate-status">
+            <span class="gate-status-label">merged-tree gate</span>
+            <strong id="gate-status-text">waiting for rungs</strong>
+          </div>
+          <div class="ladder stagger" id="gate-ladder">
+            <div class="rung" data-gate="swift test"><span class="step-n">01</span><span class="cmd">swift test</span><span class="desc">unit + component (SPM)</span><span class="check">✓</span></div>
+            <div class="rung" data-gate="xcodegen generate"><span class="step-n">02</span><span class="cmd">xcodegen generate</span><span class="desc">project regenerates clean</span><span class="check">✓</span></div>
+            <div class="rung" data-gate="WorkoutTrackerTests"><span class="step-n">03</span><span class="cmd">xcodebuild · WorkoutTrackerTests</span><span class="desc">unit / component in Xcode</span><span class="check">✓</span></div>
+            <div class="rung" data-gate="WorkoutTrackerUITests"><span class="step-n">04</span><span class="cmd">xcodebuild · WorkoutTrackerUITests</span><span class="desc">UI integration on simulator</span><span class="check">✓</span></div>
+            <div class="rung" data-gate="swiftlint"><span class="step-n">05</span><span class="cmd">swiftlint lint --quiet</span><span class="desc">zero violations</span><span class="check">✓</span></div>
+            <div class="rung visual" data-gate="visual PASS"><span class="step-n">06</span><span class="cmd">visual review → PASS</span><span class="desc">for View / Theme changes</span><span class="check">✓</span></div>
+          </div>
+          <div class="provenance-strip">
+            <span>temp integration worktree</span>
+            <span>no-ff merge</span>
+            <span>exact tree</span>
+          </div>
         </div>
 
         <div class="gate-aside stagger">
@@ -400,8 +424,9 @@
       <p class="lead">A <em class="em">Liquid Glass</em> powerlifting client over a coach-managed Google Sheet.
         Every screen below was implemented, reviewed and visually gated by the loop.</p>
 
-      <div class="gallery stagger">
-        <div class="gcard">
+      <div class="gallery-wall">
+        <div class="gallery-track stagger" id="gallery-track" tabindex="0" aria-label="Shipped product gallery">
+        <div class="gcard featured">
           <div class="device"><div class="island"></div><div class="screen"><img src="assets/active-card.png" alt="Active set card"></div></div>
           <div class="meta"><div class="name">Active Set Card</div><div class="desc">The signature glass surface — Up Next, value pills, last-performed.</div></div>
           <div class="proof-strip"><span>visual gate</span><span>current action</span></div>
@@ -430,6 +455,12 @@
           <div class="device"><div class="island"></div><div class="screen"><img src="assets/empty-state.png" alt="Empty state"></div></div>
           <div class="meta"><div class="name">Empty State</div><div class="desc">A glass card that keeps polling the Sheet until a session appears.</div></div>
           <div class="proof-strip"><span>polling</span><span>sheet-ready</span></div>
+        </div>
+        </div>
+        <div class="gallery-proof glass" id="gallery-proof">
+          <span>contact sheet proof</span>
+          <strong id="gallery-proof-title">Active Set Card</strong>
+          <p id="gallery-proof-copy">visual gate · current action</p>
         </div>
       </div>
       <p class="gallery-foot">… and more — the progress header, pull-to-reveal settings gesture and morphing onboarding, all gated the same way.</p>

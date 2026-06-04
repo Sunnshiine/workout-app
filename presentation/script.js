@@ -116,34 +116,130 @@
   if (ring) {
     var nodes = Array.prototype.slice.call(ring.querySelectorAll(".node"));
     var status = document.getElementById("ring-status");
-    var labels = [
-      "selecting issue",
-      "choosing target",
-      "isolating worktree",
-      "implementing",
-      "reviewing Swift",
-      "checking pixels",
-      "running gate",
-      "running UI gate",
-      "shipping merge",
-      "cleaning up"
+    var orbitToken = document.getElementById("orbit-token");
+    var orbitTokenLabel = document.getElementById("orbit-token-label");
+    var consolePhase = document.getElementById("console-phase");
+    var consoleHandoff = document.getElementById("console-handoff");
+    var consoleArtifact = document.getElementById("console-artifact");
+    var stages = [
+      { phase: "SELECT", status: "selecting issue", handoff: "SELECTED_ISSUE=159", artifact: "ready-for-agent", x: "50%", y: "4%" },
+      { phase: "TARGET", status: "choosing target", handoff: "TARGET_BRANCH=main", artifact: "issue contract", x: "77%", y: "12.8%" },
+      { phase: "ISOLATE", status: "isolating worktree", handoff: "WORKTREE=.claude/...", artifact: "agent branch", x: "93.7%", y: "35.8%" },
+      { phase: "IMPLEMENT", status: "implementing", handoff: "COMPLETE: tests run", artifact: "working diff", x: "93.7%", y: "64.2%" },
+      { phase: "SWIFT REVIEW", status: "reviewing Swift", handoff: "no blocking findings", artifact: "fresh review", x: "77%", y: "87.2%" },
+      { phase: "UI VERIFY", status: "checking pixels", handoff: "PASS: visual findings", artifact: "screenshot", x: "50%", y: "96%" },
+      { phase: "GATE", status: "running gate", handoff: "all rungs green", artifact: "gate log", x: "23%", y: "87.2%" },
+      { phase: "UI GATE", status: "running UI gate", handoff: "UITests passed", artifact: "sim result", x: "6.3%", y: "64.2%" },
+      { phase: "SHIP", status: "shipping merge", handoff: "merge: resolve #159", artifact: "pushed commit", x: "6.3%", y: "35.8%" },
+      { phase: "CLEANUP", status: "cleaning up", handoff: "issue closed", artifact: "closed loop", x: "23%", y: "12.8%" }
     ];
     var lit = 0, ringTimer = null;
     function step() {
       nodes.forEach(function (n, j) { n.classList.toggle("on", j === lit); });
-      if (status) status.textContent = labels[lit] || "x every phase";
+      var stage = stages[lit] || stages[0];
+      if (status) status.textContent = stage.status;
+      if (orbitToken) {
+        orbitToken.style.setProperty("--orbit-x", stage.x);
+        orbitToken.style.setProperty("--orbit-y", stage.y);
+      }
+      if (orbitTokenLabel) orbitTokenLabel.textContent = stage.phase;
+      if (consolePhase) consolePhase.textContent = stage.phase;
+      if (consoleHandoff) consoleHandoff.textContent = stage.handoff;
+      if (consoleArtifact) consoleArtifact.textContent = stage.artifact;
       lit = (lit + 1) % nodes.length;
     }
     var ringIO = new IntersectionObserver(function (entries) {
       entries.forEach(function (e) {
         if (e.isIntersecting && !ringTimer) {
-          step(); ringTimer = setInterval(step, 620);
+          step();
+          if (!reduceMotion) ringTimer = setInterval(step, 620);
         } else if (!e.isIntersecting && ringTimer) {
           clearInterval(ringTimer); ringTimer = null;
         }
       });
     }, { threshold: 0.4 });
     ringIO.observe(ring);
+  }
+
+  /* ---------- merge gate ladder ---------- */
+  var gate = document.getElementById("gate-ladder");
+  if (gate) {
+    var rungs = Array.prototype.slice.call(gate.querySelectorAll(".rung"));
+    var gateStatusText = document.getElementById("gate-status-text");
+    var gateTimers = [];
+    function clearGateTimers() {
+      gateTimers.forEach(function (timer) { clearTimeout(timer); });
+      gateTimers = [];
+    }
+    function setGateText(index) {
+      if (!gateStatusText) return;
+      if (index >= rungs.length) {
+        gateStatusText.textContent = "ready to merge";
+        return;
+      }
+      gateStatusText.textContent = "running " + (rungs[index].getAttribute("data-gate") || "gate");
+    }
+    function playGate() {
+      clearGateTimers();
+      rungs.forEach(function (rung) { rung.classList.remove("complete"); });
+      if (reduceMotion) {
+        rungs.forEach(function (rung) { rung.classList.add("complete"); });
+        setGateText(rungs.length);
+        return;
+      }
+      rungs.forEach(function (rung, i) {
+        gateTimers.push(setTimeout(function () {
+          rung.classList.add("complete");
+          setGateText(i + 1);
+        }, i * 260));
+      });
+      setGateText(0);
+    }
+    var gateIO = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) playGate();
+        else clearGateTimers();
+      });
+    }, { threshold: 0.38 });
+    gateIO.observe(gate);
+  }
+
+  /* ---------- gallery proof focus ---------- */
+  var galleryTrack = document.getElementById("gallery-track");
+  if (galleryTrack) {
+    var galleryCards = Array.prototype.slice.call(galleryTrack.querySelectorAll(".gcard"));
+    var proofTitle = document.getElementById("gallery-proof-title");
+    var proofCopy = document.getElementById("gallery-proof-copy");
+    function setGalleryActive(card) {
+      galleryCards.forEach(function (item) { item.classList.toggle("active", item === card); });
+      var title = card.querySelector(".name");
+      var proof = Array.prototype.slice.call(card.querySelectorAll(".proof-strip span"))
+        .map(function (el) { return el.textContent; })
+        .join(" · ");
+      if (proofTitle && title) proofTitle.textContent = title.textContent;
+      if (proofCopy) proofCopy.textContent = proof;
+    }
+    function updateGalleryFromScroll() {
+      var trackBox = galleryTrack.getBoundingClientRect();
+      var center = trackBox.left + trackBox.width / 2;
+      var best = galleryCards[0], bestDistance = Infinity;
+      galleryCards.forEach(function (card) {
+        var box = card.getBoundingClientRect();
+        var distance = Math.abs((box.left + box.width / 2) - center);
+        if (distance < bestDistance) {
+          best = card;
+          bestDistance = distance;
+        }
+      });
+      setGalleryActive(best);
+    }
+    galleryTrack.addEventListener("scroll", updateGalleryFromScroll, { passive: true });
+    galleryCards.forEach(function (card) {
+      card.addEventListener("mouseenter", function () { setGalleryActive(card); });
+      card.addEventListener("focusin", function () { setGalleryActive(card); });
+    });
+    setGalleryActive(galleryCards[0]);
+    window.addEventListener("resize", updateGalleryFromScroll);
   }
 
   setActive(0);
