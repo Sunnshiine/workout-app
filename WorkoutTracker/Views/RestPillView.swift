@@ -50,7 +50,7 @@ struct RestPillView: View {
             if restTimer.deadline != nil {
                 pill(remaining: remaining, presentation: presentation)
                     .containerRelativeFrame(.horizontal) { length, _ in
-                        length * 0.4
+                        length * 0.5
                     }
                     .padding(.horizontal)
                     .padding(.bottom, 8)
@@ -68,7 +68,7 @@ struct RestPillView: View {
 
         return VStack(spacing: 6) {
             Text(presentation.countdownText)
-                .font(.title2.weight(.bold).monospacedDigit())
+                .font(.system(size: 27, weight: .semibold, design: .rounded).monospacedDigit())
                 .foregroundStyle(countdownColor(for: cue))
                 .opacity(countdownOpacity(for: cue))
                 .scaleEffect(finalFiveScale(for: cue))
@@ -81,12 +81,10 @@ struct RestPillView: View {
             hairline(presentation: presentation, cue: cue)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, minHeight: 52)
-        .background(palette.pillFill, in: Capsule())
+        .frame(maxWidth: .infinity, minHeight: 50)
         .overlay {
             Capsule()
-                .stroke(palette.pillStroke, lineWidth: 1)
+                .stroke(palette.pillStroke.opacity(0.54), lineWidth: 1)
         }
         .glassEffect(.regular, in: .capsule)
         .accessibilityElement(children: .ignore)
@@ -96,15 +94,18 @@ struct RestPillView: View {
 
     private func hairline(presentation: RestPillPresentation, cue: RestPillUrgencyCue) -> some View {
         GeometryReader { proxy in
-            RoundedRectangle(cornerRadius: 3, style: .continuous)
-                .fill(countdownColor(for: cue).opacity(countdownOpacity(for: cue)))
-                .frame(width: proxy.size.width * CGFloat(presentation.progressFraction), height: 3)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .scaleEffect(x: 1, y: finalFiveScale(for: cue), anchor: .center)
-                .animation(.linear(duration: 1.0 / 30), value: presentation.progressFraction)
-                .animation(finalFiveAnimation(for: cue), value: finalFivePulse)
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(palette.progressTrack.opacity(0.46))
+                Capsule()
+                    .fill(railColor(for: cue).opacity(countdownOpacity(for: cue)))
+                    .frame(width: proxy.size.width * CGFloat(presentation.progressFraction))
+                    .scaleEffect(x: 1, y: finalFiveScale(for: cue), anchor: .center)
+                    .animation(.linear(duration: 1.0 / 30), value: presentation.progressFraction)
+                    .animation(finalFiveAnimation(for: cue), value: finalFivePulse)
+            }
         }
-        .frame(height: 3)
+        .frame(height: 4)
     }
 
     private var transition: AnyTransition {
@@ -226,6 +227,10 @@ struct RestPillView: View {
 
     private func countdownColor(for cue: RestPillUrgencyCue) -> Color {
         cue.isActive ? palette.accent : palette.valueText
+    }
+
+    private func railColor(for cue: RestPillUrgencyCue) -> Color {
+        cue.isActive ? palette.accent : palette.pillStroke
     }
 
     private func countdownOpacity(for cue: RestPillUrgencyCue) -> Double {
