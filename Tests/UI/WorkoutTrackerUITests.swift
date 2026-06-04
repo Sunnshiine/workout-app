@@ -100,30 +100,8 @@ final class WorkoutTrackerUITests: XCTestCase {
         XCTAssertTrue(app.buttons["log-active-set-button"].exists)
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
 
-        XCTAssertTrue(app.buttons["rpe-6"].waitForExistence(timeout: 3))
-        app.buttons["rpe-7"].tap()
-        waitForLabel("Log 237.5×5@7", on: app.buttons["log-active-set-button"])
-        app.buttons["rpe-6"].tap()
-        waitForLabel("Log 237.5×5@6", on: app.buttons["log-active-set-button"])
         XCTAssertTrue(app.buttons["log-active-set-button"].exists)
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
-    }
-
-    @MainActor
-    func testRPEScaleSelectsHalfStepAndTapResetsToWhole() throws {
-        let app = launchFixtureApp()
-
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
-
-        let rpe6 = app.buttons["rpe-6"]
-        XCTAssertTrue(rpe6.waitForExistence(timeout: 3))
-        app.buttons["rpe-6.5"].tap()
-        waitForLabel("Log 237.5×5@6.5", on: app.buttons["log-active-set-button"])
-
-        XCTAssertTrue(rpe6.waitForExistence(timeout: 3))
-        rpe6.tap()
-
-        waitForLabel("Log 237.5×5@6", on: app.buttons["log-active-set-button"])
     }
 
     @MainActor

@@ -209,6 +209,22 @@ import Testing
 }
 
 @MainActor
+@Test func selectedRPEStateCanMoveFromHalfStepBackToWholeStep() {
+    var form = SmartValuePillsForm(
+        set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 6", percentOneRM: "95%", state: .pending),
+        previousSetWeight: nil,
+        trainingMax: 250
+    )
+
+    form.rpeText = "6.5"
+    #expect(form.logButtonTitle == "Log 237.5×5@6.5")
+
+    form.rpeText = "6"
+    #expect(form.rpeDisplay == "6")
+    #expect(form.makeLog() == SetLog(weight: .pounds(237.5), reps: 5, rpe: 6))
+}
+
+@MainActor
 @Test func submittingInvalidLogMarksInvalidFieldsWithoutProducingLog() {
     var form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "AMRAP", prescribedLoad: "75%1RM", percentOneRM: nil, state: .pending),
