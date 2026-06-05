@@ -35,9 +35,14 @@ from .github import GitHubClient, _label_names
 from .phase import PhaseResult
 from .prompt_context import PhaseContext, PromptContextWriter
 from .publish import (
+    LABEL_AGENT_ACTIVE,
+    LABEL_AGENT_BLOCKED,
+    LABEL_AGENT_IMPLEMENTED,
     LABEL_READY_FOR_AGENT,
     LABEL_READY_FOR_HUMAN,
+    ClaimError,
     GitOutcome,
+    IssueClaimer,
     IssuePublisher,
     PullRequestPublisher,
 )
@@ -90,13 +95,22 @@ class IssueSelector:
             number = _issue_number(issue)
             if number is None:
                 continue
-            title = _issue_title(issue)
-            labels = _label_names(issue.get("labels"))
-            if LABEL_READY_FOR_HUMAN in labels:
+            full = self._client.view_issue(number)
+            if full.get("state", "OPEN") != "OPEN":
+                continue
+            title = _issue_title(full)
+            labels = _label_names(full.get("labels"))
+            if LABEL_READY_FOR_AGENT not in labels:
+                continue
+            if labels & {
+                LABEL_AGENT_ACTIVE,
+                LABEL_AGENT_IMPLEMENTED,
+                LABEL_READY_FOR_HUMAN,
+                LABEL_AGENT_BLOCKED,
+            }:
                 continue
             if title.lower().startswith("prd:"):
                 continue
-            full = self._client.view_issue(number)
             if not _has_actionable_contract(full):
                 continue
             priority = 0 if "bug" in labels else 1
@@ -183,6 +197,7 @@ class RalphLoop:
         self._gate_runner_factory = gate_runner_factory or _default_gate_runner_factory
         self._publish_runner_factory = publish_runner_factory or _publish_runner_for
         self._target_resolver = TargetResolver(client)
+        self._claimer = IssueClaimer(client)
 
     def run(self) -> RunSummary:
         if not self._config.select_only:
@@ -207,12 +222,15 @@ class RalphLoop:
 
             selected.append(chosen.number)
             _ralph_log(f"selected issue #{chosen.number} {chosen.title}".rstrip())
-            contract = capture_issue_contract(self._client, chosen.number)
-            target = self._target_resolver.resolve(contract)
             if self._config.select_only:
                 stopped_reason = "select-only"
+                contract = capture_issue_contract(self._client, chosen.number)
+                target = self._target_resolver.resolve(contract)
                 _ralph_log(f"select-only target for issue #{chosen.number}: {target.branch}")
                 break
+            contract = self._claim_issue(chosen.number)
+            _ralph_log(f"issue #{chosen.number} claimed")
+            target = self._target_resolver.resolve(contract)
 
             outcome = self._run_issue(iteration, contract, target)
             if outcome:
@@ -227,6 +245,12 @@ class RalphLoop:
             issues_blocked=tuple(blocked),
             stopped_reason=stopped_reason,
         )
+
+    def _claim_issue(self, issue_number: int) -> IssueContract:
+        try:
+            return self._claimer.claim(issue_number)
+        except ClaimError as error:
+            raise RalphLoopError(str(error)) from error
 
     def _run_issue(self, iteration: int, contract: IssueContract, target: PrTarget) -> bool:
         base_ref = self._origin_main.base_ref_for(target)

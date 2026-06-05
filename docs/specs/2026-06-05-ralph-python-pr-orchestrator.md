@@ -51,7 +51,7 @@ Relevant existing docs:
 
 - Decision: Successful agent work is implemented-but-unmerged until the PR merges.
   - Source: architecture discussion, 2026-06-05.
-  - Consequence: Ralph applies `agent-implemented`, removes `ready-for-agent`, leaves the issue open, and uses `Closes #<issue>` only in the successful integration commit message so GitHub closes the issue when the PR merges.
+  - Consequence: Ralph first claims a selected issue by replacing `ready-for-agent` with `agent-active`. On success, Ralph replaces `agent-active` with `agent-implemented`, leaves the issue open, and uses `Closes #<issue>` only in the successful integration commit message so GitHub closes the issue when the PR merges.
 
 - Decision: PR readiness represents scoped completion.
   - Source: architecture discussion, 2026-06-05.
@@ -237,20 +237,34 @@ Ralph does not close the issue directly. GitHub closes it when the successful PR
 ### Issue labels [CHANGED]
 
 - `ready-for-agent`: issue is available for Ralph selection.
+- `agent-active`: Ralph has claimed the issue and may be running implementation, review, UI verification, gates, or publish; the issue is not available for selection.
 - `agent-implemented`: Ralph successfully pushed the issue implementation to a PR; issue remains open until PR merge.
 - `ready-for-human`: issue needs human attention.
 - `agent-blocked`: Ralph preserved blocked code or hit a policy failure; human must inspect.
 
+Ralph treats these as mostly exclusive lifecycle labels. Only one primary lifecycle label should be
+present at a time, except `agent-blocked` may accompany `ready-for-human` as a reason label. V1 has
+no local run ledger, heartbeat, stale-claim timeout, or automatic closed-PR reconciliation; humans
+requeue abandoned or rejected work by changing labels intentionally.
+
+On claim:
+
+- fresh-read the candidate issue
+- require `ready-for-agent` with no conflicting lifecycle labels
+- remove `ready-for-agent`
+- add `agent-active`
+- fresh-read again and stop before worktree creation if the claim did not converge
+
 On success:
 
-- remove `ready-for-agent`
+- remove `agent-active` and any stale non-success lifecycle labels
 - add `agent-implemented`
 - do not add `ready-for-human`
 - do not close the issue
 
 On blocked:
 
-- remove `ready-for-agent`
+- remove `agent-active` and any stale implementation labels
 - add `ready-for-human`
 - add `agent-blocked`
 - do not add `agent-implemented`
@@ -263,7 +277,7 @@ Successful PRs:
 - Created as draft when first pushed.
 - Reused by branch on later pushes.
 - One-off PR becomes ready for review after its issue passes.
-- PRD PR becomes ready for review only when all known scoped child issues are `agent-implemented` and none are still `ready-for-agent`, `ready-for-human`, or `agent-blocked`.
+- PRD PR becomes ready for review only when all known scoped child issues are `agent-implemented` and none are still `ready-for-agent`, `agent-active`, `ready-for-human`, or `agent-blocked`.
 - Ready PRs receive `agent-ready-for-review`.
 
 Known scoped child issues for `PRD: #<n>` are the non-PRD GitHub issues whose current issue body
@@ -375,7 +389,7 @@ The target Python workflow has no direct `origin/main` push or local `main` fast
 
 ### Phase 4: Successful PR Publishing Lifecycle
 
-- Change: Create/reuse draft PRs, push successful integration commits to PR branches, apply `agent-implemented`, update PR readiness, and use integration commit closing keywords.
+- Change: Claim issues with `agent-active`, create/reuse draft PRs, push successful integration commits to PR branches, apply `agent-implemented`, update PR readiness, and use integration commit closing keywords.
 - Compatibility: Use fake GitHub for local tests; live dry-run uses a fake engine and controlled test issue/branch.
 - Acceptance criteria:
   - Tests cover successful one-off PR ready state and PRD PR draft-to-ready transition.
@@ -419,8 +433,8 @@ The target Python workflow has no direct `origin/main` push or local `main` fast
 - [ ] Python Ralph exists side-by-side and does not alter `ralph/ralph.sh` production behavior before replacement approval.
 - [ ] Python Ralph has no successful direct-to-main publish path.
 - [ ] PRD issues stack on `ralph/prd-<n>` and one-off issues use `ralph/issue-<n>`.
-- [ ] Successful issue work applies `agent-implemented`, removes `ready-for-agent`, leaves the issue open, and uses `Closes #<issue>` only in the successful integration commit.
-- [ ] PRD PRs remain draft until all scoped child issues are `agent-implemented`; one-off PRs can become ready after their issue passes.
+- [ ] Successful issue work claims with `agent-active`, applies `agent-implemented`, removes `agent-active`, leaves the issue open, and uses `Closes #<issue>` only in the successful integration commit.
+- [ ] PRD PRs remain draft until all scoped child issues are `agent-implemented` and none are `ready-for-agent`, `agent-active`, `ready-for-human`, or `agent-blocked`; one-off PRs can become ready after their issue passes.
 - [ ] Blocked code is preserved in a draft rescue PR with `Refs #<issue>`, `agent-blocked`, `ready-for-human`, and a sanitized blocked report.
 - [ ] One UI-owned repair cycle runs before blocked escalation, and never loops indefinitely.
 - [ ] Unauthorized UI integration test edits block mechanically.
@@ -441,5 +455,5 @@ The Swift app test suite is not the primary test surface for the Python orchestr
 ## Open Questions
 
 - Which exact Python package path should own the side-by-side runner: `ralph_py/` or a package under `ralph/`?
-- Should `agent-blocked` and `agent-ready-for-review` be created now like `agent-implemented`, or created as part of the migration phase?
+- Should `agent-active`, `agent-blocked`, and `agent-ready-for-review` be created now like `agent-implemented`, or created as part of the migration phase?
 - What controlled live dry-run issue/branch convention should be used so GitHub tests are obvious and easy to clean up?

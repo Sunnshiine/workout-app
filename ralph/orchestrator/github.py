@@ -14,7 +14,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Protocol, runtime_checkable
 
 # Fields requested from ``gh issue view`` for the contract snapshot.
-_ISSUE_VIEW_FIELDS = "number,title,body,labels,comments"
+_ISSUE_VIEW_FIELDS = "number,title,body,labels,comments,state"
 # Fields requested from ``gh pr list`` for branch-reuse lookup/readiness.
 _PR_LIST_FIELDS = "number,headRefName,state,isDraft"
 
@@ -55,6 +55,15 @@ class GitHubClient(Protocol):
 
     def remove_issue_labels(self, number: int, labels: Sequence[str]) -> None:
         """Remove ``labels`` from issue ``number``."""
+
+    def edit_issue_labels(
+        self,
+        number: int,
+        *,
+        add: Sequence[str] = (),
+        remove: Sequence[str] = (),
+    ) -> None:
+        """Apply one issue-label edit containing additions and removals."""
 
     def comment_issue(self, number: int, body: str) -> None:
         """Post a comment with ``body`` on issue ``number``."""
@@ -179,10 +188,19 @@ class GhCliClient:
         self._edit_labels("pr", number, add=labels)
 
     def add_issue_labels(self, number: int, labels: Sequence[str]) -> None:
-        self._edit_labels("issue", number, add=labels)
+        self.edit_issue_labels(number, add=labels)
 
     def remove_issue_labels(self, number: int, labels: Sequence[str]) -> None:
-        self._edit_labels("issue", number, remove=labels)
+        self.edit_issue_labels(number, remove=labels)
+
+    def edit_issue_labels(
+        self,
+        number: int,
+        *,
+        add: Sequence[str] = (),
+        remove: Sequence[str] = (),
+    ) -> None:
+        self._edit_labels("issue", number, add=add, remove=remove)
 
     def comment_issue(self, number: int, body: str) -> None:
         self._runner(
@@ -256,7 +274,7 @@ class FakeGitHubClient:
             raise GitHubClientError(f"no fixture issue #{number}") from exc
 
     def list_open_issues(self, *, label: str | None = None) -> list[dict]:
-        issues = [dict(v) for v in self._issues.values()]
+        issues = [dict(v) for v in self._issues.values() if v.get("state", "OPEN") == "OPEN"]
         if label is None:
             return issues
         return [i for i in issues if label in _label_names(i.get("labels"))]
@@ -313,6 +331,21 @@ class FakeGitHubClient:
             label for label in _as_label_objects(issue.get("labels")) if label["name"] not in drop
         ]
         self.calls.append(("remove_issue_labels", number, tuple(labels)))
+
+    def edit_issue_labels(
+        self,
+        number: int,
+        *,
+        add: Sequence[str] = (),
+        remove: Sequence[str] = (),
+    ) -> None:
+        issue = self._issue(number)
+        drop = set(remove)
+        issue["labels"] = [
+            label for label in _as_label_objects(issue.get("labels")) if label["name"] not in drop
+        ]
+        issue["labels"] = _merge_labels(issue.get("labels"), add)
+        self.calls.append(("edit_issue_labels", number, tuple(add), tuple(remove)))
 
     def comment_issue(self, number: int, body: str) -> None:
         issue = self._issue(number)

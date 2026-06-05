@@ -24,12 +24,13 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
-from .contracts import IssueContract, parse_prd_number
+from .contracts import IssueContract, capture_issue_contract, parse_prd_number
 from .github import GitHubClient, _label_names
 from .targets import PrTarget
 
 # Issue labels (see spec "Issue labels [CHANGED]").
 LABEL_READY_FOR_AGENT = "ready-for-agent"
+LABEL_AGENT_ACTIVE = "agent-active"
 LABEL_AGENT_IMPLEMENTED = "agent-implemented"
 LABEL_READY_FOR_HUMAN = "ready-for-human"
 LABEL_AGENT_BLOCKED = "agent-blocked"
@@ -39,7 +40,7 @@ LABEL_AGENT_READY_FOR_REVIEW = "agent-ready-for-review"
 
 # Labels that, when present on any scoped child, keep a PRD stack PR in draft.
 _PRD_BLOCKING_CHILD_LABELS = frozenset(
-    {LABEL_READY_FOR_AGENT, LABEL_READY_FOR_HUMAN, LABEL_AGENT_BLOCKED}
+    {LABEL_READY_FOR_AGENT, LABEL_AGENT_ACTIVE, LABEL_READY_FOR_HUMAN, LABEL_AGENT_BLOCKED}
 )
 
 
@@ -65,6 +66,10 @@ class PublishError(RuntimeError):
     """Raised when a successful publish cannot complete (commit/push failure)."""
 
 
+class ClaimError(RuntimeError):
+    """Raised when Ralph cannot exclusively claim an issue before agent work."""
+
+
 def integration_commit_message(issue_number: int, engine: str) -> str:
     """Build the successful integration commit message with a closing keyword.
 
@@ -74,6 +79,42 @@ def integration_commit_message(issue_number: int, engine: str) -> str:
 
     subject = f"merge: implement issue #{issue_number} via Ralph ({engine})"
     return f"{subject}\n\nCloses #{issue_number}\n"
+
+
+class IssueClaimer:
+    """Moves a ready issue into Ralph's claimed-but-unpublished state."""
+
+    def __init__(self, client: GitHubClient) -> None:
+        self._client = client
+
+    def claim(self, issue_number: int) -> IssueContract:
+        """Claim ``issue_number`` and return the post-claim issue contract.
+
+        Ralph must claim before creating a worktree. The label edit is the
+        durable queue lock: once ``ready-for-agent`` is removed, later loop
+        iterations cannot select this issue again unless a human requeues it.
+        """
+
+        before = self._client.view_issue(issue_number)
+        if not _is_claimable(before):
+            raise ClaimError(f"issue #{issue_number} is no longer ready for Ralph to claim")
+
+        self._client.edit_issue_labels(
+            issue_number,
+            add=[LABEL_AGENT_ACTIVE],
+            remove=[LABEL_READY_FOR_AGENT],
+        )
+        after = self._client.view_issue(issue_number)
+        labels = _label_names(after.get("labels"))
+        if LABEL_AGENT_ACTIVE not in labels or LABEL_READY_FOR_AGENT in labels:
+            raise ClaimError(
+                f"issue #{issue_number} claim did not converge: "
+                "expected agent-active without ready-for-agent"
+            )
+        if labels & {LABEL_AGENT_IMPLEMENTED, LABEL_READY_FOR_HUMAN, LABEL_AGENT_BLOCKED}:
+            raise ClaimError(f"issue #{issue_number} has conflicting lifecycle labels")
+
+        return capture_issue_contract(self._client, issue_number)
 
 
 class IssuePublisher:
@@ -87,7 +128,15 @@ class IssuePublisher:
         self._client = client
 
     def mark_implemented(self, issue_number: int) -> None:
-        self._client.remove_issue_labels(issue_number, [LABEL_READY_FOR_AGENT])
+        self._client.remove_issue_labels(
+            issue_number,
+            [
+                LABEL_READY_FOR_AGENT,
+                LABEL_AGENT_ACTIVE,
+                LABEL_READY_FOR_HUMAN,
+                LABEL_AGENT_BLOCKED,
+            ],
+        )
         self._client.add_issue_labels(issue_number, [LABEL_AGENT_IMPLEMENTED])
 
 
@@ -195,3 +244,35 @@ def _scoped_children(client: GitHubClient, prd_number: int) -> list[dict]:
         if parse_prd_number(body) == prd_number:
             children.append(issue)
     return children
+
+
+def _is_claimable(issue: dict) -> bool:
+    if issue.get("state", "OPEN") != "OPEN":
+        return False
+    labels = _label_names(issue.get("labels"))
+    if LABEL_READY_FOR_AGENT not in labels:
+        return False
+    if labels & {
+        LABEL_AGENT_ACTIVE,
+        LABEL_AGENT_IMPLEMENTED,
+        LABEL_READY_FOR_HUMAN,
+        LABEL_AGENT_BLOCKED,
+    }:
+        return False
+    return _has_actionable_contract(issue)
+
+
+def _has_actionable_contract(issue: dict) -> bool:
+    body = issue.get("body")
+    if isinstance(body, str) and body.strip():
+        return True
+    comments = issue.get("comments")
+    if not isinstance(comments, list):
+        return False
+    for comment in comments:
+        if not isinstance(comment, dict):
+            continue
+        text = comment.get("body")
+        if isinstance(text, str) and "Agent Brief" in text:
+            return True
+    return False
