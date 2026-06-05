@@ -31,6 +31,7 @@ from .gates import (
     GATE_SWIFTLINT,
     GATE_UI_INTEGRATION,
     GATE_UNIT_COMPONENT,
+    GATE_VISUAL_REGRESSION,
     GATE_XCODEGEN,
     CommandResult,
     GateResult,
@@ -456,10 +457,6 @@ class RalphLoop:
                 f"DIAGNOSIS_PATH: {diagnosis_path}" if diagnosis_path is not None else "",
                 f"COMPLETE_PROMISE_LINE: {complete_promise_line(phase)}",
                 f"BLOCKED_PROMISE_PREFIX: {blocked_promise_prefix(phase)}",
-                "UI_SHOT_PATH: ralph/.artifacts/issue-"
-                f"{contract.number}-ui-review.png",
-                "UI_REVIEW_PATH: ralph/.artifacts/issue-"
-                f"{contract.number}-ui-review.md",
                 "OBSERVATIONS_LOG_PATH: "
                 f"{self._repo_root / ARTIFACT_DIR / 'observations.md'}",
                 "",
@@ -761,6 +758,24 @@ def _gate_specs(device: str) -> tuple[GateSpec, ...]:
             ),
         ),
         GateSpec(
+            GATE_VISUAL_REGRESSION,
+            (
+                "xcodebuild",
+                "-project",
+                "WorkoutTracker.xcodeproj",
+                "-scheme",
+                "WorkoutTracker",
+                "-configuration",
+                "Debug",
+                "-destination",
+                destination,
+                "-derivedDataPath",
+                ".ralph-dd",
+                "test",
+                "-only-testing:WorkoutTrackerSnapshotTests",
+            ),
+        ),
+        GateSpec(
             GATE_UI_INTEGRATION,
             (
                 "xcodebuild",
@@ -791,6 +806,8 @@ def _gate_name_for_command(command: Sequence[str]) -> str:
         return GATE_SWIFTLINT
     if "-only-testing:WorkoutTrackerTests" in command:
         return GATE_UNIT_COMPONENT
+    if "-only-testing:WorkoutTrackerSnapshotTests" in command:
+        return GATE_VISUAL_REGRESSION
     if "-only-testing:WorkoutTrackerUITests" in command:
         return GATE_UI_INTEGRATION
     return command[0] if command else "gate"
@@ -891,7 +908,7 @@ def _allowed_actions_for_phase(phase: str) -> tuple[str, ...]:
             "commit review fixes",
         )
     if phase == PHASE_UI_VERIFY:
-        return ("run UI verification", "capture required screenshots", "commit UI fixes")
+        return ("run UI verification", "commit UI fixes")
     return ()
 
 

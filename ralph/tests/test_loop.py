@@ -10,7 +10,16 @@ from pathlib import Path
 
 from ralph.orchestrator.config import RunConfig
 from ralph.orchestrator.engine import FakeEngine
-from ralph.orchestrator.gates import CommandResult, GateRunner
+from ralph.orchestrator.gates import (
+    GATE_SWIFT_TEST,
+    GATE_SWIFTLINT,
+    GATE_UI_INTEGRATION,
+    GATE_UNIT_COMPONENT,
+    GATE_VISUAL_REGRESSION,
+    GATE_XCODEGEN,
+    CommandResult,
+    GateRunner,
+)
 from ralph.orchestrator.github import FakeGitHubClient
 from ralph.orchestrator.loop import (
     IssueSelector,
@@ -18,6 +27,8 @@ from ralph.orchestrator.loop import (
     RalphLoop,
     RalphLoopError,
     _format_ralph_log_line,
+    _gate_name_for_command,
+    _gate_specs,
 )
 from ralph.orchestrator.publish import (
     LABEL_AGENT_ACTIVE,
@@ -147,6 +158,27 @@ class RalphLogTests(unittest.TestCase):
             line,
             "2026-06-05T14:31:08-04:00 | Ralph: issue #190 ui-verify started",
         )
+
+
+class RalphGateSpecTests(unittest.TestCase):
+    def test_full_gate_runs_visual_regression_between_unit_and_ui_tests(self) -> None:
+        specs = _gate_specs("iPhone 17 Pro")
+
+        self.assertEqual(
+            [spec.name for spec in specs],
+            [
+                GATE_SWIFT_TEST,
+                GATE_XCODEGEN,
+                GATE_UNIT_COMPONENT,
+                GATE_VISUAL_REGRESSION,
+                GATE_UI_INTEGRATION,
+                GATE_SWIFTLINT,
+            ],
+        )
+        visual = specs[3]
+        self.assertIn("-only-testing:WorkoutTrackerSnapshotTests", visual.command)
+        self.assertIn("platform=iOS Simulator,name=iPhone 17 Pro", visual.command)
+        self.assertEqual(_gate_name_for_command(visual.command), GATE_VISUAL_REGRESSION)
 
 
 class RalphLoopTests(unittest.TestCase):

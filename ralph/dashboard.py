@@ -73,7 +73,6 @@ def badge_roles(roles: list[str]) -> str:
     short = {
         "swift-reviewer": "swift",
         "spec-conformance-reviewer": "spec",
-        "ui-screenshot-reviewer": "ui",
     }
     if not roles:
         return '<span class="muted">—</span>'

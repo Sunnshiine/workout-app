@@ -301,26 +301,12 @@ Authority policies are mechanical:
 - `Tests/UI/**` changes require the pre-agent issue body line
   `UI integration test edits: authorized`.
 - UI verification phases may never edit `Tests/UI/**`.
-- Added Visual Baselines are allowed.
-- Modified Visual Baselines require a saved passing baseline-diff review.
-- Deleted Visual Baselines block for human review.
+- Visual Baselines are normal test artifacts. Ralph does not require special
+  authorization or model review for added, modified, or deleted baseline PNGs;
+  the Visual Regression test gate is the authority.
 
 For a first UI-owned gate failure after code exists, Python runs one repair cycle, then either
 ships on pass or escalates to a blocked rescue PR on the second failure.
-
----
-
-## Snapshot Helper
-
-The screenshot helper still builds and launches the UITEST fixture route:
-
-```bash
-ralph/snapshot.sh
-PROJECT_DIR=/path/to/worktree ralph/snapshot.sh /tmp/out.png
-UITEST_ARGS="-UITEST_DEVELOPER_TOOLS" ralph/snapshot.sh /tmp/tools.png
-```
-
-Artifacts land under `ralph/.artifacts/`, which is gitignored.
 
 ---
 
@@ -345,7 +331,6 @@ ralph/
 ├── ralph.sh                 # compatibility wrapper for python -m ralph.orchestrator
 ├── orchestrator/            # Python Ralph state machine and seams
 ├── prompts/                 # phase prompt templates
-├── snapshot.sh              # UITEST fixture screenshot helper
 ├── report.py                # read-only telemetry report
-└── .artifacts/              # logs, activity, screenshots (gitignored)
+└── .artifacts/              # logs, activity, and generated review artifacts (gitignored)
 ```

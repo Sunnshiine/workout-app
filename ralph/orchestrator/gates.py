@@ -6,10 +6,9 @@ drives in ``ralph/ralph.sh``) through an injectable command runner and returns a
 real ``swift``, ``xcodebuild``, ``xcodegen``, or ``swiftlint``.
 
 ``ui_owned`` marks gates a UI-owned repair cycle owns when they fail: UI
-integration tests, UI screenshot artifact/review checks, Visual Regression
-failures, and Visual Baseline authority failures. ``ui_owned`` gate names are
-shared so the authority and artifact layers classify their own ``GateResult``s
-consistently (see :func:`is_ui_owned_gate`).
+integration tests and Visual Regression failures. ``ui_owned`` gate names are
+shared so the authority layer classifies its own ``GateResult``s consistently
+(see :func:`is_ui_owned_gate`).
 """
 
 from __future__ import annotations
@@ -29,17 +28,11 @@ GATE_VISUAL_REGRESSION = "visual-regression-tests"
 GATE_UI_INTEGRATION = "ui-integration-tests"
 GATE_SWIFTLINT = "swiftlint"
 
-# Authority/artifact gate names produced outside GateRunner but classified here.
-GATE_UI_ARTIFACTS = "ui-screenshot-artifacts"
-GATE_VISUAL_BASELINE_AUTHORITY = "visual-baseline-authority"
-
 # Gates whose failures a UI-owned repair cycle owns.
 _UI_OWNED_GATES = frozenset(
     {
         GATE_UI_INTEGRATION,
-        GATE_UI_ARTIFACTS,
         GATE_VISUAL_REGRESSION,
-        GATE_VISUAL_BASELINE_AUTHORITY,
     }
 )
 

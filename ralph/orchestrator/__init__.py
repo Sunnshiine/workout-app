@@ -12,8 +12,6 @@ replacement gate in issue #214 is approved.
 from __future__ import annotations
 
 from .authority import (
-    UI_REVIEW_PASS_LINE,
-    VISUAL_BASELINE_DIR,
     AuthorityDecision,
     AuthorityGate,
     NameStatusEntry,
@@ -150,8 +148,6 @@ __all__ = [
     "REDACTION_PLACEHOLDER",
     "REPAIR_BRIEF_FILE",
     "TIMEOUT_EXIT_STATUS",
-    "UI_REVIEW_PASS_LINE",
-    "VISUAL_BASELINE_DIR",
     "AuthorityDecision",
     "AuthorityGate",
     "ClaimError",

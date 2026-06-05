@@ -102,7 +102,7 @@ selected engine. The engine returns a normalized `PhaseResult`.
 
 `ralph/prompts/swift-review.md` currently instructs the phase agent to spawn
 `swift-reviewer`, fix blocking non-UI findings, commit remediation, and avoid UI
-tests, screenshots, and `ui-screenshot-reviewer`.
+tests.
 
 Reporting surfaces also know the current phase name:
 
@@ -220,8 +220,6 @@ The review phase may:
 The review phase must not:
 
 - run Xcode UI integration tests
-- run `ralph/snapshot.sh`
-- spawn `ui-screenshot-reviewer`
 - push, merge, open a PR, close a PR, or close the issue
 - edit `ralph/*.sh`, `ralph/orchestrator/**`, or `ralph/prompts/**` while
   reviewing an ordinary app issue
@@ -317,8 +315,7 @@ is subsumed by the new `review` phase.
   committed, and re-reviewed.
 - [ ] Spec conformance findings are limited to the frozen `IssueContract`; PRDs,
   linked specs, and live issue rereads do not expand scope.
-- [ ] UI tests, screenshots, and `ui-screenshot-reviewer` remain exclusive to
-  later UI verification.
+- [ ] UI tests remain exclusive to later UI verification.
 - [ ] Existing reports or dashboards containing historical `swift-review` data
   still render.
 

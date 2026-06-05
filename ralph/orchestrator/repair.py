@@ -1,9 +1,8 @@
 """One-time UI-owned repair cycle before blocked escalation.
 
-When a UI-owned gate (UI integration tests, screenshot artifacts/review, Visual
-Regression, Visual Baseline authority) fails *after code already exists*, Ralph
-gets exactly ONE repair cycle before the work is escalated to a blocked rescue
-PR. This slice owns that cycle and nothing else:
+When a UI-owned gate (UI integration tests or Visual Regression) fails *after
+code already exists*, Ralph gets exactly ONE repair cycle before the work is
+escalated to a blocked rescue PR. This slice owns that cycle and nothing else:
 
 1. Write a focused repair brief to
    ``ralph/.artifacts/repair/issue-<issue>-ui-gate.md`` (issue contract, target
