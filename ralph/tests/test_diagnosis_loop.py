@@ -78,6 +78,28 @@ def _complete(phase: str, response: str) -> PhaseResult:
     return PhaseResult(phase=phase, status=PhaseStatus.COMPLETE, final_response=response)
 
 
+class _EditingEngine(FakeEngine):
+    """FakeEngine that commits one file edit during a chosen phase.
+
+    Lets loop tests exercise the mechanical authority gate, which diffs the real
+    worktree rather than trusting phase output.
+    """
+
+    def __init__(self, *, edit_phase: str, rel_path: str, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._edit_phase = edit_phase
+        self._rel_path = rel_path
+
+    def run_phase(self, request):
+        if request.phase == self._edit_phase:
+            target = request.workdir / self._rel_path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("// authority gate test edit\n", encoding="utf-8")
+            _git(request.workdir, "add", "-A")
+            _git(request.workdir, "commit", "-m", f"edit {self._rel_path}")
+        return super().run_phase(request)
+
+
 class _OriginMain(OriginMain):
     def __init__(self) -> None:
         self.polls = 0
@@ -286,6 +308,50 @@ class DiagnosisGateLoopTests(unittest.TestCase):
         self.assertIn("diagnosis.md", by_phase["ui-verify"].prompt)
         # The diagnose phase itself has no prior handoff to read.
         self.assertNotIn("DIAGNOSIS_PATH:", by_phase["diagnose"].prompt)
+
+    def test_unauthorized_ui_test_edit_is_blocked_by_authority_gate(self) -> None:
+        # Non-bug issue: no diagnosis grant, so a Tests/UI edit is unauthorized.
+        client = FakeGitHubClient(
+            issues={21: _bug_issue(21, labels=[LABEL_READY_FOR_AGENT])}
+        )
+        engine = _EditingEngine(
+            edit_phase="implement-tdd", rel_path="Tests/UI/FooUITests.swift"
+        )
+
+        summary = self._loop(client, engine).run()
+
+        self.assertEqual(summary.issues_blocked, (21,))
+        self.assertEqual(summary.issues_completed, ())
+
+    def test_diagnosis_grant_authorizes_issue_range_ui_test_edit(self) -> None:
+        # The grant flows body-edit -> recapture -> contract snapshot, so the
+        # mechanical gate now allows the same Tests/UI edit it would otherwise block.
+        client = FakeGitHubClient(issues={22: _bug_issue(22)})
+        engine = _EditingEngine(
+            edit_phase="implement-tdd",
+            rel_path="Tests/UI/FooUITests.swift",
+            results_by_phase={"diagnose": _complete("diagnose", _REQUIRED_BLOCK)},
+        )
+
+        summary = self._loop(client, engine).run()
+
+        self.assertEqual(summary.issues_completed, (22,))
+        self.assertEqual(summary.issues_blocked, ())
+
+    def test_ui_verify_phase_ui_test_edit_blocks_even_when_authorized(self) -> None:
+        # Authority is granted (issue-range edit would be allowed), but a UI-test
+        # edit made during ui-verify blocks unconditionally.
+        client = FakeGitHubClient(issues={23: _bug_issue(23)})
+        engine = _EditingEngine(
+            edit_phase="ui-verify",
+            rel_path="Tests/UI/FooUITests.swift",
+            results_by_phase={"diagnose": _complete("diagnose", _REQUIRED_BLOCK)},
+        )
+
+        summary = self._loop(client, engine).run()
+
+        self.assertEqual(summary.issues_blocked, (23,))
+        self.assertEqual(summary.issues_completed, ())
 
     def test_blocked_diagnose_phase_escalates_before_implement(self) -> None:
         client = FakeGitHubClient(issues={20: _bug_issue(20)})
