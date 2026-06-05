@@ -11,6 +11,7 @@ from __future__ import annotations
 import subprocess
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 from .blocked import BlockedReport, BlockedRescuePublisher
@@ -196,24 +197,21 @@ class RalphLoop:
 
         for iteration in range(1, self._config.max_iterations + 1):
             iterations_started = iteration
-            print(f"Ralph: polling {ORIGIN_MAIN} for iteration {iteration}", flush=True)
+            _ralph_log(f"polling {ORIGIN_MAIN} for iteration {iteration}")
             self._origin_main.poll()
             chosen = self._selector.select_next()
             if chosen is None:
                 stopped_reason = "no eligible ready-for-agent issues"
-                print("Ralph: no eligible ready-for-agent issues", flush=True)
+                _ralph_log("no eligible ready-for-agent issues")
                 break
 
             selected.append(chosen.number)
-            print(f"Ralph: selected issue #{chosen.number} {chosen.title}".rstrip(), flush=True)
+            _ralph_log(f"selected issue #{chosen.number} {chosen.title}".rstrip())
             contract = capture_issue_contract(self._client, chosen.number)
             target = self._target_resolver.resolve(contract)
             if self._config.select_only:
                 stopped_reason = "select-only"
-                print(
-                    f"Ralph: select-only target for issue #{chosen.number}: {target.branch}",
-                    flush=True,
-                )
+                _ralph_log(f"select-only target for issue #{chosen.number}: {target.branch}")
                 break
 
             outcome = self._run_issue(iteration, contract, target)
@@ -290,7 +288,7 @@ class RalphLoop:
         self, contract: IssueContract, target: PrTarget, base_ref: str
     ) -> Worktree:
         path = self._repo_root / WORKTREE_DIR / f"issue-{contract.number}"
-        print(f"Ralph: creating {target.branch} from {base_ref}", flush=True)
+        _ralph_log(f"creating {target.branch} from {base_ref}")
         return self._worktrees.create(path, target.branch, base_ref)
 
     def _run_phase(
@@ -321,7 +319,7 @@ class RalphLoop:
         log_path = (
             self._repo_root / LOG_DIR / f"iter-{iteration}-issue-{contract.number}-{phase}.log"
         )
-        print(f"Ralph: issue #{contract.number} {phase} started", flush=True)
+        _ralph_log(f"issue #{contract.number} {phase} started")
         result = self._engine.run_phase(
             PhaseRequest(
                 phase=phase,
@@ -332,7 +330,7 @@ class RalphLoop:
                 log_path=log_path,
             )
         )
-        print(f"Ralph: issue #{contract.number} {phase} -> {result.status}", flush=True)
+        _ralph_log(f"issue #{contract.number} {phase} -> {result.status}")
         return result
 
     def _phase_prompt(
@@ -380,7 +378,7 @@ class RalphLoop:
     ) -> GateResult | None:
         runner = self._gate_runner_factory(workdir, iteration, contract.number)
         for result in runner.run_all(_gate_specs(self._config.sim_device)):
-            print(f"Ralph: gate {result.name} -> {result.status}", flush=True)
+            _ralph_log(f"gate {result.name} -> {result.status}")
             if result.status == GateStatus.FAILED:
                 return result
         return None
@@ -392,7 +390,7 @@ class RalphLoop:
         pr_number = pr_publisher.publish(contract, target, engine=self._config.engine)
         issue_publisher.mark_implemented(contract.number)
         pr_publisher.update_readiness(contract, pr_number)
-        print(f"Ralph: issue #{contract.number} published to PR #{pr_number}", flush=True)
+        _ralph_log(f"issue #{contract.number} published to PR #{pr_number}")
 
     def _publish_blocked(
         self,
@@ -430,7 +428,7 @@ class RalphLoop:
         plan = publisher.plan(contract)
         _run_git(worktree.path, ["switch", "-C", plan.branch])
         pr_number = publisher.publish(contract, report)
-        print(f"Ralph: issue #{contract.number} blocked in PR #{pr_number}", flush=True)
+        _ralph_log(f"issue #{contract.number} blocked in PR #{pr_number}")
         # Preserve blocked worktree for inspection; cleanup would defeat the rescue path.
         _ = ui_phase_base, ui_phase_tip
 
@@ -498,6 +496,17 @@ def _default_gate_runner_factory(workdir: Path, iteration: int, issue_number: in
         return CommandResult(exit_status=completed.returncode, output=output)
 
     return GateRunner(run, log_path_for=log_path_for)
+
+
+def _ralph_log(message: str) -> None:
+    print(_format_ralph_log_line(message), flush=True)
+
+
+def _format_ralph_log_line(message: str, *, now: datetime | None = None) -> str:
+    timestamp = now or datetime.now().astimezone()
+    if timestamp.tzinfo is None:
+        timestamp = timestamp.astimezone()
+    return f"{timestamp.isoformat(timespec='seconds')} | Ralph: {message}"
 
 
 def _gate_specs(device: str) -> tuple[GateSpec, ...]:

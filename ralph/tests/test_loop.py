@@ -1,15 +1,23 @@
 from __future__ import annotations
 
+import contextlib
+import io
 import subprocess
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from ralph.orchestrator.config import RunConfig
 from ralph.orchestrator.engine import FakeEngine
 from ralph.orchestrator.gates import CommandResult, GateRunner
 from ralph.orchestrator.github import FakeGitHubClient
-from ralph.orchestrator.loop import IssueSelector, OriginMain, RalphLoop
+from ralph.orchestrator.loop import (
+    IssueSelector,
+    OriginMain,
+    RalphLoop,
+    _format_ralph_log_line,
+)
 from ralph.orchestrator.publish import (
     LABEL_AGENT_IMPLEMENTED,
     LABEL_READY_FOR_AGENT,
@@ -97,6 +105,18 @@ class IssueSelectorTests(unittest.TestCase):
         self.assertEqual(selected.number, 4)
 
 
+class RalphLogTests(unittest.TestCase):
+    def test_formats_local_timestamp_before_ralph_message(self) -> None:
+        now = datetime(2026, 6, 5, 14, 31, 8, tzinfo=timezone(timedelta(hours=-4)))
+
+        line = _format_ralph_log_line("issue #190 ui-verify started", now=now)
+
+        self.assertEqual(
+            line,
+            "2026-06-05T14:31:08-04:00 | Ralph: issue #190 ui-verify started",
+        )
+
+
 class RalphLoopTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
@@ -137,6 +157,7 @@ class RalphLoopTests(unittest.TestCase):
         self.assertEqual([call[0] for call in publish.calls], ["commit", "push"])
 
     def test_select_only_stops_before_worktree_creation(self) -> None:
+        out = io.StringIO()
         client = FakeGitHubClient(issues={8: _issue(8)})
         loop = RalphLoop(
             config=RunConfig(engine="fake", max_iterations=3, select_only=True),
@@ -146,11 +167,22 @@ class RalphLoopTests(unittest.TestCase):
             origin_main=_OriginMain(),
         )
 
-        summary = loop.run()
+        with contextlib.redirect_stdout(out):
+            summary = loop.run()
 
         self.assertEqual(summary.issues_selected, (8,))
         self.assertEqual(summary.issues_completed, ())
         self.assertEqual(summary.stopped_reason, "select-only")
+        lines = out.getvalue().splitlines()
+        self.assertRegex(
+            lines[0],
+            r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2} "
+            r"\| Ralph: polling",
+        )
+        self.assertIn(
+            " | Ralph: select-only target for issue #8: ralph/issue-8",
+            lines[-1],
+        )
 
 
 if __name__ == "__main__":
