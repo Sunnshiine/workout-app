@@ -111,6 +111,7 @@ The Python runner supports:
 | `--engine fake\|claude\|codex\|claude-cli\|codex-cli` | Engine adapter for phase turns. `codex`/`claude` resolve to SDK clients when their packages import. Dry-run modes force `fake`. |
 | `--max-iterations N` / `--max-iter N` | Maximum issues to process. |
 | `--model NAME` | Optional model alias passed to the engine. |
+| `--reasoning-effort low\|medium\|high\|xhigh` | Optional whole-run Codex reasoning override. Without it, Ralph uses `gpt-5.5` with `medium` reasoning, except Swift review and UI repair phases use `high`. |
 | `--device "iPhone 17 Pro"` | Simulator device for app gates. |
 | `--implement-timeout-seconds N` | Per-phase agent timeout. |
 | `--select-only` | Resolve selection/targets without creating worktrees or running agents. |

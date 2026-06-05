@@ -85,7 +85,12 @@ class FakeEngine(Engine):
         )
 
 
-def build_engine(engine_name: str, *, model: str | None = None) -> Engine:
+def build_engine(
+    engine_name: str,
+    *,
+    model: str | None = None,
+    reasoning_effort: str | None = None,
+) -> Engine:
     """Resolve an engine name to a concrete adapter.
 
     The fake engine is always available for dry-runs and tests. SDK and CLI
@@ -98,4 +103,4 @@ def build_engine(engine_name: str, *, model: str | None = None) -> Engine:
 
     from .engines import resolve_engine
 
-    return resolve_engine(engine_name, model=model)
+    return resolve_engine(engine_name, model=model, reasoning_effort=reasoning_effort)
