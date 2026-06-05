@@ -31,6 +31,7 @@ from .gates import (
     GATE_SWIFTLINT,
     GATE_UI_INTEGRATION,
     GATE_UNIT_COMPONENT,
+    GATE_VISUAL_REGRESSION,
     GATE_XCODEGEN,
     CommandResult,
     GateResult,
@@ -757,6 +758,24 @@ def _gate_specs(device: str) -> tuple[GateSpec, ...]:
             ),
         ),
         GateSpec(
+            GATE_VISUAL_REGRESSION,
+            (
+                "xcodebuild",
+                "-project",
+                "WorkoutTracker.xcodeproj",
+                "-scheme",
+                "WorkoutTracker",
+                "-configuration",
+                "Debug",
+                "-destination",
+                destination,
+                "-derivedDataPath",
+                ".ralph-dd",
+                "test",
+                "-only-testing:WorkoutTrackerSnapshotTests",
+            ),
+        ),
+        GateSpec(
             GATE_UI_INTEGRATION,
             (
                 "xcodebuild",
@@ -787,6 +806,8 @@ def _gate_name_for_command(command: Sequence[str]) -> str:
         return GATE_SWIFTLINT
     if "-only-testing:WorkoutTrackerTests" in command:
         return GATE_UNIT_COMPONENT
+    if "-only-testing:WorkoutTrackerSnapshotTests" in command:
+        return GATE_VISUAL_REGRESSION
     if "-only-testing:WorkoutTrackerUITests" in command:
         return GATE_UI_INTEGRATION
     return command[0] if command else "gate"
