@@ -53,6 +53,35 @@ ralph/ralph.sh --help
 A good first target is a **pure-logic issue** (no UI), so the run finishes fast and skips the
 screenshot gate.
 
+### Python live GitHub dry-run
+
+The side-by-side Python runner has one controlled live dry-run path for the replacement gate. It
+uses only the fake engine, so it cannot invoke Codex, Claude, or any autonomous code-editing agent.
+It still mutates GitHub state on a deliberately marked control issue so reviewers can inspect
+authenticated label, PR, comment, branch, draft, and ready-state wiring before `ralph.sh` is
+replaced.
+
+Create a temporary control issue with both safeguards:
+
+- title starts with `[Ralph dry-run]`
+- body contains the exact line `Ralph live dry-run: authorized`
+
+Then run:
+
+```bash
+uv run --python 3.11 python -m ralph.orchestrator \
+  --repo Sunnshiine/workout-app \
+  --live-github-dry-run <control-issue-number>
+```
+
+The command always forces `--engine fake`, creates or reuses branch
+`ralph/dry-run/issue-<control-issue-number>`, pushes only
+`docs/ralph/live-dry-runs/issue-<control-issue-number>.md`, creates or reuses a PR, marks the PR
+ready, applies `agent-implemented` to the control issue, applies `agent-ready-for-review` to the PR,
+and posts an issue comment. The evidence file is also written into the invoking worktree for the
+final replacement review. Delete the `ralph/dry-run/issue-*` branch and close the control PR/issue
+after review.
+
 ---
 
 ## How it works

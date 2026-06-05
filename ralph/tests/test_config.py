@@ -30,6 +30,20 @@ class ParseArgsTests(unittest.TestCase):
         self.assertTrue(config.dry_run)
         self.assertEqual(config.engine, FAKE_ENGINE)
 
+    def test_live_github_dry_run_forces_fake_engine(self) -> None:
+        config = parse_args(["--engine", "codex", "--live-github-dry-run", "213"])
+        self.assertEqual(config.engine, FAKE_ENGINE)
+        self.assertEqual(config.live_github_dry_run_issue, 213)
+        self.assertFalse(config.uses_real_engine)
+
+    def test_live_github_dry_run_rejects_no_side_effect_dry_run(self) -> None:
+        with self.assertRaises(ConfigError):
+            parse_args(["--dry-run", "--live-github-dry-run", "213"])
+
+    def test_live_github_dry_run_issue_must_be_positive(self) -> None:
+        with self.assertRaises(ConfigError):
+            parse_args(["--live-github-dry-run", "0"])
+
     def test_publish_target_main_is_rejected(self) -> None:
         with self.assertRaises(ConfigError) as ctx:
             parse_args(["--publish-target", "main"])

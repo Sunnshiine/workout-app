@@ -40,6 +40,7 @@ class RunConfig:
     label: str = DEFAULT_LABEL
     human_label: str = DEFAULT_HUMAN_LABEL
     repo: str | None = None
+    live_github_dry_run_issue: int | None = None
 
     @property
     def uses_real_engine(self) -> bool:
@@ -88,6 +89,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="No-publish dry-run; forces the fake engine and touches no real agent.",
     )
     parser.add_argument(
+        "--live-github-dry-run",
+        type=int,
+        metavar="ISSUE",
+        dest="live_github_dry_run_issue",
+        help=(
+            "Run the controlled GitHub dry-run against ISSUE. This forces the "
+            "fake engine and may mutate the authorized dry-run issue/PR."
+        ),
+    )
+    parser.add_argument(
         "--select-only",
         action="store_true",
         help="Resolve selection/targets without creating worktrees or running agents.",
@@ -117,9 +128,17 @@ def _resolve(namespace: argparse.Namespace) -> RunConfig:
         raise ConfigError("--max-iterations must be at least 1.")
     if namespace.implement_timeout_seconds < 1:
         raise ConfigError("--implement-timeout-seconds must be at least 1.")
+    if namespace.live_github_dry_run_issue is not None and namespace.dry_run:
+        raise ConfigError(
+            "--live-github-dry-run already performs the controlled live dry-run; "
+            "do not combine it with the no-side-effect --dry-run config check."
+        )
+    if namespace.live_github_dry_run_issue is not None and namespace.live_github_dry_run_issue < 1:
+        raise ConfigError("--live-github-dry-run ISSUE must be a positive issue number.")
 
-    # A dry-run must never reach a real agent, so it always uses the fake engine.
-    engine = FAKE_ENGINE if namespace.dry_run else namespace.engine
+    # Dry-run modes must never reach a real agent, so they always use the fake engine.
+    is_dry_run = namespace.dry_run or namespace.live_github_dry_run_issue
+    engine = FAKE_ENGINE if is_dry_run else namespace.engine
 
     return RunConfig(
         engine=engine,
@@ -130,6 +149,7 @@ def _resolve(namespace: argparse.Namespace) -> RunConfig:
         dry_run=namespace.dry_run,
         select_only=namespace.select_only,
         repo=namespace.repo,
+        live_github_dry_run_issue=namespace.live_github_dry_run_issue,
     )
 
 

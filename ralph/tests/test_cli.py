@@ -35,6 +35,11 @@ class CliMainTests(unittest.TestCase):
             main(["--dry-run"])
         self.assertIn("no GitHub", out.getvalue())
 
+    def test_live_github_dry_run_is_shown_in_summary(self) -> None:
+        summary = format_config_summary(parse_args(["--live-github-dry-run", "213"]))
+        self.assertIn("live-github-dry-run", summary)
+        self.assertIn("213", summary)
+
 
 class FormatSummaryTests(unittest.TestCase):
     def test_summary_describes_engine_and_pr_only(self) -> None:

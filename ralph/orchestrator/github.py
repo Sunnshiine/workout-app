@@ -15,8 +15,8 @@ from typing import Protocol, runtime_checkable
 
 # Fields requested from ``gh issue view`` for the contract snapshot.
 _ISSUE_VIEW_FIELDS = "number,title,body,labels,comments"
-# Fields requested from ``gh pr list`` for branch-reuse lookup.
-_PR_LIST_FIELDS = "number,headRefName,state"
+# Fields requested from ``gh pr list`` for branch-reuse lookup/readiness.
+_PR_LIST_FIELDS = "number,headRefName,state,isDraft"
 
 
 @runtime_checkable
