@@ -27,7 +27,7 @@ expected.
 
 ## Work
 - Run Xcode UI integration tests for `WorkoutTrackerUITests`.
-- Do NOT spawn `swift-reviewer` in this phase.
+- Do NOT spawn `swift-reviewer` or `spec-conformance-reviewer` in this phase.
 - If the UI tests fail because of the issue implementation, fix the failure in
   this same worktree and rerun the relevant UI tests.
 - If the UI tests fail because of simulator/tooling infrastructure that you
@@ -86,7 +86,7 @@ Emit COMPLETE only when ALL of these hold:
   `PASS: no blocking static visual findings.`
 - No Visual Baseline was deleted.
 - Any files changed by this phase were committed.
-- You did not run Swift review.
+- You did not run review.
 
 If any condition fails, end with the exact BLOCKED promise format from the
 preamble, using this phase's name.

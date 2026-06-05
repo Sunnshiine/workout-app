@@ -69,7 +69,7 @@ Relevant existing docs:
 
 - Decision: UI-owned failures get one repair cycle before blocked escalation.
   - Source: architecture discussion, 2026-06-05.
-  - Consequence: Ralph writes a repair brief, runs one fresh repair agent context, reruns Swift review when repair changes code/tests/project files, and then reruns the relevant UI/full gates once.
+  - Consequence: Ralph writes a repair brief, runs one fresh repair agent context, reruns review when repair changes code/tests/project files, and then reruns the relevant UI/full gates once.
 
 - Decision: UI integration test edit authority is mechanical.
   - Source: UI-test authority handoff and [issue tracker conventions](../agents/issue-tracker.md).
@@ -176,13 +176,13 @@ The SDK or CLI only runs the agent turn. It does not select targets, decide life
 For a selected bug issue, the target phase order is:
 
 ```text
-diagnose -> implement-tdd -> swift-review -> ui-verify -> gates -> PR publish
+diagnose -> implement-tdd -> review -> ui-verify -> gates -> PR publish
 ```
 
 For non-bug issues, the phase order remains:
 
 ```text
-implement-tdd -> swift-review -> ui-verify -> gates -> PR publish
+implement-tdd -> review -> ui-verify -> gates -> PR publish
 ```
 
 ## Contracts
@@ -264,7 +264,7 @@ Rules:
 - Temporary investigative changes may remain uncommitted for implementation to adopt or replace,
   as long as no commit is made before Ralph processes diagnosis authority.
 - `implement-tdd` must read the diagnosis handoff before editing.
-- `swift-review` and `ui-verify` receive the diagnosis handoff as optional context.
+- `review` and `ui-verify` receive the diagnosis handoff as optional context.
 
 ### Diagnosis handoff artifact [ADDED]
 
@@ -284,7 +284,7 @@ The artifact is the implementation handoff. It should include:
 - required diagnosis authority block
 
 The handoff is referenced from later `phase-context.md` artifacts. It is mandatory context for
-`implement-tdd`, and optional supporting context for `swift-review` and `ui-verify`.
+`implement-tdd`, and optional supporting context for `review` and `ui-verify`.
 
 ### Diagnosis authority block [ADDED]
 
@@ -335,7 +335,7 @@ The issue body remains the authority source. The comment is an audit/event log. 
 `diagnosis.md` artifact remains the full implementation handoff.
 
 Ralph may perform this issue-body edit only during the bug diagnosis transition. `implement-tdd`,
-`swift-review`, `ui-verify`, repair phases, and gates may not edit the issue body to grant UI-test
+`review`, `ui-verify`, repair phases, and gates may not edit the issue body to grant UI-test
 authority.
 
 If the issue body already contains `UI integration test edits: authorized`, Ralph does not duplicate
@@ -451,7 +451,7 @@ For the first UI-owned gate failure after code exists:
 
 1. Write `ralph/.artifacts/repair/issue-<issue>-ui-gate.md`.
 2. Run one fresh `repair-ui-gate` agent context in the failing integration worktree.
-3. If repair changes production Swift, test files, project files, or package configuration, run `swift-review-after-repair`.
+3. If repair changes production Swift, test files, project files, or package configuration, run `review-after-repair`.
 4. Rerun the relevant UI/full gate once.
 5. Ship on pass; create blocked rescue PR on second failure.
 
@@ -543,7 +543,7 @@ The target Python workflow has no direct `origin/main` push or local `main` fast
 
 ### Phase 5: UI Repair and Blocked Rescue PRs
 
-- Change: Add one UI repair cycle, repair brief generation, `swift-review-after-repair`, blocked rescue PRs, `agent-blocked`, and sanitized blocked reports.
+- Change: Add one UI repair cycle, repair brief generation, `review-after-repair`, blocked rescue PRs, `agent-blocked`, and sanitized blocked reports.
 - Compatibility: Fake engine can force gate failures and repair outcomes.
 - Acceptance criteria:
   - Tests cover first UI failure repair success, second UI failure blocked escalation, policy failure blocked escalation, no closing keywords on blocked PRs, and report redaction.

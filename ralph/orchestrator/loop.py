@@ -59,7 +59,7 @@ ORIGIN_MAIN = "origin/main"
 PHASE_DIAGNOSE = "diagnose"
 PHASE_DIAGNOSE_FORMAT = "diagnose-format"
 PHASE_IMPLEMENT = "implement-tdd"
-PHASE_SWIFT_REVIEW = "swift-review"
+PHASE_REVIEW = "review"
 PHASE_UI_VERIFY = "ui-verify"
 
 BUG_LABEL = "bug"
@@ -305,7 +305,7 @@ class RalphLoop:
         failed_phase: PhaseResult | None = None
         for phase, prompt_file in (
             (PHASE_IMPLEMENT, "implement.md"),
-            (PHASE_SWIFT_REVIEW, "swift-review.md"),
+            (PHASE_REVIEW, "review.md"),
             (PHASE_UI_VERIFY, "ui-verify.md"),
         ):
             if phase == PHASE_UI_VERIFY:
@@ -791,8 +791,14 @@ def _allowed_actions_for_phase(phase: str) -> tuple[str, ...]:
         return ("re-emit only a corrected diagnosis-authority block from existing findings",)
     if phase == PHASE_IMPLEMENT:
         return ("implement the issue", "commit implementation changes", "run non-UI checks")
-    if phase == PHASE_SWIFT_REVIEW:
-        return ("review issue diff", "fix blocking non-UI findings", "commit review fixes")
+    if phase == PHASE_REVIEW:
+        return (
+            "review issue diff",
+            "spawn swift-reviewer",
+            "spawn spec-conformance-reviewer",
+            "fix blocking non-UI findings",
+            "commit review fixes",
+        )
     if phase == PHASE_UI_VERIFY:
         return ("run UI verification", "capture required screenshots", "commit UI fixes")
     return ()

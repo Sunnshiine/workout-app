@@ -40,16 +40,16 @@ class ParseArgsTests(unittest.TestCase):
             resolve_codex_reasoning_effort("implement-tdd", None),
             DEFAULT_CODEX_REASONING_EFFORT,
         )
-        self.assertEqual(resolve_codex_reasoning_effort("swift-review", None), "high")
+        self.assertEqual(resolve_codex_reasoning_effort("review", None), "high")
         self.assertEqual(resolve_codex_reasoning_effort("repair-ui-gate", None), "high")
         self.assertEqual(
-            resolve_codex_reasoning_effort("swift-review-after-repair", None), "high"
+            resolve_codex_reasoning_effort("review-after-repair", None), "high"
         )
 
     def test_reasoning_effort_override_wins_for_every_phase(self) -> None:
         config = parse_args(["--engine", "codex", "--reasoning-effort", "low"])
         self.assertEqual(config.reasoning_effort, "low")
-        self.assertEqual(resolve_codex_reasoning_effort("swift-review", "low"), "low")
+        self.assertEqual(resolve_codex_reasoning_effort("review", "low"), "low")
         self.assertEqual(resolve_codex_reasoning_effort("implement-tdd", "low"), "low")
 
     def test_invalid_reasoning_effort_is_rejected(self) -> None:

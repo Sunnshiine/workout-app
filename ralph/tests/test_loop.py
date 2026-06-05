@@ -45,7 +45,7 @@ def _init_repo(repo: Path) -> None:
     (repo / "README.md").write_text("seed\n", encoding="utf-8")
     prompts = repo / "ralph" / "prompts"
     prompts.mkdir(parents=True)
-    for name in ("implement.md", "swift-review.md", "ui-verify.md"):
+    for name in ("implement.md", "review.md", "ui-verify.md"):
         (prompts / name).write_text(f"{name}\n", encoding="utf-8")
     _git(repo, "add", "README.md", "ralph/prompts")
     _git(repo, "commit", "-m", "seed")

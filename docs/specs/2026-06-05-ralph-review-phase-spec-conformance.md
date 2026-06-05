@@ -69,6 +69,7 @@ must use that frozen contract instead of live issue state.
 - Replace the Swift-only review prompt with a review prompt that invokes both
   `swift-reviewer` and `spec-conformance-reviewer`.
 - Define the `spec-conformance-reviewer` role and blocking standard.
+- Create the `spec-conformance-reviewer` custom subagent definition.
 - Update orchestrator phase sequencing, allowed actions, promise lines, logs,
   reports, dashboards, tests, and docs that own current phase vocabulary.
 - Preserve historical report readability for existing `swift-review` artifacts.
@@ -124,6 +125,11 @@ independent read-only reviewer subagents against the same frozen
 - `swift-reviewer`: reviews Swift correctness, maintainability, architecture
   fit, and non-UI test fit.
 - `spec-conformance-reviewer`: reviews only conformance to the issue contract.
+
+The `spec-conformance-reviewer` custom subagent is installed beside the existing
+global reviewer agents and is read-only. It reports only pass/blocking spec
+conformance findings and never edits files, commits, pushes, relabels, closes
+issues, or mutates PR state.
 
 The phase agent gathers both reviewer reports, fixes any blocking findings in
 the worktree, runs the narrowest relevant non-UI checks needed to prove fixes,
@@ -288,8 +294,7 @@ is subsumed by the new `review` phase.
 - `ralph/prompts/swift-review.md` can be deleted after `review.md` is the only
   prompt referenced by normal orchestration and tests.
 - `PHASE_SWIFT_REVIEW` can be deleted after all normal orchestration and repair
-  references are renamed or intentionally split into separate repair-review
-  terminology.
+  references are renamed to review terminology.
 - Dashboard/report special handling for current-run `swift-review` can be
   removed after no active Ralph workflow emits that phase name. Historical
   rendering support may remain indefinitely because stored reports are archival.

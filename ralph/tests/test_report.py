@@ -37,10 +37,10 @@ class RalphReportTests(unittest.TestCase):
                         ),
                         "- **2026-06-01 21:20:11** — issue #157 implement-tdd complete",
                         (
-                            "- **2026-06-01 21:20:11** — issue #157 swift-review "
+                            "- **2026-06-01 21:20:11** — issue #157 review "
                             "started — timeout 2700s"
                         ),
-                        "- **2026-06-01 21:25:12** — issue #157 swift-review complete",
+                        "- **2026-06-01 21:25:12** — issue #157 review complete",
                         "- **2026-06-01 21:46:23** — issue #157 resolved & merged to main, pushed",
                     ]
                 ),
@@ -77,6 +77,19 @@ class RalphReportTests(unittest.TestCase):
                     },
                 ],
             )
+            write_jsonl(
+                sessions / "rollout-spec-subagent.jsonl",
+                [
+                    session_meta(
+                        "spec-child",
+                        "2026-06-02T01:22:11.000Z",
+                        "/repo/.claude/worktrees/issue-157",
+                        role="spec-conformance-reviewer",
+                        parent="parent",
+                    ),
+                    token_count("2026-06-02T01:22:12.000Z", 50, 20, 5, 0, 55, 45),
+                ],
+            )
 
             data = report.build_report(
                 artifacts,
@@ -89,13 +102,45 @@ class RalphReportTests(unittest.TestCase):
 
         attempt = data["attempts"][0]
         self.assertEqual(attempt["issue"], 157)
-        self.assertEqual(attempt["tokens"]["total_tokens"], 330)
-        self.assertEqual(attempt["tokens"]["uncached_input_tokens"], 120)
+        self.assertEqual(attempt["tokens"]["total_tokens"], 385)
+        self.assertEqual(attempt["tokens"]["uncached_input_tokens"], 150)
         self.assertEqual(attempt["tokens"]["compactions"], 1)
-        self.assertEqual(attempt["tokens"]["subagent_session_count"], 1)
-        self.assertEqual(attempt["tokens"]["agent_roles"], ["swift-reviewer"])
-        self.assertEqual(attempt["phases"][2]["name"], "swift-review")
+        self.assertEqual(attempt["tokens"]["subagent_session_count"], 2)
+        self.assertEqual(
+            attempt["tokens"]["agent_roles"],
+            ["spec-conformance-reviewer", "swift-reviewer"],
+        )
+        self.assertEqual(attempt["phases"][2]["name"], "review")
         self.assertIn("child", attempt["phases"][2]["sessions"])
+        self.assertIn("spec-child", attempt["phases"][2]["sessions"])
+
+    def test_historical_swift_review_phase_remains_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            artifacts = root / "artifacts"
+            artifacts.mkdir(parents=True)
+            (artifacts / "activity.md").write_text(
+                "\n".join(
+                    [
+                        "- **2026-06-01 21:10:00** — iteration 1: selected issue #99",
+                        "- **2026-06-01 21:11:00** — issue #99 swift-review started",
+                        "- **2026-06-01 21:12:00** — issue #99 swift-review complete",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            data = report.build_report(
+                artifacts,
+                root / "sessions",
+                report.ZoneInfo("America/New_York"),
+                None,
+                None,
+                None,
+            )
+
+        phase_names = [phase["name"] for phase in data["attempts"][0]["phases"]]
+        self.assertIn("swift-review", phase_names)
 
 
 def write_jsonl(path: Path, rows: list[dict]) -> None:
