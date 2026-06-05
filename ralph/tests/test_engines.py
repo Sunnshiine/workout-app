@@ -82,7 +82,7 @@ class ParsePromiseTests(unittest.TestCase):
 
     def test_phase_name_must_match(self) -> None:
         # A COMPLETE promise for a different phase does not satisfy this phase.
-        out = f"{complete_promise_line('swift-review')}\n"
+        out = f"{complete_promise_line('review')}\n"
         status, _ = parse_promise("implement", out)
         self.assertIs(status, PhaseStatus.FAILED)
 
@@ -123,8 +123,8 @@ class CliEngineTests(unittest.TestCase):
         self.assertIs(result.status, PhaseStatus.FAILED)
 
     def test_codex_cli_uses_default_model_and_phase_reasoning(self) -> None:
-        runner = _ScriptedCli(CliResult(returncode=0, output=complete_promise_line("swift-review")))
-        result = CodexCliEngine(runner=runner).run_phase(_request("swift-review"))
+        runner = _ScriptedCli(CliResult(returncode=0, output=complete_promise_line("review")))
+        result = CodexCliEngine(runner=runner).run_phase(_request("review"))
         self.assertIs(result.status, PhaseStatus.COMPLETE)
 
         argv = runner.invocations[0].argv
@@ -194,9 +194,9 @@ class SdkEngineTests(unittest.TestCase):
         self.assertEqual(sdk.invocations[0].model, "opus")
 
     def test_codex_sdk_uses_default_model_and_phase_reasoning(self) -> None:
-        sdk = _ScriptedSdk([SdkEvent(kind="text", text=complete_promise_line("swift-review"))])
+        sdk = _ScriptedSdk([SdkEvent(kind="text", text=complete_promise_line("review"))])
         engine = CodexSdkEngine(sdk)
-        result = engine.run_phase(_request("swift-review"))
+        result = engine.run_phase(_request("review"))
         self.assertIs(result.status, PhaseStatus.COMPLETE)
         self.assertEqual(sdk.invocations[0].model, "gpt-5.5")
         self.assertEqual(sdk.invocations[0].reasoning_effort, "high")

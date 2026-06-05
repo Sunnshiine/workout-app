@@ -17,7 +17,7 @@ from ralph.orchestrator.worktree import WorktreeManager, default_git_runner
 
 _PROMPT_FILES = (
     "implement.md",
-    "swift-review.md",
+    "review.md",
     "ui-verify.md",
     "diagnose.md",
     "diagnose-format.md",
@@ -144,7 +144,7 @@ class DiagnosisGateLoopTests(unittest.TestCase):
         self.assertEqual(summary.issues_completed, (11,))
         self.assertEqual(
             self._phases(engine),
-            ["diagnose", "implement-tdd", "swift-review", "ui-verify"],
+            ["diagnose", "implement-tdd", "review", "ui-verify"],
         )
 
     def test_non_bug_issue_skips_diagnosis(self) -> None:
@@ -157,7 +157,7 @@ class DiagnosisGateLoopTests(unittest.TestCase):
 
         self.assertEqual(summary.issues_completed, (12,))
         self.assertEqual(
-            self._phases(engine), ["implement-tdd", "swift-review", "ui-verify"]
+            self._phases(engine), ["implement-tdd", "review", "ui-verify"]
         )
         self.assertNotIn("diagnose", self._phases(engine))
 
@@ -175,7 +175,7 @@ class DiagnosisGateLoopTests(unittest.TestCase):
         self.assertEqual(summary.issues_completed, (13,))
         self.assertEqual(
             self._phases(engine),
-            ["diagnose", "diagnose-format", "implement-tdd", "swift-review", "ui-verify"],
+            ["diagnose", "diagnose-format", "implement-tdd", "review", "ui-verify"],
         )
         # The handoff merges the original findings with the corrected block so
         # implementation reads a valid authority block.
@@ -282,7 +282,7 @@ class DiagnosisGateLoopTests(unittest.TestCase):
         # Mandatory for implementation, referenced for later phases.
         self.assertIn("DIAGNOSIS_PATH:", by_phase["implement-tdd"].prompt)
         self.assertIn("diagnosis.md", by_phase["implement-tdd"].prompt)
-        self.assertIn("diagnosis.md", by_phase["swift-review"].prompt)
+        self.assertIn("diagnosis.md", by_phase["review"].prompt)
         self.assertIn("diagnosis.md", by_phase["ui-verify"].prompt)
         # The diagnose phase itself has no prior handoff to read.
         self.assertNotIn("DIAGNOSIS_PATH:", by_phase["diagnose"].prompt)

@@ -15,12 +15,12 @@ from ralph.orchestrator.gates import (
 from ralph.orchestrator.phase import PhaseStatus
 from ralph.orchestrator.repair import (
     PHASE_REPAIR_UI_GATE,
-    PHASE_SWIFT_REVIEW_AFTER_REPAIR,
+    PHASE_REVIEW_AFTER_REPAIR,
     RepairCoordinator,
     RepairError,
     render_repair_brief,
     repair_brief_relpath,
-    requires_swift_review,
+    requires_review,
 )
 
 
@@ -73,15 +73,15 @@ class _GateRerunQueue:
         return self._results.pop(0)
 
 
-class RequiresSwiftReviewTests(unittest.TestCase):
+class RequiresReviewTests(unittest.TestCase):
     def test_production_swift_requires_review(self):
-        self.assertTrue(requires_swift_review(["WorkoutTracker/Views/SessionView.swift"]))
+        self.assertTrue(requires_review(["WorkoutTracker/Views/SessionView.swift"]))
 
     def test_nested_production_swift_requires_review(self):
-        self.assertTrue(requires_swift_review(["WorkoutTracker/Progress/MoveOn.swift"]))
+        self.assertTrue(requires_review(["WorkoutTracker/Progress/MoveOn.swift"]))
 
     def test_test_file_requires_review(self):
-        self.assertTrue(requires_swift_review(["Tests/UI/SessionUITests.swift"]))
+        self.assertTrue(requires_review(["Tests/UI/SessionUITests.swift"]))
 
     def test_project_and_package_files_require_review(self):
         for path in (
@@ -90,11 +90,11 @@ class RequiresSwiftReviewTests(unittest.TestCase):
             "WorkoutTracker.xcodeproj/project.pbxproj",
         ):
             with self.subTest(path=path):
-                self.assertTrue(requires_swift_review([path]))
+                self.assertTrue(requires_review([path]))
 
     def test_non_reviewable_files_do_not_require_review(self):
         self.assertFalse(
-            requires_swift_review(
+            requires_review(
                 [
                     "ralph/.artifacts/screenshots/session.png",
                     "WorkoutTracker/Fixtures/seed.json",
@@ -104,7 +104,7 @@ class RequiresSwiftReviewTests(unittest.TestCase):
         )
 
     def test_empty_changes_do_not_require_review(self):
-        self.assertFalse(requires_swift_review([]))
+        self.assertFalse(requires_review([]))
 
 
 class RepairCoordinatorRunTests(unittest.TestCase):
@@ -174,7 +174,7 @@ class RepairCoordinatorRunTests(unittest.TestCase):
         repair_calls = [c for c in engine.calls if c.phase == PHASE_REPAIR_UI_GATE]
         self.assertEqual(len(repair_calls), 1)
 
-    def test_swift_review_runs_when_repair_touches_reviewable_code(self):
+    def test_review_runs_when_repair_touches_reviewable_code(self):
         engine = FakeEngine()
         rerun = _GateRerunQueue([_passing_ui_gate()])
         coordinator = self._coordinator(engine)
@@ -187,12 +187,14 @@ class RepairCoordinatorRunTests(unittest.TestCase):
             target_branch="ralph/issue-42",
         )
 
-        self.assertTrue(outcome.swift_review_ran)
-        self.assertIsNotNone(outcome.swift_review_phase)
-        review_calls = [c for c in engine.calls if c.phase == PHASE_SWIFT_REVIEW_AFTER_REPAIR]
+        self.assertTrue(outcome.review_ran)
+        self.assertIsNotNone(outcome.review_phase)
+        review_calls = [c for c in engine.calls if c.phase == PHASE_REVIEW_AFTER_REPAIR]
         self.assertEqual(len(review_calls), 1)
+        self.assertIn("swift-reviewer", review_calls[0].prompt)
+        self.assertIn("spec-conformance-reviewer", review_calls[0].prompt)
 
-    def test_swift_review_skipped_when_repair_touches_only_non_reviewable(self):
+    def test_review_skipped_when_repair_touches_only_non_reviewable(self):
         engine = FakeEngine()
         rerun = _GateRerunQueue([_passing_ui_gate()])
         coordinator = self._coordinator(engine)
@@ -205,12 +207,12 @@ class RepairCoordinatorRunTests(unittest.TestCase):
             target_branch="ralph/issue-42",
         )
 
-        self.assertFalse(outcome.swift_review_ran)
-        self.assertIsNone(outcome.swift_review_phase)
-        review_calls = [c for c in engine.calls if c.phase == PHASE_SWIFT_REVIEW_AFTER_REPAIR]
+        self.assertFalse(outcome.review_ran)
+        self.assertIsNone(outcome.review_phase)
+        review_calls = [c for c in engine.calls if c.phase == PHASE_REVIEW_AFTER_REPAIR]
         self.assertEqual(review_calls, [])
 
-    def test_swift_review_skipped_when_repair_changed_nothing(self):
+    def test_review_skipped_when_repair_changed_nothing(self):
         engine = FakeEngine()
         rerun = _GateRerunQueue([_passing_ui_gate()])
         coordinator = self._coordinator(engine)
@@ -223,8 +225,8 @@ class RepairCoordinatorRunTests(unittest.TestCase):
             target_branch="ralph/issue-42",
         )
 
-        self.assertFalse(outcome.swift_review_ran)
-        review_calls = [c for c in engine.calls if c.phase == PHASE_SWIFT_REVIEW_AFTER_REPAIR]
+        self.assertFalse(outcome.review_ran)
+        review_calls = [c for c in engine.calls if c.phase == PHASE_REVIEW_AFTER_REPAIR]
         self.assertEqual(review_calls, [])
 
     def test_repair_phase_runs_in_failing_worktree(self):

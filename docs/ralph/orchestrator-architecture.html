@@ -1587,8 +1587,8 @@
                 <span>Agent writes the issue fix, runs narrow non-UI checks, commits, and emits COMPLETE or BLOCKED.</span>
               </div>
               <div class="phase-card">
-                <strong>swift-review</strong>
-                <span>Agent invokes <code>swift-reviewer</code>, fixes blocking findings, commits any remediation, then emits a promise.</span>
+                <strong>review</strong>
+                <span>Agent invokes <code>swift-reviewer</code> and <code>spec-conformance-reviewer</code>, fixes blocking findings, commits any remediation, then emits a promise.</span>
               </div>
               <div class="phase-card">
                 <strong>ui-verify</strong>
@@ -1631,7 +1631,7 @@
                 <span>Only runs after a first UI-owned gate failure when code exists. It receives a focused repair brief.</span>
               </div>
               <div class="phase-card">
-                <strong>swift-review-after-repair</strong>
+                <strong>review-after-repair</strong>
                 <span>Runs only if the repair touched production Swift, tests, project files, or package configuration.</span>
               </div>
               <div class="gate-card ui-owned">

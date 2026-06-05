@@ -22,7 +22,7 @@ DEFAULT_HUMAN_LABEL = "ready-for-human"
 DEFAULT_CODEX_MODEL = "gpt-5.5"
 DEFAULT_CODEX_REASONING_EFFORT = "medium"
 CODEX_HIGH_REASONING_PHASES = frozenset(
-    {"swift-review", "repair-ui-gate", "swift-review-after-repair"}
+    {"review", "repair-ui-gate", "review-after-repair"}
 )
 
 PR_PUBLISH_TARGET = "pr"

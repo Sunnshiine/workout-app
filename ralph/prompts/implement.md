@@ -44,7 +44,8 @@ owns publication after the gates pass.
   Xcode unit/component tests, and `swiftlint lint --quiet`.
 - Do NOT run Xcode UI integration tests in this phase.
 - Do NOT run `ralph/snapshot.sh` in this phase.
-- Do NOT spawn `swift-reviewer` or `ui-screenshot-reviewer` in this phase.
+- Do NOT spawn `swift-reviewer`, `spec-conformance-reviewer`, or
+  `ui-screenshot-reviewer` in this phase.
 - Keep scope tied to the issue contract. No speculative features, unrelated
   refactors, or one-off abstractions.
 - Commit the completed implementation on the current branch using the project's

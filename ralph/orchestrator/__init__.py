@@ -108,13 +108,13 @@ from .publish import (
 from .repair import (
     DEFAULT_PHASE_TIMEOUT_SECONDS,
     PHASE_REPAIR_UI_GATE,
-    PHASE_SWIFT_REVIEW_AFTER_REPAIR,
+    PHASE_REVIEW_AFTER_REPAIR,
     RepairCoordinator,
     RepairError,
     RepairOutcome,
     render_repair_brief,
     repair_brief_relpath,
-    requires_swift_review,
+    requires_review,
 )
 from .sdk_clients import (
     ClaudeProviderSdkClient,
@@ -157,7 +157,7 @@ __all__ = [
     "ClaimError",
     "DEFAULT_PHASE_TIMEOUT_SECONDS",
     "PHASE_REPAIR_UI_GATE",
-    "PHASE_SWIFT_REVIEW_AFTER_REPAIR",
+    "PHASE_REVIEW_AFTER_REPAIR",
     "BlockedReport",
     "BlockedReportWriter",
     "BlockedRescuePlan",
@@ -239,6 +239,6 @@ __all__ = [
     "render_phase_context",
     "render_repair_brief",
     "repair_brief_relpath",
-    "requires_swift_review",
+    "requires_review",
     "resolve_engine",
 ]
