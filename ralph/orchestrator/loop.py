@@ -9,6 +9,7 @@ branch worktree, gates that branch, and publishes only through pull requests.
 from __future__ import annotations
 
 import hashlib
+import re
 import subprocess
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -140,6 +141,12 @@ class IssueSelector:
             if title.lower().startswith("prd:"):
                 continue
             if not _has_actionable_contract(full):
+                continue
+            blockers = _parse_blocked_by_numbers(full.get("body") or "")
+            if any(
+                self._client.view_issue(b).get("state", "OPEN") == "OPEN"
+                for b in blockers
+            ):
                 continue
             priority = 0 if "bug" in labels else 1
             candidates.append((priority, number, title))
@@ -939,6 +946,22 @@ def _issue_number(issue: dict) -> int | None:
 def _issue_title(issue: dict) -> str:
     title = issue.get("title")
     return title if isinstance(title, str) else ""
+
+
+def _parse_blocked_by_numbers(body: str) -> list[int]:
+    """Return issue numbers listed under a '## Blocked by' section."""
+    m = re.search(r"^##\s+Blocked by\s*$", body, re.MULTILINE | re.IGNORECASE)
+    if not m:
+        return []
+    section = body[m.end():]
+    next_heading = re.search(r"^##", section, re.MULTILINE)
+    if next_heading:
+        section = section[: next_heading.start()]
+    return [
+        int(bullet.group(1))
+        for line in section.splitlines()
+        if (bullet := re.match(r"\s*-\s*#(\d+)", line))
+    ]
 
 
 def _has_actionable_contract(issue: dict) -> bool:

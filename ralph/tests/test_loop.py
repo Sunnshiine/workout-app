@@ -18,6 +18,7 @@ from ralph.orchestrator.loop import (
     RalphLoop,
     RalphLoopError,
     _format_ralph_log_line,
+    _parse_blocked_by_numbers,
 )
 from ralph.orchestrator.publish import (
     LABEL_AGENT_ACTIVE,
@@ -135,6 +136,52 @@ class IssueSelectorTests(unittest.TestCase):
 
         self.assertIsNotNone(selected)
         self.assertEqual(selected.number, 4)
+
+    def test_skips_issue_with_open_blocker(self) -> None:
+        blocked_body = "Do it\n\n## Blocked by\n\n- #99 (some open issue)\n"
+        client = FakeGitHubClient(
+            issues={
+                1: _issue(1, title="Has open blocker", body=blocked_body),
+                2: _issue(2, title="No blocker"),
+                99: _issue(99, title="Blocker still open"),
+            }
+        )
+
+        selected = IssueSelector(client).select_next()
+
+        self.assertIsNotNone(selected)
+        self.assertEqual(selected.number, 2)
+
+    def test_selects_issue_when_all_blockers_closed(self) -> None:
+        blocked_body = "Do it\n\n## Blocked by\n\n- #99 (already closed)\n"
+        client = FakeGitHubClient(
+            issues={
+                1: _issue(1, title="Has closed blocker", body=blocked_body),
+                99: _issue(99, title="Closed blocker") | {"state": "CLOSED"},
+            }
+        )
+
+        selected = IssueSelector(client).select_next()
+
+        self.assertIsNotNone(selected)
+        self.assertEqual(selected.number, 1)
+
+
+class ParseBlockedByNumbersTests(unittest.TestCase):
+    def test_returns_empty_when_no_blocked_by_section(self) -> None:
+        self.assertEqual(_parse_blocked_by_numbers("No blocked by here"), [])
+
+    def test_extracts_numbers_from_bullet_list(self) -> None:
+        body = "Intro\n\n## Blocked by\n\n- #205 (first)\n- #174 (second)\n\n## Other\n\nstuff"
+        self.assertEqual(_parse_blocked_by_numbers(body), [205, 174])
+
+    def test_ignores_issue_refs_inside_parenthetical_text(self) -> None:
+        body = "## Blocked by\n\n- #205 (needs #173 to land first)\n"
+        self.assertEqual(_parse_blocked_by_numbers(body), [205])
+
+    def test_stops_at_next_heading(self) -> None:
+        body = "## Blocked by\n\n- #10 (blocker)\n\n## Acceptance criteria\n\n- #20 (not a blocker)\n"
+        self.assertEqual(_parse_blocked_by_numbers(body), [10])
 
 
 class RalphLogTests(unittest.TestCase):
