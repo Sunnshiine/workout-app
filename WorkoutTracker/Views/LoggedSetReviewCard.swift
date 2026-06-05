@@ -69,7 +69,7 @@ struct LoggedSetReviewCard: View {
                         .font(.callout.weight(.semibold))
                         .accessibilityLabel("Collapse logged set")
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.workoutGlass)
             }
 
             if presentation.allowsEditing {

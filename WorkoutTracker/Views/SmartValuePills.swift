@@ -201,7 +201,7 @@ struct SmartValuePills: View {
                         Image(systemName: "ellipsis.circle")
                             .imageScale(.large)
                     }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.workoutGlass)
                 }
             }
         }

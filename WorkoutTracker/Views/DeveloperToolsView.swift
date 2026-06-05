@@ -96,7 +96,7 @@ struct DeveloperToolsView: View {
                     Image(systemName: "doc.on.doc")
                         .frame(width: 44, height: 44)
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.workoutGlass)
                 .buttonBorderShape(.circle)
                 .accessibilityLabel("Copy Current Session Debug Info")
                 .accessibilityIdentifier("copy-current-session-debug-info-button")
@@ -107,7 +107,7 @@ struct DeveloperToolsView: View {
                     Image(systemName: "arrow.counterclockwise")
                         .frame(width: 44, height: 44)
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.workoutGlass)
                 .buttonBorderShape(.circle)
                 .disabled(!workout.hasCurrentSessionOverride)
                 .accessibilityLabel("Reset Current Session Override")
@@ -124,7 +124,7 @@ struct DeveloperToolsView: View {
                 Label("Force Move On Celebration", systemImage: "sparkles")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.workoutGlass)
             .disabled(workout.displayedSession == nil)
             .accessibilityIdentifier("developer-tools-force-celebration-button")
 
@@ -134,7 +134,7 @@ struct DeveloperToolsView: View {
                 Label("Sync", systemImage: "arrow.triangle.2.circlepath")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.workoutGlass)
             .disabled(isSyncDisabled)
             .accessibilityIdentifier("developer-tools-sync-button")
 
@@ -151,7 +151,7 @@ struct DeveloperToolsView: View {
                 Label("Open Live Activity Lab", systemImage: "rectangle.stack.badge.play")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.workoutGlass)
             .accessibilityIdentifier("developer-tools-live-activity-lab-link")
         }
     }
@@ -200,7 +200,7 @@ struct DeveloperToolsView: View {
                 Label("Copy Write Log", systemImage: "doc.on.doc")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.workoutGlass)
             .disabled(writeAuditDiagnostics.isEmpty)
             .accessibilityIdentifier("copy-write-log-button")
 
@@ -210,7 +210,7 @@ struct DeveloperToolsView: View {
                 Label("Clear Write Log", systemImage: "trash")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.workoutGlass)
             .disabled(writeAuditDiagnostics.isEmpty)
             .accessibilityIdentifier("clear-write-log-button")
         }
@@ -294,7 +294,7 @@ private struct DeveloperToolsSection<Content: View>: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
+        .workoutGlass(.card)
     }
 }
 
