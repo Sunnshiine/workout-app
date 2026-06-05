@@ -42,6 +42,18 @@ from .github import (
     GitHubClientError,
 )
 from .phase import PhaseResult, PhaseStatus
+from .publish import (
+    LABEL_AGENT_BLOCKED,
+    LABEL_AGENT_IMPLEMENTED,
+    LABEL_AGENT_READY_FOR_REVIEW,
+    LABEL_READY_FOR_AGENT,
+    LABEL_READY_FOR_HUMAN,
+    GitOutcome,
+    IssuePublisher,
+    PublishError,
+    PullRequestPublisher,
+    integration_commit_message,
+)
 from .targets import PrTarget, TargetResolutionError, TargetResolver, branch_for_contract
 from .worktree import (
     GitResult,
@@ -52,6 +64,11 @@ from .worktree import (
 )
 
 __all__ = [
+    "LABEL_AGENT_BLOCKED",
+    "LABEL_AGENT_IMPLEMENTED",
+    "LABEL_AGENT_READY_FOR_REVIEW",
+    "LABEL_READY_FOR_AGENT",
+    "LABEL_READY_FOR_HUMAN",
     "UI_REVIEW_PASS_LINE",
     "VISUAL_BASELINE_DIR",
     "AuthorityDecision",
@@ -68,14 +85,18 @@ __all__ = [
     "GhCliClient",
     "GitHubClient",
     "GitHubClientError",
+    "GitOutcome",
     "GitResult",
     "IssueComment",
     "IssueContract",
+    "IssuePublisher",
     "NameStatusEntry",
     "PhaseRequest",
     "PhaseResult",
     "PhaseStatus",
     "PrTarget",
+    "PublishError",
+    "PullRequestPublisher",
     "RunConfig",
     "TargetResolutionError",
     "TargetResolver",
@@ -86,6 +107,7 @@ __all__ = [
     "build_engine",
     "capture_issue_contract",
     "default_git_runner",
+    "integration_commit_message",
     "is_ui_owned_gate",
     "parse_args",
     "parse_prd_number",

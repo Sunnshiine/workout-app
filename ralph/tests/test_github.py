@@ -52,6 +52,40 @@ class FakeGitHubClientTests(unittest.TestCase):
     def test_satisfies_protocol(self) -> None:
         self.assertIsInstance(FakeGitHubClient(), GitHubClient)
 
+    def test_create_pr_records_and_assigns_number(self) -> None:
+        client = FakeGitHubClient(next_pr_number=500)
+        number = client.create_pr(
+            draft=True, base="main", head="ralph/issue-7", title="t", body="b"
+        )
+        self.assertEqual(number, 500)
+        self.assertTrue(client.pr_is_draft(number))
+        found = client.find_pr_by_head_branch("ralph/issue-7")
+        self.assertEqual(found["number"], 500)
+        self.assertEqual(client.calls[0][0], "create_pr")
+
+    def test_find_pr_by_head_branch_returns_none_when_absent(self) -> None:
+        self.assertIsNone(FakeGitHubClient().find_pr_by_head_branch("ralph/issue-1"))
+
+    def test_mark_pr_ready_clears_draft(self) -> None:
+        client = FakeGitHubClient()
+        number = client.create_pr(
+            draft=True, base="main", head="ralph/issue-1", title="t", body="b"
+        )
+        client.mark_pr_ready(number)
+        self.assertFalse(client.pr_is_draft(number))
+
+    def test_issue_label_add_and_remove_are_idempotent(self) -> None:
+        client = FakeGitHubClient(issues={3: {"number": 3, "labels": [{"name": "keep"}]}})
+        client.add_issue_labels(3, ["agent-implemented"])
+        client.add_issue_labels(3, ["agent-implemented"])  # de-duplicated
+        client.remove_issue_labels(3, ["keep"])
+        self.assertEqual(client.issue_labels(3), {"agent-implemented"})
+
+    def test_comment_issue_appends_comment(self) -> None:
+        client = FakeGitHubClient(issues={3: {"number": 3}})
+        client.comment_issue(3, "hello")
+        self.assertEqual(client.view_issue(3)["comments"][0]["body"], "hello")
+
 
 class GhCliClientTests(unittest.TestCase):
     """Exercise GhCliClient through an injected runner; never spawns real gh."""
@@ -99,6 +133,44 @@ class GhCliClientTests(unittest.TestCase):
         client = GhCliClient(runner=lambda _argv: json.dumps([1, 2, 3]))
         with self.assertRaises(GitHubClientError):
             client.view_issue(1)
+
+    def test_create_pr_builds_draft_argv_and_parses_number(self) -> None:
+        recorded: list[list[str]] = []
+
+        def runner(argv):
+            recorded.append(list(argv))
+            return "https://github.com/owner/name/pull/321\n"
+
+        client = GhCliClient(repo="owner/name", runner=runner)
+        number = client.create_pr(
+            draft=True, base="main", head="ralph/issue-7", title="t", body="b"
+        )
+
+        self.assertEqual(number, 321)
+        argv = recorded[0]
+        self.assertEqual(argv[:3], ["gh", "pr", "create"])
+        self.assertIn("--draft", argv)
+        self.assertIn("ralph/issue-7", argv)
+
+    def test_add_issue_labels_builds_edit_argv(self) -> None:
+        recorded: list[list[str]] = []
+
+        def runner(argv):
+            recorded.append(list(argv))
+            return ""
+
+        client = GhCliClient(runner=runner)
+        client.add_issue_labels(7, ["agent-implemented"])
+
+        argv = recorded[0]
+        self.assertEqual(argv[:3], ["gh", "issue", "edit"])
+        self.assertIn("--add-label", argv)
+        self.assertIn("agent-implemented", argv)
+
+    def test_create_pr_unparseable_url_raises(self) -> None:
+        client = GhCliClient(runner=lambda _argv: "not-a-url")
+        with self.assertRaises(GitHubClientError):
+            client.create_pr(draft=False, base="main", head="h", title="t", body="b")
 
 
 if __name__ == "__main__":
