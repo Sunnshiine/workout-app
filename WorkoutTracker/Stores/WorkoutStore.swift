@@ -228,6 +228,7 @@ final class WorkoutStore {
         let previousValue = notesValue(for: set)
         set.setLog = nil
         set.unstructuredSetLog = nil
+        set.loggedAt = nil
         set.state = .skipped
         try enqueue(
             for: set,
@@ -270,7 +271,7 @@ final class WorkoutStore {
 extension WorkoutStore {
     // MARK: - Private Helpers
 
-    fileprivate func notesValue(for set: ExerciseSet) -> String {
+    private func notesValue(for set: ExerciseSet) -> String {
         if let setLog = set.setLog {
             return setLog.formatted
         }
@@ -283,7 +284,7 @@ extension WorkoutStore {
         return ""
     }
 
-    fileprivate func enqueue(
+    private func enqueue(
         for set: ExerciseSet,
         column: PendingWriteColumn,
         operation: PendingWriteOperation,
@@ -309,7 +310,7 @@ extension WorkoutStore {
         )
     }
 
-    fileprivate func updateLastPerformed(for set: ExerciseSet, log: SetLog) throws {
+    private func updateLastPerformed(for set: ExerciseSet, log: SetLog) throws {
         guard let exercise = set.exercise else { throw WorkoutLoggingError.missingExercise }
         guard let session = exercise.session else { throw WorkoutLoggingError.missingSession }
         guard let week = session.week else { throw WorkoutLoggingError.missingWeek }
@@ -327,47 +328,51 @@ extension WorkoutStore {
         lastPerformedLookupRefresher.refresh()
     }
 
-    fileprivate func isFinalSet(_ set: ExerciseSet) -> Bool {
+    private func isFinalSet(_ set: ExerciseSet) -> Bool {
         let sets = set.exercise?.sets ?? []
         return set.index == (sets.map(\.index).max() ?? set.index)
     }
 
-    fileprivate func moveOnCelebrationTiming(for session: Session, requestedAt: Date) -> MoveOnCelebrationTiming? {
-        let firstLoggedAt = session.exercises
+    private func moveOnCelebrationTiming(for session: Session, requestedAt: Date) -> MoveOnCelebrationTiming? {
+        let loggedSets = session.exercises
             .flatMap(\.sets)
-            .compactMap(\.loggedAt)
-            .min()
+            .filter { $0.state == .logged }
+        guard !loggedSets.isEmpty, loggedSets.allSatisfy({ $0.loggedAt != nil }) else {
+            return nil
+        }
+
+        let firstLoggedAt = loggedSets.compactMap(\.loggedAt).min()
         return firstLoggedAt.map {
             MoveOnCelebrationTiming(firstLoggedAt: $0, requestedAt: requestedAt)
         }
     }
 
-    fileprivate func rpeLabel(_ rpe: Double) -> String {
+    private func rpeLabel(_ rpe: Double) -> String {
         rpe.rounded() == rpe ? String(Int(rpe)) : String(rpe)
     }
 
-    fileprivate func currentSessionOverrideOrder(in block: Block) -> Int? {
+    private func currentSessionOverrideOrder(in block: Block) -> Int? {
         let key = currentSessionOverrideKey(for: block.tabName)
         guard defaults.object(forKey: key) != nil else { return nil }
         return defaults.integer(forKey: key)
     }
 
-    fileprivate func currentSessionOverrideKey(for tabName: String) -> String {
+    private func currentSessionOverrideKey(for tabName: String) -> String {
         "advancedToOrder_\(tabName)"
     }
 
-    fileprivate func sessionLabel(for session: Session?) -> String {
+    private func sessionLabel(for session: Session?) -> String {
         guard let session, let week = session.week else { return "None" }
         return "Week \(week.number), Day \(session.dayNumber)"
     }
 
-    fileprivate func manualOverrideLabel(order: Int?, session: Session?) -> String {
+    private func manualOverrideLabel(order: Int?, session: Session?) -> String {
         guard order != nil else { return "None" }
         guard let session else { return "Saved override no longer matches this Block" }
         return sessionLabel(for: session)
     }
 
-    fileprivate func resolutionReason(
+    private func resolutionReason(
         hasOverride: Bool,
         isManualOverrideActive: Bool,
         hasSheetDerivedSession: Bool

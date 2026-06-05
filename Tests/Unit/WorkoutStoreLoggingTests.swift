@@ -23,6 +23,7 @@ private struct SeededLoggingStore {
     let store: WorkoutStore
     let context: ModelContext
     let firstSet: ExerciseSet
+    let secondSet: ExerciseSet
     let container: ModelContainer
     let lookupStore: LastPerformedLookupStore
 }
@@ -34,6 +35,24 @@ private final class ManualDateProvider {
     init(now: Date) {
         self.now = now
     }
+}
+
+private final class LoggedTimingSyncClient: SheetsClient, @unchecked Sendable {
+    private let grid: SheetGrid
+
+    init(grid: SheetGrid) {
+        self.grid = grid
+    }
+
+    func listTabTitles(spreadsheetId: String) async throws -> [String] {
+        ["Block 27"]
+    }
+
+    func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
+        SheetSnapshot(values: grid)
+    }
+
+    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
 }
 
 private func parsedLoggingBlock() -> ParsedBlockModel {
@@ -144,10 +163,17 @@ private func seededStore(now: @escaping () -> Date) throws -> SeededLoggingStore
             .sets.sorted { $0.index < $1.index }
             .first
     )
+    let secondSet = try #require(
+        store.block?.weeks.first { $0.number == 1 }?
+            .sessions.first { $0.dayNumber == 1 }?
+            .exercises.first { $0.name == "Squat" }?
+            .sets.first { $0.index == 1 }
+    )
     return SeededLoggingStore(
         store: store,
         context: ctx,
         firstSet: set,
+        secondSet: secondSet,
         container: container,
         lookupStore: lookupStore
     )
@@ -205,6 +231,18 @@ private func seededStore(now: @escaping () -> Date) throws -> SeededLoggingStore
 }
 
 @MainActor
+@Test func skippingLoggedSetClearsLoggedTimestamp() throws {
+    let dateProvider = ManualDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_000))
+    let fixture = try seededStore(now: { dateProvider.now })
+    withExtendedLifetime(fixture.container) {}
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+
+    try fixture.store.skip(fixture.firstSet)
+
+    #expect(fixture.firstSet.loggedAt == nil)
+}
+
+@MainActor
 @Test func requestingMoveOnCelebrationCapturesRequestTimeWithFirstSessionLog() throws {
     let dateProvider = ManualDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_000))
     let fixture = try seededStore(now: { dateProvider.now })
@@ -233,6 +271,64 @@ private func seededStore(now: @escaping () -> Date) throws -> SeededLoggingStore
 
     #expect(fixture.store.moveOnCelebrationSession != nil)
     #expect(fixture.store.moveOnCelebrationTiming == nil)
+}
+
+@MainActor
+@Test func requestingMoveOnCelebrationLeavesTimingUnavailableWhenAnyLoggedSetLacksLocalTimestamp() throws {
+    let dateProvider = ManualDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_000))
+    let fixture = try seededStore(now: { dateProvider.now })
+    withExtendedLifetime(fixture.container) {}
+    fixture.firstSet.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: 8)
+    fixture.firstSet.state = .logged
+
+    dateProvider.now = Date(timeIntervalSinceReferenceDate: 1_500)
+    try fixture.store.log(fixture.secondSet, as: SetLog(weight: .pounds(195), reps: 5, rpe: 8.5))
+    dateProvider.now = Date(timeIntervalSinceReferenceDate: 1_900)
+    fixture.store.requestMoveOnCelebration()
+
+    #expect(fixture.store.moveOnCelebrationSession != nil)
+    #expect(fixture.store.moveOnCelebrationTiming == nil)
+}
+
+@MainActor
+@Test func syncReplacementPreservesLoggedTimestampForMoveOnTimingAfterFlush() async throws {
+    let dateProvider = ManualDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_000))
+    let fixture = try seededStore(now: { dateProvider.now })
+    withExtendedLifetime(fixture.container) {}
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+    for write in try fixture.context.fetch(FetchDescriptor<PendingWrite>()) {
+        fixture.context.delete(write)
+    }
+    try fixture.context.save()
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": "Squat", "D15": "1", "F15": "5", "H15": "RPE 8", "K15": "185x5@8",
+            "T14": "Sets", "V14": "Reps", "X14": "Load",
+            "S15": "Bench Press", "T15": "1", "V15": "5", "X15": "RPE 8"
+        ],
+        rows: 24,
+        cols: 60
+    )
+    let sync = SyncCoordinator(
+        client: LoggedTimingSyncClient(grid: grid),
+        context: fixture.context,
+        lastPerformedLookupRefresher: fixture.lookupStore
+    )
+
+    await sync.sync(spreadsheetId: "sid")
+    fixture.store.reload()
+    dateProvider.now = Date(timeIntervalSinceReferenceDate: 1_900)
+    fixture.store.requestMoveOnCelebration()
+
+    #expect(
+        fixture.store.moveOnCelebrationTiming
+            == MoveOnCelebrationTiming(
+                firstLoggedAt: Date(timeIntervalSinceReferenceDate: 1_000),
+                requestedAt: Date(timeIntervalSinceReferenceDate: 1_900)
+            )
+    )
 }
 
 @MainActor

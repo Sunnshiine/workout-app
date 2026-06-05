@@ -1,6 +1,14 @@
 import Foundation
 import SwiftData
 
+private struct LocalLoggedSetKey: Hashable {
+    let blockTab: String
+    let week: Int
+    let day: Int
+    let exerciseName: String
+    let setIndex: Int
+}
+
 @MainActor
 @Observable
 final class SyncCoordinator {
@@ -145,8 +153,10 @@ final class SyncCoordinator {
     }
 
     private func replacePersistedBlock(with block: Block) throws {
+        let existingBlocks = try context.fetch(FetchDescriptor<Block>())
         overlayPendingWrites(on: block)
-        for existing in try context.fetch(FetchDescriptor<Block>()) { context.delete(existing) }
+        preserveLocalLoggedTimestamps(from: existingBlocks, on: block)
+        for existing in existingBlocks { context.delete(existing) }
         context.insert(block)
         try context.save()
     }
@@ -188,6 +198,52 @@ final class SyncCoordinator {
             .sessions.first { $0.dayNumber == day }?
             .exercises.first { $0.name == exerciseName }?
             .sets.first { $0.index == setIndex }
+    }
+
+    private func preserveLocalLoggedTimestamps(from existingBlocks: [Block], on block: Block) {
+        let timestamps = Dictionary(
+            existingBlocks.flatMap(localLoggedTimestamps),
+            uniquingKeysWith: { existing, _ in existing }
+        )
+
+        for week in block.weeks {
+            for session in week.sessions {
+                for exercise in session.exercises {
+                    for set in exercise.sets where set.state == .logged {
+                        let key = LocalLoggedSetKey(
+                            blockTab: block.tabName,
+                            week: week.number,
+                            day: session.dayNumber,
+                            exerciseName: exercise.name,
+                            setIndex: set.index
+                        )
+                        set.loggedAt = timestamps[key]
+                    }
+                }
+            }
+        }
+    }
+
+    private func localLoggedTimestamps(in block: Block) -> [(LocalLoggedSetKey, Date)] {
+        block.weeks.flatMap { week in
+            week.sessions.flatMap { session in
+                session.exercises.flatMap { exercise in
+                    exercise.sets.compactMap { set in
+                        guard set.state == .logged, let loggedAt = set.loggedAt else { return nil }
+                        return (
+                            LocalLoggedSetKey(
+                                blockTab: block.tabName,
+                                week: week.number,
+                                day: session.dayNumber,
+                                exerciseName: exercise.name,
+                                setIndex: set.index
+                            ),
+                            loggedAt
+                        )
+                    }
+                }
+            }
+        }
     }
 
     private func launchLastPerformedBackfill(
