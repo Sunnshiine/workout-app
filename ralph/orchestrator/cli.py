@@ -12,9 +12,10 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from .config import ConfigError, RunConfig, parse_args
-from .engine import FakeEngine
+from .engine import FakeEngine, build_engine
 from .github import GhCliClient, GitHubClientError
 from .live_dry_run import LiveDryRunError, format_result, run_live_github_dry_run
+from .loop import RalphLoop, RalphLoopError, RunSummary
 
 
 def format_config_summary(config: RunConfig) -> str:
@@ -32,6 +33,19 @@ def format_config_summary(config: RunConfig) -> str:
         "  publish-target:         pr (direct-to-main removed)",
     ]
     return "\n".join(lines)
+
+
+def format_run_summary(summary: RunSummary) -> str:
+    return "\n".join(
+        [
+            "Ralph run summary",
+            f"  iterations-started: {summary.iterations_started}",
+            f"  selected:           {_numbers(summary.issues_selected)}",
+            f"  completed:          {_numbers(summary.issues_completed)}",
+            f"  blocked:            {_numbers(summary.issues_blocked)}",
+            f"  stopped-reason:     {summary.stopped_reason}",
+        ]
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -60,13 +74,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("\ndry-run: configuration valid; no GitHub, worktree, or agent action taken.")
         return 0
 
-    print(
-        "\nerror: the normal Ralph issue-processing loop is not wired in this "
-        "Python entrypoint yet. Use --dry-run for a no-side-effect config check "
-        "or --live-github-dry-run ISSUE for the controlled GitHub wiring proof.",
-        file=sys.stderr,
-    )
-    return 1
+    try:
+        summary = RalphLoop(
+            config=config,
+            repo_root=Path.cwd(),
+            client=GhCliClient(repo=config.repo),
+            engine=build_engine(config.engine, model=config.model),
+        ).run()
+    except (GitHubClientError, RalphLoopError, subprocess.CalledProcessError) as error:
+        print(f"\nralph failed: {error}", file=sys.stderr)
+        return 1
+    print()
+    print(format_run_summary(summary))
+    return 0
+
+
+def _numbers(numbers: Sequence[int]) -> str:
+    return ", ".join(f"#{number}" for number in numbers) if numbers else "none"
 
 
 if __name__ == "__main__":
