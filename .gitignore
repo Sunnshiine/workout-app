@@ -22,6 +22,11 @@ xcuserdata/
 .build/
 .swiftpm/
 
+# Python (uv virtualenv + bytecode caches)
+.venv/
+__pycache__/
+*.pyc
+
 # Ralph loop build/screenshot artifacts
 ralph/.artifacts/
 ralph/reports/

@@ -61,7 +61,7 @@ load-bearing decisions:
 - The AFK loop gains a hard, deterministic visual gate; behavior-preserving refactors become
   provable rather than vibe-checked.
 - New maintenance surface: committed baseline images, a new test target and dependency, and
-  baseline-policy plumbing in `ralph/ralph.sh`. Baseline changes become reviewed artifacts.
+  baseline-policy plumbing in Python Ralph. Baseline changes become reviewed artifacts.
 - Adoption is contingent on the spike. If glass renders non-deterministically, the fallback
   is perceptual tolerance or structural snapshots — or reassessment — before cost is sunk.
 - The Phase 0 spike completed on 2026-06-03. A temporary glass-heavy SwiftUI view rendered
