@@ -12,6 +12,7 @@
   "indentSwitchCaseLabels": false,
   "prioritizeKeepingFunctionOutputTogether": true,
   "maximumBlankLines": 1,
+  "multiElementCollectionTrailingCommas": false,
   "rules": {
     "AllPublicDeclarationsHaveDocumentation": false,
     "AlwaysUseLiteralForEmptyCollectionInit": false,

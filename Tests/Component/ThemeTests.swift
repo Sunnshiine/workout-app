@@ -290,6 +290,10 @@ import Testing
     #expect(Theme.cardCornerRadius == 16)
 }
 
+@Test func themeLensCornerRadiusIs28() {
+    #expect(Theme.lensCornerRadius == 28)
+}
+
 @Test func themeCardSpacingExists() {
     #expect(Theme.cardSpacing > 0)
 }
