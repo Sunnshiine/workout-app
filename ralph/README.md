@@ -75,8 +75,9 @@ uv run --python 3.11 python -m ralph.orchestrator --engine codex --max-iteration
 ```
 
 The normal loop polls `origin/main` at the start of each iteration, selects one eligible
-`ready-for-agent` issue, creates a deterministic `ralph/*` PR branch worktree, runs the phase
-agents and gates, then publishes only through a pull request.
+`ready-for-agent` issue, claims it by replacing `ready-for-agent` with `agent-active`, creates a
+deterministic `ralph/*` PR branch worktree, runs the phase agents and gates, then publishes only
+through a pull request.
 
 ### Keep macOS awake with caffeinate
 
@@ -197,9 +198,20 @@ Close the control issue/PR and delete `ralph/dry-run/issue-*` branches after rev
 
 ## Issue Lifecycle
 
-Eligible issues are open, labelled `ready-for-agent`, not PRDs/epics, not `ready-for-human`, and
-not blocked by unfinished dependencies. A concrete issue body or Agent Brief must provide the
-implementation contract.
+Eligible issues are open, labelled `ready-for-agent`, not PRDs/epics, not already claimed or
+implemented by Ralph, not `ready-for-human`, and not blocked by unfinished dependencies. A concrete
+issue body or Agent Brief must provide the implementation contract.
+
+Ralph treats GitHub labels as its issue lifecycle state machine:
+
+- `ready-for-agent`: selectable by Ralph
+- `agent-active`: claimed by Ralph; not selectable by any later loop iteration
+- `agent-implemented`: implementation PR exists and is awaiting review/merge
+- `ready-for-human`: human decision or implementation needed
+- `agent-blocked`: reason label paired with `ready-for-human` after Ralph preserves blocked work
+
+Ralph claims an issue before creating a worktree. If the claim cannot be confirmed, Ralph stops
+without running agents.
 
 Python captures an immutable `IssueContract` before any mutating phase:
 
@@ -250,7 +262,7 @@ wiring changes, Ralph must escalate for human authority instead of granting that
 
 On successful PR publication:
 
-- remove `ready-for-agent`
+- remove `agent-active` and any stale lifecycle labels
 - add `agent-implemented`
 - leave the issue open
 - use `Closes #<issue>` only in the successful integration commit
@@ -258,7 +270,7 @@ On successful PR publication:
 
 On blocked work:
 
-- remove `ready-for-agent`
+- remove `agent-active` and any stale implementation labels
 - add `ready-for-human`
 - add `agent-blocked`
 - preserve changed code in a draft rescue PR when code exists
@@ -267,7 +279,8 @@ On blocked work:
 PR readiness:
 
 - one-off PRs can become ready after their issue passes
-- PRD PRs remain draft until every known scoped child is `agent-implemented`
+- PRD PRs remain draft until every known scoped child is `agent-implemented` and none are
+  `ready-for-agent`, `agent-active`, `ready-for-human`, or `agent-blocked`
 - ready PRs receive `agent-ready-for-review`
 
 ---

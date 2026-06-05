@@ -26,7 +26,9 @@ from dataclasses import dataclass
 from .contracts import IssueContract
 from .github import GitHubClient
 from .publish import (
+    LABEL_AGENT_ACTIVE,
     LABEL_AGENT_BLOCKED,
+    LABEL_AGENT_IMPLEMENTED,
     LABEL_READY_FOR_AGENT,
     LABEL_READY_FOR_HUMAN,
     GitRunner,
@@ -284,7 +286,10 @@ class BlockedRescuePublisher:
         return pr_number
 
     def _apply_blocked_labels(self, issue_number: int) -> None:
-        self._client.remove_issue_labels(issue_number, [LABEL_READY_FOR_AGENT])
+        self._client.remove_issue_labels(
+            issue_number,
+            [LABEL_READY_FOR_AGENT, LABEL_AGENT_ACTIVE, LABEL_AGENT_IMPLEMENTED],
+        )
         self._client.add_issue_labels(issue_number, [LABEL_READY_FOR_HUMAN, LABEL_AGENT_BLOCKED])
 
     def _commit_and_push(self, issue_number: int, branch: str) -> None:

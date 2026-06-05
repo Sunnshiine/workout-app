@@ -5,10 +5,13 @@ import unittest
 from ralph.orchestrator.contracts import capture_issue_contract
 from ralph.orchestrator.github import FakeGitHubClient
 from ralph.orchestrator.publish import (
+    LABEL_AGENT_ACTIVE,
     LABEL_AGENT_IMPLEMENTED,
     LABEL_AGENT_READY_FOR_REVIEW,
     LABEL_READY_FOR_AGENT,
+    ClaimError,
     GitOutcome,
+    IssueClaimer,
     IssuePublisher,
     PublishError,
     PullRequestPublisher,
@@ -54,17 +57,50 @@ class IntegrationCommitMessageTests(unittest.TestCase):
 
 class IssuePublisherTests(unittest.TestCase):
     def test_marks_implemented_and_leaves_issue_open(self) -> None:
-        client = FakeGitHubClient(issues={9: _issue(9, labels=[LABEL_READY_FOR_AGENT])})
+        client = FakeGitHubClient(issues={9: _issue(9, labels=[LABEL_AGENT_ACTIVE])})
         IssuePublisher(client).mark_implemented(9)
 
         labels = client.issue_labels(9)
         self.assertIn(LABEL_AGENT_IMPLEMENTED, labels)
         self.assertNotIn(LABEL_READY_FOR_AGENT, labels)
+        self.assertNotIn(LABEL_AGENT_ACTIVE, labels)
         # Never adds ready-for-human, never closes (state untouched here).
         self.assertNotIn("ready-for-human", labels)
         self.assertEqual(client.view_issue(9).get("state", "OPEN"), "OPEN")
         kinds = [call[0] for call in client.calls]
         self.assertEqual(kinds, ["remove_issue_labels", "add_issue_labels"])
+
+
+class IssueClaimerTests(unittest.TestCase):
+    def test_claim_moves_ready_issue_to_agent_active(self) -> None:
+        client = FakeGitHubClient(
+            issues={9: _issue(9, body="Do it", labels=[LABEL_READY_FOR_AGENT])}
+        )
+
+        contract = IssueClaimer(client).claim(9)
+
+        labels = client.issue_labels(9)
+        self.assertEqual(contract.number, 9)
+        self.assertIn(LABEL_AGENT_ACTIVE, labels)
+        self.assertNotIn(LABEL_READY_FOR_AGENT, labels)
+        self.assertNotIn(LABEL_AGENT_IMPLEMENTED, labels)
+        self.assertEqual(
+            client.calls[0],
+            ("edit_issue_labels", 9, (LABEL_AGENT_ACTIVE,), (LABEL_READY_FOR_AGENT,)),
+        )
+
+    def test_claim_rejects_conflicting_lifecycle_labels(self) -> None:
+        client = FakeGitHubClient(
+            issues={
+                9: _issue(
+                    9,
+                    labels=[LABEL_READY_FOR_AGENT, LABEL_AGENT_IMPLEMENTED],
+                )
+            }
+        )
+
+        with self.assertRaises(ClaimError):
+            IssueClaimer(client).claim(9)
 
 
 class OneOffPullRequestTests(unittest.TestCase):

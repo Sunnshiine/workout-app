@@ -16,9 +16,11 @@ from ralph.orchestrator.loop import (
     IssueSelector,
     OriginMain,
     RalphLoop,
+    RalphLoopError,
     _format_ralph_log_line,
 )
 from ralph.orchestrator.publish import (
+    LABEL_AGENT_ACTIVE,
     LABEL_AGENT_IMPLEMENTED,
     LABEL_READY_FOR_AGENT,
     LABEL_READY_FOR_HUMAN,
@@ -83,6 +85,29 @@ class _RecordingPublishRunner:
         return run
 
 
+class _StaleReadyListClient(FakeGitHubClient):
+    def __init__(self, *, stale_numbers: tuple[int, ...], issues: dict[int, dict]) -> None:
+        super().__init__(issues=issues)
+        self._stale_numbers = stale_numbers
+
+    def list_open_issues(self, *, label: str | None = None) -> list[dict]:
+        if label != LABEL_READY_FOR_AGENT:
+            return super().list_open_issues(label=label)
+        return [
+            {
+                "number": number,
+                "title": self.view_issue(number).get("title", ""),
+                "labels": [{"name": LABEL_READY_FOR_AGENT}],
+            }
+            for number in self._stale_numbers
+        ]
+
+
+class _NonConvergingClaimClient(FakeGitHubClient):
+    def edit_issue_labels(self, number: int, *, add=(), remove=()) -> None:
+        self.calls.append(("edit_issue_labels", number, tuple(add), tuple(remove)))
+
+
 class IssueSelectorTests(unittest.TestCase):
     def test_selects_bug_before_lower_non_bug_and_skips_unready(self) -> None:
         client = FakeGitHubClient(
@@ -96,6 +121,13 @@ class IssueSelectorTests(unittest.TestCase):
                 ),
                 4: _issue(4, title="Bug fix", labels=[LABEL_READY_FOR_AGENT, "bug"]),
                 5: _issue(5, title="No body", body=""),
+                6: _issue(6, title="Claimed", labels=[LABEL_READY_FOR_AGENT, LABEL_AGENT_ACTIVE]),
+                7: _issue(
+                    7,
+                    title="Implemented",
+                    labels=[LABEL_READY_FOR_AGENT, LABEL_AGENT_IMPLEMENTED],
+                ),
+                8: _issue(8, title="Closed", labels=[LABEL_READY_FOR_AGENT]) | {"state": "CLOSED"},
             }
         )
 
@@ -151,10 +183,59 @@ class RalphLoopTests(unittest.TestCase):
         self.assertGreaterEqual(origin.polls, 1)
         self.assertIn(LABEL_AGENT_IMPLEMENTED, client.issue_labels(7))
         self.assertNotIn(LABEL_READY_FOR_AGENT, client.issue_labels(7))
+        self.assertNotIn(LABEL_AGENT_ACTIVE, client.issue_labels(7))
         pr = client.find_pr_by_head_branch("ralph/issue-7")
         self.assertIsNotNone(pr)
         self.assertFalse(client.pr_is_draft(pr["number"]))
         self.assertEqual([call[0] for call in publish.calls], ["commit", "push"])
+
+    def test_stale_ready_list_cannot_select_completed_issue_twice(self) -> None:
+        client = _StaleReadyListClient(
+            stale_numbers=(7, 8),
+            issues={7: _issue(7, title="First"), 8: _issue(8, title="Second")},
+        )
+        publish = _RecordingPublishRunner()
+        loop = RalphLoop(
+            config=RunConfig(engine="fake", max_iterations=2),
+            repo_root=self.repo,
+            client=client,
+            engine=FakeEngine(),
+            origin_main=_OriginMain(),
+            worktrees=WorktreeManager(self.repo, runner=default_git_runner),
+            gate_runner_factory=lambda _w, _i, _n: GateRunner(
+                lambda _c: CommandResult(exit_status=0)
+            ),
+            publish_runner_factory=publish.factory,
+        )
+
+        summary = loop.run()
+
+        self.assertEqual(summary.issues_selected, (7, 8))
+        self.assertEqual(summary.issues_completed, (7, 8))
+        self.assertIn(LABEL_AGENT_IMPLEMENTED, client.issue_labels(7))
+        self.assertIn(LABEL_AGENT_IMPLEMENTED, client.issue_labels(8))
+
+    def test_claim_must_converge_before_worktree_creation(self) -> None:
+        client = _NonConvergingClaimClient(issues={7: _issue(7, title="Add thing")})
+        publish = _RecordingPublishRunner()
+        loop = RalphLoop(
+            config=RunConfig(engine="fake", max_iterations=1),
+            repo_root=self.repo,
+            client=client,
+            engine=FakeEngine(),
+            origin_main=_OriginMain(),
+            worktrees=WorktreeManager(self.repo, runner=default_git_runner),
+            gate_runner_factory=lambda _w, _i, _n: GateRunner(
+                lambda _c: CommandResult(exit_status=0)
+            ),
+            publish_runner_factory=publish.factory,
+        )
+
+        with self.assertRaises(RalphLoopError):
+            loop.run()
+
+        self.assertFalse((self.repo / ".claude" / "worktrees" / "issue-7").exists())
+        self.assertEqual(publish.calls, [])
 
     def test_select_only_stops_before_worktree_creation(self) -> None:
         out = io.StringIO()
