@@ -18,10 +18,10 @@ struct EmptyStateView: View {
             Button("Open Settings") {
                 onSettings()
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.workoutGlass)
             .padding(.top, 4)
         }
         .padding(Theme.cardSpacing * 2)
-        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
+        .workoutGlass(.card)
     }
 }
