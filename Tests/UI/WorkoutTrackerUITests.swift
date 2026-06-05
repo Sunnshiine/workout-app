@@ -94,7 +94,7 @@ final class WorkoutTrackerUITests: XCTestCase {
         app.buttons["weight-pill"].tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
 
-        dismissActiveSetInputBackground(in: app)
+        tapActiveSetCardHeaderBackground(in: app)
 
         XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 1))
         XCTAssertTrue(app.buttons["log-active-set-button"].exists)
@@ -295,10 +295,10 @@ private func tapWhenReady(_ element: XCUIElement, in app: XCUIApplication) {
 }
 
 @MainActor
-private func dismissActiveSetInputBackground(in app: XCUIApplication) {
+private func tapActiveSetCardHeaderBackground(in app: XCUIApplication) {
     let activeSetCard = app.otherElements["active-set-card"]
     XCTAssertTrue(activeSetCard.waitForExistence(timeout: 3))
-    activeSetCard.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.56)).tap()
+    activeSetCard.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.14)).tap()
 }
 
 @MainActor

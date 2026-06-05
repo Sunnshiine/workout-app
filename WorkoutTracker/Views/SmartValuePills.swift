@@ -11,6 +11,7 @@ struct SmartValuePills: View {
     let onLog: (SetLog) -> Void
     let onSkip: () -> Void
     let onDelete: () -> Void
+    let inputDismissalRequestID: Int
 
     @State private var form: SmartValuePillsForm
     @State private var editingPill: FocusedPill?
@@ -25,12 +26,14 @@ struct SmartValuePills: View {
         onLog: @escaping (SetLog) -> Void,
         onSkip: @escaping () -> Void,
         onDelete: @escaping () -> Void,
-        showsLoggedCheckmarkInitially: Bool = false
+        showsLoggedCheckmarkInitially: Bool = false,
+        inputDismissalRequestID: Int = 0
     ) {
         self.set = set
         self.onLog = onLog
         self.onSkip = onSkip
         self.onDelete = onDelete
+        self.inputDismissalRequestID = inputDismissalRequestID
         _form = State(
             initialValue: SmartValuePillsForm(
                 set: set,
@@ -65,6 +68,9 @@ struct SmartValuePills: View {
             Color.clear
                 .contentShape(Rectangle())
                 .onTapGesture(perform: dismissFieldUI)
+        }
+        .onChange(of: inputDismissalRequestID) { _, _ in
+            dismissFieldUI()
         }
     }
 
