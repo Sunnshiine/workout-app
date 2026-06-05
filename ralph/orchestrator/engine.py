@@ -6,8 +6,8 @@ labels, create PRs, run gates, or decide whether code is safe to publish — the
 Python orchestrator owns all of that.
 
 This module ships the ``FakeEngine`` used by tests and the no-publish dry-run.
-SDK and CLI adapters arrive in issue #212; ``build_engine`` raises a clear error
-for them until then so the migration stays side-by-side.
+The SDK and CLI adapters live in ``engines.py``; ``build_engine`` resolves them
+through that module while keeping the fake engine and CLI fallback available.
 """
 
 from __future__ import annotations
@@ -87,14 +87,13 @@ class FakeEngine(Engine):
 def build_engine(engine_name: str) -> Engine:
     """Resolve an engine name to a concrete adapter.
 
-    Only the fake engine is available in the skeleton. SDK/CLI adapters arrive in
-    issue #212; requesting one now fails clearly rather than silently degrading.
+    The fake engine is always available for dry-runs and tests. SDK and CLI
+    adapters are resolved through ``engines.resolve_engine``; an SDK engine with
+    no provider client wired falls back to the matching CLI adapter so the proven
+    path stays available during the migration. Imported lazily to avoid a cycle
+    (``engines`` imports the engine primitives defined here).
     """
 
-    if engine_name == FAKE_ENGINE:
-        return FakeEngine()
-    raise NotImplementedError(
-        f"engine {engine_name!r} is not available yet "
-        f"(SDK/CLI adapters arrive in #212); "
-        f"use the {FAKE_ENGINE!r} engine for dry-runs and tests"
-    )
+    from .engines import resolve_engine
+
+    return resolve_engine(engine_name)

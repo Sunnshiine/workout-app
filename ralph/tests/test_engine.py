@@ -4,6 +4,10 @@ import unittest
 from pathlib import Path
 
 from ralph.orchestrator.engine import Engine, FakeEngine, PhaseRequest, build_engine
+from ralph.orchestrator.engines import (
+    ClaudeCliEngine,
+    CodexCliEngine,
+)
 from ralph.orchestrator.phase import PhaseResult, PhaseStatus
 
 
@@ -51,10 +55,19 @@ class BuildEngineTests(unittest.TestCase):
     def test_fake_engine_is_available(self) -> None:
         self.assertIsInstance(build_engine("fake"), FakeEngine)
 
-    def test_real_engines_are_not_available_yet(self) -> None:
-        for name in ("claude", "codex", "claude-cli", "codex-cli"):
-            with self.assertRaises(NotImplementedError):
-                build_engine(name)
+    def test_cli_engines_resolve_to_cli_adapters(self) -> None:
+        self.assertIsInstance(build_engine("codex-cli"), CodexCliEngine)
+        self.assertIsInstance(build_engine("claude-cli"), ClaudeCliEngine)
+
+    def test_sdk_engines_fall_back_to_cli_without_a_client(self) -> None:
+        # build_engine wires no provider client, so SDK names degrade to the
+        # proven CLI fallback rather than failing hard during the migration.
+        self.assertIsInstance(build_engine("codex"), CodexCliEngine)
+        self.assertIsInstance(build_engine("claude"), ClaudeCliEngine)
+
+    def test_unknown_engine_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            build_engine("nope")
 
 
 if __name__ == "__main__":
