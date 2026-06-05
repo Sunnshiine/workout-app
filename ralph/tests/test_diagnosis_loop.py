@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import hashlib
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
+from ralph.orchestrator.authority import UI_REVIEW_PASS_LINE, VISUAL_BASELINE_DIR
 from ralph.orchestrator.config import RunConfig
 from ralph.orchestrator.contracts import parse_ui_test_authorization
 from ralph.orchestrator.engine import FakeEngine
@@ -100,6 +102,44 @@ class _EditingEngine(FakeEngine):
         return super().run_phase(request)
 
 
+class _VisualEngine(FakeEngine):
+    """FakeEngine that mutates a Visual Baseline during implement-tdd.
+
+    ``action`` is "add", "modify", or "delete". When ``review`` is set, also
+    writes the digest-addressed baseline-diff review artifact in the same phase,
+    matching the naming contract the Visual Baseline authority gate reads.
+    """
+
+    def __init__(self, *, baseline_rel: str, action: str, review: str | None = None, **kwargs):
+        super().__init__(**kwargs)
+        self._baseline_rel = baseline_rel
+        self._action = action
+        self._review = review
+
+    def run_phase(self, request):
+        if request.phase == "implement-tdd":
+            target = request.workdir / self._baseline_rel
+            if self._action == "delete":
+                target.unlink()
+            else:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(f"{self._action}\n", encoding="utf-8")
+            if self._review is not None:
+                digest = hashlib.sha256(self._baseline_rel.encode("utf-8")).hexdigest()
+                review_path = (
+                    request.workdir
+                    / "ralph"
+                    / ".artifacts"
+                    / "visual-baseline-reviews"
+                    / f"{digest}.md"
+                )
+                review_path.parent.mkdir(parents=True, exist_ok=True)
+                review_path.write_text(self._review, encoding="utf-8")
+            _git(request.workdir, "add", "-A")
+            _git(request.workdir, "commit", "-m", f"baseline {self._action}")
+        return super().run_phase(request)
+
+
 class _OriginMain(OriginMain):
     def __init__(self) -> None:
         self.polls = 0
@@ -151,6 +191,13 @@ class DiagnosisGateLoopTests(unittest.TestCase):
 
     def _context_dir(self, number: int) -> Path:
         return self.repo / "ralph" / ".artifacts" / "context" / f"issue-{number}"
+
+    def _seed_baseline(self, rel: str) -> None:
+        target = self.repo / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("old\n", encoding="utf-8")
+        _git(self.repo, "add", rel)
+        _git(self.repo, "commit", "-m", f"seed {rel}")
 
     def _phases(self, engine: FakeEngine) -> list[str]:
         return [call.phase for call in engine.calls]
@@ -352,6 +399,67 @@ class DiagnosisGateLoopTests(unittest.TestCase):
 
         self.assertEqual(summary.issues_blocked, (23,))
         self.assertEqual(summary.issues_completed, ())
+
+    def test_added_visual_baseline_completes(self) -> None:
+        # Added (A) baselines need no review and pass the authority gate.
+        client = FakeGitHubClient(
+            issues={24: _bug_issue(24, labels=[LABEL_READY_FOR_AGENT])}
+        )
+        engine = _VisualEngine(
+            baseline_rel=f"{VISUAL_BASELINE_DIR}/SessionView.png", action="add"
+        )
+
+        summary = self._loop(client, engine).run()
+
+        self.assertEqual(summary.issues_completed, (24,))
+        self.assertEqual(summary.issues_blocked, ())
+
+    def test_deleted_visual_baseline_is_blocked(self) -> None:
+        # Deleted (D) baselines hard-block; no autonomous approval path exists.
+        rel = f"{VISUAL_BASELINE_DIR}/SessionView.png"
+        self._seed_baseline(rel)
+        client = FakeGitHubClient(
+            issues={25: _bug_issue(25, labels=[LABEL_READY_FOR_AGENT])}
+        )
+        engine = _VisualEngine(baseline_rel=rel, action="delete")
+
+        summary = self._loop(client, engine).run()
+
+        self.assertEqual(summary.issues_blocked, (25,))
+        self.assertEqual(summary.issues_completed, ())
+
+    def test_modified_visual_baseline_without_review_is_blocked(self) -> None:
+        # Modified (M) baseline with no saved review artifact blocks.
+        rel = f"{VISUAL_BASELINE_DIR}/SessionView.png"
+        self._seed_baseline(rel)
+        client = FakeGitHubClient(
+            issues={26: _bug_issue(26, labels=[LABEL_READY_FOR_AGENT])}
+        )
+        engine = _VisualEngine(baseline_rel=rel, action="modify")
+
+        summary = self._loop(client, engine).run()
+
+        self.assertEqual(summary.issues_blocked, (26,))
+        self.assertEqual(summary.issues_completed, ())
+
+    def test_modified_visual_baseline_with_pass_review_completes(self) -> None:
+        # Modified (M) baseline with a saved review ending in the PASS marker
+        # passes the mechanical gate via the real digest-addressed reader.
+        rel = f"{VISUAL_BASELINE_DIR}/SessionView.png"
+        self._seed_baseline(rel)
+        client = FakeGitHubClient(
+            issues={27: _bug_issue(27, labels=[LABEL_READY_FOR_AGENT])}
+        )
+        engine = _VisualEngine(
+            baseline_rel=rel,
+            action="modify",
+            review=f"Every changed pixel is explained.\n{UI_REVIEW_PASS_LINE}",
+        )
+
+        summary = self._loop(client, engine).run()
+
+        self.assertEqual(summary.issues_completed, (27,))
+        self.assertEqual(summary.issues_blocked, ())
 
     def test_blocked_diagnose_phase_escalates_before_implement(self) -> None:
         client = FakeGitHubClient(issues={20: _bug_issue(20)})

@@ -8,13 +8,14 @@ branch worktree, gates that branch, and publishes only through pull requests.
 
 from __future__ import annotations
 
+import hashlib
 import subprocess
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from .authority import AuthorityGate, DiffSeam, NameStatusEntry
+from .authority import AuthorityGate, DiffSeam, NameStatusEntry, ReviewReader
 from .blocked import BlockedReport, BlockedRescuePublisher
 from .config import RunConfig
 from .contracts import IssueContract, capture_issue_contract
@@ -68,6 +69,7 @@ BUG_LABEL = "bug"
 ARTIFACT_DIR = Path("ralph/.artifacts")
 LOG_DIR = ARTIFACT_DIR / "logs"
 CONTEXT_DIR = ARTIFACT_DIR / "context"
+VISUAL_REVIEW_DIR = ARTIFACT_DIR / "visual-baseline-reviews"
 WORKTREE_DIR = Path(".claude/worktrees")
 
 
@@ -579,26 +581,38 @@ class RalphLoop:
         ui_phase_base: str,
         ui_phase_tip: str,
     ) -> GateResult | None:
-        """Mechanically enforce UI integration test edit authority.
+        """Mechanically enforce UI test edit and Visual Baseline authority.
 
         Runs before the command gates so an unauthorized ``Tests/UI/**`` or
-        UI-test target-wiring change fails fast without spending build time. The
-        check reads committed diffs through a git seam and never trusts agent
-        prompt compliance; authorization comes only from the contract snapshot a
-        diagnosis grant recaptures.
+        UI-test target-wiring change, or an unreviewed Visual Baseline edit,
+        fails fast without spending build time. The checks read committed diffs
+        through a git seam and a digest-addressed review-artifact reader, never
+        trusting agent prompt compliance; UI-test authorization comes only from
+        the contract snapshot a diagnosis grant recaptures, and a modified
+        Visual Baseline is allowed only when a saved review artifact ends with
+        the PASS marker.
         """
 
-        gate = AuthorityGate(_name_status_diff(workdir))
-        decision = gate.check_ui_test_authority(
+        gate = AuthorityGate(
+            _name_status_diff(workdir),
+            review_reader=_visual_review_reader(workdir),
+        )
+        ui_decision = gate.check_ui_test_authority(
             contract,
             issue_base=issue_base,
             issue_tip=issue_tip,
             ui_phase_base=ui_phase_base,
             ui_phase_tip=ui_phase_tip,
         )
-        if decision.blocked:
-            _ralph_log(f"authority gate {decision.gate.name} -> {decision.gate.status}")
-            return decision.gate
+        if ui_decision.blocked:
+            _ralph_log(f"authority gate {ui_decision.gate.name} -> {ui_decision.gate.status}")
+            return ui_decision.gate
+        visual_decision = gate.check_visual_baseline(issue_base)
+        if visual_decision.blocked:
+            _ralph_log(
+                f"authority gate {visual_decision.gate.name} -> {visual_decision.gate.status}"
+            )
+            return visual_decision.gate
         return None
 
     def _run_gates(
@@ -844,6 +858,26 @@ def _name_status_diff(workdir: Path) -> DiffSeam:
         return _parse_name_status(result.stdout)
 
     return diff
+
+
+def _visual_review_reader(workdir: Path) -> ReviewReader:
+    """Build a reader for the digest-addressed Visual Baseline review artifact.
+
+    Mirrors the naming contract in ``ralph/prompts/ui-verify.md``: the saved
+    baseline-diff review for a modified baseline lives at
+    ``ralph/.artifacts/visual-baseline-reviews/{sha256(path)}.md`` relative to
+    the worktree, where the digest hashes the baseline's repo-relative path.
+    Returns the artifact text, or None when no review was saved.
+    """
+
+    def read(baseline_path: str) -> str | None:
+        digest = hashlib.sha256(baseline_path.encode("utf-8")).hexdigest()
+        artifact = Path(workdir) / VISUAL_REVIEW_DIR / f"{digest}.md"
+        if not artifact.is_file():
+            return None
+        return artifact.read_text(encoding="utf-8")
+
+    return read
 
 
 def _parse_name_status(output: str) -> tuple[NameStatusEntry, ...]:
