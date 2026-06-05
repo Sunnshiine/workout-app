@@ -11,6 +11,13 @@ replacement gate in issue #214 is approved.
 
 from __future__ import annotations
 
+from .authority import (
+    UI_REVIEW_PASS_LINE,
+    VISUAL_BASELINE_DIR,
+    AuthorityDecision,
+    AuthorityGate,
+    NameStatusEntry,
+)
 from .config import ConfigError, RunConfig, parse_args
 from .contracts import (
     IssueComment,
@@ -20,6 +27,14 @@ from .contracts import (
     parse_ui_test_authorization,
 )
 from .engine import Engine, FakeEngine, PhaseRequest, build_engine
+from .gates import (
+    CommandResult,
+    GateResult,
+    GateRunner,
+    GateSpec,
+    GateStatus,
+    is_ui_owned_gate,
+)
 from .github import (
     FakeGitHubClient,
     GhCliClient,
@@ -28,17 +43,35 @@ from .github import (
 )
 from .phase import PhaseResult, PhaseStatus
 from .targets import PrTarget, TargetResolutionError, TargetResolver, branch_for_contract
+from .worktree import (
+    GitResult,
+    Worktree,
+    WorktreeError,
+    WorktreeManager,
+    default_git_runner,
+)
 
 __all__ = [
+    "UI_REVIEW_PASS_LINE",
+    "VISUAL_BASELINE_DIR",
+    "AuthorityDecision",
+    "AuthorityGate",
+    "CommandResult",
     "ConfigError",
     "Engine",
     "FakeEngine",
     "FakeGitHubClient",
+    "GateResult",
+    "GateRunner",
+    "GateSpec",
+    "GateStatus",
     "GhCliClient",
     "GitHubClient",
     "GitHubClientError",
+    "GitResult",
     "IssueComment",
     "IssueContract",
+    "NameStatusEntry",
     "PhaseRequest",
     "PhaseResult",
     "PhaseStatus",
@@ -46,9 +79,14 @@ __all__ = [
     "RunConfig",
     "TargetResolutionError",
     "TargetResolver",
+    "Worktree",
+    "WorktreeError",
+    "WorktreeManager",
     "branch_for_contract",
     "build_engine",
     "capture_issue_contract",
+    "default_git_runner",
+    "is_ui_owned_gate",
     "parse_args",
     "parse_prd_number",
     "parse_ui_test_authorization",
