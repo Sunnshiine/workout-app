@@ -18,6 +18,8 @@ expected.
   criteria as the contract. Do not expand scope from PRDs.
 - Read related PRD/spec context if it helps evaluate the issue, but never let
   PRDs/specs override or expand the issue contract.
+- If DIAGNOSIS_PATH is set in the preamble, read it as supporting context to
+  confirm the diagnosed cause is actually fixed at the chosen regression seam.
 - Read `CONTEXT.md`, relevant ADRs, and `AGENTS.md` / `CLAUDE.md` only as needed
   to verify UI behavior.
 - If the issue has a Branch Directive, honor it as publication context. Do not

@@ -35,6 +35,7 @@ from .repair import render_repair_brief
 # Artifact file names, kept as constants so callers and tests share one source.
 ISSUE_CONTRACT_FILE = "issue-contract.md"
 PHASE_CONTEXT_FILE = "phase-context.md"
+DIAGNOSIS_FILE = "diagnosis.md"
 GATE_FAILURE_SUMMARY_FILE = "gate-failure-summary.md"
 REPAIR_BRIEF_FILE = "repair-brief.md"
 BLOCKED_REPORT_FILE = "blocked-report.md"
@@ -80,6 +81,18 @@ class PromptContextWriter:
 
     def write_phase_context(self, contract: IssueContract, context: PhaseContext) -> Path:
         return self._write(PHASE_CONTEXT_FILE, render_phase_context(contract, context))
+
+    def write_diagnosis(self, diagnosis: str) -> Path:
+        """Write the bug-diagnosis handoff artifact for implementation to read.
+
+        Stores the completed diagnosis response verbatim (repro loop, cause, fix
+        plan, regression seam, and the authority block) as the phase-to-phase
+        handoff at ``diagnosis.md``.
+        """
+
+        body = diagnosis.strip()
+        contents = f"{body}\n" if body else "_No diagnosis captured._\n"
+        return self._write(DIAGNOSIS_FILE, contents)
 
     def write_gate_failure_summary(self, failed_gate: GateResult) -> Path:
         return self._write(GATE_FAILURE_SUMMARY_FILE, render_gate_failure_summary(failed_gate))
