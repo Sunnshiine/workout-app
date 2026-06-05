@@ -41,7 +41,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"error: {error}", file=sys.stderr)
         return 2
 
-    print(format_config_summary(config))
+    print(format_config_summary(config), flush=True)
     if config.live_github_dry_run_issue is not None:
         try:
             result = run_live_github_dry_run(
@@ -58,7 +58,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if config.dry_run:
         print("\ndry-run: configuration valid; no GitHub, worktree, or agent action taken.")
-    return 0
+        return 0
+
+    print(
+        "\nerror: the normal Ralph issue-processing loop is not wired in this "
+        "Python entrypoint yet. Use --dry-run for a no-side-effect config check "
+        "or --live-github-dry-run ISSUE for the controlled GitHub wiring proof.",
+        file=sys.stderr,
+    )
+    return 1
 
 
 if __name__ == "__main__":
