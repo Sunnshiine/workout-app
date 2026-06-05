@@ -9,6 +9,13 @@
 > Keep the Liquid Glass layering decisions from this ADR, but do not implement
 > the older charcoal-to-warm-amber palette.
 
+> Superseded note, 2026-06-05: the app has grown to roughly 36 Liquid
+> Glass call sites across 12 views, so the original "single `Theme.swift` /
+> no custom ViewModifiers" decision is superseded. All app-owned glass now
+> routes through the `WorkoutGlass` helper, which keeps the repeated surface,
+> button, container, and morphing vocabulary behind one seam while still calling
+> Apple's native Liquid Glass APIs directly.
+
 ## Context
 
 The app's UI was a bare `List`-based layout with no visual design system. With iOS 26 introducing Liquid Glass, we needed to decide how to adopt the new material language across the app — where to apply it, what sits behind it, and how to organize the styling code.

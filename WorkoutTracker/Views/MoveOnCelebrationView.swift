@@ -13,7 +13,6 @@ struct MoveOnCelebrationView: View {
     private static let perfectImpactDelay: Duration = .milliseconds(120)
     private static let lensWidth: CGFloat = 210
     private static let lensHeight: CGFloat = 74
-    private static let lensCornerRadius: CGFloat = 28
     private static let outerBloomWidth: CGFloat = 286
     private static let outerBloomHeight: CGFloat = 106
     private static let middleBloomWidth: CGFloat = 254
@@ -164,7 +163,7 @@ struct MoveOnCelebrationView: View {
     }
 
     private var logoLens: some View {
-        GlassEffectContainer(spacing: 0) {
+        WorkoutGlassContainer(spacing: 0) {
             ZStack {
                 if visualTreatment == .animatedBloom {
                     animatedBloom
@@ -182,14 +181,14 @@ struct MoveOnCelebrationView: View {
             .minimumScaleFactor(0.82)
             .frame(width: Self.lensWidth, height: Self.lensHeight)
             .background {
-                RoundedRectangle(cornerRadius: Self.lensCornerRadius, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.lensCornerRadius, style: .continuous)
                     .fill(palette.activeCardFill)
             }
             .overlay {
-                RoundedRectangle(cornerRadius: Self.lensCornerRadius, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.lensCornerRadius, style: .continuous)
                     .stroke(lensStrokeColor, lineWidth: lensStrokeWidth)
             }
-            .glassEffect(.regular, in: .rect(cornerRadius: Self.lensCornerRadius))
+            .workoutGlass(.lens)
             .accessibilityIdentifier("move-on-celebration-logo")
     }
 
