@@ -217,7 +217,15 @@ final class SyncCoordinator {
     ) async {
         let currentExercises = uniqueExercises(in: currentBlock)
         guard !currentExercises.isEmpty else { return }
-        guard !hasLastPerformedCoverage(for: currentExercises) else { return }
+        var coveredFullNames = Set(LastPerformedExtractor.records(from: currentBlock).map(\.fullName))
+        var coveredBaseNames = Set(LastPerformedExtractor.records(from: currentBlock).map(\.baseName))
+        guard
+            !hasObservedLastPerformedCoverage(
+                for: currentExercises,
+                coveredFullNames: coveredFullNames,
+                coveredBaseNames: coveredBaseNames
+            )
+        else { return }
 
         let client = client
         for tab in historicalTabs {
@@ -242,8 +250,14 @@ final class SyncCoordinator {
                     state = .conflict(["Last Performed backfill failed: \(error.localizedDescription)"])
                     return
                 }
+                coveredFullNames.formUnion(records.map(\.fullName))
+                coveredBaseNames.formUnion(records.map(\.baseName))
             }
-            if hasLastPerformedCoverage(for: currentExercises) {
+            if hasObservedLastPerformedCoverage(
+                for: currentExercises,
+                coveredFullNames: coveredFullNames,
+                coveredBaseNames: coveredBaseNames
+            ) {
                 return
             }
         }
@@ -274,10 +288,13 @@ final class SyncCoordinator {
         return exercises
     }
 
-    private func hasLastPerformedCoverage(for exercises: [(name: String, baseName: String)]) -> Bool {
-        let index = LastPerformedIndex(context: context)
-        return exercises.allSatisfy { exercise in
-            index.lookup(exerciseName: exercise.name, baseName: exercise.baseName) != nil
+    private func hasObservedLastPerformedCoverage(
+        for exercises: [(name: String, baseName: String)],
+        coveredFullNames: Set<String>,
+        coveredBaseNames: Set<String>
+    ) -> Bool {
+        exercises.allSatisfy { exercise in
+            coveredFullNames.contains(exercise.name) || coveredBaseNames.contains(exercise.baseName)
         }
     }
 

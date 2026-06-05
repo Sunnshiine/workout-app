@@ -229,6 +229,55 @@ private final class BackfillCompletionProbe: LastPerformedBackfillObserving {
 }
 
 @MainActor
+@Test func syncBackfillReplacesStaleIndexedHistoryWithNewerHistoricalBlockEvidence() async throws {
+    let container = try makeSyncContainer()
+    let backfillCompletion = BackfillCompletionProbe()
+    try seedStaleHipThrustLastPerformed(in: container.mainContext)
+    let client = BackfillStubClient(
+        titles: ["Intro", "Block 25", "Block 26", "Block 27"],
+        grids: [
+            "Block 27": currentGridWithPendingHipThrust(),
+            "Block 26": historicalGrid(
+                exerciseName: "Hip Thrust of Choice",
+                log: "225x10@8",
+                date: "4/24/2026"
+            ),
+            "Block 25": historicalGrid(
+                exerciseName: "Hip Thrust of Choice",
+                log: "185x10@7",
+                date: "4/17/2026"
+            )
+        ]
+    )
+    let lookupStore = LastPerformedLookupStore(context: container.mainContext)
+    let sync = SyncCoordinator(
+        client: client,
+        context: container.mainContext,
+        lastPerformedLookupRefresher: lookupStore,
+        lastPerformedBackfillObserver: backfillCompletion
+    )
+
+    await sync.sync(spreadsheetId: "sid")
+    await backfillCompletion.waitForFinish()
+
+    let entry = try #require(
+        LastPerformedIndex(context: container.mainContext)
+            .lookup(exerciseName: "Hip Thrust of Choice", baseName: "Hip Thrust of Choice")
+    )
+    #expect(entry.result == SetLog(weight: .pounds(225), reps: 10, rpe: 8))
+    #expect(entry.source == "Block 26 · W1 D1")
+    #expect(await client.recorder.tabs() == ["Block 27", "Block 26"])
+    let lookupEntry = try #require(
+        lookupStore.snapshot.lookup(
+            exerciseName: "Hip Thrust of Choice",
+            baseName: "Hip Thrust of Choice"
+        )
+    )
+    #expect(lookupEntry.resultText == "225x10@8")
+    #expect(lookupEntry.sourceText == "Block 26 · W1 D1")
+}
+
+@MainActor
 @Test func syncSkipsHistoricalBackfillWhenCurrentBlockAlreadyCoversExercises() async throws {
     let container = try makeSyncContainer()
     let backfillCompletion = BackfillCompletionProbe()
@@ -355,6 +404,33 @@ private func currentGridWithPendingSquat() -> SheetGrid {
         rows: 20,
         cols: 60
     )
+}
+
+private func currentGridWithPendingHipThrust() -> SheetGrid {
+    gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2", "AI12": "Day 3", "AX12": "Day 4",
+            "C13": "5/1/2026",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": "Hip Thrust of Choice", "D15": "1", "F15": "10", "H15": "RPE8"
+        ],
+        rows: 20,
+        cols: 60
+    )
+}
+
+@MainActor
+private func seedStaleHipThrustLastPerformed(in context: ModelContext) throws {
+    let staleDate = try #require(DateFormatter.testDate.date(from: "4/17/2026"))
+    try LastPerformedIndex(context: context).ingest([
+        LastPerformedEntry(
+            fullName: "Hip Thrust of Choice",
+            baseName: "Hip Thrust of Choice",
+            result: SetLog(weight: .pounds(185), reps: 10, rpe: 7),
+            performedOn: staleDate,
+            source: "Block 25 · W1 D1"
+        )
+    ])
 }
 
 private func historicalGrid(exerciseName: String, log: String, date: String) -> SheetGrid {
