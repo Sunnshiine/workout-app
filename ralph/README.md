@@ -75,8 +75,9 @@ uv run --python 3.11 python -m ralph.orchestrator --engine codex --max-iteration
 ```
 
 The normal loop polls `origin/main` at the start of each iteration, selects one eligible
-`ready-for-agent` issue, creates a deterministic `ralph/*` PR branch worktree, runs the phase
-agents and gates, then publishes only through a pull request.
+`ready-for-agent` issue, claims it by replacing `ready-for-agent` with `agent-active`, creates a
+deterministic `ralph/*` PR branch worktree, runs the phase agents and gates, then publishes only
+through a pull request.
 
 ### Keep macOS awake with caffeinate
 
@@ -111,6 +112,7 @@ The Python runner supports:
 | `--engine fake\|claude\|codex\|claude-cli\|codex-cli` | Engine adapter for phase turns. `codex`/`claude` resolve to SDK clients when their packages import. Dry-run modes force `fake`. |
 | `--max-iterations N` / `--max-iter N` | Maximum issues to process. |
 | `--model NAME` | Optional model alias passed to the engine. |
+| `--reasoning-effort low\|medium\|high\|xhigh` | Optional whole-run Codex reasoning override. Without it, Ralph uses `gpt-5.5` with `medium` reasoning, except Swift review and UI repair phases use `high`. |
 | `--device "iPhone 17 Pro"` | Simulator device for app gates. |
 | `--implement-timeout-seconds N` | Per-phase agent timeout. |
 | `--select-only` | Resolve selection/targets without creating worktrees or running agents. |
@@ -196,9 +198,20 @@ Close the control issue/PR and delete `ralph/dry-run/issue-*` branches after rev
 
 ## Issue Lifecycle
 
-Eligible issues are open, labelled `ready-for-agent`, not PRDs/epics, not `ready-for-human`, and
-not blocked by unfinished dependencies. A concrete issue body or Agent Brief must provide the
-implementation contract.
+Eligible issues are open, labelled `ready-for-agent`, not PRDs/epics, not already claimed or
+implemented by Ralph, not `ready-for-human`, and not blocked by unfinished dependencies. A concrete
+issue body or Agent Brief must provide the implementation contract.
+
+Ralph treats GitHub labels as its issue lifecycle state machine:
+
+- `ready-for-agent`: selectable by Ralph
+- `agent-active`: claimed by Ralph; not selectable by any later loop iteration
+- `agent-implemented`: implementation PR exists and is awaiting review/merge
+- `ready-for-human`: human decision or implementation needed
+- `agent-blocked`: reason label paired with `ready-for-human` after Ralph preserves blocked work
+
+Ralph claims an issue before creating a worktree. If the claim cannot be confirmed, Ralph stops
+without running agents.
 
 Python captures an immutable `IssueContract` before any mutating phase:
 
@@ -206,9 +219,50 @@ Python captures an immutable `IssueContract` before any mutating phase:
 - `PRD: #<number>` membership from the issue body only
 - `UI integration test edits: authorized` from the issue body only
 
+For issues labelled `bug`, Ralph runs a diagnosis phase before implementation. Diagnosis must build
+or identify a feedback loop, produce a fix plan, and write a local handoff artifact at
+`ralph/.artifacts/context/issue-<issue>/diagnosis.md`. Implementation must read that artifact before
+editing; Swift review and UI verification receive it as supporting context.
+
+Bug diagnosis must also decide whether UI integration test edits are required. The diagnosis output
+must include:
+
+```text
+<diagnosis-authority>
+ui_integration_test_edits_required: true
+scope: Tests/UI/WorkoutTrackerUITests.swift
+reason: Critical real-control workflow per docs/TESTING.md; lower-level tests cannot prove the route.
+</diagnosis-authority>
+```
+
+or:
+
+```text
+<diagnosis-authority>
+ui_integration_test_edits_required: false
+scope:
+reason:
+</diagnosis-authority>
+```
+
+If the block is missing or malformed, Ralph gets one corrective diagnosis-format pass before
+escalating for human attention.
+
+When diagnosis says UI integration test edits are required and the issue body is not already
+authorized, Ralph may grant that authority itself before implementation starts. Ralph reuses the
+existing `## Test authority` section or appends one, adds the exact marker, records the diagnosis
+scope and reason, comments on the issue as an audit event, then recaptures the issue contract before
+continuing. The issue body remains the authority source; the comment is only the visible event log;
+`diagnosis.md` remains the implementation handoff.
+
+This autonomous authority grant is narrow. Ralph may grant it only during bug diagnosis and only for
+paths under `Tests/UI/**`. If diagnosis finds that the correct test also needs `project.yml`,
+`Package.swift`, `WorkoutTracker.xcodeproj/project.pbxproj`, scheme files, or other test-target
+wiring changes, Ralph must escalate for human authority instead of granting that broader scope.
+
 On successful PR publication:
 
-- remove `ready-for-agent`
+- remove `agent-active` and any stale lifecycle labels
 - add `agent-implemented`
 - leave the issue open
 - use `Closes #<issue>` only in the successful integration commit
@@ -216,7 +270,7 @@ On successful PR publication:
 
 On blocked work:
 
-- remove `ready-for-agent`
+- remove `agent-active` and any stale implementation labels
 - add `ready-for-human`
 - add `agent-blocked`
 - preserve changed code in a draft rescue PR when code exists
@@ -225,7 +279,8 @@ On blocked work:
 PR readiness:
 
 - one-off PRs can become ready after their issue passes
-- PRD PRs remain draft until every known scoped child is `agent-implemented`
+- PRD PRs remain draft until every known scoped child is `agent-implemented` and none are
+  `ready-for-agent`, `agent-active`, `ready-for-human`, or `agent-blocked`
 - ready PRs receive `agent-ready-for-review`
 
 ---

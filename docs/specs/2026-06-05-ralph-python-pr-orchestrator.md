@@ -19,6 +19,12 @@ Ralph currently lives primarily in `ralph/ralph.sh`. It selects one `ready-for-a
 
 The target behavior reverses that default: Ralph must never push or merge directly to `main`. All successful work lands on a draft or ready PR branch. PRD-tied issues stack on one PR; one-off issues get one PR. Blocked work that produced code is preserved as a separate draft rescue PR instead of being lost.
 
+Bug issues need one extra guardrail before implementation. A bug fix should start from a
+reproduced failure and a defensible fix plan, not from a plausible code guess. Ralph therefore adds
+a diagnosis phase for issues labelled `bug`. That phase uses the repository's diagnosis discipline
+to establish a feedback loop, decide whether UI integration coverage is required, and hand a local
+diagnosis artifact to implementation.
+
 Relevant existing docs:
 
 - [Ralph README](../../ralph/README.md)
@@ -51,7 +57,7 @@ Relevant existing docs:
 
 - Decision: Successful agent work is implemented-but-unmerged until the PR merges.
   - Source: architecture discussion, 2026-06-05.
-  - Consequence: Ralph applies `agent-implemented`, removes `ready-for-agent`, leaves the issue open, and uses `Closes #<issue>` only in the successful integration commit message so GitHub closes the issue when the PR merges.
+  - Consequence: Ralph first claims a selected issue by replacing `ready-for-agent` with `agent-active`. On success, Ralph replaces `agent-active` with `agent-implemented`, leaves the issue open, and uses `Closes #<issue>` only in the successful integration commit message so GitHub closes the issue when the PR merges.
 
 - Decision: PR readiness represents scoped completion.
   - Source: architecture discussion, 2026-06-05.
@@ -68,6 +74,18 @@ Relevant existing docs:
 - Decision: UI integration test edit authority is mechanical.
   - Source: UI-test authority handoff and [issue tracker conventions](../agents/issue-tracker.md).
   - Consequence: `Tests/UI/**` changes are accepted only when the pre-agent issue body snapshot contains exactly `UI integration test edits: authorized`; the UI verification phase may never edit `Tests/UI/**`.
+
+- Decision: Bug issues must be diagnosed before implementation.
+  - Source: Ralph diagnosis-gate design discussion, 2026-06-05.
+  - Consequence: If the selected issue's frozen labels include `bug`, Ralph runs a `diagnose` phase before `implement-tdd`. Non-bug issues keep the existing implementation-first flow.
+
+- Decision: Diagnosis handoff, issue authority, and audit history live on separate surfaces.
+  - Source: Ralph diagnosis-gate design discussion, 2026-06-05.
+  - Consequence: The full diagnosis plan is a local Ralph artifact; the issue body remains the durable authority source; issue comments record state-machine events such as Ralph granting UI integration test authority.
+
+- Decision: Ralph may autonomously grant UI integration test edit authority only during bug diagnosis.
+  - Source: Ralph diagnosis-gate design discussion, 2026-06-05.
+  - Consequence: A completed diagnosis may request UI-test authority with a structured boolean block. Ralph may then edit the issue body, comment the transition, recapture the issue contract, and continue. No other phase may edit the issue body for this authority.
 
 - Decision: Failure reports published to GitHub must be sanitized.
   - Source: architecture discussion, 2026-06-05.
@@ -89,6 +107,8 @@ Relevant existing docs:
 - Blocked issue lifecycle: rescue PR, `ready-for-human`, `agent-blocked`, sanitized report.
 - One UI-owned repair cycle.
 - UI integration test edit authority enforcement.
+- Bug-only diagnosis phase and diagnosis-to-implementation handoff.
+- Diagnosis-driven UI integration test authority upgrade for `Tests/UI/**`.
 - Progressive-disclosure prompt artifacts.
 - Local unit/integration tests plus one live dry-run path with a fake engine.
 - Documentation updates for Ralph operation, issue conventions, labels, and testing policy.
@@ -102,21 +122,27 @@ Relevant existing docs:
 - Creating product PRDs or issue breakdowns.
 - Depending on a single provider SDK as the workflow owner.
 - Publishing raw logs or secrets to GitHub.
+- Autonomously authorizing project wiring, package, scheme, or Xcode project changes outside
+  `Tests/UI/**`.
 
 ## Current Architecture
 
-`ralph/ralph.sh` owns both orchestration and engine invocation:
+`ralph/ralph.sh` is now a thin compatibility wrapper around `python -m ralph.orchestrator`.
+Python owns the normal issue-processing loop:
 
-- Selects an open `ready-for-agent` issue through an agent prompt.
-- Parses branch/PR directives from issue body.
-- Creates an issue worktree and an integration worktree under `.claude/worktrees/`.
-- Runs phase prompts from `ralph/prompts/`.
-- Runs the final gate directly with shell commands: `swift test`, `xcodegen generate`, Xcode unit/component tests, Visual Regression tests when needed, Xcode UI tests, and `swiftlint lint --quiet`.
-- Applies Visual Baseline authority mechanically, per [ADR 0007](../adr/0007-visual-regression-testing.md).
-- Ships either to `origin/main` or to an existing target branch.
-- Closes issues after successful push.
+- Polls `origin/main` before each iteration.
+- Selects an open `ready-for-agent` issue from GitHub using structured selector rules.
+- Captures an immutable `IssueContract`.
+- Resolves deterministic PR targets.
+- Creates a branch worktree under `.claude/worktrees/`.
+- Runs phase prompts from `ralph/prompts/` through an `Engine` adapter.
+- Writes compact context artifacts under `ralph/.artifacts/context/`.
+- Runs deterministic app gates and mechanical authority checks.
+- Publishes successful work only through PR branches.
+- Preserves blocked work in draft rescue PRs with sanitized reports.
 
-The current script has limited structured state. Failures mostly call `flag_for_human`, which applies `ready-for-human`, comments on the issue, and records an activity line. If a later gate fails after code exists, the code may remain only in a local worktree and is not automatically preserved as a reviewable PR.
+The current loop already treats the `bug` label as selector priority, but it does not yet insert a
+diagnosis phase or let diagnosis grant UI integration test authority before implementation.
 
 ## Target Architecture
 
@@ -127,6 +153,8 @@ Python Ralph owns a typed orchestration boundary:
 - `TargetResolver`: maps each issue to a PR branch and PR base.
 - `WorktreeManager`: creates, copies `Secrets.xcconfig`, cleans up, and preserves worktrees when needed.
 - `Engine`: runs one phase prompt in one worktree and returns a structured phase result.
+- `DiagnosisAuthority`: parses the diagnosis authority block, validates whether Ralph may grant
+  UI-test authority, and performs at most one corrective diagnosis-format retry.
 - `GateRunner`: runs deterministic gates and returns structured gate failures.
 - `AuthorityGate`: checks Visual Baseline and UI integration test edit policies.
 - `RepairCoordinator`: writes the repair brief and controls exactly one UI-owned repair cycle.
@@ -144,6 +172,18 @@ Engine adapters are isolated behind the same interface:
 - `FakeEngine` for tests and dry-runs
 
 The SDK or CLI only runs the agent turn. It does not select targets, decide lifecycle state, mutate labels, create PRs, run gates, or decide whether code is safe to publish.
+
+For a selected bug issue, the target phase order is:
+
+```text
+diagnose -> implement-tdd -> swift-review -> ui-verify -> gates -> PR publish
+```
+
+For non-bug issues, the phase order remains:
+
+```text
+implement-tdd -> swift-review -> ui-verify -> gates -> PR publish
+```
 
 ## Contracts
 
@@ -207,6 +247,101 @@ Compatibility:
 - CLI fallback adapters may still parse existing promise lines.
 - SDK adapters should return the same contract regardless of provider event shape.
 
+### Diagnosis phase [ADDED]
+
+The diagnosis phase runs only when the selected issue's pre-agent `IssueContract.labels` contains
+`bug`.
+
+Rules:
+
+- The phase must explicitly use the diagnosis skill and follow the feedback-loop discipline:
+  reproduce the bug, state falsifiable hypotheses, identify the likely cause, and produce a fix
+  plan.
+- The phase may temporarily edit files, create scratch tests, capture screenshots, add
+  instrumentation, or build a local harness to reproduce the failure.
+- The phase must not commit.
+- The phase must not implement the production fix.
+- Temporary investigative changes may remain uncommitted for implementation to adopt or replace,
+  as long as no commit is made before Ralph processes diagnosis authority.
+- `implement-tdd` must read the diagnosis handoff before editing.
+- `swift-review` and `ui-verify` receive the diagnosis handoff as optional context.
+
+### Diagnosis handoff artifact [ADDED]
+
+Ralph writes the completed diagnosis response to:
+
+```text
+ralph/.artifacts/context/issue-<issue>/diagnosis.md
+```
+
+The artifact is the implementation handoff. It should include:
+
+- repro loop or best available evidence
+- observed symptom
+- most likely cause
+- proposed fix plan
+- regression-test seam recommendation
+- required diagnosis authority block
+
+The handoff is referenced from later `phase-context.md` artifacts. It is mandatory context for
+`implement-tdd`, and optional supporting context for `swift-review` and `ui-verify`.
+
+### Diagnosis authority block [ADDED]
+
+Every completed bug diagnosis must include exactly one authority block:
+
+```text
+<diagnosis-authority>
+ui_integration_test_edits_required: true
+scope: Tests/UI/WorkoutTrackerUITests.swift
+reason: Critical real-control logging workflow per docs/TESTING.md; lower-level tests cannot prove the tap path reaches the visible state.
+</diagnosis-authority>
+```
+
+When UI integration test edits are not required:
+
+```text
+<diagnosis-authority>
+ui_integration_test_edits_required: false
+scope:
+reason:
+</diagnosis-authority>
+```
+
+Rules:
+
+- `ui_integration_test_edits_required` is boolean-only: `true` or `false`.
+- When the value is `true`, `scope` is required and must name only paths under `Tests/UI/**`.
+- When the value is `true`, `reason` is required and must explain why lower-level coverage is
+  insufficient under [Testing policy](../TESTING.md).
+- When the block is missing, malformed, or incomplete, Ralph runs one corrective diagnosis-format
+  pass in the same worktree asking only for the corrected block from existing findings.
+- If the corrective pass still cannot produce a valid block, Ralph escalates for human attention.
+- Scope outside `Tests/UI/**` cannot be autonomously authorized by this mechanism.
+
+### Diagnosis-driven UI authority upgrade [ADDED]
+
+If diagnosis completes with `ui_integration_test_edits_required: true` and the current issue
+contract is not already authorized:
+
+1. Ralph reuses an existing `## Test authority` issue-body section or appends one if missing.
+2. Ralph adds the exact line `UI integration test edits: authorized`.
+3. Ralph records the diagnosis `scope` and `reason` in that section.
+4. Ralph appends an issue comment recording the authority grant as a state-machine event.
+5. Ralph recaptures `IssueContract` from GitHub.
+6. Ralph proceeds to implementation only with the recaptured contract.
+
+The issue body remains the authority source. The comment is an audit/event log. The local
+`diagnosis.md` artifact remains the full implementation handoff.
+
+Ralph may perform this issue-body edit only during the bug diagnosis transition. `implement-tdd`,
+`swift-review`, `ui-verify`, repair phases, and gates may not edit the issue body to grant UI-test
+authority.
+
+If the issue body already contains `UI integration test edits: authorized`, Ralph does not duplicate
+the body marker. It may still append a diagnosis comment when the diagnosis adds useful scope or
+rationale, and it still recaptures the issue contract before implementation.
+
 ### Gate result [ADDED]
 
 ```text
@@ -237,20 +372,34 @@ Ralph does not close the issue directly. GitHub closes it when the successful PR
 ### Issue labels [CHANGED]
 
 - `ready-for-agent`: issue is available for Ralph selection.
+- `agent-active`: Ralph has claimed the issue and may be running implementation, review, UI verification, gates, or publish; the issue is not available for selection.
 - `agent-implemented`: Ralph successfully pushed the issue implementation to a PR; issue remains open until PR merge.
 - `ready-for-human`: issue needs human attention.
 - `agent-blocked`: Ralph preserved blocked code or hit a policy failure; human must inspect.
 
+Ralph treats these as mostly exclusive lifecycle labels. Only one primary lifecycle label should be
+present at a time, except `agent-blocked` may accompany `ready-for-human` as a reason label. V1 has
+no local run ledger, heartbeat, stale-claim timeout, or automatic closed-PR reconciliation; humans
+requeue abandoned or rejected work by changing labels intentionally.
+
+On claim:
+
+- fresh-read the candidate issue
+- require `ready-for-agent` with no conflicting lifecycle labels
+- remove `ready-for-agent`
+- add `agent-active`
+- fresh-read again and stop before worktree creation if the claim did not converge
+
 On success:
 
-- remove `ready-for-agent`
+- remove `agent-active` and any stale non-success lifecycle labels
 - add `agent-implemented`
 - do not add `ready-for-human`
 - do not close the issue
 
 On blocked:
 
-- remove `ready-for-agent`
+- remove `agent-active` and any stale implementation labels
 - add `ready-for-human`
 - add `agent-blocked`
 - do not add `agent-implemented`
@@ -263,7 +412,7 @@ Successful PRs:
 - Created as draft when first pushed.
 - Reused by branch on later pushes.
 - One-off PR becomes ready for review after its issue passes.
-- PRD PR becomes ready for review only when all known scoped child issues are `agent-implemented` and none are still `ready-for-agent`, `ready-for-human`, or `agent-blocked`.
+- PRD PR becomes ready for review only when all known scoped child issues are `agent-implemented` and none are still `ready-for-agent`, `agent-active`, `ready-for-human`, or `agent-blocked`.
 - Ready PRs receive `agent-ready-for-review`.
 
 Known scoped child issues for `PRD: #<n>` are the non-PRD GitHub issues whose current issue body
@@ -290,6 +439,12 @@ Authority gate:
 
 This is a parent-orchestrator gate. It must not depend on prompt compliance.
 
+Diagnosis-driven authority grants are intentionally narrower than the gate. Ralph may
+autonomously grant authority for `Tests/UI/**` changes only. If diagnosis finds that correct UI
+coverage also requires `project.yml`, `Package.swift`, `WorkoutTracker.xcodeproj/project.pbxproj`,
+scheme files, or other test-target wiring changes, Ralph must escalate for human authority instead
+of granting that broader scope itself.
+
 ### UI repair cycle [ADDED]
 
 For the first UI-owned gate failure after code exists:
@@ -308,11 +463,16 @@ Python writes small context files and prompts reference them by path:
 
 - `issue-contract.md`
 - `phase-context.md`
+- `diagnosis.md`
 - `gate-failure-summary.md`
 - `repair-brief.md`
 - `blocked-report.md`
 
 Prompts always include role, issue, target, allowed actions, and completion/block contract. Full logs, PRD bodies, screenshots, issue comments, and prior phase transcripts are included by reference first and opened only when needed.
+
+When `diagnosis.md` exists, the implementation prompt must require reading it before edits. Review
+and UI verification prompts should receive it as supporting context for checking the implemented fix
+against the diagnosed cause and the chosen regression seam.
 
 ### Sanitized blocked report [ADDED]
 
@@ -375,7 +535,7 @@ The target Python workflow has no direct `origin/main` push or local `main` fast
 
 ### Phase 4: Successful PR Publishing Lifecycle
 
-- Change: Create/reuse draft PRs, push successful integration commits to PR branches, apply `agent-implemented`, update PR readiness, and use integration commit closing keywords.
+- Change: Claim issues with `agent-active`, create/reuse draft PRs, push successful integration commits to PR branches, apply `agent-implemented`, update PR readiness, and use integration commit closing keywords.
 - Compatibility: Use fake GitHub for local tests; live dry-run uses a fake engine and controlled test issue/branch.
 - Acceptance criteria:
   - Tests cover successful one-off PR ready state and PRD PR draft-to-ready transition.
@@ -396,6 +556,24 @@ The target Python workflow has no direct `origin/main` push or local `main` fast
   - SDK smoke tests can run a harmless read-only phase in a fixture worktree.
   - Prompt artifacts are written and referenced instead of embedding full logs/comments by default.
   - Missing SDK packages degrade to explicit CLI fallback adapters; installed SDK packages are the default for `codex` and `claude`.
+
+### Phase 6b: Bug Diagnosis and Authority Upgrade
+
+- Change: Add the bug-only `diagnose` phase, local `diagnosis.md` handoff, authority-block parser,
+  one corrective diagnosis-format retry, issue-body authority grant, audit comment, and contract
+  recapture before implementation.
+- Compatibility: Non-bug issues keep the current phase order. Bug issues without UI-test authority
+  needs proceed through diagnosis and implementation without GitHub body edits.
+- Acceptance criteria:
+  - Tests cover bug issues running `diagnose` before `implement-tdd`.
+  - Tests cover non-bug issues skipping diagnosis.
+  - Tests cover completed diagnosis requiring a valid boolean authority block.
+  - Tests cover one corrective retry for a missing or malformed authority block.
+  - Tests cover Ralph reusing/appending `## Test authority`, adding an audit comment, and
+    recapturing `IssueContract`.
+  - Tests cover auto-authority being limited to `Tests/UI/**`.
+  - Tests cover `diagnosis.md` being mandatory context for implementation and referenced for later
+    phases.
 
 ### Phase 7: Replacement Gate
 
@@ -419,11 +597,17 @@ The target Python workflow has no direct `origin/main` push or local `main` fast
 - [ ] Python Ralph exists side-by-side and does not alter `ralph/ralph.sh` production behavior before replacement approval.
 - [ ] Python Ralph has no successful direct-to-main publish path.
 - [ ] PRD issues stack on `ralph/prd-<n>` and one-off issues use `ralph/issue-<n>`.
-- [ ] Successful issue work applies `agent-implemented`, removes `ready-for-agent`, leaves the issue open, and uses `Closes #<issue>` only in the successful integration commit.
-- [ ] PRD PRs remain draft until all scoped child issues are `agent-implemented`; one-off PRs can become ready after their issue passes.
+- [ ] Successful issue work claims with `agent-active`, applies `agent-implemented`, removes `agent-active`, leaves the issue open, and uses `Closes #<issue>` only in the successful integration commit.
+- [ ] PRD PRs remain draft until all scoped child issues are `agent-implemented` and none are `ready-for-agent`, `agent-active`, `ready-for-human`, or `agent-blocked`; one-off PRs can become ready after their issue passes.
 - [ ] Blocked code is preserved in a draft rescue PR with `Refs #<issue>`, `agent-blocked`, `ready-for-human`, and a sanitized blocked report.
 - [ ] One UI-owned repair cycle runs before blocked escalation, and never loops indefinitely.
 - [ ] Unauthorized UI integration test edits block mechanically.
+- [ ] Bug-labelled issues run diagnosis before implementation.
+- [ ] Completed bug diagnosis emits a boolean diagnosis authority block.
+- [ ] Ralph can autonomously grant UI integration test edit authority only during diagnosis, only
+      for `Tests/UI/**`, and only after recording the body update plus an audit comment.
+- [ ] Ralph recaptures `IssueContract` after any diagnosis-driven issue-body authority update.
+- [ ] `diagnosis.md` is mandatory context for implementation and available to later phases.
 - [ ] UI verification phase edits to `Tests/UI/**` block unconditionally.
 - [ ] Blocked reports redact secrets and never publish raw full logs.
 - [ ] Prompt artifacts use progressive disclosure and avoid embedding full logs/comments unless required.
@@ -432,7 +616,7 @@ The target Python workflow has no direct `origin/main` push or local `main` fast
 
 ## Testing Strategy
 
-Use Python unit tests for pure routing and state transitions, with fake GitHub/Git/Engine dependencies. Use focused integration tests for worktree operations and gate result parsing against local fixture repositories. Use redaction tests with representative secret-looking log lines. Use fake-engine end-to-end tests to prove success, UI repair, policy block, and second-failure rescue PR paths without calling real agents.
+Use Python unit tests for pure routing and state transitions, with fake GitHub/Git/Engine dependencies. Use focused integration tests for worktree operations and gate result parsing against local fixture repositories. Use redaction tests with representative secret-looking log lines. Use fake-engine end-to-end tests to prove success, bug diagnosis, diagnosis authority upgrades, UI repair, policy escalation, and second-failure rescue PR paths without calling real agents.
 
 Run one live dry-run against GitHub only after local tests pass. The live dry-run must use a fake engine and a controlled issue/branch so it proves `gh` authentication, label application, PR creation/update, comments, and draft/ready state handling without allowing autonomous code edits.
 
@@ -440,6 +624,4 @@ The Swift app test suite is not the primary test surface for the Python orchestr
 
 ## Open Questions
 
-- Which exact Python package path should own the side-by-side runner: `ralph_py/` or a package under `ralph/`?
-- Should `agent-blocked` and `agent-ready-for-review` be created now like `agent-implemented`, or created as part of the migration phase?
-- What controlled live dry-run issue/branch convention should be used so GitHub tests are obvious and easy to clean up?
+- None for the bug diagnosis and authority-upgrade workflow.

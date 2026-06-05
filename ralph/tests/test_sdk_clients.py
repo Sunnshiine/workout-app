@@ -18,6 +18,7 @@ def _invocation(timeout_seconds: int = 30) -> SdkInvocation:
         issue_number=212,
         timeout_seconds=timeout_seconds,
         model="agent-model",
+        reasoning_effort="medium",
     )
 
 
@@ -27,6 +28,11 @@ class _CodexSandbox:
 
 class _CodexApprovalMode:
     auto_review = "auto-review"
+
+
+class _CodexReasoningEffort:
+    high = "high-effort"
+    medium = "medium-effort"
 
 
 @dataclass(frozen=True)
@@ -65,6 +71,7 @@ _CODEX_MODULE = SimpleNamespace(
     Codex=_Codex,
     Sandbox=_CodexSandbox,
     ApprovalMode=_CodexApprovalMode,
+    ReasoningEffort=_CodexReasoningEffort,
     result=_CodexResult(final_response=complete_promise_line("implement")),
 )
 
@@ -80,7 +87,28 @@ class CodexProviderSdkClientTests(unittest.TestCase):
         self.assertEqual(_CODEX_MODULE.start_kwargs["sandbox"], "workspace-write")
         self.assertEqual(_CODEX_MODULE.start_kwargs["approval_mode"], "auto-review")
         self.assertEqual(_CODEX_MODULE.start_kwargs["model"], "agent-model")
+        self.assertNotIn("effort", _CODEX_MODULE.start_kwargs)
         self.assertEqual(_CODEX_MODULE.run_prompt, "do the work")
+        self.assertEqual(_CODEX_MODULE.run_kwargs["effort"], "medium-effort")
+
+    def test_codex_reasoning_effort_is_passed_to_run(self) -> None:
+        _CODEX_MODULE.result = _CodexResult(final_response=complete_promise_line("implement"))
+        events = list(
+            CodexProviderSdkClient(module=_CODEX_MODULE)(
+                SdkInvocation(
+                    phase="implement",
+                    prompt="do the work",
+                    workdir=Path("/tmp/worktree"),
+                    issue_number=212,
+                    timeout_seconds=30,
+                    model="agent-model",
+                    reasoning_effort="high",
+                )
+            )
+        )
+
+        self.assertEqual(events[0], SdkEvent(kind="text", text=complete_promise_line("implement")))
+        self.assertEqual(_CODEX_MODULE.run_kwargs["effort"], "high-effort")
 
     def test_codex_error_result_becomes_error_event(self) -> None:
         _CODEX_MODULE.result = _CodexResult(
