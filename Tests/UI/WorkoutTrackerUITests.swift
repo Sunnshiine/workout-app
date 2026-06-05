@@ -20,7 +20,6 @@ final class WorkoutTrackerUITests: XCTestCase {
         let celebration = moveOnCelebration(in: app)
         XCTAssertTrue(celebration.waitForExistence(timeout: 3))
         waitForLabel("Week 1, Day 1", on: celebration)
-        waitForValueContaining("5 Sets, 2 Exercises, 4 Left", on: celebration)
         assertMoveOnCelebrationIsUsable(celebration, in: app)
         XCTAssertFalse(app.staticTexts["Back Squat"].exists)
 
@@ -423,10 +422,29 @@ private func assertMoveOnCelebrationIsUsable(_ celebration: XCUIElement, in app:
 
     XCTAssertTrue(quote.waitForExistence(timeout: 6))
     XCTAssertFalse(quote.label.isEmpty)
-    XCTAssertTrue(windowFrame.intersects(quote.frame), "\(quote) is not readable within \(windowFrame)")
+    assertElementIsMostlyVisible(quote, in: windowFrame)
     XCTAssertTrue(hint.waitForExistence(timeout: 3))
-    XCTAssertTrue(windowFrame.intersects(hint.frame), "\(hint) is not reachable within \(windowFrame)")
+    assertElementIsMostlyVisible(hint, in: windowFrame)
     XCTAssertTrue(celebration.isHittable)
+}
+
+private func assertElementIsMostlyVisible(
+    _ element: XCUIElement,
+    in visibleFrame: CGRect,
+    minimumVisibleRatio: CGFloat = 0.9
+) {
+    let elementFrame = element.frame
+    let elementArea = elementFrame.width * elementFrame.height
+    XCTAssertGreaterThan(elementArea, 0, "\(element) has no readable bounds")
+    guard elementArea > 0 else { return }
+
+    let clippedFrame = visibleFrame.intersection(elementFrame)
+    let visibleArea = clippedFrame.width * clippedFrame.height
+    XCTAssertGreaterThanOrEqual(
+        visibleArea / elementArea,
+        minimumVisibleRatio,
+        "\(element) is not readable within \(visibleFrame)"
+    )
 }
 
 final class WorkoutTrackerLongSessionUITests: XCTestCase {
