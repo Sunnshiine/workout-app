@@ -13,20 +13,15 @@ import json
 import re
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-
 ACTIVITY_LINE_RE = re.compile(r"^- \*\*(?P<ts>[^*]+)\*\* — (?P<message>.*)$")
 SELECTED_RE = re.compile(r"iteration (?P<iter>\d+): selected issue #(?P<issue>\d+)")
-PHASE_START_RE = re.compile(
-    r"issue #(?P<issue>\d+) (?P<phase>[A-Za-z0-9_-]+) started"
-)
-PHASE_COMPLETE_RE = re.compile(
-    r"issue #(?P<issue>\d+) (?P<phase>[A-Za-z0-9_-]+) complete"
-)
+PHASE_START_RE = re.compile(r"issue #(?P<issue>\d+) (?P<phase>[A-Za-z0-9_-]+) started")
+PHASE_COMPLETE_RE = re.compile(r"issue #(?P<issue>\d+) (?P<phase>[A-Za-z0-9_-]+) complete")
 RESOLVED_RE = re.compile(r"issue #(?P<issue>\d+) resolved & merged")
 HUMAN_RE = re.compile(r"issue #(?P<issue>\d+) -> ready-for-human: (?P<reason>.*)")
 UNICODE_HUMAN_RE = re.compile(r"issue #(?P<issue>\d+) → ready-for-human: (?P<reason>.*)")
@@ -69,9 +64,7 @@ class Attempt:
     @property
     def started_at(self) -> datetime:
         phase_starts = [
-            phase.start
-            for phase in self.phases.values()
-            if phase.start and phase.name != "select"
+            phase.start for phase in self.phases.values() if phase.start and phase.name != "select"
         ]
         if phase_starts:
             return min(phase_starts)
@@ -255,7 +248,9 @@ def session_candidate_paths(
         current = since.date()
         last = until.date()
         while current <= last:
-            day_dir = sessions_dir / f"{current.year:04d}" / f"{current.month:02d}" / f"{current.day:02d}"
+            day_dir = (
+                sessions_dir / f"{current.year:04d}" / f"{current.month:02d}" / f"{current.day:02d}"
+            )
             paths.extend(day_dir.glob("rollout-*.jsonl"))
             current += timedelta(days=1)
         return sorted(paths)
@@ -435,7 +430,7 @@ def attempt_contains_time(attempt: Attempt, timestamp: datetime) -> bool:
 def find_phase_for_time(attempt: Attempt, timestamp: datetime) -> str | None:
     phases = sorted(
         ((name, phase) for name, phase in attempt.phases.items() if phase.start),
-        key=lambda item: item[1].start or datetime.min.replace(tzinfo=timezone.utc),
+        key=lambda item: item[1].start or datetime.min.replace(tzinfo=UTC),
     )
     for index, (phase_name, phase) in enumerate(phases):
         if not phase.start:
@@ -448,12 +443,16 @@ def find_phase_for_time(attempt: Attempt, timestamp: datetime) -> str | None:
             continue
         if phase.start <= timestamp <= end:
             return phase_name
-    if attempt.run_started_at and attempt.run_started_at <= timestamp <= attempt.selected_at + timedelta(minutes=1):
+    select_window_end = attempt.selected_at + timedelta(minutes=1)
+    if attempt.run_started_at and attempt.run_started_at <= timestamp <= select_window_end:
         return "select"
     return None
 
 
-def summarize_tokens(session_ids: list[str], sessions: dict[str, SessionTelemetry]) -> dict[str, Any]:
+def summarize_tokens(
+    session_ids: list[str],
+    sessions: dict[str, SessionTelemetry],
+) -> dict[str, Any]:
     totals = {field: 0 for field in TOKEN_FIELDS}
     compactions = 0
     token_events = 0
@@ -467,8 +466,8 @@ def summarize_tokens(session_ids: list[str], sessions: dict[str, SessionTelemetr
         session = sessions.get(session_id)
         if not session:
             continue
-        for field in TOKEN_FIELDS:
-            totals[field] += session.token_totals.get(field, 0)
+        for token_field in TOKEN_FIELDS:
+            totals[token_field] += session.token_totals.get(token_field, 0)
         compactions += session.compactions
         token_events += session.token_events
         max_last_input_tokens = max(max_last_input_tokens, session.max_last_input_tokens)
@@ -761,11 +760,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--since",
-        help="Only inspect Codex sessions at or after this time. Accepts ISO or activity timestamp.",
+        help=(
+            "Only inspect Codex sessions at or after this time. Accepts ISO or activity timestamp."
+        ),
     )
     parser.add_argument(
         "--until",
-        help="Only inspect Codex sessions at or before this time. Accepts ISO or activity timestamp.",
+        help=(
+            "Only inspect Codex sessions at or before this time. Accepts ISO or activity timestamp."
+        ),
     )
     args = parser.parse_args(argv)
 

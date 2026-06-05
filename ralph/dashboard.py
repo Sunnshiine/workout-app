@@ -8,16 +8,22 @@ import json
 import statistics
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
 def run_report(artifacts_dir: str, sessions_dir: str | None = None) -> dict:
     cmd = [
-        "uv", "run", "--python", "3.11", "python",
+        "uv",
+        "run",
+        "--python",
+        "3.11",
+        "python",
         "ralph/report.py",
-        "--artifacts-dir", artifacts_dir,
-        "--format", "json",
+        "--artifacts-dir",
+        artifacts_dir,
+        "--format",
+        "json",
     ]
     if sessions_dir:
         cmd += ["--sessions-dir", sessions_dir]
@@ -52,8 +58,13 @@ def fmt_dur(s: int) -> str:
 
 def badge_phases(phases: list[dict]) -> str:
     names = [p["name"] for p in phases]
-    short = {"select": "sel", "implement": "impl", "implement-tdd": "tdd",
-             "swift-review": "rev", "ui-verify": "ui"}
+    short = {
+        "select": "sel",
+        "implement": "impl",
+        "implement-tdd": "tdd",
+        "swift-review": "rev",
+        "ui-verify": "ui",
+    }
     return " ".join(f'<span class="phase-chip">{short.get(n, n)}</span>' for n in names)
 
 
@@ -73,7 +84,9 @@ def ctx_class(pct: float) -> str:
 
 
 def outcome_class(outcome: str) -> str:
-    return {"resolved": "resolved", "ready-for-human": "human", "incomplete": "incomplete"}.get(outcome, "")
+    return {"resolved": "resolved", "ready-for-human": "human", "incomplete": "incomplete"}.get(
+        outcome, ""
+    )
 
 
 def escape(s: str) -> str:
@@ -526,14 +539,14 @@ def build_html(data: dict, generated_at: str) -> str:
         cc = ctx_class(tok["max_context_percent"])
         resolved_rows.append(f"""
         <tr>
-          <td class="num">#{a['issue']}</td>
-          <td class="num">{a['iteration']}</td>
-          <td data-value="{a['duration_seconds']}">{a['duration']}</td>
-          <td class="num" data-value="{tok['total_tokens']}">{fmt_tokens(tok['total_tokens'])}</td>
-          <td class="num" data-value="{tok['uncached_input_tokens']}">{fmt_tokens(tok['uncached_input_tokens'])}</td>
-          <td class="num {cc}" data-value="{tok['max_context_percent']}">{tok['max_context_percent']}%</td>
-          <td class="num" data-value="{tok['compactions']}">{tok['compactions'] or '—'}</td>
-          <td class="num" data-value="{tok['session_count']}">{tok['session_count']}</td>
+          <td class="num">#{a["issue"]}</td>
+          <td class="num">{a["iteration"]}</td>
+          <td data-value="{a["duration_seconds"]}">{a["duration"]}</td>
+          <td class="num" data-value="{tok["total_tokens"]}">{fmt_tokens(tok["total_tokens"])}</td>
+          <td class="num" data-value="{tok["uncached_input_tokens"]}">{fmt_tokens(tok["uncached_input_tokens"])}</td>
+          <td class="num {cc}" data-value="{tok["max_context_percent"]}">{tok["max_context_percent"]}%</td>
+          <td class="num" data-value="{tok["compactions"]}">{tok["compactions"] or "—"}</td>
+          <td class="num" data-value="{tok["session_count"]}">{tok["session_count"]}</td>
           <td>{phases_html}</td>
           <td>{roles_html}</td>
         </tr>""")
@@ -545,14 +558,16 @@ def build_html(data: dict, generated_at: str) -> str:
         reason = escape(a.get("reason", "") or "")
         reason_short = reason[:100] + ("…" if len(reason) > 100 else "")
         oc = outcome_class(a["outcome"])
-        label = {"ready-for-human": "human", "incomplete": "incomplete"}.get(a["outcome"], a["outcome"])
+        label = {"ready-for-human": "human", "incomplete": "incomplete"}.get(
+            a["outcome"], a["outcome"]
+        )
         not_afk_rows.append(f"""
         <tr>
-          <td class="num">#{a['issue']}</td>
-          <td class="num">{a['iteration']}</td>
+          <td class="num">#{a["issue"]}</td>
+          <td class="num">{a["iteration"]}</td>
           <td><span class="badge {oc}">{label}</span></td>
-          <td data-value="{a['duration_seconds']}">{a['duration'] if a['duration_seconds'] else '—'}</td>
-          <td class="num" data-value="{tok['total_tokens']}">{fmt_tokens(tok['total_tokens'])}</td>
+          <td data-value="{a["duration_seconds"]}">{a["duration"] if a["duration_seconds"] else "—"}</td>
+          <td class="num" data-value="{tok["total_tokens"]}">{fmt_tokens(tok["total_tokens"])}</td>
           <td class="reason">{reason_short or '<span class="muted">—</span>'}</td>
         </tr>""")
 
@@ -560,7 +575,9 @@ def build_html(data: dict, generated_at: str) -> str:
     def outlier_row(a: dict, metric: str) -> str:
         tok = a["tokens"]
         oc = outcome_class(a["outcome"])
-        label = {"resolved": "✓", "ready-for-human": "human", "incomplete": "—"}.get(a["outcome"], "")
+        label = {"resolved": "✓", "ready-for-human": "human", "incomplete": "—"}.get(
+            a["outcome"], ""
+        )
         if metric == "tokens":
             val = fmt_tokens(tok["total_tokens"])
         elif metric == "dur":
@@ -573,8 +590,13 @@ def build_html(data: dict, generated_at: str) -> str:
 
     # Phase table rows
     phase_order = ["select", "implement", "implement-tdd", "swift-review", "ui-verify"]
-    phase_label = {"select": "select", "implement": "implement (mono)", "implement-tdd": "implement-tdd",
-                   "swift-review": "swift-review", "ui-verify": "ui-verify"}
+    phase_label = {
+        "select": "select",
+        "implement": "implement (mono)",
+        "implement-tdd": "implement-tdd",
+        "swift-review": "swift-review",
+        "ui-verify": "ui-verify",
+    }
     phase_rows = []
     for name in phase_order:
         if name not in phase_totals:
@@ -584,10 +606,10 @@ def build_html(data: dict, generated_at: str) -> str:
         phase_rows.append(f"""
         <tr>
           <td>{phase_label.get(name, name)}</td>
-          <td class="num" data-value="{s['count']}">{s['count']}</td>
-          <td data-value="{s['dur']}">{fmt_dur(s['dur'])}</td>
-          <td class="num" data-value="{s['tokens']}">{fmt_tokens(s['tokens'])}</td>
-          <td class="num" data-value="{avg}">{fmt_tokens(avg) if avg else '—'}</td>
+          <td class="num" data-value="{s["count"]}">{s["count"]}</td>
+          <td data-value="{s["dur"]}">{fmt_dur(s["dur"])}</td>
+          <td class="num" data-value="{s["tokens"]}">{fmt_tokens(s["tokens"])}</td>
+          <td class="num" data-value="{avg}">{fmt_tokens(avg) if avg else "—"}</td>
         </tr>""")
 
     resolve_rate = round(len(resolved) / len(attempts) * 100, 1)
@@ -890,7 +912,7 @@ def build_html(data: dict, generated_at: str) -> str:
 
   <header class="header">
     <h1>Ralph Session Dashboard</h1>
-    <span class="header-meta">Generated {generated_at} &middot; {data['artifacts_dir']}</span>
+    <span class="header-meta">Generated {generated_at} &middot; {data["artifacts_dir"]}</span>
   </header>
 
   <div class="summary">
@@ -903,7 +925,7 @@ def build_html(data: dict, generated_at: str) -> str:
       <span class="stat-label">Total Attempts</span>
     </div>
     <div class="stat">
-      <span class="stat-val">{data['issue_count']}</span>
+      <span class="stat-val">{data["issue_count"]}</span>
       <span class="stat-label">Unique Issues</span>
     </div>
     <div class="stat">
@@ -983,7 +1005,7 @@ def build_html(data: dict, generated_at: str) -> str:
           </tr>
         </thead>
         <tbody>
-          {''.join(resolved_rows)}
+          {"".join(resolved_rows)}
         </tbody>
       </table>
     </div>
@@ -1008,7 +1030,7 @@ def build_html(data: dict, generated_at: str) -> str:
           </tr>
         </thead>
         <tbody>
-          {''.join(not_afk_rows)}
+          {"".join(not_afk_rows)}
         </tbody>
       </table>
     </div>
@@ -1029,7 +1051,7 @@ def build_html(data: dict, generated_at: str) -> str:
           </tr>
         </thead>
         <tbody>
-          {''.join(phase_rows)}
+          {"".join(phase_rows)}
         </tbody>
       </table>
     </div>
@@ -1043,7 +1065,7 @@ def build_html(data: dict, generated_at: str) -> str:
         <div class="outlier-card-head">Top Tokens</div>
         <table>
           <tbody>
-            {''.join(outlier_row(a, 'tokens') for a in top_tokens)}
+            {"".join(outlier_row(a, "tokens") for a in top_tokens)}
           </tbody>
         </table>
       </div>
@@ -1051,7 +1073,7 @@ def build_html(data: dict, generated_at: str) -> str:
         <div class="outlier-card-head">Longest Runs</div>
         <table>
           <tbody>
-            {''.join(outlier_row(a, 'dur') for a in top_dur)}
+            {"".join(outlier_row(a, "dur") for a in top_dur)}
           </tbody>
         </table>
       </div>
@@ -1059,7 +1081,7 @@ def build_html(data: dict, generated_at: str) -> str:
         <div class="outlier-card-head">Max Context %</div>
         <table>
           <tbody>
-            {''.join(outlier_row(a, 'ctx') for a in top_ctx)}
+            {"".join(outlier_row(a, "ctx") for a in top_ctx)}
           </tbody>
         </table>
       </div>
@@ -1067,7 +1089,7 @@ def build_html(data: dict, generated_at: str) -> str:
         <div class="outlier-card-head">Most Compactions</div>
         <table>
           <tbody>
-            {''.join(outlier_row(a, 'compact') for a in top_compactions)}
+            {"".join(outlier_row(a, "compact") for a in top_compactions)}
           </tbody>
         </table>
       </div>
@@ -1093,7 +1115,9 @@ def build_html(data: dict, generated_at: str) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate Ralph session HTML dashboard.")
-    parser.add_argument("--artifacts-dir", default="ralph/.artifacts", help="Ralph artifacts directory.")
+    parser.add_argument(
+        "--artifacts-dir", default="ralph/.artifacts", help="Ralph artifacts directory."
+    )
     parser.add_argument("--sessions-dir", default=None, help="Codex sessions directory.")
     parser.add_argument("--output", default="ralph/reports/ralph-session-dashboard.html")
     args = parser.parse_args()
@@ -1101,7 +1125,7 @@ def main() -> None:
     print(f"Running ralph/report.py against {args.artifacts_dir} ...", file=sys.stderr)
     data = run_report(args.artifacts_dir, args.sessions_dir)
 
-    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    generated_at = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     html = build_html(data, generated_at)
 
     out = Path(args.output)

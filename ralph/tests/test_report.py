@@ -7,7 +7,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-
 REPORT_PATH = Path(__file__).resolve().parents[1] / "report.py"
 SPEC = importlib.util.spec_from_file_location("ralph_report", REPORT_PATH)
 assert SPEC and SPEC.loader
@@ -32,9 +31,15 @@ class RalphReportTests(unittest.TestCase):
                         "",
                         "- **2026-06-01 21:10:32** — run start — engine=codex max-iter=20 push=1",
                         "- **2026-06-01 21:11:10** — iteration 1: selected issue #157",
-                        "- **2026-06-01 21:11:10** — issue #157 implement-tdd started — timeout 2700s",
+                        (
+                            "- **2026-06-01 21:11:10** — issue #157 implement-tdd "
+                            "started — timeout 2700s"
+                        ),
                         "- **2026-06-01 21:20:11** — issue #157 implement-tdd complete",
-                        "- **2026-06-01 21:20:11** — issue #157 swift-review started — timeout 2700s",
+                        (
+                            "- **2026-06-01 21:20:11** — issue #157 swift-review "
+                            "started — timeout 2700s"
+                        ),
                         "- **2026-06-01 21:25:12** — issue #157 swift-review complete",
                         "- **2026-06-01 21:46:23** — issue #157 resolved & merged to main, pushed",
                     ]
@@ -65,7 +70,11 @@ class RalphReportTests(unittest.TestCase):
                         parent="parent",
                     ),
                     token_count("2026-06-02T01:21:12.000Z", 200, 120, 20, 6, 220, 180),
-                    {"timestamp": "2026-06-02T01:21:13.000Z", "type": "event_msg", "payload": {"type": "context_compacted"}},
+                    {
+                        "timestamp": "2026-06-02T01:21:13.000Z",
+                        "type": "event_msg",
+                        "payload": {"type": "context_compacted"},
+                    },
                 ],
             )
 
