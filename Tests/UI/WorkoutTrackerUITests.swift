@@ -125,7 +125,7 @@ final class WorkoutTrackerUITests: XCTestCase {
 
     @MainActor
     func testDeveloperToolsRouteLoadsFromSettings() throws {
-        let app = launchSettingsFixtureApp(extraArguments: ["-UITEST_PENDING_WRITE"])
+        let app = launchSettingsFixtureApp(options: [.pendingWrite])
 
         let trainingSheetRow = app.buttons["settings-training-sheet-row"]
         let syncNowButton = app.buttons["settings-sync-now-button"]
@@ -150,7 +150,7 @@ final class WorkoutTrackerUITests: XCTestCase {
 
     @MainActor
     func testOpenExerciseMakeupFlowShowsLastPerformedAndLogsSet() throws {
-        let app = launchFixtureApp(extraArguments: ["-UITEST_OPEN_EXERCISES"])
+        let app = launchFixtureApp(options: [.openExercises])
 
         app.swipeUp()
         let openBackSquat = app.buttons.containing(.staticText, identifier: "Back Squat").firstMatch
@@ -172,7 +172,7 @@ final class WorkoutTrackerUITests: XCTestCase {
 
     @MainActor
     func testSettingsRevealRouteSmokeOpensSettingsAndPendingSignOutConfirmation() throws {
-        let app = launchFixtureApp(extraArguments: ["-UITEST_PENDING_WRITE"])
+        let app = launchFixtureApp(options: [.pendingWrite])
 
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["session-controls-settings-button"].exists)
@@ -200,33 +200,19 @@ final class WorkoutTrackerUITests: XCTestCase {
     }
 
     @MainActor
-    private func launchFixtureApp(extraArguments: [String] = []) -> XCUIApplication {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments =
-            [
-                "-UITEST_FIXTURE",
-                "-UITEST_SESSION",
-                "-UITEST_FULL_BLOCK",
-                "-UITEST_DISABLE_CELEBRATION_BLOOM"
-            ] + extraArguments
-        app.launch()
-        return app
+    private func launchFixtureApp(options: [WorkoutUITestFixtureOption] = []) -> XCUIApplication {
+        launchWorkoutApp(
+            fixture: .currentSession,
+            options: [.disableCelebrationBloom] + options
+        )
     }
 
     @MainActor
-    private func launchSettingsFixtureApp(extraArguments: [String] = []) -> XCUIApplication {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments =
-            [
-                "-UITEST_FIXTURE",
-                "-UITEST_SETTINGS",
-                "-UITEST_FULL_BLOCK",
-                "-UITEST_DISABLE_CELEBRATION_BLOOM"
-            ] + extraArguments
-        app.launch()
-        return app
+    private func launchSettingsFixtureApp(options: [WorkoutUITestFixtureOption] = []) -> XCUIApplication {
+        launchWorkoutApp(
+            fixture: .settings,
+            options: [.disableCelebrationBloom] + options
+        )
     }
 }
 
@@ -250,11 +236,7 @@ final class WorkoutTrackerAppearanceUITests: XCTestCase {
 
     @MainActor
     private func launchSettingsFixtureApp() -> XCUIApplication {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["-UITEST_FIXTURE", "-UITEST_SETTINGS"]
-        app.launch()
-        return app
+        launchWorkoutApp(fixture: .settings)
     }
 }
 
@@ -345,32 +327,6 @@ private func waitForLabel(_ label: String, on element: XCUIElement) {
 }
 
 @MainActor
-private func waitForValue(_ value: String, on element: XCUIElement) {
-    XCTAssertTrue(element.waitForExistence(timeout: 3))
-    let deadline = Date().addingTimeInterval(3)
-    while Date() < deadline {
-        if element.value as? String == value {
-            return
-        }
-        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-    }
-    XCTFail("Expected \(element) to have value '\(value)', got '\(String(describing: element.value))'")
-}
-
-@MainActor
-private func waitForValueContaining(_ value: String, on element: XCUIElement) {
-    XCTAssertTrue(element.waitForExistence(timeout: 3))
-    let deadline = Date().addingTimeInterval(3)
-    while Date() < deadline {
-        if let elementValue = element.value as? String, elementValue.contains(value) {
-            return
-        }
-        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-    }
-    XCTFail("Expected \(element) to have value containing '\(value)', got '\(String(describing: element.value))'")
-}
-
-@MainActor
 private func waitUntilEnabled(_ element: XCUIElement) {
     XCTAssertTrue(element.waitForExistence(timeout: 3))
     let deadline = Date().addingTimeInterval(3)
@@ -395,23 +351,6 @@ private func tapWhenHittable(_ element: XCUIElement) {
         RunLoop.current.run(until: Date().addingTimeInterval(0.1))
     }
     XCTFail("Expected \(element) to become hittable")
-}
-
-@MainActor
-private func moveOnCelebration(in app: XCUIApplication) -> XCUIElement {
-    let button = app.buttons["move-on-celebration"]
-    if button.waitForExistence(timeout: 1) {
-        return button
-    }
-
-    let scrollView = app.scrollViews["move-on-celebration"]
-    if scrollView.waitForExistence(timeout: 1) {
-        return scrollView
-    }
-
-    let element = app.otherElements["move-on-celebration"]
-    XCTAssertTrue(element.waitForExistence(timeout: 3))
-    return element
 }
 
 @MainActor
@@ -490,11 +429,7 @@ final class WorkoutTrackerLongSessionUITests: XCTestCase {
 
     @MainActor
     private func launchFixtureApp() -> XCUIApplication {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["-UITEST_FIXTURE", "-UITEST_SESSION", "-UITEST_LONG_SESSION"]
-        app.launch()
-        return app
+        launchWorkoutApp(fixture: .longSession)
     }
 }
 
@@ -516,10 +451,6 @@ final class WorkoutTrackerSkipUITests: XCTestCase {
 
     @MainActor
     private func launchFixtureApp() -> XCUIApplication {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["-UITEST_FIXTURE", "-UITEST_SESSION", "-UITEST_FULL_BLOCK"]
-        app.launch()
-        return app
+        launchWorkoutApp(fixture: .currentSession)
     }
 }
