@@ -49,7 +49,7 @@ struct SessionView: View {
 
                     ScrollViewReader { proxy in
                         ScrollView {
-                            GlassEffectContainer(spacing: Theme.cardSpacing) {
+                            WorkoutGlassContainer(spacing: Theme.cardSpacing) {
                                 VStack(alignment: .leading, spacing: Theme.sectionSpacing) {
                                     ForEach(
                                         coordinator.renderItems(
@@ -392,7 +392,7 @@ extension SessionView {
         .padding(.horizontal, 14)
         .padding(.top, 1)
         .padding(.bottom, 2)
-        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
+        .workoutGlass(.card)
         .padding(.horizontal)
         .padding(.top, 8)
         .contentShape(Rectangle())
@@ -485,7 +485,7 @@ private struct CurrentSessionOverrideControls: View {
                 .font(.title3.weight(.semibold))
                 .frame(width: 44, height: 44)
         }
-        .buttonStyle(.glass)
+        .buttonStyle(.workoutGlass)
         .accessibilityHint("Returns to the current session")
         .accessibilityIdentifier("go-back-current-session-button")
     }
@@ -497,7 +497,7 @@ private struct CurrentSessionOverrideControls: View {
                 .font(.title3.weight(.semibold))
                 .frame(width: 44, height: 44)
         }
-        .buttonStyle(.glass)
+        .buttonStyle(.workoutGlass)
         .accessibilityHint("Makes the viewed session the current session")
         .accessibilityIdentifier("make-current-session-button")
     }
@@ -512,7 +512,7 @@ private struct MoveOnButton: View {
                 .font(.headline.weight(.semibold))
                 .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.glass)
+        .buttonStyle(.workoutGlass)
         .accessibilityHint("Advances to the next session")
         .accessibilityIdentifier("move-on-button")
     }
@@ -538,7 +538,7 @@ private struct OpenExercisesSection: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
+        .workoutGlass(.card)
     }
 }
 
