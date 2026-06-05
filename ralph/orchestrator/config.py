@@ -110,13 +110,43 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--publish-target",
+        "--ship-target",
         default=PR_PUBLISH_TARGET,
+        dest="publish_target",
         help="Publication target. Only 'pr' is valid; 'main'/'branch'/'auto' were removed.",
+    )
+    parser.add_argument(
+        "--no-push",
+        action="store_true",
+        dest="removed_no_push",
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "--target-branch",
+        "--pr-branch",
+        dest="removed_target_branch",
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "--target-pr",
+        dest="removed_target_pr",
+        help=argparse.SUPPRESS,
     )
     return parser
 
 
 def _resolve(namespace: argparse.Namespace) -> RunConfig:
+    if namespace.removed_no_push:
+        raise ConfigError(
+            "--no-push is not supported by the Python runner. It publishes only "
+            "through pull requests; use --dry-run for a no-side-effect config check."
+        )
+    if namespace.removed_target_branch or namespace.removed_target_pr:
+        raise ConfigError(
+            "--target-branch/--target-pr are not supported by the Python runner. "
+            "PR branches are deterministic: ralph/issue-<n> or ralph/prd-<n>."
+        )
+
     publish_target = namespace.publish_target
     if publish_target != PR_PUBLISH_TARGET:
         raise ConfigError(

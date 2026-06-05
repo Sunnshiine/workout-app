@@ -60,6 +60,26 @@ class ParseArgsTests(unittest.TestCase):
     def test_publish_target_pr_is_accepted(self) -> None:
         self.assertEqual(parse_args(["--publish-target", "pr"]).engine, FAKE_ENGINE)
 
+    def test_legacy_ship_target_main_is_rejected(self) -> None:
+        with self.assertRaises(ConfigError) as ctx:
+            parse_args(["--ship-target", "main"])
+        self.assertIn("pull requests", str(ctx.exception))
+
+    def test_legacy_no_push_is_rejected_with_clear_message(self) -> None:
+        with self.assertRaises(ConfigError) as ctx:
+            parse_args(["--no-push"])
+        self.assertIn("--dry-run", str(ctx.exception))
+
+    def test_legacy_target_branch_is_rejected_with_clear_message(self) -> None:
+        with self.assertRaises(ConfigError) as ctx:
+            parse_args(["--target-branch", "some-branch"])
+        self.assertIn("deterministic", str(ctx.exception))
+
+    def test_legacy_target_pr_is_rejected_with_clear_message(self) -> None:
+        with self.assertRaises(ConfigError) as ctx:
+            parse_args(["--target-pr", "177"])
+        self.assertIn("deterministic", str(ctx.exception))
+
     def test_max_iterations_must_be_positive(self) -> None:
         with self.assertRaises(ConfigError):
             parse_args(["--max-iterations", "0"])

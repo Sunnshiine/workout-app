@@ -1,5 +1,12 @@
 # Ralph Python PR Orchestrator Spec
 
+## Implementation Status
+
+As of issue #214, `ralph/ralph.sh` is a thin compatibility wrapper around
+`python -m ralph.orchestrator`. The Python runner is the canonical Ralph path, direct-to-main
+publishing remains removed, and live fake-engine GitHub dry-run evidence is recorded under
+`docs/ralph/live-dry-runs/`.
+
 ## Goal
 
 Replace Ralph's shell-owned orchestration with a Python state machine that ships autonomous work only through pull requests. The new orchestrator keeps the existing `ralph/ralph.sh` runner in production until the Python path has local tests plus a live dry-run proving GitHub wiring.

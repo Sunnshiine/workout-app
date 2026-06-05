@@ -139,7 +139,7 @@ Test layers and targets today (`project.yml`, `docs/TESTING.md`):
   screenshot; `ui-screenshot-reviewer` judges it and must end in
   `PASS: no blocking static visual findings.`
 
-Ralph gate (`ralph/ralph.sh`, `run_full_gate`): runs `swift test`, `xcodegen generate`,
+Ralph gate (Python Ralph via `ralph/ralph.sh`): runs `swift test`, `xcodegen generate`,
 `xcodebuild test` for `WorkoutTrackerTests`, `xcodebuild test` for `WorkoutTrackerUITests`,
 `swiftlint lint`. When `WorkoutTracker/Views/` or `WorkoutTracker/Theme.swift` changed, it
 additionally requires a non-empty screenshot artifact and a saved review artifact whose last
