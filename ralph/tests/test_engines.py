@@ -4,6 +4,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from ralph.orchestrator.engine import FakeEngine, PhaseRequest
 from ralph.orchestrator.engines import (
@@ -182,9 +183,29 @@ class ResolveEngineTests(unittest.TestCase):
         self.assertIsInstance(resolve_engine("codex", sdk_client=sdk), CodexSdkEngine)
         self.assertIsInstance(resolve_engine("claude", sdk_client=sdk), ClaudeSdkEngine)
 
-    def test_sdk_names_without_client_fall_back_to_cli(self) -> None:
-        self.assertIsInstance(resolve_engine("codex"), CodexCliEngine)
-        self.assertIsInstance(resolve_engine("claude"), ClaudeCliEngine)
+    def test_sdk_names_with_default_client_resolve_to_sdk_adapters(self) -> None:
+        sdk = _ScriptedSdk([])
+        with patch(
+            "ralph.orchestrator.sdk_clients.default_sdk_client_for_engine",
+            return_value=sdk,
+        ):
+            self.assertIsInstance(resolve_engine("codex"), CodexSdkEngine)
+            self.assertIsInstance(resolve_engine("claude"), ClaudeSdkEngine)
+
+    def test_sdk_names_without_available_client_temporarily_degrade_to_cli(self) -> None:
+        with patch(
+            "ralph.orchestrator.sdk_clients.default_sdk_client_for_engine",
+            return_value=None,
+        ):
+            self.assertIsInstance(resolve_engine("codex"), CodexCliEngine)
+            self.assertIsInstance(resolve_engine("claude"), ClaudeCliEngine)
+
+    def test_sdk_name_default_client_lookup_can_be_disabled(self) -> None:
+        self.assertIsInstance(resolve_engine("codex", use_default_sdk_client=False), CodexCliEngine)
+        self.assertIsInstance(
+            resolve_engine("claude", use_default_sdk_client=False),
+            ClaudeCliEngine,
+        )
 
     def test_unknown_name_is_rejected(self) -> None:
         with self.assertRaises(ValueError):

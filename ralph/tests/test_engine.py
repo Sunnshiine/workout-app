@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from ralph.orchestrator.engine import Engine, FakeEngine, PhaseRequest, build_engine
 from ralph.orchestrator.engines import (
     ClaudeCliEngine,
+    ClaudeSdkEngine,
     CodexCliEngine,
+    CodexSdkEngine,
+    SdkEvent,
 )
 from ralph.orchestrator.phase import PhaseResult, PhaseStatus
 
@@ -51,6 +55,11 @@ class FakeEngineTests(unittest.TestCase):
         self.assertIs(engine.run_phase(_request()).status, PhaseStatus.FAILED)
 
 
+class _ScriptedSdk:
+    def __call__(self, _invocation):
+        return [SdkEvent(kind="text", text="")]
+
+
 class BuildEngineTests(unittest.TestCase):
     def test_fake_engine_is_available(self) -> None:
         self.assertIsInstance(build_engine("fake"), FakeEngine)
@@ -59,11 +68,21 @@ class BuildEngineTests(unittest.TestCase):
         self.assertIsInstance(build_engine("codex-cli"), CodexCliEngine)
         self.assertIsInstance(build_engine("claude-cli"), ClaudeCliEngine)
 
-    def test_sdk_engines_fall_back_to_cli_without_a_client(self) -> None:
-        # build_engine wires no provider client, so SDK names degrade to the
-        # proven CLI fallback rather than failing hard during the migration.
-        self.assertIsInstance(build_engine("codex"), CodexCliEngine)
-        self.assertIsInstance(build_engine("claude"), ClaudeCliEngine)
+    def test_sdk_engines_use_default_provider_clients(self) -> None:
+        with patch(
+            "ralph.orchestrator.sdk_clients.default_sdk_client_for_engine",
+            return_value=_ScriptedSdk(),
+        ):
+            self.assertIsInstance(build_engine("codex"), CodexSdkEngine)
+            self.assertIsInstance(build_engine("claude"), ClaudeSdkEngine)
+
+    def test_sdk_engines_fall_back_to_cli_when_provider_client_is_unavailable(self) -> None:
+        with patch(
+            "ralph.orchestrator.sdk_clients.default_sdk_client_for_engine",
+            return_value=None,
+        ):
+            self.assertIsInstance(build_engine("codex"), CodexCliEngine)
+            self.assertIsInstance(build_engine("claude"), ClaudeCliEngine)
 
     def test_unknown_engine_is_rejected(self) -> None:
         with self.assertRaises(ValueError):

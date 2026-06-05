@@ -7,7 +7,8 @@ Python orchestrator owns all of that.
 
 This module ships the ``FakeEngine`` used by tests and the no-publish dry-run.
 The SDK and CLI adapters live in ``engines.py``; ``build_engine`` resolves them
-through that module while keeping the fake engine and CLI fallback available.
+through that module while keeping the fake engine and temporary CLI fallback
+available.
 """
 
 from __future__ import annotations
@@ -84,16 +85,17 @@ class FakeEngine(Engine):
         )
 
 
-def build_engine(engine_name: str) -> Engine:
+def build_engine(engine_name: str, *, model: str | None = None) -> Engine:
     """Resolve an engine name to a concrete adapter.
 
     The fake engine is always available for dry-runs and tests. SDK and CLI
-    adapters are resolved through ``engines.resolve_engine``; an SDK engine with
-    no provider client wired falls back to the matching CLI adapter so the proven
-    path stays available during the migration. Imported lazily to avoid a cycle
-    (``engines`` imports the engine primitives defined here).
+    adapters are resolved through ``engines.resolve_engine``; ``codex`` and
+    ``claude`` are SDK-forward names, but without a provider client wired they
+    temporarily fall back to the matching CLI adapter during migration. Imported
+    lazily to avoid a cycle (``engines`` imports the engine primitives defined
+    here).
     """
 
     from .engines import resolve_engine
 
-    return resolve_engine(engine_name)
+    return resolve_engine(engine_name, model=model)

@@ -21,11 +21,20 @@ Ralph is PR-only. It must not fast-forward, merge, or push `main` directly.
 - `uv` with Python 3.11.
 - `gh` authenticated against `Sunnshiine/workout-app`.
 - An agent engine for real phase work:
-  - `claude` / Claude Code
-  - `codex` / Codex
-  - CLI fallback names: `claude-cli`, `codex-cli`
+  - primary SDK-forward names: `codex`, `claude` (`openai-codex` and
+    `claude-agent-sdk` are installed by `uv`)
+  - temporary migration/diagnostic fallback names: `codex-cli`, `claude-cli`
+- Existing local agent authentication:
+  - `codex` reuses the local Codex account/auth state.
+  - `claude` reuses the local Claude Agent/Claude Code account/auth state.
 - `Secrets.xcconfig` when Xcode gates are run from generated worktrees.
 - Xcode 26+ and the iPhone 17 Pro simulator runtime for app gates.
+
+Ralph does not require `OPENAI_API_KEY`, `CODEX_API_KEY`, `ANTHROPIC_API_KEY`,
+`GH_TOKEN`, or `GITHUB_TOKEN`. Use the normal `gh`, Codex, and Claude login flows for
+those tools; do not pass raw tokens to Ralph. The only Ralph-specific environment
+variable is `SECRETS_XCCONFIG_SOURCE`, which points generated worktrees at a trusted
+private `Secrets.xcconfig` source when app gates need it.
 
 ---
 
@@ -101,7 +110,7 @@ The Python runner supports:
 
 | Flag | Meaning |
 |------|---------|
-| `--engine fake\|claude\|codex\|claude-cli\|codex-cli` | Engine adapter for phase turns. Dry-run modes force `fake`. |
+| `--engine fake\|claude\|codex\|claude-cli\|codex-cli` | Engine adapter for phase turns. `codex`/`claude` resolve to SDK clients when their packages import. Dry-run modes force `fake`. |
 | `--max-iterations N` / `--max-iter N` | Maximum issues to process. |
 | `--model NAME` | Optional model alias passed to the engine. |
 | `--device "iPhone 17 Pro"` | Simulator device for app gates. |
@@ -123,6 +132,30 @@ Use the deterministic Python PR targets instead:
 - one-off issue: `ralph/issue-<issue-number>`
 - PRD-scoped issue: `ralph/prd-<prd-number>`
 - blocked rescue: `ralph/issue-<issue-number>-blocked`
+
+---
+
+## Engine Strategy
+
+Ralph is SDK-forward. The intended/default real engine paths are:
+
+- `codex` -> `CodexSdkEngine`
+- `claude` -> `ClaudeSdkEngine`
+
+Those SDK engines run only one agent phase turn. Python still owns issue selection, worktrees,
+gates, authority checks, PR publishing, labels, repair loops, and blocked PR state.
+
+The `openai-codex` package drives Codex with `cwd` set to the issue worktree and
+`Sandbox.workspace_write`. The `claude-agent-sdk` package drives Claude with `cwd` set to the issue
+worktree, one turn per Ralph phase, and edit-oriented Claude Agent permissions. Both clients feed
+provider output back into the same Ralph promise-line contract.
+
+The explicit `codex-cli` and `claude-cli` engines are temporary migration and diagnostic fallbacks.
+They exist so operators can keep using known-good local agent tooling while SDK auth, permissions,
+structured logs, and timeout behavior are proven. If a primary SDK package cannot be imported,
+`codex` or `claude` temporarily degrades to the matching CLI adapter; explicit `*-cli` names always
+use the CLI adapter. Remove the CLI fallbacks once both SDK engines are stable for unattended local
+runs.
 
 ---
 

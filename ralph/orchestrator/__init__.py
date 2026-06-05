@@ -112,6 +112,11 @@ from .repair import (
     repair_brief_relpath,
     requires_swift_review,
 )
+from .sdk_clients import (
+    ClaudeProviderSdkClient,
+    CodexProviderSdkClient,
+    default_sdk_client_for_engine,
+)
 from .targets import PrTarget, TargetResolutionError, TargetResolver, branch_for_contract
 from .worktree import (
     GitResult,
@@ -152,10 +157,12 @@ __all__ = [
     "BlockedRescuePlan",
     "BlockedRescuePublisher",
     "ClaudeCliEngine",
+    "ClaudeProviderSdkClient",
     "ClaudeSdkEngine",
     "CliInvocation",
     "CliResult",
     "CodexCliEngine",
+    "CodexProviderSdkClient",
     "CodexSdkEngine",
     "CommandResult",
     "ConfigError",
@@ -205,6 +212,7 @@ __all__ = [
     "complete_promise_line",
     "default_cli_runner",
     "default_git_runner",
+    "default_sdk_client_for_engine",
     "integration_commit_message",
     "is_ui_owned_gate",
     "normalize_sdk_events",

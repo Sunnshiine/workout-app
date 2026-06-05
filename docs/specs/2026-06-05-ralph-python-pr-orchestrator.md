@@ -82,7 +82,7 @@ Relevant existing docs:
 ### In
 
 - Side-by-side Python Ralph orchestrator.
-- SDK-backed Codex and Claude engine adapters, with CLI fallback adapters during migration.
+- SDK-backed Codex and Claude engine adapters as the primary/default target, with CLI adapters kept only as temporary migration and diagnostic fallbacks.
 - PR-only publish target resolution.
 - PRD stack detection and branch naming.
 - Successful issue lifecycle: `agent-implemented`, draft/ready PRs, integration commit closing keywords.
@@ -137,10 +137,10 @@ Python Ralph owns a typed orchestration boundary:
 
 Engine adapters are isolated behind the same interface:
 
-- `CodexSdkEngine`
-- `ClaudeSdkEngine`
-- `CodexCliEngine` fallback
-- `ClaudeCliEngine` fallback
+- Primary/default: `CodexSdkEngine`
+- Primary/default: `ClaudeSdkEngine`
+- Temporary migration/diagnostic fallback: `CodexCliEngine`
+- Temporary migration/diagnostic fallback: `ClaudeCliEngine`
 - `FakeEngine` for tests and dry-runs
 
 The SDK or CLI only runs the agent turn. It does not select targets, decide lifecycle state, mutate labels, create PRs, run gates, or decide whether code is safe to publish.
@@ -390,11 +390,12 @@ The target Python workflow has no direct `origin/main` push or local `main` fast
 
 ### Phase 6: SDK Engines and Progressive Prompts
 
-- Change: Add `CodexSdkEngine` and `ClaudeSdkEngine` as intended adapters; keep CLI fallback adapters. Convert phase prompts to progressive-disclosure artifacts.
-- Compatibility: CLI fallback remains available until SDK auth, permissions, and logs are proven locally.
+- Change: Add `CodexSdkEngine` and `ClaudeSdkEngine` as intended/default adapters backed by `openai-codex` and `claude-agent-sdk`; keep CLI fallback adapters only for temporary migration and diagnostics. Convert phase prompts to progressive-disclosure artifacts.
+- Compatibility: CLI fallback remains available until SDK auth, permissions, structured logs, and timeout behavior are proven locally.
 - Acceptance criteria:
   - SDK smoke tests can run a harmless read-only phase in a fixture worktree.
   - Prompt artifacts are written and referenced instead of embedding full logs/comments by default.
+  - Missing SDK packages degrade to explicit CLI fallback adapters; installed SDK packages are the default for `codex` and `claude`.
 
 ### Phase 7: Replacement Gate
 
@@ -409,7 +410,7 @@ The target Python workflow has no direct `origin/main` push or local `main` fast
 ## Deletion Criteria
 
 - `ralph/ralph.sh` orchestration can be deleted or replaced with a wrapper only after the Python runner passes all local tests, the live dry-run, and explicit human approval.
-- CLI fallback adapters can be removed only after both SDK adapters prove stable with local auth, unattended permissions, structured logs, and timeout handling.
+- CLI fallback adapters should be removed after both SDK adapters prove stable with local auth, unattended permissions, structured logs, and timeout handling.
 - Legacy direct-main docs/options can be removed once the Python runner is canonical and README no longer documents direct-main publishing.
 - Any compatibility parser for old branch directives can be removed after open `ready-for-agent` issues have been migrated to the explicit PRD/PR-only directives.
 

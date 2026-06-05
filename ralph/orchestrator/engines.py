@@ -1,23 +1,26 @@
-"""SDK and CLI engine adapters.
+"""SDK-forward engine adapters, with temporary CLI fallbacks.
 
 Each adapter satisfies the :class:`Engine` contract from ``engine.py`` and returns
 a NORMALIZED :class:`PhaseResult` regardless of how the underlying provider reports
-its turn. Two transports are supported during the side-by-side migration:
+its turn. Two transports are supported during the side-by-side migration, but the
+strategic/default direction is SDK-first:
 
+- SDK adapters (:class:`CodexSdkEngine`, :class:`ClaudeSdkEngine`) drive a provider
+  client that yields a stream of events and normalize the final event shape to the
+  same :class:`PhaseResult`.
 - CLI adapters (:class:`CodexCliEngine`, :class:`ClaudeCliEngine`) run the existing
   command-line agent and parse the shell promise lines
   (``<promise phase="...">COMPLETE</promise>`` /
   ``<promise phase="...">BLOCKED:reason</promise>``) out of captured output. This
-  keeps the proven fallback path available until SDK auth/permissions/logs/timeouts
-  are proven locally.
-- SDK adapters (:class:`CodexSdkEngine`, :class:`ClaudeSdkEngine`) drive a provider
-  client that yields a stream of events and normalize the final event shape to the
-  same :class:`PhaseResult`.
+  keeps a migration/diagnostic fallback available until SDK auth, permissions,
+  structured logs, and timeout behavior are proven locally.
 
 Every transport is behind an injectable seam: the CLI adapters take a
 ``CliRunner`` and the SDK adapters take an ``SdkClient``. Tests inject fakes so no
-adapter ever shells out to a real binary or hits a real network. ``build_engine``
-wires the real defaults; the fake engine stays the dry-run/test default.
+adapter ever shells out to a real binary or hits a real network. Production should
+wire SDK clients for ``codex`` and ``claude``; without those clients, resolution
+degrades to the matching CLI fallback during the migration. The fake engine stays
+the dry-run/test default.
 """
 
 from __future__ import annotations
@@ -335,13 +338,14 @@ def resolve_engine(
     model: str | None = None,
     sdk_client: SdkClient | None = None,
     cli_runner: CliRunner | None = None,
+    use_default_sdk_client: bool = True,
 ) -> Engine:
     """Resolve an engine name to a concrete adapter.
 
-    The fake engine is always available. SDK engines need a provider ``sdk_client``
-    (the real provider SDK in production, a fake in tests); without one they fall
-    back to the matching CLI adapter so a missing/unproven SDK degrades to the
-    proven CLI path rather than failing hard.
+    The fake engine is always available. ``codex`` and ``claude`` are SDK-forward
+    names: production should pass a provider ``sdk_client`` for them. During the
+    migration, a missing client degrades to the matching CLI fallback so existing
+    local agent tooling remains available for diagnostics and rollback.
     """
 
     if engine_name == FAKE_ENGINE:
@@ -351,18 +355,28 @@ def resolve_engine(
     if engine_name == CLAUDE_CLI_ENGINE:
         return ClaudeCliEngine(runner=cli_runner)
     if engine_name == CODEX_SDK_ENGINE:
-        if sdk_client is None:
+        client = sdk_client or _default_sdk_client(engine_name, use_default_sdk_client)
+        if client is None:
             return CodexCliEngine(runner=cli_runner)
-        return CodexSdkEngine(sdk_client, model=model)
+        return CodexSdkEngine(client, model=model)
     if engine_name == CLAUDE_SDK_ENGINE:
-        if sdk_client is None:
+        client = sdk_client or _default_sdk_client(engine_name, use_default_sdk_client)
+        if client is None:
             return ClaudeCliEngine(runner=cli_runner)
-        return ClaudeSdkEngine(sdk_client, model=model)
+        return ClaudeSdkEngine(client, model=model)
     raise ValueError(
         f"unknown engine {engine_name!r}; expected one of: "
         f"{FAKE_ENGINE}, {CLAUDE_SDK_ENGINE}, {CODEX_SDK_ENGINE}, "
         f"{CLAUDE_CLI_ENGINE}, {CODEX_CLI_ENGINE}"
     )
+
+
+def _default_sdk_client(engine_name: str, enabled: bool) -> SdkClient | None:
+    if not enabled:
+        return None
+    from .sdk_clients import default_sdk_client_for_engine
+
+    return default_sdk_client_for_engine(engine_name)
 
 
 __all__ = [
