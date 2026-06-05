@@ -31,7 +31,17 @@ Ralph is PR-only. It must not fast-forward, merge, or push `main` directly.
 
 ## Commands
 
-The wrapper and Python module are equivalent:
+Recommended operator command:
+
+```bash
+ralph/ralph.sh --engine codex --max-iterations 1
+```
+
+Use `ralph/ralph.sh` for normal runs. It finds the repo root, preserves the stable Ralph
+entrypoint, and delegates to the Python module. Use the Python module directly when you are testing
+or scripting the Python entrypoint itself.
+
+The wrapper and Python module are otherwise equivalent:
 
 ```bash
 ralph/ralph.sh --help
@@ -49,6 +59,42 @@ Run with a selected engine:
 ```bash
 ralph/ralph.sh --engine codex --max-iterations 1
 ralph/ralph.sh --engine claude --max-iterations 1
+```
+
+Direct Python invocation:
+
+```bash
+uv run --python 3.11 python -m ralph.orchestrator --engine codex --max-iterations 1
+```
+
+### Keep macOS awake with caffeinate
+
+For longer Ralph runs on macOS, wrap the command with the native `caffeinate` utility so the Mac
+stays awake until Ralph exits:
+
+```bash
+caffeinate -ism ralph/ralph.sh --engine codex --max-iterations 1
+```
+
+The useful flags here are:
+
+- `-i` prevents idle system sleep.
+- `-m` prevents disk sleep.
+- `-s` prevents system sleep while on AC power.
+
+`-d` (prevent display sleep) and `-u` (declare user activity) are optional; keep the copy/paste
+command at `-ism` unless you specifically need those behaviors.
+
+To run the Python module directly under `caffeinate`:
+
+```bash
+caffeinate -ism uv run --python 3.11 python -m ralph.orchestrator --engine codex --max-iterations 1
+```
+
+`caffeinate` exits when the wrapped command exits. For a no-side-effect smoke check:
+
+```bash
+caffeinate -ism ralph/ralph.sh --dry-run
 ```
 
 The Python runner supports:
