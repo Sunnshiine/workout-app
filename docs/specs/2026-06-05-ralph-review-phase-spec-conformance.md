@@ -7,9 +7,10 @@ make that phase responsible for two independent review lenses: Swift code review
 and spec conformance review.
 
 The change exists because correct autonomous work needs both kinds of feedback.
-`swift-reviewer` checks whether the implementation is technically sound.
-`spec-conformance-reviewer` checks whether the implementation satisfies the
-frozen GitHub issue contract and does not expand beyond it.
+`swift-reviewer` checks whether the implementation is technically sound. In the
+Ralph review phase, `spec-conformance-reviewer` checks whether the
+implementation satisfies the frozen GitHub issue contract and does not expand
+beyond it.
 
 ## Background
 
@@ -124,12 +125,17 @@ independent read-only reviewer subagents against the same frozen
 
 - `swift-reviewer`: reviews Swift correctness, maintainability, architecture
   fit, and non-UI test fit.
-- `spec-conformance-reviewer`: reviews only conformance to the issue contract.
+- `spec-conformance-reviewer`: reviews only conformance to the supplied spec.
 
 The `spec-conformance-reviewer` custom subagent is installed beside the existing
-global reviewer agents and is read-only. It reports only pass/blocking spec
-conformance findings and never edits files, commits, pushes, relabels, closes
-issues, or mutates PR state.
+global reviewer agents and is read-only. The subagent itself is generic enough
+to review any caller-supplied spec, issue contract, acceptance criteria, brief,
+diff, PR, repair patch, document, or generated artifact. Ralph's `review.md`
+prompt supplies the Ralph-specific workflow context: the frozen `IssueContract`,
+the current diff scope, the authority order, and the exact pass/block
+expectations. The subagent reports only pass/blocking spec conformance findings
+and never edits files, commits, pushes, relabels, closes issues, or mutates PR
+state.
 
 The phase agent gathers both reviewer reports, fixes any blocking findings in
 the worktree, runs the narrowest relevant non-UI checks needed to prove fixes,
@@ -137,9 +143,9 @@ commits remediation, and reruns the relevant reviewer or reviewers. The phase
 completes only when both reviewers report no blocking findings on the current
 state.
 
-The spec conformance reviewer treats PRDs, linked specs, ADRs, comments, and
-docs as context. They may explain terms or intent, but they do not override or
-expand the captured issue contract.
+When invoked by Ralph, the spec conformance reviewer treats PRDs, linked specs,
+ADRs, comments, and docs as context. They may explain terms or intent, but they
+do not override or expand the captured issue contract.
 
 ## Contracts
 
