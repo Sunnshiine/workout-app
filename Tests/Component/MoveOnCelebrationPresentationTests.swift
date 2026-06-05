@@ -19,6 +19,25 @@ import Testing
 }
 
 @MainActor
+@Test func moveOnCelebrationPresentationProvidesF3StaticShellCopy() {
+    let session = makeMoveOnSession(
+        weekNumber: 2,
+        dayNumber: 3,
+        exercises: [
+            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .pending])
+        ]
+    )
+
+    let presentation = MoveOnCelebrationPresentation(session: session, quoteText: "Steady work travels.")
+
+    #expect(presentation.markText == "TFN")
+    #expect(presentation.actionText == "Move On")
+    #expect(presentation.savedSetsText == "Logged Sets are saved. Open Sets stay with the Week.")
+    #expect(presentation.tapHintText == "Tap anywhere to continue")
+    #expect(presentation.quoteText == "Steady work travels.")
+}
+
+@MainActor
 @Test func moveOnCelebrationPresentationSelectsSuccessHapticForIncompleteSession() {
     let session = makeMoveOnSession(
         exercises: [
@@ -85,63 +104,6 @@ import Testing
     let presentation = MoveOnCelebrationPresentation(session: session)
 
     #expect(presentation.hapticStyle == .successWithImpact)
-}
-
-@MainActor
-@Test func moveOnCelebrationPresentationSelectsAnimatedBloomForPerfectSession() {
-    let session = makeMoveOnSession(
-        exercises: [
-            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .skipped])
-        ]
-    )
-
-    let presentation = MoveOnCelebrationPresentation(session: session)
-
-    #expect(presentation.visualTreatment(reduceMotion: false) == .animatedBloom)
-}
-
-@MainActor
-@Test func moveOnCelebrationPresentationKeepsStaticLensForReducedMotionPerfectSession() {
-    let session = makeMoveOnSession(
-        exercises: [
-            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .skipped])
-        ]
-    )
-
-    let presentation = MoveOnCelebrationPresentation(session: session)
-
-    #expect(presentation.visualTreatment(reduceMotion: true) == .reducedMotionLens)
-}
-
-@MainActor
-@Test func moveOnCelebrationPresentationSelectsAnimatedBloomForIncompleteSession() {
-    let session = makeMoveOnSession(
-        exercises: [
-            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .pending])
-        ]
-    )
-
-    let presentation = MoveOnCelebrationPresentation(session: session)
-
-    #expect(presentation.visualTreatment(reduceMotion: false) == .animatedBloom)
-    #expect(presentation.visualTreatment(reduceMotion: true) == .reducedMotionLens)
-}
-
-@MainActor
-@Test func moveOnCelebrationPresentationLoopsBloomForSeveralSecondsUnlessMotionIsReduced() {
-    let session = makeMoveOnSession(
-        exercises: [
-            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .pending])
-        ]
-    )
-
-    let presentation = MoveOnCelebrationPresentation(session: session)
-    let motion = presentation.bloomMotion(reduceMotion: false)
-
-    #expect(motion?.loopDuration == 7.2)
-    #expect(motion?.pulseDuration == 1.2)
-    #expect(motion?.repeatCount == 6)
-    #expect(presentation.bloomMotion(reduceMotion: true) == nil)
 }
 
 @MainActor

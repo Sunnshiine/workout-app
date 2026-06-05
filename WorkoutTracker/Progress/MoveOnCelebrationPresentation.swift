@@ -10,20 +10,6 @@ enum MoveOnCelebrationHapticStyle: Equatable, Hashable, Sendable {
     case successWithImpact
 }
 
-enum MoveOnCelebrationVisualTreatment: Equatable, Sendable {
-    case animatedBloom
-    case reducedMotionLens
-}
-
-struct MoveOnCelebrationBloomMotion: Equatable, Sendable {
-    let pulseDuration: TimeInterval
-    let loopDuration: TimeInterval
-
-    var repeatCount: Int {
-        max(Int((loopDuration / pulseDuration).rounded(.down)), 1)
-    }
-}
-
 struct MoveOnCelebrationPresentation: Equatable, Sendable {
     static let longQuoteFixture =
         "Strong work is still strong when today asks you to leave a few Sets for later; take the win, keep the thread, and come back ready."
@@ -33,14 +19,14 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
         "Get it girl!",
         "Shake it!"
     ]
-    static let animatedBloomMotion = MoveOnCelebrationBloomMotion(
-        pulseDuration: 1.2,
-        loopDuration: 7.2
-    )
 
+    let markText: String
     let contextText: String
+    let actionText: String
+    let savedSetsText: String
     let stats: [MoveOnCelebrationStatPresentation]
     let quoteText: String
+    let tapHintText: String
     let accessibilityLabel: String
     let accessibilityValue: String
     let accessibilityHint: String
@@ -55,26 +41,22 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
         let pendingSetCount = sets.filter { $0.state == .pending }.count
         let selectedQuote = requestedQuoteText ?? Self.launchQuoteOverride ?? Self.approvedQuotes.randomElement() ?? ""
 
+        markText = "TFN"
         contextText = "Week \(weekNumber) · Day \(session.dayNumber)"
+        actionText = "Move On"
+        savedSetsText = "Logged Sets are saved. Open Sets stay with the Week."
         stats = [
             MoveOnCelebrationStatPresentation(value: "\(totalSetCount)", label: "Sets"),
             MoveOnCelebrationStatPresentation(value: "\(exerciseCount)", label: "Exercises"),
             MoveOnCelebrationStatPresentation(value: "\(pendingSetCount)", label: "Left")
         ]
         quoteText = selectedQuote
+        tapHintText = "Tap anywhere to continue"
         accessibilityLabel = "Week \(weekNumber), Day \(session.dayNumber)"
         accessibilityValue = ([selectedQuote] + stats.map { "\($0.value) \($0.label)" })
             .joined(separator: ", ")
-        accessibilityHint = "Tap anywhere to continue"
+        accessibilityHint = tapHintText
         hapticStyle = pendingSetCount == 0 ? .successWithImpact : .success
-    }
-
-    func visualTreatment(reduceMotion: Bool) -> MoveOnCelebrationVisualTreatment {
-        reduceMotion ? .reducedMotionLens : .animatedBloom
-    }
-
-    func bloomMotion(reduceMotion: Bool) -> MoveOnCelebrationBloomMotion? {
-        reduceMotion ? nil : Self.animatedBloomMotion
     }
 
     private static var launchQuoteOverride: String? {

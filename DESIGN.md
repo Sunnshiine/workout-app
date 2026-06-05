@@ -205,10 +205,9 @@ The palette is a restrained green system with two product appearances: original 
 
 ## 4. Elevation
 
-Workout App uses tonal layering, strokes, and selective Liquid Glass instead of a broad shadow system. Depth is created by a full-screen gradient, glass surfaces for high-value containers, quiet fills for controls, and 1px strokes that define tappable regions. Shadows are exceptional: Move On Celebration can use a native-feeling bloom around its TFN glass lens, and active Exercise focus can use a stronger glow, but ordinary cards do not glow.
+Workout App uses tonal layering, strokes, and selective Liquid Glass instead of a broad shadow system. Depth is created by a full-screen gradient, glass surfaces for high-value containers, quiet fills for controls, and 1px strokes that define tappable regions. Shadows are exceptional: active Exercise focus can use a stronger glow, but ordinary cards and Move On Celebration surfaces do not glow.
 
 ### Shadow Vocabulary
-- **Celebration Glow**: A soft bloom around the Move On Celebration TFN glass lens. Use only for earned celebration.
 - **Active Focus Glow**: A mint glow used when an Exercise section is actively focused. Use sparingly; if every card glows, none is focused.
 
 ### Named Rules
@@ -269,15 +268,13 @@ Last Performed is a quiet inline reference line above the active Set — plain m
 
 Move On Celebration is the only large celebratory moment. It marks the athlete's explicit choice to Move On from the Current Session, not automatic Set completion.
 
-The accepted direction is Glass Bloom: a Sage Light-led, flat foundation with one elevated Liquid Glass focal object. The TFN logo sits inside a horizontal glass lens near the top-center of the screen. The celebration uses faint `Week N · Day X` context, one bounded rotating quote, the `Sets / Exercises / Left` stats row, and `Tap anywhere to continue`.
+The accepted direction is F3 Static: a quiet full-screen shell using the active app theme palette in both Dark and Sage Light. The TFN mark sits at top-left, `Week N · Day X` sits at top-right, `Move On` introduces the existing rotating approved quote, concise saved/open Sets copy follows, the `Sets / Exercises / Left` stats row is the only block-like surface, and `Tap anywhere to continue` closes the hierarchy.
 
 The quote carries the product's motivating personality, but it must not become a fragile oversized hero. Give the quote a stable visual region that can show up to three lines with slight scaling before relying on the screen's scroll fallback.
 
-The `Left` stat carries the Pending Set count for incomplete Sessions. Do not add a separate `Moved on with N left` visual row in the default hierarchy. Perfect Sessions keep the same layout but may earn a richer haptic and a more pronounced native-feeling glass bloom.
+The `Left` stat carries the Pending Set count for incomplete Sessions. Do not add a separate `Moved on with N left` visual row in the default hierarchy. Perfect Sessions keep the same layout but may earn a richer haptic.
 
-Use a glass bloom or ripple only if it reads as native Liquid Glass in SwiftUI. If the effect looks like a fake decorative ring, omit the ripple and keep the static glass lens. Reduced Motion keeps the static glass lens and skips repeated ripple motion.
-
-**The Celebration Has One Focal Object Rule.** Move On Celebration uses the TFN logo glass lens as its focal object. Do not reintroduce a checkmark stamp, badge stack, mascot, confetti, or multiple competing celebration graphics.
+**The Celebration Has One Summary Surface Rule.** Move On Celebration uses the stats row as its only block-like surface. Do not reintroduce a checkmark stamp, horizontal glass lens, badge stack, mascot, confetti, Exercise cards, route checkpoints, elapsed-time nucleus, or multiple competing celebration graphics.
 
 **The Quote Has a Home Rule.** Celebration quotes are motivating personality, not layout-breaking headlines. They must render in a bounded region that tolerates longer copy.
 
