@@ -68,6 +68,17 @@ from .publish import (
     PullRequestPublisher,
     integration_commit_message,
 )
+from .repair import (
+    DEFAULT_PHASE_TIMEOUT_SECONDS,
+    PHASE_REPAIR_UI_GATE,
+    PHASE_SWIFT_REVIEW_AFTER_REPAIR,
+    RepairCoordinator,
+    RepairError,
+    RepairOutcome,
+    render_repair_brief,
+    repair_brief_relpath,
+    requires_swift_review,
+)
 from .targets import PrTarget, TargetResolutionError, TargetResolver, branch_for_contract
 from .worktree import (
     GitResult,
@@ -90,6 +101,9 @@ __all__ = [
     "VISUAL_BASELINE_DIR",
     "AuthorityDecision",
     "AuthorityGate",
+    "DEFAULT_PHASE_TIMEOUT_SECONDS",
+    "PHASE_REPAIR_UI_GATE",
+    "PHASE_SWIFT_REVIEW_AFTER_REPAIR",
     "BlockedReport",
     "BlockedReportWriter",
     "BlockedRescuePlan",
@@ -118,6 +132,9 @@ __all__ = [
     "PrTarget",
     "PublishError",
     "PullRequestPublisher",
+    "RepairCoordinator",
+    "RepairError",
+    "RepairOutcome",
     "RunConfig",
     "TargetResolutionError",
     "TargetResolver",
@@ -138,4 +155,7 @@ __all__ = [
     "parse_prd_number",
     "parse_ui_test_authorization",
     "redact_secrets",
+    "render_repair_brief",
+    "repair_brief_relpath",
+    "requires_swift_review",
 ]
