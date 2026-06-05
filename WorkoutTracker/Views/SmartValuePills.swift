@@ -181,8 +181,7 @@ struct SmartValuePills: View {
                 canLog: form.canLog,
                 showsLoggedCheckmark: showsLoggedCheckmark,
                 onLogTap: submitLog,
-                onSkip: onSkip,
-                onPressStarted: dismissFieldUI
+                onSkip: skipSet
             )
 
             if set.state != .pending {
@@ -202,11 +201,22 @@ struct SmartValuePills: View {
     }
 
     private func submitLog() {
+        let outcome = LogButtonTapPolicy().tapOutcome(hitRegion: .background, isEditing: editingPill != nil)
+        switch outcome {
+        case .finishEditingAndSubmit:
+            dismissFieldUI()
+        }
+
         guard let log = form.submitLog() else { return }
         withAnimation(Theme.logButtonCheckmarkAnimation) {
             showsLoggedCheckmark = true
         }
         onLog(log)
+    }
+
+    private func skipSet() {
+        dismissFieldUI()
+        onSkip()
     }
 
     private func dismissFieldUI() {
@@ -294,7 +304,6 @@ private struct HoldToSkipLogButton: View {
     let showsLoggedCheckmark: Bool
     let onLogTap: () -> Void
     let onSkip: () -> Void
-    let onPressStarted: () -> Void
 
     @State private var skipProgress = 0.0
     @State private var skipPressStartedAt: Date?
@@ -316,7 +325,6 @@ private struct HoldToSkipLogButton: View {
             buttonContent
         }
         .buttonStyle(.plain)
-        .contentShape(.rect)
         .onLongPressGesture(
             minimumDuration: policy.holdDuration,
             maximumDistance: 44,
@@ -344,6 +352,7 @@ private struct HoldToSkipLogButton: View {
             RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
                 .strokeBorder(logStrokeStyle, lineWidth: logStrokeWidth)
         )
+        .contentShape(.rect)
         .opacity(presentation.controlOpacity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
@@ -426,7 +435,6 @@ private struct HoldToSkipLogButton: View {
 
     private func startSkipHoldIfNeeded() {
         guard skipPressStartedAt == nil else { return }
-        onPressStarted()
         skipPressStartedAt = Date()
         skipCompleted = false
         skipProgress = 0

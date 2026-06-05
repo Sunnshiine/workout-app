@@ -8,6 +8,21 @@ enum HoldToSkipReleaseOutcome: Equatable, Sendable {
     case ignore
 }
 
+enum LogButtonHitRegion: CaseIterable, Equatable, Sendable {
+    case label
+    case background
+}
+
+enum LogButtonTapOutcome: Equatable, Sendable {
+    case finishEditingAndSubmit
+}
+
+struct LogButtonTapPolicy: Equatable, Sendable {
+    func tapOutcome(hitRegion _: LogButtonHitRegion, isEditing _: Bool) -> LogButtonTapOutcome {
+        .finishEditingAndSubmit
+    }
+}
+
 struct HoldToSkipPolicy: Equatable, Sendable {
     let holdDuration: TimeInterval
     let tapMaximumDuration: TimeInterval

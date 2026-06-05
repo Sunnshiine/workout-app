@@ -30,6 +30,16 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     #expect(presentation.tone == .primary)
 }
 
+@Test func logButtonTapPolicySubmitsAndDismissesEditingFromEveryHitRegion() {
+    let policy = LogButtonTapPolicy()
+
+    for hitRegion in LogButtonHitRegion.allCases {
+        let outcome = policy.tapOutcome(hitRegion: hitRegion, isEditing: true)
+
+        #expect(outcome == .finishEditingAndSubmit)
+    }
+}
+
 @Test func holdToSkipPolicyDoesNotTreatCanceledHoldAsLogTap() {
     let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18, revealDelay: 0.25)
 
