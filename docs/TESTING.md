@@ -68,12 +68,39 @@ Test doubles policy:
   launch boundaries, and drives real controls through accessibility.
 - Automated tests must not hit live Google auth, live Google Sheets, or real network connectivity.
 
+UI integration test boundary:
+
+- `Tests/UI` is the real-control wiring layer. It proves launch state, navigation, accessibility
+  lookup, hittability, route completion, and one representative end-to-end flow per critical app
+  surface.
+- UI tests may assert that a real user action reaches a visible result. Unit and component tests own
+  the detailed state rules, permutations, string construction, persistence semantics, and business
+  logic behind that result.
+- UI tests may include layout assertions only when the assertion protects functional accessibility:
+  a control must remain tappable, readable, reachable, and not clipped out of usable bounds. Pixel
+  polish, spacing, exact frame relationships, and broad appearance coverage belong to Visual
+  Regression tests, Ralph screenshots, or component/presentation tests.
+- Gesture-heavy surfaces should keep at most one representative UI gesture per critical path to
+  prove the real SwiftUI attachment works. Component or unit tests own thresholds, timing, idle
+  behavior, precommit releases, and state-machine edge cases.
+- Settings and Developer Tools should have route smokes plus one representative critical
+  confirmation path. Store, sync, reset, diagnostics, and pending-write rules belong to lower-level
+  tests unless the app-layer wiring itself is the risk.
+- UI cleanup issues must identify the replacement coverage owner before deleting or narrowing an
+  XCTest. Either cite existing unit, component, visual, or Ralph coverage, or add the missing
+  lower-level coverage first.
+- Pruning UI tests does not change the completion gate. The remaining representative UI suite still
+  runs before an issue is complete or merged.
+
 Shared fixture policy:
 
 - Put shared builders and named scenarios under `Tests/Support`.
 - Reuse the same canonical scenarios across layers, with layer-specific assertions.
 - Initial scenarios: fresh configured app, Current Session with Pending Sets, partially Logged
   Session, Open Exercises, sync failure, queued write, and Block Overview with mixed Session states.
+- UI launch fixtures should stay small and named. Add a new UI fixture route only when it protects a
+  distinct app-layer wiring risk that cannot be reached from the existing shared scenarios without
+  making the test substantially broader.
 
 Per-change test selection:
 
@@ -116,11 +143,18 @@ Implementation slices:
 4. Fixture unification: promote ad hoc fixtures and the launch fixture into named shared scenarios.
 5. Ralph gate update: run the full framework before autonomous issues can complete.
 
-Initial UI-test scope:
+Representative UI-test scope:
 
 - Launch with a deterministic fixture and verify the Current Session renders.
 - Log the active Set through the real controls and verify the next active Set advances.
-- Move On, open Block Overview, switch Sessions, and return to the Current Session.
+- Move On and dismiss the Move On Celebration.
+- Open Block Overview, switch Sessions, and return to the Current Session.
+- Open Settings, exercise one sign-out route, and exercise one representative pending-write
+  confirmation path.
+- Open Developer Tools through the real route and verify the route loads.
+- Cover one Open Exercise makeup path.
+- Cover one Partially Uploaded Block path where Unavailable Sessions stay inert and terminal Move On
+  returns to the Block grid.
 
 # Manual Testing on the iOS Simulator
 
