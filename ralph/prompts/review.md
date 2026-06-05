@@ -34,8 +34,6 @@ history, or change the loop's own scripts or prompts (`ralph/*.sh`,
 - Give both reviewers the frozen issue contract, current diff scope, ISSUE_BASE_REF,
   CONTEXT_PATH, and DIAGNOSIS_PATH when present.
 - Do NOT run Xcode UI integration tests in this phase.
-- Do NOT run `ralph/snapshot.sh` in this phase.
-- Do NOT spawn `ui-screenshot-reviewer` in this phase.
 - If either reviewer reports blocking findings, fix them in this same worktree.
 - After fixes, rerun the narrowest relevant non-UI checks plus any non-UI checks
   needed to prove the reviewer finding is fixed.
@@ -60,7 +58,7 @@ Emit COMPLETE only when ALL of these hold:
 - `spec-conformance-reviewer` reported no blocking findings on the current state,
   or all blocking findings were fixed and re-reviewed.
 - Any files changed by this phase were committed.
-- You did not run UI tests, screenshots, or UI screenshot review.
+- You did not run UI tests.
 
 If any condition fails, including being unable to spawn the reviewer, end with
 the exact BLOCKED promise format from the preamble, using this phase's name.

@@ -456,10 +456,6 @@ class RalphLoop:
                 f"DIAGNOSIS_PATH: {diagnosis_path}" if diagnosis_path is not None else "",
                 f"COMPLETE_PROMISE_LINE: {complete_promise_line(phase)}",
                 f"BLOCKED_PROMISE_PREFIX: {blocked_promise_prefix(phase)}",
-                "UI_SHOT_PATH: ralph/.artifacts/issue-"
-                f"{contract.number}-ui-review.png",
-                "UI_REVIEW_PATH: ralph/.artifacts/issue-"
-                f"{contract.number}-ui-review.md",
                 "OBSERVATIONS_LOG_PATH: "
                 f"{self._repo_root / ARTIFACT_DIR / 'observations.md'}",
                 "",
@@ -891,7 +887,7 @@ def _allowed_actions_for_phase(phase: str) -> tuple[str, ...]:
             "commit review fixes",
         )
     if phase == PHASE_UI_VERIFY:
-        return ("run UI verification", "capture required screenshots", "commit UI fixes")
+        return ("run UI verification", "commit UI fixes")
     return ()
 
 

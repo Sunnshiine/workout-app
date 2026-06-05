@@ -43,9 +43,7 @@ owns publication after the gates pass.
 - Run non-UI verification before completion: `swift test`, `xcodegen generate`,
   Xcode unit/component tests, and `swiftlint lint --quiet`.
 - Do NOT run Xcode UI integration tests in this phase.
-- Do NOT run `ralph/snapshot.sh` in this phase.
-- Do NOT spawn `swift-reviewer`, `spec-conformance-reviewer`, or
-  `ui-screenshot-reviewer` in this phase.
+- Do NOT spawn reviewer subagents in this phase.
 - Keep scope tied to the issue contract. No speculative features, unrelated
   refactors, or one-off abstractions.
 - Commit the completed implementation on the current branch using the project's
@@ -64,7 +62,7 @@ Emit COMPLETE only when ALL of these hold:
 - The issue is implemented and every issue-contract acceptance criterion is met.
 - The implementation is committed on this branch.
 - The non-UI checks you ran passed.
-- You did not run UI tests, screenshots, or reviewer subagents.
+- You did not run UI tests or reviewer subagents.
 
 If any condition fails, end with the exact BLOCKED promise format from the
 preamble, using this phase's name.

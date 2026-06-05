@@ -4,7 +4,7 @@
 
 The acceptance gate prioritizes behavior correctness first. Simulator user-flow tests protect the
 small number of workflows where app wiring matters. Visual Regression tests protect known-good
-pixels, while static screenshot checks still protect obvious View and Theme regressions.
+pixels for covered surfaces.
 
 Layer duties:
 
@@ -14,7 +14,6 @@ Layer duties:
 - `xcodebuild test` proves the app target compiles and simulator-hosted tests run.
 - Visual Regression tests prove rendered screens match committed Visual Baselines.
 - UI tests prove critical user flows through real controls.
-- Ralph screenshots prove static rendering did not obviously break; they are not behavior tests.
 
 Component tests are not full app launches. They do not touch Google auth, the network, or complete
 navigation flows. They cover view-facing labels, accessibility strings, enabled states, form state,
@@ -30,7 +29,8 @@ Visual vocabulary:
 
 Visual tests use `swift-snapshot-testing` as a test-only dependency. Recording is disabled by
 default, so a missing or changed Visual Baseline fails instead of silently re-recording. New or
-intentional baseline changes must be recorded deliberately and reviewed as changed artifacts.
+intentional baseline changes must be recorded deliberately. Ralph does not add a model-review or
+special-authorization layer on top of the programmatic Visual Regression tests.
 The shared Visual trait configuration is pinned to iPhone 17 Pro on the iOS 26.3.1 runtime, light
 mode, `en_US`, fixed default Dynamic Type, and exact precision (`1.0`).
 
@@ -79,7 +79,7 @@ UI integration test boundary:
 - UI tests may include layout assertions only when the assertion protects functional accessibility:
   a control must remain tappable, readable, reachable, and not clipped out of usable bounds. Pixel
   polish, spacing, exact frame relationships, and broad appearance coverage belong to Visual
-  Regression tests, Ralph screenshots, or component/presentation tests.
+  Regression tests or component/presentation tests.
 - Gesture-heavy surfaces should keep at most one representative UI gesture per critical path to
   prove the real SwiftUI attachment works. Component or unit tests own thresholds, timing, idle
   behavior, precommit releases, and state-machine edge cases.
@@ -111,8 +111,8 @@ Per-change test selection:
   disabled.
 - Navigation, launch state, real control interaction, and cross-store workflows require UI
   integration tests.
-- Pure visual restyling requires Ralph screenshot verification. Component or UI tests are required
-  only when behavior or state contracts change.
+- Pure visual restyling requires relevant Visual Regression coverage when the surface has a
+  baseline. Component or UI tests are required only when behavior or state contracts change.
 
 UI-test frame assertions:
 
@@ -120,8 +120,7 @@ UI-test frame assertions:
   intersecting a compact visual element's layout frame as proof of a visual collision. For compact
   header controls such as the Current Session Settings gear, prefer assertions that prove the
   control exists, is hittable, remains separated from real neighboring controls/cards, and opens the
-  intended surface. Use screenshots, Visual Regression tests, or Ralph screenshot review for actual
-  visual-overlap questions.
+  intended surface. Use Visual Regression tests or human review for actual visual-overlap questions.
 
 Agent gate policy:
 
@@ -129,7 +128,6 @@ Agent gate policy:
 - Before an issue is complete or merged, it must pass the entire automated testing framework:
   `swift test`, `xcodebuild test` for unit/component tests, `xcodebuild test` for Visual Regression
   tests when applicable, `xcodebuild test` for UI integration tests, and `swiftlint lint --quiet`.
-- If View or Theme files changed, Ralph screenshot verification is also part of the final gate.
 - After the UI target exists and is stable, update Ralph's README, implement prompt, and gate script
   so autonomous issues cannot complete without the full framework.
 

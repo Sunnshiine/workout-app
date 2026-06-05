@@ -355,7 +355,7 @@ GateResult
   ui_owned: bool
 ```
 
-`ui_owned` is true for UI integration tests, UI screenshot artifact/review checks, Visual Regression failures, and Visual Baseline authority failures.
+`ui_owned` is true for UI integration tests and Visual Regression failures.
 
 ### Successful integration commit [CHANGED]
 
@@ -528,10 +528,10 @@ The target Python workflow has no direct `origin/main` push or local `main` fast
 
 ### Phase 3: Worktrees, Gates, and Authority Policies
 
-- Change: Implement worktree management, `Secrets.xcconfig` copy behavior, deterministic gate results, Visual Baseline authority, and UI integration test edit authority.
+- Change: Implement worktree management, `Secrets.xcconfig` copy behavior, deterministic gate results, and UI integration test edit authority.
 - Compatibility: Existing shell runner still owns production execution.
 - Acceptance criteria:
-  - Tests cover unauthorized `Tests/UI/**` changes blocking, authorized implementation-phase UI-test edits passing, UI-verify UI-test edits blocking, and Visual Baseline authority statuses.
+  - Tests cover unauthorized `Tests/UI/**` changes blocking, authorized implementation-phase UI-test edits passing, and UI-verify UI-test edits blocking.
 
 ### Phase 4: Successful PR Publishing Lifecycle
 

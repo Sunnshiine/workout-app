@@ -50,6 +50,12 @@ class GateRunnerTests(unittest.TestCase):
     def test_visual_regression_gate_is_ui_owned(self) -> None:
         self.assertTrue(is_ui_owned_gate(GATE_VISUAL_REGRESSION))
 
+    def test_removed_screenshot_artifact_gate_is_not_ui_owned(self) -> None:
+        self.assertFalse(is_ui_owned_gate("ui-screenshot-artifacts"))
+
+    def test_removed_visual_baseline_authority_gate_is_not_ui_owned(self) -> None:
+        self.assertFalse(is_ui_owned_gate("visual-baseline-authority"))
+
     def test_log_path_is_attached(self) -> None:
         logs = {GATE_SWIFT_TEST: Path("/logs/swift-test.log")}
         runner = GateRunner(

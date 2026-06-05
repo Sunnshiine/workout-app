@@ -3,8 +3,6 @@ from __future__ import annotations
 import unittest
 
 from ralph.orchestrator.authority import (
-    UI_REVIEW_PASS_LINE,
-    VISUAL_BASELINE_DIR,
     AuthorityGate,
     NameStatusEntry,
 )
@@ -96,54 +94,6 @@ class UiTestAuthorityTests(unittest.TestCase):
             ui_phase_tip="uit",
         )
         self.assertTrue(decision.allowed)
-
-
-# ---- Visual Baseline authority (ADR 0007) -------------------------------
-
-
-class VisualBaselineAuthorityTests(unittest.TestCase):
-    def _gate(self, entries, *, review=None):
-        ranges = {("HEAD", None): list(entries)}
-        reader = (lambda _p: review) if review is not None else None
-        return AuthorityGate(_FakeDiff(ranges), review_reader=reader)
-
-    def _entry(self, status: str) -> NameStatusEntry:
-        return NameStatusEntry(status, f"{VISUAL_BASELINE_DIR}/SessionView.png")
-
-    def test_added_baseline_is_allowed(self) -> None:
-        gate = self._gate([self._entry("A")])
-        self.assertTrue(gate.check_visual_baseline().allowed)
-
-    def test_modified_baseline_with_pass_review_is_allowed(self) -> None:
-        review = f"some findings\n{UI_REVIEW_PASS_LINE}"
-        gate = self._gate([self._entry("M")], review=review)
-        self.assertTrue(gate.check_visual_baseline().allowed)
-
-    def test_modified_baseline_without_pass_review_blocks(self) -> None:
-        gate = self._gate([self._entry("M")], review="findings\nNEEDS WORK")
-        self.assertTrue(gate.check_visual_baseline().blocked)
-
-    def test_modified_baseline_without_artifact_blocks(self) -> None:
-        # review_reader returns None -> no saved artifact.
-        gate = AuthorityGate(
-            _FakeDiff({("HEAD", None): [self._entry("M")]}),
-            review_reader=lambda _p: None,
-        )
-        self.assertTrue(gate.check_visual_baseline().blocked)
-
-    def test_deleted_baseline_blocks(self) -> None:
-        gate = self._gate([self._entry("D")])
-        decision = gate.check_visual_baseline()
-        self.assertTrue(decision.blocked)
-        self.assertIn("Deleted Visual Baseline", decision.gate.failure_excerpt)
-
-    def test_unsupported_status_blocks(self) -> None:
-        gate = self._gate([self._entry("R")])
-        self.assertTrue(gate.check_visual_baseline().blocked)
-
-    def test_no_baseline_changes_allowed(self) -> None:
-        gate = self._gate([])
-        self.assertTrue(gate.check_visual_baseline().allowed)
 
 
 if __name__ == "__main__":
