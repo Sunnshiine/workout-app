@@ -17,6 +17,12 @@ from pathlib import Path
 from .blocked import BlockedReport, BlockedRescuePublisher
 from .config import RunConfig
 from .contracts import IssueContract, capture_issue_contract
+from .diagnosis import (
+    DiagnosisAuthorityParse,
+    apply_ui_test_authority,
+    parse_diagnosis_authority,
+    render_authority_comment,
+)
 from .engine import Engine, PhaseRequest
 from .engines import blocked_promise_prefix, complete_promise_line
 from .gates import (
@@ -32,7 +38,7 @@ from .gates import (
     GateStatus,
 )
 from .github import GitHubClient, _label_names
-from .phase import PhaseResult
+from .phase import PhaseResult, PhaseStatus
 from .prompt_context import PhaseContext, PromptContextWriter
 from .publish import (
     LABEL_AGENT_ACTIVE,
@@ -50,9 +56,13 @@ from .targets import PrTarget, TargetResolver
 from .worktree import GitResult, Worktree, WorktreeManager, default_git_runner
 
 ORIGIN_MAIN = "origin/main"
+PHASE_DIAGNOSE = "diagnose"
+PHASE_DIAGNOSE_FORMAT = "diagnose-format"
 PHASE_IMPLEMENT = "implement-tdd"
 PHASE_SWIFT_REVIEW = "swift-review"
 PHASE_UI_VERIFY = "ui-verify"
+
+BUG_LABEL = "bug"
 
 ARTIFACT_DIR = Path("ralph/.artifacts")
 LOG_DIR = ARTIFACT_DIR / "logs"
@@ -77,6 +87,21 @@ class SelectedIssue:
 
     number: int
     title: str
+
+
+@dataclass(frozen=True)
+class _DiagnosisOutcome:
+    """Result of the bug-diagnosis gate for one issue.
+
+    ``blocked_phase`` is set when diagnosis must escalate (failed/blocked phase,
+    an unrecoverable authority block, or out-of-scope authority); the caller then
+    publishes a blocked rescue PR. Otherwise ``contract`` is the (possibly
+    recaptured) contract and ``diagnosis_path`` points at the handoff artifact.
+    """
+
+    contract: IssueContract
+    diagnosis_path: Path | None = None
+    blocked_phase: PhaseResult | None = None
 
 
 class RalphLoopError(RuntimeError):
@@ -259,6 +284,22 @@ class RalphLoop:
         writer = PromptContextWriter(self._repo_root / CONTEXT_DIR / f"issue-{contract.number}")
         writer.write_issue_contract(contract)
 
+        diagnosis_path: Path | None = None
+        if BUG_LABEL in contract.labels:
+            diagnosis = self._run_diagnosis(
+                iteration, contract, target, worktree, issue_base, writer
+            )
+            if diagnosis.blocked_phase is not None:
+                self._publish_blocked(
+                    contract, target, worktree, failed_phase=diagnosis.blocked_phase
+                )
+                return False
+            contract = diagnosis.contract
+            diagnosis_path = diagnosis.diagnosis_path
+            writer.write_issue_contract(contract)
+
+        extra_refs = (str(diagnosis_path),) if diagnosis_path is not None else ()
+
         ui_phase_base = issue_base
         ui_phase_tip = issue_base
         failed_phase: PhaseResult | None = None
@@ -278,6 +319,8 @@ class RalphLoop:
                 worktree,
                 issue_base,
                 writer,
+                extra_reference_paths=extra_refs,
+                diagnosis_path=diagnosis_path,
             )
             if not result.is_complete:
                 failed_phase = result
@@ -325,6 +368,9 @@ class RalphLoop:
         worktree: Worktree,
         issue_base: str,
         writer: PromptContextWriter,
+        *,
+        extra_reference_paths: tuple[str, ...] = (),
+        diagnosis_path: Path | None = None,
     ) -> PhaseResult:
         context = PhaseContext(
             role=f"Run the Ralph {phase} phase for issue #{contract.number}.",
@@ -334,11 +380,14 @@ class RalphLoop:
             complete_promise_line=complete_promise_line(phase),
             blocked_promise_prefix=blocked_promise_prefix(phase),
             allowed_actions=_allowed_actions_for_phase(phase),
-            reference_paths=(str(writer.write_issue_contract(contract)),),
+            reference_paths=(
+                str(writer.write_issue_contract(contract)),
+                *extra_reference_paths,
+            ),
         )
         context_path = writer.write_phase_context(contract, context)
         prompt = self._phase_prompt(
-            phase, prompt_file, contract, worktree, issue_base, context_path
+            phase, prompt_file, contract, worktree, issue_base, context_path, diagnosis_path
         )
         log_path = (
             self._repo_root / LOG_DIR / f"iter-{iteration}-issue-{contract.number}-{phase}.log"
@@ -365,6 +414,7 @@ class RalphLoop:
         worktree: Worktree,
         issue_base: str,
         context_path: Path,
+        diagnosis_path: Path | None = None,
     ) -> str:
         prompt_body = (self._repo_root / "ralph" / "prompts" / prompt_file).read_text(
             encoding="utf-8"
@@ -381,6 +431,7 @@ class RalphLoop:
                 f"TARGET_PR: {contract.prd_number or ''}",
                 f"PHASE_NAME: {phase}",
                 f"CONTEXT_PATH: {context_path}",
+                f"DIAGNOSIS_PATH: {diagnosis_path}" if diagnosis_path is not None else "",
                 f"COMPLETE_PROMISE_LINE: {complete_promise_line(phase)}",
                 f"BLOCKED_PROMISE_PREFIX: {blocked_promise_prefix(phase)}",
                 "UI_SHOT_PATH: ralph/.artifacts/issue-"
@@ -396,6 +447,105 @@ class RalphLoop:
                 prompt_body,
             ]
         )
+
+    def _run_diagnosis(
+        self,
+        iteration: int,
+        contract: IssueContract,
+        target: PrTarget,
+        worktree: Worktree,
+        issue_base: str,
+        writer: PromptContextWriter,
+    ) -> _DiagnosisOutcome:
+        """Run the bug-only diagnosis gate before implementation.
+
+        Runs the ``diagnose`` phase, writes the ``diagnosis.md`` handoff, parses
+        the authority block (with one corrective ``diagnose-format`` retry for a
+        malformed block), grants UI-test authority only for ``Tests/UI/**``, and
+        recaptures the contract. Any unrecoverable step returns a blocked phase so
+        the caller escalates to a rescue PR.
+        """
+
+        result = self._run_phase(
+            PHASE_DIAGNOSE, "diagnose.md", iteration, contract, target, worktree, issue_base, writer
+        )
+        if not result.is_complete:
+            return _DiagnosisOutcome(contract=contract, blocked_phase=result)
+
+        diagnosis_path = writer.write_diagnosis(result.final_response)
+        parse = parse_diagnosis_authority(result.final_response)
+
+        if parse.needs_corrective_pass:
+            corrective = self._run_phase(
+                PHASE_DIAGNOSE_FORMAT,
+                "diagnose-format.md",
+                iteration,
+                contract,
+                target,
+                worktree,
+                issue_base,
+                writer,
+                extra_reference_paths=(str(diagnosis_path),),
+                diagnosis_path=diagnosis_path,
+            )
+            if not corrective.is_complete:
+                return _DiagnosisOutcome(contract=contract, blocked_phase=corrective)
+            parse = parse_diagnosis_authority(corrective.final_response)
+            if parse.needs_corrective_pass:
+                return _DiagnosisOutcome(
+                    contract=contract,
+                    blocked_phase=_diagnosis_blocked(
+                        f"diagnosis authority block still invalid after the corrective pass: "
+                        f"{parse.error}"
+                    ),
+                )
+            diagnosis_path = writer.write_diagnosis(
+                f"{result.final_response}\n\n## Corrected authority\n\n{corrective.final_response}"
+            )
+
+        if parse.needs_human_escalation:
+            paths = ", ".join(parse.out_of_scope_paths)
+            return _DiagnosisOutcome(
+                contract=contract,
+                blocked_phase=_diagnosis_blocked(
+                    "diagnosis requires test authority beyond Tests/UI/** "
+                    f"({paths}); human authority required."
+                ),
+            )
+
+        contract = self._grant_ui_authority(contract, parse)
+        return _DiagnosisOutcome(contract=contract, diagnosis_path=diagnosis_path)
+
+    def _grant_ui_authority(
+        self, contract: IssueContract, parse: DiagnosisAuthorityParse
+    ) -> IssueContract:
+        """Grant ``Tests/UI/**`` edit authority on the issue body when diagnosis asks for it.
+
+        Only acts when diagnosis required UI-test edits and the contract is not
+        already authorized. Edits the issue body, records an audit comment, and
+        recaptures the contract so implementation reads the granted authority.
+        """
+
+        authority = parse.authority
+        if authority is None or not authority.ui_integration_test_edits_required:
+            return contract
+        if contract.ui_test_edits_authorized:
+            return contract
+
+        new_body = apply_ui_test_authority(
+            contract.body, scope=authority.scope, reason=authority.reason
+        )
+        self._client.edit_issue_body(contract.number, new_body)
+        self._client.comment_issue(
+            contract.number,
+            render_authority_comment(contract.number, authority.scope, authority.reason),
+        )
+        print(
+            f"Ralph: issue #{contract.number} granted UI integration test authority "
+            "during diagnosis",
+            flush=True,
+        )
+        return capture_issue_contract(self._client, contract.number)
 
     def _run_gates(
         self, iteration: int, contract: IssueContract, workdir: Path
@@ -435,7 +585,7 @@ class RalphLoop:
             prd_number=contract.prd_number,
             intended_branch=target.branch,
             failed_phase_or_gate=_failed_name(failed_phase, failed_gate),
-            failing_command=tuple(failed_gate.command) if failed_gate else (),
+            failing_command=" ".join(failed_gate.command) if failed_gate else "",
             exit_status=failed_gate.exit_status if failed_gate else None,
             repair_attempted=False,
             repair_result=None,
@@ -619,7 +769,26 @@ def _run_git(workdir: Path, args: Sequence[str], *, check: bool = True) -> GitRe
     return result
 
 
+def _diagnosis_blocked(reason: str) -> PhaseResult:
+    """Synthesize a blocked ``diagnose`` phase result for escalation paths."""
+
+    return PhaseResult(
+        phase=PHASE_DIAGNOSE,
+        status=PhaseStatus.BLOCKED,
+        final_response=reason,
+        blocked_reason=reason,
+    )
+
+
 def _allowed_actions_for_phase(phase: str) -> tuple[str, ...]:
+    if phase == PHASE_DIAGNOSE:
+        return (
+            "reproduce the bug and build a feedback loop",
+            "investigate with scratch edits/instrumentation (do not commit)",
+            "write a fix plan and the diagnosis-authority block",
+        )
+    if phase == PHASE_DIAGNOSE_FORMAT:
+        return ("re-emit only a corrected diagnosis-authority block from existing findings",)
     if phase == PHASE_IMPLEMENT:
         return ("implement the issue", "commit implementation changes", "run non-UI checks")
     if phase == PHASE_SWIFT_REVIEW:
