@@ -136,7 +136,7 @@ private struct SessionControls: View {
                     .foregroundStyle(palette.accent)
                     .frame(width: 32, height: 32)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.workoutGlass)
             .frame(width: 32, height: 32)
             .contentShape(Rectangle())
             .padding(6)
