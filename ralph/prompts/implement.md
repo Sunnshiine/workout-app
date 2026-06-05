@@ -18,6 +18,9 @@ do not push, merge, open a PR, close a PR, or close the issue yourself. Ralph
 owns publication after the gates pass.
 
 ## Contract
+- If DIAGNOSIS_PATH is set in the preamble, this is a bug that was diagnosed
+  first. Read that diagnosis handoff BEFORE editing and implement against its
+  cause and recommended regression-test seam; do not re-litigate the diagnosis.
 - Read the issue and comments: `gh issue view <n> --comments`.
 - Use the "Agent Brief" comment as the authoritative spec when one exists.
 - If there is no Agent Brief comment, use the issue body as the authoritative

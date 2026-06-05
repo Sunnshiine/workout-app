@@ -59,6 +59,9 @@ class GitHubClient(Protocol):
     def comment_issue(self, number: int, body: str) -> None:
         """Post a comment with ``body`` on issue ``number``."""
 
+    def edit_issue_body(self, number: int, body: str) -> None:
+        """Replace the body of issue ``number`` with ``body``."""
+
 
 # A runner is any callable that takes an argv list and returns captured stdout.
 # Real use wraps ``subprocess.run``; tests inject a recording fake.
@@ -197,6 +200,19 @@ class GhCliClient:
             ]
         )
 
+    def edit_issue_body(self, number: int, body: str) -> None:
+        self._runner(
+            [
+                "gh",
+                "issue",
+                "edit",
+                str(number),
+                *self._repo_args(),
+                "--body",
+                body,
+            ]
+        )
+
     def _edit_labels(
         self,
         kind: str,
@@ -320,6 +336,11 @@ class FakeGitHubClient:
         comments.append({"author": {"login": "ralph"}, "body": body})
         issue["comments"] = comments
         self.calls.append(("comment_issue", number, body))
+
+    def edit_issue_body(self, number: int, body: str) -> None:
+        issue = self._issue(number)
+        issue["body"] = body
+        self.calls.append(("edit_issue_body", number, body))
 
     # --- test inspection helpers (not part of the protocol) ---
 
