@@ -9,12 +9,14 @@ from ralph.orchestrator.config import parse_args
 
 
 class CliMainTests(unittest.TestCase):
-    def test_main_validates_config_and_returns_zero(self) -> None:
+    def test_main_fails_loudly_until_normal_loop_is_wired(self) -> None:
         out = io.StringIO()
-        with contextlib.redirect_stdout(out):
+        err = io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             code = main([])
-        self.assertEqual(code, 0)
+        self.assertEqual(code, 1)
         self.assertIn("PR-only", out.getvalue())
+        self.assertIn("not wired", err.getvalue())
 
     def test_help_prints_usage_and_exits_zero(self) -> None:
         out = io.StringIO()
@@ -32,7 +34,8 @@ class CliMainTests(unittest.TestCase):
     def test_dry_run_announces_no_side_effects(self) -> None:
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
-            main(["--dry-run"])
+            code = main(["--dry-run"])
+        self.assertEqual(code, 0)
         self.assertIn("no GitHub", out.getvalue())
 
     def test_live_github_dry_run_is_shown_in_summary(self) -> None:
