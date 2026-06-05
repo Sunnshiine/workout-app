@@ -27,6 +27,15 @@ private struct SeededLoggingStore {
     let lookupStore: LastPerformedLookupStore
 }
 
+@MainActor
+private final class ManualDateProvider {
+    var now: Date
+
+    init(now: Date) {
+        self.now = now
+    }
+}
+
 private func parsedLoggingBlock() -> ParsedBlockModel {
     ParsedBlockModel(
         tabName: "Block 27",
@@ -34,35 +43,65 @@ private func parsedLoggingBlock() -> ParsedBlockModel {
             ParsedWeek(
                 number: 1,
                 days: [
-                    ParsedSession(
-                        dayNumber: 1,
-                        date: Date(timeIntervalSinceReferenceDate: 100),
-                        exercises: [
-                            ParsedExercise(
-                                name: "Squat",
-                                baseName: "Squat",
-                                cadence: nil,
-                                coachNote: nil,
-                                sets: [
-                                    ParsedSet(
-                                        index: 0,
-                                        prescribedReps: "5",
-                                        prescribedLoad: "RPE 8",
-                                        percentOneRM: nil,
-                                        state: .pending,
-                                        setLog: nil
-                                    ),
-                                    ParsedSet(
-                                        index: 1,
-                                        prescribedReps: "5",
-                                        prescribedLoad: "RPE 9",
-                                        percentOneRM: nil,
-                                        state: .pending,
-                                        setLog: nil
-                                    )
-                                ]
-                            )
-                        ]
+                    parsedSquatLoggingSession(),
+                    parsedBenchMoveOnSession()
+                ]
+            )
+        ]
+    )
+}
+
+private func parsedSquatLoggingSession() -> ParsedSession {
+    ParsedSession(
+        dayNumber: 1,
+        date: Date(timeIntervalSinceReferenceDate: 100),
+        exercises: [
+            ParsedExercise(
+                name: "Squat",
+                baseName: "Squat",
+                cadence: nil,
+                coachNote: nil,
+                sets: [
+                    ParsedSet(
+                        index: 0,
+                        prescribedReps: "5",
+                        prescribedLoad: "RPE 8",
+                        percentOneRM: nil,
+                        state: .pending,
+                        setLog: nil
+                    ),
+                    ParsedSet(
+                        index: 1,
+                        prescribedReps: "5",
+                        prescribedLoad: "RPE 9",
+                        percentOneRM: nil,
+                        state: .pending,
+                        setLog: nil
+                    )
+                ]
+            )
+        ]
+    )
+}
+
+private func parsedBenchMoveOnSession() -> ParsedSession {
+    ParsedSession(
+        dayNumber: 2,
+        date: Date(timeIntervalSinceReferenceDate: 200),
+        exercises: [
+            ParsedExercise(
+                name: "Bench Press",
+                baseName: "Bench Press",
+                cadence: nil,
+                coachNote: nil,
+                sets: [
+                    ParsedSet(
+                        index: 0,
+                        prescribedReps: "5",
+                        prescribedLoad: "RPE 8",
+                        percentOneRM: nil,
+                        state: .pending,
+                        setLog: nil
                     )
                 ]
             )
@@ -80,6 +119,11 @@ private func makeLoggingDefaults() throws -> UserDefaults {
 
 @MainActor
 private func seededStore() throws -> SeededLoggingStore {
+    try seededStore(now: Date.init)
+}
+
+@MainActor
+private func seededStore(now: @escaping () -> Date) throws -> SeededLoggingStore {
     let container = try loggingContainer()
     let ctx = container.mainContext
     let block = BlockBuilder.makeBlock(from: parsedLoggingBlock())
@@ -89,13 +133,16 @@ private func seededStore() throws -> SeededLoggingStore {
     let store = try WorkoutStore(
         context: ctx,
         defaults: makeLoggingDefaults(),
-        lastPerformedLookupRefresher: lookupStore
+        lastPerformedLookupRefresher: lookupStore,
+        now: now
     )
     store.reload()
     let set = try #require(
-        store.block?.weeks.first?.sessions.first?.exercises.first?.sets.sorted {
-            $0.index < $1.index
-        }.first
+        store.block?.weeks.first { $0.number == 1 }?
+            .sessions.first { $0.dayNumber == 1 }?
+            .exercises.first { $0.name == "Squat" }?
+            .sets.sorted { $0.index < $1.index }
+            .first
     )
     return SeededLoggingStore(
         store: store,
@@ -104,6 +151,88 @@ private func seededStore() throws -> SeededLoggingStore {
         container: container,
         lookupStore: lookupStore
     )
+}
+
+@MainActor
+@Test func loggingPendingSetRecordsFirstLoggedTimestamp() throws {
+    let dateProvider = ManualDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_000))
+    let fixture = try seededStore(now: { dateProvider.now })
+    withExtendedLifetime(fixture.container) {}
+
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+
+    #expect(fixture.firstSet.loggedAt == Date(timeIntervalSinceReferenceDate: 1_000))
+}
+
+@MainActor
+@Test func updatingLoggedSetPreservesOriginalLoggedTimestamp() throws {
+    let dateProvider = ManualDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_000))
+    let fixture = try seededStore(now: { dateProvider.now })
+    withExtendedLifetime(fixture.container) {}
+
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+    dateProvider.now = Date(timeIntervalSinceReferenceDate: 1_500)
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(195), reps: 5, rpe: 8.5))
+
+    #expect(fixture.firstSet.loggedAt == Date(timeIntervalSinceReferenceDate: 1_000))
+}
+
+@MainActor
+@Test func deletingSetLogClearsTimestampAndReloggingRecordsNewTimestamp() throws {
+    let dateProvider = ManualDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_000))
+    let fixture = try seededStore(now: { dateProvider.now })
+    withExtendedLifetime(fixture.container) {}
+
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+    try fixture.store.deleteLog(for: fixture.firstSet)
+    #expect(fixture.firstSet.loggedAt == nil)
+
+    dateProvider.now = Date(timeIntervalSinceReferenceDate: 1_500)
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(195), reps: 5, rpe: 8.5))
+
+    #expect(fixture.firstSet.loggedAt == Date(timeIntervalSinceReferenceDate: 1_500))
+}
+
+@MainActor
+@Test func skippingSetDoesNotRecordLoggedTimestamp() throws {
+    let dateProvider = ManualDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_000))
+    let fixture = try seededStore(now: { dateProvider.now })
+    withExtendedLifetime(fixture.container) {}
+
+    try fixture.store.skip(fixture.firstSet)
+
+    #expect(fixture.firstSet.loggedAt == nil)
+}
+
+@MainActor
+@Test func requestingMoveOnCelebrationCapturesRequestTimeWithFirstSessionLog() throws {
+    let dateProvider = ManualDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_000))
+    let fixture = try seededStore(now: { dateProvider.now })
+    withExtendedLifetime(fixture.container) {}
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+
+    dateProvider.now = Date(timeIntervalSinceReferenceDate: 1_900)
+    fixture.store.requestMoveOnCelebration()
+
+    #expect(
+        fixture.store.moveOnCelebrationTiming
+            == MoveOnCelebrationTiming(
+                firstLoggedAt: Date(timeIntervalSinceReferenceDate: 1_000),
+                requestedAt: Date(timeIntervalSinceReferenceDate: 1_900)
+            )
+    )
+}
+
+@MainActor
+@Test func requestingMoveOnCelebrationLeavesTimingUnavailableWithoutLocalLogTimestamp() throws {
+    let dateProvider = ManualDateProvider(now: Date(timeIntervalSinceReferenceDate: 1_900))
+    let fixture = try seededStore(now: { dateProvider.now })
+    withExtendedLifetime(fixture.container) {}
+
+    fixture.store.requestMoveOnCelebration()
+
+    #expect(fixture.store.moveOnCelebrationSession != nil)
+    #expect(fixture.store.moveOnCelebrationTiming == nil)
 }
 
 @MainActor

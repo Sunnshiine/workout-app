@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import WorkoutTracker
@@ -42,8 +43,8 @@ import Testing
 
     let presentation = MoveOnCelebrationPresentation(session: session)
 
-    #expect(presentation.stats.map(\.label) == ["Sets", "Exercises", "Left"])
-    #expect(presentation.stats.map(\.value) == ["5", "2", "2"])
+    #expect(presentation.stats.map(\.label) == ["Sets", "Exercises", "Left", "Time"])
+    #expect(presentation.stats.map(\.value) == ["5", "2", "2", "N/A"])
 }
 
 @MainActor
@@ -56,8 +57,8 @@ import Testing
 
     let presentation = MoveOnCelebrationPresentation(session: session)
 
-    #expect(presentation.stats.map(\.label) == ["Sets", "Exercises", "Left"])
-    #expect(presentation.stats.map(\.value) == ["3", "1", "0"])
+    #expect(presentation.stats.map(\.label) == ["Sets", "Exercises", "Left", "Time"])
+    #expect(presentation.stats.map(\.value) == ["3", "1", "0", "N/A"])
 }
 
 @MainActor
@@ -72,6 +73,36 @@ import Testing
     let presentation = MoveOnCelebrationPresentation(session: session)
 
     #expect(presentation.stats.first { $0.label == "Left" }?.value == "3")
+}
+
+@MainActor
+@Test func moveOnCelebrationPresentationShowsElapsedSessionTimingWhenAvailable() {
+    let session = makeMoveOnSession(
+        exercises: [
+            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged])
+        ]
+    )
+    let timing = MoveOnCelebrationTiming(
+        firstLoggedAt: Date(timeIntervalSinceReferenceDate: 1_000),
+        requestedAt: Date(timeIntervalSinceReferenceDate: 4_900)
+    )
+
+    let presentation = MoveOnCelebrationPresentation(session: session, timing: timing)
+
+    #expect(presentation.stats.first { $0.label == "Time" }?.value == "1h 5m")
+}
+
+@MainActor
+@Test func moveOnCelebrationPresentationShowsUnavailableTimingFallback() {
+    let session = makeMoveOnSession(
+        exercises: [
+            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged])
+        ]
+    )
+
+    let presentation = MoveOnCelebrationPresentation(session: session, timing: nil)
+
+    #expect(presentation.stats.first { $0.label == "Time" }?.value == "N/A")
 }
 
 @MainActor
@@ -158,7 +189,7 @@ import Testing
     let presentation = MoveOnCelebrationPresentation(session: session, quoteText: "Steady work travels.")
 
     #expect(presentation.accessibilityLabel == "Week 2, Day 3")
-    #expect(presentation.accessibilityValue == "Steady work travels., 5 Sets, 2 Exercises, 2 Left")
+    #expect(presentation.accessibilityValue == "Steady work travels., 5 Sets, 2 Exercises, 2 Left, N/A Time")
     #expect(presentation.accessibilityHint == "Tap anywhere to continue")
 }
 

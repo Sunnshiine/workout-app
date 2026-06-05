@@ -5,6 +5,15 @@ struct MoveOnCelebrationStatPresentation: Equatable, Sendable {
     let label: String
 }
 
+struct MoveOnCelebrationTiming: Equatable, Sendable {
+    let firstLoggedAt: Date
+    let requestedAt: Date
+
+    var elapsed: TimeInterval {
+        max(0, requestedAt.timeIntervalSince(firstLoggedAt))
+    }
+}
+
 enum MoveOnCelebrationHapticStyle: Equatable, Hashable, Sendable {
     case success
     case successWithImpact
@@ -47,19 +56,21 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
     let hapticStyle: MoveOnCelebrationHapticStyle
 
     @MainActor
-    init(session: Session, quoteText requestedQuoteText: String? = nil) {
+    init(session: Session, timing: MoveOnCelebrationTiming? = nil, quoteText requestedQuoteText: String? = nil) {
         let weekNumber = session.week?.number ?? 0
         let sets = session.exercises.flatMap(\.sets)
         let totalSetCount = sets.count
         let exerciseCount = session.exercises.count
         let pendingSetCount = sets.filter { $0.state == .pending }.count
         let selectedQuote = requestedQuoteText ?? Self.launchQuoteOverride ?? Self.approvedQuotes.randomElement() ?? ""
+        let timeValue = timing.map { Self.elapsedTimeText(for: $0.elapsed) } ?? "N/A"
 
         contextText = "Week \(weekNumber) · Day \(session.dayNumber)"
         stats = [
             MoveOnCelebrationStatPresentation(value: "\(totalSetCount)", label: "Sets"),
             MoveOnCelebrationStatPresentation(value: "\(exerciseCount)", label: "Exercises"),
-            MoveOnCelebrationStatPresentation(value: "\(pendingSetCount)", label: "Left")
+            MoveOnCelebrationStatPresentation(value: "\(pendingSetCount)", label: "Left"),
+            MoveOnCelebrationStatPresentation(value: timeValue, label: "Time")
         ]
         quoteText = selectedQuote
         accessibilityLabel = "Week \(weekNumber), Day \(session.dayNumber)"
@@ -82,5 +93,17 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
             return nil
         }
         return longQuoteFixture
+    }
+
+    private static func elapsedTimeText(for elapsed: TimeInterval) -> String {
+        let totalMinutes = max(Int((elapsed / 60).rounded(.down)), 0)
+        guard totalMinutes >= 60 else {
+            return totalMinutes == 0 ? "<1m" : "\(totalMinutes)m"
+        }
+
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+        guard minutes > 0 else { return "\(hours)h" }
+        return "\(hours)h \(minutes)m"
     }
 }

@@ -33,11 +33,14 @@ struct MoveOnCelebrationView: View {
 
     init(
         session: Session,
+        timing: MoveOnCelebrationTiming? = nil,
         disablesBloom: Bool = Self.disablesBloomForUITests,
         quoteText: String? = nil,
         onDismiss: @escaping () -> Void
     ) {
-        _presentation = State(initialValue: MoveOnCelebrationPresentation(session: session, quoteText: quoteText))
+        _presentation = State(
+            initialValue: MoveOnCelebrationPresentation(session: session, timing: timing, quoteText: quoteText)
+        )
         self.disablesBloom = disablesBloom
         self.onDismiss = onDismiss
     }
