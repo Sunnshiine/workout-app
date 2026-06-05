@@ -1,17 +1,15 @@
 # Ralph — Python PR orchestrator
 
-Ralph is the issue-driven automation path for `workout-app`. The in-progress Python
-orchestrator lives under `ralph/orchestrator`; `ralph/ralph.sh` is only a compatibility wrapper
-for that entrypoint:
+Ralph is the issue-driven automation path for `workout-app`. The Python orchestrator lives under
+`ralph/orchestrator`; `ralph/ralph.sh` is a compatibility wrapper for that entrypoint:
 
 ```bash
 uv run --python 3.11 python -m ralph.orchestrator "$@"
 ```
 
-The old shell-owned orchestration has been retired, but the normal Python issue-processing loop
-is not wired yet. Today the Python entrypoint supports configuration checks and the controlled
-live GitHub dry-run. A normal run without `--dry-run` or `--live-github-dry-run` fails loudly
-instead of pretending to process issues.
+The old shell-owned orchestration has been retired. Python owns queue polling, issue selection,
+issue contracts, PR targeting, worktrees, phase agents, gates, PR publishing, labels, repair
+reports, and blocked rescue state.
 
 Ralph is PR-only. It must not fast-forward, merge, or push `main` directly.
 
@@ -41,15 +39,14 @@ private `Secrets.xcconfig` source when app gates need it.
 
 ## Commands
 
-No-side-effect configuration check:
+Recommended operator command:
 
 ```bash
-ralph/ralph.sh --dry-run
+ralph/ralph.sh --engine codex --max-iterations 1
 ```
 
-Use `ralph/ralph.sh` for stable entrypoint checks. It finds the repo root and delegates to the
-Python module. Use the Python module directly when you are testing or scripting the Python
-entrypoint itself.
+Use `ralph/ralph.sh` for normal runs. It finds the repo root and delegates to the Python module.
+Use the Python module directly when you are testing or scripting the Python entrypoint itself.
 
 The wrapper and Python module are otherwise equivalent:
 
@@ -64,8 +61,7 @@ Validate configuration without GitHub, git worktrees, or agents:
 ralph/ralph.sh --dry-run
 ```
 
-The normal issue-processing loop is intentionally unavailable until the remaining Python state
-machine is wired. These commands print the configuration summary and exit non-zero:
+Run with a selected engine:
 
 ```bash
 ralph/ralph.sh --engine codex --max-iterations 1
@@ -78,17 +74,17 @@ Direct Python invocation:
 uv run --python 3.11 python -m ralph.orchestrator --engine codex --max-iterations 1
 ```
 
-This direct invocation has the same fail-fast behavior as the wrapper until the normal loop is
-implemented.
+The normal loop polls `origin/main` at the start of each iteration, selects one eligible
+`ready-for-agent` issue, creates a deterministic `ralph/*` PR branch worktree, runs the phase
+agents and gates, then publishes only through a pull request.
 
 ### Keep macOS awake with caffeinate
 
-When the normal loop is wired, wrap longer Ralph runs with the native `caffeinate` utility so the
-Mac stays awake until Ralph exits. For now, the only copy/paste-safe `caffeinate` command is a
-short configuration check:
+For longer Ralph runs on macOS, wrap the command with the native `caffeinate` utility so the Mac
+stays awake until Ralph exits:
 
 ```bash
-caffeinate -ism ralph/ralph.sh --dry-run
+caffeinate -ism ralph/ralph.sh --engine codex --max-iterations 1
 ```
 
 The useful flags here are:
@@ -103,7 +99,7 @@ command at `-ism` unless you specifically need those behaviors.
 To run the Python module directly under `caffeinate`:
 
 ```bash
-caffeinate -ism uv run --python 3.11 python -m ralph.orchestrator --dry-run
+caffeinate -ism uv run --python 3.11 python -m ralph.orchestrator --engine codex --max-iterations 1
 ```
 
 `caffeinate` exits when the wrapped command exits.

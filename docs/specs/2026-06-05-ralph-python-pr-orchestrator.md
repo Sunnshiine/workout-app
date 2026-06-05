@@ -3,10 +3,9 @@
 ## Implementation Status
 
 As of issue #214, `ralph/ralph.sh` is a thin compatibility wrapper around
-`python -m ralph.orchestrator`. Direct-to-main publishing remains removed, and live fake-engine
-GitHub dry-run evidence is recorded under `docs/ralph/live-dry-runs/`. The normal Python
-issue-processing loop is not wired yet, so a regular invocation exits non-zero after printing the
-configuration summary instead of silently doing no work.
+`python -m ralph.orchestrator`. Direct-to-main publishing remains removed, live fake-engine
+GitHub dry-run evidence is recorded under `docs/ralph/live-dry-runs/`, and the normal Python
+issue-processing loop polls `origin/main` before selecting each eligible `ready-for-agent` issue.
 
 ## Goal
 

@@ -76,6 +76,7 @@ from .github import (
     GitHubClient,
     GitHubClientError,
 )
+from .loop import IssueSelector, OriginMain, RalphLoop, RalphLoopError, RunSummary, SelectedIssue
 from .phase import PhaseResult, PhaseStatus
 from .prompt_context import (
     BLOCKED_REPORT_FILE,
@@ -181,7 +182,9 @@ __all__ = [
     "IssueComment",
     "IssueContract",
     "IssuePublisher",
+    "IssueSelector",
     "NameStatusEntry",
+    "OriginMain",
     "PhaseContext",
     "PhaseRequest",
     "PhaseResult",
@@ -193,9 +196,13 @@ __all__ = [
     "RepairCoordinator",
     "RepairError",
     "RepairOutcome",
+    "RalphLoop",
+    "RalphLoopError",
     "RunConfig",
+    "RunSummary",
     "SdkEvent",
     "SdkInvocation",
+    "SelectedIssue",
     "TargetResolutionError",
     "TargetResolver",
     "Worktree",
