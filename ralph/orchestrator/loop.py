@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from .authority import AuthorityGate, DiffSeam, NameStatusEntry
 from .blocked import BlockedReport, BlockedRescuePublisher
 from .config import RunConfig
 from .contracts import IssueContract, capture_issue_contract
@@ -333,6 +334,27 @@ class RalphLoop:
             self._publish_blocked(contract, target, worktree, failed_phase=failed_phase)
             return False
 
+        authority_failure = self._check_authority(
+            contract,
+            worktree.path,
+            issue_base=issue_base,
+            issue_tip=issue_tip,
+            ui_phase_base=ui_phase_base,
+            ui_phase_tip=ui_phase_tip,
+        )
+        if authority_failure is not None:
+            self._publish_blocked(
+                contract,
+                target,
+                worktree,
+                failed_gate=authority_failure,
+                issue_base=issue_base,
+                issue_tip=issue_tip,
+                ui_phase_base=ui_phase_base,
+                ui_phase_tip=ui_phase_tip,
+            )
+            return False
+
         gate_failure = self._run_gates(iteration, contract, worktree.path)
         if gate_failure is not None:
             self._publish_blocked(
@@ -546,6 +568,38 @@ class RalphLoop:
             flush=True,
         )
         return capture_issue_contract(self._client, contract.number)
+
+    def _check_authority(
+        self,
+        contract: IssueContract,
+        workdir: Path,
+        *,
+        issue_base: str,
+        issue_tip: str,
+        ui_phase_base: str,
+        ui_phase_tip: str,
+    ) -> GateResult | None:
+        """Mechanically enforce UI integration test edit authority.
+
+        Runs before the command gates so an unauthorized ``Tests/UI/**`` or
+        UI-test target-wiring change fails fast without spending build time. The
+        check reads committed diffs through a git seam and never trusts agent
+        prompt compliance; authorization comes only from the contract snapshot a
+        diagnosis grant recaptures.
+        """
+
+        gate = AuthorityGate(_name_status_diff(workdir))
+        decision = gate.check_ui_test_authority(
+            contract,
+            issue_base=issue_base,
+            issue_tip=issue_tip,
+            ui_phase_base=ui_phase_base,
+            ui_phase_tip=ui_phase_tip,
+        )
+        if decision.blocked:
+            _ralph_log(f"authority gate {decision.gate.name} -> {decision.gate.status}")
+            return decision.gate
+        return None
 
     def _run_gates(
         self, iteration: int, contract: IssueContract, workdir: Path
@@ -767,6 +821,43 @@ def _run_git(workdir: Path, args: Sequence[str], *, check: bool = True) -> GitRe
         detail = result.stderr.strip() or result.stdout.strip()
         raise RalphLoopError(f"git {' '.join(args)} failed: {detail}")
     return result
+
+
+def _name_status_diff(workdir: Path) -> DiffSeam:
+    """Build a git ``--name-status`` diff seam bound to ``workdir``.
+
+    ``tip`` of None diffs the working tree against ``base``; otherwise it diffs
+    the ``base..tip`` commit range. Pathspecs scope the diff the way git does.
+    A failed git invocation yields no entries so the gate fails open to allowed;
+    the loop's own gates still run the real build and tests afterward.
+    """
+
+    def diff(
+        base: str, tip: str | None, pathspecs: Sequence[str]
+    ) -> tuple[NameStatusEntry, ...]:
+        args = ["diff", "--name-status", base]
+        if tip is not None:
+            args.append(tip)
+        result = _run_git(workdir, [*args, "--", *pathspecs], check=False)
+        if not result.ok:
+            return ()
+        return _parse_name_status(result.stdout)
+
+    return diff
+
+
+def _parse_name_status(output: str) -> tuple[NameStatusEntry, ...]:
+    """Parse ``git diff --name-status`` lines into entries (status, last path)."""
+
+    entries: list[NameStatusEntry] = []
+    for line in output.splitlines():
+        if not line.strip():
+            continue
+        fields = line.split("\t")
+        if len(fields) < 2:
+            continue
+        entries.append(NameStatusEntry(status=fields[0].strip(), path=fields[-1].strip()))
+    return tuple(entries)
 
 
 def _diagnosis_blocked(reason: str) -> PhaseResult:
