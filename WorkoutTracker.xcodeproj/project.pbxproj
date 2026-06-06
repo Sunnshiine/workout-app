@@ -21,6 +21,7 @@
 		150FD5018848ACCE1FE8B8AE /* PendingWriteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8629437B46CD9B6B87AA05B /* PendingWriteTests.swift */; };
 		1A8442310B0286B457FE6D5E /* LocalWorkbookSheetsClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EF88AA19026CF5D827B5858 /* LocalWorkbookSheetsClientTests.swift */; };
 		1C87BAF1D8F3626D46102EBF /* SheetGridFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5AD19394F523316075E92C3 /* SheetGridFixture.swift */; };
+		1D05552BA965E7F6BD01EF32 /* WorkoutUITestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3E4BA2B8C8F2910F5F6C98E /* WorkoutUITestSupport.swift */; };
 		1EC5B09B643D618463A4B4E7 /* SyncCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0618D41A9127F527B1A3DBBD /* SyncCoordinatorTests.swift */; };
 		1FD748AFDB0C2ECC178C3B35 /* sessionProgressHeaderMatchesVisualBaseline.1.png in Resources */ = {isa = PBXBuildFile; fileRef = FA28A509C0C76BE13A04257D /* sessionProgressHeaderMatchesVisualBaseline.1.png */; };
 		1FD78DA6ACD2DC16713C59E1 /* SessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2694D7B8CE96A7BA65917D8A /* SessionCoordinator.swift */; };
@@ -339,6 +340,7 @@
 		BDE239394917F6AD12CA9B07 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 		BE50667E5D1964CCC44EEFA2 /* settingsViewMatchesVisualBaseline.1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = settingsViewMatchesVisualBaseline.1.png; sourceTree = "<group>"; };
 		C1A2912337D79EA8DBF43A6D /* WorkoutWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = WorkoutWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		C3E4BA2B8C8F2910F5F6C98E /* WorkoutUITestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutUITestSupport.swift; sourceTree = "<group>"; };
 		C452CB917A65913E44B18E15 /* RestTriggerPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestTriggerPolicy.swift; sourceTree = "<group>"; };
 		C703F549688F120A123589E3 /* ActiveSetFocusManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveSetFocusManagerTests.swift; sourceTree = "<group>"; };
 		C83225A3DA1B09D51660DAF9 /* loggedSetReviewCardMatchesVisualBaseline.1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = loggedSetReviewCardMatchesVisualBaseline.1.png; sourceTree = "<group>"; };
@@ -603,6 +605,7 @@
 			children = (
 				64519749E437126A2F49DD5D /* PartiallyUploadedBlockUITests.swift */,
 				CC47CE1DE98286E2DA318F0D /* WorkoutTrackerUITests.swift */,
+				C3E4BA2B8C8F2910F5F6C98E /* WorkoutUITestSupport.swift */,
 			);
 			name = UI;
 			path = Tests/UI;
@@ -938,6 +941,7 @@
 			files = (
 				BFCADD57F148F7B5849BA9B3 /* PartiallyUploadedBlockUITests.swift in Sources */,
 				5ECA91FF3F0E603FFE24A524 /* WorkoutTrackerUITests.swift in Sources */,
+				1D05552BA965E7F6BD01EF32 /* WorkoutUITestSupport.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
