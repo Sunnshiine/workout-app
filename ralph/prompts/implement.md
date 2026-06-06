@@ -21,12 +21,14 @@ owns publication after the gates pass.
 - If DIAGNOSIS_PATH is set in the preamble, this is a bug that was diagnosed
   first. Read that diagnosis handoff BEFORE editing and implement against its
   cause and recommended regression-test seam; do not re-litigate the diagnosis.
-- Read the issue and comments: `gh issue view <n> --comments`.
-- Use the "Agent Brief" comment as the authoritative spec when one exists.
-- If there is no Agent Brief comment, use the issue body as the authoritative
-  spec only when it contains a concrete implementation brief with acceptance
-  criteria. If the body is vague, mostly links to other issues, or lacks
-  acceptance criteria, report BLOCKED with the phase-specific promise line.
+- Read CONTEXT_PATH first. The frozen `issue-contract.md` artifact is the
+  authority for this phase. Do NOT run GitHub CLI commands to discover the
+  contract — the frozen artifact is the sole source.
+- If an `issue-comments.md` artifact is present alongside `issue-contract.md`,
+  use it for supporting context only — comments are never contract authority.
+- The issue body is the implementation authority. If the body is vague, mostly
+  links to other issues, or lacks acceptance criteria, report BLOCKED with the
+  phase-specific promise line.
 - Read related PRD context if it helps, but never let a PRD override the issue
   contract for this phase.
 - Read `CONTEXT.md` for the domain glossary.

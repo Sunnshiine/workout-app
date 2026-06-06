@@ -12,10 +12,13 @@ history, or change the loop's own scripts or prompts (`ralph/*.sh`,
 expected.
 
 ## Contract
-- Re-read the issue and comments: `gh issue view <n> --comments`.
-- Use the "Agent Brief" comment as the authoritative spec when one exists.
-- If there is no Agent Brief comment, use the concrete issue body acceptance
-  criteria as the contract. Do not expand scope from PRDs.
+- Read CONTEXT_PATH first. The frozen `issue-contract.md` artifact is the
+  authority for this phase. Do NOT run GitHub CLI commands to discover the
+  contract — the frozen artifact is the sole source.
+- If an `issue-comments.md` artifact is present alongside `issue-contract.md`,
+  use it for supporting context only — comments are never contract authority.
+- Use the concrete issue body acceptance criteria as the contract. Do not
+  expand scope from PRDs.
 - Read related PRD/spec context if it helps evaluate the issue, but never let
   PRDs/specs override or expand the issue contract.
 - If DIAGNOSIS_PATH is set in the preamble, read it as supporting context to
