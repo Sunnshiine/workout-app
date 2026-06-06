@@ -32,6 +32,10 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
   the live Google Sheet. Ralph's `snapshot.sh` defaults to the seeded
   SessionView; set `UITEST_ARGS` for other fixture routes. To run against live
   data, use the `Copy of WorkoutTracker` scheme (`-UITEST_FIXTURE false`).
+- Concurrent UI-test sessions must not share the same simulator. Use distinct
+  simulator UDIDs with `-destination 'platform=iOS Simulator,id=<UDID>'` and
+  isolated `-derivedDataPath` / `-clonedSourcePackagesDirPath` values; for Ralph,
+  pass `--simulator-id <UDID>`.
 - Prefer XcodeBuildMCP for build/run/test on the simulator. If using XcodeBuildMCP,
   use the installed XcodeBuildMCP skill before calling XcodeBuildMCP tools.
 - If XcodeBuildMCP accessibility snapshots return an empty AXApplication, reboot

@@ -26,6 +26,7 @@ def format_config_summary(config: RunConfig) -> str:
         f"  model:                  {config.model or '(engine default)'}",
         f"  reasoning-effort:       {config.reasoning_effort or '(Ralph Codex policy)'}",
         f"  sim-device:             {config.sim_device}",
+        f"  simulator-id:           {config.simulator_id or '(by device name)'}",
         f"  implement-timeout (s):  {config.implement_timeout_seconds}",
         f"  dry-run:                {config.dry_run}",
         f"  live-github-dry-run:    {config.live_github_dry_run_issue or '(off)'}",

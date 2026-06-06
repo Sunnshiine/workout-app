@@ -58,6 +58,12 @@ class CliMainTests(unittest.TestCase):
         self.assertIn("live-github-dry-run", summary)
         self.assertIn("213", summary)
 
+    def test_simulator_id_is_shown_in_summary(self) -> None:
+        summary = format_config_summary(parse_args(["--simulator-id", "ABC-123"]))
+
+        self.assertIn("simulator-id", summary)
+        self.assertIn("ABC-123", summary)
+
     def test_loop_error_returns_one(self) -> None:
         from ralph.orchestrator.loop import RalphLoopError
 

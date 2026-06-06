@@ -28,6 +28,8 @@ Ralph is PR-only. It must not fast-forward, merge, or push `main` directly.
   - `claude` reuses the local Claude Agent/Claude Code account/auth state.
 - `Secrets.xcconfig` when Xcode gates are run from generated worktrees.
 - Xcode 26+ and the iPhone 17 Pro simulator runtime for app gates.
+- For concurrent UI gates, one simulator UDID per Ralph run. Do not point
+  multiple agents at the same booted simulator.
 
 Ralph does not require `OPENAI_API_KEY`, `CODEX_API_KEY`, `ANTHROPIC_API_KEY`,
 `GH_TOKEN`, or `GITHUB_TOKEN`. Use the normal `gh`, Codex, and Claude login flows for
@@ -114,6 +116,7 @@ The Python runner supports:
 | `--model NAME` | Optional model alias passed to the engine. |
 | `--reasoning-effort low\|medium\|high\|xhigh` | Optional whole-run Codex reasoning override. Without it, Ralph uses `gpt-5.5` with `medium` reasoning, except review and UI repair phases use `high`. |
 | `--device "iPhone 17 Pro"` | Simulator device for app gates. |
+| `--simulator-id UDID` | Specific simulator UDID for app gates. Use this for parallel Ralph runs so each agent owns a different simulator. |
 | `--implement-timeout-seconds N` | Per-phase agent timeout. |
 | `--select-only` | Resolve selection/targets without creating worktrees or running agents. |
 | `--repo owner/name` | GitHub repo override. |
@@ -132,6 +135,41 @@ Use the deterministic Python PR targets instead:
 - one-off issue: `ralph/issue-<issue-number>`
 - PRD-scoped issue: `ralph/prd-<prd-number>`
 - blocked rescue: `ralph/issue-<issue-number>-blocked`
+
+## Parallel UI Gates
+
+Ralph can run at the same time as other Ralph or Codex sessions if each session
+targets a distinct simulator UDID. The failure mode to avoid is two agents using
+the shared name-based destination `platform=iOS Simulator,name=iPhone 17 Pro`,
+which lets Xcode pick the same booted simulator for both UI-test runners.
+
+Create simulator clones once, then assign one UDID per concurrent run:
+
+```bash
+xcrun simctl list runtimes
+xcrun simctl create "Ralph UI 1" "iPhone 17 Pro" "<iOS runtime identifier>"
+xcrun simctl create "Ralph UI 2" "iPhone 17 Pro" "<iOS runtime identifier>"
+```
+
+Run each Ralph session with its assigned simulator:
+
+```bash
+ralph/ralph.sh --engine codex --max-iterations 1 --simulator-id <UDID-1>
+ralph/ralph.sh --engine codex --max-iterations 1 --simulator-id <UDID-2>
+```
+
+For raw UI-test probes outside Ralph, use the same isolation rule:
+
+```bash
+xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+  -destination 'platform=iOS Simulator,id=<UDID>' \
+  -derivedDataPath ".dd-<UDID>" \
+  -clonedSourcePackagesDirPath ".spm-<UDID>" \
+  -test-timeouts-enabled NO \
+  -only-testing:WorkoutTrackerUITests
+```
+
+Clean up only the simulator UDID that the current session owns.
 
 ---
 
