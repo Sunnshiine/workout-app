@@ -51,5 +51,37 @@ class UIVerifyPromptSmokeVocabularyTests(unittest.TestCase):
         self.assertIn("UI Interaction Suite", self.prompt)
 
 
+class UIVerifyPromptXmlStructureTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.prompt = PROMPT_PATH.read_text(encoding="utf-8")
+
+    def test_markdown_section_headers_absent(self) -> None:
+        self.assertNotIn("## Contract", self.prompt)
+        self.assertNotIn("## Work", self.prompt)
+        self.assertNotIn("## Completion gate", self.prompt)
+
+    def test_xml_section_tags_present(self) -> None:
+        self.assertIn("<role>", self.prompt)
+        self.assertIn("</role>", self.prompt)
+        self.assertIn("<contract>", self.prompt)
+        self.assertIn("</contract>", self.prompt)
+        self.assertIn("<work>", self.prompt)
+        self.assertIn("</work>", self.prompt)
+        self.assertIn("<completion_gate>", self.prompt)
+        self.assertIn("</completion_gate>", self.prompt)
+
+    def test_prompt_starts_with_role_tag(self) -> None:
+        self.assertTrue(self.prompt.lstrip().startswith("<role>"))
+
+    def test_test_categories_block_present(self) -> None:
+        self.assertIn("<test_categories>", self.prompt)
+        self.assertIn("</test_categories>", self.prompt)
+
+    def test_named_category_elements_present(self) -> None:
+        self.assertIn('name="visual_regression"', self.prompt)
+        self.assertIn('name="ui_integration_smoke"', self.prompt)
+        self.assertIn('name="ui_interaction_suite"', self.prompt)
+
+
 if __name__ == "__main__":
     unittest.main()

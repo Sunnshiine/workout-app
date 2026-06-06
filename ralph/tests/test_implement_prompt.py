@@ -72,5 +72,46 @@ class ImplementPhaseUIBoundaryTests(unittest.TestCase):
         self.assertNotIn("did not run ui tests", lower)
 
 
+class ImplementPromptXmlStructureTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.prompt = IMPLEMENT_PATH.read_text(encoding="utf-8")
+
+    def test_no_markdown_contract_header(self) -> None:
+        self.assertNotIn("## Contract", self.prompt)
+
+    def test_no_markdown_work_header(self) -> None:
+        self.assertNotIn("## Work", self.prompt)
+
+    def test_no_markdown_completion_gate_header(self) -> None:
+        self.assertNotIn("## Completion gate", self.prompt)
+
+    def test_role_opening_tag_present(self) -> None:
+        self.assertIn("<role>", self.prompt)
+
+    def test_role_closing_tag_present(self) -> None:
+        self.assertIn("</role>", self.prompt)
+
+    def test_contract_opening_tag_present(self) -> None:
+        self.assertIn("<contract>", self.prompt)
+
+    def test_contract_closing_tag_present(self) -> None:
+        self.assertIn("</contract>", self.prompt)
+
+    def test_work_opening_tag_present(self) -> None:
+        self.assertIn("<work>", self.prompt)
+
+    def test_work_closing_tag_present(self) -> None:
+        self.assertIn("</work>", self.prompt)
+
+    def test_completion_gate_opening_tag_present(self) -> None:
+        self.assertIn("<completion_gate>", self.prompt)
+
+    def test_completion_gate_closing_tag_present(self) -> None:
+        self.assertIn("</completion_gate>", self.prompt)
+
+    def test_prompt_starts_with_role_tag(self) -> None:
+        self.assertTrue(self.prompt.lstrip().startswith("<role>"))
+
+
 if __name__ == "__main__":
     unittest.main()
