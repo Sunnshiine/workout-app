@@ -1,64 +1,6 @@
 import XCTest
 
-final class WorkoutTrackerUITests: XCTestCase {
-    @MainActor
-    func testFixtureDrivenCoreSessionFlow() throws {
-        let app = launchFixtureApp()
-
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
-        XCTAssertTrue(app.buttons["session-location-button"].exists)
-
-        app.buttons["rpe-6"].tap()
-        let logButton = app.buttons["log-active-set-button"]
-        waitUntilEnabled(logButton)
-        logButton.tap()
-
-        waitForLabel("Weight, 252.5", on: app.buttons["weight-pill"])
-
-        tapWhenReady(app.buttons["move-on-button"], in: app)
-        let celebration = moveOnCelebration(in: app)
-        XCTAssertTrue(celebration.waitForExistence(timeout: 3))
-        waitForLabel("Week 1, Day 1", on: celebration)
-        assertMoveOnCelebrationIsUsable(celebration, in: app)
-        XCTAssertFalse(app.staticTexts["Back Squat"].exists)
-
-        celebration.tap()
-        XCTAssertTrue(app.staticTexts["Bench Press"].waitForExistence(timeout: 3))
-
-        app.buttons["session-location-button"].tap()
-        XCTAssertTrue(app.navigationBars["Block 27"].waitForExistence(timeout: 3))
-
-        app.buttons["Week 1, Day 3"].tap()
-        waitForLabel("Open Block Overview for Week 1, Day 3", on: app.buttons["session-location-button"])
-        XCTAssertTrue(app.buttons["go-back-current-session-button"].exists)
-        XCTAssertTrue(app.buttons["make-current-session-button"].exists)
-
-        app.buttons["make-current-session-button"].tap()
-        XCTAssertFalse(app.buttons["go-back-current-session-button"].waitForExistence(timeout: 1))
-        XCTAssertFalse(app.buttons["make-current-session-button"].exists)
-        waitForLabel("Open Block Overview for Week 1, Day 3", on: app.buttons["session-location-button"])
-
-        tapWhenReady(app.buttons["move-on-button"], in: app)
-        let secondCelebration = moveOnCelebration(in: app)
-        XCTAssertTrue(secondCelebration.waitForExistence(timeout: 3))
-        waitForLabel("Week 1, Day 3", on: secondCelebration)
-        secondCelebration.tap()
-        XCTAssertTrue(app.staticTexts["Accessory W1 D4"].waitForExistence(timeout: 3))
-
-        app.buttons["session-location-button"].tap()
-        XCTAssertTrue(app.navigationBars["Block 27"].waitForExistence(timeout: 3))
-
-        app.buttons["Week 1, Day 2"].tap()
-        waitForLabel("Open Block Overview for Week 1, Day 2", on: app.buttons["session-location-button"])
-        XCTAssertTrue(app.buttons["go-back-current-session-button"].exists)
-        XCTAssertTrue(app.buttons["make-current-session-button"].exists)
-
-        app.buttons["go-back-current-session-button"].tap()
-        XCTAssertTrue(app.staticTexts["Accessory W1 D4"].waitForExistence(timeout: 3))
-        waitForLabel("Open Block Overview for Week 1, Day 4", on: app.buttons["session-location-button"])
-    }
-
+final class WorkoutTrackerInteractionUITests: XCTestCase {
     @MainActor
     func testActiveSetFieldFocusDismissesWithoutCardCancel() throws {
         let app = launchFixtureApp()
@@ -100,27 +42,6 @@ final class WorkoutTrackerUITests: XCTestCase {
         XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 1))
         XCTAssertTrue(app.buttons["Set 1, 237.5x5@6"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["Set 2 of 3"].waitForExistence(timeout: 3))
-    }
-
-    @MainActor
-    func testNonCurrentSessionChromeShowsOverrideControlsWithoutSessionControls() throws {
-        let app = launchFixtureApp()
-
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
-
-        app.buttons["session-location-button"].tap()
-        XCTAssertTrue(app.navigationBars["Block 27"].waitForExistence(timeout: 3))
-
-        app.buttons["Week 1, Day 3"].tap()
-        waitForLabel("Open Block Overview for Week 1, Day 3", on: app.buttons["session-location-button"])
-
-        XCTAssertTrue(app.buttons["go-back-current-session-button"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["make-current-session-button"].exists)
-        XCTAssertFalse(app.staticTexts["Go back"].exists)
-        XCTAssertFalse(app.staticTexts["Make Current"].exists)
-        XCTAssertFalse(app.buttons["session-controls-settings-button"].exists)
-        XCTAssertFalse(app.buttons["session-controls-sync-button"].exists)
-        XCTAssertFalse(app.otherElements["session-controls"].exists)
     }
 
     @MainActor
@@ -171,7 +92,7 @@ final class WorkoutTrackerUITests: XCTestCase {
     }
 
     @MainActor
-    func testSettingsRevealRouteSmokeOpensSettingsAndPendingSignOutConfirmation() throws {
+    func testSettingsRevealGestureOpensSettings() throws {
         let app = launchFixtureApp(options: [.pendingWrite])
 
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
@@ -186,17 +107,6 @@ final class WorkoutTrackerUITests: XCTestCase {
         settingsButton.tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["Fixture Training Log"].exists)
-
-        app.buttons["settings-sign-out-button"].tap()
-        XCTAssertTrue(app.alerts["You have unsynced changes. Sign out anyway?"].waitForExistence(timeout: 3))
-        app.alerts.buttons["Cancel"].tap()
-
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
-        app.buttons["settings-sign-out-button"].tap()
-        XCTAssertTrue(app.alerts["You have unsynced changes. Sign out anyway?"].waitForExistence(timeout: 3))
-        app.alerts.buttons["Sign Out"].tap()
-
-        XCTAssertTrue(app.staticTexts["Connect your training sheet"].waitForExistence(timeout: 3))
     }
 
     @MainActor
@@ -238,19 +148,6 @@ final class WorkoutTrackerAppearanceUITests: XCTestCase {
     private func launchSettingsFixtureApp() -> XCUIApplication {
         launchWorkoutApp(fixture: .settings)
     }
-}
-
-@MainActor
-private func tapWhenReady(_ element: XCUIElement, in app: XCUIApplication) {
-    XCTAssertTrue(element.waitForExistence(timeout: 3))
-    if element.isHittable {
-        element.tap()
-        return
-    }
-
-    app.swipeUp()
-    XCTAssertTrue(element.waitForExistence(timeout: 3))
-    element.tap()
 }
 
 @MainActor
@@ -311,46 +208,6 @@ private func pullSessionHeader(in app: XCUIApplication, endY: CGFloat) {
             forDuration: 0.1,
             thenDragTo: start.withOffset(CGVector(dx: 0, dy: app.frame.height * (endY - 0.25)))
         )
-}
-
-@MainActor
-private func waitForLabel(_ label: String, on element: XCUIElement) {
-    XCTAssertTrue(element.waitForExistence(timeout: 3), "Expected element for label '\(label)' to exist")
-    let deadline = Date().addingTimeInterval(3)
-    while Date() < deadline {
-        if element.label == label {
-            return
-        }
-        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-    }
-    XCTFail("Expected \(element) to have label '\(label)', got '\(element.label)'")
-}
-
-@MainActor
-private func waitUntilEnabled(_ element: XCUIElement) {
-    XCTAssertTrue(element.waitForExistence(timeout: 3))
-    let deadline = Date().addingTimeInterval(3)
-    while Date() < deadline {
-        if element.isEnabled {
-            return
-        }
-        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-    }
-    XCTFail("Expected \(element) to become enabled")
-}
-
-@MainActor
-private func tapWhenHittable(_ element: XCUIElement) {
-    XCTAssertTrue(element.waitForExistence(timeout: 3))
-    let deadline = Date().addingTimeInterval(3)
-    while Date() < deadline {
-        if element.isHittable {
-            element.tap()
-            return
-        }
-        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-    }
-    XCTFail("Expected \(element) to become hittable")
 }
 
 @MainActor

@@ -41,6 +41,59 @@ extension XCTestCase {
 }
 
 @MainActor
+func waitForLabel(_ label: String, on element: XCUIElement) {
+    XCTAssertTrue(element.waitForExistence(timeout: 3), "Expected element for label '\(label)' to exist")
+    let deadline = Date().addingTimeInterval(3)
+    while Date() < deadline {
+        if element.label == label {
+            return
+        }
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+    }
+    XCTFail("Expected \(element) to have label '\(label)', got '\(element.label)'")
+}
+
+@MainActor
+func waitUntilEnabled(_ element: XCUIElement) {
+    XCTAssertTrue(element.waitForExistence(timeout: 3))
+    let deadline = Date().addingTimeInterval(3)
+    while Date() < deadline {
+        if element.isEnabled {
+            return
+        }
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+    }
+    XCTFail("Expected \(element) to become enabled")
+}
+
+@MainActor
+func tapWhenReady(_ element: XCUIElement, in app: XCUIApplication) {
+    XCTAssertTrue(element.waitForExistence(timeout: 3))
+    if element.isHittable {
+        element.tap()
+        return
+    }
+
+    app.swipeUp()
+    XCTAssertTrue(element.waitForExistence(timeout: 3))
+    element.tap()
+}
+
+@MainActor
+func tapWhenHittable(_ element: XCUIElement) {
+    XCTAssertTrue(element.waitForExistence(timeout: 3))
+    let deadline = Date().addingTimeInterval(3)
+    while Date() < deadline {
+        if element.isHittable {
+            element.tap()
+            return
+        }
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+    }
+    XCTFail("Expected \(element) to become hittable")
+}
+
+@MainActor
 func waitForValue(_ value: String, on element: XCUIElement) {
     XCTAssertTrue(element.waitForExistence(timeout: 3))
     let deadline = Date().addingTimeInterval(3)
