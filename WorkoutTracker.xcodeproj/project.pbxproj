@@ -15,6 +15,7 @@
 		0D3E6DBCFE1881EE177EDEAE /* SessionProgressTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DE918A15498A36B4EC413FD /* SessionProgressTracker.swift */; };
 		0D4C89E50C4CE24C8BCAC13A /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3695D878F161DF7CDC6A827E /* LaunchScreen.storyboard */; };
 		0FCFEE8BE8B4EEBA73F6E728 /* BlockBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73C4E487CCAF7C536F0485E /* BlockBuilderTests.swift */; };
+		1018F59A2AC1D53EA49ABFEA /* smartValuePillsWithVisibleWeightSteppersMatchesVisualBaseline.1.png in Resources */ = {isa = PBXBuildFile; fileRef = 0FFF75534634A0C4281D2559 /* smartValuePillsWithVisibleWeightSteppersMatchesVisualBaseline.1.png */; };
 		106BF1E7736CCBF64C0C003E /* seededSessionViewMatchesVisualBaseline.1.png in Resources */ = {isa = PBXBuildFile; fileRef = 6095EAC4F29B18D4E50947A5 /* seededSessionViewMatchesVisualBaseline.1.png */; };
 		143A4B86669D0B90D2400DB6 /* RestPillPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68C59EA105717AB9250DE758 /* RestPillPresentationTests.swift */; };
 		14B6CF78AC54878F220CEFDE /* LastPerformedIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 667584F2EFDE6375E3486E56 /* LastPerformedIndex.swift */; };
@@ -50,6 +51,7 @@
 		4C33000A10AC8DBB4AAE4BEA /* WorkoutVisualBaseline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D0970B6E6209BC4656E8D1E /* WorkoutVisualBaseline.swift */; };
 		4C41F717F6D84DB68492574D /* SheetA1Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 492A8D172E85B6A0372E0C8C /* SheetA1Tests.swift */; };
 		4F5E2344135FD235D3E09527 /* BlockTabSelectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9C6CF59C7F6F897516AFFE7 /* BlockTabSelectorTests.swift */; };
+		52739B949C5BC3E257751E34 /* WeightPillLayoutMetricsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EA60B3DEDC06A8AE91239AA /* WeightPillLayoutMetricsTests.swift */; };
 		5344625CEB5D416163749242 /* WorkoutFixtureScenarios.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBC4B91909CBE1C1FA3A0E7E /* WorkoutFixtureScenarios.swift */; };
 		534BF64C12717F887A7C272C /* WorkoutStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECBE6989519E819A9FDB6608 /* WorkoutStore.swift */; };
 		57C6C6B94D5C7E277F2E038F /* SheetParserLogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18C3B37DF33E327032E126B0 /* SheetParserLogTests.swift */; };
@@ -65,6 +67,7 @@
 		6962F55A0A33D607CC9C4C22 /* SheetParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93A5CA6A951EC6FB3C319E0F /* SheetParser.swift */; };
 		69CC713B83C49CDF66F74D5C /* SheetWriterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE7A4D22498359AE35A9EAB6 /* SheetWriterTests.swift */; };
 		6A3A1611C6B8BCF8B2381662 /* SmartValuePillsFormTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63390CF33C9BDD5A5209795E /* SmartValuePillsFormTests.swift */; };
+		6BF68D998CF420084A2DE252 /* WeightPillLayoutMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B76CE1F35E8B066C0FD2E5AD /* WeightPillLayoutMetrics.swift */; };
 		6BF78E5ABEEF662D2FC166CF /* LastPerformedIndexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BE10429AAA3746BDF812086 /* LastPerformedIndexTests.swift */; };
 		6C0253C40A84915E81AE47AF /* BlockOverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94076860F23B16098C27E60D /* BlockOverviewView.swift */; };
 		6E311B93FD26344D5B375D33 /* WorkoutScenarioTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF7F63038DE0B69F173CD7CD /* WorkoutScenarioTests.swift */; };
@@ -228,6 +231,8 @@
 		084BC3BB6CECB164739792A0 /* PillStepperButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PillStepperButton.swift; sourceTree = "<group>"; };
 		0A7DE7A3ADF7567E4E60F24E /* SupersetState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupersetState.swift; sourceTree = "<group>"; };
 		0B3961CCCF9E1E80C9759016 /* WorkoutStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutStoreTests.swift; sourceTree = "<group>"; };
+		0EA60B3DEDC06A8AE91239AA /* WeightPillLayoutMetricsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightPillLayoutMetricsTests.swift; sourceTree = "<group>"; };
+		0FFF75534634A0C4281D2559 /* smartValuePillsWithVisibleWeightSteppersMatchesVisualBaseline.1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = smartValuePillsWithVisibleWeightSteppersMatchesVisualBaseline.1.png; sourceTree = "<group>"; };
 		1396E247C762E3B6CE7A945F /* RestHapticSchedule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestHapticSchedule.swift; sourceTree = "<group>"; };
 		1413B4B036D2B095E11C08CA /* RestPillUrgencyCueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestPillUrgencyCueTests.swift; sourceTree = "<group>"; };
 		18728403D4DF0D96EF330AB9 /* RestHapticScheduleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestHapticScheduleTests.swift; sourceTree = "<group>"; };
@@ -335,6 +340,7 @@
 		B5AD19394F523316075E92C3 /* SheetGridFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetGridFixture.swift; sourceTree = "<group>"; };
 		B6BBB0700280BA9330BB8F60 /* SheetGridTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetGridTests.swift; sourceTree = "<group>"; };
 		B73C4E487CCAF7C536F0485E /* BlockBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockBuilderTests.swift; sourceTree = "<group>"; };
+		B76CE1F35E8B066C0FD2E5AD /* WeightPillLayoutMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightPillLayoutMetrics.swift; sourceTree = "<group>"; };
 		BAF4B32774225208D31F362E /* RestDurationSetting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestDurationSetting.swift; sourceTree = "<group>"; };
 		BD0ADA4AF2047FB6DE169C71 /* MoveOnCelebrationPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveOnCelebrationPresentationTests.swift; sourceTree = "<group>"; };
 		BDE239394917F6AD12CA9B07 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
@@ -501,6 +507,7 @@
 				3DE918A15498A36B4EC413FD /* SessionProgressTracker.swift */,
 				FCE536596991762BAEEF006D /* SmartValuePillsForm.swift */,
 				0A7DE7A3ADF7567E4E60F24E /* SupersetState.swift */,
+				B76CE1F35E8B066C0FD2E5AD /* WeightPillLayoutMetrics.swift */,
 			);
 			path = Progress;
 			sourceTree = "<group>";
@@ -596,6 +603,7 @@
 				1F9E7F135C476C302631716D /* sessionTileMatchesVisualBaseline.1.png */,
 				BE50667E5D1964CCC44EEFA2 /* settingsViewMatchesVisualBaseline.1.png */,
 				DC91A05FE3FA16B4F17BB315 /* smartValuePillsMatchesVisualBaseline.1.png */,
+				0FFF75534634A0C4281D2559 /* smartValuePillsWithVisibleWeightSteppersMatchesVisualBaseline.1.png */,
 			);
 			path = GlassBearingViewsVisualTests;
 			sourceTree = "<group>";
@@ -740,7 +748,7 @@
 				63390CF33C9BDD5A5209795E /* SmartValuePillsFormTests.swift */,
 				D550038AEDE59912E21E5C00 /* SyncStatusPresentationTests.swift */,
 				7824F6B3D40B1310C078953A /* ThemeTests.swift */,
-				DF6BE32FF77252B878606269 /* WorkoutGlassMigrationContractTests.swift */,
+				0EA60B3DEDC06A8AE91239AA /* WeightPillLayoutMetricsTests.swift */,
 			);
 			path = Component;
 			sourceTree = "<group>";
@@ -921,6 +929,7 @@
 				CA068383907606A105CE7493 /* sessionTileMatchesVisualBaseline.1.png in Resources */,
 				F249E82B3B2C14EEC5199B92 /* settingsViewMatchesVisualBaseline.1.png in Resources */,
 				848F9B8095C4EDAA62D3EC83 /* smartValuePillsMatchesVisualBaseline.1.png in Resources */,
+				1018F59A2AC1D53EA49ABFEA /* smartValuePillsWithVisibleWeightSteppersMatchesVisualBaseline.1.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1024,7 +1033,7 @@
 				C0FDEC28CF5657E7183A8348 /* SyncCoordinatorWriteTests.swift in Sources */,
 				37A4A63BB53FDDB3F147C4EE /* SyncStatusPresentationTests.swift in Sources */,
 				B1A03F30DB8DFC71A1C8C562 /* ThemeTests.swift in Sources */,
-				3DCB551535F4E58F43C72171 /* WorkoutGlassMigrationContractTests.swift in Sources */,
+				52739B949C5BC3E257751E34 /* WeightPillLayoutMetricsTests.swift in Sources */,
 				3DEF9DC695D38CC516DA389E /* WorkoutModelFixture.swift in Sources */,
 				6E311B93FD26344D5B375D33 /* WorkoutScenarioTests.swift in Sources */,
 				C103B9ADA105131A601DC943 /* WorkoutScenarios.swift in Sources */,
@@ -1110,6 +1119,7 @@
 				D52B7B14DA20DC2646BC969D /* SyncStatusBannerPresentation.swift in Sources */,
 				DA18B95BE71A08ECEE00FFCD /* Theme.swift in Sources */,
 				95991E9E161A648AAC3B6691 /* UITestFixture.swift in Sources */,
+				6BF68D998CF420084A2DE252 /* WeightPillLayoutMetrics.swift in Sources */,
 				FB388BA0DE209E81C86560A4 /* WorkoutActivityAttributes.swift in Sources */,
 				5344625CEB5D416163749242 /* WorkoutFixtureScenarios.swift in Sources */,
 				67AC1FABCA19B040B11E3E27 /* WorkoutGlass.swift in Sources */,

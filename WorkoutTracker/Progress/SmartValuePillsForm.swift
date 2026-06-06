@@ -82,7 +82,9 @@ struct SmartValuePillsForm {
     /// Stepping only makes sense for a numeric weight — hidden for bodyweight and
     /// while the field is empty.
     var allowsWeightStepping: Bool {
-        Double(weightText) != nil
+        let trimmed = weightText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let weight = Double(trimmed) else { return false }
+        return weight.isFinite
     }
 
     var canLog: Bool {

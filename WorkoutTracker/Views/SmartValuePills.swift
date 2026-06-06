@@ -80,16 +80,12 @@ struct SmartValuePills: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
 
-            HStack(spacing: 8) {
-                if form.allowsWeightStepping {
-                    stepperButton("minus", by: -form.fineWeightIncrement, id: "weight-decrement")
-                }
-
+            CenteredWeightValueControls(showsSteppers: form.allowsWeightStepping) {
                 weightValueField
-
-                if form.allowsWeightStepping {
-                    stepperButton("plus", by: form.fineWeightIncrement, id: "weight-increment")
-                }
+            } decrement: {
+                stepperButton("minus", by: -form.fineWeightIncrement, id: "weight-decrement")
+            } increment: {
+                stepperButton("plus", by: form.fineWeightIncrement, id: "weight-increment")
             }
         }
         .modifier(PillChrome(isFocused: editingPill == .weight, isInvalid: form.invalidFields.contains(.weight)))
@@ -263,6 +259,42 @@ private struct WeightedValuePillRow: Layout {
         let availableWidth = max(totalWidth - spacing, 0)
         let weightWidth = floor(availableWidth * weightColumnFraction)
         return [weightWidth, availableWidth - weightWidth]
+    }
+}
+
+private struct CenteredWeightValueControls<Value: View, Decrement: View, Increment: View>: View {
+    let showsSteppers: Bool
+    @ViewBuilder let value: Value
+    @ViewBuilder let decrement: Decrement
+    @ViewBuilder let increment: Increment
+
+    var body: some View {
+        ZStack {
+            HStack(spacing: 0) {
+                Spacer()
+                    .frame(width: WeightPillLayoutMetrics.valueSideReserve)
+
+                value
+                    .frame(maxWidth: .infinity, alignment: .center)
+
+                Spacer()
+                    .frame(width: WeightPillLayoutMetrics.valueSideReserve)
+            }
+
+            if showsSteppers {
+                HStack(spacing: 0) {
+                    decrement
+
+                    Spacer(minLength: 0)
+
+                    increment
+                }
+            }
+        }
+        .frame(
+            maxWidth: .infinity,
+            minHeight: WeightPillLayoutMetrics.stepperButtonSize
+        )
     }
 }
 

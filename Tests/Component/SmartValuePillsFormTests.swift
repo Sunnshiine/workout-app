@@ -117,6 +117,12 @@ import Testing
 
     bodyweight.weightText = ""
     #expect(!bodyweight.allowsWeightStepping)
+
+    bodyweight.weightText = "nan"
+    #expect(!bodyweight.allowsWeightStepping)
+
+    bodyweight.weightText = "inf"
+    #expect(!bodyweight.allowsWeightStepping)
 }
 
 @MainActor
