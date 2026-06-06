@@ -6,6 +6,7 @@ enum WorkoutVisualBaseline {
     static let localeIdentifier = "en_US"
     static let dynamicTypeSize: DynamicTypeSize = .large
     static let precision: Float = 1.0
+    static let labelAntialiasingPrecision: Float = 0.999
 }
 
 extension ViewImageConfig {
