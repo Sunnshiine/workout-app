@@ -7,6 +7,7 @@ from ralph.orchestrator.contracts import (
     UI_TEST_AUTHORIZATION_LINE,
     IssueContract,
     capture_issue_contract,
+    parse_blocked_by,
     parse_prd_number,
     parse_ui_test_authorization,
 )
@@ -75,6 +76,36 @@ class PrdParsingTests(unittest.TestCase):
 
     def test_first_directive_wins(self) -> None:
         self.assertEqual(parse_prd_number("PRD: #1\nPRD: #2"), 1)
+
+
+class BlockedByParsingTests(unittest.TestCase):
+    def test_single_dependency_in_section(self) -> None:
+        body = "## Blocked by\n\n- #222\n"
+        self.assertEqual(parse_blocked_by(body), (222,))
+
+    def test_multiple_dependencies_preserve_order(self) -> None:
+        body = "## Blocked by\n\n- #222\n- #223\n"
+        self.assertEqual(parse_blocked_by(body), (222, 223))
+
+    def test_duplicates_are_removed(self) -> None:
+        body = "## Blocked by\n\n- #222\n- #222\n"
+        self.assertEqual(parse_blocked_by(body), (222,))
+
+    def test_section_ends_at_next_heading(self) -> None:
+        body = "## Blocked by\n\n- #222\n\n## Notes\n\n- #999\n"
+        self.assertEqual(parse_blocked_by(body), (222,))
+
+    def test_out_of_section_mention_is_ignored(self) -> None:
+        body = "Refs #222 in the summary.\n\n## Details\n\nNo deps here.\n"
+        self.assertEqual(parse_blocked_by(body), ())
+
+    def test_no_section_returns_empty(self) -> None:
+        self.assertEqual(parse_blocked_by("Just a body with #5 mentioned."), ())
+
+    def test_section_captured_in_contract(self) -> None:
+        client = _client_with_body(9, "## Blocked by\n\n- #222\n")
+        contract = capture_issue_contract(client, 9)
+        self.assertEqual(contract.blocked_by, (222,))
 
 
 class UiTestAuthorizationTests(unittest.TestCase):

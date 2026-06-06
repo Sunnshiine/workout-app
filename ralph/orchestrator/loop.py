@@ -17,7 +17,7 @@ from pathlib import Path
 from .authority import AuthorityGate, DiffSeam, NameStatusEntry
 from .blocked import BlockedReport, BlockedRescuePublisher
 from .config import RunConfig
-from .contracts import IssueContract, capture_issue_contract
+from .contracts import IssueContract, capture_issue_contract, parse_blocked_by
 from .diagnosis import (
     DiagnosisAuthorityParse,
     apply_ui_test_authority,
@@ -39,7 +39,7 @@ from .gates import (
     GateSpec,
     GateStatus,
 )
-from .github import GitHubClient, _label_names
+from .github import GitHubClient, GitHubClientError, _label_names
 from .phase import PhaseResult, PhaseStatus
 from .prompt_context import PhaseContext, PromptContextWriter
 from .publish import (
@@ -54,6 +54,7 @@ from .publish import (
     IssuePublisher,
     PullRequestPublisher,
 )
+from .repair import RepairCoordinator, RepairOutcome
 from .targets import PrTarget, TargetResolver
 from .worktree import GitResult, Worktree, WorktreeManager, default_git_runner
 
@@ -140,12 +141,36 @@ class IssueSelector:
                 continue
             if not _has_actionable_contract(full):
                 continue
+            if not self._dependencies_satisfied(full):
+                continue
             priority = 0 if "bug" in labels else 1
             candidates.append((priority, number, title))
         if not candidates:
             return None
         priority, number, title = min(candidates)
         return SelectedIssue(number=number, title=title)
+
+    def _dependencies_satisfied(self, issue: dict) -> bool:
+        """True only when every ``## Blocked by`` upstream issue has landed.
+
+        A dependency must be closed (``state == "CLOSED"``) to count as landed. A
+        dep that is missing, still OPEN, or labeled ``agent-blocked`` leaves the
+        candidate ineligible so dependents are never picked up early.
+        """
+
+        body = issue.get("body")
+        if not isinstance(body, str):
+            return True
+        return all(self._dependency_landed(dep) for dep in parse_blocked_by(body))
+
+    def _dependency_landed(self, dep: int) -> bool:
+        try:
+            payload = self._client.view_issue(dep)
+        except GitHubClientError:
+            return False
+        if payload.get("state") != "CLOSED":
+            return False
+        return LABEL_AGENT_BLOCKED not in _label_names(payload.get("labels"))
 
 
 class OriginMain:
@@ -358,17 +383,24 @@ class RalphLoop:
 
         gate_failure = self._run_gates(iteration, contract, worktree.path)
         if gate_failure is not None:
-            self._publish_blocked(
-                contract,
-                target,
-                worktree,
-                failed_gate=gate_failure,
-                issue_base=issue_base,
-                issue_tip=issue_tip,
-                ui_phase_base=ui_phase_base,
-                ui_phase_tip=ui_phase_tip,
-            )
-            return False
+            repair_outcome: RepairOutcome | None = None
+            if gate_failure.ui_owned:
+                repair_outcome = self._run_repair(
+                    iteration, contract, target, worktree, gate_failure, issue_base
+                )
+            if repair_outcome is None or not repair_outcome.shipped:
+                self._publish_blocked(
+                    contract,
+                    target,
+                    worktree,
+                    failed_gate=gate_failure,
+                    repair_outcome=repair_outcome,
+                    issue_base=issue_base,
+                    issue_tip=issue_tip,
+                    ui_phase_base=ui_phase_base,
+                    ui_phase_tip=ui_phase_tip,
+                )
+                return False
 
         self._publish_success(contract, target, worktree.path)
         self._cleanup_worktree(worktree)
@@ -608,6 +640,56 @@ class RalphLoop:
                 return result
         return None
 
+    def _run_repair(
+        self,
+        iteration: int,
+        contract: IssueContract,
+        target: PrTarget,
+        worktree: Worktree,
+        failed_gate: GateResult,
+        issue_base: str,
+    ) -> RepairOutcome:
+        """Run the one-shot UI-owned repair cycle for a failing gate.
+
+        Exactly one attempt per issue: the loop only reaches this once because the
+        repair coordinator is single-shot and ``_run_issue`` calls it once per
+        gate failure. ``rerun_gate`` reruns ONLY the failing gate and
+        ``changed_files`` reports the repair's name-status diff against the issue
+        base so the coordinator decides whether ``review-after-repair`` runs.
+        """
+
+        _ralph_log(f"issue #{contract.number} repairing UI-owned gate {failed_gate.name}")
+        coordinator = RepairCoordinator(
+            self._engine, repo_root=self._repo_root, workdir=worktree.path
+        )
+        outcome = coordinator.run(
+            contract,
+            failed_gate,
+            rerun_gate=lambda: self._rerun_gate(iteration, contract, worktree.path, failed_gate),
+            changed_files=lambda: self._changed_files(
+                worktree.path, issue_base, self._rev_parse(worktree.path, "HEAD")
+            ),
+            target_branch=target.branch,
+            existing_pr_number=target.existing_pr_number,
+            artifact_paths=_artifact_paths(None, failed_gate),
+        )
+        _ralph_log(
+            f"issue #{contract.number} repair {failed_gate.name} -> "
+            f"{'shipped' if outcome.shipped else 'still failing'}"
+        )
+        return outcome
+
+    def _rerun_gate(
+        self, iteration: int, contract: IssueContract, workdir: Path, failed_gate: GateResult
+    ) -> GateResult:
+        """Rerun ONLY the failing gate once and return its fresh ``GateResult``."""
+
+        runner = self._gate_runner_factory(workdir, iteration, contract.number)
+        spec = _gate_spec_for(failed_gate.name, self._config.sim_device)
+        result = runner.run(spec)
+        _ralph_log(f"gate rerun {result.name} -> {result.status}")
+        return result
+
     def _publish_success(self, contract: IssueContract, target: PrTarget, workdir: Path) -> None:
         runner = self._publish_runner_factory(workdir)
         pr_publisher = PullRequestPublisher(self._client, runner)
@@ -625,6 +707,7 @@ class RalphLoop:
         *,
         failed_phase: PhaseResult | None = None,
         failed_gate: GateResult | None = None,
+        repair_outcome: RepairOutcome | None = None,
         issue_base: str | None = None,
         issue_tip: str | None = None,
         ui_phase_base: str | None = None,
@@ -638,8 +721,8 @@ class RalphLoop:
             failed_phase_or_gate=_failed_name(failed_phase, failed_gate),
             failing_command=" ".join(failed_gate.command) if failed_gate else "",
             exit_status=failed_gate.exit_status if failed_gate else None,
-            repair_attempted=False,
-            repair_result=None,
+            repair_attempted=repair_outcome is not None and repair_outcome.repair_attempted,
+            repair_result=_repair_result_summary(repair_outcome),
             changed_files=self._changed_files(worktree.path, issue_base, issue_tip),
             diffstat=self._diffstat(worktree.path, issue_base, issue_tip),
             sanitized_excerpt=_blocked_excerpt(failed_phase, failed_gate),
@@ -797,6 +880,15 @@ def _gate_specs(device: str) -> tuple[GateSpec, ...]:
     )
 
 
+def _gate_spec_for(name: str, device: str) -> GateSpec:
+    """Return the single gate spec matching ``name`` so a rerun targets just it."""
+
+    for spec in _gate_specs(device):
+        if spec.name == name:
+            return spec
+    raise RalphLoopError(f"no gate spec named {name!r} to rerun")
+
+
 def _gate_name_for_command(command: Sequence[str]) -> str:
     if tuple(command) == ("swift", "test"):
         return GATE_SWIFT_TEST
@@ -946,6 +1038,16 @@ def _failed_name(failed_phase: PhaseResult | None, failed_gate: GateResult | Non
     if failed_gate is not None:
         return failed_gate.name
     return "unknown"
+
+
+def _repair_result_summary(repair_outcome: RepairOutcome | None) -> str | None:
+    """Human-readable repair result for the blocked report, or None if no repair ran."""
+
+    if repair_outcome is None:
+        return None
+    rerun = repair_outcome.rerun_gate
+    review = "review ran" if repair_outcome.review_ran else "no review"
+    return f"repaired but {rerun.name} still {rerun.status} on rerun ({review})"
 
 
 def _blocked_excerpt(failed_phase: PhaseResult | None, failed_gate: GateResult | None) -> str:

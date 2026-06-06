@@ -22,6 +22,13 @@ UI_TEST_AUTHORIZATION_LINE = "UI integration test edits: authorized"
 # mention inside prose does not register as membership.
 _PRD_DIRECTIVE = re.compile(r"^\s*PRD:\s*#(\d+)\s*$", re.MULTILINE)
 
+# ``## Blocked by`` section header. Anchored to a line so the dependency list is
+# scoped from this heading until the next ``##`` heading (or EOF); ``#<number>``
+# mentions elsewhere in the body (e.g. ``Refs #222``) never register as a dep.
+_BLOCKED_BY_HEADING = re.compile(r"^\s*##\s+Blocked by\s*$", re.IGNORECASE | re.MULTILINE)
+_NEXT_HEADING = re.compile(r"^\s*##\s", re.MULTILINE)
+_ISSUE_REFERENCE = re.compile(r"#(\d+)")
+
 
 @dataclass(frozen=True)
 class IssueComment:
@@ -42,6 +49,7 @@ class IssueContract:
     comments_for_context: tuple[IssueComment, ...] = ()
     prd_number: int | None = None
     ui_test_edits_authorized: bool = False
+    blocked_by: tuple[int, ...] = ()
 
 
 def capture_issue_contract(client: GitHubClient, number: int) -> IssueContract:
@@ -65,6 +73,7 @@ def capture_issue_contract(client: GitHubClient, number: int) -> IssueContract:
         comments_for_context=_parse_comments(payload.get("comments")),
         prd_number=parse_prd_number(body),
         ui_test_edits_authorized=parse_ui_test_authorization(body),
+        blocked_by=parse_blocked_by(body),
     )
 
 
@@ -77,6 +86,29 @@ def parse_prd_number(body: str) -> int | None:
 
     match = _PRD_DIRECTIVE.search(body)
     return int(match.group(1)) if match else None
+
+
+def parse_blocked_by(body: str) -> tuple[int, ...]:
+    """Return upstream issue numbers from a ``## Blocked by`` body section.
+
+    Numbers are read only from within that section (from the heading until the
+    next ``##`` heading or EOF), so a ``#222`` mention elsewhere in the body does
+    not register as a dependency. Order is preserved and duplicates removed.
+    """
+
+    heading = _BLOCKED_BY_HEADING.search(body)
+    if heading is None:
+        return ()
+
+    section_start = heading.end()
+    next_heading = _NEXT_HEADING.search(body, section_start)
+    section_end = next_heading.start() if next_heading else len(body)
+    section = body[section_start:section_end]
+
+    seen: dict[int, None] = {}
+    for match in _ISSUE_REFERENCE.finditer(section):
+        seen.setdefault(int(match.group(1)), None)
+    return tuple(seen)
 
 
 def parse_ui_test_authorization(body: str) -> bool:

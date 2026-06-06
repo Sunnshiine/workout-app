@@ -28,14 +28,15 @@ expected.
 ## Work
 - Run Xcode UI integration tests for `WorkoutTrackerUITests`.
 - Do NOT spawn `swift-reviewer` or `spec-conformance-reviewer` in this phase.
-- If the UI tests fail because of the issue implementation, fix the failure in
-  this same worktree and rerun the relevant UI tests.
-- If the UI tests fail because of simulator/tooling infrastructure that you
-  cannot remediate inside this issue, report BLOCKED with the phase-specific
-  promise line.
+- This is a read-only verification phase: do NOT edit `Tests/UI/**` or any other
+  code here. The parent orchestrator blocks any `Tests/UI/**` change made during
+  UI verification unconditionally, regardless of the issue's edit authority.
+- If the UI tests fail — whether because of the issue implementation or because
+  of simulator/tooling infrastructure you cannot remediate — report BLOCKED with
+  the phase-specific promise line. Do not attempt to fix the failure here; the
+  repair step owns UI-test fixes when the issue grants UI-test edit authority.
 - Do not spawn visual-review subagents or manually judge Visual Baseline PNG
   diffs. Programmatic Visual Regression tests are the visual gate.
-- If you changed files, commit the UI remediation on the current branch.
 - Do not push, merge, or close the issue; the loop owns those steps.
 
 ## Completion gate
@@ -48,7 +49,7 @@ For recurrence, read only `tail -n 150 "$OBSERVATIONS_LOG_PATH"` and check
 
 Emit COMPLETE only when ALL of these hold:
 - Xcode UI integration tests passed.
-- Any files changed by this phase were committed.
+- This phase made no code edits (read-only verification).
 - You did not run review subagents.
 
 If any condition fails, end with the exact BLOCKED promise format from the
