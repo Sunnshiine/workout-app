@@ -31,12 +31,21 @@ private var workoutGlassMigrationSourceRoot: URL {
     }
 }
 
-@Test func moveOnCelebrationUsesSharedLensCornerRadius() throws {
+@Test func moveOnCelebrationDoesNotDefineLocalLensCornerRadius() throws {
     let source = try String(
         contentsOf: workoutGlassMigrationSourceRoot.appending(path: "WorkoutTracker/Views/MoveOnCelebrationView.swift"),
         encoding: .utf8
     )
 
     #expect(!source.contains("private static let lensCornerRadius"))
-    #expect(source.contains("Theme.lensCornerRadius"))
+}
+
+@Test func moveOnCelebrationUsesEnvironmentThemePalette() throws {
+    let source = try String(
+        contentsOf: workoutGlassMigrationSourceRoot.appending(path: "WorkoutTracker/Views/MoveOnCelebrationView.swift"),
+        encoding: .utf8
+    )
+
+    #expect(source.contains("@Environment(\\.themePalette) private var palette"))
+    #expect(!source.contains("Theme.palette(for: .sageLight)"))
 }
