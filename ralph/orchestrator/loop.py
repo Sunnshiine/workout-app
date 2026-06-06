@@ -1104,7 +1104,10 @@ def _allowed_actions_for_phase(phase: str) -> tuple[str, ...]:
             "commit review fixes",
         )
     if phase == PHASE_UI_VERIFY:
-        return ("run UI verification", "commit UI fixes")
+        return (
+            "run UI Integration Smoke class-level selectors",
+            "write review artifacts under ralph/.artifacts/",
+        )
     return ()
 
 
