@@ -246,7 +246,7 @@ struct ActiveSupersetSection: View {
                     .font(.callout.weight(.semibold))
                     .accessibilityLabel("Dismiss superset")
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.workoutGlass)
         }
     }
 

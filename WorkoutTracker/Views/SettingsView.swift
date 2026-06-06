@@ -18,7 +18,7 @@ struct SettingsView: View {
             ZStack {
                 palette.gradient.ignoresSafeArea()
 
-                GlassEffectContainer(spacing: 12) {
+                WorkoutGlassContainer(spacing: 12) {
                     VStack(spacing: 0) {
                         VStack(alignment: .leading, spacing: 10) {
                             Text("Appearance")
@@ -113,7 +113,7 @@ struct SettingsView: View {
                         .accessibilityIdentifier("settings-sign-out-button")
                     }
                     .padding(.vertical, 6)
-                    .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
+                    .workoutGlass(.card)
                 }
                 .padding()
             }

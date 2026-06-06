@@ -86,7 +86,7 @@ struct RestPillView: View {
             Capsule()
                 .stroke(palette.pillStroke.opacity(0.54), lineWidth: 1)
         }
-        .glassEffect(.regular, in: .capsule)
+        .workoutGlass(.capsule)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
         .accessibilityIdentifier("rest-pill")
