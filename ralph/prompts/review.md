@@ -1,5 +1,5 @@
-You are an autonomous engineer reviewing and remediating ONE GitHub issue on an
-iOS app (Swift 6, SwiftUI) in a fresh Swift review phase.
+You are an autonomous engineer reviewing and remediating ONE GitHub issue in the
+Ralph review phase.
 
 The issue number, isolated worktree, branch, ISSUE_BASE_REF, publish target,
 PHASE_NAME, and exact promise lines are given in the preamble above. You are
@@ -11,12 +11,15 @@ history, or change the loop's own scripts or prompts (`ralph/*.sh`,
 `ralph/prompts/`).
 
 ## Contract
-- Re-read the issue and comments: `gh issue view <n> --comments`.
-- Use the "Agent Brief" comment as the authoritative spec when one exists.
-- If there is no Agent Brief comment, use the concrete issue body acceptance
-  criteria as the contract. Do not expand scope from PRDs.
-- Read related PRD/spec context if it helps evaluate the issue, but never let
-  PRDs/specs override or expand the issue contract.
+- Read CONTEXT_PATH first. The frozen `issue-contract.md` artifact is the
+  authority for this phase.
+- Use the captured Agent Brief as the authoritative spec when one exists.
+- If there is no captured Agent Brief, use the captured issue body acceptance
+  criteria as the contract.
+- Do not expand scope from live GitHub state, PRDs, linked specs, ADRs, docs, or
+  comments added after contract capture. Related material can clarify terms only.
+- If DIAGNOSIS_PATH is set in the preamble, read it as supporting context to
+  check the diff against the diagnosed cause and chosen regression-test seam.
 - Read `CONTEXT.md`, relevant ADRs, and `AGENTS.md` / `CLAUDE.md` only as needed
   to review the current diff.
 - Review the current issue diff from ISSUE_BASE_REF to HEAD.
@@ -24,17 +27,19 @@ history, or change the loop's own scripts or prompts (`ralph/*.sh`,
   push, merge, open a PR, close a PR, or close the issue yourself.
 
 ## Work
-- Spawn the `swift-reviewer` custom agent as a separate subagent for fresh-eyes
-  review. Do not self-review in this phase.
-- Give the reviewer the issue contract and current diff scope.
+- Spawn the `swift-reviewer` custom agent as a separate read-only subagent for
+  fresh-eyes technical review. Do not self-review in this phase.
+- Spawn the `spec-conformance-reviewer` custom agent as a separate read-only
+  subagent for frozen issue-contract conformance review.
+- Give both reviewers the frozen issue contract, current diff scope, ISSUE_BASE_REF,
+  CONTEXT_PATH, and DIAGNOSIS_PATH when present.
 - Do NOT run Xcode UI integration tests in this phase.
-- Do NOT run `ralph/snapshot.sh` in this phase.
-- Do NOT spawn `ui-screenshot-reviewer` in this phase.
-- If the reviewer reports blocking findings, fix them in this same worktree.
+- If either reviewer reports blocking findings, fix them in this same worktree.
 - After fixes, rerun the narrowest relevant non-UI checks plus any non-UI checks
   needed to prove the reviewer finding is fixed.
 - If you changed files, commit the remediation on the current branch.
-- Repeat review/remediation until `swift-reviewer` reports no blocking findings.
+- Repeat review/remediation until both `swift-reviewer` and
+  `spec-conformance-reviewer` report no blocking findings on the current state.
 - Do not push, merge, or close the issue; the loop owns those steps.
 
 ## Completion gate
@@ -46,11 +51,14 @@ For recurrence, read only `tail -n 150 "$OBSERVATIONS_LOG_PATH"` and check
 `wc -l "$OBSERVATIONS_LOG_PATH"`; never read the full observations file.
 
 Emit COMPLETE only when ALL of these hold:
-- `swift-reviewer` was invoked as a separate subagent.
+- `swift-reviewer` was invoked as a separate read-only subagent.
+- `spec-conformance-reviewer` was invoked as a separate read-only subagent.
 - `swift-reviewer` reported no blocking findings on the current state, or all
   blocking findings were fixed and re-reviewed.
+- `spec-conformance-reviewer` reported no blocking findings on the current state,
+  or all blocking findings were fixed and re-reviewed.
 - Any files changed by this phase were committed.
-- You did not run UI tests, screenshots, or UI screenshot review.
+- You did not run UI tests.
 
 If any condition fails, including being unable to spawn the reviewer, end with
 the exact BLOCKED promise format from the preamble, using this phase's name.

@@ -94,6 +94,7 @@ enum Theme {
 
     static let cardCornerRadius: CGFloat = 16
     static let cardSpacing: CGFloat = 16
+    static let lensCornerRadius: CGFloat = 28
     static let sectionSpacing: CGFloat = 28
     static let supersetRestingSpacing: CGFloat = 24
     static let rowCornerRadius: CGFloat = 8

@@ -82,7 +82,7 @@ class ParsePromiseTests(unittest.TestCase):
 
     def test_phase_name_must_match(self) -> None:
         # A COMPLETE promise for a different phase does not satisfy this phase.
-        out = f"{complete_promise_line('swift-review')}\n"
+        out = f"{complete_promise_line('review')}\n"
         status, _ = parse_promise("implement", out)
         self.assertIs(status, PhaseStatus.FAILED)
 
@@ -121,6 +121,30 @@ class CliEngineTests(unittest.TestCase):
         runner = _ScriptedCli(CliResult(returncode=1, output="crashed"))
         result = CodexCliEngine(runner=runner).run_phase(_request())
         self.assertIs(result.status, PhaseStatus.FAILED)
+
+    def test_codex_cli_uses_default_model_and_phase_reasoning(self) -> None:
+        runner = _ScriptedCli(CliResult(returncode=0, output=complete_promise_line("review")))
+        result = CodexCliEngine(runner=runner).run_phase(_request("review"))
+        self.assertIs(result.status, PhaseStatus.COMPLETE)
+
+        argv = runner.invocations[0].argv
+        self.assertEqual(argv[:2], ("codex", "exec"))
+        self.assertIn("--model", argv)
+        self.assertIn("gpt-5.5", argv)
+        self.assertIn("--config", argv)
+        self.assertIn('model_reasoning_effort="high"', argv)
+
+    def test_codex_cli_custom_model_and_reasoning_override_win(self) -> None:
+        runner = _ScriptedCli(
+            CliResult(returncode=0, output=complete_promise_line("implement-tdd"))
+        )
+        engine = CodexCliEngine(model="custom-model", reasoning_effort="low", runner=runner)
+        result = engine.run_phase(_request("implement-tdd"))
+        self.assertIs(result.status, PhaseStatus.COMPLETE)
+
+        argv = runner.invocations[0].argv
+        self.assertIn("custom-model", argv)
+        self.assertIn('model_reasoning_effort="low"', argv)
 
 
 class SdkNormalizationTests(unittest.TestCase):
@@ -168,6 +192,22 @@ class SdkEngineTests(unittest.TestCase):
         self.assertIs(result.status, PhaseStatus.COMPLETE)
         self.assertEqual(sdk.invocations[0].phase, "implement")
         self.assertEqual(sdk.invocations[0].model, "opus")
+
+    def test_codex_sdk_uses_default_model_and_phase_reasoning(self) -> None:
+        sdk = _ScriptedSdk([SdkEvent(kind="text", text=complete_promise_line("review"))])
+        engine = CodexSdkEngine(sdk)
+        result = engine.run_phase(_request("review"))
+        self.assertIs(result.status, PhaseStatus.COMPLETE)
+        self.assertEqual(sdk.invocations[0].model, "gpt-5.5")
+        self.assertEqual(sdk.invocations[0].reasoning_effort, "high")
+
+    def test_codex_sdk_custom_model_and_reasoning_override_win(self) -> None:
+        sdk = _ScriptedSdk([SdkEvent(kind="text", text=complete_promise_line("implement-tdd"))])
+        engine = CodexSdkEngine(sdk, model="custom-model", reasoning_effort="low")
+        result = engine.run_phase(_request("implement-tdd"))
+        self.assertIs(result.status, PhaseStatus.COMPLETE)
+        self.assertEqual(sdk.invocations[0].model, "custom-model")
+        self.assertEqual(sdk.invocations[0].reasoning_effort, "low")
 
 
 class ResolveEngineTests(unittest.TestCase):

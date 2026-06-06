@@ -12,12 +12,18 @@ from dataclasses import dataclass
 
 FAKE_ENGINE = "fake"
 ENGINE_CHOICES = ("fake", "claude", "codex", "claude-cli", "codex-cli")
+REASONING_EFFORT_CHOICES = ("low", "medium", "high", "xhigh")
 
 DEFAULT_MAX_ITERATIONS = 5
 DEFAULT_SIM_DEVICE = "iPhone 17 Pro"
 DEFAULT_IMPLEMENT_TIMEOUT_SECONDS = 2700
 DEFAULT_LABEL = "ready-for-agent"
 DEFAULT_HUMAN_LABEL = "ready-for-human"
+DEFAULT_CODEX_MODEL = "gpt-5.5"
+DEFAULT_CODEX_REASONING_EFFORT = "medium"
+CODEX_HIGH_REASONING_PHASES = frozenset(
+    {"review", "repair-ui-gate", "review-after-repair"}
+)
 
 PR_PUBLISH_TARGET = "pr"
 
@@ -33,7 +39,9 @@ class RunConfig:
     engine: str = FAKE_ENGINE
     max_iterations: int = DEFAULT_MAX_ITERATIONS
     model: str | None = None
+    reasoning_effort: str | None = None
     sim_device: str = DEFAULT_SIM_DEVICE
+    simulator_id: str | None = None
     implement_timeout_seconds: int = DEFAULT_IMPLEMENT_TIMEOUT_SECONDS
     dry_run: bool = False
     select_only: bool = False
@@ -45,6 +53,22 @@ class RunConfig:
     @property
     def uses_real_engine(self) -> bool:
         return self.engine != FAKE_ENGINE
+
+
+def resolve_codex_model(model: str | None) -> str:
+    """Return the model Ralph should pass to Codex for deterministic runs."""
+
+    return model or DEFAULT_CODEX_MODEL
+
+
+def resolve_codex_reasoning_effort(phase: str, override: str | None) -> str:
+    """Return the Codex reasoning effort for ``phase`` under Ralph's policy."""
+
+    if override is not None:
+        return override
+    if phase in CODEX_HIGH_REASONING_PHASES:
+        return "high"
+    return DEFAULT_CODEX_REASONING_EFFORT
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -71,10 +95,29 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--model", default=None, help="Model alias passed to the engine.")
     parser.add_argument(
+        "--reasoning-effort",
+        choices=REASONING_EFFORT_CHOICES,
+        default=None,
+        dest="reasoning_effort",
+        help=(
+            "Optional whole-run reasoning effort override. Codex defaults to "
+            "medium, with review/repair phases using high."
+        ),
+    )
+    parser.add_argument(
         "--device",
         dest="sim_device",
         default=DEFAULT_SIM_DEVICE,
         help="Simulator device for Xcode gates.",
+    )
+    parser.add_argument(
+        "--simulator-id",
+        dest="simulator_id",
+        default=None,
+        help=(
+            "Specific simulator UDID for Xcode gates. Use this with per-agent "
+            "simulator clones so concurrent Ralph runs do not share one device."
+        ),
     )
     parser.add_argument(
         "--implement-timeout-seconds",
@@ -158,6 +201,11 @@ def _resolve(namespace: argparse.Namespace) -> RunConfig:
         raise ConfigError("--max-iterations must be at least 1.")
     if namespace.implement_timeout_seconds < 1:
         raise ConfigError("--implement-timeout-seconds must be at least 1.")
+    simulator_id = namespace.simulator_id
+    if simulator_id is not None:
+        simulator_id = simulator_id.strip()
+        if not simulator_id:
+            raise ConfigError("--simulator-id must not be blank.")
     if namespace.live_github_dry_run_issue is not None and namespace.dry_run:
         raise ConfigError(
             "--live-github-dry-run already performs the controlled live dry-run; "
@@ -174,7 +222,9 @@ def _resolve(namespace: argparse.Namespace) -> RunConfig:
         engine=engine,
         max_iterations=namespace.max_iterations,
         model=namespace.model,
+        reasoning_effort=namespace.reasoning_effort,
         sim_device=namespace.sim_device,
+        simulator_id=simulator_id,
         implement_timeout_seconds=namespace.implement_timeout_seconds,
         dry_run=namespace.dry_run,
         select_only=namespace.select_only,

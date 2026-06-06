@@ -28,6 +28,8 @@ Ralph is PR-only. It must not fast-forward, merge, or push `main` directly.
   - `claude` reuses the local Claude Agent/Claude Code account/auth state.
 - `Secrets.xcconfig` when Xcode gates are run from generated worktrees.
 - Xcode 26+ and the iPhone 17 Pro simulator runtime for app gates.
+- For concurrent UI gates, one simulator UDID per Ralph run. Do not point
+  multiple agents at the same booted simulator.
 
 Ralph does not require `OPENAI_API_KEY`, `CODEX_API_KEY`, `ANTHROPIC_API_KEY`,
 `GH_TOKEN`, or `GITHUB_TOKEN`. Use the normal `gh`, Codex, and Claude login flows for
@@ -75,8 +77,9 @@ uv run --python 3.11 python -m ralph.orchestrator --engine codex --max-iteration
 ```
 
 The normal loop polls `origin/main` at the start of each iteration, selects one eligible
-`ready-for-agent` issue, creates a deterministic `ralph/*` PR branch worktree, runs the phase
-agents and gates, then publishes only through a pull request.
+`ready-for-agent` issue, claims it by replacing `ready-for-agent` with `agent-active`, creates a
+deterministic `ralph/*` PR branch worktree, runs the phase agents and gates, then publishes only
+through a pull request.
 
 ### Keep macOS awake with caffeinate
 
@@ -111,7 +114,9 @@ The Python runner supports:
 | `--engine fake\|claude\|codex\|claude-cli\|codex-cli` | Engine adapter for phase turns. `codex`/`claude` resolve to SDK clients when their packages import. Dry-run modes force `fake`. |
 | `--max-iterations N` / `--max-iter N` | Maximum issues to process. |
 | `--model NAME` | Optional model alias passed to the engine. |
+| `--reasoning-effort low\|medium\|high\|xhigh` | Optional whole-run Codex reasoning override. Without it, Ralph uses `gpt-5.5` with `medium` reasoning, except review and UI repair phases use `high`. |
 | `--device "iPhone 17 Pro"` | Simulator device for app gates. |
+| `--simulator-id UDID` | Specific simulator UDID for app gates. Use this for parallel Ralph runs so each agent owns a different simulator. |
 | `--implement-timeout-seconds N` | Per-phase agent timeout. |
 | `--select-only` | Resolve selection/targets without creating worktrees or running agents. |
 | `--repo owner/name` | GitHub repo override. |
@@ -130,6 +135,41 @@ Use the deterministic Python PR targets instead:
 - one-off issue: `ralph/issue-<issue-number>`
 - PRD-scoped issue: `ralph/prd-<prd-number>`
 - blocked rescue: `ralph/issue-<issue-number>-blocked`
+
+## Parallel UI Gates
+
+Ralph can run at the same time as other Ralph or Codex sessions if each session
+targets a distinct simulator UDID. The failure mode to avoid is two agents using
+the shared name-based destination `platform=iOS Simulator,name=iPhone 17 Pro`,
+which lets Xcode pick the same booted simulator for both UI-test runners.
+
+Create simulator clones once, then assign one UDID per concurrent run:
+
+```bash
+xcrun simctl list runtimes
+xcrun simctl create "Ralph UI 1" "iPhone 17 Pro" "<iOS runtime identifier>"
+xcrun simctl create "Ralph UI 2" "iPhone 17 Pro" "<iOS runtime identifier>"
+```
+
+Run each Ralph session with its assigned simulator:
+
+```bash
+ralph/ralph.sh --engine codex --max-iterations 1 --simulator-id <UDID-1>
+ralph/ralph.sh --engine codex --max-iterations 1 --simulator-id <UDID-2>
+```
+
+For raw UI-test probes outside Ralph, use the same isolation rule:
+
+```bash
+xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+  -destination 'platform=iOS Simulator,id=<UDID>' \
+  -derivedDataPath ".dd-<UDID>" \
+  -clonedSourcePackagesDirPath ".spm-<UDID>" \
+  -test-timeouts-enabled NO \
+  -only-testing:WorkoutTrackerUITests
+```
+
+Clean up only the simulator UDID that the current session owns.
 
 ---
 
@@ -196,9 +236,20 @@ Close the control issue/PR and delete `ralph/dry-run/issue-*` branches after rev
 
 ## Issue Lifecycle
 
-Eligible issues are open, labelled `ready-for-agent`, not PRDs/epics, not `ready-for-human`, and
-not blocked by unfinished dependencies. A concrete issue body or Agent Brief must provide the
-implementation contract.
+Eligible issues are open, labelled `ready-for-agent`, not PRDs/epics, not already claimed or
+implemented by Ralph, not `ready-for-human`, and not blocked by unfinished dependencies. A concrete
+issue body or Agent Brief must provide the implementation contract.
+
+Ralph treats GitHub labels as its issue lifecycle state machine:
+
+- `ready-for-agent`: selectable by Ralph
+- `agent-active`: claimed by Ralph; not selectable by any later loop iteration
+- `agent-implemented`: implementation PR exists and is awaiting review/merge
+- `ready-for-human`: human decision or implementation needed
+- `agent-blocked`: reason label paired with `ready-for-human` after Ralph preserves blocked work
+
+Ralph claims an issue before creating a worktree. If the claim cannot be confirmed, Ralph stops
+without running agents.
 
 Python captures an immutable `IssueContract` before any mutating phase:
 
@@ -206,9 +257,50 @@ Python captures an immutable `IssueContract` before any mutating phase:
 - `PRD: #<number>` membership from the issue body only
 - `UI integration test edits: authorized` from the issue body only
 
+For issues labelled `bug`, Ralph runs a diagnosis phase before implementation. Diagnosis must build
+or identify a feedback loop, produce a fix plan, and write a local handoff artifact at
+`ralph/.artifacts/context/issue-<issue>/diagnosis.md`. Implementation must read that artifact before
+editing; review and UI verification receive it as supporting context.
+
+Bug diagnosis must also decide whether UI integration test edits are required. The diagnosis output
+must include:
+
+```text
+<diagnosis-authority>
+ui_integration_test_edits_required: true
+scope: Tests/UI/WorkoutTrackerUITests.swift
+reason: Critical real-control workflow per docs/TESTING.md; lower-level tests cannot prove the route.
+</diagnosis-authority>
+```
+
+or:
+
+```text
+<diagnosis-authority>
+ui_integration_test_edits_required: false
+scope:
+reason:
+</diagnosis-authority>
+```
+
+If the block is missing or malformed, Ralph gets one corrective diagnosis-format pass before
+escalating for human attention.
+
+When diagnosis says UI integration test edits are required and the issue body is not already
+authorized, Ralph may grant that authority itself before implementation starts. Ralph reuses the
+existing `## Test authority` section or appends one, adds the exact marker, records the diagnosis
+scope and reason, comments on the issue as an audit event, then recaptures the issue contract before
+continuing. The issue body remains the authority source; the comment is only the visible event log;
+`diagnosis.md` remains the implementation handoff.
+
+This autonomous authority grant is narrow. Ralph may grant it only during bug diagnosis and only for
+paths under `Tests/UI/**`. If diagnosis finds that the correct test also needs `project.yml`,
+`Package.swift`, `WorkoutTracker.xcodeproj/project.pbxproj`, scheme files, or other test-target
+wiring changes, Ralph must escalate for human authority instead of granting that broader scope.
+
 On successful PR publication:
 
-- remove `ready-for-agent`
+- remove `agent-active` and any stale lifecycle labels
 - add `agent-implemented`
 - leave the issue open
 - use `Closes #<issue>` only in the successful integration commit
@@ -216,7 +308,7 @@ On successful PR publication:
 
 On blocked work:
 
-- remove `ready-for-agent`
+- remove `agent-active` and any stale implementation labels
 - add `ready-for-human`
 - add `agent-blocked`
 - preserve changed code in a draft rescue PR when code exists
@@ -225,7 +317,8 @@ On blocked work:
 PR readiness:
 
 - one-off PRs can become ready after their issue passes
-- PRD PRs remain draft until every known scoped child is `agent-implemented`
+- PRD PRs remain draft until every known scoped child is `agent-implemented` and none are
+  `ready-for-agent`, `agent-active`, `ready-for-human`, or `agent-blocked`
 - ready PRs receive `agent-ready-for-review`
 
 ---
@@ -246,26 +339,12 @@ Authority policies are mechanical:
 - `Tests/UI/**` changes require the pre-agent issue body line
   `UI integration test edits: authorized`.
 - UI verification phases may never edit `Tests/UI/**`.
-- Added Visual Baselines are allowed.
-- Modified Visual Baselines require a saved passing baseline-diff review.
-- Deleted Visual Baselines block for human review.
+- Visual Baselines are normal test artifacts. Ralph does not require special
+  authorization or model review for added, modified, or deleted baseline PNGs;
+  the Visual Regression test gate is the authority.
 
 For a first UI-owned gate failure after code exists, Python runs one repair cycle, then either
 ships on pass or escalates to a blocked rescue PR on the second failure.
-
----
-
-## Snapshot Helper
-
-The screenshot helper still builds and launches the UITEST fixture route:
-
-```bash
-ralph/snapshot.sh
-PROJECT_DIR=/path/to/worktree ralph/snapshot.sh /tmp/out.png
-UITEST_ARGS="-UITEST_DEVELOPER_TOOLS" ralph/snapshot.sh /tmp/tools.png
-```
-
-Artifacts land under `ralph/.artifacts/`, which is gitignored.
 
 ---
 
@@ -290,7 +369,6 @@ ralph/
 ├── ralph.sh                 # compatibility wrapper for python -m ralph.orchestrator
 ├── orchestrator/            # Python Ralph state machine and seams
 ├── prompts/                 # phase prompt templates
-├── snapshot.sh              # UITEST fixture screenshot helper
 ├── report.py                # read-only telemetry report
-└── .artifacts/              # logs, activity, screenshots (gitignored)
+└── .artifacts/              # logs, activity, and generated review artifacts (gitignored)
 ```

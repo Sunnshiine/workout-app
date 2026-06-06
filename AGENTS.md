@@ -32,6 +32,10 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
   the live Google Sheet. Ralph's `snapshot.sh` defaults to the seeded
   SessionView; set `UITEST_ARGS` for other fixture routes. To run against live
   data, use the `Copy of WorkoutTracker` scheme (`-UITEST_FIXTURE false`).
+- Concurrent UI-test sessions must not share the same simulator. Use distinct
+  simulator UDIDs with `-destination 'platform=iOS Simulator,id=<UDID>'` and
+  isolated `-derivedDataPath` / `-clonedSourcePackagesDirPath` values; for Ralph,
+  pass `--simulator-id <UDID>`.
 - Prefer XcodeBuildMCP for build/run/test on the simulator. If using XcodeBuildMCP,
   use the installed XcodeBuildMCP skill before calling XcodeBuildMCP tools.
 - If XcodeBuildMCP accessibility snapshots return an empty AXApplication, reboot
@@ -47,18 +51,20 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
 
 ## Git Worktrees
 
-When running `xcodebuild test` from a git worktree, provide `Secrets.xcconfig`
-from a trusted private checkout first — it is git-ignored so worktrees don't get
-it automatically, and xcodebuild fails with a build error rather than a clear
-diagnostic. Ralph copies it automatically for issue and integration worktrees
-when `SECRETS_XCCONFIG_SOURCE` points to a file, or when a source file exists in
-the repo root:
+`Secrets.xcconfig` is git-ignored but required for Xcode app-target builds. New
+git worktrees should receive it automatically from the tracked post-checkout
+hook once the bootstrap is installed:
 
 ```bash
-cp /path/to/private/Secrets.xcconfig ./Secrets.xcconfig
+scripts/install-worktree-bootstrap.sh --source /path/to/private/Secrets.xcconfig
 ```
 
-`swift test` does not require it; only `xcodebuild` does.
+The installer sets `core.hooksPath=.githooks`, records the trusted source when
+`--source` is provided, and backfills existing worktrees. The bootstrap source
+order is: `SECRETS_XCCONFIG_SOURCE`, `git config workout.secretsXcconfigSource`,
+the `main` worktree's `Secrets.xcconfig`, then `Secrets.xcconfig.template` as a
+build-only fallback. `swift test` does not require it; only Xcode app-target
+builds do.
 
 XcodeBuildMCP session defaults point at the main project path and do not apply inside a worktree. Pass `-project <worktree-path>/WorkoutTracker.xcodeproj` explicitly when calling xcodebuild from a worktree.
 

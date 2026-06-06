@@ -146,7 +146,7 @@ struct LiveActivityLabView: View {
                 Label("Start", systemImage: "play.fill")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.workoutGlass)
             .disabled(!controller.areActivitiesEnabled)
             .accessibilityIdentifier("live-activity-lab-start-button")
 
@@ -156,7 +156,7 @@ struct LiveActivityLabView: View {
                 Label("Update", systemImage: "arrow.clockwise")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.workoutGlass)
             .disabled(!controller.isActive)
             .accessibilityIdentifier("live-activity-lab-update-button")
 
@@ -166,7 +166,7 @@ struct LiveActivityLabView: View {
                 Label("Restart rest", systemImage: "timer")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.workoutGlass)
             .accessibilityIdentifier("live-activity-lab-restart-rest-button")
 
             Button {
@@ -175,7 +175,7 @@ struct LiveActivityLabView: View {
                 Label("Log a set", systemImage: "checkmark.circle.fill")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.workoutGlass)
             .disabled(!controller.isActive || setsDone >= setsTotal)
             .accessibilityIdentifier("live-activity-lab-log-set-button")
 
@@ -185,7 +185,7 @@ struct LiveActivityLabView: View {
                 Label("End", systemImage: "stop.fill")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.workoutGlass)
             .disabled(!controller.isActive)
             .accessibilityIdentifier("live-activity-lab-end-button")
         }
@@ -297,7 +297,7 @@ private struct LiveActivityLabSection<Content: View>: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
+        .workoutGlass(.card)
     }
 }
 

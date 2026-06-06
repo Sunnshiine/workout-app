@@ -47,37 +47,7 @@ final class PartiallyUploadedBlockUITests: XCTestCase {
 
     @MainActor
     private func launchPartialBlockOverviewApp() -> XCUIApplication {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["-UITEST_FIXTURE", "-UITEST_PARTIAL_BLOCK"]
-        app.launch()
-        return app
-    }
-
-    @MainActor
-    private func waitForValue(_ value: String, on element: XCUIElement) {
-        XCTAssertTrue(element.waitForExistence(timeout: 3))
-        let deadline = Date().addingTimeInterval(3)
-        while Date() < deadline {
-            if element.value as? String == value {
-                return
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-        }
-        XCTFail("Expected \(element) to have value '\(value)', got '\(String(describing: element.value))'")
-    }
-
-    @MainActor
-    private func waitForValueContaining(_ value: String, on element: XCUIElement) {
-        XCTAssertTrue(element.waitForExistence(timeout: 3))
-        let deadline = Date().addingTimeInterval(3)
-        while Date() < deadline {
-            if let elementValue = element.value as? String, elementValue.contains(value) {
-                return
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-        }
-        XCTFail("Expected \(element) to have value containing '\(value)', got '\(String(describing: element.value))'")
+        launchWorkoutApp(fixture: .partiallyUploadedBlock)
     }
 
     @MainActor
@@ -85,22 +55,5 @@ final class PartiallyUploadedBlockUITests: XCTestCase {
         let element = app.descendants(matching: .any)[identifier]
         XCTAssertTrue(element.waitForExistence(timeout: 3))
         element.tap()
-    }
-
-    @MainActor
-    private func moveOnCelebration(in app: XCUIApplication) -> XCUIElement {
-        let button = app.buttons["move-on-celebration"]
-        if button.waitForExistence(timeout: 1) {
-            return button
-        }
-
-        let scrollView = app.scrollViews["move-on-celebration"]
-        if scrollView.waitForExistence(timeout: 1) {
-            return scrollView
-        }
-
-        let element = app.otherElements["move-on-celebration"]
-        XCTAssertTrue(element.waitForExistence(timeout: 3))
-        return element
     }
 }

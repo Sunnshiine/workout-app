@@ -4,11 +4,15 @@ import unittest
 from dataclasses import FrozenInstanceError
 
 from ralph.orchestrator.config import (
+    DEFAULT_CODEX_MODEL,
+    DEFAULT_CODEX_REASONING_EFFORT,
     DEFAULT_MAX_ITERATIONS,
     FAKE_ENGINE,
     ConfigError,
     RunConfig,
     parse_args,
+    resolve_codex_model,
+    resolve_codex_reasoning_effort,
 )
 
 
@@ -24,6 +28,38 @@ class ParseArgsTests(unittest.TestCase):
     def test_engine_choice_is_carried_through(self) -> None:
         self.assertEqual(parse_args(["--engine", "codex"]).engine, "codex")
         self.assertTrue(parse_args(["--engine", "codex"]).uses_real_engine)
+
+    def test_defaults_leave_cli_model_and_reasoning_unset(self) -> None:
+        config = parse_args(["--engine", "codex"])
+        self.assertIsNone(config.model)
+        self.assertIsNone(config.reasoning_effort)
+
+    def test_codex_policy_resolves_default_model_and_phase_reasoning(self) -> None:
+        self.assertEqual(resolve_codex_model(None), DEFAULT_CODEX_MODEL)
+        self.assertEqual(
+            resolve_codex_reasoning_effort("implement-tdd", None),
+            DEFAULT_CODEX_REASONING_EFFORT,
+        )
+        self.assertEqual(resolve_codex_reasoning_effort("review", None), "high")
+        self.assertEqual(resolve_codex_reasoning_effort("repair-ui-gate", None), "high")
+        self.assertEqual(
+            resolve_codex_reasoning_effort("review-after-repair", None), "high"
+        )
+
+    def test_reasoning_effort_override_wins_for_every_phase(self) -> None:
+        config = parse_args(["--engine", "codex", "--reasoning-effort", "low"])
+        self.assertEqual(config.reasoning_effort, "low")
+        self.assertEqual(resolve_codex_reasoning_effort("review", "low"), "low")
+        self.assertEqual(resolve_codex_reasoning_effort("implement-tdd", "low"), "low")
+
+    def test_invalid_reasoning_effort_is_rejected(self) -> None:
+        with self.assertRaises(SystemExit):
+            parse_args(["--reasoning-effort", "turbo"])
+
+    def test_unsupported_sdk_reasoning_efforts_are_rejected(self) -> None:
+        for effort in ("none", "minimal"):
+            with self.subTest(effort=effort), self.assertRaises(SystemExit):
+                parse_args(["--reasoning-effort", effort])
 
     def test_dry_run_forces_fake_engine(self) -> None:
         config = parse_args(["--engine", "claude", "--dry-run"])
@@ -90,6 +126,15 @@ class ParseArgsTests(unittest.TestCase):
 
     def test_repo_override(self) -> None:
         self.assertEqual(parse_args(["--repo", "owner/name"]).repo, "owner/name")
+
+    def test_simulator_id_override(self) -> None:
+        config = parse_args(["--simulator-id", "ABC-123"])
+
+        self.assertEqual(config.simulator_id, "ABC-123")
+
+    def test_simulator_id_must_not_be_blank(self) -> None:
+        with self.assertRaises(ConfigError):
+            parse_args(["--simulator-id", ""])
 
     def test_config_is_immutable(self) -> None:
         config = parse_args([])

@@ -1587,12 +1587,12 @@
                 <span>Agent writes the issue fix, runs narrow non-UI checks, commits, and emits COMPLETE or BLOCKED.</span>
               </div>
               <div class="phase-card">
-                <strong>swift-review</strong>
-                <span>Agent invokes <code>swift-reviewer</code>, fixes blocking findings, commits any remediation, then emits a promise.</span>
+                <strong>review</strong>
+                <span>Agent invokes <code>swift-reviewer</code> and <code>spec-conformance-reviewer</code>, fixes blocking findings, commits any remediation, then emits a promise.</span>
               </div>
               <div class="phase-card">
                 <strong>ui-verify</strong>
-                <span>Agent runs UI verification, screenshots, screenshot review, and visual baseline review when the issue touches UI surfaces.</span>
+                <span>Agent runs UI verification and visual baseline review when the issue touches UI surfaces.</span>
               </div>
               <div class="phase-card">
                 <strong>publish decision</strong>
@@ -1610,11 +1610,11 @@
               </div>
               <div class="gate-card">
                 <strong>Authority gates</strong>
-                <span>UI-test edit authority and Visual Baseline policy are mechanical checks against the frozen issue contract.</span>
+                <span>UI-test edit authority is a mechanical check against the frozen issue contract.</span>
               </div>
               <div class="gate-card ui-owned">
                 <strong>UI-owned gates</strong>
-                <span>UI integration, screenshot artifacts, Visual Regression, and Visual Baseline failures can trigger the one repair cycle.</span>
+                <span>UI integration and Visual Regression failures can trigger the one repair cycle.</span>
               </div>
               <div class="gate-card">
                 <strong>PR lifecycle gates</strong>
@@ -1631,7 +1631,7 @@
                 <span>Only runs after a first UI-owned gate failure when code exists. It receives a focused repair brief.</span>
               </div>
               <div class="phase-card">
-                <strong>swift-review-after-repair</strong>
+                <strong>review-after-repair</strong>
                 <span>Runs only if the repair touched production Swift, tests, project files, or package configuration.</span>
               </div>
               <div class="gate-card ui-owned">

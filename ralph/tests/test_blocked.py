@@ -18,6 +18,7 @@ from ralph.orchestrator.blocked import (
 from ralph.orchestrator.contracts import capture_issue_contract
 from ralph.orchestrator.github import FakeGitHubClient
 from ralph.orchestrator.publish import (
+    LABEL_AGENT_ACTIVE,
     LABEL_AGENT_BLOCKED,
     LABEL_AGENT_IMPLEMENTED,
     LABEL_READY_FOR_AGENT,
@@ -242,13 +243,14 @@ class BlockedRescuePublisherTests(unittest.TestCase):
 
     def test_blocked_label_transition(self) -> None:
         client = FakeGitHubClient(
-            issues={5: _issue(5, title="Add foo", labels=[LABEL_READY_FOR_AGENT])}
+            issues={5: _issue(5, title="Add foo", labels=[LABEL_AGENT_ACTIVE])}
         )
         contract = _contract(client, 5)
         BlockedRescuePublisher(client, _RecordingGit()).publish(contract, _report(5))
 
         labels = client.issue_labels(5)
         self.assertNotIn(LABEL_READY_FOR_AGENT, labels)
+        self.assertNotIn(LABEL_AGENT_ACTIVE, labels)
         self.assertIn(LABEL_READY_FOR_HUMAN, labels)
         self.assertIn(LABEL_AGENT_BLOCKED, labels)
         self.assertNotIn(LABEL_AGENT_IMPLEMENTED, labels)

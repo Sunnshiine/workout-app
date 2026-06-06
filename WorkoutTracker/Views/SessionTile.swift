@@ -12,7 +12,7 @@ struct SessionTile: View {
                 tileContent
             } else {
                 tileContent
-                    .glassEffect(.regular, in: .rect(cornerRadius: Theme.sessionTileCornerRadius))
+                    .workoutGlass(.tile)
             }
         }
         .accessibilityElement(children: .combine)

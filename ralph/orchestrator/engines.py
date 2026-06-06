@@ -29,6 +29,7 @@ import subprocess
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
+from .config import resolve_codex_model, resolve_codex_reasoning_effort
 from .engine import FAKE_ENGINE, Engine, FakeEngine, PhaseRequest
 from .phase import PhaseResult, PhaseStatus
 
@@ -169,7 +170,7 @@ class _CliEngine(Engine):
     def run_phase(self, request: PhaseRequest) -> PhaseResult:
         result = self._runner(
             CliInvocation(
-                argv=self.binary,
+                argv=self._argv(request),
                 prompt=request.prompt,
                 workdir=request.workdir,
                 timeout_seconds=request.timeout_seconds,
@@ -195,12 +196,36 @@ class _CliEngine(Engine):
             blocked_reason=reason,
         )
 
+    def _argv(self, _request: PhaseRequest) -> tuple[str, ...]:
+        return self.binary
+
 
 class CodexCliEngine(_CliEngine):
     """Codex CLI fallback adapter."""
 
     name = CODEX_CLI_ENGINE
     binary = ("codex", "exec")
+
+    def __init__(
+        self,
+        *,
+        model: str | None = None,
+        reasoning_effort: str | None = None,
+        runner: CliRunner | None = None,
+    ) -> None:
+        super().__init__(runner=runner)
+        self._model = model
+        self._reasoning_effort = reasoning_effort
+
+    def _argv(self, request: PhaseRequest) -> tuple[str, ...]:
+        effort = resolve_codex_reasoning_effort(request.phase, self._reasoning_effort)
+        return (
+            *self.binary,
+            "--model",
+            resolve_codex_model(self._model),
+            "--config",
+            f'model_reasoning_effort="{effort}"',
+        )
 
 
 class ClaudeCliEngine(_CliEngine):
@@ -244,28 +269,37 @@ class SdkInvocation:
     issue_number: int
     timeout_seconds: int
     model: str | None = None
+    reasoning_effort: str | None = None
     extra: dict[str, object] = field(default_factory=dict)
 
 
 class _SdkEngine(Engine):
     """Shared SDK adapter: drive a provider client and normalize its events."""
 
-    def __init__(self, client: SdkClient, *, model: str | None = None) -> None:
+    def __init__(
+        self,
+        client: SdkClient,
+        *,
+        model: str | None = None,
+        reasoning_effort: str | None = None,
+    ) -> None:
         self._client = client
         self._model = model
+        self._reasoning_effort = reasoning_effort
 
     def run_phase(self, request: PhaseRequest) -> PhaseResult:
-        events = self._client(
-            SdkInvocation(
-                phase=request.phase,
-                prompt=request.prompt,
-                workdir=request.workdir,
-                issue_number=request.issue_number,
-                timeout_seconds=request.timeout_seconds,
-                model=self._model,
-            )
-        )
+        events = self._client(self._invocation(request))
         return normalize_sdk_events(request, events)
+
+    def _invocation(self, request: PhaseRequest) -> SdkInvocation:
+        return SdkInvocation(
+            phase=request.phase,
+            prompt=request.prompt,
+            workdir=request.workdir,
+            issue_number=request.issue_number,
+            timeout_seconds=request.timeout_seconds,
+            model=self._model,
+        )
 
 
 def normalize_sdk_events(request: PhaseRequest, events: Iterable[SdkEvent]) -> PhaseResult:
@@ -322,6 +356,19 @@ class CodexSdkEngine(_SdkEngine):
 
     name = CODEX_SDK_ENGINE
 
+    def _invocation(self, request: PhaseRequest) -> SdkInvocation:
+        return SdkInvocation(
+            phase=request.phase,
+            prompt=request.prompt,
+            workdir=request.workdir,
+            issue_number=request.issue_number,
+            timeout_seconds=request.timeout_seconds,
+            model=resolve_codex_model(self._model),
+            reasoning_effort=resolve_codex_reasoning_effort(
+                request.phase, self._reasoning_effort
+            ),
+        )
+
 
 class ClaudeSdkEngine(_SdkEngine):
     """Claude SDK adapter."""
@@ -336,6 +383,7 @@ def resolve_engine(
     engine_name: str,
     *,
     model: str | None = None,
+    reasoning_effort: str | None = None,
     sdk_client: SdkClient | None = None,
     cli_runner: CliRunner | None = None,
     use_default_sdk_client: bool = True,
@@ -351,14 +399,18 @@ def resolve_engine(
     if engine_name == FAKE_ENGINE:
         return FakeEngine()
     if engine_name == CODEX_CLI_ENGINE:
-        return CodexCliEngine(runner=cli_runner)
+        return CodexCliEngine(
+            model=model, reasoning_effort=reasoning_effort, runner=cli_runner
+        )
     if engine_name == CLAUDE_CLI_ENGINE:
         return ClaudeCliEngine(runner=cli_runner)
     if engine_name == CODEX_SDK_ENGINE:
         client = sdk_client or _default_sdk_client(engine_name, use_default_sdk_client)
         if client is None:
-            return CodexCliEngine(runner=cli_runner)
-        return CodexSdkEngine(client, model=model)
+            return CodexCliEngine(
+                model=model, reasoning_effort=reasoning_effort, runner=cli_runner
+            )
+        return CodexSdkEngine(client, model=model, reasoning_effort=reasoning_effort)
     if engine_name == CLAUDE_SDK_ENGINE:
         client = sdk_client or _default_sdk_client(engine_name, use_default_sdk_client)
         if client is None:

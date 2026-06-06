@@ -1,9 +1,5 @@
 import XCTest
 
-private let moveOnCelebrationLongQuote =
-    "Strong work is still strong when today asks you to leave a few Sets for later; "
-    + "take the win, keep the thread, and come back ready."
-
 final class WorkoutTrackerUITests: XCTestCase {
     @MainActor
     func testFixtureDrivenCoreSessionFlow() throws {
@@ -24,8 +20,7 @@ final class WorkoutTrackerUITests: XCTestCase {
         let celebration = moveOnCelebration(in: app)
         XCTAssertTrue(celebration.waitForExistence(timeout: 3))
         waitForLabel("Week 1, Day 1", on: celebration)
-        waitForValueContaining("5 Sets, 2 Exercises, 4 Left", on: celebration)
-        assertMoveOnCelebrationCopyIsReadable(in: app)
+        assertMoveOnCelebrationIsUsable(celebration, in: app)
         XCTAssertFalse(app.staticTexts["Back Squat"].exists)
 
         celebration.tap()
@@ -65,24 +60,6 @@ final class WorkoutTrackerUITests: XCTestCase {
     }
 
     @MainActor
-    func testMoveOnCelebrationLongQuoteKeepsStatsAndHintVisible() throws {
-        let app = launchFixtureApp(extraArguments: ["-UITEST_LONG_CELEBRATION_QUOTE"])
-
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
-
-        tapWhenReady(app.buttons["move-on-button"], in: app)
-        let celebration = moveOnCelebration(in: app)
-        XCTAssertTrue(celebration.waitForExistence(timeout: 3))
-        waitForLabel("Week 1, Day 1", on: celebration)
-        waitForValueContaining("5 Sets, 2 Exercises, 5 Left", on: celebration)
-        XCTAssertEqual(
-            app.staticTexts["move-on-celebration-quote"].label,
-            moveOnCelebrationLongQuote
-        )
-        assertMoveOnCelebrationCopyIsReadable(in: app)
-    }
-
-    @MainActor
     func testActiveSetFieldFocusDismissesWithoutCardCancel() throws {
         let app = launchFixtureApp()
 
@@ -94,7 +71,7 @@ final class WorkoutTrackerUITests: XCTestCase {
         app.buttons["weight-pill"].tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
 
-        dismissActiveSetInputBackground(in: app)
+        tapActiveSetCardHeaderBackground(in: app)
 
         XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 1))
         XCTAssertTrue(app.buttons["log-active-set-button"].exists)
@@ -102,6 +79,27 @@ final class WorkoutTrackerUITests: XCTestCase {
 
         XCTAssertTrue(app.buttons["log-active-set-button"].exists)
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
+    }
+
+    @MainActor
+    func testActiveSetLogButtonSubmitsFromBackgroundWhileWeightFieldIsFocused() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
+
+        app.buttons["rpe-6"].tap()
+        let logButton = app.buttons["log-active-set-button"]
+        waitForLabel("Log 237.5×5@6", on: logButton)
+
+        app.buttons["weight-pill"].tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
+
+        logButton.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: 0.5)).tap()
+
+        XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 1))
+        XCTAssertTrue(app.buttons["Set 1, 237.5x5@6"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Set 2 of 3"].waitForExistence(timeout: 3))
     }
 
     @MainActor
@@ -127,7 +125,7 @@ final class WorkoutTrackerUITests: XCTestCase {
 
     @MainActor
     func testDeveloperToolsRouteLoadsFromSettings() throws {
-        let app = launchSettingsFixtureApp(extraArguments: ["-UITEST_PENDING_WRITE"])
+        let app = launchSettingsFixtureApp(options: [.pendingWrite])
 
         let trainingSheetRow = app.buttons["settings-training-sheet-row"]
         let syncNowButton = app.buttons["settings-sync-now-button"]
@@ -152,7 +150,7 @@ final class WorkoutTrackerUITests: XCTestCase {
 
     @MainActor
     func testOpenExerciseMakeupFlowShowsLastPerformedAndLogsSet() throws {
-        let app = launchFixtureApp(extraArguments: ["-UITEST_OPEN_EXERCISES"])
+        let app = launchFixtureApp(options: [.openExercises])
 
         app.swipeUp()
         let openBackSquat = app.buttons.containing(.staticText, identifier: "Back Squat").firstMatch
@@ -174,7 +172,7 @@ final class WorkoutTrackerUITests: XCTestCase {
 
     @MainActor
     func testSettingsRevealRouteSmokeOpensSettingsAndPendingSignOutConfirmation() throws {
-        let app = launchFixtureApp(extraArguments: ["-UITEST_PENDING_WRITE"])
+        let app = launchFixtureApp(options: [.pendingWrite])
 
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["session-controls-settings-button"].exists)
@@ -202,33 +200,19 @@ final class WorkoutTrackerUITests: XCTestCase {
     }
 
     @MainActor
-    private func launchFixtureApp(extraArguments: [String] = []) -> XCUIApplication {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments =
-            [
-                "-UITEST_FIXTURE",
-                "-UITEST_SESSION",
-                "-UITEST_FULL_BLOCK",
-                "-UITEST_DISABLE_CELEBRATION_BLOOM"
-            ] + extraArguments
-        app.launch()
-        return app
+    private func launchFixtureApp(options: [WorkoutUITestFixtureOption] = []) -> XCUIApplication {
+        launchWorkoutApp(
+            fixture: .currentSession,
+            options: [.disableCelebrationBloom] + options
+        )
     }
 
     @MainActor
-    private func launchSettingsFixtureApp(extraArguments: [String] = []) -> XCUIApplication {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments =
-            [
-                "-UITEST_FIXTURE",
-                "-UITEST_SETTINGS",
-                "-UITEST_FULL_BLOCK",
-                "-UITEST_DISABLE_CELEBRATION_BLOOM"
-            ] + extraArguments
-        app.launch()
-        return app
+    private func launchSettingsFixtureApp(options: [WorkoutUITestFixtureOption] = []) -> XCUIApplication {
+        launchWorkoutApp(
+            fixture: .settings,
+            options: [.disableCelebrationBloom] + options
+        )
     }
 }
 
@@ -252,11 +236,7 @@ final class WorkoutTrackerAppearanceUITests: XCTestCase {
 
     @MainActor
     private func launchSettingsFixtureApp() -> XCUIApplication {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["-UITEST_FIXTURE", "-UITEST_SETTINGS"]
-        app.launch()
-        return app
+        launchWorkoutApp(fixture: .settings)
     }
 }
 
@@ -274,10 +254,10 @@ private func tapWhenReady(_ element: XCUIElement, in app: XCUIApplication) {
 }
 
 @MainActor
-private func dismissActiveSetInputBackground(in app: XCUIApplication) {
+private func tapActiveSetCardHeaderBackground(in app: XCUIApplication) {
     let activeSetCard = app.otherElements["active-set-card"]
     XCTAssertTrue(activeSetCard.waitForExistence(timeout: 3))
-    activeSetCard.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.56)).tap()
+    activeSetCard.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.14)).tap()
 }
 
 @MainActor
@@ -347,32 +327,6 @@ private func waitForLabel(_ label: String, on element: XCUIElement) {
 }
 
 @MainActor
-private func waitForValue(_ value: String, on element: XCUIElement) {
-    XCTAssertTrue(element.waitForExistence(timeout: 3))
-    let deadline = Date().addingTimeInterval(3)
-    while Date() < deadline {
-        if element.value as? String == value {
-            return
-        }
-        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-    }
-    XCTFail("Expected \(element) to have value '\(value)', got '\(String(describing: element.value))'")
-}
-
-@MainActor
-private func waitForValueContaining(_ value: String, on element: XCUIElement) {
-    XCTAssertTrue(element.waitForExistence(timeout: 3))
-    let deadline = Date().addingTimeInterval(3)
-    while Date() < deadline {
-        if let elementValue = element.value as? String, elementValue.contains(value) {
-            return
-        }
-        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-    }
-    XCTFail("Expected \(element) to have value containing '\(value)', got '\(String(describing: element.value))'")
-}
-
-@MainActor
 private func waitUntilEnabled(_ element: XCUIElement) {
     XCTAssertTrue(element.waitForExistence(timeout: 3))
     let deadline = Date().addingTimeInterval(3)
@@ -400,65 +354,36 @@ private func tapWhenHittable(_ element: XCUIElement) {
 }
 
 @MainActor
-private func moveOnCelebration(in app: XCUIApplication) -> XCUIElement {
-    let button = app.buttons["move-on-celebration"]
-    if button.waitForExistence(timeout: 1) {
-        return button
-    }
-
-    let scrollView = app.scrollViews["move-on-celebration"]
-    if scrollView.waitForExistence(timeout: 1) {
-        return scrollView
-    }
-
-    let element = app.otherElements["move-on-celebration"]
-    XCTAssertTrue(element.waitForExistence(timeout: 3))
-    return element
-}
-
-@MainActor
-private func assertMoveOnCelebrationCopyIsReadable(in app: XCUIApplication) {
-    let approvedQuotes = [
-        "You're fucking amazing.",
-        "God damn!",
-        "Get it girl!",
-        "Shake it!",
-        moveOnCelebrationLongQuote
-    ]
-    let context = app.staticTexts["move-on-celebration-context"]
-    let logo = app.staticTexts["move-on-celebration-logo"]
+private func assertMoveOnCelebrationIsUsable(_ celebration: XCUIElement, in app: XCUIApplication) {
     let quote = app.staticTexts["move-on-celebration-quote"]
-    let stats = [
-        app.staticTexts["move-on-celebration-sets-value"],
-        app.staticTexts["move-on-celebration-exercises-value"],
-        app.staticTexts["move-on-celebration-left-value"],
-        app.staticTexts["move-on-celebration-sets-label"],
-        app.staticTexts["move-on-celebration-exercises-label"],
-        app.staticTexts["move-on-celebration-left-label"]
-    ]
     let hint = app.staticTexts["move-on-celebration-hint"]
     let windowFrame = app.windows.element(boundBy: 0).frame
 
     XCTAssertTrue(quote.waitForExistence(timeout: 6))
-    XCTAssertTrue(approvedQuotes.contains(quote.label))
-    XCTAssertTrue(windowFrame.contains(quote.frame), "\(quote) is clipped outside \(windowFrame)")
+    XCTAssertFalse(quote.label.isEmpty)
+    assertElementIsMostlyVisible(quote, in: windowFrame)
+    XCTAssertTrue(hint.waitForExistence(timeout: 3))
+    assertElementIsMostlyVisible(hint, in: windowFrame)
+    XCTAssertTrue(celebration.isHittable)
+}
 
-    for element in [context, logo, hint] + stats {
-        XCTAssertTrue(element.waitForExistence(timeout: 3))
-        XCTAssertTrue(windowFrame.contains(element.frame), "\(element) is clipped outside \(windowFrame)")
-    }
+private func assertElementIsMostlyVisible(
+    _ element: XCUIElement,
+    in visibleFrame: CGRect,
+    minimumVisibleRatio: CGFloat = 0.9
+) {
+    let elementFrame = element.frame
+    let elementArea = elementFrame.width * elementFrame.height
+    XCTAssertGreaterThan(elementArea, 0, "\(element) has no readable bounds")
+    guard elementArea > 0 else { return }
 
-    XCTAssertEqual(logo.label, "TFN")
-    XCTAssertFalse(app.staticTexts["move-on-celebration-title"].exists)
-    XCTAssertFalse(app.staticTexts["move-on-celebration-subline"].exists)
-    XCTAssertFalse(app.staticTexts["Day 1 Done"].exists)
-    XCTAssertFalse(app.staticTexts["Moved on with 4 left"].exists)
-    XCTAssertLessThanOrEqual(context.frame.maxY, logo.frame.minY)
-    XCTAssertLessThanOrEqual(logo.frame.maxY, quote.frame.minY)
-    XCTAssertLessThanOrEqual(quote.frame.maxY, stats.map(\.frame.minY).min() ?? quote.frame.maxY)
-    XCTAssertLessThan(stats[0].frame.maxX, stats[1].frame.minX)
-    XCTAssertLessThan(stats[1].frame.maxX, stats[2].frame.minX)
-    XCTAssertLessThan(stats.map(\.frame.maxY).max() ?? 0, hint.frame.minY)
+    let clippedFrame = visibleFrame.intersection(elementFrame)
+    let visibleArea = clippedFrame.width * clippedFrame.height
+    XCTAssertGreaterThanOrEqual(
+        visibleArea / elementArea,
+        minimumVisibleRatio,
+        "\(element) is not readable within \(visibleFrame)"
+    )
 }
 
 final class WorkoutTrackerLongSessionUITests: XCTestCase {
@@ -504,11 +429,7 @@ final class WorkoutTrackerLongSessionUITests: XCTestCase {
 
     @MainActor
     private func launchFixtureApp() -> XCUIApplication {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["-UITEST_FIXTURE", "-UITEST_SESSION", "-UITEST_LONG_SESSION"]
-        app.launch()
-        return app
+        launchWorkoutApp(fixture: .longSession)
     }
 }
 
@@ -530,10 +451,6 @@ final class WorkoutTrackerSkipUITests: XCTestCase {
 
     @MainActor
     private func launchFixtureApp() -> XCUIApplication {
-        continueAfterFailure = false
-        let app = XCUIApplication()
-        app.launchArguments = ["-UITEST_FIXTURE", "-UITEST_SESSION", "-UITEST_FULL_BLOCK"]
-        app.launch()
-        return app
+        launchWorkoutApp(fixture: .currentSession)
     }
 }

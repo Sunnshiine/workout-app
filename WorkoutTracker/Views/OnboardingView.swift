@@ -9,7 +9,7 @@ struct OnboardingView: View {
     @Namespace private var ns
 
     var body: some View {
-        GlassEffectContainer {
+        WorkoutGlassContainer {
             switch destination {
             case .signIn:
                 signInCard
@@ -17,7 +17,7 @@ struct OnboardingView: View {
                 SheetPickerView(onPasteURL: {
                     withAnimation { showsURLFallback = true }
                 })
-                .glassEffectID("onboarding", in: ns)
+                .workoutGlassID("onboarding", in: ns)
             case .urlEntry:
                 urlEntryCard
             case .session:
@@ -55,8 +55,8 @@ struct OnboardingView: View {
             .frame(maxWidth: 280)
         }
         .padding()
-        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
-        .glassEffectID("onboarding", in: ns)
+        .workoutGlass(.card)
+        .workoutGlassID("onboarding", in: ns)
     }
 
     // MARK: - Phase 2: URL Entry Card
@@ -70,7 +70,7 @@ struct OnboardingView: View {
                 } label: {
                     Label("Back", systemImage: "chevron.left")
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.workoutGlass)
                 .accessibilityIdentifier("onboarding-url-back-button")
 
                 Spacer()
@@ -91,12 +91,12 @@ struct OnboardingView: View {
             }
 
             Button("Save") { urlError = !settings.setSheetURL(urlText) }
-                .buttonStyle(.glass)
+                .buttonStyle(.workoutGlass)
                 .disabled(urlText.isEmpty)
         }
         .padding()
-        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
-        .glassEffectID("onboarding", in: ns)
+        .workoutGlass(.card)
+        .workoutGlassID("onboarding", in: ns)
     }
 }
 
@@ -149,7 +149,7 @@ struct SheetPickerView: View {
         }
         .padding()
         .frame(maxWidth: 520)
-        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
+        .workoutGlass(.card)
         .task {
             guard store == nil else { return }
             let pickerStore = SheetPickerStore(
@@ -188,7 +188,7 @@ struct SheetPickerView: View {
                     Button("Retry") {
                         Task { await store.loadInitial() }
                     }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.workoutGlass)
                 }
                 .frame(maxWidth: .infinity, minHeight: 180)
             } else {
@@ -219,7 +219,7 @@ struct SheetPickerView: View {
                                     Text("Load More")
                                 }
                             }
-                            .buttonStyle(.glass)
+                            .buttonStyle(.workoutGlass)
                             .disabled(store.isLoadingList)
                         }
                     }

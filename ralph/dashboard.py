@@ -62,6 +62,7 @@ def badge_phases(phases: list[dict]) -> str:
         "select": "sel",
         "implement": "impl",
         "implement-tdd": "tdd",
+        "review": "rev",
         "swift-review": "rev",
         "ui-verify": "ui",
     }
@@ -69,7 +70,10 @@ def badge_phases(phases: list[dict]) -> str:
 
 
 def badge_roles(roles: list[str]) -> str:
-    short = {"swift-reviewer": "swift", "ui-screenshot-reviewer": "ui"}
+    short = {
+        "swift-reviewer": "swift",
+        "spec-conformance-reviewer": "spec",
+    }
     if not roles:
         return '<span class="muted">—</span>'
     return " ".join(f'<span class="role-chip">{short.get(r, r)}</span>' for r in sorted(set(roles)))
@@ -589,12 +593,13 @@ def build_html(data: dict, generated_at: str) -> str:
         return f'<tr><td class="num">#{a["issue"]} iter {a["iteration"]}</td><td class="num">{val}</td><td><span class="badge {oc}">{label}</span></td></tr>'
 
     # Phase table rows
-    phase_order = ["select", "implement", "implement-tdd", "swift-review", "ui-verify"]
+    phase_order = ["select", "implement", "implement-tdd", "review", "swift-review", "ui-verify"]
     phase_label = {
         "select": "select",
         "implement": "implement (mono)",
         "implement-tdd": "implement-tdd",
-        "swift-review": "swift-review",
+        "review": "review",
+        "swift-review": "swift-review (legacy)",
         "ui-verify": "ui-verify",
     }
     phase_rows = []
@@ -1102,7 +1107,7 @@ def build_html(data: dict, generated_at: str) -> str:
       <li>Report covers local artifacts only; attempts on other machines are not reflected.</li>
       <li>Shell and Xcode gate time is included in duration but not in token telemetry.</li>
       <li>Incomplete attempts with no terminal activity log event show zero duration.</li>
-      <li>Older monolithic runs use a single "implement" phase; split-loop runs use select / implement-tdd / swift-review / ui-verify.</li>
+      <li>Older monolithic runs use a single "implement" phase; current split-loop runs use select / implement-tdd / review / ui-verify. Historical swift-review rows are legacy data.</li>
       <li>Max context % is the highest recorded single-turn input for any session within the attempt.</li>
     </ul>
   </div>

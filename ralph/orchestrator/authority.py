@@ -4,15 +4,11 @@ These checks are mechanical and never depend on agent prompt compliance. They
 read git diffs through an injectable seam so tests inject ``name-status`` output
 directly and never run a real diff.
 
-Two policies live here:
-
-- **Visual Baseline (ADR 0007).** Added (``A``) baselines are allowed; modified
-  (``M``) baselines require a saved review artifact whose final line is exactly
-  the PASS marker; deleted (``D``) and any other status hard-block. This mirrors
-  ``check_visual_baseline_authority`` in ``ralph/ralph.sh``.
-- **UI integration test edit authority.** Any ``Tests/UI/**`` or UI-test target
-  wiring change in the issue range requires ``ui_test_edits_authorized``; any
-  ``Tests/UI/**`` change in the UI-verify phase range blocks unconditionally.
+Only one policy lives here: any ``Tests/UI/**`` or UI-test target wiring change
+in the issue range requires ``ui_test_edits_authorized``; any ``Tests/UI/**``
+change in the UI-verify phase range blocks unconditionally. Visual Baselines are
+normal test artifacts and are governed by the Visual Regression test gate, not a
+separate authority check.
 """
 
 from __future__ import annotations
@@ -23,14 +19,9 @@ from dataclasses import dataclass
 from .contracts import IssueContract
 from .gates import (
     GATE_UI_INTEGRATION,
-    GATE_VISUAL_BASELINE_AUTHORITY,
     GateResult,
     GateStatus,
 )
-
-# Matches ralph/ralph.sh: VISUAL_BASELINE_DIR and the required review PASS line.
-VISUAL_BASELINE_DIR = "Tests/Visual/__Snapshots__"
-UI_REVIEW_PASS_LINE = "PASS: no blocking static visual findings."
 
 # UI integration test edit authority pathspecs (match production_swift_changed
 # and the UI-test target-wiring files in ralph/ralph.sh).
@@ -50,13 +41,7 @@ class NameStatusEntry:
 
 
 # A diff seam returns the name-status entries for a range against pathspecs.
-# ``tip`` is None for a working-tree-vs-base diff (the Visual Baseline case).
 DiffSeam = Callable[[str, str | None, Sequence[str]], tuple[NameStatusEntry, ...]]
-
-# A review reader returns the saved baseline-diff review text for a baseline
-# path, or None when no artifact exists. Mirrors the digest-addressed artifact
-# lookup in ralph.sh; the exact path scheme stays out of the policy.
-ReviewReader = Callable[[str], str | None]
 
 
 @dataclass(frozen=True)
@@ -72,25 +57,10 @@ class AuthorityDecision:
 
 
 class AuthorityGate:
-    """Mechanical Visual Baseline and UI-test edit authority checks."""
+    """Mechanical UI integration test edit authority checks."""
 
-    def __init__(self, diff: DiffSeam, *, review_reader: ReviewReader | None = None) -> None:
+    def __init__(self, diff: DiffSeam) -> None:
         self._diff = diff
-        self._review_reader = review_reader
-
-    def check_visual_baseline(self, base_ref: str = "HEAD") -> AuthorityDecision:
-        """Enforce ADR 0007 Visual Baseline authority against ``base_ref``.
-
-        Compares the working tree to ``base_ref`` (default ``HEAD``) for changes
-        under ``VISUAL_BASELINE_DIR``. The first blocking change wins.
-        """
-
-        entries = self._diff(base_ref, None, [VISUAL_BASELINE_DIR])
-        for entry in entries:
-            reason = self._visual_baseline_block_reason(entry)
-            if reason is not None:
-                return _blocked(GATE_VISUAL_BASELINE_AUTHORITY, reason)
-        return _allowed(GATE_VISUAL_BASELINE_AUTHORITY)
 
     def check_ui_test_authority(
         self,
@@ -128,30 +98,6 @@ class AuthorityGate:
             )
         return _allowed(GATE_UI_INTEGRATION)
 
-    def _visual_baseline_block_reason(self, entry: NameStatusEntry) -> str | None:
-        status = entry.status.strip().upper()
-        if status == "A":
-            return None
-        if status == "M":
-            return self._modified_baseline_block_reason(entry.path)
-        if status == "D":
-            return f"Deleted Visual Baseline is not allowed without human review: {entry.path}."
-        return (
-            f"Unsupported Visual Baseline change status {entry.status!r} for "
-            f"{entry.path}; human review required."
-        )
-
-    def _modified_baseline_block_reason(self, path: str) -> str | None:
-        review = self._review_reader(path) if self._review_reader else None
-        if not review or not review.strip():
-            return (
-                "Modified Visual Baseline requires a saved baseline-diff review "
-                f"artifact ending with PASS for: {path}."
-            )
-        if _last_line(review) != UI_REVIEW_PASS_LINE:
-            return f"Modified Visual Baseline review did not end with PASS for: {path}."
-        return None
-
     def _ui_test_paths(self, base: str, tip: str) -> tuple[str, ...]:
         entries = self._diff(base, tip, [UI_TEST_PATH_PREFIX])
         return tuple(e.path for e in entries if _under_ui_tests(e.path))
@@ -163,11 +109,6 @@ class AuthorityGate:
 
 def _under_ui_tests(path: str) -> bool:
     return path.startswith(UI_TEST_PATH_PREFIX)
-
-
-def _last_line(text: str) -> str:
-    lines = text.splitlines()
-    return lines[-1].strip() if lines else ""
 
 
 def _join(paths: Sequence[str]) -> str:

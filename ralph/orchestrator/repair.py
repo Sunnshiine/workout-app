@@ -1,9 +1,8 @@
 """One-time UI-owned repair cycle before blocked escalation.
 
-When a UI-owned gate (UI integration tests, screenshot artifacts/review, Visual
-Regression, Visual Baseline authority) fails *after code already exists*, Ralph
-gets exactly ONE repair cycle before the work is escalated to a blocked rescue
-PR. This slice owns that cycle and nothing else:
+When a UI-owned gate (UI integration tests or Visual Regression) fails *after
+code already exists*, Ralph gets exactly ONE repair cycle before the work is
+escalated to a blocked rescue PR. This slice owns that cycle and nothing else:
 
 1. Write a focused repair brief to
    ``ralph/.artifacts/repair/issue-<issue>-ui-gate.md`` (issue contract, target
@@ -12,7 +11,7 @@ PR. This slice owns that cycle and nothing else:
 2. Run ONE fresh ``repair-ui-gate`` agent context (via :class:`Engine`) in the
    failing integration worktree.
 3. If the repair touched production Swift, test files, project files, or package
-   configuration, run a ``swift-review-after-repair`` phase before rerunning.
+   configuration, run a ``review-after-repair`` phase before rerunning.
 4. Rerun the relevant UI/full gate EXACTLY once.
 5. Pass -> the orchestrator ships through the normal successful lifecycle.
    A SECOND UI-owned failure -> the orchestrator escalates to a blocked rescue PR.
@@ -33,19 +32,19 @@ from pathlib import Path
 from .blocked import cap_excerpt, redact_secrets
 from .contracts import IssueContract
 from .engine import Engine, PhaseRequest
-from .gates import GateResult
+from .gates import GATE_VISUAL_REGRESSION, GateResult
 from .phase import PhaseResult
 
 # Phase names for the two agent contexts this cycle can run.
 PHASE_REPAIR_UI_GATE = "repair-ui-gate"
-PHASE_SWIFT_REVIEW_AFTER_REPAIR = "swift-review-after-repair"
+PHASE_REVIEW_AFTER_REPAIR = "review-after-repair"
 
 # Default timeout (seconds) for a repair/review phase turn. The orchestrator may
 # override per call; this keeps a single call site self-contained.
 DEFAULT_PHASE_TIMEOUT_SECONDS = 60 * 60
 
 # Path prefixes/files whose change makes a repair "touch reviewable code" and so
-# requires ``swift-review-after-repair`` before rerunning the gate. Mirrors
+# requires ``review-after-repair`` before rerunning the gate. Mirrors
 # ``production_swift_changed`` in ``ralph/ralph.sh`` plus explicit test files.
 _PRODUCTION_SWIFT_PREFIX = "WorkoutTracker/"
 _TEST_FILE_PREFIXES = ("Tests/",)
@@ -61,7 +60,7 @@ _PROJECT_AND_PACKAGE_FILES = (
 GateRerun = Callable[[], GateResult]
 
 # Returns the files the repair phase changed in the integration worktree (paths
-# relative to the repo root). Injected so tests decide whether Swift review runs.
+# relative to the repo root). Injected so tests decide whether review runs.
 ChangedFilesProbe = Callable[[], Sequence[str]]
 
 
@@ -72,26 +71,26 @@ class RepairOutcome:
     ``shipped`` is True when the rerun gate passed (orchestrator ships through the
     normal successful lifecycle). When False the orchestrator escalates to a
     blocked rescue PR. The remaining fields are evidence for the blocked report
-    and for assertions: whether Swift review ran, the changed files the repair
+    and for assertions: whether review ran, the changed files the repair
     produced, the final rerun ``GateResult``, the repair phase result, and the
     brief path written for the agent.
     """
 
     shipped: bool
     repair_attempted: bool
-    swift_review_ran: bool
+    review_ran: bool
     changed_files: tuple[str, ...]
     rerun_gate: GateResult
     repair_phase: PhaseResult
-    swift_review_phase: PhaseResult | None
+    review_phase: PhaseResult | None
     brief_path: Path
 
 
-def requires_swift_review(changed_files: Sequence[str]) -> bool:
+def requires_review(changed_files: Sequence[str]) -> bool:
     """True when changed files include production Swift, test, project, or package files.
 
     A repair that only touches non-reviewable files (logs, screenshots, fixtures
-    outside the Swift targets) does not trigger ``swift-review-after-repair``.
+    outside the Swift targets) does not trigger ``review-after-repair``.
     """
 
     return any(_is_reviewable(path) for path in changed_files)
@@ -140,7 +139,7 @@ class RepairCoordinator:
         """Run the single repair cycle for a UI-owned ``failed_gate``.
 
         Writes the repair brief, runs one ``repair-ui-gate`` phase, conditionally
-        runs ``swift-review-after-repair`` when the repair touched reviewable
+        runs ``review-after-repair`` when the repair touched reviewable
         code, then reruns the gate EXACTLY once. The cycle never loops: a second
         UI-owned failure yields ``shipped=False`` for blocked escalation.
         """
@@ -166,10 +165,10 @@ class RepairCoordinator:
         )
 
         produced = tuple(changed_files())
-        swift_review_phase: PhaseResult | None = None
-        if requires_swift_review(produced):
-            swift_review_phase = self._run_phase(
-                PHASE_SWIFT_REVIEW_AFTER_REPAIR,
+        review_phase: PhaseResult | None = None
+        if requires_review(produced):
+            review_phase = self._run_phase(
+                PHASE_REVIEW_AFTER_REPAIR,
                 contract.number,
                 self._review_prompt(contract, produced),
             )
@@ -179,11 +178,11 @@ class RepairCoordinator:
         return RepairOutcome(
             shipped=rerun.passed,
             repair_attempted=True,
-            swift_review_ran=swift_review_phase is not None,
+            review_ran=review_phase is not None,
             changed_files=produced,
             rerun_gate=rerun,
             repair_phase=repair_phase,
-            swift_review_phase=swift_review_phase,
+            review_phase=review_phase,
             brief_path=brief_path,
         )
 
@@ -224,19 +223,26 @@ class RepairCoordinator:
     def _repair_prompt(
         self, contract: IssueContract, failed_gate: GateResult, brief_path: Path
     ) -> str:
+        ui_test_rule = _ui_test_edit_rule(contract)
+        baseline_rule = ""
+        if failed_gate.name == GATE_VISUAL_REGRESSION:
+            baseline_rule = " " + _baseline_acceptance_rule()
         return (
             f"You are debugging the UI-owned gate failure for issue "
             f"#{contract.number}. The failing gate is {failed_gate.name!r}. Read "
             f"the repair brief at {brief_path} and fix the failure while staying "
-            "inside the issue acceptance criteria. Do not weaken UI tests unless "
-            "the issue contract authorizes UI test edits, and never edit "
-            "Tests/UI/** during UI verification."
+            f"inside the issue acceptance criteria. {ui_test_rule}{baseline_rule}"
         )
 
     def _review_prompt(self, contract: IssueContract, changed_files: Sequence[str]) -> str:
         return (
-            f"Review the repair changes for issue #{contract.number} before the "
-            f"gate reruns. Changed files: {', '.join(changed_files)}."
+            f"Run the review-after-repair phase for issue #{contract.number} before "
+            f"the gate reruns. Changed files: {', '.join(changed_files)}. Review "
+            "only the repair changes against the frozen issue contract and repair "
+            "context. Spawn both read-only reviewer subagents: swift-reviewer for "
+            "technical review and spec-conformance-reviewer for issue-contract "
+            "conformance. Fix any blocking findings in this worktree, commit "
+            "review remediation, and complete only after both reviewers are clean."
         )
 
 
@@ -292,10 +298,43 @@ def render_repair_brief(
         "## Rules",
         "",
         "- Stay inside the issue acceptance criteria.",
-        "- Do not weaken UI tests unless the contract authorizes UI test edits.",
-        "- Never edit `Tests/UI/**` during UI verification.",
+        f"- {_ui_test_edit_rule(contract)}",
     ]
+    if failed_gate.name == GATE_VISUAL_REGRESSION:
+        sections.append(f"- {_baseline_acceptance_rule()}")
     return "\n".join(sections).rstrip() + "\n"
+
+
+def _ui_test_edit_rule(contract: IssueContract) -> str:
+    """Repair-phase UI-test edit rule.
+
+    This phase runs as ``repair-ui-gate`` (NOT ui-verify), so editing
+    ``Tests/UI/**`` is permitted ONLY when the issue contract authorizes UI test
+    edits; otherwise the agent must not weaken UI tests.
+    """
+
+    if contract.ui_test_edits_authorized:
+        return (
+            "This repair phase MAY edit `Tests/UI/**` because the issue contract "
+            "authorizes UI test edits; keep edits minimal and never weaken coverage "
+            "beyond what the contract requires."
+        )
+    return (
+        "Do not edit `Tests/UI/**` or otherwise weaken UI tests; the issue contract "
+        "does not authorize UI test edits in this repair phase."
+    )
+
+
+def _baseline_acceptance_rule() -> str:
+    """Visual Regression baseline-acceptance guidance for the repair phase."""
+
+    return (
+        "If the Visual Regression mismatch is caused by an INTENTIONAL view change "
+        "required by the issue's acceptance criteria, regenerate/accept the new "
+        "snapshot under `Tests/Visual/__Snapshots__/` and commit it. If the change "
+        "is NOT called for by the contract, treat it as a real regression and fix "
+        "the view instead."
+    )
 
 
 def _issue_contract_block(contract: IssueContract) -> str:

@@ -11,6 +11,7 @@ struct SmartValuePills: View {
     let onLog: (SetLog) -> Void
     let onSkip: () -> Void
     let onDelete: () -> Void
+    let inputDismissalRequestID: Int
 
     @State private var form: SmartValuePillsForm
     @State private var editingPill: FocusedPill?
@@ -25,12 +26,14 @@ struct SmartValuePills: View {
         onLog: @escaping (SetLog) -> Void,
         onSkip: @escaping () -> Void,
         onDelete: @escaping () -> Void,
-        showsLoggedCheckmarkInitially: Bool = false
+        showsLoggedCheckmarkInitially: Bool = false,
+        inputDismissalRequestID: Int = 0
     ) {
         self.set = set
         self.onLog = onLog
         self.onSkip = onSkip
         self.onDelete = onDelete
+        self.inputDismissalRequestID = inputDismissalRequestID
         _form = State(
             initialValue: SmartValuePillsForm(
                 set: set,
@@ -65,6 +68,9 @@ struct SmartValuePills: View {
             Color.clear
                 .contentShape(Rectangle())
                 .onTapGesture(perform: dismissFieldUI)
+        }
+        .onChange(of: inputDismissalRequestID) { _, _ in
+            dismissFieldUI()
         }
     }
 
@@ -191,7 +197,7 @@ struct SmartValuePills: View {
                         Image(systemName: "ellipsis.circle")
                             .imageScale(.large)
                     }
-                    .buttonStyle(.glass)
+                    .buttonStyle(.workoutGlass)
                 }
             }
         }
@@ -338,54 +344,53 @@ private struct HoldToSkipLogButton: View {
     @Environment(\.themePalette) private var palette
 
     var body: some View {
-        Button {
-            guard !suppressNextLogTap else {
-                suppressNextLogTap = false
-                return
+        logButtonSurface
+            .onLongPressGesture(
+                minimumDuration: policy.holdDuration,
+                maximumDistance: 44,
+                pressing: { isPressing in
+                    if isPressing {
+                        startSkipHoldIfNeeded()
+                    } else {
+                        finishSkipHold()
+                    }
+                },
+                perform: completeSkip
+            )
+            .contentShape(.rect)
+            .onTapGesture(perform: logTap)
+            .opacity(presentation.controlOpacity)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(presentation.accessibilityLabel)
+            .accessibilityValue(skipProgress > 0 ? "\(Int((skipProgress * 100).rounded()))% Skip" : "")
+            .accessibilityHint(presentation.accessibilityHint)
+            .accessibilityIdentifier("log-active-set-button")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction {
+                logTap()
             }
-            onLogTap()
-        } label: {
-            buttonContent
-        }
-        .buttonStyle(.plain)
-        .contentShape(.rect)
-        .onLongPressGesture(
-            minimumDuration: policy.holdDuration,
-            maximumDistance: 44,
-            pressing: { isPressing in
-                if isPressing {
-                    startSkipHoldIfNeeded()
-                } else {
-                    finishSkipHold()
+            .accessibilityAction(named: "Skip") {
+                completeSkip()
+            }
+    }
+
+    private var logButtonSurface: some View {
+        buttonContent
+            .font(.headline.weight(.bold))
+            .foregroundStyle(logForegroundStyle)
+            .padding(.vertical, 14)
+            .background {
+                ZStack(alignment: .leading) {
+                    logBackgroundStyle
+                    palette.danger.opacity(0.86)
+                        .scaleEffect(x: skipProgress, y: 1, anchor: .leading)
                 }
-            },
-            perform: completeSkip
-        )
-        .font(.headline.weight(.bold))
-        .foregroundStyle(logForegroundStyle)
-        .padding(.vertical, 14)
-        .background {
-            ZStack(alignment: .leading) {
-                logBackgroundStyle
-                palette.danger.opacity(0.86)
-                    .scaleEffect(x: skipProgress, y: 1, anchor: .leading)
+                .clipShape(.rect(cornerRadius: Theme.pillCornerRadius))
             }
-            .clipShape(.rect(cornerRadius: Theme.pillCornerRadius))
-        }
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
-                .strokeBorder(logStrokeStyle, lineWidth: logStrokeWidth)
-        )
-        .opacity(presentation.controlOpacity)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(presentation.accessibilityLabel)
-        .accessibilityValue(skipProgress > 0 ? "\(Int((skipProgress * 100).rounded()))% Skip" : "")
-        .accessibilityHint(presentation.accessibilityHint)
-        .accessibilityIdentifier("log-active-set-button")
-        .accessibilityAddTraits(.isButton)
-        .accessibilityAction(named: "Skip") {
-            completeSkip()
-        }
+            .overlay(
+                RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
+                    .strokeBorder(logStrokeStyle, lineWidth: logStrokeWidth)
+            )
     }
 
     private var buttonContent: some View {
@@ -454,6 +459,14 @@ private struct HoldToSkipLogButton: View {
 
     private var policy: HoldToSkipPolicy {
         HoldToSkipPolicy()
+    }
+
+    private func logTap() {
+        guard !suppressNextLogTap else {
+            suppressNextLogTap = false
+            return
+        }
+        onLogTap()
     }
 
     private func startSkipHoldIfNeeded() {

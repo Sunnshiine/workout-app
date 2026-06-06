@@ -1,5 +1,12 @@
 # Visual Regression Testing Spec
 
+> Supersession note, 2026-06-05: the Visual layer was adopted, but the
+> model-based screenshot reviewer and baseline-diff review policy described in
+> the original proposal have been retired. The current policy is in
+> [ADR 0007](../adr/0007-visual-regression-testing.md) and
+> [docs/TESTING.md](../TESTING.md): Visual Regression tests are the visual gate,
+> and Visual Baselines are normal test artifacts.
+
 ## Goal
 
 Add a deterministic visual regression gate to the WorkoutTracker test framework so that

@@ -24,7 +24,9 @@ def format_config_summary(config: RunConfig) -> str:
         f"  engine:                 {config.engine}",
         f"  max-iterations:         {config.max_iterations}",
         f"  model:                  {config.model or '(engine default)'}",
+        f"  reasoning-effort:       {config.reasoning_effort or '(Ralph Codex policy)'}",
         f"  sim-device:             {config.sim_device}",
+        f"  simulator-id:           {config.simulator_id or '(by device name)'}",
         f"  implement-timeout (s):  {config.implement_timeout_seconds}",
         f"  dry-run:                {config.dry_run}",
         f"  live-github-dry-run:    {config.live_github_dry_run_issue or '(off)'}",
@@ -79,7 +81,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             config=config,
             repo_root=Path.cwd(),
             client=GhCliClient(repo=config.repo),
-            engine=build_engine(config.engine, model=config.model),
+            engine=build_engine(
+                config.engine,
+                model=config.model,
+                reasoning_effort=config.reasoning_effort,
+            ),
         ).run()
     except (GitHubClientError, RalphLoopError, subprocess.CalledProcessError) as error:
         print(f"\nralph failed: {error}", file=sys.stderr)

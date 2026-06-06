@@ -14,9 +14,16 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from .authority import AuthorityGate, DiffSeam, NameStatusEntry
 from .blocked import BlockedReport, BlockedRescuePublisher
 from .config import RunConfig
-from .contracts import IssueContract, capture_issue_contract
+from .contracts import IssueContract, capture_issue_contract, parse_blocked_by
+from .diagnosis import (
+    DiagnosisAuthorityParse,
+    apply_ui_test_authority,
+    parse_diagnosis_authority,
+    render_authority_comment,
+)
 from .engine import Engine, PhaseRequest
 from .engines import blocked_promise_prefix, complete_promise_line
 from .gates import (
@@ -24,6 +31,7 @@ from .gates import (
     GATE_SWIFTLINT,
     GATE_UI_INTEGRATION,
     GATE_UNIT_COMPONENT,
+    GATE_VISUAL_REGRESSION,
     GATE_XCODEGEN,
     CommandResult,
     GateResult,
@@ -31,23 +39,33 @@ from .gates import (
     GateSpec,
     GateStatus,
 )
-from .github import GitHubClient, _label_names
-from .phase import PhaseResult
+from .github import GitHubClient, GitHubClientError, _label_names
+from .phase import PhaseResult, PhaseStatus
 from .prompt_context import PhaseContext, PromptContextWriter
 from .publish import (
+    LABEL_AGENT_ACTIVE,
+    LABEL_AGENT_BLOCKED,
+    LABEL_AGENT_IMPLEMENTED,
     LABEL_READY_FOR_AGENT,
     LABEL_READY_FOR_HUMAN,
+    ClaimError,
     GitOutcome,
+    IssueClaimer,
     IssuePublisher,
     PullRequestPublisher,
 )
+from .repair import RepairCoordinator, RepairOutcome
 from .targets import PrTarget, TargetResolver
 from .worktree import GitResult, Worktree, WorktreeManager, default_git_runner
 
 ORIGIN_MAIN = "origin/main"
+PHASE_DIAGNOSE = "diagnose"
+PHASE_DIAGNOSE_FORMAT = "diagnose-format"
 PHASE_IMPLEMENT = "implement-tdd"
-PHASE_SWIFT_REVIEW = "swift-review"
+PHASE_REVIEW = "review"
 PHASE_UI_VERIFY = "ui-verify"
+
+BUG_LABEL = "bug"
 
 ARTIFACT_DIR = Path("ralph/.artifacts")
 LOG_DIR = ARTIFACT_DIR / "logs"
@@ -74,6 +92,21 @@ class SelectedIssue:
     title: str
 
 
+@dataclass(frozen=True)
+class _DiagnosisOutcome:
+    """Result of the bug-diagnosis gate for one issue.
+
+    ``blocked_phase`` is set when diagnosis must escalate (failed/blocked phase,
+    an unrecoverable authority block, or out-of-scope authority); the caller then
+    publishes a blocked rescue PR. Otherwise ``contract`` is the (possibly
+    recaptured) contract and ``diagnosis_path`` points at the handoff artifact.
+    """
+
+    contract: IssueContract
+    diagnosis_path: Path | None = None
+    blocked_phase: PhaseResult | None = None
+
+
 class RalphLoopError(RuntimeError):
     """Raised when the loop cannot safely continue."""
 
@@ -90,14 +123,25 @@ class IssueSelector:
             number = _issue_number(issue)
             if number is None:
                 continue
-            title = _issue_title(issue)
-            labels = _label_names(issue.get("labels"))
-            if LABEL_READY_FOR_HUMAN in labels:
+            full = self._client.view_issue(number)
+            if full.get("state", "OPEN") != "OPEN":
+                continue
+            title = _issue_title(full)
+            labels = _label_names(full.get("labels"))
+            if LABEL_READY_FOR_AGENT not in labels:
+                continue
+            if labels & {
+                LABEL_AGENT_ACTIVE,
+                LABEL_AGENT_IMPLEMENTED,
+                LABEL_READY_FOR_HUMAN,
+                LABEL_AGENT_BLOCKED,
+            }:
                 continue
             if title.lower().startswith("prd:"):
                 continue
-            full = self._client.view_issue(number)
             if not _has_actionable_contract(full):
+                continue
+            if not self._dependencies_satisfied(full):
                 continue
             priority = 0 if "bug" in labels else 1
             candidates.append((priority, number, title))
@@ -105,6 +149,28 @@ class IssueSelector:
             return None
         priority, number, title = min(candidates)
         return SelectedIssue(number=number, title=title)
+
+    def _dependencies_satisfied(self, issue: dict) -> bool:
+        """True only when every ``## Blocked by`` upstream issue has landed.
+
+        A dependency must be closed (``state == "CLOSED"``) to count as landed. A
+        dep that is missing, still OPEN, or labeled ``agent-blocked`` leaves the
+        candidate ineligible so dependents are never picked up early.
+        """
+
+        body = issue.get("body")
+        if not isinstance(body, str):
+            return True
+        return all(self._dependency_landed(dep) for dep in parse_blocked_by(body))
+
+    def _dependency_landed(self, dep: int) -> bool:
+        try:
+            payload = self._client.view_issue(dep)
+        except GitHubClientError:
+            return False
+        if payload.get("state") != "CLOSED":
+            return False
+        return LABEL_AGENT_BLOCKED not in _label_names(payload.get("labels"))
 
 
 class OriginMain:
@@ -183,6 +249,7 @@ class RalphLoop:
         self._gate_runner_factory = gate_runner_factory or _default_gate_runner_factory
         self._publish_runner_factory = publish_runner_factory or _publish_runner_for
         self._target_resolver = TargetResolver(client)
+        self._claimer = IssueClaimer(client)
 
     def run(self) -> RunSummary:
         if not self._config.select_only:
@@ -207,12 +274,15 @@ class RalphLoop:
 
             selected.append(chosen.number)
             _ralph_log(f"selected issue #{chosen.number} {chosen.title}".rstrip())
-            contract = capture_issue_contract(self._client, chosen.number)
-            target = self._target_resolver.resolve(contract)
             if self._config.select_only:
                 stopped_reason = "select-only"
+                contract = capture_issue_contract(self._client, chosen.number)
+                target = self._target_resolver.resolve(contract)
                 _ralph_log(f"select-only target for issue #{chosen.number}: {target.branch}")
                 break
+            contract = self._claim_issue(chosen.number)
+            _ralph_log(f"issue #{chosen.number} claimed")
+            target = self._target_resolver.resolve(contract)
 
             outcome = self._run_issue(iteration, contract, target)
             if outcome:
@@ -228,6 +298,12 @@ class RalphLoop:
             stopped_reason=stopped_reason,
         )
 
+    def _claim_issue(self, issue_number: int) -> IssueContract:
+        try:
+            return self._claimer.claim(issue_number)
+        except ClaimError as error:
+            raise RalphLoopError(str(error)) from error
+
     def _run_issue(self, iteration: int, contract: IssueContract, target: PrTarget) -> bool:
         base_ref = self._origin_main.base_ref_for(target)
         worktree = self._create_worktree(contract, target, base_ref)
@@ -235,12 +311,28 @@ class RalphLoop:
         writer = PromptContextWriter(self._repo_root / CONTEXT_DIR / f"issue-{contract.number}")
         writer.write_issue_contract(contract)
 
+        diagnosis_path: Path | None = None
+        if BUG_LABEL in contract.labels:
+            diagnosis = self._run_diagnosis(
+                iteration, contract, target, worktree, issue_base, writer
+            )
+            if diagnosis.blocked_phase is not None:
+                self._publish_blocked(
+                    contract, target, worktree, failed_phase=diagnosis.blocked_phase
+                )
+                return False
+            contract = diagnosis.contract
+            diagnosis_path = diagnosis.diagnosis_path
+            writer.write_issue_contract(contract)
+
+        extra_refs = (str(diagnosis_path),) if diagnosis_path is not None else ()
+
         ui_phase_base = issue_base
         ui_phase_tip = issue_base
         failed_phase: PhaseResult | None = None
         for phase, prompt_file in (
             (PHASE_IMPLEMENT, "implement.md"),
-            (PHASE_SWIFT_REVIEW, "swift-review.md"),
+            (PHASE_REVIEW, "review.md"),
             (PHASE_UI_VERIFY, "ui-verify.md"),
         ):
             if phase == PHASE_UI_VERIFY:
@@ -254,6 +346,8 @@ class RalphLoop:
                 worktree,
                 issue_base,
                 writer,
+                extra_reference_paths=extra_refs,
+                diagnosis_path=diagnosis_path,
             )
             if not result.is_complete:
                 failed_phase = result
@@ -266,19 +360,47 @@ class RalphLoop:
             self._publish_blocked(contract, target, worktree, failed_phase=failed_phase)
             return False
 
-        gate_failure = self._run_gates(iteration, contract, worktree.path)
-        if gate_failure is not None:
+        authority_failure = self._check_authority(
+            contract,
+            worktree.path,
+            issue_base=issue_base,
+            issue_tip=issue_tip,
+            ui_phase_base=ui_phase_base,
+            ui_phase_tip=ui_phase_tip,
+        )
+        if authority_failure is not None:
             self._publish_blocked(
                 contract,
                 target,
                 worktree,
-                failed_gate=gate_failure,
+                failed_gate=authority_failure,
                 issue_base=issue_base,
                 issue_tip=issue_tip,
                 ui_phase_base=ui_phase_base,
                 ui_phase_tip=ui_phase_tip,
             )
             return False
+
+        gate_failure = self._run_gates(iteration, contract, worktree.path)
+        if gate_failure is not None:
+            repair_outcome: RepairOutcome | None = None
+            if gate_failure.ui_owned:
+                repair_outcome = self._run_repair(
+                    iteration, contract, target, worktree, gate_failure, issue_base
+                )
+            if repair_outcome is None or not repair_outcome.shipped:
+                self._publish_blocked(
+                    contract,
+                    target,
+                    worktree,
+                    failed_gate=gate_failure,
+                    repair_outcome=repair_outcome,
+                    issue_base=issue_base,
+                    issue_tip=issue_tip,
+                    ui_phase_base=ui_phase_base,
+                    ui_phase_tip=ui_phase_tip,
+                )
+                return False
 
         self._publish_success(contract, target, worktree.path)
         self._cleanup_worktree(worktree)
@@ -301,6 +423,9 @@ class RalphLoop:
         worktree: Worktree,
         issue_base: str,
         writer: PromptContextWriter,
+        *,
+        extra_reference_paths: tuple[str, ...] = (),
+        diagnosis_path: Path | None = None,
     ) -> PhaseResult:
         context = PhaseContext(
             role=f"Run the Ralph {phase} phase for issue #{contract.number}.",
@@ -310,11 +435,14 @@ class RalphLoop:
             complete_promise_line=complete_promise_line(phase),
             blocked_promise_prefix=blocked_promise_prefix(phase),
             allowed_actions=_allowed_actions_for_phase(phase),
-            reference_paths=(str(writer.write_issue_contract(contract)),),
+            reference_paths=(
+                str(writer.write_issue_contract(contract)),
+                *extra_reference_paths,
+            ),
         )
         context_path = writer.write_phase_context(contract, context)
         prompt = self._phase_prompt(
-            phase, prompt_file, contract, worktree, issue_base, context_path
+            phase, prompt_file, contract, worktree, issue_base, context_path, diagnosis_path
         )
         log_path = (
             self._repo_root / LOG_DIR / f"iter-{iteration}-issue-{contract.number}-{phase}.log"
@@ -341,6 +469,7 @@ class RalphLoop:
         worktree: Worktree,
         issue_base: str,
         context_path: Path,
+        diagnosis_path: Path | None = None,
     ) -> str:
         prompt_body = (self._repo_root / "ralph" / "prompts" / prompt_file).read_text(
             encoding="utf-8"
@@ -357,12 +486,9 @@ class RalphLoop:
                 f"TARGET_PR: {contract.prd_number or ''}",
                 f"PHASE_NAME: {phase}",
                 f"CONTEXT_PATH: {context_path}",
+                f"DIAGNOSIS_PATH: {diagnosis_path}" if diagnosis_path is not None else "",
                 f"COMPLETE_PROMISE_LINE: {complete_promise_line(phase)}",
                 f"BLOCKED_PROMISE_PREFIX: {blocked_promise_prefix(phase)}",
-                "UI_SHOT_PATH: ralph/.artifacts/issue-"
-                f"{contract.number}-ui-review.png",
-                "UI_REVIEW_PATH: ralph/.artifacts/issue-"
-                f"{contract.number}-ui-review.md",
                 "OBSERVATIONS_LOG_PATH: "
                 f"{self._repo_root / ARTIFACT_DIR / 'observations.md'}",
                 "",
@@ -373,15 +499,202 @@ class RalphLoop:
             ]
         )
 
+    def _run_diagnosis(
+        self,
+        iteration: int,
+        contract: IssueContract,
+        target: PrTarget,
+        worktree: Worktree,
+        issue_base: str,
+        writer: PromptContextWriter,
+    ) -> _DiagnosisOutcome:
+        """Run the bug-only diagnosis gate before implementation.
+
+        Runs the ``diagnose`` phase, writes the ``diagnosis.md`` handoff, parses
+        the authority block (with one corrective ``diagnose-format`` retry for a
+        malformed block), grants UI-test authority only for ``Tests/UI/**``, and
+        recaptures the contract. Any unrecoverable step returns a blocked phase so
+        the caller escalates to a rescue PR.
+        """
+
+        result = self._run_phase(
+            PHASE_DIAGNOSE, "diagnose.md", iteration, contract, target, worktree, issue_base, writer
+        )
+        if not result.is_complete:
+            return _DiagnosisOutcome(contract=contract, blocked_phase=result)
+
+        diagnosis_path = writer.write_diagnosis(result.final_response)
+        parse = parse_diagnosis_authority(result.final_response)
+
+        if parse.needs_corrective_pass:
+            corrective = self._run_phase(
+                PHASE_DIAGNOSE_FORMAT,
+                "diagnose-format.md",
+                iteration,
+                contract,
+                target,
+                worktree,
+                issue_base,
+                writer,
+                extra_reference_paths=(str(diagnosis_path),),
+                diagnosis_path=diagnosis_path,
+            )
+            if not corrective.is_complete:
+                return _DiagnosisOutcome(contract=contract, blocked_phase=corrective)
+            parse = parse_diagnosis_authority(corrective.final_response)
+            if parse.needs_corrective_pass:
+                return _DiagnosisOutcome(
+                    contract=contract,
+                    blocked_phase=_diagnosis_blocked(
+                        f"diagnosis authority block still invalid after the corrective pass: "
+                        f"{parse.error}"
+                    ),
+                )
+            diagnosis_path = writer.write_diagnosis(
+                f"{result.final_response}\n\n## Corrected authority\n\n{corrective.final_response}"
+            )
+
+        if parse.needs_human_escalation:
+            paths = ", ".join(parse.out_of_scope_paths)
+            return _DiagnosisOutcome(
+                contract=contract,
+                blocked_phase=_diagnosis_blocked(
+                    "diagnosis requires test authority beyond Tests/UI/** "
+                    f"({paths}); human authority required."
+                ),
+            )
+
+        contract = self._grant_ui_authority(contract, parse)
+        return _DiagnosisOutcome(contract=contract, diagnosis_path=diagnosis_path)
+
+    def _grant_ui_authority(
+        self, contract: IssueContract, parse: DiagnosisAuthorityParse
+    ) -> IssueContract:
+        """Grant ``Tests/UI/**`` edit authority on the issue body when diagnosis asks for it.
+
+        Only acts when diagnosis required UI-test edits and the contract is not
+        already authorized. Edits the issue body, records an audit comment, and
+        recaptures the contract so implementation reads the granted authority.
+        """
+
+        authority = parse.authority
+        if authority is None or not authority.ui_integration_test_edits_required:
+            return contract
+        if contract.ui_test_edits_authorized:
+            return contract
+
+        new_body = apply_ui_test_authority(
+            contract.body, scope=authority.scope, reason=authority.reason
+        )
+        self._client.edit_issue_body(contract.number, new_body)
+        self._client.comment_issue(
+            contract.number,
+            render_authority_comment(contract.number, authority.scope, authority.reason),
+        )
+        print(
+            f"Ralph: issue #{contract.number} granted UI integration test authority "
+            "during diagnosis",
+            flush=True,
+        )
+        return capture_issue_contract(self._client, contract.number)
+
+    def _check_authority(
+        self,
+        contract: IssueContract,
+        workdir: Path,
+        *,
+        issue_base: str,
+        issue_tip: str,
+        ui_phase_base: str,
+        ui_phase_tip: str,
+    ) -> GateResult | None:
+        """Mechanically enforce UI integration test edit authority.
+
+        Runs before the command gates so an unauthorized ``Tests/UI/**`` or
+        UI-test target-wiring change fails fast without spending build time. The
+        check reads committed diffs through a git seam and never trusts agent
+        prompt compliance; authorization comes only from the contract snapshot a
+        diagnosis grant recaptures.
+        """
+
+        gate = AuthorityGate(_name_status_diff(workdir))
+        decision = gate.check_ui_test_authority(
+            contract,
+            issue_base=issue_base,
+            issue_tip=issue_tip,
+            ui_phase_base=ui_phase_base,
+            ui_phase_tip=ui_phase_tip,
+        )
+        if decision.blocked:
+            _ralph_log(f"authority gate {decision.gate.name} -> {decision.gate.status}")
+            return decision.gate
+        return None
+
     def _run_gates(
         self, iteration: int, contract: IssueContract, workdir: Path
     ) -> GateResult | None:
         runner = self._gate_runner_factory(workdir, iteration, contract.number)
-        for result in runner.run_all(_gate_specs(self._config.sim_device)):
+        for result in runner.run_all(
+            _gate_specs(self._config.sim_device, simulator_id=self._config.simulator_id)
+        ):
             _ralph_log(f"gate {result.name} -> {result.status}")
             if result.status == GateStatus.FAILED:
                 return result
         return None
+
+    def _run_repair(
+        self,
+        iteration: int,
+        contract: IssueContract,
+        target: PrTarget,
+        worktree: Worktree,
+        failed_gate: GateResult,
+        issue_base: str,
+    ) -> RepairOutcome:
+        """Run the one-shot UI-owned repair cycle for a failing gate.
+
+        Exactly one attempt per issue: the loop only reaches this once because the
+        repair coordinator is single-shot and ``_run_issue`` calls it once per
+        gate failure. ``rerun_gate`` reruns ONLY the failing gate and
+        ``changed_files`` reports the repair's name-status diff against the issue
+        base so the coordinator decides whether ``review-after-repair`` runs.
+        """
+
+        _ralph_log(f"issue #{contract.number} repairing UI-owned gate {failed_gate.name}")
+        coordinator = RepairCoordinator(
+            self._engine, repo_root=self._repo_root, workdir=worktree.path
+        )
+        outcome = coordinator.run(
+            contract,
+            failed_gate,
+            rerun_gate=lambda: self._rerun_gate(iteration, contract, worktree.path, failed_gate),
+            changed_files=lambda: self._changed_files(
+                worktree.path, issue_base, self._rev_parse(worktree.path, "HEAD")
+            ),
+            target_branch=target.branch,
+            existing_pr_number=target.existing_pr_number,
+            artifact_paths=_artifact_paths(None, failed_gate),
+        )
+        _ralph_log(
+            f"issue #{contract.number} repair {failed_gate.name} -> "
+            f"{'shipped' if outcome.shipped else 'still failing'}"
+        )
+        return outcome
+
+    def _rerun_gate(
+        self, iteration: int, contract: IssueContract, workdir: Path, failed_gate: GateResult
+    ) -> GateResult:
+        """Rerun ONLY the failing gate once and return its fresh ``GateResult``."""
+
+        runner = self._gate_runner_factory(workdir, iteration, contract.number)
+        spec = _gate_spec_for(
+            failed_gate.name,
+            self._config.sim_device,
+            simulator_id=self._config.simulator_id,
+        )
+        result = runner.run(spec)
+        _ralph_log(f"gate rerun {result.name} -> {result.status}")
+        return result
 
     def _publish_success(self, contract: IssueContract, target: PrTarget, workdir: Path) -> None:
         runner = self._publish_runner_factory(workdir)
@@ -400,6 +713,7 @@ class RalphLoop:
         *,
         failed_phase: PhaseResult | None = None,
         failed_gate: GateResult | None = None,
+        repair_outcome: RepairOutcome | None = None,
         issue_base: str | None = None,
         issue_tip: str | None = None,
         ui_phase_base: str | None = None,
@@ -411,10 +725,10 @@ class RalphLoop:
             prd_number=contract.prd_number,
             intended_branch=target.branch,
             failed_phase_or_gate=_failed_name(failed_phase, failed_gate),
-            failing_command=tuple(failed_gate.command) if failed_gate else (),
+            failing_command=" ".join(failed_gate.command) if failed_gate else "",
             exit_status=failed_gate.exit_status if failed_gate else None,
-            repair_attempted=False,
-            repair_result=None,
+            repair_attempted=repair_outcome is not None and repair_outcome.repair_attempted,
+            repair_result=_repair_result_summary(repair_outcome),
             changed_files=self._changed_files(worktree.path, issue_base, issue_tip),
             diffstat=self._diffstat(worktree.path, issue_base, issue_tip),
             sanitized_excerpt=_blocked_excerpt(failed_phase, failed_gate),
@@ -509,8 +823,8 @@ def _format_ralph_log_line(message: str, *, now: datetime | None = None) -> str:
     return f"{timestamp.isoformat(timespec='seconds')} | Ralph: {message}"
 
 
-def _gate_specs(device: str) -> tuple[GateSpec, ...]:
-    destination = f"platform=iOS Simulator,name={device}"
+def _gate_specs(device: str, *, simulator_id: str | None = None) -> tuple[GateSpec, ...]:
+    destination = _simulator_destination(device, simulator_id=simulator_id)
     return (
         GateSpec(GATE_SWIFT_TEST, ("swift", "test")),
         GateSpec(GATE_XCODEGEN, ("xcodegen", "generate")),
@@ -528,8 +842,30 @@ def _gate_specs(device: str) -> tuple[GateSpec, ...]:
                 destination,
                 "-derivedDataPath",
                 ".ralph-dd",
+                "-clonedSourcePackagesDirPath",
+                ".ralph-spm",
                 "test",
                 "-only-testing:WorkoutTrackerTests",
+            ),
+        ),
+        GateSpec(
+            GATE_VISUAL_REGRESSION,
+            (
+                "xcodebuild",
+                "-project",
+                "WorkoutTracker.xcodeproj",
+                "-scheme",
+                "WorkoutTracker",
+                "-configuration",
+                "Debug",
+                "-destination",
+                destination,
+                "-derivedDataPath",
+                ".ralph-dd",
+                "-clonedSourcePackagesDirPath",
+                ".ralph-spm",
+                "test",
+                "-only-testing:WorkoutTrackerSnapshotTests",
             ),
         ),
         GateSpec(
@@ -546,12 +882,38 @@ def _gate_specs(device: str) -> tuple[GateSpec, ...]:
                 destination,
                 "-derivedDataPath",
                 ".ralph-dd",
+                "-clonedSourcePackagesDirPath",
+                ".ralph-spm",
+                "-parallel-testing-enabled",
+                "NO",
+                "-test-timeouts-enabled",
+                "NO",
                 "test",
                 "-only-testing:WorkoutTrackerUITests",
             ),
         ),
         GateSpec(GATE_SWIFTLINT, ("swiftlint", "lint", "--quiet")),
     )
+
+
+def _simulator_destination(device: str, *, simulator_id: str | None) -> str:
+    if simulator_id:
+        return f"platform=iOS Simulator,id={simulator_id}"
+    return f"platform=iOS Simulator,name={device}"
+
+
+def _gate_spec_for(
+    name: str,
+    device: str,
+    *,
+    simulator_id: str | None = None,
+) -> GateSpec:
+    """Return the single gate spec matching ``name`` so a rerun targets just it."""
+
+    for spec in _gate_specs(device, simulator_id=simulator_id):
+        if spec.name == name:
+            return spec
+    raise RalphLoopError(f"no gate spec named {name!r} to rerun")
 
 
 def _gate_name_for_command(command: Sequence[str]) -> str:
@@ -563,6 +925,8 @@ def _gate_name_for_command(command: Sequence[str]) -> str:
         return GATE_SWIFTLINT
     if "-only-testing:WorkoutTrackerTests" in command:
         return GATE_UNIT_COMPONENT
+    if "-only-testing:WorkoutTrackerSnapshotTests" in command:
+        return GATE_VISUAL_REGRESSION
     if "-only-testing:WorkoutTrackerUITests" in command:
         return GATE_UI_INTEGRATION
     return command[0] if command else "gate"
@@ -595,13 +959,75 @@ def _run_git(workdir: Path, args: Sequence[str], *, check: bool = True) -> GitRe
     return result
 
 
+def _name_status_diff(workdir: Path) -> DiffSeam:
+    """Build a git ``--name-status`` diff seam bound to ``workdir``.
+
+    ``tip`` of None diffs the working tree against ``base``; otherwise it diffs
+    the ``base..tip`` commit range. Pathspecs scope the diff the way git does.
+    A failed git invocation yields no entries so the gate fails open to allowed;
+    the loop's own gates still run the real build and tests afterward.
+    """
+
+    def diff(
+        base: str, tip: str | None, pathspecs: Sequence[str]
+    ) -> tuple[NameStatusEntry, ...]:
+        args = ["diff", "--name-status", base]
+        if tip is not None:
+            args.append(tip)
+        result = _run_git(workdir, [*args, "--", *pathspecs], check=False)
+        if not result.ok:
+            return ()
+        return _parse_name_status(result.stdout)
+
+    return diff
+
+
+def _parse_name_status(output: str) -> tuple[NameStatusEntry, ...]:
+    """Parse ``git diff --name-status`` lines into entries (status, last path)."""
+
+    entries: list[NameStatusEntry] = []
+    for line in output.splitlines():
+        if not line.strip():
+            continue
+        fields = line.split("\t")
+        if len(fields) < 2:
+            continue
+        entries.append(NameStatusEntry(status=fields[0].strip(), path=fields[-1].strip()))
+    return tuple(entries)
+
+
+def _diagnosis_blocked(reason: str) -> PhaseResult:
+    """Synthesize a blocked ``diagnose`` phase result for escalation paths."""
+
+    return PhaseResult(
+        phase=PHASE_DIAGNOSE,
+        status=PhaseStatus.BLOCKED,
+        final_response=reason,
+        blocked_reason=reason,
+    )
+
+
 def _allowed_actions_for_phase(phase: str) -> tuple[str, ...]:
+    if phase == PHASE_DIAGNOSE:
+        return (
+            "reproduce the bug and build a feedback loop",
+            "investigate with scratch edits/instrumentation (do not commit)",
+            "write a fix plan and the diagnosis-authority block",
+        )
+    if phase == PHASE_DIAGNOSE_FORMAT:
+        return ("re-emit only a corrected diagnosis-authority block from existing findings",)
     if phase == PHASE_IMPLEMENT:
         return ("implement the issue", "commit implementation changes", "run non-UI checks")
-    if phase == PHASE_SWIFT_REVIEW:
-        return ("review issue diff", "fix blocking non-UI findings", "commit review fixes")
+    if phase == PHASE_REVIEW:
+        return (
+            "review issue diff",
+            "spawn swift-reviewer",
+            "spawn spec-conformance-reviewer",
+            "fix blocking non-UI findings",
+            "commit review fixes",
+        )
     if phase == PHASE_UI_VERIFY:
-        return ("run UI verification", "capture required screenshots", "commit UI fixes")
+        return ("run UI verification", "commit UI fixes")
     return ()
 
 
@@ -639,6 +1065,16 @@ def _failed_name(failed_phase: PhaseResult | None, failed_gate: GateResult | Non
     if failed_gate is not None:
         return failed_gate.name
     return "unknown"
+
+
+def _repair_result_summary(repair_outcome: RepairOutcome | None) -> str | None:
+    """Human-readable repair result for the blocked report, or None if no repair ran."""
+
+    if repair_outcome is None:
+        return None
+    rerun = repair_outcome.rerun_gate
+    review = "review ran" if repair_outcome.review_ran else "no review"
+    return f"repaired but {rerun.name} still {rerun.status} on rerun ({review})"
 
 
 def _blocked_excerpt(failed_phase: PhaseResult | None, failed_gate: GateResult | None) -> str:

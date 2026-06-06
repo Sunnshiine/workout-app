@@ -18,6 +18,9 @@ do not push, merge, open a PR, close a PR, or close the issue yourself. Ralph
 owns publication after the gates pass.
 
 ## Contract
+- If DIAGNOSIS_PATH is set in the preamble, this is a bug that was diagnosed
+  first. Read that diagnosis handoff BEFORE editing and implement against its
+  cause and recommended regression-test seam; do not re-litigate the diagnosis.
 - Read the issue and comments: `gh issue view <n> --comments`.
 - Use the "Agent Brief" comment as the authoritative spec when one exists.
 - If there is no Agent Brief comment, use the issue body as the authoritative
@@ -40,8 +43,7 @@ owns publication after the gates pass.
 - Run non-UI verification before completion: `swift test`, `xcodegen generate`,
   Xcode unit/component tests, and `swiftlint lint --quiet`.
 - Do NOT run Xcode UI integration tests in this phase.
-- Do NOT run `ralph/snapshot.sh` in this phase.
-- Do NOT spawn `swift-reviewer` or `ui-screenshot-reviewer` in this phase.
+- Do NOT spawn reviewer subagents in this phase.
 - Keep scope tied to the issue contract. No speculative features, unrelated
   refactors, or one-off abstractions.
 - Commit the completed implementation on the current branch using the project's
@@ -60,7 +62,7 @@ Emit COMPLETE only when ALL of these hold:
 - The issue is implemented and every issue-contract acceptance criterion is met.
 - The implementation is committed on this branch.
 - The non-UI checks you ran passed.
-- You did not run UI tests, screenshots, or reviewer subagents.
+- You did not run UI tests or reviewer subagents.
 
 If any condition fails, end with the exact BLOCKED promise format from the
 preamble, using this phase's name.

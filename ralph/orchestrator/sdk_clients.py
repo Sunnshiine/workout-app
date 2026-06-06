@@ -45,8 +45,12 @@ class CodexProviderSdkClient:
             Codex = module.Codex
             Sandbox = module.Sandbox
             approval_mode = _approval_mode(module)
-            start_kwargs = _codex_turn_kwargs(invocation, Sandbox, approval_mode)
-            run_kwargs = _codex_turn_kwargs(invocation, Sandbox, approval_mode)
+            start_kwargs = _codex_turn_kwargs(
+                invocation, module, Sandbox, approval_mode, include_effort=False
+            )
+            run_kwargs = _codex_turn_kwargs(
+                invocation, module, Sandbox, approval_mode, include_effort=True
+            )
             with Codex() as codex:
                 thread = codex.thread_start(**start_kwargs)
                 result = thread.run(invocation.prompt, **run_kwargs)
@@ -117,7 +121,14 @@ def _client_if_importable(module_name: str, factory):
     return factory(module=module)
 
 
-def _codex_turn_kwargs(invocation: SdkInvocation, Sandbox, approval_mode) -> dict[str, object]:
+def _codex_turn_kwargs(
+    invocation: SdkInvocation,
+    module,
+    Sandbox,
+    approval_mode,
+    *,
+    include_effort: bool,
+) -> dict[str, object]:
     kwargs: dict[str, object] = {
         "cwd": str(invocation.workdir),
         "sandbox": Sandbox.workspace_write,
@@ -126,7 +137,16 @@ def _codex_turn_kwargs(invocation: SdkInvocation, Sandbox, approval_mode) -> dic
         kwargs["approval_mode"] = approval_mode
     if invocation.model is not None:
         kwargs["model"] = invocation.model
+    if include_effort and invocation.reasoning_effort is not None:
+        kwargs["effort"] = _codex_reasoning_effort(module, invocation.reasoning_effort)
     return kwargs
+
+
+def _codex_reasoning_effort(module, effort: str) -> object:
+    enum = getattr(module, "ReasoningEffort", None)
+    if enum is None:
+        enum = importlib.import_module("openai_codex.api").ReasoningEffort
+    return getattr(enum, effort)
 
 
 def _approval_mode(module) -> object | None:

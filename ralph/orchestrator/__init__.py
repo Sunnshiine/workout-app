@@ -12,8 +12,6 @@ replacement gate in issue #214 is approved.
 from __future__ import annotations
 
 from .authority import (
-    UI_REVIEW_PASS_LINE,
-    VISUAL_BASELINE_DIR,
     AuthorityDecision,
     AuthorityGate,
     NameStatusEntry,
@@ -91,12 +89,15 @@ from .prompt_context import (
     render_phase_context,
 )
 from .publish import (
+    LABEL_AGENT_ACTIVE,
     LABEL_AGENT_BLOCKED,
     LABEL_AGENT_IMPLEMENTED,
     LABEL_AGENT_READY_FOR_REVIEW,
     LABEL_READY_FOR_AGENT,
     LABEL_READY_FOR_HUMAN,
+    ClaimError,
     GitOutcome,
+    IssueClaimer,
     IssuePublisher,
     PublishError,
     PullRequestPublisher,
@@ -105,13 +106,13 @@ from .publish import (
 from .repair import (
     DEFAULT_PHASE_TIMEOUT_SECONDS,
     PHASE_REPAIR_UI_GATE,
-    PHASE_SWIFT_REVIEW_AFTER_REPAIR,
+    PHASE_REVIEW_AFTER_REPAIR,
     RepairCoordinator,
     RepairError,
     RepairOutcome,
     render_repair_brief,
     repair_brief_relpath,
-    requires_swift_review,
+    requires_review,
 )
 from .sdk_clients import (
     ClaudeProviderSdkClient,
@@ -136,6 +137,7 @@ __all__ = [
     "GATE_FAILURE_SUMMARY_FILE",
     "ISSUE_CONTRACT_FILE",
     "LABEL_AGENT_BLOCKED",
+    "LABEL_AGENT_ACTIVE",
     "LABEL_AGENT_IMPLEMENTED",
     "LABEL_AGENT_READY_FOR_REVIEW",
     "LABEL_READY_FOR_AGENT",
@@ -146,13 +148,12 @@ __all__ = [
     "REDACTION_PLACEHOLDER",
     "REPAIR_BRIEF_FILE",
     "TIMEOUT_EXIT_STATUS",
-    "UI_REVIEW_PASS_LINE",
-    "VISUAL_BASELINE_DIR",
     "AuthorityDecision",
     "AuthorityGate",
+    "ClaimError",
     "DEFAULT_PHASE_TIMEOUT_SECONDS",
     "PHASE_REPAIR_UI_GATE",
-    "PHASE_SWIFT_REVIEW_AFTER_REPAIR",
+    "PHASE_REVIEW_AFTER_REPAIR",
     "BlockedReport",
     "BlockedReportWriter",
     "BlockedRescuePlan",
@@ -180,6 +181,7 @@ __all__ = [
     "GitOutcome",
     "GitResult",
     "IssueComment",
+    "IssueClaimer",
     "IssueContract",
     "IssuePublisher",
     "IssueSelector",
@@ -233,6 +235,6 @@ __all__ = [
     "render_phase_context",
     "render_repair_brief",
     "repair_brief_relpath",
-    "requires_swift_review",
+    "requires_review",
     "resolve_engine",
 ]

@@ -19,6 +19,23 @@ import Testing
 }
 
 @MainActor
+@Test func moveOnCelebrationPresentationDescribesF3StaticShell() {
+    let session = makeMoveOnSession(
+        exercises: [
+            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .pending])
+        ]
+    )
+
+    let presentation = MoveOnCelebrationPresentation(session: session, quoteText: "Steady work travels.")
+
+    #expect(presentation.markText == "TFN")
+    #expect(presentation.actionText == "Move On")
+    #expect(presentation.setsCopyText == "Logged Sets are saved. Open Sets stay with the Week.")
+    #expect(presentation.tapHintText == "Tap anywhere to continue")
+    #expect(presentation.quoteText == "Steady work travels.")
+}
+
+@MainActor
 @Test func moveOnCelebrationPresentationSelectsSuccessHapticForIncompleteSession() {
     let session = makeMoveOnSession(
         exercises: [
@@ -88,63 +105,6 @@ import Testing
 }
 
 @MainActor
-@Test func moveOnCelebrationPresentationSelectsAnimatedBloomForPerfectSession() {
-    let session = makeMoveOnSession(
-        exercises: [
-            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .skipped])
-        ]
-    )
-
-    let presentation = MoveOnCelebrationPresentation(session: session)
-
-    #expect(presentation.visualTreatment(reduceMotion: false) == .animatedBloom)
-}
-
-@MainActor
-@Test func moveOnCelebrationPresentationKeepsStaticLensForReducedMotionPerfectSession() {
-    let session = makeMoveOnSession(
-        exercises: [
-            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .skipped])
-        ]
-    )
-
-    let presentation = MoveOnCelebrationPresentation(session: session)
-
-    #expect(presentation.visualTreatment(reduceMotion: true) == .reducedMotionLens)
-}
-
-@MainActor
-@Test func moveOnCelebrationPresentationSelectsAnimatedBloomForIncompleteSession() {
-    let session = makeMoveOnSession(
-        exercises: [
-            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .pending])
-        ]
-    )
-
-    let presentation = MoveOnCelebrationPresentation(session: session)
-
-    #expect(presentation.visualTreatment(reduceMotion: false) == .animatedBloom)
-    #expect(presentation.visualTreatment(reduceMotion: true) == .reducedMotionLens)
-}
-
-@MainActor
-@Test func moveOnCelebrationPresentationLoopsBloomForSeveralSecondsUnlessMotionIsReduced() {
-    let session = makeMoveOnSession(
-        exercises: [
-            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .pending])
-        ]
-    )
-
-    let presentation = MoveOnCelebrationPresentation(session: session)
-    let motion = presentation.bloomMotion(reduceMotion: false)
-
-    #expect(motion?.loopDuration == 7.2)
-    #expect(motion?.pulseDuration == 1.2)
-    #expect(motion?.repeatCount == 6)
-    #expect(presentation.bloomMotion(reduceMotion: true) == nil)
-}
-
-@MainActor
 @Test func moveOnCelebrationPresentationProvidesAccessibilityTextForClosedSessionAndStats() {
     let session = makeMoveOnSession(
         weekNumber: 2,
@@ -158,8 +118,11 @@ import Testing
     let presentation = MoveOnCelebrationPresentation(session: session, quoteText: "Steady work travels.")
 
     #expect(presentation.accessibilityLabel == "Week 2, Day 3")
-    #expect(presentation.accessibilityValue == "Steady work travels., 5 Sets, 2 Exercises, 2 Left")
-    #expect(presentation.accessibilityHint == "Tap anywhere to continue")
+    #expect(
+        presentation.accessibilityValue
+            == "Move On, Steady work travels., Logged Sets are saved. Open Sets stay with the Week., 5 Sets, 2 Exercises, 2 Left"
+    )
+    #expect(presentation.accessibilityHint == presentation.tapHintText)
 }
 
 @MainActor
@@ -192,7 +155,7 @@ import Testing
 
     #expect(MoveOnCelebrationPresentation.longQuoteFixture.count >= 110)
     #expect(!MoveOnCelebrationPresentation.approvedQuotes.contains(presentation.quoteText))
-    #expect(presentation.accessibilityValue.hasPrefix(MoveOnCelebrationPresentation.longQuoteFixture))
+    #expect(presentation.accessibilityValue.contains(MoveOnCelebrationPresentation.longQuoteFixture))
 }
 
 @MainActor
