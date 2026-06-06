@@ -65,14 +65,18 @@ and every bullet must end with a `— cost:` clause naming the concrete impact.
 For recurrence, read only `tail -n 150 "$OBSERVATIONS_LOG_PATH"` and check
 `wc -l "$OBSERVATIONS_LOG_PATH"`; never read the full observations file.
 
-Emit COMPLETE only when ALL of these hold:
-- UI Integration Smoke class-level selectors passed.
+Emit COMPLETE when the UI verification result is actionable:
+- UI Integration Smoke class-level selectors passed, or failures are documented
+  with enough detail for the repair step to distinguish product behavior from
+  simulator/tooling infrastructure.
 - This phase made no code edits (read-only verification).
 - You did not run review subagents.
 
-If any condition fails, end with the exact BLOCKED promise format from the
-preamble, using this phase's name.
+End with the exact BLOCKED promise format from the preamble, using this phase's
+name, only when no useful UI verification signal was produced, this phase made
+code edits, or you ran review subagents.
 
-When every condition holds, end your response with the exact COMPLETE promise
-line from the preamble, on its own line.
+When the UI verification result is actionable and the hard constraints above
+hold, end your response with the exact COMPLETE promise line from the preamble,
+on its own line.
 </completion_gate>

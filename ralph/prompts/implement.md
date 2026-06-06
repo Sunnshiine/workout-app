@@ -67,15 +67,18 @@ For recurrence, read only `tail -n 150 "$OBSERVATIONS_LOG_PATH"` and check
 
 Emit COMPLETE only when ALL of these hold:
 - The issue is implemented and every issue-contract acceptance criterion is met.
-- The implementation is committed on this branch.
-- The non-UI checks you ran passed.
+- The implementation is committed on this branch when code changed.
+- The non-UI checks you ran passed (or you documented why a required check could not run and included the best available verification evidence.)
 - You did not run the full Xcode UI integration target, the full
   `WorkoutTrackerUITests` bundle, or UI Interaction Suite tests.
 - You did not run reviewer subagents.
 
-If any condition fails, end with the exact BLOCKED promise format from the
-preamble, using this phase's name.
+End with the exact BLOCKED promise format from the preamble, using this phase's
+name, only when the issue contract is too vague to implement, the branch is not
+in a reviewable state, required code changes are uncommitted, verification gives
+no useful signal, or you violated the UI-test/reviewer constraints.
 
-When every condition holds, end your response with the exact COMPLETE promise
-line from the preamble, on its own line.
+When the implementation is reviewable and the hard constraints above hold, end
+your response with the exact COMPLETE promise line from the preamble, on its own
+line.
 </completion_gate>

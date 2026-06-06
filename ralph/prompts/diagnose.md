@@ -80,15 +80,19 @@ Rules:
   escalate for human authority. Only `Tests/UI/**` can be auto-authorized.
 </diagnosis_authority_instructions>
 <completion_gate>
-Emit COMPLETE only when ALL of these hold:
-- You established a repro loop or documented the best available evidence.
-- You produced a fix plan and a regression-test seam recommendation.
+Emit COMPLETE when your handoff is actionable for the implementation phase:
+- You established a repro loop, documented the best available evidence, or
+  clearly explained why a stronger repro could not be built in this phase.
+- You produced either a fix plan or a concrete next diagnostic step, plus the
+  best available regression-test seam recommendation.
 - You included exactly one well-formed diagnosis-authority block.
-- You did NOT commit and did NOT implement the production fix.
 
-If any condition fails, end with the exact BLOCKED promise format from the
-preamble, using this phase's name.
+End with the exact BLOCKED promise format from the preamble, using this phase's
+name, only when the issue/spec is too vague to diagnose, the handoff would not
+give implementation a concrete next step, the diagnosis-authority block cannot
+be made well-formed, or you committed or implemented the production fix.
 
-When every condition holds, end your response with the exact COMPLETE promise
-line from the preamble, on its own line.
+When the handoff is actionable and the hard constraints above hold, end your
+response with the exact COMPLETE promise line from the preamble, on its own
+line.
 </completion_gate>

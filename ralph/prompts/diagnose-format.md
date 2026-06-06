@@ -40,12 +40,18 @@ Rules:
   test-target wiring, say so in prose and Ralph will escalate for a human.
 </work>
 <completion_gate>
-Emit COMPLETE only when your response contains exactly one well-formed
-diagnosis-authority block and no new code changes or commits.
+Emit COMPLETE when this corrective pass produces an actionable authority result:
+- Your response contains exactly one well-formed diagnosis-authority block, or
+  you clearly explain why the existing findings do not contain enough
+  information to decide UI integration test edit authority.
+- You made no new code changes or commits.
 
-If you cannot produce a valid block from the existing findings, end with the
-exact BLOCKED promise format from the preamble, using this phase's name.
+End with the exact BLOCKED promise format from the preamble, using this phase's
+name, only when the authority decision cannot be made from the existing findings
+and you cannot explain the missing information concretely, or you made code
+changes or commits.
 
-Otherwise end your response with the exact COMPLETE promise line from the
-preamble, on its own line.
+When the corrective result is actionable and the hard constraints above hold,
+end your response with the exact COMPLETE promise line from the preamble, on its
+own line.
 </completion_gate>

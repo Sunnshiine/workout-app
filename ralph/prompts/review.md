@@ -61,9 +61,12 @@ Emit COMPLETE only when ALL of these hold:
 - Any files changed by this phase were committed.
 - You did not run UI tests.
 
-If any condition fails, including being unable to spawn the reviewer, end with
-the exact BLOCKED promise format from the preamble, using this phase's name.
+End with the exact BLOCKED promise format from the preamble, using this phase's
+name, only when no meaningful review signal was produced, remaining findings do
+not have a concrete repair path, changed files are uncommitted, or you ran UI
+tests.
 
-When every condition holds, end your response with the exact COMPLETE promise
-line from the preamble, on its own line.
+When the review result is actionable and the hard constraints above hold, end
+your response with the exact COMPLETE promise line from the preamble, on its own
+line.
 </completion_gate>
