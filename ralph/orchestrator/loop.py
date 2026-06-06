@@ -310,6 +310,7 @@ class RalphLoop:
         issue_base = self._rev_parse(worktree.path, "HEAD")
         writer = PromptContextWriter(self._repo_root / CONTEXT_DIR / f"issue-{contract.number}")
         writer.write_issue_contract(contract)
+        writer.write_issue_comments(contract)
 
         diagnosis_path: Path | None = None
         if BUG_LABEL in contract.labels:
