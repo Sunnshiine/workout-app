@@ -40,6 +40,16 @@ private var workoutGlassMigrationSourceRoot: URL {
     #expect(!source.contains("private static let lensCornerRadius"))
 }
 
+@Test func moveOnCelebrationDoesNotExposeBloomTestHook() throws {
+    let source = try String(
+        contentsOf: workoutGlassMigrationSourceRoot.appending(path: "WorkoutTracker/Views/MoveOnCelebrationView.swift"),
+        encoding: .utf8
+    )
+
+    #expect(!source.contains("disablesBloom"))
+    #expect(!source.contains("UITEST_DISABLE_CELEBRATION_BLOOM"))
+}
+
 @Test func moveOnCelebrationUsesEnvironmentThemePalette() throws {
     let source = try String(
         contentsOf: workoutGlassMigrationSourceRoot.appending(path: "WorkoutTracker/Views/MoveOnCelebrationView.swift"),

@@ -39,7 +39,7 @@ struct GlassBearingViewsVisualTests {
             )
         )
 
-        assertGlassBaseline {
+        assertGlassBaseline(precision: WorkoutVisualBaseline.labelAntialiasingPrecision) {
             ExerciseSection(
                 config: config,
                 onFocus: { _ in },
@@ -75,7 +75,7 @@ struct GlassBearingViewsVisualTests {
     @Test func smartValuePillsMatchesVisualBaseline() {
         let set = makeExercise(setStates: [.pending]).sets[0]
 
-        assertGlassBaseline {
+        assertGlassBaseline(precision: WorkoutVisualBaseline.labelAntialiasingPrecision) {
             SmartValuePills(
                 set: set,
                 previousSetWeight: 275,
@@ -161,7 +161,6 @@ struct GlassBearingViewsVisualTests {
         assertFullScreenBaseline {
             MoveOnCelebrationView(
                 session: session,
-                disablesBloom: true,
                 quoteText: "You're fucking amazing.",
                 onDismiss: {}
             )
@@ -215,6 +214,7 @@ struct GlassBearingViewsVisualTests {
 
     private func assertGlassBaseline<Content: View>(
         testName: String = #function,
+        precision: Float = WorkoutVisualBaseline.precision,
         @ViewBuilder content: () -> Content
     ) {
         let view = VisualBaselineHost {
@@ -224,7 +224,7 @@ struct GlassBearingViewsVisualTests {
         assertSnapshot(
             of: view,
             as: .image(
-                precision: WorkoutVisualBaseline.precision,
+                precision: precision,
                 layout: .device(config: .workoutVisualBaseline)
             ),
             testName: testName
