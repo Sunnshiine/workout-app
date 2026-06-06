@@ -42,6 +42,7 @@ class RunConfig:
     reasoning_effort: str | None = None
     sim_device: str = DEFAULT_SIM_DEVICE
     simulator_id: str | None = None
+    simulator_pool: tuple[str, ...] = ()
     implement_timeout_seconds: int = DEFAULT_IMPLEMENT_TIMEOUT_SECONDS
     dry_run: bool = False
     select_only: bool = False
@@ -117,6 +118,18 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Specific simulator UDID for Xcode gates. Use this with per-agent "
             "simulator clones so concurrent Ralph runs do not share one device."
+        ),
+    )
+    parser.add_argument(
+        "--simulator-pool",
+        dest="simulator_pool",
+        nargs="+",
+        default=[],
+        metavar="UDID",
+        help=(
+            "Pool of simulator UDIDs for automatic leasing. Ralph acquires one "
+            "UDID exclusively per run and releases it on exit. Ignored when "
+            "--simulator-id is given. Example: --simulator-pool UDID-1 UDID-2"
         ),
     )
     parser.add_argument(
@@ -218,6 +231,8 @@ def _resolve(namespace: argparse.Namespace) -> RunConfig:
     is_dry_run = namespace.dry_run or namespace.live_github_dry_run_issue
     engine = FAKE_ENGINE if is_dry_run else namespace.engine
 
+    simulator_pool = tuple(u.strip() for u in namespace.simulator_pool if u.strip())
+
     return RunConfig(
         engine=engine,
         max_iterations=namespace.max_iterations,
@@ -225,6 +240,7 @@ def _resolve(namespace: argparse.Namespace) -> RunConfig:
         reasoning_effort=namespace.reasoning_effort,
         sim_device=namespace.sim_device,
         simulator_id=simulator_id,
+        simulator_pool=simulator_pool,
         implement_timeout_seconds=namespace.implement_timeout_seconds,
         dry_run=namespace.dry_run,
         select_only=namespace.select_only,

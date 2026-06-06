@@ -117,6 +117,7 @@ The Python runner supports:
 | `--reasoning-effort low\|medium\|high\|xhigh` | Optional whole-run Codex reasoning override. Without it, Ralph uses `gpt-5.5` with `medium` reasoning, except review and UI repair phases use `high`. |
 | `--device "iPhone 17 Pro"` | Simulator device for app gates. |
 | `--simulator-id UDID` | Specific simulator UDID for app gates. Use this for parallel Ralph runs so each agent owns a different simulator. |
+| `--simulator-pool UDID [UDID ...]` | Pool of simulator UDIDs for automatic leasing. Ralph acquires one UDID exclusively per run and releases it on exit. Ignored when `--simulator-id` is given. |
 | `--implement-timeout-seconds N` | Per-phase agent timeout. |
 | `--select-only` | Resolve selection/targets without creating worktrees or running agents. |
 | `--repo owner/name` | GitHub repo override. |
@@ -143,15 +144,38 @@ targets a distinct simulator UDID. The failure mode to avoid is two agents using
 the shared name-based destination `platform=iOS Simulator,name=iPhone 17 Pro`,
 which lets Xcode pick the same booted simulator for both UI-test runners.
 
-Create simulator clones once, then assign one UDID per concurrent run:
+### Automatic pool leasing (recommended for concurrent runs)
+
+Create a named pool of simulator clones once:
 
 ```bash
 xcrun simctl list runtimes
 xcrun simctl create "Ralph UI 1" "iPhone 17 Pro" "<iOS runtime identifier>"
 xcrun simctl create "Ralph UI 2" "iPhone 17 Pro" "<iOS runtime identifier>"
+# Note the UDIDs printed by simctl create, or find them with:
+xcrun simctl list devices | grep "Ralph UI"
 ```
 
-Run each Ralph session with its assigned simulator:
+Then start concurrent Ralph sessions with the shared pool; each session
+automatically acquires an exclusive lease on one UDID:
+
+```bash
+ralph/ralph.sh --engine codex --max-iterations 1 --simulator-pool <UDID-1> <UDID-2>
+ralph/ralph.sh --engine codex --max-iterations 1 --simulator-pool <UDID-1> <UDID-2>
+```
+
+Ralph uses atomic file creation (`O_CREAT|O_EXCL`) in `~/.ralph/simulator-leases/`
+to guarantee mutual exclusion: the first process to create `<UDID>.lease` owns that
+simulator for its run; the second process takes the next available UDID. If all UDIDs
+are busy, the second run fails with a clear error rather than colliding.
+
+Lease files record `{pid, hostname, started_at}`. If a Ralph process is killed, its
+lease file is detected as stale (owner PID no longer alive) and reclaimed by the next
+run automatically.
+
+### Manual UDID assignment (alternative)
+
+Assign one UDID per session explicitly with `--simulator-id`:
 
 ```bash
 ralph/ralph.sh --engine codex --max-iterations 1 --simulator-id <UDID-1>
