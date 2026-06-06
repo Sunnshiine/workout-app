@@ -4,6 +4,9 @@
 # Secrets (xcconfig with Google Client ID, etc.)
 Secrets.xcconfig
 
+# macOS
+.DS_Store
+
 # Claude Code — machine-local settings and nested worktrees (not for the shared repo)
 .claude/
 .claude/settings.local.json
