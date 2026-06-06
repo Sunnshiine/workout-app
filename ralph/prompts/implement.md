@@ -48,7 +48,7 @@ owns publication after the gates pass.
 - Visual Regression tests MAY run when your changes affect covered visual
   surfaces (pixel comparison against committed Visual Baseline PNGs).
 - Do NOT run the full Xcode UI integration target, the full
-  `WorkoutTrackerUITests` bundle (`-only-testing:WorkoutTrackerUITests`), or
+  `WorkoutTrackerUITests` bundle (bare target without a class suffix), or
   UI Interaction Suite tests in this phase.
 - Do NOT spawn reviewer subagents in this phase.
 - Keep scope tied to the issue contract. No speculative features, unrelated

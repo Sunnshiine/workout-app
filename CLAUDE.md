@@ -41,6 +41,10 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
   the simulator before diagnosing app code.
 - For target-specific UI gates, prefer raw `xcodebuild ... -only-testing:WorkoutTrackerUITests`
   or verify the output actually ran `WorkoutTrackerUITests`.
+- For concurrent Ralph runs, use `--simulator-pool <UDID-1> <UDID-2>` so each
+  run automatically acquires a distinct simulator via atomic file leasing in
+  `~/.ralph/simulator-leases/`. Stale leases from crashed processes are recovered
+  automatically. Use `--simulator-id` only for manual single-run assignment.
 
 ## Linting & Formatting
 

@@ -42,9 +42,23 @@ Three test categories are relevant to this phase; keep them distinct:
   phases. Do NOT run these here.</category>
 </test_categories>
 
-Run UI Integration Smoke class-level selectors
-(`-only-testing:WorkoutTrackerUITests/<SmokeTestClass>`) for the surfaces
-touched by this issue.
+- Run UI Integration Smoke only. Use class-level selectors inside the existing
+  `WorkoutTrackerUITests` target:
+
+  ```bash
+  xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+    -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+    -derivedDataPath .ralph-dd \
+    -clonedSourcePackagesDirPath .ralph-spm \
+    -parallel-testing-enabled NO \
+    -test-timeouts-enabled NO \
+    -only-testing:WorkoutTrackerUITests/WorkoutTrackerUISmokeTests \
+    -only-testing:WorkoutTrackerUITests/PartiallyUploadedBlockUISmokeTests
+  ```
+
+- Do not target the full WorkoutTrackerUITests bundle (bare target without a
+  class suffix); that runs the entire UI target. Do not run the UI Interaction
+  Suite during Ralph's autonomous loop.
 - Do NOT spawn `swift-reviewer` or `spec-conformance-reviewer` in this phase.
 - This is a read-only verification phase: do NOT edit `Tests/UI/**` or any other
   code here. The parent orchestrator blocks any `Tests/UI/**` change made during

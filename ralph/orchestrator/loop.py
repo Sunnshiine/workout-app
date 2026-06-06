@@ -55,11 +55,17 @@ from .publish import (
     PullRequestPublisher,
 )
 from .repair import RepairCoordinator, RepairOutcome
+from .simulator_pool import SimulatorPool, SimulatorPoolError
 from .targets import PrTarget, TargetResolver
 from .worktree import GitResult, Worktree, WorktreeManager, default_git_runner
 
 ORIGIN_MAIN = "origin/main"
 PHASE_DIAGNOSE = "diagnose"
+UI_INTEGRATION_SMOKE_SELECTORS = (
+    "-only-testing:WorkoutTrackerUITests/WorkoutTrackerUISmokeTests",
+    "-only-testing:WorkoutTrackerUITests/PartiallyUploadedBlockUISmokeTests",
+)
+
 PHASE_DIAGNOSE_FORMAT = "diagnose-format"
 PHASE_IMPLEMENT = "implement-tdd"
 PHASE_REVIEW = "review"
@@ -71,6 +77,7 @@ ARTIFACT_DIR = Path("ralph/.artifacts")
 LOG_DIR = ARTIFACT_DIR / "logs"
 CONTEXT_DIR = ARTIFACT_DIR / "context"
 WORKTREE_DIR = Path(".claude/worktrees")
+SIMULATOR_LEASE_DIR = Path.home() / ".ralph" / "simulator-leases"
 
 
 @dataclass(frozen=True)
@@ -238,6 +245,7 @@ class RalphLoop:
             Callable[[Path], Callable[[Sequence[str]], GitOutcome]] | None
         ) = None,
         git_runner: Callable[[Sequence[str]], GitResult] = default_git_runner,
+        simulator_lease_dir: Path | None = None,
     ) -> None:
         self._config = config
         self._repo_root = Path(repo_root)
@@ -250,8 +258,29 @@ class RalphLoop:
         self._publish_runner_factory = publish_runner_factory or _publish_runner_for
         self._target_resolver = TargetResolver(client)
         self._claimer = IssueClaimer(client)
+        self._simulator_lease_dir = simulator_lease_dir or SIMULATOR_LEASE_DIR
+        # Effective simulator ID: starts from config; may be overridden by pool lease.
+        self._effective_simulator_id: str | None = config.simulator_id
 
     def run(self) -> RunSummary:
+        # If a pool is configured and no explicit simulator-id was given, acquire
+        # an exclusive lease for the entire run and use its UDID as the effective
+        # simulator id for all gate commands.
+        pool_udids = list(self._config.simulator_pool)
+        if pool_udids and self._config.simulator_id is None:
+            pool = SimulatorPool(pool_udids, lease_dir=self._simulator_lease_dir)
+            try:
+                with pool.acquire() as lease:
+                    _ralph_log(f"simulator pool: leased {lease.udid}")
+                    self._effective_simulator_id = lease.udid
+                    return self._run_loop()
+            except SimulatorPoolError as error:
+                raise RalphLoopError(str(error)) from error
+            finally:
+                self._effective_simulator_id = self._config.simulator_id
+        return self._run_loop()
+
+    def _run_loop(self) -> RunSummary:
         if not self._config.select_only:
             self._require_clean_worktree()
         self._ensure_artifacts()
@@ -672,7 +701,7 @@ class RalphLoop:
     ) -> GateResult | None:
         runner = self._gate_runner_factory(workdir, iteration, contract.number)
         for result in runner.run_all(
-            _gate_specs(self._config.sim_device, simulator_id=self._config.simulator_id)
+            _gate_specs(self._config.sim_device, simulator_id=self._effective_simulator_id)
         ):
             _ralph_log(f"gate {result.name} -> {result.status}")
             if result.status == GateStatus.FAILED:
@@ -727,7 +756,7 @@ class RalphLoop:
         spec = _gate_spec_for(
             failed_gate.name,
             self._config.sim_device,
-            simulator_id=self._config.simulator_id,
+            simulator_id=self._effective_simulator_id,
         )
         result = runner.run(spec)
         _ralph_log(f"gate rerun {result.name} -> {result.status}")
@@ -926,7 +955,7 @@ def _gate_specs(device: str, *, simulator_id: str | None = None) -> tuple[GateSp
                 "-test-timeouts-enabled",
                 "NO",
                 "test",
-                "-only-testing:WorkoutTrackerUITests",
+                *UI_INTEGRATION_SMOKE_SELECTORS,
             ),
         ),
         GateSpec(GATE_SWIFTLINT, ("swiftlint", "lint", "--quiet")),
@@ -953,6 +982,13 @@ def _gate_spec_for(
     raise RalphLoopError(f"no gate spec named {name!r} to rerun")
 
 
+def _is_ui_smoke_selector(arg: str) -> bool:
+    return (
+        arg.startswith("-only-testing:WorkoutTrackerUITests/")
+        and arg.endswith("UISmokeTests")
+    )
+
+
 def _gate_name_for_command(command: Sequence[str]) -> str:
     if tuple(command) == ("swift", "test"):
         return GATE_SWIFT_TEST
@@ -964,7 +1000,7 @@ def _gate_name_for_command(command: Sequence[str]) -> str:
         return GATE_UNIT_COMPONENT
     if "-only-testing:WorkoutTrackerSnapshotTests" in command:
         return GATE_VISUAL_REGRESSION
-    if "-only-testing:WorkoutTrackerUITests" in command:
+    if any(_is_ui_smoke_selector(part) for part in command):
         return GATE_UI_INTEGRATION
     return command[0] if command else "gate"
 

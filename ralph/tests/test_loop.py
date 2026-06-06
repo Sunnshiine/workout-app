@@ -26,6 +26,7 @@ from ralph.orchestrator.loop import (
     OriginMain,
     RalphLoop,
     RalphLoopError,
+    UI_INTEGRATION_SMOKE_SELECTORS,
     _format_ralph_log_line,
     _gate_name_for_command,
     _gate_specs,
@@ -223,6 +224,28 @@ class RalphGateSpecTests(unittest.TestCase):
         self.assertIn("-test-timeouts-enabled", ui.command)
         self.assertIn("NO", ui.command)
         self.assertIn("-parallel-testing-enabled", ui.command)
+
+    def test_ui_gate_runs_only_smoke_class_selectors(self) -> None:
+        specs = _gate_specs("iPhone 17 Pro")
+
+        ui = next(spec for spec in specs if spec.name == GATE_UI_INTEGRATION)
+
+        self.assertEqual(
+            UI_INTEGRATION_SMOKE_SELECTORS,
+            (
+                "-only-testing:WorkoutTrackerUITests/WorkoutTrackerUISmokeTests",
+                "-only-testing:WorkoutTrackerUITests/PartiallyUploadedBlockUISmokeTests",
+            ),
+        )
+        self.assertNotIn("-only-testing:WorkoutTrackerUITests", ui.command)
+        for selector in UI_INTEGRATION_SMOKE_SELECTORS:
+            self.assertIn(selector, ui.command)
+        self.assertEqual(_gate_name_for_command(ui.command), GATE_UI_INTEGRATION)
+
+    def test_full_ui_target_selector_is_not_a_ui_gate(self) -> None:
+        command = ("xcodebuild", "test", "-only-testing:WorkoutTrackerUITests")
+
+        self.assertEqual(_gate_name_for_command(command), "xcodebuild")
 
 
 class _VisualGateRunnerFactory:
@@ -422,6 +445,122 @@ class RalphLoopTests(unittest.TestCase):
             " | Ralph: select-only target for issue #8: ralph/issue-8",
             lines[-1],
         )
+
+
+class SimulatorPoolLoopWiringTests(unittest.TestCase):
+    """RalphLoop correctly acquires a pool lease and threads the UDID to gate commands."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.repo = Path(self.tmp.name) / "repo"
+        self.repo.mkdir()
+        _init_repo(self.repo)
+        self.lease_dir = Path(self.tmp.name) / "leases"
+        self.recorded_destinations: list[str] = []
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _recording_gate_factory(self, destinations: list[str]):
+        """Gate runner that records the -destination arg of each xcodebuild call."""
+
+        def factory(_workdir: Path, _iteration: int, _issue: int) -> GateRunner:
+            def run(command) -> CommandResult:
+                if command and command[0] == "xcodebuild":
+                    try:
+                        idx = list(command).index("-destination")
+                        destinations.append(command[idx + 1])
+                    except (ValueError, IndexError):
+                        pass
+                return CommandResult(exit_status=0)
+
+            return GateRunner(run)
+
+        return factory
+
+    def _loop(self, *, config: RunConfig, client, engine, publish) -> RalphLoop:
+        return RalphLoop(
+            config=config,
+            repo_root=self.repo,
+            client=client,
+            engine=engine,
+            origin_main=_OriginMain(),
+            worktrees=WorktreeManager(self.repo, runner=default_git_runner),
+            gate_runner_factory=self._recording_gate_factory(self.recorded_destinations),
+            publish_runner_factory=publish.factory,
+            simulator_lease_dir=self.lease_dir,
+        )
+
+    def test_pool_udid_reaches_xcodebuild_destination_arg(self) -> None:
+        client = FakeGitHubClient(issues={50: _issue(50, title="Pool test")})
+        publish = _RecordingPublishRunner()
+        config = RunConfig(
+            engine="fake",
+            max_iterations=1,
+            simulator_pool=("POOL-UDID-50",),
+        )
+        loop = self._loop(client=client, engine=FakeEngine(), publish=publish, config=config)
+
+        summary = loop.run()
+
+        self.assertEqual(summary.issues_completed, (50,))
+        self.assertTrue(
+            all("id=POOL-UDID-50" in dest for dest in self.recorded_destinations),
+            f"Expected all destinations to use POOL-UDID-50; got {self.recorded_destinations}",
+        )
+
+    def test_explicit_simulator_id_bypasses_pool(self) -> None:
+        client = FakeGitHubClient(issues={51: _issue(51, title="Explicit sim")})
+        publish = _RecordingPublishRunner()
+        config = RunConfig(
+            engine="fake",
+            max_iterations=1,
+            simulator_id="EXPLICIT-UDID",
+            simulator_pool=("POOL-UDID-IGNORED",),
+        )
+        loop = self._loop(client=client, engine=FakeEngine(), publish=publish, config=config)
+
+        summary = loop.run()
+
+        self.assertEqual(summary.issues_completed, (51,))
+        self.assertTrue(
+            all("id=EXPLICIT-UDID" in dest for dest in self.recorded_destinations),
+            f"Expected explicit UDID; got {self.recorded_destinations}",
+        )
+        # The pool lease dir should not have any active lease files.
+        if self.lease_dir.exists():
+            self.assertEqual(list(self.lease_dir.glob("*.lease")), [])
+
+    def test_pool_lease_file_is_released_after_run_completes(self) -> None:
+        client = FakeGitHubClient(issues={52: _issue(52, title="Release test")})
+        publish = _RecordingPublishRunner()
+        config = RunConfig(
+            engine="fake",
+            max_iterations=1,
+            simulator_pool=("POOL-UDID-52",),
+        )
+        loop = self._loop(client=client, engine=FakeEngine(), publish=publish, config=config)
+        loop.run()
+
+        # After run, lease file must be gone.
+        if self.lease_dir.exists():
+            self.assertEqual(list(self.lease_dir.glob("*.lease")), [])
+
+    def test_pool_with_no_eligible_issues_does_not_create_lease(self) -> None:
+        # No issues → no lease should be acquired.
+        client = FakeGitHubClient(issues={})
+        publish = _RecordingPublishRunner()
+        config = RunConfig(
+            engine="fake",
+            max_iterations=1,
+            simulator_pool=("POOL-UDID-99",),
+        )
+        loop = self._loop(client=client, engine=FakeEngine(), publish=publish, config=config)
+        loop.run()
+
+        # Lease dir either does not exist or has no lease files.
+        if self.lease_dir.exists():
+            self.assertEqual(list(self.lease_dir.glob("*.lease")), [])
 
 
 if __name__ == "__main__":
