@@ -60,6 +60,11 @@ from .worktree import GitResult, Worktree, WorktreeManager, default_git_runner
 
 ORIGIN_MAIN = "origin/main"
 PHASE_DIAGNOSE = "diagnose"
+UI_INTEGRATION_SMOKE_SELECTORS = (
+    "-only-testing:WorkoutTrackerUITests/WorkoutTrackerUISmokeTests",
+    "-only-testing:WorkoutTrackerUITests/PartiallyUploadedBlockUISmokeTests",
+)
+
 PHASE_DIAGNOSE_FORMAT = "diagnose-format"
 PHASE_IMPLEMENT = "implement-tdd"
 PHASE_REVIEW = "review"
@@ -926,7 +931,7 @@ def _gate_specs(device: str, *, simulator_id: str | None = None) -> tuple[GateSp
                 "-test-timeouts-enabled",
                 "NO",
                 "test",
-                "-only-testing:WorkoutTrackerUITests",
+                *UI_INTEGRATION_SMOKE_SELECTORS,
             ),
         ),
         GateSpec(GATE_SWIFTLINT, ("swiftlint", "lint", "--quiet")),
@@ -953,6 +958,13 @@ def _gate_spec_for(
     raise RalphLoopError(f"no gate spec named {name!r} to rerun")
 
 
+def _is_ui_smoke_selector(arg: str) -> bool:
+    return (
+        arg.startswith("-only-testing:WorkoutTrackerUITests/")
+        and arg.endswith("UISmokeTests")
+    )
+
+
 def _gate_name_for_command(command: Sequence[str]) -> str:
     if tuple(command) == ("swift", "test"):
         return GATE_SWIFT_TEST
@@ -964,7 +976,7 @@ def _gate_name_for_command(command: Sequence[str]) -> str:
         return GATE_UNIT_COMPONENT
     if "-only-testing:WorkoutTrackerSnapshotTests" in command:
         return GATE_VISUAL_REGRESSION
-    if "-only-testing:WorkoutTrackerUITests" in command:
+    if any(_is_ui_smoke_selector(part) for part in command):
         return GATE_UI_INTEGRATION
     return command[0] if command else "gate"
 

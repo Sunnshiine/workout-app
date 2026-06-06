@@ -26,6 +26,7 @@ from ralph.orchestrator.loop import (
     OriginMain,
     RalphLoop,
     RalphLoopError,
+    UI_INTEGRATION_SMOKE_SELECTORS,
     _format_ralph_log_line,
     _gate_name_for_command,
     _gate_specs,
@@ -223,6 +224,28 @@ class RalphGateSpecTests(unittest.TestCase):
         self.assertIn("-test-timeouts-enabled", ui.command)
         self.assertIn("NO", ui.command)
         self.assertIn("-parallel-testing-enabled", ui.command)
+
+    def test_ui_gate_runs_only_smoke_class_selectors(self) -> None:
+        specs = _gate_specs("iPhone 17 Pro")
+
+        ui = next(spec for spec in specs if spec.name == GATE_UI_INTEGRATION)
+
+        self.assertEqual(
+            UI_INTEGRATION_SMOKE_SELECTORS,
+            (
+                "-only-testing:WorkoutTrackerUITests/WorkoutTrackerUISmokeTests",
+                "-only-testing:WorkoutTrackerUITests/PartiallyUploadedBlockUISmokeTests",
+            ),
+        )
+        self.assertNotIn("-only-testing:WorkoutTrackerUITests", ui.command)
+        for selector in UI_INTEGRATION_SMOKE_SELECTORS:
+            self.assertIn(selector, ui.command)
+        self.assertEqual(_gate_name_for_command(ui.command), GATE_UI_INTEGRATION)
+
+    def test_full_ui_target_selector_is_not_a_ui_gate(self) -> None:
+        command = ("xcodebuild", "test", "-only-testing:WorkoutTrackerUITests")
+
+        self.assertEqual(_gate_name_for_command(command), "xcodebuild")
 
 
 class _VisualGateRunnerFactory:
