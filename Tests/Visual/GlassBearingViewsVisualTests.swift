@@ -88,6 +88,28 @@ struct GlassBearingViewsVisualTests {
         }
     }
 
+    @Test func smartValuePillsWithVisibleWeightSteppersMatchesVisualBaseline() {
+        let set = ExerciseSet(
+            index: 0,
+            prescribedReps: "5",
+            prescribedLoad: "70%1RM",
+            percentOneRM: "70%",
+            state: .pending
+        )
+
+        assertGlassBaseline {
+            SmartValuePills(
+                set: set,
+                previousSetWeight: nil,
+                trainingMax: 405,
+                onLog: { _ in },
+                onSkip: {},
+                onDelete: {}
+            )
+            .frame(width: 360)
+        }
+    }
+
     @Test func loggedSetReviewCardMatchesVisualBaseline() {
         let set = makeExercise(setStates: [.logged]).sets[0]
 

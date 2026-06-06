@@ -15,6 +15,7 @@
 		0D3E6DBCFE1881EE177EDEAE /* SessionProgressTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DE918A15498A36B4EC413FD /* SessionProgressTracker.swift */; };
 		0D4C89E50C4CE24C8BCAC13A /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3695D878F161DF7CDC6A827E /* LaunchScreen.storyboard */; };
 		0FCFEE8BE8B4EEBA73F6E728 /* BlockBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73C4E487CCAF7C536F0485E /* BlockBuilderTests.swift */; };
+		1018F59A2AC1D53EA49ABFEA /* smartValuePillsWithVisibleWeightSteppersMatchesVisualBaseline.1.png in Resources */ = {isa = PBXBuildFile; fileRef = 0FFF75534634A0C4281D2559 /* smartValuePillsWithVisibleWeightSteppersMatchesVisualBaseline.1.png */; };
 		106BF1E7736CCBF64C0C003E /* seededSessionViewMatchesVisualBaseline.1.png in Resources */ = {isa = PBXBuildFile; fileRef = 6095EAC4F29B18D4E50947A5 /* seededSessionViewMatchesVisualBaseline.1.png */; };
 		143A4B86669D0B90D2400DB6 /* RestPillPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68C59EA105717AB9250DE758 /* RestPillPresentationTests.swift */; };
 		14B6CF78AC54878F220CEFDE /* LastPerformedIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 667584F2EFDE6375E3486E56 /* LastPerformedIndex.swift */; };
@@ -228,6 +229,7 @@
 		0A7DE7A3ADF7567E4E60F24E /* SupersetState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupersetState.swift; sourceTree = "<group>"; };
 		0B3961CCCF9E1E80C9759016 /* WorkoutStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutStoreTests.swift; sourceTree = "<group>"; };
 		0EA60B3DEDC06A8AE91239AA /* WeightPillLayoutMetricsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightPillLayoutMetricsTests.swift; sourceTree = "<group>"; };
+		0FFF75534634A0C4281D2559 /* smartValuePillsWithVisibleWeightSteppersMatchesVisualBaseline.1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = smartValuePillsWithVisibleWeightSteppersMatchesVisualBaseline.1.png; sourceTree = "<group>"; };
 		1396E247C762E3B6CE7A945F /* RestHapticSchedule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestHapticSchedule.swift; sourceTree = "<group>"; };
 		1413B4B036D2B095E11C08CA /* RestPillUrgencyCueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestPillUrgencyCueTests.swift; sourceTree = "<group>"; };
 		18728403D4DF0D96EF330AB9 /* RestHapticScheduleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestHapticScheduleTests.swift; sourceTree = "<group>"; };
@@ -594,6 +596,7 @@
 				1F9E7F135C476C302631716D /* sessionTileMatchesVisualBaseline.1.png */,
 				BE50667E5D1964CCC44EEFA2 /* settingsViewMatchesVisualBaseline.1.png */,
 				DC91A05FE3FA16B4F17BB315 /* smartValuePillsMatchesVisualBaseline.1.png */,
+				0FFF75534634A0C4281D2559 /* smartValuePillsWithVisibleWeightSteppersMatchesVisualBaseline.1.png */,
 			);
 			path = GlassBearingViewsVisualTests;
 			sourceTree = "<group>";
@@ -918,6 +921,7 @@
 				CA068383907606A105CE7493 /* sessionTileMatchesVisualBaseline.1.png in Resources */,
 				F249E82B3B2C14EEC5199B92 /* settingsViewMatchesVisualBaseline.1.png in Resources */,
 				848F9B8095C4EDAA62D3EC83 /* smartValuePillsMatchesVisualBaseline.1.png in Resources */,
+				1018F59A2AC1D53EA49ABFEA /* smartValuePillsWithVisibleWeightSteppersMatchesVisualBaseline.1.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
