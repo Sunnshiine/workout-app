@@ -37,6 +37,7 @@ from ralph.orchestrator.publish import (
     LABEL_READY_FOR_HUMAN,
     GitOutcome,
 )
+from ralph.orchestrator.repair import PHASE_REPAIR_UI_GATE
 from ralph.orchestrator.worktree import WorktreeManager, default_git_runner
 
 
@@ -204,6 +205,88 @@ class RalphGateSpecTests(unittest.TestCase):
         self.assertIn("-only-testing:WorkoutTrackerSnapshotTests", visual.command)
         self.assertIn("platform=iOS Simulator,name=iPhone 17 Pro", visual.command)
         self.assertEqual(_gate_name_for_command(visual.command), GATE_VISUAL_REGRESSION)
+
+
+class _VisualGateRunnerFactory:
+    """Gate runner factory that fails the visual gate, then scripts the rerun.
+
+    ``rerun_passes`` decides whether the single allowed rerun of the visual gate
+    passes (repair ships) or fails again (escalate to blocked). Every command is
+    recorded so a test can assert the gate was rerun exactly once.
+    """
+
+    def __init__(self, *, rerun_passes: bool) -> None:
+        self._rerun_passes = rerun_passes
+        self.visual_runs = 0
+
+    def factory(self, _workdir: Path, _iteration: int, _issue: int) -> GateRunner:
+        def run(command) -> CommandResult:
+            if _gate_name_for_command(command) != GATE_VISUAL_REGRESSION:
+                return CommandResult(exit_status=0)
+            self.visual_runs += 1
+            if self.visual_runs == 1:
+                return CommandResult(exit_status=65, output="snapshot mismatch")
+            return CommandResult(exit_status=0 if self._rerun_passes else 65)
+
+        return GateRunner(run)
+
+
+class RalphRepairWiringTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.repo = Path(self.tmp.name) / "repo"
+        self.repo.mkdir()
+        _init_repo(self.repo)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _loop(self, *, client, engine, gates, publish):
+        return RalphLoop(
+            config=RunConfig(engine="fake", max_iterations=1),
+            repo_root=self.repo,
+            client=client,
+            engine=engine,
+            origin_main=_OriginMain(),
+            worktrees=WorktreeManager(self.repo, runner=default_git_runner),
+            gate_runner_factory=gates.factory,
+            publish_runner_factory=publish.factory,
+        )
+
+    def test_ui_owned_gate_failure_repairs_and_ships_when_rerun_passes(self) -> None:
+        client = FakeGitHubClient(issues={7: _issue(7, title="Visual change")})
+        engine = FakeEngine()
+        gates = _VisualGateRunnerFactory(rerun_passes=True)
+        publish = _RecordingPublishRunner()
+        loop = self._loop(client=client, engine=engine, gates=gates, publish=publish)
+
+        summary = loop.run()
+
+        self.assertEqual(summary.issues_completed, (7,))
+        self.assertEqual(gates.visual_runs, 2)
+        repair_calls = [c for c in engine.calls if c.phase == PHASE_REPAIR_UI_GATE]
+        self.assertEqual(len(repair_calls), 1)
+        self.assertIn(LABEL_AGENT_IMPLEMENTED, client.issue_labels(7))
+        self.assertEqual([call[0] for call in publish.calls], ["commit", "push"])
+
+    def test_ui_owned_gate_failure_escalates_blocked_when_rerun_fails(self) -> None:
+        client = FakeGitHubClient(issues={7: _issue(7, title="Visual change")})
+        engine = FakeEngine()
+        gates = _VisualGateRunnerFactory(rerun_passes=False)
+        publish = _RecordingPublishRunner()
+        loop = self._loop(client=client, engine=engine, gates=gates, publish=publish)
+
+        summary = loop.run()
+
+        self.assertEqual(summary.issues_blocked, (7,))
+        self.assertEqual(gates.visual_runs, 2)
+        repair_calls = [c for c in engine.calls if c.phase == PHASE_REPAIR_UI_GATE]
+        self.assertEqual(len(repair_calls), 1)
+        self.assertIn(LABEL_READY_FOR_HUMAN, client.issue_labels(7))
+        blocked_pr = client.find_pr_by_head_branch("ralph/issue-7-blocked")
+        self.assertIsNotNone(blocked_pr)
+        comments = [c[2] for c in client.calls if c[0] == "comment_issue" and c[1] == 7]
+        self.assertTrue(any("Repair attempted: yes" in body for body in comments))
 
 
 class RalphLoopTests(unittest.TestCase):

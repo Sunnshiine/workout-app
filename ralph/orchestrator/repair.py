@@ -32,7 +32,7 @@ from pathlib import Path
 from .blocked import cap_excerpt, redact_secrets
 from .contracts import IssueContract
 from .engine import Engine, PhaseRequest
-from .gates import GateResult
+from .gates import GATE_VISUAL_REGRESSION, GateResult
 from .phase import PhaseResult
 
 # Phase names for the two agent contexts this cycle can run.
@@ -223,13 +223,15 @@ class RepairCoordinator:
     def _repair_prompt(
         self, contract: IssueContract, failed_gate: GateResult, brief_path: Path
     ) -> str:
+        ui_test_rule = _ui_test_edit_rule(contract)
+        baseline_rule = ""
+        if failed_gate.name == GATE_VISUAL_REGRESSION:
+            baseline_rule = " " + _baseline_acceptance_rule()
         return (
             f"You are debugging the UI-owned gate failure for issue "
             f"#{contract.number}. The failing gate is {failed_gate.name!r}. Read "
             f"the repair brief at {brief_path} and fix the failure while staying "
-            "inside the issue acceptance criteria. Do not weaken UI tests unless "
-            "the issue contract authorizes UI test edits, and never edit "
-            "Tests/UI/** during UI verification."
+            f"inside the issue acceptance criteria. {ui_test_rule}{baseline_rule}"
         )
 
     def _review_prompt(self, contract: IssueContract, changed_files: Sequence[str]) -> str:
@@ -296,10 +298,43 @@ def render_repair_brief(
         "## Rules",
         "",
         "- Stay inside the issue acceptance criteria.",
-        "- Do not weaken UI tests unless the contract authorizes UI test edits.",
-        "- Never edit `Tests/UI/**` during UI verification.",
+        f"- {_ui_test_edit_rule(contract)}",
     ]
+    if failed_gate.name == GATE_VISUAL_REGRESSION:
+        sections.append(f"- {_baseline_acceptance_rule()}")
     return "\n".join(sections).rstrip() + "\n"
+
+
+def _ui_test_edit_rule(contract: IssueContract) -> str:
+    """Repair-phase UI-test edit rule.
+
+    This phase runs as ``repair-ui-gate`` (NOT ui-verify), so editing
+    ``Tests/UI/**`` is permitted ONLY when the issue contract authorizes UI test
+    edits; otherwise the agent must not weaken UI tests.
+    """
+
+    if contract.ui_test_edits_authorized:
+        return (
+            "This repair phase MAY edit `Tests/UI/**` because the issue contract "
+            "authorizes UI test edits; keep edits minimal and never weaken coverage "
+            "beyond what the contract requires."
+        )
+    return (
+        "Do not edit `Tests/UI/**` or otherwise weaken UI tests; the issue contract "
+        "does not authorize UI test edits in this repair phase."
+    )
+
+
+def _baseline_acceptance_rule() -> str:
+    """Visual Regression baseline-acceptance guidance for the repair phase."""
+
+    return (
+        "If the Visual Regression mismatch is caused by an INTENTIONAL view change "
+        "required by the issue's acceptance criteria, regenerate/accept the new "
+        "snapshot under `Tests/Visual/__Snapshots__/` and commit it. If the change "
+        "is NOT called for by the contract, treat it as a real regression and fix "
+        "the view instead."
+    )
 
 
 def _issue_contract_block(contract: IssueContract) -> str:
