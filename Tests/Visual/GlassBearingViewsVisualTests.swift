@@ -161,7 +161,6 @@ struct GlassBearingViewsVisualTests {
         assertFullScreenBaseline {
             MoveOnCelebrationView(
                 session: session,
-                disablesBloom: true,
                 quoteText: "You're fucking amazing.",
                 onDismiss: {}
             )

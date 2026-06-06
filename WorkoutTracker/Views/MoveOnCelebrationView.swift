@@ -8,11 +8,9 @@ struct MoveOnCelebrationView: View {
     @State private var presentation: MoveOnCelebrationPresentation
 
     private static let perfectImpactDelay: Duration = .milliseconds(120)
-    private static let disableBloomArgument = "-UITEST_DISABLE_CELEBRATION_BLOOM"
 
     init(
         session: Session,
-        disablesBloom _: Bool = Self.disablesBloomForUITests,
         quoteText: String? = nil,
         onDismiss: @escaping () -> Void
     ) {
@@ -79,10 +77,6 @@ struct MoveOnCelebrationView: View {
 
     private var supportingTextColor: Color {
         palette.valueText.opacity(0.68)
-    }
-
-    private static var disablesBloomForUITests: Bool {
-        ProcessInfo.processInfo.arguments.contains(disableBloomArgument)
     }
 
     @MainActor
