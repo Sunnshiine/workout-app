@@ -12,10 +12,13 @@ history, or change the loop's own scripts or prompts (`ralph/*.sh`,
 expected.
 
 ## Contract
-- Re-read the issue and comments: `gh issue view <n> --comments`.
-- Use the "Agent Brief" comment as the authoritative spec when one exists.
-- If there is no Agent Brief comment, use the concrete issue body acceptance
-  criteria as the contract. Do not expand scope from PRDs.
+- Read CONTEXT_PATH first. The frozen `issue-contract.md` artifact is the
+  authority for this phase. Do NOT run GitHub CLI commands to discover the
+  contract — the frozen artifact is the sole source.
+- If an `issue-comments.md` artifact is present alongside `issue-contract.md`,
+  use it for supporting context only — comments are never contract authority.
+- Use the concrete issue body acceptance criteria as the contract. Do not
+  expand scope from PRDs.
 - Read related PRD/spec context if it helps evaluate the issue, but never let
   PRDs/specs override or expand the issue contract.
 - If DIAGNOSIS_PATH is set in the preamble, read it as supporting context to
@@ -26,7 +29,19 @@ expected.
   push, merge, open a PR, close a PR, or close the issue yourself.
 
 ## Work
-- Run Xcode UI integration tests for `WorkoutTrackerUITests`.
+Three test categories are relevant to this phase; keep them distinct:
+- **Visual Regression**: pixel comparison against committed Visual Baseline PNGs
+  (deterministic; run by the implementation phase when visual surfaces changed).
+- **UI Integration Smoke**: Ralph-owned real-control wiring gate; run using
+  class-level selectors of the form
+  `-only-testing:WorkoutTrackerUITests/<SmokeTestClass>`. This is the gate for
+  this phase. Do NOT run the full WorkoutTrackerUITests bundle.
+- **UI Interaction Suite**: broader/higher-flake tests outside normal Ralph
+  phases. Do NOT run these here.
+
+Run UI Integration Smoke class-level selectors
+(`-only-testing:WorkoutTrackerUITests/<SmokeTestClass>`) for the surfaces
+touched by this issue.
 - Do NOT spawn `swift-reviewer` or `spec-conformance-reviewer` in this phase.
 - This is a read-only verification phase: do NOT edit `Tests/UI/**` or any other
   code here. The parent orchestrator blocks any `Tests/UI/**` change made during
@@ -48,7 +63,7 @@ For recurrence, read only `tail -n 150 "$OBSERVATIONS_LOG_PATH"` and check
 `wc -l "$OBSERVATIONS_LOG_PATH"`; never read the full observations file.
 
 Emit COMPLETE only when ALL of these hold:
-- Xcode UI integration tests passed.
+- UI Integration Smoke class-level selectors passed.
 - This phase made no code edits (read-only verification).
 - You did not run review subagents.
 

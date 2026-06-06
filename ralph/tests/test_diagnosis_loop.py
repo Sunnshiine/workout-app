@@ -301,13 +301,13 @@ class DiagnosisGateLoopTests(unittest.TestCase):
         self.assertIn("ui_integration_test_edits_required", handoff)
 
         by_phase = {call.phase: call for call in engine.calls}
-        # Mandatory for implementation, referenced for later phases.
-        self.assertIn("DIAGNOSIS_PATH:", by_phase["implement-tdd"].prompt)
+        # Mandatory for implementation: the XML envelope surfaces diagnosis_path.
+        self.assertIn("<diagnosis_path>", by_phase["implement-tdd"].prompt)
         self.assertIn("diagnosis.md", by_phase["implement-tdd"].prompt)
         self.assertIn("diagnosis.md", by_phase["review"].prompt)
         self.assertIn("diagnosis.md", by_phase["ui-verify"].prompt)
-        # The diagnose phase itself has no prior handoff to read.
-        self.assertNotIn("DIAGNOSIS_PATH:", by_phase["diagnose"].prompt)
+        # The diagnose phase itself has no prior handoff: element is self-closing.
+        self.assertIn("<diagnosis_path/>", by_phase["diagnose"].prompt)
 
     def test_unauthorized_ui_test_edit_is_blocked_by_authority_gate(self) -> None:
         # Non-bug issue: no diagnosis grant, so a Tests/UI edit is unauthorized.

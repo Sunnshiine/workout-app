@@ -10,12 +10,14 @@ from ralph.orchestrator.gates import GATE_UI_INTEGRATION, GateResult, GateStatus
 from ralph.orchestrator.prompt_context import (
     BLOCKED_REPORT_FILE,
     GATE_FAILURE_SUMMARY_FILE,
+    ISSUE_COMMENTS_FILE,
     ISSUE_CONTRACT_FILE,
     PHASE_CONTEXT_FILE,
     REPAIR_BRIEF_FILE,
     PhaseContext,
     PromptContextWriter,
     render_gate_failure_summary,
+    render_issue_comments,
     render_issue_contract,
     render_phase_context,
 )
@@ -77,14 +79,62 @@ class RenderIssueContractTests(unittest.TestCase):
         out = render_issue_contract(_contract(ui_test_edits_authorized=True))
         self.assertIn("- UI integration test edits: authorized", out)
 
-    def test_comments_section_only_when_present(self) -> None:
-        self.assertNotIn("## Comments for context", render_issue_contract(_contract()))
+    def test_body_labelled_as_implementation_authority(self) -> None:
+        out = render_issue_contract(_contract())
+        self.assertIn("## Body", out)
+        self.assertIn("implementation authority", out)
+
+    def test_does_not_embed_comment_bodies(self) -> None:
         with_comments = _contract(
             comments_for_context=(IssueComment(author="kevin", body="Try the new layout."),)
         )
         out = render_issue_contract(with_comments)
-        self.assertIn("## Comments for context", out)
+        self.assertNotIn("## Comments for context", out)
+        self.assertNotIn("Try the new layout.", out)
+
+
+class RenderIssueCommentsTests(unittest.TestCase):
+    def test_no_comments_returns_none(self) -> None:
+        self.assertIsNone(render_issue_comments(_contract()))
+
+    def test_ordinary_comments_rendered(self) -> None:
+        contract = _contract(
+            comments_for_context=(
+                IssueComment(author="kevin", body="Try the new layout."),
+            )
+        )
+        out = render_issue_comments(contract)
+        self.assertIsNotNone(out)
         self.assertIn("@kevin", out)
+        self.assertIn("Try the new layout.", out)
+
+    def test_agent_brief_comment_rendered_as_context_only(self) -> None:
+        contract = _contract(
+            comments_for_context=(
+                IssueComment(
+                    author="claude",
+                    body="Agent Brief\n\nDo the thing.",
+                ),
+            )
+        )
+        out = render_issue_comments(contract)
+        self.assertIsNotNone(out)
+        # Content should be present and explicitly marked context-only (no authority claim).
+        self.assertIn("Do the thing.", out)
+        self.assertIn("context only", out)
+        self.assertNotIn("is the implementation authority", out)
+
+    def test_multiple_comments_all_included(self) -> None:
+        contract = _contract(
+            comments_for_context=(
+                IssueComment(author="alice", body="First comment."),
+                IssueComment(author="bob", body="Second comment."),
+            )
+        )
+        out = render_issue_comments(contract)
+        self.assertIsNotNone(out)
+        self.assertIn("@alice", out)
+        self.assertIn("@bob", out)
 
 
 class RenderPhaseContextTests(unittest.TestCase):
@@ -110,6 +160,17 @@ class RenderPhaseContextTests(unittest.TestCase):
     def test_existing_pr_number_rendered(self) -> None:
         out = render_phase_context(_contract(), _phase_context(existing_pr_number=99))
         self.assertIn("- Open PR: #99", out)
+
+    def test_references_issue_comments_path_when_comments_exist(self) -> None:
+        contract_with_comments = _contract(
+            comments_for_context=(IssueComment(author="kevin", body="Context note."),)
+        )
+        out = render_phase_context(contract_with_comments, _phase_context())
+        self.assertIn(f"`{ISSUE_COMMENTS_FILE}`", out)
+
+    def test_no_issue_comments_path_when_no_comments(self) -> None:
+        out = render_phase_context(_contract(), _phase_context())
+        self.assertNotIn(f"`{ISSUE_COMMENTS_FILE}`", out)
 
 
 class RenderGateFailureSummaryTests(unittest.TestCase):
@@ -189,6 +250,27 @@ class PromptContextWriterTests(unittest.TestCase):
                 artifact_paths=(),
             )
             self.assertEqual(written, expected)
+
+    def test_write_issue_comments_returns_none_when_no_comments(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            writer = PromptContextWriter(Path(tmp))
+            result = writer.write_issue_comments(_contract())
+            self.assertIsNone(result)
+            self.assertFalse((Path(tmp) / ISSUE_COMMENTS_FILE).exists())
+
+    def test_write_issue_comments_writes_file_when_comments_exist(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            writer = PromptContextWriter(Path(tmp))
+            contract = _contract(
+                comments_for_context=(
+                    IssueComment(author="kevin", body="Check this out."),
+                )
+            )
+            result = writer.write_issue_comments(contract)
+            self.assertIsNotNone(result)
+            self.assertEqual(result.name, ISSUE_COMMENTS_FILE)
+            self.assertTrue(result.exists())
+            self.assertIn("kevin", result.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

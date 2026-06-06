@@ -25,5 +25,31 @@ class UIVerifyPromptTests(unittest.TestCase):
         self.assertNotIn("baseline-diff review", prompt)
 
 
+class UIVerifyPromptSmokeVocabularyTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.prompt = PROMPT_PATH.read_text(encoding="utf-8")
+
+    def test_ui_verify_uses_class_level_selectors(self) -> None:
+        # Must instruct agents to use class-level selectors, not the full bundle
+        self.assertIn("-only-testing:WorkoutTrackerUITests/", self.prompt)
+
+    def test_ui_verify_does_not_ask_for_full_bundle(self) -> None:
+        # Must NOT ask for the bare full-bundle selector
+        # Allow occurrences only when followed by a "/" (class-level selector)
+        import re
+
+        matches = re.findall(r"-only-testing:WorkoutTrackerUITests(\S*)", self.prompt)
+        for suffix in matches:
+            self.assertTrue(
+                suffix.startswith("/"),
+                "Found full -only-testing:WorkoutTrackerUITests bundle selector without class path",
+            )
+
+    def test_ui_verify_preserves_three_test_categories(self) -> None:
+        self.assertIn("Visual Regression", self.prompt)
+        self.assertIn("UI Integration Smoke", self.prompt)
+        self.assertIn("UI Interaction Suite", self.prompt)
+
+
 if __name__ == "__main__":
     unittest.main()

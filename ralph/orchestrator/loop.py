@@ -310,6 +310,7 @@ class RalphLoop:
         issue_base = self._rev_parse(worktree.path, "HEAD")
         writer = PromptContextWriter(self._repo_root / CONTEXT_DIR / f"issue-{contract.number}")
         writer.write_issue_contract(contract)
+        writer.write_issue_comments(contract)
 
         diagnosis_path: Path | None = None
         if BUG_LABEL in contract.labels:
@@ -435,6 +436,7 @@ class RalphLoop:
             complete_promise_line=complete_promise_line(phase),
             blocked_promise_prefix=blocked_promise_prefix(phase),
             allowed_actions=_allowed_actions_for_phase(phase),
+            forbidden_actions=_forbidden_actions_for_phase(phase),
             reference_paths=(
                 str(writer.write_issue_contract(contract)),
                 *extra_reference_paths,
@@ -474,28 +476,63 @@ class RalphLoop:
         prompt_body = (self._repo_root / "ralph" / "prompts" / prompt_file).read_text(
             encoding="utf-8"
         )
+        allowed = _allowed_actions_for_phase(phase)
+        forbidden = _forbidden_actions_for_phase(phase)
+        allowed_items = "\n".join(f"  <action>{a}</action>" for a in allowed) if allowed else ""
+        forbidden_items = (
+            "\n".join(f"  <action>{a}</action>" for a in forbidden) if forbidden else ""
+        )
+        diagnosis_element = (
+            f"  <diagnosis_path>{diagnosis_path}</diagnosis_path>"
+            if diagnosis_path is not None
+            else "  <diagnosis_path/>"
+        )
+        observations_path = self._repo_root / ARTIFACT_DIR / "observations.md"
+        # Collect reference paths from context: worktree branch & issue_base are
+        # runtime; reference_paths come from the phase context file.
+        issue_contract_path = self._repo_root / CONTEXT_DIR / f"issue-{contract.number}"
         return "\n".join(
             [
-                f"Engine: {self._config.engine}. This is the {phase} phase.",
-                f"You are working GitHub issue #{contract.number}.",
-                f"You are inside an isolated git worktree at: {worktree.path}",
-                f"Branch: {worktree.branch}",
-                f"ISSUE_BASE_REF: {issue_base}",
-                "PUBLISH_TARGET: pr",
-                f"TARGET_BRANCH: {worktree.branch}",
-                f"TARGET_PR: {contract.prd_number or ''}",
-                f"PHASE_NAME: {phase}",
-                f"CONTEXT_PATH: {context_path}",
-                f"DIAGNOSIS_PATH: {diagnosis_path}" if diagnosis_path is not None else "",
-                f"COMPLETE_PROMISE_LINE: {complete_promise_line(phase)}",
-                f"BLOCKED_PROMISE_PREFIX: {blocked_promise_prefix(phase)}",
-                "OBSERVATIONS_LOG_PATH: "
-                f"{self._repo_root / ARTIFACT_DIR / 'observations.md'}",
+                "<ralph_phase>",
                 "",
-                "Read the context artifact above before editing. "
-                "The issue contract is frozen there.",
+                "<runtime>",
+                f"  <engine>{self._config.engine}</engine>",
+                f"  <phase>{phase}</phase>",
+                f"  <issue>#{contract.number}</issue>",
+                f"  <worktree>{worktree.path}</worktree>",
+                f"  <issue_base_ref>{issue_base}</issue_base_ref>",
+                f"  <target_branch>{worktree.branch}</target_branch>",
+                "  <publish_target>pr</publish_target>",
+                "</runtime>",
                 "",
-                prompt_body,
+                "<authority>",
+                f"  <context_path>{context_path}</context_path>",
+                f"  <issue_contract_path>{context_path.parent / 'issue-contract.md'}</issue_contract_path>",
+                diagnosis_element,
+                "</authority>",
+                "",
+                "<allowed_actions>",
+                allowed_items,
+                "</allowed_actions>",
+                "",
+                "<forbidden_actions>",
+                forbidden_items,
+                "</forbidden_actions>",
+                "",
+                "<reference_paths>",
+                f"  <observations_log>{observations_path}</observations_log>",
+                "</reference_paths>",
+                "",
+                "<completion_contract>",
+                f"  <complete>{complete_promise_line(phase)}</complete>",
+                f"  <blocked_prefix>{blocked_promise_prefix(phase)}</blocked_prefix>",
+                "</completion_contract>",
+                "",
+                "<phase_instructions>",
+                prompt_body.rstrip(),
+                "</phase_instructions>",
+                "",
+                "</ralph_phase>",
             ]
         )
 
@@ -1007,6 +1044,46 @@ def _diagnosis_blocked(reason: str) -> PhaseResult:
     )
 
 
+def _forbidden_actions_for_phase(phase: str) -> tuple[str, ...]:
+    if phase == PHASE_DIAGNOSE:
+        return (
+            "commit changes to the branch",
+            "push, merge, open PRs, close PRs, or close issues",
+            "spawn review subagents",
+        )
+    if phase == PHASE_DIAGNOSE_FORMAT:
+        return (
+            "commit changes to the branch",
+            "push, merge, open PRs, close PRs, or close issues",
+            "spawn review subagents",
+        )
+    if phase == PHASE_IMPLEMENT:
+        return (
+            "run the full Xcode UI integration target (-only-testing:WorkoutTrackerUITests)",
+            "run the full WorkoutTrackerUITests bundle",
+            "run UI Interaction Suite tests",
+            "spawn review subagents",
+            "push, merge, open PRs, close PRs, or close issues",
+        )
+    if phase == PHASE_REVIEW:
+        return (
+            "run the full WorkoutTrackerUITests bundle",
+            "run UI Interaction Suite tests",
+            "push, merge, open PRs, close PRs, or close issues",
+        )
+    if phase == PHASE_UI_VERIFY:
+        return (
+            "edit code outside Tests/UI/**",
+            "edit Tests/UI/**",
+            "commit changes",
+            "spawn review subagents",
+            "run the full WorkoutTrackerUITests bundle",
+            "run UI Interaction Suite tests",
+            "push, merge, open PRs, close PRs, or close issues",
+        )
+    return ()
+
+
 def _allowed_actions_for_phase(phase: str) -> tuple[str, ...]:
     if phase == PHASE_DIAGNOSE:
         return (
@@ -1027,7 +1104,10 @@ def _allowed_actions_for_phase(phase: str) -> tuple[str, ...]:
             "commit review fixes",
         )
     if phase == PHASE_UI_VERIFY:
-        return ("run UI verification", "commit UI fixes")
+        return (
+            "run UI Integration Smoke class-level selectors",
+            "write review artifacts under ralph/.artifacts/",
+        )
     return ()
 
 
