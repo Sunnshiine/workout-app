@@ -158,15 +158,35 @@ ralph/ralph.sh --engine codex --max-iterations 1 --simulator-id <UDID-1>
 ralph/ralph.sh --engine codex --max-iterations 1 --simulator-id <UDID-2>
 ```
 
-For raw UI-test probes outside Ralph, use the same isolation rule:
+For raw UI Integration Smoke probes outside Ralph, use the same isolation rule and
+keep the selector class-level:
 
 ```bash
 xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
   -destination 'platform=iOS Simulator,id=<UDID>' \
   -derivedDataPath ".dd-<UDID>" \
   -clonedSourcePackagesDirPath ".spm-<UDID>" \
+  -parallel-testing-enabled NO \
   -test-timeouts-enabled NO \
-  -only-testing:WorkoutTrackerUITests
+  -only-testing:WorkoutTrackerUITests/WorkoutTrackerUISmokeTests \
+  -only-testing:WorkoutTrackerUITests/PartiallyUploadedBlockUISmokeTests
+```
+
+The UI Interaction Suite remains manual or non-Ralph coverage. Run it only when
+higher-flake interaction confidence is explicitly required:
+
+```bash
+xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+  -destination 'platform=iOS Simulator,id=<UDID>' \
+  -derivedDataPath ".dd-<UDID>-interaction" \
+  -clonedSourcePackagesDirPath ".spm-<UDID>-interaction" \
+  -parallel-testing-enabled NO \
+  -test-timeouts-enabled NO \
+  -only-testing:WorkoutTrackerUITests/WorkoutTrackerInteractionUITests \
+  -only-testing:WorkoutTrackerUITests/WorkoutTrackerAppearanceUITests \
+  -only-testing:WorkoutTrackerUITests/WorkoutTrackerLongSessionUITests \
+  -only-testing:WorkoutTrackerUITests/WorkoutTrackerSkipUITests \
+  -only-testing:WorkoutTrackerUITests/PartiallyUploadedBlockUITests
 ```
 
 Clean up only the simulator UDID that the current session owns.
@@ -331,7 +351,7 @@ Python owns deterministic gates and policy checks. App gate commands remain alig
 - `swift test`
 - Xcode unit/component tests for `WorkoutTrackerTests`
 - Visual Regression tests when Views/Theme changed
-- Xcode UI integration tests for `WorkoutTrackerUITests`
+- Xcode UI Integration Smoke for class-level smoke selectors in `WorkoutTrackerUITests`
 - `swiftlint lint --quiet`
 
 Authority policies are mechanical:

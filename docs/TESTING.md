@@ -101,6 +101,31 @@ UI XCUITest boundary:
   `WorkoutTrackerUITests` target. Ralph must invoke those classes by class-level `-only-testing`
   selectors, not by targeting the whole `WorkoutTrackerUITests` bundle.
 
+Smoke selector command:
+
+```bash
+xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -parallel-testing-enabled NO \
+  -test-timeouts-enabled NO \
+  -only-testing:WorkoutTrackerUITests/WorkoutTrackerUISmokeTests \
+  -only-testing:WorkoutTrackerUITests/PartiallyUploadedBlockUISmokeTests
+```
+
+Manual or non-Ralph UI Interaction Suite command:
+
+```bash
+xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -parallel-testing-enabled NO \
+  -test-timeouts-enabled NO \
+  -only-testing:WorkoutTrackerUITests/WorkoutTrackerInteractionUITests \
+  -only-testing:WorkoutTrackerUITests/WorkoutTrackerAppearanceUITests \
+  -only-testing:WorkoutTrackerUITests/WorkoutTrackerLongSessionUITests \
+  -only-testing:WorkoutTrackerUITests/WorkoutTrackerSkipUITests \
+  -only-testing:WorkoutTrackerUITests/PartiallyUploadedBlockUITests
+```
+
 Shared fixture policy:
 
 - Put shared builders and named scenarios under `Tests/Support`.
