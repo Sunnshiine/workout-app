@@ -1,0 +1,8 @@
+#!/bin/sh
+
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+bootstrap="$repo_root/scripts/bootstrap-xcode-worktree.sh"
+
+if [ -x "$bootstrap" ]; then
+  "$bootstrap" "$repo_root"
+fi
