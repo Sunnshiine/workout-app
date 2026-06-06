@@ -41,6 +41,7 @@ class RunConfig:
     model: str | None = None
     reasoning_effort: str | None = None
     sim_device: str = DEFAULT_SIM_DEVICE
+    simulator_id: str | None = None
     implement_timeout_seconds: int = DEFAULT_IMPLEMENT_TIMEOUT_SECONDS
     dry_run: bool = False
     select_only: bool = False
@@ -108,6 +109,15 @@ def build_parser() -> argparse.ArgumentParser:
         dest="sim_device",
         default=DEFAULT_SIM_DEVICE,
         help="Simulator device for Xcode gates.",
+    )
+    parser.add_argument(
+        "--simulator-id",
+        dest="simulator_id",
+        default=None,
+        help=(
+            "Specific simulator UDID for Xcode gates. Use this with per-agent "
+            "simulator clones so concurrent Ralph runs do not share one device."
+        ),
     )
     parser.add_argument(
         "--implement-timeout-seconds",
@@ -191,6 +201,11 @@ def _resolve(namespace: argparse.Namespace) -> RunConfig:
         raise ConfigError("--max-iterations must be at least 1.")
     if namespace.implement_timeout_seconds < 1:
         raise ConfigError("--implement-timeout-seconds must be at least 1.")
+    simulator_id = namespace.simulator_id
+    if simulator_id is not None:
+        simulator_id = simulator_id.strip()
+        if not simulator_id:
+            raise ConfigError("--simulator-id must not be blank.")
     if namespace.live_github_dry_run_issue is not None and namespace.dry_run:
         raise ConfigError(
             "--live-github-dry-run already performs the controlled live dry-run; "
@@ -209,6 +224,7 @@ def _resolve(namespace: argparse.Namespace) -> RunConfig:
         model=namespace.model,
         reasoning_effort=namespace.reasoning_effort,
         sim_device=namespace.sim_device,
+        simulator_id=simulator_id,
         implement_timeout_seconds=namespace.implement_timeout_seconds,
         dry_run=namespace.dry_run,
         select_only=namespace.select_only,

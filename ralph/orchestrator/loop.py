@@ -634,7 +634,9 @@ class RalphLoop:
         self, iteration: int, contract: IssueContract, workdir: Path
     ) -> GateResult | None:
         runner = self._gate_runner_factory(workdir, iteration, contract.number)
-        for result in runner.run_all(_gate_specs(self._config.sim_device)):
+        for result in runner.run_all(
+            _gate_specs(self._config.sim_device, simulator_id=self._config.simulator_id)
+        ):
             _ralph_log(f"gate {result.name} -> {result.status}")
             if result.status == GateStatus.FAILED:
                 return result
@@ -685,7 +687,11 @@ class RalphLoop:
         """Rerun ONLY the failing gate once and return its fresh ``GateResult``."""
 
         runner = self._gate_runner_factory(workdir, iteration, contract.number)
-        spec = _gate_spec_for(failed_gate.name, self._config.sim_device)
+        spec = _gate_spec_for(
+            failed_gate.name,
+            self._config.sim_device,
+            simulator_id=self._config.simulator_id,
+        )
         result = runner.run(spec)
         _ralph_log(f"gate rerun {result.name} -> {result.status}")
         return result
@@ -817,8 +823,8 @@ def _format_ralph_log_line(message: str, *, now: datetime | None = None) -> str:
     return f"{timestamp.isoformat(timespec='seconds')} | Ralph: {message}"
 
 
-def _gate_specs(device: str) -> tuple[GateSpec, ...]:
-    destination = f"platform=iOS Simulator,name={device}"
+def _gate_specs(device: str, *, simulator_id: str | None = None) -> tuple[GateSpec, ...]:
+    destination = _simulator_destination(device, simulator_id=simulator_id)
     return (
         GateSpec(GATE_SWIFT_TEST, ("swift", "test")),
         GateSpec(GATE_XCODEGEN, ("xcodegen", "generate")),
@@ -836,6 +842,8 @@ def _gate_specs(device: str) -> tuple[GateSpec, ...]:
                 destination,
                 "-derivedDataPath",
                 ".ralph-dd",
+                "-clonedSourcePackagesDirPath",
+                ".ralph-spm",
                 "test",
                 "-only-testing:WorkoutTrackerTests",
             ),
@@ -854,6 +862,8 @@ def _gate_specs(device: str) -> tuple[GateSpec, ...]:
                 destination,
                 "-derivedDataPath",
                 ".ralph-dd",
+                "-clonedSourcePackagesDirPath",
+                ".ralph-spm",
                 "test",
                 "-only-testing:WorkoutTrackerSnapshotTests",
             ),
@@ -872,6 +882,12 @@ def _gate_specs(device: str) -> tuple[GateSpec, ...]:
                 destination,
                 "-derivedDataPath",
                 ".ralph-dd",
+                "-clonedSourcePackagesDirPath",
+                ".ralph-spm",
+                "-parallel-testing-enabled",
+                "NO",
+                "-test-timeouts-enabled",
+                "NO",
                 "test",
                 "-only-testing:WorkoutTrackerUITests",
             ),
@@ -880,10 +896,21 @@ def _gate_specs(device: str) -> tuple[GateSpec, ...]:
     )
 
 
-def _gate_spec_for(name: str, device: str) -> GateSpec:
+def _simulator_destination(device: str, *, simulator_id: str | None) -> str:
+    if simulator_id:
+        return f"platform=iOS Simulator,id={simulator_id}"
+    return f"platform=iOS Simulator,name={device}"
+
+
+def _gate_spec_for(
+    name: str,
+    device: str,
+    *,
+    simulator_id: str | None = None,
+) -> GateSpec:
     """Return the single gate spec matching ``name`` so a rerun targets just it."""
 
-    for spec in _gate_specs(device):
+    for spec in _gate_specs(device, simulator_id=simulator_id):
         if spec.name == name:
             return spec
     raise RalphLoopError(f"no gate spec named {name!r} to rerun")

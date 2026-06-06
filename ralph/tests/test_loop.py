@@ -206,6 +206,24 @@ class RalphGateSpecTests(unittest.TestCase):
         self.assertIn("platform=iOS Simulator,name=iPhone 17 Pro", visual.command)
         self.assertEqual(_gate_name_for_command(visual.command), GATE_VISUAL_REGRESSION)
 
+    def test_gate_specs_can_target_a_specific_simulator_id(self) -> None:
+        specs = _gate_specs("iPhone 17 Pro", simulator_id="ABC-123")
+
+        for spec in specs:
+            if spec.command and spec.command[0] == "xcodebuild":
+                self.assertIn("platform=iOS Simulator,id=ABC-123", spec.command)
+                self.assertNotIn(
+                    "platform=iOS Simulator,name=iPhone 17 Pro",
+                    spec.command,
+                )
+                self.assertIn("-clonedSourcePackagesDirPath", spec.command)
+                self.assertIn(".ralph-spm", spec.command)
+
+        ui = next(spec for spec in specs if spec.name == GATE_UI_INTEGRATION)
+        self.assertIn("-test-timeouts-enabled", ui.command)
+        self.assertIn("NO", ui.command)
+        self.assertIn("-parallel-testing-enabled", ui.command)
+
 
 class _VisualGateRunnerFactory:
     """Gate runner factory that fails the visual gate, then scripts the rerun.

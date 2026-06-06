@@ -127,6 +127,15 @@ class ParseArgsTests(unittest.TestCase):
     def test_repo_override(self) -> None:
         self.assertEqual(parse_args(["--repo", "owner/name"]).repo, "owner/name")
 
+    def test_simulator_id_override(self) -> None:
+        config = parse_args(["--simulator-id", "ABC-123"])
+
+        self.assertEqual(config.simulator_id, "ABC-123")
+
+    def test_simulator_id_must_not_be_blank(self) -> None:
+        with self.assertRaises(ConfigError):
+            parse_args(["--simulator-id", ""])
+
     def test_config_is_immutable(self) -> None:
         config = parse_args([])
         with self.assertRaises(FrozenInstanceError):
