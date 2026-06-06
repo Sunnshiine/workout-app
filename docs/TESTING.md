@@ -51,8 +51,9 @@ Target directory structure:
   Runs in the existing fast `WorkoutTrackerTests` target.
 - `Tests/Visual`: hosted Visual Regression tests plus Visual Baselines. Runs in the
   `WorkoutTrackerSnapshotTests` target via xcodebuild, not `swift test`.
-- `Tests/UI`: simulator UI integration tests that launch the app and drive real controls.
-  Uses a separate Xcode UI-test target.
+- `Tests/UI`: simulator XCUITest coverage that launches the app and drives real controls.
+  Uses a separate Xcode UI-test target, split by purpose into UI Integration Smoke and the
+  UI Interaction Suite.
 
 Migration policy: move the existing flat `WorkoutTrackerTests` files into this structure in one
 mechanical change before adding new coverage. Update `Package.swift`, `project.yml`, regenerate the
@@ -68,15 +69,18 @@ Test doubles policy:
   launch boundaries, and drives real controls through accessibility.
 - Automated tests must not hit live Google auth, live Google Sheets, or real network connectivity.
 
-UI integration test boundary:
+UI XCUITest boundary:
 
-- `Tests/UI` is the real-control wiring layer. It proves launch state, navigation, accessibility
+- UI Integration Smoke is the real-control wiring layer. It proves launch state, navigation, accessibility
   lookup, hittability, route completion, and one representative end-to-end flow per critical app
   surface.
-- UI tests may assert that a real user action reaches a visible result. Unit and component tests own
+- The UI Interaction Suite covers higher-flake interaction mechanics such as keyboard focus,
+  overscroll, long scrolling, hold gestures, and frame/visibility behavior. It is a manual,
+  nightly, or pre-release suite, not part of Ralph's autonomous loop.
+- UI XCUITests may assert that a real user action reaches a visible result. Unit and component tests own
   the detailed state rules, permutations, string construction, persistence semantics, and business
   logic behind that result.
-- UI tests may include layout assertions only when the assertion protects functional accessibility:
+- UI XCUITests may include layout assertions only when the assertion protects functional accessibility:
   a control must remain tappable, readable, reachable, and not clipped out of usable bounds. Pixel
   polish, spacing, exact frame relationships, and broad appearance coverage belong to Visual
   Regression tests or component/presentation tests.
@@ -89,8 +93,13 @@ UI integration test boundary:
 - UI cleanup issues must identify the replacement coverage owner before deleting or narrowing an
   XCTest. Either cite existing unit, component, visual, or Ralph coverage, or add the missing
   lower-level coverage first.
-- Pruning UI tests does not change the completion gate. The remaining representative UI suite still
-  runs before an issue is complete or merged.
+- Pruning UI tests does not authorize agents to skip replacement coverage. UI Integration Smoke may
+  run inside Ralph only when a mechanical selector limits the run to the stable smoke subset.
+  Otherwise, run UI XCUITests by a human, dedicated script, or explicit non-Ralph CI/manual gate when
+  UI confidence is required.
+- Mechanically isolate UI Integration Smoke with dedicated test classes inside the existing
+  `WorkoutTrackerUITests` target. Ralph must invoke those classes by class-level `-only-testing`
+  selectors, not by targeting the whole `WorkoutTrackerUITests` bundle.
 
 Shared fixture policy:
 
@@ -125,11 +134,15 @@ UI-test frame assertions:
 Agent gate policy:
 
 - During implementation, agents should run the narrowest relevant tests for the layer being changed.
-- Before an issue is complete or merged, it must pass the entire automated testing framework:
+- Ralph may run UI Integration Smoke only after it is mechanically isolated from the rest of
+  `WorkoutTrackerUITests`. Ralph must not run the full UI target or the UI Interaction Suite. If no
+  smoke-only selector exists, Ralph's autonomous issue loop is non-UI.
+- Before an issue is complete or merged outside Ralph, it must pass the relevant automated testing framework:
   `swift test`, `xcodebuild test` for unit/component tests, `xcodebuild test` for Visual Regression
-  tests when applicable, `xcodebuild test` for UI integration tests, and `swiftlint lint --quiet`.
-- After the UI target exists and is stable, update Ralph's README, implement prompt, and gate script
-  so autonomous issues cannot complete without the full framework.
+  tests when applicable, UI Integration Smoke when mechanically selected, explicit UI Interaction
+  Suite runs when higher-flake interaction confidence is required, and `swiftlint lint --quiet`.
+- Ralph's README, prompts, and gate script must keep this boundary mechanical so autonomous issues
+  cannot silently run the full UI target or the UI Interaction Suite during the loop.
 
 Implementation slices:
 
@@ -139,20 +152,26 @@ Implementation slices:
    builders.
 3. UI integration target: add `Tests/UI` and cover the agreed fixture-driven user flows.
 4. Fixture unification: promote ad hoc fixtures and the launch fixture into named shared scenarios.
-5. Ralph gate update: run the full framework before autonomous issues can complete.
+5. Ralph gate update: run the non-UI framework plus mechanically isolated UI Integration Smoke
+   before autonomous issues can publish, and leave the UI Interaction Suite to an explicit
+   human/manual or non-Ralph gate.
 
-Representative UI-test scope:
+Representative UI Integration Smoke scope:
 
-- Launch with a deterministic fixture and verify the Current Session renders.
-- Log the active Set through the real controls and verify the next active Set advances.
-- Move On and dismiss the Move On Celebration.
-- Open Block Overview, switch Sessions, and return to the Current Session.
-- Open Settings, exercise one sign-out route, and exercise one representative pending-write
+- Launch the deterministic Current Session fixture, select RPE, log the first Set, and verify the
+  next active Set advances.
+- Move On from a deterministic completed or ready-to-advance Session, dismiss the Move On
+  Celebration, and verify the next intended Session or Exercise appears.
+- Open Block Overview, switch to a non-current Session, verify Make Current / Go Back controls, and
+  return to the Current Session.
+- Open Settings from a deterministic route and exercise one representative pending-write sign-out
   confirmation path.
-- Open Developer Tools through the real route and verify the route loads.
-- Cover one Open Exercise makeup path.
-- Cover one Partially Uploaded Block path where Unavailable Sessions stay inert and terminal Move On
-  returns to the Block grid.
+- Open a Partially Uploaded Block, verify one Unavailable Session is inert, and verify one Available
+  Session still opens.
+
+Do not promote a broad chained journey into Ralph smoke. Split it into these short named flows first,
+and leave keyboard focus, overscroll, long-session scrolling, hold gestures, exact frame movement,
+and celebration visibility-ratio checks in the UI Interaction Suite.
 
 # Manual Testing on the iOS Simulator
 
