@@ -295,7 +295,18 @@ class BlockedRescuePublisher:
     def _commit_and_push(self, issue_number: int, branch: str) -> None:
         message = blocked_commit_message(issue_number)
         self._run(["commit", "--allow-empty", "-m", message], "commit blocked tree")
+        self._fetch_remote_branch_for_lease(branch)
         self._run(["push", "--force-with-lease", "origin", branch], f"push {branch}")
+
+    def _fetch_remote_branch_for_lease(self, branch: str) -> None:
+        refspec = f"refs/heads/{branch}:refs/remotes/origin/{branch}"
+        result = self._runner(["fetch", "--no-tags", "origin", refspec])
+        if result.ok or _is_missing_remote_ref(result):
+            return
+        detail = result.stderr.strip() or result.stdout.strip()
+        raise PublishError(
+            f"failed to refresh lease for {branch} (git exit {result.returncode}): {detail}"
+        )
 
     def _run(self, args: Sequence[str], what: str) -> None:
         result = self._runner(list(args))
@@ -313,6 +324,11 @@ def blocked_commit_message(issue_number: int) -> str:
 
     subject = f"wip: preserve blocked work for issue #{issue_number}"
     return f"{subject}\n\nRefs #{issue_number}\n"
+
+
+def _is_missing_remote_ref(result: GitOutcome) -> bool:
+    detail = f"{result.stderr}\n{result.stdout}"
+    return "couldn't find remote ref" in detail or "could not find remote ref" in detail
 
 
 def _redact_line(line: str) -> str:

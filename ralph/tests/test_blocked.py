@@ -52,6 +52,29 @@ class _FailingGit:
         return GitOutcome(returncode=1, stderr="boom")
 
 
+class _MissingRemoteBranchGit:
+    """Git runner where the remote blocked branch does not exist yet."""
+
+    def __init__(self) -> None:
+        self.calls: list[list[str]] = []
+
+    def __call__(self, args) -> GitOutcome:
+        self.calls.append(list(args))
+        if args[0] == "fetch":
+            return GitOutcome(
+                returncode=128,
+                stderr="fatal: couldn't find remote ref refs/heads/ralph/issue-5-blocked",
+            )
+        return GitOutcome(returncode=0)
+
+
+class _FailingFetchGit:
+    def __call__(self, args) -> GitOutcome:
+        if args[0] == "fetch":
+            return GitOutcome(returncode=128, stderr="fatal: unable to access origin")
+        return GitOutcome(returncode=0)
+
+
 def _issue(
     number: int, *, body: str = "", labels: list[str] | None = None, title: str = "T"
 ) -> dict:
@@ -224,11 +247,34 @@ class BlockedRescuePublisherTests(unittest.TestCase):
         self.assertEqual(pr["title"], "Blocked: #5 Add foo")
         self.assertEqual(pr["baseRefName"], "main")
         self.assertIn(LABEL_AGENT_BLOCKED, client.pr_labels(pr_number))
-        # Commit then push went through the git seam against the blocked branch.
+        # Commit, lease refresh, then push went through the git seam against the
+        # blocked branch.
         self.assertEqual(git.calls[0][0], "commit")
-        self.assertEqual(git.calls[1][0], "push")
-        self.assertIn("ralph/issue-5-blocked", git.calls[1])
-        self.assertIn("--force-with-lease", git.calls[1])
+        self.assertEqual(git.calls[1][0], "fetch")
+        self.assertIn(
+            "refs/heads/ralph/issue-5-blocked:refs/remotes/origin/ralph/issue-5-blocked",
+            git.calls[1],
+        )
+        self.assertEqual(git.calls[2][0], "push")
+        self.assertIn("ralph/issue-5-blocked", git.calls[2])
+        self.assertIn("--force-with-lease", git.calls[2])
+
+    def test_missing_remote_blocked_branch_still_pushes_first_publication(self) -> None:
+        client = FakeGitHubClient(issues={5: _issue(5, title="Add foo")})
+        contract = _contract(client, 5)
+        git = _MissingRemoteBranchGit()
+
+        BlockedRescuePublisher(client, git).publish(contract, _report(5))
+
+        self.assertEqual([call[0] for call in git.calls], ["commit", "fetch", "push"])
+
+    def test_fetch_failure_raises_before_stale_lease_push(self) -> None:
+        client = FakeGitHubClient(issues={5: _issue(5, title="Add foo")})
+        contract = _contract(client, 5)
+        publisher = BlockedRescuePublisher(client, _FailingFetchGit())
+
+        with self.assertRaises(PublishError):
+            publisher.publish(contract, _report(5))
 
     def test_pr_body_refs_issue_and_has_no_closing_keyword(self) -> None:
         client = FakeGitHubClient(issues={5: _issue(5, title="Add foo")})
