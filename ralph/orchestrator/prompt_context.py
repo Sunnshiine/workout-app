@@ -58,6 +58,7 @@ class PhaseContext:
     complete_promise_line: str
     blocked_promise_prefix: str
     allowed_actions: tuple[str, ...] = ()
+    forbidden_actions: tuple[str, ...] = ()
     existing_pr_number: int | None = None
     reference_paths: tuple[str, ...] = ()
 
