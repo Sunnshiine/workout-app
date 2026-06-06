@@ -43,5 +43,34 @@ class GithubContractDiscoveryTests(unittest.TestCase):
         self.assertIn("gh issue view", prompt)
 
 
+class ImplementPhaseUIBoundaryTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.prompt = IMPLEMENT_PATH.read_text(encoding="utf-8")
+
+    def test_implement_permits_visual_regression_tests(self) -> None:
+        self.assertIn("Visual Regression", self.prompt)
+
+    def test_implement_does_not_broadly_forbid_ui_tests(self) -> None:
+        # Must not use the broad phrase that bans all UI tests
+        self.assertNotIn("Do NOT run Xcode UI integration tests in this phase", self.prompt)
+        self.assertNotIn("do not run UI tests", self.prompt.lower())
+
+    def test_implement_forbids_full_xcode_ui_integration_target(self) -> None:
+        lower = self.prompt.lower()
+        self.assertIn("xcode ui integration target", lower)
+
+    def test_implement_forbids_full_workouttrackertests_bundle(self) -> None:
+        self.assertIn("WorkoutTrackerUITests", self.prompt)
+
+    def test_implement_forbids_ui_interaction_suite(self) -> None:
+        self.assertIn("UI Interaction Suite", self.prompt)
+
+    def test_implement_completion_gate_does_not_broadly_exclude_ui_tests(self) -> None:
+        # The completion gate must not say "You did not run UI tests"
+        lower = self.prompt.lower()
+        self.assertNotIn("you did not run ui tests", lower)
+        self.assertNotIn("did not run ui tests", lower)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -44,7 +44,11 @@ owns publication after the gates pass.
   changed so each TDD slice has a fast feedback loop.
 - Run non-UI verification before completion: `swift test`, `xcodegen generate`,
   Xcode unit/component tests, and `swiftlint lint --quiet`.
-- Do NOT run Xcode UI integration tests in this phase.
+- Visual Regression tests MAY run when your changes affect covered visual
+  surfaces (pixel comparison against committed Visual Baseline PNGs).
+- Do NOT run the full Xcode UI integration target, the full
+  `WorkoutTrackerUITests` bundle (`-only-testing:WorkoutTrackerUITests`), or
+  UI Interaction Suite tests in this phase.
 - Do NOT spawn reviewer subagents in this phase.
 - Keep scope tied to the issue contract. No speculative features, unrelated
   refactors, or one-off abstractions.
@@ -64,7 +68,9 @@ Emit COMPLETE only when ALL of these hold:
 - The issue is implemented and every issue-contract acceptance criterion is met.
 - The implementation is committed on this branch.
 - The non-UI checks you ran passed.
-- You did not run UI tests or reviewer subagents.
+- You did not run the full Xcode UI integration target, the full
+  `WorkoutTrackerUITests` bundle, or UI Interaction Suite tests.
+- You did not run reviewer subagents.
 
 If any condition fails, end with the exact BLOCKED promise format from the
 preamble, using this phase's name.
