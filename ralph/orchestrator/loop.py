@@ -17,7 +17,7 @@ from pathlib import Path
 from .authority import AuthorityGate, DiffSeam, NameStatusEntry
 from .blocked import BlockedReport, BlockedRescuePublisher
 from .config import RunConfig
-from .contracts import IssueContract, capture_issue_contract
+from .contracts import IssueContract, capture_issue_contract, parse_blocked_by
 from .diagnosis import (
     DiagnosisAuthorityParse,
     apply_ui_test_authority,
@@ -39,7 +39,7 @@ from .gates import (
     GateSpec,
     GateStatus,
 )
-from .github import GitHubClient, _label_names
+from .github import GitHubClient, GitHubClientError, _label_names
 from .phase import PhaseResult, PhaseStatus
 from .prompt_context import PhaseContext, PromptContextWriter
 from .publish import (
@@ -140,12 +140,36 @@ class IssueSelector:
                 continue
             if not _has_actionable_contract(full):
                 continue
+            if not self._dependencies_satisfied(full):
+                continue
             priority = 0 if "bug" in labels else 1
             candidates.append((priority, number, title))
         if not candidates:
             return None
         priority, number, title = min(candidates)
         return SelectedIssue(number=number, title=title)
+
+    def _dependencies_satisfied(self, issue: dict) -> bool:
+        """True only when every ``## Blocked by`` upstream issue has landed.
+
+        A dependency must be closed (``state == "CLOSED"``) to count as landed. A
+        dep that is missing, still OPEN, or labeled ``agent-blocked`` leaves the
+        candidate ineligible so dependents are never picked up early.
+        """
+
+        body = issue.get("body")
+        if not isinstance(body, str):
+            return True
+        return all(self._dependency_landed(dep) for dep in parse_blocked_by(body))
+
+    def _dependency_landed(self, dep: int) -> bool:
+        try:
+            payload = self._client.view_issue(dep)
+        except GitHubClientError:
+            return False
+        if payload.get("state") != "CLOSED":
+            return False
+        return LABEL_AGENT_BLOCKED not in _label_names(payload.get("labels"))
 
 
 class OriginMain:

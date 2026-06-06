@@ -147,6 +147,31 @@ class IssueSelectorTests(unittest.TestCase):
         self.assertIsNotNone(selected)
         self.assertEqual(selected.number, 4)
 
+    def test_skips_candidate_whose_blocked_by_dependency_is_open(self) -> None:
+        client = FakeGitHubClient(
+            issues={
+                10: _issue(10, title="Dependency", labels=[LABEL_AGENT_ACTIVE]),
+                11: _issue(11, title="Dependent", body="## Blocked by\n\n- #10\n"),
+            }
+        )
+
+        selected = IssueSelector(client).select_next()
+
+        self.assertIsNone(selected)
+
+    def test_selects_candidate_when_blocked_by_dependency_is_closed(self) -> None:
+        client = FakeGitHubClient(
+            issues={
+                10: _issue(10, title="Dependency", body="Done") | {"state": "CLOSED"},
+                11: _issue(11, title="Dependent", body="## Blocked by\n\n- #10\n"),
+            }
+        )
+
+        selected = IssueSelector(client).select_next()
+
+        self.assertIsNotNone(selected)
+        self.assertEqual(selected.number, 11)
+
 
 class RalphLogTests(unittest.TestCase):
     def test_formats_local_timestamp_before_ralph_message(self) -> None:
