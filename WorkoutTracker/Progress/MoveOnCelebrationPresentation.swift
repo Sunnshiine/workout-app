@@ -11,7 +11,7 @@ enum MoveOnCelebrationHapticStyle: Equatable, Hashable, Sendable {
 }
 
 enum MoveOnCelebrationTimingPresentation: Equatable, Sendable {
-    case available(String)
+    case available(elapsedText: String, timeRangeText: String)
     case unavailable
 }
 
@@ -47,18 +47,18 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
         let pendingSetCount = sets.filter { $0.state == .pending }.count
         let selectedQuote = requestedQuoteText ?? Self.launchQuoteOverride ?? Self.approvedQuotes.randomElement() ?? ""
         let timing = Self.timingPresentation(for: sets, requestedAt: requestedAt)
-        let timingStats: [MoveOnCelebrationStatPresentation]
-        if case .available(let value) = timing {
-            timingStats = [MoveOnCelebrationStatPresentation(value: value, label: "Time")]
+        let timingAccessibility: [String]
+        if case .available(let elapsedText, let timeRangeText) = timing {
+            timingAccessibility = [elapsedText, timeRangeText.replacingOccurrences(of: "→", with: "to")]
         } else {
-            timingStats = []
+            timingAccessibility = []
         }
 
         markText = "TFN"
         contextText = "Week \(weekNumber) · Day \(session.dayNumber)"
         actionText = "Move On"
         setsCopyText = "Logged Sets are saved. Open Sets stay with the Week."
-        stats = timingStats + [
+        stats = [
             MoveOnCelebrationStatPresentation(value: "\(totalSetCount)", label: "Sets"),
             MoveOnCelebrationStatPresentation(value: "\(exerciseCount)", label: "Exercises"),
             MoveOnCelebrationStatPresentation(value: "\(pendingSetCount)", label: "Left")
@@ -66,7 +66,7 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
         quoteText = selectedQuote
         tapHintText = "Tap anywhere to continue"
         accessibilityLabel = "Week \(weekNumber), Day \(session.dayNumber)"
-        accessibilityValue = ([actionText, selectedQuote, setsCopyText] + stats.map { "\($0.value) \($0.label)" })
+        accessibilityValue = ([actionText, selectedQuote, setsCopyText] + timingAccessibility + stats.map { "\($0.value) \($0.label)" })
             .joined(separator: ", ")
         accessibilityHint = tapHintText
         hapticStyle = pendingSetCount == 0 ? .successWithImpact : .success
@@ -92,17 +92,35 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
             let firstLoggedAt = loggedSets.compactMap(\.loggedAt).min()
         else { return .unavailable }
 
-        return .available(elapsedText(from: firstLoggedAt, to: requestedAt))
+        return .available(
+            elapsedText: elapsedText(from: firstLoggedAt, to: requestedAt),
+            timeRangeText: timeRangeText(from: firstLoggedAt, to: requestedAt)
+        )
     }
 
     private static func elapsedText(from start: Date, to end: Date) -> String {
         let elapsedSeconds = max(0, Int(end.timeIntervalSince(start).rounded(.down)))
         let elapsedMinutes = elapsedSeconds / 60
-        guard elapsedMinutes > 0 else { return "<1m" }
-        guard elapsedMinutes >= 60 else { return "\(elapsedMinutes)m" }
+        guard elapsedMinutes > 0 else { return "<1 min elapsed" }
+        guard elapsedMinutes >= 60 else { return "\(elapsedMinutes) min elapsed" }
 
         let hours = elapsedMinutes / 60
         let minutes = elapsedMinutes % 60
-        return minutes == 0 ? "\(hours)h" : "\(hours)h \(minutes)m"
+        let hourText = hours == 1 ? "1 hr" : "\(hours) hr"
+        return minutes == 0 ? "\(hourText) elapsed" : "\(hourText) \(minutes) min elapsed"
+    }
+
+    private static func timeRangeText(from start: Date, to end: Date) -> String {
+        "\(timeText(from: start)) → \(timeText(from: end))"
+    }
+
+    private static func timeText(from date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter.string(from: date)
+            .replacingOccurrences(of: "\u{202F}", with: " ")
+            .replacingOccurrences(of: "\u{00A0}", with: " ")
     }
 }

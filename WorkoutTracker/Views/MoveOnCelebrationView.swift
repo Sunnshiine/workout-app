@@ -38,7 +38,10 @@ struct MoveOnCelebrationView: View {
                             setsCopyText
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.bottom, 54)
+                        .padding(.bottom, 42)
+
+                        timingCenter
+                            .padding(.bottom, 34)
 
                         Spacer(minLength: 0)
 
@@ -149,6 +152,51 @@ struct MoveOnCelebrationView: View {
             .lineSpacing(2)
             .frame(maxWidth: 310, alignment: .leading)
             .accessibilityIdentifier("move-on-celebration-sets-copy")
+    }
+
+    @ViewBuilder
+    private var timingCenter: some View {
+        if case .available(let elapsedText, let timeRangeText) = presentation.timing {
+            VStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(palette.activeCardFill.opacity(0.78))
+                        .frame(width: 144, height: 144)
+                        .accessibilityHidden(true)
+
+                    Circle()
+                        .stroke(palette.accent.opacity(0.34), lineWidth: 1)
+                        .frame(width: 144, height: 144)
+                        .accessibilityHidden(true)
+
+                    Circle()
+                        .stroke(palette.pillStroke.opacity(0.46), lineWidth: 1)
+                        .frame(width: 106, height: 106)
+                        .accessibilityHidden(true)
+
+                    Text(elapsedText)
+                        .font(.system(size: 22, weight: .black, design: .rounded))
+                        .foregroundStyle(primaryTextColor)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.72)
+                        .frame(width: 94)
+                        .accessibilityLabel("Elapsed time")
+                        .accessibilityValue(elapsedText)
+                        .accessibilityIdentifier("move-on-celebration-elapsed-nucleus")
+                }
+
+                Text(timeRangeText)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(supportingTextColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+                    .accessibilityLabel("Time range")
+                    .accessibilityValue(timeRangeText.replacingOccurrences(of: "→", with: "to"))
+                    .accessibilityIdentifier("move-on-celebration-time-range")
+            }
+            .frame(maxWidth: .infinity)
+        }
     }
 
     private var statsRow: some View {
