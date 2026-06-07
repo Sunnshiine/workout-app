@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 import tempfile
 import unittest
@@ -19,39 +20,39 @@ _PROMPT_FILES = (
     "implement.md",
     "review.md",
     "diagnose.md",
+    "diagnose-extract.md",
 )
 
 # Every well-formed artifact carries the handoff fields the parser now requires.
-_HANDOFF = (
-    "root_cause: Tap never reaches the visible writable row.\n"
-    "fix_plan: Route the gesture through the real control.\n"
-    "test_seam: Tests/UI integration proves the visible state.\n"
-)
+_HANDOFF = {
+    "root_cause": "Tap never reaches the visible writable row.",
+    "fix_plan": "Route the gesture through the real control.",
+    "test_seam": "Tests/UI integration proves the visible state.",
+}
 
-_REQUIRED_BLOCK = (
-    "<diagnosis-result>\n"
-    f"{_HANDOFF}"
-    "ui_integration_test_edits_required: true\n"
-    "scope: Tests/UI/WorkoutTrackerUITests.swift\n"
-    "reason: Only the UI route proves the tap reaches the visible state.\n"
-    "</diagnosis-result>"
+
+def _block(payload: dict) -> str:
+    return f"<diagnosis-result>\n{json.dumps(payload, indent=2)}\n</diagnosis-result>"
+
+
+_REQUIRED_BLOCK = _block(
+    {
+        **_HANDOFF,
+        "ui_integration_test_edits_required": True,
+        "scope": ["Tests/UI/WorkoutTrackerUITests.swift"],
+        "reason": "Only the UI route proves the tap reaches the visible state.",
+    }
 )
-_NOT_REQUIRED_BLOCK = (
-    "<diagnosis-result>\n"
-    f"{_HANDOFF}"
-    "ui_integration_test_edits_required: false\n"
-    "scope:\n"
-    "reason:\n"
-    "</diagnosis-result>"
+_NOT_REQUIRED_BLOCK = _block({**_HANDOFF, "ui_integration_test_edits_required": False})
+_OUT_OF_SCOPE_BLOCK = _block(
+    {
+        **_HANDOFF,
+        "ui_integration_test_edits_required": True,
+        "scope": ["Tests/UI/WorkoutTrackerUITests.swift", "project.yml"],
+        "reason": "also needs test-target wiring",
+    }
 )
-_OUT_OF_SCOPE_BLOCK = (
-    "<diagnosis-result>\n"
-    f"{_HANDOFF}"
-    "ui_integration_test_edits_required: true\n"
-    "scope: Tests/UI/WorkoutTrackerUITests.swift, project.yml\n"
-    "reason: also needs test-target wiring\n"
-    "</diagnosis-result>"
-)
+_REASONING_TEXT = "Findings: reproduced the crash; root cause and fix plan documented."
 
 
 def _git(repo: Path, *args: str) -> None:
@@ -111,8 +112,9 @@ class _EditingEngine(FakeEngine):
 class _SequencedEngine(FakeEngine):
     """FakeEngine that returns a different scripted result on each call to a phase.
 
-    Lets a test drive the diagnose retry: the first ``diagnose`` turn emits a
-    malformed artifact and the second emits a well-formed one.
+    Lets a test drive the extraction retry: the first ``diagnose-extract`` turn
+    emits a malformed artifact and a later one emits a well-formed one, while
+    ``diagnose`` reasoning runs only once.
     """
 
     def __init__(self, *, sequences, **kwargs) -> None:
@@ -185,7 +187,10 @@ class DiagnosisGateLoopTests(unittest.TestCase):
     def test_bug_issue_diagnoses_before_implement(self) -> None:
         client = FakeGitHubClient(issues={11: _bug_issue(11)})
         engine = FakeEngine(
-            results_by_phase={"diagnose": _complete("diagnose", _NOT_REQUIRED_BLOCK)}
+            results_by_phase={
+                "diagnose": _complete("diagnose", _REASONING_TEXT),
+                "diagnose-extract": _complete("diagnose-extract", _NOT_REQUIRED_BLOCK),
+            }
         )
 
         summary = self._loop(client, engine).run()
@@ -193,7 +198,7 @@ class DiagnosisGateLoopTests(unittest.TestCase):
         self.assertEqual(summary.issues_completed, (11,))
         self.assertEqual(
             self._phases(engine),
-            ["diagnose", "implement-tdd", "review"],
+            ["diagnose", "diagnose-extract", "implement-tdd", "review"],
         )
 
     def test_non_bug_issue_skips_diagnosis(self) -> None:
@@ -210,41 +215,45 @@ class DiagnosisGateLoopTests(unittest.TestCase):
         )
         self.assertNotIn("diagnose", self._phases(engine))
 
-    def test_malformed_artifact_triggers_one_diagnose_retry_then_proceeds(self) -> None:
+    def test_malformed_artifact_triggers_extract_only_retry_then_proceeds(self) -> None:
         client = FakeGitHubClient(issues={13: _bug_issue(13)})
         engine = _SequencedEngine(
             sequences={
-                "diagnose": [
-                    _complete("diagnose", "Findings but no result artifact."),
-                    _complete("diagnose", _NOT_REQUIRED_BLOCK),
-                ]
+                "diagnose": [_complete("diagnose", _REASONING_TEXT)],
+                "diagnose-extract": [
+                    _complete("diagnose-extract", "Findings but no result artifact."),
+                    _complete("diagnose-extract", _NOT_REQUIRED_BLOCK),
+                ],
             }
         )
 
         summary = self._loop(client, engine).run()
 
         self.assertEqual(summary.issues_completed, (13,))
-        # A generic diagnose rerun replaces the old dedicated corrective phase.
+        # Only the cheap extraction turn reruns; reasoning runs exactly once.
         self.assertEqual(
             self._phases(engine),
-            ["diagnose", "diagnose", "implement-tdd", "review"],
+            ["diagnose", "diagnose-extract", "diagnose-extract", "implement-tdd", "review"],
         )
         # The retry prompt carries the parser error so the model can correct it.
-        retry_prompt = engine.calls[1].prompt
+        retry_calls = [call for call in engine.calls if call.phase == "diagnose-extract"]
+        retry_prompt = retry_calls[1].prompt
         self.assertIn("<retry_context>", retry_prompt)
         self.assertIn("could not be parsed", retry_prompt)
-        # The handoff written for implementation is the corrected artifact.
+        # The handoff written for implementation is the diagnose reasoning output.
         handoff = (self._context_dir(13) / "diagnosis.md").read_text(encoding="utf-8")
-        self.assertIn("ui_integration_test_edits_required: false", handoff)
+        self.assertIn(_REASONING_TEXT, handoff)
 
-    def test_still_malformed_after_retry_escalates(self) -> None:
+    def test_still_malformed_after_retries_escalates_without_rerunning_diagnose(self) -> None:
         client = FakeGitHubClient(issues={14: _bug_issue(14)})
         engine = _SequencedEngine(
             sequences={
-                "diagnose": [
-                    _complete("diagnose", "no artifact"),
-                    _complete("diagnose", "still no artifact"),
-                ]
+                "diagnose": [_complete("diagnose", _REASONING_TEXT)],
+                "diagnose-extract": [
+                    _complete("diagnose-extract", "no artifact"),
+                    _complete("diagnose-extract", "still no artifact"),
+                    _complete("diagnose-extract", "still no artifact again"),
+                ],
             }
         )
 
@@ -252,13 +261,20 @@ class DiagnosisGateLoopTests(unittest.TestCase):
 
         self.assertEqual(summary.issues_blocked, (14,))
         self.assertEqual(summary.issues_completed, ())
-        # Exactly one retry, then escalate — never advanced to implementation.
-        self.assertEqual(self._phases(engine), ["diagnose", "diagnose"])
+        # diagnose runs exactly once; diagnose-extract gets two retries (three
+        # attempts total), then escalates — never advanced to implementation.
+        self.assertEqual(
+            self._phases(engine),
+            ["diagnose", "diagnose-extract", "diagnose-extract", "diagnose-extract"],
+        )
 
     def test_grant_appends_authority_section_comments_and_recaptures(self) -> None:
         client = FakeGitHubClient(issues={15: _bug_issue(15)})
         engine = FakeEngine(
-            results_by_phase={"diagnose": _complete("diagnose", _REQUIRED_BLOCK)}
+            results_by_phase={
+                "diagnose": _complete("diagnose", _REASONING_TEXT),
+                "diagnose-extract": _complete("diagnose-extract", _REQUIRED_BLOCK),
+            }
         )
 
         summary = self._loop(client, engine).run()
@@ -283,7 +299,10 @@ class DiagnosisGateLoopTests(unittest.TestCase):
         body = "Crash on tap.\n\n## Test authority\n\nPrior note.\n"
         client = FakeGitHubClient(issues={16: _bug_issue(16, body=body)})
         engine = FakeEngine(
-            results_by_phase={"diagnose": _complete("diagnose", _REQUIRED_BLOCK)}
+            results_by_phase={
+                "diagnose": _complete("diagnose", _REASONING_TEXT),
+                "diagnose-extract": _complete("diagnose-extract", _REQUIRED_BLOCK),
+            }
         )
 
         self._loop(client, engine).run()
@@ -297,7 +316,10 @@ class DiagnosisGateLoopTests(unittest.TestCase):
         body = "Crash.\n\n## Test authority\n\nUI integration test edits: authorized\n"
         client = FakeGitHubClient(issues={17: _bug_issue(17, body=body)})
         engine = FakeEngine(
-            results_by_phase={"diagnose": _complete("diagnose", _REQUIRED_BLOCK)}
+            results_by_phase={
+                "diagnose": _complete("diagnose", _REASONING_TEXT),
+                "diagnose-extract": _complete("diagnose-extract", _REQUIRED_BLOCK),
+            }
         )
 
         summary = self._loop(client, engine).run()
@@ -309,7 +331,10 @@ class DiagnosisGateLoopTests(unittest.TestCase):
     def test_authority_beyond_ui_tests_escalates_without_body_edit(self) -> None:
         client = FakeGitHubClient(issues={18: _bug_issue(18)})
         engine = FakeEngine(
-            results_by_phase={"diagnose": _complete("diagnose", _OUT_OF_SCOPE_BLOCK)}
+            results_by_phase={
+                "diagnose": _complete("diagnose", _REASONING_TEXT),
+                "diagnose-extract": _complete("diagnose-extract", _OUT_OF_SCOPE_BLOCK),
+            }
         )
 
         summary = self._loop(client, engine).run()
@@ -318,12 +343,15 @@ class DiagnosisGateLoopTests(unittest.TestCase):
         call_kinds = [call[0] for call in client.calls]
         self.assertNotIn("edit_issue_body", call_kinds)
         # Escalated before implementation.
-        self.assertEqual(self._phases(engine), ["diagnose"])
+        self.assertEqual(self._phases(engine), ["diagnose", "diagnose-extract"])
 
     def test_diagnosis_handoff_is_written_and_referenced_by_later_phases(self) -> None:
         client = FakeGitHubClient(issues={19: _bug_issue(19)})
         engine = FakeEngine(
-            results_by_phase={"diagnose": _complete("diagnose", _NOT_REQUIRED_BLOCK)}
+            results_by_phase={
+                "diagnose": _complete("diagnose", _REASONING_TEXT),
+                "diagnose-extract": _complete("diagnose-extract", _NOT_REQUIRED_BLOCK),
+            }
         )
 
         self._loop(client, engine).run()
@@ -331,7 +359,8 @@ class DiagnosisGateLoopTests(unittest.TestCase):
         diagnosis_md = self._context_dir(19) / "diagnosis.md"
         self.assertTrue(diagnosis_md.exists())
         handoff = diagnosis_md.read_text(encoding="utf-8")
-        self.assertIn("ui_integration_test_edits_required", handoff)
+        # The handoff is the diagnose reasoning turn's output, not the JSON artifact.
+        self.assertIn(_REASONING_TEXT, handoff)
 
         by_phase = {call.phase: call for call in engine.calls}
         # Mandatory for implementation: the XML envelope surfaces diagnosis_path.
@@ -340,6 +369,9 @@ class DiagnosisGateLoopTests(unittest.TestCase):
         self.assertIn("diagnosis.md", by_phase["review"].prompt)
         # The diagnose phase itself has no prior handoff: element is self-closing.
         self.assertIn("<diagnosis_path/>", by_phase["diagnose"].prompt)
+        # The extraction turn receives the reasoning output inline.
+        self.assertIn("<extraction_input>", by_phase["diagnose-extract"].prompt)
+        self.assertIn(_REASONING_TEXT, by_phase["diagnose-extract"].prompt)
 
     def test_unauthorized_ui_test_edit_is_blocked_by_authority_gate(self) -> None:
         # Non-bug issue: no diagnosis grant, so a Tests/UI edit is unauthorized.
@@ -362,7 +394,10 @@ class DiagnosisGateLoopTests(unittest.TestCase):
         engine = _EditingEngine(
             edit_phase="implement-tdd",
             rel_path="Tests/UI/FooUITests.swift",
-            results_by_phase={"diagnose": _complete("diagnose", _REQUIRED_BLOCK)},
+            results_by_phase={
+                "diagnose": _complete("diagnose", _REASONING_TEXT),
+                "diagnose-extract": _complete("diagnose-extract", _REQUIRED_BLOCK),
+            },
         )
 
         summary = self._loop(client, engine).run()

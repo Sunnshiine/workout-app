@@ -61,6 +61,7 @@ from .worktree import GitResult, Worktree, WorktreeManager, default_git_runner
 
 ORIGIN_MAIN = "origin/main"
 PHASE_DIAGNOSE = "diagnose"
+PHASE_DIAGNOSE_EXTRACT = "diagnose-extract"
 UI_INTEGRATION_SMOKE_SELECTORS = (
     "-only-testing:WorkoutTrackerUITests/WorkoutTrackerUISmokeTests",
     "-only-testing:WorkoutTrackerUITests/PartiallyUploadedBlockUISmokeTests",
@@ -68,6 +69,11 @@ UI_INTEGRATION_SMOKE_SELECTORS = (
 
 PHASE_IMPLEMENT = "implement-tdd"
 PHASE_REVIEW = "review"
+
+# A malformed extraction artifact reruns only diagnose-extract: up to two
+# retries (three attempts total) before a blocked rescue PR. The expensive
+# diagnose reasoning turn is never rerun for a formatting failure.
+_DIAGNOSE_EXTRACT_MAX_ATTEMPTS = 3
 
 BUG_LABEL = "bug"
 
@@ -448,6 +454,7 @@ class RalphLoop:
         extra_reference_paths: tuple[str, ...] = (),
         diagnosis_path: Path | None = None,
         retry_note: str | None = None,
+        extraction_input: str | None = None,
     ) -> PhaseResult:
         context = PhaseContext(
             role=f"Run the Ralph {phase} phase for issue #{contract.number}.",
@@ -473,6 +480,7 @@ class RalphLoop:
             context_path,
             diagnosis_path,
             retry_note=retry_note,
+            extraction_input=extraction_input,
         )
         log_path = (
             self._repo_root / LOG_DIR / f"iter-{iteration}-issue-{contract.number}-{phase}.log"
@@ -501,6 +509,7 @@ class RalphLoop:
         context_path: Path,
         diagnosis_path: Path | None = None,
         retry_note: str | None = None,
+        extraction_input: str | None = None,
     ) -> str:
         prompt_body = (self._repo_root / "ralph" / "prompts" / prompt_file).read_text(
             encoding="utf-8"
@@ -562,6 +571,11 @@ class RalphLoop:
                     if retry_note
                     else []
                 ),
+                *(
+                    ["<extraction_input>", extraction_input.rstrip(), "</extraction_input>", ""]
+                    if extraction_input is not None
+                    else []
+                ),
                 "<phase_instructions>",
                 prompt_body.rstrip(),
                 "</phase_instructions>",
@@ -581,12 +595,16 @@ class RalphLoop:
     ) -> _DiagnosisOutcome:
         """Run the bug-only diagnosis gate before implementation.
 
-        Runs the ``diagnose`` phase, writes the ``diagnosis.md`` handoff, parses
-        the structured ``<diagnosis-result>`` artifact, and — on a parse failure —
-        reruns the ``diagnose`` prompt once with the parser error appended. Grants
-        UI-test authority only for ``Tests/UI/**`` and recaptures the contract. A
-        second parse failure (or any unrecoverable step) returns a blocked phase so
-        the caller escalates to a rescue PR.
+        Two turns: a reasoning ``diagnose`` phase produces the implementation
+        handoff (written to ``diagnosis.md``), then a dedicated
+        ``diagnose-extract`` phase reformats that handoff into a single JSON
+        ``<diagnosis-result>`` artifact, which is what gets parsed. On a
+        malformed artifact, only the cheap extraction turn is rerun (up to two
+        retries, three attempts total) with the parser error appended — the
+        expensive reasoning turn is never rerun for a formatting failure.
+        Grants UI-test authority only for ``Tests/UI/**`` and recaptures the
+        contract. An unrecoverable step returns a blocked phase so the caller
+        escalates to a rescue PR.
         """
 
         result = self._run_phase(
@@ -596,35 +614,41 @@ class RalphLoop:
             return _DiagnosisOutcome(contract=contract, blocked_phase=result)
 
         diagnosis_path = writer.write_diagnosis(result.final_response)
-        parse = parse_diagnosis_authority(result.final_response)
 
-        if parse.needs_corrective_pass:
-            retry = self._run_phase(
-                PHASE_DIAGNOSE,
-                "diagnose.md",
+        retry_note: str | None = None
+        parse: DiagnosisAuthorityParse | None = None
+        for _attempt in range(_DIAGNOSE_EXTRACT_MAX_ATTEMPTS):
+            extraction = self._run_phase(
+                PHASE_DIAGNOSE_EXTRACT,
+                "diagnose-extract.md",
                 iteration,
                 contract,
                 target,
                 worktree,
                 issue_base,
                 writer,
-                retry_note=(
-                    "Your previous diagnosis artifact could not be parsed: "
-                    f"{parse.error}. Emit exactly one well-formed "
-                    "<diagnosis-result> artifact this time."
+                extraction_input=result.final_response,
+                retry_note=retry_note,
+            )
+            if not extraction.is_complete:
+                return _DiagnosisOutcome(contract=contract, blocked_phase=extraction)
+
+            parse = parse_diagnosis_authority(extraction.final_response)
+            if not parse.needs_corrective_pass:
+                break
+            retry_note = (
+                "Your previous extraction artifact could not be parsed: "
+                f"{parse.error}. Emit exactly one well-formed JSON "
+                "<diagnosis-result> artifact this time."
+            )
+        else:
+            return _DiagnosisOutcome(
+                contract=contract,
+                blocked_phase=_diagnosis_blocked(
+                    "diagnosis extraction artifact still invalid after "
+                    f"{_DIAGNOSE_EXTRACT_MAX_ATTEMPTS - 1} retries: {parse.error}"
                 ),
             )
-            if not retry.is_complete:
-                return _DiagnosisOutcome(contract=contract, blocked_phase=retry)
-            diagnosis_path = writer.write_diagnosis(retry.final_response)
-            parse = parse_diagnosis_authority(retry.final_response)
-            if parse.needs_corrective_pass:
-                return _DiagnosisOutcome(
-                    contract=contract,
-                    blocked_phase=_diagnosis_blocked(
-                        f"diagnosis artifact still invalid after one retry: {parse.error}"
-                    ),
-                )
 
         if parse.needs_human_escalation:
             paths = ", ".join(parse.out_of_scope_paths)
@@ -1087,6 +1111,14 @@ def _forbidden_actions_for_phase(phase: str) -> tuple[str, ...]:
             "push, merge, open PRs, close PRs, or close issues",
             "spawn review subagents",
         )
+    if phase == PHASE_DIAGNOSE_EXTRACT:
+        return (
+            "edit any files",
+            "commit changes to the branch",
+            "re-diagnose the bug or run the diagnose skill",
+            "spawn review subagents",
+            "push, merge, open PRs, close PRs, or close issues",
+        )
     if phase == PHASE_IMPLEMENT:
         return (
             "run the full Xcode UI integration target (-only-testing:WorkoutTrackerUITests)",
@@ -1110,6 +1142,11 @@ def _allowed_actions_for_phase(phase: str) -> tuple[str, ...]:
             "reproduce the bug and build a feedback loop",
             "investigate with scratch edits/instrumentation (do not commit)",
             "write a fix plan and the diagnosis-result artifact",
+        )
+    if phase == PHASE_DIAGNOSE_EXTRACT:
+        return (
+            "read the prior diagnose turn's handoff (provided inline)",
+            "emit exactly one JSON <diagnosis-result> artifact (no edits)",
         )
     if phase == PHASE_IMPLEMENT:
         return ("implement the issue", "commit implementation changes", "run non-UI checks")

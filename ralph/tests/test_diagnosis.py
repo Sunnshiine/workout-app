@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 
 from ralph.orchestrator.contracts import parse_ui_test_authorization
@@ -11,29 +12,27 @@ from ralph.orchestrator.diagnosis import (
 )
 
 # Every well-formed artifact carries the handoff fields the parser now requires.
-_HANDOFF = (
-    "root_cause: Tap never reaches the visible writable row.\n"
-    "fix_plan: Route the gesture through the real control.\n"
-    "test_seam: Tests/UI integration proves the visible state.\n"
-)
+_HANDOFF = {
+    "root_cause": "Tap never reaches the visible writable row.",
+    "fix_plan": "Route the gesture through the real control.",
+    "test_seam": "Tests/UI integration proves the visible state.",
+}
 
-_REQUIRED_BLOCK = (
-    "<diagnosis-result>\n"
-    f"{_HANDOFF}"
-    "ui_integration_test_edits_required: true\n"
-    "scope: Tests/UI/WorkoutTrackerUITests.swift\n"
-    "reason: Only the UI route proves the tap reaches the visible state.\n"
-    "</diagnosis-result>"
-)
 
-_NOT_REQUIRED_BLOCK = (
-    "<diagnosis-result>\n"
-    f"{_HANDOFF}"
-    "ui_integration_test_edits_required: false\n"
-    "scope:\n"
-    "reason:\n"
-    "</diagnosis-result>"
-)
+def _block(payload: dict) -> str:
+    return f"<diagnosis-result>\n{json.dumps(payload, indent=2)}\n</diagnosis-result>"
+
+
+_REQUIRED_PAYLOAD = {
+    **_HANDOFF,
+    "ui_integration_test_edits_required": True,
+    "scope": ["Tests/UI/WorkoutTrackerUITests.swift"],
+    "reason": "Only the UI route proves the tap reaches the visible state.",
+}
+_REQUIRED_BLOCK = _block(_REQUIRED_PAYLOAD)
+
+_NOT_REQUIRED_PAYLOAD = {**_HANDOFF, "ui_integration_test_edits_required": False}
+_NOT_REQUIRED_BLOCK = _block(_NOT_REQUIRED_PAYLOAD)
 
 
 class ParseDiagnosisAuthorityTests(unittest.TestCase):
@@ -69,76 +68,83 @@ class ParseDiagnosisAuthorityTests(unittest.TestCase):
         self.assertTrue(parse.needs_corrective_pass)
         self.assertIn("no <diagnosis-result>", parse.error)
 
-    def test_missing_handoff_field_is_malformed(self) -> None:
+    def test_non_json_body_is_malformed(self) -> None:
         block = (
             "<diagnosis-result>\n"
-            "fix_plan: route the gesture\n"
-            "test_seam: Tests/UI integration\n"
-            "ui_integration_test_edits_required: false\n"
+            "root_cause: not json at all\n"
+            "fix_plan: nope\n"
             "</diagnosis-result>"
         )
 
         parse = parse_diagnosis_authority(block)
+
+        self.assertEqual(parse.status, DiagnosisAuthorityStatus.MALFORMED)
+        self.assertTrue(parse.needs_corrective_pass)
+        self.assertIn("not valid JSON", parse.error)
+
+    def test_non_object_json_is_malformed(self) -> None:
+        block = "<diagnosis-result>\n[1, 2, 3]\n</diagnosis-result>"
+
+        parse = parse_diagnosis_authority(block)
+
+        self.assertEqual(parse.status, DiagnosisAuthorityStatus.MALFORMED)
+        self.assertIn("JSON object", parse.error)
+
+    def test_missing_handoff_field_is_malformed(self) -> None:
+        payload = {
+            "fix_plan": "route the gesture",
+            "test_seam": "Tests/UI integration",
+            "ui_integration_test_edits_required": False,
+        }
+
+        parse = parse_diagnosis_authority(_block(payload))
 
         self.assertEqual(parse.status, DiagnosisAuthorityStatus.MALFORMED)
         self.assertIn("root_cause", parse.error)
 
     def test_non_boolean_value_is_malformed(self) -> None:
-        block = (
-            "<diagnosis-result>\n"
-            f"{_HANDOFF}"
-            "ui_integration_test_edits_required: maybe\n"
-            "scope:\n"
-            "reason:\n"
-            "</diagnosis-result>"
-        )
+        payload = {**_HANDOFF, "ui_integration_test_edits_required": "maybe"}
 
-        parse = parse_diagnosis_authority(block)
+        parse = parse_diagnosis_authority(_block(payload))
 
         self.assertEqual(parse.status, DiagnosisAuthorityStatus.MALFORMED)
-        self.assertIn("true", parse.error)
+        self.assertIn("boolean", parse.error)
 
     def test_required_without_scope_is_malformed(self) -> None:
-        block = (
-            "<diagnosis-result>\n"
-            f"{_HANDOFF}"
-            "ui_integration_test_edits_required: true\n"
-            "scope:\n"
-            "reason: needed\n"
-            "</diagnosis-result>"
-        )
+        payload = {
+            **_HANDOFF,
+            "ui_integration_test_edits_required": True,
+            "scope": [],
+            "reason": "needed",
+        }
 
-        parse = parse_diagnosis_authority(block)
+        parse = parse_diagnosis_authority(_block(payload))
 
         self.assertEqual(parse.status, DiagnosisAuthorityStatus.MALFORMED)
         self.assertIn("scope", parse.error)
 
     def test_required_without_reason_is_malformed(self) -> None:
-        block = (
-            "<diagnosis-result>\n"
-            f"{_HANDOFF}"
-            "ui_integration_test_edits_required: true\n"
-            "scope: Tests/UI/WorkoutTrackerUITests.swift\n"
-            "reason:\n"
-            "</diagnosis-result>"
-        )
+        payload = {
+            **_HANDOFF,
+            "ui_integration_test_edits_required": True,
+            "scope": ["Tests/UI/WorkoutTrackerUITests.swift"],
+            "reason": "",
+        }
 
-        parse = parse_diagnosis_authority(block)
+        parse = parse_diagnosis_authority(_block(payload))
 
         self.assertEqual(parse.status, DiagnosisAuthorityStatus.MALFORMED)
         self.assertIn("reason", parse.error)
 
     def test_scope_outside_ui_tests_is_out_of_scope(self) -> None:
-        block = (
-            "<diagnosis-result>\n"
-            f"{_HANDOFF}"
-            "ui_integration_test_edits_required: true\n"
-            "scope: Tests/UI/WorkoutTrackerUITests.swift, project.yml\n"
-            "reason: also needs target wiring\n"
-            "</diagnosis-result>"
-        )
+        payload = {
+            **_HANDOFF,
+            "ui_integration_test_edits_required": True,
+            "scope": ["Tests/UI/WorkoutTrackerUITests.swift", "project.yml"],
+            "reason": "also needs target wiring",
+        }
 
-        parse = parse_diagnosis_authority(block)
+        parse = parse_diagnosis_authority(_block(payload))
 
         self.assertEqual(parse.status, DiagnosisAuthorityStatus.OUT_OF_SCOPE)
         self.assertTrue(parse.needs_human_escalation)
