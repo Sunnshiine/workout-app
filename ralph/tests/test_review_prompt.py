@@ -86,5 +86,26 @@ class ReviewPromptEnvelopeAuthorityTests(unittest.TestCase):
         self.assertNotIn("emit exactly one observations block", self.prompt.lower())
 
 
+class ReviewPromptRuntimeFactSlimTests(unittest.TestCase):
+    """The envelope owns runtime facts; the prompt body should not restate them (#294)."""
+
+    def setUp(self) -> None:
+        self.prompt = PROMPT_PATH.read_text(encoding="utf-8")
+
+    def test_preamble_recap_sentence_absent(self) -> None:
+        self.assertNotIn(
+            "The issue number, isolated worktree, branch, ISSUE_BASE_REF, "
+            "publish target,",
+            self.prompt,
+        )
+        self.assertNotIn("already inside the worktree", self.prompt)
+
+    def test_does_not_restate_review_diff_base_ref(self) -> None:
+        self.assertNotIn("Review the current issue diff from ISSUE_BASE_REF to HEAD", self.prompt)
+
+    def test_branch_directive_prose_absent(self) -> None:
+        self.assertNotIn("Branch Directive", self.prompt)
+
+
 if __name__ == "__main__":
     unittest.main()

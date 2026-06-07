@@ -316,23 +316,28 @@ Python captures an immutable `IssueContract` before any mutating phase:
 - `PRD: #<number>` membership from the issue body only
 - `UI integration test edits: authorized` from the issue body only
 
-For issues labelled `bug`, Ralph runs a diagnosis phase before implementation. Diagnosis must build
-or identify a feedback loop, produce a fix plan, and write a local handoff artifact at
-`ralph/.artifacts/context/issue-<issue>/diagnosis.md`. Implementation must read that artifact before
-editing; review receives it as supporting context.
+For issues labelled `bug`, Ralph runs a two-turn diagnosis pass before implementation: a reasoning
+**diagnose turn** (`diagnose`), then a dedicated **extraction turn** (`diagnose-extract`). The
+diagnose turn must build or identify a feedback loop, produce a fix plan, and its full output is
+written as the local handoff artifact at `ralph/.artifacts/context/issue-<issue>/diagnosis.md`.
+Implementation must read that artifact before editing; review receives it as supporting context.
 
-Bug diagnosis must also decide whether UI integration test edits are required. The diagnosis output
-must end with a single machine-parseable `<diagnosis-result>` artifact carrying the handoff
-(`root_cause`, `fix_plan`, `test_seam`) plus the authority decision:
+The diagnose turn also decides whether UI integration test edits are required, but a separate
+extraction turn — given the diagnose turn's output inline — has the sole job of reformatting that
+decision into one machine-parseable `<diagnosis-result>` artifact: a JSON object carrying the
+handoff (`root_cause`, `fix_plan`, `test_seam`) plus the authority decision. Splitting reasoning from
+formatting keeps the expensive diagnostic work out of the cheap, mechanical extraction pass:
 
 ```text
 <diagnosis-result>
-root_cause: The tap handler never reaches the visible writable row.
-fix_plan: Route the gesture through the real control instead of the overlay.
-test_seam: Tests/UI integration — the visible state only renders in the UI.
-ui_integration_test_edits_required: true
-scope: Tests/UI/WorkoutTrackerUITests.swift
-reason: Critical real-control workflow per docs/TESTING.md; lower-level tests cannot prove the route.
+{
+  "root_cause": "The tap handler never reaches the visible writable row.",
+  "fix_plan": "Route the gesture through the real control instead of the overlay.",
+  "test_seam": "Tests/UI integration — the visible state only renders in the UI.",
+  "ui_integration_test_edits_required": true,
+  "scope": ["Tests/UI/WorkoutTrackerUITests.swift"],
+  "reason": "Critical real-control workflow per docs/TESTING.md; lower-level tests cannot prove the route."
+}
 </diagnosis-result>
 ```
 
@@ -340,15 +345,18 @@ or:
 
 ```text
 <diagnosis-result>
-root_cause: <concise statement of the diagnosed cause>
-fix_plan: <intended fix approach>
-test_seam: <lowest layer that can prove the fix, per docs/TESTING.md>
-ui_integration_test_edits_required: false
+{
+  "root_cause": "<concise statement of the diagnosed cause>",
+  "fix_plan": "<intended fix approach>",
+  "test_seam": "<lowest layer that can prove the fix, per docs/TESTING.md>",
+  "ui_integration_test_edits_required": false
+}
 </diagnosis-result>
 ```
 
-If the artifact is missing or malformed, Ralph reruns the `diagnose` phase once with the parser
-error appended before escalating for human attention.
+If the artifact is missing or malformed, Ralph reruns only the `diagnose-extract` turn — never the
+`diagnose` reasoning turn — with the parser error appended, up to two retries (three attempts total),
+before escalating for human attention via a blocked rescue PR.
 
 When diagnosis says UI integration test edits are required and the issue body is not already
 authorized, Ralph may grant that authority itself before implementation starts. Ralph reuses the

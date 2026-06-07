@@ -1,13 +1,15 @@
 """Bug-diagnosis artifact parsing and issue-body authority grants.
 
-A bug-labelled issue runs a ``diagnose`` phase before implementation. The phase
-emits a single structured ``<diagnosis-result>`` artifact carrying the full
-handoff (root cause, fix plan, regression-test seam) plus the UI-test authority
-decision. This module is the pure, side-effect-free core of that gate:
+A bug-labelled issue runs a ``diagnose`` (reasoning) phase, then a dedicated
+``diagnose-extract`` phase whose sole job is to emit a single structured
+``<diagnosis-result>`` artifact — a JSON object carrying the full handoff (root
+cause, fix plan, regression-test seam) plus the UI-test authority decision.
+This module is the pure, side-effect-free core of that gate:
 
-- :func:`parse_diagnosis_authority` reads the artifact out of a diagnosis
-  response and classifies it: not-required, grant-UI-tests, malformed (one
-  generic ``diagnose`` retry), or out-of-scope (escalate for human authority).
+- :func:`parse_diagnosis_authority` reads the artifact out of an extraction
+  response and classifies it: not-required, grant-UI-tests, malformed (re-runs
+  only the cheap ``diagnose-extract`` turn), or out-of-scope (escalate for
+  human authority).
 - :func:`apply_ui_test_authority` is the pure issue-body transform that adds the
   exact ``UI integration test edits: authorized`` marker under a ``## Test
   authority`` section without ever mutating its input.
@@ -21,6 +23,7 @@ in ``loop.py``; nothing here shells out, edits GitHub, or mutates its inputs.
 from __future__ import annotations
 
 import enum
+import json
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -41,8 +44,6 @@ _BLOCK = re.compile(
 _REQUIRED_KEY = "ui_integration_test_edits_required"
 # Handoff fields that must be present and non-empty for a well-formed artifact.
 _HANDOFF_KEYS = ("root_cause", "fix_plan", "test_seam")
-# scope paths are separated by commas and/or whitespace.
-_SCOPE_SPLIT = re.compile(r"[,\s]+")
 
 
 class DiagnosisAuthorityStatus(enum.Enum):
@@ -55,7 +56,7 @@ class DiagnosisAuthorityStatus(enum.Enum):
     """Valid artifact requesting authority limited to ``Tests/UI/**``."""
 
     MALFORMED = "malformed"
-    """Artifact missing, incomplete, or non-boolean; gets one ``diagnose`` retry."""
+    """Artifact missing, non-JSON, or schema-invalid; gets a ``diagnose-extract`` retry."""
 
     OUT_OF_SCOPE = "out-of-scope"
     """Requests authority beyond ``Tests/UI/**``; must escalate for a human."""
@@ -105,37 +106,46 @@ class DiagnosisAuthorityParse:
 def parse_diagnosis_authority(text: str) -> DiagnosisAuthorityParse:
     """Parse the first ``<diagnosis-result>`` artifact out of ``text``.
 
-    Classifies the artifact per the spec: ``root_cause``, ``fix_plan``, and
-    ``test_seam`` must be present and non-empty, and a boolean
-    ``ui_integration_test_edits_required`` line is mandatory; ``true``
-    additionally requires a non-empty ``scope`` (paths only under
-    ``Tests/UI/**``) and a non-empty ``reason``. Scope outside ``Tests/UI/**``
-    is reported as :attr:`DiagnosisAuthorityStatus.OUT_OF_SCOPE` so the caller
-    escalates rather than retries.
+    The artifact body is a JSON object. Classifies it per the spec:
+    ``root_cause``, ``fix_plan``, and ``test_seam`` must be present and
+    non-empty strings, and a boolean ``ui_integration_test_edits_required`` is
+    mandatory; ``true`` additionally requires a non-empty ``scope`` array
+    (paths only under ``Tests/UI/**``) and a non-empty ``reason``. Scope
+    outside ``Tests/UI/**`` is reported as
+    :attr:`DiagnosisAuthorityStatus.OUT_OF_SCOPE` so the caller escalates
+    rather than retries. Non-JSON or non-object content is ``MALFORMED``.
     """
 
     match = _BLOCK.search(text)
     if match is None:
         return _malformed("no <diagnosis-result> artifact was found")
 
-    fields = _parse_fields(match.group("inner"))
+    try:
+        payload = json.loads(match.group("inner").strip())
+    except json.JSONDecodeError as exc:
+        return _malformed(f"<diagnosis-result> body is not valid JSON: {exc}")
+
+    if not isinstance(payload, dict):
+        return _malformed("<diagnosis-result> body must be a JSON object")
 
     for key in _HANDOFF_KEYS:
-        if not fields.get(key, "").strip():
+        value = payload.get(key)
+        if not isinstance(value, str) or not value.strip():
             return _malformed(f"missing required field `{key}`")
 
-    raw_required = fields.get(_REQUIRED_KEY)
-    if raw_required is None:
+    if _REQUIRED_KEY not in payload:
         return _malformed(f"missing required field `{_REQUIRED_KEY}`")
 
-    required = _parse_bool(raw_required)
-    if required is None:
+    raw_required = payload.get(_REQUIRED_KEY)
+    if not isinstance(raw_required, bool):
         return _malformed(
-            f"`{_REQUIRED_KEY}` must be exactly `true` or `false`, got {raw_required!r}"
+            f"`{_REQUIRED_KEY}` must be a JSON boolean (`true`/`false`), got {raw_required!r}"
         )
+    required = raw_required
 
-    handoff = {key: fields[key].strip() for key in _HANDOFF_KEYS}
-    blocked_reason = fields.get("blocked_reason", "").strip()
+    handoff = {key: payload[key].strip() for key in _HANDOFF_KEYS}
+    raw_blocked_reason = payload.get("blocked_reason", "")
+    blocked_reason = raw_blocked_reason.strip() if isinstance(raw_blocked_reason, str) else ""
 
     if not required:
         return DiagnosisAuthorityParse(
@@ -147,8 +157,9 @@ def parse_diagnosis_authority(text: str) -> DiagnosisAuthorityParse:
             ),
         )
 
-    scope = _parse_scope(fields.get("scope", ""))
-    reason = fields.get("reason", "").strip()
+    scope = _parse_scope(payload.get("scope"))
+    raw_reason = payload.get("reason", "")
+    reason = raw_reason.strip() if isinstance(raw_reason, str) else ""
     if not scope:
         return _malformed("`scope` is required when UI integration test edits are required")
     if not reason:
@@ -231,30 +242,12 @@ def render_authority_comment(issue_number: int, scope: Sequence[str], reason: st
     )
 
 
-def _parse_fields(inner: str) -> dict[str, str]:
-    fields: dict[str, str] = {}
-    for raw in inner.splitlines():
-        line = raw.strip()
-        if not line or ":" not in line:
-            continue
-        key, _, value = line.partition(":")
-        key = key.strip().lower()
-        if key and key not in fields:
-            fields[key] = value.strip()
-    return fields
-
-
-def _parse_bool(value: str) -> bool | None:
-    normalized = value.strip().lower()
-    if normalized == "true":
-        return True
-    if normalized == "false":
-        return False
-    return None
-
-
-def _parse_scope(value: str) -> tuple[str, ...]:
-    return tuple(token for token in _SCOPE_SPLIT.split(value.strip()) if token)
+def _parse_scope(value: object) -> tuple[str, ...]:
+    if not isinstance(value, list):
+        return ()
+    if not all(isinstance(item, str) and item.strip() for item in value):
+        return ()
+    return tuple(item.strip() for item in value)
 
 
 def _under_ui_tests(path: str) -> bool:
