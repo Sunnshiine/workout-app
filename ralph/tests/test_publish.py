@@ -219,5 +219,96 @@ class PrdPullRequestTests(unittest.TestCase):
         self.assertEqual(len(client.list_open_prs(head="ralph/prd-1")), 1)
 
 
+class StackedDependentPublishTests(unittest.TestCase):
+    """A ``## Blocked by`` dependent squashes onto the chain root PR (ADR-0008)."""
+
+    def _chain_client(self) -> FakeGitHubClient:
+        # 221 is the root; 222 is blocked by 221; 223 is blocked by 222 (depth-2).
+        return FakeGitHubClient(
+            issues={
+                221: _issue(221, title="root", labels=[LABEL_AGENT_IMPLEMENTED]),
+                222: _issue(222, title="dep", body="## Blocked by\n- #221\n"),
+                223: _issue(223, title="dep2", body="## Blocked by\n- #222\n"),
+            }
+        )
+
+    def _publish_root(self, client: FakeGitHubClient, git) -> int:
+        root = _contract(client, 221)
+        return PullRequestPublisher(client, git).publish(
+            root, TargetResolver(client).resolve(root), engine="x"
+        )
+
+    def test_dependent_squashes_onto_root_without_new_pr(self) -> None:
+        client = self._chain_client()
+        git = _RecordingGit()
+        root_pr = self._publish_root(client, git)
+
+        dep = _contract(client, 222)
+        target = TargetResolver(client).resolve(dep)
+        self.assertEqual(target.branch, "ralph/issue-221")
+        self.assertTrue(target.is_stacked_dependent)
+
+        dep_pr = PullRequestPublisher(client, git).publish(dep, target, engine="x")
+
+        # Reuses the root PR; no second PR is created for the dependent.
+        self.assertEqual(dep_pr, root_pr)
+        self.assertEqual(len(client.list_open_prs(head="ralph/issue-221")), 1)
+        create_calls = [c for c in client.calls if c[0] == "create_pr"]
+        self.assertEqual(len(create_calls), 1)
+        # The dependent's single commit was pushed onto the root branch.
+        push_calls = [c for c in git.calls if c[0] == "push"]
+        self.assertTrue(all("ralph/issue-221" in c for c in push_calls))
+
+    def test_root_pr_accumulates_closes_lines(self) -> None:
+        client = self._chain_client()
+        git = _RecordingGit()
+        root_pr = self._publish_root(client, git)
+        body = client.find_pr_by_head_branch("ralph/issue-221")["body"]
+        self.assertIn("Closes #221", body)
+        self.assertNotIn("Closes #222", body)
+
+        dep = _contract(client, 222)
+        PullRequestPublisher(client, git).publish(
+            dep, TargetResolver(client).resolve(dep), engine="x"
+        )
+
+        body = client.find_pr_by_head_branch("ralph/issue-221")["body"]
+        self.assertIn("Closes #221", body)
+        self.assertIn("Closes #222", body)
+        self.assertEqual(client._pr(root_pr)["number"], root_pr)
+
+    def test_no_duplicate_closes_line(self) -> None:
+        client = self._chain_client()
+        git = _RecordingGit()
+        self._publish_root(client, git)
+
+        dep = _contract(client, 222)
+        publisher = PullRequestPublisher(client, git)
+        publisher.publish(dep, TargetResolver(client).resolve(dep), engine="x")
+        # Re-publishing the same dependent (e.g. a retried push) must not append twice.
+        publisher.publish(dep, TargetResolver(client).resolve(dep), engine="x")
+
+        body = client.find_pr_by_head_branch("ralph/issue-221")["body"]
+        self.assertEqual(body.count("Closes #222"), 1)
+
+    def test_depth_two_dependent_squashes_onto_transitive_root(self) -> None:
+        # 223 is blocked by 222 which is blocked by 221: its root is 221, not 222.
+        client = self._chain_client()
+        git = _RecordingGit()
+        self._publish_root(client, git)
+
+        dep2 = _contract(client, 223)
+        target = TargetResolver(client).resolve(dep2)
+        self.assertEqual(target.branch, "ralph/issue-221")
+        self.assertTrue(target.is_stacked_dependent)
+
+        PullRequestPublisher(client, git).publish(dep2, target, engine="x")
+
+        body = client.find_pr_by_head_branch("ralph/issue-221")["body"]
+        self.assertIn("Closes #223", body)
+        self.assertEqual(len(client.list_open_prs(head="ralph/issue-221")), 1)
+        self.assertEqual(len(client.list_open_prs(head="ralph/issue-223")), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

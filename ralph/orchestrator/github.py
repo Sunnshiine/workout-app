@@ -50,6 +50,9 @@ class GitHubClient(Protocol):
     def add_pr_labels(self, number: int, labels: Sequence[str]) -> None:
         """Add ``labels`` to PR ``number``."""
 
+    def edit_pr_body(self, number: int, body: str) -> None:
+        """Replace the body of PR ``number`` with ``body``."""
+
     def add_issue_labels(self, number: int, labels: Sequence[str]) -> None:
         """Add ``labels`` to issue ``number``."""
 
@@ -189,6 +192,19 @@ class GhCliClient:
 
     def add_pr_labels(self, number: int, labels: Sequence[str]) -> None:
         self._edit_labels("pr", number, add=labels)
+
+    def edit_pr_body(self, number: int, body: str) -> None:
+        self._runner(
+            [
+                "gh",
+                "pr",
+                "edit",
+                str(number),
+                *self._repo_args(),
+                "--body",
+                body,
+            ]
+        )
 
     def add_issue_labels(self, number: int, labels: Sequence[str]) -> None:
         self.edit_issue_labels(number, add=labels)
@@ -334,6 +350,11 @@ class FakeGitHubClient:
         pr = self._pr(number)
         pr["labels"] = _merge_labels(pr.get("labels"), labels)
         self.calls.append(("add_pr_labels", number, tuple(labels)))
+
+    def edit_pr_body(self, number: int, body: str) -> None:
+        pr = self._pr(number)
+        pr["body"] = body
+        self.calls.append(("edit_pr_body", number, body))
 
     def add_issue_labels(self, number: int, labels: Sequence[str]) -> None:
         issue = self._issue(number)

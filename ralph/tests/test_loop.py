@@ -22,17 +22,18 @@ from ralph.orchestrator.gates import (
 )
 from ralph.orchestrator.github import FakeGitHubClient
 from ralph.orchestrator.loop import (
+    UI_INTEGRATION_SMOKE_SELECTORS,
     IssueSelector,
     OriginMain,
     RalphLoop,
     RalphLoopError,
-    UI_INTEGRATION_SMOKE_SELECTORS,
     _format_ralph_log_line,
     _gate_name_for_command,
     _gate_specs,
 )
 from ralph.orchestrator.publish import (
     LABEL_AGENT_ACTIVE,
+    LABEL_AGENT_BLOCKED,
     LABEL_AGENT_IMPLEMENTED,
     LABEL_READY_FOR_AGENT,
     LABEL_READY_FOR_HUMAN,
@@ -173,6 +174,80 @@ class IssueSelectorTests(unittest.TestCase):
 
         self.assertIsNotNone(selected)
         self.assertEqual(selected.number, 11)
+
+    def test_selects_candidate_when_blocked_by_dependency_is_agent_implemented(self) -> None:
+        client = FakeGitHubClient(
+            issues={
+                10: _issue(10, title="Dependency", labels=[LABEL_AGENT_IMPLEMENTED]),
+                11: _issue(11, title="Dependent", body="## Blocked by\n\n- #10\n"),
+            }
+        )
+
+        selected = IssueSelector(client).select_next()
+
+        self.assertIsNotNone(selected)
+        self.assertEqual(selected.number, 11)
+
+    def test_skips_candidate_whose_blocked_by_dependency_is_agent_active(self) -> None:
+        client = FakeGitHubClient(
+            issues={
+                10: _issue(10, title="Dependency", labels=[LABEL_AGENT_ACTIVE]),
+                11: _issue(11, title="Dependent", body="## Blocked by\n\n- #10\n"),
+            }
+        )
+
+        selected = IssueSelector(client).select_next()
+
+        self.assertIsNone(selected)
+
+    def test_skips_candidate_whose_blocked_by_dependency_is_ready_for_agent(self) -> None:
+        # #10 is itself ready (and selectable), but its dependent #11 must not be
+        # picked while #10 has not yet landed.
+        client = FakeGitHubClient(
+            issues={
+                10: _issue(10, title="Dependency", labels=[LABEL_READY_FOR_AGENT]),
+                11: _issue(11, title="Dependent", body="## Blocked by\n\n- #10\n"),
+            }
+        )
+
+        selected = IssueSelector(client).select_next()
+
+        self.assertIsNotNone(selected)
+        self.assertNotEqual(selected.number, 11)
+
+    def test_agent_blocked_dependency_halts_dependent(self) -> None:
+        client = FakeGitHubClient(
+            issues={
+                10: _issue(10, title="Dependency", labels=[LABEL_AGENT_BLOCKED]),
+                11: _issue(11, title="Dependent", body="## Blocked by\n\n- #10\n"),
+            }
+        )
+
+        selected = IssueSelector(client).select_next()
+
+        self.assertIsNone(selected)
+
+    def test_agent_blocked_middle_link_halts_transitive_dependent(self) -> None:
+        # Depth-2 chain 20 -> 21 -> 22 with a BLOCKED middle link (#21).
+        # #21 is agent-blocked and #20 is agent-implemented, so a naive immediate
+        # -parent check on #22 (whose only ## Blocked by is #21) must still leave
+        # #22 ineligible: the halt propagates down the whole transitive chain.
+        client = FakeGitHubClient(
+            issues={
+                20: _issue(20, title="Root", labels=[LABEL_AGENT_IMPLEMENTED]),
+                21: _issue(
+                    21,
+                    title="Blocked middle",
+                    body="## Blocked by\n\n- #20\n",
+                    labels=[LABEL_AGENT_BLOCKED],
+                ),
+                22: _issue(22, title="Transitive dependent", body="## Blocked by\n\n- #21\n"),
+            }
+        )
+
+        selected = IssueSelector(client).select_next()
+
+        self.assertIsNone(selected)
 
 
 class RalphLogTests(unittest.TestCase):
@@ -339,6 +414,54 @@ class RalphLoopTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.tmp.cleanup()
+
+    def test_blocked_by_chain_stacks_both_issues_onto_one_root_pr(self) -> None:
+        # End-to-end fake-engine run over a two-issue chain: root #100 lands first
+        # on ralph/issue-100, then dependent #101 (## Blocked by #100, now
+        # agent-implemented) is selected, bases on the root branch, and squashes
+        # onto the same branch/PR — one root PR with both Closes lines.
+        remote = Path(self.tmp.name) / "remote.git"
+        _git(remote.parent, "init", "--bare", "-b", "main", str(remote))
+        _git(self.repo, "remote", "add", "origin", str(remote))
+        _git(self.repo, "push", "origin", "main")
+
+        client = FakeGitHubClient(
+            issues={
+                100: _issue(100, title="Chain root"),
+                101: _issue(101, title="Chain dependent", body="## Blocked by\n\n- #100\n"),
+            }
+        )
+        loop = RalphLoop(
+            config=RunConfig(engine="fake", max_iterations=2),
+            repo_root=self.repo,
+            client=client,
+            engine=FakeEngine(),
+            worktrees=WorktreeManager(self.repo, runner=default_git_runner),
+            gate_runner_factory=lambda _w, _i, _n: GateRunner(
+                lambda _c: CommandResult(exit_status=0)
+            ),
+        )
+
+        summary = loop.run()
+
+        self.assertEqual(summary.issues_selected, (100, 101))
+        self.assertEqual(summary.issues_completed, (100, 101))
+        self.assertIn(LABEL_AGENT_IMPLEMENTED, client.issue_labels(100))
+        self.assertIn(LABEL_AGENT_IMPLEMENTED, client.issue_labels(101))
+
+        root_pr = client.find_pr_by_head_branch("ralph/issue-100")
+        self.assertIsNotNone(root_pr)
+        self.assertIsNone(client.find_pr_by_head_branch("ralph/issue-101"))
+        self.assertIn("Closes #100", root_pr["body"])
+        self.assertIn("Closes #101", root_pr["body"])
+
+        commits = subprocess.run(
+            ["git", "-C", str(self.repo), "log", "--format=%s", "origin/ralph/issue-100"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        self.assertEqual(commits.count("via Ralph"), 2)
 
     def test_successful_iteration_polls_origin_main_and_publishes_pr(self) -> None:
         client = FakeGitHubClient(issues={7: _issue(7, title="Add thing")})

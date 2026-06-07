@@ -21,6 +21,7 @@ git, or the network.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
@@ -159,6 +160,8 @@ class PullRequestPublisher:
         self._commit_and_push(contract.number, target.branch, engine)
         pr = self._client.find_pr_by_head_branch(target.branch)
         if pr is not None:
+            if target.is_stacked_dependent:
+                self._accumulate_closes(pr, contract.number)
             return _pr_number(pr)
         return self._create_draft_pr(contract, target)
 
@@ -208,11 +211,39 @@ class PullRequestPublisher:
         self._run(["commit", "--allow-empty", "-m", message], "commit integration tree")
         self._run(["push", "--force-with-lease", "origin", branch], f"push {branch}")
 
+    def _accumulate_closes(self, pr: dict, issue_number: int) -> None:
+        """Append a ``Closes #<n>`` line to the root PR body, never duplicating.
+
+        A stacked dependent's work is squashed onto the root branch; the root PR
+        accretes one ``Closes`` line per landed issue. If the issue is already
+        referenced (e.g. a retried publish) the body is left untouched.
+        """
+
+        body = pr.get("body") or ""
+        updated = _append_closes_line(body, issue_number)
+        if updated == body:
+            return
+        self._client.edit_pr_body(_pr_number(pr), updated)
+
     def _run(self, args: Sequence[str], what: str) -> None:
         result = self._runner(list(args))
         if not result.ok:
             detail = result.stderr.strip() or result.stdout.strip()
             raise PublishError(f"failed to {what} (git exit {result.returncode}): {detail}")
+
+
+def _append_closes_line(body: str, issue_number: int) -> str:
+    """Return ``body`` with a ``Closes #<n>`` line appended, or unchanged.
+
+    The body is unchanged if it already references ``Closes #<n>`` exactly (as a
+    whole word, so ``Closes #22`` does not satisfy ``Closes #222``).
+    """
+
+    pattern = re.compile(rf"Closes #{issue_number}\b")
+    if pattern.search(body):
+        return body
+    separator = "" if body.endswith("\n") or not body else "\n"
+    return f"{body}{separator}Closes #{issue_number}\n"
 
 
 def _pr_title(contract: IssueContract) -> str:

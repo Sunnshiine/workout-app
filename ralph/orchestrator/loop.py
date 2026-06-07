@@ -160,9 +160,12 @@ class IssueSelector:
     def _dependencies_satisfied(self, issue: dict) -> bool:
         """True only when every ``## Blocked by`` upstream issue has landed.
 
-        A dependency must be closed (``state == "CLOSED"``) to count as landed. A
-        dep that is missing, still OPEN, or labeled ``agent-blocked`` leaves the
-        candidate ineligible so dependents are never picked up early.
+        A dependency has landed once its work is on the chain root branch — that
+        is, it is ``agent-implemented`` or ``CLOSED`` (ADR-0008). A dep that is
+        missing, still pending (``ready-for-agent``/``agent-active``), or labeled
+        ``agent-blocked`` leaves the candidate ineligible. Because an unsatisfied
+        link is never satisfied, an ``agent-blocked`` dependency permanently halts
+        the dependent and every transitive dependent below it.
         """
 
         body = issue.get("body")
@@ -175,9 +178,12 @@ class IssueSelector:
             payload = self._client.view_issue(dep)
         except GitHubClientError:
             return False
-        if payload.get("state") != "CLOSED":
+        labels = _label_names(payload.get("labels"))
+        if LABEL_AGENT_BLOCKED in labels:
             return False
-        return LABEL_AGENT_BLOCKED not in _label_names(payload.get("labels"))
+        if LABEL_AGENT_IMPLEMENTED in labels:
+            return True
+        return payload.get("state") == "CLOSED"
 
 
 class OriginMain:
