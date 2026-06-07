@@ -81,6 +81,15 @@ The normal loop polls `origin/main` at the start of each iteration, selects one 
 deterministic `ralph/*` PR branch worktree, runs the phase agents and gates, then publishes only
 through a pull request.
 
+Issues in a `## Blocked by` chain stack onto an **accreting root PR** rather than each landing on
+`main` independently (see [ADR 0008](../docs/adr/0008-ralph-stacked-blocked-by-chains.md)). The
+chain root — the eldest ancestor whose own blocker is `None` or already merged — owns the durable
+`ralph/issue-<root>` branch. Each dependent is built on a scratch worktree based on that root
+branch, and on success its work is squashed back onto the root and a `Closes #<n>` line is appended
+to the root PR. A dependent becomes eligible as soon as its dependency is `agent-implemented` (work
+is on the root) — it does not wait for a human merge. A dependency that goes `agent-blocked` halts
+the whole chain downstream of it. This assumes a single Ralph loop processing one issue at a time.
+
 ### Keep macOS awake with caffeinate
 
 For longer Ralph runs on macOS, wrap the command with the native `caffeinate` utility so the Mac
@@ -134,6 +143,7 @@ Removed legacy shell options fail clearly:
 Use the deterministic Python PR targets instead:
 
 - one-off issue: `ralph/issue-<issue-number>`
+- `Blocked by`-chain dependent: the chain root's `ralph/issue-<root-number>` (squashed onto, not a new branch)
 - PRD-scoped issue: `ralph/prd-<prd-number>`
 - blocked rescue: `ralph/issue-<issue-number>-blocked`
 
@@ -283,6 +293,12 @@ Close the control issue/PR and delete `ralph/dry-run/issue-*` branches after rev
 Eligible issues are open, labelled `ready-for-agent`, not PRDs/epics, not already claimed or
 implemented by Ralph, not `ready-for-human`, and not blocked by unfinished dependencies. A concrete
 issue body or Agent Brief must provide the implementation contract.
+
+A `## Blocked by` dependency counts as satisfied once it is `agent-implemented` **or** `CLOSED` —
+both mean its work has landed on the chain root branch (see
+[ADR 0008](../docs/adr/0008-ralph-stacked-blocked-by-chains.md)). A dependency that is
+`agent-blocked` permanently blocks every transitive dependent. (Note: this supersedes the older
+"dependency must be `CLOSED`" behavior in `IssueSelector._dependency_landed`.)
 
 Ralph treats GitHub labels as its issue lifecycle state machine:
 
