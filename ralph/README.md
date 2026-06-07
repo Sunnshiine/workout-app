@@ -297,8 +297,7 @@ issue body or Agent Brief must provide the implementation contract.
 A `## Blocked by` dependency counts as satisfied once it is `agent-implemented` **or** `CLOSED` —
 both mean its work has landed on the chain root branch (see
 [ADR 0008](../docs/adr/0008-ralph-stacked-blocked-by-chains.md)). A dependency that is
-`agent-blocked` permanently blocks every transitive dependent. (Note: this supersedes the older
-"dependency must be `CLOSED`" behavior in `IssueSelector._dependency_landed`.)
+`agent-blocked` permanently blocks every transitive dependent.
 
 Ralph treats GitHub labels as its issue lifecycle state machine:
 
