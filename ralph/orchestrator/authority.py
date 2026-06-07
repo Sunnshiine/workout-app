@@ -5,8 +5,7 @@ read git diffs through an injectable seam so tests inject ``name-status`` output
 directly and never run a real diff.
 
 Only one policy lives here: any ``Tests/UI/**`` or UI-test target wiring change
-in the issue range requires ``ui_test_edits_authorized``; any ``Tests/UI/**``
-change in the UI-verify phase range blocks unconditionally. Visual Baselines are
+in the issue range requires ``ui_test_edits_authorized``. Visual Baselines are
 normal test artifacts and are governed by the Visual Regression test gate, not a
 separate authority check.
 """
@@ -68,24 +67,12 @@ class AuthorityGate:
         *,
         issue_base: str,
         issue_tip: str,
-        ui_phase_base: str,
-        ui_phase_tip: str,
     ) -> AuthorityDecision:
-        """Enforce UI integration test edit authority across both ranges.
+        """Enforce UI integration test edit authority over the full issue diff.
 
-        UI-verify-phase edits to ``Tests/UI/**`` block unconditionally; this is
-        checked first because no authorization can override it. Otherwise an
-        issue-range ``Tests/UI/**`` or UI-test target-wiring change requires the
-        contract's ``ui_test_edits_authorized`` snapshot to be true.
+        An issue-range ``Tests/UI/**`` or UI-test target-wiring change requires
+        the contract's ``ui_test_edits_authorized`` snapshot to be true.
         """
-
-        ui_phase_ui_changes = self._ui_test_paths(ui_phase_base, ui_phase_tip)
-        if ui_phase_ui_changes:
-            return _blocked(
-                GATE_UI_INTEGRATION,
-                "UI verification phase edited UI integration tests, which is never "
-                f"allowed: {_join(ui_phase_ui_changes)}.",
-            )
 
         issue_ui_changes = self._ui_test_paths(issue_base, issue_tip)
         wiring_changes = self._wiring_paths(issue_base, issue_tip)

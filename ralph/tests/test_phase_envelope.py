@@ -23,9 +23,7 @@ from ralph.orchestrator.loop import (
     PHASE_DIAGNOSE_FORMAT,
     PHASE_IMPLEMENT,
     PHASE_REVIEW,
-    PHASE_UI_VERIFY,
     RalphLoop,
-    _allowed_actions_for_phase,
     _forbidden_actions_for_phase,
 )
 from ralph.orchestrator.phase import PhaseResult, PhaseStatus
@@ -50,7 +48,7 @@ def _init_repo(repo: Path) -> None:
     (repo / "README.md").write_text("seed\n", encoding="utf-8")
     prompts = repo / "ralph" / "prompts"
     prompts.mkdir(parents=True)
-    for name in ("implement.md", "review.md", "ui-verify.md", "diagnose.md"):
+    for name in ("implement.md", "review.md", "diagnose.md"):
         (prompts / name).write_text(f"{name}\n", encoding="utf-8")
     _git(repo, "add", "README.md", "ralph/prompts")
     _git(repo, "commit", "-m", "seed")
@@ -135,11 +133,6 @@ class ForbiddenActionsForPhaseTests(unittest.TestCase):
         self.assertIsInstance(result, tuple)
         self.assertGreater(len(result), 0)
 
-    def test_ui_verify_forbidden_actions_non_empty(self) -> None:
-        result = _forbidden_actions_for_phase(PHASE_UI_VERIFY)
-        self.assertIsInstance(result, tuple)
-        self.assertGreater(len(result), 0)
-
     def test_diagnose_forbidden_actions_non_empty(self) -> None:
         result = _forbidden_actions_for_phase(PHASE_DIAGNOSE)
         self.assertIsInstance(result, tuple)
@@ -155,69 +148,9 @@ class ForbiddenActionsForPhaseTests(unittest.TestCase):
         combined = " ".join(result).lower()
         self.assertIn("review subagent", combined)
 
-    def test_ui_verify_forbids_editing_code(self) -> None:
-        result = _forbidden_actions_for_phase(PHASE_UI_VERIFY)
-        combined = " ".join(result).lower()
-        self.assertIn("edit", combined)
-
-    def test_ui_verify_forbids_committing(self) -> None:
-        result = _forbidden_actions_for_phase(PHASE_UI_VERIFY)
-        combined = " ".join(result).lower()
-        self.assertIn("commit", combined)
-
-    def test_ui_verify_forbids_editing_tests_ui(self) -> None:
-        result = _forbidden_actions_for_phase(PHASE_UI_VERIFY)
-        combined = " ".join(result)
-        self.assertIn("Tests/UI/**", combined)
-
-    def test_ui_verify_forbids_spawning_review_subagents(self) -> None:
-        result = _forbidden_actions_for_phase(PHASE_UI_VERIFY)
-        combined = " ".join(result).lower()
-        self.assertIn("review subagent", combined)
-
-    def test_ui_verify_forbids_full_workouttrackeruitests_bundle(self) -> None:
-        result = _forbidden_actions_for_phase(PHASE_UI_VERIFY)
-        combined = " ".join(result).lower()
-        self.assertIn("workouttrackeruitests", combined)
-
-    def test_ui_verify_forbids_ui_interaction_suite(self) -> None:
-        result = _forbidden_actions_for_phase(PHASE_UI_VERIFY)
-        combined = " ".join(result).lower()
-        self.assertIn("ui interaction suite", combined)
-
-    def test_ui_verify_forbids_publication(self) -> None:
-        result = _forbidden_actions_for_phase(PHASE_UI_VERIFY)
-        combined = " ".join(result).lower()
-        self.assertIn("push", combined)
-        self.assertIn("merge", combined)
-
     def test_unknown_phase_returns_empty_tuple(self) -> None:
         result = _forbidden_actions_for_phase("unknown-phase")
         self.assertEqual(result, ())
-
-
-class AllowedActionsForUiVerifyTests(unittest.TestCase):
-    """_allowed_actions_for_phase for ui-verify is read-only (no commit/fix language)."""
-
-    def test_ui_verify_allowed_actions_exact(self) -> None:
-        result = _allowed_actions_for_phase(PHASE_UI_VERIFY)
-        self.assertEqual(
-            result,
-            (
-                "run UI Integration Smoke class-level selectors",
-                "write review artifacts under ralph/.artifacts/",
-            ),
-        )
-
-    def test_ui_verify_allowed_actions_no_commit_language(self) -> None:
-        result = _allowed_actions_for_phase(PHASE_UI_VERIFY)
-        combined = " ".join(result).lower()
-        self.assertNotIn("commit", combined)
-
-    def test_ui_verify_allowed_actions_no_fix_language(self) -> None:
-        result = _allowed_actions_for_phase(PHASE_UI_VERIFY)
-        combined = " ".join(result).lower()
-        self.assertNotIn("fix", combined)
 
 
 class PhaseContextForbiddenActionsFieldTests(unittest.TestCase):

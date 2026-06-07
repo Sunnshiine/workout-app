@@ -59,7 +59,7 @@ def _init_repo(repo: Path) -> None:
     (repo / "README.md").write_text("seed\n", encoding="utf-8")
     prompts = repo / "ralph" / "prompts"
     prompts.mkdir(parents=True)
-    for name in ("implement.md", "review.md", "ui-verify.md"):
+    for name in ("implement.md", "review.md"):
         (prompts / name).write_text(f"{name}\n", encoding="utf-8")
     _git(repo, "add", "README.md", "ralph/prompts")
     _git(repo, "commit", "-m", "seed")
@@ -347,6 +347,31 @@ class _VisualGateRunnerFactory:
         return GateRunner(run)
 
 
+class _UiSmokeGateRunnerFactory:
+    """Gate runner factory that fails UI Integration Smoke once, then scripts the rerun.
+
+    Models a UI-owned ``GATE_UI_INTEGRATION`` failure reaching the loop with no
+    ``ui-verify`` phase in front of it: the gate fails exactly once before any
+    repair runs, proving the loop routes the failure into the existing one-shot
+    repair path rather than blocking on a phase result.
+    """
+
+    def __init__(self, *, rerun_passes: bool) -> None:
+        self._rerun_passes = rerun_passes
+        self.smoke_runs = 0
+
+    def factory(self, _workdir: Path, _iteration: int, _issue: int) -> GateRunner:
+        def run(command) -> CommandResult:
+            if _gate_name_for_command(command) != GATE_UI_INTEGRATION:
+                return CommandResult(exit_status=0)
+            self.smoke_runs += 1
+            if self.smoke_runs == 1:
+                return CommandResult(exit_status=65, output="smoke failure")
+            return CommandResult(exit_status=0 if self._rerun_passes else 65)
+
+        return GateRunner(run)
+
+
 class RalphRepairWiringTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
@@ -403,6 +428,24 @@ class RalphRepairWiringTests(unittest.TestCase):
         self.assertIsNotNone(blocked_pr)
         comments = [c[2] for c in client.calls if c[0] == "comment_issue" and c[1] == 7]
         self.assertTrue(any("Repair attempted: yes" in body for body in comments))
+
+    def test_ui_smoke_gate_failure_runs_exactly_once_and_routes_to_repair(self) -> None:
+        # No ui-verify phase precedes the gate, so UI Integration Smoke executes
+        # exactly once (as GATE_UI_INTEGRATION) and a failure reaches the
+        # existing UI-owned repair path instead of an instant phase block.
+        client = FakeGitHubClient(issues={7: _issue(7, title="UI smoke change")})
+        engine = FakeEngine()
+        gates = _UiSmokeGateRunnerFactory(rerun_passes=True)
+        publish = _RecordingPublishRunner()
+        loop = self._loop(client=client, engine=engine, gates=gates, publish=publish)
+
+        summary = loop.run()
+
+        self.assertEqual(summary.issues_completed, (7,))
+        self.assertEqual(gates.smoke_runs, 2)
+        repair_calls = [c for c in engine.calls if c.phase == PHASE_REPAIR_UI_GATE]
+        self.assertEqual(len(repair_calls), 1)
+        self.assertNotIn("ui-verify", [c.phase for c in engine.calls])
 
 
 class RalphLoopTests(unittest.TestCase):

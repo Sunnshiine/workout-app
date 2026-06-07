@@ -18,7 +18,6 @@ from ralph.orchestrator.worktree import WorktreeManager, default_git_runner
 _PROMPT_FILES = (
     "implement.md",
     "review.md",
-    "ui-verify.md",
     "diagnose.md",
     "diagnose-format.md",
 )
@@ -166,7 +165,7 @@ class DiagnosisGateLoopTests(unittest.TestCase):
         self.assertEqual(summary.issues_completed, (11,))
         self.assertEqual(
             self._phases(engine),
-            ["diagnose", "implement-tdd", "review", "ui-verify"],
+            ["diagnose", "implement-tdd", "review"],
         )
 
     def test_non_bug_issue_skips_diagnosis(self) -> None:
@@ -179,7 +178,7 @@ class DiagnosisGateLoopTests(unittest.TestCase):
 
         self.assertEqual(summary.issues_completed, (12,))
         self.assertEqual(
-            self._phases(engine), ["implement-tdd", "review", "ui-verify"]
+            self._phases(engine), ["implement-tdd", "review"]
         )
         self.assertNotIn("diagnose", self._phases(engine))
 
@@ -197,7 +196,7 @@ class DiagnosisGateLoopTests(unittest.TestCase):
         self.assertEqual(summary.issues_completed, (13,))
         self.assertEqual(
             self._phases(engine),
-            ["diagnose", "diagnose-format", "implement-tdd", "review", "ui-verify"],
+            ["diagnose", "diagnose-format", "implement-tdd", "review"],
         )
         # The handoff merges the original findings with the corrected block so
         # implementation reads a valid authority block.
@@ -305,7 +304,6 @@ class DiagnosisGateLoopTests(unittest.TestCase):
         self.assertIn("<diagnosis_path>", by_phase["implement-tdd"].prompt)
         self.assertIn("diagnosis.md", by_phase["implement-tdd"].prompt)
         self.assertIn("diagnosis.md", by_phase["review"].prompt)
-        self.assertIn("diagnosis.md", by_phase["ui-verify"].prompt)
         # The diagnose phase itself has no prior handoff: element is self-closing.
         self.assertIn("<diagnosis_path/>", by_phase["diagnose"].prompt)
 
@@ -337,21 +335,6 @@ class DiagnosisGateLoopTests(unittest.TestCase):
 
         self.assertEqual(summary.issues_completed, (22,))
         self.assertEqual(summary.issues_blocked, ())
-
-    def test_ui_verify_phase_ui_test_edit_blocks_even_when_authorized(self) -> None:
-        # Authority is granted (issue-range edit would be allowed), but a UI-test
-        # edit made during ui-verify blocks unconditionally.
-        client = FakeGitHubClient(issues={23: _bug_issue(23)})
-        engine = _EditingEngine(
-            edit_phase="ui-verify",
-            rel_path="Tests/UI/FooUITests.swift",
-            results_by_phase={"diagnose": _complete("diagnose", _REQUIRED_BLOCK)},
-        )
-
-        summary = self._loop(client, engine).run()
-
-        self.assertEqual(summary.issues_blocked, (23,))
-        self.assertEqual(summary.issues_completed, ())
 
     def test_blocked_diagnose_phase_escalates_before_implement(self) -> None:
         client = FakeGitHubClient(issues={20: _bug_issue(20)})

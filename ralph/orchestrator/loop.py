@@ -69,7 +69,6 @@ UI_INTEGRATION_SMOKE_SELECTORS = (
 PHASE_DIAGNOSE_FORMAT = "diagnose-format"
 PHASE_IMPLEMENT = "implement-tdd"
 PHASE_REVIEW = "review"
-PHASE_UI_VERIFY = "ui-verify"
 
 BUG_LABEL = "bug"
 
@@ -363,16 +362,11 @@ class RalphLoop:
 
         extra_refs = (str(diagnosis_path),) if diagnosis_path is not None else ()
 
-        ui_phase_base = issue_base
-        ui_phase_tip = issue_base
         failed_phase: PhaseResult | None = None
         for phase, prompt_file in (
             (PHASE_IMPLEMENT, "implement.md"),
             (PHASE_REVIEW, "review.md"),
-            (PHASE_UI_VERIFY, "ui-verify.md"),
         ):
-            if phase == PHASE_UI_VERIFY:
-                ui_phase_base = self._rev_parse(worktree.path, "HEAD")
             result = self._run_phase(
                 phase,
                 prompt_file,
@@ -388,8 +382,6 @@ class RalphLoop:
             if not result.is_complete:
                 failed_phase = result
                 break
-            if phase == PHASE_UI_VERIFY:
-                ui_phase_tip = self._rev_parse(worktree.path, "HEAD")
 
         issue_tip = self._rev_parse(worktree.path, "HEAD")
         if failed_phase is not None:
@@ -401,8 +393,6 @@ class RalphLoop:
             worktree.path,
             issue_base=issue_base,
             issue_tip=issue_tip,
-            ui_phase_base=ui_phase_base,
-            ui_phase_tip=ui_phase_tip,
         )
         if authority_failure is not None:
             self._publish_blocked(
@@ -412,8 +402,6 @@ class RalphLoop:
                 failed_gate=authority_failure,
                 issue_base=issue_base,
                 issue_tip=issue_tip,
-                ui_phase_base=ui_phase_base,
-                ui_phase_tip=ui_phase_tip,
             )
             return False
 
@@ -433,8 +421,6 @@ class RalphLoop:
                     repair_outcome=repair_outcome,
                     issue_base=issue_base,
                     issue_tip=issue_tip,
-                    ui_phase_base=ui_phase_base,
-                    ui_phase_tip=ui_phase_tip,
                 )
                 return False
 
@@ -677,8 +663,6 @@ class RalphLoop:
         *,
         issue_base: str,
         issue_tip: str,
-        ui_phase_base: str,
-        ui_phase_tip: str,
     ) -> GateResult | None:
         """Mechanically enforce UI integration test edit authority.
 
@@ -686,7 +670,8 @@ class RalphLoop:
         UI-test target-wiring change fails fast without spending build time. The
         check reads committed diffs through a git seam and never trusts agent
         prompt compliance; authorization comes only from the contract snapshot a
-        diagnosis grant recaptures.
+        diagnosis grant recaptures. Evaluated over the full ``issue_base..issue_tip``
+        diff — there is no separate UI-phase window.
         """
 
         gate = AuthorityGate(_name_status_diff(workdir))
@@ -694,8 +679,6 @@ class RalphLoop:
             contract,
             issue_base=issue_base,
             issue_tip=issue_tip,
-            ui_phase_base=ui_phase_base,
-            ui_phase_tip=ui_phase_tip,
         )
         if decision.blocked:
             _ralph_log(f"authority gate {decision.gate.name} -> {decision.gate.status}")
@@ -788,8 +771,6 @@ class RalphLoop:
         repair_outcome: RepairOutcome | None = None,
         issue_base: str | None = None,
         issue_tip: str | None = None,
-        ui_phase_base: str | None = None,
-        ui_phase_tip: str | None = None,
     ) -> None:
         report = BlockedReport(
             issue=contract.number,
@@ -816,7 +797,6 @@ class RalphLoop:
         pr_number = publisher.publish(contract, report)
         _ralph_log(f"issue #{contract.number} blocked in PR #{pr_number}")
         # Preserve blocked worktree for inspection; cleanup would defeat the rescue path.
-        _ = ui_phase_base, ui_phase_tip
 
     def _changed_files(
         self, workdir: Path, base: str | None, tip: str | None
@@ -1113,16 +1093,6 @@ def _forbidden_actions_for_phase(phase: str) -> tuple[str, ...]:
             "run UI Interaction Suite tests",
             "push, merge, open PRs, close PRs, or close issues",
         )
-    if phase == PHASE_UI_VERIFY:
-        return (
-            "edit code outside Tests/UI/**",
-            "edit Tests/UI/**",
-            "commit changes",
-            "spawn review subagents",
-            "run the full WorkoutTrackerUITests bundle",
-            "run UI Interaction Suite tests",
-            "push, merge, open PRs, close PRs, or close issues",
-        )
     return ()
 
 
@@ -1144,11 +1114,6 @@ def _allowed_actions_for_phase(phase: str) -> tuple[str, ...]:
             "spawn spec-conformance-reviewer",
             "fix blocking non-UI findings",
             "commit review fixes",
-        )
-    if phase == PHASE_UI_VERIFY:
-        return (
-            "run UI Integration Smoke class-level selectors",
-            "write review artifacts under ralph/.artifacts/",
         )
     return ()
 
