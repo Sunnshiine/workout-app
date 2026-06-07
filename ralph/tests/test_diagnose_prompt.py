@@ -19,14 +19,12 @@ class DiagnosePromptXmlStructureTests(unittest.TestCase):
         self.assertIn("<role>", self.prompt)
         self.assertIn("<contract>", self.prompt)
         self.assertIn("<work>", self.prompt)
-        self.assertIn("<diagnosis_artifact_instructions>", self.prompt)
         self.assertIn("<completion_gate>", self.prompt)
 
     def test_xml_closing_tags_present(self) -> None:
         self.assertIn("</role>", self.prompt)
         self.assertIn("</contract>", self.prompt)
         self.assertIn("</work>", self.prompt)
-        self.assertIn("</diagnosis_artifact_instructions>", self.prompt)
         self.assertIn("</completion_gate>", self.prompt)
 
     def test_prompt_starts_with_role_tag(self) -> None:
@@ -35,21 +33,16 @@ class DiagnosePromptXmlStructureTests(unittest.TestCase):
     def test_gh_issue_view_present(self) -> None:
         self.assertIn("gh issue view", self.prompt)
 
-    def test_example_tags_count(self) -> None:
-        self.assertEqual(self.prompt.count("<example>"), 2)
-        self.assertEqual(self.prompt.count("</example>"), 2)
+    def test_no_diagnosis_result_artifact_format(self) -> None:
+        # The artifact format now lives solely in diagnose-extract.md.
+        self.assertNotIn("<diagnosis-result>", self.prompt)
+        self.assertNotIn("<example>", self.prompt)
+        self.assertNotIn("ui_integration_test_edits_required", self.prompt)
 
-    def test_emits_structured_diagnosis_result_artifact(self) -> None:
-        # Two fenced examples (UI-required / not-required); the legacy block is gone.
-        self.assertEqual(self.prompt.count("</diagnosis-result>"), 2)
-        self.assertNotIn("<diagnosis-authority>", self.prompt)
-
-    def test_artifact_handoff_fields_present(self) -> None:
-        for field in ("root_cause", "fix_plan", "test_seam"):
-            self.assertIn(field, self.prompt)
-
-    def test_ui_integration_test_edits_required_present(self) -> None:
-        self.assertIn("ui_integration_test_edits_required", self.prompt)
+    def test_retains_diagnose_skill_mandate(self) -> None:
+        self.assertIn("Must invoke the", self.prompt)
+        self.assertIn("diagnose", self.prompt)
+        self.assertIn("skill", self.prompt)
 
     def test_no_envelope_action_list_restated(self) -> None:
         # The controller-injected envelope owns allowed/forbidden actions; the body
