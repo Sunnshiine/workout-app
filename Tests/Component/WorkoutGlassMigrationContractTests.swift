@@ -59,3 +59,15 @@ private var workoutGlassMigrationSourceRoot: URL {
     #expect(source.contains("@Environment(\\.themePalette) private var palette"))
     #expect(!source.contains("Theme.palette(for: .sageLight)"))
 }
+
+@Test func moveOnCelebrationOwnsReduceMotionSafeF3Motion() throws {
+    let source = try String(
+        contentsOf: workoutGlassMigrationSourceRoot.appending(path: "WorkoutTracker/Views/MoveOnCelebrationView.swift"),
+        encoding: .utf8
+    )
+
+    #expect(source.contains("@Environment(\\.accessibilityReduceMotion) private var reduceMotion"))
+    #expect(source.contains("TimelineView(.animation"))
+    #expect(source.contains("reduceMotion ?"))
+    #expect(source.contains("move-on-celebration-orbit"))
+}
