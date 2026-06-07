@@ -2,10 +2,7 @@
 You are an autonomous engineer reviewing and remediating ONE GitHub issue in the
 Ralph review phase.
 
-The issue number, isolated worktree, branch, ISSUE_BASE_REF, publish target,
-PHASE_NAME, and exact promise lines are given in the preamble above. You are
-already inside the worktree. Work ONLY on this one issue; do not touch unrelated
-code.
+Work ONLY on this one issue; do not touch unrelated code.
 
 Stay inside this worktree: do not modify files outside it, rewrite `main`'s
 history, or change the loop's own scripts or prompts (`ralph/*.sh`,
@@ -23,8 +20,7 @@ history, or change the loop's own scripts or prompts (`ralph/*.sh`,
   check the diff against the diagnosed cause and chosen regression-test seam.
 - Read `CONTEXT.md`, relevant ADRs, and `AGENTS.md` / `CLAUDE.md` if you need
   domain or convention context to judge the diff.
-- Review the current issue diff from ISSUE_BASE_REF to HEAD.
-- If the issue has a Branch Directive, honor it as publication context.
+- Review the current issue diff.
 </contract>
 <work>
 - Spawn the `swift-reviewer` custom agent as a separate read-only subagent for
