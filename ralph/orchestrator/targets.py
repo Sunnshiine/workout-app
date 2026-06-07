@@ -29,6 +29,16 @@ class PrTarget:
     issue_number: int
     existing_pr_number: int | None = None
 
+    @property
+    def is_stacked_dependent(self) -> bool:
+        """Whether this target stacks a ``## Blocked by`` dependent onto its root.
+
+        A stacked dependent shares its chain root's durable branch and bases on
+        it, so ``base == branch``. Standalone and root targets base on ``main``.
+        """
+
+        return self.base == self.branch
+
 
 class TargetResolutionError(ValueError):
     """Raised when a target cannot be resolved safely (e.g. would push main)."""
