@@ -18,10 +18,6 @@ class GithubContractDiscoveryTests(unittest.TestCase):
         prompt = IMPLEMENT_PATH.read_text(encoding="utf-8")
         self.assertNotIn("Agent Brief", prompt)
 
-    def test_implement_uses_local_context_artifacts(self) -> None:
-        prompt = IMPLEMENT_PATH.read_text(encoding="utf-8")
-        self.assertIn("CONTEXT_PATH", prompt)
-
     def test_ui_verify_excludes_gh_issue_view(self) -> None:
         prompt = UI_VERIFY_PATH.read_text(encoding="utf-8")
         self.assertNotIn("gh issue view", prompt)
@@ -43,74 +39,51 @@ class GithubContractDiscoveryTests(unittest.TestCase):
         self.assertIn("gh issue view", prompt)
 
 
-class ImplementPhaseUIBoundaryTests(unittest.TestCase):
+class ImplementMinimalTemplateTests(unittest.TestCase):
+    """implement.md is the minimal template plus one conditional domain line (#285)."""
+
     def setUp(self) -> None:
         self.prompt = IMPLEMENT_PATH.read_text(encoding="utf-8")
 
-    def test_implement_permits_visual_regression_tests(self) -> None:
-        self.assertIn("Visual Regression", self.prompt)
-
-    def test_implement_does_not_broadly_forbid_ui_tests(self) -> None:
-        # Must not use the broad phrase that bans all UI tests
-        self.assertNotIn("Do NOT run Xcode UI integration tests in this phase", self.prompt)
-        self.assertNotIn("do not run UI tests", self.prompt.lower())
-
-    def test_implement_forbids_full_xcode_ui_integration_target(self) -> None:
+    def test_does_not_restate_allowed_or_forbidden_action_lists(self) -> None:
+        # The controller-injected envelope owns <allowed_actions>/<forbidden_actions>;
+        # the body must not restate concrete forbidden/allowed phrases.
         lower = self.prompt.lower()
-        self.assertIn("xcode ui integration target", lower)
+        self.assertNotIn("xcode ui integration target", lower)
+        self.assertNotIn("workouttrackeruitests", lower)
+        self.assertNotIn("ui interaction suite", lower)
+        self.assertNotIn("visual regression", lower)
+        self.assertNotIn("reviewer subagents", lower)
 
-    def test_implement_forbids_full_workouttrackertests_bundle(self) -> None:
-        self.assertIn("WorkoutTrackerUITests", self.prompt)
+    def test_no_unconditional_doc_reading_checklist(self) -> None:
+        # Only the frozen contract is unconditional authority; AGENTS.md/CLAUDE.md
+        # and PRD reads are not part of the minimal body.
+        self.assertNotIn("AGENTS.md", self.prompt)
+        self.assertNotIn("CLAUDE.md", self.prompt)
+        self.assertNotIn("PRD", self.prompt)
 
-    def test_implement_forbids_ui_interaction_suite(self) -> None:
-        self.assertIn("UI Interaction Suite", self.prompt)
+    def test_contains_conditional_context_md_line(self) -> None:
+        self.assertIn("CONTEXT.md", self.prompt)
+        self.assertIn("ADR", self.prompt)
 
-    def test_implement_completion_gate_does_not_broadly_exclude_ui_tests(self) -> None:
-        # The completion gate must not say "You did not run UI tests"
-        lower = self.prompt.lower()
-        self.assertNotIn("you did not run ui tests", lower)
-        self.assertNotIn("did not run ui tests", lower)
+    def test_contract_is_the_authority(self) -> None:
+        self.assertIn("Issue contract is the source of truth", self.prompt)
 
+    def test_no_mandatory_observations_block(self) -> None:
+        self.assertNotIn("<observations>", self.prompt)
+        self.assertNotIn("observations block", self.prompt.lower())
 
-class ImplementPromptXmlStructureTests(unittest.TestCase):
-    def setUp(self) -> None:
-        self.prompt = IMPLEMENT_PATH.read_text(encoding="utf-8")
+    def test_no_xml_envelope_tags_in_body(self) -> None:
+        # The envelope wraps the body; the body itself stays plain prose.
+        for tag in ("<role>", "<contract>", "<work>", "<completion_gate>"):
+            self.assertNotIn(tag, self.prompt)
 
-    def test_no_markdown_contract_header(self) -> None:
-        self.assertNotIn("## Contract", self.prompt)
+    def test_mentions_blocked_outcome(self) -> None:
+        self.assertIn("BLOCKED", self.prompt)
 
-    def test_no_markdown_work_header(self) -> None:
-        self.assertNotIn("## Work", self.prompt)
-
-    def test_no_markdown_completion_gate_header(self) -> None:
-        self.assertNotIn("## Completion gate", self.prompt)
-
-    def test_role_opening_tag_present(self) -> None:
-        self.assertIn("<role>", self.prompt)
-
-    def test_role_closing_tag_present(self) -> None:
-        self.assertIn("</role>", self.prompt)
-
-    def test_contract_opening_tag_present(self) -> None:
-        self.assertIn("<contract>", self.prompt)
-
-    def test_contract_closing_tag_present(self) -> None:
-        self.assertIn("</contract>", self.prompt)
-
-    def test_work_opening_tag_present(self) -> None:
-        self.assertIn("<work>", self.prompt)
-
-    def test_work_closing_tag_present(self) -> None:
-        self.assertIn("</work>", self.prompt)
-
-    def test_completion_gate_opening_tag_present(self) -> None:
-        self.assertIn("<completion_gate>", self.prompt)
-
-    def test_completion_gate_closing_tag_present(self) -> None:
-        self.assertIn("</completion_gate>", self.prompt)
-
-    def test_prompt_starts_with_role_tag(self) -> None:
-        self.assertTrue(self.prompt.lstrip().startswith("<role>"))
+    def test_is_minimal_in_length(self) -> None:
+        non_blank_lines = [line for line in self.prompt.splitlines() if line.strip()]
+        self.assertLessEqual(len(non_blank_lines), 12)
 
 
 if __name__ == "__main__":

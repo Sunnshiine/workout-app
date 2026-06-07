@@ -337,9 +337,6 @@ class ImplementTddNobroadUIBanTests(unittest.TestCase):
     def test_no_broad_do_not_run_xcode_ui_integration_tests_phrase(self) -> None:
         self.assertNotIn("Do NOT run Xcode UI integration tests in this phase", self._prompt)
 
-    def test_visual_regression_explicitly_permitted(self) -> None:
-        self.assertIn("Visual Regression", self._prompt)
-
     def test_forbidden_actions_for_implement_do_not_broadly_ban_ui_tests(self) -> None:
         combined = " ".join(_forbidden_actions_for_phase(PHASE_IMPLEMENT)).lower()
         # Must not contain a raw "do not run ui tests" style entry
