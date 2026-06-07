@@ -20,7 +20,6 @@ from ralph.orchestrator.gates import CommandResult, GateRunner
 from ralph.orchestrator.github import FakeGitHubClient
 from ralph.orchestrator.loop import (
     PHASE_DIAGNOSE,
-    PHASE_DIAGNOSE_FORMAT,
     PHASE_IMPLEMENT,
     PHASE_REVIEW,
     RalphLoop,

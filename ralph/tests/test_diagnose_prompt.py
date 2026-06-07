@@ -14,23 +14,19 @@ class DiagnosePromptXmlStructureTests(unittest.TestCase):
         self.assertNotIn("## Contract", self.prompt)
         self.assertNotIn("## Work", self.prompt)
         self.assertNotIn("## Completion gate", self.prompt)
-        self.assertNotIn("## Diagnosis handoff", self.prompt)
-        self.assertNotIn("## Diagnosis authority block", self.prompt)
 
     def test_xml_opening_tags_present(self) -> None:
         self.assertIn("<role>", self.prompt)
         self.assertIn("<contract>", self.prompt)
         self.assertIn("<work>", self.prompt)
-        self.assertIn("<diagnosis_handoff>", self.prompt)
-        self.assertIn("<diagnosis_authority_instructions>", self.prompt)
+        self.assertIn("<diagnosis_artifact_instructions>", self.prompt)
         self.assertIn("<completion_gate>", self.prompt)
 
     def test_xml_closing_tags_present(self) -> None:
         self.assertIn("</role>", self.prompt)
         self.assertIn("</contract>", self.prompt)
         self.assertIn("</work>", self.prompt)
-        self.assertIn("</diagnosis_handoff>", self.prompt)
-        self.assertIn("</diagnosis_authority_instructions>", self.prompt)
+        self.assertIn("</diagnosis_artifact_instructions>", self.prompt)
         self.assertIn("</completion_gate>", self.prompt)
 
     def test_prompt_starts_with_role_tag(self) -> None:
@@ -43,11 +39,27 @@ class DiagnosePromptXmlStructureTests(unittest.TestCase):
         self.assertEqual(self.prompt.count("<example>"), 2)
         self.assertEqual(self.prompt.count("</example>"), 2)
 
-    def test_diagnosis_authority_blocks_count(self) -> None:
-        self.assertEqual(self.prompt.count("<diagnosis-authority>"), 2)
+    def test_emits_structured_diagnosis_result_artifact(self) -> None:
+        # Two fenced examples (UI-required / not-required); the legacy block is gone.
+        self.assertEqual(self.prompt.count("</diagnosis-result>"), 2)
+        self.assertNotIn("<diagnosis-authority>", self.prompt)
+
+    def test_artifact_handoff_fields_present(self) -> None:
+        for field in ("root_cause", "fix_plan", "test_seam"):
+            self.assertIn(field, self.prompt)
 
     def test_ui_integration_test_edits_required_present(self) -> None:
         self.assertIn("ui_integration_test_edits_required", self.prompt)
+
+    def test_no_envelope_action_list_restated(self) -> None:
+        # The controller-injected envelope owns allowed/forbidden actions; the body
+        # must not restate the forbidden-commit/push rule in prose.
+        self.assertNotIn("You MUST NOT commit", self.prompt)
+        self.assertNotIn("rewrite `main`", self.prompt)
+
+    def test_doc_reads_are_conditional(self) -> None:
+        # CONTEXT/ADR/TESTING reads are scoped to the bug, not an unconditional checklist.
+        self.assertIn("only as the bug requires", self.prompt)
 
 
 if __name__ == "__main__":

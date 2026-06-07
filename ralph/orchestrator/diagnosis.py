@@ -1,13 +1,13 @@
-"""Bug-diagnosis authority parsing and issue-body authority grants.
+"""Bug-diagnosis artifact parsing and issue-body authority grants.
 
 A bug-labelled issue runs a ``diagnose`` phase before implementation. The phase
-emits a structured ``<diagnosis-authority>`` block declaring whether the fix
-needs UI integration test edits. This module is the pure, side-effect-free core
-of that gate:
+emits a single structured ``<diagnosis-result>`` artifact carrying the full
+handoff (root cause, fix plan, regression-test seam) plus the UI-test authority
+decision. This module is the pure, side-effect-free core of that gate:
 
-- :func:`parse_diagnosis_authority` reads the block out of a diagnosis response
-  and classifies it: not-required, grant-UI-tests, malformed (one corrective
-  retry), or out-of-scope (escalate for human authority).
+- :func:`parse_diagnosis_authority` reads the artifact out of a diagnosis
+  response and classifies it: not-required, grant-UI-tests, malformed (one
+  generic ``diagnose`` retry), or out-of-scope (escalate for human authority).
 - :func:`apply_ui_test_authority` is the pure issue-body transform that adds the
   exact ``UI integration test edits: authorized`` marker under a ``## Test
   authority`` section without ever mutating its input.
@@ -35,25 +35,27 @@ UI_TEST_PATH_PREFIX = "Tests/UI/"
 TEST_AUTHORITY_HEADING = "## Test authority"
 
 _BLOCK = re.compile(
-    r"<diagnosis-authority>(?P<inner>.*?)</diagnosis-authority>",
+    r"<diagnosis-result>(?P<inner>.*?)</diagnosis-result>",
     re.DOTALL,
 )
 _REQUIRED_KEY = "ui_integration_test_edits_required"
+# Handoff fields that must be present and non-empty for a well-formed artifact.
+_HANDOFF_KEYS = ("root_cause", "fix_plan", "test_seam")
 # scope paths are separated by commas and/or whitespace.
 _SCOPE_SPLIT = re.compile(r"[,\s]+")
 
 
 class DiagnosisAuthorityStatus(enum.Enum):
-    """Classification of a parsed diagnosis-authority block."""
+    """Classification of a parsed diagnosis artifact."""
 
     NOT_REQUIRED = "not-required"
-    """Valid block; ``ui_integration_test_edits_required: false``."""
+    """Valid artifact; ``ui_integration_test_edits_required: false``."""
 
     GRANT_UI_TESTS = "grant-ui-tests"
-    """Valid block requesting authority limited to ``Tests/UI/**``."""
+    """Valid artifact requesting authority limited to ``Tests/UI/**``."""
 
     MALFORMED = "malformed"
-    """Block missing, incomplete, or non-boolean; gets one corrective retry."""
+    """Artifact missing, incomplete, or non-boolean; gets one ``diagnose`` retry."""
 
     OUT_OF_SCOPE = "out-of-scope"
     """Requests authority beyond ``Tests/UI/**``; must escalate for a human."""
@@ -64,16 +66,20 @@ class DiagnosisAuthorityStatus(enum.Enum):
 
 @dataclass(frozen=True)
 class DiagnosisAuthority:
-    """The validated contents of a diagnosis-authority block."""
+    """The validated contents of a diagnosis artifact."""
 
     ui_integration_test_edits_required: bool
+    root_cause: str = ""
+    fix_plan: str = ""
+    test_seam: str = ""
     scope: tuple[str, ...] = ()
     reason: str = ""
+    blocked_reason: str = ""
 
 
 @dataclass(frozen=True)
 class DiagnosisAuthorityParse:
-    """Outcome of parsing a diagnosis-authority block."""
+    """Outcome of parsing a diagnosis artifact."""
 
     status: DiagnosisAuthorityStatus
     authority: DiagnosisAuthority | None = None
@@ -97,20 +103,27 @@ class DiagnosisAuthorityParse:
 
 
 def parse_diagnosis_authority(text: str) -> DiagnosisAuthorityParse:
-    """Parse the first ``<diagnosis-authority>`` block out of ``text``.
+    """Parse the first ``<diagnosis-result>`` artifact out of ``text``.
 
-    Classifies the block per the spec: a boolean ``ui_integration_test_edits_required``
-    line is mandatory; ``true`` additionally requires a non-empty ``scope`` (paths
-    only under ``Tests/UI/**``) and a non-empty ``reason``. Scope outside
-    ``Tests/UI/**`` is reported as :attr:`DiagnosisAuthorityStatus.OUT_OF_SCOPE` so
-    the caller escalates rather than retries.
+    Classifies the artifact per the spec: ``root_cause``, ``fix_plan``, and
+    ``test_seam`` must be present and non-empty, and a boolean
+    ``ui_integration_test_edits_required`` line is mandatory; ``true``
+    additionally requires a non-empty ``scope`` (paths only under
+    ``Tests/UI/**``) and a non-empty ``reason``. Scope outside ``Tests/UI/**``
+    is reported as :attr:`DiagnosisAuthorityStatus.OUT_OF_SCOPE` so the caller
+    escalates rather than retries.
     """
 
     match = _BLOCK.search(text)
     if match is None:
-        return _malformed("no <diagnosis-authority> block was found")
+        return _malformed("no <diagnosis-result> artifact was found")
 
     fields = _parse_fields(match.group("inner"))
+
+    for key in _HANDOFF_KEYS:
+        if not fields.get(key, "").strip():
+            return _malformed(f"missing required field `{key}`")
+
     raw_required = fields.get(_REQUIRED_KEY)
     if raw_required is None:
         return _malformed(f"missing required field `{_REQUIRED_KEY}`")
@@ -121,10 +134,17 @@ def parse_diagnosis_authority(text: str) -> DiagnosisAuthorityParse:
             f"`{_REQUIRED_KEY}` must be exactly `true` or `false`, got {raw_required!r}"
         )
 
+    handoff = {key: fields[key].strip() for key in _HANDOFF_KEYS}
+    blocked_reason = fields.get("blocked_reason", "").strip()
+
     if not required:
         return DiagnosisAuthorityParse(
             status=DiagnosisAuthorityStatus.NOT_REQUIRED,
-            authority=DiagnosisAuthority(ui_integration_test_edits_required=False),
+            authority=DiagnosisAuthority(
+                ui_integration_test_edits_required=False,
+                blocked_reason=blocked_reason,
+                **handoff,
+            ),
         )
 
     scope = _parse_scope(fields.get("scope", ""))
@@ -142,6 +162,8 @@ def parse_diagnosis_authority(text: str) -> DiagnosisAuthorityParse:
                 ui_integration_test_edits_required=True,
                 scope=scope,
                 reason=reason,
+                blocked_reason=blocked_reason,
+                **handoff,
             ),
             out_of_scope_paths=out_of_scope,
         )
@@ -152,6 +174,8 @@ def parse_diagnosis_authority(text: str) -> DiagnosisAuthorityParse:
             ui_integration_test_edits_required=True,
             scope=scope,
             reason=reason,
+            blocked_reason=blocked_reason,
+            **handoff,
         ),
     )
 

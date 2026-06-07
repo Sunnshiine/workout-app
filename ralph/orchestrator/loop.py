@@ -66,7 +66,6 @@ UI_INTEGRATION_SMOKE_SELECTORS = (
     "-only-testing:WorkoutTrackerUITests/PartiallyUploadedBlockUISmokeTests",
 )
 
-PHASE_DIAGNOSE_FORMAT = "diagnose-format"
 PHASE_IMPLEMENT = "implement-tdd"
 PHASE_REVIEW = "review"
 
@@ -448,6 +447,7 @@ class RalphLoop:
         *,
         extra_reference_paths: tuple[str, ...] = (),
         diagnosis_path: Path | None = None,
+        retry_note: str | None = None,
     ) -> PhaseResult:
         context = PhaseContext(
             role=f"Run the Ralph {phase} phase for issue #{contract.number}.",
@@ -465,7 +465,14 @@ class RalphLoop:
         )
         context_path = writer.write_phase_context(contract, context)
         prompt = self._phase_prompt(
-            phase, prompt_file, contract, worktree, issue_base, context_path, diagnosis_path
+            phase,
+            prompt_file,
+            contract,
+            worktree,
+            issue_base,
+            context_path,
+            diagnosis_path,
+            retry_note=retry_note,
         )
         log_path = (
             self._repo_root / LOG_DIR / f"iter-{iteration}-issue-{contract.number}-{phase}.log"
@@ -493,6 +500,7 @@ class RalphLoop:
         issue_base: str,
         context_path: Path,
         diagnosis_path: Path | None = None,
+        retry_note: str | None = None,
     ) -> str:
         prompt_body = (self._repo_root / "ralph" / "prompts" / prompt_file).read_text(
             encoding="utf-8"
@@ -549,6 +557,11 @@ class RalphLoop:
                 f"  <blocked_prefix>{blocked_promise_prefix(phase)}</blocked_prefix>",
                 "</completion_contract>",
                 "",
+                *(
+                    ["<retry_context>", f"  {retry_note}", "</retry_context>", ""]
+                    if retry_note
+                    else []
+                ),
                 "<phase_instructions>",
                 prompt_body.rstrip(),
                 "</phase_instructions>",
@@ -569,9 +582,10 @@ class RalphLoop:
         """Run the bug-only diagnosis gate before implementation.
 
         Runs the ``diagnose`` phase, writes the ``diagnosis.md`` handoff, parses
-        the authority block (with one corrective ``diagnose-format`` retry for a
-        malformed block), grants UI-test authority only for ``Tests/UI/**``, and
-        recaptures the contract. Any unrecoverable step returns a blocked phase so
+        the structured ``<diagnosis-result>`` artifact, and — on a parse failure —
+        reruns the ``diagnose`` prompt once with the parser error appended. Grants
+        UI-test authority only for ``Tests/UI/**`` and recaptures the contract. A
+        second parse failure (or any unrecoverable step) returns a blocked phase so
         the caller escalates to a rescue PR.
         """
 
@@ -585,32 +599,32 @@ class RalphLoop:
         parse = parse_diagnosis_authority(result.final_response)
 
         if parse.needs_corrective_pass:
-            corrective = self._run_phase(
-                PHASE_DIAGNOSE_FORMAT,
-                "diagnose-format.md",
+            retry = self._run_phase(
+                PHASE_DIAGNOSE,
+                "diagnose.md",
                 iteration,
                 contract,
                 target,
                 worktree,
                 issue_base,
                 writer,
-                extra_reference_paths=(str(diagnosis_path),),
-                diagnosis_path=diagnosis_path,
+                retry_note=(
+                    "Your previous diagnosis artifact could not be parsed: "
+                    f"{parse.error}. Emit exactly one well-formed "
+                    "<diagnosis-result> artifact this time."
+                ),
             )
-            if not corrective.is_complete:
-                return _DiagnosisOutcome(contract=contract, blocked_phase=corrective)
-            parse = parse_diagnosis_authority(corrective.final_response)
+            if not retry.is_complete:
+                return _DiagnosisOutcome(contract=contract, blocked_phase=retry)
+            diagnosis_path = writer.write_diagnosis(retry.final_response)
+            parse = parse_diagnosis_authority(retry.final_response)
             if parse.needs_corrective_pass:
                 return _DiagnosisOutcome(
                     contract=contract,
                     blocked_phase=_diagnosis_blocked(
-                        f"diagnosis authority block still invalid after the corrective pass: "
-                        f"{parse.error}"
+                        f"diagnosis artifact still invalid after one retry: {parse.error}"
                     ),
                 )
-            diagnosis_path = writer.write_diagnosis(
-                f"{result.final_response}\n\n## Corrected authority\n\n{corrective.final_response}"
-            )
 
         if parse.needs_human_escalation:
             paths = ", ".join(parse.out_of_scope_paths)
@@ -1073,12 +1087,6 @@ def _forbidden_actions_for_phase(phase: str) -> tuple[str, ...]:
             "push, merge, open PRs, close PRs, or close issues",
             "spawn review subagents",
         )
-    if phase == PHASE_DIAGNOSE_FORMAT:
-        return (
-            "commit changes to the branch",
-            "push, merge, open PRs, close PRs, or close issues",
-            "spawn review subagents",
-        )
     if phase == PHASE_IMPLEMENT:
         return (
             "run the full Xcode UI integration target (-only-testing:WorkoutTrackerUITests)",
@@ -1101,10 +1109,8 @@ def _allowed_actions_for_phase(phase: str) -> tuple[str, ...]:
         return (
             "reproduce the bug and build a feedback loop",
             "investigate with scratch edits/instrumentation (do not commit)",
-            "write a fix plan and the diagnosis-authority block",
+            "write a fix plan and the diagnosis-result artifact",
         )
-    if phase == PHASE_DIAGNOSE_FORMAT:
-        return ("re-emit only a corrected diagnosis-authority block from existing findings",)
     if phase == PHASE_IMPLEMENT:
         return ("implement the issue", "commit implementation changes", "run non-UI checks")
     if phase == PHASE_REVIEW:
