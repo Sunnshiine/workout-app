@@ -57,7 +57,8 @@ private func makeDefaults() throws -> UserDefaults {
 private func makeStore(
     tabName: String = "Block 27",
     weekCount: Int = 1,
-    defaults: UserDefaults? = nil
+    defaults: UserDefaults? = nil,
+    now: @escaping @MainActor () -> Date = Date.init
 ) throws -> WorkoutStoreFixture {
     let container = try ModelContainer(
         for: Block.self,
@@ -71,7 +72,7 @@ private func makeStore(
     let ctx = container.mainContext
     ctx.insert(makeStoreBlock(tabName: tabName, weekCount: weekCount))
     try ctx.save()
-    let store = try WorkoutStore(context: ctx, defaults: defaults ?? makeDefaults())
+    let store = try WorkoutStore(context: ctx, defaults: defaults ?? makeDefaults(), now: now)
     store.reload()
     return WorkoutStoreFixture(store: store, container: container)
 }
@@ -364,6 +365,24 @@ private func makeStore(
     #expect(store.currentSession?.dayNumber == 1)
     #expect(store.displayedSession?.week?.number == 1)
     #expect(store.displayedSession?.dayNumber == 1)
+}
+
+@MainActor
+@Test func requestingMoveOnCelebrationCapturesRequestTime() throws {
+    var now = Date(timeIntervalSinceReferenceDate: 1_000)
+    let fixture = try makeStore(defaults: makeDefaults(), now: { now })
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+
+    now = Date(timeIntervalSinceReferenceDate: 1_500)
+    store.requestMoveOnCelebration()
+
+    #expect(store.moveOnCelebrationRequestedAt == Date(timeIntervalSinceReferenceDate: 1_500))
+
+    now = Date(timeIntervalSinceReferenceDate: 2_000)
+    store.dismissMoveOnCelebration()
+
+    #expect(store.moveOnCelebrationRequestedAt == nil)
 }
 
 @MainActor

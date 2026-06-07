@@ -11,10 +11,13 @@ struct MoveOnCelebrationView: View {
 
     init(
         session: Session,
+        requestedAt: Date? = nil,
         quoteText: String? = nil,
         onDismiss: @escaping () -> Void
     ) {
-        _presentation = State(initialValue: MoveOnCelebrationPresentation(session: session, quoteText: quoteText))
+        _presentation = State(
+            initialValue: MoveOnCelebrationPresentation(session: session, requestedAt: requestedAt, quoteText: quoteText)
+        )
         self.onDismiss = onDismiss
     }
 

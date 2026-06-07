@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import WorkoutTracker
@@ -59,8 +60,43 @@ import Testing
 
     let presentation = MoveOnCelebrationPresentation(session: session)
 
-    #expect(presentation.stats.map(\.label) == ["Sets", "Exercises", "Left"])
-    #expect(presentation.stats.map(\.value) == ["5", "2", "2"])
+    #expect(presentation.stats.map(\.label) == ["Time", "Sets", "Exercises", "Left"])
+    #expect(presentation.stats.map(\.value) == ["--", "5", "2", "2"])
+}
+
+@MainActor
+@Test func moveOnCelebrationPresentationShowsElapsedTimeWhenTimingIsAvailable() {
+    let session = makeMoveOnSession(
+        exercises: [
+            makeMoveOnExercise(name: "Back Squat", order: 0, loggedAt: Date(timeIntervalSinceReferenceDate: 1_000)),
+            makeMoveOnExercise(name: "Bench Press", order: 1, loggedAt: Date(timeIntervalSinceReferenceDate: 1_120))
+        ]
+    )
+
+    let presentation = MoveOnCelebrationPresentation(
+        session: session,
+        requestedAt: Date(timeIntervalSinceReferenceDate: 1_185)
+    )
+
+    #expect(presentation.timing == .available("3m"))
+    #expect(presentation.stats.first { $0.label == "Time" }?.value == "3m")
+}
+
+@MainActor
+@Test func moveOnCelebrationPresentationFallsBackWhenTimingIsUnavailable() {
+    let session = makeMoveOnSession(
+        exercises: [
+            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged])
+        ]
+    )
+
+    let presentation = MoveOnCelebrationPresentation(
+        session: session,
+        requestedAt: Date(timeIntervalSinceReferenceDate: 1_185)
+    )
+
+    #expect(presentation.timing == .unavailable)
+    #expect(presentation.stats.first { $0.label == "Time" }?.value == "--")
 }
 
 @MainActor
@@ -73,8 +109,8 @@ import Testing
 
     let presentation = MoveOnCelebrationPresentation(session: session)
 
-    #expect(presentation.stats.map(\.label) == ["Sets", "Exercises", "Left"])
-    #expect(presentation.stats.map(\.value) == ["3", "1", "0"])
+    #expect(presentation.stats.map(\.label) == ["Time", "Sets", "Exercises", "Left"])
+    #expect(presentation.stats.map(\.value) == ["--", "3", "1", "0"])
 }
 
 @MainActor
@@ -120,7 +156,7 @@ import Testing
     #expect(presentation.accessibilityLabel == "Week 2, Day 3")
     #expect(
         presentation.accessibilityValue
-            == "Move On, Steady work travels., Logged Sets are saved. Open Sets stay with the Week., 5 Sets, 2 Exercises, 2 Left"
+            == "Move On, Steady work travels., Logged Sets are saved. Open Sets stay with the Week., -- Time, 5 Sets, 2 Exercises, 2 Left"
     )
     #expect(presentation.accessibilityHint == presentation.tapHintText)
 }
@@ -177,5 +213,12 @@ private func makeMoveOnExercise(name: String, order: Int, states: [SetState]) ->
     exercise.sets = states.enumerated().map { index, state in
         ExerciseSet(index: index, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: state)
     }
+    return exercise
+}
+
+@MainActor
+private func makeMoveOnExercise(name: String, order: Int, loggedAt: Date) -> Exercise {
+    let exercise = makeMoveOnExercise(name: name, order: order, states: [.logged])
+    exercise.sets[0].loggedAt = loggedAt
     return exercise
 }
