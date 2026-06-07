@@ -14,13 +14,25 @@ from ralph.orchestrator.targets import (
 )
 
 
-def _contract(number: int, prd_number: int | None = None) -> IssueContract:
+def _contract(
+    number: int,
+    prd_number: int | None = None,
+    body: str = "",
+) -> IssueContract:
     return IssueContract(
         number=number,
         title=f"Issue {number}",
-        body="",
+        body=body,
         prd_number=prd_number,
     )
+
+
+def _issue(number: int, *, body: str = "", state: str = "OPEN") -> dict:
+    return {"number": number, "title": f"Issue {number}", "body": body, "state": state}
+
+
+def _blocked_by(number: int) -> str:
+    return f"## Blocked by\n\n#{number}\n"
 
 
 class BranchNamingTests(unittest.TestCase):
@@ -65,6 +77,88 @@ class TargetResolverTests(unittest.TestCase):
         target = TargetResolver(FakeGitHubClient()).resolve(_contract(1))
         with self.assertRaises(FrozenInstanceError):
             target.branch = "other"  # type: ignore[misc]
+
+
+class StackedDependentTests(unittest.TestCase):
+    def test_depth_1_dependent_bases_on_root_branch(self) -> None:
+        # 222 -> 221 (root). 221 has no blocker, so it is the root.
+        client = FakeGitHubClient(
+            issues={
+                221: _issue(221),
+                222: _issue(222, body=_blocked_by(221)),
+            }
+        )
+        target = TargetResolver(client).resolve(_contract(222, body=_blocked_by(221)))
+        self.assertEqual(target.branch, "ralph/issue-221")
+        self.assertEqual(target.base, "ralph/issue-221")
+        self.assertEqual(target.issue_number, 222)
+        self.assertIsNone(target.prd_number)
+
+    def test_depth_2_dependent_bases_on_chain_root_not_parent(self) -> None:
+        # 223 -> 222 -> 221. Root is 221; never the discarded scratch 222.
+        client = FakeGitHubClient(
+            issues={
+                221: _issue(221),
+                222: _issue(222, body=_blocked_by(221)),
+                223: _issue(223, body=_blocked_by(222)),
+            }
+        )
+        target = TargetResolver(client).resolve(_contract(223, body=_blocked_by(222)))
+        self.assertEqual(target.branch, "ralph/issue-221")
+        self.assertEqual(target.base, "ralph/issue-221")
+        self.assertNotEqual(target.branch, "ralph/issue-222")
+
+    def test_root_issue_with_blocked_by_none_bases_on_main(self) -> None:
+        body = "## Blocked by\n\nNone\n"
+        client = FakeGitHubClient(issues={221: _issue(221, body=body)})
+        target = TargetResolver(client).resolve(_contract(221, body=body))
+        self.assertEqual(target.branch, "ralph/issue-221")
+        self.assertEqual(target.base, "main")
+
+    def test_standalone_issue_bases_on_main(self) -> None:
+        client = FakeGitHubClient(issues={40: _issue(40)})
+        target = TargetResolver(client).resolve(_contract(40))
+        self.assertEqual(target.branch, "ralph/issue-40")
+        self.assertEqual(target.base, "main")
+
+    def test_blocker_merged_to_main_makes_dependent_its_own_root(self) -> None:
+        # 222 -> 221, but 221 is CLOSED (merged to main). 222's own blocker is
+        # therefore satisfied: 222 is the root and bases on main, no stacking.
+        client = FakeGitHubClient(
+            issues={
+                221: _issue(221, state="CLOSED"),
+                222: _issue(222, body=_blocked_by(221)),
+            }
+        )
+        target = TargetResolver(client).resolve(_contract(222, body=_blocked_by(221)))
+        self.assertEqual(target.branch, "ralph/issue-222")
+        self.assertEqual(target.base, "main")
+
+    def test_dependent_with_merged_grandparent_roots_at_open_ancestor(self) -> None:
+        # 223 -> 222 -> 221(CLOSED). 222's blocker is merged, so 222 is the root.
+        client = FakeGitHubClient(
+            issues={
+                221: _issue(221, state="CLOSED"),
+                222: _issue(222, body=_blocked_by(221)),
+                223: _issue(223, body=_blocked_by(222)),
+            }
+        )
+        target = TargetResolver(client).resolve(_contract(223, body=_blocked_by(222)))
+        self.assertEqual(target.branch, "ralph/issue-222")
+        self.assertEqual(target.base, "ralph/issue-222")
+
+    def test_prd_dependent_keeps_prd_branch_on_main(self) -> None:
+        # PRD membership wins over Blocked-by stacking; PRD issues are unaffected.
+        body = _blocked_by(221)
+        client = FakeGitHubClient(
+            issues={
+                221: _issue(221),
+                222: _issue(222, body=body),
+            }
+        )
+        target = TargetResolver(client).resolve(_contract(222, prd_number=7, body=body))
+        self.assertEqual(target.branch, "ralph/prd-7")
+        self.assertEqual(target.base, "main")
 
 
 class MainRejectionTests(unittest.TestCase):
