@@ -60,8 +60,8 @@ import Testing
 
     let presentation = MoveOnCelebrationPresentation(session: session)
 
-    #expect(presentation.stats.map(\.label) == ["Time", "Sets", "Exercises", "Left"])
-    #expect(presentation.stats.map(\.value) == ["--", "5", "2", "2"])
+    #expect(presentation.stats.map(\.label) == ["Sets", "Exercises", "Left"])
+    #expect(presentation.stats.map(\.value) == ["5", "2", "2"])
 }
 
 @MainActor
@@ -96,7 +96,22 @@ import Testing
     )
 
     #expect(presentation.timing == .unavailable)
-    #expect(presentation.stats.first { $0.label == "Time" }?.value == "--")
+    #expect(presentation.stats.first { $0.label == "Time" } == nil)
+}
+
+@MainActor
+@Test func moveOnCelebrationPresentationFallsBackWhenAnyLoggedSetIsMissingTimingEvidence() {
+    let exercise = makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .logged])
+    exercise.sets[1].loggedAt = Date(timeIntervalSinceReferenceDate: 1_120)
+    let session = makeMoveOnSession(exercises: [exercise])
+
+    let presentation = MoveOnCelebrationPresentation(
+        session: session,
+        requestedAt: Date(timeIntervalSinceReferenceDate: 1_185)
+    )
+
+    #expect(presentation.timing == .unavailable)
+    #expect(presentation.stats.first { $0.label == "Time" } == nil)
 }
 
 @MainActor
@@ -109,8 +124,8 @@ import Testing
 
     let presentation = MoveOnCelebrationPresentation(session: session)
 
-    #expect(presentation.stats.map(\.label) == ["Time", "Sets", "Exercises", "Left"])
-    #expect(presentation.stats.map(\.value) == ["--", "3", "1", "0"])
+    #expect(presentation.stats.map(\.label) == ["Sets", "Exercises", "Left"])
+    #expect(presentation.stats.map(\.value) == ["3", "1", "0"])
 }
 
 @MainActor
@@ -156,7 +171,7 @@ import Testing
     #expect(presentation.accessibilityLabel == "Week 2, Day 3")
     #expect(
         presentation.accessibilityValue
-            == "Move On, Steady work travels., Logged Sets are saved. Open Sets stay with the Week., -- Time, 5 Sets, 2 Exercises, 2 Left"
+            == "Move On, Steady work travels., Logged Sets are saved. Open Sets stay with the Week., 5 Sets, 2 Exercises, 2 Left"
     )
     #expect(presentation.accessibilityHint == presentation.tapHintText)
 }

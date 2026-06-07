@@ -47,20 +47,18 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
         let pendingSetCount = sets.filter { $0.state == .pending }.count
         let selectedQuote = requestedQuoteText ?? Self.launchQuoteOverride ?? Self.approvedQuotes.randomElement() ?? ""
         let timing = Self.timingPresentation(for: sets, requestedAt: requestedAt)
-        let timingText: String
-        switch timing {
-        case .available(let value):
-            timingText = value
-        case .unavailable:
-            timingText = "--"
+        let timingStats: [MoveOnCelebrationStatPresentation]
+        if case .available(let value) = timing {
+            timingStats = [MoveOnCelebrationStatPresentation(value: value, label: "Time")]
+        } else {
+            timingStats = []
         }
 
         markText = "TFN"
         contextText = "Week \(weekNumber) · Day \(session.dayNumber)"
         actionText = "Move On"
         setsCopyText = "Logged Sets are saved. Open Sets stay with the Week."
-        stats = [
-            MoveOnCelebrationStatPresentation(value: timingText, label: "Time"),
+        stats = timingStats + [
             MoveOnCelebrationStatPresentation(value: "\(totalSetCount)", label: "Sets"),
             MoveOnCelebrationStatPresentation(value: "\(exerciseCount)", label: "Exercises"),
             MoveOnCelebrationStatPresentation(value: "\(pendingSetCount)", label: "Left")
@@ -86,9 +84,12 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
         for sets: [ExerciseSet],
         requestedAt: Date?
     ) -> MoveOnCelebrationTimingPresentation {
+        let loggedSets = sets.filter { $0.state == .logged }
         guard
             let requestedAt,
-            let firstLoggedAt = sets.compactMap(\.loggedAt).min()
+            !loggedSets.isEmpty,
+            loggedSets.allSatisfy({ $0.loggedAt != nil }),
+            let firstLoggedAt = loggedSets.compactMap(\.loggedAt).min()
         else { return .unavailable }
 
         return .available(elapsedText(from: firstLoggedAt, to: requestedAt))
