@@ -190,7 +190,9 @@ class ClaudeProviderSdkClientTests(unittest.TestCase):
         self.assertEqual(_CLAUDE_MODULE.prompt, "do the work")
         self.assertEqual(_CLAUDE_MODULE.options_kwargs["cwd"], "/tmp/worktree")
         self.assertEqual(_CLAUDE_MODULE.options_kwargs["model"], "agent-model")
-        self.assertEqual(_CLAUDE_MODULE.options_kwargs["max_turns"], 1)
+        # No turn cap: phases need many iterative turns to reach the completion
+        # promise; a finite cap fails the phase with error_max_turns first.
+        self.assertIsNone(_CLAUDE_MODULE.options_kwargs["max_turns"])
         self.assertIn("Edit", _CLAUDE_MODULE.options_kwargs["allowed_tools"])
 
     def test_claude_error_result_becomes_error_event(self) -> None:

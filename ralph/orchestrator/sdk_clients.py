@@ -71,7 +71,12 @@ class ClaudeProviderSdkClient:
     module: ModuleType | Any | None = None
     allowed_tools: tuple[str, ...] = _CLAUDE_ALLOWED_TOOLS
     permission_mode: str = "acceptEdits"
-    max_turns: int = 1
+    # No turn cap: a phase (implement-tdd, diagnose, review, repair) needs many
+    # iterative read/edit/test/fix turns. The wall-clock ``timeout_seconds`` bound
+    # in ``_collect`` is the only limit, matching the Codex client. A finite cap
+    # here makes the agent exit with ``error_max_turns`` before it can emit the
+    # completion promise, which the orchestrator reports as a FAILED phase.
+    max_turns: int | None = None
 
     def __call__(self, invocation: SdkInvocation) -> Iterable[SdkEvent]:
         try:
