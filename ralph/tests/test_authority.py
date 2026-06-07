@@ -43,35 +43,18 @@ class UiTestAuthorityTests(unittest.TestCase):
             _contract(authorized=False),
             issue_base="base",
             issue_tip="tip",
-            ui_phase_base="uib",
-            ui_phase_tip="uit",
         )
         self.assertTrue(decision.blocked)
         self.assertTrue(decision.gate.ui_owned)
 
-    def test_authorized_implementation_phase_ui_test_edit_passes(self) -> None:
+    def test_authorized_issue_range_ui_test_edit_passes(self) -> None:
         gate = self._gate({("base", "tip"): [NameStatusEntry("M", "Tests/UI/LoginUITests.swift")]})
         decision = gate.check_ui_test_authority(
             _contract(authorized=True),
             issue_base="base",
             issue_tip="tip",
-            ui_phase_base="uib",
-            ui_phase_tip="uit",
         )
         self.assertTrue(decision.allowed)
-
-    def test_ui_verify_phase_ui_test_edit_blocks_unconditionally(self) -> None:
-        # Even with authorization granted, a UI-verify-phase edit must block.
-        gate = self._gate({("uib", "uit"): [NameStatusEntry("M", "Tests/UI/LoginUITests.swift")]})
-        decision = gate.check_ui_test_authority(
-            _contract(authorized=True),
-            issue_base="base",
-            issue_tip="tip",
-            ui_phase_base="uib",
-            ui_phase_tip="uit",
-        )
-        self.assertTrue(decision.blocked)
-        self.assertIn("UI verification phase", decision.gate.failure_excerpt)
 
     def test_unauthorized_project_wiring_change_blocks(self) -> None:
         gate = self._gate({("base", "tip"): [NameStatusEntry("M", "project.yml")]})
@@ -79,8 +62,6 @@ class UiTestAuthorityTests(unittest.TestCase):
             _contract(authorized=False),
             issue_base="base",
             issue_tip="tip",
-            ui_phase_base="uib",
-            ui_phase_tip="uit",
         )
         self.assertTrue(decision.blocked)
 
@@ -90,8 +71,6 @@ class UiTestAuthorityTests(unittest.TestCase):
             _contract(authorized=False),
             issue_base="base",
             issue_tip="tip",
-            ui_phase_base="uib",
-            ui_phase_tip="uit",
         )
         self.assertTrue(decision.allowed)
 

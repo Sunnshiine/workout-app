@@ -6,14 +6,13 @@ without broad prompt snapshot tests:
 1. The XML <ralph_phase> wrapper shape (section ordering and required children).
 2. Required <forbidden_actions> present and non-empty in rendered phase prompts.
 3. Comments are rendered as context-only and split out of issue-contract.md.
-4. No full WorkoutTrackerUITests bundle referenced in ui-verify prompt file.
+4. (removed: ui-verify phase no longer exists — see #287)
 5. No broad "do not run UI tests" wording in implement-tdd prompt file.
 6. No gh issue view contract-discovery instruction outside diagnose.md.
 """
 
 from __future__ import annotations
 
-import re
 import subprocess
 import tempfile
 import unittest
@@ -27,7 +26,6 @@ from ralph.orchestrator.loop import (
     PHASE_DIAGNOSE,
     PHASE_IMPLEMENT,
     PHASE_REVIEW,
-    PHASE_UI_VERIFY,
     RalphLoop,
     _forbidden_actions_for_phase,
 )
@@ -43,7 +41,6 @@ from ralph.orchestrator.worktree import WorktreeManager, default_git_runner
 
 _PROMPTS = Path(__file__).resolve().parents[1] / "prompts"
 _IMPLEMENT_MD = _PROMPTS / "implement.md"
-_UI_VERIFY_MD = _PROMPTS / "ui-verify.md"
 _REVIEW_MD = _PROMPTS / "review.md"
 _DIAGNOSE_MD = _PROMPTS / "diagnose.md"
 
@@ -64,7 +61,7 @@ def _init_repo(repo: Path) -> None:
     (repo / "README.md").write_text("seed\n", encoding="utf-8")
     prompts = repo / "ralph" / "prompts"
     prompts.mkdir(parents=True)
-    for name in ("implement.md", "review.md", "ui-verify.md", "diagnose.md"):
+    for name in ("implement.md", "review.md", "diagnose.md"):
         (prompts / name).write_text(f"{name} body\n", encoding="utf-8")
     _git(repo, "add", "README.md", "ralph/prompts")
     _git(repo, "commit", "-m", "seed")
@@ -222,7 +219,7 @@ class ForbiddenActionsInEnvelopeTests(unittest.TestCase):
         self.assertIn("<action>", self._prompt)
 
     def test_all_normal_phases_have_non_empty_forbidden_actions(self) -> None:
-        for phase in (PHASE_IMPLEMENT, PHASE_REVIEW, PHASE_UI_VERIFY, PHASE_DIAGNOSE):
+        for phase in (PHASE_IMPLEMENT, PHASE_REVIEW, PHASE_DIAGNOSE):
             with self.subTest(phase=phase):
                 result = _forbidden_actions_for_phase(phase)
                 self.assertGreater(len(result), 0, f"Phase {phase} must have forbidden_actions")
@@ -293,32 +290,6 @@ class CommentsContextOnlyTests(unittest.TestCase):
         self.assertEqual(ISSUE_COMMENTS_FILE, "issue-comments.md")
         self.assertNotEqual(ISSUE_CONTRACT_FILE, ISSUE_COMMENTS_FILE)
 
-
-# ---------------------------------------------------------------------------
-# 4. No full WorkoutTrackerUITests bundle referenced in ui-verify
-# ---------------------------------------------------------------------------
-
-
-class UIVerifyNoFullBundleTests(unittest.TestCase):
-    """The ui-verify prompt must not reference the full WorkoutTrackerUITests bundle."""
-
-    def setUp(self) -> None:
-        self._prompt = _UI_VERIFY_MD.read_text(encoding="utf-8")
-
-    def test_no_bare_workouttrackeruitests_bundle_selector(self) -> None:
-        matches = re.findall(r"-only-testing:WorkoutTrackerUITests(\S*)", self._prompt)
-        for suffix in matches:
-            self.assertTrue(
-                suffix.startswith("/"),
-                "ui-verify must only reference class-level selectors "
-                "(-only-testing:WorkoutTrackerUITests/<Class>), not the full bundle",
-            )
-
-    def test_forbidden_actions_for_ui_verify_exclude_full_bundle(self) -> None:
-        combined = " ".join(_forbidden_actions_for_phase(PHASE_UI_VERIFY)).lower()
-        self.assertIn("workouttrackeruitests", combined)
-
-
 # ---------------------------------------------------------------------------
 # 5. No broad "do not run UI tests" wording in implement-tdd
 # ---------------------------------------------------------------------------
@@ -336,9 +307,6 @@ class ImplementTddNobroadUIBanTests(unittest.TestCase):
 
     def test_no_broad_do_not_run_xcode_ui_integration_tests_phrase(self) -> None:
         self.assertNotIn("Do NOT run Xcode UI integration tests in this phase", self._prompt)
-
-    def test_visual_regression_explicitly_permitted(self) -> None:
-        self.assertIn("Visual Regression", self._prompt)
 
     def test_forbidden_actions_for_implement_do_not_broadly_ban_ui_tests(self) -> None:
         combined = " ".join(_forbidden_actions_for_phase(PHASE_IMPLEMENT)).lower()
@@ -358,9 +326,6 @@ class GhIssueViewOnlyInDiagnoseTests(unittest.TestCase):
 
     def test_implement_excludes_gh_issue_view(self) -> None:
         self.assertNotIn("gh issue view", _IMPLEMENT_MD.read_text(encoding="utf-8"))
-
-    def test_ui_verify_excludes_gh_issue_view(self) -> None:
-        self.assertNotIn("gh issue view", _UI_VERIFY_MD.read_text(encoding="utf-8"))
 
     def test_review_excludes_gh_issue_view(self) -> None:
         self.assertNotIn("gh issue view", _REVIEW_MD.read_text(encoding="utf-8"))

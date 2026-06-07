@@ -21,11 +21,10 @@ history, or change the loop's own scripts or prompts (`ralph/*.sh`,
   comments added after contract capture. Related material can clarify terms only.
 - If DIAGNOSIS_PATH is set in the preamble, read it as supporting context to
   check the diff against the diagnosed cause and chosen regression-test seam.
-- Read `CONTEXT.md`, relevant ADRs, and `AGENTS.md` / `CLAUDE.md` only as needed
-  to review the current diff.
+- Read `CONTEXT.md`, relevant ADRs, and `AGENTS.md` / `CLAUDE.md` if you need
+  domain or convention context to judge the diff.
 - Review the current issue diff from ISSUE_BASE_REF to HEAD.
-- If the issue has a Branch Directive, honor it as publication context. Do not
-  push, merge, open a PR, close a PR, or close the issue yourself.
+- If the issue has a Branch Directive, honor it as publication context.
 </contract>
 <work>
 - Spawn the `swift-reviewer` custom agent as a separate read-only subagent for
@@ -34,39 +33,24 @@ history, or change the loop's own scripts or prompts (`ralph/*.sh`,
   subagent for frozen issue-contract conformance review.
 - Give both reviewers the frozen issue contract, current diff scope, ISSUE_BASE_REF,
   CONTEXT_PATH, and DIAGNOSIS_PATH when present.
-- Do NOT run Xcode UI integration tests in this phase.
-- If either reviewer reports blocking findings, fix them in this same worktree.
-- After fixes, rerun the narrowest relevant non-UI checks plus any non-UI checks
-  needed to prove the reviewer finding is fixed.
-- If you changed files, commit the remediation on the current branch.
-- Repeat review/remediation until both `swift-reviewer` and
-  `spec-conformance-reviewer` report no blocking findings on the current state.
-- Do not push, merge, or close the issue; the loop owns those steps.
+- If either reviewer reports blocking findings, fix them in this same worktree,
+  rerun the narrowest checks that prove the fix, and commit the remediation.
+- Then rerun both `swift-reviewer` and `spec-conformance-reviewer` exactly once
+  more on the post-fix state. This is the only repair+rerun cycle this phase
+  performs — do not loop a third time.
 </work>
 <completion_gate>
-Before your final promise line, emit exactly one observations block. Use
-`<observations>NONE</observations>` unless you hit concrete reusable friction.
-If you do emit bullets, use only `[doc-gap]`, `[friction]`, or `[recurring?]`,
-and every bullet must end with a `— cost:` clause naming the concrete impact.
-For recurrence, read only `tail -n 150 "$OBSERVATIONS_LOG_PATH"` and check
-`wc -l "$OBSERVATIONS_LOG_PATH"`; never read the full observations file.
-
-Emit COMPLETE only when ALL of these hold:
-- `swift-reviewer` was invoked as a separate read-only subagent.
-- `spec-conformance-reviewer` was invoked as a separate read-only subagent.
-- `swift-reviewer` reported no blocking findings on the current state, or all
-  blocking findings were fixed and re-reviewed.
-- `spec-conformance-reviewer` reported no blocking findings on the current state,
-  or all blocking findings were fixed and re-reviewed.
-- Any files changed by this phase were committed.
-- You did not run UI tests.
+Emit COMPLETE when both `swift-reviewer` and `spec-conformance-reviewer` were
+invoked as separate read-only subagents and report no blocking findings —
+either on the first pass, or after the single repair+rerun cycle — and any
+files you changed are committed.
 
 End with the exact BLOCKED promise format from the preamble, using this phase's
-name, only when no meaningful review signal was produced, remaining findings do
-not have a concrete repair path, changed files are uncommitted, or you ran UI
-tests.
+name, when blocking findings remain after the single repair+rerun cycle, no
+meaningful review signal was produced, or changed files are uncommitted.
 
-When the review result is actionable and the hard constraints above hold, end
-your response with the exact COMPLETE promise line from the preamble, on its own
-line.
+If you hit a block, a retry, or concrete reusable friction worth recording for
+future runs, append an `<observations>` block before your promise line, using
+only `[doc-gap]`, `[friction]`, or `[recurring?]` bullets that each end with a
+`— cost:` clause. Otherwise omit the observations block entirely.
 </completion_gate>

@@ -10,20 +10,29 @@ from ralph.orchestrator.diagnosis import (
     render_authority_comment,
 )
 
+# Every well-formed artifact carries the handoff fields the parser now requires.
+_HANDOFF = (
+    "root_cause: Tap never reaches the visible writable row.\n"
+    "fix_plan: Route the gesture through the real control.\n"
+    "test_seam: Tests/UI integration proves the visible state.\n"
+)
+
 _REQUIRED_BLOCK = (
-    "<diagnosis-authority>\n"
+    "<diagnosis-result>\n"
+    f"{_HANDOFF}"
     "ui_integration_test_edits_required: true\n"
     "scope: Tests/UI/WorkoutTrackerUITests.swift\n"
     "reason: Only the UI route proves the tap reaches the visible state.\n"
-    "</diagnosis-authority>"
+    "</diagnosis-result>"
 )
 
 _NOT_REQUIRED_BLOCK = (
-    "<diagnosis-authority>\n"
+    "<diagnosis-result>\n"
+    f"{_HANDOFF}"
     "ui_integration_test_edits_required: false\n"
     "scope:\n"
     "reason:\n"
-    "</diagnosis-authority>"
+    "</diagnosis-result>"
 )
 
 
@@ -38,6 +47,13 @@ class ParseDiagnosisAuthorityTests(unittest.TestCase):
         self.assertEqual(parse.authority.scope, ("Tests/UI/WorkoutTrackerUITests.swift",))
         self.assertIn("UI route", parse.authority.reason)
 
+    def test_artifact_captures_handoff_fields(self) -> None:
+        parse = parse_diagnosis_authority(_NOT_REQUIRED_BLOCK)
+
+        self.assertIn("visible writable row", parse.authority.root_cause)
+        self.assertIn("real control", parse.authority.fix_plan)
+        self.assertIn("Tests/UI integration", parse.authority.test_seam)
+
     def test_not_required_block_is_valid_with_no_scope(self) -> None:
         parse = parse_diagnosis_authority(_NOT_REQUIRED_BLOCK)
 
@@ -47,19 +63,34 @@ class ParseDiagnosisAuthorityTests(unittest.TestCase):
         self.assertEqual(parse.authority.scope, ())
 
     def test_missing_block_is_malformed(self) -> None:
-        parse = parse_diagnosis_authority("a diagnosis with no authority block")
+        parse = parse_diagnosis_authority("a diagnosis with no result artifact")
 
         self.assertEqual(parse.status, DiagnosisAuthorityStatus.MALFORMED)
         self.assertTrue(parse.needs_corrective_pass)
-        self.assertIn("no <diagnosis-authority>", parse.error)
+        self.assertIn("no <diagnosis-result>", parse.error)
+
+    def test_missing_handoff_field_is_malformed(self) -> None:
+        block = (
+            "<diagnosis-result>\n"
+            "fix_plan: route the gesture\n"
+            "test_seam: Tests/UI integration\n"
+            "ui_integration_test_edits_required: false\n"
+            "</diagnosis-result>"
+        )
+
+        parse = parse_diagnosis_authority(block)
+
+        self.assertEqual(parse.status, DiagnosisAuthorityStatus.MALFORMED)
+        self.assertIn("root_cause", parse.error)
 
     def test_non_boolean_value_is_malformed(self) -> None:
         block = (
-            "<diagnosis-authority>\n"
+            "<diagnosis-result>\n"
+            f"{_HANDOFF}"
             "ui_integration_test_edits_required: maybe\n"
             "scope:\n"
             "reason:\n"
-            "</diagnosis-authority>"
+            "</diagnosis-result>"
         )
 
         parse = parse_diagnosis_authority(block)
@@ -69,11 +100,12 @@ class ParseDiagnosisAuthorityTests(unittest.TestCase):
 
     def test_required_without_scope_is_malformed(self) -> None:
         block = (
-            "<diagnosis-authority>\n"
+            "<diagnosis-result>\n"
+            f"{_HANDOFF}"
             "ui_integration_test_edits_required: true\n"
             "scope:\n"
             "reason: needed\n"
-            "</diagnosis-authority>"
+            "</diagnosis-result>"
         )
 
         parse = parse_diagnosis_authority(block)
@@ -83,11 +115,12 @@ class ParseDiagnosisAuthorityTests(unittest.TestCase):
 
     def test_required_without_reason_is_malformed(self) -> None:
         block = (
-            "<diagnosis-authority>\n"
+            "<diagnosis-result>\n"
+            f"{_HANDOFF}"
             "ui_integration_test_edits_required: true\n"
             "scope: Tests/UI/WorkoutTrackerUITests.swift\n"
             "reason:\n"
-            "</diagnosis-authority>"
+            "</diagnosis-result>"
         )
 
         parse = parse_diagnosis_authority(block)
@@ -97,11 +130,12 @@ class ParseDiagnosisAuthorityTests(unittest.TestCase):
 
     def test_scope_outside_ui_tests_is_out_of_scope(self) -> None:
         block = (
-            "<diagnosis-authority>\n"
+            "<diagnosis-result>\n"
+            f"{_HANDOFF}"
             "ui_integration_test_edits_required: true\n"
             "scope: Tests/UI/WorkoutTrackerUITests.swift, project.yml\n"
             "reason: also needs target wiring\n"
-            "</diagnosis-authority>"
+            "</diagnosis-result>"
         )
 
         parse = parse_diagnosis_authority(block)

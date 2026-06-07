@@ -42,5 +42,49 @@ class ReviewPromptXmlStructureTests(unittest.TestCase):
         self.assertTrue(self.prompt.lstrip().startswith("<role>"))
 
 
+class ReviewPromptBoundedLoopTests(unittest.TestCase):
+    """The remediation loop is capped at one repair+rerun, then COMPLETE/BLOCKED (#286)."""
+
+    def setUp(self) -> None:
+        self.prompt = PROMPT_PATH.read_text(encoding="utf-8")
+
+    def test_describes_single_repair_and_rerun(self) -> None:
+        lower = self.prompt.lower()
+        self.assertIn("once", lower)
+        self.assertIn("rerun", lower)
+
+    def test_does_not_describe_unbounded_loop(self) -> None:
+        lower = self.prompt.lower()
+        self.assertNotIn("repeat review/remediation until", lower)
+
+    def test_emits_complete_or_blocked_after_single_rerun(self) -> None:
+        self.assertIn("COMPLETE", self.prompt)
+        self.assertIn("BLOCKED", self.prompt)
+
+
+class ReviewPromptEnvelopeAuthorityTests(unittest.TestCase):
+    """The controller-injected envelope owns allowed/forbidden actions (#286)."""
+
+    def setUp(self) -> None:
+        self.prompt = PROMPT_PATH.read_text(encoding="utf-8")
+
+    def test_does_not_restate_forbidden_action_phrases(self) -> None:
+        lower = self.prompt.lower()
+        self.assertNotIn("workouttrackeruitests bundle", lower)
+        self.assertNotIn("ui interaction suite", lower)
+        self.assertNotIn("do not push, merge, open a pr, close a pr, or close the issue", lower)
+
+    def test_doc_reads_other_than_frozen_contract_are_conditional(self) -> None:
+        self.assertIn("frozen `issue-contract.md`", self.prompt)
+        self.assertNotIn(
+            "Read `CONTEXT.md`, relevant ADRs, and `AGENTS.md` / `CLAUDE.md` only as needed",
+            self.prompt,
+        )
+
+    def test_no_mandatory_observations_block(self) -> None:
+        self.assertNotIn("<observations>NONE</observations>", self.prompt)
+        self.assertNotIn("emit exactly one observations block", self.prompt.lower())
+
+
 if __name__ == "__main__":
     unittest.main()

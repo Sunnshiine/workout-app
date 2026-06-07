@@ -319,31 +319,36 @@ Python captures an immutable `IssueContract` before any mutating phase:
 For issues labelled `bug`, Ralph runs a diagnosis phase before implementation. Diagnosis must build
 or identify a feedback loop, produce a fix plan, and write a local handoff artifact at
 `ralph/.artifacts/context/issue-<issue>/diagnosis.md`. Implementation must read that artifact before
-editing; review and UI verification receive it as supporting context.
+editing; review receives it as supporting context.
 
 Bug diagnosis must also decide whether UI integration test edits are required. The diagnosis output
-must include:
+must end with a single machine-parseable `<diagnosis-result>` artifact carrying the handoff
+(`root_cause`, `fix_plan`, `test_seam`) plus the authority decision:
 
 ```text
-<diagnosis-authority>
+<diagnosis-result>
+root_cause: The tap handler never reaches the visible writable row.
+fix_plan: Route the gesture through the real control instead of the overlay.
+test_seam: Tests/UI integration — the visible state only renders in the UI.
 ui_integration_test_edits_required: true
 scope: Tests/UI/WorkoutTrackerUITests.swift
 reason: Critical real-control workflow per docs/TESTING.md; lower-level tests cannot prove the route.
-</diagnosis-authority>
+</diagnosis-result>
 ```
 
 or:
 
 ```text
-<diagnosis-authority>
+<diagnosis-result>
+root_cause: <concise statement of the diagnosed cause>
+fix_plan: <intended fix approach>
+test_seam: <lowest layer that can prove the fix, per docs/TESTING.md>
 ui_integration_test_edits_required: false
-scope:
-reason:
-</diagnosis-authority>
+</diagnosis-result>
 ```
 
-If the block is missing or malformed, Ralph gets one corrective diagnosis-format pass before
-escalating for human attention.
+If the artifact is missing or malformed, Ralph reruns the `diagnose` phase once with the parser
+error appended before escalating for human attention.
 
 When diagnosis says UI integration test edits are required and the issue body is not already
 authorized, Ralph may grant that authority itself before implementation starts. Ralph reuses the
