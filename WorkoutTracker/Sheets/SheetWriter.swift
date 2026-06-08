@@ -168,6 +168,20 @@ struct SheetWritePlanner: Sendable {
         in snapshot: SheetWritePlanningSnapshot
     ) throws -> SheetCellUpdate {
         let actual = snapshot.grid.cell(row: target.row, col: target.col).trimmed
+        if let multiLineValue = try multiLineNotesValue(
+            for: request,
+            target: target,
+            actual: actual,
+            in: snapshot
+        ) {
+            return SheetCellUpdate(
+                tabName: target.tabName,
+                row: target.row,
+                col: target.col,
+                value: multiLineValue
+            )
+        }
+
         if let aggregateValue = try compactAggregateHeaderValue(
             for: request,
             target: target,
@@ -237,6 +251,14 @@ struct SheetWritePlanner: Sendable {
                 throw SheetWriterError.setRowNotFound(exerciseName: request.exerciseName, setIndex: request.setIndex)
             }
             return (anchor.row, col)
+        }
+
+        let lines = anchor.prescriptionLines(in: snapshot.grid, setsColumn: day.columns.sets)
+        if lines.isMultiLine {
+            guard let line = lines.line(containing: request.setIndex) else {
+                throw SheetWriterError.setRowNotFound(exerciseName: request.exerciseName, setIndex: request.setIndex)
+            }
+            return (line.row, col)
         }
 
         return try resolveNotesTarget(for: request, day: day, anchor: anchor, col: col, in: snapshot)
@@ -313,6 +335,49 @@ struct SheetWritePlanner: Sendable {
             guard let rpe = cols.lastSetRPE else { throw SheetWriterError.columnNotFound("Last set RPE") }
             return rpe
         }
+    }
+
+    /// Per-line Set-Log value for coach J. Alarcon's multi-line template. Each Prescription
+    /// Line keeps its Sets' logs comma-separated in its own Notes cell; the Set's position in
+    /// that list is its offset within the Line. Returns nil for single-line (Kevin) Exercises,
+    /// leaving the existing single-anchor logic in charge.
+    private func multiLineNotesValue(
+        for request: SheetWriteRequest,
+        target: SheetWriteTarget,
+        actual: String,
+        in snapshot: SheetWritePlanningSnapshot
+    ) throws -> String? {
+        guard
+            request.column == .notes,
+            let day = snapshot.layout.day(week: request.week, day: request.day),
+            day.columns.notes == target.col,
+            let anchor = day.exerciseAnchors.first(where: { $0.name == request.exerciseName })
+        else { return nil }
+
+        let lines = anchor.prescriptionLines(in: snapshot.grid, setsColumn: day.columns.sets)
+        guard
+            lines.isMultiLine,
+            let line = lines.line(containing: request.setIndex),
+            line.row == target.row,
+            let position = line.position(of: request.setIndex)
+        else { return nil }
+
+        var values = splitSheetNotesList(actual)
+        if values.count == 1, values[0].isEmpty {
+            values = []
+        }
+        while values.count <= position {
+            values.append("")
+        }
+
+        guard values[position] == request.expectedCurrentValue else {
+            throw SheetWriterError.unexpectedCurrentValue(
+                expected: request.expectedCurrentValue,
+                actual: values[position]
+            )
+        }
+        values[position] = request.operation == .delete ? "" : (request.valueToWrite ?? "")
+        return joinedSheetNotesList(values)
     }
 
     private func compactAggregateHeaderValue(

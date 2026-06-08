@@ -6,21 +6,23 @@ A mobile client for powerlifting athletes that surfaces and logs workouts from a
 
 ### Program Structure
 
-**Block**: A distinct training phase occupying one tab in the Sheet. Each Block spans 4 weeks with 4 training days per week (16 Sessions total). Blocks are numbered sequentially. Avoid: phase, cycle, mesocycle.
+**Block**: A distinct training phase occupying one tab in the Sheet. Each Block spans 4 weeks; a Week holds 2–6 training days (the coach's template decides — commonly 3 or 4), so a Block has 8–24 Sessions. Blocks are numbered sequentially. Avoid: phase, cycle, mesocycle.
 
-**Partially Uploaded Block**: A Block in which at least one Session is an Unavailable Session — the coach has populated some Sessions but not yet all 16. A normal, expected state, not an error: the athlete works the Available Sessions while the rest remain to be uploaded. Availability is decided per Session, so populated Sessions need not be contiguous (e.g. Day 1 of every Week can be Available while Days 2–4 of later Weeks are not). Avoid: incomplete block, draft block, unfinished block.
+**Partially Uploaded Block**: A Block in which at least one Session is an Unavailable Session — the coach has populated some Sessions but not yet all of them. A normal, expected state, not an error: the athlete works the Available Sessions while the rest remain to be uploaded. Availability is decided per Session, so populated Sessions need not be contiguous (e.g. Day 1 of every Week can be Available while Days 2–N of later Weeks are not). Avoid: incomplete block, draft block, unfinished block.
 
 **Week**: One of four consecutive 7-day windows within a Block. Represented as a row-section in the Sheet tab. Avoid: microcycle.
 
-**Session**: A single training day within a Block — one of Day 1–4 in a given Week. The atomic unit the athlete plans around ("what am I doing today?"). Avoid: workout, training day, day.
+**Session**: A single training day within a Block — one of Day 1–N in a given Week, where N is the Week's day count (2–6, set by the coach's template). The atomic unit the athlete plans around ("what am I doing today?"). Avoid: workout, training day, day.
 
 **Available Session**: A Session that has at least one Exercise — the athlete can open it and log. The state of any Session the coach has populated. Availability is determined per Session from whether it holds Exercises, independently of any other Session. Avoid: open session, ready session, unlocked session.
 
 **Unavailable Session**: A Session the coach has not yet populated, holding zero Exercises. Visible in the Block grid as a clearly non-interactive tile so the athlete sees the Session exists but cannot open it. Becomes an Available Session automatically once the coach uploads its Exercises and the app next syncs — no athlete action unlocks it. Avoid: locked session, empty session, missing session, disabled session.
 
-**Exercise**: A movement in a Session, identified by name (optionally prefixed with a tempo notation, e.g. "2-3:1:0 BB RDL"). Each Exercise has one or more prescribed Sets, and all Set Logs for an Exercise are represented together on one Visible Writable Row in the Sheet. Avoid: lift, movement.
+**Exercise**: A movement in a Session, identified by name (optionally prefixed with a tempo notation, e.g. "2-3:1:0 BB RDL"). Each Exercise has one or more prescribed Sets, authored across one or more Prescription Lines. Avoid: lift, movement.
 
-**Set**: One prescribed effort within an Exercise. The Sheet may represent multiple Sets on one Exercise row, and the app writes all Set Logs for an Exercise into one Visible Writable Row as comma-separated values. Avoid: working set.
+**Prescription Line**: One prescription row of an Exercise, carrying its own Sets/Reps/Load and its own comma-separated Set Logs in its Notes cell. Most Exercises are a single Line (the anchor row, whose Sets cell is the total — e.g. Kevin's template). Some coaches (e.g. J. Alarcon) stack several Lines per Exercise: the anchor row plus blank-name continuation rows that each have their own numeric Sets cell. An Exercise's Set count is the sum of its Lines' Sets. Avoid: set group, sub-exercise, row.
+
+**Set**: One prescribed effort within an Exercise. A single Prescription Line may represent multiple Sets, and the app writes that Line's Set Logs into its row as comma-separated values. Avoid: working set.
 
 **Visible Writable Row**: A row that is not hidden by the user or by a filter, within the current Session's Sheet section, where the app may write athlete Set Logs without crossing into another Session or overwriting coach-authored content. For Exercises whose header Notes cell is occupied by a Coach Note, Set Logs must move only to a Visible Writable Row inside that same Session. Avoid: spacer row, hidden row workaround, fallback row.
 
@@ -52,7 +54,7 @@ A mobile client for powerlifting athletes that surfaces and logs workouts from a
 
 **Open Exercise**: An Exercise with at least one Pending Set in any Session belonging to the Current Week. Surfaced by the app as a makeup queue. Abandoned (no longer surfaced) the moment the athlete starts any Session in the next Week — makeups only exist within a week boundary. Avoid: deferred exercise, incomplete set.
 
-**Makeup Day**: An informal extra gym visit within the Current Week, used to complete Open Exercises from Days 1–4. Not a distinct Session column in the sheet — makeup exercises are logged back into their original Day's column. Avoid: bonus day, extra session.
+**Makeup Day**: An informal extra gym visit within the Current Week, used to complete Open Exercises from Days 1–N. Not a distinct Session column in the sheet — makeup exercises are logged back into their original Day's column. Avoid: bonus day, extra session.
 
 **Cadence**: The tempo prefix on an exercise name encoding eccentric, pause, and concentric durations (e.g. "2-3:1:0" in "2-3:1:0 BB RDL"). Prescribed by the coach; displayed in the UI but stripped for fallback index lookups. Avoid: tempo.
 

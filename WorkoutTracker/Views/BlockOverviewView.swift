@@ -8,18 +8,18 @@ struct BlockOverviewView: View {
     let block: Block
     let currentSession: Session?
 
-    private let columns = Array(
-        repeating: GridItem(.flexible(), spacing: Theme.sessionTileSpacing),
-        count: 4
-    )
-
     private var presentation: BlockOverviewPresentation {
         BlockOverviewPresentation(block: block, currentSession: currentSession)
     }
 
+    private func columns(count: Int) -> [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: Theme.sessionTileSpacing), count: count)
+    }
+
     var body: some View {
+        let presentation = presentation
         ScrollView {
-            LazyVGrid(columns: columns, spacing: Theme.sessionTileSpacing) {
+            LazyVGrid(columns: columns(count: presentation.columnCount), spacing: Theme.sessionTileSpacing) {
                 ForEach(presentation.tiles, id: \.accessibilityIdentifier) { tile in
                     if tile.state == .unavailable {
                         SessionTile(

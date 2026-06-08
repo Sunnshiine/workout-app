@@ -177,9 +177,62 @@ private func completionSets(_ sets: [ParsedSet], legacyLog: String?) -> [ParsedS
     }
 }
 
+/// Builds the Sets for one Prescription Line: the Line's own Reps/Load/%1RM are split
+/// positionally (repeating the last token), and the Line's Notes cell holds that Line's
+/// comma-separated Set Logs. A coach-note Notes cell leaves the Line's Sets Pending.
+private func parsedSetsForLine(grid: SheetGrid, cols: DayColumns, line: PrescriptionLine) -> [ParsedSet] {
+    let reps = grid.cellOrEmpty(line.row, cols.reps)
+    let repsValues = reps.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+    let load = grid.cellOrEmpty(line.row, cols.load)
+    let loadValues = splitLoadValues(load)
+    let percent = grid.cellOrEmpty(line.row, cols.percentOneRM)
+    let notes = SheetLayoutHeaderNotes(value: grid.cellOrEmpty(line.row, cols.notes).trimmed)
+    let logValues = notes.isCoachNote ? [] : splitSheetNotesList(notes.value)
+
+    return (0..<line.setCount).map { position in
+        let rawLog = position < logValues.count ? logValues[position] : ""
+        let logState = parsedLogState(from: rawLog)
+        return ParsedSet(
+            index: line.firstSetIndex + position,
+            prescribedReps: position < repsValues.count ? repsValues[position] : (repsValues.last ?? reps),
+            prescribedLoad: position < loadValues.count ? loadValues[position] : (loadValues.last ?? load),
+            percentOneRM: percent.isEmpty ? nil : percent,
+            state: logState.state,
+            setLog: logState.setLog,
+            unstructuredSetLog: logState.unstructuredSetLog
+        )
+    }
+}
+
+private func parsedMultiLineExercise(
+    grid: SheetGrid,
+    cols: DayColumns,
+    anchor: SheetLayoutExerciseAnchor,
+    lines: [PrescriptionLine]
+) -> ParsedExercise {
+    let rawName = grid.cell(row: anchor.row, col: cols.name).trimmed
+    let (cadence, base) = splitCadence(rawName)
+    let anchorNotes = anchor.headerNotes(in: grid, notesColumn: cols.notes)
+    let sets = lines.flatMap { parsedSetsForLine(grid: grid, cols: cols, line: $0) }
+    return ParsedExercise(
+        name: rawName,
+        baseName: base,
+        cadence: cadence,
+        coachNote: anchorNotes.isCoachNote ? anchorNotes.value : nil,
+        sets: sets
+    )
+}
+
 private func parsedExercise(snapshot: SheetSnapshot, day: SheetLayoutDay, anchor: SheetLayoutExerciseAnchor) -> ParsedExercise {
-    let grid = snapshot.values
     let cols = day.columns
+    let lines = anchor.prescriptionLines(in: snapshot.values, setsColumn: cols.sets)
+    return lines.isMultiLine
+        ? parsedMultiLineExercise(grid: snapshot.values, cols: cols, anchor: anchor, lines: lines)
+        : parsedSingleLineExercise(snapshot: snapshot, cols: cols, anchor: anchor)
+}
+
+private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns, anchor: SheetLayoutExerciseAnchor) -> ParsedExercise {
+    let grid = snapshot.values
     let anchorRow = anchor.row
     let rawName = grid.cell(row: anchorRow, col: cols.name).trimmed
     let (cadence, base) = splitCadence(rawName)

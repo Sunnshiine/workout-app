@@ -21,8 +21,15 @@ enum SessionTileState: Equatable, Sendable, CaseIterable {
 }
 
 struct SessionProgressTracker {
-    /// Order index across the block: (week-1)*4 + day.
-    func order(of session: Session) -> Int { ((session.week?.number ?? 1) - 1) * 4 + session.dayNumber }
+    /// Stride between Weeks when encoding a Session's block-wide order. A Week is a 7-day
+    /// window, so a stride of 7 keeps order strictly increasing across Weeks for any 2–6 day
+    /// program; a stride of 4 collided once a Week held more than 4 days (e.g. Day 5/6).
+    private static let weekOrderStride = 7
+
+    /// Order index across the block: (week-1)*stride + day.
+    func order(of session: Session) -> Int {
+        ((session.week?.number ?? 1) - 1) * Self.weekOrderStride + session.dayNumber
+    }
 
     func session(at order: Int, in block: Block) -> Session? {
         allSessions(block).first { self.order(of: $0) == order }

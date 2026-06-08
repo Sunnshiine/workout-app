@@ -32,6 +32,51 @@ private func makeBlock() -> Block {
 }
 
 @MainActor
+private func makeBlock(weeks: Int, daysPerWeek: Int) -> Block {
+    let parsed = ParsedBlockModel(
+        tabName: "Block 27",
+        weeks: (1...weeks).map { w in
+            ParsedWeek(
+                number: w,
+                days: (1...daysPerWeek).map { d in
+                    ParsedSession(
+                        dayNumber: d,
+                        date: nil,
+                        exercises: [
+                            ParsedExercise(
+                                name: "Squat",
+                                baseName: "Squat",
+                                cadence: nil,
+                                coachNote: nil,
+                                sets: [ParsedSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil)]
+                            )
+                        ]
+                    )
+                }
+            )
+        }
+    )
+    return BlockBuilder.makeBlock(from: parsed)
+}
+
+@MainActor
+@Test func sessionOrderStaysMonotonicForSixDayWeeks() throws {
+    // Regression: a 4-day stride collided once a Week held more than 4 days
+    // (Week 1 Day 6 must still come before Week 2 Day 1).
+    let block = makeBlock(weeks: 2, daysPerWeek: 6)
+    let tracker = SessionProgressTracker()
+    let sessions = sortedSessions(in: block)
+
+    #expect(sessions.map { "\($0.week?.number ?? 0).\($0.dayNumber)" }
+        == ["1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "2.1", "2.2", "2.3", "2.4", "2.5", "2.6"])
+
+    let week1Day6 = try #require(sessions.first { $0.week?.number == 1 && $0.dayNumber == 6 })
+    let week2Day1 = try #require(sessions.first { $0.week?.number == 2 && $0.dayNumber == 1 })
+    #expect(tracker.order(of: week1Day6) < tracker.order(of: week2Day1))
+    #expect(tracker.nextSession(after: week1Day6, in: block)?.persistentModelID == week2Day1.persistentModelID)
+}
+
+@MainActor
 private func sortedSessions(in block: Block) -> [Session] {
     block.weeks
         .sorted { $0.number < $1.number }
@@ -132,8 +177,8 @@ private func sortedSessions(in block: Block) -> [Session] {
     sessions[2].exercises[0].sets[0].state = .logged
     let tracker = SessionProgressTracker()
 
-    let ahead = tracker.currentSession(in: block, overrideOrder: 5)
-    let behind = tracker.currentSession(in: block, overrideOrder: 2)
+    let ahead = tracker.currentSession(in: block, overrideOrder: tracker.order(of: sessions[4]))  // W2 D1
+    let behind = tracker.currentSession(in: block, overrideOrder: tracker.order(of: sessions[1]))  // W1 D2
 
     #expect(ahead?.week?.number == 2)
     #expect(ahead?.dayNumber == 1)
@@ -146,8 +191,9 @@ private func sortedSessions(in block: Block) -> [Session] {
     let block = makeBlock()
     let sessions = sortedSessions(in: block)
     sessions[1].exercises = []
+    let tracker = SessionProgressTracker()
 
-    let current = SessionProgressTracker().currentSession(in: block, overrideOrder: 2)
+    let current = tracker.currentSession(in: block, overrideOrder: tracker.order(of: sessions[1]))  // W1 D2
 
     #expect(current?.week?.number == 1)
     #expect(current?.dayNumber == 1)

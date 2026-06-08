@@ -43,6 +43,27 @@ import Testing
     #expect(sections[0].roleHeaderRow == 13)  // header + 2
 }
 
+@Test func supportsTwoThroughSixDaysPerWeek() {
+    // J. Alarcon's program runs 3 days; her history spans 2–4 and the feature is 2–6.
+    // The interpreter must not cap day headers at "Day 4".
+    for dayCount in [2, 3, 5, 6] {
+        var cells: [String: String] = [:]
+        for dayIndex in 0..<dayCount {
+            cells["\(columnName(2 + dayIndex * 16))12"] = "Day \(dayIndex + 1)"
+        }
+        let grid = gridFromA1(cells, rows: 24, cols: 2 + dayCount * 16 + 16)
+
+        let sections = locateWeekSections(in: grid)
+        #expect(sections.count == 1)
+        #expect(sections.first?.dayStartCols.count == dayCount)
+
+        let parsed = SheetParser().parse(grid: grid, tabName: "Block 27")
+        #expect(parsed.warnings.isEmpty)
+        #expect(parsed.block.weeks.first?.days.count == dayCount)
+        #expect(parsed.block.weeks.first?.days.last?.dayNumber == dayCount)
+    }
+}
+
 @Test func splitsCadencePrefix() {
     #expect(splitCadence("2-3:1:0 BB RDL").cadence == "2-3:1:0")
     #expect(splitCadence("2-3:1:0 BB RDL").base == "BB RDL")
@@ -221,6 +242,47 @@ import Testing
 
     #expect(exercises[0].sets[0].prescribedLoad == "RPE 9")
     #expect(exercises[0].sets[1].prescribedLoad == "RPE 10")
+}
+
+@Test func multiLinePrescriptionRowsCountAllSets() {
+    // Reproduction of the "one set per exercise" bug on coach J. Alarcon's template.
+    // In that template each prescription LINE is its own row: an exercise spans an
+    // anchor row plus blank-name continuation rows that carry their OWN Sets/Reps/Load.
+    // "Comp SQ" = two lines of 1 set each (2 sets total). "Comp BP" = a 1-set line
+    // followed by a 2-set line (3 sets total). The parser must sum the per-line Sets,
+    // not read only the anchor row's single Sets cell.
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "G14": "%1RM", "H14": "Load", "I14": "Last set RPE", "J14": "Notes",
+            "C15": "0:3:0 Comp SQ", "D15": "1", "F15": "5", "H15": "RPE6",
+            "D16": "1", "F16": "5", "H16": "Drop 20%",
+            "C17": "0:3:0 Comp BP", "D17": "1", "F17": "5", "H17": "RPE6",
+            "D18": "2", "F18": "7", "H18": "RPE5, RPE6"
+        ],
+        rows: 24,
+        cols: 30
+    )
+    let section = locateWeekSections(in: grid)[0]
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+
+    #expect(exercises.count == 2)
+
+    let compSQ = exercises[0]
+    #expect(compSQ.baseName == "Comp SQ")
+    #expect(compSQ.sets.count == 2)
+    #expect(compSQ.sets[0].prescribedReps == "5")
+    #expect(compSQ.sets[0].prescribedLoad == "RPE6")
+    #expect(compSQ.sets[1].prescribedReps == "5")
+    #expect(compSQ.sets[1].prescribedLoad == "Drop 20%")
+
+    let compBP = exercises[1]
+    #expect(compBP.baseName == "Comp BP")
+    #expect(compBP.sets.count == 3)
+    #expect(compBP.sets[0].prescribedLoad == "RPE6")
+    #expect(compBP.sets[1].prescribedReps == "7")
+    #expect(compBP.sets[1].prescribedLoad == "RPE5")
+    #expect(compBP.sets[2].prescribedLoad == "RPE6")
 }
 
 @Test func continuationNotesBecomeSetLogsWithoutUsingAnchorCoachNote() {

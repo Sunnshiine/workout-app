@@ -35,6 +35,46 @@ import Testing
 }
 
 @MainActor
+@Test func auditDetailsReportsPerLineValueForMultiLineWrite() throws {
+    // A multi-line (J. Alarcon) Exercise: Comp BP = a 1-set anchor Line plus a 2-set
+    // continuation Line at row 16 whose Notes cell already holds Set 2's log. Logging Set 3
+    // (position 1 of that Line) succeeds; the audit must report the per-position value, not the
+    // whole cell — otherwise a successful write is logged as a value mismatch.
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE", "J14": "Notes",
+            "C15": "Comp BP", "D15": "1", "F15": "5", "H15": "RPE6",
+            "D16": "2", "F16": "7", "H16": "RPE5, RPE6", "J16": "135x7@8",
+            "C17": "Hip Thrust", "D17": "2"
+        ],
+        rows: 24,
+        cols: 30
+    )
+    let planner = SheetWritePlanner()
+    let snapshot = planner.snapshot(for: grid)
+    let request = SheetWriteRequest(
+        blockTab: "Block 27",
+        week: 1,
+        day: 1,
+        exerciseName: "Comp BP",
+        setIndex: 2,
+        column: .notes,
+        operation: .upsert,
+        valueToWrite: "140x7@9",
+        expectedCurrentValue: ""
+    )
+
+    let target = try planner.target(for: request, in: snapshot)
+    let audit = planner.auditDetails(for: request, target: target, in: snapshot)
+
+    #expect(audit.selectedA1Target == "'Block 27'!J16")
+    #expect(audit.currentValue == "")
+    #expect(audit.valueCheckOutcome == "Current value matched expected ''.")
+    #expect(audit.rowScanDetails.contains("Prescription Line"))
+}
+
+@MainActor
 @Test func syncCoordinatorListsPendingAndConflictedWriteDiagnosticsInCreationOrder() throws {
     let container = try ModelContainer(
         for: Block.self,

@@ -329,7 +329,11 @@ final class WorkoutStore {
     }
 
     private func currentSessionOverrideKey(for tabName: String) -> String {
-        "advancedToOrder_\(tabName)"
+        // V2: the Session order encoding changed stride (4 → 7) to support 2–6 day Weeks.
+        // A new key orphans any legacy `advancedToOrder_*` value so it can never resolve to the
+        // wrong Session under the new stride; the override simply resets to the derived Current
+        // Session once, which the athlete can re-set with one tap.
+        "advancedToOrderV2_\(tabName)"
     }
 
     private func sessionLabel(for session: Session?) -> String {

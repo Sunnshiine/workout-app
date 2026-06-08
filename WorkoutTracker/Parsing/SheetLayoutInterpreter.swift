@@ -104,6 +104,32 @@ func joinedSheetNotesList(_ values: [String]) -> String {
     return trimmed.joined(separator: ", ")
 }
 
+/// One prescription row of an Exercise. `setCount` is how many Sets this Line prescribes;
+/// `firstSetIndex` is the running Set index of this Line's first Set within the Exercise, so
+/// Line lookups and Set-Log addressing stay consistent across read and write.
+struct PrescriptionLine: Sendable, Equatable {
+    let row: Int
+    let setCount: Int
+    let firstSetIndex: Int
+
+    /// The zero-based position of Set `setIndex` within this Line's own Set-Log list, or nil
+    /// when the Set does not belong to this Line.
+    func position(of setIndex: Int) -> Int? {
+        let local = setIndex - firstSetIndex
+        return (0..<setCount).contains(local) ? local : nil
+    }
+}
+
+extension Array where Element == PrescriptionLine {
+    /// Exercises authored as more than one Prescription Line use the per-line Set model;
+    /// a single Line means the existing single-anchor (Kevin) path applies.
+    var isMultiLine: Bool { count > 1 }
+
+    func line(containing setIndex: Int) -> PrescriptionLine? {
+        first { $0.position(of: setIndex) != nil }
+    }
+}
+
 struct SheetLayoutExerciseAnchor: Sendable {
     let name: String
     let row: Int
@@ -116,6 +142,33 @@ struct SheetLayoutExerciseAnchor: Sendable {
     func prescribedSetCount(in grid: SheetGrid, setsColumn: Int?) -> Int {
         let rawValue = setsColumn.map { grid.cell(row: row, col: $0).trimmed } ?? ""
         return max(Int(rawValue.prefix { $0.isNumber }) ?? 1, 1)
+    }
+
+    /// The Prescription Lines that make up this Exercise. Line 0 is always the anchor
+    /// row; each blank-name continuation row inside the Exercise span whose Sets cell is a
+    /// non-empty number is an additional Line (coach J. Alarcon's one-line-per-row template).
+    ///
+    /// Kevin's template returns exactly one Line: his continuation rows hold Set Logs in the
+    /// Notes column with an empty Sets cell, so they never qualify — keeping that path
+    /// (`isMultiLine == false`) on the existing single-anchor logic.
+    func prescriptionLines(in grid: SheetGrid, setsColumn: Int?) -> [PrescriptionLine] {
+        func numericSetCount(at lineRow: Int) -> Int? {
+            guard let setsColumn else { return nil }
+            let digits = grid.cell(row: lineRow, col: setsColumn).trimmed.prefix { $0.isNumber }
+            guard let value = Int(digits) else { return nil }
+            return max(value, 1)
+        }
+
+        var lines = [PrescriptionLine(row: row, setCount: numericSetCount(at: row) ?? 1, firstSetIndex: 0)]
+        var nextFirstSetIndex = lines[0].setCount
+        for continuationRow in (row + 1)..<nextAnchorRow {
+            guard let setCount = numericSetCount(at: continuationRow) else { continue }
+            lines.append(
+                PrescriptionLine(row: continuationRow, setCount: setCount, firstSetIndex: nextFirstSetIndex)
+            )
+            nextFirstSetIndex += setCount
+        }
+        return lines
     }
 
     func usesCompactHeaderSetOne(headerNotes: SheetLayoutHeaderNotes) -> Bool {
@@ -193,7 +246,9 @@ struct SheetLayoutInterpreter: Sendable {
     }
 }
 
-private nonisolated(unsafe) let sheetLayoutDayHeaderPattern = /^Day [1-4]$/
+// Any "Day N" header (1-indexed, no upper bound) so 2–6 day programs all parse; the count of
+// detected headers drives every downstream day count (ADR-0003 — never hardcode the layout).
+private nonisolated(unsafe) let sheetLayoutDayHeaderPattern = /^Day \d+$/
 
 /// Resolves role columns by scanning the role-header row within the day's span.
 /// Columns are never hardcoded (ADR 0003).
