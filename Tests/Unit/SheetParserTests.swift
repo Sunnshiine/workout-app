@@ -285,6 +285,53 @@ import Testing
     #expect(compBP.sets[2].prescribedLoad == "RPE6")
 }
 
+@Test func duplicateSetsHeaderResolvesToColumnCarryingData() {
+    // Reproduction of the W3/W4 Day-2 "one set per exercise" bug on coach J. Alarcon's
+    // sheet: the role-header row repeats "Sets" across two adjacent columns (S and T),
+    // but only the second (T) carries the Set counts — S is an empty duplicate. Column
+    // resolution must pick the populated column. Picking the first (empty) match makes
+    // every exercise's Sets cell read blank, collapsing each exercise to a single set.
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "R12": "Day 2",
+            "S14": "Sets", "T14": "Sets", "V14": "Reps", "X14": "Load", "Z14": "Notes",
+            "R15": "Walking Lunges", "T15": "2", "V15": "12/leg", "X15": "RPE7, RPE8"
+        ],
+        rows: 24,
+        cols: 40
+    )
+    let section = locateWeekSections(in: grid)[0]
+    let exercises = parseDay(in: grid, section: section, dayIndex: 1, endRow: grid.count)
+
+    #expect(exercises.count == 1)
+    let lunges = exercises[0]
+    #expect(lunges.baseName == "Walking Lunges")
+    #expect(lunges.sets.count == 2)  // 1 with the duplicate-header bug
+    #expect(lunges.sets[0].prescribedReps == "12/leg")
+    #expect(lunges.sets[0].prescribedLoad == "RPE7")
+    #expect(lunges.sets[1].prescribedLoad == "RPE8")
+}
+
+@Test func duplicateHeaderWithNoDataFallsBackToFirstColumn() {
+    // When duplicate role headers are BOTH empty in the body, resolution falls back to the
+    // first match — preserving the pre-existing single-column behaviour. Here the Sets
+    // value lives in the first "Sets" column (S); the duplicate (T) stays empty.
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "R12": "Day 2",
+            "S14": "Sets", "T14": "Sets", "V14": "Reps", "X14": "Load",
+            "R15": "Walking Lunges", "S15": "2", "V15": "12/leg", "X15": "RPE7, RPE8"
+        ],
+        rows: 24,
+        cols: 40
+    )
+    let section = locateWeekSections(in: grid)[0]
+    let exercises = parseDay(in: grid, section: section, dayIndex: 1, endRow: grid.count)
+
+    #expect(exercises.count == 1)
+    #expect(exercises[0].sets.count == 2)
+}
+
 @Test func continuationNotesBecomeSetLogsWithoutUsingAnchorCoachNote() {
     let grid = gridFromA1(
         [

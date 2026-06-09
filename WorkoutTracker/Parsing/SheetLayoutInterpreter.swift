@@ -218,13 +218,21 @@ struct SheetLayoutInterpreter: Sendable {
         let sections = locateWeekSections(in: grid)
         let weeks = sections.enumerated().map { index, section in
             let endRow = index + 1 < sections.count ? sections[index + 1].headerRow : grid.count
+            let firstBodyRow = section.roleHeaderRow + 1
+            let upper = min(endRow, grid.count)
+            let bodyRows = firstBodyRow..<max(firstBodyRow, upper)
             let days = section.dayStartCols.indices.map { dayIndex in
-                let columns = resolveDayColumns(in: grid, section: section, dayIndex: dayIndex)
+                let columns = resolveDayColumns(
+                    in: grid,
+                    section: section,
+                    dayIndex: dayIndex,
+                    bodyRows: bodyRows
+                )
                 let anchors = exerciseAnchors(
                     in: grid,
                     cols: columns,
-                    firstRow: section.roleHeaderRow + 1,
-                    upper: min(endRow, grid.count)
+                    firstRow: firstBodyRow,
+                    upper: upper
                 )
                 return SheetLayoutDay(
                     number: dayIndex + 1,
@@ -251,8 +259,15 @@ struct SheetLayoutInterpreter: Sendable {
 private nonisolated(unsafe) let sheetLayoutDayHeaderPattern = /^Day \d+$/
 
 /// Resolves role columns by scanning the role-header row within the day's span.
-/// Columns are never hardcoded (ADR 0003).
-func resolveDayColumns(in grid: SheetGrid, section: WeekSection, dayIndex: Int) -> DayColumns {
+/// Columns are never hardcoded (ADR 0003). `bodyRows` is the day's exercise-row range,
+/// used only to disambiguate a role header that is repeated across columns; the empty
+/// default (`0..<0`) skips disambiguation and returns the first matching column.
+func resolveDayColumns(
+    in grid: SheetGrid,
+    section: WeekSection,
+    dayIndex: Int,
+    bodyRows: Range<Int> = 0..<0
+) -> DayColumns {
     let starts = section.dayStartCols
     let start = starts[dayIndex]
     let end =
@@ -262,9 +277,16 @@ func resolveDayColumns(in grid: SheetGrid, section: WeekSection, dayIndex: Int) 
     let span = start..<end
 
     func find(_ label: String) -> Int? {
-        span.first {
+        let matches = span.filter {
             grid.cell(row: section.roleHeaderRow, col: $0).caseInsensitiveCompare(label) == .orderedSame
         }
+        guard matches.count > 1 else { return matches.first }
+        // A coach sheet can repeat a role header across adjacent columns where only one
+        // carries data (e.g. a stray duplicate "Sets" header). Prefer the column with
+        // values in the day's body; fall back to the first match.
+        return matches.first { col in
+            bodyRows.contains { !grid.cell(row: $0, col: col).trimmed.isEmpty }
+        } ?? matches.first
     }
     return DayColumns(
         name: start,
