@@ -67,6 +67,16 @@ extension SheetWritePlanner {
             let anchor = day.exerciseAnchors.first(where: { $0.name == request.exerciseName })
         else { return actual }
 
+        let lines = anchor.prescriptionLines(in: snapshot.grid, setsColumn: day.columns.sets)
+        if lines.isMultiLine, let line = lines.line(containing: request.setIndex), line.row == target.row,
+            let position = line.position(of: request.setIndex) {
+            var values = splitSheetNotesList(actual)
+            if values.count == 1, values[0].isEmpty {
+                values = []
+            }
+            return position < values.count ? values[position] : ""
+        }
+
         let headerNotes = anchor.headerNotes(in: snapshot.grid, notesColumn: day.columns.notes)
         let setCount = anchor.prescribedSetCount(in: snapshot.grid, setsColumn: day.columns.sets)
         let usesHeaderTarget =
@@ -100,6 +110,16 @@ extension SheetWritePlanner {
 
         if request.column == .lastSetRPE {
             return lastSetRPERowScanDetails(anchor: anchor, selectedRow: selectedRow, in: snapshot.snapshot)
+        }
+
+        let lines = anchor.prescriptionLines(in: snapshot.grid, setsColumn: day.columns.sets)
+        if lines.isMultiLine, let line = lines.line(containing: request.setIndex) {
+            return multiLinePrescriptionRowScanDetails(
+                line: line,
+                setIndex: request.setIndex,
+                selectedRow: selectedRow,
+                in: snapshot.snapshot
+            )
         }
 
         let headerNotes = anchor.headerNotes(in: snapshot.grid, notesColumn: day.columns.notes)
@@ -147,6 +167,23 @@ extension SheetWritePlanner {
             return "\(prefix)Selected row \(selectedRow + 1): compact header Notes row stores Set logs as a comma-separated list."
         }
         return "\(prefix)No row selected: compact header Notes row \(anchor.row + 1) is hidden."
+    }
+
+    private func multiLinePrescriptionRowScanDetails(
+        line: PrescriptionLine,
+        setIndex: Int,
+        selectedRow: Int?,
+        in snapshot: SheetSnapshot
+    ) -> String {
+        let prefix = hiddenRowDescription([line.row], in: snapshot).map { "Skipped hidden rows: \($0). " } ?? ""
+        let position = (line.position(of: setIndex) ?? 0) + 1
+        if let selectedRow {
+            return """
+                \(prefix)Selected row \(selectedRow + 1): Prescription Line row stores this Line's Set logs as a \
+                comma-separated list (Set \(position) of the Line).
+                """
+        }
+        return "\(prefix)No row selected: Prescription Line row \(line.row + 1) is hidden."
     }
 
     private func protectedHeaderRowScanDetails(

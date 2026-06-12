@@ -36,7 +36,10 @@ final class SettingsStore {
     private static let supersetRestDurationSecondsKey = "supersetRestDurationSeconds"
     private static let spreadsheetIdKey = "spreadsheetId"
     private static let spreadsheetTitleKey = "spreadsheetTitle"
-    private static let currentSessionOverrideKeyPrefix = "advancedToOrder_"
+    // Matches both the legacy "advancedToOrder_" and the current "advancedToOrderV2_" override
+    // keys (the Session order encoding was re-versioned for 2–6 day Weeks) so prior app state is
+    // still recognised regardless of which one is stored.
+    private static let currentSessionOverrideKeyPrefix = "advancedToOrder"
 
     init(defaults: UserDefaults = .standard, hasPriorAppState: Bool = false) {
         self.defaults = defaults

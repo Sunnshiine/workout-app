@@ -136,7 +136,11 @@ private struct SessionControls: View {
                     .foregroundStyle(palette.accent)
                     .frame(width: 32, height: 32)
             }
-            .buttonStyle(.workoutGlass)
+            // Plain on purpose: the gear sits inside the header's glass capsule, and a nested
+            // glass button renders a circular halo that overflows the capsule corner on device.
+            // The snapshot harness composites glass as transparent, so only on-simulator
+            // screenshots can verify this.
+            .buttonStyle(.plain)
             .frame(width: 32, height: 32)
             .contentShape(Rectangle())
             .padding(6)

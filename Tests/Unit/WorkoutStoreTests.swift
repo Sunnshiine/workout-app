@@ -201,6 +201,23 @@ private func makeStore(
 }
 
 @MainActor
+@Test func ignoresLegacyOrderOverrideKeyFromBeforeStrideChange() throws {
+    // A pre-V2 build persisted the manual Current Session override under "advancedToOrder_<tab>"
+    // with the old stride-4 encoding. Under the new stride-7 encoding that same integer can map
+    // to a DIFFERENT Session, so the new key must ignore the legacy value and fall back to the
+    // derived Current Session rather than silently resolving to the wrong one.
+    let defaults = try makeDefaults()
+    defaults.set(8, forKey: "advancedToOrder_Block 27")  // legacy W2 D4; = W2 D1 under stride 7
+
+    let fixture = try makeStore(weekCount: 2, defaults: defaults)
+    defer { withExtendedLifetime(fixture.container) {} }
+
+    // Nothing is logged, so the derived Current Session is W1 D1 — not the legacy value's target.
+    #expect(fixture.store.currentSession?.week?.number == 1)
+    #expect(fixture.store.currentSession?.dayNumber == 1)
+}
+
+@MainActor
 @Test func reloadPreservesManualCurrentSessionOverrideAgainstSheetDerivedProgress() throws {
     let fixture = try makeStore(defaults: makeDefaults())
     defer { withExtendedLifetime(fixture.container) {} }

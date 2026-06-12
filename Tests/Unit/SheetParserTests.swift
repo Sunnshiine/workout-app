@@ -43,6 +43,27 @@ import Testing
     #expect(sections[0].roleHeaderRow == 13)  // header + 2
 }
 
+@Test func supportsTwoThroughSixDaysPerWeek() {
+    // J. Alarcon's program runs 3 days; her history spans 2–4 and the feature is 2–6.
+    // The interpreter must not cap day headers at "Day 4".
+    for dayCount in [2, 3, 5, 6] {
+        var cells: [String: String] = [:]
+        for dayIndex in 0..<dayCount {
+            cells["\(columnName(2 + dayIndex * 16))12"] = "Day \(dayIndex + 1)"
+        }
+        let grid = gridFromA1(cells, rows: 24, cols: 2 + dayCount * 16 + 16)
+
+        let sections = locateWeekSections(in: grid)
+        #expect(sections.count == 1)
+        #expect(sections.first?.dayStartCols.count == dayCount)
+
+        let parsed = SheetParser().parse(grid: grid, tabName: "Block 27")
+        #expect(parsed.warnings.isEmpty)
+        #expect(parsed.block.weeks.first?.days.count == dayCount)
+        #expect(parsed.block.weeks.first?.days.last?.dayNumber == dayCount)
+    }
+}
+
 @Test func splitsCadencePrefix() {
     #expect(splitCadence("2-3:1:0 BB RDL").cadence == "2-3:1:0")
     #expect(splitCadence("2-3:1:0 BB RDL").base == "BB RDL")
@@ -221,6 +242,94 @@ import Testing
 
     #expect(exercises[0].sets[0].prescribedLoad == "RPE 9")
     #expect(exercises[0].sets[1].prescribedLoad == "RPE 10")
+}
+
+@Test func multiLinePrescriptionRowsCountAllSets() {
+    // Reproduction of the "one set per exercise" bug on coach J. Alarcon's template.
+    // In that template each prescription LINE is its own row: an exercise spans an
+    // anchor row plus blank-name continuation rows that carry their OWN Sets/Reps/Load.
+    // "Comp SQ" = two lines of 1 set each (2 sets total). "Comp BP" = a 1-set line
+    // followed by a 2-set line (3 sets total). The parser must sum the per-line Sets,
+    // not read only the anchor row's single Sets cell.
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "G14": "%1RM", "H14": "Load", "I14": "Last set RPE", "J14": "Notes",
+            "C15": "0:3:0 Comp SQ", "D15": "1", "F15": "5", "H15": "RPE6",
+            "D16": "1", "F16": "5", "H16": "Drop 20%",
+            "C17": "0:3:0 Comp BP", "D17": "1", "F17": "5", "H17": "RPE6",
+            "D18": "2", "F18": "7", "H18": "RPE5, RPE6"
+        ],
+        rows: 24,
+        cols: 30
+    )
+    let section = locateWeekSections(in: grid)[0]
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+
+    #expect(exercises.count == 2)
+
+    let compSQ = exercises[0]
+    #expect(compSQ.baseName == "Comp SQ")
+    #expect(compSQ.sets.count == 2)
+    #expect(compSQ.sets[0].prescribedReps == "5")
+    #expect(compSQ.sets[0].prescribedLoad == "RPE6")
+    #expect(compSQ.sets[1].prescribedReps == "5")
+    #expect(compSQ.sets[1].prescribedLoad == "Drop 20%")
+
+    let compBP = exercises[1]
+    #expect(compBP.baseName == "Comp BP")
+    #expect(compBP.sets.count == 3)
+    #expect(compBP.sets[0].prescribedLoad == "RPE6")
+    #expect(compBP.sets[1].prescribedReps == "7")
+    #expect(compBP.sets[1].prescribedLoad == "RPE5")
+    #expect(compBP.sets[2].prescribedLoad == "RPE6")
+}
+
+@Test func duplicateSetsHeaderResolvesToColumnCarryingData() {
+    // Reproduction of the W3/W4 Day-2 "one set per exercise" bug on coach J. Alarcon's
+    // sheet: the role-header row repeats "Sets" across two adjacent columns (S and T),
+    // but only the second (T) carries the Set counts — S is an empty duplicate. Column
+    // resolution must pick the populated column. Picking the first (empty) match makes
+    // every exercise's Sets cell read blank, collapsing each exercise to a single set.
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "R12": "Day 2",
+            "S14": "Sets", "T14": "Sets", "V14": "Reps", "X14": "Load", "Z14": "Notes",
+            "R15": "Walking Lunges", "T15": "2", "V15": "12/leg", "X15": "RPE7, RPE8"
+        ],
+        rows: 24,
+        cols: 40
+    )
+    let section = locateWeekSections(in: grid)[0]
+    let exercises = parseDay(in: grid, section: section, dayIndex: 1, endRow: grid.count)
+
+    #expect(exercises.count == 1)
+    let lunges = exercises[0]
+    #expect(lunges.baseName == "Walking Lunges")
+    #expect(lunges.sets.count == 2)  // 1 with the duplicate-header bug
+    #expect(lunges.sets[0].prescribedReps == "12/leg")
+    #expect(lunges.sets[0].prescribedLoad == "RPE7")
+    #expect(lunges.sets[1].prescribedLoad == "RPE8")
+}
+
+@Test func duplicateHeaderWithNoDataFallsBackToFirstColumn() {
+    // When duplicate role headers are BOTH empty in the body, resolution falls back to the
+    // first match — preserving the pre-existing single-column behaviour. Here the Sets
+    // value lives in the first "Sets" column (S); the duplicate (T) stays empty.
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "R12": "Day 2",
+            "S14": "Sets", "T14": "Sets", "V14": "Reps", "X14": "Load",
+            "R15": "Walking Lunges", "S15": "2", "V15": "12/leg", "X15": "RPE7, RPE8"
+        ],
+        rows: 24,
+        cols: 40
+    )
+    let section = locateWeekSections(in: grid)[0]
+    let exercises = parseDay(in: grid, section: section, dayIndex: 1, endRow: grid.count)
+
+    #expect(exercises.count == 1)
+    #expect(exercises[0].sets.count == 2)
 }
 
 @Test func continuationNotesBecomeSetLogsWithoutUsingAnchorCoachNote() {

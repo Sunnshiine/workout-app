@@ -18,6 +18,47 @@ import Testing
 }
 
 @MainActor
+private func uniformDayBlock(daysPerWeek: Int, weeks: Int = 2) -> Block {
+    BlockBuilder.makeBlock(
+        from: ParsedBlockModel(
+            tabName: "Block 27",
+            weeks: (1...weeks).map { w in
+                ParsedWeek(
+                    number: w,
+                    days: (1...daysPerWeek).map { d in
+                        ParsedSession(
+                            dayNumber: d,
+                            date: nil,
+                            exercises: [
+                                ParsedExercise(
+                                    name: "Squat",
+                                    baseName: "Squat",
+                                    cadence: nil,
+                                    coachNote: nil,
+                                    sets: [ParsedSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil)]
+                                )
+                            ]
+                        )
+                    }
+                )
+            }
+        )
+    )
+}
+
+@MainActor
+@Test func columnCountMatchesBlockDayWidth() {
+    #expect(BlockOverviewPresentation(block: uniformDayBlock(daysPerWeek: 3), currentSession: nil).columnCount == 3)
+    #expect(BlockOverviewPresentation(block: uniformDayBlock(daysPerWeek: 6), currentSession: nil).columnCount == 6)
+
+    // The existing 4-day (partially uploaded) Block still renders four columns.
+    let scenario = WorkoutScenarios.partiallyUploadedBlock()
+    #expect(
+        BlockOverviewPresentation(block: scenario.block, currentSession: scenario.currentSession).columnCount == 4
+    )
+}
+
+@MainActor
 @Test func blockOverviewPresentationMarksUnavailableSessionsInPartiallyUploadedBlock() {
     let scenario = WorkoutScenarios.partiallyUploadedBlock()
 

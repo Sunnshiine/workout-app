@@ -413,7 +413,9 @@
         }
 
         static func session(weekNumber: Int, dayNumber: Int, exercises: [Exercise]) -> Session {
-            let order = ((weekNumber - 1) * 4) + dayNumber
+            // Spacing only needs to keep fixture dates distinct and increasing; a 7-day stride
+            // stays collision-free for Weeks of up to 7 days (matches SessionProgressTracker).
+            let order = ((weekNumber - 1) * 7) + dayNumber
             let session = Session(
                 dayNumber: dayNumber,
                 date: Date(timeIntervalSinceReferenceDate: TimeInterval(order * 86_400))
