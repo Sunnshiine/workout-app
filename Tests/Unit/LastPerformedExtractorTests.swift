@@ -54,6 +54,79 @@ import Testing
     #expect(bench.source == "Block 27 · W1 D1")
 }
 
+@Test func extractsEveryLoggedSetLogOfTheExerciseInSetOrder() throws {
+    let block = ParsedBlockModel(
+        tabName: "Block 27",
+        weeks: [
+            week(
+                1,
+                date: nil,
+                exercises: [
+                    exercise(
+                        "BB RDL",
+                        sets: [
+                            loggedSet(index: 0, weight: 70, reps: 8, rpe: 8),
+                            loggedSet(index: 1, weight: 75, reps: 8, rpe: 9.5)
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
+
+    let entry = try #require(LastPerformedExtractor.entries(from: block).first)
+
+    #expect(entry.displayResultText == "70x8@8, 75x8@9.5")
+    #expect(entry.result == nil)
+}
+
+@Test func multiSetEvidenceSkipsSkippedAndPendingSetsButKeepsSetOrder() throws {
+    let block = ParsedBlockModel(
+        tabName: "Block 27",
+        weeks: [
+            week(
+                1,
+                date: nil,
+                exercises: [
+                    exercise(
+                        "Squat",
+                        sets: [
+                            loggedSet(index: 2, weight: 205, reps: 5, rpe: 9),
+                            skippedSet(index: 1),
+                            loggedSet(index: 0, weight: 185, reps: 5, rpe: 7),
+                            pendingSet(index: 3)
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
+
+    let entry = try #require(LastPerformedExtractor.entries(from: block).first)
+
+    #expect(entry.displayResultText == "185x5@7, 205x5@9")
+}
+
+@Test func singleSetEvidenceKeepsStructuredResult() throws {
+    let block = ParsedBlockModel(
+        tabName: "Block 27",
+        weeks: [
+            week(
+                1,
+                date: nil,
+                exercises: [
+                    exercise("Bench Press", sets: [loggedSet(index: 0, weight: 155, reps: 6, rpe: 7)])
+                ]
+            )
+        ]
+    )
+
+    let entry = try #require(LastPerformedExtractor.entries(from: block).first)
+
+    #expect(entry.result == SetLog(weight: .pounds(155), reps: 6, rpe: 7))
+    #expect(entry.displayResultText == "155x6@7")
+}
+
 @Test func extractorReturnsEmptyArrayWithoutLoggedSets() {
     let block = ParsedBlockModel(
         tabName: "Block 27",
