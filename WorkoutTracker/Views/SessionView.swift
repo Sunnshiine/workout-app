@@ -20,9 +20,16 @@ struct SessionView: View {
     @State private var sessionSettingsTopContentOffset: CGFloat = 0
     @State private var sessionSettingsDragStartTopContentOffset: CGFloat?
     @State private var isSettingsPresented = false
+    // PROTOTYPE — throwaway switch for the Session View layout lab; see docs/prototypes/session-view-prototypes.md.
+    @AppStorage(SessionPrototypeVariant.storageKey)
+    private var storedSessionPrototypeVariant = SessionPrototypeVariant.production.rawValue
 
     init(liveActivityAdapter: LiveActivityProductionAdapter = LiveActivityProductionAdapter()) {
         self.liveActivityAdapter = liveActivityAdapter
+    }
+
+    private var sessionPrototypeVariant: SessionPrototypeVariant {
+        SessionPrototypeVariant.effective(storedRawValue: storedSessionPrototypeVariant)
     }
 
     var body: some View {
@@ -47,71 +54,19 @@ struct SessionView: View {
                         .padding(.top, 8)
                     }
 
-                    ScrollViewReader { proxy in
-                        ScrollView {
-                            WorkoutGlassContainer(spacing: Theme.cardSpacing) {
-                                VStack(alignment: .leading, spacing: Theme.sectionSpacing) {
-                                    ForEach(
-                                        coordinator.renderItems(
-                                            in: session,
-                                            lastPerformedLookup: lastPerformedLookup.snapshot
-                                        ),
-                                        id: \.id
-                                    ) { item in
-                                        renderItem(item, in: session)
-                                    }
-
-                                    if workout.isViewingLiveEdge, !workout.openExercises.isEmpty {
-                                        OpenExercisesSection(
-                                            exercises: workout.openExercises,
-                                            onSelect: showSourceSession(for:)
-                                        )
-                                    }
-
-                                    if workout.isViewingLiveEdge, workout.canMoveOn {
-                                        MoveOnButton {
-                                            coordinator.cancelRestForSessionExit()
-                                            workout.requestMoveOnCelebration()
-                                        }
-                                    }
-
-                                    Color.clear
-                                        .frame(height: 44)
-                                        .contentShape(Rectangle())
-                                        .onTapGesture {
-                                            coordinator.cancelPairing()
-                                            coordinator.collapseLoggedSetReview()
-                                        }
-                                }
-                                .background {
-                                    if coordinator.pairingMode != .inactive {
-                                        Color.clear
-                                            .contentShape(Rectangle())
-                                            .onTapGesture(perform: coordinator.cancelPairing)
-                                    }
-                                }
+                    Group {
+                        if sessionPrototypeVariant != .production {
+                            SessionPrototypeContainer(
+                                variant: sessionPrototypeVariant,
+                                session: session,
+                                coordinator: coordinator,
+                                restTimer: restTimer,
+                                actions: prototypeActions(in: session)
+                            ) {
+                                sessionHeaderHUD(session: session)
                             }
-                            .padding(.horizontal)
-                            .padding(.vertical)
-                        }
-                        .scrollBounceBehavior(.always)
-                        .scrollEdgeEffectStyle(.soft, for: .top)
-                        .safeAreaInset(edge: .top, spacing: 0) {
-                            sessionHeaderHUD(session: session)
-                        }
-                        .safeAreaInset(edge: .bottom, spacing: 0) {
-                            if restTimer.isRunning {
-                                RestPillView(restTimer: restTimer)
-                            }
-                        }
-                        .onScrollGeometryChange(for: CGFloat.self, of: topContentOffset) { _, offset in
-                            updateSessionSettingsOverpull(topContentOffset: offset)
-                        }
-                        .onChange(of: coordinator.scrollTargetID) { _, targetID in
-                            scrollToSet(targetID, with: proxy)
-                        }
-                        .onChange(of: coordinator.supersetScrollTargetOrder) { _, order in
-                            scrollToSuperset(order, with: proxy)
+                        } else {
+                            productionScrollView(for: session)
                         }
                     }
                     .onAppear {
@@ -321,6 +276,80 @@ struct SessionView: View {
 }
 
 extension SessionView {
+    private func productionScrollView(for session: Session) -> some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                productionSessionContent(for: session)
+                    .padding(.horizontal)
+                    .padding(.vertical)
+            }
+            .scrollBounceBehavior(.always)
+            .scrollEdgeEffectStyle(.soft, for: .top)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                sessionHeaderHUD(session: session)
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if restTimer.isRunning {
+                    RestPillView(restTimer: restTimer)
+                }
+            }
+            .onScrollGeometryChange(for: CGFloat.self, of: topContentOffset) { _, offset in
+                updateSessionSettingsOverpull(topContentOffset: offset)
+            }
+            .onChange(of: coordinator.scrollTargetID) { _, targetID in
+                scrollToSet(targetID, with: proxy)
+            }
+            .onChange(of: coordinator.supersetScrollTargetOrder) { _, order in
+                scrollToSuperset(order, with: proxy)
+            }
+        }
+    }
+
+    private func productionSessionContent(for session: Session) -> some View {
+        WorkoutGlassContainer(spacing: Theme.cardSpacing) {
+            VStack(alignment: .leading, spacing: Theme.sectionSpacing) {
+                ForEach(
+                    coordinator.renderItems(
+                        in: session,
+                        lastPerformedLookup: lastPerformedLookup.snapshot
+                    ),
+                    id: \.id
+                ) { item in
+                    renderItem(item, in: session)
+                }
+
+                if workout.isViewingLiveEdge, !workout.openExercises.isEmpty {
+                    OpenExercisesSection(
+                        exercises: workout.openExercises,
+                        onSelect: showSourceSession(for:)
+                    )
+                }
+
+                if workout.isViewingLiveEdge, workout.canMoveOn {
+                    MoveOnButton {
+                        coordinator.cancelRestForSessionExit()
+                        workout.requestMoveOnCelebration()
+                    }
+                }
+
+                Color.clear
+                    .frame(height: 44)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        coordinator.cancelPairing()
+                        coordinator.collapseLoggedSetReview()
+                    }
+            }
+            .background {
+                if coordinator.pairingMode != .inactive {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture(perform: coordinator.cancelPairing)
+                }
+            }
+        }
+    }
+
     private func updateSessionSettingsOverpull(topContentOffset: CGFloat) {
         sessionSettingsTopContentOffset = topContentOffset
         guard canRevealSessionControls else {
@@ -458,6 +487,33 @@ extension SessionView {
 
     fileprivate func warningHaptic() {
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
+    }
+
+    // PROTOTYPE — throwaway. The production animation-wrapped handlers handed to
+    // the Session View layout lab variants so logging mutates identically.
+    private func prototypeActions(in session: Session) -> SessionPrototypeActions {
+        SessionPrototypeActions(
+            focus: focusWithMorph,
+            log: logWithMomentum,
+            updateLoggedSet: coordinator.updateLoggedSet(_:as:),
+            skip: skipWithFade,
+            delete: coordinator.deleteLog(for:),
+            reexpand: { exercise in
+                withAnimation(Theme.focusMorphAnimation) {
+                    coordinator.reexpand(exercise)
+                }
+            },
+            focusSupersetExercise: { exercise in
+                focusSupersetWithMorph(exercise, in: session)
+            },
+            dismissSuperset: { config in
+                dismissSuperset(config, in: session)
+            },
+            moveOn: {
+                coordinator.cancelRestForSessionExit()
+                workout.requestMoveOnCelebration()
+            }
+        )
     }
 }
 

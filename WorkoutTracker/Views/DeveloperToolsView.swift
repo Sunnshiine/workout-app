@@ -12,6 +12,9 @@ struct DeveloperToolsView: View {
     @State private var writeAuditErrorMessage: String?
     @State private var isSyncInFlight = false
     @State private var previewSession: Session?
+    // PROTOTYPE — throwaway switch for the Session View layout lab; see docs/prototypes/session-view-prototypes.md.
+    @AppStorage(SessionPrototypeVariant.storageKey)
+    private var sessionPrototypeVariantRawValue = SessionPrototypeVariant.production.rawValue
 
     var body: some View {
         ZStack {
@@ -20,6 +23,7 @@ struct DeveloperToolsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.cardSpacing) {
                     currentSessionSection
+                    sessionViewLabSection
                     liveActivitySection
                     pendingWritesSection
                     actionsSection
@@ -141,6 +145,55 @@ struct DeveloperToolsView: View {
             SyncStatusBanner(state: sync.state)
                 .accessibilityIdentifier("developer-tools-sync-status-banner")
         }
+    }
+
+    // PROTOTYPE — throwaway. Session View layout lab switcher; see docs/prototypes/session-view-prototypes.md.
+    private var sessionViewLabSection: some View {
+        DeveloperToolsSection(title: "Session View Lab (prototype)") {
+            Text("Throwaway layout prototypes for the Session View. Production is the default; pick a variant and return to the Session.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if SessionPrototypeVariant.launchOverride != nil {
+                Text("The -SESSION_PROTOTYPE launch argument is set and overrides this picker.")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(palette.accent)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            ForEach(SessionPrototypeVariant.allCases) { variant in
+                sessionViewLabRow(for: variant)
+            }
+        }
+    }
+
+    private func sessionViewLabRow(for variant: SessionPrototypeVariant) -> some View {
+        Button {
+            sessionPrototypeVariantRawValue = variant.rawValue
+        } label: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(variant.displayName)
+                        .font(.subheadline.weight(.semibold))
+                    Text(variant.summary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 12)
+
+                if variant.rawValue == sessionPrototypeVariantRawValue {
+                    Image(systemName: "checkmark")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(palette.accent)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(.workoutGlass)
+        .accessibilityIdentifier("session-prototype-picker-\(variant.rawValue)")
     }
 
     private var liveActivitySection: some View {
