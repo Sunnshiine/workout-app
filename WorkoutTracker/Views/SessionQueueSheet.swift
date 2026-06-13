@@ -11,10 +11,12 @@ struct SessionQueueSheet: View {
     let items: [SessionStageItem]
     let stageItemID: String?
     let showsMoveOn: Bool
+    let openExercises: [Exercise]
     let pairingMode: PairingMode
     let canBeginPairing: (SessionStageItem) -> Bool
     let onJump: (SessionStageItem) -> Void
     let onMoveOn: () -> Void
+    let onSelectOpenExercise: (Exercise) -> Void
     let onBeginPairing: (SessionStageItem) -> Void
     let onPairingTap: (SessionStageItem) -> Void
     let onCancelPairing: () -> Void
@@ -39,6 +41,14 @@ struct SessionQueueSheet: View {
                     } else {
                         queueRow(for: item, isOnStage: item.id == stageItemID)
                     }
+                }
+
+                if !isPairing, !openExercises.isEmpty {
+                    OpenExercisesSection(exercises: openExercises) { exercise in
+                        dismiss()
+                        onSelectOpenExercise(exercise)
+                    }
+                    .padding(.top, Theme.cardSpacing)
                 }
 
                 if showsMoveOn, !isPairing {

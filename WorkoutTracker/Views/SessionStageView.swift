@@ -29,6 +29,12 @@ struct SessionStageView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isQueuePresented = false
 
+    /// Open Exercises are makeup work from earlier Sessions, only meaningful
+    /// while the athlete is at the live edge of their plan.
+    private var liveEdgeOpenExercises: [Exercise] {
+        workout.isViewingLiveEdge ? workout.openExercises : []
+    }
+
     var body: some View {
         let items = SessionStagePresentation.items(
             coordinator.renderItems(in: session, lastPerformedLookup: lastPerformedLookup.snapshot)
@@ -44,13 +50,6 @@ struct SessionStageView: View {
                             stageContent(stageItem, items: items)
                         } else {
                             completionStage(items: items)
-                        }
-
-                        if workout.isViewingLiveEdge, !workout.openExercises.isEmpty {
-                            OpenExercisesSection(
-                                exercises: workout.openExercises,
-                                onSelect: actions.showSourceSession
-                            )
                         }
                     }
                     .padding(.horizontal)
@@ -75,10 +74,12 @@ struct SessionStageView: View {
                 items: items,
                 stageItemID: stageItem?.id,
                 showsMoveOn: workout.isViewingLiveEdge && workout.canMoveOn,
+                openExercises: liveEdgeOpenExercises,
                 pairingMode: coordinator.pairingMode,
                 canBeginPairing: canBeginPairing(_:),
                 onJump: jump(to:),
                 onMoveOn: actions.moveOn,
+                onSelectOpenExercise: actions.showSourceSession,
                 onBeginPairing: beginPairing(from:),
                 onPairingTap: handlePairingTap(on:),
                 onCancelPairing: coordinator.cancelPairing
@@ -185,6 +186,14 @@ struct SessionStageView: View {
             Text(SessionStagePresentation.completionSummary(for: items))
                 .font(.callout)
                 .foregroundStyle(.secondary)
+
+            if !liveEdgeOpenExercises.isEmpty {
+                OpenExercisesSection(
+                    exercises: liveEdgeOpenExercises,
+                    onSelect: actions.showSourceSession
+                )
+                .padding(.top, Theme.cardSpacing)
+            }
 
             if workout.isViewingLiveEdge, workout.canMoveOn {
                 SessionMoveOnButton(onTap: actions.moveOn)

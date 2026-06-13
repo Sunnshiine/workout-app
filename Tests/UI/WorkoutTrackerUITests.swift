@@ -73,7 +73,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
     func testOpenExerciseMakeupFlowShowsLastPerformedAndLogsSet() throws {
         let app = launchFixtureApp(options: [.openExercises])
 
-        app.swipeUp()
+        app.buttons["stage-queue-button"].tap()
         let openBackSquat = app.buttons.containing(.staticText, identifier: "Back Squat").firstMatch
         tapWhenHittable(openBackSquat)
 
@@ -91,6 +91,25 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         app.buttons["log-active-set-button"].tap()
 
         XCTAssertFalse(app.buttons["log-active-set-button"].waitForExistence(timeout: 3))
+    }
+
+    @MainActor
+    func testCompletionStageListsOpenExercisesAndNavigatesToSource() throws {
+        let app = launchWorkoutApp(
+            fixture: .completedSessionWithOpenExercises,
+            options: [.disableCelebrationBloom]
+        )
+
+        XCTAssertTrue(app.staticTexts["Session complete"].waitForExistence(timeout: 5))
+
+        let openBackSquat = app.buttons.containing(.staticText, identifier: "Back Squat").firstMatch
+        XCTAssertTrue(openBackSquat.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["move-on-button"].exists)
+
+        tapWhenHittable(openBackSquat)
+
+        XCTAssertTrue(app.buttons["go-back-current-session-button"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Back Squat"].exists)
     }
 
     @MainActor

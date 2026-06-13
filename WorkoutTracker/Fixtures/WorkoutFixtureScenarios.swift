@@ -24,6 +24,11 @@
         }
 
         @MainActor
+        static func completedSessionWithOpenExercisesBlock() -> Block {
+            WorkoutFixtureBlocks.completedSessionWithOpenExercisesBlock()
+        }
+
+        @MainActor
         static func blockOverviewWithMixedSessionStatesBlock() -> Block {
             WorkoutFixtureBlocks.blockOverviewWithMixedSessionStatesBlock()
         }
@@ -126,6 +131,26 @@
                             openBackSquatSession(),
                             openBenchPressSession(),
                             currentDeadliftSession()
+                        ]
+                    )
+                ]
+            )
+        }
+
+        @MainActor
+        static func completedSessionWithOpenExercisesBlock() -> Block {
+            Factory.block(
+                weeks: [
+                    Factory.week(
+                        1,
+                        sessions: [
+                            openBackSquatSession(),
+                            completedBenchSession(),
+                            Factory.session(
+                                weekNumber: 1,
+                                dayNumber: 3,
+                                exercises: [Factory.deadlift()]
+                            )
                         ]
                     )
                 ]
@@ -317,6 +342,22 @@
                 weekNumber: 1,
                 dayNumber: 3,
                 exercises: [Factory.partiallyLoggedDeadlift()]
+            )
+        }
+
+        /// A live-edge Session with every Set logged, so the Stage lands on the
+        /// completion stage while Day 1's Back Squat is still open.
+        private static func completedBenchSession() -> Session {
+            Factory.session(
+                weekNumber: 1,
+                dayNumber: 2,
+                exercises: [
+                    Factory.benchPress(
+                        sets: [
+                            Factory.loggedSet(0, reps: "5", load: "RPE6", percentOneRM: "70%", weight: 155, rpe: 6)
+                        ]
+                    )
+                ]
             )
         }
 

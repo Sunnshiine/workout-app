@@ -28,26 +28,15 @@ private struct OpenExerciseCard: View {
     let exercise: Exercise
     @Environment(\.themePalette) private var palette
 
-    private var pendingSetCount: Int {
-        exercise.sets.filter { $0.state == .pending }.count
-    }
-
-    private var sourceLabel: String {
-        guard let session = exercise.session, let week = session.week else { return "" }
-        return "W\(week.number) D\(session.dayNumber)"
-    }
-
-    private var pendingSetLabel: String {
-        pendingSetCount == 1 ? "1 pending set" : "\(pendingSetCount) pending sets"
-    }
-
     var body: some View {
+        let row = OpenExerciseRowPresentation(exercise: exercise)
+
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(exercise.baseName)
+                Text(row.name)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
-                Text(pendingSetLabel)
+                Text(row.pendingSetLabel)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -55,7 +44,7 @@ private struct OpenExerciseCard: View {
             Spacer(minLength: 12)
 
             HStack(spacing: 6) {
-                Text(sourceLabel)
+                Text(row.sourceLabel)
                     .font(.caption.weight(.semibold))
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.bold))
