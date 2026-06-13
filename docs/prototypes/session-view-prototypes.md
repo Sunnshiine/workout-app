@@ -1,9 +1,10 @@
 # Session View Prototypes — Implementation Notes
 
-> **Status: PROTOTYPE — throwaway code.** These variants answer the question
-> *"What should a calmer, one-exercise-at-a-time Session View look like?"*
-> Once a direction wins, fold the winner into the real `SessionView` (rewritten
-> properly) and delete the rest plus the switcher.
+> **Status: RESOLVED — Stage shipped.** Stage won and is now the one production
+> Session View (ADR-0011, PRD #304). The Developer Tools "Session View Lab"
+> switcher and the other three variants have been deleted; this file is kept as
+> the record of *why* Stage won. The "how to flip between variants" instructions
+> below are historical — the lab no longer exists.
 
 ## The question being answered
 
@@ -126,5 +127,22 @@ simulator, fixture mode (`-UITEST_FIXTURE true -UITEST_SESSION true`).
 
 ## Verdict
 
-- (placeholder — fill in after flipping through on device: which variant, or
-  which combination of pieces, should become the real Session View?)
+**Stage wins.** It made the strongest bet on the actual feedback — *maximum
+calm* — by showing the single action and nothing else, with orientation (set
+dots, the up-next bar, the queue sheet) available on demand instead of
+ambiently. The other three kept some of the Session on screen at all times
+(collapsed rows, adjacent pages, a chip rail), which left a low hum of clutter
+that Stage removes entirely.
+
+Productionizing Stage closed the three gaps the prototype deliberately left open:
+
+- **Open Exercises** now surface in the queue sheet and on the completion stage,
+  not just Focus Stack.
+- **Superset pairing creation** moved into the queue sheet (pick an Exercise,
+  then its partner) — the long-press grip flow was dropped because it assumed
+  the full production list.
+- **Scroll-driven settings overpull** was restored to match production; the
+  header-drag overpull already worked in every variant.
+
+The fast logging flow (Active Set Card → Smart Value Pills → Log) and the header
+HUD carried over unchanged. See ADR-0011 and PRD #304 (slices #305–#311).

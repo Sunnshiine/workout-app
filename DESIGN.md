@@ -193,7 +193,7 @@ The palette is a restrained green system with two product appearances: original 
 ### Hierarchy
 - **Display** (900, 34px, 1.08): Celebration titles and rare milestone moments only.
 - **Headline** (700, 17px, 1.25): The in-card Exercise name, primary button labels, and important card values.
-- **Title** (700, 20px, 1.2): Exercise section headings in the Session, Session tiles, large value pills, and compact screen-level emphasis.
+- **Title** (700, 20px, 1.2): The Exercise name on the Session stage, Session tiles, large value pills, and compact screen-level emphasis.
 - **Body** (400, 17px, 1.35): Standard Settings copy, explanatory text, and editable values.
 - **Label** (600, 12px, 1.2): Pill labels, breadcrumb text, badges, progress labels, and source labels. Uppercase is allowed only for short UI labels like "Up next."
 
@@ -246,6 +246,16 @@ Workout App uses tonal layering, strokes, and selective Liquid Glass instead of 
 - **Active State:** Remaining Set count and current progress use the primary action color for the active appearance. The progress rail is compact, dark or sage-muted, and segmented.
 - **Mobile Treatment:** This is an iPhone-first layout. The Current Session HUD may reveal an inline Settings gear through an intentional high-effort overpull, replacing the remaining Set count inside the existing header glass. Preserve the native 44 pt Settings hit target even when the visible gear and progress rail stay visually compact. Do not show a visible cue for this expert gesture. Do not expose this reveal on non-current Session views, where Go back and Make Current own the top override area.
 
+### Session Stage
+
+The Session is a single "now playing" surface. One Exercise is on screen at a time — its position label, name, coach note, a row of Set dots, the quiet Last Performed reference line, and the Active Set Card. Nothing else competes for attention. This is the calm the product is built around: the screen shows the single action and just enough orientation to take it, never the whole Session at once.
+
+Orientation is on demand, not ambient. A glass "Up next" bar and a queue button (labeled `N of M`) sit at the foot of the stage; the full Session — every Exercise, its progress, and any Superset — lives in a queue sheet (`.medium` detent) opened from that button. Open Exercises (makeup work from earlier Sessions) and Move On live in that same sheet, and on the completion stage once every Set is logged.
+
+A Superset renders as its own stage. Pairing creation happens from the queue sheet: pick an Exercise, then its partner, and the two fuse into one Superset stage; a paired stage can be dismissed back to two.
+
+**The Stage Shows One Thing Rule.** The Session stage renders exactly one Exercise or Superset at a time. Do not stack section-headed Exercises, reintroduce a scrolling list of Set rows, or surface the rest of the Session ambiently — orientation belongs in the Set dots, the up-next bar, and the queue sheet.
+
 ### Active Set Card
 
 The Active Set Card is the signature component. It contains the "Up next" label, Set ordinal badge, Exercise name, Weight/Reps/RPE pills, and the Log button. It should feel like the one place to act, not one card among many.
@@ -286,7 +296,7 @@ Do not add elapsed-time UI, timing rows, Exercise cards, route checkpoints, conf
 
 ### Do:
 - **Do** keep coach-authored spreadsheet structure hidden behind Sessions, Exercises, Sets, and Set Logs.
-- **Do** separate Exercises in a Session with a Title-scale section heading and spacing rhythm, not a wrapping group card — the inner Active Set and Set rows are the only cards.
+- **Do** present one Exercise at a time on the Session stage, keeping orientation in the Set dots, the up-next bar, and the queue sheet — not a vertical stack of section-headed Exercises with Set-row lists.
 - **Do** make the next logging action obvious and reachable with one hand.
 - **Do** show sync and pending-write state honestly. Never imply a Set Log has landed if it has not.
 - **Do** use motion to explain the Settings overpull state: the Current Session HUD can subtly stretch and materialize the icon-only Settings pill after the high preview threshold, then contract if the gesture is released before commit. Reduced motion should use a simpler fade/contract treatment.
