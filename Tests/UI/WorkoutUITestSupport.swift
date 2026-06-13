@@ -5,6 +5,7 @@ enum WorkoutUITestFixture {
     case settings
     case longSession
     case partiallyUploadedBlock
+    case completedSessionWithOpenExercises
 
     var launchArguments: [String] {
         switch self {
@@ -16,6 +17,8 @@ enum WorkoutUITestFixture {
             ["-UITEST_FIXTURE", "-UITEST_SESSION", "-UITEST_LONG_SESSION"]
         case .partiallyUploadedBlock:
             ["-UITEST_FIXTURE", "-UITEST_PARTIAL_BLOCK"]
+        case .completedSessionWithOpenExercises:
+            ["-UITEST_FIXTURE", "-UITEST_SESSION", "-UITEST_COMPLETED_OPEN_EXERCISES"]
         }
     }
 }
@@ -64,19 +67,6 @@ func waitUntilEnabled(_ element: XCUIElement) {
         RunLoop.current.run(until: Date().addingTimeInterval(0.1))
     }
     XCTFail("Expected \(element) to become enabled")
-}
-
-@MainActor
-func tapWhenReady(_ element: XCUIElement, in app: XCUIApplication) {
-    XCTAssertTrue(element.waitForExistence(timeout: 3))
-    if element.isHittable {
-        element.tap()
-        return
-    }
-
-    app.swipeUp()
-    XCTAssertTrue(element.waitForExistence(timeout: 3))
-    element.tap()
 }
 
 @MainActor

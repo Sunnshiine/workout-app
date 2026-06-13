@@ -172,13 +172,14 @@ private final class BackfillCompletionProbe: LastPerformedBackfillObserving {
     let entry = try #require(entries.first)
     #expect(entries.count == 1)
     #expect(entry.fullName == "Squat")
-    #expect(entry.result == SetLog(weight: .pounds(195), reps: 5, rpe: 9))
+    #expect(entry.result == nil)
+    #expect(entry.displayResultText == "185x5@8, 195x5@9")
     #expect(entry.performedOn == expectedDate)
     #expect(entry.source == "Block 27 · W1 D1")
     let lookupEntry = try #require(
         lookupStore.snapshot.lookup(exerciseName: "Squat", baseName: "Squat")
     )
-    #expect(lookupEntry.resultText == "195x5@9")
+    #expect(lookupEntry.resultText == "185x5@8, 195x5@9")
     #expect(lookupEntry.sourceText == "Block 27 · W1 D1")
 }
 

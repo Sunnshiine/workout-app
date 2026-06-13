@@ -77,13 +77,14 @@ enum LastPerformedExtractor {
     }
 
     private static func lastPerformedEvidence(in exercise: ParsedExercise) -> (result: SetLog?, resultText: String)? {
-        let structuredLog = exercise.sets
-            .filter { $0.state == .logged && $0.setLog != nil }
-            .max { $0.index < $1.index }
-            .flatMap(\.setLog)
+        let structuredLogs = exercise.sets
+            .filter { $0.state == .logged }
+            .sorted { $0.index < $1.index }
+            .compactMap(\.setLog)
 
-        if let setLog = structuredLog {
-            return (setLog, setLog.formatted)
+        if !structuredLogs.isEmpty {
+            let resultText = structuredLogs.map(\.formatted).joined(separator: ", ")
+            return (structuredLogs.count == 1 ? structuredLogs.first : nil, resultText)
         }
 
         guard let legacyLog = exercise.legacyLog else { return nil }

@@ -24,6 +24,11 @@
         }
 
         @MainActor
+        static func completedSessionWithOpenExercisesBlock() -> Block {
+            WorkoutFixtureBlocks.completedSessionWithOpenExercisesBlock()
+        }
+
+        @MainActor
         static func blockOverviewWithMixedSessionStatesBlock() -> Block {
             WorkoutFixtureBlocks.blockOverviewWithMixedSessionStatesBlock()
         }
@@ -70,7 +75,7 @@
             LastPerformedEntry(
                 fullName: "Back Squat",
                 baseName: "Back Squat",
-                result: SetLog(weight: .pounds(255), reps: 5, rpe: 7),
+                resultText: "245x5@6, 255x5@7",
                 performedOn: Date(timeIntervalSinceReferenceDate: 100),
                 source: "Block 26 · W4 D3"
             )
@@ -126,6 +131,26 @@
                             openBackSquatSession(),
                             openBenchPressSession(),
                             currentDeadliftSession()
+                        ]
+                    )
+                ]
+            )
+        }
+
+        @MainActor
+        static func completedSessionWithOpenExercisesBlock() -> Block {
+            Factory.block(
+                weeks: [
+                    Factory.week(
+                        1,
+                        sessions: [
+                            openBackSquatSession(),
+                            completedBenchSession(),
+                            Factory.session(
+                                weekNumber: 1,
+                                dayNumber: 3,
+                                exercises: [Factory.deadlift()]
+                            )
                         ]
                     )
                 ]
@@ -317,6 +342,22 @@
                 weekNumber: 1,
                 dayNumber: 3,
                 exercises: [Factory.partiallyLoggedDeadlift()]
+            )
+        }
+
+        /// A live-edge Session with every Set logged, so the Stage lands on the
+        /// completion stage while Day 1's Back Squat is still open.
+        private static func completedBenchSession() -> Session {
+            Factory.session(
+                weekNumber: 1,
+                dayNumber: 2,
+                exercises: [
+                    Factory.benchPress(
+                        sets: [
+                            Factory.loggedSet(0, reps: "5", load: "RPE6", percentOneRM: "70%", weight: 155, rpe: 6)
+                        ]
+                    )
+                ]
             )
         }
 

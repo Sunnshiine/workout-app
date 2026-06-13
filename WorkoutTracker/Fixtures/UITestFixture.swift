@@ -20,6 +20,10 @@
             ProcessInfo.processInfo.arguments.contains("-UITEST_OPEN_EXERCISES")
         }
 
+        static var startsWithCompletedOpenExercises: Bool {
+            ProcessInfo.processInfo.arguments.contains("-UITEST_COMPLETED_OPEN_EXERCISES")
+        }
+
         static var startsWithLongSession: Bool {
             ProcessInfo.processInfo.arguments.contains("-UITEST_LONG_SESSION")
         }
@@ -103,6 +107,8 @@
             let block =
                 startsWithPerfectMoveOnCelebration
                 ? WorkoutFixtureScenarios.perfectMoveOnCelebrationBlock()
+                : startsWithCompletedOpenExercises
+                ? WorkoutFixtureScenarios.completedSessionWithOpenExercisesBlock()
                 : startsWithOpenExercises
                 ? WorkoutFixtureScenarios.openExercisesBlock()
                 : startsWithLongSession

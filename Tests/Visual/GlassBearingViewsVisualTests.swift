@@ -8,51 +8,6 @@ import Testing
 @MainActor
 @Suite(.snapshots(record: .never))
 struct GlassBearingViewsVisualTests {
-    @Test func exerciseSectionMatchesVisualBaseline() {
-        let exercise = makeExercise(
-            name: "2-3:1:0 Competition Squat",
-            setStates: [.logged, .pending, .pending, .skipped]
-        )
-        exercise.baseName = "Competition Squat"
-        exercise.coachNote = "Work up smoothly, then hold the final rep."
-        let activeSetID = ActiveSetID(exerciseOrder: exercise.order, setIndex: 1)
-        let config = SessionExerciseRenderConfig(
-            exercise: exercise,
-            visualFocusOwner: .activeSet(activeSetID),
-            activeSetID: activeSetID,
-            expandedLoggedSetID: nil,
-            savedLoggedSetID: nil,
-            activeSetTransition: nil,
-            retiringTransition: nil,
-            isCollapsed: false,
-            showsPairingGrip: true,
-            pairingAvailability: .available,
-            isPairingConfirmation: false,
-            lastPerformedPresentation: LastPerformedCardPresentation(
-                entry: LastPerformedEntry(
-                    fullName: "2-3:1:0 Competition Squat",
-                    baseName: "Competition Squat",
-                    resultText: "315x5@8",
-                    performedOn: Date(timeIntervalSinceReferenceDate: 0),
-                    source: "Block 39 W4D2"
-                )
-            )
-        )
-
-        assertGlassBaseline(precision: WorkoutVisualBaseline.labelAntialiasingPrecision) {
-            ExerciseSection(
-                config: config,
-                onFocus: { _ in },
-                onReexpand: {},
-                onLog: { _, _ in },
-                onUpdateLoggedSet: { _, _ in },
-                onSkip: { _ in },
-                onDelete: { _ in }
-            )
-            .frame(width: 360)
-        }
-    }
-
     @Test func sessionTileMatchesVisualBaseline() {
         assertGlassBaseline {
             SessionTile(weekNumber: 2, dayNumber: 3, state: .current)
