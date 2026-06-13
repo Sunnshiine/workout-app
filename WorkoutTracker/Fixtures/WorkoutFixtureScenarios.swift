@@ -70,7 +70,7 @@
             LastPerformedEntry(
                 fullName: "Back Squat",
                 baseName: "Back Squat",
-                result: SetLog(weight: .pounds(255), reps: 5, rpe: 7),
+                resultText: "245x5@6, 255x5@7",
                 performedOn: Date(timeIntervalSinceReferenceDate: 100),
                 source: "Block 26 · W4 D3"
             )

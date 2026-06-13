@@ -67,19 +67,6 @@ func waitUntilEnabled(_ element: XCUIElement) {
 }
 
 @MainActor
-func tapWhenReady(_ element: XCUIElement, in app: XCUIApplication) {
-    XCTAssertTrue(element.waitForExistence(timeout: 3))
-    if element.isHittable {
-        element.tap()
-        return
-    }
-
-    app.swipeUp()
-    XCTAssertTrue(element.waitForExistence(timeout: 3))
-    element.tap()
-}
-
-@MainActor
 func tapWhenHittable(_ element: XCUIElement) {
     XCTAssertTrue(element.waitForExistence(timeout: 3))
     let deadline = Date().addingTimeInterval(3)

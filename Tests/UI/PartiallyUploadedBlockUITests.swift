@@ -10,8 +10,10 @@ final class PartiallyUploadedBlockUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Accessory W4 D1"].waitForExistence(timeout: 3))
 
         app.buttons["make-current-session-button"].tap()
-        XCTAssertTrue(app.buttons["move-on-button"].waitForExistence(timeout: 3))
-        app.buttons["move-on-button"].tap()
+        let queueButton = app.buttons["stage-queue-button"]
+        XCTAssertTrue(queueButton.waitForExistence(timeout: 3))
+        queueButton.tap()
+        tapWhenHittable(app.buttons["queue-move-on-button"])
 
         let celebration = moveOnCelebration(in: app)
         XCTAssertTrue(celebration.waitForExistence(timeout: 3))

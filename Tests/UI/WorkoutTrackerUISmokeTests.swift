@@ -29,7 +29,8 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
 
         waitForLabel("Weight, 252.5", on: app.buttons["weight-pill"])
 
-        tapWhenReady(app.buttons["move-on-button"], in: app)
+        app.buttons["stage-queue-button"].tap()
+        tapWhenHittable(app.buttons["queue-move-on-button"])
         let celebration = moveOnCelebration(in: app)
         XCTAssertTrue(celebration.waitForExistence(timeout: 3))
         waitForLabel("Week 1, Day 1", on: celebration)
