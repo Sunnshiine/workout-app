@@ -40,6 +40,8 @@ A mobile client for powerlifting athletes that surfaces and logs workouts from a
 
 **Unstructured Set Log**: Non-empty athlete text for a Set that marks that Set Logged but does not parse as a structured Set Log. It is Set-level completion evidence, distinct from a Legacy Log, and may be overwritten by a structured Set Log when the athlete corrects it. Avoid: completed from sheet, legacy log, already logged.
 
+**Set-Log Slot**: The resolved address for a single Set's Set Log — its row, the position within that row's comma-separated Set-Log list (when the row holds several), and which addressing rule applies (the Exercise's compact header cell, a Prescription Line's own cell, the next Visible Writable Row past a Coach Note, a plain per-Set row, or blocked when no writable row exists). Resolved once by the Exercise anchor so the reader (SheetParser) and the write planner (SheetWriter) cannot target a Set differently — the concrete form of the ADR-0010 Set-Slot model. Avoid: set cell, log target.
+
 **Load Suggestion**: A calculated weight hint pre-filled in the set weight input, derived from the coach's prescription. Two sources: (1) "Drop X%" — computed from the previous set's logged weight once the athlete has logged it; (2) "%1RM" — computed from the Block's Training Max. Always overridable. Avoid: recommended weight, auto-fill.
 
 **Last Set RPE**: The RPE the athlete reports for the final Set of an Exercise. Stored in column I — the app extracts it from the last Set Log and writes it there automatically. Avoid: actual RPE.

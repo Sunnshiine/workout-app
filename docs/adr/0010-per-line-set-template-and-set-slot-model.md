@@ -58,7 +58,8 @@ Set-Slot model that both the reader (`SheetParser`) and the write planner
   supported. Kevin's 4-day single-anchor experience is unchanged — guarded by
   the empty-`Sets` continuation-row rule and the full existing test suite.
 - Read and write share the Prescription Line model, so what the app shows and
-  where it logs stay consistent by construction.
+  where it logs stay consistent by construction. The shared Set-Slot model is
+  named the **Set-Log Slot** (see `CONTEXT.md`).
 - **Honoured ambiguity:** where J's coach data is internally inconsistent (e.g. a
   single-row `Sets=1` line that lists two RPE targets), the `Sets` cell is taken
   as authoritative and surplus comma tokens are dropped, rather than guessing a
