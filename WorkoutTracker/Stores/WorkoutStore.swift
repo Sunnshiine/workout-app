@@ -18,6 +18,7 @@ final class WorkoutStore {
     private(set) var block: Block?
     private(set) var displayedSession: Session?
     private(set) var moveOnCelebrationSession: Session?
+    private(set) var moveOnCelebrationRequestedAt: Date?
     private(set) var pendingBlockOverviewRequest: BlockOverviewNavigationRequest?
     private var shouldPreserveDisplayedSessionOnReload = false
     private var currentSessionOverrideRevision = 0
@@ -26,15 +27,18 @@ final class WorkoutStore {
     private let tracker = SessionProgressTracker()
     private let defaults: UserDefaults
     private let lastPerformedLookupRefresher: any LastPerformedLookupRefreshing
+    private let now: @MainActor () -> Date
 
     init(
         context: ModelContext,
         defaults: UserDefaults = .standard,
-        lastPerformedLookupRefresher: any LastPerformedLookupRefreshing = NoopLastPerformedLookupRefresher()
+        lastPerformedLookupRefresher: any LastPerformedLookupRefreshing = NoopLastPerformedLookupRefresher(),
+        now: @escaping @MainActor () -> Date = Date.init
     ) {
         self.context = context
         self.defaults = defaults
         self.lastPerformedLookupRefresher = lastPerformedLookupRefresher
+        self.now = now
     }
 
     var currentSession: Session? {
@@ -155,6 +159,7 @@ final class WorkoutStore {
         else { return }
 
         moveOnCelebrationSession = currentSession
+        moveOnCelebrationRequestedAt = now()
         displayedSession = currentSession
         shouldPreserveDisplayedSessionOnReload = false
     }
@@ -162,6 +167,7 @@ final class WorkoutStore {
     func dismissMoveOnCelebration() {
         guard let session = moveOnCelebrationSession else { return }
         moveOnCelebrationSession = nil
+        moveOnCelebrationRequestedAt = nil
         advance(after: session)
     }
 
@@ -184,74 +190,6 @@ final class WorkoutStore {
         currentSessionOverrideRevision += 1
         displayedSession = nextSession
         shouldPreserveDisplayedSessionOnReload = false
-    }
-
-    // MARK: - Optimistic Logging
-
-    func log(_ set: ExerciseSet, as log: SetLog) throws {
-        let previousValue = notesValue(for: set)
-        let previousRPE = set.setLog.map { rpeLabel($0.rpe) } ?? ""
-        set.setLog = log
-        set.unstructuredSetLog = nil
-        set.state = .logged
-        try enqueue(
-            for: set,
-            column: .notes,
-            operation: .upsert,
-            valueToWrite: log.formatted,
-            expectedCurrentValue: previousValue
-        )
-        if isFinalSet(set) {
-            try enqueue(
-                for: set,
-                column: .lastSetRPE,
-                operation: .upsert,
-                valueToWrite: rpeLabel(log.rpe),
-                expectedCurrentValue: previousRPE
-            )
-        }
-        try updateLastPerformed(for: set, log: log)
-        try context.save()
-    }
-
-    func skip(_ set: ExerciseSet) throws {
-        let previousValue = notesValue(for: set)
-        set.setLog = nil
-        set.unstructuredSetLog = nil
-        set.state = .skipped
-        try enqueue(
-            for: set,
-            column: .notes,
-            operation: .upsert,
-            valueToWrite: "skip",
-            expectedCurrentValue: previousValue
-        )
-        try context.save()
-    }
-
-    func deleteLog(for set: ExerciseSet) throws {
-        let previousValue = notesValue(for: set)
-        let previousRPE = set.setLog.map { rpeLabel($0.rpe) } ?? ""
-        set.setLog = nil
-        set.unstructuredSetLog = nil
-        set.state = .pending
-        try enqueue(
-            for: set,
-            column: .notes,
-            operation: .delete,
-            valueToWrite: nil,
-            expectedCurrentValue: previousValue
-        )
-        if isFinalSet(set), !previousRPE.isEmpty {
-            try enqueue(
-                for: set,
-                column: .lastSetRPE,
-                operation: .delete,
-                valueToWrite: nil,
-                expectedCurrentValue: previousRPE
-            )
-        }
-        try context.save()
     }
 
     // MARK: - Private Helpers
@@ -365,5 +303,79 @@ final class WorkoutStore {
         }
 
         return "No Sheet-derived Session is available for this Block."
+    }
+}
+
+extension WorkoutStore {
+    func log(_ set: ExerciseSet, as log: SetLog) throws {
+        let previousValue = notesValue(for: set)
+        let previousRPE = set.setLog.map { rpeLabel($0.rpe) } ?? ""
+        let wasLogged = set.state == .logged
+        set.setLog = log
+        set.unstructuredSetLog = nil
+        set.state = .logged
+        if !wasLogged {
+            set.loggedAt = now()
+        }
+        try enqueue(
+            for: set,
+            column: .notes,
+            operation: .upsert,
+            valueToWrite: log.formatted,
+            expectedCurrentValue: previousValue
+        )
+        if isFinalSet(set) {
+            try enqueue(
+                for: set,
+                column: .lastSetRPE,
+                operation: .upsert,
+                valueToWrite: rpeLabel(log.rpe),
+                expectedCurrentValue: previousRPE
+            )
+        }
+        try updateLastPerformed(for: set, log: log)
+        try context.save()
+    }
+
+    func skip(_ set: ExerciseSet) throws {
+        let previousValue = notesValue(for: set)
+        set.setLog = nil
+        set.unstructuredSetLog = nil
+        set.state = .skipped
+        set.loggedAt = nil
+        try enqueue(
+            for: set,
+            column: .notes,
+            operation: .upsert,
+            valueToWrite: "skip",
+            expectedCurrentValue: previousValue
+        )
+        try context.save()
+    }
+
+    func deleteLog(for set: ExerciseSet) throws {
+        let previousValue = notesValue(for: set)
+        let previousRPE = set.setLog.map { rpeLabel($0.rpe) } ?? ""
+        set.setLog = nil
+        set.unstructuredSetLog = nil
+        set.state = .pending
+        set.loggedAt = nil
+        try enqueue(
+            for: set,
+            column: .notes,
+            operation: .delete,
+            valueToWrite: nil,
+            expectedCurrentValue: previousValue
+        )
+        if isFinalSet(set), !previousRPE.isEmpty {
+            try enqueue(
+                for: set,
+                column: .lastSetRPE,
+                operation: .delete,
+                valueToWrite: nil,
+                expectedCurrentValue: previousRPE
+            )
+        }
+        try context.save()
     }
 }

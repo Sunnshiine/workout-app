@@ -193,6 +193,96 @@ private final class BackfillCompletionProbe: LastPerformedBackfillObserving {
 }
 
 @MainActor
+@Test func syncPreservesLocalSetLoggedAtWhenReplacingParsedBlock() async throws {
+    let container = try makeLoggedAtSyncContainer()
+    let context = container.mainContext
+    let loggedAt = Date(timeIntervalSinceReferenceDate: 1_000)
+    let block = makeLoggedSquatBlock()
+    let localSet = try #require(block.weeks.first?.sessions.first?.exercises.first?.sets.first)
+    localSet.loggedAt = loggedAt
+    context.insert(block)
+    try context.save()
+    let client = StubClient(titles: ["Intro", "Block 27"], grid: loggedSquatGrid())
+    let sync = SyncCoordinator(client: client, context: context)
+
+    await sync.sync(spreadsheetId: "sid")
+
+    let syncedBlock = try #require(try context.fetch(FetchDescriptor<Block>()).first)
+    let syncedSet = try #require(
+        syncedBlock.weeks.first { $0.number == 1 }?
+            .sessions.first { $0.dayNumber == 1 }?
+            .exercises.first { $0.name == "Squat" }?
+            .sets.first { $0.index == 0 }
+    )
+    #expect(syncedSet.loggedAt == loggedAt)
+}
+
+@MainActor
+private func makeLoggedAtSyncContainer() throws -> ModelContainer {
+    try ModelContainer(
+        for: Block.self,
+        PendingWrite.self,
+        WriteTargetAuditEntry.self,
+        configurations: ModelConfiguration(
+            "sync-preserves-logged-at-\(UUID().uuidString)",
+            isStoredInMemoryOnly: true
+        )
+    )
+}
+
+@MainActor
+private func makeLoggedSquatBlock() -> Block {
+    BlockBuilder.makeBlock(
+        from: ParsedBlockModel(
+            tabName: "Block 27",
+            weeks: [
+                ParsedWeek(
+                    number: 1,
+                    days: [
+                        ParsedSession(
+                            dayNumber: 1,
+                            date: nil,
+                            exercises: [loggedSquatExercise()]
+                        )
+                    ]
+                )
+            ]
+        )
+    )
+}
+
+private func loggedSquatExercise() -> ParsedExercise {
+    ParsedExercise(
+        name: "Squat",
+        baseName: "Squat",
+        cadence: nil,
+        coachNote: nil,
+        sets: [
+            ParsedSet(
+                index: 0,
+                prescribedReps: "5",
+                prescribedLoad: "RPE8",
+                percentOneRM: nil,
+                state: .logged,
+                setLog: SetLog(weight: .pounds(185), reps: 5, rpe: 8)
+            )
+        ]
+    )
+}
+
+private func loggedSquatGrid() -> SheetGrid {
+    gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2", "AI12": "Day 3", "AX12": "Day 4",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": "Squat", "D15": "1", "F15": "5", "H15": "RPE8", "K15": "185x5@8"
+        ],
+        rows: 20,
+        cols: 60
+    )
+}
+
+@MainActor
 @Test func syncBackfillsMissingLastPerformedEntriesFromHistoricalBlocksAndStopsWhenCovered() async throws {
     let container = try makeSyncContainer()
     let backfillCompletion = BackfillCompletionProbe()

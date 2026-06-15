@@ -34,6 +34,7 @@ final class ExerciseSet {
     var stateRaw: String
     var setLogData: Data?
     var unstructuredSetLog: String?
+    var loggedAt: Date?
     var exercise: Exercise?
 
     var state: SetState {

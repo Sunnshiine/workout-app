@@ -80,6 +80,11 @@ private func makeLoggingDefaults() throws -> UserDefaults {
 
 @MainActor
 private func seededStore() throws -> SeededLoggingStore {
+    try seededStore(now: Date.init)
+}
+
+@MainActor
+private func seededStore(now: @escaping @MainActor () -> Date) throws -> SeededLoggingStore {
     let container = try loggingContainer()
     let ctx = container.mainContext
     let block = BlockBuilder.makeBlock(from: parsedLoggingBlock())
@@ -89,7 +94,8 @@ private func seededStore() throws -> SeededLoggingStore {
     let store = try WorkoutStore(
         context: ctx,
         defaults: makeLoggingDefaults(),
-        lastPerformedLookupRefresher: lookupStore
+        lastPerformedLookupRefresher: lookupStore,
+        now: now
     )
     store.reload()
     let set = try #require(
@@ -124,6 +130,17 @@ private func seededStore() throws -> SeededLoggingStore {
 }
 
 @MainActor
+@Test func firstSetLogRecordsLocalLoggedAt() throws {
+    let loggedAt = Date(timeIntervalSinceReferenceDate: 1_000)
+    let fixture = try seededStore(now: { loggedAt })
+    withExtendedLifetime(fixture.container) {}
+
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+
+    #expect(fixture.firstSet.loggedAt == loggedAt)
+}
+
+@MainActor
 @Test func loggingFinalSetQueuesLastSetRPEWrite() throws {
     let fixture = try seededStore()
     withExtendedLifetime(fixture.container) {}
@@ -148,6 +165,19 @@ private func seededStore() throws -> SeededLoggingStore {
     #expect(pending.column == .notes)
     #expect(pending.valueToWrite == "195x5@8.5")
     #expect(pending.expectedCurrentValue == "185x5@8")
+}
+
+@MainActor
+@Test func editingLoggedSetPreservesOriginalLoggedAt() throws {
+    var now = Date(timeIntervalSinceReferenceDate: 1_000)
+    let fixture = try seededStore(now: { now })
+    withExtendedLifetime(fixture.container) {}
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+
+    now = Date(timeIntervalSinceReferenceDate: 1_600)
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(195), reps: 5, rpe: 8.5))
+
+    #expect(fixture.firstSet.loggedAt == Date(timeIntervalSinceReferenceDate: 1_000))
 }
 
 @MainActor
@@ -181,6 +211,23 @@ private func seededStore() throws -> SeededLoggingStore {
     let pending = try #require(try fixture.context.fetch(FetchDescriptor<PendingWrite>()).last)
     #expect(pending.operation == .delete)
     #expect(pending.expectedCurrentValue == "185x5@8")
+}
+
+@MainActor
+@Test func deletingSetLogClearsLoggedAtAndReloggingRecordsNewTimestamp() throws {
+    var now = Date(timeIntervalSinceReferenceDate: 1_000)
+    let fixture = try seededStore(now: { now })
+    withExtendedLifetime(fixture.container) {}
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+
+    try fixture.store.deleteLog(for: fixture.firstSet)
+
+    #expect(fixture.firstSet.loggedAt == nil)
+
+    now = Date(timeIntervalSinceReferenceDate: 1_700)
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(190), reps: 5, rpe: 8))
+
+    #expect(fixture.firstSet.loggedAt == Date(timeIntervalSinceReferenceDate: 1_700))
 }
 
 @MainActor
@@ -230,4 +277,14 @@ private func seededStore() throws -> SeededLoggingStore {
 
     let index = LastPerformedIndex(context: fixture.context)
     #expect(index.lookup(exerciseName: "Squat", baseName: "Squat") == nil)
+}
+
+@MainActor
+@Test func skipSetDoesNotRecordLoggedAt() throws {
+    let fixture = try seededStore(now: { Date(timeIntervalSinceReferenceDate: 1_000) })
+    withExtendedLifetime(fixture.container) {}
+
+    try fixture.store.skip(fixture.firstSet)
+
+    #expect(fixture.firstSet.loggedAt == nil)
 }

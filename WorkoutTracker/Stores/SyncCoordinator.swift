@@ -145,7 +145,9 @@ final class SyncCoordinator {
     }
 
     private func replacePersistedBlock(with block: Block) throws {
+        let loggedAtBySet = try localLoggedAtBySetID()
         overlayPendingWrites(on: block)
+        preserveLocalLoggedAt(on: block, loggedAtBySet: loggedAtBySet)
         for existing in try context.fetch(FetchDescriptor<Block>()) { context.delete(existing) }
         context.insert(block)
         try context.save()
@@ -167,9 +169,11 @@ final class SyncCoordinator {
             if write.operation == .delete {
                 set.state = .pending
                 set.setLog = nil
+                set.loggedAt = nil
             } else if write.valueToWrite?.caseInsensitiveCompare("skip") == .orderedSame {
                 set.state = .skipped
                 set.setLog = nil
+                set.loggedAt = nil
             } else if let value = write.valueToWrite, let log = SetLog(formatted: value) {
                 set.state = .logged
                 set.setLog = log
@@ -282,6 +286,62 @@ final class SyncCoordinator {
     }
 
 }
+
+private struct LocalSetID: Hashable {
+    let blockTab: String
+    let week: Int
+    let day: Int
+    let exerciseName: String
+    let setIndex: Int
+}
+
+private extension SyncCoordinator {
+    func localLoggedAtBySetID() throws -> [LocalSetID: Date] {
+        var values: [LocalSetID: Date] = [:]
+        for block in try context.fetch(FetchDescriptor<Block>()) {
+            for week in block.weeks {
+                for session in week.sessions {
+                    for exercise in session.exercises {
+                        for set in exercise.sets {
+                            guard let loggedAt = set.loggedAt else { continue }
+                            values[
+                                LocalSetID(
+                                    blockTab: block.tabName,
+                                    week: week.number,
+                                    day: session.dayNumber,
+                                    exerciseName: exercise.name,
+                                    setIndex: set.index
+                                )
+                            ] = loggedAt
+                        }
+                    }
+                }
+            }
+        }
+        return values
+    }
+
+    func preserveLocalLoggedAt(on block: Block, loggedAtBySet: [LocalSetID: Date]) {
+        for week in block.weeks {
+            for session in week.sessions {
+                for exercise in session.exercises {
+                    for set in exercise.sets where set.state == .logged {
+                        set.loggedAt = loggedAtBySet[
+                            LocalSetID(
+                                blockTab: block.tabName,
+                                week: week.number,
+                                day: session.dayNumber,
+                                exerciseName: exercise.name,
+                                setIndex: set.index
+                            )
+                        ]
+                    }
+                }
+            }
+        }
+    }
+}
+
 extension SyncCoordinator: SheetSwitchSyncing {}
 private struct PendingWriteFlushContext {
     let spreadsheetId: String

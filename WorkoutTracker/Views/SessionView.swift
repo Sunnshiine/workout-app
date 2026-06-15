@@ -73,7 +73,7 @@ struct SessionView: View {
         .background(palette.gradient.ignoresSafeArea())
         .overlay {
             if let session = workout.moveOnCelebrationSession {
-                MoveOnCelebrationView(session: session) {
+                MoveOnCelebrationView(session: session, requestedAt: workout.moveOnCelebrationRequestedAt) {
                     workout.dismissMoveOnCelebration()
                 }
                 .transition(.opacity)

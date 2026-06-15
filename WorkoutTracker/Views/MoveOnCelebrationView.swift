@@ -4,17 +4,22 @@ import UIKit
 struct MoveOnCelebrationView: View {
     let onDismiss: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.themePalette) private var palette
     @State private var presentation: MoveOnCelebrationPresentation
 
     private static let perfectImpactDelay: Duration = .milliseconds(120)
+    private static let orbitRefreshInterval = 1.0 / 30.0
 
     init(
         session: Session,
+        requestedAt: Date? = nil,
         quoteText: String? = nil,
         onDismiss: @escaping () -> Void
     ) {
-        _presentation = State(initialValue: MoveOnCelebrationPresentation(session: session, quoteText: quoteText))
+        _presentation = State(
+            initialValue: MoveOnCelebrationPresentation(session: session, requestedAt: requestedAt, quoteText: quoteText)
+        )
         self.onDismiss = onDismiss
     }
 
@@ -35,7 +40,10 @@ struct MoveOnCelebrationView: View {
                             setsCopyText
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.bottom, 54)
+                        .padding(.bottom, 42)
+
+                        timingCenter
+                            .padding(.bottom, 34)
 
                         Spacer(minLength: 0)
 
@@ -130,12 +138,13 @@ struct MoveOnCelebrationView: View {
 
     private var quoteText: some View {
         Text(presentation.quoteText)
-            .font(.system(size: 38, weight: .black, design: .default))
+            .font(.system(size: 34, weight: .black, design: .default))
             .foregroundStyle(primaryTextColor)
             .multilineTextAlignment(.leading)
-            .lineLimit(4)
-            .minimumScaleFactor(0.68)
-            .frame(maxWidth: 340, minHeight: 96, alignment: .bottomLeading)
+            .lineLimit(6)
+            .minimumScaleFactor(0.72)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: 340, alignment: .bottomLeading)
             .accessibilityIdentifier("move-on-celebration-quote")
     }
 
@@ -146,6 +155,109 @@ struct MoveOnCelebrationView: View {
             .lineSpacing(2)
             .frame(maxWidth: 310, alignment: .leading)
             .accessibilityIdentifier("move-on-celebration-sets-copy")
+    }
+
+    @ViewBuilder
+    private var timingCenter: some View {
+        if case .available(let elapsedText, let timeRangeText) = presentation.timing {
+            VStack(spacing: 12) {
+                timingNucleus(elapsedText: elapsedText)
+
+                Text(timeRangeText)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(supportingTextColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+                    .accessibilityLabel("Time range")
+                    .accessibilityValue(timeRangeText.replacingOccurrences(of: "→", with: "to"))
+                    .accessibilityIdentifier("move-on-celebration-time-range")
+            }
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    @ViewBuilder
+    private func timingNucleus(elapsedText: String) -> some View {
+        if reduceMotion {
+            timingNucleusContent(elapsedText: elapsedText, phase: 0)
+        } else {
+            TimelineView(.animation(minimumInterval: Self.orbitRefreshInterval)) { context in
+                timingNucleusContent(
+                    elapsedText: elapsedText,
+                    phase: context.date.timeIntervalSinceReferenceDate
+                )
+            }
+        }
+    }
+
+    private func timingNucleusContent(elapsedText: String, phase: TimeInterval) -> some View {
+        ZStack {
+            Circle()
+                .fill(palette.activeCardFill.opacity(0.78))
+                .frame(width: 144, height: 144)
+                .scaleEffect(nucleusScale(for: phase))
+                .accessibilityHidden(true)
+
+            Circle()
+                .stroke(palette.accent.opacity(0.34), lineWidth: 1)
+                .frame(width: 144, height: 144)
+                .scaleEffect(outerRingScale(for: phase))
+                .accessibilityHidden(true)
+
+            Circle()
+                .stroke(palette.pillStroke.opacity(0.46), lineWidth: 1)
+                .frame(width: 106, height: 106)
+                .accessibilityHidden(true)
+
+            orbitLayer(phase: phase)
+                .accessibilityHidden(true)
+                .accessibilityIdentifier("move-on-celebration-orbit")
+
+            Text(elapsedText)
+                .font(.system(size: 22, weight: .black, design: .rounded))
+                .foregroundStyle(primaryTextColor)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.72)
+                .frame(width: 94)
+                .accessibilityLabel("Elapsed time")
+                .accessibilityValue(elapsedText)
+                .accessibilityIdentifier("move-on-celebration-elapsed-nucleus")
+        }
+        .frame(width: 154, height: 154)
+    }
+
+    private func orbitLayer(phase: TimeInterval) -> some View {
+        ZStack {
+            orbitDot(phase: phase, offset: 0, radius: 70, size: 7, opacity: 0.78)
+            orbitDot(phase: phase, offset: 2.18, radius: 57, size: 5, opacity: 0.58)
+            orbitDot(phase: phase, offset: 4.36, radius: 66, size: 4, opacity: 0.48)
+        }
+    }
+
+    private func orbitDot(
+        phase: TimeInterval,
+        offset: Double,
+        radius: CGFloat,
+        size: CGFloat,
+        opacity: Double
+    ) -> some View {
+        let angle = phase * 0.42 + offset
+        let x = CGFloat(cos(angle)) * radius
+        let y = CGFloat(sin(angle)) * radius * 0.58
+
+        return Circle()
+            .fill(palette.accent.opacity(opacity))
+            .frame(width: size, height: size)
+            .offset(x: x, y: y)
+    }
+
+    private func nucleusScale(for phase: TimeInterval) -> CGFloat {
+        reduceMotion ? 1 : 1 + (CGFloat(sin(phase * 1.1)) * 0.018)
+    }
+
+    private func outerRingScale(for phase: TimeInterval) -> CGFloat {
+        reduceMotion ? 1 : 1 + (CGFloat(sin(phase * 0.72)) * 0.028)
     }
 
     private var statsRow: some View {

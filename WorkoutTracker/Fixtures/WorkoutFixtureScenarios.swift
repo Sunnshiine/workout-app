@@ -205,7 +205,9 @@
                                         coachNote: "Perfect Session fixture.",
                                         order: 0,
                                         sets: [
-                                            Factory.loggedSet(0, reps: "5", load: "RPE6", weight: 185, rpe: 6),
+                                            Factory.loggedSet(
+                                                0, reps: "5", load: "RPE6", weight: 185, rpe: 6,
+                                                loggedAt: Date(timeIntervalSinceNow: -52 * 60)),
                                             Factory.set(1, reps: "5", load: "RPE7", state: .skipped)
                                         ]
                                     )
@@ -582,7 +584,8 @@
             load: String,
             percentOneRM: String? = nil,
             weight: Double,
-            rpe: Double
+            rpe: Double,
+            loggedAt: Date? = nil
         ) -> ExerciseSet {
             set(
                 index,
@@ -590,7 +593,8 @@
                 load: load,
                 percentOneRM: percentOneRM,
                 state: .logged,
-                log: SetLog(weight: .pounds(weight), reps: Int(reps) ?? 0, rpe: rpe)
+                log: SetLog(weight: .pounds(weight), reps: Int(reps) ?? 0, rpe: rpe),
+                loggedAt: loggedAt
             )
         }
 
@@ -600,10 +604,12 @@
             load: String,
             percentOneRM: String? = nil,
             state: SetState = .pending,
-            log: SetLog? = nil
+            log: SetLog? = nil,
+            loggedAt: Date? = nil
         ) -> ExerciseSet {
             let set = ExerciseSet(index: index, prescribedReps: reps, prescribedLoad: load, percentOneRM: percentOneRM, state: state)
             set.setLog = log
+            set.loggedAt = loggedAt
             return set
         }
     }
