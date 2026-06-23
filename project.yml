@@ -27,20 +27,32 @@ targets:
     info:
       path: WorkoutTracker/Info.plist
       properties:
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         GIDClientID: $(GID_CLIENT_ID)
         CFBundleURLTypes:
           - CFBundleURLSchemes:
               - $(GID_REVERSED_CLIENT_ID)
+        ITSAppUsesNonExemptEncryption: false
         UILaunchStoryboardName: LaunchScreen
         NSSupportsLiveActivities: true
     settings:
       base:
-        CODE_SIGN_IDENTITY: iPhone Developer
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: K74Q6RKFBY
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: "1.0"
         PRODUCT_BUNDLE_IDENTIFIER: com.sunnypatel.WorkoutTracker
         SWIFT_VERSION: "6.0"
         SWIFT_STRICT_CONCURRENCY: complete
         TARGETED_DEVICE_FAMILY: "1,2"
+        VERSIONING_SYSTEM: apple-generic
+      configs:
+        Debug:
+          CODE_SIGN_IDENTITY: Apple Development
+        Release:
+          CODE_SIGN_IDENTITY: Apple Distribution
     dependencies:
       - target: WorkoutWidgets
       - package: GoogleSignIn
@@ -113,16 +125,26 @@ targets:
     info:
       path: WorkoutWidgets/Info.plist
       properties:
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
       base:
-        CODE_SIGN_IDENTITY: iPhone Developer
+        CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: K74Q6RKFBY
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: "1.0"
         PRODUCT_BUNDLE_IDENTIFIER: com.sunnypatel.WorkoutTracker.Widgets
         SWIFT_VERSION: "6.0"
         SWIFT_STRICT_CONCURRENCY: complete
         TARGETED_DEVICE_FAMILY: "1,2"
+        VERSIONING_SYSTEM: apple-generic
+      configs:
+        Debug:
+          CODE_SIGN_IDENTITY: Apple Development
+        Release:
+          CODE_SIGN_IDENTITY: Apple Distribution
 
 schemes:
   WorkoutTracker:

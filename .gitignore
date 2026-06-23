@@ -25,6 +25,10 @@ xcuserdata/
 .build/
 .swiftpm/
 
+# Local release archives and App Store Connect API keys
+/build/
+AuthKey_*.p8
+
 # Python (uv virtualenv + bytecode caches)
 .venv/
 __pycache__/

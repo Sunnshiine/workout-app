@@ -11,10 +11,12 @@ let package = Package(
             exclude: [
                 "Views",
                 "LiveActivity",
+                "Assets.xcassets",
                 "Sheets/GoogleAuth.swift",
                 "WorkoutTrackerApp.swift",
                 "Info.plist",
                 "LaunchScreen.storyboard",
+                "PrivacyInfo.xcprivacy",
             ]
         ),
         .testTarget(

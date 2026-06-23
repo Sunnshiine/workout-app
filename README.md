@@ -57,6 +57,12 @@ xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
   -only-testing:WorkoutTrackerUITests
 ```
 
+## TestFlight
+
+Release uploads are scripted in `scripts/upload-testflight.sh`. See
+`docs/TESTFLIGHT.md` for the App Store Connect setup, signing assumptions, and
+the upload command.
+
 ## Docs
 
 - **`AGENTS.md`** / **`CLAUDE.md`** — build, test, and contribution guide for AI agents
