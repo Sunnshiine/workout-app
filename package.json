@@ -1,0 +1,19 @@
+{
+  "name": "workout-app-agent-tooling",
+  "private": true,
+  "type": "module",
+  "description": "Node tooling for the Sandcastle agent pipeline (.sandcastle/ + .github/workflows/agent-*.yml). The app itself is Swift — see Package.swift.",
+  "scripts": {
+    "sandcastle": "tsx ./.sandcastle/main.ts",
+    "test:sandcastle": "vitest run .sandcastle",
+    "typecheck:sandcastle": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@ai-hero/sandcastle": "^0.10.0",
+    "@types/node": "^22.15.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4",
+    "zod": "^4.3.5"
+  }
+}
