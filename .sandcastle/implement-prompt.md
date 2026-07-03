@@ -1,0 +1,56 @@
+# TASK
+
+Fix issue #{{ISSUE_NUMBER}}: {{ISSUE_TITLE}}
+
+Pull in the issue using `gh issue view`, with comments. If it has a parent PRD, pull that in too.
+
+Only work on the issue specified.
+
+Work on branch {{BRANCH}}. Make commits, and leave closing the issue for later.
+
+# CONTEXT
+
+Read `CONTEXT.md` and any relevant ADRs under `docs/adr/`. For product or UI work, also read `PRODUCT.md` and `DESIGN.md`.
+
+# EXPLORATION
+
+Explore the repo and fill your context window with relevant information that will allow you to complete the task.
+
+Pay extra attention to test files that touch the relevant parts of the code.
+
+# EXECUTION
+
+If applicable, use RGR to complete the task.
+
+1. RED: write one test
+2. GREEN: write the implementation to pass that test
+3. REPEAT until done
+4. REFACTOR the code
+
+# FEEDBACK LOOPS
+
+This sandbox is Linux — it cannot build this Swift package (`swift test` needs macOS). Verify by careful reading of the tests you write against the code, and state clearly in your commit body that tests were NOT run in this sandbox. CI runs `swift test` on macOS when the branch is pushed.
+
+# COMMIT
+
+Make a git commit. The commit message must:
+
+1. Start with `SANDCASTLE:` prefix (do NOT use `RALPH:` — that prefix is reserved for the Ralph loop)
+2. Include task completed + PRD reference
+3. Key decisions made
+4. Files changed
+5. Blockers or notes for next iteration
+
+Keep it concise.
+
+# THE ISSUE
+
+If the task is not complete, leave a comment on the GitHub issue with what was done.
+
+Do not close the issue - this will be done later.
+
+Once complete, output <promise>COMPLETE</promise>.
+
+# FINAL RULES
+
+ONLY WORK ON A SINGLE TASK.

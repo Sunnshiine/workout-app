@@ -1,0 +1,42 @@
+name: Agent Setup Labels
+
+# One-time (idempotent) bootstrap for the labels the agent pipeline uses.
+# Run manually from the Actions tab after adding the workflows to the repo.
+# Not part of the reference pipeline — added so a fresh repo doesn't need
+# labels created by hand.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-labels:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+
+    steps:
+      - name: Create agent labels (idempotent)
+        run: |
+          set -euo pipefail
+          create() {
+            local name="$1" color="$2" desc="$3"
+            gh label create "$name" --color "$color" --description "$desc" --force
+            echo "ensured: $name"
+          }
+          # Triggers — humans (or chained workflows) apply these to kick off a run.
+          create "agent:implement"     "1D76DB" "Trigger: implement this issue/PRD, or address feedback on this PR"
+          create "agent:to-issues"     "0E8A16" "Trigger: break this PRD into native sub-issues"
+          create "agent:review"        "5319E7" "Trigger: agent code review of this PR"
+          create "agent:update-branch" "C2E0C6" "Trigger: merge base into this PR branch, resolving conflicts"
+          # Queueing — manual application; promoted to agent:implement when blockers close.
+          create "agent:queued"        "FBCA04" "Queued: promote to agent:implement when GitHub issue dependencies close"
+          # State — managed by the workflows, not humans.
+          create "agent:in-progress"   "BFD4F2" "State: an agent workflow is currently running on this item"
+          create "agent:blocked"       "D93F0B" "State: last agent run failed or refused; see the run comment"
+          # Provenance
+          create "source:architecture-review" "5319E7" "PRDs proposed by the scheduled architecture-review workflow"

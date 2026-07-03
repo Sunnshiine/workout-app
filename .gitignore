@@ -37,3 +37,6 @@ ralph/reports/
 
 # Local troubleshooting logs
 error-logs.txt
+
+# Node tooling for the Sandcastle agent pipeline
+node_modules/

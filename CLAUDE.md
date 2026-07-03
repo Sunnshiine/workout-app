@@ -101,6 +101,10 @@ Issues and PRDs are tracked in GitHub Issues for `Sunnshiine/workout-app`. See `
 
 Use the default five-label triage vocabulary. See `docs/agents/triage-labels.md`.
 
+### Sandcastle agent pipeline
+
+Label-driven autonomous implementation via GitHub Actions: `agent:to-issues` slices a PRD into sub-issues, `agent:implement` implements issues/PRDs/PR feedback, `agent:review` reviews PRs. Prompts live in `.sandcastle/`, workflows in `.github/workflows/agent-*.yml`. See `docs/agents/sandcastle.md`.
+
 ### Domain docs
 
 This is a single-context repo: read root `CONTEXT.md` for domain language and root `docs/adr/` for decisions. For product or UI work, also read `PRODUCT.md` and `DESIGN.md`. See `docs/agents/domain.md`.
