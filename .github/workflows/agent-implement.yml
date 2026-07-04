@@ -175,7 +175,13 @@ jobs:
         id: open_pr
         env:
           BRANCH: ${{ steps.branch.outputs.name }}
+          # Prefer AGENT_PAT: the default GITHUB_TOKEN cannot create PRs unless
+          # "Allow GitHub Actions to create and approve pull requests" is
+          # enabled in the repo's Actions settings, and PRs it creates don't
+          # trigger downstream workflows anyway.
+          GH_TOKEN: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           PR_TITLE=$(cat "${RUNNER_TEMP}/pr_title.txt")
           PR_TITLE="${PR_TITLE:0:256}"
           pr_url=$(gh pr create \

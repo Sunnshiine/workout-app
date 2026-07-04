@@ -229,6 +229,11 @@ jobs:
         env:
           BRANCH: ${{ steps.branch.outputs.name }}
           EXISTING_PR: ${{ steps.pr_lookup.outputs.existing_pr }}
+          # Prefer AGENT_PAT: the default GITHUB_TOKEN cannot create PRs unless
+          # "Allow GitHub Actions to create and approve pull requests" is
+          # enabled in the repo's Actions settings, and PRs it creates don't
+          # trigger downstream workflows anyway.
+          GH_TOKEN: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           if [ -n "$EXISTING_PR" ]; then
