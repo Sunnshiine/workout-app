@@ -124,11 +124,11 @@ jobs:
           REPLIES: ${{ runner.temp }}/replies.json
         run: |
           count=$(jq 'length' "$REPLIES")
-          for i in $(seq 0 $((count - 1))); do
+          for ((i = 0; i < count; i++)); do
             commentId=$(jq -r ".[$i].commentId" "$REPLIES")
             body=$(jq -r ".[$i].body" "$REPLIES")
             # GraphQL node ID → numeric REST id via the node lookup.
-            rest_id=$(gh api graphql -f query="query(\$id:ID!){ node(id:\$id){ ... on PullRequestReviewComment { databaseId } } }" -F id="$commentId" --jq '.data.node.databaseId')
+            rest_id=$(gh api graphql -f query="query(\$id:ID!){ node(id:\$id){ ... on PullRequestReviewComment { databaseId } } }" -f id="$commentId" --jq '.data.node.databaseId')
             if [ -z "$rest_id" ] || [ "$rest_id" = "null" ]; then
               echo "Could not resolve REST id for $commentId — skipping" >&2
               continue
