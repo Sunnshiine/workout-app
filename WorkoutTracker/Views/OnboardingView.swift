@@ -156,9 +156,18 @@ struct OnboardingView: View {
     private func commitSelection(_ selection: SheetSelection) async {
         ensureSwitchStore()
         guard let switchStore else { return }
-        let result = await switchStore.requestSwitch(to: selection)
-        if result == .failed {
+        switch await switchStore.requestSwitch(to: selection) {
+        case .switched, .unchanged:
+            // Committing the selection flips `destination` away from the picker; nothing else to do.
+            break
+        case .failed:
             selectionErrorMessage = switchStore.errorMessage ?? "Couldn't sync the selected sheet. Try again."
+        case .requiresConfirmation:
+            // Onboarding starts with no committed sheet, so a prior sheet's unsynced writes shouldn't
+            // normally reach here. Surface it rather than leaving the picker silently unresponsive;
+            // the full discard-and-confirm flow for pending writes lives in Settings.
+            selectionErrorMessage =
+                "You have unsynced changes from a previous sheet. Review them in Settings before switching."
         }
     }
 }

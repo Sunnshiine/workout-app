@@ -476,6 +476,65 @@ import Testing
     #expect(await client.syncedSpreadsheetIds() == ["new-sheet"])
 }
 
+// The onboarding pasted-URL fallback commits a titleless `SheetSelection`, so the safe transaction
+// must sync the new sheet first, then commit the id while clearing any stale title left behind.
+@MainActor
+@Test func titlelessSelectionSwitchSyncsNewSheetThenClearsStaleTitle() async throws {
+    let container = try makeCacheSafetyContainer()
+    let context = container.mainContext
+    seedStaleBlock(tabName: "Block 26", into: context)
+
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let settings = SettingsStore(defaults: defaults)
+    settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
+
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let sync = SyncCoordinator(client: client, context: context)
+    var reloadCount = 0
+    let store = SettingsSheetSwitchStore(settings: settings, sync: sync) { reloadCount += 1 }
+
+    let result = await store.requestSwitch(to: SheetSelection(spreadsheetId: "new-sheet", title: nil))
+
+    #expect(result == .switched)
+    #expect(settings.spreadsheetId == "new-sheet")
+    #expect(settings.spreadsheetTitle == nil)
+    #expect(reloadCount == 1)
+
+    let blocks = try context.fetch(FetchDescriptor<Block>())
+    #expect(blocks.count == 1)
+    #expect(blocks.first?.tabName == "Block 27")
+    #expect(await client.syncedSpreadsheetIds() == ["new-sheet"])
+}
+
+// A failed titleless selection switch (pasted URL that can't sync) must leave onboarding's previous
+// selection and cache untouched, exactly like the Drive-picker path.
+@MainActor
+@Test func failedTitlelessSelectionSwitchKeepsPreviousSelectionAndCache() async throws {
+    let container = try makeCacheSafetyContainer()
+    let context = container.mainContext
+    seedStaleBlock(tabName: "Block 26", into: context)
+
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let settings = SettingsStore(defaults: defaults)
+    settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
+
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid(), failOffline: true)
+    let sync = SyncCoordinator(client: client, context: context)
+    var reloadCount = 0
+    let store = SettingsSheetSwitchStore(settings: settings, sync: sync) { reloadCount += 1 }
+
+    let result = await store.requestSwitch(to: SheetSelection(spreadsheetId: "new-sheet", title: nil))
+
+    #expect(result == .failed)
+    #expect(settings.spreadsheetId == "old-sheet")
+    #expect(settings.spreadsheetTitle == "Old Training Log")
+    #expect(reloadCount == 0)
+
+    let blocks = try context.fetch(FetchDescriptor<Block>())
+    #expect(blocks.count == 1)
+    #expect(blocks.first?.tabName == "Block 26")
+}
+
 @MainActor
 @Test func failedSheetSwitchSyncKeepsStaleCacheAndDoesNotCommitSelection() async throws {
     let container = try makeCacheSafetyContainer()
