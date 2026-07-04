@@ -5,6 +5,9 @@ name: Agent Auth Check
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/agent-auth-check.yml
 
 permissions: {}
 
