@@ -1,0 +1,7 @@
+/* Redesign seed — deliberately minimal. No visual system is imposed here;
+   the redesign defines its own. Only the iOS-native font stack is set so
+   every design starts with system typography. */
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
