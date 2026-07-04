@@ -3,9 +3,13 @@ import SwiftUI
 
 struct OnboardingView: View {
     @Environment(SettingsStore.self) private var settings
+    @Environment(SyncCoordinator.self) private var sync
+    @Environment(WorkoutStore.self) private var workout
     @State private var urlText = ""
     @State private var urlError = false
     @State private var showsURLFallback = false
+    @State private var switchStore: SettingsSheetSwitchStore?
+    @State private var selectionErrorMessage: String?
     @Namespace private var ns
 
     var body: some View {
@@ -14,9 +18,15 @@ struct OnboardingView: View {
             case .signIn:
                 signInCard
             case .sheetPicker:
-                SheetPickerView(onPasteURL: {
-                    withAnimation { showsURLFallback = true }
-                })
+                SheetPickerView(
+                    client: sheetPickerClient,
+                    onValidatedSelection: { spreadsheet in
+                        await commitSelection(SheetSelection(spreadsheet))
+                    },
+                    onPasteURL: {
+                        withAnimation { showsURLFallback = true }
+                    }
+                )
                 .workoutGlassID("onboarding", in: ns)
             case .urlEntry:
                 urlEntryCard
@@ -26,6 +36,12 @@ struct OnboardingView: View {
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear(perform: ensureSwitchStore)
+        .alert("Couldn't load sheet", isPresented: selectionErrorPresented) {
+            Button("OK", role: .cancel) { selectionErrorMessage = nil }
+        } message: {
+            Text(selectionErrorMessage ?? "Something went wrong.")
+        }
     }
 
     private var destination: AppEntryDestination {
@@ -90,13 +106,60 @@ struct OnboardingView: View {
                     .foregroundStyle(.red)
             }
 
-            Button("Save") { urlError = !settings.setSheetURL(urlText) }
+            Button("Save") { saveURL() }
                 .buttonStyle(.workoutGlass)
                 .disabled(urlText.isEmpty)
         }
         .padding()
         .workoutGlass(.card)
         .workoutGlassID("onboarding", in: ns)
+    }
+
+    // MARK: - Safe selection
+
+    private var sheetPickerClient: any SheetsClient {
+        #if DEBUG
+            if UITestFixture.isEnabled {
+                return UITestFixture.makeSheetsClient()
+            }
+        #endif
+        return GoogleSheetsClient()
+    }
+
+    private var selectionErrorPresented: Binding<Bool> {
+        Binding {
+            selectionErrorMessage != nil
+        } set: { isPresented in
+            if !isPresented { selectionErrorMessage = nil }
+        }
+    }
+
+    private func ensureSwitchStore() {
+        guard switchStore == nil else { return }
+        switchStore = SettingsSheetSwitchStore(settings: settings, sync: sync) {
+            workout.reload()
+        }
+    }
+
+    private func saveURL() {
+        guard let id = extractSpreadsheetId(from: urlText) else {
+            urlError = true
+            return
+        }
+        urlError = false
+        Task { await commitSelection(SheetSelection(spreadsheetId: id, title: nil)) }
+    }
+
+    /// Runs every onboarding selection through the same safe switch transaction as Settings:
+    /// sync the newly selected sheet first, then commit the selection. A failed sync leaves the
+    /// app on onboarding (no selection committed) rather than presenting a stale cached Block.
+    private func commitSelection(_ selection: SheetSelection) async {
+        ensureSwitchStore()
+        guard let switchStore else { return }
+        let result = await switchStore.requestSwitch(to: selection)
+        if result == .failed {
+            selectionErrorMessage = switchStore.errorMessage ?? "Couldn't sync the selected sheet. Try again."
+        }
     }
 }
 

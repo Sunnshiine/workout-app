@@ -86,7 +86,12 @@ struct WorkoutTrackerApp: App {
                 settings.setAppearance(appearanceOverride)
             }
             settings.isSignedIn = true
-            settings.setSpreadsheet(id: WorkoutFixtureScenarios.sheetId, title: "Fixture Training Log")
+            // Onboarding mode leaves the spreadsheet unset so the app lands on the sheet picker,
+            // while the seeded (stale) Block stays in the store to prove it is never shown for the
+            // newly selected sheet.
+            if !UITestFixture.startsInOnboarding {
+                settings.setSpreadsheet(id: WorkoutFixtureScenarios.sheetId, title: "Fixture Training Log")
+            }
             return settings
         }
 
