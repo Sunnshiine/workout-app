@@ -171,6 +171,30 @@ final class WorkoutTrackerAppearanceUITests: XCTestCase {
     }
 }
 
+final class WorkoutTrackerOnboardingSwitchUITests: XCTestCase {
+    /// Covers the onboarding sheet-selection path, which previously wrote the selection straight to
+    /// settings without syncing. It must now run the safe switch transaction: auto-sync the newly
+    /// selected sheet and land on its freshly parsed session, never presenting the stale cached Block.
+    @MainActor
+    func testOnboardingSheetSelectionAutoSyncsAndReplacesStaleCachedBlock() throws {
+        let app = launchWorkoutApp(fixture: .onboarding, options: [.disableCelebrationBloom])
+
+        // Signed in, but no spreadsheet selected yet — onboarding shows the sheet picker.
+        XCTAssertTrue(app.staticTexts["Choose your training sheet"].waitForExistence(timeout: 5))
+        // The seeded (stale) Block is never shown while onboarding.
+        XCTAssertFalse(app.staticTexts["Back Squat"].exists)
+
+        let replacementRow = app.buttons["Replacement Training Log"]
+        XCTAssertTrue(replacementRow.waitForExistence(timeout: 5))
+        replacementRow.tap()
+
+        // Auto-synced the newly selected sheet (no manual re-sync) and advanced to its session.
+        XCTAssertTrue(app.staticTexts["Replacement Squat"].waitForExistence(timeout: 10))
+        // The stale cached Block's exercise is never presented for the newly selected sheet.
+        XCTAssertFalse(app.staticTexts["Back Squat"].exists)
+    }
+}
+
 @MainActor
 private func tapActiveSetCardHeaderBackground(in app: XCUIApplication) {
     let activeSetCard = app.otherElements["active-set-card"]
