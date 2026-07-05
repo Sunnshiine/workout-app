@@ -1,4 +1,6 @@
-Standards the review agent enforces on top of the repo's own docs. `CONTEXT.md` (domain glossary), `docs/adr/` (binding decisions), `PRODUCT.md` and `DESIGN.md` (product/UI work) always win over anything here.
+Standards the review agent enforces on top of the repo's own docs. `CONTEXT.md` (domain glossary), `docs/adr/` (binding decisions), `PRODUCT.md` and `DESIGN.md` (product/UI work) always win over anything here. Generic Swift conventions (style, testing mechanics, patterns, security) live in `AGENTS.md` and are not repeated here.
+
+A rule earns a line in this file only when it is not derivable from those docs or the lint/format configs, and it has cost a real bug or a repeated review comment. Delete rules that stop paying rent.
 
 ---
 
@@ -15,14 +17,6 @@ Views (`WorkoutTracker/Views/`) are excluded from the SPM library target. Logic 
 ---
 
 Optional parameters and default arguments should be scrutinised extremely carefully. They are a huge source of bugs (by omission). Prioritise correctness over backwards compatibility.
-
----
-
-Prefer `guard` early-exits over nested `if` pyramids. Avoid force-unwraps (`!`) and force-tries (`try!`) outside tests and fixtures; handle the `nil`/error path explicitly or fail loudly with a message that names the violated invariant.
-
----
-
-Filters must stay in sync with the shape of the data they filter. When a new field is added to an entity that affects what something "is" (status, category, state), every filter, count, and badge that surfaces that concept must be updated to take the new field into account. Filters are part of the entity's definition, not a one-time UI feature — drift between them and the data shape produces silently-wrong results.
 
 ---
 
