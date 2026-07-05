@@ -60,15 +60,26 @@ issues are open).
 
 ## Repo-specific adaptations
 
-- **macOS runners.** The reference repo runs everything on `ubuntu-latest`;
-  here the implementing/reviewing jobs run on `macos-15` because the SPM
-  library target imports SwiftUI/SwiftData, and the agents' feedback loop is
-  `swift test` (unit + component tests, no `Secrets.xcconfig`). Read-only jobs
+- **macOS runners with Xcode 26.** The reference repo runs everything on
+  `ubuntu-latest`; here the implementing/reviewing jobs run on `macos-26`
+  (default Xcode 26.x) so agents can verify the **whole** app, not just the
+  SPM library: `swift test` is the fast loop, and changes touching the app
+  target (`Views/`, Liquid Glass APIs) are compile-checked with
+  `xcodebuild build … -destination 'generic/platform=iOS Simulator'` — no
+  booted simulator needed. Workflows pre-create `Secrets.xcconfig` from
+  `Secrets.xcconfig.template` (build-only placeholder values; the xcodeproj
+  references the file, so builds fail without it). Read-only jobs
   (`to-issues`, `promote-queued`, `architecture-review`) stay on Ubuntu.
   macOS minutes are free while this repo is public; 10× metered if it goes
   private.
+- **CI gate.** `ci.yml` runs `swift test` and the app-target compile-check on
+  every PR, so app-target breakage is caught even if an agent skipped the
+  `xcodebuild` check. Agent pushes trigger it only when `AGENT_PAT` is
+  configured (plain-`GITHUB_TOKEN` pushes don't fire workflows).
 - **No UI tests in CI.** Agents are told not to run `WorkoutTrackerUITests`
-  (simulator required). UI-affecting PRs still need a human/Ralph pass locally.
+  (booted simulator required; too slow/flaky for the agent loop). UI-affecting
+  PRs still need a human/Ralph pass locally for behavior — compilation is
+  covered in CI.
 - **Commit prefixes.** CI agents use conventional commits. The local loop
   uses `SANDCASTLE:` — never `RALPH:`, which is reserved for the Ralph loop.
 - **Agent model** is set in the `.sandcastle/**/*.ts` scripts

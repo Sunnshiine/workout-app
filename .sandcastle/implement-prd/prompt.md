@@ -39,9 +39,23 @@ Use red-green-refactor where applicable.
 4. REFACTOR
 
 Before committing, run `swift test` (fast unit + component tests; no
-`Secrets.xcconfig` needed). Do not attempt `xcodebuild` UI tests in this
-environment — they need a booted simulator and are out of scope for this
-run.
+`Secrets.xcconfig` needed).
+
+If your change touches the app target — anything under
+`WorkoutTracker/Views/`, `WorkoutTrackerApp.swift`, or other code the SPM
+library target doesn't compile — also compile-check the full app (the
+workflow pre-created `Secrets.xcconfig` from the template; no booted
+simulator needed):
+
+```bash
+xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+  -destination 'generic/platform=iOS Simulator' \
+  -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
+```
+
+Do not run `WorkoutTrackerUITests` in this environment — they need a booted
+simulator and are too slow for this run; UI-affecting changes still get a
+human/Ralph pass locally.
 
 # COMMIT
 

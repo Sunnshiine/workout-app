@@ -7,9 +7,11 @@ on:
 jobs:
   implement:
     if: github.event.label.name == 'agent:implement'
-    # macOS runner: the SPM library target imports SwiftUI/SwiftData, so `swift test`
-    # only runs on macOS. Free for public repos; 10x metered minutes if made private.
-    runs-on: macos-15
+    # macos-26 runner: default Xcode is 26.x, which the app/Views target needs
+    # (Liquid Glass APIs, ADR-0004) for `xcodebuild` compile-checks. `swift test`
+    # also needs macOS (the SPM library imports SwiftUI/SwiftData). Free for
+    # public repos; 10x metered minutes if made private.
+    runs-on: macos-26
     timeout-minutes: 60
     concurrency:
       group: agent-implement-issue-${{ github.event.issue.number }}
@@ -108,6 +110,13 @@ jobs:
           # Falls back to GITHUB_TOKEN if AGENT_PAT is unset; in that case
           # workflow-file changes will be rejected on push.
           token: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
+
+      # Secrets.xcconfig is git-ignored but referenced by the xcodeproj; the
+      # template's placeholder values are enough for compile-checking the app
+      # target (not for running against live Google Sheets).
+      - name: Create Secrets.xcconfig from template (build-only)
+        if: steps.shape.outputs.proceed == 'true' && steps.preflight.outputs.refused != 'true'
+        run: cp Secrets.xcconfig.template Secrets.xcconfig
 
       - name: Compute branch name
         if: steps.shape.outputs.proceed == 'true' && steps.preflight.outputs.refused != 'true'
