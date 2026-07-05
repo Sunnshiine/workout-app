@@ -12,9 +12,11 @@ on:
 jobs:
   review:
     if: github.event.label.name == 'agent:review'
-    # macOS runner: the SPM library target imports SwiftUI/SwiftData, so `swift test`
-    # only runs on macOS. Free for public repos; 10x metered minutes if made private.
-    runs-on: macos-15
+    # macos-26 runner: default Xcode is 26.x, which the app/Views target needs
+    # (Liquid Glass APIs, ADR-0004) for `xcodebuild` compile-checks. `swift test`
+    # also needs macOS (the SPM library imports SwiftUI/SwiftData). Free for
+    # public repos; 10x metered minutes if made private.
+    runs-on: macos-26
     timeout-minutes: 60
     concurrency:
       group: agent-mutate-pr-${{ github.event.pull_request.number }}
@@ -47,6 +49,12 @@ jobs:
         run: |
           git fetch origin main:main || git fetch origin main
           git checkout "$BRANCH" 2>/dev/null || git checkout -B "$BRANCH"
+
+      # Secrets.xcconfig is git-ignored but referenced by the xcodeproj; the
+      # template's placeholder values are enough for compile-checking the app
+      # target (not for running against live Google Sheets).
+      - name: Create Secrets.xcconfig from template (build-only)
+        run: cp Secrets.xcconfig.template Secrets.xcconfig
 
       - name: Capture pre-run HEAD
         id: pre
@@ -124,11 +132,11 @@ jobs:
           REPLIES: ${{ runner.temp }}/replies.json
         run: |
           count=$(jq 'length' "$REPLIES")
-          for i in $(seq 0 $((count - 1))); do
+          for ((i = 0; i < count; i++)); do
             commentId=$(jq -r ".[$i].commentId" "$REPLIES")
             body=$(jq -r ".[$i].body" "$REPLIES")
             # GraphQL node ID → numeric REST id via the node lookup.
-            rest_id=$(gh api graphql -f query="query(\$id:ID!){ node(id:\$id){ ... on PullRequestReviewComment { databaseId } } }" -F id="$commentId" --jq '.data.node.databaseId')
+            rest_id=$(gh api graphql -f query="query(\$id:ID!){ node(id:\$id){ ... on PullRequestReviewComment { databaseId } } }" -f id="$commentId" --jq '.data.node.databaseId')
             if [ -z "$rest_id" ] || [ "$rest_id" = "null" ]; then
               echo "Could not resolve REST id for $commentId — skipping" >&2
               continue

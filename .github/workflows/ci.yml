@@ -1,0 +1,45 @@
+name: CI
+
+# PR gate: `swift test` covers the SPM library (unit + component tests);
+# `app-build` compile-checks the full app target including Views/, which the
+# library target excludes. Both need macOS; app-build additionally needs
+# Xcode 26 (Liquid Glass APIs, ADR-0004), which is the macos-26 default.
+#
+# Note: pushes made with the plain GITHUB_TOKEN do not trigger this workflow
+# (GitHub suppresses token-driven events). Agent workflows check out with
+# AGENT_PAT, so their pushes do trigger it.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  swift-tests:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run unit + component tests
+        run: swift test
+
+  app-build:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      # Secrets.xcconfig is git-ignored but referenced by the xcodeproj; the
+      # template's placeholder values are enough for compile-checking the app
+      # target (not for running against live Google Sheets).
+      - name: Create Secrets.xcconfig from template (build-only)
+        run: cp Secrets.xcconfig.template Secrets.xcconfig
+      - name: Compile-check the app target (incl. Views)
+        run: |
+          xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+            -destination 'generic/platform=iOS Simulator' \
+            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO

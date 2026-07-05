@@ -34,7 +34,7 @@ For each conflicting hunk:
 2. **Pick the resolution that preserves both intents** wherever possible. Where the intents are incompatible, pick the one that best matches the PR's stated goal (in `<pr-view>` above) and note the trade-off in your comment.
 3. **Do not invent new behaviour.** Your job is reconciliation, not feature work. If a sensible resolution requires writing new logic that wasn't on either side, that's a signal to flag uncertainty rather than to be creative.
 
-After resolving, run whatever checks you think are warranted — `swift build` is fast and catches most resolution mistakes; `swift test` if you want stronger confidence. You decide. If something is broken, fix what you can; if you can't, push what you have and flag it clearly in the comment.
+After resolving, run whatever checks you think are warranted — `swift build` is fast and catches most resolution mistakes; `swift test` if you want stronger confidence. If conflicts touched the app target (anything under `WorkoutTracker/Views/`, `WorkoutTrackerApp.swift`, or other code the SPM library target doesn't compile), compile-check it — the workflow pre-created `Secrets.xcconfig` from the template, and no booted simulator is needed: `xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker -destination 'generic/platform=iOS Simulator' -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO`. You decide. If something is broken, fix what you can; if you can't, push what you have and flag it clearly in the comment.
 
 # COMMIT
 
