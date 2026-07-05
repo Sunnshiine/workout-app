@@ -39,7 +39,7 @@ Not everything in here is necessarily actionable — reviewers may leave context
 # PROCESS
 
 1. Read the conversation. For each item, classify it in your head as: code change needed, reply needed (question / disagreement / clarification), or neither.
-2. Make the code changes you decided on. Run `swift test` before committing. Use conventional-commit messages (`feat:`, `fix:`, `refactor:`, etc.). Do NOT use a `RALPH:` prefix.
+2. Make the code changes you decided on. Run `swift test` before committing. If your changes touch the app target (anything under `WorkoutTracker/Views/`, `WorkoutTrackerApp.swift`, or other code the SPM library target doesn't compile), also compile-check it — the workflow pre-created `Secrets.xcconfig` from the template, and no booted simulator is needed: `xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker -destination 'generic/platform=iOS Simulator' -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO`. Use conventional-commit messages (`feat:`, `fix:`, `refactor:`, etc.). Do NOT use a `RALPH:` prefix.
 3. If you made no changes that's fine — only commit when there's a real diff.
 
 You do not have to reply to every thread. Reply only where a reply adds value: confirming what you changed, explaining why you chose not to make a requested change, answering a question, or pointing out something the reviewer should look at. Silence is fine for context-only comments.
