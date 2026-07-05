@@ -19,7 +19,7 @@ struct OnboardingView: View {
                 signInCard
             case .sheetPicker:
                 SheetPickerView(
-                    client: sheetPickerClient,
+                    client: GoogleSheetsClient.forCurrentEnvironment(),
                     onValidatedSelection: { spreadsheet in
                         await commitSelection(SheetSelection(spreadsheet))
                     },
@@ -117,15 +117,6 @@ struct OnboardingView: View {
 
     // MARK: - Safe selection
 
-    private var sheetPickerClient: any SheetsClient {
-        #if DEBUG
-            if UITestFixture.isEnabled {
-                return UITestFixture.makeSheetsClient()
-            }
-        #endif
-        return GoogleSheetsClient()
-    }
-
     private var selectionErrorPresented: Binding<Bool> {
         Binding {
             selectionErrorMessage != nil
@@ -161,7 +152,10 @@ struct OnboardingView: View {
             // Committing the selection flips `destination` away from the picker; nothing else to do.
             break
         case .failed:
-            selectionErrorMessage = switchStore.errorMessage ?? "Couldn't sync the selected sheet. Try again."
+            // The store sets a specific message for every failure path; the generic fallback only
+            // guards the invariant that a `.failed` switch always surfaces an alert (matching the
+            // alert body's own fallback), rather than restating the store's wording and drifting.
+            selectionErrorMessage = switchStore.errorMessage ?? "Something went wrong."
         case .requiresConfirmation:
             // Onboarding starts with no committed sheet, so a prior sheet's unsynced writes shouldn't
             // normally reach here. Surface it rather than leaving the picker silently unresponsive;
