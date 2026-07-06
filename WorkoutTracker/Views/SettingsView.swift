@@ -250,7 +250,7 @@ struct SettingsView: View {
         if let sheetSwitchStore {
             NavigationStack {
                 SheetPickerView(
-                    client: sheetPickerClient,
+                    client: GoogleSheetsClient.forCurrentEnvironment(),
                     onValidatedSelection: { spreadsheet in
                         let result = await sheetSwitchStore.requestSwitch(to: spreadsheet)
                         if result == .switched || result == .unchanged {
@@ -287,15 +287,6 @@ struct SettingsView: View {
             ProgressView()
                 .task { ensureSheetSwitchStore() }
         }
-    }
-
-    private var sheetPickerClient: any SheetsClient {
-        #if DEBUG
-            if UITestFixture.isEnabled {
-                return UITestFixture.makeSheetsClient()
-            }
-        #endif
-        return GoogleSheetsClient()
     }
 
     private var pendingSwitchConfirmation: Binding<Bool> {

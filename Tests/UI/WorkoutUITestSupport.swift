@@ -3,6 +3,7 @@ import XCTest
 enum WorkoutUITestFixture {
     case currentSession
     case settings
+    case onboarding
     case longSession
     case partiallyUploadedBlock
     case completedSessionWithOpenExercises
@@ -13,6 +14,8 @@ enum WorkoutUITestFixture {
             ["-UITEST_FIXTURE", "-UITEST_SESSION", "-UITEST_FULL_BLOCK"]
         case .settings:
             ["-UITEST_FIXTURE", "-UITEST_SETTINGS", "-UITEST_FULL_BLOCK"]
+        case .onboarding:
+            ["-UITEST_FIXTURE", "-UITEST_ONBOARDING", "-UITEST_FULL_BLOCK"]
         case .longSession:
             ["-UITEST_FIXTURE", "-UITEST_SESSION", "-UITEST_LONG_SESSION"]
         case .partiallyUploadedBlock:
