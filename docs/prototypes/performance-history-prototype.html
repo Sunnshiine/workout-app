@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<!--
+  PROTOTYPE — throwaway. Wayfinder ticket #341 (map #338).
+
+  Plan: three variants of the Performance History sheet, switchable via a
+  floating bottom bar / #variant= hash, mounted over a mock Session stage so
+  the sheet is judged against the real cockpit density. Tap the Last Performed
+  line to open the sheet (the proposed entry point per #340); tap the dim to
+  close.
+
+    A — Quiet lines   : a deeper Last Performed; uniform rows in Set Log vocabulary
+    B — Top set first : biggest set as the scannable number, full sets on demand
+    C — Block digest  : rows grouped under Block/Week headers for trajectory reading
+
+  Fixture data only. Not production code.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE · Performance History sheet</title>
+<style>
+  :root {
+    --bg-top: #050806;
+    --bg-bottom: #041C11;
+    --mint: #73FFB8;
+    --ink: #051F12;
+    --track: #060E0A;
+    --active-fill: #08331F;
+    --active-stroke: #3BD17A;
+    --lp-fill: #081A12;
+    --lp-stroke: #215C40;
+    --pill-fill: #080F0D;
+    --pill-stroke: #3DAD6B;
+    --text: #F5F7F3;
+    --muted: #AAB8B0;
+    --font: "SF Pro", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #1a1d1b;
+    font-family: var(--font);
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 24px 0 90px;
+  }
+
+  /* ---------- phone frame ---------- */
+  .phone {
+    width: 393px; height: 780px;
+    border-radius: 44px;
+    border: 6px solid #000;
+    overflow: hidden;
+    position: relative;
+    background: linear-gradient(var(--bg-top), var(--bg-bottom));
+    box-shadow: 0 24px 60px rgba(0,0,0,.55);
+    color: var(--text);
+    user-select: none;
+  }
+
+  /* ---------- session stage (host context) ---------- */
+  .stage { padding: 22px 20px 0; display: flex; flex-direction: column; height: 100%; }
+  .hud { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .hud .crumb { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .02em; }
+  .hud .remaining {
+    font-size: 12px; font-weight: 600; color: var(--muted);
+    background: var(--pill-fill); border: 1px solid #17251d;
+    border-radius: 999px; padding: 5px 11px;
+  }
+  .rail { display: flex; gap: 3px; margin-bottom: 24px; }
+  .rail span { flex: 1; height: 4px; border-radius: 3px; background: var(--track); }
+  .rail span.done { background: var(--mint); }
+
+  .pos { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+  .exname { font-size: 20px; font-weight: 700; line-height: 1.2; margin-bottom: 4px; }
+  .coachnote { font-size: 13px; color: var(--muted); font-style: italic; margin-bottom: 14px; }
+  .setdots { display: flex; gap: 8px; margin-bottom: 16px; }
+  .setdots i { width: 9px; height: 9px; border-radius: 50%; background: var(--track); border: 1px solid #14211a; }
+  .setdots i.current { background: var(--mint); border-color: var(--mint); }
+
+  .lastperformed {
+    background: var(--lp-fill); border: 1px solid var(--lp-stroke);
+    border-radius: 8px; padding: 10px 12px; margin-bottom: 12px;
+    font-size: 13px; line-height: 1.35; cursor: pointer;
+    transition: filter .15s;
+  }
+  .lastperformed:hover { filter: brightness(1.25); }
+  .lastperformed .lbl { color: var(--muted); font-size: 12px; font-weight: 600; }
+  .lastperformed .res { color: var(--text); font-size: 14px; }
+  .lastperformed .src { color: var(--muted); font-size: 12px; }
+  .lastperformed .chev { color: var(--muted); font-size: 11px; float: right; margin-top: 2px; opacity: .6; }
+
+  .activecard {
+    background: var(--active-fill); border: 1px solid var(--active-stroke);
+    border-radius: 16px; padding: 16px;
+  }
+  .activecard .upnext { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .activecard .setbadge {
+    display: inline-block; font-size: 12px; font-weight: 600; color: var(--text);
+    background: var(--pill-fill); border: 1px solid var(--pill-stroke);
+    border-radius: 8px; padding: 3px 8px; margin: 8px 0 6px;
+  }
+  .activecard h2 { font-size: 17px; font-weight: 700; margin-bottom: 12px; }
+  .pillrow { display: flex; gap: 8px; margin-bottom: 14px; }
+  .vpill {
+    flex: 1; background: var(--pill-fill); border: 1px solid #17251d;
+    border-radius: 8px; padding: 10px 12px;
+  }
+  .vpill .k { font-size: 11px; font-weight: 600; color: var(--muted); }
+  .vpill .v { font-size: 17px; font-weight: 700; }
+  .logbtn {
+    width: 100%; background: var(--mint); color: var(--ink);
+    font-family: var(--font); font-size: 17px; font-weight: 700;
+    border: 0; border-radius: 8px; padding: 14px 16px; cursor: pointer;
+  }
+  .footbar {
+    margin-top: auto; margin-bottom: 18px;
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(8,15,13,.72); border: 1px solid #17251d;
+    backdrop-filter: blur(8px); border-radius: 999px; padding: 9px 14px;
+  }
+  .footbar .un { font-size: 12px; color: var(--muted); }
+  .footbar .un b { color: var(--text); font-weight: 600; font-size: 13px; }
+  .footbar .queue { font-size: 12px; font-weight: 600; color: var(--text); background: var(--pill-fill); border: 1px solid #1d2f26; border-radius: 999px; padding: 5px 10px; }
+
+  /* ---------- the sheet ---------- */
+  .dim {
+    position: absolute; inset: 0; background: rgba(0,0,0,.45);
+    opacity: 0; pointer-events: none; transition: opacity .25s;
+  }
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 62%;
+    background: linear-gradient(#071710, #05130c);
+    border: 1px solid #1b2f24; border-bottom: 0;
+    border-radius: 16px 16px 0 0;
+    transform: translateY(105%); transition: transform .3s cubic-bezier(.32,.72,.33,1);
+    display: flex; flex-direction: column;
+    padding: 8px 20px 16px;
+  }
+  .phone.open .dim { opacity: 1; pointer-events: auto; }
+  .phone.open .sheet { transform: translateY(0); }
+  .grabber { width: 36px; height: 5px; border-radius: 3px; background: #24382d; margin: 2px auto 12px; flex: none; }
+  .sheethead { flex: none; margin-bottom: 12px; }
+  .sheethead h3 { font-size: 17px; font-weight: 700; }
+  .sheethead .sub { font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 2px; }
+  .sheetbody { overflow-y: auto; flex: 1; padding-bottom: 8px; }
+
+  /* shared row vocabulary */
+  .cad {
+    font-size: 11px; font-weight: 600; color: var(--muted);
+    background: var(--pill-fill); border: 1px solid #17251d;
+    border-radius: 8px; padding: 1px 6px; white-space: nowrap;
+  }
+  .skip { color: var(--muted); font-style: italic; }
+  .legacy-tag { font-size: 11px; font-weight: 600; color: var(--muted); font-style: italic; }
+
+  /* --- Variant A: quiet lines --- */
+  .vA .row {
+    background: var(--lp-fill); border: 1px solid #16281e;
+    border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+    font-size: 14px; line-height: 1.4;
+  }
+  .vA .row .src { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 3px; }
+  .vA .row .res { color: var(--text); }
+  .vA .row .res.raw { font-style: italic; }
+
+  /* --- Variant B: top set first --- */
+  .vB .row {
+    display: flex; align-items: baseline; gap: 12px;
+    padding: 11px 2px; border-bottom: 1px solid #12211a; cursor: pointer;
+  }
+  .vB .row:last-child { border-bottom: 0; }
+  .vB .top { font-size: 20px; font-weight: 700; color: var(--text); white-space: nowrap; }
+  .vB .top .rpe { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .vB .meta { flex: 1; min-width: 0; }
+  .vB .meta .src { font-size: 12px; font-weight: 600; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+  .vB .meta .more { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .vB .meta .all { font-size: 13px; color: var(--text); margin-top: 3px; display: none; }
+  .vB .row.expanded .all { display: block; }
+  .vB .row.expanded .more { display: none; }
+  .vB .top.rawtxt { font-size: 14px; font-weight: 400; font-style: italic; align-self: center; }
+
+  /* --- Variant C: block digest --- */
+  .vC .blockhead {
+    font-size: 12px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .05em;
+    margin: 14px 0 6px; display: flex; align-items: center; gap: 8px;
+  }
+  .vC .blockhead:first-child { margin-top: 0; }
+  .vC .blockhead::after { content: ""; flex: 1; height: 1px; background: #142219; }
+  .vC .row { display: flex; gap: 10px; padding: 7px 2px; font-size: 14px; line-height: 1.4; }
+  .vC .wd { flex: none; width: 58px; font-size: 12px; font-weight: 600; color: var(--muted); padding-top: 2px; }
+  .vC .body { flex: 1; }
+  .vC .body .res { color: var(--text); }
+  .vC .body .res.raw { font-style: italic; }
+  .vC .body .cadline { margin-top: 2px; }
+
+  /* ---------- floating variant switcher (not part of the design) ---------- */
+  .switcher {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    background: #fff; color: #111; border-radius: 999px;
+    display: flex; align-items: center; gap: 4px;
+    padding: 6px 8px; box-shadow: 0 6px 24px rgba(0,0,0,.5);
+    font-family: var(--font); z-index: 50;
+  }
+  .switcher button {
+    border: 0; background: #eee; border-radius: 999px; width: 34px; height: 34px;
+    font-size: 16px; cursor: pointer; color: #111;
+  }
+  .switcher button:hover { background: #ddd; }
+  .switcher .lab { font-size: 13px; font-weight: 600; padding: 0 10px; min-width: 170px; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="phone" id="phone">
+  <div class="stage">
+    <div class="hud">
+      <span class="crumb">Block 27 · Week 2 · Day 1</span>
+      <span class="remaining">9 left</span>
+    </div>
+    <div class="rail">
+      <span class="done"></span><span class="done"></span><span class="done"></span>
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+
+    <div class="pos">3 of 6</div>
+    <div class="exname">2-3:2:0 Incline DB Press</div>
+    <div class="coachnote">Control the negative, full stretch at the bottom</div>
+    <div class="setdots"><i class="current"></i><i></i><i></i></div>
+
+    <div class="lastperformed" id="lp" title="Tap to open Performance History">
+      <span class="chev">›</span>
+      <span class="lbl">Last Performed</span>
+      <span class="res">27.5x10@8, 27.5x10@8, 27.5x9@9</span>
+      <span class="src">· Block 27 · W1 D1</span>
+    </div>
+
+    <div class="activecard">
+      <div class="upnext">Up next</div>
+      <div class="setbadge">Set 1 of 3</div>
+      <h2>2-3:2:0 Incline DB Press</h2>
+      <div class="pillrow">
+        <div class="vpill"><div class="k">WEIGHT</div><div class="v">27.5</div></div>
+        <div class="vpill"><div class="k">REPS</div><div class="v">10</div></div>
+        <div class="vpill"><div class="k">RPE</div><div class="v">8</div></div>
+      </div>
+      <button class="logbtn">Log 27.5 × 10</button>
+    </div>
+
+    <div class="footbar">
+      <span class="un">UP NEXT&nbsp; <b>Seated Cable Row</b></span>
+      <span class="queue">3 of 6</span>
+    </div>
+  </div>
+
+  <div class="dim" id="dim"></div>
+
+  <div class="sheet" id="sheet">
+    <div class="grabber"></div>
+    <div class="sheethead">
+      <h3>Incline DB Press</h3>
+      <div class="sub" id="sheetsub">Performance History · last 5</div>
+    </div>
+    <div class="sheetbody" id="sheetbody"></div>
+  </div>
+</div>
+
+<div class="switcher">
+  <button id="prev" aria-label="Previous variant">←</button>
+  <span class="lab" id="lab"></span>
+  <button id="next" aria-label="Next variant">→</button>
+</div>
+
+<script>
+/* ---------------- fixture data (most recent first) ---------------- */
+const HISTORY = [
+  { block: "Block 27", wd: "W1 D1", cadence: "2-3:2:0",
+    sets: [{t:"27.5x10@8"},{t:"27.5x10@8"},{t:"27.5x9@9"}],
+    top: {w:"27.5", r:"10", rpe:"8"} },
+  { block: "Block 26", wd: "W4 D2", cadence: "0:2:0",
+    sets: [{t:"30x8@8"},{t:"30x8@9"},{t:"skip", skip:true}],
+    top: {w:"30", r:"8", rpe:"9"} },
+  { block: "Block 26", wd: "W3 D2", cadence: "0:2:0",
+    sets: [{t:"30x8@8"},{t:"30x7@9"},{t:"27.5x8@8"}],
+    top: {w:"30", r:"8", rpe:"8"} },
+  { block: "Block 26", wd: "W1 D2", cadence: "0:2:0",
+    sets: [{t:"27.5x10@8"},{t:"27.5x9@9"},{t:"27.5x8@9"}],
+    top: {w:"27.5", r:"10", rpe:"8"} },
+  { block: "Block 25", wd: "W4 D2", cadence: null, legacy: "27.5x10, 27.5x9, 25x12",
+    top: null },
+];
+
+const resultText = p => p.legacy ?? p.sets.map(s => s.t).join(", ");
+const setsHTML = p => p.sets.map(s => s.skip ? '<span class="skip">skip</span>' : s.t).join(", ");
+
+/* ---------------- variant renderers ---------------- */
+function renderA() {
+  return '<div class="vA">' + HISTORY.map(p => `
+    <div class="row">
+      <div class="src">
+        <span>${p.block} · ${p.wd}${p.legacy ? ' &nbsp;<span class="legacy-tag">as entered</span>' : ""}</span>
+        ${p.cadence ? `<span class="cad">${p.cadence}</span>` : ""}
+      </div>
+      <div class="res ${p.legacy ? "raw" : ""}">${p.legacy ? p.legacy : setsHTML(p)}</div>
+    </div>`).join("") + "</div>";
+}
+
+function renderB() {
+  return '<div class="vB">' + HISTORY.map((p, i) => {
+    if (p.legacy) {
+      return `
+      <div class="row">
+        <span class="top rawtxt">${p.legacy}</span>
+        <span class="meta"><span class="src">${p.block} · ${p.wd} · <span class="legacy-tag">as entered</span></span></span>
+      </div>`;
+    }
+    const hidden = p.sets.length - 1;
+    return `
+    <div class="row" data-i="${i}">
+      <span class="top">${p.top.w} × ${p.top.r} <span class="rpe">@${p.top.rpe}</span></span>
+      <span class="meta">
+        <span class="src">${p.block} · ${p.wd} ${p.cadence ? `<span class="cad">${p.cadence}</span>` : ""}</span>
+        <span class="more">+${hidden} more sets</span>
+        <span class="all">${setsHTML(p)}</span>
+      </span>
+    </div>`;
+  }).join("") + "</div>";
+}
+
+function renderC() {
+  let html = '<div class="vC">', lastBlock = null;
+  for (const p of HISTORY) {
+    if (p.block !== lastBlock) {
+      html += `<div class="blockhead">${p.block}</div>`;
+      lastBlock = p.block;
+    }
+    html += `
+    <div class="row">
+      <span class="wd">${p.wd}</span>
+      <span class="body">
+        <span class="res ${p.legacy ? "raw" : ""}">${p.legacy ? p.legacy : setsHTML(p)}</span>
+        ${p.legacy ? '<span class="legacy-tag"> · as entered</span>' : ""}
+        ${p.cadence ? `<div class="cadline"><span class="cad">${p.cadence}</span></div>` : ""}
+      </span>
+    </div>`;
+  }
+  return html + "</div>";
+}
+
+/* ---------------- switcher plumbing ---------------- */
+const VARIANTS = [
+  { key: "A", name: "Quiet lines",    render: renderA },
+  { key: "B", name: "Top set first",  render: renderB },
+  { key: "C", name: "Block digest",   render: renderC },
+];
+
+function currentIndex() {
+  const m = location.hash.match(/variant=([A-C])/);
+  const i = m ? VARIANTS.findIndex(v => v.key === m[1]) : 0;
+  return i === -1 ? 0 : i;
+}
+
+function apply() {
+  const v = VARIANTS[currentIndex()];
+  document.getElementById("sheetbody").innerHTML = v.render();
+  document.getElementById("lab").textContent = `${v.key} — ${v.name}`;
+  if (v.key === "B") {
+    document.querySelectorAll(".vB .row[data-i]").forEach(r =>
+      r.addEventListener("click", () => r.classList.toggle("expanded")));
+  }
+}
+
+function cycle(d) {
+  const i = (currentIndex() + d + VARIANTS.length) % VARIANTS.length;
+  location.hash = "variant=" + VARIANTS[i].key;
+}
+
+document.getElementById("prev").addEventListener("click", () => cycle(-1));
+document.getElementById("next").addEventListener("click", () => cycle(1));
+window.addEventListener("hashchange", apply);
+document.addEventListener("keydown", e => {
+  if (["INPUT","TEXTAREA"].includes(document.activeElement.tagName)) return;
+  if (e.key === "ArrowLeft") cycle(-1);
+  if (e.key === "ArrowRight") cycle(1);
+});
+
+/* sheet open/close — the entry point being prototyped */
+const phone = document.getElementById("phone");
+document.getElementById("lp").addEventListener("click", () => phone.classList.add("open"));
+document.getElementById("dim").addEventListener("click", () => phone.classList.remove("open"));
+
+apply();
+phone.classList.add("open"); // start open so the sheet is immediately visible
+</script>
+</body>
+</html>
