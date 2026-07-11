@@ -117,7 +117,7 @@ struct SetRowPresentation: Equatable, Sendable {
             tone = .accent
             showsCheckmark = true
         case .skipped:
-            title = "skip"
+            title = SetLogToken.skipSentinel
             tone = .muted
             showsCheckmark = false
         case .pending:
