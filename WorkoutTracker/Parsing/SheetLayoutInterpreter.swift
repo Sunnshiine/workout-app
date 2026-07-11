@@ -63,9 +63,7 @@ struct SheetLayoutHeaderNotes: Sendable, Equatable {
     let value: String
 
     var usesCompactHeaderSetOne: Bool {
-        value.isEmpty
-            || value.caseInsensitiveCompare("skip") == .orderedSame
-            || SetLog(formatted: value) != nil
+        SetLogToken.isSetLogListValue(value)
     }
 
     var hasProtectedValue: Bool {
