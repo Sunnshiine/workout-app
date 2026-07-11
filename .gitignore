@@ -8,9 +8,6 @@ Secrets.xcconfig
 .DS_Store
 
 # Claude Code — machine-local settings and nested worktrees (not for the shared repo).
-# Skills are shared so cloud sessions (which clone the repo) can use them.
-.claude/*
-!.claude/skills/
 .claude/settings.local.json
 .claude/worktrees/
 
