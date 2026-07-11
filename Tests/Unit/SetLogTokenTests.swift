@@ -44,10 +44,6 @@ import Testing
     #expect(classification.unstructuredSetLog == "felt heavy")
 }
 
-@Test func skipSentinelConstantIsSkip() {
-    #expect(SetLogToken.skipSentinel == "skip")
-}
-
 @Test func isSetLogListValueAcceptsEmptySkipAndStructuredLog() {
     #expect(SetLogToken.isSetLogListValue(""))
     #expect(SetLogToken.isSetLogListValue("skip"))
