@@ -354,30 +354,32 @@ const VARIANTS = [
   { key: "C", name: "Block digest",   render: renderC },
 ];
 
-function currentIndex() {
+/* Variant state lives in memory — sandboxed viewers (e.g. chat side panels)
+   block hash navigation, so the hash is only best-effort deep-linking. */
+let index = (() => {
   const m = location.hash.match(/variant=([A-C])/);
   const i = m ? VARIANTS.findIndex(v => v.key === m[1]) : 0;
   return i === -1 ? 0 : i;
-}
+})();
 
 function apply() {
-  const v = VARIANTS[currentIndex()];
+  const v = VARIANTS[index];
   document.getElementById("sheetbody").innerHTML = v.render();
   document.getElementById("lab").textContent = `${v.key} — ${v.name}`;
   if (v.key === "B") {
     document.querySelectorAll(".vB .row[data-i]").forEach(r =>
       r.addEventListener("click", () => r.classList.toggle("expanded")));
   }
+  try { history.replaceState(null, "", "#variant=" + v.key); } catch (e) { /* sandboxed */ }
 }
 
 function cycle(d) {
-  const i = (currentIndex() + d + VARIANTS.length) % VARIANTS.length;
-  location.hash = "variant=" + VARIANTS[i].key;
+  index = (index + d + VARIANTS.length) % VARIANTS.length;
+  apply();
 }
 
 document.getElementById("prev").addEventListener("click", () => cycle(-1));
 document.getElementById("next").addEventListener("click", () => cycle(1));
-window.addEventListener("hashchange", apply);
 document.addEventListener("keydown", e => {
   if (["INPUT","TEXTAREA"].includes(document.activeElement.tagName)) return;
   if (e.key === "ArrowLeft") cycle(-1);
