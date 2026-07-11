@@ -3,15 +3,16 @@
   PROTOTYPE — throwaway. Wayfinder ticket #341 (map #338).
 
   Plan: three variants of the Performance History sheet, switchable via a
-  floating bottom bar / #variant= hash, mounted over a mock Session stage so
-  the sheet is judged against the real cockpit density. Tap the Last Performed
-  line to open the sheet (the proposed entry point per #340); tap the dim to
-  close.
+  floating bottom bar, mounted over a mock Session stage so the sheet is
+  judged against the real cockpit density. Tap the Last Performed line to
+  open the sheet (the proposed entry point per #340); tap the dim to close.
 
     A — Quiet lines   : a deeper Last Performed; uniform rows in Set Log vocabulary
     B — Top set first : biggest set as the scannable number, full sets on demand
     C — Block digest  : rows grouped under Block/Week headers for trajectory reading
 
+  Zero JavaScript on purpose: sandboxed chat viewers render HTML with scripts
+  disabled, so all interaction is CSS-only (hidden radios/checkboxes + labels).
   Fixture data only. Not production code.
 -->
 <html lang="en">
@@ -31,7 +32,6 @@
     --lp-fill: #081A12;
     --lp-stroke: #215C40;
     --pill-fill: #080F0D;
-    --pill-stroke: #3DAD6B;
     --text: #F5F7F3;
     --muted: #AAB8B0;
     --font: "SF Pro", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -40,9 +40,12 @@
   body {
     background: #1a1d1b;
     font-family: var(--font);
-    display: flex; align-items: center; justify-content: center;
-    min-height: 100vh; padding: 24px 0 90px;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 24px 0 96px;
   }
+
+  /* state inputs (visually hidden, drive everything below via ~) */
+  .state { position: absolute; opacity: 0; pointer-events: none; }
 
   /* ---------- phone frame ---------- */
   .phone {
@@ -55,6 +58,7 @@
     box-shadow: 0 24px 60px rgba(0,0,0,.55);
     color: var(--text);
     user-select: none;
+    flex: none;
   }
 
   /* ---------- session stage (host context) ---------- */
@@ -78,6 +82,7 @@
   .setdots i.current { background: var(--mint); border-color: var(--mint); }
 
   .lastperformed {
+    display: block;
     background: var(--lp-fill); border: 1px solid var(--lp-stroke);
     border-radius: 8px; padding: 10px 12px; margin-bottom: 12px;
     font-size: 13px; line-height: 1.35; cursor: pointer;
@@ -96,7 +101,7 @@
   .activecard .upnext { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
   .activecard .setbadge {
     display: inline-block; font-size: 12px; font-weight: 600; color: var(--text);
-    background: var(--pill-fill); border: 1px solid var(--pill-stroke);
+    background: var(--pill-fill); border: 1px solid #3DAD6B;
     border-radius: 8px; padding: 3px 8px; margin: 8px 0 6px;
   }
   .activecard h2 { font-size: 17px; font-weight: 700; margin-bottom: 12px; }
@@ -108,24 +113,26 @@
   .vpill .k { font-size: 11px; font-weight: 600; color: var(--muted); }
   .vpill .v { font-size: 17px; font-weight: 700; }
   .logbtn {
-    width: 100%; background: var(--mint); color: var(--ink);
-    font-family: var(--font); font-size: 17px; font-weight: 700;
-    border: 0; border-radius: 8px; padding: 14px 16px; cursor: pointer;
+    display: block; text-align: center;
+    background: var(--mint); color: var(--ink);
+    font-size: 17px; font-weight: 700;
+    border-radius: 8px; padding: 14px 16px;
   }
   .footbar {
     margin-top: auto; margin-bottom: 18px;
     display: flex; align-items: center; justify-content: space-between;
     background: rgba(8,15,13,.72); border: 1px solid #17251d;
-    backdrop-filter: blur(8px); border-radius: 999px; padding: 9px 14px;
+    border-radius: 999px; padding: 9px 14px;
   }
   .footbar .un { font-size: 12px; color: var(--muted); }
   .footbar .un b { color: var(--text); font-weight: 600; font-size: 13px; }
   .footbar .queue { font-size: 12px; font-weight: 600; color: var(--text); background: var(--pill-fill); border: 1px solid #1d2f26; border-radius: 999px; padding: 5px 10px; }
 
-  /* ---------- the sheet ---------- */
+  /* ---------- the sheet (opened by #open) ---------- */
   .dim {
     position: absolute; inset: 0; background: rgba(0,0,0,.45);
     opacity: 0; pointer-events: none; transition: opacity .25s;
+    cursor: pointer;
   }
   .sheet {
     position: absolute; left: 0; right: 0; bottom: 0; height: 62%;
@@ -136,13 +143,19 @@
     display: flex; flex-direction: column;
     padding: 8px 20px 16px;
   }
-  .phone.open .dim { opacity: 1; pointer-events: auto; }
-  .phone.open .sheet { transform: translateY(0); }
-  .grabber { width: 36px; height: 5px; border-radius: 3px; background: #24382d; margin: 2px auto 12px; flex: none; }
+  #open:checked ~ .phone .dim { opacity: 1; pointer-events: auto; }
+  #open:checked ~ .phone .sheet { transform: translateY(0); }
+  .grabber { display:block; width: 36px; height: 5px; border-radius: 3px; background: #24382d; margin: 2px auto 12px; flex: none; cursor: pointer; }
   .sheethead { flex: none; margin-bottom: 12px; }
   .sheethead h3 { font-size: 17px; font-weight: 700; }
   .sheethead .sub { font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 2px; }
   .sheetbody { overflow-y: auto; flex: 1; padding-bottom: 8px; }
+
+  /* only the checked variant's panel is visible */
+  .panel { display: none; }
+  #vA:checked ~ .phone .panel-A { display: block; }
+  #vB:checked ~ .phone .panel-B { display: block; }
+  #vC:checked ~ .phone .panel-C { display: block; }
 
   /* shared row vocabulary */
   .cad {
@@ -163,7 +176,7 @@
   .vA .row .res { color: var(--text); }
   .vA .row .res.raw { font-style: italic; }
 
-  /* --- Variant B: top set first --- */
+  /* --- Variant B: top set first (expand via per-row checkbox) --- */
   .vB .row {
     display: flex; align-items: baseline; gap: 12px;
     padding: 11px 2px; border-bottom: 1px solid #12211a; cursor: pointer;
@@ -173,10 +186,10 @@
   .vB .top .rpe { font-size: 13px; font-weight: 600; color: var(--muted); }
   .vB .meta { flex: 1; min-width: 0; }
   .vB .meta .src { font-size: 12px; font-weight: 600; color: var(--muted); display: flex; gap: 6px; align-items: center; }
-  .vB .meta .more { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .vB .meta .more { font-size: 12px; color: var(--muted); margin-top: 2px; display: block; }
   .vB .meta .all { font-size: 13px; color: var(--text); margin-top: 3px; display: none; }
-  .vB .row.expanded .all { display: block; }
-  .vB .row.expanded .more { display: none; }
+  .vB .row input:checked ~ .meta .all { display: block; }
+  .vB .row input:checked ~ .meta .more { display: none; }
   .vB .top.rawtxt { font-size: 14px; font-weight: 400; font-style: italic; align-self: center; }
 
   /* --- Variant C: block digest --- */
@@ -198,21 +211,31 @@
   .switcher {
     position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
     background: #fff; color: #111; border-radius: 999px;
-    display: flex; align-items: center; gap: 4px;
     padding: 6px 8px; box-shadow: 0 6px 24px rgba(0,0,0,.5);
-    font-family: var(--font); z-index: 50;
+    z-index: 50;
   }
-  .switcher button {
-    border: 0; background: #eee; border-radius: 999px; width: 34px; height: 34px;
+  .switcher .set { display: none; align-items: center; gap: 4px; }
+  #vA:checked ~ .switcher .setA { display: flex; }
+  #vB:checked ~ .switcher .setB { display: flex; }
+  #vC:checked ~ .switcher .setC { display: flex; }
+  .switcher label.arrow {
+    background: #eee; border-radius: 999px; width: 34px; height: 34px;
     font-size: 16px; cursor: pointer; color: #111;
+    display: flex; align-items: center; justify-content: center;
   }
-  .switcher button:hover { background: #ddd; }
+  .switcher label.arrow:hover { background: #ddd; }
   .switcher .lab { font-size: 13px; font-weight: 600; padding: 0 10px; min-width: 170px; text-align: center; }
 </style>
 </head>
 <body>
 
-<div class="phone" id="phone">
+<!-- state: which variant, sheet open, per-row expansion -->
+<input class="state" type="radio" name="variant" id="vA" checked>
+<input class="state" type="radio" name="variant" id="vB">
+<input class="state" type="radio" name="variant" id="vC">
+<input class="state" type="checkbox" id="open" checked>
+
+<div class="phone">
   <div class="stage">
     <div class="hud">
       <span class="crumb">Block 27 · Week 2 · Day 1</span>
@@ -228,12 +251,12 @@
     <div class="coachnote">Control the negative, full stretch at the bottom</div>
     <div class="setdots"><i class="current"></i><i></i><i></i></div>
 
-    <div class="lastperformed" id="lp" title="Tap to open Performance History">
+    <label class="lastperformed" for="open" title="Tap to open Performance History">
       <span class="chev">›</span>
       <span class="lbl">Last Performed</span>
       <span class="res">27.5x10@8, 27.5x10@8, 27.5x9@9</span>
       <span class="src">· Block 27 · W1 D1</span>
-    </div>
+    </label>
 
     <div class="activecard">
       <div class="upnext">Up next</div>
@@ -244,7 +267,7 @@
         <div class="vpill"><div class="k">REPS</div><div class="v">10</div></div>
         <div class="vpill"><div class="k">RPE</div><div class="v">8</div></div>
       </div>
-      <button class="logbtn">Log 27.5 × 10</button>
+      <div class="logbtn">Log 27.5 × 10</div>
     </div>
 
     <div class="footbar">
@@ -253,146 +276,146 @@
     </div>
   </div>
 
-  <div class="dim" id="dim"></div>
+  <label class="dim" for="open"></label>
 
-  <div class="sheet" id="sheet">
-    <div class="grabber"></div>
+  <div class="sheet">
+    <label class="grabber" for="open"></label>
     <div class="sheethead">
       <h3>Incline DB Press</h3>
-      <div class="sub" id="sheetsub">Performance History · last 5</div>
+      <div class="sub">Performance History · last 5</div>
     </div>
-    <div class="sheetbody" id="sheetbody"></div>
+    <div class="sheetbody">
+
+      <!-- ============ Variant A: quiet lines ============ -->
+      <div class="panel panel-A vA">
+        <div class="row">
+          <div class="src"><span>Block 27 · W1 D1</span><span class="cad">2-3:2:0</span></div>
+          <div class="res">27.5x10@8, 27.5x10@8, 27.5x9@9</div>
+        </div>
+        <div class="row">
+          <div class="src"><span>Block 26 · W4 D2</span><span class="cad">0:2:0</span></div>
+          <div class="res">30x8@8, 30x8@9, <span class="skip">skip</span></div>
+        </div>
+        <div class="row">
+          <div class="src"><span>Block 26 · W3 D2</span><span class="cad">0:2:0</span></div>
+          <div class="res">30x8@8, 30x7@9, 27.5x8@8</div>
+        </div>
+        <div class="row">
+          <div class="src"><span>Block 26 · W1 D2</span><span class="cad">0:2:0</span></div>
+          <div class="res">27.5x10@8, 27.5x9@9, 27.5x8@9</div>
+        </div>
+        <div class="row">
+          <div class="src"><span>Block 25 · W4 D2 &nbsp;<span class="legacy-tag">as entered</span></span></div>
+          <div class="res raw">27.5x10, 27.5x9, 25x12</div>
+        </div>
+      </div>
+
+      <!-- ============ Variant B: top set first ============ -->
+      <div class="panel panel-B vB">
+        <label class="row">
+          <input class="state" type="checkbox">
+          <span class="top">27.5 × 10 <span class="rpe">@8</span></span>
+          <span class="meta">
+            <span class="src">Block 27 · W1 D1 <span class="cad">2-3:2:0</span></span>
+            <span class="more">+2 more sets</span>
+            <span class="all">27.5x10@8, 27.5x10@8, 27.5x9@9</span>
+          </span>
+        </label>
+        <label class="row">
+          <input class="state" type="checkbox">
+          <span class="top">30 × 8 <span class="rpe">@9</span></span>
+          <span class="meta">
+            <span class="src">Block 26 · W4 D2 <span class="cad">0:2:0</span></span>
+            <span class="more">+2 more sets</span>
+            <span class="all">30x8@8, 30x8@9, <span class="skip">skip</span></span>
+          </span>
+        </label>
+        <label class="row">
+          <input class="state" type="checkbox">
+          <span class="top">30 × 8 <span class="rpe">@8</span></span>
+          <span class="meta">
+            <span class="src">Block 26 · W3 D2 <span class="cad">0:2:0</span></span>
+            <span class="more">+2 more sets</span>
+            <span class="all">30x8@8, 30x7@9, 27.5x8@8</span>
+          </span>
+        </label>
+        <label class="row">
+          <input class="state" type="checkbox">
+          <span class="top">27.5 × 10 <span class="rpe">@8</span></span>
+          <span class="meta">
+            <span class="src">Block 26 · W1 D2 <span class="cad">0:2:0</span></span>
+            <span class="more">+2 more sets</span>
+            <span class="all">27.5x10@8, 27.5x9@9, 27.5x8@9</span>
+          </span>
+        </label>
+        <label class="row">
+          <span class="top rawtxt">27.5x10, 27.5x9, 25x12</span>
+          <span class="meta"><span class="src">Block 25 · W4 D2 · <span class="legacy-tag">as entered</span></span></span>
+        </label>
+      </div>
+
+      <!-- ============ Variant C: block digest ============ -->
+      <div class="panel panel-C vC">
+        <div class="blockhead">Block 27</div>
+        <div class="row">
+          <span class="wd">W1 D1</span>
+          <span class="body">
+            <span class="res">27.5x10@8, 27.5x10@8, 27.5x9@9</span>
+            <div class="cadline"><span class="cad">2-3:2:0</span></div>
+          </span>
+        </div>
+        <div class="blockhead">Block 26</div>
+        <div class="row">
+          <span class="wd">W4 D2</span>
+          <span class="body">
+            <span class="res">30x8@8, 30x8@9, <span class="skip">skip</span></span>
+            <div class="cadline"><span class="cad">0:2:0</span></div>
+          </span>
+        </div>
+        <div class="row">
+          <span class="wd">W3 D2</span>
+          <span class="body">
+            <span class="res">30x8@8, 30x7@9, 27.5x8@8</span>
+            <div class="cadline"><span class="cad">0:2:0</span></div>
+          </span>
+        </div>
+        <div class="row">
+          <span class="wd">W1 D2</span>
+          <span class="body">
+            <span class="res">27.5x10@8, 27.5x9@9, 27.5x8@9</span>
+            <div class="cadline"><span class="cad">0:2:0</span></div>
+          </span>
+        </div>
+        <div class="blockhead">Block 25</div>
+        <div class="row">
+          <span class="wd">W4 D2</span>
+          <span class="body">
+            <span class="res raw">27.5x10, 27.5x9, 25x12</span><span class="legacy-tag"> · as entered</span>
+          </span>
+        </div>
+      </div>
+
+    </div>
   </div>
 </div>
 
 <div class="switcher">
-  <button id="prev" aria-label="Previous variant">←</button>
-  <span class="lab" id="lab"></span>
-  <button id="next" aria-label="Next variant">→</button>
+    <span class="set setA">
+      <label class="arrow" for="vC">←</label>
+      <span class="lab">A — Quiet lines</span>
+      <label class="arrow" for="vB">→</label>
+    </span>
+    <span class="set setB">
+      <label class="arrow" for="vA">←</label>
+      <span class="lab">B — Top set first</span>
+      <label class="arrow" for="vC">→</label>
+    </span>
+    <span class="set setC">
+      <label class="arrow" for="vB">←</label>
+      <span class="lab">C — Block digest</span>
+      <label class="arrow" for="vA">→</label>
+    </span>
 </div>
 
-<script>
-/* ---------------- fixture data (most recent first) ---------------- */
-const HISTORY = [
-  { block: "Block 27", wd: "W1 D1", cadence: "2-3:2:0",
-    sets: [{t:"27.5x10@8"},{t:"27.5x10@8"},{t:"27.5x9@9"}],
-    top: {w:"27.5", r:"10", rpe:"8"} },
-  { block: "Block 26", wd: "W4 D2", cadence: "0:2:0",
-    sets: [{t:"30x8@8"},{t:"30x8@9"},{t:"skip", skip:true}],
-    top: {w:"30", r:"8", rpe:"9"} },
-  { block: "Block 26", wd: "W3 D2", cadence: "0:2:0",
-    sets: [{t:"30x8@8"},{t:"30x7@9"},{t:"27.5x8@8"}],
-    top: {w:"30", r:"8", rpe:"8"} },
-  { block: "Block 26", wd: "W1 D2", cadence: "0:2:0",
-    sets: [{t:"27.5x10@8"},{t:"27.5x9@9"},{t:"27.5x8@9"}],
-    top: {w:"27.5", r:"10", rpe:"8"} },
-  { block: "Block 25", wd: "W4 D2", cadence: null, legacy: "27.5x10, 27.5x9, 25x12",
-    top: null },
-];
-
-const resultText = p => p.legacy ?? p.sets.map(s => s.t).join(", ");
-const setsHTML = p => p.sets.map(s => s.skip ? '<span class="skip">skip</span>' : s.t).join(", ");
-
-/* ---------------- variant renderers ---------------- */
-function renderA() {
-  return '<div class="vA">' + HISTORY.map(p => `
-    <div class="row">
-      <div class="src">
-        <span>${p.block} · ${p.wd}${p.legacy ? ' &nbsp;<span class="legacy-tag">as entered</span>' : ""}</span>
-        ${p.cadence ? `<span class="cad">${p.cadence}</span>` : ""}
-      </div>
-      <div class="res ${p.legacy ? "raw" : ""}">${p.legacy ? p.legacy : setsHTML(p)}</div>
-    </div>`).join("") + "</div>";
-}
-
-function renderB() {
-  return '<div class="vB">' + HISTORY.map((p, i) => {
-    if (p.legacy) {
-      return `
-      <div class="row">
-        <span class="top rawtxt">${p.legacy}</span>
-        <span class="meta"><span class="src">${p.block} · ${p.wd} · <span class="legacy-tag">as entered</span></span></span>
-      </div>`;
-    }
-    const hidden = p.sets.length - 1;
-    return `
-    <div class="row" data-i="${i}">
-      <span class="top">${p.top.w} × ${p.top.r} <span class="rpe">@${p.top.rpe}</span></span>
-      <span class="meta">
-        <span class="src">${p.block} · ${p.wd} ${p.cadence ? `<span class="cad">${p.cadence}</span>` : ""}</span>
-        <span class="more">+${hidden} more sets</span>
-        <span class="all">${setsHTML(p)}</span>
-      </span>
-    </div>`;
-  }).join("") + "</div>";
-}
-
-function renderC() {
-  let html = '<div class="vC">', lastBlock = null;
-  for (const p of HISTORY) {
-    if (p.block !== lastBlock) {
-      html += `<div class="blockhead">${p.block}</div>`;
-      lastBlock = p.block;
-    }
-    html += `
-    <div class="row">
-      <span class="wd">${p.wd}</span>
-      <span class="body">
-        <span class="res ${p.legacy ? "raw" : ""}">${p.legacy ? p.legacy : setsHTML(p)}</span>
-        ${p.legacy ? '<span class="legacy-tag"> · as entered</span>' : ""}
-        ${p.cadence ? `<div class="cadline"><span class="cad">${p.cadence}</span></div>` : ""}
-      </span>
-    </div>`;
-  }
-  return html + "</div>";
-}
-
-/* ---------------- switcher plumbing ---------------- */
-const VARIANTS = [
-  { key: "A", name: "Quiet lines",    render: renderA },
-  { key: "B", name: "Top set first",  render: renderB },
-  { key: "C", name: "Block digest",   render: renderC },
-];
-
-/* Variant state lives in memory — sandboxed viewers (e.g. chat side panels)
-   block hash navigation, so the hash is only best-effort deep-linking. */
-let index = (() => {
-  const m = location.hash.match(/variant=([A-C])/);
-  const i = m ? VARIANTS.findIndex(v => v.key === m[1]) : 0;
-  return i === -1 ? 0 : i;
-})();
-
-function apply() {
-  const v = VARIANTS[index];
-  document.getElementById("sheetbody").innerHTML = v.render();
-  document.getElementById("lab").textContent = `${v.key} — ${v.name}`;
-  if (v.key === "B") {
-    document.querySelectorAll(".vB .row[data-i]").forEach(r =>
-      r.addEventListener("click", () => r.classList.toggle("expanded")));
-  }
-  try { history.replaceState(null, "", "#variant=" + v.key); } catch (e) { /* sandboxed */ }
-}
-
-function cycle(d) {
-  index = (index + d + VARIANTS.length) % VARIANTS.length;
-  apply();
-}
-
-document.getElementById("prev").addEventListener("click", () => cycle(-1));
-document.getElementById("next").addEventListener("click", () => cycle(1));
-document.addEventListener("keydown", e => {
-  if (["INPUT","TEXTAREA"].includes(document.activeElement.tagName)) return;
-  if (e.key === "ArrowLeft") cycle(-1);
-  if (e.key === "ArrowRight") cycle(1);
-});
-
-/* sheet open/close — the entry point being prototyped */
-const phone = document.getElementById("phone");
-document.getElementById("lp").addEventListener("click", () => phone.classList.add("open"));
-document.getElementById("dim").addEventListener("click", () => phone.classList.remove("open"));
-
-apply();
-phone.classList.add("open"); // start open so the sheet is immediately visible
-</script>
 </body>
 </html>
