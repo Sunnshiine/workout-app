@@ -1,15 +1,14 @@
 <!DOCTYPE html>
 <!--
-  PROTOTYPE — throwaway. Wayfinder ticket #341 (map #338).
+  PROTOTYPE — throwaway. Wayfinder ticket #341 (map #338). Round 2.
 
-  Plan: three variants of the Performance History sheet, switchable via a
-  floating bottom bar, mounted over a mock Session stage so the sheet is
-  judged against the real cockpit density. Tap the Last Performed line to
-  open the sheet (the proposed entry point per #340); tap the dim to close.
+  Round 1 verdict: C — Block digest won the structure, but read as a wall of
+  text. This round keeps the Block/Week grouping and offers three breathing
+  treatments of the rows themselves:
 
-    A — Quiet lines   : a deeper Last Performed; uniform rows in Set Log vocabulary
-    B — Top set first : biggest set as the scannable number, full sets on demand
-    C — Block digest  : rows grouped under Block/Week headers for trajectory reading
+    C1 — Airy lines   : same digest, generous spacing, "·" separators, muted @RPE
+    C2 — Set chips    : each Set as its own quiet mini-pill, wrapped in a row
+    C3 — Top set lead : top set big and scannable, remaining sets quiet after it
 
   Zero JavaScript on purpose: sandboxed chat viewers render HTML with scripts
   disabled, so all interaction is CSS-only (hidden radios/checkboxes + labels).
@@ -19,7 +18,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PROTOTYPE · Performance History sheet</title>
+<title>PROTOTYPE · Performance History sheet · round 2</title>
 <style>
   :root {
     --bg-top: #050806;
@@ -135,7 +134,7 @@
     cursor: pointer;
   }
   .sheet {
-    position: absolute; left: 0; right: 0; bottom: 0; height: 62%;
+    position: absolute; left: 0; right: 0; bottom: 0; height: 68%;
     background: linear-gradient(#071710, #05130c);
     border: 1px solid #1b2f24; border-bottom: 0;
     border-radius: 16px 16px 0 0;
@@ -146,7 +145,7 @@
   #open:checked ~ .phone .dim { opacity: 1; pointer-events: auto; }
   #open:checked ~ .phone .sheet { transform: translateY(0); }
   .grabber { display:block; width: 36px; height: 5px; border-radius: 3px; background: #24382d; margin: 2px auto 12px; flex: none; cursor: pointer; }
-  .sheethead { flex: none; margin-bottom: 12px; }
+  .sheethead { flex: none; margin-bottom: 16px; }
   .sheethead h3 { font-size: 17px; font-weight: 700; }
   .sheethead .sub { font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 2px; }
   .sheetbody { overflow-y: auto; flex: 1; padding-bottom: 8px; }
@@ -157,55 +156,45 @@
   #vB:checked ~ .phone .panel-B { display: block; }
   #vC:checked ~ .phone .panel-C { display: block; }
 
-  /* shared row vocabulary */
-  .cad {
-    font-size: 11px; font-weight: 600; color: var(--muted);
-    background: var(--pill-fill); border: 1px solid #17251d;
-    border-radius: 8px; padding: 1px 6px; white-space: nowrap;
-  }
-  .skip { color: var(--muted); font-style: italic; }
-  .legacy-tag { font-size: 11px; font-weight: 600; color: var(--muted); font-style: italic; }
-
-  /* --- Variant A: quiet lines --- */
-  .vA .row {
-    background: var(--lp-fill); border: 1px solid #16281e;
-    border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
-    font-size: 14px; line-height: 1.4;
-  }
-  .vA .row .src { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 3px; }
-  .vA .row .res { color: var(--text); }
-  .vA .row .res.raw { font-style: italic; }
-
-  /* --- Variant B: top set first (expand via per-row checkbox) --- */
-  .vB .row {
-    display: flex; align-items: baseline; gap: 12px;
-    padding: 11px 2px; border-bottom: 1px solid #12211a; cursor: pointer;
-  }
-  .vB .row:last-child { border-bottom: 0; }
-  .vB .top { font-size: 20px; font-weight: 700; color: var(--text); white-space: nowrap; }
-  .vB .top .rpe { font-size: 13px; font-weight: 600; color: var(--muted); }
-  .vB .meta { flex: 1; min-width: 0; }
-  .vB .meta .src { font-size: 12px; font-weight: 600; color: var(--muted); display: flex; gap: 6px; align-items: center; }
-  .vB .meta .more { font-size: 12px; color: var(--muted); margin-top: 2px; display: block; }
-  .vB .meta .all { font-size: 13px; color: var(--text); margin-top: 3px; display: none; }
-  .vB .row input:checked ~ .meta .all { display: block; }
-  .vB .row input:checked ~ .meta .more { display: none; }
-  .vB .top.rawtxt { font-size: 14px; font-weight: 400; font-style: italic; align-self: center; }
-
-  /* --- Variant C: block digest --- */
-  .vC .blockhead {
+  /* ---------- shared digest vocabulary ---------- */
+  .blockhead {
     font-size: 12px; font-weight: 600; color: var(--muted);
     text-transform: uppercase; letter-spacing: .05em;
-    margin: 14px 0 6px; display: flex; align-items: center; gap: 8px;
+    margin: 26px 0 14px; display: flex; align-items: center; gap: 10px;
   }
-  .vC .blockhead:first-child { margin-top: 0; }
-  .vC .blockhead::after { content: ""; flex: 1; height: 1px; background: #142219; }
-  .vC .row { display: flex; gap: 10px; padding: 7px 2px; font-size: 14px; line-height: 1.4; }
-  .vC .wd { flex: none; width: 58px; font-size: 12px; font-weight: 600; color: var(--muted); padding-top: 2px; }
-  .vC .body { flex: 1; }
-  .vC .body .res { color: var(--text); }
-  .vC .body .res.raw { font-style: italic; }
-  .vC .body .cadline { margin-top: 2px; }
+  .blockhead:first-child { margin-top: 2px; }
+  .blockhead::after { content: ""; flex: 1; height: 1px; background: #142219; }
+  .row { display: flex; gap: 14px; padding: 10px 2px 14px; }
+  .wd { flex: none; width: 56px; padding-top: 2px; }
+  .wd .d { font-size: 12px; font-weight: 600; color: var(--muted); }
+  .wd .cad { display: inline-block; margin-top: 5px; font-size: 10px; font-weight: 600; color: #6d7f75; letter-spacing: .02em; }
+  .rbody { flex: 1; min-width: 0; }
+  .skip { color: var(--muted); font-style: italic; }
+  .legacy-tag { font-size: 11px; font-weight: 600; color: var(--muted); font-style: italic; }
+  .raw { font-style: italic; color: var(--text); font-size: 14px; line-height: 1.5; }
+  .rpe { color: var(--muted); font-weight: 400; }
+
+  /* --- C1: airy lines --- */
+  .vA .rbody .res { font-size: 15px; line-height: 1.6; color: var(--text); letter-spacing: .01em; }
+  .vA .rbody .sep { color: #4a5c51; padding: 0 4px; }
+
+  /* --- C2: set chips --- */
+  .vB .rbody { display: flex; flex-wrap: wrap; gap: 8px; }
+  .vB .chip {
+    background: var(--pill-fill); border: 1px solid #17251d;
+    border-radius: 8px; padding: 6px 10px;
+    font-size: 14px; font-weight: 600; color: var(--text);
+    white-space: nowrap;
+  }
+  .vB .chip .rpe { font-size: 12px; font-weight: 400; }
+  .vB .chip.skipchip { color: var(--muted); font-weight: 400; font-style: italic; }
+  .vB .chip.rawchip { font-weight: 400; font-style: italic; white-space: normal; }
+
+  /* --- C3: top set lead --- */
+  .vC .row { align-items: baseline; }
+  .vC .top { font-size: 19px; font-weight: 700; color: var(--text); white-space: nowrap; }
+  .vC .top .rpe { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .vC .rest { display: block; font-size: 13px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
 
   /* ---------- floating variant switcher (not part of the design) ---------- */
   .switcher {
@@ -229,7 +218,7 @@
 </head>
 <body>
 
-<!-- state: which variant, sheet open, per-row expansion -->
+<!-- state: which variant, sheet open -->
 <input class="state" type="radio" name="variant" id="vA" checked>
 <input class="state" type="radio" name="variant" id="vB">
 <input class="state" type="radio" name="variant" id="vC">
@@ -286,111 +275,117 @@
     </div>
     <div class="sheetbody">
 
-      <!-- ============ Variant A: quiet lines ============ -->
+      <!-- ============ C1: airy lines ============ -->
       <div class="panel panel-A vA">
-        <div class="row">
-          <div class="src"><span>Block 27 · W1 D1</span><span class="cad">2-3:2:0</span></div>
-          <div class="res">27.5x10@8, 27.5x10@8, 27.5x9@9</div>
-        </div>
-        <div class="row">
-          <div class="src"><span>Block 26 · W4 D2</span><span class="cad">0:2:0</span></div>
-          <div class="res">30x8@8, 30x8@9, <span class="skip">skip</span></div>
-        </div>
-        <div class="row">
-          <div class="src"><span>Block 26 · W3 D2</span><span class="cad">0:2:0</span></div>
-          <div class="res">30x8@8, 30x7@9, 27.5x8@8</div>
-        </div>
-        <div class="row">
-          <div class="src"><span>Block 26 · W1 D2</span><span class="cad">0:2:0</span></div>
-          <div class="res">27.5x10@8, 27.5x9@9, 27.5x8@9</div>
-        </div>
-        <div class="row">
-          <div class="src"><span>Block 25 · W4 D2 &nbsp;<span class="legacy-tag">as entered</span></span></div>
-          <div class="res raw">27.5x10, 27.5x9, 25x12</div>
-        </div>
-      </div>
-
-      <!-- ============ Variant B: top set first ============ -->
-      <div class="panel panel-B vB">
-        <label class="row">
-          <input class="state" type="checkbox">
-          <span class="top">27.5 × 10 <span class="rpe">@8</span></span>
-          <span class="meta">
-            <span class="src">Block 27 · W1 D1 <span class="cad">2-3:2:0</span></span>
-            <span class="more">+2 more sets</span>
-            <span class="all">27.5x10@8, 27.5x10@8, 27.5x9@9</span>
-          </span>
-        </label>
-        <label class="row">
-          <input class="state" type="checkbox">
-          <span class="top">30 × 8 <span class="rpe">@9</span></span>
-          <span class="meta">
-            <span class="src">Block 26 · W4 D2 <span class="cad">0:2:0</span></span>
-            <span class="more">+2 more sets</span>
-            <span class="all">30x8@8, 30x8@9, <span class="skip">skip</span></span>
-          </span>
-        </label>
-        <label class="row">
-          <input class="state" type="checkbox">
-          <span class="top">30 × 8 <span class="rpe">@8</span></span>
-          <span class="meta">
-            <span class="src">Block 26 · W3 D2 <span class="cad">0:2:0</span></span>
-            <span class="more">+2 more sets</span>
-            <span class="all">30x8@8, 30x7@9, 27.5x8@8</span>
-          </span>
-        </label>
-        <label class="row">
-          <input class="state" type="checkbox">
-          <span class="top">27.5 × 10 <span class="rpe">@8</span></span>
-          <span class="meta">
-            <span class="src">Block 26 · W1 D2 <span class="cad">0:2:0</span></span>
-            <span class="more">+2 more sets</span>
-            <span class="all">27.5x10@8, 27.5x9@9, 27.5x8@9</span>
-          </span>
-        </label>
-        <label class="row">
-          <span class="top rawtxt">27.5x10, 27.5x9, 25x12</span>
-          <span class="meta"><span class="src">Block 25 · W4 D2 · <span class="legacy-tag">as entered</span></span></span>
-        </label>
-      </div>
-
-      <!-- ============ Variant C: block digest ============ -->
-      <div class="panel panel-C vC">
         <div class="blockhead">Block 27</div>
         <div class="row">
-          <span class="wd">W1 D1</span>
-          <span class="body">
-            <span class="res">27.5x10@8, 27.5x10@8, 27.5x9@9</span>
-            <div class="cadline"><span class="cad">2-3:2:0</span></div>
+          <span class="wd"><span class="d">W1 D1</span><br><span class="cad">2-3:2:0</span></span>
+          <span class="rbody"><span class="res">27.5×10 <span class="rpe">@8</span><span class="sep">·</span>27.5×10 <span class="rpe">@8</span><span class="sep">·</span>27.5×9 <span class="rpe">@9</span></span></span>
+        </div>
+        <div class="blockhead">Block 26</div>
+        <div class="row">
+          <span class="wd"><span class="d">W4 D2</span><br><span class="cad">0:2:0</span></span>
+          <span class="rbody"><span class="res">30×8 <span class="rpe">@8</span><span class="sep">·</span>30×8 <span class="rpe">@9</span><span class="sep">·</span><span class="skip">skip</span></span></span>
+        </div>
+        <div class="row">
+          <span class="wd"><span class="d">W3 D2</span><br><span class="cad">0:2:0</span></span>
+          <span class="rbody"><span class="res">30×8 <span class="rpe">@8</span><span class="sep">·</span>30×7 <span class="rpe">@9</span><span class="sep">·</span>27.5×8 <span class="rpe">@8</span></span></span>
+        </div>
+        <div class="row">
+          <span class="wd"><span class="d">W1 D2</span><br><span class="cad">0:2:0</span></span>
+          <span class="rbody"><span class="res">27.5×10 <span class="rpe">@8</span><span class="sep">·</span>27.5×9 <span class="rpe">@9</span><span class="sep">·</span>27.5×8 <span class="rpe">@9</span></span></span>
+        </div>
+        <div class="blockhead">Block 25</div>
+        <div class="row">
+          <span class="wd"><span class="d">W4 D2</span></span>
+          <span class="rbody"><span class="raw">27.5x10, 27.5x9, 25x12</span><br><span class="legacy-tag">as entered</span></span>
+        </div>
+      </div>
+
+      <!-- ============ C2: set chips ============ -->
+      <div class="panel panel-B vB">
+        <div class="blockhead">Block 27</div>
+        <div class="row">
+          <span class="wd"><span class="d">W1 D1</span><br><span class="cad">2-3:2:0</span></span>
+          <span class="rbody">
+            <span class="chip">27.5×10 <span class="rpe">@8</span></span>
+            <span class="chip">27.5×10 <span class="rpe">@8</span></span>
+            <span class="chip">27.5×9 <span class="rpe">@9</span></span>
           </span>
         </div>
         <div class="blockhead">Block 26</div>
         <div class="row">
-          <span class="wd">W4 D2</span>
-          <span class="body">
-            <span class="res">30x8@8, 30x8@9, <span class="skip">skip</span></span>
-            <div class="cadline"><span class="cad">0:2:0</span></div>
+          <span class="wd"><span class="d">W4 D2</span><br><span class="cad">0:2:0</span></span>
+          <span class="rbody">
+            <span class="chip">30×8 <span class="rpe">@8</span></span>
+            <span class="chip">30×8 <span class="rpe">@9</span></span>
+            <span class="chip skipchip">skip</span>
           </span>
         </div>
         <div class="row">
-          <span class="wd">W3 D2</span>
-          <span class="body">
-            <span class="res">30x8@8, 30x7@9, 27.5x8@8</span>
-            <div class="cadline"><span class="cad">0:2:0</span></div>
+          <span class="wd"><span class="d">W3 D2</span><br><span class="cad">0:2:0</span></span>
+          <span class="rbody">
+            <span class="chip">30×8 <span class="rpe">@8</span></span>
+            <span class="chip">30×7 <span class="rpe">@9</span></span>
+            <span class="chip">27.5×8 <span class="rpe">@8</span></span>
           </span>
         </div>
         <div class="row">
-          <span class="wd">W1 D2</span>
-          <span class="body">
-            <span class="res">27.5x10@8, 27.5x9@9, 27.5x8@9</span>
-            <div class="cadline"><span class="cad">0:2:0</span></div>
+          <span class="wd"><span class="d">W1 D2</span><br><span class="cad">0:2:0</span></span>
+          <span class="rbody">
+            <span class="chip">27.5×10 <span class="rpe">@8</span></span>
+            <span class="chip">27.5×9 <span class="rpe">@9</span></span>
+            <span class="chip">27.5×8 <span class="rpe">@9</span></span>
           </span>
         </div>
         <div class="blockhead">Block 25</div>
         <div class="row">
-          <span class="wd">W4 D2</span>
-          <span class="body">
-            <span class="res raw">27.5x10, 27.5x9, 25x12</span><span class="legacy-tag"> · as entered</span>
+          <span class="wd"><span class="d">W4 D2</span></span>
+          <span class="rbody">
+            <span class="chip rawchip">27.5x10, 27.5x9, 25x12</span>
+            <span class="legacy-tag" style="align-self:center">as entered</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- ============ C3: top set lead ============ -->
+      <div class="panel panel-C vC">
+        <div class="blockhead">Block 27</div>
+        <div class="row">
+          <span class="wd"><span class="d">W1 D1</span><br><span class="cad">2-3:2:0</span></span>
+          <span class="rbody">
+            <span class="top">27.5 × 10 <span class="rpe">@8</span></span>
+            <span class="rest">then 27.5×10 @8 · 27.5×9 @9</span>
+          </span>
+        </div>
+        <div class="blockhead">Block 26</div>
+        <div class="row">
+          <span class="wd"><span class="d">W4 D2</span><br><span class="cad">0:2:0</span></span>
+          <span class="rbody">
+            <span class="top">30 × 8 <span class="rpe">@8</span></span>
+            <span class="rest">then 30×8 @9 · <span class="skip">skip</span></span>
+          </span>
+        </div>
+        <div class="row">
+          <span class="wd"><span class="d">W3 D2</span><br><span class="cad">0:2:0</span></span>
+          <span class="rbody">
+            <span class="top">30 × 8 <span class="rpe">@8</span></span>
+            <span class="rest">then 30×7 @9 · 27.5×8 @8</span>
+          </span>
+        </div>
+        <div class="row">
+          <span class="wd"><span class="d">W1 D2</span><br><span class="cad">0:2:0</span></span>
+          <span class="rbody">
+            <span class="top">27.5 × 10 <span class="rpe">@8</span></span>
+            <span class="rest">then 27.5×9 @9 · 27.5×8 @9</span>
+          </span>
+        </div>
+        <div class="blockhead">Block 25</div>
+        <div class="row">
+          <span class="wd"><span class="d">W4 D2</span></span>
+          <span class="rbody">
+            <span class="raw">27.5x10, 27.5x9, 25x12</span>
+            <span class="rest"><span class="legacy-tag">as entered</span></span>
           </span>
         </div>
       </div>
@@ -402,17 +397,17 @@
 <div class="switcher">
     <span class="set setA">
       <label class="arrow" for="vC">←</label>
-      <span class="lab">A — Quiet lines</span>
+      <span class="lab">C1 — Airy lines</span>
       <label class="arrow" for="vB">→</label>
     </span>
     <span class="set setB">
       <label class="arrow" for="vA">←</label>
-      <span class="lab">B — Top set first</span>
+      <span class="lab">C2 — Set chips</span>
       <label class="arrow" for="vC">→</label>
     </span>
     <span class="set setC">
       <label class="arrow" for="vB">←</label>
-      <span class="lab">C — Block digest</span>
+      <span class="lab">C3 — Top set lead</span>
       <label class="arrow" for="vA">→</label>
     </span>
 </div>
