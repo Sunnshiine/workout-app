@@ -18,6 +18,5 @@
   },
   "disableBundledSkills": true,
   "disableWorkflows": true,
-  "disableClaudeAiConnectors": true,
-  "disableArtifact": true
+  "disableClaudeAiConnectors": true
 }
