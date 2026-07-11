@@ -36,6 +36,13 @@
             ProcessInfo.processInfo.arguments.contains("-UITEST_SETTINGS")
         }
 
+        /// Boots signed-in but with **no** spreadsheet selected, so the app shows onboarding's sheet
+        /// picker. Combined with the seeded (stale) Block this exercises the onboarding selection
+        /// path that previously bypassed the safe Settings switch flow.
+        static var startsInOnboarding: Bool {
+            ProcessInfo.processInfo.arguments.contains("-UITEST_ONBOARDING")
+        }
+
         static var startsWithCurrentSessionOverride: Bool {
             ProcessInfo.processInfo.arguments.contains("-UITEST_CURRENT_SESSION_OVERRIDE")
         }
@@ -53,7 +60,7 @@
         }
 
         static var startsInBlockOverview: Bool {
-            !startsInSession && !startsInDeveloperTools && !startsInSettings
+            !startsInSession && !startsInDeveloperTools && !startsInSettings && !startsInOnboarding
         }
 
         static var startsWithFullBlock: Bool {

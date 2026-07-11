@@ -56,10 +56,7 @@ final class SettingsStore {
     @discardableResult
     func setSheetURL(_ url: String) -> Bool {
         guard let id = extractSpreadsheetId(from: url) else { return false }
-        spreadsheetId = id
-        spreadsheetTitle = nil
-        defaults.set(id, forKey: Self.spreadsheetIdKey)
-        defaults.removeObject(forKey: Self.spreadsheetTitleKey)
+        setSpreadsheet(id: id)
         return true
     }
 
@@ -68,6 +65,15 @@ final class SettingsStore {
         spreadsheetTitle = title
         defaults.set(id, forKey: Self.spreadsheetIdKey)
         defaults.set(title, forKey: Self.spreadsheetTitleKey)
+    }
+
+    /// Commits a spreadsheet selection without a known title (e.g. from a pasted URL), clearing
+    /// any previously stored title so a stale title can't linger against the new selection.
+    func setSpreadsheet(id: String) {
+        spreadsheetId = id
+        spreadsheetTitle = nil
+        defaults.set(id, forKey: Self.spreadsheetIdKey)
+        defaults.removeObject(forKey: Self.spreadsheetTitleKey)
     }
 
     func setAppearance(_ preference: AppearancePreference) {
@@ -142,6 +148,24 @@ enum SettingsSheetSwitchResult: Equatable {
     case failed
 }
 
+/// A spreadsheet the athlete has chosen to switch to. Modelled independently of `SpreadsheetFile`
+/// so every selection path — the Drive picker (which carries a title) and the pasted-URL fallback
+/// (which does not) — can flow through the same safe switch transaction.
+struct SheetSelection: Equatable {
+    let spreadsheetId: String
+    let title: String?
+
+    init(spreadsheetId: String, title: String? = nil) {
+        self.spreadsheetId = spreadsheetId
+        self.title = title
+    }
+
+    init(_ file: SpreadsheetFile) {
+        self.spreadsheetId = file.spreadsheetId
+        self.title = file.name
+    }
+}
+
 @MainActor
 protocol ConfiguredSheetSyncing: AnyObject {
     func sync(spreadsheetId: String) async -> Bool
@@ -158,7 +182,7 @@ protocol SheetSwitchSyncing: ConfiguredSheetSyncing {
 final class SettingsSyncActivity {
     private(set) var isSyncInFlight = false
 
-    func run<T>(_ operation: () async -> T) async -> T? {
+    func run<T: Sendable>(_ operation: () async -> T) async -> T? {
         guard !isSyncInFlight else { return nil }
 
         isSyncInFlight = true
@@ -205,7 +229,7 @@ final class SettingsManualSyncStore {
 @MainActor
 @Observable
 final class SettingsSheetSwitchStore {
-    private(set) var pendingConfirmation: SpreadsheetFile?
+    private(set) var pendingConfirmation: SheetSelection?
     private(set) var errorMessage: String?
     private(set) var isSwitching = false
 
@@ -227,20 +251,24 @@ final class SettingsSheetSwitchStore {
     }
 
     func requestSwitch(to spreadsheet: SpreadsheetFile) async -> SettingsSheetSwitchResult {
+        await requestSwitch(to: SheetSelection(spreadsheet))
+    }
+
+    func requestSwitch(to selection: SheetSelection) async -> SettingsSheetSwitchResult {
         errorMessage = nil
         guard canBeginSwitch else {
             errorMessage = "A sync is already in progress."
             return .failed
         }
 
-        if spreadsheet.spreadsheetId == settings.spreadsheetId {
-            settings.setSpreadsheet(id: spreadsheet.spreadsheetId, title: spreadsheet.name)
+        if selection.spreadsheetId == settings.spreadsheetId {
+            commit(selection)
             return .unchanged
         }
 
         do {
             guard try !sync.hasPendingWrites() else {
-                pendingConfirmation = spreadsheet
+                pendingConfirmation = selection
                 return .requiresConfirmation
             }
         } catch {
@@ -250,12 +278,12 @@ final class SettingsSheetSwitchStore {
 
         isSwitching = true
         defer { isSwitching = false }
-        return await switchNow(to: spreadsheet) ? .switched : .failed
+        return await switchNow(to: selection) ? .switched : .failed
     }
 
     func confirmPendingSwitch() async -> Bool {
         errorMessage = nil
-        guard let spreadsheet = pendingConfirmation else { return false }
+        guard let selection = pendingConfirmation else { return false }
         guard canBeginSwitch else {
             errorMessage = "A sync is already in progress."
             return false
@@ -271,7 +299,7 @@ final class SettingsSheetSwitchStore {
             return false
         }
         pendingConfirmation = nil
-        return await switchNow(to: spreadsheet)
+        return await switchNow(to: selection)
     }
 
     func cancelPendingSwitch() {
@@ -286,10 +314,10 @@ final class SettingsSheetSwitchStore {
         !isSwitching && !syncActivity.isSyncInFlight
     }
 
-    private func switchNow(to spreadsheet: SpreadsheetFile) async -> Bool {
+    private func switchNow(to selection: SheetSelection) async -> Bool {
         guard
             let didSync = await syncActivity.run({
-                await sync.sync(spreadsheetId: spreadsheet.spreadsheetId)
+                await sync.sync(spreadsheetId: selection.spreadsheetId)
             })
         else {
             errorMessage = "A sync is already in progress."
@@ -300,9 +328,17 @@ final class SettingsSheetSwitchStore {
             errorMessage = "Couldn't sync selected sheet. Try again."
             return false
         }
-        settings.setSpreadsheet(id: spreadsheet.spreadsheetId, title: spreadsheet.name)
+        commit(selection)
         onSynced()
         return true
+    }
+
+    private func commit(_ selection: SheetSelection) {
+        if let title = selection.title {
+            settings.setSpreadsheet(id: selection.spreadsheetId, title: title)
+        } else {
+            settings.setSpreadsheet(id: selection.spreadsheetId)
+        }
     }
 }
 
