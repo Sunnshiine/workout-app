@@ -136,6 +136,42 @@ import Testing
     #expect(update.value == "BWx12@7, skip")
 }
 
+@Test func writerTreatsCaseFoldedSkipHeaderAsSetLogAggregate() throws {
+    // The header's second entry is an uppercase `SKIP`; the shared predicate case-folds it
+    // to the skip sentinel, so the whole cell is a Set-Log-list aggregate and the writer
+    // edits the header cell in place rather than protecting it.
+    let grid = compactLayoutGrid(
+        headerNotes: "BWx12@7, SKIP",
+        continuationNotes: ""
+    )
+
+    let update = try SheetWritePlanner().plan(
+        compactWriteRequest(setIndex: 1, valueToWrite: "BWx10@8", expectedCurrentValue: "SKIP"),
+        in: grid
+    )
+
+    #expect(update.range == "'Block 27'!E18")
+    #expect(update.value == "BWx12@7, BWx10@8")
+}
+
+@Test func writerProtectsHeaderWhenAnAggregateEntryIsFreeText() throws {
+    // The header's second entry is free text (a Coach Note / Legacy Log), so the shared
+    // predicate rejects the cell as a Set-Log-list aggregate and the writer routes the
+    // Set Log to the continuation row instead of overwriting the protected header.
+    let grid = compactLayoutGrid(
+        headerNotes: "BWx12@7, felt heavy",
+        continuationNotes: ""
+    )
+
+    let update = try SheetWritePlanner().plan(
+        compactWriteRequest(setIndex: 1, valueToWrite: "BWx10@8", expectedCurrentValue: ""),
+        in: grid
+    )
+
+    #expect(update.range == "'Block 27'!E19")
+    #expect(update.value == ", BWx10@8")
+}
+
 private func compactLayoutGrid(headerNotes: String, continuationNotes: String) -> SheetGrid {
     gridFromA1(
         [
