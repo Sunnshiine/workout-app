@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <!--
-  PROTOTYPE — throwaway. Wayfinder ticket #341 (map #338). Round 2.
+  PROTOTYPE — throwaway. Wayfinder ticket #341 (map #338). Round 3.
 
-  Round 1 verdict: C — Block digest won the structure, but read as a wall of
-  text. This round keeps the Block/Week grouping and offers three breathing
-  treatments of the rows themselves:
+  Round 1: C — Block digest won the structure.
+  Round 2: C1 — Airy lines won the row treatment; athlete wants it airier.
+  Round 3: an air dial on the same digest — pick the degree:
 
-    C1 — Airy lines   : same digest, generous spacing, "·" separators, muted @RPE
-    C2 — Set chips    : each Set as its own quiet mini-pill, wrapped in a row
-    C3 — Top set lead : top set big and scannable, remaining sets quiet after it
+    1 — Airy (as picked) : round-2 C1 baseline
+    2 — Airier           : looser rows, taller line-height, wider separators
+    3 — Max air          : one Set per line, column reading
 
   Zero JavaScript on purpose: sandboxed chat viewers render HTML with scripts
   disabled, so all interaction is CSS-only (hidden radios/checkboxes + labels).
@@ -18,7 +18,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PROTOTYPE · Performance History sheet · round 2</title>
+<title>PROTOTYPE · Performance History sheet · round 3</title>
 <style>
   :root {
     --bg-top: #050806;
@@ -160,11 +160,10 @@
   .blockhead {
     font-size: 12px; font-weight: 600; color: var(--muted);
     text-transform: uppercase; letter-spacing: .05em;
-    margin: 26px 0 14px; display: flex; align-items: center; gap: 10px;
+    display: flex; align-items: center; gap: 10px;
   }
-  .blockhead:first-child { margin-top: 2px; }
   .blockhead::after { content: ""; flex: 1; height: 1px; background: #142219; }
-  .row { display: flex; gap: 14px; padding: 10px 2px 14px; }
+  .row { display: flex; gap: 14px; }
   .wd { flex: none; width: 56px; padding-top: 2px; }
   .wd .d { font-size: 12px; font-weight: 600; color: var(--muted); }
   .wd .cad { display: inline-block; margin-top: 5px; font-size: 10px; font-weight: 600; color: #6d7f75; letter-spacing: .02em; }
@@ -173,28 +172,31 @@
   .legacy-tag { font-size: 11px; font-weight: 600; color: var(--muted); font-style: italic; }
   .raw { font-style: italic; color: var(--text); font-size: 14px; line-height: 1.5; }
   .rpe { color: var(--muted); font-weight: 400; }
+  .res { color: var(--text); }
+  .sep { color: #4a5c51; }
 
-  /* --- C1: airy lines --- */
-  .vA .rbody .res { font-size: 15px; line-height: 1.6; color: var(--text); letter-spacing: .01em; }
-  .vA .rbody .sep { color: #4a5c51; padding: 0 4px; }
+  /* --- 1: Airy (round-2 baseline) --- */
+  .air1 .blockhead { margin: 26px 0 14px; }
+  .air1 .blockhead:first-child { margin-top: 2px; }
+  .air1 .row { padding: 10px 2px 14px; }
+  .air1 .res { font-size: 15px; line-height: 1.6; letter-spacing: .01em; }
+  .air1 .sep { padding: 0 4px; }
 
-  /* --- C2: set chips --- */
-  .vB .rbody { display: flex; flex-wrap: wrap; gap: 8px; }
-  .vB .chip {
-    background: var(--pill-fill); border: 1px solid #17251d;
-    border-radius: 8px; padding: 6px 10px;
-    font-size: 14px; font-weight: 600; color: var(--text);
-    white-space: nowrap;
-  }
-  .vB .chip .rpe { font-size: 12px; font-weight: 400; }
-  .vB .chip.skipchip { color: var(--muted); font-weight: 400; font-style: italic; }
-  .vB .chip.rawchip { font-weight: 400; font-style: italic; white-space: normal; }
+  /* --- 2: Airier --- */
+  .air2 .blockhead { margin: 36px 0 20px; }
+  .air2 .blockhead:first-child { margin-top: 4px; }
+  .air2 .row { padding: 14px 2px 20px; }
+  .air2 .res { font-size: 15px; line-height: 1.85; letter-spacing: .015em; }
+  .air2 .sep { padding: 0 9px; }
+  .air2 .wd .cad { margin-top: 7px; }
 
-  /* --- C3: top set lead --- */
-  .vC .row { align-items: baseline; }
-  .vC .top { font-size: 19px; font-weight: 700; color: var(--text); white-space: nowrap; }
-  .vC .top .rpe { font-size: 13px; font-weight: 600; color: var(--muted); }
-  .vC .rest { display: block; font-size: 13px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+  /* --- 3: Max air (one Set per line) --- */
+  .air3 .blockhead { margin: 38px 0 22px; }
+  .air3 .blockhead:first-child { margin-top: 4px; }
+  .air3 .row { padding: 14px 2px 22px; }
+  .air3 .res { display: block; font-size: 15px; letter-spacing: .015em; }
+  .air3 .res + .res { margin-top: 9px; }
+  .air3 .wd .cad { margin-top: 7px; }
 
   /* ---------- floating variant switcher (not part of the design) ---------- */
   .switcher {
@@ -218,7 +220,7 @@
 </head>
 <body>
 
-<!-- state: which variant, sheet open -->
+<!-- state: which air level, sheet open -->
 <input class="state" type="radio" name="variant" id="vA" checked>
 <input class="state" type="radio" name="variant" id="vB">
 <input class="state" type="radio" name="variant" id="vC">
@@ -275,8 +277,8 @@
     </div>
     <div class="sheetbody">
 
-      <!-- ============ C1: airy lines ============ -->
-      <div class="panel panel-A vA">
+      <!-- ============ 1: Airy (as picked) ============ -->
+      <div class="panel panel-A air1">
         <div class="blockhead">Block 27</div>
         <div class="row">
           <span class="wd"><span class="d">W1 D1</span><br><span class="cad">2-3:2:0</span></span>
@@ -302,91 +304,73 @@
         </div>
       </div>
 
-      <!-- ============ C2: set chips ============ -->
-      <div class="panel panel-B vB">
+      <!-- ============ 2: Airier ============ -->
+      <div class="panel panel-B air2">
         <div class="blockhead">Block 27</div>
         <div class="row">
           <span class="wd"><span class="d">W1 D1</span><br><span class="cad">2-3:2:0</span></span>
-          <span class="rbody">
-            <span class="chip">27.5×10 <span class="rpe">@8</span></span>
-            <span class="chip">27.5×10 <span class="rpe">@8</span></span>
-            <span class="chip">27.5×9 <span class="rpe">@9</span></span>
-          </span>
+          <span class="rbody"><span class="res">27.5×10 <span class="rpe">@8</span><span class="sep">·</span>27.5×10 <span class="rpe">@8</span><span class="sep">·</span>27.5×9 <span class="rpe">@9</span></span></span>
         </div>
         <div class="blockhead">Block 26</div>
         <div class="row">
           <span class="wd"><span class="d">W4 D2</span><br><span class="cad">0:2:0</span></span>
-          <span class="rbody">
-            <span class="chip">30×8 <span class="rpe">@8</span></span>
-            <span class="chip">30×8 <span class="rpe">@9</span></span>
-            <span class="chip skipchip">skip</span>
-          </span>
+          <span class="rbody"><span class="res">30×8 <span class="rpe">@8</span><span class="sep">·</span>30×8 <span class="rpe">@9</span><span class="sep">·</span><span class="skip">skip</span></span></span>
         </div>
         <div class="row">
           <span class="wd"><span class="d">W3 D2</span><br><span class="cad">0:2:0</span></span>
-          <span class="rbody">
-            <span class="chip">30×8 <span class="rpe">@8</span></span>
-            <span class="chip">30×7 <span class="rpe">@9</span></span>
-            <span class="chip">27.5×8 <span class="rpe">@8</span></span>
-          </span>
+          <span class="rbody"><span class="res">30×8 <span class="rpe">@8</span><span class="sep">·</span>30×7 <span class="rpe">@9</span><span class="sep">·</span>27.5×8 <span class="rpe">@8</span></span></span>
         </div>
         <div class="row">
           <span class="wd"><span class="d">W1 D2</span><br><span class="cad">0:2:0</span></span>
-          <span class="rbody">
-            <span class="chip">27.5×10 <span class="rpe">@8</span></span>
-            <span class="chip">27.5×9 <span class="rpe">@9</span></span>
-            <span class="chip">27.5×8 <span class="rpe">@9</span></span>
-          </span>
+          <span class="rbody"><span class="res">27.5×10 <span class="rpe">@8</span><span class="sep">·</span>27.5×9 <span class="rpe">@9</span><span class="sep">·</span>27.5×8 <span class="rpe">@9</span></span></span>
         </div>
         <div class="blockhead">Block 25</div>
         <div class="row">
           <span class="wd"><span class="d">W4 D2</span></span>
-          <span class="rbody">
-            <span class="chip rawchip">27.5x10, 27.5x9, 25x12</span>
-            <span class="legacy-tag" style="align-self:center">as entered</span>
-          </span>
+          <span class="rbody"><span class="raw">27.5x10, 27.5x9, 25x12</span><br><span class="legacy-tag">as entered</span></span>
         </div>
       </div>
 
-      <!-- ============ C3: top set lead ============ -->
-      <div class="panel panel-C vC">
+      <!-- ============ 3: Max air (one Set per line) ============ -->
+      <div class="panel panel-C air3">
         <div class="blockhead">Block 27</div>
         <div class="row">
           <span class="wd"><span class="d">W1 D1</span><br><span class="cad">2-3:2:0</span></span>
           <span class="rbody">
-            <span class="top">27.5 × 10 <span class="rpe">@8</span></span>
-            <span class="rest">then 27.5×10 @8 · 27.5×9 @9</span>
+            <span class="res">27.5×10 <span class="rpe">@8</span></span>
+            <span class="res">27.5×10 <span class="rpe">@8</span></span>
+            <span class="res">27.5×9 <span class="rpe">@9</span></span>
           </span>
         </div>
         <div class="blockhead">Block 26</div>
         <div class="row">
           <span class="wd"><span class="d">W4 D2</span><br><span class="cad">0:2:0</span></span>
           <span class="rbody">
-            <span class="top">30 × 8 <span class="rpe">@8</span></span>
-            <span class="rest">then 30×8 @9 · <span class="skip">skip</span></span>
+            <span class="res">30×8 <span class="rpe">@8</span></span>
+            <span class="res">30×8 <span class="rpe">@9</span></span>
+            <span class="res"><span class="skip">skip</span></span>
           </span>
         </div>
         <div class="row">
           <span class="wd"><span class="d">W3 D2</span><br><span class="cad">0:2:0</span></span>
           <span class="rbody">
-            <span class="top">30 × 8 <span class="rpe">@8</span></span>
-            <span class="rest">then 30×7 @9 · 27.5×8 @8</span>
+            <span class="res">30×8 <span class="rpe">@8</span></span>
+            <span class="res">30×7 <span class="rpe">@9</span></span>
+            <span class="res">27.5×8 <span class="rpe">@8</span></span>
           </span>
         </div>
         <div class="row">
           <span class="wd"><span class="d">W1 D2</span><br><span class="cad">0:2:0</span></span>
           <span class="rbody">
-            <span class="top">27.5 × 10 <span class="rpe">@8</span></span>
-            <span class="rest">then 27.5×9 @9 · 27.5×8 @9</span>
+            <span class="res">27.5×10 <span class="rpe">@8</span></span>
+            <span class="res">27.5×9 <span class="rpe">@9</span></span>
+            <span class="res">27.5×8 <span class="rpe">@9</span></span>
           </span>
         </div>
         <div class="blockhead">Block 25</div>
         <div class="row">
           <span class="wd"><span class="d">W4 D2</span></span>
-          <span class="rbody">
-            <span class="raw">27.5x10, 27.5x9, 25x12</span>
-            <span class="rest"><span class="legacy-tag">as entered</span></span>
-          </span>
+          <span class="rbody"><span class="raw">27.5x10, 27.5x9, 25x12</span><br><span class="legacy-tag">as entered</span></span>
         </div>
       </div>
 
@@ -397,17 +381,17 @@
 <div class="switcher">
     <span class="set setA">
       <label class="arrow" for="vC">←</label>
-      <span class="lab">C1 — Airy lines</span>
+      <span class="lab">1 — Airy (as picked)</span>
       <label class="arrow" for="vB">→</label>
     </span>
     <span class="set setB">
       <label class="arrow" for="vA">←</label>
-      <span class="lab">C2 — Set chips</span>
+      <span class="lab">2 — Airier</span>
       <label class="arrow" for="vC">→</label>
     </span>
     <span class="set setC">
       <label class="arrow" for="vB">←</label>
-      <span class="lab">C3 — Top set lead</span>
+      <span class="lab">3 — Max air</span>
       <label class="arrow" for="vA">→</label>
     </span>
 </div>
