@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<!--
+  PROTOTYPE — throwaway. Performance History sheet variants for
+  https://github.com/Sunnshiine/workout-app/issues/341
+
+  Three structurally different takes on how an Exercise's last ~5 performances
+  read at a glance, switchable via the floating bar (or ← / → keys, or #a/#b/#c).
+  Built as static HTML (this session has no Xcode/simulator) using the exact
+  DESIGN.md tokens; the winning direction gets rebuilt properly in SwiftUI.
+
+  Context rendered: mid-Session Stage (Dark cockpit), athlete has tapped the
+  Last Performed line → a quiet .medium-detent history sheet opens.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE — Performance History sheet</title>
+<style>
+  /* ── DESIGN.md tokens (Dark) ─────────────────────────────── */
+  :root {
+    --bg-top: #050806;
+    --bg-bottom: #041C11;
+    --mint: #73FFB8;
+    --accent-ink: #051F12;
+    --progress-track: #060E0A;
+    --active-fill: #08331F;
+    --active-stroke: #3BD17A;
+    --lp-fill: #081A12;
+    --lp-stroke: #215C40;
+    --pill-fill: #080F0D;
+    --pill-stroke: #3DAD6B;
+    --text: #F5F7F3;
+    --muted: #AAB8B0;
+    --r-card: 16px;
+    --r-control: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { height: 100%; }
+  body {
+    min-height: 100%;
+    background: #17181a;
+    font-family: "SF Pro", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 14px; padding: 24px 12px 110px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page-note { color: #9aa0a6; font-size: 12px; text-align: center; max-width: 420px; line-height: 1.5; }
+  .page-note strong { color: #d7dadd; }
+
+  /* ── iPhone frame ────────────────────────────────────────── */
+  .phone {
+    width: 390px; height: 780px; border-radius: 44px;
+    border: 1px solid #2c2e31; overflow: hidden; position: relative;
+    background: linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+    box-shadow: 0 24px 60px rgba(0,0,0,.5);
+    flex: none;
+  }
+
+  /* ── Session stage behind the sheet (dimmed) ─────────────── */
+  .stage { position: absolute; inset: 0; padding: 22px 20px; }
+  .hud {
+    display: flex; justify-content: space-between; align-items: center;
+    background: rgba(8,15,13,.65); border: 1px solid rgba(61,173,107,.35);
+    border-radius: 999px; padding: 8px 14px; backdrop-filter: blur(6px);
+    color: var(--muted); font-size: 12px; font-weight: 600;
+  }
+  .hud .segs { display: flex; gap: 4px; }
+  .hud .seg { width: 22px; height: 5px; border-radius: 3px; background: var(--progress-track); }
+  .hud .seg.done { background: var(--mint); }
+  .stage .pos-label { margin-top: 34px; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+  .stage .ex-name { margin-top: 6px; color: var(--text); font-size: 20px; font-weight: 700; line-height: 1.2; }
+  .stage .dots { display: flex; gap: 7px; margin-top: 12px; }
+  .stage .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--progress-track); border: 1px solid #1c2a22; }
+  .stage .dot.done { background: var(--mint); border-color: var(--mint); }
+  .lp-line {
+    margin-top: 16px; padding: 10px 12px; border-radius: var(--r-control);
+    background: var(--lp-fill); border: 1px solid var(--lp-stroke);
+    color: var(--muted); font-size: 13px; line-height: 1.4;
+  }
+  .lp-line .lp-label { font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; display: block; margin-bottom: 2px; }
+  .active-card {
+    margin-top: 14px; background: var(--active-fill); border: 1px solid var(--active-stroke);
+    border-radius: var(--r-card); padding: 16px;
+  }
+  .active-card .up-next { color: var(--muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+  .active-card .name { color: var(--text); font-size: 17px; font-weight: 700; margin-top: 4px; }
+  .active-card .pills { display: flex; gap: 8px; margin-top: 12px; }
+  .active-card .pill {
+    flex: 1; background: var(--pill-fill); border: 1px solid var(--pill-stroke);
+    border-radius: var(--r-control); padding: 10px 12px;
+  }
+  .active-card .pill .k { color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; }
+  .active-card .pill .v { color: var(--text); font-size: 17px; font-weight: 700; margin-top: 2px; }
+  .log-btn {
+    margin-top: 12px; background: var(--mint); color: var(--accent-ink);
+    border-radius: var(--r-control); text-align: center; padding: 14px 16px;
+    font-size: 17px; font-weight: 700;
+  }
+  .scrim { position: absolute; inset: 0; background: rgba(2,6,4,.55); }
+
+  /* ── The history sheet ───────────────────────────────────── */
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 62%;
+    background: linear-gradient(180deg, rgba(10,26,18,.97), rgba(6,16,11,.99));
+    border-top: 1px solid var(--lp-stroke);
+    border-radius: var(--r-card) var(--r-card) 0 0;
+    padding: 10px 20px 20px; overflow-y: auto;
+  }
+  .grabber { width: 36px; height: 5px; border-radius: 3px; background: #2a3b31; margin: 0 auto 14px; }
+  .sheet-title { color: var(--text); font-size: 20px; font-weight: 700; }
+  .sheet-sub { color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; margin-top: 3px; }
+
+  .cadence-tag {
+    display: inline-block; font-size: 11px; font-weight: 600; color: var(--muted);
+    border: 1px solid #24382d; border-radius: 999px; padding: 1px 7px; margin-right: 6px;
+  }
+  .legacy-tag {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .06em;
+    color: var(--muted); border: 1px dashed #33493d; border-radius: 4px; padding: 1px 5px;
+  }
+  .skip { color: #6d7a72; font-style: italic; }
+
+  /* Variant A — Ledger */
+  .ledger { margin-top: 14px; }
+  .ledger .row { padding: 12px 2px; border-bottom: 1px solid rgba(33,92,64,.35); }
+  .ledger .row:last-child { border-bottom: none; }
+  .ledger .ctx { color: var(--muted); font-size: 12px; font-weight: 600; display: flex; align-items: center; }
+  .ledger .ctx .when { margin-left: auto; font-weight: 400; }
+  .ledger .logs { color: var(--text); font-size: 16px; font-weight: 400; margin-top: 5px; line-height: 1.4; font-variant-numeric: tabular-nums; }
+  .ledger .logs.legacy { font-style: italic; color: #cfd6d1; }
+
+  /* Variant B — Top Set First */
+  .topset { margin-top: 14px; }
+  .topset .row {
+    display: flex; align-items: center; gap: 14px; padding: 11px 2px;
+    border-bottom: 1px solid rgba(33,92,64,.35); cursor: pointer;
+  }
+  .topset .row:last-child { border-bottom: none; }
+  .topset .big { color: var(--text); font-size: 21px; font-weight: 700; min-width: 100px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .topset .big .rpe { color: var(--muted); font-size: 14px; font-weight: 600; }
+  .topset .meta { flex: 1; min-width: 0; }
+  .topset .ctx { color: var(--muted); font-size: 11px; font-weight: 600; line-height: 1.6; }
+  .topset .ctx .when { font-weight: 400; white-space: nowrap; }
+  .topset .detail { color: var(--muted); font-size: 13px; margin-top: 3px; display: none; line-height: 1.4; font-variant-numeric: tabular-nums; }
+  .topset .row.open .detail { display: block; }
+  .topset .chev { color: #4a5c51; font-size: 12px; transition: transform .15s; }
+  .topset .row.open .chev { transform: rotate(90deg); }
+  .topset .big.legacy-big { font-size: 14px; font-weight: 400; font-style: italic; color: #cfd6d1; min-width: 118px; white-space: normal; }
+  .topset-hint { color: #55635b; font-size: 11px; margin-top: 10px; text-align: center; }
+
+  /* Variant C — Block Digest */
+  .digest { margin-top: 14px; }
+  .digest .block-h {
+    color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; margin: 14px 0 4px; display: flex; align-items: center; gap: 10px;
+  }
+  .digest .block-h::after { content: ""; flex: 1; height: 1px; background: rgba(33,92,64,.4); }
+  .digest .row {
+    display: grid; grid-template-columns: 64px 1fr; gap: 10px; align-items: baseline;
+    padding: 9px 2px;
+  }
+  .digest .wd { color: var(--muted); font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .digest .logs { color: var(--text); font-size: 15px; line-height: 1.45; font-variant-numeric: tabular-nums; }
+  .digest .logs .cadence-tag { margin-left: 0; }
+  .digest .logs.legacy { font-style: italic; color: #cfd6d1; }
+
+  /* ── Floating switcher (not part of the design) ──────────── */
+  .switcher {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 4px;
+    background: #f2f3f5; color: #17181a; border-radius: 999px;
+    padding: 6px 8px; box-shadow: 0 6px 24px rgba(0,0,0,.45);
+    font-size: 13px; font-weight: 600; z-index: 10; user-select: none;
+  }
+  .switcher button {
+    border: none; background: #dcdee2; color: #17181a; border-radius: 999px;
+    width: 30px; height: 30px; font-size: 14px; cursor: pointer;
+  }
+  .switcher button:hover { background: #c9ccd2; }
+  .switcher .label { min-width: 150px; text-align: center; }
+  .variant { display: none; }
+  .variant.on { display: block; }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <!-- Session stage behind the sheet -->
+  <div class="stage">
+    <div class="hud">
+      <div class="segs">
+        <div class="seg done"></div><div class="seg done"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div>
+      </div>
+      <div>7 sets left</div>
+    </div>
+    <div class="pos-label">Exercise 3 of 5</div>
+    <div class="ex-name">0:2:0 Incline DB Press</div>
+    <div class="dots"><div class="dot done"></div><div class="dot"></div><div class="dot"></div></div>
+    <div class="lp-line">
+      <span class="lp-label">Last performed</span>
+      60x10@7, 65x9@8, 65x8@9
+    </div>
+    <div class="active-card">
+      <div class="up-next">Up next · Set 2 of 3</div>
+      <div class="name">0:2:0 Incline DB Press</div>
+      <div class="pills">
+        <div class="pill"><div class="k">Weight</div><div class="v">65</div></div>
+        <div class="pill"><div class="k">Reps</div><div class="v">10</div></div>
+        <div class="pill"><div class="k">RPE</div><div class="v">8</div></div>
+      </div>
+      <div class="log-btn">Log 65×10@8</div>
+    </div>
+  </div>
+  <div class="scrim"></div>
+
+  <!-- The history sheet -->
+  <div class="sheet">
+    <div class="grabber"></div>
+    <div class="sheet-title">Incline DB Press</div>
+    <div class="sheet-sub">Last 5 performances</div>
+
+    <!-- ── Variant A — Ledger ─────────────────────────────── -->
+    <div class="variant" id="v-a">
+      <div class="ledger">
+        <div class="row">
+          <div class="ctx"><span class="cadence-tag">0:2:0</span> B27 · W2 · D2 <span class="when">4 days ago</span></div>
+          <div class="logs">60x10@7, 65x9@8, 65x8@9</div>
+        </div>
+        <div class="row">
+          <div class="ctx"><span class="cadence-tag">0:2:0</span> B27 · W1 · D2 <span class="when">11 days ago</span></div>
+          <div class="logs">60x10@7, 60x10@8, <span class="skip">skip</span></div>
+        </div>
+        <div class="row">
+          <div class="ctx"><span class="cadence-tag">2-3:2:0</span> B26 · W4 · D2 <span class="when">3 wks ago</span></div>
+          <div class="logs">55x10@8, 55x9@8.5, 55x8@9</div>
+        </div>
+        <div class="row">
+          <div class="ctx"><span class="legacy-tag">LEGACY</span>&nbsp; B26 · W3 · D2 <span class="when">4 wks ago</span></div>
+          <div class="logs legacy">55x10, 55x9@9, 50</div>
+        </div>
+        <div class="row">
+          <div class="ctx"><span class="cadence-tag">2-3:2:0</span> B26 · W2 · D2 <span class="when">5 wks ago</span></div>
+          <div class="logs">50x12@7, 55x10@8, 55x10@9</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Variant B — Top Set First ──────────────────────── -->
+    <div class="variant" id="v-b">
+      <div class="topset">
+        <div class="row open" onclick="this.classList.toggle('open')">
+          <div class="big">65×8 <span class="rpe">@9</span></div>
+          <div class="meta">
+            <div class="ctx"><span class="cadence-tag">0:2:0</span> B27 · W2 · D2 <span class="when">· 4 days ago</span></div>
+            <div class="detail">60x10@7, 65x9@8, 65x8@9</div>
+          </div>
+          <div class="chev">▶</div>
+        </div>
+        <div class="row" onclick="this.classList.toggle('open')">
+          <div class="big">60×10 <span class="rpe">@8</span></div>
+          <div class="meta">
+            <div class="ctx"><span class="cadence-tag">0:2:0</span> B27 · W1 · D2 <span class="when">· 11 days ago</span></div>
+            <div class="detail">60x10@7, 60x10@8, <span class="skip">skip</span></div>
+          </div>
+          <div class="chev">▶</div>
+        </div>
+        <div class="row" onclick="this.classList.toggle('open')">
+          <div class="big">55×10 <span class="rpe">@8</span></div>
+          <div class="meta">
+            <div class="ctx"><span class="cadence-tag">2-3:2:0</span> B26 · W4 · D2 <span class="when">· 3 wks ago</span></div>
+            <div class="detail">55x10@8, 55x9@8.5, 55x8@9</div>
+          </div>
+          <div class="chev">▶</div>
+        </div>
+        <div class="row" onclick="this.classList.toggle('open')">
+          <div class="big legacy-big">55x10, 55x9@9, 50</div>
+          <div class="meta">
+            <div class="ctx"><span class="legacy-tag">LEGACY</span>&nbsp; B26 · W3 · D2 <span class="when">· 4 wks ago</span></div>
+          </div>
+          <div class="chev" style="visibility:hidden">▶</div>
+        </div>
+        <div class="row" onclick="this.classList.toggle('open')">
+          <div class="big">55×10 <span class="rpe">@8</span></div>
+          <div class="meta">
+            <div class="ctx"><span class="cadence-tag">2-3:2:0</span> B26 · W2 · D2 <span class="when">· 5 wks ago</span></div>
+            <div class="detail">50x12@7, 55x10@8, 55x10@9</div>
+          </div>
+          <div class="chev">▶</div>
+        </div>
+      </div>
+      <div class="topset-hint">Tap a performance for every Set — Legacy Logs show as entered</div>
+    </div>
+
+    <!-- ── Variant C — Block Digest ───────────────────────── -->
+    <div class="variant" id="v-c">
+      <div class="digest">
+        <div class="block-h">Block 27</div>
+        <div class="row">
+          <div class="wd">W2 · D2</div>
+          <div class="logs"><span class="cadence-tag">0:2:0</span>60x10@7, 65x9@8, 65x8@9</div>
+        </div>
+        <div class="row">
+          <div class="wd">W1 · D2</div>
+          <div class="logs"><span class="cadence-tag">0:2:0</span>60x10@7, 60x10@8, <span class="skip">skip</span></div>
+        </div>
+        <div class="block-h">Block 26</div>
+        <div class="row">
+          <div class="wd">W4 · D2</div>
+          <div class="logs"><span class="cadence-tag">2-3:2:0</span>55x10@8, 55x9@8.5, 55x8@9</div>
+        </div>
+        <div class="row">
+          <div class="wd">W3 · D2</div>
+          <div class="logs legacy"><span class="legacy-tag">LEGACY</span>&nbsp; 55x10, 55x9@9, 50</div>
+        </div>
+        <div class="row">
+          <div class="wd">W2 · D2</div>
+          <div class="logs"><span class="cadence-tag">2-3:2:0</span>50x12@7, 55x10@8, 55x10@9</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="page-note">
+  <strong>Prototype</strong> — Performance History sheet over the dimmed Session stage
+  (opened by tapping the Last Performed line). Flip variants with the bar below,
+  <strong>← / →</strong> keys, or <code>#a</code>/<code>#b</code>/<code>#c</code>.
+  The gray bar is the switcher, not part of the design.
+</div>
+
+<div class="switcher">
+  <button id="prev" aria-label="Previous variant">←</button>
+  <div class="label" id="label"></div>
+  <button id="next" aria-label="Next variant">→</button>
+</div>
+
+<script>
+  const variants = [
+    { key: 'a', name: 'A — Ledger' },
+    { key: 'b', name: 'B — Top Set First' },
+    { key: 'c', name: 'C — Block Digest' },
+  ];
+  let idx = 0;
+  function render() {
+    variants.forEach((v, i) => {
+      document.getElementById('v-' + v.key).classList.toggle('on', i === idx);
+    });
+    document.getElementById('label').textContent = variants[idx].name;
+    history.replaceState(null, '', '#' + variants[idx].key);
+  }
+  function step(d) { idx = (idx + d + variants.length) % variants.length; render(); }
+  document.getElementById('prev').addEventListener('click', () => step(-1));
+  document.getElementById('next').addEventListener('click', () => step(1));
+  document.addEventListener('keydown', (e) => {
+    if (/^(input|textarea)$/i.test(e.target.tagName) || e.target.isContentEditable) return;
+    if (e.key === 'ArrowLeft') step(-1);
+    if (e.key === 'ArrowRight') step(1);
+  });
+  const initial = (location.hash || '#a').slice(1);
+  idx = Math.max(0, variants.findIndex(v => v.key === initial));
+  render();
+</script>
+</body>
+</html>
