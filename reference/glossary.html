@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference — Design Glossary</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+
+<p class="lesson-meta">Reference · Deep-Module Interfaces</p>
+<h1>Design Glossary</h1>
+<p>The house vocabulary from <code>.claude/skills/codebase-design/SKILL.md</code>, with each
+term pinned to a concrete example from this codebase. Use these words exactly — don't
+substitute "component," "service," "API," or "boundary."</p>
+
+<table>
+<tr><th>Term</th><th>Definition</th><th>In this codebase</th></tr>
+<tr><td><strong>Module</strong></td>
+<td>Anything with an interface and an implementation — scale-agnostic: a function, class, or package.</td>
+<td><code>LoadSuggestionEngine</code> (one function) and <code>Progress</code> (24 files) are both modules.</td></tr>
+<tr><td><strong>Interface</strong></td>
+<td>Everything a caller must know to use the module correctly: signatures <em>plus</em> invariants, ordering constraints, error modes, and performance characteristics.</td>
+<td><code>SyncCoordinator</code>'s interface includes "flush happens before pull" — an ordering guarantee no type signature shows.</td></tr>
+<tr><td><strong>Implementation</strong></td>
+<td>What's inside a module — the part below the waterline.</td>
+<td>The ~820 LOC of HTTP/JSON behind <code>SheetsClient</code>'s five methods.</td></tr>
+<tr><td><strong>Depth</strong></td>
+<td>Leverage at the interface: behaviour exercised per unit of interface learned. <em>Not</em> a line-count ratio — that framing is explicitly rejected.</td>
+<td><code>SessionCoordinator</code>: supersets, rest, focus, transitions behind ~25 methods.</td></tr>
+<tr><td><strong>Seam</strong></td>
+<td>A place where behaviour can be altered without editing in that place; where a module's interface lives. (Feathers)</td>
+<td><code>protocol SheetsClient</code> — behaviour swaps from live Google to local fixtures without touching callers.</td></tr>
+<tr><td><strong>Adapter</strong></td>
+<td>A concrete thing satisfying an interface at a seam — names the role, not the substance.</td>
+<td><code>GoogleSheetsClient</code>, <code>LocalWorkbookSheetsClient</code>, and <code>UITestFixture</code> are three adapters at one seam.</td></tr>
+<tr><td><strong>Leverage</strong></td>
+<td>What callers get from depth: more capability per unit of interface learned.</td>
+<td>One <code>SheetLayoutInterpreter</code> pays back at every read <em>and</em> every write (ADR-0003).</td></tr>
+<tr><td><strong>Locality</strong></td>
+<td>What maintainers get from depth: change, bugs, and verification concentrate in one place.</td>
+<td>A cell-targeting bug is fixed once in the interpreter, fixed everywhere.</td></tr>
+</table>
+
+<h2>Rules of thumb</h2>
+<ul>
+<li><strong>The deletion test</strong> — delete the module in your head: if complexity vanishes it was a pass-through; if it reappears across N callers it was earning its keep.</li>
+<li><strong>The interface is the test surface</strong> — callers and tests cross the same seam. Wanting to test past the interface means the module is the wrong shape.</li>
+<li><strong>One adapter is a hypothetical seam; two adapters is a real one</strong> — <code>SheetsClient</code> has three, so that seam has earned its existence.</li>
+<li><strong>Depth is a property of the interface, not the implementation</strong> — a deep module may have internal seams (private, for its own tests) behind its external one.</li>
+</ul>
+
+<div class="followup">Terms drifting or missing? Ask your teaching agent to update this glossary — every lesson adheres to it.</div>
+
+</body>
+</html>

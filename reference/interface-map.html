@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference — The Interface Map</title>
+<link rel="stylesheet" href="../assets/course.css">
+</head>
+<body>
+
+<p class="lesson-meta">Reference · Deep-Module Interfaces · verified against the codebase 2026-07-11</p>
+<h1>The Interface Map</h1>
+<p>Every deep module in WorkoutTracker, its front door, and the contract a caller must know.
+Facts below carry <span class="cite">file:line</span> citations so drift is detectable.
+For the house vocabulary (module, interface, seam, depth…) see the
+<a href="glossary.html">glossary</a>.</p>
+
+<figure>
+  <img src="../assets/module-map.svg" alt="Module map: Views and Theme on top, Stores and Progress beneath, Sheets, Parsing and LoadSuggestionEngine below them, Models as the foundation, Google Sheet outside">
+  <figcaption>The map. Solid arrows mean "uses that interface" and all of them point downward —
+  every interface bottoms out in Models. The dashed green edge is the app's only network path.</figcaption>
+</figure>
+
+<div class="key">
+  <strong>Composition root.</strong> <code>WorkoutTrackerApp</code> wires four
+  <code>@Observable</code> stores into the SwiftUI environment and injects either
+  <code>GoogleSheetsClient()</code> or a fixture client
+  <span class="cite">WorkoutTrackerApp.swift</span>. The SPM library target excludes
+  <code>Views/</code>, <code>LiveActivity/</code>, and <code>GoogleAuth.swift</code>
+  <span class="cite">Package.swift</span> — so everything below the Views row is unit-testable
+  without SwiftUI.
+</div>
+
+<h2 id="models">Models — the shared vocabulary</h2>
+<p><em>Contract in one sentence:</em> the domain types every other interface speaks;
+depends on nothing.</p>
+<table>
+<tr><th>Front door</th><th>What a caller must know</th></tr>
+<tr><td><code>Block → Week → Session → Exercise → ExerciseSet</code><br>
+<span class="cite">Models/Block.swift:5 · Models/Exercise.swift:8</span></td>
+<td>SwiftData graph. <code>Block.tabName</code> is unique; training maxes live per Block
+(<code>squatTM/benchTM/deadliftTM</code>). <code>ExerciseSet.state</code> is
+<code>.pending / .logged / .skipped</code>.</td></tr>
+<tr><td><code>SetLog</code> <span class="cite">Models/SetLog.swift:20</span></td>
+<td>The wire format: <code>init?(formatted:)</code> parses and <code>formatted</code> emits
+<code>"{weight}x{reps}@{RPE}"</code> (weight is pounds or literal <code>BW</code>). This pair
+is the contract between logging, Parsing, and Sheets.</td></tr>
+<tr><td><code>PendingWrite</code> <span class="cite">Models/PendingWrite.swift:25</span></td>
+<td>A queued Sheet mutation (column <code>.notes</code> or <code>.lastSetRPE</code>; op
+<code>.upsert</code>/<code>.delete</code>). Created by Stores, consumed by sync flush.</td></tr>
+<tr><td><code>LastPerformedEntry</code> <span class="cite">Models/LastPerformedEntry.swift:5</span></td>
+<td>One row of the Last-Performed index (ADR-0002); unique on <code>fullName</code>, falls back
+by <code>baseName</code> (cadence stripped).</td></tr>
+</table>
+
+<h2 id="parsing">Parsing — Sheet → domain</h2>
+<p><em>Contract in one sentence:</em> give it a raw sheet snapshot, get back an interpreted
+Block plus warnings — pure, never touches the network.</p>
+<table>
+<tr><th>Front door</th><th>What a caller must know</th></tr>
+<tr><td><code>SheetParser.parse(snapshot:tabName:) → ParsedBlock</code>
+<span class="cite">Parsing/SheetParser.swift:381</span></td>
+<td>Returns plain DTOs (<code>ParsedBlockModel</code>, <code>ParsedWeek</code>…), not SwiftData
+objects, plus human-readable <code>warnings</code>. <code>BlockBuilder.makeBlock(from:)</code>
+bridges DTO → SwiftData <span class="cite">Parsing/BlockBuilder.swift:3</span>.</td></tr>
+<tr><td><code>SheetLayoutInterpreter.interpret(_:) → SheetLayout</code>
+<span class="cite">Parsing/SheetLayoutInterpreter.swift:213</span></td>
+<td>The ADR-0003 engine: no hardcoded cell positions. <code>SheetLayout.week(number:)</code> /
+<code>.day(week:day:)</code> locate sections; <code>SheetLayoutExerciseAnchor</code> answers
+write-targeting questions (<code>visibleSetLogRow</code>, <code>prescriptionLines</code>).
+Shared by parsing <em>and</em> writing — one interpretation of the sheet, two uses.</td></tr>
+<tr><td><code>SheetSnapshot</code> / <code>SheetGrid</code>
+<span class="cite">Parsing/SheetGrid.swift:3,19</span></td>
+<td>Input types: a 2-D string grid plus row-visibility. Row visibility matters — Set Logs may
+only land on a Visible Writable Row.</td></tr>
+</table>
+
+<h2 id="sheets">Sheets — the only door to the outside world</h2>
+<p><em>Contract in one sentence:</em> five async methods are the only way bytes move between
+the app and Google.</p>
+<table>
+<tr><th>Front door</th><th>What a caller must know</th></tr>
+<tr><td><code>protocol SheetsClient: Sendable</code>
+<span class="cite">Sheets/SheetsClient.swift:8</span>
+<pre>listTabTitles(spreadsheetId:) → [String]
+listSpreadsheets(pageToken:) → SpreadsheetListPage
+fetchTabSnapshot(spreadsheetId:tabName:) → SheetSnapshot
+updateCells(spreadsheetId:range:values:)
+updateCells(spreadsheetId:updates:)</pre></td>
+<td>All <code>async throws</code>. Error mode: <code>SheetsError</code>
+(<code>.notAuthorized</code>, <code>.http(Int)</code>, <code>.malformedResponse</code>…).
+<strong>This is the app's real seam</strong>: production adapter
+<code>GoogleSheetsClient</code>, test adapters <code>LocalWorkbookSheetsClient</code> and
+<code>UITestFixture</code>. <code>GoogleSheetsClient.forCurrentEnvironment()</code>
+centralizes the live/fixture switch <span class="cite">Sheets/GoogleSheetsClient.swift:86</span>.</td></tr>
+<tr><td><code>SheetWriter</code> / <code>SheetWritePlanner</code>
+<span class="cite">Sheets/SheetWriter.swift:101,130</span></td>
+<td>Planner is pure: <code>plan(_:in:) throws → SheetCellUpdate</code> decides <em>where</em>
+a Set Log lands (Coach Notes never overwritten — logs move to the next Visible Writable Row).
+Writer performs the batched update (ADR-0006). Errors are user-facing:
+<code>SheetWriterError</code> has seven descriptive cases.</td></tr>
+<tr><td><code>GoogleAuth</code> <span class="cite">Sheets/GoogleAuth.swift:5</span></td>
+<td><code>@MainActor</code>, excluded from the SPM target. <code>accessToken()</code> feeds
+<code>GoogleSheetsClient</code>'s injected <code>tokenProvider</code> closure.</td></tr>
+</table>
+
+<h2 id="stores">Stores — the app's memory</h2>
+<p><em>Contract in one sentence:</em> observable state plus commands that mutate the local
+cache and queue Sheet writes; sync reconciles with the source of truth.</p>
+<table>
+<tr><th>Front door</th><th>What a caller must know</th></tr>
+<tr><td><code>WorkoutStore</code> <span class="cite">Stores/WorkoutStore.swift:17</span></td>
+<td>Reads: <code>block</code>, <code>displayedSession</code>, <code>currentSession</code>,
+<code>openExercises</code>, <code>canMoveOn</code>. Commands: <code>show(week:day:)</code>,
+<code>moveOn()</code>, and logging — <code>log(_:as:)</code>, <code>skip(_:)</code>,
+<code>deleteLog(for:)</code> <span class="cite">:309</span>. Invariant: logging both updates
+the cache <em>and</em> enqueues a <code>PendingWrite</code> — callers never write to the Sheet
+directly.</td></tr>
+<tr><td><code>SyncCoordinator</code> <span class="cite">Stores/SyncCoordinator.swift:6</span></td>
+<td><code>sync(spreadsheetId:) async → Bool</code> is the full pull (flush → parse → rebuild →
+index); <code>flushPending(spreadsheetId:)</code> pushes queued writes. Observable
+<code>state</code>: <code>.idle / .syncing / .offline / .pendingWrites(Int) /
+.conflict([String])</code>. Ordering invariant: flush happens before pull, so local logs are
+never clobbered.</td></tr>
+<tr><td><code>SettingsStore</code> <span class="cite">Stores/SettingsStore.swift:26</span></td>
+<td>Sign-in, spreadsheet selection (<code>setSheetURL(_:) → Bool</code> validates), appearance,
+rest durations. <code>isConfigured</code> gates the whole app flow.</td></tr>
+<tr><td><code>LastPerformedLookupStore</code>
+<span class="cite">Stores/LastPerformedLookupStore.swift:16</span></td>
+<td>Exposes an immutable <code>snapshot</code> for instant Last-Performed lookups;
+<code>refresh()</code> after ingest. Seam: <code>LastPerformedLookupRefreshing</code>.</td></tr>
+</table>
+
+<h2 id="progress">Progress — the rules of "what's next"</h2>
+<p><em>Contract in one sentence:</em> pure progression math plus the active-session state
+machine; the largest implementation in the app behind two front doors.</p>
+<table>
+<tr><th>Front door</th><th>What a caller must know</th></tr>
+<tr><td><code>SessionProgressTracker</code>
+<span class="cite">Progress/SessionProgressTracker.swift:23</span></td>
+<td>Pure, stateless: <code>currentSession(in:overrideOrder:)</code>,
+<code>nextSession(after:in:)</code>, <code>openExercises(in:currentSession:)</code>,
+<code>tileState(for:currentSession:)</code>. Encodes the domain rules for Current Session,
+Move On, and week boundaries — <code>WorkoutStore</code> delegates to it.</td></tr>
+<tr><td><code>SessionCoordinator</code>
+<span class="cite">Progress/SessionCoordinator.swift:165</span></td>
+<td>The active-set / rest / superset engine behind SessionView. Commands:
+<code>focus(on:)</code>, <code>log(_:as:)</code>, <code>skip(_:)</code>,
+<code>createSuperset(from:to:in:)</code>, <code>handlePairingTap(on:in:)</code>;
+<code>renderItems(in:lastPerformedLookup:)</code> returns the ordered
+<code>[SessionRenderItem]</code> the view draws. Every collaborator is an injected protocol
+with a Noop default (<code>SessionLoggingAdapter</code>, <code>SessionSyncAdapter</code>,
+<code>SessionLiveActivityAdapter</code>, <code>SessionTransitionClock</code>)
+<span class="cite">SessionCoordinator.swift:5–26</span> — <code>WorkoutStore</code> is
+retrofitted as the logging adapter.</td></tr>
+<tr><td><code>LastPerformedIndex</code> / <code>LastPerformedExtractor</code>
+<span class="cite">Progress/LastPerformedIndex.swift:5</span></td>
+<td>ADR-0002: <code>lookup(exerciseName:baseName:)</code> is the two-tier lookup (full name,
+then cadence-stripped base name); <code>ingest(_:)</code> rebuilds from parsed blocks.</td></tr>
+</table>
+
+<h2 id="small">The small modules</h2>
+<table>
+<tr><th>Module</th><th>Contract</th></tr>
+<tr><td><code>LoadSuggestionEngine</code> <span class="cite">LoadSuggestionEngine.swift:6</span></td>
+<td>One pure function: <code>suggest(prescribedLoad:previousSetWeight:trainingMax:) →
+Double?</code>. Understands <code>"Drop N%"</code> (needs previous set weight) and
+<code>"N%1RM"</code> (needs Training Max); rounds to 2.5 lb; returns <code>nil</code> when it
+can't help. Always overridable by the athlete.</td></tr>
+<tr><td><code>Theme</code> <span class="cite">Theme.swift:15</span></td>
+<td><code>Theme.Palette</code> reached via the <code>themePalette</code> environment key;
+~30 named tokens plus layout constants. ADR-0004.</td></tr>
+<tr><td><code>LiveActivityController</code>
+<span class="cite">LiveActivity/LiveActivityController.swift:7</span></td>
+<td><code>start / update / end / refreshAuthorizationStatus</code> over
+<code>WorkoutActivityAttributes.ContentState</code> (defined in <code>WorkoutShared</code>,
+shared with the widget extension).</td></tr>
+</table>
+
+<h2 id="adrs">Which ADR guards which seam</h2>
+<table>
+<tr><th>ADR</th><th>Seam it documents</th></tr>
+<tr><td>0001 sheet-as-backend-local-first</td><td>Sheets ↔ Stores: Sheet is source of truth, app is a local-first cache.</td></tr>
+<tr><td>0002 last-performed-local-index</td><td>Progress ↔ Stores: the Last-Performed index and lookup snapshot.</td></tr>
+<tr><td>0003 dynamic-cell-targeting</td><td>Parsing: <code>SheetLayoutInterpreter</code> — no hardcoded cell positions, shared by read and write.</td></tr>
+<tr><td>0006 batched-pending-sheet-writes</td><td>Stores ↔ Sheets: <code>PendingWrite</code> queue and batched flush.</td></tr>
+<tr><td>0010 per-line-set-template</td><td>Parsing/Sheets: Prescription Lines and the set-slot model.</td></tr>
+<tr><td>0011 stage-session-view</td><td>Progress ↔ Views: <code>SessionCoordinator</code>'s render-item interface.</td></tr>
+</table>
+
+<div class="followup">Questions about any contract here? Ask your teaching agent — and if a
+signature has drifted from the codebase, ask it to re-verify and update this reference.</div>
+
+</body>
+</html>

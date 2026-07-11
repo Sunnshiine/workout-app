@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — The Map Above the Waterline</title>
+<link rel="stylesheet" href="../assets/course.css">
+<script src="../assets/quiz.js" defer></script>
+</head>
+<body>
+
+<p class="lesson-meta">Lesson 0001 · Deep-Module Interfaces · ~10 minutes</p>
+<h1>The Map Above the Waterline</h1>
+<p>One win, this lesson: hold the whole system in your head as <strong>seven modules, seven
+one-sentence contracts, and arrows that only point down</strong>. Everything else in this
+course zooms into a region of this map.</p>
+
+<figure>
+  <img src="../assets/module-map.svg" alt="Module map of WorkoutTracker">
+  <figcaption>The map. Box = module; monospace names = its front door; gray note = how much
+  implementation sits beneath. Full contracts live in the
+  <a href="../reference/interface-map.html">Interface Map reference</a>.</figcaption>
+</figure>
+
+<h2>Seven contracts, one sentence each</h2>
+<table>
+<tr><th>Module</th><th>Contract</th></tr>
+<tr><td><strong>Models</strong></td><td>The shared vocabulary — the domain types every other interface speaks; depends on nothing.</td></tr>
+<tr><td><strong>Parsing</strong></td><td>Raw sheet snapshot in, interpreted Block (plus warnings) out — pure, never touches the network.</td></tr>
+<tr><td><strong>Sheets</strong></td><td>Five async methods that are the <em>only</em> way bytes move between the app and Google.</td></tr>
+<tr><td><strong>Stores</strong></td><td>The app's memory — observable state plus commands that mutate the cache and queue Sheet writes.</td></tr>
+<tr><td><strong>Progress</strong></td><td>The rules of "what's next" — pure progression math plus the active-session state machine.</td></tr>
+<tr><td><strong>LoadSuggestionEngine</strong></td><td>One pure function: prescription in, suggested weight out (or <code>nil</code>).</td></tr>
+<tr><td><strong>Theme</strong></td><td>Named design tokens, reached through one environment key.</td></tr>
+</table>
+
+<h2>Three rules the arrows enforce</h2>
+<ol>
+<li><strong>Everything bottoms out in Models.</strong> Every solid arrow points downward, and
+the bottom of every chain is Models. That's why the domain glossary in <code>CONTEXT.md</code>
+is part of every interface's contract — parameters and return types are named in its terms.</li>
+<li><strong>Views only see Stores, Progress, and Theme.</strong> No View imports
+<code>SheetsClient</code> or <code>SheetParser</code>. If a feature needs sheet data on
+screen, it arrives through a store's observable state, never by fetching.</li>
+<li><strong>The outside world enters through one seam.</strong> The dashed green edge —
+<code>protocol SheetsClient</code> — is the only path to the network. Three
+<a href="../reference/glossary.html">adapters</a> sit at that seam (live Google, local
+workbook for tests, UI-test fixtures), which is what makes the whole app testable offline.</li>
+</ol>
+
+<h2>One iceberg, up close: Sheets</h2>
+<figure>
+<svg viewBox="0 0 700 320" font-family="'Gill Sans','Helvetica Neue',Arial,sans-serif">
+  <rect x="0" y="110" width="700" height="210" fill="#d7e6ec"/>
+  <text x="20" y="132" font-size="11" fill="#4a7a8a" font-style="italic">waterline — callers never look below this</text>
+  <rect x="180" y="18" width="340" height="86" rx="8" fill="#fff" stroke="#0f6674" stroke-width="1.8"/>
+  <text x="200" y="40" font-size="13" font-weight="600" fill="#1a1a1a">protocol SheetsClient — 5 methods</text>
+  <text x="200" y="60" font-size="10.5" fill="#0f6674" font-family="Menlo,monospace">listTabTitles · listSpreadsheets · fetchTabSnapshot</text>
+  <text x="200" y="76" font-size="10.5" fill="#0f6674" font-family="Menlo,monospace">updateCells(range:values:) · updateCells(updates:)</text>
+  <text x="200" y="94" font-size="10" fill="#888">+ error mode: SheetsError (.notAuthorized, .http, …)</text>
+  <polygon points="180,110 520,110 600,300 100,300" fill="#9db4bf" opacity="0.85"/>
+  <text x="240" y="160" font-size="11.5" fill="#2e4650">Google API URLs, JSON encoding/decoding</text>
+  <text x="240" y="184" font-size="11.5" fill="#2e4650">OAuth token plumbing (injected tokenProvider)</text>
+  <text x="240" y="208" font-size="11.5" fill="#2e4650">write planning: Coach Notes, Visible Writable Rows</text>
+  <text x="240" y="232" font-size="11.5" fill="#2e4650">batched updates (ADR-0006), HTTP error mapping</text>
+  <text x="240" y="262" font-size="11" fill="#2e4650" font-style="italic">~820 lines a caller never needs to read</text>
+</svg>
+<figcaption>Depth as leverage: learn five method names and one error enum, and you can sync,
+list, and write — or fake the entire outside world in a test.</figcaption>
+</figure>
+
+<div class="key">
+<strong>The interface is more than the signatures.</strong> A caller of
+<code>SyncCoordinator.sync</code> must also know an invariant no type shows: pending writes
+are flushed <em>before</em> the pull, so local logs are never clobbered. Contracts like this
+are exactly what the <a href="../reference/interface-map.html">reference</a> records.
+</div>
+
+<div class="quiz">
+<h3>Check yourself — where does it go?</h3>
+
+<p class="q">1. A View needs to display today's exercises. Which front door does it read?</p>
+<button class="choice" data-correct>WorkoutStore</button>
+<button class="choice">SheetsClient</button>
+<button class="choice">SheetParser</button>
+<button class="choice">BlockBuilder</button>
+<div class="explain">Rule 2: Views only see Stores, Progress, and Theme. Sheet data reaches
+the screen as <code>WorkoutStore.displayedSession</code> — a View never fetches or parses.</div>
+
+<p class="q">2. You want a unit test to exercise a full sync without the network. Where do you swap in a fake adapter?</p>
+<button class="choice">SheetWriter</button>
+<button class="choice" data-correct>SheetsClient</button>
+<button class="choice">SheetParser</button>
+<button class="choice">WorkoutStore</button>
+<div class="explain">Rule 3: <code>SheetsClient</code> is the app's real seam — it already has
+three adapters (live, local workbook, UI-test fixtures). Everything above it runs unmodified.</div>
+
+<p class="q">3. New feature: warm-up weights calculated from the Training Max — pure math, no state. Its natural home?</p>
+<button class="choice">SessionCoordinator</button>
+<button class="choice">SheetWritePlanner</button>
+<button class="choice" data-correct>LoadSuggestionEngine</button>
+<button class="choice">SessionProgressTracker</button>
+<div class="explain">Its contract is already "prescription in, weight out" — a pure function
+with no state. Extending that interface keeps the calculation testable in isolation and
+reusable from any presentation code.</div>
+</div>
+
+<h2>Primary source</h2>
+<p>Watch <a href="https://www.youtube.com/watch?v=bmSAYlu0NcY">John Ousterhout — "A Philosophy
+of Software Design" (Google talk, 2018)</a>, the origin of deep modules. Read it with the
+house correction in mind: this repo measures depth as <em>leverage at the interface</em>, not
+Ousterhout's line-count ratio (see the <a href="../reference/glossary.html">glossary</a>).</p>
+
+<div class="followup">Anything unclear — an arrow you'd have drawn differently, a contract
+that surprised you? Ask your teaching agent. It can zoom into any module on this map.</div>
+
+<div class="lesson-nav">
+  <span>Lesson 0001</span>
+  <span>Next: the Sheets ↔ Stores seam — how a Set Log travels to Google</span>
+</div>
+
+</body>
+</html>
