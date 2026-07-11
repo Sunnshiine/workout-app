@@ -195,16 +195,11 @@ final class WorkoutStore {
     // MARK: - Private Helpers
 
     private func notesValue(for set: ExerciseSet) -> String {
-        if let setLog = set.setLog {
-            return setLog.formatted
-        }
-        if let unstructuredSetLog = set.unstructuredSetLog {
-            return unstructuredSetLog
-        }
-        if set.state == .skipped {
-            return "skip"
-        }
-        return ""
+        SetLogToken.serialize(
+            state: set.state,
+            setLog: set.setLog,
+            unstructuredSetLog: set.unstructuredSetLog
+        )
     }
 
     private func enqueue(
@@ -347,7 +342,7 @@ extension WorkoutStore {
             for: set,
             column: .notes,
             operation: .upsert,
-            valueToWrite: "skip",
+            valueToWrite: SetLogToken.skipSentinel,
             expectedCurrentValue: previousValue
         )
         try context.save()

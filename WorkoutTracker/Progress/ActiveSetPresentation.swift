@@ -317,7 +317,7 @@ struct ExerciseSummaryRowPresentation: Equatable, Sendable {
         let setResults = exercise.sets
             .sorted { $0.index < $1.index }
             .compactMap { set -> String? in
-                guard set.state != .skipped else { return "skip" }
+                guard set.state != .skipped else { return SetLogToken.skipSentinel }
                 guard set.state == .logged, let setLog = set.setLog else { return nil }
                 defer { previousWeight = setLog.weight }
                 if previousWeight == setLog.weight {

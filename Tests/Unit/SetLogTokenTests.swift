@@ -82,3 +82,35 @@ import Testing
 @Test func compactAggregateHeaderRejectsWhenAnyEntryIsFreeText() {
     #expect(!SetLogToken.isCompactAggregateHeader("185x5@8, Coach note", setCount: 3))
 }
+
+@Test func serializesStructuredSetLogAsFormattedToken() {
+    let log = SetLog(formatted: "185x5@8")
+
+    #expect(SetLogToken.serialize(state: .logged, setLog: log, unstructuredSetLog: nil) == "185x5@8")
+}
+
+@Test func serializesUnstructuredSetLogAsFreeText() {
+    #expect(SetLogToken.serialize(state: .logged, setLog: nil, unstructuredSetLog: "felt heavy") == "felt heavy")
+}
+
+@Test func serializesSkippedStateAsSkipSentinel() {
+    #expect(SetLogToken.serialize(state: .skipped, setLog: nil, unstructuredSetLog: nil) == SetLogToken.skipSentinel)
+}
+
+@Test func serializesPendingStateAsEmptyToken() {
+    #expect(SetLogToken.serialize(state: .pending, setLog: nil, unstructuredSetLog: nil) == "")
+}
+
+@Test func roundTripsEmptySkipStructuredAndUnstructuredTokens() {
+    for token in ["", "skip", "185x5@8", "felt heavy"] {
+        let first = SetLogToken.classify(token)
+        let serialized = SetLogToken.serialize(
+            state: first.state,
+            setLog: first.setLog,
+            unstructuredSetLog: first.unstructuredSetLog
+        )
+        let second = SetLogToken.classify(serialized)
+
+        #expect(second == first)
+    }
+}

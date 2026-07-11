@@ -170,13 +170,21 @@ final class SyncCoordinator {
                 set.state = .pending
                 set.setLog = nil
                 set.loggedAt = nil
-            } else if write.valueToWrite?.caseInsensitiveCompare("skip") == .orderedSame {
-                set.state = .skipped
-                set.setLog = nil
-                set.loggedAt = nil
-            } else if let value = write.valueToWrite, let log = SetLog(formatted: value) {
-                set.state = .logged
-                set.setLog = log
+            } else if let value = write.valueToWrite {
+                let classification = SetLogToken.classify(value)
+                switch classification.state {
+                case .skipped:
+                    set.state = .skipped
+                    set.setLog = nil
+                    set.loggedAt = nil
+                case .logged:
+                    if let log = classification.setLog {
+                        set.state = .logged
+                        set.setLog = log
+                    }
+                case .pending:
+                    break
+                }
             }
         }
     }
