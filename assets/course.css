@@ -1,0 +1,175 @@
+/* Shared stylesheet for the deep-module-interfaces course.
+   Every lesson and reference document links this file. */
+
+:root {
+  --ink: #1a1a1a;
+  --paper: #fffff8;
+  --accent: #b3452c;       /* links, emphasis */
+  --interface: #0f6674;    /* interface / above-waterline colour */
+  --implementation: #9db4bf; /* below-waterline colour */
+  --water: #d7e6ec;
+  --rule: #ddd;
+  --code-bg: #f4f1ea;
+  --good: #2c7a3f;
+  --bad: #a33327;
+}
+
+html { font-size: 17px; }
+
+body {
+  font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+  color: var(--ink);
+  background: var(--paper);
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 3rem 1.5rem 6rem;
+  line-height: 1.55;
+}
+
+h1, h2, h3 {
+  font-weight: 400;
+  line-height: 1.15;
+}
+h1 { font-size: 2.1rem; margin: 0 0 0.4rem; }
+h2 { font-size: 1.45rem; margin-top: 2.6rem; border-bottom: 1px solid var(--rule); padding-bottom: 0.25rem; }
+h3 { font-size: 1.15rem; font-style: italic; margin-top: 1.8rem; }
+
+.lesson-meta {
+  font-family: 'Gill Sans', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #777;
+  margin-bottom: 2.2rem;
+}
+
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+
+code, pre {
+  font-family: 'SF Mono', ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
+  font-size: 0.82em;
+  background: var(--code-bg);
+  border-radius: 3px;
+}
+code { padding: 0.1em 0.35em; }
+pre {
+  padding: 0.9rem 1.1rem;
+  overflow-x: auto;
+  line-height: 1.5;
+  border-left: 3px solid var(--interface);
+}
+pre code { background: none; padding: 0; }
+
+/* Citation to a source file — keeps lessons honest about where a fact came from */
+.cite {
+  font-family: 'SF Mono', ui-monospace, Menlo, monospace;
+  font-size: 0.68rem;
+  color: #888;
+  white-space: nowrap;
+}
+
+/* Sidenote-flavoured aside */
+.aside {
+  font-size: 0.88rem;
+  color: #555;
+  border-left: 3px solid var(--rule);
+  padding: 0.2rem 0 0.2rem 1rem;
+  margin: 1.2rem 0;
+}
+
+/* Key-idea callout */
+.key {
+  background: var(--water);
+  border-radius: 6px;
+  padding: 0.9rem 1.2rem;
+  margin: 1.6rem 0;
+}
+.key strong { color: var(--interface); }
+
+/* Figures: diagrams are the primary content, so give them room */
+figure { margin: 2rem 0; }
+figure svg { width: 100%; height: auto; display: block; }
+figcaption {
+  font-family: 'Gill Sans', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 0.82rem;
+  color: #666;
+  margin-top: 0.6rem;
+}
+
+/* Glossary / contract tables */
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; margin: 1.4rem 0; }
+th {
+  font-family: 'Gill Sans', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: left;
+  color: #666;
+  border-bottom: 2px solid var(--ink);
+  padding: 0.35rem 0.7rem 0.35rem 0;
+}
+td { border-bottom: 1px solid var(--rule); padding: 0.5rem 0.7rem 0.5rem 0; vertical-align: top; }
+
+/* ---- Quiz component (behaviour in quiz.js) ---- */
+.quiz {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 1.3rem 1.5rem;
+  margin: 2rem 0;
+  font-family: 'Gill Sans', 'Helvetica Neue', Arial, sans-serif;
+}
+.quiz h3 { margin-top: 0; font-style: normal; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--interface); }
+.quiz .q { margin: 1.1rem 0 0.5rem; font-weight: 600; }
+.quiz button.choice {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  background: #fff;
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  padding: 0.5rem 0.8rem;
+  margin: 0.35rem 0;
+  cursor: pointer;
+}
+.quiz button.choice:hover { border-color: var(--interface); }
+.quiz button.choice.correct { border-color: var(--good); background: #eaf5ec; }
+.quiz button.choice.wrong { border-color: var(--bad); background: #f9ecea; }
+.quiz .explain {
+  display: none;
+  font-size: 0.88rem;
+  color: #444;
+  background: var(--code-bg);
+  border-radius: 5px;
+  padding: 0.6rem 0.9rem;
+  margin-top: 0.5rem;
+}
+.quiz .explain.shown { display: block; }
+
+/* Footer nav between lessons */
+.lesson-nav {
+  margin-top: 3.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  font-family: 'Gill Sans', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 0.85rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.followup {
+  margin-top: 2.5rem;
+  font-size: 0.85rem;
+  font-family: 'Gill Sans', 'Helvetica Neue', Arial, sans-serif;
+  color: #666;
+  border: 1px dashed var(--rule);
+  border-radius: 6px;
+  padding: 0.7rem 1rem;
+}
+
+@media print {
+  body { max-width: none; padding: 0; }
+  .quiz button.choice { border: 1px solid #999; }
+  .lesson-nav, .followup { display: none; }
+}
