@@ -106,7 +106,7 @@ import Testing
     #expect(entry.result == nil)
 }
 
-@Test func multiSetEvidenceSkipsSkippedAndPendingSetsButKeepsSetOrder() throws {
+@Test func multiSetEvidenceKeepsSkipMarkersButDropsPendingSets() throws {
     let block = ParsedBlockModel(
         tabName: "Block 27",
         weeks: [
@@ -130,7 +130,112 @@ import Testing
 
     let entry = try #require(LastPerformedExtractor.entries(from: block).first)
 
-    #expect(entry.displayResultText == "185x5@7, 205x5@9")
+    // Partial skips survive into the display string in Set order (ADR-0012); pending
+    // Sets, which carry no evidence, are dropped.
+    #expect(entry.displayResultText == "185x5@7, skip, 205x5@9")
+}
+
+@Test func unstructuredOnlyExerciseProducesEntryWithRawEnteredText() throws {
+    let block = ParsedBlockModel(
+        tabName: "Block 27",
+        weeks: [
+            week(
+                1,
+                date: nil,
+                exercises: [
+                    exercise(
+                        "Standing Calve Raises",
+                        sets: [
+                            unstructuredSet(index: 0, "a few sets of 12"),
+                            unstructuredSet(index: 1, "felt easy")
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
+
+    let entry = try #require(LastPerformedExtractor.entries(from: block).first)
+
+    // Unstructured Set Logs now count as completion evidence (ADR-0012), rendered as
+    // the raw entered text in Set order — never normalized.
+    #expect(entry.displayResultText == "a few sets of 12, felt easy")
+    #expect(entry.result == nil)
+}
+
+@Test func mixedStructuredAndUnstructuredLinesProduceEntry() throws {
+    let block = ParsedBlockModel(
+        tabName: "Block 27",
+        weeks: [
+            week(
+                1,
+                date: nil,
+                exercises: [
+                    exercise(
+                        "Squat",
+                        sets: [
+                            loggedSet(index: 0, weight: 185, reps: 5, rpe: 7),
+                            unstructuredSet(index: 1, "amrap")
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
+
+    let entry = try #require(LastPerformedExtractor.entries(from: block).first)
+
+    #expect(entry.displayResultText == "185x5@7, amrap")
+    #expect(entry.result == nil)
+}
+
+@Test func fullySkippedOccurrenceProducesNoEntry() {
+    let block = ParsedBlockModel(
+        tabName: "Block 27",
+        weeks: [
+            week(
+                1,
+                date: nil,
+                exercises: [
+                    exercise(
+                        "Squat",
+                        sets: [
+                            skippedSet(index: 0),
+                            skippedSet(index: 1)
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
+
+    #expect(LastPerformedExtractor.entries(from: block).isEmpty)
+}
+
+@Test func partialSkipsKeepSkipMarkersAlongsideUnstructuredEvidence() throws {
+    let block = ParsedBlockModel(
+        tabName: "Block 27",
+        weeks: [
+            week(
+                1,
+                date: nil,
+                exercises: [
+                    exercise(
+                        "Squat",
+                        sets: [
+                            loggedSet(index: 0, weight: 185, reps: 5, rpe: 7),
+                            skippedSet(index: 1),
+                            unstructuredSet(index: 2, "tweaked back")
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
+
+    let entry = try #require(LastPerformedExtractor.entries(from: block).first)
+
+    #expect(entry.displayResultText == "185x5@7, skip, tweaked back")
 }
 
 @Test func singleSetEvidenceKeepsStructuredResult() throws {
@@ -262,6 +367,17 @@ private func pendingSet(index: Int) -> ParsedSet {
 
 private func loggedUnstructuredSet(index: Int) -> ParsedSet {
     ParsedSet(index: index, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .logged)
+}
+
+private func unstructuredSet(index: Int, _ text: String) -> ParsedSet {
+    ParsedSet(
+        index: index,
+        prescribedReps: "5",
+        prescribedLoad: "RPE 7",
+        percentOneRM: nil,
+        state: .logged,
+        unstructuredSetLog: text
+    )
 }
 
 private func skippedSet(index: Int) -> ParsedSet {

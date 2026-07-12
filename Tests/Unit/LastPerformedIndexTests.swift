@@ -261,6 +261,65 @@ private func lastPerformedContainer() throws -> ModelContainer {
 }
 
 @MainActor
+@Test func unstructuredOnlyExerciseSurfacesALastPerformedLine() throws {
+    let container = try lastPerformedContainer()
+    let context = container.mainContext
+    let index = LastPerformedIndex(context: context)
+
+    // An Exercise completed only through Unstructured Set Logs — today this leaves the
+    // Last Performed line blank; ADR-0012 makes it completion evidence rendered as the
+    // raw entered text. This exercises the full extract → ingest → lookup path.
+    let block = ParsedBlockModel(
+        tabName: "Block 27",
+        weeks: [
+            ParsedWeek(
+                number: 1,
+                days: [
+                    ParsedSession(
+                        dayNumber: 1,
+                        date: nil,
+                        exercises: [
+                            ParsedExercise(
+                                name: "Standing Calve Raises",
+                                baseName: "Standing Calve Raises",
+                                cadence: nil,
+                                coachNote: nil,
+                                sets: [
+                                    ParsedSet(
+                                        index: 0,
+                                        prescribedReps: "12",
+                                        prescribedLoad: "RPE 8",
+                                        percentOneRM: nil,
+                                        state: .logged,
+                                        unstructuredSetLog: "a few sets of 12"
+                                    ),
+                                    ParsedSet(
+                                        index: 1,
+                                        prescribedReps: "12",
+                                        prescribedLoad: "RPE 8",
+                                        percentOneRM: nil,
+                                        state: .logged,
+                                        unstructuredSetLog: "felt easy"
+                                    )
+                                ]
+                            )
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
+
+    try index.ingest(LastPerformedExtractor.entries(from: block))
+
+    let line = try #require(
+        index.snapshot().lookup(exerciseName: "Standing Calve Raises", baseName: "Standing Calve Raises")
+    )
+    #expect(line.resultText == "a few sets of 12, felt easy")
+    withExtendedLifetime(container) {}
+}
+
+@MainActor
 @Test func lastPerformedSnapshotPreservesCadencePriorityAndBaseFallback() throws {
     let container = try lastPerformedContainer()
     let context = container.mainContext

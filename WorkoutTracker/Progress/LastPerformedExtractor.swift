@@ -64,15 +64,41 @@ enum LastPerformedExtractor {
         return records
     }
 
+    /// Completion evidence for one Exercise as logged in a Session (ADR-0012).
+    ///
+    /// Structured Set Logs, Unstructured Set Logs, and `skip` markers all render inline in Set
+    /// order: a structured log is its formatted string, an Unstructured Set Log is the raw entered
+    /// text (never normalized — ADR-0005), a Skipped Set is the `skip` sentinel. Pending Sets and
+    /// legacy-completion placeholder Sets (Logged with no content) carry no evidence and drop out.
+    ///
+    /// An entry is earned only when at least one Set is actually Logged: a fully Skipped occurrence
+    /// (only `skip` tokens, no logged Set) earns none. When no Set carries evidence, the Exercise's
+    /// Legacy Log is the fallback, unchanged.
     private static func lastPerformedEvidence(in exercise: ParsedExercise) -> (result: SetLog?, resultText: String)? {
-        let structuredLogs = exercise.sets
-            .filter { $0.state == .logged }
-            .sorted { $0.index < $1.index }
-            .compactMap(\.setLog)
+        var tokens: [String] = []
+        var structuredLogs: [SetLog] = []
+        var hasLoggedEvidence = false
 
-        if !structuredLogs.isEmpty {
-            let resultText = structuredLogs.map(\.formatted).joined(separator: ", ")
-            return (structuredLogs.count == 1 ? structuredLogs.first : nil, resultText)
+        for set in exercise.sets.sorted(by: { $0.index < $1.index }) {
+            if let setLog = set.setLog {
+                tokens.append(setLog.formatted)
+                structuredLogs.append(setLog)
+                hasLoggedEvidence = true
+            } else if set.state == .logged,
+                let text = set.unstructuredSetLog?.trimmingCharacters(in: .whitespacesAndNewlines),
+                !text.isEmpty {
+                tokens.append(text)
+                hasLoggedEvidence = true
+            } else if set.state == .skipped {
+                tokens.append(SetLogToken.skipSentinel)
+            }
+        }
+
+        if hasLoggedEvidence {
+            // Preserve a lone structured Set Log as a typed result — byte-identical to before —
+            // only when the whole entry is exactly that one log (no skips, no unstructured text).
+            let result = (tokens.count == 1 && structuredLogs.count == 1) ? structuredLogs.first : nil
+            return (result, tokens.joined(separator: ", "))
         }
 
         guard let legacyLog = exercise.legacyLog else { return nil }
