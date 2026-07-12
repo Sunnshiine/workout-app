@@ -40,3 +40,5 @@ jobs:
           create "agent:blocked"       "D93F0B" "State: last agent run failed or refused; see the run comment"
           # Provenance
           create "source:architecture-review" "5319E7" "PRDs proposed by the scheduled architecture-review workflow"
+          # TestFlight — label per build; must be applied with AGENT_PAT by automation (docs/ci/testflight.md).
+          create "testflight"          "0052CC" "Trigger: upload this PR's head as a dev-flavor TestFlight build (remove and re-apply for another)"

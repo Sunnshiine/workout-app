@@ -11,6 +11,7 @@ let package = Package(
             exclude: [
                 "Views",
                 "LiveActivity",
+                "Assets.xcassets",
                 "Sheets/GoogleAuth.swift",
                 "WorkoutTrackerApp.swift",
                 "Info.plist",

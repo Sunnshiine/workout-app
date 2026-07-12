@@ -7,8 +7,7 @@ Secrets.xcconfig
 # macOS
 .DS_Store
 
-# Claude Code — machine-local settings and nested worktrees (not for the shared repo)
-.claude/
+# Claude Code — machine-local settings and nested worktrees (not for the shared repo).
 .claude/settings.local.json
 .claude/worktrees/
 
