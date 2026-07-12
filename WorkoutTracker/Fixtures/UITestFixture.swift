@@ -124,7 +124,9 @@
                         ? WorkoutFixtureScenarios.uiLaunchBlock()
                         : WorkoutFixtureScenarios.partiallyUploadedBlock()
             context.insert(block)
-            context.insert(WorkoutFixtureScenarios.lastPerformedBackSquat())
+            for entry in WorkoutFixtureScenarios.backSquatHistory() {
+                context.insert(entry)
+            }
             if startsWithPendingWrite {
                 context.insert(WorkoutFixtureScenarios.queuedWrite())
             }

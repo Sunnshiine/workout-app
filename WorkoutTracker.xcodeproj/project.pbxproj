@@ -108,6 +108,8 @@
 		A01DC1C7D5EF084AEB045349 /* MoveOnCelebrationPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD0ADA4AF2047FB6DE169C71 /* MoveOnCelebrationPresentationTests.swift */; };
 		A02F44FF07FD393EE8A24ADA /* LastPerformedExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBC777FCDEC9F7D51883113F /* LastPerformedExtractor.swift */; };
 		D0E1F2A3B4C5D6E7F8091A2B /* MovementMatching.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D1E2F3A4B5C6D7E8F90A1B /* MovementMatching.swift */; };
+		A1B2C3D4E5F60718293A4B5D /* ExerciseHistorySheetPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5C /* ExerciseHistorySheetPresentation.swift */; };
+		B1C2D3E4F5061728394A5B6D /* ExerciseHistorySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5061728394A5B6C /* ExerciseHistorySheet.swift */; };
 		A17B4D3CFBBB7A17E5B5D851 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73043E31A40EFA8A57C38FAF /* EmptyStateView.swift */; };
 		A24E1D8ED63F959D9D9176D9 /* LastPerformedBackfillObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCA6A8711A04E8180DF17F9B /* LastPerformedBackfillObserver.swift */; };
 		A2F7E6D64D1518F978D7CFC2 /* SheetGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2244B0C3FEDB38CFA5D0128 /* SheetGrid.swift */; };
@@ -399,6 +401,8 @@
 		EA4AD15FD378F46C1F552857 /* OpenExerciseRowPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenExerciseRowPresentation.swift; sourceTree = "<group>"; };
 		EBC777FCDEC9F7D51883113F /* LastPerformedExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastPerformedExtractor.swift; sourceTree = "<group>"; };
 		C0D1E2F3A4B5C6D7E8F90A1B /* MovementMatching.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MovementMatching.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5C /* ExerciseHistorySheetPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseHistorySheetPresentation.swift; sourceTree = "<group>"; };
+		B1C2D3E4F5061728394A5B6C /* ExerciseHistorySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseHistorySheet.swift; sourceTree = "<group>"; };
 		ECA5D0F58BE44C1297D2C669 /* PendingWrite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingWrite.swift; sourceTree = "<group>"; };
 		ECBE6989519E819A9FDB6608 /* WorkoutStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutStore.swift; sourceTree = "<group>"; };
 		EE9617577EC2B1EE77CC2E63 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -483,6 +487,7 @@
 				94076860F23B16098C27E60D /* BlockOverviewView.swift */,
 				1F622271C453C1C22E76B829 /* DeveloperToolsView.swift */,
 				73043E31A40EFA8A57C38FAF /* EmptyStateView.swift */,
+				B1C2D3E4F5061728394A5B6C /* ExerciseHistorySheet.swift */,
 				67135AA558123A1C244485B9 /* LastPerformedCard.swift */,
 				5688D9D43EFCA63A84FC18C0 /* LiveActivityLabView.swift */,
 				D92CDF9A3131D2FF682B82FE /* LoggedSetReviewCard.swift */,
@@ -520,6 +525,7 @@
 				3FBC487F560A6B0CBC07067A /* LastPerformedLookup.swift */,
 				7D8657BBD8B3439498C6A625 /* LiveActivityRestContentBuilder.swift */,
 				C0D1E2F3A4B5C6D7E8F90A1B /* MovementMatching.swift */,
+				A1B2C3D4E5F60718293A4B5C /* ExerciseHistorySheetPresentation.swift */,
 				3F6EDFF80291EB8FA87175F3 /* MoveOnCelebrationPresentation.swift */,
 				31126E1DC357E16E1B75D98D /* OnboardingPresentation.swift */,
 				EA4AD15FD378F46C1F552857 /* OpenExerciseRowPresentation.swift */,
@@ -1112,6 +1118,8 @@
 				23DC6090AF57EAF426C113C5 /* LastPerformedEntry.swift in Sources */,
 				A02F44FF07FD393EE8A24ADA /* LastPerformedExtractor.swift in Sources */,
 				D0E1F2A3B4C5D6E7F8091A2B /* MovementMatching.swift in Sources */,
+				A1B2C3D4E5F60718293A4B5D /* ExerciseHistorySheetPresentation.swift in Sources */,
+				B1C2D3E4F5061728394A5B6D /* ExerciseHistorySheet.swift in Sources */,
 				14B6CF78AC54878F220CEFDE /* LastPerformedIndex.swift in Sources */,
 				0BBCA1519A513B30631E2250 /* LastPerformedLookup.swift in Sources */,
 				D9BC449C5F52EA35023DFEE9 /* LastPerformedLookupStore.swift in Sources */,

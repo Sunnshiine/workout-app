@@ -131,6 +131,29 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
     }
 
     @MainActor
+    func testTappingLastPerformedOpensExerciseHistorySheet() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+
+        let lastPerformed = app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "Last Performed 245x5@6, 255x5@7")
+        ).firstMatch
+        XCTAssertTrue(lastPerformed.waitForExistence(timeout: 3))
+        tapWhenHittable(lastPerformed)
+
+        // The quiet Exercise History sheet, seeded with deeper Back Squat history.
+        XCTAssertTrue(app.staticTexts["Exercise History · last 5"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["BLOCK 26"].exists)
+        XCTAssertTrue(app.staticTexts["BLOCK 25"].exists)
+        // Grouped rows carry their Sets: the deeper Block 26 entry renders its formatted line.
+        let deeperRow = app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "235×5")
+        ).firstMatch
+        XCTAssertTrue(deeperRow.waitForExistence(timeout: 3))
+    }
+
+    @MainActor
     private func launchFixtureApp(options: [WorkoutUITestFixtureOption] = []) -> XCUIApplication {
         launchWorkoutApp(
             fixture: .currentSession,

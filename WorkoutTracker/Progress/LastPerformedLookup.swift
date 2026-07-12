@@ -22,18 +22,32 @@ struct LastPerformedLookupSnapshot: Equatable, Sendable {
 
     private let exactMatches: [String: LastPerformedLookupEntry]
     private let fallbackMatches: [String: LastPerformedLookupEntry]
+    /// Every entry, retained whole so the Exercise History sheet can read the last ~5 entries for a
+    /// Movement — the Last Performed line's dictionaries reduce to one-per-name and cannot.
+    private let historyEntries: [ExerciseHistoryEntry]
 
     init(
         exactMatches: [String: LastPerformedLookupEntry] = [:],
-        fallbackMatches: [String: LastPerformedLookupEntry] = [:]
+        fallbackMatches: [String: LastPerformedLookupEntry] = [:],
+        historyEntries: [ExerciseHistoryEntry] = []
     ) {
         self.exactMatches = exactMatches
         self.fallbackMatches = fallbackMatches
+        self.historyEntries = historyEntries
     }
 
     init(entries: [LastPerformedEntry]) {
         var exactMatches: [String: LastPerformedLookupEntry] = [:]
         var fallbackMatches: [String: LastPerformedLookupEntry] = [:]
+        self.historyEntries = entries.map { entry in
+            ExerciseHistoryEntry(
+                fullName: entry.fullName,
+                baseName: entry.baseName,
+                resultText: entry.displayResultText,
+                source: entry.source,
+                performedOn: entry.performedOn
+            )
+        }
 
         for entry in entries {
             let mappedEntry = LastPerformedLookupEntry(
@@ -64,6 +78,16 @@ struct LastPerformedLookupSnapshot: Equatable, Sendable {
         if let exact = exactMatches[exerciseName] { return exact }
         if let fallback = fallbackMatches[baseName] { return fallback }
         return movementMatch(baseName: baseName)
+    }
+
+    /// The Exercise History sheet's data source: every entry whose base name is the same Movement
+    /// as the viewed Exercise (ADR-0013), newest first. The sheet always matches at Movement level
+    /// regardless of which Last Performed tier produced the line. Fully offline — a filter over the
+    /// in-memory snapshot, no fetch.
+    func history(baseName: String) -> [ExerciseHistoryEntry] {
+        historyEntries
+            .filter { MovementMatching.areSameMovement(baseName, $0.baseName) }
+            .sorted { $0.performedOn > $1.performedOn }
     }
 
     /// Tier 3: canonicalize the anchor base name and fuzzy-compare it against the distinct

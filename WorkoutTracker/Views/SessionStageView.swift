@@ -28,6 +28,9 @@ struct SessionStageView: View {
     @Environment(\.themePalette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isQueuePresented = false
+    /// The Exercise whose history the sheet is showing — its only entry point is a tap on that
+    /// Exercise's Last Performed line.
+    @State private var historyExercise: Exercise?
 
     /// Open Exercises are makeup work from earlier Sessions, only meaningful
     /// while the athlete is at the live edge of their plan.
@@ -85,6 +88,14 @@ struct SessionStageView: View {
                 onCancelPairing: coordinator.cancelPairing
             )
         }
+        .sheet(item: $historyExercise) { exercise in
+            ExerciseHistorySheet(
+                presentation: ExerciseHistorySheetPresentation(
+                    anchorBaseName: exercise.baseName,
+                    entries: lastPerformedLookup.snapshot.history(baseName: exercise.baseName)
+                )
+            )
+        }
     }
 
     // MARK: - Stage
@@ -137,7 +148,9 @@ struct SessionStageView: View {
             .padding(.vertical, 2)
 
             if let lastPerformed = config.lastPerformedPresentation {
-                LastPerformedCard(presentation: lastPerformed)
+                LastPerformedCard(presentation: lastPerformed) {
+                    historyExercise = config.exercise
+                }
             }
 
             stageCard(config, sortedSets: sortedSets)

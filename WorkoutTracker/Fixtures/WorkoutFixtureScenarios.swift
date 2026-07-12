@@ -80,6 +80,28 @@
                 source: "Block 26 · W4 D3"
             )
         }
+
+        /// Deeper Back Squat history so the Exercise History sheet has Block grouping to show. The
+        /// newest entry (`lastPerformedBackSquat`) still drives the Last Performed line byte-for-byte.
+        static func backSquatHistory() -> [LastPerformedEntry] {
+            [
+                lastPerformedBackSquat(),
+                LastPerformedEntry(
+                    fullName: "Back Squat",
+                    baseName: "Back Squat",
+                    resultText: "235x5@6, 245x5@7",
+                    performedOn: Date(timeIntervalSinceReferenceDate: 60),
+                    source: "Block 26 · W2 D3"
+                ),
+                LastPerformedEntry(
+                    fullName: "Back Squat",
+                    baseName: "Back Squat",
+                    resultText: "225x5@7",
+                    performedOn: Date(timeIntervalSinceReferenceDate: 30),
+                    source: "Block 25 · W3 D1"
+                ),
+            ]
+        }
     }
 
     private enum WorkoutFixtureBlocks {
