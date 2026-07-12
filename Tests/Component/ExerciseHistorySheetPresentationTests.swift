@@ -110,6 +110,23 @@ private func date(_ daysAgo: Int) -> Date {
     #expect(row.asEntered == false)
 }
 
+@Test func historyRowSplitsMixedStructuredAndUnstructuredSegments() {
+    // A mixed entry (a structured Set Log followed by an Unstructured Set Log) renders the
+    // structured token toned as a log and the free text as an inline `.raw` segment — it is not
+    // collapsed into a single *as entered* line. (ADR-0012 "mixed lines are allowed".)
+    let presentation = ExerciseHistorySheetPresentation(
+        anchorBaseName: "Squat",
+        entries: [
+            entry(fullName: "Squat", baseName: "Squat", resultText: "185x5@7, amrap",
+                  source: "Block 27 · W1 D1", performedOn: date(1))
+        ]
+    )
+
+    let row = presentation.blocks[0].rows[0]
+    #expect(row.segments == [.log(load: "185×5", rpe: "7"), .raw("amrap")])
+    #expect(row.asEntered == false)
+}
+
 @Test func historyRowRendersLegacyTextAsEnteredNeverNormalized() {
     let raw = "worked up to 315, felt easy"
     let presentation = ExerciseHistorySheetPresentation(

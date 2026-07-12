@@ -90,7 +90,11 @@ struct ActiveSupersetSection: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             if let lastPerformedPresentation = config.lastPerformedPresentation {
-                LastPerformedCard(presentation: lastPerformedPresentation)
+                // Non-tappable inside a Superset: the Exercise History sheet is presented by
+                // SessionStageView, which a Superset side has no seam to reach today. PRD #357
+                // gives the Last Performed tap no Superset carve-out, so this is a known gap —
+                // stated explicitly rather than left to an implicit nil (CODING_STANDARDS.md §optionals).
+                LastPerformedCard(presentation: lastPerformedPresentation, onTap: nil)
             }
 
             ZStack(alignment: .topLeading) {

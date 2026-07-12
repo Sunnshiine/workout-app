@@ -108,6 +108,11 @@ struct ExerciseHistorySheetPresentation: Equatable, Sendable {
     /// separator), so a value with any structured or `skip` token is split token-by-token. A value
     /// with none — a Legacy Log or a fully Unstructured entry — is left whole and marked *as
     /// entered*, so its raw text (which may itself contain commas) is never normalized.
+    ///
+    /// Known limitation (ADR-0012 stores a joined display *string*, so token boundaries are lossy):
+    /// in a *mixed* entry, an Unstructured Set Log that itself contains `", "` is split into several
+    /// `.raw` segments. Recovering the original boundary needs the extractor's token list, which the
+    /// persisted display string does not carry — a schema change out of scope for this sheet.
     private static func segments(for resultText: String) -> (segments: [SetSegment], asEntered: Bool) {
         let tokens = resultText.components(separatedBy: ", ")
         let classifications = tokens.map { SetLogToken.classify($0) }

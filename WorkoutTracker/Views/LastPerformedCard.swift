@@ -4,8 +4,9 @@ struct LastPerformedCard: View {
     let presentation: LastPerformedCardPresentation
     /// The Exercise History sheet's only entry point (revised `DESIGN.md` §Last Performed): when
     /// set, tapping the line opens the sheet. `nil` keeps the line a plain, non-tappable reference
-    /// (e.g. inside a Superset side).
-    var onTap: (() -> Void)?
+    /// (e.g. inside a Superset side). Declared `let` — not a defaulted `var` — so every call site
+    /// must state its intent, rather than silently omitting the tap (CODING_STANDARDS.md §optionals).
+    let onTap: (() -> Void)?
 
     var body: some View {
         Group {
