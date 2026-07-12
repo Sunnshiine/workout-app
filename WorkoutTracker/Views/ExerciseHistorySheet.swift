@@ -6,16 +6,27 @@ import SwiftUI
 /// hairline rules, no glass, no mint — so the Warm Training Cockpit stage keeps visual priority.
 struct ExerciseHistorySheet: View {
     let presentation: ExerciseHistorySheetPresentation
+    /// The fill-in-progress affordance, present only while history for this Movement may still
+    /// deepen (sub-issue #366). `nil` once the fill has reached coverage or exhausted the tabs.
+    var fillProgress: HistoryFillProgressPresentation?
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 header
 
+                if let fillProgress {
+                    fillAffordance(fillProgress)
+                }
+
                 if presentation.isEmpty {
-                    Text("No history yet")
-                        .font(.footnote)
-                        .foregroundStyle(.tertiary)
+                    // While the fill is still reaching for this Movement, stay quiet rather than
+                    // claiming there is no history — the affordance already speaks for it.
+                    if fillProgress == nil {
+                        Text("No history yet")
+                            .font(.footnote)
+                            .foregroundStyle(.tertiary)
+                    }
                 } else {
                     ForEach(Array(presentation.blocks.enumerated()), id: \.offset) { _, block in
                         blockSection(block)
@@ -37,6 +48,25 @@ struct ExerciseHistorySheet: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    /// A visible, playful fill affordance in the product's warm voice: a warm line, a muted
+    /// determinate bar, and an honest per-tab detail — never mint, never a dead spinner (revised
+    /// `DESIGN.md`). Existing entries stay readable beneath it; it never blocks the list.
+    private func fillAffordance(_ progress: HistoryFillProgressPresentation) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(progress.message)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            ProgressView(value: progress.fraction)
+                .tint(.secondary)
+            Text(progress.detail)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("history-fill-progress")
     }
 
     private func blockSection(_ block: ExerciseHistorySheetPresentation.Block) -> some View {

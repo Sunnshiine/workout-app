@@ -93,7 +93,8 @@ struct SessionStageView: View {
                 presentation: ExerciseHistorySheetPresentation(
                     anchorBaseName: exercise.baseName,
                     entries: lastPerformedLookup.snapshot.history(baseName: exercise.baseName)
-                )
+                ),
+                fillProgress: lastPerformedLookup.fillProgress.map(HistoryFillProgressPresentation.init)
             )
         }
     }

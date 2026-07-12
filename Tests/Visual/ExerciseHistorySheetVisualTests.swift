@@ -62,4 +62,41 @@ struct ExerciseHistorySheetVisualTests {
             )
         )
     }
+
+    /// The fill-in-progress affordance: a warm-voice line, a muted determinate bar, and an honest
+    /// per-tab detail shown above readable entries — never mint, never a dead spinner (#366).
+    @Test func exerciseHistorySheetFillInProgressMatchesVisualBaseline() {
+        let presentation = ExerciseHistorySheetPresentation(
+            anchorBaseName: "Bench Press",
+            entries: [
+                historyEntry(fullName: "Bench Press", baseName: "Bench Press",
+                             resultText: "27.5x10@8, 27.5x10@8, 27.5x9@9",
+                             source: "Block 27 · W2 D1", daysAgo: 1),
+                historyEntry(fullName: "2-0:1:0 Bench Press", baseName: "Bench Press",
+                             resultText: "185x5@8, skip, 185x4@9",
+                             source: "Block 27 · W1 D1", daysAgo: 8),
+            ]
+        )
+
+        let view = ExerciseHistorySheet(
+            presentation: presentation,
+            fillProgress: HistoryFillProgressPresentation(
+                LastPerformedBackfillProgress(tab: "Block 26", tabsCompleted: 1, tabsToScan: 3)
+            )
+        )
+        .frame(width: 393, height: 420)
+        .background(Theme.palette(for: .sageLight).gradient)
+        .environment(\.themePalette, Theme.palette(for: .sageLight))
+        .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
+        .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)
+        .preferredColorScheme(.light)
+
+        assertSnapshot(
+            of: view,
+            as: .image(
+                precision: WorkoutVisualBaseline.precision,
+                layout: .device(config: .workoutVisualBaseline)
+            )
+        )
+    }
 }

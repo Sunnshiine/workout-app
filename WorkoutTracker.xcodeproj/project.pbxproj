@@ -110,6 +110,7 @@
 		A02F44FF07FD393EE8A24ADA /* LastPerformedExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBC777FCDEC9F7D51883113F /* LastPerformedExtractor.swift */; };
 		A17B4D3CFBBB7A17E5B5D851 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73043E31A40EFA8A57C38FAF /* EmptyStateView.swift */; };
 		A1B2C3D4E5F60718293A4B5D /* ExerciseHistorySheetPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5C /* ExerciseHistorySheetPresentation.swift */; };
+		B2C3D4E5F60718293A4B5C6E /* HistoryFillProgressPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F60718293A4B5C6D /* HistoryFillProgressPresentation.swift */; };
 		A24E1D8ED63F959D9D9176D9 /* LastPerformedBackfillObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCA6A8711A04E8180DF17F9B /* LastPerformedBackfillObserver.swift */; };
 		A2D86689739762DE93EEB097 /* HistoryFillCursor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DEF469251150206455C456C /* HistoryFillCursor.swift */; };
 		A2F7E6D64D1518F978D7CFC2 /* SheetGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2244B0C3FEDB38CFA5D0128 /* SheetGrid.swift */; };
@@ -354,6 +355,7 @@
 		9FAB52559350024B2CEB341A /* RPEScalePresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RPEScalePresentationTests.swift; sourceTree = "<group>"; };
 		A12FDB0A5CCFB2C56907DE63 /* GoogleAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleAuth.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B5C /* ExerciseHistorySheetPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseHistorySheetPresentation.swift; sourceTree = "<group>"; };
+		B2C3D4E5F60718293A4B5C6D /* HistoryFillProgressPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryFillProgressPresentation.swift; sourceTree = "<group>"; };
 		A2123E5326C9E37226DF9C04 /* WorkoutActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutActivityAttributes.swift; sourceTree = "<group>"; };
 		A2187927B44423C5CC751468 /* PartiallyUploadedBlockUISmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PartiallyUploadedBlockUISmokeTests.swift; sourceTree = "<group>"; };
 		A2244B0C3FEDB38CFA5D0128 /* SheetGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetGrid.swift; sourceTree = "<group>"; };
@@ -531,6 +533,7 @@
 				7D8657BBD8B3439498C6A625 /* LiveActivityRestContentBuilder.swift */,
 				C0D1E2F3A4B5C6D7E8F90A1B /* MovementMatching.swift */,
 				A1B2C3D4E5F60718293A4B5C /* ExerciseHistorySheetPresentation.swift */,
+				B2C3D4E5F60718293A4B5C6D /* HistoryFillProgressPresentation.swift */,
 				3F6EDFF80291EB8FA87175F3 /* MoveOnCelebrationPresentation.swift */,
 				31126E1DC357E16E1B75D98D /* OnboardingPresentation.swift */,
 				EA4AD15FD378F46C1F552857 /* OpenExerciseRowPresentation.swift */,
@@ -1119,6 +1122,7 @@
 				A02F44FF07FD393EE8A24ADA /* LastPerformedExtractor.swift in Sources */,
 				D0E1F2A3B4C5D6E7F8091A2B /* MovementMatching.swift in Sources */,
 				A1B2C3D4E5F60718293A4B5D /* ExerciseHistorySheetPresentation.swift in Sources */,
+				B2C3D4E5F60718293A4B5C6E /* HistoryFillProgressPresentation.swift in Sources */,
 				B1C2D3E4F5061728394A5B6D /* ExerciseHistorySheet.swift in Sources */,
 				14B6CF78AC54878F220CEFDE /* LastPerformedIndex.swift in Sources */,
 				0BBCA1519A513B30631E2250 /* LastPerformedLookup.swift in Sources */,
