@@ -222,9 +222,13 @@ jobs:
           set -euo pipefail
           existing_pr=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
           echo "existing_pr=$existing_pr" >> "$GITHUB_OUTPUT"
+          # A zero-commit run (sub-issue's work already landed on main) leaves
+          # the branch identical to main; gh pr create would fail on it.
+          ahead=$(git rev-list --count origin/main..HEAD)
+          echo "ahead=$ahead" >> "$GITHUB_OUTPUT"
 
       - name: Write PR title and description (only when opening a new PR)
-        if: steps.shape.outputs.mode == 'run' && success() && steps.pr_lookup.outputs.existing_pr == ''
+        if: steps.shape.outputs.mode == 'run' && success() && steps.pr_lookup.outputs.existing_pr == '' && steps.pr_lookup.outputs.ahead != '0'
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           PRD_NUMBER: ${{ env.PRD_NUMBER }}
@@ -238,6 +242,7 @@ jobs:
         env:
           BRANCH: ${{ steps.branch.outputs.name }}
           EXISTING_PR: ${{ steps.pr_lookup.outputs.existing_pr }}
+          AHEAD: ${{ steps.pr_lookup.outputs.ahead }}
           # Prefer AGENT_PAT: the default GITHUB_TOKEN cannot create PRs unless
           # "Allow GitHub Actions to create and approve pull requests" is
           # enabled in the repo's Actions settings, and PRs it creates don't
@@ -247,6 +252,12 @@ jobs:
           set -euo pipefail
           if [ -n "$EXISTING_PR" ]; then
             echo "pr_number=$EXISTING_PR" >> "$GITHUB_OUTPUT"
+            echo "created=false" >> "$GITHUB_OUTPUT"
+          elif [ "$AHEAD" = "0" ]; then
+            # Zero-commit run: nothing to open a PR from yet; a later
+            # sub-issue run that produces commits will open it.
+            echo "Branch has no commits over main; skipping PR creation."
+            echo "pr_number=" >> "$GITHUB_OUTPUT"
             echo "created=false" >> "$GITHUB_OUTPUT"
           else
             PR_TITLE=$(cat "${RUNNER_TEMP}/pr_title.txt")
@@ -299,6 +310,10 @@ jobs:
           GITHUB_TOKEN_FALLBACK: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set +e
+          if [ -z "$PR_NUMBER" ]; then
+            echo "No PR exists for this branch (no commits over main); nothing to hand off."
+            exit 0
+          fi
           if [ -n "$AGENT_PAT" ]; then
             GH_TOKEN="$AGENT_PAT" gh pr edit "$PR_NUMBER" --add-label "agent:review"
             status=$?
