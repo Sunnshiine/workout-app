@@ -1,5 +1,9 @@
 # Local index for Last Performed lookups
 
+> **Superseded by [ADR-0012](0012-exercise-history-append-only-index.md)**: the single-entry
+> index is replaced by the append-only `exercise_history` table; Last Performed becomes a
+> query over it.
+
 Athletes need a "last time you did this" reference per Exercise while mid-workout. The naive approach — scanning backwards through Sheet tabs on demand — is too slow and requires network access at the moment of display.
 
 We maintain a local `last_performed` index: a dictionary mapping exercise name to its most recent Set Log (block, week, day, result), skipping over any Skipped occurrences. The index is built by fetching Block tabs backwards from the current one, stopping once every Exercise in the current Block has an entry. It is persisted locally and updated incrementally as the athlete logs new sets.
