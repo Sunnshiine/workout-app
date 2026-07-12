@@ -40,14 +40,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # The committed xcodeproj may lag project.yml; the release build always
-      # regenerates so signing style, bundle-id composition, and Info.plist
-      # properties come from project.yml.
-      - name: Generate Xcode project
-        run: |
-          which xcodegen >/dev/null 2>&1 || brew install xcodegen
-          xcodegen generate
-
+      # Must exist before xcodegen runs — project.yml's configFiles reference
+      # it and spec validation fails otherwise.
       - name: Write Secrets.xcconfig from Actions secrets
         env:
           GID_CLIENT_ID: ${{ secrets.GID_CLIENT_ID }}
@@ -55,6 +49,14 @@ jobs:
         run: |
           printf 'GID_CLIENT_ID = %s\nGID_REVERSED_CLIENT_ID = %s\n' \
             "$GID_CLIENT_ID" "$GID_REVERSED_CLIENT_ID" > Secrets.xcconfig
+
+      # The committed xcodeproj may lag project.yml; the release build always
+      # regenerates so signing style, bundle-id composition, and Info.plist
+      # properties come from project.yml.
+      - name: Generate Xcode project
+        run: |
+          which xcodegen >/dev/null 2>&1 || brew install xcodegen
+          xcodegen generate
 
       # Marketing version is hand-bumped in project.yml (app target); the
       # widget must carry the identical version pair, so copy it across.
