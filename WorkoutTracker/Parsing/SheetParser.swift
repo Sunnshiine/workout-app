@@ -82,26 +82,6 @@ struct ParsedExercise {
     }
 }
 
-private struct ParsedLogState {
-    let state: SetState
-    let setLog: SetLog?
-    let unstructuredSetLog: String?
-}
-
-private func parsedLogState(from raw: String) -> ParsedLogState {
-    let value = raw.trimmed
-    guard !value.isEmpty else {
-        return ParsedLogState(state: .pending, setLog: nil, unstructuredSetLog: nil)
-    }
-    if value.caseInsensitiveCompare("skip") == .orderedSame {
-        return ParsedLogState(state: .skipped, setLog: nil, unstructuredSetLog: nil)
-    }
-    if let log = SetLog(formatted: value) {
-        return ParsedLogState(state: .logged, setLog: log, unstructuredSetLog: nil)
-    }
-    return ParsedLogState(state: .logged, setLog: nil, unstructuredSetLog: value)
-}
-
 private struct ParsedSetContext {
     let setCount: Int
     let anchor: SheetLayoutExerciseAnchor
@@ -137,7 +117,7 @@ private func parsedSets(_ context: ParsedSetContext) -> [ParsedSet] {
             )
             rawLog = logRow.map { context.snapshot.values.cellOrEmpty($0, context.cols.notes) } ?? ""
         }
-        let logState = parsedLogState(from: rawLog)
+        let logState = SetLogToken.classify(rawLog)
         return ParsedSet(
             index: i,
             prescribedReps: i < context.repsValues.count ? context.repsValues[i] : (context.repsValues.last ?? context.reps),
@@ -151,14 +131,8 @@ private func parsedSets(_ context: ParsedSetContext) -> [ParsedSet] {
 }
 
 private func headerSetLogValues(from note: String, setCount: Int) -> [String]? {
-    let values = splitSheetNotesList(note)
-    guard values.count > 1, values.count <= setCount else { return nil }
-    let valuesAreSetStates = values.allSatisfy { value in
-        value.isEmpty
-            || value.caseInsensitiveCompare("skip") == .orderedSame
-            || SetLog(formatted: value) != nil
-    }
-    return valuesAreSetStates ? values : nil
+    guard SetLogToken.isCompactAggregateHeader(note, setCount: setCount) else { return nil }
+    return splitSheetNotesList(note)
 }
 
 private func completionSets(_ sets: [ParsedSet], legacyLog: String?) -> [ParsedSet] {
@@ -191,7 +165,7 @@ private func parsedSetsForLine(grid: SheetGrid, cols: DayColumns, line: Prescrip
 
     return (0..<line.setCount).map { position in
         let rawLog = position < logValues.count ? logValues[position] : ""
-        let logState = parsedLogState(from: rawLog)
+        let logState = SetLogToken.classify(rawLog)
         return ParsedSet(
             index: line.firstSetIndex + position,
             prescribedReps: position < repsValues.count ? repsValues[position] : (repsValues.last ?? reps),

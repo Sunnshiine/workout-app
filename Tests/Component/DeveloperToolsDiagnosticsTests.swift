@@ -75,6 +75,47 @@ import Testing
 }
 
 @MainActor
+@Test func auditReportsDriftAgainstSharedCompactAggregateHeaderRule() throws {
+    // A compact aggregate header: "Ab of Choice" keeps both Sets' logs comma-separated in its
+    // anchor Notes cell (K15 = "25x12@7, skip"). Logging Set 2 expects an empty slot, but the
+    // persisted slot reads "skip". The audit must classify the cell through the shared Set Log
+    // token rule, split it, and report the per-Set drift — not the whole-cell value. If the audit
+    // stopped cross-checking against the shared classification it would report the raw cell and
+    // miss the mismatch.
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
+            "C15": "Ab of Choice", "D15": "2", "K15": "25x12@7, skip",
+            "C17": "Bench"
+        ],
+        rows: 24,
+        cols: 30
+    )
+    let planner = SheetWritePlanner()
+    let snapshot = planner.snapshot(for: grid)
+    let request = SheetWriteRequest(
+        blockTab: "Block 27",
+        week: 1,
+        day: 1,
+        exerciseName: "Ab of Choice",
+        setIndex: 1,
+        column: .notes,
+        operation: .upsert,
+        valueToWrite: "25x12@8",
+        expectedCurrentValue: ""
+    )
+
+    let target = try planner.target(for: request, in: snapshot)
+    let audit = planner.auditDetails(for: request, target: target, in: snapshot)
+
+    #expect(audit.selectedA1Target == "'Block 27'!K15")
+    #expect(audit.currentValue == "skip")
+    #expect(audit.valueCheckOutcome == "Expected '', found 'skip'.")
+    #expect(audit.rowScanDetails.contains("comma-separated list"))
+}
+
+@MainActor
 @Test func syncCoordinatorListsPendingAndConflictedWriteDiagnosticsInCreationOrder() throws {
     let container = try ModelContainer(
         for: Block.self,

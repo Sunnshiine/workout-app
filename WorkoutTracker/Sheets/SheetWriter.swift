@@ -275,7 +275,7 @@ struct SheetWritePlanner: Sendable {
         let setCount = anchor.prescribedSetCount(in: snapshot.grid, setsColumn: day.columns.sets)
         let compactHeaderSetOne =
             anchor.usesCompactHeaderSetOne(headerNotes: headerNotes)
-            || isCompactAggregateHeader(headerNotes.value, setCount: setCount)
+            || SetLogToken.isCompactAggregateHeader(headerNotes.value, setCount: setCount)
 
         if compactHeaderSetOne, request.setIndex < setCount {
             return try resolveCompactNotesTarget(
@@ -398,7 +398,7 @@ struct SheetWritePlanner: Sendable {
         let usesHeaderTarget =
             anchor.row == target.row
             && (anchor.usesCompactHeaderSetOne(headerNotes: headerNotes)
-                || isCompactAggregateHeader(headerNotes.value, setCount: setCount))
+                || SetLogToken.isCompactAggregateHeader(headerNotes.value, setCount: setCount))
         let usesVisibleWritableTarget = anchor.row != target.row && headerNotes.hasProtectedValue
         guard
             setCount > 1,
@@ -410,7 +410,7 @@ struct SheetWritePlanner: Sendable {
         if values.count == 1, values[0].isEmpty {
             values = []
         }
-        if usesVisibleWritableTarget, !actual.isEmpty, !values.allSatisfy(isSetLogListValue) {
+        if usesVisibleWritableTarget, !actual.isEmpty, !values.allSatisfy(SetLogToken.isSetLogListValue) {
             throw SheetWriterError.unexpectedCurrentValue(expected: request.expectedCurrentValue, actual: actual)
         }
         while values.count <= request.setIndex {
@@ -427,17 +427,5 @@ struct SheetWritePlanner: Sendable {
 
         values[request.setIndex] = request.operation == .delete ? "" : (request.valueToWrite ?? "")
         return joinedSheetNotesList(values)
-    }
-
-    private func isSetLogListValue(_ value: String) -> Bool {
-        value.isEmpty
-            || value.caseInsensitiveCompare("skip") == .orderedSame
-            || SetLog(formatted: value) != nil
-    }
-
-    private func isCompactAggregateHeader(_ value: String, setCount: Int) -> Bool {
-        let values = splitSheetNotesList(value)
-        guard values.count > 1, values.count <= setCount else { return false }
-        return values.allSatisfy(isSetLogListValue)
     }
 }

@@ -82,7 +82,7 @@ extension SheetWritePlanner {
         let usesHeaderTarget =
             anchor.row == target.row
             && (anchor.usesCompactHeaderSetOne(headerNotes: headerNotes)
-                || isCompactAggregateHeaderForAudit(headerNotes.value, setCount: setCount))
+                || SetLogToken.isCompactAggregateHeader(headerNotes.value, setCount: setCount))
         let usesVisibleWritableTarget = anchor.row != target.row && headerNotes.hasProtectedValue
         guard setCount > 1, request.setIndex < setCount, usesHeaderTarget || usesVisibleWritableTarget else {
             return actual
@@ -126,7 +126,7 @@ extension SheetWritePlanner {
         let setCount = anchor.prescribedSetCount(in: snapshot.grid, setsColumn: day.columns.sets)
         let compactHeaderSetOne =
             anchor.usesCompactHeaderSetOne(headerNotes: headerNotes)
-            || isCompactAggregateHeaderForAudit(headerNotes.value, setCount: setCount)
+            || SetLogToken.isCompactAggregateHeader(headerNotes.value, setCount: setCount)
 
         if compactHeaderSetOne, request.setIndex < setCount {
             return compactHeaderRowScanDetails(anchor: anchor, selectedRow: selectedRow, in: snapshot.snapshot)
@@ -240,17 +240,6 @@ extension SheetWritePlanner {
         }
     }
 
-    private func isCompactAggregateHeaderForAudit(_ value: String, setCount: Int) -> Bool {
-        let values = splitSheetNotesList(value)
-        guard values.count > 1, values.count <= setCount else { return false }
-        return values.allSatisfy(isSetLogListValueForAudit)
-    }
-
-    private func isSetLogListValueForAudit(_ value: String) -> Bool {
-        value.isEmpty
-            || value.caseInsensitiveCompare("skip") == .orderedSame
-            || SetLog(formatted: value) != nil
-    }
 }
 
 struct CurrentSessionDebugInfo: Equatable, Sendable {
