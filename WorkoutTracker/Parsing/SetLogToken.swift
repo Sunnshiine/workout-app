@@ -40,19 +40,19 @@ enum SetLogToken {
         return Classification(state: .logged, setLog: nil, unstructuredSetLog: value)
     }
 
-    /// Serializes a Set State plus any structured / unstructured Set Log back into its canonical
-    /// Notes token — the inverse of `classify`: a structured Set Log's formatted string, the
-    /// unstructured free text, the `skip` sentinel for a Skipped Set, or empty for Pending. A
-    /// structured Set Log wins over unstructured text, matching the forward classifier's precedence,
-    /// so `classify → serialize → classify` round-trips to the same Set State and logs.
-    static func serialize(state: SetState, setLog: SetLog?, unstructuredSetLog: String?) -> String {
-        if let setLog {
+    /// Serializes a `Classification` back into its canonical Notes token — the exact inverse of
+    /// `classify`: a structured Set Log's formatted string, the unstructured free text, the `skip`
+    /// sentinel for a Skipped Set, or empty for Pending. A structured Set Log wins over unstructured
+    /// text, matching the forward classifier's precedence, so `classify → serialize → classify`
+    /// round-trips to the same `Classification`.
+    static func serialize(_ classification: Classification) -> String {
+        if let setLog = classification.setLog {
             return setLog.formatted
         }
-        if let unstructuredSetLog {
+        if let unstructuredSetLog = classification.unstructuredSetLog {
             return unstructuredSetLog
         }
-        if state == .skipped {
+        if classification.state == .skipped {
             return skipSentinel
         }
         return ""

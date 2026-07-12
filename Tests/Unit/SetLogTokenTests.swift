@@ -80,32 +80,46 @@ import Testing
 }
 
 @Test func serializesStructuredSetLogAsFormattedToken() {
-    let log = SetLog(formatted: "185x5@8")
+    let classification = SetLogToken.Classification(
+        state: .logged, setLog: SetLog(formatted: "185x5@8"), unstructuredSetLog: nil)
 
-    #expect(SetLogToken.serialize(state: .logged, setLog: log, unstructuredSetLog: nil) == "185x5@8")
+    #expect(SetLogToken.serialize(classification) == "185x5@8")
 }
 
 @Test func serializesUnstructuredSetLogAsFreeText() {
-    #expect(SetLogToken.serialize(state: .logged, setLog: nil, unstructuredSetLog: "felt heavy") == "felt heavy")
+    let classification = SetLogToken.Classification(
+        state: .logged, setLog: nil, unstructuredSetLog: "felt heavy")
+
+    #expect(SetLogToken.serialize(classification) == "felt heavy")
 }
 
 @Test func serializesSkippedStateAsSkipSentinel() {
-    #expect(SetLogToken.serialize(state: .skipped, setLog: nil, unstructuredSetLog: nil) == SetLogToken.skipSentinel)
+    let classification = SetLogToken.Classification(state: .skipped, setLog: nil, unstructuredSetLog: nil)
+
+    #expect(SetLogToken.serialize(classification) == SetLogToken.skipSentinel)
 }
 
 @Test func serializesPendingStateAsEmptyToken() {
-    #expect(SetLogToken.serialize(state: .pending, setLog: nil, unstructuredSetLog: nil) == "")
+    let classification = SetLogToken.Classification(state: .pending, setLog: nil, unstructuredSetLog: nil)
+
+    #expect(SetLogToken.serialize(classification) == "")
+}
+
+@Test func serializePrefersStructuredSetLogOverUnstructuredText() {
+    // A Set can carry both a structured and an unstructured Set Log (ExerciseSet stores them
+    // independently, and displayReps gives the structured one precedence). `classify` never
+    // yields both, so the round-trip below can't reach this case — pin it directly: the
+    // structured token wins, never the free text.
+    let classification = SetLogToken.Classification(
+        state: .logged, setLog: SetLog(formatted: "185x5@8"), unstructuredSetLog: "felt heavy")
+
+    #expect(SetLogToken.serialize(classification) == "185x5@8")
 }
 
 @Test func roundTripsEmptySkipStructuredAndUnstructuredTokens() {
     for token in ["", "skip", "185x5@8", "felt heavy"] {
         let first = SetLogToken.classify(token)
-        let serialized = SetLogToken.serialize(
-            state: first.state,
-            setLog: first.setLog,
-            unstructuredSetLog: first.unstructuredSetLog
-        )
-        let second = SetLogToken.classify(serialized)
+        let second = SetLogToken.classify(SetLogToken.serialize(first))
 
         #expect(second == first)
     }

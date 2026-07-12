@@ -196,9 +196,11 @@ final class WorkoutStore {
 
     private func notesValue(for set: ExerciseSet) -> String {
         SetLogToken.serialize(
-            state: set.state,
-            setLog: set.setLog,
-            unstructuredSetLog: set.unstructuredSetLog
+            SetLogToken.Classification(
+                state: set.state,
+                setLog: set.setLog,
+                unstructuredSetLog: set.unstructuredSetLog
+            )
         )
     }
 
