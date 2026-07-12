@@ -1,0 +1,7 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Sunbird glyph for the Icon Composer glass icon: the sun disc with the
+       soaring bird cut out (evenodd hole). Monochrome — the layer's fill in
+       icon.json supplies the color per appearance. Geometry is identical to
+       docs/design/app-icon/ (disc r=396 centered, round-2 bird path). -->
+  <path fill="#000000" fill-rule="evenodd" d="M 116 512 a 396 396 0 1 0 792 0 a 396 396 0 1 0 -792 0 Z M 230 440 C 360 415 465 465 512 510 C 559 465 664 415 794 440 C 686 470 592 518 512 592 C 432 518 338 470 230 440 Z"/>
+</svg>

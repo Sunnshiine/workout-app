@@ -4,6 +4,13 @@ options:
   deploymentTarget:
     iOS: "26.0"
   defaultConfig: Debug
+  # Icon Composer .icon bundles are packages; without this XcodeGen expands
+  # their contents as individual files and Xcode stops recognizing the icon
+  # (https://github.com/yonaskolb/XcodeGen/issues/1556).
+  fileTypes:
+    icon:
+      file: true
+      buildPhase: resources
 configFiles:
   Debug: Secrets.xcconfig
   Release: Secrets.xcconfig
@@ -63,6 +70,11 @@ targets:
     settings:
       base:
         ASSETCATALOG_COMPILER_APPICON_NAME: $(APPICON_NAME)
+        # The Icon Composer glass icons (AppIcon.icon / AppIconDev.icon) are
+        # selected by the same APPICON_NAME; the raster .appiconsets of the
+        # same names stay in as the back-deploy fallback and need this to be
+        # included alongside the .icon.
+        ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: "YES"
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: K74Q6RKFBY
         PRODUCT_BUNDLE_IDENTIFIER: com.sunnypatel.WorkoutTracker$(BUNDLE_ID_SUFFIX)

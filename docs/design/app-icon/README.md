@@ -21,5 +21,10 @@ These SVGs are the canonical artwork — the asset-catalog PNGs are build
 products of `scripts/generate-app-icons.sh` (Chromium is the reference
 rasterizer). Edit the SVGs and re-render; never retouch the PNGs.
 
-A true Icon Composer glass icon (`.icon`) is planned to replace the baked
-raster glass; the raster set stays as the fallback.
+The true glass icons are the hand-authored Icon Composer documents
+`WorkoutTracker/AppIcon.icon` and `WorkoutTracker/AppIconDev.icon` (#373):
+one monochrome disc-with-bird-cutout SVG layer whose fill and background
+gradient specialize per appearance (light/dark), with the system glass
+material replacing the baked glow/rim/sheen. iOS 26 renders those; the
+raster sets above are the back-deploy fallback
+(`ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS` keeps both in the build).

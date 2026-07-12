@@ -28,8 +28,12 @@ requires the match), and `GitCommit` / `PRNumber` / `Branch` / `RunNumber` are
 stamped into the app's `Info.plist` before archiving (`PRNumber` is empty on
 stable builds).
 
-Icon sets are single-size 1024 with dark/tinted appearance variants, rendered
-from the SVG sources in `docs/design/app-icon/` by
+App icons ship in two forms selected by the same `APPICON_NAME`: Icon
+Composer glass documents (`WorkoutTracker/AppIcon.icon` /
+`AppIconDev.icon`, iOS 26 renders true Liquid Glass; authored in
+[#373](https://github.com/Sunnshiine/workout-app/issues/373)) and raster
+`.appiconset` fallbacks — single-size 1024 with dark/tinted appearance
+variants, rendered from the SVG sources in `docs/design/app-icon/` by
 `scripts/generate-app-icons.sh` (design decided in
 [#370](https://github.com/Sunnshiine/workout-app/issues/370), produced in
 [#369](https://github.com/Sunnshiine/workout-app/issues/369)). Don't edit the
