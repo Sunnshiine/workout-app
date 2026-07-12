@@ -286,10 +286,18 @@ final class SyncCoordinator {
         return exercises
     }
 
+    /// The coverage-based stopping rule (ADR-0012): the fill reaches back until every
+    /// current-Block Exercise has at least `historyCoverageTarget` entries counted per
+    /// Cadence-stripped base name — the last ~5 entries the Exercise History sheet reads —
+    /// or Block tabs are exhausted. Counting by base name (not Movement level) may fetch a
+    /// tab Movement matching didn't strictly need; that over-fetch is accepted (#357).
+    private static let historyCoverageTarget = 5
+
     private func hasLastPerformedCoverage(for exercises: [(name: String, baseName: String)]) -> Bool {
         let index = LastPerformedIndex(context: context)
-        return exercises.allSatisfy { exercise in
-            index.lookup(exerciseName: exercise.name, baseName: exercise.baseName) != nil
+        let baseNames = Set(exercises.map(\.baseName))
+        return baseNames.allSatisfy { baseName in
+            index.entryCount(baseName: baseName) >= Self.historyCoverageTarget
         }
     }
 

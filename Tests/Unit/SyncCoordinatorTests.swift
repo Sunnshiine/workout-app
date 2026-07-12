@@ -283,7 +283,7 @@ private func loggedSquatGrid() -> SheetGrid {
 }
 
 @MainActor
-@Test func syncBackfillsMissingLastPerformedEntriesFromHistoricalBlocksAndStopsWhenCovered() async throws {
+@Test func syncBackfillsHistoricalBlocksAndStopsOnTabExhaustionWhenCoverageUnreached() async throws {
     let container = try makeSyncContainer()
     let backfillCompletion = BackfillCompletionProbe()
     let client = BackfillStubClient(
@@ -305,13 +305,15 @@ private func loggedSquatGrid() -> SheetGrid {
     await sync.sync(spreadsheetId: "sid")
     await backfillCompletion.waitForFinish()
 
+    // Only two historical tabs exist, so the ≥5 coverage target is never reached; the fill
+    // scans every historical tab and stops on exhaustion.
     let entry = try #require(
         LastPerformedIndex(context: container.mainContext)
             .lookup(exerciseName: "Squat", baseName: "Squat")
     )
     #expect(entry.result == SetLog(weight: .pounds(245), reps: 5, rpe: 8))
     #expect(entry.source == "Block 26 · W1 D1")
-    #expect(await client.recorder.tabs() == ["Block 27", "Block 26"])
+    #expect(await client.recorder.tabs() == ["Block 27", "Block 26", "Block 25"])
     let lookupEntry = try #require(
         lookupStore.snapshot.lookup(exerciseName: "Squat", baseName: "Squat")
     )
@@ -320,8 +322,51 @@ private func loggedSquatGrid() -> SheetGrid {
 }
 
 @MainActor
-@Test func syncSkipsHistoricalBackfillWhenCurrentBlockAlreadyCoversExercises() async throws {
+@Test func syncBackfillsUntilFiveEntriesPerBaseNameThenStops() async throws {
     let container = try makeSyncContainer()
+    let backfillCompletion = BackfillCompletionProbe()
+    // Current Block 27 logs one Squat entry; each historical tab adds one more. The ≥5
+    // coverage target is reached after four historical tabs (Block 26…23), so the fill
+    // never fetches the fifth historical tab, Block 22.
+    let client = BackfillStubClient(
+        titles: ["Block 22", "Block 23", "Block 24", "Block 25", "Block 26", "Block 27"],
+        grids: [
+            "Block 27": historicalGrid(exerciseName: "Squat", log: "255x5@8", date: "5/1/2026"),
+            "Block 26": historicalGrid(exerciseName: "Squat", log: "245x5@8", date: "4/24/2026"),
+            "Block 25": historicalGrid(exerciseName: "Squat", log: "235x5@8", date: "4/17/2026"),
+            "Block 24": historicalGrid(exerciseName: "Squat", log: "225x5@8", date: "4/10/2026"),
+            "Block 23": historicalGrid(exerciseName: "Squat", log: "215x5@8", date: "4/3/2026"),
+            "Block 22": historicalGrid(exerciseName: "Squat", log: "205x5@8", date: "3/27/2026")
+        ]
+    )
+    let sync = SyncCoordinator(
+        client: client,
+        context: container.mainContext,
+        lastPerformedBackfillObserver: backfillCompletion
+    )
+
+    await sync.sync(spreadsheetId: "sid")
+    await backfillCompletion.waitForFinish()
+
+    #expect(LastPerformedIndex(context: container.mainContext).entryCount(baseName: "Squat") == 5)
+    #expect(await client.recorder.tabs() == ["Block 27", "Block 26", "Block 25", "Block 24", "Block 23"])
+}
+
+@MainActor
+@Test func syncSkipsHistoricalBackfillWhenCoverageIsAlreadySatisfied() async throws {
+    let container = try makeSyncContainer()
+    // Seed five Squat entries already on device — coverage holds before any historical scan.
+    try LastPerformedIndex(context: container.mainContext).ingest(
+        (1...5).map { week in
+            LastPerformedEntry(
+                fullName: "Squat",
+                baseName: "Squat",
+                resultText: "24\(week)x5@8",
+                performedOn: Date(timeIntervalSince1970: TimeInterval(week)),
+                source: "Block 2\(week) · W1 D1"
+            )
+        }
+    )
     let backfillCompletion = BackfillCompletionProbe()
     let client = BackfillStubClient(
         titles: ["Intro", "Block 26", "Block 27"],
@@ -341,6 +386,34 @@ private func loggedSquatGrid() -> SheetGrid {
 
     #expect(sync.state == .idle)
     #expect(await client.recorder.tabs() == ["Block 27"])
+}
+
+@MainActor
+@Test func repeatedSyncsDoNotDuplicateBackfilledEntries() async throws {
+    let container = try makeSyncContainer()
+    let client = BackfillStubClient(
+        titles: ["Block 25", "Block 26", "Block 27"],
+        grids: [
+            "Block 27": currentGridWithPendingSquat(),
+            "Block 26": historicalGrid(exerciseName: "Squat", log: "245x5@8", date: "4/24/2026"),
+            "Block 25": historicalGrid(exerciseName: "Squat", log: "235x5@8", date: "4/17/2026")
+        ]
+    )
+
+    for _ in 0..<2 {
+        let backfillCompletion = BackfillCompletionProbe()
+        let sync = SyncCoordinator(
+            client: client,
+            context: container.mainContext,
+            lastPerformedBackfillObserver: backfillCompletion
+        )
+        await sync.sync(spreadsheetId: "sid")
+        await backfillCompletion.waitForFinish()
+    }
+
+    // Coverage never reached (two historical tabs), so both syncs re-scan the same tabs;
+    // (fullName, source) dedup keeps the entry count at exactly the two distinct Sessions.
+    #expect(LastPerformedIndex(context: container.mainContext).entryCount(baseName: "Squat") == 2)
 }
 
 @MainActor

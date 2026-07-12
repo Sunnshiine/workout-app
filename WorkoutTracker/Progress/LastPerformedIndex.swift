@@ -28,6 +28,18 @@ struct LastPerformedIndex {
         return try? context.fetch(fallbackDescriptor).first
     }
 
+    /// Number of stored entries whose Cadence-stripped base name matches exactly — the
+    /// coverage-fill counting unit (ADR-0012). `baseName` is already Cadence-stripped at
+    /// parse time, so this is a plain equality count. Coverage counts by base name (not
+    /// Movement level), which may over-fetch a tab Movement matching didn't need — accepted,
+    /// erring toward more data on device (#357).
+    func entryCount(baseName: String) -> Int {
+        let descriptor = FetchDescriptor<LastPerformedEntry>(
+            predicate: #Predicate { $0.baseName == baseName }
+        )
+        return (try? context.fetchCount(descriptor)) ?? 0
+    }
+
     func snapshot() -> LastPerformedLookupSnapshot {
         let entries = (try? context.fetch(FetchDescriptor<LastPerformedEntry>())) ?? []
         return LastPerformedLookupSnapshot(entries: entries)
