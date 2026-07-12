@@ -71,9 +71,9 @@ Names and locations only — never record values (public repo).
 
 | Secret | Holds | Consumed by | Upstream source | Rotation |
 |---|---|---|---|---|
-| `ASC_KEY_ID` | "WorkoutTracker CI" API key ID (App Manager) | archive + upload jobs, both workflows | App Store Connect → Users and Access → Integrations → Team Keys | Create a new team key, update `ASC_KEY_ID` + `ASC_PRIVATE_KEY`, revoke the old key |
+| `ASC_KEY_ID` | ASC API key ID, role **Admin** — cloud signing must create the Apple Distribution cert at export, which App Manager keys cannot ("Cloud signing permission error") | archive + upload jobs, both workflows | App Store Connect → Users and Access → Integrations → Team Keys | Create a new team key (roles can't be edited on an existing key), update `ASC_KEY_ID` + `ASC_PRIVATE_KEY`, revoke the old key |
 | `ASC_ISSUER_ID` | ASC issuer ID | same | same page | Fixed per team; changes only with the Apple account |
-| `ASC_PRIVATE_KEY` | the key's `.p8`, **base64-encoded** | same | same (downloadable exactly once; Sunny keeps the file privately) | Rotates together with `ASC_KEY_ID` |
+| `ASC_PRIVATE_KEY` | the key's `.p8` content, **raw multiline PEM** pasted as-is (incl. the BEGIN/END lines) | same | same (downloadable exactly once; Sunny keeps the file privately) | Rotates together with `ASC_KEY_ID` |
 | `GID_CLIENT_ID` | stable app's Google OAuth iOS client ID | stable archive job (written into `Secrets.xcconfig`) | Google Cloud console → APIs & Services → Credentials | Create a new iOS client for `com.sunnypatel.WorkoutTracker`, update both `GID_*` secrets |
 | `GID_REVERSED_CLIENT_ID` | its reversed form | same | derived from `GID_CLIENT_ID` | with `GID_CLIENT_ID` |
 | `DEV_GID_CLIENT_ID` | "WorkoutTracker Dev iOS" client ID | PR archive job (written into `Secrets.xcconfig`) | same console, client for `com.sunnypatel.WorkoutTracker.dev` | as above, for the dev client |

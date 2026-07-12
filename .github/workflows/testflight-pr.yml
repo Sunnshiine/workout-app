@@ -116,7 +116,7 @@ jobs:
       - name: Write App Store Connect API key
         env:
           ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
-        run: printf '%s' "$ASC_PRIVATE_KEY" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
+        run: printf '%s\n' "$ASC_PRIVATE_KEY" > "$RUNNER_TEMP/AuthKey.p8"
 
       # BUNDLE_ID_SUFFIX/APP_DISPLAY_NAME flip app + widget to the .dev flavor
       # in lockstep (composed in project.yml). Cloud signing handles the .dev
@@ -190,28 +190,13 @@ jobs:
         id: ipa
         run: echo "path=$(find ipa -name '*.ipa' -print -quit)" >> "$GITHUB_OUTPUT"
 
-      # See the stable workflow for why the key is decoded and line-masked.
-      - name: Decode ASC API key
-        env:
-          ASC_PRIVATE_KEY_B64: ${{ secrets.ASC_PRIVATE_KEY }}
-        run: |
-          key="$(printf '%s' "$ASC_PRIVATE_KEY_B64" | base64 --decode)"
-          while IFS= read -r line; do
-            [ -n "$line" ] && echo "::add-mask::$line"
-          done <<< "$key"
-          {
-            echo 'ASC_PRIVATE_KEY_PEM<<__PEM_EOF__'
-            printf '%s\n' "$key"
-            echo '__PEM_EOF__'
-          } >> "$GITHUB_ENV"
-
       - name: Upload to TestFlight and wait for processing
         uses: apple-actions/upload-testflight-build@v5
         with:
           app-path: ${{ steps.ipa.outputs.path }}
           issuer-id: ${{ secrets.ASC_ISSUER_ID }}
           api-key-id: ${{ secrets.ASC_KEY_ID }}
-          api-private-key: ${{ env.ASC_PRIVATE_KEY_PEM }}
+          api-private-key: ${{ secrets.ASC_PRIVATE_KEY }}
           release-notes: ${{ needs.archive.outputs.notes }}
           wait-for-processing: true
 
