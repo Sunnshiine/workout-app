@@ -110,6 +110,7 @@ struct SessionStageView: View {
             ActiveSupersetSection(
                 config: config,
                 onFocusExercise: actions.focusSupersetExercise,
+                onShowHistory: { historyExercise = $0 },
                 onLog: actions.log,
                 onSkip: actions.skip,
                 onDelete: actions.delete,

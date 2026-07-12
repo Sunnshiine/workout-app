@@ -212,6 +212,33 @@ import Testing
     #expect(LastPerformedExtractor.entries(from: block).isEmpty)
 }
 
+@Test func fullySkippedOccurrenceEarnsNoEntryEvenWithALingeringLegacyLog() {
+    // A deliberately Skipped Session must not resurrect stale Legacy Log free text as evidence —
+    // the skip tokens carry the athlete's intent, and "fully Skipped occurrences earn no entry"
+    // (ADR-0012) wins over the legacy fallback.
+    let block = ParsedBlockModel(
+        tabName: "Block 27",
+        weeks: [
+            week(
+                1,
+                date: nil,
+                exercises: [
+                    exercise(
+                        "Squat",
+                        legacyLog: "315x3, 3",
+                        sets: [
+                            skippedSet(index: 0),
+                            skippedSet(index: 1)
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
+
+    #expect(LastPerformedExtractor.entries(from: block).isEmpty)
+}
+
 @Test func partialSkipsKeepSkipMarkersAlongsideUnstructuredEvidence() throws {
     let block = ParsedBlockModel(
         tabName: "Block 27",

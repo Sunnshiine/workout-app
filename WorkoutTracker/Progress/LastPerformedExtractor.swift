@@ -72,8 +72,10 @@ enum LastPerformedExtractor {
     /// legacy-completion placeholder Sets (Logged with no content) carry no evidence and drop out.
     ///
     /// An entry is earned only when at least one Set is actually Logged: a fully Skipped occurrence
-    /// (only `skip` tokens, no logged Set) earns none. When no Set carries evidence, the Exercise's
-    /// Legacy Log is the fallback, unchanged.
+    /// (only `skip` tokens, no logged Set) earns none — even if a stale Legacy Log lingers on the
+    /// Exercise. The Legacy Log is the fallback only for a truly empty occurrence (no set-level
+    /// activity at all — the pre-structured-Set format), so an actively-Skipped Session never
+    /// resurrects old free text as evidence.
     private static func lastPerformedEvidence(in exercise: ParsedExercise) -> (result: SetLog?, resultText: String)? {
         var tokens: [String] = []
         var structuredLogs: [SetLog] = []
@@ -101,7 +103,10 @@ enum LastPerformedExtractor {
             return (result, tokens.joined(separator: ", "))
         }
 
-        guard let legacyLog = exercise.legacyLog else { return nil }
+        // Only a truly empty occurrence (no logged, unstructured, or `skip` tokens) falls back to
+        // the Legacy Log. A non-empty `tokens` with no logged evidence means the Session was
+        // actively Skipped, which earns no entry.
+        guard tokens.isEmpty, let legacyLog = exercise.legacyLog else { return nil }
         return (nil, legacyLog)
     }
 }

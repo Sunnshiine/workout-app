@@ -15,7 +15,9 @@ struct ExerciseHistorySheet: View {
             VStack(alignment: .leading, spacing: 20) {
                 header
 
-                if let fillProgress {
+                // Scoped to the viewed Movement: a fill may be running for other Movements, but the
+                // affordance only shows while *this* Movement's history could still deepen (PRD #357 §4).
+                if let fillProgress, presentation.mayStillDeepen {
                     fillAffordance(fillProgress)
                 }
 

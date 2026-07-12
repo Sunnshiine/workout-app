@@ -56,12 +56,18 @@ struct ExerciseHistorySheetPresentation: Equatable, Sendable {
     let title: String
     let subtitle: String
     let blocks: [Block]
+    /// Whether this Movement's history could still deepen — it holds fewer than the capped ~5
+    /// entries. The fill-in-progress affordance is scoped to this: a Movement already at the cap
+    /// hides it even while a fill runs for other Movements (PRD #357 §4 — the affordance shows only
+    /// "while history for the viewed Movement may still deepen").
+    let mayStillDeepen: Bool
 
     var isEmpty: Bool { blocks.isEmpty }
 
     init(anchorBaseName: String, entries: [ExerciseHistoryEntry]) {
         title = anchorBaseName
         subtitle = "Exercise History · last \(Self.entryLimit)"
+        mayStillDeepen = entries.count < Self.entryLimit
 
         let recent = entries
             .sorted { $0.performedOn > $1.performedOn }
@@ -109,10 +115,12 @@ struct ExerciseHistorySheetPresentation: Equatable, Sendable {
     /// with none — a Legacy Log or a fully Unstructured entry — is left whole and marked *as
     /// entered*, so its raw text (which may itself contain commas) is never normalized.
     ///
-    /// Known limitation (ADR-0012 stores a joined display *string*, so token boundaries are lossy):
-    /// in a *mixed* entry, an Unstructured Set Log that itself contains `", "` is split into several
-    /// `.raw` segments. Recovering the original boundary needs the extractor's token list, which the
-    /// persisted display string does not carry — a schema change out of scope for this sheet.
+    /// In a *mixed* entry, an Unstructured Set Log that itself contains `", "` is split by the join
+    /// above; adjacent `.raw` segments are coalesced back with `", "` so that raw text renders
+    /// verbatim (ADR-0005 "never normalized") rather than as `·`-separated fragments. Structured and
+    /// `skip` tokens break the raw run, so they still split correctly. (Two genuinely-separate
+    /// Unstructured Set Logs merge into one `.raw` here — they are indistinguishable once ADR-0012
+    /// persists a joined display *string*, and render identically either way.)
     private static func segments(for resultText: String) -> (segments: [SetSegment], asEntered: Bool) {
         let tokens = resultText.components(separatedBy: ", ")
         let classifications = tokens.map { SetLogToken.classify($0) }
@@ -122,14 +130,17 @@ struct ExerciseHistorySheetPresentation: Equatable, Sendable {
             return ([.raw(resultText)], true)
         }
 
-        let segments = zip(tokens, classifications).map { token, classification -> SetSegment in
+        var segments: [SetSegment] = []
+        for (token, classification) in zip(tokens, classifications) {
             if let log = classification.setLog {
-                return .log(load: "\(log.weight.label)×\(log.reps)", rpe: rpeLabel(log.rpe))
+                segments.append(.log(load: "\(log.weight.label)×\(log.reps)", rpe: rpeLabel(log.rpe)))
+            } else if classification.state == .skipped {
+                segments.append(.skip)
+            } else if case .raw(let previous)? = segments.last {
+                segments[segments.count - 1] = .raw(previous + ", " + token)
+            } else {
+                segments.append(.raw(token))
             }
-            if classification.state == .skipped {
-                return .skip
-            }
-            return .raw(token)
         }
         return (segments, false)
     }

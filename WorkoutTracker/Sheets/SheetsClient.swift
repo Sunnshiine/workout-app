@@ -26,10 +26,12 @@ extension SheetsClient {
     /// Fetches a tab under the fill's retry policy, reporting a `.failed` tab as a first-class
     /// outcome (ADR-0012) rather than a thrown error the caller might silently skip. Applies the
     /// backoff schedule around `fetchTabSnapshot`, so every conformer gains it without bespoke logic.
+    /// The backoff is required, not defaulted, so every call site states its retry policy
+    /// (CODING_STANDARDS.md §optionals — a silent default is an omission hazard).
     func fetchTabSnapshot(
         spreadsheetId: String,
         tabName: String,
-        retrying backoff: SheetsBackoff = SheetsBackoff()
+        retrying backoff: SheetsBackoff
     ) async throws -> TabFetchOutcome {
         try await backoff.fetch {
             try await fetchTabSnapshot(spreadsheetId: spreadsheetId, tabName: tabName)

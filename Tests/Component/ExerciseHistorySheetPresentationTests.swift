@@ -127,6 +127,23 @@ private func date(_ daysAgo: Int) -> Date {
     #expect(row.asEntered == false)
 }
 
+@Test func historyRowKeepsInternalCommasOfAMixedUnstructuredSetLog() {
+    // A mixed entry whose Unstructured Set Log itself contains ", " must render that raw text
+    // verbatim — adjacent `.raw` fragments coalesce back with ", " rather than becoming separate
+    // `·`-separated segments (ADR-0005 "never normalized"). The structured token still splits.
+    let presentation = ExerciseHistorySheetPresentation(
+        anchorBaseName: "Squat",
+        entries: [
+            entry(fullName: "Squat", baseName: "Squat", resultText: "185x5@7, amrap, felt smooth",
+                  source: "Block 27 · W1 D1", performedOn: date(1))
+        ]
+    )
+
+    let row = presentation.blocks[0].rows[0]
+    #expect(row.segments == [.log(load: "185×5", rpe: "7"), .raw("amrap, felt smooth")])
+    #expect(row.asEntered == false)
+}
+
 @Test func historyRowRendersLegacyTextAsEnteredNeverNormalized() {
     let raw = "worked up to 315, felt easy"
     let presentation = ExerciseHistorySheetPresentation(
@@ -194,4 +211,23 @@ private func date(_ daysAgo: Int) -> Date {
     let rowCount = presentation.blocks.reduce(0) { $0 + $1.rows.count }
     #expect(rowCount == 2)
     #expect(presentation.isEmpty == false)
+}
+
+@Test func mayStillDeepenTracksWhetherTheMovementIsBelowTheEntryCap() {
+    // Below the cap the affordance is allowed; at or above it the Movement is "full" and the
+    // fill-in-progress affordance is scoped out even while a fill runs for other Movements.
+    let belowCap = (0..<3).map { index in
+        entry(fullName: "Bench Press", baseName: "Bench Press", resultText: "\(180 + index)x5@8",
+              source: "Block 27 · W\(index + 1) D1", performedOn: date(index))
+    }
+    #expect(ExerciseHistorySheetPresentation(anchorBaseName: "Bench Press", entries: belowCap).mayStillDeepen)
+
+    let atCap = (0..<5).map { index in
+        entry(fullName: "Bench Press", baseName: "Bench Press", resultText: "\(180 + index)x5@8",
+              source: "Block 27 · W\(index + 1) D1", performedOn: date(index))
+    }
+    #expect(ExerciseHistorySheetPresentation(anchorBaseName: "Bench Press", entries: atCap).mayStillDeepen == false)
+
+    // No entries yet — history can certainly still deepen.
+    #expect(ExerciseHistorySheetPresentation(anchorBaseName: "Bench Press", entries: []).mayStillDeepen)
 }
