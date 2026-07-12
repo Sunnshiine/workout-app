@@ -12,6 +12,12 @@ struct SettingsView: View {
     @State private var syncActivity = SettingsSyncActivity()
     @State private var manualSyncStore: SettingsManualSyncStore?
     @State private var sheetSwitchStore: SettingsSheetSwitchStore?
+    // PROTOTYPE #354 — variant selection for the build-identity surface; remove with the prototype.
+    @AppStorage("buildIdentityPrototypeVariant") private var buildIdentityVariantRaw = "A"
+
+    private var buildIdentityVariant: BuildIdentityPrototypeVariant {
+        BuildIdentityPrototypeVariant(rawValue: buildIdentityVariantRaw) ?? .footer
+    }
 
     var body: some View {
         NavigationStack {
@@ -19,6 +25,11 @@ struct SettingsView: View {
                 palette.gradient.ignoresSafeArea()
 
                 WorkoutGlassContainer(spacing: 12) {
+                    // PROTOTYPE #354 — Variant C mounts above the settings card.
+                    if BuildIdentityPrototype.isEnabled, buildIdentityVariant == .banner {
+                        BuildIdentityBannerVariantC()
+                    }
+
                     VStack(spacing: 0) {
                         VStack(alignment: .leading, spacing: 10) {
                             Text("Appearance")
@@ -95,6 +106,15 @@ struct SettingsView: View {
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("settings-developer-tools-row")
 
+                        // PROTOTYPE #354 — Variant B mounts as a settings row.
+                        if BuildIdentityPrototype.isEnabled, buildIdentityVariant == .aboutRow {
+                            Divider()
+                                .overlay(palette.bannerStroke)
+                                .padding(.leading, 56)
+
+                            BuildIdentityAboutRowVariantB()
+                        }
+
                         Divider()
                             .overlay(palette.bannerStroke)
                             .padding(.leading, 56)
@@ -114,8 +134,26 @@ struct SettingsView: View {
                     }
                     .padding(.vertical, 6)
                     .workoutGlass(.card)
+
+                    // PROTOTYPE #354 — Variant A mounts as a footer under the card.
+                    if BuildIdentityPrototype.isEnabled, buildIdentityVariant == .footer {
+                        BuildIdentityFooterVariantA()
+                    }
                 }
                 .padding()
+            }
+            // PROTOTYPE #354 — floating variant switcher; not part of any design being evaluated.
+            .overlay(alignment: .bottom) {
+                if BuildIdentityPrototype.isEnabled {
+                    BuildIdentityPrototypeSwitcher(
+                        variant: Binding {
+                            buildIdentityVariant
+                        } set: { newValue in
+                            buildIdentityVariantRaw = newValue.rawValue
+                        }
+                    )
+                    .padding(.bottom, 12)
+                }
             }
             .navigationTitle("Settings")
             .toolbar {
