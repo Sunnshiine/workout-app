@@ -9,13 +9,15 @@ configFiles:
   Release: Secrets.xcconfig
 
 # Dev-flavor hooks for TestFlight PR builds (docs/ci/testflight.md): the PR
-# release workflow overrides both on the xcodebuild command line
-# (BUNDLE_ID_SUFFIX=.dev, APP_DISPLAY_NAME="WT Dev") and app + widget flip in
-# lockstep. Local and stable builds use these defaults and are unchanged.
+# release workflow overrides these on the xcodebuild command line
+# (BUNDLE_ID_SUFFIX=.dev, APP_DISPLAY_NAME="WT Dev", APPICON_NAME=AppIconDev)
+# and app + widget flip in lockstep. Local and stable builds use these
+# defaults and are unchanged.
 settings:
   base:
     BUNDLE_ID_SUFFIX: ""
     APP_DISPLAY_NAME: WorkoutTracker
+    APPICON_NAME: AppIcon
 
 packages:
   GoogleSignIn:
@@ -60,7 +62,7 @@ targets:
         ITSAppUsesNonExemptEncryption: false
     settings:
       base:
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_APPICON_NAME: $(APPICON_NAME)
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: K74Q6RKFBY
         PRODUCT_BUNDLE_IDENTIFIER: com.sunnypatel.WorkoutTracker$(BUNDLE_ID_SUFFIX)

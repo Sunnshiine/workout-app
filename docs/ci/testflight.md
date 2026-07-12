@@ -17,6 +17,7 @@ the load-bearing decisions are
 | Bundle ids | `com.sunnypatel.WorkoutTracker` (+ `.Widgets`) | `com.sunnypatel.WorkoutTracker.dev` (+ `.dev.Widgets`) via `BUNDLE_ID_SUFFIX=.dev` |
 | App Store Connect record | "TFN Tracker" | "TFN Tracker Dev" |
 | Home-screen name | WorkoutTracker | WT Dev (`APP_DISPLAY_NAME` override) |
+| App icon | Sunbird, green (`AppIcon` set) | Sunbird, amber (`APPICON_NAME=AppIconDev` override) |
 | Marketing version | hand-bumped in `project.yml` (app target `CFBundleShortVersionString`) | `0.<PR number>` |
 | Build number | `github.run_number` | `github.run_number` |
 | Google OAuth client | stable pair (`GID_*` secrets) | "WorkoutTracker Dev iOS" (`DEV_GID_*` secrets) |
@@ -26,6 +27,13 @@ Both tracks: the widget carries the identical version pair as its app (Apple
 requires the match), and `GitCommit` / `PRNumber` / `Branch` / `RunNumber` are
 stamped into the app's `Info.plist` before archiving (`PRNumber` is empty on
 stable builds).
+
+Icon sets are single-size 1024 with dark/tinted appearance variants, rendered
+from the SVG sources in `docs/design/app-icon/` by
+`scripts/generate-app-icons.sh` (design decided in
+[#370](https://github.com/Sunnshiine/workout-app/issues/370), produced in
+[#369](https://github.com/Sunnshiine/workout-app/issues/369)). Don't edit the
+PNGs by hand — edit the SVGs and re-render.
 
 ## Label semantics (PR builds)
 

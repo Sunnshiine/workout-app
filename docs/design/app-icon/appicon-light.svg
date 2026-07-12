@@ -1,0 +1,38 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Sunbird, deep green on sage (light icon, "L1"). Decided in issue #370:
+       bottle-green glass, top of the disc nudged toward #12925A so it keeps
+       inner light; light-glass physics (drop shadow, crisp rim). -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#E8EDDB"/><stop offset="1" stop-color="#C7E0BF"/>
+    </linearGradient>
+    <filter id="blur" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="30"/></filter>
+    <radialGradient id="am1" cx="0.25" cy="0.05" r="0.8">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.34"/>
+      <stop offset="0.42" stop-color="#12925A" stop-opacity="0.66"/>
+      <stop offset="1" stop-color="#0B7A45" stop-opacity="0.5"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.55"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.30"/>
+      <stop offset="0.4" stop-color="#ffffff" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <mask id="bird"><rect width="1024" height="1024" fill="#fff"/><path d="M 230 440 C 360 415 465 465 512 510 C 559 465 664 415 794 440 C 686 470 592 518 512 592 C 432 518 338 470 230 440 Z" fill="#000"/></mask>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <g mask="url(#bird)">
+    <rect width="1024" height="1024" fill="url(#am1)"/>
+    <g filter="url(#blur)" opacity="0.32" transform="translate(0,26)"><circle cx="512" cy="512" r="396" fill="#0a2416"/></g>
+    <circle cx="512" cy="512" r="396" fill="url(#body)"/>
+    <circle cx="512" cy="512" r="396" fill="none" stroke="url(#rim)" stroke-width="10"/>
+    <ellipse cx="300" cy="-80" rx="900" ry="520" fill="url(#sheen)"/>
+  </g>
+</svg>
