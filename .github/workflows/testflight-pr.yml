@@ -118,9 +118,11 @@ jobs:
           ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
         run: printf '%s\n' "$ASC_PRIVATE_KEY" > "$RUNNER_TEMP/AuthKey.p8"
 
-      # BUNDLE_ID_SUFFIX/APP_DISPLAY_NAME flip app + widget to the .dev flavor
-      # in lockstep (composed in project.yml). Cloud signing handles the .dev
-      # profiles the same way the stable workflow handles the stable ones.
+      # BUNDLE_ID_SUFFIX/APP_DISPLAY_NAME/APPICON_NAME flip app + widget to the
+      # .dev flavor in lockstep (composed in project.yml): dev builds get the
+      # amber AppIconDev set so WT Dev is distinguishable from TFN Tracker at a
+      # glance. Cloud signing handles the .dev profiles the same way the stable
+      # workflow handles the stable ones.
       - name: Archive (dev flavor)
         run: |
           xcodebuild archive \
@@ -134,7 +136,8 @@ jobs:
             -authenticationKeyID "${{ secrets.ASC_KEY_ID }}" \
             -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}" \
             BUNDLE_ID_SUFFIX=.dev \
-            APP_DISPLAY_NAME="WT Dev"
+            APP_DISPLAY_NAME="WT Dev" \
+            APPICON_NAME=AppIconDev
 
       - name: Export .ipa
         run: |

@@ -1,0 +1,22 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Sunbird, tinted variant: grayscale on a transparent background per the
+       iOS tinted-icon spec — the system supplies the background and applies
+       the user's tint; lighter pixels read brighter. Same geometry as the
+       dark/light icons. -->
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.62"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.7"/>
+    </linearGradient>
+    <mask id="bird"><rect width="1024" height="1024" fill="#fff"/><path d="M 230 440 C 360 415 465 465 512 510 C 559 465 664 415 794 440 C 686 470 592 518 512 592 C 432 518 338 470 230 440 Z" fill="#000"/></mask>
+  </defs>
+  <g mask="url(#bird)">
+    <circle cx="512" cy="512" r="396" fill="url(#body)"/>
+    <circle cx="512" cy="512" r="396" fill="none" stroke="url(#rim)" stroke-width="9"/>
+  </g>
+</svg>
