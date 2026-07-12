@@ -33,47 +33,35 @@ enum LastPerformedExtractor {
         records(from: block).map(\.entry)
     }
 
+    /// Every evidence-bearing (Exercise, Session) occurrence in the block, one record each.
+    ///
+    /// Append-only (ADR-0012): unlike the former single-entry index, this does not collapse
+    /// to the latest occurrence per name. Each Session an Exercise was performed in yields its
+    /// own record, keyed downstream by (`fullName`, `source`). Records are emitted in Session
+    /// order (week → day → Exercise).
     static func records(from block: ParsedBlockModel) -> [LastPerformedRecord] {
-        var latestByExercise: [String: LastPerformedCandidate] = [:]
+        var records: [LastPerformedRecord] = []
 
         for week in block.weeks {
             for session in week.days {
                 for exercise in session.exercises {
                     guard let evidence = lastPerformedEvidence(in: exercise) else { continue }
 
-                    let performedOn = session.date ?? .distantPast
-                    let candidate = LastPerformedCandidate(
-                        fullName: exercise.name,
-                        baseName: exercise.baseName,
-                        result: evidence.result,
-                        resultText: evidence.resultText,
-                        performedOn: performedOn,
-                        source: "\(block.tabName) · W\(week.number) D\(session.dayNumber)"
+                    records.append(
+                        LastPerformedRecord(
+                            fullName: exercise.name,
+                            baseName: exercise.baseName,
+                            result: evidence.result,
+                            resultText: evidence.resultText,
+                            performedOn: session.date ?? .distantPast,
+                            source: "\(block.tabName) · W\(week.number) D\(session.dayNumber)"
+                        )
                     )
-
-                    if let existing = latestByExercise[exercise.name] {
-                        if candidate.performedOn >= existing.performedOn {
-                            latestByExercise[exercise.name] = candidate
-                        }
-                    } else {
-                        latestByExercise[exercise.name] = candidate
-                    }
                 }
             }
         }
 
-        return latestByExercise.values
-            .sorted { $0.fullName < $1.fullName }
-            .map {
-                LastPerformedRecord(
-                    fullName: $0.fullName,
-                    baseName: $0.baseName,
-                    result: $0.result,
-                    resultText: $0.resultText,
-                    performedOn: $0.performedOn,
-                    source: $0.source
-                )
-            }
+        return records
     }
 
     private static func lastPerformedEvidence(in exercise: ParsedExercise) -> (result: SetLog?, resultText: String)? {
@@ -90,13 +78,4 @@ enum LastPerformedExtractor {
         guard let legacyLog = exercise.legacyLog else { return nil }
         return (nil, legacyLog)
     }
-}
-
-private struct LastPerformedCandidate {
-    var fullName: String
-    var baseName: String
-    var result: SetLog?
-    var resultText: String
-    var performedOn: Date
-    var source: String
 }

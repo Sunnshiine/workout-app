@@ -111,6 +111,125 @@ private func lastPerformedContainer() throws -> ModelContainer {
 }
 
 @MainActor
+@Test func lastPerformedIngestAppendsDistinctSessionsOfTheSameExercise() throws {
+    let container = try lastPerformedContainer()
+    let context = container.mainContext
+    let index = LastPerformedIndex(context: context)
+
+    try index.ingest([
+        LastPerformedEntry(
+            fullName: "Squat",
+            baseName: "Squat",
+            result: SetLog(weight: .pounds(205), reps: 5, rpe: 8),
+            performedOn: Date(timeIntervalSinceReferenceDate: 200),
+            source: "Block 27 · W2 D1"
+        ),
+        LastPerformedEntry(
+            fullName: "Squat",
+            baseName: "Squat",
+            result: SetLog(weight: .pounds(185), reps: 5, rpe: 7),
+            performedOn: Date(timeIntervalSinceReferenceDate: 100),
+            source: "Block 26 · W4 D1"
+        )
+    ])
+
+    let entries = try context.fetch(FetchDescriptor<LastPerformedEntry>())
+    #expect(entries.count == 2)
+    #expect(Set(entries.map(\.source)) == ["Block 27 · W2 D1", "Block 26 · W4 D1"])
+
+    // Last Performed remains the most-recent entry.
+    let match = try #require(index.lookup(exerciseName: "Squat", baseName: "Squat"))
+    #expect(match.result == SetLog(weight: .pounds(205), reps: 5, rpe: 8))
+    #expect(match.source == "Block 27 · W2 D1")
+    withExtendedLifetime(container) {}
+}
+
+@MainActor
+@Test func lastPerformedIngestDedupsOnNameAndSourceAcrossRepeatedIngests() throws {
+    let container = try lastPerformedContainer()
+    let context = container.mainContext
+    let index = LastPerformedIndex(context: context)
+
+    let entry = {
+        LastPerformedEntry(
+            fullName: "Squat",
+            baseName: "Squat",
+            result: SetLog(weight: .pounds(205), reps: 5, rpe: 8),
+            performedOn: Date(timeIntervalSinceReferenceDate: 200),
+            source: "Block 27 · W2 D1"
+        )
+    }
+
+    // Ingesting the same tab three times must not accumulate duplicates.
+    try index.ingest([entry()])
+    try index.ingest([entry()])
+    try index.ingest([entry(), entry()])
+
+    let entries = try context.fetch(FetchDescriptor<LastPerformedEntry>())
+    #expect(entries.count == 1)
+    withExtendedLifetime(container) {}
+}
+
+@MainActor
+@Test func lastPerformedIngestPreservesExistingSeededRows() throws {
+    let container = try lastPerformedContainer()
+    let context = container.mainContext
+    let index = LastPerformedIndex(context: context)
+
+    // A pre-existing (seeded) row from the former last_performed store.
+    context.insert(
+        LastPerformedEntry(
+            fullName: "Squat",
+            baseName: "Squat",
+            result: SetLog(weight: .pounds(185), reps: 5, rpe: 7),
+            performedOn: Date(timeIntervalSinceReferenceDate: 100),
+            source: "Block 26 · W4 D1"
+        )
+    )
+    try context.save()
+
+    try index.ingest([
+        LastPerformedEntry(
+            fullName: "Squat",
+            baseName: "Squat",
+            result: SetLog(weight: .pounds(205), reps: 5, rpe: 8),
+            performedOn: Date(timeIntervalSinceReferenceDate: 200),
+            source: "Block 27 · W2 D1"
+        )
+    ])
+
+    let entries = try context.fetch(FetchDescriptor<LastPerformedEntry>())
+    #expect(entries.count == 2)
+    #expect(Set(entries.map(\.source)) == ["Block 26 · W4 D1", "Block 27 · W2 D1"])
+    withExtendedLifetime(container) {}
+}
+
+@MainActor
+@Test func lastPerformedIngestDedupsWhenDatesDegradeToDistantPast() throws {
+    let container = try lastPerformedContainer()
+    let context = container.mainContext
+    let index = LastPerformedIndex(context: context)
+
+    let entry = {
+        LastPerformedEntry(
+            fullName: "Standing Calve Raises",
+            baseName: "Standing Calve Raises",
+            resultText: "25x12, 12",
+            performedOn: .distantPast,
+            source: "Block 27 · W1 D1"
+        )
+    }
+
+    try index.ingest([entry()])
+    try index.ingest([entry()])
+
+    let entries = try context.fetch(FetchDescriptor<LastPerformedEntry>())
+    #expect(entries.count == 1)
+    #expect(entries[0].performedOn == .distantPast)
+    withExtendedLifetime(container) {}
+}
+
+@MainActor
 @Test func lastPerformedIngestKeepsNewestEntryForFullName() throws {
     let container = try lastPerformedContainer()
     let context = container.mainContext

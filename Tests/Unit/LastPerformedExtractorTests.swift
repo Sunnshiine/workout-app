@@ -42,16 +42,42 @@ import Testing
 
     let entries = LastPerformedExtractor.entries(from: block)
 
-    #expect(entries.count == 2)
-    let squat = try #require(entries.first { $0.fullName == "Squat" })
-    #expect(squat.baseName == "Squat")
-    #expect(squat.result == SetLog(weight: .pounds(205), reps: 4, rpe: 8))
-    #expect(squat.performedOn == newerDate)
-    #expect(squat.source == "Block 27 · W2 D1")
+    // Append-only: every evidence-bearing (Exercise, Session) occurrence is emitted —
+    // Squat is logged in both weeks, so both entries survive instead of collapsing.
+    #expect(entries.count == 3)
+
+    let squats = entries.filter { $0.fullName == "Squat" }
+    #expect(squats.count == 2)
+    let olderSquat = try #require(squats.first { $0.source == "Block 27 · W1 D1" })
+    #expect(olderSquat.performedOn == olderDate)
+    #expect(olderSquat.displayResultText == "185x5@7, 195x5@8")
+    let newerSquat = try #require(squats.first { $0.source == "Block 27 · W2 D1" })
+    #expect(newerSquat.baseName == "Squat")
+    #expect(newerSquat.result == SetLog(weight: .pounds(205), reps: 4, rpe: 8))
+    #expect(newerSquat.performedOn == newerDate)
 
     let bench = try #require(entries.first { $0.fullName == "Bench Press" })
     #expect(bench.result == SetLog(weight: .pounds(155), reps: 6, rpe: 7))
     #expect(bench.source == "Block 27 · W1 D1")
+}
+
+@Test func emitsSeparateEntryPerSessionForARepeatedExercise() throws {
+    let block = ParsedBlockModel(
+        tabName: "Block 27",
+        weeks: [
+            week(1, date: nil, exercises: [
+                exercise("Bench Press", sets: [loggedSet(index: 0, weight: 155, reps: 6, rpe: 7)])
+            ]),
+            week(2, date: nil, exercises: [
+                exercise("Bench Press", sets: [loggedSet(index: 0, weight: 165, reps: 5, rpe: 8)])
+            ])
+        ]
+    )
+
+    let entries = LastPerformedExtractor.entries(from: block)
+
+    #expect(entries.count == 2)
+    #expect(Set(entries.map(\.source)) == ["Block 27 · W1 D1", "Block 27 · W2 D1"])
 }
 
 @Test func extractsEveryLoggedSetLogOfTheExerciseInSetOrder() throws {

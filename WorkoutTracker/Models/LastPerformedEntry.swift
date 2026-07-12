@@ -1,9 +1,15 @@
 import Foundation
 import SwiftData
 
+/// One `exercise_history` entry — an Exercise as logged in a single past Session.
+///
+/// The store is append-only (ADR-0012): dedup is app-level on (`fullName`, `source`),
+/// so `fullName` is intentionally **not** unique — the same Exercise keeps a distinct
+/// entry per Session it was performed in. Last Performed is the most-recent-entry query
+/// over these rows.
 @Model
 final class LastPerformedEntry {
-    @Attribute(.unique) var fullName: String
+    var fullName: String
     var baseName: String
     var result: SetLog?
     var resultText: String?
