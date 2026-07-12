@@ -1,0 +1,236 @@
+name: TestFlight PR
+
+# Uploads a dev-flavor build (com.sunnypatel.WorkoutTracker.dev — "TFN Tracker
+# Dev" in App Store Connect, "WT Dev" on the home screen) when the `testflight`
+# label is applied to a PR. Label per build: pushes never upload; remove and
+# re-apply the label for another build. workflow_dispatch (with a PR number) is
+# the secondary path.
+#
+# A `testflight` label applied by a workflow using the plain GITHUB_TOKEN will
+# NOT fire this workflow — GitHub suppresses token-driven events. Agents must
+# apply the label with AGENT_PAT. Secrets inventory and conventions:
+# docs/ci/testflight.md.
+
+on:
+  pull_request:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number to build"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testflight-pr-${{ github.event.pull_request.number || inputs.pr }}
+  cancel-in-progress: true
+
+jobs:
+  archive:
+    # Fork guard: fork PRs have no secrets — skip explicitly rather than fail
+    # confusingly at the signing step. workflow_dispatch is re-checked in the
+    # resolve step (head repo isn't knowable in an `if` expression there).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.label.name == 'testflight' &&
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: macos-26
+    timeout-minutes: 40
+    outputs:
+      pr: ${{ steps.pr.outputs.number }}
+      short_sha: ${{ steps.pr.outputs.short_sha }}
+      notes: ${{ steps.pr.outputs.notes }}
+    steps:
+      - name: Resolve PR head and compose "What to Test" notes
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let pr = context.payload.pull_request;
+            if (!pr) {
+              ({ data: pr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: Number(${{ toJSON(inputs.pr || '0') }}),
+              }));
+            }
+            if (pr.head.repo.full_name !== `${context.repo.owner}/${context.repo.repo}`) {
+              core.setFailed(`Fork PRs cannot upload to TestFlight (no secrets): head is ${pr.head.repo.full_name}`);
+              return;
+            }
+            const shortSha = pr.head.sha.substring(0, 7);
+            const lines = [
+              `PR #${pr.number} — ${pr.title}`,
+              pr.html_url,
+              `Branch: ${pr.head.ref}`,
+              `Commit: ${shortSha}`,
+            ];
+            const closes = (pr.body || '').match(/[Cc]loses #(\d+)/);
+            if (closes) lines.push(`Closes #${closes[1]}`);
+            core.setOutput('number', String(pr.number));
+            core.setOutput('head_sha', pr.head.sha);
+            core.setOutput('head_ref', pr.head.ref);
+            core.setOutput('short_sha', shortSha);
+            core.setOutput('notes', lines.join('\n'));
+
+      # Build the PR's current head, not the synthetic merge commit — the
+      # label gesture ships exactly what the branch holds right now.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.head_sha }}
+
+      - name: Generate Xcode project
+        run: |
+          which xcodegen >/dev/null 2>&1 || brew install xcodegen
+          xcodegen generate
+
+      # Dev flavor runs live-Sheet against its own Google OAuth iOS client
+      # (per-bundle-id), so the DEV_ pair lands in the same xcconfig vars.
+      - name: Write Secrets.xcconfig from Actions secrets (dev OAuth client)
+        env:
+          DEV_GID_CLIENT_ID: ${{ secrets.DEV_GID_CLIENT_ID }}
+          DEV_GID_REVERSED_CLIENT_ID: ${{ secrets.DEV_GID_REVERSED_CLIENT_ID }}
+        run: |
+          printf 'GID_CLIENT_ID = %s\nGID_REVERSED_CLIENT_ID = %s\n' \
+            "$DEV_GID_CLIENT_ID" "$DEV_GID_REVERSED_CLIENT_ID" > Secrets.xcconfig
+
+      # Dev marketing version spends the field on PR identity: 0.<PR>.
+      # Widget must carry the identical version pair as the app.
+      - name: Stamp version and identity into Info.plists
+        env:
+          HEAD_REF: ${{ steps.pr.outputs.head_ref }}
+        run: |
+          for PLIST in WorkoutTracker/Info.plist WorkoutWidgets/Info.plist; do
+            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 0.${{ steps.pr.outputs.number }}" "$PLIST"
+            /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" "$PLIST"
+          done
+          /usr/libexec/PlistBuddy -c "Add :GitCommit string ${{ steps.pr.outputs.short_sha }}" WorkoutTracker/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :PRNumber string ${{ steps.pr.outputs.number }}" WorkoutTracker/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :Branch string $HEAD_REF" WorkoutTracker/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :RunNumber string ${{ github.run_number }}" WorkoutTracker/Info.plist
+
+      - name: Write App Store Connect API key
+        env:
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: printf '%s' "$ASC_PRIVATE_KEY" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
+
+      # BUNDLE_ID_SUFFIX/APP_DISPLAY_NAME flip app + widget to the .dev flavor
+      # in lockstep (composed in project.yml). Cloud signing handles the .dev
+      # profiles the same way the stable workflow handles the stable ones.
+      - name: Archive (dev flavor)
+        run: |
+          xcodebuild archive \
+            -project WorkoutTracker.xcodeproj \
+            -scheme WorkoutTracker \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/WorkoutTracker.xcarchive" \
+            -skipPackagePluginValidation \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" \
+            -authenticationKeyID "${{ secrets.ASC_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}" \
+            BUNDLE_ID_SUFFIX=.dev \
+            APP_DISPLAY_NAME="WT Dev"
+
+      - name: Export .ipa
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>destination</key>
+            <string>export</string>
+            <key>signingStyle</key>
+            <string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key>
+            <false/>
+            <key>teamID</key>
+            <string>K74Q6RKFBY</string>
+          </dict>
+          </plist>
+          PLIST
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/WorkoutTracker.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" \
+            -authenticationKeyID "${{ secrets.ASC_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}"
+
+      - name: Upload .ipa artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-ipa
+          path: ${{ runner.temp }}/export/*.ipa
+          if-no-files-found: error
+          retention-days: 7
+
+  upload:
+    needs: archive
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pr-ipa
+          path: ipa
+
+      - name: Locate .ipa
+        id: ipa
+        run: echo "path=$(find ipa -name '*.ipa' -print -quit)" >> "$GITHUB_OUTPUT"
+
+      # See the stable workflow for why the key is decoded and line-masked.
+      - name: Decode ASC API key
+        env:
+          ASC_PRIVATE_KEY_B64: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: |
+          key="$(printf '%s' "$ASC_PRIVATE_KEY_B64" | base64 --decode)"
+          while IFS= read -r line; do
+            [ -n "$line" ] && echo "::add-mask::$line"
+          done <<< "$key"
+          {
+            echo 'ASC_PRIVATE_KEY_PEM<<__PEM_EOF__'
+            printf '%s\n' "$key"
+            echo '__PEM_EOF__'
+          } >> "$GITHUB_ENV"
+
+      - name: Upload to TestFlight and wait for processing
+        uses: apple-actions/upload-testflight-build@v5
+        with:
+          app-path: ${{ steps.ipa.outputs.path }}
+          issuer-id: ${{ secrets.ASC_ISSUER_ID }}
+          api-key-id: ${{ secrets.ASC_KEY_ID }}
+          api-private-key: ${{ env.ASC_PRIVATE_KEY_PEM }}
+          release-notes: ${{ needs.archive.outputs.notes }}
+          wait-for-processing: true
+
+      # The receipt: the label gesture reports an installable build.
+      - name: Post receipt comment on the PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = Number(${{ toJSON(needs.archive.outputs.pr) }});
+            const shortSha = ${{ toJSON(needs.archive.outputs.short_sha) }};
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              `📲 TestFlight build **0.${pr} (${context.runNumber})** uploaded and processed — install it from **WT Dev** in TestFlight.`,
+              '',
+              `Commit ${shortSha} · [workflow run](${runUrl})`,
+              '',
+              'For another build, remove and re-apply the `testflight` label.',
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr,
+              body,
+            });

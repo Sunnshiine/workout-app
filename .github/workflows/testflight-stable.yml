@@ -1,0 +1,189 @@
+name: TestFlight Stable
+
+# Uploads the stable app (com.sunnypatel.WorkoutTracker — "TFN Tracker" in App
+# Store Connect) to TestFlight on every binary-affecting push to main, plus
+# workflow_dispatch as an escape hatch.
+#
+# Secrets inventory, rotation paths, version conventions, and the AGENT_PAT
+# label quirk are documented in docs/ci/testflight.md.
+#
+# Job split (concurrency slots, not cost): the macOS job archives and exports,
+# then a Linux job uploads and waits for Apple's processing — the wait is
+# unbounded and must not park on one of the five free-tier macOS slots.
+
+on:
+  push:
+    branches: [main]
+    # Everything except paths that can't affect the binary; the trailing
+    # positive pattern re-includes this workflow itself.
+    paths:
+      - "**"
+      - "!docs/**"
+      - "!**/*.md"
+      - "!.sandcastle/**"
+      - "!.claude/**"
+      - "!.github/**"
+      - ".github/workflows/testflight-stable.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testflight-stable
+  cancel-in-progress: true
+
+jobs:
+  archive:
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      # The committed xcodeproj may lag project.yml; the release build always
+      # regenerates so signing style, bundle-id composition, and Info.plist
+      # properties come from project.yml.
+      - name: Generate Xcode project
+        run: |
+          which xcodegen >/dev/null 2>&1 || brew install xcodegen
+          xcodegen generate
+
+      - name: Write Secrets.xcconfig from Actions secrets
+        env:
+          GID_CLIENT_ID: ${{ secrets.GID_CLIENT_ID }}
+          GID_REVERSED_CLIENT_ID: ${{ secrets.GID_REVERSED_CLIENT_ID }}
+        run: |
+          printf 'GID_CLIENT_ID = %s\nGID_REVERSED_CLIENT_ID = %s\n' \
+            "$GID_CLIENT_ID" "$GID_REVERSED_CLIENT_ID" > Secrets.xcconfig
+
+      # Marketing version is hand-bumped in project.yml (app target); the
+      # widget must carry the identical version pair, so copy it across.
+      - name: Stamp build number and identity into Info.plists
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          MARKETING=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' WorkoutTracker/Info.plist)
+          for PLIST in WorkoutTracker/Info.plist WorkoutWidgets/Info.plist; do
+            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $MARKETING" "$PLIST"
+            /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" "$PLIST"
+          done
+          /usr/libexec/PlistBuddy -c "Add :GitCommit string $SHORT_SHA" WorkoutTracker/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :PRNumber string" WorkoutTracker/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :Branch string main" WorkoutTracker/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :RunNumber string ${{ github.run_number }}" WorkoutTracker/Info.plist
+
+      - name: Write App Store Connect API key
+        env:
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: printf '%s' "$ASC_PRIVATE_KEY" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
+
+      # Cloud signing: -allowProvisioningUpdates + the ASC key creates and
+      # repairs certs/profiles for app + widget headlessly.
+      - name: Archive
+        run: |
+          xcodebuild archive \
+            -project WorkoutTracker.xcodeproj \
+            -scheme WorkoutTracker \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/WorkoutTracker.xcarchive" \
+            -skipPackagePluginValidation \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" \
+            -authenticationKeyID "${{ secrets.ASC_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}"
+
+      - name: Export .ipa
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>destination</key>
+            <string>export</string>
+            <key>signingStyle</key>
+            <string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key>
+            <false/>
+            <key>teamID</key>
+            <string>K74Q6RKFBY</string>
+          </dict>
+          </plist>
+          PLIST
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/WorkoutTracker.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" \
+            -authenticationKeyID "${{ secrets.ASC_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}"
+
+      - name: Upload .ipa artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stable-ipa
+          path: ${{ runner.temp }}/export/*.ipa
+          if-no-files-found: error
+          retention-days: 7
+
+  upload:
+    needs: archive
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: stable-ipa
+          path: ipa
+
+      - name: Locate .ipa
+        id: ipa
+        run: echo "path=$(find ipa -name '*.ipa' -print -quit)" >> "$GITHUB_OUTPUT"
+
+      - name: Compose "What to Test" notes
+        id: notes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const shortSha = context.sha.substring(0, 7);
+            let subject;
+            if (context.payload.head_commit) {
+              subject = context.payload.head_commit.message.split('\n')[0];
+            } else {
+              const { data } = await github.rest.repos.getCommit({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: context.sha,
+              });
+              subject = data.commit.message.split('\n')[0];
+            }
+            const url = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/commit/${context.sha}`;
+            core.setOutput('notes', `main @ ${shortSha} — ${subject}\n${url}`);
+
+      # The action wants the raw PEM; the secret stores it base64-encoded.
+      # Mask each decoded line — GitHub only auto-masks the exact secret value.
+      - name: Decode ASC API key
+        env:
+          ASC_PRIVATE_KEY_B64: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: |
+          key="$(printf '%s' "$ASC_PRIVATE_KEY_B64" | base64 --decode)"
+          while IFS= read -r line; do
+            [ -n "$line" ] && echo "::add-mask::$line"
+          done <<< "$key"
+          {
+            echo 'ASC_PRIVATE_KEY_PEM<<__PEM_EOF__'
+            printf '%s\n' "$key"
+            echo '__PEM_EOF__'
+          } >> "$GITHUB_ENV"
+
+      - name: Upload to TestFlight and wait for processing
+        uses: apple-actions/upload-testflight-build@v5
+        with:
+          app-path: ${{ steps.ipa.outputs.path }}
+          issuer-id: ${{ secrets.ASC_ISSUER_ID }}
+          api-key-id: ${{ secrets.ASC_KEY_ID }}
+          api-private-key: ${{ env.ASC_PRIVATE_KEY_PEM }}
+          release-notes: ${{ steps.notes.outputs.notes }}
+          wait-for-processing: true
