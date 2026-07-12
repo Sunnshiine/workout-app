@@ -42,16 +42,42 @@ import Testing
 
     let entries = LastPerformedExtractor.entries(from: block)
 
-    #expect(entries.count == 2)
-    let squat = try #require(entries.first { $0.fullName == "Squat" })
-    #expect(squat.baseName == "Squat")
-    #expect(squat.result == SetLog(weight: .pounds(205), reps: 4, rpe: 8))
-    #expect(squat.performedOn == newerDate)
-    #expect(squat.source == "Block 27 · W2 D1")
+    // Append-only: every evidence-bearing (Exercise, Session) occurrence is emitted —
+    // Squat is logged in both weeks, so both entries survive instead of collapsing.
+    #expect(entries.count == 3)
+
+    let squats = entries.filter { $0.fullName == "Squat" }
+    #expect(squats.count == 2)
+    let olderSquat = try #require(squats.first { $0.source == "Block 27 · W1 D1" })
+    #expect(olderSquat.performedOn == olderDate)
+    #expect(olderSquat.displayResultText == "185x5@7, 195x5@8")
+    let newerSquat = try #require(squats.first { $0.source == "Block 27 · W2 D1" })
+    #expect(newerSquat.baseName == "Squat")
+    #expect(newerSquat.result == SetLog(weight: .pounds(205), reps: 4, rpe: 8))
+    #expect(newerSquat.performedOn == newerDate)
 
     let bench = try #require(entries.first { $0.fullName == "Bench Press" })
     #expect(bench.result == SetLog(weight: .pounds(155), reps: 6, rpe: 7))
     #expect(bench.source == "Block 27 · W1 D1")
+}
+
+@Test func emitsSeparateEntryPerSessionForARepeatedExercise() throws {
+    let block = ParsedBlockModel(
+        tabName: "Block 27",
+        weeks: [
+            week(1, date: nil, exercises: [
+                exercise("Bench Press", sets: [loggedSet(index: 0, weight: 155, reps: 6, rpe: 7)])
+            ]),
+            week(2, date: nil, exercises: [
+                exercise("Bench Press", sets: [loggedSet(index: 0, weight: 165, reps: 5, rpe: 8)])
+            ])
+        ]
+    )
+
+    let entries = LastPerformedExtractor.entries(from: block)
+
+    #expect(entries.count == 2)
+    #expect(Set(entries.map(\.source)) == ["Block 27 · W1 D1", "Block 27 · W2 D1"])
 }
 
 @Test func extractsEveryLoggedSetLogOfTheExerciseInSetOrder() throws {
@@ -80,7 +106,7 @@ import Testing
     #expect(entry.result == nil)
 }
 
-@Test func multiSetEvidenceSkipsSkippedAndPendingSetsButKeepsSetOrder() throws {
+@Test func multiSetEvidenceKeepsSkipMarkersButDropsPendingSets() throws {
     let block = ParsedBlockModel(
         tabName: "Block 27",
         weeks: [
@@ -104,7 +130,139 @@ import Testing
 
     let entry = try #require(LastPerformedExtractor.entries(from: block).first)
 
-    #expect(entry.displayResultText == "185x5@7, 205x5@9")
+    // Partial skips survive into the display string in Set order (ADR-0012); pending
+    // Sets, which carry no evidence, are dropped.
+    #expect(entry.displayResultText == "185x5@7, skip, 205x5@9")
+}
+
+@Test func unstructuredOnlyExerciseProducesEntryWithRawEnteredText() throws {
+    let block = ParsedBlockModel(
+        tabName: "Block 27",
+        weeks: [
+            week(
+                1,
+                date: nil,
+                exercises: [
+                    exercise(
+                        "Standing Calve Raises",
+                        sets: [
+                            unstructuredSet(index: 0, "a few sets of 12"),
+                            unstructuredSet(index: 1, "felt easy")
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
+
+    let entry = try #require(LastPerformedExtractor.entries(from: block).first)
+
+    // Unstructured Set Logs now count as completion evidence (ADR-0012), rendered as
+    // the raw entered text in Set order — never normalized.
+    #expect(entry.displayResultText == "a few sets of 12, felt easy")
+    #expect(entry.result == nil)
+}
+
+@Test func mixedStructuredAndUnstructuredLinesProduceEntry() throws {
+    let block = ParsedBlockModel(
+        tabName: "Block 27",
+        weeks: [
+            week(
+                1,
+                date: nil,
+                exercises: [
+                    exercise(
+                        "Squat",
+                        sets: [
+                            loggedSet(index: 0, weight: 185, reps: 5, rpe: 7),
+                            unstructuredSet(index: 1, "amrap")
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
+
+    let entry = try #require(LastPerformedExtractor.entries(from: block).first)
+
+    #expect(entry.displayResultText == "185x5@7, amrap")
+    #expect(entry.result == nil)
+}
+
+@Test func fullySkippedOccurrenceProducesNoEntry() {
+    let block = ParsedBlockModel(
+        tabName: "Block 27",
+        weeks: [
+            week(
+                1,
+                date: nil,
+                exercises: [
+                    exercise(
+                        "Squat",
+                        sets: [
+                            skippedSet(index: 0),
+                            skippedSet(index: 1)
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
+
+    #expect(LastPerformedExtractor.entries(from: block).isEmpty)
+}
+
+@Test func fullySkippedOccurrenceEarnsNoEntryEvenWithALingeringLegacyLog() {
+    // A deliberately Skipped Session must not resurrect stale Legacy Log free text as evidence —
+    // the skip tokens carry the athlete's intent, and "fully Skipped occurrences earn no entry"
+    // (ADR-0012) wins over the legacy fallback.
+    let block = ParsedBlockModel(
+        tabName: "Block 27",
+        weeks: [
+            week(
+                1,
+                date: nil,
+                exercises: [
+                    exercise(
+                        "Squat",
+                        legacyLog: "315x3, 3",
+                        sets: [
+                            skippedSet(index: 0),
+                            skippedSet(index: 1)
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
+
+    #expect(LastPerformedExtractor.entries(from: block).isEmpty)
+}
+
+@Test func partialSkipsKeepSkipMarkersAlongsideUnstructuredEvidence() throws {
+    let block = ParsedBlockModel(
+        tabName: "Block 27",
+        weeks: [
+            week(
+                1,
+                date: nil,
+                exercises: [
+                    exercise(
+                        "Squat",
+                        sets: [
+                            loggedSet(index: 0, weight: 185, reps: 5, rpe: 7),
+                            skippedSet(index: 1),
+                            unstructuredSet(index: 2, "tweaked back")
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
+
+    let entry = try #require(LastPerformedExtractor.entries(from: block).first)
+
+    #expect(entry.displayResultText == "185x5@7, skip, tweaked back")
 }
 
 @Test func singleSetEvidenceKeepsStructuredResult() throws {
@@ -236,6 +394,17 @@ private func pendingSet(index: Int) -> ParsedSet {
 
 private func loggedUnstructuredSet(index: Int) -> ParsedSet {
     ParsedSet(index: index, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .logged)
+}
+
+private func unstructuredSet(index: Int, _ text: String) -> ParsedSet {
+    ParsedSet(
+        index: index,
+        prescribedReps: "5",
+        prescribedLoad: "RPE 7",
+        percentOneRM: nil,
+        state: .logged,
+        unstructuredSetLog: text
+    )
 }
 
 private func skippedSet(index: Int) -> ParsedSet {

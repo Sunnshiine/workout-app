@@ -93,6 +93,7 @@
                 PendingWrite.self,
                 WriteTargetAuditEntry.self,
                 LastPerformedEntry.self,
+                HistoryFillCursor.self,
                 configurations: config
             )
             seed(into: container.mainContext)
@@ -124,7 +125,9 @@
                         ? WorkoutFixtureScenarios.uiLaunchBlock()
                         : WorkoutFixtureScenarios.partiallyUploadedBlock()
             context.insert(block)
-            context.insert(WorkoutFixtureScenarios.lastPerformedBackSquat())
+            for entry in WorkoutFixtureScenarios.backSquatHistory() {
+                context.insert(entry)
+            }
             if startsWithPendingWrite {
                 context.insert(WorkoutFixtureScenarios.queuedWrite())
             }

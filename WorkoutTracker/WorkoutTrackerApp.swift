@@ -35,7 +35,8 @@ struct WorkoutTrackerApp: App {
                     initialValue: SyncCoordinator(
                         client: UITestFixture.makeSheetsClient(),
                         context: ctx,
-                        lastPerformedLookupRefresher: lastPerformedLookup
+                        lastPerformedLookupRefresher: lastPerformedLookup,
+                        lastPerformedBackfillObserver: lastPerformedLookup
                     )
                 )
                 _lastPerformedLookup = State(initialValue: lastPerformedLookup)
@@ -43,7 +44,9 @@ struct WorkoutTrackerApp: App {
             }
         #endif
         // swiftlint:disable:next force_try
-        let container = try! ModelContainer(for: Block.self, PendingWrite.self, WriteTargetAuditEntry.self, LastPerformedEntry.self)
+        let container = try! ModelContainer(
+            for: Block.self, PendingWrite.self, WriteTargetAuditEntry.self, LastPerformedEntry.self, HistoryFillCursor.self
+        )
         self.container = container
         let ctx = container.mainContext
         let lastPerformedLookup = LastPerformedLookupStore(context: ctx)
@@ -58,7 +61,8 @@ struct WorkoutTrackerApp: App {
             initialValue: SyncCoordinator(
                 client: GoogleSheetsClient(),
                 context: ctx,
-                lastPerformedLookupRefresher: lastPerformedLookup
+                lastPerformedLookupRefresher: lastPerformedLookup,
+                lastPerformedBackfillObserver: lastPerformedLookup
             )
         )
         _lastPerformedLookup = State(initialValue: lastPerformedLookup)

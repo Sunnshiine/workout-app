@@ -545,3 +545,42 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     #expect(presentation == nil)
     withExtendedLifetime(container) {}
 }
+
+@Test func lastPerformedCardPresentationCarriesTierThreeMatchedName() {
+    let snapshot = LastPerformedLookupSnapshot(entries: [
+        LastPerformedEntry(
+            fullName: "Standing Calve Raises",
+            baseName: "Standing Calve Raises",
+            resultText: "25x12",
+            performedOn: Date(timeIntervalSinceReferenceDate: 100),
+            source: "Block 27 · W1 D1"
+        )
+    ])
+    let exercise = Exercise(
+        name: "Standing Calf Raise",
+        baseName: "Standing Calf Raise",
+        cadence: nil,
+        coachNote: nil,
+        order: 0
+    )
+
+    let presentation = LastPerformedCardPresentation(exercise: exercise, lookup: snapshot)
+    #expect(presentation?.resultText == "25x12")
+    #expect(presentation?.matchedName == "Standing Calve Raises")
+}
+
+@Test func lastPerformedCardPresentationHasNoMatchedNameForExactMatch() {
+    let snapshot = LastPerformedLookupSnapshot(entries: [
+        LastPerformedEntry(
+            fullName: "Squat",
+            baseName: "Squat",
+            resultText: "205x5",
+            performedOn: Date(timeIntervalSinceReferenceDate: 100),
+            source: "Block 27 · W1 D1"
+        )
+    ])
+    let exercise = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil, order: 0)
+
+    let presentation = LastPerformedCardPresentation(exercise: exercise, lookup: snapshot)
+    #expect(presentation?.matchedName == nil)
+}

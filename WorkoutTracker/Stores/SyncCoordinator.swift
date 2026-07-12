@@ -16,6 +16,7 @@ final class SyncCoordinator {
     private let sheetWritePlanner: SheetWritePlanner
     private let lastPerformedLookupRefresher: any LastPerformedLookupRefreshing
     private let lastPerformedBackfillObserver: any LastPerformedBackfillObserving
+    private let tabFetchBackoff: SheetsBackoff
     private var activePendingWriteFlushCount = 0
     private var pendingWriteFlushGeneration = 0
 
@@ -31,13 +32,15 @@ final class SyncCoordinator {
         context: ModelContext,
         sheetWritePlanner: SheetWritePlanner = SheetWritePlanner(),
         lastPerformedLookupRefresher: any LastPerformedLookupRefreshing = NoopLastPerformedLookupRefresher(),
-        lastPerformedBackfillObserver: any LastPerformedBackfillObserving = NoopLastPerformedBackfillObserver()
+        lastPerformedBackfillObserver: any LastPerformedBackfillObserving = NoopLastPerformedBackfillObserver(),
+        tabFetchBackoff: SheetsBackoff = SheetsBackoff()
     ) {
         self.client = client
         self.context = context
         self.sheetWritePlanner = sheetWritePlanner
         self.lastPerformedLookupRefresher = lastPerformedLookupRefresher
         self.lastPerformedBackfillObserver = lastPerformedBackfillObserver
+        self.tabFetchBackoff = tabFetchBackoff
     }
 
     func reportLocalWriteFailure(_ error: any Error) {
@@ -222,6 +225,14 @@ final class SyncCoordinator {
         }
     }
 
+    /// The lazy backfill, made resumable and observable (ADR-0012, #365).
+    ///
+    /// A failed tab — a transient 429/5xx that outlasts the backoff budget, or any non-transient
+    /// error — **halts** the fill instead of skipping it, because a silent hole in the middle
+    /// corrupts the coverage count. The deepest tab read before the halt is persisted as a cursor
+    /// so the next sync resumes from the tab just deeper than it; re-ingest is idempotent via
+    /// `source` dedup, so the cursor only spares redundant reads. The cursor is cleared on a clean
+    /// finish (coverage reached or tabs exhausted). Each ingested tab publishes per-tab progress.
     private func backfillLastPerformed(
         spreadsheetId: String,
         currentBlock: ParsedBlockModel,
@@ -229,21 +240,37 @@ final class SyncCoordinator {
     ) async {
         let currentExercises = uniqueExercises(in: currentBlock)
         guard !currentExercises.isEmpty else { return }
-        guard !hasLastPerformedCoverage(for: currentExercises) else { return }
+        guard !hasLastPerformedCoverage(for: currentExercises) else {
+            clearHistoryFillCursor(spreadsheetId: spreadsheetId)
+            return
+        }
 
+        let tabsToScan = resumeTabs(historicalTabs, after: historyFillCursorTab(spreadsheetId: spreadsheetId))
         let client = client
-        for tab in historicalTabs {
-            let records: [LastPerformedRecord]
+        let backoff = tabFetchBackoff
+        var tabsCompleted = 0
+
+        for tab in tabsToScan {
+            let scan: HistoricalTabScan
             do {
-                records = try await Task.detached(priority: .background) {
-                    try await Self.historicalLastPerformedRecords(
+                scan = try await Task.detached(priority: .background) {
+                    try await Self.scanHistoricalTab(
                         spreadsheetId: spreadsheetId,
                         tab: tab,
-                        client: client
+                        client: client,
+                        backoff: backoff
                     )
                 }.value
             } catch {
-                continue
+                // A non-transient error (auth, malformed response) propagated: halt without a
+                // silent skip, leaving the cursor so the next sync resumes at this tab.
+                return
+            }
+
+            guard case let .ingested(records) = scan else {
+                // `.failed`: the transient backoff budget was spent. Halt at this tab — the cursor
+                // still points at the last success, so the next sync resumes here.
+                return
             }
 
             if !records.isEmpty {
@@ -255,20 +282,81 @@ final class SyncCoordinator {
                     return
                 }
             }
+
+            advanceHistoryFillCursor(spreadsheetId: spreadsheetId, to: tab)
+            tabsCompleted += 1
+            lastPerformedBackfillObserver.lastPerformedBackfillDidProgress(
+                LastPerformedBackfillProgress(tab: tab, tabsCompleted: tabsCompleted, tabsToScan: tabsToScan.count)
+            )
+
             if hasLastPerformedCoverage(for: currentExercises) {
+                clearHistoryFillCursor(spreadsheetId: spreadsheetId)
                 return
             }
         }
+
+        // Tabs exhausted without reaching coverage: a clean finish, so start fresh next sync.
+        clearHistoryFillCursor(spreadsheetId: spreadsheetId)
     }
 
-    nonisolated private static func historicalLastPerformedRecords(
+    /// One historical tab's outcome, computed off the main actor.
+    private enum HistoricalTabScan: Sendable {
+        /// The tab was read (however small) and yielded these entry records.
+        case ingested([LastPerformedRecord])
+        /// The tab could not be read: a transient failure outlasted the backoff budget.
+        case failed
+    }
+
+    nonisolated private static func scanHistoricalTab(
         spreadsheetId: String,
         tab: String,
-        client: any SheetsClient
-    ) async throws -> [LastPerformedRecord] {
-        let snapshot = try await client.fetchTabSnapshot(spreadsheetId: spreadsheetId, tabName: tab)
-        let parsed = SheetParser().parse(snapshot: snapshot, tabName: tab)
-        return LastPerformedExtractor.records(from: parsed.block)
+        client: any SheetsClient,
+        backoff: SheetsBackoff
+    ) async throws -> HistoricalTabScan {
+        switch try await client.fetchTabSnapshot(spreadsheetId: spreadsheetId, tabName: tab, retrying: backoff) {
+        case .failed:
+            return .failed
+        case .fetched(let snapshot):
+            let parsed = SheetParser().parse(snapshot: snapshot, tabName: tab)
+            return .ingested(LastPerformedExtractor.records(from: parsed.block))
+        }
+    }
+
+    /// The historical tabs still to read, given the persisted resume cursor. Everything at or newer
+    /// than the deepest ingested tab is already on device, so the fill starts at the next tab deeper.
+    private func resumeTabs(_ historicalTabs: [String], after cursorTab: String?) -> [String] {
+        guard let cursorTab, let cursorNumber = blockNumber(from: cursorTab) else { return historicalTabs }
+        return historicalTabs.filter { tab in
+            guard let number = blockNumber(from: tab) else { return true }
+            return number < cursorNumber
+        }
+    }
+
+    private func historyFillCursorTab(spreadsheetId: String) -> String? {
+        historyFillCursor(spreadsheetId: spreadsheetId)?.deepestIngestedTab
+    }
+
+    private func historyFillCursor(spreadsheetId: String) -> HistoryFillCursor? {
+        let descriptor = FetchDescriptor<HistoryFillCursor>(
+            predicate: #Predicate { $0.spreadsheetId == spreadsheetId }
+        )
+        return try? context.fetch(descriptor).first
+    }
+
+    private func advanceHistoryFillCursor(spreadsheetId: String, to tab: String) {
+        if let existing = historyFillCursor(spreadsheetId: spreadsheetId) {
+            existing.deepestIngestedTab = tab
+            existing.updatedAt = .now
+        } else {
+            context.insert(HistoryFillCursor(spreadsheetId: spreadsheetId, deepestIngestedTab: tab))
+        }
+        try? context.save()
+    }
+
+    private func clearHistoryFillCursor(spreadsheetId: String) {
+        guard let cursor = historyFillCursor(spreadsheetId: spreadsheetId) else { return }
+        context.delete(cursor)
+        try? context.save()
     }
 
     private func uniqueExercises(in block: ParsedBlockModel) -> [(name: String, baseName: String)] {
@@ -286,10 +374,18 @@ final class SyncCoordinator {
         return exercises
     }
 
+    /// The coverage-based stopping rule (ADR-0012): the fill reaches back until every
+    /// current-Block Exercise has at least `historyCoverageTarget` entries counted per
+    /// Cadence-stripped base name — the last ~5 entries the Exercise History sheet reads —
+    /// or Block tabs are exhausted. Counting by base name (not Movement level) may fetch a
+    /// tab Movement matching didn't strictly need; that over-fetch is accepted (#357).
+    private static let historyCoverageTarget = 5
+
     private func hasLastPerformedCoverage(for exercises: [(name: String, baseName: String)]) -> Bool {
         let index = LastPerformedIndex(context: context)
-        return exercises.allSatisfy { exercise in
-            index.lookup(exerciseName: exercise.name, baseName: exercise.baseName) != nil
+        let baseNames = Set(exercises.map(\.baseName))
+        return baseNames.allSatisfy { baseName in
+            index.entryCount(baseName: baseName) >= Self.historyCoverageTarget
         }
     }
 

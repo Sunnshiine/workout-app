@@ -171,6 +171,86 @@ private final class RequestRecorder: @unchecked Sendable {
     #expect(snapshot.isRowVisible(99) == true)
 }
 
+/// Replays a scripted sequence of HTTP status codes so the retry path can be exercised
+/// end-to-end through the real client without touching the network.
+private final class ScriptedLoader: @unchecked Sendable {
+    private var statusCodes: [Int]
+    var data: Data
+    private(set) var callCount = 0
+
+    init(statusCodes: [Int], data: Data) {
+        self.statusCodes = statusCodes
+        self.data = data
+    }
+
+    func load(_ request: URLRequest) async throws -> (Data, Int) {
+        callCount += 1
+        // Once a single status remains it repeats, so an "always fails" script is one element.
+        let status = statusCodes.count > 1 ? statusCodes.removeFirst() : statusCodes[0]
+        return (data, status)
+    }
+}
+
+@Test func fetchTabSnapshotRetryingBacksOffOnTransientFailuresThenReturnsSnapshot() async throws {
+    let loader = ScriptedLoader(
+        statusCodes: [429, 503, 200],
+        data: Data(#"{"sheets":[{"data":[{"rowData":[{"values":[{"formattedValue":"Squat"}]}]}]}]}"#.utf8)
+    )
+    let delays = SleepRecorder()
+    let client = GoogleSheetsClient(tokenProvider: { "token" }, load: loader.load)
+
+    let outcome = try await client.fetchTabSnapshot(
+        spreadsheetId: "sid",
+        tabName: "Block 27",
+        retrying: SheetsBackoff(sleep: delays.record)
+    )
+
+    #expect(outcome == .fetched(SheetSnapshot(values: [["Squat"]])))
+    #expect(delays.durations == [.seconds(1), .seconds(2)])
+    #expect(loader.callCount == 3)
+}
+
+@Test func fetchTabSnapshotRetryingFailsTheTabAfterExhaustingBackoff() async throws {
+    let loader = ScriptedLoader(statusCodes: [500], data: Data(#"{"sheets":[]}"#.utf8))
+    let delays = SleepRecorder()
+    let client = GoogleSheetsClient(tokenProvider: { "token" }, load: loader.load)
+
+    let outcome = try await client.fetchTabSnapshot(
+        spreadsheetId: "sid",
+        tabName: "Block 27",
+        retrying: SheetsBackoff(sleep: delays.record)
+    )
+
+    #expect(outcome == .failed)
+    #expect(delays.durations == [.seconds(1), .seconds(2), .seconds(4), .seconds(8)])
+    #expect(loader.callCount == 5)
+}
+
+@Test func fetchTabSnapshotRetryingDoesNotRetryAuthFailures() async throws {
+    let loader = ScriptedLoader(statusCodes: [403], data: Data(#"{"error":{"code":403}}"#.utf8))
+    let delays = SleepRecorder()
+    let client = GoogleSheetsClient(tokenProvider: { "token" }, load: loader.load)
+
+    await #expect(throws: SheetsError.http(403)) {
+        _ = try await client.fetchTabSnapshot(
+            spreadsheetId: "sid",
+            tabName: "Block 27",
+            retrying: SheetsBackoff(sleep: delays.record)
+        )
+    }
+    #expect(delays.durations.isEmpty)
+    #expect(loader.callCount == 1)
+}
+
+/// Records requested backoff delays without sleeping on the wall clock.
+private final class SleepRecorder: @unchecked Sendable {
+    private(set) var durations: [Duration] = []
+
+    func record(_ duration: Duration) async throws {
+        durations.append(duration)
+    }
+}
+
 private func driveModifiedDate(from value: String) -> Date? {
     let formatter = ISO8601DateFormatter()
     formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]

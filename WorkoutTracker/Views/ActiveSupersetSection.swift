@@ -3,6 +3,7 @@ import SwiftUI
 struct ActiveSupersetSection: View {
     let config: SessionSupersetRenderConfig
     let onFocusExercise: (Exercise) -> Void
+    let onShowHistory: (Exercise) -> Void
     let onLog: (ExerciseSet, SetLog) -> Void
     let onSkip: (ExerciseSet) -> Void
     let onDelete: (ExerciseSet) -> Void
@@ -90,7 +91,11 @@ struct ActiveSupersetSection: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             if let lastPerformedPresentation = config.lastPerformedPresentation {
-                LastPerformedCard(presentation: lastPerformedPresentation)
+                // Tapping opens the Exercise History sheet for the active side — the PRD gives the
+                // Last Performed tap no Superset carve-out, so the seam bubbles up to SessionStageView.
+                LastPerformedCard(presentation: lastPerformedPresentation) {
+                    onShowHistory(activeExercise)
+                }
             }
 
             ZStack(alignment: .topLeading) {
