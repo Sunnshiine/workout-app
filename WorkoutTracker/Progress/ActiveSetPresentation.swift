@@ -336,11 +336,15 @@ struct LastPerformedCardPresentation: Equatable, Sendable {
     let label: String
     let resultText: String
     let sourceText: String
+    /// The matched entry's own entered name for a tier-3 (Movement-level) line, rendered
+    /// *as "…"* in muted italic — nil for the byte-identical tier-1/2 lines (ADR-0013).
+    let matchedName: String?
 
     init(entry: LastPerformedEntry) {
         label = "Last Performed"
         resultText = entry.displayResultText
         sourceText = entry.source
+        matchedName = nil
     }
 
     init?(exercise: Exercise, lookup: LastPerformedLookupSnapshot) {
@@ -350,6 +354,7 @@ struct LastPerformedCardPresentation: Equatable, Sendable {
         label = "Last Performed"
         resultText = entry.resultText
         sourceText = entry.sourceText
+        matchedName = entry.matchedName
     }
 }
 

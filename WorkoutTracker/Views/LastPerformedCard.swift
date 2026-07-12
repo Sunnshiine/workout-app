@@ -20,7 +20,17 @@ struct LastPerformedCard: View {
                 + Text(presentation.sourceText)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+                + matchedNameText
         )
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // A tier-3 (Movement-level) line names the differently-spelled entry it matched (ADR-0013).
+    private var matchedNameText: Text {
+        guard let matchedName = presentation.matchedName else { return Text("") }
+        return Text(" as “\(matchedName)”")
+            .font(.footnote)
+            .italic()
+            .foregroundStyle(.tertiary)
     }
 }
