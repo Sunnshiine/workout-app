@@ -272,7 +272,21 @@ Settings rows use SF Symbols, semibold row labels, secondary detail text, and a 
 
 ### Last Performed
 
-Last Performed is a quiet inline reference line above the active Set — plain muted text, not a card. It is static, non-tappable, and visually subordinate to the Active Set Card so it never reads as an action.
+Last Performed is a quiet inline reference line above the active Set — plain muted text, not a card. It is visually subordinate to the Active Set Card so it never reads as an action. Tapping it opens the Exercise History sheet; this is the sheet's only entry point, and the line earns at most the subtlest disclosure hint for it — no chevron weight, no stroke, no color shift that would compete with the Active Set Card.
+
+When the line is produced by a Movement-level fallback match (the third lookup tier), it labels itself with the matched entry's own entered name in muted italic — *as "Standing Calve Raises"* — so the spelling difference stays visible.
+
+### Exercise History Sheet
+
+The Exercise History sheet is a quiet `.medium`-detent sheet opened from the Last Performed line, showing the last ~5 entries for the viewed Exercise's Movement. Title is the movement name; subtitle is `Exercise History · last 5`. It stays entirely in the Last Performed reference vocabulary — muted text, hairline rules, no glass, no mint — so the Warm Training Cockpit stage keeps visual priority.
+
+Entries group under uppercase muted Block headers with a hairline rule (`BLOCK 27`, `BLOCK 26`, …), newest first. Each entry is one row: a `W1 D1` gutter label with the entry's Cadence in small muted type beneath it, then the Sets on a single line — `27.5×10 @8 · 27.5×10 @8 · 27.5×9 @9` — with muted RPE and `·` separators. Partially Skipped entries show their `skip` marker inline as muted italic; Legacy Logs and Unstructured Set Logs render as raw entered text in italic with a muted *as entered* tag; an entry whose base name differs beyond case from the viewed Exercise's annotates itself *as "…"* in the same muted italic vocabulary.
+
+**The History Row Never Wraps Rule.** An entry's Set line stays on one line. Long Set lists shrink to fit (`lineLimit(1)` + `minimumScaleFactor`) rather than wrapping — a wrapped history row is a wall of text and is not acceptable.
+
+**The History Is Reference Rule.** No mint anywhere in the sheet. Mint and saturated green stay reserved for current action; history is quiet reading material, not a dashboard — no charts, trend arrows, or badges.
+
+While the history index is still filling, the sheet (and any surface waiting on history) may show the fill's per-tab progress as a visible, playful affordance in the product's warm voice — honest about what is loading, never a dead spinner. It uses muted reference vocabulary, not mint.
 
 ### Move On Celebration
 
@@ -304,7 +318,7 @@ Do not add elapsed-time UI, timing rows, Exercise cards, route checkpoints, conf
 - **Do** keep Dark mode as the original deep green and black cockpit.
 - **Do** keep Sage Light soft, sage-led, and less bright than pure white.
 - **Do** keep Liquid Glass selective so important workout surfaces keep their weight.
-- **Do** use exact domain language from CONTEXT.md: Block, Week, Session, Exercise, Set, Set Log, Last Performed, Move On.
+- **Do** use exact domain language from CONTEXT.md: Block, Week, Session, Exercise, Set, Set Log, Last Performed, Exercise History, Move On.
 - **Do** preserve native iOS affordances for Settings, Sync, sheets, navigation, and text input.
 - **Do** keep celebration tied to Move On and genuine Session progress.
 
