@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<!--
+  PROTOTYPE — throwaway. Wayfinder ticket #370: decide the app icon design direction.
+
+  Four glyph directions x three palettes x flat/glass material, switchable via
+  ?d=&p=&m= URL params and the floating bottom bar. Open this file in a browser;
+  arrow keys cycle directions, "p" cycles palettes, "m" toggles material.
+
+  Directions (structurally different, per the /prototype skill):
+    A "Plate"       — a barbell plate face-on; hub + groove ring are negative space.
+    B "Roundel W"   — GitHub-style: a bold geometric W cut out of a solid disc.
+    C "Loaded Bar"  — full-bleed minimal barbell; plate gaps are the negative space.
+    D "Plate Skyline" — five racked plates whose tops trace a W; the bar through
+                        them exists only as a negative-space channel.
+
+  Palettes are lifted from WorkoutTracker/Theme.swift:
+    midnight — dark palette gradient stops + accent #73FFB8
+    mint     — accent field, accentDarkText glyph (Anthropic-style inversion)
+    sage     — sageLight gradient stops + light accent #0D6B40
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE — App icon directions (#370)</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    background: #0b0e0c; color: #e8efe9; padding-bottom: 120px;
+  }
+  header { padding: 28px 32px 8px; }
+  header h1 { font-size: 20px; font-weight: 700; }
+  header p { font-size: 13px; color: #9db3a4; margin-top: 6px; max-width: 720px; }
+  section { padding: 20px 32px; }
+  h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+       color: #6f8577; margin-bottom: 14px; }
+
+  /* icon wrapper: iOS squircle approximation */
+  .icon { border-radius: 22.37%; overflow: hidden; position: relative; flex: none;
+          box-shadow: 0 1px 4px rgba(0,0,0,.45); }
+  .icon svg { display: block; width: 100%; height: 100%; }
+
+  /* home-screen simulation */
+  .homescreen {
+    border-radius: 28px; padding: 34px 26px 26px; max-width: 420px;
+    background:
+      radial-gradient(120% 90% at 20% 0%, #17352a 0%, transparent 55%),
+      radial-gradient(120% 100% at 90% 100%, #0d2038 0%, transparent 60%),
+      linear-gradient(160deg, #0a0f0c 0%, #060a08 100%);
+    border: 1px solid rgba(255,255,255,.07);
+  }
+  .homescreen .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px 10px; }
+  .homescreen .app { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .homescreen .app .label { font-size: 11px; color: rgba(255,255,255,.85); letter-spacing: .01em; }
+  .homescreen .icon { width: 60px; height: 60px; }
+  .decoy { width: 60px; height: 60px; border-radius: 22.37%; flex: none;
+           box-shadow: 0 1px 4px rgba(0,0,0,.45); }
+
+  /* detail + ladder */
+  .detail { display: flex; gap: 40px; flex-wrap: wrap; align-items: flex-start; }
+  .detail .big .icon { width: 256px; height: 256px; }
+  .ladder { display: flex; align-items: flex-end; gap: 18px; }
+  .ladder figure { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .ladder figcaption { font-size: 11px; color: #6f8577; }
+  .strips { display: flex; flex-direction: column; gap: 14px; margin-top: 22px; }
+  .strip { display: flex; align-items: center; gap: 18px; padding: 14px 18px; border-radius: 16px; }
+  .strip.dark  { background: linear-gradient(140deg, #05130c, #0a1f2e); }
+  .strip.light { background: linear-gradient(140deg, #e9eee0, #cfe3d4); }
+  .strip span { font-size: 11px; }
+  .strip.dark span { color: rgba(255,255,255,.6); }
+  .strip.light span { color: rgba(0,0,0,.5); }
+
+  /* gallery of every combo */
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+             gap: 20px; max-width: 900px; }
+  .gallery button { background: none; border: none; cursor: pointer; display: flex;
+                    flex-direction: column; align-items: center; gap: 8px; padding: 8px;
+                    border-radius: 14px; }
+  .gallery button:hover { background: rgba(255,255,255,.05); }
+  .gallery button.current { outline: 2px solid #73FFB8; outline-offset: 2px; }
+  .gallery .icon { width: 96px; height: 96px; }
+  .gallery .cap { font-size: 11px; color: #9db3a4; text-align: center; }
+
+  /* floating switcher — deliberately not part of the design being judged */
+  .switcher {
+    position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(18, 22, 20, .92); border: 1px solid rgba(255,255,255,.14);
+    border-radius: 999px; padding: 10px 14px; backdrop-filter: blur(12px);
+    box-shadow: 0 8px 30px rgba(0,0,0,.5); z-index: 10; flex-wrap: wrap;
+    justify-content: center; max-width: calc(100vw - 24px);
+  }
+  .switcher button {
+    background: rgba(255,255,255,.08); color: #e8efe9; border: none; cursor: pointer;
+    border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 600;
+  }
+  .switcher button:hover { background: rgba(255,255,255,.16); }
+  .switcher button.on { background: #73FFB8; color: #05130B; }
+  .switcher .name { font-size: 13px; font-weight: 700; min-width: 150px; text-align: center; }
+  .switcher .group { display: flex; gap: 6px; align-items: center;
+                     border-left: 1px solid rgba(255,255,255,.12); padding-left: 10px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>App icon directions — PROTOTYPE for <a href="https://github.com/Sunnshiine/workout-app/issues/370" style="color:#73FFB8">#370</a></h1>
+  <p>Flat, single-glyph, negative-space marks in palettes from <code>Theme.swift</code>.
+     Cycle directions with ‹ › (or ← →), palettes with the chips (or <b>p</b>),
+     flat/glass with <b>m</b>. Glass here is a CSS-grade sketch of what Icon Composer
+     would do properly — judge the glyph and palette, not the shader.</p>
+</header>
+
+<section>
+  <h2>On the home screen</h2>
+  <div class="homescreen"><div class="grid" id="homegrid"></div></div>
+</section>
+
+<section>
+  <h2>Detail &amp; size ladder</h2>
+  <div class="detail">
+    <div class="big" id="bigicon"></div>
+    <div>
+      <div class="ladder" id="ladder"></div>
+      <div class="strips">
+        <div class="strip dark" id="stripdark"><span>dark wallpaper</span></div>
+        <div class="strip light" id="striplight"><span>light wallpaper</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>All combinations (click to select)</h2>
+  <div class="gallery" id="gallery"></div>
+</section>
+
+<div class="switcher" id="switcher"></div>
+
+<script>
+"use strict";
+
+/* ---------- palettes (from Theme.swift) ---------- */
+const PALETTES = {
+  midnight: {
+    label: "Midnight",
+    bg: ["#050806", "#041C11"],       // dark palette gradient stops
+    glyph: "#73FFB8",                 // accent
+  },
+  mint: {
+    label: "Mint field",
+    bg: ["#8CFFCB", "#5EF2A5"],       // accent as the field
+    glyph: "#05200F",                 // accentDarkText, deepened
+  },
+  sage: {
+    label: "Sage light",
+    bg: ["#E8EDDB", "#C7E0BF"],       // sageLight gradient stops
+    glyph: "#0D6B40",                 // sageLight accent
+  },
+};
+
+/* ---------- glyph directions ----------
+   Each returns inner SVG for a 1024x1024 canvas. `fg` is the glyph colour;
+   negative space is the background showing through (via fill-rule/masks). */
+
+const DIRECTIONS = {
+  A: {
+    name: "Plate",
+    blurb: "plate face-on; hub + groove are negative space",
+    draw(fg) {
+      // disc with hub hole and one groove ring cut out (even-odd)
+      const c = 512;
+      const ring = (r) => `M ${c - r},${c} a ${r},${r} 0 1,0 ${2 * r},0 a ${r},${r} 0 1,0 ${-2 * r},0 Z`;
+      return `<path fill="${fg}" fill-rule="evenodd"
+        d="${ring(368)} ${ring(258)} ${ring(230)} ${ring(104)}"/>`;
+    },
+  },
+  B: {
+    name: "Roundel W",
+    blurb: "bold W cut out of a solid disc, GitHub-style",
+    draw(fg, uid) {
+      // sharp geometric W as a mask cutout
+      return `
+        <mask id="wmask${uid}">
+          <rect width="1024" height="1024" fill="#fff"/>
+          <polyline points="322,340 432,700 512,462 592,700 702,340"
+            fill="none" stroke="#000" stroke-width="96"/>
+        </mask>
+        <circle cx="512" cy="512" r="392" fill="${fg}" mask="url(#wmask${uid})"/>`;
+    },
+  },
+  C: {
+    name: "Loaded Bar",
+    blurb: "full-bleed barbell; the gaps between plates do the work",
+    draw(fg) {
+      const plate = (x, w, h) =>
+        `<rect x="${x}" y="${512 - h / 2}" width="${w}" height="${h}" rx="${Math.min(44, w / 2)}" fill="${fg}"/>`;
+      return `
+        <rect x="0" y="482" width="1024" height="60" fill="${fg}"/>
+        ${plate(140, 96, 360)}${plate(272, 124, 520)}
+        ${plate(1024 - 272 - 124, 124, 520)}${plate(1024 - 140 - 96, 96, 360)}`;
+    },
+  },
+  D: {
+    name: "Plate Skyline",
+    blurb: "racked plates trace a W; the bar is a negative-space channel",
+    draw(fg, uid) {
+      // five upright plates on a baseline, tops at W heights;
+      // a horizontal channel (the bar) is cut through all of them
+      const base = 792, w = 148, gap = 30, rx = 40;
+      const heights = [552, 316, 442, 316, 552];
+      const totalW = 5 * w + 4 * gap;
+      let x = (1024 - totalW) / 2, rects = "";
+      for (const h of heights) {
+        rects += `<rect x="${x}" y="${base - h}" width="${w}" height="${h}" rx="${rx}" fill="#fff"/>`;
+        x += w + gap;
+      }
+      return `
+        <mask id="dmask${uid}">
+          ${rects}
+          <rect x="0" y="596" width="1024" height="56" fill="#000"/>
+        </mask>
+        <rect width="1024" height="1024" fill="${fg}" mask="url(#dmask${uid})"/>`;
+    },
+  },
+};
+
+/* ---------- rendering ---------- */
+let uidCounter = 0;
+
+function iconSVG(dKey, pKey, material) {
+  const p = PALETTES[pKey];
+  const d = DIRECTIONS[dKey];
+  const uid = ++uidCounter;
+  const glass = material === "glass";
+  const glassDefs = glass ? `
+    <linearGradient id="sheen${uid}" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.32"/>
+      <stop offset="0.45" stop-color="#ffffff" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="soft${uid}" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="22" flood-color="#000" flood-opacity="0.35"/>
+    </filter>` : "";
+  const glyph = d.draw(p.glyph, uid);
+  const glyphLayer = glass
+    ? `<g filter="url(#soft${uid})" opacity="0.94">${glyph}</g>`
+    : `<g>${glyph}</g>`;
+  const sheen = glass
+    ? `<ellipse cx="330" cy="-40" rx="820" ry="500" fill="url(#sheen${uid})"/>
+       <rect x="10" y="10" width="1004" height="1004" rx="220" fill="none"
+             stroke="#ffffff" stroke-opacity="0.18" stroke-width="14"/>`
+    : "";
+  return `<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="bg${uid}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="${p.bg[0]}"/><stop offset="1" stop-color="${p.bg[1]}"/>
+      </linearGradient>
+      ${glassDefs}
+    </defs>
+    <rect width="1024" height="1024" fill="url(#bg${uid})"/>
+    ${glyphLayer}${sheen}
+  </svg>`;
+}
+
+function iconEl(dKey, pKey, material, sizePx) {
+  const el = document.createElement("div");
+  el.className = "icon";
+  el.style.width = el.style.height = sizePx + "px";
+  el.innerHTML = iconSVG(dKey, pKey, material);
+  return el;
+}
+
+/* ---------- state via URL params ---------- */
+const DKEYS = Object.keys(DIRECTIONS);
+const PKEYS = Object.keys(PALETTES);
+const params = new URLSearchParams(location.search);
+let state = {
+  d: DKEYS.includes(params.get("d")) ? params.get("d") : "A",
+  p: PKEYS.includes(params.get("p")) ? params.get("p") : "midnight",
+  m: params.get("m") === "glass" ? "glass" : "flat",
+};
+
+function sync() {
+  const q = new URLSearchParams(state).toString();
+  history.replaceState(null, "", "?" + q);
+  render();
+}
+
+/* ---------- page assembly ---------- */
+const DECOYS = [
+  ["#2c2c2e", "Files"], ["#1c8cff", "Messages"], ["#30d158", "Phone"], ["#8e8e93", "Settings"],
+  ["#ff9f0a", "Notes"], ["#5e5ce6", "Calendar"],
+];
+
+function render() {
+  const { d, p, m } = state;
+
+  // home screen: candidate sits among decoys
+  const grid = document.getElementById("homegrid");
+  grid.innerHTML = "";
+  DECOYS.slice(0, 3).forEach(([color, label]) => grid.appendChild(decoyApp(color, label)));
+  const mine = document.createElement("div");
+  mine.className = "app";
+  mine.appendChild(iconEl(d, p, m, 60));
+  mine.insertAdjacentHTML("beforeend", `<span class="label">TFN Tracker</span>`);
+  grid.appendChild(mine);
+  DECOYS.slice(3).forEach(([color, label]) => grid.appendChild(decoyApp(color, label)));
+  // a second candidate slot at 60px next to different neighbours
+  const mine2 = document.createElement("div");
+  mine2.className = "app";
+  mine2.appendChild(iconEl(d, p, m, 60));
+  mine2.insertAdjacentHTML("beforeend", `<span class="label">TFN Tracker</span>`);
+  grid.appendChild(mine2);
+
+  // detail + ladder
+  const big = document.getElementById("bigicon");
+  big.innerHTML = "";
+  big.appendChild(iconEl(d, p, m, 256));
+  const ladder = document.getElementById("ladder");
+  ladder.innerHTML = "";
+  for (const s of [180, 120, 76, 60, 40]) {
+    const fig = document.createElement("figure");
+    fig.appendChild(iconEl(d, p, m, s));
+    fig.insertAdjacentHTML("beforeend", `<figcaption>${s}px</figcaption>`);
+    ladder.appendChild(fig);
+  }
+  for (const id of ["stripdark", "striplight"]) {
+    const strip = document.getElementById(id);
+    strip.querySelectorAll(".icon").forEach((n) => n.remove());
+    for (const s of [60, 48, 40]) strip.appendChild(iconEl(d, p, m, s));
+  }
+
+  // gallery
+  const gallery = document.getElementById("gallery");
+  gallery.innerHTML = "";
+  for (const dk of DKEYS) for (const pk of PKEYS) {
+    const b = document.createElement("button");
+    if (dk === d && pk === p) b.className = "current";
+    b.appendChild(iconEl(dk, pk, m, 96));
+    b.insertAdjacentHTML("beforeend",
+      `<span class="cap">${dk} · ${DIRECTIONS[dk].name}<br>${PALETTES[pk].label}</span>`);
+    b.onclick = () => { state.d = dk; state.p = pk; sync(); };
+    gallery.appendChild(b);
+  }
+
+  // switcher
+  const sw = document.getElementById("switcher");
+  sw.innerHTML = "";
+  const prev = btn("‹", () => cycleDirection(-1));
+  const next = btn("›", () => cycleDirection(1));
+  const name = document.createElement("span");
+  name.className = "name";
+  name.textContent = `${d} — ${DIRECTIONS[d].name}`;
+  name.title = DIRECTIONS[d].blurb;
+  sw.append(prev, name, next);
+  const pg = document.createElement("span"); pg.className = "group";
+  for (const pk of PKEYS) {
+    const b = btn(PALETTES[pk].label, () => { state.p = pk; sync(); });
+    if (pk === p) b.classList.add("on");
+    pg.appendChild(b);
+  }
+  sw.appendChild(pg);
+  const mg = document.createElement("span"); mg.className = "group";
+  for (const mk of ["flat", "glass"]) {
+    const b = btn(mk === "flat" ? "Flat" : "Glass", () => { state.m = mk; sync(); });
+    if (mk === m) b.classList.add("on");
+    mg.appendChild(b);
+  }
+  sw.appendChild(mg);
+}
+
+function decoyApp(color, label) {
+  const el = document.createElement("div");
+  el.className = "app";
+  el.innerHTML = `<div class="decoy" style="background:${color}"></div><span class="label">${label}</span>`;
+  return el;
+}
+
+function btn(text, onclick) {
+  const b = document.createElement("button");
+  b.textContent = text;
+  b.onclick = onclick;
+  return b;
+}
+
+function cycleDirection(delta) {
+  const i = (DKEYS.indexOf(state.d) + delta + DKEYS.length) % DKEYS.length;
+  state.d = DKEYS[i];
+  sync();
+}
+
+document.addEventListener("keydown", (e) => {
+  if (/^(INPUT|TEXTAREA)$/.test(e.target.tagName) || e.target.isContentEditable) return;
+  if (e.key === "ArrowLeft") cycleDirection(-1);
+  else if (e.key === "ArrowRight") cycleDirection(1);
+  else if (e.key === "p") { state.p = PKEYS[(PKEYS.indexOf(state.p) + 1) % PKEYS.length]; sync(); }
+  else if (e.key === "m") { state.m = state.m === "flat" ? "glass" : "flat"; sync(); }
+});
+
+render();
+</script>
+</body>
+</html>
