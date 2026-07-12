@@ -27,14 +27,15 @@
   "groups" : [
     {
       "name" : "Sun disc",
-      "specular" : false,
+      "specular" : true,
       "shadow" : {
         "kind" : "neutral",
         "opacity" : 0.3
       },
+      "blur-material" : 0.4,
       "translucency" : {
         "enabled" : true,
-        "value" : 0.25
+        "value" : 0.4
       },
       "layers" : [
         {
