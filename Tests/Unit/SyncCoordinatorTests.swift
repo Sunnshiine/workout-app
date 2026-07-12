@@ -22,6 +22,7 @@ private final class BackfillStubClient: SheetsClient, @unchecked Sendable {
     let titles: [String]
     let grids: [String: SheetGrid]
     let failingTabs: Set<String>
+    let transientFailureTabs: Set<String>
     let suspendedTabs: Set<String>
     let recorder: FetchRecorder
 
@@ -29,12 +30,14 @@ private final class BackfillStubClient: SheetsClient, @unchecked Sendable {
         titles: [String],
         grids: [String: SheetGrid],
         failingTabs: Set<String> = [],
+        transientFailureTabs: Set<String> = [],
         suspendedTabs: Set<String> = [],
         recorder: FetchRecorder = FetchRecorder()
     ) {
         self.titles = titles
         self.grids = grids
         self.failingTabs = failingTabs
+        self.transientFailureTabs = transientFailureTabs
         self.suspendedTabs = suspendedTabs
         self.recorder = recorder
     }
@@ -44,6 +47,7 @@ private final class BackfillStubClient: SheetsClient, @unchecked Sendable {
     func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
         await recorder.record(tabName)
         if failingTabs.contains(tabName) { throw URLError(.notConnectedToInternet) }
+        if transientFailureTabs.contains(tabName) { throw SheetsError.http(429) }
         if suspendedTabs.contains(tabName) {
             await recorder.waitForRelease()
         }
@@ -93,6 +97,11 @@ private actor FetchRecorder {
 private final class BackfillCompletionProbe: LastPerformedBackfillObserving {
     private var didFinish = false
     private var continuations: [CheckedContinuation<Void, Never>] = []
+    private(set) var progressEvents: [LastPerformedBackfillProgress] = []
+
+    func lastPerformedBackfillDidProgress(_ progress: LastPerformedBackfillProgress) {
+        progressEvents.append(progress)
+    }
 
     func lastPerformedBackfillDidFinish() {
         didFinish = true
@@ -455,34 +464,125 @@ private func loggedSquatGrid() -> SheetGrid {
 }
 
 @MainActor
-@Test func syncIgnoresHistoricalBackfillNetworkErrorsAndContinuesScanning() async throws {
+@Test func syncHaltsHistoricalBackfillOnAFailedTabRatherThanSkippingIt() async throws {
     let container = try makeSyncContainer()
     let backfillCompletion = BackfillCompletionProbe()
+    // Block 26 fails transiently; Block 25 lies deeper. The fill must halt at Block 26 rather than
+    // skip it and reach Block 25 — a silent skip would leave a hole that corrupts the coverage count.
     let client = BackfillStubClient(
         titles: ["Block 25", "Block 26", "Block 27"],
         grids: [
             "Block 27": currentGridWithPendingSquat(),
+            "Block 26": historicalGrid(exerciseName: "Squat", log: "245x5@8", date: "4/24/2026"),
             "Block 25": historicalGrid(exerciseName: "Squat", log: "235x5@8", date: "4/17/2026")
         ],
-        failingTabs: ["Block 26"]
+        transientFailureTabs: ["Block 26"]
     )
     let sync = SyncCoordinator(
         client: client,
         context: container.mainContext,
-        lastPerformedBackfillObserver: backfillCompletion
+        lastPerformedBackfillObserver: backfillCompletion,
+        tabFetchBackoff: instantBackoff()
     )
 
     await sync.sync(spreadsheetId: "sid")
     await backfillCompletion.waitForFinish()
 
-    let entry = try #require(
-        LastPerformedIndex(context: container.mainContext)
-            .lookup(exerciseName: "Squat", baseName: "Squat")
+    // The fill halted at Block 26 and never reached Block 25.
+    #expect(sync.state == .idle)
+    #expect(LastPerformedIndex(context: container.mainContext).entryCount(baseName: "Squat") == 0)
+    #expect(await client.recorder.tabs().contains("Block 26"))
+    #expect(await !client.recorder.tabs().contains("Block 25"))
+}
+
+@MainActor
+@Test func failedTabHaltHaltsAtItsCursorThenTheNextSyncResumesFromThere() async throws {
+    let container = try makeSyncContainer()
+    // First sync: Block 26 ingests, Block 25 fails transiently → halt. The cursor lands on Block 26.
+    let firstProbe = BackfillCompletionProbe()
+    let firstClient = BackfillStubClient(
+        titles: ["Block 24", "Block 25", "Block 26", "Block 27"],
+        grids: [
+            "Block 27": currentGridWithPendingSquat(),
+            "Block 26": historicalGrid(exerciseName: "Squat", log: "245x5@8", date: "4/24/2026"),
+            "Block 25": historicalGrid(exerciseName: "Squat", log: "235x5@8", date: "4/17/2026"),
+            "Block 24": historicalGrid(exerciseName: "Squat", log: "225x5@8", date: "4/10/2026")
+        ],
+        transientFailureTabs: ["Block 25"]
+    )
+    let firstSync = SyncCoordinator(
+        client: firstClient,
+        context: container.mainContext,
+        lastPerformedBackfillObserver: firstProbe,
+        tabFetchBackoff: instantBackoff()
+    )
+    await firstSync.sync(spreadsheetId: "sid")
+    await firstProbe.waitForFinish()
+
+    #expect(LastPerformedIndex(context: container.mainContext).entryCount(baseName: "Squat") == 1)
+    let cursor = try #require(historyFillCursor(in: container.mainContext, spreadsheetId: "sid"))
+    #expect(cursor.deepestIngestedTab == "Block 26")
+    #expect(await !firstClient.recorder.tabs().contains("Block 24"))
+
+    // Second sync — a fresh SyncCoordinator on the same persisted store, standing in for an app
+    // restart. Block 25 now succeeds; the fill resumes from the cursor and never re-reads Block 26.
+    let secondProbe = BackfillCompletionProbe()
+    let secondRecorder = FetchRecorder()
+    let secondClient = BackfillStubClient(
+        titles: ["Block 24", "Block 25", "Block 26", "Block 27"],
+        grids: firstClient.grids,
+        recorder: secondRecorder
+    )
+    let secondSync = SyncCoordinator(
+        client: secondClient,
+        context: container.mainContext,
+        lastPerformedBackfillObserver: secondProbe,
+        tabFetchBackoff: instantBackoff()
+    )
+    await secondSync.sync(spreadsheetId: "sid")
+    await secondProbe.waitForFinish()
+
+    // Block 25 and Block 24 were ingested on resume; Block 26 was not re-read; the cursor is cleared.
+    #expect(LastPerformedIndex(context: container.mainContext).entryCount(baseName: "Squat") == 3)
+    #expect(await secondRecorder.tabs().contains("Block 25"))
+    #expect(await secondRecorder.tabs().contains("Block 24"))
+    #expect(await !secondRecorder.tabs().contains("Block 26"))
+    #expect(historyFillCursor(in: container.mainContext, spreadsheetId: "sid") == nil)
+}
+
+@MainActor
+@Test func historicalBackfillPublishesPerTabProgressThroughTheObserverSeam() async throws {
+    let container = try makeSyncContainer()
+    let probe = BackfillCompletionProbe()
+    let client = BackfillStubClient(
+        titles: ["Block 25", "Block 26", "Block 27"],
+        grids: [
+            "Block 27": currentGridWithPendingSquat(),
+            "Block 26": historicalGrid(exerciseName: "Squat", log: "245x5@8", date: "4/24/2026"),
+            "Block 25": historicalGrid(exerciseName: "Squat", log: "235x5@8", date: "4/17/2026")
+        ]
+    )
+    let sync = SyncCoordinator(
+        client: client,
+        context: container.mainContext,
+        lastPerformedBackfillObserver: probe,
+        tabFetchBackoff: instantBackoff()
     )
 
-    #expect(sync.state == .idle)
-    #expect(entry.source == "Block 25 · W1 D1")
-    #expect(await client.recorder.tabs() == ["Block 27", "Block 26", "Block 25"])
+    await sync.sync(spreadsheetId: "sid")
+    await probe.waitForFinish()
+
+    #expect(probe.progressEvents.map(\.tab) == ["Block 26", "Block 25"])
+    #expect(probe.progressEvents.map(\.tabsCompleted) == [1, 2])
+    #expect(probe.progressEvents.allSatisfy { $0.tabsToScan == 2 })
+}
+
+@MainActor
+private func historyFillCursor(in context: ModelContext, spreadsheetId: String) -> HistoryFillCursor? {
+    let descriptor = FetchDescriptor<HistoryFillCursor>(
+        predicate: #Predicate { $0.spreadsheetId == spreadsheetId }
+    )
+    return try? context.fetch(descriptor).first
 }
 
 extension DateFormatter {
@@ -501,11 +601,17 @@ private func makeSyncContainer() throws -> ModelContainer {
         PendingWrite.self,
         WriteTargetAuditEntry.self,
         LastPerformedEntry.self,
+        HistoryFillCursor.self,
         configurations: ModelConfiguration(
             "sync-backfill-\(UUID().uuidString)",
             isStoredInMemoryOnly: true
         )
     )
+}
+
+/// A backoff with no real sleeps, so tests exercise the 429 → `.failed` path instantly.
+private func instantBackoff() -> SheetsBackoff {
+    SheetsBackoff(schedule: [.zero], sleep: { _ in })
 }
 
 private func currentGridWithPendingSquat() -> SheetGrid {

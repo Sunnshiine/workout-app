@@ -93,6 +93,7 @@
                 PendingWrite.self,
                 WriteTargetAuditEntry.self,
                 LastPerformedEntry.self,
+                HistoryFillCursor.self,
                 configurations: config
             )
             seed(into: container.mainContext)
