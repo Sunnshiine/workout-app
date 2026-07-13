@@ -102,33 +102,18 @@ private func makeSupersetSession() -> Session {
     squat.sets[0].state = .logged
 
     // The read-only query must select the same ActiveSetID the mutating focus path picks.
-    let pureSquat = state.nextPendingSetID(for: squat, in: session)
+    let pureSquat = SupersetState.nextPendingSetID(for: squat)
     #expect(pureSquat == state.focusNextPendingSet(for: squat, in: session))
     #expect(pureSquat == ActiveSetID(exerciseOrder: 0, setIndex: 1))
 
-    let pureBench = state.nextPendingSetID(for: bench, in: session)
+    let pureBench = SupersetState.nextPendingSetID(for: bench)
     #expect(pureBench == state.focusNextPendingSet(for: bench, in: session))
     #expect(pureBench == ActiveSetID(exerciseOrder: 1, setIndex: 0))
 
     // nil when the Exercise has no Pending Set — matching the mutating path.
     bench.sets.forEach { $0.state = .logged }
-    #expect(state.nextPendingSetID(for: bench, in: session) == nil)
+    #expect(SupersetState.nextPendingSetID(for: bench) == nil)
     #expect(state.focusNextPendingSet(for: bench, in: session) == nil)
-}
-
-@MainActor
-@Test func pureNextPendingSetQueryDoesNotMutateActiveSupersetFocus() throws {
-    let session = makeSupersetSession()
-    let squat = try #require(session.exercises.first { $0.order == 0 })
-    let bench = try #require(session.exercises.first { $0.order == 1 })
-    let state = SupersetState()
-    let squatFocus = ActiveSetID(exerciseOrder: 0, setIndex: 0)
-    state.createSuperset(with: [squat, bench], in: session, currentActiveSetID: squatFocus)
-
-    // Reading the other Exercise's next Pending Set must not move the active focus.
-    _ = state.nextPendingSetID(for: bench, in: session)
-
-    #expect(state.focusedSetID(whenNormalFocusIs: nil, in: session) == squatFocus)
 }
 
 @MainActor
@@ -148,28 +133,10 @@ private func makeSupersetSession() -> Session {
     #expect(projected == ActiveSetID(exerciseOrder: 0, setIndex: 1))
     #expect(projected == SessionCoordinator.activeSetID(for: nextSet))
 
-    // The morph id built from the shared query matches the current form byte-for-byte.
-    #expect("superset-focus-morph-\(projected.exerciseOrder)-\(projected.setIndex)"
-        == "superset-focus-morph-0-1")
-
     // nil when the Exercise has no Pending Set.
     squat.sets.forEach { $0.state = .logged }
     #expect(SupersetState.nextPendingSet(for: squat) == nil)
     #expect(SupersetState.nextPendingSetID(for: squat) == nil)
-}
-
-@MainActor
-@Test func staticNextPendingSetIDAgreesWithTheInstanceSessionScopedQuery() throws {
-    let session = makeSupersetSession()
-    let squat = try #require(session.exercises.first { $0.order == 0 })
-    let bench = try #require(session.exercises.first { $0.order == 1 })
-    let state = SupersetState()
-    state.createSuperset(with: [squat, bench], in: session)
-
-    squat.sets[0].state = .logged
-
-    #expect(SupersetState.nextPendingSetID(for: squat) == state.nextPendingSetID(for: squat, in: session))
-    #expect(SupersetState.nextPendingSetID(for: bench) == state.nextPendingSetID(for: bench, in: session))
 }
 
 @MainActor

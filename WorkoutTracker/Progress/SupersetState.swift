@@ -176,14 +176,6 @@ final class SupersetState {
         return pairs.contains { $0.contains(identity) }
     }
 
-    /// The Exercise's next Pending Set as an `ActiveSetID` — the first Pending Set by Set index,
-    /// or `nil` when the Exercise has no Pending Set. Pure and side-effect-free: it never writes
-    /// the active pair, active Set, or active-exercise identity, so read-only callers (view bodies,
-    /// presentation initializers) can ask the Superset owner without mutating focus mid-render.
-    func nextPendingSetID(for exercise: Exercise, in session: Session) -> ActiveSetID? {
-        nextPendingSetID(for: SupersetExerciseIdentity(exercise: exercise), in: session)
-    }
-
     /// The Exercise's next Pending Set — the first Pending Set by Set index, or `nil` when the
     /// Exercise has no Pending Set. This is the single home for the *ordering-and-first* rule the
     /// Superset alternation is built from. It is pure, side-effect-free, and per-Exercise: it needs
