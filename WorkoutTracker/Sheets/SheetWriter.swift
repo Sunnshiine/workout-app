@@ -363,22 +363,15 @@ struct SheetWritePlanner: Sendable {
             let position = line.position(of: request.setIndex)
         else { return nil }
 
-        var values = splitSheetNotesList(actual)
-        if values.count == 1, values[0].isEmpty {
-            values = []
-        }
-        while values.count <= position {
-            values.append("")
-        }
-
-        guard values[position] == request.expectedCurrentValue else {
+        var list = SetLogList(cell: actual)
+        guard list.token(at: position) == request.expectedCurrentValue else {
             throw SheetWriterError.unexpectedCurrentValue(
                 expected: request.expectedCurrentValue,
-                actual: values[position]
+                actual: list.token(at: position)
             )
         }
-        values[position] = request.operation == .delete ? "" : (request.valueToWrite ?? "")
-        return joinedSheetNotesList(values)
+        list.setToken(request.operation == .delete ? "" : (request.valueToWrite ?? ""), at: position)
+        return list.cellValue
     }
 
     private func compactAggregateHeaderValue(
@@ -408,18 +401,12 @@ struct SheetWritePlanner: Sendable {
             usesHeaderTarget || usesVisibleWritableTarget
         else { return nil }
 
-        var values = splitSheetNotesList(actual)
-        if values.count == 1, values[0].isEmpty {
-            values = []
-        }
-        if usesVisibleWritableTarget, !actual.isEmpty, !values.allSatisfy(SetLogToken.isSetLogListValue) {
+        var list = SetLogList(cell: actual)
+        if usesVisibleWritableTarget, !actual.isEmpty, !list.tokens.allSatisfy(SetLogToken.isSetLogListValue) {
             throw SheetWriterError.unexpectedCurrentValue(expected: request.expectedCurrentValue, actual: actual)
         }
-        while values.count <= request.setIndex {
-            values.append("")
-        }
 
-        let currentSetValue = values[request.setIndex]
+        let currentSetValue = list.token(at: request.setIndex)
         guard currentSetValue == request.expectedCurrentValue else {
             throw SheetWriterError.unexpectedCurrentValue(
                 expected: request.expectedCurrentValue,
@@ -427,7 +414,7 @@ struct SheetWritePlanner: Sendable {
             )
         }
 
-        values[request.setIndex] = request.operation == .delete ? "" : (request.valueToWrite ?? "")
-        return joinedSheetNotesList(values)
+        list.setToken(request.operation == .delete ? "" : (request.valueToWrite ?? ""), at: request.setIndex)
+        return list.cellValue
     }
 }

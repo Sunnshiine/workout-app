@@ -70,11 +70,7 @@ extension SheetWritePlanner {
         let lines = anchor.prescriptionLines(in: snapshot.grid, setsColumn: day.columns.sets)
         if lines.isMultiLine, let line = lines.line(containing: request.setIndex), line.row == target.row,
             let position = line.position(of: request.setIndex) {
-            var values = splitSheetNotesList(actual)
-            if values.count == 1, values[0].isEmpty {
-                values = []
-            }
-            return position < values.count ? values[position] : ""
+            return SetLogList(cell: actual).token(at: position)
         }
 
         let headerNotes = anchor.headerNotes(in: snapshot.grid, notesColumn: day.columns.notes)
@@ -89,12 +85,7 @@ extension SheetWritePlanner {
             return actual
         }
 
-        var values = splitSheetNotesList(actual)
-        if values.count == 1, values[0].isEmpty {
-            values = []
-        }
-        guard request.setIndex < values.count else { return "" }
-        return values[request.setIndex]
+        return SetLogList(cell: actual).token(at: request.setIndex)
     }
 
     private func rowScanDetails(

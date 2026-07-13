@@ -167,10 +167,10 @@ private func parsedSetsForLine(
     let percent = grid.cellOrEmpty(line.row, cols.percentOneRM)
     let notes = SheetLayoutHeaderNotes(value: grid.cellOrEmpty(line.row, cols.notes).trimmed)
     let protectedHeader = anchor.isHeaderProtectedFromSetLogWrites(headerNotes: notes, setCount: line.setCount)
-    let logValues = protectedHeader ? [] : splitSheetNotesList(notes.value)
+    let logList = SetLogList(cell: protectedHeader ? "" : notes.value)
 
     return (0..<line.setCount).map { position in
-        let rawLog = position < logValues.count ? logValues[position] : ""
+        let rawLog = logList.token(at: position)
         let logState = SetLogToken.classify(rawLog)
         return ParsedSet(
             index: line.firstSetIndex + position,
