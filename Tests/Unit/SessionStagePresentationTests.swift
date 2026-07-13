@@ -114,6 +114,21 @@ struct SessionStagePresentationTests {
         #expect(SessionStagePresentation.stageItem(in: items, focusID: nil) == nil)
     }
 
+    @Test func restingSupersetSideSelectsItsNextPendingSetViaTheSharedQuery() throws {
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged, .pending, .pending])
+        let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending, .pending])
+        let presentation = try #require(
+            ActiveSupersetPresentation(exercises: [squat, bench], activeSetID: nil)
+        )
+
+        let squatSide = try #require(presentation.sides.first { $0.exerciseOrder == 0 })
+        let squatNextSet = try #require(SupersetState.nextPendingSet(for: squat))
+
+        // The resting strip's "Set X of N" reflects the shared query's selection, not the first Set.
+        #expect(squatNextSet.index == 1)
+        #expect(squatSide.nextSetText == "Set 2 of 3")
+    }
+
     @Test func stageIdentityTracksTheFocusedSet() {
         let squat = makeExercise(name: "Squat", order: 0, setStates: [.pending, .pending])
         let items = SessionStagePresentation.items([exerciseItem(squat)])

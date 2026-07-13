@@ -179,13 +179,10 @@ struct ActiveSupersetSection: View {
     }
 
     private func nextPendingSetID(for exerciseOrder: Int) -> ActiveSetID? {
-        config.exercises
-            .first { $0.order == exerciseOrder }?
-            .sets
-            .filter { $0.state == .pending }
-            .sorted { $0.index < $1.index }
-            .first
-            .flatMap(SessionCoordinator.activeSetID(for:))
+        guard let exercise = config.exercises.first(where: { $0.order == exerciseOrder }) else {
+            return nil
+        }
+        return SupersetState.nextPendingSetID(for: exercise)
     }
 
     @ViewBuilder

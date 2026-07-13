@@ -132,6 +132,47 @@ private func makeSupersetSession() -> Session {
 }
 
 @MainActor
+@Test func staticPerExerciseNextPendingSetQuerySelectsFirstPendingByIndexAndProjectsTheSameActiveSetID() throws {
+    let session = makeSupersetSession()
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+
+    squat.sets[0].state = .logged
+
+    // The per-Exercise query needs neither a SupersetState instance nor a Session handle.
+    let nextSet = try #require(SupersetState.nextPendingSet(for: squat))
+    #expect(nextSet.index == 1)
+
+    // The projected ActiveSetID is byte-identical to routing the selected Set through the
+    // coordinator's `activeSetID(for:)` — so the view's focus-morph id is unchanged.
+    let projected = try #require(SupersetState.nextPendingSetID(for: squat))
+    #expect(projected == ActiveSetID(exerciseOrder: 0, setIndex: 1))
+    #expect(projected == SessionCoordinator.activeSetID(for: nextSet))
+
+    // The morph id built from the shared query matches the current form byte-for-byte.
+    #expect("superset-focus-morph-\(projected.exerciseOrder)-\(projected.setIndex)"
+        == "superset-focus-morph-0-1")
+
+    // nil when the Exercise has no Pending Set.
+    squat.sets.forEach { $0.state = .logged }
+    #expect(SupersetState.nextPendingSet(for: squat) == nil)
+    #expect(SupersetState.nextPendingSetID(for: squat) == nil)
+}
+
+@MainActor
+@Test func staticNextPendingSetIDAgreesWithTheInstanceSessionScopedQuery() throws {
+    let session = makeSupersetSession()
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let state = SupersetState()
+    state.createSuperset(with: [squat, bench], in: session)
+
+    squat.sets[0].state = .logged
+
+    #expect(SupersetState.nextPendingSetID(for: squat) == state.nextPendingSetID(for: squat, in: session))
+    #expect(SupersetState.nextPendingSetID(for: bench) == state.nextPendingSetID(for: bench, in: session))
+}
+
+@MainActor
 @Test func supersetDissolvesManuallyOrWhenEitherExerciseHasNoPendingSetsAndDoesNotReformAfterDelete() throws {
     let session = makeSupersetSession()
     let squat = try #require(session.exercises.first { $0.order == 0 })
