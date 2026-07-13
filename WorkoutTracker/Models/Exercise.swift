@@ -43,6 +43,11 @@ extension Exercise {
     var completedSetCount: Int {
         sets.lazy.filter(\.isSettled).count
     }
+
+    /// Count of Sets still Pending — the makeup work left on an Open Exercise.
+    var pendingSetCount: Int {
+        sets.lazy.filter(\.isPending).count
+    }
 }
 
 extension ExerciseSet {

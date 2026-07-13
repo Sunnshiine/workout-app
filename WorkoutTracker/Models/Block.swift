@@ -59,4 +59,9 @@ extension Session {
     var totalSetCount: Int {
         exercises.reduce(0) { $0 + $1.sets.count }
     }
+
+    /// Count of still-Pending Sets across all Exercises.
+    var pendingSetCount: Int {
+        exercises.reduce(0) { $0 + $1.pendingSetCount }
+    }
 }

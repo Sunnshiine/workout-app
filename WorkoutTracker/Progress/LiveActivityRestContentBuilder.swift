@@ -156,7 +156,7 @@ enum LiveActivityInvalidationPolicy {
             .first { $0.order == target.setID.exerciseOrder }?
             .sets
             .first { $0.index == target.setID.setIndex }
-        return set?.state != .pending
+        return set?.isPending != true
     }
 
     @MainActor
@@ -195,9 +195,8 @@ enum LiveActivityRestContentBuilder {
             return nil
         }
 
-        let sets = sortedSets(in: target.exercise)
-        let pendingCount = sets.filter { $0.state == .pending }.count
-        let totalCount = sets.count
+        let pendingCount = target.exercise.pendingSetCount
+        let totalCount = target.exercise.sets.count
         return LiveActivityRestContent(
             exerciseName: target.exercise.name,
             prescribedReps: target.set.prescribedReps,
@@ -249,8 +248,8 @@ enum LiveActivityRestContentBuilder {
                 ActiveSetID(exerciseOrder: pair.exercise.order, setIndex: pair.set.index) != loggedSetID
             }
             .dropFirst()
-            .first { $0.set.state == .pending }
-            ?? orderedSets.first { $0.set.state == .pending }
+            .first { $0.set.isPending }
+            ?? orderedSets.first { $0.set.isPending }
     }
 
     private static func openExerciseFallback(for session: Session) -> RestTargetSet? {
@@ -288,7 +287,7 @@ enum LiveActivityRestContentBuilder {
     }
 
     private static func firstPendingSet(in session: Session) -> (exercise: Exercise, set: ExerciseSet)? {
-        orderedSets(in: session).first { $0.set.state == .pending }
+        orderedSets(in: session).first { $0.set.isPending }
     }
 
     private static func currentWeekSessions(for session: Session) -> [Session] {

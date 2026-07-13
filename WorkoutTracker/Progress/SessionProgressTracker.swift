@@ -80,9 +80,7 @@ struct SessionProgressTracker {
             .flatMap { session in
                 session.exercises
                     .sorted { $0.order < $1.order }
-                    .filter { exercise in
-                        exercise.sets.contains { $0.state == .pending }
-                    }
+                    .filter { $0.hasPendingSet }
             }
     }
 

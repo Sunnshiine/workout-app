@@ -69,6 +69,14 @@ private func makeSession(_ exercises: [Exercise]) -> Session {
     #expect(makeExercise([]).completedSetCount == 0)
 }
 
+@MainActor
+@Test func exercisePendingSetCount() {
+    #expect(makeExercise([.logged, .skipped, .pending]).pendingSetCount == 1)
+    #expect(makeExercise([.pending, .pending]).pendingSetCount == 2)
+    #expect(makeExercise([.logged, .skipped]).pendingSetCount == 0)
+    #expect(makeExercise([]).pendingSetCount == 0)
+}
+
 // MARK: - Session aggregates
 
 @MainActor
@@ -92,4 +100,13 @@ private func makeSession(_ exercises: [Exercise]) -> Session {
     let empty = makeSession([])
     #expect(empty.completedSetCount == 0)
     #expect(empty.totalSetCount == 0)
+}
+
+@MainActor
+@Test func sessionPendingSetCount() {
+    let session = makeSession([makeExercise([.logged, .skipped, .pending]), makeExercise([.logged, .pending])])
+    #expect(session.pendingSetCount == 2)
+
+    #expect(makeSession([makeExercise([.logged, .skipped])]).pendingSetCount == 0)
+    #expect(makeSession([]).pendingSetCount == 0)
 }
