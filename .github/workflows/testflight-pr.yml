@@ -118,11 +118,38 @@ jobs:
           ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
         run: printf '%s\n' "$ASC_PRIVATE_KEY" > "$RUNNER_TEMP/AuthKey.p8"
 
+      # The account is at Apple's Distribution-certificate ceiling, so cloud
+      # signing must not mint a new cert. Importing the existing cert's .p12
+      # gives automatic signing a valid local identity to reuse;
+      # -allowProvisioningUpdates then only manages profiles (no ceiling).
+      # Export/rotation steps: docs/ci/testflight.md.
+      - name: Import Apple Distribution certificate
+        env:
+          DIST_CERT_P12_BASE64: ${{ secrets.DIST_CERT_P12_BASE64 }}
+          DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
+        run: |
+          if [ -z "$DIST_CERT_P12_BASE64" ]; then
+            echo "::error::DIST_CERT_P12_BASE64 secret is not set. Cloud signing would try to mint a new Apple Distribution cert and fail at the cert ceiling — see docs/ci/testflight.md (Distribution certificate)."
+            exit 1
+          fi
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          printf '%s' "$DIST_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/dist.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/dist.p12" -k "$KEYCHAIN" \
+            -P "$DIST_CERT_PASSWORD" -A -t cert -f pkcs12
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
+          rm "$RUNNER_TEMP/dist.p12"
+
       # BUNDLE_ID_SUFFIX/APP_DISPLAY_NAME/APPICON_NAME flip app + widget to the
       # .dev flavor in lockstep (composed in project.yml): dev builds get the
       # amber AppIconDev set so WT Dev is distinguishable from TFN Tracker at a
-      # glance. Cloud signing handles the .dev profiles the same way the stable
-      # workflow handles the stable ones.
+      # glance. Automatic signing handles the .dev profiles the same way the
+      # stable workflow handles the stable ones, using the imported cert.
       - name: Archive (dev flavor)
         run: |
           xcodebuild archive \

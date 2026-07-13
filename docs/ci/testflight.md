@@ -57,10 +57,12 @@ upload.
 ## Pipeline shape
 
 macOS job (40-min timeout): `xcodegen generate` → write `Secrets.xcconfig`
-from secrets → PlistBuddy stamping → `xcodebuild archive` with **cloud
-signing** (`-allowProvisioningUpdates` + the ASC API key; no fastlane, no cert
-exports — profiles for all four bundle ids are managed headlessly) →
-`-exportArchive` (`app-store-connect`, automatic signing,
+from secrets → PlistBuddy stamping → import the Apple Distribution cert into
+a throwaway keychain (see [Distribution certificate](#distribution-certificate))
+→ `xcodebuild archive` with automatic signing (`-allowProvisioningUpdates` +
+the ASC API key; no fastlane — profiles for all four bundle ids are managed
+headlessly, signed with the imported cert) → `-exportArchive`
+(`app-store-connect`, automatic signing,
 `manageAppVersionAndBuildNumber: false`) → `.ipa` artifact.
 
 Linux job: `apple-actions/upload-testflight-build@v5` (AppStoreAPI backend,
@@ -91,6 +93,54 @@ Names and locations only — never record values (public repo).
 | `DEV_GID_CLIENT_ID` | "WorkoutTracker Dev iOS" client ID | PR archive job (written into `Secrets.xcconfig`) | same console, client for `com.sunnypatel.WorkoutTracker.dev` | as above, for the dev client |
 | `DEV_GID_REVERSED_CLIENT_ID` | its reversed form | same | derived | with `DEV_GID_CLIENT_ID` |
 | `AGENT_PAT` | pre-existing agent PAT (Sandcastle pipeline) | applying the `testflight` label from automation | pre-existing | unchanged by this pipeline |
+| `DIST_CERT_P12_BASE64` | the Apple Distribution certificate + private key (`.p12`), base64-encoded | archive jobs, both workflows | exported from the Mac that owns the cert's private key — see [Distribution certificate](#distribution-certificate) | Re-export and update whenever the cert is renewed/replaced (certs last ~1 year) |
+| `DIST_CERT_PASSWORD` | the password chosen when exporting that `.p12` | same | chosen at export time | rotates with `DIST_CERT_P12_BASE64` |
+
+## Distribution certificate
+
+Both workflows sign with an **imported** Apple Distribution certificate
+rather than letting cloud signing mint one. The account sits at Apple's
+Distribution-certificate ceiling, so a fully-automatic run dies at archive
+with *"Choose a certificate to revoke. Your account has reached the maximum
+number of certificates"* — followed by "No profiles found" for every bundle
+id, because without a cert no profile can be created. Reusing the existing
+cert avoids revoking anything (revocation would also invalidate whatever
+else was signed with it).
+
+Mechanics: the archive job decodes `DIST_CERT_P12_BASE64` into a throwaway
+keychain before `xcodebuild archive`. Automatic signing prefers a valid
+identity already in the keychain and only creates a new certificate when
+none is available, so `-allowProvisioningUpdates` is left to manage the four
+App Store profiles — profiles have no ceiling and stay headless.
+
+**Exporting the `.p12`** (on the Mac whose keychain holds the private key —
+the cert is useless for CI without it):
+
+1. Keychain Access → login keychain → **My Certificates** → find
+   `Apple Distribution: <name> (K74Q6RKFBY)` **with a disclosure triangle**
+   (the triangle means the private key is present). If no entry has one, the
+   private key is lost on this machine — see the fallback below.
+2. Right-click the certificate → *Export…* → format **.p12**, choose a
+   password.
+3. `base64 -i Certificates.p12 | pbcopy` → paste into the
+   `DIST_CERT_P12_BASE64` repo secret; put the password in
+   `DIST_CERT_PASSWORD`.
+
+**Inventory**: the `ASC Signing Inventory` workflow
+(`.github/workflows/asc-signing-inventory.yml`, `workflow_dispatch`) lists
+the account's certificates and profiles (metadata only) via the ASC API —
+use it to see what occupies the ceiling and which cert the exported `.p12`
+must match (compare expiry dates).
+
+**If the private key is lost**: reuse is impossible — a certificate's
+private key exists only where its CSR was generated (plus any `.p12`
+exports). The remaining path is revoking a Distribution cert in the
+[developer portal](https://developer.apple.com/account/resources/certificates/list)
+to free a slot, then either minting fresh via cloud signing (drop the import
+step) or generating a new cert locally and exporting it as above. Revoking a
+**distribution** cert does not break apps already on TestFlight/App Store;
+it invalidates any not-yet-uploaded signed artifacts and other pipelines
+using that cert.
 
 ## Version bumping
 

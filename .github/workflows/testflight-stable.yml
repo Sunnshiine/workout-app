@@ -78,8 +78,35 @@ jobs:
           ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
         run: printf '%s\n' "$ASC_PRIVATE_KEY" > "$RUNNER_TEMP/AuthKey.p8"
 
-      # Cloud signing: -allowProvisioningUpdates + the ASC key creates and
-      # repairs certs/profiles for app + widget headlessly.
+      # The account is at Apple's Distribution-certificate ceiling, so cloud
+      # signing must not mint a new cert. Importing the existing cert's .p12
+      # gives automatic signing a valid local identity to reuse;
+      # -allowProvisioningUpdates then only manages profiles (no ceiling).
+      # Export/rotation steps: docs/ci/testflight.md.
+      - name: Import Apple Distribution certificate
+        env:
+          DIST_CERT_P12_BASE64: ${{ secrets.DIST_CERT_P12_BASE64 }}
+          DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
+        run: |
+          if [ -z "$DIST_CERT_P12_BASE64" ]; then
+            echo "::error::DIST_CERT_P12_BASE64 secret is not set. Cloud signing would try to mint a new Apple Distribution cert and fail at the cert ceiling — see docs/ci/testflight.md (Distribution certificate)."
+            exit 1
+          fi
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          printf '%s' "$DIST_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/dist.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/dist.p12" -k "$KEYCHAIN" \
+            -P "$DIST_CERT_PASSWORD" -A -t cert -f pkcs12
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
+          rm "$RUNNER_TEMP/dist.p12"
+
+      # -allowProvisioningUpdates + the ASC key creates and repairs the
+      # profiles for app + widget headlessly, signing with the imported cert.
       - name: Archive
         run: |
           xcodebuild archive \
