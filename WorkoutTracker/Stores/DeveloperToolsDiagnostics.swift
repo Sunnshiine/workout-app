@@ -82,7 +82,9 @@ extension SheetWritePlanner {
         let usesHeaderTarget =
             anchor.row == target.row
             && anchor.usesCompactHeaderSetOne(headerNotes: headerNotes, setCount: setCount)
-        let usesVisibleWritableTarget = anchor.row != target.row && headerNotes.hasProtectedValue
+        let usesVisibleWritableTarget =
+            anchor.row != target.row
+            && anchor.isHeaderProtectedFromSetLogWrites(headerNotes: headerNotes, setCount: setCount)
         guard setCount > 1, request.setIndex < setCount, usesHeaderTarget || usesVisibleWritableTarget else {
             return actual
         }
@@ -130,7 +132,9 @@ extension SheetWritePlanner {
             return compactHeaderRowScanDetails(anchor: anchor, selectedRow: selectedRow, in: snapshot.snapshot)
         }
 
-        if headerNotes.hasProtectedValue, request.setIndex < setCount {
+        if anchor.isHeaderProtectedFromSetLogWrites(headerNotes: headerNotes, setCount: setCount),
+            request.setIndex < setCount
+        {
             return protectedHeaderRowScanDetails(anchor: anchor, selectedRow: selectedRow, in: snapshot.snapshot)
         }
 

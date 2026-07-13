@@ -122,6 +122,29 @@ import Testing
     #expect(decision("25x12@7, hold", setCount: 3) == false)
 }
 
+@Test func anchorHeaderProtectedFromSetLogWritesSettlesTheOneProtectedQuestion() {
+    let anchor = SheetLayoutExerciseAnchor(name: "Squat", row: 3, nextAnchorRow: 8)
+
+    func protected(_ value: String, setCount: Int) -> Bool {
+        anchor.isHeaderProtectedFromSetLogWrites(
+            headerNotes: SheetLayoutHeaderNotes(value: value),
+            setCount: setCount
+        )
+    }
+
+    // A Coach Note and a Legacy Log are both protected coach-authored content: Set Logs must not
+    // be written into the header cell. This is the one place the question is answered, and it pins
+    // the deliberate Legacy-Log choice (ADR-0005 — a Legacy Log is never overwritten).
+    #expect(protected("Keep elbows soft", setCount: 2) == true)
+    #expect(protected("70@10, 80", setCount: 2) == true)  // Legacy Log
+    #expect(protected("25x12, 12", setCount: 2) == true)  // Legacy Log
+
+    // An empty cell or a compact Set-Log list (Set-count-aware) is writable, not protected.
+    #expect(protected("", setCount: 2) == false)
+    #expect(protected("185x5@8", setCount: 2) == false)  // single compact Set-One
+    #expect(protected("185x5@8, 190x5@9", setCount: 2) == false)  // compact aggregate within count
+}
+
 @Test func layoutInterpreterReturnsNilForMissingWeekOrDayLookups() {
     let emptyLayout = SheetLayoutInterpreter().interpret(gridFromA1([:], rows: 5, cols: 5))
     #expect(emptyLayout.weeks.isEmpty)

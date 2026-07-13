@@ -154,14 +154,20 @@ private func completionSets(_ sets: [ParsedSet], legacyLog: String?) -> [ParsedS
 /// Builds the Sets for one Prescription Line: the Line's own Reps/Load/%1RM are split
 /// positionally (repeating the last token), and the Line's Notes cell holds that Line's
 /// comma-separated Set Logs. A coach-note Notes cell leaves the Line's Sets Pending.
-private func parsedSetsForLine(grid: SheetGrid, cols: DayColumns, line: PrescriptionLine) -> [ParsedSet] {
+private func parsedSetsForLine(
+    grid: SheetGrid,
+    cols: DayColumns,
+    anchor: SheetLayoutExerciseAnchor,
+    line: PrescriptionLine
+) -> [ParsedSet] {
     let reps = grid.cellOrEmpty(line.row, cols.reps)
     let repsValues = reps.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
     let load = grid.cellOrEmpty(line.row, cols.load)
     let loadValues = splitLoadValues(load)
     let percent = grid.cellOrEmpty(line.row, cols.percentOneRM)
     let notes = SheetLayoutHeaderNotes(value: grid.cellOrEmpty(line.row, cols.notes).trimmed)
-    let logValues = notes.isCoachNote ? [] : splitSheetNotesList(notes.value)
+    let protectedHeader = anchor.isHeaderProtectedFromSetLogWrites(headerNotes: notes, setCount: line.setCount)
+    let logValues = protectedHeader ? [] : splitSheetNotesList(notes.value)
 
     return (0..<line.setCount).map { position in
         let rawLog = position < logValues.count ? logValues[position] : ""
@@ -187,7 +193,7 @@ private func parsedMultiLineExercise(
     let rawName = grid.cell(row: anchor.row, col: cols.name).trimmed
     let (cadence, base) = splitCadence(rawName)
     let anchorNotes = anchor.headerNotes(in: grid, notesColumn: cols.notes)
-    let sets = lines.flatMap { parsedSetsForLine(grid: grid, cols: cols, line: $0) }
+    let sets = lines.flatMap { parsedSetsForLine(grid: grid, cols: cols, anchor: anchor, line: $0) }
     return ParsedExercise(
         name: rawName,
         baseName: base,
@@ -218,7 +224,7 @@ private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns,
     let headerSetLogValues = headerSetLogValues(from: note, setCount: setCount)
     let compactHeaderSetOne = anchor.usesCompactHeaderSetOne(headerNotes: headerNotes, setCount: setCount)
     let legacyLog = headerSetLogValues == nil && headerNotes.isLegacyLog ? note : nil
-    let usesVisibleWritableRow = !compactHeaderSetOne && headerNotes.hasProtectedValue
+    let usesVisibleWritableRow = anchor.isHeaderProtectedFromSetLogWrites(headerNotes: headerNotes, setCount: setCount)
     let visibleWritableRowSetLogValues =
         anchor
         .firstVisibleWritableRow(in: snapshot)

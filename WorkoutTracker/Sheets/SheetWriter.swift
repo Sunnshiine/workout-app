@@ -285,7 +285,9 @@ struct SheetWritePlanner: Sendable {
             )
         }
 
-        if headerNotes.hasProtectedValue, request.setIndex < setCount {
+        if anchor.isHeaderProtectedFromSetLogWrites(headerNotes: headerNotes, setCount: setCount),
+            request.setIndex < setCount
+        {
             guard let targetRow = anchor.firstVisibleWritableRow(in: snapshot.snapshot) else {
                 throw SheetWriterError.headerNotesBlockSetRow(
                     exerciseName: request.exerciseName,
@@ -397,7 +399,9 @@ struct SheetWritePlanner: Sendable {
         let usesHeaderTarget =
             anchor.row == target.row
             && anchor.usesCompactHeaderSetOne(headerNotes: headerNotes, setCount: setCount)
-        let usesVisibleWritableTarget = anchor.row != target.row && headerNotes.hasProtectedValue
+        let usesVisibleWritableTarget =
+            anchor.row != target.row
+            && anchor.isHeaderProtectedFromSetLogWrites(headerNotes: headerNotes, setCount: setCount)
         guard
             setCount > 1,
             request.setIndex < setCount,

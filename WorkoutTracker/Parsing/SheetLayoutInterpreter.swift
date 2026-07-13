@@ -179,6 +179,18 @@ struct SheetLayoutExerciseAnchor: Sendable {
             || SetLogToken.isCompactAggregateHeader(headerNotes.value, setCount: setCount)
     }
 
+    /// Whether Set Logs must not be written into (nor read out of) this Exercise's header Notes
+    /// cell because it holds coach-authored content — a Coach Note or a Legacy Log (ADR-0005). Both
+    /// are protected: Set Logs redirect to the next Visible Writable Row in the same Session and the
+    /// cell is never overwritten. An empty cell or a compact Set-Log list (`setCount`-aware) is
+    /// writable and is not protected. This is the one place the "may Set Logs live in this header
+    /// cell?" question is answered; the single-line read, the multi-line read, and the write target
+    /// resolution all ask here, so the protected-header decision cannot diverge across them.
+    func isHeaderProtectedFromSetLogWrites(headerNotes: SheetLayoutHeaderNotes, setCount: Int) -> Bool {
+        !usesCompactHeaderSetOne(headerNotes: headerNotes, setCount: setCount)
+            && headerNotes.hasProtectedValue
+    }
+
     func continuationSetRow(for setIndex: Int) -> Int? {
         setLogRow(for: setIndex, compactHeaderSetOne: false)
     }
