@@ -30,10 +30,12 @@ enum RestKind: Equatable, Sendable {
 @MainActor
 @Observable
 final class RestTimer {
-    private(set) var deadline: Date?
+    /// The one representation of the running rest: its `start…end` span and chosen kind. The
+    /// start instant the timer computes is retained here rather than discarded, so every
+    /// consumer — pill, Live Activity, coordinator — reads the same interval instead of
+    /// rebuilding it.
+    private(set) var interval: RestInterval?
     private(set) var origin: ActiveSetID?
-    private(set) var duration: TimeInterval = 0
-    private(set) var kind: RestKind = .standard
     private(set) var restartRevision = 0
     @ObservationIgnored private var originSetObjectID: ObjectIdentifier?
 
@@ -57,7 +59,7 @@ final class RestTimer {
     }
 
     var label: String {
-        kind.label
+        (interval?.kind ?? .standard).label
     }
 
     func start(
@@ -66,16 +68,14 @@ final class RestTimer {
         originSetObjectID: ObjectIdentifier? = nil,
         kind: RestKind = .standard
     ) {
-        self.duration = duration
         self.origin = origin
         self.originSetObjectID = originSetObjectID
-        self.kind = kind
-        if deadline != nil {
+        if interval != nil {
             notificationScheduler?.cancel()
         }
-        let deadline = clock.now.addingTimeInterval(duration)
-        self.deadline = deadline
-        notificationScheduler?.schedule(deadline: deadline)
+        let interval = RestInterval(start: clock.now, duration: duration, kind: kind)
+        self.interval = interval
+        notificationScheduler?.schedule(deadline: interval.end)
         restartRevision += 1
     }
 
@@ -88,21 +88,18 @@ final class RestTimer {
     }
 
     func dismiss() {
-        duration = 0
         origin = nil
         originSetObjectID = nil
-        kind = .standard
-        deadline = nil
+        interval = nil
         notificationScheduler?.cancel()
     }
 
     func expireIfNeeded(at now: Date) {
-        guard deadline != nil, remaining(at: now) <= 0 else { return }
+        guard interval != nil, remaining(at: now) <= 0 else { return }
         dismiss()
     }
 
     func remaining(at now: Date) -> TimeInterval {
-        guard let deadline else { return 0 }
-        return max(0, deadline.timeIntervalSince(now))
+        interval?.remaining(at: now) ?? 0
     }
 }

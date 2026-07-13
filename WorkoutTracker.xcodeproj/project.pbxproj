@@ -35,6 +35,7 @@
 		26399018B2461BEF70C23851 /* LoadSuggestionEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607A9CA778D25DBBAB685004 /* LoadSuggestionEngineTests.swift */; };
 		263DC76714A051B3A2633BEC /* SessionStageSetDots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4204EE26AA9CAF016ACC94EB /* SessionStageSetDots.swift */; };
 		298DEFE8D99B3F6C97CAAE38 /* RestNotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFBA3AF5C9A8A37438C43F0D /* RestNotificationScheduler.swift */; };
+		F1A2B3C4D5E6F7A8B9C0D1E2 /* RestInterval.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6F7A8B9C0D1E3 /* RestInterval.swift */; };
 		2B7FBCA4F41C346E3624E263 /* SheetParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 396D9CC61F31C144A588BE7D /* SheetParserTests.swift */; };
 		2E89825B7CE73BA93E856219 /* RestDurationSettingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04BC574D25534E5FA13DE8B1 /* RestDurationSettingTests.swift */; };
 		2FFD6423631AA90DA899A6F8 /* GoogleSheetsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3B15FEFD6BDE5D8F1A71800 /* GoogleSheetsClient.swift */; };
@@ -424,6 +425,7 @@
 		FE5ACA6B1ED2736F68363D60 /* WorkoutTrackerSnapshotTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = WorkoutTrackerSnapshotTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		FF7F63038DE0B69F173CD7CD /* WorkoutScenarioTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutScenarioTests.swift; sourceTree = "<group>"; };
 		FFBA3AF5C9A8A37438C43F0D /* RestNotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestNotificationScheduler.swift; sourceTree = "<group>"; };
+		F1A2B3C4D5E6F7A8B9C0D1E3 /* RestInterval.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestInterval.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -540,6 +542,7 @@
 				ACF6881367727170008AC93C /* RestHapticPlayer.swift */,
 				1396E247C762E3B6CE7A945F /* RestHapticSchedule.swift */,
 				FFBA3AF5C9A8A37438C43F0D /* RestNotificationScheduler.swift */,
+				F1A2B3C4D5E6F7A8B9C0D1E3 /* RestInterval.swift */,
 				3E1975AC6F5A7462603B8E4A /* RestPillPresentation.swift */,
 				64B19CCD3F77D3DFDE9A9A8E /* RestTimer.swift */,
 				C452CB917A65913E44B18E15 /* RestTriggerPolicy.swift */,
@@ -1150,6 +1153,7 @@
 				956265DB4A42BBF0BB5DAAB3 /* RestHapticPlayer.swift in Sources */,
 				217F85CA4B87806AB31ABF84 /* RestHapticSchedule.swift in Sources */,
 				298DEFE8D99B3F6C97CAAE38 /* RestNotificationScheduler.swift in Sources */,
+				F1A2B3C4D5E6F7A8B9C0D1E2 /* RestInterval.swift in Sources */,
 				81873829CC18E67A8166DF1F /* RestPillPresentation.swift in Sources */,
 				FBD7C9EAC29A366FA58E151A /* RestPillView.swift in Sources */,
 				F3718BD9273E7015B3CC6396 /* RestTimer.swift in Sources */,

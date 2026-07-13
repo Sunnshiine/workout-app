@@ -39,15 +39,16 @@ struct RestPillView: View {
     }
 
     private func pillContainer(at date: Date) -> some View {
+        let interval = restTimer.interval
         let remaining = restTimer.remaining(at: date)
         let presentation = RestPillPresentation(
-            kind: restTimer.kind,
+            kind: interval?.kind ?? .standard,
             remaining: remaining,
-            duration: restTimer.duration
+            duration: interval?.duration ?? 0
         )
 
         return ZStack {
-            if restTimer.deadline != nil {
+            if interval != nil {
                 pill(remaining: remaining, presentation: presentation)
                     .containerRelativeFrame(.horizontal) { length, _ in
                         length * 0.5
@@ -159,12 +160,13 @@ struct RestPillView: View {
     }
 
     private func fireDueHaptics(at now: Date) async {
-        guard restTimer.deadline != nil else { return }
+        guard let interval = restTimer.interval else { return }
+        let duration = interval.duration
 
         let elapsed = elapsedRestTime(at: now)
         if scenePhase != .active {
             lastHapticElapsed = elapsed
-            if elapsed >= restTimer.duration {
+            if elapsed >= duration {
                 restTimer.expireIfNeeded(at: now)
             }
             return
@@ -172,13 +174,13 @@ struct RestPillView: View {
 
         guard let previousElapsed = lastHapticElapsed else {
             lastHapticElapsed = elapsed
-            if elapsed >= restTimer.duration {
+            if elapsed >= duration {
                 restTimer.expireIfNeeded(at: now)
             }
             return
         }
 
-        let events = RestHapticSchedule(duration: restTimer.duration).events
+        let events = RestHapticSchedule(duration: duration).events
             .filter { event in
                 event.offset > previousElapsed && event.offset <= elapsed && !playedHapticEvents.contains(event)
             }
@@ -192,16 +194,16 @@ struct RestPillView: View {
         }
 
         lastHapticElapsed = elapsed
-        let expiryEvent = RestHapticEvent(offset: restTimer.duration, kind: .expiryBuzz)
-        if elapsed >= restTimer.duration && !playedHapticEvents.contains(expiryEvent) {
+        let expiryEvent = RestHapticEvent(offset: duration, kind: .expiryBuzz)
+        if elapsed >= duration && !playedHapticEvents.contains(expiryEvent) {
             restTimer.expireIfNeeded(at: now)
         }
     }
 
     private func dismissAfterExpiryBeat() async {
-        let deadline = restTimer.deadline
+        let interval = restTimer.interval
         try? await Task.sleep(for: .milliseconds(500))
-        guard !Task.isCancelled, restTimer.deadline == deadline else { return }
+        guard !Task.isCancelled, restTimer.interval == interval else { return }
         restTimer.expireIfNeeded(at: Date())
     }
 
@@ -212,9 +214,7 @@ struct RestPillView: View {
     }
 
     private func elapsedRestTime(at now: Date) -> TimeInterval {
-        guard restTimer.deadline != nil else { return 0 }
-        let remaining = restTimer.remaining(at: now)
-        return max(0, restTimer.duration - remaining)
+        restTimer.interval?.elapsed(at: now) ?? 0
     }
 
     private func hapticTickID(for date: Date) -> Int {

@@ -555,17 +555,15 @@ extension SessionCoordinator {
         )
         guard
             LiveActivityCreationPolicy.shouldCreateOrUpdate(for: event),
-            let restTimer,
-            let restEndDate = restTimer.deadline
+            let restInterval = restTimer?.interval
         else { return }
 
-        let restStartDate = restEndDate.addingTimeInterval(-restTimer.duration)
         guard
             let content = focusManager.liveActivityRestContent(
                 afterLogging: set,
                 in: session,
-                restStartDate: restStartDate,
-                restEndDate: restEndDate
+                restStartDate: restInterval.start,
+                restEndDate: restInterval.end
             )
         else { return }
 
