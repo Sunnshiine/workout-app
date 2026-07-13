@@ -216,7 +216,7 @@ private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns,
     let note = headerNotes.value
     let setCount = anchor.prescribedSetCount(in: grid, setsColumn: cols.sets)
     let headerSetLogValues = headerSetLogValues(from: note, setCount: setCount)
-    let compactHeaderSetOne = headerSetLogValues != nil || anchor.usesCompactHeaderSetOne(headerNotes: headerNotes)
+    let compactHeaderSetOne = anchor.usesCompactHeaderSetOne(headerNotes: headerNotes, setCount: setCount)
     let legacyLog = headerSetLogValues == nil && headerNotes.isLegacyLog ? note : nil
     let usesVisibleWritableRow = !compactHeaderSetOne && headerNotes.hasProtectedValue
     let visibleWritableRowSetLogValues =

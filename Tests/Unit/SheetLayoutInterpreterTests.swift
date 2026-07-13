@@ -80,11 +80,46 @@ import Testing
     let headerNotes = anchor.headerNotes(in: grid, notesColumn: day.columns.notes)
 
     #expect(headerNotes.value == "Keep elbows soft")
+    let setCount = anchor.prescribedSetCount(in: grid, setsColumn: day.columns.sets)
     #expect(headerNotes.usesCompactHeaderSetOne == false)
-    #expect(anchor.usesCompactHeaderSetOne(headerNotes: headerNotes) == false)
+    #expect(anchor.usesCompactHeaderSetOne(headerNotes: headerNotes, setCount: setCount) == false)
     #expect(headerNotes.hasProtectedValue)
     #expect(anchor.continuationSetRow(for: 0) == 18)
     #expect(anchor.continuationSetRow(for: 1) == 19)
+}
+
+@Test func anchorCompactHeaderSetOneDecisionFoldsInTheAggregateHalf() {
+    let anchor = SheetLayoutExerciseAnchor(name: "Squat", row: 3, nextAnchorRow: 8)
+
+    func decision(_ value: String, setCount: Int) -> Bool {
+        anchor.usesCompactHeaderSetOne(headerNotes: SheetLayoutHeaderNotes(value: value), setCount: setCount)
+    }
+
+    // The single Set-count-aware query must return the same answer the five former inline
+    // `usesCompactHeaderSetOne(headerNotes:) || isCompactAggregateHeader(value, setCount:)` sites did.
+    func expectedFold(_ value: String, setCount: Int) -> Bool {
+        let headerNotes = SheetLayoutHeaderNotes(value: value)
+        return headerNotes.usesCompactHeaderSetOne
+            || SetLogToken.isCompactAggregateHeader(value, setCount: setCount)
+    }
+
+    // Header-only half: empty and single Set-Log-list values are compact Set-One.
+    #expect(decision("", setCount: 3) == expectedFold("", setCount: 3))
+    #expect(decision("185x5@8", setCount: 3) == expectedFold("185x5@8", setCount: 3))
+    #expect(decision("185x5@8", setCount: 3) == true)
+
+    // Coach note: neither half fires.
+    #expect(decision("Keep elbows soft", setCount: 3) == false)
+
+    // Aggregate half: a comma list bounded by the Set count of Set-Log-list values is compact.
+    #expect(decision("25x12@7, skip", setCount: 3) == true)
+    #expect(decision("25x12@7, skip", setCount: 3) == expectedFold("25x12@7, skip", setCount: 3))
+
+    // Aggregate boundary: a list longer than the Set count is not compact.
+    #expect(decision("25x12@7, skip, 30x10@8", setCount: 2) == false)
+
+    // Aggregate boundary: an entry that is not a Set-Log-list value is not compact.
+    #expect(decision("25x12@7, hold", setCount: 3) == false)
 }
 
 @Test func layoutInterpreterReturnsNilForMissingWeekOrDayLookups() {

@@ -169,8 +169,14 @@ struct SheetLayoutExerciseAnchor: Sendable {
         return lines
     }
 
-    func usesCompactHeaderSetOne(headerNotes: SheetLayoutHeaderNotes) -> Bool {
+    /// Whether this Exercise stores its Set Logs comma-separated in one header Notes cell rather
+    /// than on per-Set rows. Folds both halves of the compact-header rule: the header cell is a
+    /// single Set-Log-list value, or — the Set-count-aware aggregate half — a comma list no longer
+    /// than the prescribed `setCount` whose every entry is a Set-Log-list value ("25x12@7, skip").
+    /// This is the one place the decision is made; read, write, and audit paths all ask here.
+    func usesCompactHeaderSetOne(headerNotes: SheetLayoutHeaderNotes, setCount: Int) -> Bool {
         headerNotes.usesCompactHeaderSetOne
+            || SetLogToken.isCompactAggregateHeader(headerNotes.value, setCount: setCount)
     }
 
     func continuationSetRow(for setIndex: Int) -> Int? {

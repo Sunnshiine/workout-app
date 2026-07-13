@@ -81,8 +81,7 @@ extension SheetWritePlanner {
         let setCount = anchor.prescribedSetCount(in: snapshot.grid, setsColumn: day.columns.sets)
         let usesHeaderTarget =
             anchor.row == target.row
-            && (anchor.usesCompactHeaderSetOne(headerNotes: headerNotes)
-                || SetLogToken.isCompactAggregateHeader(headerNotes.value, setCount: setCount))
+            && anchor.usesCompactHeaderSetOne(headerNotes: headerNotes, setCount: setCount)
         let usesVisibleWritableTarget = anchor.row != target.row && headerNotes.hasProtectedValue
         guard setCount > 1, request.setIndex < setCount, usesHeaderTarget || usesVisibleWritableTarget else {
             return actual
@@ -125,8 +124,7 @@ extension SheetWritePlanner {
         let headerNotes = anchor.headerNotes(in: snapshot.grid, notesColumn: day.columns.notes)
         let setCount = anchor.prescribedSetCount(in: snapshot.grid, setsColumn: day.columns.sets)
         let compactHeaderSetOne =
-            anchor.usesCompactHeaderSetOne(headerNotes: headerNotes)
-            || SetLogToken.isCompactAggregateHeader(headerNotes.value, setCount: setCount)
+            anchor.usesCompactHeaderSetOne(headerNotes: headerNotes, setCount: setCount)
 
         if compactHeaderSetOne, request.setIndex < setCount {
             return compactHeaderRowScanDetails(anchor: anchor, selectedRow: selectedRow, in: snapshot.snapshot)
