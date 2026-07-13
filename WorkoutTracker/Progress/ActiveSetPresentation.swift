@@ -348,7 +348,7 @@ struct LastPerformedCardPresentation: Equatable, Sendable {
     }
 
     init?(exercise: Exercise, lookup: LastPerformedLookupSnapshot) {
-        guard let entry = lookup.lookup(exerciseName: exercise.name, baseName: exercise.baseName) else {
+        guard let entry = lookup.lookup(for: exercise.name) else {
             return nil
         }
         label = "Last Performed"

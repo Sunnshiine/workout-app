@@ -30,10 +30,10 @@ private func lastPerformedContainer() throws -> ModelContainer {
     context.insert(entry)
     try context.save()
 
-    let match = try #require(index.lookup(exerciseName: "2-3:1:0 BB RDL", baseName: "BB RDL"))
+    let match = try #require(index.snapshot().lookup(for: "2-3:1:0 BB RDL"))
 
     #expect(match.resultText == "185x7@6")
-    #expect(match.source == "Block 26 · W3 D1")
+    #expect(match.sourceText == "Block 26 · W3 D1")
     withExtendedLifetime(container) {}
 }
 
@@ -62,10 +62,10 @@ private func lastPerformedContainer() throws -> ModelContainer {
     )
     try context.save()
 
-    let match = try #require(index.lookup(exerciseName: "3:1:0 BB RDL", baseName: "BB RDL"))
+    let match = try #require(index.snapshot().lookup(for: "3:1:0 BB RDL"))
 
     #expect(match.resultText == "185x7@7")
-    #expect(match.source == "Block 26 · W3 D1")
+    #expect(match.sourceText == "Block 26 · W3 D1")
     withExtendedLifetime(container) {}
 }
 
@@ -74,7 +74,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
     let container = try lastPerformedContainer()
     let index = LastPerformedIndex(context: container.mainContext)
 
-    let match = index.lookup(exerciseName: "Bench Press", baseName: "Bench Press")
+    let match = index.snapshot().lookup(for: "Bench Press")
 
     #expect(match == nil)
     withExtendedLifetime(container) {}
@@ -138,9 +138,9 @@ private func lastPerformedContainer() throws -> ModelContainer {
     #expect(Set(entries.map(\.source)) == ["Block 27 · W2 D1", "Block 26 · W4 D1"])
 
     // Last Performed remains the most-recent entry.
-    let match = try #require(index.lookup(exerciseName: "Squat", baseName: "Squat"))
+    let match = try #require(index.snapshot().lookup(for: "Squat"))
     #expect(match.resultText == "205x5@8")
-    #expect(match.source == "Block 27 · W2 D1")
+    #expect(match.sourceText == "Block 27 · W2 D1")
     withExtendedLifetime(container) {}
 }
 
@@ -254,9 +254,9 @@ private func lastPerformedContainer() throws -> ModelContainer {
         )
     ])
 
-    let match = try #require(index.lookup(exerciseName: "Bench Press", baseName: "Bench Press"))
+    let match = try #require(index.snapshot().lookup(for: "Bench Press"))
     #expect(match.resultText == "225x5@8")
-    #expect(match.source == "Block 27 · W1 D1")
+    #expect(match.sourceText == "Block 27 · W1 D1")
     withExtendedLifetime(container) {}
 }
 
@@ -313,7 +313,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
     try index.ingest(LastPerformedExtractor.entries(from: block))
 
     let line = try #require(
-        index.snapshot().lookup(exerciseName: "Standing Calve Raises", baseName: "Standing Calve Raises")
+        index.snapshot().lookup(for: "Standing Calve Raises")
     )
     #expect(line.resultText == "a few sets of 12, felt easy")
     withExtendedLifetime(container) {}
@@ -343,12 +343,12 @@ private func lastPerformedContainer() throws -> ModelContainer {
 
     let lookup = index.snapshot()
 
-    let exact = try #require(lookup.lookup(exerciseName: "2-3:1:0 BB RDL", baseName: "BB RDL"))
+    let exact = try #require(lookup.lookup(for: "2-3:1:0 BB RDL"))
     #expect(exact.resultText == "185x7@7")
     #expect(exact.sourceText == "Block 26 · W3 D1")
-    let fallback = try #require(lookup.lookup(exerciseName: "3:1:0 BB RDL", baseName: "BB RDL"))
+    let fallback = try #require(lookup.lookup(for: "3:1:0 BB RDL"))
     #expect(fallback.resultText == "185x7@7")
     #expect(fallback.sourceText == "Block 26 · W3 D1")
-    #expect(lookup.lookup(exerciseName: "Bench Press", baseName: "Bench Press") == nil)
+    #expect(lookup.lookup(for: "Bench Press") == nil)
     withExtendedLifetime(container) {}
 }

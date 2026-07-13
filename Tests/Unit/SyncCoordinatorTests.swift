@@ -185,7 +185,7 @@ private final class BackfillCompletionProbe: LastPerformedBackfillObserving {
     #expect(entry.performedOn == expectedDate)
     #expect(entry.source == "Block 27 · W1 D1")
     let lookupEntry = try #require(
-        lookupStore.snapshot.lookup(exerciseName: "Squat", baseName: "Squat")
+        lookupStore.snapshot.lookup(for: "Squat")
     )
     #expect(lookupEntry.resultText == "185x5@8, 195x5@9")
     #expect(lookupEntry.sourceText == "Block 27 · W1 D1")
@@ -317,13 +317,13 @@ private func loggedSquatGrid() -> SheetGrid {
     // scans every historical tab and stops on exhaustion.
     let entry = try #require(
         LastPerformedIndex(context: container.mainContext)
-            .lookup(exerciseName: "Squat", baseName: "Squat")
+            .snapshot().lookup(for: "Squat")
     )
     #expect(entry.resultText == "245x5@8")
-    #expect(entry.source == "Block 26 · W1 D1")
+    #expect(entry.sourceText == "Block 26 · W1 D1")
     #expect(await client.recorder.tabs() == ["Block 27", "Block 26", "Block 25"])
     let lookupEntry = try #require(
-        lookupStore.snapshot.lookup(exerciseName: "Squat", baseName: "Squat")
+        lookupStore.snapshot.lookup(for: "Squat")
     )
     #expect(lookupEntry.resultText == "245x5@8")
     #expect(lookupEntry.sourceText == "Block 26 · W1 D1")
@@ -458,7 +458,7 @@ private func loggedSquatGrid() -> SheetGrid {
     await backfillCompletion.waitForFinish()
     _ = try #require(
         LastPerformedIndex(context: container.mainContext)
-            .lookup(exerciseName: "Squat", baseName: "Squat")
+            .snapshot().lookup(for: "Squat")
     )
 }
 

@@ -238,10 +238,10 @@ private func seededStore(now: @escaping @MainActor () -> Date) throws -> SeededL
     try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
 
     let index = LastPerformedIndex(context: fixture.context)
-    let entry = try #require(index.lookup(exerciseName: "Squat", baseName: "Squat"))
+    let entry = try #require(index.snapshot().lookup(for: "Squat"))
     #expect(entry.resultText == "185x5@8")
     #expect(entry.performedOn == Date(timeIntervalSinceReferenceDate: 100))
-    #expect(entry.source == "Block 27 · W1 D1")
+    #expect(entry.sourceText == "Block 27 · W1 D1")
 }
 
 @MainActor
@@ -250,19 +250,13 @@ private func seededStore(now: @escaping @MainActor () -> Date) throws -> SeededL
     withExtendedLifetime(fixture.container) {}
 
     #expect(
-        fixture.lookupStore.snapshot.lookup(
-            exerciseName: "Squat",
-            baseName: "Squat"
-        ) == nil
+        fixture.lookupStore.snapshot.lookup(for: "Squat") == nil
     )
 
     try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
 
     let entry = try #require(
-        fixture.lookupStore.snapshot.lookup(
-            exerciseName: "Squat",
-            baseName: "Squat"
-        )
+        fixture.lookupStore.snapshot.lookup(for: "Squat")
     )
     #expect(entry.resultText == "185x5@8")
     #expect(entry.sourceText == "Block 27 · W1 D1")
@@ -276,7 +270,7 @@ private func seededStore(now: @escaping @MainActor () -> Date) throws -> SeededL
     try fixture.store.skip(fixture.firstSet)
 
     let index = LastPerformedIndex(context: fixture.context)
-    #expect(index.lookup(exerciseName: "Squat", baseName: "Squat") == nil)
+    #expect(index.snapshot().lookup(for: "Squat") == nil)
 }
 
 @MainActor

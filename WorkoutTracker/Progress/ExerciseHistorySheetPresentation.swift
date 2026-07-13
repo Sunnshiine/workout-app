@@ -1,17 +1,5 @@
 import Foundation
 
-/// One `exercise_history` entry projected into a plain value type for the sheet — no SwiftData,
-/// so the sheet presentation model is unit-testable and `Sendable`. `resultText` is the entry's
-/// derived display text (structured Set Logs joined in Set order, or Legacy / Unstructured text as
-/// entered); `source` is the `tab · Wn Dn` dedup key.
-struct ExerciseHistoryEntry: Equatable, Sendable {
-    let fullName: String
-    let baseName: String
-    let resultText: String
-    let source: String
-    let performedOn: Date
-}
-
 /// The Exercise History sheet's presentation model (ADR-0012 data, ADR-0013 matching, revised
 /// `DESIGN.md` §Exercise History Sheet).
 ///
@@ -64,7 +52,7 @@ struct ExerciseHistorySheetPresentation: Equatable, Sendable {
 
     var isEmpty: Bool { blocks.isEmpty }
 
-    init(anchorBaseName: String, entries: [ExerciseHistoryEntry]) {
+    init(anchorBaseName: String, entries: [LastPerformedOccurrence]) {
         title = anchorBaseName
         subtitle = "Exercise History · last \(Self.entryLimit)"
         mayStillDeepen = entries.count < Self.entryLimit
@@ -95,7 +83,7 @@ struct ExerciseHistorySheetPresentation: Equatable, Sendable {
         return (header, gutter)
     }
 
-    private static func row(for entry: ExerciseHistoryEntry, gutter: String, anchorBaseName: String) -> Row {
+    private static func row(for entry: LastPerformedOccurrence, gutter: String, anchorBaseName: String) -> Row {
         let cadence = splitCadence(entry.fullName).cadence
         let (segments, asEntered) = segments(for: entry.resultText)
         let differsBeyondCase = entry.baseName.lowercased() != anchorBaseName.lowercased()

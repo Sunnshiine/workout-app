@@ -9,25 +9,6 @@ struct LastPerformedIndex {
         self.context = context
     }
 
-    func lookup(exerciseName: String, baseName: String) -> LastPerformedEntry? {
-        // The store now holds many entries per name (one per Session), so both tiers
-        // resolve Last Performed to the single most-recent entry — byte-identical to
-        // the former single-row store.
-        let exactDescriptor = FetchDescriptor<LastPerformedEntry>(
-            predicate: #Predicate { $0.fullName == exerciseName },
-            sortBy: [SortDescriptor(\.performedOn, order: .reverse)]
-        )
-        if let exact = try? context.fetch(exactDescriptor).first {
-            return exact
-        }
-
-        let fallbackDescriptor = FetchDescriptor<LastPerformedEntry>(
-            predicate: #Predicate { $0.baseName == baseName },
-            sortBy: [SortDescriptor(\.performedOn, order: .reverse)]
-        )
-        return try? context.fetch(fallbackDescriptor).first
-    }
-
     /// Number of stored entries whose Cadence-stripped base name matches exactly — the
     /// coverage-fill counting unit (ADR-0012). `baseName` is already Cadence-stripped at
     /// parse time, so this is a plain equality count. Coverage counts by base name (not
