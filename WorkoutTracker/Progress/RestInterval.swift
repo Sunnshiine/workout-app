@@ -1,9 +1,10 @@
 import Foundation
 
 /// The single representation of a rest interval between Sets: a `start…end` span of a
-/// chosen `RestKind`. Every consumer — pill, Live Activity, haptics, coordinator — reads its
-/// remaining/elapsed/progress/countdown from here, so the interval is expressed once rather
-/// than reconstructed in each caller.
+/// chosen `RestKind`. It owns the rest's timing arithmetic — remaining, elapsed, progress
+/// fraction, and the "m:ss" countdown rule — so those are stated once here and shared by every
+/// consumer (the pill's presentation, the timer/haptics, and the coordinator's Live Activity
+/// range) rather than reconstructed in each caller.
 struct RestInterval: Equatable, Sendable {
     let start: Date
     let end: Date
@@ -33,8 +34,15 @@ struct RestInterval: Equatable, Sendable {
 
     /// Fraction of the interval still remaining, clamped to `0…1`.
     func progressFraction(at now: Date) -> Double {
+        Self.progressFraction(remaining: remaining(at: now), duration: duration)
+    }
+
+    /// The one "remaining ÷ duration" rule, clamped to `0…1`, shared by every rest-progress
+    /// display. Used both by `progressFraction(at:)` and by the pill's presentation, so the pill's
+    /// re-derivation is absorbed here rather than duplicated.
+    static func progressFraction(remaining: TimeInterval, duration: TimeInterval) -> Double {
         guard duration > 0 else { return 0 }
-        return max(0, min(1, remaining(at: now) / duration))
+        return max(0, min(1, remaining / duration))
     }
 
     /// "m:ss" countdown for the time remaining, preserving the pill's ceiling behaviour so a

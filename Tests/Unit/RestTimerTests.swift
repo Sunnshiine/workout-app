@@ -8,19 +8,6 @@ import Testing
 #endif
 
 @MainActor
-private final class ManualRestClock: RestClock {
-    var now: Date
-
-    init(now: Date) {
-        self.now = now
-    }
-
-    func advance(by seconds: TimeInterval) {
-        now.addTimeInterval(seconds)
-    }
-}
-
-@MainActor
 private final class MockRestNotificationScheduler: RestNotificationScheduling {
     private(set) var requestedAuthorizationCount = 0
     private(set) var scheduledDeadlines: [Date] = []
@@ -275,6 +262,103 @@ private final class MockRestExpiryScheduler: RestExpiryScheduling {
 
     #expect(timer.interval == nil)
     #expect(scheduler.cancelCount == 1)
+}
+
+// A pill is on screen: the deadline-driven expiry must author the expiry buzz and keep the rest
+// alive a beat so the (still-mounted) pill can play it, rather than clearing the rest out from
+// under the buzz. Regression net for the dropped on-screen expiry buzz.
+@MainActor
+@Test func restTimerAuthorsExpiryBuzzForATickingPillThenClearsAfterLinger() {
+    let clock = ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 1_000))
+    let scheduler = MockRestNotificationScheduler()
+    let expiry = MockRestExpiryScheduler()
+    let timer = RestTimer(clock: clock, notificationScheduler: scheduler, expiryScheduler: expiry)
+
+    timer.start(duration: 120, origin: ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    // A mounted pill drives the emitter each second up to — but not reaching — the deadline, so the
+    // buzz is still pending when the scheduler expires the rest.
+    _ = timer.dueHapticEvents(at: clock.now, sceneActive: true)
+    clock.advance(by: 119)
+    _ = timer.dueHapticEvents(at: clock.now, sceneActive: true)
+
+    clock.advance(by: 1)
+    expiry.fire()
+
+    // The buzz is authored and published; the rest has NOT cleared yet, and no linger-shortening
+    // notification cancel has happened.
+    #expect(timer.expiryHaptics == [RestHapticEvent(offset: 120, kind: .expiryBuzz)])
+    #expect(timer.interval != nil)
+    #expect(scheduler.cancelCount == 0)
+    #expect(
+        expiry.scheduledDeadlines == [
+            Date(timeIntervalSinceReferenceDate: 1_120),
+            Date(timeIntervalSinceReferenceDate: 1_120.5)
+        ]
+    )
+
+    // The linger elapses: the rest clears exactly once and the buzz buffer is emptied.
+    expiry.fire()
+    #expect(timer.interval == nil)
+    #expect(timer.expiryHaptics.isEmpty)
+    #expect(scheduler.cancelCount == 1)
+}
+
+// With no pill ticking, there is nothing to play, so the rest clears immediately at the deadline —
+// no buzz is authored and no linger is armed.
+@MainActor
+@Test func restTimerClearsImmediatelyAtDeadlineWithNoBuzzWhenNoPillTicked() {
+    let clock = ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 1_000))
+    let expiry = MockRestExpiryScheduler()
+    let timer = RestTimer(clock: clock, expiryScheduler: expiry)
+
+    timer.start(duration: 120, origin: ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    clock.advance(by: 120)
+    expiry.fire()
+
+    #expect(timer.expiryHaptics.isEmpty)
+    #expect(timer.interval == nil)
+    #expect(expiry.scheduledDeadlines == [Date(timeIntervalSinceReferenceDate: 1_120)])
+}
+
+// If a haptic tick already surfaced the buzz, the deadline-driven expiry must not re-emit it (no
+// duplicate) and clears immediately since there is nothing left to play.
+@MainActor
+@Test func restTimerDoesNotReauthorTheBuzzWhenATickAlreadySurfacedIt() {
+    let clock = ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 1_000))
+    let expiry = MockRestExpiryScheduler()
+    let timer = RestTimer(clock: clock, expiryScheduler: expiry)
+
+    timer.start(duration: 120, origin: ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    _ = timer.dueHapticEvents(at: clock.now, sceneActive: true)
+    clock.advance(by: 120)
+    let surfaced = timer.dueHapticEvents(at: clock.now, sceneActive: true)
+    #expect(surfaced.contains(RestHapticEvent(offset: 120, kind: .expiryBuzz)))
+
+    expiry.fire()
+
+    #expect(timer.expiryHaptics.isEmpty)
+    #expect(timer.interval == nil)
+}
+
+// A stray expiry re-delivery mid-linger must not re-author the buzz or shorten the linger.
+@MainActor
+@Test func restTimerLingersIdempotentlyWhenExpiryIsRedelivered() {
+    let clock = ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 1_000))
+    let expiry = MockRestExpiryScheduler()
+    let timer = RestTimer(clock: clock, expiryScheduler: expiry)
+
+    timer.start(duration: 120, origin: ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    _ = timer.dueHapticEvents(at: clock.now, sceneActive: true)
+    clock.advance(by: 119)
+    _ = timer.dueHapticEvents(at: clock.now, sceneActive: true)
+    clock.advance(by: 1)
+    expiry.fire()
+    let publishedBuzz = timer.expiryHaptics
+
+    timer.expireIfNeeded(at: clock.now)
+
+    #expect(timer.expiryHaptics == publishedBuzz)
+    #expect(timer.interval != nil)
 }
 
 @MainActor

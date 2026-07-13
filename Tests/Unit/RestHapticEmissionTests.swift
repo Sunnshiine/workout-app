@@ -8,24 +8,11 @@ import Testing
 // restart reset, so the pill can become a pure renderer that just plays what the module surfaces.
 
 @MainActor
-private func startedTimer(duration: TimeInterval, at start: Date) -> (RestTimer, ManualEmissionClock) {
-    let clock = ManualEmissionClock(now: start)
+private func startedTimer(duration: TimeInterval, at start: Date) -> (RestTimer, ManualRestClock) {
+    let clock = ManualRestClock(now: start)
     let timer = RestTimer(clock: clock)
     timer.start(duration: duration, origin: ActiveSetID(exerciseOrder: 1, setIndex: 0))
     return (timer, clock)
-}
-
-@MainActor
-private final class ManualEmissionClock: RestClock {
-    var now: Date
-
-    init(now: Date) {
-        self.now = now
-    }
-
-    func advance(by seconds: TimeInterval) {
-        now.addTimeInterval(seconds)
-    }
 }
 
 @MainActor
@@ -109,7 +96,7 @@ private final class ManualEmissionClock: RestClock {
 
 @MainActor
 @Test func restModuleSurfacesNoHapticsWhenNoRestIsRunning() {
-    let clock = ManualEmissionClock(now: Date(timeIntervalSinceReferenceDate: 0))
+    let clock = ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 0))
     let timer = RestTimer(clock: clock)
 
     #expect(timer.dueHapticEvents(at: clock.now, sceneActive: true).isEmpty)

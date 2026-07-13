@@ -32,6 +32,9 @@ struct RestPillView: View {
                     .task(id: finalFivePulseID(for: remaining)) {
                         await playFinalFivePulse(for: remaining)
                     }
+                    .onChange(of: restTimer.expiryHaptics) { _, events in
+                        playExpiryHaptics(events)
+                    }
             }
         }
     }
@@ -157,11 +160,21 @@ struct RestPillView: View {
         finalFivePulse = false
     }
 
-    /// Pure playback: the module decides which taps and the expiry buzz are due on this tick; the
-    /// pill only forwards them to the haptic engine, so it no longer owns the schedule or the
-    /// elapsed/played bookkeeping.
+    /// Pure playback: the module decides which taps are due on this tick; the pill only forwards
+    /// them to the haptic engine, so it no longer owns the schedule or the elapsed/played
+    /// bookkeeping.
     private func fireDueHaptics(at now: Date) {
         for event in restTimer.dueHapticEvents(at: now, sceneActive: scenePhase == .active) {
+            hapticPlayer.play(event.kind)
+        }
+    }
+
+    /// Plays the expiry buzz the module authored at the deadline. The module holds the interval a
+    /// beat so the pill is still on screen to feel it; the pill only decides whether the scene is
+    /// active, mirroring the tap suppression rule.
+    private func playExpiryHaptics(_ events: [RestHapticEvent]) {
+        guard scenePhase == .active else { return }
+        for event in events {
             hapticPlayer.play(event.kind)
         }
     }
