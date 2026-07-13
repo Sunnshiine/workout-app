@@ -11,11 +11,19 @@ import SwiftData
 /// Completion evidence is stored as a single derived `resultText` (PRD #330): the display text is
 /// assembled once at extract time, so the row is a straight persistence of `LastPerformedOccurrence`
 /// with no read-time reconciliation of a typed result against free text.
+///
+/// `resultText` carries a default so this collapse stays a lightweight migration: earlier builds
+/// persisted a typed `result: SetLog?` alongside an optional `resultText`, so a device upgrading with
+/// existing rows may hold `resultText == nil`. The app opens its store with `try!` and no
+/// `MigrationPlan`, and making a previously-optional attribute required *without* a default is not a
+/// lightweight change — it would fail container init and crash on launch. The default lets SwiftData
+/// backfill those rows; this is a rebuildable cache (ADR-0002), so any blanked row is re-derived on
+/// the next sync.
 @Model
 final class LastPerformedEntry {
     var fullName: String
     var baseName: String
-    var resultText: String
+    var resultText: String = ""
     var performedOn: Date
     var source: String
 
