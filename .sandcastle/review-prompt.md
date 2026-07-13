@@ -72,7 +72,7 @@ This sandbox is Linux — it cannot build this Swift package (`swift test` needs
 1. Attempt to spot the original bug with new test cases — if you find one, fix it
 2. Write edge case tests that stress the implementation
 3. Make any code quality improvements directly on this branch
-4. Commit with a message starting with `SANDCASTLE: Review -` describing the refinements (do NOT use a `RALPH:` prefix)
+4. Commit with a message starting with `SANDCASTLE: Review -` describing the refinements
 
 If the code is already clean, well-tested, and handles edge cases properly, do nothing.
 

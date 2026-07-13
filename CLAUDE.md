@@ -32,23 +32,17 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
 
 - The `WorkoutTracker` scheme launches with `-UITEST_FIXTURE true` and
   `-UITEST_SESSION true` — it runs against deterministic local fixtures, **not**
-  the live Google Sheet. Ralph's `snapshot.sh` defaults to the seeded
-  SessionView; set `UITEST_ARGS` for other fixture routes. To run against live
-  data, use the `Copy of WorkoutTracker` scheme (`-UITEST_FIXTURE false`).
+  the live Google Sheet. To run against live data, use the `Copy of WorkoutTracker` scheme (`-UITEST_FIXTURE false`).
 - Prefer XcodeBuildMCP for build/run/test on the simulator. If using XcodeBuildMCP,
   use the installed XcodeBuildMCP skill before calling XcodeBuildMCP tools.
 - If XcodeBuildMCP accessibility snapshots return an empty AXApplication, reboot
   the simulator before diagnosing app code.
 - For target-specific UI gates, prefer raw `xcodebuild ... -only-testing:WorkoutTrackerUITests`
   or verify the output actually ran `WorkoutTrackerUITests`.
-- For concurrent Ralph runs, use `--simulator-pool <UDID-1> <UDID-2>` so each
-  run automatically acquires a distinct simulator via atomic file leasing in
-  `~/.ralph/simulator-leases/`. Stale leases from crashed processes are recovered
-  automatically. Use `--simulator-id` only for manual single-run assignment.
 
 ## Linting & Formatting
 
-- **SwiftLint** runs automatically via the `SwiftLintPlugins` build tool plugin (added to `Package.swift`). Config: `.swiftlint.yml`.
+- **SwiftLint** runs automatically via the `SwiftLintPlugins` build tool plugin (wired through the Xcode project, not `Package.swift`). Config: `.swiftlint.yml`.
 - **swift-format** is installed via Homebrew. Config: `.swift-format`. Run manually: `swift-format -i -r WorkoutTracker/ WorkoutTrackerTests/`
 - Do not run `swiftlint --fix` in build phases — run it manually when needed.
 
