@@ -128,6 +128,48 @@ extension Array where Element == PrescriptionLine {
     }
 }
 
+/// Which rule decided where Set N's Set Log lives — the four leaves of the Visible Writable Row
+/// addressing tree (`CONTEXT.md`, ADR-0003, ADR-0010). Naming the outcome lets read, write, and
+/// audit consume one decision instead of re-branching the tree apiece.
+enum SetLogPlacementKind: Sendable, Equatable {
+    /// Coach J. Alarcon's per-row template: the Set belongs to a multi-line Prescription Line and
+    /// its log lives comma-separated in that Line's own Notes cell.
+    case multiLinePrescriptionLine
+    /// Kevin's compact template: the Exercise stores its Set Logs comma-separated in the one header
+    /// Notes cell (compact Set-One / aggregate header).
+    case compactHeaderList
+    /// The header Notes cell holds protected coach content (a Coach Note or Legacy Log), so the Set
+    /// Log redirects to the first Visible Writable Row in the same Session.
+    case protectedHeaderVisibleWritableRow
+    /// The Set log lives on its own visible per-Set row below the anchor.
+    case visibleSetLogRow
+}
+
+/// Where Set N's Set Log lives, resolved in domain terms: the addressing `kind`, the resolved `row`
+/// and `col`, and — for list kinds — the Set's `listPosition` within the comma-separated Set-Log
+/// list (nil when the row holds a single value). The row/column/A1 detail stays transient here and
+/// is never cached (ADR-0003).
+struct SetLogPlacement: Sendable, Equatable {
+    let kind: SetLogPlacementKind
+    let row: Int
+    let col: Int
+    let listPosition: Int?
+}
+
+/// The outcome of resolving where one Set's Set Log lives — either a resolved `SetLogPlacement`, or
+/// a reason the Set has no writable row. The write path maps these to its conflict / not-found
+/// errors so the "conflict rather than guess" failure mode (ADR-0003) is decided in one place.
+enum SetLogPlacementResolution: Sendable, Equatable {
+    case placed(SetLogPlacement)
+    /// The header Notes cell holds protected coach content and no safe Visible Writable Row exists
+    /// before the next Exercise — the write must conflict rather than overwrite (ADR-0003, ADR-0005).
+    case protectedHeaderBlocksSetRow
+    /// The Set has no row in the Exercise's span (out of range or hidden).
+    case setRowNotFound
+    /// The day has no Notes column, so Set Logs cannot be placed at all.
+    case notesColumnMissing
+}
+
 struct SheetLayoutExerciseAnchor: Sendable {
     let name: String
     let row: Int
@@ -222,6 +264,65 @@ struct SheetLayoutExerciseAnchor: Sendable {
         let firstRow = row + 1
         guard firstRow < nextAnchorRow else { return nil }
         return (firstRow..<nextAnchorRow).first { snapshot.isRowVisible($0) }
+    }
+
+    /// Resolves where Set `setIndex`'s Set Log lives for this Exercise: the whole Visible Writable
+    /// Row addressing tree in one place — multi-line Prescription Line → compact-header list →
+    /// protected-header Visible Writable Row → visible Set-log row — honouring Coach Note / Legacy
+    /// Log protection and never crossing the Session boundary (ADR-0003, ADR-0010). Set-Log placement
+    /// is a Notes-column concern; Last Set RPE targeting stays on the Exercise anchor row and is not
+    /// resolved here. This is the one query the read, write, and audit paths ask, so display and
+    /// write targeting cannot diverge.
+    func setLogPlacement(for setIndex: Int, in snapshot: SheetSnapshot, cols: DayColumns) -> SetLogPlacementResolution {
+        let grid = snapshot.values
+        guard let col = cols.notes else { return .notesColumnMissing }
+
+        let lines = prescriptionLines(in: grid, setsColumn: cols.sets)
+        if lines.isMultiLine {
+            guard let line = lines.line(containing: setIndex) else { return .setRowNotFound }
+            return .placed(
+                SetLogPlacement(
+                    kind: .multiLinePrescriptionLine,
+                    row: line.row,
+                    col: col,
+                    listPosition: line.position(of: setIndex)
+                )
+            )
+        }
+
+        let headerNotes = headerNotes(in: grid, notesColumn: col)
+        let setCount = prescribedSetCount(in: grid, setsColumn: cols.sets)
+        let compactHeaderSetOne = usesCompactHeaderSetOne(headerNotes: headerNotes, setCount: setCount)
+
+        // A list kind stores several Sets in one comma-separated cell; a single prescribed Set has no
+        // list, so it writes the cell whole (nil position → the direct-write path).
+        let listPosition = setCount > 1 ? setIndex : nil
+
+        if compactHeaderSetOne, setIndex < setCount {
+            guard snapshot.isRowVisible(row) else { return .setRowNotFound }
+            return .placed(SetLogPlacement(kind: .compactHeaderList, row: row, col: col, listPosition: listPosition))
+        }
+
+        if isHeaderProtectedFromSetLogWrites(headerNotes: headerNotes, setCount: setCount), setIndex < setCount {
+            guard let writableRow = firstVisibleWritableRow(in: snapshot) else {
+                return .protectedHeaderBlocksSetRow
+            }
+            return .placed(
+                SetLogPlacement(
+                    kind: .protectedHeaderVisibleWritableRow,
+                    row: writableRow,
+                    col: col,
+                    listPosition: listPosition
+                )
+            )
+        }
+
+        guard
+            let setRow = visibleSetLogRow(for: setIndex, compactHeaderSetOne: compactHeaderSetOne, in: snapshot)
+        else {
+            return headerNotes.hasProtectedValue ? .protectedHeaderBlocksSetRow : .setRowNotFound
+        }
+        return .placed(SetLogPlacement(kind: .visibleSetLogRow, row: setRow, col: col, listPosition: nil))
     }
 }
 
