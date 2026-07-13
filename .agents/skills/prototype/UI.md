@@ -95,6 +95,8 @@ Put the switcher in a single shared component so both sub-shapes can reuse it. L
 
 Surface the URL (and the `?variant=` keys). The user will flip through whenever they get to it. The interesting feedback is usually **"I want the header from B with the sidebar from C"** — that's the actual design they want.
 
+> The review surface is an iPhone. An HTML prototype must render there — verify at an iPhone viewport before handover (`npm run prototype:capture -- <file>` screenshots every variant at one), and embed the screenshots in the issue comment, since that's where review actually happens.
+
 ### 6. Capture the answer and clean up
 
 Once a variant has won, capture the answer — which variant and why — then capture the prototype the way the [SKILL](SKILL.md) describes. Fold the winner into the real code and move the rest onto the throwaway branch, not into main:

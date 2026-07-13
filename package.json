@@ -6,11 +6,14 @@
   "scripts": {
     "sandcastle": "tsx ./.sandcastle/main.ts",
     "test:sandcastle": "vitest run .sandcastle",
-    "typecheck:sandcastle": "tsc --noEmit"
+    "test:prototype": "vitest run scripts/prototype-capture",
+    "typecheck:sandcastle": "tsc --noEmit",
+    "prototype:capture": "tsx ./scripts/prototype-capture/capture.ts"
   },
   "devDependencies": {
     "@ai-hero/sandcastle": "^0.10.0",
     "@types/node": "^22.15.0",
+    "playwright": "~1.56.1",
     "tsx": "^4.20.5",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4",
