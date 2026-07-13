@@ -436,7 +436,7 @@ private func makeRestActionFixture(
 
     let items = coordinator.renderItems(
         in: session,
-        lastPerformedLookup: LastPerformedIndex(context: context).snapshot()
+        lastPerformedLookup: LastPerformedLookupStore(context: context).snapshot
     )
 
     let benchConfig = try #require(items.compactMap(\.exerciseConfig).first { $0.exercise.order == 1 })
@@ -451,10 +451,12 @@ private func makeRestActionFixture(
     let coordinator = SessionCoordinator(session: session)
     let lookup = LastPerformedLookupSnapshot(
         exactMatches: [
-            "Bench Press": LastPerformedLookupEntry(
+            "Bench Press": LastPerformedOccurrence(
+                fullName: "Bench Press",
+                baseName: "Bench Press",
                 resultText: "185x6@7",
-                sourceText: "W3 D2",
-                performedOn: Date(timeIntervalSinceReferenceDate: 100)
+                performedOn: Date(timeIntervalSinceReferenceDate: 100),
+                source: "W3 D2"
             )
         ]
     )

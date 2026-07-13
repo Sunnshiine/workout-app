@@ -9,13 +9,13 @@ private func entry(
     resultText: String,
     source: String,
     performedOn: Date
-) -> ExerciseHistoryEntry {
-    ExerciseHistoryEntry(
+) -> LastPerformedOccurrence {
+    LastPerformedOccurrence(
         fullName: fullName,
         baseName: baseName,
         resultText: resultText,
-        source: source,
-        performedOn: performedOn
+        performedOn: performedOn,
+        source: source
     )
 }
 

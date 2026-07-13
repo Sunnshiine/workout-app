@@ -25,7 +25,7 @@ struct WorkoutTrackerApp: App {
                 let workout = WorkoutStore(
                     context: ctx,
                     defaults: defaults,
-                    lastPerformedLookupRefresher: lastPerformedLookup
+                    lastPerformed: lastPerformedLookup
                 )
                 workout.reload()
                 Self.applyUITestNavigationFixtures(to: workout)
@@ -35,8 +35,7 @@ struct WorkoutTrackerApp: App {
                     initialValue: SyncCoordinator(
                         client: UITestFixture.makeSheetsClient(),
                         context: ctx,
-                        lastPerformedLookupRefresher: lastPerformedLookup,
-                        lastPerformedBackfillObserver: lastPerformedLookup
+                        lastPerformed: lastPerformedLookup
                     )
                 )
                 _lastPerformedLookup = State(initialValue: lastPerformedLookup)
@@ -54,15 +53,14 @@ struct WorkoutTrackerApp: App {
         _workout = State(
             initialValue: WorkoutStore(
                 context: ctx,
-                lastPerformedLookupRefresher: lastPerformedLookup
+                lastPerformed: lastPerformedLookup
             )
         )
         _sync = State(
             initialValue: SyncCoordinator(
                 client: GoogleSheetsClient(),
                 context: ctx,
-                lastPerformedLookupRefresher: lastPerformedLookup,
-                lastPerformedBackfillObserver: lastPerformedLookup
+                lastPerformed: lastPerformedLookup
             )
         )
         _lastPerformedLookup = State(initialValue: lastPerformedLookup)

@@ -17,13 +17,13 @@ struct ExerciseHistorySheetVisualTests {
         resultText: String,
         source: String,
         daysAgo: Int
-    ) -> ExerciseHistoryEntry {
-        ExerciseHistoryEntry(
+    ) -> LastPerformedOccurrence {
+        LastPerformedOccurrence(
             fullName: fullName,
             baseName: baseName,
             resultText: resultText,
-            source: source,
-            performedOn: Date(timeIntervalSinceReferenceDate: 1_000_000) - Double(daysAgo) * 86_400
+            performedOn: Date(timeIntervalSinceReferenceDate: 1_000_000) - Double(daysAgo) * 86_400,
+            source: source
         )
     }
 

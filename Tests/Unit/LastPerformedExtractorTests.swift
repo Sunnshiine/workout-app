@@ -50,14 +50,14 @@ import Testing
     #expect(squats.count == 2)
     let olderSquat = try #require(squats.first { $0.source == "Block 27 · W1 D1" })
     #expect(olderSquat.performedOn == olderDate)
-    #expect(olderSquat.displayResultText == "185x5@7, 195x5@8")
+    #expect(olderSquat.resultText == "185x5@7, 195x5@8")
     let newerSquat = try #require(squats.first { $0.source == "Block 27 · W2 D1" })
     #expect(newerSquat.baseName == "Squat")
-    #expect(newerSquat.result == SetLog(weight: .pounds(205), reps: 4, rpe: 8))
+    #expect(newerSquat.resultText == "205x4@8")
     #expect(newerSquat.performedOn == newerDate)
 
     let bench = try #require(entries.first { $0.fullName == "Bench Press" })
-    #expect(bench.result == SetLog(weight: .pounds(155), reps: 6, rpe: 7))
+    #expect(bench.resultText == "155x6@7")
     #expect(bench.source == "Block 27 · W1 D1")
 }
 
@@ -102,8 +102,7 @@ import Testing
 
     let entry = try #require(LastPerformedExtractor.entries(from: block).first)
 
-    #expect(entry.displayResultText == "70x8@8, 75x8@9.5")
-    #expect(entry.result == nil)
+    #expect(entry.resultText == "70x8@8, 75x8@9.5")
 }
 
 @Test func multiSetEvidenceKeepsSkipMarkersButDropsPendingSets() throws {
@@ -132,7 +131,7 @@ import Testing
 
     // Partial skips survive into the display string in Set order (ADR-0012); pending
     // Sets, which carry no evidence, are dropped.
-    #expect(entry.displayResultText == "185x5@7, skip, 205x5@9")
+    #expect(entry.resultText == "185x5@7, skip, 205x5@9")
 }
 
 @Test func unstructuredOnlyExerciseProducesEntryWithRawEnteredText() throws {
@@ -159,8 +158,7 @@ import Testing
 
     // Unstructured Set Logs now count as completion evidence (ADR-0012), rendered as
     // the raw entered text in Set order — never normalized.
-    #expect(entry.displayResultText == "a few sets of 12, felt easy")
-    #expect(entry.result == nil)
+    #expect(entry.resultText == "a few sets of 12, felt easy")
 }
 
 @Test func mixedStructuredAndUnstructuredLinesProduceEntry() throws {
@@ -185,8 +183,7 @@ import Testing
 
     let entry = try #require(LastPerformedExtractor.entries(from: block).first)
 
-    #expect(entry.displayResultText == "185x5@7, amrap")
-    #expect(entry.result == nil)
+    #expect(entry.resultText == "185x5@7, amrap")
 }
 
 @Test func fullySkippedOccurrenceProducesNoEntry() {
@@ -262,10 +259,10 @@ import Testing
 
     let entry = try #require(LastPerformedExtractor.entries(from: block).first)
 
-    #expect(entry.displayResultText == "185x5@7, skip, tweaked back")
+    #expect(entry.resultText == "185x5@7, skip, tweaked back")
 }
 
-@Test func singleSetEvidenceKeepsStructuredResult() throws {
+@Test func singleSetEvidenceRendersFormattedDisplayText() throws {
     let block = ParsedBlockModel(
         tabName: "Block 27",
         weeks: [
@@ -281,8 +278,7 @@ import Testing
 
     let entry = try #require(LastPerformedExtractor.entries(from: block).first)
 
-    #expect(entry.result == SetLog(weight: .pounds(155), reps: 6, rpe: 7))
-    #expect(entry.displayResultText == "155x6@7")
+    #expect(entry.resultText == "155x6@7")
 }
 
 @Test func extractorReturnsEmptyArrayWithoutLoggedSets() {
@@ -334,7 +330,6 @@ import Testing
 
     #expect(entry.fullName == "Standing Calve Raises")
     #expect(entry.resultText == "25x12, 12")
-    #expect(entry.result == nil)
     #expect(entry.performedOn == performedDate)
     #expect(entry.source == "Block 27 · W1 D1")
 }
@@ -361,8 +356,7 @@ import Testing
 
     let entry = try #require(LastPerformedExtractor.entries(from: block).first)
 
-    #expect(entry.displayResultText == "35x12@9")
-    #expect(entry.result == SetLog(weight: .pounds(35), reps: 12, rpe: 9))
+    #expect(entry.resultText == "35x12@9")
 }
 
 private func week(_ number: Int, date: Date?, exercises: [ParsedExercise]) -> ParsedWeek {

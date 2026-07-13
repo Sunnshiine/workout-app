@@ -5,14 +5,414 @@ import Testing
 @testable import WorkoutTracker
 
 @MainActor
-@Test func lookupStorePublishesAndClearsFillProgress() throws {
-    let container = try ModelContainer(
+private func lastPerformedContainer() throws -> ModelContainer {
+    try ModelContainer(
         for: LastPerformedEntry.self,
         configurations: ModelConfiguration(
-            "lookup-store-fill-\(UUID().uuidString)",
+            "last-performed-\(UUID().uuidString)",
             isStoredInMemoryOnly: true
         )
     )
+}
+
+// MARK: - Display snapshot / two-tier lookup
+
+@MainActor
+@Test func lastPerformedLookupFindsExactCadenceMatch() throws {
+    let container = try lastPerformedContainer()
+    let context = container.mainContext
+    context.insert(
+        LastPerformedEntry(
+            fullName: "2-3:1:0 BB RDL",
+            baseName: "BB RDL",
+            result: SetLog(weight: .pounds(185), reps: 7, rpe: 6),
+            performedOn: Date(timeIntervalSinceReferenceDate: 100),
+            source: "Block 26 · W3 D1"
+        )
+    )
+    try context.save()
+    let store = LastPerformedLookupStore(context: context)
+
+    let match = try #require(store.snapshot.lookup(for: "2-3:1:0 BB RDL"))
+
+    #expect(match.resultText == "185x7@6")
+    #expect(match.sourceText == "Block 26 · W3 D1")
+    withExtendedLifetime(container) {}
+}
+
+@MainActor
+@Test func lastPerformedLookupFallsBackToNewestBaseNameMatch() throws {
+    let container = try lastPerformedContainer()
+    let context = container.mainContext
+    context.insert(
+        LastPerformedEntry(
+            fullName: "1:0:1 BB RDL",
+            baseName: "BB RDL",
+            result: SetLog(weight: .pounds(175), reps: 7, rpe: 6),
+            performedOn: Date(timeIntervalSinceReferenceDate: 100),
+            source: "Block 25 · W4 D1"
+        )
+    )
+    context.insert(
+        LastPerformedEntry(
+            fullName: "2-3:1:0 BB RDL",
+            baseName: "BB RDL",
+            result: SetLog(weight: .pounds(185), reps: 7, rpe: 7),
+            performedOn: Date(timeIntervalSinceReferenceDate: 200),
+            source: "Block 26 · W3 D1"
+        )
+    )
+    try context.save()
+    let store = LastPerformedLookupStore(context: context)
+
+    let match = try #require(store.snapshot.lookup(for: "3:1:0 BB RDL"))
+
+    #expect(match.resultText == "185x7@7")
+    #expect(match.sourceText == "Block 26 · W3 D1")
+    withExtendedLifetime(container) {}
+}
+
+@MainActor
+@Test func lastPerformedLookupReturnsNilWhenNoHistoryExists() throws {
+    let container = try lastPerformedContainer()
+    let store = LastPerformedLookupStore(context: container.mainContext)
+
+    let match = store.snapshot.lookup(for: "Bench Press")
+
+    #expect(match == nil)
+    withExtendedLifetime(container) {}
+}
+
+// MARK: - Ingest: append-only upsert on (fullName, source), newest-wins
+
+@MainActor
+@Test func lastPerformedIngestIsIdempotentByFullName() throws {
+    let container = try lastPerformedContainer()
+    let context = container.mainContext
+    let store = LastPerformedLookupStore(context: context)
+    let entry = LastPerformedEntry(
+        fullName: "BB RDL",
+        baseName: "BB RDL",
+        result: SetLog(weight: .pounds(185), reps: 7, rpe: 6),
+        performedOn: Date(timeIntervalSinceReferenceDate: 100),
+        source: "Block 26 · W3 D1"
+    )
+
+    try store.ingest([entry])
+    try store.ingest([
+        LastPerformedEntry(
+            fullName: "BB RDL",
+            baseName: "BB RDL",
+            result: SetLog(weight: .pounds(185), reps: 7, rpe: 6),
+            performedOn: Date(timeIntervalSinceReferenceDate: 100),
+            source: "Block 26 · W3 D1"
+        )
+    ])
+
+    let entries = try context.fetch(FetchDescriptor<LastPerformedEntry>())
+    #expect(entries.count == 1)
+    #expect(entries[0].resultText == "185x7@6")
+    withExtendedLifetime(container) {}
+}
+
+@MainActor
+@Test func lastPerformedIngestAppendsDistinctSessionsOfTheSameExercise() throws {
+    let container = try lastPerformedContainer()
+    let context = container.mainContext
+    let store = LastPerformedLookupStore(context: context)
+
+    try store.ingest([
+        LastPerformedEntry(
+            fullName: "Squat",
+            baseName: "Squat",
+            result: SetLog(weight: .pounds(205), reps: 5, rpe: 8),
+            performedOn: Date(timeIntervalSinceReferenceDate: 200),
+            source: "Block 27 · W2 D1"
+        ),
+        LastPerformedEntry(
+            fullName: "Squat",
+            baseName: "Squat",
+            result: SetLog(weight: .pounds(185), reps: 5, rpe: 7),
+            performedOn: Date(timeIntervalSinceReferenceDate: 100),
+            source: "Block 26 · W4 D1"
+        )
+    ])
+
+    let entries = try context.fetch(FetchDescriptor<LastPerformedEntry>())
+    #expect(entries.count == 2)
+    #expect(Set(entries.map(\.source)) == ["Block 27 · W2 D1", "Block 26 · W4 D1"])
+
+    // Last Performed remains the most-recent entry, read from the refreshed snapshot.
+    let match = try #require(store.snapshot.lookup(for: "Squat"))
+    #expect(match.resultText == "205x5@8")
+    #expect(match.sourceText == "Block 27 · W2 D1")
+    withExtendedLifetime(container) {}
+}
+
+@MainActor
+@Test func lastPerformedIngestDedupsOnNameAndSourceAcrossRepeatedIngests() throws {
+    let container = try lastPerformedContainer()
+    let context = container.mainContext
+    let store = LastPerformedLookupStore(context: context)
+
+    let entry = {
+        LastPerformedEntry(
+            fullName: "Squat",
+            baseName: "Squat",
+            result: SetLog(weight: .pounds(205), reps: 5, rpe: 8),
+            performedOn: Date(timeIntervalSinceReferenceDate: 200),
+            source: "Block 27 · W2 D1"
+        )
+    }
+
+    // Ingesting the same tab three times must not accumulate duplicates.
+    try store.ingest([entry()])
+    try store.ingest([entry()])
+    try store.ingest([entry(), entry()])
+
+    let entries = try context.fetch(FetchDescriptor<LastPerformedEntry>())
+    #expect(entries.count == 1)
+    withExtendedLifetime(container) {}
+}
+
+@MainActor
+@Test func lastPerformedIngestPreservesExistingSeededRows() throws {
+    let container = try lastPerformedContainer()
+    let context = container.mainContext
+
+    // A pre-existing (seeded) row from the former last_performed store.
+    context.insert(
+        LastPerformedEntry(
+            fullName: "Squat",
+            baseName: "Squat",
+            result: SetLog(weight: .pounds(185), reps: 5, rpe: 7),
+            performedOn: Date(timeIntervalSinceReferenceDate: 100),
+            source: "Block 26 · W4 D1"
+        )
+    )
+    try context.save()
+    let store = LastPerformedLookupStore(context: context)
+
+    try store.ingest([
+        LastPerformedEntry(
+            fullName: "Squat",
+            baseName: "Squat",
+            result: SetLog(weight: .pounds(205), reps: 5, rpe: 8),
+            performedOn: Date(timeIntervalSinceReferenceDate: 200),
+            source: "Block 27 · W2 D1"
+        )
+    ])
+
+    let entries = try context.fetch(FetchDescriptor<LastPerformedEntry>())
+    #expect(entries.count == 2)
+    #expect(Set(entries.map(\.source)) == ["Block 26 · W4 D1", "Block 27 · W2 D1"])
+    withExtendedLifetime(container) {}
+}
+
+@MainActor
+@Test func lastPerformedIngestDedupsWhenDatesDegradeToDistantPast() throws {
+    let container = try lastPerformedContainer()
+    let context = container.mainContext
+    let store = LastPerformedLookupStore(context: context)
+
+    let entry = {
+        LastPerformedEntry(
+            fullName: "Standing Calve Raises",
+            baseName: "Standing Calve Raises",
+            resultText: "25x12, 12",
+            performedOn: .distantPast,
+            source: "Block 27 · W1 D1"
+        )
+    }
+
+    try store.ingest([entry()])
+    try store.ingest([entry()])
+
+    let entries = try context.fetch(FetchDescriptor<LastPerformedEntry>())
+    #expect(entries.count == 1)
+    #expect(entries[0].performedOn == .distantPast)
+    withExtendedLifetime(container) {}
+}
+
+@MainActor
+@Test func lastPerformedIngestKeepsNewestEntryForFullName() throws {
+    let container = try lastPerformedContainer()
+    let context = container.mainContext
+    let store = LastPerformedLookupStore(context: context)
+    try store.ingest([
+        LastPerformedEntry(
+            fullName: "Bench Press",
+            baseName: "Bench Press",
+            result: SetLog(weight: .pounds(225), reps: 5, rpe: 8),
+            performedOn: Date(timeIntervalSinceReferenceDate: 200),
+            source: "Block 27 · W1 D1"
+        )
+    ])
+
+    try store.ingest([
+        LastPerformedEntry(
+            fullName: "Bench Press",
+            baseName: "Bench Press",
+            result: SetLog(weight: .pounds(205), reps: 5, rpe: 7),
+            performedOn: Date(timeIntervalSinceReferenceDate: 100),
+            source: "Block 26 · W4 D1"
+        )
+    ])
+
+    let match = try #require(store.snapshot.lookup(for: "Bench Press"))
+    #expect(match.resultText == "225x5@8")
+    #expect(match.sourceText == "Block 27 · W1 D1")
+    withExtendedLifetime(container) {}
+}
+
+/// Ingest refreshes the published display snapshot as part of the same operation, so no caller has
+/// to pair it with a separate refresh (PRD #330).
+@MainActor
+@Test func lastPerformedIngestRefreshesPublishedSnapshot() throws {
+    let container = try lastPerformedContainer()
+    let store = LastPerformedLookupStore(context: container.mainContext)
+
+    #expect(store.snapshot.lookup(for: "Squat") == nil)
+
+    try store.ingest([
+        LastPerformedEntry(
+            fullName: "Squat",
+            baseName: "Squat",
+            result: SetLog(weight: .pounds(205), reps: 5, rpe: 8),
+            performedOn: Date(timeIntervalSinceReferenceDate: 100),
+            source: "Block 27 · W1 D1"
+        )
+    ])
+
+    let match = try #require(store.snapshot.lookup(for: "Squat"))
+    #expect(match.resultText == "205x5@8")
+    withExtendedLifetime(container) {}
+}
+
+// MARK: - Entry-count coverage (ADR-0012)
+
+@MainActor
+@Test func lastPerformedEntryCountCountsByCadenceStrippedBaseName() throws {
+    let container = try lastPerformedContainer()
+    let store = LastPerformedLookupStore(context: container.mainContext)
+    try store.ingest([
+        LastPerformedEntry(
+            fullName: "1:0:1 BB RDL",
+            baseName: "BB RDL",
+            result: SetLog(weight: .pounds(175), reps: 7, rpe: 6),
+            performedOn: Date(timeIntervalSinceReferenceDate: 100),
+            source: "Block 25 · W4 D1"
+        ),
+        LastPerformedEntry(
+            fullName: "2-3:1:0 BB RDL",
+            baseName: "BB RDL",
+            result: SetLog(weight: .pounds(185), reps: 7, rpe: 7),
+            performedOn: Date(timeIntervalSinceReferenceDate: 200),
+            source: "Block 26 · W3 D1"
+        )
+    ])
+
+    #expect(store.entryCount(baseName: "BB RDL") == 2)
+    #expect(store.entryCount(baseName: "Squat") == 0)
+    withExtendedLifetime(container) {}
+}
+
+@MainActor
+@Test func unstructuredOnlyExerciseSurfacesALastPerformedLine() throws {
+    let container = try lastPerformedContainer()
+    let context = container.mainContext
+    let store = LastPerformedLookupStore(context: context)
+
+    // An Exercise completed only through Unstructured Set Logs — today this leaves the
+    // Last Performed line blank; ADR-0012 makes it completion evidence rendered as the
+    // raw entered text. This exercises the full extract → ingest → lookup path.
+    let block = ParsedBlockModel(
+        tabName: "Block 27",
+        weeks: [
+            ParsedWeek(
+                number: 1,
+                days: [
+                    ParsedSession(
+                        dayNumber: 1,
+                        date: nil,
+                        exercises: [
+                            ParsedExercise(
+                                name: "Standing Calve Raises",
+                                baseName: "Standing Calve Raises",
+                                cadence: nil,
+                                coachNote: nil,
+                                sets: [
+                                    ParsedSet(
+                                        index: 0,
+                                        prescribedReps: "12",
+                                        prescribedLoad: "RPE 8",
+                                        percentOneRM: nil,
+                                        state: .logged,
+                                        unstructuredSetLog: "a few sets of 12"
+                                    ),
+                                    ParsedSet(
+                                        index: 1,
+                                        prescribedReps: "12",
+                                        prescribedLoad: "RPE 8",
+                                        percentOneRM: nil,
+                                        state: .logged,
+                                        unstructuredSetLog: "felt easy"
+                                    )
+                                ]
+                            )
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
+
+    try store.ingest(LastPerformedExtractor.entries(from: block))
+
+    let line = try #require(store.snapshot.lookup(for: "Standing Calve Raises"))
+    #expect(line.resultText == "a few sets of 12, felt easy")
+    withExtendedLifetime(container) {}
+}
+
+@MainActor
+@Test func lastPerformedSnapshotPreservesCadencePriorityAndBaseFallback() throws {
+    let container = try lastPerformedContainer()
+    let context = container.mainContext
+    let store = LastPerformedLookupStore(context: context)
+    try store.ingest([
+        LastPerformedEntry(
+            fullName: "1:0:1 BB RDL",
+            baseName: "BB RDL",
+            result: SetLog(weight: .pounds(175), reps: 7, rpe: 6),
+            performedOn: Date(timeIntervalSinceReferenceDate: 100),
+            source: "Block 25 · W4 D1"
+        ),
+        LastPerformedEntry(
+            fullName: "2-3:1:0 BB RDL",
+            baseName: "BB RDL",
+            result: SetLog(weight: .pounds(185), reps: 7, rpe: 7),
+            performedOn: Date(timeIntervalSinceReferenceDate: 200),
+            source: "Block 26 · W3 D1"
+        )
+    ])
+
+    let lookup = store.snapshot
+
+    let exact = try #require(lookup.lookup(for: "2-3:1:0 BB RDL"))
+    #expect(exact.resultText == "185x7@7")
+    #expect(exact.sourceText == "Block 26 · W3 D1")
+    let fallback = try #require(lookup.lookup(for: "3:1:0 BB RDL"))
+    #expect(fallback.resultText == "185x7@7")
+    #expect(fallback.sourceText == "Block 26 · W3 D1")
+    #expect(lookup.lookup(for: "Bench Press") == nil)
+    withExtendedLifetime(container) {}
+}
+
+// MARK: - Backfill progress affordance
+
+@MainActor
+@Test func lookupStorePublishesAndClearsFillProgress() throws {
+    let container = try lastPerformedContainer()
     let store = LastPerformedLookupStore(context: container.mainContext)
 
     // No affordance before the fill publishes anything.
@@ -25,4 +425,5 @@ import Testing
     // The affordance disappears once the fill reaches coverage or exhausts the tabs.
     store.lastPerformedBackfillDidFinish()
     #expect(store.fillProgress == nil)
+    withExtendedLifetime(container) {}
 }

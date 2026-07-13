@@ -51,7 +51,7 @@ import Testing
     ])
 
     // Tiers 1 and 2 miss (byte-identical to today), tier 3 fires on the Movement.
-    let match = snapshot.lookup(exerciseName: "Standing Calf Raise", baseName: "Standing Calf Raise")
+    let match = snapshot.lookup(for: "Standing Calf Raise")
     #expect(match?.resultText == "25x12, 12")
     #expect(match?.sourceText == "Block 27 · W1 D1")
     // The tier-3 line labels itself with the matched entry's own entered name.
@@ -70,9 +70,9 @@ import Testing
     ])
 
     // Tier 1: exact full name.
-    #expect(snapshot.lookup(exerciseName: "2-3:1:0 BB RDL", baseName: "BB RDL")?.matchedName == nil)
+    #expect(snapshot.lookup(for: "2-3:1:0 BB RDL")?.matchedName == nil)
     // Tier 2: exact base name.
-    #expect(snapshot.lookup(exerciseName: "3:1:0 BB RDL", baseName: "BB RDL")?.matchedName == nil)
+    #expect(snapshot.lookup(for: "3:1:0 BB RDL")?.matchedName == nil)
 }
 
 @Test func snapshotTierThreePicksNewestMatchingEntry() {
@@ -93,7 +93,7 @@ import Testing
         )
     ])
 
-    let match = snapshot.lookup(exerciseName: "Standing Calf Raise", baseName: "Standing Calf Raise")
+    let match = snapshot.lookup(for: "Standing Calf Raise")
     #expect(match?.resultText == "25x12")
     #expect(match?.matchedName == "Standing Calve Raises")
 }
@@ -110,5 +110,5 @@ import Testing
     ])
 
     // Modifier words split Movements — no tier-3 line for a bare "Bench Press".
-    #expect(snapshot.lookup(exerciseName: "Bench Press", baseName: "Bench Press") == nil)
+    #expect(snapshot.lookup(for: "Bench Press") == nil)
 }

@@ -14,8 +14,7 @@ final class SyncCoordinator {
     private let client: any SheetsClient
     private let context: ModelContext
     private let sheetWritePlanner: SheetWritePlanner
-    private let lastPerformedLookupRefresher: any LastPerformedLookupRefreshing
-    private let lastPerformedBackfillObserver: any LastPerformedBackfillObserving
+    private let lastPerformed: any LastPerformedIndexing
     private let tabFetchBackoff: SheetsBackoff
     private var activePendingWriteFlushCount = 0
     private var pendingWriteFlushGeneration = 0
@@ -31,15 +30,13 @@ final class SyncCoordinator {
         client: any SheetsClient,
         context: ModelContext,
         sheetWritePlanner: SheetWritePlanner = SheetWritePlanner(),
-        lastPerformedLookupRefresher: any LastPerformedLookupRefreshing = NoopLastPerformedLookupRefresher(),
-        lastPerformedBackfillObserver: any LastPerformedBackfillObserving = NoopLastPerformedBackfillObserver(),
+        lastPerformed: any LastPerformedIndexing = NoopLastPerformedIndex(),
         tabFetchBackoff: SheetsBackoff = SheetsBackoff()
     ) {
         self.client = client
         self.context = context
         self.sheetWritePlanner = sheetWritePlanner
-        self.lastPerformedLookupRefresher = lastPerformedLookupRefresher
-        self.lastPerformedBackfillObserver = lastPerformedBackfillObserver
+        self.lastPerformed = lastPerformed
         self.tabFetchBackoff = tabFetchBackoff
     }
 
@@ -124,8 +121,7 @@ final class SyncCoordinator {
             try replacePersistedBlock(with: BlockBuilder.makeBlock(from: parsed.block))
             let lastPerformedEntries = LastPerformedExtractor.entries(from: parsed.block)
             if !lastPerformedEntries.isEmpty {
-                try LastPerformedIndex(context: context).ingest(lastPerformedEntries)
-                lastPerformedLookupRefresher.refresh()
+                try lastPerformed.ingest(lastPerformedEntries)
             }
             if case .conflict = stateAfterFlush {
                 state = stateAfterFlush
@@ -221,7 +217,7 @@ final class SyncCoordinator {
                 currentBlock: currentBlock,
                 historicalTabs: historicalTabs
             )
-            lastPerformedBackfillObserver.lastPerformedBackfillDidFinish()
+            lastPerformed.lastPerformedBackfillDidFinish()
         }
     }
 
@@ -267,16 +263,15 @@ final class SyncCoordinator {
                 return
             }
 
-            guard case let .ingested(records) = scan else {
+            guard case let .ingested(occurrences) = scan else {
                 // `.failed`: the transient backoff budget was spent. Halt at this tab — the cursor
                 // still points at the last success, so the next sync resumes here.
                 return
             }
 
-            if !records.isEmpty {
+            if !occurrences.isEmpty {
                 do {
-                    try LastPerformedIndex(context: context).ingest(records.map(\.entry))
-                    lastPerformedLookupRefresher.refresh()
+                    try lastPerformed.ingest(occurrences.map(LastPerformedEntry.init))
                 } catch {
                     state = .conflict(["Last Performed backfill failed: \(error.localizedDescription)"])
                     return
@@ -285,7 +280,7 @@ final class SyncCoordinator {
 
             advanceHistoryFillCursor(spreadsheetId: spreadsheetId, to: tab)
             tabsCompleted += 1
-            lastPerformedBackfillObserver.lastPerformedBackfillDidProgress(
+            lastPerformed.lastPerformedBackfillDidProgress(
                 LastPerformedBackfillProgress(tab: tab, tabsCompleted: tabsCompleted, tabsToScan: tabsToScan.count)
             )
 
@@ -301,8 +296,8 @@ final class SyncCoordinator {
 
     /// One historical tab's outcome, computed off the main actor.
     private enum HistoricalTabScan: Sendable {
-        /// The tab was read (however small) and yielded these entry records.
-        case ingested([LastPerformedRecord])
+        /// The tab was read (however small) and yielded these Last Performed occurrences.
+        case ingested([LastPerformedOccurrence])
         /// The tab could not be read: a transient failure outlasted the backoff budget.
         case failed
     }
@@ -318,7 +313,7 @@ final class SyncCoordinator {
             return .failed
         case .fetched(let snapshot):
             let parsed = SheetParser().parse(snapshot: snapshot, tabName: tab)
-            return .ingested(LastPerformedExtractor.records(from: parsed.block))
+            return .ingested(LastPerformedExtractor.occurrences(from: parsed.block))
         }
     }
 
@@ -382,10 +377,9 @@ final class SyncCoordinator {
     private static let historyCoverageTarget = 5
 
     private func hasLastPerformedCoverage(for exercises: [(name: String, baseName: String)]) -> Bool {
-        let index = LastPerformedIndex(context: context)
         let baseNames = Set(exercises.map(\.baseName))
         return baseNames.allSatisfy { baseName in
-            index.entryCount(baseName: baseName) >= Self.historyCoverageTarget
+            lastPerformed.entryCount(baseName: baseName) >= Self.historyCoverageTarget
         }
     }
 
