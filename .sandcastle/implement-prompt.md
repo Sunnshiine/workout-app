@@ -35,7 +35,7 @@ This sandbox is Linux — it cannot build this Swift package (`swift test` needs
 
 Make a git commit. The commit message must:
 
-1. Start with `SANDCASTLE:` prefix (do NOT use `RALPH:` — that prefix is reserved for the Ralph loop)
+1. Start with `SANDCASTLE:` prefix
 2. Include task completed + PRD reference
 3. Key decisions made
 4. Files changed

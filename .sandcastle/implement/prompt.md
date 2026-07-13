@@ -44,6 +44,6 @@ human/Ralph pass locally.
 
 # COMMIT
 
-Make one or more git commits on `{{BRANCH}}`. Use conventional-commit messages (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`). Do NOT use a `RALPH:` prefix — that prefix is reserved for the Ralph loop.
+Make one or more git commits on `{{BRANCH}}`. Use conventional-commit messages (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`).
 
 Do not close the issue yourself.

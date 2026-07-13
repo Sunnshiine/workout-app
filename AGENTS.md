@@ -29,16 +29,10 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
 
 - The `WorkoutTracker` scheme launches with `-UITEST_FIXTURE true` and
   `-UITEST_SESSION true` — it runs against deterministic local fixtures, **not**
-  the live Google Sheet. Ralph's `snapshot.sh` defaults to the seeded
-  SessionView; set `UITEST_ARGS` for other fixture routes. To run against live
-  data, use the `Copy of WorkoutTracker` scheme (`-UITEST_FIXTURE false`).
+  the live Google Sheet. To run against live data, use the `Copy of WorkoutTracker` scheme (`-UITEST_FIXTURE false`).
 - Concurrent UI-test sessions must not share the same simulator. Use distinct
   simulator UDIDs with `-destination 'platform=iOS Simulator,id=<UDID>'` and
-  isolated `-derivedDataPath` / `-clonedSourcePackagesDirPath` values; for Ralph,
-  pass `--simulator-pool <UDID-1> <UDID-2>` (automatic leasing, recommended for
-  concurrent runs) or `--simulator-id <UDID>` (manual assignment). Pool leasing
-  uses atomic file locks in `~/.ralph/simulator-leases/` and auto-recovers stale
-  leases from crashed processes.
+  isolated `-derivedDataPath` / `-clonedSourcePackagesDirPath` values.
 - Prefer XcodeBuildMCP for build/run/test on the simulator. If using XcodeBuildMCP,
   use the installed XcodeBuildMCP skill before calling XcodeBuildMCP tools.
 - If XcodeBuildMCP accessibility snapshots return an empty AXApplication, reboot
@@ -48,7 +42,7 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
 
 ## Linting & Formatting
 
-- **SwiftLint** runs automatically via the `SwiftLintPlugins` build tool plugin (added to `Package.swift`). Config: `.swiftlint.yml`.
+- **SwiftLint** runs automatically via the `SwiftLintPlugins` build tool plugin (wired through the Xcode project, not `Package.swift`). Config: `.swiftlint.yml`.
 - **swift-format** is installed via Homebrew. Config: `.swift-format`. Run manually: `swift-format -i -r WorkoutTracker/ WorkoutTrackerTests/`
 - Do not run `swiftlint --fix` in build phases — run it manually when needed.
 
