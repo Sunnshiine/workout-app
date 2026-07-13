@@ -229,3 +229,85 @@ import Testing
     #expect(exercises[0].sets.map(\.state) == [.logged, .skipped])
     #expect(exercises[0].sets.allSatisfy { $0.setLog == nil })
 }
+
+/// Asserts every parsed Set's classification is exactly `SetLogToken.classify` of the token the
+/// placement query resolves for that Set — i.e. the reader reads each Set from the one placement
+/// decision the writer also consumes (ADR-0010), not a separately re-branched address. Used on
+/// grids whose read cells are writable (not a protected header at the read cell), where reader and
+/// placement-read must coincide token-for-token.
+private func expectReaderReadsEachSetFromPlacement(_ snapshot: SheetSnapshot) throws {
+    let layout = SheetLayoutInterpreter().interpret(snapshot)
+    let parsed = SheetParser().parse(snapshot: snapshot, tabName: "B")
+    for week in layout.weeks {
+        let parsedWeek = try #require(parsed.block.weeks.first { $0.number == week.number })
+        for (dayIndex, day) in week.days.enumerated() {
+            let parsedDay = parsedWeek.days[dayIndex]
+            for (anchorIndex, anchor) in day.exerciseAnchors.enumerated() {
+                let exercise = parsedDay.exercises[anchorIndex]
+                for setIndex in exercise.sets.indices {
+                    guard
+                        case .placed(let placement) = anchor.setLogPlacement(
+                            for: setIndex,
+                            in: snapshot,
+                            cols: day.columns
+                        )
+                    else {
+                        Issue.record("expected a resolved placement for set \(setIndex) of \(anchor.name)")
+                        continue
+                    }
+                    let cell = snapshot.values.cell(row: placement.row, col: placement.col)
+                    let token = placement.listPosition.map { SetLogList(cell: cell).token(at: $0) } ?? cell
+                    let expected = SetLogToken.classify(token)
+                    #expect(exercise.sets[setIndex].state == expected.state)
+                    #expect(exercise.sets[setIndex].setLog == expected.setLog)
+                    #expect(exercise.sets[setIndex].unstructuredSetLog == expected.unstructuredSetLog)
+                }
+            }
+        }
+    }
+}
+
+@Test func readsProtectedHeaderSetsFromThePlacementResolvedVisibleWritableRow() throws {
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": "Squat", "D15": "2", "F15": "5", "H15": "RPE 8", "K15": "Coach note",
+            "K16": "185x5@8, 195x5@9"
+        ],
+        rows: 24,
+        cols: 30
+    )
+    try expectReaderReadsEachSetFromPlacement(SheetSnapshot(values: grid))
+}
+
+@Test func readsCompactAggregateHeaderSetsFromThePlacementResolvedHeaderList() throws {
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": "Ab of Choice", "D15": "2", "F15": "12", "H15": "BW", "K15": "BWx12@7, skip",
+            "C16": "Bench Press", "D16": "1", "F16": "5", "H16": "RPE 8", "K16": "225x5@8"
+        ],
+        rows: 22,
+        cols: 30
+    )
+    try expectReaderReadsEachSetFromPlacement(SheetSnapshot(values: grid))
+}
+
+@Test func readsMultiLineSetsFromTheirPlacementResolvedPrescriptionLineCells() throws {
+    // Genuine per-line Set Logs (no protected line): reader and placement must resolve the same
+    // cell and list position for every Set across both Prescription Lines.
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": "Comp SQ", "D15": "2", "F15": "5", "H15": "RPE6", "K15": "185x5@8, 190x5@9",
+            "D16": "1", "F16": "5", "H16": "Drop 20%", "K16": "205x5@7",
+            "C17": "Hip Thrust", "D17": "2"
+        ],
+        rows: 22,
+        cols: 30
+    )
+    try expectReaderReadsEachSetFromPlacement(SheetSnapshot(values: grid))
+}
