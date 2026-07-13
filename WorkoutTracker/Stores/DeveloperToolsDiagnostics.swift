@@ -54,6 +54,11 @@ extension SheetWritePlanner {
         )
     }
 
+    /// The per-Set value the audit cross-checks, read from the one placement query the reader and
+    /// writer consume rather than a re-derived addressing tree. When the placement lands on the audited
+    /// `target` cell and names a list position, the value is that list slot (compact header, protected
+    /// Visible Writable Row, or multi-line Prescription Line, via the shared `SetLogList` codec); a
+    /// whole-cell placement — or a target the placement does not resolve to — reads the cell verbatim.
     private func currentValueForAudit(
         for request: SheetWriteRequest,
         target: SheetWriteTarget,
@@ -63,29 +68,17 @@ extension SheetWritePlanner {
         guard
             request.column == .notes,
             let day = snapshot.layout.day(week: request.week, day: request.day),
-            day.columns.notes == target.col,
-            let anchor = day.exerciseAnchors.first(where: { $0.name == request.exerciseName })
+            let anchor = day.exerciseAnchors.first(where: { $0.name == request.exerciseName }),
+            case .placed(let placement) = anchor.setLogPlacement(
+                for: request.setIndex,
+                in: snapshot.snapshot,
+                cols: day.columns
+            ),
+            placement.row == target.row,
+            placement.col == target.col
         else { return actual }
 
-        let lines = anchor.prescriptionLines(in: snapshot.grid, setsColumn: day.columns.sets)
-        if lines.isMultiLine, let line = lines.line(containing: request.setIndex), line.row == target.row,
-            let position = line.position(of: request.setIndex) {
-            return SetLogList(cell: actual).token(at: position)
-        }
-
-        let headerNotes = anchor.headerNotes(in: snapshot.grid, notesColumn: day.columns.notes)
-        let setCount = anchor.prescribedSetCount(in: snapshot.grid, setsColumn: day.columns.sets)
-        let usesHeaderTarget =
-            anchor.row == target.row
-            && anchor.usesCompactHeaderSetOne(headerNotes: headerNotes, setCount: setCount)
-        let usesVisibleWritableTarget =
-            anchor.row != target.row
-            && anchor.isHeaderProtectedFromSetLogWrites(headerNotes: headerNotes, setCount: setCount)
-        guard setCount > 1, request.setIndex < setCount, usesHeaderTarget || usesVisibleWritableTarget else {
-            return actual
-        }
-
-        return SetLogList(cell: actual).token(at: request.setIndex)
+        return placement.listPosition.map { SetLogList(cell: actual).token(at: $0) } ?? actual
     }
 
     private func rowScanDetails(
@@ -104,38 +97,41 @@ extension SheetWritePlanner {
             return lastSetRPERowScanDetails(anchor: anchor, selectedRow: selectedRow, in: snapshot.snapshot)
         }
 
-        let lines = anchor.prescriptionLines(in: snapshot.grid, setsColumn: day.columns.sets)
-        if lines.isMultiLine, let line = lines.line(containing: request.setIndex) {
-            return multiLinePrescriptionRowScanDetails(
-                line: line,
+        // The scan narrates the same placement decision the reader and writer consume; it does not
+        // re-walk the addressing tree. Each placement kind — and each unresolved outcome — maps to one
+        // narrative so the developer-facing text keeps its content while the decision stays single.
+        switch anchor.setLogPlacement(for: request.setIndex, in: snapshot.snapshot, cols: day.columns) {
+        case .placed(let placement):
+            switch placement.kind {
+            case .multiLinePrescriptionLine:
+                return multiLinePrescriptionRowScanDetails(
+                    lineRow: placement.row,
+                    listPosition: placement.listPosition,
+                    selectedRow: selectedRow,
+                    in: snapshot.snapshot
+                )
+            case .compactHeaderList:
+                return compactHeaderRowScanDetails(anchor: anchor, selectedRow: selectedRow, in: snapshot.snapshot)
+            case .protectedHeaderVisibleWritableRow:
+                return protectedHeaderRowScanDetails(anchor: anchor, selectedRow: selectedRow, in: snapshot.snapshot)
+            case .visibleSetLogRow:
+                return visibleSetRowScanDetails(
+                    setIndex: request.setIndex,
+                    anchor: anchor,
+                    selectedRow: selectedRow,
+                    in: snapshot.snapshot
+                )
+            }
+        case .protectedHeaderBlocksSetRow:
+            return protectedHeaderRowScanDetails(anchor: anchor, selectedRow: selectedRow, in: snapshot.snapshot)
+        case .setRowNotFound, .notesColumnMissing:
+            return visibleSetRowScanDetails(
                 setIndex: request.setIndex,
+                anchor: anchor,
                 selectedRow: selectedRow,
                 in: snapshot.snapshot
             )
         }
-
-        let headerNotes = anchor.headerNotes(in: snapshot.grid, notesColumn: day.columns.notes)
-        let setCount = anchor.prescribedSetCount(in: snapshot.grid, setsColumn: day.columns.sets)
-        let compactHeaderSetOne =
-            anchor.usesCompactHeaderSetOne(headerNotes: headerNotes, setCount: setCount)
-
-        if compactHeaderSetOne, request.setIndex < setCount {
-            return compactHeaderRowScanDetails(anchor: anchor, selectedRow: selectedRow, in: snapshot.snapshot)
-        }
-
-        if anchor.isHeaderProtectedFromSetLogWrites(headerNotes: headerNotes, setCount: setCount),
-            request.setIndex < setCount
-        {
-            return protectedHeaderRowScanDetails(anchor: anchor, selectedRow: selectedRow, in: snapshot.snapshot)
-        }
-
-        return visibleSetRowScanDetails(
-            setIndex: request.setIndex,
-            compactHeaderSetOne: compactHeaderSetOne,
-            anchor: anchor,
-            selectedRow: selectedRow,
-            in: snapshot.snapshot
-        )
     }
 
     private func lastSetRPERowScanDetails(
@@ -163,20 +159,20 @@ extension SheetWritePlanner {
     }
 
     private func multiLinePrescriptionRowScanDetails(
-        line: PrescriptionLine,
-        setIndex: Int,
+        lineRow: Int,
+        listPosition: Int?,
         selectedRow: Int?,
         in snapshot: SheetSnapshot
     ) -> String {
-        let prefix = hiddenRowDescription([line.row], in: snapshot).map { "Skipped hidden rows: \($0). " } ?? ""
-        let position = (line.position(of: setIndex) ?? 0) + 1
+        let prefix = hiddenRowDescription([lineRow], in: snapshot).map { "Skipped hidden rows: \($0). " } ?? ""
+        let position = (listPosition ?? 0) + 1
         if let selectedRow {
             return """
                 \(prefix)Selected row \(selectedRow + 1): Prescription Line row stores this Line's Set logs as a \
                 comma-separated list (Set \(position) of the Line).
                 """
         }
-        return "\(prefix)No row selected: Prescription Line row \(line.row + 1) is hidden."
+        return "\(prefix)No row selected: Prescription Line row \(lineRow + 1) is hidden."
     }
 
     private func protectedHeaderRowScanDetails(
@@ -197,12 +193,14 @@ extension SheetWritePlanner {
 
     private func visibleSetRowScanDetails(
         setIndex: Int,
-        compactHeaderSetOne: Bool,
         anchor: SheetLayoutExerciseAnchor,
         selectedRow: Int?,
         in snapshot: SheetSnapshot
     ) -> String {
-        let firstRow = anchor.row + (compactHeaderSetOne ? 0 : 1)
+        // The visible Set-log row starts below the anchor: a compact header keeps Set logs on the
+        // anchor row (a distinct placement kind) so this per-Set-row narrative always scans from
+        // anchor.row + 1 before the next Exercise.
+        let firstRow = anchor.row + 1
         let rows = firstRow..<anchor.nextAnchorRow
         let prefix = hiddenRowDescription(Array(rows), in: snapshot).map { "Skipped hidden rows: \($0). " } ?? ""
         if let selectedRow {

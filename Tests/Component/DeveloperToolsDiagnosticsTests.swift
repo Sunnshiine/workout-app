@@ -116,6 +116,100 @@ import Testing
 }
 
 @MainActor
+@Test func auditReportsPerSetValueForProtectedHeaderVisibleWritableRowPlacement() throws {
+    // A protected coach-note header (K15) redirects Set logs to the first Visible Writable Row
+    // below it (K16), which already holds both Sets' logs as a comma-separated list. Logging Set 2
+    // expects an empty slot, but the persisted slot reads "190x5@8". The audit must read the value
+    // at the placement's list position — not the whole writable-row cell — so protected-header
+    // drift is caught, and the scan must keep its "protected header" wording.
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
+            "C15": "Squat", "D15": "2", "K15": "Coach note",
+            "K16": "185x5@8, 190x5@8",
+            "C19": "Bench Press", "D19": "1"
+        ],
+        rows: 24,
+        cols: 30
+    )
+    let planner = SheetWritePlanner()
+    let snapshot = planner.snapshot(for: grid)
+    let request = SheetWriteRequest(
+        blockTab: "Block 27",
+        week: 1,
+        day: 1,
+        exerciseName: "Squat",
+        setIndex: 1,
+        column: .notes,
+        operation: .upsert,
+        valueToWrite: "195x5@9",
+        expectedCurrentValue: ""
+    )
+
+    let target = try planner.target(for: request, in: snapshot)
+    let audit = planner.auditDetails(for: request, target: target, in: snapshot)
+
+    #expect(audit.selectedA1Target == "'Block 27'!K16")
+    #expect(audit.currentValue == "190x5@8")
+    #expect(audit.valueCheckOutcome == "Expected '', found '190x5@8'.")
+    #expect(audit.rowScanDetails.contains("first visible writable row below protected header Notes"))
+}
+
+@MainActor
+@Test func writeTargetAuditConsumesSamePlacementDecisionAsReaderAndWriter() throws {
+    // The audit must read its target cell and per-Set value from the one placement query the reader
+    // and writer consume — not a re-derived addressing tree. For a compact-aggregate header storing
+    // both Sets in the anchor Notes cell, Set 2 resolves to the anchor row, Notes column, list
+    // position 1; the writer's target and the audit's selected cell / current value must match that
+    // one placement, closing the read/write/audit divergence.
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
+            "C15": "Ab of Choice", "D15": "2", "K15": "25x12@7, 25x12@8",
+            "C17": "Bench"
+        ],
+        rows: 24,
+        cols: 30
+    )
+    let anchorSnapshot = SheetSnapshot(values: grid)
+    let layout = SheetLayoutInterpreter().interpret(grid)
+    let day = try #require(layout.day(week: 1, day: 1))
+    let anchor = try #require(day.exerciseAnchors.first { $0.name == "Ab of Choice" })
+    guard case .placed(let placement) = anchor.setLogPlacement(for: 1, in: anchorSnapshot, cols: day.columns) else {
+        Issue.record("Expected a resolved placement for Set 2")
+        return
+    }
+    let position = try #require(placement.listPosition)
+
+    let planner = SheetWritePlanner()
+    let planningSnapshot = planner.snapshot(for: grid)
+    let request = SheetWriteRequest(
+        blockTab: "Block 27",
+        week: 1,
+        day: 1,
+        exerciseName: "Ab of Choice",
+        setIndex: 1,
+        column: .notes,
+        operation: .upsert,
+        valueToWrite: "25x12@9",
+        expectedCurrentValue: "25x12@8"
+    )
+    let target = try planner.target(for: request, in: planningSnapshot)
+    let audit = planner.auditDetails(for: request, target: target, in: planningSnapshot)
+
+    // Writer target and audit selection both land on the placement's resolved cell.
+    #expect(target.row == placement.row)
+    #expect(target.col == placement.col)
+    #expect(audit.selectedA1Target == singleCellRange(tabName: "Block 27", row: placement.row, col: placement.col))
+    // The audit's per-Set current value is the placement's list slot — the same token the reader reads.
+    let placementValue = SetLogList(cell: grid.cell(row: placement.row, col: placement.col)).token(at: position)
+    #expect(audit.currentValue == placementValue)
+    #expect(placementValue == "25x12@8")
+}
+
+@MainActor
 @Test func syncCoordinatorListsPendingAndConflictedWriteDiagnosticsInCreationOrder() throws {
     let container = try ModelContainer(
         for: Block.self,
