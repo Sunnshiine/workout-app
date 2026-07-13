@@ -7,7 +7,12 @@ import Testing
     let loggedSet = makeCurrentWeekSet(states: [.logged], dayNumber: 1)
     let session = try #require(loggedSet.exercise?.session)
 
-    let kind = RestTriggerPolicy.restKind(afterLogging: loggedSet, in: session)
+    let kind = RestTriggerPolicy.restKind(
+        afterLogging: loggedSet,
+        in: session,
+        isSupersetMember: false,
+        isRestRunning: false
+    )
 
     #expect(kind == nil)
 }
@@ -19,7 +24,12 @@ import Testing
     let session = try #require(loggedSet.exercise?.session)
     connectCurrentWeek([session, try #require(makeupSet.exercise?.session)])
 
-    let kind = RestTriggerPolicy.restKind(afterLogging: loggedSet, in: session, isSupersetMember: false)
+    let kind = RestTriggerPolicy.restKind(
+        afterLogging: loggedSet,
+        in: session,
+        isSupersetMember: false,
+        isRestRunning: false
+    )
 
     #expect(kind == .standard)
 }
@@ -29,7 +39,12 @@ import Testing
     let loggedSet = makeCurrentWeekSet(states: [.logged, .pending], dayNumber: 1)
     let session = try #require(loggedSet.exercise?.session)
 
-    let kind = RestTriggerPolicy.restKind(afterLogging: loggedSet, in: session, isSupersetMember: false)
+    let kind = RestTriggerPolicy.restKind(
+        afterLogging: loggedSet,
+        in: session,
+        isSupersetMember: false,
+        isRestRunning: false
+    )
 
     #expect(kind == .standard)
 }
@@ -39,7 +54,12 @@ import Testing
     let loggedSet = makeCurrentWeekSet(states: [.logged, .pending], dayNumber: 1)
     let session = try #require(loggedSet.exercise?.session)
 
-    let kind = RestTriggerPolicy.restKind(afterLogging: loggedSet, in: session, isSupersetMember: true)
+    let kind = RestTriggerPolicy.restKind(
+        afterLogging: loggedSet,
+        in: session,
+        isSupersetMember: true,
+        isRestRunning: false
+    )
 
     #expect(kind == .superset)
 }

@@ -9,8 +9,8 @@ struct RestTriggerPolicy {
     static func restKind(
         afterLogging loggedSet: ExerciseSet,
         in session: Session,
-        isSupersetMember: Bool = false,
-        isRestRunning: Bool = false
+        isSupersetMember: Bool,
+        isRestRunning: Bool
     ) -> RestKind? {
         let sessions = currentWeekSessions(for: session)
         let hasPendingSet = sessions.contains { session in
