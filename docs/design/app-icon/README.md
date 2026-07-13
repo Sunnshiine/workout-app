@@ -28,3 +28,5 @@ gradient specialize per appearance (light/dark), with the system glass
 material replacing the baked glow/rim/sheen. iOS 26 renders those; the
 raster sets above are the back-deploy fallback
 (`ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS` keeps both in the build).
+
+To tune the glass by hand, see [the Icon Composer guide](icon-composer-guide.md).
