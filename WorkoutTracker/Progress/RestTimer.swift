@@ -38,6 +38,7 @@ final class RestTimer {
     private(set) var origin: ActiveSetID?
     private(set) var restartRevision = 0
     @ObservationIgnored private var originSetObjectID: ObjectIdentifier?
+    @ObservationIgnored private var hapticEmitter: RestHapticEmitter?
 
     @ObservationIgnored private let clock: any RestClock
     @ObservationIgnored private let notificationScheduler: (any RestNotificationScheduling)?
@@ -78,6 +79,7 @@ final class RestTimer {
         }
         let interval = RestInterval(start: clock.now, duration: duration, kind: kind)
         self.interval = interval
+        hapticEmitter = RestHapticEmitter(duration: duration)
         notificationScheduler?.schedule(deadline: interval.end)
         expiryScheduler.schedule(deadline: interval.end) { [weak self] in
             self?.expireIfNeeded(at: interval.end)
@@ -97,8 +99,19 @@ final class RestTimer {
         origin = nil
         originSetObjectID = nil
         interval = nil
+        hapticEmitter = nil
         notificationScheduler?.cancel()
         expiryScheduler.cancel()
+    }
+
+    /// The rest module's answer to "which haptic events are due on this tick" — the final-five
+    /// light taps and the single expiry buzz. Driven by the pill's clock but owned here: the pill
+    /// plays whatever this surfaces without building the schedule or tracking played/elapsed state,
+    /// so the taps and expiry buzz are authored once. Taps are suppressed while the scene is
+    /// inactive, without replaying the missed ones when it returns.
+    func dueHapticEvents(at now: Date, sceneActive: Bool) -> [RestHapticEvent] {
+        guard let interval else { return [] }
+        return hapticEmitter?.due(elapsed: interval.elapsed(at: now), sceneActive: sceneActive) ?? []
     }
 
     /// The one author of the "rest ended" instant. Driven by the expiry scheduler at the

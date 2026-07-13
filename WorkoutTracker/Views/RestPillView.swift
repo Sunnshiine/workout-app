@@ -7,8 +7,6 @@ struct RestPillView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.themePalette) private var palette
     @State private var hapticPlayer = RestHapticPlayer()
-    @State private var lastHapticElapsed: TimeInterval?
-    @State private var playedHapticEvents: Set<RestHapticEvent> = []
     @State private var finalFivePulse = false
     @State private var restartPulse = false
 
@@ -25,11 +23,11 @@ struct RestPillView: View {
                 let remaining = restTimer.remaining(at: context.date)
                 pillContainer(at: context.date)
                     .task(id: restTimer.restartRevision) {
-                        resetHapticProgress()
+                        finalFivePulse = false
                         await playRestartBeat(for: restTimer.restartRevision)
                     }
                     .task(id: hapticTickID(for: context.date)) {
-                        await fireDueHaptics(at: context.date)
+                        fireDueHaptics(at: context.date)
                     }
                     .task(id: finalFivePulseID(for: remaining)) {
                         await playFinalFivePulse(for: remaining)
@@ -159,42 +157,13 @@ struct RestPillView: View {
         finalFivePulse = false
     }
 
-    private func fireDueHaptics(at now: Date) async {
-        guard let interval = restTimer.interval else { return }
-        let duration = interval.duration
-
-        let elapsed = elapsedRestTime(at: now)
-        if scenePhase != .active {
-            lastHapticElapsed = elapsed
-            return
-        }
-
-        guard let previousElapsed = lastHapticElapsed else {
-            lastHapticElapsed = elapsed
-            return
-        }
-
-        let events = RestHapticSchedule(duration: duration).events
-            .filter { event in
-                event.offset > previousElapsed && event.offset <= elapsed && !playedHapticEvents.contains(event)
-            }
-
-        for event in events {
-            playedHapticEvents.insert(event)
+    /// Pure playback: the module decides which taps and the expiry buzz are due on this tick; the
+    /// pill only forwards them to the haptic engine, so it no longer owns the schedule or the
+    /// elapsed/played bookkeeping.
+    private func fireDueHaptics(at now: Date) {
+        for event in restTimer.dueHapticEvents(at: now, sceneActive: scenePhase == .active) {
             hapticPlayer.play(event.kind)
         }
-
-        lastHapticElapsed = elapsed
-    }
-
-    private func resetHapticProgress() {
-        lastHapticElapsed = nil
-        playedHapticEvents = []
-        finalFivePulse = false
-    }
-
-    private func elapsedRestTime(at now: Date) -> TimeInterval {
-        restTimer.interval?.elapsed(at: now) ?? 0
     }
 
     private func hapticTickID(for date: Date) -> Int {
