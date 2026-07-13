@@ -9,8 +9,14 @@ name: ASC Signing Inventory
 # and "which profiles exist for the four bundle ids?" before touching signing.
 # Context: docs/ci/testflight.md.
 
+# The push trigger is self-scoped: workflow_dispatch by filename only works
+# once the file exists on the default branch, so editing this file on any
+# branch is the way to run it pre-merge.
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/asc-signing-inventory.yml"
 
 permissions: {}
 
