@@ -46,13 +46,12 @@ extension Session {
     /// (Logged or Skipped). A Session holding zero Sets — including an
     /// Unavailable Session with zero Exercises — is deliberately *not* complete.
     var isComplete: Bool {
-        let sets = exercises.flatMap(\.sets)
-        return !sets.isEmpty && sets.allSatisfy(\.isSettled)
+        exercises.allSetsComplete
     }
 
     /// Count of settled (Logged or Skipped) Sets across all Exercises.
     var completedSetCount: Int {
-        exercises.reduce(0) { $0 + $1.completedSetCount }
+        exercises.completedSetCount
     }
 
     /// Count of all prescribed Sets across all Exercises.

@@ -92,6 +92,16 @@ private func makeSession(_ exercises: [Exercise]) -> Session {
 }
 
 @MainActor
+@Test func sessionCompletenessIsDecidedOverTheFlattenedSetCollection() {
+    // Degenerate per the glossary (an Exercise has ≥1 Set), but pins the single
+    // empty-set boundary the model and the Stage now share: completeness is a
+    // property of the flattened Set collection, so a stray zero-Set Exercise
+    // alongside fully settled work neither blocks nor fakes completion.
+    #expect(makeSession([makeExercise([.logged, .skipped]), makeExercise([])]).isComplete)
+    #expect(!makeSession([makeExercise([.logged]), makeExercise([.pending])]).isComplete)
+}
+
+@MainActor
 @Test func sessionCompletedAndTotalSetCounts() {
     let session = makeSession([makeExercise([.logged, .skipped, .pending]), makeExercise([.logged, .pending])])
     #expect(session.completedSetCount == 3)

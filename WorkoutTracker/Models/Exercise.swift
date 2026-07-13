@@ -58,6 +58,23 @@ extension ExerciseSet {
     var isSettled: Bool { state == .logged || state == .skipped }
 }
 
+extension Sequence where Element == Exercise {
+    /// Every Set across these Exercises is settled (Logged or Skipped), with at
+    /// least one Set present. Zero Sets — including zero Exercises — is
+    /// deliberately *not* complete. This is the one place the empty-set boundary
+    /// is stated; `Session.isComplete` and the Stage's completion reading both
+    /// route through it so they cannot drift.
+    var allSetsComplete: Bool {
+        let sets = flatMap(\.sets)
+        return !sets.isEmpty && sets.allSatisfy(\.isSettled)
+    }
+
+    /// Count of settled (Logged or Skipped) Sets across these Exercises.
+    var completedSetCount: Int {
+        reduce(0) { $0 + $1.completedSetCount }
+    }
+}
+
 @Model
 final class ExerciseSet {
     var index: Int

@@ -232,7 +232,7 @@ struct SessionProgressHeaderPresentation: Equatable, Sendable {
         totalSetCount = sets.count
         completedSetCount = session.completedSetCount
         progressAccessibilityValue = "\(locationLabel), \(totalSetCount - completedSetCount) left"
-        let pendingSetIDs = sets.filter { $0.set.state == .pending }.map(\.id)
+        let pendingSetIDs = sets.filter { $0.set.isPending }.map(\.id)
         let currentPendingID =
             if let activeSetID, pendingSetIDs.contains(activeSetID) {
                 activeSetID
