@@ -25,6 +25,56 @@ final class Exercise {
     }
 }
 
+// MARK: - Set State aggregation
+
+extension Exercise {
+    /// An Exercise is complete when every prescribed Set is settled (Logged or
+    /// Skipped). An Exercise with zero Sets is deliberately *not* complete.
+    var isComplete: Bool {
+        !sets.isEmpty && sets.allSatisfy(\.isSettled)
+    }
+
+    /// The Open Exercise condition: at least one Set is still Pending.
+    var hasPendingSet: Bool {
+        sets.contains(where: \.isPending)
+    }
+
+    /// Count of settled (Logged or Skipped) Sets.
+    var completedSetCount: Int {
+        sets.lazy.filter(\.isSettled).count
+    }
+
+    /// Count of Sets still Pending — the makeup work left on an Open Exercise.
+    var pendingSetCount: Int {
+        sets.lazy.filter(\.isPending).count
+    }
+}
+
+extension ExerciseSet {
+    /// The Set has not yet been logged or skipped.
+    var isPending: Bool { state == .pending }
+
+    /// The Set is Logged or Skipped — the athlete is done with it.
+    var isSettled: Bool { state == .logged || state == .skipped }
+}
+
+extension Sequence where Element == Exercise {
+    /// Every Set across these Exercises is settled (Logged or Skipped), with at
+    /// least one Set present. Zero Sets — including zero Exercises — is
+    /// deliberately *not* complete. This is the one place the empty-set boundary
+    /// is stated; `Session.isComplete` and the Stage's completion reading both
+    /// route through it so they cannot drift.
+    var allSetsComplete: Bool {
+        let sets = flatMap(\.sets)
+        return !sets.isEmpty && sets.allSatisfy(\.isSettled)
+    }
+
+    /// Count of settled (Logged or Skipped) Sets across these Exercises.
+    var completedSetCount: Int {
+        reduce(0) { $0 + $1.completedSetCount }
+    }
+}
+
 @Model
 final class ExerciseSet {
     var index: Int

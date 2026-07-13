@@ -33,15 +33,15 @@ struct SessionStageItem: Identifiable {
     }
 
     var completedSetCount: Int {
-        sortedSets.filter { $0.state != .pending }.count
+        exercises.completedSetCount
     }
 
     var isComplete: Bool {
-        !sortedSets.contains { $0.state == .pending }
+        exercises.allSetsComplete
     }
 
     var nextPendingSet: ExerciseSet? {
-        sortedSets.first { $0.state == .pending }
+        sortedSets.first(where: \.isPending)
     }
 
     func contains(_ setID: ActiveSetID?) -> Bool {

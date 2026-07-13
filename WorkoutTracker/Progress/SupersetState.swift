@@ -55,7 +55,7 @@ final class SupersetState {
 
         return exercises.allSatisfy { exercise in
             sessionContains(exercise, in: session)
-                && hasPendingSet(exercise)
+                && exercise.hasPendingSet
                 && !isPaired(exercise)
         }
     }
@@ -180,10 +180,6 @@ final class SupersetState {
         session.exercises.contains { candidate in candidate === exercise }
     }
 
-    private func hasPendingSet(_ exercise: Exercise) -> Bool {
-        exercise.sets.contains { $0.state == .pending }
-    }
-
     private func pair(containing exercise: Exercise) -> SupersetPair? {
         let identity = SupersetExerciseIdentity(exercise: exercise)
         return pairs.first { $0.contains(identity) }
@@ -196,13 +192,13 @@ final class SupersetState {
 
     private func hasPendingSet(for identity: SupersetExerciseIdentity, in session: Session) -> Bool {
         guard let exercise = exercise(matching: identity, in: session) else { return false }
-        return hasPendingSet(exercise)
+        return exercise.hasPendingSet
     }
 
     private func nextPendingSetID(for identity: SupersetExerciseIdentity, in session: Session) -> ActiveSetID? {
         guard let exercise = exercise(matching: identity, in: session) else { return nil }
         return exercise.sets
-            .filter { $0.state == .pending }
+            .filter(\.isPending)
             .sorted { $0.index < $1.index }
             .first
             .map { ActiveSetID(exerciseOrder: exercise.order, setIndex: $0.index) }
@@ -222,7 +218,7 @@ final class SupersetState {
         exercise(containing: setID, in: session)?
             .sets
             .first { $0.index == setID.setIndex }?
-            .state == .pending
+            .isPending ?? false
     }
 
     private func reconcileActiveSet(in session: Session) {

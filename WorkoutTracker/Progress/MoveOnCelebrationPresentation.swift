@@ -44,7 +44,7 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
         let sets = session.exercises.flatMap(\.sets)
         let totalSetCount = sets.count
         let exerciseCount = session.exercises.count
-        let pendingSetCount = sets.filter { $0.state == .pending }.count
+        let pendingSetCount = session.pendingSetCount
         let selectedQuote = requestedQuoteText ?? Self.launchQuoteOverride ?? Self.approvedQuotes.randomElement() ?? ""
         let timing = Self.timingPresentation(for: sets, requestedAt: requestedAt)
         let timingAccessibility: [String]
