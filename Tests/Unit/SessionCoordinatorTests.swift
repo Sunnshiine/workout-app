@@ -723,7 +723,7 @@ private func makeRestActionFixture(
 
     coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
 
-    #expect(restTimer.deadline == Date(timeIntervalSinceReferenceDate: 2_210))
+    #expect(restTimer.interval?.end == Date(timeIntervalSinceReferenceDate: 2_210))
     #expect(restTimer.remaining == 210)
     #expect(restTimer.origin == ActiveSetID(exerciseOrder: 1, setIndex: 0))
     #expect(restTimer.label == "Rest")
@@ -752,7 +752,7 @@ private func makeRestActionFixture(
 
     coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
 
-    #expect(restTimer.deadline == Date(timeIntervalSinceReferenceDate: 2_045))
+    #expect(restTimer.interval?.end == Date(timeIntervalSinceReferenceDate: 2_045))
     #expect(restTimer.remaining == 45)
     #expect(restTimer.origin == ActiveSetID(exerciseOrder: 1, setIndex: 0))
     #expect(restTimer.label == "Superset rest")
@@ -784,7 +784,7 @@ private func makeRestActionFixture(
     clock.now.addTimeInterval(10)
     coordinator.log(rowSet, as: SetLog(weight: .pounds(95), reps: 10, rpe: 7))
 
-    #expect(restTimer.deadline == Date(timeIntervalSinceReferenceDate: 2_055))
+    #expect(restTimer.interval?.end == Date(timeIntervalSinceReferenceDate: 2_055))
     #expect(restTimer.remaining == 45)
     #expect(restTimer.origin == ActiveSetID(exerciseOrder: 2, setIndex: 0))
     #expect(restTimer.restartRevision == 2)
@@ -813,7 +813,7 @@ private func makeRestActionFixture(
     clock.now.addTimeInterval(60)
     coordinator.log(rowSet, as: SetLog(weight: .pounds(95), reps: 10, rpe: 7))
 
-    #expect(restTimer.deadline == Date(timeIntervalSinceReferenceDate: 2_270))
+    #expect(restTimer.interval?.end == Date(timeIntervalSinceReferenceDate: 2_270))
     #expect(restTimer.remaining == 210)
     #expect(restTimer.origin == ActiveSetID(exerciseOrder: 2, setIndex: 0))
     #expect(restTimer.restartRevision == 2)
@@ -981,7 +981,7 @@ private func makeRestActionFixture(
 
     fixture.coordinator.deleteLog(for: firstBenchSet)
 
-    #expect(fixture.restTimer.deadline == nil)
+    #expect(fixture.restTimer.interval == nil)
     #expect(fixture.restTimer.origin == nil)
     #expect(!fixture.restTimer.isRunning)
 }
@@ -1012,7 +1012,7 @@ private func makeRestActionFixture(
 
     #expect(restTimer.isRunning)
     #expect(restTimer.origin == ActiveSetID(exerciseOrder: 0, setIndex: 0))
-    #expect(restTimer.deadline == Date(timeIntervalSinceReferenceDate: 2_210))
+    #expect(restTimer.interval?.end == Date(timeIntervalSinceReferenceDate: 2_210))
 }
 
 @MainActor
@@ -1025,7 +1025,7 @@ private func makeRestActionFixture(
     fixture.coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
     fixture.coordinator.cancelRestForSessionExit()
 
-    #expect(fixture.restTimer.deadline == nil)
+    #expect(fixture.restTimer.interval == nil)
     #expect(fixture.restTimer.origin == nil)
     #expect(!fixture.restTimer.isRunning)
     #expect(liveActivity.endCallCount == 1)
@@ -1049,7 +1049,7 @@ private func makeRestActionFixture(
 
     coordinator.log(current.set, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
 
-    #expect(restTimer.deadline == nil)
+    #expect(restTimer.interval == nil)
     #expect(restTimer.origin == nil)
     #expect(logging.loggedSets.map(\.set) == [current.set])
     #expect(sync.flushRequestCount == 1)
@@ -1074,7 +1074,7 @@ private func makeRestActionFixture(
 
     coordinator.log(current.set, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
 
-    #expect(restTimer.deadline == Date(timeIntervalSinceReferenceDate: 2_210))
+    #expect(restTimer.interval?.end == Date(timeIntervalSinceReferenceDate: 2_210))
     #expect(restTimer.remaining == 210)
     #expect(restTimer.origin == ActiveSetID(exerciseOrder: 0, setIndex: 0))
 }
@@ -1099,7 +1099,7 @@ private func makeRestActionFixture(
 
     coordinator.bind(to: current.session)
 
-    #expect(restTimer.deadline == nil)
+    #expect(restTimer.interval == nil)
     #expect(logging.loggedSets.isEmpty)
     #expect(sync.flushRequestCount == 0)
 }
@@ -1111,19 +1111,19 @@ private func makeRestActionFixture(
     let editFixture = try makeRestActionFixture()
     let squatSet = try #require(editFixture.session.exercises.first { $0.order == 0 }?.sets.first)
     editFixture.coordinator.updateLoggedSet(squatSet, as: log)
-    #expect(editFixture.restTimer.deadline == nil)
+    #expect(editFixture.restTimer.interval == nil)
 
     let skipFixture = try makeRestActionFixture()
     let skipSet = try #require(skipFixture.session.exercises.first { $0.order == 1 }?.sets.first)
     skipFixture.coordinator.skip(skipSet)
-    #expect(skipFixture.restTimer.deadline == nil)
+    #expect(skipFixture.restTimer.interval == nil)
 
     let deleteFixture = try makeRestActionFixture()
     let deleteSet = try #require(deleteFixture.session.exercises.first { $0.order == 1 }?.sets.first)
     deleteSet.state = .logged
     deleteSet.setLog = log
     deleteFixture.coordinator.deleteLog(for: deleteSet)
-    #expect(deleteFixture.restTimer.deadline == nil)
+    #expect(deleteFixture.restTimer.interval == nil)
 }
 
 @MainActor

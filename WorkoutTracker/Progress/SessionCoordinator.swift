@@ -283,12 +283,12 @@ final class SessionCoordinator {
             let session = try actionSession(for: set)
             let wasSupersetMember = isSupersetMember(set, in: session)
             try loggingAdapter.log(set, as: log)
-            let decision = RestTriggerPolicy.decision(
+            let restKind = RestTriggerPolicy.restKind(
                 afterLogging: set,
                 in: session,
-                isSupersetMember: wasSupersetMember
+                isSupersetMember: wasSupersetMember,
+                isRestRunning: restTimer?.isRunning == true
             )
-            let restKind = restKind(for: decision, wasSupersetMember: wasSupersetMember)
             if let restKind {
                 restTimer?.start(
                     duration: restDuration(for: restKind),
@@ -534,14 +534,6 @@ extension SessionCoordinator {
         }
     }
 
-    fileprivate func restKind(for decision: RestTriggerDecision, wasSupersetMember: Bool) -> RestKind? {
-        if case .start(let superset) = decision {
-            return superset ? .superset : .standard
-        }
-        guard restTimer?.isRunning == true else { return nil }
-        return wasSupersetMember ? .superset : .standard
-    }
-
     fileprivate func restDuration(for kind: RestKind) -> TimeInterval {
         switch kind {
         case .standard:
@@ -563,17 +555,15 @@ extension SessionCoordinator {
         )
         guard
             LiveActivityCreationPolicy.shouldCreateOrUpdate(for: event),
-            let restTimer,
-            let restEndDate = restTimer.deadline
+            let restInterval = restTimer?.interval
         else { return }
 
-        let restStartDate = restEndDate.addingTimeInterval(-restTimer.duration)
         guard
             let content = focusManager.liveActivityRestContent(
                 afterLogging: set,
                 in: session,
-                restStartDate: restStartDate,
-                restEndDate: restEndDate
+                restStartDate: restInterval.start,
+                restEndDate: restInterval.end
             )
         else { return }
 

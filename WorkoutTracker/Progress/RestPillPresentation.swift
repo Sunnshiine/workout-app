@@ -13,14 +13,9 @@ struct RestPillPresentation: Equatable, Sendable {
         let seconds = totalSeconds % 60
 
         visibleTypeLabel = nil
-        countdownText = "\(minutes):\(String(format: "%02d", seconds))"
-        progressFraction = Self.progressFraction(remaining: clampedRemaining, duration: duration)
+        countdownText = RestInterval.countdownText(seconds: totalSeconds)
+        progressFraction = RestInterval.progressFraction(remaining: clampedRemaining, duration: duration)
         accessibilityLabel = Self.accessibilityLabel(kind: kind, minutes: minutes, seconds: seconds)
-    }
-
-    private static func progressFraction(remaining: TimeInterval, duration: TimeInterval) -> Double {
-        guard duration > 0 else { return 0 }
-        return max(0, min(1, remaining / duration))
     }
 
     private static func accessibilityLabel(kind: RestKind, minutes: Int, seconds: Int) -> String {

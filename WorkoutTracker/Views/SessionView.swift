@@ -198,7 +198,9 @@ extension SessionView {
             sessionHeaderHUD(session: session)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if restTimer.isRunning {
+            // Gate on the published interval, not the time-derived `isRunning`: the interval is
+            // held a beat past the deadline so the pill stays mounted to play the expiry buzz.
+            if restTimer.interval != nil {
                 RestPillView(restTimer: restTimer)
             }
         }

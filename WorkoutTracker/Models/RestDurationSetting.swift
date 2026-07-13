@@ -18,9 +18,7 @@ struct RestDurationSetting: Equatable, Sendable {
     }
 
     var displayText: String {
-        let minutes = seconds / 60
-        let secondsRemainder = seconds % 60
-        return "\(minutes):\(String(format: "%02d", secondsRemainder))"
+        RestInterval.countdownText(seconds: seconds)
     }
 
     var canDecrement: Bool {

@@ -7,9 +7,14 @@ import Testing
     let loggedSet = makeCurrentWeekSet(states: [.logged], dayNumber: 1)
     let session = try #require(loggedSet.exercise?.session)
 
-    let decision = RestTriggerPolicy.decision(afterLogging: loggedSet, in: session)
+    let kind = RestTriggerPolicy.restKind(
+        afterLogging: loggedSet,
+        in: session,
+        isSupersetMember: false,
+        isRestRunning: false
+    )
 
-    #expect(decision == .none)
+    #expect(kind == nil)
 }
 
 @MainActor
@@ -19,9 +24,14 @@ import Testing
     let session = try #require(loggedSet.exercise?.session)
     connectCurrentWeek([session, try #require(makeupSet.exercise?.session)])
 
-    let decision = RestTriggerPolicy.decision(afterLogging: loggedSet, in: session, isSupersetMember: false)
+    let kind = RestTriggerPolicy.restKind(
+        afterLogging: loggedSet,
+        in: session,
+        isSupersetMember: false,
+        isRestRunning: false
+    )
 
-    #expect(decision == .start(superset: false))
+    #expect(kind == .standard)
 }
 
 @MainActor
@@ -29,9 +39,14 @@ import Testing
     let loggedSet = makeCurrentWeekSet(states: [.logged, .pending], dayNumber: 1)
     let session = try #require(loggedSet.exercise?.session)
 
-    let decision = RestTriggerPolicy.decision(afterLogging: loggedSet, in: session, isSupersetMember: false)
+    let kind = RestTriggerPolicy.restKind(
+        afterLogging: loggedSet,
+        in: session,
+        isSupersetMember: false,
+        isRestRunning: false
+    )
 
-    #expect(decision == .start(superset: false))
+    #expect(kind == .standard)
 }
 
 @MainActor
@@ -39,9 +54,36 @@ import Testing
     let loggedSet = makeCurrentWeekSet(states: [.logged, .pending], dayNumber: 1)
     let session = try #require(loggedSet.exercise?.session)
 
-    let decision = RestTriggerPolicy.decision(afterLogging: loggedSet, in: session, isSupersetMember: true)
+    let kind = RestTriggerPolicy.restKind(
+        afterLogging: loggedSet,
+        in: session,
+        isSupersetMember: true,
+        isRestRunning: false
+    )
 
-    #expect(decision == .start(superset: true))
+    #expect(kind == .superset)
+}
+
+@MainActor
+@Test func restTriggerKeepsRunningKindWhenNoNewRestButRestRunning() throws {
+    let loggedSet = makeCurrentWeekSet(states: [.logged], dayNumber: 1)
+    let session = try #require(loggedSet.exercise?.session)
+
+    let standard = RestTriggerPolicy.restKind(
+        afterLogging: loggedSet,
+        in: session,
+        isSupersetMember: false,
+        isRestRunning: true
+    )
+    let superset = RestTriggerPolicy.restKind(
+        afterLogging: loggedSet,
+        in: session,
+        isSupersetMember: true,
+        isRestRunning: true
+    )
+
+    #expect(standard == .standard)
+    #expect(superset == .superset)
 }
 
 @MainActor
