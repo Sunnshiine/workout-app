@@ -283,12 +283,12 @@ final class SessionCoordinator {
             let session = try actionSession(for: set)
             let wasSupersetMember = isSupersetMember(set, in: session)
             try loggingAdapter.log(set, as: log)
-            let decision = RestTriggerPolicy.decision(
+            let restKind = RestTriggerPolicy.restKind(
                 afterLogging: set,
                 in: session,
-                isSupersetMember: wasSupersetMember
+                isSupersetMember: wasSupersetMember,
+                isRestRunning: restTimer?.isRunning == true
             )
-            let restKind = restKind(for: decision, wasSupersetMember: wasSupersetMember)
             if let restKind {
                 restTimer?.start(
                     duration: restDuration(for: restKind),
@@ -532,14 +532,6 @@ extension SessionCoordinator {
         return focusManager.supersetSections(in: session).contains { section in
             section.exercises.contains { $0 === exercise }
         }
-    }
-
-    fileprivate func restKind(for decision: RestTriggerDecision, wasSupersetMember: Bool) -> RestKind? {
-        if case .start(let superset) = decision {
-            return superset ? .superset : .standard
-        }
-        guard restTimer?.isRunning == true else { return nil }
-        return wasSupersetMember ? .superset : .standard
     }
 
     fileprivate func restDuration(for kind: RestKind) -> TimeInterval {
