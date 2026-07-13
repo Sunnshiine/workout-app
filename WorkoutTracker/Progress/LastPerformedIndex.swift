@@ -55,7 +55,6 @@ struct LastPerformedIndex {
         for entry in entries {
             if let existing = existingEntry(fullName: entry.fullName, source: entry.source) {
                 existing.baseName = entry.baseName
-                existing.result = entry.result
                 existing.resultText = entry.resultText
                 existing.performedOn = entry.performedOn
             } else {

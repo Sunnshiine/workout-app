@@ -239,7 +239,7 @@ private func seededStore(now: @escaping @MainActor () -> Date) throws -> SeededL
 
     let index = LastPerformedIndex(context: fixture.context)
     let entry = try #require(index.lookup(exerciseName: "Squat", baseName: "Squat"))
-    #expect(entry.result == SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+    #expect(entry.resultText == "185x5@8")
     #expect(entry.performedOn == Date(timeIntervalSinceReferenceDate: 100))
     #expect(entry.source == "Block 27 · W1 D1")
 }

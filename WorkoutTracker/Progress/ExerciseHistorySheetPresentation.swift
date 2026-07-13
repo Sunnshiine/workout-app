@@ -2,7 +2,7 @@ import Foundation
 
 /// One `exercise_history` entry projected into a plain value type for the sheet — no SwiftData,
 /// so the sheet presentation model is unit-testable and `Sendable`. `resultText` is the entry's
-/// `displayResultText` (structured Set Logs joined in Set order, or Legacy / Unstructured text as
+/// derived display text (structured Set Logs joined in Set order, or Legacy / Unstructured text as
 /// entered); `source` is the `tab · Wn Dn` dedup key.
 struct ExerciseHistoryEntry: Equatable, Sendable {
     let fullName: String

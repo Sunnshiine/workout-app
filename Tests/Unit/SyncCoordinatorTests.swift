@@ -181,8 +181,7 @@ private final class BackfillCompletionProbe: LastPerformedBackfillObserving {
     let entry = try #require(entries.first)
     #expect(entries.count == 1)
     #expect(entry.fullName == "Squat")
-    #expect(entry.result == nil)
-    #expect(entry.displayResultText == "185x5@8, 195x5@9")
+    #expect(entry.resultText == "185x5@8, 195x5@9")
     #expect(entry.performedOn == expectedDate)
     #expect(entry.source == "Block 27 · W1 D1")
     let lookupEntry = try #require(
@@ -320,7 +319,7 @@ private func loggedSquatGrid() -> SheetGrid {
         LastPerformedIndex(context: container.mainContext)
             .lookup(exerciseName: "Squat", baseName: "Squat")
     )
-    #expect(entry.result == SetLog(weight: .pounds(245), reps: 5, rpe: 8))
+    #expect(entry.resultText == "245x5@8")
     #expect(entry.source == "Block 26 · W1 D1")
     #expect(await client.recorder.tabs() == ["Block 27", "Block 26", "Block 25"])
     let lookupEntry = try #require(

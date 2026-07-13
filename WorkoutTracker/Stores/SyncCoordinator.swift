@@ -267,15 +267,15 @@ final class SyncCoordinator {
                 return
             }
 
-            guard case let .ingested(records) = scan else {
+            guard case let .ingested(occurrences) = scan else {
                 // `.failed`: the transient backoff budget was spent. Halt at this tab — the cursor
                 // still points at the last success, so the next sync resumes here.
                 return
             }
 
-            if !records.isEmpty {
+            if !occurrences.isEmpty {
                 do {
-                    try LastPerformedIndex(context: context).ingest(records.map(\.entry))
+                    try LastPerformedIndex(context: context).ingest(occurrences.map(LastPerformedEntry.init))
                     lastPerformedLookupRefresher.refresh()
                 } catch {
                     state = .conflict(["Last Performed backfill failed: \(error.localizedDescription)"])
@@ -301,8 +301,8 @@ final class SyncCoordinator {
 
     /// One historical tab's outcome, computed off the main actor.
     private enum HistoricalTabScan: Sendable {
-        /// The tab was read (however small) and yielded these entry records.
-        case ingested([LastPerformedRecord])
+        /// The tab was read (however small) and yielded these Last Performed occurrences.
+        case ingested([LastPerformedOccurrence])
         /// The tab could not be read: a transient failure outlasted the backoff budget.
         case failed
     }
@@ -318,7 +318,7 @@ final class SyncCoordinator {
             return .failed
         case .fetched(let snapshot):
             let parsed = SheetParser().parse(snapshot: snapshot, tabName: tab)
-            return .ingested(LastPerformedExtractor.records(from: parsed.block))
+            return .ingested(LastPerformedExtractor.occurrences(from: parsed.block))
         }
     }
 

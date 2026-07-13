@@ -342,7 +342,7 @@ struct LastPerformedCardPresentation: Equatable, Sendable {
 
     init(entry: LastPerformedEntry) {
         label = "Last Performed"
-        resultText = entry.displayResultText
+        resultText = entry.resultText
         sourceText = entry.source
         matchedName = nil
     }

@@ -43,7 +43,7 @@ struct LastPerformedLookupSnapshot: Equatable, Sendable {
             ExerciseHistoryEntry(
                 fullName: entry.fullName,
                 baseName: entry.baseName,
-                resultText: entry.displayResultText,
+                resultText: entry.resultText,
                 source: entry.source,
                 performedOn: entry.performedOn
             )
@@ -51,7 +51,7 @@ struct LastPerformedLookupSnapshot: Equatable, Sendable {
 
         for entry in entries {
             let mappedEntry = LastPerformedLookupEntry(
-                resultText: entry.displayResultText,
+                resultText: entry.resultText,
                 sourceText: entry.source,
                 performedOn: entry.performedOn
             )

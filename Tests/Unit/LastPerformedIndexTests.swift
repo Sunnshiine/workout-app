@@ -32,7 +32,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
 
     let match = try #require(index.lookup(exerciseName: "2-3:1:0 BB RDL", baseName: "BB RDL"))
 
-    #expect(match.result == SetLog(weight: .pounds(185), reps: 7, rpe: 6))
+    #expect(match.resultText == "185x7@6")
     #expect(match.source == "Block 26 · W3 D1")
     withExtendedLifetime(container) {}
 }
@@ -64,7 +64,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
 
     let match = try #require(index.lookup(exerciseName: "3:1:0 BB RDL", baseName: "BB RDL"))
 
-    #expect(match.result == SetLog(weight: .pounds(185), reps: 7, rpe: 7))
+    #expect(match.resultText == "185x7@7")
     #expect(match.source == "Block 26 · W3 D1")
     withExtendedLifetime(container) {}
 }
@@ -106,7 +106,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
 
     let entries = try context.fetch(FetchDescriptor<LastPerformedEntry>())
     #expect(entries.count == 1)
-    #expect(entries[0].result == SetLog(weight: .pounds(185), reps: 7, rpe: 6))
+    #expect(entries[0].resultText == "185x7@6")
     withExtendedLifetime(container) {}
 }
 
@@ -139,7 +139,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
 
     // Last Performed remains the most-recent entry.
     let match = try #require(index.lookup(exerciseName: "Squat", baseName: "Squat"))
-    #expect(match.result == SetLog(weight: .pounds(205), reps: 5, rpe: 8))
+    #expect(match.resultText == "205x5@8")
     #expect(match.source == "Block 27 · W2 D1")
     withExtendedLifetime(container) {}
 }
@@ -255,7 +255,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
     ])
 
     let match = try #require(index.lookup(exerciseName: "Bench Press", baseName: "Bench Press"))
-    #expect(match.result == SetLog(weight: .pounds(225), reps: 5, rpe: 8))
+    #expect(match.resultText == "225x5@8")
     #expect(match.source == "Block 27 · W1 D1")
     withExtendedLifetime(container) {}
 }
