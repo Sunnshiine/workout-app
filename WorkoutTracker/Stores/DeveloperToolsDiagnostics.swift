@@ -67,15 +67,7 @@ extension SheetWritePlanner {
         let actual = snapshot.grid.cell(row: target.row, col: target.col).trimmed
         guard
             request.column == .notes,
-            let day = snapshot.layout.day(week: request.week, day: request.day),
-            let anchor = day.exerciseAnchors.first(where: { $0.name == request.exerciseName }),
-            case .placed(let placement) = anchor.setLogPlacement(
-                for: request.setIndex,
-                in: snapshot.snapshot,
-                cols: day.columns
-            ),
-            placement.row == target.row,
-            placement.col == target.col
+            let placement = placement(for: request, target: target, in: snapshot)
         else { return actual }
 
         return placement.listPosition.map { SetLogList(cell: actual).token(at: $0) } ?? actual

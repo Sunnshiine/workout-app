@@ -342,10 +342,11 @@ struct SheetWritePlanner: Sendable {
     }
 
     /// The Set-Log placement for this request, but only when it lands on the given `target` cell.
-    /// The list-value assembly reads the Set's list position from this one placement rather than
-    /// re-deriving the addressing tree; a target that does not match (e.g. a Last Set RPE cell) or
-    /// an unresolvable placement yields nil so the caller falls through to the direct-write path.
-    private func placement(
+    /// The list-value assembly and the diagnostics audit both read the Set's list position from this
+    /// one placement rather than re-deriving the addressing tree; a target that does not match (e.g. a
+    /// Last Set RPE cell) or an unresolvable placement yields nil so the caller falls through to the
+    /// direct-write path.
+    func placement(
         for request: SheetWriteRequest,
         target: SheetWriteTarget,
         in snapshot: SheetWritePlanningSnapshot
