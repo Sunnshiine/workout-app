@@ -518,7 +518,7 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     let presentation = try #require(
         LastPerformedCardPresentation(
             exercise: exercise,
-            lookup: LastPerformedIndex(context: context).snapshot()
+            lookup: LastPerformedLookupStore(context: context).snapshot
         )
     )
 
@@ -539,7 +539,7 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 
     let presentation = LastPerformedCardPresentation(
         exercise: exercise,
-        lookup: LastPerformedIndex(context: container.mainContext).snapshot()
+        lookup: LastPerformedLookupStore(context: container.mainContext).snapshot
     )
 
     #expect(presentation == nil)

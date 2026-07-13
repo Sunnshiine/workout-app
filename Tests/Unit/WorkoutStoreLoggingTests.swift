@@ -94,7 +94,7 @@ private func seededStore(now: @escaping @MainActor () -> Date) throws -> SeededL
     let store = try WorkoutStore(
         context: ctx,
         defaults: makeLoggingDefaults(),
-        lastPerformedLookupRefresher: lookupStore,
+        lastPerformed: lookupStore,
         now: now
     )
     store.reload()
@@ -237,8 +237,7 @@ private func seededStore(now: @escaping @MainActor () -> Date) throws -> SeededL
 
     try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
 
-    let index = LastPerformedIndex(context: fixture.context)
-    let entry = try #require(index.snapshot().lookup(for: "Squat"))
+    let entry = try #require(fixture.lookupStore.snapshot.lookup(for: "Squat"))
     #expect(entry.resultText == "185x5@8")
     #expect(entry.performedOn == Date(timeIntervalSinceReferenceDate: 100))
     #expect(entry.sourceText == "Block 27 · W1 D1")
@@ -269,8 +268,7 @@ private func seededStore(now: @escaping @MainActor () -> Date) throws -> SeededL
 
     try fixture.store.skip(fixture.firstSet)
 
-    let index = LastPerformedIndex(context: fixture.context)
-    #expect(index.snapshot().lookup(for: "Squat") == nil)
+    #expect(fixture.lookupStore.snapshot.lookup(for: "Squat") == nil)
 }
 
 @MainActor

@@ -436,7 +436,7 @@ private func makeRestActionFixture(
 
     let items = coordinator.renderItems(
         in: session,
-        lastPerformedLookup: LastPerformedIndex(context: context).snapshot()
+        lastPerformedLookup: LastPerformedLookupStore(context: context).snapshot
     )
 
     let benchConfig = try #require(items.compactMap(\.exerciseConfig).first { $0.exercise.order == 1 })

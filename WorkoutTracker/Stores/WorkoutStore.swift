@@ -26,18 +26,18 @@ final class WorkoutStore {
     private let context: ModelContext
     private let tracker = SessionProgressTracker()
     private let defaults: UserDefaults
-    private let lastPerformedLookupRefresher: any LastPerformedLookupRefreshing
+    private let lastPerformed: any LastPerformedIndexing
     private let now: @MainActor () -> Date
 
     init(
         context: ModelContext,
         defaults: UserDefaults = .standard,
-        lastPerformedLookupRefresher: any LastPerformedLookupRefreshing = NoopLastPerformedLookupRefresher(),
+        lastPerformed: any LastPerformedIndexing = NoopLastPerformedIndex(),
         now: @escaping @MainActor () -> Date = Date.init
     ) {
         self.context = context
         self.defaults = defaults
-        self.lastPerformedLookupRefresher = lastPerformedLookupRefresher
+        self.lastPerformed = lastPerformed
         self.now = now
     }
 
@@ -236,7 +236,7 @@ final class WorkoutStore {
         guard let week = session.week else { throw WorkoutLoggingError.missingWeek }
         guard let block = week.block else { throw WorkoutLoggingError.missingBlock }
 
-        try LastPerformedIndex(context: context).ingest([
+        try lastPerformed.ingest([
             LastPerformedEntry(
                 fullName: exercise.name,
                 baseName: exercise.baseName,
@@ -245,7 +245,6 @@ final class WorkoutStore {
                 source: "\(block.tabName) · W\(week.number) D\(session.dayNumber)"
             )
         ])
-        lastPerformedLookupRefresher.refresh()
     }
 
     private func isFinalSet(_ set: ExerciseSet) -> Bool {

@@ -172,7 +172,7 @@ private final class BackfillCompletionProbe: LastPerformedBackfillObserving {
     let sync = SyncCoordinator(
         client: client,
         context: container.mainContext,
-        lastPerformedLookupRefresher: lookupStore
+        lastPerformed: lookupStore
     )
 
     await sync.sync(spreadsheetId: "sid")
@@ -306,7 +306,7 @@ private func loggedSquatGrid() -> SheetGrid {
     let sync = SyncCoordinator(
         client: client,
         context: container.mainContext,
-        lastPerformedLookupRefresher: lookupStore,
+        lastPerformed: lookupStore,
         lastPerformedBackfillObserver: backfillCompletion
     )
 
@@ -315,10 +315,7 @@ private func loggedSquatGrid() -> SheetGrid {
 
     // Only two historical tabs exist, so the ≥5 coverage target is never reached; the fill
     // scans every historical tab and stops on exhaustion.
-    let entry = try #require(
-        LastPerformedIndex(context: container.mainContext)
-            .snapshot().lookup(for: "Squat")
-    )
+    let entry = try #require(lookupStore.snapshot.lookup(for: "Squat"))
     #expect(entry.resultText == "245x5@8")
     #expect(entry.sourceText == "Block 26 · W1 D1")
     #expect(await client.recorder.tabs() == ["Block 27", "Block 26", "Block 25"])
@@ -347,16 +344,18 @@ private func loggedSquatGrid() -> SheetGrid {
             "Block 22": historicalGrid(exerciseName: "Squat", log: "205x5@8", date: "3/27/2026")
         ]
     )
+    let lookupStore = LastPerformedLookupStore(context: container.mainContext)
     let sync = SyncCoordinator(
         client: client,
         context: container.mainContext,
+        lastPerformed: lookupStore,
         lastPerformedBackfillObserver: backfillCompletion
     )
 
     await sync.sync(spreadsheetId: "sid")
     await backfillCompletion.waitForFinish()
 
-    #expect(LastPerformedIndex(context: container.mainContext).entryCount(baseName: "Squat") == 5)
+    #expect(lookupStore.entryCount(baseName: "Squat") == 5)
     #expect(await client.recorder.tabs() == ["Block 27", "Block 26", "Block 25", "Block 24", "Block 23"])
 }
 
@@ -364,7 +363,8 @@ private func loggedSquatGrid() -> SheetGrid {
 @Test func syncSkipsHistoricalBackfillWhenCoverageIsAlreadySatisfied() async throws {
     let container = try makeSyncContainer()
     // Seed five Squat entries already on device — coverage holds before any historical scan.
-    try LastPerformedIndex(context: container.mainContext).ingest(
+    let lookupStore = LastPerformedLookupStore(context: container.mainContext)
+    try lookupStore.ingest(
         (1...5).map { week in
             LastPerformedEntry(
                 fullName: "Squat",
@@ -386,6 +386,7 @@ private func loggedSquatGrid() -> SheetGrid {
     let sync = SyncCoordinator(
         client: client,
         context: container.mainContext,
+        lastPerformed: lookupStore,
         lastPerformedBackfillObserver: backfillCompletion
     )
 
@@ -408,11 +409,13 @@ private func loggedSquatGrid() -> SheetGrid {
         ]
     )
 
+    let lookupStore = LastPerformedLookupStore(context: container.mainContext)
     for _ in 0..<2 {
         let backfillCompletion = BackfillCompletionProbe()
         let sync = SyncCoordinator(
             client: client,
             context: container.mainContext,
+            lastPerformed: lookupStore,
             lastPerformedBackfillObserver: backfillCompletion
         )
         await sync.sync(spreadsheetId: "sid")
@@ -421,7 +424,7 @@ private func loggedSquatGrid() -> SheetGrid {
 
     // Coverage never reached (two historical tabs), so both syncs re-scan the same tabs;
     // (fullName, source) dedup keeps the entry count at exactly the two distinct Sessions.
-    #expect(LastPerformedIndex(context: container.mainContext).entryCount(baseName: "Squat") == 2)
+    #expect(lookupStore.entryCount(baseName: "Squat") == 2)
 }
 
 @MainActor
@@ -438,9 +441,11 @@ private func loggedSquatGrid() -> SheetGrid {
         suspendedTabs: ["Block 26"],
         recorder: recorder
     )
+    let lookupStore = LastPerformedLookupStore(context: container.mainContext)
     let sync = SyncCoordinator(
         client: client,
         context: container.mainContext,
+        lastPerformed: lookupStore,
         lastPerformedBackfillObserver: backfillCompletion
     )
 
@@ -456,10 +461,7 @@ private func loggedSquatGrid() -> SheetGrid {
     await recorder.release()
     await syncTask.value
     await backfillCompletion.waitForFinish()
-    _ = try #require(
-        LastPerformedIndex(context: container.mainContext)
-            .snapshot().lookup(for: "Squat")
-    )
+    _ = try #require(lookupStore.snapshot.lookup(for: "Squat"))
 }
 
 @MainActor
@@ -477,9 +479,11 @@ private func loggedSquatGrid() -> SheetGrid {
         ],
         transientFailureTabs: ["Block 26"]
     )
+    let lookupStore = LastPerformedLookupStore(context: container.mainContext)
     let sync = SyncCoordinator(
         client: client,
         context: container.mainContext,
+        lastPerformed: lookupStore,
         lastPerformedBackfillObserver: backfillCompletion,
         tabFetchBackoff: instantBackoff()
     )
@@ -489,7 +493,7 @@ private func loggedSquatGrid() -> SheetGrid {
 
     // The fill halted at Block 26 and never reached Block 25.
     #expect(sync.state == .idle)
-    #expect(LastPerformedIndex(context: container.mainContext).entryCount(baseName: "Squat") == 0)
+    #expect(lookupStore.entryCount(baseName: "Squat") == 0)
     #expect(await client.recorder.tabs().contains("Block 26"))
     #expect(await !client.recorder.tabs().contains("Block 25"))
 }
@@ -509,16 +513,18 @@ private func loggedSquatGrid() -> SheetGrid {
         ],
         transientFailureTabs: ["Block 25"]
     )
+    let firstLookupStore = LastPerformedLookupStore(context: container.mainContext)
     let firstSync = SyncCoordinator(
         client: firstClient,
         context: container.mainContext,
+        lastPerformed: firstLookupStore,
         lastPerformedBackfillObserver: firstProbe,
         tabFetchBackoff: instantBackoff()
     )
     await firstSync.sync(spreadsheetId: "sid")
     await firstProbe.waitForFinish()
 
-    #expect(LastPerformedIndex(context: container.mainContext).entryCount(baseName: "Squat") == 1)
+    #expect(firstLookupStore.entryCount(baseName: "Squat") == 1)
     let cursor = try #require(historyFillCursor(in: container.mainContext, spreadsheetId: "sid"))
     #expect(cursor.deepestIngestedTab == "Block 26")
     #expect(await !firstClient.recorder.tabs().contains("Block 24"))
@@ -532,9 +538,11 @@ private func loggedSquatGrid() -> SheetGrid {
         grids: firstClient.grids,
         recorder: secondRecorder
     )
+    let secondLookupStore = LastPerformedLookupStore(context: container.mainContext)
     let secondSync = SyncCoordinator(
         client: secondClient,
         context: container.mainContext,
+        lastPerformed: secondLookupStore,
         lastPerformedBackfillObserver: secondProbe,
         tabFetchBackoff: instantBackoff()
     )
@@ -542,7 +550,7 @@ private func loggedSquatGrid() -> SheetGrid {
     await secondProbe.waitForFinish()
 
     // Block 25 and Block 24 were ingested on resume; Block 26 was not re-read; the cursor is cleared.
-    #expect(LastPerformedIndex(context: container.mainContext).entryCount(baseName: "Squat") == 3)
+    #expect(secondLookupStore.entryCount(baseName: "Squat") == 3)
     #expect(await secondRecorder.tabs().contains("Block 25"))
     #expect(await secondRecorder.tabs().contains("Block 24"))
     #expect(await !secondRecorder.tabs().contains("Block 26"))

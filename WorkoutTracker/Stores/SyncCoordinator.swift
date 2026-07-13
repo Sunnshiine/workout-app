@@ -14,7 +14,7 @@ final class SyncCoordinator {
     private let client: any SheetsClient
     private let context: ModelContext
     private let sheetWritePlanner: SheetWritePlanner
-    private let lastPerformedLookupRefresher: any LastPerformedLookupRefreshing
+    private let lastPerformed: any LastPerformedIndexing
     private let lastPerformedBackfillObserver: any LastPerformedBackfillObserving
     private let tabFetchBackoff: SheetsBackoff
     private var activePendingWriteFlushCount = 0
@@ -31,14 +31,14 @@ final class SyncCoordinator {
         client: any SheetsClient,
         context: ModelContext,
         sheetWritePlanner: SheetWritePlanner = SheetWritePlanner(),
-        lastPerformedLookupRefresher: any LastPerformedLookupRefreshing = NoopLastPerformedLookupRefresher(),
+        lastPerformed: any LastPerformedIndexing = NoopLastPerformedIndex(),
         lastPerformedBackfillObserver: any LastPerformedBackfillObserving = NoopLastPerformedBackfillObserver(),
         tabFetchBackoff: SheetsBackoff = SheetsBackoff()
     ) {
         self.client = client
         self.context = context
         self.sheetWritePlanner = sheetWritePlanner
-        self.lastPerformedLookupRefresher = lastPerformedLookupRefresher
+        self.lastPerformed = lastPerformed
         self.lastPerformedBackfillObserver = lastPerformedBackfillObserver
         self.tabFetchBackoff = tabFetchBackoff
     }
@@ -124,8 +124,7 @@ final class SyncCoordinator {
             try replacePersistedBlock(with: BlockBuilder.makeBlock(from: parsed.block))
             let lastPerformedEntries = LastPerformedExtractor.entries(from: parsed.block)
             if !lastPerformedEntries.isEmpty {
-                try LastPerformedIndex(context: context).ingest(lastPerformedEntries)
-                lastPerformedLookupRefresher.refresh()
+                try lastPerformed.ingest(lastPerformedEntries)
             }
             if case .conflict = stateAfterFlush {
                 state = stateAfterFlush
@@ -275,8 +274,7 @@ final class SyncCoordinator {
 
             if !occurrences.isEmpty {
                 do {
-                    try LastPerformedIndex(context: context).ingest(occurrences.map(LastPerformedEntry.init))
-                    lastPerformedLookupRefresher.refresh()
+                    try lastPerformed.ingest(occurrences.map(LastPerformedEntry.init))
                 } catch {
                     state = .conflict(["Last Performed backfill failed: \(error.localizedDescription)"])
                     return
@@ -382,10 +380,9 @@ final class SyncCoordinator {
     private static let historyCoverageTarget = 5
 
     private func hasLastPerformedCoverage(for exercises: [(name: String, baseName: String)]) -> Bool {
-        let index = LastPerformedIndex(context: context)
         let baseNames = Set(exercises.map(\.baseName))
         return baseNames.allSatisfy { baseName in
-            index.entryCount(baseName: baseName) >= Self.historyCoverageTarget
+            lastPerformed.entryCount(baseName: baseName) >= Self.historyCoverageTarget
         }
     }
 
