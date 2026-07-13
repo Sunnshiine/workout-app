@@ -2,10 +2,27 @@ import Foundation
 import Observation
 import SwiftData
 
-/// The write/query side of the Last Performed owner (PRD #330): ingest evidence and count coverage.
+/// Per-tab progress published by the Exercise History fill as it advances (ADR-0012).
 ///
-/// Callers hold this rather than a bare `ModelContext` so ingest can refresh the display snapshot as
-/// part of the same operation — the write→refresh pairing is no longer a caller responsibility.
+/// The fill scans historical Block tabs newest-first; each successfully ingested tab emits one of
+/// these so the UI can show honest, moving progress rather than a dead spinner. The affordance that
+/// renders it is a separate ticket (#366); the owner republishes it to the display as `fillProgress`.
+struct LastPerformedBackfillProgress: Equatable, Sendable {
+    /// The historical tab just ingested.
+    let tab: String
+    /// How many historical tabs this fill run has ingested so far, including this one.
+    let tabsCompleted: Int
+    /// The number of historical tabs queued for this run — an upper bound, since the coverage
+    /// stopping rule may finish before reaching them all.
+    let tabsToScan: Int
+}
+
+/// The single interface onto the Last Performed owner (PRD #330): ingest evidence, count coverage,
+/// and receive the backfill's per-tab progress. Callers — the sync coordinator, in particular —
+/// hold this one seam rather than a bare `ModelContext` (so ingest can refresh the display snapshot
+/// as part of the same operation) or a second observer protocol (so the fill's progress lands on the
+/// same owner it already ingests into). The write→refresh pairing and the progress→display republish
+/// are no longer caller responsibilities.
 @MainActor
 protocol LastPerformedIndexing {
     /// Append-only ingest that also refreshes the published display snapshot in the same operation.
@@ -13,6 +30,17 @@ protocol LastPerformedIndexing {
     /// Number of stored entries whose Cadence-stripped base name matches — the coverage-fill
     /// counting unit (ADR-0012).
     func entryCount(baseName: String) -> Int
+    /// Published once per historical tab as the fill ingests it, so the display's fill affordance
+    /// tracks honest progress.
+    func lastPerformedBackfillDidProgress(_ progress: LastPerformedBackfillProgress)
+    /// The fill halted or reached coverage: the owner drops its fill affordance.
+    func lastPerformedBackfillDidFinish()
+}
+
+extension LastPerformedIndexing {
+    /// Ingest-only callers (and the Noop) need not observe intermediate fill progress.
+    func lastPerformedBackfillDidProgress(_ progress: LastPerformedBackfillProgress) {}
+    func lastPerformedBackfillDidFinish() {}
 }
 
 @MainActor
@@ -27,7 +55,7 @@ struct NoopLastPerformedIndex: LastPerformedIndexing {
 /// remember to pair them.
 @MainActor
 @Observable
-final class LastPerformedLookupStore: LastPerformedIndexing, LastPerformedBackfillObserving {
+final class LastPerformedLookupStore: LastPerformedIndexing {
     private(set) var snapshot: LastPerformedLookupSnapshot = .empty
     /// The most recent per-tab fill progress while the Exercise History fill is running, or `nil`
     /// once it has reached coverage or exhausted the tabs. The sheet renders its progress affordance

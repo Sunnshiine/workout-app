@@ -93,17 +93,36 @@ private actor FetchRecorder {
     }
 }
 
+/// Decorates the single Last Performed owner so a test can await the detached backfill's completion
+/// and inspect its per-tab progress. The owner is one seam now (PRD #330): ingest, coverage count,
+/// and fill-progress all land on `LastPerformedIndexing`, so the probe wraps a real store and passes
+/// itself in as `lastPerformed` rather than being a second observer alongside it.
 @MainActor
-private final class BackfillCompletionProbe: LastPerformedBackfillObserving {
+private final class BackfillCompletionProbe: LastPerformedIndexing {
+    let store: LastPerformedLookupStore
     private var didFinish = false
     private var continuations: [CheckedContinuation<Void, Never>] = []
     private(set) var progressEvents: [LastPerformedBackfillProgress] = []
 
+    init(wrapping store: LastPerformedLookupStore) {
+        self.store = store
+    }
+
+    func ingest(_ entries: [LastPerformedEntry]) throws {
+        try store.ingest(entries)
+    }
+
+    func entryCount(baseName: String) -> Int {
+        store.entryCount(baseName: baseName)
+    }
+
     func lastPerformedBackfillDidProgress(_ progress: LastPerformedBackfillProgress) {
         progressEvents.append(progress)
+        store.lastPerformedBackfillDidProgress(progress)
     }
 
     func lastPerformedBackfillDidFinish() {
+        store.lastPerformedBackfillDidFinish()
         didFinish = true
         let waitingContinuations = continuations
         continuations.removeAll()
@@ -293,7 +312,6 @@ private func loggedSquatGrid() -> SheetGrid {
 @MainActor
 @Test func syncBackfillsHistoricalBlocksAndStopsOnTabExhaustionWhenCoverageUnreached() async throws {
     let container = try makeSyncContainer()
-    let backfillCompletion = BackfillCompletionProbe()
     let client = BackfillStubClient(
         titles: ["Intro", "Block 25", "Block 26", "Block 27"],
         grids: [
@@ -303,11 +321,11 @@ private func loggedSquatGrid() -> SheetGrid {
         ]
     )
     let lookupStore = LastPerformedLookupStore(context: container.mainContext)
+    let backfillCompletion = BackfillCompletionProbe(wrapping: lookupStore)
     let sync = SyncCoordinator(
         client: client,
         context: container.mainContext,
-        lastPerformed: lookupStore,
-        lastPerformedBackfillObserver: backfillCompletion
+        lastPerformed: backfillCompletion
     )
 
     await sync.sync(spreadsheetId: "sid")
@@ -329,7 +347,6 @@ private func loggedSquatGrid() -> SheetGrid {
 @MainActor
 @Test func syncBackfillsUntilFiveEntriesPerBaseNameThenStops() async throws {
     let container = try makeSyncContainer()
-    let backfillCompletion = BackfillCompletionProbe()
     // Current Block 27 logs one Squat entry; each historical tab adds one more. The ≥5
     // coverage target is reached after four historical tabs (Block 26…23), so the fill
     // never fetches the fifth historical tab, Block 22.
@@ -345,11 +362,11 @@ private func loggedSquatGrid() -> SheetGrid {
         ]
     )
     let lookupStore = LastPerformedLookupStore(context: container.mainContext)
+    let backfillCompletion = BackfillCompletionProbe(wrapping: lookupStore)
     let sync = SyncCoordinator(
         client: client,
         context: container.mainContext,
-        lastPerformed: lookupStore,
-        lastPerformedBackfillObserver: backfillCompletion
+        lastPerformed: backfillCompletion
     )
 
     await sync.sync(spreadsheetId: "sid")
@@ -375,7 +392,7 @@ private func loggedSquatGrid() -> SheetGrid {
             )
         }
     )
-    let backfillCompletion = BackfillCompletionProbe()
+    let backfillCompletion = BackfillCompletionProbe(wrapping: lookupStore)
     let client = BackfillStubClient(
         titles: ["Intro", "Block 26", "Block 27"],
         grids: [
@@ -386,8 +403,7 @@ private func loggedSquatGrid() -> SheetGrid {
     let sync = SyncCoordinator(
         client: client,
         context: container.mainContext,
-        lastPerformed: lookupStore,
-        lastPerformedBackfillObserver: backfillCompletion
+        lastPerformed: backfillCompletion
     )
 
     await sync.sync(spreadsheetId: "sid")
@@ -411,12 +427,11 @@ private func loggedSquatGrid() -> SheetGrid {
 
     let lookupStore = LastPerformedLookupStore(context: container.mainContext)
     for _ in 0..<2 {
-        let backfillCompletion = BackfillCompletionProbe()
+        let backfillCompletion = BackfillCompletionProbe(wrapping: lookupStore)
         let sync = SyncCoordinator(
             client: client,
             context: container.mainContext,
-            lastPerformed: lookupStore,
-            lastPerformedBackfillObserver: backfillCompletion
+            lastPerformed: backfillCompletion
         )
         await sync.sync(spreadsheetId: "sid")
         await backfillCompletion.waitForFinish()
@@ -430,7 +445,6 @@ private func loggedSquatGrid() -> SheetGrid {
 @MainActor
 @Test func syncLaunchesHistoricalBackfillWithoutWaitingForIt() async throws {
     let container = try makeSyncContainer()
-    let backfillCompletion = BackfillCompletionProbe()
     let recorder = FetchRecorder()
     let client = BackfillStubClient(
         titles: ["Block 26", "Block 27"],
@@ -442,11 +456,11 @@ private func loggedSquatGrid() -> SheetGrid {
         recorder: recorder
     )
     let lookupStore = LastPerformedLookupStore(context: container.mainContext)
+    let backfillCompletion = BackfillCompletionProbe(wrapping: lookupStore)
     let sync = SyncCoordinator(
         client: client,
         context: container.mainContext,
-        lastPerformed: lookupStore,
-        lastPerformedBackfillObserver: backfillCompletion
+        lastPerformed: backfillCompletion
     )
 
     let syncTask = Task {
@@ -467,7 +481,6 @@ private func loggedSquatGrid() -> SheetGrid {
 @MainActor
 @Test func syncHaltsHistoricalBackfillOnAFailedTabRatherThanSkippingIt() async throws {
     let container = try makeSyncContainer()
-    let backfillCompletion = BackfillCompletionProbe()
     // Block 26 fails transiently; Block 25 lies deeper. The fill must halt at Block 26 rather than
     // skip it and reach Block 25 — a silent skip would leave a hole that corrupts the coverage count.
     let client = BackfillStubClient(
@@ -480,11 +493,11 @@ private func loggedSquatGrid() -> SheetGrid {
         transientFailureTabs: ["Block 26"]
     )
     let lookupStore = LastPerformedLookupStore(context: container.mainContext)
+    let backfillCompletion = BackfillCompletionProbe(wrapping: lookupStore)
     let sync = SyncCoordinator(
         client: client,
         context: container.mainContext,
-        lastPerformed: lookupStore,
-        lastPerformedBackfillObserver: backfillCompletion,
+        lastPerformed: backfillCompletion,
         tabFetchBackoff: instantBackoff()
     )
 
@@ -502,7 +515,6 @@ private func loggedSquatGrid() -> SheetGrid {
 @Test func failedTabHaltHaltsAtItsCursorThenTheNextSyncResumesFromThere() async throws {
     let container = try makeSyncContainer()
     // First sync: Block 26 ingests, Block 25 fails transiently → halt. The cursor lands on Block 26.
-    let firstProbe = BackfillCompletionProbe()
     let firstClient = BackfillStubClient(
         titles: ["Block 24", "Block 25", "Block 26", "Block 27"],
         grids: [
@@ -514,11 +526,11 @@ private func loggedSquatGrid() -> SheetGrid {
         transientFailureTabs: ["Block 25"]
     )
     let firstLookupStore = LastPerformedLookupStore(context: container.mainContext)
+    let firstProbe = BackfillCompletionProbe(wrapping: firstLookupStore)
     let firstSync = SyncCoordinator(
         client: firstClient,
         context: container.mainContext,
-        lastPerformed: firstLookupStore,
-        lastPerformedBackfillObserver: firstProbe,
+        lastPerformed: firstProbe,
         tabFetchBackoff: instantBackoff()
     )
     await firstSync.sync(spreadsheetId: "sid")
@@ -531,7 +543,6 @@ private func loggedSquatGrid() -> SheetGrid {
 
     // Second sync — a fresh SyncCoordinator on the same persisted store, standing in for an app
     // restart. Block 25 now succeeds; the fill resumes from the cursor and never re-reads Block 26.
-    let secondProbe = BackfillCompletionProbe()
     let secondRecorder = FetchRecorder()
     let secondClient = BackfillStubClient(
         titles: ["Block 24", "Block 25", "Block 26", "Block 27"],
@@ -539,11 +550,11 @@ private func loggedSquatGrid() -> SheetGrid {
         recorder: secondRecorder
     )
     let secondLookupStore = LastPerformedLookupStore(context: container.mainContext)
+    let secondProbe = BackfillCompletionProbe(wrapping: secondLookupStore)
     let secondSync = SyncCoordinator(
         client: secondClient,
         context: container.mainContext,
-        lastPerformed: secondLookupStore,
-        lastPerformedBackfillObserver: secondProbe,
+        lastPerformed: secondProbe,
         tabFetchBackoff: instantBackoff()
     )
     await secondSync.sync(spreadsheetId: "sid")
@@ -558,9 +569,10 @@ private func loggedSquatGrid() -> SheetGrid {
 }
 
 @MainActor
-@Test func historicalBackfillPublishesPerTabProgressThroughTheObserverSeam() async throws {
+@Test func historicalBackfillPublishesPerTabProgressToTheLastPerformedOwner() async throws {
     let container = try makeSyncContainer()
-    let probe = BackfillCompletionProbe()
+    let lookupStore = LastPerformedLookupStore(context: container.mainContext)
+    let probe = BackfillCompletionProbe(wrapping: lookupStore)
     let client = BackfillStubClient(
         titles: ["Block 25", "Block 26", "Block 27"],
         grids: [
@@ -572,16 +584,19 @@ private func loggedSquatGrid() -> SheetGrid {
     let sync = SyncCoordinator(
         client: client,
         context: container.mainContext,
-        lastPerformedBackfillObserver: probe,
+        lastPerformed: probe,
         tabFetchBackoff: instantBackoff()
     )
 
     await sync.sync(spreadsheetId: "sid")
     await probe.waitForFinish()
 
+    // Progress reaches the single owner: each per-tab event lands on `lastPerformed` (the owner the
+    // coordinator already ingests into) and republishes to the display snapshot's `fillProgress`.
     #expect(probe.progressEvents.map(\.tab) == ["Block 26", "Block 25"])
     #expect(probe.progressEvents.map(\.tabsCompleted) == [1, 2])
     #expect(probe.progressEvents.allSatisfy { $0.tabsToScan == 2 })
+    #expect(lookupStore.fillProgress == nil)
 }
 
 @MainActor

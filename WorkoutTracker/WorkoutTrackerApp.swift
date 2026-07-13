@@ -35,8 +35,7 @@ struct WorkoutTrackerApp: App {
                     initialValue: SyncCoordinator(
                         client: UITestFixture.makeSheetsClient(),
                         context: ctx,
-                        lastPerformed: lastPerformedLookup,
-                        lastPerformedBackfillObserver: lastPerformedLookup
+                        lastPerformed: lastPerformedLookup
                     )
                 )
                 _lastPerformedLookup = State(initialValue: lastPerformedLookup)
@@ -61,8 +60,7 @@ struct WorkoutTrackerApp: App {
             initialValue: SyncCoordinator(
                 client: GoogleSheetsClient(),
                 context: ctx,
-                lastPerformed: lastPerformedLookup,
-                lastPerformedBackfillObserver: lastPerformedLookup
+                lastPerformed: lastPerformedLookup
             )
         )
         _lastPerformedLookup = State(initialValue: lastPerformedLookup)

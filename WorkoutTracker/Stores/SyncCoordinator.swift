@@ -15,7 +15,6 @@ final class SyncCoordinator {
     private let context: ModelContext
     private let sheetWritePlanner: SheetWritePlanner
     private let lastPerformed: any LastPerformedIndexing
-    private let lastPerformedBackfillObserver: any LastPerformedBackfillObserving
     private let tabFetchBackoff: SheetsBackoff
     private var activePendingWriteFlushCount = 0
     private var pendingWriteFlushGeneration = 0
@@ -32,14 +31,12 @@ final class SyncCoordinator {
         context: ModelContext,
         sheetWritePlanner: SheetWritePlanner = SheetWritePlanner(),
         lastPerformed: any LastPerformedIndexing = NoopLastPerformedIndex(),
-        lastPerformedBackfillObserver: any LastPerformedBackfillObserving = NoopLastPerformedBackfillObserver(),
         tabFetchBackoff: SheetsBackoff = SheetsBackoff()
     ) {
         self.client = client
         self.context = context
         self.sheetWritePlanner = sheetWritePlanner
         self.lastPerformed = lastPerformed
-        self.lastPerformedBackfillObserver = lastPerformedBackfillObserver
         self.tabFetchBackoff = tabFetchBackoff
     }
 
@@ -220,7 +217,7 @@ final class SyncCoordinator {
                 currentBlock: currentBlock,
                 historicalTabs: historicalTabs
             )
-            lastPerformedBackfillObserver.lastPerformedBackfillDidFinish()
+            lastPerformed.lastPerformedBackfillDidFinish()
         }
     }
 
@@ -283,7 +280,7 @@ final class SyncCoordinator {
 
             advanceHistoryFillCursor(spreadsheetId: spreadsheetId, to: tab)
             tabsCompleted += 1
-            lastPerformedBackfillObserver.lastPerformedBackfillDidProgress(
+            lastPerformed.lastPerformedBackfillDidProgress(
                 LastPerformedBackfillProgress(tab: tab, tabsCompleted: tabsCompleted, tabsToScan: tabsToScan.count)
             )
 
