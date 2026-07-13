@@ -13,7 +13,7 @@ struct RestPillPresentation: Equatable, Sendable {
         let seconds = totalSeconds % 60
 
         visibleTypeLabel = nil
-        countdownText = "\(minutes):\(String(format: "%02d", seconds))"
+        countdownText = RestInterval.countdownText(seconds: totalSeconds)
         progressFraction = Self.progressFraction(remaining: clampedRemaining, duration: duration)
         accessibilityLabel = Self.accessibilityLabel(kind: kind, minutes: minutes, seconds: seconds)
     }
