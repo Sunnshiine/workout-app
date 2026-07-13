@@ -25,6 +25,34 @@ final class Exercise {
     }
 }
 
+// MARK: - Set State aggregation
+
+extension Exercise {
+    /// An Exercise is complete when every prescribed Set is settled (Logged or
+    /// Skipped). An Exercise with zero Sets is deliberately *not* complete.
+    var isComplete: Bool {
+        !sets.isEmpty && sets.allSatisfy(\.isSettled)
+    }
+
+    /// The Open Exercise condition: at least one Set is still Pending.
+    var hasPendingSet: Bool {
+        sets.contains(where: \.isPending)
+    }
+
+    /// Count of settled (Logged or Skipped) Sets.
+    var completedSetCount: Int {
+        sets.lazy.filter(\.isSettled).count
+    }
+}
+
+extension ExerciseSet {
+    /// The Set has not yet been logged or skipped.
+    var isPending: Bool { state == .pending }
+
+    /// The Set is Logged or Skipped — the athlete is done with it.
+    var isSettled: Bool { state == .logged || state == .skipped }
+}
+
 @Model
 final class ExerciseSet {
     var index: Int

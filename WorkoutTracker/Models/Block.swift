@@ -38,3 +38,25 @@ final class Session {
         self.date = date
     }
 }
+
+// MARK: - Set State aggregation
+
+extension Session {
+    /// A Session is complete when every Set across its Exercises is settled
+    /// (Logged or Skipped). A Session holding zero Sets — including an
+    /// Unavailable Session with zero Exercises — is deliberately *not* complete.
+    var isComplete: Bool {
+        let sets = exercises.flatMap(\.sets)
+        return !sets.isEmpty && sets.allSatisfy(\.isSettled)
+    }
+
+    /// Count of settled (Logged or Skipped) Sets across all Exercises.
+    var completedSetCount: Int {
+        exercises.reduce(0) { $0 + $1.completedSetCount }
+    }
+
+    /// Count of all prescribed Sets across all Exercises.
+    var totalSetCount: Int {
+        exercises.reduce(0) { $0 + $1.sets.count }
+    }
+}
