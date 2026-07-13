@@ -395,7 +395,9 @@ struct ActiveSupersetPresentation: Equatable, Sendable {
                         set.index == activeSetIndex && set.state == .pending
                     }
                 } else {
-                    sortedSets.first { $0.state == .pending }
+                    // The resting side shows its next Pending Set — route the ordering-and-first
+                    // selection through the Superset owner's single home rather than re-deriving it.
+                    SupersetState.nextPendingSet(for: exercise)
                 }
             guard let nextSet else { return nil }
             let ordinal = (sortedSets.firstIndex { $0.persistentModelID == nextSet.persistentModelID } ?? nextSet.index) + 1

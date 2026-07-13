@@ -176,6 +176,25 @@ final class SupersetState {
         return pairs.contains { $0.contains(identity) }
     }
 
+    /// The Exercise's next Pending Set — the first Pending Set by Set index, or `nil` when the
+    /// Exercise has no Pending Set. This is the single home for the *ordering-and-first* rule the
+    /// Superset alternation is built from. It is pure, side-effect-free, and per-Exercise: it needs
+    /// neither a `SupersetState` instance nor a `Session` handle, so read-only callers (view bodies,
+    /// presentation initializers) can ask the owner for the selection whether they consume it as a
+    /// Set or as a projected `ActiveSetID`.
+    static func nextPendingSet(for exercise: Exercise) -> ExerciseSet? {
+        exercise.sets
+            .filter(\.isPending)
+            .sorted { $0.index < $1.index }
+            .first
+    }
+
+    /// The Exercise's next Pending Set projected to an `ActiveSetID` — see `nextPendingSet(for:)`.
+    static func nextPendingSetID(for exercise: Exercise) -> ActiveSetID? {
+        nextPendingSet(for: exercise)
+            .map { ActiveSetID(exerciseOrder: exercise.order, setIndex: $0.index) }
+    }
+
     private func sessionContains(_ exercise: Exercise, in session: Session) -> Bool {
         session.exercises.contains { candidate in candidate === exercise }
     }
@@ -197,11 +216,7 @@ final class SupersetState {
 
     private func nextPendingSetID(for identity: SupersetExerciseIdentity, in session: Session) -> ActiveSetID? {
         guard let exercise = exercise(matching: identity, in: session) else { return nil }
-        return exercise.sets
-            .filter(\.isPending)
-            .sorted { $0.index < $1.index }
-            .first
-            .map { ActiveSetID(exerciseOrder: exercise.order, setIndex: $0.index) }
+        return Self.nextPendingSetID(for: exercise)
     }
 
     private func exercise(matching identity: SupersetExerciseIdentity, in session: Session) -> Exercise? {

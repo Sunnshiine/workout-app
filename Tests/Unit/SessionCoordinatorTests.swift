@@ -621,6 +621,35 @@ private func makeRestActionFixture(
 }
 
 @MainActor
+@Test func coordinatorMembershipAgreesForPlannedButNotYetActiveSuperset() throws {
+    let session = makePlannedPairingSession()
+    let coordinator = SessionCoordinator(session: session)
+    let press = try #require(session.exercises.first { $0.order == 0 })
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+
+    // Focus stays on the unpaired press; the Superset is planned but not yet active.
+    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+    #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
+
+    // The render projection reports the two paired Exercises and not the unpaired one.
+    let section = try #require(coordinator.supersetSections(in: session).first)
+    let projectedOrders = Set(section.exercises.map(\.order))
+    #expect(projectedOrders == [1, 2])
+    #expect(!projectedOrders.contains(press.order))
+
+    // The domain-predicate membership answers must agree with that projection while the
+    // Superset is planned but not yet active: the unpaired press is not a member, so it
+    // resolves no focus target …
+    #expect(!coordinator.focusNextSupersetSet(for: press, in: session))
+    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+
+    // … while a paired side is a member and resolves its next Pending Set as the target.
+    #expect(coordinator.focusNextSupersetSet(for: bench, in: session))
+    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 2, setIndex: 0))
+}
+
+@MainActor
 @Test func coordinatorPreservesCurrentSessionFlowThroughRenderItems() throws {
     let session = makeIntegratedCoordinatorSession()
     let logging = SpySessionLoggingAdapter()

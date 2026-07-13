@@ -281,7 +281,7 @@ final class SessionCoordinator {
     func log(_ set: ExerciseSet, as log: SetLog, animateFocus: SessionFocusAnimation? = nil) {
         do {
             let session = try actionSession(for: set)
-            let wasSupersetMember = isSupersetMember(set, in: session)
+            let wasSupersetMember = isSupersetMember(set)
             try loggingAdapter.log(set, as: log)
             let restKind = RestTriggerPolicy.restKind(
                 afterLogging: set,
@@ -390,17 +390,15 @@ final class SessionCoordinator {
         in session: Session,
         animateFocus: SessionFocusAnimation? = nil
     ) -> Bool {
-        guard supersetFocusTargetID(for: exercise, in: session) != nil else {
+        guard focusManager.focusNextSupersetSet(for: exercise, in: session) else {
             return false
         }
 
-        var focused = false
         performFocusUpdate(animateFocus) {
-            focused = focusManager.focusNextSupersetSet(for: exercise, in: session)
             syncFocusState()
             invalidateRenderItems()
         }
-        return focused
+        return true
     }
 
     func clearTransition(_ transition: ActiveSetTransition) {
@@ -512,26 +510,9 @@ extension SessionCoordinator {
 }
 
 extension SessionCoordinator {
-    fileprivate func supersetFocusTargetID(for exercise: Exercise, in session: Session) -> ActiveSetID? {
-        let isInSuperset = focusManager.supersetSections(in: session).contains { section in
-            section.exercises.contains { $0 === exercise }
-        }
-        guard isInSuperset else { return nil }
-
-        let targetID = exercise.sets
-            .filter { $0.state == .pending }
-            .sorted { $0.index < $1.index }
-            .first
-            .flatMap(Self.activeSetID(for:))
-        guard targetID != activeSetID else { return nil }
-        return targetID
-    }
-
-    fileprivate func isSupersetMember(_ set: ExerciseSet, in session: Session) -> Bool {
+    fileprivate func isSupersetMember(_ set: ExerciseSet) -> Bool {
         guard let exercise = set.exercise else { return false }
-        return focusManager.supersetSections(in: session).contains { section in
-            section.exercises.contains { $0 === exercise }
-        }
+        return focusManager.isPaired(exercise)
     }
 
     fileprivate func restDuration(for kind: RestKind) -> TimeInterval {

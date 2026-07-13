@@ -183,6 +183,12 @@ final class ActiveSetFocusManager {
         )
     }
 
+    /// Whether the Exercise belongs to a Superset — a thin pass-through to the Superset
+    /// owner's domain membership predicate.
+    func isPaired(_ exercise: Exercise) -> Bool {
+        supersetState.isPaired(exercise)
+    }
+
     @discardableResult
     func focusNextSupersetSet(for exercise: Exercise, in session: Session) -> Bool {
         guard let nextSetID = supersetState.focusNextPendingSet(for: exercise, in: session) else {

@@ -92,6 +92,54 @@ private func makeSupersetSession() -> Session {
 }
 
 @MainActor
+@Test func pureNextPendingSetQueryMatchesMutatingFocusPathAndReturnsNilWhenExerciseHasNoPendingSet() throws {
+    let session = makeSupersetSession()
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let state = SupersetState()
+    state.createSuperset(with: [squat, bench], in: session)
+
+    squat.sets[0].state = .logged
+
+    // The read-only query must select the same ActiveSetID the mutating focus path picks.
+    let pureSquat = SupersetState.nextPendingSetID(for: squat)
+    #expect(pureSquat == state.focusNextPendingSet(for: squat, in: session))
+    #expect(pureSquat == ActiveSetID(exerciseOrder: 0, setIndex: 1))
+
+    let pureBench = SupersetState.nextPendingSetID(for: bench)
+    #expect(pureBench == state.focusNextPendingSet(for: bench, in: session))
+    #expect(pureBench == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+
+    // nil when the Exercise has no Pending Set — matching the mutating path.
+    bench.sets.forEach { $0.state = .logged }
+    #expect(SupersetState.nextPendingSetID(for: bench) == nil)
+    #expect(state.focusNextPendingSet(for: bench, in: session) == nil)
+}
+
+@MainActor
+@Test func staticPerExerciseNextPendingSetQuerySelectsFirstPendingByIndexAndProjectsTheSameActiveSetID() throws {
+    let session = makeSupersetSession()
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+
+    squat.sets[0].state = .logged
+
+    // The per-Exercise query needs neither a SupersetState instance nor a Session handle.
+    let nextSet = try #require(SupersetState.nextPendingSet(for: squat))
+    #expect(nextSet.index == 1)
+
+    // The projected ActiveSetID is byte-identical to routing the selected Set through the
+    // coordinator's `activeSetID(for:)` — so the view's focus-morph id is unchanged.
+    let projected = try #require(SupersetState.nextPendingSetID(for: squat))
+    #expect(projected == ActiveSetID(exerciseOrder: 0, setIndex: 1))
+    #expect(projected == SessionCoordinator.activeSetID(for: nextSet))
+
+    // nil when the Exercise has no Pending Set.
+    squat.sets.forEach { $0.state = .logged }
+    #expect(SupersetState.nextPendingSet(for: squat) == nil)
+    #expect(SupersetState.nextPendingSetID(for: squat) == nil)
+}
+
+@MainActor
 @Test func supersetDissolvesManuallyOrWhenEitherExerciseHasNoPendingSetsAndDoesNotReformAfterDelete() throws {
     let session = makeSupersetSession()
     let squat = try #require(session.exercises.first { $0.order == 0 })
