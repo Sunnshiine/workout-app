@@ -201,12 +201,12 @@ final class ActiveSetFocusManager {
     }
 
     func reexpand(_ exercise: Exercise) {
-        guard Self.isCompleted(exercise) else { return }
+        guard exercise.isComplete else { return }
         expandedCompletedExerciseOrders.insert(exercise.order)
     }
 
     func isCollapsed(_ exercise: Exercise) -> Bool {
-        Self.isCompleted(exercise) && !expandedCompletedExerciseOrders.contains(exercise.order)
+        exercise.isComplete && !expandedCompletedExerciseOrders.contains(exercise.order)
     }
 
     static func id(for set: ExerciseSet) -> ActiveSetID? {
@@ -270,7 +270,7 @@ final class ActiveSetFocusManager {
     }
 
     private func collapseCompletedExercise(containing set: ExerciseSet) {
-        guard let exercise = set.exercise, Self.isCompleted(exercise) else { return }
+        guard let exercise = set.exercise, exercise.isComplete else { return }
         expandedCompletedExerciseOrders.remove(exercise.order)
     }
 
@@ -309,11 +309,7 @@ final class ActiveSetFocusManager {
     }
 
     private func completedExerciseOrder(containing set: ExerciseSet) -> Int? {
-        guard let exercise = set.exercise, Self.isCompleted(exercise) else { return nil }
+        guard let exercise = set.exercise, exercise.isComplete else { return nil }
         return exercise.order
-    }
-
-    private static func isCompleted(_ exercise: Exercise) -> Bool {
-        !exercise.sets.isEmpty && exercise.sets.allSatisfy { $0.state == .logged || $0.state == .skipped }
     }
 }

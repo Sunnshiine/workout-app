@@ -33,11 +33,11 @@ struct SessionStageItem: Identifiable {
     }
 
     var completedSetCount: Int {
-        sortedSets.filter { $0.state != .pending }.count
+        exercises.reduce(0) { $0 + $1.completedSetCount }
     }
 
     var isComplete: Bool {
-        !sortedSets.contains { $0.state == .pending }
+        !exercises.isEmpty && exercises.allSatisfy(\.isComplete)
     }
 
     var nextPendingSet: ExerciseSet? {

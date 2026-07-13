@@ -91,8 +91,7 @@ struct SessionProgressTracker {
             return .unavailable
         }
 
-        let sets = session.exercises.flatMap(\.sets)
-        if !sets.isEmpty, sets.allSatisfy({ $0.state == .logged || $0.state == .skipped }) {
+        if session.isComplete {
             return .complete
         }
 

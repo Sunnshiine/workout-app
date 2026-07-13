@@ -183,6 +183,32 @@ struct SessionStagePresentationTests {
         #expect(SessionStagePresentation.upNextItem(after: nil, in: items) == nil)
     }
 
+    @Test func completedSetCountCountsSettledSetsAcrossSupersetExercises() throws {
+        let press = makeExercise(name: "Press", order: 1, setStates: [.logged, .pending])
+        let row = makeExercise(name: "Row", order: 2, setStates: [.skipped, .pending])
+        let item = SessionStagePresentation.items([try supersetItem(press, row)])[0]
+
+        #expect(item.completedSetCount == 2)
+    }
+
+    @Test func stageItemWithZeroSetsIsNotComplete() {
+        // Unified empty-set boundary: a stage holding no Sets reports not
+        // complete, matching the model accessors — not the old vacuously-true
+        // reading. Per the glossary an Exercise has ≥1 Set, so this only guards
+        // the degenerate case.
+        let empty = makeExercise(name: "Squat", order: 0, setStates: [])
+        let item = SessionStagePresentation.items([exerciseItem(empty)])[0]
+
+        #expect(!item.isComplete)
+    }
+
+    @Test func stageItemWithAllSettledSetsIsComplete() {
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged, .skipped])
+        let item = SessionStagePresentation.items([exerciseItem(squat)])[0]
+
+        #expect(item.isComplete)
+    }
+
     @Test func queueProgressLabelCountsCompletedItems() {
         let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged])
         let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.skipped])
