@@ -40,6 +40,28 @@ private final class MockRestNotificationScheduler: RestNotificationScheduling {
 }
 
 @MainActor
+private final class MockRestExpiryScheduler: RestExpiryScheduling {
+    private(set) var scheduledDeadlines: [Date] = []
+    private(set) var cancelCount = 0
+    private var expire: (@MainActor () -> Void)?
+
+    func schedule(deadline: Date, expire: @escaping @MainActor () -> Void) {
+        scheduledDeadlines.append(deadline)
+        self.expire = expire
+    }
+
+    func cancel() {
+        cancelCount += 1
+        expire = nil
+    }
+
+    /// Simulate the deadline arriving — the single moment the module decides rest is over.
+    func fire() {
+        expire?()
+    }
+}
+
+@MainActor
 @Test func restTimerStartSetsDeadlineAndRemainingTracksClock() {
     let clock = ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 1_000))
     let timer = RestTimer(clock: clock)
@@ -202,6 +224,101 @@ private final class MockRestNotificationScheduler: RestNotificationScheduling {
 
     #expect(timer.remaining == timer.interval?.remaining(at: clock.now))
     #expect(timer.remaining == 75)
+}
+
+@MainActor
+@Test func restTimerSchedulesSelfExpiryAtDeadlineOnStart() {
+    let clock = ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 1_000))
+    let expiry = MockRestExpiryScheduler()
+    let timer = RestTimer(clock: clock, expiryScheduler: expiry)
+
+    timer.start(duration: 120, origin: ActiveSetID(exerciseOrder: 1, setIndex: 0))
+
+    #expect(expiry.scheduledDeadlines == [Date(timeIntervalSinceReferenceDate: 1_120)])
+    #expect(expiry.cancelCount == 0)
+}
+
+// Off-screen case: no pill is ever involved, yet reaching the deadline ends the rest and
+// cancels the pending notification exactly once, from RestTimer itself.
+@MainActor
+@Test func restTimerSelfDrivesExpiryAtDeadlineWithoutAPill() {
+    let clock = ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 1_000))
+    let scheduler = MockRestNotificationScheduler()
+    let expiry = MockRestExpiryScheduler()
+    let timer = RestTimer(clock: clock, notificationScheduler: scheduler, expiryScheduler: expiry)
+
+    timer.start(duration: 120, origin: ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    #expect(timer.isRunning)
+
+    clock.advance(by: 120)
+    expiry.fire()
+
+    #expect(timer.interval == nil)
+    #expect(timer.remaining == 0)
+    #expect(!timer.isRunning)
+    #expect(scheduler.cancelCount == 1)
+}
+
+// Single author: the "rest ended" instant fires once. A stray second fire (or any leftover
+// caller) must not clear a fresh rest or double-cancel the notification.
+@MainActor
+@Test func restTimerExpiresExactlyOnce() {
+    let clock = ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 1_000))
+    let scheduler = MockRestNotificationScheduler()
+    let expiry = MockRestExpiryScheduler()
+    let timer = RestTimer(clock: clock, notificationScheduler: scheduler, expiryScheduler: expiry)
+
+    timer.start(duration: 120, origin: ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    clock.advance(by: 120)
+    expiry.fire()
+    expiry.fire()
+
+    #expect(timer.interval == nil)
+    #expect(scheduler.cancelCount == 1)
+}
+
+@MainActor
+@Test func restTimerReschedulesSelfExpiryWhenRestRestarts() {
+    let clock = ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 1_000))
+    let expiry = MockRestExpiryScheduler()
+    let timer = RestTimer(clock: clock, expiryScheduler: expiry)
+
+    timer.start(duration: 120, origin: ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    clock.advance(by: 30)
+    timer.start(duration: 180, origin: ActiveSetID(exerciseOrder: 2, setIndex: 0))
+
+    #expect(
+        expiry.scheduledDeadlines == [
+            Date(timeIntervalSinceReferenceDate: 1_120),
+            Date(timeIntervalSinceReferenceDate: 1_210)
+        ]
+    )
+}
+
+@MainActor
+@Test func restTimerCancelsScheduledExpiryOnDismiss() {
+    let clock = ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 1_000))
+    let expiry = MockRestExpiryScheduler()
+    let timer = RestTimer(clock: clock, expiryScheduler: expiry)
+
+    timer.start(duration: 120, origin: ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    timer.dismiss()
+
+    #expect(expiry.cancelCount == 1)
+}
+
+@MainActor
+@Test func restTimerCancelsScheduledExpiryWhenOriginMatchesCancel() {
+    let clock = ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 1_000))
+    let expiry = MockRestExpiryScheduler()
+    let timer = RestTimer(clock: clock, expiryScheduler: expiry)
+    let origin = ActiveSetID(exerciseOrder: 1, setIndex: 0)
+
+    timer.start(duration: 120, origin: origin)
+    timer.cancel(ifOriginMatches: origin)
+
+    #expect(timer.interval == nil)
+    #expect(expiry.cancelCount == 1)
 }
 
 @MainActor

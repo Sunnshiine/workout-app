@@ -41,13 +41,16 @@ final class RestTimer {
 
     @ObservationIgnored private let clock: any RestClock
     @ObservationIgnored private let notificationScheduler: (any RestNotificationScheduling)?
+    @ObservationIgnored private let expiryScheduler: any RestExpiryScheduling
 
     init(
         clock: any RestClock = SystemRestClock(),
-        notificationScheduler: (any RestNotificationScheduling)? = nil
+        notificationScheduler: (any RestNotificationScheduling)? = nil,
+        expiryScheduler: any RestExpiryScheduling = RestExpiryTimerScheduler()
     ) {
         self.clock = clock
         self.notificationScheduler = notificationScheduler
+        self.expiryScheduler = expiryScheduler
     }
 
     var remaining: TimeInterval {
@@ -76,6 +79,9 @@ final class RestTimer {
         let interval = RestInterval(start: clock.now, duration: duration, kind: kind)
         self.interval = interval
         notificationScheduler?.schedule(deadline: interval.end)
+        expiryScheduler.schedule(deadline: interval.end) { [weak self] in
+            self?.expireIfNeeded(at: interval.end)
+        }
         restartRevision += 1
     }
 
@@ -92,8 +98,13 @@ final class RestTimer {
         originSetObjectID = nil
         interval = nil
         notificationScheduler?.cancel()
+        expiryScheduler.cancel()
     }
 
+    /// The one author of the "rest ended" instant. Driven by the expiry scheduler at the
+    /// deadline — no view is required — so a rest clears and its pending notification is
+    /// cancelled exactly once whether or not the pill is on screen. Idempotent: a stray call
+    /// after the interval has cleared, or before the deadline, is a no-op.
     func expireIfNeeded(at now: Date) {
         guard interval != nil, remaining(at: now) <= 0 else { return }
         dismiss()

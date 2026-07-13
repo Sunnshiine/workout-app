@@ -166,17 +166,11 @@ struct RestPillView: View {
         let elapsed = elapsedRestTime(at: now)
         if scenePhase != .active {
             lastHapticElapsed = elapsed
-            if elapsed >= duration {
-                restTimer.expireIfNeeded(at: now)
-            }
             return
         }
 
         guard let previousElapsed = lastHapticElapsed else {
             lastHapticElapsed = elapsed
-            if elapsed >= duration {
-                restTimer.expireIfNeeded(at: now)
-            }
             return
         }
 
@@ -188,23 +182,9 @@ struct RestPillView: View {
         for event in events {
             playedHapticEvents.insert(event)
             hapticPlayer.play(event.kind)
-            if event.kind == .expiryBuzz {
-                await dismissAfterExpiryBeat()
-            }
         }
 
         lastHapticElapsed = elapsed
-        let expiryEvent = RestHapticEvent(offset: duration, kind: .expiryBuzz)
-        if elapsed >= duration && !playedHapticEvents.contains(expiryEvent) {
-            restTimer.expireIfNeeded(at: now)
-        }
-    }
-
-    private func dismissAfterExpiryBeat() async {
-        let interval = restTimer.interval
-        try? await Task.sleep(for: .milliseconds(500))
-        guard !Task.isCancelled, restTimer.interval == interval else { return }
-        restTimer.expireIfNeeded(at: Date())
     }
 
     private func resetHapticProgress() {
