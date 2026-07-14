@@ -15,6 +15,9 @@
 		0D3E6DBCFE1881EE177EDEAE /* SessionProgressTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DE918A15498A36B4EC413FD /* SessionProgressTracker.swift */; };
 		0D4C89E50C4CE24C8BCAC13A /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3695D878F161DF7CDC6A827E /* LaunchScreen.storyboard */; };
 		0FA59ADEDBC2C0EF9C50A515 /* SetLogToken.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A549AF09F599F33018AE0B4 /* SetLogToken.swift */; };
+		FEED000000000000000000A1 /* SetLogList.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B1 /* SetLogList.swift */; };
+		FEED000000000000000000A2 /* BuildIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B2 /* BuildIdentity.swift */; };
+		FEED000000000000000000A3 /* BuildIdentityFooter.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B3 /* BuildIdentityFooter.swift */; };
 		0FCFEE8BE8B4EEBA73F6E728 /* BlockBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73C4E487CCAF7C536F0485E /* BlockBuilderTests.swift */; };
 		1018F59A2AC1D53EA49ABFEA /* smartValuePillsWithVisibleWeightSteppersMatchesVisualBaseline.1.png in Resources */ = {isa = PBXBuildFile; fileRef = 0FFF75534634A0C4281D2559 /* smartValuePillsWithVisibleWeightSteppersMatchesVisualBaseline.1.png */; };
 		106BF1E7736CCBF64C0C003E /* seededSessionViewMatchesVisualBaseline.1.png in Resources */ = {isa = PBXBuildFile; fileRef = 6095EAC4F29B18D4E50947A5 /* seededSessionViewMatchesVisualBaseline.1.png */; };
@@ -267,6 +270,9 @@
 		2476AFCDF1271D11870959C8 /* OpenExerciseRowPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenExerciseRowPresentationTests.swift; sourceTree = "<group>"; };
 		2694D7B8CE96A7BA65917D8A /* SessionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCoordinator.swift; sourceTree = "<group>"; };
 		2A549AF09F599F33018AE0B4 /* SetLogToken.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetLogToken.swift; sourceTree = "<group>"; };
+		FEED000000000000000000B1 /* SetLogList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetLogList.swift; sourceTree = "<group>"; };
+		FEED000000000000000000B2 /* BuildIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuildIdentity.swift; sourceTree = "<group>"; };
+		FEED000000000000000000B3 /* BuildIdentityFooter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuildIdentityFooter.swift; sourceTree = "<group>"; };
 		2B20D8C8042E63AE48DC73C6 /* SyncCoordinatorLocalWorkbookRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinatorLocalWorkbookRoundTripTests.swift; sourceTree = "<group>"; };
 		2CC347CBCB45EC717781E8EF /* SyncStatusBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatusBanner.swift; sourceTree = "<group>"; };
 		31126E1DC357E16E1B75D98D /* OnboardingPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingPresentation.swift; sourceTree = "<group>"; };
@@ -512,6 +518,7 @@
 				4DFC2292C554D15D32CD11B1 /* SessionStageView.swift */,
 				7172E2B6F090D7F496DD6236 /* SessionTile.swift */,
 				E31CB80B71F35E4D4A35FE87 /* SessionView.swift */,
+				FEED000000000000000000B3 /* BuildIdentityFooter.swift */,
 				63852C80C5AAD37D2E99F205 /* SettingsView.swift */,
 				719E54DAA40D4D2D700AA91F /* SmartValuePills.swift */,
 				7E44E4307BBE02ECB2E8C314 /* SupersetIdentityBadge.swift */,
@@ -615,6 +622,7 @@
 				3EB277F74C7EEBC24BF4E813 /* BlockBuilder.swift */,
 				5204E40ABC910CEBB0F82816 /* BlockTabSelector.swift */,
 				2A549AF09F599F33018AE0B4 /* SetLogToken.swift */,
+				FEED000000000000000000B1 /* SetLogList.swift */,
 				A2244B0C3FEDB38CFA5D0128 /* SheetGrid.swift */,
 				4A355409E05892E8B4C913ED /* SheetLayoutInterpreter.swift */,
 				93A5CA6A951EC6FB3C319E0F /* SheetParser.swift */,
@@ -706,6 +714,7 @@
 				DD5AE788CBF5DAF0C684F6D3 /* Exercise.swift */,
 				6FE11A57FFD49F1221D2CA75 /* LastPerformedEntry.swift */,
 				ECA5D0F58BE44C1297D2C669 /* PendingWrite.swift */,
+				FEED000000000000000000B2 /* BuildIdentity.swift */,
 				BAF4B32774225208D31F362E /* RestDurationSetting.swift */,
 				20D53666552036BF79EEB41F /* SetLog.swift */,
 			);
@@ -1167,6 +1176,9 @@
 				FCA508FE3522CB7062267112 /* SessionView.swift in Sources */,
 				6370263F171AC8EFE288A5E3 /* SetLog.swift in Sources */,
 				0FA59ADEDBC2C0EF9C50A515 /* SetLogToken.swift in Sources */,
+				FEED000000000000000000A1 /* SetLogList.swift in Sources */,
+				FEED000000000000000000A2 /* BuildIdentity.swift in Sources */,
+				FEED000000000000000000A3 /* BuildIdentityFooter.swift in Sources */,
 				B0441BD9835254837C31369E /* SettingsStore.swift in Sources */,
 				21FFED2ACCE1F4CBC452185B /* SettingsView.swift in Sources */,
 				A2F7E6D64D1518F978D7CFC2 /* SheetGrid.swift in Sources */,
