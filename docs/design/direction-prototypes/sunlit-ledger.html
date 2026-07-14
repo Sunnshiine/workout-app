@@ -381,9 +381,10 @@ h1.exercise {
 <!-- shared leaf geometry: pointed cusps, taut upper contour, fuller lower contour -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
-    <path id="leafShape" d="M0 8 C 18 2.5, 42 2.5, 60 8 C 42 22, 18 22, 0 8 Z"/>
-    <path id="leafRib" d="M4 8.1 C 20 9.7, 40 9.7, 56 8.1" fill="none"/>
-    <clipPath id="halfClip"><rect x="0" y="0" width="31" height="24"/></clipPath>
+    <!-- widest point off-center (toward the base) so it reads leaf, not lozenge -->
+    <path id="leafShape" d="M0 8 C 15 2.3, 41 3.3, 60 8 C 41 21.7, 15 22.6, 0 8 Z"/>
+    <path id="leafRib" d="M4 8.1 C 20 9.8, 40 9.6, 56 8.1" fill="none"/>
+    <path id="leafStem" d="M0 8 C -2.5 8.4, -5 9.4, -7.5 11.5" fill="none"/>
   </defs>
 </svg>
 
@@ -409,30 +410,35 @@ h1.exercise {
   <h1 class="exercise">Competition Bench&nbsp;Press</h1>
   <p class="coach-note">Pause every rep. Keep the arch honest — no&nbsp;bounce.</p>
 
-  <div class="flex-grow"></div>
+  <div class="flex-grow" style="flex:0.9"></div>
 
   <div class="rail-head">
     <span class="microlabel muted">Sets</span>
     <span class="microlabel muted num" style="font-weight:500">3 of 5</span>
   </div>
   <div class="leaf-rail" aria-label="Set 3 of 5">
-    <span class="slot done"><svg width="57" height="23" viewBox="0 0 60 24">
+    <span class="slot done"><svg width="58" height="20" viewBox="-9 0 69 24">
+      <use href="#leafStem" stroke="#0D6B40" stroke-width="1.7"/>
       <use href="#leafShape" fill="#0D6B40"/>
       <use href="#leafRib" stroke="rgba(242,247,232,0.55)" stroke-width="1"/>
     </svg></span>
-    <span class="slot done"><svg width="57" height="23" viewBox="0 0 60 24">
+    <span class="slot done"><svg width="58" height="20" viewBox="-9 0 69 24">
+      <use href="#leafStem" stroke="#0D6B40" stroke-width="1.7"/>
       <use href="#leafShape" fill="#0D6B40"/>
       <use href="#leafRib" stroke="rgba(242,247,232,0.55)" stroke-width="1"/>
     </svg></span>
-    <span class="slot current"><svg width="57" height="23" viewBox="0 0 60 24">
+    <span class="slot current"><svg width="58" height="20" viewBox="-9 0 69 24">
+      <use href="#leafStem" stroke="#152118" stroke-width="1.7"/>
       <use href="#leafShape" fill="rgba(242,247,232,0.75)"/>
       <use href="#leafRib" stroke="rgba(13,107,64,0.45)" stroke-width="1.2"/>
-      <use href="#leafShape" fill="none" stroke="#152118" stroke-width="1.8"/>
+      <use href="#leafShape" fill="none" stroke="#152118" stroke-width="1.9"/>
     </svg></span>
-    <span class="slot future"><svg width="57" height="23" viewBox="0 0 60 24">
+    <span class="slot future"><svg width="58" height="20" viewBox="-9 0 69 24">
+      <use href="#leafStem" stroke="rgba(21,33,24,0.32)" stroke-width="1.1"/>
       <use href="#leafShape" fill="none" stroke="rgba(21,33,24,0.32)" stroke-width="1.1"/>
     </svg></span>
-    <span class="slot future"><svg width="57" height="23" viewBox="0 0 60 24">
+    <span class="slot future"><svg width="58" height="20" viewBox="-9 0 69 24">
+      <use href="#leafStem" stroke="rgba(21,33,24,0.32)" stroke-width="1.1"/>
       <use href="#leafShape" fill="none" stroke="rgba(21,33,24,0.32)" stroke-width="1.1"/>
     </svg></span>
   </div>
