@@ -10,7 +10,6 @@
   },
   "groups" : [
     {
-      "hidden" : false,
       "layers" : [
         {
           "fill" : {
@@ -21,7 +20,6 @@
           "name" : "sunbird"
         }
       ],
-      "lighting" : "individual",
       "name" : "Sun disc",
       "refractivity" : {
         "depth" : 1,
