@@ -285,6 +285,62 @@ import Testing
     #expect(compBP.sets[2].prescribedLoad == "RPE6")
 }
 
+@Test func multiLineLineNotesTreatLegacyLogAsProtectedAndDoNotReadItAsSetLogs() {
+    // Coach J. Alarcon's multi-line template: each Prescription LINE keeps its Set Logs in its
+    // own Notes cell. Comp SQ is two 1-set lines. Line 0's Notes cell holds a Legacy Log
+    // (completion evidence, ADR-0005); Line 1 holds a genuine structured Set Log. The multi-line
+    // read must treat the Legacy-Log cell as protected — leaving that Set Pending rather than
+    // reading the legacy values out as Set Logs — while still reading the sibling line's log.
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": "Comp SQ", "D15": "1", "F15": "5", "H15": "RPE6", "K15": "70@10, 80",
+            "D16": "1", "F16": "5", "H16": "Drop 20%", "K16": "185x5@8",
+            "C17": "Hip Thrust", "D17": "2"
+        ],
+        rows: 22,
+        cols: 30
+    )
+    let section = locateWeekSections(in: grid)[0]
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+
+    let compSQ = exercises[0]
+    #expect(compSQ.baseName == "Comp SQ")
+    #expect(compSQ.sets.count == 2)
+    // Legacy-Log line cell is protected: the Set stays Pending, not read as a Set Log.
+    #expect(compSQ.sets[0].state == .pending)
+    #expect(compSQ.sets[0].setLog == nil)
+    #expect(compSQ.sets[0].unstructuredSetLog == nil)
+    // Genuine structured Set Log on the sibling line is still read.
+    #expect(compSQ.sets[1].setLog == SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+}
+
+@Test func multiLineLineNotesStillReadGenuineCompactSetLogs() {
+    // A Line whose Notes cell holds genuine structured Set Logs (a compact list within the Line's
+    // Set count) is writable, not protected — the multi-line read still parses those logs. This
+    // guards the Legacy-Log protection from suppressing real per-line logs.
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": "Comp SQ", "D15": "2", "F15": "5", "H15": "RPE6", "K15": "185x5@8, 190x5@9",
+            "D16": "1", "F16": "5", "H16": "Drop 20%", "K16": "205x5@7",
+            "C17": "Hip Thrust", "D17": "2"
+        ],
+        rows: 22,
+        cols: 30
+    )
+    let section = locateWeekSections(in: grid)[0]
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+
+    let compSQ = exercises[0]
+    #expect(compSQ.sets.count == 3)
+    #expect(compSQ.sets[0].setLog == SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+    #expect(compSQ.sets[1].setLog == SetLog(weight: .pounds(190), reps: 5, rpe: 9))
+    #expect(compSQ.sets[2].setLog == SetLog(weight: .pounds(205), reps: 5, rpe: 7))
+}
+
 @Test func duplicateSetsHeaderResolvesToColumnCarryingData() {
     // Reproduction of the W3/W4 Day-2 "one set per exercise" bug on coach J. Alarcon's
     // sheet: the role-header row repeats "Sets" across two adjacent columns (S and T),

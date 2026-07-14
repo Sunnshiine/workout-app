@@ -438,6 +438,25 @@ private func multiLineNotesRequest(_ name: String, _ setIndex: Int, value: Strin
     #expect(bpSetThree.value == "135x7@8, 140x7@9")
 }
 
+@Test func refusesToOverwriteLegacyLogOnMultiLinePrescriptionLine() throws {
+    // Coach-data safety across the split placement/protection boundary: a multi-line Prescription
+    // Line whose Notes cell holds a Legacy Log (ADR-0005) is read as Pending, so the write arrives
+    // expecting an empty slot. The placement query still resolves that Line's cell, but the value
+    // check must conflict rather than overwrite the coach's Legacy Log. This pins the invariant the
+    // reader enforces (leaving the Set Pending) on the writer side too.
+    let planner = SheetWritePlanner()
+    let grid = multiLinePrescriptionGrid(["J15": "70@10, 80"])
+
+    do {
+        _ = try planner.plan(multiLineNotesRequest("Comp SQ", 0, value: "135x5@6"), in: grid)
+        Issue.record("Expected the Legacy-Log line write to conflict")
+    } catch let error as SheetWriterError {
+        #expect(error == .unexpectedCurrentValue(expected: "", actual: "70@10"))
+    } catch {
+        Issue.record("Expected SheetWriterError, got \(error)")
+    }
+}
+
 @Test func parserAndWriterAgreeOnMultiLinePrescriptionSets() throws {
     let parser = SheetParser()
     let planner = SheetWritePlanner()

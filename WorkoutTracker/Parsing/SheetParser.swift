@@ -87,11 +87,6 @@ private struct ParsedSetContext {
     let anchor: SheetLayoutExerciseAnchor
     let cols: DayColumns
     let snapshot: SheetSnapshot
-    let headerNote: String
-    let headerSetLogValues: [String]?
-    let compactHeaderSetOne: Bool
-    let usesVisibleWritableRow: Bool
-    let visibleWritableRowSetLogValues: [String]?
     let reps: String
     let repsValues: [String]
     let load: String
@@ -101,22 +96,12 @@ private struct ParsedSetContext {
 
 private func parsedSets(_ context: ParsedSetContext) -> [ParsedSet] {
     (0..<context.setCount).map { i in
-        let rawLog: String
-        if context.compactHeaderSetOne, let values = context.headerSetLogValues, i < values.count {
-            rawLog = values[i]
-        } else if context.compactHeaderSetOne, i == 0 {
-            rawLog = context.headerNote
-        } else if context.compactHeaderSetOne {
-            rawLog = ""
-        } else if context.usesVisibleWritableRow {
-            rawLog = context.visibleWritableRowSetLogValues.flatMap { i < $0.count ? $0[i] : nil } ?? ""
-        } else {
-            let logRow = context.anchor.setLogRow(
-                for: i,
-                compactHeaderSetOne: context.compactHeaderSetOne
-            )
-            rawLog = logRow.map { context.snapshot.values.cellOrEmpty($0, context.cols.notes) } ?? ""
-        }
+        let rawLog = rawSetLog(
+            for: i,
+            anchor: context.anchor,
+            snapshot: context.snapshot,
+            cols: context.cols
+        )
         let logState = SetLogToken.classify(rawLog)
         return ParsedSet(
             index: i,
@@ -130,9 +115,24 @@ private func parsedSets(_ context: ParsedSetContext) -> [ParsedSet] {
     }
 }
 
-private func headerSetLogValues(from note: String, setCount: Int) -> [String]? {
-    guard SetLogToken.isCompactAggregateHeader(note, setCount: setCount) else { return nil }
-    return splitSheetNotesList(note)
+/// Reads Set `setIndex`'s raw Notes token from wherever the placement query resolves it — the one
+/// addressing decision the write path also consumes (ADR-0010), so display and write targeting
+/// cannot diverge. A list placement (compact header list, protected-header Visible Writable Row, or
+/// a multi-line Prescription Line) reads the token at the Set's list position via the shared
+/// `SetLogList` codec; a whole-cell placement reads the cell. An unresolved placement — a protected
+/// header with no safe writable row, a Set row out of the Exercise's span, or a missing Notes
+/// column — reads empty, leaving the Set Pending unless a Legacy Log later marks it complete.
+private func rawSetLog(
+    for setIndex: Int,
+    anchor: SheetLayoutExerciseAnchor,
+    snapshot: SheetSnapshot,
+    cols: DayColumns
+) -> String {
+    guard case .placed(let placement) = anchor.setLogPlacement(for: setIndex, in: snapshot, cols: cols) else {
+        return ""
+    }
+    let cell = snapshot.values.cell(row: placement.row, col: placement.col)
+    return placement.listPosition.map { SetLogList(cell: cell).token(at: $0) } ?? cell
 }
 
 private func completionSets(_ sets: [ParsedSet], legacyLog: String?) -> [ParsedSet] {
@@ -152,22 +152,31 @@ private func completionSets(_ sets: [ParsedSet], legacyLog: String?) -> [ParsedS
 }
 
 /// Builds the Sets for one Prescription Line: the Line's own Reps/Load/%1RM are split
-/// positionally (repeating the last token), and the Line's Notes cell holds that Line's
-/// comma-separated Set Logs. A coach-note Notes cell leaves the Line's Sets Pending.
-private func parsedSetsForLine(grid: SheetGrid, cols: DayColumns, line: PrescriptionLine) -> [ParsedSet] {
+/// positionally (repeating the last token), and each Set's Set Log is read from the placement query
+/// (the Line's own Notes cell at the Set's list position — the same cell the write path targets). A
+/// protected Line Notes cell (a Coach Note or Legacy Log, ADR-0005) leaves the Line's Sets Pending
+/// rather than reading its coach content out as Set Logs.
+private func parsedSetsForLine(
+    snapshot: SheetSnapshot,
+    cols: DayColumns,
+    anchor: SheetLayoutExerciseAnchor,
+    line: PrescriptionLine
+) -> [ParsedSet] {
+    let grid = snapshot.values
     let reps = grid.cellOrEmpty(line.row, cols.reps)
     let repsValues = reps.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
     let load = grid.cellOrEmpty(line.row, cols.load)
     let loadValues = splitLoadValues(load)
     let percent = grid.cellOrEmpty(line.row, cols.percentOneRM)
     let notes = SheetLayoutHeaderNotes(value: grid.cellOrEmpty(line.row, cols.notes).trimmed)
-    let logValues = notes.isCoachNote ? [] : splitSheetNotesList(notes.value)
+    let protectedLine = anchor.isHeaderProtectedFromSetLogWrites(headerNotes: notes, setCount: line.setCount)
 
     return (0..<line.setCount).map { position in
-        let rawLog = position < logValues.count ? logValues[position] : ""
+        let setIndex = line.firstSetIndex + position
+        let rawLog = protectedLine ? "" : rawSetLog(for: setIndex, anchor: anchor, snapshot: snapshot, cols: cols)
         let logState = SetLogToken.classify(rawLog)
         return ParsedSet(
-            index: line.firstSetIndex + position,
+            index: setIndex,
             prescribedReps: position < repsValues.count ? repsValues[position] : (repsValues.last ?? reps),
             prescribedLoad: position < loadValues.count ? loadValues[position] : (loadValues.last ?? load),
             percentOneRM: percent.isEmpty ? nil : percent,
@@ -179,15 +188,16 @@ private func parsedSetsForLine(grid: SheetGrid, cols: DayColumns, line: Prescrip
 }
 
 private func parsedMultiLineExercise(
-    grid: SheetGrid,
+    snapshot: SheetSnapshot,
     cols: DayColumns,
     anchor: SheetLayoutExerciseAnchor,
     lines: [PrescriptionLine]
 ) -> ParsedExercise {
+    let grid = snapshot.values
     let rawName = grid.cell(row: anchor.row, col: cols.name).trimmed
     let (cadence, base) = splitCadence(rawName)
     let anchorNotes = anchor.headerNotes(in: grid, notesColumn: cols.notes)
-    let sets = lines.flatMap { parsedSetsForLine(grid: grid, cols: cols, line: $0) }
+    let sets = lines.flatMap { parsedSetsForLine(snapshot: snapshot, cols: cols, anchor: anchor, line: $0) }
     return ParsedExercise(
         name: rawName,
         baseName: base,
@@ -201,7 +211,7 @@ private func parsedExercise(snapshot: SheetSnapshot, day: SheetLayoutDay, anchor
     let cols = day.columns
     let lines = anchor.prescriptionLines(in: snapshot.values, setsColumn: cols.sets)
     return lines.isMultiLine
-        ? parsedMultiLineExercise(grid: snapshot.values, cols: cols, anchor: anchor, lines: lines)
+        ? parsedMultiLineExercise(snapshot: snapshot, cols: cols, anchor: anchor, lines: lines)
         : parsedSingleLineExercise(snapshot: snapshot, cols: cols, anchor: anchor)
 }
 
@@ -215,14 +225,10 @@ private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns,
     let headerNotes = anchor.headerNotes(in: grid, notesColumn: cols.notes)
     let note = headerNotes.value
     let setCount = anchor.prescribedSetCount(in: grid, setsColumn: cols.sets)
-    let headerSetLogValues = headerSetLogValues(from: note, setCount: setCount)
-    let compactHeaderSetOne = headerSetLogValues != nil || anchor.usesCompactHeaderSetOne(headerNotes: headerNotes)
-    let legacyLog = headerSetLogValues == nil && headerNotes.isLegacyLog ? note : nil
-    let usesVisibleWritableRow = !compactHeaderSetOne && headerNotes.hasProtectedValue
-    let visibleWritableRowSetLogValues =
-        anchor
-        .firstVisibleWritableRow(in: snapshot)
-        .map { splitSheetNotesList(grid.cellOrEmpty($0, cols.notes)) }
+    // A Legacy Log is only completion evidence when the header cannot be read as compact Set Logs;
+    // a value that fits as a compact header list (`setCount`-aware) is read as Set Logs instead.
+    let compactHeaderSetOne = anchor.usesCompactHeaderSetOne(headerNotes: headerNotes, setCount: setCount)
+    let legacyLog = !compactHeaderSetOne && headerNotes.isLegacyLog ? note : nil
     let sets = completionSets(
         parsedSets(
             ParsedSetContext(
@@ -230,11 +236,6 @@ private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns,
                 anchor: anchor,
                 cols: cols,
                 snapshot: snapshot,
-                headerNote: note,
-                headerSetLogValues: headerSetLogValues,
-                compactHeaderSetOne: compactHeaderSetOne,
-                usesVisibleWritableRow: usesVisibleWritableRow,
-                visibleWritableRowSetLogValues: visibleWritableRowSetLogValues,
                 reps: reps,
                 repsValues: reps.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) },
                 load: load,

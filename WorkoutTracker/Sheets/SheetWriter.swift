@@ -253,77 +253,22 @@ struct SheetWritePlanner: Sendable {
             return (anchor.row, col)
         }
 
-        let lines = anchor.prescriptionLines(in: snapshot.grid, setsColumn: day.columns.sets)
-        if lines.isMultiLine {
-            guard let line = lines.line(containing: request.setIndex) else {
-                throw SheetWriterError.setRowNotFound(exerciseName: request.exerciseName, setIndex: request.setIndex)
-            }
-            return (line.row, col)
-        }
-
-        return try resolveNotesTarget(for: request, day: day, anchor: anchor, col: col, in: snapshot)
-    }
-
-    private func resolveNotesTarget(
-        for request: SheetWriteRequest,
-        day: SheetLayoutDay,
-        anchor: SheetLayoutExerciseAnchor,
-        col: Int,
-        in snapshot: SheetWritePlanningSnapshot
-    ) throws -> (row: Int, col: Int) {
-        let headerNotes = anchor.headerNotes(in: snapshot.grid, notesColumn: day.columns.notes)
-        let setCount = anchor.prescribedSetCount(in: snapshot.grid, setsColumn: day.columns.sets)
-        let compactHeaderSetOne =
-            anchor.usesCompactHeaderSetOne(headerNotes: headerNotes)
-            || SetLogToken.isCompactAggregateHeader(headerNotes.value, setCount: setCount)
-
-        if compactHeaderSetOne, request.setIndex < setCount {
-            return try resolveCompactNotesTarget(
-                for: request,
-                anchor: anchor,
-                col: col,
-                in: snapshot
+        // Every remaining (Notes-column) target — multi-line Prescription Line, compact-header list,
+        // protected-header Visible Writable Row, or visible Set-log row — is decided by the one
+        // placement query; the write path only maps its outcome to a target row/column or an error.
+        switch anchor.setLogPlacement(for: request.setIndex, in: snapshot.snapshot, cols: day.columns) {
+        case .placed(let placement):
+            return (placement.row, placement.col)
+        case .protectedHeaderBlocksSetRow:
+            throw SheetWriterError.headerNotesBlockSetRow(
+                exerciseName: request.exerciseName,
+                setIndex: request.setIndex
             )
-        }
-
-        if headerNotes.hasProtectedValue, request.setIndex < setCount {
-            guard let targetRow = anchor.firstVisibleWritableRow(in: snapshot.snapshot) else {
-                throw SheetWriterError.headerNotesBlockSetRow(
-                    exerciseName: request.exerciseName,
-                    setIndex: request.setIndex
-                )
-            }
-            return (targetRow, col)
-        }
-
-        guard
-            let setRow = anchor.visibleSetLogRow(
-                for: request.setIndex,
-                compactHeaderSetOne: compactHeaderSetOne,
-                in: snapshot.snapshot
-            )
-        else {
-            if request.column == .notes, headerNotes.hasProtectedValue {
-                throw SheetWriterError.headerNotesBlockSetRow(
-                    exerciseName: request.exerciseName,
-                    setIndex: request.setIndex
-                )
-            }
+        case .setRowNotFound:
             throw SheetWriterError.setRowNotFound(exerciseName: request.exerciseName, setIndex: request.setIndex)
+        case .notesColumnMissing:
+            throw SheetWriterError.columnNotFound("Notes")
         }
-        return (setRow, col)
-    }
-
-    private func resolveCompactNotesTarget(
-        for request: SheetWriteRequest,
-        anchor: SheetLayoutExerciseAnchor,
-        col: Int,
-        in snapshot: SheetWritePlanningSnapshot
-    ) throws -> (row: Int, col: Int) {
-        guard snapshot.snapshot.isRowVisible(anchor.row) else {
-            throw SheetWriterError.setRowNotFound(exerciseName: request.exerciseName, setIndex: request.setIndex)
-        }
-        return (anchor.row, col)
     }
 
     private func resolveColumn(_ column: PendingWriteColumn, cols: DayColumns) throws -> Int {
@@ -348,36 +293,20 @@ struct SheetWritePlanner: Sendable {
         in snapshot: SheetWritePlanningSnapshot
     ) throws -> String? {
         guard
-            request.column == .notes,
-            let day = snapshot.layout.day(week: request.week, day: request.day),
-            day.columns.notes == target.col,
-            let anchor = day.exerciseAnchors.first(where: { $0.name == request.exerciseName })
+            let placement = placement(for: request, target: target, in: snapshot),
+            placement.kind == .multiLinePrescriptionLine,
+            let position = placement.listPosition
         else { return nil }
 
-        let lines = anchor.prescriptionLines(in: snapshot.grid, setsColumn: day.columns.sets)
-        guard
-            lines.isMultiLine,
-            let line = lines.line(containing: request.setIndex),
-            line.row == target.row,
-            let position = line.position(of: request.setIndex)
-        else { return nil }
-
-        var values = splitSheetNotesList(actual)
-        if values.count == 1, values[0].isEmpty {
-            values = []
-        }
-        while values.count <= position {
-            values.append("")
-        }
-
-        guard values[position] == request.expectedCurrentValue else {
+        var list = SetLogList(cell: actual)
+        guard list.token(at: position) == request.expectedCurrentValue else {
             throw SheetWriterError.unexpectedCurrentValue(
                 expected: request.expectedCurrentValue,
-                actual: values[position]
+                actual: list.token(at: position)
             )
         }
-        values[position] = request.operation == .delete ? "" : (request.valueToWrite ?? "")
-        return joinedSheetNotesList(values)
+        list.setToken(request.operation == .delete ? "" : (request.valueToWrite ?? ""), at: position)
+        return list.cellValue
     }
 
     private func compactAggregateHeaderValue(
@@ -387,37 +316,20 @@ struct SheetWritePlanner: Sendable {
         in snapshot: SheetWritePlanningSnapshot
     ) throws -> String? {
         guard
-            request.column == .notes,
-            let day = snapshot.layout.day(week: request.week, day: request.day),
-            day.columns.notes == target.col,
-            let anchor = day.exerciseAnchors.first(where: { $0.name == request.exerciseName })
+            let placement = placement(for: request, target: target, in: snapshot),
+            placement.kind == .compactHeaderList || placement.kind == .protectedHeaderVisibleWritableRow,
+            let position = placement.listPosition
         else { return nil }
 
-        let headerNotes = anchor.headerNotes(in: snapshot.grid, notesColumn: day.columns.notes)
-        let setCount = anchor.prescribedSetCount(in: snapshot.grid, setsColumn: day.columns.sets)
-        let usesHeaderTarget =
-            anchor.row == target.row
-            && (anchor.usesCompactHeaderSetOne(headerNotes: headerNotes)
-                || SetLogToken.isCompactAggregateHeader(headerNotes.value, setCount: setCount))
-        let usesVisibleWritableTarget = anchor.row != target.row && headerNotes.hasProtectedValue
-        guard
-            setCount > 1,
-            request.setIndex < setCount,
-            usesHeaderTarget || usesVisibleWritableTarget
-        else { return nil }
-
-        var values = splitSheetNotesList(actual)
-        if values.count == 1, values[0].isEmpty {
-            values = []
-        }
-        if usesVisibleWritableTarget, !actual.isEmpty, !values.allSatisfy(SetLogToken.isSetLogListValue) {
+        var list = SetLogList(cell: actual)
+        if placement.kind == .protectedHeaderVisibleWritableRow,
+            !actual.isEmpty,
+            !list.tokens.allSatisfy(SetLogToken.isSetLogListValue)
+        {
             throw SheetWriterError.unexpectedCurrentValue(expected: request.expectedCurrentValue, actual: actual)
         }
-        while values.count <= request.setIndex {
-            values.append("")
-        }
 
-        let currentSetValue = values[request.setIndex]
+        let currentSetValue = list.token(at: position)
         guard currentSetValue == request.expectedCurrentValue else {
             throw SheetWriterError.unexpectedCurrentValue(
                 expected: request.expectedCurrentValue,
@@ -425,7 +337,31 @@ struct SheetWritePlanner: Sendable {
             )
         }
 
-        values[request.setIndex] = request.operation == .delete ? "" : (request.valueToWrite ?? "")
-        return joinedSheetNotesList(values)
+        list.setToken(request.operation == .delete ? "" : (request.valueToWrite ?? ""), at: position)
+        return list.cellValue
+    }
+
+    /// The Set-Log placement for this request, but only when it lands on the given `target` cell.
+    /// The list-value assembly and the diagnostics audit both read the Set's list position from this
+    /// one placement rather than re-deriving the addressing tree; a target that does not match (e.g. a
+    /// Last Set RPE cell) or an unresolvable placement yields nil so the caller falls through to the
+    /// direct-write path.
+    func placement(
+        for request: SheetWriteRequest,
+        target: SheetWriteTarget,
+        in snapshot: SheetWritePlanningSnapshot
+    ) -> SetLogPlacement? {
+        guard
+            let day = snapshot.layout.day(week: request.week, day: request.day),
+            let anchor = day.exerciseAnchors.first(where: { $0.name == request.exerciseName }),
+            case .placed(let placement) = anchor.setLogPlacement(
+                for: request.setIndex,
+                in: snapshot.snapshot,
+                cols: day.columns
+            ),
+            placement.row == target.row,
+            placement.col == target.col
+        else { return nil }
+        return placement
     }
 }
