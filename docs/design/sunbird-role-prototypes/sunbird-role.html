@@ -56,6 +56,9 @@ body[data-variant="c"]  #screen-stage,
 body[data-variant="d1"] #screen-stage,
 body[data-variant="d2"] #screen-stage { display: flex; }
 body[data-variant="a2"] #screen-a2    { display: flex; }
+body[data-variant="e1"] #screen-connect,
+body[data-variant="e2"] #screen-connect,
+body[data-variant="e3"] #screen-connect { display: flex; }
 
 /* per-variant furniture on the shared ceremony page */
 body:not([data-variant="b"]) .only-b  { display: none !important; }
@@ -64,6 +67,9 @@ body:not([data-variant="d1"]) .only-d1 { display: none !important; }
 body:not([data-variant="d2"]) .only-d2 { display: none !important; }
 body[data-variant="c"]       .only-ab { display: none !important; }
 body[data-variant="b"]       .plain-stats { display: none !important; }
+body:not([data-variant="e1"]) .only-e1 { display: none !important; }
+body:not([data-variant="e2"]) .only-e2 { display: none !important; }
+body:not([data-variant="e3"]) .only-e3 { display: none !important; }
 
 .num { font-variant-numeric: tabular-nums; }
 .muted { color: var(--muted); }
@@ -291,6 +297,78 @@ body[data-variant="c"] .growth { margin-top: 30px; }
   font-variant-numeric: tabular-nums;
 }
 
+/* ————— E: the Sheet-connect screen (first run + recovery) ————— */
+#screen-connect .col { padding: 0 36px; }
+
+#screen-connect .headline {
+  margin: 26px 0 0;
+  font-size: 36px;
+}
+
+.connect-copy {
+  margin: 15px auto 0;
+  max-width: 292px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+  text-align: center;
+}
+
+.herobird {
+  display: flex;
+  justify-content: center;
+}
+.herobird svg { display: block; }
+
+/* e1 — the monumental sun, cropped by the top of the frame.
+   svg 640px → disc 495px (1.26× screen width); svg top at -195 puts the
+   bird cutout at ~y 64–175 on screen and the disc's lower limb at ~372. */
+.sun-monumental {
+  position: absolute;
+  top: -195px;
+  left: 50%;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 12px 34px rgba(10, 36, 22, 0.32));
+}
+.sun-monumental svg { display: block; }
+body[data-variant="e1"] .time { color: var(--cream); z-index: 2; }
+body[data-variant="e1"] .herobird { margin-top: 404px; }
+
+/* the sun lights the room: a warm brightening of the paper around and
+   below the disc. Two soft radial washes, warm cream, no hard edges. */
+.roomlight {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle 310px at 50% 125px, rgba(255, 250, 222, 0.85) 0%, rgba(255, 249, 216, 0.30) 62%, rgba(255, 249, 216, 0) 100%),
+    radial-gradient(circle 580px at 50% 165px, rgba(248, 240, 199, 0.52) 0%, rgba(248, 240, 199, 0) 100%);
+}
+
+/* e2 — the sun contained: large but whole, floating in the upper third.
+   svg 300px → disc 232px (59% of screen width); disc spans y 98–330. */
+.sun-contained {
+  margin: 64px auto 0;
+  filter: drop-shadow(0 6px 18px rgba(10, 36, 22, 0.32));
+}
+.sun-contained svg { display: block; }
+body[data-variant="e2"] .herobird { margin-top: 4px; }
+.roomlight-soft {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle 260px at 50% 214px, rgba(255, 250, 222, 0.62) 0%, rgba(255, 249, 216, 0.20) 64%, rgba(255, 249, 216, 0) 100%),
+    radial-gradient(circle 430px at 50% 238px, rgba(248, 240, 199, 0.32) 0%, rgba(248, 240, 199, 0) 100%);
+}
+
+/* e3 — flat calm: bird only, mark as a small colophon near the foot. */
+body[data-variant="e3"] .spacer-above { flex: 1.9; }
+body[data-variant="e3"] .spacer-below { flex: 1; }
+#screen-connect .colophon { margin-bottom: 26px; }
+
+#screen-connect .cta { margin-bottom: 46px; }
+
 /* ————— switcher (NOT part of the design) ————— */
 .switcher {
   position: absolute;
@@ -340,6 +418,36 @@ body[data-variant="c"] .growth { margin-top: 30px; }
     <!-- the top-wing-edge contour, taut-above, for the B divider -->
     <path id="wingEdge" fill="none"
       d="M230 440C360 415 465 465 512 510C559 465 664 415 794 440"/>
+    <!-- icon glass physics (light mode): white top-light → darker base,
+         one off-axis white sheen, rim highlight ≈1% of diameter -->
+    <linearGradient id="glassGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4AA06C"/>
+      <stop offset="0.5" stop-color="#0E6E43"/>
+      <stop offset="1" stop-color="#084E2F"/>
+    </linearGradient>
+    <radialGradient id="sheenGrad" cx="0.34" cy="0.18" r="0.52">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rimGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.50"/>
+      <stop offset="0.4" stop-color="#FFFFFF" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <!-- e1 only: the sun's lower limb catches its own warm light -->
+    <linearGradient id="limbGlow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.68" stop-color="#FFF3C4" stop-opacity="0"/>
+      <stop offset="1" stop-color="#FFF3C4" stop-opacity="0.45"/>
+    </linearGradient>
+    <filter id="limbBlur" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+    <!-- the whole mark, glass-lit: disc WITH bird cutout, always together -->
+    <g id="sunbirdGlass">
+      <use href="#sunbirdDisc" fill="url(#glassGrad)"/>
+      <use href="#sunbirdDisc" fill="url(#sheenGrad)"/>
+      <circle cx="512" cy="512" r="391" fill="none" stroke="url(#rimGrad)" stroke-width="10"/>
+    </g>
   </defs>
 </svg>
 
@@ -452,6 +560,75 @@ body[data-variant="c"] .growth { margin-top: 30px; }
   </div>
 </section>
 
+<!-- ══════════ E — the Sheet-connect screen (variants E1 · E2 · E3) ══════════ -->
+<section class="screen" id="screen-connect">
+  <!-- the room, lit (behind everything) -->
+  <div class="roomlight only-e1"></div>
+  <div class="roomlight-soft only-e2"></div>
+
+  <!-- E1: the sun rises once — monumental, cropped by the frame -->
+  <div class="sun-monumental only-e1">
+    <svg width="640" height="640" viewBox="0 0 1024 1024" aria-label="Sunbird mark">
+      <use href="#sunbirdGlass"/>
+      <circle cx="512" cy="512" r="388" fill="none" stroke="url(#limbGlow)" stroke-width="14" filter="url(#limbBlur)"/>
+    </svg>
+  </div>
+
+  <div class="time num">21:41</div>
+  <div class="col">
+    <!-- E2: the sun, contained — large but whole in the upper third -->
+    <div class="sun-contained only-e2">
+      <svg width="300" height="300" viewBox="0 0 1024 1024" aria-label="Sunbird mark">
+        <use href="#sunbirdGlass"/>
+      </svg>
+    </div>
+
+    <div class="flex-grow spacer-above only-e3"></div>
+
+    <!-- the hero: the d2 songbird, enlarged, on a minimal sprig -->
+    <div class="herobird">
+      <svg width="340" height="148.75" viewBox="-80 -46 160 70" aria-label="Songbird on a sprig">
+        <path d="M -64 15 C -34 5, -6 1, 28 2.6 C 47 3.6, 58 7.5, 67 14"
+          fill="none" stroke="#0D6B40" stroke-width="1.5" stroke-linecap="round"/>
+        <g transform="translate(-44.4 9.3) rotate(118) scale(0.30) translate(0 -8)">
+          <use href="#leafShape" fill="#0D6B40"/>
+          <use href="#leafRib" stroke="rgba(242,247,232,0.5)" stroke-width="3.4"/>
+        </g>
+        <g transform="translate(51 6.3) rotate(48) scale(0.26) translate(0 -8)">
+          <use href="#leafShape" fill="#0D6B40"/>
+        </g>
+        <path fill="#0D6B40" d="M -33 -5
+          C -24 -10, -17 -14, -11 -18
+          C -7 -27, 0 -32, 8 -32
+          C 14 -32, 18.5 -29, 21 -25
+          L 29 -21.5
+          C 23.5 -18.5, 21 -16, 19 -12
+          C 16.5 -5, 11 -0.5, 3 0
+          C -2 0.3, -6.5 -1, -10.5 -3.5
+          C -14.5 -5.5, -19 -3, -23.5 -2.2
+          C -27 -1.8, -30.5 -3, -33 -5 Z"/>
+        <path fill="none" stroke="rgba(242,247,232,0.5)" stroke-width="1.5" stroke-linecap="round"
+          d="M 12 -19 C 4 -22, -4 -20, -11 -14"/>
+      </svg>
+    </div>
+
+    <h1 class="headline">Plant the program.</h1>
+    <p class="connect-copy">Connect the Sheet your coach programs. The&nbsp;app keeps it fresh and carries your logs&nbsp;back.</p>
+
+    <div class="flex-grow spacer-below"></div>
+
+    <!-- E3: the whole mark, small, as a quiet colophon near the foot -->
+    <div class="colophon only-e3">
+      <svg width="40" height="40" viewBox="0 0 1024 1024" aria-label="Sunbird mark">
+        <use href="#sunbirdGlass"/>
+      </svg>
+    </div>
+
+    <button class="cta">Connect Google Sheet</button>
+  </div>
+  <div class="home-indicator"></div>
+</section>
+
 <!-- switcher: deliberately foreign chrome, not part of the concept -->
 <nav class="switcher">
   <a id="sw-prev" href="?variant=a2">‹</a>
@@ -461,14 +638,17 @@ body[data-variant="c"] .growth { margin-top: 30px; }
 
 <script>
   // variant switching
-  const KEYS = ['a', 'a2', 'b', 'c', 'd1', 'd2'];
+  const KEYS = ['a', 'a2', 'b', 'c', 'd1', 'd2', 'e1', 'e2', 'e3'];
   const NAMES = {
     a:  'A · Whole sun only',
     b:  'B · Motif spread',
     c:  'C · The bird leaves the disc',
     a2: 'A2 · The bird in motion',
     d1: 'D1 · The mark’s bird alights',
-    d2: 'D2 · A bird drawn for the branch'
+    d2: 'D2 · A bird drawn for the branch',
+    e1: 'E1 · The sun rises once',
+    e2: 'E2 · The sun, contained',
+    e3: 'E3 · Flat calm'
   };
   const params = new URLSearchParams(location.search);
   const param = params.get('variant');

@@ -63,7 +63,7 @@ def png_write(path, w, h, bpp, rows):
            + chunk(b"IDAT", zlib.compress(body, 6)) + chunk(b"IEND", b""))
     pathlib.Path(path).write_bytes(out)
 
-ALL = ["a", "a2", "b", "c", "d1", "d2"]
+ALL = ["a", "a2", "b", "c", "d1", "d2", "e1", "e2", "e3"]
 variants = sys.argv[1:] or ALL
 assert all(v in ALL for v in variants), variants
 for v in variants:
