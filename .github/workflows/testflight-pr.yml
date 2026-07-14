@@ -171,7 +171,8 @@ jobs:
             -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}" \
             BUNDLE_ID_SUFFIX=.dev \
             APP_DISPLAY_NAME="WT Dev" \
-            APPICON_NAME=AppIconDev
+            APPICON_NAME=AppIconDev \
+            ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS=NO
 
       - name: Export .ipa
         run: |
