@@ -178,6 +178,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
+      # Checkout before the artifact download (checkout cleans the workspace) so
+      # the best-effort notes script below is available.
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           name: stable-ipa
@@ -207,6 +211,11 @@ jobs:
             const url = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/commit/${context.sha}`;
             core.setOutput('notes', `main @ ${shortSha} — ${subject}\n${url}`);
 
+      # release-notes is set separately below, not here: the action's own note
+      # write polls a beta-localization record that lags ~10 min on a new app's
+      # first builds and would fail an upload that actually succeeded. Keeping
+      # wait-for-processing means genuine processing/validation failures still
+      # fail the job.
       - name: Upload to TestFlight and wait for processing
         uses: apple-actions/upload-testflight-build@v5
         with:
@@ -214,5 +223,17 @@ jobs:
           issuer-id: ${{ secrets.ASC_ISSUER_ID }}
           api-key-id: ${{ secrets.ASC_KEY_ID }}
           api-private-key: ${{ secrets.ASC_PRIVATE_KEY }}
-          release-notes: ${{ steps.notes.outputs.notes }}
           wait-for-processing: true
+
+      # Best-effort: the build is already on TestFlight and VALID, so a slow or
+      # missing localization record must not fail the job. See the script header.
+      - name: Attach "What to Test" notes (best-effort)
+        continue-on-error: true
+        env:
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          BUNDLE_ID: com.sunnypatel.WorkoutTracker
+          BUILD_VERSION: ${{ github.run_number }}
+          WHAT_TO_TEST: ${{ steps.notes.outputs.notes }}
+        run: node scripts/ci/attach-testflight-notes.mjs
