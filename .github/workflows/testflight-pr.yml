@@ -93,6 +93,15 @@ jobs:
           printf 'GID_CLIENT_ID = %s\nGID_REVERSED_CLIENT_ID = %s\n' \
             "$DEV_GID_CLIENT_ID" "$DEV_GID_REVERSED_CLIENT_ID" > Secrets.xcconfig
 
+      # actool in the runner's Xcode (26.5) cannot open the repo's Icon
+      # Composer documents during the thinned device compile ("Cannot Open
+      # AppIconDev.icon" + nil-insert crash), though simulator builds accept
+      # them. Drop them before generating the project so release builds ship
+      # the raster .appiconset fallbacks; the glass icons stay in the repo
+      # for local builds until re-authored in Icon Composer.
+      - name: Use raster app icons (drop Icon Composer documents)
+        run: rm -rf WorkoutTracker/AppIcon.icon WorkoutTracker/AppIconDev.icon
+
       - name: Generate Xcode project
         run: |
           which xcodegen >/dev/null 2>&1 || brew install xcodegen
@@ -171,8 +180,7 @@ jobs:
             -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}" \
             BUNDLE_ID_SUFFIX=.dev \
             APP_DISPLAY_NAME="WT Dev" \
-            APPICON_NAME=AppIconDev \
-            ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS=NO
+            APPICON_NAME=AppIconDev
 
       - name: Export .ipa
         run: |
