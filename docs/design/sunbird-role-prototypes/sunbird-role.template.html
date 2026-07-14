@@ -52,12 +52,16 @@ body {
 }
 body[data-variant="a"]  #screen-stage,
 body[data-variant="b"]  #screen-stage,
-body[data-variant="c"]  #screen-stage { display: flex; }
+body[data-variant="c"]  #screen-stage,
+body[data-variant="d1"] #screen-stage,
+body[data-variant="d2"] #screen-stage { display: flex; }
 body[data-variant="a2"] #screen-a2    { display: flex; }
 
 /* per-variant furniture on the shared ceremony page */
 body:not([data-variant="b"]) .only-b  { display: none !important; }
 body:not([data-variant="c"]) .only-c  { display: none !important; }
+body:not([data-variant="d1"]) .only-d1 { display: none !important; }
+body:not([data-variant="d2"]) .only-d2 { display: none !important; }
 body[data-variant="c"]       .only-ab { display: none !important; }
 body[data-variant="b"]       .plain-stats { display: none !important; }
 
@@ -145,6 +149,28 @@ body[data-variant="c"] .growth { margin-top: 30px; }
   left: 58px;
   transform: rotate(-13deg);
   transform-origin: 50% 50%;
+}
+
+/* D1 only: the mark's own glyph, small, alighting just above the branch tip.
+   The stem tip is at (292, 22) in growth-svg coords; the glyph hovers ~16px
+   above it, rotated to the stem's rising tangent (~-19° at the tip). */
+.tipbird-glide {
+  position: absolute;
+  top: -7px;
+  left: 272px;
+  transform: rotate(-17deg);
+  transform-origin: 50% 50%;
+}
+
+/* D2 only: a quiet perched bird drawn for the branch. Its local origin
+   (belly/branch contact) sits inside its svg at (36, 36); positioned so that
+   origin lands on the stem tip, then leaned gently with the branch. */
+.tipbird-perch {
+  position: absolute;
+  top: -14px;
+  left: 255px;
+  transform: rotate(-8deg);
+  transform-origin: 36px 36px;
 }
 
 .topline {
@@ -353,6 +379,26 @@ body[data-variant="c"] .growth { margin-top: 30px; }
       <svg class="freebird only-c" width="88" height="29" viewBox="224 407 576 191" aria-label="Sunbird, free-flying">
         <use href="#birdShape" fill="#0D6B40"/>
       </svg>
+      <!-- D1: the mark's own bird, small, alighting just above the branch tip -->
+      <svg class="tipbird-glide only-d1" width="52" height="16.3" viewBox="230 415 564 177" aria-label="Sunbird, alighting at the tip">
+        <use href="#birdShape" fill="#0D6B40"/>
+      </svg>
+      <!-- D2: a quiet songbird drawn for the branch — 3 closed curves, leaf ink,
+           cream rib-hint for the wing; perched on the stem tip -->
+      <svg class="tipbird-perch only-d2" width="70" height="40" viewBox="-36 -36 70 40" aria-label="Bird perched on the branch tip">
+        <path fill="#0D6B40" d="M -33 -5
+          C -24 -10, -17 -14, -11 -18
+          C -7 -27, 0 -32, 8 -32
+          C 14 -32, 18.5 -29, 21 -25
+          L 29 -21.5
+          C 23.5 -18.5, 21 -16, 19 -12
+          C 16.5 -5, 11 -0.5, 3 0
+          C -2 0.3, -6.5 -1, -10.5 -3.5
+          C -14.5 -5.5, -19 -3, -23.5 -2.2
+          C -27 -1.8, -30.5 -3, -33 -5 Z"/>
+        <path fill="none" stroke="rgba(242,247,232,0.5)" stroke-width="1.6" stroke-linecap="round"
+          d="M 12 -19 C 4 -22, -4 -20, -11 -14"/>
+      </svg>
     </div>
 
     <p class="topline num">Bench 92.5&thinsp;×&thinsp;5 @8 topped last week&rsquo;s 90.</p>
@@ -415,12 +461,14 @@ body[data-variant="c"] .growth { margin-top: 30px; }
 
 <script>
   // variant switching
-  const KEYS = ['a', 'b', 'c', 'a2'];
+  const KEYS = ['a', 'a2', 'b', 'c', 'd1', 'd2'];
   const NAMES = {
     a:  'A · Whole sun only',
     b:  'B · Motif spread',
     c:  'C · The bird leaves the disc',
-    a2: 'A2 · The bird in motion'
+    a2: 'A2 · The bird in motion',
+    d1: 'D1 · The mark’s bird alights',
+    d2: 'D2 · A bird drawn for the branch'
   };
   const params = new URLSearchParams(location.search);
   const param = params.get('variant');
@@ -447,16 +495,20 @@ body[data-variant="c"] .growth { margin-top: 30px; }
     if (!svg || !stem) return;
     const L = stem.getTotalLength();
     const TOTAL = 16, LOGGED = 14;
+    // d2: the perched bird owns the tip, so the two buds tuck just under the
+    // stem ahead of the last leaf — same count, same size, minimally moved.
+    const perch = key === 'd2';
     for (let i = 0; i < TOTAL; i++) {
       const isBud = i >= LOGGED;
       const t = isBud
-        ? (i === LOGGED ? 0.945 : 0.99)
+        ? (perch ? (i === LOGGED ? 0.905 : 0.95)
+                 : (i === LOGGED ? 0.945 : 0.99))
         : 0.05 + 0.835 * (i / (LOGGED - 1));
       const p = stem.getPointAtLength(t * L);
       const q = stem.getPointAtLength(Math.min(L, t * L + 1.5));
       const ang = Math.atan2(q.y - p.y, q.x - p.x) * 180 / Math.PI;
-      const side = i % 2 === 0 ? -1 : 1;      // alternate across the stem
-      const spread = isBud ? 22 : 44 + (i % 3) * 4;
+      const side = isBud && perch ? 1 : (i % 2 === 0 ? -1 : 1); // alternate across the stem
+      const spread = isBud ? (perch ? (i === LOGGED ? 32 : 24) : 22) : 44 + (i % 3) * 4;
       const rot = ang + side * spread;
       const s = isBud ? (i === LOGGED ? 0.28 : 0.22) : 0.72 - 0.32 * (i / (LOGGED - 1));
       const g = document.createElementNS(NS, 'g');

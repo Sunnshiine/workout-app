@@ -3,7 +3,7 @@
 # pre-installed headless Chromium at 393x852 css / deviceScaleFactor 3 and
 # crops the result to exactly 1179x2556 (pure-python PNG crop; the bundled
 # ffmpeg rejects Chromium's PNG output).
-import pathlib, struct, subprocess, zlib
+import pathlib, struct, subprocess, sys, zlib
 
 here = pathlib.Path(__file__).parent
 CHROMIUM = "/opt/pw-browsers/chromium"
