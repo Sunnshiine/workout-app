@@ -67,6 +67,15 @@ jobs:
                     f'platform={a.get("platform")}  expires={a.get("expirationDate")}  '
                     f'name={a.get("displayName")!r}')
 
+          r = requests.get(f"{api}/devices?limit=200", headers=headers)
+          r.raise_for_status()
+          print("\n== Devices ==")
+          for d in r.json()["data"]:
+              a = d["attributes"]
+              print(f'{d["id"]:12}  class={a.get("deviceClass")}  '
+                    f'platform={a.get("platform")}  status={a.get("status")}  '
+                    f'name={a.get("name")!r}')
+
           r = requests.get(f"{api}/bundleIds?limit=200", headers=headers)
           r.raise_for_status()
           print("\n== Bundle IDs (registered App IDs) ==")
