@@ -63,7 +63,10 @@ def png_write(path, w, h, bpp, rows):
            + chunk(b"IDAT", zlib.compress(body, 6)) + chunk(b"IEND", b""))
     pathlib.Path(path).write_bytes(out)
 
-for v in ["a", "a2", "b", "c"]:
+ALL = ["a", "a2", "b", "c", "d1", "d2"]
+variants = sys.argv[1:] or ALL
+assert all(v in ALL for v in variants), variants
+for v in variants:
     raw = f"/tmp/sunbird-raw-{v}.png"
     url = f"file://{here / 'sunbird-role.html'}?variant={v}&shot=1"
     subprocess.run(
