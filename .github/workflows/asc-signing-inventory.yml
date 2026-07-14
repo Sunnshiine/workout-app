@@ -25,6 +25,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      # Presence booleans only — never values. Answers "are the signing
+      # secrets the TestFlight workflows expect actually configured?"
+      - name: Check signing secret presence
+        env:
+          HAS_DIST_P12: ${{ secrets.DIST_CERT_P12_BASE64 != '' }}
+          HAS_DIST_PW: ${{ secrets.DIST_CERT_PASSWORD != '' }}
+          HAS_DEV_P12: ${{ secrets.DEV_CERT_P12_BASE64 != '' }}
+          HAS_DEV_PW: ${{ secrets.DEV_CERT_PASSWORD != '' }}
+        run: |
+          echo "DIST_CERT_P12_BASE64 set: $HAS_DIST_P12"
+          echo "DIST_CERT_PASSWORD  set: $HAS_DIST_PW"
+          echo "DEV_CERT_P12_BASE64  set: $HAS_DEV_P12"
+          echo "DEV_CERT_PASSWORD   set: $HAS_DEV_PW"
+
       - name: List certificates and profiles
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
