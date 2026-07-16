@@ -105,4 +105,4 @@ This is a single-context repo: read root `CONTEXT.md` for domain language and ro
 
 ### Prototyping
 
-The review surface is an iPhone, so a UI prototype from the `/prototype` skill must render there — verify at an iPhone viewport before handover. Run `npm run prototype:capture -- <file>` to screenshot every `?variant=` at a current-generation iPhone descriptor, and embed the screenshots in the issue comment, since that's where review actually happens.
+The review surface is an iPhone. A UI prototype from the `/prototype` skill has two render targets: an **HTML render** for questions a screenshot can settle (layout, hierarchy), or a **device build** — a throwaway PR shipped to the phone via the `testflight` label — for questions of feel (materials, motion, gestures). Pick the target per `docs/agents/prototyping.md` before building; it owns the decision test and both flows.
