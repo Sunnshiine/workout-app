@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=393, initial-scale=1">
+<title>SUNBIRD MOMENTS — the Two Perches in the final language (#414)</title>
+<style>
+/* THROWAWAY PROTOTYPE — issue #414.
+   The Two Perches (#412) rebuilt in the post-#413 language, switchable via
+   ?variant= :
+     a — Move On ceremony, earned day: bird at the branch tip, no colophon
+         (the Two Perches rule removed it), highlight line present
+     b — Move On ceremony, ordinary day: the curdle test — no highlight,
+         two Skipped Sets on the branch, the same fixed bird
+     c — Sheet-connect, flat calm: the locked E3 composition on final tokens,
+         hero bird + 40pt whole-mark colophon (≥28pt honesty floor)
+     d — a's ceremony under the #418 night recipe: the bird re-lit, never
+         recolored (moonlit-foliage ink, cream wing-hint)
+     e — c's connect screen at night: moonlit bird, the glass mark keeps its
+         own greens
+*/
+/*__FONTS__*/
+:root {
+  --paper-top: #E8EDDB;
+  --paper-bottom: #C7E0BF;
+  --ink: #152118;
+  --muted: #526457;
+  --action: #0D6B40;
+  --action-text: #F2F7E8;
+  --cream: #F2F7E8;
+  --surface: rgba(242, 247, 232, 0.52);
+  --surface-shadow: 0 1px 2px rgba(21, 33, 24, 0.04), 0 14px 30px rgba(21, 33, 24, 0.07);
+  --cta-shadow: 0 1px 2px rgba(13, 46, 28, 0.22), 0 10px 22px rgba(13, 60, 35, 0.16);
+  --stem: #0D6B40;
+  --leaf-fill: #0D6B40;
+  --leaf-rib: rgba(242, 247, 232, 0.5);
+  --skip-stroke: rgba(82, 100, 87, 0.42);
+  --bird-fill: #0D6B40;
+  --bird-rib: rgba(242, 247, 232, 0.5);
+  --home-bar: rgba(21, 33, 24, 0.20);
+}
+/* night — the #418 D recipe: hue-preserved deep sage, re-lit never recolored */
+body[data-variant="d"], body[data-variant="e"] {
+  --paper-top: #232C20;
+  --paper-bottom: #121D14;
+  --ink: #EFF3E3;
+  --muted: #9AAA9B;
+  --action: #1F8552;
+  --action-text: #F2F7E8;
+  --cream: #F2F7E8;
+  --surface: rgba(242, 247, 232, 0.07);
+  --surface-shadow: inset 0 0 0 1px rgba(242, 247, 232, 0.10);
+  --cta-shadow: 0 0 22px rgba(31, 133, 82, 0.35);
+  --stem: #579168;
+  --leaf-fill: #579168;
+  --leaf-rib: rgba(242, 247, 232, 0.55);
+  --skip-stroke: rgba(154, 170, 155, 0.40);
+  --bird-fill: #579168;
+  --bird-rib: rgba(242, 247, 232, 0.55);
+  --home-bar: rgba(242, 247, 232, 0.22);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  position: relative; /* anchor the absolute switcher to the 852px page */
+  width: 393px;
+  height: 852px;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--paper-top) 0%, var(--paper-bottom) 100%);
+  color: var(--ink);
+  font-family: 'Source Sans 3', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.screen { display: none; flex-direction: column; width: 393px; height: 852px; position: relative; }
+body[data-variant="a"] #screen-cer-earned,
+body[data-variant="d"] #screen-cer-earned { display: flex; }
+body[data-variant="b"] #screen-cer-ordinary { display: flex; }
+body[data-variant="c"] #screen-connect,
+body[data-variant="e"] #screen-connect { display: flex; }
+
+.num { font-variant-numeric: tabular-nums; }
+
+.time {
+  position: absolute; top: 21px; left: 36px;
+  font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.home-indicator {
+  position: absolute; bottom: 9px; left: 50%; transform: translateX(-50%);
+  width: 134px; height: 5px; border-radius: 3px; background: var(--home-bar);
+}
+
+.col { display: flex; flex-direction: column; height: 100%; padding: 0 36px; }
+.flex-grow { flex: 1; }
+
+.runline {
+  margin-top: 72px;
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.runline .right { color: var(--muted); font-weight: 500; }
+
+/* ————— the Move On ceremony ————— */
+h1.headline {
+  margin: 18px 0 0;
+  font-family: 'Fraunces', serif;
+  font-variation-settings: "opsz" 30, "wght" 490, "SOFT" 100, "WONK" 0;
+  font-size: 38px; line-height: 1.10; letter-spacing: 0;
+  color: var(--ink); text-align: center;
+}
+
+.growth { position: relative; margin: 16px auto 0; }
+.growth svg { display: block; }
+
+/* the perched bird owns the branch tip; its belly/branch contact origin sits
+   at (36,36) inside its svg, landed on the stem tip (292,22), leaned with
+   the branch */
+.tipbird-perch {
+  position: absolute;
+  top: -14px; left: 255px;
+  transform: rotate(-8deg);
+  transform-origin: 36px 36px;
+}
+
+.topline {
+  margin: 14px 0 0;
+  font-size: 13.5px; line-height: 1.5; color: var(--muted);
+  text-align: center; font-variant-numeric: tabular-nums;
+}
+
+/* the one stats block — soft surface, no column rules */
+.stats {
+  margin-top: 18px;
+  display: flex;
+  background: var(--surface);
+  border-radius: 30px;
+  padding: 17px 8px 15px;
+  box-shadow: var(--surface-shadow);
+}
+.stats .stat { flex: 1; text-align: center; }
+.stats .v { font-size: 26px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.stats .k { margin-top: 5px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+
+.cta {
+  display: block; width: 100%; height: 60px;
+  border: 0; border-radius: 999px;
+  background: var(--action); color: var(--action-text);
+  font-family: 'Source Sans 3', sans-serif;
+  font-size: 18px; font-weight: 650; letter-spacing: 0.01em;
+  box-shadow: var(--cta-shadow);
+  margin-bottom: 46px;
+}
+
+/* ————— the Sheet-connect screen (flat calm, E3) ————— */
+#screen-connect .headline { margin: 26px 0 0; font-size: 36px; }
+.connect-copy {
+  margin: 15px auto 0; max-width: 292px;
+  font-size: 14px; line-height: 1.55; color: var(--muted); text-align: center;
+}
+.herobird { display: flex; justify-content: center; }
+.herobird svg { display: block; }
+#screen-connect .spacer-above { flex: 1.9; }
+#screen-connect .spacer-below { flex: 1; }
+.colophon { margin: 0 auto 26px; display: flex; justify-content: center; }
+.colophon svg { display: block; }
+
+/* ————— switcher (NOT part of the design) ————— */
+.switcher {
+  position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+  z-index: 99; display: flex; align-items: center; gap: 2px;
+  background: #111; color: #fff; border-radius: 999px; padding: 4px 6px;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.5);
+}
+.switcher a { color: #fff; text-decoration: none; padding: 2px 8px; font-size: 14px; line-height: 1; }
+.switcher .label { padding: 0 6px; white-space: nowrap; }
+</style>
+</head>
+<body data-variants="a,b,c,d,e" data-variant="a">
+
+<!-- shared geometry: the Greenhouse leaf; the whole Sunbird mark (disc WITH
+     bird cutout, per the audit — never disc-only); the d2 perched songbird -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <path id="leafShape" d="M0 8 C 15 2.3, 41 3.3, 60 8 C 41 21.7, 15 22.6, 0 8 Z"/>
+    <path id="leafRib" d="M4 8.1 C 20 9.8, 40 9.6, 56 8.1" fill="none"/>
+    <path id="sunbirdDisc" fill-rule="evenodd"
+      d="M116 512a396 396 0 1 0 792 0a396 396 0 1 0-792 0ZM230 440C360 415 465 465 512 510C559 465 664 415 794 440C686 470 592 518 512 592C432 518 338 470 230 440Z"/>
+    <!-- icon glass physics (the icon's glass greens stay on the icon) -->
+    <linearGradient id="glassGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4AA06C"/>
+      <stop offset="0.5" stop-color="#0E6E43"/>
+      <stop offset="1" stop-color="#084E2F"/>
+    </linearGradient>
+    <radialGradient id="sheenGrad" cx="0.34" cy="0.18" r="0.52">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rimGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.50"/>
+      <stop offset="0.4" stop-color="#FFFFFF" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <g id="sunbirdGlass">
+      <use href="#sunbirdDisc" fill="url(#glassGrad)"/>
+      <use href="#sunbirdDisc" fill="url(#sheenGrad)"/>
+      <circle cx="512" cy="512" r="391" fill="none" stroke="url(#rimGrad)" stroke-width="10"/>
+    </g>
+    <!-- the accepted d2 songbird — one fixed, eyeless silhouette -->
+    <path id="perchBird" d="M -33 -5
+      C -24 -10, -17 -14, -11 -18
+      C -7 -27, 0 -32, 8 -32
+      C 14 -32, 18.5 -29, 21 -25
+      L 29 -21.5
+      C 23.5 -18.5, 21 -16, 19 -12
+      C 16.5 -5, 11 -0.5, 3 0
+      C -2 0.3, -6.5 -1, -10.5 -3.5
+      C -14.5 -5.5, -19 -3, -23.5 -2.2
+      C -27 -1.8, -30.5 -3, -33 -5 Z"/>
+    <path id="perchBirdRib" fill="none" stroke-linecap="round"
+      d="M 12 -19 C 4 -22, -4 -20, -11 -14"/>
+  </defs>
+</svg>
+
+<!-- ══════════ the Move On ceremony — earned day (a light · d night) ══════════ -->
+<section class="screen" id="screen-cer-earned">
+  <div class="time num">9:41</div>
+  <div class="col">
+    <div class="runline">
+      <span class="num">Block 27 · Week 2 · Day 2</span>
+      <span class="right">Move On</span>
+    </div>
+
+    <div class="flex-grow" style="flex:0.85"></div>
+
+    <h1 class="headline">Day 2, done.</h1>
+
+    <div class="growth">
+      <svg id="growth-earned" width="321" height="232" viewBox="0 0 321 232">
+        <path id="stem-earned" d="M 22 224 C 36 160, 92 90, 292 22" fill="none" stroke="var(--stem)" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <svg class="tipbird-perch" width="70" height="40" viewBox="-36 -36 70 40" aria-label="Bird perched on the branch tip">
+        <use href="#perchBird" fill="var(--bird-fill)"/>
+        <use href="#perchBirdRib" stroke="var(--bird-rib)" stroke-width="1.6"/>
+      </svg>
+    </div>
+
+    <p class="topline num">Bench 92.5&thinsp;×&thinsp;5 @8 topped last week&rsquo;s 90.</p>
+
+    <div class="stats num">
+      <div class="stat"><div class="v">14</div><div class="k">Sets</div></div>
+      <div class="stat"><div class="v">4</div><div class="k">Exercises</div></div>
+      <div class="stat"><div class="v">0</div><div class="k">Left</div></div>
+    </div>
+
+    <div class="flex-grow"></div>
+
+    <button class="cta">Continue</button>
+  </div>
+  <div class="home-indicator"></div>
+</section>
+
+<!-- ══════════ the Move On ceremony — ordinary day (b): the curdle test ══════════ -->
+<section class="screen" id="screen-cer-ordinary">
+  <div class="time num">9:41</div>
+  <div class="col">
+    <div class="runline">
+      <span class="num">Block 27 · Week 3 · Day 1</span>
+      <span class="right">Move On</span>
+    </div>
+
+    <div class="flex-grow" style="flex:0.85"></div>
+
+    <h1 class="headline">Day 1, done.</h1>
+
+    <div class="growth">
+      <svg id="growth-ordinary" width="321" height="232" viewBox="0 0 321 232">
+        <path id="stem-ordinary" d="M 22 224 C 36 160, 92 90, 292 22" fill="none" stroke="var(--stem)" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <svg class="tipbird-perch" width="70" height="40" viewBox="-36 -36 70 40" aria-label="Bird perched on the branch tip">
+        <use href="#perchBird" fill="var(--bird-fill)"/>
+        <use href="#perchBirdRib" stroke="var(--bird-rib)" stroke-width="1.6"/>
+      </svg>
+    </div>
+
+    <!-- no highlight line — nothing topped last week; the day was just done -->
+
+    <div class="stats num" style="margin-top:24px">
+      <div class="stat"><div class="v">12</div><div class="k">Sets</div></div>
+      <div class="stat"><div class="v">4</div><div class="k">Exercises</div></div>
+      <div class="stat"><div class="v">0</div><div class="k">Left</div></div>
+    </div>
+
+    <div class="flex-grow"></div>
+
+    <button class="cta">Continue</button>
+  </div>
+  <div class="home-indicator"></div>
+</section>
+
+<!-- ══════════ the Sheet-connect screen — flat calm (c light · e night) ══════════ -->
+<section class="screen" id="screen-connect">
+  <div class="time num">9:41</div>
+  <div class="col">
+    <div class="flex-grow spacer-above"></div>
+
+    <!-- the hero: the d2 songbird, enlarged, on a minimal sprig -->
+    <div class="herobird">
+      <svg width="340" height="148.75" viewBox="-80 -46 160 70" aria-label="Songbird on a sprig">
+        <path d="M -64 15 C -34 5, -6 1, 28 2.6 C 47 3.6, 58 7.5, 67 14"
+          fill="none" stroke="var(--stem)" stroke-width="1.5" stroke-linecap="round"/>
+        <g transform="translate(-44.4 9.3) rotate(118) scale(0.30) translate(0 -8)">
+          <use href="#leafShape" fill="var(--leaf-fill)"/>
+          <use href="#leafRib" stroke="var(--leaf-rib)" stroke-width="3.4"/>
+        </g>
+        <g transform="translate(51 6.3) rotate(48) scale(0.26) translate(0 -8)">
+          <use href="#leafShape" fill="var(--leaf-fill)"/>
+        </g>
+        <use href="#perchBird" fill="var(--bird-fill)"/>
+        <use href="#perchBirdRib" stroke="var(--bird-rib)" stroke-width="1.5"/>
+      </svg>
+    </div>
+
+    <h1 class="headline">Plant the program.</h1>
+    <p class="connect-copy">Connect the Sheet your coach programs. The&nbsp;app keeps it fresh and carries your logs&nbsp;back.</p>
+
+    <div class="flex-grow spacer-below"></div>
+
+    <!-- the whole mark, small, as a quiet colophon — 40pt, above the 28pt floor -->
+    <div class="colophon">
+      <svg width="40" height="40" viewBox="0 0 1024 1024" aria-label="Sunbird mark">
+        <use href="#sunbirdGlass"/>
+      </svg>
+    </div>
+
+    <button class="cta">Connect Google Sheet</button>
+  </div>
+  <div class="home-indicator"></div>
+</section>
+
+<nav class="switcher">
+  <a id="sw-prev" href="#">‹</a>
+  <span class="label" id="sw-label"></span>
+  <a id="sw-next" href="#">›</a>
+</nav>
+
+<script>
+  const KEYS = ['a', 'b', 'c', 'd', 'e'];
+  const NAMES = {
+    a: 'A · Ceremony — earned day',
+    b: 'B · Ceremony — ordinary day',
+    c: 'C · Connect — flat calm',
+    d: 'D · Ceremony — night',
+    e: 'E · Connect — night'
+  };
+  const param = new URLSearchParams(location.search).get('variant');
+  const key = KEYS.includes(param) ? param : 'a';
+  document.body.dataset.variant = key;
+  const i = KEYS.indexOf(key);
+  document.getElementById('sw-label').textContent = NAMES[key];
+  document.getElementById('sw-prev').href = '?variant=' + KEYS[(i + KEYS.length - 1) % KEYS.length];
+  document.getElementById('sw-next').href = '?variant=' + KEYS[(i + 1) % KEYS.length];
+
+  // night screens carry a night clock
+  if (key === 'd' || key === 'e') {
+    document.querySelectorAll('.time').forEach(el => { el.textContent = '21:14'; });
+  }
+
+  // the ceremony branch, fully grown: colors ride on CSS variables so the
+  // night recipe re-lights the same drawing (read AFTER data-variant is set)
+  const css = getComputedStyle(document.body);
+  const C = (name) => css.getPropertyValue(name).trim();
+  const NS = 'http://www.w3.org/2000/svg';
+  function drawBranch(svgId, stemId, nodes) {
+    const svg = document.getElementById(svgId);
+    const stem = document.getElementById(stemId);
+    if (!svg || !stem) return;
+    const L = stem.getTotalLength();
+    nodes.forEach((n, i) => {
+      const p = stem.getPointAtLength(n.t * L);
+      const q = stem.getPointAtLength(Math.min(L, n.t * L + 1.5));
+      const ang = Math.atan2(q.y - p.y, q.x - p.x) * 180 / Math.PI;
+      const side = i % 2 === 0 ? -1 : 1; // alternate across the stem
+      const rot = ang + side * n.spread;
+      const g = document.createElementNS(NS, 'g');
+      g.setAttribute('transform',
+        'translate(' + p.x + ' ' + p.y + ') rotate(' + rot + ') scale(' + n.s + ') translate(0 -8)');
+      const use = (href, attrs) => {
+        const el = document.createElementNS(NS, 'use');
+        el.setAttribute('href', href);
+        for (const k in attrs) el.setAttribute(k, attrs[k]);
+        g.appendChild(el);
+      };
+      if (n.kind === 'skipped') {
+        // a Skipped Set is a dashed-outline leaf — state, never judgement
+        use('#leafShape', { fill: 'none', stroke: C('--skip-stroke'), 'stroke-width': (1.2 / n.s).toFixed(2), 'stroke-dasharray': (5 / n.s).toFixed(2) + ' ' + (4 / n.s).toFixed(2) });
+      } else {
+        use('#leafShape', { fill: C('--leaf-fill') });
+        use('#leafRib', { stroke: C('--leaf-rib'), 'stroke-width': (1.1 / n.s).toFixed(2) });
+      }
+      svg.appendChild(g);
+    });
+  }
+
+  // 14 Sets, every one logged: sizes taper toward the tip, where the bird sits
+  const leaf = (t, i, kind) => ({
+    t, kind, s: 0.72 - 0.32 * (i / 13), spread: 44 + (i % 3) * 4
+  });
+  const fourteen = (skips) => Array.from({ length: 14 }, (_, i) =>
+    leaf(0.05 + 0.835 * (i / 13), i, skips.includes(i) ? 'skipped' : 'leaf'));
+  drawBranch('growth-earned', 'stem-earned', fourteen([]));
+  // ordinary day: Sets 5 and 10 skipped
+  drawBranch('growth-ordinary', 'stem-ordinary', fourteen([4, 9]));
+</script>
+</body>
+</html>
