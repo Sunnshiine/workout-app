@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=393, initial-scale=1">
+<title>EXERCISE HISTORY — Greenhouse prototype (#419)</title>
+<style>
+/* THROWAWAY PROTOTYPE — issue #419.
+   The Exercise History sheet re-voiced for Greenhouse: the hairline-and-
+   smallcaps vocabulary is gone from the direction; what replaces it while the
+   sheet stays quiet, dense reference? History Row Never Wraps and the no-mint
+   reference register are non-negotiable. Switchable via ?variant= :
+     a — whitespace ledger: grouping by air + sentence-case muted Block
+         headers; no rules, no surfaces
+     b — soft groups: each Block group on one quiet rounded surface — the
+         stage's rounded-soft grammar as the grouping tool
+     c — recency list: no Block grouping at all; one strict-recency list,
+         Block folded into each entry's gutter
+     d — night: the winning structure re-lit with the #418 D recipe
+*/
+/*__FONTS__*/
+:root {
+  --paper-top: #E8EDDB;
+  --paper-bottom: #C7E0BF;
+  --ink: #152118;
+  --muted: #526457;
+  --cream: #F2F7E8;
+  --sheet-fill: #EFF4E4;
+  --sheet-shadow: 0 -8px 40px rgba(21, 33, 24, 0.18);
+  --grabber: rgba(21, 33, 24, 0.18);
+  --scrim: rgba(21, 33, 24, 0.32);
+  --group-fill: rgba(242, 247, 232, 0.62);
+  --group-shadow: 0 1px 2px rgba(21, 33, 24, 0.03), 0 8px 20px rgba(21, 33, 24, 0.05);
+  --home-bar: rgba(242, 247, 232, 0.7);
+}
+/* night edition — the #418 D recipe, re-lit never recolored */
+body[data-variant="d"] {
+  --paper-top: #232C20;
+  --paper-bottom: #121D14;
+  --ink: #EFF3E3;
+  --muted: #9AAA9B;
+  --cream: #F2F7E8;
+  --sheet-fill: #1B241B;
+  --sheet-shadow: 0 -8px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(242, 247, 232, 0.07);
+  --grabber: rgba(242, 247, 232, 0.22);
+  --scrim: rgba(0, 0, 0, 0.45);
+  --group-fill: rgba(242, 247, 232, 0.05);
+  --group-shadow: inset 0 0 0 1px rgba(242, 247, 232, 0.08);
+  --home-bar: rgba(242, 247, 232, 0.25);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  position: relative;
+  width: 393px;
+  height: 852px;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--paper-top) 0%, var(--paper-bottom) 100%);
+  color: var(--ink);
+  font-family: 'Source Sans 3', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.screen { display: none; width: 393px; height: 852px; position: relative; }
+body[data-variant="a"] #screen-a { display: block; }
+body[data-variant="b"] #screen-b { display: block; }
+body[data-variant="c"] #screen-c { display: block; }
+body[data-variant="d"] #screen-d { display: block; }
+
+.num { font-variant-numeric: tabular-nums; }
+
+/* the stage behind the sheet, dimmed — context, not content */
+.stage-behind { position: absolute; inset: 0; padding: 0 32px; }
+.stage-behind .time {
+  position: absolute; top: 21px; left: 36px;
+  font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.stage-behind .runline {
+  display: flex; justify-content: space-between;
+  margin-top: 68px;
+  font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.stage-behind .runline .right { color: var(--muted); font-weight: 500; }
+.stage-behind .cadence { margin: 30px 0 0; font-size: 14px; font-weight: 600; color: var(--muted); }
+.stage-behind h1 {
+  margin: 6px 0 0;
+  font-family: 'Fraunces', serif;
+  font-variation-settings: "opsz" 30, "wght" 490, "SOFT" 100, "WONK" 0;
+  font-size: 33px; font-weight: 490; line-height: 1.10;
+}
+.scrim { position: absolute; inset: 0; background: var(--scrim); }
+
+/* ————— the sheet: .medium detent ————— */
+.sheet {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 472px;
+  background: var(--sheet-fill);
+  border-radius: 30px 30px 0 0;
+  box-shadow: var(--sheet-shadow);
+  padding: 8px 28px 0;
+  overflow: hidden;
+}
+.grabber {
+  width: 40px; height: 5px; border-radius: 3px;
+  background: var(--grabber);
+  margin: 0 auto;
+}
+.sheet-title {
+  margin: 18px 0 0;
+  font-family: 'Fraunces', serif;
+  font-variation-settings: "opsz" 22, "wght" 490, "SOFT" 100, "WONK" 0;
+  font-size: 24px; font-weight: 490; line-height: 1.1;
+}
+.sheet-sub {
+  margin: 5px 0 0;
+  font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+
+/* group header — sentence case, semibold, muted: the smallcaps replacement */
+.block-head {
+  margin: 22px 0 0;
+  font-size: 13.5px; font-weight: 600; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.entries { margin-top: 4px; }
+
+/* one entry row: gutter + one-line Set line (never wraps) */
+.entry { display: flex; align-items: baseline; gap: 12px; margin-top: 14px; }
+.entry .gutter { flex: none; width: 64px; }
+.entry .gutter .wd { font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.entry .gutter .cad { font-size: 11px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.entry .sets {
+  flex: 1; min-width: 0;
+  font-size: 14px; line-height: 1.45; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.entry .sets .dim { color: var(--muted); }
+.entry .sets .flag { color: var(--muted); font-style: italic; }
+.entry .sets.dense { font-size: 12.5px; } /* emulates minimumScaleFactor before truncation */
+.entry .sets.raw { font-style: italic; }
+
+/* b — soft group surfaces */
+.group-surface {
+  margin-top: 16px;
+  background: var(--group-fill);
+  border-radius: 22px;
+  box-shadow: var(--group-shadow);
+  padding: 14px 16px 16px;
+}
+.group-surface .block-head { margin: 0; }
+.group-surface .entry:first-of-type { margin-top: 12px; }
+
+/* c — flat recency list, Block folded into a wider gutter */
+.entry.wide-gutter .gutter { width: 96px; }
+.entry.wide-gutter .gutter .wd .blk { color: var(--muted); font-weight: 600; }
+
+/* ————— switcher (NOT part of the design) ————— */
+.switcher {
+  position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+  z-index: 99; display: flex; align-items: center; gap: 2px;
+  background: #111; color: #fff; border-radius: 999px; padding: 4px 6px;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.5);
+}
+.switcher a { color: #fff; text-decoration: none; padding: 2px 8px; font-size: 14px; line-height: 1; }
+.switcher .label { padding: 0 6px; white-space: nowrap; }
+</style>
+</head>
+<body data-variants="a,b,c,d" data-variant="a">
+
+<!-- screens are stamped from this prototype-only template per variant -->
+<template id="stage-tpl">
+  <div class="stage-behind">
+    <div class="time num">9:41</div>
+    <div class="runline"><span class="num">Block 27 · Week 2 · Day 1</span><span class="right num">9 Sets left</span></div>
+    <div class="cadence num">0:2:0</div>
+    <h1>Hamstring Curl</h1>
+  </div>
+  <div class="scrim"></div>
+  <div class="sheet">
+    <div class="grabber"></div>
+    <div class="sheet-title">Hamstring Curl</div>
+    <div class="sheet-sub num">Exercise History · last 5</div>
+    <div class="sheet-body"></div>
+  </div>
+</template>
+
+<section class="screen" id="screen-a"></section>
+<section class="screen" id="screen-b"></section>
+<section class="screen" id="screen-c"></section>
+<section class="screen" id="screen-d"></section>
+
+<nav class="switcher">
+  <a id="sw-prev" href="#">‹</a>
+  <span class="label" id="sw-label"></span>
+  <a id="sw-next" href="#">›</a>
+</nav>
+
+<script>
+  const KEYS = ['a', 'b', 'c', 'd'];
+  const NAMES = {
+    a: 'A · Whitespace ledger',
+    b: 'B · Soft groups',
+    c: 'C · Recency list',
+    d: 'D · Night'
+  };
+  const param = new URLSearchParams(location.search).get('variant');
+  const key = KEYS.includes(param) ? param : 'a';
+  document.body.dataset.variant = key;
+  const i = KEYS.indexOf(key);
+  document.getElementById('sw-label').textContent = NAMES[key];
+  document.getElementById('sw-prev').href = '?variant=' + KEYS[(i + KEYS.length - 1) % KEYS.length];
+  document.getElementById('sw-next').href = '?variant=' + KEYS[(i + 1) % KEYS.length];
+
+  // Five entries, Movement-level, strict recency — deliberately the hard mix:
+  // a clean entry, a partial skip, an as-"…" spelling variant, a Legacy Log,
+  // and an 8-set line that must shrink-then-truncate rather than wrap.
+  const ENTRIES = [
+    { block: 27, wd: 'W1 D1', cad: '0:2:0',
+      sets: '27.5×10 <span class="dim">@8</span> · 27.5×10 <span class="dim">@8</span> · 27.5×9 <span class="dim">@9</span>' },
+    { block: 26, wd: 'W4 D1', cad: '0:2:0',
+      sets: '25×10 <span class="dim">@8</span> · <span class="flag">skip</span> · 25×10 <span class="dim">@9</span>' },
+    { block: 26, wd: 'W3 D1', cad: '', dense: true,
+      asname: 'as “Seated Ham Curl”',
+      sets: '25×12 <span class="dim">@8</span> · 25×11 <span class="dim">@8.5</span> · 25×10 <span class="dim">@9</span>' },
+    { block: 26, wd: 'W2 D1', cad: '', raw: true,
+      asname: 'as entered',
+      sets: '55x8, 60x7@9.5, 60' },
+    { block: 26, wd: 'W1 D1', cad: '0:2:0', dense: true,
+      sets: '22.5×12 <span class="dim">@7</span> · 22.5×12 <span class="dim">@7.5</span> · 22.5×11 <span class="dim">@8</span> · 22.5×11 <span class="dim">@8</span> · 22.5×10 <span class="dim">@8.5</span> · 22.5×10 <span class="dim">@9</span> · 22.5×9 <span class="dim">@9</span> · 22.5×8 <span class="dim">@9.5</span>' }
+  ];
+
+  function entryEl(e, wideGutter) {
+    const div = document.createElement('div');
+    div.className = 'entry' + (wideGutter ? ' wide-gutter' : '');
+    const wd = wideGutter
+      ? '<span class="blk">B' + e.block + '</span> · ' + e.wd
+      : e.wd;
+    const setsCls = 'sets num' + (e.dense ? ' dense' : '') + (e.raw ? ' raw' : '');
+    div.innerHTML =
+      '<div class="gutter"><div class="wd num">' + wd + '</div>' +
+      (e.cad ? '<div class="cad num">' + e.cad + '</div>' : '') +
+      '</div>' +
+      '<div class="' + setsCls + '">' +
+      (e.asname ? '<span class="flag">' + e.asname + '</span> — ' : '') +
+      e.sets + '</div>';
+    return div;
+  }
+
+  function stamp(screenId, mode, night) {
+    const screen = document.getElementById(screenId);
+    screen.appendChild(document.getElementById('stage-tpl').content.cloneNode(true));
+    if (night) screen.querySelector('.time').textContent = '21:14';
+    const body = screen.querySelector('.sheet-body');
+    if (mode === 'grouped' || mode === 'surfaced') {
+      const blocks = [...new Set(ENTRIES.map((e) => e.block))];
+      blocks.forEach((b) => {
+        const host = mode === 'surfaced'
+          ? document.createElement('div')
+          : body;
+        if (mode === 'surfaced') host.className = 'group-surface';
+        const head = document.createElement('div');
+        head.className = 'block-head num';
+        head.textContent = 'Block ' + b;
+        host.appendChild(head);
+        const entries = document.createElement('div');
+        entries.className = 'entries';
+        ENTRIES.filter((e) => e.block === b).forEach((e) => entries.appendChild(entryEl(e, false)));
+        host.appendChild(entries);
+        if (mode === 'surfaced') body.appendChild(host);
+      });
+    } else { // flat recency list
+      const entries = document.createElement('div');
+      entries.className = 'entries';
+      ENTRIES.forEach((e) => entries.appendChild(entryEl(e, true)));
+      body.appendChild(entries);
+    }
+  }
+
+  stamp('screen-a', 'grouped', false);
+  stamp('screen-b', 'surfaced', false);
+  stamp('screen-c', 'flat', false);
+  stamp('screen-d', 'grouped', true);
+</script>
+</body>
+</html>
