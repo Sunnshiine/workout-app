@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=393, initial-scale=1">
+<title>SESSION STAGE — Greenhouse prototype (#413)</title>
+<style>
+/* THROWAWAY PROTOTYPE — issue #413.
+   Four probes of the real Session stage in the Greenhouse language, switchable
+   via ?variant= :
+     a — pill chrome: the full operable inventory (Weight/Reps/RPE as real
+         tappable pills) inside the one soft surface
+     b — chrome on demand: values open on the surface, editing chrome appears
+         only on the focused field (Weight shown focused)
+     c — hard content: a's structure under stress (Cadence-prefixed name, 8 Sets
+         with a skip, Movement-fallback Last Performed, long up-next name)
+     d — night: a's structure re-lit with the #418 D recipe
+*/
+/*__FONTS__*/
+:root {
+  --paper-top: #E8EDDB;
+  --paper-bottom: #C7E0BF;
+  --ink: #152118;
+  --muted: #526457;
+  --action: #0D6B40;
+  --action-text: #F2F7E8;
+  --cream: #F2F7E8;
+  --surface: rgba(242, 247, 232, 0.52);
+  --surface-shadow: 0 1px 2px rgba(21, 33, 24, 0.04), 0 14px 30px rgba(21, 33, 24, 0.07);
+  --pill-fill: rgba(242, 247, 232, 0.85);
+  --pill-stroke: rgba(82, 111, 90, 0.34);
+  --foot-fill: rgba(242, 247, 232, 0.50);
+  --queue-stroke: rgba(82, 111, 90, 0.38);
+  --log-shadow: 0 1px 2px rgba(13, 46, 28, 0.22), 0 10px 22px rgba(13, 60, 35, 0.16);
+  --stem: #0D6B40;
+  --leaf-fill: #0D6B40;
+  --leaf-rib: rgba(242, 247, 232, 0.5);
+  --bud-fill: rgba(242, 247, 232, 0.95);
+  --bud-stroke: #0D6B40;
+  --bud-rib: rgba(13, 107, 64, 0.55);
+  --future-stroke: rgba(13, 107, 64, 0.40);
+  --skip-stroke: rgba(82, 100, 87, 0.42);
+  --bud-glow: none;
+  --home-bar: rgba(21, 33, 24, 0.20);
+}
+/* night edition — the #418 D recipe, re-lit never recolored */
+body[data-variant="d"] {
+  --paper-top: #232C20;
+  --paper-bottom: #121D14;
+  --ink: #EFF3E3;
+  --muted: #9AAA9B;
+  --action: #1F8552;
+  --action-text: #F2F7E8;
+  --cream: #F2F7E8;
+  --surface: rgba(242, 247, 232, 0.07);
+  --surface-shadow: inset 0 0 0 1px rgba(242, 247, 232, 0.10);
+  --pill-fill: rgba(242, 247, 232, 0.06);
+  --pill-stroke: rgba(242, 247, 232, 0.16);
+  --foot-fill: rgba(242, 247, 232, 0.06);
+  --queue-stroke: rgba(242, 247, 232, 0.20);
+  --log-shadow: 0 0 22px rgba(31, 133, 82, 0.35);
+  --stem: #579168;
+  --leaf-fill: #579168;
+  --leaf-rib: rgba(242, 247, 232, 0.55);
+  --bud-fill: rgba(242, 247, 232, 0.92);
+  --bud-stroke: #78F0B2;
+  --bud-rib: rgba(87, 145, 104, 0.6);
+  --future-stroke: rgba(87, 145, 104, 0.45);
+  --skip-stroke: rgba(154, 170, 155, 0.40);
+  --bud-glow: drop-shadow(0 0 7px rgba(120, 240, 178, 0.32));
+  --home-bar: rgba(242, 247, 232, 0.22);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  position: relative; /* anchor the absolute switcher to the 852px page */
+  width: 393px;
+  height: 852px;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--paper-top) 0%, var(--paper-bottom) 100%);
+  color: var(--ink);
+  font-family: 'Source Sans 3', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.screen { display: none; flex-direction: column; width: 393px; height: 852px; position: relative; }
+body[data-variant="a"] #screen-a { display: flex; }
+body[data-variant="b"] #screen-b { display: flex; }
+body[data-variant="c"] #screen-c { display: flex; }
+body[data-variant="d"] #screen-d { display: flex; }
+
+.num { font-variant-numeric: tabular-nums; }
+
+.time {
+  position: absolute; top: 21px; left: 36px;
+  font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.home-indicator {
+  position: absolute; bottom: 9px; left: 50%; transform: translateX(-50%);
+  width: 134px; height: 5px; border-radius: 3px; background: var(--home-bar);
+}
+
+.col { display: flex; flex-direction: column; height: 100%; padding: 0 32px; }
+
+.runline {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-top: 68px;
+  font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.runline .right { color: var(--muted); font-weight: 500; }
+
+.position { margin-top: 30px; font-size: 13px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cadence {
+  margin: 6px 0 0;
+  font-size: 14px; font-weight: 600; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+h1.exercise {
+  margin: 6px 0 0;
+  font-family: 'Fraunces', serif;
+  font-variation-settings: "opsz" 30, "wght" 490, "SOFT" 100, "WONK" 0;
+  font-size: 33px; line-height: 1.10; color: var(--ink);
+}
+.coach-note {
+  margin: 12px 0 0;
+  font-size: 15px; line-height: 1.45; color: var(--muted);
+  max-width: 305px;
+}
+
+.branch-wrap { position: relative; margin-top: 14px; height: 148px; }
+.branch-wrap svg { display: block; }
+.branch-anchor {
+  position: absolute;
+  font-size: 12px; font-weight: 600; color: var(--muted);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+/* shrink-then-truncate, never wrap, never widen the page — the tap opens
+   Exercise History for the full record anyway */
+.last-performed {
+  margin-bottom: 14px;
+  font-size: 12.5px; line-height: 1.5; color: var(--muted);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+}
+.last-performed.dense { font-size: 11px; } /* emulates minimumScaleFactor ≈ 0.88 */
+.last-performed .asname { font-style: italic; }
+
+.flex-grow { flex: 1; }
+
+/* ————— the Active Set Card: the one soft surface ————— */
+.set-surface {
+  background: var(--surface);
+  border-radius: 30px;
+  padding: 18px 18px 16px;
+  box-shadow: var(--surface-shadow);
+}
+.set-head { padding: 0 8px; }
+.set-head .setno { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* variant a/c/d — real pills: quiet fill, 1px stroke, one big tap target each */
+.pills { display: flex; gap: 10px; margin-top: 14px; }
+.pill {
+  flex: 1;
+  background: var(--pill-fill);
+  border: 1px solid var(--pill-stroke);
+  border-radius: 20px;
+  padding: 10px 14px 12px;
+  min-height: 74px;
+}
+.pill.weight { flex: 1.55; }
+.pill .lbl { font-size: 12px; font-weight: 600; color: var(--muted); }
+.pill .val {
+  margin-top: 3px;
+  font-size: 30px; font-weight: 700; line-height: 1.05;
+  letter-spacing: -0.01em; font-variant-numeric: tabular-nums;
+}
+.pill .unit { font-size: 14px; font-weight: 500; color: var(--muted); margin-left: 3px; }
+
+/* variant b — open values; chrome appears only on the focused field */
+.vals-open { display: flex; align-items: flex-end; justify-content: space-between; margin-top: 16px; padding: 0 8px; }
+.vals-open .lbl { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 8px; }
+.vals-open .val {
+  font-size: 38px; font-weight: 700; line-height: 1;
+  letter-spacing: -0.01em; font-variant-numeric: tabular-nums;
+}
+.vals-open .unit { font-size: 15px; font-weight: 500; color: var(--muted); margin-left: 4px; }
+.vals-open .cell.focused {
+  background: var(--cream);
+  border: 1.5px solid var(--action);
+  border-radius: 18px;
+  padding: 8px 14px 10px;
+  margin: -8px -14px -10px;
+}
+.vals-open .caret {
+  display: inline-block; width: 2px; height: 30px;
+  background: var(--action); vertical-align: -2px; margin-left: 3px;
+  border-radius: 1px;
+}
+
+.log-btn {
+  display: block; margin-top: 16px; width: 100%; height: 62px;
+  border: 0; border-radius: 999px;
+  background: var(--action); color: var(--action-text);
+  font-family: 'Source Sans 3', sans-serif;
+  font-size: 18px; font-weight: 650;
+  font-variant-numeric: tabular-nums; letter-spacing: 0.01em;
+  box-shadow: var(--log-shadow);
+}
+
+/* ————— the stage foot: plain up-next preview + one operable queue button ————— */
+.stage-foot { display: flex; align-items: center; gap: 14px; margin: 18px 0 40px; }
+.upnext-bar {
+  flex: 1; min-width: 0; padding-left: 4px;
+  font-size: 13.5px; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.upnext-bar .name { color: var(--ink); font-weight: 600; }
+.queue-btn {
+  display: flex; align-items: center; flex: none;
+  background: var(--foot-fill);
+  border: 1px solid var(--queue-stroke);
+  border-radius: 999px;
+  padding: 0 16px; height: 44px;
+  font-size: 13px; font-weight: 600; color: var(--ink);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+/* ————— switcher (NOT part of the design) ————— */
+.switcher {
+  position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+  z-index: 99; display: flex; align-items: center; gap: 2px;
+  background: #111; color: #fff; border-radius: 999px; padding: 4px 6px;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.5);
+}
+.switcher a { color: #fff; text-decoration: none; padding: 2px 8px; font-size: 14px; line-height: 1; }
+.switcher .label { padding: 0 6px; white-space: nowrap; }
+</style>
+</head>
+<body data-variants="a,b,c,d" data-variant="a">
+
+<!-- shared leaf geometry — same drawing language as the locked stage -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <path id="leafShape" d="M0 8 C 15 2.3, 41 3.3, 60 8 C 41 21.7, 15 22.6, 0 8 Z"/>
+    <path id="leafRib" d="M4 8.1 C 20 9.8, 40 9.6, 56 8.1" fill="none"/>
+  </defs>
+</svg>
+
+<!-- ══════════ a — pill chrome ══════════ -->
+<section class="screen" id="screen-a">
+  <div class="time num">9:41</div>
+  <div class="col">
+    <div class="runline"><span class="num">Block 27 · Week 2 · Day 2</span><span class="right num">14 Sets left</span></div>
+    <div class="position num">2 of 6</div>
+    <h1 class="exercise">Competition Bench&nbsp;Press</h1>
+    <p class="coach-note">Pause every rep. Keep the arch honest — no&nbsp;bounce.</p>
+    <div class="branch-wrap">
+      <svg id="branch-a" width="329" height="148" viewBox="0 0 329 148" aria-label="Set 3 of 5">
+        <path id="stem-a" d="M 8 132 C 80 120, 172 84, 314 22" fill="none" stroke="var(--stem)" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <span class="branch-anchor num" id="anchor-a">Set 3 of 5</span>
+    </div>
+    <div class="flex-grow"></div>
+    <div class="last-performed num">Last performed · W1 D2 — 90×5 @8 · 90×5 @8 · 90×4 @9</div>
+    <div class="set-surface">
+      <div class="set-head"><span class="setno num">Set 3</span></div>
+      <div class="pills num">
+        <div class="pill weight"><div class="lbl">Weight</div><div class="val">92.5<span class="unit">kg</span></div></div>
+        <div class="pill"><div class="lbl">Reps</div><div class="val">5</div></div>
+        <div class="pill"><div class="lbl">RPE</div><div class="val">8</div></div>
+      </div>
+      <button class="log-btn num">Log 92.5&nbsp;kg × 5 @8</button>
+    </div>
+    <div class="stage-foot">
+      <div class="upnext-bar">Up next · <span class="name">Larsen Press</span></div>
+      <div class="queue-btn num">2 of 6</div>
+    </div>
+  </div>
+  <div class="home-indicator"></div>
+</section>
+
+<!-- ══════════ b — chrome on demand ══════════ -->
+<section class="screen" id="screen-b">
+  <div class="time num">9:41</div>
+  <div class="col">
+    <div class="runline"><span class="num">Block 27 · Week 2 · Day 2</span><span class="right num">14 Sets left</span></div>
+    <div class="position num">2 of 6</div>
+    <h1 class="exercise">Competition Bench&nbsp;Press</h1>
+    <p class="coach-note">Pause every rep. Keep the arch honest — no&nbsp;bounce.</p>
+    <div class="branch-wrap">
+      <svg id="branch-b" width="329" height="148" viewBox="0 0 329 148" aria-label="Set 3 of 5">
+        <path id="stem-b" d="M 8 132 C 80 120, 172 84, 314 22" fill="none" stroke="var(--stem)" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <span class="branch-anchor num" id="anchor-b">Set 3 of 5</span>
+    </div>
+    <div class="flex-grow"></div>
+    <div class="last-performed num">Last performed · W1 D2 — 90×5 @8 · 90×5 @8 · 90×4 @9</div>
+    <div class="set-surface">
+      <div class="set-head"><span class="setno num">Set 3</span></div>
+      <div class="vals-open num">
+        <div class="cell focused"><div class="lbl">Weight</div><div class="val">92.5<span class="caret"></span><span class="unit">kg</span></div></div>
+        <div class="cell"><div class="lbl">Reps</div><div class="val">5</div></div>
+        <div class="cell"><div class="lbl">RPE</div><div class="val">8</div></div>
+      </div>
+      <button class="log-btn num">Log 92.5&nbsp;kg × 5 @8</button>
+    </div>
+    <div class="stage-foot">
+      <div class="upnext-bar">Up next · <span class="name">Larsen Press</span></div>
+      <div class="queue-btn num">2 of 6</div>
+    </div>
+  </div>
+  <div class="home-indicator"></div>
+</section>
+
+<!-- ══════════ c — hard content ══════════ -->
+<section class="screen" id="screen-c">
+  <div class="time num">9:41</div>
+  <div class="col">
+    <div class="runline"><span class="num">Block 27 · Week 3 · Day 1</span><span class="right num">11 Sets left</span></div>
+    <div class="position num">4 of 7</div>
+    <div class="cadence num">2-3:1:0</div>
+    <h1 class="exercise">BB Romanian Deadlift</h1>
+    <p class="coach-note">Slow eccentric, feel the stretch through the whole range. Add weight only if last week felt like an&nbsp;8.</p>
+    <div class="branch-wrap">
+      <svg id="branch-c" width="329" height="148" viewBox="0 0 329 148" aria-label="Set 6 of 8">
+        <path id="stem-c" d="M 8 132 C 80 120, 172 84, 314 22" fill="none" stroke="var(--stem)" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <span class="branch-anchor num" id="anchor-c">Set 6 of 8</span>
+    </div>
+    <div class="flex-grow"></div>
+    <div class="last-performed dense num">Last performed · W2 D1 <span class="asname">as “RDL 2-3:1:0 tempo”</span> — 120×8 @8 · 120×8 @9</div>
+    <div class="set-surface">
+      <div class="set-head"><span class="setno num">Set 6</span></div>
+      <div class="pills num">
+        <div class="pill weight"><div class="lbl">Weight</div><div class="val">122.5<span class="unit">kg</span></div></div>
+        <div class="pill"><div class="lbl">Reps</div><div class="val">8</div></div>
+        <div class="pill"><div class="lbl">RPE</div><div class="val">7.5</div></div>
+      </div>
+      <button class="log-btn num">Log 122.5&nbsp;kg × 8 @7.5</button>
+    </div>
+    <div class="stage-foot">
+      <div class="upnext-bar">Up next · <span class="name">Single-Leg Hamstring Curl</span></div>
+      <div class="queue-btn num">4 of 7</div>
+    </div>
+  </div>
+  <div class="home-indicator"></div>
+</section>
+
+<!-- ══════════ d — night ══════════ -->
+<section class="screen" id="screen-d">
+  <div class="time num">21:14</div>
+  <div class="col">
+    <div class="runline"><span class="num">Block 27 · Week 2 · Day 2</span><span class="right num">14 Sets left</span></div>
+    <div class="position num">2 of 6</div>
+    <h1 class="exercise">Competition Bench&nbsp;Press</h1>
+    <p class="coach-note">Pause every rep. Keep the arch honest — no&nbsp;bounce.</p>
+    <div class="branch-wrap">
+      <svg id="branch-d" width="329" height="148" viewBox="0 0 329 148" aria-label="Set 3 of 5">
+        <path id="stem-d" d="M 8 132 C 80 120, 172 84, 314 22" fill="none" stroke="var(--stem)" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <span class="branch-anchor num" id="anchor-d">Set 3 of 5</span>
+    </div>
+    <div class="flex-grow"></div>
+    <div class="last-performed num">Last performed · W1 D2 — 90×5 @8 · 90×5 @8 · 90×4 @9</div>
+    <div class="set-surface">
+      <div class="set-head"><span class="setno num">Set 3</span></div>
+      <div class="pills num">
+        <div class="pill weight"><div class="lbl">Weight</div><div class="val">92.5<span class="unit">kg</span></div></div>
+        <div class="pill"><div class="lbl">Reps</div><div class="val">5</div></div>
+        <div class="pill"><div class="lbl">RPE</div><div class="val">8</div></div>
+      </div>
+      <button class="log-btn num">Log 92.5&nbsp;kg × 5 @8</button>
+    </div>
+    <div class="stage-foot">
+      <div class="upnext-bar">Up next · <span class="name">Larsen Press</span></div>
+      <div class="queue-btn num">2 of 6</div>
+    </div>
+  </div>
+  <div class="home-indicator"></div>
+</section>
+
+<nav class="switcher">
+  <a id="sw-prev" href="#">‹</a>
+  <span class="label" id="sw-label"></span>
+  <a id="sw-next" href="#">›</a>
+</nav>
+
+<script>
+  const KEYS = ['a', 'b', 'c', 'd'];
+  const NAMES = {
+    a: 'A · Pill chrome',
+    b: 'B · Chrome on demand',
+    c: 'C · Hard content',
+    d: 'D · Night'
+  };
+  const param = new URLSearchParams(location.search).get('variant');
+  const key = KEYS.includes(param) ? param : 'a';
+  document.body.dataset.variant = key;
+  const i = KEYS.indexOf(key);
+  document.getElementById('sw-label').textContent = NAMES[key];
+  document.getElementById('sw-prev').href = '?variant=' + KEYS[(i + KEYS.length - 1) % KEYS.length];
+  document.getElementById('sw-next').href = '?variant=' + KEYS[(i + 1) % KEYS.length];
+
+  // the living branch: logged Sets are inked leaves, the current Set is the
+  // opening bud, future Sets faint buds; a Skipped Set is a bare outline in the
+  // muted family — state, never judgement. Colors ride on CSS variables so the
+  // night recipe re-lights the same drawing.
+  const css = getComputedStyle(document.body);
+  const C = (name) => css.getPropertyValue(name).trim();
+  function drawBranch(cfg) {
+    const svg = document.getElementById(cfg.svg);
+    const stem = document.getElementById(cfg.stem);
+    if (!svg || !stem) return;
+    const NS = 'http://www.w3.org/2000/svg';
+    const L = stem.getTotalLength();
+    cfg.nodes.forEach((n, i) => {
+      const p = stem.getPointAtLength(n.t * L);
+      const q = stem.getPointAtLength(Math.min(L, n.t * L + 1.5));
+      const ang = Math.atan2(q.y - p.y, q.x - p.x) * 180 / Math.PI;
+      const side = i % 2 === 0 ? -1 : 1;
+      const rot = ang + side * n.spread;
+      const g = document.createElementNS(NS, 'g');
+      g.setAttribute('transform',
+        'translate(' + p.x + ' ' + p.y + ') rotate(' + rot + ') scale(' + n.s + ') translate(0 -8)');
+      const use = (href, attrs) => {
+        const el = document.createElementNS(NS, 'use');
+        el.setAttribute('href', href);
+        for (const k in attrs) el.setAttribute(k, attrs[k]);
+        g.appendChild(el);
+      };
+      if (n.kind === 'leaf') {
+        use('#leafShape', { fill: C('--leaf-fill') });
+        use('#leafRib', { stroke: C('--leaf-rib'), 'stroke-width': (1.2 / n.s).toFixed(2) });
+      } else if (n.kind === 'current') {
+        if (C('--bud-glow') !== 'none') g.setAttribute('style', 'filter:' + C('--bud-glow'));
+        use('#leafShape', { fill: C('--bud-fill'), stroke: C('--bud-stroke'), 'stroke-width': (2.2 / n.s).toFixed(2) });
+        use('#leafRib', { stroke: C('--bud-rib'), 'stroke-width': (1.2 / n.s).toFixed(2) });
+      } else if (n.kind === 'skipped') {
+        use('#leafShape', { fill: 'none', stroke: C('--skip-stroke'), 'stroke-width': (1.2 / n.s).toFixed(2), 'stroke-dasharray': (5 / n.s).toFixed(2) + ' ' + (4 / n.s).toFixed(2) });
+      } else {
+        use('#leafShape', { fill: 'none', stroke: C('--future-stroke'), 'stroke-width': (1.2 / n.s).toFixed(2) });
+      }
+      svg.appendChild(g);
+      if (n.kind === 'current' && cfg.anchor) {
+        const a = document.getElementById(cfg.anchor);
+        if (a) { a.style.left = (p.x + cfg.dx) + 'px'; a.style.top = (p.y + cfg.dy) + 'px'; }
+      }
+    });
+  }
+
+  const fiveSets = [
+    { t: 0.10, kind: 'leaf',    s: 0.78, spread: 46 },
+    { t: 0.32, kind: 'leaf',    s: 0.68, spread: 52 },
+    { t: 0.56, kind: 'current', s: 0.52, spread: 34 },
+    { t: 0.78, kind: 'bud',     s: 0.30, spread: 24 },
+    { t: 0.91, kind: 'bud',     s: 0.22, spread: 20 }
+  ];
+  drawBranch({ svg: 'branch-a', stem: 'stem-a', anchor: 'anchor-a', dx: 4, dy: 30, nodes: fiveSets });
+  drawBranch({ svg: 'branch-b', stem: 'stem-b', anchor: 'anchor-b', dx: 4, dy: 30, nodes: fiveSets });
+  drawBranch({ svg: 'branch-d', stem: 'stem-d', anchor: 'anchor-d', dx: 4, dy: 30, nodes: fiveSets });
+  // 8 Sets, Set 4 skipped, Set 6 current
+  drawBranch({ svg: 'branch-c', stem: 'stem-c', anchor: 'anchor-c', dx: 4, dy: 30, nodes: [
+    { t: 0.06, kind: 'leaf',    s: 0.70, spread: 46 },
+    { t: 0.19, kind: 'leaf',    s: 0.64, spread: 52 },
+    { t: 0.32, kind: 'leaf',    s: 0.58, spread: 48 },
+    { t: 0.45, kind: 'skipped', s: 0.56, spread: 44 },
+    { t: 0.57, kind: 'leaf',    s: 0.52, spread: 46 },
+    { t: 0.69, kind: 'current', s: 0.46, spread: 32 },
+    { t: 0.82, kind: 'bud',     s: 0.26, spread: 22 },
+    { t: 0.92, kind: 'bud',     s: 0.20, spread: 18 }
+  ]});
+</script>
+</body>
+</html>
