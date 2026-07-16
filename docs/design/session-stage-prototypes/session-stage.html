@@ -171,6 +171,7 @@ h1.exercise {
 }
 .set-head { padding: 0 8px; }
 .set-head .setno { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.set-head .ofm { font-size: 14px; font-weight: 500; color: var(--muted); }
 
 /* variant a/c/d — real pills: quiet fill, 1px stroke, one big tap target each */
 .pills { display: flex; gap: 10px; margin-top: 14px; }
@@ -274,12 +275,11 @@ h1.exercise {
       <svg id="branch-a" width="329" height="148" viewBox="0 0 329 148" aria-label="Set 3 of 5">
         <path id="stem-a" d="M 8 132 C 80 120, 172 84, 314 22" fill="none" stroke="var(--stem)" stroke-width="2" stroke-linecap="round"/>
       </svg>
-      <span class="branch-anchor num" id="anchor-a">Set 3 of 5</span>
     </div>
     <div class="flex-grow"></div>
     <div class="last-performed num">W1 D2 — 90×5 @8 · 90×5 @8 · 90×4 @9</div>
     <div class="set-surface">
-      <div class="set-head"><span class="setno num">Set 3</span></div>
+      <div class="set-head"><span class="setno num">Set 3</span><span class="ofm num"> of 5</span></div>
       <div class="pills num">
         <div class="pill weight"><div class="lbl">Weight</div><div class="val">92.5<span class="unit">kg</span></div></div>
         <div class="pill"><div class="lbl">Reps</div><div class="val">5</div></div>
@@ -306,12 +306,11 @@ h1.exercise {
       <svg id="branch-b" width="329" height="148" viewBox="0 0 329 148" aria-label="Set 3 of 5">
         <path id="stem-b" d="M 8 132 C 80 120, 172 84, 314 22" fill="none" stroke="var(--stem)" stroke-width="2" stroke-linecap="round"/>
       </svg>
-      <span class="branch-anchor num" id="anchor-b">Set 3 of 5</span>
     </div>
     <div class="flex-grow"></div>
     <div class="last-performed num">W1 D2 — 90×5 @8 · 90×5 @8 · 90×4 @9</div>
     <div class="set-surface">
-      <div class="set-head"><span class="setno num">Set 3</span></div>
+      <div class="set-head"><span class="setno num">Set 3</span><span class="ofm num"> of 5</span></div>
       <div class="vals-open num">
         <div class="cell focused"><div class="lbl">Weight</div><div class="val">92.5<span class="caret"></span><span class="unit">kg</span></div></div>
         <div class="cell"><div class="lbl">Reps</div><div class="val">5</div></div>
@@ -339,12 +338,11 @@ h1.exercise {
       <svg id="branch-c" width="329" height="148" viewBox="0 0 329 148" aria-label="Set 6 of 8">
         <path id="stem-c" d="M 8 132 C 80 120, 172 84, 314 22" fill="none" stroke="var(--stem)" stroke-width="2" stroke-linecap="round"/>
       </svg>
-      <span class="branch-anchor num" id="anchor-c">Set 6 of 8</span>
     </div>
     <div class="flex-grow"></div>
     <div class="last-performed num">W2 D1 <span class="asname">as “RDL 2-3:1:0 tempo”</span> — 120×8 @8 · 120×8 @9</div>
     <div class="set-surface">
-      <div class="set-head"><span class="setno num">Set 6</span></div>
+      <div class="set-head"><span class="setno num">Set 6</span><span class="ofm num"> of 8</span></div>
       <div class="pills num">
         <div class="pill weight"><div class="lbl">Weight</div><div class="val">122.5<span class="unit">kg</span></div></div>
         <div class="pill"><div class="lbl">Reps</div><div class="val">8</div></div>
@@ -371,12 +369,11 @@ h1.exercise {
       <svg id="branch-d" width="329" height="148" viewBox="0 0 329 148" aria-label="Set 3 of 5">
         <path id="stem-d" d="M 8 132 C 80 120, 172 84, 314 22" fill="none" stroke="var(--stem)" stroke-width="2" stroke-linecap="round"/>
       </svg>
-      <span class="branch-anchor num" id="anchor-d">Set 3 of 5</span>
     </div>
     <div class="flex-grow"></div>
     <div class="last-performed num">W1 D2 — 90×5 @8 · 90×5 @8 · 90×4 @9</div>
     <div class="set-surface">
-      <div class="set-head"><span class="setno num">Set 3</span></div>
+      <div class="set-head"><span class="setno num">Set 3</span><span class="ofm num"> of 5</span></div>
       <div class="pills num">
         <div class="pill weight"><div class="lbl">Weight</div><div class="val">92.5<span class="unit">kg</span></div></div>
         <div class="pill"><div class="lbl">Reps</div><div class="val">5</div></div>
@@ -467,11 +464,11 @@ h1.exercise {
     { t: 0.78, kind: 'bud',     s: 0.30, spread: 24 },
     { t: 0.91, kind: 'bud',     s: 0.22, spread: 20 }
   ];
-  drawBranch({ svg: 'branch-a', stem: 'stem-a', anchor: 'anchor-a', dx: 4, dy: 30, nodes: fiveSets });
-  drawBranch({ svg: 'branch-b', stem: 'stem-b', anchor: 'anchor-b', dx: 4, dy: 30, nodes: fiveSets });
-  drawBranch({ svg: 'branch-d', stem: 'stem-d', anchor: 'anchor-d', dx: 4, dy: 30, nodes: fiveSets });
+  drawBranch({ svg: 'branch-a', stem: 'stem-a', nodes: fiveSets });
+  drawBranch({ svg: 'branch-b', stem: 'stem-b', nodes: fiveSets });
+  drawBranch({ svg: 'branch-d', stem: 'stem-d', nodes: fiveSets });
   // 8 Sets, Set 4 skipped, Set 6 current
-  drawBranch({ svg: 'branch-c', stem: 'stem-c', anchor: 'anchor-c', dx: 4, dy: 30, nodes: [
+  drawBranch({ svg: 'branch-c', stem: 'stem-c', nodes: [
     { t: 0.06, kind: 'leaf',    s: 0.70, spread: 46 },
     { t: 0.19, kind: 'leaf',    s: 0.64, spread: 52 },
     { t: 0.32, kind: 'leaf',    s: 0.58, spread: 48 },
