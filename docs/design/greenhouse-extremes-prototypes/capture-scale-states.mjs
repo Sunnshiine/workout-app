@@ -10,15 +10,17 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const html = pathToFileURL(resolve(HERE, "block-grid-scale.html"));
+const base = process.argv[2] ?? "block-grid-scale";
+const dayStates = (process.argv[3] ?? "3").split(",").map(Number);
+const html = pathToFileURL(resolve(HERE, `${base}.html`));
 const browser = await chromium.launch();
 const ctx = await browser.newContext(devices["iPhone 15 Pro"]);
 const page = await ctx.newPage();
 for (const variant of ["a", "b", "c", "d", "e"]) {
-  for (const days of [3]) {
+  for (const days of dayStates) {
     await page.goto(`${html}?variant=${variant}&days=${days}`);
     await page.waitForTimeout(250);
-    const out = resolve(HERE, `block-grid-scale-${variant}-${days}d.png`);
+    const out = resolve(HERE, `${base}-${variant}-${days}d.png`);
     await page.screenshot({ path: out, fullPage: true });
     console.log(`captured ${out}`);
   }

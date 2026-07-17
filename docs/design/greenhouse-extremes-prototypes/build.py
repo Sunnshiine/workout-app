@@ -11,7 +11,7 @@ from pathlib import Path
 
 HERE = Path(__file__).parent
 fonts = (HERE / "fonts.inc.css").read_text()
-for name in ("block-grid", "exercise-history", "block-grid-scale"):
+for name in ("block-grid", "exercise-history", "block-grid-scale", "block-grid-focus"):
     template = (HERE / f"{name}.template.html").read_text()
     out = template.replace("/*__FONTS__*/", fonts, 1)
     assert out != template, f"font marker not found in {name}"
