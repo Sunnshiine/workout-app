@@ -84,18 +84,30 @@ struct SessionProgressTracker {
         return week.sessions
     }
 
-    func openExercises(in block: Block, currentSession: Session) -> [Exercise] {
-        guard let currentWeekNumber = currentSession.week?.number else { return [] }
+    /// One Open Exercise: an Exercise carrying at least one Pending Set in an
+    /// earlier Day of the Current Week, paired with the Session it belongs to so
+    /// callers that need the Session (the Live Activity rest target) don't have
+    /// to reach back through a relation.
+    struct OpenExercise {
+        let session: Session
+        let exercise: Exercise
+    }
 
-        return allSessions(block)
-            .filter { session in
-                session.week?.number == currentWeekNumber
-                    && session.dayNumber < currentSession.dayNumber
-            }
+    /// The Open Exercises for `currentSession`: every Exercise with a Pending Set
+    /// in an *earlier* Day of the same Current Week, ordered by Day and then by
+    /// Exercise order. This is the single home for the Open-Exercise rule — the
+    /// makeup queue and the Live Activity rest fallback both read from here, so
+    /// they cannot disagree about which earlier-Day Exercises qualify. Current-Week
+    /// membership is resolved through `sessionsInCurrentWeek(for:)`.
+    func openExercises(for currentSession: Session) -> [OpenExercise] {
+        sessionsInCurrentWeek(for: currentSession)
+            .filter { $0.dayNumber < currentSession.dayNumber }
+            .sorted { $0.dayNumber < $1.dayNumber }
             .flatMap { session in
                 session.exercises
                     .sorted { $0.order < $1.order }
-                    .filter { $0.hasPendingSet }
+                    .filter(\.hasPendingSet)
+                    .map { OpenExercise(session: session, exercise: $0) }
             }
     }
 

@@ -53,8 +53,8 @@ final class WorkoutStore {
 
     var isViewingLiveEdge: Bool { displayedSession?.persistentModelID == currentSession?.persistentModelID }
     var openExercises: [Exercise] {
-        guard let block, let currentSession else { return [] }
-        return tracker.openExercises(in: block, currentSession: currentSession)
+        guard let currentSession else { return [] }
+        return tracker.openExercises(for: currentSession).map(\.exercise)
     }
 
     var currentSessionDebugInfo: CurrentSessionDebugInfo {

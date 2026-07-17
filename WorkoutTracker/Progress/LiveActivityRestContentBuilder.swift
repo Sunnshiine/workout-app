@@ -246,16 +246,17 @@ enum LiveActivityRestContentBuilder {
     }
 
     private static func openExerciseFallback(for session: Session) -> RestTargetSet? {
-        SessionProgressTracker().sessionsInCurrentWeek(for: session)
-            .filter { $0.dayNumber < session.dayNumber }
-            .sorted { $0.dayNumber < $1.dayNumber }
-            .lazy
-            .compactMap { openSession in
-                firstPendingSet(in: openSession).map {
-                    RestTargetSet(session: openSession, exercise: $0.exercise, set: $0.set)
-                }
-            }
-            .first
+        // The rest fallback selects the first Pending Set of the first Open
+        // Exercise, walking the same earlier-Day / Pending-Set order the makeup
+        // queue uses. Every Open Exercise has a Pending Set by construction, so
+        // the first one always yields a target.
+        guard
+            let open = SessionProgressTracker().openExercises(for: session).first,
+            let set = firstPendingSet(in: open.exercise)
+        else {
+            return nil
+        }
+        return RestTargetSet(session: open.session, exercise: open.exercise, set: set)
     }
 
     private static func set(
@@ -281,6 +282,10 @@ enum LiveActivityRestContentBuilder {
 
     private static func firstPendingSet(in session: Session) -> (exercise: Exercise, set: ExerciseSet)? {
         orderedSets(in: session).first { $0.set.isPending }
+    }
+
+    private static func firstPendingSet(in exercise: Exercise) -> ExerciseSet? {
+        sortedSets(in: exercise).first(where: \.isPending)
     }
 
     private static func sessionIdentity(for session: Session) -> LiveActivitySessionIdentity {

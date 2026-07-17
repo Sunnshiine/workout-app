@@ -35,9 +35,8 @@ import Testing
 
     let open = WorkoutScenarios.openExercises()
     let openExerciseNames = open.tracker.openExercises(
-        in: open.block,
-        currentSession: try #require(open.currentSession)
-    ).map(\.name)
+        for: try #require(open.currentSession)
+    ).map(\.exercise.name)
     #expect(openExerciseNames == ["Back Squat", "Bench Press"])
 
     let failure = try #require(SyncStatusBannerPresentation(state: WorkoutScenarios.syncFailure()))
