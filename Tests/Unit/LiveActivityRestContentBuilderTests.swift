@@ -245,6 +245,72 @@ import Testing
 }
 
 @MainActor
+@Test func liveActivityOpenExerciseFallbackPicksEarliestEarlierDayFirstPendingSet() throws {
+    // Two earlier Current-Week days each hold Pending Sets. Routing the makeup
+    // fallback through the Open Exercise owner must still land on the *earliest*
+    // earlier day, and within it the first Pending Set (skipping a leading
+    // fully-logged Exercise).
+    let day1Logged = makeExercise(name: "Warmup", order: 0, setStates: [.logged])
+    let day1Open = makeExercise(name: "DB Row", order: 1, setStates: [.logged, .pending])
+    let day1 = makeSingleSession(dayNumber: 1, exercises: [day1Logged, day1Open])
+    let day2Open = makeExercise(name: "Chin Up", order: 0, setStates: [.pending])
+    let day2 = makeSingleSession(dayNumber: 2, exercises: [day2Open])
+    let currentExercise = makeExercise(name: "Bench Press", order: 0, setStates: [.logged])
+    let currentSession = makeSingleSession(dayNumber: 3, exercises: [currentExercise])
+    connectCurrentWeek([day1, day2, currentSession])
+    let loggedSet = try #require(currentExercise.sets.first)
+
+    let content = try #require(
+        LiveActivityRestContentBuilder.content(
+            afterLogging: loggedSet,
+            in: currentSession,
+            restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
+            restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
+        )
+    )
+
+    #expect(content.exerciseName == "DB Row")
+    #expect(content.target?.session == LiveActivitySessionIdentity(blockTab: nil, weekNumber: 1, dayNumber: 1))
+    #expect(content.target?.setID == ActiveSetID(exerciseOrder: 1, setIndex: 1))
+}
+
+@MainActor
+@Test func widgetUpNextAndOnScreenFocusLegitimatelyDivergeOnOpenExerciseFallback() throws {
+    // The widget's up-next carries the Open-Exercise makeup fallback; the focus
+    // engine deliberately does not. With the Current Session fully settled but an
+    // earlier Current-Week day still Open, the two policies legitimately point at
+    // different Sets — the widget at the earlier day's Pending Set, the focus at
+    // nothing. Pinning this keeps a future refactor from silently unifying them.
+    let openExercise = makeExercise(name: "DB Row", order: 0, setStates: [.pending])
+    let openSession = makeSingleSession(dayNumber: 1, exercises: [openExercise])
+    let currentExercise = makeExercise(name: "Bench Press", order: 0, setStates: [.pending])
+    let currentSession = makeSingleSession(dayNumber: 3, exercises: [currentExercise])
+    connectCurrentWeek([openSession, currentSession])
+    let logging = try #require(currentExercise.sets.first)
+
+    let focus = ActiveSetFocusManager(session: currentSession)
+    logging.state = .logged
+    focus.advanceAfterLog(logging, in: currentSession)
+
+    let content = try #require(
+        LiveActivityRestContentBuilder.content(
+            afterLogging: logging,
+            in: currentSession,
+            restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
+            restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
+        )
+    )
+
+    // Widget up-next: the earlier day's Open Exercise.
+    #expect(content.exerciseName == "DB Row")
+    #expect(content.target?.session == LiveActivitySessionIdentity(blockTab: nil, weekNumber: 1, dayNumber: 1))
+    // On-screen focus: nothing left in the Current Session, and no fallback.
+    #expect(focus.activeSetID == nil)
+    // The two scopes disagree, by design.
+    #expect(content.target?.setID != focus.activeSetID)
+}
+
+@MainActor
 @Test func liveActivityContentSuppressesWhenNoPendingTargetExists() throws {
     let exercise = makeExercise(name: "Bench Press", order: 0, setStates: [.logged])
     let session = makeSingleSession(exercises: [exercise])

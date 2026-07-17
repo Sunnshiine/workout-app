@@ -233,17 +233,21 @@ enum LiveActivityRestContentBuilder {
         return openExerciseFallback(for: session)
     }
 
+    /// The widget-only makeup fallback: when the Current Session has no Pending
+    /// Set left, point the rest widget at the earliest earlier Current-Week day
+    /// that still owes work. The earlier-day selection is the Open Exercise
+    /// owner's rule (`SessionProgressTracker.openExercises`); this builder only
+    /// projects its first Open Exercise's first Pending Set into a target. The
+    /// focus engine deliberately has no counterpart to this fallback.
     private static func openExerciseFallback(for session: Session) -> RestTargetSet? {
-        currentWeekSessions(for: session)
-            .filter { $0.dayNumber < session.dayNumber }
-            .sorted { $0.dayNumber < $1.dayNumber }
-            .lazy
-            .compactMap { openSession in
-                SessionSetOrder.firstPendingSet(in: openSession).map {
-                    RestTargetSet(session: openSession, exercise: $0.exercise, set: $0.set)
-                }
-            }
-            .first
+        guard
+            let openExercise = SessionProgressTracker().openExercises(inCurrentWeekOf: session).first,
+            let openSession = openExercise.session,
+            let position = SessionSetOrder.firstPendingSet(in: [openExercise])
+        else {
+            return nil
+        }
+        return RestTargetSet(session: openSession, exercise: position.exercise, set: position.set)
     }
 
     private static func set(
@@ -251,13 +255,6 @@ enum LiveActivityRestContentBuilder {
         in session: Session
     ) -> SessionSetPosition? {
         SessionSetOrder.orderedSets(in: session).first { $0.setID == setID }
-    }
-
-    private static func currentWeekSessions(for session: Session) -> [Session] {
-        guard let week = session.week, !week.sessions.isEmpty else {
-            return [session]
-        }
-        return week.sessions
     }
 
     private static func sessionIdentity(for session: Session) -> LiveActivitySessionIdentity {
