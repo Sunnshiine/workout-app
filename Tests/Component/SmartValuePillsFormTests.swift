@@ -38,6 +38,18 @@ import Testing
 }
 
 @MainActor
+@Test func weightPillPrefersBodyweightOverAPresentPercentOneRM() {
+    let form = SmartValuePillsForm(
+        set: ExerciseSet(index: 0, prescribedReps: "12", prescribedLoad: "BW", percentOneRM: "75%", state: .pending),
+        previousSetWeight: nil,
+        trainingMax: 265
+    )
+
+    #expect(form.weightText == "BW")
+    #expect(form.weightDisplay == "BW")
+}
+
+@MainActor
 @Test func weightPillShowsDashWhenDropPercentCannotCalculateYet() {
     let form = SmartValuePillsForm(
         set: ExerciseSet(index: 1, prescribedReps: "8", prescribedLoad: "Drop 17.5%", percentOneRM: nil, state: .pending),

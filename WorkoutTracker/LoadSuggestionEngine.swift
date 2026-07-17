@@ -1,25 +1,46 @@
 import Foundation
 
+/// The outcome of a Load Suggestion: a calculated weight hint, the bodyweight
+/// pre-fill when the coach prescribes `BW`, or no suggestion at all.
+public enum LoadSuggestion: Equatable, Sendable {
+    case weight(Double)
+    case bodyweight
+    case none
+}
+
 public enum LoadSuggestionEngine {
     private static let plateIncrement = 2.5
 
+    /// Owns the full Drop → %1RM → BW → none source selection. BW takes
+    /// precedence over Drop and %1RM: a bodyweight-prescribed Set pre-fills BW
+    /// even when a `percentOneRM` value is also present.
     public static func suggest(
         prescribedLoad: String,
         percentOneRM: String?,
         previousSetWeight: Double?,
         trainingMax: Double?
-    ) -> Double? {
+    ) -> LoadSuggestion {
+        if isBodyweight(prescribedLoad) {
+            return .bodyweight
+        }
+
         if let dropPercent = dropPercent(from: prescribedLoad), let previousSetWeight {
             let unrounded = previousSetWeight * (1 - dropPercent / 100)
-            return roundToNearestPlateIncrement(unrounded)
+            return .weight(roundToNearestPlateIncrement(unrounded))
         }
 
         if let percent = percentOneRMValue(from: percentOneRM), let trainingMax {
             let unrounded = trainingMax * percent / 100
-            return roundToNearestPlateIncrement(unrounded)
+            return .weight(roundToNearestPlateIncrement(unrounded))
         }
 
-        return nil
+        return .none
+    }
+
+    private static func isBodyweight(_ prescribedLoad: String) -> Bool {
+        prescribedLoad
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .caseInsensitiveCompare("BW") == .orderedSame
     }
 
     private static func dropPercent(from prescribedLoad: String) -> Double? {

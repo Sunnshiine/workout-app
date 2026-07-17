@@ -217,18 +217,19 @@ struct SmartValuePillsForm {
         previousSetWeight: Double?,
         trainingMax: Double?
     ) -> String {
-        if set.prescribedLoad.caseInsensitiveCompare("BW") == .orderedSame {
+        switch LoadSuggestionEngine.suggest(
+            prescribedLoad: set.prescribedLoad,
+            percentOneRM: set.percentOneRM,
+            previousSetWeight: previousSetWeight,
+            trainingMax: trainingMax
+        ) {
+        case .weight(let weight):
+            return weight.weightLabel
+        case .bodyweight:
             return "BW"
+        case .none:
+            return ""
         }
-        return
-            LoadSuggestionEngine
-            .suggest(
-                prescribedLoad: set.prescribedLoad,
-                percentOneRM: set.percentOneRM,
-                previousSetWeight: previousSetWeight,
-                trainingMax: trainingMax
-            )?
-            .weightLabel ?? ""
     }
 
     private static func initialRepsText(for prescribedReps: String) -> String {
