@@ -6,6 +6,7 @@ import Testing
     #expect(
         LoadSuggestionEngine.suggest(
             prescribedLoad: "Drop 17.5%",
+            percentOneRM: nil,
             previousSetWeight: 225,
             trainingMax: nil
         ) == 185
@@ -15,7 +16,8 @@ import Testing
 @Test func suggestsLoadForPercentOneRMPrescriptionFromTrainingMax() {
     #expect(
         LoadSuggestionEngine.suggest(
-            prescribedLoad: "75%1RM",
+            prescribedLoad: "RPE6",
+            percentOneRM: "75%",
             previousSetWeight: nil,
             trainingMax: 265
         ) == 200
@@ -26,6 +28,7 @@ import Testing
     #expect(
         LoadSuggestionEngine.suggest(
             prescribedLoad: "Drop 12%",
+            percentOneRM: nil,
             previousSetWeight: 185,
             trainingMax: nil
         ) == 162.5
@@ -37,6 +40,7 @@ func unsupportedPrescribedLoadReturnsNil(prescribedLoad: String) {
     #expect(
         LoadSuggestionEngine.suggest(
             prescribedLoad: prescribedLoad,
+            percentOneRM: nil,
             previousSetWeight: 225,
             trainingMax: 265
         ) == nil
@@ -47,13 +51,15 @@ func unsupportedPrescribedLoadReturnsNil(prescribedLoad: String) {
     #expect(
         LoadSuggestionEngine.suggest(
             prescribedLoad: "Drop 17.5%",
+            percentOneRM: nil,
             previousSetWeight: nil,
             trainingMax: 265
         ) == nil
     )
     #expect(
         LoadSuggestionEngine.suggest(
-            prescribedLoad: "75%1RM",
+            prescribedLoad: "RPE6",
+            percentOneRM: "75%",
             previousSetWeight: 225,
             trainingMax: nil
         ) == nil

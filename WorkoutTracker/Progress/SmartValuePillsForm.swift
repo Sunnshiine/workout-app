@@ -212,13 +212,6 @@ struct SmartValuePillsForm {
         return rpe
     }
 
-    private static func loadSuggestionPrescription(for set: ExerciseSet) -> String {
-        if let percentOneRM = set.percentOneRM {
-            return "\(percentOneRM)1RM"
-        }
-        return set.prescribedLoad
-    }
-
     private static func initialWeightText(
         for set: ExerciseSet,
         previousSetWeight: Double?,
@@ -230,7 +223,8 @@ struct SmartValuePillsForm {
         return
             LoadSuggestionEngine
             .suggest(
-                prescribedLoad: loadSuggestionPrescription(for: set),
+                prescribedLoad: set.prescribedLoad,
+                percentOneRM: set.percentOneRM,
                 previousSetWeight: previousSetWeight,
                 trainingMax: trainingMax
             )?
