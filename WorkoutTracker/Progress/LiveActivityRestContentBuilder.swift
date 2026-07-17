@@ -145,7 +145,7 @@ enum LiveActivityInvalidationPolicy {
         guard displayedSession === currentSession else { return true }
         guard let target = content.target else { return true }
         guard
-            let targetSession = currentWeekSessions(for: currentSession).first(where: {
+            let targetSession = SessionProgressTracker().sessionsInCurrentWeek(for: currentSession).first(where: {
                 sessionIdentity(for: $0) == target.session
             })
         else {
@@ -166,13 +166,6 @@ enum LiveActivityInvalidationPolicy {
             weekNumber: session.week?.number,
             dayNumber: session.dayNumber
         )
-    }
-
-    private static func currentWeekSessions(for session: Session) -> [Session] {
-        guard let week = session.week, !week.sessions.isEmpty else {
-            return [session]
-        }
-        return week.sessions
     }
 }
 
@@ -253,7 +246,7 @@ enum LiveActivityRestContentBuilder {
     }
 
     private static func openExerciseFallback(for session: Session) -> RestTargetSet? {
-        currentWeekSessions(for: session)
+        SessionProgressTracker().sessionsInCurrentWeek(for: session)
             .filter { $0.dayNumber < session.dayNumber }
             .sorted { $0.dayNumber < $1.dayNumber }
             .lazy
@@ -288,13 +281,6 @@ enum LiveActivityRestContentBuilder {
 
     private static func firstPendingSet(in session: Session) -> (exercise: Exercise, set: ExerciseSet)? {
         orderedSets(in: session).first { $0.set.isPending }
-    }
-
-    private static func currentWeekSessions(for session: Session) -> [Session] {
-        guard let week = session.week, !week.sessions.isEmpty else {
-            return [session]
-        }
-        return week.sessions
     }
 
     private static func sessionIdentity(for session: Session) -> LiveActivitySessionIdentity {

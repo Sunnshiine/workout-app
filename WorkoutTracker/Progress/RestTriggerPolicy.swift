@@ -12,7 +12,7 @@ struct RestTriggerPolicy {
         isSupersetMember: Bool,
         isRestRunning: Bool
     ) -> RestKind? {
-        let sessions = currentWeekSessions(for: session)
+        let sessions = SessionProgressTracker().sessionsInCurrentWeek(for: session)
         let hasPendingSet = sessions.contains { session in
             session.exercises.contains { exercise in
                 exercise.sets.contains { set in
@@ -22,12 +22,5 @@ struct RestTriggerPolicy {
         }
         guard hasPendingSet || isRestRunning else { return nil }
         return isSupersetMember ? .superset : .standard
-    }
-
-    private static func currentWeekSessions(for session: Session) -> [Session] {
-        guard let week = session.week, !week.sessions.isEmpty else {
-            return [session]
-        }
-        return week.sessions
     }
 }

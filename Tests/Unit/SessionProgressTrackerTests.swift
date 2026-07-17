@@ -398,3 +398,47 @@ private func sortedSessions(in block: Block) -> [Session] {
     #expect(current.dayNumber == 2)
     #expect(openExercises.isEmpty)
 }
+
+// MARK: - Current-Week membership
+
+@MainActor
+@Test func currentWeekMembershipFollowsTheWeekRelation() throws {
+    let block = makeBlock()
+    let week = try #require(block.weeks.first { $0.number == 1 })
+    let day1 = try #require(week.sessions.first { $0.dayNumber == 1 })
+
+    let members = SessionProgressTracker().sessionsInCurrentWeek(for: day1)
+
+    #expect(Set(members.map(\.persistentModelID)) == Set(week.sessions.map(\.persistentModelID)))
+}
+
+@MainActor
+@Test func currentWeekMembershipFollowsTheRelationNotTheWeekNumber() {
+    // Two Weeks share number 1; membership must follow the relation, not the
+    // number, so a Session in one Week never pulls in the identically-numbered
+    // other Week's Sessions.
+    let weekA = Week(number: 1)
+    let sessionA1 = Session(dayNumber: 1, date: nil)
+    let sessionA2 = Session(dayNumber: 2, date: nil)
+    weekA.sessions = [sessionA1, sessionA2]
+
+    let weekB = Week(number: 1)
+    let sessionB1 = Session(dayNumber: 1, date: nil)
+    weekB.sessions = [sessionB1]
+
+    let members = SessionProgressTracker().sessionsInCurrentWeek(for: sessionA1)
+
+    #expect(
+        Set(members.map(\.persistentModelID))
+            == Set([sessionA1, sessionA2].map(\.persistentModelID)))
+    #expect(!members.map(\.persistentModelID).contains(sessionB1.persistentModelID))
+}
+
+@MainActor
+@Test func currentWeekMembershipFallsBackToTheLoneSessionWithoutARelation() {
+    let session = Session(dayNumber: 1, date: nil)
+
+    let members = SessionProgressTracker().sessionsInCurrentWeek(for: session)
+
+    #expect(members.map(\.persistentModelID) == [session.persistentModelID])
+}

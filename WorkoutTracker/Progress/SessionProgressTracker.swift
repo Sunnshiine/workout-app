@@ -69,6 +69,21 @@ struct SessionProgressTracker {
         currentSession(in: block)?.week
     }
 
+    /// The Sessions that make up the same Week as `session` — the single home for
+    /// "which Sessions belong to the Current Week".
+    ///
+    /// Membership follows the `Week.sessions` relation, not `Week.number`: two
+    /// Weeks can share a number (e.g. across re-parsed Blocks), so the relation is
+    /// the authoritative grouping. When the relation is absent or empty — a
+    /// detached Session not yet wired into its Week — this falls back to the lone
+    /// passed-in Session so callers always have at least it to scan.
+    func sessionsInCurrentWeek(for session: Session) -> [Session] {
+        guard let week = session.week, !week.sessions.isEmpty else {
+            return [session]
+        }
+        return week.sessions
+    }
+
     func openExercises(in block: Block, currentSession: Session) -> [Exercise] {
         guard let currentWeekNumber = currentSession.week?.number else { return [] }
 
