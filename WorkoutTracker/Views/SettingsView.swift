@@ -19,101 +19,105 @@ struct SettingsView: View {
                 palette.gradient.ignoresSafeArea()
 
                 WorkoutGlassContainer(spacing: 12) {
-                    VStack(spacing: 0) {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("Appearance")
-                                .font(.body.weight(.semibold))
+                    VStack(spacing: 12) {
+                        VStack(spacing: 0) {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Appearance")
+                                    .font(.body.weight(.semibold))
 
-                            Picker("Appearance", selection: appearanceSelection) {
-                                ForEach(AppearancePreference.allCases, id: \.self) { appearance in
-                                    Text(appearance.label).tag(appearance)
+                                Picker("Appearance", selection: appearanceSelection) {
+                                    ForEach(AppearancePreference.allCases, id: \.self) { appearance in
+                                        Text(appearance.label).tag(appearance)
+                                    }
                                 }
+                                .pickerStyle(.segmented)
+                                .accessibilityIdentifier("settings-appearance-picker")
                             }
-                            .pickerStyle(.segmented)
-                            .accessibilityIdentifier("settings-appearance-picker")
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 14)
+
+                            Divider()
+                                .overlay(palette.bannerStroke)
+                                .padding(.leading, 16)
+
+                            SettingsRestSection()
+
+                            Divider()
+                                .overlay(palette.bannerStroke)
+                                .padding(.leading, 16)
+
+                            Button {
+                                isSheetPickerPresented = true
+                            } label: {
+                                SettingsRow(
+                                    systemImage: "tablecells",
+                                    title: "Training Sheet",
+                                    detail: sheetDisplayName
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(isSheetRouteDisabled)
+                            .opacity(isSheetRouteDisabled ? 0.6 : 1)
+                            .accessibilityIdentifier("settings-training-sheet-row")
+
+                            Divider()
+                                .overlay(palette.bannerStroke)
+                                .padding(.leading, 56)
+
+                            Button {
+                                syncNow()
+                            } label: {
+                                SettingsRow(
+                                    systemImage: "arrow.triangle.2.circlepath",
+                                    title: "Sync now",
+                                    detail: manualSyncDetail,
+                                    showsChevron: false
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(isManualSyncDisabled)
+                            .opacity(isManualSyncDisabled ? 0.6 : 1)
+                            .accessibilityIdentifier("settings-sync-now-button")
+                            .accessibilityValue(manualSyncDetail ?? "")
+
+                            Divider()
+                                .overlay(palette.bannerStroke)
+                                .padding(.leading, 56)
+
+                            NavigationLink {
+                                DeveloperToolsView()
+                            } label: {
+                                SettingsRow(
+                                    systemImage: "wrench.and.screwdriver",
+                                    title: "Developer Tools",
+                                    detail: nil
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("settings-developer-tools-row")
+
+                            Divider()
+                                .overlay(palette.bannerStroke)
+                                .padding(.leading, 56)
+
+                            Button(role: .destructive) {
+                                requestSignOut()
+                            } label: {
+                                SettingsRow(
+                                    systemImage: "rectangle.portrait.and.arrow.right",
+                                    title: "Sign Out",
+                                    detail: nil,
+                                    role: .destructive
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("settings-sign-out-button")
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 14)
+                        .padding(.vertical, 6)
+                        .workoutGlass(.card)
 
-                        Divider()
-                            .overlay(palette.bannerStroke)
-                            .padding(.leading, 16)
-
-                        SettingsRestSection()
-
-                        Divider()
-                            .overlay(palette.bannerStroke)
-                            .padding(.leading, 16)
-
-                        Button {
-                            isSheetPickerPresented = true
-                        } label: {
-                            SettingsRow(
-                                systemImage: "tablecells",
-                                title: "Training Sheet",
-                                detail: sheetDisplayName
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(isSheetRouteDisabled)
-                        .opacity(isSheetRouteDisabled ? 0.6 : 1)
-                        .accessibilityIdentifier("settings-training-sheet-row")
-
-                        Divider()
-                            .overlay(palette.bannerStroke)
-                            .padding(.leading, 56)
-
-                        Button {
-                            syncNow()
-                        } label: {
-                            SettingsRow(
-                                systemImage: "arrow.triangle.2.circlepath",
-                                title: "Sync now",
-                                detail: manualSyncDetail,
-                                showsChevron: false
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(isManualSyncDisabled)
-                        .opacity(isManualSyncDisabled ? 0.6 : 1)
-                        .accessibilityIdentifier("settings-sync-now-button")
-                        .accessibilityValue(manualSyncDetail ?? "")
-
-                        Divider()
-                            .overlay(palette.bannerStroke)
-                            .padding(.leading, 56)
-
-                        NavigationLink {
-                            DeveloperToolsView()
-                        } label: {
-                            SettingsRow(
-                                systemImage: "wrench.and.screwdriver",
-                                title: "Developer Tools",
-                                detail: nil
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("settings-developer-tools-row")
-
-                        Divider()
-                            .overlay(palette.bannerStroke)
-                            .padding(.leading, 56)
-
-                        Button(role: .destructive) {
-                            requestSignOut()
-                        } label: {
-                            SettingsRow(
-                                systemImage: "rectangle.portrait.and.arrow.right",
-                                title: "Sign Out",
-                                detail: nil,
-                                role: .destructive
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("settings-sign-out-button")
+                        BuildIdentityFooter()
                     }
-                    .padding(.vertical, 6)
-                    .workoutGlass(.card)
                 }
                 .padding()
             }
