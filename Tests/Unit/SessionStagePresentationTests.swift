@@ -277,6 +277,34 @@ struct SessionStagePresentationTests {
         #expect(staged?.index == 2)
     }
 
+    @Test func stageItemReadsSetOrderAndNextPendingThroughTheOwner() throws {
+        // The item's Set walk and its next-Pending reading come from the shared
+        // owner, not a private sort — proven by identity against the owner over
+        // a Logged/Skipped/Pending mix spanning two Superset exercises.
+        let press = makeExercise(name: "Press", order: 1, setStates: [.logged, .skipped, .pending])
+        let row = makeExercise(name: "Row", order: 2, setStates: [.pending, .logged])
+        let item = SessionStagePresentation.items([try supersetItem(press, row)])[0]
+        let exercises = [press, row]
+
+        let ownerOrder = SessionSetOrder.orderedSets(in: exercises).map(\.set)
+        #expect(item.sortedSets.count == ownerOrder.count)
+        #expect(zip(item.sortedSets, ownerOrder).allSatisfy { $0 === $1 })
+        #expect(item.nextPendingSet === SessionSetOrder.firstPendingSet(in: exercises)?.set)
+    }
+
+    @Test func stageSetSelectionOverAMixedSessionIsUnchanged() {
+        // The stage Set is the owner's first Pending Set. Predicate unification
+        // (state == .pending → isPending) is behavior-neutral, so the selected
+        // Set over a Logged/Skipped/Pending mix is identical to today.
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged, .skipped, .pending, .pending])
+        let item = SessionStagePresentation.items([exerciseItem(squat)])[0]
+
+        let staged = SessionStagePresentation.stageSet(activeSetID: nil, in: item.sortedSets)
+
+        #expect(staged === SessionSetOrder.firstPendingSet(in: [squat])?.set)
+        #expect(staged?.index == 2)
+    }
+
     @Test func stageSetIsNilWhenNothingIsPending() {
         let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged, .skipped])
         let sortedSets = SessionStagePresentation.items([exerciseItem(squat)])[0].sortedSets

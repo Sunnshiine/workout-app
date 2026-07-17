@@ -30,7 +30,14 @@ enum SessionSetOrder {
     /// The Session's Sets in Exercise-order then Set-index order — the one
     /// definition of that ordering.
     static func orderedSets(in session: Session) -> [SessionSetPosition] {
-        session.exercises
+        orderedSets(in: session.exercises)
+    }
+
+    /// The given Exercises' Sets in Exercise-order then Set-index order. The
+    /// Stage walks a single render item's Exercises through this same primitive
+    /// rather than re-sorting them itself.
+    static func orderedSets(in exercises: [Exercise]) -> [SessionSetPosition] {
+        exercises
             .sorted { $0.order < $1.order }
             .flatMap { exercise in
                 exercise.sets
@@ -41,7 +48,12 @@ enum SessionSetOrder {
 
     /// The first Pending Set in Session order, or `nil` when nothing is Pending.
     static func firstPendingSet(in session: Session) -> SessionSetPosition? {
-        orderedSets(in: session).first { $0.set.isPending }
+        firstPendingSet(in: session.exercises)
+    }
+
+    /// The first Pending Set across the given Exercises, in Set order.
+    static func firstPendingSet(in exercises: [Exercise]) -> SessionSetPosition? {
+        orderedSets(in: exercises).first { $0.set.isPending }
     }
 
     /// The next Pending Set after `set` in Session order, wrapping back to the
