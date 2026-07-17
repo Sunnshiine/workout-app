@@ -63,7 +63,7 @@ enum SessionSetOrder {
         guard let exercise = set.exercise else {
             return firstPendingSet(in: session)
         }
-        let currentID = ActiveSetID(exerciseOrder: exercise.order, setIndex: set.index)
+        let currentID = SessionSetPosition(exercise: exercise, set: set).setID
         let ordered = orderedSets(in: session)
         return
             ordered

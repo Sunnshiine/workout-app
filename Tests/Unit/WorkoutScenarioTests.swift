@@ -35,8 +35,7 @@ import Testing
 
     let open = WorkoutScenarios.openExercises()
     let openExerciseNames = open.tracker.openExercises(
-        in: open.block,
-        currentSession: try #require(open.currentSession)
+        inCurrentWeekOf: try #require(open.currentSession)
     ).map(\.name)
     #expect(openExerciseNames == ["Back Squat", "Bench Press"])
 

@@ -172,7 +172,10 @@ import Testing
 }
 
 @MainActor
-@Test func liveActivityInSessionUpNextMatchesSessionSetOrderOwnerAcrossStateMix() throws {
+@Test func liveActivityUpNextSkipsSettledSetsToTheNextPendingSetInOrder() throws {
+    // The rest widget's "up next" walks past the just-Logged Set and a following
+    // Skipped Set to the next Pending Set — the third Back Squat Set — rather
+    // than jumping to the later Exercises that also hold Pending Sets.
     let squat = makeExercise(name: "Back Squat", order: 0, setStates: [.logged, .skipped, .pending])
     let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending, .logged])
     let row = makeExercise(name: "DB Row", order: 2, setStates: [.pending])
@@ -188,8 +191,6 @@ import Testing
         )
     )
 
-    let ownerTarget = try #require(SessionSetOrder.nextPendingSet(after: loggedSet, in: session))
-    #expect(content.target?.setID == ownerTarget.setID)
     #expect(content.target?.setID == ActiveSetID(exerciseOrder: 0, setIndex: 2))
     #expect(content.exerciseName == "Back Squat")
 }

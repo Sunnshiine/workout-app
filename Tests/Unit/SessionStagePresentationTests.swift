@@ -277,32 +277,30 @@ struct SessionStagePresentationTests {
         #expect(staged?.index == 2)
     }
 
-    @Test func stageItemReadsSetOrderAndNextPendingThroughTheOwner() throws {
-        // The item's Set walk and its next-Pending reading come from the shared
-        // owner, not a private sort — proven by identity against the owner over
-        // a Logged/Skipped/Pending mix spanning two Superset exercises.
+    @Test func stageItemWalksBothSupersetExercisesInExerciseThenSetIndexOrder() throws {
+        // A Superset render item flattens both Exercises' Sets in Exercise-order
+        // then Set-index order, and its next-Pending reading skips the leading
+        // Logged/Skipped Sets to the first Pending one (the third Press Set).
         let press = makeExercise(name: "Press", order: 1, setStates: [.logged, .skipped, .pending])
         let row = makeExercise(name: "Row", order: 2, setStates: [.pending, .logged])
         let item = SessionStagePresentation.items([try supersetItem(press, row)])[0]
-        let exercises = [press, row]
+        let pressPending = try #require(press.sets.first { $0.index == 2 })
 
-        let ownerOrder = SessionSetOrder.orderedSets(in: exercises).map(\.set)
-        #expect(item.sortedSets.count == ownerOrder.count)
-        #expect(zip(item.sortedSets, ownerOrder).allSatisfy { $0 === $1 })
-        #expect(item.nextPendingSet === SessionSetOrder.firstPendingSet(in: exercises)?.set)
+        #expect(item.sortedSets.map(\.index) == [0, 1, 2, 0, 1])
+        #expect(item.sortedSets.first === press.sets.first { $0.index == 0 })
+        #expect(item.sortedSets.last === row.sets.first { $0.index == 1 })
+        #expect(item.nextPendingSet === pressPending)
     }
 
-    @Test func stageSetSelectionOverAMixedSessionIsUnchanged() {
-        // The stage Set is the owner's first Pending Set. Predicate unification
-        // (state == .pending → isPending) is behavior-neutral, so the selected
-        // Set over a Logged/Skipped/Pending mix is identical to today.
+    @Test func stageSetSkipsSettledSetsToTheFirstPendingSet() {
+        // With a Logged/Skipped/Pending/Pending Exercise and no active Set, the
+        // stage falls back to the first Pending Set — the third Set.
         let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged, .skipped, .pending, .pending])
         let item = SessionStagePresentation.items([exerciseItem(squat)])[0]
 
         let staged = SessionStagePresentation.stageSet(activeSetID: nil, in: item.sortedSets)
 
-        #expect(staged === SessionSetOrder.firstPendingSet(in: [squat])?.set)
-        #expect(staged?.index == 2)
+        #expect(staged === squat.sets.first { $0.index == 2 })
     }
 
     @Test func stageSetIsNilWhenNothingIsPending() {

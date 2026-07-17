@@ -69,16 +69,12 @@ struct SessionProgressTracker {
         currentSession(in: block)?.week
     }
 
-    func openExercises(in block: Block, currentSession: Session) -> [Exercise] {
-        openExercises(inCurrentWeekOf: currentSession)
-    }
-
     /// The Open Exercise rule scoped to the Current Week: Exercises holding a
     /// Pending Set in Current-Week days *earlier* than `currentSession`, in
     /// day order then Exercise order. This is the one home for "earlier
-    /// Current-Week days still owe makeup work" — the Block-scoped
-    /// `openExercises(in:currentSession:)` and the Live Activity rest widget's
-    /// makeup fallback both read it, rather than each re-walking the Week.
+    /// Current-Week days still owe makeup work" — the Session list's Open
+    /// Exercises row and the Live Activity rest widget's makeup fallback both
+    /// read it, rather than each re-walking the Week.
     func openExercises(inCurrentWeekOf currentSession: Session) -> [Exercise] {
         guard let week = currentSession.week else { return [] }
 

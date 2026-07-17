@@ -216,8 +216,7 @@ final class ActiveSetFocusManager {
     }
 
     static func id(for set: ExerciseSet) -> ActiveSetID? {
-        guard let exercise = set.exercise else { return nil }
-        return ActiveSetID(exerciseOrder: exercise.order, setIndex: set.index)
+        set.exercise.map { SessionSetPosition(exercise: $0, set: set).setID }
     }
 
     private func sectionState(for exercises: [Exercise]) -> SupersetSectionState? {
