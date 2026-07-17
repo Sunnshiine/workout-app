@@ -58,6 +58,37 @@ private func makePlannedSupersetSession() -> Session {
 }
 
 @MainActor
+@Test func initialActiveSetReadsFirstPendingSetFromSessionOrderOwner() {
+    let session = makeSession()
+    let focus = ActiveSetFocusManager(session: session)
+
+    // The engine no longer owns its own first-Pending walk: its selection must
+    // match the Session Pending Set order owner's, proving the primitive swap
+    // changed no selection.
+    #expect(focus.activeSetID == SessionSetOrder.firstPendingSet(in: session)?.setID)
+}
+
+@MainActor
+@Test func advanceAfterLogReadsNextPendingSetFromOwnerAcrossLoggedSkippedPendingMix() throws {
+    // A Logged/Skipped/Pending mix exercises the predicate unification: the
+    // engine used to walk `state == .pending`, the owner uses `isPending`.
+    // The two are defined to be identical, so the advanced Active Set must match
+    // the owner's next-Pending selection.
+    let session = makeMultiExercisePendingSession()
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
+    let secondSquatSet = try #require(squat.sets.first { $0.index == 1 })
+    firstSquatSet.state = .logged
+    secondSquatSet.state = .skipped
+    let focus = ActiveSetFocusManager(session: session)
+
+    focus.advanceAfterLog(firstSquatSet, in: session)
+
+    #expect(focus.activeSetID == SessionSetOrder.nextPendingSet(after: firstSquatSet, in: session)?.setID)
+    #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+}
+
+@MainActor
 @Test func initialActiveSetIsFirstPendingSetInSessionOrder() {
     let session = makeSession()
     let focus = ActiveSetFocusManager(session: session)
