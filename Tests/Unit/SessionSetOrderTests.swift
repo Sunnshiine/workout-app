@@ -136,19 +136,29 @@ private func makeMultiExerciseSession() -> Session {
 }
 
 @MainActor
-@Test func orderedSetsMatchesFixtureExerciseThenSetIndexSequence() {
+@Test func orderedSetsCoversEveryFixtureSetInStrictExerciseThenSetIndexOrder() {
+    // The `openExercisesBlock` fixture, walked by the owner. Rather than re-run
+    // the SUT's own flatMap-of-sorts as the oracle (a test that only fails if
+    // both copies change together), assert the two independent properties that
+    // "Exercise-order then Set-index order" actually means:
+    //   • completeness — every fixture Set appears exactly once (order-insensitive), and
+    //   • strict ordering — each position's (exerciseOrder, setIndex) is greater
+    //     than the one before it.
     let scenario = WorkoutScenarios.openExercises()
     let session = scenario.currentSession!
 
     let sequence = SessionSetOrder.orderedSets(in: session).map { $0.setID }
-    let expected = session.exercises
-        .sorted { $0.order < $1.order }
-        .flatMap { exercise in
-            exercise.sets
-                .sorted { $0.index < $1.index }
-                .map { ActiveSetID(exerciseOrder: exercise.order, setIndex: $0.index) }
+    let everyFixtureSetID = Set(
+        session.exercises.flatMap { exercise in
+            exercise.sets.map { ActiveSetID(exerciseOrder: exercise.order, setIndex: $0.index) }
         }
+    )
 
     #expect(!sequence.isEmpty)
-    #expect(sequence == expected)
+    #expect(sequence.count == everyFixtureSetID.count)
+    #expect(Set(sequence) == everyFixtureSetID)
+    let isStrictlyAscending = zip(sequence, sequence.dropFirst()).allSatisfy { previous, next in
+        (previous.exerciseOrder, previous.setIndex) < (next.exerciseOrder, next.setIndex)
+    }
+    #expect(isStrictlyAscending)
 }
