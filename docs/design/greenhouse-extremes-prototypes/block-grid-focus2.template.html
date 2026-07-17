@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=393, initial-scale=1">
+<title>FOCUS WEEK ROUND THREE — Greenhouse prototype (#435)</title>
+<style>
+/* THROWAWAY PROTOTYPE — issue #435, round three of /grilling-frontend-prototyping.
+   Verdict so far: Focus week; muted collapsed weeks loved; tiles must be
+   wider than tall; branches & birds are dead on this page. Fixed in all five:
+   wide tiles, muted-but-TAPPABLE collapsed weeks. Varied: the tap affordance,
+   the focus week's voice, elevation, and a non-branch non-bird delight
+   element made of LIGHT (sun through greenhouse glass, on the tiles).
+   Variants via ?variant= , day count via ?days=2|3|4|6 :
+     a — pill weeks: collapsed weeks wear the tile vocabulary itself
+         (quiet fill + stroke = tappable); flat page; plain sans voice
+     b — focus on glass: same as a, but the focus week alone sits on one
+         soft elevated surface (the elevation probe)
+     c — warm serif: Fraunces speaks the focus week's name; sunlit current
+         tile (a soft light bloom on the bud)
+     d — chevron ledger: collapsed weeks stay bare muted text but earn a
+         quiet chevron (nav-chrome affordance); bigger, heavier sans voice
+     e — sunlit hour: the delight probe — morning light washes the focus
+         section, panes of light cross completed tiles, the current tile glows
+*/
+/*__FONTS__*/
+:root {
+  --paper-top: #E8EDDB;
+  --paper-bottom: #C7E0BF;
+  --ink: #152118;
+  --muted: #526457;
+  --faint: rgba(82, 100, 87, 0.55);
+  --action: #0D6B40;
+  --cream: #F2F7E8;
+  --surface: rgba(242, 247, 232, 0.52);
+  --surface-shadow: 0 1px 2px rgba(21, 33, 24, 0.04), 0 14px 30px rgba(21, 33, 24, 0.07);
+  --pill-fill: rgba(242, 247, 232, 0.85);
+  --pill-stroke: rgba(82, 111, 90, 0.34);
+  --tile-complete: #0D6B40;
+  --tile-complete-text: #F2F7E8;
+  --tile-current-fill: rgba(242, 247, 232, 0.95);
+  --tile-current-shadow: 0 1px 2px rgba(13, 46, 28, 0.10), 0 8px 18px rgba(13, 60, 35, 0.12);
+  --tile-ghost: rgba(21, 33, 24, 0.045);
+  --sun-glow: 0 0 0 4px rgba(242, 247, 232, 0.45), 0 2px 18px rgba(220, 235, 190, 0.9);
+  --home-bar: rgba(21, 33, 24, 0.20);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  position: relative;
+  width: 393px; height: 852px; overflow: hidden;
+  background: linear-gradient(180deg, var(--paper-top) 0%, var(--paper-bottom) 100%);
+  color: var(--ink);
+  font-family: 'Source Sans 3', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+.num { font-variant-numeric: tabular-nums; }
+.time {
+  position: absolute; top: 21px; left: 36px; z-index: 2;
+  font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.home-indicator {
+  position: absolute; bottom: 9px; left: 50%; transform: translateX(-50%); z-index: 2;
+  width: 134px; height: 5px; border-radius: 3px; background: var(--home-bar);
+}
+.col { display: flex; flex-direction: column; width: 393px; height: 852px; padding: 0 28px; overflow: hidden; }
+
+.back { margin-top: 64px; font-size: 15px; font-weight: 600; color: var(--muted); }
+h1.block-title {
+  margin: 14px 0 0; font-size: 28px; font-weight: 700; letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums; color: var(--muted);
+}
+.block-sub { margin: 7px 0 0; font-size: 13.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
+
+/* ————— wide tiles: always wider than tall ————— */
+.tile-row { display: flex; gap: 8px; }
+.tile {
+  flex: 1; min-width: 0;
+  height: 48px; border-radius: 15px; padding: 0 13px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-variant-numeric: tabular-nums;
+  position: relative; overflow: hidden;
+}
+.tile.short { height: 40px; padding: 0; justify-content: center; }
+.tile .day { font-size: 14.5px; font-weight: 700; line-height: 1; white-space: nowrap; }
+.tile.short .day { font-size: 13px; }
+.tile .note { font-size: 9.5px; font-weight: 600; }
+.tile.complete { background: var(--tile-complete); color: var(--tile-complete-text); }
+.tile.current {
+  background: var(--tile-current-fill); border: 2px solid var(--action);
+  box-shadow: var(--tile-current-shadow); color: #152118;
+}
+.tile.current .note { color: var(--action); }
+.tile.available { background: var(--pill-fill); border: 1px solid var(--pill-stroke); }
+.tile.ghost { background: var(--tile-ghost); color: var(--muted); }
+.tile.ghost .day { opacity: 0.75; }
+
+/* the delight, made of light — sun on the bud */
+.tile.current.sunlit { box-shadow: var(--sun-glow); border-color: #1F8552; }
+.tile.current.sunlit::after {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(90% 160% at 78% -30%, rgba(255, 255, 245, 0.85), transparent 55%);
+  pointer-events: none;
+}
+/* panes of light across settled (inked) tiles */
+.tile.complete.paned::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(112deg, transparent 32%, rgba(242, 247, 232, 0.20) 40%, rgba(242, 247, 232, 0.06) 47%, transparent 55%, transparent 68%, rgba(242, 247, 232, 0.10) 76%, transparent 84%);
+  pointer-events: none;
+}
+/* the morning wash over the focus section */
+.sunwash { position: relative; margin: 0 -28px; padding: 0 28px 18px; }
+.sunwash::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(120% 130% at 88% -10%, rgba(250, 252, 238, 0.75), transparent 62%);
+  pointer-events: none;
+}
+.sunwash > * { position: relative; }
+
+.focus-head {
+  margin: 26px 0 11px;
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-variant-numeric: tabular-nums;
+}
+.focus-head .wk { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+.focus-head .count { color: var(--muted); font-weight: 500; font-size: 12.5px; }
+body[data-variant="c"] .focus-head .wk {
+  font-family: 'Fraunces', serif;
+  font-variation-settings: "opsz" 26, "wght" 470, "SOFT" 100, "WONK" 0;
+  font-size: 25px; font-weight: 470; letter-spacing: 0;
+}
+body[data-variant="d"] .focus-head .wk { font-size: 26px; font-weight: 750; letter-spacing: -0.015em; }
+
+/* ————— collapsed weeks, tappable ————— */
+/* pill grammar: the same quiet fill + 1px stroke that means "tappable"
+   everywhere else in the app */
+.week-pill {
+  display: flex; justify-content: space-between; align-items: center;
+  height: 50px; border-radius: 16px; padding: 0 16px; margin-top: 10px;
+  background: var(--pill-fill); border: 1px solid var(--pill-stroke);
+  font-variant-numeric: tabular-nums;
+}
+.week-pill .wk { font-size: 14px; font-weight: 600; color: var(--muted); }
+.week-pill .sum { font-size: 12.5px; font-weight: 500; color: var(--faint); }
+.week-pill.done .wk { color: var(--ink); font-weight: 700; }
+.week-pill.done .sum { color: var(--action); font-weight: 600; }
+
+/* chevron grammar: bare muted text + quiet disclosure chrome */
+.week-chevron {
+  display: flex; align-items: baseline;
+  padding: 15px 2px; font-variant-numeric: tabular-nums;
+}
+.week-chevron .wk { font-size: 14.5px; font-weight: 600; color: var(--faint); }
+.week-chevron.done .wk { color: var(--muted); font-weight: 700; }
+.week-chevron .sum { margin-left: auto; font-size: 12.5px; font-weight: 500; color: var(--faint); }
+.week-chevron.done .sum { color: var(--action); font-weight: 600; }
+.week-chevron .chev { margin-left: 10px; font-size: 15px; font-weight: 600; color: var(--faint); }
+
+/* b: the focus week alone rides one soft surface */
+.focus-surface {
+  margin: 20px -10px 0; padding: 2px 16px 16px;
+  background: var(--surface); border-radius: 22px;
+  box-shadow: var(--surface-shadow);
+}
+.focus-surface .focus-head { margin-top: 14px; }
+
+/* ————— switcher (NOT part of the design) ————— */
+.switcher {
+  position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+  z-index: 99; display: flex; align-items: center; gap: 2px;
+  background: #111; color: #fff; border-radius: 999px; padding: 4px 6px;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.5);
+}
+.switcher a { color: #fff; text-decoration: none; padding: 2px 7px; font-size: 14px; line-height: 1; }
+.switcher .label { padding: 0 6px; white-space: nowrap; }
+.switcher .days { display: flex; gap: 1px; margin-left: 4px; border-left: 1px solid #444; padding-left: 5px; }
+.switcher .days a { font-size: 12px; padding: 2px 6px; border-radius: 999px; color: #bbb; }
+.switcher .days a.on { background: #fff; color: #111; }
+</style>
+</head>
+<body data-variants="a,b,c,d,e" data-variant="a">
+
+<div class="time num" id="clock">9:41</div>
+<div class="col" id="page"></div>
+<div class="home-indicator"></div>
+
+<nav class="switcher">
+  <a id="sw-prev" href="#">‹</a>
+  <span class="label" id="sw-label"></span>
+  <a id="sw-next" href="#">›</a>
+  <span class="days" id="sw-days"></span>
+</nav>
+
+<script>
+  const KEYS = ['a', 'b', 'c', 'd', 'e'];
+  const NAMES = {
+    a: 'A · Pill weeks',
+    b: 'B · Focus on glass',
+    c: 'C · Warm serif',
+    d: 'D · Chevron ledger',
+    e: 'E · Sunlit hour'
+  };
+  const DAY_CHOICES = [2, 3, 4, 6];
+  const params = new URLSearchParams(location.search);
+  const key = KEYS.includes(params.get('variant')) ? params.get('variant') : 'a';
+  const days = DAY_CHOICES.includes(+params.get('days')) ? +params.get('days') : 6;
+  document.body.dataset.variant = key;
+  const i = KEYS.indexOf(key);
+  document.getElementById('sw-label').textContent = NAMES[key];
+  const href = (v, d) => '?variant=' + v + '&days=' + d;
+  document.getElementById('sw-prev').href = href(KEYS[(i + KEYS.length - 1) % KEYS.length], days);
+  document.getElementById('sw-next').href = href(KEYS[(i + 1) % KEYS.length], days);
+  document.getElementById('sw-days').innerHTML = DAY_CHOICES.map((d) =>
+    '<a href="' + href(key, d) + '"' + (d === days ? ' class="on"' : '') + '>' + d + 'd</a>').join('');
+
+  function makeBlock(n) {
+    const w1 = Array(n).fill('complete');
+    const w2 = Array.from({ length: n }, (_, d) => {
+      const done = Math.ceil(n / 2);
+      return d < done ? 'complete' : d === done ? 'current' : 'available';
+    });
+    const w3 = Array.from({ length: n }, (_, d) => (d % 2 === 0 ? 'available' : 'ghost'));
+    const w4 = Array.from({ length: n }, (_, d) => (d === 0 ? 'available' : 'ghost'));
+    return [w1, w2, w3, w4].map((daysArr, wi) => ({ week: wi + 1, days: daysArr }));
+  }
+  const BLOCK = makeBlock(days);
+  const FOCUS = BLOCK.findIndex((w) => w.days.includes('current'));
+  const doneCount = (w) => w.days.filter((d) => d === 'complete').length;
+  const ghostCount = (w) => w.days.filter((d) => d === 'ghost').length;
+  const isDone = (w) => doneCount(w) === w.days.length;
+  const total = BLOCK.reduce((s, w) => s + w.days.length, 0);
+  const done = BLOCK.reduce((s, w) => s + doneCount(w), 0);
+  const ghosts = BLOCK.reduce((s, w) => s + ghostCount(w), 0);
+
+  const page = document.getElementById('page');
+  const el = (cls, html, tag) => {
+    const d = document.createElement(tag || 'div');
+    d.className = cls; d.innerHTML = html || '';
+    return d;
+  };
+  function header() {
+    page.appendChild(el('back', '‹ Session'));
+    page.appendChild(el('block-title num', 'Block 27', 'h1'));
+    page.appendChild(el('block-sub num',
+      done + ' of ' + total + ' Sessions complete' + (ghosts ? ' · ' + ghosts + ' not yet uploaded' : '')));
+  }
+  function summary(w) {
+    if (isDone(w)) return 'Complete';
+    let s = doneCount(w) + ' of ' + w.days.length;
+    if (ghostCount(w)) s += ' · ' + ghostCount(w) + ' not uploaded';
+    return s;
+  }
+  function focusRight(w) {
+    let t = doneCount(w) + ' of ' + w.days.length;
+    if (days >= 5 && ghostCount(w)) t += ' · ' + ghostCount(w) + ' not uploaded';
+    return t;
+  }
+  // wide tiles: at ≤4 days the label sits left with the state word right;
+  // at ≥5 days tiles go short + centered D-labels
+  function tileEl(state, di, opts) {
+    const short = days >= 5;
+    const t = el('tile ' + state + (short ? ' short' : '') +
+      (opts.sunTile && state === 'current' ? ' sunlit' : '') +
+      (opts.panes && state === 'complete' ? ' paned' : '') + ' num');
+    const day = short ? 'D' + (di + 1) : 'Day ' + (di + 1);
+    let note = '';
+    if (!short) {
+      note = state === 'current' ? '<span class="note">Current</span>' :
+             state === 'ghost' ? '<span class="note">Not uploaded</span>' : '';
+    }
+    t.innerHTML = '<span class="day">' + day + '</span>' + note;
+    return t;
+  }
+  function focusTiles(w, opts) {
+    const row = el('tile-row');
+    w.days.forEach((state, di) => row.appendChild(tileEl(state, di, opts)));
+    return row;
+  }
+  function focusHead(w) {
+    return el('focus-head',
+      '<span class="wk num">Week ' + w.week + '</span><span class="count num">' + focusRight(w) + '</span>');
+  }
+  function collapsedEl(w, grammar) {
+    if (grammar === 'chevron') {
+      return el('week-chevron num' + (isDone(w) ? ' done' : ''),
+        '<span class="wk">Week ' + w.week + '</span><span class="sum">' + summary(w) +
+        '</span><span class="chev">›</span>');
+    }
+    return el('week-pill num' + (isDone(w) ? ' done' : ''),
+      '<span class="wk">Week ' + w.week + '</span><span class="sum">' + summary(w) + '</span>');
+  }
+
+  // options per variant: collapsed grammar, elevation, delight
+  const OPTS = {
+    a: { grammar: 'pill', elevation: false, sunTile: false, panes: false, wash: false },
+    b: { grammar: 'pill', elevation: true, sunTile: false, panes: false, wash: false },
+    c: { grammar: 'pill', elevation: false, sunTile: true, panes: false, wash: false },
+    d: { grammar: 'chevron', elevation: false, sunTile: false, panes: false, wash: false },
+    e: { grammar: 'pill', elevation: false, sunTile: true, panes: true, wash: true }
+  }[key];
+
+  header();
+  BLOCK.forEach((w, wi) => {
+    if (wi !== FOCUS) {
+      page.appendChild(collapsedEl(w, OPTS.grammar));
+      return;
+    }
+    if (OPTS.elevation) {
+      const card = el('focus-surface');
+      card.appendChild(focusHead(w));
+      card.appendChild(focusTiles(w, OPTS));
+      page.appendChild(card);
+    } else if (OPTS.wash) {
+      const wash = el('sunwash');
+      wash.appendChild(focusHead(w));
+      wash.appendChild(focusTiles(w, OPTS));
+      page.appendChild(wash);
+    } else {
+      page.appendChild(focusHead(w));
+      page.appendChild(focusTiles(w, OPTS));
+    }
+  });
+</script>
+</body>
+</html>
