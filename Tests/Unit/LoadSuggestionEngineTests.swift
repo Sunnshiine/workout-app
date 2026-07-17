@@ -65,7 +65,7 @@ func unsupportedPrescribedLoadReturnsNone(prescribedLoad: String) {
             percentOneRM: nil,
             previousSetWeight: 225,
             trainingMax: 265
-        ) == .none
+        ) == .noSuggestion
     )
 }
 
@@ -76,7 +76,7 @@ func unsupportedPrescribedLoadReturnsNone(prescribedLoad: String) {
             percentOneRM: nil,
             previousSetWeight: nil,
             trainingMax: 265
-        ) == .none
+        ) == .noSuggestion
     )
     #expect(
         LoadSuggestionEngine.suggest(
@@ -84,6 +84,6 @@ func unsupportedPrescribedLoadReturnsNone(prescribedLoad: String) {
             percentOneRM: "75%",
             previousSetWeight: 225,
             trainingMax: nil
-        ) == .none
+        ) == .noSuggestion
     )
 }

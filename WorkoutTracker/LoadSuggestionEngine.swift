@@ -5,7 +5,7 @@ import Foundation
 public enum LoadSuggestion: Equatable, Sendable {
     case weight(Double)
     case bodyweight
-    case none
+    case noSuggestion
 }
 
 public enum LoadSuggestionEngine {
@@ -34,7 +34,7 @@ public enum LoadSuggestionEngine {
             return .weight(roundToNearestPlateIncrement(unrounded))
         }
 
-        return .none
+        return .noSuggestion
     }
 
     private static func isBodyweight(_ prescribedLoad: String) -> Bool {

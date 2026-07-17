@@ -227,7 +227,7 @@ struct SmartValuePillsForm {
             return weight.weightLabel
         case .bodyweight:
             return "BW"
-        case .none:
+        case .noSuggestion:
             return ""
         }
     }
