@@ -399,6 +399,58 @@ private func sortedSessions(in block: Block) -> [Session] {
     #expect(openExercises.isEmpty)
 }
 
+// MARK: - Move On destination
+
+@MainActor
+@Test func moveOnDestinationAdvancesToNextAvailableSession() throws {
+    let block = makeBlock()
+    let sessions = sortedSessions(in: block)
+    let tracker = SessionProgressTracker()
+
+    let destination = tracker.moveOnDestination(from: sessions[0], in: block)
+
+    #expect(destination == .advance(to: sessions[1]))
+}
+
+@MainActor
+@Test func moveOnDestinationSkipsUnavailableSessionsWhenAdvancing() throws {
+    let block = makeBlock()
+    let sessions = sortedSessions(in: block)
+    sessions[1].exercises = []
+    sessions[2].exercises = []
+    let tracker = SessionProgressTracker()
+
+    let destination = tracker.moveOnDestination(from: sessions[0], in: block)
+
+    #expect(destination == .advance(to: sessions[3]))
+}
+
+@MainActor
+@Test func moveOnDestinationReturnsToBlockOverviewWhenOnlyUnavailableSessionsRemainAhead() throws {
+    let block = makeBlock()
+    let sessions = sortedSessions(in: block)
+    // Current is the last Available Session; everything ahead is Unavailable.
+    for session in sessions[1...] {
+        session.exercises = []
+    }
+    let tracker = SessionProgressTracker()
+
+    let destination = tracker.moveOnDestination(from: sessions[0], in: block)
+
+    #expect(destination == .returnToBlockOverview)
+}
+
+@MainActor
+@Test func moveOnDestinationIsNoneWhenNothingLiesAhead() throws {
+    let block = makeBlock()
+    let sessions = sortedSessions(in: block)
+    let tracker = SessionProgressTracker()
+
+    let destination = tracker.moveOnDestination(from: sessions[7], in: block)
+
+    #expect(destination == MoveOnDestination.none)
+}
+
 // MARK: - Current-Week membership
 
 @MainActor

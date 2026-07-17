@@ -48,7 +48,7 @@ final class WorkoutStore {
 
     var canMoveOn: Bool {
         guard let block, let currentSession else { return false }
-        return tracker.hasSessionAhead(after: currentSession, in: block)
+        return tracker.moveOnDestination(from: currentSession, in: block) != .none
     }
 
     var isViewingLiveEdge: Bool { displayedSession?.persistentModelID == currentSession?.persistentModelID }
@@ -155,7 +155,7 @@ final class WorkoutStore {
         guard
             let block,
             let currentSession,
-            tracker.hasSessionAhead(after: currentSession, in: block)
+            tracker.moveOnDestination(from: currentSession, in: block) != .none
         else { return }
 
         moveOnCelebrationSession = currentSession
@@ -179,17 +179,17 @@ final class WorkoutStore {
     private func advance(after session: Session) {
         guard let block else { return }
 
-        guard tracker.hasSessionAhead(after: session, in: block) else { return }
-
-        guard let nextSession = tracker.nextSession(after: session, in: block) else {
-            requestBlockOverviewPresentation()
+        switch tracker.moveOnDestination(from: session, in: block) {
+        case .none:
             return
+        case .returnToBlockOverview:
+            requestBlockOverviewPresentation()
+        case .advance(to: let nextSession):
+            defaults.set(tracker.order(of: nextSession), forKey: currentSessionOverrideKey(for: block.tabName))
+            currentSessionOverrideRevision += 1
+            displayedSession = nextSession
+            shouldPreserveDisplayedSessionOnReload = false
         }
-
-        defaults.set(tracker.order(of: nextSession), forKey: currentSessionOverrideKey(for: block.tabName))
-        currentSessionOverrideRevision += 1
-        displayedSession = nextSession
-        shouldPreserveDisplayedSessionOnReload = false
     }
 
     // MARK: - Private Helpers
