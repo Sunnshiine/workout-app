@@ -423,6 +423,7 @@ private func sortedSessions(in block: Block) -> [Session] {
     let destination = tracker.moveOnDestination(from: sessions[0], in: block)
 
     #expect(destination == .advance(to: sessions[1]))
+    #expect(destination.isOffered)
 }
 
 @MainActor
@@ -451,6 +452,7 @@ private func sortedSessions(in block: Block) -> [Session] {
     let destination = tracker.moveOnDestination(from: sessions[0], in: block)
 
     #expect(destination == .returnToBlockOverview)
+    #expect(destination.isOffered)
 }
 
 @MainActor
@@ -461,7 +463,8 @@ private func sortedSessions(in block: Block) -> [Session] {
 
     let destination = tracker.moveOnDestination(from: sessions[7], in: block)
 
-    #expect(destination == MoveOnDestination.none)
+    #expect(destination == .notOffered)
+    #expect(!destination.isOffered)
 }
 
 // MARK: - Current-Week membership

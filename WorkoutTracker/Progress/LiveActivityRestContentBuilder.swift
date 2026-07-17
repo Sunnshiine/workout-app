@@ -252,7 +252,7 @@ enum LiveActivityRestContentBuilder {
         // the first one always yields a target.
         guard
             let open = SessionProgressTracker().openExercises(for: session).first,
-            let set = firstPendingSet(in: open.exercise)
+            let set = sortedSets(in: open.exercise).first(where: \.isPending)
         else {
             return nil
         }
@@ -282,10 +282,6 @@ enum LiveActivityRestContentBuilder {
 
     private static func firstPendingSet(in session: Session) -> (exercise: Exercise, set: ExerciseSet)? {
         orderedSets(in: session).first { $0.set.isPending }
-    }
-
-    private static func firstPendingSet(in exercise: Exercise) -> ExerciseSet? {
-        sortedSets(in: exercise).first(where: \.isPending)
     }
 
     private static func sessionIdentity(for session: Session) -> LiveActivitySessionIdentity {

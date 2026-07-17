@@ -31,7 +31,12 @@ enum MoveOnDestination: Equatable {
     /// Sessions ahead — Move On returns the athlete to the Block grid.
     case returnToBlockOverview
     /// Nothing lies ahead — Move On is not offered.
-    case none
+    case notOffered
+
+    /// Whether Move On is offered from here — true unless nothing lies ahead. Lets a
+    /// caller gating a control ask the decision directly instead of comparing against a
+    /// case (and avoids the `Optional.none` footgun a `.none` case would invite).
+    var isOffered: Bool { self != .notOffered }
 }
 
 /// A Session's identity as persisted for the manual Current-Session override.
@@ -106,7 +111,7 @@ struct SessionProgressTracker {
     /// no Available Session remains ahead but the Block still holds Unavailable
     /// Sessions ahead — return to the Block grid; otherwise nothing lies ahead.
     func moveOnDestination(from session: Session, in block: Block) -> MoveOnDestination {
-        guard hasSessionAhead(after: session, in: block) else { return .none }
+        guard hasSessionAhead(after: session, in: block) else { return .notOffered }
         if let nextSession = nextSession(after: session, in: block) {
             return .advance(to: nextSession)
         }

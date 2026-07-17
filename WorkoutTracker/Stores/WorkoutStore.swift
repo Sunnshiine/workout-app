@@ -48,7 +48,7 @@ final class WorkoutStore {
 
     var canMoveOn: Bool {
         guard let block, let currentSession else { return false }
-        return tracker.moveOnDestination(from: currentSession, in: block) != .none
+        return tracker.moveOnDestination(from: currentSession, in: block).isOffered
     }
 
     var isViewingLiveEdge: Bool { displayedSession?.persistentModelID == currentSession?.persistentModelID }
@@ -154,7 +154,7 @@ final class WorkoutStore {
         guard
             let block,
             let currentSession,
-            tracker.moveOnDestination(from: currentSession, in: block) != .none
+            tracker.moveOnDestination(from: currentSession, in: block).isOffered
         else { return }
 
         moveOnCelebrationSession = currentSession
@@ -179,7 +179,7 @@ final class WorkoutStore {
         guard let block else { return }
 
         switch tracker.moveOnDestination(from: session, in: block) {
-        case .none:
+        case .notOffered:
             return
         case .returnToBlockOverview:
             requestBlockOverviewPresentation()
