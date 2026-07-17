@@ -172,6 +172,29 @@ import Testing
 }
 
 @MainActor
+@Test func liveActivityInSessionUpNextMatchesSessionSetOrderOwnerAcrossStateMix() throws {
+    let squat = makeExercise(name: "Back Squat", order: 0, setStates: [.logged, .skipped, .pending])
+    let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending, .logged])
+    let row = makeExercise(name: "DB Row", order: 2, setStates: [.pending])
+    let session = makeSingleSession(exercises: [squat, bench, row])
+    let loggedSet = try #require(squat.sets.first { $0.index == 0 })
+
+    let content = try #require(
+        LiveActivityRestContentBuilder.content(
+            afterLogging: loggedSet,
+            in: session,
+            restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
+            restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
+        )
+    )
+
+    let ownerTarget = try #require(SessionSetOrder.nextPendingSet(after: loggedSet, in: session))
+    #expect(content.target?.setID == ownerTarget.setID)
+    #expect(content.target?.setID == ActiveSetID(exerciseOrder: 0, setIndex: 2))
+    #expect(content.exerciseName == "Back Squat")
+}
+
+@MainActor
 @Test func liveActivityContentUsesSupersetAlternationAndCountsDisplayedExerciseOnly() throws {
     let squat = makeExercise(name: "Back Squat", order: 0, setStates: [.logged, .pending])
     let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending, .pending, .pending])
