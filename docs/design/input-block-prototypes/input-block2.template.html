@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=393, initial-scale=1">
+<title>ACTIVE SET CARD INPUT BLOCK — round two (#455)</title>
+<style>
+/* THROWAWAY PROTOTYPE — issue #455, round two.
+   Locked by the round-one verdict: no units anywhere; every value prefilled
+   from last week's actual performance (90 × 5 @8) so the athlete increments
+   from reality; Reps and RPE are one-tap rails (small numbers, entered AFTER
+   the set); Weight is deliberate, set BEFORE the set — steppable AND
+   tap-to-type (the value is a real numeric input; tapping it raises the
+   mobile keyboard). Variants vary only the arrangement:
+     p — Prod benchmark (unchanged reference)
+     a — Stacked rails: weight pill + steppers, then Reps and RPE rails
+     b — Before / after: the card splits into the weight zone (set up) and
+         the report zone (reps + RPE + Log), a hairline between
+     c — Neighborhood chips: nothing scrolls — reps and RPE as fixed chip
+         rows centered on last week, weight open with big round ±
+     d — Thumb column: ± stacked on the right edge under the thumb,
+         rails beneath */
+/*__FONTS__*/
+:root {
+  --paper-top: #E8EDDB;
+  --paper-bottom: #C7E0BF;
+  --ink: #152118;
+  --muted: #526457;
+  --action: #0D6B40;
+  --action-text: #F2F7E8;
+  --cream: #F2F7E8;
+  --surface: rgba(242, 247, 232, 0.52);
+  --surface-shadow: 0 1px 2px rgba(21, 33, 24, 0.04), 0 14px 30px rgba(21, 33, 24, 0.07);
+  --pill-fill: rgba(242, 247, 232, 0.85);
+  --pill-stroke: rgba(82, 111, 90, 0.34);
+  --foot-fill: rgba(242, 247, 232, 0.50);
+  --queue-stroke: rgba(82, 111, 90, 0.38);
+  --log-shadow: 0 1px 2px rgba(13, 46, 28, 0.22), 0 10px 22px rgba(13, 60, 35, 0.16);
+  --stem: #0D6B40;
+  --leaf-fill: #0D6B40;
+  --leaf-rib: rgba(242, 247, 232, 0.5);
+  --bud-fill: rgba(242, 247, 232, 0.95);
+  --bud-stroke: #0D6B40;
+  --bud-rib: rgba(13, 107, 64, 0.55);
+  --future-stroke: rgba(13, 107, 64, 0.40);
+  --skip-stroke: rgba(82, 100, 87, 0.42);
+  --skip-fill: rgba(82, 100, 87, 0.30);
+  --home-bar: rgba(21, 33, 24, 0.20);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  position: relative;
+  width: 393px;
+  height: 852px;
+  overflow: hidden;
+  color: var(--ink);
+  font-family: 'Source Sans 3', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  background:
+    radial-gradient(120% 90% at 12% -4%, rgba(255, 244, 214, 0.55) 0%, rgba(255, 244, 214, 0) 55%),
+    radial-gradient(90% 70% at 108% 38%, rgba(158, 227, 187, 0.34) 0%, rgba(158, 227, 187, 0) 60%),
+    radial-gradient(140% 80% at 50% 112%, rgba(151, 178, 140, 0.42) 0%, rgba(151, 178, 140, 0) 58%),
+    linear-gradient(180deg, var(--paper-top) 0%, var(--paper-bottom) 100%);
+}
+
+.screen { display: none; flex-direction: column; width: 393px; height: 852px; position: relative; }
+body[data-variant="p"] #screen-p { display: flex; }
+body[data-variant="a"] #screen-a { display: flex; }
+body[data-variant="b"] #screen-b { display: flex; }
+body[data-variant="c"] #screen-c { display: flex; }
+body[data-variant="d"] #screen-d { display: flex; }
+
+.num { font-variant-numeric: tabular-nums; }
+button { font-family: inherit; cursor: pointer; }
+input { font-family: inherit; }
+
+.time {
+  position: absolute; top: 21px; left: 36px;
+  font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.home-indicator {
+  position: absolute; bottom: 9px; left: 50%; transform: translateX(-50%);
+  width: 134px; height: 5px; border-radius: 3px; background: var(--home-bar);
+}
+
+.col { display: flex; flex-direction: column; height: 100%; padding: 0 32px; }
+
+.runline {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-top: 68px;
+  font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.runline .right { color: var(--muted); font-weight: 500; }
+
+h1.exercise {
+  margin: 24px 0 0;
+  font-family: 'Fraunces', serif;
+  font-variation-settings: "opsz" 30, "wght" 490, "SOFT" 100, "WONK" 0;
+  font-size: 33px; line-height: 1.10; color: var(--ink);
+}
+.coach-note {
+  margin: 10px 0 0;
+  font-size: 15px; line-height: 1.45; color: var(--muted);
+  max-width: 305px;
+}
+
+.branch-wrap { position: relative; margin-top: 8px; height: 104px; }
+.branch-wrap svg { display: block; }
+
+.last-performed {
+  margin-bottom: 12px;
+  font-size: 12.5px; line-height: 1.5; color: var(--muted);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+}
+
+.flex-grow { flex: 1; }
+
+/* ————— the Active Set Card ————— */
+.set-surface {
+  background: var(--surface);
+  border-radius: 30px;
+  padding: 16px 16px 14px;
+  box-shadow: var(--surface-shadow);
+}
+.set-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 8px; }
+.set-head .setno { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.set-head .ofm { font-size: 14px; font-weight: 500; color: var(--muted); }
+
+/* weight pill with in-pill steppers; the value is a real numeric input —
+   tapping it raises the keyboard on device */
+.pill {
+  background: var(--pill-fill);
+  border: 1px solid var(--pill-stroke);
+  border-radius: 20px;
+  padding: 9px 12px 11px;
+  min-height: 74px;
+  position: relative;
+}
+.pill .lbl { font-size: 12px; font-weight: 600; color: var(--muted); text-align: center; }
+.weight-input {
+  display: block; width: 100%;
+  margin-top: 2px; padding: 0;
+  border: 0; background: transparent; color: var(--ink);
+  font-size: 28px; font-weight: 700; line-height: 1.1; text-align: center;
+  letter-spacing: -0.01em; font-variant-numeric: tabular-nums;
+  outline: none;
+}
+.weight-input:focus { color: var(--action); }
+.stepper {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 44px; height: 54px;
+  border: 0; border-radius: 14px;
+  background: transparent; color: var(--action);
+  font-size: 24px; font-weight: 600; line-height: 1;
+}
+.stepper:active { background: rgba(13, 107, 64, 0.10); }
+.stepper.minus { left: 4px; }
+.stepper.plus { right: 4px; }
+
+/* rails — one-tap chips, prescribed/last-week marker, scrollable */
+.rail-wrap { margin-top: 10px; }
+.rail-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.rail-row .side-lbl { flex: none; width: 38px; font-size: 12px; font-weight: 600; color: var(--muted); text-align: right; }
+.rail-lbl { font-size: 12px; font-weight: 600; color: var(--muted); text-align: center; margin-bottom: 6px; }
+.rail {
+  flex: 1; min-width: 0; position: relative; /* offset parent for chip centring */
+  display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x mandatory;
+  background: rgba(242, 247, 232, 0.55);
+  border: 1px solid var(--pill-stroke);
+  border-radius: 18px; padding: 5px;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+}
+.rail::-webkit-scrollbar { display: none; }
+.rail .chip {
+  flex: none; scroll-snap-align: center;
+  min-width: 50px; height: 44px;
+  border: 0; border-radius: 14px; background: transparent;
+  font-size: 17px; font-weight: 700; color: var(--ink);
+  font-variant-numeric: tabular-nums; position: relative;
+}
+.rail .chip.dim { color: var(--muted); font-weight: 600; }
+.rail .chip.sel { background: var(--cream); box-shadow: inset 0 0 0 2px var(--action); }
+.rail .chip .presc {
+  position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);
+  width: 18px; height: 3px; border-radius: 2px; background: var(--action);
+}
+
+/* fixed chip rows (variant c) — the no-scroll neighborhood */
+.chips-row { display: flex; gap: 8px; margin-top: 8px; }
+.chips-row .chip {
+  flex: 1; height: 46px;
+  border: 1px solid var(--pill-stroke); border-radius: 16px;
+  background: var(--pill-fill); color: var(--ink);
+  font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; position: relative;
+}
+.chips-row .chip.sel { background: var(--cream); box-shadow: inset 0 0 0 2px var(--action); }
+.chips-row .chip .presc {
+  position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);
+  width: 18px; height: 3px; border-radius: 2px; background: var(--action);
+}
+.row-lbl { font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 12px; padding-left: 4px; }
+
+/* before/after zones (variant b) */
+.zone-lbl {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); padding-left: 8px; margin-top: 12px;
+}
+.zone-rule { border: 0; border-top: 1px solid var(--pill-stroke); margin: 16px 4px 0; }
+.weight-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; padding: 0 4px; }
+.weight-row .weight-open {
+  flex: 1; text-align: center;
+  border: 0; background: transparent; color: var(--ink);
+  font-size: 44px; font-weight: 700; letter-spacing: -0.015em;
+  font-variant-numeric: tabular-nums; outline: none; min-width: 0;
+}
+.weight-row .weight-open:focus { color: var(--action); }
+.big-step {
+  width: 54px; height: 54px; flex: none;
+  border: 1px solid var(--pill-stroke); border-radius: 999px;
+  background: var(--pill-fill); color: var(--action);
+  font-size: 25px; font-weight: 600; line-height: 1;
+}
+.big-step:active { background: var(--cream); }
+
+/* thumb column (variant d) */
+.thumb-grid { display: flex; gap: 12px; margin-top: 10px; }
+.thumb-left { flex: 1; min-width: 0; }
+.thumb-left .lbl { font-size: 12px; font-weight: 600; color: var(--muted); }
+.thumb-weight {
+  display: block; width: 100%;
+  border: 0; background: transparent; color: var(--ink);
+  font-size: 46px; font-weight: 700; line-height: 1.05; letter-spacing: -0.015em;
+  font-variant-numeric: tabular-nums; outline: none;
+}
+.thumb-weight:focus { color: var(--action); }
+.thumb-steppers { display: flex; flex-direction: column; gap: 8px; flex: none; }
+.thumb-steppers .big-step { width: 60px; height: 60px; font-size: 27px; }
+
+/* the Log capsule — hold-to-skip */
+.log-btn {
+  display: block; position: relative; overflow: hidden;
+  margin-top: 14px; width: 100%; height: 62px;
+  border: 0; border-radius: 999px;
+  background: var(--action); color: var(--action-text);
+  font-size: 18px; font-weight: 650;
+  font-variant-numeric: tabular-nums; letter-spacing: 0.01em;
+  box-shadow: var(--log-shadow);
+}
+.log-btn .fill {
+  position: absolute; inset: 0; transform-origin: left center; transform: scaleX(0);
+  background: var(--skip-fill); pointer-events: none;
+}
+.log-btn .cap { position: relative; }
+.log-btn .skipword {
+  position: absolute; right: 18px; top: 50%; transform: translateY(-50%);
+  font-size: 13px; font-weight: 700; opacity: 0; pointer-events: none;
+}
+.log-btn.skipping .skipword { opacity: 1; }
+.log-btn.done-log { background: #0A5936; }
+.log-btn.done-skip { background: transparent; color: var(--muted); box-shadow: none; border: 1.5px dashed var(--skip-stroke); }
+
+/* ————— stage foot ————— */
+.stage-foot { display: flex; align-items: center; gap: 14px; margin: 16px 0 38px; }
+.upnext-bar {
+  flex: 1; min-width: 0; padding-left: 4px;
+  font-size: 13.5px; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.upnext-bar .name { color: var(--ink); font-weight: 600; }
+.queue-btn {
+  display: flex; align-items: center; flex: none;
+  background: var(--foot-fill);
+  border: 1px solid var(--queue-stroke);
+  border-radius: 999px;
+  padding: 0 16px; height: 44px;
+  font-size: 13px; font-weight: 600; color: var(--ink);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+/* ————— P · Prod benchmark (unchanged from round one) ————— */
+#screen-p {
+  background: linear-gradient(180deg, #050806 0%, #041C11 100%);
+  color: #F5F7F3;
+  font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+}
+#screen-p .col { justify-content: center; }
+.bench-note { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #AAB8B0; margin-bottom: 14px; padding-left: 4px; }
+.prod-card {
+  background: #08331F;
+  border: 1px solid rgba(59, 209, 122, 0.8);
+  border-radius: 16px;
+  padding: 16px;
+}
+.prod-card .head { display: flex; justify-content: space-between; align-items: baseline; }
+.prod-card .upnext { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: #73FFB8; text-transform: uppercase; }
+.prod-card .badge { font-size: 12px; font-weight: 600; color: #AAB8B0; background: rgba(115, 255, 184, 0.10); border-radius: 999px; padding: 5px 10px; }
+.prod-card .exname { margin-top: 12px; font-size: 17px; font-weight: 700; }
+.prod-pills { display: flex; gap: 8px; margin-top: 14px; }
+.prod-pill {
+  background: #080F0D; border: 1px solid #3DAD6B; border-radius: 12px;
+  padding: 10px 12px; min-height: 74px; position: relative;
+}
+.prod-pill.weight { flex: 2; }
+.prod-pill.reps { flex: 1; text-align: center; }
+.prod-pill .lbl { font-size: 12px; font-weight: 600; color: #AAB8B0; }
+.prod-pill .val { margin-top: 6px; font-size: 20px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
+.prod-pill .stepper { color: #73FFB8; width: 36px; height: 44px; }
+.prod-pill .stepper:active { background: rgba(115, 255, 184, 0.10); }
+.prod-rail-wrap { margin-top: 12px; }
+.prod-rail-wrap .rail-lbl { color: #AAB8B0; }
+.prod-rail-wrap .rail { background: rgba(8, 15, 13, 0.72); border-color: rgba(61, 173, 107, 0.7); border-radius: 12px; }
+.prod-rail-wrap .chip { color: #F5F7F3; border-radius: 9px; }
+.prod-rail-wrap .chip.dim { color: #AAB8B0; }
+.prod-rail-wrap .chip.sel { background: #080F0D; box-shadow: inset 0 0 0 2px #73FFB8; }
+.prod-rail-wrap .chip .presc { background: #73FFB8; }
+.prod-log {
+  display: block; position: relative; overflow: hidden;
+  margin-top: 14px; width: 100%; height: 52px;
+  border: 0; border-radius: 12px;
+  background: #73FFB8; color: #051F12;
+  font-size: 17px; font-weight: 700;
+}
+.prod-log .fill {
+  position: absolute; inset: 0; transform-origin: left center; transform: scaleX(0);
+  background: rgba(255, 59, 48, 0.86); pointer-events: none;
+}
+.prod-log .cap { position: relative; }
+.prod-log .skipword {
+  position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+  font-size: 12px; font-weight: 800; color: #FFF; opacity: 0; pointer-events: none;
+}
+.prod-log.skipping .skipword { opacity: 1; }
+.prod-log.done-skip { background: transparent; color: #AAB8B0; border: 1.5px dashed rgba(255, 59, 48, 0.6); }
+
+/* ————— switcher (NOT part of the design) ————— */
+.switcher {
+  position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+  z-index: 99; display: flex; align-items: center; gap: 2px;
+  background: #111; color: #fff; border-radius: 999px; padding: 4px 6px;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.5);
+}
+.switcher a { color: #fff; text-decoration: none; padding: 2px 8px; font-size: 14px; line-height: 1; }
+.switcher .label { padding: 0 6px; white-space: nowrap; }
+</style>
+</head>
+<body data-variants="p,a,b,c,d" data-variant="p">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <path id="leafShape" d="M0 8 C 15 2.3, 41 3.3, 60 8 C 41 21.7, 15 22.6, 0 8 Z"/>
+    <path id="leafRib" d="M4 8.1 C 20 9.8, 40 9.6, 56 8.1" fill="none"/>
+  </defs>
+</svg>
+
+<!-- ══════════ p — Prod benchmark ══════════ -->
+<section class="screen" id="screen-p">
+  <div class="time num">9:41</div>
+  <div class="col">
+    <div class="bench-note">Benchmark — production today</div>
+    <div class="prod-card">
+      <div class="head"><span class="upnext">Up next</span><span class="badge num">Set 3 of 5</span></div>
+      <div class="exname">Competition Bench Press</div>
+      <div class="prod-pills num">
+        <div class="prod-pill weight">
+          <div class="lbl">Weight</div>
+          <div class="val" data-weight-val>90</div>
+          <button class="stepper minus" data-step="-2.5">−</button>
+          <button class="stepper plus" data-step="2.5">+</button>
+        </div>
+        <div class="prod-pill reps"><div class="lbl">Reps</div><div class="val">5</div></div>
+      </div>
+      <div class="prod-rail-wrap">
+        <div class="rail-lbl">RPE</div>
+        <div class="rail num" data-rpe-rail></div>
+      </div>
+      <button class="prod-log num" data-holdskip>
+        <span class="fill"></span>
+        <span class="cap" data-log-cap>Log Set</span>
+        <span class="skipword">SKIP</span>
+      </button>
+    </div>
+  </div>
+  <div class="home-indicator"></div>
+</section>
+
+<!-- ══════════ a — Stacked rails ══════════ -->
+<section class="screen" id="screen-a">
+  <div class="time num">9:41</div>
+  <div class="col">
+    <div class="runline"><span class="num">Block 27 · Week 2 · Day 2</span><span class="right num">14 Sets left</span></div>
+    <h1 class="exercise">Competition Bench&nbsp;Press</h1>
+    <p class="coach-note">Pause every rep. Keep the arch honest — no&nbsp;bounce.</p>
+    <div class="branch-wrap"><svg data-branch width="329" height="104" viewBox="0 0 329 104"><path data-stem d="M 8 92 C 80 83, 172 58, 314 16" fill="none" stroke="var(--stem)" stroke-width="2" stroke-linecap="round"/></svg></div>
+    <div class="flex-grow"></div>
+    <div class="last-performed num">W1 D2 — 90×5 @8 · 90×5 @8 · 90×4 @9</div>
+    <div class="set-surface">
+      <div class="set-head"><span><span class="setno num">Set 3</span><span class="ofm num"> of 5</span></span></div>
+      <div class="pill num" style="margin-top:12px">
+        <div class="lbl">Weight</div>
+        <input class="weight-input" type="text" inputmode="decimal" value="90" data-weight-input>
+        <button class="stepper minus" data-step="-2.5">−</button>
+        <button class="stepper plus" data-step="2.5">+</button>
+      </div>
+      <div class="rail-row num">
+        <span class="side-lbl">Reps</span>
+        <div class="rail" data-reps-rail></div>
+      </div>
+      <div class="rail-row num">
+        <span class="side-lbl">RPE</span>
+        <div class="rail" data-rpe-rail></div>
+      </div>
+      <button class="log-btn num" data-holdskip>
+        <span class="fill"></span>
+        <span class="cap" data-log-cap>Log 90 × 5 @8</span>
+        <span class="skipword">SKIP</span>
+      </button>
+    </div>
+    <div class="stage-foot">
+      <div class="upnext-bar">Up next · <span class="name">Larsen Press</span></div>
+      <div class="queue-btn num">2 of 6</div>
+    </div>
+  </div>
+  <div class="home-indicator"></div>
+</section>
+
+<!-- ══════════ b — Before / after ══════════ -->
+<section class="screen" id="screen-b">
+  <div class="time num">9:41</div>
+  <div class="col">
+    <div class="runline"><span class="num">Block 27 · Week 2 · Day 2</span><span class="right num">14 Sets left</span></div>
+    <h1 class="exercise">Competition Bench&nbsp;Press</h1>
+    <p class="coach-note">Pause every rep. Keep the arch honest — no&nbsp;bounce.</p>
+    <div class="branch-wrap"><svg data-branch width="329" height="104" viewBox="0 0 329 104"><path data-stem d="M 8 92 C 80 83, 172 58, 314 16" fill="none" stroke="var(--stem)" stroke-width="2" stroke-linecap="round"/></svg></div>
+    <div class="flex-grow"></div>
+    <div class="last-performed num">W1 D2 — 90×5 @8 · 90×5 @8 · 90×4 @9</div>
+    <div class="set-surface">
+      <div class="set-head"><span><span class="setno num">Set 3</span><span class="ofm num"> of 5</span></span><span class="zone-lbl" style="margin:0;padding:0">The bar</span></div>
+      <div class="weight-row num">
+        <button class="big-step" data-step="-2.5">−</button>
+        <input class="weight-open" type="text" inputmode="decimal" value="90" data-weight-input>
+        <button class="big-step" data-step="2.5">+</button>
+      </div>
+      <hr class="zone-rule">
+      <div class="zone-lbl">After the set</div>
+      <div class="rail-row num">
+        <span class="side-lbl">Reps</span>
+        <div class="rail" data-reps-rail></div>
+      </div>
+      <div class="rail-row num">
+        <span class="side-lbl">RPE</span>
+        <div class="rail" data-rpe-rail></div>
+      </div>
+      <button class="log-btn num" data-holdskip>
+        <span class="fill"></span>
+        <span class="cap" data-log-cap>Log 90 × 5 @8</span>
+        <span class="skipword">SKIP</span>
+      </button>
+    </div>
+    <div class="stage-foot">
+      <div class="upnext-bar">Up next · <span class="name">Larsen Press</span></div>
+      <div class="queue-btn num">2 of 6</div>
+    </div>
+  </div>
+  <div class="home-indicator"></div>
+</section>
+
+<!-- ══════════ c — Neighborhood chips ══════════ -->
+<section class="screen" id="screen-c">
+  <div class="time num">9:41</div>
+  <div class="col">
+    <div class="runline"><span class="num">Block 27 · Week 2 · Day 2</span><span class="right num">14 Sets left</span></div>
+    <h1 class="exercise">Competition Bench&nbsp;Press</h1>
+    <p class="coach-note">Pause every rep. Keep the arch honest — no&nbsp;bounce.</p>
+    <div class="branch-wrap"><svg data-branch width="329" height="104" viewBox="0 0 329 104"><path data-stem d="M 8 92 C 80 83, 172 58, 314 16" fill="none" stroke="var(--stem)" stroke-width="2" stroke-linecap="round"/></svg></div>
+    <div class="flex-grow"></div>
+    <div class="last-performed num">W1 D2 — 90×5 @8 · 90×5 @8 · 90×4 @9</div>
+    <div class="set-surface">
+      <div class="set-head"><span><span class="setno num">Set 3</span><span class="ofm num"> of 5</span></span></div>
+      <div class="weight-row num">
+        <button class="big-step" data-step="-2.5">−</button>
+        <input class="weight-open" type="text" inputmode="decimal" value="90" data-weight-input>
+        <button class="big-step" data-step="2.5">+</button>
+      </div>
+      <div class="row-lbl">Reps</div>
+      <div class="chips-row num" data-reps-chips></div>
+      <div class="row-lbl">RPE</div>
+      <div class="chips-row num" data-rpe-chips></div>
+      <button class="log-btn num" data-holdskip>
+        <span class="fill"></span>
+        <span class="cap" data-log-cap>Log 90 × 5 @8</span>
+        <span class="skipword">SKIP</span>
+      </button>
+    </div>
+    <div class="stage-foot">
+      <div class="upnext-bar">Up next · <span class="name">Larsen Press</span></div>
+      <div class="queue-btn num">2 of 6</div>
+    </div>
+  </div>
+  <div class="home-indicator"></div>
+</section>
+
+<!-- ══════════ d — Thumb column ══════════ -->
+<section class="screen" id="screen-d">
+  <div class="time num">9:41</div>
+  <div class="col">
+    <div class="runline"><span class="num">Block 27 · Week 2 · Day 2</span><span class="right num">14 Sets left</span></div>
+    <h1 class="exercise">Competition Bench&nbsp;Press</h1>
+    <p class="coach-note">Pause every rep. Keep the arch honest — no&nbsp;bounce.</p>
+    <div class="branch-wrap"><svg data-branch width="329" height="104" viewBox="0 0 329 104"><path data-stem d="M 8 92 C 80 83, 172 58, 314 16" fill="none" stroke="var(--stem)" stroke-width="2" stroke-linecap="round"/></svg></div>
+    <div class="flex-grow"></div>
+    <div class="last-performed num">W1 D2 — 90×5 @8 · 90×5 @8 · 90×4 @9</div>
+    <div class="set-surface">
+      <div class="set-head"><span><span class="setno num">Set 3</span><span class="ofm num"> of 5</span></span></div>
+      <div class="thumb-grid num">
+        <div class="thumb-left">
+          <div class="lbl">Weight</div>
+          <input class="thumb-weight" type="text" inputmode="decimal" value="90" data-weight-input>
+        </div>
+        <div class="thumb-steppers">
+          <button class="big-step" data-step="2.5">+</button>
+          <button class="big-step" data-step="-2.5">−</button>
+        </div>
+      </div>
+      <div class="rail-row num">
+        <span class="side-lbl">Reps</span>
+        <div class="rail" data-reps-rail></div>
+      </div>
+      <div class="rail-row num">
+        <span class="side-lbl">RPE</span>
+        <div class="rail" data-rpe-rail></div>
+      </div>
+      <button class="log-btn num" data-holdskip>
+        <span class="fill"></span>
+        <span class="cap" data-log-cap>Log 90 × 5 @8</span>
+        <span class="skipword">SKIP</span>
+      </button>
+    </div>
+    <div class="stage-foot">
+      <div class="upnext-bar">Up next · <span class="name">Larsen Press</span></div>
+      <div class="queue-btn num">2 of 6</div>
+    </div>
+  </div>
+  <div class="home-indicator"></div>
+</section>
+
+<nav class="switcher">
+  <a id="sw-prev" href="#">‹</a>
+  <span class="label" id="sw-label"></span>
+  <a id="sw-next" href="#">›</a>
+</nav>
+
+<script>
+  const KEYS = ['p', 'a', 'b', 'c', 'd'];
+  const NAMES = {
+    p: 'P · Prod benchmark',
+    a: 'A · Stacked rails',
+    b: 'B · Before / after',
+    c: 'C · Neighborhood chips',
+    d: 'D · Thumb column'
+  };
+  const param = new URLSearchParams(location.search).get('variant');
+  const key = KEYS.includes(param) ? param : 'p';
+  document.body.dataset.variant = key;
+  const i = KEYS.indexOf(key);
+  document.getElementById('sw-label').textContent = NAMES[key];
+  document.getElementById('sw-prev').href = '?variant=' + KEYS[(i + KEYS.length - 1) % KEYS.length];
+  document.getElementById('sw-next').href = '?variant=' + KEYS[(i + 1) % KEYS.length];
+
+  // ——— the living branch, verbatim from the locked #413 stage ———
+  const css = getComputedStyle(document.body);
+  const C = (name) => css.getPropertyValue(name).trim();
+  const fiveSets = [
+    { t: 0.10, kind: 'leaf',    s: 0.68, spread: 46 },
+    { t: 0.32, kind: 'leaf',    s: 0.58, spread: 52 },
+    { t: 0.56, kind: 'current', s: 0.44, spread: 34 },
+    { t: 0.78, kind: 'bud',     s: 0.26, spread: 24 },
+    { t: 0.91, kind: 'bud',     s: 0.18, spread: 20 }
+  ];
+  document.querySelectorAll('svg[data-branch]').forEach((svg) => {
+    const stem = svg.querySelector('path[data-stem]');
+    const NS = 'http://www.w3.org/2000/svg';
+    const L = stem.getTotalLength();
+    fiveSets.forEach((n, idx) => {
+      const p = stem.getPointAtLength(n.t * L);
+      const q = stem.getPointAtLength(Math.min(L, n.t * L + 1.5));
+      const ang = Math.atan2(q.y - p.y, q.x - p.x) * 180 / Math.PI;
+      const rot = ang + (idx % 2 === 0 ? -1 : 1) * n.spread;
+      const g = document.createElementNS(NS, 'g');
+      g.setAttribute('transform',
+        'translate(' + p.x + ' ' + p.y + ') rotate(' + rot + ') scale(' + n.s + ') translate(0 -8)');
+      const use = (href, attrs) => {
+        const el = document.createElementNS(NS, 'use');
+        el.setAttribute('href', href);
+        for (const k in attrs) el.setAttribute(k, attrs[k]);
+        g.appendChild(el);
+      };
+      if (n.kind === 'leaf') {
+        use('#leafShape', { fill: C('--leaf-fill') });
+        use('#leafRib', { stroke: C('--leaf-rib'), 'stroke-width': (1.2 / n.s).toFixed(2) });
+      } else if (n.kind === 'current') {
+        use('#leafShape', { fill: C('--bud-fill'), stroke: C('--bud-stroke'), 'stroke-width': (2.2 / n.s).toFixed(2) });
+        use('#leafRib', { stroke: C('--bud-rib'), 'stroke-width': (1.2 / n.s).toFixed(2) });
+      } else {
+        use('#leafShape', { fill: 'none', stroke: C('--future-stroke'), 'stroke-width': (1.2 / n.s).toFixed(2) });
+      }
+      svg.appendChild(g);
+    });
+  });
+
+  // ——— live logging state — everything starts on last week's actuals ———
+  const fmt = (w) => (Math.round(w * 100) / 100).toString();
+  const RPE_SCALE = [];
+  for (let v = 5; v <= 10; v += 0.5) RPE_SCALE.push(v);
+  const REPS_SCALE = [];
+  for (let v = 1; v <= 12; v += 1) REPS_SCALE.push(v);
+  const NEAR_RPE = [7, 7.5, 8, 8.5, 9];
+  const NEAR_REPS = [4, 5, 6, 7, 8];
+
+  document.querySelectorAll('.screen').forEach((screen) => {
+    // last week: 90 × 5 @8 — the starting point the athlete increments from
+    const state = { weight: 90, reps: 5, rpe: 8, lastReps: 5, lastRpe: 8 };
+    const cap = screen.querySelector('[data-log-cap]');
+    const isProd = screen.id === 'screen-p';
+    const weightInput = screen.querySelector('[data-weight-input]');
+
+    const sync = () => {
+      screen.querySelectorAll('[data-weight-val]').forEach((el) => { el.textContent = fmt(state.weight); });
+      if (weightInput && document.activeElement !== weightInput) weightInput.value = fmt(state.weight);
+      if (cap && !isProd) cap.textContent = 'Log ' + fmt(state.weight) + ' × ' + state.reps + ' @' + state.rpe;
+    };
+
+    if (weightInput) {
+      weightInput.addEventListener('input', () => {
+        const v = parseFloat(weightInput.value);
+        if (!isNaN(v)) { state.weight = v; sync(); }
+      });
+      weightInput.addEventListener('blur', sync);
+    }
+
+    screen.querySelectorAll('[data-step]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.weight = Math.max(0, state.weight + parseFloat(btn.dataset.step));
+        sync();
+      });
+    });
+
+    const buildChips = (host, values, marker, onPick) => {
+      values.forEach((v) => {
+        const b = document.createElement('button');
+        b.className = 'chip';
+        b.innerHTML = v + (v === marker ? '<span class="presc"></span>' : '');
+        b.dataset.value = v;
+        b.addEventListener('click', () => { onPick(v); });
+        host.appendChild(b);
+      });
+    };
+    const markSel = (host, current) => {
+      if (!host) return;
+      host.querySelectorAll('[data-value]').forEach((b) => {
+        b.classList.toggle('sel', parseFloat(b.dataset.value) === current);
+      });
+    };
+    const centre = (host) => requestAnimationFrame(() => {
+      const sel = host.querySelector('.sel');
+      if (sel) host.scrollLeft = sel.offsetLeft - (host.clientWidth - sel.offsetWidth) / 2;
+    });
+
+    const rpeRail = screen.querySelector('[data-rpe-rail]');
+    if (rpeRail) {
+      const dimRail = () => {
+        rpeRail.querySelectorAll('[data-value]').forEach((b) => {
+          const v = parseFloat(b.dataset.value);
+          b.classList.toggle('dim', Math.abs(v - state.lastRpe) > 1 && v !== state.rpe);
+        });
+      };
+      buildChips(rpeRail, RPE_SCALE, state.lastRpe, (v) => { state.rpe = v; sync(); markSel(rpeRail, v); dimRail(); });
+      markSel(rpeRail, state.rpe); dimRail(); centre(rpeRail);
+    }
+
+    const repsRail = screen.querySelector('[data-reps-rail]');
+    if (repsRail) {
+      const dimRail = () => {
+        repsRail.querySelectorAll('[data-value]').forEach((b) => {
+          const v = parseFloat(b.dataset.value);
+          b.classList.toggle('dim', Math.abs(v - state.lastReps) > 2 && v !== state.reps);
+        });
+      };
+      buildChips(repsRail, REPS_SCALE, state.lastReps, (v) => { state.reps = v; sync(); markSel(repsRail, v); dimRail(); });
+      markSel(repsRail, state.reps); dimRail(); centre(repsRail);
+    }
+
+    const rpeChips = screen.querySelector('[data-rpe-chips]');
+    if (rpeChips) {
+      buildChips(rpeChips, NEAR_RPE, state.lastRpe, (v) => { state.rpe = v; sync(); markSel(rpeChips, v); });
+      markSel(rpeChips, state.rpe);
+    }
+    const repsChips = screen.querySelector('[data-reps-chips]');
+    if (repsChips) {
+      buildChips(repsChips, NEAR_REPS, state.lastReps, (v) => { state.reps = v; sync(); markSel(repsChips, v); });
+      markSel(repsChips, state.reps);
+    }
+
+    // ——— log / hold-to-skip ———
+    const logBtn = screen.querySelector('[data-holdskip]');
+    if (logBtn) {
+      const fill = logBtn.querySelector('.fill');
+      let holdTimer = null, revealTimer = null, skipped = false, suppressTap = false;
+
+      const doLog = () => {
+        cap.textContent = isProd ? 'Logged ✓' : 'Logged ' + fmt(state.weight) + ' × ' + state.reps + ' @' + state.rpe + ' ✓';
+        logBtn.classList.add('done-log');
+        setTimeout(() => { logBtn.classList.remove('done-log'); sync(); }, 900);
+      };
+      const doSkip = () => {
+        skipped = true;
+        logBtn.classList.remove('skipping');
+        fill.style.transition = 'none'; fill.style.transform = 'scaleX(0)';
+        logBtn.classList.add('done-skip');
+        cap.textContent = 'Skipped';
+        setTimeout(() => { logBtn.classList.remove('done-skip'); skipped = false; sync(); }, 1100);
+      };
+
+      logBtn.addEventListener('click', () => {
+        if (suppressTap) { suppressTap = false; return; }
+        doLog();
+      });
+      const start = () => {
+        skipped = false;
+        revealTimer = setTimeout(() => {
+          logBtn.classList.add('skipping');
+          fill.style.transition = 'transform 0.6s linear';
+          fill.style.transform = 'scaleX(1)';
+        }, 250);
+        holdTimer = setTimeout(() => { suppressTap = true; doSkip(); }, 850);
+      };
+      const end = () => {
+        clearTimeout(revealTimer); clearTimeout(holdTimer);
+        if (!skipped) {
+          const wasSkipping = logBtn.classList.contains('skipping');
+          logBtn.classList.remove('skipping');
+          fill.style.transition = 'transform 0.2s ease-out';
+          fill.style.transform = 'scaleX(0)';
+          if (wasSkipping) suppressTap = true;
+        }
+      };
+      logBtn.addEventListener('pointerdown', start);
+      logBtn.addEventListener('pointerup', end);
+      logBtn.addEventListener('pointerleave', end);
+    }
+
+    sync();
+  });
+</script>
+</body>
+</html>
