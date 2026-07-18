@@ -130,55 +130,41 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 }
 
 @MainActor
-@Test func loggedSetReviewPresentationDistinguishesStructuredAndUnstructuredLogs() {
-    let structured = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .logged)
-    structured.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: 8)
-    let unstructured = ExerciseSet(index: 1, prescribedReps: "AMRAP", prescribedLoad: "BW", percentOneRM: nil, state: .logged)
-    unstructured.unstructuredSetLog = "BW and vest for 12"
+@Test func setCardLoggingModeShowsLogControlsAndNeverAutoCommits() {
+    let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
 
-    let structuredPresentation = LoggedSetReviewPresentation(set: structured)
-    let unstructuredPresentation = LoggedSetReviewPresentation(set: unstructured)
+    let presentation = SetCardPresentation(mode: .logging, set: set)
 
-    #expect(structuredPresentation.statusText == "Set Log")
-    #expect(structuredPresentation.detailText == "185x5@8")
-    #expect(structuredPresentation.referenceText == nil)
-    #expect(structuredPresentation.allowsEditing)
-    #expect(unstructuredPresentation.statusText == "Unstructured Set Log")
-    #expect(unstructuredPresentation.detailText == "BW and vest for 12")
-    #expect(unstructuredPresentation.referenceText == "BW and vest for 12")
-    #expect(unstructuredPresentation.allowsEditing)
+    #expect(presentation.statusText == "Up next")
+    #expect(presentation.referenceText == nil)
+    #expect(presentation.showsLogControls)
+    #expect(!presentation.commitsChangesOnDisappear)
 }
 
 @MainActor
-@Test func loggedSetReviewPresentationKeepsLegacyLogsExerciseLevel() {
-    let exercise = Exercise(
-        name: "Standing Calve Raises",
-        baseName: "Standing Calve Raises",
-        cadence: nil,
-        coachNote: nil,
-        legacyLog: "25x12, 12"
-    )
-    let set = ExerciseSet(index: 0, prescribedReps: "12", prescribedLoad: "RPE 9", percentOneRM: nil, state: .logged)
-    exercise.sets = [set]
+@Test func setCardReviewModeHidesLogControlsAndCommitsChangesOnDisappear() {
+    let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .logged)
+    set.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: 8)
 
-    let presentation = LoggedSetReviewPresentation(set: set)
+    let presentation = SetCardPresentation(mode: .reviewingLogged, set: set)
 
-    #expect(presentation.statusText == "Legacy Log")
-    #expect(presentation.detailText == "25x12, 12")
+    #expect(presentation.statusText == "Set Log")
     #expect(presentation.referenceText == nil)
-    #expect(!presentation.allowsEditing)
+    #expect(!presentation.showsLogControls)
+    #expect(presentation.commitsChangesOnDisappear)
 }
 
-@Test func loggedSetReviewEditTargetsUseTheWholePill() {
-    let fields = LoggedSetReviewEditableField.allCases
+@MainActor
+@Test func setCardReviewModeKeepsUnstructuredLogTextAsReference() {
+    let set = ExerciseSet(index: 1, prescribedReps: "AMRAP", prescribedLoad: "BW", percentOneRM: nil, state: .logged)
+    set.unstructuredSetLog = "BW and vest for 12"
 
-    #expect(fields.map(\.accessibilityIdentifier) == ["logged-weight-pill", "logged-reps-pill", "logged-rpe-pill"])
+    let presentation = SetCardPresentation(mode: .reviewingLogged, set: set)
 
-    for field in fields {
-        #expect(field.editTarget(for: .label) == field)
-        #expect(field.editTarget(for: .value) == field)
-        #expect(field.editTarget(for: .padding) == field)
-    }
+    #expect(presentation.statusText == "Unstructured Set Log")
+    #expect(presentation.referenceText == "BW and vest for 12")
+    #expect(!presentation.showsLogControls)
+    #expect(presentation.commitsChangesOnDisappear)
 }
 
 @Test func focusMorphPolicyAnimatesPendingFocusWhenMotionIsAllowed() {

@@ -130,61 +130,43 @@ struct SetRowPresentation: Equatable, Sendable {
     }
 }
 
-struct LoggedSetReviewPresentation: Equatable, Sendable {
+/// The one Set card serves two modes: logging the active pending Set, or
+/// reviewing an already-logged one in place. The mode decides the commit
+/// trigger — the Log button when logging, an automatic commit of changed valid
+/// values when the review collapses — and the header chrome around the shared
+/// weight/reps/RPE fields.
+enum SetCardMode: Equatable, Sendable {
+    case logging
+    case reviewingLogged
+}
+
+struct SetCardPresentation: Equatable, Sendable {
     let statusText: String
-    let detailText: String
+    /// Original text of an Unstructured Set Log, kept visible as reference
+    /// while its structured replacement is edited.
     let referenceText: String?
-    let allowsEditing: Bool
+    let showsLogControls: Bool
+    let commitsChangesOnDisappear: Bool
 
-    init(set: ExerciseSet) {
-        if let setLog = set.setLog {
-            statusText = "Set Log"
-            detailText = setLog.formatted
+    @MainActor
+    init(mode: SetCardMode, set: ExerciseSet) {
+        switch mode {
+        case .logging:
+            statusText = "Up next"
             referenceText = nil
-            allowsEditing = true
-        } else if let unstructuredSetLog = set.unstructuredSetLog {
-            statusText = "Unstructured Set Log"
-            detailText = unstructuredSetLog
-            referenceText = unstructuredSetLog
-            allowsEditing = true
-        } else if let legacyLog = set.exercise?.legacyLog {
-            statusText = "Legacy Log"
-            detailText = legacyLog
-            referenceText = nil
-            allowsEditing = false
-        } else {
-            statusText = "Logged Set"
-            detailText = set.displayReps
-            referenceText = nil
-            allowsEditing = false
+            showsLogControls = true
+            commitsChangesOnDisappear = false
+        case .reviewingLogged:
+            if set.setLog == nil, let unstructuredSetLog = set.unstructuredSetLog {
+                statusText = "Unstructured Set Log"
+                referenceText = unstructuredSetLog
+            } else {
+                statusText = "Set Log"
+                referenceText = nil
+            }
+            showsLogControls = false
+            commitsChangesOnDisappear = true
         }
-    }
-}
-
-enum LoggedSetReviewPillHitRegion: CaseIterable, Equatable, Sendable {
-    case label
-    case value
-    case padding
-}
-
-enum LoggedSetReviewEditableField: CaseIterable, Equatable, Hashable, Sendable {
-    case weight
-    case reps
-    case rpe
-
-    var accessibilityIdentifier: String {
-        switch self {
-        case .weight:
-            return "logged-weight-pill"
-        case .reps:
-            return "logged-reps-pill"
-        case .rpe:
-            return "logged-rpe-pill"
-        }
-    }
-
-    func editTarget(for _: LoggedSetReviewPillHitRegion) -> Self {
-        self
     }
 }
 

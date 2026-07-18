@@ -106,8 +106,6 @@ enum Theme {
     static let pillCornerRadius: CGFloat = 8
     static let pillMinHeight: CGFloat = 86
     static let pillSpacing: CGFloat = 10
-    static let rpeGridSpacing: CGFloat = 8
-    static let rpeGridCellHeight: CGFloat = 48
     static let rpeScaleHeight: CGFloat = 52
     static let rpeScaleChipWidth: CGFloat = 52
     static let rpeScaleChipSpacing: CGFloat = 6
