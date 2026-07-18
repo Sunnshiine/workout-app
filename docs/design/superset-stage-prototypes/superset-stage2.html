@@ -589,13 +589,17 @@ h1.exercise {
     f: 'F · Sheet — living paper',
     g: 'G · Sheet — carved pair'
   };
+  // The switcher swaps variants in place (no navigation) so the prototype works
+  // in sandboxed viewers; ?variant= still selects the initial screen for capture.
   const param = new URLSearchParams(location.search).get('variant');
-  const key = KEYS.includes(param) ? param : 'a';
-  document.body.dataset.variant = key;
-  const i = KEYS.indexOf(key);
-  document.getElementById('sw-label').textContent = NAMES[key];
-  document.getElementById('sw-prev').href = '?variant=' + KEYS[(i + KEYS.length - 1) % KEYS.length];
-  document.getElementById('sw-next').href = '?variant=' + KEYS[(i + 1) % KEYS.length];
+  function show(key) {
+    document.body.dataset.variant = key;
+    const i = KEYS.indexOf(key);
+    document.getElementById('sw-label').textContent = NAMES[key];
+    document.getElementById('sw-prev').onclick = (e) => { e.preventDefault(); show(KEYS[(i + KEYS.length - 1) % KEYS.length]); };
+    document.getElementById('sw-next').onclick = (e) => { e.preventDefault(); show(KEYS[(i + 1) % KEYS.length]); };
+  }
+  show(KEYS.includes(param) ? param : 'a');
 
   // ——— branch drawing — per-call tone lets the partner's branch carry the
   // partner pigment (a/d) while the focused branch keeps full color ———
