@@ -17,6 +17,8 @@
      i — living paper: no leaves at all; the flat gradient dies and the paper
          becomes organic light — warm sun wash, deep sage pooling, mint breath
      j — grove night: h re-lit with the #418 D recipe, moonlit layers
+     k — living paper night: i re-lit — the organic light washes on the deep
+         sage base, a warm lamp pool where the sun wash stood
 */
 /*__FONTS__*/
 :root {
@@ -46,7 +48,7 @@
   --home-bar: rgba(21, 33, 24, 0.20);
 }
 /* night edition — the #418 D recipe, re-lit never recolored */
-body[data-variant="j"] {
+body[data-variant="j"], body[data-variant="k"] {
   --paper-top: #232C20;
   --paper-bottom: #121D14;
   --ink: #EFF3E3;
@@ -93,6 +95,17 @@ body[data-variant="g"] #screen-g { display: flex; }
 body[data-variant="h"] #screen-h { display: flex; }
 body[data-variant="i"] #screen-i { display: flex; }
 body[data-variant="j"] #screen-j { display: flex; }
+body[data-variant="k"] #screen-k { display: flex; }
+
+/* k — living paper night: same organic light, re-lit never recolored */
+#screen-k {
+  background:
+    radial-gradient(80% 42% at 18% 4%, rgba(255, 233, 170, 0.14) 0%, rgba(255, 233, 170, 0) 60%),
+    radial-gradient(70% 40% at 108% 32%, rgba(87, 145, 104, 0.16) 0%, rgba(87, 145, 104, 0) 70%),
+    radial-gradient(80% 42% at -10% 62%, rgba(87, 145, 104, 0.10) 0%, rgba(87, 145, 104, 0) 65%),
+    radial-gradient(110% 55% at 55% 108%, rgba(9, 18, 12, 0.7) 0%, rgba(9, 18, 12, 0) 70%),
+    linear-gradient(180deg, #232C20 0%, #121D14 100%);
+}
 
 /* i — living paper: the linear gradient dies; layered organic light instead */
 #screen-i {
@@ -235,7 +248,7 @@ h1.exercise {
 .switcher .label { padding: 0 6px; white-space: nowrap; }
 </style>
 </head>
-<body data-variants="f,g,h,i,j" data-variant="f">
+<body data-variants="f,g,h,i,j,k" data-variant="f">
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
@@ -278,6 +291,7 @@ h1.exercise {
 <section class="screen" id="screen-h"><div class="flora" id="flora-h"></div><div class="time num">9:41</div><div class="home-indicator"></div></section>
 <section class="screen" id="screen-i"><div class="time num">9:41</div><div class="home-indicator"></div></section>
 <section class="screen" id="screen-j"><div class="flora" id="flora-j"></div><div class="time num">21:14</div><div class="home-indicator"></div></section>
+<section class="screen" id="screen-k"><div class="time num">21:14</div><div class="home-indicator"></div></section>
 
 <nav class="switcher">
   <a id="sw-prev" href="#">‹</a>
@@ -286,13 +300,14 @@ h1.exercise {
 </nav>
 
 <script>
-  const KEYS = ['f', 'g', 'h', 'i', 'j'];
+  const KEYS = ['f', 'g', 'h', 'i', 'j', 'k'];
   const NAMES = {
     f: 'F · Canopy shade',
     g: 'G · Dappled light',
     h: 'H · The grove',
     i: 'I · Living paper',
-    j: 'J · Grove night'
+    j: 'J · Grove night',
+    k: 'K · Living paper night'
   };
   const param = new URLSearchParams(location.search).get('variant');
   const key = KEYS.includes(param) ? param : 'f';
