@@ -20,6 +20,7 @@ struct DeveloperToolsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.cardSpacing) {
                     currentSessionSection
+                    motionLabSection
                     liveActivitySection
                     pendingWritesSection
                     actionsSection
@@ -140,6 +141,19 @@ struct DeveloperToolsView: View {
 
             SyncStatusBanner(state: sync.state)
                 .accessibilityIdentifier("developer-tools-sync-status-banner")
+        }
+    }
+
+    private var motionLabSection: some View {
+        DeveloperToolsSection(title: "Greenhouse Motion (prototype)") {
+            NavigationLink {
+                MotionLabView()
+            } label: {
+                Label("Open Motion & Haptics Lab", systemImage: "leaf")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.workoutGlass)
+            .accessibilityIdentifier("developer-tools-motion-lab-link")
         }
     }
 

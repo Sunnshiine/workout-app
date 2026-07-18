@@ -196,6 +196,13 @@
 		FD532690E409CC21380B5AC5 /* SheetsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = D25BC6F5BDADC735072B49F8 /* SheetsClient.swift */; };
 		FE0CDF7FEC81BD73504F3500 /* DeveloperToolsDiagnosticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC241C86417778FD72BF2A6A /* DeveloperToolsDiagnosticsTests.swift */; };
 		FF265786A316602F2AD3BA99 /* SheetCompactLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2913603B7A42BABD66A2404 /* SheetCompactLayoutTests.swift */; };
+		AB452B000000000000000001 /* MotionLabArt.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB452F000000000000000001 /* MotionLabArt.swift */; };
+		AB452B000000000000000002 /* MotionLabCeremonyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB452F000000000000000002 /* MotionLabCeremonyView.swift */; };
+		AB452B000000000000000003 /* MotionLabCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB452F000000000000000003 /* MotionLabCore.swift */; };
+		AB452B000000000000000004 /* MotionLabHaptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB452F000000000000000004 /* MotionLabHaptics.swift */; };
+		AB452B000000000000000005 /* MotionLabHapticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB452F000000000000000005 /* MotionLabHapticsView.swift */; };
+		AB452B000000000000000006 /* MotionLabStageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB452F000000000000000006 /* MotionLabStageView.swift */; };
+		AB452B000000000000000007 /* MotionLabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB452F000000000000000007 /* MotionLabView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -432,6 +439,13 @@
 		FFBA3AF5C9A8A37438C43F0D /* RestNotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestNotificationScheduler.swift; sourceTree = "<group>"; };
 		F1A2B3C4D5E6F7A8B9C0D1E3 /* RestInterval.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestInterval.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A7B8C9D0E1F3 /* RestExpiryScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestExpiryScheduler.swift; sourceTree = "<group>"; };
+		AB452F000000000000000001 /* MotionLabArt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionLabArt.swift; sourceTree = "<group>"; };
+		AB452F000000000000000002 /* MotionLabCeremonyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionLabCeremonyView.swift; sourceTree = "<group>"; };
+		AB452F000000000000000003 /* MotionLabCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionLabCore.swift; sourceTree = "<group>"; };
+		AB452F000000000000000004 /* MotionLabHaptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionLabHaptics.swift; sourceTree = "<group>"; };
+		AB452F000000000000000005 /* MotionLabHapticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionLabHapticsView.swift; sourceTree = "<group>"; };
+		AB452F000000000000000006 /* MotionLabStageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionLabStageView.swift; sourceTree = "<group>"; };
+		AB452F000000000000000007 /* MotionLabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotionLabView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -506,6 +520,7 @@
 				67135AA558123A1C244485B9 /* LastPerformedCard.swift */,
 				5688D9D43EFCA63A84FC18C0 /* LiveActivityLabView.swift */,
 				D92CDF9A3131D2FF682B82FE /* LoggedSetReviewCard.swift */,
+				AB452C00000000000000000A /* MotionLab */,
 				D31B56C933A2BA56D448FAC8 /* MoveOnCelebrationView.swift */,
 				5C9C69974B6867E8568AFBD0 /* OnboardingView.swift */,
 				501911AD1903F8F78A0957B7 /* OpenExercisesSection.swift */,
@@ -827,6 +842,20 @@
 			path = LiveActivity;
 			sourceTree = "<group>";
 		};
+		AB452C00000000000000000A /* MotionLab */ = {
+			isa = PBXGroup;
+			children = (
+				AB452F000000000000000001 /* MotionLabArt.swift */,
+				AB452F000000000000000002 /* MotionLabCeremonyView.swift */,
+				AB452F000000000000000003 /* MotionLabCore.swift */,
+				AB452F000000000000000004 /* MotionLabHaptics.swift */,
+				AB452F000000000000000005 /* MotionLabHapticsView.swift */,
+				AB452F000000000000000006 /* MotionLabStageView.swift */,
+				AB452F000000000000000007 /* MotionLabView.swift */,
+			);
+			path = MotionLab;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -1123,6 +1152,13 @@
 				0B4BF5AB6DD10A512C793BED /* BlockTabSelector.swift in Sources */,
 				3B53DB2E82EE26FFBE0983D2 /* DeveloperToolsDiagnostics.swift in Sources */,
 				E6298E9C10999070CD34B8C0 /* DeveloperToolsView.swift in Sources */,
+				AB452B000000000000000001 /* MotionLabArt.swift in Sources */,
+				AB452B000000000000000002 /* MotionLabCeremonyView.swift in Sources */,
+				AB452B000000000000000003 /* MotionLabCore.swift in Sources */,
+				AB452B000000000000000004 /* MotionLabHaptics.swift in Sources */,
+				AB452B000000000000000005 /* MotionLabHapticsView.swift in Sources */,
+				AB452B000000000000000006 /* MotionLabStageView.swift in Sources */,
+				AB452B000000000000000007 /* MotionLabView.swift in Sources */,
 				A17B4D3CFBBB7A17E5B5D851 /* EmptyStateView.swift in Sources */,
 				F58786858363A7A52D822F21 /* Exercise.swift in Sources */,
 				8E3D0AC1569F1BA279AF054E /* GoogleAuth.swift in Sources */,
