@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=393, initial-scale=1">
+<title>BLOCK GRID AT 2–6 DAYS — Greenhouse prototype (#435)</title>
+<style>
+/* THROWAWAY PROTOTYPE — issue #435, round one of /grilling-frontend-prototyping.
+   One live mock, five structurally different layouts for the plain-tiles Block
+   grid across day counts. State control: ?days=2|3|4|6 (buttons in the
+   switcher). Variants via ?variant= :
+     a — elastic rows: week rows, tiles flex to fill the width; labels
+         compress at high day counts, ghost wording moves to the week label
+     b — fixed module: tile size constant, 6-day weeks wrap 4+2, 2-day weeks
+         keep their air
+     c — session rows: no grid — one full-width row per Session, grouped by
+         week; scrolls when it must
+     d — matrix: the whole Block as one soft surface — W-gutter rows,
+         compact square day cells, state by fill alone
+     e — focus week: only the current week expands to tiles; other weeks are
+         slim summary rows
+   State vocabulary is fixed by #419: inked complete / cream-bud current /
+   quiet available / ghost unavailable, zero icons.
+*/
+/*__FONTS__*/
+:root {
+  --paper-top: #E8EDDB;
+  --paper-bottom: #C7E0BF;
+  --ink: #152118;
+  --muted: #526457;
+  --action: #0D6B40;
+  --cream: #F2F7E8;
+  --surface: rgba(242, 247, 232, 0.52);
+  --surface-shadow: 0 1px 2px rgba(21, 33, 24, 0.04), 0 14px 30px rgba(21, 33, 24, 0.07);
+  --pill-fill: rgba(242, 247, 232, 0.85);
+  --pill-stroke: rgba(82, 111, 90, 0.34);
+  --tile-complete: #0D6B40;
+  --tile-complete-text: #F2F7E8;
+  --tile-current-fill: rgba(242, 247, 232, 0.95);
+  --tile-current-shadow: 0 1px 2px rgba(13, 46, 28, 0.10), 0 8px 18px rgba(13, 60, 35, 0.12);
+  --tile-ghost: rgba(21, 33, 24, 0.045);
+  --home-bar: rgba(21, 33, 24, 0.20);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  position: relative;
+  width: 393px;
+  height: 852px;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--paper-top) 0%, var(--paper-bottom) 100%);
+  color: var(--ink);
+  font-family: 'Source Sans 3', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.num { font-variant-numeric: tabular-nums; }
+
+.time {
+  position: absolute; top: 21px; left: 36px; z-index: 2;
+  font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.home-indicator {
+  position: absolute; bottom: 9px; left: 50%; transform: translateX(-50%); z-index: 2;
+  width: 134px; height: 5px; border-radius: 3px; background: var(--home-bar);
+}
+
+.col {
+  display: flex; flex-direction: column;
+  width: 393px; height: 852px;
+  padding: 0 28px;
+  overflow: hidden;
+}
+
+.back { margin-top: 64px; font-size: 15px; font-weight: 600; color: var(--muted); }
+h1.block-title {
+  margin: 14px 0 0;
+  font-size: 30px; font-weight: 700; letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.block-sub { margin: 8px 0 0; font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.week-label {
+  margin: 24px 0 10px;
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 13.5px; font-weight: 600; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.week-label .count { font-weight: 500; font-size: 12.5px; }
+
+/* ————— tiles (a, b, e) ————— */
+.tile-row { display: flex; gap: 8px; }
+.tile-row.wrap { flex-wrap: wrap; }
+.tile {
+  height: 64px;
+  border-radius: 18px;
+  padding: 9px 11px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  font-variant-numeric: tabular-nums;
+}
+.tile-row:not(.wrap) .tile { flex: 1; min-width: 0; }
+.tile-row.wrap .tile { flex: none; width: 78.25px; }
+.tile .day { font-size: 15px; font-weight: 700; line-height: 1; white-space: nowrap; }
+.tile.compact { padding: 8px 0; align-items: center; justify-content: center; }
+.tile.compact .day { font-size: 13.5px; }
+.tile .note { font-size: 9.5px; font-weight: 600; line-height: 1.15; }
+.tile.complete { background: var(--tile-complete); color: var(--tile-complete-text); }
+.tile.current {
+  background: var(--tile-current-fill);
+  border: 2px solid var(--action);
+  box-shadow: var(--tile-current-shadow);
+  color: #152118;
+}
+.tile.current:not(.compact) { padding: 7px 9px; }
+.tile.current .note { color: var(--action); }
+.tile.available { background: var(--pill-fill); border: 1px solid var(--pill-stroke); }
+.tile.ghost { background: var(--tile-ghost); color: var(--muted); }
+.tile.ghost .day { opacity: 0.75; }
+
+/* ————— c: session rows ————— */
+.session-row {
+  display: flex; justify-content: space-between; align-items: center;
+  height: 46px; border-radius: 15px; padding: 0 16px; margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.session-row .day { font-size: 15px; font-weight: 700; }
+.session-row .state { font-size: 12px; font-weight: 600; }
+.session-row.complete { background: var(--tile-complete); color: var(--tile-complete-text); }
+.session-row.complete .state { color: rgba(242, 247, 232, 0.75); }
+.session-row.current {
+  background: var(--tile-current-fill);
+  border: 2px solid var(--action);
+  box-shadow: var(--tile-current-shadow);
+  color: #152118;
+}
+.session-row.current .state { color: var(--action); }
+.session-row.available { background: var(--pill-fill); border: 1px solid var(--pill-stroke); }
+.session-row.available .state { color: var(--muted); }
+.session-row.ghost { background: var(--tile-ghost); color: var(--muted); }
+.week-label.tight { margin-top: 18px; margin-bottom: 4px; }
+
+/* ————— d: matrix ————— */
+.matrix-surface {
+  margin-top: 22px;
+  background: var(--surface);
+  border-radius: 26px;
+  box-shadow: var(--surface-shadow);
+  padding: 18px;
+}
+.matrix { display: grid; gap: 8px; }
+.matrix .dhead {
+  font-size: 11.5px; font-weight: 600; color: var(--muted); text-align: center;
+  font-variant-numeric: tabular-nums; align-self: end; padding-bottom: 2px;
+}
+.matrix .wlab {
+  font-size: 12.5px; font-weight: 600; color: var(--muted);
+  font-variant-numeric: tabular-nums; align-self: center;
+}
+.cell {
+  width: 100%; aspect-ratio: 1; max-height: 46px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.cell.complete { background: var(--tile-complete); color: var(--tile-complete-text); }
+.cell.current { background: var(--tile-current-fill); border: 2px solid var(--action); color: #152118; box-shadow: var(--tile-current-shadow); }
+.cell.available { background: var(--pill-fill); border: 1px solid var(--pill-stroke); }
+.cell.ghost { background: var(--tile-ghost); color: var(--muted); }
+.matrix-legend { margin-top: 14px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* ————— e: focus week ————— */
+.week-summary {
+  display: flex; justify-content: space-between; align-items: center;
+  height: 50px; border-radius: 17px; padding: 0 16px; margin-top: 8px;
+  background: var(--pill-fill); border: 1px solid var(--pill-stroke);
+  font-variant-numeric: tabular-nums;
+}
+.week-summary.inked { background: var(--tile-complete); border: 0; color: var(--tile-complete-text); }
+.week-summary .wk { font-size: 14px; font-weight: 700; }
+.week-summary .sum { font-size: 12.5px; font-weight: 500; color: var(--muted); }
+.week-summary.inked .sum { color: rgba(242, 247, 232, 0.75); }
+.focus-head {
+  margin: 22px 0 10px;
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 13.5px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.focus-head .count { color: var(--muted); font-weight: 500; font-size: 12.5px; }
+
+/* ————— switcher (NOT part of the design) ————— */
+.switcher {
+  position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+  z-index: 99; display: flex; align-items: center; gap: 2px;
+  background: #111; color: #fff; border-radius: 999px; padding: 4px 6px;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.5);
+}
+.switcher a { color: #fff; text-decoration: none; padding: 2px 7px; font-size: 14px; line-height: 1; }
+.switcher .label { padding: 0 6px; white-space: nowrap; }
+.switcher .days { display: flex; gap: 1px; margin-left: 4px; border-left: 1px solid #444; padding-left: 5px; }
+.switcher .days a { font-size: 12px; padding: 2px 6px; border-radius: 999px; color: #bbb; }
+.switcher .days a.on { background: #fff; color: #111; }
+</style>
+</head>
+<body data-variants="a,b,c,d,e" data-variant="a">
+
+<div class="time num" id="clock">9:41</div>
+<div class="col" id="page"></div>
+<div class="home-indicator"></div>
+
+<nav class="switcher">
+  <a id="sw-prev" href="#">‹</a>
+  <span class="label" id="sw-label"></span>
+  <a id="sw-next" href="#">›</a>
+  <span class="days" id="sw-days"></span>
+</nav>
+
+<script>
+  const KEYS = ['a', 'b', 'c', 'd', 'e'];
+  const NAMES = {
+    a: 'A · Elastic rows',
+    b: 'B · Fixed module',
+    c: 'C · Session rows',
+    d: 'D · Matrix',
+    e: 'E · Focus week'
+  };
+  const DAY_CHOICES = [2, 3, 4, 6];
+  const params = new URLSearchParams(location.search);
+  const key = KEYS.includes(params.get('variant')) ? params.get('variant') : 'a';
+  const days = DAY_CHOICES.includes(+params.get('days')) ? +params.get('days') : 6;
+  document.body.dataset.variant = key;
+  const i = KEYS.indexOf(key);
+  document.getElementById('sw-label').textContent = NAMES[key];
+  const href = (v, d) => '?variant=' + v + '&days=' + d;
+  document.getElementById('sw-prev').href = href(KEYS[(i + KEYS.length - 1) % KEYS.length], days);
+  document.getElementById('sw-next').href = href(KEYS[(i + 1) % KEYS.length], days);
+  document.getElementById('sw-days').innerHTML = DAY_CHOICES.map((d) =>
+    '<a href="' + href(key, d) + '"' + (d === days ? ' class="on"' : '') + '>' + d + 'd</a>').join('');
+
+  // One Partially Uploaded Block at any day count. W1 complete; W2 holds the
+  // current Session; W3 availability is non-contiguous (per CONTEXT.md);
+  // W4 mostly not uploaded.
+  function makeBlock(n) {
+    const w1 = Array(n).fill('complete');
+    const w2 = Array.from({ length: n }, (_, d) => {
+      const done = Math.ceil(n / 2);
+      return d < done ? 'complete' : d === done ? 'current' : 'available';
+    });
+    const w3 = Array.from({ length: n }, (_, d) => (d % 2 === 0 ? 'available' : 'ghost'));
+    const w4 = Array.from({ length: n }, (_, d) => (d === 0 ? 'available' : 'ghost'));
+    return [w1, w2, w3, w4].map((daysArr, wi) => ({ week: wi + 1, days: daysArr }));
+  }
+  const BLOCK = makeBlock(days);
+  const doneCount = (w) => w.days.filter((d) => d === 'complete').length;
+  const ghostCount = (w) => w.days.filter((d) => d === 'ghost').length;
+  const total = BLOCK.reduce((s, w) => s + w.days.length, 0);
+  const done = BLOCK.reduce((s, w) => s + doneCount(w), 0);
+  const ghosts = BLOCK.reduce((s, w) => s + ghostCount(w), 0);
+
+  const page = document.getElementById('page');
+  const el = (cls, html, tag) => {
+    const d = document.createElement(tag || 'div');
+    d.className = cls; d.innerHTML = html || '';
+    return d;
+  };
+  function header() {
+    page.appendChild(el('back', '‹ Session'));
+    page.appendChild(el('block-title num', 'Block 27', 'h1'));
+    page.appendChild(el('block-sub num',
+      done + ' of ' + total + ' Sessions complete' + (ghosts ? ' · ' + ghosts + ' not yet uploaded' : '')));
+  }
+  // week-label right text: count, plus ghost wording when tiles are too
+  // narrow to carry their own caption
+  function weekRight(w, compact) {
+    let t = doneCount(w) + ' of ' + w.days.length;
+    if (compact && ghostCount(w)) t += ' · ' + ghostCount(w) + ' not uploaded';
+    return t;
+  }
+
+  function tileEl(state, di, compact) {
+    const t = el('tile ' + state + (compact ? ' compact' : '') + ' num');
+    const day = compact ? 'D' + (di + 1) : 'Day ' + (di + 1);
+    let note = '';
+    if (!compact) {
+      note = state === 'current' ? '<div class="note">Current</div>' :
+             state === 'ghost' ? '<div class="note">Not uploaded</div>' :
+             '<div class="note">&nbsp;</div>';
+    }
+    t.innerHTML = '<div class="day">' + day + '</div>' + note;
+    return t;
+  }
+
+  // ————— a: elastic rows —————
+  function renderA() {
+    const compact = days >= 5;
+    BLOCK.forEach((w) => {
+      page.appendChild(el('week-label num',
+        '<span>Week ' + w.week + '</span><span class="count">' + weekRight(w, compact) + '</span>'));
+      const row = el('tile-row');
+      w.days.forEach((state, di) => row.appendChild(tileEl(state, di, compact)));
+      page.appendChild(row);
+    });
+  }
+
+  // ————— b: fixed module, wrapping —————
+  function renderB() {
+    BLOCK.forEach((w) => {
+      page.appendChild(el('week-label num',
+        '<span>Week ' + w.week + '</span><span class="count">' + weekRight(w, false) + '</span>'));
+      const row = el('tile-row wrap');
+      w.days.forEach((state, di) => row.appendChild(tileEl(state, di, false)));
+      page.appendChild(row);
+    });
+  }
+
+  // ————— c: session rows —————
+  function renderC() {
+    const WORD = { complete: 'Complete', current: 'Current', available: '', ghost: 'Not uploaded' };
+    BLOCK.forEach((w) => {
+      page.appendChild(el('week-label tight num',
+        '<span>Week ' + w.week + '</span><span class="count">' + doneCount(w) + ' of ' + w.days.length + '</span>'));
+      w.days.forEach((state, di) => {
+        page.appendChild(el('session-row ' + state + ' num',
+          '<span class="day">Day ' + (di + 1) + '</span><span class="state">' + WORD[state] + '</span>'));
+      });
+    });
+  }
+
+  // ————— d: matrix —————
+  function renderD() {
+    const surface = el('matrix-surface');
+    const m = el('matrix num');
+    m.style.gridTemplateColumns = '44px repeat(' + days + ', 1fr)';
+    m.appendChild(el('wlab', ''));
+    for (let d = 0; d < days; d++) m.appendChild(el('dhead num', 'D' + (d + 1)));
+    BLOCK.forEach((w) => {
+      m.appendChild(el('wlab num', 'W' + w.week));
+      w.days.forEach((state, di) => m.appendChild(el('cell ' + state + ' num', di + 1)));
+    });
+    surface.appendChild(m);
+    surface.appendChild(el('matrix-legend num',
+      ghosts ? ghosts + ' Sessions not yet uploaded' : 'Every Session uploaded'));
+    page.appendChild(surface);
+  }
+
+  // ————— e: focus week —————
+  function renderE() {
+    const focusIdx = BLOCK.findIndex((w) => w.days.includes('current'));
+    BLOCK.forEach((w, wi) => {
+      if (wi === focusIdx) {
+        page.appendChild(el('focus-head num',
+          '<span>Week ' + w.week + '</span><span class="count">' + weekRight(w, days >= 5) + '</span>'));
+        const row = el('tile-row' + (days >= 5 ? '' : ''));
+        w.days.forEach((state, di) => row.appendChild(tileEl(state, di, days >= 5)));
+        page.appendChild(row);
+      } else {
+        const complete = doneCount(w) === w.days.length;
+        let sum;
+        if (complete) sum = 'Complete';
+        else {
+          sum = doneCount(w) + ' of ' + w.days.length;
+          if (ghostCount(w)) sum += ' · ' + ghostCount(w) + ' not uploaded';
+        }
+        page.appendChild(el('week-summary num' + (complete ? ' inked' : ''),
+          '<span class="wk">Week ' + w.week + '</span><span class="sum">' + sum + '</span>'));
+      }
+    });
+  }
+
+  header();
+  ({ a: renderA, b: renderB, c: renderC, d: renderD, e: renderE })[key]();
+</script>
+</body>
+</html>

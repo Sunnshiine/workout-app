@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=393, initial-scale=1">
+<title>BLOCK GRID — Greenhouse prototype (#419)</title>
+<style>
+/* THROWAWAY PROTOTYPE — issue #419.
+   The Block grid pushed beyond the Session stage: many Session tiles at once,
+   four states (complete / current / available / not uploaded), in the
+   Greenhouse language. Switchable via ?variant= :
+     a — plain tiles: rounded-soft tiles in week rows, state carried by
+         fill + stroke alone, zero icons
+     b — weeks as stems: the literal growth extension — each Week is a stem,
+         Sessions are its leaves (Blocks-as-seasons probe)
+     c — week shelves: one soft surface per Week holding plain day chips;
+         a single Block-level branch in the header is the page's one icon
+     d — night: the winning structure re-lit with the #418 D recipe
+*/
+/*__FONTS__*/
+:root {
+  --paper-top: #E8EDDB;
+  --paper-bottom: #C7E0BF;
+  --ink: #152118;
+  --muted: #526457;
+  --action: #0D6B40;
+  --cream: #F2F7E8;
+  --surface: rgba(242, 247, 232, 0.52);
+  --surface-shadow: 0 1px 2px rgba(21, 33, 24, 0.04), 0 14px 30px rgba(21, 33, 24, 0.07);
+  --pill-fill: rgba(242, 247, 232, 0.85);
+  --pill-stroke: rgba(82, 111, 90, 0.34);
+  --tile-complete: #0D6B40;
+  --tile-complete-text: #F2F7E8;
+  --tile-current-fill: rgba(242, 247, 232, 0.95);
+  --tile-current-shadow: 0 1px 2px rgba(13, 46, 28, 0.10), 0 8px 18px rgba(13, 60, 35, 0.12);
+  --tile-ghost: rgba(21, 33, 24, 0.045);
+  --stem: #0D6B40;
+  --leaf-fill: #0D6B40;
+  --leaf-rib: rgba(242, 247, 232, 0.5);
+  --bud-fill: rgba(242, 247, 232, 0.95);
+  --bud-stroke: #0D6B40;
+  --bud-rib: rgba(13, 107, 64, 0.55);
+  --future-stroke: rgba(13, 107, 64, 0.40);
+  --ghost-stroke: rgba(82, 100, 87, 0.30);
+  --bud-glow: none;
+  --home-bar: rgba(21, 33, 24, 0.20);
+}
+/* night edition — the #418 D recipe, re-lit never recolored */
+body[data-variant="d"] {
+  --paper-top: #232C20;
+  --paper-bottom: #121D14;
+  --ink: #EFF3E3;
+  --muted: #9AAA9B;
+  --action: #1F8552;
+  --cream: #F2F7E8;
+  --surface: rgba(242, 247, 232, 0.07);
+  --surface-shadow: inset 0 0 0 1px rgba(242, 247, 232, 0.10);
+  --pill-fill: rgba(242, 247, 232, 0.06);
+  --pill-stroke: rgba(242, 247, 232, 0.16);
+  --tile-complete: #579168;
+  --tile-complete-text: #121D14;
+  --tile-current-fill: rgba(242, 247, 232, 0.92);
+  --tile-current-shadow: 0 0 18px rgba(120, 240, 178, 0.18);
+  --tile-ghost: rgba(242, 247, 232, 0.03);
+  --stem: #579168;
+  --leaf-fill: #579168;
+  --leaf-rib: rgba(242, 247, 232, 0.55);
+  --bud-fill: rgba(242, 247, 232, 0.92);
+  --bud-stroke: #78F0B2;
+  --bud-rib: rgba(87, 145, 104, 0.6);
+  --future-stroke: rgba(87, 145, 104, 0.45);
+  --ghost-stroke: rgba(154, 170, 155, 0.28);
+  --bud-glow: drop-shadow(0 0 7px rgba(120, 240, 178, 0.32));
+  --home-bar: rgba(242, 247, 232, 0.22);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  position: relative;
+  width: 393px;
+  height: 852px;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--paper-top) 0%, var(--paper-bottom) 100%);
+  color: var(--ink);
+  font-family: 'Source Sans 3', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.screen { display: none; flex-direction: column; width: 393px; height: 852px; position: relative; }
+body[data-variant="a"] #screen-a { display: flex; }
+body[data-variant="b"] #screen-b { display: flex; }
+body[data-variant="c"] #screen-c { display: flex; }
+body[data-variant="d"] #screen-d { display: flex; }
+
+.num { font-variant-numeric: tabular-nums; }
+
+.time {
+  position: absolute; top: 21px; left: 36px;
+  font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.home-indicator {
+  position: absolute; bottom: 9px; left: 50%; transform: translateX(-50%);
+  width: 134px; height: 5px; border-radius: 3px; background: var(--home-bar);
+}
+
+.col { display: flex; flex-direction: column; height: 100%; padding: 0 28px; }
+
+.back {
+  margin-top: 64px;
+  font-size: 15px; font-weight: 600; color: var(--muted);
+}
+
+h1.block-title {
+  margin: 14px 0 0;
+  font-size: 30px; font-weight: 700; letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+h1.block-title.serif {
+  font-family: 'Fraunces', serif;
+  font-variation-settings: "opsz" 30, "wght" 490, "SOFT" 100, "WONK" 0;
+  font-weight: 490; font-size: 33px; letter-spacing: 0;
+}
+.block-sub {
+  margin: 8px 0 0;
+  font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+
+/* ————— a/d: plain tiles in week rows ————— */
+.week-label {
+  margin: 26px 0 10px;
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 13.5px; font-weight: 600; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.week-label .count { font-weight: 500; font-size: 12.5px; }
+.tile-row { display: flex; gap: 10px; }
+.tile {
+  flex: 1;
+  height: 64px;
+  border-radius: 20px;
+  padding: 10px 12px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  font-variant-numeric: tabular-nums;
+}
+.tile .day { font-size: 15px; font-weight: 700; line-height: 1; }
+.tile .note { font-size: 9.5px; font-weight: 600; line-height: 1.15; }
+.tile.complete { background: var(--tile-complete); color: var(--tile-complete-text); }
+.tile.current {
+  background: var(--tile-current-fill);
+  border: 2px solid var(--bud-stroke);
+  box-shadow: var(--tile-current-shadow);
+  color: #152118;
+  padding: 8px 10px;
+}
+.tile.current .note { color: var(--action); }
+body[data-variant="d"] .tile.current .note { color: #0D6B40; }
+.tile.available {
+  background: var(--pill-fill);
+  border: 1px solid var(--pill-stroke);
+  color: var(--ink);
+}
+.tile.ghost { background: var(--tile-ghost); color: var(--muted); }
+.tile.ghost .day { opacity: 0.75; }
+.tile.ghost .note { opacity: 0.85; }
+
+/* ————— b: weeks as stems ————— */
+.stem-week { margin-top: 30px; }
+.stem-week .week-name {
+  font-size: 13.5px; font-weight: 600; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.stem-wrap { position: relative; margin-top: 4px; height: 76px; }
+.stem-wrap svg { display: block; }
+.stem-days {
+  display: flex; margin-top: -8px;
+}
+.stem-days span {
+  flex: 1; text-align: center;
+  font-size: 12px; font-weight: 600; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.stem-days span.is-current { color: var(--action); font-weight: 700; }
+body[data-variant="d"] .stem-days span.is-current { color: #78F0B2; }
+.stem-days span .sub { display: block; font-size: 9px; font-weight: 600; }
+
+/* ————— c: week shelves + one Block branch ————— */
+.head-branch { position: relative; margin: 10px 0 0; height: 54px; }
+.week-shelf {
+  margin-top: 14px;
+  background: var(--surface);
+  border-radius: 24px;
+  box-shadow: var(--surface-shadow);
+  padding: 13px 14px 14px;
+}
+.week-shelf .shelf-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 0 4px;
+  font-size: 13.5px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.week-shelf .shelf-head .count { color: var(--muted); font-weight: 500; font-size: 12.5px; }
+.chip-row { display: flex; gap: 8px; margin-top: 10px; }
+.chip {
+  flex: 1; height: 46px; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.chip.complete { background: var(--tile-complete); color: var(--tile-complete-text); }
+.chip.current { background: var(--tile-current-fill); border: 2px solid var(--bud-stroke); color: #152118; }
+.chip.available { background: var(--pill-fill); border: 1px solid var(--pill-stroke); color: var(--ink); }
+.chip.ghost { background: var(--tile-ghost); color: var(--muted); font-weight: 600; font-size: 11px; }
+
+.flex-grow { flex: 1; }
+
+/* ————— switcher (NOT part of the design) ————— */
+.switcher {
+  position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+  z-index: 99; display: flex; align-items: center; gap: 2px;
+  background: #111; color: #fff; border-radius: 999px; padding: 4px 6px;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.5);
+}
+.switcher a { color: #fff; text-decoration: none; padding: 2px 8px; font-size: 14px; line-height: 1; }
+.switcher .label { padding: 0 6px; white-space: nowrap; }
+</style>
+</head>
+<body data-variants="a,b,c,d" data-variant="a">
+
+<!-- shared leaf geometry — same drawing language as the locked stage -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <path id="leafShape" d="M0 8 C 15 2.3, 41 3.3, 60 8 C 41 21.7, 15 22.6, 0 8 Z"/>
+    <path id="leafRib" d="M4 8.1 C 20 9.8, 40 9.6, 56 8.1" fill="none"/>
+  </defs>
+</svg>
+
+<!-- ══════════ a — plain tiles ══════════ -->
+<section class="screen" id="screen-a">
+  <div class="time num">9:41</div>
+  <div class="col" id="grid-a">
+    <div class="back">‹ Session</div>
+    <h1 class="block-title num">Block 27</h1>
+    <p class="block-sub num">9 of 16 Sessions complete · 5 not yet uploaded</p>
+    <!-- week rows injected -->
+  </div>
+  <div class="home-indicator"></div>
+</section>
+
+<!-- ══════════ b — weeks as stems ══════════ -->
+<section class="screen" id="screen-b">
+  <div class="time num">9:41</div>
+  <div class="col" id="grid-b">
+    <div class="back">‹ Session</div>
+    <h1 class="block-title serif num">Block 27</h1>
+    <p class="block-sub num">9 of 16 Sessions complete · 5 not yet uploaded</p>
+    <!-- stem weeks injected -->
+  </div>
+  <div class="home-indicator"></div>
+</section>
+
+<!-- ══════════ c — week shelves ══════════ -->
+<section class="screen" id="screen-c">
+  <div class="time num">9:41</div>
+  <div class="col" id="grid-c">
+    <div class="back">‹ Session</div>
+    <h1 class="block-title num">Block 27</h1>
+    <p class="block-sub num">9 of 16 Sessions complete · 5 not yet uploaded</p>
+    <div class="head-branch">
+      <svg id="branch-c" width="337" height="54" viewBox="0 0 337 54">
+        <path id="stem-head-c" d="M 6 46 C 90 40, 200 28, 330 8" fill="none" stroke="var(--stem)" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <!-- week shelves injected -->
+  </div>
+  <div class="home-indicator"></div>
+</section>
+
+<!-- ══════════ d — night (a's structure) ══════════ -->
+<section class="screen" id="screen-d">
+  <div class="time num">21:14</div>
+  <div class="col" id="grid-d">
+    <div class="back">‹ Session</div>
+    <h1 class="block-title num">Block 27</h1>
+    <p class="block-sub num">9 of 16 Sessions complete · 5 not yet uploaded</p>
+    <!-- week rows injected -->
+  </div>
+  <div class="home-indicator"></div>
+</section>
+
+<nav class="switcher">
+  <a id="sw-prev" href="#">‹</a>
+  <span class="label" id="sw-label"></span>
+  <a id="sw-next" href="#">›</a>
+</nav>
+
+<script>
+  const KEYS = ['a', 'b', 'c', 'd'];
+  const NAMES = {
+    a: 'A · Plain tiles',
+    b: 'B · Weeks as stems',
+    c: 'C · Week shelves',
+    d: 'D · Night'
+  };
+  const param = new URLSearchParams(location.search).get('variant');
+  const key = KEYS.includes(param) ? param : 'a';
+  document.body.dataset.variant = key;
+  const i = KEYS.indexOf(key);
+  document.getElementById('sw-label').textContent = NAMES[key];
+  document.getElementById('sw-prev').href = '?variant=' + KEYS[(i + KEYS.length - 1) % KEYS.length];
+  document.getElementById('sw-next').href = '?variant=' + KEYS[(i + 1) % KEYS.length];
+
+  // One Partially Uploaded Block, availability per Session (non-contiguous, per
+  // CONTEXT.md): W1 done, W2 in flight, W3 has a hole, W4 mostly not uploaded.
+  // States: complete | current | available | ghost (Unavailable Session).
+  const BLOCK = [
+    { week: 1, days: ['complete', 'complete', 'complete', 'complete'] },
+    { week: 2, days: ['complete', 'complete', 'current', 'available'] },
+    { week: 3, days: ['available', 'ghost', 'available', 'ghost'] },
+    { week: 4, days: ['available', 'ghost', 'ghost', 'ghost'] }
+  ];
+  const doneCount = (w) => w.days.filter((d) => d === 'complete').length;
+
+  // ————— a/d: plain tiles —————
+  function renderTiles(hostId) {
+    const host = document.getElementById(hostId);
+    BLOCK.forEach((w) => {
+      const label = document.createElement('div');
+      label.className = 'week-label num';
+      label.innerHTML = '<span>Week ' + w.week + '</span><span class="count">' +
+        doneCount(w) + ' of ' + w.days.length + '</span>';
+      host.appendChild(label);
+      const row = document.createElement('div');
+      row.className = 'tile-row';
+      w.days.forEach((state, di) => {
+        const t = document.createElement('div');
+        t.className = 'tile ' + state + ' num';
+        const note =
+          state === 'current' ? '<div class="note">Current</div>' :
+          state === 'ghost' ? '<div class="note">Not uploaded</div>' :
+          '<div class="note">&nbsp;</div>';
+        t.innerHTML = '<div class="day">Day ' + (di + 1) + '</div>' + note;
+        row.appendChild(t);
+      });
+      host.appendChild(row);
+    });
+  }
+  renderTiles('grid-a');
+  renderTiles('grid-d');
+
+  // ————— b: weeks as stems —————
+  const NS = 'http://www.w3.org/2000/svg';
+  const css = getComputedStyle(document.body);
+  const C = (name) => css.getPropertyValue(name).trim();
+  function leafNode(svg, x, y, rot, s, kind) {
+    const g = document.createElementNS(NS, 'g');
+    g.setAttribute('transform',
+      'translate(' + x + ' ' + y + ') rotate(' + rot + ') scale(' + s + ') translate(0 -8)');
+    const use = (href, attrs) => {
+      const el = document.createElementNS(NS, 'use');
+      el.setAttribute('href', href);
+      for (const k in attrs) el.setAttribute(k, attrs[k]);
+      g.appendChild(el);
+    };
+    if (kind === 'complete') {
+      use('#leafShape', { fill: C('--leaf-fill') });
+      use('#leafRib', { stroke: C('--leaf-rib'), 'stroke-width': (1.2 / s).toFixed(2) });
+    } else if (kind === 'current') {
+      if (C('--bud-glow') !== 'none') g.setAttribute('style', 'filter:' + C('--bud-glow'));
+      use('#leafShape', { fill: C('--bud-fill'), stroke: C('--bud-stroke'), 'stroke-width': (2.2 / s).toFixed(2) });
+      use('#leafRib', { stroke: C('--bud-rib'), 'stroke-width': (1.2 / s).toFixed(2) });
+    } else if (kind === 'available') {
+      use('#leafShape', { fill: 'none', stroke: C('--future-stroke'), 'stroke-width': (1.2 / s).toFixed(2) });
+    } else { // ghost — an Unavailable Session is barely a mark on the stem
+      const dot = document.createElementNS(NS, 'circle');
+      dot.setAttribute('cx', 0); dot.setAttribute('cy', 8); dot.setAttribute('r', (3 / s).toFixed(2));
+      dot.setAttribute('fill', 'none');
+      dot.setAttribute('stroke', C('--ghost-stroke'));
+      dot.setAttribute('stroke-width', (1.2 / s).toFixed(2));
+      g.appendChild(dot);
+    }
+    svg.appendChild(g);
+  }
+  function renderStems(hostId) {
+    const host = document.getElementById(hostId);
+    BLOCK.forEach((w) => {
+      const sec = document.createElement('div');
+      sec.className = 'stem-week';
+      sec.innerHTML = '<div class="week-name num">Week ' + w.week + '</div>';
+      const wrap = document.createElement('div');
+      wrap.className = 'stem-wrap';
+      const svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('width', 337); svg.setAttribute('height', 56);
+      svg.setAttribute('viewBox', '0 0 337 56');
+      const stem = document.createElementNS(NS, 'path');
+      stem.setAttribute('d', 'M 6 50 C 90 46, 220 38, 331 26');
+      stem.setAttribute('fill', 'none');
+      stem.setAttribute('stroke', C('--stem'));
+      stem.setAttribute('stroke-width', 2);
+      stem.setAttribute('stroke-linecap', 'round');
+      svg.appendChild(stem);
+      const L = stem.getTotalLength();
+      const ts = [0.08, 0.36, 0.64, 0.92];
+      w.days.forEach((state, di) => {
+        const p = stem.getPointAtLength(ts[di] * L);
+        const q = stem.getPointAtLength(Math.min(L, ts[di] * L + 1.5));
+        const ang = Math.atan2(q.y - p.y, q.x - p.x) * 180 / Math.PI;
+        const side = di % 2 === 0 ? -1 : 1;
+        leafNode(svg, p.x, p.y, ang + side * 42, 0.52, state);
+      });
+      wrap.appendChild(svg);
+      sec.appendChild(wrap);
+      const days = document.createElement('div');
+      days.className = 'stem-days';
+      w.days.forEach((state, di) => {
+        const s = document.createElement('span');
+        if (state === 'current') s.className = 'is-current';
+        s.innerHTML = 'D' + (di + 1) +
+          (state === 'ghost' ? '<span class="sub">not uploaded</span>' : '');
+        days.appendChild(s);
+      });
+      sec.appendChild(days);
+      host.appendChild(sec);
+    });
+  }
+  renderStems('grid-b');
+
+  // ————— c: week shelves + one Block-level branch —————
+  function renderShelves(hostId) {
+    const host = document.getElementById(hostId);
+    BLOCK.forEach((w) => {
+      const shelf = document.createElement('div');
+      shelf.className = 'week-shelf';
+      shelf.innerHTML = '<div class="shelf-head num"><span>Week ' + w.week +
+        '</span><span class="count">' + doneCount(w) + ' of ' + w.days.length + '</span>';
+      const row = document.createElement('div');
+      row.className = 'chip-row';
+      w.days.forEach((state, di) => {
+        const chip = document.createElement('div');
+        chip.className = 'chip ' + state + ' num';
+        chip.textContent = state === 'ghost' ? 'Not uploaded' : 'Day ' + (di + 1);
+        row.appendChild(chip);
+      });
+      shelf.appendChild(row);
+      host.appendChild(shelf);
+    });
+  }
+  renderShelves('grid-c');
+
+  // c's header branch: one node per Week — the page's single icon
+  (function () {
+    const stem = document.getElementById('stem-head-c');
+    if (!stem) return;
+    const svg = document.getElementById('branch-c');
+    const L = stem.getTotalLength();
+    const weekKind = (w) =>
+      w.days.every((d) => d === 'complete') ? 'complete' :
+      w.days.includes('current') ? 'current' : 'available';
+    [0.10, 0.37, 0.64, 0.90].forEach((t, wi) => {
+      const p = stem.getPointAtLength(t * L);
+      const q = stem.getPointAtLength(Math.min(L, t * L + 1.5));
+      const ang = Math.atan2(q.y - p.y, q.x - p.x) * 180 / Math.PI;
+      const side = wi % 2 === 0 ? -1 : 1;
+      leafNode(svg, p.x, p.y, ang + side * 38, 0.44, weekKind(BLOCK[wi]));
+    });
+  })();
+</script>
+</body>
+</html>

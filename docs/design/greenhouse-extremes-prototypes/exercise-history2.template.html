@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=393, initial-scale=1">
+<title>EXERCISE HISTORY — soft groups round two (#434)</title>
+<style>
+/* THROWAWAY PROTOTYPE — issue #434.
+   Round two of the Exercise History sheet. Owner verdict on round one
+   (#419): soft groups (variant B) is the preferred direction — each Block
+   group on a quiet rounded surface — but B isn't satisfying yet: the
+   surfaces are nearly invisible, the lone-entry first group is lopsided,
+   and the header rows eat the .medium detent. Five radically different
+   takes on the soft-groups direction, switchable via ?variant= :
+     a — lit groups: the sheet drops into shade, groups are genuinely lit
+         cream cards (the light-and-shade hierarchy from #435)
+     b — block spine: no header row; the Block number is a large quiet
+         spine column fused into the group's left edge
+     c — tagged groups: whisper surfaces, each with a small solid-ink
+         Block chip overlapping its top edge
+     d — recency light: the current Block's card in morning light, older
+         Blocks sunk into shade with denser rows
+     e — carved wells: groups pressed into the sheet as inset wells,
+         not raised off it
+   Non-negotiables: History Row Never Wraps (shrink-then-truncate), no
+   mint in the sheet, .medium detent, the hard-content mix survives.
+*/
+/*__FONTS__*/
+:root {
+  --paper-top: #E8EDDB;
+  --paper-bottom: #C7E0BF;
+  --ink: #152118;
+  --muted: #526457;
+  --cream: #F2F7E8;
+  --sheet-fill: #EFF4E4;
+  --sheet-shadow: 0 -8px 40px rgba(21, 33, 24, 0.18);
+  --grabber: rgba(21, 33, 24, 0.18);
+  --scrim: rgba(21, 33, 24, 0.32);
+  --home-bar: rgba(242, 247, 232, 0.7);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  position: relative;
+  width: 393px;
+  height: 852px;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--paper-top) 0%, var(--paper-bottom) 100%);
+  color: var(--ink);
+  font-family: 'Source Sans 3', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.screen { display: none; width: 393px; height: 852px; position: relative; }
+body[data-variant="a"] #screen-a { display: block; }
+body[data-variant="b"] #screen-b { display: block; }
+body[data-variant="c"] #screen-c { display: block; }
+body[data-variant="d"] #screen-d { display: block; }
+body[data-variant="e"] #screen-e { display: block; }
+
+.num { font-variant-numeric: tabular-nums; }
+
+/* the stage behind the sheet, dimmed — context, not content */
+.stage-behind { position: absolute; inset: 0; padding: 0 32px; }
+.stage-behind .time {
+  position: absolute; top: 21px; left: 36px;
+  font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.stage-behind .runline {
+  display: flex; justify-content: space-between;
+  margin-top: 68px;
+  font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.stage-behind .runline .right { color: var(--muted); font-weight: 500; }
+.stage-behind .cadence { margin: 30px 0 0; font-size: 14px; font-weight: 600; color: var(--muted); }
+.stage-behind h1 {
+  margin: 6px 0 0;
+  font-family: 'Fraunces', serif;
+  font-variation-settings: "opsz" 30, "wght" 490, "SOFT" 100, "WONK" 0;
+  font-size: 33px; font-weight: 490; line-height: 1.10;
+}
+.scrim { position: absolute; inset: 0; background: var(--scrim); }
+
+/* ————— the sheet: .medium detent ————— */
+.sheet {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 472px;
+  background: var(--sheet-fill);
+  border-radius: 30px 30px 0 0;
+  box-shadow: var(--sheet-shadow);
+  padding: 8px 24px 0;
+  overflow: hidden;
+}
+.grabber {
+  width: 40px; height: 5px; border-radius: 3px;
+  background: var(--grabber);
+  margin: 0 auto;
+}
+.sheet-title {
+  margin: 16px 4px 0;
+  font-family: 'Fraunces', serif;
+  font-variation-settings: "opsz" 22, "wght" 490, "SOFT" 100, "WONK" 0;
+  font-size: 24px; font-weight: 490; line-height: 1.1;
+}
+.sheet-sub {
+  margin: 4px 4px 0;
+  font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+
+/* group header — sentence case, semibold: round one's voice */
+.block-head {
+  font-size: 13.5px; font-weight: 600; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* one entry row: gutter + one-line Set line (never wraps) */
+.entry { display: flex; align-items: baseline; gap: 12px; margin-top: 12px; }
+.entry .gutter { flex: none; width: 58px; }
+.entry .gutter .wd { font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.entry .gutter .cad { font-size: 11px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.entry .sets {
+  flex: 1; min-width: 0;
+  font-size: 14px; line-height: 1.45; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.entry .sets .dim { color: var(--muted); }
+.entry .sets .flag { color: var(--muted); font-style: italic; }
+.entry .sets.dense { font-size: 12.5px; } /* emulates minimumScaleFactor before truncation */
+.entry .sets.raw { font-style: italic; }
+
+/* shared group surface bones; weight is per-variant */
+.group {
+  margin-top: 14px;
+  border-radius: 22px;
+  padding: 13px 16px 15px;
+}
+.group .entry:first-of-type { margin-top: 10px; }
+
+/* ————— a · lit groups: sheet in shade, cards in light ————— */
+#screen-a .sheet { background: #E2E9D3; }
+#screen-a .group {
+  background: #F7FAEE;
+  box-shadow: 0 1px 2px rgba(21, 33, 24, 0.05), 0 10px 24px rgba(21, 33, 24, 0.08);
+}
+#screen-a .block-head { color: var(--ink); }
+
+/* ————— b · block spine: no header row, Block number as a spine ————— */
+#screen-b .group {
+  display: flex; gap: 11px;
+  background: rgba(242, 247, 232, 0.85);
+  box-shadow: 0 1px 2px rgba(21, 33, 24, 0.04), 0 8px 20px rgba(21, 33, 24, 0.06);
+  padding: 14px 12px 16px 16px;
+}
+#screen-b .spine { flex: none; width: 32px; }
+#screen-b .spine .b { font-size: 11px; font-weight: 600; color: var(--muted); }
+#screen-b .spine .n {
+  font-size: 26px; font-weight: 700; color: var(--muted);
+  line-height: 1.05; font-variant-numeric: tabular-nums;
+}
+#screen-b .group .entries { flex: 1; min-width: 0; }
+#screen-b .group .entry:first-of-type { margin-top: 0; }
+#screen-b .entry .gutter { width: 50px; }
+#screen-b .entry { gap: 10px; }
+
+/* ————— c · tagged groups: whisper surface, ink Block chip on the edge ————— */
+#screen-c .group {
+  position: relative;
+  background: rgba(242, 247, 232, 0.72);
+  box-shadow: 0 1px 2px rgba(21, 33, 24, 0.03), 0 8px 20px rgba(21, 33, 24, 0.05);
+  margin-top: 22px;
+  padding-top: 16px;
+}
+#screen-c .tag {
+  position: absolute; top: -10px; left: 16px;
+  background: var(--ink); color: var(--cream);
+  font-size: 11px; font-weight: 600; letter-spacing: 0.01em;
+  padding: 3px 10px 4px; border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+#screen-c .group .entry:first-of-type { margin-top: 2px; }
+
+/* ————— d · recency light: current Block lit, older Blocks in shade ————— */
+#screen-d .sheet { background: #E4EBD6; }
+#screen-d .group.current {
+  background: #F9FBEF;
+  box-shadow: 0 2px 4px rgba(21, 33, 24, 0.05), 0 14px 30px rgba(21, 33, 24, 0.10),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+#screen-d .group.current .block-head { color: var(--ink); }
+#screen-d .group.past {
+  background: rgba(242, 247, 232, 0.38);
+  box-shadow: none;
+}
+#screen-d .group.past .entry { margin-top: 10px; }
+#screen-d .group.past .entry .sets { font-size: 12.5px; }
+#screen-d .group.past .entry .sets.dense { font-size: 11.5px; }
+#screen-d .group.past .entry .gutter .wd { font-size: 12.5px; }
+#screen-d .group.past .entry .gutter { width: 52px; }
+
+/* ————— e · carved wells: groups pressed into the sheet ————— */
+#screen-e .group {
+  background: rgba(21, 33, 24, 0.045);
+  box-shadow: inset 0 1px 3px rgba(21, 33, 24, 0.06),
+              inset 0 0 0 1px rgba(21, 33, 24, 0.02);
+}
+
+/* ————— switcher (NOT part of the design) ————— */
+.switcher {
+  position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+  z-index: 99; display: flex; align-items: center; gap: 2px;
+  background: #111; color: #fff; border-radius: 999px; padding: 4px 6px;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.5);
+}
+.switcher a { color: #fff; text-decoration: none; padding: 2px 8px; font-size: 14px; line-height: 1; }
+.switcher .label { padding: 0 6px; white-space: nowrap; }
+</style>
+</head>
+<body data-variants="a,b,c,d,e" data-variant="a">
+
+<template id="stage-tpl">
+  <div class="stage-behind">
+    <div class="time num">9:41</div>
+    <div class="runline"><span class="num">Block 27 · Week 2 · Day 1</span><span class="right num">9 Sets left</span></div>
+    <div class="cadence num">0:2:0</div>
+    <h1>Hamstring Curl</h1>
+  </div>
+  <div class="scrim"></div>
+  <div class="sheet">
+    <div class="grabber"></div>
+    <div class="sheet-title">Hamstring Curl</div>
+    <div class="sheet-sub num">Exercise History · last 5</div>
+    <div class="sheet-body"></div>
+  </div>
+</template>
+
+<section class="screen" id="screen-a"></section>
+<section class="screen" id="screen-b"></section>
+<section class="screen" id="screen-c"></section>
+<section class="screen" id="screen-d"></section>
+<section class="screen" id="screen-e"></section>
+
+<nav class="switcher">
+  <a id="sw-prev" href="#">‹</a>
+  <span class="label" id="sw-label"></span>
+  <a id="sw-next" href="#">›</a>
+</nav>
+
+<script>
+  const KEYS = ['a', 'b', 'c', 'd', 'e'];
+  const NAMES = {
+    a: 'A · Lit groups',
+    b: 'B · Block spine',
+    c: 'C · Tagged groups',
+    d: 'D · Recency light',
+    e: 'E · Carved wells'
+  };
+  const param = new URLSearchParams(location.search).get('variant');
+  const key = KEYS.includes(param) ? param : 'a';
+  document.body.dataset.variant = key;
+  const i = KEYS.indexOf(key);
+  document.getElementById('sw-label').textContent = NAMES[key];
+  document.getElementById('sw-prev').href = '?variant=' + KEYS[(i + KEYS.length - 1) % KEYS.length];
+  document.getElementById('sw-next').href = '?variant=' + KEYS[(i + 1) % KEYS.length];
+
+  // Same hard mix as round one: a clean entry, a partial skip, an as-"…"
+  // spelling variant, a Legacy Log, and an 8-set line that must
+  // shrink-then-truncate rather than wrap.
+  const ENTRIES = [
+    { block: 27, wd: 'W1 D1', cad: '0:2:0',
+      sets: '27.5×10 <span class="dim">@8</span> · 27.5×10 <span class="dim">@8</span> · 27.5×9 <span class="dim">@9</span>' },
+    { block: 26, wd: 'W4 D1', cad: '0:2:0',
+      sets: '25×10 <span class="dim">@8</span> · <span class="flag">skip</span> · 25×10 <span class="dim">@9</span>' },
+    { block: 26, wd: 'W3 D1', cad: '', dense: true,
+      asname: 'as “Seated Ham Curl”',
+      sets: '25×12 <span class="dim">@8</span> · 25×11 <span class="dim">@8.5</span> · 25×10 <span class="dim">@9</span>' },
+    { block: 26, wd: 'W2 D1', cad: '', raw: true,
+      asname: 'as entered',
+      sets: '55x8, 60x7@9.5, 60' },
+    { block: 26, wd: 'W1 D1', cad: '0:2:0', dense: true,
+      sets: '22.5×12 <span class="dim">@7</span> · 22.5×12 <span class="dim">@7.5</span> · 22.5×11 <span class="dim">@8</span> · 22.5×11 <span class="dim">@8</span> · 22.5×10 <span class="dim">@8.5</span> · 22.5×10 <span class="dim">@9</span> · 22.5×9 <span class="dim">@9</span> · 22.5×8 <span class="dim">@9.5</span>' }
+  ];
+
+  function entryEl(e) {
+    const div = document.createElement('div');
+    div.className = 'entry';
+    const setsCls = 'sets num' + (e.dense ? ' dense' : '') + (e.raw ? ' raw' : '');
+    div.innerHTML =
+      '<div class="gutter"><div class="wd num">' + e.wd + '</div>' +
+      (e.cad ? '<div class="cad num">' + e.cad + '</div>' : '') +
+      '</div>' +
+      '<div class="' + setsCls + '">' +
+      (e.asname ? '<span class="flag">' + e.asname + '</span> — ' : '') +
+      e.sets + '</div>';
+    return div;
+  }
+
+  // mode: 'headed' (a, d, e) · 'spine' (b) · 'tagged' (c)
+  function stamp(screenId, mode) {
+    const screen = document.getElementById(screenId);
+    screen.appendChild(document.getElementById('stage-tpl').content.cloneNode(true));
+    const body = screen.querySelector('.sheet-body');
+    const blocks = [...new Set(ENTRIES.map((e) => e.block))];
+    const currentBlock = Math.max(...blocks);
+    blocks.forEach((b) => {
+      const group = document.createElement('div');
+      group.className = 'group ' + (b === currentBlock ? 'current' : 'past');
+      const entries = document.createElement('div');
+      entries.className = 'entries';
+      ENTRIES.filter((e) => e.block === b).forEach((e) => entries.appendChild(entryEl(e)));
+      if (mode === 'spine') {
+        group.innerHTML = '<div class="spine"><div class="b">Block</div><div class="n num">' + b + '</div></div>';
+      } else if (mode === 'tagged') {
+        group.innerHTML = '<div class="tag num">Block ' + b + '</div>';
+      } else {
+        group.innerHTML = '<div class="block-head num">Block ' + b + '</div>';
+      }
+      group.appendChild(entries);
+      body.appendChild(group);
+    });
+  }
+
+  stamp('screen-a', 'headed');
+  stamp('screen-b', 'spine');
+  stamp('screen-c', 'tagged');
+  stamp('screen-d', 'headed');
+  stamp('screen-e', 'headed');
+</script>
+</body>
+</html>

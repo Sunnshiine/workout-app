@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=393, initial-scale=1">
+<title>FOCUS WEEK, FIVE WAYS — Greenhouse prototype (#435 round two)</title>
+<style>
+/* THROWAWAY PROTOTYPE — issue #435, round two of /grilling-frontend-prototyping.
+   Focus week won round one. Five distinctly different builds of it, working
+   the owner's levers: muting for contrast, size & weight, the Sunbird, and
+   greenhouse branches. State control: ?days=2|3|4|6. Variants:
+     a — quiet ledger: collapsed weeks are bare text, the focus week owns
+         every drop of color on the page
+     b — big stage: scale does the focusing — hero tiles for the focus week,
+         the current Session tile grows, collapsed weeks shrink
+     c — week branch: the focus week grows a branch (the page's one icon);
+         plain tiles beneath stay the operable guardrail
+     d — bird on the bough: complete weeks collapse into inked mini-stems;
+         the songbird perches on the most recent one
+     e — season card: the whole Block is one soft surface; Fraunces speaks
+         the focus week's name; weight does the rest
+*/
+/*__FONTS__*/
+:root {
+  --paper-top: #E8EDDB;
+  --paper-bottom: #C7E0BF;
+  --ink: #152118;
+  --muted: #526457;
+  --faint: rgba(82, 100, 87, 0.55);
+  --action: #0D6B40;
+  --cream: #F2F7E8;
+  --surface: rgba(242, 247, 232, 0.52);
+  --surface-shadow: 0 1px 2px rgba(21, 33, 24, 0.04), 0 14px 30px rgba(21, 33, 24, 0.07);
+  --pill-fill: rgba(242, 247, 232, 0.85);
+  --pill-stroke: rgba(82, 111, 90, 0.34);
+  --tile-complete: #0D6B40;
+  --tile-complete-text: #F2F7E8;
+  --tile-current-fill: rgba(242, 247, 232, 0.95);
+  --tile-current-shadow: 0 1px 2px rgba(13, 46, 28, 0.10), 0 8px 18px rgba(13, 60, 35, 0.12);
+  --tile-ghost: rgba(21, 33, 24, 0.045);
+  --stem: #0D6B40;
+  --leaf-fill: #0D6B40;
+  --leaf-rib: rgba(242, 247, 232, 0.5);
+  --bud-fill: rgba(242, 247, 232, 0.95);
+  --bud-stroke: #0D6B40;
+  --bud-rib: rgba(13, 107, 64, 0.55);
+  --future-stroke: rgba(13, 107, 64, 0.40);
+  --ghost-stroke: rgba(82, 100, 87, 0.30);
+  --home-bar: rgba(21, 33, 24, 0.20);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  position: relative;
+  width: 393px; height: 852px; overflow: hidden;
+  background: linear-gradient(180deg, var(--paper-top) 0%, var(--paper-bottom) 100%);
+  color: var(--ink);
+  font-family: 'Source Sans 3', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+.num { font-variant-numeric: tabular-nums; }
+.time {
+  position: absolute; top: 21px; left: 36px; z-index: 2;
+  font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.home-indicator {
+  position: absolute; bottom: 9px; left: 50%; transform: translateX(-50%); z-index: 2;
+  width: 134px; height: 5px; border-radius: 3px; background: var(--home-bar);
+}
+.col { display: flex; flex-direction: column; width: 393px; height: 852px; padding: 0 28px; overflow: hidden; }
+
+.back { margin-top: 64px; font-size: 15px; font-weight: 600; color: var(--muted); }
+h1.block-title {
+  margin: 14px 0 0; font-size: 30px; font-weight: 700; letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.block-sub { margin: 8px 0 0; font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* a: the header recedes too — the focus week is the loudest thing on the page */
+body[data-variant="a"] h1.block-title { font-size: 24px; color: var(--muted); }
+body[data-variant="a"] .block-sub { color: var(--faint); font-size: 13px; }
+
+/* ————— shared tiles ————— */
+.tile-row { display: flex; gap: 8px; }
+.tile {
+  flex: 1; min-width: 0; height: 64px; border-radius: 18px; padding: 9px 11px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  font-variant-numeric: tabular-nums;
+}
+.tile .day { font-size: 15px; font-weight: 700; line-height: 1; white-space: nowrap; }
+.tile.compact { padding: 8px 0; align-items: center; justify-content: center; }
+.tile.compact .day { font-size: 13.5px; }
+.tile .note { font-size: 9.5px; font-weight: 600; line-height: 1.15; }
+.tile.complete { background: var(--tile-complete); color: var(--tile-complete-text); }
+.tile.current {
+  background: var(--tile-current-fill); border: 2px solid var(--action);
+  box-shadow: var(--tile-current-shadow); color: #152118;
+}
+.tile.current:not(.compact) { padding: 7px 9px; }
+.tile.current .note { color: var(--action); }
+.tile.available { background: var(--pill-fill); border: 1px solid var(--pill-stroke); }
+.tile.ghost { background: var(--tile-ghost); color: var(--muted); }
+.tile.ghost .day { opacity: 0.75; }
+
+.focus-head {
+  margin: 26px 0 10px;
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.focus-head .count { color: var(--muted); font-weight: 500; font-size: 12.5px; }
+
+/* ————— a: quiet ledger ————— */
+.ledger-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 13px 2px; font-variant-numeric: tabular-nums;
+}
+.ledger-row .wk { font-size: 14.5px; font-weight: 600; color: var(--faint); }
+.ledger-row .sum { font-size: 12.5px; font-weight: 500; color: var(--faint); }
+.ledger-row.done .wk { color: var(--muted); font-weight: 700; }
+.ledger-row.done .sum { color: var(--action); font-weight: 600; }
+
+/* ————— b: big stage ————— */
+.mini-row {
+  display: flex; justify-content: space-between; align-items: center;
+  height: 38px; border-radius: 13px; padding: 0 13px; margin-top: 6px;
+  background: var(--tile-ghost);
+  font-variant-numeric: tabular-nums;
+}
+.mini-row .wk { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.mini-row .sum { font-size: 11.5px; font-weight: 500; color: var(--faint); }
+.mini-row.done { background: rgba(13, 107, 64, 0.12); }
+.mini-row.done .wk { color: var(--action); }
+.stage-head { margin: 30px 0 12px; display: flex; justify-content: space-between; align-items: baseline; }
+.stage-head .wk { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+.stage-head .count { font-size: 12.5px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tile-row.hero { gap: 7px; }
+.tile-row.hero .tile { height: 92px; border-radius: 20px; }
+.tile-row.hero .tile.current { flex: 1.7; }
+.tile-row.hero .tile.current .day { font-size: 17px; }
+
+/* ————— c: week branch ————— */
+.branch-strip { position: relative; margin: 2px 0 6px; height: 64px; }
+.branch-strip svg { display: block; }
+
+/* ————— d: bird on the bough ————— */
+.bough-row {
+  display: flex; justify-content: space-between; align-items: center;
+  height: 44px; padding: 0 2px; font-variant-numeric: tabular-nums;
+}
+.bough-row .wk { font-size: 13.5px; font-weight: 600; color: var(--muted); flex: none; width: 74px; }
+.bough-row .stemline { flex: 1; height: 44px; position: relative; }
+.bough-row .sum { font-size: 12.5px; font-weight: 500; color: var(--faint); flex: none; }
+
+/* ————— e: season card ————— */
+.season-surface {
+  margin-top: 22px;
+  background: var(--surface); border-radius: 26px;
+  box-shadow: var(--surface-shadow);
+  padding: 6px 18px 18px;
+}
+.season-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 13px 2px; font-variant-numeric: tabular-nums;
+}
+.season-row .wk { font-size: 14px; font-weight: 600; color: var(--muted); }
+.season-row .sum { font-size: 12px; font-weight: 500; color: var(--faint); }
+.season-row.done .wk { color: var(--ink); font-weight: 700; }
+.season-focus-head {
+  margin: 14px 0 10px; display: flex; justify-content: space-between; align-items: baseline;
+}
+.season-focus-head .wk {
+  font-family: 'Fraunces', serif;
+  font-variation-settings: "opsz" 22, "wght" 490, "SOFT" 100, "WONK" 0;
+  font-size: 23px; font-weight: 490;
+}
+.season-focus-head .count { font-size: 12.5px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* ————— switcher (NOT part of the design) ————— */
+.switcher {
+  position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+  z-index: 99; display: flex; align-items: center; gap: 2px;
+  background: #111; color: #fff; border-radius: 999px; padding: 4px 6px;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.5);
+}
+.switcher a { color: #fff; text-decoration: none; padding: 2px 7px; font-size: 14px; line-height: 1; }
+.switcher .label { padding: 0 6px; white-space: nowrap; }
+.switcher .days { display: flex; gap: 1px; margin-left: 4px; border-left: 1px solid #444; padding-left: 5px; }
+.switcher .days a { font-size: 12px; padding: 2px 6px; border-radius: 999px; color: #bbb; }
+.switcher .days a.on { background: #fff; color: #111; }
+</style>
+</head>
+<body data-variants="a,b,c,d,e" data-variant="a">
+
+<!-- leaf + songbird geometry — the stage's drawing language -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <path id="leafShape" d="M0 8 C 15 2.3, 41 3.3, 60 8 C 41 21.7, 15 22.6, 0 8 Z"/>
+    <path id="leafRib" d="M4 8.1 C 20 9.8, 40 9.6, 56 8.1" fill="none"/>
+    <!-- perched songbird in the leaf language: one rounded body, head up, tail down the bough -->
+    <g id="songbird">
+      <path d="M4 18 C 1 12, 6 5, 13 5 C 15 1.5, 20 1, 22 4 L 26 5.5 L 22 7.5 C 23 12, 19 17, 12 17 L 3 23 C 3.6 21, 3.6 19.6, 4 18 Z"/>
+      <path id="birdWing" d="M8 12 C 11 10, 15 10, 17 11.5" fill="none"/>
+    </g>
+  </defs>
+</svg>
+
+<div class="time num" id="clock">9:41</div>
+<div class="col" id="page"></div>
+<div class="home-indicator"></div>
+
+<nav class="switcher">
+  <a id="sw-prev" href="#">‹</a>
+  <span class="label" id="sw-label"></span>
+  <a id="sw-next" href="#">›</a>
+  <span class="days" id="sw-days"></span>
+</nav>
+
+<script>
+  const KEYS = ['a', 'b', 'c', 'd', 'e'];
+  const NAMES = {
+    a: 'A · Quiet ledger',
+    b: 'B · Big stage',
+    c: 'C · Week branch',
+    d: 'D · Bird on the bough',
+    e: 'E · Season card'
+  };
+  const DAY_CHOICES = [2, 3, 4, 6];
+  const params = new URLSearchParams(location.search);
+  const key = KEYS.includes(params.get('variant')) ? params.get('variant') : 'a';
+  const days = DAY_CHOICES.includes(+params.get('days')) ? +params.get('days') : 6;
+  document.body.dataset.variant = key;
+  const i = KEYS.indexOf(key);
+  document.getElementById('sw-label').textContent = NAMES[key];
+  const href = (v, d) => '?variant=' + v + '&days=' + d;
+  document.getElementById('sw-prev').href = href(KEYS[(i + KEYS.length - 1) % KEYS.length], days);
+  document.getElementById('sw-next').href = href(KEYS[(i + 1) % KEYS.length], days);
+  document.getElementById('sw-days').innerHTML = DAY_CHOICES.map((d) =>
+    '<a href="' + href(key, d) + '"' + (d === days ? ' class="on"' : '') + '>' + d + 'd</a>').join('');
+
+  function makeBlock(n) {
+    const w1 = Array(n).fill('complete');
+    const w2 = Array.from({ length: n }, (_, d) => {
+      const done = Math.ceil(n / 2);
+      return d < done ? 'complete' : d === done ? 'current' : 'available';
+    });
+    const w3 = Array.from({ length: n }, (_, d) => (d % 2 === 0 ? 'available' : 'ghost'));
+    const w4 = Array.from({ length: n }, (_, d) => (d === 0 ? 'available' : 'ghost'));
+    return [w1, w2, w3, w4].map((daysArr, wi) => ({ week: wi + 1, days: daysArr }));
+  }
+  const BLOCK = makeBlock(days);
+  const FOCUS = BLOCK.findIndex((w) => w.days.includes('current'));
+  const doneCount = (w) => w.days.filter((d) => d === 'complete').length;
+  const ghostCount = (w) => w.days.filter((d) => d === 'ghost').length;
+  const isDone = (w) => doneCount(w) === w.days.length;
+  const total = BLOCK.reduce((s, w) => s + w.days.length, 0);
+  const done = BLOCK.reduce((s, w) => s + doneCount(w), 0);
+  const ghosts = BLOCK.reduce((s, w) => s + ghostCount(w), 0);
+
+  const page = document.getElementById('page');
+  const el = (cls, html, tag) => {
+    const d = document.createElement(tag || 'div');
+    d.className = cls; d.innerHTML = html || '';
+    return d;
+  };
+  function header() {
+    page.appendChild(el('back', '‹ Session'));
+    page.appendChild(el('block-title num', 'Block 27', 'h1'));
+    page.appendChild(el('block-sub num',
+      done + ' of ' + total + ' Sessions complete' + (ghosts ? ' · ' + ghosts + ' not yet uploaded' : '')));
+  }
+  function summary(w) {
+    if (isDone(w)) return 'Complete';
+    let s = doneCount(w) + ' of ' + w.days.length;
+    if (ghostCount(w)) s += ' · ' + ghostCount(w) + ' not uploaded';
+    return s;
+  }
+  function focusRight(w) {
+    let t = doneCount(w) + ' of ' + w.days.length;
+    if (days >= 5 && ghostCount(w)) t += ' · ' + ghostCount(w) + ' not uploaded';
+    return t;
+  }
+  function tileEl(state, di, compact) {
+    const t = el('tile ' + state + (compact ? ' compact' : '') + ' num');
+    const day = compact ? 'D' + (di + 1) : 'Day ' + (di + 1);
+    let note = '';
+    if (!compact) {
+      note = state === 'current' ? '<div class="note">Current</div>' :
+             state === 'ghost' ? '<div class="note">Not uploaded</div>' :
+             '<div class="note">&nbsp;</div>';
+    }
+    t.innerHTML = '<div class="day">' + day + '</div>' + note;
+    return t;
+  }
+  function focusTiles(w, hero) {
+    const row = el('tile-row' + (hero ? ' hero' : ''));
+    w.days.forEach((state, di) => row.appendChild(tileEl(state, di, days >= 5)));
+    return row;
+  }
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const css = getComputedStyle(document.body);
+  const C = (name) => css.getPropertyValue(name).trim();
+  function leafNode(svg, x, y, rot, s, kind) {
+    const g = document.createElementNS(NS, 'g');
+    g.setAttribute('transform',
+      'translate(' + x + ' ' + y + ') rotate(' + rot + ') scale(' + s + ') translate(0 -8)');
+    const use = (href2, attrs) => {
+      const u = document.createElementNS(NS, 'use');
+      u.setAttribute('href', href2);
+      for (const k in attrs) u.setAttribute(k, attrs[k]);
+      g.appendChild(u);
+    };
+    if (kind === 'complete') {
+      use('#leafShape', { fill: C('--leaf-fill') });
+      use('#leafRib', { stroke: C('--leaf-rib'), 'stroke-width': (1.2 / s).toFixed(2) });
+    } else if (kind === 'current') {
+      use('#leafShape', { fill: C('--bud-fill'), stroke: C('--bud-stroke'), 'stroke-width': (2.2 / s).toFixed(2) });
+      use('#leafRib', { stroke: C('--bud-rib'), 'stroke-width': (1.2 / s).toFixed(2) });
+    } else if (kind === 'available') {
+      use('#leafShape', { fill: 'none', stroke: C('--future-stroke'), 'stroke-width': (1.2 / s).toFixed(2) });
+    } else {
+      const dot = document.createElementNS(NS, 'circle');
+      dot.setAttribute('cx', 0); dot.setAttribute('cy', 8); dot.setAttribute('r', (3 / s).toFixed(2));
+      dot.setAttribute('fill', 'none');
+      dot.setAttribute('stroke', C('--ghost-stroke'));
+      dot.setAttribute('stroke-width', (1.2 / s).toFixed(2));
+      g.appendChild(dot);
+    }
+    svg.appendChild(g);
+  }
+  function stemSvg(width, height, d) {
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('width', width); svg.setAttribute('height', height);
+    svg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
+    const stem = document.createElementNS(NS, 'path');
+    stem.setAttribute('d', d);
+    stem.setAttribute('fill', 'none');
+    stem.setAttribute('stroke', C('--stem'));
+    stem.setAttribute('stroke-width', 2);
+    stem.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(stem);
+    return { svg, stem };
+  }
+
+  // ————— a: quiet ledger —————
+  function renderA() {
+    BLOCK.forEach((w, wi) => {
+      if (wi === FOCUS) {
+        page.appendChild(el('focus-head num',
+          '<span>Week ' + w.week + '</span><span class="count">' + focusRight(w) + '</span>'));
+        page.appendChild(focusTiles(w));
+      } else {
+        page.appendChild(el('ledger-row num' + (isDone(w) ? ' done' : ''),
+          '<span class="wk">Week ' + w.week + '</span><span class="sum">' + summary(w) + '</span>'));
+      }
+    });
+  }
+
+  // ————— b: big stage —————
+  function renderB() {
+    BLOCK.forEach((w, wi) => {
+      if (wi === FOCUS) {
+        page.appendChild(el('stage-head',
+          '<span class="wk num">Week ' + w.week + '</span><span class="count num">' + focusRight(w) + '</span>'));
+        page.appendChild(focusTiles(w, true));
+      } else {
+        page.appendChild(el('mini-row num' + (isDone(w) ? ' done' : ''),
+          '<span class="wk">Week ' + w.week + '</span><span class="sum">' + summary(w) + '</span>'));
+      }
+    });
+  }
+
+  // ————— c: week branch —————
+  function renderC() {
+    BLOCK.forEach((w, wi) => {
+      if (wi === FOCUS) {
+        page.appendChild(el('focus-head num',
+          '<span>Week ' + w.week + '</span><span class="count">' + focusRight(w) + '</span>'));
+        const strip = el('branch-strip');
+        const { svg, stem } = stemSvg(337, 64, 'M 6 56 C 90 52, 230 44, 331 26');
+        const L = stem.getTotalLength();
+        w.days.forEach((state, di) => {
+          const t = w.days.length === 1 ? 0.5 : 0.06 + (di / (w.days.length - 1)) * 0.86;
+          const p = stem.getPointAtLength(t * L);
+          const q = stem.getPointAtLength(Math.min(L, t * L + 1.5));
+          const ang = Math.atan2(q.y - p.y, q.x - p.x) * 180 / Math.PI;
+          leafNode(svg, p.x, p.y, ang - 38, state === 'current' ? 0.55 : 0.5, state);
+        });
+        strip.appendChild(svg);
+        page.appendChild(strip);
+        page.appendChild(focusTiles(w));
+      } else {
+        page.appendChild(el('ledger-row num' + (isDone(w) ? ' done' : ''),
+          '<span class="wk">Week ' + w.week + '</span><span class="sum">' + summary(w) + '</span>'));
+      }
+    });
+  }
+
+  // ————— d: bird on the bough —————
+  function renderD() {
+    const lastDone = BLOCK.reduce((acc, w, wi) => (isDone(w) ? wi : acc), -1);
+    BLOCK.forEach((w, wi) => {
+      if (wi === FOCUS) {
+        page.appendChild(el('focus-head num',
+          '<span>Week ' + w.week + '</span><span class="count">' + focusRight(w) + '</span>'));
+        page.appendChild(focusTiles(w));
+      } else if (isDone(w)) {
+        const row = el('bough-row num');
+        row.appendChild(el('wk', 'Week ' + w.week, 'span'));
+        const line = el('stemline');
+        const wBird = wi === lastDone;
+        const { svg, stem } = stemSvg(220, 44, 'M 4 34 C 60 32, 150 28, 216 22');
+        const L = stem.getTotalLength();
+        w.days.forEach((state, di) => {
+          const t = w.days.length === 1 ? 0.5 : 0.08 + (di / (w.days.length - 1)) * 0.76;
+          const p = stem.getPointAtLength(t * L);
+          const q = stem.getPointAtLength(Math.min(L, t * L + 1.5));
+          const ang = Math.atan2(q.y - p.y, q.x - p.x) * 180 / Math.PI;
+          leafNode(svg, p.x, p.y, ang - 40, 0.34, 'complete');
+        });
+        if (wBird) {
+          const tip = stem.getPointAtLength(L);
+          const g = document.createElementNS(NS, 'g');
+          g.setAttribute('transform', 'translate(' + (tip.x - 22) + ' ' + (tip.y - 21) + ') scale(0.9)');
+          const body = document.createElementNS(NS, 'use');
+          body.setAttribute('href', '#songbird');
+          body.setAttribute('fill', C('--leaf-fill'));
+          g.appendChild(body);
+          const wing = document.createElementNS(NS, 'use');
+          wing.setAttribute('href', '#birdWing');
+          wing.setAttribute('stroke', C('--leaf-rib'));
+          wing.setAttribute('stroke-width', '1.3');
+          wing.setAttribute('fill', 'none');
+          g.appendChild(wing);
+          svg.appendChild(g);
+        }
+        line.appendChild(svg);
+        row.appendChild(line);
+        page.appendChild(row);
+      } else {
+        page.appendChild(el('ledger-row num',
+          '<span class="wk">Week ' + w.week + '</span><span class="sum">' + summary(w) + '</span>'));
+      }
+    });
+  }
+
+  // ————— e: season card —————
+  function renderE() {
+    const surface = el('season-surface');
+    BLOCK.forEach((w, wi) => {
+      if (wi === FOCUS) {
+        surface.appendChild(el('season-focus-head',
+          '<span class="wk">Week ' + w.week + '</span><span class="count num">' + focusRight(w) + '</span>'));
+        surface.appendChild(focusTiles(w));
+      } else {
+        surface.appendChild(el('season-row num' + (isDone(w) ? ' done' : ''),
+          '<span class="wk">Week ' + w.week + '</span><span class="sum">' + summary(w) + '</span>'));
+      }
+    });
+    page.appendChild(surface);
+  }
+
+  header();
+  ({ a: renderA, b: renderB, c: renderC, d: renderD, e: renderE })[key]();
+</script>
+</body>
+</html>
