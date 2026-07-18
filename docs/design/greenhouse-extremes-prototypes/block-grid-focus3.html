@@ -25,7 +25,10 @@
          go bare (text + day-strip on the paper), the focus week alone
          rides an elevated surface; emphasis lands on the living week
    All variants now carry a PARTIAL day state (a Session started but not
-   finished): a quiet fill with an inked progress stripe along the bottom.
+   finished): the ink rises from the tile bottom in rough proportion to
+   how much of the Session is logged (quantized, not an exact ratio).
+   Incomplete future days render identically whether or not the coach has
+   uploaded them — "not uploaded" lives only in the week summary text.
 */
 @font-face {
   font-family: 'Fraunces';
@@ -113,17 +116,17 @@ h1.block-title {
   pointer-events: none;
 }
 .tile.available { background: var(--pill-fill); border: 1px solid var(--pill-stroke); }
-/* partial: started but not finished — the ink rises partway, like a glass */
+/* partial: started but not finished — the ink rises like a filling glass,
+   in rough proportion to how much of the Session is logged */
 .tile.partial { background: var(--pill-fill); border: 1px solid var(--pill-stroke); }
-.tile.partial::before {
-  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 12px;
+.tile.partial .fill, .chip.partial .fill {
+  position: absolute; left: 0; right: 0; bottom: 0;
   background: var(--tile-complete);
 }
-.tile.partial.short::before { height: 9px; }
 .tile.partial .day { position: relative; }
 .tile.partial .note { position: relative; color: var(--action); }
-.tile.ghost { background: var(--tile-ghost); color: var(--muted); }
-.tile.ghost .day { opacity: 0.75; }
+/* incomplete future days are one state visually; "not uploaded" is words */
+.tile.ghost { background: var(--pill-fill); border: 1px solid var(--pill-stroke); }
 /* panes of light across settled (inked) tiles — locked from round three */
 .tile.complete::after {
   content: ''; position: absolute; inset: 0;
@@ -200,12 +203,8 @@ body[data-variant="a"] .sunwash { padding-bottom: 0; }
 }
 .chip.available { background: var(--pill-fill); border: 1px solid var(--pill-stroke); }
 .chip.partial { background: var(--pill-fill); border: 1px solid var(--pill-stroke); }
-.chip.partial::before {
-  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 45%;
-  background: var(--tile-complete);
-}
 .chip.current { background: var(--tile-current-fill); border: 1.5px solid #1F8552; }
-.chip.ghost { background: var(--tile-ghost); }
+.chip.ghost { background: var(--pill-fill); border: 1px solid var(--pill-stroke); }
 body[data-variant="b"] .stack { justify-content: space-evenly; margin-top: 4px; }
 body[data-variant="b"] .week-pill.strip { gap: 10px; padding: 15px 17px; }
 body[data-variant="b"] .chip { height: 22px; border-radius: 8px; }
@@ -344,11 +343,13 @@ body[data-variant="e"] .sunwash { padding: 0 28px 0; }
     '<a href="' + href(key, d) + '"' + (d === days ? ' class="on"' : '') + '>' + d + 'd</a>').join('');
 
   function makeBlock(n) {
-    // week 1 carries one partial Session (started, never finished)
-    const w1 = Array.from({ length: n }, (_, d) => (d === n - 1 ? 'partial' : 'complete'));
+    // partial fractions are quantized quarters — "roughly how much is
+    // logged", never an exact ratio. Week 1 holds a nearly-done Session,
+    // the focus week one barely begun.
+    const w1 = Array.from({ length: n }, (_, d) => (d === n - 1 ? 'partial:75' : 'complete'));
     const w2 = Array.from({ length: n }, (_, d) => {
       const cur = Math.ceil(n / 2);
-      return d === cur - 1 ? 'partial' : d < cur ? 'complete' : d === cur ? 'current' : 'available';
+      return d === cur - 1 ? 'partial:25' : d < cur ? 'complete' : d === cur ? 'current' : 'available';
     });
     const w3 = Array.from({ length: n }, (_, d) => (d % 2 === 0 ? 'available' : 'ghost'));
     const w4 = Array.from({ length: n }, (_, d) => (d === 0 ? 'available' : 'ghost'));
@@ -357,7 +358,7 @@ body[data-variant="e"] .sunwash { padding: 0 28px 0; }
   const BLOCK = makeBlock(days);
   const FOCUS = BLOCK.findIndex((w) => w.days.includes('current'));
   const doneCount = (w) => w.days.filter((d) => d === 'complete').length;
-  const partialCount = (w) => w.days.filter((d) => d === 'partial').length;
+  const partialCount = (w) => w.days.filter((d) => d.startsWith('partial')).length;
   const ghostCount = (w) => w.days.filter((d) => d === 'ghost').length;
   const isDone = (w) => doneCount(w) === w.days.length;
   const total = BLOCK.reduce((s, w) => s + w.days.length, 0);
@@ -404,16 +405,17 @@ body[data-variant="e"] .sunwash { padding: 0 28px 0; }
   // wide tiles: at ≤4 days the label sits left with the state word right;
   // at ≥5 days tiles go short + centered D-labels
   function tileEl(state, di) {
+    const [st, frac] = state.split(':');
     const short = days >= 5;
-    const t = el('tile ' + state + (short ? ' short' : '') + ' num');
+    const t = el('tile ' + st + (short ? ' short' : '') + ' num');
     const day = short ? 'D' + (di + 1) : 'Day ' + (di + 1);
     let note = '';
     if (!short) {
-      note = state === 'current' ? '<span class="note">Current</span>' :
-             state === 'partial' ? '<span class="note">Started</span>' :
-             state === 'ghost' ? '<span class="note">Not uploaded</span>' : '';
+      note = st === 'current' ? '<span class="note">Current</span>' :
+             st === 'partial' ? '<span class="note">Started</span>' : '';
     }
-    t.innerHTML = '<span class="day">' + day + '</span>' + note;
+    t.innerHTML = '<span class="day">' + day + '</span>' + note +
+      (st === 'partial' ? '<span class="fill" style="height:' + frac + '%"></span>' : '');
     return t;
   }
   function focusTiles(w) {
@@ -425,13 +427,18 @@ body[data-variant="e"] .sunwash { padding: 0 28px 0; }
     return el('focus-head',
       '<span class="wk num">Week ' + w.week + '</span><span class="count num">' + focusRight(w) + '</span>');
   }
+  function chipEl(state) {
+    const [st, frac] = state.split(':');
+    return el('chip ' + st,
+      st === 'partial' ? '<span class="fill" style="height:' + frac + '%"></span>' : '');
+  }
   function collapsedEl(w, strips) {
     if (strips === 'flat') {
       const p = el('week-flat num' + (isDone(w) ? ' done' : ''));
       p.appendChild(el('toprow',
         '<span class="wk">Week ' + w.week + '</span><span class="sum">' + summary(w) + '</span>'));
       const row = el('chip-row');
-      w.days.forEach((state) => row.appendChild(el('chip ' + state)));
+      w.days.forEach((state) => row.appendChild(chipEl(state)));
       p.appendChild(row);
       return p;
     }
@@ -440,7 +447,7 @@ body[data-variant="e"] .sunwash { padding: 0 28px 0; }
       p.appendChild(el('toprow',
         '<span class="wk">Week ' + w.week + '</span><span class="sum">' + summary(w) + '</span>'));
       const row = el('chip-row');
-      w.days.forEach((state) => row.appendChild(el('chip ' + state)));
+      w.days.forEach((state) => row.appendChild(chipEl(state)));
       p.appendChild(row);
       return p;
     }
