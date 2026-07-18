@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=393, initial-scale=1">
+<title>EXERCISE HISTORY — chips, converging (#434)</title>
+<style>
+/* THROWAWAY PROTOTYPE — issue #434, round five.
+   Owner verdict on round four: Set chips (C) is the base. Refinements:
+   never show "skip"; drop the as-entered / as-"…" annotations in favor of a
+   quiet * note-marker whose tap expands details; Trend is interesting if it
+   plots total volume (weight × reps) instead of top-set weight. The round
+   converges within the chips direction. ?variant= :
+     a — chips, quiet: the verdict applied literally — no skip, * markers,
+         RPE on chips
+     b — chips + volume trend: a small total-volume chart above quiet chips
+     c — chips collapsed: repeated sets folded (×2), RPE demoted to a
+         muted range at the row's end — the fewest chips possible
+     d — chips, one open: what tapping a * looks like — one session
+         expanded into a small detail well
+     e — chips + volume ledger: per-session total volume as a trailing
+         figure, no chart
+   Non-negotiables carried: no text wrap (chips may flow; text shrinks then
+   truncates), no mint in the sheet, .medium detent, hard mix present
+   underneath (skip and annotations exist in the data, hidden behind *),
+   Fraunces only on the title.
+*/
+/*__FONTS__*/
+:root {
+  --paper-top: #E8EDDB;
+  --paper-bottom: #C7E0BF;
+  --ink: #152118;
+  --muted: #526457;
+  --cream: #F2F7E8;
+  --sheet-fill: #EFF4E4;
+  --sheet-shadow: 0 -8px 40px rgba(21, 33, 24, 0.18);
+  --grabber: rgba(21, 33, 24, 0.18);
+  --scrim: rgba(21, 33, 24, 0.32);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  position: relative;
+  width: 393px;
+  height: 852px;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--paper-top) 0%, var(--paper-bottom) 100%);
+  color: var(--ink);
+  font-family: 'Source Sans 3', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.screen { display: none; width: 393px; height: 852px; position: relative; }
+body[data-variant="a"] #screen-a { display: block; }
+body[data-variant="b"] #screen-b { display: block; }
+body[data-variant="c"] #screen-c { display: block; }
+body[data-variant="d"] #screen-d { display: block; }
+body[data-variant="e"] #screen-e { display: block; }
+
+.num { font-variant-numeric: tabular-nums; }
+
+.stage-behind { position: absolute; inset: 0; padding: 0 32px; }
+.stage-behind .time {
+  position: absolute; top: 21px; left: 36px;
+  font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.stage-behind .runline {
+  display: flex; justify-content: space-between;
+  margin-top: 68px;
+  font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.stage-behind .runline .right { color: var(--muted); font-weight: 500; }
+.stage-behind .cadence { margin: 30px 0 0; font-size: 14px; font-weight: 600; color: var(--muted); }
+.stage-behind h1 {
+  margin: 6px 0 0;
+  font-family: 'Fraunces', serif;
+  font-variation-settings: "opsz" 30, "wght" 490, "SOFT" 100, "WONK" 0;
+  font-size: 33px; font-weight: 490; line-height: 1.10;
+}
+.scrim { position: absolute; inset: 0; background: var(--scrim); }
+
+.sheet {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 472px;
+  background: var(--sheet-fill);
+  border-radius: 30px 30px 0 0;
+  box-shadow: var(--sheet-shadow);
+  padding: 8px 26px 0;
+  overflow: hidden;
+}
+.grabber {
+  width: 40px; height: 5px; border-radius: 3px;
+  background: var(--grabber);
+  margin: 0 auto;
+}
+.sheet-title {
+  margin: 16px 2px 0;
+  font-family: 'Fraunces', serif;
+  font-variation-settings: "opsz" 22, "wght" 490, "SOFT" 100, "WONK" 0;
+  font-size: 24px; font-weight: 490; line-height: 1.1;
+}
+.sheet-sub {
+  margin: 4px 2px 0;
+  font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+
+.block-head {
+  margin: 16px 2px 0;
+  font-size: 12.5px; font-weight: 600; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.nowrap { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+/* chips row — the round-four C anatomy, quieted per the verdict */
+.crow { display: flex; gap: 10px; margin-top: 10px; align-items: flex-start; }
+.crow .gutter { flex: none; width: 52px; padding-top: 3px; }
+.crow .gutter .wd { font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.crow .gutter .wd .note { color: var(--muted); font-weight: 700; margin-left: 1px; }
+.crow .gutter .cad { font-size: 10.5px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.chips { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.chip {
+  font-size: 12px; font-weight: 600;
+  padding: 3px 8px 4px; border-radius: 999px;
+  background: rgba(21, 33, 24, 0.055);
+  box-shadow: inset 0 1px 2px rgba(21, 33, 24, 0.14), 0 1px 0 rgba(255, 255, 255, 0.6);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.chip .rpe { font-weight: 500; color: var(--muted); }
+.chip .count { font-weight: 500; color: var(--muted); }
+
+/* b · volume trend */
+#screen-b .chart { position: relative; margin: 12px 2px 0; height: 82px; }
+#screen-b .chart svg { position: absolute; inset: 0; overflow: visible; }
+#screen-b .dotlabel {
+  position: absolute; transform: translateX(-50%);
+  font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+#screen-b .dotlabel.approx { font-weight: 500; color: var(--muted); font-style: italic; }
+#screen-b .chartcap {
+  margin: 2px 2px 0; font-size: 10.5px; color: var(--muted);
+}
+#screen-b .crow { margin-top: 7px; }
+#screen-b .block-head { margin-top: 10px; }
+#screen-b .crow .gutter .cad { display: none; }
+
+/* c · collapsed chips: effort range trails the row */
+#screen-c .rowrpe { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* d · one open: the * expansion */
+#screen-d .detail {
+  flex-basis: 100%;
+  margin-top: 2px;
+  background: rgba(21, 33, 24, 0.045);
+  border-radius: 12px;
+  padding: 8px 12px 9px;
+  box-shadow: inset 0 1px 3px rgba(21, 33, 24, 0.10);
+  font-size: 12px; color: var(--muted);
+}
+#screen-d .detail .drow { margin-top: 3px; }
+#screen-d .detail .drow:first-child { margin-top: 0; }
+#screen-d .detail .k { font-weight: 600; }
+#screen-d .crow.open .gutter .wd .note { color: var(--ink); }
+
+/* e · volume ledger: trailing total per row */
+#screen-e .crow .vol {
+  flex: none; align-self: center; margin-left: auto; padding-left: 8px;
+  font-size: 11.5px; font-weight: 600; color: var(--muted);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+#screen-e .crow .vol.approx { font-style: italic; font-weight: 500; }
+#screen-e .chips { flex: 0 1 auto; }
+
+/* ————— switcher (NOT part of the design) ————— */
+.switcher {
+  position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+  z-index: 99; display: flex; align-items: center; gap: 2px;
+  background: #111; color: #fff; border-radius: 999px; padding: 4px 6px;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.5);
+}
+.switcher a { color: #fff; text-decoration: none; padding: 2px 8px; font-size: 14px; line-height: 1; }
+.switcher .label { padding: 0 6px; white-space: nowrap; }
+</style>
+</head>
+<body data-variants="a,b,c,d,e" data-variant="a">
+
+<template id="stage-tpl">
+  <div class="stage-behind">
+    <div class="time num">9:41</div>
+    <div class="runline"><span class="num">Block 27 · Week 2 · Day 1</span><span class="right num">9 Sets left</span></div>
+    <div class="cadence num">0:2:0</div>
+    <h1>Hamstring Curl</h1>
+  </div>
+  <div class="scrim"></div>
+  <div class="sheet">
+    <div class="grabber"></div>
+    <div class="sheet-title">Hamstring Curl</div>
+    <div class="sheet-sub num">Exercise History · last 5</div>
+    <div class="sheet-body"></div>
+  </div>
+</template>
+
+<section class="screen" id="screen-a"></section>
+<section class="screen" id="screen-b"></section>
+<section class="screen" id="screen-c"></section>
+<section class="screen" id="screen-d"></section>
+<section class="screen" id="screen-e"></section>
+
+<nav class="switcher">
+  <a id="sw-prev" href="#">‹</a>
+  <span class="label" id="sw-label"></span>
+  <a id="sw-next" href="#">›</a>
+</nav>
+
+<script>
+  const KEYS = ['a', 'b', 'c', 'd', 'e'];
+  const NAMES = {
+    a: 'A · Chips, quiet',
+    b: 'B · Chips + volume trend',
+    c: 'C · Chips collapsed',
+    d: 'D · Chips, one open',
+    e: 'E · Chips + volume ledger'
+  };
+  const param = new URLSearchParams(location.search).get('variant');
+  const key = KEYS.includes(param) ? param : 'a';
+  document.body.dataset.variant = key;
+  const i = KEYS.indexOf(key);
+  document.getElementById('sw-label').textContent = NAMES[key];
+  document.getElementById('sw-prev').href = '?variant=' + KEYS[(i + KEYS.length - 1) % KEYS.length];
+  document.getElementById('sw-next').href = '?variant=' + KEYS[(i + 1) % KEYS.length];
+
+  // Same five sessions. Skips and annotations stay in the data — the sheet
+  // hides them behind * per the round-four verdict. The Legacy Log is
+  // best-effort parsed into chips; its rawness is a * detail.
+  const ENTRIES = [
+    { block: 27, wd: 'W1 D1', cad: '0:2:0',
+      sets: [{ w: 27.5, r: 10, rpe: 8 }, { w: 27.5, r: 10, rpe: 8 }, { w: 27.5, r: 9, rpe: 9 }] },
+    { block: 26, wd: 'W4 D1', cad: '0:2:0', notes: [['1 set skipped', '']],
+      sets: [{ w: 25, r: 10, rpe: 8 }, { skip: true }, { w: 25, r: 10, rpe: 9 }] },
+    { block: 26, wd: 'W3 D1', notes: [['Logged as', '“Seated Ham Curl”']],
+      sets: [{ w: 25, r: 12, rpe: 8 }, { w: 25, r: 11, rpe: 8.5 }, { w: 25, r: 10, rpe: 9 }] },
+    { block: 26, wd: 'W2 D1', notes: [['Legacy Log, as entered', '“55x8, 60x7@9.5, 60”']],
+      approx: true,
+      sets: [{ w: 55, r: 8 }, { w: 60, r: 7, rpe: 9.5 }, { w: 60 }] },
+    { block: 26, wd: 'W1 D1', cad: '0:2:0',
+      sets: [{ w: 22.5, r: 12, rpe: 7 }, { w: 22.5, r: 12, rpe: 7.5 }, { w: 22.5, r: 11, rpe: 8 }, { w: 22.5, r: 11, rpe: 8 }, { w: 22.5, r: 10, rpe: 8.5 }, { w: 22.5, r: 10, rpe: 9 }, { w: 22.5, r: 9, rpe: 9 }, { w: 22.5, r: 8, rpe: 9.5 }] }
+  ];
+  const BLOCKS = [...new Set(ENTRIES.map((e) => e.block))];
+
+  function el(cls, html, tag) {
+    const d = document.createElement(tag || 'div');
+    d.className = cls;
+    if (html !== undefined) d.innerHTML = html;
+    return d;
+  }
+  function stampBase(screenId) {
+    const screen = document.getElementById(screenId);
+    screen.appendChild(document.getElementById('stage-tpl').content.cloneNode(true));
+    return screen.querySelector('.sheet-body');
+  }
+  function shown(e) { return e.sets.filter((s) => !s.skip); }
+  function hasNote(e) { return !!e.notes; }
+  function volume(e) {
+    return shown(e).reduce((t, s) => t + (s.r ? s.w * s.r : 0), 0);
+  }
+  function gutterEl(e) {
+    const g = el('gutter');
+    g.appendChild(el('wd num', e.wd + (hasNote(e) ? '<span class="note">*</span>' : '')));
+    if (e.cad) g.appendChild(el('cad num', e.cad));
+    return g;
+  }
+  function chipEl(s, withRpe) {
+    const label = s.r ? s.w + '×' + s.r : String(s.w);
+    const rpe = withRpe && s.rpe != null ? ' <span class="rpe">@' + s.rpe + '</span>' : '';
+    return el('chip num', label + rpe);
+  }
+  function rpeRange(e) {
+    const r = shown(e).map((s) => s.rpe).filter((x) => x != null);
+    if (!r.length) return '';
+    const lo = Math.min(...r), hi = Math.max(...r);
+    return lo === hi ? '@' + lo : '@' + lo + '–' + hi;
+  }
+  function eachBlock(body, fn) {
+    BLOCKS.forEach((b) => {
+      body.appendChild(el('block-head num', 'Block ' + b));
+      ENTRIES.filter((e) => e.block === b).forEach(fn.bind(null, body));
+    });
+  }
+
+  // a · chips, quiet — the verdict applied literally
+  {
+    const body = stampBase('screen-a');
+    eachBlock(body, (host, e) => {
+      const row = el('crow');
+      row.appendChild(gutterEl(e));
+      const chips = el('chips');
+      shown(e).forEach((s) => chips.appendChild(chipEl(s, true)));
+      row.appendChild(chips);
+      host.appendChild(row);
+    });
+  }
+
+  // b · chips + volume trend — weight×reps=TOTAL, charted
+  {
+    const body = stampBase('screen-b');
+    const chrono = [...ENTRIES].reverse();
+    const chart = el('chart');
+    const W = 341, H = 82, padX = 24, plotTop = 18, plotBot = 64;
+    const xs = chrono.map((_, idx) => padX + idx * ((W - 2 * padX) / (chrono.length - 1)));
+    const vols = chrono.map((e) => volume(e));
+    const lo = 0, hi = 2000;
+    const y = (v) => plotBot - ((v - lo) / (hi - lo)) * (plotBot - plotTop);
+    let svg = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">';
+    let path = '';
+    chrono.forEach((e, idx) => {
+      path += (path ? ' L ' : 'M ') + xs[idx] + ' ' + y(vols[idx]);
+    });
+    svg += '<path d="' + path + '" fill="none" stroke="rgba(21,33,24,0.35)" stroke-width="1.5"/>';
+    const bBoundary = chrono.findIndex((e, idx) => idx > 0 && e.block !== chrono[idx - 1].block);
+    if (bBoundary > 0) {
+      const bx = (xs[bBoundary - 1] + xs[bBoundary]) / 2;
+      svg += '<line x1="' + bx + '" y1="' + (plotTop - 10) + '" x2="' + bx + '" y2="' + (plotBot + 6) +
+        '" stroke="rgba(21,33,24,0.14)" stroke-width="1" stroke-dasharray="1 4" stroke-linecap="round"/>';
+    }
+    chrono.forEach((e, idx) => {
+      if (e.approx) {
+        svg += '<circle cx="' + xs[idx] + '" cy="' + y(vols[idx]) + '" r="4" fill="none" stroke="#152118" stroke-width="1.5"/>';
+      } else {
+        svg += '<circle cx="' + xs[idx] + '" cy="' + y(vols[idx]) + '" r="4.5" fill="#152118"/>';
+        svg += '<circle cx="' + xs[idx] + '" cy="' + y(vols[idx]) + '" r="2" fill="#EFF4E4"/>';
+      }
+    });
+    svg += '</svg>';
+    chart.innerHTML = svg;
+    chrono.forEach((e, idx) => {
+      const lbl = el('dotlabel num' + (e.approx ? ' approx' : ''),
+        (e.approx ? '≈' : '') + Math.round(vols[idx]));
+      lbl.style.left = xs[idx] + 'px';
+      lbl.style.top = (y(vols[idx]) - 20) + 'px';
+      chart.appendChild(lbl);
+    });
+    body.appendChild(chart);
+    body.appendChild(el('chartcap', 'Total volume, kg — weight × reps per session'));
+    eachBlock(body, (host, e) => {
+      const row = el('crow');
+      row.appendChild(gutterEl(e));
+      const chips = el('chips');
+      shown(e).forEach((s) => chips.appendChild(chipEl(s, false)));
+      row.appendChild(chips);
+      host.appendChild(row);
+    });
+  }
+
+  // c · chips collapsed — repeats folded, effort demoted to a row range
+  {
+    const body = stampBase('screen-c');
+    eachBlock(body, (host, e) => {
+      const row = el('crow');
+      row.appendChild(gutterEl(e));
+      const chips = el('chips');
+      const runs = [];
+      shown(e).forEach((s) => {
+        const label = s.r ? s.w + '×' + s.r : String(s.w);
+        const last = runs[runs.length - 1];
+        if (last && last.label === label) last.n += 1;
+        else runs.push({ label, n: 1 });
+      });
+      runs.forEach((r) => {
+        chips.appendChild(el('chip num', r.label + (r.n > 1 ? ' <span class="count">·' + r.n + '</span>' : '')));
+      });
+      const rr = rpeRange(e);
+      if (rr) chips.appendChild(el('rowrpe num', rr, 'span'));
+      row.appendChild(chips);
+      host.appendChild(row);
+    });
+  }
+
+  // d · chips, one open — the * expansion made visible
+  {
+    const body = stampBase('screen-d');
+    eachBlock(body, (host, e) => {
+      const open = e.wd === 'W3 D1';
+      const row = el('crow' + (open ? ' open' : ''));
+      row.appendChild(gutterEl(e));
+      const chips = el('chips');
+      shown(e).forEach((s) => chips.appendChild(chipEl(s, true)));
+      if (open && e.notes) {
+        const d = el('detail');
+        e.notes.forEach(([k, v]) => d.appendChild(el('drow', '<span class="k">' + k + '</span>' + (v ? ' ' + v : ''))));
+        chips.appendChild(d);
+      }
+      row.appendChild(chips);
+      host.appendChild(row);
+    });
+  }
+
+  // e · chips + volume ledger — the trend's number without the chart
+  {
+    const body = stampBase('screen-e');
+    eachBlock(body, (host, e) => {
+      const row = el('crow');
+      row.appendChild(gutterEl(e));
+      const chips = el('chips');
+      shown(e).forEach((s) => chips.appendChild(chipEl(s, false)));
+      row.appendChild(chips);
+      row.appendChild(el('vol num' + (e.approx ? ' approx' : ''),
+        (e.approx ? '≈' : '') + Math.round(volume(e)) + ' kg'));
+      host.appendChild(row);
+    });
+  }
+</script>
+</body>
+</html>
