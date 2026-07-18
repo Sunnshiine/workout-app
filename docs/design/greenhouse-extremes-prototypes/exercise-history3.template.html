@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=393, initial-scale=1">
+<title>EXERCISE HISTORY — carved, five risky takes (#434)</title>
+<style>
+/* THROWAWAY PROTOTYPE — issue #434, round three.
+   Owner verdict on round two: Carved wells (E) is the interesting one — the
+   only below-flat elevation in the app, and it fits because history is the
+   past: "history is carved." But the round was too homogeneous. This round
+   commits to the carved insight and diverges hard — five vastly different,
+   deliberately risky structures. Switchable via ?variant= :
+     a — engraved slab: no cards at all; the text itself is debossed into
+         the sheet, Blocks split by carved grooves
+     b — sediment strata: history as a geological cross-section — full-bleed
+         tinted bands, older Blocks deeper and darker
+     c — shadow well: the current Block sits on the lit rim; everything
+         older is sunk in one deep, dark carved well
+     d — receding stack: 3D depth — the current Block's slab front and lit,
+         older slabs physically recede behind it, smaller and dimmer
+     e — carved channel: a single groove cut down the sheet's left edge is
+         the spine; Blocks are nodes carved into it
+   Non-negotiables carried: History Row Never Wraps (shrink-then-truncate),
+   no mint in the sheet, .medium detent, the hard-content mix (skip,
+   as-"…" fallback, Legacy Log as entered, 8-Set line) on every screen,
+   Fraunces only on the title.
+*/
+/*__FONTS__*/
+:root {
+  --paper-top: #E8EDDB;
+  --paper-bottom: #C7E0BF;
+  --ink: #152118;
+  --muted: #526457;
+  --cream: #F2F7E8;
+  --sheet-fill: #EFF4E4;
+  --sheet-shadow: 0 -8px 40px rgba(21, 33, 24, 0.18);
+  --grabber: rgba(21, 33, 24, 0.18);
+  --scrim: rgba(21, 33, 24, 0.32);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  position: relative;
+  width: 393px;
+  height: 852px;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--paper-top) 0%, var(--paper-bottom) 100%);
+  color: var(--ink);
+  font-family: 'Source Sans 3', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.screen { display: none; width: 393px; height: 852px; position: relative; }
+body[data-variant="a"] #screen-a { display: block; }
+body[data-variant="b"] #screen-b { display: block; }
+body[data-variant="c"] #screen-c { display: block; }
+body[data-variant="d"] #screen-d { display: block; }
+body[data-variant="e"] #screen-e { display: block; }
+
+.num { font-variant-numeric: tabular-nums; }
+
+/* the stage behind the sheet, dimmed — context, not content */
+.stage-behind { position: absolute; inset: 0; padding: 0 32px; }
+.stage-behind .time {
+  position: absolute; top: 21px; left: 36px;
+  font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.stage-behind .runline {
+  display: flex; justify-content: space-between;
+  margin-top: 68px;
+  font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.stage-behind .runline .right { color: var(--muted); font-weight: 500; }
+.stage-behind .cadence { margin: 30px 0 0; font-size: 14px; font-weight: 600; color: var(--muted); }
+.stage-behind h1 {
+  margin: 6px 0 0;
+  font-family: 'Fraunces', serif;
+  font-variation-settings: "opsz" 30, "wght" 490, "SOFT" 100, "WONK" 0;
+  font-size: 33px; font-weight: 490; line-height: 1.10;
+}
+.scrim { position: absolute; inset: 0; background: var(--scrim); }
+
+/* ————— the sheet: .medium detent ————— */
+.sheet {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 472px;
+  background: var(--sheet-fill);
+  border-radius: 30px 30px 0 0;
+  box-shadow: var(--sheet-shadow);
+  padding: 8px 24px 0;
+  overflow: hidden;
+}
+.grabber {
+  width: 40px; height: 5px; border-radius: 3px;
+  background: var(--grabber);
+  margin: 0 auto;
+}
+.sheet-title {
+  margin: 16px 4px 0;
+  font-family: 'Fraunces', serif;
+  font-variation-settings: "opsz" 22, "wght" 490, "SOFT" 100, "WONK" 0;
+  font-size: 24px; font-weight: 490; line-height: 1.1;
+}
+.sheet-sub {
+  margin: 4px 4px 0;
+  font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+
+.block-head {
+  font-size: 13.5px; font-weight: 600; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* one entry row: gutter + one-line Set line (never wraps) */
+.entry { display: flex; align-items: baseline; gap: 12px; margin-top: 12px; }
+.entry .gutter { flex: none; width: 58px; }
+.entry .gutter .wd { font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.entry .gutter .cad { font-size: 11px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.entry .sets {
+  flex: 1; min-width: 0;
+  font-size: 14px; line-height: 1.45; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.entry .sets .dim { color: var(--muted); }
+.entry .sets .flag { color: var(--muted); font-style: italic; }
+.entry .sets.dense { font-size: 12.5px; } /* emulates minimumScaleFactor before truncation */
+.entry .sets.raw { font-style: italic; }
+
+/* ————— a · engraved slab: text debossed into stone, grooves between ————— */
+#screen-a .sheet { background: #E4EAD5; }
+#screen-a .sheet-body { margin-top: 4px; }
+#screen-a .sheet-body,
+#screen-a .sheet-body .entry .sets,
+#screen-a .sheet-body .entry .gutter .wd {
+  color: rgba(21, 33, 24, 0.78);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+#screen-a .sheet-body .block-head,
+#screen-a .sheet-body .entry .gutter .cad,
+#screen-a .sheet-body .entry .sets .dim,
+#screen-a .sheet-body .entry .sets .flag {
+  color: rgba(82, 100, 87, 0.85);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+#screen-a .groove {
+  height: 7px;
+  margin: 18px -4px 16px;
+  border-radius: 4px;
+  background: rgba(21, 33, 24, 0.10);
+  box-shadow: inset 0 1px 3px rgba(21, 33, 24, 0.28), 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+#screen-a .block-head { margin-top: 14px; }
+
+/* ————— b · sediment strata: full-bleed bands, deeper is darker ————— */
+#screen-b .sheet { padding-left: 0; padding-right: 0; }
+#screen-b .grabber { margin-bottom: 0; }
+#screen-b .sheet-title, #screen-b .sheet-sub { margin-left: 28px; margin-right: 28px; }
+#screen-b .sheet-body { margin-top: 16px; }
+#screen-b .stratum { padding: 12px 24px 16px; }
+#screen-b .stratum.s0 { background: #F1F5E6; }
+#screen-b .stratum.s1 {
+  background: #DDE6CC;
+  box-shadow: inset 0 8px 10px -8px rgba(21, 33, 24, 0.28);
+}
+#screen-b .stratum.bedrock {
+  height: 120px;
+  background: #C9D6B4;
+  box-shadow: inset 0 8px 10px -8px rgba(21, 33, 24, 0.28);
+}
+#screen-b .stratum .block-head { color: #47543F; }
+
+/* ————— c · shadow well: the rim holds now; the past sinks into the dark ————— */
+#screen-c .rim { margin-top: 14px; }
+#screen-c .well {
+  margin: 18px -8px 0;
+  background: #2A3626;
+  border-radius: 24px;
+  padding: 13px 20px 16px;
+  box-shadow: inset 0 3px 12px rgba(0, 0, 0, 0.5), inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+}
+#screen-c .well .block-head { color: #B7C4AE; }
+#screen-c .well .entry .sets { color: #EFF3E3; }
+#screen-c .well .entry .gutter .wd { color: #EFF3E3; }
+#screen-c .well .entry .gutter .cad,
+#screen-c .well .entry .sets .dim,
+#screen-c .well .entry .sets .flag { color: #9DAE97; }
+
+/* ————— d · receding stack: older slabs fall away behind the current one ————— */
+#screen-d .stack { margin-top: 18px; perspective: 700px; }
+#screen-d .slab {
+  background: #F7FAEE;
+  border-radius: 22px;
+  padding: 13px 16px 15px;
+}
+#screen-d .slab.front {
+  position: relative; z-index: 2;
+  box-shadow: 0 2px 4px rgba(21, 33, 24, 0.06), 0 16px 34px rgba(21, 33, 24, 0.16);
+}
+#screen-d .slab.back {
+  position: relative; z-index: 1;
+  margin-top: -8px;
+  transform: scale(0.94) translateY(6px) rotateX(4deg);
+  transform-origin: top center;
+  background: #E7EDD8;
+  opacity: 0.88;
+  filter: blur(0.3px);
+  box-shadow: 0 6px 16px rgba(21, 33, 24, 0.10);
+  padding-top: 20px;
+}
+#screen-d .slab .entry:first-of-type { margin-top: 10px; }
+
+/* ————— e · carved channel: one groove is the spine, Blocks are nodes ————— */
+#screen-e .channelwrap { position: relative; margin-top: 16px; padding-left: 30px; }
+#screen-e .channel {
+  position: absolute; left: 9px; top: 4px; bottom: -40px; width: 6px;
+  border-radius: 3px;
+  background: rgba(21, 33, 24, 0.09);
+  box-shadow: inset 0 1px 3px rgba(21, 33, 24, 0.22), 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+#screen-e .cblock { position: relative; margin-top: 16px; }
+#screen-e .cblock:first-of-type { margin-top: 0; }
+#screen-e .node {
+  position: absolute; left: -27px; top: 3px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--sheet-fill);
+  box-shadow: inset 0 1px 3px rgba(21, 33, 24, 0.35), 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+#screen-e .entry .gutter { width: 54px; }
+
+/* ————— switcher (NOT part of the design) ————— */
+.switcher {
+  position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+  z-index: 99; display: flex; align-items: center; gap: 2px;
+  background: #111; color: #fff; border-radius: 999px; padding: 4px 6px;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.5);
+}
+.switcher a { color: #fff; text-decoration: none; padding: 2px 8px; font-size: 14px; line-height: 1; }
+.switcher .label { padding: 0 6px; white-space: nowrap; }
+</style>
+</head>
+<body data-variants="a,b,c,d,e" data-variant="a">
+
+<template id="stage-tpl">
+  <div class="stage-behind">
+    <div class="time num">9:41</div>
+    <div class="runline"><span class="num">Block 27 · Week 2 · Day 1</span><span class="right num">9 Sets left</span></div>
+    <div class="cadence num">0:2:0</div>
+    <h1>Hamstring Curl</h1>
+  </div>
+  <div class="scrim"></div>
+  <div class="sheet">
+    <div class="grabber"></div>
+    <div class="sheet-title">Hamstring Curl</div>
+    <div class="sheet-sub num">Exercise History · last 5</div>
+    <div class="sheet-body"></div>
+  </div>
+</template>
+
+<section class="screen" id="screen-a"></section>
+<section class="screen" id="screen-b"></section>
+<section class="screen" id="screen-c"></section>
+<section class="screen" id="screen-d"></section>
+<section class="screen" id="screen-e"></section>
+
+<nav class="switcher">
+  <a id="sw-prev" href="#">‹</a>
+  <span class="label" id="sw-label"></span>
+  <a id="sw-next" href="#">›</a>
+</nav>
+
+<script>
+  const KEYS = ['a', 'b', 'c', 'd', 'e'];
+  const NAMES = {
+    a: 'A · Engraved slab',
+    b: 'B · Sediment strata',
+    c: 'C · Shadow well',
+    d: 'D · Receding stack',
+    e: 'E · Carved channel'
+  };
+  const param = new URLSearchParams(location.search).get('variant');
+  const key = KEYS.includes(param) ? param : 'a';
+  document.body.dataset.variant = key;
+  const i = KEYS.indexOf(key);
+  document.getElementById('sw-label').textContent = NAMES[key];
+  document.getElementById('sw-prev').href = '?variant=' + KEYS[(i + KEYS.length - 1) % KEYS.length];
+  document.getElementById('sw-next').href = '?variant=' + KEYS[(i + 1) % KEYS.length];
+
+  // Same hard mix as rounds one and two.
+  const ENTRIES = [
+    { block: 27, wd: 'W1 D1', cad: '0:2:0',
+      sets: '27.5×10 <span class="dim">@8</span> · 27.5×10 <span class="dim">@8</span> · 27.5×9 <span class="dim">@9</span>' },
+    { block: 26, wd: 'W4 D1', cad: '0:2:0',
+      sets: '25×10 <span class="dim">@8</span> · <span class="flag">skip</span> · 25×10 <span class="dim">@9</span>' },
+    { block: 26, wd: 'W3 D1', cad: '', dense: true,
+      asname: 'as “Seated Ham Curl”',
+      sets: '25×12 <span class="dim">@8</span> · 25×11 <span class="dim">@8.5</span> · 25×10 <span class="dim">@9</span>' },
+    { block: 26, wd: 'W2 D1', cad: '', raw: true,
+      asname: 'as entered',
+      sets: '55x8, 60x7@9.5, 60' },
+    { block: 26, wd: 'W1 D1', cad: '0:2:0', dense: true,
+      sets: '22.5×12 <span class="dim">@7</span> · 22.5×12 <span class="dim">@7.5</span> · 22.5×11 <span class="dim">@8</span> · 22.5×11 <span class="dim">@8</span> · 22.5×10 <span class="dim">@8.5</span> · 22.5×10 <span class="dim">@9</span> · 22.5×9 <span class="dim">@9</span> · 22.5×8 <span class="dim">@9.5</span>' }
+  ];
+
+  function entryEl(e) {
+    const div = document.createElement('div');
+    div.className = 'entry';
+    const setsCls = 'sets num' + (e.dense ? ' dense' : '') + (e.raw ? ' raw' : '');
+    div.innerHTML =
+      '<div class="gutter"><div class="wd num">' + e.wd + '</div>' +
+      (e.cad ? '<div class="cad num">' + e.cad + '</div>' : '') +
+      '</div>' +
+      '<div class="' + setsCls + '">' +
+      (e.asname ? '<span class="flag">' + e.asname + '</span> — ' : '') +
+      e.sets + '</div>';
+    return div;
+  }
+
+  function entriesFor(block) {
+    const wrap = document.createElement('div');
+    wrap.className = 'entries';
+    ENTRIES.filter((e) => e.block === block).forEach((e) => wrap.appendChild(entryEl(e)));
+    return wrap;
+  }
+
+  function headEl(b) {
+    const head = document.createElement('div');
+    head.className = 'block-head num';
+    head.textContent = 'Block ' + b;
+    return head;
+  }
+
+  function stampBase(screenId) {
+    const screen = document.getElementById(screenId);
+    screen.appendChild(document.getElementById('stage-tpl').content.cloneNode(true));
+    return screen.querySelector('.sheet-body');
+  }
+
+  const BLOCKS = [...new Set(ENTRIES.map((e) => e.block))];
+  const CURRENT = Math.max(...BLOCKS);
+
+  // a · engraved slab — flat sections split by carved grooves
+  {
+    const body = stampBase('screen-a');
+    BLOCKS.forEach((b, idx) => {
+      if (idx > 0) {
+        const groove = document.createElement('div');
+        groove.className = 'groove';
+        body.appendChild(groove);
+      }
+      body.appendChild(headEl(b));
+      body.appendChild(entriesFor(b));
+    });
+  }
+
+  // b · sediment strata — full-bleed bands, then bedrock
+  {
+    const body = stampBase('screen-b');
+    BLOCKS.forEach((b, idx) => {
+      const band = document.createElement('div');
+      band.className = 'stratum s' + idx;
+      band.appendChild(headEl(b));
+      band.appendChild(entriesFor(b));
+      body.appendChild(band);
+    });
+    const bedrock = document.createElement('div');
+    bedrock.className = 'stratum bedrock';
+    body.appendChild(bedrock);
+  }
+
+  // c · shadow well — current Block on the rim, the past sunk in the dark
+  {
+    const body = stampBase('screen-c');
+    const rim = document.createElement('div');
+    rim.className = 'rim';
+    rim.appendChild(headEl(CURRENT));
+    rim.appendChild(entriesFor(CURRENT));
+    body.appendChild(rim);
+    const well = document.createElement('div');
+    well.className = 'well';
+    BLOCKS.filter((b) => b !== CURRENT).forEach((b) => {
+      well.appendChild(headEl(b));
+      well.appendChild(entriesFor(b));
+    });
+    body.appendChild(well);
+  }
+
+  // d · receding stack — front slab now, older slabs fall away behind it
+  {
+    const body = stampBase('screen-d');
+    const stack = document.createElement('div');
+    stack.className = 'stack';
+    BLOCKS.forEach((b) => {
+      const slab = document.createElement('div');
+      slab.className = 'slab ' + (b === CURRENT ? 'front' : 'back');
+      slab.appendChild(headEl(b));
+      slab.appendChild(entriesFor(b));
+      stack.appendChild(slab);
+    });
+    body.appendChild(stack);
+  }
+
+  // e · carved channel — one groove as the spine, Blocks as nodes on it
+  {
+    const body = stampBase('screen-e');
+    const wrap = document.createElement('div');
+    wrap.className = 'channelwrap';
+    const channel = document.createElement('div');
+    channel.className = 'channel';
+    wrap.appendChild(channel);
+    BLOCKS.forEach((b) => {
+      const cb = document.createElement('div');
+      cb.className = 'cblock';
+      const node = document.createElement('div');
+      node.className = 'node';
+      cb.appendChild(node);
+      cb.appendChild(headEl(b));
+      cb.appendChild(entriesFor(b));
+      wrap.appendChild(cb);
+    });
+    body.appendChild(wrap);
+  }
+</script>
+</body>
+</html>
