@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=393, initial-scale=1">
+<title>FOCUS WEEK ROUND FIVE — Greenhouse prototype (#435)</title>
+<style>
+/* THROWAWAY PROTOTYPE — issue #435, round five of /grilling-frontend-prototyping.
+   Round-four verdict: F (inverted ledger) leads — but flat collapsed weeks
+   don't look tappable. Fixed in all four: F's structure; EVERY week is
+   elevated one level so it reads as a control, and the focus week sits
+   above that level; no text inside day tiles (state is shape/light only);
+   un-uploaded days get a real rendering — a dashed empty bed, grouped
+   at the week's end, never checkered with available days.
+   Variants via ?variant=a|b|c|d , day count via ?days=2|3|4|6 :
+     a — two shelves: collapsed weeks on low cards, focus week on a high
+         sunlit card; classic elevation hierarchy, no tricks
+     b — receding planes: cards shrink and dim with distance from the
+         focus week — depth of field as hierarchy
+     c — card deck: the focus card grows past the deck's edges and casts
+         onto its neighbours; collapsed cards hold one tight column
+     d — light and shade: all cards share one elevation; the focus card
+         alone stands in warm morning light while the rest sit in shade
+*/
+/*__FONTS__*/
+:root {
+  --paper-top: #E8EDDB;
+  --paper-bottom: #C7E0BF;
+  --ink: #152118;
+  --muted: #526457;
+  --faint: rgba(82, 100, 87, 0.55);
+  --action: #0D6B40;
+  --cream: #F2F7E8;
+  --pill-fill: rgba(242, 247, 232, 0.85);
+  --pill-stroke: rgba(82, 111, 90, 0.34);
+  --tile-complete: #0D6B40;
+  --tile-complete-text: #F2F7E8;
+  --tile-current-fill: rgba(242, 247, 232, 0.95);
+  --tile-ghost-stroke: rgba(82, 100, 87, 0.38);
+  --sun-glow: 0 0 0 4px rgba(242, 247, 232, 0.45), 0 2px 18px rgba(220, 235, 190, 0.9);
+  --card-low: 0 1px 2px rgba(21, 33, 24, 0.06), 0 3px 8px rgba(21, 33, 24, 0.07);
+  --card-high: 0 2px 4px rgba(21, 33, 24, 0.07), 0 18px 38px rgba(21, 33, 24, 0.14);
+  --home-bar: rgba(21, 33, 24, 0.20);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  position: relative;
+  width: 393px; height: 852px; overflow: hidden;
+  background: linear-gradient(180deg, var(--paper-top) 0%, var(--paper-bottom) 100%);
+  color: var(--ink);
+  font-family: 'Source Sans 3', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+.num { font-variant-numeric: tabular-nums; }
+.time {
+  position: absolute; top: 21px; left: 36px; z-index: 9;
+  font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.home-indicator {
+  position: absolute; bottom: 9px; left: 50%; transform: translateX(-50%); z-index: 9;
+  width: 134px; height: 5px; border-radius: 3px; background: var(--home-bar);
+}
+.col { display: flex; flex-direction: column; width: 393px; height: 852px; padding: 0 28px 34px; overflow: hidden; }
+
+.back { margin-top: 64px; font-size: 15px; font-weight: 600; color: var(--muted); }
+h1.block-title {
+  margin: 14px 0 0; font-size: 28px; font-weight: 700; letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums; color: var(--muted);
+}
+.block-sub { margin: 7px 0 0; font-size: 13.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
+
+.stack { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-evenly; margin-top: 6px; }
+
+/* ————— day tiles: no words inside, state is shape and light ————— */
+.tile-row { display: flex; gap: 8px; }
+.tile {
+  flex: 1; min-width: 0;
+  height: 48px; border-radius: 15px;
+  display: flex; align-items: center; justify-content: center;
+  font-variant-numeric: tabular-nums;
+  position: relative; overflow: hidden;
+}
+.tile.short { height: 40px; }
+.tile .day { font-size: 14.5px; font-weight: 700; line-height: 1; white-space: nowrap; position: relative; }
+.tile.short .day { font-size: 13px; }
+.tile.complete { background: var(--tile-complete); color: var(--tile-complete-text); }
+.tile.complete::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(112deg, transparent 32%, rgba(242, 247, 232, 0.20) 40%, rgba(242, 247, 232, 0.06) 47%, transparent 55%, transparent 68%, rgba(242, 247, 232, 0.10) 76%, transparent 84%);
+  pointer-events: none;
+}
+.tile.current {
+  background: var(--tile-current-fill); border: 2px solid #1F8552;
+  box-shadow: var(--sun-glow); color: #152118;
+}
+.tile.current::after {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(90% 160% at 78% -30%, rgba(255, 255, 245, 0.85), transparent 55%);
+  pointer-events: none;
+}
+.tile.partial { background: var(--pill-fill); border: 1px solid var(--pill-stroke); }
+.tile.partial .fill, .chip.partial .fill {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  background: var(--tile-complete);
+}
+.tile.available { background: var(--pill-fill); border: 1px solid var(--pill-stroke); }
+/* un-uploaded: an empty bed — the slot exists, nothing is planted yet */
+.tile.ghost { background: transparent; border: 1.5px dashed var(--tile-ghost-stroke); color: var(--muted); }
+.tile.ghost .day { opacity: 0.7; }
+
+.chip-row { display: flex; gap: 5px; }
+.chip { flex: 1; height: 16px; border-radius: 6px; position: relative; overflow: hidden; }
+.chip.complete { background: var(--tile-complete); }
+.chip.complete::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(112deg, transparent 40%, rgba(242, 247, 232, 0.18) 50%, transparent 62%);
+}
+.chip.available { background: var(--pill-fill); border: 1px solid var(--pill-stroke); }
+.chip.partial { background: var(--pill-fill); border: 1px solid var(--pill-stroke); }
+.chip.ghost { background: transparent; border: 1.5px dashed var(--tile-ghost-stroke); }
+
+/* ————— every week is a card — one level up, unmistakably tappable ————— */
+.week-card {
+  border-radius: 20px; padding: 13px 16px 14px;
+  background: var(--pill-fill); border: 1px solid var(--pill-stroke);
+  box-shadow: var(--card-low);
+  font-variant-numeric: tabular-nums;
+  position: relative;
+}
+.week-card .toprow { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 9px; }
+.week-card .wk { font-size: 14px; font-weight: 600; color: var(--muted); }
+.week-card .sum { font-size: 12.5px; font-weight: 500; color: var(--faint); }
+.week-card.done .wk { color: var(--ink); font-weight: 700; }
+.week-card.done .sum { color: var(--action); font-weight: 600; }
+
+/* ————— the focus card — above the shelf ————— */
+.focus-card {
+  margin: 0 -12px; padding: 4px 18px 18px;
+  background: rgba(245, 249, 235, 0.92); border-radius: 24px;
+  box-shadow: var(--card-high);
+  position: relative; overflow: hidden;
+  z-index: 3;
+}
+.focus-card::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(120% 140% at 85% -12%, rgba(253, 254, 242, 0.95), transparent 62%);
+  pointer-events: none;
+}
+.focus-card > * { position: relative; }
+.focus-head {
+  margin: 14px 0 11px;
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-variant-numeric: tabular-nums;
+}
+.focus-head .wk { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+.focus-head .count { color: var(--muted); font-weight: 500; font-size: 12.5px; }
+
+/* ————— b · receding planes: depth of field ————— */
+body[data-variant="b"] .week-card {
+  transform: scale(calc(1 - 0.045 * var(--d, 1)));
+  opacity: calc(1 - 0.16 * var(--d, 1));
+}
+body[data-variant="b"] .focus-card { box-shadow: 0 3px 6px rgba(21, 33, 24, 0.08), 0 24px 48px rgba(21, 33, 24, 0.18); }
+
+/* ————— c · card deck: the focus card grows past the deck's edges ————— */
+body[data-variant="c"] .stack { justify-content: center; gap: 12px; }
+body[data-variant="c"] .week-card { margin: 0 10px; }
+body[data-variant="c"] .focus-card {
+  margin: 6px -16px; padding: 6px 22px 20px;
+  transform: scale(1.01);
+  box-shadow: 0 3px 7px rgba(21, 33, 24, 0.09), 0 26px 52px rgba(21, 33, 24, 0.20);
+}
+
+/* ————— d · light and shade: one elevation, two weathers ————— */
+body[data-variant="d"]::before {
+  content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: radial-gradient(120% 85% at 82% -8%, rgba(253, 254, 242, 0.85), rgba(250, 252, 238, 0.28) 46%, transparent 70%);
+}
+body[data-variant="d"] .col { position: relative; z-index: 1; }
+body[data-variant="d"] .week-card {
+  box-shadow: var(--card-low);
+  background: rgba(226, 233, 214, 0.72);
+  border-color: rgba(82, 100, 87, 0.22);
+}
+body[data-variant="d"] .week-card .wk, body[data-variant="d"] .week-card .sum { opacity: 0.85; }
+body[data-variant="d"] .focus-card {
+  box-shadow: var(--card-low), 0 0 0 5px rgba(250, 252, 238, 0.5), 0 6px 30px rgba(228, 240, 200, 0.95);
+  background: rgba(248, 251, 238, 0.96);
+}
+
+/* ————— switcher (NOT part of the design) ————— */
+.switcher {
+  position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+  z-index: 99; display: flex; align-items: center; gap: 2px;
+  background: #111; color: #fff; border-radius: 999px; padding: 4px 6px;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.5);
+}
+.switcher a { color: #fff; text-decoration: none; padding: 2px 7px; font-size: 14px; line-height: 1; }
+.switcher .label { padding: 0 6px; white-space: nowrap; }
+.switcher .days { display: flex; gap: 1px; margin-left: 4px; border-left: 1px solid #444; padding-left: 5px; }
+.switcher .days a { font-size: 12px; padding: 2px 6px; border-radius: 999px; color: #bbb; }
+.switcher .days a.on { background: #fff; color: #111; }
+</style>
+</head>
+<body data-variants="a,b,c,d" data-variant="a">
+
+<div class="time num" id="clock">9:41</div>
+<div class="col" id="page"></div>
+<div class="home-indicator"></div>
+
+<nav class="switcher">
+  <a id="sw-prev" href="#">‹</a>
+  <span class="label" id="sw-label"></span>
+  <a id="sw-next" href="#">›</a>
+  <span class="days" id="sw-days"></span>
+</nav>
+
+<script>
+  const KEYS = ['a', 'b', 'c', 'd'];
+  const NAMES = {
+    a: 'A · Two shelves',
+    b: 'B · Receding planes',
+    c: 'C · Card deck',
+    d: 'D · Light and shade'
+  };
+  const DAY_CHOICES = [2, 3, 4, 6];
+  const params = new URLSearchParams(location.search);
+  const key = KEYS.includes(params.get('variant')) ? params.get('variant') : 'a';
+  const days = DAY_CHOICES.includes(+params.get('days')) ? +params.get('days') : 6;
+  document.body.dataset.variant = key;
+  const i = KEYS.indexOf(key);
+  document.getElementById('sw-label').textContent = NAMES[key];
+  const href = (v, d) => '?variant=' + v + '&days=' + d;
+  document.getElementById('sw-prev').href = href(KEYS[(i + KEYS.length - 1) % KEYS.length], days);
+  document.getElementById('sw-next').href = href(KEYS[(i + 1) % KEYS.length], days);
+  document.getElementById('sw-days').innerHTML = DAY_CHOICES.map((d) =>
+    '<a href="' + href(key, d) + '"' + (d === days ? ' class="on"' : '') + '>' + d + 'd</a>').join('');
+
+  function makeBlock(n) {
+    // partial fractions are quantized quarters — roughly how much is logged.
+    // Un-uploaded days group at a week's end; they never checker.
+    const w1 = Array.from({ length: n }, (_, d) => (d === n - 1 ? 'partial:75' : 'complete'));
+    const w2 = Array.from({ length: n }, (_, d) => {
+      const cur = Math.ceil(n / 2);
+      return d === cur - 1 ? 'partial:25' : d < cur ? 'complete' : d === cur ? 'current' : 'available';
+    });
+    const w3 = Array.from({ length: n }, (_, d) => (d < Math.ceil(n / 2) ? 'available' : 'ghost'));
+    const w4 = Array.from({ length: n }, (_, d) => (d === 0 ? 'available' : 'ghost'));
+    return [w1, w2, w3, w4].map((daysArr, wi) => ({ week: wi + 1, days: daysArr }));
+  }
+  const BLOCK = makeBlock(days);
+  const FOCUS = BLOCK.findIndex((w) => w.days.includes('current'));
+  const doneCount = (w) => w.days.filter((d) => d === 'complete').length;
+  const partialCount = (w) => w.days.filter((d) => d.startsWith('partial')).length;
+  const ghostCount = (w) => w.days.filter((d) => d === 'ghost').length;
+  const isDone = (w) => doneCount(w) === w.days.length;
+  const total = BLOCK.reduce((s, w) => s + w.days.length, 0);
+  const done = BLOCK.reduce((s, w) => s + doneCount(w), 0);
+  const ghosts = BLOCK.reduce((s, w) => s + ghostCount(w), 0);
+
+  const page = document.getElementById('page');
+  const el = (cls, html, tag) => {
+    const d = document.createElement(tag || 'div');
+    d.className = cls; d.innerHTML = html || '';
+    return d;
+  };
+  function header() {
+    page.appendChild(el('back', '‹ Session'));
+    page.appendChild(el('block-title num', 'Block 27', 'h1'));
+    page.appendChild(el('block-sub num',
+      done + ' of ' + total + ' Sessions complete' + (ghosts ? ' · ' + ghosts + ' not yet uploaded' : '')));
+  }
+  function summary(w) {
+    if (isDone(w)) return 'Complete';
+    let s = doneCount(w) + ' of ' + w.days.length;
+    if (partialCount(w)) s += ' · ' + partialCount(w) + ' in progress';
+    if (ghostCount(w)) s += ' · ' + ghostCount(w) + ' not uploaded';
+    return s;
+  }
+  function tileEl(state, di) {
+    const [st, frac] = state.split(':');
+    const short = days >= 5;
+    const t = el('tile ' + st + (short ? ' short' : '') + ' num');
+    t.innerHTML = '<span class="day">' + (short ? 'D' : 'Day ') + (di + 1) + '</span>' +
+      (st === 'partial' ? '<span class="fill" style="height:' + frac + '%"></span>' : '');
+    return t;
+  }
+  function chipEl(state) {
+    const [st, frac] = state.split(':');
+    return el('chip ' + st,
+      st === 'partial' ? '<span class="fill" style="height:' + frac + '%"></span>' : '');
+  }
+  function weekCard(w, dist) {
+    const c = el('week-card num' + (isDone(w) ? ' done' : ''));
+    c.style.setProperty('--d', dist);
+    c.appendChild(el('toprow',
+      '<span class="wk">Week ' + w.week + '</span><span class="sum">' + summary(w) + '</span>'));
+    const row = el('chip-row');
+    w.days.forEach((state) => row.appendChild(chipEl(state)));
+    c.appendChild(row);
+    return c;
+  }
+  function focusCard(w) {
+    const c = el('focus-card');
+    c.appendChild(el('focus-head',
+      '<span class="wk num">Week ' + w.week + '</span><span class="count num">' +
+      doneCount(w) + ' of ' + w.days.length + '</span>'));
+    const row = el('tile-row');
+    w.days.forEach((state, di) => row.appendChild(tileEl(state, di)));
+    c.appendChild(row);
+    return c;
+  }
+
+  header();
+  const stack = el('stack');
+  BLOCK.forEach((w, wi) => {
+    stack.appendChild(wi === FOCUS ? focusCard(w) : weekCard(w, Math.abs(wi - FOCUS)));
+  });
+  page.appendChild(stack);
+</script>
+</body>
+</html>
