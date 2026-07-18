@@ -12,11 +12,12 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const base = process.argv[2] ?? "block-grid-scale";
 const dayStates = (process.argv[3] ?? "3").split(",").map(Number);
+const variants = (process.argv[4] ?? "a,b,c,d,e").split(",");
 const html = pathToFileURL(resolve(HERE, `${base}.html`));
 const browser = await chromium.launch();
 const ctx = await browser.newContext(devices["iPhone 15 Pro"]);
 const page = await ctx.newPage();
-for (const variant of ["a", "b", "c", "d", "e"]) {
+for (const variant of variants) {
   for (const days of dayStates) {
     await page.goto(`${html}?variant=${variant}&days=${days}`);
     await page.waitForTimeout(250);

@@ -21,6 +21,11 @@
          morning light expands to fill the page; air becomes lit, not blank
      e — garden bed: the composition breathes — round-three sizes, weeks
          distributed across the full height, space between, not below
+     f — inverted ledger: b flipped — collapsed weeks lose their pill and
+         go bare (text + day-strip on the paper), the focus week alone
+         rides an elevated surface; emphasis lands on the living week
+   All variants now carry a PARTIAL day state (a Session started but not
+   finished): a quiet fill with an inked progress stripe along the bottom.
 */
 /*__FONTS__*/
 :root {
@@ -96,6 +101,15 @@ h1.block-title {
   pointer-events: none;
 }
 .tile.available { background: var(--pill-fill); border: 1px solid var(--pill-stroke); }
+/* partial: started but not finished — the ink rises partway, like a glass */
+.tile.partial { background: var(--pill-fill); border: 1px solid var(--pill-stroke); }
+.tile.partial::before {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 12px;
+  background: var(--tile-complete);
+}
+.tile.partial.short::before { height: 9px; }
+.tile.partial .day { position: relative; }
+.tile.partial .note { position: relative; color: var(--action); }
 .tile.ghost { background: var(--tile-ghost); color: var(--muted); }
 .tile.ghost .day { opacity: 0.75; }
 /* panes of light across settled (inked) tiles — locked from round three */
@@ -173,6 +187,12 @@ body[data-variant="a"] .sunwash { padding-bottom: 0; }
   background: linear-gradient(112deg, transparent 40%, rgba(242, 247, 232, 0.18) 50%, transparent 62%);
 }
 .chip.available { background: var(--pill-fill); border: 1px solid var(--pill-stroke); }
+.chip.partial { background: var(--pill-fill); border: 1px solid var(--pill-stroke); }
+.chip.partial::before {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 45%;
+  background: var(--tile-complete);
+}
+.chip.current { background: var(--tile-current-fill); border: 1.5px solid #1F8552; }
 .chip.ghost { background: var(--tile-ghost); }
 body[data-variant="b"] .stack { justify-content: space-evenly; margin-top: 4px; }
 body[data-variant="b"] .week-pill.strip { gap: 10px; padding: 15px 17px; }
@@ -233,6 +253,29 @@ body[data-variant="d"] .sunwash::before { background: none; }
 
 /* ————— e · garden bed: the composition breathes across full height ————— */
 body[data-variant="e"] .stack { justify-content: space-evenly; margin-top: 6px; }
+
+/* ————— f · inverted ledger: bare collapsed weeks, elevated focus week ————— */
+.week-flat { padding: 4px 2px; font-variant-numeric: tabular-nums; }
+.week-flat .toprow { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.week-flat .wk { font-size: 14px; font-weight: 600; color: var(--faint); }
+.week-flat .sum { font-size: 12.5px; font-weight: 500; color: var(--faint); }
+.week-flat.done .wk { color: var(--muted); font-weight: 700; }
+.week-flat.done .sum { color: var(--action); font-weight: 600; }
+.week-flat .chip { opacity: 0.82; }
+.focus-surface {
+  margin: 0 -12px; padding: 4px 18px 18px;
+  background: rgba(242, 247, 232, 0.55); border-radius: 24px;
+  box-shadow: 0 1px 2px rgba(21, 33, 24, 0.05), 0 16px 34px rgba(21, 33, 24, 0.10);
+  position: relative; overflow: hidden;
+}
+.focus-surface::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(120% 140% at 85% -12%, rgba(253, 254, 242, 0.9), transparent 60%);
+  pointer-events: none;
+}
+.focus-surface > * { position: relative; }
+.focus-surface .focus-head { margin-top: 14px; }
+body[data-variant="f"] .stack { justify-content: space-evenly; margin-top: 6px; }
 body[data-variant="e"] .week-pill { margin-top: 0; }
 body[data-variant="e"] .focus-head { margin: 0 0 11px; }
 body[data-variant="e"] .sunwash { padding: 0 28px 0; }
@@ -266,13 +309,14 @@ body[data-variant="e"] .sunwash { padding: 0 28px 0; }
 </nav>
 
 <script>
-  const KEYS = ['a', 'b', 'c', 'd', 'e'];
+  const KEYS = ['a', 'b', 'c', 'd', 'e', 'f'];
   const NAMES = {
     a: 'A · Full house',
     b: 'B · Open ledger',
     c: 'C · Working header',
     d: 'D · Sunlit room',
-    e: 'E · Garden bed'
+    e: 'E · Garden bed',
+    f: 'F · Inverted ledger'
   };
   const DAY_CHOICES = [2, 3, 4, 6];
   const params = new URLSearchParams(location.search);
@@ -288,10 +332,11 @@ body[data-variant="e"] .sunwash { padding: 0 28px 0; }
     '<a href="' + href(key, d) + '"' + (d === days ? ' class="on"' : '') + '>' + d + 'd</a>').join('');
 
   function makeBlock(n) {
-    const w1 = Array(n).fill('complete');
+    // week 1 carries one partial Session (started, never finished)
+    const w1 = Array.from({ length: n }, (_, d) => (d === n - 1 ? 'partial' : 'complete'));
     const w2 = Array.from({ length: n }, (_, d) => {
-      const done = Math.ceil(n / 2);
-      return d < done ? 'complete' : d === done ? 'current' : 'available';
+      const cur = Math.ceil(n / 2);
+      return d === cur - 1 ? 'partial' : d < cur ? 'complete' : d === cur ? 'current' : 'available';
     });
     const w3 = Array.from({ length: n }, (_, d) => (d % 2 === 0 ? 'available' : 'ghost'));
     const w4 = Array.from({ length: n }, (_, d) => (d === 0 ? 'available' : 'ghost'));
@@ -300,6 +345,7 @@ body[data-variant="e"] .sunwash { padding: 0 28px 0; }
   const BLOCK = makeBlock(days);
   const FOCUS = BLOCK.findIndex((w) => w.days.includes('current'));
   const doneCount = (w) => w.days.filter((d) => d === 'complete').length;
+  const partialCount = (w) => w.days.filter((d) => d === 'partial').length;
   const ghostCount = (w) => w.days.filter((d) => d === 'ghost').length;
   const isDone = (w) => doneCount(w) === w.days.length;
   const total = BLOCK.reduce((s, w) => s + w.days.length, 0);
@@ -334,6 +380,7 @@ body[data-variant="e"] .sunwash { padding: 0 28px 0; }
   function summary(w) {
     if (isDone(w)) return 'Complete';
     let s = doneCount(w) + ' of ' + w.days.length;
+    if (partialCount(w)) s += ' · ' + partialCount(w) + ' in progress';
     if (ghostCount(w)) s += ' · ' + ghostCount(w) + ' not uploaded';
     return s;
   }
@@ -351,6 +398,7 @@ body[data-variant="e"] .sunwash { padding: 0 28px 0; }
     let note = '';
     if (!short) {
       note = state === 'current' ? '<span class="note">Current</span>' :
+             state === 'partial' ? '<span class="note">Started</span>' :
              state === 'ghost' ? '<span class="note">Not uploaded</span>' : '';
     }
     t.innerHTML = '<span class="day">' + day + '</span>' + note;
@@ -366,6 +414,15 @@ body[data-variant="e"] .sunwash { padding: 0 28px 0; }
       '<span class="wk num">Week ' + w.week + '</span><span class="count num">' + focusRight(w) + '</span>');
   }
   function collapsedEl(w, strips) {
+    if (strips === 'flat') {
+      const p = el('week-flat num' + (isDone(w) ? ' done' : ''));
+      p.appendChild(el('toprow',
+        '<span class="wk">Week ' + w.week + '</span><span class="sum">' + summary(w) + '</span>'));
+      const row = el('chip-row');
+      w.days.forEach((state) => row.appendChild(el('chip ' + state)));
+      p.appendChild(row);
+      return p;
+    }
     if (strips) {
       const p = el('week-pill strip num' + (isDone(w) ? ' done' : ''));
       p.appendChild(el('toprow',
@@ -381,11 +438,12 @@ body[data-variant="e"] .sunwash { padding: 0 28px 0; }
 
   // what fills the space, per variant
   const OPTS = {
-    a: { strips: false, band: false, meta: false, stack: true, cta: false },
-    b: { strips: true, band: false, meta: false, stack: true, cta: false },
-    c: { strips: false, band: true, meta: true, stack: false, cta: true },
-    d: { strips: false, band: false, meta: false, stack: false, cta: false },
-    e: { strips: false, band: false, meta: false, stack: true, cta: false }
+    a: { strips: false, band: false, meta: false, stack: true, cta: false, surface: false },
+    b: { strips: true, band: false, meta: false, stack: true, cta: false, surface: false },
+    c: { strips: false, band: true, meta: true, stack: false, cta: true, surface: false },
+    d: { strips: false, band: false, meta: false, stack: false, cta: false, surface: false },
+    e: { strips: false, band: false, meta: false, stack: true, cta: false, surface: false },
+    f: { strips: 'flat', band: false, meta: false, stack: true, cta: false, surface: true }
   }[key];
 
   header(OPTS.band);
@@ -395,18 +453,18 @@ body[data-variant="e"] .sunwash { padding: 0 28px 0; }
       host.appendChild(collapsedEl(w, OPTS.strips));
       return;
     }
-    const wash = el('sunwash');
-    wash.appendChild(focusHead(w));
-    if (OPTS.meta) wash.appendChild(el('focus-meta num', 'May 26 – Jun 1 · Current Session: Day ' +
-      (doneCount(w) + 1)));
-    wash.appendChild(focusTiles(w));
-    host.appendChild(wash);
+    const wrap = el(OPTS.surface ? 'focus-surface' : 'sunwash');
+    wrap.appendChild(focusHead(w));
+    if (OPTS.meta) wrap.appendChild(el('focus-meta num', 'May 26 – Jun 1 · Current Session: Day ' +
+      (w.days.indexOf('current') + 1)));
+    wrap.appendChild(focusTiles(w));
+    host.appendChild(wrap);
   });
   if (OPTS.stack) page.appendChild(host);
   if (OPTS.cta) {
     const w = BLOCK[FOCUS];
     page.appendChild(el('next-cta num',
-      'Continue — Week ' + w.week + ' · Day ' + (doneCount(w) + 1) + ' <span class="arrow">›</span>'));
+      'Continue — Week ' + w.week + ' · Day ' + (w.days.indexOf('current') + 1) + ' <span class="arrow">›</span>'));
   }
 </script>
 </body>
