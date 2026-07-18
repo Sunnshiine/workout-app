@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=393, initial-scale=1">
+<title>ATMOSPHERE DEPTH · ROUND 2 — riskier doses (#420)</title>
+<style>
+/* THROWAWAY PROTOTYPE — issue #420, round two.
+   The owner kept Baseline and the Conservatory ceiling probe and asked for
+   riskier designs. Five doses that commit harder, each a different mechanism:
+     f — canopy shade: a real foliage crown hanging over the page head,
+         mid-contrast and layered, the page reads as standing under a tree
+     g — dappled light: zero drawn objects; atmosphere is only light — soft
+         leaf-shadows and warm sun patches cast across the whole paper
+     h — the grove: layered depth of field — whisper background flora, a
+         mid-tone canopy, and huge blurred foreground leaves close to the lens
+     i — living paper: no leaves at all; the flat gradient dies and the paper
+         becomes organic light — warm sun wash, deep sage pooling, mint breath
+     j — grove night: h re-lit with the #418 D recipe, moonlit layers
+*/
+/*__FONTS__*/
+:root {
+  --paper-top: #E8EDDB;
+  --paper-bottom: #C7E0BF;
+  --ink: #152118;
+  --muted: #526457;
+  --action: #0D6B40;
+  --action-text: #F2F7E8;
+  --cream: #F2F7E8;
+  --surface: rgba(242, 247, 232, 0.52);
+  --surface-shadow: 0 1px 2px rgba(21, 33, 24, 0.04), 0 14px 30px rgba(21, 33, 24, 0.07);
+  --pill-fill: rgba(242, 247, 232, 0.85);
+  --pill-stroke: rgba(82, 111, 90, 0.34);
+  --foot-fill: rgba(242, 247, 232, 0.50);
+  --queue-stroke: rgba(82, 111, 90, 0.38);
+  --log-shadow: 0 1px 2px rgba(13, 46, 28, 0.22), 0 10px 22px rgba(13, 60, 35, 0.16);
+  --stem: #0D6B40;
+  --leaf-fill: #0D6B40;
+  --leaf-rib: rgba(242, 247, 232, 0.5);
+  --bud-fill: rgba(242, 247, 232, 0.95);
+  --bud-stroke: #0D6B40;
+  --bud-rib: rgba(13, 107, 64, 0.55);
+  --future-stroke: rgba(13, 107, 64, 0.40);
+  --skip-stroke: rgba(82, 100, 87, 0.42);
+  --bud-glow: none;
+  --home-bar: rgba(21, 33, 24, 0.20);
+}
+/* night edition — the #418 D recipe, re-lit never recolored */
+body[data-variant="j"] {
+  --paper-top: #232C20;
+  --paper-bottom: #121D14;
+  --ink: #EFF3E3;
+  --muted: #9AAA9B;
+  --action: #1F8552;
+  --action-text: #F2F7E8;
+  --cream: #F2F7E8;
+  --surface: rgba(242, 247, 232, 0.07);
+  --surface-shadow: inset 0 0 0 1px rgba(242, 247, 232, 0.10);
+  --pill-fill: rgba(242, 247, 232, 0.06);
+  --pill-stroke: rgba(242, 247, 232, 0.16);
+  --foot-fill: rgba(242, 247, 232, 0.06);
+  --queue-stroke: rgba(242, 247, 232, 0.20);
+  --log-shadow: 0 0 22px rgba(31, 133, 82, 0.35);
+  --stem: #579168;
+  --leaf-fill: #579168;
+  --leaf-rib: rgba(242, 247, 232, 0.55);
+  --bud-fill: rgba(242, 247, 232, 0.92);
+  --bud-stroke: #78F0B2;
+  --bud-rib: rgba(87, 145, 104, 0.6);
+  --future-stroke: rgba(87, 145, 104, 0.45);
+  --skip-stroke: rgba(154, 170, 155, 0.40);
+  --bud-glow: drop-shadow(0 0 7px rgba(120, 240, 178, 0.32));
+  --home-bar: rgba(242, 247, 232, 0.22);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  position: relative;
+  width: 393px;
+  height: 852px;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--paper-top) 0%, var(--paper-bottom) 100%);
+  color: var(--ink);
+  font-family: 'Source Sans 3', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.screen { display: none; flex-direction: column; width: 393px; height: 852px; position: relative; overflow: hidden; }
+body[data-variant="f"] #screen-f { display: flex; }
+body[data-variant="g"] #screen-g { display: flex; }
+body[data-variant="h"] #screen-h { display: flex; }
+body[data-variant="i"] #screen-i { display: flex; }
+body[data-variant="j"] #screen-j { display: flex; }
+
+/* i — living paper: the linear gradient dies; layered organic light instead */
+#screen-i {
+  background:
+    radial-gradient(90% 46% at 18% 4%, rgba(255, 250, 224, 0.85) 0%, rgba(255, 250, 224, 0) 60%),
+    radial-gradient(70% 40% at 108% 32%, rgba(163, 205, 154, 0.55) 0%, rgba(163, 205, 154, 0) 70%),
+    radial-gradient(80% 42% at -10% 62%, rgba(214, 232, 197, 0.7) 0%, rgba(214, 232, 197, 0) 65%),
+    radial-gradient(110% 55% at 55% 108%, rgba(151, 189, 140, 0.75) 0%, rgba(151, 189, 140, 0) 70%),
+    linear-gradient(180deg, #E9EEDC 0%, #CBE1C2 100%);
+}
+
+.num { font-variant-numeric: tabular-nums; }
+
+.time {
+  position: absolute; top: 21px; left: 36px; z-index: 2;
+  font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.home-indicator {
+  position: absolute; bottom: 9px; left: 50%; transform: translateX(-50%);
+  width: 134px; height: 5px; border-radius: 3px; background: var(--home-bar); z-index: 2;
+}
+
+.col { display: flex; flex-direction: column; height: 100%; padding: 0 32px; position: relative; z-index: 1; }
+
+.runline {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-top: 68px;
+  font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.runline .right { color: var(--muted); font-weight: 500; }
+
+h1.exercise {
+  margin: 26px 0 0;
+  font-family: 'Fraunces', serif;
+  font-variation-settings: "opsz" 30, "wght" 490, "SOFT" 100, "WONK" 0;
+  font-size: 33px; line-height: 1.10; color: var(--ink);
+}
+.coach-note {
+  margin: 12px 0 0;
+  font-size: 15px; line-height: 1.45; color: var(--muted);
+  max-width: 305px;
+}
+
+.branch-wrap { position: relative; margin-top: 14px; height: 148px; }
+.branch-wrap svg { display: block; }
+
+.last-performed {
+  margin-bottom: 14px;
+  font-size: 12.5px; line-height: 1.5; color: var(--muted);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+}
+
+.flex-grow { flex: 1; }
+
+.set-surface {
+  background: var(--surface);
+  border-radius: 30px;
+  padding: 18px 18px 16px;
+  box-shadow: var(--surface-shadow);
+}
+.set-head { padding: 0 8px; }
+.set-head .setno { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.set-head .ofm { font-size: 14px; font-weight: 500; color: var(--muted); }
+
+.pills { display: flex; gap: 10px; margin-top: 14px; }
+.pill {
+  flex: 1;
+  background: var(--pill-fill);
+  border: 1px solid var(--pill-stroke);
+  border-radius: 20px;
+  padding: 10px 14px 12px;
+  min-height: 74px;
+}
+.pill.weight { flex: 1.55; }
+.pill .lbl { font-size: 12px; font-weight: 600; color: var(--muted); }
+.pill .val {
+  margin-top: 3px;
+  font-size: 30px; font-weight: 700; line-height: 1.05;
+  letter-spacing: -0.01em; font-variant-numeric: tabular-nums;
+}
+.pill .unit { font-size: 14px; font-weight: 500; color: var(--muted); margin-left: 3px; }
+
+.log-btn {
+  display: block; margin-top: 16px; width: 100%; height: 62px;
+  border: 0; border-radius: 999px;
+  background: var(--action); color: var(--action-text);
+  font-family: 'Source Sans 3', sans-serif;
+  font-size: 18px; font-weight: 650;
+  font-variant-numeric: tabular-nums; letter-spacing: 0.01em;
+  box-shadow: var(--log-shadow);
+}
+
+.stage-foot { display: flex; align-items: center; gap: 14px; margin: 18px 0 40px; }
+.upnext-bar {
+  flex: 1; min-width: 0; padding-left: 4px;
+  font-size: 13.5px; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.upnext-bar .name { color: var(--ink); font-weight: 600; }
+.queue-btn {
+  display: flex; align-items: center; flex: none;
+  background: var(--foot-fill);
+  border: 1px solid var(--queue-stroke);
+  border-radius: 999px;
+  padding: 0 16px; height: 44px;
+  font-size: 13px; font-weight: 600; color: var(--ink);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+/* atmosphere layers */
+.flora { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.flora svg { position: absolute; left: 0; top: 0; overflow: visible; }
+
+/* f — a soft shade gradient under the crown so the canopy reads as depth,
+   not dirt on the screen */
+#screen-f::before {
+  content: ''; position: absolute; inset: 0 0 auto 0; height: 240px; z-index: 0;
+  background: linear-gradient(180deg, rgba(31, 66, 41, 0.14) 0%, rgba(31, 66, 41, 0) 100%);
+}
+
+/* g — dappled light: warm sun patches; leaf shadows drawn in JS below */
+#screen-g::before {
+  content: ''; position: absolute; inset: 0; z-index: 0;
+  background:
+    radial-gradient(46% 24% at 24% 12%, rgba(255, 247, 195, 0.85) 0%, rgba(255, 247, 195, 0) 70%),
+    radial-gradient(40% 20% at 78% 38%, rgba(255, 247, 195, 0.65) 0%, rgba(255, 247, 195, 0) 70%),
+    radial-gradient(50% 26% at 40% 78%, rgba(255, 247, 195, 0.6) 0%, rgba(255, 247, 195, 0) 70%);
+}
+
+/* ————— switcher (NOT part of the design) ————— */
+.switcher {
+  position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+  z-index: 99; display: flex; align-items: center; gap: 2px;
+  background: #111; color: #fff; border-radius: 999px; padding: 4px 6px;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.5);
+}
+.switcher a { color: #fff; text-decoration: none; padding: 2px 8px; font-size: 14px; line-height: 1; }
+.switcher .label { padding: 0 6px; white-space: nowrap; }
+</style>
+</head>
+<body data-variants="f,g,h,i,j" data-variant="f">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <path id="leafShape" d="M0 8 C 15 2.3, 41 3.3, 60 8 C 41 21.7, 15 22.6, 0 8 Z"/>
+    <path id="leafRib" d="M4 8.1 C 20 9.8, 40 9.6, 56 8.1" fill="none"/>
+  </defs>
+</svg>
+
+<!-- the stage itself is identical across variants; only the room changes -->
+<template id="stage-content">
+  <div class="col">
+    <div class="runline"><span class="num">Block 27 · Week 2 · Day 2</span><span class="right num">14 Sets left</span></div>
+    <h1 class="exercise">Competition Bench&nbsp;Press</h1>
+    <p class="coach-note">Pause every rep. Keep the arch honest — no&nbsp;bounce.</p>
+    <div class="branch-wrap">
+      <svg class="branch" width="329" height="148" viewBox="0 0 329 148" aria-label="Set 3 of 5">
+        <path class="stempath" d="M 8 132 C 80 120, 172 84, 314 22" fill="none" stroke="var(--stem)" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="flex-grow"></div>
+    <div class="last-performed num">W1 D2 — 90×5 @8 · 90×5 @8 · 90×4 @9</div>
+    <div class="set-surface">
+      <div class="set-head"><span class="setno num">Set 3</span><span class="ofm num"> of 5</span></div>
+      <div class="pills num">
+        <div class="pill weight"><div class="lbl">Weight</div><div class="val">92.5<span class="unit">kg</span></div></div>
+        <div class="pill"><div class="lbl">Reps</div><div class="val">5</div></div>
+        <div class="pill"><div class="lbl">RPE</div><div class="val">8</div></div>
+      </div>
+      <button class="log-btn num">Log 92.5&nbsp;kg × 5 @8</button>
+    </div>
+    <div class="stage-foot">
+      <div class="upnext-bar">Up next · <span class="name">Larsen Press</span></div>
+      <div class="queue-btn num">2 of 6</div>
+    </div>
+  </div>
+</template>
+
+<section class="screen" id="screen-f"><div class="flora" id="flora-f"></div><div class="time num">9:41</div><div class="home-indicator"></div></section>
+<section class="screen" id="screen-g"><div class="flora" id="flora-g"></div><div class="time num">9:41</div><div class="home-indicator"></div></section>
+<section class="screen" id="screen-h"><div class="flora" id="flora-h"></div><div class="time num">9:41</div><div class="home-indicator"></div></section>
+<section class="screen" id="screen-i"><div class="time num">9:41</div><div class="home-indicator"></div></section>
+<section class="screen" id="screen-j"><div class="flora" id="flora-j"></div><div class="time num">21:14</div><div class="home-indicator"></div></section>
+
+<nav class="switcher">
+  <a id="sw-prev" href="#">‹</a>
+  <span class="label" id="sw-label"></span>
+  <a id="sw-next" href="#">›</a>
+</nav>
+
+<script>
+  const KEYS = ['f', 'g', 'h', 'i', 'j'];
+  const NAMES = {
+    f: 'F · Canopy shade',
+    g: 'G · Dappled light',
+    h: 'H · The grove',
+    i: 'I · Living paper',
+    j: 'J · Grove night'
+  };
+  const param = new URLSearchParams(location.search).get('variant');
+  const key = KEYS.includes(param) ? param : 'f';
+  document.body.dataset.variant = key;
+  const idx = KEYS.indexOf(key);
+  document.getElementById('sw-label').textContent = NAMES[key];
+  document.getElementById('sw-prev').href = '?variant=' + KEYS[(idx + KEYS.length - 1) % KEYS.length];
+  document.getElementById('sw-next').href = '?variant=' + KEYS[(idx + 1) % KEYS.length];
+
+  const NS = 'http://www.w3.org/2000/svg';
+
+  // stamp the identical stage into every screen (before the time/home nodes
+  // so the flora layer stays behind it in paint order via z-index anyway)
+  const tpl = document.getElementById('stage-content');
+  document.querySelectorAll('.screen').forEach(sc => {
+    sc.insertBefore(tpl.content.cloneNode(true), sc.querySelector('.home-indicator'));
+  });
+
+  const css = getComputedStyle(document.body);
+  const C = (name) => css.getPropertyValue(name).trim();
+
+  // ————— the living branch (unchanged from the #413 pick) —————
+  const fiveSets = [
+    { t: 0.10, kind: 'leaf',    s: 0.78, spread: 46 },
+    { t: 0.32, kind: 'leaf',    s: 0.68, spread: 52 },
+    { t: 0.56, kind: 'current', s: 0.52, spread: 34 },
+    { t: 0.78, kind: 'bud',     s: 0.30, spread: 24 },
+    { t: 0.91, kind: 'bud',     s: 0.22, spread: 20 }
+  ];
+  document.querySelectorAll('svg.branch').forEach(svg => {
+    const stem = svg.querySelector('.stempath');
+    const L = stem.getTotalLength();
+    fiveSets.forEach((n, i) => {
+      const p = stem.getPointAtLength(n.t * L);
+      const q = stem.getPointAtLength(Math.min(L, n.t * L + 1.5));
+      const ang = Math.atan2(q.y - p.y, q.x - p.x) * 180 / Math.PI;
+      const side = i % 2 === 0 ? -1 : 1;
+      const g = document.createElementNS(NS, 'g');
+      g.setAttribute('transform',
+        'translate(' + p.x + ' ' + p.y + ') rotate(' + (ang + side * n.spread) + ') scale(' + n.s + ') translate(0 -8)');
+      const use = (href, attrs) => {
+        const el = document.createElementNS(NS, 'use');
+        el.setAttribute('href', href);
+        for (const k in attrs) el.setAttribute(k, attrs[k]);
+        g.appendChild(el);
+      };
+      if (n.kind === 'leaf') {
+        use('#leafShape', { fill: C('--leaf-fill') });
+        use('#leafRib', { stroke: C('--leaf-rib'), 'stroke-width': (1.2 / n.s).toFixed(2) });
+      } else if (n.kind === 'current') {
+        if (C('--bud-glow') !== 'none') g.setAttribute('style', 'filter:' + C('--bud-glow'));
+        use('#leafShape', { fill: C('--bud-fill'), stroke: C('--bud-stroke'), 'stroke-width': (2.2 / n.s).toFixed(2) });
+        use('#leafRib', { stroke: C('--bud-rib'), 'stroke-width': (1.2 / n.s).toFixed(2) });
+      } else {
+        use('#leafShape', { fill: 'none', stroke: C('--future-stroke'), 'stroke-width': (1.2 / n.s).toFixed(2) });
+      }
+      svg.appendChild(g);
+    });
+  });
+
+  // ————— atmosphere scenes —————
+  // spec: x/y page px · deg · s scale · fill · optional blur px · optional rib
+  function scene(hostId, specs) {
+    const host = document.getElementById(hostId);
+    if (!host) return;
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('width', '393');
+    svg.setAttribute('height', '852');
+    specs.forEach(f => {
+      const g = document.createElementNS(NS, 'g');
+      g.setAttribute('transform',
+        'translate(' + f.x + ' ' + f.y + ') rotate(' + f.deg + ') scale(' + f.s + ') translate(0 -8)');
+      if (f.blur) g.setAttribute('style', 'filter: blur(' + f.blur + 'px)');
+      const leaf = document.createElementNS(NS, 'use');
+      leaf.setAttribute('href', '#leafShape');
+      leaf.setAttribute('fill', f.fill);
+      g.appendChild(leaf);
+      if (f.rib) {
+        const rib = document.createElementNS(NS, 'use');
+        rib.setAttribute('href', '#leafRib');
+        rib.setAttribute('stroke', f.rib);
+        rib.setAttribute('stroke-width', (1.6 / f.s).toFixed(2));
+        g.appendChild(rib);
+      }
+      svg.appendChild(g);
+    });
+    host.appendChild(svg);
+  }
+
+  // F · canopy shade — a real crown along the top edge, three depths of the
+  // branch's own green; nothing below y≈250, the shade gradient does the rest
+  const D1 = 'rgba(23, 74, 44, 0.30)', D2 = 'rgba(23, 74, 44, 0.17)', D3 = 'rgba(23, 74, 44, 0.09)';
+  scene('flora-f', [
+    { x: 250, y: -20, deg: 150, s: 3.6, fill: D3, blur: 5 },
+    { x: 396, y: 20,  deg: 200, s: 3.0, fill: D2 },
+    { x: 330, y: -12, deg: 122, s: 2.6, fill: D1, rib: 'rgba(232, 237, 219, 0.35)' },
+    { x: 150, y: -26, deg: 165, s: 3.0, fill: D2, blur: 2 },
+    { x: 60,  y: -14, deg: 40,  s: 2.4, fill: D1, rib: 'rgba(232, 237, 219, 0.35)' },
+    { x: -30, y: 30,  deg: 10,  s: 2.8, fill: D2 },
+    { x: -18, y: 96,  deg: 26,  s: 2.2, fill: D3, blur: 4 },
+    { x: 402, y: 104, deg: 190, s: 2.4, fill: D3, blur: 4 }
+  ]);
+
+  // G · dappled light — no objects, only cast shadow: big soft leaf-shadows
+  // sweeping one diagonal, as if the sun stands behind foliage off-screen
+  const SH = 'rgba(26, 56, 36, 0.20)', SH2 = 'rgba(26, 56, 36, 0.13)';
+  scene('flora-g', [
+    { x: 40,  y: 60,  deg: 24, s: 4.4, fill: SH,  blur: 9 },
+    { x: 210, y: 130, deg: 28, s: 3.6, fill: SH2, blur: 11 },
+    { x: 300, y: 24,  deg: 20, s: 3.2, fill: SH,  blur: 8 },
+    { x: 150, y: 250, deg: 26, s: 3.0, fill: SH2, blur: 12 },
+    { x: -40, y: 300, deg: 30, s: 4.0, fill: SH2, blur: 11 },
+    { x: 250, y: 420, deg: 24, s: 4.6, fill: SH2, blur: 13 },
+    { x: 40,  y: 600, deg: 28, s: 4.2, fill: SH2, blur: 12 },
+    { x: 280, y: 700, deg: 22, s: 3.8, fill: SH,  blur: 10 },
+    { x: -30, y: 800, deg: 26, s: 3.4, fill: SH2, blur: 11 }
+  ]);
+
+  // H · the grove — three depths of field: whisper wall, mid canopy, and two
+  // huge foreground leaves blurred close to the lens; the branch keeps the
+  // only crisp full-contrast green
+  const W1 = 'rgba(21, 60, 35, 0.055)', M1 = 'rgba(23, 74, 44, 0.14)', FG = 'rgba(18, 64, 38, 0.20)';
+  scene('flora-h', [
+    { x: 305, y: -6,  deg: 152, s: 3.2, fill: W1 },
+    { x: -34, y: 208, deg: 22,  s: 2.4, fill: W1 },
+    { x: 402, y: 360, deg: 168, s: 2.6, fill: W1 },
+    { x: -20, y: 560, deg: 14,  s: 2.8, fill: W1 },
+    { x: 360, y: -14, deg: 196, s: 2.8, fill: M1, rib: 'rgba(232, 237, 219, 0.3)' },
+    { x: -26, y: 60,  deg: 18,  s: 2.5, fill: M1 },
+    { x: 300, y: 830, deg: 188, s: 2.9, fill: M1 },
+    { x: 120, y: -50, deg: 155, s: 5.6, fill: FG, blur: 10 },
+    { x: 420, y: 660, deg: 210, s: 6.2, fill: FG, blur: 12 }
+  ]);
+
+  // J · grove night — the same grove, moonlit: layers lift lighter-than-paper
+  const NW = 'rgba(87, 145, 104, 0.09)', NM = 'rgba(87, 145, 104, 0.17)', NFG = 'rgba(120, 190, 140, 0.13)';
+  scene('flora-j', [
+    { x: 305, y: -6,  deg: 152, s: 3.2, fill: NW },
+    { x: -34, y: 208, deg: 22,  s: 2.4, fill: NW },
+    { x: 402, y: 360, deg: 168, s: 2.6, fill: NW },
+    { x: -20, y: 560, deg: 14,  s: 2.8, fill: NW },
+    { x: 360, y: -14, deg: 196, s: 2.8, fill: NM, rib: 'rgba(18, 29, 20, 0.45)' },
+    { x: -26, y: 60,  deg: 18,  s: 2.5, fill: NM },
+    { x: 300, y: 830, deg: 188, s: 2.9, fill: NM },
+    { x: 120, y: -50, deg: 155, s: 5.6, fill: NFG, blur: 10 },
+    { x: 420, y: 660, deg: 210, s: 6.2, fill: NFG, blur: 12 }
+  ]);
+</script>
+</body>
+</html>
