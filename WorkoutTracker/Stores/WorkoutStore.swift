@@ -43,18 +43,18 @@ final class WorkoutStore {
 
     var currentSession: Session? {
         _ = currentSessionOverrideRevision
-        return block.flatMap { tracker.currentSession(in: $0, overrideOrder: currentSessionOverrideOrder(in: $0)) }
+        return block.flatMap { tracker.currentSession(in: $0, override: currentSessionOverride(in: $0)) }
     }
 
     var canMoveOn: Bool {
         guard let block, let currentSession else { return false }
-        return tracker.hasSessionAhead(after: currentSession, in: block)
+        return tracker.moveOnDestination(from: currentSession, in: block).isOffered
     }
 
     var isViewingLiveEdge: Bool { displayedSession?.persistentModelID == currentSession?.persistentModelID }
     var openExercises: [Exercise] {
         guard let currentSession else { return [] }
-        return tracker.openExercises(inCurrentWeekOf: currentSession)
+        return tracker.openExercises(for: currentSession).map(\.exercise)
     }
 
     var currentSessionDebugInfo: CurrentSessionDebugInfo {
@@ -71,20 +71,20 @@ final class WorkoutStore {
             )
         }
 
-        let overrideOrder = currentSessionOverrideOrder(in: block)
-        let overrideSession = overrideOrder.flatMap { tracker.session(at: $0, in: block) }
+        let override = currentSessionOverride(in: block)
+        let overrideSession = override.flatMap { tracker.session(for: $0, in: block) }
         let sheetDerivedSession = tracker.currentSession(in: block)
-        let resolvedSession = tracker.currentSession(in: block, overrideOrder: overrideOrder)
+        let resolvedSession = tracker.currentSession(in: block, override: override)
         let isManualOverrideActive = overrideSession?.persistentModelID == resolvedSession?.persistentModelID
 
         return CurrentSessionDebugInfo(
             currentBlockTab: block.tabName,
             sheetDerivedSession: sessionLabel(for: sheetDerivedSession),
-            manualOverrideSession: manualOverrideLabel(order: overrideOrder, session: overrideSession),
+            manualOverrideSession: manualOverrideLabel(hasOverride: override != nil, session: overrideSession),
             displayedSession: sessionLabel(for: displayedSession),
             resolvedCurrentSession: sessionLabel(for: resolvedSession),
             reason: resolutionReason(
-                hasOverride: overrideOrder != nil,
+                hasOverride: override != nil,
                 isManualOverrideActive: isManualOverrideActive,
                 hasSheetDerivedSession: sheetDerivedSession != nil
             ),
@@ -96,7 +96,7 @@ final class WorkoutStore {
 
     var hasCurrentSessionOverride: Bool {
         guard let block else { return false }
-        return currentSessionOverrideOrder(in: block) != nil
+        return currentSessionOverride(in: block) != nil
     }
 
     func reload() {
@@ -134,14 +134,13 @@ final class WorkoutStore {
 
     func makeDisplayedSessionCurrent() {
         guard let block, let displayedSession else { return }
-        defaults.set(tracker.order(of: displayedSession), forKey: currentSessionOverrideKey(for: block.tabName))
-        currentSessionOverrideRevision += 1
+        persistCurrentSessionOverride(tracker.persistedIdentity(of: displayedSession), in: block)
         shouldPreserveDisplayedSessionOnReload = false
     }
 
     func resetCurrentSessionOverride() {
         guard let block else { return }
-        defaults.removeObject(forKey: currentSessionOverrideKey(for: block.tabName))
+        defaults.removeObject(forKey: tracker.currentSessionOverrideStorageKey(forBlockTab: block.tabName))
         currentSessionOverrideRevision += 1
         displayedSession = tracker.currentSession(in: block)
         shouldPreserveDisplayedSessionOnReload = false
@@ -155,7 +154,7 @@ final class WorkoutStore {
         guard
             let block,
             let currentSession,
-            tracker.hasSessionAhead(after: currentSession, in: block)
+            tracker.moveOnDestination(from: currentSession, in: block).isOffered
         else { return }
 
         moveOnCelebrationSession = currentSession
@@ -179,17 +178,16 @@ final class WorkoutStore {
     private func advance(after session: Session) {
         guard let block else { return }
 
-        guard tracker.hasSessionAhead(after: session, in: block) else { return }
-
-        guard let nextSession = tracker.nextSession(after: session, in: block) else {
-            requestBlockOverviewPresentation()
+        switch tracker.moveOnDestination(from: session, in: block) {
+        case .notOffered:
             return
+        case .returnToBlockOverview:
+            requestBlockOverviewPresentation()
+        case .advance(to: let nextSession):
+            persistCurrentSessionOverride(tracker.persistedIdentity(of: nextSession), in: block)
+            displayedSession = nextSession
+            shouldPreserveDisplayedSessionOnReload = false
         }
-
-        defaults.set(tracker.order(of: nextSession), forKey: currentSessionOverrideKey(for: block.tabName))
-        currentSessionOverrideRevision += 1
-        displayedSession = nextSession
-        shouldPreserveDisplayedSessionOnReload = false
     }
 
     // MARK: - Private Helpers
@@ -256,18 +254,18 @@ final class WorkoutStore {
         rpe.rounded() == rpe ? String(Int(rpe)) : String(rpe)
     }
 
-    private func currentSessionOverrideOrder(in block: Block) -> Int? {
-        let key = currentSessionOverrideKey(for: block.tabName)
+    /// The persisted manual Current-Session override for `block`, resolved through the
+    /// navigation module's opaque identity token so the store never reasons about the
+    /// order encoding or its versioning.
+    private func currentSessionOverride(in block: Block) -> PersistedSessionIdentity? {
+        let key = tracker.currentSessionOverrideStorageKey(forBlockTab: block.tabName)
         guard defaults.object(forKey: key) != nil else { return nil }
-        return defaults.integer(forKey: key)
+        return PersistedSessionIdentity(storageValue: defaults.integer(forKey: key))
     }
 
-    private func currentSessionOverrideKey(for tabName: String) -> String {
-        // V2: the Session order encoding changed stride (4 → 7) to support 2–6 day Weeks.
-        // A new key orphans any legacy `advancedToOrder_*` value so it can never resolve to the
-        // wrong Session under the new stride; the override simply resets to the derived Current
-        // Session once, which the athlete can re-set with one tap.
-        "advancedToOrderV2_\(tabName)"
+    private func persistCurrentSessionOverride(_ identity: PersistedSessionIdentity, in block: Block) {
+        defaults.set(identity.storageValue, forKey: tracker.currentSessionOverrideStorageKey(forBlockTab: block.tabName))
+        currentSessionOverrideRevision += 1
     }
 
     private func sessionLabel(for session: Session?) -> String {
@@ -275,8 +273,8 @@ final class WorkoutStore {
         return "Week \(week.number), Day \(session.dayNumber)"
     }
 
-    private func manualOverrideLabel(order: Int?, session: Session?) -> String {
-        guard order != nil else { return "None" }
+    private func manualOverrideLabel(hasOverride: Bool, session: Session?) -> String {
+        guard hasOverride else { return "None" }
         guard let session else { return "Saved override no longer matches this Block" }
         return sessionLabel(for: session)
     }

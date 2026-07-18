@@ -145,7 +145,7 @@ enum LiveActivityInvalidationPolicy {
         guard displayedSession === currentSession else { return true }
         guard let target = content.target else { return true }
         guard
-            let targetSession = currentWeekSessions(for: currentSession).first(where: {
+            let targetSession = SessionProgressTracker().sessionsInCurrentWeek(for: currentSession).first(where: {
                 sessionIdentity(for: $0) == target.session
             })
         else {
@@ -166,13 +166,6 @@ enum LiveActivityInvalidationPolicy {
             weekNumber: session.week?.number,
             dayNumber: session.dayNumber
         )
-    }
-
-    private static func currentWeekSessions(for session: Session) -> [Session] {
-        guard let week = session.week, !week.sessions.isEmpty else {
-            return [session]
-        }
-        return week.sessions
     }
 }
 
@@ -240,14 +233,18 @@ enum LiveActivityRestContentBuilder {
     /// projects its first Open Exercise's first Pending Set into a target. The
     /// focus engine deliberately has no counterpart to this fallback.
     private static func openExerciseFallback(for session: Session) -> RestTargetSet? {
+        // The rest fallback selects the first Pending Set of the first Open
+        // Exercise, walking the same earlier-Day / Pending-Set order the makeup
+        // queue uses. Every Open Exercise has a Pending Set by construction, so
+        // the first one always yields a target. The Pending-Set walk is owned by
+        // `SessionSetOrder`; this builder only projects its first hit.
         guard
-            let openExercise = SessionProgressTracker().openExercises(inCurrentWeekOf: session).first,
-            let openSession = openExercise.session,
-            let position = SessionSetOrder.firstPendingSet(in: [openExercise])
+            let open = SessionProgressTracker().openExercises(for: session).first,
+            let position = SessionSetOrder.firstPendingSet(in: [open.exercise])
         else {
             return nil
         }
-        return RestTargetSet(session: openSession, exercise: position.exercise, set: position.set)
+        return RestTargetSet(session: open.session, exercise: position.exercise, set: position.set)
     }
 
     private static func set(

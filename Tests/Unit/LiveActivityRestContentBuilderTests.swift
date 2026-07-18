@@ -246,6 +246,41 @@ import Testing
 }
 
 @MainActor
+@Test func openExerciseFallbackAndMakeupQueueSelectTheSameFirstPendingSet() throws {
+    // Two Open Exercises in an earlier Day; the fallback and the makeup queue
+    // read the same navigation-module query, so both must land on the first
+    // Open Exercise ("DB Row") and its first Pending Set.
+    let dbRow = makeExercise(name: "DB Row", order: 0, setStates: [.logged, .pending])
+    let curl = makeExercise(name: "Curl", order: 1, setStates: [.pending])
+    let openSession = makeSingleSession(dayNumber: 1, exercises: [dbRow, curl])
+    let currentExercise = makeExercise(name: "Bench Press", order: 0, setStates: [.logged])
+    let currentSession = makeSingleSession(dayNumber: 3, exercises: [currentExercise])
+    connectCurrentWeek([openSession, currentSession])
+    let loggedSet = try #require(currentExercise.sets.first)
+
+    let makeupQueue = SessionProgressTracker().openExercises(for: currentSession)
+    let firstOpen = try #require(makeupQueue.first)
+    let orderedSets = firstOpen.exercise.sets.sorted { $0.index < $1.index }
+    let firstPending = try #require(orderedSets.first { $0.isPending })
+
+    let content = try #require(
+        LiveActivityRestContentBuilder.content(
+            afterLogging: loggedSet,
+            in: currentSession,
+            restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
+            restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
+        )
+    )
+
+    #expect(makeupQueue.map(\.exercise.name) == ["DB Row", "Curl"])
+    #expect(content.exerciseName == firstOpen.exercise.name)
+    #expect(
+        content.target?.setID
+            == ActiveSetID(exerciseOrder: firstOpen.exercise.order, setIndex: firstPending.index)
+    )
+}
+
+@MainActor
 @Test func liveActivityOpenExerciseFallbackPicksEarliestEarlierDayFirstPendingSet() throws {
     // Two earlier Current-Week days each hold Pending Sets. Routing the makeup
     // fallback through the Open Exercise owner must still land on the *earliest*

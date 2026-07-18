@@ -20,6 +20,37 @@ enum SessionTileState: Equatable, Sendable, CaseIterable {
     }
 }
 
+/// The single outcome of a Move On, encoding the full `CONTEXT.md` Move On table
+/// as one value so callers ask for the decision instead of re-deriving it from the
+/// `hasSessionAhead` (Available *and* Unavailable) / `nextSession` (Available only)
+/// asymmetry.
+enum MoveOnDestination: Equatable {
+    /// Advance to the next Available Session, skipping any Unavailable Sessions in between.
+    case advance(to: Session)
+    /// No Available Session remains ahead, but the Block still holds Unavailable
+    /// Sessions ahead — Move On returns the athlete to the Block grid.
+    case returnToBlockOverview
+    /// Nothing lies ahead — Move On is not offered.
+    case notOffered
+
+    /// Whether Move On is offered from here — true unless nothing lies ahead. Lets a
+    /// caller gating a control ask the decision directly instead of comparing against a
+    /// case (and avoids the `Optional.none` footgun a `.none` case would invite).
+    var isOffered: Bool { self != .notOffered }
+}
+
+/// A Session's identity as persisted for the manual Current-Session override.
+///
+/// Opaque to the persistence layer: `WorkoutStore` writes and reads it verbatim to
+/// restore the athlete's manual Current Session on a later launch, without knowing
+/// that identity is a `(week-1)*stride + day` block order — or that the encoding is
+/// versioned. `storageValue` is the only thing the store persists; it carries no
+/// meaning the store is meant to decode.
+struct PersistedSessionIdentity: Equatable {
+    /// The opaque value the persistence layer stores and restores verbatim.
+    let storageValue: Int
+}
+
 struct SessionProgressTracker {
     /// Stride between Weeks when encoding a Session's block-wide order. A Week is a 7-day
     /// window, so a stride of 7 keeps order strictly increasing across Weeks for any 2–6 day
@@ -27,12 +58,40 @@ struct SessionProgressTracker {
     private static let weekOrderStride = 7
 
     /// Order index across the block: (week-1)*stride + day.
-    func order(of session: Session) -> Int {
+    private func order(of session: Session) -> Int {
         ((session.week?.number ?? 1) - 1) * Self.weekOrderStride + session.dayNumber
     }
 
-    func session(at order: Int, in block: Block) -> Session? {
+    private func session(at order: Int, in block: Block) -> Session? {
         allSessions(block).first { self.order(of: $0) == order }
+    }
+
+    /// Derive the persisted identity for `session`: the token the store writes so it
+    /// can restore this exact Session as the manual Current Session later, without
+    /// reasoning about the order encoding.
+    func persistedIdentity(of session: Session) -> PersistedSessionIdentity {
+        PersistedSessionIdentity(storageValue: order(of: session))
+    }
+
+    /// Resolve the Session a persisted identity points at within `block`, or nil when
+    /// it no longer matches — a re-parsed Block, or a value written under an older
+    /// encoding that this version deliberately orphans (see
+    /// `currentSessionOverrideStorageKey`).
+    func session(for identity: PersistedSessionIdentity, in block: Block) -> Session? {
+        session(at: identity.storageValue, in: block)
+    }
+
+    /// The UserDefaults key namespace under which `block`'s manual Current-Session
+    /// override is persisted. Namespaced to the order-encoding version so a value
+    /// written under an older encoding can never resolve to the wrong Session.
+    ///
+    /// V2: the Session order encoding changed stride (4 → 7) to support 2–6 day Weeks.
+    /// Under the new stride the same stored integer can map to a *different* Session,
+    /// so the `V2` namespace orphans any legacy `advancedToOrder_*` value; the override
+    /// simply resets to the derived Current Session once, which the athlete can re-set
+    /// with one tap.
+    func currentSessionOverrideStorageKey(forBlockTab tabName: String) -> String {
+        "advancedToOrderV2_\(tabName)"
     }
 
     func nextSession(after session: Session, in block: Block) -> Session? {
@@ -47,18 +106,30 @@ struct SessionProgressTracker {
         return allSessions(block).contains { order(of: $0) > currentOrder }
     }
 
+    /// Where a Move On from `session` lands, per the `CONTEXT.md` Move On rule:
+    /// advance to the next Available Session (skipping Unavailable ones), or — when
+    /// no Available Session remains ahead but the Block still holds Unavailable
+    /// Sessions ahead — return to the Block grid; otherwise nothing lies ahead.
+    func moveOnDestination(from session: Session, in block: Block) -> MoveOnDestination {
+        guard hasSessionAhead(after: session, in: block) else { return .notOffered }
+        if let nextSession = nextSession(after: session, in: block) {
+            return .advance(to: nextSession)
+        }
+        return .returnToBlockOverview
+    }
+
     private func allSessions(_ block: Block) -> [Session] {
         block.weeks.flatMap { $0.sessions }.sorted { order(of: $0) < order(of: $1) }
     }
 
-    func currentSession(in block: Block, overrideOrder: Int? = nil) -> Session? {
+    func currentSession(in block: Block, override identity: PersistedSessionIdentity? = nil) -> Session? {
         let sessions = allSessions(block)
         let logged = sessions.filter { s in
             s.exercises.contains { $0.sets.contains { $0.state == .logged } }
         }
         guard let derived = logged.last ?? sessions.first(where: isAvailable) else { return nil }
 
-        if let overrideOrder, let overrideSession = session(at: overrideOrder, in: block), isAvailable(overrideSession) {
+        if let identity, let overrideSession = session(for: identity, in: block), isAvailable(overrideSession) {
             return overrideSession
         }
 
@@ -69,22 +140,45 @@ struct SessionProgressTracker {
         currentSession(in: block)?.week
     }
 
-    /// The Open Exercise rule scoped to the Current Week: Exercises holding a
-    /// Pending Set in Current-Week days *earlier* than `currentSession`, in
-    /// day order then Exercise order. This is the one home for "earlier
-    /// Current-Week days still owe makeup work" — the Session list's Open
-    /// Exercises row and the Live Activity rest widget's makeup fallback both
-    /// read it, rather than each re-walking the Week.
-    func openExercises(inCurrentWeekOf currentSession: Session) -> [Exercise] {
-        guard let week = currentSession.week else { return [] }
-
+    /// The Sessions that make up the same Week as `session` — the single home for
+    /// "which Sessions belong to the Current Week".
+    ///
+    /// Membership follows the `Week.sessions` relation, not `Week.number`: two
+    /// Weeks can share a number (e.g. across re-parsed Blocks), so the relation is
+    /// the authoritative grouping. When the relation is absent or empty — a
+    /// detached Session not yet wired into its Week — this falls back to the lone
+    /// passed-in Session so callers always have at least it to scan.
+    func sessionsInCurrentWeek(for session: Session) -> [Session] {
+        guard let week = session.week, !week.sessions.isEmpty else {
+            return [session]
+        }
         return week.sessions
+    }
+
+    /// One Open Exercise: an Exercise carrying at least one Pending Set in an
+    /// earlier Day of the Current Week, paired with the Session it belongs to so
+    /// callers that need the Session (the Live Activity rest target) don't have
+    /// to reach back through a relation.
+    struct OpenExercise {
+        let session: Session
+        let exercise: Exercise
+    }
+
+    /// The Open Exercises for `currentSession`: every Exercise with a Pending Set
+    /// in an *earlier* Day of the same Current Week, ordered by Day and then by
+    /// Exercise order. This is the single home for the Open-Exercise rule — the
+    /// makeup queue and the Live Activity rest fallback both read from here, so
+    /// they cannot disagree about which earlier-Day Exercises qualify. Current-Week
+    /// membership is resolved through `sessionsInCurrentWeek(for:)`.
+    func openExercises(for currentSession: Session) -> [OpenExercise] {
+        sessionsInCurrentWeek(for: currentSession)
             .filter { $0.dayNumber < currentSession.dayNumber }
             .sorted { $0.dayNumber < $1.dayNumber }
             .flatMap { session in
                 session.exercises
                     .sorted { $0.order < $1.order }
-                    .filter { $0.hasPendingSet }
+                    .filter(\.hasPendingSet)
+                    .map { OpenExercise(session: session, exercise: $0) }
             }
     }
 
