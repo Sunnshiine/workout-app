@@ -348,7 +348,7 @@ private func sortedSessions(in block: Block) -> [Session] {
     day3.exercises[0].sets[0].state = .logged
 
     let current = try #require(SessionProgressTracker().currentSession(in: block))
-    let openExercises = SessionProgressTracker().openExercises(in: block, currentSession: current)
+    let openExercises = SessionProgressTracker().openExercises(inCurrentWeekOf: current)
 
     #expect(openExercises.map(\.baseName) == ["Squat", "Squat"])
     #expect(openExercises.map { $0.session?.dayNumber } == [1, 2])
@@ -359,7 +359,7 @@ private func sortedSessions(in block: Block) -> [Session] {
     let block = makeBlock()
     let current = try #require(SessionProgressTracker().currentSession(in: block))
 
-    let openExercises = SessionProgressTracker().openExercises(in: block, currentSession: current)
+    let openExercises = SessionProgressTracker().openExercises(inCurrentWeekOf: current)
 
     #expect(openExercises.isEmpty)
 }
@@ -377,7 +377,7 @@ private func sortedSessions(in block: Block) -> [Session] {
     week2Day1.exercises[0].sets[0].state = .logged
 
     let current = try #require(SessionProgressTracker().currentSession(in: block))
-    let openExercises = SessionProgressTracker().openExercises(in: block, currentSession: current)
+    let openExercises = SessionProgressTracker().openExercises(inCurrentWeekOf: current)
 
     #expect(current.week?.number == 2)
     #expect(openExercises.isEmpty)
@@ -393,7 +393,7 @@ private func sortedSessions(in block: Block) -> [Session] {
     day2.exercises[0].sets[0].state = .logged
 
     let current = try #require(SessionProgressTracker().currentSession(in: block))
-    let openExercises = SessionProgressTracker().openExercises(in: block, currentSession: current)
+    let openExercises = SessionProgressTracker().openExercises(inCurrentWeekOf: current)
 
     #expect(current.dayNumber == 2)
     #expect(openExercises.isEmpty)

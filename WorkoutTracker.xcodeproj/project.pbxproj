@@ -145,6 +145,7 @@
 		C4CC4FAD44BE60B6161767E3 /* WorkoutActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2123E5326C9E37226DF9C04 /* WorkoutActivityAttributes.swift */; };
 		C554580CFC38192B675DD0CA /* SheetWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D5E828A79B3360DCC9ED236 /* SheetWriter.swift */; };
 		C60156C7CEC561D20AC1055A /* SessionStagePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = E81926FD0AB55FAAECF14186 /* SessionStagePresentation.swift */; };
+		A1B2C3D400000000000000A1 /* SessionSetOrder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000000000000B1 /* SessionSetOrder.swift */; };
 		C6DC904BF1DB120F03C23247 /* ActiveSetPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45F91B801F53F1BE850F7194 /* ActiveSetPresentation.swift */; };
 		C87ECF69561BD6EB9CF88D34 /* MoveOnCelebrationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D31B56C933A2BA56D448FAC8 /* MoveOnCelebrationView.swift */; };
 		C922073179505394019F37F3 /* PillStepperButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 084BC3BB6CECB164739792A0 /* PillStepperButton.swift */; };
@@ -410,6 +411,7 @@
 		E31CB80B71F35E4D4A35FE87 /* SessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionView.swift; sourceTree = "<group>"; };
 		E3B15FEFD6BDE5D8F1A71800 /* GoogleSheetsClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleSheetsClient.swift; sourceTree = "<group>"; };
 		E81926FD0AB55FAAECF14186 /* SessionStagePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStagePresentation.swift; sourceTree = "<group>"; };
+		A1B2C3D400000000000000B1 /* SessionSetOrder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSetOrder.swift; sourceTree = "<group>"; };
 		EA4AD15FD378F46C1F552857 /* OpenExerciseRowPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenExerciseRowPresentation.swift; sourceTree = "<group>"; };
 		EBC777FCDEC9F7D51883113F /* LastPerformedExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastPerformedExtractor.swift; sourceTree = "<group>"; };
 		D1E2F3A4B5C6D7E8F9012345 /* LastPerformedOccurrence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastPerformedOccurrence.swift; sourceTree = "<group>"; };
@@ -556,6 +558,7 @@
 				2694D7B8CE96A7BA65917D8A /* SessionCoordinator.swift */,
 				51D77DD81D71D5E9E046E80F /* SessionFocusMorphPolicy.swift */,
 				3DE918A15498A36B4EC413FD /* SessionProgressTracker.swift */,
+				A1B2C3D400000000000000B1 /* SessionSetOrder.swift */,
 				E81926FD0AB55FAAECF14186 /* SessionStagePresentation.swift */,
 				FCE536596991762BAEEF006D /* SmartValuePillsForm.swift */,
 				0A7DE7A3ADF7567E4E60F24E /* SupersetState.swift */,
@@ -1170,6 +1173,7 @@
 				0D3E6DBCFE1881EE177EDEAE /* SessionProgressTracker.swift in Sources */,
 				DC06ADE06F23B6F4996EDE77 /* SessionQueueSheet.swift in Sources */,
 				C60156C7CEC561D20AC1055A /* SessionStagePresentation.swift in Sources */,
+				A1B2C3D400000000000000A1 /* SessionSetOrder.swift in Sources */,
 				263DC76714A051B3A2633BEC /* SessionStageSetDots.swift in Sources */,
 				993CEE6B1CC5F53D2830F6A0 /* SessionStageView.swift in Sources */,
 				C284DB7EB4E8BFC59D3ECBB1 /* SessionTile.swift in Sources */,

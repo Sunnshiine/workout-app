@@ -48,7 +48,7 @@ final class ActiveSetFocusManager {
     private var expandedCompletedExerciseOrders: Set<Int> = []
 
     init(session: Session?) {
-        activeSetID = session.flatMap(Self.firstPendingSetID)
+        activeSetID = session.flatMap { SessionSetOrder.firstPendingSet(in: $0)?.setID }
     }
 
     var visualFocusOwner: ActiveSetVisualFocusOwner? {
@@ -59,7 +59,7 @@ final class ActiveSetFocusManager {
     }
 
     func reset(to session: Session?) {
-        let nextSetID = session.flatMap(Self.firstPendingSetID)
+        let nextSetID = session.flatMap { SessionSetOrder.firstPendingSet(in: $0)?.setID }
         if let session {
             supersetState.refresh(in: session)
             activeSetID = supersetState.focusedSetID(whenNormalFocusIs: nextSetID, in: session)
@@ -216,50 +216,7 @@ final class ActiveSetFocusManager {
     }
 
     static func id(for set: ExerciseSet) -> ActiveSetID? {
-        guard let exercise = set.exercise else { return nil }
-        return ActiveSetID(exerciseOrder: exercise.order, setIndex: set.index)
-    }
-
-    private static func firstPendingSetID(in session: Session) -> ActiveSetID? {
-        sortedExercises(in: session)
-            .lazy
-            .flatMap { exercise in
-                sortedSets(in: exercise).map { set in
-                    (exercise: exercise, set: set)
-                }
-            }
-            .first { $0.set.state == .pending }
-            .map { ActiveSetID(exerciseOrder: $0.exercise.order, setIndex: $0.set.index) }
-    }
-
-    private static func nextPendingSetID(after set: ExerciseSet, in session: Session) -> ActiveSetID? {
-        guard let currentID = id(for: set) else {
-            return firstPendingSetID(in: session)
-        }
-        return orderedSets(in: session)
-            .drop { pair in
-                ActiveSetID(exerciseOrder: pair.exercise.order, setIndex: pair.set.index) != currentID
-            }
-            .dropFirst()
-            .first { $0.set.state == .pending }
-            .map { ActiveSetID(exerciseOrder: $0.exercise.order, setIndex: $0.set.index) }
-            ?? firstPendingSetID(in: session)
-    }
-
-    private static func orderedSets(in session: Session) -> [(exercise: Exercise, set: ExerciseSet)] {
-        sortedExercises(in: session).flatMap { exercise in
-            sortedSets(in: exercise).map { set in
-                (exercise: exercise, set: set)
-            }
-        }
-    }
-
-    private static func sortedExercises(in session: Session) -> [Exercise] {
-        session.exercises.sorted { $0.order < $1.order }
-    }
-
-    private static func sortedSets(in exercise: Exercise) -> [ExerciseSet] {
-        exercise.sets.sorted { $0.index < $1.index }
+        set.exercise.map { SessionSetPosition(exercise: $0, set: set).setID }
     }
 
     private func sectionState(for exercises: [Exercise]) -> SupersetSectionState? {
@@ -290,7 +247,7 @@ final class ActiveSetFocusManager {
         if let supersetNextSetID = supersetState.nextSetID(after: set, in: session) {
             return (supersetNextSetID, false)
         }
-        let normalNextSetID = Self.nextPendingSetID(after: set, in: session)
+        let normalNextSetID = SessionSetOrder.nextPendingSet(after: set, in: session)?.setID
         let activatesPlannedSuperset = supersetState.willActivatePlannedSuperset(
             whenNormalFocusIs: normalNextSetID,
             in: session

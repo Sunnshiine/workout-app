@@ -7,7 +7,7 @@ import Testing
 @Test func openExerciseRowReadsBaseNamePendingSetsAndSource() throws {
     let scenario = WorkoutScenarios.openExercises()
     let current = try #require(scenario.currentSession)
-    let open = scenario.tracker.openExercises(in: scenario.block, currentSession: current)
+    let open = scenario.tracker.openExercises(inCurrentWeekOf: current)
     let backSquat = try #require(open.first)
 
     let row = OpenExerciseRowPresentation(exercise: backSquat)
@@ -21,7 +21,7 @@ import Testing
 @Test func openExerciseRowPluralizesPendingSets() throws {
     let scenario = WorkoutScenarios.openExercises()
     let current = try #require(scenario.currentSession)
-    let open = scenario.tracker.openExercises(in: scenario.block, currentSession: current)
+    let open = scenario.tracker.openExercises(inCurrentWeekOf: current)
     let backSquat = try #require(open.first)
     backSquat.sets.append(
         ExerciseSet(index: 2, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil, state: .pending)
