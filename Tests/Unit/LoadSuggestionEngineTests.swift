@@ -6,19 +6,21 @@ import Testing
     #expect(
         LoadSuggestionEngine.suggest(
             prescribedLoad: "Drop 17.5%",
+            percentOneRM: nil,
             previousSetWeight: 225,
             trainingMax: nil
-        ) == 185
+        ) == .weight(185)
     )
 }
 
 @Test func suggestsLoadForPercentOneRMPrescriptionFromTrainingMax() {
     #expect(
         LoadSuggestionEngine.suggest(
-            prescribedLoad: "75%1RM",
+            prescribedLoad: "RPE6",
+            percentOneRM: "75%",
             previousSetWeight: nil,
             trainingMax: 265
-        ) == 200
+        ) == .weight(200)
     )
 }
 
@@ -26,36 +28,62 @@ import Testing
     #expect(
         LoadSuggestionEngine.suggest(
             prescribedLoad: "Drop 12%",
+            percentOneRM: nil,
             previousSetWeight: 185,
             trainingMax: nil
-        ) == 162.5
+        ) == .weight(162.5)
     )
 }
 
-@Test("Unsupported Prescribed Load returns no Load Suggestion", arguments: ["RPE 6", "RPE6", "BW", "Start conservative"])
-func unsupportedPrescribedLoadReturnsNil(prescribedLoad: String) {
+@Test func bodyweightPrescriptionPreFillsBodyweight() {
+    #expect(
+        LoadSuggestionEngine.suggest(
+            prescribedLoad: "BW",
+            percentOneRM: nil,
+            previousSetWeight: nil,
+            trainingMax: nil
+        ) == .bodyweight
+    )
+}
+
+@Test func bodyweightWinsOverAPresentPercentOneRM() {
+    #expect(
+        LoadSuggestionEngine.suggest(
+            prescribedLoad: "BW",
+            percentOneRM: "75%",
+            previousSetWeight: nil,
+            trainingMax: 265
+        ) == .bodyweight
+    )
+}
+
+@Test("Unsupported Prescribed Load returns no Load Suggestion", arguments: ["RPE 6", "RPE6", "Start conservative"])
+func unsupportedPrescribedLoadReturnsNone(prescribedLoad: String) {
     #expect(
         LoadSuggestionEngine.suggest(
             prescribedLoad: prescribedLoad,
+            percentOneRM: nil,
             previousSetWeight: 225,
             trainingMax: 265
-        ) == nil
+        ) == .noSuggestion
     )
 }
 
-@Test func missingContextReturnsNilForLoadSuggestion() {
+@Test func missingContextReturnsNoneForLoadSuggestion() {
     #expect(
         LoadSuggestionEngine.suggest(
             prescribedLoad: "Drop 17.5%",
+            percentOneRM: nil,
             previousSetWeight: nil,
             trainingMax: 265
-        ) == nil
+        ) == .noSuggestion
     )
     #expect(
         LoadSuggestionEngine.suggest(
-            prescribedLoad: "75%1RM",
+            prescribedLoad: "RPE6",
+            percentOneRM: "75%",
             previousSetWeight: 225,
             trainingMax: nil
-        ) == nil
+        ) == .noSuggestion
     )
 }

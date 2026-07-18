@@ -5,7 +5,7 @@ import Testing
 @MainActor
 @Test func weightPillPrefillsFromLoadSuggestion() {
     let form = SmartValuePillsForm(
-        set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "75%1RM", percentOneRM: nil, state: .pending),
+        set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE6", percentOneRM: "75%", state: .pending),
         previousSetWeight: nil,
         trainingMax: 265
     )
@@ -31,6 +31,18 @@ import Testing
         set: ExerciseSet(index: 0, prescribedReps: "12", prescribedLoad: "BW", percentOneRM: nil, state: .pending),
         previousSetWeight: nil,
         trainingMax: nil
+    )
+
+    #expect(form.weightText == "BW")
+    #expect(form.weightDisplay == "BW")
+}
+
+@MainActor
+@Test func weightPillPrefersBodyweightOverAPresentPercentOneRM() {
+    let form = SmartValuePillsForm(
+        set: ExerciseSet(index: 0, prescribedReps: "12", prescribedLoad: "BW", percentOneRM: "75%", state: .pending),
+        previousSetWeight: nil,
+        trainingMax: 265
     )
 
     #expect(form.weightText == "BW")
@@ -297,7 +309,7 @@ import Testing
     #expect(logged.repsText == "7")
     #expect(logged.rpeText == "8")
 
-    let suggestedSet = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "75%1RM", percentOneRM: nil, state: .pending)
+    let suggestedSet = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "", percentOneRM: "75%", state: .pending)
     var suggested = SmartValuePillsForm(set: suggestedSet, previousSetWeight: nil, trainingMax: 265)
     suggested.weightText = "190"
 
@@ -350,7 +362,7 @@ import Testing
     #expect(prescribed.canLog)
 
     let noPrescribedRPE = SmartValuePillsForm(
-        set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "75%1RM", percentOneRM: nil, state: .pending),
+        set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "", percentOneRM: "75%", state: .pending),
         previousSetWeight: nil,
         trainingMax: 265
     )

@@ -212,29 +212,24 @@ struct SmartValuePillsForm {
         return rpe
     }
 
-    private static func loadSuggestionPrescription(for set: ExerciseSet) -> String {
-        if let percentOneRM = set.percentOneRM {
-            return "\(percentOneRM)1RM"
-        }
-        return set.prescribedLoad
-    }
-
     private static func initialWeightText(
         for set: ExerciseSet,
         previousSetWeight: Double?,
         trainingMax: Double?
     ) -> String {
-        if set.prescribedLoad.caseInsensitiveCompare("BW") == .orderedSame {
+        switch LoadSuggestionEngine.suggest(
+            prescribedLoad: set.prescribedLoad,
+            percentOneRM: set.percentOneRM,
+            previousSetWeight: previousSetWeight,
+            trainingMax: trainingMax
+        ) {
+        case .weight(let weight):
+            return weight.weightLabel
+        case .bodyweight:
             return "BW"
+        case .noSuggestion:
+            return ""
         }
-        return
-            LoadSuggestionEngine
-            .suggest(
-                prescribedLoad: loadSuggestionPrescription(for: set),
-                previousSetWeight: previousSetWeight,
-                trainingMax: trainingMax
-            )?
-            .weightLabel ?? ""
     }
 
     private static func initialRepsText(for prescribedReps: String) -> String {
