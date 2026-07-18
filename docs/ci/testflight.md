@@ -57,10 +57,12 @@ upload.
 ## Pipeline shape
 
 macOS job (40-min timeout): `xcodegen generate` → write `Secrets.xcconfig`
-from secrets → PlistBuddy stamping → `xcodebuild archive` with **cloud
-signing** (`-allowProvisioningUpdates` + the ASC API key; no fastlane, no cert
-exports — profiles for all four bundle ids are managed headlessly) →
-`-exportArchive` (`app-store-connect`, automatic signing,
+from secrets → PlistBuddy stamping → import the signing certs into a
+throwaway keychain (see [Signing certificates](#signing-certificates)) →
+`xcodebuild archive` with automatic signing (`-allowProvisioningUpdates` +
+the ASC API key; no fastlane — profiles for all four bundle ids are managed
+headlessly, signed with the imported identities) → `-exportArchive`
+(`app-store-connect`, automatic signing,
 `manageAppVersionAndBuildNumber: false`) → `.ipa` artifact.
 
 Linux job: `apple-actions/upload-testflight-build@v5` (AppStoreAPI backend,
@@ -91,6 +93,60 @@ Names and locations only — never record values (public repo).
 | `DEV_GID_CLIENT_ID` | "WorkoutTracker Dev iOS" client ID | PR archive job (written into `Secrets.xcconfig`) | same console, client for `com.sunnypatel.WorkoutTracker.dev` | as above, for the dev client |
 | `DEV_GID_REVERSED_CLIENT_ID` | its reversed form | same | derived | with `DEV_GID_CLIENT_ID` |
 | `AGENT_PAT` | pre-existing agent PAT (Sandcastle pipeline) | applying the `testflight` label from automation | pre-existing | unchanged by this pipeline |
+| `DIST_CERT_P12_BASE64` | the Apple Distribution certificate + private key (`.p12`), base64-encoded | archive jobs, both workflows | exported from the Mac that generated the cert — see [Signing certificates](#signing-certificates) | Re-export and update when the cert is renewed/replaced (certs last ~1 year) |
+| `DIST_CERT_PASSWORD` | the password chosen when exporting that `.p12` | same | chosen at export time | rotates with `DIST_CERT_P12_BASE64` |
+| `DEV_CERT_P12_BASE64` | an Apple Development certificate + private key (`.p12`), base64-encoded — archives are dev-signed before export re-signs them | same | exported from a Mac whose keychain holds a dev cert's key | as above |
+| `DEV_CERT_PASSWORD` | the password chosen when exporting that `.p12` | same | chosen at export time | rotates with `DEV_CERT_P12_BASE64` |
+
+## Signing certificates
+
+Both workflows sign with **imported** certificates rather than letting cloud
+signing mint them.
+
+**Why (July 2026 incident)**: `xcodebuild archive` with automatic signing
+dev-signs the archive; Apple Distribution only comes into play at
+`-exportArchive`. On an ephemeral runner the keychain is empty, so every
+cloud-signing run minted a **new Apple Development certificate** via the ASC
+API — whose private key died with the runner. After ~12 runs the account hit
+Apple's certificate ceiling and archives started dying with *"Choose a
+certificate to revoke. Your account has reached the maximum number of
+certificates"*, followed by "No profiles found" for every bundle id (no
+usable cert → no profile can be created). At that point the account held 12
+orphaned `Created via API` Development certs, zero Distribution certs, and
+zero profiles (the pipeline had never reached export). The `ASC Signing
+Inventory` workflow (`.github/workflows/asc-signing-inventory.yml`) lists
+the account's certs/profiles — metadata only — to verify this state; run it
+via `workflow_dispatch` (or, pre-merge, by pushing a change to the file).
+
+Automatic signing only creates a certificate when the keychain has no valid
+identity, so the archive job decodes both `.p12` secrets into a throwaway
+keychain first: the Apple Development identity signs the archive, the Apple
+Distribution identity signs the export, and `-allowProvisioningUpdates`
+manages the four profiles — profiles have no ceiling and stay headless.
+
+**Producing the two `.p12` secrets** (each cert is only usable in CI
+together with its private key, which lives in the keychain of the Mac that
+created it):
+
+1. *Apple Development*: already exists — Keychain Access → login keychain →
+   **My Certificates** → `Apple Development: <name>` with a disclosure
+   triangle (= private key present).
+2. *Apple Distribution*: create one (the distribution slots are free):
+   Xcode → Settings → Accounts → *Manage Certificates…* → **+** →
+   *Apple Distribution*. It lands in the login keychain with its key.
+3. Export each: right-click → *Export…* → format **.p12**, choose a
+   password. Then `base64 -i <file>.p12 | pbcopy` → paste into
+   `DIST_CERT_P12_BASE64` / `DEV_CERT_P12_BASE64`; passwords go in
+   `DIST_CERT_PASSWORD` / `DEV_CERT_PASSWORD`.
+
+**Optional cleanup**: the 12 `Created via API` Development certs are
+unusable junk (their keys are unrecoverable) and can be revoked in the
+[developer portal](https://developer.apple.com/account/resources/certificates/list)
+to free the ceiling — revoking them breaks nothing since nothing was ever
+signed and shipped with them, and no profiles reference them. Keep the
+`Sunny Patel` Development certs: their keys live on real Macs. This cleanup
+is not required once the imported identities are in place (nothing mints
+certs anymore), but it leaves headroom if the import step is ever bypassed.
 
 ## Version bumping
 

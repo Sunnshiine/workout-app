@@ -50,6 +50,15 @@ jobs:
           printf 'GID_CLIENT_ID = %s\nGID_REVERSED_CLIENT_ID = %s\n' \
             "$GID_CLIENT_ID" "$GID_REVERSED_CLIENT_ID" > Secrets.xcconfig
 
+      # actool in the runner's Xcode (26.5) cannot open the repo's Icon
+      # Composer documents during the thinned device compile ("Cannot Open
+      # AppIconDev.icon" + nil-insert crash), though simulator builds accept
+      # them. Drop them before generating the project so release builds ship
+      # the raster .appiconset fallbacks; the glass icons stay in the repo
+      # for local builds until re-authored in Icon Composer.
+      - name: Use raster app icons (drop Icon Composer documents)
+        run: rm -rf WorkoutTracker/AppIcon.icon WorkoutTracker/AppIconDev.icon
+
       # The committed xcodeproj may lag project.yml; the release build always
       # regenerates so signing style, bundle-id composition, and Info.plist
       # properties come from project.yml.
@@ -78,8 +87,42 @@ jobs:
           ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
         run: printf '%s\n' "$ASC_PRIVATE_KEY" > "$RUNNER_TEMP/AuthKey.p8"
 
-      # Cloud signing: -allowProvisioningUpdates + the ASC key creates and
-      # repairs certs/profiles for app + widget headlessly.
+      # The account is at Apple's certificate ceiling because every previous
+      # cloud-signing run minted a fresh Apple Development cert on its
+      # ephemeral runner (the key dies with the runner). Importing stable
+      # identities makes automatic signing reuse them instead of minting:
+      # Apple Development signs the archive, Apple Distribution signs the
+      # export, and -allowProvisioningUpdates only manages profiles (no
+      # ceiling). Export/rotation steps: docs/ci/testflight.md.
+      - name: Import signing certificates
+        env:
+          DIST_CERT_P12_BASE64: ${{ secrets.DIST_CERT_P12_BASE64 }}
+          DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
+          DEV_CERT_P12_BASE64: ${{ secrets.DEV_CERT_P12_BASE64 }}
+          DEV_CERT_PASSWORD: ${{ secrets.DEV_CERT_PASSWORD }}
+        run: |
+          if [ -z "$DIST_CERT_P12_BASE64" ] || [ -z "$DEV_CERT_P12_BASE64" ]; then
+            echo "::error::DIST_CERT_P12_BASE64 and/or DEV_CERT_P12_BASE64 secrets are not set. Without imported identities, cloud signing mints a new cert per run and fails at the account's certificate ceiling — see docs/ci/testflight.md (Signing certificates)."
+            exit 1
+          fi
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          printf '%s' "$DIST_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/dist.p12"
+          printf '%s' "$DEV_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/dev.p12"
+          security import "$RUNNER_TEMP/dist.p12" -k "$KEYCHAIN" \
+            -P "$DIST_CERT_PASSWORD" -A -t cert -f pkcs12
+          security import "$RUNNER_TEMP/dev.p12" -k "$KEYCHAIN" \
+            -P "$DEV_CERT_PASSWORD" -A -t cert -f pkcs12
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
+          rm "$RUNNER_TEMP/dist.p12" "$RUNNER_TEMP/dev.p12"
+
+      # -allowProvisioningUpdates + the ASC key creates and repairs the
+      # profiles for app + widget headlessly, signing with the imported cert.
       - name: Archive
         run: |
           xcodebuild archive \
@@ -135,6 +178,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
+      # Checkout before the artifact download (checkout cleans the workspace) so
+      # the best-effort notes script below is available.
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           name: stable-ipa
@@ -164,6 +211,11 @@ jobs:
             const url = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/commit/${context.sha}`;
             core.setOutput('notes', `main @ ${shortSha} — ${subject}\n${url}`);
 
+      # release-notes is set separately below, not here: the action's own note
+      # write polls a beta-localization record that lags ~10 min on a new app's
+      # first builds and would fail an upload that actually succeeded. Keeping
+      # wait-for-processing means genuine processing/validation failures still
+      # fail the job.
       - name: Upload to TestFlight and wait for processing
         uses: apple-actions/upload-testflight-build@v5
         with:
@@ -171,5 +223,17 @@ jobs:
           issuer-id: ${{ secrets.ASC_ISSUER_ID }}
           api-key-id: ${{ secrets.ASC_KEY_ID }}
           api-private-key: ${{ secrets.ASC_PRIVATE_KEY }}
-          release-notes: ${{ steps.notes.outputs.notes }}
           wait-for-processing: true
+
+      # Best-effort: the build is already on TestFlight and VALID, so a slow or
+      # missing localization record must not fail the job. See the script header.
+      - name: Attach "What to Test" notes (best-effort)
+        continue-on-error: true
+        env:
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          BUNDLE_ID: com.sunnypatel.WorkoutTracker
+          BUILD_VERSION: ${{ github.run_number }}
+          WHAT_TO_TEST: ${{ steps.notes.outputs.notes }}
+        run: node scripts/ci/attach-testflight-notes.mjs

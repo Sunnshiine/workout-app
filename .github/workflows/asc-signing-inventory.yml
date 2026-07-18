@@ -1,0 +1,103 @@
+name: ASC Signing Inventory
+
+# Diagnostic: lists the Apple Developer account's certificates and
+# provisioning profiles via the App Store Connect API (the same ASC key the
+# TestFlight workflows use). Metadata only — types, names, states, expiry
+# dates — never key material or serial numbers, so the public log stays safe.
+#
+# Use it to answer "what is occupying the Distribution certificate ceiling?"
+# and "which profiles exist for the four bundle ids?" before touching signing.
+# Context: docs/ci/testflight.md.
+
+# The push trigger is self-scoped: workflow_dispatch by filename only works
+# once the file exists on the default branch, so editing this file (even a
+# comment tweak) on any branch is the way to run it pre-merge.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/asc-signing-inventory.yml"
+
+permissions: {}
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Presence booleans only — never values. Answers "are the signing
+      # secrets the TestFlight workflows expect actually configured?"
+      - name: Check signing secret presence
+        env:
+          HAS_DIST_P12: ${{ secrets.DIST_CERT_P12_BASE64 != '' }}
+          HAS_DIST_PW: ${{ secrets.DIST_CERT_PASSWORD != '' }}
+          HAS_DEV_P12: ${{ secrets.DEV_CERT_P12_BASE64 != '' }}
+          HAS_DEV_PW: ${{ secrets.DEV_CERT_PASSWORD != '' }}
+        run: |
+          echo "DIST_CERT_P12_BASE64 set: $HAS_DIST_P12"
+          echo "DIST_CERT_PASSWORD  set: $HAS_DIST_PW"
+          echo "DEV_CERT_P12_BASE64  set: $HAS_DEV_P12"
+          echo "DEV_CERT_PASSWORD   set: $HAS_DEV_PW"
+
+      - name: List certificates and profiles
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: |
+          python3 -m pip install --quiet --user pyjwt cryptography requests
+          python3 - <<'PY'
+          import os, time, jwt, requests
+
+          now = int(time.time())
+          token = jwt.encode(
+              {"iss": os.environ["ASC_ISSUER_ID"], "iat": now - 60,
+               "exp": now + 19 * 60, "aud": "appstoreconnect-v1"},
+              os.environ["ASC_PRIVATE_KEY"], algorithm="ES256",
+              headers={"kid": os.environ["ASC_KEY_ID"], "typ": "JWT"})
+          headers = {"Authorization": f"Bearer {token}"}
+          api = "https://api.appstoreconnect.apple.com/v1"
+
+          r = requests.get(f"{api}/certificates?limit=200", headers=headers)
+          r.raise_for_status()
+          print("== Certificates ==")
+          for c in r.json()["data"]:
+              a = c["attributes"]
+              print(f'{c["id"]:12}  {a.get("certificateType") or "?":24}  '
+                    f'platform={a.get("platform")}  expires={a.get("expirationDate")}  '
+                    f'name={a.get("displayName")!r}')
+
+          r = requests.get(f"{api}/devices?limit=200", headers=headers)
+          r.raise_for_status()
+          print("\n== Devices ==")
+          for d in r.json()["data"]:
+              a = d["attributes"]
+              print(f'{d["id"]:12}  class={a.get("deviceClass")}  '
+                    f'platform={a.get("platform")}  status={a.get("status")}  '
+                    f'name={a.get("name")!r}')
+
+          r = requests.get(f"{api}/bundleIds?limit=200", headers=headers)
+          r.raise_for_status()
+          print("\n== Bundle IDs (registered App IDs) ==")
+          for b in r.json()["data"]:
+              a = b["attributes"]
+              print(f'{b["id"]:12}  platform={a.get("platform")}  '
+                    f'identifier={a.get("identifier")}  name={a.get("name")!r}')
+
+          r = requests.get(f"{api}/profiles?limit=200&include=bundleId,certificates",
+                           headers=headers)
+          r.raise_for_status()
+          body = r.json()
+          bundle_ids = {i["id"]: i["attributes"].get("identifier")
+                        for i in body.get("included", []) if i["type"] == "bundleIds"}
+          print("\n== Profiles ==")
+          for p in body["data"]:
+              a = p["attributes"]
+              rel = p.get("relationships", {})
+              bid = (rel.get("bundleId", {}).get("data") or {}).get("id")
+              certs = [d["id"] for d in (rel.get("certificates", {}).get("data") or [])]
+              print(f'{p["id"]:12}  {a.get("profileType") or "?":28}  '
+                    f'state={a.get("profileState")}  expires={a.get("expirationDate")}  '
+                    f'bundleId={bundle_ids.get(bid)}  certs={certs}  '
+                    f'name={a.get("name")!r}')
+          PY
