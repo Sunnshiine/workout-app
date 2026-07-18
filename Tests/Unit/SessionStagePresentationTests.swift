@@ -277,6 +277,32 @@ struct SessionStagePresentationTests {
         #expect(staged?.index == 2)
     }
 
+    @Test func stageItemWalksBothSupersetExercisesInExerciseThenSetIndexOrder() throws {
+        // A Superset render item flattens both Exercises' Sets in Exercise-order
+        // then Set-index order, and its next-Pending reading skips the leading
+        // Logged/Skipped Sets to the first Pending one (the third Press Set).
+        let press = makeExercise(name: "Press", order: 1, setStates: [.logged, .skipped, .pending])
+        let row = makeExercise(name: "Row", order: 2, setStates: [.pending, .logged])
+        let item = SessionStagePresentation.items([try supersetItem(press, row)])[0]
+        let pressPending = try #require(press.sets.first { $0.index == 2 })
+
+        #expect(item.sortedSets.map(\.index) == [0, 1, 2, 0, 1])
+        #expect(item.sortedSets.first === press.sets.first { $0.index == 0 })
+        #expect(item.sortedSets.last === row.sets.first { $0.index == 1 })
+        #expect(item.nextPendingSet === pressPending)
+    }
+
+    @Test func stageSetSkipsSettledSetsToTheFirstPendingSet() {
+        // With a Logged/Skipped/Pending/Pending Exercise and no active Set, the
+        // stage falls back to the first Pending Set — the third Set.
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged, .skipped, .pending, .pending])
+        let item = SessionStagePresentation.items([exerciseItem(squat)])[0]
+
+        let staged = SessionStagePresentation.stageSet(activeSetID: nil, in: item.sortedSets)
+
+        #expect(staged === squat.sets.first { $0.index == 2 })
+    }
+
     @Test func stageSetIsNilWhenNothingIsPending() {
         let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged, .skipped])
         let sortedSets = SessionStagePresentation.items([exerciseItem(squat)])[0].sortedSets

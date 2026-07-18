@@ -219,69 +219,39 @@ enum LiveActivityRestContentBuilder {
             }
         }
 
-        if let sessionTarget = nextPendingSet(after: loggedSet, in: session) {
+        if let sessionTarget = SessionSetOrder.nextPendingSet(after: loggedSet, in: session) {
             return RestTargetSet(session: session, exercise: sessionTarget.exercise, set: sessionTarget.set)
         }
 
         return openExerciseFallback(for: session)
     }
 
-    private static func nextPendingSet(
-        after loggedSet: ExerciseSet,
-        in session: Session
-    ) -> (exercise: Exercise, set: ExerciseSet)? {
-        guard let loggedSetID = ActiveSetFocusManager.id(for: loggedSet) else {
-            return firstPendingSet(in: session)
-        }
-
-        let orderedSets = orderedSets(in: session)
-        return
-            orderedSets
-            .drop { pair in
-                ActiveSetID(exerciseOrder: pair.exercise.order, setIndex: pair.set.index) != loggedSetID
-            }
-            .dropFirst()
-            .first { $0.set.isPending }
-            ?? orderedSets.first { $0.set.isPending }
-    }
-
+    /// The widget-only makeup fallback: when the Current Session has no Pending
+    /// Set left, point the rest widget at the earliest earlier Current-Week day
+    /// that still owes work. The earlier-day selection is the Open Exercise
+    /// owner's rule (`SessionProgressTracker.openExercises`); this builder only
+    /// projects its first Open Exercise's first Pending Set into a target. The
+    /// focus engine deliberately has no counterpart to this fallback.
     private static func openExerciseFallback(for session: Session) -> RestTargetSet? {
         // The rest fallback selects the first Pending Set of the first Open
         // Exercise, walking the same earlier-Day / Pending-Set order the makeup
         // queue uses. Every Open Exercise has a Pending Set by construction, so
-        // the first one always yields a target.
+        // the first one always yields a target. The Pending-Set walk is owned by
+        // `SessionSetOrder`; this builder only projects its first hit.
         guard
             let open = SessionProgressTracker().openExercises(for: session).first,
-            let set = sortedSets(in: open.exercise).first(where: \.isPending)
+            let position = SessionSetOrder.firstPendingSet(in: [open.exercise])
         else {
             return nil
         }
-        return RestTargetSet(session: open.session, exercise: open.exercise, set: set)
+        return RestTargetSet(session: open.session, exercise: position.exercise, set: position.set)
     }
 
     private static func set(
         for setID: ActiveSetID,
         in session: Session
-    ) -> (exercise: Exercise, set: ExerciseSet)? {
-        orderedSets(in: session).first { pair in
-            ActiveSetID(exerciseOrder: pair.exercise.order, setIndex: pair.set.index) == setID
-        }
-    }
-
-    private static func orderedSets(in session: Session) -> [(exercise: Exercise, set: ExerciseSet)] {
-        session.exercises
-            .sorted { $0.order < $1.order }
-            .flatMap { exercise in
-                sortedSets(in: exercise).map { (exercise, $0) }
-            }
-    }
-
-    private static func sortedSets(in exercise: Exercise) -> [ExerciseSet] {
-        exercise.sets.sorted { $0.index < $1.index }
-    }
-
-    private static func firstPendingSet(in session: Session) -> (exercise: Exercise, set: ExerciseSet)? {
-        orderedSets(in: session).first { $0.set.isPending }
+    ) -> SessionSetPosition? {
+        SessionSetOrder.orderedSets(in: session).first { $0.setID == setID }
     }
 
     private static func sessionIdentity(for session: Session) -> LiveActivitySessionIdentity {

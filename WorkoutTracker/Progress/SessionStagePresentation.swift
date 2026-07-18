@@ -25,11 +25,7 @@ struct SessionStageItem: Identifiable {
     }
 
     var sortedSets: [ExerciseSet] {
-        exercises
-            .sorted { $0.order < $1.order }
-            .flatMap { exercise in
-                exercise.sets.sorted { $0.index < $1.index }
-            }
+        SessionSetOrder.orderedSets(in: exercises).map(\.set)
     }
 
     var completedSetCount: Int {
@@ -41,7 +37,7 @@ struct SessionStageItem: Identifiable {
     }
 
     var nextPendingSet: ExerciseSet? {
-        sortedSets.first(where: \.isPending)
+        SessionSetOrder.firstPendingSet(in: exercises)?.set
     }
 
     func contains(_ setID: ActiveSetID?) -> Bool {
@@ -124,11 +120,13 @@ enum SessionStagePresentation {
     }
 
     /// The Set on stage: the coordinator's active Set, else the next pending one.
+    /// `sortedSets` already carries the shared owner's Set order, so the fallback
+    /// is that order's first Pending Set under the single `isPending` predicate.
     static func stageSet(activeSetID: ActiveSetID?, in sortedSets: [ExerciseSet]) -> ExerciseSet? {
         if let set = set(matching: activeSetID, in: sortedSets) {
             return set
         }
-        return sortedSets.first { $0.state == .pending }
+        return sortedSets.first(where: \.isPending)
     }
 
     static func set(matching id: ActiveSetID?, in sortedSets: [ExerciseSet]) -> ExerciseSet? {

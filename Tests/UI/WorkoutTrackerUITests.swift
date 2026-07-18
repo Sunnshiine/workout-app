@@ -70,6 +70,20 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
     }
 
     @MainActor
+    func testBuildIdentityFooterShowsAndCopiesOnTap() throws {
+        let app = launchSettingsFixtureApp()
+
+        let footer = app.buttons["settings-build-identity-footer"]
+        XCTAssertTrue(footer.waitForExistence(timeout: 3))
+
+        // Local (unstamped) test builds surface the version pair plus a "local build" note.
+        XCTAssertTrue(footer.label.contains("local build"))
+
+        footer.tap()
+        XCTAssertTrue(app.buttons["Copied"].waitForExistence(timeout: 3))
+    }
+
+    @MainActor
     func testOpenExerciseMakeupFlowShowsLastPerformedAndLogsSet() throws {
         let app = launchFixtureApp(options: [.openExercises])
 
