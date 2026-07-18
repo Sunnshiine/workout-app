@@ -58,6 +58,25 @@ private func makePlannedSupersetSession() -> Session {
 }
 
 @MainActor
+@Test func advanceAfterLogSkipsSettledSetsToNextPendingSetAcrossExercises() throws {
+    // Logging the first Squat Set, with the second Squat Set already Skipped,
+    // advances past both settled Sets to the first Pending Set of the next
+    // Exercise — a Logged/Skipped/Pending mix that would trip a walk spelling
+    // the Pending predicate inconsistently.
+    let session = makeMultiExercisePendingSession()
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
+    let secondSquatSet = try #require(squat.sets.first { $0.index == 1 })
+    firstSquatSet.state = .logged
+    secondSquatSet.state = .skipped
+    let focus = ActiveSetFocusManager(session: session)
+
+    focus.advanceAfterLog(firstSquatSet, in: session)
+
+    #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+}
+
+@MainActor
 @Test func initialActiveSetIsFirstPendingSetInSessionOrder() {
     let session = makeSession()
     let focus = ActiveSetFocusManager(session: session)
