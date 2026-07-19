@@ -77,3 +77,103 @@ private func uniformDayBlock(daysPerWeek: Int, weeks: Int = 2) -> Block {
     #expect(unavailable?.accessibilityValue == "Not uploaded")
     #expect(unavailable?.accessibilityIdentifier == "session-tile-W1-D3")
 }
+
+// MARK: - Focus-week layout (slice 4, DESIGN.md §5.5)
+
+@MainActor
+@Test func focusWeekIsTheWeekHoldingTheCurrentSession() {
+    let scenario = WorkoutScenarios.blockOverviewWithMixedSessionStates()
+
+    let presentation = BlockOverviewPresentation(block: scenario.block, currentSession: scenario.currentSession)
+
+    // The Current Session lives in Week 1, so Week 1 alone expands into morning light;
+    // Week 2 collapses to a shaded card.
+    #expect(presentation.weeks.map(\.weekNumber) == [1, 2])
+    #expect(presentation.weeks.map(\.isFocus) == [true, false])
+    #expect(presentation.weeks.map(\.tiles.count) == [3, 1])
+}
+
+@MainActor
+@Test func focusWeekFallsBackToTheFirstWeekWithoutACurrentSession() {
+    let scenario = WorkoutScenarios.blockOverviewWithMixedSessionStates()
+
+    let presentation = BlockOverviewPresentation(block: scenario.block, currentSession: nil)
+
+    #expect(presentation.weeks.map(\.isFocus) == [true, false])
+}
+
+@MainActor
+@Test func collapsedWeekCardSummarizesCompletedOverAvailableSessions() {
+    let scenario = WorkoutScenarios.blockOverviewWithMixedSessionStates()
+
+    let presentation = BlockOverviewPresentation(block: scenario.block, currentSession: scenario.currentSession)
+
+    // Week 1: one of three available Sessions is complete; Week 2: none of its one done.
+    #expect(presentation.weeks.map(\.summary) == ["1 / 3", "0 / 1"])
+}
+
+@MainActor
+@Test func partiallyLoggedTileFillsFromTheFootInQuarters() {
+    let scenario = WorkoutScenarios.blockOverviewWithMixedSessionStates()
+
+    let presentation = BlockOverviewPresentation(block: scenario.block, currentSession: scenario.currentSession)
+
+    // W1D1 complete → full ink; W1D2 has one of two Sets settled → two quarters; the
+    // untouched current and upcoming Sessions rise from an empty foot.
+    #expect(presentation.tiles.map(\.fillQuarters) == [4, 2, 0, 0])
+}
+
+@Test func fillQuartersQuantizesPartialProgressBetweenEmptyAndFull() {
+    // Nothing settled reads as an empty foot; everything settled reads as full ink.
+    #expect(BlockOverviewTilePresentation.fillQuarters(completed: 0, total: 5) == 0)
+    #expect(BlockOverviewTilePresentation.fillQuarters(completed: 5, total: 5) == 4)
+    // Any partial progress lands in 1...3 — never mistaken for empty or complete.
+    #expect(BlockOverviewTilePresentation.fillQuarters(completed: 1, total: 100) == 1)
+    #expect(BlockOverviewTilePresentation.fillQuarters(completed: 1, total: 4) == 1)
+    #expect(BlockOverviewTilePresentation.fillQuarters(completed: 2, total: 4) == 2)
+    #expect(BlockOverviewTilePresentation.fillQuarters(completed: 3, total: 4) == 3)
+    #expect(BlockOverviewTilePresentation.fillQuarters(completed: 7, total: 8) == 3)
+    // A Session carrying no prescribed Sets can't rise from its foot.
+    #expect(BlockOverviewTilePresentation.fillQuarters(completed: 0, total: 0) == 0)
+}
+
+@MainActor
+@Test func unavailableSessionsGroupAsEmptyBedsAtTheWeeksEnd() {
+    // A Week whose *middle* day is un-uploaded groups it after the available days.
+    let block = BlockBuilder.makeBlock(
+        from: ParsedBlockModel(
+            tabName: "Block 27",
+            weeks: [
+                ParsedWeek(number: 1, days: [availableDay(1), emptyBedDay(2), availableDay(3)])
+            ]
+        )
+    )
+
+    let presentation = BlockOverviewPresentation(block: block, currentSession: nil)
+
+    #expect(presentation.tiles.map(\.dayNumber) == [1, 3, 2])
+    #expect(presentation.tiles.map(\.state) == [.incomplete, .incomplete, .unavailable])
+    #expect(presentation.weeks.first?.tiles.map(\.dayNumber) == [1, 3, 2])
+}
+
+@MainActor
+private func availableDay(_ dayNumber: Int) -> ParsedSession {
+    ParsedSession(
+        dayNumber: dayNumber,
+        date: nil,
+        exercises: [
+            ParsedExercise(
+                name: "Squat",
+                baseName: "Squat",
+                cadence: nil,
+                coachNote: nil,
+                sets: [ParsedSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil)]
+            )
+        ]
+    )
+}
+
+@MainActor
+private func emptyBedDay(_ dayNumber: Int) -> ParsedSession {
+    ParsedSession(dayNumber: dayNumber, date: nil, exercises: [])
+}
