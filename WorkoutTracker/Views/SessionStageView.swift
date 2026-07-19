@@ -105,7 +105,7 @@ struct SessionStageView: View {
     private func stageContent(_ item: SessionStageItem, items: [SessionStageItem]) -> some View {
         switch item.item {
         case .exercise(let config):
-            exerciseStage(config, position: SessionStagePresentation.positionLabel(of: item, in: items))
+            exerciseStage(config)
         case .superset(let config):
             ActiveSupersetSection(
                 config: config,
@@ -121,30 +121,32 @@ struct SessionStageView: View {
         }
     }
 
-    private func exerciseStage(_ config: SessionExerciseRenderConfig, position: String) -> some View {
+    private func exerciseStage(_ config: SessionExerciseRenderConfig) -> some View {
         let sortedSets = config.exercise.sets.sorted { $0.index < $1.index }
 
         return VStack(spacing: 14) {
-            Text(position)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
+            if let cadence = config.exercise.cadence {
+                Text(cadence)
+                    .font(Theme.font(.cadence))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+            }
 
             Text(config.exercise.name)
-                .font(.title2.weight(.bold))
+                .font(Theme.font(.exerciseName))
                 .multilineTextAlignment(.center)
+                .lineLimit(2)
 
             if let note = config.exercise.coachNote {
                 Text(note)
-                    .font(.callout)
+                    .font(Theme.font(.coachNote))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
 
-            SessionStageSetDots(
+            SessionStageBranch(
                 sets: sortedSets,
-                currentSetID: config.activeSetID,
-                dotSize: 9,
+                activeSetID: config.activeSetID,
                 onTap: actions.focus
             )
             .padding(.vertical, 2)
@@ -229,32 +231,28 @@ struct SessionStageView: View {
     private func queueBar(stageItem: SessionStageItem?, items: [SessionStageItem]) -> some View {
         let upNext = SessionStagePresentation.upNextItem(after: stageItem, in: items)
 
+        // The stage foot: an `N of M` queue pill owns position and opens the day's
+        // Exercise queue sheet; beside it a plain `Up next ·` preview. The old
+        // glass up-next bar is gone (DESIGN.md §5.1).
         return HStack(spacing: 12) {
             if let upNext {
                 Button {
                     jump(to: upNext)
                 } label: {
-                    HStack(spacing: 8) {
-                        Text("Up next")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(palette.accent)
-                            .textCase(.uppercase)
+                    HStack(spacing: 5) {
+                        Text("Up next ·")
+                            .font(Theme.font(.queuePill))
+                            .foregroundStyle(.secondary)
 
                         Text(upNext.title)
-                            .font(.subheadline.weight(.semibold))
+                            .font(Theme.font(.queuePill))
                             .foregroundStyle(.primary)
                             .lineLimit(1)
-
-                        Image(systemName: "arrow.right")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(.secondary)
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
+                    .padding(.vertical, 8)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .workoutGlass(.capsule)
                 .accessibilityIdentifier("stage-up-next")
             }
 
@@ -263,13 +261,15 @@ struct SessionStageView: View {
             Button {
                 isQueuePresented = true
             } label: {
-                Label(
-                    SessionStagePresentation.queueProgressLabel(for: items),
-                    systemImage: "list.bullet"
-                )
-                .font(.subheadline.weight(.semibold))
+                Text(SessionStagePresentation.queueProgressLabel(for: items))
+                    .font(Theme.font(.queuePill))
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(palette.footFill, in: .capsule)
+                    .overlay(Capsule().strokeBorder(palette.queueStroke, lineWidth: 1))
             }
-            .buttonStyle(.workoutGlass)
+            .buttonStyle(.plain)
             .accessibilityIdentifier("stage-queue-button")
         }
         .padding(.horizontal)

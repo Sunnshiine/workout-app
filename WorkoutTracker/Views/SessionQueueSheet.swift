@@ -175,7 +175,7 @@ struct SessionQueueSheet: View {
                     .foregroundStyle(item.isComplete ? .secondary : .primary)
                     .lineLimit(1)
 
-                SessionStageSetDots(sets: item.sortedSets)
+                SessionStageBranch(sets: item.sortedSets)
             }
 
             Spacer(minLength: 12)

@@ -151,18 +151,6 @@ struct SessionStagePresentationTests {
         #expect(SessionStagePresentation.stageIdentity(in: complete, focusID: nil) == "complete")
     }
 
-    @Test func positionLabelCountsSupersetAsOneSlot() throws {
-        let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged])
-        let press = makeExercise(name: "Press", order: 1, setStates: [.pending])
-        let row = makeExercise(name: "Row", order: 2, setStates: [.pending])
-        let items = SessionStagePresentation.items(
-            [exerciseItem(squat), try supersetItem(press, row)]
-        )
-        let superset = try #require(items.last)
-
-        #expect(SessionStagePresentation.positionLabel(of: superset, in: items) == "Exercise 2 of 2")
-    }
-
     @Test func upNextReturnsTheNextIncompleteItemAfterTheStage() {
         let squat = makeExercise(name: "Squat", order: 0, setStates: [.pending])
         let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.logged])
@@ -378,5 +366,61 @@ struct SessionStagePresentationTests {
             SessionStagePresentation.pairingRole(of: items[0], mode: .selecting(sourceOrder: 0))
                 == .ineligibleTarget
         )
+    }
+
+    // MARK: - Branch derivation (replaces the retired Set dots)
+
+    @Test func branchDerivesLeafDashedLeafBudAndFutureFromSetStates() {
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged, .skipped, .pending, .pending])
+        let item = SessionStagePresentation.items([exerciseItem(squat)])[0]
+
+        let states = SessionStagePresentation.branchNodeStates(
+            for: item.sortedSets,
+            activeSetID: ActiveSetID(exerciseOrder: 0, setIndex: 2)
+        )
+
+        #expect(states == [.leaf, .dashedLeaf, .bud, .future])
+    }
+
+    @Test func branchBudFallsBackToTheFirstPendingSetWithoutAnActiveSet() {
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged, .pending, .pending])
+        let item = SessionStagePresentation.items([exerciseItem(squat)])[0]
+
+        let states = SessionStagePresentation.branchNodeStates(for: item.sortedSets, activeSetID: nil)
+
+        #expect(states == [.leaf, .bud, .future])
+    }
+
+    @Test func branchPlacesTheBudOnTheActivePendingSetNotTheFirst() {
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.pending, .pending, .pending])
+        let item = SessionStagePresentation.items([exerciseItem(squat)])[0]
+
+        let states = SessionStagePresentation.branchNodeStates(
+            for: item.sortedSets,
+            activeSetID: ActiveSetID(exerciseOrder: 0, setIndex: 2)
+        )
+
+        #expect(states == [.future, .future, .bud])
+    }
+
+    @Test func branchHasNoBudWhenEverySetIsSettled() {
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged, .skipped])
+        let item = SessionStagePresentation.items([exerciseItem(squat)])[0]
+
+        let states = SessionStagePresentation.branchNodeStates(for: item.sortedSets, activeSetID: nil)
+
+        #expect(states == [.leaf, .dashedLeaf])
+    }
+
+    @Test func branchWalksBothSupersetExercisesInSetOrder() throws {
+        // One forked stem is slice 3's concern; here the branch simply reads the
+        // Superset owner's flattened Set order, budding the first Pending Set.
+        let press = makeExercise(name: "Press", order: 1, setStates: [.logged, .pending])
+        let row = makeExercise(name: "Row", order: 2, setStates: [.skipped, .pending])
+        let item = SessionStagePresentation.items([try supersetItem(press, row)])[0]
+
+        let states = SessionStagePresentation.branchNodeStates(for: item.sortedSets, activeSetID: nil)
+
+        #expect(states == [.leaf, .bud, .dashedLeaf, .future])
     }
 }

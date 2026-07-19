@@ -46,6 +46,20 @@ struct SessionStageItem: Identifiable {
     }
 }
 
+/// A node on the living stage's branch. The branch replaces the retired Set
+/// dots entirely; each state derives purely from existing Set State data plus
+/// which Set is on stage, so the branch stays textless and needs no new seam.
+enum BranchNodeState: Equatable, Sendable {
+    /// A Logged Set — an inked leaf.
+    case leaf
+    /// A Skipped Set — a dashed-outline leaf (the "empty bed" vocabulary).
+    case dashedLeaf
+    /// The active Set — a cream bud with a green stroke; carries the page's one glow at Night.
+    case bud
+    /// A Pending Set still ahead — a faint future stroke.
+    case future
+}
+
 /// The part a queue row plays while Superset pairing is in flight.
 enum QueuePairingRole: Equatable, Sendable {
     case none
@@ -84,11 +98,6 @@ enum SessionStagePresentation {
             return stageItem(in: items, focusID: nil)?.id ?? "complete"
         }
         return "\(focusID.exerciseOrder)-\(focusID.setIndex)"
-    }
-
-    static func positionLabel(of item: SessionStageItem, in items: [SessionStageItem]) -> String {
-        guard let index = items.firstIndex(where: { $0.id == item.id }) else { return "" }
-        return "Exercise \(index + 1) of \(items.count)"
     }
 
     /// The next incomplete item after the stage item in Session order, wrapping
@@ -136,6 +145,30 @@ enum SessionStagePresentation {
 
     static func ordinal(of set: ExerciseSet, in sortedSets: [ExerciseSet]) -> Int {
         (sortedSets.firstIndex { $0.persistentModelID == set.persistentModelID } ?? set.index) + 1
+    }
+
+    /// The branch's node states in Set order: one leaf per Logged Set, a
+    /// dashed-outline leaf per Skipped Set, a cream bud for the active Set, and
+    /// faint future strokes for the remaining Pending Sets. The bud rides the
+    /// Set on stage — the active Set when one is Pending, else the first Pending
+    /// Set — matching the Active Set Card's own `stageSet` selection.
+    static func branchNodeStates(for sets: [ExerciseSet], activeSetID: ActiveSetID?) -> [BranchNodeState] {
+        let bud = budSet(in: sets, activeSetID: activeSetID)
+        return sets.map { set in
+            switch set.state {
+            case .logged: return .leaf
+            case .skipped: return .dashedLeaf
+            case .pending: return set.persistentModelID == bud?.persistentModelID ? .bud : .future
+            }
+        }
+    }
+
+    private static func budSet(in sets: [ExerciseSet], activeSetID: ActiveSetID?) -> ExerciseSet? {
+        if let activeSetID,
+            let active = sets.first(where: { $0.isPending && SessionCoordinator.activeSetID(for: $0) == activeSetID }) {
+            return active
+        }
+        return sets.first(where: \.isPending)
     }
 
     /// The pairing role of a queue row. Eligibility leans on the render

@@ -89,6 +89,8 @@ enum Theme {
         let budRib: Color
         let futureStroke: Color
         let skipStroke: Color
+        /// The page's one glow: the active bud is lit at Night, unlit by Day (nil).
+        let budGlow: Color?
 
         // Active Set Card & input block
         let surface: Color
@@ -401,6 +403,7 @@ extension Theme {
         budRib: Paint.actionDay.opacity(0.55),
         futureStroke: Paint.actionDay.opacity(0.40),
         skipStroke: Paint.muted.opacity(0.42),
+        budGlow: nil,
         surface: Paint.cream.opacity(0.52),
         railFill: Paint.cream.opacity(0.55),
         prescriptionTick: Paint.actionDay,
@@ -447,6 +450,7 @@ extension Theme {
         budRib: Paint.foliage.opacity(0.60),
         futureStroke: Paint.foliage.opacity(0.45),
         skipStroke: Paint.mutedNight.opacity(0.40),
+        budGlow: rgb(120, 240, 178, 0.32), // drop-shadow(0 0 7px rgba(120,240,178,0.32)) — the page's one glow
         surface: Paint.cream.opacity(0.07),
         railFill: Paint.cream.opacity(0.06),
         prescriptionTick: Paint.actionNight,

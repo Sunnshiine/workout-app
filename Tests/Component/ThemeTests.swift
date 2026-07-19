@@ -184,6 +184,15 @@ import Testing
     #endif
 }
 
+@Test func themeBudGlowIsTheNightOnlyPageGlow() throws {
+    // The active bud carries the page's one glow at Night; Day leaves it unlit (token sheet §Stage & branch).
+    #expect(Theme.palette(for: Theme.Appearance.day).budGlow == nil)
+    #if canImport(AppKit)
+        let nightGlow = try #require(Theme.palette(for: Theme.Appearance.night).budGlow)
+        expectRGB(nightGlow, red: 120 / 255, green: 240 / 255, blue: 178 / 255, alpha: 0.32)
+    #endif
+}
+
 @Test func themeTileCurrentBorderStaysTheApprovedLiteral() {
     // #1F8552 in both appearances — deliberately not aliased to a paint (token sheet §8.5).
     #if canImport(AppKit)
