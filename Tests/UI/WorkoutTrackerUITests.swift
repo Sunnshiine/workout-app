@@ -193,13 +193,15 @@ final class WorkoutTrackerAppearanceUITests: XCTestCase {
         XCTAssertTrue(picker.waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["System"].exists)
         XCTAssertTrue(app.buttons["Light"].exists)
-        XCTAssertTrue(app.buttons["Dark"].exists)
+        // "Dark" has left the product vocabulary — the third appearance is Night (DESIGN.md §5.9).
+        XCTAssertTrue(app.buttons["Night"].exists)
+        XCTAssertFalse(app.buttons["Dark"].exists)
         XCTAssertFalse(app.buttons["Black"].exists)
         XCTAssertFalse(app.buttons["Mint Green"].exists)
         XCTAssertFalse(app.buttons["Blue Light"].exists)
 
         app.buttons["Light"].tap()
-        app.buttons["Dark"].tap()
+        app.buttons["Night"].tap()
     }
 
     @MainActor
