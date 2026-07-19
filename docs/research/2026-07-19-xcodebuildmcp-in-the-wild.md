@@ -136,7 +136,90 @@ resting on a vendor logo wall*, not documented practice.
   agent-in-CI mobile story today is vendor roadmap (agent-device's EAS templates,
   XcodeBuildMCP's CLI marketing), not published team practice.
 
-## 5. Bottom line for this repo's decision
+## 5. Official guidance and the wider visual-feedback landscape
+
+### Anthropic's official doctrine
+
+- **Claude Code best-practices docs** (code.claude.com/docs/en/best-practices; the
+  April 2025 engineering blog now redirects here): the section "Give Claude a way to
+  verify its work" is the canonical statement — "Give Claude a check it can run:
+  tests, a build, a screenshot to compare. It's the difference between a session you
+  watch and one you walk away from." The concrete UI recipe: "*[paste screenshot]
+  implement this design. take a screenshot of the result and compare it to the
+  original. list differences and fix them*," with escalating enforcement (one-shot
+  prompt → `/goal` conditions → Stop hooks as deterministic gates → adversarial
+  verification subagents), and "Have Claude show evidence rather than asserting
+  success: … a screenshot of the result." The screenshot mechanism referenced is the
+  Chrome/browser integration; the current doc has **no iOS-specific guidance**.
+  *(official guidance)*
+- **Anthropic + Apple: Xcode 26.3 ships the Claude Agent SDK**
+  (anthropic.com/news/apple-xcode-claude-agent-sdk, RC Feb 2026): Claude "can capture
+  Xcode Previews to see what the interface it's building looks like in practice,
+  identify any issues with what it sees, and iterate from there," with Xcode
+  capabilities (including preview capture) exposed over MCP to Claude Code CLI. This
+  makes render-and-look an officially supported first-party workflow — on a local
+  Mac. Xcode 27's exportable Agent Skills add `device-interaction` ("verifies your
+  app's behavior on a real device or simulator using screenshots, UI hierarchy
+  inspection, and synthesized touch interactions"), with the caveat (SwiftLee,
+  avanderlee.com) that device-driving skills only work inside Xcode's agent.
+  *(official guidance / documented tooling)*
+
+### Named companies
+
+- **Spotify** is the most-documented enterprise agent deployment (Honk, their
+  background Claude agent — engineering.atspotify.com "coding is no longer the
+  constraint," plus the claude.com case study): verification is **CI builds, lint,
+  and "golden state" standards feedback — no screenshots, simulators, or visual
+  verification**, and extending the agent to macOS/iOS codebases is explicitly listed
+  as future work. *(documented practice — and a documented absence)*
+- **Snapshot testing at company scale predates and is separate from agents**: Airbnb's
+  iOS app is repeatedly cited at ~30,000 snapshot tests (secondary sources; their own
+  SwiftUI-transition talk confirms the approach indirectly), and Uber maintains the
+  ios-snapshot-test-case fork. In everything publicly documented these remain
+  deterministic CI gates, not agent-legible feedback. *(documented practice /
+  secondary-source scale claims)*
+- **LY Corporation (LINE/Yahoo Japan)** open-sourced sim-use ("Give your AI agent
+  eyes and hands on iOS Simulator and Android emulator," github.com/lycorp-jp/sim-use)
+  — tooling, not a practice write-up. *(tool existence)*
+
+### The best empirical data is indie: twocentstudios
+
+Chris Trott (twocentstudios.com) has the most rigorous first-hand measurements, in
+two posts:
+
+- **"Giving Claude Code Eyes to See Your SwiftUI Views"** (Jul 2025): uses
+  swift-snapshot-testing as the agent's render loop — Claude edits a verification
+  test, runs it via xcodebuild, reads the PNG, compares against reference designs
+  with ImageMagick diffs. Honest negatives: Claude misjudged spacing/sizing, "got
+  confused more often than not" even with ImageMagick help, and the loop was worth
+  ~3 iterations before a human had to step in; **explicit design specs (colors,
+  fonts) beat visual references**. *(documented practice, local)*
+- **"Closing the Loop on iOS with Claude Code"** (Dec 2025): his updated approach —
+  five loop-closing layers (xcodebuild+xcsift → simctl install/launch → console logs
+  → simulator control → device). Screenshots via `simctl io` resized to 1x so tap
+  coordinates match; accessibility-API-driven interaction; a "draw a red rectangle
+  where you'll tap" verification step that improves accuracy but "slows down the
+  entire process by 2x." Reported flake: scroll-direction confusion, unreliable
+  tap-center identification. *(documented practice, local)*
+
+Adjacent ecosystem signal: conorluddy/ios-simulator-skill documents the token
+economics of agent sight — an accessibility tree costs ~10 tokens where a screenshot
+costs 1,600–6,300 — which is the same screenshot-avoidance design agent-device chose.
+
+### Fully-cloud agentic iOS CI
+
+**No credible first-person account exists of autonomous agents on hosted macOS CI
+(GitHub Actions macOS runners or Xcode Cloud) doing simulator-screenshot UI
+verification — and therefore no flake/cost/reliability data for that configuration.**
+Claude Code's GitHub Actions docs cover the Action generally, not macOS simulator
+loops; Claude Code on the web runs Linux VMs (no simulator); secondary posts flag
+4–6-minute cold starts on hosted macOS runners as friction. Every documented
+screenshot loop (twocentstudios, Shimomoto, Meiklejohn, Xcode 26.3/27 itself) runs
+on a local Mac; Spotify — the one company running fleet-scale cloud agents —
+explicitly lists iOS as future work. *(absence of evidence, verified across all
+three research passes)*
+
+## 6. Bottom line for this repo's decision
 
 - The outside view is consistent across every primary source checked: elite practice
   today is the **local interactive closed loop** — agent edits code, builds, boots a
@@ -174,3 +257,12 @@ resting on a vendor logo wall*, not documented practice.
 - https://blog.sentry.io/snapshots-available-beta/
 - https://shopify.engineering (five-years-of-react-native-at-shopify, building-production-ready-agentic-systems, fine-tuning-agent-shopify-flow, simgym — checked, none describe mobile-UI agent loops)
 - https://www.bvp.com/atlas/inside-shopifys-ai-first-engineering-playbook
+- https://code.claude.com/docs/en/best-practices ("Give Claude a way to verify its work")
+- https://www.anthropic.com/news/apple-xcode-claude-agent-sdk
+- https://www.avanderlee.com/ai-development/using-xcode-27s-agent-skills-in-claude-codex-and-cursor/
+- https://engineering.atspotify.com/2026/6/code-with-claude-coding-is-no-longer-the-constraint and https://claude.com/customers/spotify
+- https://twocentstudios.com/2025/07/13/giving-claude-code-eyes-to-see-your-swiftui-views/
+- https://twocentstudios.com/2025/12/27/closing-the-loop-on-ios-with-claude-code/
+- https://github.com/lycorp-jp/sim-use
+- https://github.com/conorluddy/ios-simulator-skill
+- https://github.com/uber/ios-snapshot-test-case and https://www.infoq.com/news/2023/10/airbnb-transitioning-swiftui/
