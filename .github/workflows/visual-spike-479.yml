@@ -47,7 +47,8 @@ jobs:
           xcrun simctl list runtimes > /tmp/runtimes.txt
 
       - name: Flip suite trait to record (.never -> .all)
-        run: sed -i '' 's/\.snapshots(record: \.never)/.snapshots(record: .all)/' Tests/Visual/*.swift
+        run: |
+          sed -i '' 's/\.snapshots(record: \.never)/.snapshots(record: .all)/' Tests/Visual/*.swift
       - name: Build for testing
         run: |
           xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
@@ -151,7 +152,8 @@ jobs:
           print('patched')
           PYEOF
       - name: Flip suite trait to record (.never -> .all)
-        run: sed -i '' 's/\.snapshots(record: \.never)/.snapshots(record: .all)/' Tests/Visual/*.swift
+        run: |
+          sed -i '' 's/\.snapshots(record: \.never)/.snapshots(record: .all)/' Tests/Visual/*.swift
       - name: Build for testing
         run: |
           xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
