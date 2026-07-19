@@ -238,6 +238,23 @@ enum Theme {
     // existing screens intact until the per-screen slices migrate each onto the named tokens above;
     // each retires with its last consumer.
 
+    // MARK: - Block grid geometry (Greenhouse §5.5)
+    //
+    // The focus-week grid: wordless, wider-than-tall tiles whose fill + stroke alone say state.
+    // Geometry constants (not palette); the named radius family owns the corners.
+
+    static let blockTileHeight: CGFloat = 52 // full day tile — wider-than-tall
+    static let blockTileMiniHeight: CGFloat = 16 // collapsed card's mini day-strip
+    static let blockTileSpacing: CGFloat = 10
+    static let blockTileMiniSpacing: CGFloat = 5
+    static let blockTileStroke: CGFloat = 1 // quiet available / mini strokes
+    static let blockTileCurrentStroke: CGFloat = 1.5 // the cream-bud current tile's #1F8552 rim
+    static let blockTileGhostStroke: CGFloat = 1.5 // the empty bed's dashed outline
+    static let blockTileGhostDash: CGFloat = 4
+    static let blockWeekCardPadding: CGFloat = 14
+    static let blockFocusCardPadding: CGFloat = 16
+    static let blockFocusGlowRadius: CGFloat = 14 // the focus card's glowing rim / sunlit hour
+
     static let cardCornerRadius: CGFloat = 16
     static let cardSpacing: CGFloat = 16
     static let lensCornerRadius: CGFloat = 28

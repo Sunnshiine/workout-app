@@ -6,7 +6,9 @@ final class PartiallyUploadedBlockUITests: XCTestCase {
         let app = launchPartialBlockOverviewApp()
 
         XCTAssertTrue(app.navigationBars["Block 27"].waitForExistence(timeout: 5))
-        tapElement(withIdentifier: "session-tile-W4-D1", in: app)
+        // Week 4 is collapsed (the Current Session lives in Week 1's focus card); tap its
+        // shaded week card to open its first available day.
+        tapElement(withIdentifier: "week-card-W4", in: app)
         XCTAssertTrue(app.staticTexts["Accessory W4 D1"].waitForExistence(timeout: 3))
 
         app.buttons["make-current-session-button"].tap()

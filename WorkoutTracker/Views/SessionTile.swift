@@ -1,95 +1,89 @@
 import SwiftUI
 
+/// A wordless Block-grid day tile: fill and stroke alone say state — inked complete,
+/// cream-bud current with the sunlit-hour glow, quiet available (with ink rising from the
+/// foot in quantized quarters for partial work), and the dashed empty bed for an
+/// un-uploaded day. No text, no icons — the lock is dead (DESIGN.md §5.5).
 struct SessionTile: View {
-    let weekNumber: Int
-    let dayNumber: Int
+    enum Variant {
+        /// A full day tile in the focus week.
+        case full
+        /// A mini chip in a collapsed week card's day-strip.
+        case mini
+    }
+
     let state: SessionTileState
+    let fillQuarters: Int
+    var variant: Variant = .full
     @Environment(\.themePalette) private var palette
 
+    private var height: CGFloat {
+        variant == .full ? Theme.blockTileHeight : Theme.blockTileMiniHeight
+    }
+
+    private var cornerRadius: CGFloat {
+        variant == .full ? Theme.Radius.tile : Theme.Radius.mini
+    }
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: cornerRadius)
+    }
+
     var body: some View {
-        Group {
-            if state == .complete || state == .unavailable {
-                tileContent
-            } else {
-                tileContent
-                    .workoutGlass(.tile)
+        ZStack(alignment: .bottom) {
+            baseFill
+            if state == .incomplete, fillQuarters > 0 {
+                // Ink rising from the foot in quantized quarters — partial work made visible.
+                palette.leafFill.opacity(0.85)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: height * CGFloat(fillQuarters) / 4)
             }
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Week \(weekNumber), Day \(dayNumber)")
-        .accessibilityValue(state.accessibilityValue)
+        .frame(maxWidth: .infinity)
+        .frame(height: height)
+        .clipShape(shape)
+        .overlay { strokeOverlay }
+        .shadow(color: glowColor, radius: glowRadius)
     }
 
-    private var tileContent: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Week \(weekNumber)")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(foregroundStyle.opacity(0.78))
-
-            Text("Day \(dayNumber)")
-                .font(.title3.weight(.bold))
-                .foregroundStyle(foregroundStyle)
-
-            Spacer(minLength: 0)
-
-            if state == .unavailable {
-                Label("Not uploaded", systemImage: "lock.fill")
-                    .font(.caption2.weight(.semibold))
-                    .labelStyle(.titleAndIcon)
-                    .foregroundStyle(foregroundStyle)
-            }
-        }
-        .frame(maxWidth: .infinity, minHeight: Theme.sessionTileMinHeight, alignment: .topLeading)
-        .padding(12)
-        .background(backgroundColor, in: .rect(cornerRadius: Theme.sessionTileCornerRadius))
-        .overlay {
-            RoundedRectangle(cornerRadius: Theme.sessionTileCornerRadius)
-                .stroke(borderColor, lineWidth: borderWidth)
-        }
-        .opacity(state == .unavailable ? Theme.sessionTileUnavailableOpacity : 1)
-    }
-
-    private var backgroundColor: Color {
+    @ViewBuilder
+    private var baseFill: some View {
         switch state {
         case .complete:
-            palette.sessionTileComplete
-        case .current, .incomplete:
-            palette.sessionTileIncomplete
+            palette.leafFill
+        case .current:
+            palette.tileCurrentFill
+        case .incomplete:
+            palette.footFill
         case .unavailable:
-            palette.sessionTileUnavailable
+            Color.clear
         }
     }
 
-    private var foregroundStyle: Color {
+    @ViewBuilder
+    private var strokeOverlay: some View {
         switch state {
-        case .current:
-            palette.accent
         case .complete:
-            palette.sessionTileCompleteText
+            EmptyView()
+        case .current:
+            shape.stroke(palette.tileCurrentBorder, lineWidth: Theme.blockTileCurrentStroke)
         case .incomplete:
-            palette.sessionTileIncompleteText
+            shape.stroke(palette.queueStroke, lineWidth: Theme.blockTileStroke)
         case .unavailable:
-            palette.sessionTileUnavailableText
+            shape.stroke(
+                palette.tileGhostStroke,
+                style: StrokeStyle(lineWidth: Theme.blockTileGhostStroke, dash: [Theme.blockTileGhostDash])
+            )
         }
     }
 
-    private var borderColor: Color {
-        switch state {
-        case .current:
-            palette.accent
-        case .incomplete:
-            palette.sessionTileRestingBorder
-        case .complete, .unavailable:
-            .clear
-        }
+    /// The current tile alone carries a glow — the page's one delight — lit by the approved
+    /// rim by Day and the bud glow at Night.
+    private var glowColor: Color {
+        state == .current ? (palette.budGlow ?? palette.tileCurrentBorder.opacity(0.35)) : .clear
     }
 
-    private var borderWidth: CGFloat {
-        switch state {
-        case .current:
-            Theme.sessionTileCurrentBorderWidth
-        case .complete, .incomplete, .unavailable:
-            1
-        }
+    private var glowRadius: CGFloat {
+        state == .current && variant == .full ? Theme.blockFocusGlowRadius / 2 : 0
     }
 }

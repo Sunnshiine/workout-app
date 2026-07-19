@@ -9,8 +9,10 @@ import Testing
 @Suite(.snapshots(record: .never))
 struct GlassBearingViewsVisualTests {
     @Test func sessionTileMatchesVisualBaseline() {
+        // The tile is wordless now — glass is retired; fill + stroke alone say state.
+        // Baseline recapture for the Block grid lands with the Greenhouse visual gate (slice 8).
         assertGlassBaseline {
-            SessionTile(weekNumber: 2, dayNumber: 3, state: .current)
+            SessionTile(state: .current, fillQuarters: 0)
                 .frame(width: 160)
         }
     }
