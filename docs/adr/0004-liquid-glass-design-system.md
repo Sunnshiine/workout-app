@@ -1,7 +1,12 @@
 # ADR 0004: Liquid Glass Design System
 
-**Status:** Superseded for Active Set Focus color direction  
+**Status:** Superseded by ADR-0014 (Greenhouse design system)  
 **Date:** 2025-05-25
+
+> Superseded note, 2026-07-19: the Greenhouse redesign (map #408) retires
+> Liquid Glass as the app's surface language — see ADR-0014. The colophon's
+> glass disc is the one surviving glass element. The iOS 26 minimum,
+> native-chrome, and Theme.swift-as-seam decisions carry forward.
 
 > Superseded note, 2026-05-26: the Active Set Focus redesign now uses the
 > mint/emerald reference captured in
