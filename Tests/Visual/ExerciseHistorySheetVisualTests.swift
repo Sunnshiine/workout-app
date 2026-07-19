@@ -8,9 +8,10 @@ import Testing
 @MainActor
 @Suite(.snapshots(record: .never))
 struct ExerciseHistorySheetVisualTests {
-    /// A representative Movement history covering every content state the sheet renders: structured
-    /// Sets with muted RPE, an inline partial-skip marker, a Legacy Log *as entered*, and a
-    /// spelling-variant entry annotated *as "…"* — all quiet, no mint (revised `DESIGN.md`).
+    /// A representative Movement history covering every content state the chip ledger renders
+    /// (`DESIGN.md` §5.6): structured Sets as carved chips with muted RPE, a partial-skip entry whose
+    /// skip hides behind the `*` well, a Legacy Log best-effort parsed with its rawness in the well,
+    /// and a spelling-variant entry annotated in the well — all quiet reference material.
     private func historyEntry(
         fullName: String,
         baseName: String,
