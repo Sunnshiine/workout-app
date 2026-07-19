@@ -5,6 +5,7 @@ struct OnboardingView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(SyncCoordinator.self) private var sync
     @Environment(WorkoutStore.self) private var workout
+    @Environment(\.themePalette) private var palette
     @State private var urlText = ""
     @State private var urlError = false
     @State private var showsURLFallback = false
@@ -52,12 +53,23 @@ struct OnboardingView: View {
         )
     }
 
-    // MARK: - Phase 1: Sign-In Card
+    // MARK: - Phase 1: Sheet-connect screen
 
+    // The second bird perch (DESIGN.md §5.8): a flat calm — the perched songbird
+    // centered, the 40pt glass colophon above the 28pt floor, quiet copy. First
+    // contact carries no monumental brand moment and wears no glass card.
     private var signInCard: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 26) {
+            SunbirdColophon(diameter: 40)
+
+            PerchedSongbird(height: 104)
+
             Text("Connect your training sheet")
-                .font(.title2.bold())
+                .font(Theme.font(.connectTitle))
+                .foregroundStyle(palette.textPrimary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: 320)
 
             GoogleSignInButton {
                 Task {
@@ -70,9 +82,8 @@ struct OnboardingView: View {
             }
             .frame(maxWidth: 280)
         }
-        .padding()
-        .workoutGlass(.card)
-        .workoutGlassID("onboarding", in: ns)
+        .padding(.horizontal, 28)
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Phase 2: URL Entry Card
