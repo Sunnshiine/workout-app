@@ -66,6 +66,16 @@ load-bearing decisions:
   simulator runtime reported by XcodeBuildMCP as iOS 26.3, including a second run after
   clean build plus simulator shutdown/boot. Proceed with exact precision; no
   `perceptualPrecision` tolerance is required for the initial baselines.
+- The pinned runtime tracks the CI runner image, and the runner is the canonical recorder
+  (issue #471: locally-recorded baselines do not transfer across runtimes). Current pin:
+  `iPhone 17 Pro` on **iOS 27.0**, the sole runtime the `xcode-27` hosted image ships
+  (issue #479; supersedes the iOS 26.3 note above and #471's interim 26.4.1 pin on
+  `macos-26`). The determinism spike was re-proven on iOS 27.0 on 2026-07-19: all
+  committed baselines plus all 22 Greenhouse Day/Night renders (paper washes, bundled
+  Fraunces/Source Sans 3) byte-identical across a simulator reboot and a clean rebuild —
+  exact precision stands. Known exception: the two animation-frame fixtures surfaced by
+  #471 (`moveOnCelebrationView`, `seededSessionView`) remain nondeterministic until their
+  fixtures freeze animation (ticketed separately).
 - Proposal §3 is superseded. The proposal's "hard adoption gate" (a package must delete
   app-owned code to earn its place) is consciously not applied here: this dependency is
   test-only and earns its place by strengthening the feedback loop, not by deleting runtime
