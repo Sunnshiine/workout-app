@@ -45,6 +45,27 @@ import Testing
             #expect(abs(rgb.alpha - alpha) < 0.01, "Expected alpha ≈ \(alpha), got \(rgb.alpha)", sourceLocation: sourceLocation)
         }
     }
+
+    /// Asserts a color is sage-led rather than neutral black or a foreign hue — the pigment
+    /// heart of the Room Re-lights Rule (DESIGN.md §2). Green must lead red and blue, and the
+    /// channel spread must clear a floor so a re-lit surface can never collapse to gray/black.
+    private func expectSageLed(
+        _ color: Color,
+        floor: Double = 0.012,
+        sourceLocation: SourceLocation = #_sourceLocation
+    ) {
+        guard let rgb = rgbaComponents(of: color) else {
+            Issue.record("Could not resolve color to deviceRGB", sourceLocation: sourceLocation)
+            return
+        }
+        #expect(rgb.green >= rgb.red, "sage-led: green (\(rgb.green)) should lead red (\(rgb.red))", sourceLocation: sourceLocation)
+        #expect(rgb.green > rgb.blue, "sage-led: green (\(rgb.green)) should lead blue (\(rgb.blue))", sourceLocation: sourceLocation)
+        #expect(
+            rgb.green - min(rgb.red, rgb.blue) >= floor,
+            "not neutral: a channel spread ≥ \(floor) proves a preserved sage hue, not gray/black",
+            sourceLocation: sourceLocation
+        )
+    }
 #endif
 
 // MARK: - Appearances
@@ -270,4 +291,70 @@ import Testing
     #expect(Theme.Haptics.logTap == Theme.HapticTuning(intensity: 1.0, sharpness: 0.65))
     #expect(Theme.Haptics.skipDud == Theme.HapticTuning(intensity: 0.45, sharpness: 0.15))
     #expect(Theme.Haptics.stepperTick == Theme.HapticTuning(intensity: 0.45, sharpness: 0.80))
+}
+
+// MARK: - Night validation of the two flagged surfaces (PRD #458 slice 8, ADR-0007)
+//
+// The Exercise History sheet and the Block grid were the two surfaces never re-prototyped at
+// night; the map required them validated against the Room Re-lights Rule before their baselines
+// lock (DESIGN.md §2: "Night is the same room re-lit, never recolored: hue-preserved deep sage
+// paper, foliage pigment for everything that grows, cream kept as the light source. No neutral
+// black, no new hues at night."). These assertions are the programmatic half of that sign-off —
+// the deterministic Visual Baselines are the pixel half.
+
+@Test func nightExerciseHistorySheetObeysTheRoomRelightsRule() {
+    #if canImport(AppKit)
+        let night = Theme.palette(for: Theme.Appearance.night)
+
+        // The night sheet paper is deep sage, never neutral black (#418 recipe, flagged surface).
+        expectSageLed(night.sheetFill)
+        if let sheet = rgbaComponents(of: night.sheetFill) {
+            #expect(sheet.green < 0.2, "the night sheet stays a deep sage paper, not a mid-tone")
+        }
+
+        // Cream stays the light source: carved chips and the grabber are cream at low opacity.
+        for creamSurface in [night.chipCarvedFill, night.grabber] {
+            expectSageLed(creamSurface)
+            if let cream = rgbaComponents(of: creamSurface) {
+                #expect(cream.green > 0.85, "cream is kept as the light source, sage-led and bright")
+            }
+        }
+    #endif
+}
+
+@Test func nightBlockGridObeysTheRoomRelightsRule() {
+    #if canImport(AppKit)
+        let night = Theme.palette(for: Theme.Appearance.night)
+
+        // Everything that grows takes foliage pigment: the complete tile fills in foliage green.
+        expectSageLed(night.sessionTileComplete)
+        if let foliage = rgbaComponents(of: night.sessionTileComplete) {
+            #expect(foliage.green > 0.4 && foliage.green < 0.75, "the complete tile is mid foliage, not ink or cream")
+        }
+
+        // The quiet strokes and shades stay sage-led — no neutral gray tiles at night.
+        expectSageLed(night.tileGhostStroke)
+        for creamSurface in [night.tileCurrentFill, night.weekCardShade] {
+            expectSageLed(creamSurface)
+            if let cream = rgbaComponents(of: creamSurface) {
+                #expect(cream.green > 0.85, "cream is kept as the light source, sage-led and bright")
+            }
+        }
+
+        // The current tile's rim is the approved literal in both appearances — never re-lit away.
+        expectRGB(night.tileCurrentBorder, red: 31 / 255, green: 133 / 255, blue: 82 / 255)
+    #endif
+}
+
+@Test func nightPreservesTheRoomsSageHueAcrossAppearances() {
+    // The room re-lights, it does not recolor: the sheet paper and the page paper stay sage-led in
+    // both appearances, only their lightness changes.
+    #if canImport(AppKit)
+        for appearance in Theme.Appearance.allCases {
+            let palette = Theme.palette(for: appearance)
+            expectSageLed(palette.sheetFill)
+            expectSageLed(palette.paper.baseTop)
+            expectSageLed(palette.paper.baseBottom)
+        }
+    #endif
 }
