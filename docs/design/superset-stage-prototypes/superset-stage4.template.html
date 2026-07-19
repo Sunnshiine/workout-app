@@ -196,6 +196,12 @@ h1.exercise {
           mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
 }
 body[data-variant="b"] .rail { background: rgba(242, 247, 232, 0.05); }
+/* night selection re-lights like the bud: dark fill, the bud-stroke ring,
+   cream text — never the day chip's cream block (glares on the night paper) */
+body[data-variant="b"] .rail .chip.sel {
+  background: rgba(242, 247, 232, 0.12);
+  box-shadow: inset 0 0 0 2px #78F0B2;
+}
 .rail::-webkit-scrollbar { display: none; }
 .rail .chip {
   flex: none; scroll-snap-align: center;
@@ -206,7 +212,6 @@ body[data-variant="b"] .rail { background: rgba(242, 247, 232, 0.05); }
 }
 .rail .chip.dim { color: var(--muted); font-weight: 600; }
 .rail .chip.sel { background: var(--cream); box-shadow: inset 0 0 0 2px var(--action); }
-body[data-variant="b"] .rail .chip.sel { color: #152118; }
 .rail .chip .presc {
   position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);
   width: 18px; height: 3px; border-radius: 2px; background: var(--action);
