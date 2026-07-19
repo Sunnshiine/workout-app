@@ -5,6 +5,11 @@ import Testing
 
 @testable import WorkoutTracker
 
+/// The Exercise History sheet is one of the two surfaces never re-prototyped at Night; the map
+/// required its Night appearance validated on the pinned iPhone 17 Pro simulator against the Room
+/// Re-lights Rule before its baseline locks (PRD #458 slice 8, DESIGN.md §2 / §5.6). The Day and
+/// Night baselines below are that validation's pixel record; `Tests/Component/ThemeTests.swift`
+/// (`nightExerciseHistorySheetObeysTheRoomRelightsRule`) is its programmatic half.
 @MainActor
 @Suite(.snapshots(record: .never))
 struct ExerciseHistorySheetVisualTests {
@@ -47,21 +52,11 @@ struct ExerciseHistorySheetVisualTests {
             ]
         )
 
-        let view = ExerciseHistorySheet(presentation: presentation)
-            .frame(width: 393, height: 420)
-            .background(Theme.palette(for: .day).paperBackground)
-            .environment(\.themePalette, Theme.palette(for: .day))
-            .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
-            .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)
-            .preferredColorScheme(.light)
-
-        assertSnapshot(
-            of: view,
-            as: .image(
-                precision: WorkoutVisualBaseline.precision,
-                layout: .device(config: .workoutVisualBaseline)
-            )
-        )
+        assertGreenhouseBaselines(hosted: false) { appearance in
+            ExerciseHistorySheet(presentation: presentation)
+                .frame(width: 393, height: 420)
+                .background(Theme.palette(for: appearance).paperBackground)
+        }
     }
 
     /// The fill-in-progress affordance: a warm-voice line, a muted determinate bar, and an honest
@@ -79,25 +74,15 @@ struct ExerciseHistorySheetVisualTests {
             ]
         )
 
-        let view = ExerciseHistorySheet(
-            presentation: presentation,
-            fillProgress: HistoryFillProgressPresentation(
-                LastPerformedBackfillProgress(tab: "Block 26", tabsCompleted: 1, tabsToScan: 3)
+        assertGreenhouseBaselines(hosted: false) { appearance in
+            ExerciseHistorySheet(
+                presentation: presentation,
+                fillProgress: HistoryFillProgressPresentation(
+                    LastPerformedBackfillProgress(tab: "Block 26", tabsCompleted: 1, tabsToScan: 3)
+                )
             )
-        )
-        .frame(width: 393, height: 420)
-        .background(Theme.palette(for: .day).paperBackground)
-        .environment(\.themePalette, Theme.palette(for: .day))
-        .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
-        .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)
-        .preferredColorScheme(.light)
-
-        assertSnapshot(
-            of: view,
-            as: .image(
-                precision: WorkoutVisualBaseline.precision,
-                layout: .device(config: .workoutVisualBaseline)
-            )
-        )
+            .frame(width: 393, height: 420)
+            .background(Theme.palette(for: appearance).paperBackground)
+        }
     }
 }

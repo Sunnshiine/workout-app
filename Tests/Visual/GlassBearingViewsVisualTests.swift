@@ -5,34 +5,45 @@ import Testing
 
 @testable import WorkoutTracker
 
+/// Wholesale Day/Night Visual Baselines for the redesigned Greenhouse screens (PRD #458 slice 8,
+/// ADR-0007). Liquid Glass is retired (ADR-0014): the harness composites glass as transparent and no
+/// redesigned screen bears a glass primitive any longer, so `sunbirdColophonMatchesVisualBaseline`
+/// below is the **only** glass-bearing baseline left — the app's one surviving glass disc
+/// (DESIGN.md §6). Every other capture here is flat Greenhouse paper, re-lit for Night.
 @MainActor
 @Suite(.snapshots(record: .never))
 struct GlassBearingViewsVisualTests {
+    // MARK: - The one surviving glass element
+
+    @Test func sunbirdColophonMatchesVisualBaseline() {
+        // The complete Sunbird mark (DESIGN.md §6): its icon greens hold across both appearances
+        // (The Mark Stays Whole), so it is captured against the Day and Night paper it sits on. This
+        // is the single glass-bearing baseline in the entire Visual suite.
+        assertGreenhouseBaselines { _ in
+            SunbirdColophon(diameter: 40)
+        }
+    }
+
+    // MARK: - Block grid (flagged Night surface)
+
     @Test func sessionTileMatchesVisualBaseline() {
-        // The tile is wordless now — glass is retired; fill + stroke alone say state.
-        // Baseline recapture for the Block grid lands with the Greenhouse visual gate (slice 8).
-        assertGlassBaseline {
+        // The Block grid is the second surface never re-prototyped at Night; its Night baseline is
+        // validated on the pinned iPhone 17 Pro against the Room Re-lights Rule before it locks
+        // (PRD #458 slice 8, DESIGN.md §2 / §5.5). The tile is wordless — fill + stroke alone say
+        // state; `Tests/Component/ThemeTests.swift` (`nightBlockGridObeysTheRoomRelightsRule`) is the
+        // programmatic half of that sign-off.
+        assertGreenhouseBaselines { _ in
             SessionTile(state: .current, fillQuarters: 0)
                 .frame(width: 160)
         }
     }
 
-    @Test func restPillViewMatchesVisualBaseline() {
-        let now = Date(timeIntervalSinceReferenceDate: 1_000)
-        let clock = VisualRestClock(now: now)
-        let timer = RestTimer(clock: clock)
-        timer.start(duration: 150, origin: ActiveSetID(exerciseOrder: 0, setIndex: 1), kind: .standard)
-
-        assertGlassBaseline {
-            RestPillView(restTimer: timer, visualBaselineDate: now)
-                .frame(width: 320, height: 84)
-        }
-    }
+    // MARK: - The living stage & input block
 
     @Test func smartValuePillsMatchesVisualBaseline() {
         let set = makeExercise(setStates: [.pending]).sets[0]
 
-        assertGlassBaseline(precision: WorkoutVisualBaseline.labelAntialiasingPrecision) {
+        assertGreenhouseBaselines(precision: WorkoutVisualBaseline.labelAntialiasingPrecision) { _ in
             SmartValuePills(
                 set: set,
                 previousSetWeight: 275,
@@ -54,7 +65,7 @@ struct GlassBearingViewsVisualTests {
             state: .pending
         )
 
-        assertGlassBaseline {
+        assertGreenhouseBaselines { _ in
             SmartValuePills(
                 set: set,
                 previousSetWeight: nil,
@@ -76,7 +87,9 @@ struct GlassBearingViewsVisualTests {
         )
         let block = makeBlock(sessions: [session])
 
-        assertGlassBaseline {
+        // No glass: the header carries its own flat card fill now (ADR-0014). Only the colophon
+        // renders through the glass primitive anywhere in the suite.
+        assertGreenhouseBaselines { appearance in
             SessionProgressHeader(
                 session: session,
                 activeSetID: ActiveSetID(exerciseOrder: 0, setIndex: 2),
@@ -86,10 +99,23 @@ struct GlassBearingViewsVisualTests {
             )
             .padding(14)
             .frame(width: 360)
-            .background(Theme.palette(for: .day).activeCardFill, in: .rect(cornerRadius: Theme.cardCornerRadius))
-            .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
+            .background(Theme.palette(for: appearance).activeCardFill, in: .rect(cornerRadius: Theme.cardCornerRadius))
         }
     }
+
+    @Test func restPillViewMatchesVisualBaseline() {
+        let now = Date(timeIntervalSinceReferenceDate: 1_000)
+        let clock = VisualRestClock(now: now)
+        let timer = RestTimer(clock: clock)
+        timer.start(duration: 150, origin: ActiveSetID(exerciseOrder: 0, setIndex: 1), kind: .standard)
+
+        assertGreenhouseBaselines { _ in
+            RestPillView(restTimer: timer, visualBaselineDate: now)
+                .frame(width: 320, height: 84)
+        }
+    }
+
+    // MARK: - Move On ceremony
 
     @Test func moveOnCelebrationViewMatchesVisualBaseline() {
         let session = makeSession(
@@ -99,11 +125,10 @@ struct GlassBearingViewsVisualTests {
             exerciseName: "Deadlift"
         )
 
-        // The ceremony animates the stem growing and the songbird landing on the
-        // wing ease, so an early frame is not pixel-stable across test ordering.
-        // Tolerate that small drift while still catching a gross layout regression.
-        // Wholesale Day/Night re-capture lands with the Greenhouse visual gate (slice 8).
-        assertFullScreenBaseline(precision: 0.99, perceptualPrecision: 0.9) {
+        // The ceremony animates the stem growing and the songbird landing on the wing ease, so an
+        // early frame is not pixel-stable across test ordering. Tolerate that small drift while still
+        // catching a gross layout regression, in both appearances.
+        assertGreenhouseBaselines(hosted: false, precision: 0.99, perceptualPrecision: 0.9) { _ in
             MoveOnCelebrationView(
                 session: session,
                 quoteText: "You're fucking amazing.",
@@ -112,8 +137,10 @@ struct GlassBearingViewsVisualTests {
         }
     }
 
+    // MARK: - Empty, onboarding & utility surfaces
+
     @Test func emptyStateViewMatchesVisualBaseline() {
-        assertGlassBaseline {
+        assertGreenhouseBaselines { _ in
             EmptyStateView(onSettings: {})
                 .frame(width: 320)
         }
@@ -122,7 +149,7 @@ struct GlassBearingViewsVisualTests {
     @Test func onboardingViewCardMatchesVisualBaseline() throws {
         let settings = SettingsStore(defaults: try makeVisualDefaults())
 
-        assertGlassBaseline {
+        assertGreenhouseBaselines { _ in
             OnboardingView()
                 .environment(settings)
                 .frame(width: 360, height: 260)
@@ -131,10 +158,10 @@ struct GlassBearingViewsVisualTests {
 
     @Test func settingsViewMatchesVisualBaseline() throws {
         let scenario = try WorkoutScenarios.freshConfiguredApp()
-        GlassVisualFixtureRetainer.retain(scenario)
-        let sync = SyncCoordinator(client: GlassVisualNoopSheetsClient(), context: scenario.context)
+        VisualBaselineFixtureRetainer.retain(scenario)
+        let sync = SyncCoordinator(client: VisualBaselineNoopSheetsClient(), context: scenario.context)
 
-        assertFullScreenBaseline {
+        assertGreenhouseBaselines(hosted: false) { _ in
             SettingsView()
                 .environment(scenario.settings)
                 .environment(sync)
@@ -144,10 +171,10 @@ struct GlassBearingViewsVisualTests {
 
     @Test func developerToolsViewMatchesVisualBaseline() throws {
         let scenario = try WorkoutScenarios.freshConfiguredApp()
-        GlassVisualFixtureRetainer.retain(scenario)
-        let sync = SyncCoordinator(client: GlassVisualNoopSheetsClient(), context: scenario.context)
+        VisualBaselineFixtureRetainer.retain(scenario)
+        let sync = SyncCoordinator(client: VisualBaselineNoopSheetsClient(), context: scenario.context)
 
-        assertFullScreenBaseline {
+        assertGreenhouseBaselines(hosted: false) { _ in
             NavigationStack {
                 DeveloperToolsView()
             }
@@ -155,67 +182,6 @@ struct GlassBearingViewsVisualTests {
             .environment(sync)
             .environment(scenario.store)
         }
-    }
-
-    private func assertGlassBaseline<Content: View>(
-        testName: String = #function,
-        precision: Float = WorkoutVisualBaseline.precision,
-        @ViewBuilder content: () -> Content
-    ) {
-        let view = VisualBaselineHost {
-            content()
-        }
-
-        assertSnapshot(
-            of: view,
-            as: .image(
-                precision: precision,
-                layout: .device(config: .workoutVisualBaseline)
-            ),
-            testName: testName
-        )
-    }
-
-    private func assertFullScreenBaseline<Content: View>(
-        testName: String = #function,
-        precision: Float = WorkoutVisualBaseline.precision,
-        perceptualPrecision: Float = 1,
-        @ViewBuilder content: () -> Content
-    ) {
-        let view = content()
-            .environment(\.themePalette, Theme.palette(for: .day))
-            .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
-            .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)
-            .preferredColorScheme(.light)
-
-        assertSnapshot(
-            of: view,
-            as: .image(
-                precision: precision,
-                perceptualPrecision: perceptualPrecision,
-                layout: .device(config: .workoutVisualBaseline)
-            ),
-            testName: testName
-        )
-    }
-}
-
-private struct VisualBaselineHost<Content: View>: View {
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        ZStack {
-            Theme.palette(for: .day).paperBackground
-                .ignoresSafeArea()
-
-            content
-                .padding()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .environment(\.themePalette, Theme.palette(for: .day))
-        .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
-        .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)
-        .preferredColorScheme(.light)
     }
 }
 
@@ -226,27 +192,6 @@ private final class VisualRestClock: RestClock {
     init(now: Date) {
         self.now = now
     }
-}
-
-@MainActor
-private enum GlassVisualFixtureRetainer {
-    private static var retainedScenarios: [ConfiguredAppScenario] = []
-
-    static func retain(_ scenario: ConfiguredAppScenario) {
-        retainedScenarios.append(scenario)
-    }
-}
-
-private actor GlassVisualNoopSheetsClient: SheetsClient {
-    func listTabTitles(spreadsheetId: String) async throws -> [String] {
-        []
-    }
-
-    func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
-        SheetSnapshot(values: [], rowVisibility: [:])
-    }
-
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
 }
 
 private func makeVisualDefaults() throws -> UserDefaults {

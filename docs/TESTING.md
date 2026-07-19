@@ -31,8 +31,16 @@ Visual tests use `swift-snapshot-testing` as a test-only dependency. Recording i
 default, so a missing or changed Visual Baseline fails instead of silently re-recording. New or
 intentional baseline changes must be recorded deliberately. Ralph does not add a model-review or
 special-authorization layer on top of the programmatic Visual Regression tests.
-The shared Visual trait configuration is pinned to iPhone 17 Pro on the iOS 26.3.1 runtime, light
-mode, `en_US`, fixed default Dynamic Type, and exact precision (`1.0`).
+The shared Visual trait configuration is pinned to iPhone 17 Pro on the iOS 26.3.1 runtime,
+`en_US`, fixed default Dynamic Type, and exact precision (`1.0`). Under Greenhouse every redesigned
+screen is captured wholesale in **both** appearances via `assertGreenhouseBaselines` — the Visual
+layer's equivalent of the `-WORKOUT_THEME day|night` screenshot pin — so each screen lands a `…-day`
+and a `…-night` Visual Baseline (the interface-style trait follows the appearance). Liquid Glass is
+retired (ADR-0014): the app's one surviving glass element is the Sunbird colophon, so
+`sunbirdColophonMatchesVisualBaseline` is the only glass-bearing baseline in the suite. The two
+surfaces never re-prototyped at night — the Exercise History sheet and the Block grid — carry an
+on-simulator night validation against the Room Re-lights Rule (DESIGN.md §2) before their baselines
+lock; `Tests/Component/ThemeTests.swift` holds the programmatic half of that sign-off.
 
 Initial component-test scope:
 
