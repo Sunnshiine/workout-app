@@ -35,7 +35,7 @@ concurrency:
 
 jobs:
   archive:
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
@@ -49,15 +49,6 @@ jobs:
         run: |
           printf 'GID_CLIENT_ID = %s\nGID_REVERSED_CLIENT_ID = %s\n' \
             "$GID_CLIENT_ID" "$GID_REVERSED_CLIENT_ID" > Secrets.xcconfig
-
-      # actool in the runner's Xcode (26.5) cannot open the repo's Icon
-      # Composer documents during the thinned device compile ("Cannot Open
-      # AppIconDev.icon" + nil-insert crash), though simulator builds accept
-      # them. Drop them before generating the project so release builds ship
-      # the raster .appiconset fallbacks; the glass icons stay in the repo
-      # for local builds until re-authored in Icon Composer.
-      - name: Use raster app icons (drop Icon Composer documents)
-        run: rm -rf WorkoutTracker/AppIcon.icon WorkoutTracker/AppIconDev.icon
 
       # The committed xcodeproj may lag project.yml; the release build always
       # regenerates so signing style, bundle-id composition, and Info.plist

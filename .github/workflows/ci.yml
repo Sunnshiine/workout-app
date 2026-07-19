@@ -3,7 +3,7 @@ name: CI
 # PR gate: `swift test` covers the SPM library (unit + component tests);
 # `app-build` compile-checks the full app target including Views/, which the
 # library target excludes. Both need macOS; app-build additionally needs
-# Xcode 26 (Liquid Glass APIs, ADR-0004), which is the macos-26 default.
+# Xcode 27 (Liquid Glass APIs, ADR-0004), which is the xcode-27 default.
 #
 # Note: pushes made with the plain GITHUB_TOKEN do not trigger this workflow
 # (GitHub suppresses token-driven events). Agent workflows check out with
@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   swift-tests:
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -29,7 +29,7 @@ jobs:
         run: swift test
 
   app-build:
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
