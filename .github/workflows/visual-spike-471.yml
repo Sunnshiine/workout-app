@@ -35,7 +35,7 @@ jobs:
         continue-on-error: true
         run: |
           xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.4.1' \
             -only-testing:WorkoutTrackerSnapshotTests \
             -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
             TEST_RUNNER_SNAPSHOT_ARTIFACTS="$PWD/snapshot-diffs"
@@ -60,7 +60,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 90
     env:
-      DEST: platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1
+      DEST: platform=iOS Simulator,name=iPhone 17 Pro,OS=26.4.1
     steps:
       - uses: actions/checkout@v4
         with:

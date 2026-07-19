@@ -53,14 +53,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Create Secrets.xcconfig from template (build-only)
         run: cp Secrets.xcconfig.template Secrets.xcconfig
-      # The pinned baseline device (ADR-0007): iPhone 17 Pro on iOS 26.3.1.
+      # The pinned baseline device (ADR-0007): iPhone 17 Pro, on the newest
+      # stable iOS runtime the macos-26 image ships (26.3.x never shipped on
+      # the hosted image — an unavailable pin fails with exit code 70).
       # xcodebuild boots the simulator itself. TEST_RUNNER_SNAPSHOT_ARTIFACTS
       # lands swift-snapshot-testing's failure diffs in a known folder so the
       # artifact upload below can show *why* the gate went red.
       - name: Run Visual Regression tests (ADR-0007 gate)
         run: |
           xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.4.1' \
             -only-testing:WorkoutTrackerSnapshotTests \
             -resultBundlePath VisualTests.xcresult \
             -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
