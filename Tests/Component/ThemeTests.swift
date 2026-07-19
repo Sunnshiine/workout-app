@@ -298,12 +298,11 @@ import Testing
     #expect(Theme.cardSpacing > 0)
 }
 
-@Test func themeIncludesSmartValuePillAndRPEGridConstants() {
+@Test func themeIncludesSmartValuePillConstants() {
     #expect(Theme.pillMinHeight == 86)
     #expect(Theme.weightIncrementThreshold == 100)
     #expect(Theme.lightWeightIncrementOptions == [2.5, 5])
     #expect(Theme.heavyWeightIncrementOptions == [5, 10])
-    #expect(Theme.rpeGridCellHeight == 48)
 }
 
 @Test func themeIncludesSessionTileConstants() {

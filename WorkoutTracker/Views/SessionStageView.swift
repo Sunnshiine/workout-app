@@ -164,13 +164,18 @@ struct SessionStageView: View {
     private func stageCard(_ config: SessionExerciseRenderConfig, sortedSets: [ExerciseSet]) -> some View {
         if let expandedID = config.expandedLoggedSetID,
             let set = SessionStagePresentation.set(matching: expandedID, in: sortedSets) {
-            LoggedSetReviewCard(
+            ActiveSetCard(
+                exercise: config.exercise,
                 set: set,
                 setOrdinal: SessionStagePresentation.ordinal(of: set, in: sortedSets),
                 setCount: sortedSets.count,
-                showsSavedConfirmation: expandedID == config.savedLoggedSetID,
-                onCommit: { actions.updateLoggedSet(set, $0) },
-                onCollapse: { actions.focus(set) }
+                mode: .reviewingLogged(
+                    showsSavedConfirmation: expandedID == config.savedLoggedSetID,
+                    onCollapse: { actions.focus(set) }
+                ),
+                onLog: { actions.updateLoggedSet(set, $0) },
+                onSkip: { actions.skip(set) },
+                onDelete: { actions.delete(set) }
             )
             .id("stage-review-\(expandedID.exerciseOrder)-\(expandedID.setIndex)")
             .transition(.push(from: .bottom))

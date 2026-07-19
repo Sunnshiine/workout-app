@@ -1,10 +1,25 @@
 import SwiftUI
 
 struct ActiveSetCard: View {
+    /// How the card participates in the Session: logging the active pending
+    /// Set, or reviewing an already-logged one with a collapse affordance.
+    enum Mode {
+        case logging
+        case reviewingLogged(showsSavedConfirmation: Bool, onCollapse: () -> Void)
+
+        var setCardMode: SetCardMode {
+            switch self {
+            case .logging: .logging
+            case .reviewingLogged: .reviewingLogged
+            }
+        }
+    }
+
     let exercise: Exercise
     let set: ExerciseSet
     let setOrdinal: Int
     let setCount: Int
+    var mode: Mode = .logging
     let onLog: (SetLog) -> Void
     let onSkip: () -> Void
     let onDelete: () -> Void
@@ -13,41 +28,42 @@ struct ActiveSetCard: View {
     @Environment(\.themePalette) private var palette
     @State private var inputDismissalRequestID = 0
 
+    private var presentation: SetCardPresentation {
+        SetCardPresentation(mode: mode.setCardMode, set: set)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Up next")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(palette.accent)
-                    .textCase(.uppercase)
+            header
 
-                Spacer()
+            if case .logging = mode {
+                HStack(alignment: .center, spacing: 8) {
+                    if let identityLabel {
+                        SupersetIdentityBadge(label: identityLabel, isActive: true)
+                    }
 
-                Text("Set \(setOrdinal) of \(setCount)")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(palette.badgeFill, in: .capsule)
-            }
-            .contentShape(.rect)
-            .onTapGesture(perform: requestInputDismissal)
+                    Text(exercise.name)
+                        .font(.headline.weight(.bold))
 
-            HStack(alignment: .center, spacing: 8) {
-                if let identityLabel {
-                    SupersetIdentityBadge(label: identityLabel, isActive: true)
+                    Spacer(minLength: 0)
                 }
-
-                Text(exercise.name)
-                    .font(.headline.weight(.bold))
-
-                Spacer(minLength: 0)
+                .contentShape(.rect)
+                .onTapGesture(perform: requestInputDismissal)
             }
-            .contentShape(.rect)
-            .onTapGesture(perform: requestInputDismissal)
+
+            if let referenceText = presentation.referenceText {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Original Unstructured Set Log")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text(referenceText)
+                        .font(.callout.weight(.semibold))
+                }
+            }
 
             SmartValuePills(
                 set: set,
+                mode: mode.setCardMode,
                 previousSetWeight: previousSetWeight,
                 trainingMax: trainingMax,
                 onLog: onLog,
@@ -67,6 +83,58 @@ struct ActiveSetCard: View {
         )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("active-set-card")
+    }
+
+    @ViewBuilder
+    private var header: some View {
+        switch mode {
+        case .logging:
+            HStack(alignment: .firstTextBaseline) {
+                Text(presentation.statusText)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(palette.accent)
+                    .textCase(.uppercase)
+
+                Spacer()
+
+                Text("Set \(setOrdinal) of \(setCount)")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(palette.badgeFill, in: .capsule)
+            }
+            .contentShape(.rect)
+            .onTapGesture(perform: requestInputDismissal)
+        case .reviewingLogged(let showsSavedConfirmation, let onCollapse):
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(presentation.statusText)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(palette.accent)
+                        .textCase(.uppercase)
+
+                    Text("Set \(setOrdinal) of \(setCount)")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 0)
+
+                if showsSavedConfirmation {
+                    Label("Saved", systemImage: "checkmark.circle.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(palette.accent)
+                }
+
+                Button(action: onCollapse) {
+                    Image(systemName: "chevron.up")
+                        .font(.callout.weight(.semibold))
+                        .accessibilityLabel("Collapse logged set")
+                }
+                .buttonStyle(.workoutGlass)
+            }
+        }
     }
 
     private func requestInputDismissal() {

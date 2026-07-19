@@ -154,25 +154,6 @@ import Testing
 }
 
 @MainActor
-@Test func rpeGridUsesTwoRowsDimsFiveAndMarksPrescribedRPE() {
-    let grid = RPEGridPresentation(prescribedRPE: 8)
-
-    #expect(grid.rows.map { $0.map(\.value) } == [[5, 6, 7], [8, 9, 10]])
-    #expect(grid.rows[0][0].isDimmed)
-    #expect(grid.rows[1][0].showsPrescriptionBadge)
-    #expect(grid.autoCloseDelay == .milliseconds(300))
-}
-
-@MainActor
-@Test func rpeGridHalfStepLabelsKeepWholeGridAndOnlySupportSixThroughNine() {
-    let grid = RPEGridPresentation(prescribedRPE: 8)
-    let values = grid.rows.flatMap { $0 }
-
-    #expect(values.map(\.value) == [5, 6, 7, 8, 9, 10])
-    #expect(values.map(\.halfStepLabel) == [nil, "6.5", "7.5", "8.5", "9.5", nil])
-}
-
-@MainActor
 @Test func logButtonPreviewUpdatesAndRequiresCompleteSetLog() {
     var form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "75%1RM", percentOneRM: nil, state: .pending),

@@ -8,6 +8,7 @@ struct SmartValuePills: View {
     }
 
     let set: ExerciseSet
+    let mode: SetCardMode
     let onLog: (SetLog) -> Void
     let onSkip: () -> Void
     let onDelete: () -> Void
@@ -21,6 +22,7 @@ struct SmartValuePills: View {
 
     init(
         set: ExerciseSet,
+        mode: SetCardMode = .logging,
         previousSetWeight: Double?,
         trainingMax: Double?,
         onLog: @escaping (SetLog) -> Void,
@@ -30,6 +32,7 @@ struct SmartValuePills: View {
         inputDismissalRequestID: Int = 0
     ) {
         self.set = set
+        self.mode = mode
         self.onLog = onLog
         self.onSkip = onSkip
         self.onDelete = onDelete
@@ -59,7 +62,13 @@ struct SmartValuePills: View {
                 onSelect: { form.rpeText = $0 }
             )
 
-            actionControls
+            if presentation.showsLogControls {
+                actionControls
+            } else if form.hasChanges, form.changedValidLog == nil {
+                Text("Complete weight, reps, and RPE to update this logged set.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .task(id: editingPill) {
             focusedPill = editingPill
@@ -72,6 +81,11 @@ struct SmartValuePills: View {
         .onChange(of: inputDismissalRequestID) { _, _ in
             dismissFieldUI()
         }
+        .onDisappear(perform: commitChangedDraftIfNeeded)
+    }
+
+    private var presentation: SetCardPresentation {
+        SetCardPresentation(mode: mode, set: set)
     }
 
     private var weightPill: some View {
@@ -201,6 +215,14 @@ struct SmartValuePills: View {
                 }
             }
         }
+    }
+
+    /// Reviewing an already-logged Set commits silently: any changed, valid
+    /// draft is written when the card leaves the screen (collapse or
+    /// navigation), with the header's Saved label as feedback.
+    private func commitChangedDraftIfNeeded() {
+        guard presentation.commitsChangesOnDisappear, let log = form.changedValidLog else { return }
+        onLog(log)
     }
 
     private func submitLog() {

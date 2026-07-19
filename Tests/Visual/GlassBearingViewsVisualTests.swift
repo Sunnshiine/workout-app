@@ -65,22 +65,6 @@ struct GlassBearingViewsVisualTests {
         }
     }
 
-    @Test func loggedSetReviewCardMatchesVisualBaseline() {
-        let set = makeExercise(setStates: [.logged]).sets[0]
-
-        assertGlassBaseline {
-            LoggedSetReviewCard(
-                set: set,
-                setOrdinal: 1,
-                setCount: 4,
-                showsSavedConfirmation: true,
-                onCommit: { _ in },
-                onCollapse: {}
-            )
-            .frame(width: 360)
-        }
-    }
-
     @Test func sessionProgressHeaderMatchesVisualBaseline() {
         let session = makeSession(
             weekNumber: 3,

@@ -1,35 +1,5 @@
 import Foundation
 
-struct RPEGridPresentation: Equatable, Sendable {
-    let rows: [[RPEGridValue]]
-    let autoCloseDelay: Duration = .milliseconds(300)
-
-    init(prescribedRPE: Int?) {
-        rows = [
-            [5, 6, 7].map { RPEGridValue(value: $0, prescribedRPE: prescribedRPE) },
-            [8, 9, 10].map { RPEGridValue(value: $0, prescribedRPE: prescribedRPE) }
-        ]
-    }
-}
-
-struct RPEGridValue: Equatable, Hashable, Identifiable, Sendable {
-    let value: Int
-    let isDimmed: Bool
-    let showsPrescriptionBadge: Bool
-
-    var id: Int { value }
-    var halfStepLabel: String? {
-        guard (6...9).contains(value) else { return nil }
-        return "\(value).5"
-    }
-
-    init(value: Int, prescribedRPE: Int?) {
-        self.value = value
-        isDimmed = value == 5
-        showsPrescriptionBadge = value == prescribedRPE
-    }
-}
-
 @MainActor
 struct SmartValuePillsForm {
     enum Field: Hashable, Sendable {
