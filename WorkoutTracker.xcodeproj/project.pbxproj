@@ -36,6 +36,7 @@
 		23DC6090AF57EAF426C113C5 /* LastPerformedEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FE11A57FFD49F1221D2CA75 /* LastPerformedEntry.swift */; };
 		26399018B2461BEF70C23851 /* LoadSuggestionEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607A9CA778D25DBBAB685004 /* LoadSuggestionEngineTests.swift */; };
 		263DC76714A051B3A2633BEC /* SessionStageBranch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4204EE26AA9CAF016ACC94EB /* SessionStageBranch.swift */; };
+		AB0100000000000000000002 /* Sunbird.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0100000000000000000001 /* Sunbird.swift */; };
 		298DEFE8D99B3F6C97CAAE38 /* RestNotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFBA3AF5C9A8A37438C43F0D /* RestNotificationScheduler.swift */; };
 		F1A2B3C4D5E6F7A8B9C0D1E2 /* RestInterval.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6F7A8B9C0D1E3 /* RestInterval.swift */; };
 		A1B2C3D4E5F6A7B8C9D0E1F2 /* RestExpiryScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F3 /* RestExpiryScheduler.swift */; };
@@ -293,6 +294,7 @@
 		3FBC487F560A6B0CBC07067A /* LastPerformedLookup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastPerformedLookup.swift; sourceTree = "<group>"; };
 		402C6B156DB11FD55DDE497B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		4204EE26AA9CAF016ACC94EB /* SessionStageBranch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStageBranch.swift; sourceTree = "<group>"; };
+		AB0100000000000000000001 /* Sunbird.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sunbird.swift; sourceTree = "<group>"; };
 		435A665E1EE8F8F82EA527B3 /* WorkoutTracker.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = WorkoutTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		44452C2B9CFC7273C0972BEF /* TabFetchRetry.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TabFetchRetry.swift; sourceTree = "<group>"; };
 		45AEC5243B4F982899183AC2 /* WorkoutTrackerUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = WorkoutTrackerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -518,6 +520,7 @@
 				1027F3D17075B410CAA8EEB9 /* SessionQueueSheet.swift */,
 				4204EE26AA9CAF016ACC94EB /* SessionStageBranch.swift */,
 				4DFC2292C554D15D32CD11B1 /* SessionStageView.swift */,
+				AB0100000000000000000001 /* Sunbird.swift */,
 				7172E2B6F090D7F496DD6236 /* SessionTile.swift */,
 				E31CB80B71F35E4D4A35FE87 /* SessionView.swift */,
 				FEED000000000000000000B3 /* BuildIdentityFooter.swift */,
@@ -1179,6 +1182,7 @@
 				C60156C7CEC561D20AC1055A /* SessionStagePresentation.swift in Sources */,
 				A1B2C3D400000000000000A1 /* SessionSetOrder.swift in Sources */,
 				263DC76714A051B3A2633BEC /* SessionStageBranch.swift in Sources */,
+				AB0100000000000000000002 /* Sunbird.swift in Sources */,
 				993CEE6B1CC5F53D2830F6A0 /* SessionStageView.swift in Sources */,
 				C284DB7EB4E8BFC59D3ECBB1 /* SessionTile.swift in Sources */,
 				FCA508FE3522CB7062267112 /* SessionView.swift in Sources */,
