@@ -84,6 +84,8 @@
 		72C3E38C0A4FF8D092CB4A23 /* moveOnCelebrationViewMatchesVisualBaseline.1.png in Resources */ = {isa = PBXBuildFile; fileRef = 4703DC4F7CC66CB49A05983D /* moveOnCelebrationViewMatchesVisualBaseline.1.png */; };
 		76AF3279365D2ACDBD02BB7A /* SmartValuePills.swift in Sources */ = {isa = PBXBuildFile; fileRef = 719E54DAA40D4D2D700AA91F /* SmartValuePills.swift */; };
 		788EBD095ACFD0CF48BDA4EE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EE9617577EC2B1EE77CC2E63 /* Assets.xcassets */; };
+		FA0000000000000000000011 /* Fraunces.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FA0000000000000000000001 /* Fraunces.ttf */; };
+		FA0000000000000000000012 /* SourceSans3.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FA0000000000000000000002 /* SourceSans3.ttf */; };
 		7A7A9B87F7663034989F8EB4 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C9C69974B6867E8568AFBD0 /* OnboardingView.swift */; };
 		7B8CE914CEB343A88D109955 /* SyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF512CAF662AE6E54D7B864C /* SyncCoordinator.swift */; };
 		7D73B4A734A389E428D9DA4B /* ActiveSetFocusManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD5A40419517EF83C31555BC /* ActiveSetFocusManager.swift */; };
@@ -128,6 +130,7 @@
 		B0441BD9835254837C31369E /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2A79566B8F5D5A99B273AA3 /* SettingsStore.swift */; };
 		B16A74578E228B8068B4EB56 /* OpenExerciseRowPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2476AFCDF1271D11870959C8 /* OpenExerciseRowPresentationTests.swift */; };
 		B1A03F30DB8DFC71A1C8C562 /* ThemeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7824F6B3D40B1310C078953A /* ThemeTests.swift */; };
+		FA0000000000000000000013 /* FontPlumbingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA0000000000000000000003 /* FontPlumbingTests.swift */; };
 		B1C2D3E4F5061728394A5B6D /* ExerciseHistorySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5061728394A5B6C /* ExerciseHistorySheet.swift */; };
 		B6E514D1A4F1E94B00B8F542 /* Smoke.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEC43682656CC2E8CF1BD804 /* Smoke.swift */; };
 		B7E24AB5D1E5BF887EBB4BA8 /* SessionFocusMorphPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D77DD81D71D5E9E046E80F /* SessionFocusMorphPolicy.swift */; };
@@ -328,6 +331,7 @@
 		73043E31A40EFA8A57C38FAF /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
 		74540E578A1F6657CD8CB941 /* WorkoutGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutGlass.swift; sourceTree = "<group>"; };
 		7824F6B3D40B1310C078953A /* ThemeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeTests.swift; sourceTree = "<group>"; };
+		FA0000000000000000000003 /* FontPlumbingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FontPlumbingTests.swift; sourceTree = "<group>"; };
 		7D840BAD8EF365CF0B77FC53 /* GoogleSheetsClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleSheetsClientTests.swift; sourceTree = "<group>"; };
 		7D8657BBD8B3439498C6A625 /* LiveActivityRestContentBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityRestContentBuilder.swift; sourceTree = "<group>"; };
 		7E44E4307BBE02ECB2E8C314 /* SupersetIdentityBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupersetIdentityBadge.swift; sourceTree = "<group>"; };
@@ -414,6 +418,8 @@
 		ECA5D0F58BE44C1297D2C669 /* PendingWrite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingWrite.swift; sourceTree = "<group>"; };
 		ECBE6989519E819A9FDB6608 /* WorkoutStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutStore.swift; sourceTree = "<group>"; };
 		EE9617577EC2B1EE77CC2E63 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		FA0000000000000000000001 /* Fraunces.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Fonts/Fraunces.ttf; sourceTree = "<group>"; };
+		FA0000000000000000000002 /* SourceSans3.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Fonts/SourceSans3.ttf; sourceTree = "<group>"; };
 		F1B26E931108B06FD2B281FA /* WorkoutStoreLoggingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutStoreLoggingTests.swift; sourceTree = "<group>"; };
 		F2913603B7A42BABD66A2404 /* SheetCompactLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetCompactLayoutTests.swift; sourceTree = "<group>"; };
 		F8614CD78C778EBC3EEC9690 /* SheetPickerStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetPickerStoreTests.swift; sourceTree = "<group>"; };
@@ -775,6 +781,8 @@
 			isa = PBXGroup;
 			children = (
 				EE9617577EC2B1EE77CC2E63 /* Assets.xcassets */,
+				FA0000000000000000000001 /* Fraunces.ttf */,
+				FA0000000000000000000002 /* SourceSans3.ttf */,
 				698FB46E5B1635F96AA0AA79 /* Info.plist */,
 				3695D878F161DF7CDC6A827E /* LaunchScreen.storyboard */,
 				22EEE65D45B6DDC0D0563744 /* LoadSuggestionEngine.swift */,
@@ -805,6 +813,7 @@
 				63390CF33C9BDD5A5209795E /* SmartValuePillsFormTests.swift */,
 				D550038AEDE59912E21E5C00 /* SyncStatusPresentationTests.swift */,
 				7824F6B3D40B1310C078953A /* ThemeTests.swift */,
+				FA0000000000000000000003 /* FontPlumbingTests.swift */,
 				0EA60B3DEDC06A8AE91239AA /* WeightPillLayoutMetricsTests.swift */,
 				DF6BE32FF77252B878606269 /* WorkoutGlassMigrationContractTests.swift */,
 			);
@@ -991,6 +1000,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				788EBD095ACFD0CF48BDA4EE /* Assets.xcassets in Resources */,
+				FA0000000000000000000011 /* Fraunces.ttf in Resources */,
+				FA0000000000000000000012 /* SourceSans3.ttf in Resources */,
 				0D4C89E50C4CE24C8BCAC13A /* LaunchScreen.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1092,6 +1103,7 @@
 				C0FDEC28CF5657E7183A8348 /* SyncCoordinatorWriteTests.swift in Sources */,
 				37A4A63BB53FDDB3F147C4EE /* SyncStatusPresentationTests.swift in Sources */,
 				B1A03F30DB8DFC71A1C8C562 /* ThemeTests.swift in Sources */,
+				FA0000000000000000000013 /* FontPlumbingTests.swift in Sources */,
 				52739B949C5BC3E257751E34 /* WeightPillLayoutMetricsTests.swift in Sources */,
 				3DCB551535F4E58F43C72171 /* WorkoutGlassMigrationContractTests.swift in Sources */,
 				3DEF9DC695D38CC516DA389E /* WorkoutModelFixture.swift in Sources */,

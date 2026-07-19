@@ -197,7 +197,7 @@ struct SessionStageView: View {
     private func completionStage(items: [SessionStageItem]) -> some View {
         VStack(spacing: 14) {
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 52))
+                .font(Theme.glyphFont(size: 52))
                 .foregroundStyle(palette.accent)
 
             Text("Session complete")

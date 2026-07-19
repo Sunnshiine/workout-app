@@ -35,6 +35,11 @@
 	<false/>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Fraunces.ttf</string>
+		<string>SourceSans3.ttf</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UISupportedInterfaceOrientations</key>

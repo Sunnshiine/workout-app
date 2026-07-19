@@ -25,6 +25,19 @@ excluded:
   - "**/.build"
   - "**/Generated"
 
+custom_rules:
+  font_construction_via_theme:
+    name: "Font construction via the Theme seam"
+    message: >
+      Construct fonts only through the single type role table on the Theme seam
+      (Theme.font(_:) for text roles, Theme.glyphFont(...) for decorative glyphs).
+      Font.custom / .system(size:) is banned outside Theme.swift so type cannot
+      drift per-view and Dynamic Type stays a one-file diff (ADR-0014, token sheet §4).
+    regex: '(Font\.custom\(|\.system\(size)'
+    included: '.*/WorkoutTracker/.*'
+    excluded: '.*/Theme\.swift'
+    severity: error
+
 identifier_name:
   min_length:
     warning: 1

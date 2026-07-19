@@ -1,6 +1,11 @@
 import Foundation
 import SwiftUI
 
+#if canImport(UIKit)
+    import CoreText
+    import UIKit
+#endif
+
 private struct ThemePaletteKey: EnvironmentKey {
     static let defaultValue = Theme.palette(for: Theme.Appearance.day)
 }
@@ -468,6 +473,211 @@ extension Theme {
     static func rgb(_ red: Double, _ green: Double, _ blue: Double, _ opacity: Double = 1) -> Color {
         Color(.sRGB, red: red / 255, green: green / 255, blue: blue / 255, opacity: opacity)
     }
+}
+
+// MARK: - Type roles (token sheet §4)
+//
+// Every text style is one row of this single role table — no view ever constructs a font (a
+// SwiftLint rule enforces it). Fraunces is the voice (Exercise name + ceremony only), pinned at
+// SOFT 100 / WONK 0 / wght 490 with opsz tracking the point size; Source Sans 3 is the instrument,
+// every numeral role bold + tabular. Sizes are fixed (the Product Scale Rule); adopting Dynamic
+// Type later is a one-file diff here.
+
+extension Theme {
+    enum FontFace {
+        case fraunces
+        case sourceSans3
+
+        /// The bundled variable font's family name (verified from the TTF `name` tables).
+        var familyName: String {
+            switch self {
+            case .fraunces: "Fraunces"
+            case .sourceSans3: "Source Sans 3"
+            }
+        }
+    }
+
+    /// One row of the type role table: a face at a fixed point size, a variable-font weight axis
+    /// value, and whether the role plumbs tabular numerals. Leading and tracking are advisory
+    /// (applied by callers via `lineSpacing`/`tracking`); the resolved `Font` carries face, size,
+    /// weight and `tnum`.
+    struct TypeStyle: Equatable {
+        let face: FontFace
+        let size: CGFloat
+        /// Variable-font `wght` axis value. Fraunces ignores this (pinned at 490).
+        let weight: Double
+        let tabular: Bool
+        /// Line-height multiple; `nil` leaves the face default.
+        let lineHeight: CGFloat?
+        /// Tracking in points (letter-spacing).
+        let tracking: CGFloat
+        /// `opsz` axis override for the rare role where optical size ≠ point size.
+        let opticalSize: CGFloat?
+
+        init(
+            face: FontFace,
+            size: CGFloat,
+            weight: Double,
+            tabular: Bool = false,
+            lineHeight: CGFloat? = nil,
+            tracking: CGFloat = 0,
+            opticalSize: CGFloat? = nil
+        ) {
+            self.face = face
+            self.size = size
+            self.weight = weight
+            self.tabular = tabular
+            self.lineHeight = lineHeight
+            self.tracking = tracking
+            self.opticalSize = opticalSize
+        }
+    }
+
+    enum TypeRole: CaseIterable {
+        case exerciseName
+        case ceremonyTitle
+        case connectTitle
+        case sheetTitle
+        case weightEntry
+        case logCapsule
+        case setNumber
+        case setOf
+        case railChipValue
+        case railChipGlyph
+        case fieldLabel
+        case coachNote
+        case runline
+        case runlineSecondary
+        case lastPerformed
+        case queuePill
+        case historyChip
+        case blockTitle
+        case cadence
+        case statsValue
+        case statsKey
+
+        var style: TypeStyle {
+            switch self {
+            case .exerciseName:
+                TypeStyle(face: .fraunces, size: 33, weight: 490, lineHeight: 1.10)
+            case .ceremonyTitle:
+                TypeStyle(face: .fraunces, size: 38, weight: 490, lineHeight: 1.10)
+            case .connectTitle:
+                TypeStyle(face: .fraunces, size: 36, weight: 490)
+            case .sheetTitle:
+                TypeStyle(face: .fraunces, size: 24, weight: 490, lineHeight: 1.1, opticalSize: 22)
+            case .weightEntry:
+                TypeStyle(face: .sourceSans3, size: 46, weight: 700, tabular: true, tracking: -0.69)
+            case .logCapsule:
+                TypeStyle(face: .sourceSans3, size: 18, weight: 650, tabular: true, tracking: 0.18)
+            case .setNumber:
+                TypeStyle(face: .sourceSans3, size: 16, weight: 700, tabular: true)
+            case .setOf:
+                TypeStyle(face: .sourceSans3, size: 14, weight: 500, tabular: true)
+            case .railChipValue:
+                TypeStyle(face: .sourceSans3, size: 17, weight: 700, tabular: true)
+            case .railChipGlyph:
+                TypeStyle(face: .sourceSans3, size: 13, weight: 500)
+            case .fieldLabel:
+                TypeStyle(face: .sourceSans3, size: 12, weight: 600)
+            case .coachNote:
+                TypeStyle(face: .sourceSans3, size: 15, weight: 400, lineHeight: 1.45)
+            case .runline:
+                TypeStyle(face: .sourceSans3, size: 13.5, weight: 600, tabular: true)
+            case .runlineSecondary:
+                TypeStyle(face: .sourceSans3, size: 13.5, weight: 500, tabular: true)
+            case .lastPerformed:
+                TypeStyle(face: .sourceSans3, size: 12.5, weight: 400, tabular: true, lineHeight: 1.5)
+            case .queuePill:
+                TypeStyle(face: .sourceSans3, size: 13, weight: 600, tabular: true)
+            case .historyChip:
+                TypeStyle(face: .sourceSans3, size: 12, weight: 600, tabular: true)
+            case .blockTitle:
+                TypeStyle(face: .sourceSans3, size: 28, weight: 700, tracking: -0.28)
+            case .cadence:
+                TypeStyle(face: .sourceSans3, size: 11, weight: 600)
+            case .statsValue:
+                TypeStyle(face: .sourceSans3, size: 26, weight: 700, tabular: true)
+            case .statsKey:
+                TypeStyle(face: .sourceSans3, size: 12.5, weight: 600)
+            }
+        }
+    }
+
+    /// The single choke point through which every text style resolves to a `Font`.
+    static func font(_ role: TypeRole) -> Font {
+        resolvedFont(role.style)
+    }
+
+    /// A plain SF symbol/emoji size that is still owned by the seam (so no view constructs a font).
+    /// Not part of the type role table — for decorative glyphs and chrome the redesign has not yet
+    /// re-voiced (rest timer, empty-state emoji), keeping the seam the single place fonts are built.
+    static func glyphFont(size: CGFloat, weight: Font.Weight = .regular, design: Font.Design = .default) -> Font {
+        .system(size: size, weight: weight, design: design)
+    }
+
+    private static func resolvedFont(_ style: TypeStyle) -> Font {
+        #if canImport(UIKit)
+            return Font(uiFont(style))
+        #else
+            // Fonts aren't registered off-device (unit tests on macOS); fall back to a fixed-size
+            // face so type still resolves without Dynamic Type scaling (the #410 trap).
+            return Font.custom(style.face.familyName, fixedSize: style.size).weight(swiftUIWeight(style.weight))
+        #endif
+    }
+
+    private static func swiftUIWeight(_ axis: Double) -> Font.Weight {
+        switch axis {
+        case ..<250: .light
+        case ..<350: .regular
+        case ..<450: .regular
+        case ..<550: .medium
+        case ..<650: .semibold
+        case ..<750: .bold
+        default: .heavy
+        }
+    }
+
+    #if canImport(UIKit)
+        /// Builds the concrete `UIFont` for a role, driving the variable-font axes directly (SwiftUI's
+        /// `.bold()` does not) and enabling tabular figures via a Core Text feature setting.
+        static func uiFont(_ style: TypeStyle) -> UIFont {
+            var axes: [UInt32: Double] = [:]
+            switch style.face {
+            case .fraunces:
+                axes[fontTag("wght")] = 490
+                axes[fontTag("opsz")] = Double(style.opticalSize ?? style.size)
+                axes[fontTag("SOFT")] = 100
+                axes[fontTag("WONK")] = 0
+            case .sourceSans3:
+                axes[fontTag("wght")] = style.weight
+                if let opticalSize = style.opticalSize {
+                    axes[fontTag("opsz")] = Double(opticalSize)
+                }
+            }
+
+            var attributes: [UIFontDescriptor.AttributeName: Any] = [
+                .family: style.face.familyName,
+                UIFontDescriptor.AttributeName(rawValue: kCTFontVariationAttribute as String): axes,
+            ]
+            if style.tabular {
+                attributes[.featureSettings] = [
+                    [
+                        UIFontDescriptor.FeatureKey.type: kNumberSpacingType,
+                        UIFontDescriptor.FeatureKey.selector: kMonospacedNumbersSelector,
+                    ]
+                ]
+            }
+
+            let descriptor = UIFontDescriptor(fontAttributes: attributes)
+            return UIFont(descriptor: descriptor, size: style.size)
+        }
+
+        /// The OpenType axis/feature tag as its big-endian `FourCharCode`.
+        private static func fontTag(_ tag: String) -> UInt32 {
+            tag.utf8.reduce(0) { ($0 << 8) + UInt32($1) }
+        }
+    #endif
 }
 
 // MARK: - Living-paper background

@@ -132,7 +132,7 @@ private struct SessionControls: View {
         HStack(spacing: 8) {
             Button(action: onSettings) {
                 Image(systemName: "gearshape")
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(Theme.glyphFont(size: 18, weight: .semibold))
                     .foregroundStyle(palette.accent)
                     .frame(width: 32, height: 32)
             }

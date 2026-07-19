@@ -116,7 +116,7 @@ struct MoveOnCelebrationView: View {
 
     private var logoMark: some View {
         Text(presentation.markText)
-            .font(.system(size: 18, weight: .black, design: .rounded))
+            .font(Theme.glyphFont(size: 18, weight: .black, design: .rounded))
             .foregroundStyle(palette.accent)
             .lineLimit(1)
             .minimumScaleFactor(0.82)
@@ -138,7 +138,7 @@ struct MoveOnCelebrationView: View {
 
     private var quoteText: some View {
         Text(presentation.quoteText)
-            .font(.system(size: 34, weight: .black, design: .default))
+            .font(Theme.glyphFont(size: 34, weight: .black))
             .foregroundStyle(primaryTextColor)
             .multilineTextAlignment(.leading)
             .lineLimit(6)
@@ -214,7 +214,7 @@ struct MoveOnCelebrationView: View {
                 .accessibilityIdentifier("move-on-celebration-orbit")
 
             Text(elapsedText)
-                .font(.system(size: 22, weight: .black, design: .rounded))
+                .font(Theme.glyphFont(size: 22, weight: .black, design: .rounded))
                 .foregroundStyle(primaryTextColor)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)

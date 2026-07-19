@@ -70,7 +70,7 @@ struct RestPillView: View {
 
         return VStack(spacing: 6) {
             Text(presentation.countdownText)
-                .font(.system(size: 27, weight: .semibold, design: .rounded).monospacedDigit())
+                .font(Theme.glyphFont(size: 27, weight: .semibold, design: .rounded).monospacedDigit())
                 .foregroundStyle(countdownColor(for: cue))
                 .opacity(countdownOpacity(for: cue))
                 .scaleEffect(finalFiveScale(for: cue))

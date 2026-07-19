@@ -6,7 +6,7 @@ struct EmptyStateView: View {
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "dumbbell")
-                .font(.system(size: 48))
+                .font(Theme.glyphFont(size: 48))
                 .foregroundStyle(.secondary)
             Text("No session yet")
                 .font(.title2)
