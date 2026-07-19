@@ -185,6 +185,16 @@ jobs:
         if: steps.shape.outputs.mode == 'run'
         run: npm install -g @anthropic-ai/claude-code
 
+      # A fresh CI checkout is an untrusted folder: MCP approval keys checked
+      # into .claude/settings.json are ignored there, but user-scope settings
+      # are honored (issue #480). This connects .mcp.json's servers for the
+      # sighted loop (.sandcastle/VISUAL_LOOP.md, issue #472).
+      - name: Approve project MCP servers (user scope)
+        if: steps.shape.outputs.mode == 'run'
+        run: |
+          mkdir -p ~/.claude
+          printf '%s\n' '{ "enabledMcpjsonServers": ["XcodeBuildMCP", "context7"] }' > ~/.claude/settings.json
+
       - name: Run implement-prd.ts
         if: steps.shape.outputs.mode == 'run'
         id: implement
@@ -196,6 +206,13 @@ jobs:
           SUB_ISSUE_NUMBER: ${{ steps.shape.outputs.next_open_number }}
           SUB_ISSUE_TITLE: ${{ steps.shape.outputs.next_open_title }}
           OUTPUT_DIR: ${{ runner.temp }}
+          # XcodeBuildMCP CI env (issue #472): headless focus policy + session
+          # defaults; .xcodebuildmcp/config.yaml outranks these where both set.
+          XCODEBUILDMCP_HEADLESS_LAUNCH: "1"
+          XCODEBUILDMCP_SENTRY_DISABLED: "true"
+          XCODEBUILDMCP_PROJECT_PATH: ${{ github.workspace }}/WorkoutTracker.xcodeproj
+          XCODEBUILDMCP_SCHEME: WorkoutTracker
+          XCODEBUILDMCP_SIMULATOR_NAME: iPhone 17 Pro
         run: npx tsx .sandcastle/implement-prd/implement-prd.ts
 
       - name: Push branch

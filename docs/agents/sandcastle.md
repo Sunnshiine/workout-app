@@ -60,26 +60,34 @@ issues are open).
 
 ## Repo-specific adaptations
 
-- **macOS runners with Xcode 26.** The reference repo runs everything on
-  `ubuntu-latest`; here the implementing/reviewing jobs run on `macos-26`
-  (default Xcode 26.x) so agents can verify the **whole** app, not just the
+- **macOS runners with Xcode 27.** The reference repo runs everything on
+  `ubuntu-latest`; here the implementing/reviewing jobs run on `xcode-27`
+  (default Xcode 27.0) so agents can verify the **whole** app, not just the
   SPM library: `swift test` is the fast loop, and changes touching the app
   target (`Views/`, Liquid Glass APIs) are compile-checked with
-  `xcodebuild build … -destination 'generic/platform=iOS Simulator'` — no
-  booted simulator needed. Workflows pre-create `Secrets.xcconfig` from
+  `xcodebuild build … -destination 'generic/platform=iOS Simulator'`.
+  Workflows pre-create `Secrets.xcconfig` from
   `Secrets.xcconfig.template` (build-only placeholder values; the xcodeproj
   references the file, so builds fail without it). Read-only jobs
   (`to-issues`, `promote-queued`, `architecture-review`) stay on Ubuntu.
   macOS minutes are free while this repo is public; 10× metered if it goes
   private.
-- **CI gate.** `ci.yml` runs `swift test` and the app-target compile-check on
-  every PR, so app-target breakage is caught even if an agent skipped the
-  `xcodebuild` check. Agent pushes trigger it only when `AGENT_PAT` is
+- **CI gate.** `ci.yml` runs `swift test`, the app-target compile-check, and
+  the ADR-0007 Visual Regression gate (`visual-tests`: the pinned-simulator
+  snapshot suite with recording off, so a missing or drifted Visual Baseline
+  fails the PR) on every PR. Agent pushes trigger it only when `AGENT_PAT` is
   configured (plain-`GITHUB_TOKEN` pushes don't fire workflows).
-- **No UI tests in CI.** Agents are told not to run `WorkoutTrackerUITests`
-  (booted simulator required; too slow/flaky for the agent loop). UI-affecting
-  PRs still need a human/Ralph pass locally for behavior — compilation is
-  covered in CI.
+- **The sighted loop.** Implementing agents don't just compile UI changes —
+  they look at them (`.sandcastle/VISUAL_LOOP.md`, decided on map #468): a
+  UI-touching change records its Visual Baselines on the runner's simulator
+  and reads the PNGs against `docs/design/greenhouse-picks/`, and drives the
+  built app in fixture mode through the changed screens via the XcodeBuildMCP
+  tools (`.mcp.json`; headless — the simulator boots windowless via `simctl`),
+  screenshotting both appearances. The review agent reads recorded baselines
+  and gate diff artifacts against the same ground truth. The deterministic
+  `visual-tests` gate stays the sole pass/fail authority. `WorkoutTrackerUITests`
+  (XCUITest) remain off-limits in the agent loop — the sighted loop replaces
+  the screenshot-tour idea, which was rejected (#469).
 - **Commit prefixes.** CI agents use conventional commits. The local loop
   uses `SANDCASTLE:` — never `RALPH:`, which is reserved for the Ralph loop.
 - **Agent model** is set in the `.sandcastle/**/*.ts` scripts

@@ -29,8 +29,7 @@ Before committing, run `swift test` (fast unit + component tests; no
 If your change touches the app target — anything under
 `WorkoutTracker/Views/`, `WorkoutTrackerApp.swift`, or other code the SPM
 library target doesn't compile — also compile-check the full app (the
-workflow pre-created `Secrets.xcconfig` from the template; no booted
-simulator needed):
+workflow pre-created `Secrets.xcconfig` from the template):
 
 ```bash
 xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
@@ -38,9 +37,19 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
   -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
 ```
 
-Do not run `WorkoutTrackerUITests` in this environment — they need a booted
-simulator and are too slow for this run; UI-affecting changes still get a
-human/Ralph pass locally.
+# VISUAL VERIFICATION (mandatory for UI-touching changes)
+
+If your change alters anything the user can see, read
+`.sandcastle/VISUAL_LOOP.md` and follow it before committing. In short: record
+the affected Visual Baselines on this runner and `Read` the PNGs against
+`docs/design/greenhouse-picks/` + DESIGN.md (record-and-look), **and** drive
+the built app in fixture mode through the screens you changed with the
+XcodeBuildMCP tools, screenshotting both appearances. The CI Visual Regression
+gate is the sole pass/fail authority. Commit recorded baselines with the
+change.
+
+Do not run `WorkoutTrackerUITests` in this environment — the sighted loop
+above replaces any screenshot-tour instinct (#469).
 
 # COMMIT
 
