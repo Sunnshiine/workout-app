@@ -40,16 +40,14 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
 # VISUAL VERIFICATION (mandatory for UI-touching changes)
 
 If your change alters anything the user can see, read
-`.sandcastle/VISUAL_LOOP.md` and follow it before committing. In short: record
-the affected Visual Baselines on this runner and `Read` the PNGs against
-`docs/design/greenhouse-picks/` + DESIGN.md (record-and-look), **and** drive
-the built app in fixture mode through the screens you changed with the
-XcodeBuildMCP tools, screenshotting both appearances. The CI Visual Regression
-gate is the sole pass/fail authority. Commit recorded baselines with the
-change.
+`.sandcastle/VISUAL_LOOP.md` and complete both of its mechanisms before
+committing: **record-and-look** (record the affected Visual Baselines, read
+the PNGs against ground truth, commit them with the change) and
+**eyes-on-app** (drive the fixture app through every screen you changed, both
+appearances). The CI Visual Regression gate is the sole pass/fail authority.
 
 Do not run `WorkoutTrackerUITests` in this environment — the sighted loop
-above replaces any screenshot-tour instinct (#469).
+above is the replacement (#469).
 
 # COMMIT
 
