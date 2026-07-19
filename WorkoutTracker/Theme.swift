@@ -149,7 +149,6 @@ enum Theme {
         var sessionTileUnavailable: Color { tileGhostStroke }
         var valueText: Color { textPrimary }
         var badgeFill: Color { chipCarvedFill }
-        var bannerFill: Color { surface }
         var bannerStroke: Color { queueStroke }
         var sessionTileCompleteText: Color { actionText }
         var sessionTileIncompleteText: Color { textSecondary }
