@@ -1,0 +1,163 @@
+name: Visual determinism spike (issue 471)
+
+# Throwaway spike for wayfinder ticket #471 — deleted once its verdict is
+# recorded on the ticket. Two questions, two jobs:
+#
+#   gate-on-main:     do the 12 committed Visual Baselines (recorded on a local
+#                     simulator in June) pass on the CI runner at exact
+#                     precision? This is the gate's green path on main.
+#   spike-greenhouse: on PR #467's branch (paper washes + bundled fonts, zero
+#                     baselines): (1) the gate goes red as-is, (2) does
+#                     SNAPSHOT_TESTING_RECORD override the `.never` suite
+#                     trait (research doc §3.1a), (3) record twice with a
+#                     simulator shutdown between runs and byte-compare —
+#                     ADR-0007 Phase-0 re-run for Greenhouse surfaces.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  gate-on-main:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Create Secrets.xcconfig from template (build-only)
+        run: cp Secrets.xcconfig.template Secrets.xcconfig
+      - name: List simulator runtimes
+        run: xcrun simctl list runtimes
+      - name: Run Visual Regression suite against committed baselines
+        id: gate
+        continue-on-error: true
+        run: |
+          xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' \
+            -only-testing:WorkoutTrackerSnapshotTests \
+            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
+            TEST_RUNNER_SNAPSHOT_ARTIFACTS="$PWD/snapshot-diffs"
+      - name: Verdict
+        run: |
+          echo "## gate-on-main verdict" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.gate.outcome }}" = "success" ]; then
+            echo "PASS: locally-recorded baselines hold on the runner at exact precision." | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "FAIL: locally-recorded baselines do NOT hold on the runner — see diff artifacts." | tee -a "$GITHUB_STEP_SUMMARY"
+            ls -R snapshot-diffs 2>/dev/null || true
+          fi
+      - name: Upload diffs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-on-main-diffs
+          path: snapshot-diffs
+          if-no-files-found: ignore
+
+  spike-greenhouse:
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      DEST: platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/prd-458-spec-greenhouse-screen-by-screen-build-implement-t
+      - name: Create Secrets.xcconfig from template (build-only)
+        run: cp Secrets.xcconfig.template Secrets.xcconfig
+      - name: Build for testing
+        run: |
+          xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+            -destination "$DEST" \
+            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
+
+      - name: 1 — Gate dry-run (expect red, missing baselines)
+        id: dryrun
+        continue-on-error: true
+        run: |
+          xcodebuild test-without-building -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+            -destination "$DEST" \
+            -only-testing:WorkoutTrackerSnapshotTests \
+            CODE_SIGNING_ALLOWED=NO
+      - name: 1 — Verdict
+        run: |
+          echo "## spike-greenhouse verdicts" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.dryrun.outcome }}" = "failure" ]; then
+            echo "1. RED-AS-EXPECTED: with record .never and zero baselines the gate fails PR #467." | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "1. UNEXPECTED GREEN: gate passed with no baselines — investigate before trusting the gate." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: 2 — Env-var probe (SNAPSHOT_TESTING_RECORD=all vs .never trait)
+        continue-on-error: true
+        run: |
+          xcodebuild test-without-building -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+            -destination "$DEST" \
+            -only-testing:WorkoutTrackerSnapshotTests \
+            CODE_SIGNING_ALLOWED=NO \
+            TEST_RUNNER_SNAPSHOT_TESTING_RECORD=all
+      - name: 2 — Verdict
+        id: envprobe
+        run: |
+          count=$(find Tests/Visual/__Snapshots__ -name '*.png' 2>/dev/null | wc -l | tr -d ' ')
+          if [ "$count" -gt 0 ]; then
+            echo "2. ENV WINS: SNAPSHOT_TESTING_RECORD=all recorded $count PNGs despite the .never trait." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "env_wins=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "2. TRAIT WINS: env var recorded nothing; recording requires flipping the suite trait." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "env_wins=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 3 — Flip trait to .all and rebuild (only if env lost)
+        if: steps.envprobe.outputs.env_wins == 'false'
+        run: |
+          sed -i '' 's/\.snapshots(record: \.never)/.snapshots(record: .all)/' Tests/Visual/*.swift
+          grep -n 'snapshots(record:' Tests/Visual/*.swift
+          xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+            -destination "$DEST" \
+            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
+
+      - name: 3 — Record run 1
+        continue-on-error: true
+        run: |
+          xcodebuild test-without-building -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+            -destination "$DEST" \
+            -only-testing:WorkoutTrackerSnapshotTests \
+            CODE_SIGNING_ALLOWED=NO \
+            TEST_RUNNER_SNAPSHOT_TESTING_RECORD=all
+      - name: 3 — Stash run 1, shutdown simulator
+        run: |
+          count=$(find Tests/Visual/__Snapshots__ -name '*.png' 2>/dev/null | wc -l | tr -d ' ')
+          echo "3. Record run 1 captured $count PNGs." | tee -a "$GITHUB_STEP_SUMMARY"
+          [ "$count" -gt 0 ]
+          cp -R Tests/Visual/__Snapshots__ /tmp/run1
+          xcrun simctl shutdown all || true
+
+      - name: 4 — Record run 2 (fresh simulator boot)
+        continue-on-error: true
+        run: |
+          xcodebuild test-without-building -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+            -destination "$DEST" \
+            -only-testing:WorkoutTrackerSnapshotTests \
+            CODE_SIGNING_ALLOWED=NO \
+            TEST_RUNNER_SNAPSHOT_TESTING_RECORD=all
+      - name: 4 — Determinism verdict (byte-compare run 1 vs run 2)
+        run: |
+          cp -R Tests/Visual/__Snapshots__ /tmp/run2
+          if diff -qr /tmp/run1 /tmp/run2 > /tmp/diff-report.txt 2>&1; then
+            echo "4. DETERMINISTIC: run 1 and run 2 are byte-identical — exact precision (1.0) holds for Greenhouse surfaces." | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "4. NON-DETERMINISTIC: runs differ — perceptual tolerance needed. Differing files:" | tee -a "$GITHUB_STEP_SUMMARY"
+            cat /tmp/diff-report.txt | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload recorded runs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: greenhouse-spike-recordings
+          path: |
+            /tmp/run1
+            /tmp/run2
+            /tmp/diff-report.txt
+          if-no-files-found: ignore

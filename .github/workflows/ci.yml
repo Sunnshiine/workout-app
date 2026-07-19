@@ -2,8 +2,10 @@ name: CI
 
 # PR gate: `swift test` covers the SPM library (unit + component tests);
 # `app-build` compile-checks the full app target including Views/, which the
-# library target excludes. Both need macOS; app-build additionally needs
-# Xcode 26 (Liquid Glass APIs, ADR-0004), which is the macos-26 default.
+# library target excludes; `visual-tests` runs the ADR-0007 Visual Regression
+# suite on the pinned simulator — with `.snapshots(record: .never)`, a missing
+# or drifted Visual Baseline fails the job. All need macOS; app-build and
+# visual-tests additionally need Xcode 26, which is the macos-26 default.
 #
 # Note: pushes made with the plain GITHUB_TOKEN do not trigger this workflow
 # (GitHub suppresses token-driven events). Agent workflows check out with
@@ -43,3 +45,32 @@ jobs:
           xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
             -destination 'generic/platform=iOS Simulator' \
             -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
+
+  visual-tests:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create Secrets.xcconfig from template (build-only)
+        run: cp Secrets.xcconfig.template Secrets.xcconfig
+      # The pinned baseline device (ADR-0007): iPhone 17 Pro on iOS 26.3.1.
+      # xcodebuild boots the simulator itself. TEST_RUNNER_SNAPSHOT_ARTIFACTS
+      # lands swift-snapshot-testing's failure diffs in a known folder so the
+      # artifact upload below can show *why* the gate went red.
+      - name: Run Visual Regression tests (ADR-0007 gate)
+        run: |
+          xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' \
+            -only-testing:WorkoutTrackerSnapshotTests \
+            -resultBundlePath VisualTests.xcresult \
+            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
+            TEST_RUNNER_SNAPSHOT_ARTIFACTS="$PWD/snapshot-diffs"
+      - name: Upload Visual Baseline diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-baseline-diffs
+          path: |
+            snapshot-diffs
+            VisualTests.xcresult
+          if-no-files-found: ignore
