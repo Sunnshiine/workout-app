@@ -32,7 +32,7 @@ jobs:
         run: |
           xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
             -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' \
-            -only-testing:WorkoutTrackerSnapshotTests/GlassBearingViewsVisualTests/onboardingViewCardMatchesVisualBaseline \
+            -only-testing:WorkoutTrackerSnapshotTests/GlassBearingViewsVisualTests \
             -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
       - name: Upload recording
         uses: actions/upload-artifact@v4
