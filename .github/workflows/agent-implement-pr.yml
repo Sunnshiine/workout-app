@@ -114,15 +114,13 @@ jobs:
           git config user.name "claude-code[bot]"
           git config user.email "claude-code[bot]@users.noreply.github.com"
 
-      # A fresh CI checkout is an untrusted folder: MCP approval keys checked
-      # into .claude/settings.json are ignored there, but user-scope settings
-      # are honored (issue #480). This connects .mcp.json's servers for the
-      # sighted loop (.sandcastle/VISUAL_LOOP.md, issue #472).
-      - name: Approve project MCP servers (user scope)
+      # Connect .mcp.json servers + export XcodeBuildMCP env for the sighted
+      # loop (.sandcastle/VISUAL_LOOP.md, issue #472).
+      - name: Set up agent MCP servers
         if: steps.state.outputs.proceed == 'true' && steps.inputs.outputs.proceed == 'true'
-        run: |
-          mkdir -p ~/.claude
-          printf '%s\n' '{ "enabledMcpjsonServers": ["XcodeBuildMCP", "context7"] }' > ~/.claude/settings.json
+        uses: ./.github/actions/setup-agent-mcp
+        with:
+          context7-api-key: ${{ secrets.CONTEXT7_API_KEY }}
 
       - name: Run implement-pr.ts
         if: steps.state.outputs.proceed == 'true' && steps.inputs.outputs.proceed == 'true'
@@ -130,13 +128,6 @@ jobs:
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           OUTPUT_DIR: ${{ runner.temp }}
-          # XcodeBuildMCP CI env (issue #472): headless focus policy + session
-          # defaults; .xcodebuildmcp/config.yaml outranks these where both set.
-          XCODEBUILDMCP_HEADLESS_LAUNCH: "1"
-          XCODEBUILDMCP_SENTRY_DISABLED: "true"
-          XCODEBUILDMCP_PROJECT_PATH: ${{ github.workspace }}/WorkoutTracker.xcodeproj
-          XCODEBUILDMCP_SCHEME: WorkoutTracker
-          XCODEBUILDMCP_SIMULATOR_NAME: iPhone 17 Pro
         run: npx tsx .sandcastle/implement-pr/implement-pr.ts
 
       - name: Push branch (abort cleanly if non-fast-forward)

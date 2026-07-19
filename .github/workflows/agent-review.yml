@@ -84,27 +84,18 @@ jobs:
           git config user.name "claude-code[bot]"
           git config user.email "claude-code[bot]@users.noreply.github.com"
 
-      # A fresh CI checkout is an untrusted folder: MCP approval keys checked
-      # into .claude/settings.json are ignored there, but user-scope settings
-      # are honored (issue #480). This connects .mcp.json's servers so review
-      # can use XcodeBuildMCP at its discretion (.sandcastle/VISUAL_LOOP.md).
-      - name: Approve project MCP servers (user scope)
-        run: |
-          mkdir -p ~/.claude
-          printf '%s\n' '{ "enabledMcpjsonServers": ["XcodeBuildMCP", "context7"] }' > ~/.claude/settings.json
+      # Connect .mcp.json servers + export XcodeBuildMCP env so review can use
+      # XcodeBuildMCP at its discretion (.sandcastle/VISUAL_LOOP.md, #472).
+      - name: Set up agent MCP servers
+        uses: ./.github/actions/setup-agent-mcp
+        with:
+          context7-api-key: ${{ secrets.CONTEXT7_API_KEY }}
 
       - name: Run review.ts
         id: review
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           OUTPUT_DIR: ${{ runner.temp }}
-          # XcodeBuildMCP CI env (issue #472): headless focus policy + session
-          # defaults; .xcodebuildmcp/config.yaml outranks these where both set.
-          XCODEBUILDMCP_HEADLESS_LAUNCH: "1"
-          XCODEBUILDMCP_SENTRY_DISABLED: "true"
-          XCODEBUILDMCP_PROJECT_PATH: ${{ github.workspace }}/WorkoutTracker.xcodeproj
-          XCODEBUILDMCP_SCHEME: WorkoutTracker
-          XCODEBUILDMCP_SIMULATOR_NAME: iPhone 17 Pro
         run: npx tsx .sandcastle/review/review.ts
 
       - name: Push branch (abort cleanly if non-fast-forward)

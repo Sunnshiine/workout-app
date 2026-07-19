@@ -60,19 +60,15 @@ jobs:
         run: npm install
       - name: Install Claude Code
         run: npm install -g @anthropic-ai/claude-code
-      - name: Approve project MCP servers (user scope)
-        run: |
-          mkdir -p ~/.claude
-          printf '%s\n' '{ "enabledMcpjsonServers": ["XcodeBuildMCP", "context7"] }' > ~/.claude/settings.json
+      # The exact setup the agent workflows use — the spike proves that path.
+      - name: Set up agent MCP servers
+        uses: ./.github/actions/setup-agent-mcp
+        with:
+          context7-api-key: ${{ secrets.CONTEXT7_API_KEY }}
       - name: Run seeded headless-loop spike
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           PROMPT_FILE: prompt-seeded.md
-          XCODEBUILDMCP_HEADLESS_LAUNCH: "1"
-          XCODEBUILDMCP_SENTRY_DISABLED: "true"
-          XCODEBUILDMCP_PROJECT_PATH: ${{ github.workspace }}/WorkoutTracker.xcodeproj
-          XCODEBUILDMCP_SCHEME: WorkoutTracker
-          XCODEBUILDMCP_SIMULATOR_NAME: iPhone 17 Pro
         run: npx tsx .sandcastle/spike-472/spike.ts
       - name: Show result
         if: always()
