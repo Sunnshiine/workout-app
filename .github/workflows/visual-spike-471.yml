@@ -1,17 +1,22 @@
 name: Visual determinism spike (issue 471)
 
 # Throwaway spike for wayfinder ticket #471 — deleted once its verdict is
-# recorded on the ticket. Two questions, two jobs:
+# recorded on the ticket. Both jobs share one shape: probe whether
+# SNAPSHOT_TESTING_RECORD overrides the `.snapshots(record: .never)` trait
+# (research doc §3.1a), record the full suite twice with a simulator
+# shutdown between runs, and byte-compare the runs (ADR-0007 Phase-0 re-run).
 #
-#   gate-on-main:     do the 12 committed Visual Baselines (recorded on a local
-#                     simulator in June) pass on the CI runner at exact
-#                     precision? This is the gate's green path on main.
-#   spike-greenhouse: on PR #467's branch (paper washes + bundled fonts, zero
-#                     baselines): (1) the gate goes red as-is, (2) does
-#                     SNAPSHOT_TESTING_RECORD override the `.never` suite
-#                     trait (research doc §3.1a), (3) record twice with a
-#                     simulator shutdown between runs and byte-compare —
-#                     ADR-0007 Phase-0 re-run for Greenhouse surfaces.
+#   spike-main:       this branch (= main + gate wiring + pbxproj fix). Also
+#                     answers whether the 11 locally-recorded June baselines
+#                     hold on the runner, and produces runner-recorded
+#                     baselines as an artifact.
+#   spike-greenhouse: PR #467's branch — paper washes + bundled Fraunces /
+#                     Source Sans 3. Proves the gate goes red on it as-is.
+#                     Its Xcode test targets are broken in ways the pipeline
+#                     never saw (stale PNG refs in pbxproj, ManualRestClock
+#                     missing from the WorkoutTrackerTests target), so the
+#                     job patches the pbxproj in-place and scopes the build
+#                     to the snapshot target only.
 
 on:
   workflow_dispatch:
@@ -19,41 +24,110 @@ on:
     branches: [claude/wayfinder-issue-471-mtk504]
 
 jobs:
-  gate-on-main:
+  spike-main:
     runs-on: macos-26
-    timeout-minutes: 45
+    timeout-minutes: 90
+    env:
+      DEST: platform=iOS Simulator,name=iPhone 17 Pro,OS=26.4.1
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: main
       - name: Create Secrets.xcconfig from template (build-only)
         run: cp Secrets.xcconfig.template Secrets.xcconfig
-      - name: List simulator runtimes
-        run: xcrun simctl list runtimes
-      - name: Run Visual Regression suite against committed baselines
+      - name: Build for testing (snapshot target only)
+        run: |
+          xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+            -destination "$DEST" -only-testing:WorkoutTrackerSnapshotTests \
+            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
+
+      - name: 1 — Gate run against committed June baselines
         id: gate
         continue-on-error: true
         run: |
-          xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.4.1' \
-            -only-testing:WorkoutTrackerSnapshotTests \
-            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
-            TEST_RUNNER_SNAPSHOT_ARTIFACTS="$PWD/snapshot-diffs"
-      - name: Verdict
+          xcodebuild test-without-building -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+            -destination "$DEST" -only-testing:WorkoutTrackerSnapshotTests \
+            CODE_SIGNING_ALLOWED=NO \
+            TEST_RUNNER_SNAPSHOT_ARTIFACTS="$PWD/gate-diffs"
+      - name: 1 — Verdict
         run: |
-          echo "## gate-on-main verdict" >> "$GITHUB_STEP_SUMMARY"
-          if [ "${{ steps.gate.outcome }}" = "success" ]; then
-            echo "PASS: locally-recorded baselines hold on the runner at exact precision." | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "## spike-main verdicts" >> "$GITHUB_STEP_SUMMARY"
+          echo "1. gate vs June baselines: ${{ steps.gate.outcome }} (ExerciseHistory is expected red — no baselines committed)" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: 2 — Env-var probe (SNAPSHOT_TESTING_RECORD=all vs .never trait)
+        continue-on-error: true
+        run: |
+          xcodebuild test-without-building -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+            -destination "$DEST" -only-testing:WorkoutTrackerSnapshotTests \
+            CODE_SIGNING_ALLOWED=NO \
+            TEST_RUNNER_SNAPSHOT_TESTING_RECORD=all
+      - name: 2 — Verdict
+        id: envprobe
+        run: |
+          count=$(find Tests/Visual/__Snapshots__/ExerciseHistorySheetVisualTests -name '*.png' 2>/dev/null | wc -l | tr -d ' ')
+          if [ "$count" -gt 0 ]; then
+            echo "2. ENV WINS: SNAPSHOT_TESTING_RECORD=all recorded missing baselines despite the .never trait." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "env_wins=true" >> "$GITHUB_OUTPUT"
           else
-            echo "FAIL: locally-recorded baselines do NOT hold on the runner — see diff artifacts." | tee -a "$GITHUB_STEP_SUMMARY"
-            ls -R snapshot-diffs 2>/dev/null || true
+            echo "2. TRAIT WINS: env var recorded nothing; recording requires flipping the suite trait." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "env_wins=false" >> "$GITHUB_OUTPUT"
           fi
-      - name: Upload diffs
+
+      - name: 3 — Flip trait to .all and rebuild (only if env lost)
+        if: steps.envprobe.outputs.env_wins == 'false'
+        run: |
+          sed -i '' 's/\.snapshots(record: \.never)/.snapshots(record: .all)/' Tests/Visual/*.swift
+          xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+            -destination "$DEST" -only-testing:WorkoutTrackerSnapshotTests \
+            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
+      - name: 3 — Record run 1
+        continue-on-error: true
+        run: |
+          xcodebuild test-without-building -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+            -destination "$DEST" -only-testing:WorkoutTrackerSnapshotTests \
+            CODE_SIGNING_ALLOWED=NO \
+            TEST_RUNNER_SNAPSHOT_TESTING_RECORD=all
+      - name: 3 — Stash run 1, shutdown simulator
+        run: |
+          count=$(find Tests/Visual/__Snapshots__ -name '*.png' 2>/dev/null | wc -l | tr -d ' ')
+          echo "3. Record run 1 captured $count PNGs." | tee -a "$GITHUB_STEP_SUMMARY"
+          [ "$count" -gt 0 ]
+          cp -R Tests/Visual/__Snapshots__ /tmp/run1
+          xcrun simctl shutdown all || true
+      - name: 4 — Record run 2 (fresh simulator boot)
+        continue-on-error: true
+        run: |
+          xcodebuild test-without-building -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+            -destination "$DEST" -only-testing:WorkoutTrackerSnapshotTests \
+            CODE_SIGNING_ALLOWED=NO \
+            TEST_RUNNER_SNAPSHOT_TESTING_RECORD=all
+      - name: 4 — Determinism verdict (byte-compare run 1 vs run 2)
+        run: |
+          cp -R Tests/Visual/__Snapshots__ /tmp/run2
+          if diff -qr /tmp/run1 /tmp/run2 > /tmp/diff-report.txt 2>&1; then
+            echo "4. DETERMINISTIC on runner: run 1 and run 2 byte-identical (glass surfaces, exact precision)." | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "4. NON-DETERMINISTIC on runner:" | tee -a "$GITHUB_STEP_SUMMARY"
+            cat /tmp/diff-report.txt | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: 5 — Do June local recordings match runner recordings byte-for-byte?
+        run: |
+          git stash -q || true
+          if diff -qr Tests/Visual/__Snapshots__ /tmp/run2 > /tmp/local-vs-runner.txt 2>&1; then
+            echo "5. Local June baselines are byte-identical to runner recordings." | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "5. Local June baselines differ from runner recordings:" | tee -a "$GITHUB_STEP_SUMMARY"
+            cat /tmp/local-vs-runner.txt | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload recordings
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: gate-on-main-diffs
-          path: snapshot-diffs
+          name: main-runner-baselines
+          path: |
+            /tmp/run1
+            /tmp/run2
+            /tmp/diff-report.txt
+            /tmp/local-vs-runner.txt
+            gate-diffs
           if-no-files-found: ignore
 
   spike-greenhouse:
@@ -67,25 +141,27 @@ jobs:
           ref: agent/prd-458-spec-greenhouse-screen-by-screen-build-implement-t
       - name: Create Secrets.xcconfig from template (build-only)
         run: cp Secrets.xcconfig.template Secrets.xcconfig
-      - name: Build for testing
+      - name: Patch stale deleted-baseline refs out of pbxproj (spike-only)
+        run: |
+          sed -i '' '/MatchesVisualBaseline\.1\.png/d' WorkoutTracker.xcodeproj/project.pbxproj
+      - name: Build for testing (snapshot target only)
         run: |
           xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination "$DEST" \
+            -destination "$DEST" -only-testing:WorkoutTrackerSnapshotTests \
             -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
 
-      - name: 1 — Gate dry-run (expect red, missing baselines)
+      - name: 1 — Gate dry-run (expect red, zero baselines)
         id: dryrun
         continue-on-error: true
         run: |
           xcodebuild test-without-building -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination "$DEST" \
-            -only-testing:WorkoutTrackerSnapshotTests \
+            -destination "$DEST" -only-testing:WorkoutTrackerSnapshotTests \
             CODE_SIGNING_ALLOWED=NO
       - name: 1 — Verdict
         run: |
           echo "## spike-greenhouse verdicts" >> "$GITHUB_STEP_SUMMARY"
           if [ "${{ steps.dryrun.outcome }}" = "failure" ]; then
-            echo "1. RED-AS-EXPECTED: with record .never and zero baselines the gate fails PR #467." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "1. RED-AS-EXPECTED: with record .never and zero baselines the gate fails PR #467 as-is." | tee -a "$GITHUB_STEP_SUMMARY"
           else
             echo "1. UNEXPECTED GREEN: gate passed with no baselines — investigate before trusting the gate." | tee -a "$GITHUB_STEP_SUMMARY"
           fi
@@ -94,8 +170,7 @@ jobs:
         continue-on-error: true
         run: |
           xcodebuild test-without-building -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination "$DEST" \
-            -only-testing:WorkoutTrackerSnapshotTests \
+            -destination "$DEST" -only-testing:WorkoutTrackerSnapshotTests \
             CODE_SIGNING_ALLOWED=NO \
             TEST_RUNNER_SNAPSHOT_TESTING_RECORD=all
       - name: 2 — Verdict
@@ -114,17 +189,14 @@ jobs:
         if: steps.envprobe.outputs.env_wins == 'false'
         run: |
           sed -i '' 's/\.snapshots(record: \.never)/.snapshots(record: .all)/' Tests/Visual/*.swift
-          grep -n 'snapshots(record:' Tests/Visual/*.swift
           xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination "$DEST" \
+            -destination "$DEST" -only-testing:WorkoutTrackerSnapshotTests \
             -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
-
       - name: 3 — Record run 1
         continue-on-error: true
         run: |
           xcodebuild test-without-building -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination "$DEST" \
-            -only-testing:WorkoutTrackerSnapshotTests \
+            -destination "$DEST" -only-testing:WorkoutTrackerSnapshotTests \
             CODE_SIGNING_ALLOWED=NO \
             TEST_RUNNER_SNAPSHOT_TESTING_RECORD=all
       - name: 3 — Stash run 1, shutdown simulator
@@ -134,26 +206,23 @@ jobs:
           [ "$count" -gt 0 ]
           cp -R Tests/Visual/__Snapshots__ /tmp/run1
           xcrun simctl shutdown all || true
-
       - name: 4 — Record run 2 (fresh simulator boot)
         continue-on-error: true
         run: |
           xcodebuild test-without-building -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination "$DEST" \
-            -only-testing:WorkoutTrackerSnapshotTests \
+            -destination "$DEST" -only-testing:WorkoutTrackerSnapshotTests \
             CODE_SIGNING_ALLOWED=NO \
             TEST_RUNNER_SNAPSHOT_TESTING_RECORD=all
       - name: 4 — Determinism verdict (byte-compare run 1 vs run 2)
         run: |
           cp -R Tests/Visual/__Snapshots__ /tmp/run2
           if diff -qr /tmp/run1 /tmp/run2 > /tmp/diff-report.txt 2>&1; then
-            echo "4. DETERMINISTIC: run 1 and run 2 are byte-identical — exact precision (1.0) holds for Greenhouse surfaces." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "4. DETERMINISTIC on runner: Greenhouse washes + Fraunces/Source Sans 3 byte-identical across a simulator reboot (exact precision holds)." | tee -a "$GITHUB_STEP_SUMMARY"
           else
-            echo "4. NON-DETERMINISTIC: runs differ — perceptual tolerance needed. Differing files:" | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "4. NON-DETERMINISTIC: perceptual tolerance needed. Differing files:" | tee -a "$GITHUB_STEP_SUMMARY"
             cat /tmp/diff-report.txt | tee -a "$GITHUB_STEP_SUMMARY"
           fi
-
-      - name: Upload recorded runs
+      - name: Upload recordings
         if: always()
         uses: actions/upload-artifact@v4
         with:

@@ -72,7 +72,6 @@
 		64C6D9EB4377B30FE6AB7F49 /* TabFetchRetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44452C2B9CFC7273C0972BEF /* TabFetchRetry.swift */; };
 		677CD10130C50B6200442AE5 /* SetLogWireTokenGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A38BCE7223EF144233671FD /* SetLogWireTokenGateTests.swift */; };
 		67AC1FABCA19B040B11E3E27 /* WorkoutGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74540E578A1F6657CD8CB941 /* WorkoutGlass.swift */; };
-		68D84DA1E588BB39F874B642 /* loggedSetReviewCardMatchesVisualBaseline.1.png in Resources */ = {isa = PBXBuildFile; fileRef = C83225A3DA1B09D51660DAF9 /* loggedSetReviewCardMatchesVisualBaseline.1.png */; };
 		6962F55A0A33D607CC9C4C22 /* SheetParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93A5CA6A951EC6FB3C319E0F /* SheetParser.swift */; };
 		69CC713B83C49CDF66F74D5C /* SheetWriterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE7A4D22498359AE35A9EAB6 /* SheetWriterTests.swift */; };
 		6A3A1611C6B8BCF8B2381662 /* SmartValuePillsFormTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63390CF33C9BDD5A5209795E /* SmartValuePillsFormTests.swift */; };
@@ -383,7 +382,6 @@
 		C3E4BA2B8C8F2910F5F6C98E /* WorkoutUITestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutUITestSupport.swift; sourceTree = "<group>"; };
 		C452CB917A65913E44B18E15 /* RestTriggerPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestTriggerPolicy.swift; sourceTree = "<group>"; };
 		C703F549688F120A123589E3 /* ActiveSetFocusManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveSetFocusManagerTests.swift; sourceTree = "<group>"; };
-		C83225A3DA1B09D51660DAF9 /* loggedSetReviewCardMatchesVisualBaseline.1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = loggedSetReviewCardMatchesVisualBaseline.1.png; sourceTree = "<group>"; };
 		CC47CE1DE98286E2DA318F0D /* WorkoutTrackerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutTrackerUITests.swift; sourceTree = "<group>"; };
 		CEC43682656CC2E8CF1BD804 /* Smoke.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Smoke.swift; sourceTree = "<group>"; };
 		CF512CAF662AE6E54D7B864C /* SyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinator.swift; sourceTree = "<group>"; };
@@ -647,7 +645,6 @@
 			children = (
 				B30F86612179167965F9C2F8 /* developerToolsViewMatchesVisualBaseline.1.png */,
 				D7C5D2B5EEDF1ACFA76C2FEC /* emptyStateViewMatchesVisualBaseline.1.png */,
-				C83225A3DA1B09D51660DAF9 /* loggedSetReviewCardMatchesVisualBaseline.1.png */,
 				4703DC4F7CC66CB49A05983D /* moveOnCelebrationViewMatchesVisualBaseline.1.png */,
 				8DCB25611F649C32C7D75778 /* onboardingViewCardMatchesVisualBaseline.1.png */,
 				9DB6CA5A163B200CC225A3A2 /* restPillViewMatchesVisualBaseline.1.png */,
@@ -973,7 +970,6 @@
 			files = (
 				015ED035457D68D5C6AEE5BC /* developerToolsViewMatchesVisualBaseline.1.png in Resources */,
 				E642D6D4B3C17A886458C590 /* emptyStateViewMatchesVisualBaseline.1.png in Resources */,
-				68D84DA1E588BB39F874B642 /* loggedSetReviewCardMatchesVisualBaseline.1.png in Resources */,
 				72C3E38C0A4FF8D092CB4A23 /* moveOnCelebrationViewMatchesVisualBaseline.1.png in Resources */,
 				CEC3D4E64C38360A684722CE /* onboardingViewCardMatchesVisualBaseline.1.png in Resources */,
 				DBD071F6C117A9F159C8BEA0 /* restPillViewMatchesVisualBaseline.1.png in Resources */,
