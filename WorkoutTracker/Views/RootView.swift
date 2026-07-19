@@ -32,7 +32,7 @@ struct RootView: View {
         }
         .environment(\.themePalette, palette)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(palette.gradient.ignoresSafeArea())
+        .background(palette.paperBackground.ignoresSafeArea())
         .preferredColorScheme(Theme.colorSchemeOverride(for: settings.appearance))
         .task(id: settings.isConfigured) {
             requestRestNotificationAuthorizationIfNeeded()

@@ -16,7 +16,9 @@ enum AppearancePreference: String, CaseIterable {
         case .light:
             "Light"
         case .dark:
-            "Dark"
+            // The stored rawValue stays "dark" for persistence continuity; the word "Dark" has
+            // left the product vocabulary — this appearance is Night (token sheet §1).
+            "Night"
         }
     }
 }

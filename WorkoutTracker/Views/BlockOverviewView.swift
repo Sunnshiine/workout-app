@@ -48,7 +48,7 @@ struct BlockOverviewView: View {
             }
             .padding()
         }
-        .background(palette.gradient.ignoresSafeArea())
+        .background(palette.paperBackground.ignoresSafeArea())
         .navigationTitle(presentation.title)
         .navigationBarTitleDisplayMode(.inline)
     }

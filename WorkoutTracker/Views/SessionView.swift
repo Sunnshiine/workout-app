@@ -70,7 +70,7 @@ struct SessionView: View {
             }
         }
         .accessibilityHidden(workout.moveOnCelebrationSession != nil)
-        .background(palette.gradient.ignoresSafeArea())
+        .background(palette.paperBackground.ignoresSafeArea())
         .overlay {
             if let session = workout.moveOnCelebrationSession {
                 MoveOnCelebrationView(session: session, requestedAt: workout.moveOnCelebrationRequestedAt) {

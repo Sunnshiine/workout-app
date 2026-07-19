@@ -21,7 +21,7 @@ struct LiveActivityLabView: View {
 
     var body: some View {
         ZStack {
-            palette.gradient.ignoresSafeArea()
+            palette.paperBackground.ignoresSafeArea()
 
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.cardSpacing) {

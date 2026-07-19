@@ -25,7 +25,7 @@ struct MoveOnCelebrationView: View {
 
     var body: some View {
         ZStack {
-            palette.gradient
+            palette.paperBackground
                 .ignoresSafeArea()
 
             GeometryReader { proxy in

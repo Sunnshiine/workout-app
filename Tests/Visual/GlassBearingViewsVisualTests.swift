@@ -84,7 +84,7 @@ struct GlassBearingViewsVisualTests {
             )
             .padding(14)
             .frame(width: 360)
-            .background(Theme.palette(for: .sageLight).activeCardFill, in: .rect(cornerRadius: Theme.cardCornerRadius))
+            .background(Theme.palette(for: .day).activeCardFill, in: .rect(cornerRadius: Theme.cardCornerRadius))
             .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
         }
     }
@@ -187,7 +187,7 @@ struct GlassBearingViewsVisualTests {
         @ViewBuilder content: () -> Content
     ) {
         let view = content()
-            .environment(\.themePalette, Theme.palette(for: .sageLight))
+            .environment(\.themePalette, Theme.palette(for: .day))
             .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
             .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)
             .preferredColorScheme(.light)
@@ -209,14 +209,14 @@ private struct VisualBaselineHost<Content: View>: View {
 
     var body: some View {
         ZStack {
-            Theme.palette(for: .sageLight).gradient
+            Theme.palette(for: .day).paperBackground
                 .ignoresSafeArea()
 
             content
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .environment(\.themePalette, Theme.palette(for: .sageLight))
+        .environment(\.themePalette, Theme.palette(for: .day))
         .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
         .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)
         .preferredColorScheme(.light)

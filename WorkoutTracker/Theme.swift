@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 
 private struct ThemePaletteKey: EnvironmentKey {
-    static let defaultValue = Theme.palette(for: Theme.PaletteVariant.dark)
+    static let defaultValue = Theme.palette(for: Theme.Appearance.day)
 }
 
 extension EnvironmentValues {
@@ -12,85 +12,220 @@ extension EnvironmentValues {
     }
 }
 
+/// The single styling seam (ADR-0014). Views consume flat semantic roles from the environment
+/// palette and named tokens from `Theme`; nothing styles itself outside this seam. The Greenhouse
+/// system ships exactly two hand-lit appearances — `.day` and `.night`, the same room re-lit —
+/// each a value sheet transcribed from `docs/design/greenhouse-theme-tokens.md`.
 enum Theme {
-    enum PaletteVariant: String, CaseIterable {
-        case dark
-        case black
-        case mintGreen
-        case sageLight
-        case blueLight
+    /// The two shipping appearances. Day is primary; Night is the same room re-lit, never
+    /// recolored. There is no Day→Night derivation rule — each is hand-lit.
+    enum Appearance: String, CaseIterable {
+        case day
+        case night
     }
+
+    // MARK: - Paint box
+
+    /// The small set of pigments every role is mixed from (token sheet §2). Most roles are
+    /// `paint @ opacity`; wash recipes, glows and `tileCurrentBorder` are honest literals.
+    enum Paint {
+        static let ink = rgb(21, 33, 24) // #152118 — day text
+        static let inkNight = rgb(239, 243, 227) // #EFF3E3 — night text
+        static let muted = rgb(82, 100, 87) // #526457 — day secondary
+        static let mutedNight = rgb(154, 170, 155) // #9AAA9B — night secondary
+        static let cream = rgb(242, 247, 232) // #F2F7E8 — the workhorse
+        static let actionDay = rgb(13, 107, 64) // #0D6B40 — day action / leaf / stem / bird
+        static let actionNight = rgb(31, 133, 82) // #1F8552 — night action (mint is banned at night)
+        static let foliage = rgb(87, 145, 104) // #579168 — the night pigment
+        static let paperDayTop = rgb(233, 238, 220) // #E9EEDC
+        static let paperDayBottom = rgb(203, 225, 194) // #CBE1C2
+        static let paperNightTop = rgb(35, 44, 32) // #232C20
+        static let paperNightBottom = rgb(18, 29, 20) // #121D14
+    }
+
+    // MARK: - Paper wash
+
+    /// One radial light wash in the living-paper recipe. Fractions and centre come straight from
+    /// the token-sheet CSS; the SwiftUI render is an elliptical approximation revalidated by the
+    /// visual gate (ADR-0007).
+    struct RadialWash: Equatable {
+        let color: Color
+        let center: UnitPoint
+        let radiusFraction: Double
+    }
+
+    /// The layered living-paper recipe for one appearance: a base sage pair under four radial
+    /// washes (token sheet §3, `paperWash`). Replaces the retired two-stop `gradientStops`.
+    struct PaperRecipe: Equatable {
+        let baseTop: Color
+        let baseBottom: Color
+        /// Bottom-to-top paint order (base first when rendered).
+        let washes: [RadialWash]
+    }
+
+    // MARK: - Palette (flat semantic roles)
 
     struct Palette {
+        let appearance: Appearance
         let preferredColorScheme: ColorScheme
-        let gradientStops: [Gradient.Stop]
-        let accent: Color
-        let accentDarkText: Color
-        let progressTrack: Color
-        let activeCardFill: Color
-        let activeCardStroke: Color
-        let lastPerformedCardFill: Color
-        let lastPerformedCardStroke: Color
-        let pillFill: Color
-        let pillStroke: Color
-        let sessionTileComplete: Color
-        let sessionTileIncomplete: Color
-        let sessionTileUnavailable: Color
-        let valueText: Color
-        let badgeFill: Color
-        let bannerFill: Color
-        let bannerStroke: Color
-        let sessionTileCompleteText: Color
-        let sessionTileIncompleteText: Color
-        let sessionTileUnavailableText: Color
-        let sessionTileRestingBorder: Color
+        let paper: PaperRecipe
+
+        // Text inks
+        let textPrimary: Color
+        let textSecondary: Color
+        let homeBar: Color
+
+        // Stage & branch
+        let stem: Color
+        let leafFill: Color
+        let leafRib: Color
+        let budFill: Color
+        let budStroke: Color
+        let budRib: Color
+        let futureStroke: Color
+        let skipStroke: Color
+
+        // Active Set Card & input block
+        let surface: Color
+        let railFill: Color
+        let prescriptionTick: Color
+
+        // Log capsule / action
+        let action: Color
+        let actionText: Color
+
+        // Stage foot
+        let footFill: Color
+        let queueStroke: Color
+
+        // Block grid
+        let tileCurrentFill: Color
+        let tileCurrentBorder: Color
+        let tileGhostStroke: Color
+        let weekCardShade: Color
+
+        // Exercise History sheet
+        let sheetFill: Color
+        let chipCarvedFill: Color
+        let chartLine: Color
+        let blockSeam: Color
+        let scrim: Color
+        let grabber: Color
+
+        // Bird & colophon
+        let birdFill: Color
+        let birdRib: Color
+
+        // Destructive
         let danger: Color
 
-        var gradient: LinearGradient {
-            LinearGradient(
-                stops: gradientStops,
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        }
+        // MARK: Legacy role aliases
+        //
+        // The existing screens (rebuilt screen-by-screen in later Greenhouse slices) still consume
+        // the pre-Greenhouse role names. These map onto the reshaped seam so those compositions keep
+        // compiling and simply re-light; each alias retires when its last consumer migrates.
+        var accent: Color { action }
+        var accentDarkText: Color { actionText }
+        var progressTrack: Color { futureStroke }
+        var activeCardFill: Color { surface }
+        var activeCardStroke: Color { queueStroke }
+        var lastPerformedCardFill: Color { footFill }
+        var lastPerformedCardStroke: Color { queueStroke }
+        var pillFill: Color { surface }
+        var pillStroke: Color { queueStroke }
+        var sessionTileComplete: Color { leafFill }
+        var sessionTileIncomplete: Color { footFill }
+        var sessionTileUnavailable: Color { tileGhostStroke }
+        var valueText: Color { textPrimary }
+        var badgeFill: Color { chipCarvedFill }
+        var bannerFill: Color { surface }
+        var bannerStroke: Color { queueStroke }
+        var sessionTileCompleteText: Color { actionText }
+        var sessionTileIncompleteText: Color { textSecondary }
+        var sessionTileUnavailableText: Color { textSecondary }
+        var sessionTileRestingBorder: Color { queueStroke }
     }
+
+    // MARK: - Launch argument
 
     static let paletteLaunchArgument = "-WORKOUT_THEME"
 
-    static let activePaletteVariant = paletteVariant(from: ProcessInfo.processInfo.arguments)
-    static let activePalette = palette(for: activePaletteVariant)
+    static let activeAppearance = appearance(from: ProcessInfo.processInfo.arguments)
+    static let activePalette = palette(for: activeAppearance)
 
     static let preferredColorScheme = activePalette.preferredColorScheme
-    static let gradientStops = activePalette.gradientStops
-
-    static let gradient = LinearGradient(
-        stops: gradientStops,
-        startPoint: .top,
-        endPoint: .bottom
-    )
-
-    static let accent = activePalette.accent
-    static let accentDarkText = activePalette.accentDarkText
-    static let progressTrack = activePalette.progressTrack
-    static let activeCardFill = activePalette.activeCardFill
-    static let activeCardStroke = activePalette.activeCardStroke
-    static let lastPerformedCardFill = activePalette.lastPerformedCardFill
-    static let lastPerformedCardStroke = activePalette.lastPerformedCardStroke
-    static let pillFill = activePalette.pillFill
-    static let pillStroke = activePalette.pillStroke
-    static let sessionTileComplete = activePalette.sessionTileComplete
-    static let sessionTileIncomplete = activePalette.sessionTileIncomplete
-    static let sessionTileUnavailable = activePalette.sessionTileUnavailable
-    static let sessionTileCurrentBorder = accent
-    static let valueText = activePalette.valueText
-    static let badgeFill = activePalette.badgeFill
-    static let bannerFill = activePalette.bannerFill
-    static let bannerStroke = activePalette.bannerStroke
-    static let sessionTileCompleteText = activePalette.sessionTileCompleteText
-    static let sessionTileIncompleteText = activePalette.sessionTileIncompleteText
-    static let sessionTileUnavailableText = activePalette.sessionTileUnavailableText
-    static let sessionTileRestingBorder = activePalette.sessionTileRestingBorder
     static let danger = activePalette.danger
+    static let sessionTileCurrentBorder = activePalette.tileCurrentBorder
+
+    // MARK: - Radius family (token sheet §6)
+    //
+    // A named concentric family replacing the retired 8 / 16 / 28 scale. Approved pixel values are
+    // kept verbatim, not rounded. `soft` belongs only to the one soft container and sheet shoulders.
+
+    enum Radius {
+        static let capsule: CGFloat = 999 // ∞ — all controls
+        static let soft: CGFloat = 30 // the one soft container: Active Set Card, ceremony stats, sheets
+        static let focusCard: CGFloat = 24 // the Block grid's focus card
+        static let card: CGFloat = 20 // collapsed week cards
+        static let rail: CGFloat = 18 // reps/RPE rails
+        static let tile: CGFloat = 15 // day tiles
+        static let cell: CGFloat = 14 // rail chips
+        static let mini: CGFloat = 6 // week mini-chips
+        static let hairline: CGFloat = 2 // grabber, home bar, prescription tick (2–3)
+        static let hairlineMax: CGFloat = 3
+    }
+
+    // MARK: - Motion & haptics (token sheet §7)
+
+    /// A cubic-bézier easing curve's two control points.
+    struct BezierEase: Equatable {
+        let x1: Double
+        let y1: Double
+        let x2: Double
+        let y2: Double
+    }
+
+    /// The signature timing, confined to the three growth moments. All chrome — including the Log
+    /// capsule — stays on stock system springs.
+    static let wingEase = BezierEase(x1: 0.46, y1: -0.09, x2: 0.83, y2: 0.32)
+
+    static func wingAnimation(duration: Double) -> Animation {
+        .timingCurve(wingEase.x1, wingEase.y1, wingEase.x2, wingEase.y2, duration: duration)
+    }
+
+    enum Motion {
+        static let leafInk = 0.42 // a leaf inks in
+        static let budOpen = 0.34 // the next bud wakes…
+        static let budOpenDelay = 0.26 // …starting inside the leaf's tail (One Log, One Fill)
+        static let ceremonyStem = 1.0
+        static let ceremonyBeat = 0.10
+        static let ceremonyBird = 0.35
+        static let holdToSkipReveal = 0.25 // reveal at 250ms
+        static let holdToSkipCommit = 0.85 // commit at 850ms
+        static let holdToSkipRetreat = 0.2
+        static let holdToSkipLoggedCommit = 0.9
+        static let holdToSkipSkippedCommit = 1.1
+    }
+
+    /// A Crisp haptic tuning: `intensity` and `sharpness` for a Core Haptics transient (token
+    /// sheet §7). Haptics are semantic-only — never on form fields or chrome.
+    struct HapticTuning: Equatable {
+        let intensity: Double
+        let sharpness: Double
+    }
+
+    enum Haptics {
+        static let railDetentTick = HapticTuning(intensity: 0.35, sharpness: 0.85)
+        static let logTap = HapticTuning(intensity: 1.0, sharpness: 0.65)
+        static let skipDud = HapticTuning(intensity: 0.45, sharpness: 0.15)
+        static let stepperTick = HapticTuning(intensity: 0.45, sharpness: 0.80)
+    }
+
+    // MARK: - Legacy composition constants
+    //
+    // Geometry and motion consumed by the pre-Greenhouse screen compositions. These keep the
+    // existing screens intact until the per-screen slices migrate each onto the named tokens above;
+    // each retires with its last consumer.
 
     static let cardCornerRadius: CGFloat = 16
     static let cardSpacing: CGFloat = 16
@@ -179,32 +314,38 @@ enum Theme {
     }
 }
 
+// MARK: - Appearance resolution
+
 extension Theme {
-    static func paletteVariant(from arguments: [String]) -> PaletteVariant {
+    /// Resolves the `-WORKOUT_THEME` screenshot/test pin. Only `day` and `night` are accepted; the
+    /// five retired legacy palette names resolve to the Day default.
+    static func appearance(from arguments: [String]) -> Appearance {
         guard
             let argumentIndex = arguments.firstIndex(of: paletteLaunchArgument),
             arguments.indices.contains(arguments.index(after: argumentIndex)),
-            let variant = PaletteVariant(rawValue: arguments[arguments.index(after: argumentIndex)])
+            let appearance = Appearance(rawValue: arguments[arguments.index(after: argumentIndex)])
         else {
-            return .dark
+            return .day
         }
-        return variant
+        return appearance
     }
 
-    static func palette(for preference: AppearancePreference, colorScheme: ColorScheme = .dark) -> Palette {
+    /// Resolves the user's three-way preference against the current system scheme (system-dark maps
+    /// to Night). "Dark" has left the product vocabulary — the forced case is Night.
+    static func palette(for preference: AppearancePreference, colorScheme: ColorScheme = .light) -> Palette {
         switch preference {
         case .light:
-            palette(for: .sageLight)
+            palette(for: .day)
         case .dark:
-            palette(for: Theme.PaletteVariant.dark)
+            palette(for: .night)
         case .system:
             switch colorScheme {
             case .light:
-                palette(for: .sageLight)
+                palette(for: .day)
             case .dark:
-                palette(for: Theme.PaletteVariant.dark)
+                palette(for: .night)
             @unknown default:
-                palette(for: Theme.PaletteVariant.dark)
+                palette(for: .day)
             }
         }
     }
@@ -220,163 +361,135 @@ extension Theme {
         }
     }
 
-    static func palette(for variant: PaletteVariant) -> Palette {
-        switch variant {
-        case .dark:
-            darkPalette
-        case .black:
-            blackPalette
-        case .mintGreen:
-            mintGreenPalette
-        case .sageLight:
-            sageLightPalette
-        case .blueLight:
-            blueLightPalette
+    static func palette(for appearance: Appearance) -> Palette {
+        switch appearance {
+        case .day:
+            dayPalette
+        case .night:
+            nightPalette
         }
     }
 
-    private static let darkPalette = Palette(
-        preferredColorScheme: .dark,
-        gradientStops: [
-            .init(color: Color(red: 0.02, green: 0.03, blue: 0.025), location: 0),
-            .init(color: Color(red: 0.015, green: 0.11, blue: 0.065), location: 1)
-        ],
-        accent: Color(red: 0.45, green: 1.0, blue: 0.72),
-        accentDarkText: Color(red: 0.02, green: 0.12, blue: 0.07),
-        progressTrack: Color(red: 0.025, green: 0.055, blue: 0.04),
-        activeCardFill: Color(red: 0.03, green: 0.20, blue: 0.12).opacity(0.72),
-        activeCardStroke: Color(red: 0.23, green: 0.82, blue: 0.48),
-        lastPerformedCardFill: Color(red: 0.03, green: 0.10, blue: 0.07).opacity(0.82),
-        lastPerformedCardStroke: Color(red: 0.13, green: 0.36, blue: 0.25),
-        pillFill: Color(red: 0.03, green: 0.06, blue: 0.05).opacity(0.88),
-        pillStroke: Color(red: 0.24, green: 0.68, blue: 0.42).opacity(0.75),
-        sessionTileComplete: Color(red: 0.03, green: 0.32, blue: 0.16),
-        sessionTileIncomplete: Color(red: 0.025, green: 0.055, blue: 0.045).opacity(0.24),
-        sessionTileUnavailable: Color(red: 0.025, green: 0.055, blue: 0.045).opacity(0.12),
-        valueText: .white,
-        badgeFill: .white.opacity(0.12),
-        bannerFill: .white.opacity(0.14),
-        bannerStroke: .white.opacity(0.10),
-        sessionTileCompleteText: .white,
-        sessionTileIncompleteText: .white.opacity(0.64),
-        sessionTileUnavailableText: .white.opacity(0.4),
-        sessionTileRestingBorder: .white.opacity(0.10),
-        danger: Color(red: 1.0, green: 0.23, blue: 0.19)
-    )
+    // MARK: - Hand-lit value sheets
 
-    private static let blackPalette = Palette(
-        preferredColorScheme: .dark,
-        gradientStops: [
-            .init(color: Color(red: 0.0, green: 0.008, blue: 0.004), location: 0),
-            .init(color: Color(red: 0.0, green: 0.025, blue: 0.016), location: 1)
-        ],
-        accent: Color(red: 0.40, green: 0.96, blue: 0.66),
-        accentDarkText: Color(red: 0.0, green: 0.08, blue: 0.045),
-        progressTrack: Color(red: 0.008, green: 0.02, blue: 0.014),
-        activeCardFill: Color(red: 0.008, green: 0.07, blue: 0.04).opacity(0.9),
-        activeCardStroke: Color(red: 0.14, green: 0.66, blue: 0.36),
-        lastPerformedCardFill: Color(red: 0.006, green: 0.04, blue: 0.026).opacity(0.88),
-        lastPerformedCardStroke: Color(red: 0.10, green: 0.32, blue: 0.22),
-        pillFill: Color(red: 0.006, green: 0.018, blue: 0.014).opacity(0.94),
-        pillStroke: Color(red: 0.16, green: 0.50, blue: 0.30).opacity(0.75),
-        sessionTileComplete: Color(red: 0.016, green: 0.22, blue: 0.11),
-        sessionTileIncomplete: Color(red: 0.008, green: 0.02, blue: 0.014).opacity(0.28),
-        sessionTileUnavailable: Color(red: 0.008, green: 0.02, blue: 0.014).opacity(0.14),
-        valueText: .white,
-        badgeFill: .white.opacity(0.10),
-        bannerFill: .white.opacity(0.12),
-        bannerStroke: .white.opacity(0.10),
-        sessionTileCompleteText: .white,
-        sessionTileIncompleteText: .white.opacity(0.62),
-        sessionTileUnavailableText: .white.opacity(0.36),
-        sessionTileRestingBorder: .white.opacity(0.09),
-        danger: Color(red: 1.0, green: 0.23, blue: 0.19)
-    )
-
-    private static let mintGreenPalette = Palette(
-        preferredColorScheme: .dark,
-        gradientStops: [
-            .init(color: Color(red: 0.015, green: 0.075, blue: 0.047), location: 0),
-            .init(color: Color(red: 0.027, green: 0.23, blue: 0.145), location: 1)
-        ],
-        accent: Color(red: 0.52, green: 1.0, blue: 0.78),
-        accentDarkText: Color(red: 0.01, green: 0.13, blue: 0.08),
-        progressTrack: Color(red: 0.026, green: 0.085, blue: 0.055),
-        activeCardFill: Color(red: 0.045, green: 0.25, blue: 0.16).opacity(0.74),
-        activeCardStroke: Color(red: 0.33, green: 0.89, blue: 0.58),
-        lastPerformedCardFill: Color(red: 0.035, green: 0.16, blue: 0.105).opacity(0.82),
-        lastPerformedCardStroke: Color(red: 0.18, green: 0.50, blue: 0.34),
-        pillFill: Color(red: 0.028, green: 0.09, blue: 0.064).opacity(0.9),
-        pillStroke: Color(red: 0.28, green: 0.72, blue: 0.45).opacity(0.78),
-        sessionTileComplete: Color(red: 0.035, green: 0.36, blue: 0.18),
-        sessionTileIncomplete: Color(red: 0.026, green: 0.085, blue: 0.055).opacity(0.28),
-        sessionTileUnavailable: Color(red: 0.026, green: 0.085, blue: 0.055).opacity(0.14),
-        valueText: .white,
-        badgeFill: .white.opacity(0.12),
-        bannerFill: .white.opacity(0.14),
-        bannerStroke: .white.opacity(0.10),
-        sessionTileCompleteText: .white,
-        sessionTileIncompleteText: .white.opacity(0.68),
-        sessionTileUnavailableText: .white.opacity(0.42),
-        sessionTileRestingBorder: .white.opacity(0.11),
-        danger: Color(red: 1.0, green: 0.23, blue: 0.19)
-    )
-
-    private static let sageLightPalette = Palette(
+    private static let dayPalette = Palette(
+        appearance: .day,
         preferredColorScheme: .light,
-        gradientStops: [
-            .init(color: Color(red: 0.91, green: 0.93, blue: 0.86), location: 0),
-            .init(color: Color(red: 0.78, green: 0.88, blue: 0.75), location: 1)
-        ],
-        accent: Color(red: 0.05, green: 0.42, blue: 0.25),
-        accentDarkText: Color(red: 0.95, green: 0.97, blue: 0.91),
-        progressTrack: Color(red: 0.70, green: 0.78, blue: 0.68),
-        activeCardFill: Color(red: 0.88, green: 0.93, blue: 0.84).opacity(0.96),
-        activeCardStroke: Color(red: 0.12, green: 0.52, blue: 0.32),
-        lastPerformedCardFill: Color(red: 0.82, green: 0.89, blue: 0.80).opacity(0.94),
-        lastPerformedCardStroke: Color(red: 0.32, green: 0.55, blue: 0.40),
-        pillFill: Color(red: 0.95, green: 0.965, blue: 0.91).opacity(0.96),
-        pillStroke: Color(red: 0.46, green: 0.66, blue: 0.53).opacity(0.78),
-        sessionTileComplete: Color(red: 0.06, green: 0.38, blue: 0.22),
-        sessionTileIncomplete: Color(red: 0.91, green: 0.94, blue: 0.87).opacity(0.9),
-        sessionTileUnavailable: Color(red: 0.82, green: 0.87, blue: 0.78).opacity(0.7),
-        valueText: .primary,
-        badgeFill: .black.opacity(0.07),
-        bannerFill: .black.opacity(0.07),
-        bannerStroke: .black.opacity(0.10),
-        sessionTileCompleteText: .white,
-        sessionTileIncompleteText: .primary.opacity(0.70),
-        sessionTileUnavailableText: .secondary.opacity(0.86),
-        sessionTileRestingBorder: .black.opacity(0.10),
-        danger: Color(red: 1.0, green: 0.23, blue: 0.19)
+        paper: PaperRecipe(
+            baseTop: Paint.paperDayTop,
+            baseBottom: Paint.paperDayBottom,
+            washes: [
+                RadialWash(color: rgb(255, 250, 224, 0.85), center: UnitPoint(x: 0.18, y: 0.04), radiusFraction: 0.54),
+                RadialWash(color: rgb(163, 205, 154, 0.55), center: UnitPoint(x: 1.08, y: 0.32), radiusFraction: 0.49),
+                RadialWash(color: rgb(214, 232, 197, 0.70), center: UnitPoint(x: -0.10, y: 0.62), radiusFraction: 0.52),
+                RadialWash(color: rgb(151, 189, 140, 0.75), center: UnitPoint(x: 0.55, y: 1.08), radiusFraction: 0.77)
+            ]
+        ),
+        textPrimary: Paint.ink,
+        textSecondary: Paint.muted,
+        homeBar: Paint.ink.opacity(0.20),
+        stem: Paint.actionDay,
+        leafFill: Paint.actionDay,
+        leafRib: Paint.cream.opacity(0.50),
+        budFill: Paint.cream.opacity(0.95),
+        budStroke: Paint.actionDay,
+        budRib: Paint.actionDay.opacity(0.55),
+        futureStroke: Paint.actionDay.opacity(0.40),
+        skipStroke: Paint.muted.opacity(0.42),
+        surface: Paint.cream.opacity(0.52),
+        railFill: Paint.cream.opacity(0.55),
+        prescriptionTick: Paint.actionDay,
+        action: Paint.actionDay,
+        actionText: Paint.cream,
+        footFill: Paint.cream.opacity(0.50),
+        queueStroke: rgb(82, 111, 90, 0.38),
+        tileCurrentFill: Paint.cream.opacity(0.95),
+        tileCurrentBorder: rgb(31, 133, 82), // literal #1F8552 — kept exactly as approved
+        tileGhostStroke: Paint.muted.opacity(0.38),
+        weekCardShade: rgb(226, 233, 214, 0.72),
+        sheetFill: rgb(239, 244, 228), // #EFF4E4
+        chipCarvedFill: Paint.ink.opacity(0.055),
+        chartLine: Paint.ink.opacity(0.35),
+        blockSeam: Paint.ink.opacity(0.14),
+        scrim: Paint.ink.opacity(0.32),
+        grabber: Paint.ink.opacity(0.18),
+        birdFill: Paint.actionDay,
+        birdRib: Paint.cream.opacity(0.50),
+        danger: rgb(255, 59, 48) // system red, carried forward pending danger pass
     )
 
-    private static let blueLightPalette = Palette(
-        preferredColorScheme: .light,
-        gradientStops: [
-            .init(color: Color(red: 0.94, green: 0.97, blue: 0.995), location: 0),
-            .init(color: Color(red: 0.82, green: 0.90, blue: 0.98), location: 1)
-        ],
-        accent: Color(red: 0.08, green: 0.30, blue: 0.78),
-        accentDarkText: .white,
-        progressTrack: Color(red: 0.75, green: 0.82, blue: 0.92),
-        activeCardFill: Color(red: 0.90, green: 0.95, blue: 1.0).opacity(0.96),
-        activeCardStroke: Color(red: 0.16, green: 0.39, blue: 0.84),
-        lastPerformedCardFill: Color(red: 0.88, green: 0.92, blue: 0.98).opacity(0.94),
-        lastPerformedCardStroke: Color(red: 0.36, green: 0.49, blue: 0.72),
-        pillFill: Color(red: 0.98, green: 0.99, blue: 1.0).opacity(0.96),
-        pillStroke: Color(red: 0.45, green: 0.56, blue: 0.76).opacity(0.78),
-        sessionTileComplete: Color(red: 0.08, green: 0.27, blue: 0.64),
-        sessionTileIncomplete: Color(red: 0.95, green: 0.97, blue: 1.0).opacity(0.9),
-        sessionTileUnavailable: Color(red: 0.86, green: 0.90, blue: 0.96).opacity(0.72),
-        valueText: .primary,
-        badgeFill: .black.opacity(0.07),
-        bannerFill: .black.opacity(0.07),
-        bannerStroke: .black.opacity(0.10),
-        sessionTileCompleteText: .white,
-        sessionTileIncompleteText: .primary.opacity(0.70),
-        sessionTileUnavailableText: .secondary.opacity(0.86),
-        sessionTileRestingBorder: .black.opacity(0.10),
-        danger: Color(red: 1.0, green: 0.23, blue: 0.19)
+    private static let nightPalette = Palette(
+        appearance: .night,
+        preferredColorScheme: .dark,
+        paper: PaperRecipe(
+            baseTop: Paint.paperNightTop,
+            baseBottom: Paint.paperNightBottom,
+            washes: [
+                RadialWash(color: rgb(255, 233, 170, 0.14), center: UnitPoint(x: 0.18, y: 0.04), radiusFraction: 0.48),
+                RadialWash(color: rgb(87, 145, 104, 0.16), center: UnitPoint(x: 1.08, y: 0.32), radiusFraction: 0.49),
+                RadialWash(color: rgb(87, 145, 104, 0.10), center: UnitPoint(x: -0.10, y: 0.62), radiusFraction: 0.52),
+                RadialWash(color: rgb(9, 18, 12, 0.70), center: UnitPoint(x: 0.55, y: 1.08), radiusFraction: 0.77)
+            ]
+        ),
+        textPrimary: Paint.inkNight,
+        textSecondary: Paint.mutedNight,
+        homeBar: Paint.cream.opacity(0.22),
+        stem: Paint.foliage,
+        leafFill: Paint.foliage,
+        leafRib: Paint.cream.opacity(0.55),
+        budFill: Paint.cream.opacity(0.92),
+        budStroke: rgb(120, 240, 178), // #78F0B2 — the bud carries the page's one glow
+        budRib: Paint.foliage.opacity(0.60),
+        futureStroke: Paint.foliage.opacity(0.45),
+        skipStroke: Paint.mutedNight.opacity(0.40),
+        surface: Paint.cream.opacity(0.07),
+        railFill: Paint.cream.opacity(0.06),
+        prescriptionTick: Paint.actionNight,
+        action: Paint.actionNight,
+        actionText: Paint.cream,
+        footFill: Paint.cream.opacity(0.06),
+        queueStroke: Paint.cream.opacity(0.20),
+        tileCurrentFill: Paint.cream.opacity(0.95),
+        tileCurrentBorder: rgb(31, 133, 82), // literal #1F8552 — kept exactly as approved
+        tileGhostStroke: Paint.mutedNight.opacity(0.38),
+        weekCardShade: Paint.cream.opacity(0.06),
+        sheetFill: rgb(31, 40, 29), // night sheet follows the #418 recipe (flagged for build validation)
+        chipCarvedFill: Paint.cream.opacity(0.06),
+        chartLine: Paint.inkNight.opacity(0.35),
+        blockSeam: Paint.inkNight.opacity(0.14),
+        scrim: rgb(9, 18, 12, 0.60),
+        grabber: Paint.cream.opacity(0.18),
+        birdFill: Paint.foliage,
+        birdRib: Paint.cream.opacity(0.55),
+        danger: rgb(255, 59, 48)
     )
+
+    /// 0–255 sRGB channel helper so the value sheets read like the token-sheet hex/rgba literals.
+    static func rgb(_ red: Double, _ green: Double, _ blue: Double, _ opacity: Double = 1) -> Color {
+        Color(.sRGB, red: red / 255, green: green / 255, blue: blue / 255, opacity: opacity)
+    }
+}
+
+// MARK: - Living-paper background
+
+extension Theme.Palette {
+    /// The living-paper wash rendered as the background of every non-system surface (token sheet
+    /// §3). One recipe per appearance; the base sage pair sits under the four radial washes.
+    var paperBackground: some View {
+        ZStack {
+            LinearGradient(
+                colors: [paper.baseTop, paper.baseBottom],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            ForEach(Array(paper.washes.enumerated()), id: \.offset) { _, wash in
+                EllipticalGradient(
+                    colors: [wash.color, .clear],
+                    center: wash.center,
+                    startRadiusFraction: 0,
+                    endRadiusFraction: wash.radiusFraction
+                )
+            }
+        }
+    }
 }

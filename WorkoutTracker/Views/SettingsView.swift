@@ -16,7 +16,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                palette.gradient.ignoresSafeArea()
+                palette.paperBackground.ignoresSafeArea()
 
                 WorkoutGlassContainer(spacing: 12) {
                     VStack(spacing: 12) {
@@ -266,7 +266,7 @@ struct SettingsView: View {
                     },
                     isSelectionDisabled: isSheetSelectionDisabled
                 )
-                .background(palette.gradient.ignoresSafeArea())
+                .background(palette.paperBackground.ignoresSafeArea())
                 .navigationTitle("Training Sheet")
             }
             .alert(
