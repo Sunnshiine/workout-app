@@ -6,10 +6,6 @@ name: Visual determinism spike (issue 471)
 # (research doc §3.1a), record the full suite twice with a simulator
 # shutdown between runs, and byte-compare the runs (ADR-0007 Phase-0 re-run).
 #
-#   spike-main:       this branch (= main + gate wiring + pbxproj fix). Also
-#                     answers whether the 11 locally-recorded June baselines
-#                     hold on the runner, and produces runner-recorded
-#                     baselines as an artifact.
 #   spike-greenhouse: PR #467's branch — paper washes + bundled Fraunces /
 #                     Source Sans 3. Proves the gate goes red on it as-is.
 #                     Its Xcode test targets are broken in ways the pipeline
@@ -24,112 +20,6 @@ on:
     branches: [claude/wayfinder-issue-471-mtk504]
 
 jobs:
-  spike-main:
-    runs-on: macos-26
-    timeout-minutes: 90
-    env:
-      DEST: platform=iOS Simulator,name=iPhone 17 Pro,OS=26.4.1
-    steps:
-      - uses: actions/checkout@v4
-      - name: Create Secrets.xcconfig from template (build-only)
-        run: cp Secrets.xcconfig.template Secrets.xcconfig
-      - name: Build for testing (snapshot target only)
-        run: |
-          xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination "$DEST" -only-testing:WorkoutTrackerSnapshotTests \
-            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
-
-      - name: 1 — Gate run against committed June baselines
-        id: gate
-        continue-on-error: true
-        run: |
-          xcodebuild test-without-building -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination "$DEST" -only-testing:WorkoutTrackerSnapshotTests \
-            CODE_SIGNING_ALLOWED=NO \
-            TEST_RUNNER_SNAPSHOT_ARTIFACTS="$PWD/gate-diffs"
-      - name: 1 — Verdict
-        run: |
-          echo "## spike-main verdicts" >> "$GITHUB_STEP_SUMMARY"
-          echo "1. gate vs June baselines: ${{ steps.gate.outcome }} (ExerciseHistory is expected red — no baselines committed)" | tee -a "$GITHUB_STEP_SUMMARY"
-
-      - name: 2 — Env-var probe (SNAPSHOT_TESTING_RECORD=all vs .never trait)
-        continue-on-error: true
-        run: |
-          xcodebuild test-without-building -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination "$DEST" -only-testing:WorkoutTrackerSnapshotTests \
-            CODE_SIGNING_ALLOWED=NO \
-            TEST_RUNNER_SNAPSHOT_TESTING_RECORD=all
-      - name: 2 — Verdict
-        id: envprobe
-        run: |
-          count=$(find Tests/Visual/__Snapshots__/ExerciseHistorySheetVisualTests -name '*.png' 2>/dev/null | wc -l | tr -d ' ')
-          if [ "$count" -gt 0 ]; then
-            echo "2. ENV WINS: SNAPSHOT_TESTING_RECORD=all recorded missing baselines despite the .never trait." | tee -a "$GITHUB_STEP_SUMMARY"
-            echo "env_wins=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "2. TRAIT WINS: env var recorded nothing; recording requires flipping the suite trait." | tee -a "$GITHUB_STEP_SUMMARY"
-            echo "env_wins=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: 3 — Flip trait to .all and rebuild (only if env lost)
-        if: steps.envprobe.outputs.env_wins == 'false'
-        run: |
-          sed -i '' 's/\.snapshots(record: \.never)/.snapshots(record: .all)/' Tests/Visual/*.swift
-          xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination "$DEST" -only-testing:WorkoutTrackerSnapshotTests \
-            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
-      - name: 3 — Record run 1
-        continue-on-error: true
-        run: |
-          xcodebuild test-without-building -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination "$DEST" -only-testing:WorkoutTrackerSnapshotTests \
-            CODE_SIGNING_ALLOWED=NO \
-            TEST_RUNNER_SNAPSHOT_TESTING_RECORD=all
-      - name: 3 — Stash run 1, shutdown simulator
-        run: |
-          count=$(find Tests/Visual/__Snapshots__ -name '*.png' 2>/dev/null | wc -l | tr -d ' ')
-          echo "3. Record run 1 captured $count PNGs." | tee -a "$GITHUB_STEP_SUMMARY"
-          [ "$count" -gt 0 ]
-          cp -R Tests/Visual/__Snapshots__ /tmp/run1
-          xcrun simctl shutdown all || true
-      - name: 4 — Record run 2 (fresh simulator boot)
-        continue-on-error: true
-        run: |
-          xcodebuild test-without-building -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination "$DEST" -only-testing:WorkoutTrackerSnapshotTests \
-            CODE_SIGNING_ALLOWED=NO \
-            TEST_RUNNER_SNAPSHOT_TESTING_RECORD=all
-      - name: 4 — Determinism verdict (byte-compare run 1 vs run 2)
-        run: |
-          cp -R Tests/Visual/__Snapshots__ /tmp/run2
-          if diff -qr /tmp/run1 /tmp/run2 > /tmp/diff-report.txt 2>&1; then
-            echo "4. DETERMINISTIC on runner: run 1 and run 2 byte-identical (glass surfaces, exact precision)." | tee -a "$GITHUB_STEP_SUMMARY"
-          else
-            echo "4. NON-DETERMINISTIC on runner:" | tee -a "$GITHUB_STEP_SUMMARY"
-            cat /tmp/diff-report.txt | tee -a "$GITHUB_STEP_SUMMARY"
-          fi
-      - name: 5 — Do June local recordings match runner recordings byte-for-byte?
-        run: |
-          git stash -q || true
-          if diff -qr Tests/Visual/__Snapshots__ /tmp/run2 > /tmp/local-vs-runner.txt 2>&1; then
-            echo "5. Local June baselines are byte-identical to runner recordings." | tee -a "$GITHUB_STEP_SUMMARY"
-          else
-            echo "5. Local June baselines differ from runner recordings:" | tee -a "$GITHUB_STEP_SUMMARY"
-            cat /tmp/local-vs-runner.txt | tee -a "$GITHUB_STEP_SUMMARY"
-          fi
-      - name: Upload recordings
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: main-runner-baselines
-          path: |
-            /tmp/run1
-            /tmp/run2
-            /tmp/diff-report.txt
-            /tmp/local-vs-runner.txt
-            gate-diffs
-          if-no-files-found: ignore
-
   spike-greenhouse:
     runs-on: macos-26
     timeout-minutes: 90
@@ -141,9 +31,25 @@ jobs:
           ref: agent/prd-458-spec-greenhouse-screen-by-screen-build-implement-t
       - name: Create Secrets.xcconfig from template (build-only)
         run: cp Secrets.xcconfig.template Secrets.xcconfig
-      - name: Patch stale deleted-baseline refs out of pbxproj (spike-only)
+      - name: Patch pbxproj (spike-only) — drop stale PNG refs, add ManualRestClock
         run: |
           sed -i '' '/MatchesVisualBaseline\.1\.png/d' WorkoutTracker.xcodeproj/project.pbxproj
+          python3 - <<'PYEOF'
+          import re
+          path = 'WorkoutTracker.xcodeproj/project.pbxproj'
+          p = open(path).read()
+          fref, bfile = 'AAAA00000000000000000001', 'AAAA00000000000000000002'
+          p = p.replace('/* Begin PBXBuildFile section */\n',
+              '/* Begin PBXBuildFile section */\n\t\t%s /* ManualRestClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = %s /* ManualRestClock.swift */; };\n' % (bfile, fref), 1)
+          p = p.replace('/* Begin PBXFileReference section */\n',
+              '/* Begin PBXFileReference section */\n\t\t%s /* ManualRestClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualRestClock.swift; sourceTree = "<group>"; };\n' % fref, 1)
+          m = re.search(r'\n(\t+)(\w{24}) /\* SheetGridFixture.swift \*/,\n', p)
+          p = p[:m.end()] + '%s%s /* ManualRestClock.swift */,\n' % (m.group(1), fref) + p[m.end():]
+          m2 = re.search(r'E98FB6DCF05A192EB2634FA9 /\* Sources \*/ = \{\s*isa = PBXSourcesBuildPhase;.*?files = \(\n(\t+)', p, re.S)
+          p = p[:m2.end()] + '%s /* ManualRestClock.swift in Sources */,\n%s' % (bfile, m2.group(1)) + p[m2.end():]
+          open(path, 'w').write(p)
+          print('patched')
+          PYEOF
       - name: Build for testing (snapshot target only)
         run: |
           xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
