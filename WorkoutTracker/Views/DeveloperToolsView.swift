@@ -332,7 +332,7 @@ private struct PendingWriteDiagnosticRow: View {
             if let error = diagnostic.error, !error.isEmpty {
                 Text(error)
                     .font(.caption)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(palette.danger)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -343,7 +343,7 @@ private struct PendingWriteDiagnosticRow: View {
     }
 
     private var statusColor: Color {
-        diagnostic.status == "Conflict" ? .red : palette.accent
+        diagnostic.status == "Conflict" ? palette.danger : palette.accent
     }
 
     private var accessibilityLabel: String {
@@ -393,7 +393,7 @@ private struct WriteTargetAuditDiagnosticRow: View {
             if let message = diagnostic.message, !message.isEmpty {
                 Text(message)
                     .font(.caption)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(palette.danger)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -404,7 +404,7 @@ private struct WriteTargetAuditDiagnosticRow: View {
     }
 
     private var statusColor: Color {
-        diagnostic.status == "Conflict" ? .red : palette.accent
+        diagnostic.status == "Conflict" ? palette.danger : palette.accent
     }
 
     private var accessibilityLabel: String {

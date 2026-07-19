@@ -114,7 +114,7 @@ struct OnboardingView: View {
             if urlError {
                 Text("That doesn't look like a Sheet URL")
                     .font(.caption)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(palette.danger)
             }
 
             Button("Save") { saveURL() }
@@ -260,7 +260,7 @@ struct SheetPickerView: View {
                 VStack(spacing: 12) {
                     Text(message)
                         .font(.subheadline)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(palette.danger)
 
                     Button("Retry") {
                         Task { await store.loadInitial() }
@@ -351,7 +351,7 @@ private struct SheetPickerRow: View {
                 if let errorMessage {
                     Text(errorMessage)
                         .font(.caption)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(palette.danger)
                 }
             }
             .padding(14)
