@@ -5,7 +5,10 @@ description: >
   .sandcastle/VISUAL_LOOP.md). A fresh CI checkout is an untrusted folder:
   MCP approval keys checked into .claude/settings.json are ignored there,
   but user-scope settings are honored (issue #480) — so approval is written
-  to ~/.claude/settings.json here.
+  to ~/.claude/settings.json here. The #472 spike (run 29705943290) showed
+  sandcastle's --dangerously-skip-permissions alone already connects the
+  servers; this step stays as the documented fallback in case that
+  undocumented bypass is ever closed.
 inputs:
   context7-api-key:
     description: CONTEXT7_API_KEY secret (optional — context7 works keyless at lower rate limits)

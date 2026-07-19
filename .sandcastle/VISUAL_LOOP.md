@@ -59,10 +59,19 @@ tools fail fast — do not use them.
 
 1. Build and run the app on the simulator (`build_run_sim`), launching with
    fixture arguments `-UITEST_FIXTURE true -UITEST_SESSION true` so the app
-   renders deterministic local fixtures, not live data.
+   renders deterministic local fixtures, not live data. Pass build extra args
+   `-skipPackagePluginValidation -skipMacroValidation` — SwiftLint's build
+   plugin cannot be approved interactively in CI and fails the build without
+   them (spike run 29705943290).
 2. Drive the app through **each screen your change touches** (`describe_ui`,
-   tap, swipe, gesture) and screenshot it.
-3. Switch the simulator to dark appearance and screenshot the same screens
+   tap, swipe, gesture) and screenshot it. **Known limitation:** the current
+   xcode-27 beta runner image ships without `SimulatorKit.framework`, so
+   `describe_ui`/tap fail there — screenshot every changed screen you can
+   reach (launch surface, launch-argument routes) and note the screens you
+   could not; mechanism 1 covers every changed surface regardless. Resume
+   the full drive-through when the tools work (issue #484 tracks the image).
+3. Switch the simulator to dark appearance — no MCP tool does this; use Bash:
+   `xcrun simctl ui <udid> appearance dark` — and screenshot the same screens
    again — the Greenhouse night edition is part of the locked design.
 4. `Read` every screenshot and compare against the spec, DESIGN.md, and the
    greenhouse picks **before committing**. Fix what you see; re-drive.
