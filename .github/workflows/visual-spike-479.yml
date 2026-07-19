@@ -12,6 +12,35 @@ on:
     branches: [claude/wayfinder-479-da20d4]
 
 jobs:
+  # One-shot: the onboardingViewCard test crashed during the full re-record
+  # (missing SyncCoordinator environment object — iOS 27 resolves the lookup
+  # eagerly), so its committed PNG is still the stale 26.4.1 recording. With
+  # the fixture fixed, record just this test on iOS 27.0. Job is removed once
+  # the PNG is committed.
+  record-onboarding:
+    runs-on: xcode-27
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create Secrets.xcconfig from template (build-only)
+        run: cp Secrets.xcconfig.template Secrets.xcconfig
+      - name: Flip suite trait to record (.never -> .all)
+        run: |
+          sed -i '' 's/\.snapshots(record: \.never)/.snapshots(record: .all)/' Tests/Visual/*.swift
+      - name: Record onboardingViewCard on iOS 27.0
+        continue-on-error: true
+        run: |
+          xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' \
+            -only-testing:WorkoutTrackerSnapshotTests/GlassBearingViewsVisualTests/onboardingViewCardMatchesVisualBaseline \
+            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
+      - name: Upload recording
+        uses: actions/upload-artifact@v4
+        with:
+          name: onboarding-recording-ios27
+          path: Tests/Visual/__Snapshots__/GlassBearingViewsVisualTests/onboardingViewCardMatchesVisualBaseline.1.png
+          if-no-files-found: error
+
   gate-verify:
     runs-on: xcode-27
     timeout-minutes: 45

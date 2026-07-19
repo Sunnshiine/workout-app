@@ -125,10 +125,17 @@ struct GlassBearingViewsVisualTests {
 
     @Test func onboardingViewCardMatchesVisualBaseline() throws {
         let settings = SettingsStore(defaults: try makeVisualDefaults())
+        // iOS 27 resolves OnboardingView's SyncCoordinator environment lookup
+        // during offscreen render (iOS 26 deferred it), so the fixture must
+        // inject one even though the rendered card never uses it.
+        let scenario = try WorkoutScenarios.freshConfiguredApp()
+        GlassVisualFixtureRetainer.retain(scenario)
+        let sync = SyncCoordinator(client: GlassVisualNoopSheetsClient(), context: scenario.context)
 
         assertGlassBaseline {
             OnboardingView()
                 .environment(settings)
+                .environment(sync)
                 .frame(width: 360, height: 260)
         }
     }
