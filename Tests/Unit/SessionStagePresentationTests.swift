@@ -412,6 +412,107 @@ struct SessionStagePresentationTests {
         #expect(states == [.leaf, .dashedLeaf])
     }
 
+    // MARK: - Superset fork + focus derivation (the forked stem)
+
+    @Test func supersetForkLeadsWithTheFocusedBranchAndRidesTheBudThere() throws {
+        let press = makeExercise(name: "Press", order: 1, setStates: [.logged, .pending, .pending])
+        let row = makeExercise(name: "Row", order: 2, setStates: [.pending, .pending])
+
+        let fork = try #require(
+            SessionStagePresentation.supersetFork(
+                exercises: [press, row],
+                focusID: ActiveSetID(exerciseOrder: 2, setIndex: 0)
+            )
+        )
+
+        let focused = try #require(fork.focusedBranch)
+        #expect(focused.exerciseOrder == 2)
+        #expect(focused.nodeStates == [.bud, .future])
+    }
+
+    @Test func supersetForkSubordinatesThePartnerBranchWithNoBud() throws {
+        let press = makeExercise(name: "Press", order: 1, setStates: [.logged, .skipped, .pending])
+        let row = makeExercise(name: "Row", order: 2, setStates: [.pending, .pending])
+
+        let fork = try #require(
+            SessionStagePresentation.supersetFork(
+                exercises: [press, row],
+                focusID: ActiveSetID(exerciseOrder: 2, setIndex: 0)
+            )
+        )
+
+        let partner = try #require(fork.partnerBranch)
+        #expect(partner.exerciseOrder == 1)
+        #expect(!partner.isFocused)
+        // The partner keeps its leaves and dashed leaves, but its Pending Set is
+        // a faint future — the bud rides the focus alone.
+        #expect(partner.nodeStates == [.leaf, .dashedLeaf, .future])
+        #expect(!partner.nodeStates.contains(.bud))
+    }
+
+    @Test func supersetForkFocusFollowsIntoThePartnerBranch() throws {
+        let press = makeExercise(name: "Press", order: 1, setStates: [.pending, .pending])
+        let row = makeExercise(name: "Row", order: 2, setStates: [.pending, .pending])
+
+        // Focus on Press: Press leads with the bud, Row rests without one.
+        let onPress = try #require(
+            SessionStagePresentation.supersetFork(
+                exercises: [press, row],
+                focusID: ActiveSetID(exerciseOrder: 1, setIndex: 0)
+            )
+        )
+        #expect(onPress.focusedBranch?.exerciseOrder == 1)
+        #expect(onPress.focusedBranch?.nodeStates.contains(.bud) == true)
+        #expect(onPress.partnerBranch?.nodeStates.contains(.bud) == false)
+
+        // Alternation moves the bud to Row without redrawing either branch's leaves.
+        let onRow = try #require(
+            SessionStagePresentation.supersetFork(
+                exercises: [press, row],
+                focusID: ActiveSetID(exerciseOrder: 2, setIndex: 0)
+            )
+        )
+        #expect(onRow.focusedBranch?.exerciseOrder == 2)
+        #expect(onRow.focusedBranch?.nodeStates.contains(.bud) == true)
+        #expect(onRow.partnerBranch?.nodeStates.contains(.bud) == false)
+    }
+
+    @Test func supersetForkKeepsBranchesInSessionOrder() throws {
+        let press = makeExercise(name: "Press", order: 1, setStates: [.pending])
+        let row = makeExercise(name: "Row", order: 2, setStates: [.pending])
+
+        // Order of the passed array does not matter — Session order (Exercise
+        // order) leads.
+        let fork = try #require(
+            SessionStagePresentation.supersetFork(exercises: [row, press], focusID: nil)
+        )
+
+        #expect(fork.branches.map(\.exerciseOrder) == [1, 2])
+        #expect(fork.branches.map(\.exerciseName) == ["Press", "Row"])
+    }
+
+    @Test func supersetForkFallsBackToTheFirstPendingBranchWithoutFocus() throws {
+        // Press is fully settled; focus derivation skips it to the first branch
+        // that still has a Pending Set.
+        let press = makeExercise(name: "Press", order: 1, setStates: [.logged])
+        let row = makeExercise(name: "Row", order: 2, setStates: [.pending])
+
+        let fork = try #require(
+            SessionStagePresentation.supersetFork(exercises: [press, row], focusID: nil)
+        )
+
+        #expect(fork.focusedBranch?.exerciseOrder == 2)
+        #expect(fork.focusedBranch?.nodeStates == [.bud])
+        #expect(fork.partnerBranch?.exerciseOrder == 1)
+        #expect(fork.partnerBranch?.nodeStates == [.leaf])
+    }
+
+    @Test func supersetForkIsNilWithoutExactlyTwoExercises() {
+        let press = makeExercise(name: "Press", order: 1, setStates: [.pending])
+
+        #expect(SessionStagePresentation.supersetFork(exercises: [press], focusID: nil) == nil)
+    }
+
     @Test func branchWalksBothSupersetExercisesInSetOrder() throws {
         // One forked stem is slice 3's concern; here the branch simply reads the
         // Superset owner's flattened Set order, budding the first Pending Set.

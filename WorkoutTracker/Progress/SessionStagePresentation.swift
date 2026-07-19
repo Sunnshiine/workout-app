@@ -60,6 +60,32 @@ enum BranchNodeState: Equatable, Sendable {
     case future
 }
 
+/// One branch of a Superset's forked stem. The focused branch leads at full
+/// stroke and alone carries the bud; the partner is a subordinated drooping
+/// lateral whose Pending Sets stay faint futures. Which branch subordinates is
+/// state (`isFocused`); *how* it quiets — pigment by Day, translucency at Night —
+/// is the branch view's palette concern.
+struct SupersetBranch: Equatable, Sendable {
+    let exerciseOrder: Int
+    let exerciseName: String
+    let baseName: String
+    let nodeStates: [BranchNodeState]
+    let isFocused: Bool
+}
+
+/// A Superset drawn as a single forked stem: two branches in Session order with
+/// exactly one focused. The fork + focus derivation lives here so the view owns
+/// geometry only.
+struct SupersetForkPresentation: Equatable, Sendable {
+    let branches: [SupersetBranch]
+
+    /// The branch that leads at full stroke and carries the bud.
+    var focusedBranch: SupersetBranch? { branches.first(where: \.isFocused) }
+
+    /// The subordinated drooping lateral.
+    var partnerBranch: SupersetBranch? { branches.first { !$0.isFocused } }
+}
+
 /// The part a queue row plays while Superset pairing is in flight.
 enum QueuePairingRole: Equatable, Sendable {
     case none
@@ -169,6 +195,56 @@ enum SessionStagePresentation {
             return active
         }
         return sets.first(where: \.isPending)
+    }
+
+    /// The Superset drawn as a single forked stem: the two paired Exercises as
+    /// two branches in Session order, with exactly one focused. The focused
+    /// branch leads and alone carries the bud (via `branchNodeStates`); the
+    /// partner keeps its leaves and dashed leaves but every Pending Set stays a
+    /// faint future — so alternation is one bud settling and one waking, never a
+    /// branch redraw. Focus follows `focusID` when it names one of the pair,
+    /// else the first Exercise in order that still has a Pending Set. `nil` when
+    /// the pair is not exactly two Exercises.
+    static func supersetFork(exercises: [Exercise], focusID: ActiveSetID?) -> SupersetForkPresentation? {
+        guard exercises.count == 2 else { return nil }
+        let ordered = exercises.sorted { $0.order < $1.order }
+        let focusedOrder = focusedExerciseOrder(in: ordered, focusID: focusID)
+        let branches = ordered.map { exercise -> SupersetBranch in
+            let sortedSets = exercise.sets.sorted { $0.index < $1.index }
+            let isFocused = exercise.order == focusedOrder
+            let nodeStates =
+                isFocused
+                ? branchNodeStates(for: sortedSets, activeSetID: focusID)
+                : subordinateBranchNodeStates(for: sortedSets)
+            return SupersetBranch(
+                exerciseOrder: exercise.order,
+                exerciseName: exercise.name,
+                baseName: exercise.baseName,
+                nodeStates: nodeStates,
+                isFocused: isFocused
+            )
+        }
+        return SupersetForkPresentation(branches: branches)
+    }
+
+    private static func focusedExerciseOrder(in ordered: [Exercise], focusID: ActiveSetID?) -> Int? {
+        if let focusID, let focused = ordered.first(where: { $0.order == focusID.exerciseOrder }) {
+            return focused.order
+        }
+        return (ordered.first(where: \.hasPendingSet) ?? ordered.first)?.order
+    }
+
+    /// The partner branch's nodes: Logged Sets ink to leaves and Skipped Sets to
+    /// dashed leaves as always, but every Pending Set stays a faint future — the
+    /// bud belongs to the focused branch alone.
+    private static func subordinateBranchNodeStates(for sets: [ExerciseSet]) -> [BranchNodeState] {
+        sets.map { set in
+            switch set.state {
+            case .logged: return .leaf
+            case .skipped: return .dashedLeaf
+            case .pending: return .future
+            }
+        }
     }
 
     /// The pairing role of a queue row. Eligibility leans on the render
