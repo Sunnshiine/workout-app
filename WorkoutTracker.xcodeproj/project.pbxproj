@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B7E2DF7D17DE7F771EDF332D /* ExerciseHistorySheetVisualTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 315001C3A8DF957C9C759EDD /* ExerciseHistorySheetVisualTests.swift */; };
+		AEE4D942C173D1F605760BB8 /* ManualRestClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = A503117A821D3DC402E8EA70 /* ManualRestClock.swift */; };
 		015ED035457D68D5C6AEE5BC /* developerToolsViewMatchesVisualBaseline.1.png in Resources */ = {isa = PBXBuildFile; fileRef = B30F86612179167965F9C2F8 /* developerToolsViewMatchesVisualBaseline.1.png */; };
 		02B931D6B151C50FE0423EEF /* OpenExerciseRowPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA4AD15FD378F46C1F552857 /* OpenExerciseRowPresentation.swift */; };
 		0A3A294C9B0DC72E6107B413 /* BlockOverviewPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACD0CE14935AD19164A5C62E /* BlockOverviewPresentation.swift */; };
@@ -241,6 +243,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		315001C3A8DF957C9C759EDD /* ExerciseHistorySheetVisualTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseHistorySheetVisualTests.swift; sourceTree = "<group>"; };
+		A503117A821D3DC402E8EA70 /* ManualRestClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualRestClock.swift; sourceTree = "<group>"; };
 		02CBDEE06463224167F1FB18 /* UITestFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestFixture.swift; sourceTree = "<group>"; };
 		0499FE101F8EA75B5C6D2562 /* SettingsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStoreTests.swift; sourceTree = "<group>"; };
 		04BC574D25534E5FA13DE8B1 /* RestDurationSettingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestDurationSettingTests.swift; sourceTree = "<group>"; };
@@ -684,6 +688,7 @@
 			children = (
 				8A866D6743EC6DA86540A5E6 /* LocalWorkbookSheetsClient.swift */,
 				B5AD19394F523316075E92C3 /* SheetGridFixture.swift */,
+				A503117A821D3DC402E8EA70 /* ManualRestClock.swift */,
 				A87608B03C722AD31186659D /* WorkoutModelFixture.swift */,
 				4FA17C199EB54DE39E47760B /* WorkoutScenarios.swift */,
 			);
@@ -719,6 +724,7 @@
 			isa = PBXGroup;
 			children = (
 				39C94296C3A7BA23FD623A55 /* GlassBearingViewsVisualTests.swift */,
+				315001C3A8DF957C9C759EDD /* ExerciseHistorySheetVisualTests.swift */,
 				D6137E34D6FB20118020D603 /* SessionViewVisualTests.swift */,
 				9D0970B6E6209BC4656E8D1E /* WorkoutVisualBaseline.swift */,
 				B4A0C9B747DF99F645C105E8 /* __Snapshots__ */,
@@ -1020,6 +1026,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B7E2DF7D17DE7F771EDF332D /* ExerciseHistorySheetVisualTests.swift in Sources */,
 				7E2CB9D769B7EAD1B173E533 /* GlassBearingViewsVisualTests.swift in Sources */,
 				9AFF8FBB51900BC0B1CA0E8A /* LocalWorkbookSheetsClient.swift in Sources */,
 				63ACB5497F39C3AD40C81E31 /* SessionViewVisualTests.swift in Sources */,
@@ -1034,6 +1041,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AEE4D942C173D1F605760BB8 /* ManualRestClock.swift in Sources */,
 				43A5770EE0122D5498F2F391 /* ActiveSetFocusManagerTests.swift in Sources */,
 				34953DAF43A033C86A3D9E65 /* ActiveSetPresentationTests.swift in Sources */,
 				0FCFEE8BE8B4EEBA73F6E728 /* BlockBuilderTests.swift in Sources */,
