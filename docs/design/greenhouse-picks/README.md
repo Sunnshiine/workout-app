@@ -28,22 +28,18 @@ wash recipe, not the flat gradient visible in earlier picks).
 | Sheet-connect screen | Night | [sunbird-moments-e.png](sunbird-moments-e.png) | §5.8 Sheet-connect screen | [#414](https://github.com/Sunnshiine/workout-app/issues/414) · `claude/wayfinder-prototype-s96l3e` |
 | Atmosphere — living paper washes | Day | [atmosphere2-i.png](atmosphere2-i.png) | §2 Living paper (atmosphere) | [#420](https://github.com/Sunnshiine/workout-app/issues/420) · `claude/wayfinder-issue-408-ay2ag4` (`atmosphere2.html?variant=i`) |
 | Atmosphere — living paper washes | Night | [atmosphere2-k.png](atmosphere2-k.png) | §2 Living paper (atmosphere) | [#420](https://github.com/Sunnshiine/workout-app/issues/420) · `claude/wayfinder-issue-408-ay2ag4` (`atmosphere2.html?variant=k`) |
-| Sunbird — the perched songbird drawing | — | [sunbird-role-d2.png](sunbird-role-d2.png) | §6 The Sunbird | [#412](https://github.com/Sunnshiine/workout-app/issues/412) · `claude/wayfinder-workout-app-79kkjy` |
-| Sunbird — original locked connect composition | Day | [sunbird-role-e3.png](sunbird-role-e3.png) | §5.8 Sheet-connect screen · §6 The Sunbird | [#412](https://github.com/Sunnshiine/workout-app/issues/412) · `claude/wayfinder-workout-app-79kkjy` |
-| Direction concept — the locked stage | Day | [greenhouse-a.png](greenhouse-a.png) | §1 Overview | [#411](https://github.com/Sunnshiine/workout-app/issues/411) · `claude/wayfinder-grill-mjko1n` |
-| Direction concept — the approved ceremony | Day | [sunlit-ledger-b.png](sunlit-ledger-b.png) | §1 Overview · §5.7 Move On ceremony | [#411](https://github.com/Sunnshiine/workout-app/issues/411) · `claude/wayfinder-grill-mjko1n` |
-| Night edition recipe | Night | [greenhouse-night-d.png](greenhouse-night-d.png) | §2 Appearances & Color | [#418](https://github.com/Sunnshiine/workout-app/issues/418) · `claude/wayfinder-workout-app-fnirg6` |
 
 ## Fidelity notes
 
-- **Later tickets amend earlier picks.** The direction/night-edition/sunbird-role captures
-  (#411, #418, #412) predate the component convergence; they document the concept, not final
-  component detail. For any component surface, the component pick row above is the ground truth,
-  and DESIGN.md's prose + the token sheet
-  ([greenhouse-theme-tokens.md](../greenhouse-theme-tokens.md)) override all pixels.
-- Notable known deltas: session-stage picks predate the #455 input-block rework (pill row →
-  weight-led stepper + rails); pre-#420 captures show the flat two-stop paper, superseded by the
-  layered washes; #422 adjudicated card padding, the 33pt Exercise name, and ceremony stats onto
-  the shared surface after all captures.
+- **Concept-era captures are deliberately excluded** (owner verdict on #470): the direction picks
+  (#411), the night-edition recipe capture (#418), and the sunbird-role renders (#412) predate the
+  component convergence and conflict with the final component picks above — the sunbird's ground
+  truth is the #414 ceremony/connect rows. Those captures remain on their source branches as the
+  design record; their decisions live on in DESIGN.md.
+- **DESIGN.md wins over pixels.** DESIGN.md's prose + the token sheet
+  ([greenhouse-theme-tokens.md](../greenhouse-theme-tokens.md)) override every capture here.
+  Notable known deltas: session-stage picks predate the #455 input-block rework (pill row →
+  weight-led stepper + rails); #422 adjudicated card padding, the 33pt Exercise name, and
+  ceremony stats onto the shared surface after all captures.
 - Exercise History night was never re-prototyped — it follows the #418 sheet recipe by rule
   (flagged for the build in #434).
