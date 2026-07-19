@@ -126,7 +126,7 @@ struct ExerciseHistorySheet: View {
     }
 
     private var volumeChart: some View {
-        VolumeChart(points: presentation.volumePoints)
+        VolumeChart(points: presentation.volumePoints, seamIndices: presentation.volumeBlockSeamIndices)
             .environment(\.themePalette, palette)
     }
 
@@ -295,6 +295,8 @@ private struct ExerciseHistoryRow: View {
 /// history is reference reading, not a dashboard (The History Is Reference Rule).
 private struct VolumeChart: View {
     let points: [ExerciseHistorySheetPresentation.VolumePoint]
+    /// Block-boundary indices, derived at the presentation seam so the view owns geometry only.
+    let seamIndices: [Int]
 
     @Environment(\.themePalette) private var palette
 
@@ -361,7 +363,7 @@ private struct VolumeChart: View {
 
     @ViewBuilder
     private func blockSeams(positions: [CGPoint], height: CGFloat) -> some View {
-        ForEach(seamIndices(), id: \.self) { index in
+        ForEach(seamIndices, id: \.self) { index in
             let seamX = (positions[index - 1].x + positions[index].x) / 2
             Path { path in
                 path.move(to: CGPoint(x: seamX, y: 0))
@@ -390,13 +392,6 @@ private struct VolumeChart: View {
                 .fill(palette.chartLine)
                 .frame(width: dotDiameter, height: dotDiameter)
         }
-    }
-
-    /// Indices where the line crosses a Block boundary — a dotted seam is drawn between the point at
-    /// `index - 1` and the point at `index`.
-    private func seamIndices() -> [Int] {
-        guard points.count > 1 else { return [] }
-        return (1..<points.count).filter { points[$0].blockHeader != points[$0 - 1].blockHeader }
     }
 }
 

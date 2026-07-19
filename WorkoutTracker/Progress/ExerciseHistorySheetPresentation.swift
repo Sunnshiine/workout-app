@@ -77,6 +77,16 @@ struct ExerciseHistorySheetPresentation: Equatable, Sendable {
 
     var isEmpty: Bool { blocks.isEmpty }
 
+    /// Indices into `volumePoints` where the total-volume line crosses a Block boundary — the chart
+    /// draws a dotted Block seam between the point at `index - 1` and the point at `index`
+    /// (DESIGN.md §5.6). Empty when the series holds fewer than two points or never leaves one Block.
+    var volumeBlockSeamIndices: [Int] {
+        guard volumePoints.count > 1 else { return [] }
+        return (1..<volumePoints.count).filter {
+            volumePoints[$0].blockHeader != volumePoints[$0 - 1].blockHeader
+        }
+    }
+
     init(anchorBaseName: String, entries: [LastPerformedOccurrence]) {
         title = anchorBaseName
         subtitle = "Exercise History · last \(Self.entryLimit)"

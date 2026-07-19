@@ -467,4 +467,85 @@ private func date(_ daysAgo: Int) -> Date {
     #expect(presentation.volumePoints.map(\.gutter) == ["W2 D1", "W1 D1", "W2 D1"])
     #expect(presentation.volumePoints.map(\.blockHeader) == ["BLOCK 26", "BLOCK 27", "BLOCK 27"])
     #expect(presentation.volumePoints.map(\.volume) == volumes)
+    // The dotted Block seam sits between the Block 26 point and the first Block 27 point.
+    #expect(presentation.volumeBlockSeamIndices == [1])
+}
+
+@Test func volumeBlockSeamIndicesMarkEveryBlockBoundaryAndNothingWithin() {
+    // Two entries in Block 26, then two in Block 27: the only boundary the chart seams is the
+    // crossing at index 2; consecutive points inside a Block never seam.
+    let entries = [
+        entry(
+            fullName: "Bench Press",
+            baseName: "Bench Press",
+            resultText: "180x5@8",
+            source: "Block 26 · W1 D1",
+            performedOn: date(40)
+        ),
+        entry(
+            fullName: "Bench Press",
+            baseName: "Bench Press",
+            resultText: "182x5@8",
+            source: "Block 26 · W2 D1",
+            performedOn: date(30)
+        ),
+        entry(
+            fullName: "Bench Press",
+            baseName: "Bench Press",
+            resultText: "185x5@8",
+            source: "Block 27 · W1 D1",
+            performedOn: date(20)
+        ),
+        entry(
+            fullName: "Bench Press",
+            baseName: "Bench Press",
+            resultText: "190x5@8",
+            source: "Block 27 · W2 D1",
+            performedOn: date(10)
+        )
+    ]
+
+    let presentation = ExerciseHistorySheetPresentation(anchorBaseName: "Bench Press", entries: entries)
+
+    #expect(presentation.volumePoints.map(\.blockHeader) == ["BLOCK 26", "BLOCK 26", "BLOCK 27", "BLOCK 27"])
+    #expect(presentation.volumeBlockSeamIndices == [2])
+}
+
+@Test func volumeBlockSeamIndicesAreEmptyWithoutTwoPointsOrABoundary() {
+    // A single point cannot seam; a whole series inside one Block never seams either.
+    let single = ExerciseHistorySheetPresentation(
+        anchorBaseName: "Bench Press",
+        entries: [
+            entry(
+                fullName: "Bench Press",
+                baseName: "Bench Press",
+                resultText: "185x5@8",
+                source: "Block 27 · W1 D1",
+                performedOn: date(1)
+            )
+        ]
+    )
+    #expect(single.volumeBlockSeamIndices.isEmpty)
+
+    let sameBlock = ExerciseHistorySheetPresentation(
+        anchorBaseName: "Bench Press",
+        entries: [
+            entry(
+                fullName: "Bench Press",
+                baseName: "Bench Press",
+                resultText: "185x5@8",
+                source: "Block 27 · W1 D1",
+                performedOn: date(10)
+            ),
+            entry(
+                fullName: "Bench Press",
+                baseName: "Bench Press",
+                resultText: "190x5@8",
+                source: "Block 27 · W2 D1",
+                performedOn: date(3)
+            )
+        ]
+    )
+    #expect(sameBlock.volumePoints.count == 2)
+    #expect(sameBlock.volumeBlockSeamIndices.isEmpty)
 }

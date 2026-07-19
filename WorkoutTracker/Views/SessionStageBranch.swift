@@ -1,5 +1,77 @@
 import SwiftUI
 
+/// Shared branch-flora geometry (token sheet §Stage & branch). The single stem and
+/// the Superset fork draw the same leaf/bud/future glyphs — only the pigment
+/// (focus vs subordinated partner) differs — so the shapes live here once and take
+/// their colors from the caller. The leaf's design space is 60×24 with the stem
+/// crossing at y≈8; display scale `s` sets the stroke widths (rib 1.2/s, bud 2.2/s,
+/// future/skip 1.2/s).
+private enum BranchGeometry {
+    static let nodeWidth: CGFloat = 30
+    static let nodeHeight: CGFloat = 46
+    static let scale: CGFloat = 0.5
+    static var leafLift: CGFloat { nodeHeight / 5 }
+    static var leafSize: CGSize {
+        CGSize(width: nodeWidth * 0.92, height: nodeWidth * 0.92 * (24.0 / 60.0) * 2.2)
+    }
+    static var strokeWidth: CGFloat { 1.2 * scale }
+}
+
+/// One leaf: an inked silhouette (with an optional cream rib) for a Logged Set, or
+/// a dashed outline for a Skipped Set. `rib == nil` drops the rib so a subordinated
+/// partner leaf reads flatter than the focused branch's.
+private struct BranchLeafGlyph: View {
+    let filled: Bool
+    let fill: Color
+    let rib: Color?
+    let dash: Color
+
+    var body: some View {
+        ZStack {
+            if filled {
+                LeafShape().fill(fill)
+                if let rib {
+                    RibShape().stroke(rib, style: StrokeStyle(lineWidth: BranchGeometry.strokeWidth, lineCap: .round))
+                }
+            } else {
+                LeafShape().stroke(
+                    dash,
+                    style: StrokeStyle(lineWidth: BranchGeometry.strokeWidth, lineCap: .round, dash: [5, 4])
+                )
+            }
+        }
+        .frame(width: BranchGeometry.leafSize.width, height: BranchGeometry.leafSize.height)
+    }
+}
+
+/// The active Set's cream bud with a green stroke; `glow` lights it at Night and is
+/// `nil` (unlit) by Day.
+private struct BranchBudGlyph: View {
+    let fill: Color
+    let stroke: Color
+    let glow: Color?
+
+    var body: some View {
+        let diameter = BranchGeometry.nodeWidth * 0.5
+        Circle()
+            .fill(fill)
+            .overlay(Circle().strokeBorder(stroke, lineWidth: 2.2 * BranchGeometry.scale))
+            .frame(width: diameter, height: diameter)
+            .shadow(color: glow ?? .clear, radius: glow == nil ? 0 : 7)
+    }
+}
+
+/// A faint future stroke for a Pending Set still ahead.
+private struct BranchFutureGlyph: View {
+    let stroke: Color
+
+    var body: some View {
+        Circle()
+            .strokeBorder(stroke, lineWidth: BranchGeometry.strokeWidth)
+            .frame(width: BranchGeometry.nodeWidth * 0.34, height: BranchGeometry.nodeWidth * 0.34)
+    }
+}
+
 /// The living stage's branch — the page's one icon and its only piece of flora.
 /// A round-cap stem carries one inked leaf per Logged Set, a dashed-outline leaf
 /// per Skipped Set, a cream bud with a green stroke for the active Set (carrying
@@ -16,13 +88,6 @@ struct SessionStageBranch: View {
     @Environment(\.themePalette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    // Geometry constants (token sheet §Stage & branch) — not palette. The leaf's
-    // design space is 60×24 with the stem crossing at y≈8; display scale `s` sets
-    // the stroke widths (rib 1.2/s, bud 2.2/s, future/skip 1.2/s).
-    private let nodeWidth: CGFloat = 30
-    private let nodeHeight: CGFloat = 46
-    private let scale: CGFloat = 0.5
-
     private var nodes: [(set: ExerciseSet, state: BranchNodeState)] {
         Array(zip(sets, SessionStagePresentation.branchNodeStates(for: sets, activeSetID: activeSetID)))
     }
@@ -33,11 +98,11 @@ struct SessionStageBranch: View {
             HStack(spacing: 0) {
                 ForEach(Array(nodes.enumerated()), id: \.element.set.persistentModelID) { index, node in
                     nodeCell(node.set, state: node.state, above: index.isMultiple(of: 2))
-                        .frame(width: nodeWidth, height: nodeHeight)
+                        .frame(width: BranchGeometry.nodeWidth, height: BranchGeometry.nodeHeight)
                 }
             }
         }
-        .frame(height: nodeHeight)
+        .frame(height: BranchGeometry.nodeHeight)
         .animation(reduceMotion ? nil : Theme.wingAnimation(duration: Theme.Motion.leafInk), value: activeSetID)
         .accessibilityElement(children: onTap == nil ? .ignore : .contain)
     }
@@ -47,7 +112,7 @@ struct SessionStageBranch: View {
         Capsule()
             .fill(palette.stem)
             .frame(height: 2)
-            .padding(.horizontal, nodeWidth / 2)
+            .padding(.horizontal, BranchGeometry.nodeWidth / 2)
     }
 
     @ViewBuilder
@@ -70,48 +135,18 @@ struct SessionStageBranch: View {
     private func nodeGlyph(_ state: BranchNodeState, above: Bool) -> some View {
         switch state {
         case .leaf:
-            leaf(filled: true).offset(y: above ? -leafLift : leafLift)
+            leaf(filled: true).offset(y: above ? -BranchGeometry.leafLift : BranchGeometry.leafLift)
         case .dashedLeaf:
-            leaf(filled: false).offset(y: above ? -leafLift : leafLift)
+            leaf(filled: false).offset(y: above ? -BranchGeometry.leafLift : BranchGeometry.leafLift)
         case .bud:
-            bud
+            BranchBudGlyph(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow)
         case .future:
-            futureStroke
+            BranchFutureGlyph(stroke: palette.futureStroke)
         }
     }
 
-    private var leafLift: CGFloat { nodeHeight / 5 }
-
-    @ViewBuilder
     private func leaf(filled: Bool) -> some View {
-        let size = CGSize(width: nodeWidth * 0.92, height: nodeWidth * 0.92 * (24.0 / 60.0) * 2.2)
-        ZStack {
-            if filled {
-                LeafShape().fill(palette.leafFill)
-                RibShape().stroke(palette.leafRib, style: StrokeStyle(lineWidth: 1.2 * scale, lineCap: .round))
-            } else {
-                LeafShape().stroke(
-                    palette.skipStroke,
-                    style: StrokeStyle(lineWidth: 1.2 * scale, lineCap: .round, dash: [5, 4])
-                )
-            }
-        }
-        .frame(width: size.width, height: size.height)
-    }
-
-    private var bud: some View {
-        let diameter = nodeWidth * 0.5
-        return Circle()
-            .fill(palette.budFill)
-            .overlay(Circle().strokeBorder(palette.budStroke, lineWidth: 2.2 * scale))
-            .frame(width: diameter, height: diameter)
-            .shadow(color: palette.budGlow ?? .clear, radius: palette.budGlow == nil ? 0 : 7)
-    }
-
-    private var futureStroke: some View {
-        Circle()
-            .strokeBorder(palette.futureStroke, lineWidth: 1.2 * scale)
-            .frame(width: nodeWidth * 0.34, height: nodeWidth * 0.34)
+        BranchLeafGlyph(filled: filled, fill: palette.leafFill, rib: palette.leafRib, dash: palette.skipStroke)
     }
 }
 
@@ -134,7 +169,7 @@ struct SupersetForkBranch: View {
             if let partner = fork.partnerBranch {
                 // The partner branch forks off the leading stem and droops.
                 ForkBranchRow(states: partner.nodeStates, isFocused: false)
-                    .padding(.leading, ForkBranchRow.nodeWidth * 0.6)
+                    .padding(.leading, BranchGeometry.nodeWidth * 0.6)
                     .rotationEffect(.degrees(4), anchor: .topLeading)
             }
         }
@@ -150,83 +185,58 @@ struct SupersetForkBranch: View {
 /// pigment with the bud and rib; the partner subordinates to
 /// `supersetPartnerBranch`, thins to 1.6px, drops the rib, and never buds.
 private struct ForkBranchRow: View {
-    static let nodeWidth: CGFloat = 30
     let states: [BranchNodeState]
     let isFocused: Bool
     @Environment(\.themePalette) private var palette
 
-    // Same design space and stroke scaling as SessionStageBranch (token sheet §Stage & branch).
-    private let nodeHeight: CGFloat = 46
-    private let scale: CGFloat = 0.5
-
     private var branchColor: Color { isFocused ? palette.stem : palette.supersetPartnerBranch }
     private var stemWidth: CGFloat { isFocused ? 2 : 1.6 }
-    private var leafLift: CGFloat { nodeHeight / 5 }
 
     var body: some View {
         ZStack {
             Capsule()
                 .fill(branchColor)
                 .frame(height: stemWidth)
-                .padding(.horizontal, Self.nodeWidth / 2)
+                .padding(.horizontal, BranchGeometry.nodeWidth / 2)
 
             HStack(spacing: 0) {
                 ForEach(Array(states.enumerated()), id: \.offset) { index, state in
                     glyph(state, above: index.isMultiple(of: 2))
-                        .frame(width: Self.nodeWidth, height: nodeHeight)
+                        .frame(width: BranchGeometry.nodeWidth, height: BranchGeometry.nodeHeight)
                 }
             }
         }
-        .frame(height: nodeHeight)
+        .frame(height: BranchGeometry.nodeHeight)
     }
 
     @ViewBuilder
     private func glyph(_ state: BranchNodeState, above: Bool) -> some View {
         switch state {
         case .leaf:
-            leaf(filled: true).offset(y: above ? -leafLift : leafLift)
+            leaf(filled: true).offset(y: above ? -BranchGeometry.leafLift : BranchGeometry.leafLift)
         case .dashedLeaf:
-            leaf(filled: false).offset(y: above ? -leafLift : leafLift)
+            leaf(filled: false).offset(y: above ? -BranchGeometry.leafLift : BranchGeometry.leafLift)
         case .bud:
             // Only the focused branch ever buds; the partner's Pending Sets stay futures.
-            isFocused ? AnyView(bud) : AnyView(futureStroke)
-        case .future:
-            futureStroke
-        }
-    }
-
-    @ViewBuilder
-    private func leaf(filled: Bool) -> some View {
-        let size = CGSize(width: Self.nodeWidth * 0.92, height: Self.nodeWidth * 0.92 * (24.0 / 60.0) * 2.2)
-        ZStack {
-            if filled {
-                LeafShape().fill(isFocused ? palette.leafFill : palette.supersetPartnerBranch)
-                if isFocused {
-                    RibShape().stroke(palette.leafRib, style: StrokeStyle(lineWidth: 1.2 * scale, lineCap: .round))
-                }
+            if isFocused {
+                BranchBudGlyph(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow)
             } else {
-                LeafShape().stroke(
-                    isFocused ? palette.skipStroke : palette.supersetPartnerBranch,
-                    style: StrokeStyle(lineWidth: 1.2 * scale, lineCap: .round, dash: [5, 4])
-                )
+                BranchFutureGlyph(stroke: branchColor)
             }
+        case .future:
+            BranchFutureGlyph(stroke: branchColor)
         }
-        .frame(width: size.width, height: size.height)
     }
 
-    private var bud: some View {
-        let diameter = Self.nodeWidth * 0.5
-        return Circle()
-            .fill(palette.budFill)
-            .overlay(Circle().strokeBorder(palette.budStroke, lineWidth: 2.2 * scale))
-            .frame(width: diameter, height: diameter)
-            .shadow(color: palette.budGlow ?? .clear, radius: palette.budGlow == nil ? 0 : 7)
-    }
-
-    private var futureStroke: some View {
-        Circle()
-            .strokeBorder(branchColor, lineWidth: 1.2 * scale)
-            .frame(width: Self.nodeWidth * 0.34, height: Self.nodeWidth * 0.34)
+    private func leaf(filled: Bool) -> some View {
+        // The partner subordinates by pigment: it fills in the partner tone, drops
+        // the cream rib, and dashes in that same tone rather than the skip stroke.
+        BranchLeafGlyph(
+            filled: filled,
+            fill: isFocused ? palette.leafFill : palette.supersetPartnerBranch,
+            rib: isFocused ? palette.leafRib : nil,
+            dash: isFocused ? palette.skipStroke : palette.supersetPartnerBranch
+        )
     }
 }
 
