@@ -1,5 +1,10 @@
 import SwiftUI
 
+/// The Superset stage: a single forked stem with the focused Exercise's name in
+/// the warm serif voice, the partner's "& partner" name line as the manual focus
+/// switch, and the Coach Note / Last Performed / Active Set Card all following the
+/// focus (DESIGN.md §5.4). The fork + focus derivation lives in
+/// `SessionStagePresentation.supersetFork`; dissolution moved to the queue sheet.
 struct ActiveSupersetSection: View {
     let config: SessionSupersetRenderConfig
     let onFocusExercise: (Exercise) -> Void
@@ -7,9 +12,22 @@ struct ActiveSupersetSection: View {
     let onLog: (ExerciseSet, SetLog) -> Void
     let onSkip: (ExerciseSet) -> Void
     let onDelete: (ExerciseSet) -> Void
-    let onDismiss: () -> Void
-    @Environment(\.themePalette) private var palette
     @Namespace private var focusMorphNamespace
+
+    private var fork: SupersetForkPresentation? {
+        SessionStagePresentation.supersetFork(
+            exercises: config.exercises,
+            focusID: config.presentation.activeSetID
+        )
+    }
+
+    private func exercise(order: Int?) -> Exercise? {
+        guard let order else { return nil }
+        return config.exercises.first { $0.order == order }
+    }
+
+    private var focusedExercise: Exercise? { exercise(order: fork?.focusedBranch?.exerciseOrder) }
+    private var partnerExercise: Exercise? { exercise(order: fork?.partnerBranch?.exerciseOrder) }
 
     private var activeExercise: Exercise? {
         config.exercises.first { $0.order == config.presentation.activeExerciseOrder }
@@ -24,145 +42,116 @@ struct ActiveSupersetSection: View {
         activeExercise?.sets.sorted { $0.index < $1.index } ?? []
     }
 
+    /// Focus is switchable only once a Set on the pair is active; before that the
+    /// Superset simply reads (matching the pre-Greenhouse resting composition).
+    private var isInteractive: Bool { config.presentation.activeSetID != nil }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            header
+        VStack(spacing: 14) {
+            nameBlock
+
+            if let note = focusedExercise?.coachNote {
+                Text(note)
+                    .font(Theme.font(.coachNote))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            if let fork {
+                SupersetForkBranch(fork: fork)
+                    .padding(.vertical, 2)
+            }
+
+            if let lastPerformed = config.lastPerformedPresentation, let focusedExercise {
+                // Tapping opens the Exercise History sheet for the focused side — the PRD gives the
+                // Last Performed tap no Superset carve-out, so the seam bubbles up to SessionStageView.
+                LastPerformedCard(presentation: lastPerformed) {
+                    onShowHistory(focusedExercise)
+                }
+            }
 
             if let activeSetID = config.presentation.activeSetID, let activeExercise, let activeSet {
-                activeRegion(activeSetID: activeSetID, activeExercise: activeExercise, activeSet: activeSet)
-                    .padding(.top, Theme.cardSpacing)
-
-                if let restingSide = config.presentation.sides.first(where: { !$0.isActive }) {
-                    restingStrip(for: restingSide)
-                        .padding(.top, Theme.supersetRestingSpacing)
-                }
-            } else {
-                VStack(spacing: 10) {
-                    ForEach(config.presentation.sides, id: \.exerciseOrder) { side in
-                        restingStrip(for: side)
-                    }
-                }
-                .padding(.top, Theme.cardSpacing)
+                activeCard(activeSetID: activeSetID, activeExercise: activeExercise, activeSet: activeSet)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity)
     }
 
-    private var header: some View {
-        HStack(alignment: .center, spacing: 10) {
-            Text("Superset")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(palette.accent)
-                .textCase(.uppercase)
-
-            pairIndicator
-
-            Spacer(minLength: 0)
-
-            Button(action: onDismiss) {
-                Image(systemName: "link.badge.minus")
-                    .font(.callout.weight(.semibold))
-                    .accessibilityLabel("Dismiss superset")
+    private var nameBlock: some View {
+        VStack(spacing: 6) {
+            if let cadence = focusedExercise?.cadence {
+                Text(cadence)
+                    .font(Theme.font(.cadence))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
             }
-            .buttonStyle(.workoutGlass)
-        }
-    }
 
-    private var pairIndicator: some View {
-        HStack(spacing: 6) {
-            ForEach(Array(config.presentation.sides.enumerated()), id: \.element.exerciseOrder) { index, side in
-                if index > 0 {
-                    Image(systemName: "arrow.left.arrow.right")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.secondary)
-                }
+            Text(focusedExercise?.name ?? "")
+                .font(Theme.font(.exerciseName))
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
 
-                SupersetIdentityBadge(label: identityLabel(forSideIndex: index), isActive: side.isActive)
+            if let partner = partnerExercise {
+                partnerNameLine(partner)
             }
         }
-        .accessibilityHidden(true)
     }
 
     @ViewBuilder
-    private func activeRegion(
+    private func partnerNameLine(_ partner: Exercise) -> some View {
+        let label = Text("& \(partner.name)")
+            .font(Theme.font(.supersetPartner))
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
+
+        if isInteractive {
+            // The "& partner" name line is the manual focus switch (DESIGN.md §5.4).
+            Button {
+                onFocusExercise(partner)
+            } label: {
+                label.contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Switches focus to this exercise")
+            .accessibilityIdentifier("superset-partner-name")
+        } else {
+            label.accessibilityIdentifier("superset-partner-name")
+        }
+    }
+
+    @ViewBuilder
+    private func activeCard(
         activeSetID: ActiveSetID,
         activeExercise: Exercise,
         activeSet: ExerciseSet
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let lastPerformedPresentation = config.lastPerformedPresentation {
-                // Tapping opens the Exercise History sheet for the active side — the PRD gives the
-                // Last Performed tap no Superset carve-out, so the seam bubbles up to SessionStageView.
-                LastPerformedCard(presentation: lastPerformedPresentation) {
-                    onShowHistory(activeExercise)
-                }
-            }
-
-            ZStack(alignment: .topLeading) {
-                focusMorphSurface(
-                    for: activeSetID,
-                    content: IncomingActiveSetCard(
-                        transition: incomingTransition,
-                        exercise: activeExercise,
-                        set: activeSet,
-                        setOrdinal: setOrdinal(for: activeSet),
-                        setCount: sortedActiveSets.count,
-                        identityLabel: identityLabel(forExerciseOrder: activeSetID.exerciseOrder),
-                        onLog: { onLog(activeSet, $0) },
-                        onSkip: { onSkip(activeSet) },
-                        onDelete: { onDelete(activeSet) }
-                    )
+        ZStack(alignment: .topLeading) {
+            focusMorphSurface(
+                for: activeSetID,
+                content: IncomingActiveSetCard(
+                    transition: incomingTransition,
+                    exercise: activeExercise,
+                    set: activeSet,
+                    setOrdinal: setOrdinal(for: activeSet),
+                    setCount: sortedActiveSets.count,
+                    onLog: { onLog(activeSet, $0) },
+                    onSkip: { onSkip(activeSet) },
+                    onDelete: { onDelete(activeSet) }
                 )
+            )
 
-                if let transition = config.retiringTransition, transition.outgoingSetID == activeSetID {
-                    RetiringActiveSetCard(
-                        transition: transition,
-                        exercise: activeExercise,
-                        set: activeSet,
-                        setOrdinal: setOrdinal(for: activeSet),
-                        setCount: sortedActiveSets.count,
-                        identityLabel: identityLabel(forExerciseOrder: activeSetID.exerciseOrder)
-                    )
-                }
+            if let transition = config.retiringTransition, transition.outgoingSetID == activeSetID {
+                RetiringActiveSetCard(
+                    transition: transition,
+                    exercise: activeExercise,
+                    set: activeSet,
+                    setOrdinal: setOrdinal(for: activeSet),
+                    setCount: sortedActiveSets.count
+                )
             }
-            .id(activeSetID)
         }
-    }
-
-    @ViewBuilder
-    private func restingStrip(for side: ActiveSupersetSidePresentation) -> some View {
-        let isInteractive = config.presentation.activeSetID != nil
-        let strip = SupersetRestingStrip(
-            side: side,
-            identityLabel: identityLabel(forExerciseOrder: side.exerciseOrder),
-            isInteractive: isInteractive
-        )
-
-        if isInteractive {
-            Button {
-                guard let exercise = config.exercises.first(where: { $0.order == side.exerciseOrder }) else {
-                    return
-                }
-                onFocusExercise(exercise)
-            } label: {
-                focusMorphSurface(for: nextPendingSetID(for: side.exerciseOrder), content: strip)
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint("Switches to this exercise's next pending set")
-        } else {
-            focusMorphSurface(for: nextPendingSetID(for: side.exerciseOrder), content: strip)
-        }
-    }
-
-    private func identityLabel(forSideIndex index: Int) -> String {
-        index == 0 ? "A" : "B"
-    }
-
-    private func identityLabel(forExerciseOrder order: Int) -> String {
-        guard let index = config.presentation.sides.firstIndex(where: { $0.exerciseOrder == order }) else {
-            return ""
-        }
-        return identityLabel(forSideIndex: index)
+        .id(activeSetID)
     }
 
     private var incomingTransition: ActiveSetTransition? {
@@ -178,13 +167,6 @@ struct ActiveSupersetSection: View {
         config.activeSetTransition == nil && config.retiringTransition == nil
     }
 
-    private func nextPendingSetID(for exerciseOrder: Int) -> ActiveSetID? {
-        guard let exercise = config.exercises.first(where: { $0.order == exerciseOrder }) else {
-            return nil
-        }
-        return SupersetState.nextPendingSetID(for: exercise)
-    }
-
     @ViewBuilder
     private func focusMorphSurface<Content: View>(for setID: ActiveSetID?, content: Content) -> some View {
         if let setID, shouldUseFocusMorph {
@@ -195,55 +177,6 @@ struct ActiveSupersetSection: View {
         } else {
             content
         }
-    }
-}
-
-/// The resting Superset side: a slim strip beneath the active card. Tapping it
-/// brings its next pending Set up into the active card (matched-geometry morph).
-private struct SupersetRestingStrip: View {
-    let side: ActiveSupersetSidePresentation
-    let identityLabel: String
-    var isInteractive = true
-    @Environment(\.themePalette) private var palette
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 10) {
-            SupersetIdentityBadge(label: identityLabel, isActive: false)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(side.exerciseName)
-                    .font(.callout.weight(.semibold))
-                    .foregroundStyle(.primary)
-
-                Text(detailText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer(minLength: 0)
-
-            if isInteractive {
-                Image(systemName: "arrow.up.circle")
-                    .font(.title3)
-                    .foregroundStyle(palette.accent)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 12)
-        .background(palette.lastPerformedCardFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
-                .strokeBorder(palette.lastPerformedCardStroke.opacity(0.85), lineWidth: 1)
-        )
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(side.accessibilityLabel)
-    }
-
-    private var detailText: String {
-        side.prescriptionText.isEmpty
-            ? side.nextSetText
-            : "\(side.nextSetText) · \(side.prescriptionText)"
     }
 }
 

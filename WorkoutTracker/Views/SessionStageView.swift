@@ -85,7 +85,8 @@ struct SessionStageView: View {
                 onSelectOpenExercise: actions.showSourceSession,
                 onBeginPairing: beginPairing(from:),
                 onPairingTap: handlePairingTap(on:),
-                onCancelPairing: coordinator.cancelPairing
+                onCancelPairing: coordinator.cancelPairing,
+                onUnlink: unlink(_:)
             )
         }
         .sheet(item: $historyExercise) { exercise in
@@ -113,8 +114,7 @@ struct SessionStageView: View {
                 onShowHistory: { historyExercise = $0 },
                 onLog: actions.log,
                 onSkip: actions.skip,
-                onDelete: actions.delete,
-                onDismiss: { actions.dismissSuperset(config) }
+                onDelete: actions.delete
             )
         case .hiddenPairedExercise:
             EmptyView()
@@ -298,6 +298,12 @@ struct SessionStageView: View {
         if coordinator.handlePairingTap(on: exercise, in: session) == .unavailable {
             UINotificationFeedbackGenerator().notificationOccurred(.warning)
         }
+    }
+
+    /// Dissolve the Superset from the queue sheet's containment group (DESIGN.md §5.4).
+    private func unlink(_ item: SessionStageItem) {
+        guard case .superset(let config) = item.item else { return }
+        actions.dismissSuperset(config)
     }
 
     private func topContentOffset(_ geometry: ScrollGeometry) -> CGFloat {

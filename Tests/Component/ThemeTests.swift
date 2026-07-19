@@ -193,6 +193,26 @@ import Testing
     #endif
 }
 
+@Test func themeSupersetPartnerBranchQuietsByPigmentByDayAndTranslucencyAtNight() throws {
+    // The forked stem's partner subordinates by foliage pigment by Day and by
+    // that same foliage @ 0.55 at Night (DESIGN.md §5.4).
+    #if canImport(AppKit)
+        expectRGB(
+            Theme.palette(for: Theme.Appearance.day).supersetPartnerBranch,
+            red: 87 / 255,
+            green: 145 / 255,
+            blue: 104 / 255
+        )
+        expectRGB(
+            Theme.palette(for: Theme.Appearance.night).supersetPartnerBranch,
+            red: 87 / 255,
+            green: 145 / 255,
+            blue: 104 / 255,
+            alpha: 0.55
+        )
+    #endif
+}
+
 @Test func themeTileCurrentBorderStaysTheApprovedLiteral() {
     // #1F8552 in both appearances — deliberately not aliased to a paint (token sheet §8.5).
     #if canImport(AppKit)

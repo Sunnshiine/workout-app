@@ -388,7 +388,7 @@ final class WorkoutTrackerLongSessionUITests: XCTestCase {
 
 final class WorkoutTrackerSupersetUITests: XCTestCase {
     @MainActor
-    func testQueuePairingCreatesAndDismissesSuperset() throws {
+    func testQueuePairingCreatesAndUnlinksSupersetByContainment() throws {
         let app = launchWorkoutApp(fixture: .currentSession)
 
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
@@ -396,23 +396,27 @@ final class WorkoutTrackerSupersetUITests: XCTestCase {
         app.buttons["stage-queue-button"].tap()
         XCTAssertTrue(app.staticTexts["This Session"].waitForExistence(timeout: 3))
 
+        // Creation is worded, not glyphed: `Pair` → `Pair with this` (DESIGN.md §5.4).
         tapWhenHittable(app.buttons["stage-queue-pair-exercise-0"])
         XCTAssertTrue(app.staticTexts["Pick a partner"].waitForExistence(timeout: 3))
 
-        tapWhenHittable(app.buttons["stage-queue-row-exercise-1"])
+        tapWhenHittable(app.buttons["stage-queue-pairwith-exercise-1"])
 
-        let supersetRow = app.buttons["stage-queue-row-superset-0"]
-        XCTAssertTrue(supersetRow.waitForExistence(timeout: 3))
-        XCTAssertTrue(supersetRow.staticTexts["Back Squat + BB RDL"].exists)
-        tapWhenHittable(supersetRow)
+        // The formed Superset reads by containment: one group with a sentence-case
+        // caption holding both Exercises.
+        let supersetGroup = app.buttons["stage-queue-row-superset-0"]
+        XCTAssertTrue(supersetGroup.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Superset"].exists)
+        XCTAssertTrue(supersetGroup.staticTexts["Back Squat"].exists)
+        XCTAssertTrue(supersetGroup.staticTexts["BB RDL"].exists)
 
-        XCTAssertTrue(app.staticTexts["SUPERSET"].waitForExistence(timeout: 3))
+        // Dissolution lives in the containment group as `Unlink`.
+        tapWhenHittable(app.buttons["stage-queue-unlink-superset-0"])
 
-        tapWhenHittable(app.buttons["Dismiss superset"])
-
-        waitForLabel("0 of 2", on: app.buttons["stage-queue-button"])
-        XCTAssertFalse(app.staticTexts["SUPERSET"].exists)
-        XCTAssertTrue(app.staticTexts["Back Squat"].exists)
+        XCTAssertTrue(app.buttons["stage-queue-row-exercise-0"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["stage-queue-row-exercise-1"].exists)
+        XCTAssertFalse(app.buttons["stage-queue-row-superset-0"].exists)
+        XCTAssertTrue(app.buttons["stage-queue-pair-exercise-0"].exists)
     }
 
     @MainActor

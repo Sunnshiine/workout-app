@@ -91,6 +91,10 @@ enum Theme {
         let skipStroke: Color
         /// The page's one glow: the active bud is lit at Night, unlit by Day (nil).
         let budGlow: Color?
+        /// The Superset partner branch's pigment (DESIGN.md §5.4). The partner
+        /// subordinates by pigment by Day (a foliage tone against the focus's
+        /// darker `stem`/`leafFill`) and by translucency at Night (foliage @ 0.55).
+        let supersetPartnerBranch: Color
 
         // Active Set Card & input block
         let surface: Color
@@ -404,6 +408,8 @@ extension Theme {
         futureStroke: Paint.actionDay.opacity(0.40),
         skipStroke: Paint.muted.opacity(0.42),
         budGlow: nil,
+        supersetPartnerBranch: Paint.foliage, // Day quiets the partner by pigment
+
         surface: Paint.cream.opacity(0.52),
         railFill: Paint.cream.opacity(0.55),
         prescriptionTick: Paint.actionDay,
@@ -451,6 +457,7 @@ extension Theme {
         futureStroke: Paint.foliage.opacity(0.45),
         skipStroke: Paint.mutedNight.opacity(0.40),
         budGlow: rgb(120, 240, 178, 0.32), // drop-shadow(0 0 7px rgba(120,240,178,0.32)) — the page's one glow
+        supersetPartnerBranch: Paint.foliage.opacity(0.55), // Night quiets the partner by translucency
         surface: Paint.cream.opacity(0.07),
         railFill: Paint.cream.opacity(0.06),
         prescriptionTick: Paint.actionNight,
@@ -542,6 +549,7 @@ extension Theme {
         case ceremonyTitle
         case connectTitle
         case sheetTitle
+        case supersetPartner
         case weightEntry
         case logCapsule
         case setNumber
@@ -570,6 +578,10 @@ extension Theme {
                 TypeStyle(face: .fraunces, size: 36, weight: 490)
             case .sheetTitle:
                 TypeStyle(face: .fraunces, size: 24, weight: 490, lineHeight: 1.1, opticalSize: 22)
+            case .supersetPartner:
+                // The Superset "& partner" name line: the warm serif voice, subordinate to the
+                // 33pt focused Exercise name and doubling as the manual focus switch (DESIGN.md §5.4).
+                TypeStyle(face: .fraunces, size: 20, weight: 490, lineHeight: 1.10, opticalSize: 20)
             case .weightEntry:
                 TypeStyle(face: .sourceSans3, size: 46, weight: 700, tabular: true, tracking: -0.69)
             case .logCapsule:

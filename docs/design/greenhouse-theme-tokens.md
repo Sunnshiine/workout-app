@@ -95,6 +95,7 @@ appearance.
 | `futureStroke` | actionDay @ 40% | foliage @ 45% |
 | `skipStroke` (dashed 5 4) | muted @ 42% | mutedNight @ 40% |
 | `budGlow` | none | `drop-shadow(0 0 7px rgba(120,240,178,0.32))` — the page's one glow |
+| `supersetPartnerBranch` | foliage | foliage @ 0.55 — the forked stem's partner quiets by pigment by Day, by translucency at Night (§5.4) |
 
 Leaf geometry (`M0 8 C 15 2.3, 41 3.3, 60 8 C 41 21.7, 15 22.6, 0 8 Z`,
 rib `M4 8.1 C 20 9.8, 40 9.6, 56 8.1`) and stroke widths (rib 1.2/s, bud
