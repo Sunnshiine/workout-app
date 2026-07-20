@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B7E2DF7D17DE7F771EDF332D /* ExerciseHistorySheetVisualTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 315001C3A8DF957C9C759EDD /* ExerciseHistorySheetVisualTests.swift */; };
+		AEE4D942C173D1F605760BB8 /* ManualRestClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = A503117A821D3DC402E8EA70 /* ManualRestClock.swift */; };
 		015ED035457D68D5C6AEE5BC /* developerToolsViewMatchesVisualBaseline.1.png in Resources */ = {isa = PBXBuildFile; fileRef = B30F86612179167965F9C2F8 /* developerToolsViewMatchesVisualBaseline.1.png */; };
 		02B931D6B151C50FE0423EEF /* OpenExerciseRowPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA4AD15FD378F46C1F552857 /* OpenExerciseRowPresentation.swift */; };
 		0A3A294C9B0DC72E6107B413 /* BlockOverviewPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACD0CE14935AD19164A5C62E /* BlockOverviewPresentation.swift */; };
@@ -73,7 +75,6 @@
 		64C6D9EB4377B30FE6AB7F49 /* TabFetchRetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44452C2B9CFC7273C0972BEF /* TabFetchRetry.swift */; };
 		677CD10130C50B6200442AE5 /* SetLogWireTokenGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A38BCE7223EF144233671FD /* SetLogWireTokenGateTests.swift */; };
 		67AC1FABCA19B040B11E3E27 /* WorkoutGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74540E578A1F6657CD8CB941 /* WorkoutGlass.swift */; };
-		68D84DA1E588BB39F874B642 /* loggedSetReviewCardMatchesVisualBaseline.1.png in Resources */ = {isa = PBXBuildFile; fileRef = C83225A3DA1B09D51660DAF9 /* loggedSetReviewCardMatchesVisualBaseline.1.png */; };
 		6962F55A0A33D607CC9C4C22 /* SheetParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93A5CA6A951EC6FB3C319E0F /* SheetParser.swift */; };
 		69CC713B83C49CDF66F74D5C /* SheetWriterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE7A4D22498359AE35A9EAB6 /* SheetWriterTests.swift */; };
 		6A3A1611C6B8BCF8B2381662 /* SmartValuePillsFormTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63390CF33C9BDD5A5209795E /* SmartValuePillsFormTests.swift */; };
@@ -246,6 +247,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		315001C3A8DF957C9C759EDD /* ExerciseHistorySheetVisualTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseHistorySheetVisualTests.swift; sourceTree = "<group>"; };
+		A503117A821D3DC402E8EA70 /* ManualRestClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualRestClock.swift; sourceTree = "<group>"; };
 		02CBDEE06463224167F1FB18 /* UITestFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestFixture.swift; sourceTree = "<group>"; };
 		0499FE101F8EA75B5C6D2562 /* SettingsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStoreTests.swift; sourceTree = "<group>"; };
 		04BC574D25534E5FA13DE8B1 /* RestDurationSettingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestDurationSettingTests.swift; sourceTree = "<group>"; };
@@ -389,7 +392,6 @@
 		C3E4BA2B8C8F2910F5F6C98E /* WorkoutUITestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutUITestSupport.swift; sourceTree = "<group>"; };
 		C452CB917A65913E44B18E15 /* RestTriggerPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestTriggerPolicy.swift; sourceTree = "<group>"; };
 		C703F549688F120A123589E3 /* ActiveSetFocusManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveSetFocusManagerTests.swift; sourceTree = "<group>"; };
-		C83225A3DA1B09D51660DAF9 /* loggedSetReviewCardMatchesVisualBaseline.1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = loggedSetReviewCardMatchesVisualBaseline.1.png; sourceTree = "<group>"; };
 		CC47CE1DE98286E2DA318F0D /* WorkoutTrackerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutTrackerUITests.swift; sourceTree = "<group>"; };
 		CEC43682656CC2E8CF1BD804 /* Smoke.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Smoke.swift; sourceTree = "<group>"; };
 		CF512CAF662AE6E54D7B864C /* SyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinator.swift; sourceTree = "<group>"; };
@@ -656,7 +658,6 @@
 			children = (
 				B30F86612179167965F9C2F8 /* developerToolsViewMatchesVisualBaseline.1.png */,
 				D7C5D2B5EEDF1ACFA76C2FEC /* emptyStateViewMatchesVisualBaseline.1.png */,
-				C83225A3DA1B09D51660DAF9 /* loggedSetReviewCardMatchesVisualBaseline.1.png */,
 				4703DC4F7CC66CB49A05983D /* moveOnCelebrationViewMatchesVisualBaseline.1.png */,
 				8DCB25611F649C32C7D75778 /* onboardingViewCardMatchesVisualBaseline.1.png */,
 				9DB6CA5A163B200CC225A3A2 /* restPillViewMatchesVisualBaseline.1.png */,
@@ -696,6 +697,7 @@
 			children = (
 				8A866D6743EC6DA86540A5E6 /* LocalWorkbookSheetsClient.swift */,
 				B5AD19394F523316075E92C3 /* SheetGridFixture.swift */,
+				A503117A821D3DC402E8EA70 /* ManualRestClock.swift */,
 				A87608B03C722AD31186659D /* WorkoutModelFixture.swift */,
 				4FA17C199EB54DE39E47760B /* WorkoutScenarios.swift */,
 			);
@@ -731,6 +733,7 @@
 			isa = PBXGroup;
 			children = (
 				39C94296C3A7BA23FD623A55 /* GlassBearingViewsVisualTests.swift */,
+				315001C3A8DF957C9C759EDD /* ExerciseHistorySheetVisualTests.swift */,
 				D6137E34D6FB20118020D603 /* SessionViewVisualTests.swift */,
 				9D0970B6E6209BC4656E8D1E /* WorkoutVisualBaseline.swift */,
 				B4A0C9B747DF99F645C105E8 /* __Snapshots__ */,
@@ -985,7 +988,6 @@
 			files = (
 				015ED035457D68D5C6AEE5BC /* developerToolsViewMatchesVisualBaseline.1.png in Resources */,
 				E642D6D4B3C17A886458C590 /* emptyStateViewMatchesVisualBaseline.1.png in Resources */,
-				68D84DA1E588BB39F874B642 /* loggedSetReviewCardMatchesVisualBaseline.1.png in Resources */,
 				72C3E38C0A4FF8D092CB4A23 /* moveOnCelebrationViewMatchesVisualBaseline.1.png in Resources */,
 				CEC3D4E64C38360A684722CE /* onboardingViewCardMatchesVisualBaseline.1.png in Resources */,
 				DBD071F6C117A9F159C8BEA0 /* restPillViewMatchesVisualBaseline.1.png in Resources */,
@@ -1038,6 +1040,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B7E2DF7D17DE7F771EDF332D /* ExerciseHistorySheetVisualTests.swift in Sources */,
 				7E2CB9D769B7EAD1B173E533 /* GlassBearingViewsVisualTests.swift in Sources */,
 				9AFF8FBB51900BC0B1CA0E8A /* LocalWorkbookSheetsClient.swift in Sources */,
 				63ACB5497F39C3AD40C81E31 /* SessionViewVisualTests.swift in Sources */,
@@ -1052,6 +1055,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AEE4D942C173D1F605760BB8 /* ManualRestClock.swift in Sources */,
 				43A5770EE0122D5498F2F391 /* ActiveSetFocusManagerTests.swift in Sources */,
 				34953DAF43A033C86A3D9E65 /* ActiveSetPresentationTests.swift in Sources */,
 				0FCFEE8BE8B4EEBA73F6E728 /* BlockBuilderTests.swift in Sources */,

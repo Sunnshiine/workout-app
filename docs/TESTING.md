@@ -31,7 +31,8 @@ Visual tests use `swift-snapshot-testing` as a test-only dependency. Recording i
 default, so a missing or changed Visual Baseline fails instead of silently re-recording. New or
 intentional baseline changes must be recorded deliberately. Ralph does not add a model-review or
 special-authorization layer on top of the programmatic Visual Regression tests.
-The shared Visual trait configuration is pinned to iPhone 17 Pro on the iOS 26.3.1 runtime,
+The shared Visual trait configuration is pinned to iPhone 17 Pro on the iOS 27.0 runtime (the
+CI runner's preinstalled runtime — the pin moves with the runner image, see ADR-0007),
 `en_US`, fixed default Dynamic Type, and exact precision (`1.0`). Under Greenhouse every redesigned
 screen is captured wholesale in **both** appearances via `assertGreenhouseBaselines` — the Visual
 layer's equivalent of the `-WORKOUT_THEME day|night` screenshot pin — so each screen lands a `…-day`
@@ -41,6 +42,16 @@ retired (ADR-0014): the app's one surviving glass element is the Sunbird colopho
 surfaces never re-prototyped at night — the Exercise History sheet and the Block grid — carry an
 on-simulator night validation against the Room Re-lights Rule (DESIGN.md §2) before their baselines
 lock; `Tests/Component/ThemeTests.swift` holds the programmatic half of that sign-off.
+
+Recording recipe (issue #471): the recording switch is the suite trait, not an environment
+variable — `SNAPSHOT_TESTING_RECORD` is overridden by the explicit trait and does nothing here.
+To record: flip the affected suite's `@Suite(.snapshots(record: .never))` to
+`.snapshots(record: .all)` in `Tests/Visual/*.swift`, run the Visual suite
+(`xcodebuild test … -only-testing:WorkoutTrackerSnapshotTests` on the pinned destination), then
+revert the trait to `.never` before committing. Two caveats: a record run that crashes leaves
+the stale PNG silently in place, and the CI runner is the canonical recorder — baselines
+recorded on other machines differ at exact precision (issue #479). CI agents record on the
+runner itself; humans recording locally should expect the `visual-tests` job to re-arbitrate.
 
 Initial component-test scope:
 

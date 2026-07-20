@@ -1,0 +1,39 @@
+name: Set up agent MCP servers
+description: >
+  Connects the project .mcp.json servers for a sandcastle claude run and
+  exports the XcodeBuildMCP session/headless env (issue #472; see
+  .sandcastle/VISUAL_LOOP.md). A fresh CI checkout is an untrusted folder:
+  MCP approval keys checked into .claude/settings.json are ignored there,
+  but user-scope settings are honored (issue #480) — so approval is written
+  to ~/.claude/settings.json here. The #472 spike (run 29705943290) showed
+  sandcastle's --dangerously-skip-permissions alone already connects the
+  servers; this step stays as the documented fallback in case that
+  undocumented bypass is ever closed.
+inputs:
+  context7-api-key:
+    description: CONTEXT7_API_KEY secret (optional — context7 works keyless at lower rate limits)
+    required: false
+    default: ""
+runs:
+  using: composite
+  steps:
+    - name: Approve project MCP servers (user scope)
+      shell: bash
+      run: |
+        mkdir -p ~/.claude
+        printf '%s\n' '{ "enabledMcpjsonServers": ["XcodeBuildMCP", "context7"] }' > ~/.claude/settings.json
+    - name: Export XcodeBuildMCP env (headless focus policy + session defaults)
+      shell: bash
+      env:
+        CONTEXT7_API_KEY_INPUT: ${{ inputs.context7-api-key }}
+      run: |
+        {
+          echo "XCODEBUILDMCP_HEADLESS_LAUNCH=1"
+          echo "XCODEBUILDMCP_SENTRY_DISABLED=true"
+          echo "XCODEBUILDMCP_PROJECT_PATH=${GITHUB_WORKSPACE}/WorkoutTracker.xcodeproj"
+          echo "XCODEBUILDMCP_SCHEME=WorkoutTracker"
+          echo "XCODEBUILDMCP_SIMULATOR_NAME=iPhone 17 Pro"
+          if [ -n "$CONTEXT7_API_KEY_INPUT" ]; then
+            echo "CONTEXT7_API_KEY=$CONTEXT7_API_KEY_INPUT"
+          fi
+        } >> "$GITHUB_ENV"

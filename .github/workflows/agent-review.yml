@@ -12,11 +12,11 @@ on:
 jobs:
   review:
     if: github.event.label.name == 'agent:review'
-    # macos-26 runner: default Xcode is 26.x, which the app/Views target needs
+    # xcode-27 runner: default Xcode is 27.0, which the app/Views target needs
     # (Liquid Glass APIs, ADR-0004) for `xcodebuild` compile-checks. `swift test`
     # also needs macOS (the SPM library imports SwiftUI/SwiftData). Free for
     # public repos; 10x metered minutes if made private.
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 60
     concurrency:
       group: agent-mutate-pr-${{ github.event.pull_request.number }}
@@ -83,6 +83,13 @@ jobs:
         run: |
           git config user.name "claude-code[bot]"
           git config user.email "claude-code[bot]@users.noreply.github.com"
+
+      # Connect .mcp.json servers + export XcodeBuildMCP env so review can use
+      # XcodeBuildMCP at its discretion (.sandcastle/VISUAL_LOOP.md, #472).
+      - name: Set up agent MCP servers
+        uses: ./.github/actions/setup-agent-mcp
+        with:
+          context7-api-key: ${{ secrets.CONTEXT7_API_KEY }}
 
       - name: Run review.ts
         id: review

@@ -9,11 +9,11 @@ on:
 jobs:
   implement-pr:
     if: github.event.label.name == 'agent:implement'
-    # macos-26 runner: default Xcode is 26.x, which the app/Views target needs
+    # xcode-27 runner: default Xcode is 27.0, which the app/Views target needs
     # (Liquid Glass APIs, ADR-0004) for `xcodebuild` compile-checks. `swift test`
     # also needs macOS (the SPM library imports SwiftUI/SwiftData). Free for
     # public repos; 10x metered minutes if made private.
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 60
     # Shared with agent-review.yml — both push to the PR branch.
     concurrency:
@@ -113,6 +113,14 @@ jobs:
         run: |
           git config user.name "claude-code[bot]"
           git config user.email "claude-code[bot]@users.noreply.github.com"
+
+      # Connect .mcp.json servers + export XcodeBuildMCP env for the sighted
+      # loop (.sandcastle/VISUAL_LOOP.md, issue #472).
+      - name: Set up agent MCP servers
+        if: steps.state.outputs.proceed == 'true' && steps.inputs.outputs.proceed == 'true'
+        uses: ./.github/actions/setup-agent-mcp
+        with:
+          context7-api-key: ${{ secrets.CONTEXT7_API_KEY }}
 
       - name: Run implement-pr.ts
         if: steps.state.outputs.proceed == 'true' && steps.inputs.outputs.proceed == 'true'
