@@ -124,16 +124,16 @@ retired, queue pill + plain `Up next ·` foot on the right roles.
    five segment bars + `5 left`) — the locked composition's header is a plain
    `Block · Week · Day` runline with `N Sets left`; segment bars are retired dots-vocabulary
    chrome. STRUCTURAL.
-2. **The "next bud opens" moment does not exist** — bud state-change rides the same 0.42s
+4. **The "next bud opens" moment does not exist** — bud state-change rides the same 0.42s
    animation (`SessionStageBranch.swift:106`); One Log, One Fill is unimplemented. STRUCTURAL.
-3. **The stage is a ScrollView** (`SessionStageView.swift:49`) — the Product Scale Rule derives
+5. **The stage is a ScrollView** (`SessionStageView.swift:49`) — the Product Scale Rule derives
    from "training surfaces never scroll" (single-page principle). STRUCTURAL.
-4. Cadence renders `.textCase(.uppercase)` (`SessionStageView.swift:129-133`, also
+6. Cadence renders `.textCase(.uppercase)` (`SessionStageView.swift:129-133`, also
    `ActiveSupersetSection.swift:83-87`) — the superseded editorial register. PIXEL (minor).
-5. Completion stage spends a 52pt `checkmark.circle.fill` **plus** the Move On button's
+7. Completion stage spends a 52pt `checkmark.circle.fill` **plus** the Move On button's
    `arrow.right` (`SessionStageView.swift:201-203,322`) — two+ icons on the page whose icon
    budget the branch spent; inline `.title2`/`.headline` fonts. STRUCTURAL.
-6. **Last Performed wraps and labels itself** (`LastPerformedCard.swift:25-42`,
+8. **Last Performed wraps and labels itself** (`LastPerformedCard.swift:25-42`,
    `ActiveSetPresentation.swift:326,336`): explicit "Last Performed" label and multi-line
    wrapping vs the label-free runline that shrinks-then-truncates, never wraps (12.5pt
    `lastPerformed` role, ≈11pt floor). STRUCTURAL + PIXEL.
