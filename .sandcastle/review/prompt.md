@@ -48,7 +48,16 @@ Invoke it with everything it needs, so it does **not** run its own discovery and
 
 The skill is read-only and produces a report; it does not edit code. That report — its Standards findings and its Spec findings — is your worklist for the steps below.
 
-## 2. Act on the skill's findings
+## 2. Look at the pixels (artifact eyes)
+
+If the diff touches anything the user can see (`WorkoutTracker/Views/`, `Theme.swift`, `Tests/Visual/`), verify the branch with your eyes — a gate only catches drift from committed baselines; a sighted reviewer catches baselines that are wrong or missing (that is how PR #467 shipped):
+
+- `Read` every Visual Baseline PNG added or changed under `Tests/Visual/__Snapshots__/` in this diff and compare it against the ground truth: `docs/design/greenhouse-picks/` (its `README.md` maps screen → pick → DESIGN.md section; DESIGN.md wins over pixels).
+- If the diff touches a redesigned surface but records **no** baseline for it — or deletes baselines without replacements — treat that as a spec finding: call it out in the summary and inline comments.
+- If the CI `visual-tests` job is red on this PR, read its uploaded snapshot-diff artifacts to see *why* before commenting.
+- The XcodeBuildMCP tools (`.sandcastle/VISUAL_LOOP.md`, mechanism 2) are available at your discretion if you need to see a screen in motion; they are not a mandatory review duty.
+
+## 3. Act on the skill's findings
 
 Work through the skill's findings and resolve each one on this branch:
 

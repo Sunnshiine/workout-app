@@ -152,6 +152,14 @@ jobs:
         if: steps.shape.outputs.proceed == 'true' && steps.preflight.outputs.refused != 'true'
         run: npm install -g @anthropic-ai/claude-code
 
+      # Connect .mcp.json servers + export XcodeBuildMCP env for the sighted
+      # loop (.sandcastle/VISUAL_LOOP.md, issue #472).
+      - name: Set up agent MCP servers
+        if: steps.shape.outputs.proceed == 'true' && steps.preflight.outputs.refused != 'true'
+        uses: ./.github/actions/setup-agent-mcp
+        with:
+          context7-api-key: ${{ secrets.CONTEXT7_API_KEY }}
+
       - name: Run implement.ts
         if: steps.shape.outputs.proceed == 'true' && steps.preflight.outputs.refused != 'true'
         id: implement

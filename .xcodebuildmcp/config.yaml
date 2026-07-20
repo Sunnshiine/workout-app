@@ -1,0 +1,12 @@
+# XcodeBuildMCP session defaults (issue #472). Key names verified against
+# xcodebuildmcp@2.6.2 (build/utils/runtime-config-schema.js). Precedence:
+# session_set_defaults tool calls > this file > XCODEBUILDMCP_* env vars.
+# The CI env vars duplicate these values as a fallback (this file outranks
+# them where both are set); worktree sessions needing different paths use
+# session_set_defaults at runtime.
+schemaVersion: 1
+sessionDefaults:
+  projectPath: WorkoutTracker.xcodeproj
+  scheme: WorkoutTracker
+  simulatorName: iPhone 17 Pro
+sentryDisabled: true

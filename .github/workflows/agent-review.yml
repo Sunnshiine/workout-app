@@ -84,6 +84,13 @@ jobs:
           git config user.name "claude-code[bot]"
           git config user.email "claude-code[bot]@users.noreply.github.com"
 
+      # Connect .mcp.json servers + export XcodeBuildMCP env so review can use
+      # XcodeBuildMCP at its discretion (.sandcastle/VISUAL_LOOP.md, #472).
+      - name: Set up agent MCP servers
+        uses: ./.github/actions/setup-agent-mcp
+        with:
+          context7-api-key: ${{ secrets.CONTEXT7_API_KEY }}
+
       - name: Run review.ts
         id: review
         env:

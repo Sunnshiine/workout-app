@@ -13,7 +13,9 @@ Secrets.xcconfig
 
 # Codex, XcodeBuildMCP, and design-tool local state
 .codex/
-.xcodebuildmcp/
+# XcodeBuildMCP local state — but the versioned session defaults stay tracked
+.xcodebuildmcp/*
+!.xcodebuildmcp/config.yaml
 .impeccable/
 
 # Xcode user state
