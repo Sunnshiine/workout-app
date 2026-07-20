@@ -75,7 +75,9 @@ jobs:
         run: |
           bundle=$(find DerivedData/Build/Products -name "WorkoutTrackerSnapshotTests.xctest" | head -1)
           echo "bundle: $bundle"
-          pngs=$(find "$bundle" -name "*.png" | tee /dev/stderr | wc -l)
+          # GoogleSignIn's own resource bundle legitimately ships google*.png
+          # icons; only ADR-0007 baselines are the smell being tested for.
+          pngs=$(find "$bundle" -name "*MatchesVisualBaseline*.png" -o -path "*__Snapshots__*" | tee /dev/stderr | wc -l)
           [ "$pngs" -eq 0 ] && echo "Resources phase is clean of baselines." || exit 1
       - name: Upload Visual Baseline diffs
         if: failure()
