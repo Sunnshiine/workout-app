@@ -1,0 +1,49 @@
+name: Audit Render
+
+# Throwaway workflow for issue #473: records the Greenhouse Visual renders
+# (Day + Night) from the PR #467 code on the pinned runner/runtime and commits
+# the PNGs back to this branch so the Linux audit session can read them.
+# Delete this file when #473 closes.
+
+on:
+  push:
+    branches: [claude/wayfinder-issue-473-f0f9ql]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: audit-render
+  cancel-in-progress: true
+
+jobs:
+  render:
+    runs-on: xcode-27
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create Secrets.xcconfig from template (build-only)
+        run: cp Secrets.xcconfig.template Secrets.xcconfig
+      # Suites carry .snapshots(record: .all) on this branch, so every test
+      # records its PNG and then "fails" by design — hence the `|| true`.
+      - name: Record Greenhouse renders (both appearances)
+        run: |
+          xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' \
+            -only-testing:WorkoutTrackerSnapshotTests \
+            -resultBundlePath VisualTests.xcresult \
+            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO || true
+      - name: Commit recorded renders
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A Tests/Visual/__Snapshots__
+          git commit -m "audit: record Greenhouse renders from PR #467 (Day+Night)" || echo "nothing recorded"
+          git push
+      - name: Upload xcresult
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-render-xcresult
+          path: VisualTests.xcresult
+          if-no-files-found: ignore

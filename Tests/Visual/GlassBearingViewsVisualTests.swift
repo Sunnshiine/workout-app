@@ -11,7 +11,7 @@ import Testing
 /// below is the **only** glass-bearing baseline left — the app's one surviving glass disc
 /// (DESIGN.md §6). Every other capture here is flat Greenhouse paper, re-lit for Night.
 @MainActor
-@Suite(.snapshots(record: .never))
+@Suite(.snapshots(record: .all))
 struct GlassBearingViewsVisualTests {
     // MARK: - The one surviving glass element
 
@@ -153,8 +153,8 @@ struct GlassBearingViewsVisualTests {
         // SyncCoordinator and WorkoutStore even though the rendered card never
         // uses them.
         let scenario = try WorkoutScenarios.freshConfiguredApp()
-        GlassVisualFixtureRetainer.retain(scenario)
-        let sync = SyncCoordinator(client: GlassVisualNoopSheetsClient(), context: scenario.context)
+        VisualBaselineFixtureRetainer.retain(scenario)
+        let sync = SyncCoordinator(client: VisualBaselineNoopSheetsClient(), context: scenario.context)
 
         assertGreenhouseBaselines { _ in
             OnboardingView()
