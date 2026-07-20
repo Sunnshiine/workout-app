@@ -7,7 +7,10 @@
 
 name: issue-483 target-sync spike
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/wayfinder-issue-468-dullov]
 
 jobs:
   xcodebuild-full-suite:
