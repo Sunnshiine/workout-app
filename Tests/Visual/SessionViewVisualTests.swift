@@ -5,7 +5,7 @@ import Testing
 @testable import WorkoutTracker
 
 @MainActor
-@Suite(.snapshots(record: .all))
+@Suite(.snapshots(record: .never))
 struct SessionViewVisualTests {
     /// The living stage in both appearances — the Greenhouse room by Day and the same room re-lit at
     /// Night (DESIGN.md §5.1). Captured wholesale via the `-WORKOUT_THEME`-equivalent appearance pin.

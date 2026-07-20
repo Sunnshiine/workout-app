@@ -11,7 +11,7 @@ import Testing
 /// below is the **only** glass-bearing baseline left — the app's one surviving glass disc
 /// (DESIGN.md §6). Every other capture here is flat Greenhouse paper, re-lit for Night.
 @MainActor
-@Suite(.snapshots(record: .all))
+@Suite(.snapshots(record: .never))
 struct GlassBearingViewsVisualTests {
     // MARK: - The one surviving glass element
 

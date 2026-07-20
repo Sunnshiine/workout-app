@@ -11,7 +11,7 @@ import Testing
 /// Night baselines below are that validation's pixel record; `Tests/Component/ThemeTests.swift`
 /// (`nightExerciseHistorySheetObeysTheRoomRelightsRule`) is its programmatic half.
 @MainActor
-@Suite(.snapshots(record: .all))
+@Suite(.snapshots(record: .never))
 struct ExerciseHistorySheetVisualTests {
     /// A representative Movement history covering every content state the chip ledger renders
     /// (`DESIGN.md` §5.6): structured Sets as carved chips with muted RPE, a partial-skip entry whose
