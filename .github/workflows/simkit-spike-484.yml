@@ -43,6 +43,7 @@ jobs:
           SHARED_FW="$(dirname "$(xcode-select -p)")/SharedFrameworks"
           PRIVATE_FW="$(xcode-select -p)/Library/PrivateFrameworks"
           if [ ! -e "$PRIVATE_FW/SimulatorKit.framework" ] && [ -d "$SHARED_FW/SimulatorKit.framework" ]; then
+            sudo mkdir -p "$PRIVATE_FW"
             sudo ln -sfn "$SHARED_FW/SimulatorKit.framework" "$PRIVATE_FW/SimulatorKit.framework"
             echo "symlinked $SHARED_FW/SimulatorKit.framework -> $PRIVATE_FW/SimulatorKit.framework"
           else
