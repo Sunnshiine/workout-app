@@ -106,8 +106,9 @@ const build = await call(
 verdict.build_run_sim = build.ok;
 await sleep(8000);
 
+// snapshot_ui renders a text table: "  e13|tap|button|Open Block Overview…"
 function refsIn(text) {
-  return [...text.matchAll(/"ref"\s*:\s*"([^"]+)"/g)].map((m) => m[1]);
+  return [...text.matchAll(/^\s*(e\d+)\|tap\|/gm)].map((m) => m[1]);
 }
 
 let snap = await call("snapshot_ui", {});
