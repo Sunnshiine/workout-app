@@ -62,6 +62,38 @@ jobs:
           mkdir -p "$RUNNER_TEMP/simkit-artifacts"
           ARTIFACT_DIR="$RUNNER_TEMP/simkit-artifacts" node scripts/simkit-spike-484.mjs
 
+      # Isolate the layer below the MCP server: the bundled axe CLI supports
+      # coordinate taps, separating "HID works" from "AX hierarchy fetch works".
+      - name: axe CLI isolation (describe-ui + coordinate tap)
+        if: always() && steps.facts.outputs.simkit == 'present'
+        run: |
+          set +e
+          cd "$RUNNER_TEMP"
+          npm pack xcodebuildmcp@2.6.2 --silent
+          tar -xzf xcodebuildmcp-2.6.2.tgz
+          AXE="$PWD/package/bundled/axe"; chmod +x "$AXE"
+          export DYLD_FRAMEWORK_PATH="$PWD/package/bundled/Frameworks"
+          UDID=$(xcrun simctl list devices booted | grep -oE '[0-9A-F-]{36}' | head -1)
+          echo "booted UDID: $UDID"
+          [ -z "$UDID" ] && { echo "no booted simulator"; exit 0; }
+          A="$RUNNER_TEMP/simkit-artifacts"; mkdir -p "$A"
+          xcrun simctl io "$UDID" screenshot "$A/axe-before-tap.png"
+          echo "--- axe describe-ui (headless)"
+          "$AXE" describe-ui --udid "$UDID" > "$A/axe-describe-ui.txt" 2>&1
+          echo "rc=$?"; head -c 600 "$A/axe-describe-ui.txt"; echo
+          echo "--- axe tap 196,420 (headless)"
+          "$AXE" tap -x 196 -y 420 --udid "$UDID" && echo "TAP OK" || echo "TAP FAILED rc=$?"
+          sleep 3
+          xcrun simctl io "$UDID" screenshot "$A/axe-after-tap.png"
+          echo "--- retry with Simulator.app open"
+          open -a Simulator; sleep 20
+          "$AXE" describe-ui --udid "$UDID" > "$A/axe-describe-ui-simapp.txt" 2>&1
+          echo "rc=$?"; head -c 600 "$A/axe-describe-ui-simapp.txt"; echo
+          "$AXE" tap -x 196 -y 420 --udid "$UDID" && echo "TAP OK (Simulator.app)" || echo "TAP FAILED rc=$?"
+          sleep 3
+          xcrun simctl io "$UDID" screenshot "$A/axe-after-tap-simapp.png"
+          exit 0
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:

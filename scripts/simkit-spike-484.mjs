@@ -110,9 +110,19 @@ function refsIn(text) {
   return [...text.matchAll(/"ref"\s*:\s*"([^"]+)"/g)].map((m) => m[1]);
 }
 
-const snap = await call("snapshot_ui", {});
+let snap = await call("snapshot_ui", {});
 verdict.snapshot_ui = snap.ok;
 writeFileSync(join(ARTIFACT_DIR, "snapshot_ui-1.txt"), snap.text || "(empty)");
+
+// Run 29842509047: headless snapshot_ui fails with "No translation object
+// returned for simulator" — test whether Simulator.app supplies the bridge.
+if (!snap.ok) {
+  await call("open_sim", {});
+  await sleep(15000);
+  snap = await call("snapshot_ui", {});
+  verdict.snapshot_ui_after_open_sim = snap.ok;
+  writeFileSync(join(ARTIFACT_DIR, "snapshot_ui-after-open-sim.txt"), snap.text || "(empty)");
+}
 const refs = refsIn(snap.text || "");
 console.log(`\nelementRefs found: ${refs.length}`);
 
@@ -164,6 +174,6 @@ await grabScreenshot("dark");
 console.log("\nFINAL VERDICT " + JSON.stringify(verdict, null, 2));
 writeFileSync(join(ARTIFACT_DIR, "verdict.json"), JSON.stringify(verdict, null, 2));
 server.kill();
-const touchHalfWorks = verdict.snapshot_ui && verdict.tap;
+const touchHalfWorks = (verdict.snapshot_ui || verdict.snapshot_ui_after_open_sim) && verdict.tap;
 console.log(touchHalfWorks ? "\nTOUCH HALF: WORKS" : "\nTOUCH HALF: STILL BROKEN");
 process.exit(touchHalfWorks ? 0 : 1);
