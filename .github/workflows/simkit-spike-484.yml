@@ -1,0 +1,46 @@
+# Throwaway spike for issue #484: has the xcode-27 runner image restored
+# SimulatorKit.framework, and does the sighted loop's touch half
+# (snapshot_ui / tap) work end to end? Deleted when #484 closes.
+name: SimulatorKit spike (issue 484)
+
+on:
+  push:
+    branches: [claude/wayfinder-issue-484-7rrifn]
+  workflow_dispatch:
+
+jobs:
+  simkit-smoke:
+    runs-on: xcode-27
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Image facts + SimulatorKit presence
+        id: facts
+        run: |
+          sw_vers
+          echo "ImageVersion=${ImageVersion:-unknown}"
+          xcodebuild -version
+          ls /Applications | grep -i xcode || true
+          SHARED_FW="$(dirname "$(xcode-select -p)")/SharedFrameworks"
+          if [ -d "$SHARED_FW/SimulatorKit.framework" ]; then
+            echo "SIMULATORKIT PRESENT at $SHARED_FW/SimulatorKit.framework"
+            echo "simkit=present" >> "$GITHUB_OUTPUT"
+          else
+            echo "SIMULATORKIT ABSENT — image not yet updated; issue 484 stays open"
+            ls "$SHARED_FW" || true
+            echo "simkit=absent" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: snapshot_ui / tap / screenshot smoke via XcodeBuildMCP
+        if: steps.facts.outputs.simkit == 'present'
+        run: |
+          mkdir -p "$RUNNER_TEMP/simkit-artifacts"
+          ARTIFACT_DIR="$RUNNER_TEMP/simkit-artifacts" node scripts/simkit-spike-484.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: simkit-smoke-484
+          path: ${{ runner.temp }}/simkit-artifacts
+          if-no-files-found: ignore
