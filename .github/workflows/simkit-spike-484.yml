@@ -23,14 +23,37 @@ jobs:
           xcodebuild -version
           ls /Applications | grep -i xcode || true
           SHARED_FW="$(dirname "$(xcode-select -p)")/SharedFrameworks"
-          if [ -d "$SHARED_FW/SimulatorKit.framework" ]; then
-            echo "SIMULATORKIT PRESENT at $SHARED_FW/SimulatorKit.framework"
+          PRIVATE_FW="$(xcode-select -p)/Library/PrivateFrameworks"
+          ls "$PRIVATE_FW" | head -30 || true
+          if [ -d "$SHARED_FW/SimulatorKit.framework" ] || [ -d "$PRIVATE_FW/SimulatorKit.framework" ]; then
+            echo "SIMULATORKIT PRESENT (SharedFrameworks: $([ -d "$SHARED_FW/SimulatorKit.framework" ] && echo yes || echo no); PrivateFrameworks: $([ -d "$PRIVATE_FW/SimulatorKit.framework" ] && echo yes || echo no))"
             echo "simkit=present" >> "$GITHUB_OUTPUT"
           else
             echo "SIMULATORKIT ABSENT — image not yet updated; issue 484 stays open"
             ls "$SHARED_FW" || true
             echo "simkit=absent" >> "$GITHUB_OUTPUT"
           fi
+
+      # axe loads SimulatorKit via FBSimulatorControl from
+      # <xcode-select -p>/Library/PrivateFrameworks; Xcode 27 beta 3 ships it
+      # only in Contents/SharedFrameworks. Bridge with a symlink (run 29837477224).
+      - name: Symlink SimulatorKit into Developer/Library/PrivateFrameworks
+        if: steps.facts.outputs.simkit == 'present'
+        run: |
+          SHARED_FW="$(dirname "$(xcode-select -p)")/SharedFrameworks"
+          PRIVATE_FW="$(xcode-select -p)/Library/PrivateFrameworks"
+          if [ ! -e "$PRIVATE_FW/SimulatorKit.framework" ] && [ -d "$SHARED_FW/SimulatorKit.framework" ]; then
+            sudo ln -sfn "$SHARED_FW/SimulatorKit.framework" "$PRIVATE_FW/SimulatorKit.framework"
+            echo "symlinked $SHARED_FW/SimulatorKit.framework -> $PRIVATE_FW/SimulatorKit.framework"
+          else
+            echo "no symlink needed"
+          fi
+
+      # Secrets.xcconfig is git-ignored but referenced by the xcodeproj; the
+      # template keeps app-target builds working (same step as ci.yml).
+      - name: Create Secrets.xcconfig from template (build-only)
+        if: steps.facts.outputs.simkit == 'present'
+        run: cp Secrets.xcconfig.template Secrets.xcconfig
 
       - name: snapshot_ui / tap / screenshot smoke via XcodeBuildMCP
         if: steps.facts.outputs.simkit == 'present'
