@@ -33,7 +33,23 @@ runs:
           echo "XCODEBUILDMCP_PROJECT_PATH=${GITHUB_WORKSPACE}/WorkoutTracker.xcodeproj"
           echo "XCODEBUILDMCP_SCHEME=WorkoutTracker"
           echo "XCODEBUILDMCP_SIMULATOR_NAME=iPhone 17 Pro"
+          echo "XCODEBUILDMCP_ENABLED_WORKFLOWS=session-management,simulator,simulator-management,ui-automation"
           if [ -n "$CONTEXT7_API_KEY_INPUT" ]; then
             echo "CONTEXT7_API_KEY=$CONTEXT7_API_KEY_INPUT"
           fi
         } >> "$GITHUB_ENV"
+    # axe (XcodeBuildMCP's UI-automation binary) loads SimulatorKit from
+    # <xcode-select -p>/Library/PrivateFrameworks, but the Xcode 27 beta 3
+    # runner image ships it only in Contents/SharedFrameworks (issue #484,
+    # run 29847425044). Bridge with a symlink; a no-op once an Xcode build
+    # restores the PrivateFrameworks copy.
+    - name: Bridge SimulatorKit for UI automation (issue 484)
+      shell: bash
+      run: |
+        SHARED_FW="$(dirname "$(xcode-select -p)")/SharedFrameworks"
+        PRIVATE_FW="$(xcode-select -p)/Library/PrivateFrameworks"
+        if [ ! -e "$PRIVATE_FW/SimulatorKit.framework" ] && [ -d "$SHARED_FW/SimulatorKit.framework" ]; then
+          sudo mkdir -p "$PRIVATE_FW"
+          sudo ln -sfn "$SHARED_FW/SimulatorKit.framework" "$PRIVATE_FW/SimulatorKit.framework"
+          echo "bridged SimulatorKit.framework into $PRIVATE_FW"
+        fi

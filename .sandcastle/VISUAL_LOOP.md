@@ -63,15 +63,20 @@ tools fail fast — do not use them.
    `-skipPackagePluginValidation -skipMacroValidation` — SwiftLint's build
    plugin cannot be approved interactively in CI and fails the build without
    them (spike run 29705943290).
-2. Drive the app through **each screen your change touches** (`describe_ui`,
-   tap, swipe, gesture) and screenshot it. **Known limitation:** the current
-   xcode-27 beta runner image ships without `SimulatorKit.framework`, so
-   `describe_ui`/tap fail there — screenshot every changed screen you can
-   reach (launch surface, launch-argument routes) and note the screens you
-   could not; mechanism 1 covers every changed surface regardless. Resume
-   the full drive-through when the tools work (issue #484 tracks the image).
-3. Switch the simulator to dark appearance — no MCP tool does this; use Bash:
-   `xcrun simctl ui <udid> appearance dark` — and screenshot the same screens
+2. Drive the app through **each screen your change touches** (`snapshot_ui`
+   for the accessibility hierarchy and elementRefs, then tap, swipe, gesture)
+   and screenshot it. The first `snapshot_ui` right after launch can
+   transiently fail with "No translation object returned for simulator" —
+   wait a few seconds and retry (or use `wait_for_ui`); after that first
+   success the tools are stable (issue #484 measured a 0-failure
+   snapshot/tap loop on this runner). If instead you see "Failed to load
+   essential private frameworks", the SimulatorKit bridge step in
+   `.github/actions/setup-agent-mcp` did not run — say so in your report
+   and fall back to screenshots of the screens you can reach by launch
+   arguments; mechanism 1 covers every changed surface regardless.
+3. Switch the simulator to dark appearance with
+   `set_sim_appearance({ mode: "dark" })` (Bash fallback:
+   `xcrun simctl ui <udid> appearance dark`) and screenshot the same screens
    again — the Greenhouse night edition is part of the locked design.
 4. `Read` every screenshot and compare against the spec, DESIGN.md, and the
    greenhouse picks **before committing**. Fix what you see; re-drive.
