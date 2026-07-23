@@ -494,3 +494,33 @@ struct SessionStagePresentationTests {
     #expect(curve.tangent(at: 0).dx > 0)
     #expect(curve.tangent(at: 1).dx > 0)
 }
+
+// MARK: - Branch node layout (clustered spacing along the stem)
+
+@Test func branchNodeLayoutSpreadsManyNodesAcrossTheFullSpan() {
+    // Five nodes over 0.16…0.84: the natural step (0.17) is under the cap, so
+    // the ends stay pinned to the span exactly as before the clustering fix.
+    let ts = (0..<5).map {
+        BranchNodeLayout.nodeT(index: $0, count: 5, first: 0.16, last: 0.84, maxStep: 0.24)
+    }
+
+    #expect(abs(ts[0] - 0.16) < 0.0001)
+    #expect(abs(ts[4] - 0.84) < 0.0001)
+}
+
+@Test func branchNodeLayoutClustersTwoNodesMidStem() {
+    // Two Sets: the uncapped step would pin them to opposite ends of the branch
+    // (0.16 and 0.84) — too far apart to read as one sprig. The cap pulls them
+    // to a centered pair one capped step apart.
+    let first = BranchNodeLayout.nodeT(index: 0, count: 2, first: 0.16, last: 0.84, maxStep: 0.24)
+    let second = BranchNodeLayout.nodeT(index: 1, count: 2, first: 0.16, last: 0.84, maxStep: 0.24)
+
+    #expect(abs((second - first) - 0.24) < 0.0001)
+    #expect(abs((first + second) / 2 - 0.5) < 0.0001)
+}
+
+@Test func branchNodeLayoutCentersASingleNode() {
+    let t = BranchNodeLayout.nodeT(index: 0, count: 1, first: 0.16, last: 0.84, maxStep: 0.24)
+
+    #expect(abs(t - 0.5) < 0.0001)
+}

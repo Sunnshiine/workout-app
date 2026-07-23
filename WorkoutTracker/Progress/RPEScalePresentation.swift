@@ -29,6 +29,22 @@ enum ValueRailLayout {
         let selectedCenter = stride * CGFloat(selectedIndex) + cellWidth / 2
         return trackWidth / 2 - selectedCenter
     }
+
+    /// The cell index a horizontal drag lands on: the strip follows the finger,
+    /// so dragging left (negative translation) advances to higher values, one
+    /// detent per cell stride from the index where the drag began.
+    static func draggedIndex(
+        anchorIndex: Int,
+        translation: CGFloat,
+        cellWidth: CGFloat,
+        spacing: CGFloat,
+        count: Int
+    ) -> Int {
+        let stride = cellWidth + spacing
+        guard stride > 0, count > 0 else { return anchorIndex }
+        let delta = Int((-translation / stride).rounded())
+        return min(max(anchorIndex + delta, 0), count - 1)
+    }
 }
 
 /// One selectable value in the active set card's RPE chip scroller.

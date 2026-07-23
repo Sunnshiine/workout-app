@@ -33,14 +33,13 @@ struct SessionStageBranch: View {
         static let bow: CGFloat = 30 // upward bow of the climbing stem
         static let firstNodeT: CGFloat = 0.16
         static let lastNodeT: CGFloat = 0.84
+        static let maxNodeStep: CGFloat = 0.24 // cap the gap so few Sets cluster like a real sprig
         static let leafLength: CGFloat = 46
         static var leafSize: CGSize { CGSize(width: leafLength, height: leafLength * 24.0 / 60.0) }
-        static let leafOffset: CGFloat = 20 // perpendicular distance off the stem
-        static let leafTilt: CGFloat = 20 // extra outward tilt, alternating
+        static let leafTilt: CGFloat = 42 // how far a leaf angles off the stem, alternating sides
         static let budDiameter: CGFloat = 15
         static let futureLength: CGFloat = 22
         static let futureTilt: CGFloat = 38 // branch off the stem so the mark reads as a future twig
-        static let futureOffset: CGFloat = 7 // lift the mark's midpoint just off the stem
         static let stemWidth: CGFloat = 2
     }
 
@@ -55,13 +54,12 @@ struct SessionStageBranch: View {
         static let droop: CGFloat = 30 // downward bow of the drooping lateral
         static let firstNodeT: CGFloat = 0.42
         static let lastNodeT: CGFloat = 0.9
+        static let maxNodeStep: CGFloat = 0.2
         static let leafLength: CGFloat = 34 // subordinate to the focused leaf
         static var leafSize: CGSize { CGSize(width: leafLength, height: leafLength * 24.0 / 60.0) }
-        static let leafOffset: CGFloat = 15
-        static let leafTilt: CGFloat = 18
+        static let leafTilt: CGFloat = 38
         static let futureLength: CGFloat = 17
         static let futureTilt: CGFloat = 34
-        static let futureOffset: CGFloat = 6
     }
 
     private var nodes: [(set: ExerciseSet, state: BranchNodeState)] {
@@ -158,16 +156,17 @@ struct SessionStageBranch: View {
             Capsule()
                 .fill(palette.futureStroke)
                 .frame(width: Metrics.futureLength, height: Metrics.stemWidth)
+                .offset(x: Metrics.futureLength / 2)
                 .rotationEffect(angle + Angle(degrees: above ? -Metrics.futureTilt : Metrics.futureTilt))
-                .offset(y: above ? -Metrics.futureOffset : Metrics.futureOffset)
         }
     }
 
     private func leaf(filled: Bool, above: Bool, angle: Angle) -> some View {
-        // The leaf grows off the stem: aligned to the stem's climb, then tilted
-        // outward, and lifted perpendicular so its base meets the stem.
+        // The leaf grows off the stem: its base sits on the node, and the blade
+        // angles up- or down-forward off the stem's climb, alternating sides.
+        // The pre-rotation x-offset moves the base onto the rotation anchor, so
+        // the leaf pivots around where it meets the stem.
         let tilt = Angle(degrees: above ? -Metrics.leafTilt : Metrics.leafTilt)
-        let lift = above ? -Metrics.leafOffset : Metrics.leafOffset
         return BranchLeafGlyph(
             filled: filled,
             fill: palette.leafFill,
@@ -175,8 +174,8 @@ struct SessionStageBranch: View {
             dash: palette.skipStroke,
             size: Metrics.leafSize
         )
+        .offset(x: Metrics.leafSize.width / 2)
         .rotationEffect(angle + tilt)
-        .offset(y: lift)
     }
 
     // MARK: - Partner lateral
@@ -215,8 +214,8 @@ struct SessionStageBranch: View {
             Capsule()
                 .fill(pigment.opacity(0.55))
                 .frame(width: PartnerMetrics.futureLength, height: PartnerMetrics.stemWidth)
+                .offset(x: PartnerMetrics.futureLength / 2)
                 .rotationEffect(angle + Angle(degrees: below ? PartnerMetrics.futureTilt : -PartnerMetrics.futureTilt))
-                .offset(y: below ? PartnerMetrics.futureOffset : -PartnerMetrics.futureOffset)
         case .bud:
             // The partner never carries the bud; the seam demotes it to a future.
             EmptyView()
@@ -225,7 +224,6 @@ struct SessionStageBranch: View {
 
     private func partnerLeaf(filled: Bool, below: Bool, angle: Angle, pigment: Color) -> some View {
         let tilt = Angle(degrees: below ? PartnerMetrics.leafTilt : -PartnerMetrics.leafTilt)
-        let lift = below ? PartnerMetrics.leafOffset : -PartnerMetrics.leafOffset
         return BranchLeafGlyph(
             filled: filled,
             fill: pigment,
@@ -233,8 +231,8 @@ struct SessionStageBranch: View {
             dash: pigment,
             size: PartnerMetrics.leafSize
         )
+        .offset(x: PartnerMetrics.leafSize.width / 2)
         .rotationEffect(angle + tilt)
-        .offset(y: lift)
     }
 
     private func partnerTip(in size: CGSize) -> CGPoint {
@@ -247,9 +245,13 @@ struct SessionStageBranch: View {
     }
 
     private func partnerNodeT(_ index: Int) -> CGFloat {
-        guard partnerNodes.count > 1 else { return (PartnerMetrics.firstNodeT + PartnerMetrics.lastNodeT) / 2 }
-        let span = PartnerMetrics.lastNodeT - PartnerMetrics.firstNodeT
-        return PartnerMetrics.firstNodeT + span * CGFloat(index) / CGFloat(partnerNodes.count - 1)
+        BranchNodeLayout.nodeT(
+            index: index,
+            count: partnerNodes.count,
+            first: PartnerMetrics.firstNodeT,
+            last: PartnerMetrics.lastNodeT,
+            maxStep: PartnerMetrics.maxNodeStep
+        )
     }
 
     private func partnerCurve(fork: CGPoint, in size: CGSize) -> QuadraticBezier {
@@ -268,9 +270,13 @@ struct SessionStageBranch: View {
     // MARK: - Stem geometry
 
     private func nodeT(_ index: Int) -> CGFloat {
-        guard nodes.count > 1 else { return 0.5 }
-        let span = Metrics.lastNodeT - Metrics.firstNodeT
-        return Metrics.firstNodeT + span * CGFloat(index) / CGFloat(nodes.count - 1)
+        BranchNodeLayout.nodeT(
+            index: index,
+            count: nodes.count,
+            first: Metrics.firstNodeT,
+            last: Metrics.lastNodeT,
+            maxStep: Metrics.maxNodeStep
+        )
     }
 
     /// The climbing stem as a quadratic bezier bowed gently upward: root at low

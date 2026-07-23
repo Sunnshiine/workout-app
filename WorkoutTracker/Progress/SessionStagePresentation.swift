@@ -29,6 +29,26 @@ struct QuadraticBezier: Equatable {
     }
 }
 
+/// Places branch nodes along a stem's parameter space. Nodes spread across
+/// `first...last`, but the gap between neighbors is capped at `maxStep` and the
+/// cluster stays centered — so two Sets sit near each other mid-stem like a real
+/// sprig instead of pinned to opposite ends of the branch.
+enum BranchNodeLayout {
+    static func nodeT(
+        index: Int,
+        count: Int,
+        first: CGFloat,
+        last: CGFloat,
+        maxStep: CGFloat
+    ) -> CGFloat {
+        let mid = (first + last) / 2
+        guard count > 1 else { return mid }
+        let step = min((last - first) / CGFloat(count - 1), maxStep)
+        let start = mid - step * CGFloat(count - 1) / 2
+        return start + step * CGFloat(index)
+    }
+}
+
 /// A Session render item with the hidden paired entries dropped, plus the
 /// progress readings the Stage needs: title, Set order, completion, and the
 /// next pending Set.
