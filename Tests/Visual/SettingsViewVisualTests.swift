@@ -15,15 +15,16 @@ import Testing
 @Suite(.snapshots(record: .never))
 struct SettingsViewVisualTests {
     @Test func settingsViewMatchesVisualBaseline() throws {
-        try assertSettings(colorScheme: .light)
+        try assertSettings(colorScheme: .light, config: .workoutVisualBaseline)
     }
 
     @Test func settingsViewMatchesNightVisualBaseline() throws {
-        try assertSettings(colorScheme: .dark)
+        try assertSettings(colorScheme: .dark, config: .workoutVisualBaselineNight)
     }
 
     private func assertSettings(
         colorScheme: ColorScheme,
+        config: ViewImageConfig,
         testName: String = #function
     ) throws {
         let scenario = try WorkoutScenarios.freshConfiguredApp()
@@ -43,7 +44,7 @@ struct SettingsViewVisualTests {
             as: .image(
                 precision: WorkoutVisualBaseline.precision,
                 perceptualPrecision: 1,
-                layout: .device(config: .workoutVisualBaseline)
+                layout: .device(config: config)
             ),
             testName: testName
         )

@@ -76,6 +76,7 @@ struct SessionQueueSheet: View {
         HStack(alignment: .firstTextBaseline) {
             Text(isPairing ? "Pick a partner" : "This Session")
                 .font(.headline)
+                .foregroundStyle(palette.textPrimary)
 
             Spacer(minLength: 12)
 
@@ -118,7 +119,7 @@ struct SessionQueueSheet: View {
                 } label: {
                     Image(systemName: "link")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(palette.textSecondary)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 16)
                         .contentShape(Rectangle())
@@ -176,7 +177,7 @@ struct SessionQueueSheet: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(item.title)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(item.isComplete ? .secondary : .primary)
+                    .foregroundStyle(item.isComplete ? palette.textSecondary : palette.textPrimary)
                     .lineLimit(1)
 
                 SessionStageSetDots(sets: item.sortedSets)

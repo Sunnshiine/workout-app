@@ -86,7 +86,7 @@ import Testing
 
 @Test func appearancePickerOptionsExposeOnlySupportedPreferences() {
     #expect(AppearancePreference.allCases.map(\.rawValue) == ["system", "light", "dark"])
-    #expect(AppearancePreference.allCases.map(\.label) == ["System", "Light", "Dark"])
+    #expect(AppearancePreference.allCases.map(\.label) == ["System", "Light", "Night"])
 }
 
 @MainActor
