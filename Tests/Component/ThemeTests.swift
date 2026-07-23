@@ -434,26 +434,26 @@ import Testing
     #endif
 }
 
-@Test func themeSkipFillOverlayIsMutedInBothAppearances() {
+@Test func themeSkipFillOverlayIsMutedInBothAppearances() throws {
     // Token sheet §Log capsule: the hold-to-skip overlay is muted @ 30% — never danger red
     // (ledger §2.8). The night recipe lands with this input-block build slice (#488).
     #if canImport(AppKit)
         expectRGB(
-            try! #require(Theme.palette(for: Theme.Appearance.day).skipFillOverlay),
+            try #require(Theme.palette(for: Theme.Appearance.day).skipFillOverlay),
             red: 82 / 255, green: 100 / 255, blue: 87 / 255, alpha: 0.30
         )
         expectRGB(
-            try! #require(Theme.palette(for: Theme.Appearance.night).skipFillOverlay),
+            try #require(Theme.palette(for: Theme.Appearance.night).skipFillOverlay),
             red: 154 / 255, green: 170 / 255, blue: 155 / 255, alpha: 0.30
         )
     #endif
 }
 
-@Test func themePressedFillIsADayValueDeferredAtNight() {
+@Test func themePressedFillIsADayValueDeferredAtNight() throws {
     // The pressed / logged Log-capsule fill (#0A5936) is a day value; its night recipe is still
     // flagged "— (build)" and has no consumer yet, so it stays deferred.
     #if canImport(AppKit)
-        expectRGB(try! #require(Theme.palette(for: Theme.Appearance.day).pressedFill), red: 10 / 255, green: 89 / 255, blue: 54 / 255)
+        expectRGB(try #require(Theme.palette(for: Theme.Appearance.day).pressedFill), red: 10 / 255, green: 89 / 255, blue: 54 / 255)
     #endif
     #expect(Theme.palette(for: Theme.Appearance.night).pressedFill == nil)
 }

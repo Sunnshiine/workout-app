@@ -44,31 +44,26 @@ custom_rules:
       one-file diff (ADR-0014, token sheet §4).
     regex: '(Font\.custom\(|\.system\(size|\.font\(\s*\.(largeTitle|title|title2|title3|headline|subheadline|body|callout|footnote|caption|caption2)\b)'
     included: '.*/WorkoutTracker/.*'
+    # The Greenhouse contract slice (PRD #497 slice 9) retired every grandfathered exception: each
+    # composition slice migrated its view onto Theme.font(_:), and the remaining chrome/dev surfaces
+    # were re-voiced through the same seam. Theme.swift stays the one sanctioned home of the role
+    # table (its off-device fallback uses Font.custom).
     excluded:
       - '.*/Theme\.swift'
-      # Grandfathered pending each view's Greenhouse composition slice (PRD #497). Each slice
-      # migrates its view to Theme.font(_:) and removes it here.
-      - '.*/Views/SessionStageView\.swift'        # → #487 living stage
-      - '.*/Views/SessionProgressHeader\.swift'   # → #487 living stage
-      - '.*/Views/LastPerformedCard\.swift'       # → #487 living stage
-      - '.*/Views/SessionView\.swift'             # → #487 living stage
-      - '.*/Views/PillStepperButton\.swift'       # → shared with Settings' rest stepper; migrates with #493
-      - '.*/Views/ActiveSupersetSection\.swift'   # → #489 Superset stage
-      - '.*/Views/SupersetIdentityBadge\.swift'   # → #489 Superset stage
-      - '.*/Views/OpenExercisesSection\.swift'    # → #489 Superset stage
-      - '.*/Views/SessionTile\.swift'             # → #490 Block grid
-      - '.*/Views/ExerciseHistorySheet\.swift'    # → #491 Exercise History sheet
-      - '.*/Views/MoveOnCelebrationView\.swift'   # → #492 Sunbird ceremony
-      - '.*/Views/OnboardingView\.swift'          # → #492 connect screen
-      - '.*/Views/SessionQueueSheet\.swift'       # → #493 queue sheet
-      - '.*/Views/SyncStatusBanner\.swift'        # → #493 sync banner
-      # Chrome the redesign has not yet re-voiced (glyph/emoji/dev surfaces); grandfathered until a
-      # later re-voicing slice replaces the glyphFont hatch these leaned on.
-      - '.*/Views/EmptyStateView\.swift'
-      - '.*/Views/RestPillView\.swift'
-      - '.*/Views/BuildIdentityFooter\.swift'
-      - '.*/Views/DeveloperToolsView\.swift'
-      - '.*/Views/LiveActivityLabView\.swift'
+    severity: error
+
+  # Uppercase microlabels are editorial scaffolding the sunlit-ledger register carried; Greenhouse
+  # strips them (DESIGN.md §4, token sheet §4 "do not carry"). Field labels read in sentence/label
+  # case through the type roles — no view uppercases a microlabel via `.textCase(.uppercase)` or a
+  # `.uppercased()` display string.
+  no_uppercase_microlabels:
+    name: "No uppercase microlabels"
+    message: >
+      Greenhouse strips the uppercase microlabel (DESIGN.md §4, token sheet §4 — "do not carry").
+      Render field/section labels in their natural case through Theme.font(_:); do not apply
+      .textCase(.uppercase) or .uppercased() to displayed text.
+    regex: '(\.textCase\(\s*\.uppercase\s*\)|\.uppercased\(\))'
+    included: '.*/WorkoutTracker/Views/.*'
     severity: error
 
 identifier_name:

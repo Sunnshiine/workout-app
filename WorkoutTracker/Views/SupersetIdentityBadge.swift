@@ -12,7 +12,7 @@ struct SupersetIdentityBadge: View {
         // an empty coloured square.
         if !label.isEmpty {
             Text(label)
-                .font(.caption.weight(.bold))
+                .font(Theme.font(.fieldLabel))
                 .foregroundStyle(isActive ? palette.accentDarkText : .secondary)
                 .frame(width: 20, height: 20)
                 .background(

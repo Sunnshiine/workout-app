@@ -384,10 +384,10 @@ private struct CurrentSessionOverrideControls: View {
         Button(action: onGoBack) {
             Label("Go back", systemImage: "arrow.uturn.left")
                 .labelStyle(.iconOnly)
-                .font(.title3.weight(.semibold))
+                .font(Theme.font(.logCapsule))
                 .frame(width: 44, height: 44)
         }
-        .buttonStyle(.workoutGlass)
+        .buttonStyle(.bordered)
         .accessibilityHint("Returns to the current session")
         .accessibilityIdentifier("go-back-current-session-button")
     }
@@ -396,10 +396,10 @@ private struct CurrentSessionOverrideControls: View {
         Button(action: onMakeCurrent) {
             Label("Make Current", systemImage: "pin.fill")
                 .labelStyle(.iconOnly)
-                .font(.title3.weight(.semibold))
+                .font(Theme.font(.logCapsule))
                 .frame(width: 44, height: 44)
         }
-        .buttonStyle(.workoutGlass)
+        .buttonStyle(.bordered)
         .accessibilityHint("Makes the viewed session the current session")
         .accessibilityIdentifier("make-current-session-button")
     }

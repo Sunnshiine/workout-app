@@ -405,18 +405,13 @@ enum Theme {
     static let blockFocusCardPadding: CGFloat = 16
     static let blockFocusGlowRadius: CGFloat = 14 // the focus card's glowing rim / sunlit hour
 
-    static let cardCornerRadius: CGFloat = 16
     static let cardSpacing: CGFloat = 16
-    static let lensCornerRadius: CGFloat = 28
     static let sectionSpacing: CGFloat = 28
     static let supersetRestingSpacing: CGFloat = 24
-    static let rowCornerRadius: CGFloat = 8
-    static let sessionTileCornerRadius: CGFloat = 8
     static let sessionTileMinHeight: CGFloat = 86
     static let sessionTileSpacing: CGFloat = 10
     static let sessionTileCurrentBorderWidth: CGFloat = 1.5
     static let sessionTileUnavailableOpacity = 0.55
-    static let pillCornerRadius: CGFloat = 8
     static let pillMinHeight: CGFloat = 86
     static let pillSpacing: CGFloat = 10
     static let rpeScaleHeight: CGFloat = 52

@@ -38,7 +38,6 @@
 		62C47D84D01FC02141D4DDA2 /* RPEScalePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF7F7CD5D8F394F75F33E69D /* RPEScalePresentation.swift */; };
 		6370263F171AC8EFE288A5E3 /* SetLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20D53666552036BF79EEB41F /* SetLog.swift */; };
 		64C6D9EB4377B30FE6AB7F49 /* TabFetchRetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44452C2B9CFC7273C0972BEF /* TabFetchRetry.swift */; };
-		67AC1FABCA19B040B11E3E27 /* WorkoutGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74540E578A1F6657CD8CB941 /* WorkoutGlass.swift */; };
 		6962F55A0A33D607CC9C4C22 /* SheetParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93A5CA6A951EC6FB3C319E0F /* SheetParser.swift */; };
 		6BF68D998CF420084A2DE252 /* WeightPillLayoutMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B76CE1F35E8B066C0FD2E5AD /* WeightPillLayoutMetrics.swift */; };
 		6C0253C40A84915E81AE47AF /* BlockOverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94076860F23B16098C27E60D /* BlockOverviewView.swift */; };
@@ -219,7 +218,6 @@
 		7172E2B6F090D7F496DD6236 /* SessionTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTile.swift; sourceTree = "<group>"; };
 		719E54DAA40D4D2D700AA91F /* SmartValuePills.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartValuePills.swift; sourceTree = "<group>"; };
 		73043E31A40EFA8A57C38FAF /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
-		74540E578A1F6657CD8CB941 /* WorkoutGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutGlass.swift; sourceTree = "<group>"; };
 		7D8657BBD8B3439498C6A625 /* LiveActivityRestContentBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityRestContentBuilder.swift; sourceTree = "<group>"; };
 		7E44E4307BBE02ECB2E8C314 /* SupersetIdentityBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupersetIdentityBadge.swift; sourceTree = "<group>"; };
 		7FCBC3CD276355C79BDA62A1 /* WorkoutWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutWidgetsBundle.swift; sourceTree = "<group>"; };
@@ -409,7 +407,6 @@
 				719E54DAA40D4D2D700AA91F /* SmartValuePills.swift */,
 				7E44E4307BBE02ECB2E8C314 /* SupersetIdentityBadge.swift */,
 				2CC347CBCB45EC717781E8EF /* SyncStatusBanner.swift */,
-				74540E578A1F6657CD8CB941 /* WorkoutGlass.swift */,
 				FEED000000000000000000C1 /* SunbirdColophon.swift */,
 				FEED000000000000000000C3 /* PerchedSongbird.swift */,
 			);
@@ -882,7 +879,6 @@
 				6BF68D998CF420084A2DE252 /* WeightPillLayoutMetrics.swift in Sources */,
 				FB388BA0DE209E81C86560A4 /* WorkoutActivityAttributes.swift in Sources */,
 				5344625CEB5D416163749242 /* WorkoutFixtureScenarios.swift in Sources */,
-				67AC1FABCA19B040B11E3E27 /* WorkoutGlass.swift in Sources */,
 				534BF64C12717F887A7C272C /* WorkoutStore.swift in Sources */,
 				E8F14E95FDFED307B2DC2042 /* WorkoutTrackerApp.swift in Sources */,
 				64C6D9EB4377B30FE6AB7F49 /* TabFetchRetry.swift in Sources */,

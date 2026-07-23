@@ -20,7 +20,7 @@ struct SyncStatusBanner: View {
                 .lineLimit(2)
             Spacer(minLength: 0)
         }
-        .font(.caption)
+        .font(Theme.font(.lastPerformed))
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(palette.bannerFill, in: Capsule())

@@ -81,8 +81,7 @@ struct GlassBearingViewsVisualTests {
             )
             .padding(14)
             .frame(width: 360)
-            .background(Theme.palette(for: .day).activeCardFill, in: .rect(cornerRadius: Theme.cardCornerRadius))
-            .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
+            .background(Theme.palette(for: .day).surface, in: .rect(cornerRadius: Theme.Radius.card))
         }
     }
 

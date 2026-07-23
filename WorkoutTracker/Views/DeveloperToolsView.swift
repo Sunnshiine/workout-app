@@ -81,7 +81,7 @@ struct DeveloperToolsView: View {
 
                 if let localOnlyNote = info.localOnlyNote {
                     Text(localOnlyNote)
-                        .font(.caption.weight(.semibold))
+                        .font(Theme.font(.historyChip))
                         .foregroundStyle(palette.accent)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("current-session-debug-local-only-note")
@@ -96,7 +96,7 @@ struct DeveloperToolsView: View {
                     Image(systemName: "doc.on.doc")
                         .frame(width: 44, height: 44)
                 }
-                .buttonStyle(.workoutGlass)
+                .buttonStyle(.bordered)
                 .buttonBorderShape(.circle)
                 .accessibilityLabel("Copy Current Session Debug Info")
                 .accessibilityIdentifier("copy-current-session-debug-info-button")
@@ -107,7 +107,7 @@ struct DeveloperToolsView: View {
                     Image(systemName: "arrow.counterclockwise")
                         .frame(width: 44, height: 44)
                 }
-                .buttonStyle(.workoutGlass)
+                .buttonStyle(.bordered)
                 .buttonBorderShape(.circle)
                 .disabled(!workout.hasCurrentSessionOverride)
                 .accessibilityLabel("Reset Current Session Override")
@@ -124,7 +124,7 @@ struct DeveloperToolsView: View {
                 Label("Force Move On Celebration", systemImage: "sparkles")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.workoutGlass)
+            .buttonStyle(.bordered)
             .disabled(workout.displayedSession == nil)
             .accessibilityIdentifier("developer-tools-force-celebration-button")
 
@@ -134,7 +134,7 @@ struct DeveloperToolsView: View {
                 Label("Sync", systemImage: "arrow.triangle.2.circlepath")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.workoutGlass)
+            .buttonStyle(.bordered)
             .disabled(isSyncDisabled)
             .accessibilityIdentifier("developer-tools-sync-button")
 
@@ -151,7 +151,7 @@ struct DeveloperToolsView: View {
                 Label("Open Live Activity Lab", systemImage: "rectangle.stack.badge.play")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.workoutGlass)
+            .buttonStyle(.bordered)
             .accessibilityIdentifier("developer-tools-live-activity-lab-link")
         }
     }
@@ -160,11 +160,11 @@ struct DeveloperToolsView: View {
         DeveloperToolsSection(title: "Pending Sheet Writes") {
             if let diagnosticsErrorMessage {
                 Text(diagnosticsErrorMessage)
-                    .font(.subheadline)
+                    .font(Theme.font(.queuePill))
                     .foregroundStyle(.secondary)
             } else if diagnostics.isEmpty {
                 Text("No pending or conflicted writes")
-                    .font(.subheadline)
+                    .font(Theme.font(.queuePill))
                     .foregroundStyle(.secondary)
             } else {
                 VStack(spacing: 10) {
@@ -180,11 +180,11 @@ struct DeveloperToolsView: View {
         DeveloperToolsSection(title: "Write Target Audit Log") {
             if let writeAuditErrorMessage {
                 Text(writeAuditErrorMessage)
-                    .font(.subheadline)
+                    .font(Theme.font(.queuePill))
                     .foregroundStyle(.secondary)
             } else if writeAuditDiagnostics.isEmpty {
                 Text("No write-target audit entries")
-                    .font(.subheadline)
+                    .font(Theme.font(.queuePill))
                     .foregroundStyle(.secondary)
             } else {
                 VStack(spacing: 10) {
@@ -200,7 +200,7 @@ struct DeveloperToolsView: View {
                 Label("Copy Write Log", systemImage: "doc.on.doc")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.workoutGlass)
+            .buttonStyle(.bordered)
             .disabled(writeAuditDiagnostics.isEmpty)
             .accessibilityIdentifier("copy-write-log-button")
 
@@ -210,7 +210,7 @@ struct DeveloperToolsView: View {
                 Label("Clear Write Log", systemImage: "trash")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.workoutGlass)
+            .buttonStyle(.bordered)
             .disabled(writeAuditDiagnostics.isEmpty)
             .accessibilityIdentifier("clear-write-log-button")
         }
@@ -268,11 +268,11 @@ private struct CurrentSessionDebugRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(label)
-                .font(.caption2.weight(.semibold))
+                .font(Theme.font(.cadence))
                 .foregroundStyle(.secondary)
 
             Text(value)
-                .font(.subheadline)
+                .font(Theme.font(.queuePill))
                 .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier(valueIdentifier)
@@ -284,17 +284,18 @@ private struct CurrentSessionDebugRow: View {
 private struct DeveloperToolsSection<Content: View>: View {
     let title: String
     @ViewBuilder let content: Content
+    @Environment(\.themePalette) private var palette
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title)
-                .font(.headline)
+                .font(Theme.font(.sheetTitle))
 
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .workoutGlass(.card)
+        .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.card))
     }
 }
 
@@ -307,10 +308,10 @@ private struct PendingWriteDiagnosticRow: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Text(diagnostic.exercise)
-                    .font(.subheadline.weight(.semibold))
+                    .font(Theme.font(.queuePill))
                 Spacer()
                 Text(diagnostic.status)
-                    .font(.caption.weight(.semibold))
+                    .font(Theme.font(.historyChip))
                     .foregroundStyle(statusColor)
             }
 
@@ -331,7 +332,7 @@ private struct PendingWriteDiagnosticRow: View {
 
             if let error = diagnostic.error, !error.isEmpty {
                 Text(error)
-                    .font(.caption)
+                    .font(Theme.font(.historyChip))
                     .foregroundStyle(.red)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -357,10 +358,10 @@ private struct PendingWriteDiagnosticRow: View {
     private func diagnosticField(_ label: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
-                .font(.caption2.weight(.semibold))
+                .font(Theme.font(.cadence))
                 .foregroundStyle(.secondary)
             Text(value)
-                .font(.caption)
+                .font(Theme.font(.historyChip))
                 .foregroundStyle(.primary)
                 .lineLimit(2)
                 .minimumScaleFactor(0.85)
@@ -378,11 +379,11 @@ private struct WriteTargetAuditDiagnosticRow: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Text(diagnostic.semanticTarget)
-                    .font(.caption.weight(.semibold))
+                    .font(Theme.font(.historyChip))
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer()
                 Text(diagnostic.status)
-                    .font(.caption.weight(.semibold))
+                    .font(Theme.font(.historyChip))
                     .foregroundStyle(statusColor)
             }
 
@@ -392,7 +393,7 @@ private struct WriteTargetAuditDiagnosticRow: View {
 
             if let message = diagnostic.message, !message.isEmpty {
                 Text(message)
-                    .font(.caption)
+                    .font(Theme.font(.historyChip))
                     .foregroundStyle(.red)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -423,10 +424,10 @@ private struct WriteTargetAuditDiagnosticRow: View {
     private func diagnosticField(_ label: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
-                .font(.caption2.weight(.semibold))
+                .font(Theme.font(.cadence))
                 .foregroundStyle(.secondary)
             Text(value)
-                .font(.caption)
+                .font(Theme.font(.historyChip))
                 .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
         }

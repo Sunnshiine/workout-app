@@ -49,7 +49,7 @@ struct ExerciseHistorySheet: View {
                     // claiming there is no history — the affordance already speaks for it.
                     if fillProgress == nil {
                         Text("No history yet")
-                            .font(.footnote)
+                            .font(Theme.font(.runlineSecondary))
                             .foregroundStyle(palette.textSecondary)
                     }
                 } else {
@@ -141,12 +141,12 @@ struct ExerciseHistorySheet: View {
     private func fillAffordance(_ progress: HistoryFillProgressPresentation) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(progress.message)
-                .font(.footnote)
+                .font(Theme.font(.runlineSecondary))
                 .foregroundStyle(palette.textSecondary)
             ProgressView(value: progress.fraction)
                 .tint(palette.textSecondary)
             Text(progress.detail)
-                .font(.caption2)
+                .font(Theme.font(.cadence))
                 .foregroundStyle(palette.textSecondary.opacity(0.7))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -279,7 +279,7 @@ private struct ExerciseHistoryRow: View {
 
     private func annotationLine(_ annotation: ExerciseHistorySheetPresentation.Annotation) -> some View {
         Text(annotationText(annotation))
-            .font(.footnote)
+            .font(Theme.font(.runlineSecondary))
             .italic()
             .foregroundStyle(palette.textSecondary)
             .lineLimit(1)

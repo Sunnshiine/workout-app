@@ -66,16 +66,16 @@ struct LiveActivityLabView: View {
                 controller.areActivitiesEnabled ? "Live Activities enabled" : "Live Activities disabled",
                 systemImage: controller.areActivitiesEnabled ? "checkmark.circle.fill" : "xmark.circle.fill"
             )
-            .font(.subheadline.weight(.semibold))
+            .font(Theme.font(.queuePill))
             .foregroundStyle(controller.areActivitiesEnabled ? palette.accent : Theme.danger)
 
             Text(controller.isActive ? "Prototype is running." : "Prototype is stopped.")
-                .font(.subheadline)
+                .font(Theme.font(.queuePill))
                 .foregroundStyle(.secondary)
 
             if let lastError = controller.lastError {
                 Text(lastError)
-                    .font(.caption)
+                    .font(Theme.font(.historyChip))
                     .foregroundStyle(Theme.danger)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -146,7 +146,7 @@ struct LiveActivityLabView: View {
                 Label("Start", systemImage: "play.fill")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.workoutGlass)
+            .buttonStyle(.bordered)
             .disabled(!controller.areActivitiesEnabled)
             .accessibilityIdentifier("live-activity-lab-start-button")
 
@@ -156,7 +156,7 @@ struct LiveActivityLabView: View {
                 Label("Update", systemImage: "arrow.clockwise")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.workoutGlass)
+            .buttonStyle(.bordered)
             .disabled(!controller.isActive)
             .accessibilityIdentifier("live-activity-lab-update-button")
 
@@ -166,7 +166,7 @@ struct LiveActivityLabView: View {
                 Label("Restart rest", systemImage: "timer")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.workoutGlass)
+            .buttonStyle(.bordered)
             .accessibilityIdentifier("live-activity-lab-restart-rest-button")
 
             Button {
@@ -175,7 +175,7 @@ struct LiveActivityLabView: View {
                 Label("Log a set", systemImage: "checkmark.circle.fill")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.workoutGlass)
+            .buttonStyle(.bordered)
             .disabled(!controller.isActive || setsDone >= setsTotal)
             .accessibilityIdentifier("live-activity-lab-log-set-button")
 
@@ -185,7 +185,7 @@ struct LiveActivityLabView: View {
                 Label("End", systemImage: "stop.fill")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.workoutGlass)
+            .buttonStyle(.bordered)
             .disabled(!controller.isActive)
             .accessibilityIdentifier("live-activity-lab-end-button")
         }
@@ -287,17 +287,18 @@ enum LiveActivityLabDefaults {
 private struct LiveActivityLabSection<Content: View>: View {
     let title: String
     @ViewBuilder let content: Content
+    @Environment(\.themePalette) private var palette
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title)
-                .font(.headline)
+                .font(Theme.font(.sheetTitle))
 
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .workoutGlass(.card)
+        .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.card))
     }
 }
 
@@ -308,13 +309,13 @@ private struct LabField: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
             Text(label)
-                .font(.subheadline.weight(.semibold))
+                .font(Theme.font(.queuePill))
                 .foregroundStyle(.secondary)
 
             Spacer(minLength: 12)
 
             Text(value)
-                .font(.subheadline)
+                .font(Theme.font(.queuePill))
                 .foregroundStyle(.primary)
                 .multilineTextAlignment(.trailing)
                 .fixedSize(horizontal: false, vertical: true)

@@ -10,7 +10,6 @@ struct OnboardingView: View {
     @State private var showsURLFallback = false
     @State private var switchStore: SettingsSheetSwitchStore?
     @State private var selectionErrorMessage: String?
-    @Namespace private var ns
 
     var body: some View {
         Group {
@@ -20,7 +19,7 @@ struct OnboardingView: View {
                 // no glass card in the flow (DESIGN.md §5.8).
                 connectScreen
             case .sheetPicker, .urlEntry, .session:
-                WorkoutGlassContainer {
+                VStack(spacing: 0) {
                     switch destination {
                     case .sheetPicker:
                         SheetPickerView(
@@ -32,7 +31,6 @@ struct OnboardingView: View {
                                 withAnimation { showsURLFallback = true }
                             }
                         )
-                        .workoutGlassID("onboarding", in: ns)
                     case .urlEntry:
                         urlEntryCard
                     default:
@@ -134,14 +132,14 @@ struct OnboardingView: View {
                 } label: {
                     Label("Back", systemImage: "chevron.left")
                 }
-                .buttonStyle(.workoutGlass)
+                .buttonStyle(.bordered)
                 .accessibilityIdentifier("onboarding-url-back-button")
 
                 Spacer()
             }
 
             Text("Paste your sheet URL")
-                .font(.title2.bold())
+                .font(Theme.font(.sheetTitle))
 
             TextField("Google Sheet URL", text: $urlText)
                 .textFieldStyle(.roundedBorder)
@@ -150,17 +148,16 @@ struct OnboardingView: View {
 
             if urlError {
                 Text("That doesn't look like a Sheet URL")
-                    .font(.caption)
+                    .font(Theme.font(.historyChip))
                     .foregroundStyle(.red)
             }
 
             Button("Save") { saveURL() }
-                .buttonStyle(.workoutGlass)
+                .buttonStyle(.bordered)
                 .disabled(urlText.isEmpty)
         }
         .padding()
-        .workoutGlass(.card)
-        .workoutGlassID("onboarding", in: ns)
+        .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.card))
     }
 
     // MARK: - Safe selection
@@ -246,7 +243,7 @@ struct SheetPickerView: View {
     var body: some View {
         VStack(spacing: 16) {
             Text("Choose your training sheet")
-                .font(.title2.bold())
+                .font(Theme.font(.sheetTitle))
 
             content
 
@@ -263,7 +260,7 @@ struct SheetPickerView: View {
         }
         .padding()
         .frame(maxWidth: 520)
-        .workoutGlass(.card)
+        .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.card))
         .task {
             guard store == nil else { return }
             let pickerStore = SheetPickerStore(
@@ -296,13 +293,13 @@ struct SheetPickerView: View {
             if let message = store.listErrorMessage {
                 VStack(spacing: 12) {
                     Text(message)
-                        .font(.subheadline)
+                        .font(Theme.font(.queuePill))
                         .foregroundStyle(.red)
 
                     Button("Retry") {
                         Task { await store.loadInitial() }
                     }
-                    .buttonStyle(.workoutGlass)
+                    .buttonStyle(.bordered)
                 }
                 .frame(maxWidth: .infinity, minHeight: 180)
             } else {
@@ -333,7 +330,7 @@ struct SheetPickerView: View {
                                     Text("Load More")
                                 }
                             }
-                            .buttonStyle(.workoutGlass)
+                            .buttonStyle(.bordered)
                             .disabled(store.isLoadingList)
                         }
                     }
@@ -369,12 +366,12 @@ private struct SheetPickerRow: View {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(spreadsheet.name)
-                            .font(.headline)
+                            .font(Theme.font(.sheetTitle))
                             .foregroundStyle(.primary)
                             .lineLimit(2)
 
                         Text(modifiedText)
-                            .font(.caption)
+                            .font(Theme.font(.historyChip))
                             .foregroundStyle(.secondary)
                     }
 
@@ -387,15 +384,15 @@ private struct SheetPickerRow: View {
 
                 if let errorMessage {
                     Text(errorMessage)
-                        .font(.caption)
+                        .font(Theme.font(.historyChip))
                         .foregroundStyle(.red)
                 }
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(palette.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
+            .background(palette.pillFill, in: .rect(cornerRadius: Theme.Radius.card))
             .overlay(
-                RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
+                RoundedRectangle(cornerRadius: Theme.Radius.card)
                     .stroke(palette.pillStroke, lineWidth: 1)
             )
         }

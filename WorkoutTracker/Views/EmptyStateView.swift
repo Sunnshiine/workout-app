@@ -2,26 +2,26 @@ import SwiftUI
 
 struct EmptyStateView: View {
     let onSettings: () -> Void
+    @Environment(\.themePalette) private var palette
 
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "dumbbell")
-                .font(.system(size: 48))
+                .font(Theme.font(.ceremonyTitle))
                 .foregroundStyle(.secondary)
             Text("No session yet")
-                .font(.title2)
-                .fontWeight(.semibold)
+                .font(Theme.font(.sheetTitle))
             Text("Automatic sync keeps checking your Sheet. Use Settings for manual recovery.")
-                .font(.subheadline)
+                .font(Theme.font(.coachNote))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             Button("Open Settings") {
                 onSettings()
             }
-            .buttonStyle(.workoutGlass)
+            .buttonStyle(.bordered)
             .padding(.top, 4)
         }
         .padding(Theme.cardSpacing * 2)
-        .workoutGlass(.card)
+        .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.card))
     }
 }
