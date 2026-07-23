@@ -13,6 +13,11 @@ import SwiftUI
 struct SessionStageBranch: View {
     let sets: [ExerciseSet]
     var activeSetID: ActiveSetID?
+    /// A Superset partner's Sets. When present the branch becomes **one forked
+    /// stem** (DESIGN.md §5.4): the focused Exercise's `sets` climb at full stroke
+    /// and alone carry the bud, while the partner's Sets grow along a shorter,
+    /// bud-less drooping lateral. `nil` keeps the page a single climbing stem.
+    var partnerSets: [ExerciseSet]?
     /// Tapping a node focuses its Set — matching the retired dots' behavior. `nil`
     /// keeps the branch a passive glyph.
     var onTap: ((ExerciseSet) -> Void)?
@@ -39,14 +44,43 @@ struct SessionStageBranch: View {
         static let stemWidth: CGFloat = 2
     }
 
+    /// The partner's drooping lateral (DESIGN.md §5.4): a thinner, shorter stem
+    /// that forks off the focused stem's lower reach and droops down-trailing,
+    /// carrying the partner's leaves but never the bud.
+    private enum PartnerMetrics {
+        static let stemWidth: CGFloat = 1.6
+        static let forkT: CGFloat = 0.30 // where on the focused stem the lateral forks
+        static let endX: CGFloat = 0.62 // fraction of width for the drooping tip
+        static let endY: CGFloat = 0.99 // fraction of height — the tip droops low
+        static let droop: CGFloat = 30 // downward bow of the drooping lateral
+        static let firstNodeT: CGFloat = 0.42
+        static let lastNodeT: CGFloat = 0.9
+        static let leafLength: CGFloat = 34 // subordinate to the focused leaf
+        static var leafSize: CGSize { CGSize(width: leafLength, height: leafLength * 24.0 / 60.0) }
+        static let leafOffset: CGFloat = 15
+        static let leafTilt: CGFloat = 18
+        static let futureLength: CGFloat = 17
+        static let futureTilt: CGFloat = 34
+        static let futureOffset: CGFloat = 6
+    }
+
     private var nodes: [(set: ExerciseSet, state: BranchNodeState)] {
         Array(zip(sets, SessionStagePresentation.branchNodeStates(for: sets, activeSetID: activeSetID)))
+    }
+
+    private var partnerNodes: [(set: ExerciseSet, state: BranchNodeState)] {
+        guard let partnerSets else { return [] }
+        return Array(zip(partnerSets, SessionStagePresentation.supersetPartnerNodeStates(for: partnerSets)))
     }
 
     var body: some View {
         GeometryReader { geo in
             let size = geo.size
             ZStack {
+                if partnerSets != nil {
+                    partnerBranch(in: size)
+                }
+
                 StemPath(
                     leadInset: Metrics.leadInset,
                     trailInset: Metrics.trailInset,
@@ -145,6 +179,97 @@ struct SessionStageBranch: View {
         .offset(y: lift)
     }
 
+    // MARK: - Partner lateral
+
+    @ViewBuilder
+    private func partnerBranch(in size: CGSize) -> some View {
+        let fork = stemPoint(t: PartnerMetrics.forkT, in: size)
+        ZStack {
+            LateralPath(fork: fork, tip: partnerTip(in: size), droop: PartnerMetrics.droop)
+                .stroke(
+                    palette.supersetPartnerBranch,
+                    style: StrokeStyle(lineWidth: PartnerMetrics.stemWidth, lineCap: .round)
+                )
+
+            ForEach(Array(partnerNodes.enumerated()), id: \.element.set.persistentModelID) { index, node in
+                let point = partnerPoint(t: partnerNodeT(index), fork: fork, in: size)
+                let angle = partnerAngle(t: partnerNodeT(index), fork: fork, in: size)
+                partnerGlyph(node.state, below: index.isMultiple(of: 2), angle: angle)
+                    .position(point)
+            }
+        }
+        // The partner is a passive lateral — it never receives focus taps (the
+        // "& partner" name line is the manual focus switch, DESIGN.md §5.4).
+        .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private func partnerGlyph(_ state: BranchNodeState, below: Bool, angle: Angle) -> some View {
+        let pigment = palette.supersetPartnerBranch
+        switch state {
+        case .leaf:
+            partnerLeaf(filled: true, below: below, angle: angle, pigment: pigment)
+        case .dashedLeaf:
+            partnerLeaf(filled: false, below: below, angle: angle, pigment: pigment)
+        case .future:
+            Capsule()
+                .fill(pigment.opacity(0.55))
+                .frame(width: PartnerMetrics.futureLength, height: PartnerMetrics.stemWidth)
+                .rotationEffect(angle + Angle(degrees: below ? PartnerMetrics.futureTilt : -PartnerMetrics.futureTilt))
+                .offset(y: below ? PartnerMetrics.futureOffset : -PartnerMetrics.futureOffset)
+        case .bud:
+            // The partner never carries the bud; the seam demotes it to a future.
+            EmptyView()
+        }
+    }
+
+    private func partnerLeaf(filled: Bool, below: Bool, angle: Angle, pigment: Color) -> some View {
+        let tilt = Angle(degrees: below ? PartnerMetrics.leafTilt : -PartnerMetrics.leafTilt)
+        let lift = below ? PartnerMetrics.leafOffset : -PartnerMetrics.leafOffset
+        return BranchLeafGlyph(
+            filled: filled,
+            fill: pigment,
+            rib: nil,
+            dash: pigment,
+            size: PartnerMetrics.leafSize
+        )
+        .rotationEffect(angle + tilt)
+        .offset(y: lift)
+    }
+
+    private func partnerTip(in size: CGSize) -> CGPoint {
+        CGPoint(x: size.width * PartnerMetrics.endX, y: size.height * PartnerMetrics.endY)
+    }
+
+    private func partnerControl(fork: CGPoint, in size: CGSize) -> CGPoint {
+        let tip = partnerTip(in: size)
+        return CGPoint(x: (fork.x + tip.x) / 2, y: (fork.y + tip.y) / 2 + PartnerMetrics.droop)
+    }
+
+    private func partnerNodeT(_ index: Int) -> CGFloat {
+        guard partnerNodes.count > 1 else { return (PartnerMetrics.firstNodeT + PartnerMetrics.lastNodeT) / 2 }
+        let span = PartnerMetrics.lastNodeT - PartnerMetrics.firstNodeT
+        return PartnerMetrics.firstNodeT + span * CGFloat(index) / CGFloat(partnerNodes.count - 1)
+    }
+
+    private func partnerPoint(t: CGFloat, fork: CGPoint, in size: CGSize) -> CGPoint {
+        let tip = partnerTip(in: size)
+        let control = partnerControl(fork: fork, in: size)
+        let mt = 1 - t
+        let x = mt * mt * fork.x + 2 * mt * t * control.x + t * t * tip.x
+        let y = mt * mt * fork.y + 2 * mt * t * control.y + t * t * tip.y
+        return CGPoint(x: x, y: y)
+    }
+
+    private func partnerAngle(t: CGFloat, fork: CGPoint, in size: CGSize) -> Angle {
+        let tip = partnerTip(in: size)
+        let control = partnerControl(fork: fork, in: size)
+        let mt = 1 - t
+        let dx = 2 * mt * (control.x - fork.x) + 2 * t * (tip.x - control.x)
+        let dy = 2 * mt * (control.y - fork.y) + 2 * t * (tip.y - control.y)
+        return Angle(radians: atan2(dy, dx))
+    }
+
     // MARK: - Stem geometry
 
     private func nodeT(_ index: Int) -> CGFloat {
@@ -194,6 +319,23 @@ private struct StemPath: Shape {
         var path = Path()
         path.move(to: p0)
         path.addQuadCurve(to: p1, control: control)
+        return path
+    }
+}
+
+/// The Superset partner's drooping lateral — a quadratic bezier forking off the
+/// focused stem and bowing downward, so the partner reads as a subordinate branch
+/// of one plant rather than a second climbing stem (DESIGN.md §5.4).
+private struct LateralPath: Shape {
+    let fork: CGPoint
+    let tip: CGPoint
+    let droop: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let control = CGPoint(x: (fork.x + tip.x) / 2, y: (fork.y + tip.y) / 2 + droop)
+        var path = Path()
+        path.move(to: fork)
+        path.addQuadCurve(to: tip, control: control)
         return path
     }
 }

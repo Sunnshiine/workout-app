@@ -399,6 +399,37 @@ struct SessionStagePresentationTests {
         #expect(SessionStagePresentation.branchNodeStates(for: sets, activeSetID: nil) == [.leaf, .leaf])
     }
 
+    @Test func supersetPartnerBranchNeverCarriesTheBud() {
+        // The bud rides the focus (DESIGN.md §5.4): the partner's next Pending
+        // Set reads as a future stroke, not a waking bud — only the focused
+        // branch buds.
+        let partner = makeExercise(name: "Row", order: 2, setStates: [.logged, .skipped, .pending, .pending])
+        let sets = partner.sets.sorted { $0.index < $1.index }
+
+        let states = SessionStagePresentation.supersetPartnerNodeStates(for: sets)
+
+        #expect(states == [.leaf, .dashedLeaf, .future, .future])
+    }
+
+    @Test func supersetForkPutsTheBudOnTheFocusAndSubordinatesThePartner() {
+        // The focused Exercise's branch carries the leaves and the one open bud
+        // at full stroke; the partner is a bud-less lateral. The name line is the
+        // Fraunces "& partner" (DESIGN.md §5.4).
+        let focused = makeExercise(name: "DB Incline Press", order: 1, setStates: [.logged, .pending, .pending])
+        let partner = makeExercise(name: "Chest-Supported Row", order: 2, setStates: [.pending, .pending])
+
+        let fork = SessionStagePresentation.supersetFork(
+            focused: focused,
+            partner: partner,
+            activeSetID: ActiveSetID(exerciseOrder: 1, setIndex: 1)
+        )
+
+        #expect(fork.focusedNodes == [.leaf, .bud, .future])
+        #expect(fork.partnerNodes == [.future, .future])
+        #expect(fork.partnerNameLine == "& Chest-Supported Row")
+        #expect(fork.partnerExerciseOrder == 2)
+    }
+
     @Test func pairingRoleTreatsSupersetItemsAsIneligibleTargets() throws {
         let press = makeExercise(name: "Press", order: 1, setStates: [.pending])
         let row = makeExercise(name: "Row", order: 2, setStates: [.pending])

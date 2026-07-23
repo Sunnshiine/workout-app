@@ -60,6 +60,17 @@ enum BranchNodeState: Equatable, Sendable {
     case future
 }
 
+/// The forked-stem reading for a Superset stage (DESIGN.md §5.4): the focused
+/// branch's node states (carrying the one bud), the partner branch's bud-less
+/// node states, and the partner's "& partner" name line — the Fraunces line that
+/// doubles as the manual focus switch onto `partnerExerciseOrder`.
+struct SupersetForkReading: Equatable, Sendable {
+    let focusedNodes: [BranchNodeState]
+    let partnerNodes: [BranchNodeState]
+    let partnerNameLine: String
+    let partnerExerciseOrder: Int
+}
+
 /// The part a queue row plays while Superset pairing is in flight.
 enum QueuePairingRole: Equatable, Sendable {
     case none
@@ -162,6 +173,34 @@ enum SessionStagePresentation {
             case .pending: return set.persistentModelID == bud?.persistentModelID ? .bud : .future
             }
         }
+    }
+
+    /// A Superset partner branch's node states: the same leaf/dashed-leaf/future
+    /// reading as any branch, but **bud-less**. The bud rides the focus
+    /// (DESIGN.md §5.4), so the partner's next Pending Set reads as a future
+    /// stroke rather than a waking bud — its branch is a subordinate lateral, not
+    /// a second climbing stem.
+    static func supersetPartnerNodeStates(for sets: [ExerciseSet]) -> [BranchNodeState] {
+        branchNodeStates(for: sets, activeSetID: nil).map { $0 == .bud ? .future : $0 }
+    }
+
+    /// The forked-stem reading for a Superset (DESIGN.md §5.4). The focused
+    /// Exercise's branch leads at full stroke and alone carries the open bud; the
+    /// partner's branch is a subordinate lateral that never buds. The partner's
+    /// Fraunces "& partner" name line doubles as the manual focus switch.
+    static func supersetFork(
+        focused: Exercise,
+        partner: Exercise,
+        activeSetID: ActiveSetID?
+    ) -> SupersetForkReading {
+        let focusedSets = focused.sets.sorted { $0.index < $1.index }
+        let partnerSets = partner.sets.sorted { $0.index < $1.index }
+        return SupersetForkReading(
+            focusedNodes: branchNodeStates(for: focusedSets, activeSetID: activeSetID),
+            partnerNodes: supersetPartnerNodeStates(for: partnerSets),
+            partnerNameLine: "& \(partner.baseName)",
+            partnerExerciseOrder: partner.order
+        )
     }
 
     private static func budSet(in sets: [ExerciseSet], activeSetID: ActiveSetID?) -> ExerciseSet? {
