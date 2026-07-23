@@ -218,6 +218,9 @@ enum Theme {
         let pillFill: Color
         let pillStroke: Color
         let railFill: Color
+        /// The selected rail chip's cream fill, lit under the inset action ring (token sheet
+        /// §Active Set Card, "rail chip selected").
+        let railSelectedFill: Color
         let prescriptionTick: Color
 
         // Log capsule / action
@@ -569,6 +572,7 @@ extension Theme {
         pillFill: Paint.cream.opacity(0.85), // stepper buttons — cream @ 85% (ledger §1.1 fix)
         pillStroke: rgb(82, 111, 90, 0.34), // ledger §1.1 fix — not the queue stroke
         railFill: Paint.cream.opacity(0.55),
+        railSelectedFill: Paint.cream.opacity(0.95),
         prescriptionTick: Paint.actionDay,
         action: Paint.actionDay,
         actionText: Paint.cream,
@@ -628,14 +632,15 @@ extension Theme {
         pillFill: Paint.cream.opacity(0.06), // stepper buttons — cream @ 6% (ledger §1.1 fix)
         pillStroke: Paint.cream.opacity(0.16), // ledger §1.1 fix — not the queue stroke
         railFill: Paint.cream.opacity(0.06),
+        railSelectedFill: Paint.cream.opacity(0.14),
         prescriptionTick: Paint.actionNight,
         action: Paint.actionNight,
         actionText: Paint.cream,
         logShadow: [
             BoxShadow(y: 0, blur: 22, color: rgb(31, 133, 82, 0.35)), // green light — glow, no drop
         ],
-        pressedFill: nil, // night pressed fill deferred to the input-block build slice (token sheet §Log capsule)
-        skipFillOverlay: nil, // night skip overlay deferred to the input-block build slice
+        pressedFill: nil, // night pressed fill deferred — still unconsumed (token sheet §Log capsule)
+        skipFillOverlay: Paint.mutedNight.opacity(0.30), // muted hold-to-skip overlay, re-lit for Night (#488)
         footFill: Paint.cream.opacity(0.06),
         queueStroke: Paint.cream.opacity(0.20),
         tileCurrentFill: Paint.cream.opacity(0.95),
@@ -881,6 +886,44 @@ extension Theme.Palette {
                     startRadiusFraction: 0,
                     endRadiusFraction: wash.radiusFraction
                 )
+            }
+        }
+    }
+}
+
+// MARK: - Elevation
+
+extension View {
+    /// Applies a token-sheet elevation recipe (`surfaceShadow`, `logShadow`, the light kit). Drop
+    /// shadows stack as SwiftUI shadows; an inset recipe — the Night "border-as-light" — renders as
+    /// an inset stroke on `shape` instead of a drop (token sheet §Active Set Card / §Log capsule).
+    func themeElevation(_ shadows: [Theme.BoxShadow], in shape: some InsettableShape) -> some View {
+        modifier(Theme.Elevation(shadows: shadows, shape: shape))
+    }
+}
+
+extension Theme {
+    struct Elevation<Bed: InsettableShape>: ViewModifier {
+        let shadows: [BoxShadow]
+        let shape: Bed
+
+        func body(content: Content) -> some View {
+            let drops = shadows.filter { !$0.isInset }
+            let insets = shadows.filter(\.isInset)
+            return drops.reduce(AnyView(content)) { view, shadow in
+                AnyView(
+                    view.shadow(
+                        color: shadow.color,
+                        radius: shadow.swiftUIRadius,
+                        x: shadow.xOffset,
+                        y: shadow.yOffset
+                    )
+                )
+            }
+            .overlay {
+                ForEach(Array(insets.enumerated()), id: \.offset) { _, shadow in
+                    shape.strokeBorder(shadow.color, lineWidth: max(shadow.spread, 1))
+                }
             }
         }
     }

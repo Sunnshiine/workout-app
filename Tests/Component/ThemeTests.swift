@@ -434,16 +434,43 @@ import Testing
     #endif
 }
 
-@Test func themePressedAndSkipFillAreDayValuesDeferredAtNight() {
-    // Token sheet §Log capsule: the pressed fill (#0A5936) and the muted @ 30% skip overlay are
-    // day values; their night recipes are flagged "— (build)" and land with the input-block slice.
+@Test func themeSkipFillOverlayIsMutedInBothAppearances() {
+    // Token sheet §Log capsule: the hold-to-skip overlay is muted @ 30% — never danger red
+    // (ledger §2.8). The night recipe lands with this input-block build slice (#488).
     #if canImport(AppKit)
-        let day = Theme.palette(for: Theme.Appearance.day)
-        expectRGB(try! #require(day.pressedFill), red: 10 / 255, green: 89 / 255, blue: 54 / 255)
-        expectRGB(try! #require(day.skipFillOverlay), red: 82 / 255, green: 100 / 255, blue: 87 / 255, alpha: 0.30)
+        expectRGB(
+            try! #require(Theme.palette(for: Theme.Appearance.day).skipFillOverlay),
+            red: 82 / 255, green: 100 / 255, blue: 87 / 255, alpha: 0.30
+        )
+        expectRGB(
+            try! #require(Theme.palette(for: Theme.Appearance.night).skipFillOverlay),
+            red: 154 / 255, green: 170 / 255, blue: 155 / 255, alpha: 0.30
+        )
+    #endif
+}
+
+@Test func themePressedFillIsADayValueDeferredAtNight() {
+    // The pressed / logged Log-capsule fill (#0A5936) is a day value; its night recipe is still
+    // flagged "— (build)" and has no consumer yet, so it stays deferred.
+    #if canImport(AppKit)
+        expectRGB(try! #require(Theme.palette(for: Theme.Appearance.day).pressedFill), red: 10 / 255, green: 89 / 255, blue: 54 / 255)
     #endif
     #expect(Theme.palette(for: Theme.Appearance.night).pressedFill == nil)
-    #expect(Theme.palette(for: Theme.Appearance.night).skipFillOverlay == nil)
+}
+
+@Test func themeRailSelectedFillIsALitCreamChipInBothAppearances() {
+    // The selected rail chip takes a cream fill under the inset action ring (token sheet §Active
+    // Set Card, "rail chip selected"); the ring is the primary selection signal at Night.
+    #if canImport(AppKit)
+        expectRGB(
+            Theme.palette(for: Theme.Appearance.day).railSelectedFill,
+            red: 242 / 255, green: 247 / 255, blue: 232 / 255, alpha: 0.95
+        )
+        expectRGB(
+            Theme.palette(for: Theme.Appearance.night).railSelectedFill,
+            red: 242 / 255, green: 247 / 255, blue: 232 / 255, alpha: 0.14
+        )
+    #endif
 }
 
 @Test func themeLightKitCardLowAndSunGlowMatchTokenSheet() {

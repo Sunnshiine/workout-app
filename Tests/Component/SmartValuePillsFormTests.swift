@@ -167,7 +167,7 @@ import Testing
 
     form.rpeText = "7"
 
-    #expect(form.logButtonTitle == "Log 185×8@7")
+    #expect(form.logButtonTitle == "Log 185 × 8 @7")
     #expect(form.canLog)
     #expect(form.makeLog() == SetLog(weight: .pounds(185), reps: 8, rpe: 7))
 }
@@ -216,7 +216,7 @@ import Testing
     )
 
     form.rpeText = "6.5"
-    #expect(form.logButtonTitle == "Log 237.5×5@6.5")
+    #expect(form.logButtonTitle == "Log 237.5 × 5 @6.5")
 
     form.rpeText = "6"
     #expect(form.rpeDisplay == "6")

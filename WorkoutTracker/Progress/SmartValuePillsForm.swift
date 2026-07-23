@@ -72,7 +72,9 @@ struct SmartValuePillsForm {
 
     var logButtonTitle: String {
         guard let log = makeLog() else { return incompleteLogButtonTitle }
-        return "Log \(log.weight.label)×\(log.reps)@\(Self.rpeLabel(log.rpe))"
+        // The Log capsule previews the exact Set Log with the spaced typography of
+        // pick input-block3-c ("Log 90 × 5 @8").
+        return "Log \(log.weight.label) × \(log.reps) @\(Self.rpeLabel(log.rpe))"
     }
 
     init(set: ExerciseSet, previousSetWeight: Double?, trainingMax: Double?) {
