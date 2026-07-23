@@ -103,8 +103,12 @@ struct ConnectPerch: View {
                     .rotationEffect(.degrees(-58))
                     .position(x: rightEnd.x - leafSize.width * 0.1, y: rightEnd.y + leafSize.height * 0.9)
 
+                // Seat the bird *on* the branch: the body's underside (≈0.80 of the
+                // glyph height) meets the crown, with a few points of overlap so it
+                // reads perched, not floating.
+                let birdHeight = birdWidth * 0.6
                 SongbirdGlyph(width: birdWidth, fill: palette.birdFill, rib: palette.birdRib)
-                    .position(x: crown.x, y: crown.y - birdWidth * 0.6 * 0.5 + size.height * 0.02)
+                    .position(x: crown.x, y: crown.y - birdHeight * 0.30 + 4)
             }
         }
         .frame(width: width, height: height)
