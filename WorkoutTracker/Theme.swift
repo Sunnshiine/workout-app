@@ -410,6 +410,22 @@ enum Theme {
     static let rpeScaleHeight: CGFloat = 52
     static let rpeScaleChipWidth: CGFloat = 52
     static let rpeScaleChipSpacing: CGFloat = 6
+
+    // MARK: - Active Set Card & input block geometry (token sheet §5.2 / §5.3)
+    //
+    // Type-coupled geometry kept in Theme so it graduates to @ScaledMetric in one place if the
+    // fixed-size stance ever reverses. Radii come from the named family; these are the sizes.
+
+    static let cardContentPadding = EdgeInsets(top: 16, leading: 16, bottom: 14, trailing: 16)
+    static let inputBlockSpacing: CGFloat = 16
+    static let weightStepperDiameter: CGFloat = 54 // the round ± steppers flanking the weight
+    static let railCellWidth: CGFloat = 48 // one rail chip cell (48×44)
+    static let railCellHeight: CGFloat = 44
+    static let railTrackHeight: CGFloat = 58 // the rail track the cells sit inside, concentric with cell 14
+    static let railCellInset: CGFloat = 3 // the selected chip's inset within its cell
+    static let railEdgeFadeWidth: CGFloat = 18
+    static let prescriptionTickWidth: CGFloat = 18 // last-week tick under the rail value (18×3, r2)
+    static let prescriptionTickHeight: CGFloat = 3
     static let weightIncrementThreshold = 100.0
     static let lightWeightIncrementOptions = [2.5, 5.0]
     static let heavyWeightIncrementOptions = [5.0, 10.0]

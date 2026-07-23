@@ -1,5 +1,9 @@
 import SwiftUI
 
+/// The one soft container (DESIGN.md §5.2, pick input-block3-c): radius `soft` 30, the day double
+/// `surfaceShadow` / night inset cream border, padding 16/16/14. Its head is a plain `Set N of M`;
+/// the uppercase status microlabel, the carved capsule badge, and the in-card Exercise-name repeat
+/// are gone (ledger §2.2–2.3). The input block itself is `SmartValuePills`.
 struct ActiveSetCard: View {
     /// How the card participates in the Session: logging the active pending
     /// Set, or reviewing an already-logged one with a collapse affordance.
@@ -24,6 +28,8 @@ struct ActiveSetCard: View {
     let onSkip: () -> Void
     let onDelete: () -> Void
     var showsLoggedCheckmark = false
+    /// Retained for the Superset composition (#489); the card no longer repeats the Exercise name
+    /// or its badge inside itself (ledger §2.3).
     var identityLabel: String?
     @Environment(\.themePalette) private var palette
     @State private var inputDismissalRequestID = 0
@@ -33,31 +39,17 @@ struct ActiveSetCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 16) {
             header
-
-            if case .logging = mode {
-                HStack(alignment: .center, spacing: 8) {
-                    if let identityLabel {
-                        SupersetIdentityBadge(label: identityLabel, isActive: true)
-                    }
-
-                    Text(exercise.name)
-                        .font(.headline.weight(.bold))
-
-                    Spacer(minLength: 0)
-                }
-                .contentShape(.rect)
-                .onTapGesture(perform: requestInputDismissal)
-            }
 
             if let referenceText = presentation.referenceText {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Original Unstructured Set Log")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                        .font(Theme.font(.fieldLabel))
+                        .foregroundStyle(palette.textSecondary)
                     Text(referenceText)
-                        .font(.callout.weight(.semibold))
+                        .font(Theme.font(.runline))
+                        .foregroundStyle(palette.textPrimary)
                 }
             }
 
@@ -75,70 +67,50 @@ struct ActiveSetCard: View {
             .id(set.persistentModelID)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(palette.activeCardFill, in: .rect(cornerRadius: Theme.cardCornerRadius))
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.cardCornerRadius)
-                .strokeBorder(palette.activeCardStroke.opacity(0.8), lineWidth: 1)
-        )
+        .padding(Theme.cardContentPadding)
+        .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.soft))
+        .themeElevation(palette.surfaceShadow, in: RoundedRectangle(cornerRadius: Theme.Radius.soft))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("active-set-card")
     }
 
-    @ViewBuilder
+    // The plain `Set N of M` head: `Set 3` in 16pt/700 tnum, ` of 5` in 14pt/500 muted. Reviewing a
+    // logged Set adds the Saved confirmation and a collapse chevron on the trailing edge.
     private var header: some View {
-        switch mode {
-        case .logging:
-            HStack(alignment: .firstTextBaseline) {
-                Text(presentation.statusText)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(palette.accent)
-                    .textCase(.uppercase)
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text("Set \(setOrdinal)")
+                .font(Theme.font(.setNumber))
+                .foregroundColor(palette.textPrimary)
+                + Text(" of \(setCount)")
+                .font(Theme.font(.setOf))
+                .foregroundColor(palette.textSecondary)
 
-                Spacer()
+            Spacer(minLength: 0)
 
-                Text("Set \(setOrdinal) of \(setCount)")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(palette.badgeFill, in: .capsule)
-            }
-            .contentShape(.rect)
-            .onTapGesture(perform: requestInputDismissal)
-        case .reviewingLogged(let showsSavedConfirmation, let onCollapse):
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(presentation.statusText)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(palette.accent)
-                        .textCase(.uppercase)
-
-                    Text("Set \(setOrdinal) of \(setCount)")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer(minLength: 0)
-
+            if case .reviewingLogged(let showsSavedConfirmation, let onCollapse) = mode {
                 if showsSavedConfirmation {
                     Label("Saved", systemImage: "checkmark.circle.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(palette.accent)
+                        .font(Theme.font(.setOf))
+                        .foregroundStyle(palette.action)
                 }
 
                 Button(action: onCollapse) {
                     Image(systemName: "chevron.up")
-                        .font(.callout.weight(.semibold))
+                        .imageScale(.medium)
+                        .foregroundStyle(palette.textSecondary)
                         .accessibilityLabel("Collapse logged set")
                 }
-                .buttonStyle(.workoutGlass)
+                .buttonStyle(.plain)
             }
         }
+        .contentShape(.rect)
+        .onTapGesture(perform: dismissInputIfLogging)
     }
 
-    private func requestInputDismissal() {
-        inputDismissalRequestID += 1
+    private func dismissInputIfLogging() {
+        if case .logging = mode {
+            inputDismissalRequestID += 1
+        }
     }
 
     private var previousSetWeight: Double? {

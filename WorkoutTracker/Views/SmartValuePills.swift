@@ -1,12 +1,14 @@
 import SwiftUI
 import UIKit
 
-struct SmartValuePills: View {
-    private enum FocusedPill {
-        case weight
-        case reps
-    }
+#if canImport(CoreHaptics)
+    import CoreHaptics
+#endif
 
+/// The Active Set Card's input block (DESIGN.md §5.2, pick input-block3-c): weight
+/// leads as the card's biggest number flanked by round ± steppers; Reps and RPE are
+/// side-by-side one-tap scroll rails; a true Log capsule previews the exact Set Log.
+struct SmartValuePills: View {
     let set: ExerciseSet
     let mode: SetCardMode
     let onLog: (SetLog) -> Void
@@ -15,10 +17,10 @@ struct SmartValuePills: View {
     let inputDismissalRequestID: Int
 
     @State private var form: SmartValuePillsForm
-    @State private var editingPill: FocusedPill?
+    @State private var isEditingWeight = false
     @State private var showsLoggedCheckmark = false
     @Environment(\.themePalette) private var palette
-    @FocusState private var focusedPill: FocusedPill?
+    @FocusState private var weightFieldFocused: Bool
 
     init(
         set: ExerciseSet,
@@ -48,30 +50,37 @@ struct SmartValuePills: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            WeightedValuePillRow(spacing: Theme.pillSpacing, weightColumnFraction: 2.0 / 3.0) {
-                weightPill
-                repsPill
-            }
+        VStack(spacing: Theme.inputBlockSpacing) {
+            weightControl
 
-            RPEScaleScroller(
-                presentation: RPEScalePresentation(
-                    prescribedRPE: form.prescribedRPE,
-                    selection: form.rpeText
-                ),
-                onSelect: { form.rpeText = $0 }
-            )
+            HStack(alignment: .top, spacing: 12) {
+                ValueRail(
+                    chips: repsPresentation.chips,
+                    selectedIndex: repsPresentation.selectedIndex,
+                    label: "Reps",
+                    isInvalid: form.invalidFields.contains(.reps),
+                    onSelect: { form.repsText = $0 }
+                )
+
+                ValueRail(
+                    chips: rpePresentation.railChips,
+                    selectedIndex: rpePresentation.selectedIndex,
+                    label: "RPE",
+                    isInvalid: form.invalidFields.contains(.rpe),
+                    onSelect: { form.rpeText = $0 }
+                )
+            }
 
             if presentation.showsLogControls {
                 actionControls
             } else if form.hasChanges, form.changedValidLog == nil {
                 Text("Complete weight, reps, and RPE to update this logged set.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(Theme.font(.fieldLabel))
+                    .foregroundStyle(palette.textSecondary)
             }
         }
-        .task(id: editingPill) {
-            focusedPill = editingPill
+        .task(id: isEditingWeight) {
+            weightFieldFocused = isEditingWeight
         }
         .background {
             Color.clear
@@ -88,116 +97,91 @@ struct SmartValuePills: View {
         SetCardPresentation(mode: mode, set: set)
     }
 
-    private var weightPill: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Weight")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+    private var repsPresentation: RepsScalePresentation {
+        RepsScalePresentation(prescribedReps: set.prescribedReps, selection: form.repsText)
+    }
 
-            CenteredWeightValueControls(showsSteppers: form.allowsWeightStepping) {
-                weightValueField
-            } decrement: {
-                stepperButton("minus", by: -form.fineWeightIncrement, id: "weight-decrement")
-            } increment: {
-                stepperButton("plus", by: form.fineWeightIncrement, id: "weight-increment")
-            }
+    private var rpePresentation: RPEScalePresentation {
+        RPEScalePresentation(prescribedRPE: form.prescribedRPE, selection: form.rpeText)
+    }
+
+    // MARK: - Weight (the card's biggest number)
+
+    private var weightControl: some View {
+        HStack(spacing: 12) {
+            weightStepper(.decrement, id: "weight-decrement")
+
+            weightValue
+                .frame(maxWidth: .infinity)
+
+            weightStepper(.increment, id: "weight-increment")
         }
-        .modifier(PillChrome(isFocused: editingPill == .weight, isInvalid: form.invalidFields.contains(.weight)))
-        .opacity(dimmedOpacity(for: .weight))
         .accessibilityElement(children: .contain)
     }
 
     @ViewBuilder
-    private var weightValueField: some View {
-        if editingPill == .weight {
+    private var weightValue: some View {
+        if isEditingWeight {
             TextField(form.weightDisplay, text: $form.weightText)
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.center)
-                .font(.title3.weight(.bold))
-                .foregroundStyle(palette.valueText)
+                .font(Theme.font(.weightEntry))
+                .foregroundStyle(palette.textPrimary)
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .focused($focusedPill, equals: .weight)
+                .minimumScaleFactor(0.5)
+                .focused($weightFieldFocused)
                 .accessibilityIdentifier("weight-pill")
         } else {
             Text(form.weightDisplay)
-                .font(.title3.weight(.bold))
-                .foregroundStyle(palette.valueText)
+                .font(Theme.font(.weightEntry))
+                .foregroundStyle(palette.textPrimary)
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .layoutPriority(1)
+                .minimumScaleFactor(0.5)
                 .frame(maxWidth: .infinity)
                 .contentShape(.rect)
-                .onTapGesture { editingPill = .weight }
+                .onTapGesture { isEditingWeight = true }
                 .accessibilityLabel("Weight, \(form.weightDisplay)")
                 .accessibilityIdentifier("weight-pill")
                 .accessibilityAddTraits(.isButton)
         }
     }
 
-    private func stepperButton(_ systemName: String, by increment: Double, id: String) -> some View {
-        PillStepperButton(systemName: systemName, accessibilityIdentifier: id) {
-            form.adjustWeight(by: increment)
-        }
-    }
-
-    private var repsPill: some View {
-        let isPlaceholder = form.isRepsDisplayingPlaceholder && editingPill != .reps
-
-        return VStack(alignment: .center, spacing: 8) {
-            Text("Reps")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .center)
-
-            if editingPill == .reps {
-                TextField(form.repsDisplay, text: $form.repsText)
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.center)
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(palette.valueText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                    .focused($focusedPill, equals: .reps)
-            } else {
-                Text(form.repsDisplay)
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(isPlaceholder ? Color.secondary : palette.valueText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                    .frame(maxWidth: .infinity, alignment: .center)
+    @ViewBuilder
+    private func weightStepper(_ direction: WeightStepperButton.Direction, id: String) -> some View {
+        if form.allowsWeightStepping {
+            WeightStepperButton(direction: direction, accessibilityIdentifier: id) {
+                stepWeight(direction)
             }
+        } else {
+            // Hold the slot so the number stays centered even when stepping is disabled (bodyweight).
+            Color.clear.frame(width: Theme.weightStepperDiameter, height: Theme.weightStepperDiameter)
         }
-        .modifier(
-            PillChrome(
-                isFocused: editingPill == .reps,
-                isInvalid: form.invalidFields.contains(.reps),
-                alignment: .center
-            )
-        )
-        .opacity(dimmedOpacity(for: .reps))
-        .contentShape(.rect)
-        .onTapGesture { editingPill = .reps }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Reps, \(form.repsDisplay)")
-        .accessibilityIdentifier("reps-pill")
-        .accessibilityAddTraits(.isButton)
     }
 
-    /// Dims the field that is not being typed in, so the focused field reads as active.
-    private func dimmedOpacity(for pill: FocusedPill) -> Double {
-        guard let editingPill, editingPill != pill else { return 1 }
-        return 0.5
+    private func stepWeight(_ direction: WeightStepperButton.Direction) {
+        let current = Double(form.weightText) ?? 0
+        let increment = form.fineWeightIncrement
+        if direction == .decrement, current - increment < 0 {
+            // The floor: clamp at zero and answer with the dud, not a tick.
+            form.weightText = "0"
+            InputHapticPlayer.shared.play(Theme.Haptics.skipDud)
+        } else {
+            form.adjustWeight(by: direction == .increment ? increment : -increment)
+            InputHapticPlayer.shared.play(Theme.Haptics.stepperTick)
+        }
     }
+
+    // MARK: - Log capsule / skip
 
     private var actionControls: some View {
         VStack(spacing: 8) {
             HoldToSkipLogButton(
                 logTitle: form.logButtonTitle,
                 canLog: form.canLog,
+                isSkipped: set.state == .skipped,
                 showsLoggedCheckmark: showsLoggedCheckmark,
                 onLogTap: submitLog,
-                onSkip: onSkip,
+                onSkip: skip,
                 onPressStarted: dismissFieldUI
             )
 
@@ -210,16 +194,16 @@ struct SmartValuePills: View {
                     } label: {
                         Image(systemName: "ellipsis.circle")
                             .imageScale(.large)
+                            .foregroundStyle(palette.textSecondary)
                     }
-                    .buttonStyle(.workoutGlass)
+                    .accessibilityIdentifier("clear-logged-set-menu")
                 }
             }
         }
     }
 
-    /// Reviewing an already-logged Set commits silently: any changed, valid
-    /// draft is written when the card leaves the screen (collapse or
-    /// navigation), with the header's Saved label as feedback.
+    /// Reviewing an already-logged Set commits silently: any changed, valid draft is written when
+    /// the card leaves the screen (collapse or navigation), with the header's Saved label as feedback.
     private func commitChangedDraftIfNeeded() {
         guard presentation.commitsChangesOnDisappear, let log = form.changedValidLog else { return }
         onLog(log)
@@ -227,130 +211,178 @@ struct SmartValuePills: View {
 
     private func submitLog() {
         guard let log = form.submitLog() else { return }
+        InputHapticPlayer.shared.play(Theme.Haptics.logTap)
         withAnimation(Theme.logButtonCheckmarkAnimation) {
             showsLoggedCheckmark = true
         }
         onLog(log)
     }
 
+    private func skip() {
+        InputHapticPlayer.shared.play(Theme.Haptics.skipDud)
+        onSkip()
+    }
+
     private func dismissFieldUI() {
-        editingPill = nil
-        focusedPill = nil
+        isEditingWeight = false
+        weightFieldFocused = false
     }
 }
 
-private struct WeightedValuePillRow: Layout {
-    let spacing: CGFloat
-    let weightColumnFraction: CGFloat
+// MARK: - Value rail (Reps / RPE)
 
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        guard subviews.count == 2 else { return .zero }
-
-        let totalWidth = proposal.width ?? intrinsicWidth(for: subviews)
-        let columnWidths = columns(for: totalWidth)
-        let heights = subviews.enumerated().map { index, subview in
-            subview.sizeThatFits(
-                ProposedViewSize(width: columnWidths[index], height: proposal.height)
-            ).height
-        }
-
-        return CGSize(width: totalWidth, height: heights.max() ?? 0)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        guard subviews.count == 2 else { return }
-
-        let columnWidths = columns(for: bounds.width)
-        var x = bounds.minX
-        for (index, subview) in subviews.enumerated() {
-            subview.place(
-                at: CGPoint(x: x, y: bounds.minY),
-                proposal: ProposedViewSize(width: columnWidths[index], height: bounds.height)
-            )
-            x += columnWidths[index] + spacing
-        }
-    }
-
-    private func intrinsicWidth(for subviews: Subviews) -> CGFloat {
-        subviews.reduce(0) { width, subview in
-            width + subview.sizeThatFits(.unspecified).width
-        } + spacing
-    }
-
-    private func columns(for totalWidth: CGFloat) -> [CGFloat] {
-        let availableWidth = max(totalWidth - spacing, 0)
-        let weightWidth = floor(availableWidth * weightColumnFraction)
-        return [weightWidth, availableWidth - weightWidth]
-    }
-}
-
-private struct CenteredWeightValueControls<Value: View, Decrement: View, Increment: View>: View {
-    let showsSteppers: Bool
-    @ViewBuilder let value: Value
-    @ViewBuilder let decrement: Decrement
-    @ViewBuilder let increment: Increment
-
-    var body: some View {
-        ZStack {
-            HStack(spacing: 0) {
-                Spacer()
-                    .frame(width: WeightPillLayoutMetrics.valueSideReserve)
-
-                value
-                    .frame(maxWidth: .infinity, alignment: .center)
-
-                Spacer()
-                    .frame(width: WeightPillLayoutMetrics.valueSideReserve)
-            }
-
-            if showsSteppers {
-                HStack(spacing: 0) {
-                    decrement
-
-                    Spacer(minLength: 0)
-
-                    increment
-                }
-            }
-        }
-        .frame(
-            maxWidth: .infinity,
-            minHeight: WeightPillLayoutMetrics.stepperButtonSize
-        )
-    }
-}
-
-/// Pill background plus a stroke that turns accent while focused and red when invalid.
-private struct PillChrome: ViewModifier {
-    let isFocused: Bool
-    let isInvalid: Bool
-    var alignment: Alignment = .leading
+/// A one-tap scroll rail (DESIGN.md §5.2): 48×44 cells inside a `rail`-radius track, the selected
+/// value a cream chip with an inset action ring, its prescription tick below. The strip is
+/// offset-driven — tapping a visible cell re-centers it — so the selected value renders centered in
+/// offscreen snapshots (which never apply async scrolling; ledger salvage note 1).
+private struct ValueRail: View {
+    let chips: [ValueRailChip]
+    let selectedIndex: Int
+    let label: String
+    var isInvalid = false
+    let onSelect: (String) -> Void
     @Environment(\.themePalette) private var palette
 
-    func body(content: Content) -> some View {
-        content
-            .frame(maxWidth: .infinity, minHeight: Theme.pillMinHeight, alignment: alignment)
-            .padding(.horizontal, 12)
-            .background(palette.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
-                    .strokeBorder(strokeColor, lineWidth: strokeWidth)
-            )
+    var body: some View {
+        VStack(spacing: 8) {
+            GeometryReader { geo in
+                let offset = ValueRailLayout.contentOffset(
+                    trackWidth: geo.size.width,
+                    cellWidth: Theme.railCellWidth,
+                    spacing: 0,
+                    selectedIndex: selectedIndex
+                )
+
+                HStack(spacing: 0) {
+                    ForEach(chips) { chip in
+                        cell(chip)
+                    }
+                }
+                .frame(height: geo.size.height)
+                .offset(x: offset)
+                .animation(.snappy(duration: 0.22), value: selectedIndex)
+            }
+            .frame(height: Theme.railTrackHeight)
+            .background(palette.railFill, in: .rect(cornerRadius: Theme.Radius.rail))
+            .clipShape(.rect(cornerRadius: Theme.Radius.rail))
+            .overlay {
+                RoundedRectangle(cornerRadius: Theme.Radius.rail)
+                    .strokeBorder(isInvalid ? palette.danger : .clear, lineWidth: 2)
+            }
+            .overlay(alignment: .leading) { edgeFade(leading: true) }
+            .overlay(alignment: .trailing) { edgeFade(leading: false) }
+
+            Text(label)
+                .font(Theme.font(.fieldLabel))
+                .foregroundStyle(palette.textSecondary)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(label)
     }
 
-    private var strokeColor: Color {
-        if isInvalid { return palette.danger }
-        return isFocused ? palette.accent : palette.pillStroke
+    private func cell(_ chip: ValueRailChip) -> some View {
+        Button {
+            onSelect(chip.label)
+            InputHapticPlayer.shared.play(Theme.Haptics.railDetentTick)
+        } label: {
+            Text(chip.label)
+                .font(Theme.font(.railChipValue))
+                .foregroundStyle(chip.isSelected ? palette.textPrimary : palette.textSecondary)
+                .frame(width: Theme.railCellWidth, height: Theme.railCellHeight)
+                .background {
+                    if chip.isSelected {
+                        RoundedRectangle(cornerRadius: Theme.Radius.cell)
+                            .fill(palette.railSelectedFill)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: Theme.Radius.cell)
+                                    .strokeBorder(palette.action, lineWidth: 2)
+                            )
+                            .padding(Theme.railCellInset)
+                    }
+                }
+                .overlay(alignment: .bottom) {
+                    if chip.isPrescribed {
+                        Capsule()
+                            .fill(palette.prescriptionTick)
+                            .frame(width: Theme.prescriptionTickWidth, height: Theme.prescriptionTickHeight)
+                            .padding(.bottom, Theme.railCellInset + 3)
+                            .accessibilityHidden(true)
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(chip.accessibilityIdentifier)
+        .accessibilityLabel("\(label) \(chip.label)")
+        .accessibilityAddTraits(chip.isSelected ? [.isButton, .isSelected] : .isButton)
     }
 
-    private var strokeWidth: CGFloat {
-        isInvalid || isFocused ? 2 : 1
+    private func edgeFade(leading: Bool) -> some View {
+        LinearGradient(
+            colors: leading
+                ? [palette.railFill, palette.railFill.opacity(0)]
+                : [palette.railFill.opacity(0), palette.railFill],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+        .frame(width: Theme.railEdgeFadeWidth)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
+// MARK: - Weight ± stepper
+
+/// A ~54pt round stepper flanking the weight value. Its ± is a drawn glyph, not an SF Symbol, so
+/// the control carries no inline font (token sheet §4 choke point) and the thin round-cap strokes
+/// match pick input-block3-c.
+struct WeightStepperButton: View {
+    enum Direction: Equatable { case decrement, increment }
+
+    let direction: Direction
+    let accessibilityIdentifier: String
+    let action: () -> Void
+    @Environment(\.themePalette) private var palette
+
+    var body: some View {
+        Button(action: action) {
+            StepperGlyph(direction: direction)
+                .stroke(style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                .foregroundStyle(palette.action)
+                .frame(width: 22, height: 22)
+                .frame(width: Theme.weightStepperDiameter, height: Theme.weightStepperDiameter)
+                .background(palette.pillFill, in: .circle)
+                .overlay(Circle().strokeBorder(palette.pillStroke, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(direction == .decrement ? "Decrease weight" : "Increase weight")
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+}
+
+private struct StepperGlyph: Shape {
+    let direction: WeightStepperButton.Direction
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.midY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+        if direction == .increment {
+            path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
+        }
+        return path
+    }
+}
+
+// MARK: - Log capsule
+
+/// The Log capsule (DESIGN.md §5.3): a true capsule with `logShadow`, previewing the exact Set Log.
+/// Hold-to-skip fills with the muted `skipFillOverlay` — never danger red, no icon badge — and the
+/// skipped state is a transparent capsule with muted text on a 1.5px dashed empty bed.
 private struct HoldToSkipLogButton: View {
     let logTitle: String
     let canLog: Bool
+    let isSkipped: Bool
     let showsLoggedCheckmark: Bool
     let onLogTap: () -> Void
     let onSkip: () -> Void
@@ -366,53 +398,74 @@ private struct HoldToSkipLogButton: View {
     @Environment(\.themePalette) private var palette
 
     var body: some View {
-        logButtonSurface
-            .onLongPressGesture(
-                minimumDuration: policy.holdDuration,
-                maximumDistance: 44,
-                pressing: { isPressing in
-                    if isPressing {
-                        startSkipHoldIfNeeded()
-                    } else {
-                        finishSkipHold()
-                    }
-                },
-                perform: completeSkip
-            )
-            .contentShape(.rect)
-            .onTapGesture(perform: logTap)
-            .opacity(presentation.controlOpacity)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(presentation.accessibilityLabel)
-            .accessibilityValue(skipProgress > 0 ? "\(Int((skipProgress * 100).rounded()))% Skip" : "")
-            .accessibilityHint(presentation.accessibilityHint)
-            .accessibilityIdentifier("log-active-set-button")
-            .accessibilityAddTraits(.isButton)
-            .accessibilityAction {
-                logTap()
+        Group {
+            if isSkipped {
+                skippedBed
+            } else {
+                logButtonSurface
             }
-            .accessibilityAction(named: "Skip") {
-                completeSkip()
-            }
+        }
+        .onLongPressGesture(
+            minimumDuration: policy.holdDuration,
+            maximumDistance: 44,
+            pressing: { isPressing in
+                if isPressing {
+                    startSkipHoldIfNeeded()
+                } else {
+                    finishSkipHold()
+                }
+            },
+            perform: completeSkip
+        )
+        .contentShape(.rect)
+        .onTapGesture(perform: logTap)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(presentation.accessibilityLabel)
+        .accessibilityValue(skipProgress > 0 ? "\(Int((skipProgress * 100).rounded()))% Skip" : "")
+        .accessibilityHint(presentation.accessibilityHint)
+        .accessibilityIdentifier("log-active-set-button")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction {
+            logTap()
+        }
+        .accessibilityAction(named: "Skip") {
+            completeSkip()
+        }
     }
 
     private var logButtonSurface: some View {
         buttonContent
-            .font(.headline.weight(.bold))
+            .font(Theme.font(.logCapsule))
             .foregroundStyle(logForegroundStyle)
-            .padding(.vertical, 14)
+            .padding(.vertical, 16)
+            .frame(maxWidth: .infinity)
             .background {
                 ZStack(alignment: .leading) {
                     logBackgroundStyle
-                    palette.danger.opacity(0.86)
+                    (palette.skipFillOverlay ?? palette.skipStroke)
                         .scaleEffect(x: skipProgress, y: 1, anchor: .leading)
                 }
-                .clipShape(.rect(cornerRadius: Theme.pillCornerRadius))
+                .clipShape(.capsule)
             }
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
-                    .strokeBorder(logStrokeStyle, lineWidth: logStrokeWidth)
-            )
+            .overlay {
+                if case .incomplete = presentation.tone {
+                    Capsule().strokeBorder(palette.pillStroke, lineWidth: 1)
+                }
+            }
+            .themeElevation(logShadow, in: Capsule())
+    }
+
+    /// The dashed "empty bed" the skipped state settles into (§5.3): transparent, muted text.
+    private var skippedBed: some View {
+        Text("Skipped")
+            .font(Theme.font(.logCapsule))
+            .foregroundStyle(palette.textSecondary)
+            .padding(.vertical, 16)
+            .frame(maxWidth: .infinity)
+            .overlay {
+                Capsule()
+                    .strokeBorder(palette.skipStroke, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+            }
     }
 
     private var buttonContent: some View {
@@ -420,26 +473,12 @@ private struct HoldToSkipLogButton: View {
             HStack(spacing: 8) {
                 if showsLoggedCheckmark {
                     Image(systemName: "checkmark")
-                        .font(.headline.weight(.bold))
                         .transition(.scale.combined(with: .opacity))
                 }
 
                 Text(logTitle)
             }
             .opacity(presentation.logOpacity)
-
-            if presentation.showsSkipAffordance {
-                HStack {
-                    Spacer()
-
-                    Label("Skip", systemImage: "forward.end.fill")
-                        .font(.caption.weight(.bold))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(palette.danger.opacity(0.86), in: .capsule)
-                }
-                .padding(.horizontal, 10)
-            }
 
             Text("Skipped")
                 .opacity(presentation.skipOpacity)
@@ -451,31 +490,22 @@ private struct HoldToSkipLogButton: View {
         HoldToSkipButtonPresentation(progress: skipProgress, logTitle: logTitle, canLog: canLog)
     }
 
+    /// The green drop / green light only rides the primary (loggable) capsule.
+    private var logShadow: [Theme.BoxShadow] {
+        presentation.tone == .primary ? palette.logShadow : []
+    }
+
     private var logBackgroundStyle: Color {
         switch presentation.tone {
-        case .primary: palette.accent
+        case .primary: palette.action
         case .incomplete: palette.pillFill
         }
     }
 
     private var logForegroundStyle: Color {
         switch presentation.tone {
-        case .primary: palette.accentDarkText
-        case .incomplete: palette.valueText
-        }
-    }
-
-    private var logStrokeStyle: Color {
-        switch presentation.tone {
-        case .primary: .clear
-        case .incomplete: palette.pillStroke
-        }
-    }
-
-    private var logStrokeWidth: CGFloat {
-        switch presentation.tone {
-        case .primary: 0
-        case .incomplete: 1
+        case .primary: palette.actionText
+        case .incomplete: palette.textPrimary
         }
     }
 
@@ -563,4 +593,47 @@ private struct HoldToSkipLogButton: View {
             skipProgress = 0
         }
     }
+}
+
+// MARK: - Input haptics
+
+/// The Crisp input haptics (token sheet §7, ledger §2.9): rail detent ticks, stepper ± ticks with
+/// the floor dud, the firm log tap, the skip dud. Semantic-only — never on form fields or chrome.
+@MainActor
+final class InputHapticPlayer {
+    static let shared = InputHapticPlayer()
+
+    #if canImport(CoreHaptics)
+        private var engine: CHHapticEngine?
+
+        func play(_ tuning: Theme.HapticTuning) {
+            guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
+            do {
+                let engine = try activeEngine()
+                let event = CHHapticEvent(
+                    eventType: .hapticTransient,
+                    parameters: [
+                        CHHapticEventParameter(parameterID: .hapticIntensity, value: Float(tuning.intensity)),
+                        CHHapticEventParameter(parameterID: .hapticSharpness, value: Float(tuning.sharpness)),
+                    ],
+                    relativeTime: 0
+                )
+                let pattern = try CHHapticPattern(events: [event], parameters: [])
+                let player = try engine.makePlayer(with: pattern)
+                try player.start(atTime: 0)
+            } catch {
+                engine = nil
+            }
+        }
+
+        private func activeEngine() throws -> CHHapticEngine {
+            if let engine { return engine }
+            let engine = try CHHapticEngine()
+            try engine.start()
+            self.engine = engine
+            return engine
+        }
+    #else
+        func play(_: Theme.HapticTuning) {}
+    #endif
 }

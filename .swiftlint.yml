@@ -52,10 +52,7 @@ custom_rules:
       - '.*/Views/SessionProgressHeader\.swift'   # → #487 living stage
       - '.*/Views/LastPerformedCard\.swift'       # → #487 living stage
       - '.*/Views/SessionView\.swift'             # → #487 living stage
-      - '.*/Views/ActiveSetCard\.swift'           # → #488 Active Set Card & input block
-      - '.*/Views/SmartValuePills\.swift'         # → #488 Active Set Card & input block
-      - '.*/Views/RPEScaleScroller\.swift'        # → #488 Active Set Card & input block
-      - '.*/Views/PillStepperButton\.swift'       # → #488 Active Set Card & input block
+      - '.*/Views/PillStepperButton\.swift'       # → shared with Settings' rest stepper; migrates with #493
       - '.*/Views/ActiveSupersetSection\.swift'   # → #489 Superset stage
       - '.*/Views/SupersetIdentityBadge\.swift'   # → #489 Superset stage
       - '.*/Views/OpenExercisesSection\.swift'    # → #489 Superset stage
