@@ -97,18 +97,9 @@ struct GlassBearingViewsVisualTests {
     // full-screen Sunbird moments (PRD #497 slice 7) and covered in both
     // appearances by `SunbirdMomentsVisualTests`.
 
-    @Test func settingsViewMatchesVisualBaseline() throws {
-        let scenario = try WorkoutScenarios.freshConfiguredApp()
-        GlassVisualFixtureRetainer.retain(scenario)
-        let sync = SyncCoordinator(client: GlassVisualNoopSheetsClient(), context: scenario.context)
-
-        assertFullScreenBaseline {
-            SettingsView()
-                .environment(scenario.settings)
-                .environment(sync)
-                .environment(scenario.store)
-        }
-    }
+    // Settings is rebuilt as native, glass-free `Form` rows (DESIGN.md §5.9, PRD #497 slice 8) — it no
+    // longer bears glass, so it leaves this suite. Its replacement coverage is `SettingsViewVisualTests`,
+    // which renders native Settings in both appearances.
 
     @Test func developerToolsViewMatchesVisualBaseline() throws {
         let scenario = try WorkoutScenarios.freshConfiguredApp()

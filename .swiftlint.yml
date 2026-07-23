@@ -62,7 +62,6 @@ custom_rules:
       - '.*/Views/OnboardingView\.swift'          # → #492 connect screen
       - '.*/Views/SessionQueueSheet\.swift'       # → #493 queue sheet
       - '.*/Views/SyncStatusBanner\.swift'        # → #493 sync banner
-      - '.*/Views/SettingsView\.swift'            # → #493 native Settings
       # Chrome the redesign has not yet re-voiced (glyph/emoji/dev surfaces); grandfathered until a
       # later re-voicing slice replaces the glyphFont hatch these leaned on.
       - '.*/Views/EmptyStateView\.swift'

@@ -1,5 +1,9 @@
 import SwiftUI
 
+/// Settings stays native (DESIGN.md §5.9, ledger §10.4): system-owned `Form` rows, native text
+/// styles, and normal Dynamic Type — no glass card, no hand-built role table. Appearance
+/// (System / Light / Night) lives here, and manual sync is the `Sync now` row (the Settings Own
+/// Manual Sync Rule).
 struct SettingsView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(SyncCoordinator.self) private var sync
@@ -15,111 +19,71 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                palette.gradient.ignoresSafeArea()
-
-                WorkoutGlassContainer(spacing: 12) {
-                    VStack(spacing: 12) {
-                        VStack(spacing: 0) {
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("Appearance")
-                                    .font(.body.weight(.semibold))
-
-                                Picker("Appearance", selection: appearanceSelection) {
-                                    ForEach(AppearancePreference.allCases, id: \.self) { appearance in
-                                        Text(appearance.label).tag(appearance)
-                                    }
-                                }
-                                .pickerStyle(.segmented)
-                                .accessibilityIdentifier("settings-appearance-picker")
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 14)
-
-                            Divider()
-                                .overlay(palette.bannerStroke)
-                                .padding(.leading, 16)
-
-                            SettingsRestSection()
-
-                            Divider()
-                                .overlay(palette.bannerStroke)
-                                .padding(.leading, 16)
-
-                            Button {
-                                isSheetPickerPresented = true
-                            } label: {
-                                SettingsRow(
-                                    systemImage: "tablecells",
-                                    title: "Training Sheet",
-                                    detail: sheetDisplayName
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(isSheetRouteDisabled)
-                            .opacity(isSheetRouteDisabled ? 0.6 : 1)
-                            .accessibilityIdentifier("settings-training-sheet-row")
-
-                            Divider()
-                                .overlay(palette.bannerStroke)
-                                .padding(.leading, 56)
-
-                            Button {
-                                syncNow()
-                            } label: {
-                                SettingsRow(
-                                    systemImage: "arrow.triangle.2.circlepath",
-                                    title: "Sync now",
-                                    detail: manualSyncDetail,
-                                    showsChevron: false
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(isManualSyncDisabled)
-                            .opacity(isManualSyncDisabled ? 0.6 : 1)
-                            .accessibilityIdentifier("settings-sync-now-button")
-                            .accessibilityValue(manualSyncDetail ?? "")
-
-                            Divider()
-                                .overlay(palette.bannerStroke)
-                                .padding(.leading, 56)
-
-                            NavigationLink {
-                                DeveloperToolsView()
-                            } label: {
-                                SettingsRow(
-                                    systemImage: "wrench.and.screwdriver",
-                                    title: "Developer Tools",
-                                    detail: nil
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityIdentifier("settings-developer-tools-row")
-
-                            Divider()
-                                .overlay(palette.bannerStroke)
-                                .padding(.leading, 56)
-
-                            Button(role: .destructive) {
-                                requestSignOut()
-                            } label: {
-                                SettingsRow(
-                                    systemImage: "rectangle.portrait.and.arrow.right",
-                                    title: "Sign Out",
-                                    detail: nil,
-                                    role: .destructive
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityIdentifier("settings-sign-out-button")
+            Form {
+                Section("Appearance") {
+                    Picker("Appearance", selection: appearanceSelection) {
+                        ForEach(AppearancePreference.allCases, id: \.self) { appearance in
+                            Text(appearance.label).tag(appearance)
                         }
-                        .padding(.vertical, 6)
-                        .workoutGlass(.card)
-
-                        BuildIdentityFooter()
                     }
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("settings-appearance-picker")
                 }
-                .padding()
+
+                Section("Rest") {
+                    Stepper(value: standardRestSeconds, in: restRange, step: RestDurationSetting.stepSeconds) {
+                        LabeledContent("Standard", value: settings.standardRestDuration.displayText)
+                    }
+                    .accessibilityIdentifier("settings-standard-rest-stepper")
+
+                    Stepper(value: supersetRestSeconds, in: restRange, step: RestDurationSetting.stepSeconds) {
+                        LabeledContent("Superset rest", value: settings.supersetRestDuration.displayText)
+                    }
+                    .accessibilityIdentifier("settings-superset-rest-stepper")
+                }
+
+                Section {
+                    Button {
+                        isSheetPickerPresented = true
+                    } label: {
+                        LabeledContent("Training Sheet", value: sheetDisplayName)
+                    }
+                    .disabled(isSheetRouteDisabled)
+                    .accessibilityIdentifier("settings-training-sheet-row")
+
+                    Button {
+                        syncNow()
+                    } label: {
+                        LabeledContent("Sync now") {
+                            Text(manualSyncDetail ?? "")
+                        }
+                    }
+                    .disabled(isManualSyncDisabled)
+                    .accessibilityIdentifier("settings-sync-now-button")
+                    .accessibilityValue(manualSyncDetail ?? "")
+
+                    NavigationLink {
+                        DeveloperToolsView()
+                    } label: {
+                        Text("Developer Tools")
+                    }
+                    .accessibilityIdentifier("settings-developer-tools-row")
+                }
+
+                Section {
+                    Button(role: .destructive) {
+                        requestSignOut()
+                    } label: {
+                        Text("Sign Out")
+                    }
+                    .accessibilityIdentifier("settings-sign-out-button")
+                }
+
+                Section {
+                    BuildIdentityFooter()
+                        .frame(maxWidth: .infinity)
+                        .listRowBackground(Color.clear)
+                }
             }
             .navigationTitle("Settings")
             .toolbar {
@@ -166,6 +130,26 @@ struct SettingsView: View {
             settings.appearance
         } set: { preference in
             settings.setAppearance(preference)
+        }
+    }
+
+    private var restRange: ClosedRange<Int> {
+        RestDurationSetting.minimumSeconds...RestDurationSetting.maximumSeconds
+    }
+
+    private var standardRestSeconds: Binding<Int> {
+        Binding {
+            settings.standardRestDuration.seconds
+        } set: { seconds in
+            settings.setStandardRestDuration(RestDurationSetting(seconds: seconds))
+        }
+    }
+
+    private var supersetRestSeconds: Binding<Int> {
+        Binding {
+            settings.supersetRestDuration.seconds
+        } set: { seconds in
+            settings.setSupersetRestDuration(RestDurationSetting(seconds: seconds))
         }
     }
 
@@ -322,151 +306,5 @@ struct SettingsView: View {
     private func clearSettingsError() {
         settingsErrorMessage = nil
         sheetSwitchStore?.clearError()
-    }
-}
-
-private struct SettingsRestSection: View {
-    @Environment(SettingsStore.self) private var settings
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Rest")
-                .font(.body.weight(.semibold))
-
-            RestStepperRow(
-                title: "Standard",
-                duration: settings.standardRestDuration,
-                decrementIdentifier: "settings-standard-rest-decrement",
-                valueIdentifier: "settings-standard-rest-value",
-                incrementIdentifier: "settings-standard-rest-increment",
-                onDecrement: {
-                    settings.setStandardRestDuration(settings.standardRestDuration.decremented())
-                },
-                onIncrement: {
-                    settings.setStandardRestDuration(settings.standardRestDuration.incremented())
-                }
-            )
-
-            RestStepperRow(
-                title: "Superset rest",
-                duration: settings.supersetRestDuration,
-                decrementIdentifier: "settings-superset-rest-decrement",
-                valueIdentifier: "settings-superset-rest-value",
-                incrementIdentifier: "settings-superset-rest-increment",
-                onDecrement: {
-                    settings.setSupersetRestDuration(settings.supersetRestDuration.decremented())
-                },
-                onIncrement: {
-                    settings.setSupersetRestDuration(settings.supersetRestDuration.incremented())
-                }
-            )
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .accessibilityElement(children: .contain)
-    }
-}
-
-private struct RestStepperRow: View {
-    let title: String
-    let duration: RestDurationSetting
-    let decrementIdentifier: String
-    let valueIdentifier: String
-    let incrementIdentifier: String
-    let onDecrement: () -> Void
-    let onIncrement: () -> Void
-
-    var body: some View {
-        HStack(spacing: 14) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.body.weight(.semibold))
-
-                Text("30 sec steps")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer(minLength: 12)
-
-            HStack(spacing: 8) {
-                PillStepperButton(
-                    systemName: "minus",
-                    accessibilityIdentifier: decrementIdentifier,
-                    isEnabled: duration.canDecrement,
-                    action: onDecrement
-                )
-
-                Text(duration.displayText)
-                    .font(.title3.weight(.bold))
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                    .frame(width: 58)
-                    .accessibilityIdentifier(valueIdentifier)
-
-                PillStepperButton(
-                    systemName: "plus",
-                    accessibilityIdentifier: incrementIdentifier,
-                    isEnabled: duration.canIncrement,
-                    action: onIncrement
-                )
-            }
-        }
-    }
-}
-
-private struct SettingsRow: View {
-    enum RowRole {
-        case normal
-        case destructive
-    }
-
-    let systemImage: String
-    let title: String
-    let detail: String?
-    var showsChevron = true
-    var role = RowRole.normal
-    @Environment(\.themePalette) private var palette
-
-    var body: some View {
-        HStack(spacing: 14) {
-            Image(systemName: systemImage)
-                .font(.title3.weight(.semibold))
-                .frame(width: 30)
-                .foregroundStyle(iconStyle)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(titleStyle)
-
-                if let detail {
-                    Text(detail)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-            }
-
-            Spacer()
-
-            if role == .normal, showsChevron {
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .contentShape(Rectangle())
-    }
-
-    private var iconStyle: Color {
-        role == .destructive ? palette.danger : palette.accent
-    }
-
-    private var titleStyle: Color {
-        role == .destructive ? palette.danger : .primary
     }
 }

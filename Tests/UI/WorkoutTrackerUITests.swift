@@ -141,7 +141,11 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
         settingsButton.tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["Fixture Training Log"].exists)
+        // Native Settings renders the Training Sheet name as a LabeledContent value on the row; read
+        // it off the row itself so the assertion survives accessibility-combining inside the button.
+        let trainingSheetRow = app.buttons["settings-training-sheet-row"]
+        XCTAssertTrue(trainingSheetRow.waitForExistence(timeout: 3))
+        XCTAssertTrue(trainingSheetRow.label.contains("Fixture Training Log"))
     }
 
     @MainActor

@@ -65,6 +65,10 @@ struct SessionQueueSheet: View {
         .animation(.easeInOut(duration: 0.18), value: pairingMode)
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
+        // Living paper (DESIGN.md §2, ledger §10.1): the queue sheet carries the washes on soft
+        // shoulders — bare cream reads too white — so it stays in the same room as the stage.
+        .presentationCornerRadius(Theme.Radius.soft)
+        .presentationBackground { palette.paperBackground }
         .onDisappear(perform: onCancelPairing)
     }
 
@@ -94,14 +98,13 @@ struct SessionQueueSheet: View {
                 onJump(item)
             } label: {
                 rowLabel(for: item) {
+                    // Rows shed their icons (ledger §10.2): the stage's icon budget is spent on the
+                    // branch. A completed row reads as complete from its dimmed title and settled Set
+                    // dots alone; only the on-stage row still speaks, in words.
                     if isOnStage {
                         Text("Now")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(palette.accent)
-                    } else if item.isComplete {
-                        Image(systemName: "checkmark")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -141,9 +144,10 @@ struct SessionQueueSheet: View {
         .opacity(role == .ineligibleTarget ? Theme.pairingUnavailableOpacity : 1)
         .overlay {
             if role == .confirmingTarget {
-                RoundedRectangle(cornerRadius: Theme.cardCornerRadius)
+                // The confirming-pair ring loses its accent glow and retired radius-16 (ledger §10.2):
+                // one clean soft-radius stroke, no second glow to break the One Glow Rule at night.
+                RoundedRectangle(cornerRadius: Theme.Radius.soft)
                     .stroke(palette.accent, lineWidth: 2)
-                    .shadow(color: palette.accent.opacity(0.65), radius: 12)
             }
         }
         .accessibilityIdentifier("stage-queue-row-\(item.id)")
