@@ -12,7 +12,11 @@ jobs:
     # also needs macOS (the SPM library imports SwiftUI/SwiftData). Free for
     # public repos; 10x metered minutes if made private.
     runs-on: xcode-27
-    timeout-minutes: 60
+    # Composition slices legitimately exceed an hour now that record runs stay
+    # in the foreground (up to 30 min each, max 3 iterations): slice 2's first
+    # attempt was cancelled by the old 60-minute ceiling with all work
+    # uncommitted (#497).
+    timeout-minutes: 120
     concurrency:
       group: agent-implement-prd-issue-${{ github.event.issue.number }}
       cancel-in-progress: false
@@ -331,19 +335,25 @@ jobs:
           fi
           GH_TOKEN="$GITHUB_TOKEN_FALLBACK" gh pr edit "$PR_NUMBER" --add-label "agent:review"
 
+      # cancelled() is included so a job-timeout cancellation leaves the same
+      # visible trail as a failure — without it the chain stalls silently: no
+      # label, no comment, in-progress removed (#497 slice 2, first attempt).
       - name: Mark blocked on failure
-        if: steps.shape.outputs.mode == 'run' && failure()
+        if: steps.shape.outputs.mode == 'run' && (failure() || cancelled())
         env:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           SUB_ISSUE_NUMBER: ${{ steps.shape.outputs.next_open_number }}
         run: |
           reason="(no reason file written — check workflow logs)"
+          if [ "${{ job.status }}" = "cancelled" ]; then
+            reason="run was cancelled — most likely the job hit its timeout-minutes ceiling; any uncommitted agent work was lost"
+          fi
           if [ -f "${RUNNER_TEMP}/failure_reason.txt" ]; then
             reason=$(cat "${RUNNER_TEMP}/failure_reason.txt")
           fi
           gh issue edit "$PRD_NUMBER" --add-label "agent:blocked" || true
           gh issue comment "$PRD_NUMBER" --body "$(cat <<EOF
-          \`agent:implement\` (PRD mode) run failed while implementing sub-issue #${SUB_ISSUE_NUMBER}.
+          \`agent:implement\` (PRD mode) run did not complete while implementing sub-issue #${SUB_ISSUE_NUMBER}.
 
           **Reason:** $reason
 

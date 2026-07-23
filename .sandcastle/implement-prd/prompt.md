@@ -69,6 +69,10 @@ above is the replacement (#469).
 Make one or more git commits on `{{BRANCH}}`. Use conventional-commit
 messages (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`).
 
+Commit each completed, verified unit of work as soon as it is green rather
+than accumulating one giant commit at the end: the runner has a hard time
+ceiling, and everything uncommitted when it hits is lost.
+
 Include `Part of #{{PRD_NUMBER}}` in each commit body so the history is
 linkable from the PRD. Do **not** include `Closes` in commits — closing the
 sub-issue is the workflow's job, and closing the PRD is the merged PR's job.
