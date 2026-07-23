@@ -119,6 +119,12 @@ struct SmartValuePills: View {
         .accessibilityElement(children: .contain)
     }
 
+    /// Validation marks only the offending field with `danger` (DESIGN.md §5.2): an invalid weight
+    /// tints its own number, leaving reps/RPE untouched.
+    private var weightForeground: Color {
+        form.invalidFields.contains(.weight) ? palette.danger : palette.textPrimary
+    }
+
     @ViewBuilder
     private var weightValue: some View {
         if isEditingWeight {
@@ -126,7 +132,7 @@ struct SmartValuePills: View {
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.center)
                 .font(Theme.font(.weightEntry))
-                .foregroundStyle(palette.textPrimary)
+                .foregroundStyle(weightForeground)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
                 .focused($weightFieldFocused)
@@ -134,7 +140,7 @@ struct SmartValuePills: View {
         } else {
             Text(form.weightDisplay)
                 .font(Theme.font(.weightEntry))
-                .foregroundStyle(palette.textPrimary)
+                .foregroundStyle(weightForeground)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
                 .frame(maxWidth: .infinity)
