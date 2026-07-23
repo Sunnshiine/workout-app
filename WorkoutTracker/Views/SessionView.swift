@@ -73,7 +73,7 @@ struct SessionView: View {
         .background(palette.paperBackground.ignoresSafeArea())
         .overlay {
             if let session = workout.moveOnCelebrationSession {
-                MoveOnCelebrationView(session: session, requestedAt: workout.moveOnCelebrationRequestedAt) {
+                MoveOnCelebrationView(session: session) {
                     workout.dismissMoveOnCelebration()
                 }
                 .transition(.opacity)

@@ -86,33 +86,6 @@ struct GlassBearingViewsVisualTests {
         }
     }
 
-    @Test func moveOnCelebrationViewMatchesVisualBaseline() {
-        let firstLoggedAt = makeMoveOnVisualDate(hour: 18, minute: 14)
-        let requestedAt = makeMoveOnVisualDate(hour: 19, minute: 6)
-        let session = makeSession(
-            weekNumber: 4,
-            dayNumber: 4,
-            setStates: [.logged, .logged, .logged],
-            exerciseName: "Deadlift"
-        )
-        for (offset, set) in session.exercises.flatMap(\.sets).enumerated() where set.state == .logged {
-            set.loggedAt = firstLoggedAt.addingTimeInterval(TimeInterval(offset * 16 * 60))
-        }
-
-        // The F3 timing nucleus carries subtle continuous ambient motion
-        // (orbit dots + breathing) via TimelineView, so the rendered frame is
-        // not pixel-stable across test ordering. Tolerate that small drift
-        // while still catching any gross layout/hierarchy regression.
-        assertFullScreenBaseline(precision: 0.99, perceptualPrecision: 0.9) {
-            MoveOnCelebrationView(
-                session: session,
-                requestedAt: requestedAt,
-                quoteText: "You're fucking amazing.",
-                onDismiss: {}
-            )
-        }
-    }
-
     @Test func emptyStateViewMatchesVisualBaseline() {
         assertGlassBaseline {
             EmptyStateView(onSettings: {})
@@ -120,24 +93,9 @@ struct GlassBearingViewsVisualTests {
         }
     }
 
-    @Test func onboardingViewCardMatchesVisualBaseline() throws {
-        let settings = SettingsStore(defaults: try makeVisualDefaults())
-        // iOS 27 resolves all of OnboardingView's environment lookups during
-        // offscreen render (iOS 26 deferred them), so the fixture must inject
-        // SyncCoordinator and WorkoutStore even though the rendered card never
-        // uses them.
-        let scenario = try WorkoutScenarios.freshConfiguredApp()
-        GlassVisualFixtureRetainer.retain(scenario)
-        let sync = SyncCoordinator(client: GlassVisualNoopSheetsClient(), context: scenario.context)
-
-        assertGlassBaseline {
-            OnboardingView()
-                .environment(settings)
-                .environment(sync)
-                .environment(scenario.store)
-                .frame(width: 360, height: 260)
-        }
-    }
+    // The Move On ceremony and the Sheet-connect screen are redesigned as
+    // full-screen Sunbird moments (PRD #497 slice 7) and covered in both
+    // appearances by `SunbirdMomentsVisualTests`.
 
     @Test func settingsViewMatchesVisualBaseline() throws {
         let scenario = try WorkoutScenarios.freshConfiguredApp()
@@ -227,18 +185,6 @@ private struct VisualBaselineHost<Content: View>: View {
         .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)
         .preferredColorScheme(.light)
     }
-}
-
-private func makeMoveOnVisualDate(hour: Int, minute: Int) -> Date {
-    var components = DateComponents()
-    components.calendar = Calendar(identifier: .gregorian)
-    components.timeZone = TimeZone.current
-    components.year = 2026
-    components.month = 6
-    components.day = 6
-    components.hour = hour
-    components.minute = minute
-    return components.date ?? Date(timeIntervalSinceReferenceDate: 0)
 }
 
 @MainActor

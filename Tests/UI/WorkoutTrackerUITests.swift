@@ -294,16 +294,16 @@ private func pullSessionHeader(in app: XCUIApplication, endY: CGFloat) {
 
 @MainActor
 private func assertMoveOnCelebrationIsUsable(_ celebration: XCUIElement, in app: XCUIApplication) {
-    let quote = app.staticTexts["move-on-celebration-quote"]
-    let hint = app.staticTexts["move-on-celebration-hint"]
+    let title = app.staticTexts["move-on-celebration-title"]
+    let continueButton = app.buttons["move-on-celebration-continue"]
     let windowFrame = app.windows.element(boundBy: 0).frame
 
-    XCTAssertTrue(quote.waitForExistence(timeout: 6))
-    XCTAssertFalse(quote.label.isEmpty)
-    assertElementIsMostlyVisible(quote, in: windowFrame)
-    XCTAssertTrue(hint.waitForExistence(timeout: 3))
-    assertElementIsMostlyVisible(hint, in: windowFrame)
-    XCTAssertTrue(celebration.isHittable)
+    XCTAssertTrue(title.waitForExistence(timeout: 6))
+    XCTAssertFalse(title.label.isEmpty)
+    assertElementIsMostlyVisible(title, in: windowFrame)
+    XCTAssertTrue(continueButton.waitForExistence(timeout: 3))
+    assertElementIsMostlyVisible(continueButton, in: windowFrame)
+    XCTAssertTrue(continueButton.isHittable)
 }
 
 private func assertElementIsMostlyVisible(

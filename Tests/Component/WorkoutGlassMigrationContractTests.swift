@@ -60,14 +60,17 @@ private var workoutGlassMigrationSourceRoot: URL {
     #expect(!source.contains("Theme.palette(for: .sageLight)"))
 }
 
-@Test func moveOnCelebrationOwnsReduceMotionSafeF3Motion() throws {
+@Test func moveOnCelebrationRetiresTheAnimatedOrbitForAByteStableCeremony() throws {
     let source = try String(
         contentsOf: workoutGlassMigrationSourceRoot.appending(path: "WorkoutTracker/Views/MoveOnCelebrationView.swift"),
         encoding: .utf8
     )
 
+    // The ceremony still observes reduced motion (it gates the Crisp haptic), but the
+    // per-frame timing nucleus is gone — the source of the #482 baseline flake (PRD #497
+    // slice 7). No live TimelineView, no orbit, so the render is byte-stable.
     #expect(source.contains("@Environment(\\.accessibilityReduceMotion) private var reduceMotion"))
-    #expect(source.contains("TimelineView(.animation"))
-    #expect(source.contains("reduceMotion ?"))
-    #expect(source.contains("move-on-celebration-orbit"))
+    #expect(source.contains("guard !reduceMotion else { return }"))
+    #expect(!source.contains("TimelineView(.animation"))
+    #expect(!source.contains("move-on-celebration-orbit"))
 }

@@ -1,10 +1,10 @@
-import GoogleSignInSwift
 import SwiftUI
 
 struct OnboardingView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(SyncCoordinator.self) private var sync
     @Environment(WorkoutStore.self) private var workout
+    @Environment(\.themePalette) private var palette
     @State private var urlText = ""
     @State private var urlError = false
     @State private var showsURLFallback = false
@@ -13,29 +13,36 @@ struct OnboardingView: View {
     @Namespace private var ns
 
     var body: some View {
-        WorkoutGlassContainer {
+        Group {
             switch destination {
             case .signIn:
-                signInCard
-            case .sheetPicker:
-                SheetPickerView(
-                    client: GoogleSheetsClient.forCurrentEnvironment(),
-                    onValidatedSelection: { spreadsheet in
-                        await commitSelection(SheetSelection(spreadsheet))
-                    },
-                    onPasteURL: {
-                        withAnimation { showsURLFallback = true }
+                // The flat-calm connect screen renders full-bleed on living paper —
+                // no glass card in the flow (DESIGN.md §5.8).
+                connectScreen
+            case .sheetPicker, .urlEntry, .session:
+                WorkoutGlassContainer {
+                    switch destination {
+                    case .sheetPicker:
+                        SheetPickerView(
+                            client: GoogleSheetsClient.forCurrentEnvironment(),
+                            onValidatedSelection: { spreadsheet in
+                                await commitSelection(SheetSelection(spreadsheet))
+                            },
+                            onPasteURL: {
+                                withAnimation { showsURLFallback = true }
+                            }
+                        )
+                        .workoutGlassID("onboarding", in: ns)
+                    case .urlEntry:
+                        urlEntryCard
+                    default:
+                        EmptyView()
                     }
-                )
-                .workoutGlassID("onboarding", in: ns)
-            case .urlEntry:
-                urlEntryCard
-            case .session:
-                EmptyView()
+                }
+                .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear(perform: ensureSwitchStore)
         .alert("Couldn't load sheet", isPresented: selectionErrorPresented) {
             Button("OK", role: .cancel) { selectionErrorMessage = nil }
@@ -52,27 +59,68 @@ struct OnboardingView: View {
         )
     }
 
-    // MARK: - Phase 1: Sign-In Card
+    // MARK: - Phase 1: Connect screen (flat calm)
 
-    private var signInCard: some View {
-        VStack(spacing: 20) {
-            Text("Connect your training sheet")
-                .font(.title2.bold())
+    private var connectScreen: some View {
+        let copy = OnboardingConnectPresentation()
+        return ZStack {
+            palette.paperBackground
+                .ignoresSafeArea()
 
-            GoogleSignInButton {
-                Task {
-                    guard let vc = topViewController() else { return }
-                    do {
-                        try await GoogleAuth.signIn(presenting: vc)
-                        withAnimation { settings.isSignedIn = true }
-                    } catch { settings.isSignedIn = false }
+            VStack(spacing: 0) {
+                Spacer(minLength: 24)
+
+                ConnectPerch(width: 240)
+                    .accessibilityHidden(true)
+
+                Text(copy.title)
+                    .font(Theme.font(.connectTitle))
+                    .foregroundStyle(palette.textPrimary)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 24)
+                    .accessibilityIdentifier("onboarding-title")
+
+                Text(copy.subtitle)
+                    .font(Theme.font(.coachNote))
+                    .foregroundStyle(palette.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 320)
+                    .padding(.top, 14)
+                    .accessibilityIdentifier("onboarding-subtitle")
+
+                Spacer(minLength: 24)
+
+                // The quiet colophon sits above the ≥28pt floor (DESIGN.md §5.8),
+                // near the foot of the composition.
+                SunbirdColophon(diameter: 40)
+                    .padding(.bottom, 28)
+
+                Button(action: signIn) {
+                    Text(copy.connectButtonTitle)
+                        .font(Theme.font(.logCapsule))
+                        .foregroundStyle(palette.actionText)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 20)
+                        .background(palette.action, in: .capsule)
                 }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("onboarding-connect-button")
             }
-            .frame(maxWidth: 280)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 40)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .padding()
-        .workoutGlass(.card)
-        .workoutGlassID("onboarding", in: ns)
+        .preferredColorScheme(palette.preferredColorScheme)
+    }
+
+    private func signIn() {
+        Task {
+            guard let vc = topViewController() else { return }
+            do {
+                try await GoogleAuth.signIn(presenting: vc)
+                withAnimation { settings.isSignedIn = true }
+            } catch { settings.isSignedIn = false }
+        }
     }
 
     // MARK: - Phase 2: URL Entry Card

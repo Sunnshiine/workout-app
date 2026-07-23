@@ -46,6 +46,11 @@ enum Theme {
         static let paperDayBottom = rgb(203, 225, 194) // #CBE1C2
         static let paperNightTop = rgb(35, 44, 32) // #232C20
         static let paperNightBottom = rgb(18, 29, 20) // #121D14
+        // The Sunbird colophon's three-stop glass greens (token sheet §Bird & colophon). The glass
+        // mark keeps its icon greens in both appearances — "unchanged at night".
+        static let colophonGlassTop = rgb(74, 160, 108) // #4AA06C
+        static let colophonGlassMid = rgb(14, 110, 67) // #0E6E43
+        static let colophonGlassBottom = rgb(8, 78, 47) // #084E2F
     }
 
     // MARK: - Paper wash
