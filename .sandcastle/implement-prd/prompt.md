@@ -71,7 +71,20 @@ messages (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`).
 
 Commit each completed, verified unit of work as soon as it is green rather
 than accumulating one giant commit at the end: the runner has a hard time
-ceiling, and everything uncommitted when it hits is lost.
+ceiling, and everything **uncommitted** when it hits is lost. Committed work
+survives — the workflow pushes the branch even when the run fails or is
+cancelled, and the next run resumes from your last commit.
+
+Two checkpoints are mandatory on UI-touching slices:
+
+1. After `swift test` is green and **before** entering the visual loop,
+   commit the code and unit/component tests. The recorded baselines join in
+   a follow-up commit once they match the picks — a checkpoint whose visual
+   work is unfinished is still a valid, resumable checkpoint.
+2. The moment the recorded baselines first match the picks in both
+   appearances, commit code + baselines **immediately** — before chasing
+   flakes, stale PNGs, or any remaining stragglers. Slice 3 died 15 minutes
+   from done with its solved work uncommitted; do not repeat that.
 
 Include `Part of #{{PRD_NUMBER}}` in each commit body so the history is
 linkable from the PRD. Do **not** include `Closes` in commits — closing the
