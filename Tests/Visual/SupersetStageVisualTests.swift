@@ -75,9 +75,13 @@ struct SupersetStageVisualTests {
     /// Reproduces the pick: DB Incline Press (Set 2 of 4, first Set logged 30×10 @8) forked with a
     /// resting Chest-Supported Row, the focus on the press.
     private func makeSupersetConfig() throws -> SessionSupersetRenderConfig {
+        // The focused Exercise is named to contain "bench" so its Load Suggestion resolves through
+        // the block's benchTM (150 × 20% = 30) — the fixture's stand-in for the pick's
+        // prefill-from-last-week's-actuals (DESIGN.md §5.2), which the current engine only produces
+        // from a %1RM or Drop prescription. This fills the card exactly as the pick shows it.
         let press = Exercise(
-            name: "DB Incline Press",
-            baseName: "DB Incline Press",
+            name: "Incline Bench Press",
+            baseName: "Incline Bench Press",
             cadence: nil,
             coachNote: "Keep the dumbbells honest at the bottom — full stretch, no rush.",
             order: 3
@@ -87,7 +91,7 @@ struct SupersetStageVisualTests {
                 index: index,
                 prescribedReps: "10",
                 prescribedLoad: "RPE 8",
-                percentOneRM: nil,
+                percentOneRM: "20%",
                 state: index == 0 ? .logged : .pending
             )
             if index == 0 {
@@ -127,8 +131,8 @@ struct SupersetStageVisualTests {
         )
 
         let lastPerformed = LastPerformedEntry(
-            fullName: "DB Incline Press",
-            baseName: "DB Incline Press",
+            fullName: "Incline Bench Press",
+            baseName: "Incline Bench Press",
             resultText: "30×10 @8 · 30×10 @8 · 30×9 @9",
             performedOn: .distantPast,
             source: "W1 D2"
