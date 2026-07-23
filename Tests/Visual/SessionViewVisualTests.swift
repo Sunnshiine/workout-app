@@ -20,7 +20,7 @@ struct SessionViewVisualTests {
         .environment(sync)
         .environment(scenario.settings)
         .environment(lastPerformedLookup)
-        .environment(\.themePalette, Theme.palette(for: .sageLight))
+        .environment(\.themePalette, Theme.palette(for: .day))
         .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
         .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)
         .preferredColorScheme(.light)

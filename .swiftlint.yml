@@ -25,6 +25,56 @@ excluded:
   - "**/.build"
   - "**/Generated"
 
+custom_rules:
+  # The type choke point (token sheet §4, ADR-0014, ledger §1.7). Every text style is one row of
+  # Theme's type role table; no view constructs a font. This bans the three escape routes —
+  # Font.custom(…), .system(size:…), and the shorthand system text styles (.font(.headline) …) —
+  # so type cannot drift per-view and adopting Dynamic Type later stays a one-file diff. The
+  # glyphFont(…) hatch is retired (it minted arbitrary system fonts through the seam).
+  #
+  # The pre-Greenhouse screens still use the shorthand; each is grandfathered below until its
+  # composition slice rebuilds it onto Theme.font(_:) and drops it from this list. Theme.swift is
+  # the sanctioned home of the role table (its off-device fallback uses Font.custom).
+  font_construction_via_theme:
+    name: "Font construction via the Theme seam"
+    message: >
+      Construct fonts only through the single type role table on the Theme seam (Theme.font(_:)).
+      Font.custom(…), .system(size:…) and the shorthand system text styles (.font(.headline) …)
+      are banned outside Theme.swift so type cannot drift per-view and Dynamic Type stays a
+      one-file diff (ADR-0014, token sheet §4).
+    regex: '(Font\.custom\(|\.system\(size|\.font\(\s*\.(largeTitle|title|title2|title3|headline|subheadline|body|callout|footnote|caption|caption2)\b)'
+    included: '.*/WorkoutTracker/.*'
+    excluded:
+      - '.*/Theme\.swift'
+      # Grandfathered pending each view's Greenhouse composition slice (PRD #497). Each slice
+      # migrates its view to Theme.font(_:) and removes it here.
+      - '.*/Views/SessionStageView\.swift'        # → #487 living stage
+      - '.*/Views/SessionProgressHeader\.swift'   # → #487 living stage
+      - '.*/Views/LastPerformedCard\.swift'       # → #487 living stage
+      - '.*/Views/SessionView\.swift'             # → #487 living stage
+      - '.*/Views/ActiveSetCard\.swift'           # → #488 Active Set Card & input block
+      - '.*/Views/SmartValuePills\.swift'         # → #488 Active Set Card & input block
+      - '.*/Views/RPEScaleScroller\.swift'        # → #488 Active Set Card & input block
+      - '.*/Views/PillStepperButton\.swift'       # → #488 Active Set Card & input block
+      - '.*/Views/ActiveSupersetSection\.swift'   # → #489 Superset stage
+      - '.*/Views/SupersetIdentityBadge\.swift'   # → #489 Superset stage
+      - '.*/Views/OpenExercisesSection\.swift'    # → #489 Superset stage
+      - '.*/Views/SessionTile\.swift'             # → #490 Block grid
+      - '.*/Views/ExerciseHistorySheet\.swift'    # → #491 Exercise History sheet
+      - '.*/Views/MoveOnCelebrationView\.swift'   # → #492 Sunbird ceremony
+      - '.*/Views/OnboardingView\.swift'          # → #492 connect screen
+      - '.*/Views/SessionQueueSheet\.swift'       # → #493 queue sheet
+      - '.*/Views/SyncStatusBanner\.swift'        # → #493 sync banner
+      - '.*/Views/SettingsView\.swift'            # → #493 native Settings
+      # Chrome the redesign has not yet re-voiced (glyph/emoji/dev surfaces); grandfathered until a
+      # later re-voicing slice replaces the glyphFont hatch these leaned on.
+      - '.*/Views/EmptyStateView\.swift'
+      - '.*/Views/RestPillView\.swift'
+      - '.*/Views/BuildIdentityFooter\.swift'
+      - '.*/Views/DeveloperToolsView\.swift'
+      - '.*/Views/LiveActivityLabView\.swift'
+    severity: error
+
 identifier_name:
   min_length:
     warning: 1

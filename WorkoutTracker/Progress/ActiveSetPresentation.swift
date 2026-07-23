@@ -13,15 +13,27 @@ struct HoldToSkipPolicy: Equatable, Sendable {
     let tapMaximumDuration: TimeInterval
     let revealDelay: TimeInterval
 
+    /// The tokenized timings are the policy's source of truth (token sheet §7, ledger §1.4): the
+    /// idle Set commits at 850ms, a logged Set at 900ms and a skipped Set at 1100ms, all revealed
+    /// at 250ms. The hardcoded 0.8s / 0.25s constants are retired.
     init(
-        holdDuration: TimeInterval = Theme.holdToSkipDuration,
+        holdDuration: TimeInterval = Theme.Motion.holdToSkipCommit,
         tapMaximumDuration: TimeInterval = Theme.holdToSkipTapMaximumDuration,
-        revealDelay: TimeInterval = Theme.holdToSkipRevealDelay
+        revealDelay: TimeInterval = Theme.Motion.holdToSkipReveal
     ) {
         self.holdDuration = holdDuration
         self.tapMaximumDuration = tapMaximumDuration
         self.revealDelay = revealDelay
     }
+
+    /// The idle-Set hold: reveal 250ms, commit 850ms.
+    static let standard = HoldToSkipPolicy()
+
+    /// The longer hold a Set already logged must survive before it re-skips (900ms).
+    static let loggedState = HoldToSkipPolicy(holdDuration: Theme.Motion.holdToSkipLoggedCommit)
+
+    /// The longest hold, to undo an already-skipped Set (1100ms).
+    static let skippedState = HoldToSkipPolicy(holdDuration: Theme.Motion.holdToSkipSkippedCommit)
 
     func releaseOutcome(elapsed: TimeInterval, skipCompleted: Bool) -> HoldToSkipReleaseOutcome {
         if skipCompleted {

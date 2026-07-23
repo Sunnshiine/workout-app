@@ -12,6 +12,7 @@ let package = Package(
                 "Views",
                 "LiveActivity",
                 "Assets.xcassets",
+                "Fonts",
                 "Sheets/GoogleAuth.swift",
                 "WorkoutTrackerApp.swift",
                 "Info.plist",

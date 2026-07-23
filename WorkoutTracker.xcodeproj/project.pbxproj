@@ -45,6 +45,8 @@
 		6EBAC50C5CD9AE6FED2A1822 /* RestTriggerPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = C452CB917A65913E44B18E15 /* RestTriggerPolicy.swift */; };
 		76AF3279365D2ACDBD02BB7A /* SmartValuePills.swift in Sources */ = {isa = PBXBuildFile; fileRef = 719E54DAA40D4D2D700AA91F /* SmartValuePills.swift */; };
 		788EBD095ACFD0CF48BDA4EE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EE9617577EC2B1EE77CC2E63 /* Assets.xcassets */; };
+		FA0000000000000000000011 /* Fraunces.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FA0000000000000000000001 /* Fraunces.ttf */; };
+		FA0000000000000000000012 /* SourceSans3.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FA0000000000000000000002 /* SourceSans3.ttf */; };
 		7A7A9B87F7663034989F8EB4 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C9C69974B6867E8568AFBD0 /* OnboardingView.swift */; };
 		7B8CE914CEB343A88D109955 /* SyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF512CAF662AE6E54D7B864C /* SyncCoordinator.swift */; };
 		7D73B4A734A389E428D9DA4B /* ActiveSetFocusManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD5A40419517EF83C31555BC /* ActiveSetFocusManager.swift */; };
@@ -255,6 +257,8 @@
 		ECA5D0F58BE44C1297D2C669 /* PendingWrite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingWrite.swift; sourceTree = "<group>"; };
 		ECBE6989519E819A9FDB6608 /* WorkoutStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutStore.swift; sourceTree = "<group>"; };
 		EE9617577EC2B1EE77CC2E63 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		FA0000000000000000000001 /* Fraunces.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Fonts/Fraunces.ttf; sourceTree = "<group>"; };
+		FA0000000000000000000002 /* SourceSans3.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Fonts/SourceSans3.ttf; sourceTree = "<group>"; };
 		FBC4B91909CBE1C1FA3A0E7E /* WorkoutFixtureScenarios.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutFixtureScenarios.swift; sourceTree = "<group>"; };
 		FCE536596991762BAEEF006D /* SmartValuePillsForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartValuePillsForm.swift; sourceTree = "<group>"; };
 		FD5A40419517EF83C31555BC /* ActiveSetFocusManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveSetFocusManager.swift; sourceTree = "<group>"; };
@@ -531,6 +535,8 @@
 			isa = PBXGroup;
 			children = (
 				EE9617577EC2B1EE77CC2E63 /* Assets.xcassets */,
+				FA0000000000000000000001 /* Fraunces.ttf */,
+				FA0000000000000000000002 /* SourceSans3.ttf */,
 				698FB46E5B1635F96AA0AA79 /* Info.plist */,
 				3695D878F161DF7CDC6A827E /* LaunchScreen.storyboard */,
 				22EEE65D45B6DDC0D0563744 /* LoadSuggestionEngine.swift */,
@@ -729,6 +735,8 @@
 			files = (
 				788EBD095ACFD0CF48BDA4EE /* Assets.xcassets in Resources */,
 				0D4C89E50C4CE24C8BCAC13A /* LaunchScreen.storyboard in Resources */,
+				FA0000000000000000000011 /* Fraunces.ttf in Resources */,
+				FA0000000000000000000012 /* SourceSans3.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

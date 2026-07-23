@@ -15,6 +15,19 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     )
 }
 
+@Test func holdToSkipPolicyDefaultsToTheTokenizedTimings() {
+    // Ledger §1.4: the tokenized timings are the policy's source of truth — reveal 250ms, commit
+    // 850ms — retiring the hardcoded 0.8s. Logged and skipped Sets hold longer (900ms / 1100ms).
+    let standard = HoldToSkipPolicy()
+    #expect(standard.holdDuration == Theme.Motion.holdToSkipCommit)
+    #expect(standard.holdDuration == 0.85)
+    #expect(standard.revealDelay == Theme.Motion.holdToSkipReveal)
+    #expect(standard.revealDelay == 0.25)
+    #expect(HoldToSkipPolicy.standard == standard)
+    #expect(HoldToSkipPolicy.loggedState.holdDuration == 0.9)
+    #expect(HoldToSkipPolicy.skippedState.holdDuration == 1.1)
+}
+
 @Test func holdToSkipPolicyDefersQuickReleaseToButtonTap() {
     let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18, revealDelay: 0.25)
 
