@@ -46,6 +46,20 @@ struct SessionStageItem: Identifiable {
     }
 }
 
+/// A node on the living stage's branch. The branch replaces the retired Set
+/// dots entirely; each state derives purely from existing Set State data plus
+/// which Set is on stage, so the branch stays textless and needs no new seam.
+enum BranchNodeState: Equatable, Sendable {
+    /// A Logged Set — an inked leaf.
+    case leaf
+    /// A Skipped Set — a dashed-outline leaf (the "empty bed" vocabulary).
+    case dashedLeaf
+    /// The active Set — a cream bud with a green stroke; carries the page's one glow at Night.
+    case bud
+    /// A Pending Set still ahead — a faint future stroke.
+    case future
+}
+
 /// The part a queue row plays while Superset pairing is in flight.
 enum QueuePairingRole: Equatable, Sendable {
     case none
@@ -132,6 +146,30 @@ enum SessionStagePresentation {
     static func set(matching id: ActiveSetID?, in sortedSets: [ExerciseSet]) -> ExerciseSet? {
         guard let id else { return nil }
         return sortedSets.first { SessionCoordinator.activeSetID(for: $0) == id }
+    }
+
+    /// The branch's node states in Set order: one leaf per Logged Set, a
+    /// dashed-outline leaf per Skipped Set, a cream bud for the active Set, and
+    /// faint future strokes for the remaining Pending Sets. The bud rides the
+    /// Set on stage — the active Set when one is Pending, else the first Pending
+    /// Set — matching the Active Set Card's own `stageSet` selection.
+    static func branchNodeStates(for sets: [ExerciseSet], activeSetID: ActiveSetID?) -> [BranchNodeState] {
+        let bud = budSet(in: sets, activeSetID: activeSetID)
+        return sets.map { set in
+            switch set.state {
+            case .logged: return .leaf
+            case .skipped: return .dashedLeaf
+            case .pending: return set.persistentModelID == bud?.persistentModelID ? .bud : .future
+            }
+        }
+    }
+
+    private static func budSet(in sets: [ExerciseSet], activeSetID: ActiveSetID?) -> ExerciseSet? {
+        if let activeSetID,
+            let active = sets.first(where: { $0.isPending && SessionCoordinator.activeSetID(for: $0) == activeSetID }) {
+            return active
+        }
+        return sets.first(where: \.isPending)
     }
 
     static func ordinal(of set: ExerciseSet, in sortedSets: [ExerciseSet]) -> Int {

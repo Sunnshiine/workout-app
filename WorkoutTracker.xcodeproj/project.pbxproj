@@ -60,6 +60,7 @@
 		95991E9E161A648AAC3B6691 /* UITestFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02CBDEE06463224167F1FB18 /* UITestFixture.swift */; };
 		981E179B026B8751661D3228 /* SupersetState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A7DE7A3ADF7567E4E60F24E /* SupersetState.swift */; };
 		993CEE6B1CC5F53D2830F6A0 /* SessionStageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DFC2292C554D15D32CD11B1 /* SessionStageView.swift */; };
+		A1B2C3D4E5F600000000AB01 /* SessionStageBranch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F600000000AB02 /* SessionStageBranch.swift */; };
 		A02F44FF07FD393EE8A24ADA /* LastPerformedExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBC777FCDEC9F7D51883113F /* LastPerformedExtractor.swift */; };
 		A5B6C7D8E9F001122334455F /* LastPerformedOccurrence.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1E2F3A4B5C6D7E8F9012345 /* LastPerformedOccurrence.swift */; };
 		A17B4D3CFBBB7A17E5B5D851 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73043E31A40EFA8A57C38FAF /* EmptyStateView.swift */; };
@@ -194,6 +195,7 @@
 		4A355409E05892E8B4C913ED /* SheetLayoutInterpreter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetLayoutInterpreter.swift; sourceTree = "<group>"; };
 		4CCC3ED1AD659427B54B3596 /* LastPerformedLookupStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastPerformedLookupStore.swift; sourceTree = "<group>"; };
 		4DFC2292C554D15D32CD11B1 /* SessionStageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStageView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F600000000AB02 /* SessionStageBranch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStageBranch.swift; sourceTree = "<group>"; };
 		501911AD1903F8F78A0957B7 /* OpenExercisesSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenExercisesSection.swift; sourceTree = "<group>"; };
 		51D77DD81D71D5E9E046E80F /* SessionFocusMorphPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionFocusMorphPolicy.swift; sourceTree = "<group>"; };
 		5204E40ABC910CEBB0F82816 /* BlockTabSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockTabSelector.swift; sourceTree = "<group>"; };
@@ -393,6 +395,7 @@
 				D190FFC3E7D57A123821D120 /* SessionProgressHeader.swift */,
 				1027F3D17075B410CAA8EEB9 /* SessionQueueSheet.swift */,
 				4204EE26AA9CAF016ACC94EB /* SessionStageSetDots.swift */,
+				A1B2C3D4E5F600000000AB02 /* SessionStageBranch.swift */,
 				4DFC2292C554D15D32CD11B1 /* SessionStageView.swift */,
 				7172E2B6F090D7F496DD6236 /* SessionTile.swift */,
 				E31CB80B71F35E4D4A35FE87 /* SessionView.swift */,
@@ -839,6 +842,7 @@
 				C60156C7CEC561D20AC1055A /* SessionStagePresentation.swift in Sources */,
 				A1B2C3D400000000000000A1 /* SessionSetOrder.swift in Sources */,
 				263DC76714A051B3A2633BEC /* SessionStageSetDots.swift in Sources */,
+				A1B2C3D4E5F600000000AB01 /* SessionStageBranch.swift in Sources */,
 				993CEE6B1CC5F53D2830F6A0 /* SessionStageView.swift in Sources */,
 				C284DB7EB4E8BFC59D3ECBB1 /* SessionTile.swift in Sources */,
 				FCA508FE3522CB7062267112 /* SessionView.swift in Sources */,

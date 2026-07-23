@@ -243,76 +243,33 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     week.sessions = [session]
     block.weeks = [week]
 
-    let presentation = SessionProgressHeaderPresentation(session: session)
+    let presentation = SessionProgressHeaderPresentation(session: session, block: block)
 
-    #expect(presentation.locationText == "W2 D3 ›")
+    // The locked composition's plain runline (ledger §4.3): `Block · Week · Day` with `N Sets left`.
+    #expect(presentation.runlineText == "Block 27 · Week 2 · Day 3")
     #expect(presentation.completedSetCount == 2)
     #expect(presentation.totalSetCount == 3)
-    #expect(presentation.remainingText == "1 left")
+    #expect(presentation.remainingText == "1 Set left")
     #expect(presentation.locationActionAccessibilityLabel == "Open Block Overview for Week 2, Day 3")
-    #expect(presentation.progressAccessibilityValue == "W2 D3, 1 left")
+    #expect(presentation.progressAccessibilityValue == "Block 27 · Week 2 · Day 3, 1 Set left")
 }
 
 @MainActor
-@Test func sessionProgressHeaderPresentationBuildsOrderedRailSegments() {
+@Test func sessionProgressHeaderRunlineDropsTheBlockPrefixWhenNoBlockIsKnown() {
+    let week = Week(number: 4)
     let session = Session(dayNumber: 1, date: nil)
-    let firstExercise = Exercise(name: "Bench", baseName: "Bench", cadence: nil, coachNote: nil, order: 1)
-    firstExercise.sets = [
-        ExerciseSet(index: 1, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .skipped),
-        ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .logged)
-    ]
-    let secondExercise = Exercise(name: "Row", baseName: "Row", cadence: nil, coachNote: nil, order: 2)
-    secondExercise.sets = [
-        ExerciseSet(index: 1, prescribedReps: "8", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending),
-        ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
-    ]
-    session.exercises = [secondExercise, firstExercise]
-
-    let presentation = SessionProgressHeaderPresentation(session: session)
-
-    #expect(presentation.segments.map(\.state) == [.logged, .skipped, .currentPending, .futurePending])
-}
-
-@MainActor
-@Test func sessionProgressHeaderPresentationUsesFocusedPendingSetForCurrentSegment() {
-    let session = Session(dayNumber: 1, date: nil)
-    let exercise = Exercise(name: "Bench", baseName: "Bench", cadence: nil, coachNote: nil, order: 0)
+    let exercise = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil)
     exercise.sets = [
         ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
         ExerciseSet(index: 1, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
     ]
     session.exercises = [exercise]
+    week.sessions = [session]
 
-    let presentation = SessionProgressHeaderPresentation(
-        session: session,
-        activeSetID: ActiveSetID(exerciseOrder: 0, setIndex: 1)
-    )
+    let presentation = SessionProgressHeaderPresentation(session: session)
 
-    #expect(presentation.segments.map(\.state) == [.futurePending, .currentPending])
-}
-
-@MainActor
-@Test func sessionProgressHeaderPresentationMovesCurrentSegmentAfterSupersetSideSwitch() throws {
-    let session = Session(dayNumber: 1, date: nil)
-    let squat = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil, order: 0)
-    squat.sets = [
-        ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
-    ]
-    let bench = Exercise(name: "Bench", baseName: "Bench", cadence: nil, coachNote: nil, order: 1)
-    bench.sets = [
-        ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
-    ]
-    session.exercises = [squat, bench]
-    let coordinator = SessionCoordinator(session: session)
-
-    #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
-    #expect(coordinator.focusNextSupersetSet(for: bench, in: session))
-    let presentation = SessionProgressHeaderPresentation(
-        session: session,
-        activeSetID: coordinator.activeSetID
-    )
-
-    #expect(presentation.segments.map(\.state) == [.futurePending, .currentPending])
+    #expect(presentation.runlineText == "Week 4 · Day 1")
+    #expect(presentation.remainingText == "2 Sets left")
 }
 
 @Test func sessionSettingsOverpullStaysHiddenBelowRevealThreshold() {

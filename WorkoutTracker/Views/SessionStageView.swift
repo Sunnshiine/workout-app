@@ -45,26 +45,20 @@ struct SessionStageView: View {
         let focusID = coordinator.visualFocusOwner?.setID ?? coordinator.activeSetID
         let stageItem = SessionStagePresentation.stageItem(in: items, focusID: focusID)
 
+        // Training surfaces never scroll (ledger §4.5, the Product Scale Rule): the
+        // stage is a single page that fits, not a ScrollView, and the stage
+        // container sheds its glass (glass dies in the contract slice).
         VStack(spacing: 0) {
-            ScrollView {
-                WorkoutGlassContainer(spacing: Theme.cardSpacing) {
-                    VStack(spacing: Theme.sectionSpacing) {
-                        if let stageItem {
-                            stageContent(stageItem, items: items)
-                        } else {
-                            completionStage(items: items)
-                        }
-                    }
-                    .padding(.horizontal)
-                    .padding(.top, Theme.sectionSpacing)
-                    .padding(.bottom, Theme.cardSpacing)
+            VStack(spacing: Theme.sectionSpacing) {
+                if let stageItem {
+                    stageContent(stageItem, items: items)
+                } else {
+                    completionStage(items: items)
                 }
             }
-            .scrollBounceBehavior(.always)
-            .scrollEdgeEffectStyle(.soft, for: .top)
-            .onScrollGeometryChange(for: CGFloat.self, of: topContentOffset) { _, offset in
-                onTopContentOffsetChange(offset)
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .padding(.horizontal)
+            .padding(.top, Theme.sectionSpacing)
 
             queueBar(stageItem: stageItem, items: items)
         }
@@ -105,7 +99,7 @@ struct SessionStageView: View {
     private func stageContent(_ item: SessionStageItem, items: [SessionStageItem]) -> some View {
         switch item.item {
         case .exercise(let config):
-            exerciseStage(config, position: SessionStagePresentation.positionLabel(of: item, in: items))
+            exerciseStage(config)
         case .superset(let config):
             ActiveSupersetSection(
                 config: config,
@@ -121,33 +115,45 @@ struct SessionStageView: View {
         }
     }
 
-    private func exerciseStage(_ config: SessionExerciseRenderConfig, position: String) -> some View {
+    // The left-aligned editorial column (pick session-stage-a, DESIGN.md §5.1):
+    // the muted Cadence line (only when the Exercise carries a tempo), the
+    // Fraunces Exercise name leading the page, the coach note, then the living
+    // branch. The Active Set Card and its anchored Last Performed runline sink to
+    // the foot, so the page reads top-to-bottom without scrolling.
+    private func exerciseStage(_ config: SessionExerciseRenderConfig) -> some View {
         let sortedSets = config.exercise.sets.sorted { $0.index < $1.index }
 
-        return VStack(spacing: 14) {
-            Text(position)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
+        return VStack(alignment: .leading, spacing: 14) {
+            if let cadence = config.exercise.cadence, !cadence.isEmpty {
+                Text(cadence)
+                    .font(Theme.font(.cadence))
+                    .foregroundStyle(palette.textSecondary)
+                    .accessibilityIdentifier("stage-cadence")
+            }
 
-            Text(config.exercise.name)
-                .font(.title2.weight(.bold))
-                .multilineTextAlignment(.center)
+            Text(config.exercise.baseName)
+                .font(Theme.font(.exerciseName))
+                .foregroundStyle(palette.textPrimary)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("stage-exercise-name")
 
             if let note = config.exercise.coachNote {
                 Text(note)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                    .font(Theme.font(.coachNote))
+                    .foregroundStyle(palette.textSecondary)
+                    .lineSpacing(4)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
-            SessionStageSetDots(
+            SessionStageBranch(
                 sets: sortedSets,
-                currentSetID: config.activeSetID,
-                dotSize: 9,
+                activeSetID: config.activeSetID,
                 onTap: actions.focus
             )
-            .padding(.vertical, 2)
+            .padding(.top, 4)
+
+            Spacer(minLength: 12)
 
             if let lastPerformed = config.lastPerformedPresentation {
                 LastPerformedCard(presentation: lastPerformed) {
@@ -157,7 +163,7 @@ struct SessionStageView: View {
 
             stageCard(config, sortedSets: sortedSets)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -194,18 +200,18 @@ struct SessionStageView: View {
         }
     }
 
+    // The completion stage sheds its extra icons (ledger §4.7): no checkmark, no
+    // arrow — the branch is the page's one icon budget, and the reading is carried
+    // in type-role text alone.
     private func completionStage(items: [SessionStageItem]) -> some View {
-        VStack(spacing: 14) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 52))
-                .foregroundStyle(palette.accent)
-
+        VStack(alignment: .leading, spacing: 14) {
             Text("Session complete")
-                .font(.title2.weight(.bold))
+                .font(Theme.font(.exerciseName))
+                .foregroundStyle(palette.textPrimary)
 
             Text(SessionStagePresentation.completionSummary(for: items))
-                .font(.callout)
-                .foregroundStyle(.secondary)
+                .font(Theme.font(.coachNote))
+                .foregroundStyle(palette.textSecondary)
 
             if !liveEdgeOpenExercises.isEmpty {
                 OpenExercisesSection(
@@ -215,17 +221,21 @@ struct SessionStageView: View {
                 .padding(.top, Theme.cardSpacing)
             }
 
+            Spacer(minLength: 12)
+
             if workout.isViewingLiveEdge, workout.canMoveOn {
                 SessionMoveOnButton(onTap: actions.moveOn)
-                    .padding(.top, Theme.cardSpacing)
             }
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, Theme.sectionSpacing)
     }
 
     // MARK: - Queue
 
+    // The stage foot (DESIGN.md §5.1, pick session-stage-a): a plain `Up next ·`
+    // preview on the left and the `N of M` queue pill on the right. The old glass
+    // up-next bar and its uppercase label + arrow icon are gone.
     private func queueBar(stageItem: SessionStageItem?, items: [SessionStageItem]) -> some View {
         let upNext = SessionStagePresentation.upNextItem(after: stageItem, in: items)
 
@@ -234,46 +244,44 @@ struct SessionStageView: View {
                 Button {
                     jump(to: upNext)
                 } label: {
-                    HStack(spacing: 8) {
-                        Text("Up next")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(palette.accent)
-                            .textCase(.uppercase)
+                    HStack(spacing: 5) {
+                        Text("Up next ·")
+                            .font(Theme.font(.queuePill))
+                            .foregroundStyle(palette.textSecondary)
 
                         Text(upNext.title)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.primary)
+                            .font(Theme.font(.queuePill))
+                            .foregroundStyle(palette.textPrimary)
                             .lineLimit(1)
-
-                        Image(systemName: "arrow.right")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(.secondary)
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .workoutGlass(.capsule)
                 .accessibilityIdentifier("stage-up-next")
             }
 
-            Spacer(minLength: 0)
+            Spacer(minLength: 8)
 
             Button {
                 isQueuePresented = true
             } label: {
-                Label(
-                    SessionStagePresentation.queueProgressLabel(for: items),
-                    systemImage: "list.bullet"
-                )
-                .font(.subheadline.weight(.semibold))
+                Text(SessionStagePresentation.queueProgressLabel(for: items))
+                    .font(Theme.font(.queuePill))
+                    .foregroundStyle(palette.textPrimary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 9)
+                    .background(palette.footFill, in: .rect(cornerRadius: Theme.Radius.card, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                            .strokeBorder(palette.queueStroke, lineWidth: 1)
+                    )
+                    .contentShape(Rectangle())
             }
-            .buttonStyle(.workoutGlass)
+            .buttonStyle(.plain)
             .accessibilityIdentifier("stage-queue-button")
         }
         .padding(.horizontal)
-        .padding(.vertical, 8)
+        .padding(.vertical, 10)
     }
 
     private func jump(to item: SessionStageItem) {
@@ -299,10 +307,6 @@ struct SessionStageView: View {
             UINotificationFeedbackGenerator().notificationOccurred(.warning)
         }
     }
-
-    private func topContentOffset(_ geometry: ScrollGeometry) -> CGFloat {
-        -(geometry.contentOffset.y + geometry.contentInsets.top)
-    }
 }
 
 /// The Move On affordance, shown on the completion stage and in the queue
@@ -310,14 +314,20 @@ struct SessionStageView: View {
 struct SessionMoveOnButton: View {
     var accessibilityID = "move-on-button"
     let onTap: () -> Void
+    @Environment(\.themePalette) private var palette
 
+    // De-glassed (ledger §4): a plain green action capsule, text only — no arrow
+    // icon (Green Means Action, One Icon Per Page).
     var body: some View {
         Button(action: onTap) {
-            Label("Move On", systemImage: "arrow.right")
-                .font(.headline.weight(.semibold))
+            Text("Move On")
+                .font(Theme.font(.logCapsule))
+                .foregroundStyle(palette.actionText)
                 .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(palette.action, in: .capsule)
         }
-        .buttonStyle(.workoutGlass)
+        .buttonStyle(.plain)
         .accessibilityHint("Advances to the next session")
         .accessibilityIdentifier(accessibilityID)
     }

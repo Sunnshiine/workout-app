@@ -369,6 +369,36 @@ struct SessionStagePresentationTests {
         #expect(SessionStagePresentation.pairingRole(of: items[1], mode: mode) == .confirmingTarget)
     }
 
+    @Test func branchNodeStatesInkOneLeafPerLoggedSetAndDashLeafPerSkip() {
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged, .skipped, .pending, .pending])
+        let sets = SessionStagePresentation.items([exerciseItem(squat)])[0].sortedSets
+
+        let states = SessionStagePresentation.branchNodeStates(for: sets, activeSetID: nil)
+
+        // Logged → leaf, Skipped → dashed leaf, the first Pending buds, the rest stay futures.
+        #expect(states == [.leaf, .dashedLeaf, .bud, .future])
+    }
+
+    @Test func branchNodeStatesBudRidesTheActiveSet() {
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.pending, .pending, .pending])
+        let sets = SessionStagePresentation.items([exerciseItem(squat)])[0].sortedSets
+
+        let states = SessionStagePresentation.branchNodeStates(
+            for: sets,
+            activeSetID: ActiveSetID(exerciseOrder: 0, setIndex: 2)
+        )
+
+        // The bud follows focus onto the third Set; the earlier Pending Sets stay futures.
+        #expect(states == [.future, .future, .bud])
+    }
+
+    @Test func branchNodeStatesAreAllLeavesWhenEverySetIsLogged() {
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged, .logged])
+        let sets = SessionStagePresentation.items([exerciseItem(squat)])[0].sortedSets
+
+        #expect(SessionStagePresentation.branchNodeStates(for: sets, activeSetID: nil) == [.leaf, .leaf])
+    }
+
     @Test func pairingRoleTreatsSupersetItemsAsIneligibleTargets() throws {
         let press = makeExercise(name: "Press", order: 1, setStates: [.pending])
         let row = makeExercise(name: "Row", order: 2, setStates: [.pending])
