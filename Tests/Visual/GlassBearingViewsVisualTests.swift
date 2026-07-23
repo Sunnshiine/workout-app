@@ -8,12 +8,9 @@ import Testing
 @MainActor
 @Suite(.snapshots(record: .never))
 struct GlassBearingViewsVisualTests {
-    @Test func sessionTileMatchesVisualBaseline() {
-        assertGlassBaseline {
-            SessionTile(weekNumber: 2, dayNumber: 3, state: .current)
-                .frame(width: 160)
-        }
-    }
+    // `SessionTile` is rebuilt as a wordless, glass-free Block-grid tile (DESIGN.md §5.5) — it no
+    // longer bears glass, so it leaves this suite. Its replacement coverage is the full focus-week
+    // grid in `BlockGridVisualTests`, which renders every tile state in both appearances.
 
     @Test func restPillViewMatchesVisualBaseline() {
         let now = Date(timeIntervalSinceReferenceDate: 1_000)

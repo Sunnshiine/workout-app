@@ -883,6 +883,23 @@ extension Theme {
     #endif
 }
 
+// MARK: - Radial light
+
+extension Theme.RadialLight {
+    /// The multi-stop radial recipe (the Block-grid page sunbeam, a tile's top-light) rendered
+    /// as a fillable view — an elliptical gradient carrying the exact stops, centre and reach
+    /// transcribed from the token sheet. Drop it into an `.overlay`/`.background` over the surface
+    /// it lights.
+    var gradientView: some View {
+        EllipticalGradient(
+            gradient: Gradient(stops: stops),
+            center: center,
+            startRadiusFraction: 0,
+            endRadiusFraction: radiusFraction
+        )
+    }
+}
+
 // MARK: - Living-paper background
 
 extension Theme.Palette {
