@@ -15,8 +15,10 @@ jobs:
     # Composition slices legitimately exceed an hour now that record runs stay
     # in the foreground (up to 30 min each, max 3 iterations): slice 2's first
     # attempt was cancelled by the old 60-minute ceiling with all work
-    # uncommitted (#497).
-    timeout-minutes: 120
+    # uncommitted (#497). 180 is headroom on top of the cheapened visual loop
+    # (VISUAL_LOOP.md build-once + single terminal assert): slice 3 burned the
+    # full 120 on ~8 full-rebuild snapshot cycles and was killed mid-verify.
+    timeout-minutes: 180
     concurrency:
       group: agent-implement-prd-issue-${{ github.event.issue.number }}
       cancel-in-progress: false
@@ -207,6 +209,26 @@ jobs:
         with:
           context7-api-key: ${{ secrets.CONTEXT7_API_KEY }}
 
+      # Overlap the first test build with the agent's context-reading phase
+      # (measured ~18 min before its first xcodebuild on slice 3). The marker
+      # file records the exit code — VISUAL_LOOP.md tells the agent to wait on
+      # it with a hard cap and to build itself if the warm build failed, so a
+      # dead warm build can never deadlock the session. nohup keeps the build
+      # alive across step boundaries; both xcodebuilds never run concurrently
+      # because the agent waits for the marker before its first one.
+      - name: Pre-warm test build in the background
+        if: steps.shape.outputs.mode == 'run'
+        run: |
+          xcrun simctl boot "iPhone 17 Pro" >/dev/null 2>&1 || true
+          nohup bash -c '
+            xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+              -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0" \
+              -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
+              > "$RUNNER_TEMP/warm-build.log" 2>&1
+            echo $? > "$RUNNER_TEMP/warm-build-exit-code"
+          ' >/dev/null 2>&1 &
+          echo "Background build-for-testing started; marker: $RUNNER_TEMP/warm-build-exit-code"
+
       - name: Run implement-prd.ts
         if: steps.shape.outputs.mode == 'run'
         id: implement
@@ -226,6 +248,17 @@ jobs:
           BRANCH: ${{ steps.branch.outputs.name }}
         # NOT force-push: the branch accumulates commits across sub-issue runs.
         run: git push origin "$BRANCH"
+
+      # The branch is the only durable store on an ephemeral runner: a
+      # success()-only push means a timeout or failure discards everything the
+      # agent committed (#497 slice 3 lost 2h of solved work this way). Safe to
+      # push here because prompt.md only permits committing verified-green
+      # units, and a resumed run merges origin/main before continuing.
+      - name: Push any committed work (survives failure/cancellation)
+        if: steps.shape.outputs.mode == 'run' && steps.branchstate.outcome == 'success' && (failure() || cancelled())
+        env:
+          BRANCH: ${{ steps.branch.outputs.name }}
+        run: git push origin "$BRANCH" || true
 
       - name: Check whether a PR already exists for this branch
         if: steps.shape.outputs.mode == 'run' && success()
@@ -346,7 +379,7 @@ jobs:
         run: |
           reason="(no reason file written — check workflow logs)"
           if [ "${{ job.status }}" = "cancelled" ]; then
-            reason="run was cancelled — most likely the job hit its timeout-minutes ceiling; any uncommitted agent work was lost"
+            reason="run was cancelled — most likely the job hit its timeout-minutes ceiling. Committed work was pushed to the PRD branch and a retry resumes from it; only uncommitted work was lost"
           fi
           if [ -f "${RUNNER_TEMP}/failure_reason.txt" ]; then
             reason=$(cat "${RUNNER_TEMP}/failure_reason.txt")
@@ -364,6 +397,16 @@ jobs:
           )"
           if [ -n "${SUB_ISSUE_NUMBER:-}" ]; then
             gh issue comment "$SUB_ISSUE_NUMBER" --body "Implementation attempt failed. See PRD #${PRD_NUMBER} for status. Workflow run: $RUN_URL" || true
+          fi
+
+      # A failed warm build is invisible inside nohup; surface its tail so the
+      # cause is in the job log (the agent itself already fell back to building).
+      - name: Surface warm-build log on failure
+        if: always() && steps.shape.outputs.mode == 'run'
+        run: |
+          if [ -f "$RUNNER_TEMP/warm-build-exit-code" ] && [ "$(cat "$RUNNER_TEMP/warm-build-exit-code")" != "0" ]; then
+            echo "::warning::Pre-warm build-for-testing failed (exit $(cat "$RUNNER_TEMP/warm-build-exit-code")); last 100 lines:"
+            tail -100 "$RUNNER_TEMP/warm-build.log" || true
           fi
 
       - name: Always remove in-progress from PRD
