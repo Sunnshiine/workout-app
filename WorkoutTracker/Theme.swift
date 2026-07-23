@@ -246,6 +246,13 @@ enum Theme {
         // Exercise History sheet
         let sheetFill: Color
         let chipCarvedFill: Color
+        /// The carve's dark top inner shadow — what makes a chip read *below* the sheet, not raised
+        /// (token sheet §5.6: `inset 0 1px 2px rgba(21,33,24,0.14)`). Re-lit for Night as a deep
+        /// sage-ink shadow (never neutral black, Room Re-lights Rule).
+        let chipCarveShadow: Color
+        /// The carve's light bottom edge (`0 1px 0 rgba(255,255,255,0.6)`), the highlight lip below
+        /// the pressed fill; cream-toned at Night.
+        let chipCarveEdge: Color
         let chartLine: Color
         let blockSeam: Color
         let scrim: Color
@@ -606,6 +613,8 @@ extension Theme {
         weekCardShade: rgb(226, 233, 214, 0.72),
         sheetFill: rgb(239, 244, 228), // #EFF4E4
         chipCarvedFill: Paint.ink.opacity(0.055),
+        chipCarveShadow: rgb(21, 33, 24, 0.14), // inset top shadow — carves the chip below flat
+        chipCarveEdge: Color.white.opacity(0.6), // the light bottom lip
         chartLine: Paint.ink.opacity(0.35),
         blockSeam: Paint.ink.opacity(0.14),
         scrim: Paint.ink.opacity(0.32),
@@ -665,6 +674,8 @@ extension Theme {
         weekCardShade: Paint.cream.opacity(0.06),
         sheetFill: rgb(31, 40, 29), // night sheet follows the #418 recipe (flagged for build validation)
         chipCarvedFill: Paint.cream.opacity(0.06),
+        chipCarveShadow: rgb(9, 18, 12, 0.45), // deep sage-ink inset — the room re-lit, never black
+        chipCarveEdge: Paint.cream.opacity(0.10), // cream-toned bottom lip at Night
         chartLine: Paint.inkNight.opacity(0.35),
         blockSeam: Paint.inkNight.opacity(0.14),
         scrim: rgb(9, 18, 12, 0.60),
@@ -932,6 +943,30 @@ extension View {
     /// an inset stroke on `shape` instead of a drop (token sheet §Active Set Card / §Log capsule).
     func themeElevation(_ shadows: [Theme.BoxShadow], in shape: some InsettableShape) -> some View {
         modifier(Theme.Elevation(shadows: shadows, shape: shape))
+    }
+
+    /// The app's only below-flat elevation: a carved chip / well / pressed control, cut *into* the
+    /// living paper (token sheet §5.6). The low-opacity `chipCarvedFill` sits under a dark top inner
+    /// shadow (`chipCarveShadow`) with a light bottom edge (`chipCarveEdge`), so it reads pressed
+    /// below the sheet — never the soft-raised top highlight the first pass shipped (ledger §7.1).
+    /// Re-lights per appearance.
+    func themeCarve(_ palette: Theme.Palette, in shape: some InsettableShape) -> some View {
+        background {
+            shape
+                .fill(palette.chipCarvedFill.shadow(.inner(color: palette.chipCarveShadow, radius: 1, y: 1)))
+                .overlay {
+                    // The light bottom lip — the stroke masked to the lower edge so only the bottom lights.
+                    shape
+                        .strokeBorder(palette.chipCarveEdge, lineWidth: 1)
+                        .mask {
+                            LinearGradient(
+                                colors: [.clear, .clear, .black],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        }
+                }
+        }
     }
 }
 
