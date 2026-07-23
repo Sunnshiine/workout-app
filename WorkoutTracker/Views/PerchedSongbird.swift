@@ -181,25 +181,20 @@ struct CeremonyBranch: View {
         return Metrics.firstT + span * CGFloat(index) / CGFloat(leafCount - 1)
     }
 
-    private func stemPoint(t: CGFloat, in size: CGSize) -> CGPoint {
+    private func stemCurve(in size: CGSize) -> QuadraticBezier {
         let p0 = CGPoint(x: Metrics.leadInset, y: size.height * Metrics.rootY)
         let p1 = CGPoint(x: size.width - Metrics.trailInset, y: size.height * Metrics.tipY)
         let control = CGPoint(x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 - Metrics.bow)
-        let mt = 1 - t
-        return CGPoint(
-            x: mt * mt * p0.x + 2 * mt * t * control.x + t * t * p1.x,
-            y: mt * mt * p0.y + 2 * mt * t * control.y + t * t * p1.y
-        )
+        return QuadraticBezier(start: p0, control: control, end: p1)
+    }
+
+    private func stemPoint(t: CGFloat, in size: CGSize) -> CGPoint {
+        stemCurve(in: size).point(at: t)
     }
 
     private func stemAngle(t: CGFloat, in size: CGSize) -> Angle {
-        let p0 = CGPoint(x: Metrics.leadInset, y: size.height * Metrics.rootY)
-        let p1 = CGPoint(x: size.width - Metrics.trailInset, y: size.height * Metrics.tipY)
-        let control = CGPoint(x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 - Metrics.bow)
-        let mt = 1 - t
-        let dx = 2 * mt * (control.x - p0.x) + 2 * t * (p1.x - control.x)
-        let dy = 2 * mt * (control.y - p0.y) + 2 * t * (p1.y - control.y)
-        return Angle(radians: atan2(dy, dx))
+        let tangent = stemCurve(in: size).tangent(at: t)
+        return Angle(radians: atan2(tangent.dy, tangent.dx))
     }
 }
 

@@ -87,6 +87,19 @@ struct ExerciseHistorySheetPresentation: Equatable, Sendable {
         }
     }
 
+    /// The normalized plot height for each volume point (0 = the series minimum sits at the plot
+    /// floor, 1 = the maximum sits at the ceiling), in `volumePoints` order. A flat or single-point
+    /// series maps to the vertical centre (0.5) so the chart reads calm rather than pinned to an edge.
+    /// The view owns pixel geometry; this owns the value→height mapping so its edges (empty, single
+    /// point, flat series) are unit-testable rather than buried in a `View`.
+    var volumeHeightFractions: [Double] {
+        let volumes = volumePoints.map(\.volume)
+        guard let minimum = volumes.min(), let maximum = volumes.max() else { return [] }
+        let span = maximum - minimum
+        guard span > 0 else { return volumes.map { _ in 0.5 } }
+        return volumes.map { ($0 - minimum) / span }
+    }
+
     init(anchorBaseName: String, entries: [LastPerformedOccurrence]) {
         title = anchorBaseName
         subtitle = "Exercise History · last \(Self.entryLimit)"

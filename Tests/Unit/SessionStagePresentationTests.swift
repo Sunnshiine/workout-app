@@ -441,3 +441,56 @@ struct SessionStagePresentationTests {
         )
     }
 }
+
+// MARK: - Quadratic bezier (the shared stem/branch geometry)
+
+@Test func quadraticBezierAnchorsAtItsEndpoints() {
+    let curve = QuadraticBezier(
+        start: CGPoint(x: 10, y: 90),
+        control: CGPoint(x: 55, y: 20),
+        end: CGPoint(x: 100, y: 40)
+    )
+
+    #expect(curve.point(at: 0) == curve.start)
+    #expect(curve.point(at: 1) == curve.end)
+}
+
+@Test func quadraticBezierPointMatchesTheClosedForm() {
+    let curve = QuadraticBezier(
+        start: CGPoint(x: 10, y: 90),
+        control: CGPoint(x: 55, y: 20),
+        end: CGPoint(x: 100, y: 40)
+    )
+
+    // An independent re-derivation of the formula the views used inline before the extraction,
+    // proving the shared helper is byte-identical (the visual baselines depend on it).
+    for t in stride(from: 0.0 as CGFloat, through: 1.0, by: 0.1) {
+        let mt = 1 - t
+        let expected = CGPoint(
+            x: mt * mt * curve.start.x + 2 * mt * t * curve.control.x + t * t * curve.end.x,
+            y: mt * mt * curve.start.y + 2 * mt * t * curve.control.y + t * t * curve.end.y
+        )
+        #expect(curve.point(at: t) == expected)
+    }
+}
+
+@Test func quadraticBezierTangentMatchesTheClosedFormAndPointsFromStartToEnd() {
+    let curve = QuadraticBezier(
+        start: CGPoint(x: 10, y: 90),
+        control: CGPoint(x: 55, y: 20),
+        end: CGPoint(x: 100, y: 40)
+    )
+
+    for t in stride(from: 0.0 as CGFloat, through: 1.0, by: 0.25) {
+        let mt = 1 - t
+        let expected = CGVector(
+            dx: 2 * mt * (curve.control.x - curve.start.x) + 2 * t * (curve.end.x - curve.control.x),
+            dy: 2 * mt * (curve.control.y - curve.start.y) + 2 * t * (curve.end.y - curve.control.y)
+        )
+        #expect(curve.tangent(at: t) == expected)
+    }
+
+    // This stem climbs left→right, so every tangent advances in +x (leaves never point backwards).
+    #expect(curve.tangent(at: 0).dx > 0)
+    #expect(curve.tangent(at: 1).dx > 0)
+}

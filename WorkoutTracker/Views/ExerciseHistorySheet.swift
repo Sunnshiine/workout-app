@@ -155,8 +155,12 @@ struct ExerciseHistorySheet: View {
     }
 
     private var volumeChart: some View {
-        VolumeChart(points: presentation.volumePoints, seamIndices: presentation.volumeBlockSeamIndices)
-            .environment(\.themePalette, palette)
+        VolumeChart(
+            points: presentation.volumePoints,
+            heightFractions: presentation.volumeHeightFractions,
+            seamIndices: presentation.volumeBlockSeamIndices
+        )
+        .environment(\.themePalette, palette)
     }
 
     private func blockSection(_ block: ExerciseHistorySheetPresentation.Block) -> some View {
@@ -306,6 +310,9 @@ private struct ExerciseHistoryRow: View {
 /// axes, no labels — history is reference reading, not a dashboard (The History Is Reference Rule).
 private struct VolumeChart: View {
     let points: [ExerciseHistorySheetPresentation.VolumePoint]
+    /// Each point's normalized plot height (0…1), derived at the presentation seam so the view owns
+    /// pixel geometry only. `points.count`-aligned.
+    let heightFractions: [Double]
     /// Block-boundary indices, derived at the presentation seam so the view owns geometry only.
     let seamIndices: [Int]
 
@@ -328,32 +335,19 @@ private struct VolumeChart: View {
         .accessibilityIdentifier("history-volume-chart")
     }
 
-    /// Even x-spacing; y mapped into the padded plot from the volume range. A flat or single-point
-    /// series sits on the vertical centre so it reads as calm rather than pinned to an edge.
+    /// Even x-spacing; y is the presentation's per-point height fraction mapped into the padded plot
+    /// (higher volume sits higher). A single point centres horizontally.
     private func positions(in size: CGSize) -> [CGPoint] {
         guard !points.isEmpty else { return [] }
-        let volumes = points.map(\.volume)
-        let minV = volumes.min() ?? 0
-        let maxV = volumes.max() ?? 0
-        let span = maxV - minV
-
         let plotWidth = size.width - inset * 2
         let plotHeight = size.height - inset * 2
 
-        return points.enumerated().map { index, point in
-            let x: CGFloat
-            if points.count == 1 {
-                x = size.width / 2
-            } else {
-                x = inset + plotWidth * CGFloat(index) / CGFloat(points.count - 1)
-            }
-            let y: CGFloat
-            if span == 0 {
-                y = size.height / 2
-            } else {
-                // Higher volume sits higher on the plot.
-                y = inset + plotHeight * (1 - CGFloat((point.volume - minV) / span))
-            }
+        return points.indices.map { index in
+            let x =
+                points.count == 1
+                ? size.width / 2
+                : inset + plotWidth * CGFloat(index) / CGFloat(points.count - 1)
+            let y = inset + plotHeight * (1 - CGFloat(heightFractions[index]))
             return CGPoint(x: x, y: y)
         }
     }

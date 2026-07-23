@@ -252,22 +252,17 @@ struct SessionStageBranch: View {
         return PartnerMetrics.firstNodeT + span * CGFloat(index) / CGFloat(partnerNodes.count - 1)
     }
 
+    private func partnerCurve(fork: CGPoint, in size: CGSize) -> QuadraticBezier {
+        QuadraticBezier(start: fork, control: partnerControl(fork: fork, in: size), end: partnerTip(in: size))
+    }
+
     private func partnerPoint(t: CGFloat, fork: CGPoint, in size: CGSize) -> CGPoint {
-        let tip = partnerTip(in: size)
-        let control = partnerControl(fork: fork, in: size)
-        let mt = 1 - t
-        let x = mt * mt * fork.x + 2 * mt * t * control.x + t * t * tip.x
-        let y = mt * mt * fork.y + 2 * mt * t * control.y + t * t * tip.y
-        return CGPoint(x: x, y: y)
+        partnerCurve(fork: fork, in: size).point(at: t)
     }
 
     private func partnerAngle(t: CGFloat, fork: CGPoint, in size: CGSize) -> Angle {
-        let tip = partnerTip(in: size)
-        let control = partnerControl(fork: fork, in: size)
-        let mt = 1 - t
-        let dx = 2 * mt * (control.x - fork.x) + 2 * t * (tip.x - control.x)
-        let dy = 2 * mt * (control.y - fork.y) + 2 * t * (tip.y - control.y)
-        return Angle(radians: atan2(dy, dx))
+        let tangent = partnerCurve(fork: fork, in: size).tangent(at: t)
+        return Angle(radians: atan2(tangent.dy, tangent.dx))
     }
 
     // MARK: - Stem geometry
@@ -278,28 +273,25 @@ struct SessionStageBranch: View {
         return Metrics.firstNodeT + span * CGFloat(index) / CGFloat(nodes.count - 1)
     }
 
-    /// A point on the climbing stem at parameter `t` (a quadratic bezier bowed
-    /// gently upward). Root at low leading, tip at high trailing.
-    private func stemPoint(t: CGFloat, in size: CGSize) -> CGPoint {
+    /// The climbing stem as a quadratic bezier bowed gently upward: root at low
+    /// leading, tip at high trailing.
+    private func stemCurve(in size: CGSize) -> QuadraticBezier {
         let p0 = CGPoint(x: Metrics.leadInset, y: size.height * Metrics.rootY)
         let p1 = CGPoint(x: size.width - Metrics.trailInset, y: size.height * Metrics.tipY)
         let control = CGPoint(x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 - Metrics.bow)
-        let mt = 1 - t
-        let x = mt * mt * p0.x + 2 * mt * t * control.x + t * t * p1.x
-        let y = mt * mt * p0.y + 2 * mt * t * control.y + t * t * p1.y
-        return CGPoint(x: x, y: y)
+        return QuadraticBezier(start: p0, control: control, end: p1)
+    }
+
+    /// A point on the climbing stem at parameter `t`.
+    private func stemPoint(t: CGFloat, in size: CGSize) -> CGPoint {
+        stemCurve(in: size).point(at: t)
     }
 
     /// The stem's tangent angle at parameter `t`, so leaves and future strokes
     /// align with the climb.
     private func stemAngle(t: CGFloat, in size: CGSize) -> Angle {
-        let p0 = CGPoint(x: Metrics.leadInset, y: size.height * Metrics.rootY)
-        let p1 = CGPoint(x: size.width - Metrics.trailInset, y: size.height * Metrics.tipY)
-        let control = CGPoint(x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 - Metrics.bow)
-        let mt = 1 - t
-        let dx = 2 * mt * (control.x - p0.x) + 2 * t * (p1.x - control.x)
-        let dy = 2 * mt * (control.y - p0.y) + 2 * t * (p1.y - control.y)
-        return Angle(radians: atan2(dy, dx))
+        let tangent = stemCurve(in: size).tangent(at: t)
+        return Angle(radians: atan2(tangent.dy, tangent.dx))
     }
 }
 
