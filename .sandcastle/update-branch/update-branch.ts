@@ -50,10 +50,21 @@ const result = await runWithExtraction({
   agent: sandcastle.claudeCode("claude-opus-4-8", {
     env: {
       CLAUDE_CODE_OAUTH_TOKEN: required("CLAUDE_CODE_OAUTH_TOKEN"),
+      // Never background a command (auto-backgrounding included): an agent
+      // that ends its session "waiting" on a background build is never
+      // resumed, and its uncommitted work dies with the runner (#497).
+      CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1",
+      // Foreground xcodebuild runs must fit inside the Bash ceiling now
+      // that nothing backgrounds them; the 10-minute default is too small
+      // for a cold record run.
+      BASH_MAX_TIMEOUT_MS: "1800000",
     },
   }),
   sandbox: noSandbox(),
   logging: { type: "stdout" },
+  // A silent foreground build must outlive the idle timeout (default 600s),
+  // so this stays above BASH_MAX_TIMEOUT_MS.
+  idleTimeoutSeconds: 2700,
   promptFile: path.join(import.meta.dirname, "prompt.md"),
   promptArgs: {
     PR_NUMBER,
