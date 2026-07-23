@@ -107,9 +107,7 @@ struct ExerciseHistorySheet: View {
                     if showVolume {
                         Color.clear.themeCarve(palette, in: Capsule())
                     } else {
-                        Capsule()
-                            .fill(Theme.LightKit.volumeControlRaisedFill)
-                            .themeElevation(Theme.LightKit.volumeControlRaisedShadow, in: Capsule())
+                        volumeControlRaisedBackground
                     }
                 }
                 .contentShape(Capsule())
@@ -118,6 +116,23 @@ struct ExerciseHistorySheet: View {
         .accessibilityIdentifier("history-volume-toggle")
         .accessibilityLabel("Volume")
         .accessibilityValue(showVolume ? "on" : "off")
+    }
+
+    /// The Volume control's at-rest raised recipe. By Day it sits on the cream lift
+    /// (`volumeControlRaisedFill` over `cardLow`); at Night the room re-lights to a quiet lifted sage
+    /// surface under an inset cream border-as-light — no cream bloom, matching the night focus card
+    /// (Room Re-lights Rule; the sheet's night set was flagged for build validation, PRD #497 §11).
+    @ViewBuilder
+    private var volumeControlRaisedBackground: some View {
+        if palette.appearance == .day {
+            Capsule()
+                .fill(Theme.LightKit.volumeControlRaisedFill)
+                .themeElevation(Theme.LightKit.volumeControlRaisedShadow, in: Capsule())
+        } else {
+            Capsule()
+                .fill(palette.surface)
+                .themeElevation(palette.surfaceShadow, in: Capsule())
+        }
     }
 
     /// A visible, playful fill affordance in the product's warm voice: a warm line, a muted
@@ -378,14 +393,16 @@ private struct VolumeChart: View {
 
     /// A plotted point. The exact dot is a solid ink disc with a punched paper core (it reads as a
     /// filled dot lifting off the paper); the approximate `≈` dot is a hollow ink outline (ledger §7.3).
+    /// The "ink" and the paper core both take the re-lit palette roles (`textPrimary` over `sheetFill`)
+    /// so the dots stay legible at Night, where the static day ink would vanish into the deep paper.
     private func dot(_ spec: Theme.DotSpec) -> some View {
         ZStack {
             if spec.lineWidth > 0 {
                 Circle()
-                    .strokeBorder(palette.chartLine, lineWidth: spec.lineWidth)
+                    .strokeBorder(palette.textPrimary, lineWidth: spec.lineWidth)
             } else {
                 Circle()
-                    .fill(spec.color)
+                    .fill(palette.textPrimary)
             }
             if spec.hasPaperCore {
                 Circle()
