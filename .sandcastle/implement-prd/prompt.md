@@ -75,3 +75,15 @@ sub-issue is the workflow's job, and closing the PRD is the merged PR's job.
 
 Do not close the sub-issue yourself. Do not push the branch. The workflow
 handles both.
+
+# COMPLETION SIGNAL
+
+When — and only when — the sub-issue is fully implemented, verified, and
+committed, end your final message with this exact line:
+
+`<promise>COMPLETE</promise>`
+
+The runner treats the run as finished only when it sees this signal; a run
+that ends without it is marked failed. Never emit it while any work is
+outstanding — including a build or test run still in progress. If you end a
+turn without the signal, the runner resumes your session to let you finish.

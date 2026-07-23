@@ -165,6 +165,16 @@ jobs:
           if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
             git fetch origin "$BRANCH"
             git checkout -B "$BRANCH" "origin/$BRANCH"
+            # Keep a resumed PRD branch current with main. A stale branch
+            # otherwise shadows harness fixes that landed on main after the
+            # branch was created — everything below runs from this working
+            # tree, not from main (#497: run 2 re-ran a pre-fix .sandcastle
+            # from the branch even though the fix was already on main).
+            if ! git merge --no-edit origin/main; then
+              git merge --abort || true
+              echo "PRD branch $BRANCH has merge conflicts with origin/main; resolve them manually, push the branch, then retry." > "${RUNNER_TEMP}/failure_reason.txt"
+              exit 1
+            fi
             echo "is_first=false" >> "$GITHUB_OUTPUT"
           else
             git checkout -b "$BRANCH"
@@ -212,14 +222,6 @@ jobs:
           BRANCH: ${{ steps.branch.outputs.name }}
         # NOT force-push: the branch accumulates commits across sub-issue runs.
         run: git push origin "$BRANCH"
-
-      - name: Close completed sub-issue
-        if: steps.shape.outputs.mode == 'run' && success()
-        env:
-          SUB_ISSUE_NUMBER: ${{ steps.shape.outputs.next_open_number }}
-        run: |
-          commit_sha=$(git rev-parse HEAD)
-          gh issue close "$SUB_ISSUE_NUMBER" --comment "Implemented in ${commit_sha}. Part of #${PRD_NUMBER}."
 
       - name: Check whether a PR already exists for this branch
         if: steps.shape.outputs.mode == 'run' && success()
@@ -269,6 +271,18 @@ jobs:
             echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
             echo "created=true" >> "$GITHUB_OUTPUT"
           fi
+
+      # Runs only after the PR step has succeeded: closing before it meant a
+      # failed run could mark a sub-issue "Implemented" off a dead session,
+      # and the next Detect would silently skip that slice (#497 closed #486
+      # twice with zero commits).
+      - name: Close completed sub-issue
+        if: steps.shape.outputs.mode == 'run' && success()
+        env:
+          SUB_ISSUE_NUMBER: ${{ steps.shape.outputs.next_open_number }}
+        run: |
+          commit_sha=$(git rev-parse HEAD)
+          gh issue close "$SUB_ISSUE_NUMBER" --comment "Implemented in ${commit_sha}. Part of #${PRD_NUMBER}."
 
       - name: Re-check remaining open sub-issues
         if: steps.shape.outputs.mode == 'run' && success()
