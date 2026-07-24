@@ -2,6 +2,21 @@
 <!--
   PROTOTYPE — throwaway, never merges to main.
 
+  VERDICT (owner: "lgtm", 2026-07-24) — the branch at 2–3 sets should render:
+  - Layout: constant full-length stem; terminal node at t=0.80; earlier nodes
+    step down by min(0.24, span/(n-1)); sides alternate (even index above).
+  - Blade: slender pointed silhouette (64×20 design space, pointed both ends),
+    46pt, cream rib streak; above-blades -43° off the tangent, below +50°,
+    both forward-leaning (measured off the wayfinder pick).
+  - States: logged = inked blade; skipped = dashed blade outline; active = the
+    same blade cream-filled inside a green stroke (inks solid on log — the
+    pick's "clever leaf fill"); future = ghost blade outline at 0.72 scale.
+  - Implementation unlocks needed: replace token-sheet LeafShape with the
+    pick's blade, retire the circle BranchBudGlyph and capsule future stroke,
+    reword DESIGN.md §5.1 ("cream bud" → cream-filled leaf, "future strokes"
+    → ghost leaf outlines). Source of truth:
+    docs/design/greenhouse-picks/session-stage-a.png (#413).
+
   Question: how should the session-stage branch (SessionStageBranch.swift) read
   when an exercise has only 2–3 sets? Four structurally different geometry
   variants on one file, switchable via ?variant= (a/b/c/d). Day palette only —
