@@ -17,11 +17,16 @@
   truncated stem — rejected: the tangent-aligned terminal leaf clipped the stem,
   and the stem length shouldn't vary.
 
-  Round 3 (this file): the stem is one constant full length for every set
-  count; only the terminal node's placement slides. Five placements:
-  p60 / p70 / p80 / p90 / p100 (terminal node at t = 0.60…1.00). The other
-  nodes hang below it (step capped at .24). The terminal leaf tilts 30° off
-  the tangent — enough to clear the stem stroke, still forward-swept.
+  Round 3 (git history) settled the layout: constant full-length stem,
+  terminal node at t=0.80, others stepping down (≤.24), alternating sides.
+
+  Round 4 (this file): match the wayfinder pick's glyph vocabulary
+  (docs/design/greenhouse-picks/session-stage-a.png, #413) on the p80 layout.
+  In the pick: leaves are slender pointed blades with a cream rib streak,
+  standing steeply off the stem (above-leaves near vertical, below-leaves
+  drooping forward); the active set is the SAME leaf cream-filled with a green
+  stroke — the "clever leaf fill" (logging inks it solid); futures are faint
+  ghost leaf outlines, not angled strokes. No circle bud anywhere.
 -->
 <html lang="en">
 <head>
@@ -158,14 +163,12 @@ function centeredT(i, n, first, last, maxStep) {
 }
 
 // ---- variants --------------------------------------------------------------
-// Round 3: constant full-length stem; only the terminal node's placement
-// slides. Preceding nodes hang below the terminal at a capped step, so the
-// cluster follows the terminal leaf wherever it sits.
-function placementConfig(p) {
+// Round 4: the pick's glyph vocabulary on the settled p80 layout. Above-leaves
+// stand near vertical with a slight back lean; below-leaves droop forward.
+function pickConfig(p) {
   return {
-    name: `terminal at t=${p.toFixed(2)}`,
-    knobs: `full stem, constant length · terminal node at t=${p.toFixed(2)}, others hang below (step ≤ .24) · alternating sides (as production) · terminal leaf 30°, interior 42°`,
-    terminalTilt: 30,
+    name: `pick vocabulary · terminal at t=${p.toFixed(2)}`,
+    knobs: `slender blades, cream rib · active = cream-filled leaf (green stroke) · future = ghost leaf outline · above tilt 72°, below 55° · p80 layout, alternating`,
     stem: (w) => fullStem(w),
     nodeT: (i, n) => {
       if (n <= 1) return p;
@@ -174,7 +177,8 @@ function placementConfig(p) {
     },
     above: (i) => i % 2 === 0,
     leafLen: () => BASE.leafLen,
-    tilt: () => BASE.leafTilt,
+    aboveTilt: 72,
+    belowTilt: 55,
   };
 }
 const oldConfigs = {
@@ -244,29 +248,26 @@ const oldConfigs = {
 };
 void oldConfigs; // round 1, kept for reference — flip via git history
 const configs = {
-  p60: placementConfig(0.60),
-  p70: placementConfig(0.70),
-  p80: placementConfig(0.80),
-  p90: placementConfig(0.90),
-  p100: placementConfig(1.00),
+  pick: pickConfig(0.80),
 };
-const variants = ["p60", "p70", "p80", "p90", "p100"];
+const variants = ["pick"];
 
 // ---- glyph rendering -------------------------------------------------------
 const SVGNS = "http://www.w3.org/2000/svg";
 
-// Token-sheet leaf silhouette (60×24 design space), scaled to len×len*0.4,
-// base at local origin, blade along +x, vertically centered — matching the
-// SwiftUI offset(x: w/2) + rotationEffect anchoring.
+// Slender pointed blade matching the pick (not the token-sheet 60×24 leaf —
+// the pick's silhouette is narrower and pointed both ends). 64×20 design
+// space, base pointed at (0,10), tip pointed at (64,3); the rib is a cream
+// streak just off the spine. Base at local origin, blade along +x.
 function leafPathD(len) {
-  const sx = len / 60, sy = (len * 24 / 60) / 24;
-  const pt = (x, y) => `${(x * sx).toFixed(2)} ${((y - 12) * sy).toFixed(2)}`;
-  return `M ${pt(0, 8)} C ${pt(15, 2.3)}, ${pt(41, 3.3)}, ${pt(60, 8)} C ${pt(41, 21.7)}, ${pt(15, 22.6)}, ${pt(0, 8)} Z`;
+  const sx = len / 64, sy = (len * 20 / 64) / 20;
+  const pt = (x, y) => `${(x * sx).toFixed(2)} ${((y - 10) * sy).toFixed(2)}`;
+  return `M ${pt(0, 10)} C ${pt(16, -2)}, ${pt(46, -4)}, ${pt(64, 3)} C ${pt(44, 16)}, ${pt(14, 19)}, ${pt(0, 10)} Z`;
 }
 function ribPathD(len) {
-  const sx = len / 60, sy = (len * 24 / 60) / 24;
-  const pt = (x, y) => `${(x * sx).toFixed(2)} ${((y - 12) * sy).toFixed(2)}`;
-  return `M ${pt(4, 8.1)} C ${pt(20, 9.8)}, ${pt(40, 9.6)}, ${pt(56, 8.1)}`;
+  const sx = len / 64, sy = (len * 20 / 64) / 20;
+  const pt = (x, y) => `${(x * sx).toFixed(2)} ${((y - 10) * sy).toFixed(2)}`;
+  return `M ${pt(7, 8.6)} C ${pt(24, 4.6)}, ${pt(42, 2.6)}, ${pt(56, 3.4)}`;
 }
 
 function el(name, attrs, parent) {
@@ -295,36 +296,33 @@ function renderBranch(cfg, states, width) {
     const above = cfg.above(i, n);
     const g = el("g", { transform: `translate(${pt.x.toFixed(1)} ${pt.y.toFixed(1)})` }, svg);
 
-    if (state === "leaf" || state === "skip") {
-      const len = cfg.leafLen(n);
-      // The terminal leaf sweeps forward at a shallower tilt than interior
-      // leaves — but steep enough to clear the stem stroke (no clipping).
-      const terminal = cfg.terminalTilt !== undefined && i === n - 1;
-      const tilt = terminal ? cfg.terminalTilt : cfg.tilt(n);
-      const rot = angle + (above ? -tilt : tilt);
-      const leafG = el("g", { transform: `rotate(${rot.toFixed(1)})` }, g);
-      if (state === "leaf") {
-        el("path", { d: leafPathD(len), fill: P.leafFill }, leafG);
-        el("path", {
-          d: ribPathD(len), fill: "none", stroke: P.leafRib,
-          "stroke-width": 0.6, "stroke-linecap": "round",
-        }, leafG);
-      } else {
-        el("path", {
-          d: leafPathD(len), fill: "none", stroke: P.skip,
-          "stroke-width": 0.6, "stroke-linecap": "round", "stroke-dasharray": "5 4",
-        }, leafG);
-      }
+    // Every mark is the same blade, oriented by side: above-leaves stand
+    // steeply with a slight back lean, below-leaves droop forward.
+    const rot = angle + (above ? -cfg.aboveTilt : cfg.belowTilt);
+    const leafG = el("g", { transform: `rotate(${rot.toFixed(1)})` }, g);
+    const len = cfg.leafLen(n);
+    if (state === "leaf") {
+      el("path", { d: leafPathD(len), fill: P.leafFill }, leafG);
+      el("path", {
+        d: ribPathD(len), fill: "none", stroke: P.leafRib,
+        "stroke-width": 1.6, "stroke-linecap": "round",
+      }, leafG);
+    } else if (state === "skip") {
+      el("path", {
+        d: leafPathD(len), fill: "none", stroke: P.skip,
+        "stroke-width": 1.2, "stroke-linecap": "round", "stroke-dasharray": "5 4",
+      }, leafG);
     } else if (state === "bud") {
-      el("circle", {
-        r: BASE.budD / 2, fill: P.budFill, stroke: P.budStroke, "stroke-width": 1.1,
-      }, g);
+      // The clever leaf fill: the active set is the same blade, cream inside a
+      // green stroke — logging inks it solid.
+      el("path", {
+        d: leafPathD(len), fill: P.budFill, stroke: P.budStroke, "stroke-width": 1.8,
+      }, leafG);
     } else if (state === "future") {
-      const rot = angle + (above ? -BASE.futureTilt : BASE.futureTilt);
-      el("rect", {
-        x: 0, y: -BASE.stemW / 2, width: BASE.futureLen, height: BASE.stemW,
-        rx: BASE.stemW / 2, fill: P.future, transform: `rotate(${rot.toFixed(1)})`,
-      }, g);
+      // A ghost of the leaf to come — faint outline, slightly smaller.
+      el("path", {
+        d: leafPathD(len * 0.72), fill: "none", stroke: P.future, "stroke-width": 1.4,
+      }, leafG);
     }
   });
 
