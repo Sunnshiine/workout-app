@@ -13,11 +13,15 @@
   truncated stem (55% at 2 sets, 72% at 3), nodes 0.24→tip, same-side leaves at
   ≤3 sets, terminal leaf nearly along the stem tangent (10°).
 
-  Round 2 (this file): how much bare stem should run past the terminal leaf's
-  base before the branch ends? Real twigs (olive, willow oak refs) end in a
-  terminal leaf or bud with at most a short bare stub — never a long empty run.
-  Five gap lengths on winner e's geometry: g0 / g8 / g16 / g24 / g32 (pt of
-  stem overhang past the last node).
+  Round 2 (git history) varied bare-stem overhang past the terminal leaf on the
+  truncated stem — rejected: the tangent-aligned terminal leaf clipped the stem,
+  and the stem length shouldn't vary.
+
+  Round 3 (this file): the stem is one constant full length for every set
+  count; only the terminal node's placement slides. Five placements:
+  p60 / p70 / p80 / p90 / p100 (terminal node at t = 0.60…1.00). The other
+  nodes hang below it (step capped at .24). The terminal leaf tilts 30° off
+  the tangent — enough to clear the stem stroke, still forward-swept.
 -->
 <html lang="en">
 <head>
@@ -154,21 +158,20 @@ function centeredT(i, n, first, last, maxStep) {
 }
 
 // ---- variants --------------------------------------------------------------
-// Round 2: five stem-overhang gaps past the terminal leaf, on winner e's
-// geometry. The gap is real pixels of stem beyond the last node; the node's t
-// backs off the tip by gap / |tangent at t=1| (good enough at these lengths).
-function sproutConfig(gap) {
-  const stem = (w, n) => {
-    const cut = n <= 2 ? 0.55 : n === 3 ? 0.72 : 1.0;
-    return fullStem(w).truncated(cut);
-  };
+// Round 3: constant full-length stem; only the terminal node's placement
+// slides. Preceding nodes hang below the terminal at a capped step, so the
+// cluster follows the terminal leaf wherever it sits.
+function placementConfig(p) {
   return {
-    name: `gap ${gap}pt`,
-    knobs: `stem runs ${gap}pt past the terminal leaf's base · otherwise winner e: truncated stem, nodes 0.24→tip, same-side ≤3 sets, terminal leaf 10°`,
-    terminalAligned: true,
-    stem,
-    gap,
-    nodeT: () => 0, // replaced per-branch in renderBranch (needs the curve for the backoff)
+    name: `terminal at t=${p.toFixed(2)}`,
+    knobs: `full stem, constant length · terminal node at t=${p.toFixed(2)}, others hang below (step ≤ .24) · same-side ≤3 sets · terminal leaf 30°, interior 42°`,
+    terminalTilt: 30,
+    stem: (w) => fullStem(w),
+    nodeT: (i, n) => {
+      if (n <= 1) return p;
+      const step = Math.min(BASE.maxStep, (p - BASE.firstT) / (n - 1));
+      return p - step * (n - 1 - i);
+    },
     above: (i, n) => (n <= 3 ? true : i % 2 === 0),
     leafLen: () => BASE.leafLen,
     tilt: () => BASE.leafTilt,
@@ -241,13 +244,13 @@ const oldConfigs = {
 };
 void oldConfigs; // round 1, kept for reference — flip via git history
 const configs = {
-  g0: sproutConfig(0),
-  g8: sproutConfig(8),
-  g16: sproutConfig(16),
-  g24: sproutConfig(24),
-  g32: sproutConfig(32),
+  p60: placementConfig(0.60),
+  p70: placementConfig(0.70),
+  p80: placementConfig(0.80),
+  p90: placementConfig(0.90),
+  p100: placementConfig(1.00),
 };
-const variants = ["g0", "g8", "g16", "g24", "g32"];
+const variants = ["p60", "p70", "p80", "p90", "p100"];
 
 // ---- glyph rendering -------------------------------------------------------
 const SVGNS = "http://www.w3.org/2000/svg";
@@ -283,18 +286,9 @@ function renderBranch(cfg, states, width) {
     fill: "none", stroke: P.stem, "stroke-width": BASE.stemW, "stroke-linecap": "round",
   }, svg);
 
-  // With a gap, the last node backs off the tip so `gap` px of stem run past it.
-  let nodeT = cfg.nodeT;
-  if (cfg.gap !== undefined) {
-    const dx = 2 * (curve.p1.x - curve.c.x), dy = 2 * (curve.p1.y - curve.c.y);
-    const tLast = 1 - cfg.gap / Math.hypot(dx, dy);
-    const first = 0.24;
-    nodeT = (i2, n2) => (n2 <= 1 ? tLast : first + (tLast - first) / (n2 - 1) * i2);
-  }
-
   const ts = [];
   states.forEach((state, i) => {
-    const t = nodeT(i, n);
+    const t = cfg.nodeT(i, n);
     ts.push(t);
     const pt = curve.point(t);
     const angle = curve.angle(t);
@@ -303,10 +297,10 @@ function renderBranch(cfg, states, width) {
 
     if (state === "leaf" || state === "skip") {
       const len = cfg.leafLen(n);
-      // The terminal leaf continues the stem: nearly tangent-aligned, so the
-      // branch ends in the leaf and the leaf tip is the branch's right end.
-      const terminal = cfg.terminalAligned && i === n - 1;
-      const tilt = terminal ? 10 : cfg.tilt(n);
+      // The terminal leaf sweeps forward at a shallower tilt than interior
+      // leaves — but steep enough to clear the stem stroke (no clipping).
+      const terminal = cfg.terminalTilt !== undefined && i === n - 1;
+      const tilt = terminal ? cfg.terminalTilt : cfg.tilt(n);
       const rot = angle + (above ? -tilt : tilt);
       const leafG = el("g", { transform: `rotate(${rot.toFixed(1)})` }, g);
       if (state === "leaf") {
@@ -362,7 +356,7 @@ function render() {
   // side-by-side screenshot.
   if (new URLSearchParams(location.search).get("mode") === "compare") {
     document.getElementById("header").innerHTML =
-      "<h1>Terminal-leaf gap — g0…g32</h1><div class='knobs'>stem overhang past the terminal leaf's base · both done states per gap</div>";
+      "<h1>Terminal-leaf placement — p60…p100</h1><div class='knobs'>constant full stem · terminal node at t=0.60…1.00 · both done states per placement</div>";
     document.getElementById("switcher").style.display = "none";
     const stage = document.getElementById("stage");
     stage.innerHTML = "";
