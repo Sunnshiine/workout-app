@@ -14,7 +14,9 @@
     b — Grow from the root: nodes step up from t=.16; empty stem ahead reads as headroom.
     c — Young sprout: stem truncated by set count; last node sits at the stem tip.
     d — Nestled same-side: leaves all one side at ≤3 sets, tighter gap (.18), 40pt leaves, 34° tilt.
-    e — Sprout, nestled: c's truncated stem + d's same-side leaves at ≤3 sets.
+    e — Sprout, nestled: c's truncated stem + d's same-side leaves at ≤3 sets;
+        the final leaf lies along the stem tangent (tilt 10°), so the branch
+        ends in the leaf — its tip is the branch's right end.
 -->
 <html lang="en">
 <head>
@@ -52,7 +54,7 @@
     margin: 0 0 -6px 4px;
   }
   .row .ts { opacity: 0.6; text-transform: none; letter-spacing: 0; }
-  svg { display: block; width: 100%; height: 156px; }
+  svg { display: block; width: 100%; height: 156px; overflow: visible; }
   .divider {
     border: none; border-top: 1px solid rgba(82,100,87,0.25);
     margin: 10px 0;
@@ -201,7 +203,8 @@ const configs = {
   },
   e: {
     name: "Sprout, nestled",
-    knobs: "c's truncated stem + last node at the tip · ≤3 sets: leaves same side · leaf 46pt · tilt 42°",
+    knobs: "c's truncated stem + last node at the tip · ≤3 sets: leaves same side · leaf 46pt · tilt 42° · terminal leaf along the stem (10°), ending the branch",
+    terminalAligned: true,
     stem: (w, n) => {
       const cut = n <= 2 ? 0.55 : n === 3 ? 0.72 : 1.0;
       return fullStem(w).truncated(cut);
@@ -263,7 +266,10 @@ function renderBranch(cfg, states, width) {
 
     if (state === "leaf" || state === "skip") {
       const len = cfg.leafLen(n);
-      const tilt = cfg.tilt(n);
+      // The terminal leaf continues the stem: nearly tangent-aligned, so the
+      // branch ends in the leaf and the leaf tip is the branch's right end.
+      const terminal = cfg.terminalAligned && i === n - 1;
+      const tilt = terminal ? 10 : cfg.tilt(n);
       const rot = angle + (above ? -tilt : tilt);
       const leafG = el("g", { transform: `rotate(${rot.toFixed(1)})` }, g);
       if (state === "leaf") {
