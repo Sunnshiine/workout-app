@@ -82,7 +82,7 @@ struct ConnectPerch: View {
 
     private var height: CGFloat { width * 0.62 }
     private var birdWidth: CGFloat { width * 0.52 }
-    private var leafSize: CGSize { CGSize(width: width * 0.16, height: width * 0.16 * 24.0 / 60.0) }
+    private var leafSize: CGSize { CGSize(width: width * 0.16, height: width * 0.16 * LeafShape.aspectRatio) }
 
     var body: some View {
         ZStack {
@@ -135,7 +135,7 @@ struct CeremonyBranch: View {
         static let firstT: CGFloat = 0.12
         static let lastT: CGFloat = 0.90
         static let leafLength: CGFloat = 52
-        static var leafSize: CGSize { CGSize(width: leafLength, height: leafLength * 24.0 / 60.0) }
+        static var leafSize: CGSize { CGSize(width: leafLength, height: leafLength * LeafShape.aspectRatio) }
         static let leafOffset: CGFloat = 22
         static let leafTilt: CGFloat = 20
         static let stemWidth: CGFloat = 2.4
