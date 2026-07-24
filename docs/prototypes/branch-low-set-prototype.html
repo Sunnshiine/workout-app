@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<!--
+  PROTOTYPE — throwaway, never merges to main.
+
+  Question: how should the session-stage branch (SessionStageBranch.swift) read
+  when an exercise has only 2–3 sets? Four structurally different geometry
+  variants on one file, switchable via ?variant= (a/b/c/d). Day palette only —
+  the question is geometry, not lighting. Every variant renders the same state
+  matrix (2-set and 3-set permutations plus a 5-set reference) so low-count
+  reads can be judged against the normal look.
+
+  Variants:
+    a — PR #508 baseline: centered cluster (maxStep .24), ±42° alternating, 46pt leaves, full stem.
+    b — Grow from the root: nodes step up from t=.16; empty stem ahead reads as headroom.
+    c — Young sprout: stem truncated by set count; last node sits at the stem tip.
+    d — Nestled same-side: leaves all one side at ≤3 sets, tighter gap (.18), 40pt leaves, 34° tilt.
+    e — Sprout, nestled: c's truncated stem + d's same-side leaves at ≤3 sets.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>[PROTOTYPE] Branch at 2–3 sets</title>
+<style>
+  :root {
+    --ink: #0D6B40;
+    --muted: #526457;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+    background: linear-gradient(180deg, #E9EEDC 0%, #CBE1C2 100%);
+    min-height: 100vh;
+    color: var(--muted);
+    padding: 16px 16px 96px;
+  }
+  header { margin-bottom: 12px; }
+  header h1 {
+    font-family: Georgia, "Fraunces", serif;
+    font-weight: 600;
+    font-size: 22px;
+    color: #1a2b1f;
+    margin: 0 0 2px;
+  }
+  header .knobs { font-size: 11px; line-height: 1.5; }
+  .row { margin-bottom: 4px; }
+  .row .label {
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin: 0 0 -6px 4px;
+  }
+  .row .ts { opacity: 0.6; text-transform: none; letter-spacing: 0; }
+  svg { display: block; width: 100%; height: 156px; }
+  .divider {
+    border: none; border-top: 1px solid rgba(82,100,87,0.25);
+    margin: 10px 0;
+  }
+  /* Floating switcher — obviously not part of the design under review. */
+  #switcher {
+    position: fixed;
+    left: 50%; bottom: 20px;
+    transform: translateX(-50%);
+    display: flex; align-items: center; gap: 4px;
+    background: #16241a;
+    color: #F2F7E8;
+    border-radius: 999px;
+    padding: 6px 10px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+    font-size: 13px;
+    z-index: 10;
+    white-space: nowrap;
+  }
+  #switcher button {
+    background: none; border: none; color: inherit;
+    font-size: 16px; padding: 2px 8px; cursor: pointer;
+  }
+  #switcher span { min-width: 190px; text-align: center; }
+</style>
+</head>
+<body>
+<header id="header"></header>
+<main id="stage"></main>
+
+<div id="switcher">
+  <button id="prev" aria-label="Previous variant">&#8592;</button>
+  <span id="label"></span>
+  <button id="next" aria-label="Next variant">&#8594;</button>
+</div>
+
+<script>
+// ---- palette (Theme.swift, day) --------------------------------------------
+const P = {
+  stem: "#0D6B40",
+  leafFill: "#0D6B40",
+  leafRib: "rgba(242,247,232,0.50)",
+  budFill: "rgba(242,247,232,0.95)",
+  budStroke: "#0D6B40",
+  future: "rgba(13,107,64,0.40)",
+  skip: "rgba(82,100,87,0.42)",
+};
+
+// ---- base metrics (SessionStageBranch.Metrics, PR #508) --------------------
+const BASE = {
+  height: 156, leadInset: 24, trailInset: 28,
+  rootY: 0.82, tipY: 0.13, bow: 30,
+  firstT: 0.16, lastT: 0.84, maxStep: 0.24,
+  leafLen: 46, leafTilt: 42,
+  budD: 15, futureLen: 22, futureTilt: 38, stemW: 2,
+};
+
+// ---- geometry --------------------------------------------------------------
+function bezier(p0, c, p1) {
+  return {
+    p0, c, p1,
+    point(t) {
+      const mt = 1 - t;
+      return {
+        x: mt * mt * p0.x + 2 * mt * t * c.x + t * t * p1.x,
+        y: mt * mt * p0.y + 2 * mt * t * c.y + t * t * p1.y,
+      };
+    },
+    angle(t) {
+      const mt = 1 - t;
+      const dx = 2 * mt * (c.x - p0.x) + 2 * t * (p1.x - c.x);
+      const dy = 2 * mt * (c.y - p0.y) + 2 * t * (p1.y - c.y);
+      return Math.atan2(dy, dx) * 180 / Math.PI;
+    },
+    // de Casteljau: the sub-curve from 0..tc, still a quadratic bezier.
+    truncated(tc) {
+      const lerp = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+      return bezier(p0, lerp(p0, c, tc), this.point(tc));
+    },
+  };
+}
+
+function fullStem(w) {
+  const p0 = { x: BASE.leadInset, y: BASE.height * BASE.rootY };
+  const p1 = { x: w - BASE.trailInset, y: BASE.height * BASE.tipY };
+  const c = { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 - BASE.bow };
+  return bezier(p0, c, p1);
+}
+
+// BranchNodeLayout.nodeT — centered cluster with a capped step.
+function centeredT(i, n, first, last, maxStep) {
+  const mid = (first + last) / 2;
+  if (n <= 1) return mid;
+  const step = Math.min((last - first) / (n - 1), maxStep);
+  return mid - step * (n - 1) / 2 + step * i;
+}
+
+// ---- variants --------------------------------------------------------------
+// Each variant answers: stem(n) → curve, nodeT(i,n), above(i,n), leafLen(n), tilt(n).
+const configs = {
+  a: {
+    name: "PR #508 baseline",
+    knobs: "centered cluster · maxStep .24 · leaf 46pt · tilt 42° · alternating · full stem",
+    stem: (w) => fullStem(w),
+    nodeT: (i, n) => centeredT(i, n, BASE.firstT, BASE.lastT, BASE.maxStep),
+    above: (i) => i % 2 === 0,
+    leafLen: () => BASE.leafLen,
+    tilt: () => BASE.leafTilt,
+  },
+  b: {
+    name: "Grow from the root",
+    knobs: "nodes step up from t=.16 (step .24) · leaf 46pt · tilt 42° · alternating · full stem",
+    stem: (w) => fullStem(w),
+    nodeT: (i, n) => {
+      const step = Math.min((BASE.lastT - BASE.firstT) / Math.max(n - 1, 1), BASE.maxStep);
+      return BASE.firstT + step * i;
+    },
+    above: (i) => i % 2 === 0,
+    leafLen: () => BASE.leafLen,
+    tilt: () => BASE.leafTilt,
+  },
+  c: {
+    name: "Young sprout",
+    knobs: "stem truncated (2 sets→55%, 3→72%, 5+→full) · last node at the tip · leaf 46pt · tilt 42°",
+    stem: (w, n) => {
+      const cut = n <= 2 ? 0.55 : n === 3 ? 0.72 : 1.0;
+      return fullStem(w).truncated(cut);
+    },
+    nodeT: (i, n) => {
+      if (n <= 1) return 1.0;
+      const first = 0.24;
+      return first + (1.0 - first) / (n - 1) * i;
+    },
+    above: (i) => i % 2 === 0,
+    leafLen: () => BASE.leafLen,
+    tilt: () => BASE.leafTilt,
+  },
+  d: {
+    name: "Nestled same-side",
+    knobs: "≤3 sets: all marks above the stem · maxStep .18 · leaf 40pt · tilt 34° · full stem (≥4 sets = baseline)",
+    stem: (w) => fullStem(w),
+    nodeT: (i, n) => centeredT(i, n, BASE.firstT, BASE.lastT, n <= 3 ? 0.18 : BASE.maxStep),
+    above: (i, n) => (n <= 3 ? true : i % 2 === 0),
+    leafLen: (n) => (n <= 3 ? 40 : BASE.leafLen),
+    tilt: (n) => (n <= 3 ? 34 : BASE.leafTilt),
+  },
+  e: {
+    name: "Sprout, nestled",
+    knobs: "c's truncated stem + last node at the tip · ≤3 sets: leaves same side · leaf 46pt · tilt 42°",
+    stem: (w, n) => {
+      const cut = n <= 2 ? 0.55 : n === 3 ? 0.72 : 1.0;
+      return fullStem(w).truncated(cut);
+    },
+    nodeT: (i, n) => {
+      if (n <= 1) return 1.0;
+      const first = 0.24;
+      return first + (1.0 - first) / (n - 1) * i;
+    },
+    above: (i, n) => (n <= 3 ? true : i % 2 === 0),
+    leafLen: () => BASE.leafLen,
+    tilt: () => BASE.leafTilt,
+  },
+};
+const variants = ["a", "b", "c", "d", "e"];
+
+// ---- glyph rendering -------------------------------------------------------
+const SVGNS = "http://www.w3.org/2000/svg";
+
+// Token-sheet leaf silhouette (60×24 design space), scaled to len×len*0.4,
+// base at local origin, blade along +x, vertically centered — matching the
+// SwiftUI offset(x: w/2) + rotationEffect anchoring.
+function leafPathD(len) {
+  const sx = len / 60, sy = (len * 24 / 60) / 24;
+  const pt = (x, y) => `${(x * sx).toFixed(2)} ${((y - 12) * sy).toFixed(2)}`;
+  return `M ${pt(0, 8)} C ${pt(15, 2.3)}, ${pt(41, 3.3)}, ${pt(60, 8)} C ${pt(41, 21.7)}, ${pt(15, 22.6)}, ${pt(0, 8)} Z`;
+}
+function ribPathD(len) {
+  const sx = len / 60, sy = (len * 24 / 60) / 24;
+  const pt = (x, y) => `${(x * sx).toFixed(2)} ${((y - 12) * sy).toFixed(2)}`;
+  return `M ${pt(4, 8.1)} C ${pt(20, 9.8)}, ${pt(40, 9.6)}, ${pt(56, 8.1)}`;
+}
+
+function el(name, attrs, parent) {
+  const node = document.createElementNS(SVGNS, name);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  if (parent) parent.appendChild(node);
+  return node;
+}
+
+function renderBranch(cfg, states, width) {
+  const n = states.length;
+  const svg = el("svg", { viewBox: `0 0 ${width} ${BASE.height}` });
+  const curve = cfg.stem(width, n);
+
+  el("path", {
+    d: `M ${curve.p0.x} ${curve.p0.y} Q ${curve.c.x} ${curve.c.y} ${curve.p1.x} ${curve.p1.y}`,
+    fill: "none", stroke: P.stem, "stroke-width": BASE.stemW, "stroke-linecap": "round",
+  }, svg);
+
+  const ts = [];
+  states.forEach((state, i) => {
+    const t = cfg.nodeT(i, n);
+    ts.push(t);
+    const pt = curve.point(t);
+    const angle = curve.angle(t);
+    const above = cfg.above(i, n);
+    const g = el("g", { transform: `translate(${pt.x.toFixed(1)} ${pt.y.toFixed(1)})` }, svg);
+
+    if (state === "leaf" || state === "skip") {
+      const len = cfg.leafLen(n);
+      const tilt = cfg.tilt(n);
+      const rot = angle + (above ? -tilt : tilt);
+      const leafG = el("g", { transform: `rotate(${rot.toFixed(1)})` }, g);
+      if (state === "leaf") {
+        el("path", { d: leafPathD(len), fill: P.leafFill }, leafG);
+        el("path", {
+          d: ribPathD(len), fill: "none", stroke: P.leafRib,
+          "stroke-width": 0.6, "stroke-linecap": "round",
+        }, leafG);
+      } else {
+        el("path", {
+          d: leafPathD(len), fill: "none", stroke: P.skip,
+          "stroke-width": 0.6, "stroke-linecap": "round", "stroke-dasharray": "5 4",
+        }, leafG);
+      }
+    } else if (state === "bud") {
+      el("circle", {
+        r: BASE.budD / 2, fill: P.budFill, stroke: P.budStroke, "stroke-width": 1.1,
+      }, g);
+    } else if (state === "future") {
+      const rot = angle + (above ? -BASE.futureTilt : BASE.futureTilt);
+      el("rect", {
+        x: 0, y: -BASE.stemW / 2, width: BASE.futureLen, height: BASE.stemW,
+        rx: BASE.stemW / 2, fill: P.future, transform: `rotate(${rot.toFixed(1)})`,
+      }, g);
+    }
+  });
+
+  return { svg, ts };
+}
+
+// ---- state matrix ----------------------------------------------------------
+const ROWS = [
+  { label: "5-set reference · set 3 active", states: ["leaf", "leaf", "bud", "future", "future"] },
+  { label: "2 sets · before set 1", states: ["bud", "future"] },
+  { label: "2 sets · 1 logged", states: ["leaf", "bud"] },
+  { label: "2 sets · done", states: ["leaf", "leaf"] },
+  { label: "2 sets · done, set 2 skipped", states: ["leaf", "skip"] },
+  { label: "3 sets · before set 1", states: ["bud", "future", "future"] },
+  { label: "3 sets · 1 logged", states: ["leaf", "bud", "future"] },
+  { label: "3 sets · 2 logged", states: ["leaf", "leaf", "bud"] },
+  { label: "3 sets · done", states: ["leaf", "leaf", "leaf"] },
+  { label: "3 sets · set 2 skipped, set 3 active", states: ["leaf", "skip", "bud"] },
+];
+
+// ---- page ------------------------------------------------------------------
+function currentVariant() {
+  const key = new URLSearchParams(location.search).get("variant");
+  return variants.includes(key) ? key : "a";
+}
+
+function render() {
+  const key = currentVariant();
+  const cfg = configs[key];
+  document.getElementById("header").innerHTML =
+    `<h1>${key.toUpperCase()} — ${cfg.name}</h1><div class="knobs">${cfg.knobs}</div>`;
+  document.getElementById("label").textContent = `${key.toUpperCase()} — ${cfg.name}`;
+
+  const stage = document.getElementById("stage");
+  stage.innerHTML = "";
+  const width = Math.min(document.body.clientWidth - 32, 393);
+
+  ROWS.forEach((row, i) => {
+    if (i === 1 || i === 5) stage.appendChild(Object.assign(document.createElement("hr"), { className: "divider" }));
+    const div = document.createElement("div");
+    div.className = "row";
+    const { svg, ts } = renderBranch(cfg, row.states, width);
+    const label = document.createElement("p");
+    label.className = "label";
+    label.innerHTML = `${row.label} <span class="ts">· t = ${ts.map((t) => t.toFixed(2)).join(", ")}</span>`;
+    div.appendChild(label);
+    div.appendChild(svg);
+    stage.appendChild(div);
+  });
+}
+
+function switchTo(key) {
+  const url = new URL(location.href);
+  url.searchParams.set("variant", key);
+  history.replaceState(null, "", url);
+  render();
+}
+function cycle(delta) {
+  const i = variants.indexOf(currentVariant());
+  switchTo(variants[(i + delta + variants.length) % variants.length]);
+}
+document.getElementById("prev").addEventListener("click", () => cycle(-1));
+document.getElementById("next").addEventListener("click", () => cycle(1));
+document.addEventListener("keydown", (e) => {
+  if (e.target.matches("input, textarea, [contenteditable]")) return;
+  if (e.key === "ArrowLeft") cycle(-1);
+  if (e.key === "ArrowRight") cycle(1);
+});
+window.addEventListener("resize", render);
+render();
+</script>
+</body>
+</html>
