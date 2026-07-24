@@ -47,7 +47,7 @@ const PromptOutput = z.object({
 
 const result = await runWithExtraction({
   name: `update-branch-pr-${PR_NUMBER}`,
-  agent: sandcastle.claudeCode("claude-opus-4-8", {
+  agent: sandcastle.claudeCode("claude-opus-5", {
     env: {
       CLAUDE_CODE_OAUTH_TOKEN: required("CLAUDE_CODE_OAUTH_TOKEN"),
       // Never background a command (auto-backgrounding included): an agent
