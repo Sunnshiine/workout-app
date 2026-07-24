@@ -16,7 +16,7 @@ const PromptOutput = z.object({
 
 const result = await runWithRetry({
   name: `write-prd-pr-#${PRD_NUMBER}`,
-  agent: sandcastle.claudeCode("claude-opus-4-8", {
+  agent: sandcastle.claudeCode("claude-opus-5", {
     env: {
       CLAUDE_CODE_OAUTH_TOKEN: required("CLAUDE_CODE_OAUTH_TOKEN"),
     },
