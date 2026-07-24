@@ -164,7 +164,7 @@ function centeredT(i, n, first, last, maxStep) {
 function placementConfig(p) {
   return {
     name: `terminal at t=${p.toFixed(2)}`,
-    knobs: `full stem, constant length · terminal node at t=${p.toFixed(2)}, others hang below (step ≤ .24) · same-side ≤3 sets · terminal leaf 30°, interior 42°`,
+    knobs: `full stem, constant length · terminal node at t=${p.toFixed(2)}, others hang below (step ≤ .24) · alternating sides (as production) · terminal leaf 30°, interior 42°`,
     terminalTilt: 30,
     stem: (w) => fullStem(w),
     nodeT: (i, n) => {
@@ -172,7 +172,7 @@ function placementConfig(p) {
       const step = Math.min(BASE.maxStep, (p - BASE.firstT) / (n - 1));
       return p - step * (n - 1 - i);
     },
-    above: (i, n) => (n <= 3 ? true : i % 2 === 0),
+    above: (i) => i % 2 === 0,
     leafLen: () => BASE.leafLen,
     tilt: () => BASE.leafTilt,
   };
