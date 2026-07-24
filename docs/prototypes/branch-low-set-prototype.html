@@ -9,14 +9,15 @@
   matrix (2-set and 3-set permutations plus a 5-set reference) so low-count
   reads can be judged against the normal look.
 
-  Variants:
-    a — PR #508 baseline: centered cluster (maxStep .24), ±42° alternating, 46pt leaves, full stem.
-    b — Grow from the root: nodes step up from t=.16; empty stem ahead reads as headroom.
-    c — Young sprout: stem truncated by set count; last node sits at the stem tip.
-    d — Nestled same-side: leaves all one side at ≤3 sets, tighter gap (.18), 40pt leaves, 34° tilt.
-    e — Sprout, nestled: c's truncated stem + d's same-side leaves at ≤3 sets;
-        the final leaf lies along the stem tangent (tilt 10°), so the branch
-        ends in the leaf — its tip is the branch's right end.
+  Round 1 variants (a–e, in git history) settled the base geometry: winner "e" —
+  truncated stem (55% at 2 sets, 72% at 3), nodes 0.24→tip, same-side leaves at
+  ≤3 sets, terminal leaf nearly along the stem tangent (10°).
+
+  Round 2 (this file): how much bare stem should run past the terminal leaf's
+  base before the branch ends? Real twigs (olive, willow oak refs) end in a
+  terminal leaf or bud with at most a short bare stub — never a long empty run.
+  Five gap lengths on winner e's geometry: g0 / g8 / g16 / g24 / g32 (pt of
+  stem overhang past the last node).
 -->
 <html lang="en">
 <head>
@@ -153,8 +154,27 @@ function centeredT(i, n, first, last, maxStep) {
 }
 
 // ---- variants --------------------------------------------------------------
-// Each variant answers: stem(n) → curve, nodeT(i,n), above(i,n), leafLen(n), tilt(n).
-const configs = {
+// Round 2: five stem-overhang gaps past the terminal leaf, on winner e's
+// geometry. The gap is real pixels of stem beyond the last node; the node's t
+// backs off the tip by gap / |tangent at t=1| (good enough at these lengths).
+function sproutConfig(gap) {
+  const stem = (w, n) => {
+    const cut = n <= 2 ? 0.55 : n === 3 ? 0.72 : 1.0;
+    return fullStem(w).truncated(cut);
+  };
+  return {
+    name: `gap ${gap}pt`,
+    knobs: `stem runs ${gap}pt past the terminal leaf's base · otherwise winner e: truncated stem, nodes 0.24→tip, same-side ≤3 sets, terminal leaf 10°`,
+    terminalAligned: true,
+    stem,
+    gap,
+    nodeT: () => 0, // replaced per-branch in renderBranch (needs the curve for the backoff)
+    above: (i, n) => (n <= 3 ? true : i % 2 === 0),
+    leafLen: () => BASE.leafLen,
+    tilt: () => BASE.leafTilt,
+  };
+}
+const oldConfigs = {
   a: {
     name: "PR #508 baseline",
     knobs: "centered cluster · maxStep .24 · leaf 46pt · tilt 42° · alternating · full stem",
@@ -219,7 +239,15 @@ const configs = {
     tilt: () => BASE.leafTilt,
   },
 };
-const variants = ["a", "b", "c", "d", "e"];
+void oldConfigs; // round 1, kept for reference — flip via git history
+const configs = {
+  g0: sproutConfig(0),
+  g8: sproutConfig(8),
+  g16: sproutConfig(16),
+  g24: sproutConfig(24),
+  g32: sproutConfig(32),
+};
+const variants = ["g0", "g8", "g16", "g24", "g32"];
 
 // ---- glyph rendering -------------------------------------------------------
 const SVGNS = "http://www.w3.org/2000/svg";
@@ -255,9 +283,18 @@ function renderBranch(cfg, states, width) {
     fill: "none", stroke: P.stem, "stroke-width": BASE.stemW, "stroke-linecap": "round",
   }, svg);
 
+  // With a gap, the last node backs off the tip so `gap` px of stem run past it.
+  let nodeT = cfg.nodeT;
+  if (cfg.gap !== undefined) {
+    const dx = 2 * (curve.p1.x - curve.c.x), dy = 2 * (curve.p1.y - curve.c.y);
+    const tLast = 1 - cfg.gap / Math.hypot(dx, dy);
+    const first = 0.24;
+    nodeT = (i2, n2) => (n2 <= 1 ? tLast : first + (tLast - first) / (n2 - 1) * i2);
+  }
+
   const ts = [];
   states.forEach((state, i) => {
-    const t = cfg.nodeT(i, n);
+    const t = nodeT(i, n);
     ts.push(t);
     const pt = curve.point(t);
     const angle = curve.angle(t);
@@ -321,6 +358,33 @@ function currentVariant() {
 }
 
 function render() {
+  // ?mode=compare — every gap's two "done" states on one page, for a single
+  // side-by-side screenshot.
+  if (new URLSearchParams(location.search).get("mode") === "compare") {
+    document.getElementById("header").innerHTML =
+      "<h1>Terminal-leaf gap — g0…g32</h1><div class='knobs'>stem overhang past the terminal leaf's base · both done states per gap</div>";
+    document.getElementById("switcher").style.display = "none";
+    const stage = document.getElementById("stage");
+    stage.innerHTML = "";
+    const width = Math.min(document.body.clientWidth - 32, 393);
+    for (const key of variants) {
+      const cfg = configs[key];
+      for (const row of [ROWS[3], ROWS[8]]) {
+        const div = document.createElement("div");
+        div.className = "row";
+        const { svg } = renderBranch(cfg, row.states, width);
+        const label = document.createElement("p");
+        label.className = "label";
+        label.textContent = `${key} · ${row.label}`;
+        div.appendChild(label);
+        div.appendChild(svg);
+        stage.appendChild(div);
+      }
+      stage.appendChild(Object.assign(document.createElement("hr"), { className: "divider" }));
+    }
+    return;
+  }
+
   const key = currentVariant();
   const cfg = configs[key];
   document.getElementById("header").innerHTML =
