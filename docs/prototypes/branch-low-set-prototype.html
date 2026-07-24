@@ -168,7 +168,7 @@ function centeredT(i, n, first, last, maxStep) {
 function pickConfig(p) {
   return {
     name: `pick vocabulary · terminal at t=${p.toFixed(2)}`,
-    knobs: `slender blades, cream rib · active = cream-filled leaf (green stroke) · future = ghost leaf outline · above tilt 72°, below 55° · p80 layout, alternating`,
+    knobs: `slender blades, cream rib · active = cream-filled leaf (green stroke) · future = ghost leaf outline · above tilt 43°, below 50° (measured off the pick) · p80 layout, alternating`,
     stem: (w) => fullStem(w),
     nodeT: (i, n) => {
       if (n <= 1) return p;
@@ -177,8 +177,10 @@ function pickConfig(p) {
     },
     above: (i) => i % 2 === 0,
     leafLen: () => BASE.leafLen,
-    aboveTilt: 72,
-    belowTilt: 55,
+    // Measured off the pick: above-blades ≈ -60° absolute over a ≈ -18°
+    // tangent; below-blades ≈ +28° absolute — forward-leaning both sides.
+    aboveTilt: 43,
+    belowTilt: 50,
   };
 }
 const oldConfigs = {
