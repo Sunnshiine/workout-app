@@ -165,16 +165,10 @@ struct SmartValuePills: View {
     }
 
     private func stepWeight(_ direction: WeightStepperButton.Direction) {
-        let current = Double(form.weightText) ?? 0
-        let increment = form.fineWeightIncrement
-        if direction == .decrement, current - increment < 0 {
-            // The floor: clamp at zero and answer with the dud, not a tick.
-            form.weightText = "0"
-            InputHapticPlayer.shared.play(Theme.Haptics.skipDud)
-        } else {
-            form.adjustWeight(by: direction == .increment ? increment : -increment)
-            InputHapticPlayer.shared.play(Theme.Haptics.stepperTick)
-        }
+        // The form owns the clamp; the View only answers with the matching haptic —
+        // the dud at the floor, the detent tick on a normal step.
+        let hitFloor = form.stepWeight(direction == .increment ? .up : .down)
+        InputHapticPlayer.shared.play(hitFloor ? Theme.Haptics.skipDud : Theme.Haptics.stepperTick)
     }
 
     // MARK: - Log capsule / skip

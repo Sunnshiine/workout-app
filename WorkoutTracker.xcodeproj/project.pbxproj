@@ -94,7 +94,6 @@
 		D0FAC1DFCA7DF208F94A387D /* LiveActivityLabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5688D9D43EFCA63A84FC18C0 /* LiveActivityLabView.swift */; };
 		D1C724651404B6C566533BFB /* WorkoutLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CBF0DF8D231210F853585A0 /* WorkoutLiveActivity.swift */; };
 		D52B7B14DA20DC2646BC969D /* SyncStatusBannerPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 841FCA4737E7B8C2DD9B2A08 /* SyncStatusBannerPresentation.swift */; };
-		D70B18E5308B77002E20B920 /* SupersetIdentityBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E44E4307BBE02ECB2E8C314 /* SupersetIdentityBadge.swift */; };
 		D9BC449C5F52EA35023DFEE9 /* LastPerformedLookupStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CCC3ED1AD659427B54B3596 /* LastPerformedLookupStore.swift */; };
 		DA18B95BE71A08ECEE00FFCD /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82C7E3B1CAB7C96142DCF1C7 /* Theme.swift */; };
 		DC06ADE06F23B6F4996EDE77 /* SessionQueueSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1027F3D17075B410CAA8EEB9 /* SessionQueueSheet.swift */; };
@@ -219,7 +218,6 @@
 		719E54DAA40D4D2D700AA91F /* SmartValuePills.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartValuePills.swift; sourceTree = "<group>"; };
 		73043E31A40EFA8A57C38FAF /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
 		7D8657BBD8B3439498C6A625 /* LiveActivityRestContentBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityRestContentBuilder.swift; sourceTree = "<group>"; };
-		7E44E4307BBE02ECB2E8C314 /* SupersetIdentityBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupersetIdentityBadge.swift; sourceTree = "<group>"; };
 		7FCBC3CD276355C79BDA62A1 /* WorkoutWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutWidgetsBundle.swift; sourceTree = "<group>"; };
 		82C7E3B1CAB7C96142DCF1C7 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		841FCA4737E7B8C2DD9B2A08 /* SyncStatusBannerPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatusBannerPresentation.swift; sourceTree = "<group>"; };
@@ -405,7 +403,6 @@
 				FEED000000000000000000B3 /* BuildIdentityFooter.swift */,
 				63852C80C5AAD37D2E99F205 /* SettingsView.swift */,
 				719E54DAA40D4D2D700AA91F /* SmartValuePills.swift */,
-				7E44E4307BBE02ECB2E8C314 /* SupersetIdentityBadge.swift */,
 				2CC347CBCB45EC717781E8EF /* SyncStatusBanner.swift */,
 				FEED000000000000000000C1 /* SunbirdColophon.swift */,
 				FEED000000000000000000C3 /* PerchedSongbird.swift */,
@@ -869,7 +866,6 @@
 				FD532690E409CC21380B5AC5 /* SheetsClient.swift in Sources */,
 				76AF3279365D2ACDBD02BB7A /* SmartValuePills.swift in Sources */,
 				41CDBD5D297B4036E473DEC3 /* SmartValuePillsForm.swift in Sources */,
-				D70B18E5308B77002E20B920 /* SupersetIdentityBadge.swift in Sources */,
 				981E179B026B8751661D3228 /* SupersetState.swift in Sources */,
 				7B8CE914CEB343A88D109955 /* SyncCoordinator.swift in Sources */,
 				BC21B2F65FD774B661EECFDA /* SyncStatusBanner.swift in Sources */,

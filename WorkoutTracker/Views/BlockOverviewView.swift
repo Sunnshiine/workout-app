@@ -91,35 +91,31 @@ struct BlockOverviewView: View {
     // MARK: - Collapsed week — an elevated card in shade with a mini day-strip
 
     private func collapsedWeek(_ week: BlockOverviewWeekPresentation) -> some View {
-        Button {
-            openFirstAvailableDay(in: week)
-        } label: {
-            VStack(alignment: .leading, spacing: Theme.blockWeekCardPadding - 2) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("Week \(week.weekNumber)")
-                        .font(Theme.font(.fieldLabel))
-                        .foregroundStyle(palette.textSecondary)
-                    Spacer(minLength: 0)
-                    Text(week.collapsedSummary)
-                        .font(Theme.font(.queuePill))
-                        .foregroundStyle(palette.textSecondary)
-                }
+        VStack(alignment: .leading, spacing: Theme.blockWeekCardPadding - 2) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Week \(week.weekNumber)")
+                    .font(Theme.font(.fieldLabel))
+                    .foregroundStyle(palette.textSecondary)
+                Spacer(minLength: 0)
+                Text(week.collapsedSummary)
+                    .font(Theme.font(.queuePill))
+                    .foregroundStyle(palette.textSecondary)
+            }
 
-                HStack(spacing: Theme.blockTileMiniSpacing) {
-                    ForEach(week.tiles, id: \.accessibilityIdentifier) { tile in
-                        SessionTile(state: tile.state, fillQuarters: tile.fillQuarters, variant: .mini)
-                    }
+            // Each mini tile is its own tap target so it routes to the day the athlete
+            // aimed at. A single card-wide button routed every tap to the Week's first
+            // available day (its day 1) — the reported "day 4 opens day 1" regression.
+            HStack(spacing: Theme.blockTileMiniSpacing) {
+                ForEach(week.tiles, id: \.accessibilityIdentifier) { tile in
+                    dayTile(tile, variant: .mini)
                 }
             }
-            .padding(Theme.blockWeekCardPadding)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(palette.weekCardShade, in: .rect(cornerRadius: Theme.Radius.card))
-            .themeElevation(Theme.LightKit.cardLow, in: .rect(cornerRadius: Theme.Radius.card))
         }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Week \(week.weekNumber)")
-        .accessibilityValue("\(week.collapsedSummary) Sessions complete")
+        .padding(Theme.blockWeekCardPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(palette.weekCardShade, in: .rect(cornerRadius: Theme.Radius.card))
+        .themeElevation(Theme.LightKit.cardLow, in: .rect(cornerRadius: Theme.Radius.card))
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("week-card-W\(week.weekNumber)")
     }
 
@@ -146,11 +142,6 @@ struct BlockOverviewView: View {
             .accessibilityValue(tile.accessibilityValue)
             .accessibilityIdentifier(tile.accessibilityIdentifier)
         }
-    }
-
-    private func openFirstAvailableDay(in week: BlockOverviewWeekPresentation) {
-        guard let day = week.tiles.first(where: { $0.state != .unavailable }) else { return }
-        show(week: day.weekNumber, day: day.dayNumber)
     }
 
     private func show(week: Int, day: Int) {
