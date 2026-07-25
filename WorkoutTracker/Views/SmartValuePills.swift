@@ -237,16 +237,18 @@ struct SmartValuePills: View {
 
 // MARK: - Value rail (Reps / RPE)
 
-/// A one-tap scroll rail (DESIGN.md §5.2): 48×44 cells inside a `rail`-radius track, the selected
-/// value a cream chip with an inset action ring, its prescription tick below. The strip is
-/// offset-driven — tapping a visible cell re-centers it — so the selected value renders centered in
-/// offscreen snapshots (which never apply async scrolling; ledger salvage note 1).
+/// A scroll rail (DESIGN.md §5.2): 48×44 cells inside a `rail`-radius track, the selected value a
+/// cream chip with an inset action ring, its prescription tick below. The strip is offset-driven —
+/// tapping a visible cell re-centers it, and a horizontal drag slides through the values one detent
+/// at a time — so the selected value renders centered in offscreen snapshots (which never apply
+/// async scrolling; ledger salvage note 1).
 private struct ValueRail: View {
     let chips: [ValueRailChip]
     let selectedIndex: Int
     let label: String
     var isInvalid = false
     let onSelect: (String) -> Void
+    @State private var dragAnchorIndex: Int?
     @Environment(\.themePalette) private var palette
 
     var body: some View {
@@ -277,6 +279,7 @@ private struct ValueRail: View {
             }
             .overlay(alignment: .leading) { edgeFade(leading: true) }
             .overlay(alignment: .trailing) { edgeFade(leading: false) }
+            .simultaneousGesture(dragToSelect)
 
             Text(label)
                 .font(Theme.font(.fieldLabel))
@@ -284,6 +287,28 @@ private struct ValueRail: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(label)
+    }
+
+    /// Sliding the rail follows the finger detent by detent: each cell-width of horizontal travel
+    /// moves the selection one value from where the drag began, with the detent tick on each move.
+    /// Simultaneous with the cell buttons so taps keep working unchanged.
+    private var dragToSelect: some Gesture {
+        DragGesture(minimumDistance: 10)
+            .onChanged { value in
+                let anchor = dragAnchorIndex ?? selectedIndex
+                dragAnchorIndex = anchor
+                let target = ValueRailLayout.draggedIndex(
+                    anchorIndex: anchor,
+                    translation: value.translation.width,
+                    cellWidth: Theme.railCellWidth,
+                    spacing: 0,
+                    count: chips.count
+                )
+                guard target != selectedIndex, chips.indices.contains(target) else { return }
+                onSelect(chips[target].label)
+                InputHapticPlayer.shared.play(Theme.Haptics.railDetentTick)
+            }
+            .onEnded { _ in dragAnchorIndex = nil }
     }
 
     private func cell(_ chip: ValueRailChip) -> some View {

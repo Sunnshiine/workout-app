@@ -1,22 +1,25 @@
 import SwiftUI
 
 /// The living stage's branch — the page's one icon and its only piece of flora
-/// (DESIGN.md §5.1, picks session-stage-a/-d). A 2px round-cap stem *climbs* the
-/// page from a low leading root to a high trailing tip; along it, one inked leaf
-/// per Logged Set, a dashed-outline leaf per Skipped Set, a cream bud with a
-/// green stroke for the active Set (carrying the page's one glow at Night), and
-/// faint **angled future strokes** for the Pending Sets still ahead. Even before
-/// any Set logs it reads as a rising stem, not a horizontal progress slider
-/// (ledger §4.1). The branch stands textless; the plain `Set N of M` head carries
-/// the reading in words. Node states come from
+/// (DESIGN.md §5.1, pick session-stage-a). A 2px round-cap stem *climbs* the
+/// page from a low leading root to a high trailing tip; every mark along it is
+/// **the same slender blade** in a different state: inked per Logged Set, a
+/// dashed outline per Skipped Set, cream-filled inside a green stroke for the
+/// active Set (logging inks it solid — the pick's clever leaf fill; it carries
+/// the page's one glow at Night), and a faint **ghost outline** for each Pending
+/// Set still ahead. Nodes anchor to a terminal at t=0.80 and step down the stem,
+/// so even 2–3 Sets read as one sprig on a full-length stem, never a horizontal
+/// progress slider (ledger §4.1). The branch stands textless; the plain
+/// `Set N of M` head carries the reading in words. Node states come from
 /// `SessionStagePresentation.branchNodeStates`, so the branch owns geometry only.
 struct SessionStageBranch: View {
     let sets: [ExerciseSet]
     var activeSetID: ActiveSetID?
     /// A Superset partner's Sets. When present the branch becomes **one forked
     /// stem** (DESIGN.md §5.4): the focused Exercise's `sets` climb at full stroke
-    /// and alone carry the bud, while the partner's Sets grow along a shorter,
-    /// bud-less drooping lateral. `nil` keeps the page a single climbing stem.
+    /// and alone carry the cream-filled active leaf, while the partner's Sets grow
+    /// along a shorter drooping lateral that never carries it. `nil` keeps the
+    /// page a single climbing stem.
     var partnerSets: [ExerciseSet]?
     /// Tapping a node focuses its Set — matching the retired dots' behavior. `nil`
     /// keeps the branch a passive glyph.
@@ -31,22 +34,21 @@ struct SessionStageBranch: View {
         static let rootY: CGFloat = 0.82 // fraction of height — the low leading root
         static let tipY: CGFloat = 0.13 // fraction of height — the high trailing tip
         static let bow: CGFloat = 30 // upward bow of the climbing stem
-        static let firstNodeT: CGFloat = 0.16
-        static let lastNodeT: CGFloat = 0.84
+        static let firstNodeT: CGFloat = 0.16 // the span floor node steps never pass
+        static let lastNodeT: CGFloat = 0.80 // the terminal node every cluster anchors to
+        static let maxNodeStep: CGFloat = 0.24 // cap the gap so few Sets cluster like a real sprig
         static let leafLength: CGFloat = 46
-        static var leafSize: CGSize { CGSize(width: leafLength, height: leafLength * 24.0 / 60.0) }
-        static let leafOffset: CGFloat = 20 // perpendicular distance off the stem
-        static let leafTilt: CGFloat = 20 // extra outward tilt, alternating
-        static let budDiameter: CGFloat = 15
-        static let futureLength: CGFloat = 22
-        static let futureTilt: CGFloat = 38 // branch off the stem so the mark reads as a future twig
-        static let futureOffset: CGFloat = 7 // lift the mark's midpoint just off the stem
+        // Measured off the pick: above-blades stand steeply with a slight back
+        // lean, below-blades droop forward — both lean toward the tip.
+        static let leafTiltAbove: CGFloat = 43
+        static let leafTiltBelow: CGFloat = 50
+        static let ghostScale: CGFloat = 0.72 // a future is a smaller ghost of the leaf to come
         static let stemWidth: CGFloat = 2
     }
 
     /// The partner's drooping lateral (DESIGN.md §5.4): a thinner, shorter stem
     /// that forks off the focused stem's lower reach and droops down-trailing,
-    /// carrying the partner's leaves but never the bud.
+    /// carrying the partner's leaves but never the active leaf.
     private enum PartnerMetrics {
         static let stemWidth: CGFloat = 1.6
         static let forkT: CGFloat = 0.30 // where on the focused stem the lateral forks
@@ -55,13 +57,8 @@ struct SessionStageBranch: View {
         static let droop: CGFloat = 30 // downward bow of the drooping lateral
         static let firstNodeT: CGFloat = 0.42
         static let lastNodeT: CGFloat = 0.9
+        static let maxNodeStep: CGFloat = 0.2
         static let leafLength: CGFloat = 34 // subordinate to the focused leaf
-        static var leafSize: CGSize { CGSize(width: leafLength, height: leafLength * 24.0 / 60.0) }
-        static let leafOffset: CGFloat = 15
-        static let leafTilt: CGFloat = 18
-        static let futureLength: CGFloat = 17
-        static let futureTilt: CGFloat = 34
-        static let futureOffset: CGFloat = 6
     }
 
     private var nodes: [(set: ExerciseSet, state: BranchNodeState)] {
@@ -134,17 +131,17 @@ struct SessionStageBranch: View {
     private func nodeGlyph(_ state: BranchNodeState, above: Bool, angle: Angle) -> some View {
         switch state {
         case .leaf:
-            leaf(filled: true, above: above, angle: angle)
+            blade(.inked(fill: palette.leafFill, rib: palette.leafRib), above: above, angle: angle)
                 .transition(.opacity)
         case .dashedLeaf:
-            leaf(filled: false, above: above, angle: angle)
+            blade(.dashed(palette.skipStroke), above: above, angle: angle)
                 .transition(.opacity)
         case .bud:
-            // One Log, One Fill (ledger §4.4): the next bud *wakes* on its own
-            // tokenized timing — 0.34s starting 0.26s into the previous leaf's
-            // ink — reading as a bud opening, never a second leaf filling.
-            BranchBudGlyph(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow)
-                .frame(width: Metrics.budDiameter, height: Metrics.budDiameter)
+            // One Log, One Fill (ledger §4.4): the active blade *wakes* on its
+            // own tokenized timing — 0.34s starting 0.26s into the previous
+            // leaf's ink — reading as a cream leaf opening (that logging then
+            // inks solid), never a second leaf filling.
+            blade(.cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow), above: above, angle: angle)
                 .transition(.scale(scale: 0.3).combined(with: .opacity))
                 .animation(
                     reduceMotion
@@ -153,30 +150,27 @@ struct SessionStageBranch: View {
                     value: activeSetID
                 )
         case .future:
-            // A faint stroke branching off the climbing stem at an angle — the
-            // preview of where a leaf will grow, never a circular dot (ledger §4.1).
-            Capsule()
-                .fill(palette.futureStroke)
-                .frame(width: Metrics.futureLength, height: Metrics.stemWidth)
-                .rotationEffect(angle + Angle(degrees: above ? -Metrics.futureTilt : Metrics.futureTilt))
-                .offset(y: above ? -Metrics.futureOffset : Metrics.futureOffset)
+            // A ghost of the leaf to come — a faint, smaller outline of the same
+            // blade, never an angled stroke or a circular dot (verdict, §4.1).
+            blade(.ghost(palette.futureStroke), above: above, angle: angle, length: Metrics.leafLength * Metrics.ghostScale)
         }
     }
 
-    private func leaf(filled: Bool, above: Bool, angle: Angle) -> some View {
-        // The leaf grows off the stem: aligned to the stem's climb, then tilted
-        // outward, and lifted perpendicular so its base meets the stem.
-        let tilt = Angle(degrees: above ? -Metrics.leafTilt : Metrics.leafTilt)
-        let lift = above ? -Metrics.leafOffset : Metrics.leafOffset
-        return BranchLeafGlyph(
-            filled: filled,
-            fill: palette.leafFill,
-            rib: palette.leafRib,
-            dash: palette.skipStroke,
-            size: Metrics.leafSize
-        )
-        .rotationEffect(angle + tilt)
-        .offset(y: lift)
+    /// One blade off the stem: its base sits on the node, and it angles up- or
+    /// down-forward off the stem's climb, alternating sides. The pre-rotation
+    /// x-offset moves the base onto the rotation anchor, so the blade pivots
+    /// around where it meets the stem.
+    private func blade(
+        _ style: BranchBladeGlyph.Style,
+        above: Bool,
+        angle: Angle,
+        length: CGFloat = Metrics.leafLength
+    ) -> some View {
+        let size = CGSize(width: length, height: length * LeafShape.aspectRatio)
+        let tilt = Angle(degrees: above ? -Metrics.leafTiltAbove : Metrics.leafTiltBelow)
+        return BranchBladeGlyph(style: style, size: size)
+            .offset(x: size.width / 2)
+            .rotationEffect(angle + tilt)
     }
 
     // MARK: - Partner lateral
@@ -208,33 +202,35 @@ struct SessionStageBranch: View {
         let pigment = palette.supersetPartnerBranch
         switch state {
         case .leaf:
-            partnerLeaf(filled: true, below: below, angle: angle, pigment: pigment)
+            partnerBlade(.inked(fill: pigment, rib: nil), below: below, angle: angle)
         case .dashedLeaf:
-            partnerLeaf(filled: false, below: below, angle: angle, pigment: pigment)
+            partnerBlade(.dashed(pigment), below: below, angle: angle)
         case .future:
-            Capsule()
-                .fill(pigment.opacity(0.55))
-                .frame(width: PartnerMetrics.futureLength, height: PartnerMetrics.stemWidth)
-                .rotationEffect(angle + Angle(degrees: below ? PartnerMetrics.futureTilt : -PartnerMetrics.futureTilt))
-                .offset(y: below ? PartnerMetrics.futureOffset : -PartnerMetrics.futureOffset)
+            partnerBlade(
+                .ghost(pigment.opacity(0.55)),
+                below: below,
+                angle: angle,
+                length: PartnerMetrics.leafLength * Metrics.ghostScale
+            )
         case .bud:
-            // The partner never carries the bud; the seam demotes it to a future.
+            // The partner never carries the active blade; the seam demotes it to a future.
             EmptyView()
         }
     }
 
-    private func partnerLeaf(filled: Bool, below: Bool, angle: Angle, pigment: Color) -> some View {
-        let tilt = Angle(degrees: below ? PartnerMetrics.leafTilt : -PartnerMetrics.leafTilt)
-        let lift = below ? PartnerMetrics.leafOffset : -PartnerMetrics.leafOffset
-        return BranchLeafGlyph(
-            filled: filled,
-            fill: pigment,
-            rib: nil,
-            dash: pigment,
-            size: PartnerMetrics.leafSize
-        )
-        .rotationEffect(angle + tilt)
-        .offset(y: lift)
+    /// The partner's blades speak the focused stem's vocabulary at a smaller
+    /// scale, with the tilt sides mirrored for the drooping lateral.
+    private func partnerBlade(
+        _ style: BranchBladeGlyph.Style,
+        below: Bool,
+        angle: Angle,
+        length: CGFloat = PartnerMetrics.leafLength
+    ) -> some View {
+        let size = CGSize(width: length, height: length * LeafShape.aspectRatio)
+        let tilt = Angle(degrees: below ? Metrics.leafTiltBelow : -Metrics.leafTiltAbove)
+        return BranchBladeGlyph(style: style, size: size)
+            .offset(x: size.width / 2)
+            .rotationEffect(angle + tilt)
     }
 
     private func partnerTip(in size: CGSize) -> CGPoint {
@@ -247,9 +243,13 @@ struct SessionStageBranch: View {
     }
 
     private func partnerNodeT(_ index: Int) -> CGFloat {
-        guard partnerNodes.count > 1 else { return (PartnerMetrics.firstNodeT + PartnerMetrics.lastNodeT) / 2 }
-        let span = PartnerMetrics.lastNodeT - PartnerMetrics.firstNodeT
-        return PartnerMetrics.firstNodeT + span * CGFloat(index) / CGFloat(partnerNodes.count - 1)
+        BranchNodeLayout.nodeT(
+            index: index,
+            count: partnerNodes.count,
+            first: PartnerMetrics.firstNodeT,
+            last: PartnerMetrics.lastNodeT,
+            maxStep: PartnerMetrics.maxNodeStep
+        )
     }
 
     private func partnerCurve(fork: CGPoint, in size: CGSize) -> QuadraticBezier {
@@ -268,9 +268,13 @@ struct SessionStageBranch: View {
     // MARK: - Stem geometry
 
     private func nodeT(_ index: Int) -> CGFloat {
-        guard nodes.count > 1 else { return 0.5 }
-        let span = Metrics.lastNodeT - Metrics.firstNodeT
-        return Metrics.firstNodeT + span * CGFloat(index) / CGFloat(nodes.count - 1)
+        BranchNodeLayout.nodeT(
+            index: index,
+            count: nodes.count,
+            first: Metrics.firstNodeT,
+            last: Metrics.lastNodeT,
+            maxStep: Metrics.maxNodeStep
+        )
     }
 
     /// The climbing stem as a quadratic bezier bowed gently upward: root at low
@@ -332,68 +336,78 @@ private struct LateralPath: Shape {
     }
 }
 
-/// One leaf: an inked silhouette (with an optional cream rib) for a Logged Set, or
-/// a dashed outline for a Skipped Set (token sheet §Stage & branch — geometry
-/// kept verbatim from the locked design).
-private struct BranchLeafGlyph: View {
-    let filled: Bool
-    let fill: Color
-    let rib: Color?
-    let dash: Color
+/// Every branch mark is this one blade in a different dress (the verdict on
+/// `docs/prototypes/branch-low-set-prototype.html`, matching pick
+/// session-stage-a): inked with a cream rib for a Logged Set, a dashed outline
+/// for a Skipped Set, cream-filled inside a green stroke for the active Set
+/// (`glow` lights it at Night and is `nil` by Day), and a faint ghost outline
+/// for a Pending Set.
+private struct BranchBladeGlyph: View {
+    enum Style {
+        case inked(fill: Color, rib: Color?)
+        case dashed(Color)
+        case cream(fill: Color, stroke: Color, glow: Color?)
+        case ghost(Color)
+    }
+
+    let style: Style
     let size: CGSize
 
     var body: some View {
-        ZStack {
-            if filled {
-                LeafShape().fill(fill)
-                if let rib {
-                    RibShape().stroke(rib, style: StrokeStyle(lineWidth: 1.2 * 0.5, lineCap: .round))
+        Group {
+            switch style {
+            case .inked(let fill, let rib):
+                ZStack {
+                    LeafShape().fill(fill)
+                    if let rib {
+                        RibShape().stroke(rib, style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
+                    }
                 }
-            } else {
+            case .dashed(let stroke):
                 LeafShape().stroke(
-                    dash,
-                    style: StrokeStyle(lineWidth: 1.2 * 0.5, lineCap: .round, dash: [5, 4])
+                    stroke,
+                    style: StrokeStyle(lineWidth: 1.2, lineCap: .round, dash: [5, 4])
                 )
+            case .cream(let fill, let stroke, let glow):
+                ZStack {
+                    LeafShape().fill(fill)
+                    LeafShape().stroke(stroke, lineWidth: 1.8)
+                }
+                .shadow(color: glow ?? .clear, radius: glow == nil ? 0 : 7)
+            case .ghost(let stroke):
+                LeafShape().stroke(stroke, lineWidth: 1.4)
             }
         }
         .frame(width: size.width, height: size.height)
     }
 }
 
-/// The active Set's cream bud with a green stroke; `glow` lights it at Night and is
-/// `nil` (unlit) by Day.
-private struct BranchBudGlyph: View {
-    let fill: Color
-    let stroke: Color
-    let glow: Color?
-
-    var body: some View {
-        Circle()
-            .fill(fill)
-            .overlay(Circle().strokeBorder(stroke, lineWidth: 2.2 * 0.5))
-            .shadow(color: glow ?? .clear, radius: glow == nil ? 0 : 7)
-    }
-}
-
-/// The token-sheet leaf silhouette (`M0 8 C 15 2.3, 41 3.3, 60 8 C 41 21.7, 15 22.6, 0 8 Z`)
-/// in a 60×24 design space, scaled into the drawing rect.
+/// The blade silhouette (`M0,10 C16,-2 46,-4 64,3 C44,16 14,19 0,10 Z`) in a
+/// 64×20 design space — slender and pointed both ends, base at the leading
+/// mid-height so a half-width pre-rotation offset anchors it on the stem —
+/// scaled into the drawing rect. Matches pick session-stage-a; replaces the
+/// retired 60×24 rounded leaf.
 struct LeafShape: Shape {
+    /// height / width of the design space, for callers sizing a frame off one length.
+    static let aspectRatio: CGFloat = 20.0 / 64.0
+
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        path.move(to: CGPoint(x: 0, y: 8))
-        path.addCurve(to: CGPoint(x: 60, y: 8), control1: CGPoint(x: 15, y: 2.3), control2: CGPoint(x: 41, y: 3.3))
-        path.addCurve(to: CGPoint(x: 0, y: 8), control1: CGPoint(x: 41, y: 21.7), control2: CGPoint(x: 15, y: 22.6))
+        path.move(to: CGPoint(x: 0, y: 10))
+        path.addCurve(to: CGPoint(x: 64, y: 3), control1: CGPoint(x: 16, y: -2), control2: CGPoint(x: 46, y: -4))
+        path.addCurve(to: CGPoint(x: 0, y: 10), control1: CGPoint(x: 44, y: 16), control2: CGPoint(x: 14, y: 19))
         path.closeSubpath()
-        return path.applying(CGAffineTransform(scaleX: rect.width / 60, y: rect.height / 24))
+        return path.applying(CGAffineTransform(scaleX: rect.width / 64, y: rect.height / 20))
     }
 }
 
-/// The leaf's central rib (`M4 8.1 C 20 9.8, 40 9.6, 56 8.1`) in the same 60×24 space.
+/// The blade's cream rib streak (`M7,8.6 C24,4.6 42,2.6 56,3.4`), just off the
+/// spine, in the same 64×20 space.
 struct RibShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        path.move(to: CGPoint(x: 4, y: 8.1))
-        path.addCurve(to: CGPoint(x: 56, y: 8.1), control1: CGPoint(x: 20, y: 9.8), control2: CGPoint(x: 40, y: 9.6))
-        return path.applying(CGAffineTransform(scaleX: rect.width / 60, y: rect.height / 24))
+        path.move(to: CGPoint(x: 7, y: 8.6))
+        path.addCurve(to: CGPoint(x: 56, y: 3.4), control1: CGPoint(x: 24, y: 4.6), control2: CGPoint(x: 42, y: 2.6))
+        return path.applying(CGAffineTransform(scaleX: rect.width / 64, y: rect.height / 20))
     }
 }

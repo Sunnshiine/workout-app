@@ -29,6 +29,26 @@ struct QuadraticBezier: Equatable {
     }
 }
 
+/// Places branch nodes along a stem's parameter space (the prototype verdict,
+/// `docs/prototypes/branch-low-set-prototype.html`): the stem is always full
+/// length, the last node anchors to the terminal at `last`, and earlier nodes
+/// step down toward the root by `min(maxStep, (last − first) / (count − 1))` —
+/// so 2–3 Sets read as a sprig growing at the stem's reach, and larger counts
+/// spread down to `first` exactly as before.
+enum BranchNodeLayout {
+    static func nodeT(
+        index: Int,
+        count: Int,
+        first: CGFloat,
+        last: CGFloat,
+        maxStep: CGFloat
+    ) -> CGFloat {
+        guard count > 1 else { return last }
+        let step = min((last - first) / CGFloat(count - 1), maxStep)
+        return last - step * CGFloat(count - 1 - index)
+    }
+}
+
 /// A Session render item with the hidden paired entries dropped, plus the
 /// progress readings the Stage needs: title, Set order, completion, and the
 /// next pending Set.
@@ -83,9 +103,10 @@ enum BranchNodeState: Equatable, Sendable {
     case leaf
     /// A Skipped Set — a dashed-outline leaf (the "empty bed" vocabulary).
     case dashedLeaf
-    /// The active Set — a cream bud with a green stroke; carries the page's one glow at Night.
+    /// The active Set — the same leaf cream-filled inside a green stroke
+    /// (logging inks it solid); carries the page's one glow at Night.
     case bud
-    /// A Pending Set still ahead — a faint future stroke.
+    /// A Pending Set still ahead — a faint ghost outline of the leaf to come.
     case future
 }
 
@@ -189,8 +210,8 @@ enum SessionStagePresentation {
     }
 
     /// The branch's node states in Set order: one leaf per Logged Set, a
-    /// dashed-outline leaf per Skipped Set, a cream bud for the active Set, and
-    /// faint future strokes for the remaining Pending Sets. The bud rides the
+    /// dashed-outline leaf per Skipped Set, a cream-filled leaf for the active
+    /// Set, and ghost outlines for the remaining Pending Sets. The bud rides the
     /// Set on stage — the active Set when one is Pending, else the first Pending
     /// Set — matching the Active Set Card's own `stageSet` selection.
     static func branchNodeStates(for sets: [ExerciseSet], activeSetID: ActiveSetID?) -> [BranchNodeState] {

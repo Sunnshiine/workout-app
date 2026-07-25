@@ -494,3 +494,43 @@ struct SessionStagePresentationTests {
     #expect(curve.tangent(at: 0).dx > 0)
     #expect(curve.tangent(at: 1).dx > 0)
 }
+
+// MARK: - Branch node layout (terminal-anchored spacing along the stem)
+
+@Test func branchNodeLayoutSpreadsManyNodesAcrossTheFullSpan() {
+    // Five nodes over 0.16…0.80: the natural step (0.16) is under the cap, so
+    // the ends pin to the span — larger counts spread exactly as before.
+    let ts = (0..<5).map {
+        BranchNodeLayout.nodeT(index: $0, count: 5, first: 0.16, last: 0.80, maxStep: 0.24)
+    }
+
+    #expect(abs(ts[0] - 0.16) < 0.0001)
+    #expect(abs(ts[4] - 0.80) < 0.0001)
+}
+
+@Test func branchNodeLayoutAnchorsTwoNodesToTheTerminal() {
+    // Two Sets: the uncapped step would pin them to opposite ends of the branch
+    // — too far apart to read as one sprig. The verdict anchors the last node
+    // to the terminal and steps the other down by the capped step.
+    let first = BranchNodeLayout.nodeT(index: 0, count: 2, first: 0.16, last: 0.80, maxStep: 0.24)
+    let second = BranchNodeLayout.nodeT(index: 1, count: 2, first: 0.16, last: 0.80, maxStep: 0.24)
+
+    #expect(abs(second - 0.80) < 0.0001)
+    #expect(abs(first - 0.56) < 0.0001)
+}
+
+@Test func branchNodeLayoutThreeNodesStepDownFromTheTerminal() {
+    let ts = (0..<3).map {
+        BranchNodeLayout.nodeT(index: $0, count: 3, first: 0.16, last: 0.80, maxStep: 0.24)
+    }
+
+    #expect(abs(ts[2] - 0.80) < 0.0001)
+    #expect(abs(ts[1] - 0.56) < 0.0001)
+    #expect(abs(ts[0] - 0.32) < 0.0001)
+}
+
+@Test func branchNodeLayoutPutsASingleNodeAtTheTerminal() {
+    let t = BranchNodeLayout.nodeT(index: 0, count: 1, first: 0.16, last: 0.80, maxStep: 0.24)
+
+    #expect(abs(t - 0.80) < 0.0001)
+}

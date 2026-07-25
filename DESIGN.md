@@ -320,12 +320,15 @@ reference line, and the Active Set Card with the Log capsule. The foot holds
 the queue pill and up-next preview.
 
 **The branch** is the page's one icon and one piece of flora — a 2px
-round-cap stem carrying one leaf per logged Set, a cream bud with a green
-stroke for the active Set, faint future strokes for what remains, and a
-**dashed-outline leaf for a Skipped Set** (Set dots are fully retired;
-validated at 8 Sets). The branch stands **textless** — no labels ride it.
-By day it inks in `actionDay`; at night it is moonlit foliage with cream
-ribs, and the bud carries the page's one glow.
+round-cap stem where **every mark is the same slender blade**: inked per
+logged Set, a **cream-filled leaf inside a green stroke** for the active Set
+(logging inks it solid — the clever leaf fill), **faint ghost leaf outlines**
+for what remains, and a **dashed-outline leaf for a Skipped Set** (Set dots,
+circle buds, and angled future strokes are fully retired; validated at 8
+Sets). Nodes anchor to a terminal at t=0.80 and step down the stem, so 2–3
+Sets read as one sprig on a full-length stem. The branch stands **textless**
+— no labels ride it. By day it inks in `actionDay`; at night it is moonlit
+foliage with cream ribs, and the active leaf carries the page's one glow.
 
 - **Guardrail — the plain head:** the Active Set Card's head carries a plain
   `Set 3 of 5` in Source Sans 3. Position and progress are always legible as
@@ -392,9 +395,9 @@ dashed stroke — the dashed "empty bed" vocabulary.
 
 A Superset draws as a **single forked stem** — still the page's one icon.
 The focused Exercise's branch leads at full stroke and alone carries the
-open bud (**the bud rides the focus**); the partner's branch is a shorter
-drooping lateral (1.6px). Alternation is one bud settling and one waking —
-never a branch redraw.
+cream-filled active leaf (**the active leaf rides the focus**); the
+partner's branch is a shorter drooping lateral (1.6px). Alternation is one
+active leaf settling and one waking — never a branch redraw.
 
 The focus tie is **tone coupling**: by day the partner's whole branch and
 its Fraunces "**& partner**" name line (the manual focus switch) carry
@@ -516,9 +519,9 @@ every piece of chrome — including the Log capsule — rides stock system
 springs.
 
 1. **Leaf inks on log** — 0.42s; a dashed Skip draws in the same language.
-2. **Next bud opens** — inside the leaf's tail (starts 0.26s in, runs
-   0.34s). **One Log, One Fill:** the transition must read as a bud waking,
-   never a second leaf filling.
+2. **Next leaf wakes** — inside the leaf's tail (starts 0.26s in, runs
+   0.34s). **One Log, One Fill:** the transition must read as the cream
+   leaf waking (logging then inks it solid), never a second leaf filling.
 3. **Ceremony** — stem 1.0s, 0.10s beat, bird drops 0.35s (≈1.5s, Brisk).
 
 Haptics are **Crisp, silent-chrome, semantic-only**: RPE detent tick
