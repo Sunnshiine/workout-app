@@ -25,49 +25,59 @@ struct SongbirdGlyph: View {
     }
 }
 
-/// The songbird silhouette in a 120×72 design space, facing trailing: a plump
-/// leaf-body with a rounded head, a short beak, and a pointed tail.
+/// The songbird silhouette in a 120×72 design space, facing trailing (right):
+/// a plump breast under a **distinct rounded head** that bulges above the back,
+/// a short wedge beak, and a pointed tail — the plump songbird of pick
+/// sunbird-moments-c, not the almond/leaf body the first pass drew (owner
+/// report #3). The back rises from the tail, dips slightly at the neck, then the
+/// head crowns high before dropping to the beak; the breast and belly round out
+/// full beneath.
 struct SongbirdBodyShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        path.move(to: CGPoint(x: 4, y: 40)) // tail tip
+        path.move(to: CGPoint(x: 3, y: 34)) // pointed tail tip, trailing left
+        // The back sweeps up from the tail to a low shoulder, easing into the neck.
         path.addCurve(
-            to: CGPoint(x: 86, y: 8), // long back rising to the head crown
-            control1: CGPoint(x: 26, y: 6),
-            control2: CGPoint(x: 58, y: 2)
+            to: CGPoint(x: 72, y: 20),
+            control1: CGPoint(x: 26, y: 12),
+            control2: CGPoint(x: 56, y: 14)
         )
+        // The rounded head: up over a high crown, then down the face to the beak base.
         path.addCurve(
-            to: CGPoint(x: 112, y: 22), // head crown down to the beak base
-            control1: CGPoint(x: 98, y: 8),
-            control2: CGPoint(x: 108, y: 14)
+            to: CGPoint(x: 112, y: 30),
+            control1: CGPoint(x: 86, y: 2),
+            control2: CGPoint(x: 116, y: 12)
         )
-        path.addLine(to: CGPoint(x: 120, y: 27)) // upper beak to tip
-        path.addLine(to: CGPoint(x: 104, y: 30)) // beak tip to lower beak
+        // The short wedge beak, pointing trailing.
+        path.addLine(to: CGPoint(x: 123, y: 33))
+        path.addLine(to: CGPoint(x: 108, y: 36))
+        // The throat and plump breast rounding down to the belly.
         path.addCurve(
-            to: CGPoint(x: 72, y: 56), // throat/breast down to the belly
-            control1: CGPoint(x: 98, y: 44),
-            control2: CGPoint(x: 88, y: 54)
+            to: CGPoint(x: 55, y: 66),
+            control1: CGPoint(x: 96, y: 54),
+            control2: CGPoint(x: 82, y: 66)
         )
+        // The round belly sweeping back up to the pointed tail.
         path.addCurve(
-            to: CGPoint(x: 4, y: 40), // belly sweeping back to the tail
-            control1: CGPoint(x: 44, y: 60),
-            control2: CGPoint(x: 22, y: 54)
+            to: CGPoint(x: 3, y: 34),
+            control1: CGPoint(x: 28, y: 66),
+            control2: CGPoint(x: 8, y: 52)
         )
         path.closeSubpath()
         return path.applying(CGAffineTransform(scaleX: rect.width / 120, y: rect.height / 72))
     }
 }
 
-/// The cream wing-hint arced across the songbird's upper body, in the same
+/// The cream wing-hint arced across the songbird's plump body, in the same
 /// 120×72 space.
 struct SongbirdWingShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        path.move(to: CGPoint(x: 30, y: 32))
+        path.move(to: CGPoint(x: 30, y: 40))
         path.addCurve(
-            to: CGPoint(x: 82, y: 20),
-            control1: CGPoint(x: 46, y: 22),
-            control2: CGPoint(x: 66, y: 18)
+            to: CGPoint(x: 88, y: 28),
+            control1: CGPoint(x: 48, y: 40),
+            control2: CGPoint(x: 70, y: 30)
         )
         return path.applying(CGAffineTransform(scaleX: rect.width / 120, y: rect.height / 72))
     }
@@ -103,12 +113,12 @@ struct ConnectPerch: View {
                     .rotationEffect(.degrees(-58))
                     .position(x: rightEnd.x - leafSize.width * 0.1, y: rightEnd.y + leafSize.height * 0.9)
 
-                // Seat the bird *on* the branch: the body's underside (≈0.80 of the
-                // glyph height) meets the crown, with a few points of overlap so it
-                // reads perched, not floating.
+                // Seat the bird *on* the branch: the plump belly (≈0.92 of the glyph
+                // height) meets the crown with a few points of overlap so it reads
+                // perched, not floating.
                 let birdHeight = birdWidth * 0.6
                 SongbirdGlyph(width: birdWidth, fill: palette.birdFill, rib: palette.birdRib)
-                    .position(x: crown.x, y: crown.y - birdHeight * 0.30 + 4)
+                    .position(x: crown.x - birdWidth * 0.05, y: crown.y - birdHeight * 0.42 + 4)
             }
         }
         .frame(width: width, height: height)
@@ -166,8 +176,9 @@ struct CeremonyBranch: View {
                 }
 
                 let tip = stemPoint(t: 1, in: size)
+                // Seat the plump belly (≈0.92 of the glyph height) on the stem's tip.
                 SongbirdGlyph(width: Metrics.birdWidth, fill: palette.birdFill, rib: palette.birdRib)
-                    .position(x: tip.x - Metrics.birdWidth * 0.22, y: tip.y - Metrics.birdWidth * 0.6 * 0.42)
+                    .position(x: tip.x - Metrics.birdWidth * 0.22, y: tip.y - Metrics.birdWidth * 0.6 * 0.42 + 4)
             }
         }
         .frame(height: Metrics.height)
