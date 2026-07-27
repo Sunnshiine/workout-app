@@ -34,7 +34,7 @@ Trigger labels (you apply):
 | `agent:implement` | an issue without sub-issues | Agent implements it on `agent/issue-N-slug`, runs `swift test`, opens a draft PR, then chains into `agent:review`. |
 | `agent:implement` | a PRD (issue **with** sub-issues) | Agent implements the first open sub-issue on a shared `agent/prd-N-slug` branch, closes it, re-labels the PRD to pick up the next one, and opens/reuses one draft PR for the whole PRD. When the last sub-issue closes it hands off to `agent:review`. |
 | `agent:implement` | a PR | Agent reads unresolved threads/comments, makes the changes, replies in-thread. |
-| `agent:review` | a PR | Agent reviews the diff (via the `code-review` skill) against the linked issue and `.sandcastle/CODING_STANDARDS.md`, commits improvements, posts inline comments, marks the PR ready for review. |
+| `agent:review` | a PR | Agent reviews the diff (via the `code-review` skill) against the linked issue and `.sandcastle/CODING_STANDARDS.md`, commits improvements, posts inline comments, marks the PR ready for review, and applies the `testflight` label for a device build (skipped for diffs that can't affect the binary). |
 | `agent:update-branch` | a PR | Merges `main` into the branch; an agent resolves conflicts and explains its resolutions in a comment. |
 | `agent:queued` | an issue | Parked until its GitHub issue dependencies ("blocked by") close, then auto-promoted to `agent:implement`. |
 

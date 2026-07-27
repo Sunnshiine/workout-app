@@ -133,6 +133,33 @@ jobs:
         if: success()
         run: gh pr ready "$PR_NUMBER" || true
 
+      # Ready-for-review means installable: hand the PR to testflight-pr.yml so
+      # a device build is waiting when the human looks at the PR. Skipped when
+      # the diff can't affect the binary (mirrors testflight-stable.yml's path
+      # excludes). Must use AGENT_PAT — a GITHUB_TOKEN label add never fires
+      # the workflow, and would leave a stuck label that testflight-pr.yml's
+      # remove-at-start never consumes, so there is no GITHUB_TOKEN fallback.
+      - name: Hand off — apply testflight label for a device build
+        if: success()
+        env:
+          AGENT_PAT: ${{ secrets.AGENT_PAT }}
+        run: |
+          set -euo pipefail
+          base=$(git merge-base main HEAD)
+          binary_affecting=$(git diff --name-only "$base" HEAD \
+            | grep -vE '^(docs/|\.sandcastle/|\.claude/|\.github/)' \
+            | grep -vE '\.md$' || true)
+          if [ -z "$binary_affecting" ]; then
+            echo "Diff vs main cannot affect the binary — skipping TestFlight hand-off."
+            exit 0
+          fi
+          if [ -z "$AGENT_PAT" ]; then
+            echo "::warning::AGENT_PAT not set — cannot apply the testflight label (GITHUB_TOKEN label adds don't fire workflows). Apply it manually for a device build."
+            exit 0
+          fi
+          GH_TOKEN="$AGENT_PAT" gh pr edit "$PR_NUMBER" --add-label "testflight" \
+            || echo "::warning::Failed to apply the testflight label — apply it manually for a device build."
+
       - name: Post thread replies
         if: success()
         env:

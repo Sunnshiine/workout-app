@@ -13,7 +13,7 @@ the load-bearing decisions are
 | | Stable | PR (dev flavor) |
 |---|---|---|
 | Workflow | `.github/workflows/testflight-stable.yml` | `.github/workflows/testflight-pr.yml` |
-| Trigger | push to `main` (path-filtered) + `workflow_dispatch` | `testflight` label on a PR (per-build) + `workflow_dispatch` with a PR number |
+| Trigger | push to `main` (path-filtered) + `workflow_dispatch` | `testflight` label on a PR (per-build; auto-removed at run start) + `workflow_dispatch` with a PR number |
 | Bundle ids | `com.sunnypatel.WorkoutTracker` (+ `.Widgets`) | `com.sunnypatel.WorkoutTracker.dev` (+ `.dev.Widgets`) via `BUNDLE_ID_SUFFIX=.dev` |
 | App Store Connect record | "TFN Tracker" | "TFN Tracker Dev" |
 | Home-screen name | WorkoutTracker | WT Dev (`APP_DISPLAY_NAME` override) |
@@ -41,10 +41,21 @@ PNGs by hand — edit the SVGs and re-render.
 
 ## Label semantics (PR builds)
 
-Applying the `testflight` label uploads the PR's **current head** once. Pushes
-never upload — for another build, remove and re-apply the label. When
-processing finishes, the workflow posts a receipt comment with the build
-number.
+Applying the `testflight` label uploads the PR's **current head** once. The
+label is a push button: the workflow removes it as soon as a run starts, so
+for another build just apply the label again — no manual removal needed.
+Applying it while a build is in flight cancels that build and starts over from
+the new head. Pushes never upload. When processing finishes, the workflow
+posts a receipt comment with the build number; a failed run posts a failure
+comment with the run link instead.
+
+`agent-review.yml` applies the label automatically (via `AGENT_PAT`) after a
+successful review pass, right after marking the PR ready for review — so a PR
+going ready comes with a device build. The hand-off is skipped when the diff
+vs `main` cannot affect the binary (docs, markdown, `.github/`, `.claude/`,
+`.sandcastle/` only — the same excludes `testflight-stable.yml` uses). The
+feedback-fix flow (`agent-implement-pr.yml`) does **not** re-apply the label;
+during review back-and-forth, apply it manually when you want a build.
 
 **AGENT_PAT quirk**: a label applied by a workflow authenticated with the
 plain `GITHUB_TOKEN` does **not** fire the workflow — GitHub suppresses

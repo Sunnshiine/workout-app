@@ -2,9 +2,11 @@ name: TestFlight PR
 
 # Uploads a dev-flavor build (com.sunnypatel.WorkoutTracker.dev — "TFN Tracker
 # Dev" in App Store Connect, "WT Dev" on the home screen) when the `testflight`
-# label is applied to a PR. Label per build: pushes never upload; remove and
-# re-apply the label for another build. workflow_dispatch (with a PR number) is
-# the secondary path.
+# label is applied to a PR. The label is a push button: the workflow removes it
+# as soon as a run starts, so applying it again is always enough for another
+# build. Pushes never upload. agent-review applies the label automatically
+# after a successful review pass on a binary-affecting PR. workflow_dispatch
+# (with a PR number) is the secondary path.
 #
 # A `testflight` label applied by a workflow using the plain GITHUB_TOKEN will
 # NOT fire this workflow — GitHub suppresses token-driven events. Agents must
@@ -38,6 +40,9 @@ jobs:
        github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: xcode-27
     timeout-minutes: 40
+    permissions:
+      contents: read
+      pull-requests: write
     outputs:
       pr: ${{ steps.pr.outputs.number }}
       short_sha: ${{ steps.pr.outputs.short_sha }}
@@ -74,6 +79,25 @@ jobs:
             core.setOutput('head_ref', pr.head.ref);
             core.setOutput('short_sha', shortSha);
             core.setOutput('notes', lines.join('\n'));
+
+      # Push-button semantics: consume the label as soon as the run is
+      # committed to building, so re-applying it is all a re-trigger takes.
+      # Removal uses the plain GITHUB_TOKEN — it doesn't need to fire anything.
+      - name: Remove testflight label (push-button semantics)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: Number(${{ toJSON(steps.pr.outputs.number) }}),
+                name: 'testflight',
+              });
+            } catch (e) {
+              // 404: label not present (workflow_dispatch path) — fine.
+              if (e.status !== 404) throw e;
+            }
 
       # Build the PR's current head, not the synthetic merge commit — the
       # label gesture ships exactly what the branch holds right now.
@@ -271,11 +295,40 @@ jobs:
               '',
               `Commit ${shortSha} · [workflow run](${runUrl})`,
               '',
-              'For another build, remove and re-apply the `testflight` label.',
+              'For another build, apply the `testflight` label again (it was already removed when this run started).',
             ].join('\n');
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: pr,
               body,
+            });
+
+  # With the label consumed at run start, a failed run would otherwise be
+  # invisible on the PR (the receipt only posts on success). failure() excludes
+  # cancelled runs, so a re-label that supersedes an in-flight build stays
+  # silent.
+  report-failure:
+    needs: [archive, upload]
+    if: failure()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Post failure comment on the PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = Number(
+              ${{ toJSON(needs.archive.outputs.pr) }} ||
+              ${{ toJSON(github.event.pull_request.number) }} ||
+              ${{ toJSON(inputs.pr) }} || 0);
+            if (!pr) return;
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr,
+              body: `❌ TestFlight build failed — [workflow run](${runUrl}). Apply the \`testflight\` label again to retry.`,
             });
