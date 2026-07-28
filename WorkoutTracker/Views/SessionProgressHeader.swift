@@ -2,7 +2,6 @@ import SwiftUI
 
 struct SessionProgressHeader: View {
     let session: Session
-    let activeSetID: ActiveSetID?
     let block: Block?
     let currentSession: Session?
     let sessionSettingsOverpullState: SessionSettingsOverpullState
@@ -13,7 +12,6 @@ struct SessionProgressHeader: View {
 
     init(
         session: Session,
-        activeSetID: ActiveSetID?,
         block: Block? = nil,
         currentSession: Session? = nil,
         sessionSettingsOverpullState: SessionSettingsOverpullState = .hidden,
@@ -21,7 +19,6 @@ struct SessionProgressHeader: View {
         onSettings: @escaping () -> Void = {}
     ) {
         self.session = session
-        self.activeSetID = activeSetID
         self.block = block
         self.currentSession = currentSession
         self.sessionSettingsOverpullState = sessionSettingsOverpullState
@@ -30,7 +27,7 @@ struct SessionProgressHeader: View {
     }
 
     private var presentation: SessionProgressHeaderPresentation {
-        SessionProgressHeaderPresentation(session: session, activeSetID: activeSetID, block: block)
+        SessionProgressHeaderPresentation(session: session, block: block)
     }
 
     // The plain header runline (ledger §4.3, picks session-stage-a/-d): a

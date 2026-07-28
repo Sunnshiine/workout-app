@@ -201,7 +201,7 @@ struct SessionProgressHeaderPresentation: Equatable, Sendable {
         remainingSetCount == 1 ? "1 Set left" : "\(remainingSetCount) Sets left"
     }
 
-    init(session: Session, activeSetID: ActiveSetID? = nil, block: Block? = nil) {
+    init(session: Session, block: Block? = nil) {
         let weekNumber = session.week?.number ?? 0
         let dayNumber = session.dayNumber
         let locationCore = "Week \(weekNumber) · Day \(dayNumber)"

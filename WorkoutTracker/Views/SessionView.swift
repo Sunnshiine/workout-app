@@ -285,7 +285,6 @@ extension SessionView {
     private func sessionHeaderHUD(session: Session) -> some View {
         SessionProgressHeader(
             session: session,
-            activeSetID: coordinator.activeSetID,
             block: workout.block,
             currentSession: workout.currentSession,
             sessionSettingsOverpullState: sessionSettingsOverpullState,
