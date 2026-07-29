@@ -243,6 +243,12 @@ private struct ValueRail: View {
     var isInvalid = false
     let onSelect: (String) -> Void
     @State private var dragAnchorIndex: Int?
+    /// A drag is in flight (or just ended this event turn). It gates the cell buttons: as the strip
+    /// re-centers on the dragged value, the lifted finger sits over a *different* cell, and that
+    /// cell's button firing on release would override the drag — snapping the value back to where the
+    /// finger landed (the reported "release jumps back to the original number"). The flag clears one
+    /// runloop turn after the drag ends, after the synchronous release has been suppressed.
+    @State private var isDragging = false
     @Environment(\.themePalette) private var palette
 
     var body: some View {
@@ -289,6 +295,7 @@ private struct ValueRail: View {
     private var dragToSelect: some Gesture {
         DragGesture(minimumDistance: 10)
             .onChanged { value in
+                isDragging = true
                 let anchor = dragAnchorIndex ?? selectedIndex
                 dragAnchorIndex = anchor
                 let target = ValueRailLayout.draggedIndex(
@@ -302,11 +309,19 @@ private struct ValueRail: View {
                 onSelect(chips[target].label)
                 InputHapticPlayer.shared.play(Theme.Haptics.railDetentTick)
             }
-            .onEnded { _ in dragAnchorIndex = nil }
+            .onEnded { _ in
+                dragAnchorIndex = nil
+                // Clear on the next runloop turn so the release's cell-button tap — dispatched in
+                // this same event turn — still sees `isDragging` and is suppressed.
+                DispatchQueue.main.async { isDragging = false }
+            }
     }
 
     private func cell(_ chip: ValueRailChip) -> some View {
         Button {
+            // A tap that was actually the tail of a drag must not re-select the cell under the
+            // lifted finger — the drag's selection is authoritative (see `isDragging`).
+            guard !isDragging else { return }
             onSelect(chip.label)
             InputHapticPlayer.shared.play(Theme.Haptics.railDetentTick)
         } label: {
