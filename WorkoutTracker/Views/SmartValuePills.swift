@@ -136,6 +136,17 @@ struct SmartValuePills: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
                 .focused($weightFieldFocused)
+                // The decimal pad carries no return key, so give the athlete a discoverable way out
+                // of the field when they open it and choose not to enter a weight — dismissing the
+                // keyboard without logging (the background/header taps are the same escape, less
+                // obvious). Semantic-only, so no haptic here.
+                .toolbar {
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button("Done", action: dismissFieldUI)
+                            .accessibilityIdentifier("weight-keyboard-done")
+                    }
+                }
                 .accessibilityIdentifier("weight-pill")
         } else {
             Text(form.weightDisplay)
