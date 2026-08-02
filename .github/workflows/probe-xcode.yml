@@ -1,0 +1,32 @@
+name: Probe xcode-27 runner toolchain
+
+# Temporary diagnostic for the ITMS-90534 TestFlight rejection (PR #505,
+# build 49): lists the Xcode installs and default toolchain on the xcode-27
+# image so the fix can pin an Apple-accepted version. Delete after use.
+
+on:
+  push:
+    branches: [claude/testflight-failure-diagnosis-fggyto]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: xcode-27
+    timeout-minutes: 5
+    steps:
+      - name: List Xcode installs and default toolchain
+        run: |
+          echo "== /Applications Xcode installs =="
+          ls -1d /Applications/Xcode*.app || true
+          echo "== xcode-select -p =="
+          xcode-select -p
+          echo "== default xcodebuild -version =="
+          xcodebuild -version
+          echo "== iOS SDKs of each install =="
+          for X in /Applications/Xcode*.app; do
+            echo "-- $X"
+            DEVELOPER_DIR="$X" xcodebuild -version
+            DEVELOPER_DIR="$X" xcodebuild -showsdks 2>/dev/null | grep -i iphoneos || true
+          done
