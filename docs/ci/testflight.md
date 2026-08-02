@@ -77,9 +77,15 @@ headlessly, signed with the imported identities) → `-exportArchive`
 `manageAppVersionAndBuildNumber: false`) → `.ipa` artifact.
 
 Linux job: `apple-actions/upload-testflight-build@v5` (AppStoreAPI backend,
-`wait-for-processing`) → receipt comment (PR track only). The split exists
-because Apple's processing wait is unbounded and must not occupy one of the
-five free-tier macOS slots.
+upload only) → `scripts/ci/wait-for-testflight-processing.mjs` → receipt
+comment (PR track only). The split exists because Apple's processing wait is
+unbounded and must not occupy one of the five free-tier macOS slots. The wait
+is our script, not the action's `wait-for-processing`: the action reuses one
+~10-min ASC token for its whole poll, so a build Apple is slow to surface (or
+rejects during ingest — those never become queryable) dies as a bogus 401
+instead of a verdict; the script mints a fresh token per poll and reports the
+build's `processingState`, with ingest rejections (e.g. ITMS-90534) called
+out explicitly (PR #505 build 49 is the case study).
 
 Concurrency groups `testflight-stable` / `testflight-pr-<number>` cancel
 in-progress runs — newest wins, stale archives stop.
