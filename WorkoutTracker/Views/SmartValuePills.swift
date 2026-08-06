@@ -82,6 +82,14 @@ struct SmartValuePills: View {
         .task(id: isEditingWeight) {
             weightFieldFocused = isEditingWeight
         }
+        // Focus can be torn down from outside this view (the stage-wide tap-anywhere dismissal
+        // resigns the first responder directly). Without folding that back into `isEditingWeight`,
+        // the pill would stay a bare TextField with no keyboard attached.
+        .onChange(of: weightFieldFocused) { _, isFocused in
+            if !isFocused {
+                isEditingWeight = false
+            }
+        }
         .background {
             Color.clear
                 .contentShape(Rectangle())

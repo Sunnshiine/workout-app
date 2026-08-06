@@ -68,7 +68,14 @@ struct ActiveSetCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Theme.cardContentPadding)
-        .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.soft))
+        // The surface itself is a dismissal catcher: any tap on card dead space — padding, the gaps
+        // between the input block's controls — closes the weight keyboard, so the athlete doesn't
+        // have to find the header or the Done button.
+        .background {
+            RoundedRectangle(cornerRadius: Theme.Radius.soft)
+                .fill(palette.surface)
+                .onTapGesture(perform: requestInputDismissal)
+        }
         .themeElevation(palette.surfaceShadow, in: RoundedRectangle(cornerRadius: Theme.Radius.soft))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("active-set-card")
@@ -104,13 +111,13 @@ struct ActiveSetCard: View {
             }
         }
         .contentShape(.rect)
-        .onTapGesture(perform: dismissInputIfLogging)
+        .onTapGesture(perform: requestInputDismissal)
     }
 
-    private func dismissInputIfLogging() {
-        if case .logging = mode {
-            inputDismissalRequestID += 1
-        }
+    /// Both modes carry an editable weight field (review editing landed in #456), so dismissal is
+    /// ungated — a no-op when no field is open.
+    private func requestInputDismissal() {
+        inputDismissalRequestID += 1
     }
 
     private var previousSetWeight: Double? {

@@ -24,6 +24,25 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
     }
 
     @MainActor
+    func testKeyboardDismissesWhenTappingStageOutsideActiveSetCard() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+        app.buttons["weight-pill"].tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
+
+        // Empty stage paper between the branch and the cards — no control claims this point, so
+        // the tap must fall through to the tap-anywhere dismissal on the session background.
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35)).tap()
+
+        XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 1))
+        // Dismissal collapses the field back to the tappable pill without cancelling the card.
+        XCTAssertTrue(app.buttons["weight-pill"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["log-active-set-button"].exists)
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
+    }
+
+    @MainActor
     func testActiveSetLogButtonSubmitsFromBackgroundWhileWeightFieldIsFocused() throws {
         let app = launchFixtureApp()
 

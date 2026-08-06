@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct SessionView: View {
     let liveActivityAdapter: LiveActivityProductionAdapter
@@ -70,7 +71,14 @@ struct SessionView: View {
             }
         }
         .accessibilityHidden(workout.moveOnCelebrationSession != nil)
-        .background(palette.paperBackground.ignoresSafeArea())
+        // The paper is a tap-anywhere keyboard escape: any tap that no control claims falls
+        // through to it and resigns the weight field, so the athlete never hunts for the one
+        // spot that closes the keyboard. Controls in front are unaffected — they win hit-testing.
+        .background {
+            palette.paperBackground
+                .ignoresSafeArea()
+                .onTapGesture(perform: dismissAnyKeyboard)
+        }
         .overlay {
             if let session = workout.moveOnCelebrationSession {
                 MoveOnCelebrationView(session: session) {
@@ -115,6 +123,15 @@ struct SessionView: View {
             guard !Task.isCancelled, sessionSettingsOverpullState.isPinned else { return }
             sessionSettingsOverpullState = sessionSettingsOverpullState.dismissedAfterIdle()
         }
+    }
+
+    /// The stage's focus state lives inside `SmartValuePills`; resigning the first responder is the
+    /// one dismissal that reaches it from here without plumbing. The pill folds the focus loss back
+    /// into its editing state via its `weightFieldFocused` change handler.
+    private func dismissAnyKeyboard() {
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
+        )
     }
 
     private func bindCoordinator(to session: Session) {
