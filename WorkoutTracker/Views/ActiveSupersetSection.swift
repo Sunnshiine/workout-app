@@ -17,6 +17,8 @@ struct ActiveSupersetSection: View {
     /// Retired from the stage: Unlink now lives in the queue sheet's containment
     /// group (DESIGN.md §5.4). Kept so the call site's dismiss wiring is untouched.
     let onDismiss: () -> Void
+    /// The stage's tap-anywhere keyboard escape, threaded through to the Active Set Card.
+    var inputDismissalRequestID = 0
     @Environment(\.themePalette) private var palette
 
     private var orderedExercises: [Exercise] {
@@ -129,7 +131,8 @@ struct ActiveSupersetSection: View {
                     setCount: focusedSortedSets.count,
                     onLog: { onLog(activeSet, $0) },
                     onSkip: { onSkip(activeSet) },
-                    onDelete: { onDelete(activeSet) }
+                    onDelete: { onDelete(activeSet) },
+                    inputDismissalRequestID: inputDismissalRequestID
                 )
 
                 if let transition = config.retiringTransition, transition.outgoingSetID == activeSetID {
@@ -151,7 +154,8 @@ struct ActiveSupersetSection: View {
                 setCount: focusedSortedSets.count,
                 onLog: { onLog(fallbackSet, $0) },
                 onSkip: { onSkip(fallbackSet) },
-                onDelete: { onDelete(fallbackSet) }
+                onDelete: { onDelete(fallbackSet) },
+                externalInputDismissalRequestID: inputDismissalRequestID
             )
         }
     }
@@ -175,6 +179,7 @@ private struct IncomingActiveSetCard: View {
     let onLog: (SetLog) -> Void
     let onSkip: () -> Void
     let onDelete: () -> Void
+    var inputDismissalRequestID = 0
     @State private var hasSettled = false
 
     var body: some View {
@@ -185,7 +190,8 @@ private struct IncomingActiveSetCard: View {
             setCount: setCount,
             onLog: onLog,
             onSkip: onSkip,
-            onDelete: onDelete
+            onDelete: onDelete,
+            externalInputDismissalRequestID: inputDismissalRequestID
         )
         .offset(y: shouldAnimate && !hasSettled ? incomingOffset : 0)
         .opacity(shouldAnimate && !hasSettled ? 0 : 1)

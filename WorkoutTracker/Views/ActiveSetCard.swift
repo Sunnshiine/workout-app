@@ -31,6 +31,9 @@ struct ActiveSetCard: View {
     /// Retained for the Superset composition (#489); the card no longer repeats the Exercise name
     /// or its badge inside itself (ledger §2.3).
     var identityLabel: String?
+    /// The stage's tap-anywhere keyboard escape: any tap that lands outside a control bumps this,
+    /// and the card folds it into the same dismissal request its own header tap raises.
+    var externalInputDismissalRequestID = 0
     @Environment(\.themePalette) private var palette
     @State private var inputDismissalRequestID = 0
 
@@ -62,7 +65,7 @@ struct ActiveSetCard: View {
                 onSkip: onSkip,
                 onDelete: onDelete,
                 showsLoggedCheckmarkInitially: showsLoggedCheckmark,
-                inputDismissalRequestID: inputDismissalRequestID
+                inputDismissalRequestID: inputDismissalRequestID + externalInputDismissalRequestID
             )
             .id(set.persistentModelID)
         }

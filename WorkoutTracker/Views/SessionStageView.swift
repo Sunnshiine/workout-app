@@ -31,6 +31,10 @@ struct SessionStageView: View {
     /// The Exercise whose history the sheet is showing — its only entry point is a tap on that
     /// Exercise's Last Performed line.
     @State private var historyExercise: Exercise?
+    /// Tap-anywhere keyboard escape: a tap landing anywhere on the stage that no control claims
+    /// (exercise name, coach note, blank paper) bumps this, and the Active Set Card answers by
+    /// closing the weight field — so the athlete never has to hunt for the one dismissing spot.
+    @State private var inputDismissalRequestID = 0
 
     /// Open Exercises are makeup work from earlier Sessions, only meaningful
     /// while the athlete is at the live edge of their plan.
@@ -61,6 +65,10 @@ struct SessionStageView: View {
             .padding(.top, Theme.sectionSpacing)
 
             queueBar(stageItem: stageItem, items: items)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            inputDismissalRequestID += 1
         }
         .animation(
             reduceMotion ? nil : Theme.momentumFlowAnimation,
@@ -108,7 +116,8 @@ struct SessionStageView: View {
                 onLog: actions.log,
                 onSkip: actions.skip,
                 onDelete: actions.delete,
-                onDismiss: { actions.dismissSuperset(config) }
+                onDismiss: { actions.dismissSuperset(config) },
+                inputDismissalRequestID: inputDismissalRequestID
             )
         case .hiddenPairedExercise:
             EmptyView()
@@ -181,7 +190,8 @@ struct SessionStageView: View {
                 ),
                 onLog: { actions.updateLoggedSet(set, $0) },
                 onSkip: { actions.skip(set) },
-                onDelete: { actions.delete(set) }
+                onDelete: { actions.delete(set) },
+                externalInputDismissalRequestID: inputDismissalRequestID
             )
             .id("stage-review-\(expandedID.exerciseOrder)-\(expandedID.setIndex)")
             .transition(.push(from: .bottom))
@@ -193,7 +203,8 @@ struct SessionStageView: View {
                 setCount: sortedSets.count,
                 onLog: { actions.log(set, $0) },
                 onSkip: { actions.skip(set) },
-                onDelete: { actions.delete(set) }
+                onDelete: { actions.delete(set) },
+                externalInputDismissalRequestID: inputDismissalRequestID
             )
             .id("stage-active-\(config.exercise.order)-\(set.index)")
             .transition(.push(from: .bottom))

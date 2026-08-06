@@ -44,6 +44,50 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Set 2 of 3"].waitForExistence(timeout: 3))
     }
 
+    /// The report was a dead-center tap on the visible Log capsule with the weight keyboard up:
+    /// the press used to defocus the field on touch-down, the keyboard-avoidance re-layout slid
+    /// the capsule out from under the finger, and the release never completed the tap — keyboard
+    /// closed, nothing logged. A single center tap must log the set in one gesture.
+    @MainActor
+    func testActiveSetLogButtonCenterTapLogsWhileWeightKeyboardIsOpen() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
+
+        app.buttons["rpe-6"].tap()
+        let logButton = app.buttons["log-active-set-button"]
+        waitForLabel("Log 237.5×5@6", on: logButton)
+
+        app.buttons["weight-pill"].tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
+
+        logButton.tap()
+
+        XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 1))
+        XCTAssertTrue(app.buttons["Set 1, 237.5x5@6"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Set 2 of 3"].waitForExistence(timeout: 3))
+    }
+
+    /// Tap-anywhere keyboard escape: a tap on any non-control stage area — here the exercise
+    /// name — closes the weight keyboard without logging or otherwise disturbing the card.
+    @MainActor
+    func testStageBackgroundTapDismissesWeightKeyboard() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
+
+        app.buttons["weight-pill"].tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
+
+        app.staticTexts["stage-exercise-name"].tap()
+
+        XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 1))
+        XCTAssertTrue(app.buttons["log-active-set-button"].exists)
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
+    }
+
     @MainActor
     func testDeveloperToolsRouteLoadsFromSettings() throws {
         let app = launchSettingsFixtureApp(options: [.pendingWrite])

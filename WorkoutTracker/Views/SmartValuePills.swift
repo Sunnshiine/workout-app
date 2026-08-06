@@ -192,8 +192,7 @@ struct SmartValuePills: View {
                 isSkipped: set.state == .skipped,
                 showsLoggedCheckmark: showsLoggedCheckmark,
                 onLogTap: submitLog,
-                onSkip: skip,
-                onPressStarted: dismissFieldUI
+                onSkip: skip
             )
 
             if set.state != .pending {
@@ -220,8 +219,13 @@ struct SmartValuePills: View {
         onLog(log)
     }
 
+    /// Field UI must stay put until the tap resolves: dismissing the keyboard on touch-down
+    /// re-layouts the stage under the still-down finger and the release lands off the capsule,
+    /// eating the log (the reported "tap Log with the keyboard open does nothing"). So the
+    /// keyboard comes down here, as part of the outcome, never on press start.
     private func submitLog() {
         guard let log = form.submitLog() else { return }
+        dismissFieldUI()
         InputHapticPlayer.shared.play(Theme.Haptics.logTap)
         withAnimation(Theme.logButtonCheckmarkAnimation) {
             showsLoggedCheckmark = true
@@ -230,6 +234,7 @@ struct SmartValuePills: View {
     }
 
     private func skip() {
+        dismissFieldUI()
         InputHapticPlayer.shared.play(Theme.Haptics.skipDud)
         onSkip()
     }
@@ -437,7 +442,6 @@ private struct HoldToSkipLogButton: View {
     let showsLoggedCheckmark: Bool
     let onLogTap: () -> Void
     let onSkip: () -> Void
-    let onPressStarted: () -> Void
 
     @State private var skipProgress = 0.0
     @State private var skipPressStartedAt: Date?
@@ -574,7 +578,6 @@ private struct HoldToSkipLogButton: View {
 
     private func startSkipHoldIfNeeded() {
         guard skipPressStartedAt == nil else { return }
-        onPressStarted()
         skipPressStartedAt = Date()
         skipCompleted = false
         skipProgress = 0
