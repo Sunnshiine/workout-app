@@ -82,6 +82,14 @@ struct SmartValuePills: View {
         .task(id: isEditingWeight) {
             weightFieldFocused = isEditingWeight
         }
+        // Any keyboard dismissal — including the session-surface tap catcher outside this
+        // card — must collapse the editing state too, or the weight would strand as an
+        // unfocused TextField that a second tap can't reopen.
+        .onChange(of: weightFieldFocused) { _, focused in
+            if !focused {
+                isEditingWeight = false
+            }
+        }
         .background {
             Color.clear
                 .contentShape(Rectangle())

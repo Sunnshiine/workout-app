@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct SessionView: View {
     let liveActivityAdapter: LiveActivityProductionAdapter
@@ -71,6 +72,12 @@ struct SessionView: View {
         }
         .accessibilityHidden(workout.moveOnCelebrationSession != nil)
         .background(palette.paperBackground.ignoresSafeArea())
+        // Tap-anywhere keyboard escape: a tap on the session surface that no control claims
+        // resigns the first responder, so the athlete never hunts for the one dismissing
+        // region. Buttons, rails, and the weight field still win the tap — this only
+        // catches what falls through.
+        .contentShape(.rect)
+        .onTapGesture(perform: dismissAnyKeyboard)
         .overlay {
             if let session = workout.moveOnCelebrationSession {
                 MoveOnCelebrationView(session: session) {
@@ -115,6 +122,12 @@ struct SessionView: View {
             guard !Task.isCancelled, sessionSettingsOverpullState.isPinned else { return }
             sessionSettingsOverpullState = sessionSettingsOverpullState.dismissedAfterIdle()
         }
+    }
+
+    private func dismissAnyKeyboard() {
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
+        )
     }
 
     private func bindCoordinator(to session: Session) {

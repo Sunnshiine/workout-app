@@ -23,6 +23,27 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
     }
 
+    /// The reported "I don't know where to press to close the keyboard": a tap anywhere on the
+    /// session surface that isn't a control — here the Exercise name in the editorial column —
+    /// must dismiss the keyboard and return the weight to its tappable display, without
+    /// cancelling the card.
+    @MainActor
+    func testTapOutsideActiveSetCardDismissesKeyboard() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+        app.buttons["weight-pill"].tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
+
+        app.staticTexts["stage-exercise-name"].tap()
+
+        XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 1))
+        XCTAssertTrue(app.buttons["log-active-set-button"].exists)
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
+        // The editing state collapsed with the keyboard — the weight pill is a button again.
+        XCTAssertTrue(app.buttons["weight-pill"].waitForExistence(timeout: 3))
+    }
+
     @MainActor
     func testActiveSetLogButtonSubmitsFromBackgroundWhileWeightFieldIsFocused() throws {
         let app = launchFixtureApp()
