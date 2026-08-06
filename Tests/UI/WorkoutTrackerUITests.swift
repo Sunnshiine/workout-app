@@ -24,7 +24,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
     }
 
     @MainActor
-    func testActiveSetLogButtonSubmitsFromBackgroundWhileWeightFieldIsFocused() throws {
+    func testActiveSetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused() throws {
         let app = launchFixtureApp()
 
         XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
@@ -36,12 +36,37 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
         app.buttons["weight-pill"].tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
+        app.typeText("230")
+        waitForLabel("Log 230×5@6", on: logButton)
 
-        logButton.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: 0.5)).tap()
+        // A single ordinary tap on the capsule, exactly as a finger lands mid-set with the
+        // keyboard still up: it must log on this tap, not merely fold the keyboard.
+        logButton.tap()
 
         XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 1))
-        XCTAssertTrue(app.buttons["Set 1, 237.5x5@6"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Set 1, 230x5@6"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["Set 2 of 3"].waitForExistence(timeout: 3))
+    }
+
+    @MainActor
+    func testTapOnNonInteractiveStageContentDismissesKeyboard() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
+
+        app.buttons["weight-pill"].tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
+        app.typeText("230")
+
+        // The exercise name is plain editorial text — no button, no gesture of its own.
+        // Tapping it must fold the keyboard without logging or skipping anything.
+        app.staticTexts["stage-exercise-name"].tap()
+
+        XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 1))
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
+        waitForLabel("Weight, 230", on: app.buttons["weight-pill"])
+        XCTAssertTrue(app.buttons["log-active-set-button"].exists)
     }
 
     @MainActor

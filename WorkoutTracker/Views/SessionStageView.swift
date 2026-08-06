@@ -66,6 +66,12 @@ struct SessionStageView: View {
             reduceMotion ? nil : Theme.momentumFlowAnimation,
             value: SessionStagePresentation.stageIdentity(in: items, focusID: focusID)
         )
+        // The whole stage is the keyboard's escape surface: any tap that no control claims
+        // resigns the weight field. Attached to the stage root so it covers the editorial
+        // column, the card's chrome, and empty space alike — child buttons and gestures
+        // keep priority over this parent tap, so controls behave unchanged.
+        .contentShape(Rectangle())
+        .onTapGesture(perform: dismissKeyboard)
         .sheet(isPresented: $isQueuePresented) {
             SessionQueueSheet(
                 items: items,
@@ -287,6 +293,12 @@ struct SessionStageView: View {
     private func jump(to item: SessionStageItem) {
         guard let nextSet = item.nextPendingSet else { return }
         actions.focus(nextSet)
+    }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
+        )
     }
 
     // MARK: - Pairing
