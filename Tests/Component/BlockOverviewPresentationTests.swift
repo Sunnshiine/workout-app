@@ -1,6 +1,130 @@
+import Foundation
 import Testing
 
 @testable import WorkoutTracker
+
+// MARK: - Focus-week grouping
+
+@MainActor
+@Test func focusWeekIsTheOneHoldingTheCurrentSession() {
+    let scenario = WorkoutScenarios.blockOverviewWithMixedSessionStates()
+
+    let presentation = BlockOverviewPresentation(block: scenario.block, currentSession: scenario.currentSession)
+
+    #expect(presentation.weeks.map(\.weekNumber) == [1, 2])
+    // The Current Session lives in Week 1 (W1 D3), so Week 1 alone expands.
+    #expect(presentation.weeks.map(\.isFocus) == [true, false])
+}
+
+@MainActor
+@Test func brandNewBlockExpandsTheFirstWeekSoTheGridIsNeverFullyCollapsed() {
+    let block = blockWithControlledSessions(weeks: [
+        [.complete, .available],
+        [.available, .available]
+    ])
+
+    let presentation = BlockOverviewPresentation(block: block, currentSession: nil)
+
+    #expect(presentation.weeks.map(\.isFocus) == [true, false])
+}
+
+@MainActor
+@Test func collapsedWeekSummaryCountsCompleteOverDayCountWithStateClause() {
+    // Week 1: 2 complete of 3, the third partially logged → "in progress".
+    // Week 2: 0 of 3 with one un-uploaded day → "not uploaded" wins over any progress.
+    let block = blockWithControlledSessions(weeks: [
+        [.complete, .complete, .partial],
+        [.partial, .available, .unavailable]
+    ])
+
+    let presentation = BlockOverviewPresentation(block: block, currentSession: nil)
+
+    #expect(presentation.weeks[0].summary == "2 of 3")
+    #expect(presentation.weeks[0].detail == "· 1 in progress")
+    #expect(presentation.weeks[0].collapsedSummary == "2 of 3 · 1 in progress")
+
+    #expect(presentation.weeks[1].summary == "0 of 3")
+    #expect(presentation.weeks[1].detail == "· 1 not uploaded")
+}
+
+@MainActor
+@Test func settledWeekCarriesNoStateClause() {
+    let block = blockWithControlledSessions(weeks: [[.complete, .complete]])
+
+    let presentation = BlockOverviewPresentation(block: block, currentSession: nil)
+
+    #expect(presentation.weeks[0].summary == "2 of 2")
+    #expect(presentation.weeks[0].detail == "")
+    #expect(presentation.weeks[0].collapsedSummary == "2 of 2")
+}
+
+@MainActor
+@Test func emptyBedsGroupAtTheWeeksEnd() {
+    // A middle day is the empty bed — it must sort to the Week's end.
+    let block = blockWithControlledSessions(weeks: [[.available, .unavailable, .available]])
+
+    let presentation = BlockOverviewPresentation(block: block, currentSession: nil)
+
+    let tiles = presentation.weeks[0].tiles
+    #expect(tiles.map(\.dayNumber) == [1, 3, 2])
+    #expect(tiles.map(\.state) == [.incomplete, .incomplete, .unavailable])
+}
+
+@Test func fillQuartersQuantizesPartialProgressWithoutMistakingItForEmptyOrFull() {
+    #expect(BlockOverviewTilePresentation.fillQuarters(completed: 0, total: 4) == 0)
+    #expect(BlockOverviewTilePresentation.fillQuarters(completed: 4, total: 4) == 4)
+    // A single logged Set of eight still shows a quarter (never reads as empty).
+    #expect(BlockOverviewTilePresentation.fillQuarters(completed: 1, total: 8) == 1)
+    #expect(BlockOverviewTilePresentation.fillQuarters(completed: 2, total: 4) == 2)
+    // Seven of eight rounds toward full but clamps to 3 (never reads as complete).
+    #expect(BlockOverviewTilePresentation.fillQuarters(completed: 7, total: 8) == 3)
+}
+
+/// A day's target state, expressed so a test can build a Block of exactly the tile states
+/// it means to assert against without threading logged Sets by hand.
+private enum DayState {
+    case complete
+    case partial
+    case available
+    case unavailable
+}
+
+@MainActor
+private func blockWithControlledSessions(weeks: [[DayState]]) -> Block {
+    let block = Block(tabName: "Block 27", squatTM: nil, benchTM: nil, deadliftTM: nil)
+    block.weeks = weeks.enumerated().map { weekIndex, days in
+        let week = Week(number: weekIndex + 1)
+        week.sessions = days.enumerated().map { dayIndex, day in
+            makeSession(dayNumber: dayIndex + 1, day: day)
+        }
+        return week
+    }
+    return block
+}
+
+@MainActor
+private func makeSession(dayNumber: Int, day: DayState) -> Session {
+    let session = Session(dayNumber: dayNumber, date: nil)
+    guard day != .unavailable else {
+        session.exercises = [] // an un-uploaded day carries no Exercises
+        return session
+    }
+    let exercise = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil, order: 0)
+    exercise.sets = (0..<4).map { index in
+        let state: SetState
+        switch day {
+        case .complete:
+            state = .logged
+        case .partial:
+            state = index < 1 ? .logged : .pending // one settled Set of four → in progress
+        case .available, .unavailable:
+            state = .pending
+        }
+        return ExerciseSet(index: index, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil, state: state)
+    }
+    session.exercises = [exercise]
+    return session
+}
 
 @MainActor
 @Test func blockOverviewPresentationBuildsOrderedTilesWithMixedSessionStates() {

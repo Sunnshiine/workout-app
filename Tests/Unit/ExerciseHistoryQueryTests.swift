@@ -41,7 +41,7 @@ private func historyEntry(
     #expect(history.allSatisfy { $0.baseName != "Paused Bench Press" })
 }
 
-@Test func historyQueryProjectsDisplayResultTextAndSource() {
+@Test func historyQueryProjectsDisplayResultTextAndSource() throws {
     let snapshot = LastPerformedLookupSnapshot(entries: [
         LastPerformedEntry(
             fullName: "3-0:1:0 Squat",
@@ -52,7 +52,7 @@ private func historyEntry(
         )
     ])
 
-    let entry = try! #require(snapshot.history(baseName: "Squat").first)
+    let entry = try #require(snapshot.history(baseName: "Squat").first)
     #expect(entry.fullName == "3-0:1:0 Squat")
     #expect(entry.resultText == "315x3@8")
     #expect(entry.source == "Block 27 · W1 D1")

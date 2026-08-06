@@ -1,4 +1,53 @@
+import CoreGraphics
 import Foundation
+
+/// A quadratic Bézier curve, sampled to place glyphs along the living stage's climbing stem, its
+/// Superset lateral, and the ceremony branch (DESIGN.md §5.1 / §5.4 / §5.7). Pure geometry, lifted
+/// out of the per-view sampling that was copied across those three sites so the arithmetic lives —
+/// and is unit-tested — in one place rather than the Views.
+struct QuadraticBezier: Equatable {
+    let start: CGPoint
+    let control: CGPoint
+    let end: CGPoint
+
+    /// The point at parameter `t` (0 = start, 1 = end).
+    func point(at t: CGFloat) -> CGPoint {
+        let mt = 1 - t
+        return CGPoint(
+            x: mt * mt * start.x + 2 * mt * t * control.x + t * t * end.x,
+            y: mt * mt * start.y + 2 * mt * t * control.y + t * t * end.y
+        )
+    }
+
+    /// The tangent (first derivative) vector at parameter `t`; take `atan2(dy, dx)` for its angle.
+    func tangent(at t: CGFloat) -> CGVector {
+        let mt = 1 - t
+        return CGVector(
+            dx: 2 * mt * (control.x - start.x) + 2 * t * (end.x - control.x),
+            dy: 2 * mt * (control.y - start.y) + 2 * t * (end.y - control.y)
+        )
+    }
+}
+
+/// Places branch nodes along a stem's parameter space (the prototype verdict,
+/// `docs/prototypes/branch-low-set-prototype.html`): the stem is always full
+/// length, the last node anchors to the terminal at `last`, and earlier nodes
+/// step down toward the root by `min(maxStep, (last − first) / (count − 1))` —
+/// so 2–3 Sets read as a sprig growing at the stem's reach, and larger counts
+/// spread down to `first` exactly as before.
+enum BranchNodeLayout {
+    static func nodeT(
+        index: Int,
+        count: Int,
+        first: CGFloat,
+        last: CGFloat,
+        maxStep: CGFloat
+    ) -> CGFloat {
+        guard count > 1 else { return last }
+        let step = min((last - first) / CGFloat(count - 1), maxStep)
+        return last - step * CGFloat(count - 1 - index)
+    }
+}
 
 /// A Session render item with the hidden paired entries dropped, plus the
 /// progress readings the Stage needs: title, Set order, completion, and the
@@ -44,6 +93,21 @@ struct SessionStageItem: Identifiable {
         guard let setID else { return false }
         return exercises.contains { $0.order == setID.exerciseOrder }
     }
+}
+
+/// A node on the living stage's branch. The branch replaces the retired Set
+/// dots entirely; each state derives purely from existing Set State data plus
+/// which Set is on stage, so the branch stays textless and needs no new seam.
+enum BranchNodeState: Equatable, Sendable {
+    /// A Logged Set — an inked leaf.
+    case leaf
+    /// A Skipped Set — a dashed-outline leaf (the "empty bed" vocabulary).
+    case dashedLeaf
+    /// The active Set — the same leaf cream-filled inside a green stroke
+    /// (logging inks it solid); carries the page's one glow at Night.
+    case bud
+    /// A Pending Set still ahead — a faint ghost outline of the leaf to come.
+    case future
 }
 
 /// The part a queue row plays while Superset pairing is in flight.
@@ -132,6 +196,39 @@ enum SessionStagePresentation {
     static func set(matching id: ActiveSetID?, in sortedSets: [ExerciseSet]) -> ExerciseSet? {
         guard let id else { return nil }
         return sortedSets.first { SessionCoordinator.activeSetID(for: $0) == id }
+    }
+
+    /// The branch's node states in Set order: one leaf per Logged Set, a
+    /// dashed-outline leaf per Skipped Set, a cream-filled leaf for the active
+    /// Set, and ghost outlines for the remaining Pending Sets. The bud rides the
+    /// Set on stage — the active Set when one is Pending, else the first Pending
+    /// Set — matching the Active Set Card's own `stageSet` selection.
+    static func branchNodeStates(for sets: [ExerciseSet], activeSetID: ActiveSetID?) -> [BranchNodeState] {
+        let bud = budSet(in: sets, activeSetID: activeSetID)
+        return sets.map { set in
+            switch set.state {
+            case .logged: return .leaf
+            case .skipped: return .dashedLeaf
+            case .pending: return set.persistentModelID == bud?.persistentModelID ? .bud : .future
+            }
+        }
+    }
+
+    /// A Superset partner branch's node states: the same leaf/dashed-leaf/future
+    /// reading as any branch, but **bud-less**. The bud rides the focus
+    /// (DESIGN.md §5.4), so the partner's next Pending Set reads as a future
+    /// stroke rather than a waking bud — its branch is a subordinate lateral, not
+    /// a second climbing stem.
+    static func supersetPartnerNodeStates(for sets: [ExerciseSet]) -> [BranchNodeState] {
+        branchNodeStates(for: sets, activeSetID: nil).map { $0 == .bud ? .future : $0 }
+    }
+
+    private static func budSet(in sets: [ExerciseSet], activeSetID: ActiveSetID?) -> ExerciseSet? {
+        if let activeSetID,
+            let active = sets.first(where: { $0.isPending && SessionCoordinator.activeSetID(for: $0) == activeSetID }) {
+            return active
+        }
+        return sets.first(where: \.isPending)
     }
 
     static func ordinal(of set: ExerciseSet, in sortedSets: [ExerciseSet]) -> Int {

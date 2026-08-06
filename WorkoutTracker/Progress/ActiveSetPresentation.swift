@@ -13,15 +13,27 @@ struct HoldToSkipPolicy: Equatable, Sendable {
     let tapMaximumDuration: TimeInterval
     let revealDelay: TimeInterval
 
+    /// The tokenized timings are the policy's source of truth (token sheet §7, ledger §1.4): the
+    /// idle Set commits at 850ms, a logged Set at 900ms and a skipped Set at 1100ms, all revealed
+    /// at 250ms. The hardcoded 0.8s / 0.25s constants are retired.
     init(
-        holdDuration: TimeInterval = Theme.holdToSkipDuration,
+        holdDuration: TimeInterval = Theme.Motion.holdToSkipCommit,
         tapMaximumDuration: TimeInterval = Theme.holdToSkipTapMaximumDuration,
-        revealDelay: TimeInterval = Theme.holdToSkipRevealDelay
+        revealDelay: TimeInterval = Theme.Motion.holdToSkipReveal
     ) {
         self.holdDuration = holdDuration
         self.tapMaximumDuration = tapMaximumDuration
         self.revealDelay = revealDelay
     }
+
+    /// The idle-Set hold: reveal 250ms, commit 850ms.
+    static let standard = HoldToSkipPolicy()
+
+    /// The longer hold a Set already logged must survive before it re-skips (900ms).
+    static let loggedState = HoldToSkipPolicy(holdDuration: Theme.Motion.holdToSkipLoggedCommit)
+
+    /// The longest hold, to undo an already-skipped Set (1100ms).
+    static let skippedState = HoldToSkipPolicy(holdDuration: Theme.Motion.holdToSkipSkippedCommit)
 
     func releaseOutcome(elapsed: TimeInterval, skipCompleted: Bool) -> HoldToSkipReleaseOutcome {
         if skipCompleted {
@@ -170,23 +182,14 @@ struct SetCardPresentation: Equatable, Sendable {
     }
 }
 
-enum SessionProgressSegmentState: Equatable, Sendable {
-    case logged
-    case skipped
-    case currentPending
-    case futurePending
-}
-
-struct SessionProgressSegmentPresentation: Equatable, Sendable {
-    let state: SessionProgressSegmentState
-}
-
+/// The Session stage's plain header runline (ledger §4.3, picks session-stage-a/-d):
+/// a left-aligned `Block · Week · Day` line with an `N Sets left` count on the
+/// right. The old segmented progress rail is retired — the branch carries
+/// progress as flora, and the words carry it as the no-botany pressure valve.
 struct SessionProgressHeaderPresentation: Equatable, Sendable {
-    let locationLabel: String
-    let locationText: String
+    let runlineText: String
     let completedSetCount: Int
     let totalSetCount: Int
-    let segments: [SessionProgressSegmentPresentation]
     let locationActionAccessibilityLabel: String
     let progressAccessibilityValue: String
 
@@ -195,14 +198,19 @@ struct SessionProgressHeaderPresentation: Equatable, Sendable {
     }
 
     var remainingText: String {
-        "\(remainingSetCount) left"
+        remainingSetCount == 1 ? "1 Set left" : "\(remainingSetCount) Sets left"
     }
 
-    init(session: Session, activeSetID: ActiveSetID? = nil) {
+    init(session: Session, block: Block? = nil) {
         let weekNumber = session.week?.number ?? 0
-        locationLabel = "W\(weekNumber) D\(session.dayNumber)"
-        locationText = "\(locationLabel) ›"
-        locationActionAccessibilityLabel = "Open Block Overview for Week \(weekNumber), Day \(session.dayNumber)"
+        let dayNumber = session.dayNumber
+        let locationCore = "Week \(weekNumber) · Day \(dayNumber)"
+        if let block {
+            runlineText = "\(block.tabName) · \(locationCore)"
+        } else {
+            runlineText = locationCore
+        }
+        locationActionAccessibilityLabel = "Open Block Overview for Week \(weekNumber), Day \(dayNumber)"
 
         let sets = session.exercises
             .sorted { $0.order < $1.order }
@@ -213,27 +221,9 @@ struct SessionProgressHeaderPresentation: Equatable, Sendable {
             }
         totalSetCount = sets.count
         completedSetCount = session.completedSetCount
-        progressAccessibilityValue = "\(locationLabel), \(totalSetCount - completedSetCount) left"
-        let pendingSetIDs = sets.filter { $0.set.isPending }.map(\.id)
-        let currentPendingID =
-            if let activeSetID, pendingSetIDs.contains(activeSetID) {
-                activeSetID
-            } else {
-                pendingSetIDs.first
-            }
-        segments = sets.map { pair in
-            switch pair.set.state {
-            case .logged:
-                return SessionProgressSegmentPresentation(state: .logged)
-            case .skipped:
-                return SessionProgressSegmentPresentation(state: .skipped)
-            case .pending:
-                if pair.id == currentPendingID {
-                    return SessionProgressSegmentPresentation(state: .currentPending)
-                }
-                return SessionProgressSegmentPresentation(state: .futurePending)
-            }
-        }
+        let remaining = totalSetCount - completedSetCount
+        let remainingPhrase = remaining == 1 ? "1 Set left" : "\(remaining) Sets left"
+        progressAccessibilityValue = "\(runlineText), \(remainingPhrase)"
     }
 }
 

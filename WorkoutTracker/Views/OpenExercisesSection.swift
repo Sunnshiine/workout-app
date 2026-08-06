@@ -3,11 +3,12 @@ import SwiftUI
 struct OpenExercisesSection: View {
     let exercises: [Exercise]
     let onSelect: (Exercise) -> Void
+    @Environment(\.themePalette) private var palette
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Open Exercises")
-                .font(.headline)
+                .font(Theme.font(.sheetTitle))
 
             ForEach(exercises, id: \.persistentModelID) { exercise in
                 Button {
@@ -20,7 +21,7 @@ struct OpenExercisesSection: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .workoutGlass(.card)
+        .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.card))
     }
 }
 
@@ -34,10 +35,10 @@ private struct OpenExerciseCard: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(row.name)
-                    .font(.subheadline.weight(.semibold))
+                    .font(Theme.font(.queuePill))
                     .foregroundStyle(.primary)
                 Text(row.pendingSetLabel)
-                    .font(.caption)
+                    .font(Theme.font(.historyChip))
                     .foregroundStyle(.secondary)
             }
 
@@ -45,17 +46,17 @@ private struct OpenExerciseCard: View {
 
             HStack(spacing: 6) {
                 Text(row.sourceLabel)
-                    .font(.caption.weight(.semibold))
+                    .font(Theme.font(.historyChip))
                 Image(systemName: "chevron.right")
-                    .font(.caption.weight(.bold))
+                    .font(Theme.font(.historyChip))
             }
             .foregroundStyle(palette.accent)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(palette.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
+        .background(palette.pillFill, in: .rect(cornerRadius: Theme.Radius.card))
         .overlay {
-            RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
+            RoundedRectangle(cornerRadius: Theme.Radius.card)
                 .stroke(palette.pillStroke, lineWidth: 1)
         }
     }

@@ -8,12 +8,9 @@ import Testing
 @MainActor
 @Suite(.snapshots(record: .never))
 struct GlassBearingViewsVisualTests {
-    @Test func sessionTileMatchesVisualBaseline() {
-        assertGlassBaseline {
-            SessionTile(weekNumber: 2, dayNumber: 3, state: .current)
-                .frame(width: 160)
-        }
-    }
+    // `SessionTile` is rebuilt as a wordless, glass-free Block-grid tile (DESIGN.md §5.5) — it no
+    // longer bears glass, so it leaves this suite. Its replacement coverage is the full focus-week
+    // grid in `BlockGridVisualTests`, which renders every tile state in both appearances.
 
     @Test func restPillViewMatchesVisualBaseline() {
         let now = Date(timeIntervalSinceReferenceDate: 1_000)
@@ -84,35 +81,7 @@ struct GlassBearingViewsVisualTests {
             )
             .padding(14)
             .frame(width: 360)
-            .background(Theme.palette(for: .sageLight).activeCardFill, in: .rect(cornerRadius: Theme.cardCornerRadius))
-            .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardCornerRadius))
-        }
-    }
-
-    @Test func moveOnCelebrationViewMatchesVisualBaseline() {
-        let firstLoggedAt = makeMoveOnVisualDate(hour: 18, minute: 14)
-        let requestedAt = makeMoveOnVisualDate(hour: 19, minute: 6)
-        let session = makeSession(
-            weekNumber: 4,
-            dayNumber: 4,
-            setStates: [.logged, .logged, .logged],
-            exerciseName: "Deadlift"
-        )
-        for (offset, set) in session.exercises.flatMap(\.sets).enumerated() where set.state == .logged {
-            set.loggedAt = firstLoggedAt.addingTimeInterval(TimeInterval(offset * 16 * 60))
-        }
-
-        // The F3 timing nucleus carries subtle continuous ambient motion
-        // (orbit dots + breathing) via TimelineView, so the rendered frame is
-        // not pixel-stable across test ordering. Tolerate that small drift
-        // while still catching any gross layout/hierarchy regression.
-        assertFullScreenBaseline(precision: 0.99, perceptualPrecision: 0.9) {
-            MoveOnCelebrationView(
-                session: session,
-                requestedAt: requestedAt,
-                quoteText: "You're fucking amazing.",
-                onDismiss: {}
-            )
+            .background(Theme.palette(for: .day).surface, in: .rect(cornerRadius: Theme.Radius.card))
         }
     }
 
@@ -123,37 +92,13 @@ struct GlassBearingViewsVisualTests {
         }
     }
 
-    @Test func onboardingViewCardMatchesVisualBaseline() throws {
-        let settings = SettingsStore(defaults: try makeVisualDefaults())
-        // iOS 27 resolves all of OnboardingView's environment lookups during
-        // offscreen render (iOS 26 deferred them), so the fixture must inject
-        // SyncCoordinator and WorkoutStore even though the rendered card never
-        // uses them.
-        let scenario = try WorkoutScenarios.freshConfiguredApp()
-        GlassVisualFixtureRetainer.retain(scenario)
-        let sync = SyncCoordinator(client: GlassVisualNoopSheetsClient(), context: scenario.context)
+    // The Move On ceremony and the Sheet-connect screen are redesigned as
+    // full-screen Sunbird moments (PRD #497 slice 7) and covered in both
+    // appearances by `SunbirdMomentsVisualTests`.
 
-        assertGlassBaseline {
-            OnboardingView()
-                .environment(settings)
-                .environment(sync)
-                .environment(scenario.store)
-                .frame(width: 360, height: 260)
-        }
-    }
-
-    @Test func settingsViewMatchesVisualBaseline() throws {
-        let scenario = try WorkoutScenarios.freshConfiguredApp()
-        GlassVisualFixtureRetainer.retain(scenario)
-        let sync = SyncCoordinator(client: GlassVisualNoopSheetsClient(), context: scenario.context)
-
-        assertFullScreenBaseline {
-            SettingsView()
-                .environment(scenario.settings)
-                .environment(sync)
-                .environment(scenario.store)
-        }
-    }
+    // Settings is rebuilt as native, glass-free `Form` rows (DESIGN.md §5.9, PRD #497 slice 8) — it no
+    // longer bears glass, so it leaves this suite. Its replacement coverage is `SettingsViewVisualTests`,
+    // which renders native Settings in both appearances.
 
     @Test func developerToolsViewMatchesVisualBaseline() throws {
         let scenario = try WorkoutScenarios.freshConfiguredApp()
@@ -196,7 +141,7 @@ struct GlassBearingViewsVisualTests {
         @ViewBuilder content: () -> Content
     ) {
         let view = content()
-            .environment(\.themePalette, Theme.palette(for: .sageLight))
+            .environment(\.themePalette, Theme.palette(for: .day))
             .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
             .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)
             .preferredColorScheme(.light)
@@ -218,30 +163,18 @@ private struct VisualBaselineHost<Content: View>: View {
 
     var body: some View {
         ZStack {
-            Theme.palette(for: .sageLight).gradient
+            Theme.palette(for: .day).gradient
                 .ignoresSafeArea()
 
             content
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .environment(\.themePalette, Theme.palette(for: .sageLight))
+        .environment(\.themePalette, Theme.palette(for: .day))
         .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
         .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)
         .preferredColorScheme(.light)
     }
-}
-
-private func makeMoveOnVisualDate(hour: Int, minute: Int) -> Date {
-    var components = DateComponents()
-    components.calendar = Calendar(identifier: .gregorian)
-    components.timeZone = TimeZone.current
-    components.year = 2026
-    components.month = 6
-    components.day = 6
-    components.hour = hour
-    components.minute = minute
-    return components.date ?? Date(timeIntervalSinceReferenceDate: 0)
 }
 
 @MainActor

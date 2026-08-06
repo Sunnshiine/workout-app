@@ -167,7 +167,7 @@ import Testing
 
     form.rpeText = "7"
 
-    #expect(form.logButtonTitle == "Log 185×8@7")
+    #expect(form.logButtonTitle == "Log 185 × 8 @7")
     #expect(form.canLog)
     #expect(form.makeLog() == SetLog(weight: .pounds(185), reps: 8, rpe: 7))
 }
@@ -216,7 +216,7 @@ import Testing
     )
 
     form.rpeText = "6.5"
-    #expect(form.logButtonTitle == "Log 237.5×5@6.5")
+    #expect(form.logButtonTitle == "Log 237.5 × 5 @6.5")
 
     form.rpeText = "6"
     #expect(form.rpeDisplay == "6")
@@ -349,4 +349,45 @@ import Testing
     )
 
     #expect(noPrescribedRPE.rpeText == "")
+}
+
+@MainActor
+private func stepForm(weight: String) -> SmartValuePillsForm {
+    var form = SmartValuePillsForm(
+        set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil, state: .pending),
+        previousSetWeight: nil,
+        trainingMax: nil
+    )
+    form.weightText = weight
+    return form
+}
+
+@MainActor
+@Test func stepWeightAddsAndSubtractsTheFineIncrementWithoutHittingTheFloor() {
+    var form = stepForm(weight: "185") // above the gym threshold → heavy step of 5
+    #expect(form.fineWeightIncrement == 5)
+
+    #expect(form.stepWeight(.up) == false)
+    #expect(form.weightText == "190")
+
+    #expect(form.stepWeight(.down) == false)
+    #expect(form.weightText == "185")
+}
+
+@MainActor
+@Test func stepWeightLandingExactlyOnZeroIsANormalStepNotAFloorHit() {
+    var form = stepForm(weight: "2.5") // at/below the threshold → light step of 2.5
+
+    // 2.5 − 2.5 == 0 exactly: a valid step down to zero, so no floor hit (the tick, not the dud).
+    #expect(form.stepWeight(.down) == false)
+    #expect(form.weightText == "0")
+}
+
+@MainActor
+@Test func stepWeightClampsAWouldBeNegativeDecrementToZeroAndReportsTheFloorHit() {
+    var form = stepForm(weight: "0")
+
+    // 0 − 2.5 < 0: clamp to 0 and report the floor hit so the caller plays the dud.
+    #expect(form.stepWeight(.down) == true)
+    #expect(form.weightText == "0")
 }

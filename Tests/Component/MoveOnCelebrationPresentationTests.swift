@@ -4,7 +4,7 @@ import Testing
 @testable import WorkoutTracker
 
 @MainActor
-@Test func moveOnCelebrationPresentationDescribesIncompleteClosedSession() {
+@Test func moveOnCelebrationPresentationDescribesClosedSession() {
     let session = makeMoveOnSession(
         weekNumber: 2,
         dayNumber: 3,
@@ -17,10 +17,28 @@ import Testing
     let presentation = MoveOnCelebrationPresentation(session: session)
 
     #expect(presentation.contextText == "Week 2 · Day 3")
+    #expect(presentation.titleText == "Day 3, done.")
 }
 
 @MainActor
-@Test func moveOnCelebrationPresentationDescribesF3StaticShell() {
+@Test func moveOnCelebrationPresentationPrefixesContextWithBlockTab() {
+    let session = makeMoveOnSession(
+        blockTab: "Block 27",
+        weekNumber: 2,
+        dayNumber: 2,
+        exercises: [
+            makeMoveOnExercise(name: "Bench Press", order: 0, states: [.logged, .logged])
+        ]
+    )
+
+    let presentation = MoveOnCelebrationPresentation(session: session)
+
+    #expect(presentation.contextText == "Block 27 · Week 2 · Day 2")
+    #expect(presentation.titleText == "Day 2, done.")
+}
+
+@MainActor
+@Test func moveOnCelebrationPresentationDescribesStaticShell() {
     let session = makeMoveOnSession(
         exercises: [
             makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .pending])
@@ -29,24 +47,9 @@ import Testing
 
     let presentation = MoveOnCelebrationPresentation(session: session, quoteText: "Steady work travels.")
 
-    #expect(presentation.markText == "TFN")
     #expect(presentation.actionText == "Move On")
-    #expect(presentation.setsCopyText == "Logged Sets are saved. Open Sets stay with the Week.")
-    #expect(presentation.tapHintText == "Tap anywhere to continue")
+    #expect(presentation.continueText == "Continue")
     #expect(presentation.quoteText == "Steady work travels.")
-}
-
-@MainActor
-@Test func moveOnCelebrationPresentationSelectsSuccessHapticForIncompleteSession() {
-    let session = makeMoveOnSession(
-        exercises: [
-            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .pending])
-        ]
-    )
-
-    let presentation = MoveOnCelebrationPresentation(session: session)
-
-    #expect(presentation.hapticStyle == .success)
 }
 
 @MainActor
@@ -65,101 +68,7 @@ import Testing
 }
 
 @MainActor
-@Test func moveOnCelebrationPresentationShowsElapsedTimeWhenTimingIsAvailable() {
-    let firstLoggedAt = makeDate(hour: 18, minute: 14)
-    let requestedAt = makeDate(hour: 19, minute: 6)
-    let session = makeMoveOnSession(
-        exercises: [
-            makeMoveOnExercise(name: "Back Squat", order: 0, loggedAt: firstLoggedAt),
-            makeMoveOnExercise(name: "Bench Press", order: 1, loggedAt: makeDate(hour: 18, minute: 42))
-        ]
-    )
-
-    let presentation = MoveOnCelebrationPresentation(
-        session: session,
-        requestedAt: requestedAt
-    )
-
-    #expect(presentation.timing == .available(elapsedText: "52 min elapsed", timeRangeText: "6:14 PM → 7:06 PM"))
-    #expect(presentation.stats.map(\.label) == ["Sets", "Exercises", "Left"])
-}
-
-@MainActor
-@Test func moveOnCelebrationPresentationFallsBackWhenTimingIsUnavailable() {
-    let session = makeMoveOnSession(
-        exercises: [
-            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged])
-        ]
-    )
-
-    let presentation = MoveOnCelebrationPresentation(
-        session: session,
-        requestedAt: Date(timeIntervalSinceReferenceDate: 1_185)
-    )
-
-    #expect(presentation.timing == .unavailable)
-    #expect(presentation.stats.first { $0.label == "Time" } == nil)
-}
-
-@MainActor
-@Test func moveOnCelebrationPresentationFallsBackWhenAnyLoggedSetIsMissingTimingEvidence() {
-    let exercise = makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .logged])
-    exercise.sets[1].loggedAt = Date(timeIntervalSinceReferenceDate: 1_120)
-    let session = makeMoveOnSession(exercises: [exercise])
-
-    let presentation = MoveOnCelebrationPresentation(
-        session: session,
-        requestedAt: Date(timeIntervalSinceReferenceDate: 1_185)
-    )
-
-    #expect(presentation.timing == .unavailable)
-    #expect(presentation.stats.first { $0.label == "Time" } == nil)
-}
-
-@MainActor
-@Test func moveOnCelebrationPresentationComposesAccessibilityTimingOnlyWhenAvailable() {
-    let session = makeMoveOnSession(
-        weekNumber: 2,
-        dayNumber: 3,
-        exercises: [
-            makeMoveOnExercise(name: "Back Squat", order: 0, loggedAt: makeDate(hour: 18, minute: 14))
-        ]
-    )
-
-    let presentation = MoveOnCelebrationPresentation(
-        session: session,
-        requestedAt: makeDate(hour: 19, minute: 6),
-        quoteText: "Steady work travels."
-    )
-    let expectedAccessibilityValue = [
-        "Move On",
-        "Steady work travels.",
-        "Logged Sets are saved. Open Sets stay with the Week.",
-        "52 min elapsed",
-        "6:14 PM to 7:06 PM",
-        "1 Sets",
-        "1 Exercises",
-        "0 Left"
-    ].joined(separator: ", ")
-
-    #expect(presentation.accessibilityValue == expectedAccessibilityValue)
-
-    let unavailablePresentation = MoveOnCelebrationPresentation(
-        session: makeMoveOnSession(
-            exercises: [
-                makeMoveOnExercise(name: "Bench Press", order: 0, states: [.logged])
-            ]
-        ),
-        requestedAt: makeDate(hour: 19, minute: 6),
-        quoteText: "Steady work travels."
-    )
-
-    #expect(!unavailablePresentation.accessibilityValue.contains("elapsed"))
-    #expect(!unavailablePresentation.accessibilityValue.contains(" to "))
-}
-
-@MainActor
-@Test func moveOnCelebrationPresentationDescribesPerfectSession() {
+@Test func moveOnCelebrationPresentationDescribesPerfectSessionWithoutRicherVariant() {
     let session = makeMoveOnSession(
         exercises: [
             makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .skipped, .logged])
@@ -170,6 +79,8 @@ import Testing
 
     #expect(presentation.stats.map(\.label) == ["Sets", "Exercises", "Left"])
     #expect(presentation.stats.map(\.value) == ["3", "1", "0"])
+    // Completion, not achievement: there is no elapsed-time surface on the ceremony.
+    #expect(!presentation.accessibilityValue.contains("elapsed"))
 }
 
 @MainActor
@@ -184,19 +95,6 @@ import Testing
     let presentation = MoveOnCelebrationPresentation(session: session)
 
     #expect(presentation.stats.first { $0.label == "Left" }?.value == "3")
-}
-
-@MainActor
-@Test func moveOnCelebrationPresentationSelectsSuccessWithImpactHapticForPerfectSession() {
-    let session = makeMoveOnSession(
-        exercises: [
-            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .skipped])
-        ]
-    )
-
-    let presentation = MoveOnCelebrationPresentation(session: session)
-
-    #expect(presentation.hapticStyle == .successWithImpact)
 }
 
 @MainActor
@@ -215,9 +113,9 @@ import Testing
     #expect(presentation.accessibilityLabel == "Week 2, Day 3")
     #expect(
         presentation.accessibilityValue
-            == "Move On, Steady work travels., Logged Sets are saved. Open Sets stay with the Week., 5 Sets, 2 Exercises, 2 Left"
+            == "Day 3, done., Steady work travels., 5 Sets, 2 Exercises, 2 Left"
     )
-    #expect(presentation.accessibilityHint == presentation.tapHintText)
+    #expect(presentation.accessibilityHint == "Double tap to continue")
 }
 
 @MainActor
@@ -255,11 +153,17 @@ import Testing
 
 @MainActor
 private func makeMoveOnSession(
+    blockTab: String? = nil,
     weekNumber: Int = 1,
     dayNumber: Int = 1,
     exercises: [Exercise]
 ) -> Session {
     let week = Week(number: weekNumber)
+    if let blockTab {
+        let block = Block(tabName: blockTab, squatTM: nil, benchTM: nil, deadliftTM: nil)
+        week.block = block
+        block.weeks = [week]
+    }
     let session = Session(dayNumber: dayNumber, date: nil)
     session.exercises = exercises
     week.sessions = [session]
@@ -273,23 +177,4 @@ private func makeMoveOnExercise(name: String, order: Int, states: [SetState]) ->
         ExerciseSet(index: index, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: state)
     }
     return exercise
-}
-
-@MainActor
-private func makeMoveOnExercise(name: String, order: Int, loggedAt: Date) -> Exercise {
-    let exercise = makeMoveOnExercise(name: name, order: order, states: [.logged])
-    exercise.sets[0].loggedAt = loggedAt
-    return exercise
-}
-
-private func makeDate(hour: Int, minute: Int) -> Date {
-    var components = DateComponents()
-    components.calendar = Calendar(identifier: .gregorian)
-    components.timeZone = TimeZone.current
-    components.year = 2026
-    components.month = 6
-    components.day = 6
-    components.hour = hour
-    components.minute = minute
-    return components.date ?? Date(timeIntervalSinceReferenceDate: 0)
 }

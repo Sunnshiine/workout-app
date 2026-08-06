@@ -43,3 +43,11 @@ import Testing
     #expect(destination == .session)
     #expect(fallbackDestination == .session)
 }
+
+@Test func onboardingConnectCopyMatchesFlatCalmPick() {
+    let copy = OnboardingConnectPresentation()
+
+    #expect(copy.title == "Plant the program.")
+    #expect(copy.subtitle == "Connect the Sheet your coach programs. The app keeps it fresh and carries your logs back.")
+    #expect(copy.connectButtonTitle == "Connect Google Sheet")
+}

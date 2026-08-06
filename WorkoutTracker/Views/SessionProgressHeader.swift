@@ -2,7 +2,6 @@ import SwiftUI
 
 struct SessionProgressHeader: View {
     let session: Session
-    let activeSetID: ActiveSetID?
     let block: Block?
     let currentSession: Session?
     let sessionSettingsOverpullState: SessionSettingsOverpullState
@@ -10,11 +9,9 @@ struct SessionProgressHeader: View {
     let onSettings: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.themePalette) private var palette
-    @Namespace private var focusMarkerNamespace
 
     init(
         session: Session,
-        activeSetID: ActiveSetID?,
         block: Block? = nil,
         currentSession: Session? = nil,
         sessionSettingsOverpullState: SessionSettingsOverpullState = .hidden,
@@ -22,7 +19,6 @@ struct SessionProgressHeader: View {
         onSettings: @escaping () -> Void = {}
     ) {
         self.session = session
-        self.activeSetID = activeSetID
         self.block = block
         self.currentSession = currentSession
         self.sessionSettingsOverpullState = sessionSettingsOverpullState
@@ -31,35 +27,23 @@ struct SessionProgressHeader: View {
     }
 
     private var presentation: SessionProgressHeaderPresentation {
-        SessionProgressHeaderPresentation(session: session, activeSetID: activeSetID)
+        SessionProgressHeaderPresentation(session: session, block: block)
     }
 
+    // The plain header runline (ledger §4.3, picks session-stage-a/-d): a
+    // left-aligned `Block · Week · Day` line with `N Sets left` on the right. The
+    // segmented progress rail is retired — the branch carries progress as flora.
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 10) {
-                locationLabel
+        HStack(spacing: 10) {
+            locationLabel
 
-                Spacer()
+            Spacer()
 
-                trailingHeaderControl
-            }
-            .frame(minHeight: 32)
-
-            HStack(spacing: 3) {
-                ForEach(Array(presentation.segments.enumerated()), id: \.offset) { _, segment in
-                    SessionProgressSegment(
-                        segment: segment,
-                        focusMarkerNamespace: focusMarkerNamespace,
-                        usesTravelingFocusMarker: !reduceMotion
-                    )
-                }
-            }
-            .frame(height: 8)
-            .offset(y: -2)
-            .accessibilityLabel("Session progress")
-            .accessibilityValue(presentation.progressAccessibilityValue)
-            .accessibilityIdentifier("session-progress-rail")
+            trailingHeaderControl
         }
+        .frame(minHeight: 32)
+        .accessibilityElement(children: .contain)
+        .accessibilityValue(presentation.progressAccessibilityValue)
     }
 
     private var sessionControlsOpacity: Double {
@@ -98,16 +82,16 @@ struct SessionProgressHeader: View {
     }
 
     private var locationLabelText: some View {
-        Text(presentation.locationText)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(palette.valueText)
+        Text(presentation.runlineText)
+            .font(Theme.font(.runline))
+            .foregroundStyle(palette.textSecondary)
     }
 
     private var trailingHeaderControl: some View {
         ZStack(alignment: .trailing) {
             Text(presentation.remainingText)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(palette.accent)
+                .font(Theme.font(.runlineSecondary))
+                .foregroundStyle(palette.textSecondary)
                 .opacity(sessionSettingsOverpullState.isVisible ? 0 : 1)
                 .accessibilityHidden(sessionSettingsOverpullState.isVisible)
                 .accessibilityIdentifier("session-remaining-count")
@@ -132,7 +116,7 @@ private struct SessionControls: View {
         HStack(spacing: 8) {
             Button(action: onSettings) {
                 Image(systemName: "gearshape")
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(Theme.font(.logCapsule))
                     .foregroundStyle(palette.accent)
                     .frame(width: 32, height: 32)
             }
@@ -152,48 +136,5 @@ private struct SessionControls: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Session Controls")
         .accessibilityIdentifier("session-controls")
-    }
-}
-
-private struct SessionProgressSegment: View {
-    let segment: SessionProgressSegmentPresentation
-    let focusMarkerNamespace: Namespace.ID
-    let usesTravelingFocusMarker: Bool
-    @Environment(\.themePalette) private var palette
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: 3, style: .continuous)
-            .fill(fill)
-            .overlay {
-                if segment.state == .currentPending {
-                    focusMarker
-                }
-            }
-            .frame(maxWidth: .infinity, minHeight: 8, maxHeight: 8)
-    }
-
-    private var fill: Color {
-        switch segment.state {
-        case .logged:
-            palette.accent
-        case .skipped:
-            .gray.opacity(0.45)
-        case .currentPending:
-            .clear
-        case .futurePending:
-            palette.progressTrack.opacity(0.85)
-        }
-    }
-
-    @ViewBuilder
-    private var focusMarker: some View {
-        let marker = RoundedRectangle(cornerRadius: 3, style: .continuous)
-            .stroke(palette.accent, lineWidth: 1.25)
-
-        if usesTravelingFocusMarker {
-            marker.matchedGeometryEffect(id: "session-progress-focus-marker", in: focusMarkerNamespace)
-        } else {
-            marker
-        }
     }
 }

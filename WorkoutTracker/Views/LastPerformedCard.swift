@@ -8,52 +8,38 @@ struct LastPerformedCard: View {
     /// must state its intent, rather than silently omitting the tap (CODING_STANDARDS.md §optionals).
     let onTap: (() -> Void)?
 
+    @Environment(\.themePalette) private var palette
+
+    // The label-free runline anchored to the Active Set Card (ledger §4.8,
+    // DESIGN.md §5.1): the Set-Log shape says what it is, so no "Last Performed"
+    // label rides it. It shrinks toward an ≈11pt floor, then truncates — never
+    // wraps.
     var body: some View {
-        Group {
-            if onTap != nil {
-                line + disclosureHint
-            } else {
-                line
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
-        .accessibilityHint(onTap == nil ? "" : "Opens Exercise History")
-        .modifier(TapModifier(onTap: onTap))
+        line
+            .font(Theme.font(.lastPerformed))
+            .foregroundStyle(palette.textSecondary)
+            .lineLimit(1)
+            .minimumScaleFactor(11.0 / 12.5)
+            .truncationMode(.tail)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .accessibilityHint(onTap == nil ? "" : "Opens Exercise History")
+            .modifier(TapModifier(onTap: onTap))
     }
 
-    // Concatenated Text so multi-Set evidence wraps as one quiet paragraph
-    // instead of truncating the trailing source label.
+    // `W1 D2 — 90×5 @8 · 90×5 @8 · …`: the source anchors the line, an em dash
+    // leads into the Set-Log evidence.
     private var line: Text {
-        Text(presentation.label)
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            + Text(" ")
+        Text(presentation.sourceText)
+            + Text(" — ")
             + Text(presentation.resultText)
-            .font(.subheadline)
-            .foregroundStyle(.primary)
-            + Text(" · ")
-            .font(.footnote)
-            .foregroundStyle(.tertiary)
-            + Text(presentation.sourceText)
-            .font(.footnote)
-            .foregroundStyle(.secondary)
             + matchedNameText
-    }
-
-    // The subtlest disclosure hint — a low-emphasis chevron, no stroke or color shift, so it never
-    // competes with the Active Set Card (revised `DESIGN.md` §Last Performed).
-    private var disclosureHint: Text {
-        Text("  ") + Text(Image(systemName: "chevron.forward"))
-            .font(.caption2)
-            .foregroundStyle(.tertiary)
     }
 
     // A tier-3 (Movement-level) line names the differently-spelled entry it matched (ADR-0013).
     private var matchedNameText: Text {
         guard let matchedName = presentation.matchedName else { return Text("") }
         return Text(" as “\(matchedName)”")
-            .font(.footnote)
             .italic()
             .foregroundStyle(.tertiary)
     }

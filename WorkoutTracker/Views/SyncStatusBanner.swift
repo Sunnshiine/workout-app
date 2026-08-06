@@ -13,14 +13,14 @@ struct SyncStatusBanner: View {
     }
 
     private func banner(_ presentation: SyncStatusBannerPresentation) -> some View {
+        // The banner drops its SF-symbol icon (ledger §10.3): the stage's icon budget is spent on the
+        // branch. Sync / pending-write honesty is unchanged — it now speaks in words alone.
         HStack(spacing: 8) {
-            Image(systemName: presentation.symbol)
-                .accessibilityHidden(true)
             Text(presentation.text)
                 .lineLimit(2)
             Spacer(minLength: 0)
         }
-        .font(.caption)
+        .font(Theme.font(.lastPerformed))
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(palette.bannerFill, in: Capsule())

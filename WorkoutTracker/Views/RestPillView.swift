@@ -70,7 +70,7 @@ struct RestPillView: View {
 
         return VStack(spacing: 6) {
             Text(presentation.countdownText)
-                .font(.system(size: 27, weight: .semibold, design: .rounded).monospacedDigit())
+                .font(Theme.font(.statsValue))
                 .foregroundStyle(countdownColor(for: cue))
                 .opacity(countdownOpacity(for: cue))
                 .scaleEffect(finalFiveScale(for: cue))
@@ -88,7 +88,7 @@ struct RestPillView: View {
             Capsule()
                 .stroke(palette.pillStroke.opacity(0.54), lineWidth: 1)
         }
-        .workoutGlass(.capsule)
+        .background(palette.surface, in: .capsule)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
         .accessibilityIdentifier("rest-pill")

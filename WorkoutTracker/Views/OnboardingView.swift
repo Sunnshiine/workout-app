@@ -1,41 +1,46 @@
-import GoogleSignInSwift
 import SwiftUI
 
 struct OnboardingView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(SyncCoordinator.self) private var sync
     @Environment(WorkoutStore.self) private var workout
+    @Environment(\.themePalette) private var palette
     @State private var urlText = ""
     @State private var urlError = false
     @State private var showsURLFallback = false
     @State private var switchStore: SettingsSheetSwitchStore?
     @State private var selectionErrorMessage: String?
-    @Namespace private var ns
 
     var body: some View {
-        WorkoutGlassContainer {
+        Group {
             switch destination {
             case .signIn:
-                signInCard
-            case .sheetPicker:
-                SheetPickerView(
-                    client: GoogleSheetsClient.forCurrentEnvironment(),
-                    onValidatedSelection: { spreadsheet in
-                        await commitSelection(SheetSelection(spreadsheet))
-                    },
-                    onPasteURL: {
-                        withAnimation { showsURLFallback = true }
+                // The flat-calm connect screen renders full-bleed on living paper —
+                // no glass card in the flow (DESIGN.md §5.8).
+                connectScreen
+            case .sheetPicker, .urlEntry, .session:
+                VStack(spacing: 0) {
+                    switch destination {
+                    case .sheetPicker:
+                        SheetPickerView(
+                            client: GoogleSheetsClient.forCurrentEnvironment(),
+                            onValidatedSelection: { spreadsheet in
+                                await commitSelection(SheetSelection(spreadsheet))
+                            },
+                            onPasteURL: {
+                                withAnimation { showsURLFallback = true }
+                            }
+                        )
+                    case .urlEntry:
+                        urlEntryCard
+                    default:
+                        EmptyView()
                     }
-                )
-                .workoutGlassID("onboarding", in: ns)
-            case .urlEntry:
-                urlEntryCard
-            case .session:
-                EmptyView()
+                }
+                .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear(perform: ensureSwitchStore)
         .alert("Couldn't load sheet", isPresented: selectionErrorPresented) {
             Button("OK", role: .cancel) { selectionErrorMessage = nil }
@@ -52,27 +57,68 @@ struct OnboardingView: View {
         )
     }
 
-    // MARK: - Phase 1: Sign-In Card
+    // MARK: - Phase 1: Connect screen (flat calm)
 
-    private var signInCard: some View {
-        VStack(spacing: 20) {
-            Text("Connect your training sheet")
-                .font(.title2.bold())
+    private var connectScreen: some View {
+        let copy = OnboardingConnectPresentation()
+        return ZStack {
+            palette.paperBackground
+                .ignoresSafeArea()
 
-            GoogleSignInButton {
-                Task {
-                    guard let vc = topViewController() else { return }
-                    do {
-                        try await GoogleAuth.signIn(presenting: vc)
-                        withAnimation { settings.isSignedIn = true }
-                    } catch { settings.isSignedIn = false }
+            VStack(spacing: 0) {
+                Spacer(minLength: 24)
+
+                ConnectPerch(width: 240)
+                    .accessibilityHidden(true)
+
+                Text(copy.title)
+                    .font(Theme.font(.connectTitle))
+                    .foregroundStyle(palette.textPrimary)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 24)
+                    .accessibilityIdentifier("onboarding-title")
+
+                Text(copy.subtitle)
+                    .font(Theme.font(.coachNote))
+                    .foregroundStyle(palette.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 320)
+                    .padding(.top, 14)
+                    .accessibilityIdentifier("onboarding-subtitle")
+
+                Spacer(minLength: 24)
+
+                // The quiet colophon sits above the ≥28pt floor (DESIGN.md §5.8),
+                // near the foot of the composition.
+                SunbirdColophon(diameter: 40)
+                    .padding(.bottom, 28)
+
+                Button(action: signIn) {
+                    Text(copy.connectButtonTitle)
+                        .font(Theme.font(.logCapsule))
+                        .foregroundStyle(palette.actionText)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 20)
+                        .background(palette.action, in: .capsule)
                 }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("onboarding-connect-button")
             }
-            .frame(maxWidth: 280)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 40)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .padding()
-        .workoutGlass(.card)
-        .workoutGlassID("onboarding", in: ns)
+        .preferredColorScheme(palette.preferredColorScheme)
+    }
+
+    private func signIn() {
+        Task {
+            guard let vc = topViewController() else { return }
+            do {
+                try await GoogleAuth.signIn(presenting: vc)
+                withAnimation { settings.isSignedIn = true }
+            } catch { settings.isSignedIn = false }
+        }
     }
 
     // MARK: - Phase 2: URL Entry Card
@@ -86,14 +132,14 @@ struct OnboardingView: View {
                 } label: {
                     Label("Back", systemImage: "chevron.left")
                 }
-                .buttonStyle(.workoutGlass)
+                .buttonStyle(.bordered)
                 .accessibilityIdentifier("onboarding-url-back-button")
 
                 Spacer()
             }
 
             Text("Paste your sheet URL")
-                .font(.title2.bold())
+                .font(Theme.font(.sheetTitle))
 
             TextField("Google Sheet URL", text: $urlText)
                 .textFieldStyle(.roundedBorder)
@@ -102,17 +148,16 @@ struct OnboardingView: View {
 
             if urlError {
                 Text("That doesn't look like a Sheet URL")
-                    .font(.caption)
+                    .font(Theme.font(.historyChip))
                     .foregroundStyle(.red)
             }
 
             Button("Save") { saveURL() }
-                .buttonStyle(.workoutGlass)
+                .buttonStyle(.bordered)
                 .disabled(urlText.isEmpty)
         }
         .padding()
-        .workoutGlass(.card)
-        .workoutGlassID("onboarding", in: ns)
+        .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.card))
     }
 
     // MARK: - Safe selection
@@ -198,7 +243,7 @@ struct SheetPickerView: View {
     var body: some View {
         VStack(spacing: 16) {
             Text("Choose your training sheet")
-                .font(.title2.bold())
+                .font(Theme.font(.sheetTitle))
 
             content
 
@@ -215,7 +260,7 @@ struct SheetPickerView: View {
         }
         .padding()
         .frame(maxWidth: 520)
-        .workoutGlass(.card)
+        .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.card))
         .task {
             guard store == nil else { return }
             let pickerStore = SheetPickerStore(
@@ -248,13 +293,13 @@ struct SheetPickerView: View {
             if let message = store.listErrorMessage {
                 VStack(spacing: 12) {
                     Text(message)
-                        .font(.subheadline)
+                        .font(Theme.font(.queuePill))
                         .foregroundStyle(.red)
 
                     Button("Retry") {
                         Task { await store.loadInitial() }
                     }
-                    .buttonStyle(.workoutGlass)
+                    .buttonStyle(.bordered)
                 }
                 .frame(maxWidth: .infinity, minHeight: 180)
             } else {
@@ -285,7 +330,7 @@ struct SheetPickerView: View {
                                     Text("Load More")
                                 }
                             }
-                            .buttonStyle(.workoutGlass)
+                            .buttonStyle(.bordered)
                             .disabled(store.isLoadingList)
                         }
                     }
@@ -321,12 +366,12 @@ private struct SheetPickerRow: View {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(spreadsheet.name)
-                            .font(.headline)
+                            .font(Theme.font(.sheetTitle))
                             .foregroundStyle(.primary)
                             .lineLimit(2)
 
                         Text(modifiedText)
-                            .font(.caption)
+                            .font(Theme.font(.historyChip))
                             .foregroundStyle(.secondary)
                     }
 
@@ -339,15 +384,15 @@ private struct SheetPickerRow: View {
 
                 if let errorMessage {
                     Text(errorMessage)
-                        .font(.caption)
+                        .font(Theme.font(.historyChip))
                         .foregroundStyle(.red)
                 }
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(palette.pillFill, in: .rect(cornerRadius: Theme.pillCornerRadius))
+            .background(palette.pillFill, in: .rect(cornerRadius: Theme.Radius.card))
             .overlay(
-                RoundedRectangle(cornerRadius: Theme.pillCornerRadius)
+                RoundedRectangle(cornerRadius: Theme.Radius.card)
                     .stroke(palette.pillStroke, lineWidth: 1)
             )
         }

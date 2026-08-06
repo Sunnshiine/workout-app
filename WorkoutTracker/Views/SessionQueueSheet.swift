@@ -65,19 +65,24 @@ struct SessionQueueSheet: View {
         .animation(.easeInOut(duration: 0.18), value: pairingMode)
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
+        // Living paper (DESIGN.md §2, ledger §10.1): the queue sheet carries the washes on soft
+        // shoulders — bare cream reads too white — so it stays in the same room as the stage.
+        .presentationCornerRadius(Theme.Radius.soft)
+        .presentationBackground { palette.paperBackground }
         .onDisappear(perform: onCancelPairing)
     }
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
             Text(isPairing ? "Pick a partner" : "This Session")
-                .font(.headline)
+                .font(Theme.font(.sheetTitle))
+                .foregroundStyle(palette.textPrimary)
 
             Spacer(minLength: 12)
 
             if isPairing {
                 Button("Cancel", action: onCancelPairing)
-                    .font(.subheadline.weight(.semibold))
+                    .font(Theme.font(.queuePill))
                     .foregroundStyle(palette.accent)
                     .accessibilityIdentifier("stage-queue-cancel-pairing")
             }
@@ -94,14 +99,13 @@ struct SessionQueueSheet: View {
                 onJump(item)
             } label: {
                 rowLabel(for: item) {
+                    // Rows shed their icons (ledger §10.2): the stage's icon budget is spent on the
+                    // branch. A completed row reads as complete from its dimmed title and settled Set
+                    // dots alone; only the on-stage row still speaks, in words.
                     if isOnStage {
                         Text("Now")
-                            .font(.caption.weight(.semibold))
+                            .font(Theme.font(.fieldLabel))
                             .foregroundStyle(palette.accent)
-                    } else if item.isComplete {
-                        Image(systemName: "checkmark")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -114,8 +118,8 @@ struct SessionQueueSheet: View {
                     onBeginPairing(item)
                 } label: {
                     Image(systemName: "link")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                        .font(Theme.font(.queuePill))
+                        .foregroundStyle(palette.textSecondary)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 16)
                         .contentShape(Rectangle())
@@ -141,9 +145,10 @@ struct SessionQueueSheet: View {
         .opacity(role == .ineligibleTarget ? Theme.pairingUnavailableOpacity : 1)
         .overlay {
             if role == .confirmingTarget {
-                RoundedRectangle(cornerRadius: Theme.cardCornerRadius)
+                // The confirming-pair ring loses its accent glow and retired radius-16 (ledger §10.2):
+                // one clean soft-radius stroke, no second glow to break the One Glow Rule at night.
+                RoundedRectangle(cornerRadius: Theme.Radius.soft)
                     .stroke(palette.accent, lineWidth: 2)
-                    .shadow(color: palette.accent.opacity(0.65), radius: 12)
             }
         }
         .accessibilityIdentifier("stage-queue-row-\(item.id)")
@@ -154,11 +159,11 @@ struct SessionQueueSheet: View {
         switch role {
         case .source:
             Image(systemName: "link")
-                .font(.caption.weight(.bold))
+                .font(Theme.font(.fieldLabel))
                 .foregroundStyle(palette.accent)
         case .confirmingTarget:
             Image(systemName: "link.badge.plus")
-                .font(.caption.weight(.bold))
+                .font(Theme.font(.fieldLabel))
                 .foregroundStyle(palette.accent)
         case .none, .eligibleTarget, .ineligibleTarget:
             EmptyView()
@@ -171,8 +176,8 @@ struct SessionQueueSheet: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 6) {
                 Text(item.title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(item.isComplete ? .secondary : .primary)
+                    .font(Theme.font(.queuePill))
+                    .foregroundStyle(item.isComplete ? palette.textSecondary : palette.textPrimary)
                     .lineLimit(1)
 
                 SessionStageSetDots(sets: item.sortedSets)

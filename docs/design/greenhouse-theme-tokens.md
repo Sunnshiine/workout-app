@@ -96,10 +96,14 @@ appearance.
 | `skipStroke` (dashed 5 4) | muted @ 42% | mutedNight @ 40% |
 | `budGlow` | none | `drop-shadow(0 0 7px rgba(120,240,178,0.32))` — the page's one glow |
 
-Leaf geometry (`M0 8 C 15 2.3, 41 3.3, 60 8 C 41 21.7, 15 22.6, 0 8 Z`,
-rib `M4 8.1 C 20 9.8, 40 9.6, 56 8.1`) and stroke widths (rib 1.2/s, bud
-2.2/s, future/skip 1.2/s) are geometry constants, not palette. Node scale
-runs are tuned per layout, not tokenized.
+Blade geometry (`M0,10 C16,-2 46,-4 64,3 C44,16 14,19 0,10 Z` in a 64x20
+design space, rib streak `M7,8.6 C24,4.6 42,2.6 56,3.4`; supersedes the
+retired 60x24 rounded leaf per the branch-low-set prototype verdict) and
+stroke widths (rib 1.6, active-leaf stroke 1.8, ghost future 1.4, dashed
+skip 1.2) are geometry constants, not palette. Every branch mark is this one
+blade: `budFill`/`budStroke` dress the cream-filled active leaf, and
+`futureStroke` draws the 0.72-scale ghost outline. Node scale runs are tuned
+per layout, not tokenized.
 
 ### Active Set Card & input block (#455 supersedes #413's pill display)
 

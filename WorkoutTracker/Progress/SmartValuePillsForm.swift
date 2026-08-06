@@ -72,7 +72,9 @@ struct SmartValuePillsForm {
 
     var logButtonTitle: String {
         guard let log = makeLog() else { return incompleteLogButtonTitle }
-        return "Log \(log.weight.label)×\(log.reps)@\(Self.rpeLabel(log.rpe))"
+        // The Log capsule previews the exact Set Log with the spaced typography of
+        // pick input-block3-c ("Log 90 × 5 @8").
+        return "Log \(log.weight.label) × \(log.reps) @\(Self.rpeLabel(log.rpe))"
     }
 
     init(set: ExerciseSet, previousSetWeight: Double?, trainingMax: Double?) {
@@ -99,6 +101,27 @@ struct SmartValuePillsForm {
     mutating func adjustWeight(by increment: Double) {
         let currentWeight = Double(weightText) ?? 0
         weightText = (currentWeight + increment).weightLabel
+    }
+
+    enum WeightStep: Sendable {
+        case up
+        case down
+    }
+
+    /// Steps the weight by one `fineWeightIncrement` in `step`, clamped at a zero
+    /// floor. Returns `true` when the step *hit the floor* — a decrement that would
+    /// have gone negative, clamped to 0 — so the caller can answer with the dud
+    /// rather than the detent tick. Landing exactly on 0 is a normal step, not a
+    /// floor hit.
+    @discardableResult
+    mutating func stepWeight(_ step: WeightStep) -> Bool {
+        let increment = fineWeightIncrement
+        if step == .down, (Double(weightText) ?? 0) - increment < 0 {
+            weightText = "0"
+            return true
+        }
+        adjustWeight(by: step == .up ? increment : -increment)
+        return false
     }
 
     func makeLog() -> SetLog? {

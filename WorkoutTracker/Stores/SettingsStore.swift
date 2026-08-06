@@ -16,7 +16,7 @@ enum AppearancePreference: String, CaseIterable {
         case .light:
             "Light"
         case .dark:
-            "Dark"
+            "Night"
         }
     }
 }

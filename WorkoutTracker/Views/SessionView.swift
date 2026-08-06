@@ -70,10 +70,10 @@ struct SessionView: View {
             }
         }
         .accessibilityHidden(workout.moveOnCelebrationSession != nil)
-        .background(palette.gradient.ignoresSafeArea())
+        .background(palette.paperBackground.ignoresSafeArea())
         .overlay {
             if let session = workout.moveOnCelebrationSession {
-                MoveOnCelebrationView(session: session, requestedAt: workout.moveOnCelebrationRequestedAt) {
+                MoveOnCelebrationView(session: session) {
                     workout.dismissMoveOnCelebration()
                 }
                 .transition(.opacity)
@@ -285,7 +285,6 @@ extension SessionView {
     private func sessionHeaderHUD(session: Session) -> some View {
         SessionProgressHeader(
             session: session,
-            activeSetID: coordinator.activeSetID,
             block: workout.block,
             currentSession: workout.currentSession,
             sessionSettingsOverpullState: sessionSettingsOverpullState,
@@ -298,7 +297,6 @@ extension SessionView {
         .padding(.horizontal, 14)
         .padding(.top, 1)
         .padding(.bottom, 2)
-        .workoutGlass(.card)
         .padding(.horizontal)
         .padding(.top, 8)
         .contentShape(Rectangle())
@@ -385,10 +383,10 @@ private struct CurrentSessionOverrideControls: View {
         Button(action: onGoBack) {
             Label("Go back", systemImage: "arrow.uturn.left")
                 .labelStyle(.iconOnly)
-                .font(.title3.weight(.semibold))
+                .font(Theme.font(.logCapsule))
                 .frame(width: 44, height: 44)
         }
-        .buttonStyle(.workoutGlass)
+        .buttonStyle(.bordered)
         .accessibilityHint("Returns to the current session")
         .accessibilityIdentifier("go-back-current-session-button")
     }
@@ -397,10 +395,10 @@ private struct CurrentSessionOverrideControls: View {
         Button(action: onMakeCurrent) {
             Label("Make Current", systemImage: "pin.fill")
                 .labelStyle(.iconOnly)
-                .font(.title3.weight(.semibold))
+                .font(Theme.font(.logCapsule))
                 .frame(width: 44, height: 44)
         }
-        .buttonStyle(.workoutGlass)
+        .buttonStyle(.bordered)
         .accessibilityHint("Makes the viewed session the current session")
         .accessibilityIdentifier("make-current-session-button")
     }

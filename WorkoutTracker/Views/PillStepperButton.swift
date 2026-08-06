@@ -11,7 +11,7 @@ struct PillStepperButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.headline.weight(.bold))
+                .font(Theme.font(.railChipValue))
                 .foregroundStyle(isEnabled ? palette.accent : .secondary)
                 .frame(
                     width: WeightPillLayoutMetrics.stepperButtonSize,
