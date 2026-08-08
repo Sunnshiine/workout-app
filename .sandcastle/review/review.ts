@@ -7,6 +7,7 @@ import { parseDiffLines } from "./parse-diff-lines";
 import { ReviewOutput } from "./review-output";
 import { noSandbox } from "@ai-hero/sandcastle/sandboxes/no-sandbox";
 import { runWithExtraction } from "../run-with-extraction";
+import { parseLinkedIssueNumber, prPromptArgs } from "../pr-prompt-args";
 
 const PR_NUMBER = required("PR_NUMBER");
 const BRANCH = required("BRANCH");
@@ -31,10 +32,12 @@ const prViewJson = sh(
 );
 const prView = PrView.parse(JSON.parse(prViewJson));
 
-const issueMatch = prView.body?.match(/(?:closes|fixes|resolves)\s+#(\d+)/i);
-const ISSUE_NUMBER = issueMatch?.[1] ?? "";
+const ISSUE_NUMBER = parseLinkedIssueNumber(prView.body);
 const ISSUE_TITLE = ISSUE_NUMBER
   ? safeSh(`gh issue view ${ISSUE_NUMBER} --json title --jq .title`).trim()
+  : "";
+const LINKED_ISSUE = ISSUE_NUMBER
+  ? safeSh(`gh issue view ${ISSUE_NUMBER} --comments`)
   : "";
 
 const reviewsJson = sh(
@@ -178,13 +181,14 @@ const result = await runWithExtraction({
   // so this stays above BASH_MAX_TIMEOUT_MS.
   idleTimeoutSeconds: 2700,
   promptFile: path.join(import.meta.dirname, "prompt.md"),
-  promptArgs: {
-    PR_NUMBER,
-    BRANCH,
-    ISSUE_NUMBER: ISSUE_NUMBER || "(none)",
-    ISSUE_TITLE: ISSUE_TITLE || "(no linked issue)",
-    PR_COMMENTS_JSON: JSON.stringify(prComments, null, 2),
-  },
+  promptArgs: prPromptArgs({
+    prNumber: PR_NUMBER,
+    branch: BRANCH,
+    issueNumber: ISSUE_NUMBER,
+    issueTitle: ISSUE_TITLE,
+    linkedIssue: LINKED_ISSUE,
+    prCommentsJson: JSON.stringify(prComments, null, 2),
+  }),
   output: sandcastle.Output.object({
     tag: "output",
     schema: ReviewOutput,
