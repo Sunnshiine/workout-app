@@ -43,7 +43,7 @@ Use the **`code-review` skill** (installed globally at `~/.claude/skills/code-re
 Invoke it with everything it needs, so it does **not** run its own discovery and does **not** prompt or pause:
 
 - **Fixed point:** `main`. The diff to review is `git diff main...HEAD`. Do not ask for a fixed point — it is `main`.
-- **Spec:** issue #{{ISSUE_NUMBER}} — already fetched above in `<linked-issue>`. Pass this as the spec. If the linked issue is a **PRD** (it has sub-issues), pull them with `gh api repos/$GH_REPO/issues/{{ISSUE_NUMBER}}/sub_issues` and treat each closed sub-issue as a sub-requirement; code for an _open_ sub-issue is a scope violation.
+- **Spec:** the linked issue, fetched above in `<linked-issue>`. Pass this as the spec. If there is no linked issue, the PR description is the spec. If the linked issue is a **PRD** (it has sub-issues), pull them with `gh api repos/$GH_REPO/issues/<issue-number>/sub_issues` and treat each closed sub-issue as a sub-requirement; code for an _open_ sub-issue is a scope violation.
 - **Standards:** `.sandcastle/CODING_STANDARDS.md` is this repo's documented standard — feed it as the standards source. The skill's built-in smell baseline applies on top, but a documented repo standard always wins.
 
 The skill is read-only and produces a report; it does not edit code. That report — its Standards findings and its Spec findings — is your worklist for the steps below.
