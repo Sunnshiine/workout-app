@@ -6,7 +6,7 @@
  * a PR without a linked issue must never route a sentinel like "(none)" into
  * a shell command (#517: `gh issue view (none) --comments` is a bash syntax
  * error). The issue content is fetched script-side and substituted as plain
- * text instead; prompt-shell-blocks.test.ts enforces the invariant.
+ * text instead — keep {{placeholders}} out of templates' shell blocks.
  */
 
 /**

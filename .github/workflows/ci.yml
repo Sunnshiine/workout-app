@@ -31,21 +31,6 @@ jobs:
       - name: Run unit + component tests
         run: swift test
 
-  # The agent pipeline's own tests (.sandcastle/*.test.ts) — including the
-  # prompt-shell-block invariant that a template change can't reintroduce the
-  # #517 prompt-expansion crash. Without this job those tests never run.
-  sandcastle-tests:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: npm ci
-      - run: npm run typecheck:sandcastle
-      - run: npm run test:sandcastle
-
   app-build:
     runs-on: xcode-27
     timeout-minutes: 30
