@@ -40,10 +40,28 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
 - For target-specific UI gates, prefer raw `xcodebuild ... -only-testing:WorkoutTrackerUITests`
   or verify the output actually ran `WorkoutTrackerUITests`.
 
+## Headless CLI (for agents)
+
+`workout` drives the real application (same stores as the app) against a local workbook and
+prints JSON. No simulator, no Google credentials, milliseconds per call. Full reference:
+`WorkoutCLI/README.md`; the decision: `docs/adr/0015-headless-application-boundary.md`.
+
+```bash
+swift build --product workout && export PATH="$PWD/.build/debug:$PATH"
+export WORKOUT_HOME=$(mktemp -d)
+workout init --scenario fresh-block   # seed + select + sync
+workout session                       # addresses on every Exercise and Set (w1d1.e0.s0)
+workout log w1d1.e0.s0 185x5@8        # WorkoutStore.log; no auto-flush
+workout flush && workout sheet --cell K15   # "185x5@8" landed in the workbook
+workout sync && workout session w1d1  # the Set reads back as logged through the parser
+```
+
+Errors are JSON on stderr with exit 1 (domain), 3 (environment), 4 (conflict).
+
 ## Linting & Formatting
 
 - **SwiftLint** runs automatically via the `SwiftLintPlugins` build tool plugin (wired through the Xcode project, not `Package.swift`). Config: `.swiftlint.yml`.
-- **swift-format** is installed via Homebrew. Config: `.swift-format`. Run manually: `swift-format -i -r WorkoutTracker/ WorkoutTrackerTests/`
+- **swift-format** is installed via Homebrew. Config: `.swift-format`. Run manually: `swift-format -i -r WorkoutTracker/ WorkoutCLI/ Tests/`
 - Do not run `swiftlint --fix` in build phases — run it manually when needed.
 
 ## Git Worktrees
@@ -79,9 +97,11 @@ WorkoutTracker/
 ├── Progress/                   Session/Week progression (Current Session, Move On, Open Exercises, Supersets)
 ├── LoadSuggestionEngine.swift  Load Suggestion calculations
 ├── Theme.swift                 Liquid Glass design system (ADR-0004)
+├── App/                        WorkoutApplication (composition root + public facade), addresses, snapshots
 ├── Views/                      SwiftUI views (excluded from the SPM library target)
-└── Fixtures/                   UI-test fixture data (-UITEST_FIXTURE)
+└── Fixtures/                   UI-test fixture data (-UITEST_FIXTURE) and WorkbookScenario seeds
 
+WorkoutCLI/                     The `workout` executable (ADR-0015)
 Tests/  →  Unit/ · Component/ · UI/ · Support/
 ```
 

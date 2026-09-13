@@ -17,6 +17,7 @@ opt_in_rules:
 
 included:
   - WorkoutTracker
+  - WorkoutCLI
   - Tests
 
 excluded:

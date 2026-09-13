@@ -26,6 +26,9 @@ xcuserdata/
 .build/
 .swiftpm/
 
+# workout CLI default home (WorkoutCLI/README.md)
+.workout-cli/
+
 # Python (uv virtualenv + bytecode caches)
 .venv/
 __pycache__/
