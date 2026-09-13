@@ -82,6 +82,14 @@ struct SmartValuePills: View {
         .task(id: isEditingWeight) {
             weightFieldFocused = isEditingWeight
         }
+        // Focus can be taken away from outside this view (the stage-wide tap-to-dismiss
+        // surface resigns the first responder directly); fold the edit UI when that happens
+        // so the field doesn't linger unfocused.
+        .onChange(of: weightFieldFocused) { _, focused in
+            if !focused {
+                isEditingWeight = false
+            }
+        }
         .background {
             Color.clear
                 .contentShape(Rectangle())
@@ -138,8 +146,8 @@ struct SmartValuePills: View {
                 .focused($weightFieldFocused)
                 // The decimal pad carries no return key, so give the athlete a discoverable way out
                 // of the field when they open it and choose not to enter a weight — dismissing the
-                // keyboard without logging (the background/header taps are the same escape, less
-                // obvious). Semantic-only, so no haptic here.
+                // keyboard without logging (any tap on non-interactive stage space is the same
+                // escape). Semantic-only, so no haptic here.
                 .toolbar {
                     ToolbarItemGroup(placement: .keyboard) {
                         Spacer()
@@ -192,8 +200,7 @@ struct SmartValuePills: View {
                 isSkipped: set.state == .skipped,
                 showsLoggedCheckmark: showsLoggedCheckmark,
                 onLogTap: submitLog,
-                onSkip: skip,
-                onPressStarted: dismissFieldUI
+                onSkip: skip
             )
 
             if set.state != .pending {
@@ -221,6 +228,11 @@ struct SmartValuePills: View {
     }
 
     private func submitLog() {
+        // Dismissal happens here — at action time — never at touch-down: folding the keyboard
+        // while the finger is still pressed slides the whole non-scrolling stage down and the
+        // capsule escapes the tap before it can resolve (the "Log does nothing with the
+        // keyboard open" bug).
+        dismissFieldUI()
         guard let log = form.submitLog() else { return }
         InputHapticPlayer.shared.play(Theme.Haptics.logTap)
         withAnimation(Theme.logButtonCheckmarkAnimation) {
@@ -230,6 +242,7 @@ struct SmartValuePills: View {
     }
 
     private func skip() {
+        dismissFieldUI()
         InputHapticPlayer.shared.play(Theme.Haptics.skipDud)
         onSkip()
     }
@@ -437,7 +450,6 @@ private struct HoldToSkipLogButton: View {
     let showsLoggedCheckmark: Bool
     let onLogTap: () -> Void
     let onSkip: () -> Void
-    let onPressStarted: () -> Void
 
     @State private var skipProgress = 0.0
     @State private var skipPressStartedAt: Date?
@@ -574,7 +586,6 @@ private struct HoldToSkipLogButton: View {
 
     private func startSkipHoldIfNeeded() {
         guard skipPressStartedAt == nil else { return }
-        onPressStarted()
         skipPressStartedAt = Date()
         skipCompleted = false
         skipProgress = 0
