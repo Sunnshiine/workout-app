@@ -113,6 +113,8 @@
 		FBD7F27846824EE734DF61AA /* LiveActivityRestContentStateFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39ECEE8F938629B5C76D6531 /* LiveActivityRestContentStateFactory.swift */; };
 		FCA508FE3522CB7062267112 /* SessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31CB80B71F35E4D4A35FE87 /* SessionView.swift */; };
 		FD532690E409CC21380B5AC5 /* SheetsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = D25BC6F5BDADC735072B49F8 /* SheetsClient.swift */; };
+		C052497E59D8491A2ADAFBFA /* LocalWorkbookSheetsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE1800339CCC483FC95BDA2D /* LocalWorkbookSheetsClient.swift */; };
+		B4A202398AED3EA8B270025C /* WorkbookScenarios.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83D292ACFA3DEF059E143ADB /* WorkbookScenarios.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -270,6 +272,8 @@
 		FFBA3AF5C9A8A37438C43F0D /* RestNotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestNotificationScheduler.swift; sourceTree = "<group>"; };
 		F1A2B3C4D5E6F7A8B9C0D1E3 /* RestInterval.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestInterval.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A7B8C9D0E1F3 /* RestExpiryScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestExpiryScheduler.swift; sourceTree = "<group>"; };
+		FE1800339CCC483FC95BDA2D /* LocalWorkbookSheetsClient.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LocalWorkbookSheetsClient.swift; sourceTree = "<group>"; };
+		83D292ACFA3DEF059E143ADB /* WorkbookScenarios.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WorkbookScenarios.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -348,6 +352,7 @@
 		08188E21C9C5EDF09B62BBBF /* Fixtures */ = {
 			isa = PBXGroup;
 			children = (
+				83D292ACFA3DEF059E143ADB /* WorkbookScenarios.swift */,
 				02CBDEE06463224167F1FB18 /* UITestFixture.swift */,
 				FBC4B91909CBE1C1FA3A0E7E /* WorkoutFixtureScenarios.swift */,
 			);
@@ -357,6 +362,7 @@
 		0FF08B69E3C2E465E1D9E404 /* Sheets */ = {
 			isa = PBXGroup;
 			children = (
+				FE1800339CCC483FC95BDA2D /* LocalWorkbookSheetsClient.swift */,
 				A12FDB0A5CCFB2C56907DE63 /* GoogleAuth.swift */,
 				E3B15FEFD6BDE5D8F1A71800 /* GoogleSheetsClient.swift */,
 				D25BC6F5BDADC735072B49F8 /* SheetsClient.swift */,
@@ -784,6 +790,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B4A202398AED3EA8B270025C /* WorkbookScenarios.swift in Sources */,
+				C052497E59D8491A2ADAFBFA /* LocalWorkbookSheetsClient.swift in Sources */,
 				AC784F11021F09F1A5C5A62B /* ActiveSetCard.swift in Sources */,
 				7D73B4A734A389E428D9DA4B /* ActiveSetFocusManager.swift in Sources */,
 				C6DC904BF1DB120F03C23247 /* ActiveSetPresentation.swift in Sources */,

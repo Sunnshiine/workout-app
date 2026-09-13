@@ -175,15 +175,4 @@
 
         func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
     }
-
-    private func gridFromA1(_ cells: [String: String], rows: Int, cols: Int) -> SheetGrid {
-        var grid = SheetGrid(repeating: [String](repeating: "", count: cols), count: rows)
-        for (a1, value) in cells {
-            let index = a1ToIndex(a1)
-            if index.row < rows, index.col < cols {
-                grid[index.row][index.col] = value
-            }
-        }
-        return grid
-    }
 #endif
