@@ -115,6 +115,8 @@
 		FD532690E409CC21380B5AC5 /* SheetsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = D25BC6F5BDADC735072B49F8 /* SheetsClient.swift */; };
 		C052497E59D8491A2ADAFBFA /* LocalWorkbookSheetsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE1800339CCC483FC95BDA2D /* LocalWorkbookSheetsClient.swift */; };
 		B4A202398AED3EA8B270025C /* WorkbookScenarios.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83D292ACFA3DEF059E143ADB /* WorkbookScenarios.swift */; };
+		0CAD8EFA88BAF977FE50DFE6 /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE0EA121A9CF003CE08A016F /* AppEnvironment.swift */; };
+		50EB02A3718C3FB8F1A28FA2 /* WorkoutApplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AD6B3E72E048732572BAC46 /* WorkoutApplication.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -274,6 +276,8 @@
 		A1B2C3D4E5F6A7B8C9D0E1F3 /* RestExpiryScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestExpiryScheduler.swift; sourceTree = "<group>"; };
 		FE1800339CCC483FC95BDA2D /* LocalWorkbookSheetsClient.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LocalWorkbookSheetsClient.swift; sourceTree = "<group>"; };
 		83D292ACFA3DEF059E143ADB /* WorkbookScenarios.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WorkbookScenarios.swift; sourceTree = "<group>"; };
+		FE0EA121A9CF003CE08A016F /* AppEnvironment.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppEnvironment.swift; sourceTree = "<group>"; };
+		2AD6B3E72E048732572BAC46 /* WorkoutApplication.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WorkoutApplication.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -546,6 +550,7 @@
 		E4E43F24E68521EDECD85406 /* WorkoutTracker */ = {
 			isa = PBXGroup;
 			children = (
+				955815C6F8A39997C76CD4A1 /* App */,
 				EE9617577EC2B1EE77CC2E63 /* Assets.xcassets */,
 				FA0000000000000000000001 /* Fraunces.ttf */,
 				FA0000000000000000000002 /* SourceSans3.ttf */,
@@ -574,6 +579,15 @@
 				39ECEE8F938629B5C76D6531 /* LiveActivityRestContentStateFactory.swift */,
 			);
 			path = LiveActivity;
+			sourceTree = "<group>";
+		};
+		955815C6F8A39997C76CD4A1 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				2AD6B3E72E048732572BAC46 /* WorkoutApplication.swift */,
+				FE0EA121A9CF003CE08A016F /* AppEnvironment.swift */,
+			);
+			path = App;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -790,6 +804,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				50EB02A3718C3FB8F1A28FA2 /* WorkoutApplication.swift in Sources */,
+				0CAD8EFA88BAF977FE50DFE6 /* AppEnvironment.swift in Sources */,
 				B4A202398AED3EA8B270025C /* WorkbookScenarios.swift in Sources */,
 				C052497E59D8491A2ADAFBFA /* LocalWorkbookSheetsClient.swift in Sources */,
 				AC784F11021F09F1A5C5A62B /* ActiveSetCard.swift in Sources */,
