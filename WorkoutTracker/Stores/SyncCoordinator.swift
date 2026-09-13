@@ -1,5 +1,8 @@
 import Foundation
+import OSLog
 import SwiftData
+
+private let syncLogger = Logger(subsystem: "WorkoutTracker", category: "Sync")
 
 @MainActor
 @Observable
@@ -99,7 +102,7 @@ final class SyncCoordinator {
     @discardableResult
     func sync(spreadsheetId: String) async -> Bool {
         state = .syncing
-        print("[Sync] Starting sync for spreadsheetId: \(spreadsheetId)")
+        syncLogger.info("Starting sync for spreadsheetId: \(spreadsheetId, privacy: .public)")
 
         await flushPending(spreadsheetId: spreadsheetId)
         let stateAfterFlush = state
@@ -107,17 +110,17 @@ final class SyncCoordinator {
 
         do {
             let titles = try await client.listTabTitles(spreadsheetId: spreadsheetId)
-            print("[Sync] Tab titles: \(titles)")
+            syncLogger.debug("Tab titles: \(titles, privacy: .public)")
             guard let tab = currentBlockTab(from: titles) else {
-                print("[Sync] ERROR: No block tab matched from titles: \(titles)")
+                syncLogger.error("No block tab matched from titles: \(titles, privacy: .public)")
                 state = .conflict(["No block tab found in the spreadsheet"])
                 return false
             }
-            print("[Sync] Selected tab: \(tab)")
+            syncLogger.debug("Selected tab: \(tab, privacy: .public)")
             let snapshot = try await client.fetchTabSnapshot(spreadsheetId: spreadsheetId, tabName: tab)
-            print("[Sync] Grid: \(snapshot.values.count) rows, first row: \(snapshot.values.first ?? [])")
+            syncLogger.debug("Grid: \(snapshot.values.count) rows")
             let parsed = SheetParser().parse(snapshot: snapshot, tabName: tab)
-            print("[Sync] Parsed: \(parsed.block.weeks.count) weeks, warnings: \(parsed.warnings)")
+            syncLogger.debug("Parsed: \(parsed.block.weeks.count) weeks, warnings: \(parsed.warnings, privacy: .public)")
             try replacePersistedBlock(with: BlockBuilder.makeBlock(from: parsed.block))
             let lastPerformedEntries = LastPerformedExtractor.entries(from: parsed.block)
             if !lastPerformedEntries.isEmpty {
@@ -128,7 +131,7 @@ final class SyncCoordinator {
             } else {
                 state = parsed.warnings.isEmpty ? .idle : .conflict(parsed.warnings)
             }
-            print("[Sync] Done, state: \(state)")
+            syncLogger.info("Done, state: \(String(describing: self.state), privacy: .public)")
             launchLastPerformedBackfill(
                 spreadsheetId: spreadsheetId,
                 titles: titles,
@@ -137,7 +140,7 @@ final class SyncCoordinator {
             )
             return true
         } catch {
-            print("[Sync] ERROR: \(error)")
+            syncLogger.error("Sync failed: \(String(describing: error), privacy: .public)")
             state = .offline
             return false
         }
@@ -393,8 +396,8 @@ private struct LocalSetID: Hashable {
     let setIndex: Int
 }
 
-private extension SyncCoordinator {
-    func localLoggedAtBySetID() throws -> [LocalSetID: Date] {
+extension SyncCoordinator {
+    fileprivate func localLoggedAtBySetID() throws -> [LocalSetID: Date] {
         var values: [LocalSetID: Date] = [:]
         for block in try context.fetch(FetchDescriptor<Block>()) {
             for week in block.weeks {
@@ -419,20 +422,21 @@ private extension SyncCoordinator {
         return values
     }
 
-    func preserveLocalLoggedAt(on block: Block, loggedAtBySet: [LocalSetID: Date]) {
+    fileprivate func preserveLocalLoggedAt(on block: Block, loggedAtBySet: [LocalSetID: Date]) {
         for week in block.weeks {
             for session in week.sessions {
                 for exercise in session.exercises {
                     for set in exercise.sets where set.state == .logged {
-                        set.loggedAt = loggedAtBySet[
-                            LocalSetID(
-                                blockTab: block.tabName,
-                                week: week.number,
-                                day: session.dayNumber,
-                                exerciseName: exercise.name,
-                                setIndex: set.index
-                            )
-                        ]
+                        set.loggedAt =
+                            loggedAtBySet[
+                                LocalSetID(
+                                    blockTab: block.tabName,
+                                    week: week.number,
+                                    day: session.dayNumber,
+                                    exerciseName: exercise.name,
+                                    setIndex: set.index
+                                )
+                            ]
                     }
                 }
             }
