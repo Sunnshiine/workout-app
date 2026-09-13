@@ -117,6 +117,9 @@
 		B4A202398AED3EA8B270025C /* WorkbookScenarios.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83D292ACFA3DEF059E143ADB /* WorkbookScenarios.swift */; };
 		0CAD8EFA88BAF977FE50DFE6 /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE0EA121A9CF003CE08A016F /* AppEnvironment.swift */; };
 		50EB02A3718C3FB8F1A28FA2 /* WorkoutApplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AD6B3E72E048732572BAC46 /* WorkoutApplication.swift */; };
+		D86EB20F73AFAAEB6B56C96D /* Addresses.swift in Sources */ = {isa = PBXBuildFile; fileRef = F537E33BF718EA70A8E2BF0D /* Addresses.swift */; };
+		7B3BEBE3FC351B7E0E9F1EB3 /* ApplicationError.swift in Sources */ = {isa = PBXBuildFile; fileRef = A46E3C3D9AD00FDAEDB7F3DF /* ApplicationError.swift */; };
+		F9A390A4906862342D90F48C /* AppSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C7E011541390262EB04ECB7 /* AppSnapshot.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -278,6 +281,9 @@
 		83D292ACFA3DEF059E143ADB /* WorkbookScenarios.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WorkbookScenarios.swift; sourceTree = "<group>"; };
 		FE0EA121A9CF003CE08A016F /* AppEnvironment.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppEnvironment.swift; sourceTree = "<group>"; };
 		2AD6B3E72E048732572BAC46 /* WorkoutApplication.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WorkoutApplication.swift; sourceTree = "<group>"; };
+		F537E33BF718EA70A8E2BF0D /* Addresses.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Addresses.swift; sourceTree = "<group>"; };
+		A46E3C3D9AD00FDAEDB7F3DF /* ApplicationError.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApplicationError.swift; sourceTree = "<group>"; };
+		1C7E011541390262EB04ECB7 /* AppSnapshot.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppSnapshot.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -584,6 +590,9 @@
 		955815C6F8A39997C76CD4A1 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				1C7E011541390262EB04ECB7 /* AppSnapshot.swift */,
+				A46E3C3D9AD00FDAEDB7F3DF /* ApplicationError.swift */,
+				F537E33BF718EA70A8E2BF0D /* Addresses.swift */,
 				2AD6B3E72E048732572BAC46 /* WorkoutApplication.swift */,
 				FE0EA121A9CF003CE08A016F /* AppEnvironment.swift */,
 			);
@@ -804,6 +813,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F9A390A4906862342D90F48C /* AppSnapshot.swift in Sources */,
+				7B3BEBE3FC351B7E0E9F1EB3 /* ApplicationError.swift in Sources */,
+				D86EB20F73AFAAEB6B56C96D /* Addresses.swift in Sources */,
 				50EB02A3718C3FB8F1A28FA2 /* WorkoutApplication.swift in Sources */,
 				0CAD8EFA88BAF977FE50DFE6 /* AppEnvironment.swift in Sources */,
 				B4A202398AED3EA8B270025C /* WorkbookScenarios.swift in Sources */,

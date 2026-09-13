@@ -19,47 +19,50 @@ public struct AppEnvironment {
     /// UI-test fixture never does, so its seeded Block cannot flip the fixture's appearance.
     let derivesPriorAppStateFromStore: Bool
 
-    /// An application whose Sheet is `workbook` and whose store and defaults vanish with the process.
-    public static func inMemory(
-        workbook: LocalWorkbook,
-        defaults: UserDefaults = ephemeralDefaults(),
-        now: @escaping @MainActor () -> Date = Date.init
-    ) -> AppEnvironment {
-        AppEnvironment(
-            storage: .inMemory,
-            sheetsClient: LocalWorkbookSheetsClient(workbook: workbook),
-            defaults: defaults,
-            now: now,
-            seed: nil,
-            derivesPriorAppStateFromStore: false
-        )
-    }
+    #if DEBUG || os(macOS)
+        /// An application whose Sheet is `workbook` and whose store vanishes with the process. The
+        /// defaults suite is wiped on creation but, like every `UserDefaults` suite, persists as a plist.
+        public static func inMemory(
+            workbook: LocalWorkbook,
+            defaults: UserDefaults = ephemeralDefaults(),
+            now: @escaping @MainActor () -> Date = Date.init
+        ) -> AppEnvironment {
+            AppEnvironment(
+                storage: .inMemory,
+                sheetsClient: LocalWorkbookSheetsClient(workbook: workbook),
+                defaults: defaults,
+                now: now,
+                seed: nil,
+                derivesPriorAppStateFromStore: false
+            )
+        }
 
-    /// An application that keeps its store in `home/store.sqlite` and its Sheet in `workbookFile`,
-    /// writing the workbook back after every successful Sheet update.
-    public static func directory(
-        _ home: URL,
-        workbookFile: URL,
-        defaults: UserDefaults,
-        now: @escaping @MainActor () -> Date = Date.init
-    ) throws -> AppEnvironment {
-        AppEnvironment(
-            storage: .file(home.appendingPathComponent("store.sqlite")),
-            sheetsClient: LocalWorkbookSheetsClient(workbook: try LocalWorkbook.load(from: workbookFile), persistTo: workbookFile),
-            defaults: defaults,
-            now: now,
-            seed: nil,
-            derivesPriorAppStateFromStore: true
-        )
-    }
+        /// An application that keeps its store in `home/store.sqlite` and its Sheet in `workbookFile`,
+        /// writing the workbook back after every successful Sheet update.
+        public static func directory(
+            _ home: URL,
+            workbookFile: URL,
+            defaults: UserDefaults,
+            now: @escaping @MainActor () -> Date = Date.init
+        ) throws -> AppEnvironment {
+            AppEnvironment(
+                storage: .file(home.appendingPathComponent("store.sqlite")),
+                sheetsClient: LocalWorkbookSheetsClient(workbook: try LocalWorkbook.load(from: workbookFile), persistTo: workbookFile),
+                defaults: defaults,
+                now: now,
+                seed: nil,
+                derivesPriorAppStateFromStore: true
+            )
+        }
 
-    /// A throwaway defaults suite, wiped on creation, so two in-memory applications never share a key.
-    public static func ephemeralDefaults() -> UserDefaults {
-        let suiteName = "WorkoutTracker.ephemeral.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
-        defaults.removePersistentDomain(forName: suiteName)
-        return defaults
-    }
+        /// A throwaway defaults suite, wiped on creation, so two in-memory applications never share a key.
+        public static func ephemeralDefaults() -> UserDefaults {
+            let suiteName = "WorkoutTracker.ephemeral.\(UUID().uuidString)"
+            let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+            defaults.removePersistentDomain(forName: suiteName)
+            return defaults
+        }
+    #endif
 
     static func device() -> AppEnvironment {
         AppEnvironment(
