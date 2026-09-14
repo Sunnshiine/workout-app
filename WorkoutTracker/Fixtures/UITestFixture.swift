@@ -12,6 +12,12 @@
             ProcessInfo.processInfo.arguments.contains("-UITEST_FIXTURE")
         }
 
+        /// XCUITest waits for the app to go idle after launch and after every tap, so the UI tests
+        /// pass this to skip UIKit animations; the scheme's manual launch keeps them.
+        static var disablesAnimations: Bool {
+            ProcessInfo.processInfo.arguments.contains("-UITEST_DISABLE_ANIMATIONS")
+        }
+
         static var startsWithPendingWrite: Bool {
             ProcessInfo.processInfo.arguments.contains("-UITEST_PENDING_WRITE")
         }
