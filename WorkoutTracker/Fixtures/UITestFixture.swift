@@ -12,6 +12,10 @@
             ProcessInfo.processInfo.arguments.contains("-UITEST_FIXTURE")
         }
 
+        static var disablesAnimations: Bool {
+            ProcessInfo.processInfo.arguments.contains("-UITEST_DISABLE_ANIMATIONS")
+        }
+
         static var startsWithPendingWrite: Bool {
             ProcessInfo.processInfo.arguments.contains("-UITEST_PENDING_WRITE")
         }

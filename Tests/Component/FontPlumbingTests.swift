@@ -29,23 +29,15 @@ import Testing
         #expect(font.familyName == "Source Sans 3", "weightEntry fell back to \(font.familyName) instead of Source Sans 3")
     }
 
+    /// The bundled Source Sans 3 defaults to tabular figures (measured spread 0 with no feature
+    /// request; proportional only when explicitly asked for), so this observes the rendered result
+    /// users see, not the `tabular` branch in `uiFont`. A fallback to SF fails it: SF is proportional.
     @Test func numeralRolesRenderTabular() {
         let font = Theme.uiFont(Theme.TypeRole.weightEntry.style)
         let widths = "0123456789".map { digit in
             (String(digit) as NSString).size(withAttributes: [.font: font]).width
         }
         let spread = (widths.max() ?? 0) - (widths.min() ?? 0)
-        #expect(spread < 0.5, "weightEntry digits are not tabular — tnum plumbing is inactive (spread \(spread))")
-    }
-
-    @Test func nonTabularRolesLeaveDigitsProportional() {
-        // Guards the tnum check above from a false positive: Source Sans 3's default figures are
-        // proportional, so a role that does not request tnum must keep varying digit widths.
-        let font = Theme.uiFont(Theme.TypeRole.railChipGlyph.style)
-        let widths = "0123456789".map { digit in
-            (String(digit) as NSString).size(withAttributes: [.font: font]).width
-        }
-        let spread = (widths.max() ?? 0) - (widths.min() ?? 0)
-        #expect(spread > 0.01, "railChipGlyph unexpectedly rendered tabular — the tnum test can't distinguish plumbing")
+        #expect(spread < 0.5, "weightEntry digits are not tabular (spread \(spread))")
     }
 #endif

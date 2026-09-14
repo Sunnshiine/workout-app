@@ -15,6 +15,11 @@ struct WorkoutTrackerApp: App {
         _app = State(initialValue: app)
         #if DEBUG
             if UITestFixture.isEnabled {
+                #if canImport(UIKit)
+                    if UITestFixture.disablesAnimations {
+                        UIView.setAnimationsEnabled(false)
+                    }
+                #endif
                 Self.applyUITestFixtures(to: app)
             }
         #endif
