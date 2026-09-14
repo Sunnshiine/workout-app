@@ -2,8 +2,6 @@ import Foundation
 import Testing
 import WorkoutTracker
 
-// Compiled without @testable on purpose: this file sees exactly what the CLI sees.
-
 private func json(_ value: some Encodable) throws -> [String: Any] {
     let encoder = JSONEncoder()
     encoder.dateEncodingStrategy = .iso8601

@@ -93,7 +93,6 @@
             FixtureSheetsClient()
         }
 
-        /// Seeds the sample Block the launch arguments select into a fresh context.
         @MainActor
         static func seed(into context: ModelContext) throws {
             let block =

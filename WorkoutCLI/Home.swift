@@ -12,7 +12,6 @@ struct HomeOptions: ParsableArguments {
     }
 }
 
-/// The ownership marker `init` writes first, so a directory is only ever wiped when it carries one.
 struct Manifest: Codable {
     static let currentVersion = 1
 
@@ -22,9 +21,6 @@ struct Manifest: Codable {
     let createdAt: Date
 }
 
-/// The per-home layout: manifest.json, store.sqlite, workbook.json, plus a UserDefaults suite named
-/// after the home path so two homes never share a key. The suite lives in ~/Library/Preferences,
-/// not in the home; `init` wipes it, deleting the directory does not.
 struct Home {
     let url: URL
 
@@ -59,8 +55,6 @@ struct Home {
         return try WorkoutApplication(environment: environment)
     }
 
-    /// Reset-and-seed. Wipes only a path that does not exist, an empty directory, or a directory
-    /// carrying this tool's manifest; anything else is somebody's data and is refused.
     func reset(scenario: WorkbookScenario, workbook: LocalWorkbook) throws -> Manifest {
         let fileManager = FileManager.default
         var isDirectory: ObjCBool = false
@@ -88,7 +82,6 @@ struct Home {
         return manifest
     }
 
-    /// The manifest, or `nil` when the file is absent or is not one this tool wrote.
     private func ownManifest() throws -> Manifest? {
         guard FileManager.default.fileExists(atPath: manifestURL.path) else { return nil }
         return try? JSONDecoder.manifest.decode(Manifest.self, from: Data(contentsOf: manifestURL))
@@ -102,7 +95,6 @@ struct Home {
     }
 }
 
-/// `WORKOUT_NOW` (ISO-8601) freezes the clock so loggedAt and manifest timestamps are reproducible.
 enum FrozenClock {
     static func resolve() throws -> @Sendable () -> Date {
         guard let raw = ProcessInfo.processInfo.environment["WORKOUT_NOW"] else { return { Date() } }

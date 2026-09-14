@@ -1,4 +1,4 @@
-#if DEBUG || os(macOS)
+#if OFFLINE_SHEET
     import Foundation
 
     /// Seed workbooks in the coach's canonical layout, fed through the real parser rather than built
@@ -21,13 +21,11 @@
     }
 
     extension WorkbookScenario {
-        // Column offsets from a Day's start column, as in the coach's template (ADR-0003 reads them
-        // back by label, never by position).
         private static let roleHeaderOffsets: [(offset: Int, label: String)] = [
             (1, "Sets"), (3, "Reps"), (4, "%1RM"), (5, "Load"), (6, "Last set RPE"), (8, "Notes")
         ]
 
-        private static let dayStartColumns = [2, 18, 34]  // C, S, AI
+        private static let dayStartColumns = [2, 18, 34]
 
         private static func freshBlock() -> LocalWorkbook {
             var cells: [String: String] = [

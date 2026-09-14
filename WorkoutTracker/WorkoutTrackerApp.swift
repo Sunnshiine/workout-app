@@ -32,9 +32,8 @@ struct WorkoutTrackerApp: App {
     #if DEBUG
         private static func applyUITestFixtures(to app: WorkoutApplication) {
             let settings = app.settings
-            if let appearanceOverride = UITestFixture.appearanceOverride {
-                settings.setAppearance(appearanceOverride)
-            }
+            // Pins the fixture's appearance regardless of the seeded Block, so screenshots stay deterministic.
+            settings.setAppearance(UITestFixture.appearanceOverride ?? .system)
             settings.isSignedIn = true
             // Onboarding mode leaves the spreadsheet unset so the app lands on the sheet picker,
             // while the seeded (stale) Block stays in the store to prove it is never shown for the

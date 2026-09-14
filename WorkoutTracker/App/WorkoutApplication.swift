@@ -24,7 +24,7 @@ public final class WorkoutApplication {
         lastPerformed = LastPerformedLookupStore(context: context)
         settings = SettingsStore(
             defaults: environment.defaults,
-            hasPriorAppState: environment.derivesPriorAppStateFromStore && Self.hasPriorAppState(in: context)
+            hasPriorAppState: Self.hasPriorAppState(in: context)
         )
         workout = WorkoutStore(
             context: context,
@@ -39,7 +39,6 @@ public final class WorkoutApplication {
     private static func configuration(for storage: AppEnvironment.Storage) -> ModelConfiguration {
         switch storage {
         case .inMemory:
-            // A unique name keeps two in-memory applications in one process from sharing a store.
             ModelConfiguration("WorkoutApplication.\(UUID().uuidString)", schema: schema, isStoredInMemoryOnly: true)
         case .deviceDefault:
             ModelConfiguration(schema: schema)
@@ -110,11 +109,9 @@ extension WorkoutApplication {
     public func flush() async throws -> FlushReport {
         let spreadsheetId = try configuredSpreadsheetId()
         let before = try queuedWrites()
-        // Counted before the flush: the records are live model objects the flush mutates in place.
         let attempted = before.filter { $0.status == .pending }.count
         await sync.flushPending(spreadsheetId: spreadsheetId)
         let after = try queuedWrites()
-        // A flushed write is deleted from the queue; a conflicted one stays with its status changed.
         return FlushReport(
             attempted: attempted,
             written: before.count - after.count,
@@ -172,7 +169,6 @@ extension WorkoutApplication {
         return spreadsheetId
     }
 
-    /// Every queued record, conflicts included: what the app's `pendingWrites` state counts.
     fileprivate func queuedWrites() throws -> [PendingWrite] {
         try sync.fetchPendingWriteRecords()
     }

@@ -27,7 +27,7 @@ struct SheetCommand: AsyncParsableCommand {
         if let cell {
             try await Output.run {
                 let reference = cell.uppercased()
-                guard reference.wholeMatch(of: /[A-Z]+[1-9][0-9]*/) != nil else { throw CLIError.invalidCell(cell) }
+                guard isA1CellReference(reference) else { throw CLIError.invalidCell(cell) }
                 let snapshot = try await home.open().sheet(tab: tab)
                 return CellReport(tab: snapshot.tab, cell: reference, value: snapshot.cells[reference] ?? "")
             }

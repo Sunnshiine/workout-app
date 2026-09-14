@@ -22,14 +22,17 @@ let package = Package(
                 "Sheets/GoogleAuth.swift",
                 "WorkoutTrackerApp.swift",
                 "Info.plist",
-                "LaunchScreen.storyboard",
-            ]
+                "LaunchScreen.storyboard"
+            ],
+            // The offline Sheet (LocalWorkbook, WorkbookScenario, AppEnvironment.inMemory/directory) exists
+            // for the CLI and tests. The Xcode app target never defines this, so the phone never ships it.
+            swiftSettings: [.define("OFFLINE_SHEET")]
         ),
         .executableTarget(
             name: "WorkoutCLI",
             dependencies: [
                 "WorkoutTracker",
-                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                .product(name: "ArgumentParser", package: "swift-argument-parser")
             ],
             path: "WorkoutCLI",
             exclude: ["README.md"]
@@ -39,6 +42,6 @@ let package = Package(
             dependencies: ["WorkoutTracker", "WorkoutCLI"],
             path: "Tests",
             exclude: ["UI", "Visual", "Unit/GoogleAuthTests.swift"]
-        ),
+        )
     ]
 )

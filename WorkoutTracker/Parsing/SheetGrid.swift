@@ -30,7 +30,6 @@ struct SheetSnapshot: Sendable, Equatable {
         rowVisibility[row]?.isVisible ?? true
     }
 
-    /// Every non-empty cell keyed by A1 reference: the shape an agent reads and edits.
     var sparseCells: [String: String] {
         var cells: [String: String] = [:]
         for (row, rowValues) in values.enumerated() {
@@ -41,14 +40,12 @@ struct SheetSnapshot: Sendable, Equatable {
         return cells
     }
 
-    /// Hidden rows keyed by their 1-based Sheet row number, the numbering A1 references use.
     var hiddenRowsByNumber: [Int: SheetRowVisibility] {
         Dictionary(uniqueKeysWithValues: rowVisibility.map { ($0.key + 1, $0.value) })
     }
 }
 
-/// `true` for a well-formed single-cell A1 reference such as `K15` or `AI37`.
-func isA1CellReference(_ reference: String) -> Bool {
+public func isA1CellReference(_ reference: String) -> Bool {
     reference.wholeMatch(of: /[A-Z]+[1-9][0-9]*/) != nil
 }
 
@@ -88,7 +85,6 @@ func indexToA1(row: Int, col: Int) -> String {
     "\(columnName(col))\(row + 1)"
 }
 
-/// A rectangular grid from a sparse A1 map; cells outside `rows` x `cols` and malformed keys are dropped.
 func gridFromA1(_ cells: [String: String], rows: Int, cols: Int) -> SheetGrid {
     var grid = SheetGrid(repeating: [String](repeating: "", count: cols), count: rows)
     for (a1, value) in cells {

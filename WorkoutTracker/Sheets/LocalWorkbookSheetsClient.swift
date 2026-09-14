@@ -1,5 +1,4 @@
-// The offline Sheet is fixture code: every macOS build (CLI, tests) has it; the phone only in debug.
-#if DEBUG || os(macOS)
+#if OFFLINE_SHEET
     import Foundation
 
     /// An offline spreadsheet: the file the CLI keeps on disk and an agent can author by hand.
@@ -152,9 +151,6 @@
         }
     }
 
-    /// An in-memory Sheet that honours the same A1 range contract as Google Sheets. With `persistTo`
-    /// set, every successful update is written back to disk before it is acknowledged, so a
-    /// process-per-command caller sees its own writes on the next run.
     actor LocalWorkbookSheetsClient: SheetsClient {
         private let spreadsheetId: String
         private let title: String

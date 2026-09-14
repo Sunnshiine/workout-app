@@ -4,7 +4,6 @@
 
     private final class BundleMarker {}
 
-    /// The `workout` product SwiftPM builds next to the test bundle.
     private func workoutBinary() throws -> URL {
         let candidates = [Bundle(for: BundleMarker.self).bundleURL, Bundle.main.bundleURL]
             .map { $0.deletingLastPathComponent().appendingPathComponent("workout") }
@@ -185,8 +184,6 @@
         #expect(try String(contentsOf: file, encoding: .utf8) == "precious")
     }
 
-    /// A conflicted write stays in the queue and in every later report until it is discarded, so
-    /// an agent that retries cannot mistake "nothing left to attempt" for "everything landed".
     @Test func aConflictedWriteStaysVisibleAndKeepsFlushAndSyncOnExitFour() throws {
         let home = try temporaryHome()
         defer { try? FileManager.default.removeItem(at: home) }

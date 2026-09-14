@@ -29,8 +29,9 @@ hashed from the home path so homes never share keys, but it lives under `~/Libra
 rather than in the home, so deleting a home orphans a plist and copying one does not copy its
 settings.
 
-The offline workbook, the scenarios, and the in-memory environment compile for every macOS build
-and for debug phone builds only, matching the existing `UITestFixture` convention.
+The offline workbook, the scenarios, and the in-memory environment compile only under the
+`OFFLINE_SHEET` condition that `Package.swift` defines for the library; the Xcode app target never
+defines it, so the phone never ships fixture code.
 
 **Considered alternatives:**
 - *`@testable import` from the CLI:* reaches the stores directly and lets the CLI drift into a

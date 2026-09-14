@@ -45,8 +45,6 @@ private func pendingRows(in app: WorkoutApplication) throws -> [PendingWriteRow]
     try app.sync.fetchPendingWriteRecords().map(PendingWriteRow.init)
 }
 
-/// Path A drives the stage's coordinator; path B drives the facade. Both must leave the same
-/// PendingWrite rows and, after a flush, the same workbook.
 @MainActor
 @Test func facadeLogMatchesTheSessionCoordinatorLogPath() async throws {
     let stageApp = try await makeApp()

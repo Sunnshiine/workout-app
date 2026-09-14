@@ -13,13 +13,9 @@ public struct AppEnvironment {
     let sheetsClient: any SheetsClient
     let defaults: UserDefaults
     let now: @MainActor () -> Date
-    /// Runs once against the fresh context before any store is built (the UI-test fixture's Block graph).
     let seed: (@MainActor (ModelContext) throws -> Void)?
-    /// The device seeds the appearance preference from whether a Block is already cached; the
-    /// UI-test fixture never does, so its seeded Block cannot flip the fixture's appearance.
-    let derivesPriorAppStateFromStore: Bool
 
-    #if DEBUG || os(macOS)
+    #if OFFLINE_SHEET
         /// An application whose Sheet is `workbook` and whose store vanishes with the process. The
         /// defaults suite is wiped on creation but, like every `UserDefaults` suite, persists as a plist.
         public static func inMemory(
@@ -32,8 +28,7 @@ public struct AppEnvironment {
                 sheetsClient: LocalWorkbookSheetsClient(workbook: workbook),
                 defaults: defaults,
                 now: now,
-                seed: nil,
-                derivesPriorAppStateFromStore: false
+                seed: nil
             )
         }
 
@@ -50,8 +45,7 @@ public struct AppEnvironment {
                 sheetsClient: LocalWorkbookSheetsClient(workbook: try LocalWorkbook.load(from: workbookFile), persistTo: workbookFile),
                 defaults: defaults,
                 now: now,
-                seed: nil,
-                derivesPriorAppStateFromStore: true
+                seed: nil
             )
         }
 
@@ -70,8 +64,7 @@ public struct AppEnvironment {
             sheetsClient: GoogleSheetsClient(),
             defaults: .standard,
             now: Date.init,
-            seed: nil,
-            derivesPriorAppStateFromStore: true
+            seed: nil
         )
     }
 
@@ -82,8 +75,7 @@ public struct AppEnvironment {
                 sheetsClient: UITestFixture.makeSheetsClient(),
                 defaults: UITestFixture.makeDefaults(),
                 now: Date.init,
-                seed: UITestFixture.seed(into:),
-                derivesPriorAppStateFromStore: false
+                seed: UITestFixture.seed(into:)
             )
         }
     #endif
