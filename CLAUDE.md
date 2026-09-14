@@ -15,24 +15,26 @@ Scheme is `WorkoutTracker` for all runs; default simulator is `iPhone 17 Pro`.
 # Fast unit + component tests (no Secrets.xcconfig needed)
 swift test
 
-# Unit + component tests via Xcode
-xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-  -only-testing:WorkoutTrackerTests -collect-test-diagnostics never
+# One behavior, about a second: filter to the suite that covers it
+swift test --filter ActiveSetFocusManagerTests
 
-# UI integration tests
-xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-  -only-testing:WorkoutTrackerUITests -collect-test-diagnostics never
+# Simulator suites: one build, then every requested suite from the xctestrun file
+scripts/test-sim.sh unit            # hosted unit + component (adds the UIKit-only tests)
+scripts/test-sim.sh visual          # snapshot gate (ADR-0007)
+scripts/test-sim.sh ui              # UI integration tests
+scripts/test-sim.sh --no-build WorkoutTrackerUITests/WorkoutTrackerUISmokeTests/testMoveOnAdvancesToNextExercise
 
 # Build & run on the simulator
 xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 ```
 
-- Always pass `-collect-test-diagnostics never` to `xcodebuild test`. After any failing run
-  xcodebuild otherwise spawns `simctl diagnose` with a 600 s timeout, and that collection
-  intermittently hangs to the timeout. The `.xcresult` bundle and snapshot diffs are unaffected.
+- `scripts/test-sim.sh` is the documented way to run simulator tests. A bare `xcodebuild test`
+  fails on a fresh machine ("Validate plug-in SwiftLintBuildToolPlugin") unless it also passes
+  `-skipPackagePluginValidation -skipMacroValidation`, and after any failing run it spawns
+  `simctl diagnose` with a 600 s timeout that intermittently hangs; the script passes
+  `-collect-test-diagnostics never` and runs from the xctestrun so the project and package
+  graph load once. The `.xcresult` bundle and snapshot diffs are unaffected.
 - The `WorkoutTracker` scheme launches with `-UITEST_FIXTURE true` and
   `-UITEST_SESSION true` — it runs against deterministic local fixtures, **not**
   the live Google Sheet. To run against live data, use the `Copy of WorkoutTracker` scheme (`-UITEST_FIXTURE false`).
