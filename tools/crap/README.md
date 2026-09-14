@@ -27,6 +27,11 @@ scripts/crap.sh --help
 Artifacts land in `.build/crap/`: `coverage.lcov`, `report.json`, and the `swift test` log. The
 baseline lives at `tools/crap/baseline.tsv`.
 
+The script builds this package in release, and `swift test --package-path tools/crap` builds it in
+debug. The two configurations share `tools/crap/.build`, and a debug build evicts the release build of
+swift-syntax, so the first `scripts/crap.sh` run after running the tool's own tests spends about 100 s
+rebuilding. Back to back runs of either one alone cost a second or two.
+
 The scope is fixed in the script to `WorkoutTracker` and `WorkoutCLI`, minus the four paths
 `Package.swift` excludes from the library target (`Views/`, `LiveActivity/`, `Sheets/GoogleAuth.swift`,
 `WorkoutTrackerApp.swift`). Scope therefore equals what `swift test` instruments.
