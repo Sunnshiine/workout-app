@@ -202,20 +202,35 @@ struct GoogleSheetsClient: SheetsClient {
     }
 
     private static func snapshot(from response: GoogleSheetsSnapshotResponse) -> SheetSnapshot {
+        let gridData = response.sheets.flatMap { $0.data ?? [] }
+        return SheetSnapshot(values: valuesGrid(from: gridData), rowVisibility: rowVisibility(from: gridData))
+    }
+
+    /// The cell grid the spans describe, each span's rows placed at its own start row and column.
+    private static func valuesGrid(from gridData: [GoogleSheetsGridData]) -> SheetGrid {
         var values: SheetGrid = []
-        var rowVisibility: [Int: SheetRowVisibility] = [:]
-
-        for gridData in response.sheets.flatMap({ $0.data ?? [] }) {
-            let startRow = gridData.startRow ?? 0
-            let startColumn = gridData.startColumn ?? 0
-
-            for (rowOffset, rowData) in (gridData.rowData ?? []).enumerated() {
-                let rowIndex = startRow + rowOffset
+        for span in gridData {
+            let startRow = span.startRow ?? 0
+            let startColumn = span.startColumn ?? 0
+            for (rowOffset, rowData) in (span.rowData ?? []).enumerated() {
                 let formattedValues = (rowData.values ?? []).map { $0.formattedValue ?? "" }
-                values = applying(formattedValues, atRow: rowIndex, startColumn: startColumn, to: values)
+                values = applying(
+                    formattedValues,
+                    atRow: startRow + rowOffset,
+                    startColumn: startColumn,
+                    to: values
+                )
             }
+        }
+        return values
+    }
 
-            for (rowOffset, metadata) in (gridData.rowMetadata ?? []).enumerated() {
+    /// The rows the spans report as hidden, keyed by row index. A fully visible row is left out.
+    private static func rowVisibility(from gridData: [GoogleSheetsGridData]) -> [Int: SheetRowVisibility] {
+        var rowVisibility: [Int: SheetRowVisibility] = [:]
+        for span in gridData {
+            let startRow = span.startRow ?? 0
+            for (rowOffset, metadata) in (span.rowMetadata ?? []).enumerated() {
                 let visibility = SheetRowVisibility(
                     hiddenByUser: metadata.hiddenByUser ?? false,
                     hiddenByFilter: metadata.hiddenByFilter ?? false
@@ -225,8 +240,7 @@ struct GoogleSheetsClient: SheetsClient {
                 }
             }
         }
-
-        return SheetSnapshot(values: values, rowVisibility: rowVisibility)
+        return rowVisibility
     }
 
     private static func applying(
