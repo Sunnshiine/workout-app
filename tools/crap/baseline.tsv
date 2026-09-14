@@ -8,5 +8,3 @@ WorkoutTracker/Sheets/LocalWorkbookSheetsClient.swift	LocalWorkbookSheetsClient.
 WorkoutTracker/Stores/DeveloperToolsDiagnostics.swift	SheetWritePlanner.rowScanDetails(for:selectedRow:in:)	14.0
 WorkoutTracker/Stores/SyncCoordinator.swift	SyncCoordinator.flushPendingWrites(_:context:)	12.3
 WorkoutTracker/Stores/SyncCoordinator.swift	SyncCoordinator.overlayPendingWrites(on:)	13.2
-WorkoutTracker/Theme.swift	Theme.TypeRole.style.get	552.0
-WorkoutTracker/Theme.swift	Theme.swiftUIWeight(_:)	56.0
