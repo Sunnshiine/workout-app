@@ -14,7 +14,7 @@ function passes only while it stays trivial.
 ## Usage
 
 `scripts/crap.sh` at the repository root is the one command to run. It runs the tests with coverage,
-exports lcov, builds this package in release, and calls the executable.
+exports lcov, builds this package (debug), and calls the executable.
 
 ```bash
 scripts/crap.sh measure --top 30   # score everything, print the worst rows
@@ -27,10 +27,9 @@ scripts/crap.sh --help
 Artifacts land in `.build/crap/`: `coverage.lcov`, `report.json`, and the `swift test` log. The
 baseline lives at `tools/crap/baseline.tsv`.
 
-The script builds this package in release, and `swift test --package-path tools/crap` builds it in
-debug. The two configurations share `tools/crap/.build`, and a debug build evicts the release build of
-swift-syntax, so the first `scripts/crap.sh` run after running the tool's own tests spends about 100 s
-rebuilding. Back to back runs of either one alone cost a second or two.
+The script and `swift test --package-path tools/crap` both build this package in debug, so they share
+one build of swift-syntax in `tools/crap/.build`. The first build takes about two minutes; later runs
+cost a second or two.
 
 The scope is fixed in the script to `WorkoutTracker` and `WorkoutCLI`, minus the four paths
 `Package.swift` excludes from the library target (`Views/`, `LiveActivity/`, `Sheets/GoogleAuth.swift`,

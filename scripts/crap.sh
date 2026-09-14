@@ -106,7 +106,7 @@ export_lcov() {
 }
 
 build_tool() {
-    swift build --package-path tools/crap -c release >"$OUT/build.log" 2>&1 ||
+    swift build --package-path tools/crap >"$OUT/build.log" 2>&1 ||
         {
             cat "$OUT/build.log" >&2
             exit 1
@@ -114,7 +114,7 @@ build_tool() {
 }
 
 measure() {
-    tools/crap/.build/release/crap measure \
+    tools/crap/.build/debug/crap measure \
         --root "$ROOT" \
         --lcov "$LCOV" \
         --source WorkoutTracker \
@@ -140,13 +140,13 @@ case "$SUBCOMMAND" in
         ;;
     gate)
         step "measure" measure >/dev/null
-        tools/crap/.build/release/crap gate \
+        tools/crap/.build/debug/crap gate \
             --report "$REPORT" --baseline "$BASELINE" \
             --threshold "$THRESHOLD" --tolerance "$TOLERANCE"
         ;;
     baseline)
         step "measure" measure >/dev/null
-        tools/crap/.build/release/crap baseline \
+        tools/crap/.build/debug/crap baseline \
             --report "$REPORT" --write "$BASELINE" --threshold "$THRESHOLD"
         ;;
 esac
