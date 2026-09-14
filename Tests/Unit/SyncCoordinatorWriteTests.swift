@@ -471,6 +471,27 @@ extension SyncCoordinator.State {
 }
 
 @MainActor
+@Test func flushRecordsOneRetryAndStopsWhenTheSnapshotFetchFails() async throws {
+    let container = try makeContainer()
+    let ctx = container.mainContext
+    ctx.insert(pendingWrite(createdAt: 1))
+    ctx.insert(pendingWrite(createdAt: 2, setIndex: 1, valueToWrite: "195x5@8"))
+    try ctx.save()
+    let client = FlushStubClient(grid: overlayGrid(notes: ""))
+    client.shouldThrowOffline = true
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
+    #expect(sync.state == .pendingWrites(2))
+    #expect(client.updates.isEmpty)
+    #expect(writes.count == 2)
+    #expect(writes.allSatisfy { $0.status == .pending })
+    #expect(writes.sorted { $0.createdAt < $1.createdAt }.map(\.retryCount) == [1, 0])
+}
+
+@MainActor
 @Test func syncOverlaysAQueuedDeleteAsAPendingSet() async throws {
     let container = try makeContainer()
     let ctx = container.mainContext

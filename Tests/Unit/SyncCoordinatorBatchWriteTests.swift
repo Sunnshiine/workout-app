@@ -425,6 +425,7 @@ private func batchPendingWrite(
     await sync.flushPending(spreadsheetId: "sid")
 
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
+    #expect(sync.state == .pendingWrites(2))
     #expect(client.updateRequestCount == 1)
     #expect(client.attemptedRanges == ["'Block 27'!K17"])
     #expect(writes.count == 2)

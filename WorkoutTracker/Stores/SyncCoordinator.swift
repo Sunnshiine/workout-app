@@ -466,8 +466,22 @@ private struct PendingWriteBatch {
     }
 }
 
-private struct PendingWriteFlushInvalidated: Error {}
-private struct PendingWriteBatchFailed: Error {}
+/// The two ways a flush stops before it reaches the end of the queue. Each one already left the
+/// store consistent, so the only thing left to decide is what the flush reports.
+private enum PendingWriteFlushInterruption: Error {
+    /// A newer flush generation superseded this one.
+    case invalidated
+    /// A batch write failed and its writes stay queued for the next attempt.
+    case batchFailed
+
+    var result: PendingWriteFlushResult {
+        switch self {
+        case .invalidated: .invalidated
+        case .batchFailed: .stoppedForRetry
+        }
+    }
+}
+
 private struct PendingWriteFlushInProgress: Error {}
 private struct PendingWritePlanningConflict: Error {
     let error: SheetWriterError
@@ -525,10 +539,8 @@ extension SyncCoordinator {
                     snapshots: &snapshots,
                     context: flushContext
                 )
-            } catch is PendingWriteFlushInvalidated {
-                return .invalidated
-            } catch is PendingWriteBatchFailed {
-                return .stoppedForRetry
+            } catch let interruption as PendingWriteFlushInterruption {
+                return interruption.result
             } catch let planningConflict as PendingWritePlanningConflict {
                 let message = recordConflict(planningConflict, for: write, planner: flushContext.planner)
                 conflicts.append(message)
@@ -546,13 +558,8 @@ extension SyncCoordinator {
         do {
             try await flush(batch, context: flushContext)
             return .completed(conflicts: conflicts)
-        } catch is PendingWriteFlushInvalidated {
-            return .invalidated
-        } catch is PendingWriteBatchFailed {
-            return .stoppedForRetry
         } catch {
-            state = .pendingWrites(pending.count)
-            return .stoppedForRetry
+            return error.result
         }
     }
 
@@ -672,7 +679,7 @@ extension SyncCoordinator {
     fileprivate func flush(
         _ batch: PendingWriteBatch,
         context flushContext: PendingWriteFlushContext
-    ) async throws {
+    ) async throws(PendingWriteFlushInterruption) {
         guard !batch.isEmpty else { return }
         try ensurePendingWriteFlushIsCurrent(flushContext.generation)
         do {
@@ -684,7 +691,7 @@ extension SyncCoordinator {
             }
             try? context.save()
             state = .pendingWrites((try? fetchPendingWriteRecords().count) ?? batch.items.count)
-            throw PendingWriteBatchFailed()
+            throw .batchFailed
         }
         try ensurePendingWriteFlushIsCurrent(flushContext.generation)
         for item in batch.items {
@@ -724,9 +731,11 @@ extension SyncCoordinator {
         activePendingWriteFlushCount -= 1
     }
 
-    fileprivate func ensurePendingWriteFlushIsCurrent(_ generation: Int) throws {
+    fileprivate func ensurePendingWriteFlushIsCurrent(
+        _ generation: Int
+    ) throws(PendingWriteFlushInterruption) {
         guard generation == pendingWriteFlushGeneration else {
-            throw PendingWriteFlushInvalidated()
+            throw .invalidated
         }
     }
 
