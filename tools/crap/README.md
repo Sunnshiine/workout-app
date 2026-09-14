@@ -7,7 +7,7 @@ CRAP(f) = CC(f)^2 * (1 - cov(f))^3 + CC(f)
 ```
 
 `CC` is cyclomatic complexity from the source, `cov` is per-function line coverage as a fraction in
-`[0, 1]` from `llvm-cov`. Lower is better. The project target is a score of 12 or less per production
+`[0, 1]` from `llvm-cov`. Lower is better. The project target is a score of 6 or less per production
 function: at full coverage a function may be arbitrarily complex and still pass, and an untested
 function passes only while it stays trivial.
 
@@ -39,9 +39,9 @@ The executable is usable on its own:
 
 ```
 crap measure --root <repo-root> --lcov <file> [--source <relative dir>]... [--exclude <glob>]...
-             [--threshold 12] [--json <out>] [--top 25]
-crap gate    --report <json> --baseline <tsv> [--threshold 12] [--tolerance 0.5]
-crap baseline --report <json> --write <tsv> [--threshold 12]
+             [--threshold 6] [--json <out>] [--top 25]
+crap gate    --report <json> --baseline <tsv> [--threshold 6] [--tolerance 0.5]
+crap baseline --report <json> --write <tsv> [--threshold 6]
 ```
 
 ## Rules
