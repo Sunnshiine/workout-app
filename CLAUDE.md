@@ -38,8 +38,14 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
 - The `WorkoutTracker` scheme launches with `-UITEST_FIXTURE true` and
   `-UITEST_SESSION true` — it runs against deterministic local fixtures, **not**
   the live Google Sheet. To run against live data, use the `Copy of WorkoutTracker` scheme (`-UITEST_FIXTURE false`).
+- To drive the app like a user and capture proof (screenshots plus the accessibility tree), use
+  the project `verify` skill: `.claude/skills/verify/SKILL.md` owns launch, doctor, drive,
+  evidence, and cleanup, and `.claude/skills/verify/features/` maps every user-facing feature
+  to a recipe. Read the feature file before driving.
 - Prefer XcodeBuildMCP for build/run/test on the simulator. If using XcodeBuildMCP,
-  use the installed XcodeBuildMCP skill before calling XcodeBuildMCP tools.
+  use the installed XcodeBuildMCP skill before calling XcodeBuildMCP tools. The pin in
+  `.mcp.json` must stay at 2.7.0 or later: older builds fail on Xcode 27 with
+  "SimulatorKit.framework ... does not exist" for every accessibility call.
 - If XcodeBuildMCP accessibility snapshots return an empty AXApplication, reboot
   the simulator before diagnosing app code.
 - For target-specific UI gates, prefer raw `xcodebuild ... -only-testing:WorkoutTrackerUITests`
