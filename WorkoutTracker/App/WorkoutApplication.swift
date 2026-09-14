@@ -145,7 +145,7 @@ extension WorkoutApplication {
         let titles = try await sheetsClient.listTabTitles(spreadsheetId: spreadsheetId)
         let resolved: String
         if let tab {
-            guard titles.contains(tab) else { throw ApplicationError.unknownTab(name: tab, candidates: titles) }
+            guard titles.contains(tab) else { throw ApplicationError.notFound(.tab, name: tab, candidates: titles) }
             resolved = tab
         } else {
             guard let blockTab = workout.block?.tabName ?? currentBlockTab(from: titles) else {
@@ -199,7 +199,7 @@ extension WorkoutApplication {
     fileprivate func resolveCurrentSession() throws -> AddressedSession {
         guard workout.block != nil else { throw ApplicationError.noBlock }
         guard let current = workout.currentSession, let id = address(of: current) else {
-            throw ApplicationError.unknownSession(address: "current", candidates: orderedSessions().map(\.id.description))
+            throw ApplicationError.notFound(.session, name: "current", candidates: orderedSessions().map(\.id.description))
         }
         return AddressedSession(id: id, model: current)
     }
@@ -208,7 +208,7 @@ extension WorkoutApplication {
         guard workout.block != nil else { throw ApplicationError.noBlock }
         let sessions = orderedSessions()
         guard let session = sessions.first(where: { $0.id == address }) else {
-            throw ApplicationError.unknownSession(address: address.description, candidates: sessions.map(\.id.description))
+            throw ApplicationError.notFound(.session, name: address.description, candidates: sessions.map(\.id.description))
         }
         return session
     }
@@ -217,8 +217,9 @@ extension WorkoutApplication {
         let session = try resolveSession(address.session).model
         guard !session.exercises.isEmpty else { throw ApplicationError.sessionUnavailable(address.session.description) }
         guard let exercise = session.exercises.first(where: { $0.order == address.order }) else {
-            throw ApplicationError.unknownExercise(
-                address: address.description,
+            throw ApplicationError.notFound(
+                .exercise,
+                name: address.description,
                 candidates: session.exercises.map(\.order).sorted().map { ExerciseAddress(session: address.session, order: $0).description }
             )
         }
@@ -228,8 +229,9 @@ extension WorkoutApplication {
     fileprivate func resolveSet(_ address: SetAddress) throws -> ExerciseSet {
         let exercise = try resolveExercise(address.exercise)
         guard let set = exercise.sets.first(where: { $0.index == address.index }) else {
-            throw ApplicationError.unknownSet(
-                address: address.description,
+            throw ApplicationError.notFound(
+                .set,
+                name: address.description,
                 candidates: exercise.sets.map(\.index).sorted().map { SetAddress(exercise: address.exercise, index: $0).description }
             )
         }

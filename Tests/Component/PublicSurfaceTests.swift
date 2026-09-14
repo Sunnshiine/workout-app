@@ -93,3 +93,49 @@ private func json(_ value: some Encodable) throws -> [String: Any] {
     #expect(ApplicationError.notConfigured.candidates == nil)
     #expect(ApplicationError.notConfigured.message.contains("workout init"))
 }
+
+@Test func everyApplicationErrorCaseReportsACodeAMessageAndCandidates() {
+    let cases: [(error: ApplicationError, code: String, echoes: String?, candidates: [String]?)] = [
+        (.notConfigured, "not_configured", nil, nil),
+        (.noBlock, "no_block", nil, nil),
+        (.invalidAddress("W1D1"), "invalid_address", "W1D1", nil),
+        (.invalidSetLog("185 for 5"), "invalid_set_log", "185 for 5", nil),
+        (.notFound(.session, name: "w9d1", candidates: ["w1d1"]), "unknown_session", "w9d1", ["w1d1"]),
+        (.notFound(.exercise, name: "w1d1.e5", candidates: ["w1d1.e0"]), "unknown_exercise", "w1d1.e5", ["w1d1.e0"]),
+        (.notFound(.set, name: "w1d1.e0.s9", candidates: ["w1d1.e0.s0"]), "unknown_set", "w1d1.e0.s9", ["w1d1.e0.s0"]),
+        (.notFound(.tab, name: "Block 26", candidates: ["Block 27"]), "unknown_tab", "Block 26", ["Block 27"]),
+        (.sessionUnavailable("w2d3"), "session_unavailable", "w2d3", nil),
+        (.sheetSwitchFailed("the sheet is offline"), "sheet_switch_failed", "the sheet is offline", nil),
+        (.sheetSwitchRequiresDiscard, "sheet_switch_requires_discard", nil, nil),
+        (.syncFailed(.conflict(["Back Squat: rejected"])), "sync_failed", nil, nil)
+    ]
+
+    for (error, code, echoes, candidates) in cases {
+        #expect(error.code == code)
+        #expect(error.localizedDescription == error.message, "\(code)")
+        #expect(error.message.count > 20, "\(code)")
+        #expect(error.candidates == candidates, "\(code)")
+        if let echoes {
+            #expect(error.message.contains(echoes), "\(code)")
+        }
+    }
+}
+
+@Test func aMissedLookupNamesWhatItSearchedAndHowManyItHeld() {
+    #expect(
+        ApplicationError.notFound(.session, name: "w9d1", candidates: ["w1d1", "w1d2"]).message
+            == "No Session w9d1. This Block has 2 Sessions; `workout status` lists them."
+    )
+    #expect(
+        ApplicationError.notFound(.exercise, name: "w1d1.e5", candidates: ["w1d1.e0", "w1d1.e1"]).message
+            == "w1d1 has 2 Exercises; no Exercise at w1d1.e5."
+    )
+    #expect(
+        ApplicationError.notFound(.set, name: "w1d1.e0.s9", candidates: ["w1d1.e0.s0"]).message
+            == "w1d1.e0 has 1 Sets; no Set at w1d1.e0.s9."
+    )
+    #expect(
+        ApplicationError.notFound(.tab, name: "Block 26", candidates: ["Block 27", "Block 28"]).message
+            == "No tab named \"Block 26\". Tabs: Block 27, Block 28."
+    )
+}
