@@ -25,7 +25,8 @@ let package = Package(
                 "LaunchScreen.storyboard"
             ],
             // The offline Sheet (LocalWorkbook, WorkbookScenario, AppEnvironment.inMemory/directory) exists
-            // for the CLI and tests. The Xcode app target never defines this, so the phone never ships it.
+            // for the CLI and tests. The Xcode project defines it only in Debug, so release phone builds
+            // never ship it.
             swiftSettings: [.define("OFFLINE_SHEET")]
         ),
         .executableTarget(

@@ -30,8 +30,8 @@ rather than in the home, so deleting a home orphans a plist and copying one does
 settings.
 
 The offline workbook, the scenarios, and the in-memory environment compile only under the
-`OFFLINE_SHEET` condition that `Package.swift` defines for the library; the Xcode app target never
-defines it, so the phone never ships fixture code.
+`OFFLINE_SHEET` condition, which `Package.swift` defines for the library and the Xcode project
+defines for Debug builds (the hosted tests need it); release phone builds never ship fixture code.
 
 **Considered alternatives:**
 - *`@testable import` from the CLI:* reaches the stores directly and lets the CLI drift into a
