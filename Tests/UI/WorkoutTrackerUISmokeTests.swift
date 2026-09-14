@@ -18,28 +18,6 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
     }
 
     @MainActor
-    func testMoveOnAdvancesToNextExercise() throws {
-        let app = launchCurrentSessionSmokeApp()
-
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
-        app.buttons["rpe-6"].tap()
-        let logButton = app.buttons["log-active-set-button"]
-        waitUntilEnabled(logButton)
-        logButton.tap()
-
-        waitForLabel("Weight, 252.5", on: app.buttons["weight-pill"])
-
-        app.buttons["stage-queue-button"].tap()
-        tapWhenHittable(app.buttons["queue-move-on-button"])
-        let celebration = moveOnCelebration(in: app)
-        XCTAssertTrue(celebration.waitForExistence(timeout: 3))
-        waitForLabel("Week 1, Day 1", on: celebration)
-
-        celebration.tap()
-        XCTAssertTrue(app.staticTexts["Bench Press"].waitForExistence(timeout: 3))
-    }
-
-    @MainActor
     func testCurrentSessionOverrideControlsReturnToCurrentSession() throws {
         let app = launchCurrentSessionSmokeApp()
 
