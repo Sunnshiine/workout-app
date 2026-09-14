@@ -72,4 +72,8 @@ rc=$?
 set -e
 grep -E "^(✔|✘) Test run with|Executed [1-9][0-9]* tests?, with|error: .*\.swift:[0-9]+|^Failing tests:|^	[A-Za-z_.]+(\(\))?$|\*\* TEST EXECUTE" "$logs/$stamp-test.log" | uniq
 echo "log: $logs/$stamp-test.log"
+if ! grep -qE "^(✔|✘) Test run with [1-9]|Executed [1-9][0-9]* tests?, with" "$logs/$stamp-test.log"; then
+  echo "no tests ran; check the selection (${targets[*]})" >&2
+  exit 65
+fi
 exit $rc
