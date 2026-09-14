@@ -111,20 +111,3 @@ func waitForValueContaining(_ value: String, on element: XCUIElement) {
     }
     XCTFail("Expected \(element) to have value containing '\(value)', got '\(String(describing: element.value))'")
 }
-
-@MainActor
-func moveOnCelebration(in app: XCUIApplication) -> XCUIElement {
-    let button = app.buttons["move-on-celebration"]
-    if button.waitForExistence(timeout: 1) {
-        return button
-    }
-
-    let scrollView = app.scrollViews["move-on-celebration"]
-    if scrollView.waitForExistence(timeout: 1) {
-        return scrollView
-    }
-
-    let element = app.otherElements["move-on-celebration"]
-    XCTAssertTrue(element.waitForExistence(timeout: 3))
-    return element
-}

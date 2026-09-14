@@ -28,7 +28,8 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
         app.buttons["session-location-button"].tap()
         XCTAssertTrue(app.navigationBars["Block 27"].waitForExistence(timeout: 3))
 
-        app.buttons["Week 1, Day 3"].tap()
+        // A day tile is an identified container wrapping an unlabeled button.
+        app.otherElements["session-tile-W1-D3"].tap()
         waitForLabel("Open Block Overview for Week 1, Day 3", on: app.buttons["session-location-button"])
         XCTAssertTrue(app.buttons["go-back-current-session-button"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["make-current-session-button"].exists)
