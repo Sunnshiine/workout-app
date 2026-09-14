@@ -2,7 +2,7 @@
   "mcpServers": {
     "XcodeBuildMCP": {
       "command": "npx",
-      "args": ["-y", "xcodebuildmcp@2.6.2", "mcp"]
+      "args": ["-y", "xcodebuildmcp@2.7.0", "mcp"]
     },
     "context7": {
       "type": "http",
