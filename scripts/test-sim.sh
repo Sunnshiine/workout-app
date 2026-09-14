@@ -36,9 +36,10 @@ done
 if [ -z "$sim" ]; then
   sim=$(xcrun simctl list devices available -j | python3 -c '
 import json, sys
-devices = [d for runtime, ds in json.load(sys.stdin)["devices"].items() for d in ds if d["name"] == "iPhone 17 Pro"]
-booted = [d for d in devices if d["state"] == "Booted"]
-pick = booted[0] if booted else max(devices, key=lambda d: d["deviceTypeIdentifier"] + d["udid"])
+def version(runtime): return tuple(int(n) for n in runtime.rsplit("iOS-", 1)[-1].split("-"))
+devices = [(version(runtime), d) for runtime, ds in json.load(sys.stdin)["devices"].items() for d in ds if d["name"] == "iPhone 17 Pro"]
+booted = [d for d in devices if d[1]["state"] == "Booted"]
+pick = max(booted or devices, key=lambda pair: pair[0])[1]
 print(pick["udid"], pick["state"])')
   read -r sim state <<< "$sim"
   [ "$state" = Booted ] || xcrun simctl boot "$sim"
