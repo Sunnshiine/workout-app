@@ -53,6 +53,7 @@
 		7DB5C219CA5F71B5CB978133 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 3977E6225F9526AF52619CA9 /* GoogleSignIn */; };
 		81873829CC18E67A8166DF1F /* RestPillPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E1975AC6F5A7462603B8E4A /* RestPillPresentation.swift */; };
 		856581A20DF9C7C18981ADAF /* LoadSuggestionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22EEE65D45B6DDC0D0563744 /* LoadSuggestionEngine.swift */; };
+		A2C0000000000000000000B2 /* LoadSuggestionInputs.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2C0000000000000000000F2 /* LoadSuggestionInputs.swift */; };
 		8E3D0AC1569F1BA279AF054E /* GoogleAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = A12FDB0A5CCFB2C56907DE63 /* GoogleAuth.swift */; };
 		9058A166701BFBFEE647C4F6 /* SheetLayoutInterpreter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A355409E05892E8B4C913ED /* SheetLayoutInterpreter.swift */; };
 		A1D0000000000000000000B1 /* SetLogPlacementNarration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1D0000000000000000000F1 /* SetLogPlacementNarration.swift */; };
@@ -182,6 +183,7 @@
 		1F622271C453C1C22E76B829 /* DeveloperToolsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperToolsView.swift; sourceTree = "<group>"; };
 		20D53666552036BF79EEB41F /* SetLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetLog.swift; sourceTree = "<group>"; };
 		22EEE65D45B6DDC0D0563744 /* LoadSuggestionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadSuggestionEngine.swift; sourceTree = "<group>"; };
+		A2C0000000000000000000F2 /* LoadSuggestionInputs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadSuggestionInputs.swift; sourceTree = "<group>"; };
 		2694D7B8CE96A7BA65917D8A /* SessionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCoordinator.swift; sourceTree = "<group>"; };
 		2A549AF09F599F33018AE0B4 /* SetLogToken.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetLogToken.swift; sourceTree = "<group>"; };
 		FEED000000000000000000B1 /* SetLogList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetLogList.swift; sourceTree = "<group>"; };
@@ -572,6 +574,7 @@
 				698FB46E5B1635F96AA0AA79 /* Info.plist */,
 				3695D878F161DF7CDC6A827E /* LaunchScreen.storyboard */,
 				22EEE65D45B6DDC0D0563744 /* LoadSuggestionEngine.swift */,
+				A2C0000000000000000000F2 /* LoadSuggestionInputs.swift */,
 				82C7E3B1CAB7C96142DCF1C7 /* Theme.swift */,
 				D48BD9386FBE1872BB0B6849 /* WorkoutTrackerApp.swift */,
 				08188E21C9C5EDF09B62BBBF /* Fixtures */,
@@ -860,6 +863,7 @@
 				BDAEF170ED92A211919CF347 /* LiveActivityRestContentBuilder.swift in Sources */,
 				FBD7F27846824EE734DF61AA /* LiveActivityRestContentStateFactory.swift in Sources */,
 				856581A20DF9C7C18981ADAF /* LoadSuggestionEngine.swift in Sources */,
+				A2C0000000000000000000B2 /* LoadSuggestionInputs.swift in Sources */,
 				B9BCABA31D42E2C0F66BDDAD /* MoveOnCelebrationPresentation.swift in Sources */,
 				C87ECF69561BD6EB9CF88D34 /* MoveOnCelebrationView.swift in Sources */,
 				9122D87DAF6F914ABCB3275C /* OnboardingPresentation.swift in Sources */,
