@@ -110,7 +110,7 @@
             var rowCount = rows
             var colCount = cols
             for a1 in cells.keys {
-                let index = a1ToIndex(a1)
+                guard let index = a1CellIndex(a1) else { continue }
                 rowCount = max(rowCount, index.row + 1)
                 colCount = max(colCount, index.col + 1)
             }
@@ -303,22 +303,18 @@
         }
 
         fileprivate static func parseRange(_ range: String) throws -> ParsedRange {
-            let split = try splitA1Range(range)
-            let references = split.reference
-                .split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
-                .map(String.init)
-            guard references.count == 1 || references.count == 2 else {
+            guard let split = splitA1Range(range) else {
                 throw LocalWorkbookSheetsClientError.malformedRange(range)
             }
 
-            let start = try parseCellReference(references[0], sourceRange: range)
-            let end: (row: Int, col: Int)
-            if references.count == 2 {
-                end = try parseCellReference(references[1], sourceRange: range)
-            } else {
-                end = start
-            }
-            guard end.row >= start.row, end.col >= start.col else {
+            let references = split.reference.uppercased()
+                .split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
+            guard
+                let start = a1CellIndex(String(references[0])),
+                let end = references.count == 2 ? a1CellIndex(String(references[1])) : start,
+                end.row >= start.row,
+                end.col >= start.col
+            else {
                 throw LocalWorkbookSheetsClientError.malformedRange(range)
             }
 
@@ -329,73 +325,6 @@
                 rowCount: end.row - start.row + 1,
                 colCount: end.col - start.col + 1
             )
-        }
-
-        fileprivate static func splitA1Range(_ range: String) throws -> (tabName: String, reference: String) {
-            var inQuotedTab = false
-            var index = range.startIndex
-            while index < range.endIndex {
-                let character = range[index]
-                if character == "'" {
-                    let next = range.index(after: index)
-                    if inQuotedTab, next < range.endIndex, range[next] == "'" {
-                        index = range.index(after: next)
-                        continue
-                    }
-                    inQuotedTab.toggle()
-                } else if character == "!", !inQuotedTab {
-                    let rawTabName = String(range[..<index])
-                    let referenceStart = range.index(after: index)
-                    let reference = String(range[referenceStart...])
-                    guard !rawTabName.isEmpty, !reference.isEmpty else {
-                        throw LocalWorkbookSheetsClientError.malformedRange(range)
-                    }
-                    return (try unquotedTabName(rawTabName, sourceRange: range), reference)
-                }
-                index = range.index(after: index)
-            }
-
-            throw LocalWorkbookSheetsClientError.malformedRange(range)
-        }
-
-        fileprivate static func unquotedTabName(_ raw: String, sourceRange: String) throws -> String {
-            guard raw.hasPrefix("'") || raw.hasSuffix("'") else { return raw }
-            guard raw.hasPrefix("'"), raw.hasSuffix("'"), raw.count >= 2 else {
-                throw LocalWorkbookSheetsClientError.malformedRange(sourceRange)
-            }
-
-            let inner = raw.dropFirst().dropLast()
-            return inner.replacingOccurrences(of: "''", with: "'")
-        }
-
-        fileprivate static func parseCellReference(_ reference: String, sourceRange: String) throws -> (row: Int, col: Int) {
-            let upper = reference.uppercased()
-            var letters = ""
-            var digits = ""
-
-            for character in upper {
-                if character.isLetter, digits.isEmpty {
-                    letters.append(character)
-                } else if character.isNumber {
-                    digits.append(character)
-                } else {
-                    throw LocalWorkbookSheetsClientError.malformedRange(sourceRange)
-                }
-            }
-
-            guard !letters.isEmpty, !digits.isEmpty, let rowNumber = Int(digits), rowNumber > 0 else {
-                throw LocalWorkbookSheetsClientError.malformedRange(sourceRange)
-            }
-
-            var colNumber = 0
-            for byte in letters.utf8 {
-                guard byte >= 65, byte <= 90 else {
-                    throw LocalWorkbookSheetsClientError.malformedRange(sourceRange)
-                }
-                colNumber = colNumber * 26 + Int(byte - 64)
-            }
-
-            return (row: rowNumber - 1, col: colNumber - 1)
         }
     }
 

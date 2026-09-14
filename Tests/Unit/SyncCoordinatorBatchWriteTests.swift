@@ -50,10 +50,10 @@ private final class BatchFlushStubClient: SheetsClient, @unchecked Sendable {
     private func apply(range: String, values: [[String]]) {
         guard
             let reference = range.split(separator: "!").last,
-            let value = values.first?.first
+            let value = values.first?.first,
+            let target = a1CellIndex(String(reference))
         else { return }
 
-        let target = a1ToIndex(String(reference))
         if target.row >= grid.count {
             grid.append(contentsOf: SheetGrid(repeating: [], count: target.row - grid.count + 1))
         }

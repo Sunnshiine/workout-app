@@ -46,7 +46,33 @@ struct SheetSnapshot: Sendable, Equatable {
 }
 
 public func isA1CellReference(_ reference: String) -> Bool {
-    reference.wholeMatch(of: /[A-Z]+[1-9][0-9]*/) != nil
+    a1CellIndex(reference) != nil
+}
+
+/// The zero-based row and column an A1 cell reference names, or nil when it is not one ("K15" is (14, 10)).
+///
+/// Uppercase only: callers that accept user input fold case at their own boundary.
+func a1CellIndex(_ reference: String) -> (row: Int, col: Int)? {
+    guard let match = reference.wholeMatch(of: /([A-Z]+)([1-9][0-9]*)/), let rowNumber = Int(match.2) else {
+        return nil
+    }
+    var colNumber = 0
+    for byte in match.1.utf8 {
+        colNumber = colNumber * 26 + Int(byte - 64)  // A=1
+    }
+    return (row: rowNumber - 1, col: colNumber - 1)
+}
+
+/// Splits an A1 range such as `'Coach''s Block'!K15:L16` into its tab name and its cell reference.
+///
+/// A quoted tab name may contain `!` and spells an apostrophe `''`; a bare one may contain neither.
+func splitA1Range(_ range: String) -> (tabName: String, reference: String)? {
+    if let quoted = range.wholeMatch(of: /'((?:[^']|'')*)'!(.+)/) {
+        let tabName = String(quoted.1).replacingOccurrences(of: "''", with: "'")
+        return tabName.isEmpty ? nil : (tabName, String(quoted.2))
+    }
+    guard let bare = range.wholeMatch(of: /([^'!]+)!(.+)/) else { return nil }
+    return (tabName: String(bare.1), reference: String(bare.2))
 }
 
 extension Array where Element == [String] {
@@ -54,19 +80,6 @@ extension Array where Element == [String] {
         guard row >= 0, row < count, col >= 0, col < self[row].count else { return "" }
         return self[row][col]
     }
-}
-
-func a1ToIndex(_ a1: String) -> (row: Int, col: Int) {
-    let reference = a1.uppercased()
-    var col = 0
-    var idx = reference.startIndex
-    while idx < reference.endIndex, reference[idx].isLetter {
-        guard let asciiValue = reference[idx].asciiValue else { break }
-        col = col * 26 + Int(asciiValue - 64)  // A=1
-        idx = reference.index(after: idx)
-    }
-    let row = Int(reference[idx...]) ?? 1
-    return (row - 1, col - 1)
 }
 
 func columnName(_ zeroBasedColumn: Int) -> String {
@@ -88,10 +101,8 @@ func indexToA1(row: Int, col: Int) -> String {
 func gridFromA1(_ cells: [String: String], rows: Int, cols: Int) -> SheetGrid {
     var grid = SheetGrid(repeating: [String](repeating: "", count: cols), count: rows)
     for (a1, value) in cells {
-        let index = a1ToIndex(a1)
-        if index.row >= 0, index.col >= 0, index.row < rows, index.col < cols {
-            grid[index.row][index.col] = value
-        }
+        guard let index = a1CellIndex(a1), index.row < rows, index.col < cols else { continue }
+        grid[index.row][index.col] = value
     }
     return grid
 }
