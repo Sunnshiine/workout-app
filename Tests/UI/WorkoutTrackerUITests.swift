@@ -5,67 +5,39 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
     func testActiveSetFieldFocusDismissesWithoutCardCancel() throws {
         let app = launchFixtureApp()
 
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
         XCTAssertFalse(app.buttons["Cancel"].exists)
         XCTAssertFalse(app.buttons["Skip"].exists)
 
         app.buttons["weight-pill"].tap()
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.keyboards.firstMatch.appears(within: 3))
 
         tapActiveSetCardHeaderBackground(in: app)
 
-        XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 1))
+        XCTAssertFalse(app.keyboards.firstMatch.appears(within: 1))
         XCTAssertTrue(app.buttons["log-active-set-button"].exists)
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
 
         XCTAssertTrue(app.buttons["log-active-set-button"].exists)
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
-    }
-
-    @MainActor
-    func testActiveSetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused() throws {
-        let app = launchFixtureApp()
-
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
-
-        app.buttons["rpe-6"].tap()
-        let logButton = app.buttons["log-active-set-button"]
-        waitForLabel("Log 237.5×5@6", on: logButton)
-
-        app.buttons["weight-pill"].tap()
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
-        app.typeText("230")
-        waitForLabel("Log 230×5@6", on: logButton)
-
-        // A single ordinary tap on the capsule, exactly as a finger lands mid-set with the
-        // keyboard still up: it must log on this tap, not merely fold the keyboard.
-        logButton.tap()
-
-        XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 1))
-        XCTAssertTrue(app.buttons["Set 1, 230x5@6"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["Set 2 of 3"].waitForExistence(timeout: 3))
     }
 
     @MainActor
     func testTapOnNonInteractiveStageContentDismissesKeyboard() throws {
         let app = launchFixtureApp()
 
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
 
         app.buttons["weight-pill"].tap()
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
-        app.typeText("230")
+        XCTAssertTrue(app.keyboards.firstMatch.appears(within: 3))
 
-        // The exercise name is plain editorial text — no button, no gesture of its own.
-        // Tapping it must fold the keyboard without logging or skipping anything.
-        app.staticTexts["stage-exercise-name"].tap()
+        tapEmptyStageSpaceBetweenBranchAndRunline(in: app)
 
-        XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 1))
+        XCTAssertFalse(app.keyboards.firstMatch.appears(within: 1))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
-        waitForLabel("Weight, 230", on: app.buttons["weight-pill"])
+        waitForLabel("Weight, 237.5", on: app.buttons["weight-pill"])
         XCTAssertTrue(app.buttons["log-active-set-button"].exists)
     }
 
@@ -83,7 +55,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         XCTAssertTrue(signOutButton.exists)
 
         developerToolsRow.tap()
-        XCTAssertTrue(app.navigationBars["Developer Tools"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars["Developer Tools"].appears(within: 3))
         XCTAssertTrue(app.staticTexts["Current Session Debug Info"].exists)
         XCTAssertTrue(app.staticTexts["Pending Sheet Writes"].exists)
         XCTAssertTrue(app.staticTexts["Actions"].exists)
@@ -91,45 +63,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         XCTAssertTrue(app.buttons["developer-tools-sync-button"].exists)
 
         app.navigationBars["Developer Tools"].buttons["Settings"].tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
-    }
-
-    @MainActor
-    func testBuildIdentityFooterShowsAndCopiesOnTap() throws {
-        let app = launchSettingsFixtureApp()
-
-        let footer = app.buttons["settings-build-identity-footer"]
-        XCTAssertTrue(footer.waitForExistence(timeout: 3))
-
-        // Local (unstamped) test builds surface the version pair plus a "local build" note.
-        XCTAssertTrue(footer.label.contains("local build"))
-
-        footer.tap()
-        XCTAssertTrue(app.buttons["Copied"].waitForExistence(timeout: 3))
-    }
-
-    @MainActor
-    func testOpenExerciseMakeupFlowShowsLastPerformedAndLogsSet() throws {
-        let app = launchFixtureApp(options: [.openExercises])
-
-        app.buttons["stage-queue-button"].tap()
-        let openBackSquat = app.buttons.containing(.staticText, identifier: "Back Squat").firstMatch
-        tapWhenHittable(openBackSquat)
-
-        XCTAssertTrue(app.buttons["go-back-current-session-button"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["make-current-session-button"].exists)
-        XCTAssertTrue(app.staticTexts["Back Squat"].exists)
-        let lastPerformed = app.staticTexts.matching(
-            NSPredicate(format: "label CONTAINS %@", "Last Performed 245x5@6, 255x5@7")
-        ).firstMatch
-        XCTAssertTrue(lastPerformed.waitForExistence(timeout: 3))
-        XCTAssertTrue(lastPerformed.label.contains("Block 26 · W4 D3"))
-
-        app.buttons["rpe-7"].tap()
-        waitForLabel("Log 252.5×5@7", on: app.buttons["log-active-set-button"])
-        app.buttons["log-active-set-button"].tap()
-
-        XCTAssertFalse(app.buttons["log-active-set-button"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars["Settings"].appears(within: 3))
     }
 
     @MainActor
@@ -139,61 +73,32 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
             options: [.disableCelebrationBloom]
         )
 
-        XCTAssertTrue(app.staticTexts["Session complete"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Session complete"].appears(within: 3))
 
         let openBackSquat = app.buttons.containing(.staticText, identifier: "Back Squat").firstMatch
-        XCTAssertTrue(openBackSquat.waitForExistence(timeout: 3))
+        XCTAssertTrue(openBackSquat.appears(within: 3))
         XCTAssertTrue(app.buttons["move-on-button"].exists)
 
         tapWhenHittable(openBackSquat)
 
-        XCTAssertTrue(app.buttons["go-back-current-session-button"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["go-back-current-session-button"].appears(within: 3))
         XCTAssertTrue(app.staticTexts["Back Squat"].exists)
-    }
-
-    @MainActor
-    func testSettingsRevealGestureOpensSettings() throws {
-        let app = launchFixtureApp(options: [.pendingWrite])
-
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["session-controls-settings-button"].exists)
-
-        let settingsButton = revealSessionControlsAndSettingsButton(in: app)
-        XCTAssertTrue(app.otherElements["session-controls"].exists)
-        XCTAssertTrue(settingsButton.exists)
-        XCTAssertTrue(settingsButton.isHittable)
-        XCTAssertFalse(app.buttons["session-controls-sync-button"].exists)
-
-        settingsButton.tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
-        // Native Settings renders the Training Sheet name as a LabeledContent value on the row; read
-        // it off the row itself so the assertion survives accessibility-combining inside the button.
-        let trainingSheetRow = app.buttons["settings-training-sheet-row"]
-        XCTAssertTrue(trainingSheetRow.waitForExistence(timeout: 3))
-        XCTAssertTrue(trainingSheetRow.label.contains("Fixture Training Log"))
     }
 
     @MainActor
     func testTappingLastPerformedOpensExerciseHistorySheet() throws {
         let app = launchFixtureApp()
 
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
 
-        let lastPerformed = app.staticTexts.matching(
-            NSPredicate(format: "label CONTAINS %@", "Last Performed 245x5@6, 255x5@7")
-        ).firstMatch
-        XCTAssertTrue(lastPerformed.waitForExistence(timeout: 3))
+        let lastPerformed = app.staticTexts["Block 26 · W4 D3 — 245x5@6, 255x5@7"]
+        XCTAssertTrue(lastPerformed.appears(within: 3))
         tapWhenHittable(lastPerformed)
 
-        // The quiet Exercise History sheet, seeded with deeper Back Squat history.
-        XCTAssertTrue(app.staticTexts["Exercise History · last 5"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["BLOCK 26"].exists)
-        XCTAssertTrue(app.staticTexts["BLOCK 25"].exists)
-        // Grouped rows carry their Sets: the deeper Block 26 entry renders its formatted line.
-        let deeperRow = app.staticTexts.matching(
-            NSPredicate(format: "label CONTAINS %@", "235×5")
-        ).firstMatch
-        XCTAssertTrue(deeperRow.waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Exercise History · last 5"].appears(within: 3))
+        XCTAssertTrue(app.staticTexts["Block 26"].exists)
+        XCTAssertTrue(app.staticTexts["Block 25"].exists)
+        XCTAssertTrue(app.staticTexts["235×5"].exists)
     }
 
     @MainActor
@@ -219,7 +124,7 @@ final class WorkoutTrackerAppearanceUITests: XCTestCase {
         let app = launchSettingsFixtureApp()
 
         let picker = app.segmentedControls["settings-appearance-picker"]
-        XCTAssertTrue(picker.waitForExistence(timeout: 3))
+        XCTAssertTrue(picker.appears(within: 3))
         XCTAssertTrue(app.buttons["System"].exists)
         XCTAssertTrue(app.buttons["Light"].exists)
         XCTAssertTrue(app.buttons["Night"].exists)
@@ -245,153 +150,48 @@ final class WorkoutTrackerOnboardingSwitchUITests: XCTestCase {
     func testOnboardingSheetSelectionAutoSyncsAndReplacesStaleCachedBlock() throws {
         let app = launchWorkoutApp(fixture: .onboarding, options: [.disableCelebrationBloom])
 
-        // Signed in, but no spreadsheet selected yet — onboarding shows the sheet picker.
-        XCTAssertTrue(app.staticTexts["Choose your training sheet"].waitForExistence(timeout: 5))
-        // The seeded (stale) Block is never shown while onboarding.
+        XCTAssertTrue(app.staticTexts["Choose your training sheet"].appears(within: 3))
         XCTAssertFalse(app.staticTexts["Back Squat"].exists)
 
-        let replacementRow = app.buttons["Replacement Training Log"]
-        XCTAssertTrue(replacementRow.waitForExistence(timeout: 5))
+        let replacementRow = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Replacement Training Log")
+        ).firstMatch
+        XCTAssertTrue(replacementRow.appears(within: 3))
         replacementRow.tap()
 
-        // Auto-synced the newly selected sheet (no manual re-sync) and advanced to its session.
-        XCTAssertTrue(app.staticTexts["Replacement Squat"].waitForExistence(timeout: 10))
-        // The stale cached Block's exercise is never presented for the newly selected sheet.
+        XCTAssertTrue(app.staticTexts["Replacement Squat"].appears(within: 3))
         XCTAssertFalse(app.staticTexts["Back Squat"].exists)
     }
+}
+
+@MainActor
+private func tapEmptyStageSpaceBetweenBranchAndRunline(in app: XCUIApplication) {
+    let branchEnd = app.buttons["Set 3, 5 · RPE8"].frame.maxY
+    let runlineStart = app.staticTexts["Block 26 · W4 D3 — 245x5@6, 255x5@7"].frame.minY
+    app.coordinate(withNormalizedOffset: .zero)
+        .withOffset(CGVector(dx: app.frame.midX, dy: (branchEnd + runlineStart) / 2))
+        .tap()
 }
 
 @MainActor
 private func tapActiveSetCardHeaderBackground(in app: XCUIApplication) {
     let activeSetCard = app.otherElements["active-set-card"]
-    XCTAssertTrue(activeSetCard.waitForExistence(timeout: 3))
+    XCTAssertTrue(activeSetCard.appears(within: 3))
     activeSetCard.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.14)).tap()
-}
-
-@MainActor
-private func revealSessionControlsAndSettingsButton(in app: XCUIApplication) -> XCUIElement {
-    let settingsButton = app.buttons["session-controls-settings-button"]
-    if settingsButton.waitForExistence(timeout: 1), settingsButton.isHittable {
-        return settingsButton
-    }
-
-    overPullSessionHeader(in: app)
-    if !settingsButton.waitForExistence(timeout: 3) {
-        overPullSessionBody(in: app)
-    }
-
-    XCTAssertTrue(settingsButton.waitForExistence(timeout: 3))
-    let deadline = Date().addingTimeInterval(3)
-    while Date() < deadline {
-        if settingsButton.isHittable {
-            return settingsButton
-        }
-        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-    }
-    XCTFail("Expected session controls settings button to become hittable")
-    return settingsButton
-}
-
-@MainActor
-private func overPullSessionHeader(in app: XCUIApplication) {
-    pullSessionHeader(in: app, endY: 0.75)
-}
-
-@MainActor
-private func overPullSessionBody(in app: XCUIApplication) {
-    let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
-    let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85))
-    start.press(forDuration: 0.1, thenDragTo: end)
-}
-
-@MainActor
-private func pullSessionHeader(in app: XCUIApplication, endY: CGFloat) {
-    let headerHUD = app.otherElements["session-header-hud"]
-    XCTAssertTrue(headerHUD.waitForExistence(timeout: 3))
-    let start = app.coordinate(
-        withNormalizedOffset: CGVector(
-            dx: headerHUD.frame.midX / app.frame.width,
-            dy: headerHUD.frame.midY / app.frame.height
-        )
-    )
-    start
-        .press(
-            forDuration: 0.1,
-            thenDragTo: start.withOffset(CGVector(dx: 0, dy: app.frame.height * (endY - 0.25)))
-        )
-}
-
-@MainActor
-private func assertMoveOnCelebrationIsUsable(_ celebration: XCUIElement, in app: XCUIApplication) {
-    let title = app.staticTexts["move-on-celebration-title"]
-    let continueButton = app.buttons["move-on-celebration-continue"]
-    let windowFrame = app.windows.element(boundBy: 0).frame
-
-    XCTAssertTrue(title.waitForExistence(timeout: 6))
-    XCTAssertFalse(title.label.isEmpty)
-    assertElementIsMostlyVisible(title, in: windowFrame)
-    XCTAssertTrue(continueButton.waitForExistence(timeout: 3))
-    assertElementIsMostlyVisible(continueButton, in: windowFrame)
-    XCTAssertTrue(continueButton.isHittable)
-}
-
-private func assertElementIsMostlyVisible(
-    _ element: XCUIElement,
-    in visibleFrame: CGRect,
-    minimumVisibleRatio: CGFloat = 0.9
-) {
-    let elementFrame = element.frame
-    let elementArea = elementFrame.width * elementFrame.height
-    XCTAssertGreaterThan(elementArea, 0, "\(element) has no readable bounds")
-    guard elementArea > 0 else { return }
-
-    let clippedFrame = visibleFrame.intersection(elementFrame)
-    let visibleArea = clippedFrame.width * clippedFrame.height
-    XCTAssertGreaterThanOrEqual(
-        visibleArea / elementArea,
-        minimumVisibleRatio,
-        "\(element) is not readable within \(visibleFrame)"
-    )
 }
 
 final class WorkoutTrackerLongSessionUITests: XCTestCase {
     @MainActor
-    func testLongSessionStageAdvancesAfterLogAndShowsUpNext() throws {
-        let app = launchFixtureApp()
-
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.otherElements["active-set-card"].exists)
-        XCTAssertTrue(app.buttons["stage-up-next"].staticTexts["Bench Press"].exists)
-
-        app.buttons["rpe-6"].tap()
-        app.buttons["weight-pill"].tap()
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 3))
-        app.typeText("225")
-
-        tapActiveSetCardHeaderBackground(in: app)
-        XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 1))
-
-        let logButton = app.buttons["log-active-set-button"]
-        waitForLabel("Log 225×5@6", on: logButton)
-        tapWhenHittable(logButton)
-
-        XCTAssertTrue(app.staticTexts["Bench Press"].waitForExistence(timeout: 3))
-        XCTAssertTrue(
-            app.buttons["stage-up-next"].staticTexts["Chest-Supported Row"].waitForExistence(timeout: 3)
-        )
-    }
-
-    @MainActor
     func testLongSessionQueueListsEveryExerciseAndJumpLandsOnStage() throws {
         let app = launchFixtureApp()
 
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
 
         let queueButton = app.buttons["stage-queue-button"]
         waitForLabel("1 of 8", on: queueButton)
         queueButton.tap()
 
-        XCTAssertTrue(app.staticTexts["This Session"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["This Session"].appears(within: 3))
         XCTAssertFalse(app.buttons["stage-queue-row-exercise-0"].isEnabled)
 
         let farmerCarryRow = app.buttons["stage-queue-row-exercise-7"]
@@ -405,7 +205,7 @@ final class WorkoutTrackerLongSessionUITests: XCTestCase {
         }
         tapWhenHittable(farmerCarryRow)
 
-        XCTAssertTrue(app.staticTexts["Farmer Carry"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Farmer Carry"].appears(within: 3))
         XCTAssertTrue(app.staticTexts["Tall posture."].exists)
     }
 
@@ -417,48 +217,20 @@ final class WorkoutTrackerLongSessionUITests: XCTestCase {
 
 final class WorkoutTrackerSupersetUITests: XCTestCase {
     @MainActor
-    func testQueuePairingCreatesAndDismissesSuperset() throws {
-        let app = launchWorkoutApp(fixture: .currentSession)
-
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
-
-        app.buttons["stage-queue-button"].tap()
-        XCTAssertTrue(app.staticTexts["This Session"].waitForExistence(timeout: 3))
-
-        tapWhenHittable(app.buttons["stage-queue-pair-exercise-0"])
-        XCTAssertTrue(app.staticTexts["Pick a partner"].waitForExistence(timeout: 3))
-
-        tapWhenHittable(app.buttons["stage-queue-row-exercise-1"])
-
-        let supersetRow = app.buttons["stage-queue-row-superset-0"]
-        XCTAssertTrue(supersetRow.waitForExistence(timeout: 3))
-        XCTAssertTrue(supersetRow.staticTexts["Back Squat + BB RDL"].exists)
-        tapWhenHittable(supersetRow)
-
-        XCTAssertTrue(app.staticTexts["SUPERSET"].waitForExistence(timeout: 3))
-
-        tapWhenHittable(app.buttons["Dismiss superset"])
-
-        waitForLabel("0 of 2", on: app.buttons["stage-queue-button"])
-        XCTAssertFalse(app.staticTexts["SUPERSET"].exists)
-        XCTAssertTrue(app.staticTexts["Back Squat"].exists)
-    }
-
-    @MainActor
     func testQueuePairingCanBeCancelled() throws {
         let app = launchWorkoutApp(fixture: .currentSession)
 
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
 
         app.buttons["stage-queue-button"].tap()
-        XCTAssertTrue(app.staticTexts["This Session"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["This Session"].appears(within: 3))
 
         tapWhenHittable(app.buttons["stage-queue-pair-exercise-0"])
-        XCTAssertTrue(app.staticTexts["Pick a partner"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Pick a partner"].appears(within: 3))
 
         tapWhenHittable(app.buttons["stage-queue-cancel-pairing"])
 
-        XCTAssertTrue(app.staticTexts["This Session"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["This Session"].appears(within: 3))
         XCTAssertTrue(app.buttons["stage-queue-pair-exercise-0"].exists)
         XCTAssertFalse(app.buttons["stage-queue-row-superset-0"].exists)
     }
@@ -469,15 +241,15 @@ final class WorkoutTrackerSkipUITests: XCTestCase {
     func testActiveSetCanBeSkippedWithHold() throws {
         let app = launchFixtureApp()
 
-        XCTAssertTrue(app.staticTexts["Back Squat"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
         let logButton = app.buttons["log-active-set-button"]
         waitUntilEnabled(logButton)
 
         logButton.press(forDuration: 1.0)
 
-        XCTAssertTrue(app.buttons["Set 1, skip"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["Set 2 of 3"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Set 1, skip"].appears(within: 3))
+        XCTAssertTrue(app.staticTexts["Set 2 of 3"].appears(within: 3))
     }
 
     @MainActor

@@ -40,15 +40,31 @@ extension XCTestCase {
     ) -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = fixture.launchArguments + options.map(\.rawValue)
+        app.launchArguments = fixture.launchArguments + options.map(\.rawValue) + ["-UITEST_DISABLE_ANIMATIONS"]
         app.launch()
         return app
     }
 }
 
+extension XCUIElement {
+    /// `waitForExistence` schedules its first check about a second out, while a bare `exists`
+    /// query answers in 20 ms on this app's tree, so poll it instead.
+    @MainActor
+    func appears(within timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if exists {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        } while Date() < deadline
+        return false
+    }
+}
+
 @MainActor
 func waitForLabel(_ label: String, on element: XCUIElement) {
-    XCTAssertTrue(element.waitForExistence(timeout: 3), "Expected element for label '\(label)' to exist")
+    XCTAssertTrue(element.appears(within: 3), "Expected element for label '\(label)' to exist")
     let deadline = Date().addingTimeInterval(3)
     while Date() < deadline {
         if element.label == label {
@@ -61,7 +77,7 @@ func waitForLabel(_ label: String, on element: XCUIElement) {
 
 @MainActor
 func waitUntilEnabled(_ element: XCUIElement) {
-    XCTAssertTrue(element.waitForExistence(timeout: 3))
+    XCTAssertTrue(element.appears(within: 3))
     let deadline = Date().addingTimeInterval(3)
     while Date() < deadline {
         if element.isEnabled {
@@ -74,7 +90,7 @@ func waitUntilEnabled(_ element: XCUIElement) {
 
 @MainActor
 func tapWhenHittable(_ element: XCUIElement) {
-    XCTAssertTrue(element.waitForExistence(timeout: 3))
+    XCTAssertTrue(element.appears(within: 3))
     let deadline = Date().addingTimeInterval(3)
     while Date() < deadline {
         if element.isHittable {
@@ -88,7 +104,7 @@ func tapWhenHittable(_ element: XCUIElement) {
 
 @MainActor
 func waitForValue(_ value: String, on element: XCUIElement) {
-    XCTAssertTrue(element.waitForExistence(timeout: 3))
+    XCTAssertTrue(element.appears(within: 3))
     let deadline = Date().addingTimeInterval(3)
     while Date() < deadline {
         if element.value as? String == value {
@@ -101,7 +117,7 @@ func waitForValue(_ value: String, on element: XCUIElement) {
 
 @MainActor
 func waitForValueContaining(_ value: String, on element: XCUIElement) {
-    XCTAssertTrue(element.waitForExistence(timeout: 3))
+    XCTAssertTrue(element.appears(within: 3))
     let deadline = Date().addingTimeInterval(3)
     while Date() < deadline {
         if let elementValue = element.value as? String, elementValue.contains(value) {
@@ -110,21 +126,4 @@ func waitForValueContaining(_ value: String, on element: XCUIElement) {
         RunLoop.current.run(until: Date().addingTimeInterval(0.1))
     }
     XCTFail("Expected \(element) to have value containing '\(value)', got '\(String(describing: element.value))'")
-}
-
-@MainActor
-func moveOnCelebration(in app: XCUIApplication) -> XCUIElement {
-    let button = app.buttons["move-on-celebration"]
-    if button.waitForExistence(timeout: 1) {
-        return button
-    }
-
-    let scrollView = app.scrollViews["move-on-celebration"]
-    if scrollView.waitForExistence(timeout: 1) {
-        return scrollView
-    }
-
-    let element = app.otherElements["move-on-celebration"]
-    XCTAssertTrue(element.waitForExistence(timeout: 3))
-    return element
 }

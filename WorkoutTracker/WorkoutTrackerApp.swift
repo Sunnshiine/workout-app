@@ -16,6 +16,11 @@ struct WorkoutTrackerApp: App {
         #endif
         #if DEBUG
             if UITestFixture.isEnabled {
+                #if canImport(UIKit)
+                    if UITestFixture.disablesAnimations {
+                        UIView.setAnimationsEnabled(false)
+                    }
+                #endif
                 let container = UITestFixture.makeContainer()
                 self.container = container
                 let ctx = container.mainContext
