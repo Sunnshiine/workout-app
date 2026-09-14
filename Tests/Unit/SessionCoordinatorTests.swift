@@ -1371,3 +1371,204 @@ private func makeRestActionFixture(
     #expect(fixture.coordinator.retiringTransition == nil)
     #expect(fixture.coordinator.activeSetTransition == nil)
 }
+
+@MainActor
+@Test func sessionScreenWiringSendsLogToTheBoundAdaptersAndRequestsFlush() throws {
+    let session = makeCoordinatorSession()
+    let logging = SpySessionLoggingAdapter()
+    let sync = SpySessionSyncAdapter()
+    let coordinator = SessionCoordinator()
+
+    coordinator.bind(to: session, logging: logging, sync: sync)
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+
+    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 1))
+    #expect(logging.loggedSets.count == 1)
+    #expect(logging.loggedSets.first?.log == SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    #expect(sync.flushRequestCount == 1)
+    #expect(sync.reportedErrors.isEmpty)
+}
+
+@MainActor
+@Test func sessionScreenWiringStartsBoundRestTimerWithTheBoundDurations() throws {
+    let session = makeCoordinatorSession()
+    let restClock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
+    let restTimer = RestTimer(clock: restClock)
+    let coordinator = SessionCoordinator()
+
+    coordinator.bind(
+        to: session,
+        logging: SpySessionLoggingAdapter(),
+        sync: SpySessionSyncAdapter(),
+        restTimer: restTimer,
+        standardRestDuration: { 123 },
+        supersetRestDuration: { 77 }
+    )
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+
+    #expect(restTimer.remaining == 123)
+    #expect(restTimer.interval?.end == Date(timeIntervalSinceReferenceDate: 2_123))
+    #expect(restTimer.label == "Rest")
+}
+
+@MainActor
+@Test func sessionScreenWiringStartsBoundSupersetRestDurationForASupersetMember() throws {
+    let session = makeCoordinatorSession()
+    let restClock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
+    let restTimer = RestTimer(clock: restClock)
+    let coordinator = SessionCoordinator()
+
+    coordinator.bind(
+        to: session,
+        logging: SpySessionLoggingAdapter(),
+        sync: SpySessionSyncAdapter(),
+        restTimer: restTimer,
+        standardRestDuration: { 123 },
+        supersetRestDuration: { 77 }
+    )
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let row = try #require(session.exercises.first { $0.order == 2 })
+    let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
+    #expect(coordinator.createSuperset(from: bench, to: row, in: session))
+
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+
+    #expect(restTimer.remaining == 77)
+    #expect(restTimer.interval?.end == Date(timeIntervalSinceReferenceDate: 2_077))
+    #expect(restTimer.label == "Superset rest")
+}
+
+@MainActor
+@Test func sessionScreenWiringDrivesTheBoundLiveActivityAdapter() throws {
+    let session = makeCoordinatorSession()
+    connectCoordinatorWeek([session])
+    let configured = SpySessionLiveActivityAdapter()
+    let bound = SpySessionLiveActivityAdapter()
+    let restClock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
+    let restTimer = RestTimer(clock: restClock)
+    let coordinator = SessionCoordinator(liveActivity: configured)
+
+    coordinator.bind(
+        to: session,
+        logging: SpySessionLoggingAdapter(),
+        sync: SpySessionSyncAdapter(),
+        restTimer: restTimer,
+        standardRestDuration: { 123 },
+        liveActivity: bound
+    )
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+
+    #expect(configured.calls.isEmpty)
+    #expect(configured.invalidationCalls.isEmpty)
+    #expect(bound.calls.count == 1)
+    #expect(bound.calls.first?.sessionLabel == "Week 1 - Day 1")
+    #expect(bound.calls.first?.content.exerciseName == "Bench Press")
+    #expect(bound.invalidationCalls.count == 1)
+}
+
+@MainActor
+@Test func sessionScreenWiringKeepsTheConfiguredLiveActivityAdapterWhenNoneIsBound() throws {
+    let session = makeCoordinatorSession()
+    connectCoordinatorWeek([session])
+    let configured = SpySessionLiveActivityAdapter()
+    let restClock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
+    let restTimer = RestTimer(clock: restClock)
+    let coordinator = SessionCoordinator(liveActivity: configured)
+
+    coordinator.bind(
+        to: session,
+        logging: SpySessionLoggingAdapter(),
+        sync: SpySessionSyncAdapter(),
+        restTimer: restTimer,
+        standardRestDuration: { 123 }
+    )
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+
+    #expect(configured.calls.count == 1)
+    #expect(configured.calls.first?.sessionLabel == "Week 1 - Day 1")
+    #expect(configured.invalidationCalls.count == 1)
+}
+
+@MainActor
+@Test func sessionScreenWiringUsesTheBoundCurrentSessionScope() throws {
+    let session = makeCoordinatorSession()
+    connectCoordinatorWeek([session])
+    let liveActivity = SpySessionLiveActivityAdapter()
+    let restClock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
+    let restTimer = RestTimer(clock: restClock)
+    let coordinator = SessionCoordinator(liveActivity: liveActivity)
+
+    coordinator.bind(
+        to: session,
+        logging: SpySessionLoggingAdapter(),
+        sync: SpySessionSyncAdapter(),
+        restTimer: restTimer,
+        standardRestDuration: { 123 },
+        isCurrentSessionScope: { _ in false }
+    )
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+
+    #expect(liveActivity.calls.isEmpty)
+    #expect(liveActivity.invalidationCalls.isEmpty)
+}
+
+@MainActor
+@Test func sessionScreenWiringKeepsTheConfiguredCurrentSessionScopeWhenNoneIsBound() throws {
+    let session = makeCoordinatorSession()
+    connectCoordinatorWeek([session])
+    let liveActivity = SpySessionLiveActivityAdapter()
+    let restClock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
+    let restTimer = RestTimer(clock: restClock)
+    let coordinator = SessionCoordinator(liveActivity: liveActivity, isCurrentSessionScope: { _ in false })
+
+    coordinator.bind(
+        to: session,
+        logging: SpySessionLoggingAdapter(),
+        sync: SpySessionSyncAdapter(),
+        restTimer: restTimer,
+        standardRestDuration: { 123 }
+    )
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+
+    #expect(liveActivity.calls.isEmpty)
+    #expect(liveActivity.invalidationCalls.isEmpty)
+}
+
+@MainActor
+@Test func sessionScreenWiringFallsBackToTheStandardAndSupersetRestDefaults() throws {
+    let session = makeCoordinatorSession()
+    let restClock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
+    let restTimer = RestTimer(clock: restClock)
+    let coordinator = SessionCoordinator()
+
+    coordinator.bind(
+        to: session,
+        logging: SpySessionLoggingAdapter(),
+        sync: SpySessionSyncAdapter(),
+        restTimer: restTimer
+    )
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let row = try #require(session.exercises.first { $0.order == 2 })
+    let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+
+    #expect(restTimer.remaining == 120)
+
+    #expect(coordinator.createSuperset(from: bench, to: row, in: session))
+    let secondBenchSet = try #require(bench.sets.first { $0.index == 1 })
+    coordinator.log(secondBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 8))
+
+    #expect(restTimer.remaining == 30)
+}
