@@ -74,7 +74,6 @@ struct GlassBearingViewsVisualTests {
         assertGlassBaseline {
             SessionProgressHeader(
                 session: session,
-                activeSetID: ActiveSetID(exerciseOrder: 0, setIndex: 2),
                 block: block,
                 currentSession: session,
                 sessionSettingsOverpullState: .pinned
