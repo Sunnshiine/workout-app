@@ -35,6 +35,7 @@
 		49121A665DB759AD4C9D17BD /* ActiveSupersetSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A8230A968C3D81150BECD21 /* ActiveSupersetSection.swift */; };
 		5344625CEB5D416163749242 /* WorkoutFixtureScenarios.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBC4B91909CBE1C1FA3A0E7E /* WorkoutFixtureScenarios.swift */; };
 		534BF64C12717F887A7C272C /* WorkoutStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECBE6989519E819A9FDB6608 /* WorkoutStore.swift */; };
+		A1C0000000000000000000B1 /* SetCoordinates.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0000000000000000000F1 /* SetCoordinates.swift */; };
 		62C47D84D01FC02141D4DDA2 /* RPEScalePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF7F7CD5D8F394F75F33E69D /* RPEScalePresentation.swift */; };
 		6370263F171AC8EFE288A5E3 /* SetLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20D53666552036BF79EEB41F /* SetLog.swift */; };
 		64C6D9EB4377B30FE6AB7F49 /* TabFetchRetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44452C2B9CFC7273C0972BEF /* TabFetchRetry.swift */; };
@@ -271,6 +272,7 @@
 		D1E2F3A4B5C6D7E8F9012345 /* LastPerformedOccurrence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastPerformedOccurrence.swift; sourceTree = "<group>"; };
 		ECA5D0F58BE44C1297D2C669 /* PendingWrite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingWrite.swift; sourceTree = "<group>"; };
 		ECBE6989519E819A9FDB6608 /* WorkoutStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutStore.swift; sourceTree = "<group>"; };
+		A1C0000000000000000000F1 /* SetCoordinates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetCoordinates.swift; sourceTree = "<group>"; };
 		EE9617577EC2B1EE77CC2E63 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		FA0000000000000000000001 /* Fraunces.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Fonts/Fraunces.ttf; sourceTree = "<group>"; };
 		FA0000000000000000000002 /* SourceSans3.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Fonts/SourceSans3.ttf; sourceTree = "<group>"; };
@@ -495,6 +497,7 @@
 				CF512CAF662AE6E54D7B864C /* SyncCoordinator.swift */,
 				841FCA4737E7B8C2DD9B2A08 /* SyncStatusBannerPresentation.swift */,
 				ECBE6989519E819A9FDB6608 /* WorkoutStore.swift */,
+				A1C0000000000000000000F1 /* SetCoordinates.swift */,
 				0DEF469251150206455C456C /* HistoryFillCursor.swift */,
 			);
 			path = Stores;
@@ -920,6 +923,7 @@
 				FB388BA0DE209E81C86560A4 /* WorkoutActivityAttributes.swift in Sources */,
 				5344625CEB5D416163749242 /* WorkoutFixtureScenarios.swift in Sources */,
 				534BF64C12717F887A7C272C /* WorkoutStore.swift in Sources */,
+				A1C0000000000000000000B1 /* SetCoordinates.swift in Sources */,
 				E8F14E95FDFED307B2DC2042 /* WorkoutTrackerApp.swift in Sources */,
 				64C6D9EB4377B30FE6AB7F49 /* TabFetchRetry.swift in Sources */,
 				A2D86689739762DE93EEB097 /* HistoryFillCursor.swift in Sources */,
