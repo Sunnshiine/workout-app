@@ -664,7 +664,9 @@ private func historicalGrid(exerciseName: String, log: String, date: String) -> 
 }
 
 private func waitForFetchedTab(_ tab: String, recorder: FetchRecorder) async throws -> Bool {
-    for _ in 0..<100 {
+    // A one-second budget failed under CPU load from parallel builds; the fetch takes milliseconds
+    // when the machine is quiet, so a wide budget costs nothing on the passing path.
+    for _ in 0..<1000 {
         if await recorder.tabs().contains(tab) {
             return true
         }
