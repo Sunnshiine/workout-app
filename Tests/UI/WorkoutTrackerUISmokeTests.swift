@@ -1,8 +1,6 @@
 import XCTest
 
 final class WorkoutTrackerUISmokeTests: XCTestCase {
-    /// The one end-to-end log: an RPE chip, one tap on the Log capsule, the set lands in the
-    /// store, and the stage advances to Set 2.
     @MainActor
     func testCurrentSessionLogsFirstSetAndAdvancesActiveSet() throws {
         let app = launchCurrentSessionSmokeApp()
@@ -28,7 +26,6 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
         app.buttons["session-location-button"].tap()
         XCTAssertTrue(app.navigationBars["Block 27"].appears(within: 3))
 
-        // A day tile is an identified container wrapping an unlabeled button.
         app.otherElements["session-tile-W1-D3"].tap()
         waitForLabel("Open Block Overview for Week 1, Day 3", on: app.buttons["session-location-button"])
         XCTAssertTrue(app.buttons["go-back-current-session-button"].appears(within: 3))
@@ -44,8 +41,6 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
         let app = launchSettingsSmokeApp()
 
         XCTAssertTrue(app.navigationBars["Settings"].appears(within: 3))
-        // Native Settings renders the Training Sheet name as a LabeledContent value inside the row
-        // button, so it is read off the row's combined label.
         let trainingSheetRow = app.buttons["settings-training-sheet-row"]
         XCTAssertTrue(trainingSheetRow.appears(within: 3))
         XCTAssertTrue(trainingSheetRow.label.contains("Fixture Training Log"))

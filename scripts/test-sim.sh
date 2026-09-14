@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
-# Runs simulator test suites the fast way: one build-for-testing, then every requested suite in a
-# single test-without-building session driven by the xctestrun file, so xcodebuild never loads the
-# project or resolves the package graph a second time.
-#
-# Usage: scripts/test-sim.sh [--no-build] [--sim UDID] <unit|visual|ui|all|TEST-ID>...
-#   unit    WorkoutTrackerTests (hosted unit + component; the same tests as `swift test` plus UIKit-only ones)
-#   visual  WorkoutTrackerSnapshotTests (ADR-0007 gate)
-#   ui      WorkoutTrackerUITests
-#   TEST-ID any -only-testing identifier, e.g. WorkoutTrackerUITests/WorkoutTrackerUISmokeTests/testMoveOnAdvancesToNextExercise
-# --no-build reuses the last build-for-testing; use it when only the test selection changed.
-# The simulator is the booted iPhone 17 Pro, or the newest available one, which the script boots.
 set -euo pipefail
+
+usage() {
+  cat >&2 <<'EOF'
+Usage: scripts/test-sim.sh [--no-build] [--sim UDID] <unit|visual|ui|all|TEST-ID>...
+  unit     WorkoutTrackerTests (the `swift test` suites plus the UIKit-only ones, hosted in the app)
+  visual   WorkoutTrackerSnapshotTests (ADR-0007 gate)
+  ui       WorkoutTrackerUITests
+  TEST-ID  any -only-testing identifier, e.g.
+           WorkoutTrackerUITests/WorkoutTrackerUISmokeTests/testCurrentSessionLogsFirstSetAndAdvancesActiveSet
+Builds once with build-for-testing, then runs every requested suite in one test-without-building
+session from the xctestrun file. --no-build reuses the last build when only the selection changed.
+The simulator is the booted iPhone 17 Pro, else the newest available one, which the script boots.
+EOF
+  exit 2
+}
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
 project=$repo/WorkoutTracker.xcodeproj
@@ -26,12 +30,12 @@ while [ $# -gt 0 ]; do
     visual) targets+=(-only-testing:WorkoutTrackerSnapshotTests) ;;
     ui) targets+=(-only-testing:WorkoutTrackerUITests) ;;
     all) targets+=(-only-testing:WorkoutTrackerTests -only-testing:WorkoutTrackerSnapshotTests -only-testing:WorkoutTrackerUITests) ;;
-    -*) echo "unknown flag $1" >&2; exit 2 ;;
+    -*) usage ;;
     *) targets+=("-only-testing:$1") ;;
   esac
   shift
 done
-[ ${#targets[@]} -gt 0 ] || { sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
+[ ${#targets[@]} -gt 0 ] || usage
 
 if [ -z "$sim" ]; then
   sim=$(xcrun simctl list devices available -j | python3 -c '

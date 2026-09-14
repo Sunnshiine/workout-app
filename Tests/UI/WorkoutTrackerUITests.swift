@@ -33,15 +33,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         app.buttons["weight-pill"].tap()
         XCTAssertTrue(app.keyboards.firstMatch.appears(within: 3))
 
-        // With the keyboard up the stage scrolls so the exercise name sits under the status bar,
-        // so the tap lands on the empty stage space between the branch and the Last Performed
-        // runline: no button, no gesture of its own. It must fold the keyboard without logging
-        // or skipping anything.
-        let branchEnd = app.buttons["Set 3, 5 · RPE8"].frame.maxY
-        let runlineStart = app.staticTexts["Block 26 · W4 D3 — 245x5@6, 255x5@7"].frame.minY
-        app.coordinate(withNormalizedOffset: .zero)
-            .withOffset(CGVector(dx: app.frame.midX, dy: (branchEnd + runlineStart) / 2))
-            .tap()
+        tapEmptyStageSpaceBetweenBranchAndRunline(in: app)
 
         XCTAssertFalse(app.keyboards.firstMatch.appears(within: 1))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
@@ -99,16 +91,13 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
 
-        // The label-free Last Performed runline: `<source> — <Set Logs>`.
         let lastPerformed = app.staticTexts["Block 26 · W4 D3 — 245x5@6, 255x5@7"]
         XCTAssertTrue(lastPerformed.appears(within: 3))
         tapWhenHittable(lastPerformed)
 
-        // The quiet Exercise History sheet, seeded with deeper Back Squat history.
         XCTAssertTrue(app.staticTexts["Exercise History · last 5"].appears(within: 3))
         XCTAssertTrue(app.staticTexts["Block 26"].exists)
         XCTAssertTrue(app.staticTexts["Block 25"].exists)
-        // Grouped rows carry their Sets as chips: the deeper Block 26 entry renders `235×5`.
         XCTAssertTrue(app.staticTexts["235×5"].exists)
     }
 
@@ -161,23 +150,27 @@ final class WorkoutTrackerOnboardingSwitchUITests: XCTestCase {
     func testOnboardingSheetSelectionAutoSyncsAndReplacesStaleCachedBlock() throws {
         let app = launchWorkoutApp(fixture: .onboarding, options: [.disableCelebrationBloom])
 
-        // Signed in, but no spreadsheet selected yet — onboarding shows the sheet picker.
         XCTAssertTrue(app.staticTexts["Choose your training sheet"].appears(within: 3))
-        // The seeded (stale) Block is never shown while onboarding.
         XCTAssertFalse(app.staticTexts["Back Squat"].exists)
 
-        // The picker row's label combines the sheet name with its modified date.
         let replacementRow = app.buttons.matching(
             NSPredicate(format: "label BEGINSWITH %@", "Replacement Training Log")
         ).firstMatch
         XCTAssertTrue(replacementRow.appears(within: 3))
         replacementRow.tap()
 
-        // Auto-synced the newly selected sheet (no manual re-sync) and advanced to its session.
         XCTAssertTrue(app.staticTexts["Replacement Squat"].appears(within: 3))
-        // The stale cached Block's exercise is never presented for the newly selected sheet.
         XCTAssertFalse(app.staticTexts["Back Squat"].exists)
     }
+}
+
+@MainActor
+private func tapEmptyStageSpaceBetweenBranchAndRunline(in app: XCUIApplication) {
+    let branchEnd = app.buttons["Set 3, 5 · RPE8"].frame.maxY
+    let runlineStart = app.staticTexts["Block 26 · W4 D3 — 245x5@6, 255x5@7"].frame.minY
+    app.coordinate(withNormalizedOffset: .zero)
+        .withOffset(CGVector(dx: app.frame.midX, dy: (branchEnd + runlineStart) / 2))
+        .tap()
 }
 
 @MainActor

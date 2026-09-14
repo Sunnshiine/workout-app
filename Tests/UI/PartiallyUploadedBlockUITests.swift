@@ -6,7 +6,6 @@ final class PartiallyUploadedBlockUITests: XCTestCase {
         let app = launchPartialBlockOverviewApp()
 
         XCTAssertTrue(app.navigationBars["Block 27"].appears(within: 3))
-        // A day tile is an identified container wrapping an unlabeled button.
         app.otherElements["session-tile-W4-D1"].tap()
         waitForLabel("Open Block Overview for Week 4, Day 1", on: app.buttons["session-location-button"])
         XCTAssertEqual(app.staticTexts["stage-exercise-name"].label, "Accessory")

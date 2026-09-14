@@ -6,8 +6,6 @@ final class PartiallyUploadedBlockUISmokeTests: XCTestCase {
         let app = launchPartialBlockOverviewApp()
 
         XCTAssertTrue(app.navigationBars["Block 27"].appears(within: 3))
-        // A day tile is an identified container; an available one wraps an unlabeled button, an
-        // unavailable one is an empty bed with no button inside.
         let unavailableTile = app.otherElements["session-tile-W1-D3"]
         XCTAssertTrue(unavailableTile.appears(within: 3))
         waitForValue("Not uploaded", on: unavailableTile)

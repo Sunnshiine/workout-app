@@ -22,7 +22,7 @@ swift test --filter ActiveSetFocusManagerTests
 scripts/test-sim.sh unit            # hosted unit + component (adds the UIKit-only tests)
 scripts/test-sim.sh visual          # snapshot gate (ADR-0007)
 scripts/test-sim.sh ui              # UI integration tests
-scripts/test-sim.sh --no-build WorkoutTrackerUITests/WorkoutTrackerUISmokeTests/testMoveOnAdvancesToNextExercise
+scripts/test-sim.sh --no-build WorkoutTrackerUITests/WorkoutTrackerUISmokeTests/testCurrentSessionLogsFirstSetAndAdvancesActiveSet
 
 # Build & run on the simulator
 xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
