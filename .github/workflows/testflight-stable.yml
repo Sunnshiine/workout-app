@@ -204,17 +204,30 @@ jobs:
 
       # release-notes is set separately below, not here: the action's own note
       # write polls a beta-localization record that lags ~10 min on a new app's
-      # first builds and would fail an upload that actually succeeded. Keeping
-      # wait-for-processing means genuine processing/validation failures still
-      # fail the job.
-      - name: Upload to TestFlight and wait for processing
+      # first builds and would fail an upload that actually succeeded. The
+      # processing wait is also ours, not the action's: the action reuses one
+      # ~10-min ASC token for its whole poll, so a slow-to-surface build dies
+      # as a bogus 401 instead of a verdict (PR #505 build 49).
+      - name: Upload to TestFlight
         uses: apple-actions/upload-testflight-build@v5
         with:
           app-path: ${{ steps.ipa.outputs.path }}
           issuer-id: ${{ secrets.ASC_ISSUER_ID }}
           api-key-id: ${{ secrets.ASC_KEY_ID }}
           api-private-key: ${{ secrets.ASC_PRIVATE_KEY }}
-          wait-for-processing: true
+          wait-for-processing: false
+
+      # Fresh token per poll, and a real verdict: VALID passes, FAILED/INVALID
+      # or a build that never surfaces (rejected during ingest, e.g.
+      # ITMS-90534) fails with the reason spelled out. See the script header.
+      - name: Wait for App Store processing
+        env:
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          BUNDLE_ID: com.sunnypatel.WorkoutTracker
+          BUILD_VERSION: ${{ github.run_number }}
+        run: node scripts/ci/wait-for-testflight-processing.mjs
 
       # Best-effort: the build is already on TestFlight and VALID, so a slow or
       # missing localization record must not fail the job. See the script header.
