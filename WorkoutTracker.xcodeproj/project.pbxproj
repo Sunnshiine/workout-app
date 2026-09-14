@@ -113,6 +113,13 @@
 		FBD7F27846824EE734DF61AA /* LiveActivityRestContentStateFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39ECEE8F938629B5C76D6531 /* LiveActivityRestContentStateFactory.swift */; };
 		FCA508FE3522CB7062267112 /* SessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31CB80B71F35E4D4A35FE87 /* SessionView.swift */; };
 		FD532690E409CC21380B5AC5 /* SheetsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = D25BC6F5BDADC735072B49F8 /* SheetsClient.swift */; };
+		C052497E59D8491A2ADAFBFA /* LocalWorkbookSheetsClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE1800339CCC483FC95BDA2D /* LocalWorkbookSheetsClient.swift */; };
+		B4A202398AED3EA8B270025C /* WorkbookScenarios.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83D292ACFA3DEF059E143ADB /* WorkbookScenarios.swift */; };
+		0CAD8EFA88BAF977FE50DFE6 /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE0EA121A9CF003CE08A016F /* AppEnvironment.swift */; };
+		50EB02A3718C3FB8F1A28FA2 /* WorkoutApplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AD6B3E72E048732572BAC46 /* WorkoutApplication.swift */; };
+		D86EB20F73AFAAEB6B56C96D /* Addresses.swift in Sources */ = {isa = PBXBuildFile; fileRef = F537E33BF718EA70A8E2BF0D /* Addresses.swift */; };
+		7B3BEBE3FC351B7E0E9F1EB3 /* ApplicationError.swift in Sources */ = {isa = PBXBuildFile; fileRef = A46E3C3D9AD00FDAEDB7F3DF /* ApplicationError.swift */; };
+		F9A390A4906862342D90F48C /* AppSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C7E011541390262EB04ECB7 /* AppSnapshot.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -270,6 +277,13 @@
 		FFBA3AF5C9A8A37438C43F0D /* RestNotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestNotificationScheduler.swift; sourceTree = "<group>"; };
 		F1A2B3C4D5E6F7A8B9C0D1E3 /* RestInterval.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestInterval.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6A7B8C9D0E1F3 /* RestExpiryScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestExpiryScheduler.swift; sourceTree = "<group>"; };
+		FE1800339CCC483FC95BDA2D /* LocalWorkbookSheetsClient.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LocalWorkbookSheetsClient.swift; sourceTree = "<group>"; };
+		83D292ACFA3DEF059E143ADB /* WorkbookScenarios.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WorkbookScenarios.swift; sourceTree = "<group>"; };
+		FE0EA121A9CF003CE08A016F /* AppEnvironment.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppEnvironment.swift; sourceTree = "<group>"; };
+		2AD6B3E72E048732572BAC46 /* WorkoutApplication.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WorkoutApplication.swift; sourceTree = "<group>"; };
+		F537E33BF718EA70A8E2BF0D /* Addresses.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Addresses.swift; sourceTree = "<group>"; };
+		A46E3C3D9AD00FDAEDB7F3DF /* ApplicationError.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ApplicationError.swift; sourceTree = "<group>"; };
+		1C7E011541390262EB04ECB7 /* AppSnapshot.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppSnapshot.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -348,6 +362,7 @@
 		08188E21C9C5EDF09B62BBBF /* Fixtures */ = {
 			isa = PBXGroup;
 			children = (
+				83D292ACFA3DEF059E143ADB /* WorkbookScenarios.swift */,
 				02CBDEE06463224167F1FB18 /* UITestFixture.swift */,
 				FBC4B91909CBE1C1FA3A0E7E /* WorkoutFixtureScenarios.swift */,
 			);
@@ -357,6 +372,7 @@
 		0FF08B69E3C2E465E1D9E404 /* Sheets */ = {
 			isa = PBXGroup;
 			children = (
+				FE1800339CCC483FC95BDA2D /* LocalWorkbookSheetsClient.swift */,
 				A12FDB0A5CCFB2C56907DE63 /* GoogleAuth.swift */,
 				E3B15FEFD6BDE5D8F1A71800 /* GoogleSheetsClient.swift */,
 				D25BC6F5BDADC735072B49F8 /* SheetsClient.swift */,
@@ -540,6 +556,7 @@
 		E4E43F24E68521EDECD85406 /* WorkoutTracker */ = {
 			isa = PBXGroup;
 			children = (
+				955815C6F8A39997C76CD4A1 /* App */,
 				EE9617577EC2B1EE77CC2E63 /* Assets.xcassets */,
 				FA0000000000000000000001 /* Fraunces.ttf */,
 				FA0000000000000000000002 /* SourceSans3.ttf */,
@@ -568,6 +585,18 @@
 				39ECEE8F938629B5C76D6531 /* LiveActivityRestContentStateFactory.swift */,
 			);
 			path = LiveActivity;
+			sourceTree = "<group>";
+		};
+		955815C6F8A39997C76CD4A1 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				1C7E011541390262EB04ECB7 /* AppSnapshot.swift */,
+				A46E3C3D9AD00FDAEDB7F3DF /* ApplicationError.swift */,
+				F537E33BF718EA70A8E2BF0D /* Addresses.swift */,
+				2AD6B3E72E048732572BAC46 /* WorkoutApplication.swift */,
+				FE0EA121A9CF003CE08A016F /* AppEnvironment.swift */,
+			);
+			path = App;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -784,6 +813,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F9A390A4906862342D90F48C /* AppSnapshot.swift in Sources */,
+				7B3BEBE3FC351B7E0E9F1EB3 /* ApplicationError.swift in Sources */,
+				D86EB20F73AFAAEB6B56C96D /* Addresses.swift in Sources */,
+				50EB02A3718C3FB8F1A28FA2 /* WorkoutApplication.swift in Sources */,
+				0CAD8EFA88BAF977FE50DFE6 /* AppEnvironment.swift in Sources */,
+				B4A202398AED3EA8B270025C /* WorkbookScenarios.swift in Sources */,
+				C052497E59D8491A2ADAFBFA /* LocalWorkbookSheetsClient.swift in Sources */,
 				AC784F11021F09F1A5C5A62B /* ActiveSetCard.swift in Sources */,
 				7D73B4A734A389E428D9DA4B /* ActiveSetFocusManager.swift in Sources */,
 				C6DC904BF1DB120F03C23247 /* ActiveSetPresentation.swift in Sources */,
@@ -1181,7 +1217,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG OFFLINE_SHEET";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 			};

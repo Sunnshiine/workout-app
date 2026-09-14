@@ -2,11 +2,12 @@ import Foundation
 
 typealias SheetGrid = [[String]]
 
-struct SheetRowVisibility: Sendable, Equatable {
-    let hiddenByUser: Bool
-    let hiddenByFilter: Bool
+/// A Sheet row hidden by the user or by a filter (ADR-0003: hidden rows are never write targets).
+public struct SheetRowVisibility: Sendable, Equatable, Codable {
+    public let hiddenByUser: Bool
+    public let hiddenByFilter: Bool
 
-    init(hiddenByUser: Bool = false, hiddenByFilter: Bool = false) {
+    public init(hiddenByUser: Bool = false, hiddenByFilter: Bool = false) {
         self.hiddenByUser = hiddenByUser
         self.hiddenByFilter = hiddenByFilter
     }
@@ -28,6 +29,24 @@ struct SheetSnapshot: Sendable, Equatable {
     func isRowVisible(_ row: Int) -> Bool {
         rowVisibility[row]?.isVisible ?? true
     }
+
+    var sparseCells: [String: String] {
+        var cells: [String: String] = [:]
+        for (row, rowValues) in values.enumerated() {
+            for (col, value) in rowValues.enumerated() where !value.isEmpty {
+                cells[indexToA1(row: row, col: col)] = value
+            }
+        }
+        return cells
+    }
+
+    var hiddenRowsByNumber: [Int: SheetRowVisibility] {
+        Dictionary(uniqueKeysWithValues: rowVisibility.map { ($0.key + 1, $0.value) })
+    }
+}
+
+public func isA1CellReference(_ reference: String) -> Bool {
+    reference.wholeMatch(of: /[A-Z]+[1-9][0-9]*/) != nil
 }
 
 extension Array where Element == [String] {
@@ -64,6 +83,17 @@ func columnName(_ zeroBasedColumn: Int) -> String {
 
 func indexToA1(row: Int, col: Int) -> String {
     "\(columnName(col))\(row + 1)"
+}
+
+func gridFromA1(_ cells: [String: String], rows: Int, cols: Int) -> SheetGrid {
+    var grid = SheetGrid(repeating: [String](repeating: "", count: cols), count: rows)
+    for (a1, value) in cells {
+        let index = a1ToIndex(a1)
+        if index.row >= 0, index.col >= 0, index.row < rows, index.col < cols {
+            grid[index.row][index.col] = value
+        }
+    }
+    return grid
 }
 
 func quotedSheetName(_ name: String) -> String {
