@@ -81,6 +81,7 @@ step() {
 
 run_tests() {
     local log="$OUT/swift-test.log"
+    rm -rf "$(dirname "$PROFDATA")"
     if ! swift test --enable-code-coverage >"$log" 2>&1; then
         tail -40 "$log" >&2
         echo "crap.sh: swift test failed; see $log" >&2
