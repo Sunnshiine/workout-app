@@ -9,11 +9,11 @@ struct RootView: View {
     var body: some View {
         Group {
             #if DEBUG
-                if UITestFixture.isEnabled, UITestFixture.startsInDeveloperTools {
+                if UITestFixture.isEnabled, UITestFixture.launch.startsInDeveloperTools {
                     NavigationStack {
                         DeveloperToolsView()
                     }
-                } else if UITestFixture.isEnabled, UITestFixture.startsInSettings {
+                } else if UITestFixture.isEnabled, UITestFixture.launch.startsInSettings {
                     NavigationStack {
                         SettingsView()
                     }

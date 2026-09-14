@@ -1,6 +1,3 @@
 file	name	crap
-WorkoutTracker/Fixtures/UITestFixture.swift	UITestFixture.seed(into:)	72.0
-WorkoutTracker/Fixtures/UITestFixture.swift	UITestFixture.startsInBlockOverview.get	20.0
-WorkoutTracker/Fixtures/WorkoutFixtureScenarios.swift	WorkoutFixtureBlocks.uiLaunchSession(weekNumber:dayNumber:)	20.0
 WorkoutTracker/Stores/SyncCoordinator.swift	SyncCoordinator.flushPendingWrites(_:context:)	12.3
 WorkoutTracker/Stores/SyncCoordinator.swift	SyncCoordinator.overlayPendingWrites(on:)	13.2

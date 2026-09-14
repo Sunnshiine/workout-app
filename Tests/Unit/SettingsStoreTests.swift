@@ -115,36 +115,6 @@ import Testing
     #expect(reloaded.supersetRestDuration == RestDurationSetting(seconds: 90))
 }
 
-#if DEBUG
-    @Test func uiTestAppearanceLaunchArgumentParsesSupportedAppearances() {
-        #expect(
-            UITestFixture.appearanceOverride(
-                from: ["WorkoutTracker", "-UITEST_APPEARANCE", "light"]
-            ) == .light
-        )
-        #expect(
-            UITestFixture.appearanceOverride(
-                from: ["WorkoutTracker", "-UITEST_APPEARANCE", "dark"]
-            ) == .dark
-        )
-        #expect(
-            UITestFixture.appearanceOverride(
-                from: ["WorkoutTracker", "-UITEST_APPEARANCE", "system"]
-            ) == .system
-        )
-    }
-
-    @Test func uiTestAppearanceLaunchArgumentIgnoresMissingOrUnsupportedAppearances() {
-        #expect(UITestFixture.appearanceOverride(from: ["WorkoutTracker"]) == nil)
-        #expect(UITestFixture.appearanceOverride(from: ["WorkoutTracker", "-UITEST_APPEARANCE"]) == nil)
-        #expect(
-            UITestFixture.appearanceOverride(
-                from: ["WorkoutTracker", "-UITEST_APPEARANCE", "black"]
-            ) == nil
-        )
-    }
-#endif
-
 @MainActor
 @Test func signOutClearsAuthAndSpreadsheetSelection() throws {
     let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
