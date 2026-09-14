@@ -61,8 +61,10 @@ if [ $build = 1 ]; then
 fi
 
 xctestrun=$(for plist in ~/Library/Developer/Xcode/DerivedData/WorkoutTracker-*/info.plist; do
-  [ "$(plutil -extract WorkspacePath raw "$plist")" = "$project" ] && ls -t "$(dirname "$plist")"/Build/Products/WorkoutTracker_iphonesimulator*.xctestrun 2>/dev/null | head -1
-done | head -1)
+  if [ "$(plutil -extract WorkspacePath raw "$plist")" = "$project" ]; then
+    ls -t "$(dirname "$plist")"/Build/Products/WorkoutTracker_iphonesimulator*.xctestrun 2>/dev/null
+  fi
+done | head -1) || true
 [ -n "$xctestrun" ] || { echo "no xctestrun for $project; run without --no-build" >&2; exit 65; }
 
 set +e
