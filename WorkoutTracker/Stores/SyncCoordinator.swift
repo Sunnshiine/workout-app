@@ -158,36 +158,13 @@ final class SyncCoordinator {
     private func overlayPendingWrites(on block: Block) {
         let writes = (try? context.fetch(FetchDescriptor<PendingWrite>())) ?? []
         for write in writes where write.blockTab == block.tabName && write.column == .notes {
-            guard
-                let set = findSet(
-                    in: block,
-                    week: write.week,
-                    day: write.day,
-                    exerciseName: write.exerciseName,
-                    setIndex: write.setIndex
-                )
-            else { continue }
-
-            if write.operation == .delete {
-                set.state = .pending
-                set.setLog = nil
-                set.loggedAt = nil
-            } else if let value = write.valueToWrite {
-                let classification = SetLogToken.classify(value)
-                switch classification.state {
-                case .skipped:
-                    set.state = .skipped
-                    set.setLog = nil
-                    set.loggedAt = nil
-                case .logged:
-                    if let log = classification.setLog {
-                        set.state = .logged
-                        set.setLog = log
-                    }
-                case .pending:
-                    break
-                }
-            }
+            findSet(
+                in: block,
+                week: write.week,
+                day: write.day,
+                exerciseName: write.exerciseName,
+                setIndex: write.setIndex
+            )?.apply(write)
         }
     }
 
