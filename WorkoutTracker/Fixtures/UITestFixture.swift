@@ -39,16 +39,25 @@
             try context.save()
         }
 
+        /// One Block factory per scenario. A table has no compiler exhaustiveness check, so
+        /// `everyScenarioSeedsItsOwnFixtureBlock` in `Tests/Unit/UITestFixtureBlockTests.swift`
+        /// is what keeps a new scenario from reaching `seed` without a row.
         @MainActor
-        private static func block(for scenario: UITestLaunch.Scenario) -> Block {
-            switch scenario {
-            case .perfectMoveOnCelebration: WorkoutFixtureScenarios.perfectMoveOnCelebrationBlock()
-            case .completedOpenExercises: WorkoutFixtureScenarios.completedSessionWithOpenExercisesBlock()
-            case .openExercises: WorkoutFixtureScenarios.openExercisesBlock()
-            case .longSession: WorkoutFixtureScenarios.longSessionBlock()
-            case .fullBlock: WorkoutFixtureScenarios.uiLaunchBlock()
-            case .partialUpload: WorkoutFixtureScenarios.partiallyUploadedBlock()
+        private static let blocks: [UITestLaunch.Scenario: @MainActor () -> Block] = [
+            .perfectMoveOnCelebration: WorkoutFixtureScenarios.perfectMoveOnCelebrationBlock,
+            .completedOpenExercises: WorkoutFixtureScenarios.completedSessionWithOpenExercisesBlock,
+            .openExercises: WorkoutFixtureScenarios.openExercisesBlock,
+            .longSession: WorkoutFixtureScenarios.longSessionBlock,
+            .fullBlock: WorkoutFixtureScenarios.uiLaunchBlock,
+            .partialUpload: WorkoutFixtureScenarios.partiallyUploadedBlock
+        ]
+
+        @MainActor
+        static func block(for scenario: UITestLaunch.Scenario) -> Block {
+            guard let block = blocks[scenario] else {
+                preconditionFailure("No fixture Block for \(scenario)")
             }
+            return block()
         }
     }
 
