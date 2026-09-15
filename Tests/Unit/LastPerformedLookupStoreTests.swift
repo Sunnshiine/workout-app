@@ -407,23 +407,3 @@ private func lastPerformedContainer() throws -> ModelContainer {
     #expect(lookup.lookup(for: "Bench Press") == nil)
     withExtendedLifetime(container) {}
 }
-
-// MARK: - Backfill progress affordance
-
-@MainActor
-@Test func lookupStorePublishesAndClearsFillProgress() throws {
-    let container = try lastPerformedContainer()
-    let store = LastPerformedLookupStore(context: container.mainContext)
-
-    // No affordance before the fill publishes anything.
-    #expect(store.fillProgress == nil)
-
-    let progress = LastPerformedBackfillProgress(tab: "Block 25", tabsCompleted: 1, tabsToScan: 3)
-    store.lastPerformedBackfillDidProgress(progress)
-    #expect(store.fillProgress == progress)
-
-    // The affordance disappears once the fill reaches coverage or exhausts the tabs.
-    store.lastPerformedBackfillDidFinish()
-    #expect(store.fillProgress == nil)
-    withExtendedLifetime(container) {}
-}

@@ -74,6 +74,7 @@
 		A1B2C3D4E5F60718293A4B5D /* ExerciseHistorySheetPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5C /* ExerciseHistorySheetPresentation.swift */; };
 		B2C3D4E5F60718293A4B5C6E /* HistoryFillProgressPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F60718293A4B5C6D /* HistoryFillProgressPresentation.swift */; };
 		A2D86689739762DE93EEB097 /* HistoryFillCursor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DEF469251150206455C456C /* HistoryFillCursor.swift */; };
+		082FF7FD367EC41C8471F543 /* ExerciseHistoryFill.swift in Sources */ = {isa = PBXBuildFile; fileRef = F24FC70D002A1718F6C7F2AD /* ExerciseHistoryFill.swift */; };
 		A2F7E6D64D1518F978D7CFC2 /* SheetGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2244B0C3FEDB38CFA5D0128 /* SheetGrid.swift */; };
 		A95B852DB4681FE4CB971755 /* WorkoutWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C1A2912337D79EA8DBF43A6D /* WorkoutWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		AAB1AF9D5F9324682EAF6B48 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9038CBF5AF997C5562D3A6E4 /* RootView.swift */; };
@@ -178,6 +179,7 @@
 		084BC3BB6CECB164739792A0 /* PillStepperButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PillStepperButton.swift; sourceTree = "<group>"; };
 		0A7DE7A3ADF7567E4E60F24E /* SupersetState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupersetState.swift; sourceTree = "<group>"; };
 		0DEF469251150206455C456C /* HistoryFillCursor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HistoryFillCursor.swift; sourceTree = "<group>"; };
+		F24FC70D002A1718F6C7F2AD /* ExerciseHistoryFill.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ExerciseHistoryFill.swift; sourceTree = "<group>"; };
 		1027F3D17075B410CAA8EEB9 /* SessionQueueSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionQueueSheet.swift; sourceTree = "<group>"; };
 		1396E247C762E3B6CE7A945F /* RestHapticSchedule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestHapticSchedule.swift; sourceTree = "<group>"; };
 		1F622271C453C1C22E76B829 /* DeveloperToolsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperToolsView.swift; sourceTree = "<group>"; };
@@ -501,6 +503,7 @@
 				A1C0000000000000000000F1 /* SetCoordinates.swift */,
 				A1E0000000000000000000F1 /* ExerciseSetPendingWriteReplay.swift */,
 				0DEF469251150206455C456C /* HistoryFillCursor.swift */,
+				F24FC70D002A1718F6C7F2AD /* ExerciseHistoryFill.swift */,
 			);
 			path = Stores;
 			sourceTree = "<group>";
@@ -931,6 +934,7 @@
 				E8F14E95FDFED307B2DC2042 /* WorkoutTrackerApp.swift in Sources */,
 				64C6D9EB4377B30FE6AB7F49 /* TabFetchRetry.swift in Sources */,
 				A2D86689739762DE93EEB097 /* HistoryFillCursor.swift in Sources */,
+				082FF7FD367EC41C8471F543 /* ExerciseHistoryFill.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

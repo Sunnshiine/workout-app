@@ -61,6 +61,8 @@ struct ExerciseHistorySheetPresentation: Equatable, Sendable {
         let approximate: Bool
     }
 
+    /// How many entries the sheet shows, and the coverage target `ExerciseHistoryFill` fills to, so
+    /// what the sheet promises and what the fill fetches cannot drift (ADR-0012).
     static let entryLimit = 5
 
     let title: String

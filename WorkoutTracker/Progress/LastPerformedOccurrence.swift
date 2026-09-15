@@ -7,7 +7,8 @@ import Foundation
 /// source label. The display text is derived exactly once — by the extractor when it assembles
 /// the Set-ordered tokens (or the Legacy Log) — so there is no second read-time reconciliation of
 /// a typed result against free text. The persisted `LastPerformedEntry` initializes from and
-/// projects back to this type, which is also what the off-main-actor backfill scan carries.
+/// projects back to this type, which is also what the Exercise History fill's off-main-actor scan
+/// carries.
 struct LastPerformedOccurrence: Sendable, Equatable {
     var fullName: String
     var baseName: String

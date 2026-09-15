@@ -28,6 +28,11 @@ struct SessionViewVisualTests {
         VisualFixtureRetainer.retain(scenario)
         let sync = SyncCoordinator(client: VisualNoopSheetsClient(), context: scenario.context)
         let lastPerformedLookup = LastPerformedLookupStore(context: scenario.context)
+        let historyFill = ExerciseHistoryFill(
+            client: VisualNoopSheetsClient(),
+            context: scenario.context,
+            index: lastPerformedLookup
+        )
 
         let view = NavigationStack {
             SessionView()
@@ -36,6 +41,7 @@ struct SessionViewVisualTests {
         .environment(sync)
         .environment(scenario.settings)
         .environment(lastPerformedLookup)
+        .environment(historyFill)
         .environment(\.themePalette, Theme.palette(for: appearance))
         .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
         .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)

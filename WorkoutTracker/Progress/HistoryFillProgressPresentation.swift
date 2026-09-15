@@ -3,10 +3,10 @@ import Foundation
 /// The fill-in-progress affordance's presentation model (revised `DESIGN.md` §Exercise History
 /// Sheet — "While the history index is still filling…", PRD #357 §4, sub-issue #366).
 ///
-/// Projects one `LastPerformedBackfillProgress` tick from the observer seam into muted, warm-voice
-/// copy plus a determinate fraction, so the Exercise History sheet shows honest, moving progress
-/// rather than a dead spinner. It lives in the quiet Last Performed reference vocabulary — no mint —
-/// and the view stays a dumb renderer.
+/// Projects one `ExerciseHistoryFill.Progress` tick into muted, warm-voice copy plus a determinate
+/// fraction, so the Exercise History sheet shows honest, moving progress rather than a dead spinner.
+/// It lives in the quiet Last Performed reference vocabulary — no mint — and the view stays a dumb
+/// renderer.
 struct HistoryFillProgressPresentation: Equatable, Sendable {
     /// The warm-voice headline — playful but quiet.
     let message: String
@@ -17,7 +17,7 @@ struct HistoryFillProgressPresentation: Equatable, Sendable {
     /// upper bound. Never mint.
     let fraction: Double
 
-    init(_ progress: LastPerformedBackfillProgress) {
+    init(_ progress: ExerciseHistoryFill.Progress) {
         message = "Digging up more of your history…"
         detail = "\(progress.tab) · \(progress.tabsCompleted) of \(progress.tabsToScan)"
         // `tabsToScan` is an upper bound and the coverage rule may finish early; guard the divide

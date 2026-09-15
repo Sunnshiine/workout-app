@@ -68,6 +68,7 @@ struct WorkoutTrackerApp: App {
                 .environment(app.workout)
                 .environment(app.sync)
                 .environment(app.lastPerformed)
+                .environment(app.historyFill)
                 .onOpenURL { GIDSignIn.sharedInstance.handle($0) }
                 .task {
                     #if DEBUG

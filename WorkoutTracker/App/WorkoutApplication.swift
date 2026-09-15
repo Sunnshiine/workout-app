@@ -10,6 +10,7 @@ public final class WorkoutApplication {
     let workout: WorkoutStore
     let sync: SyncCoordinator
     let lastPerformed: LastPerformedLookupStore
+    let historyFill: ExerciseHistoryFill
     let sheetsClient: any SheetsClient
 
     static let schema = Schema([
@@ -32,7 +33,13 @@ public final class WorkoutApplication {
             lastPerformed: lastPerformed,
             now: environment.now
         )
-        sync = SyncCoordinator(client: environment.sheetsClient, context: context, lastPerformed: lastPerformed)
+        historyFill = ExerciseHistoryFill(client: environment.sheetsClient, context: context, index: lastPerformed)
+        sync = SyncCoordinator(
+            client: environment.sheetsClient,
+            context: context,
+            lastPerformed: lastPerformed,
+            historyFill: historyFill
+        )
         workout.reload()
     }
 

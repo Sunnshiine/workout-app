@@ -25,6 +25,7 @@ struct SessionStageView: View {
     let onTopContentOffsetChange: (CGFloat) -> Void
     @Environment(WorkoutStore.self) private var workout
     @Environment(LastPerformedLookupStore.self) private var lastPerformedLookup
+    @Environment(ExerciseHistoryFill.self) private var historyFill
     @Environment(\.themePalette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isQueuePresented = false
@@ -94,7 +95,7 @@ struct SessionStageView: View {
                     anchorBaseName: exercise.baseName,
                     entries: lastPerformedLookup.snapshot.history(baseName: exercise.baseName)
                 ),
-                fillProgress: lastPerformedLookup.fillProgress.map(HistoryFillProgressPresentation.init)
+                fillProgress: historyFill.progress.map(HistoryFillProgressPresentation.init)
             )
         }
     }
