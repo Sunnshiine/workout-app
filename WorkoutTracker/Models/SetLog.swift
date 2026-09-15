@@ -54,14 +54,11 @@ struct RPE: Hashable, Sendable, Codable, ExpressibleByIntegerLiteral, Expressibl
 
     /// Reads the RPE out of a Prescribed Load such as `RPE6` or `rpe 8`.
     init?(prescribedLoad: String) {
-        let rpeText =
-            prescribedLoad
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacing(/^RPE\s*/.ignoresCase(), with: "")
-        guard let whole = Int(rpeText) else {
+        let trimmed = prescribedLoad.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let match = trimmed.wholeMatch(of: /RPE\s*(.+)/.ignoresCase()) else {
             return nil
         }
-        point = Double(whole)
+        self.init(text: String(match.1))
     }
 
     init(from decoder: Decoder) throws {

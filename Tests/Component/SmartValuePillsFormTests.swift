@@ -246,9 +246,11 @@ import Testing
 
     #expect(prefill("RPE6") == "6")
     #expect(prefill(" rpe 8 ") == "8")
-    #expect(prefill("RPE 6.5") == "")
+    #expect(prefill("RPE 6.5") == "6.5")
     #expect(prefill("Drop 10%") == "")
     #expect(prefill("BW") == "")
+    #expect(prefill("72.5") == "")
+    #expect(prefill("RPE") == "")
 }
 
 @MainActor

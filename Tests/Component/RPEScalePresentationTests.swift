@@ -18,6 +18,13 @@ import Testing
 }
 
 @MainActor
+@Test func rpeScaleMarksAHalfPointPrescriptionFromThePrescribedLoad() {
+    let scale = RPEScalePresentation(prescribedRPE: RPE(prescribedLoad: "RPE 6.5"), selection: "")
+
+    #expect(scale.chips.filter(\.isPrescribed).map(\.label) == ["6.5"])
+}
+
+@MainActor
 @Test func rpeScaleSelectionMatchesWholeStepWrittenWithoutDecimal() {
     let scale = RPEScalePresentation(prescribedRPE: nil, selection: "8")
 
