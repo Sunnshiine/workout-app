@@ -280,50 +280,24 @@
             }
 
             var updated = grid
-            let requiredRows = range.startRow + range.rowCount
-            if requiredRows > updated.count {
-                updated.append(contentsOf: SheetGrid(repeating: [], count: requiredRows - updated.count))
-            }
-
-            for rowOffset in 0..<range.rowCount {
-                let rowIndex = range.startRow + rowOffset
-                let requiredCols = range.startCol + range.colCount
-                if requiredCols > updated[rowIndex].count {
-                    updated[rowIndex].append(
-                        contentsOf: [String](repeating: "", count: requiredCols - updated[rowIndex].count)
-                    )
-                }
-
-                for colOffset in 0..<range.colCount {
-                    updated[rowIndex][range.startCol + colOffset] = values[rowOffset][colOffset]
-                }
-            }
-
+            updated.write(values, atRow: range.startRow, col: range.startCol)
             return updated
         }
 
         fileprivate static func parseRange(_ range: String) throws -> ParsedRange {
-            guard let split = splitA1Range(range) else {
-                throw LocalWorkbookSheetsClientError.malformedRange(range)
-            }
-
-            let references = split.reference.uppercased()
-                .split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
             guard
-                let start = a1CellIndex(String(references[0])),
-                let end = references.count == 2 ? a1CellIndex(String(references[1])) : start,
-                end.row >= start.row,
-                end.col >= start.col
+                let split = splitA1Range(range),
+                let cells = a1CellRange(split.reference.uppercased())
             else {
                 throw LocalWorkbookSheetsClientError.malformedRange(range)
             }
 
             return ParsedRange(
                 tabName: split.tabName,
-                startRow: start.row,
-                startCol: start.col,
-                rowCount: end.row - start.row + 1,
-                colCount: end.col - start.col + 1
+                startRow: cells.row,
+                startCol: cells.col,
+                rowCount: cells.rowCount,
+                colCount: cells.colCount
             )
         }
     }

@@ -20,15 +20,26 @@ private struct GoogleSheetsSnapshotSheet: Decodable {
     let data: [GoogleSheetsGridData]?
 }
 
+/// One rectangular span of a Sheet as the API returns it.
+///
+/// Google omits every field it has nothing to say about, so each one is optional on the wire. The
+/// accessors resolve the documented default once, here, and the snapshot walkers read only those.
 private struct GoogleSheetsGridData: Decodable {
     let startRow: Int?
     let startColumn: Int?
     let rowData: [GoogleSheetsRowData]?
     let rowMetadata: [GoogleSheetsDimensionProperties]?
+
+    var firstRow: Int { startRow ?? 0 }
+    var firstColumn: Int { startColumn ?? 0 }
+    var rows: [GoogleSheetsRowData] { rowData ?? [] }
+    var metadata: [GoogleSheetsDimensionProperties] { rowMetadata ?? [] }
 }
 
 private struct GoogleSheetsRowData: Decodable {
     let values: [GoogleSheetsCellData]?
+
+    var cellText: [String] { (values ?? []).map { $0.formattedValue ?? "" } }
 }
 
 private struct GoogleSheetsCellData: Decodable {
@@ -38,6 +49,10 @@ private struct GoogleSheetsCellData: Decodable {
 private struct GoogleSheetsDimensionProperties: Decodable {
     let hiddenByUser: Bool?
     let hiddenByFilter: Bool?
+
+    var visibility: SheetRowVisibility {
+        SheetRowVisibility(hiddenByUser: hiddenByUser ?? false, hiddenByFilter: hiddenByFilter ?? false)
+    }
 }
 
 private struct GoogleSheetsValueRange: Encodable {
@@ -210,17 +225,7 @@ struct GoogleSheetsClient: SheetsClient {
     private static func valuesGrid(from gridData: [GoogleSheetsGridData]) -> SheetGrid {
         var values: SheetGrid = []
         for span in gridData {
-            let startRow = span.startRow ?? 0
-            let startColumn = span.startColumn ?? 0
-            for (rowOffset, rowData) in (span.rowData ?? []).enumerated() {
-                let formattedValues = (rowData.values ?? []).map { $0.formattedValue ?? "" }
-                values = applying(
-                    formattedValues,
-                    atRow: startRow + rowOffset,
-                    startColumn: startColumn,
-                    to: values
-                )
-            }
+            values.write(span.rows.map(\.cellText), atRow: span.firstRow, col: span.firstColumn)
         }
         return values
     }
@@ -229,40 +234,11 @@ struct GoogleSheetsClient: SheetsClient {
     private static func rowVisibility(from gridData: [GoogleSheetsGridData]) -> [Int: SheetRowVisibility] {
         var rowVisibility: [Int: SheetRowVisibility] = [:]
         for span in gridData {
-            let startRow = span.startRow ?? 0
-            for (rowOffset, metadata) in (span.rowMetadata ?? []).enumerated() {
-                let visibility = SheetRowVisibility(
-                    hiddenByUser: metadata.hiddenByUser ?? false,
-                    hiddenByFilter: metadata.hiddenByFilter ?? false
-                )
-                if visibility != SheetRowVisibility() {
-                    rowVisibility[startRow + rowOffset] = visibility
-                }
+            for (rowOffset, row) in span.metadata.enumerated() where !row.visibility.isVisible {
+                rowVisibility[span.firstRow + rowOffset] = row.visibility
             }
         }
         return rowVisibility
-    }
-
-    private static func applying(
-        _ rowValues: [String],
-        atRow rowIndex: Int,
-        startColumn: Int,
-        to grid: SheetGrid
-    ) -> SheetGrid {
-        var updated = grid
-        if rowIndex >= updated.count {
-            updated.append(contentsOf: SheetGrid(repeating: [], count: rowIndex - updated.count + 1))
-        }
-        let requiredColumns = startColumn + rowValues.count
-        if requiredColumns > updated[rowIndex].count {
-            updated[rowIndex].append(
-                contentsOf: [String](repeating: "", count: requiredColumns - updated[rowIndex].count)
-            )
-        }
-        for (offset, value) in rowValues.enumerated() {
-            updated[rowIndex][startColumn + offset] = value
-        }
-        return updated
     }
 
     private static func defaultToken() async throws -> String {
