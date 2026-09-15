@@ -1,12 +1,12 @@
 name: CI
 
 # PR gate: `scripts/crap.sh gate` runs `swift test` with coverage and the CRAP gate (ADR-0016);
-# `app-build` compile-checks the full app target including Views/, which the
-# library target excludes; `visual-tests` runs the ADR-0007 Visual Regression
-# suite on the pinned simulator — with `.snapshots(record: .never)`, a missing
-# or drifted Visual Baseline fails the job. All need macOS; app-build and
-# visual-tests additionally need Xcode 27 (Liquid Glass APIs, ADR-0004),
-# which is the xcode-27 default.
+# `visual-tests` builds every scheme target (the app including Views/, which the
+# library target excludes, the widgets, and the test bundles) and runs the
+# ADR-0007 Visual Regression suite on the pinned simulator — with
+# `.snapshots(record: .never)`, a missing or drifted Visual Baseline fails the
+# job. Both need macOS; visual-tests additionally needs Xcode 27 (Liquid Glass
+# APIs, ADR-0004), which is the xcode-27 default.
 #
 # Note: pushes made with the plain GITHUB_TOKEN do not trigger this workflow
 # (GitHub suppresses token-driven events). Agent workflows check out with
@@ -39,27 +39,14 @@ jobs:
       - name: Run unit + component tests and the CRAP gate (ADR-0016)
         run: scripts/crap.sh gate
 
-  app-build:
-    runs-on: xcode-27
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      # Secrets.xcconfig is git-ignored but referenced by the xcodeproj; the
-      # template's placeholder values are enough for compile-checking the app
-      # target (not for running against live Google Sheets).
-      - name: Create Secrets.xcconfig from template (build-only)
-        run: cp Secrets.xcconfig.template Secrets.xcconfig
-      - name: Compile-check the app target (incl. Views)
-        run: |
-          xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination 'generic/platform=iOS Simulator' \
-            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
-
   visual-tests:
     runs-on: xcode-27
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      # Secrets.xcconfig is git-ignored but referenced by the xcodeproj; the
+      # template's placeholder values are enough to build (not to run against
+      # live Google Sheets).
       - name: Create Secrets.xcconfig from template (build-only)
         run: cp Secrets.xcconfig.template Secrets.xcconfig
       # A committed `record: .all` (suite- or test-level) makes every snapshot
@@ -74,16 +61,26 @@ jobs:
           fi
       # The pinned baseline device (ADR-0007): iPhone 17 Pro, on iOS 27.0 —
       # the runtime the xcode-27 image preinstalls (it ships no 26.x, so the
-      # pin must move with the runner image; an unavailable pin fails loudly
-      # with exit code 70). The committed baselines were recorded on this
-      # exact runner/runtime pair (issue #479); xcodebuild boots the
-      # simulator itself. TEST_RUNNER_SNAPSHOT_ARTIFACTS lands
+      # pin must move with the runner image). The committed baselines were
+      # recorded on this exact runner/runtime pair (issue #479). A fresh
+      # runner's first boot takes about two minutes, so it starts here in the
+      # background and overlaps the build instead of following it.
+      - name: Boot the pinned simulator in the background
+        run: |
+          udid=$(xcrun simctl list devices available -j | jq -r '.devices["com.apple.CoreSimulator.SimRuntime.iOS-27-0"][]? | select(.name == "iPhone 17 Pro") | .udid' | head -1)
+          if [ -z "$udid" ]; then
+            echo "::error::No available iPhone 17 Pro on iOS 27.0; move the ADR-0007 pin with the runner image."
+            exit 1
+          fi
+          echo "SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
+          nohup xcrun simctl bootstatus "$udid" -b > "$RUNNER_TEMP/simulator-boot.log" 2>&1 &
+      # TEST_RUNNER_SNAPSHOT_ARTIFACTS lands
       # swift-snapshot-testing's failure diffs in a known folder so the
       # artifact upload below can show *why* the gate went red.
       - name: Run Visual Regression tests (ADR-0007 gate)
         run: |
           xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' \
+            -destination "id=$SIMULATOR_UDID" \
             -only-testing:WorkoutTrackerSnapshotTests \
             -resultBundlePath VisualTests.xcresult \
             -collect-test-diagnostics never \
