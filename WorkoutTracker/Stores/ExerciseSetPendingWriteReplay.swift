@@ -20,17 +20,17 @@ extension ExerciseSet {
         case (.logged, let log?):
             state = .logged
             setLog = log
+            unstructuredSetLog = nil
         case (.logged, nil), (.pending, _):
             break
         }
     }
 
-    /// `unstructuredSetLog` deliberately survives: the coach's own free text in the Notes cell is
-    /// not this replay's to erase.
     @MainActor
     private func clearLog(leaving state: SetState) {
         self.state = state
         setLog = nil
+        unstructuredSetLog = nil
         loggedAt = nil
     }
 }
