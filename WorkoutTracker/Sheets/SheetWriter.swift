@@ -237,13 +237,7 @@ struct SheetWritePlanner: Sendable {
 
     func applying(_ update: SheetCellUpdate, to grid: SheetGrid) -> SheetGrid {
         var updated = grid
-        if update.row >= updated.count {
-            updated.append(contentsOf: SheetGrid(repeating: [], count: update.row - updated.count + 1))
-        }
-        if update.col >= updated[update.row].count {
-            updated[update.row].append(contentsOf: [String](repeating: "", count: update.col - updated[update.row].count + 1))
-        }
-        updated[update.row][update.col] = update.value
+        updated.write([[update.value]], atRow: update.row, col: update.col)
         return updated
     }
 
