@@ -9,6 +9,7 @@ RUN_TESTS=1
 THRESHOLD=6
 TOLERANCE=0.5
 TOP=25
+XCODEBUILD_DIR=""
 
 usage() {
     cat <<'EOF'
@@ -19,6 +20,9 @@ scripts/crap.sh [measure|gate|baseline] [options]
   baseline   Rewrite tools/crap/baseline.tsv from the current report.
 
   --no-test          Reuse the existing coverage profile instead of running swift test.
+  --xcodebuild DIR   Run the tests with xcodebuild and its compilation cache instead of swift test.
+                     DIR holds DerivedData, SourcePackages, and CompilationCache. Cache hits need
+                     the same absolute paths for the checkout and DIR on every run (CI).
   --top N            Rows to print for measure (default 25).
   --threshold N      CRAP a function must stay at or below (default 6).
   --tolerance N      Slack before a baselined function counts as worsened (default 0.5).
@@ -38,6 +42,10 @@ esac
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --no-test) RUN_TESTS=0 ;;
+        --xcodebuild)
+            XCODEBUILD_DIR="$2"
+            shift
+            ;;
         --top)
             TOP="$2"
             shift
@@ -68,6 +76,10 @@ LCOV="$OUT/coverage.lcov"
 REPORT="$OUT/report.json"
 BASELINE="tools/crap/baseline.tsv"
 PROFDATA=".build/debug/codecov/default.profdata"
+PROFILES="$(dirname "$PROFDATA")"
+if [[ -n $XCODEBUILD_DIR ]]; then
+    PROFILES="$XCODEBUILD_DIR/DerivedData/Build/ProfileData"
+fi
 mkdir -p "$OUT"
 
 step() {
@@ -80,30 +92,55 @@ step() {
 }
 
 run_tests() {
-    local log="$OUT/swift-test.log"
-    rm -rf "$(dirname "$PROFDATA")"
-    if ! swift test --enable-code-coverage >"$log" 2>&1; then
+    local log="$OUT/test.log"
+    rm -rf "$PROFILES"
+    if ! test_command >"$log" 2>&1; then
         tail -40 "$log" >&2
-        echo "crap.sh: swift test failed; see $log" >&2
+        echo "crap.sh: tests failed; see $log" >&2
         exit 1
     fi
     grep -E '^.?.?Test run with' "$log" | tail -1 || true
 }
 
+test_command() {
+    if [[ -z $XCODEBUILD_DIR ]]; then
+        swift test --enable-code-coverage
+        return
+    fi
+    # The sibling WorkoutTracker.xcodeproj would win over Package.swift, so name the package
+    # workspace Xcode generates when it opens the package.
+    local workspace=".swiftpm/xcode/package.xcworkspace"
+    mkdir -p "$workspace"
+    printf '<?xml version="1.0" encoding="UTF-8"?>\n<Workspace version = "1.0">\n<FileRef location = "self:"></FileRef>\n</Workspace>\n' \
+        >"$workspace/contents.xcworkspacedata"
+    xcodebuild test -workspace "$workspace" -scheme WorkoutTracker -destination platform=macOS \
+        -enableCodeCoverage YES -collect-test-diagnostics never \
+        -skipPackagePluginValidation -skipMacroValidation \
+        -derivedDataPath "$XCODEBUILD_DIR/DerivedData" \
+        -clonedSourcePackagesDirPath "$XCODEBUILD_DIR/SourcePackages" \
+        COMPILATION_CACHE_ENABLE_CACHING=YES \
+        COMPILATION_CACHE_CAS_PATH="$XCODEBUILD_DIR/CompilationCache"
+}
+
 export_lcov() {
+    local bin
+    if [[ -n $XCODEBUILD_DIR ]]; then
+        PROFDATA="$(find "$PROFILES" -name Coverage.profdata 2>/dev/null | head -1 || true)"
+        bin="$XCODEBUILD_DIR/DerivedData/Build/Products/Debug"
+    else
+        bin="$(swift build --show-bin-path)"
+    fi
     if [[ ! -f $PROFDATA ]]; then
-        echo "crap.sh: no coverage profile at $PROFDATA. Run without --no-test first." >&2
+        echo "crap.sh: no coverage profile in $PROFILES. Run without --no-test first." >&2
         exit 1
     fi
-    local bin
-    bin="$(swift build --show-bin-path)"
     local test_binary="$bin/WorkoutTrackerTests.xctest/Contents/MacOS/WorkoutTrackerTests"
     if [[ ! -f $test_binary ]]; then
         echo "crap.sh: test binary not found at $test_binary. Run without --no-test first." >&2
         exit 1
     fi
     xcrun llvm-cov export -format=lcov -instr-profile "$PROFDATA" "$test_binary" \
-        -ignore-filename-regex='(^|/)(Tests|\.build)/' >"$LCOV"
+        -ignore-filename-regex='(^|/)(Tests|\.build|SourcePackages)/' >"$LCOV"
 }
 
 build_tool() {
@@ -130,7 +167,7 @@ measure() {
 }
 
 if [[ $RUN_TESTS -eq 1 ]]; then
-    step "swift test --enable-code-coverage" run_tests
+    step "tests with coverage" run_tests
 fi
 step "llvm-cov export" export_lcov
 step "build crap" build_tool
