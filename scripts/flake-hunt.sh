@@ -7,7 +7,7 @@ Usage: scripts/flake-hunt.sh [--repetitions N] [--load N] [FILTER]
 Repeats every `swift test` test (or those matching FILTER) until one fails, up to N repetitions
 each (default 200), while N busy-loop processes (default three per core) hold the CPU. Timing
 races that pass on a quiet machine fail here within a few hundred repetitions.
-Exits 0 when every repetition passed; otherwise prints the failing tests and exits 1.
+Exits 0 when every repetition passed, 1 when a test failed, 65 when the build failed.
 EOF
   exit 2
 }
@@ -27,14 +27,13 @@ done
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
 cd "$repo"
-swift build --build-tests >/dev/null
-
 log=$repo/.build/flake-hunt/$(date +%Y%m%d-%H%M%S).log
 mkdir -p "$(dirname "$log")"
+swift build --build-tests >"$log" 2>&1 || { grep -E "error:" "$log" | head -20 >&2; echo "build log: $log" >&2; exit 65; }
 
 hogs=()
 trap 'kill ${hogs[@]+"${hogs[@]}"} 2>/dev/null || true' EXIT
-for _ in $(seq "$load"); do
+for (( i = 0; i < load; i++ )); do
   yes >/dev/null &
   hogs+=($!)
 done
