@@ -9,6 +9,7 @@ private final class FlushStubClient: SheetsClient, @unchecked Sendable {
     var fetches: [String] = []
     var updates: [(String, [[String]])] = []
     var shouldThrowOffline = false
+    var shouldFailUpdates = false
 
     init(grid: SheetGrid) {
         self.grid = grid
@@ -21,10 +22,12 @@ private final class FlushStubClient: SheetsClient, @unchecked Sendable {
         return SheetSnapshot(values: grid)
     }
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
+        if shouldFailUpdates { throw URLError(.timedOut) }
         updates.append((range, values))
     }
 
     func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
+        if shouldFailUpdates { throw URLError(.timedOut) }
         self.updates.append(contentsOf: updates.map { ($0.range, $0.values) })
     }
 }
@@ -521,6 +524,45 @@ extension SyncCoordinator.State {
     #expect(set.state == .skipped)
     #expect(set.setLog == nil)
     #expect(set.loggedAt == nil)
+}
+
+@MainActor
+@Test func syncOverlaysAStillPendingSetLogOverAnUnstructuredSetLogWithoutKeepingTheFreeText() async throws {
+    let container = try makeContainer()
+    let ctx = container.mainContext
+    let write = PendingWrite(
+        blockTab: "Block 27",
+        week: 1,
+        day: 1,
+        exerciseName: "Squat",
+        setIndex: 0,
+        column: .notes,
+        operation: .upsert,
+        valueToWrite: "185x5@8",
+        expectedCurrentValue: "felt heavy"
+    )
+    ctx.insert(write)
+    try ctx.save()
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": "Squat", "D15": "1", "K15": "Coach note", "K16": "felt heavy"
+        ],
+        rows: 24,
+        cols: 30
+    )
+    let client = FlushStubClient(grid: grid)
+    client.shouldFailUpdates = true
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.sync(spreadsheetId: "sid")
+
+    let set = try #require(try overlaidSquatSet(index: 0, in: ctx))
+    #expect(write.status == .pending)
+    #expect(set.state == .logged)
+    #expect(set.setLog?.formatted == "185x5@8")
+    #expect(set.unstructuredSetLog == nil)
 }
 
 @MainActor

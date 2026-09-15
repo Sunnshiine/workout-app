@@ -44,7 +44,7 @@ private func replayWrite(
 
     #expect(set.state == .logged)
     #expect(set.setLog == SetLog(weight: .pounds(185), reps: 5, rpe: 8))
-    #expect(set.loggedAt == Date(timeIntervalSinceReferenceDate: 1_000))
+    #expect(set.loggedAt == Date(timeIntervalSinceReferenceDate: 0))
 }
 
 @MainActor
@@ -59,19 +59,15 @@ private func replayWrite(
 }
 
 @MainActor
-@Test func replayingADeleteReturnsTheSetToPendingAndKeepsItsFreeText() {
-    let set = replaySet(
-        state: .logged,
-        setLog: SetLog(weight: .pounds(185), reps: 5, rpe: 8),
-        unstructuredSetLog: "felt heavy"
-    )
+@Test func replayingADeleteReturnsTheSetToPendingAndDropsItsFreeText() {
+    let set = replaySet(state: .logged, setLog: nil, unstructuredSetLog: "felt heavy")
 
     set.apply(replayWrite(operation: .delete, valueToWrite: nil))
 
     #expect(set.state == .pending)
     #expect(set.setLog == nil)
     #expect(set.loggedAt == nil)
-    #expect(set.unstructuredSetLog == "felt heavy")
+    #expect(set.unstructuredSetLog == nil)
 }
 
 /// The parser reads unparseable text as logged-but-unstructured. The replay has no Set Log to put
