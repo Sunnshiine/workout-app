@@ -59,7 +59,6 @@ private final class BackfillStubClient: SheetsClient, @unchecked Sendable {
 
 private actor FetchRecorder {
     private var fetchedTabs: [String] = []
-    private var syncReturned = false
     private var released = false
     private var releaseContinuation: CheckedContinuation<Void, Never>?
 
@@ -69,14 +68,6 @@ private actor FetchRecorder {
 
     func tabs() -> [String] {
         fetchedTabs
-    }
-
-    func markSyncReturned() {
-        syncReturned = true
-    }
-
-    func didSyncReturn() -> Bool {
-        syncReturned
     }
 
     func waitForRelease() async {
@@ -443,7 +434,7 @@ private func loggedSquatGrid() -> SheetGrid {
 }
 
 @MainActor
-@Test func syncLaunchesHistoricalBackfillWithoutWaitingForIt() async throws {
+@Test(.timeLimit(.minutes(1))) func syncLaunchesHistoricalBackfillWithoutWaitingForIt() async throws {
     let container = try makeSyncContainer()
     let recorder = FetchRecorder()
     let client = BackfillStubClient(
@@ -463,19 +454,14 @@ private func loggedSquatGrid() -> SheetGrid {
         lastPerformed: backfillCompletion
     )
 
-    let syncTask = Task {
-        await sync.sync(spreadsheetId: "sid")
-        await recorder.markSyncReturned()
-    }
-    _ = try #require(await waitForFetchedTab("Block 26", recorder: recorder))
+    await sync.sync(spreadsheetId: "sid")
 
-    #expect(await recorder.didSyncReturn())
     #expect(sync.state == .idle)
+    #expect(lookupStore.snapshot.lookup(for: "Squat") == nil)
 
     await recorder.release()
-    await syncTask.value
     await backfillCompletion.waitForFinish()
-    _ = try #require(lookupStore.snapshot.lookup(for: "Squat"))
+    #expect(lookupStore.snapshot.lookup(for: "Squat")?.resultText == "245x5@8")
 }
 
 @MainActor
@@ -661,16 +647,4 @@ private func historicalGrid(exerciseName: String, log: String, date: String) -> 
         rows: 20,
         cols: 60
     )
-}
-
-private func waitForFetchedTab(_ tab: String, recorder: FetchRecorder) async throws -> Bool {
-    // A one-second budget failed under CPU load from parallel builds; the fetch takes milliseconds
-    // when the machine is quiet, so a wide budget costs nothing on the passing path.
-    for _ in 0..<1000 {
-        if await recorder.tabs().contains(tab) {
-            return true
-        }
-        try await Task.sleep(nanoseconds: 10_000_000)
-    }
-    return false
 }
