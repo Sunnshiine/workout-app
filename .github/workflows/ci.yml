@@ -87,8 +87,8 @@ jobs:
           done
           EOF
           nohup bash "$RUNNER_TEMP/sample.sh" > "$RUNNER_TEMP/cpu.log" 2>&1 &
-          ls -la /Library/Developer/CoreSimulator/Caches/dyld/ /Library/Developer/CoreSimulator/Caches/dyld/* 2>&1 || true
-          xcrun simctl runtime list 2>&1 || true
+      - name: Boot the pinned simulator in the background
+        run: nohup scripts/ci/boot-simulator.sh > "$RUNNER_TEMP/boot.log" 2>&1 &
       - name: Read the Xcode build number
         id: xcode
         run: echo "build=$(xcodebuild -version | awk '/Build version/ {print $3}')" >> "$GITHUB_OUTPUT"
@@ -114,18 +114,6 @@ jobs:
       # simulator itself. TEST_RUNNER_SNAPSHOT_ARTIFACTS lands
       # swift-snapshot-testing's failure diffs in a known folder so the
       # artifact upload below can show *why* the gate went red.
-      - name: Find the pinned simulator
-        id: sim
-        run: |
-          udid=$(xcrun simctl list devices available -j | jq -r '.devices["com.apple.CoreSimulator.SimRuntime.iOS-27-0"][]? | select(.name == "iPhone 17 Pro") | .udid' | head -1)
-          echo "udid=$udid" >> "$GITHUB_OUTPUT"
-      - name: Restore the booted-once simulator
-        id: device
-        if: steps.sim.outputs.udid != ''
-        uses: actions/cache/restore@v4
-        with:
-          path: ~/Library/Developer/CoreSimulator/Devices/${{ steps.sim.outputs.udid }}/data
-          key: sim-data-${{ steps.xcode.outputs.build }}-${{ steps.sim.outputs.udid }}
       - name: Run Visual Regression tests (ADR-0007 gate)
         run: |
           xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
@@ -140,24 +128,12 @@ jobs:
             COMPILATION_CACHE_ENABLE_CACHING=YES \
             COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache" \
             TEST_RUNNER_SNAPSHOT_ARTIFACTS="$PWD/snapshot-diffs"
-      - name: "lab: shut down the simulator for saving"
-        if: steps.sim.outputs.udid != '' && steps.device.outputs.cache-hit != 'true'
-        run: |
-          t=$(date +%s); xcrun simctl shutdown "${{ steps.sim.outputs.udid }}" || true; echo "lab shutdown $(( $(date +%s) - t ))s"
-          du -sh ~/Library/Developer/CoreSimulator/Devices/${{ steps.sim.outputs.udid }}/data 2>/dev/null || true
-      - name: Save the booted-once simulator
-        if: steps.sim.outputs.udid != '' && steps.device.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: ~/Library/Developer/CoreSimulator/Devices/${{ steps.sim.outputs.udid }}/data
-          key: sim-data-${{ steps.xcode.outputs.build }}-${{ steps.sim.outputs.udid }}
       - name: "lab: print CPU samples"
         if: always()
         run: |
           sed 's/^/cpu| /' "$RUNNER_TEMP/cpu.log"
-          ls -laR /Library/Developer/CoreSimulator/Caches/dyld/ 2>&1 | head -20 || true
+          sed 's/^/lab boot| /' "$RUNNER_TEMP/boot.log"
           ls -la ~/Library/Logs/DiagnosticReports/ 2>&1 | tail -20 || true
-          find ~/Library/Logs/CoreSimulator -name '*.ips' -o -name '*.crash' 2>/dev/null | head -20 || true
       - name: Upload Visual Baseline diffs
         if: failure()
         uses: actions/upload-artifact@v4
