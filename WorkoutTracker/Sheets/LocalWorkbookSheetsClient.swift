@@ -43,6 +43,46 @@
         }
     }
 
+    /// The A1 cell a `cells` key names, or nil when the key is not one.
+    ///
+    /// Case is folded, so a hand-authored `k15` and `K15` name the same cell.
+    private func a1CellKey(_ key: String) -> String? {
+        let reference = key.uppercased()
+        return isA1CellReference(reference) ? reference : nil
+    }
+
+    /// The 1-based Sheet row a `hiddenRows` key names, or nil when the key is not one.
+    private func sheetRowNumber(_ key: String) -> Int? {
+        guard let row = Int(key), row >= 1 else { return nil }
+        return row
+    }
+
+    extension KeyedDecodingContainer {
+        /// Decodes a workbook section whose keys spell a Sheet location, rejecting the file when one does not.
+        ///
+        /// The workbook is hand-authorable, so an absent section is an empty table. Two keys naming
+        /// one location collapse and the last wins, because folding case and parsing numbers both
+        /// let distinct spellings land on the same location.
+        func decodeTable<Location: Hashable, Value: Decodable>(
+            forKey key: Key,
+            locatedBy location: (String) -> Location?,
+            keysAre expectation: String
+        ) throws -> [Location: Value] {
+            var table: [Location: Value] = [:]
+            for (rawKey, value) in try decodeIfPresent([String: Value].self, forKey: key) ?? [:] {
+                guard let location = location(rawKey) else {
+                    throw DecodingError.dataCorruptedError(
+                        forKey: key,
+                        in: self,
+                        debugDescription: "\(expectation); got \"\(rawKey)\""
+                    )
+                }
+                table[location] = value
+            }
+            return table
+        }
+    }
+
     extension LocalWorkbook.Tab: Codable {
         private enum CodingKeys: String, CodingKey {
             case rows, cols, cells, hiddenRows
@@ -52,33 +92,15 @@
             let container = try decoder.container(keyedBy: CodingKeys.self)
             rows = try container.decodeIfPresent(Int.self, forKey: .rows) ?? 0
             cols = try container.decodeIfPresent(Int.self, forKey: .cols) ?? 0
-            let rawCells = try container.decodeIfPresent([String: String].self, forKey: .cells) ?? [:]
-            cells = try Dictionary(
-                rawCells.map { key, value in
-                    let reference = key.uppercased()
-                    guard isA1CellReference(reference) else {
-                        throw DecodingError.dataCorruptedError(
-                            forKey: .cells,
-                            in: container,
-                            debugDescription: "cells keys are A1 references such as K15; got \"\(key)\""
-                        )
-                    }
-                    return (reference, value)
-                },
-                uniquingKeysWith: { _, last in last }
+            cells = try container.decodeTable(
+                forKey: .cells,
+                locatedBy: a1CellKey,
+                keysAre: "cells keys are A1 references such as K15"
             )
-            let hidden = try container.decodeIfPresent([String: SheetRowVisibility].self, forKey: .hiddenRows) ?? [:]
-            hiddenRows = try Dictionary(
-                uniqueKeysWithValues: hidden.map { key, value in
-                    guard let row = Int(key), row >= 1 else {
-                        throw DecodingError.dataCorruptedError(
-                            forKey: .hiddenRows,
-                            in: container,
-                            debugDescription: "hiddenRows keys are 1-based row numbers; got \"\(key)\""
-                        )
-                    }
-                    return (row, value)
-                }
+            hiddenRows = try container.decodeTable(
+                forKey: .hiddenRows,
+                locatedBy: sheetRowNumber,
+                keysAre: "hiddenRows keys are 1-based row numbers"
             )
         }
 

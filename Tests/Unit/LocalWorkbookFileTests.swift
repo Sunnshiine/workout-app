@@ -68,14 +68,24 @@ private func temporaryWorkbookURL() -> URL {
     #expect(snapshot.values.cell(row: 11, col: 2) == "Day 1")
 }
 
+private func expectCorruptedWorkbook(_ json: String, saying message: String, forKey label: String) throws {
+    do {
+        _ = try JSONDecoder().decode(LocalWorkbook.self, from: Data(json.utf8))
+        Issue.record("\"\(label)\" decoded instead of failing")
+    } catch let DecodingError.dataCorrupted(context) {
+        #expect(context.debugDescription == message, "\(label)")
+    }
+}
+
 @Test func localWorkbookRejectsMalformedCellKeysAndUppercasesTheRest() throws {
-    for bad in ["\"15\"", "\"\"", "\"K0\"", "\"K15 \"", "\"K-1\""] {
-        let json = """
-            { "spreadsheetId": "s", "title": "t", "tabs": { "B": { "cells": { \(bad): "x" } } } }
+    for bad in ["15", "", "K0", "K15 ", "K-1"] {
+        try expectCorruptedWorkbook(
             """
-        #expect(throws: DecodingError.self, "\(bad)") {
-            try JSONDecoder().decode(LocalWorkbook.self, from: Data(json.utf8))
-        }
+            { "spreadsheetId": "s", "title": "t", "tabs": { "B": { "cells": { "\(bad)": "x" } } } }
+            """,
+            saying: "cells keys are A1 references such as K15; got \"\(bad)\"",
+            forKey: bad
+        )
     }
 
     let lower = """
@@ -85,14 +95,52 @@ private func temporaryWorkbookURL() -> URL {
     #expect(workbook.tabs["B"]?.cells == ["K15": "185x5@8"])
 }
 
-@Test func localWorkbookRejectsNonNumericHiddenRowKeys() {
+@Test func localWorkbookRejectsHiddenRowKeysThatDoNotNameASheetRow() throws {
+    for bad in ["row15", "", "0", "-1", "15.0"] {
+        try expectCorruptedWorkbook(
+            """
+            {
+              "spreadsheetId": "s", "title": "t",
+              "tabs": {
+                "B": { "cells": {}, "hiddenRows": { "\(bad)": { "hiddenByUser": true, "hiddenByFilter": false } } }
+              }
+            }
+            """,
+            saying: "hiddenRows keys are 1-based row numbers; got \"\(bad)\"",
+            forKey: bad
+        )
+    }
+
+    let valid = """
+        {
+          "spreadsheetId": "s", "title": "t",
+          "tabs": { "B": { "cells": {}, "hiddenRows": { "15": { "hiddenByUser": false, "hiddenByFilter": true } } } }
+        }
+        """
+    let workbook = try JSONDecoder().decode(LocalWorkbook.self, from: Data(valid.utf8))
+    #expect(workbook.tabs["B"]?.hiddenRows == [15: SheetRowVisibility(hiddenByFilter: true)])
+}
+
+@Test func twoWorkbookKeysNamingOneLocationCollapseToASingleEntry() throws {
     let json = """
-        { "spreadsheetId": "s", "title": "t", "tabs": { "B": { "cells": {}, "hiddenRows": { "row15": {} } } } }
+        {
+          "spreadsheetId": "s", "title": "t",
+          "tabs": {
+            "B": {
+              "cells": { "k15": "a", "K15": "b" },
+              "hiddenRows": {
+                "15": { "hiddenByUser": true, "hiddenByFilter": false },
+                "015": { "hiddenByUser": true, "hiddenByFilter": false }
+              }
+            }
+          }
+        }
         """
 
-    #expect(throws: DecodingError.self) {
-        try JSONDecoder().decode(LocalWorkbook.self, from: Data(json.utf8))
-    }
+    let tab = try #require(try JSONDecoder().decode(LocalWorkbook.self, from: Data(json.utf8)).tabs["B"])
+
+    #expect(tab.cells.keys.sorted() == ["K15"])
+    #expect(tab.hiddenRows == [15: SheetRowVisibility(hiddenByUser: true)])
 }
 
 @Test func persistingClientWritesEveryUpdateAndAFreshClientLoadsTheWrittenCell() async throws {
