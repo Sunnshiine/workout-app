@@ -545,10 +545,6 @@ extension SyncCoordinator {
                 let message = recordConflict(planningConflict, for: write, planner: flushContext.planner)
                 conflicts.append(message)
                 conflicts.append(contentsOf: recordDependentLastSetRPEConflicts(message, for: write, in: pending))
-            } catch let error as SheetWriterError {
-                let message = recordConflict(error, for: write)
-                conflicts.append(message)
-                conflicts.append(contentsOf: recordDependentLastSetRPEConflicts(message, for: write, in: pending))
             } catch {
                 recordRetry(for: write, error: error, pendingCount: pending.count)
                 return .stoppedForRetry
@@ -578,23 +574,6 @@ extension SyncCoordinator {
             plannedWrite.update,
             to: plannedWrite.snapshot
         )
-    }
-
-    fileprivate func recordConflict(_ error: SheetWriterError, for write: PendingWrite) -> String {
-        let message = error.errorDescription ?? String(describing: error)
-        write.markConflict(message)
-        recordWriteTargetAudit(
-            for: write,
-            details: SheetWriteAuditDetails(
-                selectedA1Target: nil,
-                rowScanDetails: "No row selected: \(message)",
-                currentValue: nil,
-                valueCheckOutcome: "Not checked because no target was selected."
-            ),
-            finalStatus: .conflict,
-            message: message
-        )
-        return "\(write.exerciseName): \(message)"
     }
 
     fileprivate func recordConflict(
@@ -649,7 +628,7 @@ extension SyncCoordinator {
                 snapshot: snapshot,
                 auditDetails: flushContext.planner.auditDetails(for: request, target: target, in: snapshot)
             )
-        } catch let planningError as SheetWriterError where batch.overlaps(target) {
+        } catch is SheetWriterError where batch.overlaps(target) {
             try await flush(batch, context: flushContext)
             batch.removeAll()
             snapshot = try await gridSnapshot(for: request.blockTab, context: flushContext, snapshots: &snapshots)
@@ -668,8 +647,6 @@ extension SyncCoordinator {
                     snapshot: snapshot,
                     target: target
                 )
-            } catch {
-                throw planningError
             }
         } catch let planningError as SheetWriterError {
             throw PendingWritePlanningConflict(error: planningError, request: request, snapshot: snapshot, target: target)

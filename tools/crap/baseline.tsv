@@ -3,7 +3,7 @@ WorkoutTracker/Sheets/SheetWriter.swift	SheetWriterError.errorDescription.get	8.
 WorkoutTracker/Stores/ExerciseSetPendingWriteReplay.swift	ExerciseSet.apply(_:)	7.0
 WorkoutTracker/Stores/SyncCoordinator.swift	SyncCoordinator.backfillLastPerformed(spreadsheetId:currentBlock:historicalTabs:)	9.0
 WorkoutTracker/Stores/SyncCoordinator.swift	SyncCoordinator.flushPending(spreadsheetId:)	7.0
-WorkoutTracker/Stores/SyncCoordinator.swift	SyncCoordinator.flushPendingWrites(_:context:)	8.0
+WorkoutTracker/Stores/SyncCoordinator.swift	SyncCoordinator.flushPendingWrites(_:context:)	7.0
 WorkoutTracker/Stores/SyncCoordinator.swift	SyncCoordinator.localLoggedAtBySetID()	7.0
-WorkoutTracker/Stores/SyncCoordinator.swift	SyncCoordinator.plan(_:context:snapshots:batch:)	9.7
+WorkoutTracker/Stores/SyncCoordinator.swift	SyncCoordinator.plan(_:context:snapshots:batch:)	7.2
 WorkoutTracker/Stores/SyncStatusBannerPresentation.swift	SyncStatusBannerPresentation.init(state:)	7.0
