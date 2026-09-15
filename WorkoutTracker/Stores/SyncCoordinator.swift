@@ -157,28 +157,10 @@ final class SyncCoordinator {
 
     private func overlayPendingWrites(on block: Block) {
         let writes = (try? context.fetch(FetchDescriptor<PendingWrite>())) ?? []
+        let sets = block.setsByID
         for write in writes where write.blockTab == block.tabName && write.column == .notes {
-            findSet(
-                in: block,
-                week: write.week,
-                day: write.day,
-                exerciseName: write.exerciseName,
-                setIndex: write.setIndex
-            )?.apply(write)
+            sets[SetCoordinates.ID(write)]?.apply(write)
         }
-    }
-
-    private func findSet(
-        in block: Block,
-        week: Int,
-        day: Int,
-        exerciseName: String,
-        setIndex: Int
-    ) -> ExerciseSet? {
-        block.weeks.first { $0.number == week }?
-            .sessions.first { $0.dayNumber == day }?
-            .exercises.first { $0.name == exerciseName }?
-            .sets.first { $0.index == setIndex }
     }
 
     private func launchLastPerformedBackfill(
@@ -365,58 +347,21 @@ final class SyncCoordinator {
 
 }
 
-private struct LocalSetID: Hashable {
-    let blockTab: String
-    let week: Int
-    let day: Int
-    let exerciseName: String
-    let setIndex: Int
-}
-
 extension SyncCoordinator {
-    fileprivate func localLoggedAtBySetID() throws -> [LocalSetID: Date] {
-        var values: [LocalSetID: Date] = [:]
+    fileprivate func localLoggedAtBySetID() throws -> [SetCoordinates.ID: Date] {
+        var values: [SetCoordinates.ID: Date] = [:]
         for block in try context.fetch(FetchDescriptor<Block>()) {
-            for week in block.weeks {
-                for session in week.sessions {
-                    for exercise in session.exercises {
-                        for set in exercise.sets {
-                            guard let loggedAt = set.loggedAt else { continue }
-                            values[
-                                LocalSetID(
-                                    blockTab: block.tabName,
-                                    week: week.number,
-                                    day: session.dayNumber,
-                                    exerciseName: exercise.name,
-                                    setIndex: set.index
-                                )
-                            ] = loggedAt
-                        }
-                    }
-                }
+            for (id, set) in block.setsByID {
+                guard let loggedAt = set.loggedAt else { continue }
+                values[id] = loggedAt
             }
         }
         return values
     }
 
-    fileprivate func preserveLocalLoggedAt(on block: Block, loggedAtBySet: [LocalSetID: Date]) {
-        for week in block.weeks {
-            for session in week.sessions {
-                for exercise in session.exercises {
-                    for set in exercise.sets where set.state == .logged {
-                        set.loggedAt =
-                            loggedAtBySet[
-                                LocalSetID(
-                                    blockTab: block.tabName,
-                                    week: week.number,
-                                    day: session.dayNumber,
-                                    exerciseName: exercise.name,
-                                    setIndex: set.index
-                                )
-                            ]
-                    }
-                }
-            }
+    fileprivate func preserveLocalLoggedAt(on block: Block, loggedAtBySet: [SetCoordinates.ID: Date]) {
+        for (id, set) in block.setsByID where set.state == .logged {
+            set.loggedAt = loggedAtBySet[id]
         }
     }
 }
