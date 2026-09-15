@@ -16,7 +16,7 @@ struct GlassBearingViewsVisualTests {
         let now = Date(timeIntervalSinceReferenceDate: 1_000)
         let clock = VisualRestClock(now: now)
         let timer = RestTimer(clock: clock)
-        timer.start(duration: 150, origin: ActiveSetID(exerciseOrder: 0, setIndex: 1), kind: .standard)
+        timer.start(duration: 90, origin: ActiveSetID(exerciseOrder: 0, setIndex: 1), kind: .standard)
 
         assertGlassBaseline {
             RestPillView(restTimer: timer, visualBaselineDate: now)
