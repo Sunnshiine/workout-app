@@ -364,6 +364,11 @@ struct ParsedBlockModel {
         self.benchTM = benchTM
         self.deadliftTM = deadliftTM
     }
+
+    /// Every Exercise's Cadence-stripped base name: the unit Exercise History coverage counts in (ADR-0012).
+    var exerciseBaseNames: Set<String> {
+        Set(weeks.flatMap(\.days).flatMap(\.exercises).map(\.baseName))
+    }
 }
 struct ParsedBlock {
     var block: ParsedBlockModel

@@ -181,15 +181,15 @@ final class SyncCoordinator {
         currentTab: String,
         currentBlock: ParsedBlockModel
     ) {
-        let historicalTabs = sortedHistoricalTabs(from: titles, excluding: currentTab)
-        guard !historicalTabs.isEmpty else { return }
+        guard !sortedHistoricalTabs(from: titles, excluding: currentTab).isEmpty else { return }
 
         Task { [weak self] in
             guard let self else { return }
             await backfillLastPerformed(
                 spreadsheetId: spreadsheetId,
-                currentBlock: currentBlock,
-                historicalTabs: historicalTabs
+                titles: titles,
+                currentTab: currentTab,
+                baseNames: currentBlock.exerciseBaseNames
             )
             lastPerformed.lastPerformedBackfillDidFinish()
         }
@@ -205,17 +205,21 @@ final class SyncCoordinator {
     /// finish (coverage reached or tabs exhausted). Each ingested tab publishes per-tab progress.
     private func backfillLastPerformed(
         spreadsheetId: String,
-        currentBlock: ParsedBlockModel,
-        historicalTabs: [String]
+        titles: [String],
+        currentTab: String,
+        baseNames: Set<String>
     ) async {
-        let currentExercises = uniqueExercises(in: currentBlock)
-        guard !currentExercises.isEmpty else { return }
-        guard !hasLastPerformedCoverage(for: currentExercises) else {
+        guard !baseNames.isEmpty else { return }
+        guard !hasLastPerformedCoverage(for: baseNames) else {
             clearHistoryFillCursor(spreadsheetId: spreadsheetId)
             return
         }
 
-        let tabsToScan = resumeTabs(historicalTabs, after: historyFillCursorTab(spreadsheetId: spreadsheetId))
+        let tabsToScan = sortedHistoricalTabs(
+            from: titles,
+            excluding: currentTab,
+            deeperThan: historyFillCursorTab(spreadsheetId: spreadsheetId)
+        )
         let client = client
         let backoff = tabFetchBackoff
         var tabsCompleted = 0
@@ -236,7 +240,7 @@ final class SyncCoordinator {
                 LastPerformedBackfillProgress(tab: tab, tabsCompleted: tabsCompleted, tabsToScan: tabsToScan.count)
             )
 
-            if hasLastPerformedCoverage(for: currentExercises) {
+            if hasLastPerformedCoverage(for: baseNames) {
                 clearHistoryFillCursor(spreadsheetId: spreadsheetId)
                 return
             }
@@ -313,16 +317,6 @@ final class SyncCoordinator {
         }
     }
 
-    /// The historical tabs still to read, given the persisted resume cursor. Everything at or newer
-    /// than the deepest ingested tab is already on device, so the fill starts at the next tab deeper.
-    private func resumeTabs(_ historicalTabs: [String], after cursorTab: String?) -> [String] {
-        guard let cursorTab, let cursorNumber = blockNumber(from: cursorTab) else { return historicalTabs }
-        return historicalTabs.filter { tab in
-            guard let number = blockNumber(from: tab) else { return true }
-            return number < cursorNumber
-        }
-    }
-
     private func historyFillCursorTab(spreadsheetId: String) -> String? {
         historyFillCursor(spreadsheetId: spreadsheetId)?.deepestIngestedTab
     }
@@ -350,21 +344,6 @@ final class SyncCoordinator {
         try? context.save()
     }
 
-    private func uniqueExercises(in block: ParsedBlockModel) -> [(name: String, baseName: String)] {
-        var seenNames = Set<String>()
-        var exercises: [(name: String, baseName: String)] = []
-
-        for week in block.weeks {
-            for session in week.days {
-                for exercise in session.exercises where seenNames.insert(exercise.name).inserted {
-                    exercises.append((exercise.name, exercise.baseName))
-                }
-            }
-        }
-
-        return exercises
-    }
-
     /// The coverage-based stopping rule (ADR-0012): the fill reaches back until every
     /// current-Block Exercise has at least `historyCoverageTarget` entries counted per
     /// Cadence-stripped base name — the last ~5 entries the Exercise History sheet reads —
@@ -372,9 +351,8 @@ final class SyncCoordinator {
     /// tab Movement matching didn't strictly need; that over-fetch is accepted (#357).
     private static let historyCoverageTarget = 5
 
-    private func hasLastPerformedCoverage(for exercises: [(name: String, baseName: String)]) -> Bool {
-        let baseNames = Set(exercises.map(\.baseName))
-        return baseNames.allSatisfy { baseName in
+    private func hasLastPerformedCoverage(for baseNames: Set<String>) -> Bool {
+        baseNames.allSatisfy { baseName in
             lastPerformed.entryCount(baseName: baseName) >= Self.historyCoverageTarget
         }
     }
