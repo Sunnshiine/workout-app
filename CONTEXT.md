@@ -32,7 +32,7 @@ A mobile client for powerlifting athletes that surfaces and logs workouts from a
 
 **Prescribed Load**: The coach's intensity instruction for a given Set (e.g. "RPE6", "Drop 17.5%", "BW"). Read-only from the athlete's perspective. Avoid: target load.
 
-**RPE** (Rate of Perceived Exertion): One of ten points of effort: 5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10. A `{weight}x{reps}@{RPE}` token whose RPE is any other number is not a Set Log; it reads as an Unstructured Set Log. Used prescriptively ("RPE6" = end set 4 reps from failure) and as athlete feedback in Last Set RPE. Distinct from %1RM, which is a separate column.
+**RPE** (Rate of Perceived Exertion): One of ten points of effort: 5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10. A `{weight}x{reps}@{RPE}` token whose RPE is any other number is not a Set Log, so the app keeps it as the text it was entered as. Used prescriptively ("RPE6" = end set 4 reps from failure) and as athlete feedback in Last Set RPE. Distinct from %1RM, which is a separate column.
 
 ### Logging
 

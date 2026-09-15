@@ -20,7 +20,7 @@ A mobile client for one powerlifting athlete whose coach programs training in a 
 - **Session** — a single training day, e.g. "Week 2 · Day 3". (Never: workout, training day)
 - **Exercise** — a movement in a Session, optionally tempo-prefixed, e.g. "2-3:1:0 BB RDL". (Never: lift)
 - **Set** / **Set Log** — one prescribed effort; the athlete's record is `{weight}x{reps}@{RPE}`, e.g. "185x7@6" ("BW" for bodyweight).
-- **RPE** — effort on a 1–10 scale, half-point steps.
+- **RPE** — effort, one of 5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10.
 - **Prescribed Load** — the coach's intensity instruction, e.g. "RPE6", "Drop 17.5%", "BW". Read-only.
 - **Last Performed** — the most recent prior result for an Exercise, shown as a quiet reference (all sets, e.g. "70x8@8, 75x8@9.5").
 - **Coach Note** — read-only instruction text from the coach on an Exercise.

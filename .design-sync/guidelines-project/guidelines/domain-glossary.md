@@ -18,7 +18,7 @@ The exact vocabulary of the app. Use these words in UI copy and design annotatio
 
 - **Training Max** — the coach's derived working weight for Squat, Bench, or Deadlift, stored per Block. Avoid: 1RM, working max.
 - **Prescribed Load** — the coach's intensity instruction for a Set: "RPE6", "Drop 17.5%", "BW", "72.5%". Read-only to the athlete. Avoid: target load.
-- **RPE** — Rate of Perceived Exertion, 1–10 in whole and half points. Prescriptive ("RPE6" = end 4 reps from failure) and as feedback (Last Set RPE).
+- **RPE** — Rate of Perceived Exertion, one of 5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10. Prescriptive ("RPE6" = end 4 reps from failure) and as feedback (Last Set RPE).
 - **Load Suggestion** — a calculated weight hint pre-filled in the weight input, from "Drop X%" (off the previous set) or "%1RM" (off the Training Max). Always overridable. Avoid: recommended weight, auto-fill.
 
 ## Logging
