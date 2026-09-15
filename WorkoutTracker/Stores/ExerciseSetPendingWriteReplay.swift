@@ -10,27 +10,17 @@ extension ExerciseSet {
     @MainActor
     func apply(_ write: PendingWrite) {
         if write.operation == .delete {
-            return clearLog(leaving: .pending)
+            return markPending()
         }
         guard let value = write.valueToWrite else { return }
         let classification = SetLogToken.classify(value)
         switch (classification.state, classification.setLog) {
         case (.skipped, _):
-            clearLog(leaving: .skipped)
+            markSkipped()
         case (.logged, let log?):
-            state = .logged
-            setLog = log
-            unstructuredSetLog = nil
+            markLogged(log, at: write.createdAt)
         case (.logged, nil), (.pending, _):
             break
         }
-    }
-
-    @MainActor
-    private func clearLog(leaving state: SetState) {
-        self.state = state
-        setLog = nil
-        unstructuredSetLog = nil
-        loggedAt = nil
     }
 }

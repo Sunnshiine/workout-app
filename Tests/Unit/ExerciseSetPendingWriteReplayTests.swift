@@ -44,7 +44,7 @@ private func replayWrite(
 
     #expect(set.state == .logged)
     #expect(set.setLog == SetLog(weight: .pounds(185), reps: 5, rpe: 8))
-    #expect(set.loggedAt == Date(timeIntervalSinceReferenceDate: 1_000))
+    #expect(set.loggedAt == Date(timeIntervalSinceReferenceDate: 0))
 }
 
 @MainActor

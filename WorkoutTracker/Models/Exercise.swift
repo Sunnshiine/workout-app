@@ -58,6 +58,32 @@ extension ExerciseSet {
     var isSettled: Bool { state == .logged || state == .skipped }
 }
 
+extension ExerciseSet {
+    func markLogged(_ log: SetLog, at time: Date) {
+        if state != .logged {
+            loggedAt = time
+        }
+        setLog = log
+        unstructuredSetLog = nil
+        state = .logged
+    }
+
+    func markSkipped() {
+        clearLog(leaving: .skipped)
+    }
+
+    func markPending() {
+        clearLog(leaving: .pending)
+    }
+
+    private func clearLog(leaving state: SetState) {
+        setLog = nil
+        unstructuredSetLog = nil
+        self.state = state
+        loggedAt = nil
+    }
+}
+
 extension Sequence where Element == Exercise {
     /// Every Set across these Exercises is settled (Logged or Skipped), with at
     /// least one Set present. Zero Sets — including zero Exercises — is

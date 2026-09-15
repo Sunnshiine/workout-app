@@ -297,13 +297,7 @@ extension WorkoutStore {
     func log(_ set: ExerciseSet, as log: SetLog) throws {
         let previousValue = notesValue(for: set)
         let previousRPE = set.setLog.map { rpeLabel($0.rpe) } ?? ""
-        let wasLogged = set.state == .logged
-        set.setLog = log
-        set.unstructuredSetLog = nil
-        set.state = .logged
-        if !wasLogged {
-            set.loggedAt = now()
-        }
+        set.markLogged(log, at: now())
         try enqueue(
             for: set,
             column: .notes,
@@ -326,10 +320,7 @@ extension WorkoutStore {
 
     func skip(_ set: ExerciseSet) throws {
         let previousValue = notesValue(for: set)
-        set.setLog = nil
-        set.unstructuredSetLog = nil
-        set.state = .skipped
-        set.loggedAt = nil
+        set.markSkipped()
         try enqueue(
             for: set,
             column: .notes,
@@ -343,10 +334,7 @@ extension WorkoutStore {
     func deleteLog(for set: ExerciseSet) throws {
         let previousValue = notesValue(for: set)
         let previousRPE = set.setLog.map { rpeLabel($0.rpe) } ?? ""
-        set.setLog = nil
-        set.unstructuredSetLog = nil
-        set.state = .pending
-        set.loggedAt = nil
+        set.markPending()
         try enqueue(
             for: set,
             column: .notes,
