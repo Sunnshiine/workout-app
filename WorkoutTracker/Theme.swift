@@ -827,7 +827,6 @@ extension Theme {
     static func swiftUIWeight(_ axis: Double) -> Font.Weight {
         switch axis {
         case ..<250: .light
-        case ..<350: .regular
         case ..<450: .regular
         case ..<550: .medium
         case ..<650: .semibold
