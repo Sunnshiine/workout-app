@@ -11,6 +11,12 @@ final class SyncCoordinator {
         case idle, syncing, offline
         case pendingWrites(Int)
         case conflict([String])
+
+        /// What a sync step reports when it finishes: no messages means it left the coach nothing
+        /// to resolve.
+        init(messages: [String]) {
+            self = messages.isEmpty ? .idle : .conflict(messages)
+        }
     }
     private(set) var state: State = .idle
 
@@ -43,6 +49,16 @@ final class SyncCoordinator {
         self.tabFetchBackoff = tabFetchBackoff
     }
 
+    /// The queued writes a flush will attempt, in the order it attempts them: oldest first, with
+    /// each Set's Last Set RPE behind the Set Log it depends on.
+    private func pendingWriteFlushQueue() -> [PendingWrite] {
+        let descriptor = FetchDescriptor<PendingWrite>(
+            predicate: #Predicate { $0.statusRaw == "pending" },
+            sortBy: [SortDescriptor(\.createdAt)]
+        )
+        return orderPendingWritesForFlush((try? context.fetch(descriptor)) ?? [])
+    }
+
     func reportLocalWriteFailure(_ error: any Error) {
         state = .conflict(["Local write failed: \(error.localizedDescription)"])
     }
@@ -68,11 +84,7 @@ final class SyncCoordinator {
         let generation = beginPendingWriteFlush()
         defer { endPendingWriteFlush() }
 
-        let descriptor = FetchDescriptor<PendingWrite>(
-            predicate: #Predicate { $0.statusRaw == "pending" },
-            sortBy: [SortDescriptor(\.createdAt)]
-        )
-        let pending = orderPendingWritesForFlush((try? context.fetch(descriptor)) ?? [])
+        let pending = pendingWriteFlushQueue()
         guard !pending.isEmpty else {
             state = .idle
             return
@@ -91,7 +103,7 @@ final class SyncCoordinator {
         switch result {
         case .completed(let conflicts):
             try? context.save()
-            state = conflicts.isEmpty ? .idle : .conflict(conflicts)
+            state = State(messages: conflicts)
         case .invalidated:
             state = .idle
         case .stoppedForRetry:
@@ -129,7 +141,7 @@ final class SyncCoordinator {
             if case .conflict = stateAfterFlush {
                 state = stateAfterFlush
             } else {
-                state = parsed.warnings.isEmpty ? .idle : .conflict(parsed.warnings)
+                state = State(messages: parsed.warnings)
             }
             syncLogger.info("Done, state: \(String(describing: self.state), privacy: .public)")
             launchLastPerformedBackfill(
@@ -157,28 +169,10 @@ final class SyncCoordinator {
 
     private func overlayPendingWrites(on block: Block) {
         let writes = (try? context.fetch(FetchDescriptor<PendingWrite>())) ?? []
+        let sets = block.setsByID
         for write in writes where write.blockTab == block.tabName && write.column == .notes {
-            findSet(
-                in: block,
-                week: write.week,
-                day: write.day,
-                exerciseName: write.exerciseName,
-                setIndex: write.setIndex
-            )?.apply(write)
+            sets[SetCoordinates.ID(write)]?.apply(write)
         }
-    }
-
-    private func findSet(
-        in block: Block,
-        week: Int,
-        day: Int,
-        exerciseName: String,
-        setIndex: Int
-    ) -> ExerciseSet? {
-        block.weeks.first { $0.number == week }?
-            .sessions.first { $0.dayNumber == day }?
-            .exercises.first { $0.name == exerciseName }?
-            .sets.first { $0.index == setIndex }
     }
 
     private func launchLastPerformedBackfill(
@@ -227,36 +221,14 @@ final class SyncCoordinator {
         var tabsCompleted = 0
 
         for tab in tabsToScan {
-            let scan: HistoricalTabScan
-            do {
-                scan = try await Task.detached(priority: .background) {
-                    try await Self.scanHistoricalTab(
-                        spreadsheetId: spreadsheetId,
-                        tab: tab,
-                        client: client,
-                        backoff: backoff
-                    )
-                }.value
-            } catch {
-                // A non-transient error (auth, malformed response) propagated: halt without a
-                // silent skip, leaving the cursor so the next sync resumes at this tab.
-                return
-            }
-
-            guard case let .ingested(occurrences) = scan else {
-                // `.failed`: the transient backoff budget was spent. Halt at this tab — the cursor
-                // still points at the last success, so the next sync resumes here.
-                return
-            }
-
-            if !occurrences.isEmpty {
-                do {
-                    try lastPerformed.ingest(occurrences.map(LastPerformedEntry.init))
-                } catch {
-                    state = .conflict(["Last Performed backfill failed: \(error.localizedDescription)"])
-                    return
-                }
-            }
+            guard
+                case .ingested = await ingestHistoricalTab(
+                    tab,
+                    spreadsheetId: spreadsheetId,
+                    client: client,
+                    backoff: backoff
+                )
+            else { return }
 
             advanceHistoryFillCursor(spreadsheetId: spreadsheetId, to: tab)
             tabsCompleted += 1
@@ -272,6 +244,50 @@ final class SyncCoordinator {
 
         // Tabs exhausted without reaching coverage: a clean finish, so start fresh next sync.
         clearHistoryFillCursor(spreadsheetId: spreadsheetId)
+    }
+
+    /// Whether one historical tab's Last Performed occurrences reached the index.
+    ///
+    /// Anything short of `.ingested` halts the fill rather than skipping the tab (ADR-0012): the
+    /// cursor still points at the last success, so the next sync resumes here.
+    private enum HistoricalTabIngestion {
+        case ingested
+        case halted
+    }
+
+    private func ingestHistoricalTab(
+        _ tab: String,
+        spreadsheetId: String,
+        client: any SheetsClient,
+        backoff: SheetsBackoff
+    ) async -> HistoricalTabIngestion {
+        let scan: HistoricalTabScan
+        do {
+            scan = try await Task.detached(priority: .background) {
+                try await Self.scanHistoricalTab(
+                    spreadsheetId: spreadsheetId,
+                    tab: tab,
+                    client: client,
+                    backoff: backoff
+                )
+            }.value
+        } catch {
+            // A non-transient error (auth, malformed response) propagated.
+            return .halted
+        }
+
+        // `.failed`: the transient backoff budget was spent.
+        guard case let .ingested(occurrences) = scan else { return .halted }
+
+        if !occurrences.isEmpty {
+            do {
+                try lastPerformed.ingest(occurrences.map(LastPerformedEntry.init))
+            } catch {
+                state = .conflict(["Last Performed backfill failed: \(error.localizedDescription)"])
+                return .halted
+            }
+        }
+        return .ingested
     }
 
     /// One historical tab's outcome, computed off the main actor.
@@ -365,58 +381,21 @@ final class SyncCoordinator {
 
 }
 
-private struct LocalSetID: Hashable {
-    let blockTab: String
-    let week: Int
-    let day: Int
-    let exerciseName: String
-    let setIndex: Int
-}
-
 extension SyncCoordinator {
-    fileprivate func localLoggedAtBySetID() throws -> [LocalSetID: Date] {
-        var values: [LocalSetID: Date] = [:]
+    fileprivate func localLoggedAtBySetID() throws -> [SetCoordinates.ID: Date] {
+        var values: [SetCoordinates.ID: Date] = [:]
         for block in try context.fetch(FetchDescriptor<Block>()) {
-            for week in block.weeks {
-                for session in week.sessions {
-                    for exercise in session.exercises {
-                        for set in exercise.sets {
-                            guard let loggedAt = set.loggedAt else { continue }
-                            values[
-                                LocalSetID(
-                                    blockTab: block.tabName,
-                                    week: week.number,
-                                    day: session.dayNumber,
-                                    exerciseName: exercise.name,
-                                    setIndex: set.index
-                                )
-                            ] = loggedAt
-                        }
-                    }
-                }
+            for (id, set) in block.setsByID {
+                guard let loggedAt = set.loggedAt else { continue }
+                values[id] = loggedAt
             }
         }
         return values
     }
 
-    fileprivate func preserveLocalLoggedAt(on block: Block, loggedAtBySet: [LocalSetID: Date]) {
-        for week in block.weeks {
-            for session in week.sessions {
-                for exercise in session.exercises {
-                    for set in exercise.sets where set.state == .logged {
-                        set.loggedAt =
-                            loggedAtBySet[
-                                LocalSetID(
-                                    blockTab: block.tabName,
-                                    week: week.number,
-                                    day: session.dayNumber,
-                                    exerciseName: exercise.name,
-                                    setIndex: set.index
-                                )
-                            ]
-                    }
-                }
-            }
+    fileprivate func preserveLocalLoggedAt(on block: Block, loggedAtBySet: [SetCoordinates.ID: Date]) {
+        for (id, set) in block.setsByID where set.state == .logged {
+            set.loggedAt = loggedAtBySet[id]
         }
     }
 }
@@ -545,10 +524,6 @@ extension SyncCoordinator {
                 let message = recordConflict(planningConflict, for: write, planner: flushContext.planner)
                 conflicts.append(message)
                 conflicts.append(contentsOf: recordDependentLastSetRPEConflicts(message, for: write, in: pending))
-            } catch let error as SheetWriterError {
-                let message = recordConflict(error, for: write)
-                conflicts.append(message)
-                conflicts.append(contentsOf: recordDependentLastSetRPEConflicts(message, for: write, in: pending))
             } catch {
                 recordRetry(for: write, error: error, pendingCount: pending.count)
                 return .stoppedForRetry
@@ -578,23 +553,6 @@ extension SyncCoordinator {
             plannedWrite.update,
             to: plannedWrite.snapshot
         )
-    }
-
-    fileprivate func recordConflict(_ error: SheetWriterError, for write: PendingWrite) -> String {
-        let message = error.errorDescription ?? String(describing: error)
-        write.markConflict(message)
-        recordWriteTargetAudit(
-            for: write,
-            details: SheetWriteAuditDetails(
-                selectedA1Target: nil,
-                rowScanDetails: "No row selected: \(message)",
-                currentValue: nil,
-                valueCheckOutcome: "Not checked because no target was selected."
-            ),
-            finalStatus: .conflict,
-            message: message
-        )
-        return "\(write.exerciseName): \(message)"
     }
 
     fileprivate func recordConflict(
@@ -649,7 +607,7 @@ extension SyncCoordinator {
                 snapshot: snapshot,
                 auditDetails: flushContext.planner.auditDetails(for: request, target: target, in: snapshot)
             )
-        } catch let planningError as SheetWriterError where batch.overlaps(target) {
+        } catch is SheetWriterError where batch.overlaps(target) {
             try await flush(batch, context: flushContext)
             batch.removeAll()
             snapshot = try await gridSnapshot(for: request.blockTab, context: flushContext, snapshots: &snapshots)
@@ -668,8 +626,6 @@ extension SyncCoordinator {
                     snapshot: snapshot,
                     target: target
                 )
-            } catch {
-                throw planningError
             }
         } catch let planningError as SheetWriterError {
             throw PendingWritePlanningConflict(error: planningError, request: request, snapshot: snapshot, target: target)

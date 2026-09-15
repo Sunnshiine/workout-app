@@ -8,6 +8,20 @@ enum Weight: Codable, Sendable, Equatable {
     case bodyweight
     case pounds(Double)
 
+    /// Reads the weight token every entry surface accepts: "BW" in any casing, or a finite
+    /// number of pounds. The token must already be trimmed; callers own their own whitespace
+    /// rules because they slice it out of differently shaped input.
+    init?(text: String) {
+        if text.caseInsensitiveCompare("BW") == .orderedSame {
+            self = .bodyweight
+            return
+        }
+        guard let pounds = Double(text), pounds.isFinite else {
+            return nil
+        }
+        self = .pounds(pounds)
+    }
+
     var label: String {
         switch self {
         case .bodyweight: return "BW"
@@ -28,29 +42,31 @@ struct SetLog: Codable, Sendable, Equatable {
         self.rpe = rpe
     }
 
-    init?(formatted raw: String) {
+    /// Splits `<weight>x<reps>@<rpe>` into its three trimmed, still unparsed tokens. Splitting on
+    /// `@` first is what makes the order strict, so `185@5x8` is not the same Set Log as `185x5@8`.
+    private static func tokens(inFormatted raw: String) -> FormattedSetLogTokens? {
         let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         let rpeParts = value.split(separator: "@", omittingEmptySubsequences: false)
-        guard
-            rpeParts.count == 2,
-            let rpe = Double(rpeParts[1].trimmingCharacters(in: .whitespaces)),
-            rpe.isFinite
-        else {
-            return nil
-        }
+        guard rpeParts.count == 2 else { return nil }
 
         let setParts = rpeParts[0].split(separator: "x", omittingEmptySubsequences: false)
-        guard setParts.count == 2, let reps = Int(setParts[1].trimmingCharacters(in: .whitespaces)) else {
-            return nil
-        }
+        guard setParts.count == 2 else { return nil }
 
-        let weightText = setParts[0].trimmingCharacters(in: .whitespaces)
-        let weight: Weight
-        if weightText.caseInsensitiveCompare("BW") == .orderedSame {
-            weight = .bodyweight
-        } else if let pounds = Double(weightText), pounds.isFinite {
-            weight = .pounds(pounds)
-        } else {
+        return FormattedSetLogTokens(
+            weight: setParts[0].trimmingCharacters(in: .whitespaces),
+            reps: setParts[1].trimmingCharacters(in: .whitespaces),
+            rpe: rpeParts[1].trimmingCharacters(in: .whitespaces)
+        )
+    }
+
+    init?(formatted raw: String) {
+        guard
+            let tokens = Self.tokens(inFormatted: raw),
+            let weight = Weight(text: tokens.weight),
+            let reps = Int(tokens.reps),
+            let rpe = Double(tokens.rpe),
+            rpe.isFinite
+        else {
             return nil
         }
 
@@ -61,4 +77,11 @@ struct SetLog: Codable, Sendable, Equatable {
         let rpeLabel = rpe.rounded() == rpe ? String(Int(rpe)) : String(rpe)
         return "\(weight.label)x\(reps)@\(rpeLabel)"
     }
+}
+
+/// The three still-unparsed tokens of `<weight>x<reps>@<rpe>`.
+private struct FormattedSetLogTokens {
+    let weight: String
+    let reps: String
+    let rpe: String
 }

@@ -7,7 +7,7 @@
     /// argument list instead of launching the app to find out what a flag does.
     struct UITestLaunch: Sendable {
         /// Which fixture Block `UITestFixture.seed` inserts.
-        enum Scenario: Sendable {
+        enum Scenario: Sendable, Hashable, CaseIterable {
             case perfectMoveOnCelebration
             case completedOpenExercises
             case openExercises

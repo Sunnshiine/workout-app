@@ -21,6 +21,20 @@ import Testing
     #expect(insideSameDisplayedSecond.progressFraction > 0)
 }
 
+@Test func restPillPresentationSpeaksEveryPluralizationOfTheRemainingDuration() {
+    func label(remaining: TimeInterval) -> String {
+        RestPillPresentation(kind: .standard, remaining: remaining, duration: 300).accessibilityLabel
+    }
+
+    #expect(label(remaining: 0) == "Rest, 0 seconds remaining")
+    #expect(label(remaining: 61) == "Rest, 1 minute 1 second remaining")
+    #expect(label(remaining: 60) == "Rest, 1 minute remaining")
+    #expect(label(remaining: 1) == "Rest, 1 second remaining")
+    #expect(label(remaining: 150) == "Rest, 2 minutes 30 seconds remaining")
+    #expect(label(remaining: 120) == "Rest, 2 minutes remaining")
+    #expect(label(remaining: 2) == "Rest, 2 seconds remaining")
+}
+
 @Test func restPillPresentationHandlesExpiredAndInvalidDurations() {
     let expired = RestPillPresentation(kind: .standard, remaining: -1, duration: 120)
     let invalidDuration = RestPillPresentation(kind: .standard, remaining: 30, duration: 0)

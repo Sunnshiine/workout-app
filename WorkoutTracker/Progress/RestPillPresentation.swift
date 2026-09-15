@@ -19,12 +19,16 @@ struct RestPillPresentation: Equatable, Sendable {
     }
 
     private static func accessibilityLabel(kind: RestKind, minutes: Int, seconds: Int) -> String {
-        if minutes > 0, seconds > 0 {
-            return "\(kind.label), \(minutes) minute\(minutes == 1 ? "" : "s") \(seconds) second\(seconds == 1 ? "" : "s") remaining"
-        }
-        if minutes > 0 {
-            return "\(kind.label), \(minutes) minute\(minutes == 1 ? "" : "s") remaining"
-        }
-        return "\(kind.label), \(seconds) second\(seconds == 1 ? "" : "s") remaining"
+        let units = [spokenUnit(minutes, "minute"), spokenUnit(seconds, "second")].compactMap { $0 }
+        // An expired interval drops both units, and VoiceOver still announces a duration.
+        let duration = units.isEmpty ? "0 seconds" : units.joined(separator: " ")
+        return "\(kind.label), \(duration) remaining"
+    }
+
+    /// One pluralized time unit as VoiceOver speaks it, or nil when the unit is zero and drops out
+    /// of the spoken duration.
+    private static func spokenUnit(_ count: Int, _ unit: String) -> String? {
+        guard count > 0 else { return nil }
+        return "\(count) \(unit)\(count == 1 ? "" : "s")"
     }
 }

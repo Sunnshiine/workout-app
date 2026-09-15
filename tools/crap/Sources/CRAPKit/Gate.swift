@@ -4,11 +4,15 @@ public struct BaselineEntry: Sendable, Equatable {
     public var file: String
     public var name: String
     public var crap: Double
+    /// Why the row is held above the threshold. Written by hand, kept across `crap baseline` rewrites
+    /// while the row survives, and gone with the row. Empty until someone says.
+    public var reason: String
 
-    public init(file: String, name: String, crap: Double) {
+    public init(file: String, name: String, crap: Double, reason: String = "") {
         self.file = file
         self.name = name
         self.crap = crap
+        self.reason = reason
     }
 }
 
@@ -39,8 +43,7 @@ public enum Finding: Sendable, Equatable {
             "worsened      \(file)  \(name)  crap \(format(crap)) > baseline \(format(recorded)) + tolerance \(format(tolerance))"
         case .stale(let file, let name, let recorded, let reason):
             "stale         \(file)  \(name)  baseline records \(format(recorded)) but \(reason.explanation); "
-                + "delete the line `\(file)\t\(name)\t\(format(recorded))` from the baseline "
-                + "or rerun scripts/crap.sh baseline"
+                + "delete its line from the baseline or rerun scripts/crap.sh baseline"
         case .improved(let file, let name, let crap, let recorded):
             "improved      \(file)  \(name)  crap \(format(crap)) < baseline \(format(recorded)); "
                 + "rerun scripts/crap.sh baseline to bank it"
@@ -135,23 +138,32 @@ public enum Gate {
 }
 
 public enum Baseline {
-    public static let header = "file\tname\tcrap"
+    public static let header = "file\tname\tcrap\treason"
 
+    /// Reads a baseline. A row is `file`, `name`, `crap`, and an optional `reason`; a file written
+    /// before the reason column existed still parses.
     public static func parse(text: String) -> [BaselineEntry] {
         text.split(separator: "\n", omittingEmptySubsequences: true).compactMap { line in
-            guard line != header else { return nil }
+            guard !line.hasPrefix("file\tname\tcrap") else { return nil }
             let fields = line.split(separator: "\t", omittingEmptySubsequences: false)
-            guard fields.count == 3, let crap = Double(fields[2]) else { return nil }
-            return BaselineEntry(file: String(fields[0]), name: String(fields[1]), crap: crap)
+            guard fields.count == 3 || fields.count == 4, let crap = Double(fields[2]) else { return nil }
+            let reason = fields.count == 4 ? String(fields[3]) : ""
+            return BaselineEntry(file: String(fields[0]), name: String(fields[1]), crap: crap, reason: reason)
         }
     }
 
-    public static func render(report: Report, threshold: Double) -> String {
+    /// Renders every measured function above the threshold, keeping the reason a prior baseline
+    /// recorded for a row that is still above it.
+    public static func render(report: Report, threshold: Double, carrying prior: [BaselineEntry] = []) -> String {
+        let reasons = Dictionary(prior.map { ($0.file + "\t" + $0.name, $0.reason) }, uniquingKeysWith: { _, last in last })
         let entries =
             report.functions
             .filter { ($0.crap ?? 0) > threshold }
             .sorted { ($0.file, $0.name) < ($1.file, $1.name) }
-            .map { "\($0.file)\t\($0.name)\t\(String(format: "%.1f", $0.crap ?? 0))" }
+            .map { row in
+                let reason = reasons[row.file + "\t" + row.name] ?? ""
+                return "\(row.file)\t\(row.name)\t\(String(format: "%.1f", row.crap ?? 0))\t\(reason)"
+            }
         return ([header] + entries).joined(separator: "\n") + "\n"
     }
 }

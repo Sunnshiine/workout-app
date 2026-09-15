@@ -47,6 +47,11 @@ struct SheetWriteRequest: Sendable, Equatable {
         self.valueToWrite = valueToWrite
         self.expectedCurrentValue = expectedCurrentValue
     }
+
+    /// The value this write lands in its cell: a delete clears it, an upsert writes its value.
+    var writtenValue: String {
+        operation == .delete ? "" : (valueToWrite ?? "")
+    }
 }
 
 enum SheetWriterError: Error, Equatable, LocalizedError {
@@ -118,6 +123,44 @@ struct SheetWriter: Sendable {
     }
 }
 
+extension SetLogPlacementResolution {
+    /// The cell this resolution addresses, or the writer error it names for this request. The
+    /// placement rule decides where a Set Log may go; this is the one place its four outcomes
+    /// become a write target or a refusal.
+    func addressedCell(for request: SheetWriteRequest) throws -> (row: Int, col: Int) {
+        switch self {
+        case .placed(let placement):
+            return (placement.row, placement.col)
+        case .protectedHeaderBlocksSetRow:
+            throw SheetWriterError.headerNotesBlockSetRow(
+                exerciseName: request.exerciseName,
+                setIndex: request.setIndex
+            )
+        case .setRowNotFound:
+            throw SheetWriterError.setRowNotFound(exerciseName: request.exerciseName, setIndex: request.setIndex)
+        case .notesColumnMissing:
+            throw SheetWriterError.columnNotFound("Notes")
+        }
+    }
+}
+
+extension SetLogList {
+    /// Overwrites the Set's token, refusing when the slot no longer holds the value the write was
+    /// planned against so a concurrent edit conflicts rather than gets clobbered (ADR-0003).
+    mutating func replaceToken(at position: Int, expecting expected: String, with value: String) throws {
+        let current = token(at: position)
+        guard current == expected else {
+            throw SheetWriterError.unexpectedCurrentValue(expected: expected, actual: current)
+        }
+        setToken(value, at: position)
+    }
+
+    /// Whether every token is a Set-Log value. An empty cell qualifies; coach content does not.
+    var holdsOnlySetLogValues: Bool {
+        tokens.allSatisfy(SetLogToken.isSetLogListValue)
+    }
+}
+
 struct SheetWritePlanningSnapshot: Sendable {
     var snapshot: SheetSnapshot
     let layout: SheetLayout
@@ -168,32 +211,8 @@ struct SheetWritePlanner: Sendable {
         in snapshot: SheetWritePlanningSnapshot
     ) throws -> SheetCellUpdate {
         let actual = snapshot.grid.cell(row: target.row, col: target.col).trimmed
-        if let multiLineValue = try multiLineNotesValue(
-            for: request,
-            target: target,
-            actual: actual,
-            in: snapshot
-        ) {
-            return SheetCellUpdate(
-                tabName: target.tabName,
-                row: target.row,
-                col: target.col,
-                value: multiLineValue
-            )
-        }
-
-        if let aggregateValue = try compactAggregateHeaderValue(
-            for: request,
-            target: target,
-            actual: actual,
-            in: snapshot
-        ) {
-            return SheetCellUpdate(
-                tabName: target.tabName,
-                row: target.row,
-                col: target.col,
-                value: aggregateValue
-            )
+        if let listValue = try setLogListCellValue(for: request, target: target, actual: actual, in: snapshot) {
+            return SheetCellUpdate(tabName: target.tabName, row: target.row, col: target.col, value: listValue)
         }
 
         guard actual == request.expectedCurrentValue else {
@@ -204,7 +223,7 @@ struct SheetWritePlanner: Sendable {
             tabName: target.tabName,
             row: target.row,
             col: target.col,
-            value: request.operation == .delete ? "" : (request.valueToWrite ?? "")
+            value: request.writtenValue
         )
     }
 
@@ -218,13 +237,7 @@ struct SheetWritePlanner: Sendable {
 
     func applying(_ update: SheetCellUpdate, to grid: SheetGrid) -> SheetGrid {
         var updated = grid
-        if update.row >= updated.count {
-            updated.append(contentsOf: SheetGrid(repeating: [], count: update.row - updated.count + 1))
-        }
-        if update.col >= updated[update.row].count {
-            updated[update.row].append(contentsOf: [String](repeating: "", count: update.col - updated[update.row].count + 1))
-        }
-        updated[update.row][update.col] = update.value
+        updated.write([[update.value]], atRow: update.row, col: update.col)
         return updated
     }
 
@@ -253,22 +266,9 @@ struct SheetWritePlanner: Sendable {
             return (anchor.row, col)
         }
 
-        // Every remaining (Notes-column) target — multi-line Prescription Line, compact-header list,
-        // protected-header Visible Writable Row, or visible Set-log row — is decided by the one
-        // placement query; the write path only maps its outcome to a target row/column or an error.
-        switch anchor.setLogPlacement(for: request.setIndex, in: snapshot.snapshot, cols: day.columns) {
-        case .placed(let placement):
-            return (placement.row, placement.col)
-        case .protectedHeaderBlocksSetRow:
-            throw SheetWriterError.headerNotesBlockSetRow(
-                exerciseName: request.exerciseName,
-                setIndex: request.setIndex
-            )
-        case .setRowNotFound:
-            throw SheetWriterError.setRowNotFound(exerciseName: request.exerciseName, setIndex: request.setIndex)
-        case .notesColumnMissing:
-            throw SheetWriterError.columnNotFound("Notes")
-        }
+        // Every remaining target is a Notes-column Set Log, so the one placement query decides it.
+        return try anchor.setLogPlacement(for: request.setIndex, in: snapshot.snapshot, cols: day.columns)
+            .addressedCell(for: request)
     }
 
     private func resolveColumn(_ column: PendingWriteColumn, cols: DayColumns) throws -> Int {
@@ -282,11 +282,12 @@ struct SheetWritePlanner: Sendable {
         }
     }
 
-    /// Per-line Set-Log value for coach J. Alarcon's multi-line template. Each Prescription
-    /// Line keeps its Sets' logs comma-separated in its own Notes cell; the Set's position in
-    /// that list is its offset within the Line. Returns nil for single-line (Kevin) Exercises,
-    /// leaving the existing single-anchor logic in charge.
-    private func multiLineNotesValue(
+    /// The Notes-cell value a Set-Log list write produces, or nil when this Set owns its cell
+    /// outright and the direct-write path applies. Three placement kinds share one comma-separated
+    /// list cell — a multi-line Prescription Line's own Notes cell, Kevin's compact aggregate
+    /// header, and the Visible Writable Row a protected header redirects to — and a Set is
+    /// addressed within that cell by its list position.
+    private func setLogListCellValue(
         for request: SheetWriteRequest,
         target: SheetWriteTarget,
         actual: String,
@@ -294,50 +295,15 @@ struct SheetWritePlanner: Sendable {
     ) throws -> String? {
         guard
             let placement = placement(for: request, target: target, in: snapshot),
-            placement.kind == .multiLinePrescriptionLine,
             let position = placement.listPosition
         else { return nil }
 
         var list = SetLogList(cell: actual)
-        guard list.token(at: position) == request.expectedCurrentValue else {
-            throw SheetWriterError.unexpectedCurrentValue(
-                expected: request.expectedCurrentValue,
-                actual: list.token(at: position)
-            )
-        }
-        list.setToken(request.operation == .delete ? "" : (request.valueToWrite ?? ""), at: position)
-        return list.cellValue
-    }
-
-    private func compactAggregateHeaderValue(
-        for request: SheetWriteRequest,
-        target: SheetWriteTarget,
-        actual: String,
-        in snapshot: SheetWritePlanningSnapshot
-    ) throws -> String? {
-        guard
-            let placement = placement(for: request, target: target, in: snapshot),
-            placement.kind == .compactHeaderList || placement.kind == .protectedHeaderVisibleWritableRow,
-            let position = placement.listPosition
-        else { return nil }
-
-        var list = SetLogList(cell: actual)
-        if placement.kind == .protectedHeaderVisibleWritableRow,
-            !actual.isEmpty,
-            !list.tokens.allSatisfy(SetLogToken.isSetLogListValue)
-        {
+        // A redirected row is only this Exercise's list while it holds nothing else (ADR-0003).
+        if placement.kind == .protectedHeaderVisibleWritableRow, !list.holdsOnlySetLogValues {
             throw SheetWriterError.unexpectedCurrentValue(expected: request.expectedCurrentValue, actual: actual)
         }
-
-        let currentSetValue = list.token(at: position)
-        guard currentSetValue == request.expectedCurrentValue else {
-            throw SheetWriterError.unexpectedCurrentValue(
-                expected: request.expectedCurrentValue,
-                actual: currentSetValue
-            )
-        }
-
-        list.setToken(request.operation == .delete ? "" : (request.valueToWrite ?? ""), at: position)
+        try list.replaceToken(at: position, expecting: request.expectedCurrentValue, with: request.writtenValue)
         return list.cellValue
     }
 

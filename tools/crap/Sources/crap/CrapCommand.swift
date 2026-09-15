@@ -24,7 +24,7 @@ struct Measure: ParsableCommand {
     var sources: [String] = []
     @Option(name: .customLong("exclude"), parsing: .singleValue, help: "Glob of relative paths to skip.")
     var excludes: [String] = []
-    @Option(help: "CRAP score a function must stay at or below.") var threshold: Double = 12
+    @Option(help: "CRAP score a function must stay at or below.") var threshold: Double = 6
     @Option(help: "Write the full report as JSON to this path.") var json: String?
     @Option(help: "How many rows to print.") var top: Int = 25
 
@@ -79,7 +79,7 @@ struct GateCommand: ParsableCommand {
 
     @Option(help: "JSON report written by `crap measure --json`.") var report: String
     @Option(help: "Baseline TSV.") var baseline: String
-    @Option(help: "CRAP score a function must stay at or below.") var threshold: Double = 12
+    @Option(help: "CRAP score a function must stay at or below.") var threshold: Double = 6
     @Option(help: "Slack allowed before a baselined function counts as worsened.") var tolerance: Double = 0.5
 
     func run() throws {
@@ -112,11 +112,12 @@ struct BaselineCommand: ParsableCommand {
 
     @Option(help: "JSON report written by `crap measure --json`.") var report: String
     @Option(help: "Path to write the baseline TSV to.") var write: String
-    @Option(help: "CRAP score a function must stay at or below.") var threshold: Double = 12
+    @Option(help: "CRAP score a function must stay at or below.") var threshold: Double = 6
 
     func run() throws {
         let decoded = try JSONDecoder().decode(Report.self, from: Data(contentsOf: URL(fileURLWithPath: report)))
-        let text = Baseline.render(report: decoded, threshold: threshold)
+        let prior = (try? String(contentsOfFile: write, encoding: .utf8)).map(Baseline.parse(text:)) ?? []
+        let text = Baseline.render(report: decoded, threshold: threshold, carrying: prior)
         try text.write(to: URL(fileURLWithPath: write), atomically: true, encoding: .utf8)
         print("wrote \(text.split(separator: "\n").count - 1) baselined functions to \(write)")
     }

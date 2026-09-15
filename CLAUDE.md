@@ -72,9 +72,9 @@ Errors are JSON on stderr with exit 1 (domain), 3 (environment), 4 (conflict).
 ## Change risk gate (CRAP)
 
 Every production function in the headless scope carries a CRAP score (`cc^2 * (1 - coverage)^3 + cc`);
-the target is 12 or lower and `tools/crap/baseline.tsv` lists the functions still above it. The
-decision and the scope are in `docs/adr/0016-crap-change-risk-gate.md`; the counting rules are in
-`tools/crap/README.md`.
+the target is 6 or lower and `tools/crap/baseline.tsv` lists the functions still above it, each with
+the reason it is held. The decision and the scope are in `docs/adr/0016-crap-change-risk-gate.md`;
+the counting rules are in `tools/crap/README.md`.
 
 ```bash
 scripts/crap.sh measure --top 30   # worst functions by score, with cc and coverage

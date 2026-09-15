@@ -37,6 +37,11 @@ private struct SupersetPair: Equatable, Sendable {
     func contains(_ identity: SupersetExerciseIdentity) -> Bool {
         first == identity || second == identity
     }
+
+    /// The side the alternation moves to from `identity`.
+    func other(than identity: SupersetExerciseIdentity) -> SupersetExerciseIdentity {
+        first == identity ? second : first
+    }
 }
 
 @MainActor
@@ -82,8 +87,8 @@ final class SupersetState {
 
     func focusedSetID(whenNormalFocusIs normalFocus: ActiveSetID?, in session: Session) -> ActiveSetID? {
         refresh(in: session)
-        if let activePair, pairs.contains(activePair), let activeSetID, isPending(activeSetID, in: session) {
-            return activeSetID
+        if let liveActiveSetID = liveActiveSetID(in: session) {
+            return liveActiveSetID
         }
         guard let normalFocus, let pair = pair(containing: normalFocus, in: session) else {
             return normalFocus
@@ -107,16 +112,12 @@ final class SupersetState {
         else {
             return nil
         }
-        guard
-            hasPendingSet(for: pair.first, in: session),
-            hasPendingSet(for: pair.second, in: session)
-        else {
+        guard bothSidesHavePendingSet(pair, in: session) else {
             dissolve(pair)
             return nil
         }
 
-        let currentIdentity = SupersetExerciseIdentity(exercise: exercise)
-        let nextIdentity = pair.first == currentIdentity ? pair.second : pair.first
+        let nextIdentity = pair.other(than: SupersetExerciseIdentity(exercise: exercise))
         let nextSetID = nextPendingSetID(for: nextIdentity, in: session)
         activePair = pair
         activeSetID = nextSetID
@@ -158,10 +159,7 @@ final class SupersetState {
     }
 
     func refresh(in session: Session) {
-        pairs.removeAll { pair in
-            !hasPendingSet(for: pair.first, in: session)
-                || !hasPendingSet(for: pair.second, in: session)
-        }
+        pairs.removeAll { !bothSidesHavePendingSet($0, in: session) }
         if let activePair, !pairs.contains(activePair) {
             self.activePair = nil
             activeSetID = nil
@@ -207,6 +205,26 @@ final class SupersetState {
     private func pair(containing setID: ActiveSetID, in session: Session) -> SupersetPair? {
         guard let exercise = exercise(containing: setID, in: session) else { return nil }
         return pair(containing: exercise)
+    }
+
+    /// The Superset's own focus survives only while its pair is still paired and the Set it holds
+    /// is still Pending; otherwise normal Session focus takes over.
+    private func liveActiveSetID(in session: Session) -> ActiveSetID? {
+        guard
+            let activePair,
+            pairs.contains(activePair),
+            let activeSetID,
+            isPending(activeSetID, in: session)
+        else {
+            return nil
+        }
+        return activeSetID
+    }
+
+    /// A pair alternates only while both sides still have somewhere to go. When one side runs out,
+    /// the Superset is over.
+    private func bothSidesHavePendingSet(_ pair: SupersetPair, in session: Session) -> Bool {
+        hasPendingSet(for: pair.first, in: session) && hasPendingSet(for: pair.second, in: session)
     }
 
     private func hasPendingSet(for identity: SupersetExerciseIdentity, in session: Session) -> Bool {

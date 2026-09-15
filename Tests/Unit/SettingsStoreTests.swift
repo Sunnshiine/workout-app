@@ -290,6 +290,55 @@ import Testing
 }
 
 @MainActor
+@Test func reselectingTheCurrentSheetRefreshesItsTitleWithoutSyncing() async throws {
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let settings = SettingsStore(defaults: defaults)
+    settings.setSpreadsheet(id: "same-sheet", title: "Old Training Log")
+    let sync = StubSheetSwitchSync(hasPendingWrites: true)
+    var reloadCount = 0
+    let store = SettingsSheetSwitchStore(settings: settings, sync: sync) {
+        reloadCount += 1
+    }
+    let renamed = SpreadsheetFile(name: "Renamed Training Log", spreadsheetId: "same-sheet", modifiedDate: .distantPast)
+
+    let result = await store.requestSwitch(to: renamed)
+
+    #expect(result == .unchanged)
+    #expect(settings.spreadsheetId == "same-sheet")
+    #expect(settings.spreadsheetTitle == "Renamed Training Log")
+    #expect(store.pendingConfirmation == nil)
+    #expect(store.errorMessage == nil)
+    #expect(sync.syncedSpreadsheetIds.isEmpty)
+    #expect(sync.discardPendingWriteCallCount == 0)
+    #expect(reloadCount == 0)
+}
+
+@MainActor
+@Test func unreadablePendingWriteCountLeavesTheSheetAloneAndSaysSo() async throws {
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let settings = SettingsStore(defaults: defaults)
+    settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
+    let sync = StubSheetSwitchSync(pendingWritesError: StubSheetSwitchError.pendingWriteLookupFailed)
+    var reloadCount = 0
+    let store = SettingsSheetSwitchStore(settings: settings, sync: sync) {
+        reloadCount += 1
+    }
+    let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
+
+    let result = await store.requestSwitch(to: newSheet)
+
+    #expect(result == .failed)
+    #expect(store.errorMessage == "Couldn't check pending logs. Try again.")
+    #expect(store.pendingConfirmation == nil)
+    #expect(store.isSwitching == false)
+    #expect(settings.spreadsheetId == "old-sheet")
+    #expect(settings.spreadsheetTitle == "Old Training Log")
+    #expect(sync.syncedSpreadsheetIds.isEmpty)
+    #expect(sync.discardPendingWriteCallCount == 0)
+    #expect(reloadCount == 0)
+}
+
+@MainActor
 @Test func failedPendingWriteDiscardDoesNotSwitchSheets() async throws {
     let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
     let settings = SettingsStore(defaults: defaults)
@@ -695,19 +744,29 @@ private actor CallRecorder {
 @MainActor
 private final class StubSheetSwitchSync: SheetSwitchSyncing {
     var hasPendingWritesValue: Bool
+    private let pendingWritesError: Error?
     private let discardError: Error?
     private let syncSucceeds: Bool
     private(set) var discardPendingWriteCallCount = 0
     private(set) var syncedSpreadsheetIds: [String] = []
 
-    init(hasPendingWrites: Bool = false, discardError: Error? = nil, syncSucceeds: Bool = true) {
+    init(
+        hasPendingWrites: Bool = false,
+        pendingWritesError: Error? = nil,
+        discardError: Error? = nil,
+        syncSucceeds: Bool = true
+    ) {
         self.hasPendingWritesValue = hasPendingWrites
+        self.pendingWritesError = pendingWritesError
         self.discardError = discardError
         self.syncSucceeds = syncSucceeds
     }
 
     func hasPendingWrites() throws -> Bool {
-        hasPendingWritesValue
+        if let pendingWritesError {
+            throw pendingWritesError
+        }
+        return hasPendingWritesValue
     }
 
     func discardPendingWrites() async throws {
@@ -726,6 +785,7 @@ private final class StubSheetSwitchSync: SheetSwitchSyncing {
 
 private enum StubSheetSwitchError: Error {
     case discardFailed
+    case pendingWriteLookupFailed
 }
 
 @MainActor

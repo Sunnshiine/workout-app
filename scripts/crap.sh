@@ -6,7 +6,7 @@ cd "$ROOT"
 
 SUBCOMMAND="measure"
 RUN_TESTS=1
-THRESHOLD=12
+THRESHOLD=6
 TOLERANCE=0.5
 TOP=25
 
@@ -20,7 +20,7 @@ scripts/crap.sh [measure|gate|baseline] [options]
 
   --no-test          Reuse the existing coverage profile instead of running swift test.
   --top N            Rows to print for measure (default 25).
-  --threshold N      CRAP a function must stay at or below (default 12).
+  --threshold N      CRAP a function must stay at or below (default 6).
   --tolerance N      Slack before a baselined function counts as worsened (default 0.5).
   -h, --help         Show this message.
 

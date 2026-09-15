@@ -26,65 +26,108 @@ public enum LookupKind: String, Sendable {
     }
 }
 
-/// Every way a facade verb can fail, with a stable `code` and, where a lookup missed, the
-/// addresses that would have hit.
-public enum ApplicationError: Error, Equatable, Sendable {
-    case notConfigured
-    case noBlock
-    case invalidAddress(String)
-    case invalidSetLog(String)
-    case notFound(LookupKind, name: String, candidates: [String])
-    case sessionUnavailable(String)
-    case sheetSwitchFailed(String)
-    case sheetSwitchRequiresDiscard
-    case syncFailed(SyncStateSnapshot)
-
-    public var code: String {
-        switch self {
-        case .notConfigured: "not_configured"
-        case .noBlock: "no_block"
-        case .invalidAddress: "invalid_address"
-        case .invalidSetLog: "invalid_set_log"
-        case .notFound(let kind, _, _): kind.rawValue
-        case .sessionUnavailable: "session_unavailable"
-        case .sheetSwitchFailed: "sheet_switch_failed"
-        case .sheetSwitchRequiresDiscard: "sheet_switch_requires_discard"
-        case .syncFailed: "sync_failed"
-        }
+/// Every way a facade verb can fail, carried as the facts a boundary needs: a stable wire `code`, a
+/// human `message`, the addresses that would have hit, and the class of failure. Build one with the
+/// verbs below; the initializer is internal, so no failure can exist missing one of the four facts.
+public struct ApplicationError: Error, Equatable, Sendable {
+    /// Whose fault the failure is, and therefore what the caller can do about it. The CLI turns
+    /// this into its exit code.
+    public enum Kind: String, Sendable, CaseIterable {
+        /// The machine, the sheet, or the network is not ready. The same request may succeed later.
+        case environment
+        /// The request itself is wrong. Retrying it unchanged fails again.
+        case domain
+        /// The Sheet moved under a pending write. Only the athlete can resolve it.
+        case conflict
     }
 
-    public var message: String {
-        switch self {
-        case .notConfigured:
-            "No spreadsheet is selected. Run `workout init --scenario fresh-block`."
-        case .noBlock:
-            "No Block is cached for the selected spreadsheet. Run `workout sync`."
-        case .invalidAddress(let raw):
-            "\"\(raw)\" is not an address. Use w<week>d<day>, w<week>d<day>.e<order>, or w<week>d<day>.e<order>.s<index>; "
-                + "`workout session` prints them."
-        case .invalidSetLog(let raw):
-            "\"\(raw)\" is not a Set Log. Use {weight}x{reps}@{RPE}, for example 185x5@8 or BWx12@7."
-        case .notFound(let kind, let name, let candidates):
-            kind.message(name: name, candidates: candidates)
-        case .sessionUnavailable(let address):
-            "\(address) is an Unavailable Session: the coach has not uploaded it yet. `workout status` shows which are available."
-        case .sheetSwitchFailed(let reason):
-            "Couldn't select the spreadsheet: \(reason)"
-        case .sheetSwitchRequiresDiscard:
-            "Pending writes exist for the current spreadsheet. Run `workout flush` before selecting another sheet."
-        case .syncFailed(let state):
-            "Sync did not complete; the app is \(state.status). Check the workbook and run `workout sync` again."
-        }
+    public let code: String
+    public let message: String
+    public let candidates: [String]?
+    public let kind: Kind
+
+    init(code: String, message: String, candidates: [String]? = nil, kind: Kind) {
+        self.code = code
+        self.message = message
+        self.candidates = candidates
+        self.kind = kind
+    }
+}
+
+extension ApplicationError {
+    public static let notConfigured = ApplicationError(
+        code: "not_configured",
+        message: "No spreadsheet is selected. Run `workout init --scenario fresh-block`.",
+        kind: .environment
+    )
+
+    public static let noBlock = ApplicationError(
+        code: "no_block",
+        message: "No Block is cached for the selected spreadsheet. Run `workout sync`.",
+        kind: .domain
+    )
+
+    public static let sheetSwitchRequiresDiscard = ApplicationError(
+        code: "sheet_switch_requires_discard",
+        message: "Pending writes exist for the current spreadsheet. Run `workout flush` before selecting another sheet.",
+        kind: .domain
+    )
+
+    public static func invalidAddress(_ raw: String) -> ApplicationError {
+        ApplicationError(
+            code: "invalid_address",
+            message: "\"\(raw)\" is not an address. Use w<week>d<day>, w<week>d<day>.e<order>, or "
+                + "w<week>d<day>.e<order>.s<index>; `workout session` prints them.",
+            kind: .domain
+        )
     }
 
-    public var candidates: [String]? {
-        switch self {
-        case .notFound(_, _, let candidates):
-            candidates
-        case .notConfigured, .noBlock, .invalidAddress, .invalidSetLog, .sessionUnavailable, .sheetSwitchFailed,
-            .sheetSwitchRequiresDiscard, .syncFailed:
-            nil
-        }
+    public static func invalidSetLog(_ raw: String) -> ApplicationError {
+        ApplicationError(
+            code: "invalid_set_log",
+            message: "\"\(raw)\" is not a Set Log. Use {weight}x{reps}@{RPE}, for example 185x5@8 or BWx12@7.",
+            kind: .domain
+        )
+    }
+
+    public static func notFound(_ lookup: LookupKind, name: String, candidates: [String]) -> ApplicationError {
+        ApplicationError(
+            code: lookup.rawValue,
+            message: lookup.message(name: name, candidates: candidates),
+            candidates: candidates,
+            kind: .domain
+        )
+    }
+
+    public static func sessionUnavailable(_ address: String) -> ApplicationError {
+        ApplicationError(
+            code: "session_unavailable",
+            message: "\(address) is an Unavailable Session: the coach has not uploaded it yet. "
+                + "`workout status` shows which are available.",
+            kind: .domain
+        )
+    }
+
+    public static func sheetSwitchFailed(_ reason: String) -> ApplicationError {
+        ApplicationError(
+            code: "sheet_switch_failed",
+            message: "Couldn't select the spreadsheet: \(reason)",
+            kind: .environment
+        )
+    }
+
+    public static func syncFailed(_ state: SyncStateSnapshot) -> ApplicationError {
+        let kind: Kind =
+            switch state {
+            case .conflict: .conflict
+            case .idle, .syncing, .offline, .pendingWrites: .environment
+            }
+        return ApplicationError(
+            code: "sync_failed",
+            message:
+                "Sync did not complete; the app is \(state.status). Check the workbook and run `workout sync` again.",
+            kind: kind
+        )
     }
 }
 

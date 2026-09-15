@@ -4,7 +4,7 @@
 
 `scripts/crap.sh gate` runs in the `swift-tests` CI job. It runs `swift test --enable-code-coverage`,
 scores every production function in the headless scope with CRAP (`cc^2 * (1 - coverage)^3 + cc`),
-and fails when a function not in `tools/crap/baseline.tsv` scores above 12, when a baselined function
+and fails when a function not in `tools/crap/baseline.tsv` scores above 6, when a baselined function
 scores above its recorded value, or when a baseline row no longer applies. After lowering a score, run
 `scripts/crap.sh baseline` and commit the smaller baseline. ADR-0016 records the decision; the counting
 rules and their tests live in `tools/crap/`.

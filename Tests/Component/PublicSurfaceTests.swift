@@ -94,30 +94,88 @@ private func json(_ value: some Encodable) throws -> [String: Any] {
     #expect(ApplicationError.notConfigured.message.contains("workout init"))
 }
 
-@Test func everyApplicationErrorCaseReportsACodeAMessageAndCandidates() {
-    let cases: [(error: ApplicationError, code: String, echoes: String?, candidates: [String]?)] = [
-        (.notConfigured, "not_configured", nil, nil),
-        (.noBlock, "no_block", nil, nil),
-        (.invalidAddress("W1D1"), "invalid_address", "W1D1", nil),
-        (.invalidSetLog("185 for 5"), "invalid_set_log", "185 for 5", nil),
-        (.notFound(.session, name: "w9d1", candidates: ["w1d1"]), "unknown_session", "w9d1", ["w1d1"]),
-        (.notFound(.exercise, name: "w1d1.e5", candidates: ["w1d1.e0"]), "unknown_exercise", "w1d1.e5", ["w1d1.e0"]),
-        (.notFound(.set, name: "w1d1.e0.s9", candidates: ["w1d1.e0.s0"]), "unknown_set", "w1d1.e0.s9", ["w1d1.e0.s0"]),
-        (.notFound(.tab, name: "Block 26", candidates: ["Block 27"]), "unknown_tab", "Block 26", ["Block 27"]),
-        (.sessionUnavailable("w2d3"), "session_unavailable", "w2d3", nil),
-        (.sheetSwitchFailed("the sheet is offline"), "sheet_switch_failed", "the sheet is offline", nil),
-        (.sheetSwitchRequiresDiscard, "sheet_switch_requires_discard", nil, nil),
-        (.syncFailed(.conflict(["Back Squat: rejected"])), "sync_failed", nil, nil)
+@Test func everyApplicationErrorVerbReportsACodeAMessageCandidatesAndAKind() {
+    let cases: [(error: ApplicationError, code: String, message: String, candidates: [String]?, kind: ApplicationError.Kind)] = [
+        (
+            .notConfigured, "not_configured",
+            "No spreadsheet is selected. Run `workout init --scenario fresh-block`.", nil, .environment
+        ),
+        (
+            .noBlock, "no_block",
+            "No Block is cached for the selected spreadsheet. Run `workout sync`.", nil, .domain
+        ),
+        (
+            .invalidAddress("W1D1"), "invalid_address",
+            "\"W1D1\" is not an address. Use w<week>d<day>, w<week>d<day>.e<order>, or "
+                + "w<week>d<day>.e<order>.s<index>; `workout session` prints them.", nil, .domain
+        ),
+        (
+            .invalidSetLog("185 for 5"), "invalid_set_log",
+            "\"185 for 5\" is not a Set Log. Use {weight}x{reps}@{RPE}, for example 185x5@8 or BWx12@7.", nil, .domain
+        ),
+        (
+            .notFound(.session, name: "w9d1", candidates: ["w1d1"]), "unknown_session",
+            "No Session w9d1. This Block has 1 Sessions; `workout status` lists them.", ["w1d1"], .domain
+        ),
+        (
+            .notFound(.exercise, name: "w1d1.e5", candidates: ["w1d1.e0"]), "unknown_exercise",
+            "w1d1 has 1 Exercises; no Exercise at w1d1.e5.", ["w1d1.e0"], .domain
+        ),
+        (
+            .notFound(.set, name: "w1d1.e0.s9", candidates: ["w1d1.e0.s0"]), "unknown_set",
+            "w1d1.e0 has 1 Sets; no Set at w1d1.e0.s9.", ["w1d1.e0.s0"], .domain
+        ),
+        (
+            .notFound(.tab, name: "Block 26", candidates: ["Block 27"]), "unknown_tab",
+            "No tab named \"Block 26\". Tabs: Block 27.", ["Block 27"], .domain
+        ),
+        (
+            .sessionUnavailable("w2d3"), "session_unavailable",
+            "w2d3 is an Unavailable Session: the coach has not uploaded it yet. "
+                + "`workout status` shows which are available.", nil, .domain
+        ),
+        (
+            .sheetSwitchFailed("the sheet is offline"), "sheet_switch_failed",
+            "Couldn't select the spreadsheet: the sheet is offline", nil, .environment
+        ),
+        (
+            .sheetSwitchRequiresDiscard, "sheet_switch_requires_discard",
+            "Pending writes exist for the current spreadsheet. Run `workout flush` before selecting another sheet.",
+            nil, .domain
+        ),
+        (
+            .syncFailed(.idle), "sync_failed",
+            "Sync did not complete; the app is idle. Check the workbook and run `workout sync` again.",
+            nil, .environment
+        ),
+        (
+            .syncFailed(.syncing), "sync_failed",
+            "Sync did not complete; the app is syncing. Check the workbook and run `workout sync` again.",
+            nil, .environment
+        ),
+        (
+            .syncFailed(.offline), "sync_failed",
+            "Sync did not complete; the app is offline. Check the workbook and run `workout sync` again.",
+            nil, .environment
+        ),
+        (
+            .syncFailed(.pendingWrites(1)), "sync_failed",
+            "Sync did not complete; the app is pendingWrites. Check the workbook and run `workout sync` again.",
+            nil, .environment
+        ),
+        (
+            .syncFailed(.conflict(["Back Squat: rejected"])), "sync_failed",
+            "Sync did not complete; the app is conflict. Check the workbook and run `workout sync` again.",
+            nil, .conflict
+        )
     ]
 
-    for (error, code, echoes, candidates) in cases {
+    for (error, code, message, candidates, kind) in cases {
         #expect(error.code == code)
-        #expect(error.localizedDescription == error.message, "\(code)")
-        #expect(error.message.count > 20, "\(code)")
+        #expect(error.message == message, "\(code)")
+        #expect(error.localizedDescription == message, "\(code)")
         #expect(error.candidates == candidates, "\(code)")
-        if let echoes {
-            #expect(error.message.contains(echoes), "\(code)")
-        }
+        #expect(error.kind == kind, "\(code)")
     }
 }
 

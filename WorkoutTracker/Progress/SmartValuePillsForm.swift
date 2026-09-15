@@ -175,14 +175,7 @@ struct SmartValuePillsForm {
     }
 
     private var validWeight: Weight? {
-        let trimmed = weightText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.caseInsensitiveCompare("BW") == .orderedSame {
-            return .bodyweight
-        }
-        guard let pounds = Double(trimmed), pounds.isFinite else {
-            return nil
-        }
-        return .pounds(pounds)
+        Weight(text: weightText.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
     private var validReps: Int? {

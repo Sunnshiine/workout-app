@@ -6,17 +6,17 @@ untested state machine looked the same to every tool the repo ran.
 
 Every production function gets a CRAP score, `cc^2 * (1 - coverage)^3 + cc`, where `cc` is
 cyclomatic complexity and `coverage` is the fraction of the function's instrumented lines that
-`swift test` executed. The target is 12 or lower per function. A fully covered function passes with
-up to 12 branches; an uncovered one passes only with 3. The score is not an average: a single
-function above 12 fails the gate.
+`swift test` executed. The target is 6 or lower per function. A fully covered function passes with
+up to 6 branches; an uncovered one passes only with 2. The score is not an average: a single
+function above 6 fails the gate.
 
 `tools/crap` is a separate SwiftPM package that counts complexity with swift-syntax (Apple's
 parser, so function boundaries and closures are exact) and joins it with llvm-cov line records
 from the coverage profile `swift test --enable-code-coverage` writes. The counting rules are in
 `tools/crap/README.md` and each rule has a test. `scripts/crap.sh` is the one command: it runs
 the tests with coverage, exports lcov, builds the scorer, and prints the worst rows or evaluates
-the gate. `tools/crap/baseline.tsv` lists the functions still above 12 with their recorded score.
-The gate fails on a new function above 12, on a baselined function that got worse, and on a
+the gate. `tools/crap/baseline.tsv` lists the functions still above 6 with their recorded score.
+The gate fails on a new function above 6, on a baselined function that got worse, and on a
 baseline row that no longer applies, so the baseline can only shrink.
 
 The measured scope is what `swift test` compiles: the `WorkoutTracker` library target and
