@@ -245,25 +245,23 @@ struct SheetLayoutExerciseAnchor: Sendable {
         return setRow
     }
 
-    func visibleSetLogRow(for setIndex: Int, compactHeaderSetOne: Bool, in snapshot: SheetSnapshot) -> Int? {
-        guard setIndex >= 0 else { return nil }
+    /// The rows inside this Exercise's span that can carry a Set Log, in sheet order, with hidden
+    /// rows dropped. A compact header keeps Set Logs on the anchor row itself; every other rule
+    /// starts on the row below it. Set N takes the Nth of these, so "which row is Set N on" and
+    /// "which row does a protected header redirect to" read the same list.
+    func visibleSetLogRows(compactHeaderSetOne: Bool, in snapshot: SheetSnapshot) -> [Int] {
         let firstRow = row + (compactHeaderSetOne ? 0 : 1)
-        guard firstRow < nextAnchorRow else { return nil }
+        guard firstRow < nextAnchorRow else { return [] }
+        return (firstRow..<nextAnchorRow).filter { snapshot.isRowVisible($0) }
+    }
 
-        var visibleIndex = 0
-        for candidate in firstRow..<nextAnchorRow where snapshot.isRowVisible(candidate) {
-            if visibleIndex == setIndex {
-                return candidate
-            }
-            visibleIndex += 1
-        }
-        return nil
+    func visibleSetLogRow(for setIndex: Int, compactHeaderSetOne: Bool, in snapshot: SheetSnapshot) -> Int? {
+        let rows = visibleSetLogRows(compactHeaderSetOne: compactHeaderSetOne, in: snapshot)
+        return rows.indices.contains(setIndex) ? rows[setIndex] : nil
     }
 
     func firstVisibleWritableRow(in snapshot: SheetSnapshot) -> Int? {
-        let firstRow = row + 1
-        guard firstRow < nextAnchorRow else { return nil }
-        return (firstRow..<nextAnchorRow).first { snapshot.isRowVisible($0) }
+        visibleSetLogRows(compactHeaderSetOne: false, in: snapshot).first
     }
 
     /// Resolves where Set `setIndex`'s Set Log lives for this Exercise: the whole Visible Writable
