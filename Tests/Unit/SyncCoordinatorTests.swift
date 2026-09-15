@@ -523,6 +523,8 @@ private func loggedSquatGrid() -> SheetGrid {
     await firstProbe.waitForFinish()
 
     #expect(firstLookupStore.entryCount(baseName: "Squat") == 1)
+    #expect(firstProbe.progressEvents == [LastPerformedBackfillProgress(tab: "Block 26", tabsCompleted: 1, tabsToScan: 3)])
+    #expect(firstLookupStore.fillProgress == nil)
     let cursor = try #require(historyFillCursor(in: container.mainContext, spreadsheetId: "sid"))
     #expect(cursor.deepestIngestedTab == "Block 26")
     #expect(await !firstClient.recorder.tabs().contains("Block 24"))
@@ -551,6 +553,8 @@ private func loggedSquatGrid() -> SheetGrid {
     #expect(await secondRecorder.tabs().contains("Block 25"))
     #expect(await secondRecorder.tabs().contains("Block 24"))
     #expect(await !secondRecorder.tabs().contains("Block 26"))
+    #expect(secondProbe.progressEvents.map(\.tab) == ["Block 25", "Block 24"])
+    #expect(secondProbe.progressEvents.allSatisfy { $0.tabsToScan == 2 })
     #expect(historyFillCursor(in: container.mainContext, spreadsheetId: "sid") == nil)
 }
 
