@@ -40,19 +40,21 @@ func typeRoleCarriesItsDesignTokens(role: Theme.TypeRole, expected: Theme.TypeSt
     #expect(role.style == expected)
 }
 
-@Test func frauncesAndSourceSansRolesResolveToTheirBundledFamilies() {
-    #expect(Theme.font(.exerciseName) == Font.custom("Fraunces", fixedSize: 33).weight(.medium))
-    #expect(Theme.font(.weightEntry) == Font.custom("Source Sans 3", fixedSize: 46).weight(.bold))
-}
-
-@Test func everyTypeRoleResolvesToItsFaceSizeAndWeight() {
-    for role in Theme.TypeRole.allCases {
-        let style = role.style
-        let expected = Font.custom(style.face.familyName, fixedSize: style.size)
-            .weight(Theme.swiftUIWeight(style.weight))
-        #expect(Theme.font(role) == expected, "\(role) did not resolve to its row in the table")
+#if !canImport(UIKit)
+    @Test func frauncesAndSourceSansRolesResolveToTheirBundledFamilies() {
+        #expect(Theme.font(.exerciseName) == Font.custom("Fraunces", fixedSize: 33).weight(.medium))
+        #expect(Theme.font(.weightEntry) == Font.custom("Source Sans 3", fixedSize: 46).weight(.bold))
     }
-}
+
+    @Test func everyTypeRoleResolvesToItsFaceSizeAndWeight() {
+        for role in Theme.TypeRole.allCases {
+            let style = role.style
+            let expected = Font.custom(style.face.familyName, fixedSize: style.size)
+                .weight(Theme.swiftUIWeight(style.weight))
+            #expect(Theme.font(role) == expected, "\(role) did not resolve to its row in the table")
+        }
+    }
+#endif
 
 @Test(arguments: [
     (249.0, Font.Weight.light),
