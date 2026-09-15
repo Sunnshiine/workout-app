@@ -154,6 +154,13 @@ struct SetLogPlacement: Sendable, Equatable {
     let row: Int
     let col: Int
     let listPosition: Int?
+
+    /// Set `setIndex`'s position in a Notes cell shared by `setCount` prescribed Sets. A single
+    /// prescribed Set has no comma list, so its placement addresses the cell whole — a nil position
+    /// takes the direct-write path on both the read and the write side.
+    static func listPosition(ofSet setIndex: Int, amongPrescribed setCount: Int) -> Int? {
+        setCount > 1 ? setIndex : nil
+    }
 }
 
 /// The outcome of resolving where one Set's Set Log lives — either a resolved `SetLogPlacement`, or
@@ -283,34 +290,15 @@ struct SheetLayoutExerciseAnchor: Sendable {
         let headerNotes = headerNotes(in: grid, notesColumn: col)
         let setCount = prescribedSetCount(in: grid, setsColumn: cols.sets)
         let compactHeaderSetOne = usesCompactHeaderSetOne(headerNotes: headerNotes, setCount: setCount)
-
-        // A list kind stores several Sets in one comma-separated cell; a single prescribed Set has no
-        // list, so it writes the cell whole (nil position → the direct-write path).
-        let listPosition = setCount > 1 ? setIndex : nil
-
-        // Both list rules address a prescribed Set. A Set beyond the prescribed count falls through
-        // to the visible-row path below.
-        if setIndex < setCount {
-            if compactHeaderSetOne {
-                guard snapshot.isRowVisible(row) else { return .setRowNotFound }
-                return .placed(
-                    SetLogPlacement(kind: .compactHeaderList, row: row, col: col, listPosition: listPosition)
-                )
-            }
-
-            if isHeaderProtectedFromSetLogWrites(headerNotes: headerNotes, setCount: setCount) {
-                guard let writableRow = firstVisibleWritableRow(in: snapshot) else {
-                    return .protectedHeaderBlocksSetRow
-                }
-                return .placed(
-                    SetLogPlacement(
-                        kind: .protectedHeaderVisibleWritableRow,
-                        row: writableRow,
-                        col: col,
-                        listPosition: listPosition
-                    )
-                )
-            }
+        if let headerPlacement = headerNotesPlacement(
+            for: setIndex,
+            headerNotes: headerNotes,
+            setCount: setCount,
+            compactHeaderSetOne: compactHeaderSetOne,
+            in: snapshot,
+            col: col
+        ) {
+            return headerPlacement
         }
 
         guard
@@ -319,6 +307,42 @@ struct SheetLayoutExerciseAnchor: Sendable {
             return headerNotes.hasProtectedValue ? .protectedHeaderBlocksSetRow : .setRowNotFound
         }
         return .placed(SetLogPlacement(kind: .visibleSetLogRow, row: setRow, col: col, listPosition: nil))
+    }
+
+    /// What this Exercise's header Notes cell does with a prescribed Set's log: hold it in the
+    /// cell's own comma-separated Set-Log list, or — when coach content protects the cell
+    /// (ADR-0005) — redirect it to the first Visible Writable Row below, refusing the write when
+    /// there is none. nil when the header makes no claim on the Set, either because the cell is
+    /// free or because the Set is past the prescribed count; both fall through to the Set's own
+    /// visible row.
+    private func headerNotesPlacement(
+        for setIndex: Int,
+        headerNotes: SheetLayoutHeaderNotes,
+        setCount: Int,
+        compactHeaderSetOne: Bool,
+        in snapshot: SheetSnapshot,
+        col: Int
+    ) -> SetLogPlacementResolution? {
+        guard setIndex < setCount else { return nil }
+        let listPosition = SetLogPlacement.listPosition(ofSet: setIndex, amongPrescribed: setCount)
+
+        if compactHeaderSetOne {
+            guard snapshot.isRowVisible(row) else { return .setRowNotFound }
+            return .placed(
+                SetLogPlacement(kind: .compactHeaderList, row: row, col: col, listPosition: listPosition)
+            )
+        }
+
+        guard headerNotes.hasProtectedValue else { return nil }
+        guard let writableRow = firstVisibleWritableRow(in: snapshot) else { return .protectedHeaderBlocksSetRow }
+        return .placed(
+            SetLogPlacement(
+                kind: .protectedHeaderVisibleWritableRow,
+                row: writableRow,
+                col: col,
+                listPosition: listPosition
+            )
+        )
     }
 
     /// Coach J. Alarcon's per-row template (ADR-0010): each Prescription Line keeps its own Sets'
