@@ -29,6 +29,32 @@ private func splitLoadValues(_ load: String) -> [String] {
     }
 }
 
+/// The per-Set values one Prescription cell lists. A Reps or Load cell carries one comma-separated
+/// value per prescribed Set; a Set past the end of the list takes the last listed value, so a single
+/// value prescribes every Set of the Line.
+struct PrescriptionValueList: Sendable, Equatable {
+    private let values: [String]
+
+    private init(_ values: [String]) {
+        // A cell always lists at least one value; an empty cell lists one empty value.
+        self.values = values.isEmpty ? [""] : values
+    }
+
+    static func reps(_ cell: String) -> Self {
+        Self(cell.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) })
+    }
+
+    /// A unit prefix on the first Load value carries across the bare numbers after it, so
+    /// "BW+25, 35" prescribes BW+25 then BW+35.
+    static func load(_ cell: String) -> Self {
+        Self(splitLoadValues(cell))
+    }
+
+    func value(at position: Int) -> String {
+        values[min(position, values.count - 1)]
+    }
+}
+
 struct ParsedSet {
     var index: Int
     var prescribedReps: String
@@ -87,10 +113,8 @@ private struct ParsedSetContext {
     let anchor: SheetLayoutExerciseAnchor
     let cols: DayColumns
     let snapshot: SheetSnapshot
-    let reps: String
-    let repsValues: [String]
-    let load: String
-    let loadValues: [String]
+    let reps: PrescriptionValueList
+    let load: PrescriptionValueList
     let percentOneRM: String
 }
 
@@ -105,8 +129,8 @@ private func parsedSets(_ context: ParsedSetContext) -> [ParsedSet] {
         let logState = SetLogToken.classify(rawLog)
         return ParsedSet(
             index: i,
-            prescribedReps: i < context.repsValues.count ? context.repsValues[i] : (context.repsValues.last ?? context.reps),
-            prescribedLoad: i < context.loadValues.count ? context.loadValues[i] : (context.loadValues.last ?? context.load),
+            prescribedReps: context.reps.value(at: i),
+            prescribedLoad: context.load.value(at: i),
             percentOneRM: context.percentOneRM.isEmpty ? nil : context.percentOneRM,
             state: logState.state,
             setLog: logState.setLog,
@@ -163,10 +187,8 @@ private func parsedSetsForLine(
     line: PrescriptionLine
 ) -> [ParsedSet] {
     let grid = snapshot.values
-    let reps = grid.cellOrEmpty(line.row, cols.reps)
-    let repsValues = reps.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-    let load = grid.cellOrEmpty(line.row, cols.load)
-    let loadValues = splitLoadValues(load)
+    let reps = PrescriptionValueList.reps(grid.cellOrEmpty(line.row, cols.reps))
+    let load = PrescriptionValueList.load(grid.cellOrEmpty(line.row, cols.load))
     let percent = grid.cellOrEmpty(line.row, cols.percentOneRM)
     let notes = SheetLayoutHeaderNotes(value: grid.cellOrEmpty(line.row, cols.notes).trimmed)
     let protectedLine = anchor.isHeaderProtectedFromSetLogWrites(headerNotes: notes, setCount: line.setCount)
@@ -177,8 +199,8 @@ private func parsedSetsForLine(
         let logState = SetLogToken.classify(rawLog)
         return ParsedSet(
             index: setIndex,
-            prescribedReps: position < repsValues.count ? repsValues[position] : (repsValues.last ?? reps),
-            prescribedLoad: position < loadValues.count ? loadValues[position] : (loadValues.last ?? load),
+            prescribedReps: reps.value(at: position),
+            prescribedLoad: load.value(at: position),
             percentOneRM: percent.isEmpty ? nil : percent,
             state: logState.state,
             setLog: logState.setLog,
@@ -220,8 +242,6 @@ private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns,
     let anchorRow = anchor.row
     let rawName = grid.cell(row: anchorRow, col: cols.name).trimmed
     let (cadence, base) = splitCadence(rawName)
-    let reps = grid.cellOrEmpty(anchorRow, cols.reps)
-    let load = grid.cellOrEmpty(anchorRow, cols.load)
     let headerNotes = anchor.headerNotes(in: grid, notesColumn: cols.notes)
     let note = headerNotes.value
     let setCount = anchor.prescribedSetCount(in: grid, setsColumn: cols.sets)
@@ -236,10 +256,8 @@ private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns,
                 anchor: anchor,
                 cols: cols,
                 snapshot: snapshot,
-                reps: reps,
-                repsValues: reps.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) },
-                load: load,
-                loadValues: splitLoadValues(load),
+                reps: PrescriptionValueList.reps(grid.cellOrEmpty(anchorRow, cols.reps)),
+                load: PrescriptionValueList.load(grid.cellOrEmpty(anchorRow, cols.load)),
                 percentOneRM: grid.cellOrEmpty(anchorRow, cols.percentOneRM)
             )
         ),
