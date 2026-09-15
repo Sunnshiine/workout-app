@@ -7,8 +7,6 @@ WorkoutTracker/Parsing/SetLogPlacementNarration.swift	SetLogPlacementResolution.
 WorkoutTracker/Parsing/SheetLayoutInterpreter.swift	SheetLayoutExerciseAnchor.setLogPlacement(for:in:cols:)	11.0
 WorkoutTracker/Parsing/SheetLayoutInterpreter.swift	SheetLayoutExerciseAnchor.visibleSetLogRow(for:compactHeaderSetOne:in:)	7.0
 WorkoutTracker/Parsing/SheetParser.swift	parsedSetsForLine(snapshot:cols:anchor:line:)	7.0
-WorkoutTracker/Progress/SupersetState.swift	SupersetState.focusedSetID(whenNormalFocusIs:in:)	7.0
-WorkoutTracker/Progress/SupersetState.swift	SupersetState.nextSetID(after:in:)	7.0
 WorkoutTracker/Sheets/GoogleSheetsClient.swift	GoogleSheetsClient.rowVisibility(from:)	8.0
 WorkoutTracker/Sheets/GoogleSheetsClient.swift	GoogleSheetsClient.valuesGrid(from:)	8.0
 WorkoutTracker/Sheets/LocalWorkbookSheetsClient.swift	LocalWorkbook.Tab.init(from:)	8.2
