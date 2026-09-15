@@ -27,7 +27,7 @@ import Testing
                                         prescribedReps: "12",
                                         prescribedLoad: "RPE8",
                                         percentOneRM: nil,
-                                        setLog: SetLog(weight: .pounds(25), reps: 12, rpe: 7)
+                                        setLog: SetLog(weight: .pounds(25), reps: 12, rpe: .seven)
                                     ),
                                     ParsedSet(
                                         index: 1,
@@ -50,7 +50,7 @@ import Testing
     let set = try #require(block.weeks.first?.sessions.first?.exercises.first?.sets.first)
     #expect(set.state == .logged)
     let data = try #require(set.setLogData)
-    #expect(try JSONDecoder().decode(SetLog.self, from: data) == SetLog(weight: .pounds(25), reps: 12, rpe: 7))
+    #expect(try JSONDecoder().decode(SetLog.self, from: data) == SetLog(weight: .pounds(25), reps: 12, rpe: .seven))
     let pendingSet = try #require(block.weeks.first?.sessions.first?.exercises.first?.sets.last)
     #expect(pendingSet.state == .pending)
     #expect(pendingSet.setLogData == nil)

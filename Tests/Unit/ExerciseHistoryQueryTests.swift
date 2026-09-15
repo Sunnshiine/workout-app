@@ -46,7 +46,7 @@ private func historyEntry(
         LastPerformedEntry(
             fullName: "3-0:1:0 Squat",
             baseName: "Squat",
-            result: SetLog(weight: .pounds(315), reps: 3, rpe: 8),
+            result: SetLog(weight: .pounds(315), reps: 3, rpe: .eight),
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "Block 27 · W1 D1"
         )

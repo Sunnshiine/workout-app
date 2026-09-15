@@ -41,7 +41,7 @@ import Testing
 
 @MainActor
 @Test func rpeRailExposesTheSharedChipShapeCenteredOnItsTarget() {
-    let rail = RPEScalePresentation(prescribedRPE: 8, selection: "8.5")
+    let rail = RPEScalePresentation(prescribedRPE: .eight, selection: "8.5")
 
     #expect(rail.chips.count == 10)
     #expect(rail.chips.filter(\.isSelected).map(\.label) == ["8.5"])

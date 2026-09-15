@@ -33,15 +33,22 @@ enum Weight: Codable, Sendable, Equatable {
 
 /// Any finite point the Sheet records or prescribes. The points an athlete may pick live on the RPE
 /// rail (`RPEScalePresentation.scale`), because older coach data holds values off that rail.
-struct RPE: Hashable, Sendable, Codable, ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral {
+struct RPE: Hashable, Sendable, Codable {
+    static let five = RPE(point: 5)
+    static let six = RPE(point: 6)
+    static let sixPointFive = RPE(point: 6.5)
+    static let seven = RPE(point: 7)
+    static let sevenPointFive = RPE(point: 7.5)
+    static let eight = RPE(point: 8)
+    static let eightPointFive = RPE(point: 8.5)
+    static let nine = RPE(point: 9)
+    static let ninePointFive = RPE(point: 9.5)
+    static let ten = RPE(point: 10)
+
     private let point: Double
 
-    init(integerLiteral value: Int) {
-        point = Double(value)
-    }
-
-    init(floatLiteral value: Double) {
-        point = value
+    private init(point: Double) {
+        self.point = point
     }
 
     init?(text: String) {

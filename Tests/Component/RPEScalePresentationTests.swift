@@ -11,7 +11,7 @@ import Testing
 
 @MainActor
 @Test func rpeScaleMarksPrescribedChipAndSelectedChipIndependently() {
-    let scale = RPEScalePresentation(prescribedRPE: 8, selection: "7.5")
+    let scale = RPEScalePresentation(prescribedRPE: .eight, selection: "7.5")
 
     #expect(scale.chips.filter(\.isPrescribed).map(\.label) == ["8"])
     #expect(scale.chips.filter(\.isSelected).map(\.label) == ["7.5"])
@@ -33,7 +33,7 @@ import Testing
 
 @MainActor
 @Test func rpeScaleCentersOnSelectionThenPrescribedThenDefault() {
-    #expect(RPEScalePresentation(prescribedRPE: 8, selection: "9.5").selectedIndex == 8)
-    #expect(RPEScalePresentation(prescribedRPE: 8, selection: "").selectedIndex == 5)
+    #expect(RPEScalePresentation(prescribedRPE: .eight, selection: "9.5").selectedIndex == 8)
+    #expect(RPEScalePresentation(prescribedRPE: .eight, selection: "").selectedIndex == 5)
     #expect(RPEScalePresentation(prescribedRPE: nil, selection: "").selectedIndex == 5)
 }

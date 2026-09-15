@@ -111,7 +111,7 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 @MainActor
 @Test func setRowPresentationShowsLoggedSetWithAccentAndCheckmark() {
     let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .logged)
-    set.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: 8)
+    set.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: .eight)
 
     let presentation = SetRowPresentation(set: set)
 
@@ -157,7 +157,7 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 @MainActor
 @Test func setCardReviewModeHidesLogControlsAndCommitsChangesOnDisappear() {
     let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .logged)
-    set.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: 8)
+    set.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: .eight)
 
     let presentation = SetCardPresentation(mode: .reviewingLogged, set: set)
 
@@ -322,7 +322,7 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
         coachNote: nil
     )
     let firstSet = ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 6", percentOneRM: nil, state: .logged)
-    firstSet.setLog = SetLog(weight: .pounds(185), reps: 8, rpe: 6)
+    firstSet.setLog = SetLog(weight: .pounds(185), reps: 8, rpe: .six)
     exercise.sets = [firstSet]
 
     let presentation = ExerciseSummaryRowPresentation(exercise: exercise)
@@ -334,11 +334,11 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 @Test func exerciseSummaryRowPresentationAbbreviatesConsecutiveSameWeightSets() {
     let exercise = Exercise(name: "BB RDL", baseName: "BB RDL", cadence: nil, coachNote: nil)
     let firstSet = ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 6", percentOneRM: nil, state: .logged)
-    firstSet.setLog = SetLog(weight: .pounds(225), reps: 8, rpe: 6)
+    firstSet.setLog = SetLog(weight: .pounds(225), reps: 8, rpe: .six)
     let secondSet = ExerciseSet(index: 1, prescribedReps: "8", prescribedLoad: "RPE 6", percentOneRM: nil, state: .logged)
-    secondSet.setLog = SetLog(weight: .pounds(225), reps: 8, rpe: 6)
+    secondSet.setLog = SetLog(weight: .pounds(225), reps: 8, rpe: .six)
     let thirdSet = ExerciseSet(index: 2, prescribedReps: "6", prescribedLoad: "RPE 7", percentOneRM: nil, state: .logged)
-    thirdSet.setLog = SetLog(weight: .pounds(245), reps: 6, rpe: 7)
+    thirdSet.setLog = SetLog(weight: .pounds(245), reps: 6, rpe: .seven)
     exercise.sets = [firstSet, secondSet, thirdSet]
 
     let presentation = ExerciseSummaryRowPresentation(exercise: exercise)
@@ -350,9 +350,9 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 @Test func exerciseSummaryRowPresentationShowsSkippedSetsAsSkip() {
     let exercise = Exercise(name: "BB RDL", baseName: "BB RDL", cadence: nil, coachNote: nil)
     let firstSet = ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 6", percentOneRM: nil, state: .logged)
-    firstSet.setLog = SetLog(weight: .pounds(225), reps: 8, rpe: 6)
+    firstSet.setLog = SetLog(weight: .pounds(225), reps: 8, rpe: .six)
     let secondSet = ExerciseSet(index: 1, prescribedReps: "8", prescribedLoad: "RPE 6", percentOneRM: nil, state: .logged)
-    secondSet.setLog = SetLog(weight: .pounds(225), reps: 8, rpe: 6)
+    secondSet.setLog = SetLog(weight: .pounds(225), reps: 8, rpe: .six)
     let thirdSet = ExerciseSet(index: 2, prescribedReps: "8", prescribedLoad: "RPE 6", percentOneRM: nil, state: .skipped)
     exercise.sets = [firstSet, secondSet, thirdSet]
 
@@ -390,7 +390,7 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
         legacyLog: "25x12, 12"
     )
     let set = ExerciseSet(index: 0, prescribedReps: "12", prescribedLoad: "RPE 9", percentOneRM: nil, state: .logged)
-    set.setLog = SetLog(weight: .pounds(35), reps: 12, rpe: 9)
+    set.setLog = SetLog(weight: .pounds(35), reps: 12, rpe: .nine)
     exercise.sets = [set]
 
     let presentation = ExerciseSummaryRowPresentation(exercise: exercise)
@@ -422,7 +422,7 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     let entry = LastPerformedEntry(
         fullName: "DB Fly",
         baseName: "DB Fly",
-        result: SetLog(weight: .pounds(25), reps: 12, rpe: 9),
+        result: SetLog(weight: .pounds(25), reps: 12, rpe: .nine),
         performedOn: Date(timeIntervalSinceReferenceDate: 100),
         source: "W4 D3"
     )
@@ -458,7 +458,7 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
         LastPerformedEntry(
             fullName: "2-3:1:0 BB RDL",
             baseName: "BB RDL",
-            result: SetLog(weight: .pounds(185), reps: 7, rpe: 6),
+            result: SetLog(weight: .pounds(185), reps: 7, rpe: .six),
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "W3 D1"
         )

@@ -43,13 +43,13 @@ private func replayWrite(
     set.apply(replayWrite(valueToWrite: "185x5@8"))
 
     #expect(set.state == .logged)
-    #expect(set.setLog == SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+    #expect(set.setLog == SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
     #expect(set.loggedAt == Date(timeIntervalSinceReferenceDate: 0))
 }
 
 @MainActor
 @Test func replayingTheSkipSentinelSkipsTheSetAndClearsItsLog() {
-    let set = replaySet(state: .logged, setLog: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+    let set = replaySet(state: .logged, setLog: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
 
     set.apply(replayWrite(valueToWrite: "skip"))
 
@@ -85,21 +85,21 @@ private func replayWrite(
 
 @MainActor
 @Test func replayingAnEmptyValueLeavesTheSetUntouched() {
-    let set = replaySet(state: .logged, setLog: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+    let set = replaySet(state: .logged, setLog: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
 
     set.apply(replayWrite(valueToWrite: ""))
 
     #expect(set.state == .logged)
-    #expect(set.setLog == SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+    #expect(set.setLog == SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
     #expect(set.loggedAt == Date(timeIntervalSinceReferenceDate: 1_000))
 }
 
 @MainActor
 @Test func replayingAWriteWithNoValueLeavesTheSetUntouched() {
-    let set = replaySet(state: .logged, setLog: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+    let set = replaySet(state: .logged, setLog: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
 
     set.apply(replayWrite(valueToWrite: nil))
 
     #expect(set.state == .logged)
-    #expect(set.setLog == SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+    #expect(set.setLog == SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
 }

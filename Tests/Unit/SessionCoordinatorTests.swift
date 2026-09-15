@@ -430,7 +430,7 @@ private func makeRestActionFixture(
         LastPerformedEntry(
             fullName: "Bench Press",
             baseName: "Bench Press",
-            result: SetLog(weight: .pounds(185), reps: 6, rpe: 7),
+            result: SetLog(weight: .pounds(185), reps: 6, rpe: .seven),
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "W3 D2"
         )
@@ -664,7 +664,7 @@ private func makeRestActionFixture(
     let finalSquatSet = try #require(squat.sets.first { $0.index == 1 })
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let row = try #require(session.exercises.first { $0.order == 2 })
-    let squatLog = SetLog(weight: .pounds(315), reps: 5, rpe: 7)
+    let squatLog = SetLog(weight: .pounds(315), reps: 5, rpe: .seven)
 
     coordinator.log(firstSquatSet, as: squatLog)
 
@@ -714,7 +714,7 @@ private func makeRestActionFixture(
     let fixture = try makeActionFixture()
     let bench = try #require(fixture.session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
-    let log = SetLog(weight: .pounds(185), reps: 6, rpe: 7)
+    let log = SetLog(weight: .pounds(185), reps: 6, rpe: .seven)
 
     fixture.coordinator.log(firstBenchSet, as: log)
 
@@ -754,7 +754,7 @@ private func makeRestActionFixture(
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
 
-    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
 
     #expect(restTimer.interval?.end == Date(timeIntervalSinceReferenceDate: 2_210))
     #expect(restTimer.remaining == 210)
@@ -783,7 +783,7 @@ private func makeRestActionFixture(
 
     #expect(coordinator.createSuperset(from: bench, to: row, in: session))
 
-    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
 
     #expect(restTimer.interval?.end == Date(timeIntervalSinceReferenceDate: 2_045))
     #expect(restTimer.remaining == 45)
@@ -813,9 +813,9 @@ private func makeRestActionFixture(
 
     #expect(coordinator.createSuperset(from: bench, to: row, in: session))
 
-    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
     clock.now.addTimeInterval(10)
-    coordinator.log(rowSet, as: SetLog(weight: .pounds(95), reps: 10, rpe: 7))
+    coordinator.log(rowSet, as: SetLog(weight: .pounds(95), reps: 10, rpe: .seven))
 
     #expect(restTimer.interval?.end == Date(timeIntervalSinceReferenceDate: 2_055))
     #expect(restTimer.remaining == 45)
@@ -842,9 +842,9 @@ private func makeRestActionFixture(
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
     let rowSet = try #require(session.exercises.first { $0.order == 2 }?.sets.first)
 
-    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
     clock.now.addTimeInterval(60)
-    coordinator.log(rowSet, as: SetLog(weight: .pounds(95), reps: 10, rpe: 7))
+    coordinator.log(rowSet, as: SetLog(weight: .pounds(95), reps: 10, rpe: .seven))
 
     #expect(restTimer.interval?.end == Date(timeIntervalSinceReferenceDate: 2_270))
     #expect(restTimer.remaining == 210)
@@ -872,7 +872,7 @@ private func makeRestActionFixture(
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
 
-    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
 
     let call = try #require(liveActivity.calls.first)
     #expect(liveActivity.calls.count == 1)
@@ -908,9 +908,9 @@ private func makeRestActionFixture(
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
     let secondBenchSet = try #require(bench.sets.first { $0.index == 1 })
 
-    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
     clock.now.addTimeInterval(60)
-    coordinator.log(secondBenchSet, as: SetLog(weight: .pounds(195), reps: 6, rpe: 8))
+    coordinator.log(secondBenchSet, as: SetLog(weight: .pounds(195), reps: 6, rpe: .eight))
 
     #expect(liveActivity.calls.count == 2)
     #expect(liveActivity.invalidationCalls.count == 2)
@@ -939,7 +939,7 @@ private func makeRestActionFixture(
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
 
-    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
 
     #expect(liveActivity.calls.isEmpty)
 }
@@ -967,14 +967,14 @@ private func makeRestActionFixture(
     let bench = try #require(browsed.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
 
-    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
 
     #expect(liveActivity.calls.isEmpty)
 }
 
 @MainActor
 @Test func editSkipAndDeleteDoNotStartLiveActivity() throws {
-    let log = SetLog(weight: .pounds(185), reps: 6, rpe: 7)
+    let log = SetLog(weight: .pounds(185), reps: 6, rpe: .seven)
 
     let editLiveActivity = SpySessionLiveActivityAdapter()
     let editFixture = try makeRestActionFixture(liveActivity: editLiveActivity)
@@ -1007,7 +1007,7 @@ private func makeRestActionFixture(
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
     let secondBenchSet = try #require(bench.sets.first { $0.index == 1 })
 
-    fixture.coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    fixture.coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
     fixture.coordinator.deleteLog(for: secondBenchSet)
 
     #expect(fixture.restTimer.isRunning)
@@ -1036,11 +1036,11 @@ private func makeRestActionFixture(
         standardRestDuration: { 210 }
     )
 
-    coordinator.log(current.set, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    coordinator.log(current.set, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
     #expect(restTimer.isRunning)
 
     other.set.state = .logged
-    other.set.setLog = SetLog(weight: .pounds(95), reps: 10, rpe: 7)
+    other.set.setLog = SetLog(weight: .pounds(95), reps: 10, rpe: .seven)
     coordinator.deleteLog(for: other.set)
 
     #expect(restTimer.isRunning)
@@ -1055,7 +1055,7 @@ private func makeRestActionFixture(
     let bench = try #require(fixture.session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
 
-    fixture.coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    fixture.coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
     fixture.coordinator.cancelRestForSessionExit()
 
     #expect(fixture.restTimer.interval == nil)
@@ -1080,7 +1080,7 @@ private func makeRestActionFixture(
         standardRestDuration: { 210 }
     )
 
-    coordinator.log(current.set, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    coordinator.log(current.set, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
 
     #expect(restTimer.interval == nil)
     #expect(restTimer.origin == nil)
@@ -1105,7 +1105,7 @@ private func makeRestActionFixture(
         standardRestDuration: { 210 }
     )
 
-    coordinator.log(current.set, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    coordinator.log(current.set, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
 
     #expect(restTimer.interval?.end == Date(timeIntervalSinceReferenceDate: 2_210))
     #expect(restTimer.remaining == 210)
@@ -1139,7 +1139,7 @@ private func makeRestActionFixture(
 
 @MainActor
 @Test func editSkipAndDeleteDoNotStartRestTimer() throws {
-    let log = SetLog(weight: .pounds(185), reps: 6, rpe: 7)
+    let log = SetLog(weight: .pounds(185), reps: 6, rpe: .seven)
 
     let editFixture = try makeRestActionFixture()
     let squatSet = try #require(editFixture.session.exercises.first { $0.order == 0 }?.sets.first)
@@ -1163,7 +1163,7 @@ private func makeRestActionFixture(
 @Test func updatingLoggedSetUsesAdaptersWithoutAdvancingActivePendingSet() throws {
     let fixture = try makeActionFixture()
     let squatSet = try #require(fixture.session.exercises.first { $0.order == 0 }?.sets.first)
-    let updatedLog = SetLog(weight: .pounds(205), reps: 5, rpe: 8)
+    let updatedLog = SetLog(weight: .pounds(205), reps: 5, rpe: .eight)
 
     fixture.coordinator.focus(on: squatSet)
     fixture.coordinator.updateLoggedSet(squatSet, as: updatedLog)
@@ -1186,7 +1186,7 @@ private func makeRestActionFixture(
     let bench = try #require(fixture.session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
 
-    fixture.coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    fixture.coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
     #expect(fixture.coordinator.retiringTransition != nil)
 
     fixture.coordinator.focus(on: firstBenchSet)
@@ -1227,7 +1227,7 @@ private func makeRestActionFixture(
     let squatSet = try #require(fixture.session.exercises.first { $0.order == 0 }?.sets.first)
     let rowSet = try #require(fixture.session.exercises.first { $0.order == 2 }?.sets.first)
     rowSet.state = .logged
-    let updatedLog = SetLog(weight: .pounds(205), reps: 5, rpe: 8)
+    let updatedLog = SetLog(weight: .pounds(205), reps: 5, rpe: .eight)
 
     fixture.coordinator.focus(on: squatSet)
     fixture.coordinator.focus(on: rowSet)
@@ -1241,7 +1241,7 @@ private func makeRestActionFixture(
 @Test func bindingNewSessionClearsSavedLoggedSetFeedback() throws {
     let fixture = try makeActionFixture()
     let squatSet = try #require(fixture.session.exercises.first { $0.order == 0 }?.sets.first)
-    let updatedLog = SetLog(weight: .pounds(205), reps: 5, rpe: 8)
+    let updatedLog = SetLog(weight: .pounds(205), reps: 5, rpe: .eight)
     let next = makeSingleSetSession(dayNumber: 2)
 
     fixture.coordinator.focus(on: squatSet)
@@ -1282,7 +1282,7 @@ private func makeRestActionFixture(
     let fixture = try makeActionFixture()
     let bench = try #require(fixture.session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
-    let log = SetLog(weight: .pounds(185), reps: 6, rpe: 7)
+    let log = SetLog(weight: .pounds(185), reps: 6, rpe: .seven)
     fixture.coordinator.log(firstBenchSet, as: log)
 
     fixture.coordinator.deleteLog(for: firstBenchSet)
@@ -1301,7 +1301,7 @@ private func makeRestActionFixture(
     let fixture = try makeActionFixture()
     let bench = try #require(fixture.session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
-    let log = SetLog(weight: .pounds(185), reps: 6, rpe: 7)
+    let log = SetLog(weight: .pounds(185), reps: 6, rpe: .seven)
     fixture.logging.error = .failed
 
     fixture.coordinator.log(firstBenchSet, as: log)
@@ -1321,7 +1321,7 @@ private func makeRestActionFixture(
     let logging = SpySessionLoggingAdapter()
     let sync = SpySessionSyncAdapter()
     let coordinator = SessionCoordinator(session: old.session, logging: logging, sync: sync)
-    let log = SetLog(weight: .pounds(185), reps: 6, rpe: 7)
+    let log = SetLog(weight: .pounds(185), reps: 6, rpe: .seven)
 
     coordinator.log(new.set, as: log)
 
@@ -1341,7 +1341,7 @@ private func makeRestActionFixture(
     let sync = SpySessionSyncAdapter()
     let coordinator = SessionCoordinator(session: old.session, logging: logging, sync: sync)
     new.set.state = .logged
-    new.set.setLog = SetLog(weight: .pounds(185), reps: 6, rpe: 7)
+    new.set.setLog = SetLog(weight: .pounds(185), reps: 6, rpe: .seven)
 
     coordinator.deleteLog(for: new.set)
 
@@ -1361,7 +1361,7 @@ private func makeRestActionFixture(
     let bench = try #require(fixture.session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
 
-    fixture.coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    fixture.coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
     let transition = try #require(fixture.coordinator.retiringTransition)
     await fixture.clock.waitForSleep()
 
@@ -1385,11 +1385,11 @@ private func makeRestActionFixture(
     coordinator.bind(to: session, logging: logging, sync: sync)
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
-    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
 
     #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 1))
     #expect(logging.loggedSets.count == 1)
-    #expect(logging.loggedSets.first?.log == SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    #expect(logging.loggedSets.first?.log == SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
     #expect(sync.flushRequestCount == 1)
     #expect(sync.reportedErrors.isEmpty)
 }
@@ -1411,7 +1411,7 @@ private func makeRestActionFixture(
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
-    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
 
     #expect(restTimer.remaining == 123)
     #expect(restTimer.interval?.end == Date(timeIntervalSinceReferenceDate: 2_123))
@@ -1438,7 +1438,7 @@ private func makeRestActionFixture(
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
     #expect(coordinator.createSuperset(from: bench, to: row, in: session))
 
-    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
 
     #expect(restTimer.remaining == 77)
     #expect(restTimer.interval?.end == Date(timeIntervalSinceReferenceDate: 2_077))
@@ -1465,7 +1465,7 @@ private func makeRestActionFixture(
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
-    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
 
     #expect(configured.calls.isEmpty)
     #expect(configured.invalidationCalls.isEmpty)
@@ -1493,7 +1493,7 @@ private func makeRestActionFixture(
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
-    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
 
     #expect(configured.calls.count == 1)
     #expect(configured.calls.first?.sessionLabel == "Week 1 - Day 1")
@@ -1519,7 +1519,7 @@ private func makeRestActionFixture(
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
-    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
 
     #expect(liveActivity.calls.isEmpty)
     #expect(liveActivity.invalidationCalls.isEmpty)
@@ -1543,7 +1543,7 @@ private func makeRestActionFixture(
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
-    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
 
     #expect(liveActivity.calls.isEmpty)
     #expect(liveActivity.invalidationCalls.isEmpty)
@@ -1565,13 +1565,13 @@ private func makeRestActionFixture(
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let row = try #require(session.exercises.first { $0.order == 2 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
-    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 7))
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
 
     #expect(restTimer.remaining == 120)
 
     #expect(coordinator.createSuperset(from: bench, to: row, in: session))
     let secondBenchSet = try #require(bench.sets.first { $0.index == 1 })
-    coordinator.log(secondBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: 8))
+    coordinator.log(secondBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .eight))
 
     #expect(restTimer.remaining == 30)
 }

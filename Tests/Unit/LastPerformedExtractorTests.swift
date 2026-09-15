@@ -16,11 +16,11 @@ import Testing
                     exercise(
                         "Squat",
                         sets: [
-                            loggedSet(index: 0, weight: 185, reps: 5, rpe: 7),
-                            loggedSet(index: 1, weight: 195, reps: 5, rpe: 8)
+                            loggedSet(index: 0, weight: 185, reps: 5, rpe: .seven),
+                            loggedSet(index: 1, weight: 195, reps: 5, rpe: .eight)
                         ]
                     ),
-                    exercise("Bench Press", sets: [loggedSet(index: 0, weight: 155, reps: 6, rpe: 7)])
+                    exercise("Bench Press", sets: [loggedSet(index: 0, weight: 155, reps: 6, rpe: .seven)])
                 ]
             ),
             week(
@@ -31,7 +31,7 @@ import Testing
                         "Squat",
                         sets: [
                             pendingSet(index: 0),
-                            loggedSet(index: 1, weight: 205, reps: 4, rpe: 8)
+                            loggedSet(index: 1, weight: 205, reps: 4, rpe: .eight)
                         ]
                     ),
                     exercise("Deadlift", sets: [skippedSet(index: 0)])
@@ -66,10 +66,10 @@ import Testing
         tabName: "Block 27",
         weeks: [
             week(1, date: nil, exercises: [
-                exercise("Bench Press", sets: [loggedSet(index: 0, weight: 155, reps: 6, rpe: 7)])
+                exercise("Bench Press", sets: [loggedSet(index: 0, weight: 155, reps: 6, rpe: .seven)])
             ]),
             week(2, date: nil, exercises: [
-                exercise("Bench Press", sets: [loggedSet(index: 0, weight: 165, reps: 5, rpe: 8)])
+                exercise("Bench Press", sets: [loggedSet(index: 0, weight: 165, reps: 5, rpe: .eight)])
             ])
         ]
     )
@@ -91,8 +91,8 @@ import Testing
                     exercise(
                         "BB RDL",
                         sets: [
-                            loggedSet(index: 0, weight: 70, reps: 8, rpe: 8),
-                            loggedSet(index: 1, weight: 75, reps: 8, rpe: 9.5)
+                            loggedSet(index: 0, weight: 70, reps: 8, rpe: .eight),
+                            loggedSet(index: 1, weight: 75, reps: 8, rpe: .ninePointFive)
                         ]
                     )
                 ]
@@ -116,9 +116,9 @@ import Testing
                     exercise(
                         "Squat",
                         sets: [
-                            loggedSet(index: 2, weight: 205, reps: 5, rpe: 9),
+                            loggedSet(index: 2, weight: 205, reps: 5, rpe: .nine),
                             skippedSet(index: 1),
-                            loggedSet(index: 0, weight: 185, reps: 5, rpe: 7),
+                            loggedSet(index: 0, weight: 185, reps: 5, rpe: .seven),
                             pendingSet(index: 3)
                         ]
                     )
@@ -172,7 +172,7 @@ import Testing
                     exercise(
                         "Squat",
                         sets: [
-                            loggedSet(index: 0, weight: 185, reps: 5, rpe: 7),
+                            loggedSet(index: 0, weight: 185, reps: 5, rpe: .seven),
                             unstructuredSet(index: 1, "amrap")
                         ]
                     )
@@ -247,7 +247,7 @@ import Testing
                     exercise(
                         "Squat",
                         sets: [
-                            loggedSet(index: 0, weight: 185, reps: 5, rpe: 7),
+                            loggedSet(index: 0, weight: 185, reps: 5, rpe: .seven),
                             skippedSet(index: 1),
                             unstructuredSet(index: 2, "tweaked back")
                         ]
@@ -270,7 +270,7 @@ import Testing
                 1,
                 date: nil,
                 exercises: [
-                    exercise("Bench Press", sets: [loggedSet(index: 0, weight: 155, reps: 6, rpe: 7)])
+                    exercise("Bench Press", sets: [loggedSet(index: 0, weight: 155, reps: 6, rpe: .seven)])
                 ]
             )
         ]
@@ -346,7 +346,7 @@ import Testing
                         "Standing Calve Raises",
                         legacyLog: "25x12, 12",
                         sets: [
-                            loggedSet(index: 0, weight: 35, reps: 12, rpe: 9)
+                            loggedSet(index: 0, weight: 35, reps: 12, rpe: .nine)
                         ]
                     )
                 ]

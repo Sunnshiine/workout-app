@@ -1,5 +1,7 @@
 @testable import WorkoutTracker
 
+private let wholePointRPEs: [RPE] = [.seven, .eight, .nine, .ten]
+
 @MainActor
 func makeExercise(
     name: String = "Competition Squat",
@@ -8,15 +10,16 @@ func makeExercise(
 ) -> Exercise {
     let exercise = Exercise(name: name, baseName: name, cadence: nil, coachNote: nil, order: order)
     exercise.sets = setStates.enumerated().map { index, state in
+        let rpe = wholePointRPEs[min(index, wholePointRPEs.count - 1)]
         let set = ExerciseSet(
             index: index,
             prescribedReps: "5",
-            prescribedLoad: "RPE \(7 + index)",
+            prescribedLoad: "RPE \(rpe.label)",
             percentOneRM: nil,
             state: state
         )
         if state == .logged {
-            set.setLog = SetLog(weight: .pounds(185 + Double(index * 10)), reps: 5, rpe: RPE(integerLiteral: 7 + index))
+            set.setLog = SetLog(weight: .pounds(185 + Double(index * 10)), reps: 5, rpe: rpe)
         }
         return set
     }

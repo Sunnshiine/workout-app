@@ -49,8 +49,10 @@ enum ValueRailLayout {
 /// Drives the RPE one-tap scroll rail. The card never changes height, so the
 /// Log capsule keeps a fixed Y — the rail is the whole RPE control.
 struct RPEScalePresentation: Equatable, Sendable {
-    static let scale: [RPE] = [5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10]
-    private static let defaultCenter: RPE = 8
+    static let scale: [RPE] = [
+        .five, .six, .sixPointFive, .seven, .sevenPointFive, .eight, .eightPointFive, .nine, .ninePointFive, .ten
+    ]
+    private static let defaultCenter: RPE = .eight
 
     let chips: [ValueRailChip]
     let selectedIndex: Int

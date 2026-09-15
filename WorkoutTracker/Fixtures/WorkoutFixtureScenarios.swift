@@ -228,7 +228,7 @@
                                         order: 0,
                                         sets: [
                                             Factory.loggedSet(
-                                                0, reps: "5", load: "RPE6", weight: 185, rpe: 6,
+                                                0, reps: "5", load: "RPE6", weight: 185, rpe: .six,
                                                 loggedAt: Date(timeIntervalSinceNow: -52 * 60)),
                                             Factory.set(1, reps: "5", load: "RPE7", state: .skipped)
                                         ]
@@ -285,7 +285,7 @@
                     baseName: "Primer Row",
                     coachNote: "Move crisply.",
                     order: 0,
-                    sets: [Factory.loggedSet(0, reps: "8", load: "RPE6", weight: 95, rpe: 6)]
+                    sets: [Factory.loggedSet(0, reps: "8", load: "RPE6", weight: 95, rpe: .six)]
                 ),
                 longSessionExercise("Back Squat", order: 1, reps: "5", load: "RPE6", note: "Brace hard."),
                 longSessionExercise("Bench Press", order: 2, reps: "5", load: "RPE6", note: "Pause every rep."),
@@ -378,7 +378,7 @@
                 exercises: [
                     Factory.benchPress(
                         sets: [
-                            Factory.loggedSet(0, reps: "5", load: "RPE6", percentOneRM: "70%", weight: 155, rpe: 6)
+                            Factory.loggedSet(0, reps: "5", load: "RPE6", percentOneRM: "70%", weight: 155, rpe: .six)
                         ]
                     )
                 ]
@@ -396,7 +396,7 @@
                         coachNote: "Completed Session.",
                         order: 0,
                         sets: [
-                            Factory.loggedSet(0, reps: "5", load: "RPE7", weight: 185, rpe: 7),
+                            Factory.loggedSet(0, reps: "5", load: "RPE7", weight: 185, rpe: .seven),
                             Factory.set(1, reps: "5", load: "RPE8", state: .skipped)
                         ]
                     )
@@ -415,7 +415,7 @@
                         coachNote: "Has Open Exercises.",
                         order: 0,
                         sets: [
-                            Factory.loggedSet(0, reps: "5", load: "RPE7", weight: 155, rpe: 7),
+                            Factory.loggedSet(0, reps: "5", load: "RPE7", weight: 155, rpe: .seven),
                             Factory.set(1, reps: "5", load: "RPE8")
                         ]
                     )
@@ -492,7 +492,7 @@
         static func partiallyLoggedBackSquat() -> Exercise {
             backSquat(
                 sets: [
-                    loggedSet(0, reps: "5", load: "RPE6", percentOneRM: "75%", weight: 235, rpe: 6),
+                    loggedSet(0, reps: "5", load: "RPE6", percentOneRM: "75%", weight: 235, rpe: .six),
                     set(1, reps: "5", load: "RPE7", percentOneRM: "80%")
                 ]
             )
@@ -501,7 +501,7 @@
         static func partiallyLoggedBenchPress() -> Exercise {
             benchPress(
                 sets: [
-                    loggedSet(0, reps: "5", load: "RPE6", percentOneRM: "70%", weight: 155, rpe: 6),
+                    loggedSet(0, reps: "5", load: "RPE6", percentOneRM: "70%", weight: 155, rpe: .six),
                     set(1, reps: "5", load: "RPE7", percentOneRM: "75%")
                 ]
             )
@@ -510,7 +510,7 @@
         static func partiallyLoggedDeadlift() -> Exercise {
             deadlift(
                 sets: [
-                    loggedSet(0, reps: "3", load: "RPE6", percentOneRM: "75%", weight: 305, rpe: 6),
+                    loggedSet(0, reps: "3", load: "RPE6", percentOneRM: "75%", weight: 305, rpe: .six),
                     set(1, reps: "3", load: "RPE7", percentOneRM: "80%")
                 ]
             )
