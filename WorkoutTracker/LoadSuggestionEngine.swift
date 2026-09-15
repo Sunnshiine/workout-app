@@ -72,3 +72,4 @@ public enum LoadSuggestionEngine {
         (weight / plateIncrement).rounded() * plateIncrement
     }
 }
+// ci-probe: 1789446004
