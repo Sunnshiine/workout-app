@@ -281,12 +281,16 @@ struct SessionSettingsOverpullState: Equatable, Sendable {
     }
 }
 
-struct ExerciseSummaryRowPresentation: Equatable, Sendable {
-    let title: String
+/// A finished Exercise's Sets as one line, in Set order: a Structured Set Log reads
+/// `weight×reps`, and a run of Sets at the same weight collapses to `×reps` after the first. A
+/// Skipped Set renders as the `skip` sentinel; a Pending or unlogged Set drops out.
+struct CompressedSetResults: Equatable, Sendable {
+    let text: String
 
-    init(exercise: Exercise) {
+    init(sets: [ExerciseSet]) {
         var previousWeight: Weight?
-        let setResults = exercise.sets
+        text =
+            sets
             .sorted { $0.index < $1.index }
             .compactMap { set -> String? in
                 guard set.state != .skipped else { return SetLogToken.skipSentinel }
@@ -298,8 +302,16 @@ struct ExerciseSummaryRowPresentation: Equatable, Sendable {
                 return "\(setLog.weight.label)×\(setLog.reps)"
             }
             .joined(separator: " / ")
+    }
+}
+
+struct ExerciseSummaryRowPresentation: Equatable, Sendable {
+    let title: String
+
+    init(exercise: Exercise) {
+        let setResults = CompressedSetResults(sets: exercise.sets).text
         let hasStructuredSetLog = exercise.sets.contains { $0.setLog != nil }
-        let resultText = !hasStructuredSetLog ? exercise.legacyLog ?? setResults : setResults
+        let resultText = hasStructuredSetLog ? setResults : exercise.legacyLog ?? setResults
         title = "✓ \(exercise.baseName) · \(resultText)"
     }
 }
@@ -337,6 +349,35 @@ struct ActiveSupersetSidePresentation: Equatable, Sendable {
     let prescriptionText: String
     let isActive: Bool
     let accessibilityLabel: String
+
+    /// One side of a Superset, or nil when it has no Set to offer. The active side shows the Set
+    /// the athlete is on; the resting side shows the Pending Set it will return to.
+    @MainActor
+    init?(exercise: Exercise, isActive: Bool, activeSetIndex: Int?) {
+        let sortedSets = exercise.sets.sorted { $0.index < $1.index }
+        let nextSet =
+            if isActive {
+                sortedSets.first { $0.index == activeSetIndex && $0.state == .pending }
+            } else {
+                // Route the ordering-and-first selection through the Superset owner's single home
+                // rather than re-deriving it.
+                SupersetState.nextPendingSet(for: exercise)
+            }
+        guard let nextSet else { return nil }
+
+        let ordinal = (sortedSets.firstIndex { $0.persistentModelID == nextSet.persistentModelID } ?? nextSet.index) + 1
+        let nextSetText = "Set \(ordinal) of \(sortedSets.count)"
+        let prescriptionText = [nextSet.prescribedReps, nextSet.prescribedLoad]
+            .filter { !$0.isEmpty }
+            .joined(separator: " · ")
+
+        exerciseOrder = exercise.order
+        exerciseName = exercise.name
+        self.nextSetText = nextSetText
+        self.prescriptionText = prescriptionText
+        self.isActive = isActive
+        accessibilityLabel = "\(exercise.name), \(nextSetText), \(prescriptionText)"
+    }
 }
 
 struct ActiveSupersetPresentation: Equatable, Sendable {
@@ -354,38 +395,17 @@ struct ActiveSupersetPresentation: Equatable, Sendable {
     @MainActor
     init?(exercises: [Exercise], activeSetID: ActiveSetID?) {
         guard exercises.count == 2 else { return nil }
-        let activeExerciseOrder = activeSetID?.exerciseOrder
-        let activeSetIndex = activeSetID?.setIndex
         // A / B identity follows Session (sheet) order: the higher Exercise is A.
-        let orderedExercises = exercises.sorted { $0.order < $1.order }
-        let sides = orderedExercises.compactMap { exercise -> ActiveSupersetSidePresentation? in
-            let sortedSets = exercise.sets.sorted { $0.index < $1.index }
-            let isActive = exercise.order == activeExerciseOrder
-            let nextSet =
-                if isActive {
-                    sortedSets.first { set in
-                        set.index == activeSetIndex && set.state == .pending
-                    }
-                } else {
-                    // The resting side shows its next Pending Set — route the ordering-and-first
-                    // selection through the Superset owner's single home rather than re-deriving it.
-                    SupersetState.nextPendingSet(for: exercise)
-                }
-            guard let nextSet else { return nil }
-            let ordinal = (sortedSets.firstIndex { $0.persistentModelID == nextSet.persistentModelID } ?? nextSet.index) + 1
-            let nextSetText = "Set \(ordinal) of \(sortedSets.count)"
-            let prescriptionText = [nextSet.prescribedReps, nextSet.prescribedLoad]
-                .filter { !$0.isEmpty }
-                .joined(separator: " · ")
-            return ActiveSupersetSidePresentation(
-                exerciseOrder: exercise.order,
-                exerciseName: exercise.name,
-                nextSetText: nextSetText,
-                prescriptionText: prescriptionText,
-                isActive: isActive,
-                accessibilityLabel: "\(exercise.name), \(nextSetText), \(prescriptionText)"
-            )
-        }
+        let sides =
+            exercises
+            .sorted { $0.order < $1.order }
+            .compactMap { exercise in
+                ActiveSupersetSidePresentation(
+                    exercise: exercise,
+                    isActive: exercise.order == activeSetID?.exerciseOrder,
+                    activeSetIndex: activeSetID?.setIndex
+                )
+            }
         guard sides.count == 2 else { return nil }
         self.activeSetID = activeSetID
         self.sides = sides
