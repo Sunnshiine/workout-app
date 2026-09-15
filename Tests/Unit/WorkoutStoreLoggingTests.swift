@@ -116,7 +116,7 @@ private func seededStore(now: @escaping @MainActor () -> Date) throws -> SeededL
 @Test func logSetOptimisticallyUpdatesLocalSetAndQueuesWrite() throws {
     let fixture = try seededStore()
     withExtendedLifetime(fixture.container) {}
-    let log = SetLog(weight: .pounds(185), reps: 5, rpe: 8)
+    let log = SetLog(weight: .pounds(185), reps: 5, rpe: .eight)
 
     try fixture.store.log(fixture.firstSet, as: log)
 
@@ -135,7 +135,7 @@ private func seededStore(now: @escaping @MainActor () -> Date) throws -> SeededL
     let fixture = try seededStore(now: { loggedAt })
     withExtendedLifetime(fixture.container) {}
 
-    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
 
     #expect(fixture.firstSet.loggedAt == loggedAt)
 }
@@ -146,19 +146,33 @@ private func seededStore(now: @escaping @MainActor () -> Date) throws -> SeededL
     withExtendedLifetime(fixture.container) {}
     let finalSet = try #require(fixture.firstSet.exercise?.sets.first { $0.index == 1 })
 
-    try fixture.store.log(finalSet, as: SetLog(weight: .pounds(195), reps: 5, rpe: 9))
+    try fixture.store.log(finalSet, as: SetLog(weight: .pounds(195), reps: 5, rpe: .nine))
 
     let writes = try fixture.context.fetch(FetchDescriptor<PendingWrite>())
     #expect(writes.contains { $0.column == .lastSetRPE && $0.valueToWrite == "9" })
 }
 
 @MainActor
+@Test func halfPointLastSetRPEWritesAndDeletesWithItsDecimalLabel() throws {
+    let fixture = try seededStore()
+    withExtendedLifetime(fixture.container) {}
+    let finalSet = try #require(fixture.firstSet.exercise?.sets.first { $0.index == 1 })
+
+    try fixture.store.log(finalSet, as: SetLog(weight: .pounds(195), reps: 5, rpe: .ninePointFive))
+    try fixture.store.deleteLog(for: finalSet)
+
+    let lastSetRPEWrites = try fixture.context.fetch(FetchDescriptor<PendingWrite>()).filter { $0.column == .lastSetRPE }
+    #expect(lastSetRPEWrites.map(\.valueToWrite) == ["9.5", nil])
+    #expect(lastSetRPEWrites.map(\.expectedCurrentValue) == ["", "9.5"])
+}
+
+@MainActor
 @Test func editingLoggedSetQueuesWriteLockedToPreviousSetLog() throws {
     let fixture = try seededStore()
     withExtendedLifetime(fixture.container) {}
-    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
 
-    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(195), reps: 5, rpe: 8.5))
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(195), reps: 5, rpe: .eightPointFive))
 
     let pending = try #require(try fixture.context.fetch(FetchDescriptor<PendingWrite>()).last)
     #expect(pending.operation == .upsert)
@@ -172,10 +186,10 @@ private func seededStore(now: @escaping @MainActor () -> Date) throws -> SeededL
     var now = Date(timeIntervalSinceReferenceDate: 1_000)
     let fixture = try seededStore(now: { now })
     withExtendedLifetime(fixture.container) {}
-    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
 
     now = Date(timeIntervalSinceReferenceDate: 1_600)
-    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(195), reps: 5, rpe: 8.5))
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(195), reps: 5, rpe: .eightPointFive))
 
     #expect(fixture.firstSet.loggedAt == Date(timeIntervalSinceReferenceDate: 1_000))
 }
@@ -187,7 +201,7 @@ private func seededStore(now: @escaping @MainActor () -> Date) throws -> SeededL
     fixture.firstSet.state = .logged
     fixture.firstSet.unstructuredSetLog = "185, 185, backed off"
 
-    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
 
     #expect(fixture.firstSet.setLog?.formatted == "185x5@8")
     #expect(fixture.firstSet.unstructuredSetLog == nil)
@@ -202,7 +216,7 @@ private func seededStore(now: @escaping @MainActor () -> Date) throws -> SeededL
 @Test func deleteSetClearsLocalSetAndQueuesDelete() throws {
     let fixture = try seededStore()
     withExtendedLifetime(fixture.container) {}
-    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
 
     try fixture.store.deleteLog(for: fixture.firstSet)
 
@@ -218,14 +232,14 @@ private func seededStore(now: @escaping @MainActor () -> Date) throws -> SeededL
     var now = Date(timeIntervalSinceReferenceDate: 1_000)
     let fixture = try seededStore(now: { now })
     withExtendedLifetime(fixture.container) {}
-    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
 
     try fixture.store.deleteLog(for: fixture.firstSet)
 
     #expect(fixture.firstSet.loggedAt == nil)
 
     now = Date(timeIntervalSinceReferenceDate: 1_700)
-    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(190), reps: 5, rpe: 8))
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(190), reps: 5, rpe: .eight))
 
     #expect(fixture.firstSet.loggedAt == Date(timeIntervalSinceReferenceDate: 1_700))
 }
@@ -235,7 +249,7 @@ private func seededStore(now: @escaping @MainActor () -> Date) throws -> SeededL
     let fixture = try seededStore()
     withExtendedLifetime(fixture.container) {}
 
-    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
 
     let entry = try #require(fixture.lookupStore.snapshot.lookup(for: "Squat"))
     #expect(entry.resultText == "185x5@8")
@@ -252,7 +266,7 @@ private func seededStore(now: @escaping @MainActor () -> Date) throws -> SeededL
         fixture.lookupStore.snapshot.lookup(for: "Squat") == nil
     )
 
-    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
 
     let entry = try #require(
         fixture.lookupStore.snapshot.lookup(for: "Squat")

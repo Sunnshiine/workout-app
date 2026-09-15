@@ -7,7 +7,7 @@ import Testing
     let log = try #require(SetLog(formatted: "185x7@6.5"))
     #expect(log.weight == .pounds(185))
     #expect(log.reps == 7)
-    #expect(log.rpe == 6.5)
+    #expect(log.rpe == .sixPointFive)
     #expect(log.formatted == "185x7@6.5")
 }
 
@@ -15,7 +15,7 @@ import Testing
     let log = try #require(SetLog(formatted: "BWx12@7"))
     #expect(log.weight == .bodyweight)
     #expect(log.reps == 12)
-    #expect(log.rpe == 7)
+    #expect(log.rpe == .seven)
     #expect(log.formatted == "BWx12@7")
 }
 
@@ -33,7 +33,7 @@ import Testing
 @MainActor
 @Test func exerciseSetStoresSetLogAsCodableData() throws {
     let set = ExerciseSet(index: 0, prescribedReps: "7", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
-    set.setLog = SetLog(weight: .pounds(185), reps: 7, rpe: 8)
+    set.setLog = SetLog(weight: .pounds(185), reps: 7, rpe: .eight)
     set.state = .logged
 
     #expect(set.setLogData != nil)
@@ -53,7 +53,7 @@ import Testing
     )
     let ctx = container.mainContext
     let set = ExerciseSet(index: 0, prescribedReps: "7", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
-    set.setLog = SetLog(weight: .pounds(185), reps: 7, rpe: 8)
+    set.setLog = SetLog(weight: .pounds(185), reps: 7, rpe: .eight)
     set.state = .logged
     let ex = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil)
     ex.sets = [set]
@@ -76,10 +76,10 @@ import Testing
 @MainActor
 @Test func exerciseSetKeepsExistingSetLogDataWhenEncodingFails() throws {
     let set = ExerciseSet(index: 0, prescribedReps: "7", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
-    set.setLog = SetLog(weight: .pounds(185), reps: 7, rpe: 8)
+    set.setLog = SetLog(weight: .pounds(185), reps: 7, rpe: .eight)
     let originalData = try #require(set.setLogData)
 
-    set.setLog = SetLog(weight: .pounds(.nan), reps: 7, rpe: 8)
+    set.setLog = SetLog(weight: .pounds(.nan), reps: 7, rpe: .eight)
 
     #expect(set.setLogData == originalData)
     #expect(set.setLog?.formatted == "185x7@8")

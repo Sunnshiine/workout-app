@@ -31,12 +31,44 @@ enum Weight: Codable, Sendable, Equatable {
     }
 }
 
+enum RPE: Double, CaseIterable, Codable, Hashable, Sendable {
+    case five = 5
+    case six = 6
+    case sixPointFive = 6.5
+    case seven = 7
+    case sevenPointFive = 7.5
+    case eight = 8
+    case eightPointFive = 8.5
+    case nine = 9
+    case ninePointFive = 9.5
+    case ten = 10
+
+    init?(text: String) {
+        guard let point = Double(text.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+            return nil
+        }
+        self.init(rawValue: point)
+    }
+
+    init?(prescribedLoad: String) {
+        let trimmed = prescribedLoad.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let match = trimmed.wholeMatch(of: /RPE\s*(.+)/.ignoresCase()) else {
+            return nil
+        }
+        self.init(text: String(match.1))
+    }
+
+    var label: String {
+        Int(exactly: rawValue).map(String.init) ?? String(rawValue)
+    }
+}
+
 struct SetLog: Codable, Sendable, Equatable {
     var weight: Weight
     var reps: Int
-    var rpe: Double
+    var rpe: RPE
 
-    init(weight: Weight, reps: Int, rpe: Double) {
+    init(weight: Weight, reps: Int, rpe: RPE) {
         self.weight = weight
         self.reps = reps
         self.rpe = rpe
@@ -64,8 +96,7 @@ struct SetLog: Codable, Sendable, Equatable {
             let tokens = Self.tokens(inFormatted: raw),
             let weight = Weight(text: tokens.weight),
             let reps = Int(tokens.reps),
-            let rpe = Double(tokens.rpe),
-            rpe.isFinite
+            let rpe = RPE(text: tokens.rpe)
         else {
             return nil
         }
@@ -74,8 +105,7 @@ struct SetLog: Codable, Sendable, Equatable {
     }
 
     var formatted: String {
-        let rpeLabel = rpe.rounded() == rpe ? String(Int(rpe)) : String(rpe)
-        return "\(weight.label)x\(reps)@\(rpeLabel)"
+        "\(weight.label)x\(reps)@\(rpe.label)"
     }
 }
 

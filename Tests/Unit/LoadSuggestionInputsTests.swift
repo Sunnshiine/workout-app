@@ -26,7 +26,7 @@ private func loggedSet(index: Int, weight: Weight?) -> ExerciseSet {
         state: weight == nil ? .pending : .logged
     )
     if let weight {
-        set.setLog = SetLog(weight: weight, reps: 5, rpe: 8)
+        set.setLog = SetLog(weight: weight, reps: 5, rpe: .eight)
     }
     return set
 }

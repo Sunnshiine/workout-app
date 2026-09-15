@@ -414,9 +414,6 @@ enum Theme {
     static let sessionTileUnavailableOpacity = 0.55
     static let pillMinHeight: CGFloat = 86
     static let pillSpacing: CGFloat = 10
-    static let rpeScaleHeight: CGFloat = 52
-    static let rpeScaleChipWidth: CGFloat = 52
-    static let rpeScaleChipSpacing: CGFloat = 6
 
     // MARK: - Active Set Card & input block geometry (token sheet §5.2 / §5.3)
     //

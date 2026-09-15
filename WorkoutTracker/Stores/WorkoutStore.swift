@@ -243,10 +243,6 @@ final class WorkoutStore {
         return set.index == (sets.map(\.index).max() ?? set.index)
     }
 
-    private func rpeLabel(_ rpe: Double) -> String {
-        rpe.rounded() == rpe ? String(Int(rpe)) : String(rpe)
-    }
-
     /// The persisted manual Current-Session override for `block`, resolved through the
     /// navigation module's opaque identity token so the store never reasons about the
     /// order encoding or its versioning.
@@ -296,7 +292,7 @@ final class WorkoutStore {
 extension WorkoutStore {
     func log(_ set: ExerciseSet, as log: SetLog) throws {
         let previousValue = notesValue(for: set)
-        let previousRPE = set.setLog.map { rpeLabel($0.rpe) } ?? ""
+        let previousRPE = set.setLog.map { $0.rpe.label } ?? ""
         set.markLogged(log, at: now())
         try enqueue(
             for: set,
@@ -310,7 +306,7 @@ extension WorkoutStore {
                 for: set,
                 column: .lastSetRPE,
                 operation: .upsert,
-                valueToWrite: rpeLabel(log.rpe),
+                valueToWrite: log.rpe.label,
                 expectedCurrentValue: previousRPE
             )
         }
@@ -333,7 +329,7 @@ extension WorkoutStore {
 
     func deleteLog(for set: ExerciseSet) throws {
         let previousValue = notesValue(for: set)
-        let previousRPE = set.setLog.map { rpeLabel($0.rpe) } ?? ""
+        let previousRPE = set.setLog.map { $0.rpe.label } ?? ""
         set.markPending()
         try enqueue(
             for: set,

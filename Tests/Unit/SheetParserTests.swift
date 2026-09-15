@@ -313,7 +313,7 @@ import Testing
     #expect(compSQ.sets[0].setLog == nil)
     #expect(compSQ.sets[0].unstructuredSetLog == nil)
     // Genuine structured Set Log on the sibling line is still read.
-    #expect(compSQ.sets[1].setLog == SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+    #expect(compSQ.sets[1].setLog == SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
 }
 
 @Test func multiLineLineNotesStillReadGenuineCompactSetLogs() {
@@ -336,9 +336,9 @@ import Testing
 
     let compSQ = exercises[0]
     #expect(compSQ.sets.count == 3)
-    #expect(compSQ.sets[0].setLog == SetLog(weight: .pounds(185), reps: 5, rpe: 8))
-    #expect(compSQ.sets[1].setLog == SetLog(weight: .pounds(190), reps: 5, rpe: 9))
-    #expect(compSQ.sets[2].setLog == SetLog(weight: .pounds(205), reps: 5, rpe: 7))
+    #expect(compSQ.sets[0].setLog == SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
+    #expect(compSQ.sets[1].setLog == SetLog(weight: .pounds(190), reps: 5, rpe: .nine))
+    #expect(compSQ.sets[2].setLog == SetLog(weight: .pounds(205), reps: 5, rpe: .seven))
 }
 
 @Test func duplicateSetsHeaderResolvesToColumnCarryingData() {
@@ -403,6 +403,6 @@ import Testing
     let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
 
     #expect(exercises[0].coachNote == "Keep elbows soft")
-    #expect(exercises[0].sets[0].setLog == SetLog(weight: .pounds(25), reps: 12, rpe: 7))
-    #expect(exercises[0].sets[1].setLog == SetLog(weight: .pounds(20), reps: 10, rpe: 8))
+    #expect(exercises[0].sets[0].setLog == SetLog(weight: .pounds(25), reps: 12, rpe: .seven))
+    #expect(exercises[0].sets[1].setLog == SetLog(weight: .pounds(20), reps: 10, rpe: .eight))
 }

@@ -5,13 +5,12 @@ import Foundation
 /// Set Card. The two rails share this shape and the `ValueRail` view; each
 /// presentation below produces its own chips and the centered index (DESIGN.md §5.2).
 struct ValueRailChip: Equatable, Hashable, Identifiable, Sendable {
-    let value: Double
     let label: String
     let isSelected: Bool
     let isPrescribed: Bool
     let accessibilityIdentifier: String
 
-    var id: Double { value }
+    var id: String { accessibilityIdentifier }
 }
 
 /// The deterministic offset that centers a rail's selected cell. The rails are
@@ -47,70 +46,27 @@ enum ValueRailLayout {
     }
 }
 
-/// One selectable value in the active set card's RPE chip scroller.
-struct RPEChip: Equatable, Hashable, Identifiable, Sendable {
-    let value: Double
-    let label: String
-    let isDimmed: Bool
-    let isPrescribed: Bool
-    let isSelected: Bool
-
-    var id: Double { value }
-    var accessibilityIdentifier: String { "rpe-\(label)" }
-}
-
-/// Drives the RPE one-tap scroll rail (5–10 in half steps). The card never
-/// changes height, so the Log capsule keeps a fixed Y — the rail is the whole
-/// RPE control.
+/// Drives the RPE one-tap scroll rail. The card never changes height, so the
+/// Log capsule keeps a fixed Y — the rail is the whole RPE control.
 struct RPEScalePresentation: Equatable, Sendable {
-    /// Where to center the rail when neither a selection nor a prescription exists.
-    static let defaultScrollTarget: Double = 8
+    private static let defaultCenter: RPE = .eight
 
-    let chips: [RPEChip]
-    let scrollTarget: Double
+    let chips: [ValueRailChip]
+    let selectedIndex: Int
 
-    init(prescribedRPE: Int?, selection: String) {
-        let prescribedValue = prescribedRPE.map(Double.init)
-        let selectedValue = Self.parse(selection)
+    init(prescribedRPE: RPE?, selection: String) {
+        let selected = RPE(text: selection)
 
-        chips = Self.values.map { value in
-            RPEChip(
-                value: value,
-                label: Self.label(value),
-                isDimmed: value == Self.values.first,
-                isPrescribed: value == prescribedValue,
-                isSelected: value == selectedValue
-            )
-        }
-        scrollTarget = selectedValue ?? prescribedValue ?? Self.defaultScrollTarget
-    }
-
-    /// The shared rail-chip shape the `ValueRail` view consumes (Reps and RPE render identically).
-    var railChips: [ValueRailChip] {
-        chips.map { chip in
+        chips = RPE.allCases.map { rpe in
             ValueRailChip(
-                value: chip.value,
-                label: chip.label,
-                isSelected: chip.isSelected,
-                isPrescribed: chip.isPrescribed,
-                accessibilityIdentifier: chip.accessibilityIdentifier
+                label: rpe.label,
+                isSelected: rpe == selected,
+                isPrescribed: rpe == prescribedRPE,
+                accessibilityIdentifier: "rpe-\(rpe.label)"
             )
         }
-    }
-
-    /// The index the rail centers on (selection, else prescription, else 8).
-    var selectedIndex: Int {
-        Self.values.firstIndex(of: scrollTarget) ?? Self.values.firstIndex(of: Self.defaultScrollTarget) ?? 0
-    }
-
-    private static let values: [Double] = [5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10]
-
-    private static func parse(_ text: String) -> Double? {
-        Double(text.trimmingCharacters(in: .whitespacesAndNewlines))
-    }
-
-    private static func label(_ value: Double) -> String {
-        value.rounded() == value ? String(Int(value)) : String(value)
+        let center = selected ?? prescribedRPE ?? Self.defaultCenter
+        selectedIndex = RPE.allCases.firstIndex(of: center) ?? 0
     }
 }
 
@@ -131,7 +87,6 @@ struct RepsScalePresentation: Equatable, Sendable {
 
         chips = Self.values.map { value in
             ValueRailChip(
-                value: Double(value),
                 label: String(value),
                 isSelected: value == selected,
                 isPrescribed: value == prescribed,

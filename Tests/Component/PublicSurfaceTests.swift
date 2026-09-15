@@ -111,7 +111,8 @@ private func json(_ value: some Encodable) throws -> [String: Any] {
         ),
         (
             .invalidSetLog("185 for 5"), "invalid_set_log",
-            "\"185 for 5\" is not a Set Log. Use {weight}x{reps}@{RPE}, for example 185x5@8 or BWx12@7.", nil, .domain
+            "\"185 for 5\" is not a Set Log. Use {weight}x{reps}@{RPE}, for example 185x5@8 or BWx12@7. "
+                + "RPE is one of 5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10.", nil, .domain
         ),
         (
             .notFound(.session, name: "w9d1", candidates: ["w1d1"]), "unknown_session",

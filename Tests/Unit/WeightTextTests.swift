@@ -6,9 +6,9 @@ import Testing
 /// `SetLog(formatted:)` grammar built on it, pinned to literal inputs and outputs.
 
 @Test(arguments: [
-    ("185x5@8", SetLog(weight: .pounds(185), reps: 5, rpe: 8)),
-    ("bw x 12 @ 7", SetLog(weight: .bodyweight, reps: 12, rpe: 7)),
-    (" 100.5x3@9.5 ", SetLog(weight: .pounds(100.5), reps: 3, rpe: 9.5))
+    ("185x5@8", SetLog(weight: .pounds(185), reps: 5, rpe: .eight)),
+    ("bw x 12 @ 7", SetLog(weight: .bodyweight, reps: 12, rpe: .seven)),
+    (" 100.5x3@9.5 ", SetLog(weight: .pounds(100.5), reps: 3, rpe: .ninePointFive))
 ])
 func setLogParsesAFormattedEntry(raw: String, expected: SetLog) {
     #expect(SetLog(formatted: raw) == expected)

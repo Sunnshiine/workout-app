@@ -488,7 +488,7 @@ private func makeStore(
     let day3Set = try #require(store.block?.weeks.first?.sessions.first { $0.dayNumber == 3 }?.exercises[0].sets[0])
 
     store.moveOn()
-    try store.log(day3Set, as: SetLog(weight: .pounds(185), reps: 5, rpe: 8))
+    try store.log(day3Set, as: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
 
     #expect(store.currentSession?.dayNumber == 2)
 }

@@ -284,7 +284,7 @@ private func makeSupersetSession() -> Session {
         currentActiveSetID: ActiveSetID(exerciseOrder: 0, setIndex: 0)
     )
 
-    firstSquatSet.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: 7)
+    firstSquatSet.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: .seven)
     firstSquatSet.state = .logged
     state.refresh(in: session)
     firstSquatSet.setLog = nil
@@ -321,7 +321,7 @@ private func makeSupersetSession() -> Session {
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
     let loggedSet = try #require(squat.sets.first { $0.index == 1 })
     loggedSet.state = .logged
-    loggedSet.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: 7)
+    loggedSet.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: .seven)
     let state = SupersetState()
 
     state.createSuperset(with: [squat, bench], in: session, currentActiveSetID: ActiveSetID(exerciseOrder: 0, setIndex: 0))
@@ -331,5 +331,5 @@ private func makeSupersetSession() -> Session {
     #expect(firstSquatSet.state == .pending)
     #expect(firstBenchSet.state == .pending)
     #expect(loggedSet.state == .logged)
-    #expect(loggedSet.setLog == SetLog(weight: .pounds(185), reps: 5, rpe: 7))
+    #expect(loggedSet.setLog == SetLog(weight: .pounds(185), reps: 5, rpe: .seven))
 }
