@@ -606,7 +606,7 @@
             load: String,
             percentOneRM: String? = nil,
             weight: Double,
-            rpe: Double,
+            rpe: RPE,
             loggedAt: Date? = nil
         ) -> ExerciseSet {
             set(

@@ -11,7 +11,7 @@ struct SmartValuePillsForm {
     var weightText: String
     var repsText: String
     var rpeText: String
-    let prescribedRPE: Int?
+    let prescribedRPE: RPE?
     let repsPlaceholder: String?
     private var showsInvalidFields = false
     private let initialWeightText: String
@@ -74,15 +74,15 @@ struct SmartValuePillsForm {
         guard let log = makeLog() else { return incompleteLogButtonTitle }
         // The Log capsule previews the exact Set Log with the spaced typography of
         // pick input-block3-c ("Log 90 × 5 @8").
-        return "Log \(log.weight.label) × \(log.reps) @\(Self.rpeLabel(log.rpe))"
+        return "Log \(log.weight.label) × \(log.reps) @\(log.rpe.label)"
     }
 
     init(set: ExerciseSet, previousSetWeight: Double?, trainingMax: Double?) {
-        prescribedRPE = Self.prescribedRPE(from: set.prescribedLoad)
+        prescribedRPE = RPE(prescribedLoad: set.prescribedLoad)
         if let setLog = set.setLog {
             weightText = setLog.weight.label
             repsText = String(setLog.reps)
-            rpeText = Self.rpeLabel(setLog.rpe)
+            rpeText = setLog.rpe.label
         } else {
             weightText = Self.initialWeightText(
                 for: set,
@@ -90,7 +90,7 @@ struct SmartValuePillsForm {
                 trainingMax: trainingMax
             )
             repsText = Self.initialRepsText(for: set.prescribedReps)
-            rpeText = prescribedRPE.map(String.init) ?? ""
+            rpeText = prescribedRPE?.label ?? ""
         }
         repsPlaceholder = repsText.isEmpty ? set.prescribedReps : nil
         initialWeightText = weightText
@@ -186,7 +186,7 @@ struct SmartValuePillsForm {
         return reps
     }
 
-    private var validRPE: Double? {
+    private var validRPE: RPE? {
         let trimmed = rpeText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let rpe = Double(trimmed), rpe >= 5, rpe <= 10 else {
             return nil
@@ -195,7 +195,7 @@ struct SmartValuePillsForm {
         guard doubled.rounded() == doubled else {
             return nil
         }
-        return rpe
+        return RPE(floatLiteral: rpe)
     }
 
     private static func initialWeightText(
@@ -220,18 +220,6 @@ struct SmartValuePillsForm {
 
     private static func initialRepsText(for prescribedReps: String) -> String {
         Int(prescribedReps).map { String($0) } ?? ""
-    }
-
-    private static func rpeLabel(_ rpe: Double) -> String {
-        rpe.rounded() == rpe ? String(Int(rpe)) : String(rpe)
-    }
-
-    private static func prescribedRPE(from prescribedLoad: String) -> Int? {
-        let rpeText =
-            prescribedLoad
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacing(/^RPE\s*/.ignoresCase(), with: "")
-        return Int(rpeText)
     }
 }
 

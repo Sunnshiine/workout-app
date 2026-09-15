@@ -50,27 +50,26 @@ enum ValueRailLayout {
 /// changes height, so the Log capsule keeps a fixed Y — the rail is the whole
 /// RPE control.
 struct RPEScalePresentation: Equatable, Sendable {
-    private static let values: [Double] = [5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10]
-    private static let defaultCenter: Double = 8
+    /// The points the athlete may pick (DESIGN.md §5.2).
+    static let scale: [RPE] = [5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10]
+    private static let defaultCenter: RPE = 8
 
     let chips: [ValueRailChip]
     let selectedIndex: Int
 
-    init(prescribedRPE: Int?, selection: String) {
-        let prescribed = prescribedRPE.map(Double.init)
-        let selected = Double(selection.trimmingCharacters(in: .whitespacesAndNewlines))
+    init(prescribedRPE: RPE?, selection: String) {
+        let selected = RPE(text: selection.trimmingCharacters(in: .whitespacesAndNewlines))
 
-        chips = Self.values.map { value in
-            let label = value.rounded() == value ? String(Int(value)) : String(value)
-            return ValueRailChip(
-                label: label,
-                isSelected: value == selected,
-                isPrescribed: value == prescribed,
-                accessibilityIdentifier: "rpe-\(label)"
+        chips = Self.scale.map { rpe in
+            ValueRailChip(
+                label: rpe.label,
+                isSelected: rpe == selected,
+                isPrescribed: rpe == prescribedRPE,
+                accessibilityIdentifier: "rpe-\(rpe.label)"
             )
         }
-        let center = selected ?? prescribed ?? Self.defaultCenter
-        selectedIndex = Self.values.firstIndex(of: center) ?? Self.values.firstIndex(of: Self.defaultCenter) ?? 0
+        let center = selected ?? prescribedRPE ?? Self.defaultCenter
+        selectedIndex = Self.scale.firstIndex(of: center) ?? Self.scale.firstIndex(of: Self.defaultCenter) ?? 0
     }
 }
 

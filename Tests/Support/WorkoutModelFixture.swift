@@ -16,7 +16,7 @@ func makeExercise(
             state: state
         )
         if state == .logged {
-            set.setLog = SetLog(weight: .pounds(185 + Double(index * 10)), reps: 5, rpe: Double(7 + index))
+            set.setLog = SetLog(weight: .pounds(185 + Double(index * 10)), reps: 5, rpe: RPE(integerLiteral: 7 + index))
         }
         return set
     }

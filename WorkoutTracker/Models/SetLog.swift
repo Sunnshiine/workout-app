@@ -31,12 +31,58 @@ enum Weight: Codable, Sendable, Equatable {
     }
 }
 
+/// An RPE as the Sheet records or prescribes it: any finite point, printed `6` or `6.5`. Which points
+/// the athlete may pick is the RPE rail's decision (`RPEScalePresentation.scale`), not this type's.
+struct RPE: Hashable, Sendable, Codable, ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral {
+    private let point: Double
+
+    init(integerLiteral value: Int) {
+        point = Double(value)
+    }
+
+    init(floatLiteral value: Double) {
+        point = value
+    }
+
+    /// The token must already be trimmed, the same convention as `Weight(text:)`.
+    init?(text: String) {
+        guard let point = Double(text), point.isFinite else {
+            return nil
+        }
+        self.point = point
+    }
+
+    /// Reads the RPE out of a Prescribed Load such as `RPE6` or `rpe 8`.
+    init?(prescribedLoad: String) {
+        let rpeText =
+            prescribedLoad
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacing(/^RPE\s*/.ignoresCase(), with: "")
+        guard let whole = Int(rpeText) else {
+            return nil
+        }
+        point = Double(whole)
+    }
+
+    init(from decoder: Decoder) throws {
+        point = try Double(from: decoder)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        try point.encode(to: encoder)
+    }
+
+    var label: String {
+        point.rounded() == point ? String(Int(point)) : String(point)
+    }
+}
+
 struct SetLog: Codable, Sendable, Equatable {
     var weight: Weight
     var reps: Int
-    var rpe: Double
+    var rpe: RPE
 
-    init(weight: Weight, reps: Int, rpe: Double) {
+    init(weight: Weight, reps: Int, rpe: RPE) {
         self.weight = weight
         self.reps = reps
         self.rpe = rpe
@@ -64,8 +110,7 @@ struct SetLog: Codable, Sendable, Equatable {
             let tokens = Self.tokens(inFormatted: raw),
             let weight = Weight(text: tokens.weight),
             let reps = Int(tokens.reps),
-            let rpe = Double(tokens.rpe),
-            rpe.isFinite
+            let rpe = RPE(text: tokens.rpe)
         else {
             return nil
         }
@@ -74,8 +119,7 @@ struct SetLog: Codable, Sendable, Equatable {
     }
 
     var formatted: String {
-        let rpeLabel = rpe.rounded() == rpe ? String(Int(rpe)) : String(rpe)
-        return "\(weight.label)x\(reps)@\(rpeLabel)"
+        "\(weight.label)x\(reps)@\(rpe.label)"
     }
 }
 

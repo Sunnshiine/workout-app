@@ -89,11 +89,11 @@ private func occurrenceExercise(_ name: String, legacyLog: String? = nil, sets: 
     ParsedExercise(name: name, baseName: name, cadence: nil, coachNote: nil, legacyLog: legacyLog, sets: sets)
 }
 
-private func occurrenceLoggedSet(index: Int, weight: Double, reps: Int, rpe: Double) -> ParsedSet {
+private func occurrenceLoggedSet(index: Int, weight: Double, reps: Int, rpe: RPE) -> ParsedSet {
     ParsedSet(
         index: index,
         prescribedReps: "\(reps)",
-        prescribedLoad: "RPE \(Int(rpe))",
+        prescribedLoad: "RPE \(rpe.label)",
         percentOneRM: nil,
         setLog: SetLog(weight: .pounds(weight), reps: reps, rpe: rpe)
     )
