@@ -78,7 +78,15 @@ jobs:
           fi
       - name: "lab: sample CPU and list simulator caches"
         run: |
-          nohup bash -c 'while true; do echo "== $(date +%T)"; ps -Ao pcpu,args -r | head -5 | cut -c1-220; sleep 10; done' > "$RUNNER_TEMP/cpu.log" 2>&1 &
+          cat > "$RUNNER_TEMP/sample.sh" <<'EOF'
+          while true; do
+            echo "== $(date +%T) swap $(sysctl -n vm.swapusage)"
+            vm_stat | grep -E 'Pages (free|occupied by compressor)|Swapouts'
+            ps -Ao pcpu,rss,comm -r | head -6 | sed -E 's#^( *[0-9.]+ +[0-9]+ ).*/#\1#'
+            sleep 10
+          done
+          EOF
+          nohup bash "$RUNNER_TEMP/sample.sh" > "$RUNNER_TEMP/cpu.log" 2>&1 &
           ls -la /Library/Developer/CoreSimulator/Caches/dyld/ /Library/Developer/CoreSimulator/Caches/dyld/* 2>&1 || true
           xcrun simctl runtime list 2>&1 || true
       - name: Read the Xcode build number
@@ -106,22 +114,27 @@ jobs:
       # simulator itself. TEST_RUNNER_SNAPSHOT_ARTIFACTS lands
       # swift-snapshot-testing's failure diffs in a known folder so the
       # artifact upload below can show *why* the gate went red.
-      - name: Run Visual Regression tests (ADR-0007 gate)
+      - name: Build for testing
         run: |
-          xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+          xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
             -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' \
-            -only-testing:WorkoutTrackerSnapshotTests \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
             -onlyUsePackageVersionsFromResolvedFile \
-            -resultBundlePath VisualTests.xcresult \
-            -collect-test-diagnostics never \
             -showBuildTimingSummary \
             -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
             COMPILATION_CACHE_ENABLE_CACHING=YES \
             COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache" \
-            COMPILATION_CACHE_ENABLE_DIAGNOSTIC_REMARKS=YES \
-            TEST_RUNNER_SNAPSHOT_ARTIFACTS="$PWD/snapshot-diffs"
+            COMPILATION_CACHE_ENABLE_DIAGNOSTIC_REMARKS=YES
+      - name: Run Visual Regression tests (ADR-0007 gate)
+        run: |
+          TEST_RUNNER_SNAPSHOT_ARTIFACTS="$PWD/snapshot-diffs" \
+          xcodebuild test-without-building -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' \
+            -only-testing:WorkoutTrackerSnapshotTests \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            -resultBundlePath VisualTests.xcresult \
+            -collect-test-diagnostics never
       - name: "lab: print CPU samples"
         if: always()
         run: |
