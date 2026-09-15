@@ -31,31 +31,23 @@ enum Weight: Codable, Sendable, Equatable {
     }
 }
 
-/// Any finite point the Sheet records or prescribes. The points an athlete may pick live on the RPE
-/// rail (`RPEScalePresentation.scale`), because older coach data holds values off that rail.
-struct RPE: Hashable, Sendable, Codable {
-    static let five = RPE(point: 5)
-    static let six = RPE(point: 6)
-    static let sixPointFive = RPE(point: 6.5)
-    static let seven = RPE(point: 7)
-    static let sevenPointFive = RPE(point: 7.5)
-    static let eight = RPE(point: 8)
-    static let eightPointFive = RPE(point: 8.5)
-    static let nine = RPE(point: 9)
-    static let ninePointFive = RPE(point: 9.5)
-    static let ten = RPE(point: 10)
-
-    private let point: Double
-
-    private init(point: Double) {
-        self.point = point
-    }
+enum RPE: Double, CaseIterable, Codable, Hashable, Sendable {
+    case five = 5
+    case six = 6
+    case sixPointFive = 6.5
+    case seven = 7
+    case sevenPointFive = 7.5
+    case eight = 8
+    case eightPointFive = 8.5
+    case nine = 9
+    case ninePointFive = 9.5
+    case ten = 10
 
     init?(text: String) {
-        guard let point = Double(text.trimmingCharacters(in: .whitespacesAndNewlines)), point.isFinite else {
+        guard let point = Double(text.trimmingCharacters(in: .whitespacesAndNewlines)) else {
             return nil
         }
-        self.point = point
+        self.init(rawValue: point)
     }
 
     init?(prescribedLoad: String) {
@@ -66,16 +58,8 @@ struct RPE: Hashable, Sendable, Codable {
         self.init(text: String(match.1))
     }
 
-    init(from decoder: Decoder) throws {
-        point = try Double(from: decoder)
-    }
-
-    func encode(to encoder: Encoder) throws {
-        try point.encode(to: encoder)
-    }
-
     var label: String {
-        Int(exactly: point).map(String.init) ?? String(point)
+        Int(exactly: rawValue).map(String.init) ?? String(rawValue)
     }
 }
 

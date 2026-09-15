@@ -36,6 +36,13 @@ import Testing
     #expect(classification.unstructuredSetLog == nil)
 }
 
+@Test func classifiesATokenWithAnOffScaleRPEAsUnstructuredLogged() {
+    #expect(
+        SetLogToken.classify("185x5@5.5")
+            == SetLogToken.Classification(state: .logged, setLog: nil, unstructuredSetLog: "185x5@5.5")
+    )
+}
+
 @Test func classifiesFreeTextAsUnstructuredLogged() {
     let classification = SetLogToken.classify("felt heavy")
 
@@ -77,6 +84,10 @@ import Testing
 
 @Test func compactAggregateHeaderRejectsWhenAnyEntryIsFreeText() {
     #expect(!SetLogToken.isCompactAggregateHeader("185x5@8, Coach note", setCount: 3))
+}
+
+@Test func compactAggregateHeaderRejectsWhenAnyEntryHasAnOffScaleRPE() {
+    #expect(!SetLogToken.isCompactAggregateHeader("185x5@8, 185x5@5.5", setCount: 2))
 }
 
 @Test func serializesStructuredSetLogAsFormattedToken() {

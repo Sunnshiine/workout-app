@@ -16,12 +16,17 @@ import Testing
     #expect(SetLog(formatted: "185x5@8.0")?.formatted == "185x5@8")
 }
 
-@Test func setLogParsingKeepsOffScaleRecordedRPE() {
-    #expect(SetLog(formatted: "185x7@4")?.formatted == "185x7@4")
-    #expect(SetLog(formatted: "185x7@7.25")?.formatted == "185x7@7.25")
-    #expect(SetLog(formatted: "185x7@1e19")?.formatted == "185x7@1e+19")
-    #expect(SetLog(formatted: "185x7@nan") == nil)
-    #expect(SetLog(formatted: "185x7@inf") == nil)
+@Test func setLogParsingRejectsRPEOffTheTenPointScale() {
+    for token in ["4", "5.5", "7.25", "11", "1e19", "nan", "inf"] {
+        #expect(SetLog(formatted: "185x7@\(token)") == nil)
+    }
+}
+
+@Test func rpeScaleIsTheTenRailPointsInOrderAndEachLabelRoundTrips() {
+    #expect(RPE.allCases.map(\.label) == ["5", "6", "6.5", "7", "7.5", "8", "8.5", "9", "9.5", "10"])
+    for rpe in RPE.allCases {
+        #expect(SetLog(formatted: "185x5@\(rpe.label)")?.rpe == rpe)
+    }
 }
 
 @Test func setLogDecodesPersistedJSONAndEncodesRPEAsABareNumber() throws {
@@ -31,6 +36,17 @@ import Testing
     let encoded = try JSONEncoder().encode(SetLog(weight: .bodyweight, reps: 12, rpe: .seven))
     let object = try #require(try JSONSerialization.jsonObject(with: encoded) as? [String: Any])
     #expect(object["rpe"] as? Double == 7)
+}
+
+@MainActor
+@Test func persistedSetLogWithAnOffScaleRPEDoesNotDecode() {
+    let persisted = Data(#"{"weight":{"pounds":{"_0":185}},"reps":5,"rpe":5.5}"#.utf8)
+    #expect(throws: DecodingError.self) { try JSONDecoder().decode(SetLog.self, from: persisted) }
+
+    let cached = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .logged)
+    cached.setLogData = persisted
+    #expect(cached.setLog == nil)
+    #expect(cached.displayReps == "5")
 }
 
 @Test func weightDropsTrailingZero() {

@@ -187,10 +187,7 @@ struct SmartValuePillsForm {
     }
 
     private var validRPE: RPE? {
-        guard let rpe = RPE(text: rpeText), RPEScalePresentation.scale.contains(rpe) else {
-            return nil
-        }
-        return rpe
+        RPE(text: rpeText)
     }
 
     private static func initialWeightText(

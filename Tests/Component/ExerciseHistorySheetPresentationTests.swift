@@ -165,7 +165,7 @@ private func date(_ daysAgo: Int) -> Date {
     #expect(row.annotations == [.asEntered("amrap")])
 }
 
-@Test func historyChipsLabelHalfPointAndOffScaleRPEAsRecorded() {
+@Test func historyChipsLabelHalfPointRPEAndKeepOffScaleEntriesAsEntered() {
     let presentation = ExerciseHistorySheetPresentation(
         anchorBaseName: "Squat",
         entries: [
@@ -179,7 +179,9 @@ private func date(_ daysAgo: Int) -> Date {
         ]
     )
 
-    #expect(presentation.blocks[0].rows[0].chips == [.init(load: "185×5", rpe: "8.5"), .init(load: "135×8", rpe: "4")])
+    let row = presentation.blocks[0].rows[0]
+    #expect(row.chips == [.init(load: "185×5", rpe: "8.5")])
+    #expect(row.annotations == [.asEntered("135x8@4")])
 }
 
 @Test func historyRowKeepsInternalCommasOfARawSetLogInTheWell() {
