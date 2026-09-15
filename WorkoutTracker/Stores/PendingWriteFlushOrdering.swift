@@ -1,29 +1,12 @@
 import Foundation
 
-struct PendingWriteSetLogKey: Hashable {
-    let blockTab: String
-    let week: Int
-    let day: Int
-    let exerciseName: String
-    let setIndex: Int
-
-    @MainActor
-    init(_ write: PendingWrite) {
-        self.blockTab = write.blockTab
-        self.week = write.week
-        self.day = write.day
-        self.exerciseName = write.exerciseName
-        self.setIndex = write.setIndex
-    }
-}
-
 extension SyncCoordinator {
     func orderPendingWritesForFlush(_ pending: [PendingWrite]) -> [PendingWrite] {
         pending.enumerated().sorted { lhs, rhs in
             let left = lhs.element
             let right = rhs.element
 
-            if PendingWriteSetLogKey(left) == PendingWriteSetLogKey(right), left.column != right.column {
+            if SetCoordinates.ID(left) == SetCoordinates.ID(right), left.column != right.column {
                 return left.column == .notes
             }
 
@@ -48,12 +31,12 @@ extension SyncCoordinator {
         in pending: [PendingWrite]
     ) -> [String] {
         guard setLogWrite.column == .notes else { return [] }
-        let key = PendingWriteSetLogKey(setLogWrite)
+        let key = SetCoordinates.ID(setLogWrite)
         return pending.compactMap { write in
             guard
                 write.status == .pending,
                 write.column == .lastSetRPE,
-                PendingWriteSetLogKey(write) == key
+                SetCoordinates.ID(write) == key
             else { return nil }
             return recordDependentLastSetRPEConflict(setLogConflict, for: write)
         }
