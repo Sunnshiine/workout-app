@@ -1,13 +1,5 @@
 name: CI
 
-# PR gate: `scripts/crap.sh gate` runs `swift test` with coverage and the CRAP gate (ADR-0016);
-# `app-build` compile-checks the full app target including Views/, which the
-# library target excludes; `visual-tests` runs the ADR-0007 Visual Regression
-# suite on the pinned simulator — with `.snapshots(record: .never)`, a missing
-# or drifted Visual Baseline fails the job. All need macOS; app-build and
-# visual-tests additionally need Xcode 27 (Liquid Glass APIs, ADR-0004),
-# which is the xcode-27 default.
-#
 # Note: pushes made with the plain GITHUB_TOKEN do not trigger this workflow
 # (GitHub suppresses token-driven events). Agent workflows check out with
 # AGENT_PAT, so their pushes do trigger it.
@@ -15,6 +7,27 @@ name: CI
 on:
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "ralph/**"
+      - ".agents/**"
+      - ".claude/**"
+      - ".sandcastle/**"
+      - "scripts/prototype-capture/**"
+      - ".github/actions/**"
+      - ".github/workflows/agent-*.yml"
+      - ".github/workflows/architecture-review.yml"
+      - ".github/workflows/asc-signing-inventory.yml"
+      - ".github/workflows/testflight-*.yml"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "pyproject.toml"
+      - ".python-version"
+      - "skills-lock.json"
+      - ".mcp.json"
+      - ".gitignore"
   push:
     branches: [main]
 
@@ -36,24 +49,28 @@ jobs:
           path: tools/crap/.build
           key: crap-tool-${{ runner.os }}-${{ hashFiles('tools/crap/Package.resolved', 'tools/crap/Sources/**') }}
           restore-keys: crap-tool-${{ runner.os }}-
+      - name: Read the Xcode build number
+        id: xcode
+        run: echo "build=$(xcodebuild -version | awk '/Build version/ {print $3}')" >> "$GITHUB_OUTPUT"
+      - name: Cache the Swift package checkouts
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/swift-tests/SourcePackages
+          key: swift-tests-spm-${{ steps.xcode.outputs.build }}-${{ hashFiles('Package.resolved') }}
+      - name: Restore the compilation cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/swift-tests/CompilationCache
+          key: swift-tests-cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
+          restore-keys: swift-tests-cas-${{ steps.xcode.outputs.build }}-
       - name: Run unit + component tests and the CRAP gate (ADR-0016)
-        run: scripts/crap.sh gate
-
-  app-build:
-    runs-on: xcode-27
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      # Secrets.xcconfig is git-ignored but referenced by the xcodeproj; the
-      # template's placeholder values are enough for compile-checking the app
-      # target (not for running against live Google Sheets).
-      - name: Create Secrets.xcconfig from template (build-only)
-        run: cp Secrets.xcconfig.template Secrets.xcconfig
-      - name: Compile-check the app target (incl. Views)
-        run: |
-          xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination 'generic/platform=iOS Simulator' \
-            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
+        run: scripts/crap.sh gate --xcodebuild "$RUNNER_TEMP/swift-tests"
+      - name: Save the compilation cache
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/swift-tests/CompilationCache
+          key: swift-tests-cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
 
   visual-tests:
     runs-on: xcode-27
@@ -72,6 +89,23 @@ jobs:
             echo "::error::Committed .snapshots(record: .all) found — this disarms the Visual Regression gate. Revert to record: .never."
             exit 1
           fi
+      - name: Read the Xcode build number
+        id: xcode
+        run: echo "build=$(xcodebuild -version | awk '/Build version/ {print $3}')" >> "$GITHUB_OUTPUT"
+      # Compilation cache keys embed absolute paths, and Xcode's prefix mapping does not remove
+      # them for this project, so DerivedData, the package checkouts, and the cache stay pinned
+      # under runner.temp. Moving any of them turns every cached compile into a miss.
+      - name: Restore package checkouts
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/SourcePackages
+          key: spm-${{ steps.xcode.outputs.build }}-${{ hashFiles('WorkoutTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+      - name: Restore the compilation cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/CompilationCache
+          key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
+          restore-keys: cas-${{ steps.xcode.outputs.build }}-
       # The pinned baseline device (ADR-0007): iPhone 17 Pro, on iOS 27.0 —
       # the runtime the xcode-27 image preinstalls (it ships no 26.x, so the
       # pin must move with the runner image; an unavailable pin fails loudly
@@ -85,10 +119,21 @@ jobs:
           xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
             -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' \
             -only-testing:WorkoutTrackerSnapshotTests \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
+            -onlyUsePackageVersionsFromResolvedFile \
             -resultBundlePath VisualTests.xcresult \
             -collect-test-diagnostics never \
             -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
+            COMPILATION_CACHE_ENABLE_CACHING=YES \
+            COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache" \
             TEST_RUNNER_SNAPSHOT_ARTIFACTS="$PWD/snapshot-diffs"
+      - name: Save the compilation cache
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/CompilationCache
+          key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
       - name: Upload Visual Baseline diffs
         if: failure()
         uses: actions/upload-artifact@v4

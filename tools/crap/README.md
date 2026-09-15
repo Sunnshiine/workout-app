@@ -21,10 +21,11 @@ scripts/crap.sh measure --top 30   # score everything, print the worst rows
 scripts/crap.sh gate               # fail on new violations, worsened rows, or a stale baseline
 scripts/crap.sh baseline           # rewrite tools/crap/baseline.tsv from the current report
 scripts/crap.sh gate --no-test     # reuse the coverage profile from the previous run
+scripts/crap.sh gate --xcodebuild "$RUNNER_TEMP/swift-tests"   # CI: xcodebuild with a compilation cache
 scripts/crap.sh --help
 ```
 
-Artifacts land in `.build/crap/`: `coverage.lcov`, `report.json`, and the `swift test` log. The
+Artifacts land in `.build/crap/`: `coverage.lcov`, `report.json`, and the test log (`test.log`). The
 baseline lives at `tools/crap/baseline.tsv`. Its fourth column, `reason`, is written by hand: say why
 a row is held above the target (a device probe no headless test can reach, a flat switch whose every
 branch is a distinct message). `crap baseline` keeps the reason while the row survives and drops it
