@@ -126,6 +126,10 @@ jobs:
           path: ${{ runner.temp }}/CompilationCache
           key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
           restore-keys: cas-${{ steps.xcode.outputs.build }}-
+      - name: Boot the pinned simulator without its background daemons
+        run: |
+          sudo mdutil -a -i off >/dev/null
+          scripts/ci/boot-simulator.sh
       # The pinned baseline device (ADR-0007): iPhone 17 Pro, on iOS 27.0 —
       # the runtime the xcode-27 image preinstalls (it ships no 26.x, so the
       # pin must move with the runner image; an unavailable pin fails loudly
