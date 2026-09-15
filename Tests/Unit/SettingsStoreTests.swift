@@ -290,6 +290,30 @@ import Testing
 }
 
 @MainActor
+@Test func reselectingTheCurrentSheetRefreshesItsTitleWithoutSyncing() async throws {
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let settings = SettingsStore(defaults: defaults)
+    settings.setSpreadsheet(id: "same-sheet", title: "Old Training Log")
+    let sync = StubSheetSwitchSync(hasPendingWrites: true)
+    var reloadCount = 0
+    let store = SettingsSheetSwitchStore(settings: settings, sync: sync) {
+        reloadCount += 1
+    }
+    let renamed = SpreadsheetFile(name: "Renamed Training Log", spreadsheetId: "same-sheet", modifiedDate: .distantPast)
+
+    let result = await store.requestSwitch(to: renamed)
+
+    #expect(result == .unchanged)
+    #expect(settings.spreadsheetId == "same-sheet")
+    #expect(settings.spreadsheetTitle == "Renamed Training Log")
+    #expect(store.pendingConfirmation == nil)
+    #expect(store.errorMessage == nil)
+    #expect(sync.syncedSpreadsheetIds.isEmpty)
+    #expect(sync.discardPendingWriteCallCount == 0)
+    #expect(reloadCount == 0)
+}
+
+@MainActor
 @Test func unreadablePendingWriteCountLeavesTheSheetAloneAndSaysSo() async throws {
     let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
     let settings = SettingsStore(defaults: defaults)
