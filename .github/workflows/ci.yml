@@ -59,6 +59,25 @@ jobs:
             echo "::error::Committed .snapshots(record: .all) found — this disarms the Visual Regression gate. Revert to record: .never."
             exit 1
           fi
+      - name: Read the Xcode build number
+        id: xcode
+        run: echo "build=$(xcodebuild -version | awk '/Build version/ {print $3}')" >> "$GITHUB_OUTPUT"
+      # Pinned paths: compilation cache keys include absolute paths, so DerivedData,
+      # the package checkouts, and the cache itself must sit at the same place on
+      # every runner for a restored cache to hit.
+      - name: Restore package checkouts
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/SourcePackages
+          key: spm-${{ steps.xcode.outputs.build }}-${{ hashFiles('WorkoutTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+      # Pull requests restore main's cache; only pushes to main save one, so PR runs skip the
+      # upload and do not crowd the repository's cache quota.
+      - name: Restore the compilation cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/CompilationCache
+          key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
+          restore-keys: cas-${{ steps.xcode.outputs.build }}-
       # The pinned baseline device (ADR-0007): iPhone 17 Pro, on iOS 27.0 —
       # the runtime the xcode-27 image preinstalls (it ships no 26.x, so the
       # pin must move with the runner image; an unavailable pin fails loudly
@@ -72,10 +91,21 @@ jobs:
           xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
             -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' \
             -only-testing:WorkoutTrackerSnapshotTests \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
+            -onlyUsePackageVersionsFromResolvedFile \
             -resultBundlePath VisualTests.xcresult \
             -collect-test-diagnostics never \
             -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
+            COMPILATION_CACHE_ENABLE_CACHING=YES \
+            COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache" \
             TEST_RUNNER_SNAPSHOT_ARTIFACTS="$PWD/snapshot-diffs"
+      - name: Save the compilation cache
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/CompilationCache
+          key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
       - name: Upload Visual Baseline diffs
         if: failure()
         uses: actions/upload-artifact@v4
