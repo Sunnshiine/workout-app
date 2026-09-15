@@ -111,6 +111,53 @@ private func snapshotWriterGrid(_ cells: [String: String]) -> SheetGrid {
     }
 }
 
+private func coachNoteSquatCorrection(notesRow: String, expectedCurrentValue: String) throws -> SheetCellUpdate {
+    let grid = snapshotWriterGrid(["C15": "Squat", "D15": "3", "K15": "Coach note", "K16": notesRow])
+    let planner = SheetWritePlanner()
+    return try planner.plan(
+        SheetWriteRequest(
+            blockTab: "Block 27",
+            week: 1,
+            day: 1,
+            exerciseName: "Squat",
+            setIndex: 0,
+            column: .notes,
+            operation: .upsert,
+            valueToWrite: "185x5@8",
+            expectedCurrentValue: expectedCurrentValue
+        ),
+        in: planner.snapshot(for: SheetSnapshot(values: grid))
+    )
+}
+
+@Test func correctsUnstructuredSetLogOnCoachNoteRedirectedRow() throws {
+    let update = try coachNoteSquatCorrection(notesRow: "felt heavy", expectedCurrentValue: "felt heavy")
+
+    #expect(update.range == "'Block 27'!K16")
+    #expect(update.value == "185x5@8")
+}
+
+@Test func correctsUnstructuredSetLogInCompactListOnCoachNoteRedirectedRow() throws {
+    let update = try coachNoteSquatCorrection(
+        notesRow: "felt heavy, 185x7, did 3 sets",
+        expectedCurrentValue: "felt heavy"
+    )
+
+    #expect(update.range == "'Block 27'!K16")
+    #expect(update.value == "185x5@8, 185x7, did 3 sets")
+}
+
+@Test func correctionConflictsWhenSetSlotChangedOnCoachNoteRedirectedRow() throws {
+    do {
+        _ = try coachNoteSquatCorrection(notesRow: "coach edited", expectedCurrentValue: "felt heavy")
+        Issue.record("Expected a changed Set slot to conflict")
+    } catch let error as SheetWriterError {
+        #expect(error == .unexpectedCurrentValue(expected: "felt heavy", actual: "coach edited"))
+    } catch {
+        Issue.record("Expected SheetWriterError, got \(error)")
+    }
+}
+
 @Test func skipsFilterHiddenContinuationRowWhenPlanningSetLogWrite() throws {
     let grid = snapshotWriterGrid(["C15": "Squat", "D15": "1", "K15": "Coach note", "C18": "Bench"])
     let snapshot = SheetSnapshot(
