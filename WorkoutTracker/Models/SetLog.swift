@@ -42,23 +42,31 @@ struct SetLog: Codable, Sendable, Equatable {
         self.rpe = rpe
     }
 
-    init?(formatted raw: String) {
+    /// Splits `<weight>x<reps>@<rpe>` into its three trimmed, still unparsed tokens. Splitting on
+    /// `@` first is what makes the order strict, so `185@5x8` is not the same Set Log as `185x5@8`.
+    private static func tokens(inFormatted raw: String) -> FormattedSetLogTokens? {
         let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         let rpeParts = value.split(separator: "@", omittingEmptySubsequences: false)
-        guard
-            rpeParts.count == 2,
-            let rpe = Double(rpeParts[1].trimmingCharacters(in: .whitespaces)),
-            rpe.isFinite
-        else {
-            return nil
-        }
+        guard rpeParts.count == 2 else { return nil }
 
         let setParts = rpeParts[0].split(separator: "x", omittingEmptySubsequences: false)
-        guard setParts.count == 2, let reps = Int(setParts[1].trimmingCharacters(in: .whitespaces)) else {
-            return nil
-        }
+        guard setParts.count == 2 else { return nil }
 
-        guard let weight = Weight(text: setParts[0].trimmingCharacters(in: .whitespaces)) else {
+        return FormattedSetLogTokens(
+            weight: setParts[0].trimmingCharacters(in: .whitespaces),
+            reps: setParts[1].trimmingCharacters(in: .whitespaces),
+            rpe: rpeParts[1].trimmingCharacters(in: .whitespaces)
+        )
+    }
+
+    init?(formatted raw: String) {
+        guard
+            let tokens = Self.tokens(inFormatted: raw),
+            let weight = Weight(text: tokens.weight),
+            let reps = Int(tokens.reps),
+            let rpe = Double(tokens.rpe),
+            rpe.isFinite
+        else {
             return nil
         }
 
@@ -69,4 +77,11 @@ struct SetLog: Codable, Sendable, Equatable {
         let rpeLabel = rpe.rounded() == rpe ? String(Int(rpe)) : String(rpe)
         return "\(weight.label)x\(reps)@\(rpeLabel)"
     }
+}
+
+/// The three still-unparsed tokens of `<weight>x<reps>@<rpe>`.
+private struct FormattedSetLogTokens {
+    let weight: String
+    let reps: String
+    let rpe: String
 }

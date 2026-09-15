@@ -14,7 +14,9 @@ func setLogParsesAFormattedEntry(raw: String, expected: SetLog) {
     #expect(SetLog(formatted: raw) == expected)
 }
 
-@Test(arguments: ["185x5", "185x5@", "185xfive@8", "infx5@8", "BWx12@nan", "185x5@8@9", "185x5x3@8"])
+@Test(arguments: [
+    "185x5", "185x5@", "185xfive@8", "infx5@8", "BWx12@nan", "185x5@8@9", "185x5x3@8", "185@5x8", "x@"
+])
 func setLogRejectsAMalformedEntry(raw: String) {
     #expect(SetLog(formatted: raw) == nil)
 }
