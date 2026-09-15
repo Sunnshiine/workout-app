@@ -1,12 +1,12 @@
 name: CI
 
 # PR gate: `scripts/crap.sh gate` runs `swift test` with coverage and the CRAP gate (ADR-0016);
-# `app-build` compile-checks the full app target including Views/, which the
-# library target excludes; `visual-tests` runs the ADR-0007 Visual Regression
-# suite on the pinned simulator — with `.snapshots(record: .never)`, a missing
-# or drifted Visual Baseline fails the job. All need macOS; app-build and
-# visual-tests additionally need Xcode 27 (Liquid Glass APIs, ADR-0004),
-# which is the xcode-27 default.
+# `visual-tests` builds every scheme target (the app including Views/, which the
+# library target excludes, the widgets, and the test bundles) and runs the
+# ADR-0007 Visual Regression suite on the pinned simulator — with
+# `.snapshots(record: .never)`, a missing or drifted Visual Baseline fails the
+# job. Both need macOS; visual-tests additionally needs Xcode 27 (Liquid Glass
+# APIs, ADR-0004), which is the xcode-27 default.
 #
 # Note: pushes made with the plain GITHUB_TOKEN do not trigger this workflow
 # (GitHub suppresses token-driven events). Agent workflows check out with
@@ -39,27 +39,14 @@ jobs:
       - name: Run unit + component tests and the CRAP gate (ADR-0016)
         run: scripts/crap.sh gate
 
-  app-build:
-    runs-on: xcode-27
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      # Secrets.xcconfig is git-ignored but referenced by the xcodeproj; the
-      # template's placeholder values are enough for compile-checking the app
-      # target (not for running against live Google Sheets).
-      - name: Create Secrets.xcconfig from template (build-only)
-        run: cp Secrets.xcconfig.template Secrets.xcconfig
-      - name: Compile-check the app target (incl. Views)
-        run: |
-          xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination 'generic/platform=iOS Simulator' \
-            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
-
   visual-tests:
     runs-on: xcode-27
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      # Secrets.xcconfig is git-ignored but referenced by the xcodeproj; the
+      # template's placeholder values are enough to build (not to run against
+      # live Google Sheets).
       - name: Create Secrets.xcconfig from template (build-only)
         run: cp Secrets.xcconfig.template Secrets.xcconfig
       # A committed `record: .all` (suite- or test-level) makes every snapshot
