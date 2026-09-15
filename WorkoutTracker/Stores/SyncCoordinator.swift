@@ -11,6 +11,12 @@ final class SyncCoordinator {
         case idle, syncing, offline
         case pendingWrites(Int)
         case conflict([String])
+
+        /// What a sync step reports when it finishes: no messages means it left the coach nothing
+        /// to resolve.
+        init(messages: [String]) {
+            self = messages.isEmpty ? .idle : .conflict(messages)
+        }
     }
     private(set) var state: State = .idle
 
@@ -43,6 +49,16 @@ final class SyncCoordinator {
         self.tabFetchBackoff = tabFetchBackoff
     }
 
+    /// The queued writes a flush will attempt, in the order it attempts them: oldest first, with
+    /// each Set's Last Set RPE behind the Set Log it depends on.
+    private func pendingWriteFlushQueue() -> [PendingWrite] {
+        let descriptor = FetchDescriptor<PendingWrite>(
+            predicate: #Predicate { $0.statusRaw == "pending" },
+            sortBy: [SortDescriptor(\.createdAt)]
+        )
+        return orderPendingWritesForFlush((try? context.fetch(descriptor)) ?? [])
+    }
+
     func reportLocalWriteFailure(_ error: any Error) {
         state = .conflict(["Local write failed: \(error.localizedDescription)"])
     }
@@ -68,11 +84,7 @@ final class SyncCoordinator {
         let generation = beginPendingWriteFlush()
         defer { endPendingWriteFlush() }
 
-        let descriptor = FetchDescriptor<PendingWrite>(
-            predicate: #Predicate { $0.statusRaw == "pending" },
-            sortBy: [SortDescriptor(\.createdAt)]
-        )
-        let pending = orderPendingWritesForFlush((try? context.fetch(descriptor)) ?? [])
+        let pending = pendingWriteFlushQueue()
         guard !pending.isEmpty else {
             state = .idle
             return
@@ -91,7 +103,7 @@ final class SyncCoordinator {
         switch result {
         case .completed(let conflicts):
             try? context.save()
-            state = conflicts.isEmpty ? .idle : .conflict(conflicts)
+            state = State(messages: conflicts)
         case .invalidated:
             state = .idle
         case .stoppedForRetry:
@@ -129,7 +141,7 @@ final class SyncCoordinator {
             if case .conflict = stateAfterFlush {
                 state = stateAfterFlush
             } else {
-                state = parsed.warnings.isEmpty ? .idle : .conflict(parsed.warnings)
+                state = State(messages: parsed.warnings)
             }
             syncLogger.info("Done, state: \(String(describing: self.state), privacy: .public)")
             launchLastPerformedBackfill(
