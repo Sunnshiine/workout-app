@@ -19,6 +19,7 @@ import Testing
 @Test func setLogParsingKeepsOffScaleRecordedRPE() {
     #expect(SetLog(formatted: "185x7@4") == SetLog(weight: .pounds(185), reps: 7, rpe: 4))
     #expect(SetLog(formatted: "185x7@7.25")?.formatted == "185x7@7.25")
+    #expect(SetLog(formatted: "185x7@1e19")?.formatted == "185x7@1e+19")
     #expect(SetLog(formatted: "185x7@nan") == nil)
     #expect(SetLog(formatted: "185x7@inf") == nil)
 }

@@ -73,7 +73,7 @@ struct RPE: Hashable, Sendable, Codable, ExpressibleByIntegerLiteral, Expressibl
     }
 
     var label: String {
-        point.rounded() == point ? String(Int(point)) : String(point)
+        Int(exactly: point).map(String.init) ?? String(point)
     }
 }
 
