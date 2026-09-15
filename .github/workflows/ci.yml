@@ -59,32 +59,55 @@ jobs:
             echo "::error::Committed .snapshots(record: .all) found — this disarms the Visual Regression gate. Revert to record: .never."
             exit 1
           fi
-      # The pinned baseline device (ADR-0007): iPhone 17 Pro, on iOS 27.0 —
-      # the runtime the xcode-27 image preinstalls (it ships no 26.x, so the
-      # pin must move with the runner image). The committed baselines were
-      # recorded on this exact runner/runtime pair (issue #479). A fresh
-      # runner's first boot takes about two minutes, so it starts here in the
-      # background and overlaps the build instead of following it.
-      - name: Boot the pinned simulator in the background
+      - name: "lab: time a cold and a warm simulator boot"
         run: |
           udid=$(xcrun simctl list devices available -j | jq -r '.devices["com.apple.CoreSimulator.SimRuntime.iOS-27-0"][]? | select(.name == "iPhone 17 Pro") | .udid' | head -1)
-          if [ -z "$udid" ]; then
-            echo "::error::No available iPhone 17 Pro on iOS 27.0; move the ADR-0007 pin with the runner image."
-            exit 1
-          fi
-          echo "SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
-          nohup xcrun simctl bootstatus "$udid" -b > "$RUNNER_TEMP/simulator-boot.log" 2>&1 &
-      # TEST_RUNNER_SNAPSHOT_ARTIFACTS lands
+          echo "udid $udid"
+          t=$(date +%s); xcrun simctl bootstatus "$udid" -b | tail -4; echo "lab cold boot $(( $(date +%s) - t ))s"
+          du -sh ~/Library/Developer/CoreSimulator/Devices/"$udid"
+          t=$(date +%s); xcrun simctl shutdown "$udid"; echo "lab shutdown $(( $(date +%s) - t ))s"
+          du -sh ~/Library/Developer/CoreSimulator/Devices/"$udid"
+          t=$(date +%s); xcrun simctl bootstatus "$udid" -b | tail -4; echo "lab warm boot $(( $(date +%s) - t ))s"
+      - name: Read the Xcode build number
+        id: xcode
+        run: echo "build=$(xcodebuild -version | awk '/Build version/ {print $3}')" >> "$GITHUB_OUTPUT"
+      # Pinned paths: compilation cache keys include absolute paths, so DerivedData,
+      # the package checkouts, and the cache itself must sit at the same place on
+      # every runner for a restored cache to hit.
+      - name: Restore package checkouts
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/SourcePackages
+          key: spm-${{ steps.xcode.outputs.build }}-${{ hashFiles('WorkoutTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+      - name: Restore the compilation cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/CompilationCache
+          key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
+          restore-keys: cas-${{ steps.xcode.outputs.build }}-
+      # The pinned baseline device (ADR-0007): iPhone 17 Pro, on iOS 27.0 —
+      # the runtime the xcode-27 image preinstalls (it ships no 26.x, so the
+      # pin must move with the runner image; an unavailable pin fails loudly
+      # with exit code 70). The committed baselines were recorded on this
+      # exact runner/runtime pair (issue #479); xcodebuild boots the
+      # simulator itself. TEST_RUNNER_SNAPSHOT_ARTIFACTS lands
       # swift-snapshot-testing's failure diffs in a known folder so the
       # artifact upload below can show *why* the gate went red.
       - name: Run Visual Regression tests (ADR-0007 gate)
         run: |
           xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination "id=$SIMULATOR_UDID" \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' \
             -only-testing:WorkoutTrackerSnapshotTests \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
+            -onlyUsePackageVersionsFromResolvedFile \
             -resultBundlePath VisualTests.xcresult \
             -collect-test-diagnostics never \
+            -showBuildTimingSummary \
             -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
+            COMPILATION_CACHE_ENABLE_CACHING=YES \
+            COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache" \
+            COMPILATION_CACHE_ENABLE_DIAGNOSTIC_REMARKS=YES \
             TEST_RUNNER_SNAPSHOT_ARTIFACTS="$PWD/snapshot-diffs"
       - name: Upload Visual Baseline diffs
         if: failure()
