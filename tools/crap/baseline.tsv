@@ -5,5 +5,4 @@ WorkoutTracker/Stores/SyncCoordinator.swift	SyncCoordinator.backfillLastPerforme
 WorkoutTracker/Stores/SyncCoordinator.swift	SyncCoordinator.flushPending(spreadsheetId:)	7.0
 WorkoutTracker/Stores/SyncCoordinator.swift	SyncCoordinator.flushPendingWrites(_:context:)	7.0
 WorkoutTracker/Stores/SyncCoordinator.swift	SyncCoordinator.localLoggedAtBySetID()	7.0
-WorkoutTracker/Stores/SyncCoordinator.swift	SyncCoordinator.plan(_:context:snapshots:batch:)	7.2
 WorkoutTracker/Stores/SyncStatusBannerPresentation.swift	SyncStatusBannerPresentation.init(state:)	7.0
