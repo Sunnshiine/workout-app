@@ -43,3 +43,21 @@ import Testing
             )
     )
 }
+
+@MainActor
+@Test func syncStatusPresentationHidesTheIdleStateAndNamesAMessagelessConflict() throws {
+    #expect(SyncStatusBannerPresentation(state: .idle) == nil)
+
+    let messageless = try #require(SyncStatusBannerPresentation(state: .conflict([])))
+    #expect(
+        messageless
+            == SyncStatusBannerPresentation(
+                text: "Sheet conflict",
+                symbol: "exclamationmark.triangle",
+                accessibilityLabel: "Sync status: Sheet conflict"
+            )
+    )
+
+    let firstOfMany = try #require(SyncStatusBannerPresentation(state: .conflict(["First", "Second"])))
+    #expect(firstOfMany.text == "First")
+}
