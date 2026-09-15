@@ -15,6 +15,30 @@ name: CI
 on:
   pull_request:
     branches: [main]
+    # A PR whose every changed file is below skips CI: nothing here reaches the app build or
+    # the package tests. The list names what CI ignores, not what it reads, so a new path
+    # runs CI by default. Pushes to main always run.
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "ralph/**"
+      - ".agents/**"
+      - ".claude/**"
+      - ".sandcastle/**"
+      - "scripts/prototype-capture/**"
+      - ".github/actions/**"
+      - ".github/workflows/agent-*.yml"
+      - ".github/workflows/architecture-review.yml"
+      - ".github/workflows/asc-signing-inventory.yml"
+      - ".github/workflows/testflight-*.yml"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "pyproject.toml"
+      - ".python-version"
+      - "skills-lock.json"
+      - ".mcp.json"
+      - ".gitignore"
   push:
     branches: [main]
 
