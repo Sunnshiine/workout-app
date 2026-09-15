@@ -15,6 +15,30 @@ name: CI
 on:
   pull_request:
     branches: [main]
+    # A PR whose every changed file is below skips CI: nothing here reaches the app build or
+    # the package tests. The list names what CI ignores, not what it reads, so a new path
+    # runs CI by default. Pushes to main always run.
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "ralph/**"
+      - ".agents/**"
+      - ".claude/**"
+      - ".sandcastle/**"
+      - "scripts/prototype-capture/**"
+      - ".github/actions/**"
+      - ".github/workflows/agent-*.yml"
+      - ".github/workflows/architecture-review.yml"
+      - ".github/workflows/asc-signing-inventory.yml"
+      - ".github/workflows/testflight-*.yml"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "pyproject.toml"
+      - ".python-version"
+      - "skills-lock.json"
+      - ".mcp.json"
+      - ".gitignore"
   push:
     branches: [main]
 
@@ -47,14 +71,21 @@ jobs:
         with:
           path: ${{ runner.temp }}/swift-tests/SourcePackages
           key: swift-tests-spm-${{ steps.xcode.outputs.build }}-${{ hashFiles('Package.resolved') }}
-      - name: Cache the compilation cache
-        uses: actions/cache@v4
+      # Pull requests restore main's cache; only pushes to main save one.
+      - name: Restore the compilation cache
+        uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/swift-tests/CompilationCache
           key: swift-tests-cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
           restore-keys: swift-tests-cas-${{ steps.xcode.outputs.build }}-
       - name: Run unit + component tests and the CRAP gate (ADR-0016)
         run: scripts/crap.sh gate --xcodebuild "$RUNNER_TEMP/swift-tests"
+      - name: Save the compilation cache
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/swift-tests/CompilationCache
+          key: swift-tests-cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
 
   visual-tests:
     runs-on: xcode-27
@@ -76,19 +107,6 @@ jobs:
             echo "::error::Committed .snapshots(record: .all) found — this disarms the Visual Regression gate. Revert to record: .never."
             exit 1
           fi
-      - name: "lab: sample CPU and list simulator caches"
-        run: |
-          cat > "$RUNNER_TEMP/sample.sh" <<'EOF'
-          while true; do
-            echo "== $(date +%T) swap $(sysctl -n vm.swapusage)"
-            vm_stat | grep -E 'Pages (free|occupied by compressor)|Swapouts'
-            ps -Ao pcpu,rss,comm -r | head -6 | sed -E 's#^( *[0-9.]+ +[0-9]+ ).*/#\1#'
-            sleep 10
-          done
-          EOF
-          nohup bash "$RUNNER_TEMP/sample.sh" > "$RUNNER_TEMP/cpu.log" 2>&1 &
-      - name: Boot the pinned simulator in the background
-        run: nohup scripts/ci/boot-simulator.sh > "$RUNNER_TEMP/boot.log" 2>&1 &
       - name: Read the Xcode build number
         id: xcode
         run: echo "build=$(xcodebuild -version | awk '/Build version/ {print $3}')" >> "$GITHUB_OUTPUT"
@@ -100,8 +118,10 @@ jobs:
         with:
           path: ${{ runner.temp }}/SourcePackages
           key: spm-${{ steps.xcode.outputs.build }}-${{ hashFiles('WorkoutTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+      # Pull requests restore main's cache; only pushes to main save one, so PR runs skip the
+      # upload and do not crowd the repository's cache quota.
       - name: Restore the compilation cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/CompilationCache
           key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
@@ -128,12 +148,12 @@ jobs:
             COMPILATION_CACHE_ENABLE_CACHING=YES \
             COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache" \
             TEST_RUNNER_SNAPSHOT_ARTIFACTS="$PWD/snapshot-diffs"
-      - name: "lab: print CPU samples"
-        if: always()
-        run: |
-          sed 's/^/cpu| /' "$RUNNER_TEMP/cpu.log"
-          sed 's/^/lab boot| /' "$RUNNER_TEMP/boot.log"
-          ls -la ~/Library/Logs/DiagnosticReports/ 2>&1 | tail -20 || true
+      - name: Save the compilation cache
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/CompilationCache
+          key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
       - name: Upload Visual Baseline diffs
         if: failure()
         uses: actions/upload-artifact@v4
