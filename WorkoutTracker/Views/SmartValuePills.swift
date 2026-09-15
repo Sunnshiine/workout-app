@@ -63,7 +63,7 @@ struct SmartValuePills: View {
                 )
 
                 ValueRail(
-                    chips: rpePresentation.railChips,
+                    chips: rpePresentation.chips,
                     selectedIndex: rpePresentation.selectedIndex,
                     label: "RPE",
                     isInvalid: form.invalidFields.contains(.rpe),

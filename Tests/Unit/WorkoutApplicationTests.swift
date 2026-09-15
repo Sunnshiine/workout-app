@@ -152,6 +152,9 @@ private func address(_ raw: String) throws -> SetAddress {
     #expect(throws: ApplicationError.invalidSetLog("185 for 5")) {
         try app.log(address("w1d1.e0.s0"), setLog: "185 for 5")
     }
+    #expect(throws: ApplicationError.invalidSetLog("185x5@5.5")) {
+        try app.log(address("w1d1.e0.s0"), setLog: "185x5@5.5")
+    }
     #expect(try app.snapshot().pendingWriteCount == 0)
 }
 

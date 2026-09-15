@@ -169,7 +169,7 @@ import Testing
 
     #expect(form.logButtonTitle == "Log 185 × 8 @7")
     #expect(form.canLog)
-    #expect(form.makeLog() == SetLog(weight: .pounds(185), reps: 8, rpe: 7))
+    #expect(form.makeLog() == SetLog(weight: .pounds(185), reps: 8, rpe: .seven))
 }
 
 @MainActor
@@ -204,7 +204,7 @@ import Testing
 
     form.rpeText = "7.5"
     #expect(form.invalidFields.isEmpty)
-    #expect(form.makeLog() == SetLog(weight: .pounds(182.5), reps: 12, rpe: 7.5))
+    #expect(form.makeLog() == SetLog(weight: .pounds(182.5), reps: 12, rpe: .sevenPointFive))
 }
 
 @MainActor
@@ -220,7 +220,38 @@ import Testing
 
     form.rpeText = "6"
     #expect(form.rpeDisplay == "6")
-    #expect(form.makeLog() == SetLog(weight: .pounds(237.5), reps: 5, rpe: 6))
+    #expect(form.makeLog() == SetLog(weight: .pounds(237.5), reps: 5, rpe: .six))
+}
+
+@MainActor
+@Test func loggedHalfPointRPEPrefillsWithItsDecimalLabel() {
+    let loggedSet = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .logged)
+    loggedSet.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: .sixPointFive)
+
+    let form = SmartValuePillsForm(set: loggedSet, previousSetWeight: nil, trainingMax: nil)
+
+    #expect(form.rpeText == "6.5")
+    #expect(form.logButtonTitle == "Log 185 × 5 @6.5")
+}
+
+@MainActor
+@Test func prescribedRPEPrefillReadsTheRPEPrefixInAnyCasingAndSpacing() {
+    func prefill(_ prescribedLoad: String) -> String {
+        SmartValuePillsForm(
+            set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: prescribedLoad, percentOneRM: nil, state: .pending),
+            previousSetWeight: nil,
+            trainingMax: nil
+        ).rpeText
+    }
+
+    #expect(prefill("RPE6") == "6")
+    #expect(prefill(" rpe 8 ") == "8")
+    #expect(prefill("RPE 6.5") == "6.5")
+    #expect(prefill("RPE 5.5") == "")
+    #expect(prefill("Drop 10%") == "")
+    #expect(prefill("BW") == "")
+    #expect(prefill("72.5") == "")
+    #expect(prefill("RPE") == "")
 }
 
 @MainActor
@@ -239,11 +270,11 @@ import Testing
     form.rpeText = "7"
 
     #expect(form.invalidFields.isEmpty)
-    #expect(form.submitLog() == SetLog(weight: .bodyweight, reps: 12, rpe: 7))
+    #expect(form.submitLog() == SetLog(weight: .bodyweight, reps: 12, rpe: .seven))
 }
 
 @MainActor
-@Test func logFormAcceptsOnlyBodyweightOrFiniteWeightIntegerRepsAndFiveToTenHalfStepRPE() {
+@Test func logFormAcceptsOnlyBodyweightOrFiniteWeightIntegerRepsAndRailPointRPE() {
     var form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "BW", percentOneRM: nil, state: .pending),
         previousSetWeight: nil,
@@ -251,11 +282,11 @@ import Testing
     )
     form.repsText = "8"
     form.rpeText = "5"
-    #expect(form.makeLog() == SetLog(weight: .bodyweight, reps: 8, rpe: 5))
+    #expect(form.makeLog() == SetLog(weight: .bodyweight, reps: 8, rpe: .five))
 
     form.weightText = "182.5"
     form.rpeText = "10"
-    #expect(form.makeLog() == SetLog(weight: .pounds(182.5), reps: 8, rpe: 10))
+    #expect(form.makeLog() == SetLog(weight: .pounds(182.5), reps: 8, rpe: .ten))
 
     form.weightText = "nan"
     #expect(form.makeLog() == nil)
@@ -266,6 +297,10 @@ import Testing
     #expect(form.makeLog() == nil)
     #expect(form.invalidFields == [.reps])
     form.repsText = "8"
+
+    form.rpeText = "5.5"
+    #expect(form.makeLog() == nil)
+    #expect(form.invalidFields == [.rpe])
 
     form.rpeText = "4.5"
     #expect(form.makeLog() == nil)
@@ -278,7 +313,7 @@ import Testing
 @MainActor
 @Test func cancelRestoresLoggedSetOrSuggestionState() {
     let loggedSet = ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 7", percentOneRM: nil, state: .logged)
-    loggedSet.setLog = SetLog(weight: .pounds(185), reps: 7, rpe: 8)
+    loggedSet.setLog = SetLog(weight: .pounds(185), reps: 7, rpe: .eight)
     var logged = SmartValuePillsForm(set: loggedSet, previousSetWeight: nil, trainingMax: nil)
     logged.weightText = "200"
     logged.repsText = "9"
@@ -304,14 +339,14 @@ import Testing
 @MainActor
 @Test func loggedSetDraftOnlyProducesChangedValidLog() {
     let loggedSet = ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 7", percentOneRM: nil, state: .logged)
-    loggedSet.setLog = SetLog(weight: .pounds(185), reps: 7, rpe: 8)
+    loggedSet.setLog = SetLog(weight: .pounds(185), reps: 7, rpe: .eight)
     var form = SmartValuePillsForm(set: loggedSet, previousSetWeight: nil, trainingMax: nil)
 
     #expect(form.changedValidLog == nil)
 
     form.weightText = "200"
 
-    #expect(form.changedValidLog == SetLog(weight: .pounds(200), reps: 7, rpe: 8))
+    #expect(form.changedValidLog == SetLog(weight: .pounds(200), reps: 7, rpe: .eight))
 
     form.rpeText = ""
 
@@ -326,7 +361,7 @@ import Testing
         trainingMax: nil
     )
 
-    #expect(form.prescribedRPE == 8)
+    #expect(form.prescribedRPE == .eight)
 }
 
 @MainActor

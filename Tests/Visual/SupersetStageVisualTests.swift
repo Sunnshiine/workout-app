@@ -95,7 +95,7 @@ struct SupersetStageVisualTests {
                 state: index == 0 ? .logged : .pending
             )
             if index == 0 {
-                set.setLog = SetLog(weight: .pounds(30), reps: 10, rpe: 8)
+                set.setLog = SetLog(weight: .pounds(30), reps: 10, rpe: .eight)
             }
             return set
         }
@@ -116,7 +116,7 @@ struct SupersetStageVisualTests {
                 state: index == 0 ? .logged : .pending
             )
         }
-        row.sets[0].setLog = SetLog(weight: .pounds(50), reps: 12, rpe: 8)
+        row.sets[0].setLog = SetLog(weight: .pounds(50), reps: 12, rpe: .eight)
 
         let session = Session(dayNumber: 2, date: nil)
         session.exercises = [press, row]

@@ -85,7 +85,8 @@ extension ApplicationError {
     public static func invalidSetLog(_ raw: String) -> ApplicationError {
         ApplicationError(
             code: "invalid_set_log",
-            message: "\"\(raw)\" is not a Set Log. Use {weight}x{reps}@{RPE}, for example 185x5@8 or BWx12@7.",
+            message: "\"\(raw)\" is not a Set Log. Use {weight}x{reps}@{RPE}, for example 185x5@8 or BWx12@7. "
+                + "RPE is one of \(RPE.allCases.map(\.label).joined(separator: ", ")).",
             kind: .domain
         )
     }

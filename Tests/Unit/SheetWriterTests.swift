@@ -481,8 +481,8 @@ private func multiLineNotesRequest(_ name: String, _ setIndex: Int, value: Strin
         parser.parse(grid: afterSetThree.grid, tabName: "Block 27").block.weeks.first?.days.first?.exercises[1]
     )
     #expect(reparsed.sets[0].state == .pending)
-    #expect(reparsed.sets[1].setLog == SetLog(weight: .pounds(135), reps: 7, rpe: 8))
-    #expect(reparsed.sets[2].setLog == SetLog(weight: .pounds(140), reps: 7, rpe: 9))
+    #expect(reparsed.sets[1].setLog == SetLog(weight: .pounds(135), reps: 7, rpe: .eight))
+    #expect(reparsed.sets[2].setLog == SetLog(weight: .pounds(140), reps: 7, rpe: .nine))
 }
 
 @Test func refusesUnexpectedCurrentCellValue() async throws {

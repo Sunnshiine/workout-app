@@ -25,7 +25,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
         LastPerformedEntry(
             fullName: "2-3:1:0 BB RDL",
             baseName: "BB RDL",
-            result: SetLog(weight: .pounds(185), reps: 7, rpe: 6),
+            result: SetLog(weight: .pounds(185), reps: 7, rpe: .six),
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "Block 26 · W3 D1"
         )
@@ -48,7 +48,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
         LastPerformedEntry(
             fullName: "1:0:1 BB RDL",
             baseName: "BB RDL",
-            result: SetLog(weight: .pounds(175), reps: 7, rpe: 6),
+            result: SetLog(weight: .pounds(175), reps: 7, rpe: .six),
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "Block 25 · W4 D1"
         )
@@ -57,7 +57,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
         LastPerformedEntry(
             fullName: "2-3:1:0 BB RDL",
             baseName: "BB RDL",
-            result: SetLog(weight: .pounds(185), reps: 7, rpe: 7),
+            result: SetLog(weight: .pounds(185), reps: 7, rpe: .seven),
             performedOn: Date(timeIntervalSinceReferenceDate: 200),
             source: "Block 26 · W3 D1"
         )
@@ -93,7 +93,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
     let entry = LastPerformedEntry(
         fullName: "BB RDL",
         baseName: "BB RDL",
-        result: SetLog(weight: .pounds(185), reps: 7, rpe: 6),
+        result: SetLog(weight: .pounds(185), reps: 7, rpe: .six),
         performedOn: Date(timeIntervalSinceReferenceDate: 100),
         source: "Block 26 · W3 D1"
     )
@@ -103,7 +103,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
         LastPerformedEntry(
             fullName: "BB RDL",
             baseName: "BB RDL",
-            result: SetLog(weight: .pounds(185), reps: 7, rpe: 6),
+            result: SetLog(weight: .pounds(185), reps: 7, rpe: .six),
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "Block 26 · W3 D1"
         )
@@ -125,14 +125,14 @@ private func lastPerformedContainer() throws -> ModelContainer {
         LastPerformedEntry(
             fullName: "Squat",
             baseName: "Squat",
-            result: SetLog(weight: .pounds(205), reps: 5, rpe: 8),
+            result: SetLog(weight: .pounds(205), reps: 5, rpe: .eight),
             performedOn: Date(timeIntervalSinceReferenceDate: 200),
             source: "Block 27 · W2 D1"
         ),
         LastPerformedEntry(
             fullName: "Squat",
             baseName: "Squat",
-            result: SetLog(weight: .pounds(185), reps: 5, rpe: 7),
+            result: SetLog(weight: .pounds(185), reps: 5, rpe: .seven),
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "Block 26 · W4 D1"
         )
@@ -159,7 +159,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
         LastPerformedEntry(
             fullName: "Squat",
             baseName: "Squat",
-            result: SetLog(weight: .pounds(205), reps: 5, rpe: 8),
+            result: SetLog(weight: .pounds(205), reps: 5, rpe: .eight),
             performedOn: Date(timeIntervalSinceReferenceDate: 200),
             source: "Block 27 · W2 D1"
         )
@@ -185,7 +185,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
         LastPerformedEntry(
             fullName: "Squat",
             baseName: "Squat",
-            result: SetLog(weight: .pounds(185), reps: 5, rpe: 7),
+            result: SetLog(weight: .pounds(185), reps: 5, rpe: .seven),
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "Block 26 · W4 D1"
         )
@@ -197,7 +197,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
         LastPerformedEntry(
             fullName: "Squat",
             baseName: "Squat",
-            result: SetLog(weight: .pounds(205), reps: 5, rpe: 8),
+            result: SetLog(weight: .pounds(205), reps: 5, rpe: .eight),
             performedOn: Date(timeIntervalSinceReferenceDate: 200),
             source: "Block 27 · W2 D1"
         )
@@ -243,7 +243,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
         LastPerformedEntry(
             fullName: "Bench Press",
             baseName: "Bench Press",
-            result: SetLog(weight: .pounds(225), reps: 5, rpe: 8),
+            result: SetLog(weight: .pounds(225), reps: 5, rpe: .eight),
             performedOn: Date(timeIntervalSinceReferenceDate: 200),
             source: "Block 27 · W1 D1"
         )
@@ -253,7 +253,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
         LastPerformedEntry(
             fullName: "Bench Press",
             baseName: "Bench Press",
-            result: SetLog(weight: .pounds(205), reps: 5, rpe: 7),
+            result: SetLog(weight: .pounds(205), reps: 5, rpe: .seven),
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "Block 26 · W4 D1"
         )
@@ -278,7 +278,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
         LastPerformedEntry(
             fullName: "Squat",
             baseName: "Squat",
-            result: SetLog(weight: .pounds(205), reps: 5, rpe: 8),
+            result: SetLog(weight: .pounds(205), reps: 5, rpe: .eight),
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "Block 27 · W1 D1"
         )
@@ -299,14 +299,14 @@ private func lastPerformedContainer() throws -> ModelContainer {
         LastPerformedEntry(
             fullName: "1:0:1 BB RDL",
             baseName: "BB RDL",
-            result: SetLog(weight: .pounds(175), reps: 7, rpe: 6),
+            result: SetLog(weight: .pounds(175), reps: 7, rpe: .six),
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "Block 25 · W4 D1"
         ),
         LastPerformedEntry(
             fullName: "2-3:1:0 BB RDL",
             baseName: "BB RDL",
-            result: SetLog(weight: .pounds(185), reps: 7, rpe: 7),
+            result: SetLog(weight: .pounds(185), reps: 7, rpe: .seven),
             performedOn: Date(timeIntervalSinceReferenceDate: 200),
             source: "Block 26 · W3 D1"
         )
@@ -383,14 +383,14 @@ private func lastPerformedContainer() throws -> ModelContainer {
         LastPerformedEntry(
             fullName: "1:0:1 BB RDL",
             baseName: "BB RDL",
-            result: SetLog(weight: .pounds(175), reps: 7, rpe: 6),
+            result: SetLog(weight: .pounds(175), reps: 7, rpe: .six),
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "Block 25 · W4 D1"
         ),
         LastPerformedEntry(
             fullName: "2-3:1:0 BB RDL",
             baseName: "BB RDL",
-            result: SetLog(weight: .pounds(185), reps: 7, rpe: 7),
+            result: SetLog(weight: .pounds(185), reps: 7, rpe: .seven),
             performedOn: Date(timeIntervalSinceReferenceDate: 200),
             source: "Block 26 · W3 D1"
         )

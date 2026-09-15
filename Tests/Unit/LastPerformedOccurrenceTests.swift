@@ -25,8 +25,8 @@ import Testing
         weeks: [
             occurrenceWeek(exercises: [
                 occurrenceExercise("Squat", sets: [
-                    occurrenceLoggedSet(index: 0, weight: 185, reps: 5, rpe: 7),
-                    occurrenceLoggedSet(index: 1, weight: 195, reps: 5, rpe: 8)
+                    occurrenceLoggedSet(index: 0, weight: 185, reps: 5, rpe: .seven),
+                    occurrenceLoggedSet(index: 1, weight: 195, reps: 5, rpe: .eight)
                 ])
             ])
         ]
@@ -44,7 +44,7 @@ import Testing
 
 @Test func occurrenceDerivesSingleStructuredSetDisplayText() throws {
     let block = occurrenceBlock(
-        occurrenceExercise("Bench Press", sets: [occurrenceLoggedSet(index: 0, weight: 155, reps: 6, rpe: 7)])
+        occurrenceExercise("Bench Press", sets: [occurrenceLoggedSet(index: 0, weight: 155, reps: 6, rpe: .seven)])
     )
 
     let occurrence = try #require(LastPerformedExtractor.occurrences(from: block).first)
@@ -54,7 +54,7 @@ import Testing
 @Test func occurrenceDerivesMultiSetDisplayTextInSetOrderWithSkipAndUnstructuredTokens() throws {
     let block = occurrenceBlock(
         occurrenceExercise("Squat", sets: [
-            occurrenceLoggedSet(index: 0, weight: 185, reps: 5, rpe: 7),
+            occurrenceLoggedSet(index: 0, weight: 185, reps: 5, rpe: .seven),
             occurrenceSkippedSet(index: 1),
             occurrenceUnstructuredSet(index: 2, "tweaked back")
         ])
@@ -89,11 +89,11 @@ private func occurrenceExercise(_ name: String, legacyLog: String? = nil, sets: 
     ParsedExercise(name: name, baseName: name, cadence: nil, coachNote: nil, legacyLog: legacyLog, sets: sets)
 }
 
-private func occurrenceLoggedSet(index: Int, weight: Double, reps: Int, rpe: Double) -> ParsedSet {
+private func occurrenceLoggedSet(index: Int, weight: Double, reps: Int, rpe: RPE) -> ParsedSet {
     ParsedSet(
         index: index,
         prescribedReps: "\(reps)",
-        prescribedLoad: "RPE \(Int(rpe))",
+        prescribedLoad: "RPE \(rpe.label)",
         percentOneRM: nil,
         setLog: SetLog(weight: .pounds(weight), reps: reps, rpe: rpe)
     )

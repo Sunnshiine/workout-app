@@ -43,7 +43,7 @@ private func makeTwoSessionBlock(tabName: String, day1LoggedAt: Date, day2Logged
                 prescribedLoad: "RPE8",
                 percentOneRM: nil,
                 state: .logged,
-                setLog: SetLog(weight: .pounds(185), reps: 5, rpe: 8)
+                setLog: SetLog(weight: .pounds(185), reps: 5, rpe: .eight)
             )
         ]
     )

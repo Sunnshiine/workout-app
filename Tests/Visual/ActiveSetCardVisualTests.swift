@@ -86,7 +86,7 @@ struct ActiveSetCardVisualTests {
                 state: index < 2 ? .logged : .pending
             )
             if index < 2 {
-                set.setLog = SetLog(weight: .pounds(90), reps: 5, rpe: 8)
+                set.setLog = SetLog(weight: .pounds(90), reps: 5, rpe: .eight)
             }
             return set
         }

@@ -440,7 +440,7 @@ private func makePlannedSupersetSession() -> Session {
     let squat = try #require(session.exercises.first { $0.order == 0 })
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
-    let log = SetLog(weight: .pounds(185), reps: 5, rpe: 7)
+    let log = SetLog(weight: .pounds(185), reps: 5, rpe: .seven)
     firstSquatSet.setLog = log
     firstSquatSet.state = .logged
     let focus = ActiveSetFocusManager(session: session)

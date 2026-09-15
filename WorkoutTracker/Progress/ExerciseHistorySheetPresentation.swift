@@ -206,7 +206,7 @@ struct ExerciseHistorySheetPresentation: Equatable, Sendable {
         for token in resultText.components(separatedBy: ", ") {
             let classification = SetLogToken.classify(token)
             if let log = classification.setLog {
-                chips.append(Chip(load: "\(log.weight.label)×\(log.reps)", rpe: rpeLabel(log.rpe)))
+                chips.append(Chip(load: "\(log.weight.label)×\(log.reps)", rpe: log.rpe.label))
                 if case .pounds(let pounds) = log.weight {
                     volume += pounds * Double(log.reps)
                 }
@@ -219,9 +219,5 @@ struct ExerciseHistorySheetPresentation: Equatable, Sendable {
 
         let rawText = rawParts.isEmpty ? nil : rawParts.joined(separator: ", ")
         return Parsed(chips: chips, skipCount: skipCount, rawText: rawText, volume: volume)
-    }
-
-    private static func rpeLabel(_ rpe: Double) -> String {
-        rpe.rounded() == rpe ? String(Int(rpe)) : String(rpe)
     }
 }

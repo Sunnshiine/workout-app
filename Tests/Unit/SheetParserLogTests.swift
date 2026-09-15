@@ -68,7 +68,7 @@ import Testing
     #expect(exercises[0].coachNote == nil)
     #expect(exercises[0].legacyLog == nil)
     #expect(exercises[0].sets[0].state == .logged)
-    #expect(exercises[0].sets[0].setLog == SetLog(weight: .bodyweight, reps: 12, rpe: 7))
+    #expect(exercises[0].sets[0].setLog == SetLog(weight: .bodyweight, reps: 12, rpe: .seven))
 }
 
 @Test func ignoresContinuationRowsWhenHeaderNotesHoldsSetLog() throws {

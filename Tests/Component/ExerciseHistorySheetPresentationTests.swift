@@ -165,6 +165,25 @@ private func date(_ daysAgo: Int) -> Date {
     #expect(row.annotations == [.asEntered("amrap")])
 }
 
+@Test func historyChipsLabelHalfPointRPEAndKeepOffScaleEntriesAsEntered() {
+    let presentation = ExerciseHistorySheetPresentation(
+        anchorBaseName: "Squat",
+        entries: [
+            entry(
+                fullName: "Squat",
+                baseName: "Squat",
+                resultText: "185x5@8.5, 135x8@4",
+                source: "Block 27 · W1 D1",
+                performedOn: date(1)
+            )
+        ]
+    )
+
+    let row = presentation.blocks[0].rows[0]
+    #expect(row.chips == [.init(load: "185×5", rpe: "8.5")])
+    #expect(row.annotations == [.asEntered("135x8@4")])
+}
+
 @Test func historyRowKeepsInternalCommasOfARawSetLogInTheWell() {
     // Raw text hidden in the well must render verbatim — adjacent fragments coalesce back with ", "
     // rather than becoming separate segments (ADR-0005 "never normalized").
