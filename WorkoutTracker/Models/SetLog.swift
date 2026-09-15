@@ -31,8 +31,8 @@ enum Weight: Codable, Sendable, Equatable {
     }
 }
 
-/// An RPE as the Sheet records or prescribes it: any finite point, printed `6` or `6.5`. Which points
-/// the athlete may pick is the RPE rail's decision (`RPEScalePresentation.scale`), not this type's.
+/// Any finite point the Sheet records or prescribes. The points an athlete may pick live on the RPE
+/// rail (`RPEScalePresentation.scale`), because older coach data holds values off that rail.
 struct RPE: Hashable, Sendable, Codable, ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral {
     private let point: Double
 
@@ -44,15 +44,13 @@ struct RPE: Hashable, Sendable, Codable, ExpressibleByIntegerLiteral, Expressibl
         point = value
     }
 
-    /// The token must already be trimmed, the same convention as `Weight(text:)`.
     init?(text: String) {
-        guard let point = Double(text), point.isFinite else {
+        guard let point = Double(text.trimmingCharacters(in: .whitespacesAndNewlines)), point.isFinite else {
             return nil
         }
         self.point = point
     }
 
-    /// Reads the RPE out of a Prescribed Load such as `RPE6` or `rpe 8`.
     init?(prescribedLoad: String) {
         let trimmed = prescribedLoad.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let match = trimmed.wholeMatch(of: /RPE\s*(.+)/.ignoresCase()) else {

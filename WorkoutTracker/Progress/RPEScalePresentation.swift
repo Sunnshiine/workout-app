@@ -46,11 +46,9 @@ enum ValueRailLayout {
     }
 }
 
-/// Drives the RPE one-tap scroll rail (5–10 in half steps). The card never
-/// changes height, so the Log capsule keeps a fixed Y — the rail is the whole
-/// RPE control.
+/// Drives the RPE one-tap scroll rail. The card never changes height, so the
+/// Log capsule keeps a fixed Y — the rail is the whole RPE control.
 struct RPEScalePresentation: Equatable, Sendable {
-    /// The points the athlete may pick (DESIGN.md §5.2); the logging form accepts only these.
     static let scale: [RPE] = [5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10]
     private static let defaultCenter: RPE = 8
 
@@ -58,7 +56,7 @@ struct RPEScalePresentation: Equatable, Sendable {
     let selectedIndex: Int
 
     init(prescribedRPE: RPE?, selection: String) {
-        let selected = RPE(text: selection.trimmingCharacters(in: .whitespacesAndNewlines))
+        let selected = RPE(text: selection)
 
         chips = Self.scale.map { rpe in
             ValueRailChip(

@@ -187,8 +187,7 @@ struct SmartValuePillsForm {
     }
 
     private var validRPE: RPE? {
-        let trimmed = rpeText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let rpe = RPE(text: trimmed), RPEScalePresentation.scale.contains(rpe) else {
+        guard let rpe = RPE(text: rpeText), RPEScalePresentation.scale.contains(rpe) else {
             return nil
         }
         return rpe
