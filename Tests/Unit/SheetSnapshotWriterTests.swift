@@ -95,10 +95,10 @@ private func snapshotWriterGrid(_ cells: [String: String]) -> SheetGrid {
                 week: 1,
                 day: 1,
                 exerciseName: "Squat",
-                setIndex: 1,
+                setIndex: 0,
                 column: .notes,
                 operation: .upsert,
-                valueToWrite: "195x5@9",
+                valueToWrite: "185x5@8",
                 expectedCurrentValue: ""
             ),
             in: planner.snapshot(for: SheetSnapshot(values: grid))
