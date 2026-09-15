@@ -209,36 +209,14 @@ final class SyncCoordinator {
         var tabsCompleted = 0
 
         for tab in tabsToScan {
-            let scan: HistoricalTabScan
-            do {
-                scan = try await Task.detached(priority: .background) {
-                    try await Self.scanHistoricalTab(
-                        spreadsheetId: spreadsheetId,
-                        tab: tab,
-                        client: client,
-                        backoff: backoff
-                    )
-                }.value
-            } catch {
-                // A non-transient error (auth, malformed response) propagated: halt without a
-                // silent skip, leaving the cursor so the next sync resumes at this tab.
-                return
-            }
-
-            guard case let .ingested(occurrences) = scan else {
-                // `.failed`: the transient backoff budget was spent. Halt at this tab — the cursor
-                // still points at the last success, so the next sync resumes here.
-                return
-            }
-
-            if !occurrences.isEmpty {
-                do {
-                    try lastPerformed.ingest(occurrences.map(LastPerformedEntry.init))
-                } catch {
-                    state = .conflict(["Last Performed backfill failed: \(error.localizedDescription)"])
-                    return
-                }
-            }
+            guard
+                case .ingested = await ingestHistoricalTab(
+                    tab,
+                    spreadsheetId: spreadsheetId,
+                    client: client,
+                    backoff: backoff
+                )
+            else { return }
 
             advanceHistoryFillCursor(spreadsheetId: spreadsheetId, to: tab)
             tabsCompleted += 1
@@ -254,6 +232,50 @@ final class SyncCoordinator {
 
         // Tabs exhausted without reaching coverage: a clean finish, so start fresh next sync.
         clearHistoryFillCursor(spreadsheetId: spreadsheetId)
+    }
+
+    /// Whether one historical tab's Last Performed occurrences reached the index.
+    ///
+    /// Anything short of `.ingested` halts the fill rather than skipping the tab (ADR-0012): the
+    /// cursor still points at the last success, so the next sync resumes here.
+    private enum HistoricalTabIngestion {
+        case ingested
+        case halted
+    }
+
+    private func ingestHistoricalTab(
+        _ tab: String,
+        spreadsheetId: String,
+        client: any SheetsClient,
+        backoff: SheetsBackoff
+    ) async -> HistoricalTabIngestion {
+        let scan: HistoricalTabScan
+        do {
+            scan = try await Task.detached(priority: .background) {
+                try await Self.scanHistoricalTab(
+                    spreadsheetId: spreadsheetId,
+                    tab: tab,
+                    client: client,
+                    backoff: backoff
+                )
+            }.value
+        } catch {
+            // A non-transient error (auth, malformed response) propagated.
+            return .halted
+        }
+
+        // `.failed`: the transient backoff budget was spent.
+        guard case let .ingested(occurrences) = scan else { return .halted }
+
+        if !occurrences.isEmpty {
+            do {
+                try lastPerformed.ingest(occurrences.map(LastPerformedEntry.init))
+            } catch {
+                state = .conflict(["Last Performed backfill failed: \(error.localizedDescription)"])
+                return .halted
+            }
+        }
+        return .ingested
     }
 
     /// One historical tab's outcome, computed off the main actor.
