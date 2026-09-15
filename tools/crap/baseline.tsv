@@ -12,9 +12,6 @@ WorkoutTracker/Sheets/GoogleSheetsClient.swift	GoogleSheetsClient.valuesGrid(fro
 WorkoutTracker/Sheets/LocalWorkbookSheetsClient.swift	LocalWorkbook.Tab.init(from:)	8.2
 WorkoutTracker/Sheets/LocalWorkbookSheetsClient.swift	LocalWorkbookSheetsClient.applying(_:to:range:)	7.0
 WorkoutTracker/Sheets/LocalWorkbookSheetsClient.swift	LocalWorkbookSheetsClient.parseRange(_:)	7.0
-WorkoutTracker/Sheets/SheetWriter.swift	SheetWritePlanner.compactAggregateHeaderValue(for:target:actual:in:)	11.0
-WorkoutTracker/Sheets/SheetWriter.swift	SheetWritePlanner.multiLineNotesValue(for:target:actual:in:)	7.0
-WorkoutTracker/Sheets/SheetWriter.swift	SheetWritePlanner.resolveTarget(for:in:)	10.0
 WorkoutTracker/Sheets/SheetWriter.swift	SheetWriterError.errorDescription.get	8.0
 WorkoutTracker/Stores/ExerciseSetPendingWriteReplay.swift	ExerciseSet.apply(_:)	7.0
 WorkoutTracker/Stores/SettingsStore.swift	SettingsSheetSwitchStore.requestSwitch(to:)@2	6.1
