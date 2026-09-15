@@ -1,6 +1,6 @@
 file	name	crap
 WorkoutTracker/Fixtures/UITestFixture.swift	UITestFixture.block(for:)	7.0
-WorkoutTracker/Models/SetLog.swift	SetLog.init(formatted:)	9.0
+WorkoutTracker/Models/SetLog.swift	SetLog.init(formatted:)	7.0
 WorkoutTracker/Sheets/SheetWriter.swift	SheetWriterError.errorDescription.get	8.0
 WorkoutTracker/Stores/ExerciseSetPendingWriteReplay.swift	ExerciseSet.apply(_:)	7.0
 WorkoutTracker/Stores/SettingsStore.swift	SettingsSheetSwitchStore.requestSwitch(to:)@2	6.1

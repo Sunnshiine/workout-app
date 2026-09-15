@@ -38,9 +38,7 @@ public enum LoadSuggestionEngine {
     }
 
     private static func isBodyweight(_ prescribedLoad: String) -> Bool {
-        prescribedLoad
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .caseInsensitiveCompare("BW") == .orderedSame
+        Weight(text: prescribedLoad.trimmingCharacters(in: .whitespacesAndNewlines)) == .bodyweight
     }
 
     private static func dropPercent(from prescribedLoad: String) -> Double? {

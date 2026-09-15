@@ -8,6 +8,20 @@ enum Weight: Codable, Sendable, Equatable {
     case bodyweight
     case pounds(Double)
 
+    /// Reads the weight token every entry surface accepts: "BW" in any casing, or a finite
+    /// number of pounds. The token must already be trimmed; callers own their own whitespace
+    /// rules because they slice it out of differently shaped input.
+    init?(text: String) {
+        if text.caseInsensitiveCompare("BW") == .orderedSame {
+            self = .bodyweight
+            return
+        }
+        guard let pounds = Double(text), pounds.isFinite else {
+            return nil
+        }
+        self = .pounds(pounds)
+    }
+
     var label: String {
         switch self {
         case .bodyweight: return "BW"
@@ -44,13 +58,7 @@ struct SetLog: Codable, Sendable, Equatable {
             return nil
         }
 
-        let weightText = setParts[0].trimmingCharacters(in: .whitespaces)
-        let weight: Weight
-        if weightText.caseInsensitiveCompare("BW") == .orderedSame {
-            weight = .bodyweight
-        } else if let pounds = Double(weightText), pounds.isFinite {
-            weight = .pounds(pounds)
-        } else {
+        guard let weight = Weight(text: setParts[0].trimmingCharacters(in: .whitespaces)) else {
             return nil
         }
 
