@@ -40,7 +40,10 @@ extension XCTestCase {
     ) -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = fixture.launchArguments + options.map(\.rawValue) + ["-UITEST_DISABLE_ANIMATIONS"]
+        app.launchArguments =
+            fixture.launchArguments + options.map(\.rawValue) + [
+                "-UITEST_DISABLE_ANIMATIONS", "-UITEST_DISABLE_LIVE_ACTIVITIES"
+            ]
         app.launch()
         return app
     }

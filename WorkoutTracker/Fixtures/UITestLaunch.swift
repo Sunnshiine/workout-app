@@ -42,6 +42,11 @@
 
         var disablesAnimations: Bool { has("-UITEST_DISABLE_ANIMATIONS") }
 
+        /// A Live Activity outlives the test's app process. The next test session's reinstall ends
+        /// it, liveactivitiesd launches the app in the background while Xcode's own launch is
+        /// pending, and SpringBoard kills that instance and hands Xcode no process (#537).
+        var disablesLiveActivities: Bool { has("-UITEST_DISABLE_LIVE_ACTIVITIES") }
+
         var startsWithPendingWrite: Bool { has("-UITEST_PENDING_WRITE") }
 
         var startsInDeveloperTools: Bool { has("-UITEST_DEVELOPER_TOOLS") }

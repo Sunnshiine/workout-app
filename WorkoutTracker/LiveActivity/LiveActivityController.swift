@@ -9,12 +9,21 @@ final class LiveActivityController {
     private var activityID: String?
 
     private(set) var isActive = false
-    private(set) var areActivitiesEnabled = ActivityAuthorizationInfo().areActivitiesEnabled
+    private(set) var areActivitiesEnabled = LiveActivityController.activitiesEnabled
     var lastError: String?
 
     func refreshAuthorizationStatus() {
-        areActivitiesEnabled = ActivityAuthorizationInfo().areActivitiesEnabled
+        areActivitiesEnabled = Self.activitiesEnabled
         isActive = currentActivity != nil
+    }
+
+    private static var activitiesEnabled: Bool {
+        #if DEBUG
+            if UITestFixture.launch.disablesLiveActivities {
+                return false
+            }
+        #endif
+        return ActivityAuthorizationInfo().areActivitiesEnabled
     }
 
     func start(

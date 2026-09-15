@@ -10,6 +10,7 @@ import Testing
         let launch = UITestLaunch(arguments: ["WorkoutTracker"])
 
         #expect(launch.disablesAnimations == false)
+        #expect(launch.disablesLiveActivities == false)
         #expect(launch.startsWithPendingWrite == false)
         #expect(launch.startsInDeveloperTools == false)
         #expect(launch.startsInSettings == false)
@@ -22,6 +23,7 @@ import Testing
 
     @Test func eachLaunchFlagParsesFromItsArgument() {
         #expect(UITestLaunch(arguments: ["-UITEST_DISABLE_ANIMATIONS"]).disablesAnimations)
+        #expect(UITestLaunch(arguments: ["-UITEST_DISABLE_LIVE_ACTIVITIES"]).disablesLiveActivities)
         #expect(UITestLaunch(arguments: ["-UITEST_PENDING_WRITE"]).startsWithPendingWrite)
         #expect(UITestLaunch(arguments: ["-UITEST_DEVELOPER_TOOLS"]).startsInDeveloperTools)
         #expect(UITestLaunch(arguments: ["-UITEST_SETTINGS"]).startsInSettings)
