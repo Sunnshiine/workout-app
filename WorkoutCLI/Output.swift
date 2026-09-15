@@ -7,6 +7,14 @@ enum ExitClass: Int32 {
     case environment = 3
     case conflict = 4
     case internalError = 70
+
+    init(_ kind: ApplicationError.Kind) {
+        switch kind {
+        case .domain: self = .domain
+        case .environment: self = .environment
+        case .conflict: self = .conflict
+        }
+    }
 }
 
 enum CLIError: Error {
@@ -29,7 +37,7 @@ struct Failure {
         switch error {
         case let error as ApplicationError:
             payload = ErrorPayload(code: error.code, message: error.message, candidates: error.candidates)
-            exitClass = Self.exitClass(for: error)
+            exitClass = ExitClass(error.kind)
         case CLIError.environment(let message):
             payload = ErrorPayload(code: "environment", message: message, candidates: nil)
             exitClass = .environment
@@ -49,18 +57,6 @@ struct Failure {
         default:
             payload = ErrorPayload(code: "internal", message: String(describing: error), candidates: nil)
             exitClass = .internalError
-        }
-    }
-
-    private static func exitClass(for error: ApplicationError) -> ExitClass {
-        switch error {
-        case .notConfigured, .sheetSwitchFailed, .syncFailed(.offline), .syncFailed(.idle), .syncFailed(.syncing),
-            .syncFailed(.pendingWrites):
-            .environment
-        case .syncFailed(.conflict):
-            .conflict
-        case .noBlock, .invalidAddress, .invalidSetLog, .notFound, .sessionUnavailable, .sheetSwitchRequiresDiscard:
-            .domain
         }
     }
 }

@@ -1,6 +1,4 @@
 file	name	crap
-WorkoutTracker/App/ApplicationError.swift	ApplicationError.code.get	10.0
-WorkoutTracker/App/ApplicationError.swift	ApplicationError.message.get	10.0
 WorkoutTracker/Fixtures/UITestFixture.swift	UITestFixture.block(for:)	7.0
 WorkoutTracker/Models/SetLog.swift	SetLog.init(formatted:)	9.0
 WorkoutTracker/Parsing/SetLogPlacementNarration.swift	SetLogPlacementResolution.rowScanNarration(setIndex:anchor:)	8.0
