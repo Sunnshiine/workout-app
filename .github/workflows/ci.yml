@@ -1,13 +1,5 @@
 name: CI
 
-# PR gate: `scripts/crap.sh gate` runs the package tests with coverage and the CRAP gate (ADR-0016);
-# `visual-tests` builds every scheme target (the app including Views/, which the
-# library target excludes, the widgets, and the test bundles) and runs the
-# ADR-0007 Visual Regression suite on the pinned simulator — with
-# `.snapshots(record: .never)`, a missing or drifted Visual Baseline fails the
-# job. Both need macOS; visual-tests additionally needs Xcode 27 (Liquid Glass
-# APIs, ADR-0004), which is the xcode-27 default.
-#
 # Note: pushes made with the plain GITHUB_TOKEN do not trigger this workflow
 # (GitHub suppresses token-driven events). Agent workflows check out with
 # AGENT_PAT, so their pushes do trigger it.
@@ -15,9 +7,6 @@ name: CI
 on:
   pull_request:
     branches: [main]
-    # A PR whose every changed file is below skips CI: nothing here reaches the app build or
-    # the package tests. The list names what CI ignores, not what it reads, so a new path
-    # runs CI by default. Pushes to main always run.
     paths-ignore:
       - "**.md"
       - "docs/**"
@@ -63,15 +52,11 @@ jobs:
       - name: Read the Xcode build number
         id: xcode
         run: echo "build=$(xcodebuild -version | awk '/Build version/ {print $3}')" >> "$GITHUB_OUTPUT"
-      # SwiftPM has no compilation cache, so the tests build through xcodebuild, whose cache
-      # replays every compile from the CAS. Hits need the same absolute paths on every run,
-      # which the checkout and runner.temp provide.
       - name: Cache the Swift package checkouts
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/swift-tests/SourcePackages
           key: swift-tests-spm-${{ steps.xcode.outputs.build }}-${{ hashFiles('Package.resolved') }}
-      # Pull requests restore main's cache; only pushes to main save one.
       - name: Restore the compilation cache
         uses: actions/cache/restore@v4
         with:
@@ -92,9 +77,6 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      # Secrets.xcconfig is git-ignored but referenced by the xcodeproj; the
-      # template's placeholder values are enough to build (not to run against
-      # live Google Sheets).
       - name: Create Secrets.xcconfig from template (build-only)
         run: cp Secrets.xcconfig.template Secrets.xcconfig
       # A committed `record: .all` (suite- or test-level) makes every snapshot
@@ -110,16 +92,14 @@ jobs:
       - name: Read the Xcode build number
         id: xcode
         run: echo "build=$(xcodebuild -version | awk '/Build version/ {print $3}')" >> "$GITHUB_OUTPUT"
-      # Pinned paths: compilation cache keys include absolute paths, so DerivedData,
-      # the package checkouts, and the cache itself must sit at the same place on
-      # every runner for a restored cache to hit.
+      # Compilation cache keys embed absolute paths, and Xcode's prefix mapping does not remove
+      # them for this project, so DerivedData, the package checkouts, and the cache stay pinned
+      # under runner.temp. Moving any of them turns every cached compile into a miss.
       - name: Restore package checkouts
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/SourcePackages
           key: spm-${{ steps.xcode.outputs.build }}-${{ hashFiles('WorkoutTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
-      # Pull requests restore main's cache; only pushes to main save one, so PR runs skip the
-      # upload and do not crowd the repository's cache quota.
       - name: Restore the compilation cache
         uses: actions/cache/restore@v4
         with:
