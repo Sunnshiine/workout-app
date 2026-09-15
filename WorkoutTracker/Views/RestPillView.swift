@@ -6,7 +6,7 @@ struct RestPillView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.themePalette) private var palette
-    @State private var hapticPlayer = RestHapticPlayer()
+    @State private var hapticPlayer = HapticPlayer()
     @State private var finalFivePulse = false
     @State private var restartPulse = false
 
@@ -165,7 +165,7 @@ struct RestPillView: View {
     /// bookkeeping.
     private func fireDueHaptics(at now: Date) {
         for event in restTimer.dueHapticEvents(at: now, sceneActive: scenePhase == .active) {
-            hapticPlayer.play(event.kind)
+            hapticPlayer.play(.rest(event.kind))
         }
     }
 
@@ -175,7 +175,7 @@ struct RestPillView: View {
     private func playExpiryHaptics(_ events: [RestHapticEvent]) {
         guard scenePhase == .active else { return }
         for event in events {
-            hapticPlayer.play(event.kind)
+            hapticPlayer.play(.rest(event.kind))
         }
     }
 

@@ -59,7 +59,6 @@
 		9058A166701BFBFEE647C4F6 /* SheetLayoutInterpreter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A355409E05892E8B4C913ED /* SheetLayoutInterpreter.swift */; };
 		A1D0000000000000000000B1 /* SetLogPlacementNarration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1D0000000000000000000F1 /* SetLogPlacementNarration.swift */; };
 		9122D87DAF6F914ABCB3275C /* OnboardingPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31126E1DC357E16E1B75D98D /* OnboardingPresentation.swift */; };
-		956265DB4A42BBF0BB5DAAB3 /* RestHapticPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACF6881367727170008AC93C /* RestHapticPlayer.swift */; };
 		95991E9E161A648AAC3B6691 /* UITestFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02CBDEE06463224167F1FB18 /* UITestFixture.swift */; };
 		A1B2C3D40000000000000902 /* UITestLaunch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000901 /* UITestLaunch.swift */; };
 		981E179B026B8751661D3228 /* SupersetState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A7DE7A3ADF7567E4E60F24E /* SupersetState.swift */; };
@@ -67,7 +66,7 @@
 		A1B2C3D4E5F600000000AB01 /* SessionStageBranch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F600000000AB02 /* SessionStageBranch.swift */; };
 		FEED000000000000000000C2 /* SunbirdColophon.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000C1 /* SunbirdColophon.swift */; };
 		FEED000000000000000000C4 /* PerchedSongbird.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000C3 /* PerchedSongbird.swift */; };
-		FEED000000000000000000C6 /* MoveOnHapticPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000C5 /* MoveOnHapticPlayer.swift */; };
+		FEED000000000000000000C6 /* HapticPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000C5 /* HapticPlayer.swift */; };
 		FEED000000000000000000C8 /* OnboardingConnectPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000C7 /* OnboardingConnectPresentation.swift */; };
 		A02F44FF07FD393EE8A24ADA /* LastPerformedExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBC777FCDEC9F7D51883113F /* LastPerformedExtractor.swift */; };
 		A5B6C7D8E9F001122334455F /* LastPerformedOccurrence.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1E2F3A4B5C6D7E8F9012345 /* LastPerformedOccurrence.swift */; };
@@ -213,7 +212,7 @@
 		A1B2C3D4E5F600000000AB02 /* SessionStageBranch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStageBranch.swift; sourceTree = "<group>"; };
 		FEED000000000000000000C1 /* SunbirdColophon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SunbirdColophon.swift; sourceTree = "<group>"; };
 		FEED000000000000000000C3 /* PerchedSongbird.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerchedSongbird.swift; sourceTree = "<group>"; };
-		FEED000000000000000000C5 /* MoveOnHapticPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveOnHapticPlayer.swift; sourceTree = "<group>"; };
+		FEED000000000000000000C5 /* HapticPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticPlayer.swift; sourceTree = "<group>"; };
 		FEED000000000000000000C7 /* OnboardingConnectPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingConnectPresentation.swift; sourceTree = "<group>"; };
 		501911AD1903F8F78A0957B7 /* OpenExercisesSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenExercisesSection.swift; sourceTree = "<group>"; };
 		51D77DD81D71D5E9E046E80F /* SessionFocusMorphPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionFocusMorphPolicy.swift; sourceTree = "<group>"; };
@@ -249,7 +248,6 @@
 		A2244B0C3FEDB38CFA5D0128 /* SheetGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetGrid.swift; sourceTree = "<group>"; };
 		A532C86E57DD5B6F6FCE9FBD /* LiveActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityController.swift; sourceTree = "<group>"; };
 		ACD0CE14935AD19164A5C62E /* BlockOverviewPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockOverviewPresentation.swift; sourceTree = "<group>"; };
-		ACF6881367727170008AC93C /* RestHapticPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestHapticPlayer.swift; sourceTree = "<group>"; };
 		B1C2D3E4F5061728394A5B6C /* ExerciseHistorySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseHistorySheet.swift; sourceTree = "<group>"; };
 		B76CE1F35E8B066C0FD2E5AD /* WeightPillLayoutMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightPillLayoutMetrics.swift; sourceTree = "<group>"; };
 		BAF4B32774225208D31F362E /* RestDurationSetting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestDurationSetting.swift; sourceTree = "<group>"; };
@@ -451,11 +449,10 @@
 				A1B2C3D4E5F60718293A4B5C /* ExerciseHistorySheetPresentation.swift */,
 				B2C3D4E5F60718293A4B5C6D /* HistoryFillProgressPresentation.swift */,
 				3F6EDFF80291EB8FA87175F3 /* MoveOnCelebrationPresentation.swift */,
-				FEED000000000000000000C5 /* MoveOnHapticPlayer.swift */,
+				FEED000000000000000000C5 /* HapticPlayer.swift */,
 				FEED000000000000000000C7 /* OnboardingConnectPresentation.swift */,
 				31126E1DC357E16E1B75D98D /* OnboardingPresentation.swift */,
 				EA4AD15FD378F46C1F552857 /* OpenExerciseRowPresentation.swift */,
-				ACF6881367727170008AC93C /* RestHapticPlayer.swift */,
 				1396E247C762E3B6CE7A945F /* RestHapticSchedule.swift */,
 				FFBA3AF5C9A8A37438C43F0D /* RestNotificationScheduler.swift */,
 				F1A2B3C4D5E6F7A8B9C0D1E3 /* RestInterval.swift */,
@@ -878,7 +875,6 @@
 				C922073179505394019F37F3 /* PillStepperButton.swift in Sources */,
 				62C47D84D01FC02141D4DDA2 /* RPEScalePresentation.swift in Sources */,
 				E3BF0E131108872ACF22EC6D /* RestDurationSetting.swift in Sources */,
-				956265DB4A42BBF0BB5DAAB3 /* RestHapticPlayer.swift in Sources */,
 				217F85CA4B87806AB31ABF84 /* RestHapticSchedule.swift in Sources */,
 				298DEFE8D99B3F6C97CAAE38 /* RestNotificationScheduler.swift in Sources */,
 				F1A2B3C4D5E6F7A8B9C0D1E2 /* RestInterval.swift in Sources */,
@@ -899,7 +895,7 @@
 				A1B2C3D4E5F600000000AB01 /* SessionStageBranch.swift in Sources */,
 				FEED000000000000000000C2 /* SunbirdColophon.swift in Sources */,
 				FEED000000000000000000C4 /* PerchedSongbird.swift in Sources */,
-				FEED000000000000000000C6 /* MoveOnHapticPlayer.swift in Sources */,
+				FEED000000000000000000C6 /* HapticPlayer.swift in Sources */,
 				FEED000000000000000000C8 /* OnboardingConnectPresentation.swift in Sources */,
 				993CEE6B1CC5F53D2830F6A0 /* SessionStageView.swift in Sources */,
 				C284DB7EB4E8BFC59D3ECBB1 /* SessionTile.swift in Sources */,
