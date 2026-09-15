@@ -25,7 +25,10 @@ scripts/crap.sh --help
 ```
 
 Artifacts land in `.build/crap/`: `coverage.lcov`, `report.json`, and the `swift test` log. The
-baseline lives at `tools/crap/baseline.tsv`.
+baseline lives at `tools/crap/baseline.tsv`. Its fourth column, `reason`, is written by hand: say why
+a row is held above the target (a device probe no headless test can reach, a flat switch whose every
+branch is a distinct message). `crap baseline` keeps the reason while the row survives and drops it
+with the row, so the list never carries a stale excuse.
 
 The script and `swift test --package-path tools/crap` both build this package in debug, so they share
 one build of swift-syntax in `tools/crap/.build`. The first build takes about two minutes; later runs
@@ -131,7 +134,7 @@ where the rules are silent.
 - `newViolation`: measured, `crap > threshold`, not in the baseline. Fails.
 - `worsened`: in the baseline and `crap > recorded + tolerance`. Fails.
 - `stale`: in the baseline but missing from the report, at or below the threshold, or no longer
-  measured. Fails on purpose, so the baseline only ever shrinks. The message names the exact line to
+  measured. Fails on purpose, so the baseline only ever shrinks. The message names the row to
   delete.
 - `improved`: in the baseline, `crap < recorded - tolerance`, and still above the threshold. Printed as
   a note suggesting `scripts/crap.sh baseline`; does not fail.

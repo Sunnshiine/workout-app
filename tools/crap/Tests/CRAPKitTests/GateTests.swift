@@ -99,9 +99,10 @@ private func evaluate(_ report: Report, _ baseline: [BaselineEntry]) -> GateOutc
         #expect(outcome.notes.count == 1)
     }
 
-    @Test func staleMessageNamesTheLineToDelete() {
+    @Test func staleMessageNamesTheRowToDelete() {
         let message = Finding.stale(file: "A.swift", name: "A.f()", recorded: 30.0, reason: .missing).message
-        #expect(message.contains("A.swift\tA.f()\t30.0"))
+        #expect(message.hasPrefix("stale         A.swift  A.f()  baseline records 30.0"))
+        #expect(message.hasSuffix("delete its line from the baseline or rerun scripts/crap.sh baseline"))
     }
 
     @Test func toleranceAbsorbsSmallMovement() {
@@ -114,7 +115,21 @@ private func evaluate(_ report: Report, _ baseline: [BaselineEntry]) -> GateOutc
 
     @Test func baselineRoundTrips() {
         let text = Baseline.render(report: report([("A.f()", 5, 30.04), ("A.g()", 2, 4.0)]), threshold: 12)
-        #expect(text == "file\tname\tcrap\nA.swift\tA.f()\t30.0\n")
+        #expect(text == "file\tname\tcrap\treason\nA.swift\tA.f()\t30.0\t\n")
         #expect(Baseline.parse(text: text) == [BaselineEntry(file: "A.swift", name: "A.f()", crap: 30.0)])
+    }
+
+    @Test func baselineKeepsAReasonWhileItsRowSurvivesAndDropsItWithTheRow() {
+        let prior = [
+            BaselineEntry(file: "A.swift", name: "A.f()", crap: 31.0, reason: "device I/O"),
+            BaselineEntry(file: "A.swift", name: "A.gone()", crap: 20.0, reason: "obsolete")
+        ]
+        let text = Baseline.render(report: report([("A.f()", 5, 30.0), ("A.h()", 4, 14.0)]), threshold: 12, carrying: prior)
+        #expect(text == "file\tname\tcrap\treason\nA.swift\tA.f()\t30.0\tdevice I/O\nA.swift\tA.h()\t14.0\t\n")
+    }
+
+    @Test func baselineWrittenBeforeTheReasonColumnStillParses() {
+        let entries = Baseline.parse(text: "file\tname\tcrap\nA.swift\tA.f()\t30.0\n")
+        #expect(entries == [BaselineEntry(file: "A.swift", name: "A.f()", crap: 30.0, reason: "")])
     }
 }

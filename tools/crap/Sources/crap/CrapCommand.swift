@@ -116,7 +116,8 @@ struct BaselineCommand: ParsableCommand {
 
     func run() throws {
         let decoded = try JSONDecoder().decode(Report.self, from: Data(contentsOf: URL(fileURLWithPath: report)))
-        let text = Baseline.render(report: decoded, threshold: threshold)
+        let prior = (try? String(contentsOfFile: write, encoding: .utf8)).map(Baseline.parse(text:)) ?? []
+        let text = Baseline.render(report: decoded, threshold: threshold, carrying: prior)
         try text.write(to: URL(fileURLWithPath: write), atomically: true, encoding: .utf8)
         print("wrote \(text.split(separator: "\n").count - 1) baselined functions to \(write)")
     }
