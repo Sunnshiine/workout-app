@@ -2,7 +2,6 @@ file	name	crap
 WorkoutTracker/Models/SetLog.swift	SetLog.init(formatted:)	7.0
 WorkoutTracker/Sheets/SheetWriter.swift	SheetWriterError.errorDescription.get	8.0
 WorkoutTracker/Stores/ExerciseSetPendingWriteReplay.swift	ExerciseSet.apply(_:)	7.0
-WorkoutTracker/Stores/SettingsStore.swift	SettingsSheetSwitchStore.requestSwitch(to:)@2	6.1
 WorkoutTracker/Stores/SyncCoordinator.swift	SyncCoordinator.backfillLastPerformed(spreadsheetId:currentBlock:historicalTabs:)	9.0
 WorkoutTracker/Stores/SyncCoordinator.swift	SyncCoordinator.flushPending(spreadsheetId:)	7.0
 WorkoutTracker/Stores/SyncCoordinator.swift	SyncCoordinator.flushPendingWrites(_:context:)	8.0
