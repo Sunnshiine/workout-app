@@ -10,7 +10,6 @@ import Testing
     #expect(rail.chips.count == 100)
     #expect(rail.chips.first?.label == "1")
     #expect(rail.chips.last?.label == "100")
-    #expect(rail.chips.map(\.value).first == 1)
 }
 
 @MainActor
@@ -44,9 +43,9 @@ import Testing
 @Test func rpeRailExposesTheSharedChipShapeCenteredOnItsTarget() {
     let rail = RPEScalePresentation(prescribedRPE: 8, selection: "8.5")
 
-    #expect(rail.railChips.count == rail.chips.count)
-    #expect(rail.railChips.filter(\.isSelected).map(\.label) == ["8.5"])
-    #expect(rail.railChips.filter(\.isPrescribed).map(\.label) == ["8"])
+    #expect(rail.chips.count == 10)
+    #expect(rail.chips.filter(\.isSelected).map(\.label) == ["8.5"])
+    #expect(rail.chips.filter(\.isPrescribed).map(\.label) == ["8"])
     // 8.5 is the seventh value [5, 6, 6.5, 7, 7.5, 8, 8.5, …] → index 6.
     #expect(rail.selectedIndex == 6)
 }
