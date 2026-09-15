@@ -13,6 +13,20 @@ Coverage counts only lines `swift test` executes. A test that covers a function 
 its callers use is the intended way to lower a score; a test that calls internals to paint lines green
 is not, and neither is a split that produces functions without a name a reader would look for.
 
+## Flaky Tests
+
+A test passes every time or it is a defect. `scripts/flake-hunt.sh [--repetitions N] [FILTER]` repeats
+`swift test` until a failure while busy loops hold every core, which surfaces a timing race within a few
+hundred repetitions. Run it on any test that awaits concurrent work before you commit that test.
+
+Two shapes caused every flake found so far, and neither survives the hunt:
+
+- A fixed number of `Task.yield()` calls before asserting on work another task does. The runtime does not
+  promise that ordering. Have the fake resume the test after the work runs, as
+  `ManualSessionTransitionClock.advance()` does.
+- A wall-clock budget, such as polling for 10 seconds. Under load the budget runs out, the test returns,
+  and a task it started keeps running against torn-down state. Await the event or the task instead.
+
 ## AI-Generated Code Gate
 
 The acceptance gate prioritizes behavior correctness first. Simulator user-flow tests protect the

@@ -18,6 +18,9 @@ swift test
 # One behavior, about a second: filter to the suite that covers it
 swift test --filter ActiveSetFocusManagerTests
 
+# Prove a concurrent test is not flaky: repeat it under full CPU load (docs/TESTING.md, Flaky Tests)
+scripts/flake-hunt.sh --repetitions 1000 SyncCoordinatorTests
+
 # Simulator suites: one build, then every requested suite from the xctestrun file
 scripts/test-sim.sh unit            # hosted unit + component (adds the UIKit-only tests)
 scripts/test-sim.sh visual          # snapshot gate (ADR-0007)
