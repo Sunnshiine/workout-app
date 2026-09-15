@@ -224,6 +224,34 @@ import Testing
 }
 
 @MainActor
+@Test func loggedHalfPointRPEPrefillsWithItsDecimalLabel() {
+    let loggedSet = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .logged)
+    loggedSet.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: 6.5)
+
+    let form = SmartValuePillsForm(set: loggedSet, previousSetWeight: nil, trainingMax: nil)
+
+    #expect(form.rpeText == "6.5")
+    #expect(form.logButtonTitle == "Log 185 × 5 @6.5")
+}
+
+@MainActor
+@Test func prescribedRPEPrefillReadsTheRPEPrefixInAnyCasingAndSpacing() {
+    func prefill(_ prescribedLoad: String) -> String {
+        SmartValuePillsForm(
+            set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: prescribedLoad, percentOneRM: nil, state: .pending),
+            previousSetWeight: nil,
+            trainingMax: nil
+        ).rpeText
+    }
+
+    #expect(prefill("RPE6") == "6")
+    #expect(prefill(" rpe 8 ") == "8")
+    #expect(prefill("RPE 6.5") == "")
+    #expect(prefill("Drop 10%") == "")
+    #expect(prefill("BW") == "")
+}
+
+@MainActor
 @Test func submittingInvalidLogMarksInvalidFieldsWithoutProducingLog() {
     var form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "AMRAP", prescribedLoad: "75%1RM", percentOneRM: nil, state: .pending),
@@ -266,6 +294,9 @@ import Testing
     #expect(form.makeLog() == nil)
     #expect(form.invalidFields == [.reps])
     form.repsText = "8"
+
+    form.rpeText = "5.5"
+    #expect(form.makeLog() == SetLog(weight: .pounds(182.5), reps: 8, rpe: 5.5))
 
     form.rpeText = "4.5"
     #expect(form.makeLog() == nil)

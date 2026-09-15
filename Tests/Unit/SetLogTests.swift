@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import WorkoutTracker
@@ -8,6 +9,27 @@ import Testing
 
     let bw = SetLog(weight: .bodyweight, reps: 12, rpe: 7)
     #expect(bw.formatted == "BWx12@7")
+}
+
+@Test func setLogFormatsHalfPointRPEWithItsDecimalAndWholePointWithout() {
+    #expect(SetLog(weight: .pounds(185), reps: 5, rpe: 8.5).formatted == "185x5@8.5")
+    #expect(SetLog(formatted: "185x5@8.0")?.formatted == "185x5@8")
+}
+
+@Test func setLogParsingKeepsOffScaleRecordedRPE() {
+    #expect(SetLog(formatted: "185x7@4") == SetLog(weight: .pounds(185), reps: 7, rpe: 4))
+    #expect(SetLog(formatted: "185x7@7.25")?.formatted == "185x7@7.25")
+    #expect(SetLog(formatted: "185x7@nan") == nil)
+    #expect(SetLog(formatted: "185x7@inf") == nil)
+}
+
+@Test func setLogDecodesPersistedJSONAndEncodesRPEAsABareNumber() throws {
+    let persisted = Data(#"{"weight":{"pounds":{"_0":185}},"reps":5,"rpe":8.5}"#.utf8)
+    #expect(try JSONDecoder().decode(SetLog.self, from: persisted) == SetLog(weight: .pounds(185), reps: 5, rpe: 8.5))
+
+    let encoded = try JSONEncoder().encode(SetLog(weight: .bodyweight, reps: 12, rpe: 7))
+    let object = try #require(try JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+    #expect(object["rpe"] as? Double == 7)
 }
 
 @Test func weightDropsTrailingZero() {

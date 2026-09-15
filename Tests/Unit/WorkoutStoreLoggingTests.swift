@@ -153,6 +153,20 @@ private func seededStore(now: @escaping @MainActor () -> Date) throws -> SeededL
 }
 
 @MainActor
+@Test func halfPointLastSetRPEWritesAndDeletesWithItsDecimalLabel() throws {
+    let fixture = try seededStore()
+    withExtendedLifetime(fixture.container) {}
+    let finalSet = try #require(fixture.firstSet.exercise?.sets.first { $0.index == 1 })
+
+    try fixture.store.log(finalSet, as: SetLog(weight: .pounds(195), reps: 5, rpe: 9.5))
+    try fixture.store.deleteLog(for: finalSet)
+
+    let lastSetRPEWrites = try fixture.context.fetch(FetchDescriptor<PendingWrite>()).filter { $0.column == .lastSetRPE }
+    #expect(lastSetRPEWrites.map(\.valueToWrite) == ["9.5", nil])
+    #expect(lastSetRPEWrites.map(\.expectedCurrentValue) == ["", "9.5"])
+}
+
+@MainActor
 @Test func editingLoggedSetQueuesWriteLockedToPreviousSetLog() throws {
     let fixture = try seededStore()
     withExtendedLifetime(fixture.container) {}
