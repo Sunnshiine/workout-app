@@ -84,7 +84,7 @@ private final class SpySessionLiveActivityAdapter: SessionLiveActivityAdapter {
 @MainActor
 private final class ManualSessionTransitionClock: SessionTransitionClock {
     private(set) var sleptDurations: [Duration] = []
-    private var sleepContinuations: [CheckedContinuation<Void, Never>] = []
+    private var sleepContinuations: [CheckedContinuation<CheckedContinuation<Void, Never>, Never>] = []
     private var sleepWaiters: [CheckedContinuation<Void, Never>] = []
 
     func sleep(for duration: Duration) async {
@@ -93,9 +93,13 @@ private final class ManualSessionTransitionClock: SessionTransitionClock {
         sleepWaiters = []
         waiters.forEach { $0.resume() }
 
-        await withCheckedContinuation { continuation in
+        let advancer = await withCheckedContinuation { continuation in
             sleepContinuations.append(continuation)
         }
+        // The caller's code after `sleep` finishes on the main actor before the advancer can run, so
+        // `advance()` returns only after the woken transition applied. A single `Task.yield()` does not
+        // guarantee that ordering and lost the race under CPU load.
+        advancer.resume()
     }
 
     func waitForSleep() async {
@@ -106,10 +110,14 @@ private final class ManualSessionTransitionClock: SessionTransitionClock {
         }
     }
 
-    func advance() {
+    func advance() async {
         let continuations = sleepContinuations
         sleepContinuations = []
-        continuations.forEach { $0.resume() }
+        for continuation in continuations {
+            await withCheckedContinuation { advancer in
+                continuation.resume(returning: advancer)
+            }
+        }
     }
 }
 
@@ -536,8 +544,7 @@ private func makeRestActionFixture(
     #expect(clock.sleptDurations == [expectedDuration])
     #expect(coordinator.supersetSections(in: session).isEmpty)
 
-    clock.advance()
-    await Task.yield()
+    await clock.advance()
 
     #expect(coordinator.pairingMode == .inactive)
     #expect(coordinator.activeSetID == initialActiveSetID)
@@ -1365,8 +1372,7 @@ private func makeRestActionFixture(
     #expect(fixture.coordinator.retiringTransition == transition)
     #expect(fixture.coordinator.activeSetTransition == transition)
 
-    fixture.clock.advance()
-    await Task.yield()
+    await fixture.clock.advance()
 
     #expect(fixture.coordinator.retiringTransition == nil)
     #expect(fixture.coordinator.activeSetTransition == nil)
