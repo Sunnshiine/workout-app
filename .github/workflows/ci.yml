@@ -59,14 +59,11 @@ jobs:
             echo "::error::Committed .snapshots(record: .all) found — this disarms the Visual Regression gate. Revert to record: .never."
             exit 1
           fi
-      - name: "lab: time a cold and a warm simulator boot"
+      - name: "lab: sample CPU and list simulator caches"
         run: |
-          udid=$(xcrun simctl list devices available -j | jq -r '.devices["com.apple.CoreSimulator.SimRuntime.iOS-27-0"][]? | select(.name == "iPhone 17 Pro") | .udid' | head -1)
-          echo "udid $udid"
-          t=$(date +%s); xcrun simctl bootstatus "$udid" -b | tail -2; echo "lab cold boot $(( $(date +%s) - t ))s"
-          t=$(date +%s); xcrun simctl shutdown "$udid"; echo "lab shutdown $(( $(date +%s) - t ))s"
-          t=$(date +%s); tar -cf - -C ~/Library/Developer/CoreSimulator/Devices "$udid" 2>/dev/null | zstd -T0 -3 -q > "$RUNNER_TEMP/device.tar.zst" || true; echo "lab tar+zstd $(( $(date +%s) - t ))s $(ls -l "$RUNNER_TEMP/device.tar.zst" | awk '{print $5}') bytes"
-          t=$(date +%s); xcrun simctl bootstatus "$udid" -b | tail -2; echo "lab warm boot $(( $(date +%s) - t ))s"
+          nohup bash -c 'while true; do echo "== $(date +%T)"; ps -Ao pcpu,rss,comm -r | head -6 | cut -c1-140; sleep 10; done' > "$RUNNER_TEMP/cpu.log" 2>&1 &
+          ls -la /Library/Developer/CoreSimulator/Caches/dyld/ /Library/Developer/CoreSimulator/Caches/dyld/* 2>&1 || true
+          xcrun simctl runtime list 2>&1 || true
       - name: Read the Xcode build number
         id: xcode
         run: echo "build=$(xcodebuild -version | awk '/Build version/ {print $3}')" >> "$GITHUB_OUTPUT"
@@ -108,6 +105,9 @@ jobs:
             COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache" \
             COMPILATION_CACHE_ENABLE_DIAGNOSTIC_REMARKS=YES \
             TEST_RUNNER_SNAPSHOT_ARTIFACTS="$PWD/snapshot-diffs"
+      - name: "lab: print CPU samples"
+        if: always()
+        run: sed 's/^/cpu| /' "$RUNNER_TEMP/cpu.log"
       - name: Upload Visual Baseline diffs
         if: failure()
         uses: actions/upload-artifact@v4
