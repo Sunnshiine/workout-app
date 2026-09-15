@@ -2,7 +2,8 @@
 
 ## Change Risk Gate
 
-`scripts/crap.sh gate` runs in the `swift-tests` CI job. It runs `swift test --enable-code-coverage`,
+`scripts/crap.sh gate` runs in the `swift-tests` CI job. CI passes `--xcodebuild`, which runs the same
+package tests through xcodebuild's compilation cache instead of `swift test --enable-code-coverage`. It
 scores every production function in the headless scope with CRAP (`cc^2 * (1 - coverage)^3 + cc`),
 and fails when a function not in `tools/crap/baseline.tsv` scores above 6, when a baselined function
 scores above its recorded value, or when a baseline row no longer applies. After lowering a score, run
