@@ -38,42 +38,58 @@ enum LastPerformedExtractor {
     /// The Last Performed display text for one Exercise as logged in a Session (ADR-0012), or nil
     /// when the occurrence earns no entry.
     ///
-    /// Structured Set Logs, Unstructured Set Logs, and `skip` markers all render inline in Set
-    /// order: a structured log is its formatted string, an Unstructured Set Log is the raw entered
-    /// text (never normalized — ADR-0005), a Skipped Set is the `skip` sentinel. Pending Sets and
-    /// legacy-completion placeholder Sets (Logged with no content) carry no evidence and drop out.
-    ///
-    /// An entry is earned only when at least one Set is actually Logged: a fully Skipped occurrence
-    /// (only `skip` tokens, no logged Set) earns none — even if a stale Legacy Log lingers on the
-    /// Exercise. The Legacy Log is the fallback only for a truly empty occurrence (no set-level
-    /// activity at all — the pre-structured-Set format), so an actively-Skipped Session never
-    /// resurrects old free text as evidence.
+    /// Logged evidence beats skip beats the Legacy Log. An entry is earned only when at least one
+    /// Set is actually Logged: a fully Skipped occurrence earns none even if a stale Legacy Log
+    /// lingers on the Exercise, so an actively-Skipped Session never resurrects old free text. The
+    /// Legacy Log is the fallback only for a truly empty occurrence (no set-level activity at all —
+    /// the pre-structured-Set format).
     private static func displayText(for exercise: ParsedExercise) -> String? {
-        var tokens: [String] = []
-        var hasLoggedEvidence = false
+        let evidence = exercise.sets
+            .sorted { $0.index < $1.index }
+            .compactMap(\.lastPerformedEvidence)
 
-        for set in exercise.sets.sorted(by: { $0.index < $1.index }) {
-            if let setLog = set.setLog {
-                tokens.append(setLog.formatted)
-                hasLoggedEvidence = true
-            } else if set.state == .logged,
-                let text = set.unstructuredSetLog?.trimmingCharacters(in: .whitespacesAndNewlines),
-                !text.isEmpty {
-                tokens.append(text)
-                hasLoggedEvidence = true
-            } else if set.state == .skipped {
-                tokens.append(SetLogToken.skipSentinel)
-            }
+        if evidence.contains(where: \.isLogged) {
+            return evidence.map(\.token).joined(separator: ", ")
         }
 
-        if hasLoggedEvidence {
-            return tokens.joined(separator: ", ")
-        }
-
-        // Only a truly empty occurrence (no logged, unstructured, or `skip` tokens) falls back to
-        // the Legacy Log. A non-empty `tokens` with no logged evidence means the Session was
-        // actively Skipped, which earns no entry.
-        guard tokens.isEmpty, let legacyLog = exercise.legacyLog else { return nil }
+        guard evidence.isEmpty, let legacyLog = exercise.legacyLog else { return nil }
         return legacyLog
+    }
+}
+
+/// What one Set contributes to a Last Performed line (ADR-0012). Absence of evidence is `nil`:
+/// a Pending Set and a legacy-completion placeholder Set (Logged with no content) contribute
+/// nothing at all.
+enum LastPerformedSetEvidence: Equatable, Sendable {
+    /// A Structured Set Log formatted, or an Unstructured Set Log as the athlete entered it
+    /// (never normalized — ADR-0005).
+    case logged(String)
+    case skipped
+
+    /// The inline token this Set renders as, in Set order.
+    var token: String {
+        switch self {
+        case .logged(let text): text
+        case .skipped: SetLogToken.skipSentinel
+        }
+    }
+
+    /// Only a Logged Set earns the occurrence an entry; a `skip` renders but does not.
+    var isLogged: Bool {
+        if case .logged = self { return true }
+        return false
+    }
+}
+
+extension ParsedSet {
+    var lastPerformedEvidence: LastPerformedSetEvidence? {
+        if let setLog { return .logged(setLog.formatted) }
+        if state == .logged,
+            let text = unstructuredSetLog?.trimmingCharacters(in: .whitespacesAndNewlines),
+            !text.isEmpty
+        {
+            return .logged(text)
+        }
+        return state == .skipped ? .skipped : nil
     }
 }
