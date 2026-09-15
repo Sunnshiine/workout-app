@@ -1,5 +1,4 @@
 file	name	crap
 WorkoutTracker/Sheets/SheetWriter.swift	SheetWriterError.errorDescription.get	8.0
-WorkoutTracker/Stores/ExerciseSetPendingWriteReplay.swift	ExerciseSet.apply(_:)	7.0
 WorkoutTracker/Stores/SyncCoordinator.swift	SyncCoordinator.flushPendingWrites(_:context:)	7.0
 WorkoutTracker/Stores/SyncStatusBannerPresentation.swift	SyncStatusBannerPresentation.init(state:)	7.0

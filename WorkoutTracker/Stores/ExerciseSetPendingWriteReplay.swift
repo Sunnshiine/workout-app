@@ -4,29 +4,33 @@ extension ExerciseSet {
     /// Replays a still-queued Notes write onto this Set so a log the coach has not flushed yet does
     /// not vanish when a freshly parsed Block replaces the persisted one.
     ///
-    /// A `.delete` deliberately leaves `unstructuredSetLog` alone; only `setLog` and `loggedAt` clear.
+    /// Only two tokens move the Set: the skip sentinel and a value that parses as a Set Log. Free
+    /// text the parser reads as logged-but-unstructured leaves the Set where it is, as does an
+    /// empty value.
     @MainActor
     func apply(_ write: PendingWrite) {
         if write.operation == .delete {
-            state = .pending
-            setLog = nil
-            loggedAt = nil
-            return
+            return clearLog(leaving: .pending)
         }
         guard let value = write.valueToWrite else { return }
         let classification = SetLogToken.classify(value)
-        switch classification.state {
-        case .skipped:
-            state = .skipped
-            setLog = nil
-            loggedAt = nil
-        case .logged:
-            if let log = classification.setLog {
-                state = .logged
-                setLog = log
-            }
-        case .pending:
+        switch (classification.state, classification.setLog) {
+        case (.skipped, _):
+            clearLog(leaving: .skipped)
+        case (.logged, let log?):
+            state = .logged
+            setLog = log
+        case (.logged, nil), (.pending, _):
             break
         }
+    }
+
+    /// `unstructuredSetLog` deliberately survives: the coach's own free text in the Notes cell is
+    /// not this replay's to erase.
+    @MainActor
+    private func clearLog(leaving state: SetState) {
+        self.state = state
+        setLog = nil
+        loggedAt = nil
     }
 }
