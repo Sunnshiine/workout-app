@@ -93,22 +93,30 @@ extension SetLogPlacementNarration {
     }
 }
 
+extension SetLogPlacement {
+    /// The audit story for this resolved placement: one narration per `SetLogPlacementKind`, so a
+    /// new addressing rule cannot ship without one.
+    func rowScanNarration(setIndex: Int, anchor: SheetLayoutExerciseAnchor) -> SetLogPlacementNarration {
+        switch kind {
+        case .multiLinePrescriptionLine:
+            .multiLinePrescriptionLine(row: row, listPosition: listPosition)
+        case .compactHeaderList:
+            .compactHeaderList(anchor: anchor)
+        case .protectedHeaderVisibleWritableRow:
+            .protectedHeaderVisibleWritableRow(anchor: anchor)
+        case .visibleSetLogRow:
+            .visibleSetLogRow(setIndex: setIndex, anchor: anchor)
+        }
+    }
+}
+
 extension SetLogPlacementResolution {
     /// The audit story for this placement decision. An unresolved outcome narrates the scan that
     /// failed, so "where would it have gone?" and "why did nothing get selected?" share one answer.
     func rowScanNarration(setIndex: Int, anchor: SheetLayoutExerciseAnchor) -> SetLogPlacementNarration {
         switch self {
         case .placed(let placement):
-            switch placement.kind {
-            case .multiLinePrescriptionLine:
-                .multiLinePrescriptionLine(row: placement.row, listPosition: placement.listPosition)
-            case .compactHeaderList:
-                .compactHeaderList(anchor: anchor)
-            case .protectedHeaderVisibleWritableRow:
-                .protectedHeaderVisibleWritableRow(anchor: anchor)
-            case .visibleSetLogRow:
-                .visibleSetLogRow(setIndex: setIndex, anchor: anchor)
-            }
+            placement.rowScanNarration(setIndex: setIndex, anchor: anchor)
         case .protectedHeaderBlocksSetRow:
             .protectedHeaderVisibleWritableRow(anchor: anchor)
         case .setRowNotFound, .notesColumnMissing:
