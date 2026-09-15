@@ -88,7 +88,24 @@ xcrun simctl boot "$udid"
 xcrun simctl bootstatus "$udid" >/dev/null
 echo "booted $DEVICE ($udid) in $(($(date +%s) - start))s"
 
+# Every simctl spawn is slow on a saturated runner, so the jobs that ship a plist go out in one
+# launchctl call; only the rest (app-hosted services such as PosterBoard) need a call each.
+root=$(xcrun simctl list runtimes -j |
+    jq -r --arg runtime "$RUNTIME" '.runtimes[] | select(.identifier == $runtime) | .runtimeRoot')
+plists=()
+labels=()
+for job in "${BACKGROUND_JOBS[@]}"; do
+    plist="$root/System/Library/LaunchDaemons/$job.plist"
+    if [[ -f $plist ]]; then
+        plists+=("$plist")
+    else
+        labels+=("$job")
+    fi
+done
+
 start=$(date +%s)
-printf '%s\n' "${BACKGROUND_JOBS[@]}" |
-    xargs -P 6 -I {} xcrun simctl spawn "$udid" launchctl bootout "system/{}" 2>/dev/null || true
+xcrun simctl spawn "$udid" launchctl bootout system "${plists[@]}" 2>/dev/null || true
+for job in "${labels[@]}"; do
+    xcrun simctl spawn "$udid" launchctl bootout "system/$job" 2>/dev/null || true
+done
 echo "booted out ${#BACKGROUND_JOBS[@]} background jobs in $(($(date +%s) - start))s"
