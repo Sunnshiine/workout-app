@@ -63,11 +63,10 @@ jobs:
         run: |
           udid=$(xcrun simctl list devices available -j | jq -r '.devices["com.apple.CoreSimulator.SimRuntime.iOS-27-0"][]? | select(.name == "iPhone 17 Pro") | .udid' | head -1)
           echo "udid $udid"
-          t=$(date +%s); xcrun simctl bootstatus "$udid" -b | tail -4; echo "lab cold boot $(( $(date +%s) - t ))s"
-          du -sh ~/Library/Developer/CoreSimulator/Devices/"$udid"
+          t=$(date +%s); xcrun simctl bootstatus "$udid" -b | tail -2; echo "lab cold boot $(( $(date +%s) - t ))s"
           t=$(date +%s); xcrun simctl shutdown "$udid"; echo "lab shutdown $(( $(date +%s) - t ))s"
-          du -sh ~/Library/Developer/CoreSimulator/Devices/"$udid"
-          t=$(date +%s); xcrun simctl bootstatus "$udid" -b | tail -4; echo "lab warm boot $(( $(date +%s) - t ))s"
+          t=$(date +%s); tar -cf - -C ~/Library/Developer/CoreSimulator/Devices "$udid" 2>/dev/null | zstd -T0 -3 -q > "$RUNNER_TEMP/device.tar.zst" || true; echo "lab tar+zstd $(( $(date +%s) - t ))s $(ls -l "$RUNNER_TEMP/device.tar.zst" | awk '{print $5}') bytes"
+          t=$(date +%s); xcrun simctl bootstatus "$udid" -b | tail -2; echo "lab warm boot $(( $(date +%s) - t ))s"
       - name: Read the Xcode build number
         id: xcode
         run: echo "build=$(xcodebuild -version | awk '/Build version/ {print $3}')" >> "$GITHUB_OUTPUT"
