@@ -271,7 +271,7 @@ import Testing
 }
 
 @MainActor
-@Test func logFormAcceptsOnlyBodyweightOrFiniteWeightIntegerRepsAndFiveToTenHalfStepRPE() {
+@Test func logFormAcceptsOnlyBodyweightOrFiniteWeightIntegerRepsAndRailPointRPE() {
     var form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "BW", percentOneRM: nil, state: .pending),
         previousSetWeight: nil,
@@ -296,7 +296,8 @@ import Testing
     form.repsText = "8"
 
     form.rpeText = "5.5"
-    #expect(form.makeLog() == SetLog(weight: .pounds(182.5), reps: 8, rpe: 5.5))
+    #expect(form.makeLog() == nil)
+    #expect(form.invalidFields == [.rpe])
 
     form.rpeText = "4.5"
     #expect(form.makeLog() == nil)

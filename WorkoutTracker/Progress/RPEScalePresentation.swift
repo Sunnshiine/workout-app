@@ -50,7 +50,7 @@ enum ValueRailLayout {
 /// changes height, so the Log capsule keeps a fixed Y — the rail is the whole
 /// RPE control.
 struct RPEScalePresentation: Equatable, Sendable {
-    /// The points the athlete may pick (DESIGN.md §5.2).
+    /// The points the athlete may pick (DESIGN.md §5.2); the logging form accepts only these.
     static let scale: [RPE] = [5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10]
     private static let defaultCenter: RPE = 8
 
