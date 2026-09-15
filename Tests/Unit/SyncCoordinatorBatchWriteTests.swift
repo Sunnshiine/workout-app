@@ -200,7 +200,7 @@ private func batchPendingWrite(
 @Test func selectedTargetConflictRecordsWriterReportedValueCheck() async throws {
     let container = try makeBatchContainer()
     let ctx = container.mainContext
-    ctx.insert(batchPendingWrite(createdAt: 1, setIndex: 1, valueToWrite: "195x5@9"))
+    ctx.insert(batchPendingWrite(createdAt: 1))
     try ctx.save()
     let client = BatchFlushStubClient(
         grid: coachNoteHiddenContinuationGrid(firstVisibleLog: "coach edited"),

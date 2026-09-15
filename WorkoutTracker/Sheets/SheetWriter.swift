@@ -154,11 +154,6 @@ extension SetLogList {
         }
         setToken(value, at: position)
     }
-
-    /// Whether every token is a Set-Log value. An empty cell qualifies; coach content does not.
-    var holdsOnlySetLogValues: Bool {
-        tokens.allSatisfy(SetLogToken.isSetLogListValue)
-    }
 }
 
 struct SheetWritePlanningSnapshot: Sendable {
@@ -299,10 +294,6 @@ struct SheetWritePlanner: Sendable {
         else { return nil }
 
         var list = SetLogList(cell: actual)
-        // A redirected row is only this Exercise's list while it holds nothing else (ADR-0003).
-        if placement.kind == .protectedHeaderVisibleWritableRow, !list.holdsOnlySetLogValues {
-            throw SheetWriterError.unexpectedCurrentValue(expected: request.expectedCurrentValue, actual: actual)
-        }
         try list.replaceToken(at: position, expecting: request.expectedCurrentValue, with: request.writtenValue)
         return list.cellValue
     }
