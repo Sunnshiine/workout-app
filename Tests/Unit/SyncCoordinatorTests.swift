@@ -454,7 +454,6 @@ private func loggedSquatGrid() -> SheetGrid {
         lastPerformed: backfillCompletion
     )
 
-    // Block 26 stays suspended until the release below, so a sync that awaited the backfill never returns.
     await sync.sync(spreadsheetId: "sid")
 
     #expect(sync.state == .idle)

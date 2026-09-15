@@ -84,7 +84,7 @@ private final class SpySessionLiveActivityAdapter: SessionLiveActivityAdapter {
 @MainActor
 private final class ManualSessionTransitionClock: SessionTransitionClock {
     private(set) var sleptDurations: [Duration] = []
-    private var sleepContinuations: [CheckedContinuation<CheckedContinuation<Void, Never>, Never>] = []
+    private var sleepers: [CheckedContinuation<CheckedContinuation<Void, Never>, Never>] = []
     private var sleepWaiters: [CheckedContinuation<Void, Never>] = []
 
     func sleep(for duration: Duration) async {
@@ -93,13 +93,10 @@ private final class ManualSessionTransitionClock: SessionTransitionClock {
         sleepWaiters = []
         waiters.forEach { $0.resume() }
 
-        let advancer = await withCheckedContinuation { continuation in
-            sleepContinuations.append(continuation)
+        let returnFromAdvanceAfterCallerRuns = await withCheckedContinuation { sleeper in
+            sleepers.append(sleeper)
         }
-        // The caller's code after `sleep` finishes on the main actor before the advancer can run, so
-        // `advance()` returns only after the woken transition applied. A single `Task.yield()` does not
-        // guarantee that ordering and lost the race under CPU load.
-        advancer.resume()
+        returnFromAdvanceAfterCallerRuns.resume()
     }
 
     func waitForSleep() async {
@@ -111,11 +108,11 @@ private final class ManualSessionTransitionClock: SessionTransitionClock {
     }
 
     func advance() async {
-        let continuations = sleepContinuations
-        sleepContinuations = []
-        for continuation in continuations {
-            await withCheckedContinuation { advancer in
-                continuation.resume(returning: advancer)
+        let wokenSleepers = sleepers
+        sleepers = []
+        for sleeper in wokenSleepers {
+            await withCheckedContinuation { returnFromAdvance in
+                sleeper.resume(returning: returnFromAdvance)
             }
         }
     }
