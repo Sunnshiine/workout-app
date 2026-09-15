@@ -109,7 +109,7 @@ struct ExerciseHistorySheetVisualTests {
             ExerciseHistorySheet(
                 presentation: presentation,
                 fillProgress: HistoryFillProgressPresentation(
-                    LastPerformedBackfillProgress(tab: "Block 26", tabsCompleted: 1, tabsToScan: 3)
+                    ExerciseHistoryFill.Progress(tab: "Block 26", tabsCompleted: 1, tabsToScan: 3)
                 )
             )
         }

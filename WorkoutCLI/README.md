@@ -108,5 +108,5 @@ line: `skip` (`WorkoutStore.skip`), `delete-log` (`WorkoutStore.deleteLog(for:)`
 `discard-writes` (`SyncCoordinator.discardPendingWrites`). Add a scenario by adding a case to
 `WorkbookScenario`; the scenario test requires it to parse with no warnings.
 
-The Last Performed backfill runs as a fire-and-forget task after a multi-tab sync; a CLI process
+The Exercise History fill runs as a fire-and-forget task after a multi-tab sync; a CLI process
 exits before it runs, so scenarios in this slice have one tab. See ADR-0015.

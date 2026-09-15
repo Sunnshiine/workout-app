@@ -20,3 +20,11 @@ import Testing
 
     #expect(sortedHistoricalTabs(from: titles, excluding: "Block 27") == ["Block - 26", "Block 3", "Block 1"])
 }
+
+@Test func historicalTabsDeeperThanACursorDropTheCursorAndEverythingNewer() {
+    let titles = ["Intro", "Block 24", "Block 25", "Block 26", "Block 27"]
+
+    #expect(sortedHistoricalTabs(from: titles, excluding: "Block 27", deeperThan: "Block 26") == ["Block 25", "Block 24"])
+    #expect(sortedHistoricalTabs(from: titles, excluding: "Block 27", deeperThan: "Block 24") == [])
+    #expect(sortedHistoricalTabs(from: titles, excluding: "Block 27", deeperThan: "Intro") == ["Block 26", "Block 25", "Block 24"])
+}
