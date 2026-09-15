@@ -47,36 +47,40 @@ enum Haptic: Equatable, Sendable {
             )
 
         case .moveOn:
-            let swell = CHHapticEvent(
-                eventType: .hapticContinuous,
-                parameters: [
-                    CHHapticEventParameter(parameterID: .hapticIntensity, value: 0.35),
-                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.30)
-                ],
-                relativeTime: 0,
-                duration: Theme.Motion.ceremonyStem
-            )
-
-            let swellCurve = CHHapticParameterCurve(
-                parameterID: .hapticIntensityControl,
-                controlPoints: [
-                    CHHapticParameterCurve.ControlPoint(relativeTime: 0, value: 0.2),
-                    CHHapticParameterCurve.ControlPoint(relativeTime: Theme.Motion.ceremonyStem, value: 1.0)
-                ],
-                relativeTime: 0
-            )
-
-            let peak = CHHapticEvent(
-                eventType: .hapticTransient,
-                parameters: [
-                    CHHapticEventParameter(parameterID: .hapticIntensity, value: Float(Theme.Haptics.logTap.intensity)),
-                    CHHapticEventParameter(parameterID: .hapticSharpness, value: Float(Theme.Haptics.logTap.sharpness))
-                ],
-                relativeTime: Theme.Motion.ceremonyStem + Theme.Motion.ceremonyBeat
-            )
-
-            return try CHHapticPattern(events: [swell, peak], parameterCurves: [swellCurve])
+            return try Self.moveOnPattern()
         }
+    }
+
+    private static func moveOnPattern() throws -> CHHapticPattern {
+        let swell = CHHapticEvent(
+            eventType: .hapticContinuous,
+            parameters: [
+                CHHapticEventParameter(parameterID: .hapticIntensity, value: 0.35),
+                CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.30)
+            ],
+            relativeTime: 0,
+            duration: Theme.Motion.ceremonyStem
+        )
+
+        let swellCurve = CHHapticParameterCurve(
+            parameterID: .hapticIntensityControl,
+            controlPoints: [
+                CHHapticParameterCurve.ControlPoint(relativeTime: 0, value: 0.2),
+                CHHapticParameterCurve.ControlPoint(relativeTime: Theme.Motion.ceremonyStem, value: 1.0)
+            ],
+            relativeTime: 0
+        )
+
+        let peak = CHHapticEvent(
+            eventType: .hapticTransient,
+            parameters: [
+                CHHapticEventParameter(parameterID: .hapticIntensity, value: Float(Theme.Haptics.logTap.intensity)),
+                CHHapticEventParameter(parameterID: .hapticSharpness, value: Float(Theme.Haptics.logTap.sharpness))
+            ],
+            relativeTime: Theme.Motion.ceremonyStem + Theme.Motion.ceremonyBeat
+        )
+
+        return try CHHapticPattern(events: [swell, peak], parameterCurves: [swellCurve])
     }
 }
 

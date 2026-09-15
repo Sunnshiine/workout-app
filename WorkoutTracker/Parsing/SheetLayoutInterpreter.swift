@@ -294,7 +294,6 @@ struct SheetLayoutExerciseAnchor: Sendable {
             for: setIndex,
             headerNotes: headerNotes,
             setCount: setCount,
-            compactHeaderSetOne: compactHeaderSetOne,
             in: snapshot,
             col: col
         ) {
@@ -319,14 +318,13 @@ struct SheetLayoutExerciseAnchor: Sendable {
         for setIndex: Int,
         headerNotes: SheetLayoutHeaderNotes,
         setCount: Int,
-        compactHeaderSetOne: Bool,
         in snapshot: SheetSnapshot,
         col: Int
     ) -> SetLogPlacementResolution? {
         guard setIndex < setCount else { return nil }
         let listPosition = SetLogPlacement.listPosition(ofSet: setIndex, amongPrescribed: setCount)
 
-        if compactHeaderSetOne {
+        if usesCompactHeaderSetOne(headerNotes: headerNotes, setCount: setCount) {
             guard snapshot.isRowVisible(row) else { return .setRowNotFound }
             return .placed(
                 SetLogPlacement(kind: .compactHeaderList, row: row, col: col, listPosition: listPosition)

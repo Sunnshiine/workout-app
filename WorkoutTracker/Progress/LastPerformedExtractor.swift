@@ -84,12 +84,8 @@ enum LastPerformedSetEvidence: Equatable, Sendable {
 extension ParsedSet {
     var lastPerformedEvidence: LastPerformedSetEvidence? {
         if let setLog { return .logged(setLog.formatted) }
-        if state == .logged,
-            let text = unstructuredSetLog?.trimmingCharacters(in: .whitespacesAndNewlines),
-            !text.isEmpty
-        {
-            return .logged(text)
-        }
+        let text = unstructuredSetLog?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if state == .logged, !text.isEmpty { return .logged(text) }
         return state == .skipped ? .skipped : nil
     }
 }
