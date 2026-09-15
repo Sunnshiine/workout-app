@@ -59,8 +59,7 @@ struct Failure {
             .environment
         case .syncFailed(.conflict):
             .conflict
-        case .noBlock, .invalidAddress, .invalidSetLog, .unknownSession, .sessionUnavailable, .unknownExercise, .unknownSet,
-            .sheetSwitchRequiresDiscard, .unknownTab:
+        case .noBlock, .invalidAddress, .invalidSetLog, .notFound, .sessionUnavailable, .sheetSwitchRequiresDiscard:
             .domain
         }
     }

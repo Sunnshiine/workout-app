@@ -56,8 +56,8 @@ struct ActiveSetCard: View {
             SmartValuePills(
                 set: set,
                 mode: mode.setCardMode,
-                previousSetWeight: previousSetWeight,
-                trainingMax: trainingMax,
+                previousSetWeight: exercise.mostRecentLoggedPounds(before: set.index),
+                trainingMax: exercise.trainingMax,
                 onLog: onLog,
                 onSkip: onSkip,
                 onDelete: onDelete,
@@ -111,29 +111,5 @@ struct ActiveSetCard: View {
         if case .logging = mode {
             inputDismissalRequestID += 1
         }
-    }
-
-    private var previousSetWeight: Double? {
-        exercise.sets
-            .filter { $0.index < set.index }
-            .sorted { $0.index > $1.index }
-            .compactMap { previousSet -> Double? in
-                switch previousSet.setLog?.weight {
-                case .pounds(let pounds):
-                    return pounds
-                case .bodyweight, nil:
-                    return nil
-                }
-            }
-            .first
-    }
-
-    private var trainingMax: Double? {
-        guard let block = exercise.session?.week?.block else { return nil }
-        let baseName = exercise.baseName.lowercased()
-        if baseName.contains("squat") { return block.squatTM }
-        if baseName.contains("bench") { return block.benchTM }
-        if baseName.contains("deadlift") { return block.deadliftTM }
-        return nil
     }
 }

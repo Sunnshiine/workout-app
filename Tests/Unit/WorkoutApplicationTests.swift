@@ -135,14 +135,14 @@ private func address(_ raw: String) throws -> SetAddress {
 @Test func addressErrorsCarryTheCandidates() async throws {
     let app = try await makeSelectedApp()
 
-    #expect(throws: ApplicationError.unknownSet(address: "w1d1.e0.s9", candidates: ["w1d1.e0.s0", "w1d1.e0.s1", "w1d1.e0.s2"])) {
+    #expect(throws: ApplicationError.notFound(.set, name: "w1d1.e0.s9", candidates: ["w1d1.e0.s0", "w1d1.e0.s1", "w1d1.e0.s2"])) {
         try app.log(address("w1d1.e0.s9"), setLog: "185x5@8")
     }
-    #expect(throws: ApplicationError.unknownExercise(address: "w1d1.e5", candidates: ["w1d1.e0", "w1d1.e1"])) {
+    #expect(throws: ApplicationError.notFound(.exercise, name: "w1d1.e5", candidates: ["w1d1.e0", "w1d1.e1"])) {
         try app.log(address("w1d1.e5.s0"), setLog: "185x5@8")
     }
     #expect(
-        throws: ApplicationError.unknownSession(address: "w9d1", candidates: ["w1d1", "w1d2", "w2d1", "w2d2", "w2d3"])
+        throws: ApplicationError.notFound(.session, name: "w9d1", candidates: ["w1d1", "w1d2", "w2d1", "w2d2", "w2d3"])
     ) {
         try app.session(SessionAddress(week: 9, day: 1))
     }
@@ -197,7 +197,7 @@ private func address(_ raw: String) throws -> SetAddress {
     let app = try await makeSelectedApp()
 
     #expect(try await app.sheet(tab: "Block 27").cells["C12"] == "Day 1")
-    await #expect(throws: ApplicationError.unknownTab(name: "Block 26", candidates: ["Block 27"])) {
+    await #expect(throws: ApplicationError.notFound(.tab, name: "Block 26", candidates: ["Block 27"])) {
         try await app.sheet(tab: "Block 26")
     }
 }

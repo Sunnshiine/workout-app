@@ -75,7 +75,7 @@ public struct AppEnvironment {
                 sheetsClient: UITestFixture.makeSheetsClient(),
                 defaults: UITestFixture.makeDefaults(),
                 now: Date.init,
-                seed: UITestFixture.seed(into:)
+                seed: { try UITestFixture.seed(into: $0, launch: UITestFixture.launch) }
             )
         }
     #endif

@@ -8,81 +8,11 @@
     /// faked sign-in so it never touches real data, Google auth, or the network — the Ralph loop
     /// can screenshot a known screen without clearing the OAuth onboarding wall.
     enum UITestFixture {
+        /// The launch configuration this process was started with.
+        static let launch = UITestLaunch(arguments: ProcessInfo.processInfo.arguments)
+
         static var isEnabled: Bool {
             ProcessInfo.processInfo.arguments.contains("-UITEST_FIXTURE")
-        }
-
-        static var disablesAnimations: Bool {
-            ProcessInfo.processInfo.arguments.contains("-UITEST_DISABLE_ANIMATIONS")
-        }
-
-        static var startsWithPendingWrite: Bool {
-            ProcessInfo.processInfo.arguments.contains("-UITEST_PENDING_WRITE")
-        }
-
-        static var startsWithOpenExercises: Bool {
-            ProcessInfo.processInfo.arguments.contains("-UITEST_OPEN_EXERCISES")
-        }
-
-        static var startsWithCompletedOpenExercises: Bool {
-            ProcessInfo.processInfo.arguments.contains("-UITEST_COMPLETED_OPEN_EXERCISES")
-        }
-
-        static var startsWithLongSession: Bool {
-            ProcessInfo.processInfo.arguments.contains("-UITEST_LONG_SESSION")
-        }
-
-        static var startsInDeveloperTools: Bool {
-            ProcessInfo.processInfo.arguments.contains("-UITEST_DEVELOPER_TOOLS")
-        }
-
-        static var startsInSettings: Bool {
-            ProcessInfo.processInfo.arguments.contains("-UITEST_SETTINGS")
-        }
-
-        /// Boots signed-in but with **no** spreadsheet selected, so the app shows onboarding's sheet
-        /// picker. Combined with the seeded (stale) Block this exercises the onboarding selection
-        /// path that previously bypassed the safe Settings switch flow.
-        static var startsInOnboarding: Bool {
-            ProcessInfo.processInfo.arguments.contains("-UITEST_ONBOARDING")
-        }
-
-        static var startsWithCurrentSessionOverride: Bool {
-            ProcessInfo.processInfo.arguments.contains("-UITEST_CURRENT_SESSION_OVERRIDE")
-        }
-
-        static var startsInSession: Bool {
-            ProcessInfo.processInfo.arguments.contains("-UITEST_SESSION")
-        }
-
-        static var startsWithMoveOnCelebration: Bool {
-            ProcessInfo.processInfo.arguments.contains("-UITEST_MOVE_ON_CELEBRATION")
-        }
-
-        static var startsWithPerfectMoveOnCelebration: Bool {
-            ProcessInfo.processInfo.arguments.contains("-UITEST_PERFECT_MOVE_ON_CELEBRATION")
-        }
-
-        static var startsInBlockOverview: Bool {
-            !startsInSession && !startsInDeveloperTools && !startsInSettings && !startsInOnboarding
-        }
-
-        static var startsWithFullBlock: Bool {
-            ProcessInfo.processInfo.arguments.contains("-UITEST_FULL_BLOCK")
-        }
-
-        static var appearanceOverride: AppearancePreference? {
-            appearanceOverride(from: ProcessInfo.processInfo.arguments)
-        }
-
-        static func appearanceOverride(from arguments: [String]) -> AppearancePreference? {
-            guard
-                let argumentIndex = arguments.firstIndex(of: "-UITEST_APPEARANCE"),
-                arguments.indices.contains(arguments.index(after: argumentIndex))
-            else {
-                return nil
-            }
-            return AppearancePreference(rawValue: arguments[arguments.index(after: argumentIndex)])
         }
 
         private static let defaultsSuiteName = "WorkoutTracker.UITestFixture"
@@ -98,27 +28,27 @@
         }
 
         @MainActor
-        static func seed(into context: ModelContext) throws {
-            let block =
-                startsWithPerfectMoveOnCelebration
-                ? WorkoutFixtureScenarios.perfectMoveOnCelebrationBlock()
-                : startsWithCompletedOpenExercises
-                    ? WorkoutFixtureScenarios.completedSessionWithOpenExercisesBlock()
-                    : startsWithOpenExercises
-                        ? WorkoutFixtureScenarios.openExercisesBlock()
-                        : startsWithLongSession
-                            ? WorkoutFixtureScenarios.longSessionBlock()
-                            : startsWithFullBlock
-                                ? WorkoutFixtureScenarios.uiLaunchBlock()
-                                : WorkoutFixtureScenarios.partiallyUploadedBlock()
-            context.insert(block)
+        static func seed(into context: ModelContext, launch: UITestLaunch) throws {
+            context.insert(block(for: launch.scenario))
             for entry in WorkoutFixtureScenarios.backSquatHistory() {
                 context.insert(entry)
             }
-            if startsWithPendingWrite {
+            if launch.startsWithPendingWrite {
                 context.insert(WorkoutFixtureScenarios.queuedWrite())
             }
             try context.save()
+        }
+
+        @MainActor
+        private static func block(for scenario: UITestLaunch.Scenario) -> Block {
+            switch scenario {
+            case .perfectMoveOnCelebration: WorkoutFixtureScenarios.perfectMoveOnCelebrationBlock()
+            case .completedOpenExercises: WorkoutFixtureScenarios.completedSessionWithOpenExercisesBlock()
+            case .openExercises: WorkoutFixtureScenarios.openExercisesBlock()
+            case .longSession: WorkoutFixtureScenarios.longSessionBlock()
+            case .fullBlock: WorkoutFixtureScenarios.uiLaunchBlock()
+            case .partialUpload: WorkoutFixtureScenarios.partiallyUploadedBlock()
+            }
         }
     }
 

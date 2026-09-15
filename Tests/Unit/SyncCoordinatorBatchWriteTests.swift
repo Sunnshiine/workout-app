@@ -50,10 +50,10 @@ private final class BatchFlushStubClient: SheetsClient, @unchecked Sendable {
     private func apply(range: String, values: [[String]]) {
         guard
             let reference = range.split(separator: "!").last,
-            let value = values.first?.first
+            let value = values.first?.first,
+            let target = a1CellIndex(String(reference))
         else { return }
 
-        let target = a1ToIndex(String(reference))
         if target.row >= grid.count {
             grid.append(contentsOf: SheetGrid(repeating: [], count: target.row - grid.count + 1))
         }
@@ -425,6 +425,7 @@ private func batchPendingWrite(
     await sync.flushPending(spreadsheetId: "sid")
 
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
+    #expect(sync.state == .pendingWrites(2))
     #expect(client.updateRequestCount == 1)
     #expect(client.attemptedRanges == ["'Block 27'!K17"])
     #expect(writes.count == 2)

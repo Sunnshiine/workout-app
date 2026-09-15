@@ -1,6 +1,6 @@
 name: CI
 
-# PR gate: `swift test` covers the SPM library (unit + component tests);
+# PR gate: `scripts/crap.sh gate` runs `swift test` with coverage and the CRAP gate (ADR-0016);
 # `app-build` compile-checks the full app target including Views/, which the
 # library target excludes; `visual-tests` runs the ADR-0007 Visual Regression
 # suite on the pinned simulator — with `.snapshots(record: .never)`, a missing
@@ -28,8 +28,16 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Run unit + component tests
-        run: swift test
+      # swift-syntax is the scorer's only heavy dependency; caching its build keeps the job near
+      # the cost of `swift test` alone.
+      - name: Cache the CRAP scorer build
+        uses: actions/cache@v4
+        with:
+          path: tools/crap/.build
+          key: crap-tool-${{ runner.os }}-${{ hashFiles('tools/crap/Package.resolved', 'tools/crap/Sources/**') }}
+          restore-keys: crap-tool-${{ runner.os }}-
+      - name: Run unit + component tests and the CRAP gate (ADR-0016)
+        run: scripts/crap.sh gate
 
   app-build:
     runs-on: xcode-27

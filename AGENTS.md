@@ -176,7 +176,8 @@ func validatesFormat(format: String) throws {
 ### Coverage
 
 ```bash
-swift test --enable-code-coverage
+scripts/crap.sh measure --top 30   # per-function complexity, coverage, and CRAP score (ADR-0016)
+swift test --enable-code-coverage  # the raw profile the scorer reads
 ```
 
 ### Reference

@@ -209,17 +209,14 @@ final class WorkoutStore {
         valueToWrite: String?,
         expectedCurrentValue: String
     ) throws {
-        guard let exercise = set.exercise else { throw WorkoutLoggingError.missingExercise }
-        guard let session = exercise.session else { throw WorkoutLoggingError.missingSession }
-        guard let week = session.week else { throw WorkoutLoggingError.missingWeek }
-        guard let block = week.block else { throw WorkoutLoggingError.missingBlock }
+        let coordinates = try SetCoordinates(of: set)
         context.insert(
             PendingWrite(
-                blockTab: block.tabName,
-                week: week.number,
-                day: session.dayNumber,
-                exerciseName: exercise.name,
-                setIndex: set.index,
+                blockTab: coordinates.blockTab,
+                week: coordinates.weekNumber,
+                day: coordinates.dayNumber,
+                exerciseName: coordinates.exerciseName,
+                setIndex: coordinates.setIndex,
                 column: column,
                 operation: operation,
                 valueToWrite: valueToWrite,
@@ -229,18 +226,14 @@ final class WorkoutStore {
     }
 
     private func updateLastPerformed(for set: ExerciseSet, log: SetLog) throws {
-        guard let exercise = set.exercise else { throw WorkoutLoggingError.missingExercise }
-        guard let session = exercise.session else { throw WorkoutLoggingError.missingSession }
-        guard let week = session.week else { throw WorkoutLoggingError.missingWeek }
-        guard let block = week.block else { throw WorkoutLoggingError.missingBlock }
-
+        let coordinates = try SetCoordinates(of: set)
         try lastPerformed.ingest([
             LastPerformedEntry(
-                fullName: exercise.name,
-                baseName: exercise.baseName,
+                fullName: coordinates.exerciseName,
+                baseName: coordinates.exerciseBaseName,
                 result: log,
-                performedOn: session.date ?? Date(),
-                source: "\(block.tabName) · W\(week.number) D\(session.dayNumber)"
+                performedOn: coordinates.sessionDate ?? Date(),
+                source: "\(coordinates.blockTab) · W\(coordinates.weekNumber) D\(coordinates.dayNumber)"
             )
         ])
     }

@@ -469,3 +469,113 @@ extension SyncCoordinator.State {
         return false
     }
 }
+
+@MainActor
+@Test func flushRecordsOneRetryAndStopsWhenTheSnapshotFetchFails() async throws {
+    let container = try makeContainer()
+    let ctx = container.mainContext
+    ctx.insert(pendingWrite(createdAt: 1))
+    ctx.insert(pendingWrite(createdAt: 2, setIndex: 1, valueToWrite: "195x5@8"))
+    try ctx.save()
+    let client = FlushStubClient(grid: overlayGrid(notes: ""))
+    client.shouldThrowOffline = true
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
+    #expect(sync.state == .pendingWrites(2))
+    #expect(client.updates.isEmpty)
+    #expect(writes.count == 2)
+    #expect(writes.allSatisfy { $0.status == .pending })
+    #expect(writes.sorted { $0.createdAt < $1.createdAt }.map(\.retryCount) == [1, 0])
+}
+
+@MainActor
+@Test func syncOverlaysAQueuedDeleteAsAPendingSet() async throws {
+    let container = try makeContainer()
+    let ctx = container.mainContext
+    ctx.insert(queuedSquatNotesWrite(setIndex: 0, operation: .delete, value: nil))
+    try ctx.save()
+    let sync = SyncCoordinator(client: FlushStubClient(grid: overlayGrid(notes: "185x5@8")), context: ctx)
+
+    await sync.sync(spreadsheetId: "sid")
+
+    let set = try #require(try overlaidSquatSet(index: 0, in: ctx))
+    #expect(set.state == .pending)
+    #expect(set.setLog == nil)
+    #expect(set.loggedAt == nil)
+}
+
+@MainActor
+@Test func syncOverlaysAQueuedSkipTokenAsASkippedSet() async throws {
+    let container = try makeContainer()
+    let ctx = container.mainContext
+    ctx.insert(queuedSquatNotesWrite(setIndex: 0, operation: .upsert, value: "skip"))
+    try ctx.save()
+    let sync = SyncCoordinator(client: FlushStubClient(grid: overlayGrid(notes: "185x5@8")), context: ctx)
+
+    await sync.sync(spreadsheetId: "sid")
+
+    let set = try #require(try overlaidSquatSet(index: 0, in: ctx))
+    #expect(set.state == .skipped)
+    #expect(set.setLog == nil)
+    #expect(set.loggedAt == nil)
+}
+
+@MainActor
+@Test func syncIgnoresAQueuedWriteWhoseSetIsAbsentFromTheFreshBlock() async throws {
+    let container = try makeContainer()
+    let ctx = container.mainContext
+    ctx.insert(queuedSquatNotesWrite(setIndex: 9, operation: .delete, value: nil))
+    try ctx.save()
+    let sync = SyncCoordinator(client: FlushStubClient(grid: overlayGrid(notes: "185x5@8")), context: ctx)
+
+    await sync.sync(spreadsheetId: "sid")
+
+    let set = try #require(try overlaidSquatSet(index: 0, in: ctx))
+    #expect(set.state == .logged)
+    #expect(set.setLog?.formatted == "185x5@8")
+}
+
+/// The mismatched `expectedCurrentValue` makes the flush record a conflict, which is what leaves the
+/// write queued for the overlay to replay.
+@MainActor
+private func queuedSquatNotesWrite(
+    setIndex: Int,
+    operation: PendingWriteOperation,
+    value: String?
+) -> PendingWrite {
+    PendingWrite(
+        blockTab: "Block 27",
+        week: 1,
+        day: 1,
+        exerciseName: "Squat",
+        setIndex: setIndex,
+        column: .notes,
+        operation: operation,
+        valueToWrite: value,
+        expectedCurrentValue: "a value the sheet does not hold"
+    )
+}
+
+private func overlayGrid(notes: String) -> SheetGrid {
+    gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "C15": "Squat", "D15": "1", "K15": notes
+        ],
+        rows: 24,
+        cols: 30
+    )
+}
+
+@MainActor
+private func overlaidSquatSet(index: Int, in ctx: ModelContext) throws -> ExerciseSet? {
+    try ctx.fetch(FetchDescriptor<Block>()).first?
+        .weeks.first { $0.number == 1 }?
+        .sessions.first { $0.dayNumber == 1 }?
+        .exercises.first { $0.name == "Squat" }?
+        .sets.first { $0.index == index }
+}

@@ -773,55 +773,39 @@ extension Theme {
         case statsValue
         case statsKey
 
+        /// One row per role, in declaration order. A table has no compiler exhaustiveness check,
+        /// so `everyTypeRoleHasAStyle` in `Tests/Component/ThemeTypeRoleTests.swift` is what keeps
+        /// a new role from reaching `style` without a row.
+        private static let styles: [TypeRole: TypeStyle] = [
+            .exerciseName: TypeStyle(face: .fraunces, size: 33, weight: 490, lineHeight: 1.10),
+            .ceremonyTitle: TypeStyle(face: .fraunces, size: 38, weight: 490, lineHeight: 1.10),
+            .connectTitle: TypeStyle(face: .fraunces, size: 36, weight: 490),
+            .sheetTitle: TypeStyle(face: .fraunces, size: 24, weight: 490, lineHeight: 1.1, opticalSize: 22),
+            // The Superset "& partner" name line: the warm serif voice, subordinate to the
+            // 33pt focused Exercise name and doubling as the manual focus switch (DESIGN.md §5.4).
+            .supersetPartner: TypeStyle(face: .fraunces, size: 20, weight: 490, lineHeight: 1.10, opticalSize: 20),
+            .weightEntry: TypeStyle(face: .sourceSans3, size: 46, weight: 700, tabular: true, tracking: -0.69),
+            .logCapsule: TypeStyle(face: .sourceSans3, size: 18, weight: 650, tabular: true, tracking: 0.18),
+            .setNumber: TypeStyle(face: .sourceSans3, size: 16, weight: 700, tabular: true),
+            .setOf: TypeStyle(face: .sourceSans3, size: 14, weight: 500, tabular: true),
+            .railChipValue: TypeStyle(face: .sourceSans3, size: 17, weight: 700, tabular: true),
+            .railChipGlyph: TypeStyle(face: .sourceSans3, size: 13, weight: 500),
+            .fieldLabel: TypeStyle(face: .sourceSans3, size: 12, weight: 600),
+            .coachNote: TypeStyle(face: .sourceSans3, size: 15, weight: 400, lineHeight: 1.45),
+            .runline: TypeStyle(face: .sourceSans3, size: 13.5, weight: 600, tabular: true),
+            .runlineSecondary: TypeStyle(face: .sourceSans3, size: 13.5, weight: 500, tabular: true),
+            .lastPerformed: TypeStyle(face: .sourceSans3, size: 12.5, weight: 400, tabular: true, lineHeight: 1.5),
+            .queuePill: TypeStyle(face: .sourceSans3, size: 13, weight: 600, tabular: true),
+            .historyChip: TypeStyle(face: .sourceSans3, size: 12, weight: 600, tabular: true),
+            .blockTitle: TypeStyle(face: .sourceSans3, size: 28, weight: 700, tracking: -0.28),
+            .cadence: TypeStyle(face: .sourceSans3, size: 11, weight: 600),
+            .statsValue: TypeStyle(face: .sourceSans3, size: 26, weight: 700, tabular: true),
+            .statsKey: TypeStyle(face: .sourceSans3, size: 12.5, weight: 600)
+        ]
+
         var style: TypeStyle {
-            switch self {
-            case .exerciseName:
-                TypeStyle(face: .fraunces, size: 33, weight: 490, lineHeight: 1.10)
-            case .ceremonyTitle:
-                TypeStyle(face: .fraunces, size: 38, weight: 490, lineHeight: 1.10)
-            case .connectTitle:
-                TypeStyle(face: .fraunces, size: 36, weight: 490)
-            case .sheetTitle:
-                TypeStyle(face: .fraunces, size: 24, weight: 490, lineHeight: 1.1, opticalSize: 22)
-            case .supersetPartner:
-                // The Superset "& partner" name line: the warm serif voice, subordinate to the
-                // 33pt focused Exercise name and doubling as the manual focus switch (DESIGN.md §5.4).
-                TypeStyle(face: .fraunces, size: 20, weight: 490, lineHeight: 1.10, opticalSize: 20)
-            case .weightEntry:
-                TypeStyle(face: .sourceSans3, size: 46, weight: 700, tabular: true, tracking: -0.69)
-            case .logCapsule:
-                TypeStyle(face: .sourceSans3, size: 18, weight: 650, tabular: true, tracking: 0.18)
-            case .setNumber:
-                TypeStyle(face: .sourceSans3, size: 16, weight: 700, tabular: true)
-            case .setOf:
-                TypeStyle(face: .sourceSans3, size: 14, weight: 500, tabular: true)
-            case .railChipValue:
-                TypeStyle(face: .sourceSans3, size: 17, weight: 700, tabular: true)
-            case .railChipGlyph:
-                TypeStyle(face: .sourceSans3, size: 13, weight: 500)
-            case .fieldLabel:
-                TypeStyle(face: .sourceSans3, size: 12, weight: 600)
-            case .coachNote:
-                TypeStyle(face: .sourceSans3, size: 15, weight: 400, lineHeight: 1.45)
-            case .runline:
-                TypeStyle(face: .sourceSans3, size: 13.5, weight: 600, tabular: true)
-            case .runlineSecondary:
-                TypeStyle(face: .sourceSans3, size: 13.5, weight: 500, tabular: true)
-            case .lastPerformed:
-                TypeStyle(face: .sourceSans3, size: 12.5, weight: 400, tabular: true, lineHeight: 1.5)
-            case .queuePill:
-                TypeStyle(face: .sourceSans3, size: 13, weight: 600, tabular: true)
-            case .historyChip:
-                TypeStyle(face: .sourceSans3, size: 12, weight: 600, tabular: true)
-            case .blockTitle:
-                TypeStyle(face: .sourceSans3, size: 28, weight: 700, tracking: -0.28)
-            case .cadence:
-                TypeStyle(face: .sourceSans3, size: 11, weight: 600)
-            case .statsValue:
-                TypeStyle(face: .sourceSans3, size: 26, weight: 700, tabular: true)
-            case .statsKey:
-                TypeStyle(face: .sourceSans3, size: 12.5, weight: 600)
-            }
+            guard let style = Self.styles[self] else { preconditionFailure("No TypeStyle for \(self)") }
+            return style
         }
     }
 
@@ -840,7 +824,7 @@ extension Theme {
         #endif
     }
 
-    private static func swiftUIWeight(_ axis: Double) -> Font.Weight {
+    static func swiftUIWeight(_ axis: Double) -> Font.Weight {
         switch axis {
         case ..<250: .light
         case ..<350: .regular

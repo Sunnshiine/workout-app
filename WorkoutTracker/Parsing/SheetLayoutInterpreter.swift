@@ -279,15 +279,7 @@ struct SheetLayoutExerciseAnchor: Sendable {
 
         let lines = prescriptionLines(in: grid, setsColumn: cols.sets)
         if lines.isMultiLine {
-            guard let line = lines.line(containing: setIndex) else { return .setRowNotFound }
-            return .placed(
-                SetLogPlacement(
-                    kind: .multiLinePrescriptionLine,
-                    row: line.row,
-                    col: col,
-                    listPosition: line.position(of: setIndex)
-                )
-            )
+            return multiLinePlacement(for: setIndex, lines: lines, col: col)
         }
 
         let headerNotes = headerNotes(in: grid, notesColumn: col)
@@ -298,23 +290,29 @@ struct SheetLayoutExerciseAnchor: Sendable {
         // list, so it writes the cell whole (nil position → the direct-write path).
         let listPosition = setCount > 1 ? setIndex : nil
 
-        if compactHeaderSetOne, setIndex < setCount {
-            guard snapshot.isRowVisible(row) else { return .setRowNotFound }
-            return .placed(SetLogPlacement(kind: .compactHeaderList, row: row, col: col, listPosition: listPosition))
-        }
-
-        if isHeaderProtectedFromSetLogWrites(headerNotes: headerNotes, setCount: setCount), setIndex < setCount {
-            guard let writableRow = firstVisibleWritableRow(in: snapshot) else {
-                return .protectedHeaderBlocksSetRow
-            }
-            return .placed(
-                SetLogPlacement(
-                    kind: .protectedHeaderVisibleWritableRow,
-                    row: writableRow,
-                    col: col,
-                    listPosition: listPosition
+        // Both list rules address a prescribed Set. A Set beyond the prescribed count falls through
+        // to the visible-row path below.
+        if setIndex < setCount {
+            if compactHeaderSetOne {
+                guard snapshot.isRowVisible(row) else { return .setRowNotFound }
+                return .placed(
+                    SetLogPlacement(kind: .compactHeaderList, row: row, col: col, listPosition: listPosition)
                 )
-            )
+            }
+
+            if isHeaderProtectedFromSetLogWrites(headerNotes: headerNotes, setCount: setCount) {
+                guard let writableRow = firstVisibleWritableRow(in: snapshot) else {
+                    return .protectedHeaderBlocksSetRow
+                }
+                return .placed(
+                    SetLogPlacement(
+                        kind: .protectedHeaderVisibleWritableRow,
+                        row: writableRow,
+                        col: col,
+                        listPosition: listPosition
+                    )
+                )
+            }
         }
 
         guard
@@ -323,6 +321,25 @@ struct SheetLayoutExerciseAnchor: Sendable {
             return headerNotes.hasProtectedValue ? .protectedHeaderBlocksSetRow : .setRowNotFound
         }
         return .placed(SetLogPlacement(kind: .visibleSetLogRow, row: setRow, col: col, listPosition: nil))
+    }
+
+    /// Coach J. Alarcon's per-row template (ADR-0010): each Prescription Line keeps its own Sets'
+    /// logs comma-separated in that Line's Notes cell, so a Set is addressed by the Line that
+    /// prescribes it and its position within that Line.
+    private func multiLinePlacement(
+        for setIndex: Int,
+        lines: [PrescriptionLine],
+        col: Int
+    ) -> SetLogPlacementResolution {
+        guard let line = lines.line(containing: setIndex) else { return .setRowNotFound }
+        return .placed(
+            SetLogPlacement(
+                kind: .multiLinePrescriptionLine,
+                row: line.row,
+                col: col,
+                listPosition: line.position(of: setIndex)
+            )
+        )
     }
 }
 

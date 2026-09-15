@@ -35,12 +35,20 @@
             let process = Process()
             process.executableURL = binary
             process.arguments = arguments
-            process.environment = [
+            var environment = [
                 "WORKOUT_HOME": home.path,
                 "WORKOUT_NOW": now,
                 "PATH": "/usr/bin:/bin",
                 "HOME": ProcessInfo.processInfo.environment["HOME"] ?? NSHomeDirectory()
             ]
+            // Under `swift test --enable-code-coverage` the child is instrumented too. Point its
+            // profile next to the test runner's so SwiftPM merges it and the CLI counts as covered.
+            if let profile = ProcessInfo.processInfo.environment["LLVM_PROFILE_FILE"] {
+                environment["LLVM_PROFILE_FILE"] =
+                    URL(fileURLWithPath: profile)
+                    .deletingLastPathComponent().appendingPathComponent("workout-cli-%p.profraw").path
+            }
+            process.environment = environment
             let stdout = Pipe()
             let stderr = Pipe()
             process.standardOutput = stdout

@@ -16,7 +16,7 @@ struct WorkoutTrackerApp: App {
         #if DEBUG
             if UITestFixture.isEnabled {
                 #if canImport(UIKit)
-                    if UITestFixture.disablesAnimations {
+                    if UITestFixture.launch.disablesAnimations {
                         UIView.setAnimationsEnabled(false)
                     }
                 #endif
@@ -38,24 +38,24 @@ struct WorkoutTrackerApp: App {
         private static func applyUITestFixtures(to app: WorkoutApplication) {
             let settings = app.settings
             // Pins the fixture's appearance regardless of the seeded Block, so screenshots stay deterministic.
-            settings.setAppearance(UITestFixture.appearanceOverride ?? .system)
+            settings.setAppearance(UITestFixture.launch.appearanceOverride ?? .system)
             settings.isSignedIn = true
             // Onboarding mode leaves the spreadsheet unset so the app lands on the sheet picker,
             // while the seeded (stale) Block stays in the store to prove it is never shown for the
             // newly selected sheet.
-            if !UITestFixture.startsInOnboarding {
+            if !UITestFixture.launch.startsInOnboarding {
                 settings.setSpreadsheet(id: WorkoutFixtureScenarios.sheetId, title: "Fixture Training Log")
             }
 
             let workout = app.workout
-            if UITestFixture.startsWithCurrentSessionOverride {
+            if UITestFixture.launch.startsWithCurrentSessionOverride {
                 workout.show(week: 1, day: 3)
                 workout.makeDisplayedSessionCurrent()
             }
-            if UITestFixture.startsWithMoveOnCelebration || UITestFixture.startsWithPerfectMoveOnCelebration {
+            if UITestFixture.launch.startsWithMoveOnCelebration || UITestFixture.launch.startsWithPerfectMoveOnCelebration {
                 workout.requestMoveOnCelebration()
             }
-            if UITestFixture.startsInBlockOverview {
+            if UITestFixture.launch.startsInBlockOverview {
                 workout.requestBlockOverviewPresentation()
             }
         }

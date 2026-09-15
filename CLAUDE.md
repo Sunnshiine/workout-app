@@ -69,6 +69,24 @@ workout sync && workout session w1d1  # the Set reads back as logged through the
 
 Errors are JSON on stderr with exit 1 (domain), 3 (environment), 4 (conflict).
 
+## Change risk gate (CRAP)
+
+Every production function in the headless scope carries a CRAP score (`cc^2 * (1 - coverage)^3 + cc`);
+the target is 12 or lower and `tools/crap/baseline.tsv` lists the functions still above it. The
+decision and the scope are in `docs/adr/0016-crap-change-risk-gate.md`; the counting rules are in
+`tools/crap/README.md`.
+
+```bash
+scripts/crap.sh measure --top 30   # worst functions by score, with cc and coverage
+scripts/crap.sh gate               # the CI check: new or worsened violations fail, stale baseline rows fail
+scripts/crap.sh baseline           # shrink the baseline after an improvement
+jq '.functions[] | select(.file | contains("Stores/"))' .build/crap/report.json   # full report
+```
+
+`Views/`, `LiveActivity/`, `GoogleAuth.swift`, `WorkoutTrackerApp.swift`, `WorkoutShared/`, and
+`WorkoutWidgets/` are outside `swift test` and therefore unmeasured. Lower a score with a better
+design or a stronger test; never by weakening a test or splitting a function into pieces with no name.
+
 ## Linting & Formatting
 
 - **SwiftLint** runs automatically via the `SwiftLintPlugins` build tool plugin (wired through the Xcode project, not `Package.swift`). Config: `.swiftlint.yml`.
