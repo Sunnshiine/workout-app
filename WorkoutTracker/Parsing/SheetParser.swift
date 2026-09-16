@@ -363,16 +363,8 @@ struct SheetParser {
 
     private func parse(_ snapshot: SheetSnapshot, tabName: String) -> ParsedBlock {
         let grid = snapshot.values
-        var warnings: [String] = []
         let trainingMaxes = parseTrainingMax(from: grid)
         let layout = SheetLayoutInterpreter().interpret(snapshot)
-        if layout.weeks.isEmpty {
-            warnings.append("Parse warning: no week sections (no 'Day N' headers) in \(tabName)")
-            return ParsedBlock(
-                block: ParsedBlockModel(tabName: tabName, weeks: [], trainingMaxes: trainingMaxes),
-                warnings: warnings
-            )
-        }
 
         let weeks = layout.weeks.map { week in
             let days = week.days.map { day in
@@ -385,7 +377,9 @@ struct SheetParser {
 
         return ParsedBlock(
             block: ParsedBlockModel(tabName: tabName, weeks: weeks, trainingMaxes: trainingMaxes),
-            warnings: warnings
+            warnings: layout.weeks.isEmpty
+                ? ["Parse warning: no week sections (no 'Day N' headers) in \(tabName)"]
+                : []
         )
     }
 
