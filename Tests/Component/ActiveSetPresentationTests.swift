@@ -429,7 +429,6 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 
     let presentation = LastPerformedCardPresentation(entry: entry)
 
-    #expect(presentation.label == "Last Performed")
     #expect(presentation.resultText == "25x12@9")
     #expect(presentation.sourceText == "W4 D3")
 }

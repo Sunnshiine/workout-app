@@ -116,7 +116,7 @@ struct ExerciseHistorySheetPresentation: Equatable, Sendable {
         var grouped: [String: [Row]] = [:]
         var points: [VolumePoint] = []
         for entry in recent {
-            let (header, gutter) = Self.splitSource(entry.source)
+            let (header, gutter) = SessionCoordinate.labels(forStoredValue: entry.source)
             let projected = Self.project(entry, gutter: gutter, header: header, anchorBaseName: anchorBaseName)
             if grouped[header] == nil { order.append(header) }
             grouped[header, default: []].append(projected.row)
@@ -126,18 +126,6 @@ struct ExerciseHistorySheetPresentation: Equatable, Sendable {
         blocks = order.map { Block(header: $0, rows: grouped[$0] ?? []) }
         // The chart reads oldest→newest, left→right — the reverse of the newest-first ledger.
         volumePoints = points.reversed()
-    }
-
-    /// `Block 27 · W1 D1` → (`Block 27`, `W1 D1`). The gutter is the final ` · ` component; the
-    /// Block header is everything before it, kept in the source's own quiet sentence case — the pick's
-    /// muted `Block 27`, never the superseded uppercase editorial register (ledger §7.4).
-    private static func splitSource(_ source: String) -> (header: String, gutter: String) {
-        guard let range = source.range(of: " · ", options: .backwards) else {
-            return (source, "")
-        }
-        let header = String(source[..<range.lowerBound])
-        let gutter = String(source[range.upperBound...])
-        return (header, gutter)
     }
 
     private static func project(

@@ -10,9 +10,10 @@ import Foundation
 /// projects back to this type, which is also what the Exercise History fill's off-main-actor scan
 /// carries.
 struct LastPerformedOccurrence: Sendable, Equatable {
-    var fullName: String
-    var baseName: String
-    var resultText: String
-    var performedOn: Date
-    var source: String
+    let fullName: String
+    let baseName: String
+    let resultText: String
+    let performedOn: Date
+    /// The performed-in Session as a `SessionCoordinate.storageValue`, and the ADR-0012 dedup key.
+    let source: String
 }

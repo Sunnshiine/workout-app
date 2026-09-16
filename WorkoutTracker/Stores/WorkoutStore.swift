@@ -233,7 +233,11 @@ final class WorkoutStore {
                 baseName: coordinates.exerciseBaseName,
                 result: log,
                 performedOn: coordinates.sessionDate ?? Date(),
-                source: "\(coordinates.blockTab) · W\(coordinates.weekNumber) D\(coordinates.dayNumber)"
+                source: SessionCoordinate(
+                    blockTab: coordinates.blockTab,
+                    weekNumber: coordinates.weekNumber,
+                    dayNumber: coordinates.dayNumber
+                ).storageValue
             )
         ])
     }

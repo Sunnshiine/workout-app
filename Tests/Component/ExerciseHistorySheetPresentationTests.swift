@@ -651,3 +651,41 @@ private func date(_ daysAgo: Int) -> Date {
     )
     #expect(none.volumeHeightFractions.isEmpty)
 }
+
+// MARK: - Non-conforming stored coordinates
+
+@Test func historySheetRendersABlockLessSourceAsItsOwnHeaderWithoutAGutter() {
+    let presentation = ExerciseHistorySheetPresentation(
+        anchorBaseName: "Bench Press",
+        entries: [
+            entry(
+                fullName: "Bench Press",
+                baseName: "Bench Press",
+                resultText: "185x5@8",
+                source: "W3 D2",
+                performedOn: date(1)
+            )
+        ]
+    )
+
+    #expect(presentation.blocks.map(\.header) == ["W3 D2"])
+    #expect(presentation.blocks[0].rows.map(\.gutter) == [""])
+}
+
+@Test func historySheetKeepsEverythingBeforeTheFinalSeparatorInTheBlockHeader() {
+    let presentation = ExerciseHistorySheetPresentation(
+        anchorBaseName: "Bench Press",
+        entries: [
+            entry(
+                fullName: "Bench Press",
+                baseName: "Bench Press",
+                resultText: "185x5@8",
+                source: "Block 27 · Deload · W1 D1",
+                performedOn: date(1)
+            )
+        ]
+    )
+
+    #expect(presentation.blocks.map(\.header) == ["Block 27 · Deload"])
+    #expect(presentation.blocks[0].rows.map(\.gutter) == ["W1 D1"])
+}
