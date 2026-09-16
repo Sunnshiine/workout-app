@@ -58,6 +58,12 @@ private func json(_ value: some Encodable) throws -> [String: Any] {
     #expect((selected["syncState"] as? [String: Any])?["status"] as? String == "idle")
     #expect((selected["sessions"] as? [[String: Any]])?.count == 5)
 
+    let block = try #require(selected["block"] as? [String: Any])
+    #expect(block["tabName"] as? String == "Block 27")
+    #expect(block["squatTM"] as? Double == 365)
+    #expect(block["benchTM"] as? Double == 245)
+    #expect(block["deadliftTM"] as? Double == 455)
+
     let session = try json(try app.session(nil))
     let exercises = try #require(session["exercises"] as? [[String: Any]])
     let sets = try #require(exercises[0]["sets"] as? [[String: Any]])
