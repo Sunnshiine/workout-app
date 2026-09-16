@@ -61,9 +61,7 @@ import Testing
     let parsed = ParsedBlockModel(
         tabName: "Block 27",
         weeks: [],
-        squatTM: 365,
-        benchTM: 245,
-        deadliftTM: 455
+        trainingMaxes: [.squat: 365, .bench: 245, .deadlift: 455]
     )
 
     let block = BlockBuilder.makeBlock(from: parsed)

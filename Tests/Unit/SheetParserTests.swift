@@ -86,9 +86,9 @@ import Testing
 
     let tm = parseTrainingMax(from: grid)
 
-    #expect(tm.squat == 365)
-    #expect(tm.bench == 245)
-    #expect(tm.deadlift == 455)
+    #expect(tm[.squat] == 365)
+    #expect(tm[.bench] == 245)
+    #expect(tm[.deadlift] == 455)
 }
 
 @Test func parsesTrainingMaxValuesFromShiftedHeaderArea() {
@@ -105,16 +105,16 @@ import Testing
 
     let tm = parseTrainingMax(from: grid)
 
-    #expect(tm.squat == 405)
-    #expect(tm.bench == 275)
-    #expect(tm.deadlift == 495)
+    #expect(tm[.squat] == 405)
+    #expect(tm[.bench] == 275)
+    #expect(tm[.deadlift] == 495)
 }
 
 @Test func trainingMaxValuesAreNilWhenHeaderIsMissingOrValuesAreBlank() {
     let missingHeader = parseTrainingMax(from: gridFromA1([:], rows: 20, cols: 10))
-    #expect(missingHeader.squat == nil)
-    #expect(missingHeader.bench == nil)
-    #expect(missingHeader.deadlift == nil)
+    #expect(missingHeader[.squat] == nil)
+    #expect(missingHeader[.bench] == nil)
+    #expect(missingHeader[.deadlift] == nil)
 
     let blankValues = parseTrainingMax(
         from: gridFromA1(
@@ -128,9 +128,29 @@ import Testing
             cols: 10
         )
     )
-    #expect(blankValues.squat == nil)
-    #expect(blankValues.bench == nil)
-    #expect(blankValues.deadlift == nil)
+    #expect(blankValues[.squat] == nil)
+    #expect(blankValues[.bench] == nil)
+    #expect(blankValues[.deadlift] == nil)
+}
+
+@Test func aRepeatedTrainingMaxLabelTakesTheFirstParsableValue() {
+    let blankThenValue = parseTrainingMax(
+        from: gridFromA1(
+            ["E6": "Training Max", "C7": "Squat", "E7": "", "C8": "Squat", "E8": "365"],
+            rows: 20,
+            cols: 10
+        )
+    )
+    #expect(blankThenValue[.squat] == 365)
+
+    let twoValues = parseTrainingMax(
+        from: gridFromA1(
+            ["E6": "Training Max", "C7": "Squat", "E7": "365", "C8": "Squat", "E8": "400"],
+            rows: 20,
+            cols: 10
+        )
+    )
+    #expect(twoValues[.squat] == 365)
 }
 
 @Test func parsesAnchorAndContinuationRows() {
@@ -148,7 +168,7 @@ import Testing
     )
     let section = locateWeekSections(in: grid)[0]
 
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
     #expect(exercises.count == 2)
     #expect(exercises[0].name == "0:3:0 Standing Calve Raises")
     #expect(exercises[0].baseName == "Standing Calve Raises")
@@ -183,9 +203,9 @@ import Testing
     let parsed = SheetParser().parse(grid: grid, tabName: "Block 27")
     #expect(parsed.warnings.isEmpty)
     #expect(parsed.block.weeks.count == 2)
-    #expect(parsed.block.squatTM == 365)
-    #expect(parsed.block.benchTM == 245)
-    #expect(parsed.block.deadliftTM == 455)
+    #expect(parsed.block.trainingMaxes[.squat] == 365)
+    #expect(parsed.block.trainingMaxes[.bench] == 245)
+    #expect(parsed.block.trainingMaxes[.deadlift] == 455)
     #expect(parsed.block.weeks[0].number == 1)
     #expect(parsed.block.weeks[0].days.count == 4)
     #expect(parsed.block.weeks[0].days[0].exercises[0].baseName == "Standing Calve Raises")
@@ -213,7 +233,7 @@ import Testing
         cols: 30
     )
     let section = locateWeekSections(in: grid)[0]
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
 
     let squat = exercises[0]
     #expect(squat.sets[0].prescribedLoad == "RPE 9")
@@ -238,7 +258,7 @@ import Testing
         cols: 30
     )
     let section = locateWeekSections(in: grid)[0]
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
 
     #expect(exercises[0].sets[0].prescribedLoad == "RPE 9")
     #expect(exercises[0].sets[1].prescribedLoad == "RPE 10")
@@ -264,7 +284,7 @@ import Testing
         cols: 30
     )
     let section = locateWeekSections(in: grid)[0]
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
 
     #expect(exercises.count == 2)
 
@@ -303,7 +323,7 @@ import Testing
         cols: 30
     )
     let section = locateWeekSections(in: grid)[0]
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
 
     let compSQ = exercises[0]
     #expect(compSQ.baseName == "Comp SQ")
@@ -332,7 +352,7 @@ import Testing
         cols: 30
     )
     let section = locateWeekSections(in: grid)[0]
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
 
     let compSQ = exercises[0]
     #expect(compSQ.sets.count == 3)
@@ -357,7 +377,7 @@ import Testing
         cols: 40
     )
     let section = locateWeekSections(in: grid)[0]
-    let exercises = parseDay(in: grid, section: section, dayIndex: 1, endRow: grid.count)
+    let exercises = parseDay(in: grid, section: section, dayIndex: 1)
 
     #expect(exercises.count == 1)
     let lunges = exercises[0]
@@ -382,7 +402,7 @@ import Testing
         cols: 40
     )
     let section = locateWeekSections(in: grid)[0]
-    let exercises = parseDay(in: grid, section: section, dayIndex: 1, endRow: grid.count)
+    let exercises = parseDay(in: grid, section: section, dayIndex: 1)
 
     #expect(exercises.count == 1)
     #expect(exercises[0].sets.count == 2)
@@ -400,7 +420,7 @@ import Testing
         cols: 30
     )
     let section = locateWeekSections(in: grid)[0]
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
 
     #expect(exercises[0].coachNote == "Keep elbows soft")
     #expect(exercises[0].sets[0].setLog == SetLog(weight: .pounds(25), reps: 12, rpe: .seven))

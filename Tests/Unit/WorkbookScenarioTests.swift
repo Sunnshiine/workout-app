@@ -23,9 +23,9 @@ func everyScenarioParsesCleanlyWithAnAvailableSession(scenario: WorkbookScenario
 
     #expect(workbook.spreadsheetId == "FIXTURE")
     #expect(workbook.title == "Fixture Training Log")
-    #expect(block.squatTM == 365)
-    #expect(block.benchTM == 245)
-    #expect(block.deadliftTM == 455)
+    #expect(block.trainingMaxes[.squat] == 365)
+    #expect(block.trainingMaxes[.bench] == 245)
+    #expect(block.trainingMaxes[.deadlift] == 455)
     #expect(block.weeks.map(\.number) == [1, 2])
     #expect(block.weeks[0].days.map(\.dayNumber) == [1, 2])
     #expect(block.weeks[1].days.map(\.dayNumber) == [1, 2, 3])

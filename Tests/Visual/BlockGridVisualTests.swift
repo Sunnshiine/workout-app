@@ -122,7 +122,7 @@ private enum GridFixture {
     }
 
     func build() -> (block: Block, currentSession: Session?) {
-        let block = Block(tabName: "Block 27", squatTM: nil, benchTM: nil, deadliftTM: nil)
+        let block = Block(tabName: "Block 27")
         var current: Session?
         block.weeks = weeks.enumerated().map { weekIndex, days in
             let week = Week(number: weekIndex + 1)

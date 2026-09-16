@@ -45,7 +45,7 @@ func makeSession(
 
 @MainActor
 func makeBlock(tabName: String = "Block 40", sessions: [Session]) -> Block {
-    let block = Block(tabName: tabName, squatTM: nil, benchTM: nil, deadliftTM: nil)
+    let block = Block(tabName: tabName)
     let weeks = Dictionary(grouping: sessions) { session in
         session.week?.number ?? 0
     }

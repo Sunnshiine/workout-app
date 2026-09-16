@@ -9,11 +9,24 @@ final class Block {
     var deadliftTM: Double?
     @Relationship(deleteRule: .cascade, inverse: \Week.block) var weeks: [Week] = []
 
-    init(tabName: String, squatTM: Double?, benchTM: Double?, deadliftTM: Double?) {
+    init(tabName: String, trainingMaxes: [MainLift: Double] = [:]) {
         self.tabName = tabName
-        self.squatTM = squatTM
-        self.benchTM = benchTM
-        self.deadliftTM = deadliftTM
+        squatTM = trainingMaxes[.squat]
+        benchTM = trainingMaxes[.bench]
+        deadliftTM = trainingMaxes[.deadlift]
+    }
+}
+
+extension Block {
+    /// A lift the coach left blank is an absent key, never a nil value, so "no Training Max" has
+    /// one spelling rather than two. The three `…TM` attributes are this property's SwiftData
+    /// storage; this file reads the mapping here and writes it in `init`, and nothing else knows it.
+    var trainingMaxes: [MainLift: Double] {
+        var maxes: [MainLift: Double] = [:]
+        maxes[.squat] = squatTM
+        maxes[.bench] = benchTM
+        maxes[.deadlift] = deadliftTM
+        return maxes
     }
 }
 

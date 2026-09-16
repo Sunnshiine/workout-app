@@ -16,7 +16,7 @@ private func makeExercise() -> Exercise {
 @MainActor
 @Suite struct SetCoordinatesTests {
     @Test func resolvesEveryFieldFromTheChain() throws {
-        let block = Block(tabName: "Block 27", squatTM: nil, benchTM: nil, deadliftTM: nil)
+        let block = Block(tabName: "Block 27")
         let week = Week(number: 3)
         week.block = block
         let session = Session(dayNumber: 4, date: Date(timeIntervalSinceReferenceDate: 100))
@@ -72,7 +72,7 @@ private func makeExercise() -> Exercise {
 
     @Test func aSessionWithNoDateHasNoSessionDate() throws {
         let week = Week(number: 1)
-        week.block = Block(tabName: "Block 1", squatTM: nil, benchTM: nil, deadliftTM: nil)
+        week.block = Block(tabName: "Block 1")
         let session = Session(dayNumber: 1, date: nil)
         session.week = week
         let exercise = makeExercise()

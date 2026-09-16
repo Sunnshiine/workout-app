@@ -91,7 +91,7 @@ private enum DayState {
 
 @MainActor
 private func blockWithControlledSessions(weeks: [[DayState]]) -> Block {
-    let block = Block(tabName: "Block 27", squatTM: nil, benchTM: nil, deadliftTM: nil)
+    let block = Block(tabName: "Block 27")
     block.weeks = weeks.enumerated().map { weekIndex, days in
         let week = Week(number: weekIndex + 1)
         week.sessions = days.enumerated().map { dayIndex, day in
