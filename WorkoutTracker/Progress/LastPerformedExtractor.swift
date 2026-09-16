@@ -64,7 +64,7 @@ enum LastPerformedExtractor {
 /// What one Set contributes to a Last Performed line (ADR-0012). Absence of evidence is `nil`:
 /// a Pending Set and a legacy-completion placeholder Set (Logged with no content) contribute
 /// nothing at all.
-enum LastPerformedSetEvidence: Equatable, Sendable {
+private enum LastPerformedSetEvidence: Equatable, Sendable {
     /// A Structured Set Log formatted, or an Unstructured Set Log as the athlete entered it
     /// (never normalized — ADR-0005).
     case logged(String)
@@ -86,7 +86,7 @@ enum LastPerformedSetEvidence: Equatable, Sendable {
 }
 
 extension ParsedSet {
-    var lastPerformedEvidence: LastPerformedSetEvidence? {
+    fileprivate var lastPerformedEvidence: LastPerformedSetEvidence? {
         if let setLog { return .logged(setLog.formatted) }
         let text = unstructuredSetLog?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if state == .logged, !text.isEmpty { return .logged(text) }

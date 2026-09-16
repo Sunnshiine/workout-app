@@ -317,7 +317,6 @@ struct ExerciseSummaryRowPresentation: Equatable, Sendable {
 }
 
 struct LastPerformedCardPresentation: Equatable, Sendable {
-    let label: String
     let resultText: String
     let sourceText: String
     /// The matched entry's own entered name for a tier-3 (Movement-level) line, rendered
@@ -325,7 +324,6 @@ struct LastPerformedCardPresentation: Equatable, Sendable {
     let matchedName: String?
 
     init(entry: LastPerformedEntry) {
-        label = "Last Performed"
         resultText = entry.resultText
         sourceText = entry.source
         matchedName = nil
@@ -335,7 +333,6 @@ struct LastPerformedCardPresentation: Equatable, Sendable {
         guard let entry = lookup.lookup(for: exercise.name) else {
             return nil
         }
-        label = "Last Performed"
         resultText = entry.resultText
         sourceText = entry.sourceText
         matchedName = entry.matchedName
