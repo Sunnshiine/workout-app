@@ -32,20 +32,15 @@ struct SessionCoordinate: Hashable, Sendable {
         guard let separator = storageValue.range(of: Self.separator, options: .backwards) else { return nil }
         let label = storageValue[separator.upperBound...].split(separator: " ")
         guard label.count == 2,
-            let weekNumber = Self.number(label[0], markedBy: "W"),
-            let dayNumber = Self.number(label[1], markedBy: "D")
+            label[0].hasPrefix("W"), label[1].hasPrefix("D"),
+            let weekNumber = Int(label[0].dropFirst()),
+            let dayNumber = Int(label[1].dropFirst())
         else { return nil }
         self.init(
             blockTab: String(storageValue[..<separator.lowerBound]),
             weekNumber: weekNumber,
             dayNumber: dayNumber
         )
-    }
-
-    /// The number behind a marker letter, as `W12` reads 12. `nil` for anything else.
-    private static func number(_ component: Substring, markedBy marker: Character) -> Int? {
-        guard component.first == marker else { return nil }
-        return Int(component.dropFirst())
     }
 
     /// The Session label for a Week and Day that are not part of a stored coordinate — the live
