@@ -18,7 +18,7 @@ import Testing
     session.exercises = [ex]
     let week = Week(number: 1)
     week.sessions = [session]
-    let block = Block(tabName: "Block 27", squatTM: nil, benchTM: nil, deadliftTM: nil)
+    let block = Block(tabName: "Block 27")
     block.weeks = [week]
     ctx.insert(block)
     try ctx.save()

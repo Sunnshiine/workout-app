@@ -465,7 +465,10 @@
     private enum WorkoutFixtureFactory {
         @MainActor
         static func block(weeks: [Week]) -> Block {
-            let block = Block(tabName: WorkoutFixtureScenarios.blockTab, squatTM: 315, benchTM: 225, deadliftTM: 405)
+            let block = Block(
+                tabName: WorkoutFixtureScenarios.blockTab,
+                trainingMaxes: [.squat: 315, .bench: 225, .deadlift: 405]
+            )
             block.weeks = weeks
             return block
         }

@@ -1,20 +1,15 @@
 import Foundation
 
 /// The two Exercise-derived inputs `LoadSuggestionEngine.suggest` needs: the Training Max
-/// that applies to this Movement, and the weight the athlete last put on the bar.
+/// that applies to this Exercise, and the weight the athlete last put on the bar.
 extension Exercise {
-    /// Which of the Block's three Training Maxes applies to this Exercise, by substring on the
-    /// base name in squat/bench/deadlift order.
-    ///
-    /// Deliberately not `MovementMatching` (ADR-0013): that matcher draws different lines, and
-    /// switching would silently change which Exercises get a Training Max.
+    /// The Block Training Max that applies to this Exercise. Nothing when the base name claims no
+    /// Main Lift, or when the Exercise sits outside a Block. `MainLift` owns the matching rule and
+    /// the reasoning behind it.
     var trainingMax: Double? {
-        guard let block = session?.week?.block else { return nil }
-        let baseName = baseName.lowercased()
-        if baseName.contains("squat") { return block.squatTM }
-        if baseName.contains("bench") { return block.benchTM }
-        if baseName.contains("deadlift") { return block.deadliftTM }
-        return nil
+        guard let block = session?.week?.block, let lift = MainLift(matchingBaseName: baseName)
+        else { return nil }
+        return block.trainingMaxes[lift]
     }
 
     /// The nearest earlier Set's logged weight in pounds. Bodyweight and unlogged Sets carry no

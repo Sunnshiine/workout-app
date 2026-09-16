@@ -302,13 +302,8 @@ struct ParsedWeek {
     var number: Int
     var days: [ParsedSession]
 }
-struct ParsedTrainingMax {
-    var squat: Double?
-    var bench: Double?
-    var deadlift: Double?
-}
 
-func parseTrainingMax(from grid: SheetGrid) -> ParsedTrainingMax {
+func parseTrainingMax(from grid: SheetGrid) -> [MainLift: Double] {
     let scannedRows = min(grid.count, trainingMaxHeaderScanRowLimit)
     for row in 0..<scannedRows {
         for col in 0..<grid[row].count
@@ -317,7 +312,7 @@ func parseTrainingMax(from grid: SheetGrid) -> ParsedTrainingMax {
         }
     }
 
-    return ParsedTrainingMax()
+    return [:]
 }
 
 private func trainingMaxValues(
@@ -325,45 +320,27 @@ private func trainingMaxValues(
     valueCol: Int,
     labelCol: Int,
     startRow: Int
-) -> ParsedTrainingMax {
-    guard labelCol >= 0 else { return ParsedTrainingMax() }
+) -> [MainLift: Double] {
+    guard labelCol >= 0 else { return [:] }
 
-    func value(for expectedLabel: String) -> Double? {
-        let endRow = min(grid.count, startRow + 8)
-        return (startRow..<endRow).compactMap { row -> Double? in
-            let label = grid.cell(row: row, col: labelCol).trimmed
-            guard label.caseInsensitiveCompare(expectedLabel) == .orderedSame else { return nil }
-            return Double(grid.cell(row: row, col: valueCol).trimmed)
-        }.first
+    var maxes: [MainLift: Double] = [:]
+    for row in startRow..<min(grid.count, startRow + 8) {
+        // A labelled row whose value does not parse leaves the lift unclaimed, so a later row
+        // carrying the same label can still supply it.
+        guard
+            let lift = MainLift(sheetLabel: grid.cell(row: row, col: labelCol).trimmed),
+            maxes[lift] == nil,
+            let value = Double(grid.cell(row: row, col: valueCol).trimmed)
+        else { continue }
+        maxes[lift] = value
     }
-
-    return ParsedTrainingMax(
-        squat: value(for: "Squat"),
-        bench: value(for: "Bench Press"),
-        deadlift: value(for: "Deadlift")
-    )
+    return maxes
 }
 
 struct ParsedBlockModel {
     var tabName: String
     var weeks: [ParsedWeek]
-    var squatTM: Double?
-    var benchTM: Double?
-    var deadliftTM: Double?
-
-    init(
-        tabName: String,
-        weeks: [ParsedWeek],
-        squatTM: Double? = nil,
-        benchTM: Double? = nil,
-        deadliftTM: Double? = nil
-    ) {
-        self.tabName = tabName
-        self.weeks = weeks
-        self.squatTM = squatTM
-        self.benchTM = benchTM
-        self.deadliftTM = deadliftTM
-    }
+    var trainingMaxes: [MainLift: Double] = [:]
 
     /// Every Exercise's Cadence-stripped base name: the unit Exercise History coverage counts in (ADR-0012).
     var exerciseBaseNames: Set<String> {
@@ -387,18 +364,12 @@ struct SheetParser {
     private func parse(_ snapshot: SheetSnapshot, tabName: String) -> ParsedBlock {
         let grid = snapshot.values
         var warnings: [String] = []
-        let trainingMax = parseTrainingMax(from: grid)
+        let trainingMaxes = parseTrainingMax(from: grid)
         let layout = SheetLayoutInterpreter().interpret(snapshot)
         if layout.weeks.isEmpty {
             warnings.append("Parse warning: no week sections (no 'Day N' headers) in \(tabName)")
             return ParsedBlock(
-                block: ParsedBlockModel(
-                    tabName: tabName,
-                    weeks: [],
-                    squatTM: trainingMax.squat,
-                    benchTM: trainingMax.bench,
-                    deadliftTM: trainingMax.deadlift
-                ),
+                block: ParsedBlockModel(tabName: tabName, weeks: [], trainingMaxes: trainingMaxes),
                 warnings: warnings
             )
         }
@@ -413,13 +384,7 @@ struct SheetParser {
         }
 
         return ParsedBlock(
-            block: ParsedBlockModel(
-                tabName: tabName,
-                weeks: weeks,
-                squatTM: trainingMax.squat,
-                benchTM: trainingMax.bench,
-                deadliftTM: trainingMax.deadlift
-            ),
+            block: ParsedBlockModel(tabName: tabName, weeks: weeks, trainingMaxes: trainingMaxes),
             warnings: warnings
         )
     }

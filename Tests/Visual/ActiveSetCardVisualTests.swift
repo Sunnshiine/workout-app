@@ -95,7 +95,7 @@ struct ActiveSetCardVisualTests {
         session.exercises = [exercise]
         let week = Week(number: 2)
         week.sessions = [session]
-        let block = Block(tabName: "Block 27", squatTM: nil, benchTM: 150, deadliftTM: nil)
+        let block = Block(tabName: "Block 27", trainingMaxes: [.bench: 150])
         block.weeks = [week]
 
         return (exercise, exercise.sets[2])

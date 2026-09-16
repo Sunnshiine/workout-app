@@ -122,7 +122,7 @@ struct SupersetStageVisualTests {
         session.exercises = [press, row]
         let week = Week(number: 2)
         week.sessions = [session]
-        let block = Block(tabName: "Block 27", squatTM: nil, benchTM: 150, deadliftTM: nil)
+        let block = Block(tabName: "Block 27", trainingMaxes: [.bench: 150])
         block.weeks = [week]
 
         let activeSetID = ActiveSetID(exerciseOrder: press.order, setIndex: 1)

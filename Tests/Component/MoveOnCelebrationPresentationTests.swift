@@ -160,7 +160,7 @@ private func makeMoveOnSession(
 ) -> Session {
     let week = Week(number: weekNumber)
     if let blockTab {
-        let block = Block(tabName: blockTab, squatTM: nil, benchTM: nil, deadliftTM: nil)
+        let block = Block(tabName: blockTab)
         week.block = block
         block.weeks = [week]
     }

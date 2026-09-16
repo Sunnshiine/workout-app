@@ -18,7 +18,7 @@ A mobile client for powerlifting athletes that surfaces and logs workouts from a
 
 **Unavailable Session**: A Session the coach has not yet populated, holding zero Exercises. Visible in the Block grid as a clearly non-interactive tile so the athlete sees the Session exists but cannot open it. Becomes an Available Session automatically once the coach uploads its Exercises and the app next syncs — no athlete action unlocks it. Avoid: locked session, empty session, missing session, disabled session.
 
-**Exercise**: A named entry in a Session (optionally prefixed with a tempo notation, e.g. "2-3:1:0 BB RDL"). Each Exercise has one or more prescribed Sets, authored across one or more Prescription Lines. Distinct from Movement, the cross-Session identity that several spellings of the same name can share. Avoid: lift.
+**Exercise**: A named entry in a Session (optionally prefixed with a tempo notation, e.g. "2-3:1:0 BB RDL"). Each Exercise has one or more prescribed Sets, authored across one or more Prescription Lines. Distinct from Movement, the cross-Session identity that several spellings of the same name can share. Avoid: lift, which names only the three Main Lifts.
 
 **Prescription Line**: One prescription row of an Exercise, carrying its own Sets/Reps/Load and its own comma-separated Set Logs in its Notes cell. Most Exercises are a single Line (the anchor row, whose Sets cell is the total — e.g. Kevin's template). Some coaches (e.g. J. Alarcon) stack several Lines per Exercise: the anchor row plus blank-name continuation rows that each have their own numeric Sets cell. An Exercise's Set count is the sum of its Lines' Sets. Avoid: set group, sub-exercise, row.
 
@@ -28,7 +28,9 @@ A mobile client for powerlifting athletes that surfaces and logs workouts from a
 
 ### Load & Intensity
 
-**Training Max**: The coach's derived working weight for Squat, Bench Press, or Deadlift — calculated from the athlete's estimated 1RM. Stored per Block. Avoid: 1RM, working max.
+**Main Lift**: One of the three barbell lifts a Training Max is defined for — Squat, Bench Press, Deadlift. A closed set: the Sheet's Training Max header area holds exactly these three labelled rows, and an Exercise claims at most one of them by lowercased substring on its Cadence-stripped base name, squat before bench before deadlift ("Front Squat" claims squat; "RDL" claims none). Far stricter than Movement, the fuzzy cross-Session identity (ADR-0013), which is deliberately not used here. "Lift" names this closed set and nothing else — a named entry in a Session is still an Exercise. Avoid: main movement, big three, competition lift.
+
+**Training Max**: The coach's derived working weight for a Main Lift — calculated from the athlete's estimated 1RM. Stored per Block. Avoid: 1RM, working max.
 
 **Prescribed Load**: The coach's intensity instruction for a given Set (e.g. "RPE6", "Drop 17.5%", "BW"). Read-only from the athlete's perspective. Avoid: target load.
 

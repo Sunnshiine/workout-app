@@ -230,7 +230,7 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 
 @MainActor
 @Test func sessionProgressHeaderPresentationShowsCompactLocationAndRemainingCount() {
-    let block = Block(tabName: "Block 27", squatTM: nil, benchTM: nil, deadliftTM: nil)
+    let block = Block(tabName: "Block 27")
     let week = Week(number: 2)
     let session = Session(dayNumber: 3, date: nil)
     let exercise = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil)
