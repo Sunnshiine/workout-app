@@ -17,15 +17,10 @@ final class Block {
     }
 }
 
-// MARK: - Training Max
-
 extension Block {
-    /// The Block's Training Maxes keyed by lift. A lift the coach left blank is an absent key,
-    /// never a nil value, so "no Training Max" has one spelling rather than two.
-    ///
-    /// The three `…TM` attributes are this property's SwiftData storage, and this is the only
-    /// place the lift-to-attribute mapping lives. Assigning a nil `Double?` through a Dictionary
-    /// subscript removes the key, which is why no conditional is needed here.
+    /// A lift the coach left blank is an absent key, never a nil value, so "no Training Max" has
+    /// one spelling rather than two. The three `…TM` attributes are this property's SwiftData
+    /// storage; this file reads the mapping here and writes it in `init`, and nothing else knows it.
     var trainingMaxes: [MainLift: Double] {
         var maxes: [MainLift: Double] = [:]
         maxes[.squat] = squatTM

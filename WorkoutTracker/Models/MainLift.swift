@@ -1,17 +1,14 @@
 import Foundation
 
-/// One of the three barbell lifts the coach defines a Training Max for. The set is closed: the
-/// Sheet's Training Max header area holds exactly these three labelled rows, and an Exercise
-/// claims at most one of them.
-///
-/// Declaration order is load-bearing. It is the precedence `init(matchingBaseName:)` resolves an
-/// ambiguous base name with, so "Squat Rack Bench Press" claims squat rather than bench.
+/// One of the three lifts a Training Max is defined for. See CONTEXT.md, "Main Lift".
 enum MainLift: CaseIterable {
     case squat
     case bench
     case deadlift
 
-    /// The whole-cell label the coach writes in the Training Max block's label column.
+    /// The order an ambiguous base name resolves in, so "Squat Rack Bench Press" claims squat.
+    private static let matchPrecedence: [MainLift] = [.squat, .bench, .deadlift]
+
     private var sheetLabel: String {
         switch self {
         case .squat: "Squat"
@@ -20,9 +17,9 @@ enum MainLift: CaseIterable {
         }
     }
 
-    /// The lowercased fragment an Exercise's base name must contain to claim this lift's Training
-    /// Max. Not the Sheet label lowercased: the Sheet says "Bench Press", but "Paused Bench Press"
-    /// claims bench on "bench" alone.
+    /// Not the Sheet label lowercased. The Sheet says "Bench Press", but "Paused Bench Press"
+    /// claims bench on "bench" alone, so deriving one spelling from the other would change which
+    /// Exercises get a Training Max.
     private var baseNameKeyword: String {
         switch self {
         case .squat: "squat"
@@ -31,9 +28,8 @@ enum MainLift: CaseIterable {
         }
     }
 
-    /// The lift a Training Max label cell names, matched case-insensitively against the whole
-    /// trimmed cell. "Squat (comp)" and "OHP" name no lift.
     init?(sheetLabel cell: String) {
+        let cell = cell.trimmed
         guard
             let match = Self.allCases.first(where: {
                 $0.sheetLabel.caseInsensitiveCompare(cell) == .orderedSame
@@ -42,14 +38,11 @@ enum MainLift: CaseIterable {
         self = match
     }
 
-    /// The lift an Exercise's Cadence-stripped base name claims: lowercased substring, first match
-    /// in declaration order. "Front Squat" claims squat; "RDL" claims nothing.
-    ///
     /// Deliberately not `MovementMatching` (ADR-0013): that matcher draws different lines, and
     /// switching would silently change which Exercises get a Training Max.
     init?(matchingBaseName baseName: String) {
         let name = baseName.lowercased()
-        guard let match = Self.allCases.first(where: { name.contains($0.baseNameKeyword) })
+        guard let match = Self.matchPrecedence.first(where: { name.contains($0.baseNameKeyword) })
         else { return nil }
         self = match
     }

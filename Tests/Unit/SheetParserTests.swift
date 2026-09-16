@@ -133,8 +133,6 @@ import Testing
     #expect(blankValues[.deadlift] == nil)
 }
 
-/// A repeated label is decided by the first row carrying a parsable number, so a blank row above
-/// does not consume the lift and a second number below does not override the first.
 @Test func aRepeatedTrainingMaxLabelTakesTheFirstParsableValue() {
     let blankThenValue = parseTrainingMax(
         from: gridFromA1(

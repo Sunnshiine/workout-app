@@ -75,22 +75,19 @@ private func loggedSet(index: Int, weight: Weight?) -> ExerciseSet {
         #expect(exercise(named: "back squat").trainingMax == 405)
     }
 
-    /// Branch order is behaviour, not an accident. A base name carrying two keywords resolves to
-    /// the earlier one, so these deliberately ambiguous names pin squat over bench over deadlift.
+    /// Pinned end to end as well as on `MainLift`, because this is the order that decides which
+    /// Training Max an athlete actually sees pre-filled.
     @Test func anAmbiguousBaseNameResolvesInSquatBenchDeadliftOrder() {
         #expect(exercise(named: "Squat Rack Bench Press").trainingMax == 405)
         #expect(exercise(named: "Bench Press from Deadlift Blocks").trainingMax == 265)
     }
 
-    /// The Block is there, but the coach left that lift's Training Max blank.
     @Test func aBlankTrainingMaxOnThePresentBlockResolvesToNothing() {
         let block = Block(tabName: "Block 27", trainingMaxes: [.bench: 265, .deadlift: 500])
 
         #expect(exercise(name: "Back Squat", baseName: "Back Squat", in: block).trainingMax == nil)
     }
 
-    /// The rule reads the Cadence-stripped base name, never the full Exercise name, so a Cadence
-    /// prefix cannot change the answer and a name-only keyword cannot manufacture one.
     @Test func matchingReadsTheBaseNameNotTheFullName() {
         let block = Block(tabName: "Block 27", trainingMaxes: [.squat: 405, .bench: 265, .deadlift: 500])
 

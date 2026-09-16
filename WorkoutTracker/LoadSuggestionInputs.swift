@@ -3,9 +3,7 @@ import Foundation
 /// The two Exercise-derived inputs `LoadSuggestionEngine.suggest` needs: the Training Max
 /// that applies to this Exercise, and the weight the athlete last put on the bar.
 extension Exercise {
-    /// The Block Training Max that applies to this Exercise. Nothing when the base name claims no
-    /// Main Lift, or when the Exercise sits outside a Block. `MainLift` owns the matching rule and
-    /// the reasoning behind it.
+    /// `MainLift` owns the matching rule and the reasoning behind it.
     var trainingMax: Double? {
         guard let block = session?.week?.block, let lift = MainLift(matchingBaseName: baseName)
         else { return nil }

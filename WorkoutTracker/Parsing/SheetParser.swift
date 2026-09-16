@@ -325,8 +325,6 @@ private func trainingMaxValues(
 
     var maxes: [MainLift: Double] = [:]
     for row in startRow..<min(grid.count, startRow + 8) {
-        // A labelled row whose value does not parse leaves the lift unclaimed, so a later row
-        // carrying the same label can still supply it.
         guard
             let lift = MainLift(sheetLabel: grid.cell(row: row, col: labelCol).trimmed),
             maxes[lift] == nil,

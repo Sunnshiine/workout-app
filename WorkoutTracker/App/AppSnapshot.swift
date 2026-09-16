@@ -56,8 +56,8 @@ public struct BlockSummary: Encodable, Equatable, Sendable {
     public let weekCount: Int
 
     init(_ block: Block) {
-        // The three flat fields are the CLI's wire format and stay as they are; reading them
-        // through the keyed projection keeps `Block`'s stored columns behind one accessor.
+        // Flat fields because this is the CLI's wire format, read through the keyed projection so
+        // `Block`'s stored columns stay behind one accessor.
         let trainingMaxes = block.trainingMaxes
         tabName = block.tabName
         squatTM = trainingMaxes[.squat]
