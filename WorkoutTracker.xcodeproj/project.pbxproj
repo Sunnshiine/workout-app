@@ -22,6 +22,7 @@
 		21FFED2ACCE1F4CBC452185B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63852C80C5AAD37D2E99F205 /* SettingsView.swift */; };
 		220D586E2C3501A8CD100024 /* Block.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56BD19DDAA92AF5F6982BB5E /* Block.swift */; };
 		23DC6090AF57EAF426C113C5 /* LastPerformedEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FE11A57FFD49F1221D2CA75 /* LastPerformedEntry.swift */; };
+		5E5511000000000000005112 /* SessionCoordinate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E5511000000000000005111 /* SessionCoordinate.swift */; };
 		263DC76714A051B3A2633BEC /* SessionStageSetDots.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4204EE26AA9CAF016ACC94EB /* SessionStageSetDots.swift */; };
 		298DEFE8D99B3F6C97CAAE38 /* RestNotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFBA3AF5C9A8A37438C43F0D /* RestNotificationScheduler.swift */; };
 		F1A2B3C4D5E6F7A8B9C0D1E2 /* RestInterval.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6F7A8B9C0D1E3 /* RestInterval.swift */; };
@@ -230,6 +231,7 @@
 		67135AA558123A1C244485B9 /* LastPerformedCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastPerformedCard.swift; sourceTree = "<group>"; };
 		698FB46E5B1635F96AA0AA79 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		6CBF0DF8D231210F853585A0 /* WorkoutLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutLiveActivity.swift; sourceTree = "<group>"; };
+		5E5511000000000000005111 /* SessionCoordinate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCoordinate.swift; sourceTree = "<group>"; };
 		6FE11A57FFD49F1221D2CA75 /* LastPerformedEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastPerformedEntry.swift; sourceTree = "<group>"; };
 		7172E2B6F090D7F496DD6236 /* SessionTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionTile.swift; sourceTree = "<group>"; };
 		719E54DAA40D4D2D700AA91F /* SmartValuePills.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartValuePills.swift; sourceTree = "<group>"; };
@@ -541,6 +543,7 @@
 				ECA5D0F58BE44C1297D2C669 /* PendingWrite.swift */,
 				FEED000000000000000000B2 /* BuildIdentity.swift */,
 				BAF4B32774225208D31F362E /* RestDurationSetting.swift */,
+				5E5511000000000000005111 /* SessionCoordinate.swift */,
 				20D53666552036BF79EEB41F /* SetLog.swift */,
 			);
 			path = Models;
@@ -856,6 +859,7 @@
 				2FFD6423631AA90DA899A6F8 /* GoogleSheetsClient.swift in Sources */,
 				CD228894689CDEFA80FF7DA1 /* LastPerformedCard.swift in Sources */,
 				23DC6090AF57EAF426C113C5 /* LastPerformedEntry.swift in Sources */,
+				5E5511000000000000005112 /* SessionCoordinate.swift in Sources */,
 				A02F44FF07FD393EE8A24ADA /* LastPerformedExtractor.swift in Sources */,
 				A5B6C7D8E9F001122334455F /* LastPerformedOccurrence.swift in Sources */,
 				D0E1F2A3B4C5D6E7F8091A2B /* MovementMatching.swift in Sources */,

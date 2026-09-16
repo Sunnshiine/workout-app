@@ -77,7 +77,7 @@
                 baseName: "Back Squat",
                 resultText: "245x5@6, 255x5@7",
                 performedOn: Date(timeIntervalSinceReferenceDate: 100),
-                source: "Block 26 · W4 D3"
+                source: SessionCoordinate(blockTab: "Block 26", weekNumber: 4, dayNumber: 3).storageValue
             )
         }
 
@@ -91,14 +91,14 @@
                     baseName: "Back Squat",
                     resultText: "235x5@6, 245x5@7",
                     performedOn: Date(timeIntervalSinceReferenceDate: 60),
-                    source: "Block 26 · W2 D3"
+                    source: SessionCoordinate(blockTab: "Block 26", weekNumber: 2, dayNumber: 3).storageValue
                 ),
                 LastPerformedEntry(
                     fullName: "Back Squat",
                     baseName: "Back Squat",
                     resultText: "225x5@7",
                     performedOn: Date(timeIntervalSinceReferenceDate: 30),
-                    source: "Block 25 · W3 D1"
+                    source: SessionCoordinate(blockTab: "Block 25", weekNumber: 3, dayNumber: 1).storageValue
                 ),
             ]
         }
