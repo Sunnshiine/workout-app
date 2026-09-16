@@ -276,7 +276,7 @@ private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns,
 
 /// Parses all exercises in one day group. Anchor rows have a non-empty name cell;
 /// the row count for an exercise is `max(Sets value, 1)`.
-func parseDay(in grid: SheetGrid, section: WeekSection, dayIndex: Int, endRow: Int) -> [ParsedExercise] {
+func parseDay(in grid: SheetGrid, section: WeekSection, dayIndex: Int) -> [ParsedExercise] {
     let snapshot = SheetSnapshot(values: grid)
     let layout = SheetLayoutInterpreter().interpret(snapshot)
     guard

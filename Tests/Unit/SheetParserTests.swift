@@ -148,7 +148,7 @@ import Testing
     )
     let section = locateWeekSections(in: grid)[0]
 
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
     #expect(exercises.count == 2)
     #expect(exercises[0].name == "0:3:0 Standing Calve Raises")
     #expect(exercises[0].baseName == "Standing Calve Raises")
@@ -213,7 +213,7 @@ import Testing
         cols: 30
     )
     let section = locateWeekSections(in: grid)[0]
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
 
     let squat = exercises[0]
     #expect(squat.sets[0].prescribedLoad == "RPE 9")
@@ -238,7 +238,7 @@ import Testing
         cols: 30
     )
     let section = locateWeekSections(in: grid)[0]
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
 
     #expect(exercises[0].sets[0].prescribedLoad == "RPE 9")
     #expect(exercises[0].sets[1].prescribedLoad == "RPE 10")
@@ -264,7 +264,7 @@ import Testing
         cols: 30
     )
     let section = locateWeekSections(in: grid)[0]
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
 
     #expect(exercises.count == 2)
 
@@ -303,7 +303,7 @@ import Testing
         cols: 30
     )
     let section = locateWeekSections(in: grid)[0]
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
 
     let compSQ = exercises[0]
     #expect(compSQ.baseName == "Comp SQ")
@@ -332,7 +332,7 @@ import Testing
         cols: 30
     )
     let section = locateWeekSections(in: grid)[0]
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
 
     let compSQ = exercises[0]
     #expect(compSQ.sets.count == 3)
@@ -357,7 +357,7 @@ import Testing
         cols: 40
     )
     let section = locateWeekSections(in: grid)[0]
-    let exercises = parseDay(in: grid, section: section, dayIndex: 1, endRow: grid.count)
+    let exercises = parseDay(in: grid, section: section, dayIndex: 1)
 
     #expect(exercises.count == 1)
     let lunges = exercises[0]
@@ -382,7 +382,7 @@ import Testing
         cols: 40
     )
     let section = locateWeekSections(in: grid)[0]
-    let exercises = parseDay(in: grid, section: section, dayIndex: 1, endRow: grid.count)
+    let exercises = parseDay(in: grid, section: section, dayIndex: 1)
 
     #expect(exercises.count == 1)
     #expect(exercises[0].sets.count == 2)
@@ -400,7 +400,7 @@ import Testing
         cols: 30
     )
     let section = locateWeekSections(in: grid)[0]
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0, endRow: grid.count)
+    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
 
     #expect(exercises[0].coachNote == "Keep elbows soft")
     #expect(exercises[0].sets[0].setLog == SetLog(weight: .pounds(25), reps: 12, rpe: .seven))
