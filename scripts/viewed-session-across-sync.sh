@@ -4,7 +4,7 @@
 # In both homes the local cache still has the Current Session at w1d1 while the Sheet has
 # gained a Set Log in a later Session, so the sync moves the Current Session underneath.
 #
-# Usage: .claude/work/viewed-session-across-sync.sh   (from the worktree root)
+# Usage: scripts/viewed-session-across-sync.sh   (from the worktree root)
 
 set -euo pipefail
 

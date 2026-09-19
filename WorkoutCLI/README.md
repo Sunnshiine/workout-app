@@ -53,7 +53,7 @@ enqueues twice, because that is what the store does; the report shows it.
 The Viewed Session is transient view state that dies with the process, so `sync --viewing w2d3`
 is the only way to watch what a reload does to it: it opens that Session the way the Block grid
 does, syncs, and reports where the athlete ended up. At the live edge `viewedSession` follows
-`currentSession`; browsed away it stays put (`.claude/work/viewed-session-across-sync.sh`).
+`currentSession`; browsed away it stays put (`scripts/viewed-session-across-sync.sh`).
 
 A write the Sheet rejects (its cell no longer holds the expected value) is marked `conflict` and
 never retried, exactly as in the app. `flush` and `sync` print the report to stdout, list it under
