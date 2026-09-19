@@ -259,9 +259,8 @@ final class SettingsSheetSwitchStore {
         self.onSynced = onSynced
     }
 
-    /// Switching the configured Sheet and signing out are the same domain move: each abandons Set
-    /// Logs the athlete recorded locally that have not yet reached the Sheet (ADR-0001). Neither
-    /// may begin while a sync or the other one is already running.
+    /// Switching the configured Sheet and signing out are one domain move. Both abandon Set Logs
+    /// the athlete recorded locally that have not yet reached the Sheet (ADR-0001).
     var canBeginDestructiveTransition: Bool {
         !isTransitioning && !syncActivity.isSyncInFlight
     }

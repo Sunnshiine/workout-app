@@ -157,7 +157,6 @@ struct SettingsView: View {
         settings.spreadsheetId == nil || isSheetBusy
     }
 
-    /// Wider than the store's guard by `sync.state`, the background sync only the view can see.
     private var isSheetBusy: Bool {
         sheetSwitchStore?.canBeginDestructiveTransition == false || sync.state == .syncing
     }
