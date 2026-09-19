@@ -20,7 +20,7 @@
         #expect(notFound.exitClass.rawValue == 1)
 
         #expect(Failure(ApplicationError.notConfigured).exitClass.rawValue == 3)
-        #expect(Failure(ApplicationError.syncFailed(.offline)).exitClass.rawValue == 3)
-        #expect(Failure(ApplicationError.syncFailed(.conflict(["Back Squat: rejected"]))).exitClass.rawValue == 4)
+        #expect(Failure(ApplicationError.syncFailed(.sheetUnreachable)).exitClass.rawValue == 3)
+        #expect(Failure(ApplicationError.syncFailed(.writesRefused)).exitClass.rawValue == 4)
     }
 #endif

@@ -55,7 +55,7 @@ private func json(_ value: some Encodable) throws -> [String: Any] {
 
     let selected = try json(try await app.selectSpreadsheet(id: "FIXTURE", title: "Fixture Training Log"))
     #expect(selected["currentSession"] as? String == "w1d1")
-    #expect((selected["syncState"] as? [String: Any])?["status"] as? String == "idle")
+    #expect((selected["syncOutcome"] as? [String: Any])?["status"] as? String == "clear")
     #expect((selected["sessions"] as? [[String: Any]])?.count == 5)
 
     let block = try #require(selected["block"] as? [String: Any])
@@ -151,28 +151,43 @@ private func json(_ value: some Encodable) throws -> [String: Any] {
             nil, .domain
         ),
         (
-            .syncFailed(.idle), "sync_failed",
-            "Sync did not complete; the app is idle. Check the workbook and run `workout sync` again.",
+            .syncFailed(.clear), "sync_failed",
+            "Sync did not complete (clear). Check the workbook and run `workout sync` again.",
             nil, .environment
         ),
         (
-            .syncFailed(.syncing), "sync_failed",
-            "Sync did not complete; the app is syncing. Check the workbook and run `workout sync` again.",
+            .syncFailed(.localWriteFailed), "sync_failed",
+            "Sync did not complete (localWriteFailed). Check the workbook and run `workout sync` again.",
+            nil, .conflict
+        ),
+        (
+            .syncFailed(.sheetUnreachable), "sync_failed",
+            "Sync did not complete (sheetUnreachable). Check the workbook and run `workout sync` again.",
             nil, .environment
         ),
         (
-            .syncFailed(.offline), "sync_failed",
-            "Sync did not complete; the app is offline. Check the workbook and run `workout sync` again.",
+            .syncFailed(.writesQueued), "sync_failed",
+            "Sync did not complete (writesQueued). Check the workbook and run `workout sync` again.",
             nil, .environment
         ),
         (
-            .syncFailed(.pendingWrites(1)), "sync_failed",
-            "Sync did not complete; the app is pendingWrites. Check the workbook and run `workout sync` again.",
-            nil, .environment
+            .syncFailed(.writesRefused), "sync_failed",
+            "Sync did not complete (writesRefused). Check the workbook and run `workout sync` again.",
+            nil, .conflict
         ),
         (
-            .syncFailed(.conflict(["Back Squat: rejected"])), "sync_failed",
-            "Sync did not complete; the app is conflict. Check the workbook and run `workout sync` again.",
+            .syncFailed(.noBlockTab), "sync_failed",
+            "Sync did not complete (noBlockTab). Check the workbook and run `workout sync` again.",
+            nil, .conflict
+        ),
+        (
+            .syncFailed(.parseWarnings), "sync_failed",
+            "Sync did not complete (parseWarnings). Check the workbook and run `workout sync` again.",
+            nil, .conflict
+        ),
+        (
+            .syncFailed(.historyFillFailed), "sync_failed",
+            "Sync did not complete (historyFillFailed). Check the workbook and run `workout sync` again.",
             nil, .conflict
         )
     ]

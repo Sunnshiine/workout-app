@@ -1,49 +1,59 @@
 import Foundation
 
-/// The sync coordinator's state as a value: `{"status":"pendingWrites","count":1}`.
-public enum SyncStateSnapshot: Equatable, Sendable {
-    case idle
-    case syncing
-    case offline
-    case pendingWrites(Int)
-    case conflict([String])
-
-    public var status: String {
-        switch self {
-        case .idle: "idle"
-        case .syncing: "syncing"
-        case .offline: "offline"
-        case .pendingWrites: "pendingWrites"
-        case .conflict: "conflict"
-        }
+/// What the last finished sync step concluded, as the `workout` CLI prints it:
+/// `{"count":1,"messages":[],"status":"writesQueued"}`.
+///
+/// One status per `SyncOutcome` case, so an agent tells a failed local write from a parser
+/// footnote by reading `status` rather than by matching a sentence. `messages` carries the
+/// strings the step produced, verbatim; the sentence the athlete reads is
+/// `SyncStatusBannerPresentation`'s and never reaches the wire.
+///
+/// There is no in-flight status. Being in flight is not an outcome (`SyncCoordinator.isSyncing`
+/// answers that, #595), and every CLI command awaits its sync before it builds a report.
+public struct SyncOutcomeSnapshot: Encodable, Equatable, Sendable {
+    /// One name per `SyncOutcome` case. These names are the wire contract, so renaming one is a
+    /// JSON change.
+    public enum Status: String, Encodable, Sendable {
+        case clear
+        case localWriteFailed
+        case sheetUnreachable
+        case writesQueued
+        case writesRefused
+        case noBlockTab
+        case parseWarnings
+        case historyFillFailed
     }
 
-    init(_ state: SyncCoordinator.State) {
-        switch state {
-        case .idle: self = .idle
-        case .syncing: self = .syncing
-        case .offline: self = .offline
-        case .pendingWrites(let count): self = .pendingWrites(count)
-        case .conflict(let messages): self = .conflict(messages)
-        }
-    }
-}
+    public let status: Status
+    /// Verbatim from the step that produced them; empty for an outcome that carries none.
+    public let messages: [String]
+    /// Queued writes still waiting for a flush. Only `writesQueued` sets it.
+    public let count: Int?
 
-extension SyncStateSnapshot: Encodable {
-    private enum CodingKeys: String, CodingKey {
-        case status, count, messages
+    private init(status: Status, messages: [String] = [], count: Int? = nil) {
+        self.status = status
+        self.messages = messages
+        self.count = count
     }
 
-    public func encode(to encoder: any Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(status, forKey: .status)
-        switch self {
-        case .pendingWrites(let count):
-            try container.encode(count, forKey: .count)
-        case .conflict(let messages):
-            try container.encode(messages, forKey: .messages)
-        case .idle, .syncing, .offline:
-            break
+    init(_ outcome: SyncOutcome) {
+        switch outcome {
+        case .clear:
+            self.init(status: .clear)
+        case .localWriteFailed(let message):
+            self.init(status: .localWriteFailed, messages: [message])
+        case .sheetUnreachable:
+            self.init(status: .sheetUnreachable)
+        case .writesQueued(let queued):
+            self.init(status: .writesQueued, count: queued)
+        case .writesRefused(let refusals):
+            self.init(status: .writesRefused, messages: refusals)
+        case .noBlockTab:
+            self.init(status: .noBlockTab)
+        case .parseWarnings(let warnings):
+            self.init(status: .parseWarnings, messages: warnings)
+        case .historyFillFailed(let message):
+            self.init(status: .historyFillFailed, messages: [message])
         }
     }
 }
@@ -167,7 +177,7 @@ public struct SessionSnapshot: Encodable, Equatable, Sendable {
 public struct AppSnapshot: Encodable, Equatable, Sendable {
     public let spreadsheetId: String?
     public let spreadsheetTitle: String?
-    public let syncState: SyncStateSnapshot
+    public let syncOutcome: SyncOutcomeSnapshot
     public let pendingWriteCount: Int
     public let block: BlockSummary?
     public let currentSession: SessionAddress?
@@ -193,11 +203,11 @@ public struct FlushReport: Encodable, Equatable, Sendable {
     public let written: Int
     public let conflictedWrites: [String]
     public let remainingPendingWrites: Int
-    public let syncState: SyncStateSnapshot
+    public let syncOutcome: SyncOutcomeSnapshot
 }
 
 public struct SyncReport: Encodable, Equatable, Sendable {
-    public let syncState: SyncStateSnapshot
+    public let syncOutcome: SyncOutcomeSnapshot
     public let block: BlockSummary?
     public let currentSession: SessionAddress?
     /// Equal to `currentSession` unless the athlete had browsed away.

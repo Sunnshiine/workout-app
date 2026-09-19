@@ -788,7 +788,7 @@ import Testing
     let backgroundSync = Task { await sync.sync(spreadsheetId: "current-sheet") }
     await client.waitUntilHeld()
 
-    #expect(sync.state == .syncing)
+    #expect(SyncStatusBannerPresentation(outcome: sync.outcome, isSyncing: sync.isSyncing)?.text == "Syncing")
     #expect(store.canBeginDestructiveTransition == false)
     #expect(store.requestSignOut() == .failed)
     #expect(await store.prepareSignOut() == false)
@@ -832,8 +832,8 @@ func aFlushThatOverlapsASyncLeavesTheDestructiveTransitionGuardClosed() async th
 
     await sync.flushPending(spreadsheetId: "current-sheet")
 
-    // The banner half of the same guard: `state` reads the in-flight count, not the last verdict.
-    #expect(sync.state == .syncing)
+    // The banner half of the same guard. The banner reads the in-flight count, not the last verdict.
+    #expect(SyncStatusBannerPresentation(outcome: sync.outcome, isSyncing: sync.isSyncing)?.text == "Syncing")
     #expect(sync.isSyncing == true)
     #expect(store.canBeginDestructiveTransition == false)
     #expect(store.requestSignOut() == .failed)

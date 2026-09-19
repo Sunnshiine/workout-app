@@ -18,12 +18,12 @@ struct FlushCommand: AsyncParsableCommand {
             guard report.conflictedWrites.isEmpty else {
                 throw CLIError.conflict(code: "write_conflict", messages: report.conflictedWrites)
             }
-            switch report.syncState {
-            case .pendingWrites, .offline:
+            switch report.syncOutcome.status {
+            case .writesQueued, .sheetUnreachable:
                 throw CLIError.environment(
                     "Flush stopped before every write reached the Sheet (\(report.remainingPendingWrites) still queued). Fix the workbook and run `workout flush` again."
                 )
-            case .idle, .syncing, .conflict:
+            case .clear, .localWriteFailed, .writesRefused, .noBlockTab, .parseWarnings, .historyFillFailed:
                 break
             }
         }

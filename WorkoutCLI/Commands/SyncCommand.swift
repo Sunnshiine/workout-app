@@ -26,11 +26,13 @@ struct SyncCommand: AsyncParsableCommand {
             }
             return try await app.sync()
         } verdict: { report in
-            var messages = report.conflictedWrites
-            if case .conflict(let warnings) = report.syncState {
-                messages.append(contentsOf: warnings)
-            }
-            guard messages.isEmpty else {
+            let leftForTheAthlete =
+                switch report.syncOutcome.status {
+                case .localWriteFailed, .writesRefused, .noBlockTab, .parseWarnings, .historyFillFailed: true
+                case .clear, .sheetUnreachable, .writesQueued: false
+                }
+            let messages = report.conflictedWrites + report.syncOutcome.messages
+            guard !leftForTheAthlete, messages.isEmpty else {
                 throw CLIError.conflict(code: "sync_conflict", messages: messages)
             }
         }

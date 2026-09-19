@@ -204,36 +204,6 @@ extension SyncCoordinator: SheetSwitchSyncing {
     var isSyncing: Bool { activeSyncCount > 0 || activePendingWriteFlushCount > 0 }
 }
 
-extension SyncCoordinator {
-    /// The flattened reading the `workout` CLI still prints, where every outcome that wants the
-    /// athlete collapses into one `.conflict`. `SyncStateSnapshot`'s JSON is a contract; #590
-    /// migrates it and retires this.
-    enum State: Equatable {
-        case idle, syncing, offline
-        case pendingWrites(Int)
-        case conflict([String])
-
-        /// Every sentence the CLI prints is composed here and nowhere else.
-        init(_ outcome: SyncOutcome) {
-            self =
-                switch outcome {
-                case .clear: .idle
-                case .sheetUnreachable: .offline
-                case .writesQueued(let count): .pendingWrites(count)
-                case .localWriteFailed(let message): .conflict(["Local write failed: \(message)"])
-                case .writesRefused(let messages): .conflict(messages)
-                case .noBlockTab: .conflict(["No block tab found in the spreadsheet"])
-                case .parseWarnings(let warnings): .conflict(warnings)
-                case .historyFillFailed(let message): .conflict(["Exercise History fill failed: \(message)"])
-                }
-        }
-    }
-
-    /// A running step outranks what the last one concluded, because a verdict the next moment may
-    /// overturn is not worth showing.
-    var state: State { isSyncing ? .syncing : State(outcome) }
-}
-
 private struct PendingWriteFlushContext {
     let spreadsheetId: String
     let generation: Int

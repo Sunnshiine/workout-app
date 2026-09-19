@@ -138,7 +138,7 @@ private func batchPendingWrite(
     #expect(client.grid.cell(row: 29, col: 10) == "100x10@6, 100x10@6")
     #expect(client.grid.cell(row: 30, col: 10) == "")
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
-    #expect(sync.state == .idle)
+    #expect(sync.outcome == .clear)
 }
 
 @MainActor
@@ -275,7 +275,7 @@ private func batchPendingWrite(
     #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!I15"])
     #expect(client.updates.map(\.1) == [[["185x5@8"]], [["8"]]])
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
-    #expect(sync.state == .idle)
+    #expect(sync.outcome == .clear)
 }
 
 @MainActor
@@ -295,7 +295,7 @@ private func batchPendingWrite(
     #expect(client.updates.map(\.1) == [[["185x5@8"]], [["185x6@8"]]])
     #expect(client.grid.cell(row: 14, col: 10) == "185x6@8")
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
-    #expect(sync.state == .idle)
+    #expect(sync.outcome == .clear)
 }
 
 @MainActor
@@ -351,7 +351,7 @@ private func batchPendingWrite(
     let conflict = try #require(writes.first)
     #expect(conflict.exerciseName == "Bench Press")
     #expect(conflict.status == .conflict)
-    #expect(isConflict(sync.state))
+    #expect(refusedWrites(sync.outcome) != nil)
 }
 
 @MainActor
@@ -370,7 +370,7 @@ private func batchPendingWrite(
     #expect(client.updates.isEmpty)
     #expect(writes.count == 2)
     #expect(writes.allSatisfy { $0.status == .conflict })
-    let messages = try #require(conflictMessages(sync.state))
+    let messages = try #require(refusedWrites(sync.outcome))
     #expect(
         messages.contains {
             $0.contains("Squat") && $0.contains("Set 1") && $0.contains("existing header Notes")
@@ -397,7 +397,7 @@ private func batchPendingWrite(
     await sync.flushPending(spreadsheetId: "sid")
 
     let write = try #require(try ctx.fetch(FetchDescriptor<PendingWrite>()).first)
-    let messages = try #require(conflictMessages(sync.state))
+    let messages = try #require(refusedWrites(sync.outcome))
     let message = try #require(messages.first)
     #expect(client.updates.isEmpty)
     #expect(write.status == .conflict)
@@ -425,7 +425,7 @@ private func batchPendingWrite(
     await sync.flushPending(spreadsheetId: "sid")
 
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
-    #expect(sync.state == .pendingWrites(2))
+    #expect(sync.outcome == .writesQueued(2))
     #expect(client.updateRequestCount == 1)
     #expect(client.attemptedRanges == ["'Block 27'!K17"])
     #expect(writes.count == 2)
@@ -644,12 +644,7 @@ private func hipThrustHeaderNotesConflictGrid() -> SheetGrid {
     )
 }
 
-private func isConflict(_ state: SyncCoordinator.State) -> Bool {
-    if case .conflict = state { return true }
-    return false
-}
-
-private func conflictMessages(_ state: SyncCoordinator.State) -> [String]? {
-    if case .conflict(let messages) = state { return messages }
+private func refusedWrites(_ outcome: SyncOutcome) -> [String]? {
+    if case .writesRefused(let messages) = outcome { return messages }
     return nil
 }

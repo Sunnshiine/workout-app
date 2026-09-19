@@ -26,7 +26,7 @@ private func address(_ raw: String) throws -> SetAddress {
 
     #expect(snapshot.spreadsheetId == "FIXTURE")
     #expect(snapshot.spreadsheetTitle == "Fixture Training Log")
-    #expect(snapshot.syncState == .idle)
+    #expect(snapshot.syncOutcome.status == .clear)
     #expect(snapshot.pendingWriteCount == 0)
     let block = try #require(snapshot.block)
     #expect(block.tabName == "Block 27")
@@ -54,10 +54,10 @@ private func address(_ raw: String) throws -> SetAddress {
     #expect(report.set.loggedAt == frozenNow)
     #expect(report.pendingWriteCount == 1)
     #expect(report.exerciseIsComplete == false)
-    #expect(try app.snapshot().syncState == .idle)
+    #expect(try app.snapshot().syncOutcome.status == .clear)
 
     let flush = try await app.flush()
-    #expect(flush == FlushReport(attempted: 1, written: 1, conflictedWrites: [], remainingPendingWrites: 0, syncState: .idle))
+    #expect(flush == FlushReport(attempted: 1, written: 1, conflictedWrites: [], remainingPendingWrites: 0, syncOutcome: SyncOutcomeSnapshot(.clear)))
 
     let sheet = try await app.sheet(tab: nil)
     #expect(sheet.tab == "Block 27")
@@ -65,7 +65,7 @@ private func address(_ raw: String) throws -> SetAddress {
     #expect(sheet.cells["I15"] == nil)
 
     let synced = try await app.sync()
-    #expect(synced.syncState == .idle)
+    #expect(synced.syncOutcome.status == .clear)
     #expect(synced.currentSession == SessionAddress(week: 1, day: 1))
     #expect(synced.pendingWriteCount == 0)
 
@@ -219,7 +219,7 @@ private func address(_ raw: String) throws -> SetAddress {
     let second = try await app.flush()
     #expect(
         second
-            == FlushReport(attempted: 0, written: 0, conflictedWrites: first.conflictedWrites, remainingPendingWrites: 1, syncState: .idle)
+            == FlushReport(attempted: 0, written: 0, conflictedWrites: first.conflictedWrites, remainingPendingWrites: 1, syncOutcome: SyncOutcomeSnapshot(.clear))
     )
 
     let synced = try await app.sync()

@@ -108,7 +108,7 @@
 
         let sync = try cli.run("sync")
         #expect(sync.status == 0)
-        #expect((try sync.json["syncState"] as? [String: Any])?["status"] as? String == "idle")
+        #expect((try sync.json["syncOutcome"] as? [String: Any])?["status"] as? String == "clear")
 
         let synced = try cli.run("session", "w1d1")
         let exercises = try #require(try synced.json["exercises"] as? [[String: Any]])

@@ -117,16 +117,15 @@ extension ApplicationError {
         )
     }
 
-    public static func syncFailed(_ state: SyncStateSnapshot) -> ApplicationError {
+    public static func syncFailed(_ status: SyncOutcomeSnapshot.Status) -> ApplicationError {
         let kind: Kind =
-            switch state {
-            case .conflict: .conflict
-            case .idle, .syncing, .offline, .pendingWrites: .environment
+            switch status {
+            case .clear, .sheetUnreachable, .writesQueued: .environment
+            case .localWriteFailed, .writesRefused, .noBlockTab, .parseWarnings, .historyFillFailed: .conflict
             }
         return ApplicationError(
             code: "sync_failed",
-            message:
-                "Sync did not complete; the app is \(state.status). Check the workbook and run `workout sync` again.",
+            message: "Sync did not complete (\(status.rawValue)). Check the workbook and run `workout sync` again.",
             kind: kind
         )
     }
