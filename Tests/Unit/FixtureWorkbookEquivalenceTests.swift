@@ -104,7 +104,11 @@ private func drift(handBuilt: Block, parsed: Block) -> [Drift] {
             log.note(.onlyInHandBuilt(address.description))
             continue
         }
-        log.compare(address.description, "date", text(handBuiltSession.date), text(parsedSession.date))
+        // `Session.date` is deliberately not walked. The two sides are not in the same frame: the
+        // graph authors an instant and the workbook authors a calendar day that
+        // `SheetParser.parseDate` resolves in the machine's time zone, so a recorded pair of
+        // instants passes in EDT and fails on a UTC runner. It is pinned instead, in both frames
+        // and machine-independently, by `theHandBuiltSessionDatesCannotComeFromACoachDateCell`.
         noteExerciseDrift(handBuilt: handBuiltSession, parsed: parsedSession, at: address, into: log)
     }
     return log.drift
@@ -237,13 +241,8 @@ private let recordedDrift: [WorkbookScenario: [Drift]] = [
         .field("block", "trainingMax.bench", handBuilt: "225", parsed: "245"),
         .field("block", "trainingMax.deadlift", handBuilt: "405", parsed: "455"),
 
-        // The hand-built graph is wrong: `WorkoutFixtureFactory.session` re-derives
-        // `SessionProgressTracker`'s 7-day stride against the reference date, so a Session date is
-        // an arithmetic artefact rather than the coach's date cell. Sharper than it looks — these
-        // are UTC midnights, while `SheetParser.parseDate` reads `M/d/yyyy` in the current time
-        // zone, so on any machine that is not on UTC no date cell can produce these instants at
-        // all. The five entries below were captured in EDT.
-        .field("w1d1", "date", handBuilt: "2001-01-02T00:00:00Z", parsed: "2026-05-04T04:00:00Z"),
+        // `Session.date` drifts too, on every paired Session, and is pinned by
+        // `theHandBuiltSessionDatesCannotComeFromACoachDateCell` rather than listed here.
 
         // The workbook is the thin side: `WorkbookScenario.prescription` writes a Notes cell only
         // when a scenario passes one, so three of the four Coach Notes the UI fixture shows have no
@@ -282,7 +281,6 @@ private let recordedDrift: [WorkbookScenario: [Drift]] = [
         .field("w1d1.e1.s0", "prescribedLoad", handBuilt: "Drop 17.5%", parsed: "RPE8"),
         .field("w1d1.e1.s1", "prescribedLoad", handBuilt: "Drop 17.5%", parsed: "RPE8"),
 
-        .field("w1d2", "date", handBuilt: "2001-01-03T00:00:00Z", parsed: "2026-05-06T04:00:00Z"),
         .field("w1d2.e0", "coachNote", handBuilt: "Pause every rep.", parsed: nil),
         .field("w1d2.e0.s0", "prescribedLoad", handBuilt: "RPE6", parsed: "RPE7"),
         .field("w1d2.e0.s0", "percentOneRM", handBuilt: "70%", parsed: nil),
@@ -303,12 +301,11 @@ private let recordedDrift: [WorkbookScenario: [Drift]] = [
         // From here down the two fixtures are simply different workouts, and I do not know which
         // one the app is meant to boot into. The graph is a 4-Week by 4-Day grid whose Week 1 holds
         // two Available Sessions; the workbook is Week 1 with two Days and Week 2 with three. They
-        // agree on exactly one thing past Week 1 — that w2d3 is an Unavailable Session — and that
-        // agreement is why w2d3 appears below only for its date.
+        // agree on exactly one thing past Week 1 — that w2d3 is an Unavailable Session — which is
+        // why no w2d3 entry appears at all.
         .onlyInHandBuilt("w1d3"),
         .onlyInHandBuilt("w1d4"),
 
-        .field("w2d1", "date", handBuilt: "2001-01-09T00:00:00Z", parsed: "2026-05-11T04:00:00Z"),
         .field("w2d1.e0", "name", handBuilt: "Deadlift", parsed: "Back Squat"),
         .field("w2d1.e0", "baseName", handBuilt: "Deadlift", parsed: "Back Squat"),
         .field("w2d1.e0", "coachNote", handBuilt: "Pull fast from the floor.", parsed: nil),
@@ -320,11 +317,8 @@ private let recordedDrift: [WorkbookScenario: [Drift]] = [
         .onlyInParsed("w2d1.e0.s2"),
         .onlyInParsed("w2d1.e1"),
 
-        .field("w2d2", "date", handBuilt: "2001-01-10T00:00:00Z", parsed: "2026-05-13T04:00:00Z"),
         .onlyInParsed("w2d2.e0"),
         .onlyInParsed("w2d2.e1"),
-
-        .field("w2d3", "date", handBuilt: "2001-01-11T00:00:00Z", parsed: "2026-05-15T04:00:00Z"),
 
         .onlyInHandBuilt("w2d4"),
         .onlyInHandBuilt("w3d1"),
@@ -352,6 +346,38 @@ private func aPairedScenarioDriftsOnlyWhereRecorded(pair: PairedScenario) throws
     #expect(unrecorded.isEmpty, "\(pair) drifts in ways nothing records:\n\(list(unrecorded))")
     #expect(stale.isEmpty, "\(pair) no longer drifts here, so delete these entries:\n\(list(stale))")
     #expect(Set(actual).count == actual.count, "the walk reported one difference twice")
+}
+
+/// The one field the walk cannot record as a literal pair, pinned here instead.
+///
+/// `WorkoutFixtureFactory.session` re-derives `SessionProgressTracker`'s 7-day stride against the
+/// reference date, so a hand-built Session date is an arithmetic artefact. The workbook authors a
+/// calendar day and `SheetParser.parseDate` resolves it as local midnight. The two sides are not in
+/// the same frame, so a recorded pair of instants would read EDT on this machine and something
+/// else on a UTC runner. Pinning each side in the frame it was authored in is machine-independent
+/// and stricter than the walk: it fails if either side's dates change, not merely if they differ.
+@MainActor
+@Test func theHandBuiltSessionDatesCannotComeFromACoachDateCell() throws {
+    let handBuilt = sessionsByAddress(UITestFixture.block(for: .partialUpload))
+    let parsed = sessionsByAddress(try parsedBlock(.freshBlock))
+    let coachCells = [
+        "w1d1": "5/4/2026", "w1d2": "5/6/2026", "w2d1": "5/11/2026", "w2d2": "5/13/2026", "w2d3": "5/15/2026"
+    ]
+    let strideSeconds = [
+        "w1d1": 86_400.0, "w1d2": 172_800.0, "w2d1": 691_200.0, "w2d2": 777_600.0, "w2d3": 864_000.0
+    ]
+    let coachDate = DateFormatter()
+    coachDate.dateFormat = "M/d/yyyy"
+    coachDate.locale = Locale(identifier: "en_US_POSIX")
+
+    for (id, seconds) in strideSeconds.sorted(by: { $0.key < $1.key }) {
+        let address = try #require(SessionAddress(id))
+        let handBuiltDate = try #require(handBuilt[address]?.date)
+        let parsedDate = try #require(parsed[address]?.date)
+        #expect(handBuiltDate == Date(timeIntervalSinceReferenceDate: seconds), "\(id) left the reference-date stride")
+        #expect(coachDate.string(from: parsedDate) == coachCells[id], "\(id) is not the workbook's date cell")
+        #expect(handBuiltDate != parsedDate, "\(id) now agrees, so this entry is stale")
+    }
 }
 
 @Test func everyScenarioIsEitherPairedOrRecordedAsAwaitingAWorkbook() {
