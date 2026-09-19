@@ -136,6 +136,23 @@ import Testing
     #expect(update.value == "BWx12@7, skip")
 }
 
+@Test func parserReadsTheWriterSkipOutputAsSetLogsOnly() throws {
+    // The exact header the writer produces in `writerSkipsSetInsideExerciseRowList`, read back at
+    // the same prescribed Set count of 2. It is compact Set-Log content, so it is neither a Coach
+    // Note nor a Legacy Log.
+    let grid = compactLayoutGrid(
+        headerNotes: "BWx12@7, skip",
+        continuationNotes: ""
+    )
+
+    let exercise = try compactParsedExercise(from: grid)
+    #expect(exercise.sets[0].state == .logged)
+    #expect(exercise.sets[0].setLog?.formatted == "BWx12@7")
+    #expect(exercise.sets[1].state == .skipped)
+    #expect(exercise.coachNote == nil)
+    #expect(exercise.legacyLog == nil)
+}
+
 @Test func writerTreatsCaseFoldedSkipHeaderAsSetLogAggregate() throws {
     // The header's second entry is an uppercase `SKIP`; the shared predicate case-folds it
     // to the skip sentinel, so the whole cell is a Set-Log-list aggregate and the writer
