@@ -1,30 +1,11 @@
 import Foundation
 import Testing
 
-private var repoRoot: URL {
-    URL(fileURLWithPath: #filePath)
-        .deletingLastPathComponent()
-        .deletingLastPathComponent()
-        .deletingLastPathComponent()
-}
-
-private func swiftSources(under relativeDirectory: String) throws -> [(path: String, source: String)] {
-    let directory = repoRoot.appending(path: relativeDirectory)
-    let enumerator = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: nil)
-    var results: [(String, String)] = []
-    while let url = enumerator?.nextObject() as? URL {
-        guard url.pathExtension == "swift" else { continue }
-        let source = try String(contentsOf: url, encoding: .utf8)
-        results.append((url.lastPathComponent, source))
-    }
-    return results
-}
-
 // MARK: - Glass is retired to the colophon (ADR-0014 · PRD #497 slice 9)
 
-@Test func workoutGlassHelperFileIsDeleted() {
-    let helper = repoRoot.appending(path: "WorkoutTracker/Views/WorkoutGlass.swift")
-    #expect(!FileManager.default.fileExists(atPath: helper.path))
+@Test func workoutGlassHelperFileIsDeleted() throws {
+    let views = try RepositoryFiles.existingURL(of: "WorkoutTracker/Views")
+    #expect(!FileManager.default.fileExists(atPath: views.appending(path: "WorkoutGlass.swift").path))
 }
 
 @Test func noViewReferencesTheRetiredGlassSystem() throws {
@@ -45,7 +26,7 @@ private func swiftSources(under relativeDirectory: String) throws -> [(path: Str
         ".buttonStyle(.workoutGlassProminent)"
     ]
 
-    for (name, source) in try swiftSources(under: "WorkoutTracker") {
+    for (name, source) in try RepositoryFiles.nonEmptySwiftSources(under: "WorkoutTracker") {
         for token in forbidden {
             #expect(!source.contains(token), "\(name) still references retired glass API \(token)")
         }
@@ -55,10 +36,7 @@ private func swiftSources(under relativeDirectory: String) throws -> [(path: Str
 // MARK: - The retired 8/16/28 radius scale is deleted (token sheet §6)
 
 @Test func retiredRadiusConstantsAreDeletedFromTheme() throws {
-    let theme = try String(
-        contentsOf: repoRoot.appending(path: "WorkoutTracker/Theme.swift"),
-        encoding: .utf8
-    )
+    let theme = try RepositoryFiles.text(of: "WorkoutTracker/Theme.swift")
 
     for retired in ["cardCornerRadius", "lensCornerRadius", "rowCornerRadius", "sessionTileCornerRadius", "pillCornerRadius"] {
         #expect(!theme.contains(retired), "Theme.swift still defines the retired radius constant \(retired)")
@@ -67,7 +45,7 @@ private func swiftSources(under relativeDirectory: String) throws -> [(path: Str
 
 @Test func noViewReferencesARetiredRadiusConstant() throws {
     let retired = ["cardCornerRadius", "lensCornerRadius", "rowCornerRadius", "sessionTileCornerRadius", "pillCornerRadius"]
-    for (name, source) in try swiftSources(under: "WorkoutTracker") {
+    for (name, source) in try RepositoryFiles.nonEmptySwiftSources(under: "WorkoutTracker") {
         for constant in retired {
             #expect(!source.contains(constant), "\(name) still references the retired radius constant Theme.\(constant)")
         }
@@ -77,10 +55,7 @@ private func swiftSources(under relativeDirectory: String) throws -> [(path: Str
 // MARK: - Move On ceremony contracts (carried from PRD #497 slice 7)
 
 private func moveOnCelebrationSource() throws -> String {
-    try String(
-        contentsOf: repoRoot.appending(path: "WorkoutTracker/Views/MoveOnCelebrationView.swift"),
-        encoding: .utf8
-    )
+    try RepositoryFiles.text(of: "WorkoutTracker/Views/MoveOnCelebrationView.swift")
 }
 
 @Test func moveOnCelebrationDoesNotDefineLocalLensCornerRadius() throws {

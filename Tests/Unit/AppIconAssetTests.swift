@@ -15,18 +15,9 @@ import Testing
 /// The real seam is `actool`, which does not run under `swift test`; this
 /// static scan locks down the exact pattern that broke the build.
 @Suite struct AppIconAssetTests {
-    /// Repo root, derived from this source file's location (`Tests/Unit/…`).
-    private static var repoRoot: URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()  // Unit
-            .deletingLastPathComponent()  // Tests
-            .deletingLastPathComponent()  // repo root
-    }
-
     private static func iconManifests() throws -> [URL] {
-        let appDir = repoRoot.appendingPathComponent("WorkoutTracker")
         let entries = try FileManager.default.contentsOfDirectory(
-            at: appDir, includingPropertiesForKeys: nil
+            at: RepositoryFiles.existingURL(of: "WorkoutTracker"), includingPropertiesForKeys: nil
         )
         return entries
             .filter { $0.pathExtension == "icon" }
