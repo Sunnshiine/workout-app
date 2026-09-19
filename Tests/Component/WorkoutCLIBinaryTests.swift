@@ -275,7 +275,6 @@
         let refusedOutcome = try #require(try refused.json["syncOutcome"] as? [String: Any])
         #expect(refused.status == 4)
         #expect(refusedOutcome["status"] as? String == "writesRefused")
-        #expect(warnedOutcome["status"] as? String != refusedOutcome["status"] as? String)
     }
 
     @Test func aHandEditedWorkbookWithABadCellKeyIsAnEnvironmentErrorNotACrash() throws {

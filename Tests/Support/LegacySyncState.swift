@@ -29,13 +29,15 @@ extension SyncCoordinator {
         }
     }
 
+    /// A running step outranks what the last one concluded, because a verdict the next moment may
+    /// overturn is not worth showing.
     var state: State { isSyncing ? .syncing : State(outcome) }
 }
 
 extension SyncStatusBannerPresentation {
     /// Five outcomes have already collapsed into `.conflict` by the time this sees one, so it
-    /// cannot name which happened. The pin only uses it where the athlete is shown nothing at
-    /// all, the one reading `State` can still make without guessing.
+    /// cannot name which happened. The pin only uses it for the one reading `State` can still make
+    /// without guessing, that the athlete is shown nothing at all.
     init?(state: SyncCoordinator.State) {
         let outcome: SyncOutcome =
             switch state {
