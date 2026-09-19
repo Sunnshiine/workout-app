@@ -155,6 +155,27 @@ private func makeStore(
 }
 
 @MainActor
+@Test func reloadKeepsTheBrowsedSessionWhenTheSyncReplacesTheWholeBlock() throws {
+    let fixture = try makeStore(weekCount: 2)
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+    let context = fixture.container.mainContext
+
+    store.show(week: 2, day: 3)
+    #expect(store.displayedSession?.week?.number == 2)
+
+    // What SyncCoordinator.replacePersistedBlock does on every sync: the old Block is deleted,
+    // cascading through its Weeks and Sessions, and the re-parsed one takes its place.
+    for existing in try context.fetch(FetchDescriptor<Block>()) { context.delete(existing) }
+    context.insert(makeStoreBlock(weekCount: 2))
+    try context.save()
+    store.reload()
+
+    #expect(store.displayedSession?.week?.number == 2)
+    #expect(store.displayedSession?.dayNumber == 3)
+}
+
+@MainActor
 @Test func reloadReturnsToTheCurrentSessionWhenTheBrowsedSessionLeavesTheBlock() throws {
     let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }

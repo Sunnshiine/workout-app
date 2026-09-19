@@ -20,11 +20,16 @@ final class WorkoutStore {
     private(set) var moveOnCelebrationSession: Session?
     private(set) var moveOnCelebrationRequestedAt: Date?
     private(set) var pendingBlockOverviewRequest: BlockOverviewNavigationRequest?
-    /// Whether the athlete had browsed away from the live edge the last time they chose what to
-    /// view. Answered in `view(_:)` rather than derived in `reload()`, because a sync can land a
-    /// log that moves the Current Session under an athlete who never navigated anywhere: they
-    /// were at the live edge when they chose, so the reload has to carry them forward with it.
-    private var browsedAwayWhenViewed = false
+    /// The Week and Day the athlete browsed to, or `nil` while they are following the live edge.
+    ///
+    /// Answered in `view(_:)` rather than derived in `reload()`, because a sync can land a log
+    /// that moves the Current Session under an athlete who never navigated anywhere: they were
+    /// at the live edge when they chose, so the reload has to carry them forward with it.
+    ///
+    /// An address rather than the Session itself, captured while that Session is still live: a
+    /// sync deletes the whole Block and inserts the re-parsed one, and the deleted Session no
+    /// longer reliably knows its own Week.
+    private var browsedTo: (week: Int, day: Int)?
     private var currentSessionOverrideRevision = 0
 
     private let context: ModelContext
@@ -108,16 +113,9 @@ final class WorkoutStore {
     /// browsed to if they chose one and it survived the re-parse, otherwise on the Current
     /// Session, which by then may have moved.
     func reload() {
-        let browsedWeek = displayedSession?.week?.number
-        let browsedDay = displayedSession?.dayNumber
         block = try? context.fetch(FetchDescriptor<Block>()).first
 
-        guard
-            browsedAwayWhenViewed,
-            let browsedWeek,
-            let browsedDay,
-            let browsedSession = session(inWeek: browsedWeek, day: browsedDay)
-        else {
+        guard let browsed = browsedTo, let browsedSession = session(inWeek: browsed.week, day: browsed.day) else {
             view(currentSession)
             return
         }
@@ -191,11 +189,15 @@ final class WorkoutStore {
     // MARK: - Private Helpers
 
     /// The only writer of `displayedSession`. Every way the athlete can change what they are
-    /// looking at goes through it, so `browsedAwayWhenViewed` is answered once here instead of
-    /// being restated at each navigation entry point.
+    /// looking at goes through it, so `browsedTo` is answered once here instead of being
+    /// restated at each navigation entry point.
     private func view(_ session: Session?) {
         displayedSession = session
-        browsedAwayWhenViewed = !isViewingLiveEdge
+        guard !isViewingLiveEdge, let session, let week = session.week else {
+            browsedTo = nil
+            return
+        }
+        browsedTo = (week: week.number, day: session.dayNumber)
     }
 
     private func session(inWeek week: Int, day: Int) -> Session? {
