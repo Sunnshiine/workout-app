@@ -21,7 +21,6 @@ final class SyncCoordinator {
     private(set) var inFlightHistoryFill: Task<ExerciseHistoryFill.Outcome, Never>?
     private var activeSyncCount = 0
     private var activePendingWriteFlushCount = 0
-    private var pendingWriteFlushGeneration = 0
 
     func hasPendingWrites() throws -> Bool {
         guard activePendingWriteFlushCount == 0 else {
@@ -59,10 +58,12 @@ final class SyncCoordinator {
     }
 
     func discardPendingWrites() async throws {
+        // This guard is all that keeps a discard out of a live flush. A flush holds its queue
+        // across each Sheet round trip, so a discard between two of them would delete Set Logs
+        // that the flush then writes to the Sheet anyway.
         guard activePendingWriteFlushCount == 0 else {
             throw PendingWriteFlushInProgress()
         }
-        pendingWriteFlushGeneration += 1
         do {
             for write in try fetchPendingWriteRecords() {
                 context.delete(write)
@@ -80,7 +81,7 @@ final class SyncCoordinator {
     }
 
     private func flushQueue(spreadsheetId: String) async -> SyncOutcome {
-        let generation = beginPendingWriteFlush()
+        beginPendingWriteFlush()
         defer { endPendingWriteFlush() }
 
         let pending = pendingWriteFlushQueue()
@@ -89,7 +90,6 @@ final class SyncCoordinator {
         let writer = SheetWriter(client: client)
         let flushContext = PendingWriteFlushContext(
             spreadsheetId: spreadsheetId,
-            generation: generation,
             writer: writer,
             planner: sheetWritePlanner
         )
@@ -98,8 +98,6 @@ final class SyncCoordinator {
         case .completed(let conflicts):
             try? context.save()
             return SyncOutcome(refusedWrites: conflicts)
-        case .invalidated:
-            return .clear
         case .stoppedForRetry(let queued):
             return .writesQueued(queued)
         }
@@ -206,14 +204,12 @@ extension SyncCoordinator: SheetSwitchSyncing {
 
 private struct PendingWriteFlushContext {
     let spreadsheetId: String
-    let generation: Int
     let writer: SheetWriter
     let planner: SheetWritePlanner
 }
 
 private enum PendingWriteFlushResult {
     case completed(conflicts: [String])
-    case invalidated
     case stoppedForRetry(queued: Int)
 }
 
@@ -248,17 +244,14 @@ private struct PendingWriteBatch {
     }
 }
 
-/// The two ways a flush stops before it reaches the end of the queue. Each one already left the
-/// store consistent, so the only thing left to decide is what the flush reports.
+/// How a flush stops before it reaches the end of the queue. It already left the store
+/// consistent, so the only thing left to decide is what the flush reports.
 private enum PendingWriteFlushInterruption: Error {
-    /// A newer flush generation superseded this one.
-    case invalidated
     /// A batch write failed and its writes stay queued for the next attempt.
     case batchFailed(queued: Int)
 
     var result: PendingWriteFlushResult {
         switch self {
-        case .invalidated: .invalidated
         case .batchFailed(let queued): .stoppedForRetry(queued: queued)
         }
     }
@@ -391,7 +384,6 @@ extension SyncCoordinator {
         snapshots: inout [String: SheetWritePlanningSnapshot],
         batch: inout PendingWriteBatch
     ) async throws -> PlannedPendingWrite {
-        try ensurePendingWriteFlushIsCurrent(flushContext.generation)
         let request = SheetWriteRequest(write)
         var snapshot = try await gridSnapshot(for: request.blockTab, context: flushContext, snapshots: &snapshots)
         let target: SheetWriteTarget
@@ -439,7 +431,6 @@ extension SyncCoordinator {
         context flushContext: PendingWriteFlushContext
     ) async throws(PendingWriteFlushInterruption) {
         guard !batch.isEmpty else { return }
-        try ensurePendingWriteFlushIsCurrent(flushContext.generation)
         do {
             try await flushContext.writer.write(batch.updates, spreadsheetId: flushContext.spreadsheetId)
         } catch {
@@ -450,7 +441,6 @@ extension SyncCoordinator {
             try? context.save()
             throw .batchFailed(queued: (try? fetchPendingWriteRecords().count) ?? batch.items.count)
         }
-        try ensurePendingWriteFlushIsCurrent(flushContext.generation)
         for item in batch.items {
             recordWriteTargetAudit(
                 for: item.write,
@@ -473,27 +463,17 @@ extension SyncCoordinator {
         }
 
         let sheetSnapshot = try await client.fetchTabSnapshot(spreadsheetId: flushContext.spreadsheetId, tabName: tab)
-        try ensurePendingWriteFlushIsCurrent(flushContext.generation)
         let snapshot = flushContext.planner.snapshot(for: sheetSnapshot)
         snapshots[tab] = snapshot
         return snapshot
     }
 
-    fileprivate func beginPendingWriteFlush() -> Int {
+    fileprivate func beginPendingWriteFlush() {
         activePendingWriteFlushCount += 1
-        return pendingWriteFlushGeneration
     }
 
     fileprivate func endPendingWriteFlush() {
         activePendingWriteFlushCount -= 1
-    }
-
-    fileprivate func ensurePendingWriteFlushIsCurrent(
-        _ generation: Int
-    ) throws(PendingWriteFlushInterruption) {
-        guard generation == pendingWriteFlushGeneration else {
-            throw .invalidated
-        }
     }
 
     func recordWriteTargetAudit(
