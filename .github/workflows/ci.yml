@@ -75,18 +75,17 @@ jobs:
   visual-tests:
     runs-on: xcode-27
     timeout-minutes: 45
+    # Every committed baseline was recorded on this exact pair (ADR-0007, issue #479).
+    # Renders differ across machines and runtimes at the suite's exact precision, so treat
+    # a change to either value as a re-record of every baseline.
+    env:
+      BASELINE_DEVICE: iPhone 17 Pro
+      BASELINE_RUNTIME: "27.0"
     steps:
       - uses: actions/checkout@v4
-      - name: Probe the runner simulator catalog
-        run: |
-          xcodebuild -version
-          xcode-select -p
-          echo "--- iPhone device types ---"
-          xcrun simctl list devicetypes | grep -i iphone || echo "(none)"
-          echo "--- runtimes ---"
-          xcrun simctl list runtimes
-          echo "--- created devices ---"
-          xcrun simctl list devices available
+      # Creating the device is enough. xcodebuild boots it itself for the test step below.
+      - name: Ensure the pinned baseline simulator exists
+        run: scripts/ensure-simulator.sh "$BASELINE_DEVICE" "$BASELINE_RUNTIME"
       - name: Create Secrets.xcconfig from template (build-only)
         run: cp Secrets.xcconfig.template Secrets.xcconfig
       # A committed `record: .all` (suite- or test-level) makes every snapshot
@@ -116,18 +115,12 @@ jobs:
           path: ${{ runner.temp }}/CompilationCache
           key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
           restore-keys: cas-${{ steps.xcode.outputs.build }}-
-      # The pinned baseline device (ADR-0007): iPhone 17 Pro, on iOS 27.0 —
-      # the runtime the xcode-27 image preinstalls (it ships no 26.x, so the
-      # pin must move with the runner image; an unavailable pin fails loudly
-      # with exit code 70). The committed baselines were recorded on this
-      # exact runner/runtime pair (issue #479); xcodebuild boots the
-      # simulator itself. TEST_RUNNER_SNAPSHOT_ARTIFACTS lands
-      # swift-snapshot-testing's failure diffs in a known folder so the
-      # artifact upload below can show *why* the gate went red.
+      # TEST_RUNNER_SNAPSHOT_ARTIFACTS lands swift-snapshot-testing's failure diffs in a
+      # known folder so the artifact upload below can show why the gate went red.
       - name: Run Visual Regression tests (ADR-0007 gate)
         run: |
           xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' \
+            -destination "platform=iOS Simulator,name=$BASELINE_DEVICE,OS=$BASELINE_RUNTIME" \
             -only-testing:WorkoutTrackerSnapshotTests \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
