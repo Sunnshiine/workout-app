@@ -79,8 +79,11 @@ import Testing
     let anchor = try #require(day.exerciseAnchors.first)
 
     #expect(anchor.headerNotesRole(in: grid, cols: day.columns) == .coachNote("Keep elbows soft"))
-    #expect(anchor.continuationSetRow(for: 0) == 18)
-    #expect(anchor.continuationSetRow(for: 1) == 19)
+    let continuationRows = anchor.visibleSetLogRows(
+        compactHeaderSetOne: false,
+        in: SheetSnapshot(values: grid)
+    )
+    #expect(continuationRows.prefix(2) == [18, 19])
 }
 
 @Test func headerNotesRoleReadsSetLogContentAsSetLogsAtEverySetCount() {

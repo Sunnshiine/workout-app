@@ -255,18 +255,6 @@ struct SheetLayoutExerciseAnchor: Sendable {
         return lines
     }
 
-    func continuationSetRow(for setIndex: Int) -> Int? {
-        setLogRow(for: setIndex, compactHeaderSetOne: false)
-    }
-
-    func setLogRow(for setIndex: Int, compactHeaderSetOne: Bool) -> Int? {
-        guard setIndex >= 0 else { return nil }
-        let rowOffset = compactHeaderSetOne ? setIndex : setIndex + 1
-        let setRow = row + rowOffset
-        guard setRow < nextAnchorRow else { return nil }
-        return setRow
-    }
-
     /// The rows inside this Exercise's span that can carry a Set Log, in sheet order, with hidden
     /// rows dropped. A compact header keeps Set Logs on the anchor row itself; every other rule
     /// starts on the row below it. Set N takes the Nth of these, so "which row is Set N on" and
