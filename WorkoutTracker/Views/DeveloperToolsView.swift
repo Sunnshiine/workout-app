@@ -217,7 +217,7 @@ struct DeveloperToolsView: View {
     }
 
     private var isSyncDisabled: Bool {
-        isSyncInFlight || sync.state == .syncing || settings.spreadsheetId == nil
+        isSyncInFlight || sync.isSyncing || settings.spreadsheetId == nil
     }
 
     @MainActor

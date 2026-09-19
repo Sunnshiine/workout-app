@@ -85,3 +85,7 @@ A mobile client for powerlifting athletes that surfaces and logs workouts from a
 **Move On Celebration**: The athlete-facing acknowledgement shown after the athlete chooses Move On to close the Current Session. The celebration can be enhanced when every Set in the Session is Logged or Skipped, but Set completion alone does not close the Session or advance to the next Session. Avoid: workout completion, finish celebration.
 
 **Viewed Session**: The Session the athlete is looking at. The Current Session by default, or any other Session they have opened from the Block grid or an Open Exercise. **Live edge**: the state of the Viewed Session being the Current Session. Move On, the Open Exercises makeup queue, and the rest Live Activity are offered only at the live edge (ADR-0011). Decided by model identity, so a second instance backing one Session is still the live edge and never ends a running rest. Avoid: displayed session, preview session, active session.
+
+### Sync
+
+**Destructive Transition**: Switching the configured Sheet, or signing out. One domain move under two names: both abandon Set Logs the athlete recorded locally that have not yet reached the Sheet. Refused while any sync or pending-write flush is running, including a background flush the athlete never asked for, because discarding those logs underneath a flush that is writing them loses work the coach would otherwise have seen. Avoid: sheet change, disconnect, reset.

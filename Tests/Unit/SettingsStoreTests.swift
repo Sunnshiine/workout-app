@@ -770,6 +770,68 @@ import Testing
     #expect(try context.fetch(FetchDescriptor<Block>()).first?.tabName == "Block 27")
 }
 
+/// A sync nobody in Settings started — the stage's sync on appear, or the flush the athlete's last
+/// logged Set queued — is still the `SyncCoordinator` talking to the Sheet, and abandoning pending
+/// logs underneath it is what `canBeginDestructiveTransition` exists to refuse. `SettingsSyncActivity`
+/// cannot see that sync; `ConfiguredSheetSyncing.isSyncing` can.
+@MainActor
+@Test func signOutAndSheetSwitchAreRejectedWhileABackgroundSyncIsRunning() async throws {
+    let container = try makeCacheSafetyContainer()
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let settings = SettingsStore(defaults: defaults)
+    settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
+
+    let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let sync = SyncCoordinator(client: client, context: container.mainContext)
+    let store = SettingsSheetSwitchStore(settings: settings, sync: sync)
+
+    let backgroundSync = Task { await sync.sync(spreadsheetId: "current-sheet") }
+    await client.waitUntilHeld()
+
+    #expect(sync.state == .syncing)
+    #expect(store.canBeginDestructiveTransition == false)
+    #expect(store.requestSignOut() == .failed)
+    #expect(await store.prepareSignOut() == false)
+    #expect(await store.requestSwitch(to: SheetSelection(spreadsheetId: "other-sheet")) == .failed)
+    #expect(store.errorMessage == "A sync is already in progress.")
+    #expect(settings.spreadsheetId == "current-sheet")
+    // Nothing reached the coordinator: no discard, and no second sync against the other sheet.
+    #expect(client.tabTitleReads == 1)
+
+    client.release()
+
+    #expect(await backgroundSync.value == true)
+    #expect(store.canBeginDestructiveTransition == true)
+}
+
+@MainActor
+@Test func settingsManualSyncIsRejectedWhileABackgroundSyncIsRunning() async throws {
+    let container = try makeCacheSafetyContainer()
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let settings = SettingsStore(defaults: defaults)
+    settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
+
+    let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let sync = SyncCoordinator(client: client, context: container.mainContext)
+    var reloadCount = 0
+    let store = SettingsManualSyncStore(settings: settings, sync: sync) { reloadCount += 1 }
+
+    let backgroundSync = Task { await sync.sync(spreadsheetId: "current-sheet") }
+    await client.waitUntilHeld()
+
+    #expect(await store.syncNow() == false)
+    #expect(reloadCount == 0)
+    // The manual tap stopped at the guard instead of starting a second sync against the same sheet.
+    #expect(client.tabTitleReads == 1)
+
+    client.release()
+
+    #expect(await backgroundSync.value == true)
+    #expect(await store.syncNow() == true)
+    #expect(reloadCount == 1)
+    #expect(client.tabTitleReads == 2)
+}
+
 @MainActor
 private func makeCacheSafetyContainer() throws -> ModelContainer {
     try ModelContainer(
@@ -871,6 +933,55 @@ private final class RecordingSheetsClient: SheetsClient, @unchecked Sendable {
     func updatedSpreadsheetIds() async -> [String] { await recorder.updatedIds }
 }
 
+/// Holds the first Sheet read open, so a test can act on the app while a sync it did not start is
+/// in flight. Only the first: a second sync the guard should have refused must run to completion
+/// and fail an expectation, not strand the test on a continuation nobody releases.
+@MainActor
+private final class HeldSheetsClient: SheetsClient {
+    private(set) var tabTitleReads = 0
+    private let titles: [String]
+    private let grid: SheetGrid
+    private var held: CheckedContinuation<Void, Never>?
+
+    init(titles: [String], grid: SheetGrid) {
+        self.titles = titles
+        self.grid = grid
+    }
+
+    func listTabTitles(spreadsheetId: String) async throws -> [String] {
+        tabTitleReads += 1
+        if tabTitleReads == 1 {
+            await withCheckedContinuation { continuation in
+                held = continuation
+            }
+        }
+        return titles
+    }
+
+    func listSpreadsheets(pageToken: String?) async throws -> SpreadsheetListPage {
+        SpreadsheetListPage(spreadsheets: [], nextPageToken: nil)
+    }
+
+    func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
+        SheetSnapshot(values: grid)
+    }
+
+    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
+
+    func waitUntilHeld() async {
+        for _ in 0..<10_000 {
+            if held != nil { return }
+            await Task.yield()
+        }
+        Issue.record("the sync never reached the Sheet read this client holds")
+    }
+
+    func release() {
+        held?.resume()
+        held = nil
+    }
+}
+
 private actor CallRecorder {
     private(set) var syncedIds: [String] = []
     private(set) var updatedIds: [String] = []
@@ -881,6 +992,7 @@ private actor CallRecorder {
 
 @MainActor
 private final class StubSheetSwitchSync: SheetSwitchSyncing {
+    var isSyncing = false
     var hasPendingWritesValue: Bool
     private let pendingWritesError: Error?
     private let discardError: Error?
@@ -928,6 +1040,7 @@ private enum StubSheetSwitchError: Error {
 
 @MainActor
 private final class StubConfiguredSheetSync: ConfiguredSheetSyncing {
+    var isSyncing = false
     private let syncSucceeds: Bool
     private(set) var syncedSpreadsheetIds: [String] = []
 
@@ -943,11 +1056,14 @@ private final class StubConfiguredSheetSync: ConfiguredSheetSyncing {
 
 @MainActor
 private final class SuspendedConfiguredSheetSync: ConfiguredSheetSyncing {
+    private(set) var isSyncing = false
     private var syncContinuation: CheckedContinuation<Void, Never>?
     private(set) var syncedSpreadsheetIds: [String] = []
 
     func sync(spreadsheetId: String) async -> Bool {
         syncedSpreadsheetIds.append(spreadsheetId)
+        isSyncing = true
+        defer { isSyncing = false }
         await withCheckedContinuation { continuation in
             syncContinuation = continuation
         }
@@ -968,6 +1084,7 @@ private final class SuspendedConfiguredSheetSync: ConfiguredSheetSyncing {
 
 @MainActor
 private final class SuspendedDiscardSheetSwitchSync: SheetSwitchSyncing {
+    var isSyncing = false
     private var discardContinuation: CheckedContinuation<Void, Never>?
     private(set) var discardPendingWriteCallCount = 0
     private(set) var syncedSpreadsheetIds: [String] = []
@@ -1006,6 +1123,7 @@ private final class SuspendedDiscardSheetSwitchSync: SheetSwitchSyncing {
 
 @MainActor
 private final class SuspendedSheetSwitchSync: SheetSwitchSyncing {
+    private(set) var isSyncing = false
     private var syncContinuation: CheckedContinuation<Void, Never>?
     private(set) var syncedSpreadsheetIds: [String] = []
 
@@ -1017,6 +1135,8 @@ private final class SuspendedSheetSwitchSync: SheetSwitchSyncing {
 
     func sync(spreadsheetId: String) async -> Bool {
         syncedSpreadsheetIds.append(spreadsheetId)
+        isSyncing = true
+        defer { isSyncing = false }
         await withCheckedContinuation { continuation in
             syncContinuation = continuation
         }

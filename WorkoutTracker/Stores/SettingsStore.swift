@@ -174,6 +174,12 @@ struct SheetSelection: Equatable {
 
 @MainActor
 protocol ConfiguredSheetSyncing: AnyObject {
+    /// A sync or a pending-write flush is running right now, whoever started it.
+    /// `SettingsSyncActivity` only sees the work a Settings store started, so this is the other
+    /// half: the background flush the athlete's last logged Set queued, or the sync the stage ran
+    /// on appear.
+    var isSyncing: Bool { get }
+
     func sync(spreadsheetId: String) async -> Bool
 }
 
@@ -222,7 +228,7 @@ final class SettingsManualSyncStore {
 
     @discardableResult
     func syncNow() async -> Bool {
-        guard let spreadsheetId = settings.spreadsheetId else { return false }
+        guard let spreadsheetId = settings.spreadsheetId, !sync.isSyncing else { return false }
 
         return await syncActivity.run {
             let didSync = await sync.sync(spreadsheetId: spreadsheetId)
@@ -262,7 +268,7 @@ final class SettingsSheetSwitchStore {
     /// Switching the configured Sheet and signing out are one domain move. Both abandon Set Logs
     /// the athlete recorded locally that have not yet reached the Sheet (ADR-0001).
     var canBeginDestructiveTransition: Bool {
-        !isTransitioning && !syncActivity.isSyncInFlight
+        !isTransitioning && !syncActivity.isSyncInFlight && !sync.isSyncing
     }
 
     func requestSwitch(to spreadsheet: SpreadsheetFile) async -> SettingsSheetSwitchResult {

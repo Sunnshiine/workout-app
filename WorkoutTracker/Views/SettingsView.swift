@@ -158,11 +158,12 @@ struct SettingsView: View {
     }
 
     private var isSheetBusy: Bool {
-        sheetSwitchStore?.canBeginDestructiveTransition == false || sync.state == .syncing
+        guard let sheetSwitchStore else { return sync.isSyncing }
+        return !sheetSwitchStore.canBeginDestructiveTransition
     }
 
     private var manualSyncDetail: String? {
-        if syncActivity.isSyncInFlight || sync.state == .syncing {
+        if syncActivity.isSyncInFlight {
             return "Syncing..."
         }
 
