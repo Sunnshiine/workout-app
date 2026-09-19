@@ -330,7 +330,7 @@ import Testing
     #expect(result == .failed)
     #expect(store.errorMessage == "Couldn't check pending logs. Try again.")
     #expect(store.pendingConfirmation == nil)
-    #expect(store.isSwitching == false)
+    #expect(store.isTransitioning == false)
     #expect(settings.spreadsheetId == "old-sheet")
     #expect(settings.spreadsheetTitle == "Old Training Log")
     #expect(sync.syncedSpreadsheetIds.isEmpty)
@@ -445,7 +445,7 @@ import Testing
     let confirmTask = Task { await store.confirmPendingSwitch() }
     await sync.waitForDiscardStart()
 
-    #expect(store.isSwitching == true)
+    #expect(store.isTransitioning == true)
 
     let overlappingConfirm = await store.confirmPendingSwitch()
     sync.completeDiscard()
@@ -536,41 +536,6 @@ import Testing
     #expect(store.errorMessage == "Couldn't discard pending logs. Try again.")
     #expect(sync.hasPendingWritesValue == true)
     #expect(settings.spreadsheetId == "current-sheet")
-}
-
-// Characterises the defect in #496: sign out currently reconciles pending Set Logs during a manual
-// sync, a state the Sheet-switch path refuses. Replaced by its inverse once the guard is shared.
-@MainActor
-@Test func signOutDiscardsPendingWritesWhileSettingsManualSyncIsRunning() async throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
-    let settings = SettingsStore(defaults: defaults)
-    settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
-    let syncActivity = SettingsSyncActivity()
-    let manualSync = SuspendedConfiguredSheetSync()
-    let manualStore = SettingsManualSyncStore(
-        settings: settings,
-        sync: manualSync,
-        syncActivity: syncActivity
-    )
-    let signOutSync = StubSheetSwitchSync(hasPendingWrites: true)
-    let store = SettingsSheetSwitchStore(
-        settings: settings,
-        sync: signOutSync,
-        syncActivity: syncActivity
-    )
-
-    let manualTask = Task { await manualStore.syncNow() }
-    await manualSync.waitForSyncStart()
-
-    let request = store.requestSignOut()
-    let prepared = await store.prepareSignOut()
-    manualSync.completeSync()
-    _ = await manualTask.value
-
-    #expect(request == .requiresConfirmation)
-    #expect(prepared == true)
-    #expect(signOutSync.discardPendingWriteCallCount == 1)
-    #expect(signOutSync.hasPendingWritesValue == false)
 }
 
 @MainActor

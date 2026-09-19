@@ -237,12 +237,15 @@ final class SettingsManualSyncStore {
 final class SettingsSheetSwitchStore {
     private(set) var pendingConfirmation: SheetSelection?
     private(set) var errorMessage: String?
-    private(set) var isSwitching = false
+    private(set) var isTransitioning = false
 
     private let settings: SettingsStore
     private let sync: any SheetSwitchSyncing
     private let syncActivity: SettingsSyncActivity
     private let onSynced: () -> Void
+    private static let syncInProgressMessage = "A sync is already in progress."
+    private static let pendingCheckFailedMessage = "Couldn't check pending logs. Try again."
+    private static let discardFailedMessage = "Couldn't discard pending logs. Try again."
 
     init(
         settings: SettingsStore,
@@ -256,14 +259,21 @@ final class SettingsSheetSwitchStore {
         self.onSynced = onSynced
     }
 
+    /// Switching the configured Sheet and signing out are the same domain move: each abandons Set
+    /// Logs the athlete recorded locally that have not yet reached the Sheet (ADR-0001). Neither
+    /// may begin while a sync or the other one is already running.
+    var canBeginDestructiveTransition: Bool {
+        !isTransitioning && !syncActivity.isSyncInFlight
+    }
+
     func requestSwitch(to spreadsheet: SpreadsheetFile) async -> SettingsSheetSwitchResult {
         await requestSwitch(to: SheetSelection(spreadsheet))
     }
 
     func requestSwitch(to selection: SheetSelection) async -> SettingsSheetSwitchResult {
         errorMessage = nil
-        guard canBeginSwitch else {
-            errorMessage = "A sync is already in progress."
+        guard canBeginDestructiveTransition else {
+            errorMessage = Self.syncInProgressMessage
             return .failed
         }
 
@@ -278,30 +288,30 @@ final class SettingsSheetSwitchStore {
                 return .requiresConfirmation
             }
         } catch {
-            errorMessage = "Couldn't check pending logs. Try again."
+            errorMessage = Self.pendingCheckFailedMessage
             return .failed
         }
 
-        isSwitching = true
-        defer { isSwitching = false }
+        isTransitioning = true
+        defer { isTransitioning = false }
         return await switchNow(to: selection) ? .switched : .failed
     }
 
     func confirmPendingSwitch() async -> Bool {
         errorMessage = nil
         guard let selection = pendingConfirmation else { return false }
-        guard canBeginSwitch else {
-            errorMessage = "A sync is already in progress."
+        guard canBeginDestructiveTransition else {
+            errorMessage = Self.syncInProgressMessage
             return false
         }
 
-        isSwitching = true
-        defer { isSwitching = false }
+        isTransitioning = true
+        defer { isTransitioning = false }
 
         do {
             try await sync.discardPendingWrites()
         } catch {
-            errorMessage = "Couldn't discard pending logs. Try again."
+            errorMessage = Self.discardFailedMessage
             return false
         }
         pendingConfirmation = nil
@@ -314,22 +324,33 @@ final class SettingsSheetSwitchStore {
 
     func requestSignOut() -> SettingsSignOutResult {
         errorMessage = nil
+        guard canBeginDestructiveTransition else {
+            errorMessage = Self.syncInProgressMessage
+            return .failed
+        }
 
         do {
             return try sync.hasPendingWrites() ? .requiresConfirmation : .ready
         } catch {
-            errorMessage = "Couldn't check pending logs. Try again."
+            errorMessage = Self.pendingCheckFailedMessage
             return .failed
         }
     }
 
     func prepareSignOut() async -> Bool {
         errorMessage = nil
+        guard canBeginDestructiveTransition else {
+            errorMessage = Self.syncInProgressMessage
+            return false
+        }
+
+        isTransitioning = true
+        defer { isTransitioning = false }
 
         do {
             try await sync.discardPendingWrites()
         } catch {
-            errorMessage = "Couldn't discard pending logs. Try again."
+            errorMessage = Self.discardFailedMessage
             return false
         }
         return true
@@ -339,17 +360,13 @@ final class SettingsSheetSwitchStore {
         errorMessage = nil
     }
 
-    private var canBeginSwitch: Bool {
-        !isSwitching && !syncActivity.isSyncInFlight
-    }
-
     private func switchNow(to selection: SheetSelection) async -> Bool {
         guard
             let didSync = await syncActivity.run({
                 await sync.sync(spreadsheetId: selection.spreadsheetId)
             })
         else {
-            errorMessage = "A sync is already in progress."
+            errorMessage = Self.syncInProgressMessage
             return false
         }
 

@@ -47,7 +47,7 @@ struct SettingsView: View {
                     } label: {
                         LabeledContent("Training Sheet", value: sheetDisplayName)
                     }
-                    .disabled(isSheetRouteDisabled)
+                    .disabled(isSheetBusy)
                     .accessibilityIdentifier("settings-training-sheet-row")
 
                     Button {
@@ -75,6 +75,7 @@ struct SettingsView: View {
                     } label: {
                         Text("Sign Out")
                     }
+                    .disabled(isSheetBusy)
                     .accessibilityIdentifier("settings-sign-out-button")
                 }
 
@@ -153,12 +154,12 @@ struct SettingsView: View {
     }
 
     private var isManualSyncDisabled: Bool {
-        settings.spreadsheetId == nil || syncActivity.isSyncInFlight || sync.state == .syncing
-            || sheetSwitchStore?.isSwitching == true
+        settings.spreadsheetId == nil || isSheetBusy
     }
 
-    private var isSheetRouteDisabled: Bool {
-        syncActivity.isSyncInFlight || sync.state == .syncing || sheetSwitchStore?.isSwitching == true
+    /// Wider than the store's guard by `sync.state`, the background sync only the view can see.
+    private var isSheetBusy: Bool {
+        sheetSwitchStore?.canBeginDestructiveTransition == false || sync.state == .syncing
     }
 
     private var manualSyncDetail: String? {
@@ -241,7 +242,7 @@ struct SettingsView: View {
                     onDone: {
                         isSheetPickerPresented = false
                     },
-                    isSelectionDisabled: isSheetSelectionDisabled
+                    isSelectionDisabled: isSheetBusy
                 )
                 .background(palette.gradient.ignoresSafeArea())
                 .navigationTitle("Training Sheet")
@@ -276,10 +277,6 @@ struct SettingsView: View {
         } set: { _ in
             // Alert buttons own cancellation so "Switch Anyway" can still confirm the pending sheet.
         }
-    }
-
-    private var isSheetSelectionDisabled: Bool {
-        sheetSwitchStore?.isSwitching == true || syncActivity.isSyncInFlight || sync.state == .syncing
     }
 
     private var settingsErrorPresented: Binding<Bool> {
