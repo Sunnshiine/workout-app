@@ -6,7 +6,7 @@ import Testing
 
 @MainActor
 @Test func isConfiguredRequiresSpreadsheetIdAndAuth() throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let store = SettingsStore(defaults: defaults)
     store.isSignedIn = true
     #expect(store.isConfigured == false)  // no URL yet
@@ -17,7 +17,7 @@ import Testing
 
 @MainActor
 @Test func selectedSpreadsheetPersistsIdAndTitle() throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let store = SettingsStore(defaults: defaults)
 
     store.setSpreadsheet(id: "SHEET123", title: "Training Log")
@@ -29,7 +29,7 @@ import Testing
 
 @MainActor
 @Test func newInstallSeedsSystemAppearance() throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let store = SettingsStore(defaults: defaults)
 
     #expect(store.appearance == .system)
@@ -38,7 +38,7 @@ import Testing
 
 @MainActor
 @Test func existingInstallWithoutAppearanceSeedsDark() throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     defaults.set("SHEET123", forKey: "spreadsheetId")
 
     let store = SettingsStore(defaults: defaults)
@@ -49,7 +49,7 @@ import Testing
 
 @MainActor
 @Test func cachedInstallWithoutAppearanceSeedsDark() throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
 
     let store = SettingsStore(defaults: defaults, hasPriorAppState: true)
 
@@ -59,7 +59,7 @@ import Testing
 
 @MainActor
 @Test func invalidAppearanceFallsBackToDark() throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     defaults.set("legacy", forKey: "appearance")
 
     let store = SettingsStore(defaults: defaults)
@@ -70,7 +70,7 @@ import Testing
 
 @MainActor
 @Test func appearancePersistsManualChoicesAndDoesNotReseed() throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let store = SettingsStore(defaults: defaults)
 
     store.setAppearance(.light)
@@ -91,7 +91,7 @@ import Testing
 
 @MainActor
 @Test func standardRestDurationPersistsRoundTrip() throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let store = SettingsStore(defaults: defaults)
 
     #expect(store.standardRestDuration == .standard)
@@ -104,7 +104,7 @@ import Testing
 
 @MainActor
 @Test func supersetRestDurationPersistsRoundTrip() throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let store = SettingsStore(defaults: defaults)
 
     #expect(store.supersetRestDuration == .superset)
@@ -117,7 +117,7 @@ import Testing
 
 @MainActor
 @Test func signOutClearsAuthAndSpreadsheetSelection() throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let store = SettingsStore(defaults: defaults)
     store.isSignedIn = true
     store.setSpreadsheet(id: "SHEET123", title: "Training Log")
@@ -135,7 +135,7 @@ import Testing
 
 @MainActor
 @Test func settingsManualSyncUsesConfiguredSheetAndReloadsWorkoutState() async throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
     let sync = StubConfiguredSheetSync()
@@ -154,7 +154,7 @@ import Testing
 
 @MainActor
 @Test func settingsManualSyncRejectsRepeatTapWhileSyncIsRunning() async throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
     let sync = SuspendedConfiguredSheetSync()
@@ -181,7 +181,7 @@ import Testing
 
 @MainActor
 @Test func sheetSwitchIsRejectedWhileSettingsManualSyncIsRunning() async throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let syncActivity = SettingsSyncActivity()
@@ -214,7 +214,7 @@ import Testing
 
 @MainActor
 @Test func sheetSwitchWithoutPendingWritesCommitsAndSyncsNewSheet() async throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = StubSheetSwitchSync()
@@ -237,7 +237,7 @@ import Testing
 
 @MainActor
 @Test func sheetSwitchWithPendingWritesWaitsForConfirmation() async throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = StubSheetSwitchSync(hasPendingWrites: true)
@@ -266,7 +266,7 @@ import Testing
 
 @MainActor
 @Test func confirmingSheetSwitchDiscardsPendingWritesThenSyncsNewSheet() async throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = StubSheetSwitchSync(hasPendingWrites: true)
@@ -291,7 +291,7 @@ import Testing
 
 @MainActor
 @Test func reselectingTheCurrentSheetRefreshesItsTitleWithoutSyncing() async throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "same-sheet", title: "Old Training Log")
     let sync = StubSheetSwitchSync(hasPendingWrites: true)
@@ -315,7 +315,7 @@ import Testing
 
 @MainActor
 @Test func unreadablePendingWriteCountLeavesTheSheetAloneAndSaysSo() async throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = StubSheetSwitchSync(pendingWritesError: StubSheetSwitchError.pendingWriteLookupFailed)
@@ -340,7 +340,7 @@ import Testing
 
 @MainActor
 @Test func failedPendingWriteDiscardDoesNotSwitchSheets() async throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = StubSheetSwitchSync(hasPendingWrites: true, discardError: StubSheetSwitchError.discardFailed)
@@ -361,7 +361,7 @@ import Testing
 
 @MainActor
 @Test func failedSheetSwitchSyncDoesNotCommitOrReload() async throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = StubSheetSwitchSync(syncSucceeds: false)
@@ -383,7 +383,7 @@ import Testing
 
 @MainActor
 @Test func failedConfirmedSheetSwitchSyncDoesNotCommitOrReload() async throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = StubSheetSwitchSync(hasPendingWrites: true, syncSucceeds: false)
@@ -408,7 +408,7 @@ import Testing
 
 @MainActor
 @Test func overlappingSheetSwitchIsRejectedWhileFirstSyncIsRunning() async throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = SuspendedSheetSwitchSync()
@@ -433,7 +433,7 @@ import Testing
 
 @MainActor
 @Test func overlappingConfirmedSheetSwitchIsRejectedWhileDiscardIsRunning() async throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = SuspendedDiscardSheetSwitchSync()
@@ -462,7 +462,7 @@ import Testing
 
 @MainActor
 @Test func signOutWithoutPendingWritesIsReadyImmediately() throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
     let sync = StubSheetSwitchSync()
@@ -477,7 +477,7 @@ import Testing
 
 @MainActor
 @Test func signOutWithPendingWritesWaitsForConfirmation() throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
     let sync = StubSheetSwitchSync(hasPendingWrites: true)
@@ -493,7 +493,7 @@ import Testing
 
 @MainActor
 @Test func preparingSignOutDiscardsPendingWrites() async throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
     let sync = StubSheetSwitchSync(hasPendingWrites: true)
@@ -509,7 +509,7 @@ import Testing
 
 @MainActor
 @Test func unreadablePendingWriteCountBlocksSignOutAndSaysSo() throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
     let sync = StubSheetSwitchSync(pendingWritesError: StubSheetSwitchError.pendingWriteLookupFailed)
@@ -524,7 +524,7 @@ import Testing
 
 @MainActor
 @Test func failedPendingWriteDiscardBlocksSignOut() async throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
     let sync = StubSheetSwitchSync(hasPendingWrites: true, discardError: StubSheetSwitchError.discardFailed)
@@ -540,7 +540,7 @@ import Testing
 
 @MainActor
 @Test func signOutIsRejectedWhileSettingsManualSyncIsRunning() async throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
     let syncActivity = SettingsSyncActivity()
@@ -574,7 +574,7 @@ import Testing
 
 @MainActor
 @Test func signOutIsRejectedWhileASheetSwitchDiscardIsRunning() async throws {
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = SuspendedDiscardSheetSwitchSync()
@@ -609,7 +609,7 @@ import Testing
     let context = container.mainContext
     seedStaleBlock(tabName: "Block 26", into: context)
 
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
 
@@ -641,7 +641,7 @@ import Testing
     let context = container.mainContext
     seedStaleBlock(tabName: "Block 26", into: context)
 
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
 
@@ -671,7 +671,7 @@ import Testing
     let context = container.mainContext
     seedStaleBlock(tabName: "Block 26", into: context)
 
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
 
@@ -698,7 +698,7 @@ import Testing
     let context = container.mainContext
     seedStaleBlock(tabName: "Block 26", into: context)
 
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
 
@@ -742,7 +742,7 @@ import Testing
     )
     try context.save()
 
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
 
@@ -777,7 +777,7 @@ import Testing
 @MainActor
 @Test func signOutAndSheetSwitchAreRejectedWhileABackgroundSyncIsRunning() async throws {
     let container = try makeCacheSafetyContainer()
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
 
@@ -812,7 +812,7 @@ import Testing
 @Test(.timeLimit(.minutes(1)))
 func aFlushThatOverlapsASyncLeavesTheDestructiveTransitionGuardClosed() async throws {
     let container = try makeCacheSafetyContainer()
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
 
@@ -856,7 +856,7 @@ func aFlushThatOverlapsASyncLeavesTheDestructiveTransitionGuardClosed() async th
 @Test(.timeLimit(.minutes(1)))
 func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async throws {
     let container = try makeCacheSafetyContainer()
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
     try queueReplacementSquatLog(in: container.mainContext)
@@ -885,7 +885,7 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
 @MainActor
 @Test func settingsManualSyncIsRejectedWhileABackgroundSyncIsRunning() async throws {
     let container = try makeCacheSafetyContainer()
-    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
 

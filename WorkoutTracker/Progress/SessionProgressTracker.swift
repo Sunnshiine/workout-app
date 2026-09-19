@@ -81,7 +81,7 @@ struct SessionProgressTracker {
         session(at: identity.storageValue, in: block)
     }
 
-    /// The UserDefaults key namespace under which `block`'s manual Current-Session
+    /// The settings key namespace under which `block`'s manual Current-Session
     /// override is persisted. Namespaced to the order-encoding version so a value
     /// written under an older encoding can never resolve to the wrong Session.
     ///

@@ -205,10 +205,3 @@ private actor GlassVisualNoopSheetsClient: SheetsClient {
 
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
 }
-
-private func makeVisualDefaults() throws -> UserDefaults {
-    let suiteName = "visual.\(UUID())"
-    let defaults = try #require(UserDefaults(suiteName: suiteName))
-    defaults.removePersistentDomain(forName: suiteName)
-    return defaults
-}

@@ -33,13 +33,13 @@ final class WorkoutStore {
 
     private let context: ModelContext
     private let tracker = SessionProgressTracker()
-    private let defaults: UserDefaults
+    private let defaults: AppDefaults
     private let lastPerformed: any LastPerformedIndexing
     private let now: @MainActor () -> Date
 
     init(
         context: ModelContext,
-        defaults: UserDefaults = .standard,
+        defaults: AppDefaults,
         lastPerformed: any LastPerformedIndexing = NoopLastPerformedIndex(),
         now: @escaping @MainActor () -> Date = Date.init
     ) {
@@ -135,7 +135,7 @@ final class WorkoutStore {
 
     func resetCurrentSessionOverride() {
         guard let block else { return }
-        defaults.removeObject(forKey: tracker.currentSessionOverrideStorageKey(forBlockTab: block.tabName))
+        defaults.removeValue(forKey: tracker.currentSessionOverrideStorageKey(forBlockTab: block.tabName))
         currentSessionOverrideRevision += 1
         view(currentSession)
     }
@@ -263,8 +263,7 @@ final class WorkoutStore {
     /// order encoding or its versioning.
     private func currentSessionOverride(in block: Block) -> PersistedSessionIdentity? {
         let key = tracker.currentSessionOverrideStorageKey(forBlockTab: block.tabName)
-        guard defaults.object(forKey: key) != nil else { return nil }
-        return PersistedSessionIdentity(storageValue: defaults.integer(forKey: key))
+        return defaults.integer(forKey: key).map(PersistedSessionIdentity.init(storageValue:))
     }
 
     private func persistCurrentSessionOverride(_ identity: PersistedSessionIdentity, in block: Block) {

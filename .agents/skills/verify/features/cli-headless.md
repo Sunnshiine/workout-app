@@ -35,7 +35,7 @@ Preconditions:
 ## Gotchas
 
 - `init` refuses a non-empty foreign directory (exit 3). Use a fresh `mktemp -d`.
-- UserDefaults live in a per-home suite under `~/Library/Preferences`, wiped by `init` but not by deleting the home.
+- Settings live in `$WORKOUT_HOME/settings.json`. `init` resets them, and deleting the home deletes them.
 - `log` twice enqueues twice. It is not idempotent, by design.
 - `WORKOUT_NOW=2026-05-28T20:26:40Z` freezes `loggedAt` for stable assertions.
 - A flush conflict exits 4 on every later run until the write is discarded. Read `conflictedWrites`, not the exit code alone. `syncOutcome.status` names which outcome ended the step; never string-match `messages`.

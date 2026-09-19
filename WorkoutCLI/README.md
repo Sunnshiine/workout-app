@@ -19,11 +19,10 @@ It holds `manifest.json` (the ownership marker: scenario, spreadsheet id, versio
 exist, an empty directory, or a directory carrying this tool's manifest; a file or a foreign
 directory is refused with exit 3.
 
-UserDefaults (the selected spreadsheet, the Current Session override) live in a suite named
-`WorkoutTracker.cli.<first 16 hex of sha256(home path)>`, so two homes never share a key. The
-suite is a plist under `~/Library/Preferences`, not a file in the home: `init` wipes it, deleting
-the home directory does not. A key-value seam that keeps it inside the home is the next step
-(ADR-0015).
+The home also holds `settings.json`: the selected spreadsheet, the appearance, and the Current
+Session override, rewritten after every change. `init` resets it with the rest of the home, and
+deleting or moving the home takes it along. A home made before settings moved into it is refused
+with exit 3; run `init` again.
 
 `workbook.json` is a sparse A1 map you can edit by hand:
 

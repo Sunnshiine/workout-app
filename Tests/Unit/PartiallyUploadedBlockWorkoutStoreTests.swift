@@ -24,11 +24,7 @@ private func makePartiallyUploadedBlockStore() throws -> PartiallyUploadedBlockS
     context.insert(WorkoutFixtureScenarios.partiallyUploadedBlock())
     try context.save()
 
-    let suiteName = "partial-block-store.\(UUID())"
-    let defaults = try #require(UserDefaults(suiteName: suiteName))
-    defaults.removePersistentDomain(forName: suiteName)
-
-    let store = WorkoutStore(context: context, defaults: defaults)
+    let store = WorkoutStore(context: context, defaults: .inMemory())
     store.reload()
     return PartiallyUploadedBlockStoreFixture(store: store, container: container)
 }

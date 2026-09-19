@@ -46,18 +46,10 @@ private func makeStoreBlock(tabName: String = "Block 27", weekCount: Int = 1, da
 }
 
 @MainActor
-private func makeDefaults() throws -> UserDefaults {
-    let suiteName = "test.\(UUID())"
-    let defaults = try #require(UserDefaults(suiteName: suiteName))
-    defaults.removePersistentDomain(forName: suiteName)
-    return defaults
-}
-
-@MainActor
 private func makeStore(
     tabName: String = "Block 27",
     weekCount: Int = 1,
-    defaults: UserDefaults? = nil,
+    defaults: AppDefaults = .inMemory(),
     now: @escaping @MainActor () -> Date = Date.init
 ) throws -> WorkoutStoreFixture {
     let container = try ModelContainer(
@@ -72,7 +64,7 @@ private func makeStore(
     let ctx = container.mainContext
     ctx.insert(makeStoreBlock(tabName: tabName, weekCount: weekCount))
     try ctx.save()
-    let store = try WorkoutStore(context: ctx, defaults: defaults ?? makeDefaults(), now: now)
+    let store = WorkoutStore(context: ctx, defaults: defaults, now: now)
     store.reload()
     return WorkoutStoreFixture(store: store, container: container)
 }
@@ -95,7 +87,7 @@ private func makeStore(
     ctx.insert(BlockBuilder.makeBlock(from: parsed))
     try ctx.save()
 
-    let store = try WorkoutStore(context: ctx, defaults: makeDefaults())
+    let store = WorkoutStore(context: ctx, defaults: .inMemory())
     store.reload()
 
     #expect(store.block?.tabName == "Block 27")
@@ -118,7 +110,7 @@ private func makeStore(
     context.insert(WorkoutScenarios.openExercises().block)
     try context.save()
 
-    let store = try WorkoutStore(context: context, defaults: makeDefaults())
+    let store = WorkoutStore(context: context, defaults: .inMemory())
     store.reload()
 
     #expect(store.currentSession?.dayNumber == 3)
@@ -240,7 +232,7 @@ private func makeStore(
 
 @MainActor
 @Test func makeViewedSessionCurrentCanTargetSessionBehindLoggedProgress() throws {
-    let fixture = try makeStore(defaults: makeDefaults())
+    let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
     let day3Set = try #require(store.block?.weeks.first?.sessions.first { $0.dayNumber == 3 }?.exercises[0].sets[0])
@@ -262,7 +254,7 @@ private func makeStore(
     // with the old stride-4 encoding. Under the new stride-7 encoding that same integer can map
     // to a DIFFERENT Session, so the new key must ignore the legacy value and fall back to the
     // derived Current Session rather than silently resolving to the wrong one.
-    let defaults = try makeDefaults()
+    let defaults = AppDefaults.inMemory()
     defaults.set(8, forKey: "advancedToOrder_Block 27")  // legacy W2 D4; = W2 D1 under stride 7
 
     let fixture = try makeStore(weekCount: 2, defaults: defaults)
@@ -275,7 +267,7 @@ private func makeStore(
 
 @MainActor
 @Test func reloadPreservesManualCurrentSessionOverrideAgainstSheetDerivedProgress() throws {
-    let fixture = try makeStore(defaults: makeDefaults())
+    let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
     let day3Set = try #require(store.block?.weeks.first?.sessions.first { $0.dayNumber == 3 }?.exercises[0].sets[0])
@@ -292,7 +284,7 @@ private func makeStore(
 
 @MainActor
 @Test func makingViewedSessionCurrentDoesNotQueueSheetWrite() throws {
-    let fixture = try makeStore(defaults: makeDefaults())
+    let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
 
@@ -305,7 +297,7 @@ private func makeStore(
 
 @MainActor
 @Test func currentSessionDebugInfoShowsSheetDerivedResolutionWhenNoManualOverride() throws {
-    let fixture = try makeStore(defaults: makeDefaults())
+    let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
     let day3Set = try #require(store.block?.weeks.first?.sessions.first { $0.dayNumber == 3 }?.exercises[0].sets[0])
@@ -328,7 +320,7 @@ private func makeStore(
 
 @MainActor
 @Test func currentSessionDebugInfoShowsLocalOnlyManualOverrideWhenPresent() throws {
-    let fixture = try makeStore(defaults: makeDefaults())
+    let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
     let day3Set = try #require(store.block?.weeks.first?.sessions.first { $0.dayNumber == 3 }?.exercises[0].sets[0])
@@ -351,7 +343,7 @@ private func makeStore(
 
 @MainActor
 @Test func resetCurrentSessionOverrideReturnsViewedSessionToSheetDerivedWithoutSheetWrite() throws {
-    let fixture = try makeStore(defaults: makeDefaults())
+    let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
     let day3Set = try #require(store.block?.weeks.first?.sessions.first { $0.dayNumber == 3 }?.exercises[0].sets[0])
@@ -372,7 +364,7 @@ private func makeStore(
 
 @MainActor
 @Test func resetCurrentSessionOverrideDoesNotClearOtherBlockOverride() throws {
-    let defaults = try makeDefaults()
+    let defaults = AppDefaults.inMemory()
     let block27 = try makeStore(tabName: "Block 27", defaults: defaults)
     let block28 = try makeStore(tabName: "Block 28", defaults: defaults)
     defer {
@@ -395,7 +387,7 @@ private func makeStore(
 
 @MainActor
 @Test func moveOnAdvancesCurrentSessionAndViewedSession() throws {
-    let fixture = try makeStore(defaults: makeDefaults())
+    let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
 
@@ -409,7 +401,7 @@ private func makeStore(
 
 @MainActor
 @Test func moveOnAdvancesFromManualCurrentSessionOverride() throws {
-    let fixture = try makeStore(defaults: makeDefaults())
+    let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
 
@@ -425,7 +417,7 @@ private func makeStore(
 
 @MainActor
 @Test func requestingMoveOnCelebrationCapturesCurrentSessionWithoutAdvancing() throws {
-    let fixture = try makeStore(defaults: makeDefaults())
+    let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
 
@@ -442,7 +434,7 @@ private func makeStore(
 @MainActor
 @Test func requestingMoveOnCelebrationCapturesRequestTime() throws {
     var now = Date(timeIntervalSinceReferenceDate: 1_000)
-    let fixture = try makeStore(defaults: makeDefaults(), now: { now })
+    let fixture = try makeStore(now: { now })
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
 
@@ -459,7 +451,7 @@ private func makeStore(
 
 @MainActor
 @Test func dismissingMoveOnCelebrationAdvancesFromCapturedSession() throws {
-    let fixture = try makeStore(defaults: makeDefaults())
+    let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
 
@@ -475,7 +467,7 @@ private func makeStore(
 
 @MainActor
 @Test func reachingZeroLeftDoesNotShowCelebrationOrAdvanceCurrentSession() throws {
-    let fixture = try makeStore(defaults: makeDefaults())
+    let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
     let currentSet = try #require(store.currentSession?.exercises[0].sets[0])
@@ -495,7 +487,7 @@ private func makeStore(
 
 @MainActor
 @Test func moveOnAdvancePersistsAcrossReload() throws {
-    let fixture = try makeStore(defaults: makeDefaults())
+    let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
 
@@ -508,7 +500,7 @@ private func makeStore(
 
 @MainActor
 @Test func repeatedMoveOnsOverwriteStoredAdvance() throws {
-    let fixture = try makeStore(defaults: makeDefaults())
+    let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
 
@@ -521,7 +513,7 @@ private func makeStore(
 
 @MainActor
 @Test func moveOnCrossesWeekBoundaryAndDropsPriorWeekOpenExercises() throws {
-    let fixture = try makeStore(weekCount: 2, defaults: makeDefaults())
+    let fixture = try makeStore(weekCount: 2)
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
 
@@ -537,7 +529,7 @@ private func makeStore(
 
 @MainActor
 @Test func loggedProgressPastStoredOverrideDoesNotReplaceCurrentSession() throws {
-    let fixture = try makeStore(defaults: makeDefaults())
+    let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
     let day3Set = try #require(store.block?.weeks.first?.sessions.first { $0.dayNumber == 3 }?.exercises[0].sets[0])
@@ -550,7 +542,7 @@ private func makeStore(
 
 @MainActor
 @Test func canMoveOnIsFalseOnLastSession() throws {
-    let fixture = try makeStore(weekCount: 4, defaults: makeDefaults())
+    let fixture = try makeStore(weekCount: 4)
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
     let finalSet = try #require(

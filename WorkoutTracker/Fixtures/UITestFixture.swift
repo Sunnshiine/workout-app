@@ -15,14 +15,6 @@
             ProcessInfo.processInfo.arguments.contains("-UITEST_FIXTURE")
         }
 
-        private static let defaultsSuiteName = "WorkoutTracker.UITestFixture"
-
-        static func makeDefaults() -> UserDefaults {
-            let defaults = UserDefaults(suiteName: defaultsSuiteName) ?? .standard
-            defaults.removePersistentDomain(forName: defaultsSuiteName)
-            return defaults
-        }
-
         static func makeSheetsClient() -> any SheetsClient {
             FixtureSheetsClient(holdsReads: launch.holdsSheetReads)
         }

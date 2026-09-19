@@ -87,7 +87,7 @@ struct SunbirdMomentsVisualTests {
         colorScheme: ColorScheme,
         testName: String = #function
     ) throws {
-        let settings = SettingsStore(defaults: try makeConnectDefaults())
+        let settings = SettingsStore(defaults: .inMemory())
         // iOS 27 resolves OnboardingView's environment lookups during offscreen
         // render, so inject everything it observes even in the sign-in state.
         let scenario = try WorkoutScenarios.freshConfiguredApp()
@@ -154,11 +154,4 @@ private actor SunbirdNoopSheetsClient: SheetsClient {
     }
 
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
-}
-
-private func makeConnectDefaults() throws -> UserDefaults {
-    let suiteName = "sunbird.\(UUID())"
-    let defaults = try #require(UserDefaults(suiteName: suiteName))
-    defaults.removePersistentDomain(forName: suiteName)
-    return defaults
 }

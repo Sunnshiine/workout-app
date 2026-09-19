@@ -30,7 +30,7 @@ final class SettingsStore {
     private(set) var supersetRestDuration: RestDurationSetting
     private(set) var spreadsheetId: String?
     private(set) var spreadsheetTitle: String?
-    private let defaults: UserDefaults
+    private let defaults: AppDefaults
     private static let appearanceKey = "appearance"
     private static let standardRestDurationSecondsKey = "standardRestDurationSeconds"
     private static let supersetRestDurationSecondsKey = "supersetRestDurationSeconds"
@@ -41,7 +41,7 @@ final class SettingsStore {
     // still recognised regardless of which one is stored.
     private static let currentSessionOverrideKeyPrefix = "advancedToOrder"
 
-    init(defaults: UserDefaults = .standard, hasPriorAppState: Bool = false) {
+    init(defaults: AppDefaults, hasPriorAppState: Bool = false) {
         self.defaults = defaults
         self.spreadsheetId = defaults.string(forKey: Self.spreadsheetIdKey)
         self.spreadsheetTitle = defaults.string(forKey: Self.spreadsheetTitleKey)
@@ -73,7 +73,7 @@ final class SettingsStore {
         spreadsheetId = id
         spreadsheetTitle = nil
         defaults.set(id, forKey: Self.spreadsheetIdKey)
-        defaults.removeObject(forKey: Self.spreadsheetTitleKey)
+        defaults.removeValue(forKey: Self.spreadsheetTitleKey)
     }
 
     func setAppearance(_ preference: AppearancePreference) {
@@ -99,43 +99,35 @@ final class SettingsStore {
     private func clearSpreadsheet() {
         spreadsheetId = nil
         spreadsheetTitle = nil
-        defaults.removeObject(forKey: Self.spreadsheetIdKey)
-        defaults.removeObject(forKey: Self.spreadsheetTitleKey)
+        defaults.removeValue(forKey: Self.spreadsheetIdKey)
+        defaults.removeValue(forKey: Self.spreadsheetTitleKey)
     }
 
-    private static func loadAppearance(defaults: UserDefaults, hasPriorAppState: Bool) -> AppearancePreference {
+    private static func loadAppearance(defaults: AppDefaults, hasPriorAppState: Bool) -> AppearancePreference {
         if let preference = defaults.string(forKey: appearanceKey).flatMap(AppearancePreference.init(rawValue:)) {
             return preference
         }
 
         let seededPreference: AppearancePreference =
-            hasPriorAppState || hasStoredAppState(in: defaults) || defaults.object(forKey: appearanceKey) != nil
+            hasPriorAppState || hasStoredAppState(in: defaults) || defaults.hasValue(forKey: appearanceKey)
             ? .dark
             : .system
         defaults.set(seededPreference.rawValue, forKey: appearanceKey)
         return seededPreference
     }
 
-    private static func loadStandardRestDuration(defaults: UserDefaults) -> RestDurationSetting {
-        guard defaults.object(forKey: standardRestDurationSecondsKey) != nil else {
-            return .standard
-        }
-
-        return RestDurationSetting(seconds: defaults.integer(forKey: standardRestDurationSecondsKey))
+    private static func loadStandardRestDuration(defaults: AppDefaults) -> RestDurationSetting {
+        defaults.integer(forKey: standardRestDurationSecondsKey).map(RestDurationSetting.init(seconds:)) ?? .standard
     }
 
-    private static func loadSupersetRestDuration(defaults: UserDefaults) -> RestDurationSetting {
-        guard defaults.object(forKey: supersetRestDurationSecondsKey) != nil else {
-            return .superset
-        }
-
-        return RestDurationSetting(seconds: defaults.integer(forKey: supersetRestDurationSecondsKey))
+    private static func loadSupersetRestDuration(defaults: AppDefaults) -> RestDurationSetting {
+        defaults.integer(forKey: supersetRestDurationSecondsKey).map(RestDurationSetting.init(seconds:)) ?? .superset
     }
 
-    private static func hasStoredAppState(in defaults: UserDefaults) -> Bool {
-        defaults.object(forKey: spreadsheetIdKey) != nil
-            || defaults.object(forKey: spreadsheetTitleKey) != nil
-            || defaults.dictionaryRepresentation().keys.contains { key in
+    private static func hasStoredAppState(in defaults: AppDefaults) -> Bool {
+        defaults.hasValue(forKey: spreadsheetIdKey)
+            || defaults.hasValue(forKey: spreadsheetTitleKey)
+            || defaults.keys.contains { key in
                 key.hasPrefix(currentSessionOverrideKeyPrefix)
             }
     }
