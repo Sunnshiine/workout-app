@@ -573,6 +573,64 @@ import Testing
     #expect(signOutSync.hasPendingWritesValue == false)
 }
 
+@MainActor
+@Test func signOutIsRejectedWhileSettingsManualSyncIsRunning() async throws {
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let settings = SettingsStore(defaults: defaults)
+    settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
+    let syncActivity = SettingsSyncActivity()
+    let manualSync = SuspendedConfiguredSheetSync()
+    let manualStore = SettingsManualSyncStore(
+        settings: settings,
+        sync: manualSync,
+        syncActivity: syncActivity
+    )
+    let signOutSync = StubSheetSwitchSync(hasPendingWrites: true)
+    let store = SettingsSheetSwitchStore(
+        settings: settings,
+        sync: signOutSync,
+        syncActivity: syncActivity
+    )
+
+    let manualTask = Task { await manualStore.syncNow() }
+    await manualSync.waitForSyncStart()
+
+    let request = store.requestSignOut()
+    let prepared = await store.prepareSignOut()
+    manualSync.completeSync()
+    _ = await manualTask.value
+
+    #expect(request == .failed)
+    #expect(prepared == false)
+    #expect(store.errorMessage == "A sync is already in progress.")
+    #expect(signOutSync.discardPendingWriteCallCount == 0)
+    #expect(signOutSync.hasPendingWritesValue == true)
+}
+
+@MainActor
+@Test func signOutIsRejectedWhileASheetSwitchDiscardIsRunning() async throws {
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let settings = SettingsStore(defaults: defaults)
+    settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
+    let sync = SuspendedDiscardSheetSwitchSync()
+    let store = SettingsSheetSwitchStore(settings: settings, sync: sync)
+    let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
+
+    _ = await store.requestSwitch(to: newSheet)
+    let confirmTask = Task { await store.confirmPendingSwitch() }
+    await sync.waitForDiscardStart()
+
+    let request = store.requestSignOut()
+    let prepared = await store.prepareSignOut()
+    sync.completeDiscard()
+    _ = await confirmTask.value
+
+    #expect(request == .failed)
+    #expect(prepared == false)
+    #expect(store.errorMessage == "A sync is already in progress.")
+    #expect(sync.discardPendingWriteCallCount == 1)
+}
+
 // MARK: - Cache safety against a real SyncCoordinator
 
 // The safe switch transaction, exercised end to end against a real `SyncCoordinator` (not a stub),
