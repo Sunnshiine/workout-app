@@ -95,8 +95,8 @@ Target directory structure:
   UI Interaction Suite.
 
 Migration policy: move the existing flat `WorkoutTrackerTests` files into this structure in one
-mechanical change before adding new coverage. Update `Package.swift`, `project.yml`, regenerate the
-Xcode project, and verify with `swift test` plus `xcodebuild test` immediately after the move.
+mechanical change before adding new coverage. Update `Package.swift` and `WorkoutTracker.xcodeproj`,
+and verify with `swift test` plus `xcodebuild test` immediately after the move.
 
 Test doubles policy:
 
@@ -210,8 +210,8 @@ Agent gate policy:
 
 Implementation slices:
 
-1. Mechanical structure migration: move the existing tests, update project configuration, regenerate
-   Xcode, and verify the current suite still passes.
+1. Mechanical structure migration: move the existing tests, update `Package.swift` and the Xcode
+   project, and verify the current suite still passes.
 2. Component/state-contract expansion: add missing component tests using shared `Tests/Support`
    builders.
 3. UI integration target: add `Tests/UI` and cover the agreed fixture-driven user flows.

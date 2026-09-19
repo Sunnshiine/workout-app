@@ -18,7 +18,7 @@ the load-bearing decisions are
 | App Store Connect record | "TFN Tracker" | "TFN Tracker Dev" |
 | Home-screen name | WorkoutTracker | WT Dev (`APP_DISPLAY_NAME` override) |
 | App icon | Sunbird, green (`AppIcon` set) | Sunbird, amber (`APPICON_NAME=AppIconDev` override) |
-| Marketing version | hand-bumped in `project.yml` (app target `CFBundleShortVersionString`) | `0.<PR number>` |
+| Marketing version | hand-bumped in `WorkoutTracker/Info.plist` (`CFBundleShortVersionString`) | `0.<PR number>` |
 | Build number | `github.run_number` | `github.run_number` |
 | Google OAuth client | stable pair (`GID_*` secrets) | "WorkoutTracker Dev iOS" (`DEV_GID_*` secrets) |
 | Data | the coach-managed Sheet | live Sheets API — point the picker at a **cloned** training log |
@@ -67,10 +67,11 @@ upload.
 
 ## Pipeline shape
 
-macOS job (40-min timeout): `xcodegen generate` → write `Secrets.xcconfig`
-from secrets → PlistBuddy stamping → import the signing certs into a
+macOS job (40-min timeout): write `Secrets.xcconfig` from secrets →
+PlistBuddy stamping → import the signing certs into a
 throwaway keychain (see [Signing certificates](#signing-certificates)) →
-`xcodebuild archive` with automatic signing (`-allowProvisioningUpdates` +
+`xcodebuild archive` of the committed `WorkoutTracker.xcodeproj` with
+automatic signing (`-allowProvisioningUpdates` +
 the ASC API key; no fastlane — profiles for all four bundle ids are managed
 headlessly, signed with the imported identities) → `-exportArchive`
 (`app-store-connect`, automatic signing,
@@ -168,6 +169,6 @@ certs anymore), but it leaves headroom if the import step is ever bypassed.
 ## Version bumping
 
 The stable marketing version lives in **one** place:
-`project.yml` → `WorkoutTracker` target → `info.properties.CFBundleShortVersionString`.
+`CFBundleShortVersionString` in `WorkoutTracker/Info.plist`.
 Hand-bump it at real releases; the workflows copy it to the widget and own
 `CFBundleVersion` (never bump that by hand — it is the run number).
