@@ -36,8 +36,8 @@ extension SyncCoordinator {
 
 extension SyncStatusBannerPresentation {
     /// Five outcomes have already collapsed into `.conflict` by the time this sees one, so it
-    /// cannot name which happened. The pin only uses it for the one reading `State` can still make
-    /// without guessing, that the athlete is shown nothing at all.
+    /// cannot name which happened. The pin only asks it the one question `State` can still answer
+    /// without guessing, whether the athlete is shown a banner at all.
     init?(state: SyncCoordinator.State) {
         let outcome: SyncOutcome =
             switch state {
