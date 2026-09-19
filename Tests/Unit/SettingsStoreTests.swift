@@ -969,9 +969,11 @@ private final class HeldSheetsClient: SheetsClient {
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
 
     func waitUntilHeld() async {
-        while held == nil {
+        for _ in 0..<10_000 {
+            if held != nil { return }
             await Task.yield()
         }
+        Issue.record("the sync never reached the Sheet read this client holds")
     }
 
     func release() {
