@@ -77,72 +77,53 @@ import Testing
 
     let day = try #require(SheetLayoutInterpreter().interpret(grid).day(week: 1, day: 1))
     let anchor = try #require(day.exerciseAnchors.first)
-    let headerNotes = anchor.headerNotes(in: grid, notesColumn: day.columns.notes)
 
-    #expect(headerNotes.value == "Keep elbows soft")
-    let setCount = anchor.prescribedSetCount(in: grid, setsColumn: day.columns.sets)
-    #expect(headerNotes.usesCompactHeaderSetOne == false)
-    #expect(anchor.usesCompactHeaderSetOne(headerNotes: headerNotes, setCount: setCount) == false)
-    #expect(headerNotes.hasProtectedValue)
+    #expect(anchor.headerNotesRole(in: grid, cols: day.columns) == .coachNote("Keep elbows soft"))
     #expect(anchor.continuationSetRow(for: 0) == 18)
     #expect(anchor.continuationSetRow(for: 1) == 19)
 }
 
-@Test func anchorCompactHeaderSetOneDecisionFoldsInTheAggregateHalf() {
-    let anchor = SheetLayoutExerciseAnchor(name: "Squat", row: 3, nextAnchorRow: 8)
-
-    func decision(_ value: String, setCount: Int) -> Bool {
-        anchor.usesCompactHeaderSetOne(headerNotes: SheetLayoutHeaderNotes(value: value), setCount: setCount)
-    }
-
-    // The single Set-count-aware query must return the same answer the five former inline
-    // `usesCompactHeaderSetOne(headerNotes:) || isCompactAggregateHeader(value, setCount:)` sites did.
-    func expectedFold(_ value: String, setCount: Int) -> Bool {
-        let headerNotes = SheetLayoutHeaderNotes(value: value)
-        return headerNotes.usesCompactHeaderSetOne
-            || SetLogToken.isCompactAggregateHeader(value, setCount: setCount)
-    }
-
-    // Header-only half: empty and single Set-Log-list values are compact Set-One.
-    #expect(decision("", setCount: 3) == expectedFold("", setCount: 3))
-    #expect(decision("185x5@8", setCount: 3) == expectedFold("185x5@8", setCount: 3))
-    #expect(decision("185x5@8", setCount: 3) == true)
-
-    // Coach note: neither half fires.
-    #expect(decision("Keep elbows soft", setCount: 3) == false)
-
-    // Aggregate half: a comma list bounded by the Set count of Set-Log-list values is compact.
-    #expect(decision("25x12@7, skip", setCount: 3) == true)
-    #expect(decision("25x12@7, skip", setCount: 3) == expectedFold("25x12@7, skip", setCount: 3))
-
-    // Aggregate boundary: a list longer than the Set count is not compact.
-    #expect(decision("25x12@7, skip, 30x10@8", setCount: 2) == false)
-
-    // Aggregate boundary: an entry that is not a Set-Log-list value is not compact.
-    #expect(decision("25x12@7, hold", setCount: 3) == false)
+@Test func headerNotesRoleReadsSetLogContentAsSetLogsAtEverySetCount() {
+    // An empty cell, a single Set-Log-list value, and a comma list bounded by the Set count whose
+    // every entry is a Set-Log-list value all carry Set Logs. None of them is coach content.
+    #expect(HeaderNotesRole(notesCell: "", setCount: 3) == .setLogList)
+    #expect(HeaderNotesRole(notesCell: "skip", setCount: 1) == .setLogList)
+    #expect(HeaderNotesRole(notesCell: "185x5@8", setCount: 3) == .setLogList)
+    #expect(HeaderNotesRole(notesCell: "25x12@7, skip", setCount: 3) == .setLogList)
+    #expect(HeaderNotesRole(notesCell: "185x5@8, 190x5@9", setCount: 2) == .setLogList)
 }
 
-@Test func anchorHeaderProtectedFromSetLogWritesSettlesTheOneProtectedQuestion() {
-    let anchor = SheetLayoutExerciseAnchor(name: "Squat", row: 3, nextAnchorRow: 8)
+@Test func headerNotesRoleStopsReadingSetLogsPastThePrescribedSetCount() {
+    // A list longer than the Set count, or with an entry that is not a Set-Log-list value, is not
+    // this Exercise's Set Logs; it falls back to the coach-content classification.
+    #expect(HeaderNotesRole(notesCell: "25x12@7, skip, 30x10@8", setCount: 2) == .coachNote("25x12@7, skip, 30x10@8"))
+    #expect(HeaderNotesRole(notesCell: "25x12@7, hold", setCount: 3) == .coachNote("25x12@7, hold"))
+}
 
-    func protected(_ value: String, setCount: Int) -> Bool {
-        anchor.isHeaderProtectedFromSetLogWrites(
-            headerNotes: SheetLayoutHeaderNotes(value: value),
-            setCount: setCount
-        )
-    }
+@Test func headerNotesRoleClassifiesResultShapedValuesAsLegacyLog() {
+    #expect(HeaderNotesRole(notesCell: "25x12, 12", setCount: 2) == .legacyLog("25x12, 12"))
+    #expect(HeaderNotesRole(notesCell: "70@10, 55", setCount: 2) == .legacyLog("70@10, 55"))
+    #expect(HeaderNotesRole(notesCell: "55x8, 60x7@9.5", setCount: 2) == .legacyLog("55x8, 60x7@9.5"))
+    #expect(HeaderNotesRole(notesCell: "70, 80, 90x6", setCount: 3) == .legacyLog("70, 80, 90x6"))
+    #expect(HeaderNotesRole(notesCell: "70@10, 80", setCount: 2) == .legacyLog("70@10, 80"))
+}
 
-    // A Coach Note and a Legacy Log are both protected coach-authored content: Set Logs must not
-    // be written into the header cell. This is the one place the question is answered, and it pins
-    // the deliberate Legacy-Log choice (ADR-0005 — a Legacy Log is never overwritten).
-    #expect(protected("Keep elbows soft", setCount: 2) == true)
-    #expect(protected("70@10, 80", setCount: 2) == true)  // Legacy Log
-    #expect(protected("25x12, 12", setCount: 2) == true)  // Legacy Log
+@Test func headerNotesRoleClassifiesInstructionShapedValuesAsCoachNote() {
+    #expect(HeaderNotesRole(notesCell: "Start w/ 10 sec hold", setCount: 2) == .coachNote("Start w/ 10 sec hold"))
+    #expect(HeaderNotesRole(notesCell: "Superset w/ curls", setCount: 2) == .coachNote("Superset w/ curls"))
+    #expect(HeaderNotesRole(notesCell: "Keep elbows soft", setCount: 3) == .coachNote("Keep elbows soft"))
+}
 
-    // An empty cell or a compact Set-Log list (Set-count-aware) is writable, not protected.
-    #expect(protected("", setCount: 2) == false)
-    #expect(protected("185x5@8", setCount: 2) == false)  // single compact Set-One
-    #expect(protected("185x5@8, 190x5@9", setCount: 2) == false)  // compact aggregate within count
+@Test func headerNotesRoleProtectsOnlyCoachAuthoredContentFromSetLogWrites() {
+    // A Coach Note and a Legacy Log are both coach-authored: Set Logs must not be written into the
+    // cell and it is never overwritten (ADR-0005). Everything else carries Set Logs, so the two
+    // answers cannot disagree the way the former value-only and Set-count-aware predicates did.
+    #expect(HeaderNotesRole(notesCell: "Keep elbows soft", setCount: 2).holdsSetLogs == false)
+    #expect(HeaderNotesRole(notesCell: "70@10, 80", setCount: 2).holdsSetLogs == false)
+    #expect(HeaderNotesRole(notesCell: "25x12, 12", setCount: 2).holdsSetLogs == false)
+    #expect(HeaderNotesRole(notesCell: "", setCount: 2).holdsSetLogs == true)
+    #expect(HeaderNotesRole(notesCell: "185x5@8", setCount: 2).holdsSetLogs == true)
+    #expect(HeaderNotesRole(notesCell: "185x5@8, 190x5@9", setCount: 2).holdsSetLogs == true)
 }
 
 private func placement(
@@ -388,32 +369,4 @@ private enum PlacementTestError: Error { case notPlaced }
     )
     #expect(oneDayLayout.week(number: 2) == nil)
     #expect(oneDayLayout.day(week: 1, day: 2) == nil)
-}
-
-@Test func headerNotesClassifiesResultShapedValuesAsLegacyLog() {
-    #expect(SheetLayoutHeaderNotes(value: "25x12, 12").isLegacyLog == true)
-    #expect(SheetLayoutHeaderNotes(value: "70@10, 55").isLegacyLog == true)
-    #expect(SheetLayoutHeaderNotes(value: "55x8, 60x7@9.5").isLegacyLog == true)
-    #expect(SheetLayoutHeaderNotes(value: "70, 80, 90x6").isLegacyLog == true)
-    #expect(SheetLayoutHeaderNotes(value: "BWx12@7").isLegacyLog == false)  // single valid SetLog → compact
-}
-
-@Test func headerNotesDoesNotClassifyInstructionShapedNotesAsLegacyLog() {
-    #expect(SheetLayoutHeaderNotes(value: "Start w/ 10 sec hold").isLegacyLog == false)
-    #expect(SheetLayoutHeaderNotes(value: "Superset w/ curls").isLegacyLog == false)
-    #expect(SheetLayoutHeaderNotes(value: "Keep elbows soft").isLegacyLog == false)
-}
-
-@Test func headerNotesDoesNotClassifyCompactValuesAsLegacyLog() {
-    #expect(SheetLayoutHeaderNotes(value: "").isLegacyLog == false)
-    #expect(SheetLayoutHeaderNotes(value: "skip").isLegacyLog == false)
-    #expect(SheetLayoutHeaderNotes(value: "185x5@8").isLegacyLog == false)
-}
-
-@Test func headerNotesIsCoachNoteForInstructionShapedProtectedValues() {
-    #expect(SheetLayoutHeaderNotes(value: "Start w/ 10 sec hold").isCoachNote == true)
-    #expect(SheetLayoutHeaderNotes(value: "Superset w/ curls").isCoachNote == true)
-    #expect(SheetLayoutHeaderNotes(value: "").isCoachNote == false)
-    #expect(SheetLayoutHeaderNotes(value: "25x12, 12").isCoachNote == false)
-    #expect(SheetLayoutHeaderNotes(value: "185x5@8").isCoachNote == false)
 }

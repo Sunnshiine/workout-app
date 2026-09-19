@@ -59,32 +59,57 @@ struct SheetLayoutDay: Sendable {
     let exerciseAnchors: [SheetLayoutExerciseAnchor]
 }
 
-struct SheetLayoutHeaderNotes: Sendable, Equatable {
-    let value: String
+/// What kind of content occupies one Notes cell — the Exercise's header cell or a Prescription
+/// Line's own cell. The three cases are mutually exclusive, so a cell can never be read as both
+/// compact Set-Log content and coach-authored prose. Decided once, Set-count-aware, from the cell
+/// value and the number of Sets that cell is prescribed to carry; the read, write, and audit paths
+/// all consume this one answer (ADR-0005, ADR-0010).
+enum HeaderNotesRole: Sendable, Equatable {
+    /// The cell carries this Exercise's or Line's Set Logs: empty, one Set-Log-list value, or a
+    /// comma list no longer than the prescribed Set count whose every entry is one ("25x12@7, skip").
+    case setLogList
+    /// Instruction-shaped coach prose. Read-only, never overwritten.
+    case coachNote(String)
+    /// Result-shaped completion evidence from older exercise-level logging. Read-only, kept as the
+    /// raw entered text.
+    case legacyLog(String)
 
-    var usesCompactHeaderSetOne: Bool {
-        SetLogToken.isSetLogListValue(value)
-    }
-
-    var hasProtectedValue: Bool {
-        !value.isEmpty && !usesCompactHeaderSetOne
-    }
-
-    var isLegacyLog: Bool {
-        guard hasProtectedValue else { return false }
-        let tokens =
-            value
-            .split(separator: ",", omittingEmptySubsequences: true)
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-        guard !tokens.isEmpty else { return false }
-        return tokens.allSatisfy { token in
-            token.wholeMatch(of: legacyLogTokenPattern) != nil
-                || token.wholeMatch(of: legacyNumberTokenPattern) != nil
+    init(notesCell value: String, setCount: Int) {
+        if SetLogToken.isSetLogListValue(value)
+            || SetLogToken.isCompactAggregateHeader(value, setCount: setCount)
+        {
+            self = .setLogList
+        } else if isLegacyLogValue(value) {
+            self = .legacyLog(value)
+        } else {
+            self = .coachNote(value)
         }
     }
 
-    var isCoachNote: Bool {
-        hasProtectedValue && !isLegacyLog
+    /// Whether Set Logs may be read out of and written into this cell. The complement is coach
+    /// content: Set Logs redirect to the next Visible Writable Row and the cell is never overwritten.
+    var holdsSetLogs: Bool { self == .setLogList }
+
+    var coachNote: String? {
+        guard case .coachNote(let value) = self else { return nil }
+        return value
+    }
+
+    var legacyLog: String? {
+        guard case .legacyLog(let value) = self else { return nil }
+        return value
+    }
+}
+
+private func isLegacyLogValue(_ value: String) -> Bool {
+    let tokens =
+        value
+        .split(separator: ",", omittingEmptySubsequences: true)
+        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+    guard !tokens.isEmpty else { return false }
+    return tokens.allSatisfy { token in
+        token.wholeMatch(of: legacyLogTokenPattern) != nil
+            || token.wholeMatch(of: legacyNumberTokenPattern) != nil
     }
 }
 
@@ -115,6 +140,11 @@ struct PrescriptionLine: Sendable, Equatable {
     func position(of setIndex: Int) -> Int? {
         let local = setIndex - firstSetIndex
         return (0..<setCount).contains(local) ? local : nil
+    }
+
+    /// What occupies this Line's own Notes cell, classified against the Sets this Line prescribes.
+    func notesRole(in grid: SheetGrid, cols: DayColumns) -> HeaderNotesRole {
+        HeaderNotesRole(notesCell: grid.cellOrEmpty(row, cols.notes).trimmed, setCount: setCount)
     }
 }
 
@@ -182,8 +212,15 @@ struct SheetLayoutExerciseAnchor: Sendable {
     let row: Int
     let nextAnchorRow: Int
 
-    func headerNotes(in grid: SheetGrid, notesColumn: Int?) -> SheetLayoutHeaderNotes {
-        SheetLayoutHeaderNotes(value: grid.cellOrEmpty(row, notesColumn).trimmed)
+    /// What occupies this Exercise's header Notes cell, classified against its prescribed Set count.
+    /// This is the one place the question is answered; the single-line read, the multi-line read,
+    /// the placement tree, and the write and audit paths all ask here, so the header cannot be
+    /// interpreted as Set-Log content on one path and as coach content on another.
+    func headerNotesRole(in grid: SheetGrid, cols: DayColumns) -> HeaderNotesRole {
+        HeaderNotesRole(
+            notesCell: grid.cellOrEmpty(row, cols.notes).trimmed,
+            setCount: prescribedSetCount(in: grid, setsColumn: cols.sets)
+        )
     }
 
     func prescribedSetCount(in grid: SheetGrid, setsColumn: Int?) -> Int {
@@ -216,28 +253,6 @@ struct SheetLayoutExerciseAnchor: Sendable {
             nextFirstSetIndex += setCount
         }
         return lines
-    }
-
-    /// Whether this Exercise stores its Set Logs comma-separated in one header Notes cell rather
-    /// than on per-Set rows. Folds both halves of the compact-header rule: the header cell is a
-    /// single Set-Log-list value, or — the Set-count-aware aggregate half — a comma list no longer
-    /// than the prescribed `setCount` whose every entry is a Set-Log-list value ("25x12@7, skip").
-    /// This is the one place the decision is made; read, write, and audit paths all ask here.
-    func usesCompactHeaderSetOne(headerNotes: SheetLayoutHeaderNotes, setCount: Int) -> Bool {
-        headerNotes.usesCompactHeaderSetOne
-            || SetLogToken.isCompactAggregateHeader(headerNotes.value, setCount: setCount)
-    }
-
-    /// Whether Set Logs must not be written into (nor read out of) this Exercise's header Notes
-    /// cell because it holds coach-authored content — a Coach Note or a Legacy Log (ADR-0005). Both
-    /// are protected: Set Logs redirect to the next Visible Writable Row in the same Session and the
-    /// cell is never overwritten. An empty cell or a compact Set-Log list (`setCount`-aware) is
-    /// writable and is not protected. This is the one place the "may Set Logs live in this header
-    /// cell?" question is answered; the single-line read, the multi-line read, and the write target
-    /// resolution all ask here, so the protected-header decision cannot diverge across them.
-    func isHeaderProtectedFromSetLogWrites(headerNotes: SheetLayoutHeaderNotes, setCount: Int) -> Bool {
-        !usesCompactHeaderSetOne(headerNotes: headerNotes, setCount: setCount)
-            && headerNotes.hasProtectedValue
     }
 
     func continuationSetRow(for setIndex: Int) -> Int? {
@@ -287,13 +302,12 @@ struct SheetLayoutExerciseAnchor: Sendable {
             return multiLinePlacement(for: setIndex, lines: lines, col: col)
         }
 
-        let headerNotes = headerNotes(in: grid, notesColumn: col)
-        let setCount = prescribedSetCount(in: grid, setsColumn: cols.sets)
-        let compactHeaderSetOne = usesCompactHeaderSetOne(headerNotes: headerNotes, setCount: setCount)
+        let line = lines[0]
+        let role = line.notesRole(in: grid, cols: cols)
         if let headerPlacement = headerNotesPlacement(
             for: setIndex,
-            headerNotes: headerNotes,
-            setCount: setCount,
+            role: role,
+            setCount: line.setCount,
             in: snapshot,
             col: col
         ) {
@@ -301,22 +315,21 @@ struct SheetLayoutExerciseAnchor: Sendable {
         }
 
         guard
-            let setRow = visibleSetLogRow(for: setIndex, compactHeaderSetOne: compactHeaderSetOne, in: snapshot)
+            let setRow = visibleSetLogRow(for: setIndex, compactHeaderSetOne: role.holdsSetLogs, in: snapshot)
         else {
-            return headerNotes.hasProtectedValue ? .protectedHeaderBlocksSetRow : .setRowNotFound
+            return role.holdsSetLogs ? .setRowNotFound : .protectedHeaderBlocksSetRow
         }
         return .placed(SetLogPlacement(kind: .visibleSetLogRow, row: setRow, col: col, listPosition: nil))
     }
 
-    /// What this Exercise's header Notes cell does with a prescribed Set's log: hold it in the
-    /// cell's own comma-separated Set-Log list, or — when coach content protects the cell
-    /// (ADR-0005) — redirect it to the first Visible Writable Row below, refusing the write when
-    /// there is none. nil when the header makes no claim on the Set, either because the cell is
-    /// free or because the Set is past the prescribed count; both fall through to the Set's own
-    /// visible row.
+    /// What this Exercise's header Notes cell does with a prescribed Set's log. A `.setLogList`
+    /// header holds it in the cell's own comma-separated list; a Coach Note or Legacy Log protects
+    /// the cell (ADR-0005) and redirects the log to the first Visible Writable Row below, refusing
+    /// the write when there is none. nil when the Set is past the prescribed count, so the header
+    /// makes no claim on it and it falls through to its own visible row.
     private func headerNotesPlacement(
         for setIndex: Int,
-        headerNotes: SheetLayoutHeaderNotes,
+        role: HeaderNotesRole,
         setCount: Int,
         in snapshot: SheetSnapshot,
         col: Int
@@ -324,14 +337,13 @@ struct SheetLayoutExerciseAnchor: Sendable {
         guard setIndex < setCount else { return nil }
         let listPosition = SetLogPlacement.listPosition(ofSet: setIndex, amongPrescribed: setCount)
 
-        if usesCompactHeaderSetOne(headerNotes: headerNotes, setCount: setCount) {
+        if role.holdsSetLogs {
             guard snapshot.isRowVisible(row) else { return .setRowNotFound }
             return .placed(
                 SetLogPlacement(kind: .compactHeaderList, row: row, col: col, listPosition: listPosition)
             )
         }
 
-        guard headerNotes.hasProtectedValue else { return nil }
         guard let writableRow = firstVisibleWritableRow(in: snapshot) else { return .protectedHeaderBlocksSetRow }
         return .placed(
             SetLogPlacement(
