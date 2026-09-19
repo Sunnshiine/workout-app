@@ -58,9 +58,9 @@ final class SyncCoordinator {
     }
 
     func discardPendingWrites() async throws {
-        // This guard is all that keeps a discard out of a live flush. A flush holds its queue
-        // across each Sheet round trip, so a discard between two of them would delete Set Logs
-        // that the flush then writes to the Sheet anyway.
+        // Nothing else in SyncCoordinator keeps a discard out of a live flush. A flush holds its
+        // queue across each Sheet round trip, so a discard between two of them would delete
+        // Set Logs that the flush then writes to the Sheet anyway.
         guard activePendingWriteFlushCount == 0 else {
             throw PendingWriteFlushInProgress()
         }
