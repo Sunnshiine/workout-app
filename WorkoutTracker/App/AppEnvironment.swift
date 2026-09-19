@@ -11,50 +11,40 @@ public struct AppEnvironment {
 
     let storage: Storage
     let sheetsClient: any SheetsClient
-    let defaults: UserDefaults
+    let defaults: AppDefaults
     let now: @MainActor () -> Date
     let seed: (@MainActor (ModelContext) throws -> Void)?
 
     #if OFFLINE_SHEET
-        /// An application whose Sheet is `workbook` and whose store vanishes with the process. The
-        /// defaults suite is wiped on creation but, like every `UserDefaults` suite, persists as a plist.
+        /// An application whose Sheet is `workbook` and whose store and settings vanish with the process.
         public static func inMemory(
             workbook: LocalWorkbook,
-            defaults: UserDefaults = ephemeralDefaults(),
             now: @escaping @MainActor () -> Date = Date.init
         ) -> AppEnvironment {
             AppEnvironment(
                 storage: .inMemory,
                 sheetsClient: LocalWorkbookSheetsClient(workbook: workbook),
-                defaults: defaults,
+                defaults: .inMemory(),
                 now: now,
                 seed: nil
             )
         }
 
-        /// An application that keeps its store in `home/store.sqlite` and its Sheet in `workbookFile`,
-        /// writing the workbook back after every successful Sheet update.
+        /// An application that keeps its store in `home/store.sqlite`, its settings in
+        /// `home/settings.json`, and its Sheet in `workbookFile`, writing the workbook back after every
+        /// successful Sheet update.
         public static func directory(
             _ home: URL,
             workbookFile: URL,
-            defaults: UserDefaults,
             now: @escaping @MainActor () -> Date = Date.init
         ) throws -> AppEnvironment {
             AppEnvironment(
                 storage: .file(home.appendingPathComponent("store.sqlite")),
                 sheetsClient: LocalWorkbookSheetsClient(workbook: try LocalWorkbook.load(from: workbookFile), persistTo: workbookFile),
-                defaults: defaults,
+                defaults: try .file(home.appendingPathComponent("settings.json")),
                 now: now,
                 seed: nil
             )
-        }
-
-        /// A throwaway defaults suite, wiped on creation, so two in-memory applications never share a key.
-        public static func ephemeralDefaults() -> UserDefaults {
-            let suiteName = "WorkoutTracker.ephemeral.\(UUID().uuidString)"
-            let defaults = UserDefaults(suiteName: suiteName) ?? .standard
-            defaults.removePersistentDomain(forName: suiteName)
-            return defaults
         }
     #endif
 
@@ -62,7 +52,7 @@ public struct AppEnvironment {
         AppEnvironment(
             storage: .deviceDefault,
             sheetsClient: GoogleSheetsClient(),
-            defaults: .standard,
+            defaults: .device(),
             now: Date.init,
             seed: nil
         )
@@ -73,7 +63,7 @@ public struct AppEnvironment {
             AppEnvironment(
                 storage: .inMemory,
                 sheetsClient: UITestFixture.makeSheetsClient(),
-                defaults: UITestFixture.makeDefaults(),
+                defaults: .inMemory(),
                 now: Date.init,
                 seed: { try UITestFixture.seed(into: $0, launch: UITestFixture.launch) }
             )

@@ -489,7 +489,7 @@ import Testing
     defer { withExtendedLifetime(container) {} }
     let store = WorkoutStore(
         context: container.mainContext,
-        defaults: try #require(UserDefaults(suiteName: "live-edge.\(UUID())"))
+        defaults: .inMemory()
     )
     store.reload()
 

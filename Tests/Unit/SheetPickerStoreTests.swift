@@ -19,7 +19,7 @@ import Testing
             )
         ]
     )
-    let settings = SettingsStore(defaults: try makeDefaults())
+    let settings = SettingsStore(defaults: .inMemory())
     let store = SheetPickerStore(client: client, settings: settings)
 
     await store.loadInitial()
@@ -44,7 +44,7 @@ import Testing
         nextPageToken: nil
     )
     let client = StubPickerClient(pages: [currentPage, olderPage])
-    let settings = SettingsStore(defaults: try makeDefaults())
+    let settings = SettingsStore(defaults: .inMemory())
     let store = SheetPickerStore(client: client, settings: settings)
 
     await store.loadInitial()
@@ -60,7 +60,7 @@ import Testing
 @Test func sheetPickerCommitsSelectionWhenSheetHasBlockTab() async throws {
     let file = SpreadsheetFile(name: "Training Log", spreadsheetId: "sheet-1", modifiedDate: .distantPast)
     let client = StubPickerClient(pages: [], tabTitles: ["Overview", "Block - 27"])
-    let settings = SettingsStore(defaults: try makeDefaults())
+    let settings = SettingsStore(defaults: .inMemory())
     let store = SheetPickerStore(client: client, settings: settings)
 
     await store.select(file).value
@@ -75,7 +75,7 @@ import Testing
 @Test func sheetPickerRunsCustomSelectionAfterBlockTabValidation() async throws {
     let file = SpreadsheetFile(name: "Training Log", spreadsheetId: "sheet-1", modifiedDate: .distantPast)
     let client = StubPickerClient(pages: [], tabTitles: ["Overview", "Block - 27"])
-    let settings = SettingsStore(defaults: try makeDefaults())
+    let settings = SettingsStore(defaults: .inMemory())
     var selected: [SpreadsheetFile] = []
     let store = SheetPickerStore(client: client, settings: settings) { spreadsheet in
         selected.append(spreadsheet)
@@ -94,7 +94,7 @@ import Testing
 @Test func sheetPickerDoesNotRunCustomSelectionAfterCancellation() async throws {
     let file = SpreadsheetFile(name: "Training Log", spreadsheetId: "sheet-1", modifiedDate: .distantPast)
     let client = ControlledValidationClient()
-    let settings = SettingsStore(defaults: try makeDefaults())
+    let settings = SettingsStore(defaults: .inMemory())
     var selected: [SpreadsheetFile] = []
     let store = SheetPickerStore(client: client, settings: settings) { spreadsheet in
         selected.append(spreadsheet)
@@ -115,7 +115,7 @@ import Testing
 @Test func sheetPickerShowsInlineErrorWhenSheetHasNoBlockTabs() async throws {
     let file = SpreadsheetFile(name: "Budget", spreadsheetId: "sheet-1", modifiedDate: .distantPast)
     let client = StubPickerClient(pages: [], tabTitles: ["Overview", "RPE Chart"])
-    let settings = SettingsStore(defaults: try makeDefaults())
+    let settings = SettingsStore(defaults: .inMemory())
     let store = SheetPickerStore(client: client, settings: settings)
 
     await store.select(file).value
@@ -127,7 +127,7 @@ import Testing
 @MainActor
 @Test func sheetPickerReportsDriveListFailure() async throws {
     let client = StubPickerClient(pages: [], listError: SheetsError.http(403))
-    let settings = SettingsStore(defaults: try makeDefaults())
+    let settings = SettingsStore(defaults: .inMemory())
     let store = SheetPickerStore(client: client, settings: settings)
 
     await store.loadInitial()
@@ -141,7 +141,7 @@ import Testing
 @Test func sheetPickerShowsRowErrorWhenValidationRequestFails() async throws {
     let file = SpreadsheetFile(name: "Training Log", spreadsheetId: "sheet-1", modifiedDate: .distantPast)
     let client = StubPickerClient(pages: [], tabError: SheetsError.http(404))
-    let settings = SettingsStore(defaults: try makeDefaults())
+    let settings = SettingsStore(defaults: .inMemory())
     let store = SheetPickerStore(client: client, settings: settings)
 
     await store.select(file).value
@@ -155,7 +155,7 @@ import Testing
     let first = SpreadsheetFile(name: "First Sheet", spreadsheetId: "sheet-1", modifiedDate: .distantPast)
     let second = SpreadsheetFile(name: "Second Sheet", spreadsheetId: "sheet-2", modifiedDate: .distantPast)
     let client = ControlledValidationClient()
-    let settings = SettingsStore(defaults: try makeDefaults())
+    let settings = SettingsStore(defaults: .inMemory())
     let store = SheetPickerStore(client: client, settings: settings)
 
     let firstTask = store.select(first)
@@ -180,7 +180,7 @@ import Testing
 @Test func sheetPickerDoesNotCommitSelectionCancelledForURLFallback() async throws {
     let file = SpreadsheetFile(name: "Training Log", spreadsheetId: "sheet-1", modifiedDate: .distantPast)
     let client = ControlledValidationClient()
-    let settings = SettingsStore(defaults: try makeDefaults())
+    let settings = SettingsStore(defaults: .inMemory())
     let store = SheetPickerStore(client: client, settings: settings)
 
     let task = store.select(file)
@@ -195,10 +195,6 @@ import Testing
 
     #expect(settings.spreadsheetId == "pasted-sheet")
     #expect(settings.spreadsheetTitle == nil)
-}
-
-private func makeDefaults() throws -> UserDefaults {
-    try #require(UserDefaults(suiteName: "test.\(UUID())"))
 }
 
 private final class StubPickerClient: SheetsClient, @unchecked Sendable {

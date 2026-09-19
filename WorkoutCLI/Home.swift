@@ -1,5 +1,4 @@
 import ArgumentParser
-import CryptoKit
 import Foundation
 import WorkoutTracker
 
@@ -13,7 +12,7 @@ struct HomeOptions: ParsableArguments {
 }
 
 struct Manifest: Codable {
-    static let currentVersion = 1
+    static let currentVersion = 2
 
     var version = Manifest.currentVersion
     let scenario: String
@@ -31,11 +30,6 @@ struct Home {
     var manifestURL: URL { url.appendingPathComponent("manifest.json") }
     var workbookURL: URL { url.appendingPathComponent("workbook.json") }
 
-    var defaultsSuite: String {
-        let digest = SHA256.hash(data: Data(url.path.utf8)).map { String(format: "%02x", $0) }.joined()
-        return "WorkoutTracker.cli.\(digest.prefix(16))"
-    }
-
     @MainActor
     func open() throws -> WorkoutApplication {
         guard let manifest = try ownManifest() else {
@@ -46,12 +40,7 @@ struct Home {
                 "\(url.path) was made by a different version of workout (manifest version \(manifest.version)). Run `workout init` again."
             )
         }
-        let environment = try AppEnvironment.directory(
-            url,
-            workbookFile: workbookURL,
-            defaults: try defaults(),
-            now: try FrozenClock.resolve()
-        )
+        let environment = try AppEnvironment.directory(url, workbookFile: workbookURL, now: try FrozenClock.resolve())
         return try WorkoutApplication(environment: environment)
     }
 
@@ -78,20 +67,12 @@ struct Home {
         )
         try JSONEncoder.manifest.encode(manifest).write(to: manifestURL, options: .atomic)
         try workbook.write(to: workbookURL)
-        try defaults().removePersistentDomain(forName: defaultsSuite)
         return manifest
     }
 
     private func ownManifest() throws -> Manifest? {
         guard FileManager.default.fileExists(atPath: manifestURL.path) else { return nil }
         return try? JSONDecoder.manifest.decode(Manifest.self, from: Data(contentsOf: manifestURL))
-    }
-
-    private func defaults() throws -> UserDefaults {
-        guard let defaults = UserDefaults(suiteName: defaultsSuite) else {
-            throw CLIError.environment("Could not open the defaults suite \(defaultsSuite).")
-        }
-        return defaults
     }
 }
 

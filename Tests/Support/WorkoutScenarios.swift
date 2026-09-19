@@ -47,11 +47,11 @@ enum WorkoutScenarios {
         context.insert(WorkoutFixtureScenarios.currentSessionWithPendingSetsBlock())
         try context.save()
 
-        let settings = SettingsStore(defaults: try makeDefaults())
+        let settings = SettingsStore(defaults: .inMemory())
         settings.isSignedIn = true
         settings.setSheetURL(WorkoutFixtureScenarios.sheetURL)
 
-        let store = WorkoutStore(context: context, defaults: try makeDefaults())
+        let store = WorkoutStore(context: context, defaults: .inMemory())
         store.reload()
         return ConfiguredAppScenario(container: container, context: context, settings: settings, store: store)
     }
@@ -97,13 +97,5 @@ enum WorkoutScenarios {
     private static func scenario(from block: Block) -> BlockScenario {
         let currentSession = SessionProgressTracker().currentSession(in: block)
         return BlockScenario(block: block, currentSession: currentSession)
-    }
-
-    @MainActor
-    private static func makeDefaults() throws -> UserDefaults {
-        let suiteName = "scenario.\(UUID())"
-        let defaults = try #require(UserDefaults(suiteName: suiteName))
-        defaults.removePersistentDomain(forName: suiteName)
-        return defaults
     }
 }

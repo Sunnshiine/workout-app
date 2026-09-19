@@ -97,7 +97,7 @@ proves the queue, not Google. Exercise the real path (taps, the log button, the 
 
 ```bash
 .claude/skills/verify/verify.sh stop     # terminates the pid this run launched; the simulator stays up
-rm -rf "$WORKOUT_HOME"                   # the CLI home you created; its UserDefaults suite stays until the next init
+rm -rf "$WORKOUT_HOME"
 ```
 
 `stop` kills only the pid recorded in `/tmp/workout-verify-<udid>/`. It never shuts down or erases

@@ -26,17 +26,14 @@ protocol RestNotificationScheduling: AnyObject {
 
         private static let authorizationRequestedKey = "restNotificationAuthorizationRequested"
         private let center: UNUserNotificationCenter
-        private let defaults: UserDefaults
         private let now: () -> Date
         private let foregroundDelegate = RestNotificationForegroundDelegate()
 
         init(
             center: UNUserNotificationCenter = .current(),
-            defaults: UserDefaults = .standard,
             now: @escaping () -> Date = Date.init
         ) {
             self.center = center
-            self.defaults = defaults
             self.now = now
         }
 
@@ -45,8 +42,8 @@ protocol RestNotificationScheduling: AnyObject {
         }
 
         func requestAuthorizationIfNeeded() {
-            guard !defaults.bool(forKey: Self.authorizationRequestedKey) else { return }
-            defaults.set(true, forKey: Self.authorizationRequestedKey)
+            guard !UserDefaults.standard.bool(forKey: Self.authorizationRequestedKey) else { return }
+            UserDefaults.standard.set(true, forKey: Self.authorizationRequestedKey)
             center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
         }
 

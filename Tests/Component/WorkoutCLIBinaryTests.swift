@@ -182,6 +182,22 @@
         #expect(try cell.json["value"] as? String == "")
     }
 
+    @Test func aMovedHomeKeepsItsSpreadsheetSelection() throws {
+        let parent = try temporaryHome()
+        defer { try? FileManager.default.removeItem(at: parent) }
+        let original = parent.appendingPathComponent("original")
+        let moved = parent.appendingPathComponent("moved")
+        let binary = try workoutBinary()
+        _ = try CLI(home: original, binary: binary).run("init")
+
+        try FileManager.default.moveItem(at: original, to: moved)
+        let status = try CLI(home: moved, binary: binary).run("status")
+        let spreadsheetId = try status.json["spreadsheetId"] as? String
+
+        #expect(status.status == 0)
+        #expect(spreadsheetId == "FIXTURE")
+    }
+
     @Test func usageErrorsExitSixtyFour() throws {
         let cli = CLI(home: try temporaryHome(), binary: try workoutBinary())
 

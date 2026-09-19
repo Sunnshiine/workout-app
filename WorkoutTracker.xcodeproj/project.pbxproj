@@ -82,6 +82,7 @@
 		A95B852DB4681FE4CB971755 /* WorkoutWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C1A2912337D79EA8DBF43A6D /* WorkoutWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		AAB1AF9D5F9324682EAF6B48 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9038CBF5AF997C5562D3A6E4 /* RootView.swift */; };
 		AC784F11021F09F1A5C5A62B /* ActiveSetCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61BD44A847304CF1B26D982D /* ActiveSetCard.swift */; };
+		CB5001BB381D4D884C16BF8E /* AppDefaults.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6F354FE831DAAEA19F0B2B5 /* AppDefaults.swift */; };
 		B0441BD9835254837C31369E /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2A79566B8F5D5A99B273AA3 /* SettingsStore.swift */; };
 		B1C2D3E4F5061728394A5B6D /* ExerciseHistorySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5061728394A5B6C /* ExerciseHistorySheet.swift */; };
 		B7E24AB5D1E5BF887EBB4BA8 /* SessionFocusMorphPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D77DD81D71D5E9E046E80F /* SessionFocusMorphPolicy.swift */; };
@@ -277,6 +278,7 @@
 		DD5AE788CBF5DAF0C684F6D3 /* Exercise.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Exercise.swift; sourceTree = "<group>"; };
 		A2C0000005130000000000F2 /* MainLift.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainLift.swift; sourceTree = "<group>"; };
 		DF7F7CD5D8F394F75F33E69D /* RPEScalePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RPEScalePresentation.swift; sourceTree = "<group>"; };
+		E6F354FE831DAAEA19F0B2B5 /* AppDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDefaults.swift; sourceTree = "<group>"; };
 		E2A79566B8F5D5A99B273AA3 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
 		E31CB80B71F35E4D4A35FE87 /* SessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionView.swift; sourceTree = "<group>"; };
 		E3B15FEFD6BDE5D8F1A71800 /* GoogleSheetsClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleSheetsClient.swift; sourceTree = "<group>"; };
@@ -507,6 +509,7 @@
 		65450F3822585C816058505E /* Stores */ = {
 			isa = PBXGroup;
 			children = (
+				E6F354FE831DAAEA19F0B2B5 /* AppDefaults.swift */,
 				05971BB0A9FEBCA99597C7FE /* DeveloperToolsDiagnostics.swift */,
 				4CCC3ED1AD659427B54B3596 /* LastPerformedLookupStore.swift */,
 				A1B2C3D40001000000000570 /* LastSetRPEMirror.swift */,
@@ -930,6 +933,7 @@
 				FEED000000000000000000A1 /* SetLogList.swift in Sources */,
 				FEED000000000000000000A2 /* BuildIdentity.swift in Sources */,
 				FEED000000000000000000A3 /* BuildIdentityFooter.swift in Sources */,
+				CB5001BB381D4D884C16BF8E /* AppDefaults.swift in Sources */,
 				B0441BD9835254837C31369E /* SettingsStore.swift in Sources */,
 				21FFED2ACCE1F4CBC452185B /* SettingsView.swift in Sources */,
 				A2F7E6D64D1518F978D7CFC2 /* SheetGrid.swift in Sources */,
