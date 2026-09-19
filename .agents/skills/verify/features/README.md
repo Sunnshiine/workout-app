@@ -16,17 +16,17 @@ that drives one convenient entry point is incomplete when the feature file lists
 
 - Start every recipe from its named fixture unless its preconditions say otherwise.
 - Target elements by accessibility identifier (`tap --id`), then by label, then by coordinates for empty space only.
-- Re-read the tree (`verify.sh tree` or `verify.sh find <id>`) after every action before asserting. Animations are off, so a state absent after one second is absent.
+- Re-read the tree after every action before asserting. `verify.sh tree` and a shot's tree file hold what is on screen; `verify.sh find <id>` answers whether an element exists anywhere, on screen or off. Animations are off, so a state absent after one second is absent.
 - Treat every identifier and label as literal, including the `×` and `·` characters.
 - Run terminal actions through `.build/debug/workout` with `WORKOUT_HOME` exported.
 
 ## Proof and skip reporting
 
-- Capture the user action and the resulting state, not only the final screen. Shoot before and after with `verify.sh shot <name>`.
-- UI proof is a screenshot plus the tree lines that changed, quoted verbatim.
+- Capture the user action and the resulting state, not only the final screen. Shoot before and after with `verify.sh shot <name>`. The second shot prints the tree lines that changed.
+- UI proof is those changed lines, quoted verbatim, plus the screenshots. For two shots that are not adjacent, run `verify.sh diff <a> <b>`.
 - CLI proof is the command, stdout, stderr, and the exit code.
 - Mutation proof includes a second, read-only view of the stored value (the branch dot, the `Sync status` header, `workout session`, or `workout sheet --cell`).
-- Record the feature ID and the entry point used with every artifact under `.build/verify/evidence/<VERIFY_RUN>/`.
+- Record the feature ID and the entry point used with every artifact under `.build/verify/evidence/<run>/`.
 - Report an unreachable path with the attempted command and the unmet precondition. Do not report a skipped entry point as verified through another path.
 
 ## Feature entry contract
