@@ -159,22 +159,6 @@ private func rawSetLog(
     return placement.listPosition.map { SetLogList(cell: cell).token(at: $0) } ?? cell
 }
 
-private func completionSets(_ sets: [ParsedSet], legacyLog: String?) -> [ParsedSet] {
-    guard legacyLog != nil, !sets.contains(where: { $0.setLog != nil }) else { return sets }
-
-    return sets.map {
-        ParsedSet(
-            index: $0.index,
-            prescribedReps: $0.prescribedReps,
-            prescribedLoad: $0.prescribedLoad,
-            percentOneRM: $0.percentOneRM,
-            state: $0.state == .skipped ? .skipped : .logged,
-            setLog: $0.setLog,
-            unstructuredSetLog: $0.unstructuredSetLog
-        )
-    }
-}
-
 /// Builds the Sets for one Prescription Line: the Line's own Reps/Load/%1RM are split
 /// positionally (repeating the last token), and each Set's Set Log is read from the placement query
 /// (the Line's own Notes cell at the Set's list position — the same cell the write path targets). A
@@ -242,19 +226,16 @@ private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns,
     let (cadence, base) = splitCadence(rawName)
     let role = anchor.headerNotesRole(in: grid, cols: cols)
     let setCount = anchor.prescribedSetCount(in: grid, setsColumn: cols.sets)
-    let sets = completionSets(
-        parsedSets(
-            ParsedSetContext(
-                setCount: setCount,
-                anchor: anchor,
-                cols: cols,
-                snapshot: snapshot,
-                reps: PrescriptionValueList.reps(grid.cellOrEmpty(anchorRow, cols.reps)),
-                load: PrescriptionValueList.load(grid.cellOrEmpty(anchorRow, cols.load)),
-                percentOneRM: grid.cellOrEmpty(anchorRow, cols.percentOneRM)
-            )
-        ),
-        legacyLog: role.legacyLog
+    let sets = parsedSets(
+        ParsedSetContext(
+            setCount: setCount,
+            anchor: anchor,
+            cols: cols,
+            snapshot: snapshot,
+            reps: PrescriptionValueList.reps(grid.cellOrEmpty(anchorRow, cols.reps)),
+            load: PrescriptionValueList.load(grid.cellOrEmpty(anchorRow, cols.load)),
+            percentOneRM: grid.cellOrEmpty(anchorRow, cols.percentOneRM)
+        )
     )
 
     return ParsedExercise(
@@ -265,6 +246,7 @@ private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns,
         legacyLog: role.legacyLog,
         sets: sets
     )
+    .completingSetsFromLegacyLog()
 }
 
 /// Parses all exercises in one day group. Anchor rows have a non-empty name cell;
