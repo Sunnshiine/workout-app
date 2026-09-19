@@ -26,7 +26,10 @@ import Testing
         ".buttonStyle(.workoutGlassProminent)"
     ]
 
-    for (name, source) in try RepositoryFiles.nonEmptySwiftSources(under: "WorkoutTracker") {
+    for (name, source) in try RepositoryFiles.nonEmptySwiftSources(
+        under: "WorkoutTracker",
+        mustContain: "Views/MoveOnCelebrationView.swift"
+    ) {
         for token in forbidden {
             #expect(!source.contains(token), "\(name) still references retired glass API \(token)")
         }
@@ -45,7 +48,10 @@ import Testing
 
 @Test func noViewReferencesARetiredRadiusConstant() throws {
     let retired = ["cardCornerRadius", "lensCornerRadius", "rowCornerRadius", "sessionTileCornerRadius", "pillCornerRadius"]
-    for (name, source) in try RepositoryFiles.nonEmptySwiftSources(under: "WorkoutTracker") {
+    for (name, source) in try RepositoryFiles.nonEmptySwiftSources(
+        under: "WorkoutTracker",
+        mustContain: "Views/MoveOnCelebrationView.swift"
+    ) {
         for constant in retired {
             #expect(!source.contains(constant), "\(name) still references the retired radius constant Theme.\(constant)")
         }

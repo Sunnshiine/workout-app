@@ -10,7 +10,10 @@ private let skipSentinelOwner = "SetLogToken.swift"
 /// definition in two places. View code is out of scope (ADR-0010 concerns the wire format, not
 /// presentation), and the token module is the canonical owner of the literal.
 @Test func noBareSkipWireTokenLiteralOutsideTheTokenModule() throws {
-    let sources = try RepositoryFiles.nonEmptySwiftSources(under: "WorkoutTracker") { url in
+    let sources = try RepositoryFiles.nonEmptySwiftSources(
+        under: "WorkoutTracker",
+        mustContain: "Parsing/\(skipSentinelOwner)"
+    ) { url in
         !url.path.contains("/Views/") && url.lastPathComponent != skipSentinelOwner
     }
     let offenders = sources.filter { $0.source.contains("\"skip\"") }.map(\.name)
