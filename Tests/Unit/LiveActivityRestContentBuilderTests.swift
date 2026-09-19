@@ -405,7 +405,7 @@ import Testing
 }
 
 @MainActor
-@Test func liveActivityTargetValidationEndsWhenCurrentOrDisplayedSessionChanges() throws {
+@Test func liveActivityTargetValidationEndsWhenCurrentOrViewedSessionChanges() throws {
     let first = makeSingleSession(
         dayNumber: 1,
         exercises: [
@@ -493,7 +493,7 @@ import Testing
     )
     store.reload()
 
-    let viewed = try #require(store.displayedSession)
+    let viewed = try #require(store.viewedSession)
     let loggedSet = try #require(viewed.exercises.first?.sets.first { $0.index == 0 })
     loggedSet.state = .logged
     let content = try #require(

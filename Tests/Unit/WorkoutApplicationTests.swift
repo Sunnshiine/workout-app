@@ -33,7 +33,7 @@ private func address(_ raw: String) throws -> SetAddress {
     #expect((block.squatTM, block.benchTM, block.deadliftTM) == (365, 245, 455))
     #expect(block.weekCount == 2)
     #expect(snapshot.currentSession == SessionAddress(week: 1, day: 1))
-    #expect(snapshot.displayedSession == SessionAddress(week: 1, day: 1))
+    #expect(snapshot.viewedSession == SessionAddress(week: 1, day: 1))
     #expect(snapshot.currentSessionReason == "No manual override is active, so Sheet-derived progress wins.")
     #expect(snapshot.currentSessionIsOverridden == false)
     #expect(snapshot.canMoveOn == true)

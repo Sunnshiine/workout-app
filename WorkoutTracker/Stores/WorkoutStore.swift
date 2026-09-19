@@ -17,7 +17,7 @@ struct BlockOverviewNavigationRequest: Equatable, Identifiable {
 final class WorkoutStore {
     private(set) var block: Block?
     /// Written only by `view(_:)`, which keeps `browsedTo` in step with it.
-    private(set) var displayedSession: Session?
+    private(set) var viewedSession: Session?
     private(set) var moveOnCelebrationSession: Session?
     private(set) var moveOnCelebrationRequestedAt: Date?
     private(set) var pendingBlockOverviewRequest: BlockOverviewNavigationRequest?
@@ -59,7 +59,7 @@ final class WorkoutStore {
         return tracker.moveOnDestination(from: currentSession, in: block).isOffered
     }
 
-    var liveEdge: LiveEdge { LiveEdge.resolve(viewedSession: displayedSession, currentSession: currentSession) }
+    var liveEdge: LiveEdge { LiveEdge.resolve(viewedSession: viewedSession, currentSession: currentSession) }
     var isViewingLiveEdge: Bool { liveEdge.isAtLiveEdge }
     var openExercises: [Exercise] {
         guard let currentSession else { return [] }
@@ -73,7 +73,7 @@ final class WorkoutStore {
                 currentBlockTab: "None",
                 sheetDerivedSession: "None",
                 manualOverrideSession: "None",
-                displayedSession: sessionLabel(for: displayedSession),
+                viewedSession: sessionLabel(for: viewedSession),
                 resolvedCurrentSession: "None",
                 reason: "No Block is loaded, so no Current Session is resolved.",
                 localOnlyNote: nil
@@ -90,7 +90,7 @@ final class WorkoutStore {
             currentBlockTab: block.tabName,
             sheetDerivedSession: sessionLabel(for: sheetDerivedSession),
             manualOverrideSession: manualOverrideLabel(hasOverride: override != nil, session: overrideSession),
-            displayedSession: sessionLabel(for: displayedSession),
+            viewedSession: sessionLabel(for: viewedSession),
             resolvedCurrentSession: sessionLabel(for: resolvedSession),
             reason: resolutionReason(
                 hasOverride: override != nil,
@@ -127,10 +127,10 @@ final class WorkoutStore {
         view(currentSession)
     }
 
-    func makeDisplayedSessionCurrent() {
-        guard let block, let displayedSession else { return }
-        persistCurrentSessionOverride(tracker.persistedIdentity(of: displayedSession), in: block)
-        view(displayedSession)
+    func makeViewedSessionCurrent() {
+        guard let block, let viewedSession else { return }
+        persistCurrentSessionOverride(tracker.persistedIdentity(of: viewedSession), in: block)
+        view(viewedSession)
     }
 
     func resetCurrentSessionOverride() {
@@ -185,7 +185,7 @@ final class WorkoutStore {
     // MARK: - Private Helpers
 
     private func view(_ session: Session?) {
-        displayedSession = session
+        viewedSession = session
         guard !isViewingLiveEdge, let session, let week = session.week else {
             browsedTo = nil
             return

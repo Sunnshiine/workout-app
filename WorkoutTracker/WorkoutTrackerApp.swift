@@ -50,7 +50,7 @@ struct WorkoutTrackerApp: App {
             let workout = app.workout
             if UITestFixture.launch.startsWithCurrentSessionOverride {
                 workout.show(week: 1, day: 3)
-                workout.makeDisplayedSessionCurrent()
+                workout.makeViewedSessionCurrent()
             }
             if UITestFixture.launch.startsWithMoveOnCelebration || UITestFixture.launch.startsWithPerfectMoveOnCelebration {
                 workout.requestMoveOnCelebration()

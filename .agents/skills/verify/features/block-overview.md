@@ -34,4 +34,4 @@ Preconditions:
 - Tiles are `AXGenericElement`, not buttons. `tap --id` still resolves them; `--element-type Button` does not.
 - Which tiles are uploaded differs per fixture. `session` (full block) has every session uploaded; `partial-block` does not.
 - `session-tile-W1-D1` shows `Current` even after opening another session; only `make-current-session-button` changes it.
-- The grid pushes onto the stage. A `BackButton` labeled `Back` returns without changing the displayed session.
+- The grid pushes onto the stage. A `BackButton` labeled `Back` returns without changing the Viewed Session.

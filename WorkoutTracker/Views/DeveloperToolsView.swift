@@ -11,7 +11,7 @@ struct DeveloperToolsView: View {
     @State private var diagnosticsErrorMessage: String?
     @State private var writeAuditErrorMessage: String?
     @State private var isSyncInFlight = false
-    @State private var previewSession: Session?
+    @State private var forcedCelebrationSession: Session?
 
     var body: some View {
         ZStack {
@@ -33,14 +33,14 @@ struct DeveloperToolsView: View {
             loadDiagnostics()
         }
         .overlay {
-            if let previewSession {
-                MoveOnCelebrationView(session: previewSession) {
-                    self.previewSession = nil
+            if let forcedCelebrationSession {
+                MoveOnCelebrationView(session: forcedCelebrationSession) {
+                    self.forcedCelebrationSession = nil
                 }
                 .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.18), value: previewSession?.persistentModelID)
+        .animation(.easeInOut(duration: 0.18), value: forcedCelebrationSession?.persistentModelID)
     }
 
     private var currentSessionSection: some View {
@@ -65,7 +65,7 @@ struct DeveloperToolsView: View {
                 )
                 CurrentSessionDebugRow(
                     label: "Displayed Session",
-                    value: info.displayedSession,
+                    value: info.viewedSession,
                     valueIdentifier: "current-session-debug-displayed-value"
                 )
                 CurrentSessionDebugRow(
@@ -119,13 +119,13 @@ struct DeveloperToolsView: View {
     private var actionsSection: some View {
         DeveloperToolsSection(title: "Actions") {
             Button {
-                previewSession = workout.displayedSession
+                forcedCelebrationSession = workout.viewedSession
             } label: {
                 Label("Force Move On Celebration", systemImage: "sparkles")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(.bordered)
-            .disabled(workout.displayedSession == nil)
+            .disabled(workout.viewedSession == nil)
             .accessibilityIdentifier("developer-tools-force-celebration-button")
 
             Button {

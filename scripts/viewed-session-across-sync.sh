@@ -40,11 +40,11 @@ seed() {
 
 echo "== at the live edge, the sync carries the athlete forward =="
 seed "$live_edge"
-echo "before: $(workout status | jq -c '{currentSession, viewedSession: .displayedSession}')"
+echo "before: $(workout status | jq -c '{currentSession, viewedSession}')"
 echo "after:  $(workout sync | jq -c '{currentSession, viewedSession}')"
 echo
 
 echo "== browsed away to w2d3, the same sync leaves the athlete there =="
 seed "$browsed"
-echo "before: $(workout status | jq -c '{currentSession, viewedSession: .displayedSession}')"
+echo "before: $(workout status | jq -c '{currentSession, viewedSession}')"
 echo "after:  $(workout sync --viewing w2d3 | jq -c '{currentSession, viewedSession}')"

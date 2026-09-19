@@ -173,7 +173,7 @@ public struct AppSnapshot: Encodable, Equatable, Sendable {
     public let currentSession: SessionAddress?
     public let currentSessionReason: String
     public let currentSessionIsOverridden: Bool
-    public let displayedSession: SessionAddress?
+    public let viewedSession: SessionAddress?
     public let canMoveOn: Bool
     public let openExercises: [ExerciseAddress]
     public let sessions: [SessionSummary]

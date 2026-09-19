@@ -46,8 +46,8 @@ private func makePartiallyUploadedBlockStore() throws -> PartiallyUploadedBlockS
     store.moveOn()
     #expect(store.currentSession?.week?.number == 2)
     #expect(store.currentSession?.dayNumber == 1)
-    #expect(store.displayedSession?.week?.number == 2)
-    #expect(store.displayedSession?.dayNumber == 1)
+    #expect(store.viewedSession?.week?.number == 2)
+    #expect(store.viewedSession?.dayNumber == 1)
 }
 
 @MainActor
@@ -74,8 +74,8 @@ private func makePartiallyUploadedBlockStore() throws -> PartiallyUploadedBlockS
     #expect(store.moveOnCelebrationSession == nil)
     #expect(store.currentSession?.week?.number == 4)
     #expect(store.currentSession?.dayNumber == 1)
-    #expect(store.displayedSession?.week?.number == 4)
-    #expect(store.displayedSession?.dayNumber == 1)
+    #expect(store.viewedSession?.week?.number == 4)
+    #expect(store.viewedSession?.dayNumber == 1)
     #expect(store.pendingBlockOverviewRequest != nil)
 
     store.clearBlockOverviewRequest()

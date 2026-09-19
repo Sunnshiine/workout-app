@@ -26,20 +26,20 @@ struct SessionView: View {
 
     var body: some View {
         Group {
-            if let session = workout.displayedSession {
+            if let session = workout.viewedSession {
                 VStack(spacing: 0) {
                     SyncStatusBanner(state: sync.state)
                         .padding(.top, 8)
 
                     if !workout.isViewingLiveEdge {
-                        CurrentSessionOverrideControls(
+                        OffLiveEdgeControls(
                             onGoBack: {
                                 sessionSettingsOverpullState = .hidden
                                 workout.showCurrent()
                             },
                             onMakeCurrent: {
                                 sessionSettingsOverpullState = .hidden
-                                workout.makeDisplayedSessionCurrent()
+                                workout.makeViewedSessionCurrent()
                             }
                         )
                         .padding(.horizontal)
@@ -104,7 +104,7 @@ struct SessionView: View {
         .onChange(of: workout.currentSession?.persistentModelID) { _, _ in
             reconcileLiveActivity()
         }
-        .onChange(of: workout.displayedSession?.persistentModelID) { _, _ in
+        .onChange(of: workout.viewedSession?.persistentModelID) { _, _ in
             reconcileLiveActivity()
         }
         .task(id: sessionSettingsOverpullDismissalID) {
@@ -318,7 +318,7 @@ extension SessionView {
     }
 
     private var canRevealSessionControls: Bool {
-        workout.displayedSession != nil && workout.isViewingLiveEdge && workout.moveOnCelebrationSession == nil
+        workout.viewedSession != nil && workout.isViewingLiveEdge && workout.moveOnCelebrationSession == nil
     }
 
     private var sessionSettingsOverpullAnimation: Animation {
@@ -363,7 +363,7 @@ private enum SessionSettingsHeaderDrag {
     static let overpullDamping: CGFloat = 0.4
 }
 
-private struct CurrentSessionOverrideControls: View {
+private struct OffLiveEdgeControls: View {
     let onGoBack: () -> Void
     let onMakeCurrent: () -> Void
 

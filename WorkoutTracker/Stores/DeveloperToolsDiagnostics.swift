@@ -99,7 +99,7 @@ struct CurrentSessionDebugInfo: Equatable, Sendable {
     let currentBlockTab: String
     let sheetDerivedSession: String
     let manualOverrideSession: String
-    let displayedSession: String
+    let viewedSession: String
     let resolvedCurrentSession: String
     let reason: String
     let localOnlyNote: String?
@@ -110,7 +110,7 @@ struct CurrentSessionDebugInfo: Equatable, Sendable {
             "Current Block Tab: \(currentBlockTab)",
             "Sheet-derived Session: \(sheetDerivedSession)",
             "Manual Current Session Override: \(manualOverrideSession)",
-            "Displayed Session: \(displayedSession)",
+            "Displayed Session: \(viewedSession)",
             "Resolved Current Session: \(resolvedCurrentSession)",
             "Reason: \(reason)",
             localOnlyNote
