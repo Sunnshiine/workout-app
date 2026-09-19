@@ -9,32 +9,34 @@ import Testing
 /// nothing compared the two — so a disagreement reached the Visual gate (ADR-0007) and was
 /// recorded there as intended appearance. Slice 1 of #571: the harness, not a migration.
 ///
-/// **Pairing rule.** Structural address, and nothing else: the Block, then Week number, then Day
+/// Pairing is by structural address and nothing else: the Block, then Week number, then Day
 /// number, then `Exercise.order`, then `ExerciseSet.index`. A name is compared data, never a
 /// pairing key, so "Pull-Up" and "BW Pull Up" at the same address pair and then disagree instead of
 /// failing to pair. An address present on only one side is reported once and not descended into,
 /// because every address beneath an absent address is absent too.
 ///
-/// **Recorded differences.** `recordedDrift` holds every disagreement that exists today, each with
-/// the side I believe is wrong. It is asserted in both directions: an unrecorded disagreement
-/// fails, and a recorded one that stops happening fails as stale, so the list can only shrink as
-/// the per-scenario migrations behind #571 land. No entry is a tolerance — each names one field at
-/// one address with both literal values.
+/// `recordedDrift` holds every disagreement that exists today, with the side that is wrong named
+/// per entry. It is asserted in both directions, so an unrecorded disagreement fails and a
+/// recorded one that stops happening fails as stale and the list can only shrink as the
+/// per-scenario migrations behind #571 land. No entry is a tolerance: each names one field at one
+/// address with both literal values.
 ///
-/// **Known limitation, for whoever picks up the next slice.** Most of the recorded list says the
-/// two sides describe different workouts rather than that one has drifted from the other, and it
-/// cannot shrink from the workbook side: `fresh-block`'s shape is pinned by
+/// Two limitations for whoever picks up the next slice. The first is reach. Five of the twelve
+/// compared fields — `state`, `setLog`, `unstructuredSetLog`, `loggedAt` and `legacyLog` — are
+/// empty on both sides of the only pair, because every scenario holding athlete state still sits
+/// in `scenariosAwaitingAWorkbook`. Those fields are walked but not yet exercised. The second is
+/// that most of the recorded list says the two sides describe different workouts rather than that
+/// one drifted from the other, and it cannot shrink from the workbook side: `fresh-block`'s shape
+/// is pinned by
 /// `Tests/Unit/WorkbookScenarioTests.swift`, `WorkoutCLI/README.md`,
 /// `scripts/viewed-session-across-sync.sh`, and the verify skill's `cli-headless.md`. The
 /// intended end state is that `.partialUpload` gets a workbook of its own, that row replaces this
-/// one, and the entries below are deleted rather than fixed one by one.
+/// one, and those entries are deleted rather than fixed one by one.
 
 // MARK: - The difference
 
 private enum Drift: Hashable, CustomStringConvertible {
-    /// An address the hand-built Block graph holds and the workbook's parse does not.
     case onlyInHandBuilt(String)
-    /// An address the workbook's parse holds and the hand-built Block graph does not.
     case onlyInParsed(String)
     case field(_ address: String, _ name: String, handBuilt: String?, parsed: String?)
 
@@ -59,15 +61,17 @@ private func text(_ date: Date?) -> String? {
 }
 
 /// A Training Max reads back as the cell text a coach would have typed, so a recorded entry says
-/// `"315"` rather than `"315.0"`.
+/// `"315"` rather than `"315.0"`. `Weight` owns that spelling; a non-finite value skips it because
+/// `Weight.label` would trap converting it, and a Training Max cell of "inf" should be reported as
+/// drift rather than crash the walk.
 private func text(_ number: Double?) -> String? {
-    number.map { $0 == $0.rounded() ? String(Int($0)) : String($0) }
+    number.map { $0.isFinite ? Weight.pounds($0).label : String($0) }
 }
 
 // MARK: - The walk
 
-/// Collects differences as the walk descends, so one accumulation path keeps the list in address
-/// order and a reader can follow it down the Block the way the app reads it.
+/// One accumulation path for the whole walk, so the reported list reads down the Block in address
+/// order the way the app does.
 @MainActor
 private final class DriftLog {
     private(set) var drift: [Drift] = []
@@ -161,15 +165,15 @@ private func noteSetDrift(handBuilt: Exercise, parsed: Exercise, at exercise: Ex
     }
 }
 
+/// Traps on a repeated address rather than dropping one side of it, as the Exercise and Set maps
+/// below do: two Day 2s in one Week is a malformed fixture, not a difference to report.
 @MainActor
 private func sessionsByAddress(_ block: Block) -> [SessionAddress: Session] {
-    var sessions: [SessionAddress: Session] = [:]
-    for week in block.weeks {
-        for session in week.sessions {
-            sessions[SessionAddress(week: week.number, day: session.dayNumber)] = session
+    Dictionary(
+        uniqueKeysWithValues: block.weeks.flatMap { week in
+            week.sessions.map { (SessionAddress(week: week.number, day: $0.dayNumber), $0) }
         }
-    }
-    return sessions
+    )
 }
 
 @MainActor
@@ -184,11 +188,17 @@ private func setsByAddress(_ exercise: Exercise, in address: ExerciseAddress) ->
     Dictionary(uniqueKeysWithValues: exercise.sets.map { (SetAddress(exercise: address, index: $0.index), $0) })
 }
 
-/// The workbook reaches a Block by the path `SyncCoordinator` takes (`SyncCoordinator.swift:138`),
-/// so this compares against what a real sync would persist rather than a second interpretation.
+/// `SheetParser.parse` then `BlockBuilder.makeBlock`, the two calls `SyncCoordinator.sync` makes,
+/// so the comparison runs against the real interpretation rather than a second one written here.
+/// It stops where `SyncCoordinator.replacePersistedBlock` begins: the overlays that follow, which
+/// re-apply pending writes and preserve local `loggedAt`, are outside the harness and would matter
+/// the moment a scenario holding athlete state is paired.
 @MainActor
 private func parsedBlock(_ scenario: WorkbookScenario) throws -> Block {
     let workbook = scenario.workbook()
+    // One tab, so "the Block tab" needs no selection rule here. A scenario that gains the
+    // historical tabs Exercise History fills from has to say which tab it is pinning.
+    #expect(workbook.tabs.count == 1, "\(scenario.rawValue) has more than one tab")
     let tab = try #require(workbook.tabs.keys.sorted().first)
     let snapshot = try #require(workbook.tabs[tab]?.snapshot)
     let parsed = SheetParser().parse(snapshot: snapshot, tabName: tab)
@@ -217,8 +227,9 @@ private let pairedScenarios: [PairedScenario] = [
     PairedScenario(workbook: .freshBlock, handBuilt: .partialUpload)
 ]
 
-/// Launch scenarios with no workbook to compare against, so nothing pins their Block graph yet.
-/// Each gets a workbook and moves into `pairedScenarios` as its slice of #571 lands.
+/// Launch scenarios with no workbook to compare against. `Tests/Unit/UITestFixtureBlockTests.swift`
+/// still pins each one's `BlockShape`; what is missing is anything that checks that shape against
+/// cells a coach could have typed. Each moves into `pairedScenarios` as its slice of #571 lands.
 private let scenariosAwaitingAWorkbook: Set<UITestLaunch.Scenario> = [
     .perfectMoveOnCelebration,
     .completedOpenExercises,
@@ -227,8 +238,8 @@ private let scenariosAwaitingAWorkbook: Set<UITestLaunch.Scenario> = [
     .fullBlock
 ]
 
-/// Every difference between the two sides today, in address order, each with the side I believe is
-/// wrong. Three of the nine hand-built Block factories — `currentSessionWithPendingSetsBlock`,
+/// Every difference between the two sides today, in address order, with the side that is wrong
+/// named per entry. Three of the nine hand-built Block factories — `currentSessionWithPendingSetsBlock`,
 /// `partiallyLoggedSessionBlock`, `blockOverviewWithMixedSessionStatesBlock` — reach no launch
 /// scenario and are used only by `Tests/Support/WorkoutScenarios.swift`, so they are out of this
 /// list until #571 item 5 points that file at the same source.
@@ -264,9 +275,9 @@ private let recordedDrift: [WorkbookScenario: [Drift]] = [
         .field("w1d1.e0.s2", "prescribedLoad", handBuilt: "RPE8", parsed: "RPE7"),
         .field("w1d1.e0.s2", "percentOneRM", handBuilt: "85%", parsed: nil),
 
-        // I do not know which side is right. One Coach Note, truncated on the workbook side — and
-        // the clearest evidence that these two fixtures were once copied from each other, because
-        // the workbook's text is a prefix of the graph's to the character.
+        // Undecided. One Coach Note, truncated on the workbook side, and the clearest evidence
+        // that these two fixtures were once copied from each other: the workbook's text is a prefix
+        // of the graph's to the character.
         .field(
             "w1d1.e1",
             "coachNote",
@@ -277,7 +288,7 @@ private let recordedDrift: [WorkbookScenario: [Drift]] = [
         // The workbook is the thin side: no workbook in the repo writes a "Drop X%" Load, so the
         // Drop arm of `LoadSuggestionEngine` is unreachable from a workbook fixture the same way
         // the %1RM arm is. Whether this Exercise should be prescribed Drop 17.5% or RPE8 is a
-        // fixture choice I cannot settle.
+        // fixture choice no source in the repo settles.
         .field("w1d1.e1.s0", "prescribedLoad", handBuilt: "Drop 17.5%", parsed: "RPE8"),
         .field("w1d1.e1.s1", "prescribedLoad", handBuilt: "Drop 17.5%", parsed: "RPE8"),
 
@@ -287,19 +298,23 @@ private let recordedDrift: [WorkbookScenario: [Drift]] = [
         .field("w1d2.e0.s1", "percentOneRM", handBuilt: "75%", parsed: nil),
 
         // The two fixtures disagree about the workout: the workbook prescribes three Sets of Bench
-        // Press and the graph two. I do not know which is intended.
+        // Press and the graph two. Undecided.
         .onlyInParsed("w1d2.e0.s2"),
 
-        // I do not know which side is right: two spellings of one Movement (ADR-0013). Worth
-        // noting either way that `Factory.exercise` takes `baseName` as its own argument while the
-        // parser derives it by stripping Cadence, so the graph can assert a base name its own name
-        // could not produce. Here it does not, and the drift is only the spelling.
+        // Undecided, and sharper than a spelling drift: these are two Movements, not two spellings
+        // of one. `MovementMatching.canonicalize` expands `bw` to `bodyweight`, so the two names
+        // canonicalize to "pull up" and "bodyweight pull up" and score 0.39 against the 0.8
+        // threshold (ADR-0013). Whichever name the fixture settles on, Exercise History silos
+        // between the two, so this is not cosmetic. No source in the repo says which is intended.
+        // Worth noting separately that `Factory.exercise` takes `baseName` as its own argument
+        // while the parser derives it by stripping Cadence, so the graph can assert a base name its
+        // own name could not produce. Here it does not, and both sides agree on the derivation.
         .field("w1d2.e1", "name", handBuilt: "Pull-Up", parsed: "BW Pull Up"),
         .field("w1d2.e1", "baseName", handBuilt: "Pull-Up", parsed: "BW Pull Up"),
         .field("w1d2.e1", "coachNote", handBuilt: "Use full range.", parsed: nil),
 
-        // From here down the two fixtures are simply different workouts, and I do not know which
-        // one the app is meant to boot into. The graph is a 4-Week by 4-Day grid whose Week 1 holds
+        // From here down the two fixtures are simply different workouts, and no source in the repo
+        // says which the app is meant to boot into. The graph is a 4-Week by 4-Day grid whose Week 1 holds
         // two Available Sessions; the workbook is Week 1 with two Days and Week 2 with three. They
         // agree on exactly one thing past Week 1 — that w2d3 is an Unavailable Session — which is
         // why no w2d3 entry appears at all.
@@ -345,7 +360,6 @@ private func aPairedScenarioDriftsOnlyWhereRecorded(pair: PairedScenario) throws
 
     #expect(unrecorded.isEmpty, "\(pair) drifts in ways nothing records:\n\(list(unrecorded))")
     #expect(stale.isEmpty, "\(pair) no longer drifts here, so delete these entries:\n\(list(stale))")
-    #expect(Set(actual).count == actual.count, "the walk reported one difference twice")
 }
 
 /// The one field the walk cannot record as a literal pair, pinned here instead.
@@ -360,23 +374,33 @@ private func aPairedScenarioDriftsOnlyWhereRecorded(pair: PairedScenario) throws
 @Test func theHandBuiltSessionDatesCannotComeFromACoachDateCell() throws {
     let handBuilt = sessionsByAddress(UITestFixture.block(for: .partialUpload))
     let parsed = sessionsByAddress(try parsedBlock(.freshBlock))
-    let coachCells = [
-        "w1d1": "5/4/2026", "w1d2": "5/6/2026", "w2d1": "5/11/2026", "w2d2": "5/13/2026", "w2d3": "5/15/2026"
-    ]
-    let strideSeconds = [
-        "w1d1": 86_400.0, "w1d2": 172_800.0, "w2d1": 691_200.0, "w2d2": 777_600.0, "w2d3": 864_000.0
+    // Keyed by address and checked for coverage below, because the walk does not compare `date`:
+    // this table is the only thing watching it, so a newly paired Session must not slip past.
+    let expected: [String: (strideSeconds: Double, coachCell: String)] = [
+        "w1d1": (86_400, "5/4/2026"),
+        "w1d2": (172_800, "5/6/2026"),
+        "w2d1": (691_200, "5/11/2026"),
+        "w2d2": (777_600, "5/13/2026"),
+        "w2d3": (864_000, "5/15/2026")
     ]
     let coachDate = DateFormatter()
     coachDate.dateFormat = "M/d/yyyy"
     coachDate.locale = Locale(identifier: "en_US_POSIX")
 
-    for (id, seconds) in strideSeconds.sorted(by: { $0.key < $1.key }) {
-        let address = try #require(SessionAddress(id))
-        let handBuiltDate = try #require(handBuilt[address]?.date)
-        let parsedDate = try #require(parsed[address]?.date)
-        #expect(handBuiltDate == Date(timeIntervalSinceReferenceDate: seconds), "\(id) left the reference-date stride")
-        #expect(coachDate.string(from: parsedDate) == coachCells[id], "\(id) is not the workbook's date cell")
-        #expect(handBuiltDate != parsedDate, "\(id) now agrees, so this entry is stale")
+    let paired = Set(handBuilt.keys).intersection(parsed.keys)
+    #expect(Set(expected.keys) == Set(paired.map(\.description)), "a paired Session has no pinned date")
+
+    for address in paired.sorted(by: { ($0.week, $0.day) < ($1.week, $1.day) }) {
+        let id = address.description
+        let row = try #require(expected[id])
+        #expect(
+            try #require(handBuilt[address]?.date) == Date(timeIntervalSinceReferenceDate: row.strideSeconds),
+            "\(id) left the reference-date stride"
+        )
+        #expect(
+            coachDate.string(from: try #require(parsed[address]?.date)) == row.coachCell,
+            "\(id) is not the workbook's date cell"
+        )
     }
 }
 
