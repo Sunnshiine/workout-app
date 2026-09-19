@@ -112,6 +112,17 @@ extension WorkoutApplication {
         )
     }
 
+    /// `WorkoutStore.skip(_:)`: the same call the Session stage makes.
+    public func skip(_ address: SetAddress) throws -> LogReport {
+        let set = try resolveSet(address)
+        try workout.skip(set)
+        return LogReport(
+            set: SetSnapshot(set, id: address),
+            pendingWriteCount: try queuedWrites().count,
+            exerciseIsComplete: set.exercise?.isComplete ?? false
+        )
+    }
+
     /// `SyncCoordinator.flushPending(spreadsheetId:)`: what the stage requests after every log.
     public func flush() async throws -> FlushReport {
         let spreadsheetId = try configuredSpreadsheetId()

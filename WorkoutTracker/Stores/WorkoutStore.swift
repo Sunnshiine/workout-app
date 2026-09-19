@@ -242,9 +242,15 @@ final class WorkoutStore {
         ])
     }
 
-    private func isFinalSet(_ set: ExerciseSet) -> Bool {
-        let sets = set.exercise?.sets ?? []
-        return set.index == (sets.map(\.index).max() ?? set.index)
+    private func enqueueLastSetRPEMirror(for set: ExerciseSet, replacing previous: RPE?) throws {
+        guard let mirror = LastSetRPEMirror(after: set, replacing: previous) else { return }
+        try enqueue(
+            for: set,
+            column: LastSetRPEMirror.column,
+            operation: mirror.operation,
+            valueToWrite: mirror.valueToWrite,
+            expectedCurrentValue: mirror.expectedCurrentValue
+        )
     }
 
     /// The persisted manual Current-Session override for `block`, resolved through the
@@ -296,7 +302,7 @@ final class WorkoutStore {
 extension WorkoutStore {
     func log(_ set: ExerciseSet, as log: SetLog) throws {
         let previousValue = notesValue(for: set)
-        let previousRPE = set.setLog.map { $0.rpe.label } ?? ""
+        let previousRPE = set.setLog?.rpe
         set.markLogged(log, at: now())
         try enqueue(
             for: set,
@@ -305,21 +311,14 @@ extension WorkoutStore {
             valueToWrite: log.formatted,
             expectedCurrentValue: previousValue
         )
-        if isFinalSet(set) {
-            try enqueue(
-                for: set,
-                column: .lastSetRPE,
-                operation: .upsert,
-                valueToWrite: log.rpe.label,
-                expectedCurrentValue: previousRPE
-            )
-        }
+        try enqueueLastSetRPEMirror(for: set, replacing: previousRPE)
         try updateLastPerformed(for: set, log: log)
         try context.save()
     }
 
     func skip(_ set: ExerciseSet) throws {
         let previousValue = notesValue(for: set)
+        let previousRPE = set.setLog?.rpe
         set.markSkipped()
         try enqueue(
             for: set,
@@ -328,12 +327,13 @@ extension WorkoutStore {
             valueToWrite: SetLogToken.skipSentinel,
             expectedCurrentValue: previousValue
         )
+        try enqueueLastSetRPEMirror(for: set, replacing: previousRPE)
         try context.save()
     }
 
     func deleteLog(for set: ExerciseSet) throws {
         let previousValue = notesValue(for: set)
-        let previousRPE = set.setLog.map { $0.rpe.label } ?? ""
+        let previousRPE = set.setLog?.rpe
         set.markPending()
         try enqueue(
             for: set,
@@ -342,15 +342,7 @@ extension WorkoutStore {
             valueToWrite: nil,
             expectedCurrentValue: previousValue
         )
-        if isFinalSet(set), !previousRPE.isEmpty {
-            try enqueue(
-                for: set,
-                column: .lastSetRPE,
-                operation: .delete,
-                valueToWrite: nil,
-                expectedCurrentValue: previousRPE
-            )
-        }
+        try enqueueLastSetRPEMirror(for: set, replacing: previousRPE)
         try context.save()
     }
 }

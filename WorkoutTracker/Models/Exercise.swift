@@ -56,6 +56,12 @@ extension ExerciseSet {
 
     /// The Set is Logged or Skipped — the athlete is done with it.
     var isSettled: Bool { state == .logged || state == .skipped }
+
+    /// A Set with no owning Exercise reports itself final. No write path reaches that,
+    /// because `SetCoordinates(of:)` refuses such a Set before any mirror write is enqueued.
+    var isFinalSetOfExercise: Bool {
+        index == (exercise?.sets.map(\.index).max() ?? index)
+    }
 }
 
 extension ExerciseSet {

@@ -42,6 +42,7 @@ the home directory does not. A key-value seam that keeps it inside the home is t
 | `status` | `snapshot()` | sync state, pending write count, Current Session and why, Session index |
 | `session [w1d1]` | `session(_:)` | one Session; every Exercise and Set carries its address. No address means the Current Session |
 | `log w1d1.e0.s0 185x5@8` | `WorkoutStore.log(_:as:)` | the Set, the pending write count, whether the Exercise is complete. No auto-flush |
+| `skip w1d1.e0.s0` | `WorkoutStore.skip(_:)` | the same report `log` prints. No auto-flush |
 | `flush` | `SyncCoordinator.flushPending` | attempted, written, conflicted writes, remaining, sync state |
 | `sheet [--tab T] [--cell K15]` | `SheetsClient.fetchTabSnapshot` | every non-empty cell, or one cell's value |
 | `sync` | `SyncCoordinator.sync` then `reload` | sync state, Block summary, Current Session, pending write count, conflicted writes |
@@ -103,9 +104,9 @@ A new capability is one facade method on `WorkoutApplication` that calls the sto
 UI calls, plus one file in `Commands/`. The CLI imports `WorkoutTracker` without `@testable`, so
 it cannot reach a store directly. `init` is the one deliberate exception: it seeds the workbook
 file and the manifest before an application exists, and it is the only command that does. Next in
-line: `skip` (`WorkoutStore.skip`), `delete-log` (`WorkoutStore.deleteLog(for:)`), `move-on`
-(`WorkoutStore.moveOn`), `pending-writes` (`SyncCoordinator.pendingWriteDiagnostics`), and
-`discard-writes` (`SyncCoordinator.discardPendingWrites`). Add a scenario by adding a case to
+line: `delete-log` (`WorkoutStore.deleteLog(for:)`), `move-on` (`WorkoutStore.moveOn`),
+`pending-writes` (`SyncCoordinator.pendingWriteDiagnostics`), and `discard-writes`
+(`SyncCoordinator.discardPendingWrites`). Add a scenario by adding a case to
 `WorkbookScenario`; the scenario test requires it to parse with no warnings.
 
 The Exercise History fill runs as a fire-and-forget task after a multi-tab sync; a CLI process

@@ -167,6 +167,60 @@ private func seededStore(now: @escaping @MainActor () -> Date) throws -> SeededL
 }
 
 @MainActor
+@Test func skippingALoggedFinalSetQueuesTheLastSetRPEMirrorDelete() throws {
+    let fixture = try seededStore()
+    withExtendedLifetime(fixture.container) {}
+    let finalSet = try #require(fixture.firstSet.exercise?.sets.first { $0.index == 1 })
+    try fixture.store.log(finalSet, as: SetLog(weight: .pounds(195), reps: 5, rpe: .nine))
+
+    try fixture.store.skip(finalSet)
+
+    let mirrors = try fixture.context.fetch(FetchDescriptor<PendingWrite>()).filter { $0.column == .lastSetRPE }
+    #expect(mirrors.map(\.operation) == [.upsert, .delete])
+    #expect(mirrors.map(\.valueToWrite) == ["9", nil])
+    #expect(mirrors.map(\.expectedCurrentValue) == ["", "9"])
+}
+
+@MainActor
+@Test func reloggingTheFinalSetQueuesAMirrorLockedToThePreviousRPE() throws {
+    let fixture = try seededStore()
+    withExtendedLifetime(fixture.container) {}
+    let finalSet = try #require(fixture.firstSet.exercise?.sets.first { $0.index == 1 })
+
+    try fixture.store.log(finalSet, as: SetLog(weight: .pounds(195), reps: 5, rpe: .nine))
+    try fixture.store.log(finalSet, as: SetLog(weight: .pounds(205), reps: 5, rpe: .nine))
+
+    let mirrors = try fixture.context.fetch(FetchDescriptor<PendingWrite>()).filter { $0.column == .lastSetRPE }
+    #expect(mirrors.map(\.valueToWrite) == ["9", "9"])
+    #expect(mirrors.map(\.expectedCurrentValue) == ["", "9"])
+}
+
+@MainActor
+@Test func deletingANeverLoggedFinalSetQueuesNoLastSetRPEWrite() throws {
+    let fixture = try seededStore()
+    withExtendedLifetime(fixture.container) {}
+    let finalSet = try #require(fixture.firstSet.exercise?.sets.first { $0.index == 1 })
+
+    try fixture.store.deleteLog(for: finalSet)
+
+    let writes = try fixture.context.fetch(FetchDescriptor<PendingWrite>())
+    #expect(writes.map(\.column) == [.notes])
+}
+
+@MainActor
+@Test func skippingANeverLoggedFinalSetQueuesNoLastSetRPEWrite() throws {
+    let fixture = try seededStore()
+    withExtendedLifetime(fixture.container) {}
+    let finalSet = try #require(fixture.firstSet.exercise?.sets.first { $0.index == 1 })
+
+    try fixture.store.skip(finalSet)
+
+    let writes = try fixture.context.fetch(FetchDescriptor<PendingWrite>())
+    #expect(writes.map(\.column) == [.notes])
+    #expect(writes.map(\.valueToWrite) == ["skip"])
+}
+
+@MainActor
 @Test func editingLoggedSetQueuesWriteLockedToPreviousSetLog() throws {
     let fixture = try seededStore()
     withExtendedLifetime(fixture.container) {}

@@ -110,6 +110,7 @@
 		E3BF0E131108872ACF22EC6D /* RestDurationSetting.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAF4B32774225208D31F362E /* RestDurationSetting.swift */; };
 		E6298E9C10999070CD34B8C0 /* DeveloperToolsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F622271C453C1C22E76B829 /* DeveloperToolsView.swift */; };
 		E73224AE3C41ED69721C8601 /* PendingWriteFlushOrdering.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8815732F9CDEFACE5019CD05 /* PendingWriteFlushOrdering.swift */; };
+		A1B2C3D40002000000000570 /* LastSetRPEMirror.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40001000000000570 /* LastSetRPEMirror.swift */; };
 		E8F14E95FDFED307B2DC2042 /* WorkoutTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D48BD9386FBE1872BB0B6849 /* WorkoutTrackerApp.swift */; };
 		F04A880C4E2AE6D08487BC0A /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = CEF7E56EC8A77C77056ABE2A /* GoogleSignInSwift */; };
 		F3718BD9273E7015B3CC6396 /* RestTimer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64B19CCD3F77D3DFDE9A9A8E /* RestTimer.swift */; };
@@ -241,6 +242,7 @@
 		82C7E3B1CAB7C96142DCF1C7 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		841FCA4737E7B8C2DD9B2A08 /* SyncStatusBannerPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatusBannerPresentation.swift; sourceTree = "<group>"; };
 		8815732F9CDEFACE5019CD05 /* PendingWriteFlushOrdering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingWriteFlushOrdering.swift; sourceTree = "<group>"; };
+		A1B2C3D40001000000000570 /* LastSetRPEMirror.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastSetRPEMirror.swift; sourceTree = "<group>"; };
 		8844DDE0A7128C83E86154D5 /* LiveActivityProductionAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityProductionAdapter.swift; sourceTree = "<group>"; };
 		8A8230A968C3D81150BECD21 /* ActiveSupersetSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveSupersetSection.swift; sourceTree = "<group>"; };
 		9038CBF5AF997C5562D3A6E4 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
@@ -499,6 +501,7 @@
 			children = (
 				05971BB0A9FEBCA99597C7FE /* DeveloperToolsDiagnostics.swift */,
 				4CCC3ED1AD659427B54B3596 /* LastPerformedLookupStore.swift */,
+				A1B2C3D40001000000000570 /* LastSetRPEMirror.swift */,
 				8815732F9CDEFACE5019CD05 /* PendingWriteFlushOrdering.swift */,
 				E2A79566B8F5D5A99B273AA3 /* SettingsStore.swift */,
 				CF512CAF662AE6E54D7B864C /* SyncCoordinator.swift */,
@@ -883,6 +886,7 @@
 				DC11D945DD2783664F6DBCCD /* OpenExercisesSection.swift in Sources */,
 				348182B266A444358BFC98BC /* PendingWrite.swift in Sources */,
 				E73224AE3C41ED69721C8601 /* PendingWriteFlushOrdering.swift in Sources */,
+				A1B2C3D40002000000000570 /* LastSetRPEMirror.swift in Sources */,
 				C922073179505394019F37F3 /* PillStepperButton.swift in Sources */,
 				62C47D84D01FC02141D4DDA2 /* RPEScalePresentation.swift in Sources */,
 				E3BF0E131108872ACF22EC6D /* RestDurationSetting.swift in Sources */,

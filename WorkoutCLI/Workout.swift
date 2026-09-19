@@ -13,7 +13,7 @@ struct Workout: AsyncParsableCommand {
             """,
         subcommands: [
             InitCommand.self, StatusCommand.self, SessionCommand.self, LogCommand.self,
-            FlushCommand.self, SheetCommand.self, SyncCommand.self
+            SkipCommand.self, FlushCommand.self, SheetCommand.self, SyncCommand.self
         ]
     )
 }

@@ -39,6 +39,19 @@ private func makeSession(_ exercises: [Exercise]) -> Session {
     #expect(ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "", percentOneRM: nil, state: .skipped).isSettled)
 }
 
+@MainActor
+@Test func exerciseSetFinalSetAtom() {
+    let exercise = makeExercise([.pending, .pending, .pending])
+    #expect(exercise.sets.map(\.isFinalSetOfExercise) == [false, false, true])
+    #expect(makeExercise([.pending]).sets[0].isFinalSetOfExercise)
+}
+
+@MainActor
+@Test func aSetWithNoOwningExerciseIsItsOwnFinalSet() {
+    let orphan = ExerciseSet(index: 3, prescribedReps: "5", prescribedLoad: "", percentOneRM: nil, state: .pending)
+    #expect(orphan.isFinalSetOfExercise)
+}
+
 // MARK: - Exercise aggregates
 
 @MainActor
