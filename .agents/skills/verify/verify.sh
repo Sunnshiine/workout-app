@@ -28,8 +28,8 @@ EOF
   exit 2
 }
 
-# Resolve siblings from this file, not from $repo/.claude: the skill is reached both through the
-# .claude/skills/verify symlink and through .agents/skills/verify.
+# Resolve siblings from this file rather than from $repo/.claude. The skill is reached both
+# through the .claude/skills/verify symlink and through .agents/skills/verify.
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../../.." && pwd)
 tree=$here/tree.py
@@ -80,7 +80,7 @@ current_run() {
   return 0
 }
 
-# launch only: names this run and records it against the simulator. A bare relaunch mints a new
+# launch only. Names this run and records it against the simulator. A bare relaunch mints a new
 # name on purpose, so tomorrow's task never lands in today's evidence directory.
 begin_run() {
   local name=${VERIFY_RUN:-$(date +%Y%m%d-%H%M%S)}
@@ -114,8 +114,8 @@ recorded_run_dir() {
   return 1
 }
 
-# The one string that becomes a file name. The rule is what keeps derived files such as
-# _sheet.png and the dot-prefixed temporaries from ever colliding with a shot.
+# The one string that becomes a file name. It is what keeps a shot from colliding with the
+# dot-prefixed temporaries a capture writes.
 valid_name() {
   case ${1:-} in
     ""|-*|*[!A-Za-z0-9-]*)

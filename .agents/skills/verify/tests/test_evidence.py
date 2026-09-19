@@ -44,19 +44,18 @@ MINI_TREE = [
 MINI = json.dumps(MINI_TREE)
 
 
-def tree_py(*args, **kwargs):
+def tree_py(*args, stdin=""):
     """Runs tree.py, returns (exit code, stdout, stderr)."""
     done = subprocess.run(
         [sys.executable, str(SKILL / "tree.py")] + list(args),
-        input=kwargs.get("stdin", ""), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        universal_newlines=True,
+        input=stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
     )
     return done.returncode, done.stdout, done.stderr
 
 
-def verify_sh(*args, **kwargs):
+def verify_sh(*args, run):
     """Runs verify.sh with VERIFY_RUN set and SIM unset. No simulator is consulted."""
-    env = dict(os.environ, VERIFY_RUN=kwargs["run"])
+    env = dict(os.environ, VERIFY_RUN=run)
     env.pop("SIM", None)
     done = subprocess.run(
         [str(SKILL / "verify.sh")] + list(args), cwd=str(REPO), env=env,

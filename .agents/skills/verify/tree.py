@@ -16,10 +16,10 @@ import difflib
 import json
 import sys
 from pathlib import Path
-from typing import Iterator, List, NamedTuple, Optional, Tuple
+from typing import Any, Iterator, List, NamedTuple, Optional, Tuple
 
 
-def clean(field) -> str:
+def clean(field: Any) -> str:
     """Tabs and newlines become spaces here, so every line splits into exactly five columns."""
     if field is None:
         return ""
@@ -68,7 +68,7 @@ class TreeLine(NamedTuple):
 
 
 def identity(text_line: str) -> str:
-    """A saved line without its frame column: everything before the last tab."""
+    """A saved line without its frame column, which is everything before the last tab."""
     return text_line.rsplit("\t", 1)[0]
 
 
@@ -79,7 +79,7 @@ def walk(node: dict) -> Iterator[dict]:
 
 
 def lines(root: dict) -> List[TreeLine]:
-    """Every line in document order. lines(root)[0] is the AXApplication row: the screen."""
+    """Every line in document order. lines(root)[0] is the AXApplication row, which is the screen."""
     return [line for line in map(TreeLine.from_node, walk(root)) if line is not None]
 
 
@@ -87,7 +87,7 @@ def on_screen(all_lines: List[TreeLine]) -> List[TreeLine]:
     """The lines whose frame intersects the screen, edges included.
 
     The screen comes from the data, so iPad, landscape, and a future device need no constant.
-    Occlusion is invisible to it: with the queue sheet up, the stage rows behind it stay.
+    It cannot see occlusion. With the queue sheet up, the stage rows behind it stay.
     """
     if not all_lines:
         return []
@@ -97,8 +97,8 @@ def on_screen(all_lines: List[TreeLine]) -> List[TreeLine]:
 def changed(before: List[str], after: List[str]) -> Tuple[List[List[str]], int]:
     """Hunks of "- line" and "+ line" in document order, and the count of unchanged lines.
 
-    Sequence-based, not set-based: a tree repeats lines (two `Vertical scroll bar` rows with the
-    queue sheet up) and their order carries meaning.
+    Sequence-based, not set-based, because a tree repeats lines (two `Vertical scroll bar` rows
+    with the queue sheet up) and their order carries meaning.
     """
     matcher = difflib.SequenceMatcher(
         a=[identity(line) for line in before], b=[identity(line) for line in after], autojunk=False
