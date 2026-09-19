@@ -141,7 +141,7 @@ private func assertVisibleWritableParsedState(_ parsed: ParsedBlock) throws {
     assertVisibleWritableRoundTripWorkbook(updated)
     try assertVisibleWritableParsedState(parsed)
     #expect(try context.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
-    #expect(sync.state == .idle)
+    #expect(sync.outcome == .clear)
     #expect(batches.count == 2)
     #expect(batches[0].map(\.range) == ["'Block 27'!K43"])
     #expect(batches[1].map(\.range) == ["'Block 27'!K43", "'Block 27'!I41", "'Block 27'!K48", "'Block 27'!I46"])
@@ -179,5 +179,5 @@ private func assertVisibleWritableParsedState(_ parsed: ParsedBlock) throws {
     #expect(retry.status == .pending)
     #expect(retry.retryCount == 1)
     #expect(batches.isEmpty)
-    #expect(sync.state == .pendingWrites(1))
+    #expect(sync.outcome == .writesQueued(1))
 }

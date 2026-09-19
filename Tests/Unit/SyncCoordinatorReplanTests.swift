@@ -96,7 +96,7 @@ private func squatOneSetGrid(notes: String? = nil) -> SheetGrid {
     #expect(client.fetchCount == 1)
     #expect(client.updates.map(\.range) == ["'Block 27'!K15"])
     #expect(client.updates.map(\.values) == [[["185x5@8"]]])
-    #expect(sync.state == .conflict(["Squat: Expected '205x3@9', found '185x5@8'"]))
+    #expect(sync.outcome == .writesRefused(["Squat: Expected '205x3@9', found '185x5@8'"]))
 
     let remaining = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(remaining.count == 1)
@@ -143,5 +143,5 @@ private func squatOneSetGrid(notes: String? = nil) -> SheetGrid {
     #expect(client.fetchCount == 1)
     #expect(client.updates.map(\.range) == ["'Block 27'!K15"])
     #expect(client.updates.map(\.values) == [[["185x5@8"]]])
-    #expect(sync.state == .conflict(["Bench Press: Expected '205x3@9', found ''"]))
+    #expect(sync.outcome == .writesRefused(["Bench Press: Expected '205x3@9', found ''"]))
 }

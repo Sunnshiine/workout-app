@@ -79,7 +79,7 @@ extension WorkoutApplication {
         return AppSnapshot(
             spreadsheetId: settings.spreadsheetId,
             spreadsheetTitle: settings.spreadsheetTitle,
-            syncState: SyncStateSnapshot(sync.state),
+            syncOutcome: SyncOutcomeSnapshot(sync.outcome),
             pendingWriteCount: try queuedWrites().count,
             block: workout.block.map(BlockSummary.init),
             currentSession: current.flatMap(address(of:)),
@@ -147,7 +147,7 @@ extension WorkoutApplication {
             written: before.count - after.count,
             conflictedWrites: conflictMessages(in: after),
             remainingPendingWrites: after.count,
-            syncState: SyncStateSnapshot(sync.state)
+            syncOutcome: SyncOutcomeSnapshot(sync.outcome)
         )
     }
 
@@ -156,11 +156,11 @@ extension WorkoutApplication {
         let spreadsheetId = try configuredSpreadsheetId()
         let didSync = await sync.sync(spreadsheetId: spreadsheetId)
         workout.reload()
-        let state = SyncStateSnapshot(sync.state)
-        guard didSync else { throw ApplicationError.syncFailed(state) }
+        let outcome = SyncOutcomeSnapshot(sync.outcome)
+        guard didSync else { throw ApplicationError.syncFailed(outcome.status) }
         let queued = try queuedWrites()
         return SyncReport(
-            syncState: state,
+            syncOutcome: outcome,
             block: workout.block.map(BlockSummary.init),
             currentSession: workout.currentSession.flatMap(address(of:)),
             viewedSession: workout.viewedSession.flatMap(address(of:)),

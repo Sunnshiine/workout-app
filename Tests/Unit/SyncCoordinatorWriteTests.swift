@@ -146,7 +146,7 @@ private func pendingWrite(
 
     #expect(await client.updates().count == 1)
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
-    #expect(sync.state == .idle)
+    #expect(sync.outcome == .clear)
 }
 
 @MainActor
@@ -201,7 +201,7 @@ private func pendingWrite(
     #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!K15"])
     #expect(client.updates.map(\.1) == [[["185x5@8"]], [["185x6@8"]]])
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
-    #expect(sync.state == .idle)
+    #expect(sync.outcome == .clear)
 }
 
 @MainActor
@@ -271,7 +271,7 @@ private func pendingWrite(
 
     #expect(client.updates.map(\.0) == ["'Block 27'!K15"])
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
-    #expect(sync.state == .idle)
+    #expect(sync.outcome == .clear)
 }
 
 @MainActor
@@ -311,7 +311,7 @@ private func pendingWrite(
     let write = try #require(try ctx.fetch(FetchDescriptor<PendingWrite>()).first)
     #expect(write.status == .conflict)
     #expect(client.updates.isEmpty)
-    #expect(sync.state.isConflict)
+    #expect(sync.outcome.isWritesRefused)
 }
 
 @MainActor
@@ -344,7 +344,7 @@ private func pendingWrite(
     let conflict = try #require(writes.first)
     #expect(conflict.exerciseName == "Bench Press")
     #expect(conflict.status == .conflict)
-    #expect(sync.state.isConflict)
+    #expect(sync.outcome.isWritesRefused)
 }
 
 @MainActor
@@ -386,7 +386,7 @@ private func pendingWrite(
 
     #expect(try sync.hasPendingWrites() == false)
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
-    #expect(sync.state == .idle)
+    #expect(sync.outcome == .clear)
 }
 
 @MainActor
@@ -466,9 +466,9 @@ private actor ControlledFlushCoordinator {
     }
 }
 
-extension SyncCoordinator.State {
-    fileprivate var isConflict: Bool {
-        if case .conflict = self { return true }
+extension SyncOutcome {
+    fileprivate var isWritesRefused: Bool {
+        if case .writesRefused = self { return true }
         return false
     }
 }
@@ -487,7 +487,7 @@ extension SyncCoordinator.State {
     await sync.flushPending(spreadsheetId: "sid")
 
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
-    #expect(sync.state == .pendingWrites(2))
+    #expect(sync.outcome == .writesQueued(2))
     #expect(client.updates.isEmpty)
     #expect(writes.count == 2)
     #expect(writes.allSatisfy { $0.status == .pending })

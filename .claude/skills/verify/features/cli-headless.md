@@ -5,7 +5,7 @@ The `workout` CLI runs the app's stores against a local workbook file and prints
 ## Sub-features
 
 - `cli-init` seeds a scenario workbook and selects it through the onboarding path.
-- `cli-inspect` prints sync state, the Current Session, and any session with set addresses.
+- `cli-inspect` prints the sync outcome, the Current Session, and any session with set addresses.
 - `cli-log` logs a set and queues the write.
 - `cli-flush` writes queued sets to the workbook and reports conflicts.
 - `cli-sync` re-reads the workbook and reports the parsed state.
@@ -27,8 +27,9 @@ Preconditions:
 - **Log.** Run `workout log w1d1.e0.s0 185x5@8`. Exit 0, `"pendingWriteCount" : 1`, the set's `"state" : "logged"` and `"setLog" : "185x5@8"`.
 - **Flush.** Run `workout flush`. Exit 0, `"written" : 1`, `"remainingPendingWrites" : 0`, empty `conflictedWrites`.
 - **Stored value.** Run `workout sheet --cell K15`. `"value" : "185x5@8"`.
-- **Sync.** Run `workout sync` then `workout session w1d1`. The same set reads `"state" : "logged"`, parsed back from the workbook.
+- **Sync.** Run `workout sync` then `workout session w1d1`. On a clean run `sync` prints `"status" : "clear"` under `syncOutcome`. The same set reads `"state" : "logged"`, parsed back from the workbook.
 - **Error shape.** Run `workout log w1d1.e0.s9 185x5@8; echo $?`. Stdout empty, stderr one JSON line with `"code":"unknown_set"` and candidates, exit 1.
+- **Outcome shape.** Strip the `Day N` header cells with `jq '.tabs["Block 27"].cells |= with_entries(select(.value | test("^Day [0-9]+$") | not))' "$WORKOUT_HOME/workbook.json" > "$WORKOUT_HOME/wb.tmp" && mv "$WORKOUT_HOME/wb.tmp" "$WORKOUT_HOME/workbook.json"`, then run `workout sync; echo $?`. Exit 4 with `"status" : "parseWarnings"` under `syncOutcome`. A refused write exits 4 too and prints `"status" : "writesRefused"`, so the status is what tells them apart. Neither run needs its `messages` read.
 - **Proof.** Save each command's stdout, stderr, and exit code under the evidence directory (`tee "$EVIDENCE/cli-flush.json"`).
 
 ## Gotchas
@@ -37,5 +38,5 @@ Preconditions:
 - UserDefaults live in a per-home suite under `~/Library/Preferences`, wiped by `init` but not by deleting the home.
 - `log` twice enqueues twice. It is not idempotent, by design.
 - `WORKOUT_NOW=2026-05-28T20:26:40Z` freezes `loggedAt` for stable assertions.
-- A flush conflict exits 4 on every later run until the write is discarded. Read `conflictedWrites`, not the exit code alone.
+- A flush conflict exits 4 on every later run until the write is discarded. Read `conflictedWrites`, not the exit code alone. `syncOutcome.status` names which outcome ended the step; never string-match `messages`.
 - The workbook is the fixture sheet, not Google. A green flush proves the queue and the write path, not the network.
