@@ -112,8 +112,7 @@ extension WorkoutApplication {
         )
     }
 
-    /// `WorkoutStore.skip(_:)`: the same call the Session stage makes. Reports the Set the same
-    /// way `log` does, because both are one Set State transition and its queued Sheet writes.
+    /// `WorkoutStore.skip(_:)`: the same call the Session stage makes.
     public func skip(_ address: SetAddress) throws -> LogReport {
         let set = try resolveSet(address)
         try workout.skip(set)

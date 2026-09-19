@@ -217,7 +217,7 @@ private func seededStore(now: @escaping @MainActor () -> Date) throws -> SeededL
 
     let writes = try fixture.context.fetch(FetchDescriptor<PendingWrite>())
     #expect(writes.map(\.column) == [.notes])
-    #expect(writes.map(\.valueToWrite) == [SetLogToken.skipSentinel])
+    #expect(writes.map(\.valueToWrite) == ["skip"])
 }
 
 @MainActor

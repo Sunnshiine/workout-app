@@ -96,21 +96,6 @@ private func address(_ raw: String) throws -> SetAddress {
 }
 
 @MainActor
-@Test func skippingTheFinalSetClearsItsLastSetRPEInTheWorkbook() async throws {
-    let app = try await makeSelectedApp()
-    _ = try app.log(address("w1d1.e0.s2"), setLog: "195x5@9")
-    _ = try await app.flush()
-    #expect(try await app.sheet(tab: nil).cells["I15"] == "9")
-
-    _ = try app.skip(address("w1d1.e0.s2"))
-    _ = try await app.flush()
-
-    let sheet = try await app.sheet(tab: nil)
-    #expect(sheet.cells["K15"] == ", , skip")
-    #expect(sheet.cells["I15"] == nil)
-}
-
-@MainActor
 @Test func skippingASetEnqueuesTheSetLogWriteAndSettlesTheSet() async throws {
     let app = try await makeSelectedApp()
 
@@ -125,6 +110,21 @@ private func address(_ raw: String) throws -> SetAddress {
 
     _ = try await app.flush()
     #expect(try await app.sheet(tab: nil).cells["K15"] == "skip")
+}
+
+@MainActor
+@Test func skippingTheFinalSetClearsItsLastSetRPEInTheWorkbook() async throws {
+    let app = try await makeSelectedApp()
+    _ = try app.log(address("w1d1.e0.s2"), setLog: "195x5@9")
+    _ = try await app.flush()
+    #expect(try await app.sheet(tab: nil).cells["I15"] == "9")
+
+    _ = try app.skip(address("w1d1.e0.s2"))
+    _ = try await app.flush()
+
+    let sheet = try await app.sheet(tab: nil)
+    #expect(sheet.cells["K15"] == ", , skip")
+    #expect(sheet.cells["I15"] == nil)
 }
 
 @MainActor

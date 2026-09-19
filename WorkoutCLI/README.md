@@ -104,9 +104,9 @@ A new capability is one facade method on `WorkoutApplication` that calls the sto
 UI calls, plus one file in `Commands/`. The CLI imports `WorkoutTracker` without `@testable`, so
 it cannot reach a store directly. `init` is the one deliberate exception: it seeds the workbook
 file and the manifest before an application exists, and it is the only command that does. Next in
-line: `delete-log` (`WorkoutStore.deleteLog(for:)`), `move-on`
-(`WorkoutStore.moveOn`), `pending-writes` (`SyncCoordinator.pendingWriteDiagnostics`), and
-`discard-writes` (`SyncCoordinator.discardPendingWrites`). Add a scenario by adding a case to
+line: `delete-log` (`WorkoutStore.deleteLog(for:)`), `move-on` (`WorkoutStore.moveOn`),
+`pending-writes` (`SyncCoordinator.pendingWriteDiagnostics`), and `discard-writes`
+(`SyncCoordinator.discardPendingWrites`). Add a scenario by adding a case to
 `WorkbookScenario`; the scenario test requires it to parse with no warnings.
 
 The Exercise History fill runs as a fire-and-forget task after a multi-tab sync; a CLI process
