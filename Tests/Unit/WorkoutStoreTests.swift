@@ -99,9 +99,9 @@ private func makeStore(
     store.reload()
 
     #expect(store.block?.tabName == "Block 27")
-    #expect(store.displayedSession == nil)
+    #expect(store.viewedSession == nil)
     store.show(week: 1, day: 3)
-    #expect(store.displayedSession?.dayNumber == 3)
+    #expect(store.viewedSession?.dayNumber == 3)
 }
 
 @MainActor
@@ -134,8 +134,8 @@ private func makeStore(
     store.show(week: 1, day: 3)
     store.reload()
 
-    #expect(store.displayedSession?.week?.number == 1)
-    #expect(store.displayedSession?.dayNumber == 3)
+    #expect(store.viewedSession?.week?.number == 1)
+    #expect(store.viewedSession?.dayNumber == 3)
 }
 
 @MainActor
@@ -150,7 +150,7 @@ private func makeStore(
     store.reload()
 
     #expect(store.currentSession?.dayNumber == 2)
-    #expect(store.displayedSession?.dayNumber == 4)
+    #expect(store.viewedSession?.dayNumber == 4)
     #expect(!store.isViewingLiveEdge)
 }
 
@@ -162,7 +162,7 @@ private func makeStore(
     let context = fixture.container.mainContext
 
     store.show(week: 2, day: 3)
-    #expect(store.displayedSession?.week?.number == 2)
+    #expect(store.viewedSession?.week?.number == 2)
 
     // SyncCoordinator.replacePersistedBlock, inlined.
     for existing in try context.fetch(FetchDescriptor<Block>()) { context.delete(existing) }
@@ -170,8 +170,8 @@ private func makeStore(
     try context.save()
     store.reload()
 
-    #expect(store.displayedSession?.week?.number == 2)
-    #expect(store.displayedSession?.dayNumber == 3)
+    #expect(store.viewedSession?.week?.number == 2)
+    #expect(store.viewedSession?.dayNumber == 3)
 }
 
 @MainActor
@@ -182,14 +182,14 @@ private func makeStore(
     let context = fixture.container.mainContext
 
     store.show(week: 1, day: 4)
-    #expect(store.displayedSession?.dayNumber == 4)
+    #expect(store.viewedSession?.dayNumber == 4)
 
     for existing in try context.fetch(FetchDescriptor<Block>()) { context.delete(existing) }
     context.insert(makeStoreBlock(dayCount: 3))
     try context.save()
     store.reload()
 
-    #expect(store.displayedSession?.dayNumber == 1)
+    #expect(store.viewedSession?.dayNumber == 1)
     #expect(store.isViewingLiveEdge)
 }
 
@@ -204,7 +204,7 @@ private func makeStore(
     store.reload()
 
     #expect(store.currentSession?.dayNumber == 3)
-    #expect(store.displayedSession?.dayNumber == 3)
+    #expect(store.viewedSession?.dayNumber == 3)
 }
 
 @MainActor
@@ -217,11 +217,11 @@ private func makeStore(
     store.reload()
 
     store.show(week: 1, day: 1)
-    #expect(store.displayedSession?.dayNumber == 1)
+    #expect(store.viewedSession?.dayNumber == 1)
 
     store.showCurrent()
 
-    #expect(store.displayedSession?.dayNumber == 3)
+    #expect(store.viewedSession?.dayNumber == 3)
     #expect(store.isViewingLiveEdge)
 }
 
@@ -234,7 +234,7 @@ private func makeStore(
     store.show(week: 1, day: 3)
 
     #expect(store.currentSession?.dayNumber == 1)
-    #expect(store.displayedSession?.dayNumber == 3)
+    #expect(store.viewedSession?.dayNumber == 3)
     #expect(!store.isViewingLiveEdge)
 }
 
@@ -249,10 +249,10 @@ private func makeStore(
     #expect(store.currentSession?.dayNumber == 3)
 
     store.show(week: 1, day: 1)
-    store.makeDisplayedSessionCurrent()
+    store.makeViewedSessionCurrent()
 
     #expect(store.currentSession?.dayNumber == 1)
-    #expect(store.displayedSession?.dayNumber == 1)
+    #expect(store.viewedSession?.dayNumber == 1)
     #expect(store.isViewingLiveEdge)
 }
 
@@ -283,11 +283,11 @@ private func makeStore(
     store.reload()
 
     store.show(week: 1, day: 1)
-    store.makeDisplayedSessionCurrent()
+    store.makeViewedSessionCurrent()
     store.reload()
 
     #expect(store.currentSession?.dayNumber == 1)
-    #expect(store.displayedSession?.dayNumber == 1)
+    #expect(store.viewedSession?.dayNumber == 1)
 }
 
 @MainActor
@@ -297,7 +297,7 @@ private func makeStore(
     let store = fixture.store
 
     store.show(week: 1, day: 2)
-    store.makeDisplayedSessionCurrent()
+    store.makeViewedSessionCurrent()
 
     let writes = try fixture.container.mainContext.fetch(FetchDescriptor<PendingWrite>())
     #expect(writes.isEmpty)
@@ -319,7 +319,7 @@ private func makeStore(
     #expect(info.currentBlockTab == "Block 27")
     #expect(info.sheetDerivedSession == "Week 1, Day 3")
     #expect(info.manualOverrideSession == "None")
-    #expect(info.displayedSession == "Week 1, Day 1")
+    #expect(info.viewedSession == "Week 1, Day 1")
     #expect(info.resolvedCurrentSession == "Week 1, Day 3")
     #expect(info.reason == "No manual override is active, so Sheet-derived progress wins.")
     #expect(info.localOnlyNote == nil)
@@ -336,13 +336,13 @@ private func makeStore(
     store.reload()
 
     store.show(week: 1, day: 1)
-    store.makeDisplayedSessionCurrent()
+    store.makeViewedSessionCurrent()
 
     let info = store.currentSessionDebugInfo
 
     #expect(info.sheetDerivedSession == "Week 1, Day 3")
     #expect(info.manualOverrideSession == "Week 1, Day 1")
-    #expect(info.displayedSession == "Week 1, Day 1")
+    #expect(info.viewedSession == "Week 1, Day 1")
     #expect(info.resolvedCurrentSession == "Week 1, Day 1")
     #expect(info.reason == "Manual override is active for this Block.")
     #expect(info.localOnlyNote == "Manual Current Session override is local-only and is not Sheet data.")
@@ -358,7 +358,7 @@ private func makeStore(
     day3Set.state = .logged
     store.reload()
     store.show(week: 1, day: 1)
-    store.makeDisplayedSessionCurrent()
+    store.makeViewedSessionCurrent()
 
     store.resetCurrentSessionOverride()
 
@@ -366,7 +366,7 @@ private func makeStore(
     let writes = try fixture.container.mainContext.fetch(FetchDescriptor<PendingWrite>())
     #expect(info.manualOverrideSession == "None")
     #expect(store.currentSession?.dayNumber == 3)
-    #expect(store.displayedSession?.dayNumber == 3)
+    #expect(store.viewedSession?.dayNumber == 3)
     #expect(writes.isEmpty)
 }
 
@@ -380,9 +380,9 @@ private func makeStore(
         withExtendedLifetime(block28.container) {}
     }
     block27.store.show(week: 1, day: 2)
-    block27.store.makeDisplayedSessionCurrent()
+    block27.store.makeViewedSessionCurrent()
     block28.store.show(week: 1, day: 3)
-    block28.store.makeDisplayedSessionCurrent()
+    block28.store.makeViewedSessionCurrent()
 
     block27.store.resetCurrentSessionOverride()
     block28.store.reload()
@@ -403,8 +403,8 @@ private func makeStore(
 
     #expect(store.currentSession?.week?.number == 1)
     #expect(store.currentSession?.dayNumber == 2)
-    #expect(store.displayedSession?.week?.number == 1)
-    #expect(store.displayedSession?.dayNumber == 2)
+    #expect(store.viewedSession?.week?.number == 1)
+    #expect(store.viewedSession?.dayNumber == 2)
 }
 
 @MainActor
@@ -414,13 +414,13 @@ private func makeStore(
     let store = fixture.store
 
     store.show(week: 1, day: 3)
-    store.makeDisplayedSessionCurrent()
+    store.makeViewedSessionCurrent()
     store.moveOn()
 
     #expect(store.currentSession?.week?.number == 1)
     #expect(store.currentSession?.dayNumber == 4)
-    #expect(store.displayedSession?.week?.number == 1)
-    #expect(store.displayedSession?.dayNumber == 4)
+    #expect(store.viewedSession?.week?.number == 1)
+    #expect(store.viewedSession?.dayNumber == 4)
 }
 
 @MainActor
@@ -435,8 +435,8 @@ private func makeStore(
     #expect(store.moveOnCelebrationSession?.dayNumber == 1)
     #expect(store.currentSession?.week?.number == 1)
     #expect(store.currentSession?.dayNumber == 1)
-    #expect(store.displayedSession?.week?.number == 1)
-    #expect(store.displayedSession?.dayNumber == 1)
+    #expect(store.viewedSession?.week?.number == 1)
+    #expect(store.viewedSession?.dayNumber == 1)
 }
 
 @MainActor
@@ -469,8 +469,8 @@ private func makeStore(
     #expect(store.moveOnCelebrationSession == nil)
     #expect(store.currentSession?.week?.number == 1)
     #expect(store.currentSession?.dayNumber == 2)
-    #expect(store.displayedSession?.week?.number == 1)
-    #expect(store.displayedSession?.dayNumber == 2)
+    #expect(store.viewedSession?.week?.number == 1)
+    #expect(store.viewedSession?.dayNumber == 2)
 }
 
 @MainActor
@@ -489,8 +489,8 @@ private func makeStore(
     #expect(store.moveOnCelebrationSession == nil)
     #expect(store.currentSession?.week?.number == 1)
     #expect(store.currentSession?.dayNumber == 1)
-    #expect(store.displayedSession?.week?.number == 1)
-    #expect(store.displayedSession?.dayNumber == 1)
+    #expect(store.viewedSession?.week?.number == 1)
+    #expect(store.viewedSession?.dayNumber == 1)
 }
 
 @MainActor
@@ -503,7 +503,7 @@ private func makeStore(
     store.reload()
 
     #expect(store.currentSession?.dayNumber == 2)
-    #expect(store.displayedSession?.dayNumber == 2)
+    #expect(store.viewedSession?.dayNumber == 2)
 }
 
 @MainActor
@@ -516,7 +516,7 @@ private func makeStore(
     store.moveOn()
 
     #expect(store.currentSession?.dayNumber == 3)
-    #expect(store.displayedSession?.dayNumber == 3)
+    #expect(store.viewedSession?.dayNumber == 3)
 }
 
 @MainActor

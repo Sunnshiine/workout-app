@@ -21,8 +21,8 @@ import Testing
     let fresh = try WorkoutScenarios.freshConfiguredApp()
     defer { withExtendedLifetime(fresh.container) {} }
     #expect(fresh.settings.isConfigured)
-    #expect(fresh.store.displayedSession?.week?.number == 1)
-    #expect(fresh.store.displayedSession?.dayNumber == 1)
+    #expect(fresh.store.viewedSession?.week?.number == 1)
+    #expect(fresh.store.viewedSession?.dayNumber == 1)
 
     let pending = WorkoutScenarios.currentSessionWithPendingSets()
     #expect(pending.currentSession?.dayNumber == 1)

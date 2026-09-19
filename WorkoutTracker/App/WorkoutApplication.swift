@@ -85,7 +85,7 @@ extension WorkoutApplication {
             currentSession: current.flatMap(address(of:)),
             currentSessionReason: workout.currentSessionDebugInfo.reason,
             currentSessionIsOverridden: workout.hasCurrentSessionOverride,
-            displayedSession: workout.displayedSession.flatMap(address(of:)),
+            viewedSession: workout.viewedSession.flatMap(address(of:)),
             canMoveOn: workout.canMoveOn,
             openExercises: workout.openExercises.compactMap(address(of:)),
             sessions: orderedSessions().map { session in
@@ -163,7 +163,7 @@ extension WorkoutApplication {
             syncState: state,
             block: workout.block.map(BlockSummary.init),
             currentSession: workout.currentSession.flatMap(address(of:)),
-            viewedSession: workout.displayedSession.flatMap(address(of:)),
+            viewedSession: workout.viewedSession.flatMap(address(of:)),
             pendingWriteCount: queued.count,
             conflictedWrites: conflictMessages(in: queued)
         )
