@@ -281,41 +281,6 @@ struct SessionSettingsOverpullState: Equatable, Sendable {
     }
 }
 
-/// A finished Exercise's Sets as one line, in Set order: a Structured Set Log reads
-/// `weight×reps`, and a run of Sets at the same weight collapses to `×reps` after the first. A
-/// Skipped Set renders as the `skip` sentinel; a Pending or unlogged Set drops out.
-struct CompressedSetResults: Equatable, Sendable {
-    let text: String
-
-    init(sets: [ExerciseSet]) {
-        var previousWeight: Weight?
-        text =
-            sets
-            .sorted { $0.index < $1.index }
-            .compactMap { set -> String? in
-                guard set.state != .skipped else { return SetLogToken.skipSentinel }
-                guard set.state == .logged, let setLog = set.setLog else { return nil }
-                defer { previousWeight = setLog.weight }
-                if previousWeight == setLog.weight {
-                    return "×\(setLog.reps)"
-                }
-                return "\(setLog.weight.label)×\(setLog.reps)"
-            }
-            .joined(separator: " / ")
-    }
-}
-
-struct ExerciseSummaryRowPresentation: Equatable, Sendable {
-    let title: String
-
-    init(exercise: Exercise) {
-        let setResults = CompressedSetResults(sets: exercise.sets).text
-        let hasStructuredSetLog = exercise.sets.contains { $0.setLog != nil }
-        let resultText = hasStructuredSetLog ? setResults : exercise.legacyLog ?? setResults
-        title = "✓ \(exercise.baseName) · \(resultText)"
-    }
-}
-
 struct LastPerformedCardPresentation: Equatable, Sendable {
     let resultText: String
     let sourceText: String
