@@ -51,7 +51,8 @@ final class WorkoutStore {
         return tracker.moveOnDestination(from: currentSession, in: block).isOffered
     }
 
-    var isViewingLiveEdge: Bool { displayedSession?.persistentModelID == currentSession?.persistentModelID }
+    var liveEdge: LiveEdge { LiveEdge.resolve(viewedSession: displayedSession, currentSession: currentSession) }
+    var isViewingLiveEdge: Bool { liveEdge.isAtLiveEdge }
     var openExercises: [Exercise] {
         guard let currentSession else { return [] }
         return tracker.openExercises(for: currentSession).map(\.exercise)

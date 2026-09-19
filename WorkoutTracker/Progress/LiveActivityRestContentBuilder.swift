@@ -136,13 +136,8 @@ enum LiveActivityInvalidationPolicy {
     }
 
     @MainActor
-    static func shouldEnd(
-        _ content: LiveActivityRestContent,
-        displayedSession: Session?,
-        currentSession: Session?
-    ) -> Bool {
-        guard let displayedSession, let currentSession else { return true }
-        guard displayedSession === currentSession else { return true }
+    static func shouldEnd(_ content: LiveActivityRestContent, at liveEdge: LiveEdge) -> Bool {
+        guard case .atLiveEdge(let currentSession) = liveEdge else { return true }
         guard let target = content.target else { return true }
         guard
             let targetSession = SessionProgressTracker().sessionsInCurrentWeek(for: currentSession).first(where: {

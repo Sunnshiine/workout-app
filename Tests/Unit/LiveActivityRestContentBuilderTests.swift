@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import Testing
 
 @testable import WorkoutTracker
@@ -376,13 +377,7 @@ import Testing
         )
     )
 
-    #expect(
-        LiveActivityInvalidationPolicy.shouldEnd(
-            content,
-            displayedSession: session,
-            currentSession: session
-        ) == false
-    )
+    #expect(LiveActivityInvalidationPolicy.shouldEnd(content, at: .atLiveEdge(currentSession: session)) == false)
 }
 
 @MainActor
@@ -402,23 +397,11 @@ import Testing
         )
     )
 
-    #expect(
-        !LiveActivityInvalidationPolicy.shouldEnd(
-            content,
-            displayedSession: currentSession,
-            currentSession: currentSession
-        )
-    )
+    #expect(!LiveActivityInvalidationPolicy.shouldEnd(content, at: .atLiveEdge(currentSession: currentSession)))
 
     openExercise.sets[0].state = .skipped
 
-    #expect(
-        LiveActivityInvalidationPolicy.shouldEnd(
-            content,
-            displayedSession: currentSession,
-            currentSession: currentSession
-        )
-    )
+    #expect(LiveActivityInvalidationPolicy.shouldEnd(content, at: .atLiveEdge(currentSession: currentSession)))
 }
 
 @MainActor
@@ -446,9 +429,9 @@ import Testing
         )
     )
 
-    #expect(LiveActivityInvalidationPolicy.shouldEnd(content, displayedSession: first, currentSession: second))
-    #expect(LiveActivityInvalidationPolicy.shouldEnd(content, displayedSession: second, currentSession: first))
-    #expect(LiveActivityInvalidationPolicy.shouldEnd(content, displayedSession: nil, currentSession: first))
+    #expect(LiveActivityInvalidationPolicy.shouldEnd(content, at: .resolve(viewedSession: first, currentSession: second)))
+    #expect(LiveActivityInvalidationPolicy.shouldEnd(content, at: .resolve(viewedSession: second, currentSession: first)))
+    #expect(LiveActivityInvalidationPolicy.shouldEnd(content, at: .resolve(viewedSession: nil, currentSession: first)))
 }
 
 @MainActor
@@ -468,7 +451,112 @@ import Testing
 
     targetSet.state = .logged
 
-    #expect(LiveActivityInvalidationPolicy.shouldEnd(content, displayedSession: session, currentSession: session))
+    #expect(LiveActivityInvalidationPolicy.shouldEnd(content, at: .atLiveEdge(currentSession: session)))
+}
+
+@MainActor
+@Test func liveActivityTargetValidationKeepsRestWhenASecondInstanceBacksTheSameSession() throws {
+    let container = try makeStoredWeek()
+    defer { withExtendedLifetime(container) {} }
+    let viewed = try #require(try storedWeekSession(dayNumber: 1, in: container.mainContext))
+    let loggedSet = try #require(viewed.exercises.first?.sets.first { $0.index == 0 })
+    loggedSet.state = .logged
+    try container.mainContext.save()
+    let content = try #require(
+        LiveActivityRestContentBuilder.content(
+            afterLogging: loggedSet,
+            in: viewed,
+            restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
+            restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
+        )
+    )
+
+    let secondInstance = try #require(try storedWeekSession(dayNumber: 1, in: ModelContext(container)))
+    #expect(secondInstance !== viewed)
+    #expect(secondInstance.persistentModelID == viewed.persistentModelID)
+
+    #expect(
+        LiveActivityInvalidationPolicy.shouldEnd(
+            content,
+            at: .resolve(viewedSession: viewed, currentSession: secondInstance)
+        ) == false
+    )
+}
+
+@MainActor
+@Test func liveActivityRestSurvivesAStoreReloadAtTheLiveEdge() throws {
+    let container = try makeStoredWeek()
+    defer { withExtendedLifetime(container) {} }
+    let store = WorkoutStore(
+        context: container.mainContext,
+        defaults: try #require(UserDefaults(suiteName: "live-edge.\(UUID())"))
+    )
+    store.reload()
+
+    let viewed = try #require(store.displayedSession)
+    let loggedSet = try #require(viewed.exercises.first?.sets.first { $0.index == 0 })
+    loggedSet.state = .logged
+    let content = try #require(
+        LiveActivityRestContentBuilder.content(
+            afterLogging: loggedSet,
+            in: viewed,
+            restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
+            restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
+        )
+    )
+
+    store.reload()
+
+    #expect(LiveActivityInvalidationPolicy.shouldEnd(content, at: store.liveEdge) == false)
+}
+
+@MainActor
+private func storedWeekSession(dayNumber: Int, in context: ModelContext) throws -> Session? {
+    let block = try context.fetch(FetchDescriptor<Block>()).first
+    return block?.weeks.first { $0.number == 1 }?.sessions.first { $0.dayNumber == dayNumber }
+}
+
+@MainActor
+private func makeStoredWeek() throws -> ModelContainer {
+    let container = try ModelContainer(
+        for: Block.self,
+        PendingWrite.self,
+        WriteTargetAuditEntry.self,
+        configurations: ModelConfiguration("live-edge-\(UUID().uuidString)", isStoredInMemoryOnly: true)
+    )
+    let parsed = ParsedBlockModel(
+        tabName: "Block 27",
+        weeks: [
+            ParsedWeek(
+                number: 1,
+                days: (1...2).map { day in
+                    ParsedSession(
+                        dayNumber: day,
+                        date: nil,
+                        exercises: [
+                            ParsedExercise(
+                                name: "Squat",
+                                baseName: "Squat",
+                                cadence: nil,
+                                coachNote: nil,
+                                sets: (0...1).map { index in
+                                    ParsedSet(
+                                        index: index,
+                                        prescribedReps: "5",
+                                        prescribedLoad: "RPE8",
+                                        percentOneRM: nil
+                                    )
+                                }
+                            )
+                        ]
+                    )
+                }
+            )
+        ]
+    )
+    container.mainContext.insert(BlockBuilder.makeBlock(from: parsed))
+    try container.mainContext.save()
+    return container
 }
 
 @MainActor
