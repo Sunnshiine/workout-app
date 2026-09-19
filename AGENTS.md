@@ -6,27 +6,26 @@ read-write client with a local cache (ADR-0001).
 
 ## Build, Test & Run
 
-Scheme is `WorkoutTracker` for all runs; default simulator is `iPhone 17 Pro`.
+Scheme is `WorkoutTracker` for all runs; default simulator is `iPhone 17 Pro` on iOS 27.0. Pin
+`OS=27.0` in any `-destination`: a machine with more than one runtime holds several devices of
+that name, and xcodebuild may pick the wrong one.
 
 ```bash
 # Fast unit + component tests (no Secrets.xcconfig needed)
 swift test
 
-# Unit + component tests via Xcode
-xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-  -only-testing:WorkoutTrackerTests
-
-# UI integration tests
-xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-  -only-testing:WorkoutTrackerUITests
+# Simulator suites: one build, then every requested suite from the xctestrun file
+scripts/test-sim.sh unit            # hosted unit + component; not a superset of swift test
+scripts/test-sim.sh visual          # snapshot gate (ADR-0007)
+scripts/test-sim.sh ui              # UI integration tests
 
 # Build & run on the simulator
 xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0'
 ```
 
+- Run simulator tests through `scripts/test-sim.sh`. A bare `xcodebuild test` fails on a fresh
+  machine ("Validate plug-in SwiftLintBuildToolPlugin"); `CLAUDE.md` has the full reason.
 - The `WorkoutTracker` scheme launches with `-UITEST_FIXTURE true` and
   `-UITEST_SESSION true` — it runs against deterministic local fixtures, **not**
   the live Google Sheet. To run against live data, use the `Copy of WorkoutTracker` scheme (`-UITEST_FIXTURE false`).
@@ -43,7 +42,7 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
 ## Linting & Formatting
 
 - **SwiftLint** runs automatically via the `SwiftLintPlugins` build tool plugin (wired through the Xcode project, not `Package.swift`). Config: `.swiftlint.yml`.
-- **swift-format** is installed via Homebrew. Config: `.swift-format`. Run manually: `swift-format -i -r WorkoutTracker/ WorkoutTrackerTests/`
+- **swift-format** is installed via Homebrew. Config: `.swift-format`. Run manually: `swift-format -i -r WorkoutTracker/ WorkoutCLI/ Tests/`
 - Do not run `swiftlint --fix` in build phases — run it manually when needed.
 
 ## Git Worktrees

@@ -9,7 +9,9 @@ read-write client with a local cache (ADR-0001).
 
 ## Build, Test & Run
 
-Scheme is `WorkoutTracker` for all runs; default simulator is `iPhone 17 Pro`.
+Scheme is `WorkoutTracker` for all runs; default simulator is `iPhone 17 Pro` on iOS 27.0. Pin
+`OS=27.0` in any `-destination`: a machine with more than one runtime holds several devices of
+that name, and xcodebuild may pick the wrong one.
 
 ```bash
 # Fast unit + component tests (no Secrets.xcconfig needed)
@@ -21,17 +23,26 @@ swift test --filter ActiveSetFocusManagerTests
 # Prove a concurrent test is not flaky: repeat it under full CPU load (docs/TESTING.md, Flaky Tests)
 scripts/flake-hunt.sh --repetitions 1000 SyncCoordinatorTests
 
+# Prove a pin catches what it claims: mutate a line, list the tests that fail it
+scripts/mutate.sh --filter LoadSuggestionEngineTests WorkoutTracker/LoadSuggestionEngine.swift '/dropPercent/s/1 - /1 + /'
+
 # Simulator suites: one build, then every requested suite from the xctestrun file
-scripts/test-sim.sh unit            # hosted unit + component (adds the UIKit-only tests)
+scripts/test-sim.sh unit            # hosted unit + component; not a superset of swift test (below)
 scripts/test-sim.sh visual          # snapshot gate (ADR-0007)
 scripts/test-sim.sh ui              # UI integration tests
 scripts/test-sim.sh --no-build WorkoutTrackerUITests/WorkoutTrackerUISmokeTests/testCurrentSessionLogsFirstSetAndAdvancesActiveSet
 
 # Build & run on the simulator
 xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0'
 ```
 
+- Neither test run is a superset of the other. `swift test` leaves out `Views/` and
+  `LiveActivity/` (the SPM target excludes them), so a green run does not prove the app compiles.
+  `scripts/test-sim.sh unit` compiles the app but skips the macOS-only CLI suites
+  (`WorkoutCLIBinaryTests`, `CLIFailureTests`). A change touching both sides needs both runs.
+- Visual Baselines are recorded on the CI runner, not locally: renders differ across machines at
+  exact precision. The recording recipe is in `docs/TESTING.md`; the rule is ADR-0007.
 - `scripts/test-sim.sh` is the documented way to run simulator tests. A bare `xcodebuild test`
   fails on a fresh machine ("Validate plug-in SwiftLintBuildToolPlugin") unless it also passes
   `-skipPackagePluginValidation -skipMacroValidation`, and after any failing run it spawns
@@ -114,6 +125,17 @@ build-only fallback. `swift test` does not require it; only Xcode app-target
 builds do.
 
 XcodeBuildMCP session defaults point at the main project path and do not apply inside a worktree. Pass `-project <worktree-path>/WorkoutTracker.xcodeproj` explicitly when calling xcodebuild from a worktree.
+
+## Landing a PR
+
+```bash
+scripts/ci-wait.sh 123        # wait for CI on the PR's head commit; exits 0 only on success
+gh pr merge 123 --squash      # GitHub deletes the remote branch itself
+scripts/ci-wait.sh            # wait for the merge's own run on main
+```
+
+Leave out `--delete-branch`: it adds nothing but a local side effect, switching whichever worktree
+holds the branch onto `main`.
 
 ## Architecture
 

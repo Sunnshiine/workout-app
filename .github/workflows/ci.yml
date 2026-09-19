@@ -31,8 +31,10 @@ on:
   push:
     branches: [main]
 
+# A pull request cancels its own superseded runs. A push to main is keyed on its commit, so a
+# merge that lands mid-run never cancels the run verifying the merge before it.
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 jobs:
