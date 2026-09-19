@@ -59,19 +59,15 @@ struct SheetLayoutDay: Sendable {
     let exerciseAnchors: [SheetLayoutExerciseAnchor]
 }
 
-/// What kind of content occupies one Notes cell — the Exercise's header cell or a Prescription
-/// Line's own cell. The three cases are mutually exclusive, so a cell can never be read as both
-/// compact Set-Log content and coach-authored prose. Decided once, Set-count-aware, from the cell
-/// value and the number of Sets that cell is prescribed to carry; the read, write, and audit paths
-/// all consume this one answer (ADR-0005, ADR-0010).
+/// What kind of content occupies one Notes cell, either an Exercise's header cell or a Prescription
+/// Line's own cell. Coach content is read-only and the app never overwrites it (ADR-0005).
 enum HeaderNotesRole: Sendable, Equatable {
-    /// The cell carries this Exercise's or Line's Set Logs: empty, one Set-Log-list value, or a
-    /// comma list no longer than the prescribed Set count whose every entry is one ("25x12@7, skip").
+    /// An empty cell counts here. A blank header is an empty Set-Log list the app writes into, not
+    /// absent content.
     case setLogList
-    /// Instruction-shaped coach prose. Read-only, never overwritten.
+    /// Instruction-shaped coach prose.
     case coachNote(String)
-    /// Result-shaped completion evidence from older exercise-level logging. Read-only, kept as the
-    /// raw entered text.
+    /// Result-shaped completion evidence from older exercise-level logging.
     case legacyLog(String)
 
     init(notesCell value: String, setCount: Int) {
@@ -86,8 +82,6 @@ enum HeaderNotesRole: Sendable, Equatable {
         }
     }
 
-    /// Whether Set Logs may be read out of and written into this cell. The complement is coach
-    /// content: Set Logs redirect to the next Visible Writable Row and the cell is never overwritten.
     var holdsSetLogs: Bool { self == .setLogList }
 
     var coachNote: String? {
@@ -142,7 +136,6 @@ struct PrescriptionLine: Sendable, Equatable {
         return (0..<setCount).contains(local) ? local : nil
     }
 
-    /// What occupies this Line's own Notes cell, classified against the Sets this Line prescribes.
     func notesRole(in grid: SheetGrid, cols: DayColumns) -> HeaderNotesRole {
         HeaderNotesRole(notesCell: grid.cellOrEmpty(row, cols.notes).trimmed, setCount: setCount)
     }
@@ -212,10 +205,6 @@ struct SheetLayoutExerciseAnchor: Sendable {
     let row: Int
     let nextAnchorRow: Int
 
-    /// What occupies this Exercise's header Notes cell, classified against its prescribed Set count.
-    /// This is the one place the question is answered; the single-line read, the multi-line read,
-    /// the placement tree, and the write and audit paths all ask here, so the header cannot be
-    /// interpreted as Set-Log content on one path and as coach content on another.
     func headerNotesRole(in grid: SheetGrid, cols: DayColumns) -> HeaderNotesRole {
         HeaderNotesRole(
             notesCell: grid.cellOrEmpty(row, cols.notes).trimmed,
@@ -259,19 +248,19 @@ struct SheetLayoutExerciseAnchor: Sendable {
     /// rows dropped. A compact header keeps Set Logs on the anchor row itself; every other rule
     /// starts on the row below it. Set N takes the Nth of these, so "which row is Set N on" and
     /// "which row does a protected header redirect to" read the same list.
-    func visibleSetLogRows(compactHeaderSetOne: Bool, in snapshot: SheetSnapshot) -> [Int] {
-        let firstRow = row + (compactHeaderSetOne ? 0 : 1)
+    func visibleSetLogRows(headerHoldsSetLogs: Bool, in snapshot: SheetSnapshot) -> [Int] {
+        let firstRow = row + (headerHoldsSetLogs ? 0 : 1)
         guard firstRow < nextAnchorRow else { return [] }
         return (firstRow..<nextAnchorRow).filter { snapshot.isRowVisible($0) }
     }
 
-    func visibleSetLogRow(for setIndex: Int, compactHeaderSetOne: Bool, in snapshot: SheetSnapshot) -> Int? {
-        let rows = visibleSetLogRows(compactHeaderSetOne: compactHeaderSetOne, in: snapshot)
+    func visibleSetLogRow(for setIndex: Int, headerHoldsSetLogs: Bool, in snapshot: SheetSnapshot) -> Int? {
+        let rows = visibleSetLogRows(headerHoldsSetLogs: headerHoldsSetLogs, in: snapshot)
         return rows.indices.contains(setIndex) ? rows[setIndex] : nil
     }
 
     func firstVisibleWritableRow(in snapshot: SheetSnapshot) -> Int? {
-        visibleSetLogRows(compactHeaderSetOne: false, in: snapshot).first
+        visibleSetLogRows(headerHoldsSetLogs: false, in: snapshot).first
     }
 
     /// Resolves where Set `setIndex`'s Set Log lives for this Exercise: the whole Visible Writable
@@ -303,18 +292,13 @@ struct SheetLayoutExerciseAnchor: Sendable {
         }
 
         guard
-            let setRow = visibleSetLogRow(for: setIndex, compactHeaderSetOne: role.holdsSetLogs, in: snapshot)
+            let setRow = visibleSetLogRow(for: setIndex, headerHoldsSetLogs: role.holdsSetLogs, in: snapshot)
         else {
             return role.holdsSetLogs ? .setRowNotFound : .protectedHeaderBlocksSetRow
         }
         return .placed(SetLogPlacement(kind: .visibleSetLogRow, row: setRow, col: col, listPosition: nil))
     }
 
-    /// What this Exercise's header Notes cell does with a prescribed Set's log. A `.setLogList`
-    /// header holds it in the cell's own comma-separated list; a Coach Note or Legacy Log protects
-    /// the cell (ADR-0005) and redirects the log to the first Visible Writable Row below, refusing
-    /// the write when there is none. nil when the Set is past the prescribed count, so the header
-    /// makes no claim on it and it falls through to its own visible row.
     private func headerNotesPlacement(
         for setIndex: Int,
         role: HeaderNotesRole,

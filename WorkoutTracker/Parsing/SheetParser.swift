@@ -242,7 +242,6 @@ private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns,
     let (cadence, base) = splitCadence(rawName)
     let role = anchor.headerNotesRole(in: grid, cols: cols)
     let setCount = anchor.prescribedSetCount(in: grid, setsColumn: cols.sets)
-    let legacyLog = role.legacyLog
     let sets = completionSets(
         parsedSets(
             ParsedSetContext(
@@ -255,7 +254,7 @@ private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns,
                 percentOneRM: grid.cellOrEmpty(anchorRow, cols.percentOneRM)
             )
         ),
-        legacyLog: legacyLog
+        legacyLog: role.legacyLog
     )
 
     return ParsedExercise(
@@ -263,7 +262,7 @@ private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns,
         baseName: base,
         cadence: cadence,
         coachNote: role.coachNote,
-        legacyLog: legacyLog,
+        legacyLog: role.legacyLog,
         sets: sets
     )
 }

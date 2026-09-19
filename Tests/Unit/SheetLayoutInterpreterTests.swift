@@ -80,15 +80,13 @@ import Testing
 
     #expect(anchor.headerNotesRole(in: grid, cols: day.columns) == .coachNote("Keep elbows soft"))
     let continuationRows = anchor.visibleSetLogRows(
-        compactHeaderSetOne: false,
+        headerHoldsSetLogs: false,
         in: SheetSnapshot(values: grid)
     )
     #expect(continuationRows.prefix(2) == [18, 19])
 }
 
 @Test func headerNotesRoleReadsSetLogContentAsSetLogsAtEverySetCount() {
-    // An empty cell, a single Set-Log-list value, and a comma list bounded by the Set count whose
-    // every entry is a Set-Log-list value all carry Set Logs. None of them is coach content.
     #expect(HeaderNotesRole(notesCell: "", setCount: 3) == .setLogList)
     #expect(HeaderNotesRole(notesCell: "skip", setCount: 1) == .setLogList)
     #expect(HeaderNotesRole(notesCell: "185x5@8", setCount: 3) == .setLogList)
@@ -97,8 +95,6 @@ import Testing
 }
 
 @Test func headerNotesRoleStopsReadingSetLogsPastThePrescribedSetCount() {
-    // A list longer than the Set count, or with an entry that is not a Set-Log-list value, is not
-    // this Exercise's Set Logs; it falls back to the coach-content classification.
     #expect(HeaderNotesRole(notesCell: "25x12@7, skip, 30x10@8", setCount: 2) == .coachNote("25x12@7, skip, 30x10@8"))
     #expect(HeaderNotesRole(notesCell: "25x12@7, hold", setCount: 3) == .coachNote("25x12@7, hold"))
 }
@@ -118,9 +114,6 @@ import Testing
 }
 
 @Test func headerNotesRoleProtectsOnlyCoachAuthoredContentFromSetLogWrites() {
-    // A Coach Note and a Legacy Log are both coach-authored: Set Logs must not be written into the
-    // cell and it is never overwritten (ADR-0005). Everything else carries Set Logs, so the two
-    // answers cannot disagree the way the former value-only and Set-count-aware predicates did.
     #expect(HeaderNotesRole(notesCell: "Keep elbows soft", setCount: 2).holdsSetLogs == false)
     #expect(HeaderNotesRole(notesCell: "70@10, 80", setCount: 2).holdsSetLogs == false)
     #expect(HeaderNotesRole(notesCell: "25x12, 12", setCount: 2).holdsSetLogs == false)
