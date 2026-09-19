@@ -1,0 +1,367 @@
+import Foundation
+import Testing
+
+@testable import WorkoutTracker
+
+/// Pins each hand-built fixture Block graph against the parse of the workbook it is declared to
+/// describe. `Fixtures/WorkoutFixtureScenarios.swift` authors a Block graph by hand while
+/// `Fixtures/WorkbookScenarios.swift` authors cells the real parser reads, the two are meant to
+/// describe the same workout, and until this file nothing checked that they did — so a drift
+/// between them reached the Visual gate (ADR-0007) and was recorded as intended appearance.
+///
+/// **Pairing rule.** Structural address, and nothing else: the Block, then Week number, then Day
+/// number, then `Exercise.order`, then `ExerciseSet.index`. A name is compared data, never a
+/// pairing key, so "Pull-Up" and "BW Pull Up" at the same address pair and then disagree instead of
+/// failing to pair. An address present on only one side is reported once and not descended into,
+/// because every address beneath an absent address is absent too.
+///
+/// **Recorded differences.** `recordedDrift` holds every disagreement that exists today, each with
+/// the side I believe is wrong. It is asserted in both directions: an unrecorded disagreement
+/// fails, and a recorded one that stops happening fails as stale, so the list can only shrink as
+/// the per-scenario migrations behind #571 land. No entry is a tolerance — each names one field at
+/// one address with both literal values.
+///
+/// **Known limitation, for whoever picks up the next slice.** Most of the recorded list says the
+/// two sides describe different workouts rather than that one has drifted from the other, and it
+/// cannot shrink from the workbook side: `fresh-block`'s shape is pinned by
+/// `Tests/Unit/WorkbookScenarioTests.swift`, `WorkoutCLI/README.md`,
+/// `scripts/viewed-session-across-sync.sh`, and the verify skill's `cli-headless.md`. The
+/// intended end state is that `.partialUpload` gets a workbook of its own, that row replaces this
+/// one, and the entries below are deleted rather than fixed one by one.
+
+// MARK: - The difference
+
+private enum Drift: Hashable, CustomStringConvertible {
+    /// An address the hand-built Block graph holds and the workbook's parse does not.
+    case onlyInHandBuilt(String)
+    /// An address the workbook's parse holds and the hand-built Block graph does not.
+    case onlyInParsed(String)
+    case field(_ address: String, _ name: String, handBuilt: String?, parsed: String?)
+
+    var description: String {
+        switch self {
+        case .onlyInHandBuilt(let address):
+            "\(address) — only in the hand-built graph"
+        case .onlyInParsed(let address):
+            "\(address) — only in the workbook's parse"
+        case .field(let address, let name, let handBuilt, let parsed):
+            "\(address).\(name) — hand-built \(quoted(handBuilt)) vs parsed \(quoted(parsed))"
+        }
+    }
+}
+
+private func quoted(_ value: String?) -> String {
+    value.map { "\"\($0)\"" } ?? "none"
+}
+
+private func text(_ date: Date?) -> String? {
+    date.map { $0.ISO8601Format() }
+}
+
+/// A Training Max reads back as the cell text a coach would have typed, so a recorded entry says
+/// `"315"` rather than `"315.0"`.
+private func text(_ number: Double?) -> String? {
+    number.map { $0 == $0.rounded() ? String(Int($0)) : String($0) }
+}
+
+// MARK: - The walk
+
+/// Collects differences as the walk descends, so one accumulation path keeps the list in address
+/// order and a reader can follow it down the Block the way the app reads it.
+@MainActor
+private final class DriftLog {
+    private(set) var drift: [Drift] = []
+
+    func note(_ difference: Drift) {
+        drift.append(difference)
+    }
+
+    func compare(_ address: String, _ name: String, _ handBuilt: String?, _ parsed: String?) {
+        guard handBuilt != parsed else { return }
+        drift.append(.field(address, name, handBuilt: handBuilt, parsed: parsed))
+    }
+}
+
+@MainActor
+private func drift(handBuilt: Block, parsed: Block) -> [Drift] {
+    let log = DriftLog()
+    log.compare("block", "tabName", handBuilt.tabName, parsed.tabName)
+    let handBuiltMaxes = handBuilt.trainingMaxes
+    let parsedMaxes = parsed.trainingMaxes
+    for lift in MainLift.allCases {
+        log.compare("block", "trainingMax.\(lift)", text(handBuiltMaxes[lift]), text(parsedMaxes[lift]))
+    }
+
+    let handBuiltSessions = sessionsByAddress(handBuilt)
+    let parsedSessions = sessionsByAddress(parsed)
+    let sessions = Set(handBuiltSessions.keys).union(parsedSessions.keys)
+    for address in sessions.sorted(by: { ($0.week, $0.day) < ($1.week, $1.day) }) {
+        guard let handBuiltSession = handBuiltSessions[address] else {
+            log.note(.onlyInParsed(address.description))
+            continue
+        }
+        guard let parsedSession = parsedSessions[address] else {
+            log.note(.onlyInHandBuilt(address.description))
+            continue
+        }
+        log.compare(address.description, "date", text(handBuiltSession.date), text(parsedSession.date))
+        noteExerciseDrift(handBuilt: handBuiltSession, parsed: parsedSession, at: address, into: log)
+    }
+    return log.drift
+}
+
+@MainActor
+private func noteExerciseDrift(handBuilt: Session, parsed: Session, at session: SessionAddress, into log: DriftLog) {
+    let handBuiltExercises = exercisesByAddress(handBuilt, in: session)
+    let parsedExercises = exercisesByAddress(parsed, in: session)
+    for address in Set(handBuiltExercises.keys).union(parsedExercises.keys).sorted(by: { $0.order < $1.order }) {
+        guard let handBuiltExercise = handBuiltExercises[address] else {
+            log.note(.onlyInParsed(address.description))
+            continue
+        }
+        guard let parsedExercise = parsedExercises[address] else {
+            log.note(.onlyInHandBuilt(address.description))
+            continue
+        }
+        let id = address.description
+        log.compare(id, "name", handBuiltExercise.name, parsedExercise.name)
+        log.compare(id, "baseName", handBuiltExercise.baseName, parsedExercise.baseName)
+        log.compare(id, "cadence", handBuiltExercise.cadence, parsedExercise.cadence)
+        log.compare(id, "coachNote", handBuiltExercise.coachNote, parsedExercise.coachNote)
+        log.compare(id, "legacyLog", handBuiltExercise.legacyLog, parsedExercise.legacyLog)
+        noteSetDrift(handBuilt: handBuiltExercise, parsed: parsedExercise, at: address, into: log)
+    }
+}
+
+@MainActor
+private func noteSetDrift(handBuilt: Exercise, parsed: Exercise, at exercise: ExerciseAddress, into log: DriftLog) {
+    let handBuiltSets = setsByAddress(handBuilt, in: exercise)
+    let parsedSets = setsByAddress(parsed, in: exercise)
+    for address in Set(handBuiltSets.keys).union(parsedSets.keys).sorted(by: { $0.index < $1.index }) {
+        guard let handBuiltSet = handBuiltSets[address] else {
+            log.note(.onlyInParsed(address.description))
+            continue
+        }
+        guard let parsedSet = parsedSets[address] else {
+            log.note(.onlyInHandBuilt(address.description))
+            continue
+        }
+        let id = address.description
+        log.compare(id, "state", handBuiltSet.state.rawValue, parsedSet.state.rawValue)
+        log.compare(id, "prescribedReps", handBuiltSet.prescribedReps, parsedSet.prescribedReps)
+        log.compare(id, "prescribedLoad", handBuiltSet.prescribedLoad, parsedSet.prescribedLoad)
+        log.compare(id, "percentOneRM", handBuiltSet.percentOneRM, parsedSet.percentOneRM)
+        log.compare(id, "setLog", handBuiltSet.setLog?.formatted, parsedSet.setLog?.formatted)
+        log.compare(id, "unstructuredSetLog", handBuiltSet.unstructuredSetLog, parsedSet.unstructuredSetLog)
+        log.compare(id, "loggedAt", text(handBuiltSet.loggedAt), text(parsedSet.loggedAt))
+    }
+}
+
+@MainActor
+private func sessionsByAddress(_ block: Block) -> [SessionAddress: Session] {
+    var sessions: [SessionAddress: Session] = [:]
+    for week in block.weeks {
+        for session in week.sessions {
+            sessions[SessionAddress(week: week.number, day: session.dayNumber)] = session
+        }
+    }
+    return sessions
+}
+
+@MainActor
+private func exercisesByAddress(_ session: Session, in address: SessionAddress) -> [ExerciseAddress: Exercise] {
+    Dictionary(
+        uniqueKeysWithValues: session.exercises.map { (ExerciseAddress(session: address, order: $0.order), $0) }
+    )
+}
+
+@MainActor
+private func setsByAddress(_ exercise: Exercise, in address: ExerciseAddress) -> [SetAddress: ExerciseSet] {
+    Dictionary(uniqueKeysWithValues: exercise.sets.map { (SetAddress(exercise: address, index: $0.index), $0) })
+}
+
+/// The workbook reaches a Block by the path `SyncCoordinator` takes (`SyncCoordinator.swift:138`),
+/// so this compares against what a real sync would persist rather than a second interpretation.
+@MainActor
+private func parsedBlock(_ scenario: WorkbookScenario) throws -> Block {
+    let workbook = scenario.workbook()
+    let tab = try #require(workbook.tabs.keys.sorted().first)
+    let snapshot = try #require(workbook.tabs[tab]?.snapshot)
+    let parsed = SheetParser().parse(snapshot: snapshot, tabName: tab)
+    #expect(parsed.warnings == [], "\(scenario.rawValue) must parse cleanly before it can be compared")
+    return BlockBuilder.makeBlock(from: parsed.block)
+}
+
+// MARK: - The declared pairs
+
+/// A `WorkbookScenario` and the hand-built Block graph that fills the same fixture role.
+///
+/// The role, not a resemblance, is what makes a row defensible, and it is readable from the
+/// source: `fresh-block` is the CLI's default scenario (`WorkoutCLI/Commands/InitCommand.swift`)
+/// and `.partialUpload` is the app's, as `UITestLaunch.scenario`'s fallback. Both are documented
+/// as a Partially Uploaded Block. That is the strictest claim the source supports; it is
+/// deliberately weaker than "these two describe the same workout", which nothing in the repo says
+/// and which `recordedDrift` below shows to be false from Week 2 onward.
+private struct PairedScenario: Sendable, CustomStringConvertible {
+    let workbook: WorkbookScenario
+    let handBuilt: UITestLaunch.Scenario
+
+    var description: String { workbook.rawValue }
+}
+
+private let pairedScenarios: [PairedScenario] = [
+    PairedScenario(workbook: .freshBlock, handBuilt: .partialUpload)
+]
+
+/// Launch scenarios with no workbook to compare against, so nothing pins their Block graph yet.
+/// Each gets a workbook and moves into `pairedScenarios` as its slice of #571 lands.
+private let scenariosAwaitingAWorkbook: Set<UITestLaunch.Scenario> = [
+    .perfectMoveOnCelebration,
+    .completedOpenExercises,
+    .openExercises,
+    .longSession,
+    .fullBlock
+]
+
+/// Every difference between the two sides today, in address order, each with the side I believe is
+/// wrong. Three of the nine hand-built Block factories — `currentSessionWithPendingSetsBlock`,
+/// `partiallyLoggedSessionBlock`, `blockOverviewWithMixedSessionStatesBlock` — reach no launch
+/// scenario and are used only by `Tests/Support/WorkoutScenarios.swift`, so they are out of this
+/// list until #571 item 5 points that file at the same source.
+private let recordedDrift: [WorkbookScenario: [Drift]] = [
+    .freshBlock: [
+        // The hand-built graph is wrong: a Training Max is read from the Sheet's header area, and
+        // `WorkoutFixtureFactory.block` hands over a literal triple instead. Which triple is
+        // intended is a fixture choice for the migration; authoring it in Swift at all is the bug.
+        .field("block", "trainingMax.squat", handBuilt: "315", parsed: "365"),
+        .field("block", "trainingMax.bench", handBuilt: "225", parsed: "245"),
+        .field("block", "trainingMax.deadlift", handBuilt: "405", parsed: "455"),
+
+        // The hand-built graph is wrong: `WorkoutFixtureFactory.session` re-derives
+        // `SessionProgressTracker`'s 7-day stride against the reference date, so a Session date is
+        // an arithmetic artefact rather than the coach's date cell. Sharper than it looks — these
+        // are UTC midnights, while `SheetParser.parseDate` reads `M/d/yyyy` in the current time
+        // zone, so on any machine that is not on UTC no date cell can produce these instants at
+        // all. The five entries below were captured in EDT.
+        .field("w1d1", "date", handBuilt: "2001-01-02T00:00:00Z", parsed: "2026-05-04T04:00:00Z"),
+
+        // The workbook is the thin side: `WorkbookScenario.prescription` writes a Notes cell only
+        // when a scenario passes one, so three of the four Coach Notes the UI fixture shows have no
+        // cell to come from. A Coach Note is coach-authored content and belongs in column J.
+        .field("w1d1.e0", "coachNote", handBuilt: "Brace hard off the floor, controlled descent.", parsed: nil),
+
+        // The workbook is the thin side, for two different reasons that land on the same Sets.
+        // Load: one Prescription Line carries one Load cell for every Set it prescribes, so a
+        // workbook varies Load per Set only by authoring several Lines; `fresh-block` authors one
+        // Line of three Sets where the graph wants RPE6/RPE7/RPE8. The graph is expressible, the
+        // workbook just does not express it.
+        // %1RM: `WorkbookScenario.prescription` writes the name, Sets, Reps, Load and Notes cells
+        // and never the %1RM cell, even though `roleHeaderOffsets` declares the column. No workbook
+        // in the repo fills it, so the %1RM arm of `LoadSuggestionEngine` is unreachable from any
+        // workbook fixture.
+        .field("w1d1.e0.s0", "prescribedLoad", handBuilt: "RPE6", parsed: "RPE7"),
+        .field("w1d1.e0.s0", "percentOneRM", handBuilt: "75%", parsed: nil),
+        .field("w1d1.e0.s1", "percentOneRM", handBuilt: "80%", parsed: nil),
+        .field("w1d1.e0.s2", "prescribedLoad", handBuilt: "RPE8", parsed: "RPE7"),
+        .field("w1d1.e0.s2", "percentOneRM", handBuilt: "85%", parsed: nil),
+
+        // I do not know which side is right. One Coach Note, truncated on the workbook side — and
+        // the clearest evidence that these two fixtures were once copied from each other, because
+        // the workbook's text is a prefix of the graph's to the character.
+        .field(
+            "w1d1.e1",
+            "coachNote",
+            handBuilt: "Start w/ 10 sec hold, proceed to rep range.",
+            parsed: "Start w/ 10 sec hold"
+        ),
+
+        // The workbook is the thin side: no workbook in the repo writes a "Drop X%" Load, so the
+        // Drop arm of `LoadSuggestionEngine` is unreachable from a workbook fixture the same way
+        // the %1RM arm is. Whether this Exercise should be prescribed Drop 17.5% or RPE8 is a
+        // fixture choice I cannot settle.
+        .field("w1d1.e1.s0", "prescribedLoad", handBuilt: "Drop 17.5%", parsed: "RPE8"),
+        .field("w1d1.e1.s1", "prescribedLoad", handBuilt: "Drop 17.5%", parsed: "RPE8"),
+
+        .field("w1d2", "date", handBuilt: "2001-01-03T00:00:00Z", parsed: "2026-05-06T04:00:00Z"),
+        .field("w1d2.e0", "coachNote", handBuilt: "Pause every rep.", parsed: nil),
+        .field("w1d2.e0.s0", "prescribedLoad", handBuilt: "RPE6", parsed: "RPE7"),
+        .field("w1d2.e0.s0", "percentOneRM", handBuilt: "70%", parsed: nil),
+        .field("w1d2.e0.s1", "percentOneRM", handBuilt: "75%", parsed: nil),
+
+        // The two fixtures disagree about the workout: the workbook prescribes three Sets of Bench
+        // Press and the graph two. I do not know which is intended.
+        .onlyInParsed("w1d2.e0.s2"),
+
+        // I do not know which side is right: two spellings of one Movement (ADR-0013). Worth
+        // noting either way that `Factory.exercise` takes `baseName` as its own argument while the
+        // parser derives it by stripping Cadence, so the graph can assert a base name its own name
+        // could not produce. Here it does not, and the drift is only the spelling.
+        .field("w1d2.e1", "name", handBuilt: "Pull-Up", parsed: "BW Pull Up"),
+        .field("w1d2.e1", "baseName", handBuilt: "Pull-Up", parsed: "BW Pull Up"),
+        .field("w1d2.e1", "coachNote", handBuilt: "Use full range.", parsed: nil),
+
+        // From here down the two fixtures are simply different workouts, and I do not know which
+        // one the app is meant to boot into. The graph is a 4-Week by 4-Day grid whose Week 1 holds
+        // two Available Sessions; the workbook is Week 1 with two Days and Week 2 with three. They
+        // agree on exactly one thing past Week 1 — that w2d3 is an Unavailable Session — and that
+        // agreement is why w2d3 appears below only for its date.
+        .onlyInHandBuilt("w1d3"),
+        .onlyInHandBuilt("w1d4"),
+
+        .field("w2d1", "date", handBuilt: "2001-01-09T00:00:00Z", parsed: "2026-05-11T04:00:00Z"),
+        .field("w2d1.e0", "name", handBuilt: "Deadlift", parsed: "Back Squat"),
+        .field("w2d1.e0", "baseName", handBuilt: "Deadlift", parsed: "Back Squat"),
+        .field("w2d1.e0", "coachNote", handBuilt: "Pull fast from the floor.", parsed: nil),
+        .field("w2d1.e0.s0", "prescribedReps", handBuilt: "3", parsed: "5"),
+        .field("w2d1.e0.s0", "prescribedLoad", handBuilt: "RPE6", parsed: "RPE7"),
+        .field("w2d1.e0.s0", "percentOneRM", handBuilt: "75%", parsed: nil),
+        .field("w2d1.e0.s1", "prescribedReps", handBuilt: "3", parsed: "5"),
+        .field("w2d1.e0.s1", "percentOneRM", handBuilt: "80%", parsed: nil),
+        .onlyInParsed("w2d1.e0.s2"),
+        .onlyInParsed("w2d1.e1"),
+
+        .field("w2d2", "date", handBuilt: "2001-01-10T00:00:00Z", parsed: "2026-05-13T04:00:00Z"),
+        .onlyInParsed("w2d2.e0"),
+        .onlyInParsed("w2d2.e1"),
+
+        .field("w2d3", "date", handBuilt: "2001-01-11T00:00:00Z", parsed: "2026-05-15T04:00:00Z"),
+
+        .onlyInHandBuilt("w2d4"),
+        .onlyInHandBuilt("w3d1"),
+        .onlyInHandBuilt("w3d2"),
+        .onlyInHandBuilt("w3d3"),
+        .onlyInHandBuilt("w3d4"),
+        .onlyInHandBuilt("w4d1"),
+        .onlyInHandBuilt("w4d2"),
+        .onlyInHandBuilt("w4d3"),
+        .onlyInHandBuilt("w4d4")
+    ]
+]
+
+// MARK: - The gate
+
+@MainActor
+@Test(arguments: pairedScenarios)
+private func aPairedScenarioDriftsOnlyWhereRecorded(pair: PairedScenario) throws {
+    let actual = drift(handBuilt: UITestFixture.block(for: pair.handBuilt), parsed: try parsedBlock(pair.workbook))
+    let expected = try #require(recordedDrift[pair.workbook])
+
+    let unrecorded = actual.filter { !expected.contains($0) }
+    let stale = expected.filter { !actual.contains($0) }
+
+    #expect(unrecorded.isEmpty, "\(pair) drifts in ways nothing records:\n\(list(unrecorded))")
+    #expect(stale.isEmpty, "\(pair) no longer drifts here, so delete these entries:\n\(list(stale))")
+    #expect(Set(actual).count == actual.count, "the walk reported one difference twice")
+}
+
+@Test func everyScenarioIsEitherPairedOrRecordedAsAwaitingAWorkbook() {
+    let paired = Set(pairedScenarios.map(\.handBuilt))
+    #expect(Set(pairedScenarios.map(\.workbook)) == Set(WorkbookScenario.allCases))
+    #expect(Set(recordedDrift.keys) == Set(WorkbookScenario.allCases))
+    #expect(paired.isDisjoint(with: scenariosAwaitingAWorkbook))
+    #expect(paired.union(scenariosAwaitingAWorkbook) == Set(UITestLaunch.Scenario.allCases))
+}
+
+private func list(_ drift: [Drift]) -> String {
+    drift.map { "  \($0)" }.joined(separator: "\n")
+}
