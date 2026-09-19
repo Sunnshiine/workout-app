@@ -96,6 +96,23 @@ private func address(_ raw: String) throws -> SetAddress {
 }
 
 @MainActor
+@Test func skippingASetEnqueuesTheSetLogWriteAndSettlesTheSet() async throws {
+    let app = try await makeSelectedApp()
+
+    let report = try app.skip(address("w1d1.e0.s0"))
+    #expect(report.set.state == "skipped")
+    #expect(report.set.setLog == nil)
+    #expect(report.pendingWriteCount == 1)
+
+    let writes = try app.sync.fetchPendingWriteRecords()
+    #expect(writes.map(\.column) == [.notes])
+    #expect(writes.map(\.valueToWrite) == ["skip"])
+
+    _ = try await app.flush()
+    #expect(try await app.sheet(tab: nil).cells["K15"] == "skip")
+}
+
+@MainActor
 @Test func aCoachNoteRedirectsTheSetLogToTheVisibleWritableRow() async throws {
     let app = try await makeSelectedApp()
 
