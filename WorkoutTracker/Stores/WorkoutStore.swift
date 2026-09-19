@@ -16,12 +16,11 @@ struct BlockOverviewNavigationRequest: Equatable, Identifiable {
 @Observable
 final class WorkoutStore {
     private(set) var block: Block?
+    /// Written only by `view(_:)`, which keeps `browsedTo` in step with it.
     private(set) var displayedSession: Session?
     private(set) var moveOnCelebrationSession: Session?
     private(set) var moveOnCelebrationRequestedAt: Date?
     private(set) var pendingBlockOverviewRequest: BlockOverviewNavigationRequest?
-    /// The Week and Day the athlete browsed to, or `nil` while they are following the live edge.
-    ///
     /// Answered in `view(_:)` rather than derived in `reload()`, because a sync can land a log
     /// that moves the Current Session under an athlete who never navigated anywhere: they were
     /// at the live edge when they chose, so the reload has to carry them forward with it.
@@ -109,9 +108,6 @@ final class WorkoutStore {
         return currentSessionOverride(in: block) != nil
     }
 
-    /// Re-reads the Block, then puts the athlete back where they belong: on the Session they
-    /// browsed to if they chose one and it survived the re-parse, otherwise on the Current
-    /// Session, which by then may have moved.
     func reload() {
         block = try? context.fetch(FetchDescriptor<Block>()).first
 
@@ -188,9 +184,6 @@ final class WorkoutStore {
 
     // MARK: - Private Helpers
 
-    /// The only writer of `displayedSession`. Every way the athlete can change what they are
-    /// looking at goes through it, so `browsedTo` is answered once here instead of being
-    /// restated at each navigation entry point.
     private func view(_ session: Session?) {
         displayedSession = session
         guard !isViewingLiveEdge, let session, let week = session.week else {

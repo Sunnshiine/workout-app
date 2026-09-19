@@ -94,9 +94,7 @@ extension WorkoutApplication {
         )
     }
 
-    /// Opens a Session the way the athlete does from the Block grid; `nil` returns them to the
-    /// Current Session. The Viewed Session is transient view state, so it lives exactly as long
-    /// as this process: `sync` is the only command that can observe what a reload does to it.
+    /// `WorkoutStore.show(week:day:)`, or `showCurrent()` when the address is `nil`.
     @discardableResult
     public func view(_ address: SessionAddress?) throws -> AppSnapshot {
         if let address {

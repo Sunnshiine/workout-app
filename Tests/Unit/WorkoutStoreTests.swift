@@ -164,8 +164,7 @@ private func makeStore(
     store.show(week: 2, day: 3)
     #expect(store.displayedSession?.week?.number == 2)
 
-    // What SyncCoordinator.replacePersistedBlock does on every sync: the old Block is deleted,
-    // cascading through its Weeks and Sessions, and the re-parsed one takes its place.
+    // SyncCoordinator.replacePersistedBlock, inlined.
     for existing in try context.fetch(FetchDescriptor<Block>()) { context.delete(existing) }
     context.insert(makeStoreBlock(weekCount: 2))
     try context.save()

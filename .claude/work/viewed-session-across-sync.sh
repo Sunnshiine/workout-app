@@ -1,10 +1,8 @@
 #!/bin/bash
 # Proves, through the real WorkoutStore, what a sync does to the Viewed Session.
 #
-# Two athletes, two homes, one doctored workbook. In both, the local cache still has the
-# Current Session at w1d1 while the Sheet has gained a Set Log in a later Session, so the
-# sync moves the Current Session. The athlete at the live edge must be carried forward with
-# it; the athlete who browsed away must be left where they are.
+# In both homes the local cache still has the Current Session at w1d1 while the Sheet has
+# gained a Set Log in a later Session, so the sync moves the Current Session underneath.
 #
 # Usage: .claude/work/viewed-session-across-sync.sh   (from the worktree root)
 
