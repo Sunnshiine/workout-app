@@ -34,7 +34,8 @@ tokens, spreadsheet IDs, or private athlete data.
 
 The app reads and writes workouts from a Google Sheet selected by the signed-in
 user. Public builds must provide their own Google Cloud OAuth client configured
-for iOS and the bundle ID in `project.yml`.
+for iOS and the app target's bundle ID (`PRODUCT_BUNDLE_IDENTIFIER` in
+`WorkoutTracker.xcodeproj`).
 
 The default `WorkoutTracker` scheme is fixture-backed for deterministic testing.
 Use the `Copy of WorkoutTracker` scheme only when you intentionally want to run

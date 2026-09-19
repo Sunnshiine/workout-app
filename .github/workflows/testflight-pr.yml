@@ -107,8 +107,6 @@ jobs:
 
       # Dev flavor runs live-Sheet against its own Google OAuth iOS client
       # (per-bundle-id), so the DEV_ pair lands in the same xcconfig vars.
-      # Must exist before xcodegen runs — project.yml's configFiles reference
-      # it and spec validation fails otherwise.
       - name: Write Secrets.xcconfig from Actions secrets (dev OAuth client)
         env:
           DEV_GID_CLIENT_ID: ${{ secrets.DEV_GID_CLIENT_ID }}
@@ -116,11 +114,6 @@ jobs:
         run: |
           printf 'GID_CLIENT_ID = %s\nGID_REVERSED_CLIENT_ID = %s\n' \
             "$DEV_GID_CLIENT_ID" "$DEV_GID_REVERSED_CLIENT_ID" > Secrets.xcconfig
-
-      - name: Generate Xcode project
-        run: |
-          which xcodegen >/dev/null 2>&1 || brew install xcodegen
-          xcodegen generate
 
       # Dev marketing version spends the field on PR identity: 0.<PR>.
       # Widget must carry the identical version pair as the app.
@@ -176,11 +169,6 @@ jobs:
           security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
           rm "$RUNNER_TEMP/dist.p12" "$RUNNER_TEMP/dev.p12"
 
-      # BUNDLE_ID_SUFFIX/APP_DISPLAY_NAME/APPICON_NAME flip app + widget to the
-      # .dev flavor in lockstep (composed in project.yml): dev builds get the
-      # amber AppIconDev set so WT Dev is distinguishable from TFN Tracker at a
-      # glance. Automatic signing handles the .dev profiles the same way the
-      # stable workflow handles the stable ones, using the imported cert.
       - name: Archive (dev flavor)
         run: |
           xcodebuild archive \
