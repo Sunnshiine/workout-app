@@ -24,7 +24,7 @@
         }
 
         static func makeSheetsClient() -> any SheetsClient {
-            FixtureSheetsClient()
+            FixtureSheetsClient(holdsReads: launch.holdsSheetReads)
         }
 
         @MainActor
@@ -62,8 +62,13 @@
     }
 
     private struct FixtureSheetsClient: SheetsClient {
+        let holdsReads: Bool
+
         func listTabTitles(spreadsheetId: String) async throws -> [String] {
-            ["Block 27"]
+            if holdsReads {
+                try await Task.sleep(for: .seconds(20))
+            }
+            return ["Block 27"]
         }
 
         func listSpreadsheets(pageToken: String?) async throws -> SpreadsheetListPage {
