@@ -20,7 +20,11 @@ final class WorkoutStore {
     private(set) var moveOnCelebrationSession: Session?
     private(set) var moveOnCelebrationRequestedAt: Date?
     private(set) var pendingBlockOverviewRequest: BlockOverviewNavigationRequest?
-    private var shouldPreserveDisplayedSessionOnReload = false
+    /// Whether the athlete had browsed away from the live edge the last time they chose what to
+    /// view. Answered in `view(_:)` rather than derived in `reload()`, because a sync can land a
+    /// log that moves the Current Session under an athlete who never navigated anywhere: they
+    /// were at the live edge when they chose, so the reload has to carry them forward with it.
+    private var browsedAwayWhenViewed = false
     private var currentSessionOverrideRevision = 0
 
     private let context: ModelContext
@@ -100,51 +104,46 @@ final class WorkoutStore {
         return currentSessionOverride(in: block) != nil
     }
 
+    /// Re-reads the Block, then puts the athlete back where they belong: on the Session they
+    /// browsed to if they chose one and it survived the re-parse, otherwise on the Current
+    /// Session, which by then may have moved.
     func reload() {
-        let displayedWeek = displayedSession?.week?.number
-        let displayedDay = displayedSession?.dayNumber
+        let browsedWeek = displayedSession?.week?.number
+        let browsedDay = displayedSession?.dayNumber
         block = try? context.fetch(FetchDescriptor<Block>()).first
 
-        let preservedSession: Session?
-        if shouldPreserveDisplayedSessionOnReload, let displayedWeek, let displayedDay {
-            preservedSession = block?.weeks.first(where: { $0.number == displayedWeek })?
-                .sessions.first(where: { $0.dayNumber == displayedDay })
-        } else {
-            preservedSession = nil
-        }
-
-        if let displayedSession = preservedSession {
-            self.displayedSession = displayedSession
-            shouldPreserveDisplayedSessionOnReload = !isViewingLiveEdge
+        guard
+            browsedAwayWhenViewed,
+            let browsedWeek,
+            let browsedDay,
+            let browsedSession = session(inWeek: browsedWeek, day: browsedDay)
+        else {
+            view(currentSession)
             return
         }
 
-        displayedSession = currentSession
-        shouldPreserveDisplayedSessionOnReload = false
+        view(browsedSession)
     }
 
     func show(week: Int, day: Int) {
-        displayedSession = block?.weeks.first { $0.number == week }?.sessions.first { $0.dayNumber == day }
-        shouldPreserveDisplayedSessionOnReload = !isViewingLiveEdge
+        view(session(inWeek: week, day: day))
     }
 
     func showCurrent() {
-        displayedSession = currentSession
-        shouldPreserveDisplayedSessionOnReload = false
+        view(currentSession)
     }
 
     func makeDisplayedSessionCurrent() {
         guard let block, let displayedSession else { return }
         persistCurrentSessionOverride(tracker.persistedIdentity(of: displayedSession), in: block)
-        shouldPreserveDisplayedSessionOnReload = false
+        view(displayedSession)
     }
 
     func resetCurrentSessionOverride() {
         guard let block else { return }
         defaults.removeObject(forKey: tracker.currentSessionOverrideStorageKey(forBlockTab: block.tabName))
         currentSessionOverrideRevision += 1
-        displayedSession = tracker.currentSession(in: block)
-        shouldPreserveDisplayedSessionOnReload = false
+        view(currentSession)
     }
 
     func requestBlockOverviewPresentation() { pendingBlockOverviewRequest = BlockOverviewNavigationRequest() }
@@ -160,8 +159,7 @@ final class WorkoutStore {
 
         moveOnCelebrationSession = currentSession
         moveOnCelebrationRequestedAt = now()
-        displayedSession = currentSession
-        shouldPreserveDisplayedSessionOnReload = false
+        view(currentSession)
     }
 
     func dismissMoveOnCelebration() {
@@ -186,12 +184,23 @@ final class WorkoutStore {
             requestBlockOverviewPresentation()
         case .advance(to: let nextSession):
             persistCurrentSessionOverride(tracker.persistedIdentity(of: nextSession), in: block)
-            displayedSession = nextSession
-            shouldPreserveDisplayedSessionOnReload = false
+            view(nextSession)
         }
     }
 
     // MARK: - Private Helpers
+
+    /// The only writer of `displayedSession`. Every way the athlete can change what they are
+    /// looking at goes through it, so `browsedAwayWhenViewed` is answered once here instead of
+    /// being restated at each navigation entry point.
+    private func view(_ session: Session?) {
+        displayedSession = session
+        browsedAwayWhenViewed = !isViewingLiveEdge
+    }
+
+    private func session(inWeek week: Int, day: Int) -> Session? {
+        block?.weeks.first { $0.number == week }?.sessions.first { $0.dayNumber == day }
+    }
 
     private func notesValue(for set: ExerciseSet) -> String {
         SetLogToken.serialize(

@@ -10,14 +10,14 @@ private struct WorkoutStoreFixture {
 }
 
 @MainActor
-private func makeStoreBlock(tabName: String = "Block 27", weekCount: Int = 1) -> Block {
+private func makeStoreBlock(tabName: String = "Block 27", weekCount: Int = 1, dayCount: Int = 4) -> Block {
     BlockBuilder.makeBlock(
         from: ParsedBlockModel(
             tabName: tabName,
             weeks: (1...weekCount).map { week in
                 ParsedWeek(
                     number: week,
-                    days: (1...4).map { day in
+                    days: (1...dayCount).map { day in
                         ParsedSession(
                             dayNumber: day,
                             date: nil,
@@ -136,6 +136,41 @@ private func makeStore(
 
     #expect(store.displayedSession?.week?.number == 1)
     #expect(store.displayedSession?.dayNumber == 3)
+}
+
+@MainActor
+@Test func reloadKeepsTheBrowsedSessionWhenTheCurrentSessionMovesUnderIt() throws {
+    let fixture = try makeStore()
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+    let day2Set = try #require(store.block?.weeks.first?.sessions.first { $0.dayNumber == 2 }?.exercises[0].sets[0])
+
+    store.show(week: 1, day: 4)
+    day2Set.state = .logged
+    store.reload()
+
+    #expect(store.currentSession?.dayNumber == 2)
+    #expect(store.displayedSession?.dayNumber == 4)
+    #expect(!store.isViewingLiveEdge)
+}
+
+@MainActor
+@Test func reloadReturnsToTheCurrentSessionWhenTheBrowsedSessionLeavesTheBlock() throws {
+    let fixture = try makeStore()
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+    let context = fixture.container.mainContext
+
+    store.show(week: 1, day: 4)
+    #expect(store.displayedSession?.dayNumber == 4)
+
+    for existing in try context.fetch(FetchDescriptor<Block>()) { context.delete(existing) }
+    context.insert(makeStoreBlock(dayCount: 3))
+    try context.save()
+    store.reload()
+
+    #expect(store.displayedSession?.dayNumber == 1)
+    #expect(store.isViewingLiveEdge)
 }
 
 @MainActor
