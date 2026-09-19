@@ -3,9 +3,6 @@ import Testing
 
 @testable import WorkoutTracker
 
-/// `SyncCoordinator.State` is no longer what the coordinator stores. It is the flattened reading
-/// the `workout` CLI prints, and its JSON is a contract #590 migrates, so every sentence it
-/// composes has to survive #589's reshape verbatim.
 @MainActor
 @Suite("SyncCoordinator.State projection")
 struct SyncStateProjectionTests {
@@ -36,10 +33,9 @@ struct SyncStateProjectionTests {
         }
     }
 
-    /// Four outcomes flatten into one `.conflict`, which is what #589 removed from the app and
-    /// what #590 removes from here. A reader of this file should not mistake it for the athlete's
-    /// view.
-    @Test func theFourOutcomesThatWantTheAthleteAreStillIndistinguishableOverTheWire() {
+    /// Over the wire the five still read alike. That is the collapse #590 removes; a reader of
+    /// this file should not mistake it for the athlete's view.
+    @Test func theFiveOutcomesThatWantTheAthleteAreStillIndistinguishableOverTheWire() {
         let conflicts: [SyncOutcome] = [
             .localWriteFailed("x"), .writesRefused(["x"]), .noBlockTab, .parseWarnings(["x"]), .historyFillFailed("x")
         ]
@@ -65,8 +61,6 @@ struct SyncStateProjectionTests {
         #expect(String(decoding: try encoder.encode(clear), as: UTF8.self) == #"{"status":"idle"}"#)
     }
 
-    /// The precedence table, exercised over the pairs a sync can actually produce. The pin file
-    /// reaches these through a live coordinator; this reads them as the rule.
     @Test func theSyncVerdictFollowsTheReadExceptWhereARefusedWriteSurvivesIt() {
         let refused = SyncOutcome.writesRefused(["Squat: Expected '', found 'coach edited'"])
         let warnings = SyncOutcome.parseWarnings(["Parse warning: no week sections"])
@@ -76,8 +70,6 @@ struct SyncStateProjectionTests {
         #expect(SyncOutcome.sync(sheetRead: .noBlockTab, flush: refused) == .noBlockTab)
         #expect(SyncOutcome.sync(sheetRead: .sheetUnreachable, flush: refused) == .sheetUnreachable)
 
-        // A queued write is the opposite of a refused one: the next flush measures the queue again
-        // and reports it again, so the read that just succeeded speaks for it.
         #expect(SyncOutcome.sync(sheetRead: .clear, flush: .writesQueued(1)) == .clear)
         #expect(SyncOutcome.sync(sheetRead: warnings, flush: .writesQueued(1)) == warnings)
         #expect(SyncOutcome.sync(sheetRead: .clear, flush: .clear) == .clear)

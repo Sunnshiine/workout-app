@@ -1,8 +1,7 @@
 import Foundation
 
-/// The sync banner's words. `text` says which outcome this is in the athlete's language, so the
-/// five things that used to read alike no longer do; `detail` carries the message the step itself
-/// produced, which is the part that names the Exercise or the Block tab.
+/// The sync banner's words. `text` is the app's own sentence for the outcome; `detail` is the
+/// message the step produced, which is the part that names the Exercise or the Block tab.
 struct SyncStatusBannerPresentation: Equatable, Sendable {
     let text: String
     let detail: String?
@@ -14,8 +13,6 @@ struct SyncStatusBannerPresentation: Equatable, Sendable {
         self.accessibilityLabel = detail.map { "Sync status: \(text). \($0)" } ?? "Sync status: \(text)"
     }
 
-    /// Nothing to show when a finished sync has nothing to say. A step that is running says so and
-    /// nothing else, because the outcome it is about to replace is not worth a sentence.
     init?(outcome: SyncOutcome, isSyncing: Bool) {
         guard !isSyncing else {
             self.init(text: "Syncing")

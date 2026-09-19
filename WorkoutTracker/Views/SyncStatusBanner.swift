@@ -14,27 +14,23 @@ struct SyncStatusBanner: View {
     }
 
     private func banner(_ presentation: SyncStatusBannerPresentation) -> some View {
-        // The banner drops its SF-symbol icon (ledger §10.3): the stage's icon budget is spent on the
-        // branch. Sync / pending-write honesty is unchanged — it now speaks in words alone.
+        // No icon: the stage's icon budget is spent on the branch (ledger §10.3). One line, because
+        // the capsule tucks under the status bar and a second runs behind the Dynamic Island (#599),
+        // which is why `presentation.detail` reaches the athlete through the label below and the
+        // Settings `Sync now` row rather than the screen.
         HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(presentation.text)
-                    .font(Theme.font(.lastPerformed))
-                    .lineLimit(2)
-                if let detail = presentation.detail {
-                    Text(detail)
-                        .font(Theme.font(.runlineSecondary))
-                        .foregroundStyle(palette.textSecondary)
-                        .lineLimit(2)
-                }
-            }
+            Text(presentation.text)
+                .lineLimit(2)
             Spacer(minLength: 0)
         }
+        .font(Theme.font(.lastPerformed))
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(palette.bannerFill, in: Capsule())
         .overlay(Capsule().strokeBorder(palette.bannerStroke, lineWidth: 0.5))
         .padding(.horizontal)
+        // The explicit label replaces the combined children, so it is the whole of what VoiceOver
+        // reads here.
         .accessibilityElement(children: .combine)
         .accessibilityLabel(presentation.accessibilityLabel)
     }

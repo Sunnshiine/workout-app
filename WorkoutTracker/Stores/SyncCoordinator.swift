@@ -7,7 +7,7 @@ private let syncLogger = Logger(subsystem: "WorkoutTracker", category: "Sync")
 @MainActor
 @Observable
 final class SyncCoordinator {
-    /// What the last finished step concluded. The banner and the Settings `Sync now` row read it.
+    /// What the last finished step concluded.
     private(set) var outcome: SyncOutcome = .clear
 
     private let client: any SheetsClient
@@ -79,9 +79,6 @@ final class SyncCoordinator {
         outcome = await flushQueue(spreadsheetId: spreadsheetId)
     }
 
-    /// Uploads whatever is queued and says what came of it. Only `.clear`, `.writesRefused` and
-    /// `.writesQueued` can come back: a flush never reads the Block tabs, so it has nothing to say
-    /// about the Sheet's layout.
     private func flushQueue(spreadsheetId: String) async -> SyncOutcome {
         let generation = beginPendingWriteFlush()
         defer { endPendingWriteFlush() }
@@ -170,8 +167,8 @@ final class SyncCoordinator {
         }
     }
 
-    /// Only an index refusal is the athlete's business today; #514 decides where background-index
-    /// errors go.
+    /// Only an index refusal is the athlete's business: it leaves Exercise History short and the
+    /// next sync comes straight back to the same tab.
     private func launchHistoryFill(_ request: ExerciseHistoryFill.Request) {
         guard let historyFill else { return }
         inFlightHistoryFill = Task { [weak self] in
@@ -204,22 +201,19 @@ extension SyncCoordinator {
 }
 
 extension SyncCoordinator: SheetSwitchSyncing {
-    /// Counted rather than read off `state`, which #589 made derive from this (#585).
     var isSyncing: Bool { activeSyncCount > 0 || activePendingWriteFlushCount > 0 }
 }
 
 extension SyncCoordinator {
     /// The flattened reading the `workout` CLI still prints, where every outcome that wants the
-    /// athlete collapses into one `.conflict` carrying its message. That collapse is the defect
-    /// #589 removed from the app; it survives here because `SyncStateSnapshot`'s JSON is a
-    /// contract, and #590 migrates it and retires this.
+    /// athlete collapses into one `.conflict`. `SyncStateSnapshot`'s JSON is a contract; #590
+    /// migrates it and retires this.
     enum State: Equatable {
         case idle, syncing, offline
         case pendingWrites(Int)
         case conflict([String])
 
-        /// Every sentence the CLI prints is composed here and nowhere else, so the app's own
-        /// wording can change without moving the wire format.
+        /// Every sentence the CLI prints is composed here and nowhere else.
         init(_ outcome: SyncOutcome) {
             self =
                 switch outcome {
@@ -235,10 +229,8 @@ extension SyncCoordinator {
         }
     }
 
-    /// Whether a step is running outranks what the last one concluded, because a verdict the next
-    /// moment may overturn is not worth showing. Deriving that from `isSyncing` rather than
-    /// storing it is what stops a `flushPending` that overlaps a sync from reporting the flush's
-    /// verdict while the sync is still working (#589).
+    /// A running step outranks what the last one concluded, because a verdict the next moment may
+    /// overturn is not worth showing.
     var state: State { isSyncing ? .syncing : State(outcome) }
 }
 
@@ -291,7 +283,7 @@ private struct PendingWriteBatch {
 private enum PendingWriteFlushInterruption: Error {
     /// A newer flush generation superseded this one.
     case invalidated
-    /// A batch write failed and this many writes stay queued for the next attempt.
+    /// A batch write failed and its writes stay queued for the next attempt.
     case batchFailed(queued: Int)
 
     var result: PendingWriteFlushResult {

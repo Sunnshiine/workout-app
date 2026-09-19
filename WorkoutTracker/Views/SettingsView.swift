@@ -162,9 +162,6 @@ struct SettingsView: View {
         return !sheetSwitchStore.canBeginDestructiveTransition
     }
 
-    /// One line per outcome, because the row is the only place the athlete is told which of these
-    /// happened: two of them lost a Set Log, one is a sheet nobody set up, and two are a sync that
-    /// worked with a footnote.
     private var manualSyncDetail: String? {
         if syncActivity.isSyncInFlight || sync.isSyncing {
             return "Syncing..."

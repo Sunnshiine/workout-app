@@ -28,17 +28,12 @@ import Testing
 @Test func syncStatusPresentationHidesAClearSyncAndSpeaksOverAnyOutcomeWhileASyncRuns() throws {
     #expect(SyncStatusBannerPresentation(outcome: .clear, isSyncing: false) == nil)
 
-    // A verdict the running step is about to replace is not worth a sentence, so the banner says
-    // the one thing that is still true.
     let midSync = try #require(
         SyncStatusBannerPresentation(outcome: .writesRefused(["Squat: Expected '', found 'coach edited'"]), isSyncing: true)
     )
     #expect(midSync == SyncStatusBannerPresentation(text: "Syncing"))
 }
 
-/// The point of #589: the five results that used to arrive as `.conflict([String])` say five
-/// different things, because each asks something different of the athlete. Two of them lost a Set
-/// Log, one is a spreadsheet nobody set up, and two are a sync that worked with a footnote.
 @MainActor
 @Test func theFiveOutcomesThatUsedToReadAlikeNowReadDifferently() throws {
     let banners = try [
@@ -70,8 +65,6 @@ import Testing
     )
 }
 
-/// VoiceOver reads the banner as one element, so the outcome and its message have to be in the
-/// label or the athlete hears "Sync status" and nothing that tells the five apart.
 @MainActor
 @Test func theAccessibilityLabelCarriesBothTheOutcomeAndItsMessage() throws {
     let refused = try #require(
@@ -90,8 +83,6 @@ import Testing
     #expect(queued.accessibilityLabel == "Sync status: 1 unsynced")
 }
 
-/// Only the first message reaches the banner. The rest are in the CLI's `messages` array and on
-/// each `PendingWrite` record; the banner is one line and picks the first.
 @MainActor
 @Test func aBannerShowsTheFirstOfSeveralRefusedWrites() throws {
     let many = try #require(

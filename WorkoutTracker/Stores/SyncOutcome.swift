@@ -2,47 +2,33 @@ import Foundation
 
 /// What a finished sync step left the athlete to deal with.
 ///
-/// One case per result, because each one asks something different of them. A local write that
-/// failed lost a Set Log outright. A refused write is still in the store but will never be
-/// retried (ADR-0003), so the app saying so is the only copy of that news. A spreadsheet with no
-/// Block tab is a setup problem nobody caused and puts no Set Log at risk. A parse warning or a
-/// stalled Exercise History fill is a successful sync with a footnote.
-///
 /// Being in flight is not an outcome. `SyncCoordinator.isSyncing` answers that.
 ///
-/// Each message is carried as the step produced it. The sentence the athlete reads is
-/// `SyncStatusBannerPresentation`'s, and the flattened wording the CLI prints is
-/// `SyncCoordinator.State`'s.
+/// Messages are carried raw, as the step produced them. The sentence the athlete reads is
+/// `SyncStatusBannerPresentation`'s.
 enum SyncOutcome: Equatable, Sendable {
-    /// Nothing to report.
     case clear
-    /// The app could not record a Set Log in the local store. That log is gone.
+    /// That Set Log is gone.
     case localWriteFailed(String)
-    /// The Sheet could not be reached.
     case sheetUnreachable
-    /// The upload failed and this many Set Logs are still queued. The next flush attempts them
-    /// again.
+    /// The next flush attempts them again.
     case writesQueued(Int)
     /// The Sheet cell no longer held what the app expected, so the write was refused rather than
-    /// overwrite the coach (ADR-0003). The Set Logs stay in the store and are never retried.
+    /// overwrite the coach (ADR-0003). `markConflict` takes it off the flush queue, which fetches
+    /// only `.pending`, so nothing attempts it again.
     case writesRefused([String])
-    /// The spreadsheet holds no Block tab, so there is nothing to sync.
     case noBlockTab
-    /// The sync succeeded and the Block is cached. The layout interpreter flagged something.
+    /// The sync succeeded and the Block is cached.
     case parseWarnings([String])
-    /// The sync succeeded and the Session is usable. A background Exercise History fill stopped.
+    /// The sync succeeded and the Session is usable.
     case historyFillFailed(String)
 }
 
 extension SyncOutcome {
-    /// What a Sheet read reports once the Block is cached: no warnings means the interpreter had
-    /// nothing to flag.
     init(parseWarnings: [String]) {
         self = parseWarnings.isEmpty ? .clear : .parseWarnings(parseWarnings)
     }
 
-    /// What a pending-write flush reports: no refusals means every queued write landed, or there
-    /// was nothing queued.
     init(refusedWrites: [String]) {
         self = refusedWrites.isEmpty ? .clear : .writesRefused(refusedWrites)
     }
@@ -50,16 +36,10 @@ extension SyncOutcome {
     /// The verdict one sync reports, from what its Sheet read concluded and what the pending-write
     /// flush it ran first concluded.
     ///
-    /// The read speaks last and speaks for everything it just measured, so by default its verdict
-    /// is the sync's. Two rules cut across that.
-    ///
-    /// A refused write survives a read that went well, because it is the one verdict no later step
-    /// can make stale: the Sheet will never be asked to take that write again (ADR-0003), so
-    /// dropping it leaves the athlete with no copy of the message. A queued write is the opposite.
-    /// The next flush measures the queue again and reports it again, so a clean read clears it.
-    ///
-    /// An unreachable Sheet and a missing Block tab replace even a refused write, because both end
-    /// the sync with no Block to show and that is the larger thing to say.
+    /// The read speaks last, so its verdict is the sync's, except that a refused write survives a
+    /// read that went well. A queued write does not, and that asymmetry is what
+    /// `aSyncWhoseUploadFailedEndsIdleWithTheWriteStillQueued` pins and calls suspected wrong.
+    /// #589 reproduced both rather than change behavior while reshaping the type.
     static func sync(sheetRead: SyncOutcome, flush: SyncOutcome) -> SyncOutcome {
         switch (sheetRead, flush) {
         case (.sheetUnreachable, _), (.noBlockTab, _): sheetRead

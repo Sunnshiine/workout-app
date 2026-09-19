@@ -832,8 +832,7 @@ func aFlushThatOverlapsASyncLeavesTheDestructiveTransitionGuardClosed() async th
 
     await sync.flushPending(spreadsheetId: "current-sheet")
 
-    // The banner half, fixed in #589: the flush's verdict no longer speaks for a sync that is
-    // still working. `state` reads the in-flight count the guard reads.
+    // The banner half of the same guard: `state` reads the in-flight count, not the last verdict.
     #expect(sync.state == .syncing)
     #expect(sync.isSyncing == true)
     #expect(store.canBeginDestructiveTransition == false)
