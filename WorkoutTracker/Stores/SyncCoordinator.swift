@@ -7,18 +7,8 @@ private let syncLogger = Logger(subsystem: "WorkoutTracker", category: "Sync")
 @MainActor
 @Observable
 final class SyncCoordinator {
-    enum State: Equatable {
-        case idle, syncing, offline
-        case pendingWrites(Int)
-        case conflict([String])
-
-        /// What a sync step reports when it finishes: no messages means it left the coach nothing
-        /// to resolve.
-        init(messages: [String]) {
-            self = messages.isEmpty ? .idle : .conflict(messages)
-        }
-    }
-    private(set) var state: State = .idle
+    /// What the last finished step concluded. The banner and the Settings `Sync now` row read it.
+    private(set) var outcome: SyncOutcome = .clear
 
     private let client: any SheetsClient
     private let context: ModelContext
@@ -65,7 +55,7 @@ final class SyncCoordinator {
     }
 
     func reportLocalWriteFailure(_ error: any Error) {
-        state = .conflict(["Local write failed: \(error.localizedDescription)"])
+        outcome = .localWriteFailed(error.localizedDescription)
     }
 
     func discardPendingWrites() async throws {
@@ -82,20 +72,23 @@ final class SyncCoordinator {
             context.rollback()
             throw error
         }
-        state = .idle
+        outcome = .clear
     }
 
     func flushPending(spreadsheetId: String) async {
+        outcome = await flushQueue(spreadsheetId: spreadsheetId)
+    }
+
+    /// Uploads whatever is queued and says what came of it. Only `.clear`, `.writesRefused` and
+    /// `.writesQueued` can come back: a flush never reads the Block tabs, so it has nothing to say
+    /// about the Sheet's layout.
+    private func flushQueue(spreadsheetId: String) async -> SyncOutcome {
         let generation = beginPendingWriteFlush()
         defer { endPendingWriteFlush() }
 
         let pending = pendingWriteFlushQueue()
-        guard !pending.isEmpty else {
-            state = .idle
-            return
-        }
+        guard !pending.isEmpty else { return .clear }
 
-        state = .syncing
         let writer = SheetWriter(client: client)
         let flushContext = PendingWriteFlushContext(
             spreadsheetId: spreadsheetId,
@@ -104,15 +97,14 @@ final class SyncCoordinator {
             planner: sheetWritePlanner
         )
 
-        let result = await flushPendingWrites(pending, context: flushContext)
-        switch result {
+        switch await flushPendingWrites(pending, context: flushContext) {
         case .completed(let conflicts):
             try? context.save()
-            state = State(messages: conflicts)
+            return SyncOutcome(refusedWrites: conflicts)
         case .invalidated:
-            state = .idle
-        case .stoppedForRetry:
-            break
+            return .clear
+        case .stoppedForRetry(let queued):
+            return .writesQueued(queued)
         }
     }
 
@@ -121,19 +113,16 @@ final class SyncCoordinator {
         activeSyncCount += 1
         defer { activeSyncCount -= 1 }
 
-        state = .syncing
         syncLogger.info("Starting sync for spreadsheetId: \(spreadsheetId, privacy: .public)")
 
-        await flushPending(spreadsheetId: spreadsheetId)
-        let stateAfterFlush = state
-        state = .syncing
+        let flushOutcome = await flushQueue(spreadsheetId: spreadsheetId)
 
         do {
             let titles = try await client.listTabTitles(spreadsheetId: spreadsheetId)
             syncLogger.debug("Tab titles: \(titles, privacy: .public)")
             guard let tab = currentBlockTab(from: titles) else {
                 syncLogger.error("No block tab matched from titles: \(titles, privacy: .public)")
-                state = .conflict(["No block tab found in the spreadsheet"])
+                outcome = .sync(sheetRead: .noBlockTab, flush: flushOutcome)
                 return false
             }
             syncLogger.debug("Selected tab: \(tab, privacy: .public)")
@@ -146,12 +135,8 @@ final class SyncCoordinator {
             if !lastPerformedEntries.isEmpty {
                 try lastPerformed.ingest(lastPerformedEntries)
             }
-            if case .conflict = stateAfterFlush {
-                state = stateAfterFlush
-            } else {
-                state = State(messages: parsed.warnings)
-            }
-            syncLogger.info("Done, state: \(String(describing: self.state), privacy: .public)")
+            outcome = .sync(sheetRead: SyncOutcome(parseWarnings: parsed.warnings), flush: flushOutcome)
+            syncLogger.info("Done, outcome: \(String(describing: self.outcome), privacy: .public)")
             launchHistoryFill(
                 ExerciseHistoryFill.Request(
                     spreadsheetId: spreadsheetId,
@@ -163,7 +148,7 @@ final class SyncCoordinator {
             return true
         } catch {
             syncLogger.error("Sync failed: \(String(describing: error), privacy: .public)")
-            state = .offline
+            outcome = .sync(sheetRead: .sheetUnreachable, flush: flushOutcome)
             return false
         }
     }
@@ -190,11 +175,11 @@ final class SyncCoordinator {
     private func launchHistoryFill(_ request: ExerciseHistoryFill.Request) {
         guard let historyFill else { return }
         inFlightHistoryFill = Task { [weak self] in
-            let outcome = await historyFill.run(request)
-            if case .halted(_, .indexRejected(let message), _) = outcome {
-                self?.state = .conflict(["Exercise History fill failed: \(message)"])
+            let fillOutcome = await historyFill.run(request)
+            if case .halted(_, .indexRejected(let message), _) = fillOutcome {
+                self?.outcome = .historyFillFailed(message)
             }
-            return outcome
+            return fillOutcome
         }
     }
 }
@@ -219,9 +204,42 @@ extension SyncCoordinator {
 }
 
 extension SyncCoordinator: SheetSwitchSyncing {
-    /// `state` is the banner's, and a `flushPending` that overlaps a sync overwrites it with the
-    /// flush's own verdict, which is why this does not read it (#585).
+    /// Counted rather than read off `state`, which #589 made derive from this (#585).
     var isSyncing: Bool { activeSyncCount > 0 || activePendingWriteFlushCount > 0 }
+}
+
+extension SyncCoordinator {
+    /// The flattened reading the `workout` CLI still prints, where every outcome that wants the
+    /// athlete collapses into one `.conflict` carrying its message. That collapse is the defect
+    /// #589 removed from the app; it survives here because `SyncStateSnapshot`'s JSON is a
+    /// contract, and #590 migrates it and retires this.
+    enum State: Equatable {
+        case idle, syncing, offline
+        case pendingWrites(Int)
+        case conflict([String])
+
+        /// Every sentence the CLI prints is composed here and nowhere else, so the app's own
+        /// wording can change without moving the wire format.
+        init(_ outcome: SyncOutcome) {
+            self =
+                switch outcome {
+                case .clear: .idle
+                case .sheetUnreachable: .offline
+                case .writesQueued(let count): .pendingWrites(count)
+                case .localWriteFailed(let message): .conflict(["Local write failed: \(message)"])
+                case .writesRefused(let messages): .conflict(messages)
+                case .noBlockTab: .conflict(["No block tab found in the spreadsheet"])
+                case .parseWarnings(let warnings): .conflict(warnings)
+                case .historyFillFailed(let message): .conflict(["Exercise History fill failed: \(message)"])
+                }
+        }
+    }
+
+    /// Whether a step is running outranks what the last one concluded, because a verdict the next
+    /// moment may overturn is not worth showing. Deriving that from `isSyncing` rather than
+    /// storing it is what stops a `flushPending` that overlaps a sync from reporting the flush's
+    /// verdict while the sync is still working (#589).
+    var state: State { isSyncing ? .syncing : State(outcome) }
 }
 
 private struct PendingWriteFlushContext {
@@ -234,7 +252,7 @@ private struct PendingWriteFlushContext {
 private enum PendingWriteFlushResult {
     case completed(conflicts: [String])
     case invalidated
-    case stoppedForRetry
+    case stoppedForRetry(queued: Int)
 }
 
 private struct PlannedPendingWrite {
@@ -273,13 +291,13 @@ private struct PendingWriteBatch {
 private enum PendingWriteFlushInterruption: Error {
     /// A newer flush generation superseded this one.
     case invalidated
-    /// A batch write failed and its writes stay queued for the next attempt.
-    case batchFailed
+    /// A batch write failed and this many writes stay queued for the next attempt.
+    case batchFailed(queued: Int)
 
     var result: PendingWriteFlushResult {
         switch self {
         case .invalidated: .invalidated
-        case .batchFailed: .stoppedForRetry
+        case .batchFailed(let queued): .stoppedForRetry(queued: queued)
         }
     }
 }
@@ -348,8 +366,8 @@ extension SyncCoordinator {
                 conflicts.append(message)
                 conflicts.append(contentsOf: recordDependentLastSetRPEConflicts(message, for: write, in: pending))
             } catch {
-                recordRetry(for: write, error: error, pendingCount: pending.count)
-                return .stoppedForRetry
+                recordRetry(for: write, error: error)
+                return .stoppedForRetry(queued: pending.count)
             }
         }
 
@@ -399,11 +417,10 @@ extension SyncCoordinator {
         return "\(write.exerciseName): \(message)"
     }
 
-    fileprivate func recordRetry(for write: PendingWrite, error: any Error, pendingCount: Int) {
+    fileprivate func recordRetry(for write: PendingWrite, error: any Error) {
         write.retryCount += 1
         write.lastError = String(describing: error)
         try? context.save()
-        state = .pendingWrites(pendingCount)
     }
 
     fileprivate func plan(
@@ -469,8 +486,7 @@ extension SyncCoordinator {
                 item.write.lastError = String(describing: error)
             }
             try? context.save()
-            state = .pendingWrites((try? fetchPendingWriteRecords().count) ?? batch.items.count)
-            throw .batchFailed
+            throw .batchFailed(queued: (try? fetchPendingWriteRecords().count) ?? batch.items.count)
         }
         try ensurePendingWriteFlushIsCurrent(flushContext.generation)
         for item in batch.items {

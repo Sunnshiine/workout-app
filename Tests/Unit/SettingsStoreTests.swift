@@ -832,9 +832,9 @@ func aFlushThatOverlapsASyncLeavesTheDestructiveTransitionGuardClosed() async th
 
     await sync.flushPending(spreadsheetId: "current-sheet")
 
-    // `.idle` under a live sync is the banner half of this, left to #514. The guard no longer
-    // reads it.
-    #expect(sync.state == .idle)
+    // The banner half, fixed in #589: the flush's verdict no longer speaks for a sync that is
+    // still working. `state` reads the in-flight count the guard reads.
+    #expect(sync.state == .syncing)
     #expect(sync.isSyncing == true)
     #expect(store.canBeginDestructiveTransition == false)
     #expect(store.requestSignOut() == .failed)

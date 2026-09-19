@@ -28,7 +28,7 @@ struct SessionView: View {
         Group {
             if let session = workout.viewedSession {
                 VStack(spacing: 0) {
-                    SyncStatusBanner(state: sync.state)
+                    SyncStatusBanner(outcome: sync.outcome, isSyncing: sync.isSyncing)
                         .padding(.top, 8)
 
                     if !workout.isViewingLiveEdge {

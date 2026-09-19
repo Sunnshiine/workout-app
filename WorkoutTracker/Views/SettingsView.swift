@@ -162,22 +162,31 @@ struct SettingsView: View {
         return !sheetSwitchStore.canBeginDestructiveTransition
     }
 
+    /// One line per outcome, because the row is the only place the athlete is told which of these
+    /// happened: two of them lost a Set Log, one is a sheet nobody set up, and two are a sync that
+    /// worked with a footnote.
     private var manualSyncDetail: String? {
-        if syncActivity.isSyncInFlight {
+        if syncActivity.isSyncInFlight || sync.isSyncing {
             return "Syncing..."
         }
 
-        switch sync.state {
-        case .idle:
+        switch sync.outcome {
+        case .clear:
             return settings.spreadsheetId == nil ? "Connect a sheet first" : "Refresh workout state"
-        case .offline:
+        case .sheetUnreachable:
             return "Offline"
-        case .pendingWrites(let count):
+        case .writesQueued(let count):
             return count == 1 ? "1 unsynced log" : "\(count) unsynced logs"
-        case .conflict:
-            return "Needs attention"
-        case .syncing:
-            return "Syncing..."
+        case .localWriteFailed:
+            return "Log not saved"
+        case .writesRefused:
+            return "Log not written"
+        case .noBlockTab:
+            return "No block tab"
+        case .parseWarnings:
+            return "Synced with a note"
+        case .historyFillFailed:
+            return "History incomplete"
         }
     }
 

@@ -138,7 +138,7 @@ struct DeveloperToolsView: View {
             .disabled(isSyncDisabled)
             .accessibilityIdentifier("developer-tools-sync-button")
 
-            SyncStatusBanner(state: sync.state)
+            SyncStatusBanner(outcome: sync.outcome, isSyncing: sync.isSyncing)
                 .accessibilityIdentifier("developer-tools-sync-status-banner")
         }
     }

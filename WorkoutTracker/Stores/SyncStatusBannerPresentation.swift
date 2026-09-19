@@ -1,40 +1,44 @@
 import Foundation
 
+/// The sync banner's words. `text` says which outcome this is in the athlete's language, so the
+/// five things that used to read alike no longer do; `detail` carries the message the step itself
+/// produced, which is the part that names the Exercise or the Block tab.
 struct SyncStatusBannerPresentation: Equatable, Sendable {
     let text: String
-    let symbol: String
+    let detail: String?
     let accessibilityLabel: String
 
-    init(text: String, symbol: String, accessibilityLabel: String) {
+    init(text: String, detail: String? = nil) {
         self.text = text
-        self.symbol = symbol
-        self.accessibilityLabel = accessibilityLabel
+        self.detail = detail
+        self.accessibilityLabel = detail.map { "Sync status: \(text). \($0)" } ?? "Sync status: \(text)"
     }
 
-    init?(state: SyncCoordinator.State) {
-        let text: String
-        let symbol: String
-        switch state {
-        case .idle:
-            return nil
-        case .syncing:
-            text = "Syncing"
-            symbol = "arrow.triangle.2.circlepath"
-        case .pendingWrites(let count):
-            text = "\(count) unsynced"
-            symbol = "icloud.slash"
-        case .offline:
-            text = "Offline"
-            symbol = "wifi.slash"
-        case .conflict(let messages):
-            text = messages.first ?? "Sheet conflict"
-            symbol = "exclamationmark.triangle"
+    /// Nothing to show when a finished sync has nothing to say. A step that is running says so and
+    /// nothing else, because the outcome it is about to replace is not worth a sentence.
+    init?(outcome: SyncOutcome, isSyncing: Bool) {
+        guard !isSyncing else {
+            self.init(text: "Syncing")
+            return
         }
 
-        self.init(
-            text: text,
-            symbol: symbol,
-            accessibilityLabel: "Sync status: \(text)"
-        )
+        switch outcome {
+        case .clear:
+            return nil
+        case .localWriteFailed(let message):
+            self.init(text: "Your log did not save on this phone", detail: message)
+        case .sheetUnreachable:
+            self.init(text: "Offline")
+        case .writesQueued(let count):
+            self.init(text: "\(count) unsynced")
+        case .writesRefused(let messages):
+            self.init(text: "The sheet changed, so your log was not written", detail: messages.first)
+        case .noBlockTab:
+            self.init(text: "This sheet has no block tab")
+        case .parseWarnings(let warnings):
+            self.init(text: "Synced, with a note about the sheet", detail: warnings.first)
+        case .historyFillFailed(let message):
+            self.init(text: "Synced. Exercise History did not finish", detail: message)
+        }
     }
 }
