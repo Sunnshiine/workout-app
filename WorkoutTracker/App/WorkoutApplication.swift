@@ -94,6 +94,20 @@ extension WorkoutApplication {
         )
     }
 
+    /// Opens a Session the way the athlete does from the Block grid; `nil` returns them to the
+    /// Current Session. The Viewed Session is transient view state, so it lives exactly as long
+    /// as this process: `sync` is the only command that can observe what a reload does to it.
+    @discardableResult
+    public func view(_ address: SessionAddress?) throws -> AppSnapshot {
+        if let address {
+            _ = try resolveSession(address)
+            workout.show(week: address.week, day: address.day)
+        } else {
+            workout.showCurrent()
+        }
+        return try snapshot()
+    }
+
     /// `nil` is the Current Session.
     public func session(_ address: SessionAddress?) throws -> SessionSnapshot {
         let session = try address.map(resolveSession) ?? resolveCurrentSession()
@@ -151,6 +165,7 @@ extension WorkoutApplication {
             syncState: state,
             block: workout.block.map(BlockSummary.init),
             currentSession: workout.currentSession.flatMap(address(of:)),
+            viewedSession: workout.displayedSession.flatMap(address(of:)),
             pendingWriteCount: queued.count,
             conflictedWrites: conflictMessages(in: queued)
         )
