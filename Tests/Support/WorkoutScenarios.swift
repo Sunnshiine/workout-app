@@ -71,8 +71,8 @@ enum WorkoutScenarios {
         scenario(from: WorkoutFixtureScenarios.openExercisesBlock())
     }
 
-    static func syncFailure() -> SyncCoordinator.State {
-        WorkoutFixtureScenarios.syncFailureState()
+    static func syncFailure() -> SyncOutcome {
+        WorkoutFixtureScenarios.syncFailureOutcome()
     }
 
     static func queuedWrite() -> PendingWrite {

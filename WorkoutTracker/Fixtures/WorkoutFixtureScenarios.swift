@@ -53,8 +53,8 @@
             WorkoutFixtureBlocks.longSessionBlock()
         }
 
-        static func syncFailureState() -> SyncCoordinator.State {
-            .conflict(["Sheet write failed"])
+        static func syncFailureOutcome() -> SyncOutcome {
+            .writesRefused(["Sheet write failed"])
         }
 
         static func queuedWrite() -> PendingWrite {

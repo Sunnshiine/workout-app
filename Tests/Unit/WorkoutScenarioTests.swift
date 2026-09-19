@@ -39,8 +39,10 @@ import Testing
     ).map(\.exercise.name)
     #expect(openExerciseNames == ["Back Squat", "Bench Press"])
 
-    let failure = try #require(SyncStatusBannerPresentation(state: WorkoutScenarios.syncFailure()))
-    #expect(failure.text == "Sheet write failed")
+    let failure = try #require(
+        SyncStatusBannerPresentation(outcome: WorkoutScenarios.syncFailure(), isSyncing: false)
+    )
+    #expect(failure.detail == "Sheet write failed")
 
     let queuedWrite = WorkoutScenarios.queuedWrite()
     #expect(queuedWrite.blockTab == "Block 27")
