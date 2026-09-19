@@ -56,6 +56,12 @@ extension ExerciseSet {
 
     /// The Set is Logged or Skipped — the athlete is done with it.
     var isSettled: Bool { state == .logged || state == .skipped }
+
+    /// The last Set of its Exercise in Set-index order, which is the Set whose Set Log
+    /// the Exercise's Last Set RPE mirrors. A Set with no owning Exercise is its own last.
+    var isFinalSetOfExercise: Bool {
+        index == (exercise?.sets.map(\.index).max() ?? index)
+    }
 }
 
 extension ExerciseSet {

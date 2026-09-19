@@ -44,7 +44,7 @@ A mobile client for powerlifting athletes that surfaces and logs workouts from a
 
 **Load Suggestion**: A calculated weight hint pre-filled in the set weight input, derived from the coach's prescription. Two sources: (1) "Drop X%" — computed from the previous set's logged weight once the athlete has logged it; (2) "%1RM" — computed from the Block's Training Max. Always overridable. Avoid: recommended weight, auto-fill.
 
-**Last Set RPE**: The RPE the athlete reports for the final Set of an Exercise. Stored in column I — the app extracts it from the last Set Log and writes it there automatically. Avoid: actual RPE.
+**Last Set RPE**: The RPE the athlete reports for the final Set of an Exercise. Stored in column I — the app extracts it from the last Set Log and writes it there automatically. It mirrors that one Set Log and holds no state of its own, so it is cleared whenever the final Set stops being Logged, by a Skip as well as by a delete. No parser path reads column I back into the model, so a stale value is invisible in the app and visible only to the coach. Avoid: actual RPE.
 
 **Coach Note**: Instruction-shaped text the coach places in the Notes column (J) on the Exercise header row — e.g. "Start w/ 10 sec hold, proceed to rep range" or "Superset w/...". Read-only to the athlete and never overwritten by the app. When the Exercise header Notes cell contains a Coach Note, Set Logs move to the next Visible Writable Row in the same Session.
 
