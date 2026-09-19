@@ -66,6 +66,19 @@
         return url
     }
 
+    private func editBlockCells(in home: URL, _ transform: (inout [String: String]) -> Void) throws {
+        let workbookURL = home.appendingPathComponent("workbook.json")
+        var workbook = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: workbookURL)) as? [String: Any])
+        var tabs = try #require(workbook["tabs"] as? [String: Any])
+        var block = try #require(tabs["Block 27"] as? [String: Any])
+        var cells = try #require(block["cells"] as? [String: String])
+        transform(&cells)
+        block["cells"] = cells
+        tabs["Block 27"] = block
+        workbook["tabs"] = tabs
+        try JSONSerialization.data(withJSONObject: workbook).write(to: workbookURL)
+    }
+
     @Test func theWholeArcRunsAcrossSeparateProcesses() throws {
         let home = try temporaryHome()
         defer { try? FileManager.default.removeItem(at: home) }
@@ -226,6 +239,43 @@
         #expect(sync.status == 4)
         #expect(try sync.errorJSON["code"] as? String == "sync_conflict")
         #expect(try sync.json["pendingWriteCount"] as? Int == 1)
+    }
+
+    /// The reason `syncOutcome` exists. Both halves exit 4 and both leave the athlete something to
+    /// do, and the only thing telling them apart is `status`.
+    @Test func aParseWarningAndARefusedWriteReachTheWireUnderDifferentStatuses() throws {
+        let warningHome = try temporaryHome()
+        defer { try? FileManager.default.removeItem(at: warningHome) }
+        let warningCLI = CLI(home: warningHome, binary: try workoutBinary())
+        _ = try warningCLI.run("init")
+        let dayHeader = try Regex(#"^Day \d+$"#)
+        try editBlockCells(in: warningHome) { cells in
+            for key in cells.filter({ (try? dayHeader.wholeMatch(in: $0.value)) != nil }).keys {
+                cells[key] = nil
+            }
+        }
+
+        let warned = try warningCLI.run("sync")
+        let warnedOutcome = try #require(try warned.json["syncOutcome"] as? [String: Any])
+        #expect(warned.status == 4)
+        #expect(warnedOutcome["status"] as? String == "parseWarnings")
+        #expect(((warnedOutcome["messages"] as? [String]) ?? []).isEmpty == false)
+
+        let refusedHome = try temporaryHome()
+        defer { try? FileManager.default.removeItem(at: refusedHome) }
+        let refusedCLI = CLI(home: refusedHome, binary: try workoutBinary())
+        _ = try refusedCLI.run("init")
+        _ = try refusedCLI.run("log", "w1d1.e0.s0", "185x5@8")
+        _ = try refusedCLI.run("flush")
+        _ = try refusedCLI.run("sync")
+        _ = try refusedCLI.run("log", "w1d1.e0.s0", "205x3@9")
+        try editBlockCells(in: refusedHome) { cells in cells["K15"] = "coach edited" }
+
+        let refused = try refusedCLI.run("sync")
+        let refusedOutcome = try #require(try refused.json["syncOutcome"] as? [String: Any])
+        #expect(refused.status == 4)
+        #expect(refusedOutcome["status"] as? String == "writesRefused")
+        #expect(warnedOutcome["status"] as? String != refusedOutcome["status"] as? String)
     }
 
     @Test func aHandEditedWorkbookWithABadCellKeyIsAnEnvironmentErrorNotACrash() throws {

@@ -39,13 +39,13 @@ the home directory does not. A key-value seam that keeps it inside the home is t
 | Command | Calls | Prints |
 |---|---|---|
 | `init [--scenario fresh-block]` | wipes the home, seeds the workbook, `selectSpreadsheet` (the onboarding path, which syncs) | home, scenario, spreadsheet, Block summary, Current Session |
-| `status` | `snapshot()` | sync state, pending write count, Current Session and why, Session index |
+| `status` | `snapshot()` | sync outcome, pending write count, Current Session and why, Session index |
 | `session [w1d1]` | `session(_:)` | one Session; every Exercise and Set carries its address. No address means the Current Session |
 | `log w1d1.e0.s0 185x5@8` | `WorkoutStore.log(_:as:)` | the Set, the pending write count, whether the Exercise is complete. No auto-flush |
 | `skip w1d1.e0.s0` | `WorkoutStore.skip(_:)` | the same report `log` prints. No auto-flush |
-| `flush` | `SyncCoordinator.flushPending` | attempted, written, conflicted writes, remaining, sync state |
+| `flush` | `SyncCoordinator.flushPending` | attempted, written, conflicted writes, remaining, sync outcome |
 | `sheet [--tab T] [--cell K15]` | `SheetsClient.fetchTabSnapshot` | every non-empty cell, or one cell's value |
-| `sync [--viewing w2d3]` | `view(_:)` when `--viewing` is given, then `SyncCoordinator.sync` and `reload` | sync state, Block summary, Current Session, Viewed Session, pending write count, conflicted writes |
+| `sync [--viewing w2d3]` | `view(_:)` when `--viewing` is given, then `SyncCoordinator.sync` and `reload` | sync outcome, Block summary, Current Session, Viewed Session, pending write count, conflicted writes |
 
 `init`, `sync`, and `flush` converge: running them twice gives the same state. `log` twice
 enqueues twice, because that is what the store does; the report shows it.
@@ -59,6 +59,26 @@ A write the Sheet rejects (its cell no longer holds the expected value) is marke
 never retried, exactly as in the app. `flush` and `sync` print the report to stdout, list it under
 `conflictedWrites` on every later run, and exit 4 until it is discarded, so a retry cannot read
 "nothing left to attempt" as "everything landed". Discarding is the next verb (`discard-writes`).
+
+## Sync outcome
+
+`status`, `flush`, and `sync` print `syncOutcome`, which carries one `status` per outcome, so a
+failed local write and a parser footnote never read alike. `messages` is always present and holds
+the strings the step produced, verbatim. `count` appears only under `writesQueued`.
+
+| `status` | Means | Carries |
+|---|---|---|
+| `clear` | nothing outstanding | |
+| `localWriteFailed` | the Set Log did not reach the local store, and it is gone | `messages` |
+| `sheetUnreachable` | the Sheet could not be read | |
+| `writesQueued` | writes are still queued; the next flush attempts them again | `count` |
+| `writesRefused` | the cell no longer held what the app expected, so the write was refused rather than overwrite the coach (ADR-0003); nothing retries it | `messages` |
+| `noBlockTab` | the spreadsheet has no Block tab | |
+| `parseWarnings` | the sync succeeded and the Block is cached; the parser has notes | `messages` |
+| `historyFillFailed` | the sync succeeded and the Session is usable; the Exercise History fill did not | `messages` |
+
+`sync` exits 4 on the five that want the athlete and 3 on `sheetUnreachable`. `flush` exits 3 on
+`writesQueued` and `sheetUnreachable`, because writes are still queued.
 
 ## Addresses
 

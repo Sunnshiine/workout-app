@@ -27,8 +27,9 @@ Preconditions:
 - **Log.** Run `workout log w1d1.e0.s0 185x5@8`. Exit 0, `"pendingWriteCount" : 1`, the set's `"state" : "logged"` and `"setLog" : "185x5@8"`.
 - **Flush.** Run `workout flush`. Exit 0, `"written" : 1`, `"remainingPendingWrites" : 0`, empty `conflictedWrites`.
 - **Stored value.** Run `workout sheet --cell K15`. `"value" : "185x5@8"`.
-- **Sync.** Run `workout sync` then `workout session w1d1`. The same set reads `"state" : "logged"`, parsed back from the workbook.
+- **Sync.** Run `workout sync` then `workout session w1d1`. On a clean run `sync` prints `"status" : "clear"` under `syncOutcome`. The same set reads `"state" : "logged"`, parsed back from the workbook.
 - **Error shape.** Run `workout log w1d1.e0.s9 185x5@8; echo $?`. Stdout empty, stderr one JSON line with `"code":"unknown_set"` and candidates, exit 1.
+- **Outcome shape.** Strip the `Day N` header cells from the workbook with `python3 -c "import json,os,re;p=os.environ['WORKOUT_HOME']+'/workbook.json';w=json.load(open(p));c=w['tabs']['Block 27']['cells'];[c.pop(k) for k,v in list(c.items()) if re.fullmatch(r'Day \d+',v)];json.dump(w,open(p,'w'))"`, then run `workout sync; echo $?`. Exit 4 with `"status" : "parseWarnings"` under `syncOutcome`. That status alone separates it from `writesRefused`; neither run needs its `messages` read.
 - **Proof.** Save each command's stdout, stderr, and exit code under the evidence directory (`tee "$EVIDENCE/cli-flush.json"`).
 
 ## Gotchas
@@ -37,5 +38,5 @@ Preconditions:
 - UserDefaults live in a per-home suite under `~/Library/Preferences`, wiped by `init` but not by deleting the home.
 - `log` twice enqueues twice. It is not idempotent, by design.
 - `WORKOUT_NOW=2026-05-28T20:26:40Z` freezes `loggedAt` for stable assertions.
-- A flush conflict exits 4 on every later run until the write is discarded. Read `conflictedWrites`, not the exit code alone.
+- A flush conflict exits 4 on every later run until the write is discarded. Read `conflictedWrites`, not the exit code alone. `syncOutcome.status` names which outcome ended the step; never string-match `messages`.
 - The workbook is the fixture sheet, not Google. A green flush proves the queue and the write path, not the network.

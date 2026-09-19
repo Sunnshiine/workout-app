@@ -57,7 +57,16 @@ private func address(_ raw: String) throws -> SetAddress {
     #expect(try app.snapshot().syncOutcome.status == .clear)
 
     let flush = try await app.flush()
-    #expect(flush == FlushReport(attempted: 1, written: 1, conflictedWrites: [], remainingPendingWrites: 0, syncOutcome: SyncOutcomeSnapshot(.clear)))
+    #expect(
+        flush
+            == FlushReport(
+                attempted: 1,
+                written: 1,
+                conflictedWrites: [],
+                remainingPendingWrites: 0,
+                syncOutcome: SyncOutcomeSnapshot(.clear)
+            )
+    )
 
     let sheet = try await app.sheet(tab: nil)
     #expect(sheet.tab == "Block 27")
@@ -219,7 +228,13 @@ private func address(_ raw: String) throws -> SetAddress {
     let second = try await app.flush()
     #expect(
         second
-            == FlushReport(attempted: 0, written: 0, conflictedWrites: first.conflictedWrites, remainingPendingWrites: 1, syncOutcome: SyncOutcomeSnapshot(.clear))
+            == FlushReport(
+                attempted: 0,
+                written: 0,
+                conflictedWrites: first.conflictedWrites,
+                remainingPendingWrites: 1,
+                syncOutcome: SyncOutcomeSnapshot(.clear)
+            )
     )
 
     let synced = try await app.sync()
