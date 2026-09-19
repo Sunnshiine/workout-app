@@ -84,6 +84,10 @@ import Testing
 
     let offline = try #require(SyncStatusBannerPresentation(outcome: .sheetUnreachable, isSyncing: false))
     #expect(offline.accessibilityLabel == "Sync status: Offline")
+
+    // The string `.claude/skills/verify/features/log-a-set.md` greps for on the live app.
+    let queued = try #require(SyncStatusBannerPresentation(outcome: .writesQueued(1), isSyncing: false))
+    #expect(queued.accessibilityLabel == "Sync status: 1 unsynced")
 }
 
 /// Only the first message reaches the banner. The rest are in the CLI's `messages` array and on
