@@ -200,6 +200,8 @@ public struct SyncReport: Encodable, Equatable, Sendable {
     public let syncState: SyncStateSnapshot
     public let block: BlockSummary?
     public let currentSession: SessionAddress?
+    /// Equal to `currentSession` unless the athlete had browsed away.
+    public let viewedSession: SessionAddress?
     public let pendingWriteCount: Int
     public let conflictedWrites: [String]
 }

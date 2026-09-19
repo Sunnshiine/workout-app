@@ -94,6 +94,18 @@ extension WorkoutApplication {
         )
     }
 
+    /// `WorkoutStore.show(week:day:)`, or `showCurrent()` when the address is `nil`.
+    @discardableResult
+    public func view(_ address: SessionAddress?) throws -> AppSnapshot {
+        if let address {
+            _ = try resolveSession(address)
+            workout.show(week: address.week, day: address.day)
+        } else {
+            workout.showCurrent()
+        }
+        return try snapshot()
+    }
+
     /// `nil` is the Current Session.
     public func session(_ address: SessionAddress?) throws -> SessionSnapshot {
         let session = try address.map(resolveSession) ?? resolveCurrentSession()
@@ -151,6 +163,7 @@ extension WorkoutApplication {
             syncState: state,
             block: workout.block.map(BlockSummary.init),
             currentSession: workout.currentSession.flatMap(address(of:)),
+            viewedSession: workout.displayedSession.flatMap(address(of:)),
             pendingWriteCount: queued.count,
             conflictedWrites: conflictMessages(in: queued)
         )
