@@ -510,6 +510,42 @@ private func batchPendingWrite(
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
 }
 
+@MainActor
+@Test func orderPendingWritesForFlushPutsASetLogBeforeItsLastSetRPEMirror() throws {
+    let container = try makeBatchContainer()
+    let sync = SyncCoordinator(client: BatchFlushStubClient(grid: twoSetGrid()), context: container.mainContext)
+    let mirror = batchPendingWrite(createdAt: 2, setIndex: 1, column: .lastSetRPE, valueToWrite: "9")
+    let setLog = batchPendingWrite(createdAt: 1, setIndex: 1, valueToWrite: "195x5@9")
+
+    let ordered = sync.orderPendingWritesForFlush([mirror, setLog])
+
+    #expect(ordered.map(\.column) == [.notes, .lastSetRPE])
+}
+
+@MainActor
+@Test func orderPendingWritesForFlushPutsASetLogBeforeAMirrorQueuedAheadOfIt() throws {
+    let container = try makeBatchContainer()
+    let sync = SyncCoordinator(client: BatchFlushStubClient(grid: twoSetGrid()), context: container.mainContext)
+    let mirror = batchPendingWrite(createdAt: 1, setIndex: 1, column: .lastSetRPE, valueToWrite: "9")
+    let setLog = batchPendingWrite(createdAt: 2, setIndex: 1, valueToWrite: "195x5@9")
+
+    let ordered = sync.orderPendingWritesForFlush([mirror, setLog])
+
+    #expect(ordered.map(\.column) == [.notes, .lastSetRPE])
+}
+
+@MainActor
+@Test func orderPendingWritesForFlushKeepsWritesForDifferentSetsInQueuedOrder() throws {
+    let container = try makeBatchContainer()
+    let sync = SyncCoordinator(client: BatchFlushStubClient(grid: twoSetGrid()), context: container.mainContext)
+    let secondSet = batchPendingWrite(createdAt: 2, setIndex: 1, column: .lastSetRPE, valueToWrite: "9")
+    let firstSet = batchPendingWrite(createdAt: 1, setIndex: 0, valueToWrite: "185x5@8")
+
+    let ordered = sync.orderPendingWritesForFlush([secondSet, firstSet])
+
+    #expect(ordered.map(\.setIndex) == [0, 1])
+}
+
 private func oneSetGrid() -> SheetGrid {
     gridFromA1(
         [
