@@ -77,6 +77,16 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Probe the runner simulator catalog
+        run: |
+          xcodebuild -version
+          xcode-select -p
+          echo "--- iPhone device types ---"
+          xcrun simctl list devicetypes | grep -i iphone || echo "(none)"
+          echo "--- runtimes ---"
+          xcrun simctl list runtimes
+          echo "--- created devices ---"
+          xcrun simctl list devices available
       - name: Create Secrets.xcconfig from template (build-only)
         run: cp Secrets.xcconfig.template Secrets.xcconfig
       # A committed `record: .all` (suite- or test-level) makes every snapshot
