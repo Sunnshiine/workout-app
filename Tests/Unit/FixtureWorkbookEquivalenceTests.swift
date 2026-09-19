@@ -3,11 +3,11 @@ import Testing
 
 @testable import WorkoutTracker
 
-/// Pins each hand-built fixture Block graph against the parse of the workbook it is declared to
-/// describe. `Fixtures/WorkoutFixtureScenarios.swift` authors a Block graph by hand while
-/// `Fixtures/WorkbookScenarios.swift` authors cells the real parser reads, the two are meant to
-/// describe the same workout, and until this file nothing checked that they did — so a drift
-/// between them reached the Visual gate (ADR-0007) and was recorded as intended appearance.
+/// Pins a hand-built fixture Block graph against the parse of the workbook paired with it.
+/// `Fixtures/WorkoutFixtureScenarios.swift` authors a Block graph by hand while
+/// `Fixtures/WorkbookScenarios.swift` authors cells the real parser reads, and until this file
+/// nothing compared the two — so a disagreement reached the Visual gate (ADR-0007) and was
+/// recorded there as intended appearance. Slice 1 of #571: the harness, not a migration.
 ///
 /// **Pairing rule.** Structural address, and nothing else: the Block, then Week number, then Day
 /// number, then `Exercise.order`, then `ExerciseSet.index`. A name is compared data, never a
