@@ -54,22 +54,13 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
         }
     }
 
-    func endIfInvalidated(displayedSession: Session?, currentSession: Session?) {
+    func endIfInvalidated(at liveEdge: LiveEdge) {
         guard let currentRestContent else { return }
-        guard !LiveActivityInvalidationPolicy.shouldEndReadyReminder(for: currentRestContent, at: Date()) else {
-            end()
-            return
-        }
-        guard
-            !LiveActivityInvalidationPolicy.shouldEnd(
-                currentRestContent,
-                displayedSession: displayedSession,
-                currentSession: currentSession
-            )
-        else {
-            end()
-            return
-        }
+        let isInvalidated =
+            LiveActivityInvalidationPolicy.shouldEndReadyReminder(for: currentRestContent, at: Date())
+            || LiveActivityInvalidationPolicy.shouldEnd(currentRestContent, at: liveEdge)
+        guard isInvalidated else { return }
+        end()
     }
 
     func endIfReadyCapExpired(at date: Date = Date()) {

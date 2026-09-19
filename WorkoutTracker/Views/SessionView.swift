@@ -126,18 +126,15 @@ struct SessionView: View {
             standardRestDuration: { settings.standardRestDuration.timeInterval },
             supersetRestDuration: { settings.supersetRestDuration.timeInterval },
             liveActivity: liveActivityAdapter,
-            isCurrentSessionScope: { [workout] session in
-                session.persistentModelID == workout.currentSession?.persistentModelID
+            liveEdge: { [workout] session in
+                LiveEdge.resolve(viewedSession: session, currentSession: workout.currentSession)
             }
         )
         reconcileLiveActivity()
     }
 
     private func reconcileLiveActivity() {
-        liveActivityAdapter.endIfInvalidated(
-            displayedSession: workout.displayedSession,
-            currentSession: workout.currentSession
-        )
+        liveActivityAdapter.endIfInvalidated(at: workout.liveEdge)
     }
 
     private func showSourceSession(for exercise: Exercise) {

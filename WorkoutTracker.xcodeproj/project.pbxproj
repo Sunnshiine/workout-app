@@ -18,6 +18,7 @@
 		FEED000000000000000000A2 /* BuildIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B2 /* BuildIdentity.swift */; };
 		FEED000000000000000000A3 /* BuildIdentityFooter.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000000B3 /* BuildIdentityFooter.swift */; };
 		1FD78DA6ACD2DC16713C59E1 /* SessionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2694D7B8CE96A7BA65917D8A /* SessionCoordinator.swift */; };
+		A11E0E5E0001000000000572 /* LiveEdge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11E0E5E0002000000000572 /* LiveEdge.swift */; };
 		217F85CA4B87806AB31ABF84 /* RestHapticSchedule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1396E247C762E3B6CE7A945F /* RestHapticSchedule.swift */; };
 		21FFED2ACCE1F4CBC452185B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63852C80C5AAD37D2E99F205 /* SettingsView.swift */; };
 		220D586E2C3501A8CD100024 /* Block.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56BD19DDAA92AF5F6982BB5E /* Block.swift */; };
@@ -190,6 +191,7 @@
 		22EEE65D45B6DDC0D0563744 /* LoadSuggestionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadSuggestionEngine.swift; sourceTree = "<group>"; };
 		A2C0000000000000000000F2 /* LoadSuggestionInputs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadSuggestionInputs.swift; sourceTree = "<group>"; };
 		2694D7B8CE96A7BA65917D8A /* SessionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCoordinator.swift; sourceTree = "<group>"; };
+		A11E0E5E0002000000000572 /* LiveEdge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveEdge.swift; sourceTree = "<group>"; };
 		2A549AF09F599F33018AE0B4 /* SetLogToken.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetLogToken.swift; sourceTree = "<group>"; };
 		FEED000000000000000000B1 /* SetLogList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetLogList.swift; sourceTree = "<group>"; };
 		FEED000000000000000000B2 /* BuildIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuildIdentity.swift; sourceTree = "<group>"; };
@@ -470,6 +472,7 @@
 				C452CB917A65913E44B18E15 /* RestTriggerPolicy.swift */,
 				DF7F7CD5D8F394F75F33E69D /* RPEScalePresentation.swift */,
 				2694D7B8CE96A7BA65917D8A /* SessionCoordinator.swift */,
+				A11E0E5E0002000000000572 /* LiveEdge.swift */,
 				51D77DD81D71D5E9E046E80F /* SessionFocusMorphPolicy.swift */,
 				3DE918A15498A36B4EC413FD /* SessionProgressTracker.swift */,
 				A1B2C3D400000000000000B1 /* SessionSetOrder.swift */,
@@ -900,6 +903,7 @@
 				6EBAC50C5CD9AE6FED2A1822 /* RestTriggerPolicy.swift in Sources */,
 				AAB1AF9D5F9324682EAF6B48 /* RootView.swift in Sources */,
 				1FD78DA6ACD2DC16713C59E1 /* SessionCoordinator.swift in Sources */,
+				A11E0E5E0001000000000572 /* LiveEdge.swift in Sources */,
 				B7E24AB5D1E5BF887EBB4BA8 /* SessionFocusMorphPolicy.swift in Sources */,
 				DC4256E5E0BE527A4C3A3310 /* SessionProgressHeader.swift in Sources */,
 				0D3E6DBCFE1881EE177EDEAE /* SessionProgressTracker.swift in Sources */,
