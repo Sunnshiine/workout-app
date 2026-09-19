@@ -214,7 +214,10 @@ extension SyncCoordinator {
     }
 }
 
-extension SyncCoordinator: SheetSwitchSyncing {}
+extension SyncCoordinator: SheetSwitchSyncing {
+    var isSyncing: Bool { state == .syncing }
+}
+
 private struct PendingWriteFlushContext {
     let spreadsheetId: String
     let generation: Int
