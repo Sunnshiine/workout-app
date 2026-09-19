@@ -190,12 +190,11 @@ private func parsedSetsForLine(
     let reps = PrescriptionValueList.reps(grid.cellOrEmpty(line.row, cols.reps))
     let load = PrescriptionValueList.load(grid.cellOrEmpty(line.row, cols.load))
     let percent = grid.cellOrEmpty(line.row, cols.percentOneRM)
-    let notes = SheetLayoutHeaderNotes(value: grid.cellOrEmpty(line.row, cols.notes).trimmed)
-    let protectedLine = anchor.isHeaderProtectedFromSetLogWrites(headerNotes: notes, setCount: line.setCount)
+    let lineHoldsSetLogs = line.notesRole(in: grid, cols: cols).holdsSetLogs
 
     return (0..<line.setCount).map { position in
         let setIndex = line.firstSetIndex + position
-        let rawLog = protectedLine ? "" : rawSetLog(for: setIndex, anchor: anchor, snapshot: snapshot, cols: cols)
+        let rawLog = lineHoldsSetLogs ? rawSetLog(for: setIndex, anchor: anchor, snapshot: snapshot, cols: cols) : ""
         let logState = SetLogToken.classify(rawLog)
         return ParsedSet(
             index: setIndex,
@@ -218,13 +217,12 @@ private func parsedMultiLineExercise(
     let grid = snapshot.values
     let rawName = grid.cell(row: anchor.row, col: cols.name).trimmed
     let (cadence, base) = splitCadence(rawName)
-    let anchorNotes = anchor.headerNotes(in: grid, notesColumn: cols.notes)
     let sets = lines.flatMap { parsedSetsForLine(snapshot: snapshot, cols: cols, anchor: anchor, line: $0) }
     return ParsedExercise(
         name: rawName,
         baseName: base,
         cadence: cadence,
-        coachNote: anchorNotes.isCoachNote ? anchorNotes.value : nil,
+        coachNote: anchor.headerNotesRole(in: grid, cols: cols).coachNote,
         sets: sets
     )
 }
@@ -242,13 +240,8 @@ private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns,
     let anchorRow = anchor.row
     let rawName = grid.cell(row: anchorRow, col: cols.name).trimmed
     let (cadence, base) = splitCadence(rawName)
-    let headerNotes = anchor.headerNotes(in: grid, notesColumn: cols.notes)
-    let note = headerNotes.value
+    let role = anchor.headerNotesRole(in: grid, cols: cols)
     let setCount = anchor.prescribedSetCount(in: grid, setsColumn: cols.sets)
-    // A Legacy Log is only completion evidence when the header cannot be read as compact Set Logs;
-    // a value that fits as a compact header list (`setCount`-aware) is read as Set Logs instead.
-    let compactHeaderSetOne = anchor.usesCompactHeaderSetOne(headerNotes: headerNotes, setCount: setCount)
-    let legacyLog = !compactHeaderSetOne && headerNotes.isLegacyLog ? note : nil
     let sets = completionSets(
         parsedSets(
             ParsedSetContext(
@@ -261,15 +254,15 @@ private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns,
                 percentOneRM: grid.cellOrEmpty(anchorRow, cols.percentOneRM)
             )
         ),
-        legacyLog: legacyLog
+        legacyLog: role.legacyLog
     )
 
     return ParsedExercise(
         name: rawName,
         baseName: base,
         cadence: cadence,
-        coachNote: headerNotes.isCoachNote ? note : nil,
-        legacyLog: legacyLog,
+        coachNote: role.coachNote,
+        legacyLog: role.legacyLog,
         sets: sets
     )
 }

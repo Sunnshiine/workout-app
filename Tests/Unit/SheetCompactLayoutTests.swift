@@ -121,6 +121,10 @@ import Testing
     #expect(update.value == "BWx12@7")
 }
 
+/// The header the app writes when Set 2 of a 2-Set compact Exercise is skipped. Shared so the
+/// writer test below and the parser test that reads it back cannot drift apart silently.
+private let loggedThenSkippedHeader = "BWx12@7, skip"
+
 @Test func writerSkipsSetInsideExerciseRowList() throws {
     let grid = compactLayoutGrid(
         headerNotes: "BWx12@7, BWx10@8",
@@ -133,7 +137,21 @@ import Testing
     )
 
     #expect(update.range == "'Block 27'!E18")
-    #expect(update.value == "BWx12@7, skip")
+    #expect(update.value == loggedThenSkippedHeader)
+}
+
+@Test func parserReadsTheWriterSkipOutputAsSetLogsOnly() throws {
+    let grid = compactLayoutGrid(
+        headerNotes: loggedThenSkippedHeader,
+        continuationNotes: ""
+    )
+
+    let exercise = try compactParsedExercise(from: grid)
+    #expect(exercise.sets[0].state == .logged)
+    #expect(exercise.sets[0].setLog?.formatted == "BWx12@7")
+    #expect(exercise.sets[1].state == .skipped)
+    #expect(exercise.coachNote == nil)
+    #expect(exercise.legacyLog == nil)
 }
 
 @Test func writerTreatsCaseFoldedSkipHeaderAsSetLogAggregate() throws {
