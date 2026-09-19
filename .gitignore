@@ -44,3 +44,6 @@ error-logs.txt
 
 # Node tooling for the Sandcastle agent pipeline
 node_modules/
+
+# scripts/crap.sh drops this at the repo root when it runs the coverage build
+default.profraw

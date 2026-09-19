@@ -26,15 +26,22 @@ struct SyncCommand: AsyncParsableCommand {
             }
             return try await app.sync()
         } verdict: { report in
-            let leftForTheAthlete =
-                switch report.syncOutcome.status {
-                case .localWriteFailed, .writesRefused, .noBlockTab, .parseWarnings, .historyFillFailed: true
-                case .clear, .sheetUnreachable, .writesQueued: false
-                }
             let messages = report.conflictedWrites + report.syncOutcome.messages
-            guard !leftForTheAthlete, messages.isEmpty else {
+            guard !report.syncOutcome.status.leavesTheAthleteSomethingToDo, messages.isEmpty else {
                 throw CLIError.conflict(code: "sync_conflict", messages: messages)
             }
+        }
+    }
+}
+
+extension SyncOutcomeSnapshot.Status {
+    /// Which outcomes exit 4. A refused write the Sheet will never retry, a Set Log the local
+    /// store lost, a spreadsheet that is not a training log, and the two footnotes on an otherwise
+    /// good sync all leave the athlete a decision; the other three do not.
+    fileprivate var leavesTheAthleteSomethingToDo: Bool {
+        switch self {
+        case .localWriteFailed, .writesRefused, .noBlockTab, .parseWarnings, .historyFillFailed: true
+        case .clear, .sheetUnreachable, .writesQueued: false
         }
     }
 }
