@@ -78,7 +78,7 @@ private func makeStore(
 }
 
 @MainActor
-@Test func loadsBlockAndDefaultsDisplayedToCurrent() throws {
+@Test func loadsBlockAndDefaultsViewedToCurrent() throws {
     let container = try ModelContainer(for: Block.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
     let ctx = container.mainContext
     let parsed = ParsedBlockModel(
@@ -126,7 +126,7 @@ private func makeStore(
 }
 
 @MainActor
-@Test func reloadPreservesDisplayedSessionWhenStillPresent() throws {
+@Test func reloadPreservesViewedSessionWhenStillPresent() throws {
     let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
@@ -194,7 +194,7 @@ private func makeStore(
 }
 
 @MainActor
-@Test func reloadAdvancesDisplayedSessionWhenViewingCurrentSession() throws {
+@Test func reloadAdvancesViewedSessionWhenViewingCurrentSession() throws {
     let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
@@ -208,7 +208,7 @@ private func makeStore(
 }
 
 @MainActor
-@Test func showCurrentResetsDisplayedSessionToCurrentSession() throws {
+@Test func showCurrentResetsViewedSessionToCurrentSession() throws {
     let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
@@ -239,7 +239,7 @@ private func makeStore(
 }
 
 @MainActor
-@Test func makeDisplayedSessionCurrentCanTargetSessionBehindLoggedProgress() throws {
+@Test func makeViewedSessionCurrentCanTargetSessionBehindLoggedProgress() throws {
     let fixture = try makeStore(defaults: makeDefaults())
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
@@ -291,7 +291,7 @@ private func makeStore(
 }
 
 @MainActor
-@Test func makingDisplayedSessionCurrentDoesNotQueueSheetWrite() throws {
+@Test func makingViewedSessionCurrentDoesNotQueueSheetWrite() throws {
     let fixture = try makeStore(defaults: makeDefaults())
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
@@ -350,7 +350,7 @@ private func makeStore(
 }
 
 @MainActor
-@Test func resetCurrentSessionOverrideReturnsDisplayedSessionToSheetDerivedWithoutSheetWrite() throws {
+@Test func resetCurrentSessionOverrideReturnsViewedSessionToSheetDerivedWithoutSheetWrite() throws {
     let fixture = try makeStore(defaults: makeDefaults())
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
@@ -394,7 +394,7 @@ private func makeStore(
 }
 
 @MainActor
-@Test func moveOnAdvancesCurrentSessionAndDisplayedSession() throws {
+@Test func moveOnAdvancesCurrentSessionAndViewedSession() throws {
     let fixture = try makeStore(defaults: makeDefaults())
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store

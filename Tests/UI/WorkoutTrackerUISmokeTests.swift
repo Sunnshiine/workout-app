@@ -18,7 +18,7 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
     }
 
     @MainActor
-    func testCurrentSessionOverrideControlsReturnToCurrentSession() throws {
+    func testOffLiveEdgeControlsReturnToCurrentSession() throws {
         let app = launchCurrentSessionSmokeApp()
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))

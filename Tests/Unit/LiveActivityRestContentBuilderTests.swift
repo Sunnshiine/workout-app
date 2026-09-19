@@ -405,7 +405,7 @@ import Testing
 }
 
 @MainActor
-@Test func liveActivityTargetValidationEndsWhenCurrentOrDisplayedSessionChanges() throws {
+@Test func liveActivityTargetValidationEndsWhenCurrentOrViewedSessionChanges() throws {
     let first = makeSingleSession(
         dayNumber: 1,
         exercises: [
