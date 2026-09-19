@@ -148,6 +148,12 @@ enum SettingsSheetSwitchResult: Equatable {
     case failed
 }
 
+enum SettingsSignOutResult: Equatable {
+    case ready
+    case requiresConfirmation
+    case failed
+}
+
 /// A spreadsheet the athlete has chosen to switch to. Modelled independently of `SpreadsheetFile`
 /// so every selection path — the Drive picker (which carries a title) and the pasted-URL fallback
 /// (which does not) — can flow through the same safe switch transaction.
@@ -304,6 +310,29 @@ final class SettingsSheetSwitchStore {
 
     func cancelPendingSwitch() {
         pendingConfirmation = nil
+    }
+
+    func requestSignOut() -> SettingsSignOutResult {
+        errorMessage = nil
+
+        do {
+            return try sync.hasPendingWrites() ? .requiresConfirmation : .ready
+        } catch {
+            errorMessage = "Couldn't check pending logs. Try again."
+            return .failed
+        }
+    }
+
+    func prepareSignOut() async -> Bool {
+        errorMessage = nil
+
+        do {
+            try await sync.discardPendingWrites()
+        } catch {
+            errorMessage = "Couldn't discard pending logs. Try again."
+            return false
+        }
+        return true
     }
 
     func clearError() {
