@@ -29,6 +29,7 @@ final class SyncCoordinator {
     /// wants its outcome. Sync itself never waits (#558 leaves `workout sync` reporting to a
     /// follow-up).
     private(set) var inFlightHistoryFill: Task<ExerciseHistoryFill.Outcome, Never>?
+    private var activeSyncCount = 0
     private var activePendingWriteFlushCount = 0
     private var pendingWriteFlushGeneration = 0
 
@@ -117,6 +118,9 @@ final class SyncCoordinator {
 
     @discardableResult
     func sync(spreadsheetId: String) async -> Bool {
+        activeSyncCount += 1
+        defer { activeSyncCount -= 1 }
+
         state = .syncing
         syncLogger.info("Starting sync for spreadsheetId: \(spreadsheetId, privacy: .public)")
 
@@ -215,7 +219,9 @@ extension SyncCoordinator {
 }
 
 extension SyncCoordinator: SheetSwitchSyncing {
-    var isSyncing: Bool { state == .syncing }
+    /// `state` is the banner's, and a `flushPending` that overlaps a sync overwrites it with the
+    /// flush's own verdict, which is why this does not read it (#585).
+    var isSyncing: Bool { activeSyncCount > 0 || activePendingWriteFlushCount > 0 }
 }
 
 private struct PendingWriteFlushContext {
