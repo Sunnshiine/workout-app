@@ -81,8 +81,8 @@ final class SyncCoordinator {
     }
 
     private func flushQueue(spreadsheetId: String) async -> SyncOutcome {
-        beginPendingWriteFlush()
-        defer { endPendingWriteFlush() }
+        activePendingWriteFlushCount += 1
+        defer { activePendingWriteFlushCount -= 1 }
 
         let pending = pendingWriteFlushQueue()
         guard !pending.isEmpty else { return .clear }
@@ -244,17 +244,8 @@ private struct PendingWriteBatch {
     }
 }
 
-/// How a flush stops before it reaches the end of the queue. It already left the store
-/// consistent, so the only thing left to decide is what the flush reports.
-private enum PendingWriteFlushInterruption: Error {
-    /// A batch write failed and its writes stay queued for the next attempt.
-    case batchFailed(queued: Int)
-
-    var result: PendingWriteFlushResult {
-        switch self {
-        case .batchFailed(let queued): .stoppedForRetry(queued: queued)
-        }
-    }
+private struct PendingWriteBatchFailure: Error {
+    let queued: Int
 }
 
 private struct PendingWriteFlushInProgress: Error {}
@@ -314,8 +305,8 @@ extension SyncCoordinator {
                     snapshots: &snapshots,
                     context: flushContext
                 )
-            } catch let interruption as PendingWriteFlushInterruption {
-                return interruption.result
+            } catch let failure as PendingWriteBatchFailure {
+                return .stoppedForRetry(queued: failure.queued)
             } catch let planningConflict as PendingWritePlanningConflict {
                 let message = recordConflict(planningConflict, for: write, planner: flushContext.planner)
                 conflicts.append(message)
@@ -330,7 +321,7 @@ extension SyncCoordinator {
             try await flush(batch, context: flushContext)
             return .completed(conflicts: conflicts)
         } catch {
-            return error.result
+            return .stoppedForRetry(queued: error.queued)
         }
     }
 
@@ -429,7 +420,7 @@ extension SyncCoordinator {
     fileprivate func flush(
         _ batch: PendingWriteBatch,
         context flushContext: PendingWriteFlushContext
-    ) async throws(PendingWriteFlushInterruption) {
+    ) async throws(PendingWriteBatchFailure) {
         guard !batch.isEmpty else { return }
         do {
             try await flushContext.writer.write(batch.updates, spreadsheetId: flushContext.spreadsheetId)
@@ -439,7 +430,7 @@ extension SyncCoordinator {
                 item.write.lastError = String(describing: error)
             }
             try? context.save()
-            throw .batchFailed(queued: (try? fetchPendingWriteRecords().count) ?? batch.items.count)
+            throw PendingWriteBatchFailure(queued: (try? fetchPendingWriteRecords().count) ?? batch.items.count)
         }
         for item in batch.items {
             recordWriteTargetAudit(
@@ -466,14 +457,6 @@ extension SyncCoordinator {
         let snapshot = flushContext.planner.snapshot(for: sheetSnapshot)
         snapshots[tab] = snapshot
         return snapshot
-    }
-
-    fileprivate func beginPendingWriteFlush() {
-        activePendingWriteFlushCount += 1
-    }
-
-    fileprivate func endPendingWriteFlush() {
-        activePendingWriteFlushCount -= 1
     }
 
     func recordWriteTargetAudit(
