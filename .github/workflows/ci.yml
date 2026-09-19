@@ -96,8 +96,14 @@ jobs:
       # (VISUAL_LOOP.md); they must never land.
       - name: Refuse committed record mode (gate must stay armed)
         run: |
-          if grep -rnF "record: .all" Tests/Visual/; then
+          status=0
+          grep -rnF "record: .all" Tests/Visual/ || status=$?
+          if [ "$status" -eq 0 ]; then
             echo "::error::Committed .snapshots(record: .all) found — this disarms the Visual Regression gate. Revert to record: .never."
+            exit 1
+          fi
+          if [ "$status" -ne 1 ]; then
+            echo "::error::grep could not search Tests/Visual/ (exit $status), so this guard checked nothing."
             exit 1
           fi
       - name: Read the Xcode build number
