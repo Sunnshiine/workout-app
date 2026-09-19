@@ -804,6 +804,85 @@ import Testing
     #expect(store.canBeginDestructiveTransition == true)
 }
 
+/// The overlap is reachable in the app. `SessionPendingWriteSyncAdapter.requestPendingWriteFlush()`
+/// fires a flush after every logged Set and `workout flush` makes the same call, so an athlete
+/// logging during the stage's sync on appear reaches it. This calls `flushPending` directly, so the
+/// interleaving is deterministic rather than a race on an unowned Task (#585).
+@MainActor
+@Test(.timeLimit(.minutes(1)))
+func aFlushThatOverlapsASyncLeavesTheDestructiveTransitionGuardClosed() async throws {
+    let container = try makeCacheSafetyContainer()
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let settings = SettingsStore(defaults: defaults)
+    settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
+
+    let client = HeldSheetsClient(
+        titles: ["Intro", "Block 27"],
+        grid: replacementSquatGrid(),
+        holdsTabSnapshot: true
+    )
+    let sync = SyncCoordinator(client: client, context: container.mainContext)
+    let store = SettingsSheetSwitchStore(settings: settings, sync: sync)
+
+    let backgroundSync = Task { await sync.sync(spreadsheetId: "current-sheet") }
+
+    await client.waitUntilHeld()
+    #expect(sync.isSyncing == true)
+    #expect(store.canBeginDestructiveTransition == false)
+
+    await sync.flushPending(spreadsheetId: "current-sheet")
+
+    // `.idle` under a live sync is the banner half of this, left to #514. The guard no longer
+    // reads it.
+    #expect(sync.state == .idle)
+    #expect(sync.isSyncing == true)
+    #expect(store.canBeginDestructiveTransition == false)
+    #expect(store.requestSignOut() == .failed)
+    #expect(store.errorMessage == "A sync is already in progress.")
+
+    client.release()
+    await client.waitUntilHeld()
+    #expect(sync.isSyncing == true)
+    #expect(store.canBeginDestructiveTransition == false)
+
+    client.release()
+
+    #expect(await backgroundSync.value == true)
+    #expect(sync.isSyncing == false)
+    #expect(store.canBeginDestructiveTransition == true)
+}
+
+/// Guards the flush half of `isSyncing`, so a fix aimed at the sync half cannot narrow it.
+@MainActor
+@Test(.timeLimit(.minutes(1)))
+func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async throws {
+    let container = try makeCacheSafetyContainer()
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let settings = SettingsStore(defaults: defaults)
+    settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
+    try queueReplacementSquatLog(in: container.mainContext)
+
+    let client = HeldSheetsClient(
+        titles: ["Intro", "Block 27"],
+        grid: replacementSquatGrid(),
+        holdsTabSnapshot: true
+    )
+    let sync = SyncCoordinator(client: client, context: container.mainContext)
+    let store = SettingsSheetSwitchStore(settings: settings, sync: sync)
+
+    let flush = Task { await sync.flushPending(spreadsheetId: "current-sheet") }
+
+    await client.waitUntilHeld()
+    #expect(sync.isSyncing == true)
+    #expect(store.canBeginDestructiveTransition == false)
+
+    client.release()
+    await flush.value
+
+    #expect(sync.isSyncing == false)
+    #expect(store.canBeginDestructiveTransition == true)
+}
+
 @MainActor
 @Test func settingsManualSyncIsRejectedWhileABackgroundSyncIsRunning() async throws {
     let container = try makeCacheSafetyContainer()
@@ -887,6 +966,24 @@ private func seedStaleBlock(tabName: String, into context: ModelContext) {
     try! context.save()
 }
 
+@MainActor
+private func queueReplacementSquatLog(in context: ModelContext) throws {
+    context.insert(
+        PendingWrite(
+            blockTab: "Block 27",
+            week: 1,
+            day: 1,
+            exerciseName: "Replacement Squat",
+            setIndex: 0,
+            column: .notes,
+            operation: .upsert,
+            valueToWrite: "185x5@8",
+            expectedCurrentValue: ""
+        )
+    )
+    try context.save()
+}
+
 private func replacementSquatGrid() -> SheetGrid {
     gridFromA1(
         [
@@ -939,22 +1036,21 @@ private final class RecordingSheetsClient: SheetsClient, @unchecked Sendable {
 @MainActor
 private final class HeldSheetsClient: SheetsClient {
     private(set) var tabTitleReads = 0
+    private var tabSnapshotReads = 0
     private let titles: [String]
     private let grid: SheetGrid
+    private let holdsTabSnapshot: Bool
     private var held: CheckedContinuation<Void, Never>?
 
-    init(titles: [String], grid: SheetGrid) {
+    init(titles: [String], grid: SheetGrid, holdsTabSnapshot: Bool = false) {
         self.titles = titles
         self.grid = grid
+        self.holdsTabSnapshot = holdsTabSnapshot
     }
 
     func listTabTitles(spreadsheetId: String) async throws -> [String] {
         tabTitleReads += 1
-        if tabTitleReads == 1 {
-            await withCheckedContinuation { continuation in
-                held = continuation
-            }
-        }
+        if tabTitleReads == 1 { await park() }
         return titles
     }
 
@@ -963,7 +1059,9 @@ private final class HeldSheetsClient: SheetsClient {
     }
 
     func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
-        SheetSnapshot(values: grid)
+        tabSnapshotReads += 1
+        if holdsTabSnapshot, tabSnapshotReads == 1 { await park() }
+        return SheetSnapshot(values: grid)
     }
 
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
@@ -979,6 +1077,10 @@ private final class HeldSheetsClient: SheetsClient {
     func release() {
         held?.resume()
         held = nil
+    }
+
+    private func park() async {
+        await withCheckedContinuation { held = $0 }
     }
 }
 
