@@ -1,0 +1,31 @@
+name: Verify tools
+
+# ci.yml ignores .agents/** and .claude/**, so without this workflow a change to the verify skill
+# runs no automation at all.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".agents/skills/verify/**"
+      - ".claude/skills/verify"
+      - "scripts/contact-sheet.*"
+      - ".github/workflows/verify-tools.yml"
+  push:
+    branches: [main]
+
+concurrency:
+  group: verify-tools-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  tree:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      # 3.9 is what /usr/bin/python3 is on a stock Xcode machine, and the skill has to run there.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+      - run: python3 .agents/skills/verify/tests/test_evidence.py
