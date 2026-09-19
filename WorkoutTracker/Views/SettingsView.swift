@@ -12,7 +12,6 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isSheetPickerPresented = false
     @State private var isSignOutConfirmationPresented = false
-    @State private var settingsErrorMessage: String?
     @State private var syncActivity = SettingsSyncActivity()
     @State private var manualSyncStore: SettingsManualSyncStore?
     @State private var sheetSwitchStore: SettingsSheetSwitchStore?
@@ -48,7 +47,7 @@ struct SettingsView: View {
                     } label: {
                         LabeledContent("Training Sheet", value: sheetDisplayName)
                     }
-                    .disabled(isSheetRouteDisabled)
+                    .disabled(isSheetBusy)
                     .accessibilityIdentifier("settings-training-sheet-row")
 
                     Button {
@@ -76,6 +75,7 @@ struct SettingsView: View {
                     } label: {
                         Text("Sign Out")
                     }
+                    .disabled(isSheetBusy)
                     .accessibilityIdentifier("settings-sign-out-button")
                 }
 
@@ -154,12 +154,11 @@ struct SettingsView: View {
     }
 
     private var isManualSyncDisabled: Bool {
-        settings.spreadsheetId == nil || syncActivity.isSyncInFlight || sync.state == .syncing
-            || sheetSwitchStore?.isSwitching == true
+        settings.spreadsheetId == nil || isSheetBusy
     }
 
-    private var isSheetRouteDisabled: Bool {
-        syncActivity.isSyncInFlight || sync.state == .syncing || sheetSwitchStore?.isSwitching == true
+    private var isSheetBusy: Bool {
+        sheetSwitchStore?.canBeginDestructiveTransition == false || sync.state == .syncing
     }
 
     private var manualSyncDetail: String? {
@@ -208,25 +207,19 @@ struct SettingsView: View {
     }
 
     private func requestSignOut() {
-        do {
-            if try sync.hasPendingWrites() {
-                isSignOutConfirmationPresented = true
-                return
-            }
-
+        ensureSheetSwitchStore()
+        switch sheetSwitchStore?.requestSignOut() {
+        case .requiresConfirmation:
+            isSignOutConfirmationPresented = true
+        case .ready:
             Task { await signOutNow() }
-        } catch {
-            settingsErrorMessage = "Couldn't check pending logs. Try again."
+        case .failed, .none:
+            break
         }
     }
 
     private func signOutNow() async {
-        do {
-            try await sync.discardPendingWrites()
-        } catch {
-            settingsErrorMessage = "Couldn't discard pending logs. Try again."
-            return
-        }
+        guard await sheetSwitchStore?.prepareSignOut() == true else { return }
 
         GoogleAuth.signOut()
         settings.signOut()
@@ -248,7 +241,7 @@ struct SettingsView: View {
                     onDone: {
                         isSheetPickerPresented = false
                     },
-                    isSelectionDisabled: isSheetSelectionDisabled
+                    isSelectionDisabled: isSheetBusy
                 )
                 .background(palette.gradient.ignoresSafeArea())
                 .navigationTitle("Training Sheet")
@@ -285,13 +278,9 @@ struct SettingsView: View {
         }
     }
 
-    private var isSheetSelectionDisabled: Bool {
-        sheetSwitchStore?.isSwitching == true || syncActivity.isSyncInFlight || sync.state == .syncing
-    }
-
     private var settingsErrorPresented: Binding<Bool> {
         Binding {
-            settingsErrorMessage != nil || sheetSwitchStore?.errorMessage != nil
+            sheetSwitchStore?.errorMessage != nil
         } set: { isPresented in
             if !isPresented {
                 clearSettingsError()
@@ -300,11 +289,10 @@ struct SettingsView: View {
     }
 
     private var currentSettingsErrorMessage: String {
-        settingsErrorMessage ?? sheetSwitchStore?.errorMessage ?? "Something went wrong."
+        sheetSwitchStore?.errorMessage ?? "Something went wrong."
     }
 
     private func clearSettingsError() {
-        settingsErrorMessage = nil
         sheetSwitchStore?.clearError()
     }
 }

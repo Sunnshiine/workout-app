@@ -330,7 +330,7 @@ import Testing
     #expect(result == .failed)
     #expect(store.errorMessage == "Couldn't check pending logs. Try again.")
     #expect(store.pendingConfirmation == nil)
-    #expect(store.isSwitching == false)
+    #expect(store.isTransitioning == false)
     #expect(settings.spreadsheetId == "old-sheet")
     #expect(settings.spreadsheetTitle == "Old Training Log")
     #expect(sync.syncedSpreadsheetIds.isEmpty)
@@ -445,7 +445,7 @@ import Testing
     let confirmTask = Task { await store.confirmPendingSwitch() }
     await sync.waitForDiscardStart()
 
-    #expect(store.isSwitching == true)
+    #expect(store.isTransitioning == true)
 
     let overlappingConfirm = await store.confirmPendingSwitch()
     sync.completeDiscard()
@@ -456,6 +456,144 @@ import Testing
     #expect(sync.discardPendingWriteCallCount == 1)
     #expect(settings.spreadsheetId == "new-sheet")
     #expect(sync.syncedSpreadsheetIds == ["new-sheet"])
+}
+
+// MARK: - Sign out
+
+@MainActor
+@Test func signOutWithoutPendingWritesIsReadyImmediately() throws {
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let settings = SettingsStore(defaults: defaults)
+    settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
+    let sync = StubSheetSwitchSync()
+    let store = SettingsSheetSwitchStore(settings: settings, sync: sync)
+
+    let request = store.requestSignOut()
+
+    #expect(request == .ready)
+    #expect(store.errorMessage == nil)
+    #expect(sync.discardPendingWriteCallCount == 0)
+}
+
+@MainActor
+@Test func signOutWithPendingWritesWaitsForConfirmation() throws {
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let settings = SettingsStore(defaults: defaults)
+    settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
+    let sync = StubSheetSwitchSync(hasPendingWrites: true)
+    let store = SettingsSheetSwitchStore(settings: settings, sync: sync)
+
+    let request = store.requestSignOut()
+
+    #expect(request == .requiresConfirmation)
+    #expect(store.errorMessage == nil)
+    #expect(sync.hasPendingWritesValue == true)
+    #expect(sync.discardPendingWriteCallCount == 0)
+}
+
+@MainActor
+@Test func preparingSignOutDiscardsPendingWrites() async throws {
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let settings = SettingsStore(defaults: defaults)
+    settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
+    let sync = StubSheetSwitchSync(hasPendingWrites: true)
+    let store = SettingsSheetSwitchStore(settings: settings, sync: sync)
+
+    let prepared = await store.prepareSignOut()
+
+    #expect(prepared == true)
+    #expect(store.errorMessage == nil)
+    #expect(sync.hasPendingWritesValue == false)
+    #expect(sync.discardPendingWriteCallCount == 1)
+}
+
+@MainActor
+@Test func unreadablePendingWriteCountBlocksSignOutAndSaysSo() throws {
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let settings = SettingsStore(defaults: defaults)
+    settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
+    let sync = StubSheetSwitchSync(pendingWritesError: StubSheetSwitchError.pendingWriteLookupFailed)
+    let store = SettingsSheetSwitchStore(settings: settings, sync: sync)
+
+    let request = store.requestSignOut()
+
+    #expect(request == .failed)
+    #expect(store.errorMessage == "Couldn't check pending logs. Try again.")
+    #expect(sync.discardPendingWriteCallCount == 0)
+}
+
+@MainActor
+@Test func failedPendingWriteDiscardBlocksSignOut() async throws {
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let settings = SettingsStore(defaults: defaults)
+    settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
+    let sync = StubSheetSwitchSync(hasPendingWrites: true, discardError: StubSheetSwitchError.discardFailed)
+    let store = SettingsSheetSwitchStore(settings: settings, sync: sync)
+
+    let prepared = await store.prepareSignOut()
+
+    #expect(prepared == false)
+    #expect(store.errorMessage == "Couldn't discard pending logs. Try again.")
+    #expect(sync.hasPendingWritesValue == true)
+    #expect(settings.spreadsheetId == "current-sheet")
+}
+
+@MainActor
+@Test func signOutIsRejectedWhileSettingsManualSyncIsRunning() async throws {
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let settings = SettingsStore(defaults: defaults)
+    settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
+    let syncActivity = SettingsSyncActivity()
+    let manualSync = SuspendedConfiguredSheetSync()
+    let manualStore = SettingsManualSyncStore(
+        settings: settings,
+        sync: manualSync,
+        syncActivity: syncActivity
+    )
+    let signOutSync = StubSheetSwitchSync(hasPendingWrites: true)
+    let store = SettingsSheetSwitchStore(
+        settings: settings,
+        sync: signOutSync,
+        syncActivity: syncActivity
+    )
+
+    let manualTask = Task { await manualStore.syncNow() }
+    await manualSync.waitForSyncStart()
+
+    let request = store.requestSignOut()
+    let prepared = await store.prepareSignOut()
+    manualSync.completeSync()
+    _ = await manualTask.value
+
+    #expect(request == .failed)
+    #expect(prepared == false)
+    #expect(store.errorMessage == "A sync is already in progress.")
+    #expect(signOutSync.discardPendingWriteCallCount == 0)
+    #expect(signOutSync.hasPendingWritesValue == true)
+}
+
+@MainActor
+@Test func signOutIsRejectedWhileASheetSwitchDiscardIsRunning() async throws {
+    let defaults = try #require(UserDefaults(suiteName: "test.\(UUID())"))
+    let settings = SettingsStore(defaults: defaults)
+    settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
+    let sync = SuspendedDiscardSheetSwitchSync()
+    let store = SettingsSheetSwitchStore(settings: settings, sync: sync)
+    let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
+
+    _ = await store.requestSwitch(to: newSheet)
+    let confirmTask = Task { await store.confirmPendingSwitch() }
+    await sync.waitForDiscardStart()
+
+    let request = store.requestSignOut()
+    let prepared = await store.prepareSignOut()
+    sync.completeDiscard()
+    _ = await confirmTask.value
+
+    #expect(request == .failed)
+    #expect(prepared == false)
+    #expect(store.errorMessage == "A sync is already in progress.")
+    #expect(sync.discardPendingWriteCallCount == 1)
 }
 
 // MARK: - Cache safety against a real SyncCoordinator

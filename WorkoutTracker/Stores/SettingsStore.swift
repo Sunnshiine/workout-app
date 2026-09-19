@@ -148,6 +148,12 @@ enum SettingsSheetSwitchResult: Equatable {
     case failed
 }
 
+enum SettingsSignOutResult: Equatable {
+    case ready
+    case requiresConfirmation
+    case failed
+}
+
 /// A spreadsheet the athlete has chosen to switch to. Modelled independently of `SpreadsheetFile`
 /// so every selection path — the Drive picker (which carries a title) and the pasted-URL fallback
 /// (which does not) — can flow through the same safe switch transaction.
@@ -231,12 +237,15 @@ final class SettingsManualSyncStore {
 final class SettingsSheetSwitchStore {
     private(set) var pendingConfirmation: SheetSelection?
     private(set) var errorMessage: String?
-    private(set) var isSwitching = false
+    private(set) var isTransitioning = false
 
     private let settings: SettingsStore
     private let sync: any SheetSwitchSyncing
     private let syncActivity: SettingsSyncActivity
     private let onSynced: () -> Void
+    private static let syncInProgressMessage = "A sync is already in progress."
+    private static let pendingCheckFailedMessage = "Couldn't check pending logs. Try again."
+    private static let discardFailedMessage = "Couldn't discard pending logs. Try again."
 
     init(
         settings: SettingsStore,
@@ -250,14 +259,20 @@ final class SettingsSheetSwitchStore {
         self.onSynced = onSynced
     }
 
+    /// Switching the configured Sheet and signing out are one domain move. Both abandon Set Logs
+    /// the athlete recorded locally that have not yet reached the Sheet (ADR-0001).
+    var canBeginDestructiveTransition: Bool {
+        !isTransitioning && !syncActivity.isSyncInFlight
+    }
+
     func requestSwitch(to spreadsheet: SpreadsheetFile) async -> SettingsSheetSwitchResult {
         await requestSwitch(to: SheetSelection(spreadsheet))
     }
 
     func requestSwitch(to selection: SheetSelection) async -> SettingsSheetSwitchResult {
         errorMessage = nil
-        guard canBeginSwitch else {
-            errorMessage = "A sync is already in progress."
+        guard canBeginDestructiveTransition else {
+            errorMessage = Self.syncInProgressMessage
             return .failed
         }
 
@@ -272,30 +287,30 @@ final class SettingsSheetSwitchStore {
                 return .requiresConfirmation
             }
         } catch {
-            errorMessage = "Couldn't check pending logs. Try again."
+            errorMessage = Self.pendingCheckFailedMessage
             return .failed
         }
 
-        isSwitching = true
-        defer { isSwitching = false }
+        isTransitioning = true
+        defer { isTransitioning = false }
         return await switchNow(to: selection) ? .switched : .failed
     }
 
     func confirmPendingSwitch() async -> Bool {
         errorMessage = nil
         guard let selection = pendingConfirmation else { return false }
-        guard canBeginSwitch else {
-            errorMessage = "A sync is already in progress."
+        guard canBeginDestructiveTransition else {
+            errorMessage = Self.syncInProgressMessage
             return false
         }
 
-        isSwitching = true
-        defer { isSwitching = false }
+        isTransitioning = true
+        defer { isTransitioning = false }
 
         do {
             try await sync.discardPendingWrites()
         } catch {
-            errorMessage = "Couldn't discard pending logs. Try again."
+            errorMessage = Self.discardFailedMessage
             return false
         }
         pendingConfirmation = nil
@@ -306,12 +321,42 @@ final class SettingsSheetSwitchStore {
         pendingConfirmation = nil
     }
 
-    func clearError() {
+    func requestSignOut() -> SettingsSignOutResult {
         errorMessage = nil
+        guard canBeginDestructiveTransition else {
+            errorMessage = Self.syncInProgressMessage
+            return .failed
+        }
+
+        do {
+            return try sync.hasPendingWrites() ? .requiresConfirmation : .ready
+        } catch {
+            errorMessage = Self.pendingCheckFailedMessage
+            return .failed
+        }
     }
 
-    private var canBeginSwitch: Bool {
-        !isSwitching && !syncActivity.isSyncInFlight
+    func prepareSignOut() async -> Bool {
+        errorMessage = nil
+        guard canBeginDestructiveTransition else {
+            errorMessage = Self.syncInProgressMessage
+            return false
+        }
+
+        isTransitioning = true
+        defer { isTransitioning = false }
+
+        do {
+            try await sync.discardPendingWrites()
+        } catch {
+            errorMessage = Self.discardFailedMessage
+            return false
+        }
+        return true
+    }
+
+    func clearError() {
+        errorMessage = nil
     }
 
     private func switchNow(to selection: SheetSelection) async -> Bool {
@@ -320,7 +365,7 @@ final class SettingsSheetSwitchStore {
                 await sync.sync(spreadsheetId: selection.spreadsheetId)
             })
         else {
-            errorMessage = "A sync is already in progress."
+            errorMessage = Self.syncInProgressMessage
             return false
         }
 
