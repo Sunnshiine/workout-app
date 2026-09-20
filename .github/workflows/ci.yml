@@ -40,6 +40,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # SwiftLint over every tree `.swiftlint.yml` names. The app target lints itself through the
+  # SwiftLintPlugins build tool plugin, so before this job `WorkoutCLI` and `Tests` were in the
+  # config's `included:` list and linted nowhere (issue #607). Nothing here builds the app, so it
+  # finishes in about a minute alongside the two test jobs rather than extending them.
+  lint:
+    # SwiftLint needs no Xcode and no simulator. This label is the repo's runner pool, not a
+    # toolchain requirement.
+    runs-on: xcode-27
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      # The version comes from the same Package.resolved the Xcode plugin resolves against, so the
+      # cache key moves when the pin moves and never serves a stale binary.
+      - name: Read the pinned SwiftLint version
+        id: swiftlint
+        run: echo "version=$(scripts/lint.sh --print-version)" >> "$GITHUB_OUTPUT"
+      - name: Cache the pinned SwiftLint binary
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/swiftlint
+          key: swiftlint-${{ runner.os }}-${{ steps.swiftlint.outputs.version }}
+      - name: Lint WorkoutTracker, WorkoutCLI and Tests
+        env:
+          SWIFTLINT_CACHE_DIR: ${{ runner.temp }}/swiftlint
+        run: scripts/lint.sh
+
   swift-tests:
     runs-on: xcode-27
     timeout-minutes: 30

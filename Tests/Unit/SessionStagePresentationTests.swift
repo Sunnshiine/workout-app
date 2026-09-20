@@ -74,7 +74,7 @@ struct SessionStagePresentationTests {
         let items = SessionStagePresentation.items([
             exerciseItem(squat),
             hiddenPairedItem(bench, containerOrder: 0),
-            exerciseItem(bench),
+            exerciseItem(bench)
         ])
 
         #expect(items.map(\.id) == ["exercise-0", "exercise-1"])
@@ -347,7 +347,7 @@ struct SessionStagePresentationTests {
         let items = SessionStagePresentation.items([
             exerciseItem(squat, pairingAvailability: .available),
             exerciseItem(bench, pairingAvailability: .available),
-            exerciseItem(carry, pairingAvailability: .unavailable),
+            exerciseItem(carry, pairingAvailability: .unavailable)
         ])
         let mode = PairingMode.selecting(sourceOrder: 0)
 
@@ -361,7 +361,7 @@ struct SessionStagePresentationTests {
         let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending])
         let items = SessionStagePresentation.items([
             exerciseItem(squat, pairingAvailability: .available),
-            exerciseItem(bench, pairingAvailability: .available),
+            exerciseItem(bench, pairingAvailability: .available)
         ])
         let mode = PairingMode.confirming(sourceOrder: 0, targetOrder: 1)
 

@@ -128,8 +128,8 @@ import Testing
 
 // MARK: - Paint box (token sheet §2)
 
-@Test func themePaintBoxMatchesTokenSheet() {
-    #if canImport(AppKit)
+#if canImport(AppKit)
+    @Test func themePaintBoxMatchesTokenSheet() {
         expectRGB(Theme.Paint.ink, red: 21 / 255, green: 33 / 255, blue: 24 / 255)
         expectRGB(Theme.Paint.inkNight, red: 239 / 255, green: 243 / 255, blue: 227 / 255)
         expectRGB(Theme.Paint.muted, red: 82 / 255, green: 100 / 255, blue: 87 / 255)
@@ -138,13 +138,13 @@ import Testing
         expectRGB(Theme.Paint.actionDay, red: 13 / 255, green: 107 / 255, blue: 64 / 255)
         expectRGB(Theme.Paint.actionNight, red: 31 / 255, green: 133 / 255, blue: 82 / 255)
         expectRGB(Theme.Paint.foliage, red: 87 / 255, green: 145 / 255, blue: 104 / 255)
-    #endif
-}
+    }
+#endif
 
 // MARK: - Paper wash (token sheet §3)
 
-@Test func themePaperRecipesUseTheHandLitBasePairs() {
-    #if canImport(AppKit)
+#if canImport(AppKit)
+    @Test func themePaperRecipesUseTheHandLitBasePairs() {
         let day = Theme.palette(for: Theme.Appearance.day).paper
         expectRGB(day.baseTop, red: 233 / 255, green: 238 / 255, blue: 220 / 255)
         expectRGB(day.baseBottom, red: 203 / 255, green: 225 / 255, blue: 194 / 255)
@@ -154,28 +154,28 @@ import Testing
         expectRGB(night.baseTop, red: 35 / 255, green: 44 / 255, blue: 32 / 255)
         expectRGB(night.baseBottom, red: 18 / 255, green: 29 / 255, blue: 20 / 255)
         #expect(night.washes.count == 4)
-    #endif
-}
+    }
+#endif
 
-@Test func themeDayPaperTopWashIsTheWarmSunWash() {
-    #if canImport(AppKit)
+#if canImport(AppKit)
+    @Test func themeDayPaperTopWashIsTheWarmSunWash() {
         let warmSun = Theme.palette(for: Theme.Appearance.day).paper.washes[0]
         expectRGB(warmSun.color, red: 255 / 255, green: 250 / 255, blue: 224 / 255, alpha: 0.85)
         #expect(warmSun.center == UnitPoint(x: 0.18, y: 0.04))
-    #endif
-}
+    }
+#endif
 
 // MARK: - Semantic roles (token sheet §3)
 
-@Test func themeActionRoleIsHandLitGreenPerAppearance() {
-    #if canImport(AppKit)
+#if canImport(AppKit)
+    @Test func themeActionRoleIsHandLitGreenPerAppearance() {
         expectRGB(Theme.palette(for: Theme.Appearance.day).action, red: 13 / 255, green: 107 / 255, blue: 64 / 255)
         expectRGB(Theme.palette(for: Theme.Appearance.night).action, red: 31 / 255, green: 133 / 255, blue: 82 / 255)
-    #endif
-}
+    }
+#endif
 
-@Test func themeTextInksMatchTokenSheet() {
-    #if canImport(AppKit)
+#if canImport(AppKit)
+    @Test func themeTextInksMatchTokenSheet() {
         let day = Theme.palette(for: Theme.Appearance.day)
         expectRGB(day.textPrimary, red: 21 / 255, green: 33 / 255, blue: 24 / 255)
         expectRGB(day.textSecondary, red: 82 / 255, green: 100 / 255, blue: 87 / 255)
@@ -183,11 +183,11 @@ import Testing
         let night = Theme.palette(for: Theme.Appearance.night)
         expectRGB(night.textPrimary, red: 239 / 255, green: 243 / 255, blue: 227 / 255)
         expectRGB(night.textSecondary, red: 154 / 255, green: 170 / 255, blue: 155 / 255)
-    #endif
-}
+    }
+#endif
 
-@Test func themeSurfaceIsCreamAtHandLitOpacity() {
-    #if canImport(AppKit)
+#if canImport(AppKit)
+    @Test func themeSurfaceIsCreamAtHandLitOpacity() {
         expectRGB(
             Theme.palette(for: Theme.Appearance.day).surface,
             red: 242 / 255, green: 247 / 255, blue: 232 / 255, alpha: 0.52
@@ -196,14 +196,14 @@ import Testing
             Theme.palette(for: Theme.Appearance.night).surface,
             red: 242 / 255, green: 247 / 255, blue: 232 / 255, alpha: 0.07
         )
-    #endif
-}
+    }
+#endif
 
-@Test func themeNightBudStrokeCarriesTheOneGlowGreen() {
-    #if canImport(AppKit)
+#if canImport(AppKit)
+    @Test func themeNightBudStrokeCarriesTheOneGlowGreen() {
         expectRGB(Theme.palette(for: Theme.Appearance.night).budStroke, red: 120 / 255, green: 240 / 255, blue: 178 / 255)
-    #endif
-}
+    }
+#endif
 
 @Test func themeBudGlowIsTheNightOnlyPageGlow() throws {
     // The active bud carries the page's one glow at Night; Day leaves it unlit (token sheet §Stage & branch).
@@ -243,8 +243,8 @@ import Testing
     #endif
 }
 
-@Test func themeDangerStaysADistinctDestructiveRed() {
-    #if canImport(AppKit)
+#if canImport(AppKit)
+    @Test func themeDangerStaysADistinctDestructiveRed() {
         for appearance in Theme.Appearance.allCases {
             guard let danger = rgbaComponents(of: Theme.palette(for: appearance).danger) else {
                 Issue.record("Could not resolve \(appearance.rawValue) danger")
@@ -254,8 +254,8 @@ import Testing
             #expect(danger.green < 0.35, "\(appearance.rawValue) danger should not drift orange or green")
             #expect(danger.blue < 0.25, "\(appearance.rawValue) danger should not drift purple")
         }
-    #endif
-}
+    }
+#endif
 
 // MARK: - Radius family (token sheet §6)
 
@@ -304,8 +304,8 @@ import Testing
 // black, no new hues at night."). These assertions are the programmatic half of that sign-off —
 // the deterministic Visual Baselines are the pixel half.
 
-@Test func nightExerciseHistorySheetObeysTheRoomRelightsRule() {
-    #if canImport(AppKit)
+#if canImport(AppKit)
+    @Test func nightExerciseHistorySheetObeysTheRoomRelightsRule() {
         let night = Theme.palette(for: Theme.Appearance.night)
 
         // The night sheet paper is deep sage, never neutral black (#418 recipe, flagged surface).
@@ -321,11 +321,11 @@ import Testing
                 #expect(cream.green > 0.85, "cream is kept as the light source, sage-led and bright")
             }
         }
-    #endif
-}
+    }
+#endif
 
-@Test func nightBlockGridObeysTheRoomRelightsRule() {
-    #if canImport(AppKit)
+#if canImport(AppKit)
+    @Test func nightBlockGridObeysTheRoomRelightsRule() {
         let night = Theme.palette(for: Theme.Appearance.night)
 
         // Everything that grows takes foliage pigment: the complete tile fills in foliage green.
@@ -345,8 +345,8 @@ import Testing
 
         // The current tile's rim is the approved literal in both appearances — never re-lit away.
         expectRGB(night.tileCurrentBorder, red: 31 / 255, green: 133 / 255, blue: 82 / 255)
-    #endif
-}
+    }
+#endif
 
 @Test func nightPreservesTheRoomsSageHueAcrossAppearances() {
     // The room re-lights, it does not recolor: the sheet paper and the page paper stay sage-led in
@@ -405,8 +405,8 @@ import Testing
 
 // MARK: - Elevation & light kit (token sheet §3 / §5.5 / §5.6; ledger §1.2 — the absent tokens)
 
-@Test func themeSurfaceShadowIsADayDoubleDropAndANightInsetBorder() {
-    #if canImport(AppKit)
+#if canImport(AppKit)
+    @Test func themeSurfaceShadowIsADayDoubleDropAndANightInsetBorder() {
         let day = Theme.palette(for: Theme.Appearance.day).surfaceShadow
         #expect(day.count == 2)
         #expect(day[0] == Theme.BoxShadow(y: 1, blur: 2, color: Theme.rgb(21, 33, 24, 0.04)))
@@ -417,11 +417,11 @@ import Testing
         #expect(night[0].isInset, "the night surface elevation is a border-as-light inset, not a drop")
         #expect(night[0].spread == 1)
         expectRGB(night[0].color, red: 242 / 255, green: 247 / 255, blue: 232 / 255, alpha: 0.10)
-    #endif
-}
+    }
+#endif
 
-@Test func themeLogShadowIsADayGreenDropAndANightGreenGlow() {
-    #if canImport(AppKit)
+#if canImport(AppKit)
+    @Test func themeLogShadowIsADayGreenDropAndANightGreenGlow() {
         let day = Theme.palette(for: Theme.Appearance.day).logShadow
         #expect(day.count == 2)
         #expect(day[0] == Theme.BoxShadow(y: 1, blur: 2, color: Theme.rgb(13, 46, 28, 0.22)))
@@ -431,8 +431,8 @@ import Testing
         #expect(night.count == 1)
         #expect(night[0].yOffset == 0 && night[0].blur == 22, "the night Log elevation is a glow, no drop")
         expectRGB(night[0].color, red: 31 / 255, green: 133 / 255, blue: 82 / 255, alpha: 0.35)
-    #endif
-}
+    }
+#endif
 
 @Test func themeSkipFillOverlayIsMutedInBothAppearances() throws {
     // Token sheet §Log capsule: the hold-to-skip overlay is muted @ 30% — never danger red
@@ -473,32 +473,32 @@ import Testing
     #endif
 }
 
-@Test func themeLightKitCardLowAndSunGlowMatchTokenSheet() {
-    #if canImport(AppKit)
+#if canImport(AppKit)
+    @Test func themeLightKitCardLowAndSunGlowMatchTokenSheet() {
         #expect(Theme.LightKit.cardLow == [
             Theme.BoxShadow(y: 1, blur: 2, color: Theme.Paint.ink.opacity(0.06)),
-            Theme.BoxShadow(y: 3, blur: 8, color: Theme.Paint.ink.opacity(0.07)),
+            Theme.BoxShadow(y: 3, blur: 8, color: Theme.Paint.ink.opacity(0.07))
         ])
         #expect(Theme.LightKit.sunGlow == [
             Theme.BoxShadow(y: 0, blur: 0, spread: 4, color: Theme.rgb(242, 247, 232, 0.45)),
-            Theme.BoxShadow(y: 2, blur: 18, color: Theme.rgb(220, 235, 190, 0.9)),
+            Theme.BoxShadow(y: 2, blur: 18, color: Theme.rgb(220, 235, 190, 0.9))
         ])
-    #endif
-}
+    }
+#endif
 
-@Test func themeLightKitFocusCardIsMorningLightWithACreamGlowRim() {
-    #if canImport(AppKit)
+#if canImport(AppKit)
+    @Test func themeLightKitFocusCardIsMorningLightWithACreamGlowRim() {
         expectRGB(Theme.LightKit.focusCardFill, red: 248 / 255, green: 251 / 255, blue: 238 / 255, alpha: 0.96)
         // The rim is cardLow under a cream 5px halo and a soft sun bloom.
         let rim = Theme.LightKit.focusCardGlowRim
         #expect(rim.count == 4)
         #expect(rim[2] == Theme.BoxShadow(y: 0, blur: 0, spread: 5, color: Theme.rgb(250, 252, 238, 0.5)))
         #expect(rim[3] == Theme.BoxShadow(y: 6, blur: 30, color: Theme.rgb(228, 240, 200, 0.95)))
-    #endif
-}
+    }
+#endif
 
-@Test func themeLightKitWashesAndDotsMatchTokenSheet() {
-    #if canImport(AppKit)
+#if canImport(AppKit)
+    @Test func themeLightKitWashesAndDotsMatchTokenSheet() {
         // The page sunbeam is a three-stop radial; the tile top-light a two-stop sheen.
         #expect(Theme.LightKit.pageSunbeam.stops.count == 3)
         #expect(Theme.LightKit.pageSunbeam.center == UnitPoint(x: 0.82, y: -0.08))
@@ -511,5 +511,5 @@ import Testing
         // Data dot: solid ink r4.5 with a paper core. Approx dot: hollow ink outline r4 @ 1.5.
         #expect(Theme.LightKit.dataDot == Theme.DotSpec(color: Theme.Paint.ink, radius: 4.5, lineWidth: 0, hasPaperCore: true))
         #expect(Theme.LightKit.approxDot == Theme.DotSpec(color: Theme.Paint.ink, radius: 4, lineWidth: 1.5, hasPaperCore: false))
-    #endif
-}
+    }
+#endif

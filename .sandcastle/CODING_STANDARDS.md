@@ -12,7 +12,7 @@ The Google Sheet is the single source of truth (ADR-0001). The app is a read-wri
 
 ---
 
-Views (`WorkoutTracker/Views/`) are excluded from the SPM library target. Logic that needs unit coverage must live in the library (Models, Parsing, Stores, Progress, LoadSuggestionEngine) — not in a View. A View that grows non-trivial branching or calculation is a signal to extract that logic into the library where `swift test` can reach it. (Views are still compile-checked in CI via `xcodebuild` on Xcode 26 — "can't be verified here" is not a reason to avoid touching them — but compilation is not behavior coverage.)
+Views (`App/Views/`) sit outside `Sources/`, so the SPM library target does not build them. Logic that needs unit coverage must live in the library (Models, Parsing, Stores, Progress, LoadSuggestionEngine) — not in a View. A View that grows non-trivial branching or calculation is a signal to extract that logic into the library where `swift test` can reach it. (Views are still compile-checked in CI via `xcodebuild` on Xcode 26 — "can't be verified here" is not a reason to avoid touching them — but compilation is not behavior coverage.)
 
 ---
 
@@ -61,7 +61,7 @@ Red flags:
 
 ### Mocking
 
-Mock at **system boundaries** only: the Sheets client, auth, time, randomness. **Never mock your own types or internal collaborators.** If something is hard to test without mocking internals, redesign the interface. Fixtures (`WorkoutTracker/Fixtures/`) are the preferred substitute for live sheet data.
+Mock at **system boundaries** only: the Sheets client, auth, time, randomness. **Never mock your own types or internal collaborators.** If something is hard to test without mocking internals, redesign the interface. Fixtures (`Sources/WorkoutTracker/Fixtures/`) are the preferred substitute for live sheet data.
 
 ### TDD Workflow: Vertical Slices
 

@@ -400,8 +400,7 @@ private func multiLinePrescriptionGrid(_ extra: [String: String] = [:]) -> Sheet
 }
 
 private func multiLineNotesRequest(_ name: String, _ setIndex: Int, value: String, expected: String = "")
-    -> SheetWriteRequest
-{
+    -> SheetWriteRequest {
     SheetWriteRequest(
         blockTab: "Block 27",
         week: 1,

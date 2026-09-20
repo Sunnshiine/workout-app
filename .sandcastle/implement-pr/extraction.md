@@ -20,7 +20,7 @@ Emit a single `<output>` block as the **last thing** in your response. Valid JSO
   ],
   "newInlineComments": [
     {
-      "path": "WorkoutTracker/Stores/SessionStore.swift",
+      "path": "Sources/WorkoutTracker/Stores/SessionStore.swift",
       "line": 87,
       "body": "Heads up — while addressing the thread above I also tightened the guard on line 85. Flagging in case it affects the test you mentioned."
     }
