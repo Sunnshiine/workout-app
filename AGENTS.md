@@ -13,21 +13,20 @@ Each of these wins over anything written here. Read the one that governs the wor
 - `docs/adr/` records decisions. Read the ADRs for the area you change. If your change contradicts
   one, say so in the PR instead of overriding it.
 - `PRODUCT.md` and `DESIGN.md` govern product and UI work. Read them first for either.
-- `CODING_STANDARDS.md` is the review standard: the rules that cost this repo a shipped bug and take
-  judgment a lint does not have. Read it before changing a store, a coordinator, a View's logic, or
-  a test, and apply it at review.
+- `CODING_STANDARDS.md` is the review standard. Its rules are the ones that cost this repo a
+  shipped bug and take judgment a lint does not have. Read it before changing a store, a
+  coordinator, a View's logic, or a test, and apply it at review.
 - `.swift-format` and `.swiftlint.yml` own formatting and every mechanical rule.
-  `Tests/.swiftlint.yml` names the three rules a test body is exempt from, each with its reason.
 - `docs/TESTING.md` owns the change-risk gate and flake hunting. `tools/crap/README.md` and
   ADR-0016 own the gate's counting rules.
 - `Sources/WorkoutCLI/README.md` owns the `workout` CLI. ADR-0015 records the boundary it runs on.
-- `.claude/skills/verify/SKILL.md` drives the app on the simulator and captures proof. Read the
-  matching file under `.claude/skills/verify/features/` before driving.
+- `.agents/skills/verify/SKILL.md` drives the app on the simulator and captures proof. Read the
+  matching file under `.agents/skills/verify/features/` before driving.
 
 ## Repository map
 
-The directory a file sits in decides which builds compile it (ADR-0017). These six entries are
-stable. The folders inside them move, so read the tree instead of a copy of it.
+The directory a file sits in decides which builds compile it (ADR-0017). These entries are stable.
+The folders inside them move, so read the tree instead of a copy of it.
 
 ```text
 App/                     The iOS app alone: entry point, Views, Live Activity controller, Google
@@ -39,7 +38,8 @@ Sources/WorkoutCLI/      The workout executable. In neither the app nor the widg
 WorkoutShared/           Live Activity attributes, compiled into the app and the widget.
 WorkoutWidgets/          The widget extension.
 Tests/                   Unit/ and Component/ run under swift test. UI/ and Visual/ run on the
-                         simulator only.
+                         simulator only. Support/ holds the fakes and fixtures both runs share.
+tools/crap/              The CRAP scorer, its own package, run through scripts/crap.sh.
 ```
 
 `App/`, `Sources/WorkoutTracker/`, `WorkoutShared/`, `WorkoutWidgets/`, and the folders under
@@ -49,17 +49,12 @@ of the bundle, add a membership exception in the project, as each `Info.plist` h
 
 ## Boundaries
 
-- Code that needs UIKit or another iOS-only API belongs in `App/`. Everything else belongs in
-  `Sources/WorkoutTracker/`, where `swift test` and the CLI can reach it.
-- A View holds no logic that needs a test. A guard, a calculation, or a branch that decides
-  behaviour lives in the library, and the View reads the answer.
+- Code that needs UIKit or another iOS-only API belongs in `App/`. Everything else, including
+  every guard, calculation, or branch that decides behaviour, belongs in `Sources/WorkoutTracker/`,
+  where `swift test` and the CLI can reach it.
 - `WorkoutApplication` is the composition root and the public facade. The app and the CLI both
   build on it (ADR-0015).
-- Every write to the Sheet or the cache goes through `SyncCoordinator` and its pending-write queue
-  (ADR-0006). Local state that diverges from the Sheet without passing through it is a correctness
-  bug.
-- `CODING_STANDARDS.md` carries the rest: one owner per fact, control signals, outcome enums, held
-  tasks, SwiftData across a reload, optionals, and the test rules.
+- The Sheet is written only through `SyncCoordinator` and its pending-write queue (ADR-0006).
 
 ## Commands
 
@@ -88,13 +83,14 @@ workout log w1d1.e0.s0 185x5@8 && workout flush && workout sheet --cell K15   # 
 
 ## Verification
 
-Run `scripts/lint.sh` and `swift test` before finishing. CI runs those, the CRAP gate, and the
-visual gate on every PR. A PR that changes only Markdown, `docs/`, or agent files starts no run.
+Run `scripts/lint.sh` and `swift test` before finishing. On every PR, CI runs those, the CRAP
+gate, the simulator-hosted unit and component suite, and the visual gate. A PR whose changed paths
+all sit in `ci.yml`'s `paths-ignore` (Markdown, `docs/`, agent files, and more) starts no run.
 
 - Neither test run is a superset of the other. `swift test` compiles `Sources/` alone, so a green
   run does not prove the app compiles. `scripts/test-sim.sh unit` compiles the app and skips the
-  macOS-only CLI suites (`WorkoutCLIBinaryTests`, `CLIFailureTests`). A diff that touches `App/`
-  needs the simulator run as well.
+  macOS-only CLI suites (`WorkoutCLIBinaryTests`, `CLIFailureTests`). Before pushing a diff that
+  touches `App/`, run the simulator suite as well.
 - Run simulator suites through `scripts/test-sim.sh`. A bare `xcodebuild test` fails plug-in
   validation on a fresh machine and can hang collecting diagnostics after a failure.
 - Pin `OS=27.0` in every `-destination`. A machine with two runtimes holds two devices named
@@ -118,8 +114,8 @@ visual gate on every PR. A PR that changes only Markdown, `docs/`, or agent file
   later, because older builds fail every accessibility call on Xcode 27.
 - Land with `scripts/ci-wait.sh N` and then `gh pr merge N --squash`. Leave out `--delete-branch`.
   GitHub deletes the remote branch itself, and the flag switches whichever worktree holds the
-  branch onto `main`. `scripts/prune-merged-worktrees.sh` lists worktrees whose PR has merged and
-  removes them only under `--apply`.
+  branch onto `main`. `scripts/prune-merged-worktrees.sh` lists worktrees whose PR has merged or
+  closed and removes them only under `--apply`.
 
 ## Agent workflows
 
