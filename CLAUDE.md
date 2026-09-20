@@ -159,6 +159,12 @@ WorkoutCLI/                     The `workout` executable (ADR-0015)
 Tests/  →  Unit/ · Component/ · UI/ · Support/
 ```
 
+`WorkoutTracker/`, `WorkoutShared/`, and `WorkoutWidgets/` are Xcode buildable folders, like the
+folders under `Tests/`. A Swift file added under one compiles into its target with no project edit.
+`WorkoutShared/` builds into both the app and the widget. Xcode also copies any other file in these
+folders into the bundle, including a Markdown note. To keep a file out of the bundle, add a
+membership exception in the project, as each `Info.plist` has.
+
 ## Agent skills
 
 ### Issue tracker

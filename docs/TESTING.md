@@ -95,8 +95,8 @@ Target directory structure:
   UI Interaction Suite.
 
 Migration policy: move the existing flat `WorkoutTrackerTests` files into this structure in one
-mechanical change before adding new coverage. Update `Package.swift` and `WorkoutTracker.xcodeproj`,
-and verify with `swift test` plus `xcodebuild test` immediately after the move.
+mechanical change before adding new coverage. Update `Package.swift` and verify with `swift test`
+plus `xcodebuild test` immediately after the move.
 
 Test doubles policy:
 
