@@ -3,9 +3,9 @@
 The review standard for this repo. `CONTEXT.md` (vocabulary), `docs/adr/` (decisions), `PRODUCT.md`
 and `DESIGN.md` (product and UI work) win over anything here. Formatting and every mechanical rule
 are settled by `.swift-format` and `.swiftlint.yml`, including its custom rules; a reviewer flags
-only what a lint cannot judge, and never a preference. A rule earns a line here when it cost this
-repo a shipped bug and applying it takes context a regex does not have. Delete a rule that stops
-paying.
+only what a lint does not already judge, and never a preference. A rule earns a line here when it
+cost this repo a shipped bug and applying it takes context a regex does not have. Delete a rule
+that stops paying.
 
 Apply every rule to every hunk of the diff. For each finding, cite the rule's heading and quote the
 hunk.
@@ -69,9 +69,9 @@ backfill ran detached after `sync()` returned and could overwrite a pending-writ
 same field (#514).
 
 The fix looked like `isSyncing` reading two in-flight counters that only their owners change
-(`WorkoutTracker/Stores/SyncCoordinator.swift:202`), with the banner derived from them. The
-`unstructured_task_is_held` lint catches the dropped-task shape; the review judges what a held
-task is allowed to write.
+(`WorkoutTracker/Stores/SyncCoordinator.swift:202`), with the banner derived from them. The review
+catches the dropped-task shape today and judges what a held task is allowed to write. #637 adds an
+`unstructured_task_is_held` lint for the shape.
 
 ## Outcomes are enums with one case per outcome
 
@@ -107,8 +107,8 @@ its backoff (`WorkoutTracker/Sheets/SheetsClient.swift:26-35`) and `LastPerforme
 declared `let`, so every caller says whether the line is tappable
 (`WorkoutTracker/Views/LastPerformedCard.swift:5-9`).
 
-The `optional_bool_needs_a_nil_answer` lint catches `optional?.flag == false` and its spellings;
-the review judges every other default.
+The review catches `optional?.flag == false` and its spellings today, and judges every other
+default. #637 adds an `optional_bool_needs_a_nil_answer` lint for the comparison.
 
 ## SwiftData objects do not survive a reload
 
@@ -163,10 +163,10 @@ asked a deeper question, or a "which Set is final" question answered privately i
 - Every fixture value is a literal or an offset from the fixture's reference date, and a parsed
   date is pinned to the coach's cell text, never to an instant. `SheetParser.parseDate` resolves in
   the machine's time zone, and a literal-instant pin passed in EDT and failed under `TZ=UTC`
-  (#597). The `fixture_dates_are_literal` lint catches wall-clock reads; the review catches the
-  time-zone assumption.
+  (#597). The review catches wall-clock reads and the time-zone assumption. #637 adds a
+  `fixture_dates_are_literal` lint for the reads.
 - A test that mirrors a one-line mapping adds no confidence and breaks on any refactor. The gate
   does not need it: a function with cyclomatic complexity 1 scores 2 uncovered, under the target.
 - Flake discipline (a fake resumes the test, no wall-clock budgets) is `docs/TESTING.md`, Flaky
-  Tests. The `polling_loops_are_bounded` lint catches the unbounded yield loop; #608 adds
+  Tests. #637 adds a `polling_loops_are_bounded` lint for the unbounded yield loop, and #608 adds
   `platform_guard_on_test_declaration` for the `@Test` whose body opens with a platform `#if`.
