@@ -4,8 +4,11 @@ A mobile client for powerlifting athletes that surfaces and logs workouts from a
 coach-managed Google Sheet. The Sheet is the single source of truth; the app is a
 read-write client with a local cache (ADR-0001).
 
-> Generic Swift conventions (style, testing, patterns, security) are loaded automatically
-> from `~/.claude/rules/swift/` — they are intentionally not duplicated here.
+> `CODING_STANDARDS.md` is the review standard: the traps this codebase has shipped and how a
+> reviewer spots them (a display enum read as a control signal, a latch assigned at ten sites, a
+> defaulted callback that answered "always", a fixture seeded from the wall clock). Read it before
+> changing `Stores/`, `Progress/`, a View's logic, or a test, and at review time. Mechanical rules
+> are SwiftLint custom rules in `.swiftlint.yml`, not prose.
 
 ## Build, Test & Run
 
@@ -52,6 +55,9 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
 - The `WorkoutTracker` scheme launches with `-UITEST_FIXTURE true` and
   `-UITEST_SESSION true` — it runs against deterministic local fixtures, **not**
   the live Google Sheet. To run against live data, use the `Copy of WorkoutTracker` scheme (`-UITEST_FIXTURE false`).
+- Concurrent UI-test sessions must not share the same simulator. Use distinct
+  simulator UDIDs with `-destination 'platform=iOS Simulator,id=<UDID>'` and
+  isolated `-derivedDataPath` / `-clonedSourcePackagesDirPath` values.
 - To drive the app like a user and capture proof (screenshots plus the accessibility tree), use
   the project `verify` skill: `.claude/skills/verify/SKILL.md` owns launch, doctor, drive,
   evidence, and cleanup, and `.claude/skills/verify/features/` maps every user-facing feature
