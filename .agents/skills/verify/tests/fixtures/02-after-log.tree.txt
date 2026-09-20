@@ -1,0 +1,47 @@
+AXApplication		WorkoutTracker		@0,0 402x874
+AXStaticText		Sync status: 1 unsynced		@16,36 370x34
+AXGroup	session-header-hud		Block 27 · Week 1 · Day 1, 4 Sets left	@0,70 402x43
+AXButton	session-location-button	Open Block Overview for Week 1, Day 1		@30,85 140x19
+AXStaticText	session-remaining-count	4 Sets left		@317,85 55x19
+AXStaticText	stage-exercise-name	Back Squat		@16,141 173x41
+AXStaticText		Brace hard off the floor, controlled descent.		@16,196 270x22
+AXButton		Set 3, 5 · RPE8		@272,246 44x44
+AXButton		Set 2, 5 · RPE7		@196,266 44x44
+AXButton		Set 1, 237.5x5@6		@120,294 44x44
+AXStaticText		Block 27 · W1 D1 — 237.5x5@6		@16,432 370x18
+AXGroup	active-set-card			@-83,464 4770x296
+AXStaticText		Set 2 of 3		@32,480 338x23
+AXButton	weight-decrement	Decrease weight		@32,519 54x54
+AXButton	weight-pill	Weight, 252.5		@98,519 206x54
+AXButton	weight-increment	Increase weight		@316,519 54x54
+AXGroup		Reps		@-83,589 4770x83
+AXButton	reps-3	Reps 3		@13,605 9x24
+AXButton	reps-4	Reps 4		@61,605 9x24
+AXButton	reps-5	Reps 5		@93,599 42x38
+AXStaticText		5		@109,605 9x24
+AXButton	reps-6	Reps 6		@157,605 9x24
+AXButton	reps-7	Reps 7		@205,605 9x24
+AXButton	reps-8	Reps 8		@253,605 9x24
+AXButton	reps-9	Reps 9		@301,605 9x24
+AXButton	reps-10	Reps 10		@344,605 18x24
+AXButton	reps-11	Reps 11		@392,605 18x24
+AXStaticText		Reps		@101,654 25x17
+AXGroup		RPE		@140,589 446x83
+AXButton	rpe-5	RPE 5		@140,605 9x24
+AXButton	rpe-6	RPE 6		@188,605 9x24
+AXButton	rpe-6.5	RPE 6.5		@229,605 23x24
+AXButton	rpe-7	RPE 7		@268,599 42x38
+AXStaticText		7		@284,605 9x24
+AXButton	rpe-7.5	RPE 7.5		@325,605 23x24
+AXButton	rpe-8	RPE 8		@380,605 9x24
+AXStaticText		RPE		@278,654 21x17
+AXButton	log-active-set-button	Log 252.5 × 5 @7		@32,688 338x58
+AXStaticText		Log 252.5 × 5 @7		@32,688 338x58
+AXStaticText		Skipped		@169,704 64x26
+AXButton	stage-queue-button	0 of 2		@324,770 62x37
+AXButton	stage-up-next	Up next ·, 2-3:1:0 BB RDL		@16,779 135x19
+AXStaticText		Up next ·		@16,778 49x19
+AXStaticText		2-3:1:0 BB RDL		@70,778 81x19
+AXGenericElement	rest-pill	Rest, 1 minute 58 seconds remaining		@100,816 202x51
+AXStaticText		1:58		@177,818 49x37
+AXGroup	Toolbar	Toolbar		@0,0 402x874

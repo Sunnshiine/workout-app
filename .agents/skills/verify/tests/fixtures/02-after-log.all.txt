@@ -1,0 +1,142 @@
+AXApplication		WorkoutTracker		@0,0 402x874
+AXStaticText		Sync status: 1 unsynced		@16,36 370x34
+AXGroup	session-header-hud		Block 27 · Week 1 · Day 1, 4 Sets left	@0,70 402x43
+AXButton	session-location-button	Open Block Overview for Week 1, Day 1		@30,85 140x19
+AXStaticText	session-remaining-count	4 Sets left		@317,85 55x19
+AXStaticText	stage-exercise-name	Back Squat		@16,141 173x41
+AXStaticText		Brace hard off the floor, controlled descent.		@16,196 270x22
+AXButton		Set 3, 5 · RPE8		@272,246 44x44
+AXButton		Set 2, 5 · RPE7		@196,266 44x44
+AXButton		Set 1, 237.5x5@6		@120,294 44x44
+AXStaticText		Block 27 · W1 D1 — 237.5x5@6		@16,432 370x18
+AXGroup	active-set-card			@-83,464 4770x296
+AXStaticText		Set 2 of 3		@32,480 338x23
+AXButton	weight-decrement	Decrease weight		@32,519 54x54
+AXButton	weight-pill	Weight, 252.5		@98,519 206x54
+AXButton	weight-increment	Increase weight		@316,519 54x54
+AXGroup		Reps		@-83,589 4770x83
+AXButton	reps-1	Reps 1		@-83,605 9x24
+AXButton	reps-2	Reps 2		@-35,605 9x24
+AXButton	reps-3	Reps 3		@13,605 9x24
+AXButton	reps-4	Reps 4		@61,605 9x24
+AXButton	reps-5	Reps 5		@93,599 42x38
+AXStaticText		5		@109,605 9x24
+AXButton	reps-6	Reps 6		@157,605 9x24
+AXButton	reps-7	Reps 7		@205,605 9x24
+AXButton	reps-8	Reps 8		@253,605 9x24
+AXButton	reps-9	Reps 9		@301,605 9x24
+AXButton	reps-10	Reps 10		@344,605 18x24
+AXButton	reps-11	Reps 11		@392,605 18x24
+AXButton	reps-12	Reps 12		@440,605 18x24
+AXButton	reps-13	Reps 13		@488,605 18x24
+AXButton	reps-14	Reps 14		@536,605 18x24
+AXButton	reps-15	Reps 15		@584,605 18x24
+AXButton	reps-16	Reps 16		@632,605 18x24
+AXButton	reps-17	Reps 17		@680,605 18x24
+AXButton	reps-18	Reps 18		@728,605 18x24
+AXButton	reps-19	Reps 19		@776,605 18x24
+AXButton	reps-20	Reps 20		@824,605 18x24
+AXButton	reps-21	Reps 21		@872,605 18x24
+AXButton	reps-22	Reps 22		@920,605 18x24
+AXButton	reps-23	Reps 23		@968,605 18x24
+AXButton	reps-24	Reps 24		@1016,605 18x24
+AXButton	reps-25	Reps 25		@1064,605 18x24
+AXButton	reps-26	Reps 26		@1112,605 18x24
+AXButton	reps-27	Reps 27		@1160,605 18x24
+AXButton	reps-28	Reps 28		@1208,605 18x24
+AXButton	reps-29	Reps 29		@1256,605 18x24
+AXButton	reps-30	Reps 30		@1304,605 18x24
+AXButton	reps-31	Reps 31		@1352,605 18x24
+AXButton	reps-32	Reps 32		@1400,605 18x24
+AXButton	reps-33	Reps 33		@1448,605 18x24
+AXButton	reps-34	Reps 34		@1496,605 18x24
+AXButton	reps-35	Reps 35		@1544,605 18x24
+AXButton	reps-36	Reps 36		@1592,605 18x24
+AXButton	reps-37	Reps 37		@1640,605 18x24
+AXButton	reps-38	Reps 38		@1688,605 18x24
+AXButton	reps-39	Reps 39		@1736,605 18x24
+AXButton	reps-40	Reps 40		@1784,605 18x24
+AXButton	reps-41	Reps 41		@1832,605 18x24
+AXButton	reps-42	Reps 42		@1880,605 18x24
+AXButton	reps-43	Reps 43		@1928,605 18x24
+AXButton	reps-44	Reps 44		@1976,605 18x24
+AXButton	reps-45	Reps 45		@2024,605 18x24
+AXButton	reps-46	Reps 46		@2072,605 18x24
+AXButton	reps-47	Reps 47		@2120,605 18x24
+AXButton	reps-48	Reps 48		@2168,605 18x24
+AXButton	reps-49	Reps 49		@2216,605 18x24
+AXButton	reps-50	Reps 50		@2264,605 18x24
+AXButton	reps-51	Reps 51		@2312,605 18x24
+AXButton	reps-52	Reps 52		@2360,605 18x24
+AXButton	reps-53	Reps 53		@2408,605 18x24
+AXButton	reps-54	Reps 54		@2456,605 18x24
+AXButton	reps-55	Reps 55		@2504,605 18x24
+AXButton	reps-56	Reps 56		@2552,605 18x24
+AXButton	reps-57	Reps 57		@2600,605 18x24
+AXButton	reps-58	Reps 58		@2648,605 18x24
+AXButton	reps-59	Reps 59		@2696,605 18x24
+AXButton	reps-60	Reps 60		@2744,605 18x24
+AXButton	reps-61	Reps 61		@2792,605 18x24
+AXButton	reps-62	Reps 62		@2840,605 18x24
+AXButton	reps-63	Reps 63		@2888,605 18x24
+AXButton	reps-64	Reps 64		@2936,605 18x24
+AXButton	reps-65	Reps 65		@2984,605 18x24
+AXButton	reps-66	Reps 66		@3032,605 18x24
+AXButton	reps-67	Reps 67		@3080,605 18x24
+AXButton	reps-68	Reps 68		@3128,605 18x24
+AXButton	reps-69	Reps 69		@3176,605 18x24
+AXButton	reps-70	Reps 70		@3224,605 18x24
+AXButton	reps-71	Reps 71		@3272,605 18x24
+AXButton	reps-72	Reps 72		@3320,605 18x24
+AXButton	reps-73	Reps 73		@3368,605 18x24
+AXButton	reps-74	Reps 74		@3416,605 18x24
+AXButton	reps-75	Reps 75		@3464,605 18x24
+AXButton	reps-76	Reps 76		@3512,605 18x24
+AXButton	reps-77	Reps 77		@3560,605 18x24
+AXButton	reps-78	Reps 78		@3608,605 18x24
+AXButton	reps-79	Reps 79		@3656,605 18x24
+AXButton	reps-80	Reps 80		@3704,605 18x24
+AXButton	reps-81	Reps 81		@3752,605 18x24
+AXButton	reps-82	Reps 82		@3800,605 18x24
+AXButton	reps-83	Reps 83		@3848,605 18x24
+AXButton	reps-84	Reps 84		@3896,605 18x24
+AXButton	reps-85	Reps 85		@3944,605 18x24
+AXButton	reps-86	Reps 86		@3992,605 18x24
+AXButton	reps-87	Reps 87		@4040,605 18x24
+AXButton	reps-88	Reps 88		@4088,605 18x24
+AXButton	reps-89	Reps 89		@4136,605 18x24
+AXButton	reps-90	Reps 90		@4184,605 18x24
+AXButton	reps-91	Reps 91		@4232,605 18x24
+AXButton	reps-92	Reps 92		@4280,605 18x24
+AXButton	reps-93	Reps 93		@4328,605 18x24
+AXButton	reps-94	Reps 94		@4376,605 18x24
+AXButton	reps-95	Reps 95		@4424,605 18x24
+AXButton	reps-96	Reps 96		@4472,605 18x24
+AXButton	reps-97	Reps 97		@4520,605 18x24
+AXButton	reps-98	Reps 98		@4568,605 18x24
+AXButton	reps-99	Reps 99		@4616,605 18x24
+AXButton	reps-100	Reps 100		@4660,605 27x24
+AXStaticText		Reps		@101,654 25x17
+AXGroup		RPE		@140,589 446x83
+AXButton	rpe-5	RPE 5		@140,605 9x24
+AXButton	rpe-6	RPE 6		@188,605 9x24
+AXButton	rpe-6.5	RPE 6.5		@229,605 23x24
+AXButton	rpe-7	RPE 7		@268,599 42x38
+AXStaticText		7		@284,605 9x24
+AXButton	rpe-7.5	RPE 7.5		@325,605 23x24
+AXButton	rpe-8	RPE 8		@380,605 9x24
+AXButton	rpe-8.5	RPE 8.5		@421,605 23x24
+AXButton	rpe-9	RPE 9		@476,605 9x24
+AXButton	rpe-9.5	RPE 9.5		@517,605 23x24
+AXButton	rpe-10	RPE 10		@568,605 18x24
+AXStaticText		RPE		@278,654 21x17
+AXButton	log-active-set-button	Log 252.5 × 5 @7		@32,688 338x58
+AXStaticText		Log 252.5 × 5 @7		@32,688 338x58
+AXStaticText		Skipped		@169,704 64x26
+AXButton	stage-queue-button	0 of 2		@324,770 62x37
+AXButton	stage-up-next	Up next ·, 2-3:1:0 BB RDL		@16,779 135x19
+AXStaticText		Up next ·		@16,778 49x19
+AXStaticText		2-3:1:0 BB RDL		@70,778 81x19
+AXGenericElement	rest-pill	Rest, 1 minute 58 seconds remaining		@100,816 202x51
+AXStaticText		1:58		@177,818 49x37
+AXGroup	Toolbar	Toolbar		@0,0 402x874

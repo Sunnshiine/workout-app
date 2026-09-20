@@ -62,6 +62,9 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
   the project `verify` skill: `.claude/skills/verify/SKILL.md` owns launch, doctor, drive,
   evidence, and cleanup, and `.claude/skills/verify/features/` maps every user-facing feature
   to a recipe. Read the feature file before driving.
+- To put several images in front of an agent in one read, tile them:
+  `scripts/contact-sheet.swift OUT.png IMAGE...` (12 per sheet, 2000 px long edge, cells numbered
+  and labelled by file name, no options). `verify.sh sheet` uses it for a run's shots.
 - Prefer XcodeBuildMCP for build/run/test on the simulator. If using XcodeBuildMCP,
   use the installed XcodeBuildMCP skill before calling XcodeBuildMCP tools. The pin in
   `.mcp.json` must stay at 2.7.0 or later: older builds fail on Xcode 27 with
@@ -174,12 +177,17 @@ App/                            iOS app only; not in the SwiftPM package
 └── Assets.xcassets, Fonts/, AppIcon.icon, Info.plist, LaunchScreen.storyboard
 
 Sources/WorkoutTracker/         SwiftPM library, also compiled into the app target
-├── Models/                     Domain types (Block, Week, Session, Exercise, Set …)
+├── Models/                     Domain types and the persisted schema (Block, Week, Session, Exercise, Set …)
 ├── Parsing/                    Sheet → domain interpretation (layout interpreter)
 ├── Sheets/                     Google Sheets client
 ├── Stores/                     Local cache, sync coordination & persisted state
-├── Progress/                   Session/Week progression (Current Session, Move On, Open Exercises, Supersets)
+├── Session/                    The live session (coordinator, active-set focus, Supersets, Stage, Set Card)
+├── Rest/                       Rest timer, notification, haptics, pill, and the rest Live Activity content
+├── Progress/                   Where the athlete is in the Block (Current Session, grid, Move On, Open Exercises)
+├── ExerciseHistory/            Last Performed lookup and extraction, Movement matching, the history sheet
+├── Onboarding/                 App entry destination, connect screen, Sheet picker
 ├── Application/                WorkoutApplication (composition root + public facade), addresses, snapshots
+├── HapticPlayer.swift          Haptic playback (rest cues and the Move On celebration)
 ├── LoadSuggestionEngine.swift  Load Suggestion calculations
 ├── Theme.swift                 Liquid Glass design system (ADR-0004)
 └── Fixtures/                   UI-test fixture data (-UITEST_FIXTURE) and WorkbookScenario seeds

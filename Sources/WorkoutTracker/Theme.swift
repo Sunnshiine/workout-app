@@ -433,9 +433,6 @@ enum Theme {  // swiftlint:disable:this type_body_length
     static let railEdgeFadeWidth: CGFloat = 18
     static let prescriptionTickWidth: CGFloat = 18 // last-week tick under the rail value (18×3, r2)
     static let prescriptionTickHeight: CGFloat = 3
-    static let weightIncrementThreshold = 100.0
-    static let lightWeightIncrementOptions = [2.5, 5.0]
-    static let heavyWeightIncrementOptions = [5.0, 10.0]
 
     static let logButtonCheckmarkDuration = 0.2
     static let holdToSkipTapMaximumDuration = 0.18

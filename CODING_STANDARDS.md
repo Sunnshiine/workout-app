@@ -53,7 +53,7 @@ that explains when a combination of fields is valid.
 
 The fix looked like `WorkoutStore.view(_:)`, the only writer of `viewedSession`, answering the
 reload rule once (`Sources/WorkoutTracker/Stores/WorkoutStore.swift:187-194`), and one
-`LiveEdge.isAtLiveEdge` (`Sources/WorkoutTracker/Progress/LiveEdge.swift:19`).
+`LiveEdge.isAtLiveEdge` (`Sources/WorkoutTracker/Session/LiveEdge.swift:19`).
 
 ## Control signals come from what they claim
 
@@ -132,8 +132,8 @@ The fix looked like `browsedTo: (week: Int, day: Int)?` captured in `view(_:)`
 reach a View. ADR-0017 made the directory itself the boundary, replacing the `Package.swift` exclude
 list that used to name `Views` among its eight entries, so the library target now carries neither a
 `path:` nor an `exclude:` (`Package.swift:14-20`). A guard, a calculation, or a branch that decides
-behaviour belongs in the library, under `Sources/WorkoutTracker/Stores/`, `Progress/`, `Models/`,
-`Parsing/`, or `Sources/WorkoutTracker/LoadSuggestionEngine.swift`, and the View reads the answer.
+behaviour belongs in the library, anywhere under `Sources/WorkoutTracker/`, and the View reads the
+answer.
 CI still compiles Views, so "cannot be verified here" is not a reason to leave one alone.
 
 Look for a computed property on a View that ORs store state together, a `switch` on domain state
