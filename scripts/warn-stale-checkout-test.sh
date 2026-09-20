@@ -123,7 +123,17 @@ assert_warns() {
   printf '%s\n' "$OUT" | sed 's/^/    | /'
 }
 
+HOOK_EVENTS=$(python3 -c '
+import json, sys
+print(" ".join(sorted(json.load(open(sys.argv[1]))["hooks"])))
+' "$SETTINGS")
+
 echo "hook command under test: $HOOK_COMMAND"
+echo
+
+echo "0. the hook is registered on session start and on no per-turn event"
+check "registers exactly one hook event, SessionStart (got \"$HOOK_EVENTS\")" \
+  test "$HOOK_EVENTS" = SessionStart
 echo
 
 echo "1. primary checkout, non-main branch, behind origin/main -> warns, names branch and distance"
