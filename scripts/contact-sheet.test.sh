@@ -127,6 +127,14 @@ line=$("$tiler" "$pair" "$tmp/in/01.png" "$tmp/in/02.png")
 expect "two frames take the whole long edge" "$(size_of "$pair")" "1822x1998"
 expect "a 2-up costs what two single reads cost" "$(field "$line" 4)" "about 4752 tokens"
 
+dearer=""
+for n in 1 2 3 4 5 6 7 8 9 10 11 12; do
+    line=$("$tiler" "$tmp/out/cost.png" "${phones[@]:0:$n}")
+    cost=$(field "$line" 4 | tr -dc 0-9)
+    if [ "$cost" -gt 4752 ] || [ "$cost" -gt $(( n * 2376 )) ]; then dearer="$dearer $n:$cost"; fi
+done
+expect "no page costs more than a 2-up, or more than reading its frames one by one" "$dearer" ""
+
 tiny="$tmp/out/tiny.png"
 "$tiler" "$tiny" "$tmp/in/small.png" >/dev/null
 expect "a 92x200 image is never upscaled to fill the page" "$(size_of "$tiny")" "108x244"

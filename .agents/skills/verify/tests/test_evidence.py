@@ -255,6 +255,11 @@ class VerifyDiff(unittest.TestCase):
         self.assertIn("unknown fixture: no-such-fixture", err)
         self.assertEqual(out, "", "nothing was launched")
 
+    def test_sheet_refuses_an_argument_it_would_ignore(self):
+        code, out, err = verify_sh("sheet", "02-after-log", run=self.run)
+        self.assertEqual(code, 2, "sheet tiles the whole run; a stray name must not look accepted: %s" % err)
+        self.assertEqual(out, "")
+
     def test_shot_refuses_a_name_that_could_collide(self):
         for name in ["_sheet", "a.burst", "-x"]:
             code, out, err = verify_sh("shot", name, run=self.run)

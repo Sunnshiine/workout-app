@@ -124,7 +124,9 @@ rm -rf "$WORKOUT_HOME"
 
 `stop` kills only the pid recorded in `/tmp/workout-verify-<udid>/`. It never shuts down or erases
 the simulator, which other agents and `scripts/test-sim.sh` share. Evidence is never removed, and
-it keeps the run name, so `diff` still answers after the app is gone.
+it keeps the run name, so `diff` still answers after the app is gone. A `burst` keeps its twelve
+full-size frames, about 47 MB under the git-ignored `.build/`. Delete a run's directory yourself
+once its proof is filed.
 
 ## Isolation
 
