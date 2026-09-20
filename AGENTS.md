@@ -64,6 +64,8 @@ builds do.
 
 XcodeBuildMCP session defaults point at the main project path and do not apply inside a worktree. Pass `-project <worktree-path>/WorkoutTracker.xcodeproj` explicitly when calling xcodebuild from a worktree.
 
+Merged worktrees pile up and cost gigabytes of `.build`. `scripts/prune-merged-worktrees.sh` resolves every worktree's branch through its PR state and lists the ones whose PR has merged or closed; it dry-runs by default and removes only under `--apply`, never touching the primary checkout or a worktree holding uncommitted or unpushed work.
+
 ## Architecture
 
 A navigation map; see `CONTEXT.md` for the domain glossary and `docs/adr/` for decisions.
@@ -83,6 +85,12 @@ WorkoutTracker/
 
 Tests/  →  Unit/ · Component/ · UI/ · Support/
 ```
+
+`WorkoutTracker/`, `WorkoutShared/`, and `WorkoutWidgets/` are Xcode buildable folders, like the
+folders under `Tests/`. A Swift file added under one compiles into its target with no project edit.
+`WorkoutShared/` builds into both the app and the widget. Xcode also copies any other file in these
+folders into the bundle, including a Markdown note. To keep a file out of the bundle, add a
+membership exception in the project, as each `Info.plist` has.
 
 ## Agent skills
 

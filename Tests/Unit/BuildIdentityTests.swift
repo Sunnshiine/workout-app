@@ -10,7 +10,7 @@ import Testing
         "GitCommit": "6aba617",
         "PRNumber": "372",
         "Branch": "agent/issue-374",
-        "RunNumber": "7",
+        "RunNumber": "7"
     ])
 
     #expect(identity.version == "0.372")
@@ -29,7 +29,7 @@ import Testing
         "GitCommit": "6aba617",
         "PRNumber": "372",
         "Branch": "agent/issue-374",
-        "RunNumber": "7",
+        "RunNumber": "7"
     ])
 
     #expect(identity.compactLine == "0.372 (7) · 6aba617 · PR #372")
@@ -43,7 +43,7 @@ import Testing
         "GitCommit": "deadbee",
         "PRNumber": "",
         "Branch": "main",
-        "RunNumber": "42",
+        "RunNumber": "42"
     ])
 
     #expect(identity.compactLine == "1.0 (42) · deadbee")
@@ -68,7 +68,7 @@ import Testing
         "GitCommit": "6aba617",
         "PRNumber": "372",
         "Branch": "agent/issue-374",
-        "RunNumber": "7",
+        "RunNumber": "7"
     ])
 
     #expect(identity.copyText == """
@@ -83,7 +83,7 @@ import Testing
 @Test func buildIdentityCopyTextForLocalBuildNotesMissingStamp() {
     let identity = BuildIdentity(info: [
         "CFBundleShortVersionString": "0.0",
-        "CFBundleVersion": "1",
+        "CFBundleVersion": "1"
     ])
 
     #expect(identity.copyText == """

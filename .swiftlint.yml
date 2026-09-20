@@ -1,5 +1,13 @@
 # SwiftLint configuration
-# Runs automatically via SwiftLintPlugins build tool plugin
+#
+# Two runners, one config. The Xcode app target runs SwiftLint through the SwiftLintPlugins build
+# tool plugin, so `WorkoutTracker` is linted on every app build. `scripts/lint.sh` runs the same
+# pinned binary over everything `included:` names, with no build, and CI calls it. Before that
+# script existed the plugin was the only runner, so `WorkoutCLI` and `Tests` below were linted
+# nowhere (issue #607).
+#
+# `Tests` carries its own nested `Tests/.swiftlint.yml` that switches off three rules a test body
+# reads better without. SwiftLint merges it into this file; nothing else overrides anything here.
 
 disabled_rules:
   - trailing_whitespace
@@ -67,6 +75,24 @@ custom_rules:
     included: '.*/WorkoutTracker/Views/.*'
     severity: error
 
+  # The vacuous-test trap (issue #608). Fifteen Theme tests wrapped their whole body in
+  # `#if canImport(AppKit)`, so on the hosted iOS run they compiled to empty bodies and passed while
+  # asserting nothing. The guard belongs on the declaration, where the other platform drops the test
+  # instead of running an empty one.
+  #
+  # This reaches only a `#if` on the line after the opening brace. A guard one comment line lower
+  # escapes it, and ten in ThemeTests.swift still sit there; eight of those assert nothing on the
+  # hosted run today. Widening the rule takes those eight out of that run too, so it is its own
+  # change against its own count.
+  platform_guard_on_test_declaration:
+    name: "Platform guard on the test declaration"
+    message: >
+      Move this `#if` to the `@Test` declaration. Guarding the body compiles these assertions away
+      on the other platform, where the test still runs and still passes (issue #608). Guarding the
+      declaration removes the test there instead, so the reported count is the number that ran.
+    regex: '@Test\b(?:[^\n{}]*\n){0,12}?[^\n{}]*\{[ \t]*\n(?:[ \t]*\n)*[ \t]*#if\b'
+    severity: error
+
 identifier_name:
   min_length:
     warning: 1
@@ -75,6 +101,12 @@ identifier_name:
 line_length:
   warning: 140
   error: 200
+
+type_name:
+  # `ID` is the name Swift itself gives an identity type (`Identifiable.ID`). Padding it to three
+  # characters to satisfy a minimum would rename the one thing every reader already recognizes.
+  excluded:
+    - ID
 
 type_body_length:
   warning: 300

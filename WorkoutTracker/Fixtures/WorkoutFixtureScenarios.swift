@@ -99,11 +99,14 @@
                     resultText: "225x5@7",
                     performedOn: Date(timeIntervalSinceReferenceDate: 30),
                     source: SessionCoordinate(blockTab: "Block 25", weekNumber: 3, dayNumber: 1).storageValue
-                ),
+                )
             ]
         }
     }
 
+    // Fixture data, not behavior: every line is one literal Block graph a scenario reads. Extracting
+    // half of it to a second enum would only move literals, so the count is not measuring anything.
+    // swiftlint:disable:next type_body_length
     private enum WorkoutFixtureBlocks {
         typealias Factory = WorkoutFixtureFactory
 

@@ -94,9 +94,8 @@ struct LastPerformedLookupSnapshot: Equatable, Sendable {
         var best: LastPerformedOccurrence?
         for (candidateName, occurrence) in fallbackMatches
         where MovementMatching.areSameMovement(baseName, candidateName) {
-            if best == nil || occurrence.performedOn > best!.performedOn {
-                best = occurrence
-            }
+            if let best, occurrence.performedOn <= best.performedOn { continue }
+            best = occurrence
         }
         guard let best else { return nil }
         return LastPerformedLookupEntry(occurrence: best, matchedName: best.baseName)

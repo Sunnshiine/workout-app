@@ -32,7 +32,7 @@ private func historyEntry(
                      source: "Block 27 · W2 D1", daysAgo: 1),
         // A different Movement must not appear.
         historyEntry(fullName: "Paused Bench Press", baseName: "Paused Bench Press", resultText: "155x5@8",
-                     source: "Block 27 · W2 D1", daysAgo: 2),
+                     source: "Block 27 · W2 D1", daysAgo: 2)
     ])
 
     let history = snapshot.history(baseName: "Bench Press")
