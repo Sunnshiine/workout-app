@@ -3,10 +3,12 @@ import json
 import os
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
 import unittest
+import zlib
 from pathlib import Path
 
 SKILL = Path(__file__).resolve().parent.parent
@@ -52,6 +54,22 @@ def verify_sh(*args, run):
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
     )
     return done.returncode, done.stdout, done.stderr
+
+
+def write_png(path, width, height, colour):
+    """A solid-colour PNG, so the sheet fixtures need no committed image."""
+    scanlines = b"".join(b"\x00" + bytes(colour) * width for _ in range(height))
+
+    def chunk(tag, payload):
+        body = tag + payload
+        return struct.pack(">I", len(payload)) + body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
+
+    path.write_bytes(
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+        + chunk(b"IDAT", zlib.compress(scanlines))
+        + chunk(b"IEND", b"")
+    )
 
 
 def as_axe_json(fixture):
@@ -219,6 +237,51 @@ class VerifyDiff(unittest.TestCase):
         for name in ["_sheet", "a.burst", "-x"]:
             code, out, err = verify_sh("shot", name, run=self.run)
             self.assertEqual(code, 2, "%s must be refused before any simulator is touched: %s" % (name, err))
+
+
+@unittest.skipUnless(sys.platform == "darwin", "the tiler is a Swift script and runs on macOS only")
+class VerifySheet(unittest.TestCase):
+    """The agent's entry point, on a run whose capture order is not its name order."""
+
+    def setUp(self):
+        self.run = "sheettest-%d" % os.getpid()
+        self.dir = REPO / ".build" / "verify" / "evidence" / self.run
+        self.dir.mkdir(parents=True, exist_ok=True)
+        for captured, name in enumerate(["02-b", "01-a", "03-c"]):
+            write_png(self.dir / ("%s.png" % name), 120, 260, (32, 96, 160))
+            tree = self.dir / ("%s.tree.txt" % name)
+            tree.write_text("AXApplication\t\tWorkoutTracker\t\t@0,0 402x874\n")
+            os.utime(tree, (captured + 1, captured + 1))
+
+    def tearDown(self):
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def test_the_sheet_numbers_every_shot_of_the_run_in_capture_order(self):
+        code, out, err = verify_sh("sheet", run=self.run)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(len(out.splitlines()), 1, "three shots are one page")
+        fields = out.rstrip("\n").split("\t")
+        self.assertEqual(len(fields), 5, out)
+        self.assertEqual(fields[0], str(self.dir / "_sheet.png"), "one sheet per run, beside the shots")
+        self.assertEqual(fields[2], "3 images")
+        self.assertEqual(fields[4], "1. 02-b  2. 01-a  3. 03-c", "capture order, not name order")
+
+    def test_a_second_sheet_of_the_same_shots_is_the_same_bytes(self):
+        self.assertEqual(verify_sh("sheet", run=self.run)[0], 0)
+        first = (self.dir / "_sheet.png").read_bytes()
+        self.assertEqual(verify_sh("sheet", run=self.run)[0], 0)
+        self.assertEqual((self.dir / "_sheet.png").read_bytes(), first, "rerunning converges")
+
+    def test_a_run_with_no_shots_says_how_to_take_one(self):
+        empty = self.dir.with_name("%s-empty" % self.run)
+        empty.mkdir(parents=True, exist_ok=True)
+        try:
+            code, out, err = verify_sh("sheet", run=empty.name)
+        finally:
+            shutil.rmtree(empty, ignore_errors=True)
+        self.assertEqual(code, 1)
+        self.assertEqual(out, "")
+        self.assertIn("shot NAME", err, "the way out of an empty run")
 
 
 if __name__ == "__main__":
