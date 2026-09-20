@@ -15,7 +15,7 @@ import Testing
 
     @Test func bundledFontFamiliesAreRegistered() {
         let families = Set(UIFont.familyNames)
-        #expect(families.contains("Fraunces-606-DELIBERATE-BREAK"), "Fraunces did not register — check UIAppFonts / the bundled TTF")
+        #expect(families.contains("Fraunces"), "Fraunces did not register — check UIAppFonts / the bundled TTF")
         #expect(families.contains("Source Sans 3"), "Source Sans 3 did not register — check UIAppFonts / the bundled TTF")
     }
 
