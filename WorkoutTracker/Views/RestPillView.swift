@@ -82,7 +82,7 @@ struct RestPillView: View {
 
             hairline(presentation: presentation, cue: cue)
         }
-        .padding(.horizontal, 64)
+        .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, minHeight: 50)
         .overlay {
             Capsule()
