@@ -13,17 +13,6 @@ let package = Package(
     targets: [
         .target(
             name: "WorkoutTracker",
-            path: "WorkoutTracker",
-            exclude: [
-                "Views",
-                "LiveActivity",
-                "Assets.xcassets",
-                "Fonts",
-                "Sheets/GoogleAuth.swift",
-                "WorkoutTrackerApp.swift",
-                "Info.plist",
-                "LaunchScreen.storyboard"
-            ],
             // The offline Sheet (LocalWorkbook, WorkbookScenario, AppEnvironment.inMemory/directory) exists
             // for the CLI and tests. The Xcode project defines it only in Debug, so release phone builds
             // never ship it.
@@ -35,7 +24,6 @@ let package = Package(
                 "WorkoutTracker",
                 .product(name: "ArgumentParser", package: "swift-argument-parser")
             ],
-            path: "WorkoutCLI",
             exclude: ["README.md"]
         ),
         .testTarget(

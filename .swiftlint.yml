@@ -16,8 +16,8 @@ opt_in_rules:
   - unhandled_throwing_task
 
 included:
-  - WorkoutTracker
-  - WorkoutCLI
+  - App
+  - Sources
   - Tests
 
 excluded:
@@ -44,7 +44,7 @@ custom_rules:
       are banned outside Theme.swift so type cannot drift per-view and Dynamic Type stays a
       one-file diff (ADR-0014, token sheet §4).
     regex: '(Font\.custom\(|\.system\(size|\.font\(\s*\.(largeTitle|title|title2|title3|headline|subheadline|body|callout|footnote|caption|caption2)\b)'
-    included: '.*/WorkoutTracker/.*'
+    included: '.*/(App|Sources/WorkoutTracker)/.*'
     # The Greenhouse contract slice (PRD #497 slice 9) retired every grandfathered exception: each
     # composition slice migrated its view onto Theme.font(_:), and the remaining chrome/dev surfaces
     # were re-voiced through the same seam. Theme.swift stays the one sanctioned home of the role
@@ -64,7 +64,7 @@ custom_rules:
       Render field/section labels in their natural case through Theme.font(_:); do not apply
       .textCase(.uppercase) or .uppercased() to displayed text.
     regex: '(\.textCase\(\s*\.uppercase\s*\)|\.uppercased\(\))'
-    included: '.*/WorkoutTracker/Views/.*'
+    included: '.*/App/Views/.*'
     severity: error
 
 identifier_name:

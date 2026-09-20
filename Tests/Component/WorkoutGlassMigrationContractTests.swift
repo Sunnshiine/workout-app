@@ -4,7 +4,7 @@ import Testing
 // MARK: - Glass is retired to the colophon (ADR-0014 · PRD #497 slice 9)
 
 @Test func workoutGlassHelperFileIsDeleted() throws {
-    let views = try RepositoryFiles.existingURL(of: "WorkoutTracker/Views")
+    let views = try RepositoryFiles.existingURL(of: "App/Views")
     #expect(!FileManager.default.fileExists(atPath: views.appending(path: "WorkoutGlass.swift").path))
 }
 
@@ -26,10 +26,7 @@ import Testing
         ".buttonStyle(.workoutGlassProminent)"
     ]
 
-    for (name, source) in try RepositoryFiles.nonEmptySwiftSources(
-        under: "WorkoutTracker",
-        mustContain: "Views/MoveOnCelebrationView.swift"
-    ) {
+    for (name, source) in try everyAppAndLibrarySource() {
         for token in forbidden {
             #expect(!source.contains(token), "\(name) still references retired glass API \(token)")
         }
@@ -39,7 +36,7 @@ import Testing
 // MARK: - The retired 8/16/28 radius scale is deleted (token sheet §6)
 
 @Test func retiredRadiusConstantsAreDeletedFromTheme() throws {
-    let theme = try RepositoryFiles.text(of: "WorkoutTracker/Theme.swift")
+    let theme = try RepositoryFiles.text(of: "Sources/WorkoutTracker/Theme.swift")
 
     for retired in ["cardCornerRadius", "lensCornerRadius", "rowCornerRadius", "sessionTileCornerRadius", "pillCornerRadius"] {
         #expect(!theme.contains(retired), "Theme.swift still defines the retired radius constant \(retired)")
@@ -48,10 +45,7 @@ import Testing
 
 @Test func noViewReferencesARetiredRadiusConstant() throws {
     let retired = ["cardCornerRadius", "lensCornerRadius", "rowCornerRadius", "sessionTileCornerRadius", "pillCornerRadius"]
-    for (name, source) in try RepositoryFiles.nonEmptySwiftSources(
-        under: "WorkoutTracker",
-        mustContain: "Views/MoveOnCelebrationView.swift"
-    ) {
+    for (name, source) in try everyAppAndLibrarySource() {
         for constant in retired {
             #expect(!source.contains(constant), "\(name) still references the retired radius constant Theme.\(constant)")
         }
@@ -61,7 +55,7 @@ import Testing
 // MARK: - Move On ceremony contracts (carried from PRD #497 slice 7)
 
 private func moveOnCelebrationSource() throws -> String {
-    try RepositoryFiles.text(of: "WorkoutTracker/Views/MoveOnCelebrationView.swift")
+    try RepositoryFiles.text(of: "App/Views/MoveOnCelebrationView.swift")
 }
 
 @Test func moveOnCelebrationDoesNotDefineLocalLensCornerRadius() throws {
@@ -90,4 +84,18 @@ private func moveOnCelebrationSource() throws -> String {
     #expect(source.contains("guard !reduceMotion else { return }"))
     #expect(!source.contains("TimelineView(.animation"))
     #expect(!source.contains("move-on-celebration-orbit"))
+}
+
+/// Every Swift file the app target compiles. Its iOS-only half lives in `App/` and the library it
+/// embeds in `Sources/WorkoutTracker/`, so each half names its own anchor. A scan that loses one
+/// directory then fails instead of quietly passing over the half that is left.
+private func everyAppAndLibrarySource() throws -> [(name: String, source: String)] {
+    try RepositoryFiles.nonEmptySwiftSources(
+        under: "Sources/WorkoutTracker",
+        mustContain: "Theme.swift"
+    )
+        + RepositoryFiles.nonEmptySwiftSources(
+            under: "App",
+            mustContain: "Views/MoveOnCelebrationView.swift"
+        )
 }
