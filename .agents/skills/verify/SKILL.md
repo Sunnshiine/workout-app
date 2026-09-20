@@ -18,14 +18,14 @@ matching feature file before driving; the map lists every entry point a proof mu
 .claude/skills/verify/verify.sh launch session     # install + launch into a fixture, returns when the tree answers
 ```
 
-Fixtures: `session` (Block 27 W1 D1, Back Squat, 3 pending sets), `settings`, `onboarding` (sheet
-picker with a stale seeded Block), `long-session` (8 exercises), `partial-block` (Block Overview,
-some sessions not uploaded), `completed-open-exercises` (completion stage), `developer-tools`.
-Extra `-UITEST_*` arguments pass through, for example `launch settings -UITEST_PENDING_WRITE`.
-Every launch adds `-UITEST_FIXTURE -UITEST_DISABLE_ANIMATIONS -UITEST_DISABLE_CELEBRATION_BLOOM`,
-so the app runs on an in-memory store with a faked sign-in and never touches Google. Relaunching
-resets all state. The simulator is the booted iPhone 17 Pro, else the newest one, which the script
-boots. Override with `SIM=<udid>`.
+Fixtures: `session` (Block 27 W1 D1, Back Squat then BB RDL, 5 pending sets), `settings`,
+`onboarding` (sheet picker with a stale seeded Block), `long-session` (8 exercises),
+`partial-block` (Block Overview, some sessions not uploaded), `completed-open-exercises`
+(completion stage), `developer-tools`. Extra `-UITEST_*` arguments pass through, for example
+`launch settings -UITEST_PENDING_WRITE`. Every launch adds `-UITEST_FIXTURE
+-UITEST_DISABLE_ANIMATIONS`, so the app runs on an in-memory store with a faked sign-in and never
+touches Google. A relaunch is `stop` then `launch`, and it resets all state. The simulator is the
+booted iPhone 17 Pro, else the newest one, which the script boots. Override with `SIM=<udid>`.
 
 For the CLI there is no server. Build once, then every drive gets its own home:
 
@@ -40,11 +40,9 @@ export WORKOUT_HOME=$(mktemp -d) && .build/debug/workout init --scenario fresh-b
 .claude/skills/verify/verify.sh doctor
 ```
 
-Read-only. Reports the simulator, the built app's timestamp against HEAD, whether the running pid
-was launched by this tool with fixture arguments, and whether the accessibility tree answers for
-that pid. Run it first whenever a tap does nothing or the tree looks wrong. A WARN about sources
-newer than the app means rebuild before trusting anything. An empty tree on a healthy pid means the
-simulator's accessibility bridge is wedged; `xcrun simctl shutdown <udid>` then relaunch.
+Read-only. Run it after every `launch`, and again whenever a tap does nothing or the tree looks
+wrong. Drive only when every line reads `ok`. An empty tree on a healthy pid means the simulator's
+accessibility bridge is wedged; `xcrun simctl shutdown <udid>` then relaunch.
 
 ## Drive
 
@@ -65,9 +63,10 @@ Settings row and its alert button). When `tap --label` reports multiple matches,
 from `tree` and tap its center with `-x -y`.
 
 Target elements by accessibility identifier (`tap --id`) first, by label second, by coordinates
-only for empty space. The tree prints identifiers in column two and labels in column three.
-Identifiers are set in `App/Views/`; the feature files list the ones each screen
-exposes. `tap` polls up to 3 s for the element. After a tap, re-read the tree before asserting.
+only when the element has neither. `tap` polls up to 3 s for the element, and `tap --id` taps the
+frame's centre even when `find` says it is off-screen, reporting success while hitting nothing.
+After a tap, re-read the tree before asserting. `tree` has no enabled column. For a disabled state
+read each node's `enabled` field from `verify.sh axe describe-ui`.
 `-UITEST_DISABLE_ANIMATIONS` stops UIKit animations only, so a SwiftUI transition still runs for
 about 850 ms after a log tap (issue 618). A state absent after one second is still absent. `burst`
 is how you see a transition.
@@ -94,20 +93,20 @@ VERIFY_RUN=issue-536 .claude/skills/verify/verify.sh launch session   # names th
 ```
 
 Artifacts land in `.build/verify/evidence/<run>/` and survive `stop`. `launch` names the run from
-`VERIFY_RUN` (default a timestamp), prints its directory, and records the name, so every later
-command finds it without being told. A bare `launch` starts a new run, so give the same
-`VERIFY_RUN` to every `launch` of one task. A proof captures the action and the resulting state,
-not just the final screen. Shoot before, drive, shoot after. The second `shot` prints the tree
-lines that changed with positions ignored, so a row that only moved is not a change; quote those
-lines verbatim. Prove side effects alongside the screen. After a log, the header reads
-`Sync status: 1 unsynced` and the branch gains a `Set 1, 237.5x5@6` button. For store or sync
-effects with no UI question, run the same operation through the CLI and quote its JSON, or run
-the covering `swift test --filter` suite. The fixture sheets client accepts every write and never
-reaches the network, so a green flush in fixture mode proves the queue, not Google. Exercise the
-real path (taps, the log button, the CLI verbs), never a `-UITEST_*` flag that jumps to the end
-state.
+`VERIFY_RUN` (default a timestamp), and every later command finds it without being told. A bare
+`launch` starts a new run, so give the same `VERIFY_RUN` to every `launch` of one task. A proof
+captures the action and the resulting state, not just the final screen. Shoot before, drive, shoot
+after. The second `shot` prints the tree lines that changed with positions ignored, so a row that
+only moved is not a change; quote those lines verbatim. Prove side effects alongside the screen.
+After a log, the header reads `Sync status: 1 unsynced` and the branch gains a `Set 1, 237.5x5@6`
+button. For store or sync effects with no UI question, run the same operation through the CLI and
+quote its JSON, or run the covering `swift test --filter` suite. The fixture sheets client accepts
+every write and never reaches the network, so a green flush in fixture mode proves the queue, not
+Google. Exercise the real path (taps, the log button, the CLI verbs), never a `-UITEST_*` flag that
+jumps to the end state.
 
-Finish every UI proof with `sheet` and Read every image it prints, one per 12 shots. Report what you see by cell
+Finish every UI proof with `sheet` and Read every image it prints, one per 12 shots. The read is
+owed for one shot too, because nothing else looks at the pixels. Report what you see by cell
 number, and say anything the tree cannot show. Overlap, colour, clipping, an element under the
 status bar. Give that read to your strongest model. A smaller one read every string on a 12-up
 sheet and still missed a layout defect on it. A shot's PNG and its tree are captured about 0.2 s
@@ -130,7 +129,9 @@ once its proof is filed.
 
 ## Isolation
 
-One app instance per simulator. `launch` refuses (exit 75) while another run's pid is alive on the
-same simulator; run `stop` or pick another `SIM`. Do not drive while `scripts/test-sim.sh ui` is
-running on the same simulator, since XCUITest owns the app then. Two CLI drives never collide if
+One app instance per simulator. `launch` refuses (exit 75) while a pid this tool launched is alive
+on the same simulator, yours included; run `stop` or pick another `SIM`. Nothing locks the
+simulator against a test run (issue 626), so before every `launch` run
+`pgrep -fl "test-sim\.sh|xcodebuild (test|build-for-testing|test-without-building)|xctrunner"`
+and launch only when it prints nothing that uses your simulator. Two CLI drives never collide if
 each has its own `WORKOUT_HOME`.

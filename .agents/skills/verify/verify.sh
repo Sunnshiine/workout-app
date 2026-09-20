@@ -186,11 +186,11 @@ case $cmd in
     app=$(app_path)
     [ -d "$app" ] || { echo "no built app for $project; run: $0 build" >&2; exit 65; }
     if [ -f "$state_dir/pid" ] && kill -0 "$(cat "$state_dir/pid")" 2>/dev/null; then
-      echo "another verification run owns the app on $sim (pid $(cat "$state_dir/pid")); run: $0 stop" >&2
+      echo "a verification run owns the app on $sim (pid $(cat "$state_dir/pid")); if it is yours, run: $0 stop" >&2
       exit 75
     fi
     read -r -a extra <<< "$fixture_flags"
-    args=(-UITEST_FIXTURE ${extra[@]+"${extra[@]}"} -UITEST_DISABLE_ANIMATIONS -UITEST_DISABLE_CELEBRATION_BLOOM "$@")
+    args=(-UITEST_FIXTURE ${extra[@]+"${extra[@]}"} -UITEST_DISABLE_ANIMATIONS "$@")
     xcrun simctl install "$sim" "$app"
     out=$(xcrun simctl launch --terminate-running-process "$sim" "$bundle" "${args[@]}")
     pid=${out##*: }
@@ -218,7 +218,11 @@ case $cmd in
     app=$(app_path)
     if [ -d "$app" ]; then
       echo "ok   app built $(stat -f %Sm "$app"), HEAD $(git -C "$repo" log -1 --format=%h)"
-      stale=$(find "$repo/WorkoutTracker" -name '*.swift' -newer "$app" | head -3)
+      sources=(App Sources/WorkoutTracker WorkoutShared WorkoutWidgets)
+      for d in "${sources[@]}"; do
+        [ -d "$repo/$d" ] || { echo "FAIL source folder $d is gone, so a stale build can hide; fix the list in $0"; rc=1; }
+      done
+      stale=$(cd "$repo" && find "${sources[@]}" -name '*.swift' -newer "$app" 2>/dev/null | head -3 || true)
       [ -z "$stale" ] || { echo "WARN sources newer than the app (run: $0 build):"; echo "$stale" | sed 's/^/     /'; }
     else
       echo "FAIL no built app (run: $0 build)"; rc=1
