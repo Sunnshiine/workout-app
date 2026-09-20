@@ -154,6 +154,7 @@ jobs:
       # TEST_RUNNER_SNAPSHOT_ARTIFACTS lands swift-snapshot-testing's failure diffs in a
       # known folder so the artifact upload below can show why the gate went red.
       - name: Run Visual Regression tests (ADR-0007 gate)
+        id: visual
         run: |
           xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
             -destination "platform=iOS Simulator,name=$BASELINE_DEVICE,OS=$BASELINE_RUNTIME" \
@@ -162,6 +163,31 @@ jobs:
             -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
             -onlyUsePackageVersionsFromResolvedFile \
             -resultBundlePath VisualTests.xcresult \
+            -collect-test-diagnostics never \
+            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
+            COMPILATION_CACHE_ENABLE_CACHING=YES \
+            COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache" \
+            TEST_RUNNER_SNAPSHOT_ARTIFACTS="$PWD/snapshot-diffs"
+      # WorkoutTrackerTests hosted in the app reaches what `swift test` on macOS cannot: UIKit
+      # font registration, Live Activity content state, and the Google auth scopes (#606). The
+      # two runs cover deliberately different sets (#592); do not reconcile them. Every flag
+      # matches the gate above so xcodebuild reuses that DerivedData instead of rebuilding, and
+      # the step runs whenever that gate ran so one CI run reports both.
+      #
+      # `!cancelled()` is load-bearing. GitHub prepends an implicit `success() &&` to any `if:`
+      # holding no status check function, so without it this condition reads as always-true on a
+      # green job and always-false on a red one, and a baseline mismatch silently skips the
+      # hosted suite. Run 35515594647 recorded that skip before this line was fixed.
+      - name: Run the hosted unit and component suite (WorkoutTrackerTests)
+        if: ${{ !cancelled() && (steps.visual.conclusion == 'success' || steps.visual.conclusion == 'failure') }}
+        run: |
+          xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+            -destination "platform=iOS Simulator,name=$BASELINE_DEVICE,OS=$BASELINE_RUNTIME" \
+            -only-testing:WorkoutTrackerTests \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
+            -onlyUsePackageVersionsFromResolvedFile \
+            -resultBundlePath HostedTests.xcresult \
             -collect-test-diagnostics never \
             -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
             COMPILATION_CACHE_ENABLE_CACHING=YES \
@@ -181,4 +207,11 @@ jobs:
           path: |
             snapshot-diffs
             VisualTests.xcresult
+          if-no-files-found: ignore
+      - name: Upload hosted test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hosted-test-results
+          path: HostedTests.xcresult
           if-no-files-found: ignore
