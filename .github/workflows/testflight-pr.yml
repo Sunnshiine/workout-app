@@ -121,14 +121,14 @@ jobs:
         env:
           HEAD_REF: ${{ steps.pr.outputs.head_ref }}
         run: |
-          for PLIST in WorkoutTracker/Info.plist WorkoutWidgets/Info.plist; do
+          for PLIST in App/Info.plist WorkoutWidgets/Info.plist; do
             /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 0.${{ steps.pr.outputs.number }}" "$PLIST"
             /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" "$PLIST"
           done
-          /usr/libexec/PlistBuddy -c "Add :GitCommit string ${{ steps.pr.outputs.short_sha }}" WorkoutTracker/Info.plist
-          /usr/libexec/PlistBuddy -c "Add :PRNumber string ${{ steps.pr.outputs.number }}" WorkoutTracker/Info.plist
-          /usr/libexec/PlistBuddy -c "Add :Branch string $HEAD_REF" WorkoutTracker/Info.plist
-          /usr/libexec/PlistBuddy -c "Add :RunNumber string ${{ github.run_number }}" WorkoutTracker/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :GitCommit string ${{ steps.pr.outputs.short_sha }}" App/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :PRNumber string ${{ steps.pr.outputs.number }}" App/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :Branch string $HEAD_REF" App/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :RunNumber string ${{ github.run_number }}" App/Info.plist
 
       - name: Write App Store Connect API key
         env:

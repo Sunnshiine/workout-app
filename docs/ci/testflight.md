@@ -18,7 +18,7 @@ the load-bearing decisions are
 | App Store Connect record | "TFN Tracker" | "TFN Tracker Dev" |
 | Home-screen name | WorkoutTracker | WT Dev (`APP_DISPLAY_NAME` override) |
 | App icon | Sunbird, green (`AppIcon` set) | Sunbird, amber (`APPICON_NAME=AppIconDev` override) |
-| Marketing version | hand-bumped in `WorkoutTracker/Info.plist` (`CFBundleShortVersionString`) | `0.<PR number>` |
+| Marketing version | hand-bumped in `App/Info.plist` (`CFBundleShortVersionString`) | `0.<PR number>` |
 | Build number | `github.run_number` | `github.run_number` |
 | Google OAuth client | stable pair (`GID_*` secrets) | "WorkoutTracker Dev iOS" (`DEV_GID_*` secrets) |
 | Data | the coach-managed Sheet | live Sheets API — point the picker at a **cloned** training log |
@@ -29,7 +29,7 @@ stamped into the app's `Info.plist` before archiving (`PRNumber` is empty on
 stable builds).
 
 App icons ship in two forms selected by the same `APPICON_NAME`: Icon
-Composer glass documents (`WorkoutTracker/AppIcon.icon` /
+Composer glass documents (`App/AppIcon.icon` /
 `AppIconDev.icon`, iOS 26 renders true Liquid Glass; authored in
 [#373](https://github.com/Sunnshiine/workout-app/issues/373)) and raster
 `.appiconset` fallbacks — single-size 1024 with dark/tinted appearance
@@ -169,6 +169,6 @@ certs anymore), but it leaves headroom if the import step is ever bypassed.
 ## Version bumping
 
 The stable marketing version lives in **one** place:
-`CFBundleShortVersionString` in `WorkoutTracker/Info.plist`.
+`CFBundleShortVersionString` in `App/Info.plist`.
 Hand-bump it at real releases; the workflows copy it to the widget and own
 `CFBundleVersion` (never bump that by hand — it is the run number).

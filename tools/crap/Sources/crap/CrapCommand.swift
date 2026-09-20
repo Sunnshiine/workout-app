@@ -32,7 +32,7 @@ struct Measure: ParsableCommand {
         let root = URL(fileURLWithPath: root).standardizedFileURL.path
         let text = try readFile(lcov)
         let coverage = SourceScan.relativizeCoverage(LCOV.parse(text: text), root: root)
-        let files = SourceScan.swiftFiles(root: root, sources: sources, excludes: excludes)
+        let files = try SourceScan.swiftFiles(root: root, sources: sources, excludes: excludes)
         var scanned: [ScannedFunction] = []
         for file in files {
             let source = try readFile(URL(fileURLWithPath: root).appendingPathComponent(file).path)

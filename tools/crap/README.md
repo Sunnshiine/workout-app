@@ -35,9 +35,9 @@ The script and `swift test --package-path tools/crap` both build this package in
 one build of swift-syntax in `tools/crap/.build`. The first build takes about two minutes; later runs
 cost a second or two.
 
-The scope is fixed in the script to `WorkoutTracker` and `WorkoutCLI`, minus the four paths
-`Package.swift` excludes from the library target (`Views/`, `LiveActivity/`, `Sheets/GoogleAuth.swift`,
-`WorkoutTrackerApp.swift`). Scope therefore equals what `swift test` instruments.
+The scope is fixed in the script to `Sources/WorkoutTracker` and `Sources/WorkoutCLI`, which is
+every source the SwiftPM package builds. Scope therefore equals what `swift test` instruments, and
+it needs no exclude list, because iOS-only code lives in `App/`, outside `Sources/` (ADR-0017).
 
 The executable is usable on its own:
 
