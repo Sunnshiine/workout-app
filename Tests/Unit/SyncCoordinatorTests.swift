@@ -316,7 +316,6 @@ private func makeSyncContainer() throws -> ModelContainer {
 @MainActor
 @Suite("SyncCoordinator.State.conflict")
 struct SyncConflictStateCharacterizationTests {
-
     // MARK: Which outcomes set the case, and with what strings
 
     @Test func aLocalWriteFailureSetsConflictWithThePrefixedErrorDescription() throws {

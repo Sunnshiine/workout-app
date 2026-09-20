@@ -21,7 +21,9 @@ struct FlushCommand: AsyncParsableCommand {
             switch report.syncOutcome.status {
             case .writesQueued, .sheetUnreachable:
                 throw CLIError.environment(
-                    "Flush stopped before every write reached the Sheet (\(report.remainingPendingWrites) still queued). Fix the workbook and run `workout flush` again."
+                    "Flush stopped before every write reached the Sheet "
+                        + "(\(report.remainingPendingWrites) still queued). "
+                        + "Fix the workbook and run `workout flush` again."
                 )
             case .clear, .localWriteFailed, .writesRefused, .noBlockTab, .parseWarnings, .historyFillFailed:
                 break

@@ -6,7 +6,6 @@ import Testing
 @MainActor
 @Suite("SyncOutcome")
 struct SyncOutcomeTests {
-
     /// The wire contract. Every name and every key here is what an agent parses, so a change to
     /// one of these strings is a change to the CLI's output.
     @Test func everyOutcomeEncodesUnderItsOwnStatusSoAFailedWriteNeverReadsLikeAParserWarning() throws {
@@ -38,7 +37,7 @@ struct SyncOutcomeTests {
 
         for (outcome, expected) in encodings {
             let encoded = try encoder.encode(SyncOutcomeSnapshot(outcome))
-            #expect(String(decoding: encoded, as: UTF8.self) == expected, "\(outcome) encoded wrong")
+            #expect(String(bytes: encoded, encoding: .utf8) == expected, "\(outcome) encoded wrong")
         }
     }
 

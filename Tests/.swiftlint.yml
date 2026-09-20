@@ -1,0 +1,26 @@
+# Rules that are right for shipped code and wrong for a test body.
+#
+# SwiftLint merges this into the root `.swiftlint.yml` for files under `Tests/` only. Every other
+# rule, including the two Theme custom rules, still applies here. Nothing below is a tolerance for
+# volume: each rule is off because following it in a test would make the test worse, and each is
+# still on for `WorkoutTracker` and `WorkoutCLI`.
+disabled_rules:
+  # In a test body a force unwrap is the assertion. `let block = store.block!` says this must
+  # exist, and if it does not the test must stop on that line with that line number. The nil-safe
+  # rewrite turns a precise failure into a soft one and lets the rest of the test run on against
+  # state it already knows is wrong. Shipped code has callers who deserve a graceful path; a test
+  # has none, and a crash is its correct failure mode.
+  - force_unwrapping
+
+  # A labeled tuple is how a table-driven test names its columns. The rows of
+  # `[(error:, code:, message:, candidates:, kind:)]` are read at the literal and destructured on
+  # the next line, so a struct would add a type that exists only to satisfy an arity limit and
+  # would move the column names away from the rows they label. The rule stays on where a wide
+  # tuple crosses a real boundary.
+  - large_tuple
+
+  # A test body is one scenario read top to bottom, or one literal fixture. The limit exists to
+  # stop a shipped function accreting branches; an arrange block has none to accrete. Splitting a
+  # long test into helpers to get under the count scatters one readable arrangement across call
+  # sites a reader then has to reassemble in their head.
+  - function_body_length

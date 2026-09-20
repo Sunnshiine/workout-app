@@ -21,7 +21,10 @@ extension EnvironmentValues {
 /// palette and named tokens from `Theme`; nothing styles itself outside this seam. The Greenhouse
 /// system ships exactly two hand-lit appearances — `.day` and `.night`, the same room re-lit —
 /// each a value sheet transcribed from `docs/design/greenhouse-theme-tokens.md`.
-enum Theme {
+///
+/// Its length is the point rather than an accident. This is the one type role and token table, so
+/// splitting it to satisfy a line count would put rows of a single table in two files.
+enum Theme {  // swiftlint:disable:this type_body_length
     /// The two shipping appearances. Day is primary; Night is the same room re-lit, never
     /// recolored. There is no Day→Night derivation rule — each is hand-lit.
     enum Appearance: String, CaseIterable {
@@ -134,13 +137,13 @@ enum Theme {
         /// The collapsed week card's quiet shade (`cardLow`) — it sits "in shade" under the focus card.
         static let cardLow: [BoxShadow] = [
             BoxShadow(y: 1, blur: 2, color: Paint.ink.opacity(0.06)),
-            BoxShadow(y: 3, blur: 8, color: Paint.ink.opacity(0.07)),
+            BoxShadow(y: 3, blur: 8, color: Paint.ink.opacity(0.07))
         ]
 
         /// The current tile's sunlit-hour glow — a cream/sun halo, never green.
         static let sunGlow: [BoxShadow] = [
             BoxShadow(y: 0, blur: 0, spread: 4, color: rgb(242, 247, 232, 0.45)),
-            BoxShadow(y: 2, blur: 18, color: rgb(220, 235, 190, 0.9)),
+            BoxShadow(y: 2, blur: 18, color: rgb(220, 235, 190, 0.9))
         ]
 
         /// The focus card's morning-light fill (`rgba(248,251,238,0.96)`).
@@ -149,14 +152,14 @@ enum Theme {
         /// The focus card's glowing rim: `cardLow` under a cream 5px halo and a soft sun bloom.
         static let focusCardGlowRim: [BoxShadow] = cardLow + [
             BoxShadow(y: 0, blur: 0, spread: 5, color: rgb(250, 252, 238, 0.5)),
-            BoxShadow(y: 6, blur: 30, color: rgb(228, 240, 200, 0.95)),
+            BoxShadow(y: 6, blur: 30, color: rgb(228, 240, 200, 0.95))
         ]
 
         /// A tile's top-light sheen (`radial-gradient(90% 160% at 78% -30%, rgba(255,255,245,0.85), transparent 55%)`).
         static let tileTopLight = RadialLight(
             stops: [
                 Gradient.Stop(color: rgb(255, 255, 245, 0.85), location: 0),
-                Gradient.Stop(color: .clear, location: 0.55),
+                Gradient.Stop(color: .clear, location: 0.55)
             ],
             center: UnitPoint(x: 0.78, y: -0.30),
             radiusFraction: 0.55
@@ -168,7 +171,7 @@ enum Theme {
             stops: [
                 Gradient.Stop(color: rgb(253, 254, 242, 0.85), location: 0),
                 Gradient.Stop(color: rgb(250, 252, 238, 0.28), location: 0.46),
-                Gradient.Stop(color: .clear, location: 0.70),
+                Gradient.Stop(color: .clear, location: 0.70)
             ],
             center: UnitPoint(x: 0.82, y: -0.08),
             radiusFraction: 0.85
@@ -587,7 +590,7 @@ extension Theme {
         surface: Paint.cream.opacity(0.52),
         surfaceShadow: [
             BoxShadow(y: 1, blur: 2, color: rgb(21, 33, 24, 0.04)),
-            BoxShadow(y: 14, blur: 30, color: rgb(21, 33, 24, 0.07)),
+            BoxShadow(y: 14, blur: 30, color: rgb(21, 33, 24, 0.07))
         ],
         pillFill: Paint.cream.opacity(0.85), // stepper buttons — cream @ 85% (ledger §1.1 fix)
         pillStroke: rgb(82, 111, 90, 0.34), // ledger §1.1 fix — not the queue stroke
@@ -598,7 +601,7 @@ extension Theme {
         actionText: Paint.cream,
         logShadow: [
             BoxShadow(y: 1, blur: 2, color: rgb(13, 46, 28, 0.22)),
-            BoxShadow(y: 10, blur: 22, color: rgb(13, 60, 35, 0.16)),
+            BoxShadow(y: 10, blur: 22, color: rgb(13, 60, 35, 0.16))
         ],
         pressedFill: rgb(10, 89, 54), // #0A5936 — pressed / logged Log capsule
         skipFillOverlay: Paint.muted.opacity(0.30),
@@ -649,7 +652,7 @@ extension Theme {
         supersetPartnerBranch: Paint.foliage.opacity(0.55), // Night quiets the partner by translucency
         surface: Paint.cream.opacity(0.07),
         surfaceShadow: [
-            BoxShadow(y: 0, blur: 0, spread: 1, color: Paint.cream.opacity(0.10), inset: true), // border-as-light, no drop
+            BoxShadow(y: 0, blur: 0, spread: 1, color: Paint.cream.opacity(0.10), inset: true) // border-as-light, no drop
         ],
         pillFill: Paint.cream.opacity(0.06), // stepper buttons — cream @ 6% (ledger §1.1 fix)
         pillStroke: Paint.cream.opacity(0.16), // ledger §1.1 fix — not the queue stroke
@@ -659,7 +662,7 @@ extension Theme {
         action: Paint.actionNight,
         actionText: Paint.cream,
         logShadow: [
-            BoxShadow(y: 0, blur: 22, color: rgb(31, 133, 82, 0.35)), // green light — glow, no drop
+            BoxShadow(y: 0, blur: 22, color: rgb(31, 133, 82, 0.35)) // green light — glow, no drop
         ],
         pressedFill: nil, // night pressed fill deferred — still unconsumed (token sheet §Log capsule)
         skipFillOverlay: Paint.mutedNight.opacity(0.30), // muted hold-to-skip overlay, re-lit for Night (#488)
@@ -852,13 +855,13 @@ extension Theme {
 
             var attributes: [UIFontDescriptor.AttributeName: Any] = [
                 .family: style.face.familyName,
-                UIFontDescriptor.AttributeName(rawValue: kCTFontVariationAttribute as String): axes,
+                UIFontDescriptor.AttributeName(rawValue: kCTFontVariationAttribute as String): axes
             ]
             if style.tabular {
                 attributes[.featureSettings] = [
                     [
                         UIFontDescriptor.FeatureKey.type: kNumberSpacingType,
-                        UIFontDescriptor.FeatureKey.selector: kMonospacedNumbersSelector,
+                        UIFontDescriptor.FeatureKey.selector: kMonospacedNumbersSelector
                     ]
                 ]
             }

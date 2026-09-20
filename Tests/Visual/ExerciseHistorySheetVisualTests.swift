@@ -59,7 +59,7 @@ struct ExerciseHistorySheetVisualTests {
                              source: "Block 26 · W2 D1", daysAgo: 30),
                 historyEntry(fullName: "Bench Press", baseName: "Bench Press",
                              resultText: "worked up to 315, felt smooth",
-                             source: "Block 26 · W1 D1", daysAgo: 37),
+                             source: "Block 26 · W1 D1", daysAgo: 37)
             ]
         )
     }
@@ -101,7 +101,7 @@ struct ExerciseHistorySheetVisualTests {
                              source: "Block 27 · W2 D1", daysAgo: 1),
                 historyEntry(fullName: "2-0:1:0 Bench Press", baseName: "Bench Press",
                              resultText: "185x5@8, skip, 185x4@9",
-                             source: "Block 27 · W1 D1", daysAgo: 8),
+                             source: "Block 27 · W1 D1", daysAgo: 8)
             ]
         )
 

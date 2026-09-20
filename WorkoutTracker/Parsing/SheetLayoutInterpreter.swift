@@ -71,9 +71,10 @@ enum HeaderNotesRole: Sendable, Equatable {
     case legacyLog(String)
 
     init(notesCell value: String, setCount: Int) {
-        if SetLogToken.isSetLogListValue(value)
+        let cellHoldsSetLogs =
+            SetLogToken.isSetLogListValue(value)
             || SetLogToken.isCompactAggregateHeader(value, setCount: setCount)
-        {
+        if cellHoldsSetLogs {
             self = .setLogList
         } else if isLegacyLogValue(value) {
             self = .legacyLog(value)
