@@ -90,7 +90,7 @@ VERIFY_RUN=issue-536 .claude/skills/verify/verify.sh launch session   # names th
 .claude/skills/verify/verify.sh tap --id log-active-set-button
 .claude/skills/verify/verify.sh shot 02-after-log                     # those two files, then the lines that changed since 01-before
 .claude/skills/verify/verify.sh diff 01-before 02-after-log           # the same comparison for any two shots of the run
-.claude/skills/verify/verify.sh sheet                                 # every shot of the run in one image, numbered and labelled
+.claude/skills/verify/verify.sh sheet                                 # every shot of the run, 12 to an image, numbered and labelled
 ```
 
 Artifacts land in `.build/verify/evidence/<run>/` and survive `stop`. `launch` names the run from
@@ -107,7 +107,7 @@ reaches the network, so a green flush in fixture mode proves the queue, not Goog
 real path (taps, the log button, the CLI verbs), never a `-UITEST_*` flag that jumps to the end
 state.
 
-Finish every UI proof with `sheet` and Read the one image it prints. Report what you see by cell
+Finish every UI proof with `sheet` and Read every image it prints, one per 12 shots. Report what you see by cell
 number, and say anything the tree cannot show. Overlap, colour, clipping, an element under the
 status bar. Give that read to your strongest model. A smaller one read every string on a 12-up
 sheet and still missed a layout defect on it. A shot's PNG and its tree are captured about 0.2 s

@@ -24,7 +24,7 @@ that drives one convenient entry point is incomplete when the feature file lists
 
 - Capture the user action and the resulting state, not only the final screen. Shoot before and after with `verify.sh shot <name>`. The second shot prints the tree lines that changed.
 - UI proof is those changed lines, quoted verbatim. For two shots that are not adjacent, run `verify.sh diff <a> <b>`.
-- The other half of UI proof is the picture. After the last shot run `verify.sh sheet`, Read the one image it prints, and report by cell number anything the tree cannot show. Overlap, colour, clipping, an element under the status bar. A proof with no sheet is incomplete.
+- The other half of UI proof is the picture. After the last shot run `verify.sh sheet`, Read every image it prints (one per 12 shots), and report by cell number anything the tree cannot show. Reading a sheet of one shot costs about 2,400 tokens and a sheet of two about 4,800, the same as single reads. A page of three to twelve shots costs about 3,900. The read is owed for one shot too, because nothing else looks at the pixels. Overlap, colour, clipping, an element under the status bar. A proof with no sheet is incomplete.
 - CLI proof is the command, stdout, stderr, and the exit code.
 - Mutation proof includes a second, read-only view of the stored value (the branch dot, the `Sync status` header, `workout session`, or `workout sheet --cell`).
 - Record the feature ID and the entry point used with every artifact under `.build/verify/evidence/<run>/`.

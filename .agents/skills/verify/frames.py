@@ -17,6 +17,8 @@ def main() -> None:
         source = os.path.join(directory, frame)
         elapsed = (os.stat(source).st_mtime_ns - drive_returned) // 1000000
         target = os.path.join(directory, ("before" if elapsed < 0 else "+%04dms" % elapsed) + ".png")
+        if os.path.exists(target):
+            sys.exit("two frames share %s; run the burst again" % target)
         os.rename(source, target)
         print(target)
 

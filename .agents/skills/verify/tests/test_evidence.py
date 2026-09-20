@@ -333,6 +333,18 @@ class BurstFrames(unittest.TestCase):
             "renamed on disk, because the tiler labels a cell with its file stem",
         )
 
+    def test_two_frames_in_one_millisecond_stop_the_burst_and_lose_nothing(self):
+        second = 1000000000
+        (self.dir / "f03.png").write_bytes(b"a second frame")
+        os.utime(self.dir / "f03.png", ns=(int(1000.373 * second), int(1000.373 * second)))
+        done = subprocess.run(
+            [sys.executable, str(SKILL / "frames.py"), str(self.dir)],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
+        )
+        self.assertNotEqual(done.returncode, 0, "one cell must never stand for two moments")
+        self.assertIn("+0373ms.png", done.stderr)
+        self.assertEqual(len(list(self.dir.glob("*.png"))), 4, "no frame was overwritten")
+
 
 if __name__ == "__main__":
     unittest.main()

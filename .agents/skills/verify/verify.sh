@@ -19,7 +19,7 @@ Usage: .claude/skills/verify/verify.sh <command> [args]
   shot NAME                   NAME.png and NAME.tree.txt into the run, then the tree lines that
                               changed since the previous shot
   diff A B                    the tree lines that changed between two shots of this run, frames ignored
-  sheet                       one image tiling every shot of this run, numbered and labelled; Read it
+  sheet                       every shot of this run tiled 12 to an image, numbered and labelled; Read each image it prints
   burst NAME [COMMAND...]     12 frames over about 2 s tiled into one image, labelled with their
                               timing; COMMAND is a drive command fired after the first frame, as in
                               burst log-transition tap --id log-active-set-button
@@ -305,6 +305,7 @@ case $cmd in
     ;;
 
   sheet)
+    [ $# -eq 0 ] || usage
     dir=$(recorded_run_dir)
     names=$(shot_names "$dir")
     [ -n "$names" ] || { echo "no shots in $dir; take one with: $0 shot NAME" >&2; exit 1; }
@@ -352,7 +353,7 @@ case $cmd in
     else
       pending=$(shot_names "$dir" | wc -l | tr -d ' ')
     fi
-    [ "$pending" -eq 0 ] || echo "$pending shots in $(basename "$dir") are not on a contact sheet yet; run: $0 sheet, then Read it"
+    [ "$pending" -eq 0 ] || echo "shots in $(basename "$dir") not on a contact sheet yet: $pending; run: $0 sheet, then Read every image it prints"
     ;;
 
   axe) need_sim; ensure_axe; "$axe" "$@" --udid "$sim" ;;
