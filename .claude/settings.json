@@ -22,7 +22,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PROJECT_DIR:-.}/scripts/warn-stale-checkout.sh\"",
+            "command": "p=\"${CLAUDE_PROJECT_DIR:-.}/scripts/warn-stale-checkout.sh\"; [ -x \"$p\" ] && exec \"$p\"; exit 0",
             "timeout": 5
           }
         ]

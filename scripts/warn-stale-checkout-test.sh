@@ -69,15 +69,20 @@ new_fixture() {
 run_hook() {
   local dir=$1
   local project_dir=${2-$1}
+  local reason=${3-startup}
   local stdin_json
-  stdin_json=$(printf '{"session_id":"harness","transcript_path":"/dev/null","cwd":"%s","hook_event_name":"SessionStart","session_start_reason":"startup"}' "$dir")
   if [ -n "$project_dir" ]; then
     export CLAUDE_PROJECT_DIR="$project_dir"
   else
     unset CLAUDE_PROJECT_DIR
   fi
   set +e
-  OUT=$(cd "$dir" && printf '%s' "$stdin_json" | sh -c "$HOOK_COMMAND" 2>"$WORK/stderr")
+  if [ -z "$reason" ]; then
+    OUT=$(cd "$dir" && sh -c "$HOOK_COMMAND" </dev/null 2>"$WORK/stderr")
+  else
+    stdin_json=$(printf '{"session_id":"harness","transcript_path":"/dev/null","cwd":"%s","hook_event_name":"SessionStart","session_start_reason":"%s"}' "$dir" "$reason")
+    OUT=$(cd "$dir" && printf '%s' "$stdin_json" | sh -c "$HOOK_COMMAND" 2>"$WORK/stderr")
+  fi
   STATUS=$?
   set -e
   unset CLAUDE_PROJECT_DIR
@@ -199,6 +204,39 @@ new_fixture case9
 rm -rf "$WORK/case9/upstream.git"
 run_hook "$FIXTURE"
 assert_warns "branch     main" "distance   0 ahead, 3 behind origin/main"
+echo
+
+echo "10. primary checkout, non-main branch, level with origin/main -> warns, the issue #610 case"
+new_fixture case10
+g -C "$FIXTURE" merge --quiet --ff-only origin/main
+g -C "$FIXTURE" checkout --quiet -b feature
+run_hook "$FIXTURE"
+assert_warns "branch     feature" "distance   0 ahead, 0 behind origin/main"
+echo
+
+echo "11. a compaction continuing a session that was already warned -> silent"
+new_fixture case11
+run_hook "$FIXTURE" "$FIXTURE" compact
+assert_silent
+echo
+
+echo "12. a resume, which opens a fresh context -> warns"
+new_fixture case12
+run_hook "$FIXTURE" "$FIXTURE" resume
+assert_warns "branch     main" "distance   0 ahead, 3 behind origin/main"
+echo
+
+echo "13. stdin closed with no hook payload -> warns rather than swallowing the warning"
+new_fixture case13
+run_hook "$FIXTURE" "$FIXTURE" ""
+assert_warns "branch     main" "distance   0 ahead, 3 behind origin/main"
+echo
+
+echo "14. the script absent from the checkout -> silent, exit 0, no stderr noise"
+new_fixture case14
+rm -f "$FIXTURE/scripts/warn-stale-checkout.sh"
+run_hook "$FIXTURE"
+assert_silent
 echo
 
 if [ "$failures" -eq 0 ]; then

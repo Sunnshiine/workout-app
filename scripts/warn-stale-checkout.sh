@@ -4,17 +4,30 @@ set -euo pipefail
 usage() {
   cat >&2 <<'EOF'
 Usage: scripts/warn-stale-checkout.sh
-Prints one warning when this is the repository's primary checkout and HEAD is not the
-last-fetched origin/main, so an agent session does not read stale files and report what it
-finds there as the state of main.
+Prints one warning when this is the repository's primary checkout and HEAD is not an
+up-to-date main, so an agent session does not read stale files and report what it finds
+there as the state of main.
 Silent inside a linked worktree, on a main that is level with origin/main, and outside a git
 repository. Reads only the last-fetched state and makes no network call.
+Reads a Claude Code SessionStart payload on stdin when given one, to stay quiet on a compaction
+that is continuing a session which already saw the warning.
 Always exits 0, so a session never fails to start because of this script.
 EOF
   exit 2
 }
 
 [ $# -eq 0 ] || usage
+
+# A compaction continues a session that was already warned at its start. Every other
+# session-start reason opens a fresh context that has not seen the warning. An unreadable or
+# absent payload falls through to the warning rather than swallowing it.
+if [ ! -t 0 ]; then
+  hook_payload=""
+  IFS= read -r -t 1 hook_payload || true
+  case $hook_payload in
+    *'"session_start_reason"'*'"compact"'*) exit 0 ;;
+  esac
+fi
 
 cd "${CLAUDE_PROJECT_DIR:-.}" 2>/dev/null || exit 0
 
@@ -41,8 +54,8 @@ fi
 cat <<EOF
 Stale checkout warning from scripts/warn-stale-checkout.sh
 
-This session is running in the primary checkout, and HEAD is not the last-fetched origin/main.
-Files you read here are not main's content.
+This session is running in the primary checkout, and HEAD is not on an up-to-date main.
+What you read here is this branch, not main.
 
   branch     $branch
   distance   $ahead ahead, $behind behind origin/main
