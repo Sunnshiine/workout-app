@@ -64,6 +64,8 @@ builds do.
 
 XcodeBuildMCP session defaults point at the main project path and do not apply inside a worktree. Pass `-project <worktree-path>/WorkoutTracker.xcodeproj` explicitly when calling xcodebuild from a worktree.
 
+Merged worktrees pile up and cost gigabytes of `.build`. `scripts/prune-merged-worktrees.sh` resolves every worktree's branch through its PR state and lists the ones whose PR has merged or closed; it dry-runs by default and removes only under `--apply`, never touching the primary checkout or a worktree holding uncommitted or unpushed work.
+
 ## Architecture
 
 A navigation map; see `CONTEXT.md` for the domain glossary and `docs/adr/` for decisions.
