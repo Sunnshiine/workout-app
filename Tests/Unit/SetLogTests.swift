@@ -66,6 +66,3 @@ import Testing
     #expect(pending.displayReps == "10")
     #expect(pending.displayLoad == "RPE9")
 }
-
-// Deliberate lint violation proving the #607 gate fires. Reverted in the next commit.
-private let armProbeTests = [1, 2, 3,]

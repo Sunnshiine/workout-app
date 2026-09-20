@@ -15,6 +15,3 @@ struct StatusCommand: AsyncParsableCommand {
         try await Output.run { try home.open().snapshot() }
     }
 }
-
-// Deliberate lint violation proving the #607 gate fires. Reverted in the next commit.
-private let armProbeCLI = [1, 2, 3,]
