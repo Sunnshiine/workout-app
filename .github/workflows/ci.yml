@@ -125,11 +125,12 @@ jobs:
           restore-keys: cas-${{ steps.xcode.outputs.build }}-
       # TEST_RUNNER_SNAPSHOT_ARTIFACTS lands swift-snapshot-testing's failure diffs in a
       # known folder so the artifact upload below can show why the gate went red.
-      - name: Run Visual Regression tests (ADR-0007 gate)
+      - name: Run the Visual Regression gate and the hosted unit suite
         run: |
           xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
             -destination "platform=iOS Simulator,name=$BASELINE_DEVICE,OS=$BASELINE_RUNTIME" \
             -only-testing:WorkoutTrackerSnapshotTests \
+            -only-testing:WorkoutTrackerTests \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
             -onlyUsePackageVersionsFromResolvedFile \
