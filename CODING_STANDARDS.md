@@ -1,177 +1,164 @@
 # Coding standards
 
-The review standard for this repo. `CONTEXT.md` (vocabulary), `docs/adr/` (decisions), `PRODUCT.md`
-and `DESIGN.md` (product and UI work) win over anything here. Formatting and every mechanical rule
-are settled by `.swift-format` and `.swiftlint.yml`, including its custom rules; a reviewer flags
-only what a lint does not already judge, and never a preference. A rule earns a line here when it
-cost this repo a shipped bug and applying it takes context a regex does not have. Delete a rule
-that stops paying.
+The review standard for this repo. `CONTEXT.md`, `docs/adr/`, `PRODUCT.md`, and `DESIGN.md` win
+over anything here. `.swift-format` and `.swiftlint.yml` settle formatting and every mechanical
+rule, so a force unwrap, a force try, a force cast, a font built outside the Theme seam, or a
+platform guard on a test body is a lint error, not a finding. A reviewer flags only what a lint does
+not judge, and never a preference. A rule earns a line here when it cost this repo a shipped bug
+and applying it takes context a regex does not have. Delete a rule that stops paying.
 
 Apply every rule to every hunk of the diff. For each finding, cite the rule's heading and quote the
-hunk.
+hunk. Each rule ends with the issue that earned it and the symbol that shows the fix. Read the
+symbol when the rule alone does not settle a hunk. Verification commands are in `AGENTS.md`.
 
-## Vocabulary
+## Architecture
 
-Names come from `CONTEXT.md`, including its avoid-lists. A synonym for an existing term is a finding
-even when the code works.
+### The Sheet is the truth
 
-Look for a new name for a concept the glossary already names, or one concept under several names
-across files.
+The Google Sheet is the source of truth and the app is a read-write client with a local cache
+(ADR-0001). Every write to the Sheet or the cache passes through `SyncCoordinator` and the
+pending-write queue (ADR-0006), and a transition that could abandon queued Set Logs asks
+`canBeginDestructiveTransition` first.
 
-It shipped as the Viewed Session named five ways (`displayedSession`, "live edge",
-"Displayed Session", `previewSession`, `isCurrentSessionScope`), with its athlete-facing control
-named after a different concept, the persisted Current Session override (#572, fixed in #591).
+Look for a write that bypasses `SyncCoordinator`, or a transition without the guard. (The guard
+answered `true` during a live sync, so switching Sheets could abandon recorded Set Logs. #585,
+fixed in #595.)
 
-## The Sheet is the truth
+### Views hold no logic that needs a test
 
-The Google Sheet is the single source of truth and the app is a read-write client with a local cache
-(ADR-0001). Local state that diverges from Sheet-derived truth, or overwrites it, without going
-through `Stores/` and the sync path is a correctness bug, not a style issue.
+`App/Views/` sits outside `Sources/`, so `swift test` cannot reach a View (ADR-0017). A guard, a
+calculation, or a branch that decides behaviour lives in the library, and the SwiftUI View reads
+the answer. CI compiles Views, so "cannot be verified here" is no reason to leave one alone.
 
-Look for a write to the Sheet or the cache that bypasses `SyncCoordinator` and the pending-write
-queue (ADR-0006), or a transition that discards queued Set Logs without the destructive-transition
-guard.
+Look for a computed property on a View that ORs store state together, a `switch` on domain state
+inside `body`, or a decision the `workout` CLI would need and cannot see. (Half of the
+destructive-transition guard lived in `SettingsView` computed properties, #582. Now
+`DestructiveTransition.canBeginDestructiveTransition`.)
 
-It shipped as `canBeginDestructiveTransition` answering `true` during a live sync, so switching
-Sheets could abandon Set Logs the athlete had recorded (#585, fixed in #595).
+### Deep modules
 
-## One owner per fact
+A small interface over a deep implementation. The deletion test decides it. If deleting a type
+would lose nothing (a thin switch over prose, a pass-through), the concept it fronts is what needs
+a module. The `codebase-design` skill carries the long form.
+
+Look for a new type that only forwards, a method added where a caller could have asked a deeper
+question, or a question already answered privately in a second place. (Applied in #514, #570, and
+#572.)
+
+## State
+
+### One owner per fact
 
 A fact derived from other state has exactly one place that answers it. Three shapes break this.
 
-- A latch. A Bool that every method changing the state must remember to set.
-  `shouldPreserveDisplayedSessionOnReload` was assigned at ten sites, seven of them `false`, and a
-  new navigation method could forget it silently (#586).
-- A mirror. A value re-derived in several places with drifting conditions. Last Set RPE was
-  re-decided in five places and the skip path forgot it, leaving a stale RPE in the coach's Sheet
-  (#570, fixed in #574).
-- A predicate spelled twice. "Is the athlete at the live edge" was decided three times, once by
-  object identity and twice by model identity (#572, fixed in #591).
+- A latch. A Bool that every method changing the state must remember to set. (Assigned at ten
+  sites, seven of them `false`, so a new navigation method could forget it silently. #586.)
+- A mirror. A value re-derived in several places with drifting conditions. (Last Set RPE was
+  decided in five places and the skip path forgot it, leaving a stale RPE in the coach's Sheet.
+  #570, fixed in #574.)
+- A predicate spelled twice. (Live edge was decided three times, once by object identity and twice
+  by model identity. #572, fixed in #591.)
 
 Look for the same condition in two files, a Bool assigned in more than two methods, or a comment
-that explains when a combination of fields is valid.
+that explains when a combination of fields is valid. The fix shape is `WorkoutStore.view(_:)`, the
+only writer of `viewedSession`, and one `LiveEdge.isAtLiveEdge`.
 
-The fix looked like `WorkoutStore.view(_:)`, the only writer of `viewedSession`, answering the
-reload rule once (`Sources/WorkoutTracker/Stores/WorkoutStore.swift:187-194`), and one
-`LiveEdge.isAtLiveEdge` (`Sources/WorkoutTracker/Session/LiveEdge.swift:19`).
-
-## Control signals come from what they claim
+### Control signals come from what they claim
 
 A value that gates behaviour reads the thing it claims to measure. Display state is not a control
-signal, and a background task never writes a foreground field.
+signal.
 
-Look for `state == .someCase` used as a guard, a Bool that is `true` only because the last writer
-happened to set it, or a detached or dropped task assigning a store property.
+Look for `state == .someCase` used as a guard, or a Bool that is `true` only because the last
+writer happened to set it. (`isSyncing` read the banner's display enum, which `flushPending` reset
+to `.idle` mid-sync, so the destructive-transition guard opened with a sync on the wire. #585. Now
+`SyncCoordinator.isSyncing` reads two in-flight counters that only their owners change, and the
+banner derives from them.)
 
-It shipped as `isSyncing` reading the banner's display enum, which `flushPending` reset to `.idle`
-mid-sync, so the destructive-transition guard opened with a sync on the wire (#585). The history
-backfill ran detached after `sync()` returned and could overwrite a pending-write conflict on the
-same field (#514).
+### Outcomes are enums with one case per outcome
 
-The fix looked like `isSyncing` reading two in-flight counters that only their owners change
-(`Sources/WorkoutTracker/Stores/SyncCoordinator.swift:202`), with the banner derived from them. The
-review catches the dropped-task shape today and judges what a held task is allowed to write. #637
-adds an `unstructured_task_is_held` lint for the shape.
+A result type has one case per thing that can happen, carries what the step produced, and leaves
+the wording to the presentation layer. Precedence between outcomes lives in one function, and a
+step returns its result instead of assigning state as a side effect.
 
-## Outcomes are enums with one case per outcome
+Look for a case whose payload is `[String]` fed by more than one producer,
+`messages.first ?? "…"`, English composed inside a store or coordinator, or a method that sets
+`state` on its way out. (`.conflict([String])` carried five outcomes, from "your Set Log did not
+save" to "the parser has a note", rendered identically. #589, #514. Now `SyncOutcome`, precedence
+in `SyncOutcome.sync(sheetRead:flush:)`, and the queued count returned on
+`PendingWriteFlushResult.stoppedForRetry(queued:)` instead of assigned, #598.)
 
-A result type has one case per thing that can happen, carries what the step produced, and leaves the
-wording to the presentation layer. Precedence between outcomes lives in one function, and a step
-returns its result instead of assigning state as a side effect.
+### Vocabulary
 
-Look for a case whose payload is `[String]` fed by more than one producer, `messages.first ?? "…"`,
-English composed inside a store or coordinator, or a method that sets `state` on its way out.
+Names come from `CONTEXT.md`, including its avoid-lists. A synonym for an existing term is a
+finding even when the code works.
 
-It shipped as `.conflict([String])` carrying five outcomes, from "your Set Log did not save" to
-"the parser has a note", rendered identically (#589, #514).
+Look for a new name for a concept the glossary already names, or one concept under several names
+across files. (The Viewed Session shipped under five names, with its athlete-facing control named
+after a different concept. #572, fixed in #591.)
 
-The fix looked like `SyncOutcome` (`Sources/WorkoutTracker/Stores/SyncOutcome.swift:9-25`),
-precedence in `SyncOutcome.sync(sheetRead:flush:)`, and the queued count returned on
-`PendingWriteFlushResult.stoppedForRetry(queued:)` instead of assigned (#598).
+## Concurrency
+
+### Hold every task you start
+
+A `Task` stays held by its owner until it finishes, or returns its result to the caller. A
+background task never writes a foreground field, because a dropped task that assigns a store
+property races the next writer.
+
+Look for `Task { … }` whose handle is dropped and whose body assigns a store property, or work
+started after the method that owns the state has returned. (The history backfill ran detached
+after `sync()` returned and could overwrite a pending-write conflict on the same field. #514.)
+
+### SwiftData objects do not survive a reload
+
+Every sync replaces the persisted Block by deleting it and inserting the re-parsed one. A `@Model`
+object held across that point is detached, and its relationships come back nil about half the
+time. Hold an address (week and day, or a `persistentModelID`) captured while the object is live,
+re-resolve it after the reload, and compare models by `persistentModelID`, never with `===`.
+
+Look for a store or coordinator property typed as a `@Model` class that outlives `sync()`,
+`session.week` read after a reload, or `===` between models. (`reload()` read the Week and Day off
+the Session it was still holding, so a background sync yanked a browsing athlete to the Current
+Session 13 times in 25. #586. Now `WorkoutStore.browsedTo`, captured in `view(_:)`.)
 
 ## Optionals
 
 A defaulted parameter or an optional callback lets a caller omit a decision, and the compiler will
-not say so. Prefer a required parameter so every call site states its intent. Where a default is
-right, it is the safe answer, never the convenient one.
+not say so. Require the parameter so every call site states its intent. Where a default is right,
+it is the safe answer, never the convenient one. An optional Bool gets its nil case written out,
+because `optional?.flag == false` reads nil as `false`.
 
 Look for `= nil`, `= false`, or `= { _ in true }` on a parameter whose omission changes behaviour,
-an optional closure a View could forget to pass, or `?? Date()` and its relatives turning a missing
-value into a plausible one.
-
-It shipped as a coordinator's `isCurrentSessionScope` defaulting to `{ _ in true }`, so a
-coordinator wired without it silently answered "always at the live edge" (#572).
-
-The fix looked like `SheetsClient.fetchTabSnapshot(spreadsheetId:tabName:retrying:)` requiring
-its backoff (`Sources/WorkoutTracker/Sheets/SheetsClient.swift:26-35`) and
-`LastPerformedCard.onTap` declared `let`, so every caller says whether the line is tappable
-(`App/Views/LastPerformedCard.swift:5-9`).
-
-The review catches `optional?.flag == false` and its spellings today, and judges every other
-default. #637 adds an `optional_bool_needs_a_nil_answer` lint for the comparison.
-
-## SwiftData objects do not survive a reload
-
-Every sync replaces the persisted Block by deleting it and inserting the re-parsed one. A `@Model`
-object held across that point is detached, and its relationships come back nil about half the time.
-Hold an address (week and day, or a `persistentModelID`) captured while the object is live, and
-re-resolve it after the reload. Compare models by `persistentModelID`, never with `===`.
-
-Look for a store or coordinator property typed as a `@Model` class that outlives `sync()`,
-`session.week` read after a reload, or `===` between models.
-
-It shipped as `reload()` reading the Week and Day off the Session it was still holding, so a
-background sync yanked a browsing athlete to the Current Session 13 times in 25 (#586).
-
-The fix looked like `browsedTo: (week: Int, day: Int)?` captured in `view(_:)`
-(`Sources/WorkoutTracker/Stores/WorkoutStore.swift:24-31`).
-
-## Views hold no logic that needs a test
-
-`App/Views/` sits outside `Sources/`, and SwiftPM compiles only `Sources/`, so `swift test` cannot
-reach a View. ADR-0017 made the directory itself the boundary, replacing the `Package.swift` exclude
-list that used to name `Views` among its eight entries, so the library target now carries neither a
-`path:` nor an `exclude:` (`Package.swift:14-20`). A guard, a calculation, or a branch that decides
-behaviour belongs in the library, anywhere under `Sources/WorkoutTracker/`, and the View reads the
-answer.
-CI still compiles Views, so "cannot be verified here" is not a reason to leave one alone.
-
-Look for a computed property on a View that ORs store state together, a `switch` on domain state
-inside `body`, or a decision the `workout` CLI would need and cannot see.
-
-It shipped as the wider half of the destructive-transition guard living in `SettingsView`
-computed properties where no unit test could reach it (#582).
-
-## Deep modules
-
-Prefer a small interface over a deep implementation. The deletion test from #514 decides it: if
-deleting a type would lose nothing (a thin switch over prose, a pass-through), the interface is
-shallow and the concept it fronts is what needs a module. Three PRDs applied the test, the sync
-outcome (#514), Last Set RPE (#570), and the Viewed Session (#572). The `codebase-design` skill
-carries the long form.
-
-Look for a new type that only forwards, a method added to an interface where a caller could have
-asked a deeper question, or a "which Set is final" question answered privately in a second place.
+an optional closure a View could forget to pass, `?? Date()` and its relatives turning a missing
+value into a plausible one, or `optional?.flag == false`. (A coordinator's `isCurrentSessionScope`
+defaulted to `{ _ in true }`, so a coordinator wired without it answered "always at the live edge".
+#572. An `optional?.flag == false` read a missing store as not busy. #582.) The fix shape is
+`SheetsClient.fetchTabSnapshot(spreadsheetId:tabName:retrying:)`, which requires its backoff, and
+`LastPerformedCard.onTap`, a `let` every caller must supply.
 
 ## Tests
 
 - Coverage counts through the interface callers use. Lower a CRAP score (`scripts/crap.sh gate`,
-  ADR-0016) with a better design or a stronger test, never by weakening a pin, calling internals
-  to paint lines green, or splitting a function into pieces with no name a reader would look for.
+  ADR-0016) with a better design or a stronger test, never by weakening a pin, calling internals to
+  paint lines green, or splitting a function into pieces with no name a reader would look for.
 - A pin that has to move is a behaviour change. Argue it in the PR with the old and the new
-  assertion; never loosen it until green. #598 moved one assertion and said why; #586 added its
-  pins green on `main` before the refactor.
-- Fake only at the boundary: the Sheets client, auth, time. Fixtures under
+  assertion, and never loosen it until green. (#598 moved one assertion and said why. #586 added
+  its pins green on `main` before the refactor.)
+- Fake only at the boundary: the Sheets client, auth, and time. Fixtures under
   `Sources/WorkoutTracker/Fixtures/` stand in for Sheet data. A fake of the repo's own types is a
   finding.
 - Every fixture value is a literal or an offset from the fixture's reference date, and a parsed
-  date is pinned to the coach's cell text, never to an instant. `SheetParser.parseDate` resolves in
-  the machine's time zone, and a literal-instant pin passed in EDT and failed under `TZ=UTC`
-  (#597). The review catches wall-clock reads and the time-zone assumption. #637 adds a
-  `fixture_dates_are_literal` lint for the reads.
+  date is pinned to the coach's cell text, never to an instant. (`SheetParser.parseDate` resolves
+  in the machine's time zone, and a literal-instant pin passed in EDT and failed under `TZ=UTC`.
+  #597.)
+- A wait for another task ends when the fake resumes the test, never after a count of
+  `Task.yield()` or a wall-clock budget, because an unbounded loop hangs CI instead of failing.
+  (#582. The shapes are in `docs/TESTING.md`, Flaky Tests.)
+- A platform `#if` goes on the `@Test` declaration, where the other platform drops the test, never
+  inside the body, where the assertions compile away and the test passes empty. (#608. The lint
+  catches a guard on the body's first line; judge the rest.)
 - A test that mirrors a one-line mapping adds no confidence and breaks on any refactor. The gate
-  does not need it: a function with cyclomatic complexity 1 scores 2 uncovered, under the target.
-- Flake discipline (a fake resumes the test, no wall-clock budgets) is `docs/TESTING.md`, Flaky
-  Tests. The `platform_guard_on_test_declaration` lint catches the `@Test` whose body opens with a
-  platform `#if` (#608, landed in #632), and #637 adds a `polling_loops_are_bounded` lint for the
-  unbounded yield loop.
+  does not need it. A function with cyclomatic complexity 1 scores 2 uncovered, under the target.
+
+The shapes above that a regex can catch (the dropped task, the optional Bool comparison, a
+wall-clock read in a fixture, the unbounded yield loop) are tracked as SwiftLint custom rules in
+#637. Until they land, the review judges them.
