@@ -281,5 +281,35 @@ class VerifySheet(unittest.TestCase):
         self.assertIn("shot NAME", err, "the way out of an empty run")
 
 
+class BurstFrames(unittest.TestCase):
+    def setUp(self):
+        self.dir = Path(tempfile.mkdtemp())
+        second = 1000000000
+        for name, at in [("f00.png", 999.900), (".drive-returned", 1000.000),
+                         ("f01.png", 1000.142), ("f02.png", 1000.373)]:
+            (self.dir / name).write_bytes(b"png")
+            os.utime(self.dir / name, ns=(int(at * second), int(at * second)))
+
+    def tearDown(self):
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def test_frames_are_named_by_when_they_were_captured(self):
+        done = subprocess.run(
+            [sys.executable, str(SKILL / "frames.py"), str(self.dir)],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
+        )
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(
+            [Path(line).name for line in done.stdout.splitlines()],
+            ["before.png", "+0142ms.png", "+0373ms.png"],
+            "capture order, timed from the drive command's return",
+        )
+        self.assertEqual(
+            sorted(path.name for path in self.dir.glob("*.png")),
+            ["+0142ms.png", "+0373ms.png", "before.png"],
+            "renamed on disk, because the tiler labels a cell with its file stem",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

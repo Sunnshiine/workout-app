@@ -2,7 +2,6 @@ name: Verify tools
 
 on:
   pull_request:
-    branches: [main]
     paths:
       - ".agents/skills/verify/**"
       - ".claude/skills/verify"

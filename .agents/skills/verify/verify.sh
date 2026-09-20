@@ -327,16 +327,7 @@ case $cmd in
     fi
     touch "$frames_dir/.drive-returned"
     for i in 01 02 03 04 05 06 07 08 09 10 11; do capture "$frames_dir/f$i.png"; done
-    frames=$(python3 -c '
-import os, sys
-directory = sys.argv[1]
-drive_returned = os.stat(os.path.join(directory, ".drive-returned")).st_mtime_ns
-for frame in sorted(f for f in os.listdir(directory) if f.startswith("f") and f.endswith(".png")):
-    source = os.path.join(directory, frame)
-    elapsed = (os.stat(source).st_mtime_ns - drive_returned) // 1000000
-    target = os.path.join(directory, ("before" if elapsed < 0 else "+%04dms" % elapsed) + ".png")
-    os.rename(source, target)
-    print(target)' "$frames_dir")
+    frames=$(python3 "$here/frames.py" "$frames_dir")
     paths=()
     while IFS= read -r frame; do paths+=("$frame"); done <<< "$frames"
     "$tiler" "$dir/$name.burst.png" "${paths[@]}"
