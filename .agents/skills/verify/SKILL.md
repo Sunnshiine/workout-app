@@ -67,7 +67,7 @@ from `tree` and tap its center with `-x -y`.
 
 Target elements by accessibility identifier (`tap --id`) first, by label second, by coordinates
 only for empty space. The tree prints identifiers in column two and labels in column three.
-Identifiers are set in `WorkoutTracker/Views/`; the feature files list the ones each screen
+Identifiers are set in `App/Views/`; the feature files list the ones each screen
 exposes. `tap` polls up to 3 s for the element. After a tap, re-read the tree before asserting.
 Animations are off, so a state that has not appeared within a second is not coming.
 

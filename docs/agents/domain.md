@@ -24,7 +24,8 @@ Single-context repo:
 +-- docs/adr/
 |   +-- 0001-sheet-as-backend-local-first.md
 |   +-- 0002-last-performed-local-index.md
-+-- WorkoutTracker/
++-- App/
++-- Sources/
 ```
 
 Multi-context repo:

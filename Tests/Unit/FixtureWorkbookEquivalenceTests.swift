@@ -28,7 +28,7 @@ import Testing
 /// that most of the recorded list says the two sides describe different workouts rather than that
 /// one drifted from the other, and it cannot shrink from the workbook side: `fresh-block`'s shape
 /// is pinned by
-/// `Tests/Unit/WorkbookScenarioTests.swift`, `WorkoutCLI/README.md`,
+/// `Tests/Unit/WorkbookScenarioTests.swift`, `Sources/WorkoutCLI/README.md`,
 /// `scripts/viewed-session-across-sync.sh`, and the verify skill's `cli-headless.md`. The
 /// intended end state is that `.partialUpload` gets a workbook of its own, that row replaces this
 /// one, and those entries are deleted rather than fixed one by one.
@@ -211,7 +211,7 @@ private func parsedBlock(_ scenario: WorkbookScenario) throws -> Block {
 /// A `WorkbookScenario` and the hand-built Block graph that fills the same fixture role.
 ///
 /// The role, not a resemblance, is what makes a row defensible, and it is readable from the
-/// source: `fresh-block` is the CLI's default scenario (`WorkoutCLI/Commands/InitCommand.swift`)
+/// source: `fresh-block` is the CLI's default scenario (`Sources/WorkoutCLI/Commands/InitCommand.swift`)
 /// and `.partialUpload` is the app's, as `UITestLaunch.scenario`'s fallback. Both are documented
 /// as a Partially Uploaded Block. That is the strictest claim the source supports; it is
 /// deliberately weaker than "these two describe the same workout", which nothing in the repo says
