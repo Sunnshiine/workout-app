@@ -39,8 +39,6 @@ struct SmartValuePillsForm {
         return currentInvalidFields
     }
 
-    /// The single contextual step for the inline weight stepper. The coarse step is retired; tap
-    /// the weight to type a big jump.
     var fineWeightIncrement: Double {
         WeightIncrement.fine(forWeight: Double(weightText))
     }

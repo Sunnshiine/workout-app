@@ -1,9 +1,5 @@
 import Observation
 
-// Switching the configured Sheet and signing out are one domain move under two names
-// (CONTEXT.md, "Destructive Transition"). Both abandon Set Logs recorded locally that have
-// not reached the Sheet, so both run through one store, one guard and one confirmation.
-
 enum SettingsSheetSwitchResult: Equatable {
     case switched
     case requiresConfirmation
