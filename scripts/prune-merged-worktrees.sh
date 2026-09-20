@@ -25,6 +25,9 @@ that removal would lose. Prints the plan and exits without changing anything.
   --repo <path>  operate on this repository (default: the repo containing $PWD)
   --no-size      skip the du pass, which dominates the runtime on large trees
 
+Size is logical size per worktree, so content shared between worktrees by a
+hardlink or an APFS clone is counted once in each.
+
 A worktree is removed only when every one of these holds:
   it is not the primary checkout and not the one this script runs from
   it is on a branch (a detached HEAD is always kept)
@@ -47,6 +50,11 @@ while [ $# -gt 0 ]; do
     shift
 done
 
+# cd alone does not stop these from redirecting every git call, including the
+# two that delete. This script is run by agents from inside worktrees, which is
+# exactly where they leak.
+unset GIT_DIR GIT_WORK_TREE
+
 if [ -z "$repo" ]; then
     repo=$(git rev-parse --show-toplevel 2>/dev/null)
 fi
@@ -58,12 +66,10 @@ cd "$repo" || exit 2
 primary=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
 self=$(git rev-parse --show-toplevel 2>/dev/null)
 
-# GNU and BSD spell file mtime and epoch-to-date differently; pick once.
-if stat -c %Y . >/dev/null 2>&1; then
-    mtime() { stat -c %Y "$1" 2>/dev/null; }
+# GNU and BSD spell epoch-to-date differently; pick once.
+if date -u -d @0 +%Y-%m-%d >/dev/null 2>&1; then
     ymd() { date -u -d "@$1" +%Y-%m-%d; }
 else
-    mtime() { stat -f %m "$1" 2>/dev/null; }
     ymd() { date -u -r "$1" +%Y-%m-%d; }
 fi
 
@@ -122,12 +128,53 @@ parse_worktrees() {
     [ -n "$wt" ] && printf '%s\0%s\0%s\0%s\0' "$wt" "$branch" "$head" "$prunable"
 }
 
+# Answers "does this worktree hold commits the PR never received". An upstream
+# that still resolves answers it directly. When it does not, the branch is
+# either gone (the repo deletes merged branches) or was never tracked, and both
+# are answered by the SHA GitHub recorded on the PR, never by assuming nothing
+# is lost.
+compute_remote() {
+    # compute_remote <worktree> <pr head oid>
+    local wt="$1" pr_oid="$2" upstream ahead head
+    head=$(git -C "$wt" rev-parse HEAD 2>/dev/null) || { echo unknown; return; }
+    if upstream=$(git -C "$wt" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null) \
+       && git -C "$wt" rev-parse --verify --quiet "$upstream" >/dev/null 2>&1; then
+        ahead=$(git -C "$wt" rev-list --count "$upstream..HEAD" 2>/dev/null)
+        case "$ahead" in
+            ''|*[!0-9]*) echo unknown ;;
+            0) echo pushed ;;
+            *) echo "ahead:$ahead" ;;
+        esac
+    elif [ -n "$pr_oid" ] && [ "$pr_oid" = "$head" ]; then
+        echo "gone=pr-head"
+    elif [ -n "$pr_oid" ] && git -C "$wt" cat-file -e "$pr_oid" 2>/dev/null \
+         && git -C "$wt" merge-base --is-ancestor HEAD "$pr_oid" 2>/dev/null; then
+        echo "gone=in-pr-head"
+    elif [ -n "$pr_oid" ]; then
+        echo "gone=ahead-of-pr-head"
+    else
+        echo no-upstream
+    fi
+}
+
+# The only three states that prove removal would lose nothing. Anything else,
+# including every state added here later, keeps the worktree.
+remote_is_safe() {
+    case "$1" in pushed|gone=pr-head|gone=in-pr-head) return 0 ;; *) return 1 ;; esac
+}
+
+worktree_is_clean() {
+    local porcelain
+    porcelain=$(git -C "$1" status --porcelain 2>/dev/null) || return 1
+    [ -z "$porcelain" ]
+}
+
 now=$(date +%s)
 
 while IFS= read -r -d '' wt && IFS= read -r -d '' branch \
    && IFS= read -r -d '' head && IFS= read -r -d '' prunable; do
 
-    pr_num="-"; pr_state="-"; pr_oid=""; touched_ts=0
+    pr_num="-"; pr_state="-"; pr_oid=""
     dirty="-"; remote="-"; size="-"; touched="-"
     verdict=keep; reason=""
 
@@ -143,14 +190,11 @@ while IFS= read -r -d '' wt && IFS= read -r -d '' branch \
         if [ "$want_size" = yes ] && s=$(du -sh "$wt" 2>/dev/null); then
             size=$(printf '%s\n' "$s" | awk '{print $1}')
         fi
-        gitdir=$(git -C "$wt" rev-parse --absolute-git-dir 2>/dev/null)
-        for f in "$gitdir/index" "$wt"; do
-            t=$(mtime "$f") || true
-            case "$t" in ''|*[!0-9]*) continue ;; esac
-            if [ "$touched" = "-" ] || [ "$t" -gt "$touched_ts" ]; then touched_ts="$t"; touched="$t"; fi
-        done
-        if [ "$touched" != "-" ]; then
-            touched="$(ymd "$touched_ts") ($(( (now - touched_ts) / 86400 ))d)"
+        # The commit date, not a file mtime. An index mtime moves when git
+        # merely reads the tree, including this script's own status call below.
+        if head_ts=$(git -C "$wt" log -1 --format=%ct HEAD 2>/dev/null) \
+           && [ -n "$head_ts" ]; then
+            touched="$(ymd "$head_ts") ($(( (now - head_ts) / 86400 ))d)"
         fi
 
         if porcelain=$(git -C "$wt" status --porcelain 2>/dev/null); then
@@ -172,28 +216,7 @@ while IFS= read -r -d '' wt && IFS= read -r -d '' branch \
             pr_oid=$(pr_field "$branch" 4)
             [ -z "$pr_num" ] && { pr_num="-"; pr_state="none"; }
 
-            # An upstream that still resolves answers "unpushed" directly.
-            # When it does not, the branch is either gone (the repo deletes
-            # merged branches) or was never tracked. Both are answered by the
-            # SHA GitHub recorded on the PR, never by assuming nothing is lost.
-            if upstream=$(git -C "$wt" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null) \
-               && git -C "$wt" rev-parse --verify --quiet "$upstream" >/dev/null 2>&1; then
-                ahead=$(git -C "$wt" rev-list --count "$upstream..HEAD" 2>/dev/null)
-                case "$ahead" in
-                    ''|*[!0-9]*) remote=unknown ;;
-                    0) remote=pushed ;;
-                    *) remote="ahead:$ahead" ;;
-                esac
-            elif [ -n "$pr_oid" ] && [ "$pr_oid" = "$head" ]; then
-                remote="gone=pr-head"
-            elif [ -n "$pr_oid" ] && git -C "$wt" cat-file -e "$pr_oid" 2>/dev/null \
-                 && git -C "$wt" merge-base --is-ancestor HEAD "$pr_oid" 2>/dev/null; then
-                remote="gone=in-pr-head"
-            elif [ -n "$pr_oid" ]; then
-                remote="gone=ahead-of-pr-head"
-            else
-                remote=no-upstream
-            fi
+            remote=$(compute_remote "$wt" "$pr_oid")
         fi
 
         # Ordered decision table. First match wins, and every rule that cannot
@@ -210,7 +233,9 @@ while IFS= read -r -d '' wt && IFS= read -r -d '' branch \
             reason="PR state unavailable"
         elif [ "$pr_state" = OPEN ]; then
             reason="PR #$pr_num is open"
-        elif [ "$remote" != pushed ] && [ "$remote" != "gone=pr-head" ] && [ "$remote" != "gone=in-pr-head" ]; then
+        elif ! remote_is_safe "$remote"; then
+            # Must stay above the MERGED/CLOSED rule. A merged PR says the
+            # branch landed, not that this worktree holds nothing newer.
             reason="commits the PR never received ($remote)"
         elif [ "$pr_state" = MERGED ] || [ "$pr_state" = CLOSED ]; then
             verdict=remove
@@ -220,9 +245,9 @@ while IFS= read -r -d '' wt && IFS= read -r -d '' branch \
         fi
     fi
 
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
         "$verdict" "${branch:--}" "$pr_num" "$pr_state" "$size" "$touched" \
-        "$remote" "${dirty:--}" "$reason" "$wt" >>"$rows"
+        "$remote" "${dirty:--}" "$reason" "$wt" "$head" "$pr_oid" >>"$rows"
 done < <(parse_worktrees)
 
 align() { awk -F '\t' '{ for (i=1;i<=NF;i++) { c[NR,i]=$i; if (length($i)>w[i]) w[i]=length($i) } n=NF>n?NF:n }
@@ -243,7 +268,7 @@ echo "CANDIDATES"
 if [ "$n_remove" -eq 0 ]; then
     echo "  none"
 else
-    { printf 'BRANCH\tPR\tSTATE\tSIZE\tLAST TOUCHED\tREMOTE\tWORKTREE\n'
+    { printf 'BRANCH\tPR\tSTATE\tSIZE\tLAST COMMIT\tREMOTE\tWORKTREE\n'
       awk -F '\t' '$1=="remove" { printf "%s\t#%s\t%s\t%s\t%s\t%s\t%s\n", $2,$3,$4,$5,$6,$7,$10 }' "$rows"
     } | align | sed 's/^/  /'
 fi
@@ -261,8 +286,30 @@ if [ "$apply" != yes ]; then
 fi
 
 fail=0
-while IFS=$'\t' read -r branch wt; do
+while IFS=$'\t' read -r branch scanned_head pr_oid wt; do
     echo "removing $wt ($branch)"
+    # The verdict above was decided when the scan ran, and the scan takes
+    # roughly a minute on a large tree. Another agent can commit in that
+    # window, leaving a clean worktree that `git worktree remove` accepts and
+    # a branch that `git branch -D` force-deletes along with the new commit.
+    # Re-derive the two facts that can move before touching anything.
+    live_head=$(git -C "$wt" rev-parse HEAD 2>/dev/null)
+    if [ "$live_head" != "$scanned_head" ]; then
+        echo "  SKIPPED: HEAD moved to ${live_head:-unreadable} since the scan" >&2
+        fail=1
+        continue
+    fi
+    if ! worktree_is_clean "$wt"; then
+        echo "  SKIPPED: the working tree is no longer clean" >&2
+        fail=1
+        continue
+    fi
+    live_remote=$(compute_remote "$wt" "$pr_oid")
+    if ! remote_is_safe "$live_remote"; then
+        echo "  SKIPPED: now holds commits the PR never received ($live_remote)" >&2
+        fail=1
+        continue
+    fi
     if git worktree remove "$wt" 2>"$work/rm.err"; then
         echo "  worktree removed"
     else
@@ -276,7 +323,7 @@ while IFS=$'\t' read -r branch wt; do
         echo "  FAILED to delete branch $branch: $(cat "$work/br.err")" >&2
         fail=1
     fi
-done < <(awk -F '\t' '$1=="remove" { printf "%s\t%s\n", $2, $10 }' "$rows")
+done < <(awk -F '\t' '$1=="remove" { printf "%s\t%s\t%s\t%s\n", $2, $11, $12, $10 }' "$rows")
 
 echo
 echo "git worktree list now:"

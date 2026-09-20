@@ -251,5 +251,114 @@ else
 fi
 
 say
+say "=== gh present but failing keeps everything ==="
+mkdir -p "$root/failbin"
+printf '#!/usr/bin/env bash\necho "HTTP 429 rate limit exceeded" >&2\nexit 1\n' >"$root/failbin/gh"
+chmod +x "$root/failbin/gh"
+PATH="$root/failbin:$PATH" "$prune" --repo "$repo" --no-size >"$root/ghfail.txt" 2>&1
+if grep -qE 'worktrees: [0-9]+ examined, 0 to remove' "$root/ghfail.txt" \
+   && grep -q 'gh pr list failed' "$root/ghfail.txt"; then
+    ok "a failing gh removes nothing and says why"
+else
+    bad "a failing gh did not fail safe"
+    cat "$root/ghfail.txt"
+fi
+
+# A second repository, because the first has no candidates left. Two clean
+# worktrees whose PRs both merged; the race below targets the one removed last.
+race_repo="$root/race"
+race_wt="$root/race-wt"
+mkdir -p "$race_repo"
+git -C "$root" init --bare --quiet race-origin.git
+git -C "$race_repo" init -q -b main
+git -C "$race_repo" config user.email t@t
+git -C "$race_repo" config user.name t
+git -C "$race_repo" remote add origin "$root/race-origin.git"
+printf 'base\n' >"$race_repo/base.txt"
+git -C "$race_repo" add -A
+git -C "$race_repo" commit -qm base
+git -C "$race_repo" push -q -u origin main
+for b in aaa-first zzz-second; do
+    git -C "$race_repo" checkout -q -b "$b" main
+    printf '%s\n' "$b" >"$race_repo/$b.txt"
+    git -C "$race_repo" add -A
+    git -C "$race_repo" commit -qm "$b"
+    git -C "$race_repo" push -q -u origin "$b"
+done
+git -C "$race_repo" checkout -q main
+jq -n --arg a "$(git -C "$race_repo" rev-parse aaa-first)" \
+      --arg z "$(git -C "$race_repo" rev-parse zzz-second)" \
+   '[{number:20,state:"MERGED",headRefName:"aaa-first",headRefOid:$a},
+     {number:21,state:"MERGED",headRefName:"zzz-second",headRefOid:$z}]' >"$root/race-prs.json"
+for b in aaa-first zzz-second; do
+    git -C "$race_repo" worktree add "$race_wt/$b" "$b" >/dev/null 2>&1
+done
+
+say
+say "=== size column is populated without --no-size ==="
+GH_STUB_PRS="$root/race-prs.json" "$prune" --repo "$race_repo" >"$root/size.txt" 2>&1
+if awk '/^CANDIDATES$/{f=1;next} /^KEPT$/{f=0} f' "$root/size.txt" \
+   | awk 'NR>1 && NF { if ($4 == "-") bad=1 } END { exit bad }'; then
+    ok "every candidate reports a size on disk"
+else
+    bad "a candidate reported no size"
+    cat "$root/size.txt"
+fi
+
+say
+say "=== a commit landing between the scan and the removal ==="
+# The wrapper injects the race from outside, so the script under test runs
+# unmodified: on its first `git worktree remove` it commits into the worktree
+# the apply loop has not reached yet.
+mkdir -p "$root/racebin"
+cat >"$root/racebin/git" <<'WRAP'
+#!/usr/bin/env bash
+if [ "${1:-}" = worktree ] && [ "${2:-}" = remove ] && [ ! -f "$RACE_FLAG" ]; then
+    : >"$RACE_FLAG"
+    printf 'raced
+' >"$RACE_TARGET/raced.txt"
+    "$REAL_GIT" -C "$RACE_TARGET" add -A
+    "$REAL_GIT" -C "$RACE_TARGET" -c user.email=t@t -c user.name=t commit -qm "landed mid-apply"
+fi
+exec "$REAL_GIT" "$@"
+WRAP
+chmod +x "$root/racebin/git"
+REAL_GIT=$(command -v git) \
+RACE_TARGET="$race_wt/zzz-second" \
+RACE_FLAG="$root/raced.flag" \
+GH_STUB_PRS="$root/race-prs.json" \
+PATH="$root/racebin:$PATH" \
+    "$prune" --repo "$race_repo" --no-size --apply >"$root/race.txt" 2>&1
+race_status=$?
+cat "$root/race.txt"
+say
+raced_sha=$(git -C "$race_wt/zzz-second" rev-parse HEAD 2>/dev/null)
+if [ -d "$race_wt/aaa-first" ]; then
+    bad "race: aaa-first was not removed, so the race never reached the loop"
+else
+    ok "race: aaa-first removed as planned"
+fi
+if [ -d "$race_wt/zzz-second" ] && [ -f "$race_wt/zzz-second/raced.txt" ]; then
+    ok "race: zzz-second survived with its mid-apply commit intact ($raced_sha)"
+else
+    bad "race: zzz-second and its mid-apply commit were destroyed"
+fi
+if [ -n "$(git -C "$race_repo" branch --list zzz-second)" ]; then
+    ok "race: branch zzz-second was not force-deleted"
+else
+    bad "race: branch zzz-second was force-deleted, losing the commit"
+fi
+if grep -q 'SKIPPED: HEAD moved' "$root/race.txt"; then
+    ok "race: the skip is reported with its reason"
+else
+    bad "race: no SKIPPED line explaining the refusal"
+fi
+if [ "$race_status" -ne 0 ]; then
+    ok "race: a partial run exits non-zero ($race_status)"
+else
+    bad "race: a partial run exited 0"
+fi
+
+say
 say "passed $pass, failed $fail"
 [ "$fail" -eq 0 ] || exit 1
