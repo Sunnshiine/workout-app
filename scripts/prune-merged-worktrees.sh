@@ -64,7 +64,7 @@ unset GIT_DIR GIT_WORK_TREE
 # inside its own worktree with --repo pointing at the primary checkout, and
 # that is exactly the invocation that would otherwise delete the agent.
 caller_tree=$(git rev-parse --show-toplevel 2>/dev/null)
-script_tree=$(cd "$(dirname "$0")" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null)
+script_tree=$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null)
 
 if [ -z "$repo" ]; then
     repo=$(git rev-parse --show-toplevel 2>/dev/null)
@@ -302,7 +302,10 @@ while IFS= read -r -d '' wt && IFS= read -r -d '' branch \
             # A merged PR puts the content on main. A closed one puts it
             # nowhere, so the branch on the remote is the only durable copy and
             # `git branch -D` below would leave none.
-            if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+            # The full ref, so a branch named like an option cannot be read
+            # as one and a partial name cannot match a different branch. A
+            # failed lookup, offline included, leaves the worktree alone.
+            if git ls-remote --exit-code --heads origin "refs/heads/$branch" >/dev/null 2>&1; then
                 verdict=remove
                 reason="PR #$pr_num CLOSED, branch still on origin"
             else
