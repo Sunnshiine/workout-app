@@ -1,11 +1,6 @@
 import Foundation
 import Observation
 
-struct ActiveSetID: Equatable, Hashable, Sendable {
-    let exerciseOrder: Int
-    let setIndex: Int
-}
-
 enum ActiveSetVisualFocusOwner: Equatable, Sendable {
     case activeSet(ActiveSetID)
     case loggedSetReview(ActiveSetID)
