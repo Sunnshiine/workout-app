@@ -86,9 +86,6 @@ private func moveOnCelebrationSource() throws -> String {
     #expect(!source.contains("move-on-celebration-orbit"))
 }
 
-/// Every Swift file the app target compiles. Its iOS-only half lives in `App/` and the library it
-/// embeds in `Sources/WorkoutTracker/`, so each half names its own anchor. A scan that loses one
-/// directory then fails instead of quietly passing over the half that is left.
 private func everyAppAndLibrarySource() throws -> [(name: String, source: String)] {
     try RepositoryFiles.nonEmptySwiftSources(
         under: "Sources/WorkoutTracker",

@@ -31,9 +31,6 @@ public enum SourceScan {
     }
 
     /// Root-relative `.swift` paths under each source directory, sorted, excludes applied.
-    ///
-    /// A missing or Swift-less source directory throws, because a `--source` left behind by a
-    /// directory move would otherwise shrink the measured scope and still report a clean gate.
     public static func swiftFiles(root: String, sources: [String], excludes: [String]) throws -> [String] {
         var found: [String] = []
         for source in sources {
