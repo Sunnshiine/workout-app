@@ -168,5 +168,6 @@ asked a deeper question, or a "which Set is final" question answered privately i
 - A test that mirrors a one-line mapping adds no confidence and breaks on any refactor. The gate
   does not need it: a function with cyclomatic complexity 1 scores 2 uncovered, under the target.
 - Flake discipline (a fake resumes the test, no wall-clock budgets) is `docs/TESTING.md`, Flaky
-  Tests. #637 adds a `polling_loops_are_bounded` lint for the unbounded yield loop, and #608 adds
-  `platform_guard_on_test_declaration` for the `@Test` whose body opens with a platform `#if`.
+  Tests. The `platform_guard_on_test_declaration` lint catches the `@Test` whose body opens with a
+  platform `#if` (#608, landed in #632), and #637 adds a `polling_loops_are_bounded` lint for the
+  unbounded yield loop.
