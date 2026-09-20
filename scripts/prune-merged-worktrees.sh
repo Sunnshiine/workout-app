@@ -84,6 +84,7 @@ rows="$work/rows.tsv"
 # per-branch lookup would be one request per worktree. No cache: a stale entry
 # could report a reopened PR as merged, and that error deletes.
 pr_lookup_note="one batched gh pr list call"
+pr_lookup_ok=no
 if ! command -v gh >/dev/null 2>&1; then
     echo "warn: gh not found; every worktree will be kept for want of a PR state" >&2
     pr_lookup_note="gh unavailable"
@@ -107,6 +108,7 @@ else
                      | .[] | [.headRefName, .number, .state, .headRefOid] | @tsv' >"$prmap"
         pr_count=$(wc -l <"$prmap" | tr -d ' ')
         pr_lookup_note="one batched gh pr list call, $pr_count branches with a PR"
+        pr_lookup_ok=yes
         if [ "$pr_count" -ge "$pr_limit" ]; then
             echo "warn: gh returned $pr_count PRs at the limit of $pr_limit; older branches may be missing and will be kept" >&2
         fi
@@ -223,7 +225,12 @@ while IFS= read -r -d '' wt && IFS= read -r -d '' branch \
             pr_num=$(pr_field "$branch" 2)
             pr_state=$(pr_field "$branch" 3)
             pr_oid=$(pr_field "$branch" 4)
-            [ -z "$pr_num" ] && { pr_num="-"; pr_state="none"; }
+            # "none" is a fact about the branch. "unknown" means the lookup
+            # never answered, and the two must not read alike in the table.
+            if [ -z "$pr_num" ]; then
+                pr_num="-"
+                if [ "$pr_lookup_ok" = yes ]; then pr_state=none; else pr_state=unknown; fi
+            fi
 
             remote=$(compute_remote "$wt" "$pr_oid")
         fi
@@ -236,10 +243,10 @@ while IFS= read -r -d '' wt && IFS= read -r -d '' branch \
             reason="could not read the working tree status"
         elif [ "$dirty" != clean ]; then
             reason="uncommitted changes ($dirty)"
+        elif [ "$pr_state" = unknown ]; then
+            reason="PR state unavailable: $pr_lookup_note"
         elif [ "$pr_state" = none ]; then
             reason="no pull request for $branch"
-        elif [ "$pr_state" = "-" ]; then
-            reason="PR state unavailable"
         elif [ "$pr_state" = OPEN ]; then
             reason="PR #$pr_num is open"
         elif ! remote_is_safe "$remote"; then

@@ -262,8 +262,9 @@ printf '#!/usr/bin/env bash\necho "HTTP 429 rate limit exceeded" >&2\nexit 1\n' 
 chmod +x "$root/failbin/gh"
 PATH="$root/failbin:$PATH" "$prune" --repo "$repo" --no-size >"$root/ghfail.txt" 2>&1
 if grep -qE 'worktrees: [0-9]+ examined, 0 to remove' "$root/ghfail.txt" \
-   && grep -q 'gh pr list failed' "$root/ghfail.txt"; then
-    ok "a failing gh removes nothing and says why"
+   && grep -q 'PR state unavailable' "$root/ghfail.txt" \
+   && ! grep -q 'no pull request' "$root/ghfail.txt"; then
+    ok "a failing gh removes nothing, and no row claims the branch has no PR"
 else
     bad "a failing gh did not fail safe"
     cat "$root/ghfail.txt"
