@@ -39,14 +39,8 @@ struct SmartValuePillsForm {
         return currentInvalidFields
     }
 
-    /// The single contextual step for the inline weight stepper: ±2.5 below the
-    /// gym-friendly threshold, ±5 at or above it. The coarse step is retired —
-    /// tap the weight to type a big jump.
     var fineWeightIncrement: Double {
-        guard let weight = Double(weightText), weight > Theme.weightIncrementThreshold else {
-            return Theme.lightWeightIncrementOptions.first ?? 2.5
-        }
-        return Theme.heavyWeightIncrementOptions.first ?? 5
+        WeightIncrement.fine(forWeight: Double(weightText))
     }
 
     /// Stepping only makes sense for a numeric weight — hidden for bodyweight and

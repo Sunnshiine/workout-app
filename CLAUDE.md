@@ -171,12 +171,17 @@ App/                            iOS app only; not in the SwiftPM package
 └── Assets.xcassets, Fonts/, AppIcon.icon, Info.plist, LaunchScreen.storyboard
 
 Sources/WorkoutTracker/         SwiftPM library, also compiled into the app target
-├── Models/                     Domain types (Block, Week, Session, Exercise, Set …)
+├── Models/                     Domain types and the persisted schema (Block, Week, Session, Exercise, Set …)
 ├── Parsing/                    Sheet → domain interpretation (layout interpreter)
 ├── Sheets/                     Google Sheets client
 ├── Stores/                     Local cache, sync coordination & persisted state
-├── Progress/                   Session/Week progression (Current Session, Move On, Open Exercises, Supersets)
+├── Session/                    The live session (coordinator, active-set focus, Supersets, Stage, Set Card)
+├── Rest/                       Rest timer, notification, haptics, pill, and the rest Live Activity content
+├── Progress/                   Where the athlete is in the Block (Current Session, grid, Move On, Open Exercises)
+├── ExerciseHistory/            Last Performed lookup and extraction, Movement matching, the history sheet
+├── Onboarding/                 App entry destination, connect screen, Sheet picker
 ├── Application/                WorkoutApplication (composition root + public facade), addresses, snapshots
+├── HapticPlayer.swift          Haptic playback (rest cues and the Move On celebration)
 ├── LoadSuggestionEngine.swift  Load Suggestion calculations
 ├── Theme.swift                 Liquid Glass design system (ADR-0004)
 └── Fixtures/                   UI-test fixture data (-UITEST_FIXTURE) and WorkbookScenario seeds
