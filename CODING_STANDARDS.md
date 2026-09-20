@@ -52,8 +52,8 @@ Look for the same condition in two files, a Bool assigned in more than two metho
 that explains when a combination of fields is valid.
 
 The fix looked like `WorkoutStore.view(_:)`, the only writer of `viewedSession`, answering the
-reload rule once (`WorkoutTracker/Stores/WorkoutStore.swift:187-194`), and one
-`LiveEdge.isAtLiveEdge` (`WorkoutTracker/Progress/LiveEdge.swift:19`).
+reload rule once (`Sources/WorkoutTracker/Stores/WorkoutStore.swift:187-194`), and one
+`LiveEdge.isAtLiveEdge` (`Sources/WorkoutTracker/Progress/LiveEdge.swift:19`).
 
 ## Control signals come from what they claim
 
@@ -69,8 +69,9 @@ backfill ran detached after `sync()` returned and could overwrite a pending-writ
 same field (#514).
 
 The fix looked like `isSyncing` reading two in-flight counters that only their owners change
-(`WorkoutTracker/Stores/SyncCoordinator.swift:202`), with the banner derived from them. The review
-catches the dropped-task shape today and judges what a held task is allowed to write. #637 adds an
+(`Sources/WorkoutTracker/Stores/SyncCoordinator.swift:202`), with the banner derived from them.
+The review catches the dropped-task shape today and judges what a held task is allowed to write.
+#637 adds an
 `unstructured_task_is_held` lint for the shape.
 
 ## Outcomes are enums with one case per outcome
@@ -85,8 +86,8 @@ English composed inside a store or coordinator, or a method that sets `state` on
 It shipped as `.conflict([String])` carrying five outcomes, from "your Set Log did not save" to
 "the parser has a note", rendered identically (#589, #514).
 
-The fix looked like `SyncOutcome` (`WorkoutTracker/Stores/SyncOutcome.swift:9-25`), precedence in
-`SyncOutcome.sync(sheetRead:flush:)`, and the queued count returned on
+The fix looked like `SyncOutcome` (`Sources/WorkoutTracker/Stores/SyncOutcome.swift:9-25`),
+precedence in `SyncOutcome.sync(sheetRead:flush:)`, and the queued count returned on
 `PendingWriteFlushResult.stoppedForRetry(queued:)` instead of assigned (#598).
 
 ## Optionals
@@ -103,9 +104,9 @@ It shipped as a coordinator's `isCurrentSessionScope` defaulting to `{ _ in true
 coordinator wired without it silently answered "always at the live edge" (#572).
 
 The fix looked like `SheetsClient.fetchTabSnapshot(spreadsheetId:tabName:retrying:)` requiring
-its backoff (`WorkoutTracker/Sheets/SheetsClient.swift:26-35`) and `LastPerformedCard.onTap`
-declared `let`, so every caller says whether the line is tappable
-(`WorkoutTracker/Views/LastPerformedCard.swift:5-9`).
+its backoff (`Sources/WorkoutTracker/Sheets/SheetsClient.swift:26-35`) and
+`LastPerformedCard.onTap` declared `let`, so every caller says whether the line is tappable
+(`App/Views/LastPerformedCard.swift:5-9`).
 
 The review catches `optional?.flag == false` and its spellings today, and judges every other
 default. #637 adds an `optional_bool_needs_a_nil_answer` lint for the comparison.
@@ -124,13 +125,16 @@ It shipped as `reload()` reading the Week and Day off the Session it was still h
 background sync yanked a browsing athlete to the Current Session 13 times in 25 (#586).
 
 The fix looked like `browsedTo: (week: Int, day: Int)?` captured in `view(_:)`
-(`WorkoutTracker/Stores/WorkoutStore.swift:24-31`).
+(`Sources/WorkoutTracker/Stores/WorkoutStore.swift:24-31`).
 
 ## Views hold no logic that needs a test
 
-`WorkoutTracker/Views/` is outside the SPM library target (`Package.swift:17-26`), so `swift test`
-cannot reach it. A guard, a calculation, or a branch that decides behaviour lives in `Stores/`,
-`Progress/`, `Models/`, `Parsing/`, or `LoadSuggestionEngine.swift`, and the View reads the answer.
+`App/Views/` sits outside `Sources/`, and SwiftPM compiles only `Sources/`, so `swift test` cannot
+reach a View. ADR-0017 made the directory itself the boundary, replacing the `Package.swift` exclude
+list that used to name `Views` among its eight entries, so the library target now carries neither a
+`path:` nor an `exclude:` (`Package.swift:14-20`). A guard, a calculation, or a branch that decides
+behaviour belongs in the library, under `Sources/WorkoutTracker/Stores/`, `Progress/`, `Models/`,
+`Parsing/`, or `Sources/WorkoutTracker/LoadSuggestionEngine.swift`, and the View reads the answer.
 CI still compiles Views, so "cannot be verified here" is not a reason to leave one alone.
 
 Look for a computed property on a View that ORs store state together, a `switch` on domain state
@@ -159,7 +163,8 @@ asked a deeper question, or a "which Set is final" question answered privately i
   assertion; never loosen it until green. #598 moved one assertion and said why; #586 added its
   pins green on `main` before the refactor.
 - Fake only at the boundary: the Sheets client, auth, time. Fixtures under
-  `WorkoutTracker/Fixtures/` stand in for Sheet data. A fake of the repo's own types is a finding.
+  `Sources/WorkoutTracker/Fixtures/` stand in for Sheet data. A fake of the repo's own types is a
+  finding.
 - Every fixture value is a literal or an offset from the fixture's reference date, and a parsed
   date is pinned to the coach's cell text, never to an instant. `SheetParser.parseDate` resolves in
   the machine's time zone, and a literal-instant pin passed in EDT and failed under `TZ=UTC`
