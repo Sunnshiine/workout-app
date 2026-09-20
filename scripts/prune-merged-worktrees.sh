@@ -1,0 +1,284 @@
+#!/usr/bin/env bash
+# Remove git worktrees whose pull request has merged or closed, together with
+# their local branches. Dry run by default; --apply is the only thing that
+# deletes.
+#
+# The repo squash-merges, so `git branch --merged` never matches a landed
+# branch. Every branch is resolved through its PR state instead, in one batched
+# `gh` call per run.
+#
+# Usage: prune-merged-worktrees.sh [--apply] [--repo <path>] [--no-size]
+set -uo pipefail
+
+apply=no
+repo=""
+want_size=yes
+
+usage() {
+    cat <<'USAGE'
+prune-merged-worktrees.sh [--apply] [--repo <path>] [--no-size]
+
+Lists every git worktree whose PR has merged or closed and which holds no work
+that removal would lose. Prints the plan and exits without changing anything.
+
+  --apply        remove the listed worktrees and delete their local branches
+  --repo <path>  operate on this repository (default: the repo containing $PWD)
+  --no-size      skip the du pass, which dominates the runtime on large trees
+
+A worktree is removed only when every one of these holds:
+  it is not the primary checkout and not the one this script runs from
+  it is on a branch (a detached HEAD is always kept)
+  it has no uncommitted changes and no untracked files
+  its branch has a pull request, and that PR is MERGED or CLOSED
+  it has no commits the PR never received
+
+An unresolvable fact keeps the worktree. Nothing unknown is ever removed.
+USAGE
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --apply) apply=yes ;;
+        --no-size) want_size=no ;;
+        --repo) shift; repo="${1:-}"; [ -z "$repo" ] && { echo "--repo needs a path" >&2; exit 2; } ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "unknown argument: $1" >&2; usage >&2; exit 2 ;;
+    esac
+    shift
+done
+
+if [ -z "$repo" ]; then
+    repo=$(git rev-parse --show-toplevel 2>/dev/null)
+fi
+[ -z "$repo" ] && { echo "not in a git repository; pass --repo <path>" >&2; exit 2; }
+cd "$repo" || exit 2
+
+# The primary checkout holds .git as a real directory; every linked worktree
+# points into it. Deriving it this way does not depend on list ordering.
+primary=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+self=$(git rev-parse --show-toplevel 2>/dev/null)
+
+# GNU and BSD spell file mtime and epoch-to-date differently; pick once.
+if stat -c %Y . >/dev/null 2>&1; then
+    mtime() { stat -c %Y "$1" 2>/dev/null; }
+    ymd() { date -u -d "@$1" +%Y-%m-%d; }
+else
+    mtime() { stat -f %m "$1" 2>/dev/null; }
+    ymd() { date -u -r "$1" +%Y-%m-%d; }
+fi
+
+work=$(mktemp -d) || exit 3
+trap 'rm -rf "$work"' EXIT
+prmap="$work/prmap.tsv"
+rows="$work/rows.tsv"
+: >"$prmap"
+: >"$rows"
+
+# One batched call. 178 PRs in this repo fit well inside the limit, and a
+# per-branch lookup would be one request per worktree. No cache: a stale entry
+# could report a reopened PR as merged, and that error deletes.
+pr_lookup_note="one batched gh pr list call"
+if ! command -v gh >/dev/null 2>&1; then
+    echo "warn: gh not found; every worktree will be kept for want of a PR state" >&2
+    pr_lookup_note="gh unavailable"
+elif ! command -v jq >/dev/null 2>&1; then
+    echo "warn: jq not found; every worktree will be kept for want of a PR state" >&2
+    pr_lookup_note="jq unavailable"
+else
+    pr_limit=1000
+    if pr_json=$(gh pr list --state all --limit "$pr_limit" \
+            --json number,state,headRefName,headRefOid 2>"$work/gh.err"); then
+        printf '%s' "$pr_json" \
+            | jq -r '.[] | [.headRefName, .number, .state, .headRefOid] | @tsv' >"$prmap"
+        pr_count=$(wc -l <"$prmap" | tr -d ' ')
+        pr_lookup_note="one batched gh pr list call, $pr_count pull requests"
+        if [ "$pr_count" -ge "$pr_limit" ]; then
+            echo "warn: gh returned $pr_count PRs at the limit of $pr_limit; older branches may be missing and will be kept" >&2
+        fi
+    else
+        echo "warn: gh pr list failed; every worktree will be kept: $(cat "$work/gh.err")" >&2
+        pr_lookup_note="gh pr list failed"
+    fi
+fi
+
+pr_field() {
+    awk -F '\t' -v b="$1" -v n="$2" '$1 == b { print $n; exit }' "$prmap"
+}
+
+# Emit NUL-delimited path/branch/head/prunable quadruples. A blank record
+# terminates each worktree in the porcelain stream.
+parse_worktrees() {
+    local field="" wt="" branch="" head="" prunable=no
+    while IFS= read -r -d '' field; do
+        if [ -z "$field" ]; then
+            [ -n "$wt" ] && printf '%s\0%s\0%s\0%s\0' "$wt" "$branch" "$head" "$prunable"
+            wt=""; branch=""; head=""; prunable=no
+        elif [ "${field#worktree }" != "$field" ]; then wt="${field#worktree }"
+        elif [ "${field#branch refs/heads/}" != "$field" ]; then branch="${field#branch refs/heads/}"
+        elif [ "${field#HEAD }" != "$field" ]; then head="${field#HEAD }"
+        elif [ "${field#prunable}" != "$field" ]; then prunable=yes
+        fi
+    done < <(git worktree list --porcelain -z)
+    [ -n "$wt" ] && printf '%s\0%s\0%s\0%s\0' "$wt" "$branch" "$head" "$prunable"
+}
+
+now=$(date +%s)
+
+while IFS= read -r -d '' wt && IFS= read -r -d '' branch \
+   && IFS= read -r -d '' head && IFS= read -r -d '' prunable; do
+
+    pr_num="-"; pr_state="-"; pr_oid=""; touched_ts=0
+    dirty="-"; remote="-"; size="-"; touched="-"
+    verdict=keep; reason=""
+
+    if [ "$wt" = "$primary" ]; then
+        reason="primary checkout"
+    elif [ "$wt" = "$self" ]; then
+        reason="this script is running from it"
+    elif [ "$prunable" = yes ]; then
+        reason="worktree directory is gone; pruning administrative files is not this script's job"
+    fi
+
+    if [ -z "$reason" ]; then
+        if [ "$want_size" = yes ] && s=$(du -sh "$wt" 2>/dev/null); then
+            size=$(printf '%s\n' "$s" | awk '{print $1}')
+        fi
+        gitdir=$(git -C "$wt" rev-parse --absolute-git-dir 2>/dev/null)
+        for f in "$gitdir/index" "$wt"; do
+            t=$(mtime "$f") || true
+            case "$t" in ''|*[!0-9]*) continue ;; esac
+            if [ "$touched" = "-" ] || [ "$t" -gt "$touched_ts" ]; then touched_ts="$t"; touched="$t"; fi
+        done
+        if [ "$touched" != "-" ]; then
+            touched="$(ymd "$touched_ts") ($(( (now - touched_ts) / 86400 ))d)"
+        fi
+
+        if porcelain=$(git -C "$wt" status --porcelain 2>/dev/null); then
+            tracked=$(printf '%s\n' "$porcelain" | grep -cv '^??' || true)
+            untracked=$(printf '%s\n' "$porcelain" | grep -c '^??' || true)
+            if [ -z "$porcelain" ]; then dirty=clean
+            elif [ "$tracked" -gt 0 ]; then dirty="modified:$tracked"
+            else dirty="untracked:$untracked"
+            fi
+        else
+            dirty=unknown
+        fi
+
+        if [ -z "$branch" ]; then
+            remote=detached
+        else
+            pr_num=$(pr_field "$branch" 2)
+            pr_state=$(pr_field "$branch" 3)
+            pr_oid=$(pr_field "$branch" 4)
+            [ -z "$pr_num" ] && { pr_num="-"; pr_state="none"; }
+
+            # An upstream that still resolves answers "unpushed" directly.
+            # When it does not, the branch is either gone (the repo deletes
+            # merged branches) or was never tracked. Both are answered by the
+            # SHA GitHub recorded on the PR, never by assuming nothing is lost.
+            if upstream=$(git -C "$wt" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null) \
+               && git -C "$wt" rev-parse --verify --quiet "$upstream" >/dev/null 2>&1; then
+                ahead=$(git -C "$wt" rev-list --count "$upstream..HEAD" 2>/dev/null)
+                case "$ahead" in
+                    ''|*[!0-9]*) remote=unknown ;;
+                    0) remote=pushed ;;
+                    *) remote="ahead:$ahead" ;;
+                esac
+            elif [ -n "$pr_oid" ] && [ "$pr_oid" = "$head" ]; then
+                remote="gone=pr-head"
+            elif [ -n "$pr_oid" ] && git -C "$wt" cat-file -e "$pr_oid" 2>/dev/null \
+                 && git -C "$wt" merge-base --is-ancestor HEAD "$pr_oid" 2>/dev/null; then
+                remote="gone=in-pr-head"
+            elif [ -n "$pr_oid" ]; then
+                remote="gone=ahead-of-pr-head"
+            else
+                remote=no-upstream
+            fi
+        fi
+
+        # Ordered decision table. First match wins, and every rule that cannot
+        # establish a fact resolves to keep.
+        if [ "$remote" = detached ]; then
+            reason="detached HEAD: no branch resolves to a PR, and no ref would survive removal"
+        elif [ "$dirty" = unknown ]; then
+            reason="could not read the working tree status"
+        elif [ "$dirty" != clean ]; then
+            reason="uncommitted changes ($dirty)"
+        elif [ "$pr_state" = none ]; then
+            reason="no pull request for $branch"
+        elif [ "$pr_state" = "-" ]; then
+            reason="PR state unavailable"
+        elif [ "$pr_state" = OPEN ]; then
+            reason="PR #$pr_num is open"
+        elif [ "$remote" != pushed ] && [ "$remote" != "gone=pr-head" ] && [ "$remote" != "gone=in-pr-head" ]; then
+            reason="commits the PR never received ($remote)"
+        elif [ "$pr_state" = MERGED ] || [ "$pr_state" = CLOSED ]; then
+            verdict=remove
+            reason="PR #$pr_num $pr_state"
+        else
+            reason="unrecognised PR state $pr_state"
+        fi
+    fi
+
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$verdict" "${branch:--}" "$pr_num" "$pr_state" "$size" "$touched" \
+        "$remote" "${dirty:--}" "$reason" "$wt" >>"$rows"
+done < <(parse_worktrees)
+
+align() { awk -F '\t' '{ for (i=1;i<=NF;i++) { c[NR,i]=$i; if (length($i)>w[i]) w[i]=length($i) } n=NF>n?NF:n }
+    END { for (r=1;r<=NR;r++) { line=""; for (i=1;i<=n;i++) { v=c[r,i]; line=line sprintf("%-*s  ", w[i], v) } sub(/ +$/,"",line); print line } }'; }
+
+total=$(wc -l <"$rows" | tr -d ' ')
+n_remove=$(awk -F '\t' '$1=="remove"' "$rows" | wc -l | tr -d ' ')
+n_keep=$(( total - n_remove ))
+
+echo "repo:      $repo"
+if [ "$apply" = yes ]; then echo "mode:      APPLY (removes worktrees and deletes their local branches)"
+else echo "mode:      dry run (nothing is changed; pass --apply to remove)"; fi
+echo "pr lookup: $pr_lookup_note"
+echo "worktrees: $total examined, $n_remove to remove, $n_keep kept"
+echo
+
+echo "CANDIDATES"
+if [ "$n_remove" -eq 0 ]; then
+    echo "  none"
+else
+    { printf 'BRANCH\tPR\tSTATE\tSIZE\tLAST TOUCHED\tREMOTE\tWORKTREE\n'
+      awk -F '\t' '$1=="remove" { printf "%s\t#%s\t%s\t%s\t%s\t%s\t%s\n", $2,$3,$4,$5,$6,$7,$10 }' "$rows"
+    } | align | sed 's/^/  /'
+fi
+echo
+
+echo "KEPT"
+{ printf 'BRANCH\tREASON\tWORKTREE\n'
+  awk -F '\t' '$1=="keep" { printf "%s\t%s\t%s\n", $2,$9,$10 }' "$rows"
+} | align | sed 's/^/  /'
+echo
+
+if [ "$apply" != yes ]; then
+    echo "Dry run. Re-run with --apply to remove the $n_remove candidate(s) above."
+    exit 0
+fi
+
+fail=0
+while IFS=$'\t' read -r branch wt; do
+    echo "removing $wt ($branch)"
+    if git worktree remove "$wt" 2>"$work/rm.err"; then
+        echo "  worktree removed"
+    else
+        echo "  FAILED to remove worktree: $(cat "$work/rm.err")" >&2
+        fail=1
+        continue
+    fi
+    if git branch -D "$branch" >/dev/null 2>"$work/br.err"; then
+        echo "  branch $branch deleted"
+    else
+        echo "  FAILED to delete branch $branch: $(cat "$work/br.err")" >&2
+        fail=1
+    fi
+done < <(awk -F '\t' '$1=="remove" { printf "%s\t%s\n", $2, $10 }' "$rows")
+
+echo
+echo "git worktree list now:"
+git worktree list | sed 's/^/  /'
+exit "$fail"
