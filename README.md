@@ -60,7 +60,8 @@ xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
 
 ## Docs
 
-- **`AGENTS.md`** / **`CLAUDE.md`** — build, test, and contribution guide for AI agents
+- **`AGENTS.md`** — build, test, and contribution guide for AI agents (`CLAUDE.md` is a symlink to it)
+- **`CODING_STANDARDS.md`** — the review standard: the rules that cost this repo a shipped bug
 - **`CONTEXT.md`** — domain glossary (Block, Session, Set Log, Load Suggestion …)
 - **`PRODUCT.md`** — product purpose, user context, brand personality, and anti-references
 - **`DESIGN.md`** — design system, visual rules, and component guidance

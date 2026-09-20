@@ -113,10 +113,12 @@ after `sync()` returned and could overwrite a pending-write conflict on the same
 Every sync replaces the persisted Block by deleting it and inserting the re-parsed one. A `@Model`
 object held across that point is detached, and its relationships come back nil about half the
 time. Hold an address (week and day, or a `persistentModelID`) captured while the object is live,
-re-resolve it after the reload, and compare models by `persistentModelID`, never with `===`.
+and re-resolve it after the reload. `===` between models is sound only for two objects read in the
+same pass; across a reload, compare by `persistentModelID`.
 
 Look for a store or coordinator property typed as a `@Model` class that outlives `sync()`,
-`session.week` read after a reload, or `===` between models. (`reload()` read the Week and Day off
+`session.week` read after a reload, or `===` against a model held from before one. (`reload()`
+read the Week and Day off
 the Session it was still holding, so a background sync yanked a browsing athlete to the Current
 Session 13 times in 25. #586. Now `WorkoutStore.browsedTo`, captured in `view(_:)`.)
 
