@@ -24,7 +24,7 @@ script creates and attaches the sub-issues deterministically.
 
 # DRAFTING SUB-ISSUES
 
-Break the PRD into **tracer-bullet** vertical slices. Each slice is a thin vertical cut through every layer it touches (Models → Parsing/Stores/Progress → Views → tests), NOT a horizontal slice of one layer.
+Break the PRD into **tracer-bullet** vertical slices. Each slice is a thin vertical cut through every layer it touches (Models → Parsing/Stores/feature folder → Views → tests), NOT a horizontal slice of one layer.
 
 Rules:
 
