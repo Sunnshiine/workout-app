@@ -46,8 +46,8 @@ class Frame(NamedTuple):
 
     def intersects(self, other: "Frame") -> bool:
         return (
-            self.x <= other.x + other.width and self.x + self.width >= other.x
-            and self.y <= other.y + other.height and self.y + self.height >= other.y
+            self.x < other.x + other.width and self.x + self.width > other.x
+            and self.y < other.y + other.height and self.y + self.height > other.y
         )
 
 

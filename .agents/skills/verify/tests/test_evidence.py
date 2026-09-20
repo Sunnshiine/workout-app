@@ -44,9 +44,11 @@ def tree_py(*args, stdin=""):
     return done.returncode, done.stdout, done.stderr
 
 
-def verify_sh(*args, run):
+def verify_sh(*args, run, sim=None):
     env = dict(os.environ, VERIFY_RUN=run)
     env.pop("SIM", None)
+    if sim:
+        env["SIM"] = sim
     done = subprocess.run(
         [str(SKILL / "verify.sh")] + list(args), cwd=str(REPO), env=env,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
@@ -90,6 +92,21 @@ class Flat(unittest.TestCase):
             "AXGroup\tactive-set-card\t\t\t@-83,476 4770x308\n"
             "AXStaticText\t\tRest 1:58 remaining\t\t@100,816 202x51\n"
         ), "measured against the 402x874 root, not against whichever element happens to print first")
+
+    def test_an_element_that_only_touches_the_screen_edge_is_off_screen(self):
+        edges = json.loads(MINI)
+        edges[0]["children"] = [
+            {"role": "AXButton", "AXUniqueId": "last-visible-row", "frame": {"x": 0, "y": 873, "width": 300, "height": 40}},
+            {"role": "AXButton", "AXUniqueId": "first-row-below", "frame": {"x": 0, "y": 874, "width": 300, "height": 40}},
+            {"role": "AXButton", "AXUniqueId": "first-column-right", "frame": {"x": 402, "y": 100, "width": 27, "height": 24}},
+            {"role": "AXButton", "AXUniqueId": "ends-at-the-left-edge", "frame": {"x": -27, "y": 100, "width": 27, "height": 24}},
+        ]
+        code, out, err = tree_py("flat", stdin=json.dumps(edges))
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out, (
+            "AXApplication\t\tWorkoutTracker\t\t@0,0 402x874\n"
+            "AXButton\tlast-visible-row\t\t\t@0,873 300x40\n"
+        ), "a 402x874 screen shows points 0 to 873; a row starting at 874 has no visible point")
 
     def test_flat_all_keeps_the_off_screen_lines(self):
         code, out, err = tree_py("flat", "--all", stdin=MINI)
@@ -214,6 +231,12 @@ class VerifyDiff(unittest.TestCase):
         for run in ["../escape", "two words", "-x"]:
             code, out, err = verify_sh("diff", "01-before", "02-after-log", run=run)
             self.assertEqual(code, 2, "%r must be refused before it becomes a path: %s" % (run, err))
+
+    def test_launch_refuses_an_unknown_fixture_before_any_simulator_is_touched(self):
+        code, out, err = verify_sh("launch", "no-such-fixture", run=self.run, sim="no-such-device")
+        self.assertEqual(code, 2, err)
+        self.assertIn("unknown fixture: no-such-fixture", err)
+        self.assertEqual(out, "", "nothing was launched")
 
     def test_shot_refuses_a_name_that_could_collide(self):
         for name in ["_sheet", "a.burst", "-x"]:

@@ -22,7 +22,7 @@ Preconditions:
 - The list shows one row labeled `Replacement Training Log, 25y ago`.
 
 - **List.** Capture the picker. Run `verify.sh shot picker`. The tree has the `Replacement Training Log` row and `Paste a URL instead`.
-- **Pick.** Tap the row. Run `verify.sh tap --label "Replacement Training Log, 25y ago"`. The stage appears with `find stage-exercise-name` reading `Replacement Squat`, and `Back Squat` (the stale seeded Block) is absent.
+- **Pick.** Tap the row. Run `verify.sh tap --label "Replacement Training Log, 25y ago"`. The stage appears with `find stage-exercise-name` reading `Replacement Squat`, and `verify.sh tree --all | grep "Back Squat"` prints nothing, so the stale seeded Block is gone.
 - **URL entry.** From a fresh `onboarding` launch, run `verify.sh tap --label "Paste a URL instead"`. A URL field and `onboarding-url-back-button` appear. Run `verify.sh tap --id onboarding-url-back-button` to return.
 - **Signed-out wall.** Launch `settings`, run `verify.sh tap --id settings-sign-out-button`. `onboarding-connect-button` labeled `Connect Google Sheet` appears with `onboarding-title` reading `Plant the program.`
 - **Proof.** Shoot the picker and the landed stage. Quote the `Replacement Squat` line and the absence of `Back Squat`.
