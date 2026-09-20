@@ -7,8 +7,9 @@
 # (issue #607). This runs the same binary the plugin runs, over the same config, with no build.
 #
 # The run takes no path arguments on purpose. SwiftLint's `included:` overrides command-line paths,
-# so `included:` is the only thing that decides what gets linted, and a tree added to it cannot go
-# unlinted again.
+# so a script that passes its own list lints something other than what it names. With no arguments
+# `included:` is the only thing deciding what is linted, and the check below refuses to run when an
+# entry reaches no Swift file, which is the one way a tree could drop out of the gate unnoticed.
 #
 #   scripts/lint.sh                  lint (what CI runs)
 #   scripts/lint.sh --fix            autocorrect what SwiftLint can, then lint
@@ -36,10 +37,11 @@ esac
 # The version the Xcode build plugin resolves to. Xcode writes this file, so when the plugin's
 # package moves this script follows it and there is no second place to edit. To re-pin: bump
 # SwiftLintPlugins in Xcode, let it rewrite Package.resolved, and commit that.
+# `|| true` keeps a missing pin from aborting at this assignment, so the message below is reachable.
 VERSION="$(
-    grep -A 8 '"identity" : "swiftlintplugins"' "$RESOLVED" |
+    grep -A 8 '"identity" : "swiftlintplugins"' "$RESOLVED" 2>/dev/null |
         sed -n 's/.*"version" *: *"\([^"]*\)".*/\1/p' |
-        head -1
+        head -1 || true
 )"
 if [ -z "$VERSION" ]; then
     echo "error: $RESOLVED has no swiftlintplugins pin, so there is no version to agree with." >&2
@@ -72,6 +74,36 @@ if [ "$REPORTED" != "$VERSION" ]; then
     echo "       CI and the app build would disagree about what a violation is. Clear $CACHE_DIR." >&2
     exit 1
 fi
+
+# SwiftLint skips an `included:` entry that matches nothing and still exits 0. That is how this
+# config came to claim three trees while linting one, so a root that reaches no Swift file is a
+# hard failure here rather than a quietly smaller run.
+included_roots() {
+    awk '/^included:/ { inside = 1; next }
+         inside && /^[^[:space:]#]/ { exit }
+         inside && /^[[:space:]]*-[[:space:]]/ {
+             sub(/^[[:space:]]*-[[:space:]]*/, "")
+             gsub(/^"|"$/, "")
+             print
+         }' "$CONFIG"
+}
+
+ROOTS="$(included_roots)"
+if [ -z "$ROOTS" ]; then
+    echo "error: $CONFIG has no 'included:' entries, so this run would lint nothing." >&2
+    exit 1
+fi
+while IFS= read -r root; do
+    [ -n "$root" ] || continue
+    if [ -z "$(find "$root" -name '*.swift' -print -quit 2>/dev/null)" ]; then
+        echo "error: $CONFIG 'included:' names '$root', which holds no Swift file." >&2
+        echo "       SwiftLint would skip it and still exit 0, so the gate would lint less than it" >&2
+        echo "       claims. Correct the path or drop the entry." >&2
+        exit 1
+    fi
+done <<ROOTS_EOF
+$ROOTS
+ROOTS_EOF
 
 if [ "$MODE" = "fix" ]; then
     "$SWIFTLINT" --fix

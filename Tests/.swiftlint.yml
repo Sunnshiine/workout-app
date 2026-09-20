@@ -1,9 +1,9 @@
 # Rules that are right for shipped code and wrong for a test body.
 #
-# SwiftLint merges this into the root `.swiftlint.yml` for files under `Tests/` only. Every other
-# rule, including the two Theme custom rules, still applies here. Nothing below is a tolerance for
-# volume: each rule is off because following it in a test would make the test worse, and each is
-# still on for `WorkoutTracker` and `WorkoutCLI`.
+# SwiftLint merges this into the root `.swiftlint.yml` for files under `Tests/` only, and every
+# other rule the root enables still applies here. Nothing below is a tolerance for volume: each
+# rule is off because following it in a test would make the test worse, and each is still on for
+# `WorkoutTracker` and `WorkoutCLI`.
 disabled_rules:
   # In a test body a force unwrap is the assertion. `let block = store.block!` says this must
   # exist, and if it does not the test must stop on that line with that line number. The nil-safe
