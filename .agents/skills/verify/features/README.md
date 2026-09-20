@@ -16,7 +16,7 @@ that drives one convenient entry point is incomplete when the feature file lists
 
 - Start every recipe from its named fixture unless its preconditions say otherwise.
 - Target elements by accessibility identifier (`tap --id`), then by label, then by coordinates for empty space only.
-- Re-read the tree after every action before asserting. `verify.sh tree` and a shot's tree file hold what is on screen; `verify.sh find <id>` answers whether an element exists anywhere, on screen or off. `-UITEST_DISABLE_ANIMATIONS` stops UIKit animations only, so a SwiftUI transition still runs for about 850 ms after a log tap (issue 618). A state absent after one second is still absent. To see a transition, run `verify.sh burst <name> <command>`.
+- Re-read the tree after every action before asserting. `verify.sh tree` and a shot's tree file hold what is on screen; `verify.sh find <id>` answers whether an element exists anywhere, on screen or off. The trimmed tree cannot prove absence, because a scrolled-out element is missing from it too. Prove an element is gone with `verify.sh find <id>` exiting 1, and a label with `verify.sh tree --all | grep` printing nothing. `-UITEST_DISABLE_ANIMATIONS` stops UIKit animations only, so a SwiftUI transition still runs for about 850 ms after a log tap (issue 618). A state absent after one second is still absent. To see a transition, run `verify.sh burst <name> <command>`.
 - Treat every identifier and label as literal, including the `×` and `·` characters.
 - Run terminal actions through `.build/debug/workout` with `WORKOUT_HOME` exported.
 

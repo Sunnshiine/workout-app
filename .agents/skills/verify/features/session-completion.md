@@ -25,7 +25,7 @@ Preconditions:
 - **Summary.** Capture the stage. Run `verify.sh shot complete`. The tree has `Session complete`, `1 set done across 1 exercise`, `Open Exercises`, and `move-on-button`.
 - **Open exercise.** Tap the open Back Squat row. Run `verify.sh tap --label "Back Squat, 1 pending set, W1 D1"`. `go-back-current-session-button` appears and `Back Squat` is on the stage.
 - **Move on with celebration.** From `partial-block`, run `verify.sh tap --id session-tile-W4-D1`, `verify.sh tap --id make-current-session-button`, `verify.sh tap --id stage-queue-button`, `verify.sh tap --id queue-move-on-button`. `find move-on-celebration` is labeled `Week 4, Day 1` and its value contains `1 Sets, 1 Exercises, 1 Left`.
-- **Dismiss.** Run `verify.sh tap --id move-on-celebration-continue`. The `Block 27` heading returns, `move-on-celebration` is gone, and `session-tile-W4-D2` is in the tree.
+- **Dismiss.** Run `verify.sh tap --id move-on-celebration-continue`. The `Block 27` heading returns, `verify.sh find move-on-celebration` exits 1, and `session-tile-W4-D2` is in the tree.
 - **Proof.** Shoot the celebration and the grid after it. Quote the celebration label and value lines.
 
 ## Gotchas

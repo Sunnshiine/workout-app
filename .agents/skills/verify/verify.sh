@@ -180,6 +180,7 @@ case $cmd in
 
   launch)
     fixture=${1:-}; [ -n "$fixture" ] || usage; shift
+    fixture_flags=$(fixture_args "$fixture")
     need_sim
     ensure_axe
     app=$(app_path)
@@ -188,7 +189,7 @@ case $cmd in
       echo "another verification run owns the app on $sim (pid $(cat "$state_dir/pid")); run: $0 stop" >&2
       exit 75
     fi
-    read -r -a extra <<< "$(fixture_args "$fixture")"
+    read -r -a extra <<< "$fixture_flags"
     args=(-UITEST_FIXTURE ${extra[@]+"${extra[@]}"} -UITEST_DISABLE_ANIMATIONS -UITEST_DISABLE_CELEBRATION_BLOOM "$@")
     xcrun simctl install "$sim" "$app"
     out=$(xcrun simctl launch --terminate-running-process "$sim" "$bundle" "${args[@]}")
@@ -199,7 +200,8 @@ case $cmd in
     for _ in $(seq 1 40); do
       if [ "$(front_pid)" = "$pid" ]; then
         echo "launched $fixture as pid $pid on $sim"
-        echo "evidence $work/evidence/$(begin_run)"
+        begin_run >/dev/null
+        echo "evidence $(run_dir)"
         exit 0
       fi
       sleep 0.25
