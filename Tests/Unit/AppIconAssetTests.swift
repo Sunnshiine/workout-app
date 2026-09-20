@@ -17,7 +17,7 @@ import Testing
 @Suite struct AppIconAssetTests {
     private static func iconManifests() throws -> [URL] {
         let entries = try FileManager.default.contentsOfDirectory(
-            at: RepositoryFiles.existingURL(of: "WorkoutTracker"), includingPropertiesForKeys: nil
+            at: RepositoryFiles.existingURL(of: "App"), includingPropertiesForKeys: nil
         )
         return entries
             .filter { $0.pathExtension == "icon" }

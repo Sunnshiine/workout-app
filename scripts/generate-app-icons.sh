@@ -12,7 +12,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 src="$repo_root/docs/design/app-icon"
-catalog="$repo_root/WorkoutTracker/Assets.xcassets"
+catalog="$repo_root/App/Assets.xcassets"
 # Prefer a headless-shell build: full browser builds reserve window chrome
 # even in headless mode, which shrinks the viewport below --window-size and
 # leaves a dead band at the bottom of the capture.

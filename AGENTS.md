@@ -42,7 +42,7 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
 ## Linting & Formatting
 
 - **SwiftLint** runs automatically via the `SwiftLintPlugins` build tool plugin (wired through the Xcode project, not `Package.swift`). Config: `.swiftlint.yml`.
-- **swift-format** is installed via Homebrew. Config: `.swift-format`. Run manually: `swift-format -i -r WorkoutTracker/ WorkoutCLI/ Tests/`
+- **swift-format** is installed via Homebrew. Config: `.swift-format`. Run manually: `swift-format -i -r App/ Sources/ Tests/`
 - Do not run `swiftlint --fix` in build phases — run it manually when needed.
 
 ## Git Worktrees
@@ -70,27 +70,38 @@ Merged worktrees pile up and cost gigabytes of `.build`. `scripts/prune-merged-w
 
 A navigation map; see `CONTEXT.md` for the domain glossary and `docs/adr/` for decisions.
 
+The directory a file sits in decides which builds compile it (ADR-0017).
+
 ```text
-WorkoutTracker/
+App/                            iOS app only; not in the SwiftPM package
 ├── WorkoutTrackerApp.swift     App entry point (@main)
+├── GoogleAuth.swift            Google Sheets sign-in (needs a UIKit presentation anchor)
+├── Views/                      SwiftUI views
+└── LiveActivity/               Live Activity controller and its production adapter
+
+Sources/WorkoutTracker/         SwiftPM library, also compiled into the app target
 ├── Models/                     Domain types (Block, Week, Session, Exercise, Set …)
 ├── Parsing/                    Sheet → domain interpretation (layout interpreter)
-├── Sheets/                     Google Sheets client + auth (GoogleAuth.swift)
+├── Sheets/                     Google Sheets client
 ├── Stores/                     Local cache, sync coordination & persisted state
 ├── Progress/                   Session/Week progression (Current Session, Move On, Open Exercises, Supersets)
 ├── LoadSuggestionEngine.swift  Load Suggestion calculations
 ├── Theme.swift                 Liquid Glass design system (ADR-0004)
-├── Views/                      SwiftUI views (excluded from the SPM library target)
 └── Fixtures/                   UI-test fixture data (-UITEST_FIXTURE)
 
+Sources/WorkoutCLI/             The `workout` executable (ADR-0015)
 Tests/  →  Unit/ · Component/ · UI/ · Support/
 ```
 
-`WorkoutTracker/`, `WorkoutShared/`, and `WorkoutWidgets/` are Xcode buildable folders, like the
-folders under `Tests/`. A Swift file added under one compiles into its target with no project edit.
-`WorkoutShared/` builds into both the app and the widget. Xcode also copies any other file in these
-folders into the bundle, including a Markdown note. To keep a file out of the bundle, add a
-membership exception in the project, as each `Info.plist` has.
+`App/`, `Sources/WorkoutTracker/`, `WorkoutShared/`, and `WorkoutWidgets/` are Xcode buildable
+folders, like the folders under `Tests/`. A Swift file added under one compiles into its target with
+no project edit. `WorkoutShared/` builds into both the app and the widget. Xcode also copies any
+other file in these folders into the bundle, including a Markdown note. To keep a file out of the
+bundle, add a membership exception in the project, as each `Info.plist` has.
+
+The app target compiles `App/` and `Sources/WorkoutTracker/`; `swift test` compiles
+`Sources/WorkoutTracker/` alone. So a file needs iOS-only API, or it needs headless test coverage,
+and where you put it is that choice.
 
 ## Agent skills
 

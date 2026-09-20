@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Lint every tree .swiftlint.yml claims, without building the app.
 #
-# The app target runs SwiftLint through SwiftLintBuildToolPlugin, so `WorkoutTracker` is linted on
-# every Xcode build. `WorkoutCLI` and `Tests` sit in the config's `included:` list but belong to no
-# target that carries the plugin, so until this script existed they were never linted anywhere
+# The app target runs SwiftLint through SwiftLintBuildToolPlugin, so `App` and
+# `Sources/WorkoutTracker` are linted on every Xcode build. `Sources/WorkoutCLI` and `Tests` belong
+# to no target that carries the plugin, so until this script existed they were never linted anywhere
 # (issue #607). This runs the same binary the plugin runs, over the same config, with no build.
 #
 # The run takes no path arguments on purpose. SwiftLint's `included:` overrides command-line paths,
