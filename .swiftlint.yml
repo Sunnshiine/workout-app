@@ -75,6 +75,29 @@ custom_rules:
     included: '.*/WorkoutTracker/Views/.*'
     severity: error
 
+  # A test whose body opens with a `#if` is not a test on the other side of that condition. It is a
+  # test with an empty body, and an empty body reports a pass while asserting nothing (issue #608).
+  # Put the condition on the declaration instead. The compiler then removes the test where it cannot
+  # run, so the run's count reports what actually executed.
+  #
+  # The regex matches a `@Test` whose opening brace ends its line and whose body starts with a `#if`.
+  # Nothing between the attribute and that brace may be a brace, so a match stays inside one
+  # declaration's signature and can never read into a body or across a neighbouring test. A `#if`
+  # wrapping a whole file or suite is the shape this rule asks for and does not match.
+  #
+  # A body-opening `#if` with an `#else` that also asserts is not vacuous, and this rule still
+  # rejects it. That case does not exist in the tree, and when it appears the two branches want two
+  # guarded declarations or a helper, not one test that means different things per platform.
+  platform_guard_on_test_declaration:
+    name: "Platform guard on the test declaration"
+    message: >
+      Move this `#if` from the test body to the `@Test` declaration. Guarding the body compiles
+      the test to an empty one on the other platform, where it passes while asserting nothing
+      (issue #608). Guarding the declaration removes the test there instead, so the reported test
+      count is the number that actually ran.
+    regex: '@Test\b(?:[^\n{}]*\n){0,12}?[^\n{}]*\{[ \t]*\n(?:[ \t]*\n)*[ \t]*#if\b'
+    severity: error
+
 identifier_name:
   min_length:
     warning: 1
