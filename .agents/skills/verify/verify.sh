@@ -28,8 +28,6 @@ EOF
   exit 2
 }
 
-# Resolve siblings from this file rather than from $repo/.claude. The skill is reached both
-# through the .claude/skills/verify symlink and through .agents/skills/verify.
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../../.." && pwd)
 tree=$here/tree.py
@@ -38,6 +36,7 @@ bundle=com.sunnypatel.WorkoutTracker
 work=$repo/.build/verify
 axe=$work/node_modules/xcodebuildmcp/bundled/axe
 sim=
+sim_state=
 state_dir=
 
 pick_sim() {
@@ -50,18 +49,21 @@ pick = max(booted or devices, key=lambda pair: pair[0])[1]
 print(pick["udid"], pick["state"])'
 }
 
-# Sets $sim and $state_dir, booting the simulator when it is not booted. Every command that
-# touches the simulator calls this first; diff never does.
-need_sim() {
+resolve_sim() {
   [ -n "$sim" ] && return 0
   if [ -n "${SIM:-}" ]; then
     sim=$SIM
+    sim_state=Booted
   else
-    local state
-    read -r sim state <<< "$(pick_sim)"
-    [ "$state" = Booted ] || xcrun simctl boot "$sim"
+    read -r sim sim_state <<< "$(pick_sim)"
   fi
   state_dir=/tmp/workout-verify-$sim
+}
+
+need_sim() {
+  resolve_sim
+  [ "$sim_state" = Booted ] || xcrun simctl boot "$sim"
+  sim_state=Booted
 }
 
 ensure_axe() {
@@ -72,16 +74,13 @@ ensure_axe() {
   [ -x "$axe" ] || { echo "axe not found after install: $axe" >&2; exit 65; }
 }
 
-# This run's name, or nothing. VERIFY_RUN wins, so diff resolves a run with no simulator at all.
 current_run() {
   if [ -n "${VERIFY_RUN:-}" ]; then printf '%s\n' "$VERIFY_RUN"; return 0; fi
-  [ -n "$state_dir" ] || state_dir=/tmp/workout-verify-${SIM:-$(pick_sim | cut -d' ' -f1)}
+  resolve_sim
   [ -f "$state_dir/run" ] && cat "$state_dir/run"
   return 0
 }
 
-# launch only. Names this run and records it against the simulator. A bare relaunch mints a new
-# name on purpose, so tomorrow's task never lands in today's evidence directory.
 begin_run() {
   local name=${VERIFY_RUN:-$(date +%Y%m%d-%H%M%S)}
   mkdir -p "$state_dir"
@@ -89,8 +88,6 @@ begin_run() {
   printf '%s\n' "$name"
 }
 
-# The run's evidence directory, created now. Mints a run when nothing recorded one, so two shots
-# a second apart still land together.
 run_dir() {
   local name
   name=$(current_run)
@@ -99,7 +96,6 @@ run_dir() {
   printf '%s\n' "$work/evidence/$name"
 }
 
-# The run's evidence directory as it already stands. Never mints one.
 recorded_run_dir() {
   local name
   name=$(current_run)
@@ -109,29 +105,23 @@ recorded_run_dir() {
   fi
   echo "no evidence directory for this run; name one: VERIFY_RUN=<run> $0 $cmd ..." >&2
   echo "recent runs:" >&2
-  # shellcheck disable=SC2012  # newest first is the point, and find cannot sort by mtime portably
   ls -t "$work/evidence" 2>/dev/null | head -3 | sed 's/^/  /' >&2 || true
   return 1
 }
 
-# The one string that becomes a file name. It is what keeps a shot from colliding with the
-# dot-prefixed temporaries a capture writes.
 valid_name() {
   case ${1:-} in
     ""|-*|*[!A-Za-z0-9-]*)
-      echo "a shot name is letters, digits and dashes, starting with a letter or digit: ${1:-}" >&2
+      echo "a run or shot name is letters, digits and dashes, starting with a letter or digit: ${1:-}" >&2
       exit 2
       ;;
   esac
 }
 
-# A run's shot names in capture order. Derived from the tree files, so there is no manifest.
-# shellcheck disable=SC2012  # mtime order is the capture order, and valid_name bounds every name
 shot_names() {
   ls -tr "$1"/*.tree.txt 2>/dev/null | sed 's|.*/||; s|\.tree\.txt$||' || true
 }
 
-# One PNG from the simulator. axe's own stderr is what says why a screenshot failed.
 capture() {
   local err
   if ! err=$("$axe" screenshot --udid "$sim" --output "$1" 2>&1 >/dev/null); then
@@ -169,6 +159,7 @@ fixture_args() {
 cmd=${1:-}
 [ -n "$cmd" ] || usage
 shift
+[ -z "${VERIFY_RUN:-}" ] || valid_name "$VERIFY_RUN"
 
 case $cmd in
   build)
@@ -288,7 +279,6 @@ case $cmd in
       echo "captured nothing for $name; run: $0 doctor" >&2
       exit 70
     fi
-    # The tree lands last, so no listing ever counts a shot whose capture half failed.
     mv "$dir/.$name.png" "$dir/$name.png"
     mv "$dir/.$name.tree.txt" "$dir/$name.tree.txt"
     echo "$dir/$name.png"

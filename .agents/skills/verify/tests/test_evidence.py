@@ -1,12 +1,4 @@
 #!/usr/bin/env python3
-"""Simulator-free check of the verify skill's evidence commands.
-
-    python3 .agents/skills/verify/tests/test_evidence.py
-
-Every test drives the command line an agent or verify.sh uses. Nothing is imported from tree.py.
-Fixtures ending `.all.txt` are whole trees captured from the running app; the matching
-`.tree.txt` is what a `shot` saves out of one. Python 3.9 compatible, stdlib only.
-"""
 import json
 import os
 import re
@@ -45,7 +37,6 @@ MINI = json.dumps(MINI_TREE)
 
 
 def tree_py(*args, stdin=""):
-    """Runs tree.py, returns (exit code, stdout, stderr)."""
     done = subprocess.run(
         [sys.executable, str(SKILL / "tree.py")] + list(args),
         input=stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
@@ -54,7 +45,6 @@ def tree_py(*args, stdin=""):
 
 
 def verify_sh(*args, run):
-    """Runs verify.sh with VERIFY_RUN set and SIM unset. No simulator is consulted."""
     env = dict(os.environ, VERIFY_RUN=run)
     env.pop("SIM", None)
     done = subprocess.run(
@@ -65,7 +55,6 @@ def verify_sh(*args, run):
 
 
 def as_axe_json(fixture):
-    """A saved tree rebuilt as an `axe describe-ui` payload: the first line's element is the root."""
     nodes = []
     for line in (FIXTURES / fixture).read_text().splitlines():
         role, ident, label, value, frame = line.split("\t")
@@ -90,6 +79,17 @@ class Flat(unittest.TestCase):
             "AXStaticText\t\tRest 1:58 remaining\t\t@100,816 202x51\n"
         ), "the picker tail and the row below the fold are out; the wide card stays")
         self.assertIn("2 off-screen elements hidden", err, "the count of what was dropped")
+
+    def test_the_screen_is_the_root_frame_even_when_the_root_prints_no_line(self):
+        unlabeled = json.loads(MINI)
+        del unlabeled[0]["AXLabel"]
+        code, out, err = tree_py("flat", stdin=json.dumps(unlabeled))
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out, (
+            "AXButton\tweight-pill\tWeight, 237.5\t\t@98,531 206x66\n"
+            "AXGroup\tactive-set-card\t\t\t@-83,476 4770x308\n"
+            "AXStaticText\t\tRest 1:58 remaining\t\t@100,816 202x51\n"
+        ), "measured against the 402x874 root, not against whichever element happens to print first")
 
     def test_flat_all_keeps_the_off_screen_lines(self):
         code, out, err = tree_py("flat", "--all", stdin=MINI)
@@ -183,8 +183,6 @@ class Diff(unittest.TestCase):
 
 
 class VerifyDiff(unittest.TestCase):
-    """The agent's entry point, on fixtures, with no simulator."""
-
     def setUp(self):
         self.run = "selftest-%d" % os.getpid()
         self.dir = REPO / ".build" / "verify" / "evidence" / self.run
@@ -205,6 +203,17 @@ class VerifyDiff(unittest.TestCase):
         code, out, err = verify_sh("diff", "01-before", "03-typo", run=self.run)
         self.assertEqual(code, 1)
         self.assertIn("shots: 01-before 02-after-log", err, "capture order, so the agent can pick again")
+
+    def test_a_png_whose_tree_never_landed_is_not_a_shot(self):
+        (self.dir / "03-half.png").write_bytes(b"png")
+        code, out, err = verify_sh("diff", "01-before", "03-half", run=self.run)
+        self.assertEqual(code, 1)
+        self.assertIn("shots: 01-before 02-after-log", err, "a shot exists when its tree exists")
+
+    def test_a_run_name_that_is_not_a_plain_name_is_refused(self):
+        for run in ["../escape", "two words", "-x"]:
+            code, out, err = verify_sh("diff", "01-before", "02-after-log", run=run)
+            self.assertEqual(code, 2, "%r must be refused before it becomes a path: %s" % (run, err))
 
     def test_shot_refuses_a_name_that_could_collide(self):
         for name in ["_sheet", "a.burst", "-x"]:
