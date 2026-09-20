@@ -147,6 +147,8 @@ def main() -> None:
     if mode == "diff":
         diff(sys.argv[2], sys.argv[3])
         return
+    if mode not in ("pid", "frame", "flat", "find", "center"):
+        sys.exit(__doc__)
     root = json.load(sys.stdin)[0]
     if mode == "pid":
         print(root["pid"])
@@ -177,8 +179,6 @@ def main() -> None:
                 print(f"{x:.0f} {y:.0f}")
                 return
         sys.exit(1)
-    else:
-        sys.exit(__doc__)
 
 
 main()

@@ -13,6 +13,11 @@ on:
       - ".github/workflows/verify-tools.yml"
   push:
     branches: [main]
+    paths:
+      - ".agents/skills/verify/**"
+      - ".claude/skills/verify"
+      - "scripts/contact-sheet.*"
+      - ".github/workflows/verify-tools.yml"
 
 concurrency:
   group: verify-tools-${{ github.event.pull_request.number || github.sha }}
