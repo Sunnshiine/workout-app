@@ -1,5 +1,19 @@
 import Foundation
 
+public enum SourceScanError: LocalizedError {
+    case missingSource(String)
+    case emptySource(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .missingSource(let source):
+            "no source directory at \(source)"
+        case .emptySource(let source):
+            "source directory \(source) holds no .swift file"
+        }
+    }
+}
+
 public enum SourceScan {
     public static func matches(path: String, glob: String) -> Bool {
         fnmatch(glob, path, 0) == 0
@@ -17,22 +31,31 @@ public enum SourceScan {
     }
 
     /// Root-relative `.swift` paths under each source directory, sorted, excludes applied.
-    public static func swiftFiles(root: String, sources: [String], excludes: [String]) -> [String] {
+    ///
+    /// A missing or Swift-less source directory throws, because a `--source` left behind by a
+    /// directory move would otherwise shrink the measured scope and still report a clean gate.
+    public static func swiftFiles(root: String, sources: [String], excludes: [String]) throws -> [String] {
         var found: [String] = []
         for source in sources {
             let directory = URL(fileURLWithPath: root).appendingPathComponent(source)
+            var isDirectory: ObjCBool = false
             guard
+                FileManager.default.fileExists(atPath: directory.path, isDirectory: &isDirectory),
+                isDirectory.boolValue,
                 let enumerator = FileManager.default.enumerator(
                     at: directory,
                     includingPropertiesForKeys: [.isRegularFileKey],
                     options: [.skipsHiddenFiles]
                 )
-            else { continue }
+            else { throw SourceScanError.missingSource(source) }
+            var sawSwiftFile = false
             for case let url as URL in enumerator where url.pathExtension == "swift" {
+                sawSwiftFile = true
                 let relative = relativize(path: url.standardizedFileURL.path, root: root)
                 guard !isExcluded(path: relative, excludes: excludes) else { continue }
                 found.append(relative)
             }
+            guard sawSwiftFile else { throw SourceScanError.emptySource(source) }
         }
         return Array(Set(found)).sorted()
     }
