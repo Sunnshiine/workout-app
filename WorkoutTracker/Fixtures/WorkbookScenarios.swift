@@ -75,6 +75,9 @@
             Dictionary(uniqueKeysWithValues: roleHeaderOffsets.map { ("\(columnName(dayStart + $0.offset))\(row)", $0.label) })
         }
 
+        // One parameter per spreadsheet column the prescription writes. A struct here would carry
+        // the same six values one call further out and name the columns twice.
+        // swiftlint:disable:next function_parameter_count
         private static func prescription(
             row: Int,
             dayStart: Int,

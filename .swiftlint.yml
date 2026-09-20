@@ -1,5 +1,13 @@
 # SwiftLint configuration
-# Runs automatically via SwiftLintPlugins build tool plugin
+#
+# Two runners, one config. The Xcode app target runs SwiftLint through the SwiftLintPlugins build
+# tool plugin, so `WorkoutTracker` is linted on every app build. `scripts/lint.sh` runs the same
+# pinned binary over everything `included:` names, with no build, and CI calls it. Before that
+# script existed the plugin was the only runner, so `WorkoutCLI` and `Tests` below were linted
+# nowhere (issue #607).
+#
+# `Tests` carries its own nested `Tests/.swiftlint.yml` that switches off three rules a test body
+# reads better without. SwiftLint merges it into this file; nothing else overrides anything here.
 
 disabled_rules:
   - trailing_whitespace
@@ -75,6 +83,12 @@ identifier_name:
 line_length:
   warning: 140
   error: 200
+
+type_name:
+  # `ID` is the name Swift itself gives an identity type (`Identifiable.ID`). Padding it to three
+  # characters to satisfy a minimum would rename the one thing every reader already recognizes.
+  excluded:
+    - ID
 
 type_body_length:
   warning: 300

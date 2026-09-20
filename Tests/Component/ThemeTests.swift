@@ -477,11 +477,11 @@ import Testing
     #if canImport(AppKit)
         #expect(Theme.LightKit.cardLow == [
             Theme.BoxShadow(y: 1, blur: 2, color: Theme.Paint.ink.opacity(0.06)),
-            Theme.BoxShadow(y: 3, blur: 8, color: Theme.Paint.ink.opacity(0.07)),
+            Theme.BoxShadow(y: 3, blur: 8, color: Theme.Paint.ink.opacity(0.07))
         ])
         #expect(Theme.LightKit.sunGlow == [
             Theme.BoxShadow(y: 0, blur: 0, spread: 4, color: Theme.rgb(242, 247, 232, 0.45)),
-            Theme.BoxShadow(y: 2, blur: 18, color: Theme.rgb(220, 235, 190, 0.9)),
+            Theme.BoxShadow(y: 2, blur: 18, color: Theme.rgb(220, 235, 190, 0.9))
         ])
     #endif
 }

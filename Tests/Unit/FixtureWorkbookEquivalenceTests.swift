@@ -3,35 +3,35 @@ import Testing
 
 @testable import WorkoutTracker
 
-/// Pins a hand-built fixture Block graph against the parse of the workbook paired with it.
-/// `Fixtures/WorkoutFixtureScenarios.swift` authors a Block graph by hand while
-/// `Fixtures/WorkbookScenarios.swift` authors cells the real parser reads, and until this file
-/// nothing compared the two — so a disagreement reached the Visual gate (ADR-0007) and was
-/// recorded there as intended appearance. Slice 1 of #571: the harness, not a migration.
-///
-/// Pairing is by structural address and nothing else: the Block, then Week number, then Day
-/// number, then `Exercise.order`, then `ExerciseSet.index`. A name is compared data, never a
-/// pairing key, so "Pull-Up" and "BW Pull Up" at the same address pair and then disagree instead of
-/// failing to pair. An address present on only one side is reported once and not descended into,
-/// because every address beneath an absent address is absent too.
-///
-/// `recordedDrift` holds every disagreement that exists today, with the side that is wrong named
-/// per entry. It is asserted in both directions, so an unrecorded disagreement fails and a
-/// recorded one that stops happening fails as stale and the list can only shrink as the
-/// per-scenario migrations behind #571 land. No entry is a tolerance: each names one field at one
-/// address with both literal values.
-///
-/// Two limitations for whoever picks up the next slice. The first is reach. Five of the twelve
-/// compared fields — `state`, `setLog`, `unstructuredSetLog`, `loggedAt` and `legacyLog` — are
-/// empty on both sides of the only pair, because every scenario holding athlete state still sits
-/// in `scenariosAwaitingAWorkbook`. Those fields are walked but not yet exercised. The second is
-/// that most of the recorded list says the two sides describe different workouts rather than that
-/// one drifted from the other, and it cannot shrink from the workbook side: `fresh-block`'s shape
-/// is pinned by
-/// `Tests/Unit/WorkbookScenarioTests.swift`, `WorkoutCLI/README.md`,
-/// `scripts/viewed-session-across-sync.sh`, and the verify skill's `cli-headless.md`. The
-/// intended end state is that `.partialUpload` gets a workbook of its own, that row replaces this
-/// one, and those entries are deleted rather than fixed one by one.
+// Pins a hand-built fixture Block graph against the parse of the workbook paired with it.
+// `Fixtures/WorkoutFixtureScenarios.swift` authors a Block graph by hand while
+// `Fixtures/WorkbookScenarios.swift` authors cells the real parser reads, and until this file
+// nothing compared the two — so a disagreement reached the Visual gate (ADR-0007) and was
+// recorded there as intended appearance. Slice 1 of #571: the harness, not a migration.
+//
+// Pairing is by structural address and nothing else: the Block, then Week number, then Day
+// number, then `Exercise.order`, then `ExerciseSet.index`. A name is compared data, never a
+// pairing key, so "Pull-Up" and "BW Pull Up" at the same address pair and then disagree instead of
+// failing to pair. An address present on only one side is reported once and not descended into,
+// because every address beneath an absent address is absent too.
+//
+// `recordedDrift` holds every disagreement that exists today, with the side that is wrong named
+// per entry. It is asserted in both directions, so an unrecorded disagreement fails and a
+// recorded one that stops happening fails as stale and the list can only shrink as the
+// per-scenario migrations behind #571 land. No entry is a tolerance: each names one field at one
+// address with both literal values.
+//
+// Two limitations for whoever picks up the next slice. The first is reach. Five of the twelve
+// compared fields — `state`, `setLog`, `unstructuredSetLog`, `loggedAt` and `legacyLog` — are
+// empty on both sides of the only pair, because every scenario holding athlete state still sits
+// in `scenariosAwaitingAWorkbook`. Those fields are walked but not yet exercised. The second is
+// that most of the recorded list says the two sides describe different workouts rather than that
+// one drifted from the other, and it cannot shrink from the workbook side: `fresh-block`'s shape
+// is pinned by
+// `Tests/Unit/WorkbookScenarioTests.swift`, `WorkoutCLI/README.md`,
+// `scripts/viewed-session-across-sync.sh`, and the verify skill's `cli-headless.md`. The
+// intended end state is that `.partialUpload` gets a workbook of its own, that row replaces this
+// one, and those entries are deleted rather than fixed one by one.
 
 // MARK: - The difference
 
