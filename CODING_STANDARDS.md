@@ -69,10 +69,9 @@ backfill ran detached after `sync()` returned and could overwrite a pending-writ
 same field (#514).
 
 The fix looked like `isSyncing` reading two in-flight counters that only their owners change
-(`Sources/WorkoutTracker/Stores/SyncCoordinator.swift:202`), with the banner derived from them.
-The review catches the dropped-task shape today and judges what a held task is allowed to write.
-#637 adds an
-`unstructured_task_is_held` lint for the shape.
+(`Sources/WorkoutTracker/Stores/SyncCoordinator.swift:202`), with the banner derived from them. The
+review catches the dropped-task shape today and judges what a held task is allowed to write. #637
+adds an `unstructured_task_is_held` lint for the shape.
 
 ## Outcomes are enums with one case per outcome
 
