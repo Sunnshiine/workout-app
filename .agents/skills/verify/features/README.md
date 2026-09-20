@@ -16,14 +16,15 @@ that drives one convenient entry point is incomplete when the feature file lists
 
 - Start every recipe from its named fixture unless its preconditions say otherwise.
 - Target elements by accessibility identifier (`tap --id`), then by label, then by coordinates for empty space only.
-- Re-read the tree after every action before asserting. `verify.sh tree` and a shot's tree file hold what is on screen; `verify.sh find <id>` answers whether an element exists anywhere, on screen or off. The trimmed tree cannot prove absence, because a scrolled-out element is missing from it too. Prove an element is gone with `verify.sh find <id>` exiting 1, and a label with `verify.sh tree --all | grep` printing nothing. Animations are off, so a state absent after one second is absent.
+- Re-read the tree after every action before asserting. `verify.sh tree` and a shot's tree file hold what is on screen; `verify.sh find <id>` answers whether an element exists anywhere, on screen or off. The trimmed tree cannot prove absence, because a scrolled-out element is missing from it too. Prove an element is gone with `verify.sh find <id>` exiting 1, and a label with `verify.sh tree --all | grep` printing nothing. `-UITEST_DISABLE_ANIMATIONS` stops UIKit animations only, so a SwiftUI transition still runs for about 850 ms after a log tap (issue 618). A state absent after one second is still absent. To see a transition, run `verify.sh burst <name> <command>`.
 - Treat every identifier and label as literal, including the `×` and `·` characters.
 - Run terminal actions through `.build/debug/workout` with `WORKOUT_HOME` exported.
 
 ## Proof and skip reporting
 
 - Capture the user action and the resulting state, not only the final screen. Shoot before and after with `verify.sh shot <name>`. The second shot prints the tree lines that changed.
-- UI proof is those changed lines, quoted verbatim, plus the screenshots. For two shots that are not adjacent, run `verify.sh diff <a> <b>`.
+- UI proof is those changed lines, quoted verbatim. For two shots that are not adjacent, run `verify.sh diff <a> <b>`.
+- The other half of UI proof is the picture. After the last shot run `verify.sh sheet`, Read every image it prints (one per 12 shots), and report by cell number anything the tree cannot show. A page never costs more than about 4,800 tokens, and never more than reading its shots one by one. `sheet` prints each page's cost. The read is owed for one shot too, because nothing else looks at the pixels. Overlap, colour, clipping, an element under the status bar. A proof with no sheet is incomplete.
 - CLI proof is the command, stdout, stderr, and the exit code.
 - Mutation proof includes a second, read-only view of the stored value (the branch dot, the `Sync status` header, `workout session`, or `workout sheet --cell`).
 - Record the feature ID and the entry point used with every artifact under `.build/verify/evidence/<run>/`.

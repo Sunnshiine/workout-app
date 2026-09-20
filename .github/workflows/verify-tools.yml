@@ -2,7 +2,6 @@ name: Verify tools
 
 on:
   pull_request:
-    branches: [main]
     paths:
       - ".agents/skills/verify/**"
       - ".claude/skills/verify"
@@ -31,3 +30,12 @@ jobs:
         with:
           python-version: "3.9"
       - run: python3 .agents/skills/verify/tests/test_evidence.py
+
+  sheet:
+    runs-on: xcode-27
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/contact-sheet.test.sh
+      - name: test_evidence.py, with the VerifySheet tests that only run on macOS
+        run: python3 .agents/skills/verify/tests/test_evidence.py

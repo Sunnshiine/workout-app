@@ -24,7 +24,7 @@ Preconditions:
 - The tree has a `Settings` heading and `settings-training-sheet-row` labeled `Training Sheet, Fixture Training Log`.
 
 - **From the stage.** Launch `session`, drag the header down, tap the gear. Run `verify.sh axe swipe --start-x 200 --start-y 90 --end-x 200 --end-y 420 --duration 0.4` then at once `verify.sh tap --id session-controls-settings-button --wait-timeout 0`. A `Settings` heading and `settings-done-button` appear. `verify.sh tap --id settings-done-button` returns to the stage with `stage-exercise-name` reading `Back Squat`.
-- **Appearance.** Tap Night. Run `verify.sh tap --label Night`. The `Night` radio button's value becomes `1` and the screenshot is dark. Tap `System` to restore.
+- **Appearance.** Tap Night. Run `verify.sh shot appearance-system`, `verify.sh tap --label Night`, `verify.sh shot appearance-night`. The `Night` radio button's value becomes `1`. Run `verify.sh sheet` and Read it. Cell 2 is dark where cell 1 is light. Tap `System` to restore.
 - **Rest.** Increment standard rest. Run `verify.sh tap --id settings-standard-rest-stepper-Increment`. `find settings-standard-rest-stepper` reads a longer duration than `Standard, 2:00`.
 - **Sheet row.** Run `verify.sh tap --id settings-training-sheet-row`. The sheet picker appears with `sheet-picker-done-button`. Tap it to return.
 - **Sync now.** Run `verify.sh tap --id settings-sync-now-button`. The button stays and no error alert appears (the fixture sheets client answers instantly).

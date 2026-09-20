@@ -19,7 +19,12 @@ Usage: .claude/skills/verify/verify.sh <command> [args]
   shot NAME                   NAME.png and NAME.tree.txt into the run, then the tree lines that
                               changed since the previous shot
   diff A B                    the tree lines that changed between two shots of this run, frames ignored
-  stop                        terminate the app this run launched; the simulator stays up
+  sheet                       every shot of this run tiled 12 to an image, numbered and labelled; Read each image it prints
+  burst NAME [COMMAND...]     12 frames over about 2 s tiled into one image, labelled with their
+                              timing; COMMAND is a drive command fired after the first frame, as in
+                              burst log-transition tap --id log-active-set-button
+  stop                        terminate the app this run launched; the simulator stays up, and it
+                              says when the run has shots that are not on a sheet yet
   axe ARG...                  raw axe call with --udid filled in
 Environment: SIM (simulator UDID, default the booted iPhone 17 Pro, else the newest one, booted for you),
              VERIFY_RUN (names the run; give it to launch and every later command remembers it).
@@ -31,6 +36,7 @@ EOF
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../../.." && pwd)
 tree=$here/tree.py
+tiler=$repo/scripts/contact-sheet.swift
 project=$repo/WorkoutTracker.xcodeproj
 bundle=com.sunnypatel.WorkoutTracker
 work=$repo/.build/verify
@@ -298,6 +304,38 @@ case $cmd in
     python3 "$tree" diff "$dir/$a.tree.txt" "$dir/$b.tree.txt"
     ;;
 
+  sheet)
+    [ $# -eq 0 ] || usage
+    dir=$(recorded_run_dir)
+    names=$(shot_names "$dir")
+    [ -n "$names" ] || { echo "no shots in $dir; take one with: $0 shot NAME" >&2; exit 1; }
+    shots=()
+    for n in $names; do shots+=("$dir/$n.png"); done
+    "$tiler" "$dir/_sheet.png" "${shots[@]}"
+    ;;
+
+  burst)
+    name=${1:-}
+    valid_name "$name"
+    shift
+    need_sim; ensure_axe
+    dir=$(run_dir)
+    frames_dir=$dir/$name.burst
+    rm -rf "$frames_dir"
+    rm -f "$dir/$name.burst.png"
+    mkdir -p "$frames_dir"
+    capture "$frames_dir/f00.png"
+    if [ $# -gt 0 ]; then
+      SIM=$sim "$0" "$@" >/dev/null || { rm -rf "$frames_dir"; exit 1; }
+    fi
+    touch "$frames_dir/.drive-returned"
+    for i in 01 02 03 04 05 06 07 08 09 10 11; do capture "$frames_dir/f$i.png"; done
+    frames=$(python3 "$here/frames.py" "$frames_dir")
+    paths=()
+    while IFS= read -r frame; do paths+=("$frame"); done <<< "$frames"
+    "$tiler" "$dir/$name.burst.png" "${paths[@]}"
+    ;;
+
   stop)
     need_sim
     if [ -f "$state_dir/pid" ]; then
@@ -307,6 +345,15 @@ case $cmd in
     else
       echo "nothing launched by this tool on $sim"
     fi
+    dir=$(recorded_run_dir 2>/dev/null) || exit 0
+    sheet=$dir/_sheet.png
+    # bash 3.2, the stock macOS shell, compares [ -nt ] in whole seconds. find -newer compares nanoseconds.
+    if [ -f "$sheet" ]; then
+      pending=$(find "$dir" -maxdepth 1 -name '*.tree.txt' -newer "$sheet" | wc -l | tr -d ' ')
+    else
+      pending=$(shot_names "$dir" | wc -l | tr -d ' ')
+    fi
+    [ "$pending" -eq 0 ] || echo "shots in $(basename "$dir") not on a contact sheet yet: $pending; run: $0 sheet, then Read every image it prints"
     ;;
 
   axe) need_sim; ensure_axe; "$axe" "$@" --udid "$sim" ;;

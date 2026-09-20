@@ -56,6 +56,7 @@ simulator's accessibility bridge is wedged; `xcrun simctl shutdown <udid>` then 
 .claude/skills/verify/verify.sh hold log-active-set-button # long press, 1.2 s default
 .claude/skills/verify/verify.sh type 245                   # into the focused field
 .claude/skills/verify/verify.sh swipe up                   # scroll half a screen
+.claude/skills/verify/verify.sh burst log-transition tap --id log-active-set-button   # one action, 12 frames over 2 s, one image
 .claude/skills/verify/verify.sh axe swipe --start-x 200 --start-y 90 --end-x 200 --end-y 420 --duration 0.4   # any axe verb
 ```
 
@@ -67,7 +68,9 @@ Target elements by accessibility identifier (`tap --id`) first, by label second,
 only for empty space. The tree prints identifiers in column two and labels in column three.
 Identifiers are set in `App/Views/`; the feature files list the ones each screen
 exposes. `tap` polls up to 3 s for the element. After a tap, re-read the tree before asserting.
-Animations are off, so a state that has not appeared within a second is not coming.
+`-UITEST_DISABLE_ANIMATIONS` stops UIKit animations only, so a SwiftUI transition still runs for
+about 850 ms after a log tap (issue 618). A state absent after one second is still absent. `burst`
+is how you see a transition.
 
 `tree` lists what is on screen and says on stderr how many elements it left out. A scrolled-out
 row and the tail of the reps picker are out; a card wider than the screen is in. `find <id>`
@@ -87,6 +90,7 @@ VERIFY_RUN=issue-536 .claude/skills/verify/verify.sh launch session   # names th
 .claude/skills/verify/verify.sh tap --id log-active-set-button
 .claude/skills/verify/verify.sh shot 02-after-log                     # those two files, then the lines that changed since 01-before
 .claude/skills/verify/verify.sh diff 01-before 02-after-log           # the same comparison for any two shots of the run
+.claude/skills/verify/verify.sh sheet                                 # every shot of the run, 12 to an image, numbered and labelled
 ```
 
 Artifacts land in `.build/verify/evidence/<run>/` and survive `stop`. `launch` names the run from
@@ -103,6 +107,14 @@ reaches the network, so a green flush in fixture mode proves the queue, not Goog
 real path (taps, the log button, the CLI verbs), never a `-UITEST_*` flag that jumps to the end
 state.
 
+Finish every UI proof with `sheet` and Read every image it prints, one per 12 shots. Report what you see by cell
+number, and say anything the tree cannot show. Overlap, colour, clipping, an element under the
+status bar. Give that read to your strongest model. A smaller one read every string on a 12-up
+sheet and still missed a layout defect on it. A shot's PNG and its tree are captured about 0.2 s
+apart, so a shot taken right on a tap can show one state and describe another. Let the transition
+settle for a second, or run `burst`. After a log the rest pill counts down once a second, so the
+changed lines always carry it.
+
 ## Cleanup
 
 ```bash
@@ -112,7 +124,9 @@ rm -rf "$WORKOUT_HOME"
 
 `stop` kills only the pid recorded in `/tmp/workout-verify-<udid>/`. It never shuts down or erases
 the simulator, which other agents and `scripts/test-sim.sh` share. Evidence is never removed, and
-it keeps the run name, so `diff` still answers after the app is gone.
+it keeps the run name, so `diff` still answers after the app is gone. A `burst` keeps its twelve
+full-size frames, about 47 MB under the git-ignored `.build/`. Delete a run's directory yourself
+once its proof is filed.
 
 ## Isolation
 
