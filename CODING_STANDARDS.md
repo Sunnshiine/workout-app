@@ -2,23 +2,22 @@
 
 The review standard for this repo. `CONTEXT.md`, `docs/adr/`, `PRODUCT.md`, and `DESIGN.md` win
 over anything here. `.swift-format` and `.swiftlint.yml` settle formatting and every mechanical
-rule, so a force unwrap, a force try, or a force cast in shipped code, or a font built outside the
+rule, so a force unwrap, force try, or force cast in shipped code, or a font built outside the
 Theme seam, is a lint error, not a finding (`Tests/.swiftlint.yml` lists what a test body may do).
 A reviewer flags only what a lint does not judge, and never a preference. A rule earns a line here
 when it cost this repo a shipped bug and applying it takes context a regex does not have.
 
-Apply every rule to every hunk of the diff. For each finding, cite the rule's heading, or a Tests
-bullet's lead-in, and quote the hunk. Each rule ends with the issues that earned it and, where a
-fix landed, the symbol that shows it. Read the symbol when the rule alone does not settle a hunk.
+Apply every rule to every hunk of the diff. For each finding, cite the rule's heading (or a Tests
+bullet's lead-in) and quote the hunk. Each rule ends with the issues that earned it and, where a
+fix landed, the symbol that shows it; read the symbol when the rule alone does not settle a hunk.
 Verification commands are in `AGENTS.md`.
 
 ## Architecture
 
 ### The Sheet is the truth
 
-The Google Sheet is the source of truth and the app is a read-write client with a local cache
-(ADR-0001). Every write to the Sheet or the cache passes through `SyncCoordinator` and the
-pending-write queue (ADR-0006), and a transition that could abandon queued Set Logs asks
+Every write to the Sheet or the cache passes through `SyncCoordinator` and the pending-write queue
+(ADR-0001, ADR-0006), and a transition that could abandon queued Set Logs asks
 `canBeginDestructiveTransition` first.
 
 Look for a write that bypasses `SyncCoordinator`, or a transition without the guard. (The guard
@@ -27,9 +26,9 @@ fixed in #595.)
 
 ### Views hold no logic that needs a test
 
-`App/Views/` sits outside `Sources/`, so `swift test` cannot reach a View (ADR-0017). A guard, a
-calculation, or a branch that decides behaviour lives in the library, and the SwiftUI View reads
-the answer.
+`App/Views/` is outside `Sources/`, so `swift test` cannot reach a View (ADR-0017). A guard, a
+calculation, or a branch that decides behaviour lives in the library, and the View reads the
+answer.
 
 Look for a computed property on a View that ORs store state together, a `switch` on domain state
 inside `body`, or a decision the `workout` CLI would need and cannot see. (Half of the
@@ -54,16 +53,16 @@ switch over message strings until #514 replaced it with `SyncOutcome`. Applied a
 A fact derived from other state has exactly one place that answers it. Three shapes break this.
 
 - A latch. A Bool that every method changing the state must remember to set. (Assigned at ten
-  sites, seven of them `false`, so a new navigation method could forget it silently. #586.)
+  sites, seven of them `false`, so a new method could forget it silently. #586.)
 - A mirror. A value re-derived in several places with drifting conditions. (Last Set RPE was
-  decided in five places and the skip path forgot it, leaving a stale RPE in the coach's Sheet.
+  decided in five places and the skip path forgot one, leaving a stale RPE in the coach's Sheet.
   #570, fixed in #574.)
 - A predicate spelled twice. (Live edge was decided three times, once by object identity and twice
   by model identity. #572, fixed in #591.)
 
 Look for the same condition in two files, a Bool assigned in more than two methods, or a comment
-that explains when a combination of fields is valid. The fix shape is `WorkoutStore.view(_:)`, the
-only writer of `viewedSession`, and one `LiveEdge.isAtLiveEdge`.
+that explains when a combination of fields is valid. Now `WorkoutStore.view(_:)` is the only
+writer of `viewedSession`, and `LiveEdge.isAtLiveEdge` answers once.
 
 ### Control signals come from what they claim
 
@@ -71,8 +70,8 @@ A value that gates behaviour reads the thing it claims to measure. Display state
 signal.
 
 Look for `state == .someCase` used as a guard, or a Bool that is `true` only because the last
-writer happened to set it. (`isSyncing` read the banner's display enum, which `flushPending` reset
-to `.idle` mid-sync, so the destructive-transition guard opened with a sync on the wire. #585. Now
+writer set it. (`isSyncing` read the banner's display enum, which `flushPending` reset to `.idle`
+mid-sync, so the destructive-transition guard opened with a sync on the wire. #585. Now
 `SyncCoordinator.isSyncing` reads two in-flight counters that only their owners change, and the
 banner derives from them.)
 
@@ -84,19 +83,19 @@ step returns its result instead of assigning state as a side effect.
 
 Look for a case whose payload is `[String]` fed by more than one producer,
 `messages.first ?? "…"`, English composed inside a store or coordinator, or a method that sets
-`state` on its way out. (`.conflict([String])` carried five outcomes, from "your Set Log did not
-save" to "the parser has a note", rendered identically. #589, #514. Now `SyncOutcome`, precedence
-in `SyncOutcome.sync(sheetRead:flush:)`, and the queued count returned on
-`PendingWriteFlushResult.stoppedForRetry(queued:)` instead of assigned, #598.)
+`state` on its way out. (`.conflict([String])` carried five different outcomes, rendered
+identically. #589, #514. Now `SyncOutcome`, precedence in `SyncOutcome.sync(sheetRead:flush:)`,
+and the queued count returned on `PendingWriteFlushResult.stoppedForRetry(queued:)` instead of
+assigned, #598.)
 
 ## Concurrency
 
 ### Background work does not write foreground fields
 
 A `Task` whose handle is dropped runs after its creator has moved on. A View may start one to call
-a store method, and that method writes on the main actor. What a dropped or detached task never
-does is assign a store field itself after the method that owns the sequence has returned, because
-it races the next writer. Work whose result the sequence needs is held and awaited.
+a store method, which writes on the main actor. A dropped or detached task never assigns a store
+field itself after the method that owns the sequence has returned, because it races the next
+writer. Work whose result the sequence needs is held and awaited.
 
 Look for `Task { … }` whose body assigns a store property, or work started after the method that
 owns the state has returned. (The history backfill ran detached after `sync()` returned and could
@@ -125,12 +124,12 @@ it is the safe answer, never the convenient one. An optional Bool gets its nil c
 because `optional?.flag == false` reads nil as `false`.
 
 Look for `= nil`, `= false`, or `= { _ in true }` on a parameter whose omission changes behaviour,
-an optional closure a View could forget to pass, `?? Date()` and its relatives turning a missing
-value into a plausible one, or `optional?.flag == false`. (A coordinator's former
-`isCurrentSessionScope` parameter defaulted to `{ _ in true }`, so a coordinator wired without it
-answered "always at the live edge". #572. An `optional?.flag == false` read a missing store as not
-busy. #582.) The fix shape is `SheetsClient.fetchTabSnapshot(spreadsheetId:tabName:retrying:)`,
-which requires its backoff, and `LastPerformedCard.onTap`, a `let` every caller must supply.
+an optional closure a View could forget to pass, `?? Date()` and its relatives, or
+`optional?.flag == false`. (A coordinator's former `isCurrentSessionScope` parameter defaulted to
+`{ _ in true }`, so a coordinator wired without it answered "always at the live edge". #572. An
+`optional?.flag == false` read a missing store as not busy. #582.) Now
+`SheetsClient.fetchTabSnapshot(spreadsheetId:tabName:retrying:)` requires its backoff, and
+`LastPerformedCard.onTap` is a `let` every caller must supply.
 
 ## Vocabulary
 
@@ -166,7 +165,7 @@ after a different concept. #572, fixed in #591.)
   never inside the body, where the assertions compile away and the test passes empty. (#608. The
   lint catches a guard on the body's first line; judge the rest.)
 - **A test that mirrors a one-line mapping adds no confidence** and breaks on any refactor. The
-  gate does not need it. A function with cyclomatic complexity 1 scores 2 uncovered, under the
+  gate does not need it: a function with cyclomatic complexity 1 scores 2 uncovered, under the
   target.
 
 The shapes above that a regex can catch (the dropped task that writes a store field, the optional
