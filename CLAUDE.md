@@ -27,7 +27,7 @@ swift test --filter ActiveSetFocusManagerTests
 scripts/flake-hunt.sh --repetitions 1000 SyncCoordinatorTests
 
 # Prove a pin catches what it claims: mutate a line, list the tests that fail it
-scripts/mutate.sh --filter LoadSuggestionEngineTests WorkoutTracker/LoadSuggestionEngine.swift '/dropPercent/s/1 - /1 + /'
+scripts/mutate.sh --filter LoadSuggestionEngineTests Sources/WorkoutTracker/LoadSuggestionEngine.swift '/dropPercent/s/1 - /1 + /'
 
 # Simulator suites: one build, then every requested suite from the xctestrun file
 scripts/test-sim.sh unit            # hosted unit + component; not a superset of swift test (below)
@@ -40,8 +40,8 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0'
 ```
 
-- Neither test run is a superset of the other. `swift test` leaves out `Views/` and
-  `LiveActivity/` (the SPM target excludes them), so a green run does not prove the app compiles.
+- Neither test run is a superset of the other. `swift test` compiles `Sources/` only, so it leaves
+  out everything under `App/` and a green run does not prove the app compiles.
   `scripts/test-sim.sh unit` compiles the app but skips the macOS-only CLI suites
   (`WorkoutCLIBinaryTests`, `CLIFailureTests`). A change touching both sides needs both runs.
 - Visual Baselines are recorded on the CI runner, not locally: renders differ across machines at
@@ -75,7 +75,7 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
 
 `workout` drives the real application (same stores as the app) against a local workbook and
 prints JSON. No simulator, no Google credentials, milliseconds per call. Full reference:
-`WorkoutCLI/README.md`; the decision: `docs/adr/0015-headless-application-boundary.md`.
+`Sources/WorkoutCLI/README.md`; the decision: `docs/adr/0015-headless-application-boundary.md`.
 
 ```bash
 swift build --product workout && export PATH="$PWD/.build/debug:$PATH"
@@ -103,9 +103,9 @@ scripts/crap.sh baseline           # shrink the baseline after an improvement
 jq '.functions[] | select(.file | contains("Stores/"))' .build/crap/report.json   # full report
 ```
 
-`Views/`, `LiveActivity/`, `GoogleAuth.swift`, `WorkoutTrackerApp.swift`, `WorkoutShared/`, and
-`WorkoutWidgets/` are outside `swift test` and therefore unmeasured. Lower a score with a better
-design or a stronger test; never by weakening a test or splitting a function into pieces with no name.
+The measured scope is `Sources/`. `App/`, `WorkoutShared/` and `WorkoutWidgets/` are outside
+`swift test` and therefore unmeasured. Lower a score with a better design or a stronger test; never
+by weakening a test or splitting a function into pieces with no name.
 
 ## Linting & Formatting
 
@@ -124,7 +124,7 @@ design or a stronger test; never by weakening a test or splitting a function int
   what a violation is. Re-pin by bumping SwiftLintPlugins in Xcode and committing `Package.resolved`.
 - `Tests/.swiftlint.yml` switches off three rules a test body reads better without, with the reason
   per rule. Exceptions are per rule and argued; a blanket exclusion of a tree is not one.
-- **swift-format** is installed via Homebrew. Config: `.swift-format`. Run manually: `swift-format -i -r WorkoutTracker/ WorkoutCLI/ Tests/`
+- **swift-format** is installed via Homebrew. Config: `.swift-format`. Run manually: `swift-format -i -r App/ Sources/ Tests/`
 - Do not run `swiftlint --fix` in build phases — run it manually when needed.
 
 ## Git Worktrees
@@ -163,29 +163,40 @@ holds the branch onto `main`.
 
 A navigation map; see `CONTEXT.md` for the domain glossary and `docs/adr/` for decisions.
 
+The directory a file sits in decides which builds compile it (ADR-0017).
+
 ```text
-WorkoutTracker/
+App/                            iOS app only; not in the SwiftPM package
 ├── WorkoutTrackerApp.swift     App entry point (@main)
+├── GoogleAuth.swift            Google Sheets sign-in (needs a UIKit presentation anchor)
+├── Views/                      SwiftUI views
+├── LiveActivity/               Live Activity controller and its production adapter
+└── Assets.xcassets, Fonts/, AppIcon.icon, Info.plist, LaunchScreen.storyboard
+
+Sources/WorkoutTracker/         SwiftPM library, also compiled into the app target
 ├── Models/                     Domain types (Block, Week, Session, Exercise, Set …)
 ├── Parsing/                    Sheet → domain interpretation (layout interpreter)
-├── Sheets/                     Google Sheets client + auth (GoogleAuth.swift)
+├── Sheets/                     Google Sheets client
 ├── Stores/                     Local cache, sync coordination & persisted state
 ├── Progress/                   Session/Week progression (Current Session, Move On, Open Exercises, Supersets)
+├── Application/                WorkoutApplication (composition root + public facade), addresses, snapshots
 ├── LoadSuggestionEngine.swift  Load Suggestion calculations
 ├── Theme.swift                 Liquid Glass design system (ADR-0004)
-├── App/                        WorkoutApplication (composition root + public facade), addresses, snapshots
-├── Views/                      SwiftUI views (excluded from the SPM library target)
 └── Fixtures/                   UI-test fixture data (-UITEST_FIXTURE) and WorkbookScenario seeds
 
-WorkoutCLI/                     The `workout` executable (ADR-0015)
+Sources/WorkoutCLI/             The `workout` executable (ADR-0015)
 Tests/  →  Unit/ · Component/ · UI/ · Support/
 ```
 
-`WorkoutTracker/`, `WorkoutShared/`, and `WorkoutWidgets/` are Xcode buildable folders, like the
-folders under `Tests/`. A Swift file added under one compiles into its target with no project edit.
-`WorkoutShared/` builds into both the app and the widget. Xcode also copies any other file in these
-folders into the bundle, including a Markdown note. To keep a file out of the bundle, add a
-membership exception in the project, as each `Info.plist` has.
+`App/`, `Sources/WorkoutTracker/`, `WorkoutShared/`, and `WorkoutWidgets/` are Xcode buildable
+folders, like the folders under `Tests/`. A Swift file added under one compiles into its target with
+no project edit. `WorkoutShared/` builds into both the app and the widget. Xcode also copies any
+other file in these folders into the bundle, including a Markdown note. To keep a file out of the
+bundle, add a membership exception in the project, as each `Info.plist` has.
+
+The app target compiles `App/` and `Sources/WorkoutTracker/`; `swift test` compiles
+`Sources/WorkoutTracker/` alone. So a file needs iOS-only API, or it needs headless test coverage,
+and where you put it is that choice. `Sources/WorkoutCLI/` is in neither the app nor the widget.
 
 ## Agent skills
 

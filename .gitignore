@@ -28,7 +28,7 @@ xcuserdata/
 .build/
 .swiftpm/
 
-# workout CLI default home (WorkoutCLI/README.md)
+# workout CLI default home (Sources/WorkoutCLI/README.md)
 .workout-cli/
 
 # Python (uv virtualenv + bytecode caches)

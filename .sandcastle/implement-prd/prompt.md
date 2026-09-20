@@ -42,7 +42,7 @@ Before committing, run `swift test` (fast unit + component tests; no
 `Secrets.xcconfig` needed).
 
 If your change touches the app target — anything under
-`WorkoutTracker/Views/`, `WorkoutTrackerApp.swift`, or other code the SPM
+`App/Views/`, `WorkoutTrackerApp.swift`, or other code the SPM
 library target doesn't compile — also compile-check the full app (the
 workflow pre-created `Secrets.xcconfig` from the template):
 

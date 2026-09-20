@@ -50,7 +50,7 @@ The skill is read-only and produces a report; it does not edit code. That report
 
 ## 2. Look at the pixels (artifact eyes)
 
-If the diff touches anything the user can see (`WorkoutTracker/Views/`, `Theme.swift`, `Tests/Visual/`), verify the branch with your eyes — a gate only catches drift from committed baselines; a sighted reviewer catches baselines that are wrong or missing (that is how PR #467 shipped):
+If the diff touches anything the user can see (`App/Views/`, `Theme.swift`, `Tests/Visual/`), verify the branch with your eyes — a gate only catches drift from committed baselines; a sighted reviewer catches baselines that are wrong or missing (that is how PR #467 shipped):
 
 - `Read` every Visual Baseline PNG added or changed under `Tests/Visual/__Snapshots__/` in this diff and compare it against the ground truth: `docs/design/greenhouse-picks/` (its `README.md` maps screen → pick → DESIGN.md section; DESIGN.md wins over pixels).
 - If the diff touches a redesigned surface but records **no** baseline for it — or deletes baselines without replacements — treat that as a spec finding: call it out in the summary and inline comments.
@@ -81,7 +81,7 @@ Default to Address. Decline when you have a real reason. Defer only when a reply
 
 1. Run `swift test` — confirm the current state passes.
 2. Make improvements + write any new edge-case tests. Stage and commit them as a **single squashed commit** on this branch with a message starting with `refactor(review):` (or `fix(review):` / `test(review):` if that better describes the change).
-3. Run `swift test` again. If it fails, fix it before continuing — do not leave the branch broken. If the branch (or your improvements) touch the app target — anything under `WorkoutTracker/Views/`, `WorkoutTrackerApp.swift`, or other code the SPM library target doesn't compile — also compile-check it before finishing (the workflow pre-created `Secrets.xcconfig` from the template; no booted simulator needed): `xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker -destination 'generic/platform=iOS Simulator' -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO`. This environment has Xcode 26, so Views code (Liquid Glass APIs) is fully verifiable — do not decline a Views-touching improvement on the grounds that it can't be compile-checked here.
+3. Run `swift test` again. If it fails, fix it before continuing — do not leave the branch broken. If the branch (or your improvements) touch the app target — anything under `App/Views/`, `WorkoutTrackerApp.swift`, or other code the SPM library target doesn't compile — also compile-check it before finishing (the workflow pre-created `Secrets.xcconfig` from the template; no booted simulator needed): `xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker -destination 'generic/platform=iOS Simulator' -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO`. This environment has Xcode 26, so Views code (Liquid Glass APIs) is fully verifiable — do not decline a Views-touching improvement on the grounds that it can't be compile-checked here.
 4. Decide which inline review comments to leave (line-anchored notes about your changes or remaining findings) and which thread replies to make.
 
 If the code is already clean and there are no human comments to address, make no commits.

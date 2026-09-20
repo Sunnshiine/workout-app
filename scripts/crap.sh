@@ -155,12 +155,8 @@ measure() {
     tools/crap/.build/debug/crap measure \
         --root "$ROOT" \
         --lcov "$LCOV" \
-        --source WorkoutTracker \
-        --source WorkoutCLI \
-        --exclude 'WorkoutTracker/Views/*' \
-        --exclude 'WorkoutTracker/LiveActivity/*' \
-        --exclude 'WorkoutTracker/Sheets/GoogleAuth.swift' \
-        --exclude 'WorkoutTracker/WorkoutTrackerApp.swift' \
+        --source Sources/WorkoutTracker \
+        --source Sources/WorkoutCLI \
         --threshold "$THRESHOLD" \
         --top "$TOP" \
         --json "$REPORT"

@@ -1,7 +1,7 @@
 # The sighted inner loop (visual verification for UI-touching changes)
 
 Contract for agents in the sandcastle pipeline (map #468, verdict #469): if your
-change alters anything the user can see — `WorkoutTracker/Views/`, `Theme.swift`,
+change alters anything the user can see — `App/Views/`, `Theme.swift`,
 or any rendered surface — you must **look at what you built before committing**.
 Two mandatory mechanisms, under one authority:
 
@@ -50,7 +50,7 @@ PRD #497 slice 3. The loop below keeps the build out of the iteration:
     -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
   ```
 
-- **The invariant:** any edit under `WorkoutTracker/`, `Tests/`, or the
+- **The invariant:** any edit under `App/`, `Sources/`, `Tests/`, or the
   xcodeproj invalidates the built products. `test-without-building` is legal
   **only if you have made zero edits since the last `build-for-testing`** —
   otherwise you are recording baselines from a stale binary, and they will

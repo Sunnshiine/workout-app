@@ -75,7 +75,7 @@
 			);
 			target = 46A520FBEB182FC7E179EBD1 /* WorkoutTrackerSnapshotTests */;
 		};
-		2D45BE322273D36960DDE606 /* Exceptions for "WorkoutTracker" folder in "WorkoutTracker" target */ = {
+		2D45BE322273D36960DDE606 /* Exceptions for "App" folder in "WorkoutTracker" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -128,11 +128,16 @@
 			path = WorkoutShared;
 			sourceTree = "<group>";
 		};
-		5772EF6C4A6EB197C6B5550C /* WorkoutTracker */ = {
+		5772EF6C4A6EB197C6B5550C /* App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				2D45BE322273D36960DDE606 /* Exceptions for "WorkoutTracker" folder in "WorkoutTracker" target */,
+				2D45BE322273D36960DDE606 /* Exceptions for "App" folder in "WorkoutTracker" target */,
 			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		A9F5000000000000000000D1 /* WorkoutTracker */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
 			path = WorkoutTracker;
 			sourceTree = "<group>";
 		};
@@ -176,6 +181,14 @@
 			path = .;
 			sourceTree = "<group>";
 		};
+		A9F5000000000000000000D2 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				A9F5000000000000000000D1 /* WorkoutTracker */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
 		9B5D2614740AB0F48B97C160 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
@@ -191,10 +204,11 @@
 		AD6248B3D6F5FB51D1B71926 = {
 			isa = PBXGroup;
 			children = (
+				A9F5000000000000000000D2 /* Sources */,
 				9B5D2614740AB0F48B97C160 /* Tests */,
 				770A4DE5455BDCC0893DE48C /* workout-app */,
+				5772EF6C4A6EB197C6B5550C /* App */,
 				895C7DB63C1CFF233AF9810C /* WorkoutShared */,
-				5772EF6C4A6EB197C6B5550C /* WorkoutTracker */,
 				118B000CD16D59FACB6C886F /* WorkoutWidgets */,
 				C91759DD6A5BDB578F6ECD07 /* Products */,
 			);
@@ -256,8 +270,9 @@
 				3775011756B616E8CE35B067 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
+				5772EF6C4A6EB197C6B5550C /* App */,
+				A9F5000000000000000000D1 /* WorkoutTracker */,
 				895C7DB63C1CFF233AF9810C /* WorkoutShared */,
-				5772EF6C4A6EB197C6B5550C /* WorkoutTracker */,
 			);
 			name = WorkoutTracker;
 			packageProductDependencies = (
@@ -468,7 +483,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = K74Q6RKFBY;
-				INFOPLIST_FILE = WorkoutTracker/Info.plist;
+				INFOPLIST_FILE = App/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -659,7 +674,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = K74Q6RKFBY;
-				INFOPLIST_FILE = WorkoutTracker/Info.plist;
+				INFOPLIST_FILE = App/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
