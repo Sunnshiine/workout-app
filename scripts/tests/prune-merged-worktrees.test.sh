@@ -10,6 +10,9 @@ prune="$script_dir/../prune-merged-worktrees.sh"
 
 root=$(mktemp -d) || exit 3
 trap 'rm -rf "$root"' EXIT
+# git reports physical paths, and on macOS mktemp hands back /var, a symlink to
+# /private/var. Resolve once so assertions can compare paths exactly.
+root=$(cd "$root" && pwd -P)
 repo="$root/repo"
 wt="$root/wt"
 pass=0
@@ -36,12 +39,14 @@ build_fixture() {
     git_q config user.email t@t
     git_q config user.name t
     git_q remote add origin "$root/origin.git"
+    printf 'nested-child/\n' >"$repo/.gitignore"
     commit_on main one
     git_q push -u origin main
 
     # Every branch below starts from main and is pushed, except where a case
     # needs it otherwise.
-    for b in merged closed open dirty unpushed nopr squashed gone-ahead primary-merged reused; do
+    for b in merged closed closed-gone open dirty unpushed nopr squashed gone-ahead \
+             primary-merged reused host lockedwt; do
         git_q checkout -b "$b" main
         commit_on "$b" work
         case "$b" in
@@ -54,7 +59,8 @@ build_fixture() {
     # Record the pushed tips before anything is deleted; the stub PR data uses
     # them as headRefOid, the way GitHub records the SHA it received.
     : >"$root/oids.tsv"
-    for b in merged closed open dirty unpushed squashed gone-ahead primary-merged reused; do
+    for b in merged closed closed-gone open dirty unpushed squashed gone-ahead \
+             primary-merged reused host lockedwt; do
         printf '%s\t%s\n' "$b" "$(git -C "$repo" rev-parse "$b")" >>"$root/oids.tsv"
     done
 
@@ -74,16 +80,28 @@ build_fixture() {
     # remote-tracking ref gone.
     git -C "$root/origin.git" branch -D squashed >/dev/null 2>&1
     git -C "$root/origin.git" branch -D gone-ahead >/dev/null 2>&1
+    # case 17: a closed PR whose branch origin no longer has. The commits are
+    # on main nowhere and on origin nowhere, so removal would lose them.
+    git -C "$root/origin.git" branch -D closed-gone >/dev/null 2>&1
     git_q fetch origin --prune
 
     # The primary checkout sits on a clean branch whose PR merged, so only the
     # primary-checkout guard can save it.
     git_q checkout primary-merged
 
-    for b in merged closed open dirty unpushed nopr squashed gone-ahead reused; do
+    for b in merged closed closed-gone open dirty unpushed nopr squashed gone-ahead \
+             reused host lockedwt; do
         git -C "$repo" worktree add "$wt/$b" "$b" >/dev/null 2>&1
     done
     git -C "$repo" worktree add --detach "$wt/detached" main >/dev/null 2>&1
+
+    # case 18: a worktree nested inside a candidate, behind the gitignore, so
+    # neither git status nor git worktree remove's own refusal can see it.
+    git -C "$repo" worktree add --detach "$wt/host/nested-child" main >/dev/null 2>&1
+    printf 'in progress\n' >"$wt/host/nested-child/inprogress.txt"
+
+    # case 19: a lock is the one do-not-touch a human sets by hand.
+    git -C "$repo" worktree lock "$wt/lockedwt" >/dev/null 2>&1
 
     # case 4: uncommitted change in a worktree whose PR merged.
     printf 'edited\n' >>"$wt/dirty/dirty.txt"
@@ -98,7 +116,8 @@ build_gh_stub() {
       --arg merged "$(oid merged)" --arg closed "$(oid closed)" --arg open "$(oid open)" \
       --arg dirty "$(oid dirty)" --arg unpushed "$(oid unpushed)" --arg squashed "$(oid squashed)" \
       --arg goneahead "$(oid gone-ahead)" --arg primarymerged "$(oid primary-merged)" \
-      --arg reused "$(oid reused)" \
+      --arg reused "$(oid reused)" --arg closedgone "$(oid closed-gone)" \
+      --arg host "$(oid host)" --arg lockedwt "$(oid lockedwt)" \
       '[ {number:1,  state:"MERGED", headRefName:"merged",         headRefOid:$merged},
          {number:2,  state:"CLOSED", headRefName:"closed",         headRefOid:$closed},
          {number:3,  state:"OPEN",   headRefName:"open",           headRefOid:$open},
@@ -108,7 +127,10 @@ build_gh_stub() {
          {number:10, state:"MERGED", headRefName:"gone-ahead",     headRefOid:$goneahead},
          {number:8,  state:"MERGED", headRefName:"primary-merged", headRefOid:$primarymerged},
          {number:30, state:"MERGED", headRefName:"reused",         headRefOid:$reused},
-         {number:31, state:"OPEN",   headRefName:"reused",         headRefOid:$reused} ]' \
+         {number:31, state:"OPEN",   headRefName:"reused",         headRefOid:$reused},
+         {number:40, state:"CLOSED", headRefName:"closed-gone",    headRefOid:$closedgone},
+         {number:41, state:"MERGED", headRefName:"host",           headRefOid:$host},
+         {number:42, state:"MERGED", headRefName:"lockedwt",       headRefOid:$lockedwt} ]' \
       >"$root/prs.json"
 
     cat >"$root/bin/gh" <<'STUB'
@@ -157,8 +179,10 @@ assert_column() {
     fi
 }
 
+listed() { git -C "$repo" worktree list --porcelain | grep -qxF "worktree $wt/$1"; }
+
 assert_gone() {
-    if git -C "$repo" worktree list | grep -qF "$wt/$2"; then
+    if listed "$2"; then
         bad "$1: worktree $2 survived --apply"
     elif [ -n "$(git -C "$repo" branch --list "$2")" ]; then
         bad "$1: branch $2 survived --apply"
@@ -168,10 +192,13 @@ assert_gone() {
 }
 
 assert_survives() {
-    if git -C "$repo" worktree list | grep -qF "$wt/$2"; then
-        ok "$1: worktree $2 survived --apply"
-    else
+    # assert_survives <case> <worktree dir> [branch]
+    if ! listed "$2"; then
         bad "$1: worktree $2 was removed by --apply"
+    elif [ -n "${3:-}" ] && [ -z "$(git -C "$repo" branch --list "$3")" ]; then
+        bad "$1: worktree $2 survived but its branch $3 was deleted"
+    else
+        ok "$1: worktree $2 survived --apply"
     fi
 }
 
@@ -203,6 +230,21 @@ assert_candidate "case 9 upstream gone"       squashed
 assert_column    "case 9 upstream gone"       squashed   "gone=pr-head"
 assert_kept      "case 10 gone plus local"    gone-ahead "commits the PR never received"
 assert_kept      "case 16 branch with two PRs" reused     "PR #31 is open"
+assert_kept      "case 17 closed, branch gone" closed-gone "landed nowhere"
+assert_kept      "case 18 nested worktree"     host        "contains the worktree"
+assert_kept      "case 19 locked worktree"     lockedwt    "locked"
+
+say
+say "=== case 20: --repo run from inside a worktree ==="
+# The everyday agent invocation. The guard has to see the caller's cwd, not the
+# toplevel of the repo it was pointed at.
+(cd "$wt/merged" && "$prune" --repo "$repo" --no-size) >"$root/self.txt" 2>&1
+if awk '/^KEPT$/{f=1;next} f' "$root/self.txt" | grep -q 'this script was run from it'; then
+    ok "case 20: the worktree the script was run from is kept"
+else
+    bad "case 20: --repo disabled the self guard"
+    grep -n 'merged' "$root/self.txt" | head -3
+fi
 
 before=$(git -C "$repo" worktree list | wc -l | tr -d ' ')
 say
@@ -216,13 +258,21 @@ if [ "$apply_status" -eq 0 ]; then ok "apply exits 0"; else bad "apply exited $a
 assert_gone     "case 1 merged PR"        merged
 assert_gone     "case 2 closed PR"        closed
 assert_gone     "case 9 upstream gone"    squashed
-assert_survives "case 3 open PR"          open
-assert_survives "case 4 uncommitted"      dirty
-assert_survives "case 5 unpushed commits" unpushed
-assert_survives "case 6 no PR"            nopr
+assert_survives "case 3 open PR"          open       open
+assert_survives "case 4 uncommitted"      dirty      dirty
+assert_survives "case 5 unpushed commits" unpushed   unpushed
+assert_survives "case 6 no PR"            nopr       nopr
 assert_survives "case 7 detached HEAD"    detached
-assert_survives "case 10 gone plus local" gone-ahead
-assert_survives "case 16 branch with two PRs" reused
+assert_survives "case 10 gone plus local" gone-ahead gone-ahead
+assert_survives "case 16 branch with two PRs" reused reused
+assert_survives "case 17 closed, branch gone" closed-gone closed-gone
+assert_survives "case 18 nested worktree"     host        host
+assert_survives "case 19 locked worktree"     lockedwt    lockedwt
+if [ -f "$wt/host/nested-child/inprogress.txt" ]; then
+    ok "case 18: the nested worktree and its uncommitted file survived"
+else
+    bad "case 18: the nested worktree was deleted with its host"
+fi
 if [ -d "$repo/.git" ] && [ -n "$(git -C "$repo" rev-parse --show-toplevel 2>/dev/null)" ]; then
     ok "case 8 primary checkout: repository intact after --apply"
 else
