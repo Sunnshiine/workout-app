@@ -18,6 +18,7 @@ on:
       - "scripts/contact-sheet.*"
       - ".github/actions/**"
       - ".github/workflows/agent-*.yml"
+      - ".github/workflows/verify-tools.yml"
       - ".github/workflows/architecture-review.yml"
       - ".github/workflows/asc-signing-inventory.yml"
       - ".github/workflows/testflight-*.yml"

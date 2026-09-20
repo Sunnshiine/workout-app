@@ -32,7 +32,7 @@ Preconditions:
 - **Side effect.** Confirm the queued write. `verify.sh tree | grep "Sync status"` prints `Sync status: 1 unsynced`. For the stored value, run the same log through the CLI (`cli-headless.md`) or `swift test --filter ActiveSetFocusManagerTests`.
 - **Skip.** Long press the log button. Run `verify.sh hold log-active-set-button`. The branch gains `Set 2, skip` and the card reads `Set 3 of 3`.
 - **History.** Tap the last-performed line. Run `verify.sh tap --label "Block 26 · W4 D3 — 245x5@6, 255x5@7"`. A sheet titled `Exercise History · last 5` lists `Block 26` and `Block 25`.
-- **Proof.** Run `verify.sh shot 02-after-log`. It prints the lines that changed since `01-before`. Quote the `Set 1, 237.5x5@6`, `Set 2 of 3`, and `Sync status` lines. Then run `verify.sh sheet` and Read it. Cell 1 shows `Set 1 of 3` at 237.5 with both branch leaves outlined. Cell 2 shows the `1 unsynced` pill, one leaf filled, and the rest pill at the bottom edge. A cell 2 still reading `Set 1 of 3` means the shot caught the transition, so take it again.
+- **Proof.** Run `verify.sh shot 02-after-log`. It prints the lines that changed since `01-before`. Quote the `Set 1, 237.5x5@6`, `Set 2 of 3`, and `Sync status` lines. Then run `verify.sh sheet` and Read it. Cell 1 shows `Set 1 of 3` at 237.5 with no branch leaf filled. Cell 2 shows the `1 unsynced` pill, the first leaf filled, and the rest pill at the bottom edge. A cell 2 still reading `Set 1 of 3` means the shot caught the transition, so take it again.
 
 ## Gotchas
 
