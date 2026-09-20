@@ -95,7 +95,7 @@ struct SessionQueueSheetVisualTests {
                          pairingAvailability: pairing ? .available : .inactive),
             exerciseItem(makeExercise(name: "Seated DB OHP", order: 4,
                                       setStates: [.pending, .pending]),
-                         pairingAvailability: pairing ? .available : .inactive),
+                         pairingAvailability: pairing ? .available : .inactive)
         ])
     }
 

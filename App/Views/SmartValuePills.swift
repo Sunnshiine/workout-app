@@ -676,7 +676,7 @@ final class InputHapticPlayer {
                     eventType: .hapticTransient,
                     parameters: [
                         CHHapticEventParameter(parameterID: .hapticIntensity, value: Float(tuning.intensity)),
-                        CHHapticEventParameter(parameterID: .hapticSharpness, value: Float(tuning.sharpness)),
+                        CHHapticEventParameter(parameterID: .hapticSharpness, value: Float(tuning.sharpness))
                     ],
                     relativeTime: 0
                 )

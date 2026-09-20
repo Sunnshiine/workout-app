@@ -16,6 +16,19 @@
       "CronList"
     ]
   },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "p=\"${CLAUDE_PROJECT_DIR:-.}/scripts/warn-stale-checkout.sh\"; [ -x \"$p\" ] && exec \"$p\"; exit 0",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  },
   "disableBundledSkills": true,
   "disableWorkflows": true,
   "disableClaudeAiConnectors": true,

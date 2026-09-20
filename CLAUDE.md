@@ -103,7 +103,21 @@ by weakening a test or splitting a function into pieces with no name.
 
 ## Linting & Formatting
 
-- **SwiftLint** runs automatically via the `SwiftLintPlugins` build tool plugin (wired through the Xcode project, not `Package.swift`). Config: `.swiftlint.yml`.
+- **SwiftLint** has two runners over one `.swiftlint.yml`. The `SwiftLintPlugins` build tool plugin
+  (wired through the Xcode project, not `Package.swift`) lints the app target on every Xcode build.
+  `scripts/lint.sh` lints every tree the config's `included:` names, with no build, and the `lint`
+  CI job runs it. Use it before you push:
+
+  ```bash
+  scripts/lint.sh          # what CI runs; --strict, so a warning fails too
+  scripts/lint.sh --fix    # autocorrect what SwiftLint can, then lint
+  ```
+
+  The script fetches the same SwiftLint binary the plugin runs, at the version
+  `WorkoutTracker.xcodeproj/.../Package.resolved` pins, so the two runners cannot disagree about
+  what a violation is. Re-pin by bumping SwiftLintPlugins in Xcode and committing `Package.resolved`.
+- `Tests/.swiftlint.yml` switches off three rules a test body reads better without, with the reason
+  per rule. Exceptions are per rule and argued; a blanket exclusion of a tree is not one.
 - **swift-format** is installed via Homebrew. Config: `.swift-format`. Run manually: `swift-format -i -r App/ Sources/ Tests/`
 - Do not run `swiftlint --fix` in build phases — run it manually when needed.
 
@@ -125,6 +139,8 @@ build-only fallback. `swift test` does not require it; only Xcode app-target
 builds do.
 
 XcodeBuildMCP session defaults point at the main project path and do not apply inside a worktree. Pass `-project <worktree-path>/WorkoutTracker.xcodeproj` explicitly when calling xcodebuild from a worktree.
+
+Merged worktrees pile up and cost gigabytes of `.build`. `scripts/prune-merged-worktrees.sh` resolves every worktree's branch through its PR state and lists the ones whose PR has merged or closed; it dry-runs by default and removes only under `--apply`, never touching the primary checkout or a worktree holding uncommitted or unpushed work.
 
 ## Landing a PR
 

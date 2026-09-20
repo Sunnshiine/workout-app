@@ -400,4 +400,3 @@ private struct OffLiveEdgeControls: View {
         .accessibilityIdentifier("make-current-session-button")
     }
 }
-

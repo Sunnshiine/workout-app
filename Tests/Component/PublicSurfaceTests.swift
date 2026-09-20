@@ -36,7 +36,7 @@ private func json(_ value: some Encodable) throws -> [String: Any] {
 
 @Test func addressesEncodeAsTheirStringForm() throws {
     let encoded = try JSONEncoder().encode([SetAddress("w1d1.e0.s2")])
-    #expect(String(decoding: encoded, as: UTF8.self) == "[\"w1d1.e0.s2\"]")
+    #expect(String(bytes: encoded, encoding: .utf8) == "[\"w1d1.e0.s2\"]")
     let decoded = try JSONDecoder().decode([SetAddress].self, from: encoded)
     #expect(decoded == [SetAddress("w1d1.e0.s2")])
     #expect(throws: DecodingError.self) {
