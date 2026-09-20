@@ -325,19 +325,15 @@ case $cmd in
     if [ $# -gt 0 ]; then
       SIM=$sim "$0" "$@" >/dev/null || { rm -rf "$frames_dir"; exit 1; }
     fi
-    # Time the frames from the drive command's return. Re-invoking this script costs about 1.8 s of
-    # simctl and axe startup before the touch lands, and an origin before that would put the whole
-    # transition ahead of frame 1.
-    touch "$frames_dir/.fired"
+    touch "$frames_dir/.drive-returned"
     for i in 01 02 03 04 05 06 07 08 09 10 11; do capture "$frames_dir/f$i.png"; done
-    # The tiler labels a cell with its file stem, so the rename is what puts the timing on the sheet.
     frames=$(python3 -c '
 import os, sys
 directory = sys.argv[1]
-fired = os.stat(os.path.join(directory, ".fired")).st_mtime_ns
+drive_returned = os.stat(os.path.join(directory, ".drive-returned")).st_mtime_ns
 for frame in sorted(f for f in os.listdir(directory) if f.startswith("f") and f.endswith(".png")):
     source = os.path.join(directory, frame)
-    elapsed = (os.stat(source).st_mtime_ns - fired) // 1000000
+    elapsed = (os.stat(source).st_mtime_ns - drive_returned) // 1000000
     target = os.path.join(directory, ("before" if elapsed < 0 else "+%04dms" % elapsed) + ".png")
     os.rename(source, target)
     print(target)' "$frames_dir")
@@ -357,8 +353,7 @@ for frame in sorted(f for f in os.listdir(directory) if f.startswith("f") and f.
     fi
     dir=$(recorded_run_dir 2>/dev/null) || exit 0
     sheet=$dir/_sheet.png
-    # find -newer compares nanoseconds. The [ -nt ] operator compares whole seconds and misses a
-    # shot taken in the same second as the sheet it postdates.
+    # bash 3.2, the stock macOS shell, compares [ -nt ] in whole seconds. find -newer compares nanoseconds.
     if [ -f "$sheet" ]; then
       pending=$(find "$dir" -maxdepth 1 -name '*.tree.txt' -newer "$sheet" | wc -l | tr -d ' ')
     else

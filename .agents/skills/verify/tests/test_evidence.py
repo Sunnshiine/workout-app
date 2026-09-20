@@ -57,7 +57,6 @@ def verify_sh(*args, run):
 
 
 def write_png(path, width, height, colour):
-    """A solid-colour PNG, so the sheet fixtures need no committed image."""
     scanlines = b"".join(b"\x00" + bytes(colour) * width for _ in range(height))
 
     def chunk(tag, payload):
@@ -241,8 +240,6 @@ class VerifyDiff(unittest.TestCase):
 
 @unittest.skipUnless(sys.platform == "darwin", "the tiler is a Swift script and runs on macOS only")
 class VerifySheet(unittest.TestCase):
-    """The agent's entry point, on a run whose capture order is not its name order."""
-
     def setUp(self):
         self.run = "sheettest-%d" % os.getpid()
         self.dir = REPO / ".build" / "verify" / "evidence" / self.run

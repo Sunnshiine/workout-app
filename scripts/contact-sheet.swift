@@ -11,8 +11,6 @@ import CoreGraphics
 import Foundation
 import ImageIO
 
-/// How a Claude-class reader sees an image. These are facts about the reader rather than
-/// preferences of a caller, which is why this tool takes no options.
 enum Reader {
     /// Read downsizes every image to this long edge, so pixels past it are paid for and discarded.
     static let longEdge = 2000
@@ -63,9 +61,7 @@ struct Grid {
     let sheet: CGSize
 }
 
-/// Balanced so the last page is not a stub: 13 becomes 7 and 6, 25 becomes 9, 8 and 8. A 12 and 1
-/// split would put 324 px cells on one page and a 899 px cell on the next.
-func pages(of count: Int) -> [Range<Int>] {
+func balancedPages(of count: Int) -> [Range<Int>] {
     let pageCount = (count + Reader.cellsPerSheet - 1) / Reader.cellsPerSheet
     var ranges: [Range<Int>] = []
     var start = 0
@@ -77,8 +73,6 @@ func pages(of count: Int) -> [Range<Int>] {
     return ranges
 }
 
-/// Widest cell wins, so twelve portrait frames land as 6 columns by 2 rows rather than 4 by 3.
-/// Ties go to the tighter sheet: fewer rows, then fewer columns.
 private func rank(_ grid: Grid) -> (Double, Int, Int) {
     (Double(grid.cell.width), -grid.rows, -grid.columns)
 }
@@ -101,8 +95,6 @@ private func layout(columns: Int, count: Int, cellAspect: CGFloat, widestSource:
     )
 }
 
-/// `widestSource` caps the cell: one wider than every image it holds would buy blank pixels at
-/// full token price.
 func grid(for count: Int, cellAspect: CGFloat, widestSource: CGFloat) -> Grid {
     var best = layout(columns: 1, count: count, cellAspect: cellAspect, widestSource: widestSource)
     for columns in stride(from: 2, through: count, by: 1) {
@@ -114,8 +106,6 @@ func grid(for count: Int, cellAspect: CGFloat, widestSource: CGFloat) -> Grid {
     return best
 }
 
-/// Aspect-fits `image` inside `area`, centred, never upscaled, on whole pixels so a letterbox
-/// margin is an exact number of background rows.
 func fittedRect(for image: CGImage, in area: CGRect) -> CGRect {
     let scale = min(area.width / CGFloat(image.width), area.height / CGFloat(image.height), 1)
     let width = (CGFloat(image.width) * scale).rounded()
@@ -194,15 +184,13 @@ func write(_ image: CGImage, to url: URL) throws {
     }
 }
 
-/// A rerun with fewer images must not leave an old page behind for a reader to mistake for current.
-/// Bounded: only names this tool generates, and it stops at the first gap.
 func removeStalePages(after lastPage: Int, of out: URL) {
-    var page = lastPage + 1
-    while true {
-        let stale = url(forPage: page, of: out)
-        guard FileManager.default.fileExists(atPath: stale.path) else { return }
-        try? FileManager.default.removeItem(at: stale)
-        page += 1
+    let directory = out.deletingLastPathComponent()
+    let prefix = out.deletingPathExtension().lastPathComponent + "-"
+    let names = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
+    for name in names where name.hasPrefix(prefix) && name.hasSuffix(".png") {
+        guard let page = Int(name.dropFirst(prefix.count).dropLast(4)), page > lastPage else { continue }
+        try? FileManager.default.removeItem(at: directory.appendingPathComponent(name))
     }
 }
 
@@ -237,7 +225,7 @@ func run() throws {
     let cellAspect = images.map { CGFloat($0.width) / CGFloat($0.height) }.min()!
     let widestSource = images.map { CGFloat($0.width) }.max()!
 
-    let ranges = pages(of: cells.count)
+    let ranges = balancedPages(of: cells.count)
     for (index, range) in ranges.enumerated() {
         let page = url(forPage: index + 1, of: out)
         let sheet = grid(for: range.count, cellAspect: cellAspect, widestSource: widestSource)

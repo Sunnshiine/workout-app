@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Checks scripts/contact-sheet.swift against the PNGs it writes, never against its own printout.
-# Inputs are resized here from one tracked baseline, so the expected geometry does not move when a
-# Visual Baseline is re-recorded. Needs macOS (swift, sips, xxd, cmp). No simulator.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -106,6 +103,12 @@ expect "the legend keeps counting on page 2" "$(field "$page_two" 5 | cut -c1-5)
 
 "$tiler" "$many" "${twelve[@]}" >/dev/null
 expect "a rerun that needs fewer pages removes the stale one" "$(presence "$tmp/out/many-2.png")" "absent"
+
+cp "$tmp/in/01.png" "$tmp/out/many-4.png"
+cp "$tmp/in/01.png" "$tmp/out/many-more.png"
+"$tiler" "$many" "${twelve[@]}" >/dev/null
+expect "a stale page past a gap goes too" "$(presence "$tmp/out/many-4.png")" "absent"
+expect "a file that is not one of this sheet's pages stays" "$(presence "$tmp/out/many-more.png")" "present"
 
 image_top=$(( 8 + 28 ))
 inside_cell_one=$(( 8 + 4 ))

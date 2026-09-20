@@ -38,5 +38,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: scripts/contact-sheet.test.sh
-      # The whole file. VerifySheet skips off macOS, so the tree job never runs it.
-      - run: python3 .agents/skills/verify/tests/test_evidence.py
+      - name: test_evidence.py, with the VerifySheet tests that only run on macOS
+        run: python3 .agents/skills/verify/tests/test_evidence.py
