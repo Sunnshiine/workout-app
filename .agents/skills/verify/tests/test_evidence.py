@@ -177,6 +177,19 @@ class Find(unittest.TestCase):
         self.assertEqual(code, 1, "absent is exit 1")
         self.assertEqual(out, "")
 
+    def test_find_says_when_the_element_is_disabled(self):
+        tree = json.loads(MINI)
+        tree[0]["children"].append({
+            "role": "AXButton", "AXUniqueId": "settings-sign-out-button", "AXLabel": "Sign Out", "enabled": False,
+            "frame": {"x": 16, "y": 657, "width": 370, "height": 52},
+        })
+        tree[0]["children"][0]["enabled"] = True
+        code, out, err = tree_py("find", "settings-sign-out-button", stdin=json.dumps(tree))
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out, "AXButton\tsettings-sign-out-button\tSign Out\t\t@16,657 370x52\n", "the line keeps its five columns")
+        self.assertIn("disabled", err, "a tap on it does nothing")
+        self.assertEqual(tree_py("find", "weight-pill", stdin=json.dumps(tree))[2], "", "an enabled hit needs no warning")
+
     def test_center_and_frame_still_answer(self):
         self.assertEqual(tree_py("center", "reps-100", stdin=MINI)[1], "4674 641\n", "hold still reaches off-screen ids")
         self.assertEqual(tree_py("frame", stdin=MINI)[1], "402 874\n", "swipe reads the screen size")

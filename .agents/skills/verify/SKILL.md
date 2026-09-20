@@ -23,8 +23,10 @@ Fixtures: `session` (Block 27 W1 D1, Back Squat then BB RDL, 5 pending sets), `s
 `partial-block` (Block Overview, some sessions not uploaded), `completed-open-exercises`
 (completion stage), `developer-tools`. Extra `-UITEST_*` arguments pass through, for example
 `launch settings -UITEST_PENDING_WRITE`. Every launch adds `-UITEST_FIXTURE
--UITEST_DISABLE_ANIMATIONS`, so the app runs on an in-memory store with a faked sign-in and never
-touches Google. A relaunch is `stop` then `launch`, and it resets all state. The simulator is the
+-UITEST_DISABLE_ANIMATIONS -UITEST_DISABLE_LIVE_ACTIVITIES`, so the app runs on an in-memory store
+with a faked sign-in and never touches Google. Live Activities are off because a rest-timer
+activity outlives `stop` and sits over the top of every later shot on the shared simulator. A
+relaunch is `stop` then `launch`, and it resets all state. The simulator is the
 booted iPhone 17 Pro, else the newest one, which the script boots. Override with `SIM=<udid>`.
 
 For the CLI there is no server. Build once, then every drive gets its own home:
@@ -49,7 +51,7 @@ accessibility bridge is wedged; `xcrun simctl shutdown <udid>` then relaunch.
 ```bash
 .claude/skills/verify/verify.sh tree                       # what is on screen: role  id  label  value  @x,y wxh
 .claude/skills/verify/verify.sh tree --all                 # plus what is scrolled out of view
-.claude/skills/verify/verify.sh find log-active-set-button # one line, on screen or off; exit 1 if absent
+.claude/skills/verify/verify.sh find log-active-set-button # one line, on screen or off; exit 1 if absent; stderr says off-screen or disabled
 .claude/skills/verify/verify.sh tap --id rpe-6             # or --label "Sign Out", or -x 201 -y 740
 .claude/skills/verify/verify.sh hold log-active-set-button # long press, 1.2 s default
 .claude/skills/verify/verify.sh type 245                   # into the focused field
@@ -65,8 +67,8 @@ from `tree` and tap its center with `-x -y`.
 Target elements by accessibility identifier (`tap --id`) first, by label second, by coordinates
 only when the element has neither. `tap` polls up to 3 s for the element, and `tap --id` taps the
 frame's centre even when `find` says it is off-screen, reporting success while hitting nothing.
-After a tap, re-read the tree before asserting. `tree` has no enabled column. For a disabled state
-read each node's `enabled` field from `verify.sh axe describe-ui`.
+After a tap, re-read the tree before asserting. `tree` has no enabled column, so prove a disabled
+state with `find <id>`, which says `disabled` on stderr.
 `-UITEST_DISABLE_ANIMATIONS` stops UIKit animations only, so a SwiftUI transition still runs for
 about 850 ms after a log tap (issue 618). A state absent after one second is still absent. `burst`
 is how you see a transition.

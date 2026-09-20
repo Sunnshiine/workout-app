@@ -57,6 +57,7 @@ class TreeLine(NamedTuple):
     label: str
     value: str
     frame: Frame
+    enabled: bool
 
     @classmethod
     def from_node(cls, node: dict) -> Optional["TreeLine"]:
@@ -64,7 +65,8 @@ class TreeLine(NamedTuple):
         if not (ident or label):
             return None
         return cls(
-            clean(node.get("role")), clean(ident), clean(label), clean(node.get("AXValue")), Frame.of(node)
+            clean(node.get("role")), clean(ident), clean(label), clean(node.get("AXValue")), Frame.of(node),
+            node.get("enabled") is not False,
         )
 
     @property
@@ -168,6 +170,8 @@ def main() -> None:
             print(line.text)
         if any(not line.frame.intersects(screen) for line in hits):
             print("off-screen: swipe it into view before tapping", file=sys.stderr)
+        if not all(line.enabled for line in hits):
+            print("disabled: a tap on it does nothing", file=sys.stderr)
     elif mode == "center":
         for line in lines(root):
             if line.ident == sys.argv[2]:

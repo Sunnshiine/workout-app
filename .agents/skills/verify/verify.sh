@@ -11,7 +11,8 @@ Usage: .claude/skills/verify/verify.sh <command> [args]
   doctor                      read-only: is the running instance ours, current, and answering?
   tree [--all]                what is on screen, one element per line: role  id  label  value  @x,y wxh
                               --all adds the off-screen ones (scrolled-out rows, picker tails)
-  find <id>                   one element by accessibility identifier, on screen or off; exit 1 if absent
+  find <id>                   one element by accessibility identifier, on screen or off; exit 1 if absent;
+                              says on stderr when it is off-screen or disabled
   tap --id ID | --label TEXT | -x X -y Y
   hold <id> [seconds]         long press an element by identifier (default 1.2 s)
   type TEXT                   type into the focused field
@@ -190,7 +191,7 @@ case $cmd in
       exit 75
     fi
     read -r -a extra <<< "$fixture_flags"
-    args=(-UITEST_FIXTURE ${extra[@]+"${extra[@]}"} -UITEST_DISABLE_ANIMATIONS "$@")
+    args=(-UITEST_FIXTURE ${extra[@]+"${extra[@]}"} -UITEST_DISABLE_ANIMATIONS -UITEST_DISABLE_LIVE_ACTIVITIES "$@")
     xcrun simctl install "$sim" "$app"
     out=$(xcrun simctl launch --terminate-running-process "$sim" "$bundle" "${args[@]}")
     pid=${out##*: }

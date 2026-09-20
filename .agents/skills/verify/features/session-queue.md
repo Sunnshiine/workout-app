@@ -21,7 +21,7 @@ Preconditions:
 
 - `verify.sh launch long-session` landed on Back Squat and `verify.sh find stage-queue-button` reads `1 of 8`.
 
-- **Open.** Tap the queue button. Run `verify.sh tap --id stage-queue-button`. The tree has `This Session`, `stage-queue-row-exercise-0` labeled `Primer Row`, and `stage-queue-row-exercise-1` labeled `Back Squat, Now`. `verify.sh axe describe-ui` reports `enabled` false for the finished `Primer Row` and true for every other row.
+- **Open.** Tap the queue button. Run `verify.sh tap --id stage-queue-button`. The tree has `This Session`, `stage-queue-row-exercise-0` labeled `Primer Row`, and `stage-queue-row-exercise-1` labeled `Back Squat, Now`. `verify.sh find stage-queue-row-exercise-0` says `disabled` because `Primer Row` is finished, and `find stage-queue-row-exercise-1` does not.
 - **List.** Scroll for the tail. Run `verify.sh shot queue-top`, `verify.sh swipe up`, `verify.sh shot queue-tail`. The second shot prints `+ AXButton  stage-queue-row-exercise-7  Farmer Carry`.
 - **Jump.** Tap the last row. Run `verify.sh tap --id stage-queue-row-exercise-7`. The sheet closes, `find stage-exercise-name` reads `Farmer Carry`, and the cue `Tall posture.` is in the tree.
 - **Up next.** Launch `session`. `verify.sh find stage-queue-button` reads `0 of 2` and `find stage-up-next` reads `Up next ·, 2-3:1:0 BB RDL`. Run `verify.sh tap --id stage-up-next`. `find stage-exercise-name` reads `BB RDL` and the button reads `Up next ·, Back Squat`. Tap it again to return.
