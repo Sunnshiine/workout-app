@@ -94,10 +94,19 @@ else
     pr_limit=1000
     if pr_json=$(gh pr list --state all --limit "$pr_limit" \
             --json number,state,headRefName,headRefOid 2>"$work/gh.err"); then
+        # One row per branch. A branch name can carry several PRs here, seven
+        # do today, so the choice is made rather than left to gh's ordering: an
+        # OPEN PR wins because open always means keep, and otherwise the
+        # highest number wins as the most recent. Picking a stale MERGED row
+        # over a live OPEN one would remove a worktree someone is using, and
+        # the head-OID check cannot catch it while the upstream ref resolves.
         printf '%s' "$pr_json" \
-            | jq -r '.[] | [.headRefName, .number, .state, .headRefOid] | @tsv' >"$prmap"
+            | jq -r 'group_by(.headRefName)
+                     | map((map(select(.state == "OPEN")) | first)
+                           // (sort_by(.number) | last))
+                     | .[] | [.headRefName, .number, .state, .headRefOid] | @tsv' >"$prmap"
         pr_count=$(wc -l <"$prmap" | tr -d ' ')
-        pr_lookup_note="one batched gh pr list call, $pr_count pull requests"
+        pr_lookup_note="one batched gh pr list call, $pr_count branches with a PR"
         if [ "$pr_count" -ge "$pr_limit" ]; then
             echo "warn: gh returned $pr_count PRs at the limit of $pr_limit; older branches may be missing and will be kept" >&2
         fi

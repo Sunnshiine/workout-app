@@ -41,7 +41,7 @@ build_fixture() {
 
     # Every branch below starts from main and is pushed, except where a case
     # needs it otherwise.
-    for b in merged closed open dirty unpushed nopr squashed gone-ahead primary-merged; do
+    for b in merged closed open dirty unpushed nopr squashed gone-ahead primary-merged reused; do
         git_q checkout -b "$b" main
         commit_on "$b" work
         case "$b" in
@@ -54,7 +54,7 @@ build_fixture() {
     # Record the pushed tips before anything is deleted; the stub PR data uses
     # them as headRefOid, the way GitHub records the SHA it received.
     : >"$root/oids.tsv"
-    for b in merged closed open dirty unpushed squashed gone-ahead primary-merged; do
+    for b in merged closed open dirty unpushed squashed gone-ahead primary-merged reused; do
         printf '%s\t%s\n' "$b" "$(git -C "$repo" rev-parse "$b")" >>"$root/oids.tsv"
     done
 
@@ -80,7 +80,7 @@ build_fixture() {
     # primary-checkout guard can save it.
     git_q checkout primary-merged
 
-    for b in merged closed open dirty unpushed nopr squashed gone-ahead; do
+    for b in merged closed open dirty unpushed nopr squashed gone-ahead reused; do
         git -C "$repo" worktree add "$wt/$b" "$b" >/dev/null 2>&1
     done
     git -C "$repo" worktree add --detach "$wt/detached" main >/dev/null 2>&1
@@ -98,6 +98,7 @@ build_gh_stub() {
       --arg merged "$(oid merged)" --arg closed "$(oid closed)" --arg open "$(oid open)" \
       --arg dirty "$(oid dirty)" --arg unpushed "$(oid unpushed)" --arg squashed "$(oid squashed)" \
       --arg goneahead "$(oid gone-ahead)" --arg primarymerged "$(oid primary-merged)" \
+      --arg reused "$(oid reused)" \
       '[ {number:1,  state:"MERGED", headRefName:"merged",         headRefOid:$merged},
          {number:2,  state:"CLOSED", headRefName:"closed",         headRefOid:$closed},
          {number:3,  state:"OPEN",   headRefName:"open",           headRefOid:$open},
@@ -105,7 +106,9 @@ build_gh_stub() {
          {number:5,  state:"MERGED", headRefName:"unpushed",       headRefOid:$unpushed},
          {number:9,  state:"MERGED", headRefName:"squashed",       headRefOid:$squashed},
          {number:10, state:"MERGED", headRefName:"gone-ahead",     headRefOid:$goneahead},
-         {number:8,  state:"MERGED", headRefName:"primary-merged", headRefOid:$primarymerged} ]' \
+         {number:8,  state:"MERGED", headRefName:"primary-merged", headRefOid:$primarymerged},
+         {number:30, state:"MERGED", headRefName:"reused",         headRefOid:$reused},
+         {number:31, state:"OPEN",   headRefName:"reused",         headRefOid:$reused} ]' \
       >"$root/prs.json"
 
     cat >"$root/bin/gh" <<'STUB'
@@ -199,6 +202,7 @@ assert_kept      "case 8 primary checkout"    primary-merged "primary checkout"
 assert_candidate "case 9 upstream gone"       squashed
 assert_column    "case 9 upstream gone"       squashed   "gone=pr-head"
 assert_kept      "case 10 gone plus local"    gone-ahead "commits the PR never received"
+assert_kept      "case 16 branch with two PRs" reused     "PR #31 is open"
 
 before=$(git -C "$repo" worktree list | wc -l | tr -d ' ')
 say
@@ -218,6 +222,7 @@ assert_survives "case 5 unpushed commits" unpushed
 assert_survives "case 6 no PR"            nopr
 assert_survives "case 7 detached HEAD"    detached
 assert_survives "case 10 gone plus local" gone-ahead
+assert_survives "case 16 branch with two PRs" reused
 if [ -d "$repo/.git" ] && [ -n "$(git -C "$repo" rev-parse --show-toplevel 2>/dev/null)" ]; then
     ok "case 8 primary checkout: repository intact after --apply"
 else
