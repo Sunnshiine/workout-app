@@ -15,6 +15,7 @@ on:
       - ".claude/**"
       - ".sandcastle/**"
       - "scripts/prototype-capture/**"
+      - "scripts/contact-sheet.*"
       - ".github/actions/**"
       - ".github/workflows/agent-*.yml"
       - ".github/workflows/architecture-review.yml"

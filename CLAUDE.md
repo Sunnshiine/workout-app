@@ -56,6 +56,9 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
   the project `verify` skill: `.claude/skills/verify/SKILL.md` owns launch, doctor, drive,
   evidence, and cleanup, and `.claude/skills/verify/features/` maps every user-facing feature
   to a recipe. Read the feature file before driving.
+- To put several images in front of an agent in one read, tile them:
+  `scripts/contact-sheet.swift OUT.png IMAGE...` (12 per sheet, 2000 px long edge, cells numbered
+  and labelled by file name, no options). `verify.sh sheet` uses it for a run's shots.
 - Prefer XcodeBuildMCP for build/run/test on the simulator. If using XcodeBuildMCP,
   use the installed XcodeBuildMCP skill before calling XcodeBuildMCP tools. The pin in
   `.mcp.json` must stay at 2.7.0 or later: older builds fail on Xcode 27 with

@@ -31,3 +31,12 @@ jobs:
         with:
           python-version: "3.9"
       - run: python3 .agents/skills/verify/tests/test_evidence.py
+
+  sheet:
+    runs-on: xcode-27
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/contact-sheet.test.sh
+      # The whole file. VerifySheet skips off macOS, so the tree job never runs it.
+      - run: python3 .agents/skills/verify/tests/test_evidence.py
