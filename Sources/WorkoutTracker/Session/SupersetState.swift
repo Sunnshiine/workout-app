@@ -1,6 +1,12 @@
 import Foundation
 
+/// Which Exercise a Superset side names, as the Session Coordinate that survives a reparse plus the
+/// Exercise's name. `exerciseOrder` is carried for callers but left out of `==` and `hash`, because
+/// a coach who reorders the Sheet must not dissolve the pair. The Block tab is in, because a coach
+/// reuses the template between Blocks: without it Block 29 · W1 D2 and Block 30 · W1 D2 spell the
+/// same identity, and a pair made in one would reattach in the other.
 struct SupersetExerciseIdentity: Hashable, Sendable {
+    let blockTabName: String?
     let weekNumber: Int?
     let dayNumber: Int
     let exerciseOrder: Int
@@ -8,6 +14,7 @@ struct SupersetExerciseIdentity: Hashable, Sendable {
     let baseName: String
 
     init(exercise: Exercise) {
+        blockTabName = exercise.session?.week?.block?.tabName
         weekNumber = exercise.session?.week?.number
         dayNumber = exercise.session?.dayNumber ?? 0
         exerciseOrder = exercise.order
@@ -16,13 +23,15 @@ struct SupersetExerciseIdentity: Hashable, Sendable {
     }
 
     static func == (lhs: SupersetExerciseIdentity, rhs: SupersetExerciseIdentity) -> Bool {
-        lhs.weekNumber == rhs.weekNumber
+        lhs.blockTabName == rhs.blockTabName
+            && lhs.weekNumber == rhs.weekNumber
             && lhs.dayNumber == rhs.dayNumber
             && lhs.exerciseName == rhs.exerciseName
             && lhs.baseName == rhs.baseName
     }
 
     func hash(into hasher: inout Hasher) {
+        hasher.combine(blockTabName)
         hasher.combine(weekNumber)
         hasher.combine(dayNumber)
         hasher.combine(exerciseName)
