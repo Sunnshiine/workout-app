@@ -125,9 +125,10 @@ changed lines always carry it.
 rm -rf "$WORKOUT_HOME"
 ```
 
-`stop` kills only the pid recorded in `/tmp/workout-verify-<udid>/`, and only when that state dir
-names your own `VERIFY_RUN`. Pointed at a simulator another run owns it refuses (exit 75), names
-the owning run, and prints the `VERIFY_RUN=<owner>` override that ends it anyway. It never shuts
+`stop` kills only the pid recorded in `/tmp/workout-verify-<udid>/`. Set `VERIFY_RUN` and it also
+refuses (exit 75) when that state dir names a different run, printing the owning run and the
+`VERIFY_RUN=<owner>` override that ends it anyway. An unnamed `stop` is not gated, which is the
+reason to name every run on a machine someone else is driving. It never shuts
 down or erases the simulator, which other agents and `scripts/test-sim.sh` share. Evidence is
 never removed, and it keeps the run name, so `diff` still answers after the app is gone. A `burst`
 keeps its twelve full-size frames, about 47 MB under the git-ignored `.build/`. Delete a run's
@@ -139,9 +140,10 @@ One app instance per simulator, and one run owns it. `launch` refuses (exit 75) 
 tool launched is alive on the same simulator, yours included; run `stop` or pick another `SIM`.
 `stop` refuses the same way when the state dir names a run other than your `VERIFY_RUN`, so a
 command that lands on the wrong simulator cannot end another agent's drive (issue 660). It can
-only refuse what it can tell apart. An unset `VERIFY_RUN` is read straight back out of that same
-state dir, so it always matches, and an unset `SIM` resolves onto the one shared `iPhone 17 Pro`
-no matter who is driving it. Set both on every call whenever another agent might be on this
+only refuse what it can tell apart, and that cuts both ways. An unset `VERIFY_RUN` gives it
+nothing to compare against, so it steps aside, and an unset `SIM` resolves onto the one shared
+`iPhone 17 Pro` no matter who is driving it. Your drive is protected from a sibling only when the
+sibling names its own run. Set both on every call whenever another agent might be on this
 machine. Nothing locks the simulator against a test run (issue 626), so before every `launch` run
 `pgrep -fl "test-sim\.sh|xcodebuild (test|build-for-testing|test-without-building)|xctrunner"`.
 Read the UDID out of the match. `test-sim.sh` names it after `--sim`, and the `xcodebuild` it spawns

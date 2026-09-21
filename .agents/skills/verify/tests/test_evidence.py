@@ -318,8 +318,8 @@ class VerifyStop(unittest.TestCase):
         self.assertEqual(code, 0, err)
         self.assertFalse(
             (self.state / "pid").exists(),
-            "an unnamed stop reads the run back out of the state dir, so it can never be told apart "
-            "from the owner's own stop; the ordinary single drive keeps working",
+            "with no VERIFY_RUN the guard has nothing to compare against, so it steps aside and "
+            "the ordinary single drive keeps working",
         )
 
 
