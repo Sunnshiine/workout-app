@@ -333,6 +333,12 @@ class VerifyDiff(unittest.TestCase):
         self.assertEqual(code, 2, "sheet tiles the whole run; a stray name must not look accepted: %s" % err)
         self.assertEqual(out, "")
 
+    def test_tap_says_usage_for_a_flag_left_without_its_value(self):
+        for argv in [["tap", "--id"], ["tap", "--wait-timeout"], ["tap", "--label", "Save", "--wait-timeout"]]:
+            code, out, err = verify_sh(*argv, run=self.run, sim="no-such-device")
+            self.assertEqual(code, 2, "%s must print usage, not die on its own shift: %s" % (argv, err))
+            self.assertIn("Usage:", err)
+
     def test_tap_by_id_refuses_a_wait_timeout_it_cannot_count(self):
         code, out, err = verify_sh(
             "tap", "--id", "weight-pill", "--wait-timeout", "1.5", run=self.run, sim="no-such-device")

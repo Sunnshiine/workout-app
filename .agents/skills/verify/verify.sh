@@ -269,7 +269,7 @@ case $cmd in
     while [ $# -gt 0 ]; do
       case $1 in
         --id) id=${2:-}; [ -n "$id" ] || usage; shift 2 ;;
-        --wait-timeout) timeout=${2:-}; shift 2 ;;
+        --wait-timeout) timeout=${2:-}; [ -n "$timeout" ] || usage; shift 2 ;;
         *) rest+=("$1"); shift ;;
       esac
     done
