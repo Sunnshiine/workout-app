@@ -48,10 +48,12 @@ def tree_py(*args, stdin=""):
 
 def verify_sh(*args, run, sim=None):
     env = dict(os.environ)
-    for name, value in [("VERIFY_RUN", run), ("SIM", sim)]:
-        env.pop(name, None)
-        if value:
-            env[name] = value
+    env.pop("VERIFY_RUN", None)
+    env.pop("SIM", None)
+    if run:
+        env["VERIFY_RUN"] = run
+    if sim:
+        env["SIM"] = sim
     done = subprocess.run(
         [str(SKILL / "verify.sh")] + list(args), cwd=str(REPO), env=env,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
@@ -288,7 +290,6 @@ class VerifyStop(unittest.TestCase):
         self.state.mkdir(parents=True, exist_ok=True)
         (self.state / "run").write_text("%s\n" % self.owner)
         (self.state / "pid").write_text("99999999\n")
-        (self.state / "args").write_text("-UITEST_FIXTURE -UITEST_SESSION\n")
 
     def tearDown(self):
         shutil.rmtree(self.state, ignore_errors=True)
