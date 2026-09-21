@@ -137,6 +137,7 @@ One app instance per simulator. `launch` refuses (exit 75) while a pid this tool
 on the same simulator, yours included; run `stop` or pick another `SIM`. Nothing locks the
 simulator against a test run (issue 626), so before every `launch` run
 `pgrep -fl "test-sim\.sh|xcodebuild (test|build-for-testing|test-without-building)|xctrunner"`.
-None of those command lines carries a UDID, so a match cannot tell you which simulator it holds.
-Treat any match as a collision and wait it out or pick another `SIM`. Two CLI drives never collide
-if each has its own `WORKOUT_HOME`.
+Read the UDID out of the match. `test-sim.sh` names it after `--sim`, and the `xcodebuild` it spawns
+repeats it in `-destination platform=iOS Simulator,id=`. A match on your simulator means wait it out
+or pick another `SIM`. A match with no UDID in it is a collision you cannot rule out, so treat it as
+one. Two CLI drives never collide if each has its own `WORKOUT_HOME`.
