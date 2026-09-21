@@ -411,7 +411,7 @@ case $cmd in
         if xcrun simctl uninstall "$sim" "$bundle"; then
           echo "uninstalled the app, ending any Live Activity this run started"
         else
-          echo "could not uninstall on $sim; a Live Activity this run started may still be on it" >&2
+          echo "could not uninstall on $sim, so a Live Activity this run started may still be on it; end it with: xcrun simctl uninstall $sim $bundle" >&2
         fi
       fi
       rm -f "$state_dir/pid" "$state_dir/args"
