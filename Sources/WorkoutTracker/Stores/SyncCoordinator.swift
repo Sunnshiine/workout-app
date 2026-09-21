@@ -395,7 +395,11 @@ extension SyncCoordinator {
         } catch is SheetWriterError where batch.overlaps(target) {
             try await flush(batch, context: flushContext)
             batch.removeAll()
-            snapshot = try await gridSnapshot(for: request.blockTab, context: flushContext, snapshots: &snapshots)
+            snapshot = try await refetchedGridSnapshot(
+                for: request.blockTab,
+                context: flushContext,
+                snapshots: &snapshots
+            )
             do {
                 let update = try flushContext.planner.plan(request, target: target, in: snapshot)
                 return PlannedPendingWrite(
@@ -444,6 +448,7 @@ extension SyncCoordinator {
         try? context.save()
     }
 
+    /// The flush's working copy of a tab: one read, then the batch's own updates applied in memory.
     fileprivate func gridSnapshot(
         for tab: String,
         context flushContext: PendingWriteFlushContext,
@@ -452,7 +457,17 @@ extension SyncCoordinator {
         if let snapshot = snapshots[tab] {
             return snapshot
         }
+        return try await refetchedGridSnapshot(for: tab, context: flushContext, snapshots: &snapshots)
+    }
 
+    /// The tab as the Sheet holds it now, and the flush's working copy from here on. A write the
+    /// batch's own prediction refused is re-planned against this, so a conflict is the Sheet's
+    /// verdict rather than the flush's (ADR-0003).
+    fileprivate func refetchedGridSnapshot(
+        for tab: String,
+        context flushContext: PendingWriteFlushContext,
+        snapshots: inout [String: SheetWritePlanningSnapshot]
+    ) async throws -> SheetWritePlanningSnapshot {
         let sheetSnapshot = try await client.fetchTabSnapshot(spreadsheetId: flushContext.spreadsheetId, tabName: tab)
         let snapshot = flushContext.planner.snapshot(for: sheetSnapshot)
         snapshots[tab] = snapshot
