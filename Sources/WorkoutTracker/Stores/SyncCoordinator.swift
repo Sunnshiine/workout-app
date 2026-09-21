@@ -395,11 +395,7 @@ extension SyncCoordinator {
         } catch is SheetWriterError where batch.overlaps(target) {
             try await flush(batch, context: flushContext)
             batch.removeAll()
-            snapshot = try await refetchedGridSnapshot(
-                for: request.blockTab,
-                context: flushContext,
-                snapshots: &snapshots
-            )
+            snapshot = try await refetchedGridSnapshot(for: request.blockTab, context: flushContext, snapshots: &snapshots)
             do {
                 let update = try flushContext.planner.plan(request, target: target, in: snapshot)
                 return PlannedPendingWrite(

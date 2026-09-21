@@ -4,34 +4,6 @@ import Testing
 
 @testable import WorkoutTracker
 
-/// Serves a scripted snapshot per fetch, so a test can move the Sheet between the flush's first read
-/// of a tab and any later read of the same tab.
-private final class ScriptedSnapshotClient: SheetsClient, @unchecked Sendable {
-    private var scriptedGrids: [SheetGrid]
-    private(set) var fetchCount = 0
-    private(set) var updates: [(range: String, values: [[String]])] = []
-
-    init(grids: [SheetGrid]) {
-        self.scriptedGrids = grids
-    }
-
-    func listTabTitles(spreadsheetId: String) async throws -> [String] { ["Block 27"] }
-
-    func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
-        fetchCount += 1
-        let grid = scriptedGrids.count > 1 ? scriptedGrids.removeFirst() : (scriptedGrids.first ?? [])
-        return SheetSnapshot(values: grid)
-    }
-
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
-        updates.append((range, values))
-    }
-
-    func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
-        self.updates.append(contentsOf: updates.map { ($0.range, $0.values) })
-    }
-}
-
 /// A Sheet that keeps what the flush writes to it, so a test can read the literal cell value the
 /// coach would see. `remoteEdits` stands in for someone else typing into the Sheet while the flush
 /// is mid-air: the entry keyed by a fetch number lands just before that fetch answers.
@@ -46,7 +18,7 @@ private final class LiveSheetClient: SheetsClient, @unchecked Sendable {
     }
 
     func cell(_ a1: String) -> String {
-        guard let index = a1CellIndex(a1) else { return "" }
+        let index = a1CellIndex(a1)!
         return grid.cell(row: index.row, col: index.col)
     }
 
@@ -61,10 +33,7 @@ private final class LiveSheetClient: SheetsClient, @unchecked Sendable {
     }
 
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
-        guard let reference = splitA1Range(range)?.reference else {
-            preconditionFailure("the flush addressed a range this Sheet cannot place: \(range)")
-        }
-        write(values, to: reference)
+        write(values, to: splitA1Range(range)!.reference)
     }
 
     func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
@@ -74,9 +43,7 @@ private final class LiveSheetClient: SheetsClient, @unchecked Sendable {
     }
 
     private func write(_ values: [[String]], to a1: String) {
-        guard let index = a1CellIndex(a1) else {
-            preconditionFailure("not an A1 cell reference: \(a1)")
-        }
+        let index = a1CellIndex(a1)!
         grid.write(values, atRow: index.row, col: index.col)
     }
 }
@@ -193,26 +160,24 @@ private func squatOneSetGrid() -> SheetGrid {
     mismatched.exerciseName = "Bench Press"
     ctx.insert(mismatched)
     try ctx.save()
-    let client = ScriptedSnapshotClient(
-        grids: [
-            gridFromA1(
-                [
-                    "C12": "Day 1", "S12": "Day 2",
-                    "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
-                    "C15": "Squat", "D15": "1",
-                    "C17": "Bench Press", "D17": "1"
-                ],
-                rows: 24,
-                cols: 30
-            )
-        ]
+    let client = LiveSheetClient(
+        grid: gridFromA1(
+            [
+                "C12": "Day 1", "S12": "Day 2",
+                "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+                "C15": "Squat", "D15": "1",
+                "C17": "Bench Press", "D17": "1"
+            ],
+            rows: 24,
+            cols: 30
+        )
     )
     let sync = SyncCoordinator(client: client, context: ctx)
 
     await sync.flushPending(spreadsheetId: "sid")
 
+    #expect(client.cell("K15") == "185x5@8")
+    #expect(client.cell("K17") == "")
     #expect(client.fetchCount == 1)
-    #expect(client.updates.map(\.range) == ["'Block 27'!K15"])
-    #expect(client.updates.map(\.values) == [[["185x5@8"]]])
     #expect(sync.outcome == .writesRefused(["Bench Press: Expected '205x3@9', found ''"]))
 }
