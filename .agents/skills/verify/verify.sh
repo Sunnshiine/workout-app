@@ -176,6 +176,9 @@ case $cmd in
     xcodebuild build -project "$project" -scheme WorkoutTracker -destination "platform=iOS Simulator,id=$sim" \
       -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO > "$log" 2>&1 \
       || { grep -E "error:|BUILD FAILED" "$log" | head -20 >&2; echo "build log: $log" >&2; exit 65; }
+    # An incremental build that produces no new bytes leaves the bundle's mtime alone, and doctor
+    # reads that mtime to decide the app is stale. A green build is the claim that it is not.
+    touch "$(app_path)"
     echo "built $(app_path)"
     ;;
 
