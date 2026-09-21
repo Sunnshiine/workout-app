@@ -408,7 +408,10 @@ case $cmd in
       # app, and the next launch reinstalls anyway.
       case $(cat "$state_dir/args" 2>/dev/null) in
         *-UITEST_DISABLE_LIVE_ACTIVITIES*) ;;
-        *) xcrun simctl uninstall "$sim" "$bundle" && echo "uninstalled the app, ending any Live Activity this run started" ;;
+        *)
+          xcrun simctl uninstall "$sim" "$bundle"
+          echo "uninstalled the app, ending any Live Activity this run started"
+          ;;
       esac
       rm -f "$state_dir/pid" "$state_dir/args"
     else
