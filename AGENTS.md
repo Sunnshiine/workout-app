@@ -12,10 +12,9 @@ Each of these wins over anything written here. Read the one that governs the wor
   and issues.
 - `docs/adr/` records decisions. Read the ADRs for the area you change. If your change contradicts
   one, say so in the PR instead of overriding it.
-- `PRODUCT.md` and `DESIGN.md` govern product and UI work. Read them first for either.
-- `CODING_STANDARDS.md` is the review standard. Its rules are the ones that cost this repo a
-  shipped bug and take judgment a lint does not have. Read it before changing a store, a
-  coordinator, a View's logic, or a test, and apply it at review.
+- `PRODUCT.md` and `DESIGN.md` govern product and UI work.
+- `CODING_STANDARDS.md` is the review standard. Read it before changing a store, a coordinator, a
+  View's logic, or a test, and apply it at review.
 - `.swift-format` and `.swiftlint.yml` own formatting and every mechanical rule.
 - `docs/TESTING.md` owns the change-risk gate and flake hunting. `tools/crap/README.md` and
   ADR-0016 own the gate's counting rules.
@@ -25,8 +24,8 @@ Each of these wins over anything written here. Read the one that governs the wor
 
 ## Repository map
 
-The directory a file sits in decides which builds compile it (ADR-0017). These entries are stable.
-The folders inside them move, so read the tree instead of a copy of it.
+The directory a file sits in decides which builds compile it (ADR-0017). The folders inside these
+entries move, so read the tree instead of a copy of it.
 
 ```text
 App/                     The iOS app alone: entry point, Views, Live Activity controller, Google
@@ -49,9 +48,8 @@ of the bundle, add a membership exception in the project, as each `Info.plist` h
 
 ## Boundaries
 
-- Code that needs UIKit or another iOS-only API belongs in `App/`. Everything else, including
-  every guard, calculation, or branch that decides behaviour, belongs in `Sources/WorkoutTracker/`,
-  where `swift test` and the CLI can reach it.
+- UIKit and other iOS-only APIs belong in `App/`. Every guard, calculation, and branch that
+  decides behaviour belongs in `Sources/WorkoutTracker/`, where `swift test` and the CLI reach it.
 - `WorkoutApplication` is the composition root and the public facade. The app and the CLI both
   build on it (ADR-0015).
 - The Sheet is written only through `SyncCoordinator` and its pending-write queue (ADR-0006).
@@ -69,7 +67,7 @@ scripts/test-sim.sh --no-build WorkoutTrackerUITests/WorkoutTrackerUISmokeTests/
 xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0'
 scripts/flake-hunt.sh --repetitions 1000 SyncCoordinatorTests   # repeat a concurrent test under load
-scripts/mutate.sh --filter LoadSuggestionEngineTests Sources/WorkoutTracker/LoadSuggestionEngine.swift '/dropPercent/s/1 - /1 + /'   # which tests kill a mutant
+scripts/mutate.sh --filter <suite> <file> '<sed>'   # which tests kill a mutant; --help for the form
 ```
 
 The headless CLI drives the real stores against a local workbook and prints JSON, in milliseconds,
