@@ -5,6 +5,7 @@ Reads an `axe describe-ui` JSON tree on stdin:
   tree.py flat [--all]   one line per labeled or identified element: role, id, label, value, @x,y wxh
                          on-screen elements only; --all keeps the off-screen ones too
   tree.py find <id>      that element's line wherever it is, on screen or off; exit 1 if absent
+                         says on stderr when it is off-screen or disabled
   tree.py pid            the frontmost application's pid
   tree.py frame          the application's width and height
   tree.py center <id>    "x y" of the element with that accessibility identifier; exit 1 if absent

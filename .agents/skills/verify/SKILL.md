@@ -43,8 +43,10 @@ export WORKOUT_HOME=$(mktemp -d) && .build/debug/workout init --scenario fresh-b
 ```
 
 Read-only. Run it after every `launch`, and again whenever a tap does nothing or the tree looks
-wrong. Drive only when every line reads `ok`. An empty tree on a healthy pid means the simulator's
-accessibility bridge is wedged; `xcrun simctl shutdown <udid>` then relaunch.
+wrong. Every line reads `ok` or `FAIL`, and any `FAIL` exits non-zero, so `doctor && <drive>` is a
+safe chain. The commonest `FAIL` is sources newer than the app, which means build before trusting
+anything. An empty tree on a healthy pid means the simulator's accessibility bridge is wedged;
+`xcrun simctl shutdown <udid>` then relaunch.
 
 ## Drive
 
@@ -134,6 +136,7 @@ once its proof is filed.
 One app instance per simulator. `launch` refuses (exit 75) while a pid this tool launched is alive
 on the same simulator, yours included; run `stop` or pick another `SIM`. Nothing locks the
 simulator against a test run (issue 626), so before every `launch` run
-`pgrep -fl "test-sim\.sh|xcodebuild (test|build-for-testing|test-without-building)|xctrunner"`
-and launch only when it prints nothing that uses your simulator. Two CLI drives never collide if
-each has its own `WORKOUT_HOME`.
+`pgrep -fl "test-sim\.sh|xcodebuild (test|build-for-testing|test-without-building)|xctrunner"`.
+None of those command lines carries a UDID, so a match cannot tell you which simulator it holds.
+Treat any match as a collision and wait it out or pick another `SIM`. Two CLI drives never collide
+if each has its own `WORKOUT_HOME`.

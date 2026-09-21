@@ -223,8 +223,9 @@ case $cmd in
       for d in "${sources[@]}"; do
         [ -d "$repo/$d" ] || { echo "FAIL source folder $d is gone, so a stale build can hide; fix the list in $0"; rc=1; }
       done
-      stale=$(cd "$repo" && find "${sources[@]}" -name '*.swift' -newer "$app" 2>/dev/null | head -3 || true)
-      [ -z "$stale" ] || { echo "WARN sources newer than the app (run: $0 build):"; echo "$stale" | sed 's/^/     /'; }
+      # Not just *.swift: Xcode copies every other file in a buildable folder into the bundle too (ADR-0017).
+      stale=$(cd "$repo" && find "${sources[@]}" -type f -not -name '.*' -newer "$app" 2>/dev/null | head -3 || true)
+      [ -z "$stale" ] || { echo "FAIL sources newer than the app (run: $0 build):"; echo "$stale" | sed 's/^/     /'; rc=1; }
     else
       echo "FAIL no built app (run: $0 build)"; rc=1
     fi

@@ -31,7 +31,7 @@ Preconditions:
 
 ## Gotchas
 
-- The celebration's value opens with a coach line picked at random. Assert its label and the `Sets, Exercises, Left` tail.
+- The celebration's value reads `Day N, done.`, then a coach line picked at random, then the stats. Assert its label and the `Sets, Exercises, Left` tail.
 - With the queue sheet up, the open exercise's label matches twice. Close the sheet before `tap --label`.
 - Prove Move On through a Move On button. Developer Tools' `developer-tools-force-celebration-button` shows the celebration without advancing anything.
 - Reaching completion by logging through the `session` fixture takes 5 logs across two exercises. Prefer the fixture for the completion stage and use logging only to prove the transition itself.
