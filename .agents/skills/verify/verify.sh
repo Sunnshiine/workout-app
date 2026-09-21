@@ -405,14 +405,15 @@ case $cmd in
       fi
       # A Live Activity belongs to the app, not to its process, so terminating leaves it on the
       # springboard over every later shot. Uninstalling is the only lever on one from outside the
-      # app, and the next launch reinstalls anyway.
-      case $(cat "$state_dir/args" 2>/dev/null) in
-        *-UITEST_DISABLE_LIVE_ACTIVITIES*) ;;
-        *)
-          xcrun simctl uninstall "$sim" "$bundle"
+      # app, and the next launch reinstalls anyway. A state dir with no args file cannot say which
+      # run this was, and uninstalling is the destructive guess, so it keeps the old behaviour.
+      if [ -f "$state_dir/args" ] && ! grep -q -- -UITEST_DISABLE_LIVE_ACTIVITIES "$state_dir/args"; then
+        if xcrun simctl uninstall "$sim" "$bundle"; then
           echo "uninstalled the app, ending any Live Activity this run started"
-          ;;
-      esac
+        else
+          echo "could not uninstall on $sim; a Live Activity this run started may still be on it" >&2
+        fi
+      fi
       rm -f "$state_dir/pid" "$state_dir/args"
     else
       echo "nothing launched by this tool on $sim"
