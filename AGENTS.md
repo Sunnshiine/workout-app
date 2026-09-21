@@ -24,8 +24,8 @@ Each of these wins over anything written here. Read the one that governs the wor
 
 ## Repository map
 
-The directory a file sits in decides which builds compile it (ADR-0017). The folders inside these
-entries move, so read the tree instead of a copy of it.
+The directory a file sits in decides which builds compile it (ADR-0017). These entries are stable;
+the folders inside them move, so read the tree instead of a copy of it.
 
 ```text
 App/                     The iOS app alone: entry point, Views, Live Activity controller, Google

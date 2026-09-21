@@ -1,9 +1,12 @@
 # Coding standards
 
-Each bullet names a defect this repo shipped. Apply every one to every hunk, cite the bullet, and
-quote the hunk. Flag only what a lint cannot judge; `.swift-format` and the two `.swiftlint.yml`
-files own formatting and the mechanical rules. Read a trailing issue or symbol when a bullet does
-not settle a hunk.
+Each bullet names a defect this repo shipped that takes context a regex does not have. `CONTEXT.md`,
+`docs/adr/`, `PRODUCT.md`, and `DESIGN.md` win over anything here.
+
+Apply every rule to every hunk, cite the bullet, and quote the hunk. Flag only what a lint does not
+already judge, and never a preference. A force unwrap, force try, force cast, or a font built
+outside the Theme seam is a lint error, not a finding; `Tests/.swiftlint.yml` lists what a test body
+may do. Read a trailing issue or symbol when a bullet does not settle a hunk.
 
 ## Architecture
 
@@ -13,13 +16,16 @@ not settle a hunk.
 - **Logic in a View that needs a test,** such as a computed property ORing store state, a `switch`
   on domain state in `body`, or a decision the `workout` CLI cannot see. `swift test` never reaches
   `App/Views/` (ADR-0017), so it lives in the library. (#582, `DestructiveTransition`.)
-- **A type that only forwards.** If deleting it loses nothing, the concept it fronts is what needs
-  a module. (#514, #570, #572, `SyncOutcome`. The `codebase-design` skill carries the long form.)
+- **A type that only forwards,** a method added where a caller could have asked a deeper question,
+  or a question already answered privately in a second place. If deleting the type loses nothing,
+  the concept it fronts is what needs a module. (#514, #570, #572, `SyncOutcome`. The
+  `codebase-design` skill carries the long form.)
 
 ## State
 
 - **A derived fact with more than one owner.** A latch every mutating method must set, a mirror
-  re-derived with drifting conditions, or a predicate spelled twice. (#586, #570, #572.)
+  re-derived with drifting conditions, or a predicate spelled twice. (#586, #570 fixed in #574,
+  #572 fixed in #591, `LiveEdge.isAtLiveEdge`.)
 - **A control signal that does not read what it claims to measure,** such as `state == .someCase`
   as a guard, or a Bool true only because the last writer set it. (`isSyncing` read the banner's
   display enum. #585, now `SyncCoordinator.isSyncing`.)
@@ -40,7 +46,8 @@ not settle a hunk.
 - **A defaulted parameter or optional callback that lets a caller omit a decision,** such as
   `= nil`, `= false`, `= { _ in true }`, or `?? Date()` where omission changes behaviour. A right
   default is the safe answer, not the convenient one. `optional?.flag == false` reads nil as
-  `false`, so write the nil case out. (#572, #582, `SheetsClient.fetchTabSnapshot`.)
+  `false`, so write the nil case out. (#572, #582,
+  `SheetsClient.fetchTabSnapshot(spreadsheetId:tabName:retrying:)`.)
 
 ## Vocabulary
 
@@ -56,7 +63,7 @@ not settle a hunk.
   under `Sources/WorkoutTracker/Fixtures/` stand in for Sheet data.
 - **A fixture value that is not a literal or an offset from the fixture's reference date,** or a
   parsed date pinned to an instant rather than the coach's cell text. `SheetParser.parseDate`
-  resolves in the machine's time zone. (#597.)
+  resolves in the machine's time zone. (#597, open.)
 - **A wait that ends on a count or a clock.** Counted `Task.yield()`, a wall-clock budget, and an
   unbounded poll are the three flake shapes. The fake resumes the test, or a bounded poll records a
   failure when it runs out, as `waitUntilHeld()` does. (#548, `docs/TESTING.md`.)
@@ -64,3 +71,7 @@ not settle a hunk.
   empty. It goes on the declaration. (#608. The lint catches the body's first line. Judge the rest.)
 - **A test that mirrors a one-line mapping.** It breaks on any refactor and the gate does not need
   it. A complexity-1 function scores 2 uncovered, under the target.
+
+The four shapes a regex can catch (a dropped task that writes a store field,
+`optional?.flag == false`, a wall-clock read in a fixture, an unbounded poll) are queued as
+SwiftLint rules in #637. Until they land, the review judges them.
