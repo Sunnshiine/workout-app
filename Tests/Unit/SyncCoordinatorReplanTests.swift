@@ -4,17 +4,14 @@ import Testing
 
 @testable import WorkoutTracker
 
-/// A Sheet that keeps what the flush writes to it, so a test can read the literal cell value the
-/// coach would see. `remoteEdits` stands in for someone else typing into the Sheet while the flush
-/// is mid-air: the entry keyed by a fetch number lands just before that fetch answers.
 private final class LiveSheetClient: SheetsClient, @unchecked Sendable {
     private var grid: SheetGrid
-    private let remoteEdits: [Int: [String: String]]
+    private let editsLandingBeforeFetch: [Int: [String: String]]
     private(set) var fetchCount = 0
 
-    init(grid: SheetGrid, remoteEdits: [Int: [String: String]] = [:]) {
+    init(grid: SheetGrid, editsLandingBeforeFetch: [Int: [String: String]] = [:]) {
         self.grid = grid
-        self.remoteEdits = remoteEdits
+        self.editsLandingBeforeFetch = editsLandingBeforeFetch
     }
 
     func cell(_ a1: String) -> String {
@@ -26,7 +23,7 @@ private final class LiveSheetClient: SheetsClient, @unchecked Sendable {
 
     func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
         fetchCount += 1
-        for (a1, value) in remoteEdits[fetchCount] ?? [:] {
+        for (a1, value) in editsLandingBeforeFetch[fetchCount] ?? [:] {
             write([[value]], to: a1)
         }
         return SheetSnapshot(values: grid)
@@ -89,21 +86,17 @@ private func squatOneSetGrid() -> SheetGrid {
     )
 }
 
-/// Two queued Notes writes for the same Set resolve to the same cell, so planning the second one
-/// against the batch's in-memory snapshot fails its expected-current-value check. The flush writes
-/// the batch out early and re-plans the second write.
-///
-/// The coach edits K15 to `205x3@9` while the flush is mid-air, which is exactly what the second
-/// write expects, so the re-plan has to read the Sheet again rather than the value the batch
-/// predicted. The athlete's `205x3@10` lands.
+/// Both Notes writes resolve to K15, so the second one is planned against a batch that already
+/// holds that cell, and the coach's edit is what the second write expects.
 @MainActor
 @Test func replanningAnAlreadyBatchedTargetReadsTheSheetAgainAndLandsTheWrite() async throws {
     let container = try makeReplanContainer()
     let ctx = container.mainContext
+    let coachEdit = "205x3@9"
     ctx.insert(replanPendingWrite(createdAt: 1, valueToWrite: "185x5@8", expectedCurrentValue: ""))
-    ctx.insert(replanPendingWrite(createdAt: 2, valueToWrite: "205x3@10", expectedCurrentValue: "205x3@9"))
+    ctx.insert(replanPendingWrite(createdAt: 2, valueToWrite: "205x3@10", expectedCurrentValue: coachEdit))
     try ctx.save()
-    let client = LiveSheetClient(grid: squatOneSetGrid(), remoteEdits: [2: ["K15": "205x3@9"]])
+    let client = LiveSheetClient(grid: squatOneSetGrid(), editsLandingBeforeFetch: [2: ["K15": coachEdit]])
     let sync = SyncCoordinator(client: client, context: ctx)
 
     await sync.flushPending(spreadsheetId: "sid")
@@ -118,8 +111,6 @@ private func squatOneSetGrid() -> SheetGrid {
     #expect(entries.allSatisfy { $0.selectedA1Target == "'Block 27'!K15" })
 }
 
-/// The same re-plan when the coach's mid-air edit is not what the write expects. The re-read decides
-/// the conflict against what the Sheet really holds, and the coach's value stays in the cell.
 @MainActor
 @Test func replanningAnAlreadyBatchedTargetConflictsAgainstTheValueTheSheetReallyHolds() async throws {
     let container = try makeReplanContainer()
@@ -127,7 +118,7 @@ private func squatOneSetGrid() -> SheetGrid {
     ctx.insert(replanPendingWrite(createdAt: 1, valueToWrite: "185x5@8", expectedCurrentValue: ""))
     ctx.insert(replanPendingWrite(createdAt: 2, valueToWrite: "205x3@10", expectedCurrentValue: "205x3@9"))
     try ctx.save()
-    let client = LiveSheetClient(grid: squatOneSetGrid(), remoteEdits: [2: ["K15": "300x1@10"]])
+    let client = LiveSheetClient(grid: squatOneSetGrid(), editsLandingBeforeFetch: [2: ["K15": "300x1@10"]])
     let sync = SyncCoordinator(client: client, context: ctx)
 
     await sync.flushPending(spreadsheetId: "sid")
@@ -149,8 +140,7 @@ private func squatOneSetGrid() -> SheetGrid {
     #expect(conflictEntry.valueCheckOutcome == "Expected '205x3@9', found '300x1@10'.")
 }
 
-/// The same two writes with no overlap to flush early: the second write's target is a different
-/// cell, so planning it fails straight to a conflict without touching the batch.
+/// The second write lands on a different Exercise, so nothing overlaps and no re-plan happens.
 @MainActor
 @Test func planningFailureOnAFreshTargetConflictsWithoutWritingTheBatchEarly() async throws {
     let container = try makeReplanContainer()

@@ -444,7 +444,8 @@ extension SyncCoordinator {
         try? context.save()
     }
 
-    /// The flush's working copy of a tab: one read, then the batch's own updates applied in memory.
+    /// The flush's working copy of a tab, which `append` advances with every batched update. A hit
+    /// here is therefore what the batch predicts the Sheet will hold, not what it holds (ADR-0003).
     fileprivate func gridSnapshot(
         for tab: String,
         context flushContext: PendingWriteFlushContext,
@@ -456,9 +457,7 @@ extension SyncCoordinator {
         return try await refetchedGridSnapshot(for: tab, context: flushContext, snapshots: &snapshots)
     }
 
-    /// The tab as the Sheet holds it now, and the flush's working copy from here on. A write the
-    /// batch's own prediction refused is re-planned against this, so a conflict is the Sheet's
-    /// verdict rather than the flush's (ADR-0003).
+    /// Reads the tab from the Sheet and makes that read the flush's working copy from here on.
     fileprivate func refetchedGridSnapshot(
         for tab: String,
         context flushContext: PendingWriteFlushContext,
