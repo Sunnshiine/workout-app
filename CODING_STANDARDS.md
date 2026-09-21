@@ -5,6 +5,8 @@ quote the hunk. Flag only what a lint cannot judge; `.swift-format` and the two 
 files own formatting and the mechanical rules. Read a trailing issue or symbol when a bullet does
 not settle a hunk.
 
+## Architecture
+
 - **A write that reaches the Sheet or the cache outside `SyncCoordinator` and its pending-write
   queue,** or a transition that could abandon queued Set Logs without asking
   `canBeginDestructiveTransition`. (ADR-0001, ADR-0006, #585, fixed in #595.)
@@ -13,8 +15,9 @@ not settle a hunk.
   `App/Views/` (ADR-0017), so it lives in the library. (#582, `DestructiveTransition`.)
 - **A type that only forwards.** If deleting it loses nothing, the concept it fronts is what needs
   a module. (#514, #570, #572, `SyncOutcome`. The `codebase-design` skill carries the long form.)
-- **A name `CONTEXT.md` does not use,** or one concept under several names. Its avoid-lists bind
-  too, and a synonym is a finding even when the code works. (#572, fixed in #591.)
+
+## State
+
 - **A derived fact with more than one owner.** A latch every mutating method must set, a mirror
   re-derived with drifting conditions, or a predicate spelled twice. (#586, #570, #572.)
 - **A control signal that does not read what it claims to measure,** such as `state == .someCase`
@@ -23,15 +26,29 @@ not settle a hunk.
 - **An outcome that is not an enum with one case per outcome,** such as a `[String]` payload with
   two producers, `messages.first ?? "…"`, English composed in a store, or a method that sets
   `state` as it exits. (#589, #514, #598, `SyncOutcome.sync(sheetRead:flush:)`.)
+
+## Concurrency
+
 - **A dropped or detached `Task` that assigns a store field after its owning method returned.**
   Hold and await work the sequence needs. (#514, #585, fixed in #595.)
 - **A `@Model` object held across a reload.** Hold an address (week and day, or a
   `persistentModelID`) and re-resolve. `===` is sound only within one read pass. (#586,
   `WorkoutStore.browsedTo`.)
-- **Optionals.** A defaulted parameter or optional callback that lets a caller omit a decision,
-  such as `= nil`, `= false`, `= { _ in true }`, or `?? Date()` where omission changes behaviour. A
-  right default is the safe answer, not the convenient one. `optional?.flag == false` reads nil as
+
+## Optionals
+
+- **A defaulted parameter or optional callback that lets a caller omit a decision,** such as
+  `= nil`, `= false`, `= { _ in true }`, or `?? Date()` where omission changes behaviour. A right
+  default is the safe answer, not the convenient one. `optional?.flag == false` reads nil as
   `false`, so write the nil case out. (#572, #582, `SheetsClient.fetchTabSnapshot`.)
+
+## Vocabulary
+
+- **A name `CONTEXT.md` does not use,** or one concept under several names. Its avoid-lists bind
+  too, and a synonym is a finding even when the code works. (#572, fixed in #591.)
+
+## Tests
+
 - **A CRAP score lowered by weakening a pin, calling internals, or splitting a function into pieces
   no reader would look for.** Lower it by design or a stronger test (`scripts/crap.sh gate`,
   ADR-0016). A pin that has to move is a behaviour change, argued in the PR. (#598.)
