@@ -297,6 +297,7 @@ private struct ValueRail: View {
             .frame(height: Theme.railTrackHeight)
             .background(palette.railFill, in: .rect(cornerRadius: Theme.Radius.rail))
             .clipShape(.rect(cornerRadius: Theme.Radius.rail))
+            .contentShape(.rect(cornerRadius: Theme.Radius.rail))
             .overlay {
                 RoundedRectangle(cornerRadius: Theme.Radius.rail)
                     .strokeBorder(isInvalid ? palette.danger : .clear, lineWidth: 2)
