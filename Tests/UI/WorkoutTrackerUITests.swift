@@ -176,7 +176,8 @@ final class WorkoutTrackerOnboardingSwitchUITests: XCTestCase {
         XCTAssertTrue(field.appears(within: 3))
         XCTAssertEqual(field.label, "Google Sheet URL")
 
-        field.tap()
+        tapWhenHittable(field)
+        XCTAssertTrue(app.keyboards.firstMatch.appears(within: 3))
         field.typeText("https://docs.google.com/spreadsheets/d/REPLACEMENT/edit")
         XCTAssertEqual(field.label, "Google Sheet URL")
 
