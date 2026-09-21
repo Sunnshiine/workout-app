@@ -1,315 +1,126 @@
-# Workout App — Agent Guide
+# AGENTS.md
 
-A mobile client for powerlifting athletes that surfaces and logs workouts from a
-coach-managed Google Sheet. The Sheet is the single source of truth; the app is a
-read-write client with a local cache (ADR-0001).
+WorkoutTracker is an iOS client for powerlifting athletes. It surfaces and logs the workouts a
+coach manages in a Google Sheet. The Sheet is the single source of truth and the app is a
+read-write client with a local cache (ADR-0001). `CLAUDE.md` is a symlink to this file.
 
-## Build, Test & Run
+## Sources of truth
 
-Scheme is `WorkoutTracker` for all runs; default simulator is `iPhone 17 Pro` on iOS 27.0. Pin
-`OS=27.0` in any `-destination`: a machine with more than one runtime holds several devices of
-that name, and xcodebuild may pick the wrong one.
+Each of these wins over anything written here. Read the one that governs the work before starting.
 
-```bash
-# Fast unit + component tests (no Secrets.xcconfig needed)
-swift test
+- `CONTEXT.md` names every domain term and the synonyms to avoid. Use its words in code, tests,
+  and issues.
+- `docs/adr/` records decisions. Read the ADRs for the area you change. If your change contradicts
+  one, say so in the PR instead of overriding it.
+- `PRODUCT.md` and `DESIGN.md` govern product and UI work.
+- `CODING_STANDARDS.md` is the review standard. Read it before changing a store, a coordinator, a
+  View's logic, or a test, and apply it at review.
+- `.swift-format` and `.swiftlint.yml` own formatting and every mechanical rule.
+- `docs/TESTING.md` owns the change-risk gate and flake hunting. `tools/crap/README.md` and
+  ADR-0016 own the gate's counting rules.
+- `Sources/WorkoutCLI/README.md` owns the `workout` CLI. ADR-0015 records the boundary it runs on.
+- `.agents/skills/verify/SKILL.md` drives the app on the simulator and captures proof. Read the
+  matching file under `.agents/skills/verify/features/` before driving.
 
-# Simulator suites: one build, then every requested suite from the xctestrun file
-scripts/test-sim.sh unit            # hosted unit + component; not a superset of swift test
-scripts/test-sim.sh visual          # snapshot gate (ADR-0007)
-scripts/test-sim.sh ui              # UI integration tests
+## Repository map
 
-# Build & run on the simulator
-xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0'
-```
-
-- Run simulator tests through `scripts/test-sim.sh`. A bare `xcodebuild test` fails on a fresh
-  machine ("Validate plug-in SwiftLintBuildToolPlugin"); `CLAUDE.md` has the full reason.
-- The `WorkoutTracker` scheme launches with `-UITEST_FIXTURE true` and
-  `-UITEST_SESSION true` — it runs against deterministic local fixtures, **not**
-  the live Google Sheet. To run against live data, use the `Copy of WorkoutTracker` scheme (`-UITEST_FIXTURE false`).
-- Concurrent UI-test sessions must not share the same simulator. Use distinct
-  simulator UDIDs with `-destination 'platform=iOS Simulator,id=<UDID>'` and
-  isolated `-derivedDataPath` / `-clonedSourcePackagesDirPath` values.
-- Prefer XcodeBuildMCP for build/run/test on the simulator. If using XcodeBuildMCP,
-  use the installed XcodeBuildMCP skill before calling XcodeBuildMCP tools.
-- If XcodeBuildMCP accessibility snapshots return an empty AXApplication, reboot
-  the simulator before diagnosing app code.
-- For target-specific UI gates, prefer raw `xcodebuild ... -only-testing:WorkoutTrackerUITests`
-  or verify the output actually ran `WorkoutTrackerUITests`.
-
-## Linting & Formatting
-
-- **SwiftLint** runs automatically via the `SwiftLintPlugins` build tool plugin (wired through the Xcode project, not `Package.swift`). Config: `.swiftlint.yml`.
-- **swift-format** is installed via Homebrew. Config: `.swift-format`. Run manually: `swift-format -i -r App/ Sources/ Tests/`
-- Do not run `swiftlint --fix` in build phases — run it manually when needed.
-
-## Git Worktrees
-
-`Secrets.xcconfig` is git-ignored but required for Xcode app-target builds. New
-git worktrees should receive it automatically from the tracked post-checkout
-hook once the bootstrap is installed:
-
-```bash
-scripts/install-worktree-bootstrap.sh --source /path/to/private/Secrets.xcconfig
-```
-
-The installer sets `core.hooksPath=.githooks`, records the trusted source when
-`--source` is provided, and backfills existing worktrees. The bootstrap source
-order is: `SECRETS_XCCONFIG_SOURCE`, `git config workout.secretsXcconfigSource`,
-the `main` worktree's `Secrets.xcconfig`, then `Secrets.xcconfig.template` as a
-build-only fallback. `swift test` does not require it; only Xcode app-target
-builds do.
-
-XcodeBuildMCP session defaults point at the main project path and do not apply inside a worktree. Pass `-project <worktree-path>/WorkoutTracker.xcodeproj` explicitly when calling xcodebuild from a worktree.
-
-Merged worktrees pile up and cost gigabytes of `.build`. `scripts/prune-merged-worktrees.sh` resolves every worktree's branch through its PR state and lists the ones whose PR has merged or closed; it dry-runs by default and removes only under `--apply`, never touching the primary checkout or a worktree holding uncommitted or unpushed work.
-
-## Architecture
-
-A navigation map; see `CONTEXT.md` for the domain glossary and `docs/adr/` for decisions.
-
-The directory a file sits in decides which builds compile it (ADR-0017).
+The directory a file sits in decides which builds compile it (ADR-0017). These entries are stable;
+the folders inside them move, so read the tree instead of a copy of it.
 
 ```text
-App/                            iOS app only; not in the SwiftPM package
-├── WorkoutTrackerApp.swift     App entry point (@main)
-├── GoogleAuth.swift            Google Sheets sign-in (needs a UIKit presentation anchor)
-├── Views/                      SwiftUI views
-└── LiveActivity/               Live Activity controller and its production adapter
-
-Sources/WorkoutTracker/         SwiftPM library, also compiled into the app target
-├── Models/                     Domain types and the persisted schema (Block, Week, Session, Exercise, Set …)
-├── Parsing/                    Sheet → domain interpretation (layout interpreter)
-├── Sheets/                     Google Sheets client
-├── Stores/                     Local cache, sync coordination & persisted state
-├── Session/                    The live session (coordinator, active-set focus, Supersets, Stage, Set Card)
-├── Rest/                       Rest timer, notification, haptics, pill, and the rest Live Activity content
-├── Progress/                   Where the athlete is in the Block (Current Session, grid, Move On, Open Exercises)
-├── ExerciseHistory/            Last Performed lookup and extraction, Movement matching, the history sheet
-├── Onboarding/                 App entry destination, connect screen, Sheet picker
-├── HapticPlayer.swift          Haptic playback (rest cues and the Move On celebration)
-├── LoadSuggestionEngine.swift  Load Suggestion calculations
-├── Theme.swift                 Liquid Glass design system (ADR-0004)
-└── Fixtures/                   UI-test fixture data (-UITEST_FIXTURE)
-
-Sources/WorkoutCLI/             The `workout` executable (ADR-0015)
-Tests/  →  Unit/ · Component/ · UI/ · Support/
+App/                     The iOS app alone: entry point, Views, Live Activity controller, Google
+                         sign-in, assets. Outside the package, so swift test never sees it.
+Sources/WorkoutTracker/  The library, compiled into the app, the CLI, and swift test: the domain
+                         model, Sheet parsing, sync and stores, session and progress logic, the
+                         fixtures, and WorkoutApplication.
+Sources/WorkoutCLI/      The workout executable. In neither the app nor the widget.
+WorkoutShared/           Live Activity attributes, compiled into the app and the widget.
+WorkoutWidgets/          The widget extension.
+Tests/                   Unit/ and Component/ run under swift test. UI/ and Visual/ run on the
+                         simulator only. Support/ holds the fakes and fixtures both runs share.
+tools/crap/              The CRAP scorer, its own package, run through scripts/crap.sh.
 ```
 
-`App/`, `Sources/WorkoutTracker/`, `WorkoutShared/`, and `WorkoutWidgets/` are Xcode buildable
-folders, like the folders under `Tests/`. A Swift file added under one compiles into its target with
-no project edit. `WorkoutShared/` builds into both the app and the widget. Xcode also copies any
-other file in these folders into the bundle, including a Markdown note. To keep a file out of the
-bundle, add a membership exception in the project, as each `Info.plist` has.
+`App/`, `Sources/WorkoutTracker/`, `WorkoutShared/`, `WorkoutWidgets/`, and the folders under
+`Tests/` are Xcode buildable folders. A Swift file added there compiles into its target with no
+project edit, and Xcode copies every other file in the folder into the bundle. To keep a file out
+of the bundle, add a membership exception in the project, as each `Info.plist` has.
 
-The app target compiles `App/` and `Sources/WorkoutTracker/`; `swift test` compiles
-`Sources/WorkoutTracker/` alone. So a file needs iOS-only API, or it needs headless test coverage,
-and where you put it is that choice.
+## Boundaries
 
-## Agent skills
+- UIKit and other iOS-only APIs belong in `App/`. Every guard, calculation, and branch that
+  decides behaviour belongs in `Sources/WorkoutTracker/`, where `swift test` and the CLI reach it.
+- `WorkoutApplication` is the composition root and the public facade. The app and the CLI both
+  build on it (ADR-0015).
+- The Sheet is written only through `SyncCoordinator` and its pending-write queue (ADR-0006).
 
-### Issue tracker
-
-Issues and PRDs are tracked in GitHub Issues for `Sunnshiine/workout-app`. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-Use the default five-label triage vocabulary. See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-This is a single-context repo: read root `CONTEXT.md` for domain language and root `docs/adr/` for decisions. For product or UI work, also read `PRODUCT.md` and `DESIGN.md`. See `docs/agents/domain.md`.
-
-## Swift Coding Style
-
-This section applies when working on `**/*.swift` and `**/Package.swift`.
-
-### Formatting
-
-- **SwiftFormat** for auto-formatting, **SwiftLint** for style enforcement
-- `swift-format` is bundled with Xcode 16+ as an alternative
-
-### Immutability
-
-- Prefer `let` over `var` — define everything as `let` and only change to `var` if the compiler requires it
-- Use `struct` with value semantics by default; use `class` only when identity or reference semantics are needed
-
-### Naming
-
-Follow [Apple API Design Guidelines](https://www.swift.org/documentation/api-design-guidelines/):
-
-- Clarity at the point of use — omit needless words
-- Name methods and properties for their roles, not their types
-- Use `static let` for constants over global constants
-
-### Error Handling
-
-Use typed throws (Swift 6+) and pattern matching:
-
-```swift
-func load(id: String) throws(LoadError) -> Item {
-    guard let data = try? read(from: path) else {
-        throw .fileNotFound(id)
-    }
-    return try decode(data)
-}
-```
-
-### Concurrency
-
-Enable Swift 6 strict concurrency checking. Prefer:
-
-- `Sendable` value types for data crossing isolation boundaries
-- Actors for shared mutable state
-- Structured concurrency (`async let`, `TaskGroup`) over unstructured `Task {}`
-
-## Swift Testing
-
-This section applies when working on `**/*.swift` and `**/Package.swift`.
-
-### Framework
-
-Use **Swift Testing** (`import Testing`) for new tests. Use `@Test` and `#expect`:
-
-```swift
-@Test("User creation validates email")
-func userCreationValidatesEmail() throws {
-    #expect(throws: ValidationError.invalidEmail) {
-        try User(email: "not-an-email")
-    }
-}
-```
-
-### Test Isolation
-
-Each test gets a fresh instance — set up in `init`, tear down in `deinit`. No shared mutable state between tests.
-
-### Parameterized Tests
-
-```swift
-@Test("Validates formats", arguments: ["json", "xml", "csv"])
-func validatesFormat(format: String) throws {
-    let parser = try Parser(format: format)
-    #expect(parser.isValid)
-}
-```
-
-### Coverage
+## Commands
 
 ```bash
-scripts/crap.sh measure --top 30   # per-function complexity, coverage, and CRAP score (ADR-0016)
-swift test --enable-code-coverage  # the raw profile the scorer reads
+swift test                                        # unit + component; no Secrets.xcconfig needed
+swift test --filter ActiveSetFocusManagerTests    # one file's tests, about a second
+scripts/lint.sh                                   # what CI runs, --strict; --fix autocorrects first
+swift-format -i -r App/ Sources/ Tests/           # format
+scripts/crap.sh gate                              # the change-risk gate CI runs (ADR-0016)
+scripts/test-sim.sh unit                          # simulator suites from one build: unit | visual | ui | all
+scripts/test-sim.sh --no-build WorkoutTrackerUITests/WorkoutTrackerUISmokeTests/testCurrentSessionLogsFirstSetAndAdvancesActiveSet
+xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0'
+scripts/flake-hunt.sh --repetitions 1000 SyncCoordinatorTests   # repeat a concurrent test under load
+scripts/mutate.sh --filter <suite> <file> '<sed>'   # which tests kill a mutant; --help for the form
 ```
 
-### Reference
+The headless CLI drives the real stores against a local workbook and prints JSON, in milliseconds,
+with no simulator and no Google credentials:
 
-See skill: `swift-protocol-di-testing` for protocol-based dependency injection and mock patterns with Swift Testing.
-
-## Swift Patterns
-
-This section applies when working on `**/*.swift` and `**/Package.swift`.
-
-### Protocol-Oriented Design
-
-Define small, focused protocols. Use protocol extensions for shared defaults:
-
-```swift
-protocol Repository: Sendable {
-    associatedtype Item: Identifiable & Sendable
-    func find(by id: Item.ID) async throws -> Item?
-    func save(_ item: Item) async throws
-}
+```bash
+swift build --product workout && export PATH="$PWD/.build/debug:$PATH"
+export WORKOUT_HOME=$(mktemp -d) && workout init --scenario fresh-block
+workout log w1d1.e0.s0 185x5@8 && workout flush && workout sheet --cell K15   # "185x5@8" landed
 ```
 
-### Value Types
+## Verification
 
-- Use structs for data transfer objects and models
-- Use enums with associated values to model distinct states:
+Run `scripts/lint.sh` and `swift test` before finishing. On every PR, CI runs those, the CRAP
+gate, the simulator-hosted unit and component suite, and the visual gate. A PR whose changed paths
+all sit in `ci.yml`'s `paths-ignore` (Markdown, `docs/`, agent files, and more) starts no run.
 
-```swift
-enum LoadState<T: Sendable>: Sendable {
-    case idle
-    case loading
-    case loaded(T)
-    case failed(Error)
-}
-```
+- Neither test run is a superset of the other. `swift test` compiles `Sources/` alone, so a green
+  run does not prove the app compiles. `scripts/test-sim.sh unit` compiles the app and skips the
+  macOS-only CLI suites (`WorkoutCLIBinaryTests`, `CLIFailureTests`). Before pushing a diff that
+  touches `App/`, run the simulator suite as well.
+- Run simulator suites through `scripts/test-sim.sh`. A bare `xcodebuild test` fails plug-in
+  validation on a fresh machine and can hang collecting diagnostics after a failure.
+- Pin `OS=27.0` in every `-destination`. A machine with two runtimes holds two devices named
+  iPhone 17 Pro, and xcodebuild may pick the wrong one.
+- Concurrent UI-test sessions must not share a simulator. Give each its own UDID
+  (`-destination 'platform=iOS Simulator,id=<UDID>'`) and its own `-derivedDataPath` and
+  `-clonedSourcePackagesDirPath`.
+- The `WorkoutTracker` scheme launches against local fixtures (`-UITEST_FIXTURE true`), never the
+  live Sheet. `Copy of WorkoutTracker` runs live.
+- Visual Baselines are recorded on the CI runner, not locally, because renders differ across
+  machines (ADR-0007; the recipe is in `docs/TESTING.md`).
 
-### Actor Pattern
+## Worktrees and landing
 
-Use actors for shared mutable state instead of locks or dispatch queues:
+- `Secrets.xcconfig` is git-ignored and needed only for Xcode app builds; `swift test` runs without
+  it. `scripts/install-worktree-bootstrap.sh --source <path>` installs the post-checkout hook that
+  copies it into every new worktree. In a worktree the hook did not run in, run
+  `sh .githooks/post-checkout` once.
+- XcodeBuildMCP session defaults point at the primary checkout. From a worktree, pass
+  `-project <worktree>/WorkoutTracker.xcodeproj` explicitly. The `.mcp.json` pin stays at 2.7.0 or
+  later, because older builds fail every accessibility call on Xcode 27.
+- Land with `scripts/ci-wait.sh N` and then `gh pr merge N --squash`. Leave out `--delete-branch`.
+  GitHub deletes the remote branch itself, and the flag switches whichever worktree holds the
+  branch onto `main`. `scripts/prune-merged-worktrees.sh` lists worktrees whose PR has merged or
+  closed and removes them only under `--apply`.
 
-```swift
-actor Cache<Key: Hashable & Sendable, Value: Sendable> {
-    private var storage: [Key: Value] = [:]
+## Agent workflows
 
-    func get(_ key: Key) -> Value? { storage[key] }
-    func set(_ key: Key, value: Value) { storage[key] = value }
-}
-```
-
-### Dependency Injection
-
-Inject protocols with default parameters — production uses defaults, tests inject mocks:
-
-```swift
-struct UserService {
-    private let repository: any UserRepository
-
-    init(repository: any UserRepository = DefaultUserRepository()) {
-        self.repository = repository
-    }
-}
-```
-
-### References
-
-See skill: `swift-actor-persistence` for actor-based persistence patterns.
-See skill: `swift-protocol-di-testing` for protocol-based DI and testing.
-
-## Swift Hooks
-
-This section applies when working on `**/*.swift` and `**/Package.swift`.
-
-### Post-edit Checks
-
-Some agent harnesses (e.g. Codex) don't run the `~/.claude/settings.json` hooks that automate these. If yours doesn't, run them manually after editing Swift files:
-
-- **SwiftFormat**: Auto-format `.swift` files after edit
-- **SwiftLint**: Run lint checks after editing `.swift` files
-- **swift build**: Type-check modified packages after edit
-
-### Warning
-
-Flag `print()` statements — use `os.Logger` or structured logging instead for production code.
-
-## Swift Security
-
-This section applies when working on `**/*.swift` and `**/Package.swift`.
-
-### Secret Management
-
-- Use **Keychain Services** for sensitive data (tokens, passwords, keys) — never `UserDefaults`
-- Use environment variables or `.xcconfig` files for build-time secrets
-- Never hardcode secrets in source — decompilation tools extract them trivially
-
-```swift
-let apiKey = ProcessInfo.processInfo.environment["API_KEY"]
-guard let apiKey, !apiKey.isEmpty else {
-    fatalError("API_KEY not configured")
-}
-```
-
-### Transport Security
-
-- App Transport Security (ATS) is enforced by default — do not disable it
-- Use certificate pinning for critical endpoints
-- Validate all server certificates
-
-### Input Validation
-
-- Sanitize all user input before display to prevent injection
-- Use `URL(string:)` with validation rather than force-unwrapping
-- Validate data from external sources (APIs, deep links, pasteboard) before processing
+- Issues and PRDs live in GitHub Issues for `Sunnshiine/workout-app`. The workflow is
+  `docs/agents/issue-tracker.md`, and the five triage labels are `docs/agents/triage-labels.md`.
+- Sandcastle runs label-driven implementation and review in GitHub Actions. Prompts are in
+  `.sandcastle/`, workflows in `.github/workflows/agent-*.yml`, and the map is
+  `docs/agents/sandcastle.md`.
+- A UI prototype renders as HTML for a layout question, or ships to the phone through the
+  `testflight` label for a question of feel. `docs/agents/prototyping.md` owns the decision.
