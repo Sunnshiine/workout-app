@@ -163,9 +163,8 @@ final class WorkoutTrackerOnboardingSwitchUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["Back Squat"].exists)
     }
 
-    /// An empty SwiftUI `TextField` publishes its placeholder as the accessibility *value*, never a
-    /// label, so a filled field has no accessible name at all and VoiceOver reads back only the URL.
-    /// Pins the identifier and the label that give it one.
+    /// Pins the identifier and the accessible name on the URL field. Without them VoiceOver reads a
+    /// filled field back as its contents alone, and no recipe can target it without a coordinate.
     @MainActor
     func testPastedURLGoesThroughANamedFieldAndLandsOnTheSyncedSession() throws {
         let app = launchWorkoutApp(fixture: .onboarding, options: [.disableCelebrationBloom])
