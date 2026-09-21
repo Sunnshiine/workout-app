@@ -426,3 +426,28 @@ import Testing
     #expect(exercises[0].sets[0].setLog == SetLog(weight: .pounds(25), reps: 12, rpe: .seven))
     #expect(exercises[0].sets[1].setLog == SetLog(weight: .pounds(20), reps: 10, rpe: .eight))
 }
+
+@Test func retiredExerciseRowHiddenInTheSheetIsNotParsedIntoTheSession() throws {
+    // Row 17 is a retired variant the coach hid: name, Sets and Reps intact, the row hidden.
+    // The Session must read as if it were not there, and the rows around it must not shift.
+    let snapshot = SheetSnapshot(
+        values: gridFromA1(
+            [
+                "C12": "Day 1", "S12": "Day 2",
+                "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+                "C15": "Back Squat", "D15": "3", "F15": "5", "H15": "RPE7",
+                "C17": "0:1:0 Hamstring Curl", "D17": "2", "F17": "10", "H17": "RPE8",
+                "C19": "2-3:1:0 BB RDL", "D19": "2", "F19": "8", "H19": "RPE8"
+            ],
+            rows: 32,
+            cols: 30
+        ),
+        rowVisibility: [16: SheetRowVisibility(hiddenByUser: true)]
+    )
+
+    let parsed = SheetParser().parse(snapshot: snapshot, tabName: "Block 27")
+    let day = try #require(parsed.block.weeks.first?.days.first)
+
+    #expect(day.exercises.map(\.name) == ["Back Squat", "2-3:1:0 BB RDL"])
+    #expect(day.exercises.map { $0.sets.count } == [3, 2])
+}
