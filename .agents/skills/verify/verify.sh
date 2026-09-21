@@ -397,7 +397,12 @@ case $cmd in
     fi
     if [ -f "$state_dir/pid" ]; then
       pid=$(cat "$state_dir/pid")
-      kill -0 "$pid" 2>/dev/null && xcrun simctl terminate "$sim" "$bundle" && echo "terminated pid $pid"
+      # An `&&` chain here would be this statement's exit status, and under `set -e` an already
+      # dead pid then ended stop before it cleaned up or reported.
+      if kill -0 "$pid" 2>/dev/null; then
+        xcrun simctl terminate "$sim" "$bundle"
+        echo "terminated pid $pid"
+      fi
       # A Live Activity belongs to the app, not to its process, so terminating leaves it on the
       # springboard over every later shot. Uninstalling is the only lever on one from outside the
       # app, and the next launch reinstalls anyway.
