@@ -47,10 +47,11 @@ def tree_py(*args, stdin=""):
 
 
 def verify_sh(*args, run, sim=None):
-    env = dict(os.environ, VERIFY_RUN=run)
-    env.pop("SIM", None)
-    if sim:
-        env["SIM"] = sim
+    env = dict(os.environ)
+    for name, value in [("VERIFY_RUN", run), ("SIM", sim)]:
+        env.pop(name, None)
+        if value:
+            env[name] = value
     done = subprocess.run(
         [str(SKILL / "verify.sh")] + list(args), cwd=str(REPO), env=env,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
@@ -277,6 +278,42 @@ class VerifyDiff(unittest.TestCase):
         for name in ["_sheet", "a.burst", "-x"]:
             code, out, err = verify_sh("shot", name, run=self.run)
             self.assertEqual(code, 2, "%s must be refused before any simulator is touched: %s" % (name, err))
+
+
+class VerifyStop(unittest.TestCase):
+    def setUp(self):
+        self.owner = "owner-%d" % os.getpid()
+        self.sim = "no-such-device-%d" % os.getpid()
+        self.state = Path("/tmp/workout-verify-%s" % self.sim)
+        self.state.mkdir(parents=True, exist_ok=True)
+        (self.state / "run").write_text("%s\n" % self.owner)
+        (self.state / "pid").write_text("99999999\n")
+        (self.state / "args").write_text("-UITEST_FIXTURE -UITEST_SESSION\n")
+
+    def tearDown(self):
+        shutil.rmtree(self.state, ignore_errors=True)
+
+    def test_stop_refuses_to_end_a_run_that_is_not_the_callers(self):
+        code, out, err = verify_sh("stop", run="issue-660", sim=self.sim)
+        self.assertEqual(code, 75, "the code launch already uses for a simulator another run owns")
+        self.assertIn(self.owner, err, "whose app it is about to end")
+        self.assertIn("VERIFY_RUN=%s" % self.owner, err, "the override, spelled out")
+        self.assertEqual(out, "", "nothing was terminated")
+        self.assertTrue((self.state / "pid").exists(), "the owner keeps the pid it recorded")
+
+    def test_stop_ends_the_callers_own_run(self):
+        code, out, err = verify_sh("stop", run=self.owner, sim=self.sim)
+        self.assertEqual(code, 0, err)
+        self.assertFalse((self.state / "pid").exists(), "its own stop clears the pid it recorded")
+
+    def test_stop_without_a_run_name_is_still_allowed(self):
+        code, out, err = verify_sh("stop", run=None, sim=self.sim)
+        self.assertEqual(code, 0, err)
+        self.assertFalse(
+            (self.state / "pid").exists(),
+            "an unnamed stop reads the run back out of the state dir, so it can never be told apart "
+            "from the owner's own stop; the ordinary single drive keeps working",
+        )
 
 
 @unittest.skipUnless(sys.platform == "darwin", "the tiler is a Swift script and runs on macOS only")
