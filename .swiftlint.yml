@@ -75,22 +75,31 @@ custom_rules:
     included: '.*/App/Views/.*'
     severity: error
 
-  # The vacuous-test trap (issue #608). Fifteen Theme tests wrapped their whole body in
-  # `#if canImport(AppKit)`, so on the hosted iOS run they compiled to empty bodies and passed while
-  # asserting nothing. The guard belongs on the declaration, where the other platform drops the test
-  # instead of running an empty one.
+  # The vacuous-test trap (issues #608, #636). `message:` below is the reason a reader gets at the
+  # violation; this is the reason the pattern has the shape it has.
   #
-  # This reaches only a `#if` on the line after the opening brace. A guard one comment line lower
-  # escapes it, and ten in ThemeTests.swift still sit there; eight of those assert nothing on the
-  # hosted run today. Widening the rule takes those eight out of that run too, so it is its own
-  # change against its own count.
+  # The predicate is "every assertion is inside the guard", not "the body opens with one". A test can
+  # lead with a comment or a binding and still assert nothing, so the `#if` may follow comment and
+  # `let`/`var` lines. Its `#endif` must then reach the closing brace: a test that also asserts
+  # outside the guard runs for real on both platforms, and moving its guard up would delete
+  # assertions that belong on iOS.
+  #
+  # An `#if`/`#else` pair in a test body matches too, as it did under the #608 rule. That is #632's
+  # call and it stands: two branches want two guarded declarations, not one test that means
+  # different things per platform. `message:` says so, because the plain advice would be wrong there.
+  #
+  # Nothing executes any of this. The commit that widened this rule is red on the eight
+  # declarations it was written for and silent everywhere else (#636 carries the run), which proves
+  # it once in history rather than on every push. A standing fixture pair is issue #652.
   platform_guard_on_test_declaration:
     name: "Platform guard on the test declaration"
     message: >
-      Move this `#if` to the `@Test` declaration. Guarding the body compiles these assertions away
-      on the other platform, where the test still runs and still passes (issue #608). Guarding the
-      declaration removes the test there instead, so the reported count is the number that ran.
-    regex: '@Test\b(?:[^\n{}]*\n){0,12}?[^\n{}]*\{[ \t]*\n(?:[ \t]*\n)*[ \t]*#if\b'
+      Move this `#if` around the `@Test` declaration. A test whose assertions all sit inside the
+      guard compiles to an empty body on the other platform and passes there having asserted
+      nothing (issue #608); guarding the declaration drops the test there instead, so the reported
+      count is the number that ran. An `#if`/`#else` pair lands here too: give each branch its own
+      guarded declaration, rather than one test that means different things per platform.
+    regex: '@Test\b(?:[^\n{}]*\n){0,12}?[^\n{}]*\{[ \t]*\n(?:[ \t]*(?://[^\n]*)?\n|[ \t]*(?:let|var)\b[^\n{}]*\n)*[ \t]*#if\b(?:(?![ \t]*@Test\b)[^\n]*\n)*?[ \t]*#endif[ \t]*\n(?:[ \t]*(?://[^\n]*)?\n)*[ \t]*\}'
     severity: error
 
 identifier_name:

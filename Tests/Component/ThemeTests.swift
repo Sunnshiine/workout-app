@@ -214,10 +214,10 @@ import Testing
     #endif
 }
 
-@Test func themeSupersetPartnerBranchQuietsByPigmentByDayAndTranslucencyAtNight() throws {
-    // The forked stem's partner subordinates by foliage pigment by Day and by
-    // that same foliage @ 0.55 at Night (DESIGN.md §5.4).
-    #if canImport(AppKit)
+#if canImport(AppKit)
+    @Test func themeSupersetPartnerBranchQuietsByPigmentByDayAndTranslucencyAtNight() throws {
+        // The forked stem's partner subordinates by foliage pigment by Day and by
+        // that same foliage @ 0.55 at Night (DESIGN.md §5.4).
         expectRGB(
             Theme.palette(for: Theme.Appearance.day).supersetPartnerBranch,
             red: 87 / 255,
@@ -231,17 +231,17 @@ import Testing
             blue: 104 / 255,
             alpha: 0.55
         )
-    #endif
-}
+    }
+#endif
 
-@Test func themeTileCurrentBorderStaysTheApprovedLiteral() {
-    // #1F8552 in both appearances — deliberately not aliased to a paint (token sheet §8.5).
-    #if canImport(AppKit)
+#if canImport(AppKit)
+    @Test func themeTileCurrentBorderStaysTheApprovedLiteral() {
+        // #1F8552 in both appearances — deliberately not aliased to a paint (token sheet §8.5).
         expectRGB(Theme.palette(for: Theme.Appearance.day).tileCurrentBorder, red: 31 / 255, green: 133 / 255, blue: 82 / 255)
         expectRGB(Theme.palette(for: Theme.Appearance.night).tileCurrentBorder, red: 31 / 255, green: 133 / 255, blue: 82 / 255)
         expectRGB(Theme.sessionTileCurrentBorder, red: 31 / 255, green: 133 / 255, blue: 82 / 255)
-    #endif
-}
+    }
+#endif
 
 #if canImport(AppKit)
     @Test func themeDangerStaysADistinctDestructiveRed() {
@@ -348,25 +348,25 @@ import Testing
     }
 #endif
 
-@Test func nightPreservesTheRoomsSageHueAcrossAppearances() {
-    // The room re-lights, it does not recolor: the sheet paper and the page paper stay sage-led in
-    // both appearances, only their lightness changes.
-    #if canImport(AppKit)
+#if canImport(AppKit)
+    @Test func nightPreservesTheRoomsSageHueAcrossAppearances() {
+        // The room re-lights, it does not recolor: the sheet paper and the page paper stay sage-led in
+        // both appearances, only their lightness changes.
         for appearance in Theme.Appearance.allCases {
             let palette = Theme.palette(for: appearance)
             expectSageLed(palette.sheetFill)
             expectSageLed(palette.paper.baseTop)
             expectSageLed(palette.paper.baseBottom)
         }
-    #endif
-}
+    }
+#endif
 
 // MARK: - Input-block roles (token sheet §Active Set Card; ledger §1.1 — the two fixed alias wrongs)
 
-@Test func themePillFillIsCreamNotTheSurfaceAlias() {
-    // The first pass mapped `pillFill → surface` (cream @ 52%); the token sheet says the stepper
-    // buttons are cream @ 85% by Day, cream @ 6% at Night (ledger §1.1).
-    #if canImport(AppKit)
+#if canImport(AppKit)
+    @Test func themePillFillIsCreamNotTheSurfaceAlias() {
+        // The first pass mapped `pillFill → surface` (cream @ 52%); the token sheet says the stepper
+        // buttons are cream @ 85% by Day, cream @ 6% at Night (ledger §1.1).
         expectRGB(
             Theme.palette(for: Theme.Appearance.day).pillFill,
             red: 242 / 255, green: 247 / 255, blue: 232 / 255, alpha: 0.85
@@ -375,13 +375,13 @@ import Testing
             Theme.palette(for: Theme.Appearance.night).pillFill,
             red: 242 / 255, green: 247 / 255, blue: 232 / 255, alpha: 0.06
         )
-    #endif
-}
+    }
+#endif
 
-@Test func themePillStrokeIsItsOwnHairlineNotTheQueueStroke() {
-    // The first pass mapped `pillStroke → queueStroke` (0.38 / cream @ 20%); the token sheet says
-    // rgba(82,111,90,0.34) by Day and cream @ 16% at Night (ledger §1.1).
-    #if canImport(AppKit)
+#if canImport(AppKit)
+    @Test func themePillStrokeIsItsOwnHairlineNotTheQueueStroke() {
+        // The first pass mapped `pillStroke → queueStroke` (0.38 / cream @ 20%); the token sheet says
+        // rgba(82,111,90,0.34) by Day and cream @ 16% at Night (ledger §1.1).
         expectRGB(
             Theme.palette(for: Theme.Appearance.day).pillStroke,
             red: 82 / 255, green: 111 / 255, blue: 90 / 255, alpha: 0.34
@@ -390,18 +390,18 @@ import Testing
             Theme.palette(for: Theme.Appearance.night).pillStroke,
             red: 242 / 255, green: 247 / 255, blue: 232 / 255, alpha: 0.16
         )
-    #endif
-}
+    }
+#endif
 
-@Test func themePillFillIsDistinctFromSurfaceAndQueueStroke() {
-    // A regression guard on the fix: the roles must no longer be equal to what they were aliased to.
-    let day = Theme.palette(for: Theme.Appearance.day)
-    #if canImport(AppKit)
+#if canImport(AppKit)
+    @Test func themePillFillIsDistinctFromSurfaceAndQueueStroke() {
+        // A regression guard on the fix: the roles must no longer be equal to what they were aliased to.
+        let day = Theme.palette(for: Theme.Appearance.day)
         let pillFill = rgbaComponents(of: day.pillFill)
         let surface = rgbaComponents(of: day.surface)
         #expect(pillFill?.alpha != surface?.alpha, "pillFill must not still resolve to the surface alias")
-    #endif
-}
+    }
+#endif
 
 // MARK: - Elevation & light kit (token sheet §3 / §5.5 / §5.6; ledger §1.2 — the absent tokens)
 
@@ -434,10 +434,10 @@ import Testing
     }
 #endif
 
-@Test func themeSkipFillOverlayIsMutedInBothAppearances() throws {
-    // Token sheet §Log capsule: the hold-to-skip overlay is muted @ 30% — never danger red
-    // (ledger §2.8). The night recipe lands with this input-block build slice (#488).
-    #if canImport(AppKit)
+#if canImport(AppKit)
+    @Test func themeSkipFillOverlayIsMutedInBothAppearances() throws {
+        // Token sheet §Log capsule: the hold-to-skip overlay is muted @ 30% — never danger red
+        // (ledger §2.8). The night recipe lands with this input-block build slice (#488).
         expectRGB(
             try #require(Theme.palette(for: Theme.Appearance.day).skipFillOverlay),
             red: 82 / 255, green: 100 / 255, blue: 87 / 255, alpha: 0.30
@@ -446,8 +446,8 @@ import Testing
             try #require(Theme.palette(for: Theme.Appearance.night).skipFillOverlay),
             red: 154 / 255, green: 170 / 255, blue: 155 / 255, alpha: 0.30
         )
-    #endif
-}
+    }
+#endif
 
 @Test func themePressedFillIsADayValueDeferredAtNight() throws {
     // The pressed / logged Log-capsule fill (#0A5936) is a day value; its night recipe is still
@@ -458,10 +458,10 @@ import Testing
     #expect(Theme.palette(for: Theme.Appearance.night).pressedFill == nil)
 }
 
-@Test func themeRailSelectedFillIsALitCreamChipInBothAppearances() {
-    // The selected rail chip takes a cream fill under the inset action ring (token sheet §Active
-    // Set Card, "rail chip selected"); the ring is the primary selection signal at Night.
-    #if canImport(AppKit)
+#if canImport(AppKit)
+    @Test func themeRailSelectedFillIsALitCreamChipInBothAppearances() {
+        // The selected rail chip takes a cream fill under the inset action ring (token sheet §Active
+        // Set Card, "rail chip selected"); the ring is the primary selection signal at Night.
         expectRGB(
             Theme.palette(for: Theme.Appearance.day).railSelectedFill,
             red: 242 / 255, green: 247 / 255, blue: 232 / 255, alpha: 0.95
@@ -470,8 +470,8 @@ import Testing
             Theme.palette(for: Theme.Appearance.night).railSelectedFill,
             red: 242 / 255, green: 247 / 255, blue: 232 / 255, alpha: 0.14
         )
-    #endif
-}
+    }
+#endif
 
 #if canImport(AppKit)
     @Test func themeLightKitCardLowAndSunGlowMatchTokenSheet() {
