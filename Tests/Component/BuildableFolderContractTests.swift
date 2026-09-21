@@ -24,21 +24,40 @@ private let verifyScript = ".agents/skills/verify/verify.sh"
     )
 }
 
+private let installedProductTypes: Set<String> = [
+    "com.apple.product-type.application",
+    "com.apple.product-type.app-extension"
+]
+
+/// Product types that ship no code into the installed app, so their folders are doctor's business
+/// only when a build is running. Every target has to land in this set or `installedProductTypes`,
+/// because an inclusion list on its own is one more list that goes stale in silence, which is the
+/// defect this whole file exists to pin.
+private let uninstalledProductTypes: Set<String> = [
+    "com.apple.product-type.bundle.unit-test",
+    "com.apple.product-type.bundle.ui-testing"
+]
+
 /// Every folder Xcode compiles or copies into the installed app or its extension (ADR-0017). The
 /// predicate is `productType` rather than a list of target names, because a name list would be one
 /// more hand-maintained copy of exactly the kind this test exists to pin.
 private func buildableFoldersDeclaredByTheProject() throws -> Set<String> {
     let objects = try projectObjects()
-    let installedProductTypes: Set<String> = [
-        "com.apple.product-type.application",
-        "com.apple.product-type.app-extension"
-    ]
-    let groups = objects.values
-        .filter {
-            $0["isa"] as? String == "PBXNativeTarget"
-                && installedProductTypes.contains($0["productType"] as? String ?? "")
-        }
-        .flatMap { $0["fileSystemSynchronizedGroups"] as? [String] ?? [] }
+    let targets = objects.values.filter { $0["isa"] as? String == "PBXNativeTarget" }
+    let unclassified = Set(targets.compactMap { $0["productType"] as? String })
+        .subtracting(installedProductTypes)
+        .subtracting(uninstalledProductTypes)
+    try #require(
+        unclassified.isEmpty,
+        """
+        \(projectFile) holds a target of unclassified productType \(unclassified.sorted()).
+        Decide whether it ships code into the installed app, then add it to installedProductTypes
+        or uninstalledProductTypes in this file.
+        """
+    )
+
+    let installed = targets.filter { installedProductTypes.contains($0["productType"] as? String ?? "") }
+    let groups = installed.flatMap { $0["fileSystemSynchronizedGroups"] as? [String] ?? [] }
     try #require(!groups.isEmpty, "\(projectFile) declares no buildable folder for any installed target")
 
     var parentOf: [String: String] = [:]
