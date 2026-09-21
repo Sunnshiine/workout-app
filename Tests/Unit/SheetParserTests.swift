@@ -428,8 +428,7 @@ import Testing
 }
 
 @Test func retiredExerciseRowHiddenInTheSheetIsNotParsedIntoTheSession() throws {
-    // Row 17 is a retired variant the coach hid: name, Sets and Reps intact, the row hidden.
-    // The Session must read as if it were not there, and the rows around it must not shift.
+    // rowVisibility is 0-based, so index 16 hides the row the A1 cells call row 17.
     let snapshot = SheetSnapshot(
         values: gridFromA1(
             [

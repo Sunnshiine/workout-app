@@ -221,11 +221,13 @@ struct SheetLayoutExerciseAnchor: Sendable {
     /// The Prescription Lines that make up this Exercise. Line 0 is always the anchor
     /// row; each blank-name continuation row inside the Exercise span whose Sets cell is a
     /// non-empty number is an additional Line (coach J. Alarcon's one-line-per-row template).
+    /// A row the coach hid prescribes nothing.
     ///
     /// Kevin's template returns exactly one Line: his continuation rows hold Set Logs in the
     /// Notes column with an empty Sets cell, so they never qualify — keeping that path
     /// (`isMultiLine == false`) on the existing single-anchor logic.
-    func prescriptionLines(in grid: SheetGrid, setsColumn: Int?) -> [PrescriptionLine] {
+    func prescriptionLines(in snapshot: SheetSnapshot, setsColumn: Int?) -> [PrescriptionLine] {
+        let grid = snapshot.values
         func numericSetCount(at lineRow: Int) -> Int? {
             guard let setsColumn else { return nil }
             let digits = grid.cell(row: lineRow, col: setsColumn).trimmed.prefix { $0.isNumber }
@@ -235,7 +237,7 @@ struct SheetLayoutExerciseAnchor: Sendable {
 
         var lines = [PrescriptionLine(row: row, setCount: numericSetCount(at: row) ?? 1, firstSetIndex: 0)]
         var nextFirstSetIndex = lines[0].setCount
-        for continuationRow in (row + 1)..<nextAnchorRow {
+        for continuationRow in (row + 1)..<nextAnchorRow where snapshot.isRowVisible(continuationRow) {
             guard let setCount = numericSetCount(at: continuationRow) else { continue }
             lines.append(
                 PrescriptionLine(row: continuationRow, setCount: setCount, firstSetIndex: nextFirstSetIndex)
@@ -275,7 +277,7 @@ struct SheetLayoutExerciseAnchor: Sendable {
         let grid = snapshot.values
         guard let col = cols.notes else { return .notesColumnMissing }
 
-        let lines = prescriptionLines(in: grid, setsColumn: cols.sets)
+        let lines = prescriptionLines(in: snapshot, setsColumn: cols.sets)
         if lines.isMultiLine {
             return multiLinePlacement(for: setIndex, lines: lines, col: col)
         }
@@ -349,11 +351,14 @@ struct SheetLayoutExerciseAnchor: Sendable {
 }
 
 struct SheetLayoutInterpreter: Sendable {
-    func interpret(_ snapshot: SheetSnapshot) -> SheetLayout {
-        interpret(snapshot.values)
+    /// Interprets a grid whose rows are all visible. Callers holding a fetched Sheet pass the
+    /// `SheetSnapshot` instead, so row visibility reaches anchor detection.
+    func interpret(_ grid: SheetGrid) -> SheetLayout {
+        interpret(SheetSnapshot(values: grid))
     }
 
-    func interpret(_ grid: SheetGrid) -> SheetLayout {
+    func interpret(_ snapshot: SheetSnapshot) -> SheetLayout {
+        let grid = snapshot.values
         let sections = locateWeekSections(in: grid)
         let weeks = sections.enumerated().map { index, section in
             let endRow = index + 1 < sections.count ? sections[index + 1].headerRow : grid.count
@@ -368,7 +373,7 @@ struct SheetLayoutInterpreter: Sendable {
                     bodyRows: bodyRows
                 )
                 let anchors = exerciseAnchors(
-                    in: grid,
+                    in: snapshot,
                     cols: columns,
                     firstRow: firstBodyRow,
                     upper: upper
@@ -452,6 +457,9 @@ func locateWeekSections(in grid: SheetGrid) -> [WeekSection] {
     }
 }
 
+/// Every row in a day's span that starts an Exercise block, hidden or not. A hidden row still ends
+/// the block above it: the rows under a retired movement belong to that movement, not to the
+/// Exercise before it.
 func anchorRows(in grid: SheetGrid, cols: DayColumns, firstRow: Int, upper: Int) -> [Int] {
     guard firstRow < upper else { return [] }
 
@@ -463,15 +471,22 @@ func anchorRows(in grid: SheetGrid, cols: DayColumns, firstRow: Int, upper: Int)
     return rows
 }
 
+/// The Exercises a day surfaces: one per anchor row the coach left visible. Hiding a row is how a
+/// movement is retired without losing its history, so a hidden row is not an Exercise — the same
+/// reading ADR-0003 already gives it on the write side. Block boundaries still come from every
+/// anchor row, so a retired movement's own continuation rows are dropped with it rather than
+/// absorbed by the Exercise above.
 private func exerciseAnchors(
-    in grid: SheetGrid,
+    in snapshot: SheetSnapshot,
     cols: DayColumns,
     firstRow: Int,
     upper: Int
 ) -> [SheetLayoutExerciseAnchor] {
+    let grid = snapshot.values
     let rows = anchorRows(in: grid, cols: cols, firstRow: firstRow, upper: upper)
-    return rows.enumerated().map { index, row in
-        SheetLayoutExerciseAnchor(
+    return rows.enumerated().compactMap { index, row in
+        guard snapshot.isRowVisible(row) else { return nil }
+        return SheetLayoutExerciseAnchor(
             name: grid.cell(row: row, col: cols.name).trimmed,
             row: row,
             nextAnchorRow: index + 1 < rows.count ? rows[index + 1] : upper

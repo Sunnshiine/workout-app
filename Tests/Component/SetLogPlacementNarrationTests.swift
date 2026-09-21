@@ -101,9 +101,7 @@ import Testing
     )
 }
 
-// A hidden Prescription Line row still resolves — the per-line template addresses by Line, not by
-// visible position — and the scan reports both the skipped row and the target it kept.
-@Test func rowScanReportsAHiddenPrescriptionLineRowItStillTargets() {
+@Test func rowScanReportsThatAHiddenPrescriptionLineRowPrescribesNothing() {
     #expect(
         auditRowScan(
             cells: [
@@ -116,8 +114,8 @@ import Testing
             setIndex: 2
         )
             == """
-            Skipped hidden rows: row 16 hidden by user. Selected row 16: Prescription Line row stores \
-            this Line's Set logs as a comma-separated list (Set 2 of the Line).
+            Skipped hidden rows: row 16 hidden by user. No row selected: no visible Set row found for \
+            Set 3 before the next Exercise.
             """
     )
 }
@@ -141,7 +139,7 @@ import Testing
             setIndex: 1,
             column: .lastSetRPE
         )
-            == "Skipped hidden rows: row 15 hidden by user. No row selected: Exercise row 15 is hidden."
+            == "No row selected: Squat was not found in Week 1, Day 1."
     )
 }
 
