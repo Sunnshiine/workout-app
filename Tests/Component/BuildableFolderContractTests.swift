@@ -79,7 +79,10 @@ private func buildableFoldersDeclaredByTheProject() throws -> Set<String> {
 }
 
 /// A group's `path` is relative to its parent, so `Sources/WorkoutTracker` only reads whole after
-/// walking up through the `PBXGroup` that holds it.
+/// walking up through the `PBXGroup` that holds it. This assumes every group on the way up is
+/// `sourceTree = "<group>"`, which is the only kind Xcode writes here. A group anchored to
+/// `SOURCE_ROOT` instead would resolve to a folder that does not exist, and the caller fails on
+/// that rather than quietly comparing a wrong path.
 private func repositoryPath(ofGroup group: String, in objects: [String: [String: Any]], parentOf: [String: String]) -> String {
     var components: [String] = []
     var id: String? = group
@@ -98,19 +101,29 @@ private func projectObjects() throws -> [String: [String: Any]] {
     return try #require((plist as? [String: Any])?["objects"] as? [String: [String: Any]], "\(projectFile) has no objects map")
 }
 
+/// Matches the shell assignment rather than the text `sources=(` anywhere, so prose that mentions
+/// the array does not count as a second one, and reads on to the closing paren, so the folders may
+/// wrap across lines. Three other branches in this stack edit `verify.sh`, and both are edits
+/// someone could reasonably make there.
 private func buildableFoldersDoctorWatches() throws -> (folders: Set<String>, line: Int) {
-    let declarations = try RepositoryFiles.text(of: verifyScript)
+    let lines = try RepositoryFiles.text(of: verifyScript)
         .split(separator: "\n", omittingEmptySubsequences: false)
-        .enumerated()
-        .compactMap { index, line -> (folders: Set<String>, line: Int)? in
-            guard let open = line.range(of: "sources=("),
-                let close = line[open.upperBound...].firstIndex(of: ")")
-            else { return nil }
-            return (Set(line[open.upperBound..<close].split(whereSeparator: \.isWhitespace).map(String.init)), index + 1)
-        }
-    try #require(declarations.count == 1, "\(verifyScript) holds \(declarations.count) sources=(...) arrays, expected one")
+    let assignments = lines.indices.filter { lines[$0].trimmingCharacters(in: .whitespaces).hasPrefix("sources=(") }
+    try #require(
+        assignments.count == 1,
+        "\(verifyScript) holds \(assignments.count) `sources=(` assignments, expected exactly one"
+    )
 
-    let watched = declarations[0]
-    try #require(!watched.folders.isEmpty, "sources=() at \(verifyScript):\(watched.line) is empty")
-    return watched
+    let start = assignments[0]
+    let closing = try #require(
+        lines[start...].firstIndex { $0.contains(")") },
+        "the sources=( assignment at \(verifyScript):\(start + 1) never closes"
+    )
+    let array = lines[start...closing].joined(separator: " ")
+    let folders = Set(
+        array.drop { $0 != "(" }.dropFirst().prefix { $0 != ")" }
+            .split(whereSeparator: \.isWhitespace).map(String.init)
+    )
+    try #require(!folders.isEmpty, "sources=() at \(verifyScript):\(start + 1) is empty")
+    return (folders, start + 1)
 }
