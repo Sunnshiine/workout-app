@@ -162,6 +162,29 @@ final class WorkoutTrackerOnboardingSwitchUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Replacement Squat"].appears(within: 3))
         XCTAssertFalse(app.staticTexts["Back Squat"].exists)
     }
+
+    /// An empty SwiftUI `TextField` publishes its placeholder as the accessibility *value*, never a
+    /// label, so a filled field has no accessible name at all and VoiceOver reads back only the URL.
+    /// Pins the identifier and the label that give it one.
+    @MainActor
+    func testPastedURLGoesThroughANamedFieldAndLandsOnTheSyncedSession() throws {
+        let app = launchWorkoutApp(fixture: .onboarding, options: [.disableCelebrationBloom])
+
+        XCTAssertTrue(app.staticTexts["Choose your training sheet"].appears(within: 3))
+        tapWhenHittable(app.buttons["Paste a URL instead"])
+
+        let field = app.textFields["onboarding-url-field"]
+        XCTAssertTrue(field.appears(within: 3))
+        XCTAssertEqual(field.label, "Google Sheet URL")
+
+        field.tap()
+        field.typeText("https://docs.google.com/spreadsheets/d/REPLACEMENT/edit")
+        XCTAssertEqual(field.label, "Google Sheet URL")
+
+        tapWhenHittable(app.buttons["Save"])
+
+        XCTAssertTrue(app.staticTexts["Replacement Squat"].appears(within: 3))
+    }
 }
 
 @MainActor
