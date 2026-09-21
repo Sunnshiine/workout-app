@@ -307,6 +307,12 @@ class VerifyStop(unittest.TestCase):
         self.assertEqual(code, 0, err)
         self.assertFalse((self.state / "pid").exists(), "its own stop clears the pid it recorded")
 
+    def test_stop_on_a_simulator_no_run_has_claimed_is_not_refused(self):
+        shutil.rmtree(self.state)
+        code, out, err = verify_sh("stop", run="issue-660", sim=self.sim)
+        self.assertEqual(code, 0, err)
+        self.assertIn("nothing launched by this tool", out, "a fresh simulator is nobody's")
+
     def test_stop_without_a_run_name_is_still_allowed(self):
         code, out, err = verify_sh("stop", run=None, sim=self.sim)
         self.assertEqual(code, 0, err)
