@@ -67,17 +67,19 @@ Settings row and its alert button). When `tap --label` reports multiple matches,
 from `tree` and tap its center with `-x -y`.
 
 Target elements by accessibility identifier (`tap --id`) first, by label second, by coordinates
-only when the element has neither. `tap` polls up to 3 s for the element, and `tap --id` taps the
-frame's centre even when `find` says it is off-screen, reporting success while hitting nothing.
+only when the element has neither. `tap --id` polls up to 3 s for that element to be enabled and
+on screen, then taps its centre; when it never gets one it exits 1 and says `off-screen` or
+`disabled`. So a tap that reports success is a tap that could land. `tap --label` and `tap -x -y`
+resolve no element, so they report success whatever is under the point.
 After a tap, re-read the tree before asserting. `tree` has no enabled column, so prove a disabled
-state with `find <id>`, which says `disabled` on stderr.
+state with `find <id>`, which says `disabled` on stderr and still exits 0.
 `-UITEST_DISABLE_ANIMATIONS` stops UIKit animations only, so a SwiftUI transition still runs for
 about 850 ms after a log tap (issue 618). A state absent after one second is still absent. `burst`
 is how you see a transition.
 
 `tree` lists what is on screen and says on stderr how many elements it left out. A scrolled-out
 row and the tail of the reps picker are out; a card wider than the screen is in. `find <id>`
-looks everywhere and says when the hit is off-screen, which means `swipe` before you tap it.
+looks everywhere, on screen or off.
 
 The driver is AXe, bundled with XcodeBuildMCP 2.7.0 and installed on first use into
 `.build/verify/node_modules` (about 20 s, gitignored). Older XcodeBuildMCP builds fail on Xcode 27

@@ -14,6 +14,9 @@ Usage: .claude/skills/verify/verify.sh <command> [args]
   find <id>                   one element by accessibility identifier, on screen or off; exit 1 if absent;
                               says on stderr when it is off-screen or disabled
   tap --id ID | --label TEXT | -x X -y Y
+                              --id waits up to 3 s (--wait-timeout N) for that element to be
+                              enabled and on screen, then taps it; exit 1 and says which it was
+                              not. --label and -x -y tap the point and report whatever they hit
   hold <id> [seconds]         long press an element by identifier (default 1.2 s)
   type TEXT                   type into the focused field
   swipe up|down               scroll the screen by half its height
@@ -261,7 +264,40 @@ case $cmd in
     describe | python3 "$tree" find "$id"
     ;;
 
-  tap) need_sim; ensure_axe; "$axe" tap --udid "$sim" --wait-timeout 3 "$@" ;;
+  tap)
+    id=; timeout=3; rest=()
+    while [ $# -gt 0 ]; do
+      case $1 in
+        --id) id=${2:-}; [ -n "$id" ] || usage; shift 2 ;;
+        --wait-timeout) timeout=${2:-}; shift 2 ;;
+        *) rest+=("$1"); shift ;;
+      esac
+    done
+    if [ -n "$id" ]; then
+      case $timeout in
+        ''|*[!0-9]*) echo "--wait-timeout with --id is whole seconds: $timeout" >&2; exit 2 ;;
+      esac
+    fi
+    need_sim; ensure_axe
+    if [ -z "$id" ]; then
+      "$axe" tap --udid "$sim" --wait-timeout "$timeout" ${rest[@]+"${rest[@]}"}
+      exit
+    fi
+    # axe taps a coordinate and calls that a success, so it cannot tell a tap that landed from one
+    # that hit nothing. Polling for a hit that is enabled and on screen, rather than for one that
+    # merely exists, is also what keeps a tap fired into a transition from landing mid-slide.
+    SECONDS=0
+    while :; do
+      if [ "$SECONDS" -ge "$timeout" ]; then
+        point=$(describe | python3 "$tree" tappable "$id") || exit 1
+        break
+      fi
+      if point=$(describe | python3 "$tree" tappable "$id" 2>/dev/null); then break; fi
+      sleep 0.2
+    done
+    read -r x y <<< "$point"
+    "$axe" tap --udid "$sim" -x "$x" -y "$y" ${rest[@]+"${rest[@]}"}
+    ;;
 
   hold)
     need_sim; ensure_axe
