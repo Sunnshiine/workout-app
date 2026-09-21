@@ -25,7 +25,10 @@ Fixtures: `session` (Block 27 W1 D1, Back Squat then BB RDL, 5 pending sets), `s
 `launch settings -UITEST_PENDING_WRITE`. Every launch adds `-UITEST_FIXTURE
 -UITEST_DISABLE_ANIMATIONS -UITEST_DISABLE_LIVE_ACTIVITIES`, so the app runs on an in-memory store
 with a faked sign-in and never touches Google. Live Activities are off because a rest-timer
-activity outlives `stop` and sits over the top of every later shot on the shared simulator. A
+activity outlives `stop` and sits over the top of every later shot on the shared simulator.
+`VERIFY_LIVE_ACTIVITIES=1 verify.sh launch session` drops that one flag, so the rest timer and the
+Live Activity Lab work and every shot of that run may carry the activity overlay. `stop` uninstalls
+such a run, which is what ends the activity. Drive it from `features/live-activity.md`. A
 relaunch is `stop` then `launch`, and it resets all state. The simulator is the
 booted iPhone 17 Pro, else the newest one, which the script boots. Override with `SIM=<udid>`.
 
@@ -130,7 +133,11 @@ rm -rf "$WORKOUT_HOME"
 `stop` kills only the pid recorded in `/tmp/workout-verify-<udid>/`. Set `VERIFY_RUN` and it also
 refuses (exit 75) when that state dir names a different run, printing the owning run and the
 `VERIFY_RUN=<owner>` override that ends it anyway. An unnamed `stop` is not gated, which is the
-reason to name every run on a machine someone else is driving. It never shuts
+reason to name every run on a machine someone else is driving. A run launched under
+`VERIFY_LIVE_ACTIVITIES=1` is uninstalled as well as terminated, because a Live Activity belongs to
+the app rather than to its process and uninstalling is the only lever on one from outside the app.
+That is also the one `stop` a `scripts/test-sim.sh` run sharing the simulator would notice, so hold
+the isolation rule below on any drive that opts in. It never shuts
 down or erases the simulator, which other agents and `scripts/test-sim.sh` share. Evidence is
 never removed, and it keeps the run name, so `diff` still answers after the app is gone. A `burst`
 keeps its twelve full-size frames, about 47 MB under the git-ignored `.build/`. Delete a run's
