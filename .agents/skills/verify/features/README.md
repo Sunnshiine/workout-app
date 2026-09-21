@@ -36,5 +36,5 @@ Keep implementation details out of the map. Name only user paths, stable handles
 - [Session completion](./session-completion.md) covers the completion stage, open exercises, Move On from the stage or the queue, and the celebration.
 - [Settings](./settings.md) covers appearance, rest timers, switching the training sheet, sync, sign out with pending writes, the build footer, and Developer Tools.
 - [Onboarding](./onboarding.md) covers the signed-out wall, choosing a training sheet or pasting its URL, and landing on its freshly synced session.
-- [Live Activity](./live-activity.md) covers the rest timer on the Lock Screen and in the Dynamic Island, and the Live Activity Lab that raises one from a sample state.
+- [Live Activity](./live-activity.md) covers the rest timer in the Dynamic Island after a logged set, and the Live Activity Lab that raises one from a sample state.
 - [Headless CLI](./cli-headless.md) covers the `workout` verbs: init, status, session, log, skip, flush, sheet, sync.
