@@ -119,6 +119,20 @@ enum QueuePairingRole: Equatable, Sendable {
     case confirmingTarget
 }
 
+/// The Session stage's two compositions (DESIGN.md §5.2). `reading` is the documented page: the
+/// header HUD, the editorial column, Last Performed, the Active Set Card, and the queue foot.
+/// `entry` is the page while the weight keyboard is up: the card pinned above the keyboard, with
+/// the Exercise name and Last Performed above it only when they fit. Everything `entry` drops is
+/// orientation, not input.
+enum SessionStageComposition: Equatable, Sendable {
+    case reading
+    case entry
+
+    init(isEnteringWeight: Bool) {
+        self = isEnteringWeight ? .entry : .reading
+    }
+}
+
 /// Stage resolution: which item is on stage, which Set it shows, what is up
 /// next, and the queue/completion summaries. Kept out of the view layer so the
 /// Stage's follow-the-focus behavior is unit-testable.

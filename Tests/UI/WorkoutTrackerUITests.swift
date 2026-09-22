@@ -80,11 +80,12 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
+        let hudBottom = app.otherElements["session-header-hud"].frame.maxY
 
         app.buttons["weight-pill"].tap()
         XCTAssertTrue(app.keyboards.firstMatch.appears(within: 3))
 
-        tapEmptyStageSpaceBetweenBranchAndRunline(in: app)
+        tapEmptyStageSpaceAboveExerciseName(in: app, belowHUDBottom: hudBottom)
 
         XCTAssertFalse(app.keyboards.firstMatch.appears(within: 1))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
@@ -239,12 +240,14 @@ final class WorkoutTrackerOnboardingSwitchUITests: XCTestCase {
     }
 }
 
+/// With the keyboard up the stage drops its HUD and branch, so the empty paper left is the band
+/// above the Exercise name. The tap stays below the HUD's old frame because the leaving HUD still
+/// takes taps there until the composition switch finishes animating.
 @MainActor
-private func tapEmptyStageSpaceBetweenBranchAndRunline(in app: XCUIApplication) {
-    let branchEnd = app.buttons["Set 3, 5 · RPE8"].frame.maxY
-    let runlineStart = app.staticTexts["Block 26 · W4 D3 — 245x5@6, 255x5@7"].frame.minY
+private func tapEmptyStageSpaceAboveExerciseName(in app: XCUIApplication, belowHUDBottom hudBottom: CGFloat) {
+    let nameTop = app.staticTexts["stage-exercise-name"].frame.minY
     app.coordinate(withNormalizedOffset: .zero)
-        .withOffset(CGVector(dx: app.frame.midX, dy: (branchEnd + runlineStart) / 2))
+        .withOffset(CGVector(dx: app.frame.midX, dy: (hudBottom + nameTop) / 2))
         .tap()
 }
 

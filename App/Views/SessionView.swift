@@ -19,6 +19,7 @@ struct SessionView: View {
     @State private var sessionSettingsTopContentOffset: CGFloat = 0
     @State private var sessionSettingsDragStartTopContentOffset: CGFloat?
     @State private var isSettingsPresented = false
+    @State private var stageComposition = SessionStageComposition.reading
 
     init(liveActivityAdapter: LiveActivityProductionAdapter = LiveActivityProductionAdapter()) {
         self.liveActivityAdapter = liveActivityAdapter
@@ -188,17 +189,25 @@ extension SessionView {
         SessionStageView(
             session: session,
             coordinator: coordinator,
+            composition: stageComposition,
             actions: stageActions(in: session),
             onTopContentOffsetChange: updateSessionSettingsOverpull(topContentOffset:)
         )
         .safeAreaInset(edge: .top, spacing: 0) {
-            sessionHeaderHUD(session: session)
+            if stageComposition == .reading {
+                sessionHeaderHUD(session: session)
+            }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             // Gate on the published interval, not the time-derived `isRunning`: the interval is
             // held a beat past the deadline so the pill stays mounted to play the expiry buzz.
             if restTimer.interval != nil {
                 RestPillView(restTimer: restTimer)
+            }
+        }
+        .onPreferenceChange(WeightEntryPreferenceKey.self) { isEnteringWeight in
+            withAnimation(reduceMotion ? nil : Theme.stageCompositionAnimation) {
+                stageComposition = SessionStageComposition(isEnteringWeight: isEnteringWeight)
             }
         }
     }

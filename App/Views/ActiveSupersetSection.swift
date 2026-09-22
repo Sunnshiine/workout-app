@@ -9,6 +9,7 @@ import SwiftUI
 /// containment) are untouched — this slice rebuilds only the composition.
 struct ActiveSupersetSection: View {
     let config: SessionSupersetRenderConfig
+    let composition: SessionStageComposition
     let onFocusExercise: (Exercise) -> Void
     let onShowHistory: (Exercise) -> Void
     let onLog: (ExerciseSet, SetLog) -> Void
@@ -50,36 +51,46 @@ struct ActiveSupersetSection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            if let cadence = focusedExercise.cadence, !cadence.isEmpty {
-                Text(cadence)
-                    .font(Theme.font(.cadence))
-                    .foregroundStyle(palette.textSecondary)
-                    .accessibilityIdentifier("stage-cadence")
+        let lastPerformed = config.lastPerformedPresentation.map { presentation in
+            LastPerformedCard(presentation: presentation) {
+                onShowHistory(focusedExercise)
             }
+        }
 
-            nameBlock
+        // As on the single-Exercise stage, `cardRegion` stays outside the branch so the incoming
+        // card's identity and the weight field's focus survive the switch.
+        return VStack(alignment: .leading, spacing: 14) {
+            if composition == .reading {
+                if let cadence = focusedExercise.cadence, !cadence.isEmpty {
+                    Text(cadence)
+                        .font(Theme.font(.cadence))
+                        .foregroundStyle(palette.textSecondary)
+                        .accessibilityIdentifier("stage-cadence")
+                }
 
-            if let note = focusedExercise.coachNote {
-                Text(note)
-                    .font(Theme.font(.coachNote))
-                    .foregroundStyle(palette.textSecondary)
-                    .lineSpacing(4)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+                nameBlock
 
-            SessionStageBranch(
-                sets: focusedSortedSets,
-                activeSetID: config.presentation.activeSetID,
-                partnerSets: partnerExercise.sets.sorted { $0.index < $1.index }
-            )
-            .padding(.top, 4)
+                if let note = focusedExercise.coachNote {
+                    Text(note)
+                        .font(Theme.font(.coachNote))
+                        .foregroundStyle(palette.textSecondary)
+                        .lineSpacing(4)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
 
-            Spacer(minLength: 12)
+                SessionStageBranch(
+                    sets: focusedSortedSets,
+                    activeSetID: config.presentation.activeSetID,
+                    partnerSets: partnerExercise.sets.sorted { $0.index < $1.index }
+                )
+                .padding(.top, 4)
 
-            if let lastPerformed = config.lastPerformedPresentation {
-                LastPerformedCard(presentation: lastPerformed) {
-                    onShowHistory(focusedExercise)
+                Spacer(minLength: 12)
+
+                lastPerformed
+            } else {
+                StageEntryHeader(lastPerformed: lastPerformed) {
+                    nameBlock
                 }
             }
 

@@ -21,6 +21,7 @@ struct SessionStageActions {
 struct SessionStageView: View {
     let session: Session
     let coordinator: SessionCoordinator
+    let composition: SessionStageComposition
     let actions: SessionStageActions
     let onTopContentOffsetChange: (CGFloat) -> Void
     @Environment(WorkoutStore.self) private var workout
@@ -57,11 +58,16 @@ struct SessionStageView: View {
                     completionStage(items: items)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            // Entry pins the card above the keyboard, so whatever does not fit sheds off the
+            // top of the page, never off the bottom.
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: composition == .entry ? .bottom : .top)
             .padding(.horizontal)
             .padding(.top, Theme.sectionSpacing)
+            .padding(.bottom, composition == .entry ? Theme.stageEntryFootGap : 0)
 
-            queueBar(stageItem: stageItem, items: items)
+            if composition == .reading {
+                queueBar(stageItem: stageItem, items: items)
+            }
         }
         .animation(
             reduceMotion ? nil : Theme.momentumFlowAnimation,
@@ -110,6 +116,7 @@ struct SessionStageView: View {
         case .superset(let config):
             ActiveSupersetSection(
                 config: config,
+                composition: composition,
                 onFocusExercise: actions.focusSupersetExercise,
                 onShowHistory: { historyExercise = $0 },
                 onLog: actions.log,
@@ -129,48 +136,61 @@ struct SessionStageView: View {
     // the foot, so the page reads top-to-bottom without scrolling.
     private func exerciseStage(_ config: SessionExerciseRenderConfig) -> some View {
         let sortedSets = config.exercise.sets.sorted { $0.index < $1.index }
+        let lastPerformed = config.lastPerformedPresentation.map { presentation in
+            LastPerformedCard(presentation: presentation) {
+                historyExercise = config.exercise
+            }
+        }
 
+        // The card stays outside the branch, at the same position in both, so its identity and
+        // the weight field's focus survive the switch between compositions.
         return VStack(alignment: .leading, spacing: 14) {
-            if let cadence = config.exercise.cadence, !cadence.isEmpty {
-                Text(cadence)
-                    .font(Theme.font(.cadence))
-                    .foregroundStyle(palette.textSecondary)
-                    .accessibilityIdentifier("stage-cadence")
-            }
+            if composition == .reading {
+                if let cadence = config.exercise.cadence, !cadence.isEmpty {
+                    Text(cadence)
+                        .font(Theme.font(.cadence))
+                        .foregroundStyle(palette.textSecondary)
+                        .accessibilityIdentifier("stage-cadence")
+                }
 
-            Text(config.exercise.baseName)
-                .font(Theme.font(.exerciseName))
-                .foregroundStyle(palette.textPrimary)
-                .lineSpacing(3)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("stage-exercise-name")
+                exerciseName(config)
 
-            if let note = config.exercise.coachNote {
-                Text(note)
-                    .font(Theme.font(.coachNote))
-                    .foregroundStyle(palette.textSecondary)
-                    .lineSpacing(4)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+                if let note = config.exercise.coachNote {
+                    Text(note)
+                        .font(Theme.font(.coachNote))
+                        .foregroundStyle(palette.textSecondary)
+                        .lineSpacing(4)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
 
-            SessionStageBranch(
-                sets: sortedSets,
-                activeSetID: config.activeSetID,
-                onTap: actions.focus
-            )
-            .padding(.top, 4)
+                SessionStageBranch(
+                    sets: sortedSets,
+                    activeSetID: config.activeSetID,
+                    onTap: actions.focus
+                )
+                .padding(.top, 4)
 
-            Spacer(minLength: 12)
+                Spacer(minLength: 12)
 
-            if let lastPerformed = config.lastPerformedPresentation {
-                LastPerformedCard(presentation: lastPerformed) {
-                    historyExercise = config.exercise
+                lastPerformed
+            } else {
+                StageEntryHeader(lastPerformed: lastPerformed) {
+                    exerciseName(config)
                 }
             }
 
             stageCard(config, sortedSets: sortedSets)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func exerciseName(_ config: SessionExerciseRenderConfig) -> some View {
+        Text(config.exercise.baseName)
+            .font(Theme.font(.exerciseName))
+            .foregroundStyle(palette.textPrimary)
+            .lineSpacing(3)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("stage-exercise-name")
     }
 
     @ViewBuilder
@@ -318,6 +338,28 @@ struct SessionStageView: View {
         guard let exercise = item.exercises.first else { return }
         if coordinator.handlePairingTap(on: exercise, in: session) == .unavailable {
             UINotificationFeedbackGenerator().notificationOccurred(.warning)
+        }
+    }
+}
+
+/// The entry composition's header: the richest of `name + Last Performed`, `name`, and
+/// `Last Performed` whose ideal height fits the room the pinned card leaves, else nothing.
+/// `ViewThatFits` measures the real name (one or two Fraunces lines), so there is no device table,
+/// and the zero-height last candidate means the header can shrink but never rise under the status
+/// bar.
+struct StageEntryHeader<Name: View>: View {
+    let lastPerformed: LastPerformedCard?
+    @ViewBuilder let name: () -> Name
+
+    var body: some View {
+        ViewThatFits(in: .vertical) {
+            VStack(alignment: .leading, spacing: 14) {
+                name()
+                lastPerformed
+            }
+            name()
+            lastPerformed
+            Color.clear.frame(height: 0)
         }
     }
 }

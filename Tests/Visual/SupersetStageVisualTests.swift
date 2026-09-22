@@ -40,6 +40,7 @@ struct SupersetStageVisualTests {
             VStack(spacing: 0) {
                 ActiveSupersetSection(
                     config: config,
+                    composition: .reading,
                     onFocusExercise: { _ in },
                     onShowHistory: { _ in },
                     onLog: { _, _ in },

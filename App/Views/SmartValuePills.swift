@@ -5,6 +5,16 @@ import UIKit
     import CoreHaptics
 #endif
 
+/// True while a weight field somewhere in the subtree is being edited. Reduced with `||` so a
+/// retiring card's idle field cannot mask the incoming card's live one.
+struct WeightEntryPreferenceKey: PreferenceKey {
+    static let defaultValue = false
+
+    static func reduce(value: inout Bool, nextValue: () -> Bool) {
+        value = value || nextValue()
+    }
+}
+
 /// The Active Set Card's input block (DESIGN.md §5.2, pick input-block3-c): weight
 /// leads as the card's biggest number flanked by round ± steppers; Reps and RPE are
 /// side-by-side one-tap scroll rails; a true Log capsule previews the exact Set Log.
@@ -99,6 +109,9 @@ struct SmartValuePills: View {
             dismissFieldUI()
         }
         .onDisappear(perform: commitChangedDraftIfNeeded)
+        // A preference, not a callback: it is re-derived from the tree every render, so a card
+        // that leaves the stage mid-edit takes its `true` with it.
+        .preference(key: WeightEntryPreferenceKey.self, value: isEditingWeight)
     }
 
     private var presentation: SetCardPresentation {
