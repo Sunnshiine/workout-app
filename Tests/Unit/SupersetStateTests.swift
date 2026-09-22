@@ -2,8 +2,12 @@ import Testing
 
 @testable import WorkoutTracker
 
-private func makeSupersetSession() -> Session {
+private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int = 1) -> Session {
+    let block = Block(tabName: blockTab)
+    let week = Week(number: weekNumber)
+    week.block = block
     let session = Session(dayNumber: 1, date: nil)
+    session.week = week
     let squat = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil, order: 0)
     squat.sets = [
         ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
@@ -207,6 +211,42 @@ private func makeSupersetSession() -> Session {
     #expect(state.supersetCount == 1)
     #expect(state.isPaired(refreshedSquat))
     #expect(state.isPaired(refreshedBench))
+}
+
+@MainActor
+@Test func supersetDissolvesWhenRefreshedAgainstASecondBlockSharingTheWeekAndDay() throws {
+    let firstBlock = makeSupersetSession(blockTab: "Block 29")
+    let squat = try #require(firstBlock.exercises.first { $0.name == "Squat" })
+    let bench = try #require(firstBlock.exercises.first { $0.name == "Bench Press" })
+    let state = SupersetState()
+    state.createSuperset(with: [squat, bench], in: firstBlock)
+    #expect(state.exercisePairs(in: firstBlock).map { $0.map(\.name) } == [["Squat", "Bench Press"]])
+
+    let secondBlock = makeSupersetSession(blockTab: "Block 30")
+    state.refresh(in: secondBlock)
+
+    #expect(state.exercisePairs(in: secondBlock).map { $0.map(\.name) } == [])
+    #expect(state.supersetCount == 0)
+}
+
+@MainActor
+@Test func bindingToASecondBlockDissolvesTheSupersetMadeInTheFirst() throws {
+    let firstBlock = makeSupersetSession(blockTab: "Block 29")
+    let squat = try #require(firstBlock.exercises.first { $0.name == "Squat" })
+    let bench = try #require(firstBlock.exercises.first { $0.name == "Bench Press" })
+    let coordinator = SessionCoordinator(session: firstBlock)
+    #expect(coordinator.createSuperset(from: squat, to: bench, in: firstBlock))
+    #expect(
+        coordinator.supersetSections(in: firstBlock).map { $0.exercises.map(\.name) }
+            == [["Squat", "Bench Press"]]
+    )
+
+    let secondBlock = makeSupersetSession(blockTab: "Block 30")
+    coordinator.bind(to: secondBlock)
+
+    #expect(coordinator.supersetSections(in: secondBlock).map { $0.exercises.map(\.name) } == [])
+    let secondBlockSquat = try #require(secondBlock.exercises.first { $0.name == "Squat" })
+    #expect(coordinator.canPair(secondBlockSquat, in: secondBlock))
 }
 
 @MainActor
