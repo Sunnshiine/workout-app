@@ -94,7 +94,7 @@ struct SmartValuePillsForm {
 
     mutating func adjustWeight(by increment: Double) {
         let currentWeight = Double(weightText) ?? 0
-        weightText = (currentWeight + increment).weightLabel
+        weightText = Weight.pounds(currentWeight + increment).label
     }
 
     enum WeightStep: Sendable {
@@ -196,7 +196,7 @@ struct SmartValuePillsForm {
             trainingMax: trainingMax
         ) {
         case .weight(let weight):
-            return weight.weightLabel
+            return Weight.pounds(weight).label
         case .bodyweight:
             return "BW"
         case .noSuggestion:
@@ -206,11 +206,5 @@ struct SmartValuePillsForm {
 
     private static func initialRepsText(for prescribedReps: String) -> String {
         Int(prescribedReps).map { String($0) } ?? ""
-    }
-}
-
-extension Double {
-    fileprivate var weightLabel: String {
-        rounded() == self ? String(Int(self)) : String(self)
     }
 }
