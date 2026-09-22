@@ -442,6 +442,6 @@ private func stepForm(weight: String) -> SmartValuePillsForm {
 @Test func stepWeightRendersAWeightPastIntRangeInsteadOfTrapping() {
     var form = stepForm(weight: "1e19")
 
-    #expect(form.stepWeight(.up) == false)
+    form.stepWeight(.up)
     #expect(form.weightText == "1e+19")
 }

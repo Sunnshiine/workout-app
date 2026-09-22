@@ -56,6 +56,7 @@ import Testing
 
 @Test func setLogWithAWholeNumberWeightBeyondIntRangeFormatsInsteadOfTrapping() {
     #expect(SetLog(formatted: "1e19x5@8")?.formatted == "1e+19x5@8")
+    #expect(SetLog(formatted: "1e+19x5@8") == SetLog(weight: .pounds(1e19), reps: 5, rpe: .eight))
     #expect(Weight.pounds(-1e19).label == "-1e+19")
 }
 
