@@ -76,9 +76,10 @@ on screen, then taps its centre; when it never gets one it exits 1 and says `off
 resolve no element, so they report success whatever is under the point.
 After a tap, re-read the tree before asserting. `tree` has no enabled column, so prove a disabled
 state with `find <id>`, which says `disabled` on stderr and still exits 0.
-`-UITEST_DISABLE_ANIMATIONS` stops UIKit and SwiftUI animations, so a log lands in one frame with
-no transition between the old card and the new one. A state absent after one second is still
-absent. `burst` shows frame by frame what an action changed.
+`-UITEST_DISABLE_ANIMATIONS` stops UIKit animations and the SwiftUI animations of the main window,
+so a log lands in one frame with no transition between the old card and the new one. Nobody has
+checked state that lives inside a sheet, which may still animate for about 0.2 s. A state absent
+after one second is still absent. `burst` shows frame by frame what an action changed.
 
 `tree` lists what is on screen and says on stderr how many elements it left out. A scrolled-out
 row and the tail of the reps picker are out; a card wider than the screen is in. `find <id>`
@@ -119,9 +120,9 @@ owed for one shot too, because nothing else looks at the pixels. Report what you
 number, and say anything the tree cannot show. Overlap, colour, clipping, an element under the
 status bar. Give that read to your strongest model. A smaller one read every string on a 12-up
 sheet and still missed a layout defect on it. A shot's PNG and its tree are captured about 0.2 s
-apart, so a shot taken right on a tap can show one state and describe another. Let the transition
-settle for a second, or run `burst`. After a log the rest pill counts down once a second, so the
-changed lines always carry it.
+apart, so a shot taken right on a tap can show one state and describe another. Wait a second
+after a tap before a shot, or run `burst`. After a log the rest pill counts down once a second, so
+the changed lines always carry it.
 
 ## Cleanup
 
