@@ -54,6 +54,11 @@ import Testing
     #expect(Weight.pounds(185).label == "185")
 }
 
+@Test func setLogWithAWholeNumberWeightBeyondIntRangeFormatsInsteadOfTrapping() {
+    #expect(SetLog(formatted: "1e19x5@8")?.formatted == "1e+19x5@8")
+    #expect(Weight.pounds(-1e19).label == "-1e+19")
+}
+
 @MainActor
 @Test func setDisplayUsesLoggedSetLogWhenPresent() throws {
     let logged = ExerciseSet(index: 0, prescribedReps: "12", prescribedLoad: "RPE8", percentOneRM: nil, state: .logged)
