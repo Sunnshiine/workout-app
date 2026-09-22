@@ -201,10 +201,11 @@ case $cmd in
     mkdir -p "$state_dir"
     printf '%s\n' "$pid" > "$state_dir/pid"
     printf '%s\n' "${args[*]}" > "$state_dir/args"
+    # stop decides whose app it is from this file, so a launch that never comes up still owns its pid.
+    begin_run >/dev/null
     for _ in $(seq 1 40); do
       if [ "$(front_pid)" = "$pid" ]; then
         echo "launched $fixture as pid $pid on $sim"
-        begin_run >/dev/null
         echo "evidence $(run_dir)"
         exit 0
       fi
@@ -347,6 +348,12 @@ case $cmd in
 
   stop)
     need_sim
+    owner=
+    [ -f "$state_dir/run" ] && owner=$(cat "$state_dir/run")
+    if [ -n "$owner" ] && [ -n "${VERIFY_RUN:-}" ] && [ "$owner" != "$VERIFY_RUN" ]; then
+      echo "the app on $sim belongs to run $owner, not to $VERIFY_RUN; to stop it anyway, run: VERIFY_RUN=$owner $0 stop" >&2
+      exit 75
+    fi
     if [ -f "$state_dir/pid" ]; then
       pid=$(cat "$state_dir/pid")
       kill -0 "$pid" 2>/dev/null && xcrun simctl terminate "$sim" "$bundle" && echo "terminated pid $pid"
