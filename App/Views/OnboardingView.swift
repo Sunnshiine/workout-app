@@ -124,7 +124,11 @@ struct OnboardingView: View {
     // MARK: - Phase 2: URL Entry Card
 
     private var urlEntryCard: some View {
-        VStack(spacing: 20) {
+        // A SwiftUI TextField publishes its placeholder as the accessibility value while it is
+        // empty and only promotes it to a label once the athlete types, so an empty field has no
+        // accessible name at all. Naming it explicitly gives it the same name in both states.
+        let fieldName = "Google Sheet URL"
+        return VStack(spacing: 20) {
             HStack {
                 Button {
                     urlError = false
@@ -141,10 +145,12 @@ struct OnboardingView: View {
             Text("Paste your sheet URL")
                 .font(Theme.font(.sheetTitle))
 
-            TextField("Google Sheet URL", text: $urlText)
+            TextField(fieldName, text: $urlText)
                 .textFieldStyle(.roundedBorder)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
+                .accessibilityIdentifier("onboarding-url-field")
+                .accessibilityLabel(fieldName)
 
             if urlError {
                 Text("That doesn't look like a Sheet URL")
