@@ -124,8 +124,9 @@ struct OnboardingView: View {
     // MARK: - Phase 2: URL Entry Card
 
     private var urlEntryCard: some View {
-        // An empty SwiftUI TextField publishes its placeholder as the accessibility value, never a
-        // label, so without an explicit label a filled field has no accessible name at all.
+        // A SwiftUI TextField publishes its placeholder as the accessibility value while it is
+        // empty and only promotes it to a label once the athlete types, so an empty field has no
+        // accessible name at all. Naming it explicitly gives it the same name in both states.
         let fieldName = "Google Sheet URL"
         return VStack(spacing: 20) {
             HStack {

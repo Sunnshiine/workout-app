@@ -163,8 +163,9 @@ final class WorkoutTrackerOnboardingSwitchUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["Back Squat"].exists)
     }
 
-    /// Pins the identifier and the accessible name on the URL field. Without them VoiceOver reads a
-    /// filled field back as its contents alone, and no recipe can target it without a coordinate.
+    /// Pins the identifier and the accessible name on the URL field. Without the label an empty
+    /// field has no name for VoiceOver to read, and without the identifier no recipe can target it
+    /// except by coordinate. The assertion before `typeText` is the one that fails unlabelled.
     @MainActor
     func testPastedURLGoesThroughANamedFieldAndLandsOnTheSyncedSession() throws {
         let app = launchWorkoutApp(fixture: .onboarding, options: [.disableCelebrationBloom])
