@@ -76,9 +76,9 @@ on screen, then taps its centre; when it never gets one it exits 1 and says `off
 resolve no element, so they report success whatever is under the point.
 After a tap, re-read the tree before asserting. `tree` has no enabled column, so prove a disabled
 state with `find <id>`, which says `disabled` on stderr and still exits 0.
-`-UITEST_DISABLE_ANIMATIONS` stops UIKit animations only, so a SwiftUI transition still runs for
-about 850 ms after a log tap (issue 618). A state absent after one second is still absent. `burst`
-is how you see a transition.
+`-UITEST_DISABLE_ANIMATIONS` stops UIKit and SwiftUI animations, so a log lands in one frame with
+no transition between the old card and the new one. A state absent after one second is still
+absent. `burst` shows frame by frame what an action changed.
 
 `tree` lists what is on screen and says on stderr how many elements it left out. A scrolled-out
 row and the tail of the reps picker are out; a card wider than the screen is in. `find <id>`

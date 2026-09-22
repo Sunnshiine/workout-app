@@ -69,6 +69,13 @@ struct WorkoutTrackerApp: App {
                 .environment(app.sync)
                 .environment(app.lastPerformed)
                 .environment(app.historyFill)
+                #if DEBUG
+                    .transaction { transaction in
+                        guard UITestFixture.isEnabled, UITestFixture.launch.disablesAnimations else { return }
+                        transaction.animation = nil
+                        transaction.disablesAnimations = true
+                    }
+                #endif
                 .onOpenURL { GIDSignIn.sharedInstance.handle($0) }
                 .task {
                     #if DEBUG
