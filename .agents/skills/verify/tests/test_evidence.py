@@ -297,6 +297,18 @@ class Clipped(unittest.TestCase):
             REPS_CLIPPED.rstrip("\n"),
         ], "a swipe of the screen never brings a rail chip in, so the second note names the fix")
 
+    def test_a_row_below_the_fold_of_a_full_screen_scroll_area_is_only_off_screen(self):
+        scrolled = json.loads(MINI)
+        scrolled[0]["children"] = [{
+            "role": "AXScrollArea", "frame": {"x": 0, "y": 0, "width": 402, "height": 874},
+            "children": [{"role": "AXButton", "AXUniqueId": "developer-tools-row", "AXLabel": "Write Log",
+                          "frame": {"x": 16, "y": 1180, "width": 370, "height": 52}}],
+        }]
+        code, out, err = tree_py("find", "developer-tools-row", stdin=json.dumps(scrolled))
+        self.assertEqual(code, 0, err)
+        self.assertEqual(err, "off-screen: swipe it into view before tapping\n",
+                         "the scroll area is the screen, so naming it again would repeat the swipe")
+
     def test_on_the_captured_screen_exactly_the_chips_a_tap_misses_are_clipped(self):
         on_screen = [line.split("\t")[1] for line in tree_py("flat", stdin=SESSION_RAILS)[1].splitlines()]
         clipped = [ident for ident in on_screen if ident and "clipped" in tree_py("find", ident, stdin=SESSION_RAILS)[2]]

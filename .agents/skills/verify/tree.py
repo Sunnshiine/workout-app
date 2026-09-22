@@ -5,9 +5,9 @@ Reads an `axe describe-ui` JSON tree on stdin:
   tree.py flat [--all]   one line per labeled or identified element: role, id, label, value, @x,y wxh
                          on-screen elements only; --all keeps the off-screen ones too
   tree.py find <id>      that element's line wherever it is, on screen or off; exit 1 if absent
-                         says on stderr when it is off-screen or disabled
-  tree.py tappable <id>  "x y" of the first hit that is enabled and on screen, so a tap on it
-                         lands; exit 1 with the same notes find prints when there is no such hit
+                         says on stderr when it is off-screen, clipped by an ancestor's frame, or disabled
+  tree.py tappable <id>  "x y" of the first hit that is enabled, on screen, and not clipped, so a tap
+                         on it lands; exit 1 with the same notes find prints when there is no such hit
   tree.py pid            the frontmost application's pid
   tree.py frame          the application's width and height
   tree.py center <id>    "x y" of the element with that accessibility identifier; exit 1 if absent
@@ -53,6 +53,23 @@ class Frame(NamedTuple):
             and self.y < other.y + other.height and self.y + self.height > other.y
         )
 
+    def covers(self, other: "Frame") -> bool:
+        return (
+            self.x <= other.x and self.x + self.width >= other.x + other.width
+            and self.y <= other.y and self.y + self.height >= other.y + other.height
+        )
+
+
+def clipper(frame: Frame, ancestors: Tuple[dict, ...], screen: Frame) -> Optional[str]:
+    for ancestor in reversed(ancestors):
+        bounds = Frame.of(ancestor)
+        # An ancestor that covers the screen clips nothing the off-screen check misses.
+        if bounds.covers(screen) or frame.intersects(bounds):
+            continue
+        name = clean(ancestor.get("AXUniqueId") or ancestor.get("AXLabel"))
+        return " ".join(part for part in (clean(ancestor.get("role")), name, bounds.text) if part)
+    return None
+
 
 class TreeLine(NamedTuple):
     role: str
@@ -61,15 +78,17 @@ class TreeLine(NamedTuple):
     value: str
     frame: Frame
     enabled: bool
+    clipped_by: Optional[str]
 
     @classmethod
-    def from_node(cls, node: dict) -> Optional["TreeLine"]:
+    def from_node(cls, node: dict, ancestors: Tuple[dict, ...], screen: Frame) -> Optional["TreeLine"]:
         ident, label = node.get("AXUniqueId"), node.get("AXLabel")
         if not (ident or label):
             return None
+        frame = Frame.of(node)
         return cls(
-            clean(node.get("role")), clean(ident), clean(label), clean(node.get("AXValue")), Frame.of(node),
-            node.get("enabled") is not False,
+            clean(node.get("role")), clean(ident), clean(label), clean(node.get("AXValue")), frame,
+            node.get("enabled") is not False, clipper(frame, ancestors, screen),
         )
 
     @property
@@ -86,14 +105,16 @@ def identity(text_line: str) -> str:
     return text_line.rsplit("\t", 1)[0]
 
 
-def walk(node: dict) -> Iterator[dict]:
-    yield node
+def walk(node: dict, ancestors: Tuple[dict, ...] = ()) -> Iterator[Tuple[dict, Tuple[dict, ...]]]:
+    yield node, ancestors
     for child in node.get("children", []):
-        yield from walk(child)
+        yield from walk(child, ancestors + (node,))
 
 
 def lines(root: dict) -> List[TreeLine]:
-    return [line for line in map(TreeLine.from_node, walk(root)) if line is not None]
+    screen = Frame.of(root)
+    built = (TreeLine.from_node(node, ancestors, screen) for node, ancestors in walk(root))
+    return [line for line in built if line is not None]
 
 
 def on_screen(all_lines: List[TreeLine], screen: Frame) -> List[TreeLine]:
@@ -108,6 +129,8 @@ def obstacles(found: List[TreeLine], screen: Frame) -> List[str]:
     notes = []
     if any(not line.frame.intersects(screen) for line in found):
         notes.append("off-screen: swipe it into view before tapping")
+    for ancestor in dict.fromkeys(line.clipped_by for line in found if line.clipped_by is not None):
+        notes.append(f"clipped: outside {ancestor}; scroll it into that frame before tapping")
     if not all(line.enabled for line in found):
         notes.append("disabled: a tap on it does nothing")
     return notes
@@ -190,7 +213,7 @@ def main() -> None:
         if not found:
             sys.exit(f"no element with id {sys.argv[2]}")
         for line in found:
-            if line.enabled and line.frame.intersects(screen):
+            if not obstacles([line], screen):
                 x, y = line.frame.center
                 print(f"{x:.0f} {y:.0f}")
                 return
