@@ -9,8 +9,8 @@ Waits for the CI workflow run on the head commit of a pull request or branch (de
 then prints each job's conclusion. Exits 0 only when the run succeeded.
 
 The run is matched by commit, so right after a merge this waits for the merge's own run
-instead of reporting the previous one. A cancelled run prints as cancelled: a later green
-run proves the combined tree, not this commit.
+instead of reporting the previous one. This reports the newest run on the commit and follows
+a newer one that starts while it waits. A cancelled run with no newer run prints as cancelled.
 EOF
 }
 
@@ -28,10 +28,16 @@ else
     sha=$(gh api "repos/{owner}/{repo}/commits/$target" --jq .sha)
 fi
 
+# Two runs on one commit can share a createdAt second, and the API can then list the
+# older one first.
+newest_run() {
+    gh run list --workflow CI --commit "$sha" --limit 20 --json databaseId --jq 'map(.databaseId) | max // empty'
+}
+
 # A commit pushed seconds ago has no run yet.
 run=""
 for _ in $(seq 60); do
-    run=$(gh run list --workflow CI --commit "$sha" --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+    run=$(newest_run)
     [[ -n "$run" ]] && break
     sleep 5
 done
@@ -40,7 +46,12 @@ if [[ -z "$run" ]]; then
     exit 3
 fi
 
-gh run watch "$run" --interval 30 >/dev/null 2>&1 || true
+while :; do
+    gh run watch "$run" --interval 30 >/dev/null 2>&1 || true
+    newer=$(newest_run)
+    (( newer > run )) || break
+    run=$newer
+done
 conclusion=$(gh run view "$run" --json conclusion --jq .conclusion)
 echo "CI $conclusion on ${sha:0:7} (run $run)"
 gh run view "$run" --json jobs --jq '.jobs[] | "  \(.name): \(.conclusion)"'
