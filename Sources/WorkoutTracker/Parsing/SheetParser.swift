@@ -213,7 +213,7 @@ private func parsedMultiLineExercise(
 
 private func parsedExercise(snapshot: SheetSnapshot, day: SheetLayoutDay, anchor: SheetLayoutExerciseAnchor) -> ParsedExercise {
     let cols = day.columns
-    let lines = anchor.prescriptionLines(in: snapshot.values, setsColumn: cols.sets)
+    let lines = anchor.prescriptionLines(in: snapshot, setsColumn: cols.sets)
     return lines.isMultiLine
         ? parsedMultiLineExercise(snapshot: snapshot, cols: cols, anchor: anchor, lines: lines)
         : parsedSingleLineExercise(snapshot: snapshot, cols: cols, anchor: anchor)

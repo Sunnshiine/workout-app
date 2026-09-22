@@ -87,6 +87,18 @@ private func planError(
     #expect(error?.errorDescription == "Last set RPE column was not found")
 }
 
+// Before #559 this redirected onto the visible row below the hidden one and the log landed there.
+@Test func refusesASetLogWriteWhenTheExerciseRowIsHidden() {
+    let error = planError(
+        addressingRequest(),
+        grid: addressingGrid(["K15": "Keep elbows soft", "C18": "Bench", "D18": "1"]),
+        rowVisibility: [14: SheetRowVisibility(hiddenByUser: true)]
+    )
+
+    #expect(error == .exerciseNotFound("Squat"))
+    #expect(error?.errorDescription == "Squat was not found in the sheet")
+}
+
 @Test func refusesALastSetRPEWriteWhenTheExerciseRowIsHidden() {
     let error = planError(
         addressingRequest(column: .lastSetRPE),
@@ -94,8 +106,8 @@ private func planError(
         rowVisibility: [14: SheetRowVisibility(hiddenByUser: true)]
     )
 
-    #expect(error == .setRowNotFound(exerciseName: "Squat", setIndex: 0))
-    #expect(error?.errorDescription == "Set 1 row was not found for Squat")
+    #expect(error == .exerciseNotFound("Squat"))
+    #expect(error?.errorDescription == "Squat was not found in the sheet")
 }
 
 @Test func writesLastSetRPEToTheAnchorRowWhenItIsVisible() throws {

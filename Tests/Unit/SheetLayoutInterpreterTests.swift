@@ -72,6 +72,82 @@ import Testing
     #expect(day.exerciseAnchors.map(\.nextAnchorRow) == [24, grid.count])
 }
 
+@Test func layoutInterpreterSkipsRetiredExerciseRowsHiddenInTheSheet() throws {
+    let snapshot = SheetSnapshot(
+        values: gridFromA1(
+            [
+                "C12": "Day 1", "S12": "Day 2",
+                "D14": "Sets", "F14": "Reps", "K14": "Notes",
+                "C15": "Back Squat", "D15": "3", "F15": "5",
+                "C17": "0:1:0 Hamstring Curl", "D17": "2", "F17": "10",
+                "C19": "2-3:1:0 BB RDL", "D19": "2", "F19": "8"
+            ],
+            rows: 32,
+            cols: 30
+        ),
+        rowVisibility: [16: SheetRowVisibility(hiddenByUser: true)]
+    )
+
+    let day = try #require(SheetLayoutInterpreter().interpret(snapshot).day(week: 1, day: 1))
+
+    #expect(day.exerciseAnchors.map(\.name) == ["Back Squat", "2-3:1:0 BB RDL"])
+    #expect(day.exerciseAnchors.map(\.row) == [14, 18])
+    // Back Squat stops at the hidden row rather than swallowing it: the retired movement's block
+    // still ends the block above it.
+    #expect(day.exerciseAnchors.map(\.nextAnchorRow) == [16, 32])
+
+    let backSquat = try #require(day.exerciseAnchors.first)
+    #expect(
+        backSquat.prescriptionLines(in: snapshot, setsColumn: day.columns.sets)
+            == [PrescriptionLine(row: 14, setCount: 3, firstSetIndex: 0)]
+    )
+}
+
+/// A coach who retires a multi-line movement may hide only its anchor row. Its continuation rows
+/// stay visible, and they must go with it instead of becoming extra Sets of the Exercise above.
+@Test func layoutInterpreterDoesNotAbsorbAHiddenExercisesVisibleContinuationRows() throws {
+    let snapshot = SheetSnapshot(
+        values: gridFromA1(
+            [
+                "C12": "Day 1", "S12": "Day 2",
+                "D14": "Sets", "F14": "Reps", "K14": "Notes",
+                "C15": "Back Squat", "D15": "3", "F15": "5",
+                "C17": "0:1:0 Hamstring Curl", "D17": "2", "F17": "10",
+                "D18": "2", "F18": "10",
+                "C19": "2-3:1:0 BB RDL", "D19": "2", "F19": "8"
+            ],
+            rows: 32,
+            cols: 30
+        ),
+        rowVisibility: [16: SheetRowVisibility(hiddenByUser: true)]
+    )
+
+    let day = try #require(SheetLayoutInterpreter().interpret(snapshot).day(week: 1, day: 1))
+    let backSquat = try #require(day.exerciseAnchors.first)
+
+    #expect(day.exerciseAnchors.map(\.name) == ["Back Squat", "2-3:1:0 BB RDL"])
+    #expect(
+        backSquat.prescriptionLines(in: snapshot, setsColumn: day.columns.sets)
+            == [PrescriptionLine(row: 14, setCount: 3, firstSetIndex: 0)]
+    )
+}
+
+@Test func layoutInterpreterSkipsFilterHiddenExerciseRowsTheSameWayAsUserHiddenOnes() throws {
+    let cells = [
+        "C12": "Day 1", "S12": "Day 2",
+        "D14": "Sets", "K14": "Notes",
+        "C15": "Back Squat", "D15": "3",
+        "C17": "0:1:0 Hamstring Curl", "D17": "2"
+    ]
+    let grid = gridFromA1(cells, rows: 32, cols: 30)
+
+    for hidden in [SheetRowVisibility(hiddenByUser: true), SheetRowVisibility(hiddenByFilter: true)] {
+        let snapshot = SheetSnapshot(values: grid, rowVisibility: [16: hidden])
+        let day = try #require(SheetLayoutInterpreter().interpret(snapshot).day(week: 1, day: 1))
+        #expect(day.exerciseAnchors.map(\.name) == ["Back Squat"])
+    }
+}
+
 @Test func layoutInterpreterDescribesProtectedHeaderAndContinuationRows() throws {
     let grid = coachNoteLayoutGrid()
 
