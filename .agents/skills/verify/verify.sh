@@ -290,8 +290,7 @@ case $cmd in
       exit
     fi
     # axe taps a coordinate and calls that a success, so it cannot tell a tap that landed from one
-    # that hit nothing. Polling for a hit a tap can land on, rather than for one that merely exists,
-    # is also what keeps a tap fired into a transition from landing mid-slide.
+    # that hit nothing.
     SECONDS=0
     while :; do
       if [ "$SECONDS" -ge "$timeout" ]; then
