@@ -28,10 +28,13 @@ Usage: .claude/skills/verify/verify.sh <command> [args]
                               timing; COMMAND is a drive command fired after the first frame, as in
                               burst log-transition tap --id log-active-set-button
   stop                        terminate the app this run launched; the simulator stays up, and it
-                              says when the run has shots that are not on a sheet yet
+                              says when the run has shots that are not on a sheet yet. A run
+                              launched with Live Activities on is uninstalled, which ends them
   axe ARG...                  raw axe call with --udid filled in
 Environment: SIM (simulator UDID, default the booted iPhone 17 Pro, else the newest one, booted for you),
-             VERIFY_RUN (names the run; give it to launch and every later command remembers it).
+             VERIFY_RUN (names the run; give it to launch and every later command remembers it),
+             VERIFY_LIVE_ACTIVITIES=1 (launch without -UITEST_DISABLE_LIVE_ACTIVITIES; for
+             features/live-activity.md, and its shots carry the activity overlay).
 Evidence: .build/verify/evidence/<run>/  (survives stop)
 EOF
   exit 2
@@ -197,7 +200,9 @@ case $cmd in
       exit 75
     fi
     read -r -a extra <<< "$fixture_flags"
-    args=(-UITEST_FIXTURE ${extra[@]+"${extra[@]}"} -UITEST_DISABLE_ANIMATIONS -UITEST_DISABLE_LIVE_ACTIVITIES "$@")
+    activities=(-UITEST_DISABLE_LIVE_ACTIVITIES)
+    [ -z "${VERIFY_LIVE_ACTIVITIES:-}" ] || activities=()
+    args=(-UITEST_FIXTURE ${extra[@]+"${extra[@]}"} -UITEST_DISABLE_ANIMATIONS ${activities[@]+"${activities[@]}"} "$@")
     xcrun simctl install "$sim" "$app"
     out=$(xcrun simctl launch --terminate-running-process "$sim" "$bundle" "${args[@]}")
     pid=${out##*: }
@@ -392,7 +397,23 @@ case $cmd in
     fi
     if [ -f "$state_dir/pid" ]; then
       pid=$(cat "$state_dir/pid")
-      kill -0 "$pid" 2>/dev/null && xcrun simctl terminate "$sim" "$bundle" && echo "terminated pid $pid"
+      # An `&&` chain here would be this statement's exit status, and under `set -e` an already
+      # dead pid then ended stop before it cleaned up or reported.
+      if kill -0 "$pid" 2>/dev/null; then
+        xcrun simctl terminate "$sim" "$bundle"
+        echo "terminated pid $pid"
+      fi
+      # A Live Activity belongs to the app, not to its process, so terminating leaves it on the
+      # springboard over every later shot. Uninstalling is the only lever on one from outside the
+      # app, and the next launch reinstalls anyway. A state dir with no args file cannot say which
+      # run this was, and uninstalling is the destructive guess, so it keeps the old behaviour.
+      if [ -f "$state_dir/args" ] && ! grep -q -- -UITEST_DISABLE_LIVE_ACTIVITIES "$state_dir/args"; then
+        if xcrun simctl uninstall "$sim" "$bundle"; then
+          echo "uninstalled the app, ending any Live Activity this run started"
+        else
+          echo "could not uninstall on $sim, so a Live Activity this run started may still be on it; end it with: xcrun simctl uninstall $sim $bundle" >&2
+        fi
+      fi
       rm -f "$state_dir/pid" "$state_dir/args"
     else
       echo "nothing launched by this tool on $sim"

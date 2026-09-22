@@ -10,7 +10,7 @@ Settings lets the athlete pick appearance, set rest timers, see and change the c
 - `settings-sync` triggers a sync and shows its outcome on the row.
 - `settings-sign-out` signs out, with a confirmation when writes are pending.
 - `settings-build` shows the build identity in the footer and copies it on tap.
-- `settings-developer-tools` opens Developer Tools with the Current Session debug info, pending writes, and the write log.
+- `settings-developer-tools` opens Developer Tools with the Current Session debug info, the Live Activity Lab, pending writes, and the write log.
 
 ## How to get to it (user POV)
 
@@ -40,4 +40,4 @@ Preconditions:
 - Without `-UITEST_PENDING_WRITE` sign out and a sheet switch skip their confirmations.
 - The session controls hide again after a moment of idleness. Tap the gear in the same breath as the drag, with `--wait-timeout 0`, or the reveal is gone.
 - The sheet row's label ends in the sheet's age, counted from today, so `Replacement Training Log, 25y ago` expires. Read the live label from `verify.sh tree` and match all of it (`onboarding.md`).
-- `developer-tools-live-activity-lab-link` opens, but every launch passes `-UITEST_DISABLE_LIVE_ACTIVITIES`, so the Lab's status row reads `Live Activities disabled` over `Prototype is stopped.` and `find` says `disabled` for four of the five buttons under `Controls`. The fifth, `live-activity-lab-restart-rest-button`, stays enabled, and tapping it leaves both status lines unchanged, so an enabled control there is not a working Lab. The variant picker and the Sample Workout State steppers stay enabled too. That is the harness, not a defect. No recipe here can prove a Live Activity.
+- `developer-tools-live-activity-lab-link` opens, but a launch from this file passes `-UITEST_DISABLE_LIVE_ACTIVITIES`, so the Lab's status row reads `Live Activities disabled` over `Prototype is stopped.` and `find` says `disabled` for four of the five buttons under `Controls`. The fifth, `live-activity-lab-restart-rest-button`, stays enabled, and tapping it leaves both status lines unchanged, so an enabled control there is not a working Lab. The variant picker and the Sample Workout State steppers stay enabled too. That is the harness, not a defect. The Lab itself is driven in `live-activity.md`, which launches under `VERIFY_LIVE_ACTIVITIES=1`.
