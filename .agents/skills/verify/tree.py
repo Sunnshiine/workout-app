@@ -5,6 +5,7 @@ Reads an `axe describe-ui` JSON tree on stdin:
   tree.py flat [--all]   one line per labeled or identified element: role, id, label, value, @x,y wxh
                          on-screen elements only; --all keeps the off-screen ones too
   tree.py find <id>      that element's line wherever it is, on screen or off; exit 1 if absent
+                         says on stderr when it is off-screen or disabled
   tree.py pid            the frontmost application's pid
   tree.py frame          the application's width and height
   tree.py center <id>    "x y" of the element with that accessibility identifier; exit 1 if absent
@@ -57,6 +58,7 @@ class TreeLine(NamedTuple):
     label: str
     value: str
     frame: Frame
+    enabled: bool
 
     @classmethod
     def from_node(cls, node: dict) -> Optional["TreeLine"]:
@@ -64,7 +66,8 @@ class TreeLine(NamedTuple):
         if not (ident or label):
             return None
         return cls(
-            clean(node.get("role")), clean(ident), clean(label), clean(node.get("AXValue")), Frame.of(node)
+            clean(node.get("role")), clean(ident), clean(label), clean(node.get("AXValue")), Frame.of(node),
+            node.get("enabled") is not False,
         )
 
     @property
@@ -168,6 +171,8 @@ def main() -> None:
             print(line.text)
         if any(not line.frame.intersects(screen) for line in hits):
             print("off-screen: swipe it into view before tapping", file=sys.stderr)
+        if not all(line.enabled for line in hits):
+            print("disabled: a tap on it does nothing", file=sys.stderr)
     elif mode == "center":
         for line in lines(root):
             if line.ident == sys.argv[2]:

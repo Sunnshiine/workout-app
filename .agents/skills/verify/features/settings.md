@@ -1,15 +1,16 @@
 # Settings
 
-Settings lets the athlete pick appearance, set rest timers, see and change the connected training sheet, sync now, sign out, and reach Developer Tools.
+Settings lets the athlete pick appearance, set rest timers, see and change the connected training sheet, sync now, sign out, copy the build identity, and reach Developer Tools.
 
 ## Sub-features
 
 - `settings-appearance` switches between `System`, `Light`, and `Night`.
 - `settings-rest` steps the standard and superset rest durations.
-- `settings-sheet` shows the connected sheet and opens the sheet picker.
-- `settings-sync` triggers a sync.
+- `settings-sheet` shows the connected sheet and switches to another one, with a confirmation when writes are pending.
+- `settings-sync` triggers a sync and shows its outcome on the row.
 - `settings-sign-out` signs out, with a confirmation when writes are pending.
-- `settings-developer-tools` opens Developer Tools with the Current Session debug info, pending writes, and actions.
+- `settings-build` shows the build identity in the footer and copies it on tap.
+- `settings-developer-tools` opens Developer Tools with the Current Session debug info, pending writes, and the write log.
 
 ## How to get to it (user POV)
 
@@ -20,26 +21,23 @@ Settings lets the athlete pick appearance, set rest timers, see and change the c
 
 Preconditions:
 
-- `verify.sh launch settings -UITEST_PENDING_WRITE` for the sign-out confirmation, or `verify.sh launch settings` otherwise.
-- The tree has a `Settings` heading and `settings-training-sheet-row` labeled `Training Sheet, Fixture Training Log`.
+- `verify.sh launch settings -UITEST_PENDING_WRITE` shows a `Settings` heading, `settings-training-sheet-row` labeled `Training Sheet, Fixture Training Log`, and `settings-sync-now-button` labeled `Sync now, Refresh workout state`.
 
+- **Appearance.** Tap Night. Run `verify.sh shot appearance-system`, `verify.sh tap --label Night`, `verify.sh shot appearance-night`. The `Night` radio button's value becomes `1`. On the sheet, the Night cell is dark and the System cell follows the simulator's appearance. Tap `System` to restore.
+- **Rest.** Run `verify.sh tap --id settings-standard-rest-stepper-Increment`. `find settings-standard-rest-stepper` reads `Standard, 2:30`. Run `verify.sh tap --id settings-superset-rest-stepper-Increment`. `find settings-superset-rest-stepper` reads `Superset rest, 1:00`.
+- **Sync now.** Run `verify.sh tap --id settings-sync-now-button`. The row reads `Sync now, Offline` and no alert appears. The fixture's sheet is unreachable by design, so `Offline` proves the tap and the outcome row, not the network.
+- **Build footer.** Run `verify.sh tap --id settings-build-identity-footer`, then at once `verify.sh find settings-build-identity-footer`. The label reads `Copied` for about a second in place of the build identity (`1.0 (1) · local build`).
+- **Switch sheet with pending writes.** Run `verify.sh tap --id settings-training-sheet-row`. The sheet picker appears with `sheet-picker-done-button`. Run `verify.sh tap --label "Replacement Training Log, 25y ago"`. An alert titled `You have unsynced changes. Switch anyway?` offers `Switch Anyway` and `Cancel` over the body line `Pending logs for the current sheet will be discarded.` Run `verify.sh shot switch-sheet-alert`, then `verify.sh tap --label "Switch Anyway"`. The picker closes and the row reads `Training Sheet, Replacement Training Log`.
+- **Sign out with pending writes.** Relaunch `settings -UITEST_PENDING_WRITE`. Run `verify.sh tap --id settings-sign-out-button`. An alert titled `You have unsynced changes. Sign out anyway?` appears with `Cancel` and `Sign Out` under the same body line. Run `verify.sh shot sign-out-alert`. Run `verify.sh tap --label Cancel` and the alert leaves the tree. Repeat the row tap, read the alert's `Sign Out` button frame from `verify.sh tree` (`@205,484 140x48` on this device), and tap its center with `verify.sh tap -x 275 -y 508`. The alert is gone, the sheet row reads `Training Sheet, Google Sheet`, and the sync row reads `Sync now, Connect a sheet first`.
+- **Developer Tools.** Launch `settings -UITEST_SLOW_SYNC`. Run `verify.sh tap --id settings-developer-tools-row`. A `Developer Tools` heading appears with `current-session-debug-resolved-value` reading `Week 1, Day 1`, `developer-tools-live-activity-lab-link`, and `Pending Sheet Writes`. `verify.sh find developer-tools-sync-button`, `find copy-write-log-button`, and `find clear-write-log-button` each print their button and report it off-screen.
+- **Rows disabled during a sync.** `-UITEST_SLOW_SYNC` holds the fixture's tab-list read open for 20 s, so a mid-sync state stays on screen. Still in Developer Tools, run `verify.sh swipe up` twice, confirm `find developer-tools-sync-button` prints no off-screen note, tap it, then tap `--label Settings` in the navigation bar. Until the sync finishes, `verify.sh find` says `disabled` for `settings-training-sheet-row`, `settings-sync-now-button` and `settings-sign-out-button`, and the sync row reads `Sync now, Syncing...`. This is a sync Settings did not start, the background case.
 - **From the stage.** Launch `session`, drag the header down, tap the gear. Run `verify.sh axe swipe --start-x 200 --start-y 90 --end-x 200 --end-y 420 --duration 0.4` then at once `verify.sh tap --id session-controls-settings-button --wait-timeout 0`. A `Settings` heading and `settings-done-button` appear. `verify.sh tap --id settings-done-button` returns to the stage with `stage-exercise-name` reading `Back Squat`.
-- **Appearance.** Tap Night. Run `verify.sh shot appearance-system`, `verify.sh tap --label Night`, `verify.sh shot appearance-night`. The `Night` radio button's value becomes `1`. Run `verify.sh sheet` and Read it. Cell 2 is dark where cell 1 is light. Tap `System` to restore.
-- **Rest.** Increment standard rest. Run `verify.sh tap --id settings-standard-rest-stepper-Increment`. `find settings-standard-rest-stepper` reads a longer duration than `Standard, 2:00`.
-- **Sheet row.** Run `verify.sh tap --id settings-training-sheet-row`. The sheet picker appears with `sheet-picker-done-button`. Tap it to return.
-- **Sync now.** Run `verify.sh tap --id settings-sync-now-button`. The button stays and no error alert appears (the fixture sheets client answers instantly).
-- **Rows disabled during a sync.** Launch `settings -UITEST_SLOW_SYNC`, which holds every fixture Sheet read open for 20 s so a mid-sync state stays on screen. Tap `settings-developer-tools-row`, run `verify.sh swipe up` twice, tap `developer-tools-sync-button`, then tap `--label Settings`. `settings-training-sheet-row`, `settings-sync-now-button` and `settings-sign-out-button` all report `enabled=false` in `axe describe-ui`, and `Sync now` reads `Syncing...`, until the sync finishes. Developer Tools starts that sync outside Settings' own `SettingsSyncActivity`, so this is the background case, not the `Sync now` one.
-- **Sign out with pending writes.** Run `verify.sh tap --id settings-sign-out-button`. An alert titled `You have unsynced changes. Sign out anyway?` appears with `Cancel` and `Sign Out`. Run `verify.sh tap --label Cancel` and the alert leaves the tree. Repeat the row tap, read the alert's `Sign Out` button frame from `verify.sh tree` (`@205,484 140x48` on this device), and tap its center with `verify.sh tap -x 275 -y 508`. The alert is gone and the onboarding `Connect Google Sheet` button appears.
-- **Developer Tools.** Run `verify.sh tap --id settings-developer-tools-row`. A `Developer Tools` heading appears with `Current Session Debug Info`, `current-session-debug-resolved-value` reading `Week 1, Day 1`, and `Pending Sheet Writes`. `verify.sh find developer-tools-sync-button` prints the Sync button and reports it off-screen. Tap `--label Settings` in the navigation bar to return.
-- **Proof.** Shoot Settings and the alert. Quote the alert title and the debug values.
+- **Proof.** On the sheet, `appearance-system` and `appearance-night` are one screen in light and dark chrome, so the pair proves the switch only while the simulator itself is light. Both still read `Standard 2:00` and `Superset rest 0:30`, because **Rest** runs after them. `switch-sheet-alert` is the picker dimmed behind a stacked alert, `Switch Anyway` as red text above a plain `Cancel`, and the alert covers the `Replacement Training Log` row it was tapped from down to one character at the left edge. `sign-out-alert` carries the same two sentences over Settings, but its buttons sit side by side with `Sign Out` a filled red capsule on the right, which is why that one needs a frame read and a coordinate tap. Neither alert cell shows a pending-write count anywhere, so `-UITEST_PENDING_WRITE` is visible only as the alert existing at all.
 
 ## Gotchas
 
-- `tap --label "Sign Out"` fails with "Multiple (2) accessibility elements matched" because the row and the alert button share the label and neither alert button has an identifier. Use coordinates from the tree.
-- Signing out drops you to onboarding. Relaunch the fixture to continue.
-- Without `-UITEST_PENDING_WRITE` sign out skips the confirmation.
+- In the `settings` fixture Settings is the root screen, so `Done` and a confirmed sign out both leave it on screen. The signed-out wall is in `onboarding.md`.
+- Without `-UITEST_PENDING_WRITE` sign out and a sheet switch skip their confirmations.
 - The session controls hide again after a moment of idleness. Tap the gear in the same breath as the drag, with `--wait-timeout 0`, or the reveal is gone.
-- In the `settings` fixture `Done` is present but there is no stage beneath, so tapping it leaves Settings on screen.
-- The `Sync now` button proves the tap, not the network. Fixture syncs never reach Google.
-- `developer-tools-sync-button` sits below the fold at `@32,977` on a 402x874 screen, so it is out of `tree` and `find` reports it off-screen. `tap --id` taps the frame centre whether or not it is on screen, and a tap past the bottom edge reports success while hitting nothing. Swipe up twice first and confirm `find` prints it with no off-screen note.
-- `verify.sh tree` has no enabled column. For a disabled-state proof read `verify.sh axe describe-ui` and pull each node's `enabled` field out of the JSON.
+- The sheet row's label ends in the sheet's age, counted from today, so `Replacement Training Log, 25y ago` expires. Read the live label from `verify.sh tree` and match all of it (`onboarding.md`).
+- `developer-tools-live-activity-lab-link` opens, but every launch passes `-UITEST_DISABLE_LIVE_ACTIVITIES`, so the Lab's status row reads `Live Activities disabled` over `Prototype is stopped.` and `find` says `disabled` for four of the five buttons under `Controls`. The fifth, `live-activity-lab-restart-rest-button`, stays enabled, and tapping it leaves both status lines unchanged, so an enabled control there is not a working Lab. The variant picker and the Sample Workout State steppers stay enabled too. That is the harness, not a defect. No recipe here can prove a Live Activity.

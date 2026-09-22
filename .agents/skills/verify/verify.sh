@@ -11,7 +11,8 @@ Usage: .claude/skills/verify/verify.sh <command> [args]
   doctor                      read-only: is the running instance ours, current, and answering?
   tree [--all]                what is on screen, one element per line: role  id  label  value  @x,y wxh
                               --all adds the off-screen ones (scrolled-out rows, picker tails)
-  find <id>                   one element by accessibility identifier, on screen or off; exit 1 if absent
+  find <id>                   one element by accessibility identifier, on screen or off; exit 1 if absent;
+                              says on stderr when it is off-screen or disabled
   tap --id ID | --label TEXT | -x X -y Y
   hold <id> [seconds]         long press an element by identifier (default 1.2 s)
   type TEXT                   type into the focused field
@@ -175,6 +176,9 @@ case $cmd in
     xcodebuild build -project "$project" -scheme WorkoutTracker -destination "platform=iOS Simulator,id=$sim" \
       -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO > "$log" 2>&1 \
       || { grep -E "error:|BUILD FAILED" "$log" | head -20 >&2; echo "build log: $log" >&2; exit 65; }
+    # An incremental build that produces no new bytes leaves the bundle's mtime alone, and doctor
+    # reads that mtime to decide the app is stale. A green build is the claim that it is not.
+    touch "$(app_path)"
     echo "built $(app_path)"
     ;;
 
@@ -186,11 +190,11 @@ case $cmd in
     app=$(app_path)
     [ -d "$app" ] || { echo "no built app for $project; run: $0 build" >&2; exit 65; }
     if [ -f "$state_dir/pid" ] && kill -0 "$(cat "$state_dir/pid")" 2>/dev/null; then
-      echo "another verification run owns the app on $sim (pid $(cat "$state_dir/pid")); run: $0 stop" >&2
+      echo "a verification run owns the app on $sim (pid $(cat "$state_dir/pid")); if it is yours, run: $0 stop" >&2
       exit 75
     fi
     read -r -a extra <<< "$fixture_flags"
-    args=(-UITEST_FIXTURE ${extra[@]+"${extra[@]}"} -UITEST_DISABLE_ANIMATIONS -UITEST_DISABLE_CELEBRATION_BLOOM "$@")
+    args=(-UITEST_FIXTURE ${extra[@]+"${extra[@]}"} -UITEST_DISABLE_ANIMATIONS -UITEST_DISABLE_LIVE_ACTIVITIES "$@")
     xcrun simctl install "$sim" "$app"
     out=$(xcrun simctl launch --terminate-running-process "$sim" "$bundle" "${args[@]}")
     pid=${out##*: }
@@ -218,8 +222,13 @@ case $cmd in
     app=$(app_path)
     if [ -d "$app" ]; then
       echo "ok   app built $(stat -f %Sm "$app"), HEAD $(git -C "$repo" log -1 --format=%h)"
-      stale=$(find "$repo/WorkoutTracker" -name '*.swift' -newer "$app" | head -3)
-      [ -z "$stale" ] || { echo "WARN sources newer than the app (run: $0 build):"; echo "$stale" | sed 's/^/     /'; }
+      sources=(App Sources/WorkoutTracker WorkoutShared WorkoutWidgets)
+      for d in "${sources[@]}"; do
+        [ -d "$repo/$d" ] || { echo "FAIL source folder $d is gone, so a stale build can hide; fix the list in $0"; rc=1; }
+      done
+      # Not just *.swift: Xcode copies every other file in a buildable folder into the bundle too (ADR-0017).
+      stale=$(cd "$repo" && find "${sources[@]}" -type f -not -name '.*' -newer "$app" 2>/dev/null | head -3 || true)
+      [ -z "$stale" ] || { echo "FAIL sources newer than the app (run: $0 build):"; echo "$stale" | sed 's/^/     /'; rc=1; }
     else
       echo "FAIL no built app (run: $0 build)"; rc=1
     fi
