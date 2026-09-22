@@ -232,7 +232,7 @@
                                         sets: [
                                             Factory.loggedSet(
                                                 0, reps: "5", load: "RPE6", weight: 185, rpe: .six,
-                                                loggedAt: Date(timeIntervalSinceNow: -52 * 60)),
+                                                loggedAt: Date(timeIntervalSinceReferenceDate: 86_400 + 52 * 60)),
                                             Factory.set(1, reps: "5", load: "RPE7", state: .skipped)
                                         ]
                                     )
