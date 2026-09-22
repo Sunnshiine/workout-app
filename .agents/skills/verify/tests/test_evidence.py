@@ -199,6 +199,63 @@ class Find(unittest.TestCase):
         self.assertEqual(tree_py("pid", stdin=MINI)[1], "4121\n", "doctor reads the frontmost pid")
 
 
+def with_disabled(**overrides):
+    tree = json.loads(MINI)
+    node = {"role": "AXButton", "AXUniqueId": "clear-write-log-button", "AXLabel": "Clear Write Log",
+            "enabled": False, "frame": {"x": 32, "y": 773, "width": 338, "height": 35}}
+    node.update(overrides)
+    tree[0]["children"].append(node)
+    return json.dumps(tree)
+
+
+class Tappable(unittest.TestCase):
+    def test_tappable_is_the_centre_of_an_enabled_on_screen_hit(self):
+        code, out, err = tree_py("tappable", "weight-pill", stdin=MINI)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out, "201 564\n", "the point verify.sh hands to axe")
+        self.assertEqual(err, "", "a tap that can land says nothing")
+
+    def test_tappable_refuses_a_row_below_the_fold(self):
+        code, out, err = tree_py("tappable", "stage-queue-row-exercise-7", stdin=MINI)
+        self.assertEqual(code, 1, "tapping its frame centre would hit nothing")
+        self.assertEqual(out, "", "no point, so verify.sh has nothing to tap")
+        self.assertEqual(err, "off-screen: swipe it into view before tapping\n")
+
+    def test_tappable_refuses_a_disabled_element(self):
+        code, out, err = tree_py("tappable", "clear-write-log-button", stdin=with_disabled())
+        self.assertEqual(code, 1, "the tap axe reported as a success was a no-op")
+        self.assertEqual(out, "")
+        self.assertEqual(err, "disabled: a tap on it does nothing\n")
+
+    def test_tappable_names_an_id_that_is_not_on_the_screen_at_all(self):
+        code, out, err = tree_py("tappable", "nope", stdin=MINI)
+        self.assertEqual(code, 1)
+        self.assertEqual(out, "")
+        self.assertIn("nope", err, "which id failed, because the recipe may have the wrong one")
+
+    def test_tappable_and_find_speak_the_same_two_notes(self):
+        both = with_disabled(frame={"x": 32, "y": 1132, "width": 338, "height": 38})
+        found = tree_py("find", "clear-write-log-button", stdin=both)
+        refused = tree_py("tappable", "clear-write-log-button", stdin=both)
+        self.assertEqual(found[0], 0, "find reports and exits 0")
+        self.assertEqual(refused[0], 1, "tappable reports and refuses")
+        self.assertEqual(refused[2], found[2], "one vocabulary for both, so neither can drift")
+        self.assertEqual(refused[2].splitlines(), [
+            "off-screen: swipe it into view before tapping",
+            "disabled: a tap on it does nothing",
+        ], "an element can be both, and each note names a different fix")
+
+    def test_tappable_takes_the_hit_that_can_receive_the_tap(self):
+        twins = json.loads(MINI)
+        twins[0]["children"] = [
+            {"role": "AXButton", "AXUniqueId": "Save", "frame": {"x": 23, "y": 900, "width": 312, "height": 52}},
+            {"role": "AXButton", "AXUniqueId": "Save", "frame": {"x": 100, "y": 200, "width": 200, "height": 40}},
+        ]
+        code, out, err = tree_py("tappable", "Save", stdin=json.dumps(twins))
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out, "200 220\n", "the scrolled-out twin is not a reason to refuse a tap that lands")
+
+
 class Diff(unittest.TestCase):
     def test_diff_of_the_log_a_set_shots_is_the_semantic_hunks(self):
         code, out, err = tree_py(
@@ -275,6 +332,19 @@ class VerifyDiff(unittest.TestCase):
         code, out, err = verify_sh("sheet", "02-after-log", run=self.run)
         self.assertEqual(code, 2, "sheet tiles the whole run; a stray name must not look accepted: %s" % err)
         self.assertEqual(out, "")
+
+    def test_tap_says_usage_for_a_flag_left_without_its_value(self):
+        for argv in [["tap", "--id"], ["tap", "--wait-timeout"], ["tap", "--label", "Save", "--wait-timeout"]]:
+            code, out, err = verify_sh(*argv, run=self.run, sim="no-such-device")
+            self.assertEqual(code, 2, "%s must print usage, not die on its own shift: %s" % (argv, err))
+            self.assertIn("Usage:", err)
+
+    def test_tap_by_id_refuses_a_wait_timeout_it_cannot_count(self):
+        code, out, err = verify_sh(
+            "tap", "--id", "weight-pill", "--wait-timeout", "1.5", run=self.run, sim="no-such-device")
+        self.assertEqual(code, 2, "the poll budget is counted in whole seconds: %s" % err)
+        self.assertIn("whole seconds", err)
+        self.assertEqual(out, "", "refused before any simulator is touched")
 
     def test_shot_refuses_a_name_that_could_collide(self):
         for name in ["_sheet", "a.burst", "-x"]:

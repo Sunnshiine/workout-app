@@ -6,6 +6,8 @@ Reads an `axe describe-ui` JSON tree on stdin:
                          on-screen elements only; --all keeps the off-screen ones too
   tree.py find <id>      that element's line wherever it is, on screen or off; exit 1 if absent
                          says on stderr when it is off-screen or disabled
+  tree.py tappable <id>  "x y" of the first hit that is enabled and on screen, so a tap on it
+                         lands; exit 1 with the same notes find prints when there is no such hit
   tree.py pid            the frontmost application's pid
   tree.py frame          the application's width and height
   tree.py center <id>    "x y" of the element with that accessibility identifier; exit 1 if absent
@@ -98,6 +100,19 @@ def on_screen(all_lines: List[TreeLine], screen: Frame) -> List[TreeLine]:
     return [line for line in all_lines if line.frame.intersects(screen)]
 
 
+def by_id(root: dict, ident: str) -> List[TreeLine]:
+    return [line for line in lines(root) if line.ident == ident]
+
+
+def obstacles(found: List[TreeLine], screen: Frame) -> List[str]:
+    notes = []
+    if any(not line.frame.intersects(screen) for line in found):
+        notes.append("off-screen: swipe it into view before tapping")
+    if not all(line.enabled for line in found):
+        notes.append("disabled: a tap on it does nothing")
+    return notes
+
+
 def changed(before: List[str], after: List[str]) -> Diff:
     matcher = difflib.SequenceMatcher(
         a=[identity(line) for line in before], b=[identity(line) for line in after], autojunk=False
@@ -146,7 +161,7 @@ def main() -> None:
     if mode == "diff":
         diff(sys.argv[2], sys.argv[3])
         return
-    if mode not in ("pid", "frame", "flat", "find", "center"):
+    if mode not in ("pid", "frame", "flat", "find", "tappable", "center"):
         sys.exit(__doc__)
     root = json.load(sys.stdin)[0]
     screen = Frame.of(root)
@@ -163,16 +178,23 @@ def main() -> None:
         if hidden:
             print(f"{hidden} off-screen elements hidden; `verify.sh tree --all` lists them", file=sys.stderr)
     elif mode == "find":
-        every = lines(root)
-        hits = [line for line in every if line.ident == sys.argv[2]]
-        if not hits:
+        found = by_id(root, sys.argv[2])
+        if not found:
             sys.exit(1)
-        for line in hits:
+        for line in found:
             print(line.text)
-        if any(not line.frame.intersects(screen) for line in hits):
-            print("off-screen: swipe it into view before tapping", file=sys.stderr)
-        if not all(line.enabled for line in hits):
-            print("disabled: a tap on it does nothing", file=sys.stderr)
+        for note in obstacles(found, screen):
+            print(note, file=sys.stderr)
+    elif mode == "tappable":
+        found = by_id(root, sys.argv[2])
+        if not found:
+            sys.exit(f"no element with id {sys.argv[2]}")
+        for line in found:
+            if line.enabled and line.frame.intersects(screen):
+                x, y = line.frame.center
+                print(f"{x:.0f} {y:.0f}")
+                return
+        sys.exit("\n".join(obstacles(found, screen)))
     elif mode == "center":
         for line in lines(root):
             if line.ident == sys.argv[2]:
