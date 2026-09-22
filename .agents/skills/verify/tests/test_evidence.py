@@ -257,8 +257,8 @@ class Tappable(unittest.TestCase):
 
 
 SESSION_RAILS = (FIXTURES / "session-rails.describe-ui.json").read_text()
-RPE_CLIPPED = "clipped: outside AXGroup RPE @207,612 163x83; scroll it into that frame before tapping\n"
-REPS_CLIPPED = "clipped: outside AXGroup Reps @32,612 163x83; scroll it into that frame before tapping\n"
+RPE_CLIPPED = "clipped: outside AXGroup RPE @207,612 163x83; bring it inside that frame before tapping\n"
+REPS_CLIPPED = "clipped: outside AXGroup Reps @32,612 163x83; bring it inside that frame before tapping\n"
 
 
 class Clipped(unittest.TestCase):
@@ -288,6 +288,22 @@ class Clipped(unittest.TestCase):
         self.assertEqual(tree_py("tappable", "rpe-6.5", stdin=SESSION_RAILS)[1:], ("336 641\n", ""))
         self.assertEqual(tree_py("tappable", "rpe-6", stdin=SESSION_RAILS)[1:], ("289 641\n", ""))
         self.assertEqual(tree_py("find", "rpe-5", stdin=SESSION_RAILS)[2], "", "the first chip inside the track")
+
+    def test_a_chip_across_the_track_edge_is_clipped_when_its_centre_is_outside(self):
+        def rpe_7_at(x):
+            tree = json.loads(SESSION_RAILS)
+            stack = [tree[0]]
+            while stack:
+                node = stack.pop()
+                if node.get("AXUniqueId") == "rpe-7":
+                    node["frame"]["x"] = x
+                stack.extend(node.get("children", []))
+            return json.dumps(tree)
+
+        self.assertEqual(tree_py("tappable", "rpe-7", stdin=rpe_7_at(367))[::2], (1, RPE_CLIPPED),
+                         "x 367 to 376 overlaps the track, which ends at 370, but the tap at 372 is past it")
+        self.assertEqual(tree_py("tappable", "rpe-7", stdin=rpe_7_at(364))[:2], (0, "368 641\n"),
+                         "x 364 to 373 pokes past the track, but the tap at 368 lands inside it")
 
     def test_an_off_screen_chip_outside_its_rail_gets_both_notes(self):
         code, out, err = tree_py("find", "reps-100", stdin=SESSION_RAILS)

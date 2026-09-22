@@ -71,11 +71,11 @@ from `tree` and tap its center with `-x -y`.
 
 Target elements by accessibility identifier (`tap --id`) first, by label second, by coordinates
 only when the element has neither. `tap --id` polls up to 3 s for that element to be enabled, on
-screen, and inside the frame of every element that contains it, then taps its centre. When it
-never gets one it exits 1 and says `off-screen`, `clipped`, or `disabled`. A `clipped` note names
-the container the element lies outside, such as the RPE track. So a tap that reports success is a
-tap that could land. `tap --label` and `tap -x -y` resolve no element, so they report success
-whatever is under the point.
+screen, and with its centre inside the frame of every element that contains it, then taps that
+centre. When it never gets one it exits 1 and says `off-screen`, `clipped`, or `disabled`. A
+`clipped` note names the container whose frame misses the centre, such as the RPE track. So a tap
+that reports success is a tap that could land. `tap --label` and `tap -x -y` resolve no element, so
+they report success whatever is under the point.
 After a tap, re-read the tree before asserting. `tree` has no enabled column, so prove a disabled
 state with `find <id>`, which says `disabled` on stderr and still exits 0.
 `-UITEST_DISABLE_ANIMATIONS` stops UIKit animations and the SwiftUI animations of the main window.

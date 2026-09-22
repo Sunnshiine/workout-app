@@ -5,7 +5,8 @@ Reads an `axe describe-ui` JSON tree on stdin:
   tree.py flat [--all]   one line per labeled or identified element: role, id, label, value, @x,y wxh
                          on-screen elements only; --all keeps the off-screen ones too
   tree.py find <id>      that element's line wherever it is, on screen or off; exit 1 if absent
-                         says on stderr when it is off-screen, clipped by an ancestor's frame, or disabled
+                         says on stderr when it is off-screen, clipped (its centre outside an ancestor's
+                         frame), or disabled
   tree.py tappable <id>  "x y" of the first hit that is enabled, on screen, and not clipped, so a tap
                          on it lands; exit 1 with the same notes find prints when there is no such hit
   tree.py pid            the frontmost application's pid
@@ -59,12 +60,16 @@ class Frame(NamedTuple):
             and self.y <= other.y and self.y + self.height >= other.y + other.height
         )
 
+    def holds(self, point: Tuple[float, float]) -> bool:
+        x, y = point
+        return self.x <= x < self.x + self.width and self.y <= y < self.y + self.height
+
 
 def clipper(frame: Frame, ancestors: Tuple[dict, ...], screen: Frame) -> Optional[str]:
     for ancestor in reversed(ancestors):
         bounds = Frame.of(ancestor)
-        # An ancestor that covers the screen clips nothing the off-screen check misses.
-        if bounds.covers(screen) or frame.intersects(bounds):
+        # An ancestor that covers the screen is the screen, and the off-screen note speaks for it.
+        if bounds.covers(screen) or bounds.holds(frame.center):
             continue
         name = clean(ancestor.get("AXUniqueId") or ancestor.get("AXLabel"))
         return " ".join(part for part in (clean(ancestor.get("role")), name, bounds.text) if part)
@@ -130,7 +135,7 @@ def obstacles(found: List[TreeLine], screen: Frame) -> List[str]:
     if any(not line.frame.intersects(screen) for line in found):
         notes.append("off-screen: swipe it into view before tapping")
     for ancestor in dict.fromkeys(line.clipped_by for line in found if line.clipped_by is not None):
-        notes.append(f"clipped: outside {ancestor}; scroll it into that frame before tapping")
+        notes.append(f"clipped: outside {ancestor}; bring it inside that frame before tapping")
     if not all(line.enabled for line in found):
         notes.append("disabled: a tap on it does nothing")
     return notes

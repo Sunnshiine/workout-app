@@ -43,4 +43,4 @@ Preconditions:
 - Load suggestion moves the next set's default weight (Set 2 opened at 252.5 after logging Set 1 at 237.5 @6). Assert the weight the card shows now, never the one before the log.
 - With the keyboard up, the first tap on the log button dismisses the keyboard instead of logging (issue 536). Tap `weight-keyboard-done` first.
 - Only a skipped set's card has `clear-logged-set-menu`. A logged set's card has no log button and no Clear.
-- The Reps and RPE rails draw about three chips and recentre on the selection, so `tap --id` on a chip outside the track exits 1 with `clipped: outside AXGroup RPE ...`. Step one chip at a time (with `rpe-6` selected the rail draws `rpe-5` through `rpe-6.5`).
+- The Reps and RPE rails draw about three chips and recentre on the selection, so `tap --id` on a chip outside the track exits 1 with `clipped: outside AXGroup RPE ...`. Step one chip at a time (with `rpe-6` selected the rail draws `rpe-5` through `rpe-6.5`). Exit 0 says the tap could land, not that it picked the chip, so read the log button after each tap.
