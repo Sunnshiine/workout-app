@@ -9,10 +9,8 @@ Waits for the CI workflow run on the head commit of a pull request or branch (de
 then prints each job's conclusion. Exits 0 only when the run succeeded.
 
 The run is matched by commit, so right after a merge this waits for the merge's own run
-instead of reporting the previous one. A cancelled run is followed to a newer run on the
-same commit, which ci.yml's concurrency group starts after a force-push and a base change.
-With no newer run it prints as cancelled, because a later green run proves the combined
-tree, not this commit.
+instead of reporting the previous one. This reports the newest run on the commit and follows
+a newer one that starts while it waits. A cancelled run with no newer run prints as cancelled.
 EOF
 }
 
@@ -50,12 +48,11 @@ fi
 
 while :; do
     gh run watch "$run" --interval 30 >/dev/null 2>&1 || true
-    conclusion=$(gh run view "$run" --json conclusion --jq .conclusion)
-    [[ "$conclusion" == cancelled ]] || break
     newer=$(newest_run)
     (( newer > run )) || break
     run=$newer
 done
+conclusion=$(gh run view "$run" --json conclusion --jq .conclusion)
 echo "CI $conclusion on ${sha:0:7} (run $run)"
 gh run view "$run" --json jobs --jq '.jobs[] | "  \(.name): \(.conclusion)"'
 [[ "$conclusion" == success ]]
