@@ -26,7 +26,7 @@ enum Weight: Codable, Sendable, Equatable {
         switch self {
         case .bodyweight: return "BW"
         case .pounds(let v):
-            return v.rounded() == v ? String(Int(v)) : String(v)
+            return Int(exactly: v).map(String.init) ?? String(v)
         }
     }
 }
