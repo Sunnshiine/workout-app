@@ -256,6 +256,54 @@ class Tappable(unittest.TestCase):
         self.assertEqual(out, "200 220\n", "the scrolled-out twin is not a reason to refuse a tap that lands")
 
 
+SESSION_RAILS = (FIXTURES / "session-rails.describe-ui.json").read_text()
+RPE_CLIPPED = "clipped: outside AXGroup RPE @207,612 163x83; scroll it into that frame before tapping\n"
+REPS_CLIPPED = "clipped: outside AXGroup Reps @32,612 163x83; scroll it into that frame before tapping\n"
+
+
+class Clipped(unittest.TestCase):
+    def test_find_says_a_chip_the_rail_does_not_draw_is_clipped_and_names_the_rail(self):
+        code, out, err = tree_py("find", "rpe-7", stdin=SESSION_RAILS)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out, "AXButton\trpe-7\tRPE 7\t\t@380,629 9x24\n", "inside the 402-point screen")
+        self.assertEqual(err, RPE_CLIPPED, "the RPE track ends at x 370 and the chip starts at 380")
+
+    def test_tappable_refuses_a_chip_the_rail_does_not_draw(self):
+        code, out, err = tree_py("tappable", "rpe-7", stdin=SESSION_RAILS)
+        self.assertEqual(code, 1, "axe tapped 384,641, reported success, and the log button stayed at @6")
+        self.assertEqual(out, "")
+        self.assertEqual(err, RPE_CLIPPED)
+
+    def test_tappable_refuses_a_chip_whose_centre_is_drawn_over_by_another_control(self):
+        code, out, err = tree_py("tappable", "reps-9", stdin=SESSION_RAILS)
+        self.assertEqual(code, 1, "the point 305,641 hit-tests to rpe-6, so the tap would pick an RPE")
+        self.assertEqual(err, REPS_CLIPPED)
+
+    def test_the_nearest_ancestor_that_misses_the_chip_is_the_one_named(self):
+        code, out, err = tree_py("tappable", "reps-11", stdin=SESSION_RAILS)
+        self.assertEqual(code, 1)
+        self.assertEqual(err, REPS_CLIPPED, "reps-11 at x 392 misses the card too, but the rail is what clips it")
+
+    def test_a_chip_the_rail_draws_still_taps(self):
+        self.assertEqual(tree_py("tappable", "rpe-6.5", stdin=SESSION_RAILS)[1:], ("336 641\n", ""))
+        self.assertEqual(tree_py("tappable", "rpe-6", stdin=SESSION_RAILS)[1:], ("289 641\n", ""))
+        self.assertEqual(tree_py("find", "rpe-5", stdin=SESSION_RAILS)[2], "", "the first chip inside the track")
+
+    def test_an_off_screen_chip_outside_its_rail_gets_both_notes(self):
+        code, out, err = tree_py("find", "reps-100", stdin=SESSION_RAILS)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(err.splitlines(), [
+            "off-screen: swipe it into view before tapping",
+            REPS_CLIPPED.rstrip("\n"),
+        ], "a swipe of the screen never brings a rail chip in, so the second note names the fix")
+
+    def test_on_the_captured_screen_exactly_the_chips_a_tap_misses_are_clipped(self):
+        on_screen = [line.split("\t")[1] for line in tree_py("flat", stdin=SESSION_RAILS)[1].splitlines()]
+        clipped = [ident for ident in on_screen if ident and "clipped" in tree_py("find", ident, stdin=SESSION_RAILS)[2]]
+        self.assertEqual(clipped, ["reps-3", "reps-7", "reps-8", "reps-9", "reps-10", "reps-11", "rpe-7"],
+                         "describe-ui --point at each centre on the live app returned something else for these seven")
+
+
 class Diff(unittest.TestCase):
     def test_diff_of_the_log_a_set_shots_is_the_semantic_hunks(self):
         code, out, err = tree_py(
