@@ -102,6 +102,78 @@ custom_rules:
     regex: '@Test\b(?:[^\n{}]*\n){0,12}?[^\n{}]*\{[ \t]*\n(?:[ \t]*(?://[^\n]*)?\n|[ \t]*(?:let|var)\b[^\n{}]*\n)*[ \t]*#if\b(?:(?![ \t]*@Test\b)[^\n]*\n)*?[ \t]*#endif[ \t]*\n(?:[ \t]*(?://[^\n]*)?\n)*[ \t]*\}'
     severity: error
 
+  # An unstructured Task whose handle is dropped cannot be cancelled, awaited, or reasoned about by
+  # the type that started it. Two shipped bugs began that way: the flush fired after every logged
+  # Set overlapped a running sync and cleared its display state (#585, fixed in #595), and the
+  # history backfill ran detached after sync() returned and could overwrite a pending-write
+  # conflict (#514). In tests, an orphaned sync outlived its ModelContainer and trapped the whole
+  # bundle (#548). Hold the Task (assign it, return it) or await structured work. Views are
+  # excluded: `Button { Task { … } }` is the SwiftUI idiom.
+  unstructured_task_is_held:
+    name: "Unstructured Tasks are held"
+    message: >
+      Hold the Task (assign it to a property or return it) so its owner can cancel or await it, or
+      await structured work instead. A dropped Task { } raced shared sync state in #585 and #514.
+    regex: '^\s*Task(\.detached)?\s*(\([^)]*\))?\s*\{'
+    included:
+      - '.*/(App|Sources)/.*'
+      - '.*/Tests/.*'
+    excluded:
+      - '.*/App/Views/.*'
+    excluded_match_kinds:
+      - comment
+      - doccomment
+      - string
+    severity: error
+
+  # Comparing an optional chain to a Bool literal lets nil collapse into an answer nobody wrote.
+  # `sheetSwitchStore?.canBeginDestructiveTransition == false` read a missing store as "not busy";
+  # #582 replaced it with a guard that states the nil branch. `(try? …) == false` is the same shape
+  # for a thrown error. Unwrap and decide nil (`guard let`, `?? false`, `map`). Tests are excluded:
+  # `#expect(x?.y == true)` failing on nil is the assertion doing its job.
+  optional_bool_needs_a_nil_answer:
+    name: "Optional Bool compared to a literal"
+    message: >
+      nil is a third answer here. Unwrap and decide it (guard let, ?? false, map) so a missing
+      value cannot read as "not busy" or "not pending" (CODING_STANDARDS.md §optionals, #582).
+    regex: '(\?\.[A-Za-z_][\w.]*(\([^)]*\))?|\(try\?[^\n]*\))\s*[!=]=\s*(true|false)\b'
+    included: '.*/(App|Sources)/.*'
+    excluded_match_kinds:
+      - comment
+      - doccomment
+    severity: error
+
+  # A fixture or test value read from the wall clock means "whenever the run happened", and it
+  # fails the day something compares it (#597). Derive instants from the fixture's reference date
+  # (WorkoutFixtureFactory.session already does). Tests/UI is excluded: XCUITest polling deadlines
+  # are wall-clock by nature.
+  fixture_dates_are_literal:
+    name: "Fixture and test dates are literal"
+    message: >
+      Derive this instant from the fixture's reference date (a literal, or an offset from one) so
+      the value does not depend on when the test runs (#597).
+    regex: '(\bDate\(\)|\bDate\.now\b|\bDate\(timeIntervalSinceNow:|\bTimeZone\.current\b|\bCalendar\.current\b|\.autoupdatingCurrent\b)'
+    included:
+      - '.*/Sources/WorkoutTracker/Fixtures/.*'
+      - '.*/Tests/(Unit|Component|Support|Visual)/.*'
+    excluded_match_kinds:
+      - comment
+      - doccomment
+      - string
+    severity: error
+
+  # A loop whose body is only Task.yield() never fails: when its condition never turns it hangs CI
+  # instead of reporting (docs/TESTING.md, Flaky Tests; #548 found the shape at a thousand
+  # repetitions). Bound it and record the failure, as waitUntilHeld() in SettingsStoreTests does.
+  polling_loops_are_bounded:
+    name: "Polling loops are bounded"
+    message: >
+      Bound the loop and record a failure when it runs out (for _ in 0..<10_000 { if done { return }
+      await Task.yield() }; Issue.record(…)). An unbounded yield loop hangs CI instead of failing.
+    regex: '(\bwhile\b[^\n{]*|\brepeat\s*|\bfor\s+_\s+in\b[^\n{]*)\{\s*(try\s+)?await\s+Task\.yield\(\)\s*\}'
+    included: '.*/Tests/.*'
+    severity: error
+
 identifier_name:
   min_length:
     warning: 1
