@@ -37,10 +37,40 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         app.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 5) + "230")
         waitForLabel("Log 230 × 5 @6", on: logButton)
 
+        XCTAssertLessThanOrEqual(logButton.frame.maxY, try keyboardToolbarTop(in: app))
+        let exerciseName = app.staticTexts["stage-exercise-name"]
+        XCTAssertTrue(exerciseName.exists)
+        XCTAssertEqual(exerciseName.label, "Back Squat")
+
         logButton.tap()
 
         XCTAssertTrue(app.buttons["Set 1, 230x5@6"].appears(within: 3))
         XCTAssertTrue(app.staticTexts["Set 2 of 3"].exists)
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+    }
+
+    @MainActor
+    func testSupersetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+        app.buttons["stage-queue-button"].tap()
+        XCTAssertTrue(app.staticTexts["This Session"].appears(within: 3))
+        tapWhenHittable(app.buttons["stage-queue-pair-exercise-0"])
+        tapWhenHittable(app.buttons["stage-queue-row-exercise-1"])
+        tapWhenHittable(app.buttons["stage-queue-row-superset-0"])
+        waitForLabel("& BB RDL", on: app.buttons["superset-partner-name"])
+
+        let logButton = app.buttons["log-active-set-button"]
+        app.buttons["weight-pill"].tap()
+        XCTAssertTrue(app.keyboards.firstMatch.appears(within: 3))
+        app.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 5) + "230")
+        waitForLabel("Log 230 × 5 @6", on: logButton)
+
+        logButton.tap()
+
+        // A logged Superset Set alternates the focus onto the partner.
+        waitForLabel("& Back Squat", on: app.buttons["superset-partner-name"])
         XCTAssertFalse(app.keyboards.firstMatch.exists)
     }
 
@@ -216,6 +246,13 @@ private func tapEmptyStageSpaceBetweenBranchAndRunline(in app: XCUIApplication) 
     app.coordinate(withNormalizedOffset: .zero)
         .withOffset(CGVector(dx: app.frame.midX, dy: (branchEnd + runlineStart) / 2))
         .tap()
+}
+
+/// The keyboard's Done toolbar is the `Toolbar` group that is not the full-window one.
+@MainActor
+private func keyboardToolbarTop(in app: XCUIApplication) throws -> CGFloat {
+    let toolbars = app.descendants(matching: .any).matching(identifier: "Toolbar").allElementsBoundByIndex
+    return try XCTUnwrap(toolbars.first { $0.frame.height < app.frame.height }).frame.minY
 }
 
 @MainActor
