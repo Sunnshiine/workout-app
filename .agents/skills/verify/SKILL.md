@@ -79,7 +79,7 @@ state with `find <id>`, which says `disabled` on stderr and still exits 0.
 `-UITEST_DISABLE_ANIMATIONS` stops UIKit animations and the SwiftUI animations of the main window.
 A log on the `session` fixture swaps the card in one frame with no transition between the old card
 and the new one. The `1 unsynced` pill lands a moment later, when the flush answers, and moves the
-stage down about 20 points. One burst in four caught the frame between. Nobody has checked a
+stage down about 20 points. Two bursts in six caught the frame between. Nobody has checked a
 Superset log, a skip, or state inside a sheet. A state absent after one second is still absent.
 `burst` shows frame by frame what an action changed.
 
