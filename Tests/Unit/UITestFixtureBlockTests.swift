@@ -13,6 +13,7 @@ private struct BlockShape: Hashable {
     var exercises: Int
     var sets: Int
     var firstExercise: String
+    var loggedAt: [String] = []
 }
 
 @MainActor
@@ -26,7 +27,8 @@ private func shape(of scenario: UITestLaunch.Scenario) -> BlockShape {
         sessions: sessions.count,
         exercises: exercises.count,
         sets: exercises.flatMap(\.sets).count,
-        firstExercise: exercises.first?.name ?? ""
+        firstExercise: exercises.first?.name ?? "",
+        loggedAt: exercises.flatMap(\.sets).compactMap { $0.loggedAt?.ISO8601Format() }
     )
 }
 
@@ -37,7 +39,8 @@ private let expectedShapes: [UITestLaunch.Scenario: BlockShape] = [
         sessions: 2,
         exercises: 1,
         sets: 2,
-        firstExercise: "Back Squat"
+        firstExercise: "Back Squat",
+        loggedAt: ["2001-01-02T00:52:00Z"]
     ),
     .completedOpenExercises: BlockShape(
         tabName: "Block 27",
