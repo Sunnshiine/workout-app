@@ -24,6 +24,27 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
     }
 
     @MainActor
+    func testActiveSetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
+        let logButton = app.buttons["log-active-set-button"]
+        waitForLabel("Log 237.5 × 5 @6", on: logButton)
+
+        app.buttons["weight-pill"].tap()
+        XCTAssertTrue(app.keyboards.firstMatch.appears(within: 3))
+        app.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 5) + "230")
+        waitForLabel("Log 230 × 5 @6", on: logButton)
+
+        logButton.tap()
+
+        XCTAssertTrue(app.buttons["Set 1, 230x5@6"].appears(within: 3))
+        XCTAssertTrue(app.staticTexts["Set 2 of 3"].exists)
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+    }
+
+    @MainActor
     func testTapOnNonInteractiveStageContentDismissesKeyboard() throws {
         let app = launchFixtureApp()
 
