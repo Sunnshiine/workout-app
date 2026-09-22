@@ -63,7 +63,7 @@ may do. Read a trailing issue or symbol when a bullet does not settle a hunk.
   under `Sources/WorkoutTracker/Fixtures/` stand in for Sheet data.
 - **A fixture value that is not a literal or an offset from the fixture's reference date,** or a
   parsed date pinned to an instant rather than the coach's cell text. `SheetParser.parseDate`
-  resolves in the machine's time zone. (#597, open.)
+  resolves in the machine's time zone. (#597, fixed in #684.)
 - **A wait that ends on a count or a clock.** Counted `Task.yield()`, a wall-clock budget, and an
   unbounded poll are the three flake shapes. The fake resumes the test, or a bounded poll records a
   failure when it runs out, as `waitUntilHeld()` does. (#548, `docs/TESTING.md`.)

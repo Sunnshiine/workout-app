@@ -4,7 +4,8 @@ import Testing
 
 /// `UITestFixture.blocks` is a table, so the compiler cannot tell a new scenario that it needs a
 /// row. These expectations do: every scenario must resolve, and each must resolve to its own
-/// distinctly shaped Block, so a missing or swapped row fails here rather than in a UI run.
+/// distinctly shaped Block, so a missing or swapped row fails here rather than in a UI run. The
+/// shape also lists every seeded `loggedAt`. The Sheet never carries one, so no fixture Set does.
 
 private struct BlockShape: Hashable {
     var tabName: String
@@ -13,6 +14,7 @@ private struct BlockShape: Hashable {
     var exercises: Int
     var sets: Int
     var firstExercise: String
+    var loggedAt: [String] = []
 }
 
 @MainActor
@@ -26,7 +28,8 @@ private func shape(of scenario: UITestLaunch.Scenario) -> BlockShape {
         sessions: sessions.count,
         exercises: exercises.count,
         sets: exercises.flatMap(\.sets).count,
-        firstExercise: exercises.first?.name ?? ""
+        firstExercise: exercises.first?.name ?? "",
+        loggedAt: exercises.flatMap(\.sets).compactMap { $0.loggedAt?.ISO8601Format() }
     )
 }
 

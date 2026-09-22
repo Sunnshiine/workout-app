@@ -144,7 +144,9 @@ import Testing
 
         let pending = try seed(arguments: ["-UITEST_PENDING_WRITE"])
         defer { withExtendedLifetime(pending.container) {} }
-        #expect(try pending.context.fetch(FetchDescriptor<PendingWrite>()).map(\.valueToWrite) == ["185x5@8"])
+        let queued = try pending.context.fetch(FetchDescriptor<PendingWrite>())
+        #expect(queued.map(\.valueToWrite) == ["185x5@8"])
+        #expect(queued.map { $0.createdAt.ISO8601Format() } == ["2001-01-01T00:00:00Z"])
     }
 
     @MainActor
