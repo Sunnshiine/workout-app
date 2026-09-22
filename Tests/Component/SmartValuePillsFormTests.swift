@@ -62,6 +62,17 @@ import Testing
 }
 
 @MainActor
+@Test func weightPillRendersADropSuggestionPastIntRangeInsteadOfTrapping() {
+    let form = SmartValuePillsForm(
+        set: ExerciseSet(index: 1, prescribedReps: "5", prescribedLoad: "Drop 50%", percentOneRM: nil, state: .pending),
+        previousSetWeight: 2e19,
+        trainingMax: nil
+    )
+
+    #expect(form.weightText == "1e+19")
+}
+
+@MainActor
 @Test func repsPillPrefillsPrescribedRepsAndLeavesAMRAPEmpty() {
     let prescribed = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
@@ -425,4 +436,12 @@ private func stepForm(weight: String) -> SmartValuePillsForm {
     // 0 − 2.5 < 0: clamp to 0 and report the floor hit so the caller plays the dud.
     #expect(form.stepWeight(.down) == true)
     #expect(form.weightText == "0")
+}
+
+@MainActor
+@Test func stepWeightRendersAWeightPastIntRangeInsteadOfTrapping() {
+    var form = stepForm(weight: "1e19")
+
+    form.stepWeight(.up)
+    #expect(form.weightText == "1e+19")
 }
