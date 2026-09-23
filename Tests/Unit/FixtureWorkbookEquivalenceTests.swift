@@ -60,8 +60,6 @@ private func text(_ date: Date?) -> String? {
     date.map { $0.ISO8601Format() }
 }
 
-/// A Training Max reads back as the cell text a coach would have typed, so a recorded entry says
-/// `"315"` rather than `"315.0"`. `Weight` owns that spelling.
 private func text(_ number: Double?) -> String? {
     number.map { Weight.pounds($0).label }
 }
