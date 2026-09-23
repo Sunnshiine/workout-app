@@ -546,6 +546,14 @@ class VerifyStop(unittest.TestCase):
         self.assertEqual((code, out, err), (0, "", ""))
         self.assertFalse((self.state / "pid").exists(), "no app and no Live Activity, so nothing to protect")
 
+    def test_a_dead_pid_with_no_args_is_not_refused(self):
+        code, out, err = verify_sh("stop", run=self.next, sim=self.sim)
+        self.assertEqual(
+            (code, out, err), (0, "", ""),
+            "a launch cut off after its pid write recorded no opt-in, so no stop would uninstall this app",
+        )
+        self.assertFalse((self.state / "pid").exists())
+
     def test_after_the_owners_stop_the_next_runs_stop_is_not_refused(self):
         code, out, err = verify_sh("stop", run=self.owner, sim=self.sim)
         self.assertEqual(code, 0, err)
