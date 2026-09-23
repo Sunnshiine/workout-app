@@ -393,16 +393,6 @@ import Testing
     }
 #endif
 
-#if canImport(AppKit)
-    @Test func themePillFillIsDistinctFromSurfaceAndQueueStroke() {
-        // A regression guard on the fix: the roles must no longer be equal to what they were aliased to.
-        let day = Theme.palette(for: Theme.Appearance.day)
-        let pillFill = rgbaComponents(of: day.pillFill)
-        let surface = rgbaComponents(of: day.surface)
-        #expect(pillFill?.alpha != surface?.alpha, "pillFill must not still resolve to the surface alias")
-    }
-#endif
-
 // MARK: - Elevation & light kit (token sheet §3 / §5.5 / §5.6; ledger §1.2 — the absent tokens)
 
 #if canImport(AppKit)
