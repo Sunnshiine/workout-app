@@ -66,12 +66,18 @@ may do. Read a trailing issue or symbol when a bullet does not settle a hunk.
   resolves in the machine's time zone. (#597, fixed in #684.)
 - **A wait that ends on a count or a clock.** Counted `Task.yield()`, a wall-clock budget, and an
   unbounded poll are the three flake shapes. The fake resumes the test, or a bounded poll records a
-  failure when it runs out, as `waitUntilHeld()` does. (#548, `docs/TESTING.md`.)
+  failure when it runs out, as `waitUntilHeld()` does. A bounded poll counts yields on its own
+  actor, so it belongs on the actor that runs the work it waits for. Off that actor, a loaded suite
+  can exhaust the count first. (#548, `docs/TESTING.md`, `ControlledValidationClient` in #637.)
 - **A platform `#if` inside a `@Test` body,** where the assertions compile away and the test passes
   empty. It goes on the declaration. (#608. The lint catches the body's first line. Judge the rest.)
 - **A test that mirrors a one-line mapping.** It breaks on any refactor and the gate does not need
   it. A complexity-1 function scores 2 uncovered, under the target.
 
-The four shapes a regex can catch (a dropped task that writes a store field,
-`optional?.flag == false`, a wall-clock read in a fixture, an unbounded poll) are queued as
-SwiftLint rules in #637. Until they land, the review judges them.
+Four shapes a regex can catch are SwiftLint errors in `.swiftlint.yml` (#637): an unheld `Task`
+(`unstructured_task_is_held`), `optional?.flag == false` (`optional_bool_needs_a_nil_answer`), a
+wall-clock read in a fixture (`fixture_dates_are_literal`), and an unbounded yield loop
+(`polling_loops_are_bounded`). The review still judges what each regex misses. The Task rule reads
+only a line that starts with `Task`, so `_ = Task { }`, `Task<Void, Never> { }`, and a `Task {` in
+the middle of a line pass it. The poll rule reads only a loop whose whole body is
+`await Task.yield()`, and it also matches inside comments and strings.

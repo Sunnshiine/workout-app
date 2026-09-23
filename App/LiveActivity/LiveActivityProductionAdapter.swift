@@ -49,6 +49,9 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
         startUpdateTask?.cancel()
         startUpdateTask = nil
         startUpdateID = nil
+        // Unheld on purpose: nothing may cancel the end, and it captures only the controller, so
+        // it finishes even when the adapter is released. Ordering it before the next start is #699.
+        // swiftlint:disable:next unstructured_task_is_held
         Task { @MainActor [controller] in
             await controller.end()
         }
