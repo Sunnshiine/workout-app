@@ -70,11 +70,44 @@ unstructured_task_is_held"
 
 expected_rows() {
     cat <<'EXPECTED'
+font_construction_via_theme App/Views/FontConstructionViaTheme.swift:5
+font_construction_via_theme App/Views/FontConstructionViaTheme.swift:9
+font_construction_via_theme App/Views/FontConstructionViaTheme.swift:13
+font_construction_via_theme App/Views/FontConstructionViaTheme.swift:17
+font_construction_via_theme Sources/WorkoutTracker/FontConstructionViaTheme.swift:5
+
+no_uppercase_microlabels App/Views/NoUppercaseMicrolabels.swift:5
+no_uppercase_microlabels App/Views/NoUppercaseMicrolabels.swift:9
+
 platform_guard_on_test_declaration Tests/PlatformGuardOnTestDeclaration.swift:5
 platform_guard_on_test_declaration Tests/PlatformGuardOnTestDeclaration.swift:12
 platform_guard_on_test_declaration Tests/PlatformGuardOnTestDeclaration.swift:19
 platform_guard_on_test_declaration Tests/PlatformGuardOnTestDeclaration.swift:26
 platform_guard_on_test_declaration Tests/PlatformGuardOnTestDeclaration.swift:32
+
+unstructured_task_is_held App/UnstructuredTaskIsHeld.swift:6
+unstructured_task_is_held App/UnstructuredTaskIsHeld.swift:12
+unstructured_task_is_held App/UnstructuredTaskIsHeld.swift:18
+unstructured_task_is_held Sources/WorkoutCLI/UnstructuredTaskIsHeld.swift:3
+unstructured_task_is_held Tests/UnstructuredTaskIsHeld.swift:7
+
+optional_bool_needs_a_nil_answer App/OptionalBoolNeedsANilAnswer.swift:3
+optional_bool_needs_a_nil_answer App/OptionalBoolNeedsANilAnswer.swift:7
+optional_bool_needs_a_nil_answer App/OptionalBoolNeedsANilAnswer.swift:11
+optional_bool_needs_a_nil_answer App/OptionalBoolNeedsANilAnswer.swift:15
+optional_bool_needs_a_nil_answer Sources/WorkoutTracker/OptionalBoolNeedsANilAnswer.swift:3
+
+fixture_dates_are_literal Sources/WorkoutTracker/Fixtures/FixtureDatesAreLiteral.swift:5
+fixture_dates_are_literal Tests/FixtureDatesAreLiteral.swift:5
+fixture_dates_are_literal Tests/FixtureDatesAreLiteral.swift:9
+fixture_dates_are_literal Tests/FixtureDatesAreLiteral.swift:13
+fixture_dates_are_literal Tests/FixtureDatesAreLiteral.swift:17
+fixture_dates_are_literal Tests/FixtureDatesAreLiteral.swift:21
+fixture_dates_are_literal Tests/FixtureDatesAreLiteral.swift:25
+
+polling_loops_are_bounded Tests/PollingLoopsAreBounded.swift:8
+polling_loops_are_bounded Tests/PollingLoopsAreBounded.swift:14
+polling_loops_are_bounded Tests/PollingLoopsAreBounded.swift:20
 EXPECTED
 }
 
