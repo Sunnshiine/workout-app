@@ -526,6 +526,13 @@ class VerifyStop(unittest.TestCase):
         self.assertEqual(code, 0, err)
         self.assertFalse((self.state / "pid").exists(), "its own stop clears the pid it recorded")
 
+    def test_after_the_owners_stop_the_next_runs_stop_is_not_refused(self):
+        code, out, err = verify_sh("stop", run=self.owner, sim=self.sim)
+        self.assertEqual(code, 0, err)
+        code, out, err = verify_sh("stop", run="issue-677", sim=self.sim)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out, "nothing launched by this tool on %s\n" % self.sim)
+
     def test_stop_on_a_simulator_no_run_has_claimed_is_not_refused(self):
         shutil.rmtree(self.state)
         code, out, err = verify_sh("stop", run="issue-660", sim=self.sim)
