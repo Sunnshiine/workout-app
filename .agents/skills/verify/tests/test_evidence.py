@@ -514,6 +514,9 @@ class VerifyStop(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.state, ignore_errors=True)
 
+    def launched_with_live_activities(self):
+        (self.state / "args").write_text("-UITEST_FIXTURE -UITEST_SESSION -UITEST_DISABLE_ANIMATIONS\n")
+
     def test_stop_refuses_to_end_a_run_that_is_not_the_callers(self):
         (self.state / "pid").write_text("%d\n" % os.getpid())
         code, out, err = verify_sh("stop", run="issue-660", sim=self.sim)
@@ -524,12 +527,14 @@ class VerifyStop(unittest.TestCase):
         self.assertTrue((self.state / "pid").exists(), "the owner keeps the pid it recorded")
 
     def test_stop_ends_the_callers_own_run(self):
+        self.launched_with_live_activities()
         code, out, err = verify_sh("stop", run=self.owner, sim=self.sim)
         self.assertEqual(code, 0, err)
+        self.assertIn("could not uninstall on %s" % self.sim, err, "its own stop goes on to the uninstall")
         self.assertFalse((self.state / "pid").exists(), "its own stop clears the pid it recorded")
 
     def test_stop_refuses_to_uninstall_a_live_activity_run_that_is_not_the_callers(self):
-        (self.state / "args").write_text("-UITEST_FIXTURE -UITEST_SESSION -UITEST_DISABLE_ANIMATIONS\n")
+        self.launched_with_live_activities()
         code, out, err = verify_sh("stop", run=self.next, sim=self.sim)
         self.assertEqual(code, 75, "its app died, but stop would still uninstall it and end the run's Live Activity")
         self.assertIn("VERIFY_RUN=%s" % self.owner, err)
@@ -560,14 +565,17 @@ class VerifyStop(unittest.TestCase):
         self.assertEqual(out, (FIXTURES / "01-before--02-after-log.diff.txt").read_text())
 
     def test_stop_on_a_simulator_no_run_has_claimed_is_not_refused(self):
-        shutil.rmtree(self.state)
+        (self.state / "run").unlink()
+        self.launched_with_live_activities()
         code, out, err = verify_sh("stop", run="issue-660", sim=self.sim)
         self.assertEqual(code, 0, err)
-        self.assertIn("nothing launched by this tool", out, "a fresh simulator is nobody's")
+        self.assertIn("could not uninstall on %s" % self.sim, err, "an app no run has claimed is nobody's")
 
     def test_stop_without_a_run_name_is_still_allowed(self):
+        self.launched_with_live_activities()
         code, out, err = verify_sh("stop", run=None, sim=self.sim)
         self.assertEqual(code, 0, err)
+        self.assertIn("could not uninstall on %s" % self.sim, err)
         self.assertFalse(
             (self.state / "pid").exists(),
             "with no VERIFY_RUN the guard has nothing to compare against, so it steps aside and "
