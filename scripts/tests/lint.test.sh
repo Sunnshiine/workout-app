@@ -43,6 +43,7 @@ fresh_fixture() {
     printf 'let modelTest = model\n' >"$fx/Tests/Unit/ModelTests.swift"
     printf 'let helper = 1\n' >"$fx/Tests/Support/Helper.swift"
     git -C "$fx" init -q
+    git -C "$fx" add -A
 }
 
 run_lint() {
@@ -121,6 +122,21 @@ YAML
 run_lint
 expect_exit "narrow" "$status" 0
 expect_line "narrow" "$out" "==> Clean"
+
+echo "moved: a tree renamed on disk without git mv is still linted where it now lives"
+fresh_fixture
+mv "$fx/Tests/Support" "$fx/Tests/Helpers"
+cat >"$fx/.swiftlint.yml" <<'YAML'
+included:
+  - App
+  - Sources
+  - Tests
+excluded:
+  - "**/Generated"
+YAML
+run_lint
+expect_exit "moved" "$status" 0
+expect_line "moved" "$out" "==> Clean"
 
 echo "violation: a linted tree holds a file that breaks a rule"
 fresh_fixture
