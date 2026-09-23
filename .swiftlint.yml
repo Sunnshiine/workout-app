@@ -87,10 +87,6 @@ custom_rules:
   # An `#if`/`#else` pair in a test body matches too, as it did under the #608 rule. That is #632's
   # call and it stands: two branches want two guarded declarations, not one test that means
   # different things per platform. `message:` says so, because the plain advice would be wrong there.
-  #
-  # Nothing executes any of this. The commit that widened this rule is red on the eight
-  # declarations it was written for and silent everywhere else (#636 carries the run), which proves
-  # it once in history rather than on every push. A standing fixture pair is issue #652.
   platform_guard_on_test_declaration:
     name: "Platform guard on the test declaration"
     message: >
