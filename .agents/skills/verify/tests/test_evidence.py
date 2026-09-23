@@ -258,6 +258,7 @@ class Tappable(unittest.TestCase):
 
 SESSION_RAILS = (FIXTURES / "session-rails.describe-ui.json").read_text()
 KEYBOARD_DONE = (FIXTURES / "keyboard-done.describe-ui.json").read_text()
+HOME_SCREEN = (FIXTURES / "home-screen.describe-ui.json").read_text()
 RPE_CLIPPED = "clipped: outside AXGroup RPE @207,612 163x83; bring it inside that frame before tapping\n"
 REPS_CLIPPED = "clipped: outside AXGroup Reps @32,612 163x83; bring it inside that frame before tapping\n"
 
@@ -371,6 +372,10 @@ class Clipped(unittest.TestCase):
         node["frame"]["height"] = 48
         self.assertEqual(tree_py("tappable", "weight-keyboard-done", stdin=json.dumps(tree)), (0, "350 816\n", ""),
                          "a group @16,792 0x48 holds no point, the same as the captured 0x0")
+
+    def test_a_zero_size_button_around_the_home_screen_icons_does_not_clip_them(self):
+        self.assertEqual(tree_py("tappable", "WorkoutTracker", stdin=HOME_SCREEN), (0, "62 336\n", ""),
+                         "live-activity.md reopens the app with tap --id WorkoutTracker; the icon sits in an AXButton @0,0 0x0")
 
     def test_on_the_captured_screen_exactly_the_chips_a_tap_misses_are_clipped(self):
         on_screen = [line.split("\t")[1] for line in tree_py("flat", stdin=SESSION_RAILS)[1].splitlines()]
