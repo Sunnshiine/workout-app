@@ -309,7 +309,7 @@ private func makeSyncContainer() throws -> ModelContainer {
 struct SyncOutcomeCharacterizationTests {
     @Test func aLocalWriteFailureCarriesTheErrorDescription() throws {
         let container = try makeContainer()
-        let sync = SyncCoordinator(client: ConflictPinClient(grid: writableGrid()), context: container.mainContext)
+        let sync = SyncCoordinator(client: OutcomePinClient(grid: writableGrid()), context: container.mainContext)
 
         sync.reportLocalWriteFailure(LocalWriteFailure())
 
@@ -319,7 +319,7 @@ struct SyncOutcomeCharacterizationTests {
     @Test func aWriteThatLosesToACoachEditIsRefusedWithTheExerciseNamePrefixed() async throws {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
-        let client = ConflictPinClient(grid: coachEditedGrid())
+        let client = OutcomePinClient(grid: coachEditedGrid())
         let sync = SyncCoordinator(client: client, context: container.mainContext)
 
         await sync.flushPending(spreadsheetId: "sid")
@@ -330,7 +330,7 @@ struct SyncOutcomeCharacterizationTests {
 
     @Test func aSpreadsheetWithNoBlockTabReportsNoBlockTab() async throws {
         let container = try makeContainer()
-        let client = ConflictPinClient(titles: ["Intro", "Notes"], grid: writableGrid())
+        let client = OutcomePinClient(titles: ["Intro", "Notes"], grid: writableGrid())
         let sync = SyncCoordinator(client: client, context: container.mainContext)
 
         let succeeded = await sync.sync(spreadsheetId: "sid")
@@ -342,7 +342,7 @@ struct SyncOutcomeCharacterizationTests {
 
     @Test func aTabWithNoDayHeadersReportsTheParserWarningVerbatim() async throws {
         let container = try makeContainer()
-        let client = ConflictPinClient(grid: gridWithNoDayHeaders())
+        let client = OutcomePinClient(grid: gridWithNoDayHeaders())
         let sync = SyncCoordinator(client: client, context: container.mainContext)
 
         let succeeded = await sync.sync(spreadsheetId: "sid")
@@ -354,7 +354,7 @@ struct SyncOutcomeCharacterizationTests {
     @Test func aFlushRefusalOutranksTheParseWarningFromTheSameSync() async throws {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
-        let client = ConflictPinClient(grid: gridWithNoDayHeaders())
+        let client = OutcomePinClient(grid: gridWithNoDayHeaders())
         let sync = SyncCoordinator(client: client, context: container.mainContext)
 
         await sync.sync(spreadsheetId: "sid")
@@ -365,7 +365,7 @@ struct SyncOutcomeCharacterizationTests {
     @Test func aMissingBlockTabReplacesTheRefusalTheFlushJustRecorded() async throws {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
-        let client = ConflictPinClient(titles: ["Intro", "Notes"], grid: coachEditedGrid())
+        let client = OutcomePinClient(titles: ["Intro", "Notes"], grid: coachEditedGrid())
         let sync = SyncCoordinator(client: client, context: container.mainContext)
 
         await sync.sync(spreadsheetId: "sid")
@@ -380,7 +380,7 @@ struct SyncOutcomeCharacterizationTests {
     @Test func aLaterCleanSyncClearsTheRefusalWhileTheConflictedWriteStaysInTheStore() async throws {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
-        let client = ConflictPinClient(grid: coachEditedGrid())
+        let client = OutcomePinClient(grid: coachEditedGrid())
         let sync = SyncCoordinator(client: client, context: container.mainContext)
         await sync.flushPending(spreadsheetId: "sid")
         #expect(sync.outcome == .writesRefused(["Squat: Expected '', found 'coach edited'"]))
@@ -397,7 +397,7 @@ struct SyncOutcomeCharacterizationTests {
 
     @Test func flushingAnEmptyQueueClearsALocalWriteFailure() async throws {
         let container = try makeContainer()
-        let sync = SyncCoordinator(client: ConflictPinClient(grid: writableGrid()), context: container.mainContext)
+        let sync = SyncCoordinator(client: OutcomePinClient(grid: writableGrid()), context: container.mainContext)
         sync.reportLocalWriteFailure(LocalWriteFailure())
 
         await sync.flushPending(spreadsheetId: "sid")
@@ -407,7 +407,7 @@ struct SyncOutcomeCharacterizationTests {
 
     @Test func discardingPendingWritesClearsAParseWarningItDidNotCause() async throws {
         let container = try makeContainer()
-        let sync = SyncCoordinator(client: ConflictPinClient(grid: gridWithNoDayHeaders()), context: container.mainContext)
+        let sync = SyncCoordinator(client: OutcomePinClient(grid: gridWithNoDayHeaders()), context: container.mainContext)
         await sync.sync(spreadsheetId: "sid")
         #expect(sync.outcome == .parseWarnings(["Parse warning: no week sections (no 'Day N' headers) in Block 27"]))
 
@@ -420,7 +420,7 @@ struct SyncOutcomeCharacterizationTests {
     @Test func aSyncWhoseUploadFailedEndsClearWithTheWriteStillQueued() async throws {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
-        let client = ConflictPinClient(grid: writableGrid())
+        let client = OutcomePinClient(grid: writableGrid())
         client.updatesFail = true
         let sync = SyncCoordinator(client: client, context: container.mainContext)
 
@@ -437,7 +437,7 @@ struct SyncOutcomeCharacterizationTests {
     func theFlushRefusalIsInvisibleInOutcomeForTheWholeNetworkPhaseOfASync() async throws {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
-        let client = HeldConflictPinClient(heldCall: .tabTitles, grid: coachEditedGrid())
+        let client = HeldOutcomePinClient(heldCall: .tabTitles, grid: coachEditedGrid())
         let sync = SyncCoordinator(client: client, context: container.mainContext)
 
         let running = Task { await sync.sync(spreadsheetId: "sid") }
@@ -459,7 +459,7 @@ struct SyncOutcomeCharacterizationTests {
     func midFlushTheCoordinatorSaysSyncingWhileTheFlushCountRefusesToAnswer() async throws {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
-        let client = HeldConflictPinClient(heldCall: .tabSnapshot, grid: coachEditedGrid())
+        let client = HeldOutcomePinClient(heldCall: .tabSnapshot, grid: coachEditedGrid())
         let sync = SyncCoordinator(client: client, context: container.mainContext)
 
         let running = Task { await sync.flushPending(spreadsheetId: "sid") }
@@ -487,7 +487,7 @@ struct SyncOutcomeCharacterizationTests {
 
     @Test func aFailedSyncAfterAParseWarningReportsTheSheetUnreachableAndDropsTheWarning() async throws {
         let container = try makeContainer()
-        let client = ConflictPinClient(grid: gridWithNoDayHeaders())
+        let client = OutcomePinClient(grid: gridWithNoDayHeaders())
         let sync = SyncCoordinator(client: client, context: container.mainContext)
         await sync.sync(spreadsheetId: "sid")
         #expect(sync.outcome == .parseWarnings(["Parse warning: no week sections (no 'Day N' headers) in Block 27"]))
@@ -502,7 +502,7 @@ struct SyncOutcomeCharacterizationTests {
     @Test func aFailedSyncAfterARefusedWriteKeepsTheRecordButNotTheMessage() async throws {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
-        let client = ConflictPinClient(grid: coachEditedGrid())
+        let client = OutcomePinClient(grid: coachEditedGrid())
         let sync = SyncCoordinator(client: client, context: container.mainContext)
         await sync.flushPending(spreadsheetId: "sid")
         #expect(sync.outcome == .writesRefused(["Squat: Expected '', found 'coach edited'"]))
@@ -533,7 +533,7 @@ extension SyncOutcomeCharacterizationTests {
             LastPerformedEntry.self,
             HistoryFillCursor.self,
             configurations: ModelConfiguration(
-                "sync-conflict-pin-\(UUID().uuidString)",
+                "sync-outcome-pin-\(UUID().uuidString)",
                 isStoredInMemoryOnly: true
             )
         )
@@ -593,7 +593,7 @@ private struct LocalWriteFailure: LocalizedError {
 }
 
 @MainActor
-private final class ConflictPinClient: SheetsClient {
+private final class OutcomePinClient: SheetsClient {
     var grid: SheetGrid
     var isOffline = false
     var updatesFail = false
@@ -626,7 +626,7 @@ private final class ConflictPinClient: SheetsClient {
 /// second one must run to completion and fail an expectation rather than strand the test on a
 /// continuation nobody releases.
 @MainActor
-private final class HeldConflictPinClient: SheetsClient {
+private final class HeldOutcomePinClient: SheetsClient {
     /// `tabSnapshot` parks the first read a flush makes; `tabTitles` parks the first read `sync`
     /// makes after the flush has already finished.
     enum HeldCall {
