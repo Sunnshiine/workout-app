@@ -374,18 +374,21 @@ private struct RestPillSlot: View {
     @State private var heldHeight: CGFloat = 0
 
     var body: some View {
+        // Not in onDisappear: a keyboard-up Log tap ends the edit and starts a rest in one update,
+        // and the placeholder's onDisappear runs after the new pill has measured.
+        slot.onChange(of: restTimer.interval == nil && !keepsRoomWhenRestEnds) { _, isRoomFree in
+            if isRoomFree { heldHeight = 0 }
+        }
+    }
+
+    @ViewBuilder private var slot: some View {
         // Gate on the published interval, not the time-derived `isRunning`: the interval is
         // held a beat past the deadline so the pill stays mounted to play the expiry buzz.
         if restTimer.interval != nil {
             RestPillView(restTimer: restTimer)
                 .onGeometryChange(for: CGFloat.self, of: \.size.height) { heldHeight = $0 }
-                .onDisappear {
-                    if !keepsRoomWhenRestEnds { heldHeight = 0 }
-                }
         } else if keepsRoomWhenRestEnds {
-            Color.clear
-                .frame(height: heldHeight)
-                .onDisappear { heldHeight = 0 }
+            Color.clear.frame(height: heldHeight)
         }
     }
 }
