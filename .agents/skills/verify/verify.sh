@@ -394,8 +394,6 @@ case $cmd in
       pid=$(cat "$state_dir/pid")
       alive=
       uninstall=
-      # An `&&` chain here would be this statement's exit status, and under `set -e` an already
-      # dead pid then ended stop before it cleaned up or reported.
       if kill -0 "$pid" 2>/dev/null; then alive=1; fi
       # A Live Activity belongs to the app, not to its process, so terminating leaves it on the
       # springboard over every later shot. Uninstalling is the only lever on one from outside the
