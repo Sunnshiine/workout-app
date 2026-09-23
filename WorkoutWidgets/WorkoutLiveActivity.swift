@@ -30,7 +30,7 @@ struct WorkoutLiveActivity: Widget {
             expandedLeading(for: context.state)
         }
         DynamicIslandExpandedRegion(.trailing) {
-            PrescribedLoadBadge(state: context.state)
+            expandedTrailing(for: context.state)
         }
         DynamicIslandExpandedRegion(.center) {
             expandedCenter(for: context)
@@ -50,6 +50,18 @@ struct WorkoutLiveActivity: Widget {
                 .frame(width: 42, height: 42)
         case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
             PrescriptionStack(state: state)
+                .lineLimit(1)
+                .padding(.leading)
+        }
+    }
+
+    @ViewBuilder
+    private func expandedTrailing(for state: WorkoutActivityAttributes.ContentState) -> some View {
+        switch state.variant {
+        case .setProgress, .nowLifting:
+            PrescribedLoadBadge(state: state)
+        case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
+            EmptyView()
         }
     }
 
@@ -84,15 +96,14 @@ struct WorkoutLiveActivity: Widget {
         case .nowLifting:
             ExerciseNameStack(state: context.state)
                 .frame(maxWidth: .infinity, alignment: .leading)
-        case .restTimer:
+        case .restTimer, .restTimerClean:
             RestProgressBar(state: context.state)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
         case .restTimerSetsLeft, .restTimerSetCount:
             RestProgressWithContext(state: context.state, style: .island)
                 .frame(maxWidth: .infinity, alignment: .leading)
-        case .restTimerClean:
-            RestProgressBar(state: context.state)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
         }
     }
 
@@ -252,10 +263,17 @@ private struct RestCountdownStack: View {
                     .foregroundStyle(colors.islandSecondaryText)
             }
 
-            RestCountdownText(state: state)
+            // A timer Text takes all the width it is offered, which starves the leading region.
+            // The widest reading, a 10-minute rest, sizes it instead.
+            Text("00:00")
+                .hidden()
+                .overlay(alignment: .leading) {
+                    RestCountdownText(state: state)
+                }
                 .font(.system(.title2, design: .rounded).weight(.heavy))
                 .foregroundStyle(colors.accent)
                 .monospacedDigit()
+                .lineLimit(1)
                 .minimumScaleFactor(0.76)
         }
         .accessibilityElement(children: .combine)
@@ -414,7 +432,6 @@ private struct RestProgressWithContext: View {
         HStack(spacing: 8) {
             if showsBar {
                 RestProgressBar(state: state)
-                    .layoutPriority(1)
             }
 
             if let restContextText = state.restContextText {
@@ -424,6 +441,7 @@ private struct RestProgressWithContext: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
                     .monospacedDigit()
+                    .layoutPriority(1)
             }
         }
         .accessibilityElement(children: .combine)
