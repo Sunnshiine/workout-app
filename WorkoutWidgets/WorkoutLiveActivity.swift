@@ -264,7 +264,6 @@ private struct RestCountdownStack: View {
             }
 
             // A timer Text takes all the width it is offered, which starves the leading region.
-            // The widest reading, a 10-minute rest, sizes it instead.
             Text("00:00")
                 .hidden()
                 .overlay(alignment: .leading) {
