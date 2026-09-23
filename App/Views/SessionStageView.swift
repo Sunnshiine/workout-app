@@ -60,7 +60,8 @@ struct SessionStageView: View {
             }
             // Editing pins the card above the keyboard, so whatever does not fit sheds off the top
             // of the page, never off the bottom. The zero minimum keeps an overflowing column from
-            // growing this frame, which would hand the overflow to a centering parent.
+            // growing this frame, which would hand the overflow to a centering parent. On a page
+            // pinned to the bottom, top padding would only take room from the header.
             .frame(
                 maxWidth: .infinity,
                 minHeight: composition == .editingWeight ? 0 : nil,
@@ -68,7 +69,7 @@ struct SessionStageView: View {
                 alignment: composition == .editingWeight ? .bottom : .top
             )
             .padding(.horizontal)
-            .padding(.top, Theme.sectionSpacing)
+            .padding(.top, composition == .reading ? Theme.sectionSpacing : 0)
 
             switch composition {
             case .reading:
