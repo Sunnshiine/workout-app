@@ -363,7 +363,7 @@ private struct PrescriptionStack: View {
     var body: some View {
         let colors = state.liveActivityColors
 
-        VStack(alignment: .trailing, spacing: 2) {
+        VStack(alignment: alignment, spacing: 2) {
             Text(state.prescribedRepsText)
                 .font(.caption.weight(.heavy))
                 .foregroundStyle(colors.accent)
@@ -376,6 +376,15 @@ private struct PrescriptionStack: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Prescription \(state.prescriptionText)")
+    }
+
+    private var alignment: HorizontalAlignment {
+        switch style {
+        case .island:
+            .leading
+        case .lockScreen:
+            .trailing
+        }
     }
 
     private var secondaryTextColor: Color {
