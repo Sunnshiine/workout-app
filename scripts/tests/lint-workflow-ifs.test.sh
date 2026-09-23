@@ -60,10 +60,10 @@ jobs:
     - name: Space before the colon
       if : steps.draft.conclusion == 'failure'
       run: echo space
-    - name: Comments inside the guard
+    - name: Comments on and under the guard
       if: github.event_name == 'pull_request' &&
-        # always() belongs to a comment line
-        steps.draft.outcome == 'failure' # and failure() to a trailing comment
+        steps.draft.outcome == 'failure' # failure() in a trailing comment
+        # always() on a comment line under it
       run: echo comments
 YAML
 
@@ -121,7 +121,7 @@ expect_line "bad.yml" "$out" "    github.event_name == 'push' && steps.draft.out
 expect_line "bad.yml" "$out" "bad.yml:35: job 'release-notes', step 'Any step failed': if: reads a step conclusion or outcome and calls no status check function"
 expect_line "bad.yml" "$out" "bad.yml:38: job 'release-notes', step 'Space before the colon': if: reads a step conclusion or outcome and calls no status check function"
 expect_line "bad.yml" "$out" "    steps.draft.conclusion == 'failure'"
-expect_line "bad.yml" "$out" "bad.yml:41: job 'release-notes', step 'Comments inside the guard': if: reads a step conclusion or outcome and calls no status check function"
+expect_line "bad.yml" "$out" "bad.yml:41: job 'release-notes', step 'Comments on and under the guard': if: reads a step conclusion or outcome and calls no status check function"
 expect_line "bad.yml" "$out" "    github.event_name == 'pull_request' && steps.draft.outcome == 'failure'"
 count=$(printf '%s\n' "$out" | grep -c '^bad\.yml:[0-9]*: ')
 if [ "$count" -eq 8 ]; then ok "bad.yml names 8 guards"; else bad "bad.yml names 8 guards, got $count"; fi
