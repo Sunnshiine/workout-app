@@ -371,7 +371,7 @@ private enum SessionSettingsHeaderDrag {
 struct RestPillSlot: View {
     let restTimer: RestTimer
     let keepsRoomWhenRestEnds: Bool
-    @State private var heldHeight: CGFloat = 0
+    @State private var lastMeasuredHeight: CGFloat = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -379,8 +379,8 @@ struct RestPillSlot: View {
             // held a beat past the deadline so the pill stays mounted to play the expiry buzz.
             if restTimer.interval != nil { RestPillView(restTimer: restTimer) }
         }
-        .frame(minHeight: keepsRoomWhenRestEnds ? heldHeight : nil)
-        .onGeometryChange(for: CGFloat.self, of: \.size.height) { heldHeight = $0 }
+        .frame(minHeight: keepsRoomWhenRestEnds ? lastMeasuredHeight : nil)
+        .onGeometryChange(for: CGFloat.self, of: \.size.height) { lastMeasuredHeight = $0 }
     }
 }
 
