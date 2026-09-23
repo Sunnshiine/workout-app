@@ -153,7 +153,7 @@ import Testing
 }
 
 @MainActor
-@Test func settingsManualSyncRejectsRepeatTapWhileSyncIsRunning() async throws {
+@Test(.timeLimit(.minutes(1))) func settingsManualSyncRejectsRepeatTapWhileSyncIsRunning() async throws {
     let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
@@ -180,7 +180,7 @@ import Testing
 }
 
 @MainActor
-@Test func sheetSwitchIsRejectedWhileSettingsManualSyncIsRunning() async throws {
+@Test(.timeLimit(.minutes(1))) func sheetSwitchIsRejectedWhileSettingsManualSyncIsRunning() async throws {
     let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
@@ -407,7 +407,7 @@ import Testing
 }
 
 @MainActor
-@Test func overlappingSheetSwitchIsRejectedWhileFirstSyncIsRunning() async throws {
+@Test(.timeLimit(.minutes(1))) func overlappingSheetSwitchIsRejectedWhileFirstSyncIsRunning() async throws {
     let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
@@ -432,7 +432,7 @@ import Testing
 }
 
 @MainActor
-@Test func overlappingConfirmedSheetSwitchIsRejectedWhileDiscardIsRunning() async throws {
+@Test(.timeLimit(.minutes(1))) func overlappingConfirmedSheetSwitchIsRejectedWhileDiscardIsRunning() async throws {
     let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
@@ -539,7 +539,7 @@ import Testing
 }
 
 @MainActor
-@Test func signOutIsRejectedWhileSettingsManualSyncIsRunning() async throws {
+@Test(.timeLimit(.minutes(1))) func signOutIsRejectedWhileSettingsManualSyncIsRunning() async throws {
     let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
@@ -573,7 +573,7 @@ import Testing
 }
 
 @MainActor
-@Test func signOutIsRejectedWhileASheetSwitchDiscardIsRunning() async throws {
+@Test(.timeLimit(.minutes(1))) func signOutIsRejectedWhileASheetSwitchDiscardIsRunning() async throws {
     let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")

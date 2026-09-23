@@ -91,7 +91,7 @@ import Testing
 }
 
 @MainActor
-@Test func sheetPickerDoesNotRunCustomSelectionAfterCancellation() async throws {
+@Test(.timeLimit(.minutes(1))) func sheetPickerDoesNotRunCustomSelectionAfterCancellation() async throws {
     let file = SpreadsheetFile(name: "Training Log", spreadsheetId: "sheet-1", modifiedDate: .distantPast)
     let client = ControlledValidationClient()
     let settings = SettingsStore(defaults: .inMemory())
@@ -103,7 +103,7 @@ import Testing
     let task = store.select(file)
     await client.waitForRequest(spreadsheetId: "sheet-1")
     store.cancelSelection()
-    await client.complete(spreadsheetId: "sheet-1", titles: ["Block 27"])
+    client.complete(spreadsheetId: "sheet-1", titles: ["Block 27"])
     await task.value
 
     #expect(selected.isEmpty)
@@ -151,7 +151,7 @@ import Testing
 }
 
 @MainActor
-@Test func sheetPickerKeepsLatestSelectionWhenEarlierValidationFinishesLast() async throws {
+@Test(.timeLimit(.minutes(1))) func sheetPickerKeepsLatestSelectionWhenEarlierValidationFinishesLast() async throws {
     let first = SpreadsheetFile(name: "First Sheet", spreadsheetId: "sheet-1", modifiedDate: .distantPast)
     let second = SpreadsheetFile(name: "Second Sheet", spreadsheetId: "sheet-2", modifiedDate: .distantPast)
     let client = ControlledValidationClient()
@@ -164,20 +164,20 @@ import Testing
     #expect(store.validatingSpreadsheetId == "sheet-2")
     await client.waitForRequest(spreadsheetId: "sheet-2")
 
-    await client.complete(spreadsheetId: "sheet-2", titles: ["Block 27"])
+    client.complete(spreadsheetId: "sheet-2", titles: ["Block 27"])
     await secondTask.value
     #expect(settings.spreadsheetId == "sheet-2")
     #expect(settings.spreadsheetTitle == "Second Sheet")
 
     await client.waitForRequest(spreadsheetId: "sheet-1")
-    await client.complete(spreadsheetId: "sheet-1", titles: ["Block 26"])
+    client.complete(spreadsheetId: "sheet-1", titles: ["Block 26"])
     await firstTask.value
     #expect(settings.spreadsheetId == "sheet-2")
     #expect(settings.spreadsheetTitle == "Second Sheet")
 }
 
 @MainActor
-@Test func sheetPickerDoesNotCommitSelectionCancelledForURLFallback() async throws {
+@Test(.timeLimit(.minutes(1))) func sheetPickerDoesNotCommitSelectionCancelledForURLFallback() async throws {
     let file = SpreadsheetFile(name: "Training Log", spreadsheetId: "sheet-1", modifiedDate: .distantPast)
     let client = ControlledValidationClient()
     let settings = SettingsStore(defaults: .inMemory())
@@ -190,7 +190,7 @@ import Testing
     settings.setSheetURL("https://docs.google.com/spreadsheets/d/pasted-sheet/edit")
 
     await client.waitForRequest(spreadsheetId: "sheet-1")
-    await client.complete(spreadsheetId: "sheet-1", titles: ["Block 27"])
+    client.complete(spreadsheetId: "sheet-1", titles: ["Block 27"])
     await task.value
 
     #expect(settings.spreadsheetId == "pasted-sheet")
@@ -235,11 +235,14 @@ private final class StubPickerClient: SheetsClient, @unchecked Sendable {
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
 }
 
-private final class ControlledValidationClient: SheetsClient, @unchecked Sendable {
-    private let coordinator = ControlledValidationCoordinator()
+@MainActor
+private final class ControlledValidationClient: SheetsClient {
+    private var continuations: [String: CheckedContinuation<[String], Error>] = [:]
 
     func listTabTitles(spreadsheetId: String) async throws -> [String] {
-        try await coordinator.listTabTitles(spreadsheetId: spreadsheetId)
+        try await withCheckedThrowingContinuation { continuation in
+            continuations[spreadsheetId] = continuation
+        }
     }
 
     func listSpreadsheets(pageToken: String?) async throws -> SpreadsheetListPage {
@@ -252,31 +255,12 @@ private final class ControlledValidationClient: SheetsClient, @unchecked Sendabl
 
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
 
-    @MainActor
     func waitForRequest(spreadsheetId: String) async {
         for _ in 0..<10_000 {
-            if await coordinator.hasRequest(spreadsheetId: spreadsheetId) { return }
+            if continuations[spreadsheetId] != nil { return }
             await Task.yield()
         }
         Issue.record("the validation never requested the tab titles of \(spreadsheetId)")
-    }
-
-    func complete(spreadsheetId: String, titles: [String]) async {
-        await coordinator.complete(spreadsheetId: spreadsheetId, titles: titles)
-    }
-}
-
-private actor ControlledValidationCoordinator {
-    private var continuations: [String: CheckedContinuation<[String], Error>] = [:]
-
-    func listTabTitles(spreadsheetId: String) async throws -> [String] {
-        try await withCheckedThrowingContinuation { continuation in
-            continuations[spreadsheetId] = continuation
-        }
-    }
-
-    func hasRequest(spreadsheetId: String) -> Bool {
-        continuations[spreadsheetId] != nil
     }
 
     func complete(spreadsheetId: String, titles: [String]) {
