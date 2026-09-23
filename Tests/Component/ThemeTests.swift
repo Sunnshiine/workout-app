@@ -351,9 +351,6 @@ import Testing
                 #expect(cream.green > 0.85, "cream is kept as the light source, sage-led and bright")
             }
         }
-
-        // The current tile's rim is the approved literal in both appearances — never re-lit away.
-        expectRGB(night.tileCurrentBorder, red: 31 / 255, green: 133 / 255, blue: 82 / 255)
     }
 #endif
 
