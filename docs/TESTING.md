@@ -89,7 +89,10 @@ Target directory structure:
 - `Tests/Component`: SwiftUI component state-contract tests that still run at unit-test speed.
   Runs in the existing fast `WorkoutTrackerTests` target.
 - `Tests/Visual`: hosted Visual Regression tests plus Visual Baselines. Runs in the
-  `WorkoutTrackerSnapshotTests` target via xcodebuild, not `swift test`.
+  `WorkoutTrackerSnapshotTests` target via xcodebuild, not `swift test`. It also holds hosted
+  layout tests, which put an `App/` view in a real window and assert its geometry with no image.
+  They live here because `Tests/Unit` and `Tests/Component` also build under `swift test`, which
+  never sees `App/`.
 - `Tests/UI`: simulator XCUITest coverage that launches the app and drives real controls.
   Uses a separate Xcode UI-test target, split by purpose into UI Integration Smoke and the
   UI Interaction Suite.
