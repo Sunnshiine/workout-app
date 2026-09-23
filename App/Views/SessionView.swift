@@ -374,20 +374,13 @@ struct RestPillSlot: View {
     @State private var heldHeight: CGFloat = 0
 
     var body: some View {
-        slot.onChange(of: restTimer.interval == nil && !keepsRoomWhenRestEnds) { _, isRoomFree in
-            if isRoomFree { heldHeight = 0 }
+        VStack(spacing: 0) {
+            // Gate on the published interval, not the time-derived `isRunning`: the interval is
+            // held a beat past the deadline so the pill stays mounted to play the expiry buzz.
+            if restTimer.interval != nil { RestPillView(restTimer: restTimer) }
         }
-    }
-
-    @ViewBuilder private var slot: some View {
-        // Gate on the published interval, not the time-derived `isRunning`: the interval is
-        // held a beat past the deadline so the pill stays mounted to play the expiry buzz.
-        if restTimer.interval != nil {
-            RestPillView(restTimer: restTimer)
-                .onGeometryChange(for: CGFloat.self, of: \.size.height) { heldHeight = $0 }
-        } else if keepsRoomWhenRestEnds {
-            Color.clear.frame(height: heldHeight)
-        }
+        .frame(minHeight: keepsRoomWhenRestEnds ? heldHeight : nil)
+        .onGeometryChange(for: CGFloat.self, of: \.size.height) { heldHeight = $0 }
     }
 }
 
