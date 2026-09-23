@@ -56,8 +56,9 @@ struct SessionPendingWriteSyncAdapter: SessionSyncAdapter {
 
     func requestPendingWriteFlush() {
         guard let id = settings.spreadsheetId else { return }
-        // Unheld on purpose: logging a Set must not wait on the Sheet, and SyncCoordinator counts
-        // the flush while it runs, which is what isSyncing and discardPendingWrites read (#595).
+        // No owner awaits or cancels this flush. Awaiting it would make logging a Set wait on the
+        // Sheet, and SyncCoordinator counts it for isSyncing and discardPendingWrites (#595).
+        // Nothing keeps two flushes apart yet (#702).
         // swiftlint:disable:next unstructured_task_is_held
         Task { await sync.flushPending(spreadsheetId: id) }
     }
@@ -728,10 +729,10 @@ extension SessionCoordinator {
         if exerciseOrders.contains(transition.outgoingSetID.exerciseOrder) {
             return transition
         }
-        if transition.incomingSetID.map({ exerciseOrders.contains($0.exerciseOrder) }) == true {
+        if transition.incomingSetID.map({ exerciseOrders.contains($0.exerciseOrder) }) ?? false {
             return transition
         }
-        if transition.completedExerciseOrder.map(exerciseOrders.contains) == true {
+        if transition.completedExerciseOrder.map(exerciseOrders.contains) ?? false {
             return transition
         }
         return nil
