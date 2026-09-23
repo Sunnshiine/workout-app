@@ -379,6 +379,8 @@ struct RestPillSlot: View {
             // held a beat past the deadline so the pill stays mounted to play the expiry buzz.
             if restTimer.interval != nil { RestPillView(restTimer: restTimer) }
         }
+        // Measured after the floor, so an edit's floor only rises: a rest that ends mid-edit leaves
+        // its room behind until the edit ends.
         .frame(minHeight: keepsRoomWhenRestEnds ? heldHeight : nil)
         .onGeometryChange(for: CGFloat.self, of: \.size.height) { heldHeight = $0 }
     }
