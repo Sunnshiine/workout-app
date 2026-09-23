@@ -364,7 +364,6 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
                         name()
                         lastPerformed
                     }
-                    name()
                     lastPerformed
                     // Falling back to a candidate with no accessibility node leaves the last drawn
                     // candidate's elements in the tree, so the empty fallback carries an empty one.
