@@ -297,7 +297,8 @@ private func openWeightKeyboard(in app: XCUIApplication) {
     XCTAssertLessThan(
         keyboard.frame.minY,
         app.frame.maxY,
-        "the software keyboard is below the window: set the simulator's AutomaticMinimizationEnabled to false and reboot it (#700)"
+        "the software keyboard is below the window. Run `xcrun simctl spawn <udid> defaults write "
+            + "com.apple.keyboard.preferences AutomaticMinimizationEnabled -bool false`, then reboot the simulator (#700)"
     )
 }
 
