@@ -8,13 +8,11 @@ import UIKit
 @MainActor
 @Suite
 struct RestPillSlotLayoutTests {
-    /// A keyboard-up Log tap ends the weight edit and starts the rest in one update (#536). When that
-    /// rest ends during the next edit, the Log capsule above the slot must not drop by the pill's height.
+    /// A keyboard-up Log tap starts the rest at once, and the edit ends a pass later, when the weight
+    /// field's preference reaches `SessionView` (#536). When that rest ends during the next edit, the
+    /// Log capsule above the slot must not drop by the pill's height.
     @Test func restPillRoomSurvivesAKeyboardUpLogUntilTheEditEnds() throws {
-        let restTimer = RestTimer(
-            clock: ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 1_000)),
-            expiryScheduler: RestEndsOnlyOnDismiss()
-        )
+        let restTimer = RestTimer()
         let stage = SlotStage()
         let host = try SlotHost(restTimer: restTimer, stage: stage)
         defer { host.close() }
@@ -23,8 +21,10 @@ struct RestPillSlotLayoutTests {
         #expect(host.laidOutSlotHeight() == 0, "an edit opened with no rest holds no room")
 
         restTimer.start(duration: 150, origin: ActiveSetID(exerciseOrder: 0, setIndex: 0), kind: .standard)
+        #expect(host.laidOutSlotHeight() == 58, "the keyboard-up Log starts the rest under the open edit")
+
         stage.isEditingWeight = false
-        #expect(host.laidOutSlotHeight() == 58, "the keyboard-up Log ends the edit and shows the pill")
+        #expect(host.laidOutSlotHeight() == 58, "the edit ends and the pill stays")
 
         stage.isEditingWeight = true
         #expect(host.laidOutSlotHeight() == 58, "the next edit opens above the running rest")
@@ -107,12 +107,4 @@ private final class SlotHost {
     func close() {
         window.isHidden = true
     }
-}
-
-/// The production scheduler measures the deadline against the wall clock, which would expire a
-/// rest started on the manual clock at once.
-@MainActor
-private final class RestEndsOnlyOnDismiss: RestExpiryScheduling {
-    func schedule(deadline: Date, expire: @escaping @MainActor () -> Void) {}
-    func cancel() {}
 }
