@@ -35,9 +35,6 @@ excluded:
   - "**/Generated"
 
 custom_rules:
-  # scripts/tests/swiftlint-custom-rules.test.sh lints a fixture tree under this file and fails CI
-  # when the violations stop matching its table or one is not an error (#652).
-  #
   # The type choke point (token sheet §4, ADR-0014, ledger §1.7). Every text style is one row of
   # Theme's type role table; no view constructs a font. This bans the three escape routes —
   # Font.custom(…), .system(size:…), and the shorthand system text styles (.font(.headline) …) —

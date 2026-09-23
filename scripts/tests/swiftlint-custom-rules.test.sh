@@ -6,19 +6,6 @@
 #   scripts/tests/swiftlint-custom-rules.test.sh [CONFIG]
 #
 # CONFIG defaults to the repo's .swiftlint.yml. Pass a mutated copy to prove a case is load-bearing.
-#
-# The fixtures sit outside App/, Sources/, and Tests/ because those are compiled and linted at
-# error. The run copies them into a scratch root, adds CONFIG as its .swiftlint.yml and the repo's
-# Tests/.swiftlint.yml as the nested one, and lints that root the way scripts/lint.sh lints the
-# repo. Root `included:` and `excluded:`, the nested config, and each rule's severity all apply. A
-# rule's own `included:` and `excluded:` regexes match the absolute path, so the fixture tree
-# repeats the segments they scope on.
-#
-# A case is a func whose name ends in its outcome:
-#   IsFlagged         a defect the rule catches, so at least one row
-#   IsFalselyFlagged  correct code the rule flags today, so at least one row
-#   Passes            correct code the rule leaves alone, so no row
-#   IsMissed          a defect the regex does not see and review judges, so no row
 set -uo pipefail
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -59,9 +46,6 @@ fail=0
 ok()  { pass=$((pass + 1)); printf '  ok   %s\n' "$1"; }
 bad() { fail=$((fail + 1)); printf '  FAIL %s\n' "$1"; }
 
-# A row is "rule path:line", and the nearest `func` at or above the line names its case. A row on
-# an attribute line with no `func` of its own lands in the func below, because the platform guard
-# rule reports the `@Test` line and `@Test(arguments:)` can sit above its declaration.
 case_at() {
     local location=${1#* }
     awk -v at="${location##*:}" '
@@ -142,8 +126,6 @@ EXPECTED
 expected=$(expected_rows | grep -v '^$' | LC_ALL=C sort)
 covered=$(printf '%s\n' "$expected" | cut -d' ' -f1 | LC_ALL=C sort -u)
 
-# Every line at rule-key indent must read as a key, so a key this pattern cannot read stops the run
-# instead of dropping out of the parity check.
 configured=$(awk -v config="$config" -v q="'" '
     BEGIN {
         id = "[A-Za-z_][A-Za-z0-9_]*"
