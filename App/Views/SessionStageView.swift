@@ -58,10 +58,8 @@ struct SessionStageView: View {
                     completionStage(items: items)
                 }
             }
-            // Editing pins the card above the keyboard, so whatever does not fit sheds off the top
-            // of the page, never off the bottom. The zero minimum keeps an overflowing column from
-            // growing this frame, which would hand the overflow to a centering parent. On a page
-            // pinned to the bottom, top padding would only take room from the header.
+            // The zero minimum keeps an overflowing column from growing this frame, which would
+            // hand the overflow to a centering parent.
             .frame(
                 maxWidth: .infinity,
                 minHeight: composition == .editingWeight ? 0 : nil,
@@ -321,10 +319,8 @@ struct SessionStageView: View {
     }
 }
 
-/// The editorial column both stages share. The card sits after the switch, at one position in both
-/// compositions, so its identity and the weight field's focus survive the switch. Editing keeps the
-/// richest header that fits the room the pinned card leaves; `ViewThatFits` measures the real name
-/// (one or two Fraunces lines), so no device table is needed.
+/// The card sits after the switch, at one position in both compositions, so its identity and the
+/// weight field's focus survive the switch.
 struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
     let exercise: Exercise
     let composition: SessionStageComposition

@@ -410,7 +410,7 @@ enum Theme {  // swiftlint:disable:this type_body_length
 
     static let cardSpacing: CGFloat = 16
     static let sectionSpacing: CGFloat = 28
-    static let editingWeightFootGap: CGFloat = 10 // paper under the pinned card, above the rest pill or the Done toolbar
+    static let editingWeightFootGap: CGFloat = 10
     static let supersetRestingSpacing: CGFloat = 24
     static let sessionTileMinHeight: CGFloat = 86
     static let sessionTileSpacing: CGFloat = 10
@@ -444,7 +444,7 @@ enum Theme {  // swiftlint:disable:this type_body_length
     static let skipFadeUpDuration = 0.45
     static let exerciseCompletionBeatDuration = 0.2
     static let focusMorphDuration = 0.28
-    static let stageCompositionDuration = 0.25 // timed to the keyboard's rise
+    static let stageCompositionDuration = 0.25
     static let momentumSpringStiffness = 220.0
     static let momentumSpringDamping = 22.0
     static let momentumDropOffset: CGFloat = 180

@@ -85,7 +85,6 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
         logButton.tap()
 
-        // A logged Superset Set alternates the focus onto the partner.
         waitForLabel("& Back Squat", on: app.buttons["superset-partner-name"])
         XCTAssertFalse(app.keyboards.firstMatch.exists)
     }
@@ -258,8 +257,6 @@ final class WorkoutTrackerOnboardingSwitchUITests: XCTestCase {
     }
 }
 
-/// With the weight keyboard up the HUD and the branch step aside and the stage starts where the HUD
-/// stood, so the empty paper left is the band between that top and the Exercise name.
 @MainActor
 private func tapEmptyStageSpaceAboveExerciseName(in app: XCUIApplication, stageTop: CGFloat) {
     let nameTop = app.staticTexts["stage-exercise-name"].frame.minY

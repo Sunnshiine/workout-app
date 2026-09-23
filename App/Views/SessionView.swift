@@ -20,9 +20,6 @@ struct SessionView: View {
     @State private var sessionSettingsDragStartTopContentOffset: CGFloat?
     @State private var isSettingsPresented = false
     @State private var stageComposition = SessionStageComposition.reading
-    /// The rest pill's last height. When the pill ends while the weight is being edited, its room
-    /// stays empty until the edit ends, so the Log capsule pinned above it does not drop under a
-    /// finger.
     @State private var restPillHeight: CGFloat = 0
 
     init(liveActivityAdapter: LiveActivityProductionAdapter = LiveActivityProductionAdapter()) {

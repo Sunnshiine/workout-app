@@ -119,9 +119,6 @@ enum QueuePairingRole: Equatable, Sendable {
     case confirmingTarget
 }
 
-/// The Session stage's two compositions (DESIGN.md §5.1). `editingWeight` holds while the weight
-/// field is being edited: the card pins above the keyboard, and the page drops what is orientation
-/// rather than input.
 enum SessionStageComposition: Equatable, Sendable {
     case reading
     case editingWeight
