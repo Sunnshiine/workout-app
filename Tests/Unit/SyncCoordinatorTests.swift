@@ -96,6 +96,7 @@ private struct StubClient: SheetsClient {
     let sync = SyncCoordinator(client: client, context: container.mainContext)
     await sync.sync(spreadsheetId: "sid")
     #expect(sync.outcome == .sheetUnreachable)
+    #expect(sync.isSyncing == false)
 }
 
 @MainActor
@@ -314,6 +315,7 @@ struct SyncOutcomeCharacterizationTests {
         sync.reportLocalWriteFailure(LocalWriteFailure())
 
         #expect(sync.outcome == .localWriteFailed("the local store is full"))
+        #expect(sync.isSyncing == false)
     }
 
     @Test func aWriteThatLosesToACoachEditIsRefusedWithTheExerciseNamePrefixed() async throws {
@@ -414,6 +416,7 @@ struct SyncOutcomeCharacterizationTests {
         try await sync.discardPendingWrites()
 
         #expect(sync.outcome == .clear)
+        #expect(sync.isSyncing == false)
         #expect(try sync.fetchPendingWriteRecords().isEmpty)
     }
 
@@ -439,11 +442,12 @@ struct SyncOutcomeCharacterizationTests {
         try queueSquatLog(in: container.mainContext)
         let client = HeldOutcomePinClient(heldCall: .tabTitles, grid: coachEditedGrid())
         let sync = SyncCoordinator(client: client, context: container.mainContext)
+        sync.reportLocalWriteFailure(LocalWriteFailure())
 
         let running = Task { await sync.sync(spreadsheetId: "sid") }
         await client.waitUntilHeld()
 
-        #expect(sync.outcome == .clear)
+        #expect(sync.outcome == .localWriteFailed("the local store is full"))
         #expect(sync.isSyncing == true)
         let midSyncWrite = try #require(try sync.fetchPendingWriteRecords().first)
         #expect(midSyncWrite.status == .conflict)
