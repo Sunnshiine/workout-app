@@ -104,11 +104,14 @@ fi
 tree_failures() {
     {
         printf '%s\n' "$ROOTS" | sed 's/^/root /'
+        git -c core.quotePath=false ls-files --deleted -- '*.swift' | sed 's/^/gone /'
         git -c core.quotePath=false ls-files --cached --others --exclude-standard -- '*.swift' |
             sed 's/^/known /'
         sed 's/^[^:]*: /linted /' "$1"
     } | awk -v prefix="$ROOT/" '
         $1 == "root" { roots[++n] = substr($0, 6); next }
+        $1 == "gone" { gone[substr($0, 6)] = 1; next }
+        $1 == "known" && (substr($0, 7) in gone) { next }
         {
             path = substr($0, length($1) + 2)
             if (index(path, prefix) == 1) path = substr(path, length(prefix) + 1)
