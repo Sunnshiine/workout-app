@@ -251,9 +251,6 @@ struct SheetWritePlanner: Sendable {
         }
 
         if request.column == .lastSetRPE {
-            guard snapshot.snapshot.isRowVisible(anchor.row) else {
-                throw SheetWriterError.setRowNotFound(exerciseName: request.exerciseName, setIndex: request.setIndex)
-            }
             return (anchor.row, col)
         }
 
