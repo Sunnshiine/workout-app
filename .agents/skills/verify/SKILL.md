@@ -139,9 +139,11 @@ rm -rf "$WORKOUT_HOME"
 ```
 
 `stop` kills only the pid recorded in `/tmp/workout-verify-<udid>/`. Set `VERIFY_RUN` and it also
-refuses (exit 75) while that state dir holds a pid launched under a different run, printing the
-owning run and the `VERIFY_RUN=<owner>` override that ends it anyway. A clean `stop` removes that
-pid, so the next run's `stop` is not refused. An unnamed `stop` is not gated, which is the
+refuses (exit 75) to act on a different run's app, printing the owning run and the
+`VERIFY_RUN=<owner>` override that ends it anyway. That covers an app that is still alive, and a
+dead one launched under `VERIFY_LIVE_ACTIVITIES=1`, which `stop` would still uninstall. After a
+clean `stop`, or an app that died on its own, there is nothing to act on, so the next run's `stop`
+is not refused. An unnamed `stop` is not gated, which is the
 reason to name every run on a machine someone else is driving. A run launched under
 `VERIFY_LIVE_ACTIVITIES=1` is uninstalled as well as terminated, because a Live Activity belongs to
 the app rather than to its process and uninstalling is the only lever on one from outside the app.
@@ -156,7 +158,7 @@ directory yourself once its proof is filed.
 
 One app instance per simulator, and one run owns it. `launch` refuses (exit 75) while a pid this
 tool launched is alive on the same simulator, yours included; run `stop` or pick another `SIM`.
-`stop` refuses the same way while a pid recorded under another run is still on file, so a
+`stop` refuses the same way when it would act on another run's app, so a
 command that lands on the wrong simulator cannot end another agent's drive (issue 660). It can
 only refuse what it can tell apart, and that cuts both ways. An unset `VERIFY_RUN` gives it
 nothing to compare against, so it steps aside, and an unset `SIM` resolves onto the one shared
