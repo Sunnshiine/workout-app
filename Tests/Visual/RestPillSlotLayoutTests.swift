@@ -8,9 +8,6 @@ import UIKit
 @MainActor
 @Suite
 struct RestPillSlotLayoutTests {
-    /// A keyboard-up Log tap starts the rest at once, and the edit ends a pass later, when the weight
-    /// field's preference reaches `SessionView` (#536). When that rest ends during the next edit, the
-    /// Log capsule above the slot must not drop by the pill's height.
     @Test func restPillRoomSurvivesAKeyboardUpLogUntilTheEditEnds() throws {
         let restTimer = RestTimer()
         let stage = SlotStage()
@@ -44,7 +41,6 @@ struct RestPillSlotLayoutTests {
 @Observable
 private final class SlotStage {
     var isEditingWeight = false
-    /// Tells this step's layout from the last step's report, which can read the same height.
     var pass = 0
     @ObservationIgnored var laidOut: StageLayout?
 }
@@ -54,8 +50,6 @@ private struct StageLayout: Equatable {
     let slotHeight: CGFloat
 }
 
-/// Hosts the slot where `SessionView` does, in the stage's bottom safe-area inset, and reads the
-/// room it takes as the stage sees it.
 private struct SlotStageView: View {
     let restTimer: RestTimer
     let stage: SlotStage
@@ -83,7 +77,6 @@ private final class SlotHost {
     init(restTimer: RestTimer, stage: SlotStage) throws {
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         controller = UIHostingController(rootView: SlotStageView(restTimer: restTimer, stage: stage))
-        // The window's own inset stays out of the stage's, so the stage reads the slot alone.
         controller.safeAreaRegions = []
         window = UIWindow(windowScene: scene)
         window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
@@ -92,8 +85,6 @@ private final class SlotHost {
         self.stage = stage
     }
 
-    /// One forced layout settles a step. The slot's own geometry write lands inside it and leaves no
-    /// layout pending.
     func laidOutSlotHeight() -> CGFloat? {
         stage.pass += 1
         window.layoutIfNeeded()
