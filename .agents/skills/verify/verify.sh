@@ -390,27 +390,29 @@ case $cmd in
 
   stop)
     need_sim
-    owner=
-    # The run file outlives stop so an unnamed diff or sheet still finds its evidence. Only a pid
-    # file means a run still holds the app.
-    [ -f "$state_dir/pid" ] && [ -f "$state_dir/run" ] && owner=$(cat "$state_dir/run")
-    if [ -n "$owner" ] && [ -n "${VERIFY_RUN:-}" ] && [ "$owner" != "$VERIFY_RUN" ]; then
-      echo "the app on $sim belongs to run $owner, not to $VERIFY_RUN; to stop it anyway, run: VERIFY_RUN=$owner $0 stop" >&2
-      exit 75
-    fi
     if [ -f "$state_dir/pid" ]; then
       pid=$(cat "$state_dir/pid")
+      alive=
+      uninstall=
       # An `&&` chain here would be this statement's exit status, and under `set -e` an already
       # dead pid then ended stop before it cleaned up or reported.
-      if kill -0 "$pid" 2>/dev/null; then
-        xcrun simctl terminate "$sim" "$bundle"
-        echo "terminated pid $pid"
-      fi
+      if kill -0 "$pid" 2>/dev/null; then alive=1; fi
       # A Live Activity belongs to the app, not to its process, so terminating leaves it on the
       # springboard over every later shot. Uninstalling is the only lever on one from outside the
       # app, and the next launch reinstalls anyway. A state dir with no args file cannot say which
       # run this was, and uninstalling is the destructive guess, so it keeps the old behaviour.
-      if [ -f "$state_dir/args" ] && ! grep -q -- -UITEST_DISABLE_LIVE_ACTIVITIES "$state_dir/args"; then
+      if [ -f "$state_dir/args" ] && ! grep -q -- -UITEST_DISABLE_LIVE_ACTIVITIES "$state_dir/args"; then uninstall=1; fi
+      owner=
+      [ -f "$state_dir/run" ] && owner=$(cat "$state_dir/run")
+      if [ -n "$alive$uninstall" ] && [ -n "$owner" ] && [ -n "${VERIFY_RUN:-}" ] && [ "$owner" != "$VERIFY_RUN" ]; then
+        echo "the app on $sim belongs to run $owner, not to $VERIFY_RUN; to stop it anyway, run: VERIFY_RUN=$owner $0 stop" >&2
+        exit 75
+      fi
+      if [ -n "$alive" ]; then
+        xcrun simctl terminate "$sim" "$bundle"
+        echo "terminated pid $pid"
+      fi
+      if [ -n "$uninstall" ]; then
         if xcrun simctl uninstall "$sim" "$bundle"; then
           echo "uninstalled the app, ending any Live Activity this run started"
         else

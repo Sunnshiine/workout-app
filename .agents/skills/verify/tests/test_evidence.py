@@ -504,6 +504,7 @@ class VerifyDiff(unittest.TestCase):
 class VerifyStop(unittest.TestCase):
     def setUp(self):
         self.owner = "owner-%d" % os.getpid()
+        self.next = "next-%d" % os.getpid()
         self.sim = "no-such-device-%d" % os.getpid()
         self.state = Path("/tmp/workout-verify-%s" % self.sim)
         self.state.mkdir(parents=True, exist_ok=True)
@@ -514,6 +515,7 @@ class VerifyStop(unittest.TestCase):
         shutil.rmtree(self.state, ignore_errors=True)
 
     def test_stop_refuses_to_end_a_run_that_is_not_the_callers(self):
+        (self.state / "pid").write_text("%d\n" % os.getpid())
         code, out, err = verify_sh("stop", run="issue-660", sim=self.sim)
         self.assertEqual(code, 75, "the code launch already uses for a simulator another run owns")
         self.assertIn(self.owner, err, "whose app it is about to end")
@@ -526,12 +528,36 @@ class VerifyStop(unittest.TestCase):
         self.assertEqual(code, 0, err)
         self.assertFalse((self.state / "pid").exists(), "its own stop clears the pid it recorded")
 
+    def test_stop_refuses_to_uninstall_a_live_activity_run_that_is_not_the_callers(self):
+        (self.state / "args").write_text("-UITEST_FIXTURE -UITEST_SESSION -UITEST_DISABLE_ANIMATIONS\n")
+        code, out, err = verify_sh("stop", run=self.next, sim=self.sim)
+        self.assertEqual(code, 75, "its app died, but stop would still uninstall it and end the run's Live Activity")
+        self.assertIn("VERIFY_RUN=%s" % self.owner, err)
+        self.assertTrue((self.state / "args").exists(), "the owner's own stop can still uninstall")
+
+    def test_a_dead_pid_that_stop_would_only_forget_is_not_refused(self):
+        (self.state / "args").write_text("-UITEST_FIXTURE -UITEST_SESSION -UITEST_DISABLE_LIVE_ACTIVITIES\n")
+        code, out, err = verify_sh("stop", run=self.next, sim=self.sim)
+        self.assertEqual((code, out, err), (0, "", ""))
+        self.assertFalse((self.state / "pid").exists(), "no app and no Live Activity, so nothing to protect")
+
     def test_after_the_owners_stop_the_next_runs_stop_is_not_refused(self):
         code, out, err = verify_sh("stop", run=self.owner, sim=self.sim)
         self.assertEqual(code, 0, err)
-        code, out, err = verify_sh("stop", run="issue-677", sim=self.sim)
+        code, out, err = verify_sh("stop", run=self.next, sim=self.sim)
         self.assertEqual(code, 0, err)
         self.assertEqual(out, "nothing launched by this tool on %s\n" % self.sim)
+
+    def test_an_unnamed_diff_after_stop_still_reads_the_runs_shots(self):
+        evidence = REPO / ".build" / "verify" / "evidence" / self.owner
+        evidence.mkdir(parents=True, exist_ok=True)
+        self.addCleanup(shutil.rmtree, evidence, True)
+        for name in ["01-before", "02-after-log"]:
+            shutil.copy(FIXTURES / ("%s.tree.txt" % name), evidence / ("%s.tree.txt" % name))
+        verify_sh("stop", run=self.owner, sim=self.sim)
+        code, out, err = verify_sh("diff", "01-before", "02-after-log", run=None, sim=self.sim)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out, (FIXTURES / "01-before--02-after-log.diff.txt").read_text())
 
     def test_stop_on_a_simulator_no_run_has_claimed_is_not_refused(self):
         shutil.rmtree(self.state)
