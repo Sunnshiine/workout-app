@@ -20,7 +20,6 @@ struct SessionView: View {
     @State private var sessionSettingsDragStartTopContentOffset: CGFloat?
     @State private var isSettingsPresented = false
     @State private var stageComposition = SessionStageComposition.reading
-    @State private var restPillHeight: CGFloat = 0
 
     init(liveActivityAdapter: LiveActivityProductionAdapter = LiveActivityProductionAdapter()) {
         self.liveActivityAdapter = liveActivityAdapter
@@ -200,19 +199,9 @@ extension SessionView {
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            // Gate on the published interval, not the time-derived `isRunning`: the interval is
-            // held a beat past the deadline so the pill stays mounted to play the expiry buzz.
-            if restTimer.interval != nil {
-                RestPillView(restTimer: restTimer)
-                    .onGeometryChange(for: CGFloat.self, of: \.size.height) { restPillHeight = $0 }
-            } else if stageComposition == .editingWeight {
-                Color.clear.frame(height: restPillHeight)
-            }
+            RestPillSlot(restTimer: restTimer, keepsRoomWhenRestEnds: stageComposition == .editingWeight)
         }
         .onPreferenceChange(EditingWeightPreferenceKey.self) { isEditingWeight in
-            if restTimer.interval == nil {
-                restPillHeight = 0
-            }
             withAnimation(reduceMotion ? nil : Theme.stageCompositionAnimation) {
                 stageComposition = SessionStageComposition(isEditingWeight: isEditingWeight)
             }
@@ -377,6 +366,28 @@ extension SessionView {
 
 private enum SessionSettingsHeaderDrag {
     static let overpullDamping: CGFloat = 0.4
+}
+
+private struct RestPillSlot: View {
+    let restTimer: RestTimer
+    let keepsRoomWhenRestEnds: Bool
+    @State private var heldHeight: CGFloat = 0
+
+    var body: some View {
+        // Gate on the published interval, not the time-derived `isRunning`: the interval is
+        // held a beat past the deadline so the pill stays mounted to play the expiry buzz.
+        if restTimer.interval != nil {
+            RestPillView(restTimer: restTimer)
+                .onGeometryChange(for: CGFloat.self, of: \.size.height) { heldHeight = $0 }
+                .onDisappear {
+                    if !keepsRoomWhenRestEnds { heldHeight = 0 }
+                }
+        } else if keepsRoomWhenRestEnds {
+            Color.clear
+                .frame(height: heldHeight)
+                .onDisappear { heldHeight = 0 }
+        }
+    }
 }
 
 private struct OffLiveEdgeControls: View {

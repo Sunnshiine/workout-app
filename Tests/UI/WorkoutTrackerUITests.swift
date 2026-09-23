@@ -85,7 +85,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
         logButton.tap()
 
-        waitForLabel("& Back Squat", on: app.buttons["superset-partner-name"])
+        waitForLabel("BB RDL", on: app.staticTexts["stage-exercise-name"])
         XCTAssertFalse(app.keyboards.firstMatch.exists)
     }
 

@@ -59,7 +59,8 @@ struct SessionStageView: View {
                 }
             }
             // The zero minimum keeps an overflowing column from growing this frame, which would
-            // hand the overflow to a centering parent.
+            // hand the overflow to a centering parent. Ternaries, not a switch: a switch would give
+            // the page a second identity and drop the weight field's focus.
             .frame(
                 maxWidth: .infinity,
                 minHeight: composition == .editingWeight ? 0 : nil,
