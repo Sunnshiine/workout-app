@@ -37,6 +37,35 @@ import Testing
     #endif
 }
 
+struct PlatformGuardSuite {
+    @Test func guardInsideASuiteIsFlagged() {
+        #if canImport(AppKit)
+            expectRGB(Theme.palette(for: .day).ink, red: 0, green: 0, blue: 0)
+        #endif
+    }
+}
+
+@Test(arguments: [1, 2])
+func argumentsOnTheirOwnLineIsFlagged(value: Int) {
+    #if canImport(AppKit)
+        #expect(value > 0)
+    #endif
+}
+
+@Test func commentBetweenTheEndifAndTheBraceIsFlagged() {
+    #if canImport(AppKit)
+        expectRGB(Theme.palette(for: .day).ink, red: 0, green: 0, blue: 0)
+    #endif
+    // Night has no pinned ink yet.
+}
+
+@Test func blankLineAboveTheGuardIsFlagged() {
+
+    #if canImport(AppKit)
+        expectRGB(Theme.palette(for: .day).ink, red: 0, green: 0, blue: 0)
+    #endif
+}
+
 @Test func assertionOutsideTheGuardPasses() throws {
     // The pressed fill is a day value; night stays deferred.
     #if canImport(AppKit)
@@ -51,14 +80,14 @@ import Testing
     }
 #endif
 
-@Test func closureBindingAboveTheGuardPasses() {
+@Test func closureBindingAboveTheGuardIsMissed() {
     let fills = Theme.Appearance.allCases.map { Theme.palette(for: $0).cardFill }
     #if canImport(AppKit)
         expectRGB(fills[0], red: 1, green: 1, blue: 1)
     #endif
 }
 
-@Test func statementAboveTheGuardPasses() {
+@Test func statementAboveTheGuardIsMissed() {
     var palette = Theme.palette(for: .day)
     palette.accent = .green
     #if canImport(AppKit)
@@ -66,7 +95,7 @@ import Testing
     #endif
 }
 
-@Test func multilineBindingAboveTheGuardPasses() {
+@Test func multilineBindingAboveTheGuardIsMissed() {
     let palette = Theme.palette(
         for: .day
     )

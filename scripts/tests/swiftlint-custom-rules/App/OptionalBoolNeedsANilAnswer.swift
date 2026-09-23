@@ -15,24 +15,41 @@ struct OptionalBoolNeedsANilAnswer {
         session.map(\.isComplete) == true
     }
 
-    func reversedComparisonPasses(session: Session?) -> Bool {
+    func flatMapNotEqualToFalseIsFlagged(session: Session?) -> Bool {
+        session.flatMap(\.isPending) != false
+    }
+
+    func optionalChainedCallComparedToTrueIsFlagged(store: SessionStore?) -> Bool {
+        store?.isPending() == true
+    }
+
+    func comparisonInAStringIsFalselyFlagged() -> String {
+        "session?.isComplete == true"
+    }
+
+    func reversedComparisonIsMissed(session: Session?) -> Bool {
         true == session?.isComplete
     }
 
-    func chainPastACallPasses(store: SessionStore?) -> Bool {
+    func chainPastACallIsMissed(store: SessionStore?) -> Bool {
         store?.current().isComplete == true
     }
 
-    func plainOptionalBoolPasses(isComplete: Bool?) -> Bool {
+    func plainOptionalBoolIsMissed(isComplete: Bool?) -> Bool {
         isComplete == true
     }
 
-    func mapWithATrailingClosurePasses(session: Session?) -> Bool {
+    func mapWithATrailingClosureIsMissed(session: Session?) -> Bool {
         session.map { $0.isComplete } == true
     }
 
     func comparisonInACommentPasses(session: Session?) -> Bool {
         // session?.isComplete == true
+        session?.isComplete ?? false
+    }
+
+    func comparisonInADocCommentPasses(session: Session?) -> Bool {
+        /// session?.isComplete == true
         session?.isComplete ?? false
     }
 }

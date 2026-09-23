@@ -20,13 +20,19 @@ enum PollingLoopsAreBounded {
         for _ in 0..<100 { await Task.yield() }
     }
 
-    static func conditionHoldingAClosurePasses(store: SessionStore) async {
+    static func whileLoopThatOnlyTriesAYieldIsFlagged(store: SessionStore) async throws {
+        while !store.isIdle {
+            try await Task.yield()
+        }
+    }
+
+    static func conditionHoldingAClosureIsMissed(store: SessionStore) async {
         while !store.events.contains(where: { $0.isSync }) {
             await Task.yield()
         }
     }
 
-    static func bodyThatDoesMorePasses(store: SessionStore) async {
+    static func bodyThatDoesMoreIsMissed(store: SessionStore) async {
         while !store.isIdle {
             store.tick()
             await Task.yield()
@@ -36,5 +42,17 @@ enum PollingLoopsAreBounded {
     static func boundedPollPasses(store: SessionStore) async {
         for _ in 0..<10_000 { if store.isIdle { return }; await Task.yield() }
         Issue.record("the store never went idle")
+    }
+
+    static func yieldLoopInACommentPasses() {
+        // while !store.isIdle { await Task.yield() }
+    }
+
+    static func yieldLoopInADocCommentPasses() {
+        /// while !store.isIdle { await Task.yield() }
+    }
+
+    static func yieldLoopInAStringPasses() -> String {
+        "while !store.isIdle { await Task.yield() }"
     }
 }

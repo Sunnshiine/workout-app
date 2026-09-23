@@ -81,8 +81,18 @@ expected_rows() {
     cat <<'EXPECTED'
 font_construction_via_theme App/Views/FontConstructionViaTheme.swift:5
 font_construction_via_theme App/Views/FontConstructionViaTheme.swift:9
-font_construction_via_theme App/Views/FontConstructionViaTheme.swift:13
+font_construction_via_theme App/Views/FontConstructionViaTheme.swift:14
+font_construction_via_theme App/Views/FontConstructionViaTheme.swift:15
+font_construction_via_theme App/Views/FontConstructionViaTheme.swift:16
 font_construction_via_theme App/Views/FontConstructionViaTheme.swift:17
+font_construction_via_theme App/Views/FontConstructionViaTheme.swift:18
+font_construction_via_theme App/Views/FontConstructionViaTheme.swift:19
+font_construction_via_theme App/Views/FontConstructionViaTheme.swift:20
+font_construction_via_theme App/Views/FontConstructionViaTheme.swift:21
+font_construction_via_theme App/Views/FontConstructionViaTheme.swift:22
+font_construction_via_theme App/Views/FontConstructionViaTheme.swift:23
+font_construction_via_theme App/Views/FontConstructionViaTheme.swift:24
+font_construction_via_theme App/Views/FontConstructionViaTheme.swift:29
 font_construction_via_theme Sources/WorkoutTracker/FontConstructionViaTheme.swift:5
 
 no_uppercase_microlabels App/Views/NoUppercaseMicrolabels.swift:5
@@ -93,10 +103,16 @@ platform_guard_on_test_declaration Tests/PlatformGuardOnTestDeclaration.swift:12
 platform_guard_on_test_declaration Tests/PlatformGuardOnTestDeclaration.swift:19
 platform_guard_on_test_declaration Tests/PlatformGuardOnTestDeclaration.swift:26
 platform_guard_on_test_declaration Tests/PlatformGuardOnTestDeclaration.swift:32
+platform_guard_on_test_declaration Tests/PlatformGuardOnTestDeclaration.swift:41
+platform_guard_on_test_declaration Tests/PlatformGuardOnTestDeclaration.swift:48
+platform_guard_on_test_declaration Tests/PlatformGuardOnTestDeclaration.swift:55
+platform_guard_on_test_declaration Tests/PlatformGuardOnTestDeclaration.swift:62
 
 unstructured_task_is_held App/UnstructuredTaskIsHeld.swift:6
 unstructured_task_is_held App/UnstructuredTaskIsHeld.swift:12
 unstructured_task_is_held App/UnstructuredTaskIsHeld.swift:18
+unstructured_task_is_held App/UnstructuredTaskIsHeld.swift:24
+unstructured_task_is_held App/UnstructuredTaskIsHeld.swift:31
 unstructured_task_is_held Sources/WorkoutCLI/UnstructuredTaskIsHeld.swift:3
 unstructured_task_is_held Tests/UnstructuredTaskIsHeld.swift:7
 
@@ -104,6 +120,9 @@ optional_bool_needs_a_nil_answer App/OptionalBoolNeedsANilAnswer.swift:3
 optional_bool_needs_a_nil_answer App/OptionalBoolNeedsANilAnswer.swift:7
 optional_bool_needs_a_nil_answer App/OptionalBoolNeedsANilAnswer.swift:11
 optional_bool_needs_a_nil_answer App/OptionalBoolNeedsANilAnswer.swift:15
+optional_bool_needs_a_nil_answer App/OptionalBoolNeedsANilAnswer.swift:19
+optional_bool_needs_a_nil_answer App/OptionalBoolNeedsANilAnswer.swift:23
+optional_bool_needs_a_nil_answer App/OptionalBoolNeedsANilAnswer.swift:27
 optional_bool_needs_a_nil_answer Sources/WorkoutTracker/OptionalBoolNeedsANilAnswer.swift:3
 
 fixture_dates_are_literal Sources/WorkoutTracker/Fixtures/FixtureDatesAreLiteral.swift:5
@@ -117,6 +136,7 @@ fixture_dates_are_literal Tests/FixtureDatesAreLiteral.swift:25
 polling_loops_are_bounded Tests/PollingLoopsAreBounded.swift:8
 polling_loops_are_bounded Tests/PollingLoopsAreBounded.swift:14
 polling_loops_are_bounded Tests/PollingLoopsAreBounded.swift:20
+polling_loops_are_bounded Tests/PollingLoopsAreBounded.swift:24
 EXPECTED
 }
 expected=$(expected_rows | grep -v '^$' | LC_ALL=C sort)

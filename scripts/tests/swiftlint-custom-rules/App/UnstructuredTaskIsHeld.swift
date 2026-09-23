@@ -20,11 +20,24 @@ final class UnstructuredTaskIsHeld {
         }
     }
 
-    func discardedTaskPasses() {
+    func taskReturnedImplicitlyIsFalselyFlagged() -> Task<Void, Never> {
+        Task {
+            await sync()
+        }
+    }
+
+    func taskHeldOnTheLineAfterTheAssignmentIsFalselyFlagged() {
+        held =
+            Task {
+                await sync()
+            }
+    }
+
+    func discardedTaskIsMissed() {
         _ = Task { await sync() }
     }
 
-    func taskWithExplicitGenericsPasses() {
+    func taskWithExplicitGenericsIsMissed() {
         Task<Void, Never> {
             await sync()
         }
@@ -37,14 +50,26 @@ final class UnstructuredTaskIsHeld {
         held = task
     }
 
-    func taskWithAPriorityFromACallPasses() {
+    func taskWithAPriorityFromACallIsMissed() {
         Task(priority: currentPriority()) {
             await sync()
         }
     }
 
+    func taskMidLineAfterABraceIsMissed() {
+        DispatchQueue.main.async { Task { await sync() } }
+    }
+
     func taskInABlockCommentPasses() {
         /*
+        Task {
+            await sync()
+        }
+        */
+    }
+
+    func taskInADocCommentPasses() {
+        /**
         Task {
             await sync()
         }

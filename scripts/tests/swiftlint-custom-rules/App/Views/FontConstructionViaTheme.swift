@@ -9,12 +9,24 @@ struct FontConstructionViaTheme {
         Text("Squat").font(.system(size: 17, weight: .semibold))
     }
 
-    func headlineShorthandIsFlagged() -> some View {
-        Text("Squat").font(.headline)
+    func everyShorthandStyleIsFlagged() -> some View {
+        VStack {
+            Text("Squat").font(.largeTitle)
+            Text("Squat").font(.title)
+            Text("Squat").font(.title2)
+            Text("Squat").font(.title3)
+            Text("Squat").font(.headline)
+            Text("Squat").font(.subheadline)
+            Text("Squat").font(.body)
+            Text("Squat").font(.callout)
+            Text("Squat").font(.footnote)
+            Text("Squat").font(.caption)
+            Text("Squat").font(.caption2)
+        }
     }
 
-    func title2ShorthandIsFlagged() -> some View {
-        Text("Squat").font(.title2)
+    func whitespaceInsideTheParenIsFlagged() -> some View {
+        Text("Squat").font( .body)
     }
 
     func themeFontPasses() -> some View {

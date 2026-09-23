@@ -25,11 +25,11 @@ enum FixtureDatesAreLiteral {
         TimeZone.autoupdatingCurrent
     }
 
-    static func nowShorthandPasses() -> Date {
+    static func nowShorthandIsMissed() -> Date {
         .now
     }
 
-    static func dateFormatterOnTheMachineTimeZonePasses() -> DateFormatter {
+    static func dateFormatterOnTheMachineTimeZoneIsMissed() -> DateFormatter {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter
@@ -41,6 +41,11 @@ enum FixtureDatesAreLiteral {
 
     static func dateInACommentPasses() -> Date {
         // Date() moves with the clock.
+        Date(timeIntervalSince1970: 0)
+    }
+
+    static func dateInADocCommentPasses() -> Date {
+        /// Date() moves with the clock.
         Date(timeIntervalSince1970: 0)
     }
 
