@@ -391,7 +391,9 @@ case $cmd in
   stop)
     need_sim
     owner=
-    [ -f "$state_dir/run" ] && owner=$(cat "$state_dir/run")
+    # The run file outlives stop so an unnamed diff or sheet still finds its evidence. Only a pid
+    # file means a run still holds the app.
+    [ -f "$state_dir/pid" ] && [ -f "$state_dir/run" ] && owner=$(cat "$state_dir/run")
     if [ -n "$owner" ] && [ -n "${VERIFY_RUN:-}" ] && [ "$owner" != "$VERIFY_RUN" ]; then
       echo "the app on $sim belongs to run $owner, not to $VERIFY_RUN; to stop it anyway, run: VERIFY_RUN=$owner $0 stop" >&2
       exit 75
