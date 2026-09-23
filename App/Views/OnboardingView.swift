@@ -151,6 +151,7 @@ struct OnboardingView: View {
                 .textInputAutocapitalization(.never)
                 .accessibilityIdentifier("onboarding-url-field")
                 .accessibilityLabel(fieldName)
+                .onChange(of: urlText) { urlError = false }
 
             if urlError {
                 Text("That doesn't look like a Sheet URL")
@@ -188,7 +189,6 @@ struct OnboardingView: View {
             urlError = true
             return
         }
-        urlError = false
         Task { await commitSelection(SheetSelection(spreadsheetId: id, title: nil)) }
     }
 
