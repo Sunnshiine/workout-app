@@ -72,6 +72,10 @@ jobs:
         env:
           SWIFTLINT_CACHE_DIR: ${{ runner.temp }}/swiftlint
         run: scripts/tests/swiftlint-custom-rules.test.sh
+      - name: Refuse a lint run that skips a tree
+        env:
+          SWIFTLINT_CACHE_DIR: ${{ runner.temp }}/swiftlint
+        run: scripts/tests/lint.test.sh
 
   swift-tests:
     runs-on: xcode-27
