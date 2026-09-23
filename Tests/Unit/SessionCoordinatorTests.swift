@@ -1185,6 +1185,26 @@ private func makeRestActionFixture(
 }
 
 @MainActor
+@Test func aTransitionReachesTheCardsOfEveryExerciseItTouchesAndNoOther() throws {
+    let fixture = try makeActionFixture()
+    let bench = try #require(fixture.session.exercises.first { $0.order == 1 })
+    let secondBenchSet = try #require(bench.sets.first { $0.index == 1 })
+
+    fixture.coordinator.log(secondBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .eight))
+
+    let transition = try #require(fixture.coordinator.activeSetTransition)
+    #expect(transition.outgoingSetID == ActiveSetID(exerciseOrder: 1, setIndex: 1))
+    #expect(transition.incomingSetID == ActiveSetID(exerciseOrder: 2, setIndex: 0))
+    #expect(transition.completedExerciseOrder == nil)
+    let transitionByOrder = Dictionary(
+        uniqueKeysWithValues: fixture.coordinator.exerciseRenderItems(in: fixture.session).map {
+            ($0.exercise.order, $0.activeSetTransition)
+        }
+    )
+    #expect(transitionByOrder == [0: nil, 1: transition, 2: transition])
+}
+
+@MainActor
 @Test func openingLoggedSetReviewClearsRetiringActiveCard() throws {
     let fixture = try makeActionFixture()
     let bench = try #require(fixture.session.exercises.first { $0.order == 1 })

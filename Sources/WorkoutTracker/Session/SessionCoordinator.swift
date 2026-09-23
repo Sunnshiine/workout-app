@@ -724,16 +724,12 @@ extension SessionCoordinator {
         scopedTo exerciseOrders: Set<Int>
     ) -> ActiveSetTransition? {
         guard let transition else { return nil }
-        if exerciseOrders.contains(transition.outgoingSetID.exerciseOrder) {
-            return transition
-        }
-        if transition.incomingSetID.map({ exerciseOrders.contains($0.exerciseOrder) }) ?? false {
-            return transition
-        }
-        if transition.completedExerciseOrder.map(exerciseOrders.contains) ?? false {
-            return transition
-        }
-        return nil
+        let touchedOrders = [
+            transition.outgoingSetID.exerciseOrder,
+            transition.incomingSetID?.exerciseOrder,
+            transition.completedExerciseOrder
+        ]
+        return touchedOrders.compactMap { $0 }.contains(where: exerciseOrders.contains) ? transition : nil
     }
 
     private func lastPerformedPresentation(
