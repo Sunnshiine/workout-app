@@ -363,6 +363,15 @@ class Clipped(unittest.TestCase):
         self.assertEqual(tree_py("tappable", "weight-keyboard-done", stdin=KEYBOARD_DONE), (0, "350 816\n", ""),
                          "a tap at 350,816 closed the keyboard on the live app")
 
+    def test_a_group_with_one_zero_side_does_not_clip_done_either(self):
+        tree = json.loads(KEYBOARD_DONE)
+        node = tree[0]
+        while node["frame"]["width"] > 0:
+            node = node["children"][0]
+        node["frame"]["height"] = 48
+        self.assertEqual(tree_py("tappable", "weight-keyboard-done", stdin=json.dumps(tree)), (0, "350 816\n", ""),
+                         "a group @16,792 0x48 holds no point, the same as the captured 0x0")
+
     def test_on_the_captured_screen_exactly_the_chips_a_tap_misses_are_clipped(self):
         on_screen = [line.split("\t")[1] for line in tree_py("flat", stdin=SESSION_RAILS)[1].splitlines()]
         clipped = [ident for ident in on_screen if ident and "clipped" in tree_py("find", ident, stdin=SESSION_RAILS)[2]]

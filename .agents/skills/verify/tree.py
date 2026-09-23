@@ -68,7 +68,7 @@ class Frame(NamedTuple):
 def clipper(frame: Frame, ancestors: Tuple[dict, ...], screen: Frame) -> Optional[str]:
     for ancestor in reversed(ancestors):
         bounds = Frame.of(ancestor)
-        if bounds.covers(screen) or bounds.holds(frame.center):
+        if bounds.width == 0 or bounds.height == 0 or bounds.covers(screen) or bounds.holds(frame.center):
             continue
         name = clean(ancestor.get("AXUniqueId") or ancestor.get("AXLabel"))
         return " ".join(part for part in (clean(ancestor.get("role")), name, bounds.text) if part)
