@@ -14,25 +14,25 @@ struct RestPillSlotLayoutTests {
         let host = try SlotHost(restTimer: restTimer, stage: stage)
         defer { host.close() }
 
-        stage.isEditingWeight = true
+        stage.composition = .editingWeight
         #expect(host.laidOutSlotHeight() == 0, "an edit opened with no rest holds no room")
 
         restTimer.start(duration: 150, origin: ActiveSetID(exerciseOrder: 0, setIndex: 0), kind: .standard)
         #expect(host.laidOutSlotHeight() == 58, "the keyboard-up Log starts the rest under the open edit")
 
-        stage.isEditingWeight = false
+        stage.composition = .reading
         #expect(host.laidOutSlotHeight() == 58, "the edit ends and the pill stays")
 
-        stage.isEditingWeight = true
+        stage.composition = .editingWeight
         #expect(host.laidOutSlotHeight() == 58, "the next edit opens above the running rest")
 
         restTimer.dismiss()
         #expect(host.laidOutSlotHeight() == 58, "the rest ends mid-edit and its room stays")
 
-        stage.isEditingWeight = false
+        stage.composition = .reading
         #expect(host.laidOutSlotHeight() == 0, "the edit ends and the room goes")
 
-        stage.isEditingWeight = true
+        stage.composition = .editingWeight
         #expect(host.laidOutSlotHeight() == 0, "an edit opened after the room went holds none")
     }
 }
@@ -40,7 +40,7 @@ struct RestPillSlotLayoutTests {
 @MainActor
 @Observable
 private final class SlotStage {
-    var isEditingWeight = false
+    var composition = SessionStageComposition.reading
     var pass = 0
     @ObservationIgnored var laidOut: StageLayout?
 }
@@ -62,9 +62,7 @@ private struct SlotStageView: View {
             } action: { layout in
                 stage.laidOut = layout
             }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                RestPillSlot(restTimer: restTimer, keepsRoomWhenRestEnds: stage.isEditingWeight)
-            }
+            .restPillInset(restTimer, composition: stage.composition)
     }
 }
 

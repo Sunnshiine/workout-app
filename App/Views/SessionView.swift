@@ -198,9 +198,7 @@ extension SessionView {
                 sessionHeaderHUD(session: session)
             }
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            RestPillSlot(restTimer: restTimer, keepsRoomWhenRestEnds: stageComposition == .editingWeight)
-        }
+        .restPillInset(restTimer, composition: stageComposition)
         .onPreferenceChange(EditingWeightPreferenceKey.self) { isEditingWeight in
             withAnimation(reduceMotion ? nil : Theme.stageCompositionAnimation) {
                 stageComposition = SessionStageComposition(isEditingWeight: isEditingWeight)
@@ -368,7 +366,15 @@ private enum SessionSettingsHeaderDrag {
     static let overpullDamping: CGFloat = 0.4
 }
 
-struct RestPillSlot: View {
+extension View {
+    func restPillInset(_ restTimer: RestTimer, composition: SessionStageComposition) -> some View {
+        safeAreaInset(edge: .bottom, spacing: 0) {
+            RestPillSlot(restTimer: restTimer, keepsRoomWhenRestEnds: composition == .editingWeight)
+        }
+    }
+}
+
+private struct RestPillSlot: View {
     let restTimer: RestTimer
     let keepsRoomWhenRestEnds: Bool
     @State private var lastMeasuredHeight: CGFloat = 0
