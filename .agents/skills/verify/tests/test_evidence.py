@@ -364,14 +364,35 @@ class Clipped(unittest.TestCase):
         self.assertEqual(tree_py("tappable", "weight-keyboard-done", stdin=KEYBOARD_DONE), (0, "350 816\n", ""),
                          "a tap at 350,816 closed the keyboard on the live app")
 
-    def test_a_group_with_one_zero_side_does_not_clip_done_either(self):
-        tree = json.loads(KEYBOARD_DONE)
-        node = tree[0]
-        while node["frame"]["width"] > 0:
-            node = node["children"][0]
-        node["frame"]["height"] = 48
-        self.assertEqual(tree_py("tappable", "weight-keyboard-done", stdin=json.dumps(tree)), (0, "350 816\n", ""),
-                         "a group @16,792 0x48 holds no point, the same as the captured 0x0")
+    def test_only_a_group_with_a_zero_side_is_skipped(self):
+        def group_sized(width, height):
+            tree = json.loads(KEYBOARD_DONE)
+            stack = [tree[0]]
+            while stack:
+                node = stack.pop()
+                if node["frame"] == {"x": 16, "y": 792, "width": 0, "height": 0}:
+                    node["frame"].update(width=width, height=height)
+                stack.extend(node.get("children", []))
+            return json.dumps(tree)
+
+        self.assertEqual(tree_py("tappable", "weight-keyboard-done", stdin=group_sized(0, 48)), (0, "350 816\n", ""))
+        self.assertEqual(tree_py("tappable", "weight-keyboard-done", stdin=group_sized(370, 0)), (0, "350 816\n", ""))
+        self.assertEqual(tree_py("tappable", "weight-keyboard-done", stdin=group_sized(1, 48)), (
+            1, "", "clipped: outside AXGroup @16,792 1x48; bring it inside that frame before tapping\n",
+        ), "a group one point wide still holds points, and not the one Done is tapped at")
+
+    def test_a_track_above_a_zero_size_group_still_clips_the_chip(self):
+        wrapped = json.loads(MINI)
+        wrapped[0]["children"] = [{
+            "role": "AXGroup", "AXLabel": "RPE", "frame": {"x": 207, "y": 612, "width": 163, "height": 83},
+            "children": [{
+                "role": "AXGroup", "frame": {"x": 207, "y": 612, "width": 0, "height": 0},
+                "children": [{"role": "AXButton", "AXUniqueId": "rpe-7", "AXLabel": "RPE 7",
+                              "frame": {"x": 380, "y": 629, "width": 9, "height": 24}}],
+            }],
+        }]
+        self.assertEqual(tree_py("tappable", "rpe-7", stdin=json.dumps(wrapped)), (1, "", RPE_CLIPPED),
+                         "the zero-size group is skipped and the walk goes on to the track")
 
     def test_a_zero_size_button_around_the_home_screen_icons_does_not_clip_them(self):
         self.assertEqual(tree_py("tappable", "WorkoutTracker", stdin=HOME_SCREEN), (0, "62 336\n", ""),
