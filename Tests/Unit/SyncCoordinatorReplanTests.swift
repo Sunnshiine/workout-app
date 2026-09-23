@@ -140,6 +140,46 @@ private func squatOneSetGrid() -> SheetGrid {
     #expect(conflictEntry.valueCheckOutcome == "Expected '205x3@9', found '300x1@10'.")
 }
 
+/// Between the two reads the coach swaps the I14 and K14 headers and logs Set 1 in I15. The
+/// re-plan keeps I15 from the first read (#726), which is now a Set Log cell.
+@MainActor
+@Test func replanningALastSetRPEWriteIntoACellNowHeadedNotesConflictsInsteadOfJoiningTheSetLog() async throws {
+    let container = try makeReplanContainer()
+    let ctx = container.mainContext
+    for (createdAt, rpe) in [(1.0, "8"), (2.0, "9")] {
+        let write = replanPendingWrite(createdAt: createdAt, valueToWrite: rpe, expectedCurrentValue: "")
+        write.column = .lastSetRPE
+        write.setIndex = 1
+        ctx.insert(write)
+    }
+    try ctx.save()
+    let client = LiveSheetClient(
+        grid: gridFromA1(
+            [
+                "C12": "Day 1", "S12": "Day 2",
+                "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
+                "C15": "Squat", "D15": "2"
+            ],
+            rows: 24,
+            cols: 30
+        ),
+        editsLandingBeforeFetch: [2: ["I14": "Notes", "K14": "Last set RPE", "I15": "185x5@8"]]
+    )
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(client.cell("I15") == "185x5@8")
+    #expect(client.cell("K15") == "")
+    #expect(client.fetchCount == 2)
+    #expect(sync.outcome == .writesRefused(["Squat: Expected '', found '185x5@8'"]))
+
+    let remaining = try ctx.fetch(FetchDescriptor<PendingWrite>())
+    #expect(remaining.map(\.status) == [.conflict])
+    #expect(remaining.map(\.valueToWrite) == ["9"])
+    #expect(remaining.map(\.lastError) == ["Expected '', found '185x5@8'"])
+}
+
 /// The second write lands on a different Exercise, so nothing overlaps and no re-plan happens.
 @MainActor
 @Test func planningFailureOnAFreshTargetConflictsWithoutWritingTheBatchEarly() async throws {
