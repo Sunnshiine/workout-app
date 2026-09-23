@@ -143,7 +143,11 @@ import Testing
         auditRowScan(cells: cells, notesHeader: false, exercise: "Squat", setIndex: 0)
             == "No row selected: Week 1, Day 1 has no Notes column."
     )
-    // The planner looks for the column before the Exercise, so the audit names the column first too.
+}
+
+@Test func rowScanNamesTheMissingColumnBeforeTheMissingExercise() {
+    let cells = ["C15": "Squat", "D15": "2", "C19": "Bench", "D19": "1"]
+
     #expect(
         auditRowScan(cells: cells, lastSetRPEHeader: false, exercise: "Deadlift", setIndex: 0, column: .lastSetRPE)
             == "No row selected: Week 1, Day 1 has no Last set RPE column."

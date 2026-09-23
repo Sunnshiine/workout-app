@@ -87,6 +87,19 @@ private func planError(
     #expect(error?.errorDescription == "Last set RPE column was not found")
 }
 
+@Test func refusesAMissingColumnBeforeAMissingExercise() {
+    #expect(
+        planError(addressingRequest(exerciseName: "Deadlift"), grid: addressingGrid(omitting: ["K14"]))
+            == .columnNotFound("Notes")
+    )
+    #expect(
+        planError(
+            addressingRequest(exerciseName: "Deadlift", column: .lastSetRPE),
+            grid: addressingGrid(omitting: ["I14"])
+        ) == .columnNotFound("Last set RPE")
+    )
+}
+
 // Before #559 this redirected onto the visible row below the hidden one and the log landed there.
 @Test func refusesASetLogWriteWhenTheExerciseRowIsHidden() {
     let error = planError(
