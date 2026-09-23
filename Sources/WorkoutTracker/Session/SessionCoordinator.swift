@@ -285,7 +285,7 @@ final class SessionCoordinator {
                 afterLogging: set,
                 in: session,
                 isSupersetMember: wasSupersetMember,
-                isRestRunning: restTimer?.isRunning == true
+                isRestRunning: restTimer?.isRunning ?? false
             )
             if let restKind {
                 restTimer?.start(

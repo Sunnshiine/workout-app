@@ -116,7 +116,7 @@ func splitSheetNotesList(_ value: String) -> [String] {
 
 func joinedSheetNotesList(_ values: [String]) -> String {
     var trimmed = values.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-    while trimmed.last?.isEmpty == true {
+    while let last = trimmed.last, last.isEmpty {
         trimmed.removeLast()
     }
     return trimmed.joined(separator: ", ")
