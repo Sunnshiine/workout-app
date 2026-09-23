@@ -10,8 +10,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Cancel"].exists)
         XCTAssertFalse(app.buttons["Skip"].exists)
 
-        app.buttons["weight-pill"].tap()
-        XCTAssertTrue(app.keyboards.firstMatch.appears(within: 3))
+        openWeightKeyboard(in: app)
 
         tapActiveSetCardHeaderBackground(in: app)
 
@@ -286,8 +285,6 @@ private func tapEmptyStageSpaceAboveExerciseName(in app: XCUIApplication, stageT
         .tap()
 }
 
-/// A simulator switched to a hardware keyboard parks the software keyboard below the window (#700),
-/// and every capsule and toolbar assertion after it then measures a layout no athlete sees.
 @MainActor
 private func openWeightKeyboard(in app: XCUIApplication) {
     app.buttons["weight-pill"].tap()
@@ -297,7 +294,11 @@ private func openWeightKeyboard(in app: XCUIApplication) {
     while keyboard.frame.minY >= app.frame.maxY, Date() < deadline {
         RunLoop.current.run(until: Date().addingTimeInterval(0.1))
     }
-    XCTAssertLessThan(keyboard.frame.minY, app.frame.maxY, "the software keyboard is on screen")
+    XCTAssertLessThan(
+        keyboard.frame.minY,
+        app.frame.maxY,
+        "the software keyboard is below the window: set the simulator's AutomaticMinimizationEnabled to false and reboot it (#700)"
+    )
 }
 
 /// The keyboard's Done toolbar is the `Toolbar` group that is not the full-window one.

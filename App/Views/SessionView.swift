@@ -374,8 +374,6 @@ private struct RestPillSlot: View {
     @State private var heldHeight: CGFloat = 0
 
     var body: some View {
-        // Not in onDisappear: a keyboard-up Log tap ends the edit and starts a rest in one update,
-        // and the placeholder's onDisappear runs after the new pill has measured.
         slot.onChange(of: restTimer.interval == nil && !keepsRoomWhenRestEnds) { _, isRoomFree in
             if isRoomFree { heldHeight = 0 }
         }
