@@ -327,7 +327,7 @@ case $cmd in
   shot)
     name=${1:-}
     valid_name "$name"
-    need_sim; sim_free "$sim"; ensure_axe
+    need_sim; require_sim_free "$sim"; ensure_axe
     dir=$(run_dir)
     prev=$(shot_names "$dir" | grep -vx -- "$name" | tail -1 || true)
     capture "$dir/.$name.png"
@@ -368,7 +368,7 @@ case $cmd in
     name=${1:-}
     valid_name "$name"
     shift
-    need_sim; sim_free "$sim"; ensure_axe
+    need_sim; require_sim_free "$sim"; ensure_axe
     dir=$(run_dir)
     frames_dir=$dir/$name.burst
     rm -rf "$frames_dir"
@@ -404,6 +404,7 @@ case $cmd in
         echo "the app on $sim belongs to run $owner, not to $VERIFY_RUN; to stop it anyway, run: VERIFY_RUN=$owner $0 stop" >&2
         exit 75
       fi
+      [ -z "$uninstall" ] || require_sim_free "$sim"
       if [ -n "$alive" ]; then
         xcrun simctl terminate "$sim" "$bundle"
         echo "terminated pid $pid"

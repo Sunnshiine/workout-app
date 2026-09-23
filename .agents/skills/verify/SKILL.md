@@ -147,9 +147,8 @@ An unnamed `stop` is not gated, which is the
 reason to name every run on a machine someone else is driving. A run launched under
 `VERIFY_LIVE_ACTIVITIES=1` is uninstalled as well as terminated, because a Live Activity belongs to
 the app rather than to its process and uninstalling is the only lever on one from outside the app.
-That uninstall also removes the app a `scripts/test-sim.sh` run on the same simulator is testing,
-and `stop` takes no simulator lock. On a drive that opts in, do not `stop` while `shot` refuses
-because a test run holds the simulator. `stop` never shuts down or erases the simulator, which
+`stop` refuses (exit 75) to uninstall while a `scripts/test-sim.sh` run holds the simulator, because
+the uninstall would remove the app under test. `stop` never shuts down or erases the simulator, which
 other agents and `scripts/test-sim.sh` share. Evidence is
 never removed, and it keeps the run name, so `diff` still answers after the app is gone. A `burst`
 keeps its twelve full-size frames, about 47 MB under the git-ignored `.build/`. Delete a run's
@@ -167,4 +166,7 @@ nothing to compare against, so it steps aside, and an unset `SIM` resolves onto 
 sibling names its own run. Set both on every call whenever another agent might be on this
 machine. `launch`, `shot`, and `burst` refuse (exit 75) while a `scripts/test-sim.sh` run holds the
 simulator. `test-sim.sh` refuses the same way while a run's app is alive on it. Each refusal names
-the holder and its pid. Two CLI drives never collide if each has its own `WORKOUT_HOME`.
+the holder and its pid. The lock sees only `scripts/test-sim.sh`, so an XcodeBuildMCP `test_sim` or
+a raw `xcodebuild test` on the same UDID is invisible to it. Before a `launch` when another agent
+may be testing, run `pgrep -fl "id=<udid>"`. Two CLI drives never collide if each has its own
+`WORKOUT_HOME`.
