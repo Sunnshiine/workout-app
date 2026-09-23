@@ -239,7 +239,6 @@ import Testing
         expectRGB(Theme.palette(for: Theme.Appearance.day).tileCurrentBorder, red: 31 / 255, green: 133 / 255, blue: 82 / 255)
         expectRGB(Theme.palette(for: Theme.Appearance.night).tileCurrentBorder, red: 31 / 255, green: 133 / 255, blue: 82 / 255)
 
-        // Paint.actionNight is also #1F8552, so the values above cannot tell an alias from the literal.
         let definitions = try RepositoryFiles.text(of: "Sources/WorkoutTracker/Theme.swift")
             .split(separator: "\n")
             .map { $0.trimmingCharacters(in: .whitespaces) }
@@ -247,7 +246,10 @@ import Testing
         #expect(definitions.count == 2, "Theme.swift should define tileCurrentBorder once per palette")
         #expect(
             definitions.allSatisfy { $0.hasPrefix("tileCurrentBorder: rgb(31, 133, 82),") },
-            "Theme.swift must define tileCurrentBorder as rgb(31, 133, 82) in both palettes, the literal token sheet §8.5 approves"
+            """
+            Theme.swift must define tileCurrentBorder as rgb(31, 133, 82) in both palettes (token sheet §8.5). \
+            Paint.actionNight has the same RGB, so only the source shows an alias.
+            """
         )
     }
 #endif
@@ -337,13 +339,11 @@ import Testing
     @Test func nightBlockGridObeysTheRoomRelightsRule() {
         let night = Theme.palette(for: Theme.Appearance.night)
 
-        // Everything that grows takes foliage pigment: the complete tile fills in foliage green.
         expectSageLed(night.sessionTileComplete)
         if let foliage = rgbaComponents(of: night.sessionTileComplete) {
             #expect(foliage.green > 0.4 && foliage.green < 0.75, "the complete tile is mid foliage, not ink or cream")
         }
 
-        // The quiet strokes and shades stay sage-led — no neutral gray tiles at night.
         expectSageLed(night.tileGhostStroke)
         for creamSurface in [night.tileCurrentFill, night.weekCardShade] {
             expectSageLed(creamSurface)
