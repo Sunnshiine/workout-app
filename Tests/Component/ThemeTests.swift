@@ -241,10 +241,14 @@ import Testing
         expectRGB(Theme.sessionTileCurrentBorder, red: 31 / 255, green: 133 / 255, blue: 82 / 255)
 
         // Paint.actionNight is also #1F8552, so the values above cannot tell an alias from the literal.
-        let theme = try RepositoryFiles.text(of: "Sources/WorkoutTracker/Theme.swift")
+        let definitions = try RepositoryFiles.text(of: "Sources/WorkoutTracker/Theme.swift")
+            .split(separator: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { $0.hasPrefix("tileCurrentBorder:") }
+        #expect(definitions.count == 2, "Theme.swift should define tileCurrentBorder once per palette")
         #expect(
-            theme.ranges(of: "tileCurrentBorder: rgb(31, 133, 82)").count == 2,
-            "both appearances must spell tileCurrentBorder as the literal #1F8552, not a paint alias (token sheet §8.5)"
+            definitions.allSatisfy { $0.hasPrefix("tileCurrentBorder: rgb(31, 133, 82),") },
+            "Theme.swift must define tileCurrentBorder as rgb(31, 133, 82) in both palettes, the literal token sheet §8.5 approves"
         )
     }
 #endif
