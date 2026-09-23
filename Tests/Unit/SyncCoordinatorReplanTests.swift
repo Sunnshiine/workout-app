@@ -140,10 +140,8 @@ private func squatOneSetGrid() -> SheetGrid {
     #expect(conflictEntry.valueCheckOutcome == "Expected '205x3@9', found '300x1@10'.")
 }
 
-/// Between the two reads the coach swaps the I14 and K14 headers and logs Set 1 in I15. The
-/// re-plan keeps I15 from the first read (#726), which is now a Set Log cell.
 @MainActor
-@Test func replanningALastSetRPEWriteIntoACellNowHeadedNotesConflictsInsteadOfJoiningTheSetLog() async throws {
+@Test func replanningALastSetRPEWriteKeepsItsFirstReadCellAndConflictsWhenNotesNowHeadsIt() async throws {
     let container = try makeReplanContainer()
     let ctx = container.mainContext
     for (createdAt, rpe) in [(1.0, "8"), (2.0, "9")] {
