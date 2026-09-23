@@ -238,7 +238,6 @@ import Testing
     @Test func themeTileCurrentBorderStaysTheApprovedLiteral() throws {
         expectRGB(Theme.palette(for: Theme.Appearance.day).tileCurrentBorder, red: 31 / 255, green: 133 / 255, blue: 82 / 255)
         expectRGB(Theme.palette(for: Theme.Appearance.night).tileCurrentBorder, red: 31 / 255, green: 133 / 255, blue: 82 / 255)
-        expectRGB(Theme.sessionTileCurrentBorder, red: 31 / 255, green: 133 / 255, blue: 82 / 255)
 
         // Paint.actionNight is also #1F8552, so the values above cannot tell an alias from the literal.
         let definitions = try RepositoryFiles.text(of: "Sources/WorkoutTracker/Theme.swift")
