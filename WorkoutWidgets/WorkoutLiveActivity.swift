@@ -367,12 +367,12 @@ private struct PrescriptionStack: View {
             Text(state.prescribedRepsText)
                 .font(.caption.weight(.heavy))
                 .foregroundStyle(colors.accent)
-                .minimumScaleFactor(0.75)
+                .minimumScaleFactor(minimumScaleFactors.reps)
 
             Text(state.prescribedLoad)
                 .font(.caption2.weight(.bold))
                 .foregroundStyle(secondaryTextColor)
-                .minimumScaleFactor(0.75)
+                .minimumScaleFactor(minimumScaleFactors.load)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Prescription \(state.prescriptionText)")
@@ -384,6 +384,17 @@ private struct PrescriptionStack: View {
             .leading
         case .lockScreen:
             .trailing
+        }
+    }
+
+    // The island floors both lines at about 11pt, DESIGN.md's Shrink-Then-Truncate floor.
+    // .caption is 12pt and .caption2 is already 11pt.
+    private var minimumScaleFactors: (reps: CGFloat, load: CGFloat) {
+        switch style {
+        case .island:
+            (reps: 0.92, load: 1)
+        case .lockScreen:
+            (reps: 0.75, load: 0.75)
         }
     }
 
