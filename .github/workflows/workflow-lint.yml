@@ -1,0 +1,29 @@
+name: Workflow lint
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - "scripts/lint-workflow-ifs.sh"
+      - "scripts/tests/lint-workflow-ifs.test.sh"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+      - "scripts/lint-workflow-ifs.sh"
+      - "scripts/tests/lint-workflow-ifs.test.sh"
+
+concurrency:
+  group: workflow-lint-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  if-guards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checker tests
+        run: scripts/tests/lint-workflow-ifs.test.sh
+      - name: Every workflow's if guards
+        run: scripts/lint-workflow-ifs.sh
