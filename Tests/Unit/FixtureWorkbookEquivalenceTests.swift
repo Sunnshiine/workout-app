@@ -61,11 +61,9 @@ private func text(_ date: Date?) -> String? {
 }
 
 /// A Training Max reads back as the cell text a coach would have typed, so a recorded entry says
-/// `"315"` rather than `"315.0"`. `Weight` owns that spelling; a non-finite value skips it because
-/// `Weight.label` would trap converting it, and a Training Max cell of "inf" should be reported as
-/// drift rather than crash the walk.
+/// `"315"` rather than `"315.0"`. `Weight` owns that spelling.
 private func text(_ number: Double?) -> String? {
-    number.map { $0.isFinite ? Weight.pounds($0).label : String($0) }
+    number.map { Weight.pounds($0).label }
 }
 
 // MARK: - The walk
