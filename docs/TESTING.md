@@ -91,8 +91,8 @@ Target directory structure:
 - `Tests/Visual`: hosted Visual Regression tests plus Visual Baselines. Runs in the
   `WorkoutTrackerSnapshotTests` target via xcodebuild, not `swift test`. It also holds hosted
   layout tests, which put an `App/` view in a real window and assert its geometry with no image.
-  They live here because `Tests/Unit` and `Tests/Component` also build under `swift test`, which
-  never sees `App/`.
+  `Package.swift` excludes all of `Tests/Visual` from `swift test`, so a test here can use `App/`
+  views without the per-file exclude a `Tests/Unit` file needs.
 - `Tests/UI`: simulator XCUITest coverage that launches the app and drives real controls.
   Uses a separate Xcode UI-test target, split by purpose into UI Integration Smoke and the
   UI Interaction Suite.
