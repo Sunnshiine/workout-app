@@ -38,7 +38,7 @@ extension SyncOutcome {
     ///
     /// The read speaks last, so its verdict is the sync's, except that a refused write survives a
     /// read that went well. A queued write does not, and that asymmetry is what
-    /// `aSyncWhoseUploadFailedEndsIdleWithTheWriteStillQueued` pins and calls suspected wrong.
+    /// `aSyncWhoseUploadFailedEndsClearWithTheWriteStillQueued` pins and calls suspected wrong.
     /// #589 reproduced both rather than change behavior while reshaping the type.
     static func sync(sheetRead: SyncOutcome, flush: SyncOutcome) -> SyncOutcome {
         switch (sheetRead, flush) {

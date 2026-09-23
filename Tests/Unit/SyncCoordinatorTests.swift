@@ -35,7 +35,7 @@ private struct StubClient: SheetsClient {
 
     await sync.sync(spreadsheetId: "sid")
 
-    #expect(sync.state == .idle)
+    #expect(sync.outcome == .clear)
     let blocks = try container.mainContext.fetch(FetchDescriptor<Block>())
     #expect(blocks.count == 1)
     #expect(blocks[0].tabName == "Block 27")
@@ -95,7 +95,7 @@ private struct StubClient: SheetsClient {
     let client = StubClient(titles: [], grid: [], failOffline: true)
     let sync = SyncCoordinator(client: client, context: container.mainContext)
     await sync.sync(spreadsheetId: "sid")
-    #expect(sync.state == .offline)
+    #expect(sync.outcome == .sheetUnreachable)
 }
 
 @MainActor
@@ -211,7 +211,8 @@ private func loggedSquatGrid() -> SheetGrid {
     await sync.sync(spreadsheetId: "sid")
 
     // Block 26's read is still parked, so sync returned while the fill was mid-flight.
-    #expect(sync.state == .idle)
+    #expect(sync.outcome == .clear)
+    #expect(sync.isSyncing == false)
     #expect(lookupStore.snapshot.lookup(for: "Squat") == nil)
     let inFlight = try #require(sync.inFlightHistoryFill)
 
@@ -225,7 +226,7 @@ private func loggedSquatGrid() -> SheetGrid {
 /// A tab that reads fine but cannot be stored is reported to the coach, because the halt leaves the
 /// coverage count short and the next sync will come straight back to this tab.
 @MainActor
-@Test func historyFillIndexRefusalReachesSyncStateAsAConflict() async throws {
+@Test func historyFillIndexRefusalReachesTheSyncOutcome() async throws {
     let container = try makeSyncContainer()
     let client = HistoryFillStubClient(
         titles: ["Block 25", "Block 26", "Block 27"],
@@ -247,13 +248,14 @@ private func loggedSquatGrid() -> SheetGrid {
     let outcome = await sync.inFlightHistoryFill?.value
 
     #expect(outcome == .halted(tab: "Block 26", reason: .indexRejected("the index is full"), tabsIngested: 0))
-    #expect(sync.state == .conflict(["Exercise History fill failed: the index is full"]))
+    #expect(sync.outcome == .historyFillFailed("the index is full"))
+    #expect(sync.isSyncing == false)
 }
 
-/// Every other halt stays out of the athlete's way: the fill stops, and sync's own state is
+/// Every other halt stays out of the athlete's way. The fill stops, and the sync outcome is
 /// whatever the sync itself reported (#514 owns where background-index errors go).
 @MainActor
-@Test func historyFillHaltOnAnUnreadableTabLeavesSyncStateAlone() async throws {
+@Test func historyFillHaltOnAnUnreadableTabLeavesTheSyncOutcomeAlone() async throws {
     let container = try makeSyncContainer()
     let client = HistoryFillStubClient(
         titles: ["Block 25", "Block 26", "Block 27"],
@@ -276,7 +278,8 @@ private func loggedSquatGrid() -> SheetGrid {
     let outcome = await sync.inFlightHistoryFill?.value
 
     #expect(outcome == .halted(tab: "Block 26", reason: .unreadable, tabsIngested: 0))
-    #expect(sync.state == .idle)
+    #expect(sync.outcome == .clear)
+    #expect(sync.isSyncing == false)
 }
 
 extension DateFormatter {
@@ -303,31 +306,31 @@ private func makeSyncContainer() throws -> ModelContainer {
     )
 }
 
-/// What `SyncCoordinator.State.conflict` does today, recorded before #514 reshapes it (#583).
+/// The latch-and-clear semantics #587 recorded before #514 split the collapsed conflict case into
+/// `SyncOutcome`, now asserted against `outcome` directly (#601).
 ///
-/// The case carries five unrelated results, and it latches: one step sets it, a different step
-/// clears it, and both rule sets live in `sync` and `flushPending` control flow rather than in a
-/// type. Nothing failed when those rules changed, so these tests assert the literal strings and the
-/// literal order of events. Where the recorded behavior looks wrong rather than merely odd, the
-/// test says so and names the reasoning instead of correcting it.
+/// An outcome latches. One step sets it and a different step clears it. Nothing failed when those
+/// rules changed, so these tests assert the literal strings and the literal order of events. Where
+/// the recorded behavior looks wrong rather than merely odd, the test says so and names the
+/// reasoning instead of correcting it.
 ///
-/// The fifth producer, an Exercise History index refusal, is pinned by
-/// `historyFillIndexRefusalReachesSyncStateAsAConflict` above.
+/// Of the five outcomes the conflict case collapsed, the Exercise History fill failure is pinned by
+/// `historyFillIndexRefusalReachesTheSyncOutcome` above.
 @MainActor
-@Suite("SyncCoordinator.State.conflict")
-struct SyncConflictStateCharacterizationTests {
-    // MARK: Which outcomes set the case, and with what strings
+@Suite("SyncCoordinator.outcome latch and clear")
+struct SyncOutcomeCharacterizationTests {
+    // MARK: Which step sets which outcome, and with what strings
 
-    @Test func aLocalWriteFailureSetsConflictWithThePrefixedErrorDescription() throws {
+    @Test func aLocalWriteFailureCarriesTheErrorDescription() throws {
         let container = try makeContainer()
         let sync = SyncCoordinator(client: ConflictPinClient(grid: writableGrid()), context: container.mainContext)
 
         sync.reportLocalWriteFailure(LocalWriteFailure())
 
-        #expect(sync.state == .conflict(["Local write failed: the local store is full"]))
+        #expect(sync.outcome == .localWriteFailed("the local store is full"))
     }
 
-    @Test func aWriteThatLosesToACoachEditSetsConflictPrefixedWithTheExerciseName() async throws {
+    @Test func aWriteThatLosesToACoachEditIsRefusedWithTheExerciseNamePrefixed() async throws {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
         let client = ConflictPinClient(grid: coachEditedGrid())
@@ -335,11 +338,11 @@ struct SyncConflictStateCharacterizationTests {
 
         await sync.flushPending(spreadsheetId: "sid")
 
-        #expect(sync.state == .conflict(["Squat: Expected '', found 'coach edited'"]))
+        #expect(sync.outcome == .writesRefused(["Squat: Expected '', found 'coach edited'"]))
         #expect(client.updates.isEmpty)
     }
 
-    @Test func aSpreadsheetWithNoBlockTabSetsOneFixedConflictMessage() async throws {
+    @Test func aSpreadsheetWithNoBlockTabReportsNoBlockTab() async throws {
         let container = try makeContainer()
         let client = ConflictPinClient(titles: ["Intro", "Notes"], grid: writableGrid())
         let sync = SyncCoordinator(client: client, context: container.mainContext)
@@ -347,10 +350,11 @@ struct SyncConflictStateCharacterizationTests {
         let succeeded = await sync.sync(spreadsheetId: "sid")
 
         #expect(succeeded == false)
-        #expect(sync.state == .conflict(["No block tab found in the spreadsheet"]))
+        #expect(sync.outcome == .noBlockTab)
+        #expect(sync.isSyncing == false)
     }
 
-    @Test func aTabWithNoDayHeadersSetsConflictWithTheParserWarningVerbatim() async throws {
+    @Test func aTabWithNoDayHeadersReportsTheParserWarningVerbatim() async throws {
         let container = try makeContainer()
         let client = ConflictPinClient(grid: gridWithNoDayHeaders())
         let sync = SyncCoordinator(client: client, context: container.mainContext)
@@ -358,12 +362,12 @@ struct SyncConflictStateCharacterizationTests {
         let succeeded = await sync.sync(spreadsheetId: "sid")
 
         #expect(succeeded == true)
-        #expect(sync.state == .conflict(["Parse warning: no week sections (no 'Day N' headers) in Block 27"]))
+        #expect(sync.outcome == .parseWarnings(["Parse warning: no week sections (no 'Day N' headers) in Block 27"]))
     }
 
     // MARK: What latches, and what clears it
 
-    @Test func aFlushConflictOutranksTheParseWarningFromTheSameSync() async throws {
+    @Test func aFlushRefusalOutranksTheParseWarningFromTheSameSync() async throws {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
         let client = ConflictPinClient(grid: gridWithNoDayHeaders())
@@ -371,12 +375,12 @@ struct SyncConflictStateCharacterizationTests {
 
         await sync.sync(spreadsheetId: "sid")
 
-        // The same tab produced both a write conflict and a parse warning. Only the flush's
-        // message survives; the parse warning is dropped without a trace.
-        #expect(sync.state == .conflict(["Squat: Week 1 was not found in the sheet"]))
+        // The same tab produced both a refused write and a parse warning. Only the refusal
+        // survives; the parse warning is dropped without a trace.
+        #expect(sync.outcome == .writesRefused(["Squat: Week 1 was not found in the sheet"]))
     }
 
-    @Test func aMissingBlockTabReplacesTheConflictTheFlushJustRecorded() async throws {
+    @Test func aMissingBlockTabReplacesTheRefusalTheFlushJustRecorded() async throws {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
         let client = ConflictPinClient(titles: ["Intro", "Notes"], grid: coachEditedGrid())
@@ -384,36 +388,37 @@ struct SyncConflictStateCharacterizationTests {
 
         await sync.sync(spreadsheetId: "sid")
 
-        // Suspected wrong: the flush already told the athlete which Set lost to a coach edit, and
-        // the tab-selection guard overwrites that with a message about the spreadsheet. The write
-        // is still conflicted in the store, so the only copy of the actionable message is gone.
-        #expect(sync.state == .conflict(["No block tab found in the spreadsheet"]))
+        // Suspected wrong: the flush already concluded which Set the Sheet refused over a coach
+        // edit, and a missing Block tab outranks that refusal. The write is still conflicted in
+        // the store, so the only copy of the actionable message is gone.
+        #expect(sync.outcome == .noBlockTab)
+        #expect(sync.isSyncing == false)
         let write = try #require(try sync.fetchPendingWriteRecords().first)
         #expect(write.status == .conflict)
         #expect(write.lastError == "Expected '', found 'coach edited'")
     }
 
-    @Test func aLaterCleanSyncClearsConflictStateWhileTheConflictedWriteStaysInTheStore() async throws {
+    @Test func aLaterCleanSyncClearsTheRefusalWhileTheConflictedWriteStaysInTheStore() async throws {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
         let client = ConflictPinClient(grid: coachEditedGrid())
         let sync = SyncCoordinator(client: client, context: container.mainContext)
         await sync.flushPending(spreadsheetId: "sid")
-        #expect(sync.state == .conflict(["Squat: Expected '', found 'coach edited'"]))
+        #expect(sync.outcome == .writesRefused(["Squat: Expected '', found 'coach edited'"]))
 
         client.grid = writableGrid()
         await sync.sync(spreadsheetId: "sid")
 
         // The conflicted write is no longer `pending`, so the next flush queue is empty and the
-        // empty-queue guard resets the state. The record latches where the state does not.
-        #expect(sync.state == .idle)
+        // empty-queue guard concludes `.clear`. The record latches where the outcome does not.
+        #expect(sync.outcome == .clear)
         let write = try #require(try sync.fetchPendingWriteRecords().first)
         #expect(write.status == .conflict)
         #expect(write.lastError == "Expected '', found 'coach edited'")
         #expect(client.updates.isEmpty)
     }
 
-    @Test func flushingAnEmptyQueueClearsAConflictThatNoWriteCaused() async throws {
+    @Test func flushingAnEmptyQueueClearsALocalWriteFailure() async throws {
         let container = try makeContainer()
         let sync = SyncCoordinator(client: ConflictPinClient(grid: writableGrid()), context: container.mainContext)
         sync.reportLocalWriteFailure(LocalWriteFailure())
@@ -422,24 +427,24 @@ struct SyncConflictStateCharacterizationTests {
 
         // Suspected wrong: an empty write queue says nothing about whether the local store
         // recovered, and this path is reached on every sync.
-        #expect(sync.state == .idle)
+        #expect(sync.outcome == .clear)
     }
 
-    @Test func discardingPendingWritesClearsAConflictItDidNotCause() async throws {
+    @Test func discardingPendingWritesClearsAParseWarningItDidNotCause() async throws {
         let container = try makeContainer()
         let sync = SyncCoordinator(client: ConflictPinClient(grid: gridWithNoDayHeaders()), context: container.mainContext)
         await sync.sync(spreadsheetId: "sid")
-        #expect(sync.state == .conflict(["Parse warning: no week sections (no 'Day N' headers) in Block 27"]))
+        #expect(sync.outcome == .parseWarnings(["Parse warning: no week sections (no 'Day N' headers) in Block 27"]))
 
         try await sync.discardPendingWrites()
 
         // Suspected wrong: there were no writes to discard, and the parse warning is still true of
         // the tab on the next read.
-        #expect(sync.state == .idle)
+        #expect(sync.outcome == .clear)
         #expect(try sync.fetchPendingWriteRecords().isEmpty)
     }
 
-    @Test func aSyncWhoseUploadFailedEndsIdleWithTheWriteStillQueued() async throws {
+    @Test func aSyncWhoseUploadFailedEndsClearWithTheWriteStillQueued() async throws {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
         let client = ConflictPinClient(grid: writableGrid())
@@ -448,11 +453,12 @@ struct SyncConflictStateCharacterizationTests {
 
         await sync.sync(spreadsheetId: "sid")
 
-        // Suspected wrong: the flush left `.pendingWrites(1)`, but sync's latch tests only for
-        // `.conflict`, so a clean parse resets the state to `.idle` while the athlete's Set Log is
-        // still queued and still failing, and `.idle` is the state that shows no banner.
-        #expect(sync.state == .idle)
-        #expect(SyncStatusBannerPresentation(state: sync.state) == nil)
+        // Suspected wrong: the flush concluded `.writesQueued(1)`, but a clean Sheet read outranks
+        // it because `SyncOutcome.sync(sheetRead:flush:)` lets only a refusal survive. The sync
+        // ends `.clear` while the athlete's Set Log is still queued and still failing, and `.clear`
+        // shows no banner.
+        #expect(sync.outcome == .clear)
+        #expect(SyncStatusBannerPresentation(outcome: sync.outcome, isSyncing: sync.isSyncing) == nil)
         let write = try #require(try sync.fetchPendingWriteRecords().first)
         #expect(write.status == .pending)
         #expect(write.retryCount == 1)
@@ -461,7 +467,7 @@ struct SyncConflictStateCharacterizationTests {
     // MARK: What an observer reads between the set and the clear
 
     @Test(.timeLimit(.minutes(1)))
-    func theFlushConflictIsInvisibleInStateForTheWholeNetworkPhaseOfASync() async throws {
+    func theFlushRefusalIsInvisibleInOutcomeForTheWholeNetworkPhaseOfASync() async throws {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
         let client = HeldConflictPinClient(heldCall: .tabTitles, grid: coachEditedGrid())
@@ -470,10 +476,10 @@ struct SyncConflictStateCharacterizationTests {
         let running = Task { await sync.sync(spreadsheetId: "sid") }
         await client.waitUntilHeld()
 
-        // The flush has already conflicted and written that verdict to the store, and sync has
-        // already overwritten the state with `.syncing`. An observer reading `state` here sees a
-        // healthy sync; only the record shows the conflict.
-        #expect(sync.state == .syncing)
+        // The flush has already refused the write and recorded it, but sync holds the flush's
+        // verdict until the Sheet read finishes. An observer here reads the previous outcome and
+        // `isSyncing`; only the record shows the refusal.
+        #expect(sync.outcome == .clear)
         #expect(sync.isSyncing == true)
         let midSyncWrite = try #require(try sync.fetchPendingWriteRecords().first)
         #expect(midSyncWrite.status == .conflict)
@@ -481,11 +487,12 @@ struct SyncConflictStateCharacterizationTests {
         client.release()
 
         #expect(await running.value == true)
-        #expect(sync.state == .conflict(["Squat: Expected '', found 'coach edited'"]))
+        #expect(sync.outcome == .writesRefused(["Squat: Expected '', found 'coach edited'"]))
+        #expect(sync.isSyncing == false)
     }
 
     @Test(.timeLimit(.minutes(1)))
-    func midFlushStateSaysSyncingWhileTheFlushCountRefusesToAnswer() async throws {
+    func midFlushTheCoordinatorSaysSyncingWhileTheFlushCountRefusesToAnswer() async throws {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
         let client = HeldConflictPinClient(heldCall: .tabSnapshot, grid: coachEditedGrid())
@@ -494,9 +501,11 @@ struct SyncConflictStateCharacterizationTests {
         let running = Task { await sync.flushPending(spreadsheetId: "sid") }
         await client.waitUntilHeld()
 
-        // `state` reads the same `.syncing` whether this flush is about to conflict or succeed.
-        // The in-flight signal is the flush count, and it answers by throwing.
-        #expect(sync.state == .syncing)
+        // `outcome` holds the previous verdict and `isSyncing` reads the same whether the Sheet is
+        // about to refuse this flush's write or accept it. The in-flight signal is the flush
+        // count, and it answers by throwing.
+        #expect(sync.isSyncing == true)
+        #expect(sync.outcome == .clear)
         var thrown: (any Error)?
         do {
             _ = try sync.hasPendingWrites()
@@ -508,56 +517,58 @@ struct SyncConflictStateCharacterizationTests {
         client.release()
         await running.value
 
-        #expect(sync.state == .conflict(["Squat: Expected '', found 'coach edited'"]))
+        #expect(sync.outcome == .writesRefused(["Squat: Expected '', found 'coach edited'"]))
+        #expect(sync.isSyncing == false)
         // A conflicted write still counts as pending here, which is what keeps a sheet switch
         // blocked until the athlete discards it.
         #expect(try sync.hasPendingWrites() == true)
     }
 
-    // MARK: A failed sync after a conflicting one
+    // MARK: A failed sync after one that reported something
 
-    @Test func aFailedSyncAfterAConflictingOneReportsOfflineAndDropsTheMessages() async throws {
+    @Test func aFailedSyncAfterAParseWarningReportsTheSheetUnreachableAndDropsTheWarning() async throws {
         let container = try makeContainer()
         let client = ConflictPinClient(grid: gridWithNoDayHeaders())
         let sync = SyncCoordinator(client: client, context: container.mainContext)
         await sync.sync(spreadsheetId: "sid")
-        #expect(sync.state == .conflict(["Parse warning: no week sections (no 'Day N' headers) in Block 27"]))
+        #expect(sync.outcome == .parseWarnings(["Parse warning: no week sections (no 'Day N' headers) in Block 27"]))
 
         client.isOffline = true
         let succeeded = await sync.sync(spreadsheetId: "sid")
 
         #expect(succeeded == false)
-        #expect(sync.state == .offline)
+        #expect(sync.outcome == .sheetUnreachable)
     }
 
-    @Test func aFailedSyncAfterAWriteConflictKeepsTheRecordButNotTheMessage() async throws {
+    @Test func aFailedSyncAfterARefusedWriteKeepsTheRecordButNotTheMessage() async throws {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
         let client = ConflictPinClient(grid: coachEditedGrid())
         let sync = SyncCoordinator(client: client, context: container.mainContext)
         await sync.flushPending(spreadsheetId: "sid")
-        #expect(sync.state == .conflict(["Squat: Expected '', found 'coach edited'"]))
+        #expect(sync.outcome == .writesRefused(["Squat: Expected '', found 'coach edited'"]))
 
         client.isOffline = true
         await sync.sync(spreadsheetId: "sid")
 
-        #expect(sync.state == .offline)
+        #expect(sync.outcome == .sheetUnreachable)
 
         client.isOffline = false
         client.grid = writableGrid()
         await sync.sync(spreadsheetId: "sid")
 
         // Nothing re-derives the message from the record once a later sync succeeds. The write is
-        // still conflicted and still unresolvable, and the state shows no banner at all.
-        #expect(sync.state == .idle)
-        #expect(SyncStatusBannerPresentation(state: sync.state) == nil)
+        // still conflicted and still unresolvable, and the sync ends `.clear`, which shows no
+        // banner at all.
+        #expect(sync.outcome == .clear)
+        #expect(SyncStatusBannerPresentation(outcome: sync.outcome, isSyncing: sync.isSyncing) == nil)
         let write = try #require(try sync.fetchPendingWriteRecords().first)
         #expect(write.status == .conflict)
         #expect(write.lastError == "Expected '', found 'coach edited'")
     }
 }
 
-extension SyncConflictStateCharacterizationTests {
+extension SyncOutcomeCharacterizationTests {
     fileprivate func makeContainer() throws -> ModelContainer {
         try ModelContainer(
             for: Block.self,
