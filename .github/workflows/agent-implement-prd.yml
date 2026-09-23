@@ -255,7 +255,7 @@ jobs:
       # push here because prompt.md only permits committing verified-green
       # units, and a resumed run merges origin/main before continuing.
       - name: Push any committed work (survives failure/cancellation)
-        if: steps.shape.outputs.mode == 'run' && steps.branchstate.outcome == 'success'
+        if: steps.shape.outputs.mode == 'run' && steps.branchstate.outcome == 'success' && (failure() || cancelled())
         env:
           BRANCH: ${{ steps.branch.outputs.name }}
         run: git push origin "$BRANCH" || true
