@@ -147,9 +147,9 @@ An unnamed `stop` is not gated, which is the
 reason to name every run on a machine someone else is driving. A run launched under
 `VERIFY_LIVE_ACTIVITIES=1` is uninstalled as well as terminated, because a Live Activity belongs to
 the app rather than to its process and uninstalling is the only lever on one from outside the app.
-That is also the one `stop` a `scripts/test-sim.sh` run sharing the simulator would notice, so hold
-the isolation rule below on any drive that opts in. It never shuts
-down or erases the simulator, which other agents and `scripts/test-sim.sh` share. Evidence is
+`stop` refuses (exit 75) to uninstall while a `scripts/test-sim.sh` run holds the simulator, because
+the uninstall would remove the app under test. `stop` never shuts down or erases the simulator, which
+other agents and `scripts/test-sim.sh` share. Evidence is
 never removed, and it keeps the run name, so `diff` still answers after the app is gone. A `burst`
 keeps its twelve full-size frames, about 47 MB under the git-ignored `.build/`. Delete a run's
 directory yourself once its proof is filed.
@@ -164,9 +164,9 @@ only refuse what it can tell apart, and that cuts both ways. An unset `VERIFY_RU
 nothing to compare against, so it steps aside, and an unset `SIM` resolves onto the one shared
 `iPhone 17 Pro` no matter who is driving it. Your drive is protected from a sibling only when the
 sibling names its own run. Set both on every call whenever another agent might be on this
-machine. Nothing locks the simulator against a test run (issue 626), so before every `launch` run
-`pgrep -fl "test-sim\.sh|xcodebuild (test|build-for-testing|test-without-building)|xctrunner"`.
-Read the UDID out of the match. `test-sim.sh` names it after `--sim`, and the `xcodebuild` it spawns
-repeats it in `-destination platform=iOS Simulator,id=`. A match on your simulator means wait it out
-or pick another `SIM`. A match with no UDID in it is a collision you cannot rule out, so treat it as
-one. Two CLI drives never collide if each has its own `WORKOUT_HOME`.
+machine. `launch`, `shot`, and `burst` refuse (exit 75) while a `scripts/test-sim.sh` run holds the
+simulator. `test-sim.sh` refuses the same way while a run's app is alive on it. Each refusal names
+the holder and its pid. The lock sees only `scripts/test-sim.sh`, so an XcodeBuildMCP `test_sim` or
+a raw `xcodebuild test` on the same UDID is invisible to it. Before a `launch` when another agent
+may be testing, run `pgrep -fl "id=<udid>"`. Two CLI drives never collide if each has its own
+`WORKOUT_HOME`.
