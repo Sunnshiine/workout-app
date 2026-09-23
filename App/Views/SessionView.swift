@@ -20,6 +20,10 @@ struct SessionView: View {
     @State private var sessionSettingsDragStartTopContentOffset: CGFloat?
     @State private var isSettingsPresented = false
     @State private var stageComposition = SessionStageComposition.reading
+    /// The rest pill's last height. When the pill ends while the weight is being edited, its room
+    /// stays empty until the edit ends, so the Log capsule pinned above it does not drop under a
+    /// finger.
+    @State private var restPillHeight: CGFloat = 0
 
     init(liveActivityAdapter: LiveActivityProductionAdapter = LiveActivityProductionAdapter()) {
         self.liveActivityAdapter = liveActivityAdapter
@@ -203,11 +207,17 @@ extension SessionView {
             // held a beat past the deadline so the pill stays mounted to play the expiry buzz.
             if restTimer.interval != nil {
                 RestPillView(restTimer: restTimer)
+                    .onGeometryChange(for: CGFloat.self, of: \.size.height) { restPillHeight = $0 }
+            } else if stageComposition == .editingWeight {
+                Color.clear.frame(height: restPillHeight)
             }
         }
-        .onPreferenceChange(WeightEntryPreferenceKey.self) { isEnteringWeight in
+        .onPreferenceChange(EditingWeightPreferenceKey.self) { isEditingWeight in
+            if restTimer.interval == nil {
+                restPillHeight = 0
+            }
             withAnimation(reduceMotion ? nil : Theme.stageCompositionAnimation) {
-                stageComposition = SessionStageComposition(isEnteringWeight: isEnteringWeight)
+                stageComposition = SessionStageComposition(isEditingWeight: isEditingWeight)
             }
         }
     }

@@ -58,12 +58,18 @@ struct SessionStageView: View {
                     completionStage(items: items)
                 }
             }
-            // Entry pins the card above the keyboard, so whatever does not fit sheds off the
-            // top of the page, never off the bottom.
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: composition == .entry ? .bottom : .top)
+            // Editing pins the card above the keyboard, so whatever does not fit sheds off the top
+            // of the page, never off the bottom. The zero minimum keeps an overflowing column from
+            // growing this frame, which would hand the overflow to a centering parent.
+            .frame(
+                maxWidth: .infinity,
+                minHeight: composition == .editingWeight ? 0 : nil,
+                maxHeight: .infinity,
+                alignment: composition == .editingWeight ? .bottom : .top
+            )
             .padding(.horizontal)
             .padding(.top, Theme.sectionSpacing)
-            .padding(.bottom, composition == .entry ? Theme.stageEntryFootGap : 0)
+            .padding(.bottom, composition == .editingWeight ? Theme.editingWeightFootGap : 0)
 
             if composition == .reading {
                 queueBar(stageItem: stageItem, items: items)
@@ -142,7 +148,7 @@ struct SessionStageView: View {
             }
         }
 
-        // The card stays outside the branch, at the same position in both, so its identity and
+        // The card stays outside the `if`, at the same position in both, so its identity and
         // the weight field's focus survive the switch between compositions.
         return VStack(alignment: .leading, spacing: 14) {
             if composition == .reading {
@@ -174,7 +180,7 @@ struct SessionStageView: View {
 
                 lastPerformed
             } else {
-                StageEntryHeader(lastPerformed: lastPerformed) {
+                EditingWeightHeader(lastPerformed: lastPerformed) {
                     exerciseName(config)
                 }
             }
@@ -342,12 +348,10 @@ struct SessionStageView: View {
     }
 }
 
-/// The entry composition's header: the richest of `name + Last Performed`, `name`, and
-/// `Last Performed` whose ideal height fits the room the pinned card leaves, else nothing.
-/// `ViewThatFits` measures the real name (one or two Fraunces lines), so there is no device table,
-/// and the zero-height last candidate means the header can shrink but never rise under the status
-/// bar.
-struct StageEntryHeader<Name: View>: View {
+/// The editing composition's header: the richest of `name + Last Performed`, `name`, and
+/// `Last Performed` that fits the room the pinned card leaves, else nothing. `ViewThatFits`
+/// measures the real name (one or two Fraunces lines), so no device table is needed.
+struct EditingWeightHeader<Name: View>: View {
     let lastPerformed: LastPerformedCard?
     @ViewBuilder let name: () -> Name
 

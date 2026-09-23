@@ -410,7 +410,7 @@ enum Theme {  // swiftlint:disable:this type_body_length
 
     static let cardSpacing: CGFloat = 16
     static let sectionSpacing: CGFloat = 28
-    static let stageEntryFootGap: CGFloat = 10 // paper between the pinned card and the keyboard's Done toolbar
+    static let editingWeightFootGap: CGFloat = 10 // paper between the pinned card and the keyboard's Done toolbar
     static let supersetRestingSpacing: CGFloat = 24
     static let sessionTileMinHeight: CGFloat = 86
     static let sessionTileSpacing: CGFloat = 10

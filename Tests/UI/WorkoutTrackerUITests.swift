@@ -47,6 +47,21 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Set 1, 230x5@6"].appears(within: 3))
         XCTAssertTrue(app.staticTexts["Set 2 of 3"].exists)
         XCTAssertFalse(app.keyboards.firstMatch.exists)
+
+        app.buttons["weight-pill"].tap()
+        XCTAssertTrue(app.keyboards.firstMatch.appears(within: 3))
+        app.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 5) + "240")
+        waitForLabel("Log 240 × 5 @7", on: logButton)
+
+        let restPill = app.descendants(matching: .any)["rest-pill"]
+        XCTAssertTrue(restPill.exists)
+        XCTAssertLessThanOrEqual(logButton.frame.maxY, restPill.frame.minY)
+        XCTAssertLessThanOrEqual(restPill.frame.maxY, try keyboardToolbarTop(in: app))
+
+        logButton.tap()
+
+        XCTAssertTrue(app.buttons["Set 2, 240x5@7"].appears(within: 3))
+        XCTAssertTrue(app.staticTexts["Set 3 of 3"].exists)
     }
 
     @MainActor
@@ -66,6 +81,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         XCTAssertTrue(app.keyboards.firstMatch.appears(within: 3))
         app.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 5) + "230")
         waitForLabel("Log 230 × 5 @6", on: logButton)
+        XCTAssertLessThanOrEqual(logButton.frame.maxY, try keyboardToolbarTop(in: app))
 
         logButton.tap()
 
@@ -246,6 +262,7 @@ final class WorkoutTrackerOnboardingSwitchUITests: XCTestCase {
 @MainActor
 private func tapEmptyStageSpaceAboveExerciseName(in app: XCUIApplication, belowHUDBottom hudBottom: CGFloat) {
     let nameTop = app.staticTexts["stage-exercise-name"].frame.minY
+    XCTAssertLessThan(hudBottom, nameTop, "no paper between the HUD's old frame and the Exercise name")
     app.coordinate(withNormalizedOffset: .zero)
         .withOffset(CGVector(dx: app.frame.midX, dy: (hudBottom + nameTop) / 2))
         .tap()

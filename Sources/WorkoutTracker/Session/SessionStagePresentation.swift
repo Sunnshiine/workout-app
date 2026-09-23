@@ -119,17 +119,17 @@ enum QueuePairingRole: Equatable, Sendable {
     case confirmingTarget
 }
 
-/// The Session stage's two compositions (DESIGN.md §5.2). `reading` is the documented page: the
-/// header HUD, the editorial column, Last Performed, the Active Set Card, and the queue foot.
-/// `entry` is the page while the weight keyboard is up: the card pinned above the keyboard, with
-/// the Exercise name and Last Performed above it only when they fit. Everything `entry` drops is
-/// orientation, not input.
+/// The Session stage's two compositions (DESIGN.md §5.1). `reading` is the page: the header HUD,
+/// the editorial column, Last Performed, the Active Set Card, and the queue foot.
+/// `editingWeight` holds while the weight field is being edited: the card pinned to the bottom of
+/// the keyboard-shrunk safe area, with the Exercise name and Last Performed above it only when
+/// they fit. Everything `editingWeight` drops is orientation, not input.
 enum SessionStageComposition: Equatable, Sendable {
     case reading
-    case entry
+    case editingWeight
 
-    init(isEnteringWeight: Bool) {
-        self = isEnteringWeight ? .entry : .reading
+    init(isEditingWeight: Bool) {
+        self = isEditingWeight ? .editingWeight : .reading
     }
 }
 

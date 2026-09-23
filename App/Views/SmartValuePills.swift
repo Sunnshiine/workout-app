@@ -7,7 +7,7 @@ import UIKit
 
 /// True while a weight field somewhere in the subtree is being edited. Reduced with `||` so a
 /// retiring card's idle field cannot mask the incoming card's live one.
-struct WeightEntryPreferenceKey: PreferenceKey {
+struct EditingWeightPreferenceKey: PreferenceKey {
     static let defaultValue = false
 
     static func reduce(value: inout Bool, nextValue: () -> Bool) {
@@ -111,7 +111,7 @@ struct SmartValuePills: View {
         .onDisappear(perform: commitChangedDraftIfNeeded)
         // A preference, not a callback: it is re-derived from the tree every render, so a card
         // that leaves the stage mid-edit takes its `true` with it.
-        .preference(key: WeightEntryPreferenceKey.self, value: isEditingWeight)
+        .preference(key: EditingWeightPreferenceKey.self, value: isEditingWeight)
     }
 
     private var presentation: SetCardPresentation {

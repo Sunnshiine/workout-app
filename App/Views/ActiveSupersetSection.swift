@@ -57,8 +57,8 @@ struct ActiveSupersetSection: View {
             }
         }
 
-        // As on the single-Exercise stage, `cardRegion` stays outside the branch so the incoming
-        // card's identity and the weight field's focus survive the switch.
+        // As on the single-Exercise stage, `cardRegion` stays outside the `if` so the incoming
+        // card's identity and the weight field's focus survive the composition switch.
         return VStack(alignment: .leading, spacing: 14) {
             if composition == .reading {
                 if let cadence = focusedExercise.cadence, !cadence.isEmpty {
@@ -89,7 +89,7 @@ struct ActiveSupersetSection: View {
 
                 lastPerformed
             } else {
-                StageEntryHeader(lastPerformed: lastPerformed) {
+                EditingWeightHeader(lastPerformed: lastPerformed) {
                     nameBlock
                 }
             }
