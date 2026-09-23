@@ -257,6 +257,7 @@ class Tappable(unittest.TestCase):
 
 
 SESSION_RAILS = (FIXTURES / "session-rails.describe-ui.json").read_text()
+KEYBOARD_DONE = (FIXTURES / "keyboard-done.describe-ui.json").read_text()
 RPE_CLIPPED = "clipped: outside AXGroup RPE @207,612 163x83; bring it inside that frame before tapping\n"
 REPS_CLIPPED = "clipped: outside AXGroup Reps @32,612 163x83; bring it inside that frame before tapping\n"
 
@@ -354,6 +355,13 @@ class Clipped(unittest.TestCase):
                          (0, "AXButton\tdeveloper-tools-row\tWrite Log\t\t@16,60 370x52\n", above_the_top),
                          "x 201 is inside the scroll area; y 86 is above its top edge at 100")
         self.assertEqual(tree_py("tappable", "developer-tools-row", stdin=tree), (1, "", above_the_top))
+
+    def test_a_zero_size_group_in_the_keyboard_toolbar_does_not_clip_done(self):
+        done = "AXButton\tweight-keyboard-done\tDone\t\t@319,798 62x36\n"
+        self.assertEqual(tree_py("find", "weight-keyboard-done", stdin=KEYBOARD_DONE), (0, done, ""),
+                         "an AXGroup @16,792 0x0 sits between the toolbar and Done, and Done is drawn")
+        self.assertEqual(tree_py("tappable", "weight-keyboard-done", stdin=KEYBOARD_DONE), (0, "350 816\n", ""),
+                         "a tap at 350,816 closed the keyboard on the live app")
 
     def test_on_the_captured_screen_exactly_the_chips_a_tap_misses_are_clipped(self):
         on_screen = [line.split("\t")[1] for line in tree_py("flat", stdin=SESSION_RAILS)[1].splitlines()]
