@@ -65,10 +65,7 @@ extension SheetWritePlanner {
         in snapshot: SheetWritePlanningSnapshot
     ) -> String {
         let actual = snapshot.grid.cell(row: target.row, col: target.col).trimmed
-        guard
-            request.column == .notes,
-            let placement = placement(for: request, target: target, in: snapshot)
-        else { return actual }
+        guard let placement = placement(for: request, target: target, in: snapshot) else { return actual }
 
         return placement.listPosition.map { SetLogList(cell: actual).token(at: $0) } ?? actual
     }
@@ -78,19 +75,20 @@ extension SheetWritePlanner {
         selectedRow: Int?,
         in snapshot: SheetWritePlanningSnapshot
     ) -> String {
-        guard let day = snapshot.layout.day(week: request.week, day: request.day) else {
-            return "No row selected: Week \(request.week), Day \(request.day) was not found."
+        let session = "Week \(request.week), Day \(request.day)"
+        let narration: SetLogPlacementNarration
+        switch addressing(for: request, in: snapshot) {
+        case .weekNotFound, .dayNotFound:
+            return "No row selected: \(session) was not found."
+        case .columnNotFound(let header):
+            return "No row selected: \(session) has no \(header) column."
+        case .exerciseNotFound:
+            return "No row selected: \(request.exerciseName) was not found in \(session)."
+        case .lastSetRPE(let anchor, _):
+            narration = .lastSetRPE(anchor: anchor)
+        case .setLog(let anchor, let resolution):
+            narration = resolution.rowScanNarration(setIndex: request.setIndex, anchor: anchor)
         }
-        guard let anchor = day.exerciseAnchors.first(where: { $0.name == request.exerciseName }) else {
-            return "No row selected: \(request.exerciseName) was not found in Week \(request.week), Day \(request.day)."
-        }
-
-        let narration: SetLogPlacementNarration =
-            request.column == .lastSetRPE
-            ? .lastSetRPE(anchor: anchor)
-            : anchor
-                .setLogPlacement(for: request.setIndex, in: snapshot.snapshot, cols: day.columns)
-                .rowScanNarration(setIndex: request.setIndex, anchor: anchor)
         return narration.text(selectedRow: selectedRow, in: snapshot.snapshot)
     }
 }

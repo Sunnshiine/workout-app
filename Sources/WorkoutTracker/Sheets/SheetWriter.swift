@@ -123,6 +123,36 @@ struct SheetWriter: Sendable {
     }
 }
 
+/// Where the planner's addressing walk (Week, Day, column, Exercise, placement) stopped for one
+/// request. The write target and the Write Target Audit Log both read this one decision, so the
+/// audit cannot name a different reason than the one that refused the write.
+enum SheetWriteAddressing: Sendable {
+    case weekNotFound
+    case dayNotFound
+    case columnNotFound(header: String)
+    case exerciseNotFound
+    /// Last Set RPE stays on the Exercise anchor row (ADR-0003).
+    case lastSetRPE(anchor: SheetLayoutExerciseAnchor, col: Int)
+    case setLog(anchor: SheetLayoutExerciseAnchor, SetLogPlacementResolution)
+
+    func addressedCell(for request: SheetWriteRequest) throws -> (row: Int, col: Int) {
+        switch self {
+        case .weekNotFound:
+            throw SheetWriterError.weekNotFound(request.week)
+        case .dayNotFound:
+            throw SheetWriterError.dayNotFound(request.day)
+        case .columnNotFound(let header):
+            throw SheetWriterError.columnNotFound(header)
+        case .exerciseNotFound:
+            throw SheetWriterError.exerciseNotFound(request.exerciseName)
+        case .lastSetRPE(let anchor, let col):
+            return (anchor.row, col)
+        case .setLog(_, let resolution):
+            return try resolution.addressedCell(for: request)
+        }
+    }
+}
+
 extension SetLogPlacementResolution {
     /// The cell this resolution addresses, or the writer error it names for this request. The
     /// placement rule decides where a Set Log may go; this is the one place its four outcomes
@@ -192,7 +222,7 @@ struct SheetWritePlanner: Sendable {
     }
 
     func target(for request: SheetWriteRequest, in snapshot: SheetWritePlanningSnapshot) throws -> SheetWriteTarget {
-        let (row, col) = try resolveTarget(for: request, in: snapshot)
+        let (row, col) = try addressing(for: request, in: snapshot).addressedCell(for: request)
         return SheetWriteTarget(tabName: request.blockTab, row: row, col: col)
     }
 
@@ -232,41 +262,29 @@ struct SheetWritePlanner: Sendable {
         return updated
     }
 
-    private func resolveTarget(
-        for request: SheetWriteRequest,
-        in snapshot: SheetWritePlanningSnapshot
-    ) throws -> (row: Int, col: Int) {
+    func addressing(for request: SheetWriteRequest, in snapshot: SheetWritePlanningSnapshot) -> SheetWriteAddressing {
         let layout = snapshot.layout
+        guard layout.week(number: request.week) != nil else { return .weekNotFound }
+        guard let day = layout.day(week: request.week, day: request.day) else { return .dayNotFound }
 
-        guard layout.week(number: request.week) != nil else {
-            throw SheetWriterError.weekNotFound(request.week)
-        }
-        guard let day = layout.day(week: request.week, day: request.day) else {
-            throw SheetWriterError.dayNotFound(request.day)
-        }
-        let col = try resolveColumn(request.column, cols: day.columns)
+        let (header, col): (String, Int?) =
+            switch request.column {
+            case .notes: ("Notes", day.columns.notes)
+            case .lastSetRPE: ("Last set RPE", day.columns.lastSetRPE)
+            }
+        guard let col else { return .columnNotFound(header: header) }
 
         guard let anchor = day.exerciseAnchors.first(where: { $0.name == request.exerciseName }) else {
-            throw SheetWriterError.exerciseNotFound(request.exerciseName)
+            return .exerciseNotFound
         }
-
-        if request.column == .lastSetRPE {
-            return (anchor.row, col)
-        }
-
-        // Every remaining target is a Notes-column Set Log, so the one placement query decides it.
-        return try anchor.setLogPlacement(for: request.setIndex, in: snapshot.snapshot, cols: day.columns)
-            .addressedCell(for: request)
-    }
-
-    private func resolveColumn(_ column: PendingWriteColumn, cols: DayColumns) throws -> Int {
-        switch column {
-        case .notes:
-            guard let notes = cols.notes else { throw SheetWriterError.columnNotFound("Notes") }
-            return notes
+        switch request.column {
         case .lastSetRPE:
-            guard let rpe = cols.lastSetRPE else { throw SheetWriterError.columnNotFound("Last set RPE") }
-            return rpe
+            return .lastSetRPE(anchor: anchor, col: col)
+        case .notes:
+            return .setLog(
+                anchor: anchor,
+                anchor.setLogPlacement(for: request.setIndex, in: snapshot.snapshot, cols: day.columns)
+            )
         }
     }
 
@@ -292,23 +310,15 @@ struct SheetWritePlanner: Sendable {
     }
 
     /// The Set-Log placement for this request, but only when it lands on the given `target` cell.
-    /// The list-value assembly and the diagnostics audit both read the Set's list position from this
-    /// one placement rather than re-deriving the addressing tree; a target that does not match (e.g. a
-    /// Last Set RPE cell) or an unresolvable placement yields nil so the caller falls through to the
-    /// direct-write path.
+    /// A target the placement does not resolve to (a Last Set RPE cell, or a cell planned against an
+    /// earlier snapshot) yields nil so the caller falls through to the direct-write path.
     func placement(
         for request: SheetWriteRequest,
         target: SheetWriteTarget,
         in snapshot: SheetWritePlanningSnapshot
     ) -> SetLogPlacement? {
         guard
-            let day = snapshot.layout.day(week: request.week, day: request.day),
-            let anchor = day.exerciseAnchors.first(where: { $0.name == request.exerciseName }),
-            case .placed(let placement) = anchor.setLogPlacement(
-                for: request.setIndex,
-                in: snapshot.snapshot,
-                cols: day.columns
-            ),
+            case .setLog(_, .placed(let placement)) = addressing(for: request, in: snapshot),
             placement.row == target.row,
             placement.col == target.col
         else { return nil }
