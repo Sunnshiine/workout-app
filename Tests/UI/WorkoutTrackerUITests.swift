@@ -69,12 +69,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         let app = launchFixtureApp()
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
-        app.buttons["stage-queue-button"].tap()
-        XCTAssertTrue(app.staticTexts["This Session"].appears(within: 3))
-        tapWhenHittable(app.buttons["stage-queue-pair-exercise-0"])
-        tapWhenHittable(app.buttons["stage-queue-row-exercise-1"])
-        tapWhenHittable(app.buttons["stage-queue-row-superset-0"])
-        waitForLabel("& BB RDL", on: app.buttons["superset-partner-name"])
+        pairBackSquatWithBBRDL(in: app)
 
         let logButton = app.buttons["log-active-set-button"]
         app.buttons["weight-pill"].tap()
@@ -87,6 +82,27 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
         waitForLabel("BB RDL", on: app.staticTexts["stage-exercise-name"])
         XCTAssertFalse(app.keyboards.firstMatch.exists)
+    }
+
+    @MainActor
+    func testSupersetNameShedWhileWeightFieldIsFocusedLeavesTheAccessibilityTree() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+        pairBackSquatWithBBRDL(in: app)
+        let logButton = app.buttons["log-active-set-button"]
+        logButton.tap()
+        waitForLabel("BB RDL", on: app.staticTexts["stage-exercise-name"])
+        XCTAssertTrue(app.staticTexts["Sync status: 1 unsynced"].appears(within: 3))
+
+        app.buttons["weight-pill"].tap()
+        XCTAssertTrue(app.keyboards.firstMatch.appears(within: 3))
+        let restPill = app.descendants(matching: .any)["rest-pill"]
+        XCTAssertTrue(restPill.exists)
+        XCTAssertLessThanOrEqual(logButton.frame.maxY, restPill.frame.minY)
+
+        XCTAssertFalse(app.staticTexts["stage-exercise-name"].exists, "BB RDL's name is not drawn")
+        XCTAssertFalse(app.buttons["superset-partner-name"].exists, "the & Back Squat switch is not drawn")
     }
 
     @MainActor
@@ -255,6 +271,16 @@ final class WorkoutTrackerOnboardingSwitchUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Replacement Squat"].appears(within: 3))
     }
+}
+
+@MainActor
+private func pairBackSquatWithBBRDL(in app: XCUIApplication) {
+    app.buttons["stage-queue-button"].tap()
+    XCTAssertTrue(app.staticTexts["This Session"].appears(within: 3))
+    tapWhenHittable(app.buttons["stage-queue-pair-exercise-0"])
+    tapWhenHittable(app.buttons["stage-queue-row-exercise-1"])
+    tapWhenHittable(app.buttons["stage-queue-row-superset-0"])
+    waitForLabel("& BB RDL", on: app.buttons["superset-partner-name"])
 }
 
 @MainActor
