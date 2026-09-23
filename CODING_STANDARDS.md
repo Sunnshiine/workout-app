@@ -84,10 +84,11 @@ judges what each regex misses:
   line, and `Task(priority: f()) {` pass it.
 - `optional_bool_needs_a_nil_answer` catches `x?.flag`, `(try? …)`, and `x.map(…)` compared to a
   Bool literal. A reversed comparison (`true == x?.flag`), a chain past a call (`x?.f().flag`), and a
-  plain `Bool?` value compared to a literal pass it.
+  plain `Bool?` value compared to a literal pass it. It skips `Tests/`, where
+  `#expect(x?.flag == true)` failing on nil is the assertion doing its job.
 - `fixture_dates_are_literal` catches `Date()`, `Date.now`, `Date(timeIntervalSinceNow:)`, and the
   current `TimeZone` and `Calendar`. The `.now` shorthand and a `DateFormatter` left on the machine
-  time zone pass it.
+  time zone pass it. It skips `Tests/UI/`, whose polling helpers keep wall-clock deadlines.
 - `polling_loops_are_bounded` catches a `while`, `repeat`, or `for _ in` loop whose whole body is
   `await Task.yield()`. A loop whose condition holds a closure, or whose body does anything else,
   passes it.

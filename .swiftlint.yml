@@ -102,13 +102,6 @@ custom_rules:
     regex: '@Test\b(?:[^\n{}]*\n){0,12}?[^\n{}]*\{[ \t]*\n(?:[ \t]*(?://[^\n]*)?\n|[ \t]*(?:let|var)\b[^\n{}]*\n)*[ \t]*#if\b(?:(?![ \t]*@Test\b)[^\n]*\n)*?[ \t]*#endif[ \t]*\n(?:[ \t]*(?://[^\n]*)?\n)*[ \t]*\}'
     severity: error
 
-  # An unstructured Task whose handle is dropped cannot be cancelled, awaited, or reasoned about by
-  # the type that started it. Two shipped bugs began that way: the flush fired after every logged
-  # Set overlapped a running sync and cleared its display state (#585, fixed in #595), and the
-  # history backfill ran detached after sync() returned and could overwrite a pending-write
-  # conflict (#514). In tests, an orphaned sync outlived its ModelContainer and trapped the whole
-  # bundle (#548). Hold the Task (assign it, return it) or await structured work. Views are
-  # excluded: `Button { Task { … } }` is the SwiftUI idiom.
   unstructured_task_is_held:
     name: "Unstructured Tasks are held"
     message: >
@@ -126,12 +119,6 @@ custom_rules:
       - string
     severity: error
 
-  # Comparing an optional chain to a Bool literal lets nil collapse into an answer nobody wrote.
-  # `sheetSwitchStore?.canBeginDestructiveTransition == false` read a missing store as "not busy";
-  # #582 replaced it with a guard that states the nil branch. `(try? …) == false` is the same shape
-  # for a thrown error, and `optional.map(…) == true` for a mapped one. Unwrap and decide nil
-  # (`guard let`, or `??` with the answer nil means at that site). Tests are excluded:
-  # `#expect(x?.y == true)` failing on nil is the assertion doing its job.
   optional_bool_needs_a_nil_answer:
     name: "Optional Bool compared to a literal"
     message: >
@@ -145,10 +132,6 @@ custom_rules:
       - doccomment
     severity: error
 
-  # A fixture or test value read from the wall clock means "whenever the run happened", and it
-  # fails the day something compares it (#597). Derive instants from the fixture's reference date
-  # (WorkoutFixtureFactory.session already does). Tests/UI is excluded: XCUITest polling deadlines
-  # are wall-clock by nature.
   fixture_dates_are_literal:
     name: "Fixture and test dates are literal"
     message: >
@@ -166,10 +149,6 @@ custom_rules:
       - string
     severity: error
 
-  # A loop whose body is only Task.yield() never fails. Unbounded, it hangs CI when its condition
-  # never turns; counted (`for _ in 0..<n`), it passes or fails on how the scheduler happened to run
-  # (docs/TESTING.md, Flaky Tests; #548 found the shape at a thousand repetitions). Check a
-  # condition, bound the loop, and record the failure, as waitUntilHeld() in SettingsStoreTests does.
   polling_loops_are_bounded:
     name: "Polling loops are bounded"
     message: >

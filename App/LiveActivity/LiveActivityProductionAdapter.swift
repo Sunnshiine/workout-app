@@ -49,9 +49,7 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
         startUpdateTask?.cancel()
         startUpdateTask = nil
         startUpdateID = nil
-        // Unstructured so the end does not inherit its caller's cancellation: capEndTask calls end(),
-        // and clearLifecycleTasks() has just cancelled it. Awaiting it before the next start would
-        // reorder teardown (#699).
+        // Holding it means the next start awaits this end, which reorders teardown (#699).
         // swiftlint:disable:next unstructured_task_is_held
         Task { @MainActor [controller] in
             await controller.end()
