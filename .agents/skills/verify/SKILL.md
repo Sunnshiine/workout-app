@@ -141,9 +141,9 @@ rm -rf "$WORKOUT_HOME"
 `stop` kills only the pid recorded in `/tmp/workout-verify-<udid>/`. Set `VERIFY_RUN` and it also
 refuses (exit 75) to act on a different run's app, printing the owning run and the
 `VERIFY_RUN=<owner>` override that ends it anyway. That covers an app that is still alive, and a
-dead one launched under `VERIFY_LIVE_ACTIVITIES=1`, which `stop` would still uninstall. After a
-clean `stop`, or an app that died on its own, there is nothing to act on, so the next run's `stop`
-is not refused. An unnamed `stop` is not gated, which is the
+dead one launched under `VERIFY_LIVE_ACTIVITIES=1`, which `stop` would still uninstall. Nothing
+else is refused, so whichever run's `stop` comes next deletes any other dead app's pid and args.
+An unnamed `stop` is not gated, which is the
 reason to name every run on a machine someone else is driving. A run launched under
 `VERIFY_LIVE_ACTIVITIES=1` is uninstalled as well as terminated, because a Live Activity belongs to
 the app rather than to its process and uninstalling is the only lever on one from outside the app.
