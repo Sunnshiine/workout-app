@@ -12,11 +12,13 @@ Usage: .claude/skills/verify/verify.sh <command> [args]
   tree [--all]                what is on screen, one element per line: role  id  label  value  @x,y wxh
                               --all adds the off-screen ones (scrolled-out rows, picker tails)
   find <id>                   one element by accessibility identifier, on screen or off; exit 1 if absent;
-                              says on stderr when it is off-screen or disabled
+                              says on stderr when it is off-screen, clipped, or disabled
   tap --id ID | --label TEXT | -x X -y Y
                               --id waits up to 3 s (--wait-timeout N) for that element to be
-                              enabled and on screen, then taps it; exit 1 and says which it was
-                              not. --label and -x -y tap the point and report whatever they hit
+                              enabled, on screen, and with its centre inside every element of
+                              nonzero size containing it, then taps that centre; exit 1 and says
+                              which it was not. --label and -x -y tap the point and report
+                              whatever they hit
   hold <id> [seconds]         long press an element by identifier (default 1.2 s)
   type TEXT                   type into the focused field
   swipe up|down               scroll the screen by half its height
@@ -289,8 +291,7 @@ case $cmd in
       exit
     fi
     # axe taps a coordinate and calls that a success, so it cannot tell a tap that landed from one
-    # that hit nothing. Polling for a hit that is enabled and on screen, rather than for one that
-    # merely exists, is also what keeps a tap fired into a transition from landing mid-slide.
+    # that hit nothing.
     SECONDS=0
     while :; do
       if [ "$SECONDS" -ge "$timeout" ]; then

@@ -256,6 +256,155 @@ class Tappable(unittest.TestCase):
         self.assertEqual(out, "200 220\n", "the scrolled-out twin is not a reason to refuse a tap that lands")
 
 
+SESSION_RAILS = (FIXTURES / "session-rails.describe-ui.json").read_text()
+KEYBOARD_DONE = (FIXTURES / "keyboard-done.describe-ui.json").read_text()
+HOME_SCREEN = (FIXTURES / "home-screen.describe-ui.json").read_text()
+RPE_CLIPPED = "clipped: outside AXGroup RPE @207,612 163x83; bring it inside that frame before tapping\n"
+REPS_CLIPPED = "clipped: outside AXGroup Reps @32,612 163x83; bring it inside that frame before tapping\n"
+
+
+class Clipped(unittest.TestCase):
+    def test_find_says_a_chip_the_rail_does_not_draw_is_clipped_and_names_the_rail(self):
+        code, out, err = tree_py("find", "rpe-7", stdin=SESSION_RAILS)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out, "AXButton\trpe-7\tRPE 7\t\t@380,629 9x24\n", "inside the 402-point screen")
+        self.assertEqual(err, RPE_CLIPPED, "the RPE track ends at x 370 and the chip starts at 380")
+
+    def test_tappable_refuses_a_chip_the_rail_does_not_draw(self):
+        code, out, err = tree_py("tappable", "rpe-7", stdin=SESSION_RAILS)
+        self.assertEqual(code, 1, "axe tapped 384,641, reported success, and the log button stayed at @6")
+        self.assertEqual(out, "")
+        self.assertEqual(err, RPE_CLIPPED)
+
+    def test_tappable_refuses_a_chip_whose_centre_is_drawn_over_by_another_control(self):
+        code, out, err = tree_py("tappable", "reps-9", stdin=SESSION_RAILS)
+        self.assertEqual(code, 1, "the point 305,641 hit-tests to rpe-6, so the tap would pick an RPE")
+        self.assertEqual(err, REPS_CLIPPED)
+
+    def test_the_nearest_ancestor_that_misses_the_chip_is_the_one_named(self):
+        code, out, err = tree_py("tappable", "reps-11", stdin=SESSION_RAILS)
+        self.assertEqual(code, 1)
+        self.assertEqual(err, REPS_CLIPPED, "reps-11 at x 392 misses the card too, but the rail is what clips it")
+
+    def test_a_chip_the_rail_draws_still_taps(self):
+        self.assertEqual(tree_py("tappable", "rpe-6.5", stdin=SESSION_RAILS)[1:], ("336 641\n", ""))
+        self.assertEqual(tree_py("tappable", "rpe-6", stdin=SESSION_RAILS)[1:], ("289 641\n", ""))
+        self.assertEqual(tree_py("find", "rpe-5", stdin=SESSION_RAILS)[2], "", "the first chip inside the track")
+
+    def test_a_chip_across_the_track_edge_is_clipped_when_its_centre_is_outside(self):
+        def rpe_7_at(x):
+            tree = json.loads(SESSION_RAILS)
+            stack = [tree[0]]
+            while stack:
+                node = stack.pop()
+                if node.get("AXUniqueId") == "rpe-7":
+                    node["frame"]["x"] = x
+                stack.extend(node.get("children", []))
+            return json.dumps(tree)
+
+        self.assertEqual(tree_py("tappable", "rpe-7", stdin=rpe_7_at(367))[::2], (1, RPE_CLIPPED),
+                         "x 367 to 376 overlaps the track, which ends at 370, but the tap at 372 is past it")
+        self.assertEqual(tree_py("tappable", "rpe-7", stdin=rpe_7_at(364))[:2], (0, "368 641\n"),
+                         "x 364 to 373 pokes past the track, but the tap at 368 lands inside it")
+
+    def test_an_off_screen_chip_outside_its_rail_gets_both_notes(self):
+        code, out, err = tree_py("find", "reps-100", stdin=SESSION_RAILS)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(err.splitlines(), [
+            "off-screen: swipe it into view before tapping",
+            REPS_CLIPPED.rstrip("\n"),
+        ], "a swipe of the screen never brings a rail chip in, so the second note names the fix")
+
+    def test_a_row_below_the_fold_of_a_full_screen_scroll_area_is_only_off_screen(self):
+        scrolled = json.loads(MINI)
+        scrolled[0]["children"] = [{
+            "role": "AXScrollArea", "frame": {"x": 0, "y": 0, "width": 402, "height": 874},
+            "children": [{"role": "AXButton", "AXUniqueId": "developer-tools-row", "AXLabel": "Write Log",
+                          "frame": {"x": 16, "y": 1180, "width": 370, "height": 52}}],
+        }]
+        code, out, err = tree_py("find", "developer-tools-row", stdin=json.dumps(scrolled))
+        self.assertEqual(code, 0, err)
+        self.assertEqual(err, "off-screen: swipe it into view before tapping\n",
+                         "the scroll area is the screen, so naming it again would repeat the swipe")
+
+    def test_a_track_two_levels_up_clips_a_chip_its_content_row_holds(self):
+        nested = json.loads(MINI)
+        nested[0]["children"] = [{
+            "role": "AXGroup", "AXLabel": "RPE", "frame": {"x": 207, "y": 612, "width": 163, "height": 83},
+            "children": [{
+                "role": "AXGroup", "frame": {"x": 207, "y": 612, "width": 474, "height": 83},
+                "children": [{"role": "AXButton", "AXUniqueId": "rpe-7", "AXLabel": "RPE 7",
+                              "frame": {"x": 380, "y": 629, "width": 9, "height": 24}}],
+            }],
+        }]
+        tree = json.dumps(nested)
+        self.assertEqual(tree_py("find", "rpe-7", stdin=tree),
+                         (0, "AXButton\trpe-7\tRPE 7\t\t@380,629 9x24\n", RPE_CLIPPED),
+                         "the 474-point content row holds the chip, but the track above it ends at x 370")
+        self.assertEqual(tree_py("tappable", "rpe-7", stdin=tree), (1, "", RPE_CLIPPED))
+
+    def test_a_row_scrolled_up_under_the_nav_bar_is_clipped_on_the_y_axis_alone(self):
+        scrolled = json.loads(MINI)
+        scrolled[0]["children"] = [{
+            "role": "AXScrollArea", "frame": {"x": 0, "y": 100, "width": 402, "height": 774},
+            "children": [{"role": "AXButton", "AXUniqueId": "developer-tools-row", "AXLabel": "Write Log",
+                          "frame": {"x": 16, "y": 60, "width": 370, "height": 52}}],
+        }]
+        tree = json.dumps(scrolled)
+        above_the_top = "clipped: outside AXScrollArea @0,100 402x774; bring it inside that frame before tapping\n"
+        self.assertEqual(tree_py("find", "developer-tools-row", stdin=tree),
+                         (0, "AXButton\tdeveloper-tools-row\tWrite Log\t\t@16,60 370x52\n", above_the_top),
+                         "x 201 is inside the scroll area; y 86 is above its top edge at 100")
+        self.assertEqual(tree_py("tappable", "developer-tools-row", stdin=tree), (1, "", above_the_top))
+
+    def test_a_zero_size_group_in_the_keyboard_toolbar_does_not_clip_done(self):
+        done = "AXButton\tweight-keyboard-done\tDone\t\t@319,798 62x36\n"
+        self.assertEqual(tree_py("find", "weight-keyboard-done", stdin=KEYBOARD_DONE), (0, done, ""),
+                         "an AXGroup @16,792 0x0 sits between the toolbar and Done, and Done is drawn")
+        self.assertEqual(tree_py("tappable", "weight-keyboard-done", stdin=KEYBOARD_DONE), (0, "350 816\n", ""),
+                         "a tap at 350,816 closed the keyboard on the live app")
+
+    def test_only_a_group_with_a_zero_side_is_skipped(self):
+        def group_sized(width, height):
+            tree = json.loads(KEYBOARD_DONE)
+            stack = [tree[0]]
+            while stack:
+                node = stack.pop()
+                if node["frame"] == {"x": 16, "y": 792, "width": 0, "height": 0}:
+                    node["frame"].update(width=width, height=height)
+                stack.extend(node.get("children", []))
+            return json.dumps(tree)
+
+        self.assertEqual(tree_py("tappable", "weight-keyboard-done", stdin=group_sized(0, 48)), (0, "350 816\n", ""))
+        self.assertEqual(tree_py("tappable", "weight-keyboard-done", stdin=group_sized(370, 0)), (0, "350 816\n", ""))
+        self.assertEqual(tree_py("tappable", "weight-keyboard-done", stdin=group_sized(1, 48)), (
+            1, "", "clipped: outside AXGroup @16,792 1x48; bring it inside that frame before tapping\n",
+        ), "a group one point wide still holds points, and not the one Done is tapped at")
+
+    def test_a_track_above_a_zero_size_group_still_clips_the_chip(self):
+        wrapped = json.loads(MINI)
+        wrapped[0]["children"] = [{
+            "role": "AXGroup", "AXLabel": "RPE", "frame": {"x": 207, "y": 612, "width": 163, "height": 83},
+            "children": [{
+                "role": "AXGroup", "frame": {"x": 207, "y": 612, "width": 0, "height": 0},
+                "children": [{"role": "AXButton", "AXUniqueId": "rpe-7", "AXLabel": "RPE 7",
+                              "frame": {"x": 380, "y": 629, "width": 9, "height": 24}}],
+            }],
+        }]
+        self.assertEqual(tree_py("tappable", "rpe-7", stdin=json.dumps(wrapped)), (1, "", RPE_CLIPPED),
+                         "the zero-size group is skipped and the walk goes on to the track")
+
+    def test_a_zero_size_button_around_the_home_screen_icons_does_not_clip_them(self):
+        self.assertEqual(tree_py("tappable", "WorkoutTracker", stdin=HOME_SCREEN), (0, "62 336\n", ""),
+                         "live-activity.md reopens the app with tap --id WorkoutTracker; the icon sits in an AXButton @0,0 0x0")
+
+    def test_on_the_captured_screen_exactly_the_chips_a_tap_misses_are_clipped(self):
+        on_screen = [line.split("\t")[1] for line in tree_py("flat", stdin=SESSION_RAILS)[1].splitlines()]
+        clipped = [ident for ident in on_screen if ident and "clipped" in tree_py("find", ident, stdin=SESSION_RAILS)[2]]
+        self.assertEqual(clipped, ["reps-3", "reps-7", "reps-8", "reps-9", "reps-10", "reps-11", "rpe-7"],
+                         "describe-ui --point at each centre on the live app returned something else for these seven")
+
+
 class Diff(unittest.TestCase):
     def test_diff_of_the_log_a_set_shots_is_the_semantic_hunks(self):
         code, out, err = tree_py(

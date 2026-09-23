@@ -56,7 +56,7 @@ anything. An empty tree on a healthy pid means the simulator's accessibility bri
 ```bash
 .claude/skills/verify/verify.sh tree                       # what is on screen: role  id  label  value  @x,y wxh
 .claude/skills/verify/verify.sh tree --all                 # plus what is scrolled out of view
-.claude/skills/verify/verify.sh find log-active-set-button # one line, on screen or off; exit 1 if absent; stderr says off-screen or disabled
+.claude/skills/verify/verify.sh find log-active-set-button # one line, on screen or off; exit 1 if absent; stderr says off-screen, clipped, or disabled
 .claude/skills/verify/verify.sh tap --id rpe-6             # or --label "Sign Out", or -x 201 -y 740
 .claude/skills/verify/verify.sh hold log-active-set-button # long press, 1.2 s default
 .claude/skills/verify/verify.sh type 245                   # into the focused field
@@ -70,10 +70,14 @@ Settings row and its alert button). When `tap --label` reports multiple matches,
 from `tree` and tap its center with `-x -y`.
 
 Target elements by accessibility identifier (`tap --id`) first, by label second, by coordinates
-only when the element has neither. `tap --id` polls up to 3 s for that element to be enabled and
-on screen, then taps its centre; when it never gets one it exits 1 and says `off-screen` or
-`disabled`. So a tap that reports success is a tap that could land. `tap --label` and `tap -x -y`
-resolve no element, so they report success whatever is under the point.
+only when the element has neither. `tap --id` polls up to 3 s for that element to be enabled, on
+screen, and with its centre inside the frame of every element that contains it, then taps that
+centre. A container with a zero width or height holds no point, so it is skipped. The keyboard
+toolbar wraps `Done` in a 0x0 group. When `tap --id` never gets such a hit it exits 1 and says
+`off-screen`, `clipped`, or `disabled`. A `clipped` note names the container whose frame misses
+the centre, such as the RPE track. So a tap that reports success is a tap that could land.
+`tap --label` and `tap -x -y` resolve no element, so they report success whatever is under the
+point.
 After a tap, re-read the tree before asserting. `tree` has no enabled column, so prove a disabled
 state with `find <id>`, which says `disabled` on stderr and still exits 0.
 `-UITEST_DISABLE_ANIMATIONS` stops UIKit animations and the SwiftUI animations of the main window.
@@ -85,7 +89,8 @@ Superset log, a skip, or state inside a sheet. A state absent after one second i
 
 `tree` lists what is on screen and says on stderr how many elements it left out. A scrolled-out
 row and the tail of the reps picker are out; a card wider than the screen is in. `find <id>`
-looks everywhere, on screen or off.
+looks everywhere, on screen or off. `tree` measures against the screen alone, so it still lists a
+rail chip outside its track; `find` on that chip says `clipped`.
 
 The driver is AXe, bundled with XcodeBuildMCP 2.7.0 and installed on first use into
 `.build/verify/node_modules` (about 20 s, gitignored). Older XcodeBuildMCP builds fail on Xcode 27

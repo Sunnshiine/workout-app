@@ -1,0 +1,94 @@
+[
+ {
+  "role": "AXApplication",
+  "AXLabel": " ",
+  "pid": 90129,
+  "frame": {
+   "x": 0,
+   "y": 0,
+   "width": 402,
+   "height": 874
+  },
+  "children": [
+   {
+    "role": "AXGroup",
+    "frame": {
+     "x": 0,
+     "y": 0,
+     "width": 402,
+     "height": 874
+    },
+    "children": [
+     {
+      "role": "AXGroup",
+      "frame": {
+       "x": 0,
+       "y": 0,
+       "width": 402,
+       "height": 874
+      },
+      "children": [
+       {
+        "role": "AXGroup",
+        "AXUniqueId": "Home screen icons",
+        "frame": {
+         "x": 0,
+         "y": 0,
+         "width": 402,
+         "height": 874
+        },
+        "children": [
+         {
+          "role": "AXGroup",
+          "frame": {
+           "x": 0,
+           "y": 0,
+           "width": 402,
+           "height": 874
+          },
+          "children": [
+           {
+            "role": "AXGroup",
+            "frame": {
+             "x": 0,
+             "y": 0,
+             "width": 402,
+             "height": 874
+            },
+            "children": [
+             {
+              "role": "AXButton",
+              "frame": {
+               "x": 0,
+               "y": 0,
+               "width": 0,
+               "height": 0
+              },
+              "children": [
+               {
+                "role": "AXButton",
+                "AXUniqueId": "WorkoutTracker",
+                "AXLabel": "WorkoutTracker",
+                "AXValue": "",
+                "frame": {
+                 "x": 9.666666666666629,
+                 "y": 288.6666666666667,
+                 "width": 105,
+                 "height": 94
+                }
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+]
