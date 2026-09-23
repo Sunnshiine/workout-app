@@ -36,11 +36,10 @@ private final class PlanningIndexBuildCounter: @unchecked Sendable {
     private let lock = NSLock()
     private(set) var count = 0
 
-    func build(from snapshot: SheetSnapshot) -> SheetLayout {
+    func increment() {
         lock.lock()
         count += 1
         lock.unlock()
-        return SheetLayoutInterpreter().interpret(snapshot)
     }
 }
 
@@ -224,7 +223,7 @@ private func pendingWrite(
         )
     )
     let counter = PlanningIndexBuildCounter()
-    let planner = SheetWritePlanner(layoutBuilder: counter.build(from:))
+    let planner = SheetWritePlanner(onLayoutBuilt: counter.increment)
     let sync = SyncCoordinator(client: client, context: ctx, sheetWritePlanner: planner)
 
     await sync.flushPending(spreadsheetId: "sid")

@@ -187,8 +187,13 @@ extension SetLogList {
 }
 
 struct SheetWritePlanningSnapshot: Sendable {
-    var snapshot: SheetSnapshot
+    let snapshot: SheetSnapshot
     let layout: SheetLayout
+
+    fileprivate init(snapshot: SheetSnapshot, layout: SheetLayout) {
+        self.snapshot = snapshot
+        self.layout = layout
+    }
 
     var grid: SheetGrid {
         snapshot.values
@@ -196,12 +201,10 @@ struct SheetWritePlanningSnapshot: Sendable {
 }
 
 struct SheetWritePlanner: Sendable {
-    private let layoutBuilder: @Sendable (SheetSnapshot) -> SheetLayout
+    private let onLayoutBuilt: @Sendable () -> Void
 
-    init(
-        layoutBuilder: @escaping @Sendable (SheetSnapshot) -> SheetLayout = { SheetLayoutInterpreter().interpret($0) }
-    ) {
-        self.layoutBuilder = layoutBuilder
+    init(onLayoutBuilt: @escaping @Sendable () -> Void = {}) {
+        self.onLayoutBuilt = onLayoutBuilt
     }
 
     func snapshot(for grid: SheetGrid) -> SheetWritePlanningSnapshot {
@@ -209,7 +212,8 @@ struct SheetWritePlanner: Sendable {
     }
 
     func snapshot(for snapshot: SheetSnapshot) -> SheetWritePlanningSnapshot {
-        SheetWritePlanningSnapshot(snapshot: snapshot, layout: layoutBuilder(snapshot))
+        onLayoutBuilt()
+        return SheetWritePlanningSnapshot(snapshot: snapshot, layout: SheetLayoutInterpreter().interpret(snapshot))
     }
 
     func plan(_ request: SheetWriteRequest, in grid: SheetGrid) throws -> SheetCellUpdate {
