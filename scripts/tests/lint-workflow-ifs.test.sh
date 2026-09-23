@@ -54,6 +54,17 @@ jobs:
       if: github.event_name == 'push' &&
         steps.draft.outcome == 'failure'
       run: echo plain
+    - name: Any step failed
+      if: contains(steps.*.outcome, 'failure')
+      run: echo any
+    - name: Space before the colon
+      if : steps.draft.conclusion == 'failure'
+      run: echo space
+    - name: Comments inside the guard
+      if: github.event_name == 'pull_request' &&
+        # always() belongs to a comment line
+        steps.draft.outcome == 'failure' # and failure() to a trailing comment
+      run: echo comments
 YAML
 
 cat >"$root/good.yml" <<'YAML'
@@ -79,6 +90,8 @@ jobs:
         run: echo folded
       - if: steps.visual.outputs.changed == 'true'
         run: echo outputs
+      - if: Always() && steps.visual.outcome == 'failure'
+        run: echo capitalised
       - name: A script that prints the bad shape
         run: |
           cat <<'EOF'
@@ -105,14 +118,19 @@ expect_line "bad.yml" "$out" "bad.yml:22: job 'unit', step '#6': if: reads a ste
 expect_line "bad.yml" "$out" "    steps.visual.outcome != 'success'"
 expect_line "bad.yml" "$out" "bad.yml:31: job 'release-notes', step 'Plain scalar over two lines': if: reads a step conclusion or outcome and calls no status check function"
 expect_line "bad.yml" "$out" "    github.event_name == 'push' && steps.draft.outcome == 'failure'"
+expect_line "bad.yml" "$out" "bad.yml:35: job 'release-notes', step 'Any step failed': if: reads a step conclusion or outcome and calls no status check function"
+expect_line "bad.yml" "$out" "bad.yml:38: job 'release-notes', step 'Space before the colon': if: reads a step conclusion or outcome and calls no status check function"
+expect_line "bad.yml" "$out" "    steps.draft.conclusion == 'failure'"
+expect_line "bad.yml" "$out" "bad.yml:41: job 'release-notes', step 'Comments inside the guard': if: reads a step conclusion or outcome and calls no status check function"
+expect_line "bad.yml" "$out" "    github.event_name == 'pull_request' && steps.draft.outcome == 'failure'"
 count=$(printf '%s\n' "$out" | grep -c '^bad\.yml:[0-9]*: ')
-if [ "$count" -eq 5 ]; then ok "bad.yml names 5 guards"; else bad "bad.yml names 5 guards, got $count"; fi
+if [ "$count" -eq 8 ]; then ok "bad.yml names 8 guards"; else bad "bad.yml names 8 guards, got $count"; fi
 
 echo "good.yml: guards that call a status check function, and if: text inside a run script, pass"
 out=$(cd "$root" && "$checker" good.yml 2>&1)
 status=$?
 expect_exit "good.yml" "$status" 0
-expect_line "good.yml" "$out" "==> Clean: 7 if: conditions in 1 file(s)"
+expect_line "good.yml" "$out" "==> Clean: 8 if: conditions in 1 file(s)"
 
 echo "a path that does not exist is a usage error, not a clean run"
 out=$(cd "$root" && "$checker" missing.yml 2>&1)
