@@ -80,12 +80,14 @@ the centre, such as the RPE track. So a tap that reports success is a tap that c
 point.
 After a tap, re-read the tree before asserting. `tree` has no enabled column, so prove a disabled
 state with `find <id>`, which says `disabled` on stderr and still exits 0.
-`-UITEST_DISABLE_ANIMATIONS` stops UIKit animations and the SwiftUI animations of the main window.
-A log on the `session` fixture swaps the card in one frame with no transition between the old card
-and the new one. The `1 unsynced` pill lands a moment later, when the flush answers, and moves the
-stage down about 20 points. Two bursts in six caught the frame between. Nobody has checked a
-Superset log, a skip, or state inside a sheet. A state absent after one second is still absent.
-`burst` shows frame by frame what an action changed.
+`-UITEST_DISABLE_ANIMATIONS` stops UIKit animations and clears the animation on every SwiftUI
+transaction in the main window. A burst has proved one path. A log on the `session` fixture swaps
+the card in one frame with no transition between the old card and the new one. The `1 unsynced`
+pill lands a moment later, when the flush answers, and moves the stage down about 20 points. Two
+bursts in six caught the frame between. No burst has covered the Move On celebration, the rest
+pill's pulses, which timers hold for 160 and 220 ms, or the Superset retiring card, which stays
+mounted for 0.65 s. Nobody has checked a skip or state inside a sheet either. A state absent after
+one second is still absent. `burst` shows frame by frame what an action changed.
 
 `tree` lists what is on screen and says on stderr how many elements it left out. A scrolled-out
 row and the tail of the reps picker are out; a card wider than the screen is in. `find <id>`
