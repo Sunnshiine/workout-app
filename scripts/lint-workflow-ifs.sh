@@ -1,15 +1,4 @@
 #!/usr/bin/env bash
-# Fail on a workflow `if:` that reads a step result and calls no status check function.
-#
-# GitHub prepends `success() &&` to an `if:` that calls none of `success()`, `failure()`, `always()`,
-# or `cancelled()`. A guard on `steps.<id>.conclusion` or `steps.<id>.outcome` without one is then
-# false once any earlier step fails, whatever it appears to say. #606 shipped that shape: a guard that
-# read as "run after the gate, pass or fail" skipped on every red run, and review could not see it
-# (issue #643). The YAML is read by indentation rather than parsed, so the check needs nothing beyond
-# the bash and awk every machine and runner here already has.
-#
-#   scripts/lint-workflow-ifs.sh           check .github/workflows/*.yml and *.yaml (what CI runs)
-#   scripts/lint-workflow-ifs.sh FILE...   check the named files
 set -euo pipefail
 
 if [ "$#" -eq 0 ]; then
@@ -121,7 +110,6 @@ blank || c ~ /^#/ { next }
     if (k ~ "^[^ \t#][^:]*:[ \t]+" BLOCK) skip = kcol
 }
 
-# Findings print here, not as found, because a step name: can follow its if:.
 END {
     if (collecting) finish_if()
     for (i = 1; i <= n; i++) {

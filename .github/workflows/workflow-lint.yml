@@ -1,7 +1,5 @@
 name: Workflow lint
 
-# ci.yml paths-ignores most of .github/workflows/, so a check in its lint job would skip the files it
-# exists to read. This workflow triggers on the tree it checks, as verify-tools.yml does for its own.
 on:
   pull_request:
     paths:
