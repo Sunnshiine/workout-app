@@ -19,6 +19,8 @@ struct WorkoutLiveActivity: Widget {
                 minimalContent(for: context.state)
             }
             .keylineTint(context.state.liveActivityColors.accent)
+            // At the default margin, about 18pt, the expanded island's rounded corners cut glyphs.
+            .contentMargins(.horizontal, 34, for: .expanded)
         }
     }
 
@@ -30,7 +32,7 @@ struct WorkoutLiveActivity: Widget {
             expandedLeading(for: context.state)
         }
         DynamicIslandExpandedRegion(.trailing) {
-            PrescribedLoadBadge(state: context.state)
+            expandedTrailing(for: context.state)
         }
         DynamicIslandExpandedRegion(.center) {
             expandedCenter(for: context)
@@ -50,6 +52,17 @@ struct WorkoutLiveActivity: Widget {
                 .frame(width: 42, height: 42)
         case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
             PrescriptionStack(state: state)
+                .lineLimit(1)
+        }
+    }
+
+    @ViewBuilder
+    private func expandedTrailing(for state: WorkoutActivityAttributes.ContentState) -> some View {
+        switch state.variant {
+        case .setProgress, .nowLifting:
+            PrescribedLoadBadge(state: state)
+        case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
+            EmptyView()
         }
     }
 
@@ -84,14 +97,11 @@ struct WorkoutLiveActivity: Widget {
         case .nowLifting:
             ExerciseNameStack(state: context.state)
                 .frame(maxWidth: .infinity, alignment: .leading)
-        case .restTimer:
+        case .restTimer, .restTimerClean:
             RestProgressBar(state: context.state)
                 .frame(maxWidth: .infinity, alignment: .leading)
         case .restTimerSetsLeft, .restTimerSetCount:
             RestProgressWithContext(state: context.state, style: .island)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        case .restTimerClean:
-            RestProgressBar(state: context.state)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
@@ -182,6 +192,7 @@ private struct LockScreenWorkoutView: View {
 
                 if state.variant.isRestTimer {
                     PrescriptionStack(state: state, style: .lockScreen)
+                        .minimumScaleFactor(0.75)
                 } else {
                     VStack(alignment: .trailing, spacing: 1) {
                         Text(state.weightValue)
@@ -252,10 +263,16 @@ private struct RestCountdownStack: View {
                     .foregroundStyle(colors.islandSecondaryText)
             }
 
-            RestCountdownText(state: state)
+            // A timer Text takes all the width it is offered, which starves the leading region.
+            Text("00:00")
+                .hidden()
+                .overlay(alignment: .leading) {
+                    RestCountdownText(state: state)
+                }
                 .font(.system(.title2, design: .rounded).weight(.heavy))
                 .foregroundStyle(colors.accent)
                 .monospacedDigit()
+                .lineLimit(1)
                 .minimumScaleFactor(0.76)
         }
         .accessibilityElement(children: .combine)
@@ -346,19 +363,26 @@ private struct PrescriptionStack: View {
     var body: some View {
         let colors = state.liveActivityColors
 
-        VStack(alignment: .trailing, spacing: 2) {
+        VStack(alignment: alignment, spacing: 2) {
             Text(state.prescribedRepsText)
                 .font(.caption.weight(.heavy))
                 .foregroundStyle(colors.accent)
-                .minimumScaleFactor(0.75)
 
             Text(state.prescribedLoad)
                 .font(.caption2.weight(.bold))
                 .foregroundStyle(secondaryTextColor)
-                .minimumScaleFactor(0.75)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Prescription \(state.prescriptionText)")
+    }
+
+    private var alignment: HorizontalAlignment {
+        switch style {
+        case .island:
+            .leading
+        case .lockScreen:
+            .trailing
+        }
     }
 
     private var secondaryTextColor: Color {
@@ -414,7 +438,6 @@ private struct RestProgressWithContext: View {
         HStack(spacing: 8) {
             if showsBar {
                 RestProgressBar(state: state)
-                    .layoutPriority(1)
             }
 
             if let restContextText = state.restContextText {
@@ -424,6 +447,7 @@ private struct RestProgressWithContext: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
                     .monospacedDigit()
+                    .layoutPriority(1)
             }
         }
         .accessibilityElement(children: .combine)
