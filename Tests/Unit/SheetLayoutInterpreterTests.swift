@@ -12,7 +12,7 @@ import Testing
         cols: 45
     )
 
-    let layout = SheetLayoutInterpreter().interpret(grid)
+    let layout = SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid))
 
     #expect(layout.weeks.count == 2)
     let firstWeek = try #require(layout.week(number: 1))
@@ -42,7 +42,7 @@ import Testing
         cols: 30
     )
 
-    let day = try #require(SheetLayoutInterpreter().interpret(grid).day(week: 1, day: 1))
+    let day = try #require(SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid)).day(week: 1, day: 1))
 
     #expect(day.columns.name == 2)
     #expect(day.columns.sets == 4)
@@ -65,7 +65,7 @@ import Testing
         cols: 30
     )
 
-    let day = try #require(SheetLayoutInterpreter().interpret(grid).day(week: 1, day: 1))
+    let day = try #require(SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid)).day(week: 1, day: 1))
 
     #expect(day.exerciseAnchors.map(\.name) == ["Squat", "Bench Press"])
     #expect(day.exerciseAnchors.map(\.row) == [17, 24])
@@ -151,7 +151,7 @@ import Testing
 @Test func layoutInterpreterDescribesProtectedHeaderAndContinuationRows() throws {
     let grid = coachNoteLayoutGrid()
 
-    let day = try #require(SheetLayoutInterpreter().interpret(grid).day(week: 1, day: 1))
+    let day = try #require(SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid)).day(week: 1, day: 1))
     let anchor = try #require(day.exerciseAnchors.first)
 
     #expect(anchor.headerNotesRole(in: grid, cols: day.columns) == .coachNote("Keep elbows soft"))
@@ -431,13 +431,13 @@ private enum PlacementTestError: Error { case notPlaced }
 }
 
 @Test func layoutInterpreterReturnsNilForMissingWeekOrDayLookups() {
-    let emptyLayout = SheetLayoutInterpreter().interpret(gridFromA1([:], rows: 5, cols: 5))
+    let emptyLayout = SheetLayoutInterpreter().interpret(SheetSnapshot(values: gridFromA1([:], rows: 5, cols: 5)))
     #expect(emptyLayout.weeks.isEmpty)
     #expect(emptyLayout.week(number: 1) == nil)
     #expect(emptyLayout.day(week: 1, day: 1) == nil)
 
     let oneDayLayout = SheetLayoutInterpreter().interpret(
-        gridFromA1(["C12": "Day 1"], rows: 20, cols: 20)
+        SheetSnapshot(values: gridFromA1(["C12": "Day 1"], rows: 20, cols: 20))
     )
     #expect(oneDayLayout.week(number: 2) == nil)
     #expect(oneDayLayout.day(week: 1, day: 2) == nil)

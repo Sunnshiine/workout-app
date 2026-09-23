@@ -36,11 +36,11 @@ private final class PlanningIndexBuildCounter: @unchecked Sendable {
     private let lock = NSLock()
     private(set) var count = 0
 
-    func build(from grid: SheetGrid) -> SheetLayout {
+    func build(from snapshot: SheetSnapshot) -> SheetLayout {
         lock.lock()
         count += 1
         lock.unlock()
-        return SheetLayoutInterpreter().interpret(grid)
+        return SheetLayoutInterpreter().interpret(snapshot)
     }
 }
 

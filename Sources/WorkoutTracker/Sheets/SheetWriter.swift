@@ -174,10 +174,6 @@ struct SheetWritePlanner: Sendable {
         self.layoutBuilder = layoutBuilder
     }
 
-    init(layoutBuilder: @escaping @Sendable (SheetGrid) -> SheetLayout) {
-        self.layoutBuilder = { snapshot in layoutBuilder(snapshot.values) }
-    }
-
     func snapshot(for grid: SheetGrid) -> SheetWritePlanningSnapshot {
         snapshot(for: SheetSnapshot(values: grid))
     }
