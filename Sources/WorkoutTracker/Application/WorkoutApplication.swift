@@ -55,7 +55,8 @@ public final class WorkoutApplication {
     }
 
     private static func hasPriorAppState(in context: ModelContext) -> Bool {
-        ((try? context.fetch(FetchDescriptor<Block>()).isEmpty) == false)
+        guard let blocks = try? context.fetch(FetchDescriptor<Block>()) else { return false }
+        return !blocks.isEmpty
     }
 }
 

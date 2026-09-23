@@ -56,6 +56,8 @@ struct SessionPendingWriteSyncAdapter: SessionSyncAdapter {
 
     func requestPendingWriteFlush() {
         guard let id = settings.spreadsheetId else { return }
+        // Holding it means keeping flushes apart, which changes when Set Logs are flushed (#702).
+        // swiftlint:disable:next unstructured_task_is_held
         Task { await sync.flushPending(spreadsheetId: id) }
     }
 }
@@ -285,7 +287,7 @@ final class SessionCoordinator {
                 afterLogging: set,
                 in: session,
                 isSupersetMember: wasSupersetMember,
-                isRestRunning: restTimer?.isRunning == true
+                isRestRunning: restTimer?.isRunning ?? false
             )
             if let restKind {
                 restTimer?.start(
@@ -722,16 +724,12 @@ extension SessionCoordinator {
         scopedTo exerciseOrders: Set<Int>
     ) -> ActiveSetTransition? {
         guard let transition else { return nil }
-        if exerciseOrders.contains(transition.outgoingSetID.exerciseOrder) {
-            return transition
-        }
-        if transition.incomingSetID.map({ exerciseOrders.contains($0.exerciseOrder) }) == true {
-            return transition
-        }
-        if transition.completedExerciseOrder.map(exerciseOrders.contains) == true {
-            return transition
-        }
-        return nil
+        let touchedOrders = [
+            transition.outgoingSetID.exerciseOrder,
+            transition.incomingSetID?.exerciseOrder,
+            transition.completedExerciseOrder
+        ]
+        return touchedOrders.compactMap { $0 }.contains(where: exerciseOrders.contains) ? transition : nil
     }
 
     private func lastPerformedPresentation(

@@ -151,7 +151,8 @@ enum LiveActivityInvalidationPolicy {
             .first { $0.order == target.setID.exerciseOrder }?
             .sets
             .first { $0.index == target.setID.setIndex }
-        return set?.isPending != true
+        guard let set else { return true }
+        return !set.isPending
     }
 
     @MainActor

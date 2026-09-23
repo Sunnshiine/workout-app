@@ -23,12 +23,12 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
         let staleDate = LiveActivityInvalidationPolicy.postRestCapEndDate(for: restContent)
 
         startUpdateTask = Task { @MainActor [weak self, controller] in
-            guard self?.isCurrentOperation(operationID, content: restContent) == true else { return }
+            guard self?.isCurrentOperation(operationID, content: restContent) ?? false else { return }
 
             controller.refreshAuthorizationStatus()
             if controller.isActive {
                 await controller.update(state: state, staleDate: staleDate)
-                guard self?.isCurrentOperation(operationID, content: restContent) == true else {
+                guard self?.isCurrentOperation(operationID, content: restContent) ?? false else {
                     await self?.endIfOperationWasInvalidated()
                     return
                 }
@@ -36,7 +36,7 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
             }
 
             await controller.start(state: state, sessionLabel: sessionLabel, staleDate: staleDate)
-            guard self?.isCurrentOperation(operationID, content: restContent) == true else {
+            guard self?.isCurrentOperation(operationID, content: restContent) ?? false else {
                 await self?.endIfOperationWasInvalidated()
                 return
             }
@@ -49,6 +49,8 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
         startUpdateTask?.cancel()
         startUpdateTask = nil
         startUpdateID = nil
+        // Holding it means the next start awaits this end, which reorders teardown (#699).
+        // swiftlint:disable:next unstructured_task_is_held
         Task { @MainActor [controller] in
             await controller.end()
         }

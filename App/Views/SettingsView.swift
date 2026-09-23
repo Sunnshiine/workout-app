@@ -226,7 +226,7 @@ struct SettingsView: View {
     }
 
     private func signOutNow() async {
-        guard await sheetSwitchStore?.prepareSignOut() == true else { return }
+        guard let sheetSwitchStore, await sheetSwitchStore.prepareSignOut() else { return }
 
         GoogleAuth.signOut()
         settings.signOut()
