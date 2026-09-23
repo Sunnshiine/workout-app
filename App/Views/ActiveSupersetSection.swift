@@ -51,52 +51,25 @@ struct ActiveSupersetSection: View {
     }
 
     var body: some View {
-        let lastPerformed = config.lastPerformedPresentation.map { presentation in
-            LastPerformedCard(presentation: presentation) {
-                onShowHistory(focusedExercise)
-            }
-        }
-
-        // As on the single-Exercise stage, `cardRegion` stays outside the `if` so the incoming
-        // card's identity and the weight field's focus survive the composition switch.
-        return VStack(alignment: .leading, spacing: 14) {
-            if composition == .reading {
-                if let cadence = focusedExercise.cadence, !cadence.isEmpty {
-                    Text(cadence)
-                        .font(Theme.font(.cadence))
-                        .foregroundStyle(palette.textSecondary)
-                        .accessibilityIdentifier("stage-cadence")
-                }
-
-                nameBlock
-
-                if let note = focusedExercise.coachNote {
-                    Text(note)
-                        .font(Theme.font(.coachNote))
-                        .foregroundStyle(palette.textSecondary)
-                        .lineSpacing(4)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                SessionStageBranch(
-                    sets: focusedSortedSets,
-                    activeSetID: config.presentation.activeSetID,
-                    partnerSets: partnerExercise.sets.sorted { $0.index < $1.index }
-                )
-                .padding(.top, 4)
-
-                Spacer(minLength: 12)
-
-                lastPerformed
-            } else {
-                EditingWeightHeader(lastPerformed: lastPerformed) {
-                    nameBlock
+        SessionStageColumn(
+            exercise: focusedExercise,
+            composition: composition,
+            lastPerformed: config.lastPerformedPresentation.map { presentation in
+                LastPerformedCard(presentation: presentation) {
+                    onShowHistory(focusedExercise)
                 }
             }
-
+        ) {
+            nameBlock
+        } branch: {
+            SessionStageBranch(
+                sets: focusedSortedSets,
+                activeSetID: config.presentation.activeSetID,
+                partnerSets: partnerExercise.sets.sorted { $0.index < $1.index }
+            )
+        } card: {
             cardRegion
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // The focused Exercise's Fraunces name leads; below it the subordinate

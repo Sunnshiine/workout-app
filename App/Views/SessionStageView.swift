@@ -69,10 +69,12 @@ struct SessionStageView: View {
             )
             .padding(.horizontal)
             .padding(.top, Theme.sectionSpacing)
-            .padding(.bottom, composition == .editingWeight ? Theme.editingWeightFootGap : 0)
 
-            if composition == .reading {
+            switch composition {
+            case .reading:
                 queueBar(stageItem: stageItem, items: items)
+            case .editingWeight:
+                Color.clear.frame(height: Theme.editingWeightFootGap)
             }
         }
         .animation(
@@ -142,61 +144,31 @@ struct SessionStageView: View {
     // the foot, so the page reads top-to-bottom without scrolling.
     private func exerciseStage(_ config: SessionExerciseRenderConfig) -> some View {
         let sortedSets = config.exercise.sets.sorted { $0.index < $1.index }
-        let lastPerformed = config.lastPerformedPresentation.map { presentation in
-            LastPerformedCard(presentation: presentation) {
-                historyExercise = config.exercise
-            }
-        }
 
-        // The card stays outside the `if`, at the same position in both, so its identity and
-        // the weight field's focus survive the switch between compositions.
-        return VStack(alignment: .leading, spacing: 14) {
-            if composition == .reading {
-                if let cadence = config.exercise.cadence, !cadence.isEmpty {
-                    Text(cadence)
-                        .font(Theme.font(.cadence))
-                        .foregroundStyle(palette.textSecondary)
-                        .accessibilityIdentifier("stage-cadence")
-                }
-
-                exerciseName(config)
-
-                if let note = config.exercise.coachNote {
-                    Text(note)
-                        .font(Theme.font(.coachNote))
-                        .foregroundStyle(palette.textSecondary)
-                        .lineSpacing(4)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                SessionStageBranch(
-                    sets: sortedSets,
-                    activeSetID: config.activeSetID,
-                    onTap: actions.focus
-                )
-                .padding(.top, 4)
-
-                Spacer(minLength: 12)
-
-                lastPerformed
-            } else {
-                EditingWeightHeader(lastPerformed: lastPerformed) {
-                    exerciseName(config)
+        return SessionStageColumn(
+            exercise: config.exercise,
+            composition: composition,
+            lastPerformed: config.lastPerformedPresentation.map { presentation in
+                LastPerformedCard(presentation: presentation) {
+                    historyExercise = config.exercise
                 }
             }
-
+        ) {
+            Text(config.exercise.baseName)
+                .font(Theme.font(.exerciseName))
+                .foregroundStyle(palette.textPrimary)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("stage-exercise-name")
+        } branch: {
+            SessionStageBranch(
+                sets: sortedSets,
+                activeSetID: config.activeSetID,
+                onTap: actions.focus
+            )
+        } card: {
             stageCard(config, sortedSets: sortedSets)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func exerciseName(_ config: SessionExerciseRenderConfig) -> some View {
-        Text(config.exercise.baseName)
-            .font(Theme.font(.exerciseName))
-            .foregroundStyle(palette.textPrimary)
-            .lineSpacing(3)
-            .fixedSize(horizontal: false, vertical: true)
-            .accessibilityIdentifier("stage-exercise-name")
     }
 
     @ViewBuilder
@@ -348,23 +320,61 @@ struct SessionStageView: View {
     }
 }
 
-/// The editing composition's header: the richest of `name + Last Performed`, `name`, and
-/// `Last Performed` that fits the room the pinned card leaves, else nothing. `ViewThatFits`
-/// measures the real name (one or two Fraunces lines), so no device table is needed.
-struct EditingWeightHeader<Name: View>: View {
+/// The editorial column both stages share. The card sits after the switch, at one position in both
+/// compositions, so its identity and the weight field's focus survive the switch. Editing keeps the
+/// richest header that fits the room the pinned card leaves; `ViewThatFits` measures the real name
+/// (one or two Fraunces lines), so no device table is needed.
+struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
+    let exercise: Exercise
+    let composition: SessionStageComposition
     let lastPerformed: LastPerformedCard?
     @ViewBuilder let name: () -> Name
+    @ViewBuilder let branch: () -> Branch
+    @ViewBuilder let card: () -> Card
+    @Environment(\.themePalette) private var palette
 
     var body: some View {
-        ViewThatFits(in: .vertical) {
-            VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 14) {
+            switch composition {
+            case .reading:
+                if let cadence = exercise.cadence, !cadence.isEmpty {
+                    Text(cadence)
+                        .font(Theme.font(.cadence))
+                        .foregroundStyle(palette.textSecondary)
+                        .accessibilityIdentifier("stage-cadence")
+                }
+
                 name()
+
+                if let note = exercise.coachNote {
+                    Text(note)
+                        .font(Theme.font(.coachNote))
+                        .foregroundStyle(palette.textSecondary)
+                        .lineSpacing(4)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                branch()
+                    .padding(.top, 4)
+
+                Spacer(minLength: 12)
+
                 lastPerformed
+            case .editingWeight:
+                ViewThatFits(in: .vertical) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        name()
+                        lastPerformed
+                    }
+                    name()
+                    lastPerformed
+                    Color.clear.frame(height: 0)
+                }
             }
-            name()
-            lastPerformed
-            Color.clear.frame(height: 0)
+
+            card()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
