@@ -5,8 +5,8 @@ Reads an `axe describe-ui` JSON tree on stdin:
   tree.py flat [--all]   one line per labeled or identified element: role, id, label, value, @x,y wxh
                          on-screen elements only; --all keeps the off-screen ones too
   tree.py find <id>      that element's line wherever it is, on screen or off; exit 1 if absent
-                         says on stderr when it is off-screen, clipped (its centre outside an ancestor's
-                         frame), or disabled
+                         says on stderr when it is off-screen, clipped (its centre outside the frame
+                         of an ancestor of nonzero size), or disabled
   tree.py tappable <id>  "x y" of the first hit that is enabled, on screen, and not clipped, so a tap
                          on it lands; exit 1 with the same notes find prints when there is no such hit
   tree.py pid            the frontmost application's pid
