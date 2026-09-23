@@ -8,9 +8,17 @@
 # CONFIG defaults to the repo's .swiftlint.yml. Pass a mutated copy to prove a case is load-bearing.
 #
 # The fixtures sit outside App/, Sources/, and Tests/ because those are compiled and linted at
-# error. Each file is passed by path: SwiftLint lints a named file even outside root `included:`,
-# while a named directory is filtered through it. A rule's own `included:` and `excluded:` regexes
-# match the absolute path, so the fixture tree repeats the segments they scope on.
+# error. The run copies them into a scratch root, adds CONFIG as its .swiftlint.yml and the repo's
+# Tests/.swiftlint.yml as the nested one, and lints that root the way scripts/lint.sh lints the
+# repo. Root `included:` and `excluded:`, the nested config, and each rule's severity all apply. A
+# rule's own `included:` and `excluded:` regexes match the absolute path, so the fixture tree
+# repeats the segments they scope on.
+#
+# A case is a func whose name ends in its outcome:
+#   IsFlagged         a defect the rule catches, so at least one row
+#   IsFalselyFlagged  correct code the rule flags today, so at least one row
+#   Passes            correct code the rule leaves alone, so no row
+#   IsMissed          a defect the regex does not see and review judges, so no row
 set -uo pipefail
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -51,22 +59,23 @@ fail=0
 ok()  { pass=$((pass + 1)); printf '  ok   %s\n' "$1"; }
 bad() { fail=$((fail + 1)); printf '  FAIL %s\n' "$1"; }
 
-# A row is "rule path:line". Every case is a function named for its outcome, so the nearest
-# `func` at or above the line names the case a row lands in.
+# A row is "rule path:line", and the nearest `func` at or above the line names its case. A row on
+# an attribute line with no `func` of its own lands in the func below, because the platform guard
+# rule reports the `@Test` line and `@Test(arguments:)` can sit above its declaration.
 case_at() {
     local location=${1#* }
-    sed -n "1,${location##*:}p" "$fixtures/${location%:*}" 2>/dev/null |
-        grep -o 'func [A-Za-z_][A-Za-z0-9_]*' | tail -1 | cut -c6-
+    awk -v at="${location##*:}" '
+        function name() {
+            match($0, /func [A-Za-z_][A-Za-z0-9_]*/)
+            return substr($0, RSTART + 5, RLENGTH - 5)
+        }
+        NR < at && /func [A-Za-z_]/ { last = name() }
+        NR == at && /^[ \t]*@/ && !/func [A-Za-z_]/ { below = 1; next }
+        NR == at { if (/func [A-Za-z_]/) last = name(); print last; exit }
+        below && /func [A-Za-z_]/ { print name(); exit }
+    ' "$fixtures/${location%:*}" 2>/dev/null
 }
 by_line() { LC_ALL=C sort -t: -k1,1 -k2,2n; }
-
-rules="fixture_dates_are_literal
-font_construction_via_theme
-no_uppercase_microlabels
-optional_bool_needs_a_nil_answer
-platform_guard_on_test_declaration
-polling_loops_are_bounded
-unstructured_task_is_held"
 
 expected_rows() {
     cat <<'EXPECTED'
@@ -110,56 +119,91 @@ polling_loops_are_bounded Tests/PollingLoopsAreBounded.swift:14
 polling_loops_are_bounded Tests/PollingLoopsAreBounded.swift:20
 EXPECTED
 }
+expected=$(expected_rows | grep -v '^$' | LC_ALL=C sort)
+covered=$(printf '%s\n' "$expected" | cut -d' ' -f1 | LC_ALL=C sort -u)
 
-configured=$(awk '/^custom_rules:/ { inside = 1; next }
-                  inside && /^[^[:space:]#]/ { exit }
-                  inside && /^  [A-Za-z_][A-Za-z0-9_]*:[[:space:]]*$/ { sub(/^  /, ""); sub(/:.*/, ""); print }' \
-    "$config" | LC_ALL=C sort)
+# Every line at rule-key indent must read as a key, so a key this pattern cannot read stops the run
+# instead of dropping out of the parity check.
+configured=$(awk -v config="$config" -v q="'" '
+    BEGIN {
+        id = "[A-Za-z_][A-Za-z0-9_]*"
+        key = "^  (\"" id "\"|" q id q "|" id "):[[:space:]]*(#.*)?$"
+    }
+    /^custom_rules:/ { inside = 1; next }
+    !inside { next }
+    /^[^[:space:]#]/ { exit }
+    /^  [^[:space:]#]/ {
+        if ($0 !~ key) {
+            printf "error: line %d of %s is indented as a custom_rules: key but is not one:\n%s\n", NR, config, $0 > "/dev/stderr"
+            exit 1
+        }
+        sub(/^  /, ""); sub(/:.*/, ""); gsub(/["'\'']/, "")
+        print
+    }' "$config" | LC_ALL=C sort) || exit 1
 if [ -z "$configured" ]; then
     echo "error: $config has no custom_rules: entries to run." >&2
     exit 1
 fi
 
 echo "custom_rules: in $config names the rules this table covers"
-if [ "$configured" = "$rules" ]; then
-    ok "$(printf '%s\n' "$rules" | wc -l | tr -d ' ') rules"
+if [ "$configured" = "$covered" ]; then
+    ok "$(printf '%s\n' "$covered" | wc -l | tr -d ' ') rules"
 else
     while IFS= read -r id; do
         [ -n "$id" ] && bad "custom_rules: has $id, which this table has no fixtures for"
-    done < <(LC_ALL=C comm -13 <(printf '%s\n' "$rules") <(printf '%s\n' "$configured"))
+    done < <(LC_ALL=C comm -13 <(printf '%s\n' "$covered") <(printf '%s\n' "$configured"))
     while IFS= read -r id; do
         [ -n "$id" ] && bad "custom_rules: has no $id, which this table pins"
-    done < <(LC_ALL=C comm -23 <(printf '%s\n' "$rules") <(printf '%s\n' "$configured"))
+    done < <(LC_ALL=C comm -23 <(printf '%s\n' "$covered") <(printf '%s\n' "$configured"))
 fi
 
-files=()
-while IFS= read -r file; do
-    files+=("$file")
-done < <(find "$fixtures" -name '*.swift' | LC_ALL=C sort)
-only=()
-while IFS= read -r id; do
-    only+=(--only-rule "$id")
-done <<CONFIGURED
-$configured
-CONFIGURED
+mirror="$work/mirror"
+cp -R "$fixtures" "$mirror" &&
+    cp "$config" "$mirror/.swiftlint.yml" &&
+    cp "$repo/Tests/.swiftlint.yml" "$mirror/Tests/.swiftlint.yml" || exit 3
+# SwiftLint reports a standardized path, which drops the /private that pwd -P puts on a /var dir.
+root=$(cd "$mirror" && pwd -P) || exit 3
+root=${root#/private}
 
-"$swiftlint" lint --no-cache --quiet --config "$config" --reporter json "${only[@]}" "${files[@]}" \
+# No --strict, which would report a warning as an error and hide the severity checked below.
+(cd "$mirror" && "$swiftlint" lint --no-cache --quiet --reporter json) \
     >"$work/report.json" 2>"$work/stderr"
 status=$?
+
+echo "SwiftLint over the mirrored tree writes nothing to stderr"
+if [ -s "$work/stderr" ]; then
+    bad "SwiftLint exited $status and wrote to stderr:"
+    sed 's/^/         /' "$work/stderr"
+else
+    ok "stderr is empty"
+fi
 if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
     echo "FAIL SwiftLint exited $status" >&2
-    cat "$work/stderr" >&2
     exit 1
 fi
 
-if ! actual=$(jq -r --arg root "$fixtures/" '.[] | "\(.rule_id) \(.file | ltrimstr($root)):\(.line)"' \
-    "$work/report.json" | LC_ALL=C sort); then
+if ! kept=$(jq -r --arg ids "$configured" --arg root "$root/" '
+    ($ids | split("\n")) as $ids
+    | .[] | select(.rule_id | IN($ids[]))
+    | "\(.rule_id) \(.file | ltrimstr($root)):\(.line) \(.severity)"' "$work/report.json"); then
     echo "FAIL SwiftLint's JSON report did not parse" >&2
     exit 1
 fi
-expected=$(expected_rows | grep -v '^$' | LC_ALL=C sort)
+actual=$(printf '%s\n' "$kept" | cut -d' ' -f1,2 | grep -v '^$' | LC_ALL=C sort)
 
-echo "violations over ${#files[@]} fixture files"
+echo "every custom-rule violation reports severity Error"
+off=$(printf '%s\n' "$kept" | awk 'NF && $3 != "Error"' | by_line)
+if [ -z "$off" ]; then
+    ok "$(printf '%s\n' "$actual" | grep -c .) violations at Error"
+else
+    while IFS=' ' read -r id location severity; do
+        bad "$id $location reports severity $severity"
+    done <<OFF
+$off
+OFF
+fi
+
+echo "violations over $(find "$fixtures" -name '*.swift' | wc -l | tr -d ' ') fixture files"
 while IFS= read -r row; do
     [ -n "$row" ] && ok "$row $(case_at "$row")"
 done < <(LC_ALL=C comm -12 <(printf '%s\n' "$expected") <(printf '%s\n' "$actual") | by_line)
@@ -170,9 +214,23 @@ while IFS= read -r row; do
     [ -n "$row" ] && bad "unexpected $row $(case_at "$row")"
 done < <(LC_ALL=C comm -13 <(printf '%s\n' "$expected") <(printf '%s\n' "$actual") | by_line)
 
-echo "every case named ...IsFlagged has an expected row, and every row lands in one"
-named=$(cd "$fixtures" && grep -rno --include='*.swift' 'func [A-Za-z_][A-Za-z0-9_]*' . |
-    sed -n 's|^\./\([^:]*\):[0-9]*:func \(.*IsFlagged\)$|\1 \2|p' | LC_ALL=C sort -u)
+cases=$(cd "$fixtures" && grep -rno --include='*.swift' 'func [A-Za-z_][A-Za-z0-9_]*' . |
+    sed 's|^\./\([^:]*\):[0-9]*:func |\1 |' | LC_ALL=C sort -u)
+
+echo "every case ends in IsFlagged, IsFalselyFlagged, Passes, or IsMissed"
+unnamed=$(printf '%s\n' "$cases" | grep -vE ' [A-Za-z0-9_]*(IsFlagged|IsFalselyFlagged|Passes|IsMissed)$')
+if [ -z "$unnamed" ]; then
+    ok "$(printf '%s\n' "$cases" | grep -c .) cases"
+else
+    while IFS= read -r name; do
+        bad "$name ends in none of the four outcomes"
+    done <<UNNAMED
+$unnamed
+UNNAMED
+fi
+
+echo "every case named ...Flagged has an expected row, and every row lands in one"
+named=$(printf '%s\n' "$cases" | grep 'Flagged$')
 landed=$(printf '%s\n' "$expected" | while IFS= read -r row; do
     location=${row#* }
     echo "${location%:*} $(case_at "$row")"
@@ -184,17 +242,9 @@ else
         [ -n "$name" ] && bad "$name is named as flagged and has no expected row"
     done < <(LC_ALL=C comm -23 <(printf '%s\n' "$named") <(printf '%s\n' "$landed"))
     while IFS= read -r name; do
-        [ -n "$name" ] && bad "an expected row lands in $name, which is not named ...IsFlagged"
+        [ -n "$name" ] && bad "an expected row lands in $name, which is not named ...Flagged"
     done < <(LC_ALL=C comm -13 <(printf '%s\n' "$named") <(printf '%s\n' "$landed"))
 fi
-
-echo "every rule has a flagged case in the table"
-while IFS= read -r id; do
-    count=$(printf '%s\n' "$expected" | grep -c "^$id ")
-    if [ "$count" -gt 0 ]; then ok "$id: $count"; else bad "$id has no expected violation"; fi
-done <<RULES
-$rules
-RULES
 
 echo
 echo "$pass passed, $fail failed"
