@@ -709,6 +709,41 @@ class SimulatorLock(unittest.TestCase):
         self.assertEqual(code, 75, "the test-sim.sh run went ahead and holds it now: %s" % err)
         self.assertIn("test-sim.sh run (pid %d)" % run.pid, err)
 
+    def test_shot_and_burst_refuse_while_a_test_sim_run_holds_the_simulator(self):
+        run = self.holding_test_sim()
+        name = "issue-626-%d" % os.getpid()
+        evidence = REPO / ".build" / "verify" / "evidence" / name
+        self.addCleanup(shutil.rmtree, evidence, True)
+        for argv in [["shot", "01-mid-test"], ["burst", "log-transition"]]:
+            code, out, err = verify_sh(*argv, run=name, sim=self.sim, path=self.path)
+            self.assertEqual(code, 75, "%s would record the test run's screen: %s" % (argv[0], err))
+            self.assertIn("test-sim.sh run (pid %d)" % run.pid, err, "names the run that holds it")
+            self.assertEqual(out, "")
+        self.assertEqual(self.calls(), ["xcodebuild build-for-testing -project %s/WorkoutTracker.xcodeproj -scheme "
+                                        "WorkoutTracker -destination platform=iOS Simulator,id=%s "
+                                        "-skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO"
+                                        % (REPO, self.sim)],
+                         "refused before any simulator is touched: no xcrun, no axe install")
+        self.assertFalse(evidence.exists(), "no evidence directory for shots that were never taken")
+
+    def test_the_xcodebuild_of_a_killed_test_sim_run_holds_the_simulator_until_it_exits(self):
+        run = self.holding_test_sim()
+        os.kill(run.pid, 9)
+        run.wait()
+        code, out, err = verify_sh("launch", "session", run="issue-626", sim=self.sim, path=self.path)
+        self.assertEqual(code, 75, "its xcodebuild still drives the simulator: %s" % err)
+        self.assertIn("test-sim.sh run (pid %d)" % run.pid, err, "the run that started it")
+        self.assertIn("lsof /tmp/workout-verify-%s/lock" % self.sim, err, "finds the xcodebuild its dead pid hides")
+        self.assertEqual(out, "")
+        (self.stubs / "release").touch()
+        for _ in range(50):
+            code, out, err = verify_sh("launch", "session", run="issue-626", sim=self.sim, path=self.path)
+            if code != 75:
+                break
+            time.sleep(0.1)
+        self.assertNotEqual(code, 75, "the xcodebuild exited, so nothing holds the simulator: %s" % err)
+        self.assertRegex((self.state / "lock").read_text(), r"^verify\.sh launch \(pid \d+\)\n$", "the launch took it")
+
 
 @unittest.skipUnless(sys.platform == "darwin", "the tiler is a Swift script and runs on macOS only")
 class VerifySheet(unittest.TestCase):

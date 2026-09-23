@@ -46,6 +46,7 @@ here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../../.." && pwd)
 tree=$here/tree.py
 tiler=$repo/scripts/contact-sheet.swift
+. "$repo/scripts/sim-lock.sh"
 project=$repo/WorkoutTracker.xcodeproj
 bundle=com.sunnypatel.WorkoutTracker
 work=$repo/.build/verify
@@ -194,13 +195,10 @@ case $cmd in
     fixture=${1:-}; [ -n "$fixture" ] || usage; shift
     fixture_flags=$(fixture_args "$fixture")
     need_sim
+    claim_sim "$sim" "verify.sh launch"
     ensure_axe
     app=$(app_path)
     [ -d "$app" ] || { echo "no built app for $project; run: $0 build" >&2; exit 65; }
-    if [ -f "$state_dir/pid" ] && kill -0 "$(cat "$state_dir/pid")" 2>/dev/null; then
-      echo "a verification run owns the app on $sim (pid $(cat "$state_dir/pid")); if it is yours, run: $0 stop" >&2
-      exit 75
-    fi
     read -r -a extra <<< "$fixture_flags"
     activities=(-UITEST_DISABLE_LIVE_ACTIVITIES)
     [ -z "${VERIFY_LIVE_ACTIVITIES:-}" ] || activities=()
@@ -329,7 +327,7 @@ case $cmd in
   shot)
     name=${1:-}
     valid_name "$name"
-    need_sim; ensure_axe
+    need_sim; sim_free "$sim"; ensure_axe
     dir=$(run_dir)
     prev=$(shot_names "$dir" | grep -vx -- "$name" | tail -1 || true)
     capture "$dir/.$name.png"
@@ -370,7 +368,7 @@ case $cmd in
     name=${1:-}
     valid_name "$name"
     shift
-    need_sim; ensure_axe
+    need_sim; sim_free "$sim"; ensure_axe
     dir=$(run_dir)
     frames_dir=$dir/$name.burst
     rm -rf "$frames_dir"

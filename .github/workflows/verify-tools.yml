@@ -6,6 +6,8 @@ on:
       - ".agents/skills/verify/**"
       - ".claude/skills/verify"
       - "scripts/contact-sheet.*"
+      - "scripts/sim-lock.sh"
+      - "scripts/test-sim.sh"
       - ".github/workflows/verify-tools.yml"
   push:
     branches: [main]
@@ -13,6 +15,8 @@ on:
       - ".agents/skills/verify/**"
       - ".claude/skills/verify"
       - "scripts/contact-sheet.*"
+      - "scripts/sim-lock.sh"
+      - "scripts/test-sim.sh"
       - ".github/workflows/verify-tools.yml"
 
 concurrency:

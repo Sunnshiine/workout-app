@@ -12,11 +12,13 @@ Usage: scripts/test-sim.sh [--no-build] [--sim UDID] <unit|visual|ui|all|TEST-ID
 Builds once with build-for-testing, then runs every requested suite in one test-without-building
 session from the xctestrun file. --no-build reuses the last build when only the selection changed.
 The simulator is the booted iPhone 17 Pro, else the newest available one, which the script boots.
+Refuses (exit 75) while another test-sim.sh run or a verify run's app holds that simulator.
 EOF
   exit 2
 }
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
+. "$repo/scripts/sim-lock.sh"
 project=$repo/WorkoutTracker.xcodeproj
 build=1
 sim=${SIM:-}
@@ -48,6 +50,7 @@ print(pick["udid"], pick["state"])')
   read -r sim state <<< "$sim"
   [ "$state" = Booted ] || xcrun simctl boot "$sim"
 fi
+claim_sim "$sim" "test-sim.sh run"
 destination="platform=iOS Simulator,id=$sim"
 
 logs=$repo/.build/test-sim
