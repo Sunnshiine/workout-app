@@ -325,6 +325,36 @@ class Clipped(unittest.TestCase):
         self.assertEqual(err, "off-screen: swipe it into view before tapping\n",
                          "the scroll area is the screen, so naming it again would repeat the swipe")
 
+    def test_a_track_two_levels_up_clips_a_chip_its_content_row_holds(self):
+        nested = json.loads(MINI)
+        nested[0]["children"] = [{
+            "role": "AXGroup", "AXLabel": "RPE", "frame": {"x": 207, "y": 612, "width": 163, "height": 83},
+            "children": [{
+                "role": "AXGroup", "frame": {"x": 207, "y": 612, "width": 474, "height": 83},
+                "children": [{"role": "AXButton", "AXUniqueId": "rpe-7", "AXLabel": "RPE 7",
+                              "frame": {"x": 380, "y": 629, "width": 9, "height": 24}}],
+            }],
+        }]
+        tree = json.dumps(nested)
+        self.assertEqual(tree_py("find", "rpe-7", stdin=tree),
+                         (0, "AXButton\trpe-7\tRPE 7\t\t@380,629 9x24\n", RPE_CLIPPED),
+                         "the 474-point content row holds the chip, but the track above it ends at x 370")
+        self.assertEqual(tree_py("tappable", "rpe-7", stdin=tree), (1, "", RPE_CLIPPED))
+
+    def test_a_row_scrolled_up_under_the_nav_bar_is_clipped_on_the_y_axis_alone(self):
+        scrolled = json.loads(MINI)
+        scrolled[0]["children"] = [{
+            "role": "AXScrollArea", "frame": {"x": 0, "y": 100, "width": 402, "height": 774},
+            "children": [{"role": "AXButton", "AXUniqueId": "developer-tools-row", "AXLabel": "Write Log",
+                          "frame": {"x": 16, "y": 60, "width": 370, "height": 52}}],
+        }]
+        tree = json.dumps(scrolled)
+        above_the_top = "clipped: outside AXScrollArea @0,100 402x774; bring it inside that frame before tapping\n"
+        self.assertEqual(tree_py("find", "developer-tools-row", stdin=tree),
+                         (0, "AXButton\tdeveloper-tools-row\tWrite Log\t\t@16,60 370x52\n", above_the_top),
+                         "x 201 is inside the scroll area; y 86 is above its top edge at 100")
+        self.assertEqual(tree_py("tappable", "developer-tools-row", stdin=tree), (1, "", above_the_top))
+
     def test_on_the_captured_screen_exactly_the_chips_a_tap_misses_are_clipped(self):
         on_screen = [line.split("\t")[1] for line in tree_py("flat", stdin=SESSION_RAILS)[1].splitlines()]
         clipped = [ident for ident in on_screen if ident and "clipped" in tree_py("find", ident, stdin=SESSION_RAILS)[2]]
