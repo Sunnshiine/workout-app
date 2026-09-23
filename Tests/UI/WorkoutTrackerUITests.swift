@@ -96,12 +96,14 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
-        let hudBottom = app.otherElements["session-header-hud"].frame.maxY
+        let hud = app.otherElements["session-header-hud"]
+        let stageTop = hud.frame.minY
 
         app.buttons["weight-pill"].tap()
         XCTAssertTrue(app.keyboards.firstMatch.appears(within: 3))
+        XCTAssertFalse(hud.exists, "the HUD steps aside while the weight is being edited")
 
-        tapEmptyStageSpaceAboveExerciseName(in: app, belowHUDBottom: hudBottom)
+        tapEmptyStageSpaceAboveExerciseName(in: app, stageTop: stageTop)
 
         XCTAssertFalse(app.keyboards.firstMatch.appears(within: 1))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
@@ -256,15 +258,13 @@ final class WorkoutTrackerOnboardingSwitchUITests: XCTestCase {
     }
 }
 
-/// With the keyboard up the stage drops its HUD and branch, so the empty paper left is the band
-/// above the Exercise name. The tap stays below the HUD's old frame because the leaving HUD still
-/// takes taps there until the composition switch finishes animating.
+/// With the weight keyboard up the HUD and the branch step aside and the stage starts where the HUD
+/// stood, so the empty paper left is the band between that top and the Exercise name.
 @MainActor
-private func tapEmptyStageSpaceAboveExerciseName(in app: XCUIApplication, belowHUDBottom hudBottom: CGFloat) {
+private func tapEmptyStageSpaceAboveExerciseName(in app: XCUIApplication, stageTop: CGFloat) {
     let nameTop = app.staticTexts["stage-exercise-name"].frame.minY
-    XCTAssertLessThan(hudBottom, nameTop, "no paper between the HUD's old frame and the Exercise name")
     app.coordinate(withNormalizedOffset: .zero)
-        .withOffset(CGVector(dx: app.frame.midX, dy: (hudBottom + nameTop) / 2))
+        .withOffset(CGVector(dx: app.frame.midX, dy: (stageTop + nameTop) / 2))
         .tap()
 }
 
