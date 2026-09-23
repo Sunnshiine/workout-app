@@ -7,6 +7,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 import zlib
 from pathlib import Path
@@ -46,7 +47,7 @@ def tree_py(*args, stdin=""):
     return done.returncode, done.stdout, done.stderr
 
 
-def verify_sh(*args, run, sim=None):
+def verify_sh(*args, run, sim=None, path=None):
     env = dict(os.environ)
     env.pop("VERIFY_RUN", None)
     env.pop("SIM", None)
@@ -54,6 +55,8 @@ def verify_sh(*args, run, sim=None):
         env["VERIFY_RUN"] = run
     if sim:
         env["SIM"] = sim
+    if path:
+        env["PATH"] = path
     done = subprocess.run(
         [str(SKILL / "verify.sh")] + list(args), cwd=str(REPO), env=env,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
@@ -589,6 +592,122 @@ class VerifyStop(unittest.TestCase):
             "with no VERIFY_RUN the guard has nothing to compare against, so it steps aside and "
             "the ordinary single drive keeps working",
         )
+
+
+STUB = """#!/bin/sh
+printf '%s\\n' "$(basename "$0") $*" >> "{dir}/calls"
+[ "$(basename "$0")" = xcodebuild ] || exit 1
+echo "** BUILD FAILED **"
+[ -n "${STUB_HOLD:-}" ] || exit 1
+touch "{dir}/holding"
+i=0
+while [ ! -f "{dir}/release" ] && [ $i -lt 300 ]; do sleep 0.1; i=$((i + 1)); done
+exit 1
+"""
+
+
+class SimulatorLock(unittest.TestCase):
+    def setUp(self):
+        self.sim = "lock-test-%d" % os.getpid()
+        self.state = Path("/tmp/workout-verify-%s" % self.sim)
+        shutil.rmtree(self.state, ignore_errors=True)
+        self.stubs = Path(tempfile.mkdtemp())
+        for tool in ["xcodebuild", "xcrun", "npm"]:
+            (self.stubs / tool).write_text(STUB.replace("{dir}", str(self.stubs)))
+            (self.stubs / tool).chmod(0o755)
+        self.path = "%s:%s" % (self.stubs, os.environ["PATH"])
+        self.runs = []
+
+    def tearDown(self):
+        (self.stubs / "release").touch()
+        for run in self.runs:
+            if run.poll() is None:
+                os.killpg(run.pid, 9)
+                run.wait()
+        shutil.rmtree(self.stubs, ignore_errors=True)
+        shutil.rmtree(self.state, ignore_errors=True)
+
+    def calls(self):
+        path = self.stubs / "calls"
+        return path.read_text().splitlines() if path.exists() else []
+
+    def spawn_test_sim(self, hold=False):
+        env = dict(os.environ, PATH=self.path)
+        env.pop("SIM", None)
+        if hold:
+            env["STUB_HOLD"] = "1"
+        return subprocess.Popen(
+            [str(REPO / "scripts" / "test-sim.sh"), "--sim", self.sim, "unit"],
+            cwd=str(REPO), env=env, start_new_session=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
+        )
+
+    def holding_test_sim(self):
+        (self.stubs / "holding").unlink(missing_ok=True)
+        run = self.spawn_test_sim(hold=True)
+        self.runs.append(run)
+        for _ in range(100):
+            if (self.stubs / "holding").exists():
+                return run
+            if run.poll() is not None:
+                self.fail("test-sim.sh exited %s before it reached xcodebuild: %s" % (run.returncode, run.stderr.read()))
+            time.sleep(0.1)
+        self.fail("test-sim.sh never reached xcodebuild")
+
+    def own_the_app(self, owner):
+        self.state.mkdir(parents=True, exist_ok=True)
+        (self.state / "run").write_text("%s\n" % owner)
+        (self.state / "pid").write_text("%d\n" % os.getpid())
+        (self.state / "args").write_text("-UITEST_FIXTURE -UITEST_SESSION -UITEST_DISABLE_LIVE_ACTIVITIES\n")
+
+    def test_launch_refuses_while_a_test_sim_run_holds_the_simulator(self):
+        run = self.holding_test_sim()
+        code, out, err = verify_sh("launch", "session", run="issue-626", sim=self.sim, path=self.path)
+        self.assertEqual(code, 75, err)
+        self.assertIn("test-sim.sh run (pid %d)" % run.pid, err, "names the run that holds it")
+        self.assertEqual(out, "")
+        self.assertEqual(self.calls(), ["xcodebuild build-for-testing -project %s/WorkoutTracker.xcodeproj -scheme "
+                                        "WorkoutTracker -destination platform=iOS Simulator,id=%s "
+                                        "-skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO"
+                                        % (REPO, self.sim)],
+                         "refused before any simulator is touched: no xcrun, no axe install")
+
+    def test_test_sim_refuses_while_a_verify_run_owns_the_app(self):
+        self.own_the_app("owner-626")
+        run = self.spawn_test_sim()
+        out, err = run.communicate(timeout=30)
+        self.assertEqual(run.returncode, 75, err)
+        self.assertIn("run owner-626", err, "names the verify run")
+        self.assertIn("pid %d" % os.getpid(), err, "and its app")
+        self.assertIn("VERIFY_RUN=owner-626", err, "and the stop that frees the simulator")
+        self.assertEqual(self.calls(), [], "refused before xcodebuild")
+
+    def test_a_test_sim_run_holds_the_simulator_until_it_exits(self):
+        run = self.holding_test_sim()
+        self.assertEqual(verify_sh("launch", "session", run="issue-626", sim=self.sim, path=self.path)[0], 75)
+        (self.stubs / "release").touch()
+        run.communicate(timeout=30)
+        self.assertEqual(run.returncode, 65, "the stub build failed, so the run ended")
+        code, out, err = verify_sh("launch", "session", run="issue-626", sim=self.sim, path=self.path)
+        self.assertNotEqual(code, 75, err)
+        self.assertNotIn("test-sim.sh", err)
+
+    def test_a_killed_test_sim_run_does_not_hold_the_simulator(self):
+        killed = self.holding_test_sim()
+        os.killpg(killed.pid, 9)
+        killed.wait()
+        run = self.holding_test_sim()
+        code, out, err = verify_sh("launch", "session", run="issue-626", sim=self.sim, path=self.path)
+        self.assertEqual(code, 75, err)
+        self.assertIn("test-sim.sh run (pid %d)" % run.pid, err, "the live run holds it, not the killed one")
+
+    def test_a_dead_verify_app_does_not_hold_the_simulator(self):
+        self.own_the_app("owner-626")
+        (self.state / "pid").write_text("99999999\n")
+        run = self.holding_test_sim()
+        code, out, err = verify_sh("launch", "session", run="issue-626", sim=self.sim, path=self.path)
+        self.assertEqual(code, 75, "the test-sim.sh run went ahead and holds it now: %s" % err)
+        self.assertIn("test-sim.sh run (pid %d)" % run.pid, err)
 
 
 @unittest.skipUnless(sys.platform == "darwin", "the tiler is a Swift script and runs on macOS only")
