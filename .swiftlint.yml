@@ -35,6 +35,9 @@ excluded:
   - "**/Generated"
 
 custom_rules:
+  # scripts/tests/swiftlint-custom-rules.test.sh lints a fixture tree with each rule below and
+  # compares every violation to its table, so a regex or scope edit lands with the rows it moves.
+  #
   # The type choke point (token sheet §4, ADR-0014, ledger §1.7). Every text style is one row of
   # Theme's type role table; no view constructs a font. This bans the three escape routes —
   # Font.custom(…), .system(size:…), and the shorthand system text styles (.font(.headline) …) —
@@ -88,9 +91,8 @@ custom_rules:
   # call and it stands: two branches want two guarded declarations, not one test that means
   # different things per platform. `message:` says so, because the plain advice would be wrong there.
   #
-  # Nothing executes any of this. The commit that widened this rule is red on the eight
-  # declarations it was written for and silent everywhere else (#636 carries the run), which proves
-  # it once in history rather than on every push. A standing fixture pair is issue #652.
+  # Each shape above is a fixture case that scripts/tests/swiftlint-custom-rules.test.sh lints on
+  # every push, so an edit that stops flagging one or starts flagging a passing one fails CI (#652).
   platform_guard_on_test_declaration:
     name: "Platform guard on the test declaration"
     message: >

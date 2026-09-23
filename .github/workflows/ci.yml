@@ -68,6 +68,10 @@ jobs:
         env:
           SWIFTLINT_CACHE_DIR: ${{ runner.temp }}/swiftlint
         run: scripts/lint.sh
+      - name: Run each custom SwiftLint rule against its fixtures
+        env:
+          SWIFTLINT_CACHE_DIR: ${{ runner.temp }}/swiftlint
+        run: scripts/tests/swiftlint-custom-rules.test.sh
 
   swift-tests:
     runs-on: xcode-27
