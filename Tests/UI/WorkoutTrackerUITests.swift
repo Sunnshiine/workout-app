@@ -10,8 +10,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Cancel"].exists)
         XCTAssertFalse(app.buttons["Skip"].exists)
 
-        app.buttons["weight-pill"].tap()
-        XCTAssertTrue(app.keyboards.firstMatch.appears(within: 3))
+        openWeightKeyboard(in: app)
 
         tapActiveSetCardHeaderBackground(in: app)
 
@@ -24,16 +23,96 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
     }
 
     @MainActor
+    func testActiveSetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
+        let logButton = app.buttons["log-active-set-button"]
+        waitForLabel("Log 237.5 × 5 @6", on: logButton)
+
+        openWeightKeyboard(in: app)
+        app.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 5) + "230")
+        waitForLabel("Log 230 × 5 @6", on: logButton)
+
+        XCTAssertLessThanOrEqual(logButton.frame.maxY, try keyboardToolbarTop(in: app))
+        let exerciseName = app.staticTexts["stage-exercise-name"]
+        XCTAssertTrue(exerciseName.exists)
+        XCTAssertEqual(exerciseName.label, "Back Squat")
+
+        logButton.tap()
+
+        XCTAssertTrue(app.buttons["Set 1, 230x5@6"].appears(within: 3))
+        XCTAssertTrue(app.staticTexts["Set 2 of 3"].exists)
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+
+        openWeightKeyboard(in: app)
+        app.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 5) + "240")
+        waitForLabel("Log 240 × 5 @7", on: logButton)
+
+        let restPill = app.descendants(matching: .any)["rest-pill"]
+        XCTAssertTrue(restPill.exists)
+        XCTAssertLessThanOrEqual(logButton.frame.maxY, restPill.frame.minY)
+        XCTAssertLessThanOrEqual(restPill.frame.maxY, try keyboardToolbarTop(in: app))
+
+        logButton.tap()
+
+        XCTAssertTrue(app.buttons["Set 2, 240x5@7"].appears(within: 3))
+        XCTAssertTrue(app.staticTexts["Set 3 of 3"].exists)
+    }
+
+    @MainActor
+    func testSupersetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+        pairBackSquatWithBBRDL(in: app)
+
+        let logButton = app.buttons["log-active-set-button"]
+        openWeightKeyboard(in: app)
+        app.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 5) + "230")
+        waitForLabel("Log 230 × 5 @6", on: logButton)
+        XCTAssertLessThanOrEqual(logButton.frame.maxY, try keyboardToolbarTop(in: app))
+
+        logButton.tap()
+
+        waitForLabel("BB RDL", on: app.staticTexts["stage-exercise-name"])
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+    }
+
+    @MainActor
+    func testSupersetNameShedWhileWeightFieldIsFocusedLeavesTheAccessibilityTree() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+        pairBackSquatWithBBRDL(in: app)
+        let logButton = app.buttons["log-active-set-button"]
+        logButton.tap()
+        waitForLabel("BB RDL", on: app.staticTexts["stage-exercise-name"])
+        XCTAssertTrue(app.staticTexts["Sync status: 1 unsynced"].appears(within: 3))
+
+        openWeightKeyboard(in: app)
+        let restPill = app.descendants(matching: .any)["rest-pill"]
+        XCTAssertTrue(restPill.exists)
+        XCTAssertLessThanOrEqual(logButton.frame.maxY, restPill.frame.minY)
+
+        XCTAssertFalse(app.staticTexts["stage-exercise-name"].exists, "BB RDL's name is not drawn")
+        XCTAssertFalse(app.buttons["superset-partner-name"].exists, "the & Back Squat switch is not drawn")
+    }
+
+    @MainActor
     func testTapOnNonInteractiveStageContentDismissesKeyboard() throws {
         let app = launchFixtureApp()
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
+        let hud = app.otherElements["session-header-hud"]
+        let stageTop = hud.frame.minY
 
-        app.buttons["weight-pill"].tap()
-        XCTAssertTrue(app.keyboards.firstMatch.appears(within: 3))
+        openWeightKeyboard(in: app)
+        XCTAssertFalse(hud.exists, "the HUD steps aside while the weight is being edited")
 
-        tapEmptyStageSpaceBetweenBranchAndRunline(in: app)
+        tapEmptyStageSpaceAboveExerciseName(in: app, stageTop: stageTop)
 
         XCTAssertFalse(app.keyboards.firstMatch.appears(within: 1))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
@@ -189,12 +268,45 @@ final class WorkoutTrackerOnboardingSwitchUITests: XCTestCase {
 }
 
 @MainActor
-private func tapEmptyStageSpaceBetweenBranchAndRunline(in app: XCUIApplication) {
-    let branchEnd = app.buttons["Set 3, 5 · RPE8"].frame.maxY
-    let runlineStart = app.staticTexts["Block 26 · W4 D3 — 245x5@6, 255x5@7"].frame.minY
+private func pairBackSquatWithBBRDL(in app: XCUIApplication) {
+    app.buttons["stage-queue-button"].tap()
+    XCTAssertTrue(app.staticTexts["This Session"].appears(within: 3))
+    tapWhenHittable(app.buttons["stage-queue-pair-exercise-0"])
+    tapWhenHittable(app.buttons["stage-queue-row-exercise-1"])
+    tapWhenHittable(app.buttons["stage-queue-row-superset-0"])
+    waitForLabel("& BB RDL", on: app.buttons["superset-partner-name"])
+}
+
+@MainActor
+private func tapEmptyStageSpaceAboveExerciseName(in app: XCUIApplication, stageTop: CGFloat) {
+    let nameTop = app.staticTexts["stage-exercise-name"].frame.minY
     app.coordinate(withNormalizedOffset: .zero)
-        .withOffset(CGVector(dx: app.frame.midX, dy: (branchEnd + runlineStart) / 2))
+        .withOffset(CGVector(dx: app.frame.midX, dy: (stageTop + nameTop) / 2))
         .tap()
+}
+
+@MainActor
+private func openWeightKeyboard(in app: XCUIApplication) {
+    app.buttons["weight-pill"].tap()
+    let keyboard = app.keyboards.firstMatch
+    XCTAssertTrue(keyboard.appears(within: 3))
+    let deadline = Date().addingTimeInterval(3)
+    while keyboard.frame.minY >= app.frame.maxY, Date() < deadline {
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+    }
+    XCTAssertLessThan(
+        keyboard.frame.minY,
+        app.frame.maxY,
+        "the software keyboard is below the window. Run `xcrun simctl spawn <udid> defaults write "
+            + "com.apple.keyboard.preferences AutomaticMinimizationEnabled -bool false`, then reboot the simulator (#700)"
+    )
+}
+
+/// The keyboard's Done toolbar is the `Toolbar` group that is not the full-window one.
+@MainActor
+private func keyboardToolbarTop(in app: XCUIApplication) throws -> CGFloat {
+    let toolbars = app.descendants(matching: .any).matching(identifier: "Toolbar").allElementsBoundByIndex
+    return try XCTUnwrap(toolbars.first { $0.frame.height < app.frame.height }).frame.minY
 }
 
 @MainActor

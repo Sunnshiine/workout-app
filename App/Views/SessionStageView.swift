@@ -21,6 +21,7 @@ struct SessionStageActions {
 struct SessionStageView: View {
     let session: Session
     let coordinator: SessionCoordinator
+    let composition: SessionStageComposition
     let actions: SessionStageActions
     let onTopContentOffsetChange: (CGFloat) -> Void
     @Environment(WorkoutStore.self) private var workout
@@ -57,11 +58,24 @@ struct SessionStageView: View {
                     completionStage(items: items)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            // The zero minimum keeps an overflowing column from growing this frame, which would
+            // hand the overflow to a centering parent. Ternaries, not a switch: a switch would give
+            // the page a second identity and drop the weight field's focus.
+            .frame(
+                maxWidth: .infinity,
+                minHeight: composition == .editingWeight ? 0 : nil,
+                maxHeight: .infinity,
+                alignment: composition == .editingWeight ? .bottom : .top
+            )
             .padding(.horizontal)
-            .padding(.top, Theme.sectionSpacing)
+            .padding(.top, composition == .reading ? Theme.sectionSpacing : 0)
 
-            queueBar(stageItem: stageItem, items: items)
+            switch composition {
+            case .reading:
+                queueBar(stageItem: stageItem, items: items)
+            case .editingWeight:
+                Color.clear.frame(height: Theme.editingWeightFootGap)
+            }
         }
         .animation(
             reduceMotion ? nil : Theme.momentumFlowAnimation,
@@ -110,6 +124,7 @@ struct SessionStageView: View {
         case .superset(let config):
             ActiveSupersetSection(
                 config: config,
+                composition: composition,
                 onFocusExercise: actions.focusSupersetExercise,
                 onShowHistory: { historyExercise = $0 },
                 onLog: actions.log,
@@ -122,55 +137,33 @@ struct SessionStageView: View {
         }
     }
 
-    // The left-aligned editorial column (pick session-stage-a, DESIGN.md §5.1):
-    // the muted Cadence line (only when the Exercise carries a tempo), the
-    // Fraunces Exercise name leading the page, the coach note, then the living
-    // branch. The Active Set Card and its anchored Last Performed runline sink to
-    // the foot, so the page reads top-to-bottom without scrolling.
     private func exerciseStage(_ config: SessionExerciseRenderConfig) -> some View {
         let sortedSets = config.exercise.sets.sorted { $0.index < $1.index }
 
-        return VStack(alignment: .leading, spacing: 14) {
-            if let cadence = config.exercise.cadence, !cadence.isEmpty {
-                Text(cadence)
-                    .font(Theme.font(.cadence))
-                    .foregroundStyle(palette.textSecondary)
-                    .accessibilityIdentifier("stage-cadence")
+        return SessionStageColumn(
+            exercise: config.exercise,
+            composition: composition,
+            lastPerformed: config.lastPerformedPresentation.map { presentation in
+                LastPerformedCard(presentation: presentation) {
+                    historyExercise = config.exercise
+                }
             }
-
+        ) {
             Text(config.exercise.baseName)
                 .font(Theme.font(.exerciseName))
                 .foregroundStyle(palette.textPrimary)
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("stage-exercise-name")
-
-            if let note = config.exercise.coachNote {
-                Text(note)
-                    .font(Theme.font(.coachNote))
-                    .foregroundStyle(palette.textSecondary)
-                    .lineSpacing(4)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
+        } branch: {
             SessionStageBranch(
                 sets: sortedSets,
                 activeSetID: config.activeSetID,
                 onTap: actions.focus
             )
-            .padding(.top, 4)
-
-            Spacer(minLength: 12)
-
-            if let lastPerformed = config.lastPerformedPresentation {
-                LastPerformedCard(presentation: lastPerformed) {
-                    historyExercise = config.exercise
-                }
-            }
-
+        } card: {
             stageCard(config, sortedSets: sortedSets)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -319,6 +312,64 @@ struct SessionStageView: View {
         if coordinator.handlePairingTap(on: exercise, in: session) == .unavailable {
             UINotificationFeedbackGenerator().notificationOccurred(.warning)
         }
+    }
+}
+
+/// The card sits after the switch, at one position in both compositions, so its identity and the
+/// weight field's focus survive the switch.
+struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
+    let exercise: Exercise
+    let composition: SessionStageComposition
+    let lastPerformed: LastPerformedCard?
+    @ViewBuilder let name: () -> Name
+    @ViewBuilder let branch: () -> Branch
+    @ViewBuilder let card: () -> Card
+    @Environment(\.themePalette) private var palette
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            switch composition {
+            case .reading:
+                if let cadence = exercise.cadence, !cadence.isEmpty {
+                    Text(cadence)
+                        .font(Theme.font(.cadence))
+                        .foregroundStyle(palette.textSecondary)
+                        .accessibilityIdentifier("stage-cadence")
+                }
+
+                name()
+
+                if let note = exercise.coachNote {
+                    Text(note)
+                        .font(Theme.font(.coachNote))
+                        .foregroundStyle(palette.textSecondary)
+                        .lineSpacing(4)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                branch()
+                    .padding(.top, 4)
+
+                Spacer(minLength: 12)
+
+                lastPerformed
+            case .editingWeight:
+                ViewThatFits(in: .vertical) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        name()
+                        lastPerformed
+                    }
+                    lastPerformed
+                    // Falling back to a candidate with no accessibility node leaves the last drawn
+                    // candidate's elements in the tree, so the empty fallback carries an empty one.
+                    Color.clear.frame(height: 0)
+                        .accessibilityElement(children: .contain)
+                }
+            }
+
+            card()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

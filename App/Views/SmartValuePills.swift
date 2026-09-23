@@ -5,6 +5,14 @@ import UIKit
     import CoreHaptics
 #endif
 
+struct EditingWeightPreferenceKey: PreferenceKey {
+    static let defaultValue = false
+
+    static func reduce(value: inout Bool, nextValue: () -> Bool) {
+        value = value || nextValue()
+    }
+}
+
 /// The Active Set Card's input block (DESIGN.md §5.2, pick input-block3-c): weight
 /// leads as the card's biggest number flanked by round ± steppers; Reps and RPE are
 /// side-by-side one-tap scroll rails; a true Log capsule previews the exact Set Log.
@@ -99,6 +107,7 @@ struct SmartValuePills: View {
             dismissFieldUI()
         }
         .onDisappear(perform: commitChangedDraftIfNeeded)
+        .preference(key: EditingWeightPreferenceKey.self, value: isEditingWeight)
     }
 
     private var presentation: SetCardPresentation {

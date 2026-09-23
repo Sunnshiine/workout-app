@@ -119,6 +119,15 @@ enum QueuePairingRole: Equatable, Sendable {
     case confirmingTarget
 }
 
+enum SessionStageComposition: Equatable, Sendable {
+    case reading
+    case editingWeight
+
+    init(isEditingWeight: Bool) {
+        self = isEditingWeight ? .editingWeight : .reading
+    }
+}
+
 /// Stage resolution: which item is on stage, which Set it shows, what is up
 /// next, and the queue/completion summaries. Kept out of the view layer so the
 /// Stage's follow-the-focus behavior is unit-testable.

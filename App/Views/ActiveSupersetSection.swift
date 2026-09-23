@@ -9,6 +9,7 @@ import SwiftUI
 /// containment) are untouched — this slice rebuilds only the composition.
 struct ActiveSupersetSection: View {
     let config: SessionSupersetRenderConfig
+    let composition: SessionStageComposition
     let onFocusExercise: (Exercise) -> Void
     let onShowHistory: (Exercise) -> Void
     let onLog: (ExerciseSet, SetLog) -> Void
@@ -50,42 +51,25 @@ struct ActiveSupersetSection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            if let cadence = focusedExercise.cadence, !cadence.isEmpty {
-                Text(cadence)
-                    .font(Theme.font(.cadence))
-                    .foregroundStyle(palette.textSecondary)
-                    .accessibilityIdentifier("stage-cadence")
+        SessionStageColumn(
+            exercise: focusedExercise,
+            composition: composition,
+            lastPerformed: config.lastPerformedPresentation.map { presentation in
+                LastPerformedCard(presentation: presentation) {
+                    onShowHistory(focusedExercise)
+                }
             }
-
+        ) {
             nameBlock
-
-            if let note = focusedExercise.coachNote {
-                Text(note)
-                    .font(Theme.font(.coachNote))
-                    .foregroundStyle(palette.textSecondary)
-                    .lineSpacing(4)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
+        } branch: {
             SessionStageBranch(
                 sets: focusedSortedSets,
                 activeSetID: config.presentation.activeSetID,
                 partnerSets: partnerExercise.sets.sorted { $0.index < $1.index }
             )
-            .padding(.top, 4)
-
-            Spacer(minLength: 12)
-
-            if let lastPerformed = config.lastPerformedPresentation {
-                LastPerformedCard(presentation: lastPerformed) {
-                    onShowHistory(focusedExercise)
-                }
-            }
-
+        } card: {
             cardRegion
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // The focused Exercise's Fraunces name leads; below it the subordinate
