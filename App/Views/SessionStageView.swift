@@ -137,11 +137,6 @@ struct SessionStageView: View {
         }
     }
 
-    // The left-aligned editorial column (pick session-stage-a, DESIGN.md §5.1):
-    // the muted Cadence line (only when the Exercise carries a tempo), the
-    // Fraunces Exercise name leading the page, the coach note, then the living
-    // branch. The Active Set Card and its anchored Last Performed runline sink to
-    // the foot, so the page reads top-to-bottom without scrolling.
     private func exerciseStage(_ config: SessionExerciseRenderConfig) -> some View {
         let sortedSets = config.exercise.sets.sorted { $0.index < $1.index }
 
