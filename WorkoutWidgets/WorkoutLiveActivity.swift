@@ -19,6 +19,8 @@ struct WorkoutLiveActivity: Widget {
                 minimalContent(for: context.state)
             }
             .keylineTint(context.state.liveActivityColors.accent)
+            // At the default margin, about 18pt, the expanded island's rounded corners cut glyphs.
+            .contentMargins(.horizontal, 34, for: .expanded)
         }
     }
 
@@ -51,7 +53,6 @@ struct WorkoutLiveActivity: Widget {
         case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
             PrescriptionStack(state: state)
                 .lineLimit(1)
-                .padding(.leading)
         }
     }
 
@@ -99,11 +100,9 @@ struct WorkoutLiveActivity: Widget {
         case .restTimer, .restTimerClean:
             RestProgressBar(state: context.state)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal)
         case .restTimerSetsLeft, .restTimerSetCount:
             RestProgressWithContext(state: context.state, style: .island)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal)
         }
     }
 
