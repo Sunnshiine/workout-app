@@ -252,8 +252,13 @@ private final class ControlledValidationClient: SheetsClient, @unchecked Sendabl
 
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
 
+    @MainActor
     func waitForRequest(spreadsheetId: String) async {
-        await coordinator.waitForRequest(spreadsheetId: spreadsheetId)
+        for _ in 0..<10_000 {
+            if await coordinator.hasRequest(spreadsheetId: spreadsheetId) { return }
+            await Task.yield()
+        }
+        Issue.record("the validation never requested the tab titles of \(spreadsheetId)")
     }
 
     func complete(spreadsheetId: String, titles: [String]) async {
@@ -270,10 +275,8 @@ private actor ControlledValidationCoordinator {
         }
     }
 
-    func waitForRequest(spreadsheetId: String) async {
-        while continuations[spreadsheetId] == nil {
-            await Task.yield()
-        }
+    func hasRequest(spreadsheetId: String) -> Bool {
+        continuations[spreadsheetId] != nil
     }
 
     func complete(spreadsheetId: String, titles: [String]) {

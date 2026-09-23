@@ -1172,9 +1172,11 @@ private final class SuspendedConfiguredSheetSync: ConfiguredSheetSyncing {
     }
 
     func waitForSyncStart() async {
-        while syncContinuation == nil {
+        for _ in 0..<10_000 {
+            if syncContinuation != nil { return }
             await Task.yield()
         }
+        Issue.record("the configured Sheet sync never started")
     }
 
     func completeSync() {
@@ -1211,9 +1213,11 @@ private final class SuspendedDiscardSheetSwitchSync: SheetSwitchSyncing {
     }
 
     func waitForDiscardStart() async {
-        while discardContinuation == nil {
+        for _ in 0..<10_000 {
+            if discardContinuation != nil { return }
             await Task.yield()
         }
+        Issue.record("the sheet switch never started discarding its pending writes")
     }
 
     func completeDiscard() {
@@ -1245,9 +1249,11 @@ private final class SuspendedSheetSwitchSync: SheetSwitchSyncing {
     }
 
     func waitForSyncStart() async {
-        while syncContinuation == nil {
+        for _ in 0..<10_000 {
+            if syncContinuation != nil { return }
             await Task.yield()
         }
+        Issue.record("the sheet switch never started its sync")
     }
 
     func completeSync() {

@@ -81,7 +81,7 @@ private func makeContainer() throws -> ModelContainer {
 }
 
 private func pendingWrite(
-    createdAt: TimeInterval? = nil,
+    createdAt: TimeInterval,
     exerciseName: String = "Squat",
     setIndex: Int = 0,
     column: PendingWriteColumn = .notes,
@@ -89,7 +89,7 @@ private func pendingWrite(
     expectedCurrentValue: String = ""
 ) -> PendingWrite {
     PendingWrite(
-        createdAt: createdAt.map(Date.init(timeIntervalSince1970:)) ?? Date(),
+        createdAt: Date(timeIntervalSince1970: createdAt),
         blockTab: "Block 27",
         week: 1,
         day: 1,
