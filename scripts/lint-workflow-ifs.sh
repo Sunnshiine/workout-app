@@ -5,8 +5,8 @@
 # or `cancelled()`. A guard on `steps.<id>.conclusion` or `steps.<id>.outcome` without one is then
 # false once any earlier step fails, whatever it appears to say. #606 shipped that shape: a guard that
 # read as "run after the gate, pass or fail" skipped on every red run, and review could not see it
-# (issue #643). The YAML is read by indentation rather than parsed, because a finding needs its line
-# number and the check has to run with nothing but bash and awk.
+# (issue #643). The YAML is read by indentation rather than parsed, so the check needs nothing beyond
+# the bash and awk every machine and runner here already has.
 #
 #   scripts/lint-workflow-ifs.sh           check .github/workflows/*.yml and *.yaml (what CI runs)
 #   scripts/lint-workflow-ifs.sh FILE...   check the named files
@@ -43,10 +43,12 @@ function scalar(v) {
 
 function label(u) { return sname[u] != "" ? sname[u] : (sid[u] != "" ? sid[u] : "#" spos[u]) }
 
-function finish_if() {
+# The runner compares names without case, so Always() is a status check.
+function finish_if(    lc) {
     collecting = 0
-    if (cond !~ /steps\.[A-Za-z0-9_-]+\.(conclusion|outcome)/) return
-    if (index(cond, "success(") || index(cond, "failure(") || index(cond, "always(") || index(cond, "cancelled(")) return
+    lc = tolower(cond)
+    if (lc !~ /steps\.[a-z0-9_*-]+\.(conclusion|outcome)/) return
+    if (index(lc, "success(") || index(lc, "failure(") || index(lc, "always(") || index(lc, "cancelled(")) return
     n++
     fpath[n] = if_path; fline[n] = if_line; fjob[n] = if_job; fstep[n] = if_step; fcond[n] = cond
 }
@@ -65,7 +67,9 @@ FNR == 1 {
 
 collecting {
     if (blank || ind > if_col) {
-        if (!blank) cond = cond (cond == "" ? "" : " ") trim(c)
+        # In a plain value a # starts a comment; in a | or > block it is text.
+        if (if_plain) sub(/(^|[ \t]+)#.*$/, "", c)
+        if (c != "") cond = cond (cond == "" ? "" : " ") trim(c)
         next
     }
     finish_if()
@@ -100,13 +104,14 @@ blank || c ~ /^#/ { next }
         }
     }
 
-    if (k ~ /^if:/) {
+    if (k ~ /^if[ \t]*:/) {
         total++; collecting = 1
         if_col = kcol; if_line = FNR; if_path = FILENAME; if_job = job; if_step = step
         cond = k
-        sub(/^if:[ \t]*/, "", cond)
-        if (cond ~ "^" BLOCK) cond = ""
-        else { sub(/[ \t]+#.*$/, "", cond); cond = trim(cond) }
+        sub(/^if[ \t]*:[ \t]*/, "", cond)
+        if_plain = cond !~ "^" BLOCK
+        if (!if_plain) cond = ""
+        else { sub(/(^|[ \t]+)#.*$/, "", cond); cond = trim(cond) }
         next
     }
     if (step && kcol == skcol) {
@@ -127,8 +132,8 @@ END {
     }
     if (n) {
         print "GitHub prepends success() && to an if: that calls no status check function, so these guards are"
-        print "false once an earlier step fails. Start one with !cancelled() && to run after a failure, or with"
-        print "success() && if \"the job is green so far\" is what it means."
+        print "false once an earlier step has failed. To run after a failure, write if: ${{ !cancelled() && (...) }}."
+        print "When green so far is the meaning, as on a continue-on-error step, write if: success() && (...)."
         exit 1
     }
     print "==> Clean: " (total + 0) " if: conditions in " (ARGC - 1) " file(s)"
