@@ -123,15 +123,11 @@ struct SheetWriter: Sendable {
     }
 }
 
-/// Where the planner's addressing walk (Week, Day, column, Exercise, placement) stopped for one
-/// request. The write target and the Write Target Audit Log both read this one decision, so the
-/// audit cannot name a different reason than the one that refused the write.
 enum SheetWriteAddressing: Sendable {
     case weekNotFound
     case dayNotFound
     case columnNotFound(header: String)
     case exerciseNotFound
-    /// Last Set RPE stays on the Exercise anchor row (ADR-0003).
     case lastSetRPE(anchor: SheetLayoutExerciseAnchor, col: Int)
     case setLog(anchor: SheetLayoutExerciseAnchor, SetLogPlacementResolution)
 
@@ -313,9 +309,6 @@ struct SheetWritePlanner: Sendable {
         return list.cellValue
     }
 
-    /// The Set-Log placement for this request, but only when it lands on the given `target` cell.
-    /// A target the placement does not resolve to (a Last Set RPE cell, or a cell planned against an
-    /// earlier snapshot) yields nil so the caller falls through to the direct-write path.
     func placement(
         for request: SheetWriteRequest,
         target: SheetWriteTarget,

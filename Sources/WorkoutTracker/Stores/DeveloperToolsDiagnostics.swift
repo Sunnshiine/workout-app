@@ -54,11 +54,6 @@ extension SheetWritePlanner {
         )
     }
 
-    /// The per-Set value the audit cross-checks, read from the one placement query the reader and
-    /// writer consume rather than a re-derived addressing tree. When the placement lands on the audited
-    /// `target` cell and names a list position, the value is that list slot (compact header, protected
-    /// Visible Writable Row, or multi-line Prescription Line, via the shared `SetLogList` codec); a
-    /// whole-cell placement — or a target the placement does not resolve to — reads the cell verbatim.
     private func currentValueForAudit(
         for request: SheetWriteRequest,
         target: SheetWriteTarget,

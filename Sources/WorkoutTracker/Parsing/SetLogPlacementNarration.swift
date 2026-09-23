@@ -1,11 +1,6 @@
 import Foundation
 
-/// How one Set-Log placement decision reads to a developer in the Write Target Audit Log. Each
-/// `SetLogPlacementKind` and each unresolved `SetLogPlacementResolution` names its own narration
-/// here, beside the decision, so a new placement rule cannot ship with a stale audit story.
 enum SetLogPlacementNarration: Sendable, Equatable {
-    /// The rule picked this one row outright, and the layout only holds visible rows, so there is no
-    /// hidden row to skip and no empty scan to explain.
     case row(Int, selection: String)
     case scan(rows: [Int], selection: String, absence: String)
 
