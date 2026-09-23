@@ -368,7 +368,7 @@ private enum SessionSettingsHeaderDrag {
     static let overpullDamping: CGFloat = 0.4
 }
 
-private struct RestPillSlot: View {
+struct RestPillSlot: View {
     let restTimer: RestTimer
     let keepsRoomWhenRestEnds: Bool
     @State private var heldHeight: CGFloat = 0
