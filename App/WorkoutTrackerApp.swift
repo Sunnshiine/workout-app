@@ -14,12 +14,12 @@ struct WorkoutTrackerApp: App {
         let app = try! WorkoutApplication(environment: Self.launchEnvironment())
         _app = State(initialValue: app)
         #if DEBUG
+            #if canImport(UIKit)
+                if UITestFixture.disablesAnimations {
+                    UIView.setAnimationsEnabled(false)
+                }
+            #endif
             if UITestFixture.isEnabled {
-                #if canImport(UIKit)
-                    if UITestFixture.launch.disablesAnimations {
-                        UIView.setAnimationsEnabled(false)
-                    }
-                #endif
                 Self.applyUITestFixtures(to: app)
             }
         #endif
@@ -69,6 +69,15 @@ struct WorkoutTrackerApp: App {
                 .environment(app.sync)
                 .environment(app.lastPerformed)
                 .environment(app.historyFill)
+                #if DEBUG
+                    .transaction { transaction in
+                        guard UITestFixture.disablesAnimations else { return }
+                        // Clearing the animation stops withAnimation, and only disablesAnimations
+                        // stops .animation(_:value:) adding one back. Either alone leaves motion.
+                        transaction.animation = nil
+                        transaction.disablesAnimations = true
+                    }
+                #endif
                 .onOpenURL { GIDSignIn.sharedInstance.handle($0) }
                 .task {
                     #if DEBUG

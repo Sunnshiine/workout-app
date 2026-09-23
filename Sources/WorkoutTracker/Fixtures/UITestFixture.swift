@@ -15,6 +15,8 @@
             ProcessInfo.processInfo.arguments.contains("-UITEST_FIXTURE")
         }
 
+        static let disablesAnimations = isEnabled && launch.disablesAnimations
+
         static func makeSheetsClient() -> any SheetsClient {
             FixtureSheetsClient(holdsReads: launch.holdsSheetReads)
         }
