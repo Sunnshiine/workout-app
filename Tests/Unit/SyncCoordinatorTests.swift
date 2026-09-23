@@ -252,8 +252,6 @@ private func loggedSquatGrid() -> SheetGrid {
     #expect(sync.isSyncing == false)
 }
 
-/// Every other halt stays out of the athlete's way. The fill stops, and the sync outcome is
-/// whatever the sync itself reported (#514 owns where background-index errors go).
 @MainActor
 @Test func historyFillHaltOnAnUnreadableTabLeavesTheSyncOutcomeAlone() async throws {
     let container = try makeSyncContainer()
@@ -306,21 +304,9 @@ private func makeSyncContainer() throws -> ModelContainer {
     )
 }
 
-/// The latch-and-clear semantics #587 recorded before #514 split the collapsed conflict case into
-/// `SyncOutcome`, now asserted against `outcome` directly (#601).
-///
-/// An outcome latches. One step sets it and a different step clears it. Nothing failed when those
-/// rules changed, so these tests assert the literal strings and the literal order of events. Where
-/// the recorded behavior looks wrong rather than merely odd, the test says so and names the
-/// reasoning instead of correcting it.
-///
-/// Of the five outcomes the conflict case collapsed, the Exercise History fill failure is pinned by
-/// `historyFillIndexRefusalReachesTheSyncOutcome` above.
 @MainActor
 @Suite("SyncCoordinator.outcome latch and clear")
 struct SyncOutcomeCharacterizationTests {
-    // MARK: Which step sets which outcome, and with what strings
-
     @Test func aLocalWriteFailureCarriesTheErrorDescription() throws {
         let container = try makeContainer()
         let sync = SyncCoordinator(client: ConflictPinClient(grid: writableGrid()), context: container.mainContext)
@@ -365,8 +351,6 @@ struct SyncOutcomeCharacterizationTests {
         #expect(sync.outcome == .parseWarnings(["Parse warning: no week sections (no 'Day N' headers) in Block 27"]))
     }
 
-    // MARK: What latches, and what clears it
-
     @Test func aFlushRefusalOutranksTheParseWarningFromTheSameSync() async throws {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
@@ -375,8 +359,6 @@ struct SyncOutcomeCharacterizationTests {
 
         await sync.sync(spreadsheetId: "sid")
 
-        // The same tab produced both a refused write and a parse warning. Only the refusal
-        // survives; the parse warning is dropped without a trace.
         #expect(sync.outcome == .writesRefused(["Squat: Week 1 was not found in the sheet"]))
     }
 
@@ -388,9 +370,6 @@ struct SyncOutcomeCharacterizationTests {
 
         await sync.sync(spreadsheetId: "sid")
 
-        // Suspected wrong: the flush already concluded which Set the Sheet refused over a coach
-        // edit, and a missing Block tab outranks that refusal. The write is still conflicted in
-        // the store, so the only copy of the actionable message is gone.
         #expect(sync.outcome == .noBlockTab)
         #expect(sync.isSyncing == false)
         let write = try #require(try sync.fetchPendingWriteRecords().first)
@@ -409,8 +388,6 @@ struct SyncOutcomeCharacterizationTests {
         client.grid = writableGrid()
         await sync.sync(spreadsheetId: "sid")
 
-        // The conflicted write is no longer `pending`, so the next flush queue is empty and the
-        // empty-queue guard concludes `.clear`. The record latches where the outcome does not.
         #expect(sync.outcome == .clear)
         let write = try #require(try sync.fetchPendingWriteRecords().first)
         #expect(write.status == .conflict)
@@ -425,8 +402,6 @@ struct SyncOutcomeCharacterizationTests {
 
         await sync.flushPending(spreadsheetId: "sid")
 
-        // Suspected wrong: an empty write queue says nothing about whether the local store
-        // recovered, and this path is reached on every sync.
         #expect(sync.outcome == .clear)
     }
 
@@ -438,8 +413,6 @@ struct SyncOutcomeCharacterizationTests {
 
         try await sync.discardPendingWrites()
 
-        // Suspected wrong: there were no writes to discard, and the parse warning is still true of
-        // the tab on the next read.
         #expect(sync.outcome == .clear)
         #expect(try sync.fetchPendingWriteRecords().isEmpty)
     }
@@ -453,18 +426,12 @@ struct SyncOutcomeCharacterizationTests {
 
         await sync.sync(spreadsheetId: "sid")
 
-        // Suspected wrong: the flush concluded `.writesQueued(1)`, but a clean Sheet read outranks
-        // it because `SyncOutcome.sync(sheetRead:flush:)` lets only a refusal survive. The sync
-        // ends `.clear` while the athlete's Set Log is still queued and still failing, and `.clear`
-        // shows no banner.
         #expect(sync.outcome == .clear)
         #expect(SyncStatusBannerPresentation(outcome: sync.outcome, isSyncing: sync.isSyncing) == nil)
         let write = try #require(try sync.fetchPendingWriteRecords().first)
         #expect(write.status == .pending)
         #expect(write.retryCount == 1)
     }
-
-    // MARK: What an observer reads between the set and the clear
 
     @Test(.timeLimit(.minutes(1)))
     func theFlushRefusalIsInvisibleInOutcomeForTheWholeNetworkPhaseOfASync() async throws {
@@ -476,9 +443,6 @@ struct SyncOutcomeCharacterizationTests {
         let running = Task { await sync.sync(spreadsheetId: "sid") }
         await client.waitUntilHeld()
 
-        // The flush has already refused the write and recorded it, but sync holds the flush's
-        // verdict until the Sheet read finishes. An observer here reads the previous outcome and
-        // `isSyncing`; only the record shows the refusal.
         #expect(sync.outcome == .clear)
         #expect(sync.isSyncing == true)
         let midSyncWrite = try #require(try sync.fetchPendingWriteRecords().first)
@@ -501,9 +465,6 @@ struct SyncOutcomeCharacterizationTests {
         let running = Task { await sync.flushPending(spreadsheetId: "sid") }
         await client.waitUntilHeld()
 
-        // `outcome` holds the previous verdict and `isSyncing` reads the same whether the Sheet is
-        // about to refuse this flush's write or accept it. The in-flight signal is the flush
-        // count, and it answers by throwing.
         #expect(sync.isSyncing == true)
         #expect(sync.outcome == .clear)
         var thrown: (any Error)?
@@ -523,8 +484,6 @@ struct SyncOutcomeCharacterizationTests {
         // blocked until the athlete discards it.
         #expect(try sync.hasPendingWrites() == true)
     }
-
-    // MARK: A failed sync after one that reported something
 
     @Test func aFailedSyncAfterAParseWarningReportsTheSheetUnreachableAndDropsTheWarning() async throws {
         let container = try makeContainer()
@@ -557,9 +516,6 @@ struct SyncOutcomeCharacterizationTests {
         client.grid = writableGrid()
         await sync.sync(spreadsheetId: "sid")
 
-        // Nothing re-derives the message from the record once a later sync succeeds. The write is
-        // still conflicted and still unresolvable, and the sync ends `.clear`, which shows no
-        // banner at all.
         #expect(sync.outcome == .clear)
         #expect(SyncStatusBannerPresentation(outcome: sync.outcome, isSyncing: sync.isSyncing) == nil)
         let write = try #require(try sync.fetchPendingWriteRecords().first)
