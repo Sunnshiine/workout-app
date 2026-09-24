@@ -8,7 +8,7 @@ import UIKit
 @Suite
 struct SessionStageLayoutTests {
     @Test func theExerciseBranchStaysDrawnUnderARestAndAOneLineBanner() throws {
-        let restOnly = try SessionPageHost.layout(.exercise, banner: .outcome(.clear), windowHeight: 874)
+        let restOnly = try SessionPageHost.layout(.exercise, banner: .outcome(.clear), windowHeight: WindowHeight.iPhone17Pro)
         #expect(
             restOnly
                 == PageFrames(
@@ -28,7 +28,7 @@ struct SessionStageLayoutTests {
                     card: CGRect(x: 16, y: 418, width: 370, height: 308)
                 )
         )
-        let oneLine = try SessionPageHost.layout(.exercise, banner: .outcome(.writesQueued(1)), windowHeight: 874)
+        let oneLine = try SessionPageHost.layout(.exercise, banner: .outcome(.writesQueued(1)), windowHeight: WindowHeight.iPhone17Pro)
         #expect(
             oneLine
                 == PageFrames(
@@ -51,7 +51,7 @@ struct SessionStageLayoutTests {
     }
 
     @Test func theSupersetStageKeepsItsBranchAtRestAndUnderAOneLineBanner() throws {
-        let restOnly = try SessionPageHost.layout(.superset, banner: .outcome(.clear), windowHeight: 874)
+        let restOnly = try SessionPageHost.layout(.superset, banner: .outcome(.clear), windowHeight: WindowHeight.iPhone17Pro)
         #expect(
             restOnly
                 == PageFrames(
@@ -67,7 +67,7 @@ struct SessionStageLayoutTests {
                     card: CGRect(x: 16, y: 418, width: 370, height: 308)
                 )
         )
-        let oneLine = try SessionPageHost.layout(.superset, banner: .outcome(.writesQueued(1)), windowHeight: 874)
+        let oneLine = try SessionPageHost.layout(.superset, banner: .outcome(.writesQueued(1)), windowHeight: WindowHeight.iPhone17Pro)
         #expect(
             oneLine
                 == PageFrames(
@@ -86,7 +86,7 @@ struct SessionStageLayoutTests {
     }
 
     @Test func aDetailHeightBannerTakesLastPerformedAndLeavesTheCardWhereItWas() throws {
-        let withDetail = try SessionPageHost.layout(.exercise, banner: .standIn(height: 76), windowHeight: 874)
+        let withDetail = try SessionPageHost.layout(.exercise, banner: .twoLinesAndDetail, windowHeight: WindowHeight.iPhone17Pro)
         #expect(
             withDetail
                 == PageFrames(
@@ -109,7 +109,7 @@ struct SessionStageLayoutTests {
     }
 
     @Test func aMiniHeightWindowGivesUpLastPerformedAndKeepsTheBranch() throws {
-        let oneLine = try SessionPageHost.layout(.exercise, banner: .outcome(.writesQueued(1)), windowHeight: 793)
+        let oneLine = try SessionPageHost.layout(.exercise, banner: .outcome(.writesQueued(1)), windowHeight: WindowHeight.mini)
         #expect(
             oneLine
                 == PageFrames(
@@ -132,7 +132,7 @@ struct SessionStageLayoutTests {
     }
 
     @Test func aTextAndDetailBannerTakesTheSupersetsCadenceAndKeepsItsNote() throws {
-        let textAndDetail = try SessionPageHost.layout(.superset, banner: .standIn(height: 54), windowHeight: 874)
+        let textAndDetail = try SessionPageHost.layout(.superset, banner: .textAndDetail, windowHeight: WindowHeight.iPhone17Pro)
         #expect(
             textAndDetail
                 == PageFrames(
@@ -151,7 +151,7 @@ struct SessionStageLayoutTests {
     }
 
     @Test func aMiniHeightWindowTakesTheSupersetsNoteAndKeepsItsBranch() throws {
-        let oneLine = try SessionPageHost.layout(.superset, banner: .outcome(.writesQueued(1)), windowHeight: 793)
+        let oneLine = try SessionPageHost.layout(.superset, banner: .outcome(.writesQueued(1)), windowHeight: WindowHeight.mini)
         #expect(
             oneLine
                 == PageFrames(
@@ -170,7 +170,7 @@ struct SessionStageLayoutTests {
     }
 
     @Test func anSEHeightWindowAtRestGivesUpTheNoteAndKeepsTheBranch() throws {
-        let restOnly = try SessionPageHost.layout(.exercise, banner: .outcome(.clear), windowHeight: 709)
+        let restOnly = try SessionPageHost.layout(.exercise, banner: .outcome(.clear), windowHeight: WindowHeight.se)
         #expect(
             restOnly
                 == PageFrames(
@@ -193,7 +193,7 @@ struct SessionStageLayoutTests {
     }
 
     @Test func anSEHeightWindowKeepsTheNameAndTheCard() throws {
-        let oneLine = try SessionPageHost.layout(.exercise, banner: .outcome(.writesQueued(1)), windowHeight: 709)
+        let oneLine = try SessionPageHost.layout(.exercise, banner: .outcome(.writesQueued(1)), windowHeight: WindowHeight.se)
         #expect(
             oneLine
                 == PageFrames(
@@ -216,7 +216,11 @@ struct SessionStageLayoutTests {
 @Suite
 struct SessionStageLadderTransitionTests {
     @Test func shrinkingTheWindowDropsEveryLineTheShorterRungGivesUp() throws {
-        let pages = try SessionPageHost.layouts(.exercise, banner: .outcome(.writesQueued(1)), windowHeights: [874, 709])
+        let pages = try SessionPageHost.layouts(
+            .exercise,
+            banner: .outcome(.writesQueued(1)),
+            windowHeights: [WindowHeight.iPhone17Pro, WindowHeight.se]
+        )
         #expect(
             pages == [
                 PageFrames(
@@ -252,7 +256,7 @@ struct SessionStageLadderTransitionTests {
     }
 
     @Test func shrinkingTheCompletionStageDropsTheOpenExercises() throws {
-        let labels = try SessionPageHost.completionLabels(windowHeights: [874, 300])
+        let labels = try SessionPageHost.completionLabels(windowHeights: [WindowHeight.iPhone17Pro, 300])
         #expect(
             labels == [
                 [
@@ -270,9 +274,18 @@ private enum StageKind {
     case superset
 }
 
+private enum WindowHeight {
+    static let iPhone17Pro: CGFloat = 874
+    static let mini: CGFloat = 793
+    static let se: CGFloat = 709
+}
+
 private enum BannerSlot {
     case outcome(SyncOutcome)
     case standIn(height: CGFloat)
+
+    static let textAndDetail = standIn(height: 54)
+    static let twoLinesAndDetail = standIn(height: 76)
 }
 
 private struct PageFrames: Equatable, CustomStringConvertible {

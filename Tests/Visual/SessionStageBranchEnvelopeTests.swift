@@ -15,7 +15,7 @@ struct SessionStageBranchEnvelopeTests {
     @Test(arguments: heights)
     func theExerciseBranchStaysInsideTheGapsAroundIt(height: CGFloat) throws {
         for setCount in Self.setCounts {
-            let branch = Branch(setCount: setCount, partnerEnding: nil)
+            let branch = Branch(setCount: setCount, kind: .exercise)
             let ink = try #require(try branch.inkExtent(height: height), "the branch draws with \(setCount) Sets")
             #expect(ink.top >= -Self.inkAbove, "\(setCount) Sets")
             #expect(ink.bottom <= height + Self.inkBelow, "\(setCount) Sets")
@@ -30,7 +30,7 @@ struct SessionStageBranchEnvelopeTests {
     @Test(arguments: heights, PartnerEnding.allCases)
     func theSupersetBranchKeepsItsLateralInsideTheGapsAroundIt(height: CGFloat, partnerEnding: PartnerEnding) throws {
         for setCount in Self.setCounts {
-            let branch = Branch(setCount: setCount, partnerEnding: partnerEnding)
+            let branch = Branch(setCount: setCount, kind: .superset(partnerEnding: partnerEnding))
             let ink = try #require(try branch.inkExtent(height: height), "the forked branch draws with \(setCount) Sets")
             #expect(ink.top >= -Self.inkAbove, "\(setCount) Sets")
             #expect(ink.bottom <= height + Self.inkBelow, "\(setCount) Sets")
@@ -38,7 +38,7 @@ struct SessionStageBranchEnvelopeTests {
     }
 
     @Test func theBranchFillsItsRegionAndNeverFallsBelowItsFloor() {
-        let branch = Branch(setCount: 3, partnerEnding: nil)
+        let branch = Branch(setCount: 3, kind: .exercise)
         let heights = ([20, nil, 300] as [CGFloat?]).map { branch.height(proposing: $0) }
         #expect(heights == [70, 70, 300])
     }
@@ -49,17 +49,27 @@ enum PartnerEnding: CaseIterable, Sendable {
     case skipped
 }
 
+private enum BranchKind {
+    case exercise
+    case superset(partnerEnding: PartnerEnding)
+}
+
 @MainActor
 private struct Branch {
     let setCount: Int
-    let partnerEnding: PartnerEnding?
+    let kind: BranchKind
 
     var view: SessionStageBranch {
-        SessionStageBranch(
+        let partnerSets: [ExerciseSet]? =
+            switch kind {
+            case .exercise: nil
+            case .superset(let ending): Self.sets(count: 3, order: 1, last: ending == .skipped ? .skipped : .logged)
+            }
+        return SessionStageBranch(
             sets: Self.sets(count: setCount, order: 0, last: .pending),
             activeSetID: ActiveSetID(exerciseOrder: 0, setIndex: setCount - 1),
-            partnerSets: partnerEnding.map { Self.sets(count: 3, order: 1, last: $0 == .skipped ? .skipped : .logged) },
-            onTap: partnerEnding == nil ? { _ in } : nil
+            partnerSets: partnerSets,
+            onTap: partnerSets == nil ? { _ in } : nil
         )
     }
 
