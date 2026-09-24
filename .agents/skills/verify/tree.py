@@ -133,7 +133,10 @@ def by_id(root: dict, ident: str) -> List[TreeLine]:
 
 
 def by_label(root: dict, label: str) -> List[TreeLine]:
-    return [line for line in lines(root) if line.label.strip() == label.strip()]
+    wanted = label.strip()
+    if not wanted:
+        return []
+    return [line for line in lines(root) if line.label.strip() == wanted]
 
 
 # The roles of axe 1.8.0's actionableTypes, which break a tie between elements that share a label.
