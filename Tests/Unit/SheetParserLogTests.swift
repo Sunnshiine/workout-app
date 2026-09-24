@@ -15,7 +15,7 @@ import Testing
     )
     let section = locateWeekSections(in: grid)[0]
 
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
+    let exercises = parseDay(in: grid, section: section, headerIndex: 0)
 
     #expect(exercises[0].coachNote == "Coach note")
     #expect(exercises[0].sets[0].state == .logged)
@@ -63,7 +63,7 @@ import Testing
     )
     let section = locateWeekSections(in: grid)[0]
 
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
+    let exercises = parseDay(in: grid, section: section, headerIndex: 0)
 
     #expect(exercises[0].coachNote == nil)
     #expect(exercises[0].legacyLog == nil)
@@ -85,7 +85,7 @@ import Testing
     )
     let section = locateWeekSections(in: grid)[0]
 
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
+    let exercises = parseDay(in: grid, section: section, headerIndex: 0)
 
     #expect(exercises[0].sets[0].setLog?.formatted == "BWx12@7")
     #expect(exercises[0].sets[1].state == .pending)
@@ -104,7 +104,7 @@ import Testing
     )
     let section = locateWeekSections(in: grid)[0]
 
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
+    let exercises = parseDay(in: grid, section: section, headerIndex: 0)
 
     #expect(exercises[0].sets[0].state == .skipped)
     #expect(exercises[0].sets[0].setLog == nil)
@@ -123,7 +123,7 @@ import Testing
     )
     let section = locateWeekSections(in: grid)[0]
 
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
+    let exercises = parseDay(in: grid, section: section, headerIndex: 0)
 
     #expect(exercises[0].sets.map(\.state) == [.logged, .logged, .logged])
     #expect(exercises[0].sets.allSatisfy { $0.setLog == nil })
@@ -142,7 +142,7 @@ import Testing
     )
     let section = locateWeekSections(in: grid)[0]
 
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
+    let exercises = parseDay(in: grid, section: section, headerIndex: 0)
 
     #expect(exercises[0].coachNote == nil)
     #expect(exercises[0].legacyLog == "25x12, 12")
@@ -162,7 +162,7 @@ import Testing
     )
     let section = locateWeekSections(in: grid)[0]
 
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
+    let exercises = parseDay(in: grid, section: section, headerIndex: 0)
 
     #expect(exercises[0].coachNote == nil)
     #expect(exercises[0].legacyLog == "25x12, 12")
@@ -181,7 +181,7 @@ import Testing
     )
     let section = locateWeekSections(in: grid)[0]
 
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
+    let exercises = parseDay(in: grid, section: section, headerIndex: 0)
 
     #expect(exercises[0].coachNote == "Start w/ 10 sec hold")
     #expect(exercises[0].legacyLog == nil)
@@ -202,7 +202,7 @@ import Testing
     )
     let section = locateWeekSections(in: grid)[0]
 
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
+    let exercises = parseDay(in: grid, section: section, headerIndex: 0)
 
     #expect(exercises[0].legacyLog == "25x12, 12")
     #expect(exercises[0].sets[0].state == .logged)
@@ -224,7 +224,7 @@ import Testing
     )
     let section = locateWeekSections(in: grid)[0]
 
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
+    let exercises = parseDay(in: grid, section: section, headerIndex: 0)
 
     #expect(exercises[0].sets.map(\.state) == [.logged, .skipped])
     #expect(exercises[0].sets.allSatisfy { $0.setLog == nil })

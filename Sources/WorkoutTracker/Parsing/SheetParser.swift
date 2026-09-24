@@ -251,13 +251,13 @@ private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns,
 
 /// Parses all exercises in one day group. Anchor rows have a non-empty name cell;
 /// the row count for an exercise is `max(Sets value, 1)`.
-func parseDay(in grid: SheetGrid, section: WeekSection, dayIndex: Int) -> [ParsedExercise] {
+func parseDay(in grid: SheetGrid, section: WeekSection, headerIndex: Int) -> [ParsedExercise] {
     let snapshot = SheetSnapshot(values: grid)
     let layout = SheetLayoutInterpreter().interpret(snapshot)
     guard
-        section.dayStartCols.indices.contains(dayIndex),
+        section.dayStartCols.indices.contains(headerIndex),
         let week = layout.weeks.first(where: { $0.headerRow == section.headerRow }),
-        let day = week.days.first(where: { $0.columns.name == section.dayStartCols[dayIndex] })
+        let day = week.days.first(where: { $0.columns.name == section.dayStartCols[headerIndex] })
     else { return [] }
 
     return parseDay(in: snapshot, day: day)
