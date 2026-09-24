@@ -301,7 +301,7 @@ private func squatCoachNoteGrid() -> SheetGrid {
 }
 
 @MainActor
-@Test func replanningAfterTheCoachHidesEveryRowBelowACoachNoteConflictsWithNoSafeSetRow() async throws {
+@Test func replanningAfterTheCoachHidesEveryRowBelowACoachNoteConflictsWithNoVisibleWritableRow() async throws {
     let container = try makeReplanContainer()
     let ctx = container.mainContext
     ctx.insert(replanPendingWrite(createdAt: 1, valueToWrite: "185x5@8", expectedCurrentValue: ""))
@@ -478,7 +478,7 @@ private func squatCoachNoteGrid() -> SheetGrid {
 }
 
 @MainActor
-@Test func replanningAfterTheCoachDeletesTheDayConflictsWithNoTarget() async throws {
+@Test func replanningAfterTheCoachClearsTheDayTwoHeaderConflictsWithNoTarget() async throws {
     let container = try makeReplanContainer()
     let ctx = container.mainContext
     ctx.insert(replanPendingWrite(createdAt: 1, day: 2, valueToWrite: "185x5@8", expectedCurrentValue: ""))
