@@ -12,7 +12,7 @@ A mobile client for powerlifting athletes that surfaces and logs workouts from a
 
 **Week**: One of four consecutive 7-day windows within a Block. Represented as a row-section in the Sheet tab. Avoid: microcycle.
 
-**Session**: A single training day within a Block — one of Day 1–N in a given Week, where N is the Week's day count (2–6, set by the coach's template). Its Day number is the one its `Day N` header reads in the Sheet, so a Week can skip a number. The atomic unit the athlete plans around ("what am I doing today?"). Avoid: workout, training day, day.
+**Session**: A single training day within a Block, one of the 2–6 a Week holds (set by the coach's template). Its Day number is the N of its `Day N` header in the Sheet, from 1 to 7 and used once per Week, so a Week can skip a number. The atomic unit the athlete plans around ("what am I doing today?"). Avoid: workout, training day, day.
 
 **Available Session**: A Session that has at least one Exercise — the athlete can open it and log. The state of any Session the coach has populated. Availability is determined per Session from whether it holds Exercises, independently of any other Session. Avoid: open session, ready session, unlocked session.
 
