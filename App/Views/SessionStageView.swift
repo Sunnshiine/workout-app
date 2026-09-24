@@ -368,7 +368,8 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
                         lastPerformed
                     }
                     lastPerformed
-                    emptyFallback
+                    Color.clear.frame(height: 0)
+                        .emptyFallbackNode()
                 }
             }
 
@@ -404,11 +405,6 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
                 .lineSpacing(4)
                 .fixedSize(horizontal: false, vertical: true)
         }
-    }
-
-    private var emptyFallback: some View {
-        Color.clear.frame(height: 0)
-            .emptyFallbackNode()
     }
 }
 
