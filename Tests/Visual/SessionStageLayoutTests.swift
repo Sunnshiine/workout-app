@@ -150,6 +150,51 @@ struct SessionStageLayoutTests {
         )
     }
 
+    @Test func aOneLineBannerTakesTheSupersetsLastPerformedAndKeepsItsCadence() throws {
+        let restOnly = try SessionPageHost.layout(
+            .superset,
+            banner: .outcome(.clear),
+            windowHeight: WindowHeight.iPhone17Pro,
+            history: History.backSquatAndBBRDL()
+        )
+        #expect(
+            restOnly
+                == PageFrames(
+                    banner: nil,
+                    stage: CGRect(x: 0, y: 62, width: 402, height: 778),
+                    cadence: CGRect(x: 16, y: 133, width: 32, height: 16),
+                    name: CGRect(x: 16, y: 163, width: 123, height: 41),
+                    partner: CGRect(x: 16, y: 207, width: 125, height: 25),
+                    note: CGRect(x: 16, y: 245, width: 262, height: 22),
+                    leaves: [],
+                    branchIsDrawn: true,
+                    lastPerformed: CGRect(x: 16, y: 386, width: 370, height: 18),
+                    card: CGRect(x: 16, y: 418, width: 370, height: 308)
+                )
+        )
+        let oneLine = try SessionPageHost.layout(
+            .superset,
+            banner: .outcome(.writesQueued(1)),
+            windowHeight: WindowHeight.iPhone17Pro,
+            history: History.backSquatAndBBRDL()
+        )
+        #expect(
+            oneLine
+                == PageFrames(
+                    banner: CGRect(x: 16, y: 70, width: 370, height: 34),
+                    stage: CGRect(x: 0, y: 104, width: 402, height: 736),
+                    cadence: CGRect(x: 16, y: 175, width: 32, height: 16),
+                    name: CGRect(x: 16, y: 205, width: 123, height: 41),
+                    partner: CGRect(x: 16, y: 249, width: 125, height: 25),
+                    note: CGRect(x: 16, y: 287, width: 262, height: 22),
+                    leaves: [],
+                    branchIsDrawn: true,
+                    lastPerformed: nil,
+                    card: CGRect(x: 16, y: 418, width: 370, height: 308)
+                )
+        )
+    }
+
     @Test func aMiniHeightWindowTakesTheSupersetsNoteAndKeepsItsBranch() throws {
         let oneLine = try SessionPageHost.layout(.superset, banner: .outcome(.writesQueued(1)), windowHeight: WindowHeight.mini)
         #expect(
@@ -288,6 +333,20 @@ private enum BannerSlot {
     static let twoLinesAndDetail = standIn(height: 76)
 }
 
+private enum History {
+    static func backSquatAndBBRDL() -> [LastPerformedEntry] {
+        WorkoutFixtureScenarios.backSquatHistory() + [
+            LastPerformedEntry(
+                fullName: "2-3:1:0 BB RDL",
+                baseName: "BB RDL",
+                resultText: "185x8, 195x8",
+                performedOn: Date(timeIntervalSinceReferenceDate: 100),
+                source: SessionCoordinate(blockTab: "Block 26", weekNumber: 4, dayNumber: 3).storageValue
+            )
+        ]
+    }
+}
+
 private struct PageFrames: Equatable, CustomStringConvertible {
     let banner: CGRect?
     let stage: CGRect?
@@ -401,15 +460,25 @@ private struct SessionPage: View {
 
 @MainActor
 private enum SessionPageHost {
-    static func layout(_ stage: StageKind, banner: BannerSlot, windowHeight: CGFloat) throws -> PageFrames {
-        try layouts(stage, banner: banner, windowHeights: [windowHeight])[0]
+    static func layout(
+        _ stage: StageKind,
+        banner: BannerSlot,
+        windowHeight: CGFloat,
+        history: [LastPerformedEntry] = WorkoutFixtureScenarios.backSquatHistory()
+    ) throws -> PageFrames {
+        try layouts(stage, banner: banner, windowHeights: [windowHeight], history: history)[0]
     }
 
-    static func layouts(_ stage: StageKind, banner: BannerSlot, windowHeights: [CGFloat]) throws -> [PageFrames] {
+    static func layouts(
+        _ stage: StageKind,
+        banner: BannerSlot,
+        windowHeights: [CGFloat],
+        history: [LastPerformedEntry] = WorkoutFixtureScenarios.backSquatHistory()
+    ) throws -> [PageFrames] {
         let scenario = try WorkoutScenarios.freshConfiguredApp()
         VisualFixtureRetainer.retain(scenario)
         let lastPerformedLookup = LastPerformedLookupStore(context: scenario.context)
-        try lastPerformedLookup.ingest(WorkoutFixtureScenarios.backSquatHistory())
+        try lastPerformedLookup.ingest(history)
         let session = try #require(scenario.store.viewedSession)
         let exercises = session.exercises.sorted { $0.order < $1.order }
         let coordinator = SessionCoordinator(session: session)
