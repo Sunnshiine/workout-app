@@ -1028,11 +1028,25 @@ PICK_STUB = """#!/bin/sh
 printf '%s\\n' "$(basename "$0") $*" >> "{dir}/calls"
 case "$(basename "$0") $*" in
   "xcrun simctl list devices available -j") cat "{dir}/devices.json" ;;
+  "xcrun simctl list devices booted") echo "    iPhone 17 Pro (${STUB_BOOTED:-}) (Booted)" ;;
   "xcrun simctl list -j") cat "{dir}/catalog.json" ;;
-  "xcrun simctl create "*) echo {created} ;;
-  "xcrun simctl boot "*) ;;
+  "xcrun simctl create "*)
+    python3 -c 'import json, sys
+from pathlib import Path
+stubs, name, runtime, udid = sys.argv[1:]
+for listing in ("devices.json", "catalog.json"):
+    path = Path(stubs, listing)
+    machine = json.loads(path.read_text())
+    machine["devices"].setdefault(runtime, []).append(
+        {"name": name, "udid": udid, "state": "Shutdown", "isAvailable": True})
+    path.write_text(json.dumps(machine))' "{dir}" "$3" "$5" {created}
+    echo {created} ;;
+  "xcrun simctl boot "*|"xcrun simctl install "*) ;;
+  "xcrun simctl bootstatus "*) exit "${STUB_BOOTSTATUS:-1}" ;;
+  "xcrun simctl launch "*) echo "com.sunnypatel.WorkoutTracker: 4121" ;;
   "xcodebuild "*) echo "** BUILD FAILED **" ; exit 65 ;;
   "plutil -extract WorkspacePath"*) echo "{project}" ;;
+  "axe describe-ui "*) cat "{dir}/describe-ui.json" ;;
   *) exit 1 ;;
 esac
 """
@@ -1041,32 +1055,51 @@ IOS_27_0 = {"identifier": "com.apple.CoreSimulator.SimRuntime.iOS-27-0", "versio
 PRO = {"name": "iPhone 17 Pro", "identifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro"}
 PRO_MAX = {"name": "iPhone 17 Pro Max", "identifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max"}
 AIR = {"name": "iPhone Air", "identifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-Air"}
+CREATE_PRO = ("xcrun simctl create iPhone 17 Pro com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro "
+              "com.apple.CoreSimulator.SimRuntime.iOS-27-0")
 
 
 def device(name, udid, state="Shutdown"):
     return {"name": name, "udid": udid, "state": state, "isAvailable": True}
 
 
-class SimulatorPick(unittest.TestCase):
-    created = "57900000-0000-4000-8000-000000000579"
+def pick_udid(serial):
+    return "%08X-0579-4ABC-8DEF-%012X" % (os.getpid(), serial)
 
+
+class SimulatorPick(unittest.TestCase):
     def setUp(self):
-        self.home = Path(tempfile.mkdtemp())
+        self.tmp = Path(tempfile.mkdtemp())
+        self.checkout = self.tmp / "checkout"
+        skill = self.checkout / ".agents" / "skills" / "verify"
+        skill.mkdir(parents=True)
+        (self.checkout / "scripts").mkdir()
+        for name in ["test-sim.sh", "sim-lock.sh", "ensure-simulator.sh"]:
+            (self.checkout / "scripts" / name).symlink_to(REPO / "scripts" / name)
+        for name in ["verify.sh", "tree.py"]:
+            (skill / name).symlink_to(SKILL / name)
+        self.home = self.tmp / "home"
         derived = self.home / "Library" / "Developer" / "Xcode" / "DerivedData" / "WorkoutTracker-test"
-        (derived / "Build" / "Products" / "Debug-iphonesimulator" / "WorkoutTracker.app").mkdir(parents=True)
-        (derived / "info.plist").touch()
-        self.stubs = self.home / "bin"
+        self.app = derived / "Build" / "Products" / "Debug-iphonesimulator" / "WorkoutTracker.app"
+        self.app.mkdir(parents=True)
+        self.plist = derived / "info.plist"
+        self.plist.touch()
+        self.stubs = self.tmp / "bin"
         self.stubs.mkdir()
+        self.created = pick_udid(1)
+        self.locks = [self.created]
         stub = PICK_STUB.replace("{dir}", str(self.stubs)).replace("{created}", self.created)
-        stub = stub.replace("{project}", str(REPO / "WorkoutTracker.xcodeproj"))
-        for tool in ["xcodebuild", "xcrun", "npm", "plutil"]:
-            (self.stubs / tool).write_text(stub)
-            (self.stubs / tool).chmod(0o755)
-        self.locks = []
+        stub = stub.replace("{project}", str(self.checkout / "WorkoutTracker.xcodeproj"))
+        axe = self.checkout / ".build" / "verify" / "node_modules" / "xcodebuildmcp" / "bundled" / "axe"
+        axe.parent.mkdir(parents=True)
+        for tool in [self.stubs / "xcodebuild", self.stubs / "xcrun", self.stubs / "npm", self.stubs / "plutil", axe]:
+            tool.write_text(stub)
+            tool.chmod(0o755)
+        (self.stubs / "describe-ui.json").write_text(MINI)
 
     def tearDown(self):
-        shutil.rmtree(self.home, ignore_errors=True)
-        for udid in self.locks + [self.created]:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+        for udid in self.locks:
             shutil.rmtree("/tmp/workout-verify-%s" % udid, ignore_errors=True)
 
     def machine(self, runtimes, devicetypes, devices):
@@ -1078,57 +1111,66 @@ class SimulatorPick(unittest.TestCase):
     def fresh_machine(self):
         self.machine([IOS_26_5, IOS_27_0], [PRO, PRO_MAX, AIR], {
             IOS_26_5["identifier"]: [],
-            IOS_27_0["identifier"]: [device("iPhone 17 Pro Max", "57900000-0000-4000-8000-00000000A1A1")],
+            IOS_27_0["identifier"]: [device("iPhone 17 Pro Max", pick_udid(2))],
         })
 
     def run_script(self, argv, **env):
         (self.stubs / "calls").unlink(missing_ok=True)
-        env = dict(os.environ, HOME=str(self.home), PATH="%s:%s" % (self.stubs, os.environ["PATH"]), **env)
-        env.pop("SIM", None)
+        for log in self.checkout.glob(".build/*/*-build.log"):
+            log.unlink()
+        environment = dict(os.environ, HOME=str(self.home), PATH="%s:%s" % (self.stubs, os.environ["PATH"]))
+        environment.pop("SIM", None)
+        environment.pop("VERIFY_RUN", None)
+        environment.update(env)
         done = subprocess.run(
-            argv, cwd=str(REPO), env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
+            argv, cwd=str(self.checkout), env=environment,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
         )
         calls = self.stubs / "calls"
-        return done.returncode, done.stderr, calls.read_text().splitlines() if calls.exists() else []
+        return done.returncode, done.stdout, done.stderr, calls.read_text().splitlines() if calls.exists() else []
 
-    def test_sim(self):
-        return self.run_script([str(REPO / "scripts" / "test-sim.sh"), "visual"])
+    def run_test_sim(self, *argv):
+        return self.run_script([str(self.checkout / "scripts" / "test-sim.sh")] + list(argv or ["visual"]))
+
+    def verify(self, *argv, **env):
+        return self.run_script([str(self.checkout / ".agents" / "skills" / "verify" / "verify.sh")] + list(argv), **env)
 
     def launch(self):
-        return self.run_script([str(SKILL / "verify.sh"), "launch", "session"], VERIFY_RUN="issue-579")
+        return self.verify("launch", "session", VERIFY_RUN="issue-579")
 
-    def build_on(self, udid):
+    def failed_build(self):
+        log, = self.checkout.glob(".build/*/*-build.log")
+        return "** BUILD FAILED **\nbuild log: %s\n" % log
+
+    def build_for_testing_on(self, udid):
         return ("xcodebuild build-for-testing -project %s/WorkoutTracker.xcodeproj -scheme WorkoutTracker "
                 "-destination platform=iOS Simulator,id=%s -skipPackagePluginValidation -skipMacroValidation "
-                "CODE_SIGNING_ALLOWED=NO" % (REPO, udid))
+                "CODE_SIGNING_ALLOWED=NO" % (self.checkout, udid))
 
     def test_test_sim_creates_the_missing_iphone_17_pro_on_the_baseline_runtime_and_runs_on_it(self):
         self.fresh_machine()
-        code, err, calls = self.test_sim()
+        code, out, err, calls = self.run_test_sim()
         self.assertEqual(calls, [
             "xcrun simctl list devices available -j",
             "xcrun simctl list -j",
-            "xcrun simctl create iPhone 17 Pro com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro "
-            "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+            CREATE_PRO,
             "xcrun simctl boot %s" % self.created,
-            self.build_on(self.created),
+            self.build_for_testing_on(self.created),
         ], "the created simulator is booted and built for")
-        self.assertEqual(code, 65, "the stub build failed: %s" % err)
-        self.assertTrue(err.startswith("creating iPhone 17 Pro on iOS 27.0\n** BUILD FAILED **\n"), err)
+        self.assertEqual((code, out, err), (65, "", "creating iPhone 17 Pro on iOS 27.0\n" + self.failed_build()))
 
     def test_verify_launch_creates_the_missing_iphone_17_pro_and_waits_on_its_boot(self):
         self.fresh_machine()
-        code, err, calls = self.launch()
-        self.assertEqual([call.split(" /")[0] for call in calls], [
+        code, out, err, calls = self.launch()
+        self.assertEqual(calls, [
             "xcrun simctl list devices available -j",
             "xcrun simctl list -j",
-            "xcrun simctl create iPhone 17 Pro com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro "
-            "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
-            "plutil -extract WorkspacePath raw",
+            CREATE_PRO,
+            "plutil -extract WorkspacePath raw %s" % self.plist,
             "xcrun simctl bootstatus %s -b" % self.created,
         ], "the launch claims and boots the simulator it created")
-        self.assertEqual((code, err), (70, "creating iPhone 17 Pro on iOS 27.0\nsimulator %s did not boot\n"
-                                       % self.created))
+        self.assertEqual((code, out, err), (70, "", "creating iPhone 17 Pro on iOS 27.0\nsimulator %s did not boot\n"
+                                            % self.created))
 
     def test_a_missing_runtime_or_device_type_fails_with_what_the_machine_has(self):
         machines = {
@@ -1137,20 +1179,20 @@ class SimulatorPick(unittest.TestCase):
                                  "Xcode has no iPhone 17 Pro device type. available:\n  iPhone 17 Pro Max\n  iPhone Air\n"),
         }
         for machine, (runtimes, devicetypes, message) in machines.items():
-            for script, run in [("test-sim.sh", self.test_sim), ("verify.sh launch", self.launch)]:
+            for script, run in [("test-sim.sh", self.run_test_sim), ("verify.sh launch", self.launch)]:
                 with self.subTest(machine=machine, script=script):
                     self.machine(runtimes, devicetypes, {r["identifier"]: [] for r in runtimes})
-                    code, err, calls = run()
-                    self.assertEqual((code, err), (1, message))
+                    code, out, err, calls = run()
+                    self.assertEqual((code, out, err), (1, "", message))
                     self.assertEqual(calls, ["xcrun simctl list devices available -j", "xcrun simctl list -j"],
                                      "nothing is created, booted, locked, or built")
 
     def test_an_existing_iphone_17_pro_is_picked_booted_first_then_newest_and_nothing_is_created(self):
-        old, new = "57900000-0000-4000-8000-000000002605", "57900000-0000-4000-8000-000000002700"
+        old, new = pick_udid(0x2605), pick_udid(0x2700)
         cases = [
-            ("the booted one, though older", "Booted", "Shutdown", [self.build_on(old)]),
+            ("the booted one, though older", "Booted", "Shutdown", [self.build_for_testing_on(old)]),
             ("the newest when none is booted", "Shutdown", "Shutdown",
-             ["xcrun simctl boot %s" % new, self.build_on(new)]),
+             ["xcrun simctl boot %s" % new, self.build_for_testing_on(new)]),
         ]
         for case, old_state, new_state, after_pick in cases:
             with self.subTest(case):
@@ -1158,12 +1200,12 @@ class SimulatorPick(unittest.TestCase):
                     IOS_26_5["identifier"]: [device("iPhone 17 Pro", old, old_state)],
                     IOS_27_0["identifier"]: [device("iPhone 17 Pro", new, new_state)],
                 })
-                code, err, calls = self.test_sim()
+                code, out, err, calls = self.run_test_sim()
                 self.assertEqual(calls, ["xcrun simctl list devices available -j"] + after_pick)
-                self.assertEqual(code, 65, err)
+                self.assertEqual((code, out, err), (65, "", self.failed_build()))
 
     def test_a_lowercase_sim_is_the_simulator_simctl_spells_in_capitals(self):
-        udid = "57900000-0000-4000-8000-00000000CAFE"
+        udid = pick_udid(3)
         self.locks.append(udid)
         state = Path("/tmp/workout-verify-%s" % udid)
         state.mkdir(parents=True, exist_ok=True)
@@ -1172,12 +1214,29 @@ class SimulatorPick(unittest.TestCase):
         self.addCleanup(app.kill)
         (state / "run").write_text("owner-579\n")
         (state / "pid").write_text("%d\n" % app.pid)
-        code, err, calls = self.run_script([str(REPO / "scripts" / "test-sim.sh"), "--sim", udid.lower(), "unit"])
-        self.assertEqual((code, err), (75, (
+        code, out, err, calls = self.run_test_sim("--sim", udid.lower(), "unit")
+        self.assertEqual((code, out, err), (75, "", (
             "a verify run owner-579 owns the app on %s (pid %d); if it is yours, run: SIM=%s VERIFY_RUN=owner-579 "
-            "%s/.claude/skills/verify/verify.sh stop, else use another simulator\n") % (udid, app.pid, udid, REPO)),
+            "%s/.claude/skills/verify/verify.sh stop, else use another simulator\n") % (udid, app.pid, udid, self.checkout)),
             "the lock is keyed by the one spelling, so a case-sensitive /tmp cannot split it")
         self.assertEqual(calls, [])
+
+    def test_a_lowercase_sim_launches_on_the_simulator_simctl_spells_in_capitals(self):
+        udid = pick_udid(3)
+        self.locks.append(udid)
+        code, out, err, calls = self.verify("launch", "session", SIM=udid.lower(), VERIFY_RUN="issue-579",
+                                            STUB_BOOTSTATUS="0", STUB_BOOTED=udid)
+        self.assertEqual((code, out, err), (0, "launched session as pid 4121 on %s\nevidence %s/.build/verify/evidence/issue-579\n"
+                                            % (udid, self.checkout), ""), "simctl lists it booted in capitals")
+        self.assertEqual(calls, [
+            "plutil -extract WorkspacePath raw %s" % self.plist,
+            "xcrun simctl bootstatus %s -b" % udid,
+            "xcrun simctl list devices booted",
+            "xcrun simctl install %s %s" % (udid, self.app),
+            "xcrun simctl launch --terminate-running-process %s com.sunnypatel.WorkoutTracker -UITEST_FIXTURE "
+            "-UITEST_SESSION -UITEST_FULL_BLOCK -UITEST_DISABLE_ANIMATIONS -UITEST_DISABLE_LIVE_ACTIVITIES" % udid,
+            "axe describe-ui --udid %s" % udid,
+        ])
 
 
 AXE_STUB = """#!/bin/sh
