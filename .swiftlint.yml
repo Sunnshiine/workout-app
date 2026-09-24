@@ -146,7 +146,8 @@ custom_rules:
     message: >
       Check a condition, bound the loop, and record a failure when it runs out (for _ in 0..<10_000
       { if done { return }; await Task.yield() }; Issue.record(…)). An unbounded yield loop hangs CI
-      instead of failing, and a counted one flakes.
+      instead of failing, and a counted one flakes. A fake that parks a call uses `HeldCall` in
+      `Tests/Support/`, which also returns the call once the poll gives up.
     regex: '(\bwhile\b[^\n{]*|\brepeat\s*|\bfor\s+_\s+in\b[^\n{]*)\{\s*(try\s+)?await\s+Task\.yield\(\)\s*\}'
     included: '.*/Tests/.*'
     excluded_match_kinds:
