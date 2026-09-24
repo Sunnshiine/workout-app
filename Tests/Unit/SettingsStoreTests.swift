@@ -1029,9 +1029,6 @@ private final class RecordingSheetsClient: SheetsClient, @unchecked Sendable {
     func updatedSpreadsheetIds() async -> [String] { await recorder.updatedIds }
 }
 
-/// Holds the first Sheet read open, so a test can act on the app while a sync it did not start is
-/// in flight. Only the first: a second sync the guard should have refused must run to completion
-/// and fail an expectation, not strand the test on a continuation nobody releases.
 @MainActor
 private final class HeldSheetsClient: SheetsClient {
     private(set) var tabTitleReads = 0

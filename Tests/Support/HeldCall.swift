@@ -1,8 +1,7 @@
 import Testing
 
-/// Parks at most `parks` calls, one at a time, and returns at once from a call made while another
-/// is held, after the budget is spent, or after `abandon()`. A continuation ignores the time
-/// limit's cancellation, so a call parked where no release reaches it would hang the run.
+/// A continuation ignores the time limit's cancellation, so a call parked where no release reaches
+/// it would hang the run.
 @MainActor
 final class HeldCall {
     private var parked: CheckedContinuation<Void, Never>?
