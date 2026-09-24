@@ -68,9 +68,11 @@ xcodebuild test-without-building -xctestrun "$xctestrun" -destination "$destinat
   -collect-test-diagnostics never CODE_SIGNING_ALLOWED=NO "${targets[@]}" > "$logs/$stamp-test.log" 2>&1
 rc=$?
 set -e
-grep -E "^(✔|✘) Test run with|Executed [1-9][0-9]* tests?, with|error: .*\.swift:[0-9]+|^Failing tests:|^	[A-Za-z_.]+(\(\))?$|\*\* TEST EXECUTE" "$logs/$stamp-test.log" | uniq
+summary='^[^ ]+ Test run with'
+executed='Executed [1-9][0-9]* tests?, with'
+grep -E "$summary|$executed|error: .*\.swift:[0-9]+|^Failing tests:|^	[A-Za-z_.]+(\(\))?$|\*\* TEST EXECUTE" "$logs/$stamp-test.log" | uniq
 echo "log: $logs/$stamp-test.log"
-if ! grep -qE "^(✔|✘) Test run with [1-9]|Executed [1-9][0-9]* tests?, with" "$logs/$stamp-test.log"; then
+if ! grep -qE "$summary [1-9]|$executed" "$logs/$stamp-test.log"; then
   echo "no tests ran; check the selection (${targets[*]})" >&2
   exit 65
 fi
