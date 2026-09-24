@@ -255,11 +255,12 @@ func parseDay(in grid: SheetGrid, section: WeekSection, dayIndex: Int) -> [Parse
     let snapshot = SheetSnapshot(values: grid)
     let layout = SheetLayoutInterpreter().interpret(snapshot)
     guard
+        section.dayStartCols.indices.contains(dayIndex),
         let week = layout.weeks.first(where: { $0.headerRow == section.headerRow }),
-        dayIndex < week.days.count
+        let day = week.days.first(where: { $0.columns.name == section.dayStartCols[dayIndex] })
     else { return [] }
 
-    return parseDay(in: snapshot, day: week.days[dayIndex])
+    return parseDay(in: snapshot, day: day)
 }
 
 private func parseDay(in snapshot: SheetSnapshot, day: SheetLayoutDay) -> [ParsedExercise] {
