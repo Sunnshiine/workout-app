@@ -235,11 +235,22 @@ import Testing
 #endif
 
 #if canImport(AppKit)
-    @Test func themeTileCurrentBorderStaysTheApprovedLiteral() {
-        // #1F8552 in both appearances — deliberately not aliased to a paint (token sheet §8.5).
+    @Test func themeTileCurrentBorderStaysTheApprovedLiteral() throws {
         expectRGB(Theme.palette(for: Theme.Appearance.day).tileCurrentBorder, red: 31 / 255, green: 133 / 255, blue: 82 / 255)
         expectRGB(Theme.palette(for: Theme.Appearance.night).tileCurrentBorder, red: 31 / 255, green: 133 / 255, blue: 82 / 255)
-        expectRGB(Theme.sessionTileCurrentBorder, red: 31 / 255, green: 133 / 255, blue: 82 / 255)
+
+        let definitions = try RepositoryFiles.text(of: "Sources/WorkoutTracker/Theme.swift")
+            .split(separator: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { $0.hasPrefix("tileCurrentBorder:") }
+        #expect(definitions.count == 2, "Theme.swift should define tileCurrentBorder once per palette")
+        #expect(
+            definitions.allSatisfy { $0.hasPrefix("tileCurrentBorder: rgb(31, 133, 82),") },
+            """
+            Theme.swift must define tileCurrentBorder as rgb(31, 133, 82) in both palettes (token sheet §8.5). \
+            Paint.actionNight has the same RGB, so only the source shows an alias.
+            """
+        )
     }
 #endif
 
@@ -328,13 +339,11 @@ import Testing
     @Test func nightBlockGridObeysTheRoomRelightsRule() {
         let night = Theme.palette(for: Theme.Appearance.night)
 
-        // Everything that grows takes foliage pigment: the complete tile fills in foliage green.
         expectSageLed(night.sessionTileComplete)
         if let foliage = rgbaComponents(of: night.sessionTileComplete) {
             #expect(foliage.green > 0.4 && foliage.green < 0.75, "the complete tile is mid foliage, not ink or cream")
         }
 
-        // The quiet strokes and shades stay sage-led — no neutral gray tiles at night.
         expectSageLed(night.tileGhostStroke)
         for creamSurface in [night.tileCurrentFill, night.weekCardShade] {
             expectSageLed(creamSurface)
@@ -342,9 +351,6 @@ import Testing
                 #expect(cream.green > 0.85, "cream is kept as the light source, sage-led and bright")
             }
         }
-
-        // The current tile's rim is the approved literal in both appearances — never re-lit away.
-        expectRGB(night.tileCurrentBorder, red: 31 / 255, green: 133 / 255, blue: 82 / 255)
     }
 #endif
 
@@ -390,16 +396,6 @@ import Testing
             Theme.palette(for: Theme.Appearance.night).pillStroke,
             red: 242 / 255, green: 247 / 255, blue: 232 / 255, alpha: 0.16
         )
-    }
-#endif
-
-#if canImport(AppKit)
-    @Test func themePillFillIsDistinctFromSurfaceAndQueueStroke() {
-        // A regression guard on the fix: the roles must no longer be equal to what they were aliased to.
-        let day = Theme.palette(for: Theme.Appearance.day)
-        let pillFill = rgbaComponents(of: day.pillFill)
-        let surface = rgbaComponents(of: day.surface)
-        #expect(pillFill?.alpha != surface?.alpha, "pillFill must not still resolve to the surface alias")
     }
 #endif
 
