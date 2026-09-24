@@ -7,15 +7,7 @@
 # (issue #607). This runs the same binary the plugin runs, over the same config, with no build.
 #
 # The run takes no path arguments on purpose. SwiftLint's `included:` overrides command-line paths,
-# so a script that passes its own list lints something other than what it names. With no arguments
-# the config alone decides what is linted, and SwiftLint exits 0 however little that is. So after a
-# clean lint the check below reads the files SwiftLint actually linted, from its `--benchmark` list.
-# A tree is an `included:` root, or a directory directly inside one that holds a Swift file git
-# knows about, and every tree must have at least one linted file. That refuses both ways a tree can
-# leave the gate: an `included:` root that is misspelled or moved, and an `excluded:` entry that
-# covers a whole tree. A narrow exclusion passes. `**/Generated` drops generated code inside a tree,
-# and the rest of the tree is still linted. A generated or vendored directory directly inside a root
-# is a tree itself, so that code belongs one level deeper, where a narrow entry can drop it.
+# so a script that passes its own list lints something other than what it names.
 #
 #   scripts/lint.sh                  lint (what CI runs)
 #   scripts/lint.sh --fix            autocorrect what SwiftLint can, then lint
@@ -88,8 +80,7 @@ if [ "$REPORTED" != "$VERSION" ]; then
     exit 1
 fi
 
-# SwiftLint skips an `included:` entry that matches nothing and still exits 0. That is how this
-# config came to claim three trees while linting one, and why the tree check starts from these roots.
+# SwiftLint skips an `included:` entry that matches nothing and still exits 0.
 included_roots() {
     awk '/^included:/ { inside = 1; next }
          inside && /^[^[:space:]#]/ { exit }
@@ -108,9 +99,6 @@ if [ -z "$ROOTS" ]; then
     exit 1
 fi
 
-# Prints `typo <root>` for a root holding no Swift file git knows about, and `widened <tree>` for a
-# tree whose Swift files SwiftLint linted none of. A root with no linted file is reported alone, not
-# again for each tree inside it.
 tree_failures() {
     local roots=$1 known=$2 deleted=$3 linted=$4 physical_root=$5
     {
@@ -119,6 +107,11 @@ tree_failures() {
         printf '%s\n' "$known" | sed 's/^/known /'
         sed 's/^[^:]*: /linted /' "$linted"
     } | awk -v physical="$physical_root" '
+        function tree_inside(root, path,    rest, slash) {
+            rest = substr(path, length(root) + 2)
+            slash = index(rest, "/")
+            return slash ? root "/" substr(rest, 1, slash - 1) : ""
+        }
         { tag = $1; path = substr($0, length(tag) + 2) }
         tag == "root" { roots[++n] = path; next }
         tag == "gone" { gone[path] = 1; next }
@@ -133,10 +126,8 @@ tree_failures() {
                 r = roots[i]
                 if (path != r && index(path, r "/") != 1) continue
                 count[tag, r]++
-                rest = substr(path, length(r) + 2)
-                slash = index(rest, "/")
-                if (slash == 0) continue
-                tree = r "/" substr(rest, 1, slash - 1)
+                tree = tree_inside(r, path)
+                if (tree == "") continue
                 count[tag, tree]++
                 if (tag == "known" && !(tree in seen)) { seen[tree] = 1; trees[++t] = tree; parent[t] = r }
             }
@@ -180,9 +171,8 @@ if [ ! -f "$LINTED" ]; then
     exit 1
 fi
 
-# Top-level assignments, so a git failure stops the run here instead of emptying the list of trees.
-KNOWN="$(git -c core.quotePath=false ls-files --cached --others --exclude-standard -- '*.swift')"
-DELETED="$(git -c core.quotePath=false ls-files --deleted -- '*.swift')"
+KNOWN="$(git -c core.quotePath=false ls-files --cached --others --exclude-standard -- '*.swift')" || exit
+DELETED="$(git -c core.quotePath=false ls-files --deleted -- '*.swift')" || exit
 FAILURES="$(tree_failures "$ROOTS" "$KNOWN" "$DELETED" "$LINTED" "$(pwd -P)")"
 while read -r kind tree; do
     case "$kind" in

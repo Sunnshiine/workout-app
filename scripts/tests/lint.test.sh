@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Tests scripts/lint.sh over a fixture repo. An optional argument names another lint.sh to test.
 set -uo pipefail
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -50,7 +49,6 @@ fresh_fixture() {
     git -C "$fx" add -A
 }
 
-# Writes the baseline config. Each argument is one more `excluded:` entry.
 baseline_config() {
     cat >"$fx/.swiftlint.yml" <<'YAML'
 included:
@@ -63,7 +61,6 @@ YAML
     for entry in "$@"; do printf '  - %s\n' "$entry" >>"$fx/.swiftlint.yml"; done
 }
 
-# Runs the fixture's lint.sh, or the path given, which reaches the same script another way.
 run_lint() {
     "${1:-$fx/scripts/lint.sh}" >"$root/stdout" 2>"$root/stderr"
     status=$?
