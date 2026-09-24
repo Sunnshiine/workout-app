@@ -149,6 +149,16 @@ capture() {
   fi
 }
 
+refuse_frozen_frame() {
+  local dir=$1 prev=$2 name=$3
+  cmp -s "$dir/$prev.png" "$dir/.$name.png" || return 0
+  case $(python3 "$tree" diff "$dir/$prev.tree.txt" "$dir/.$name.tree.txt") in "no tree changes "*) return 0 ;; esac
+  rm -f "$dir/.$name.png" "$dir/.$name.tree.txt"
+  echo "refused $name: its frame is byte-identical to $prev.png but its tree changed, so the pixels did not move while the tree did" >&2
+  echo "either the shot fired before a transition drew (wait a second and shoot again) or the screenshot pipeline is wedged, as one axe button lock leaves it until a reboot (run: xcrun simctl shutdown $sim, then $0 launch <fixture>)" >&2
+  exit 70
+}
+
 app_path() {
   for plist in ~/Library/Developer/Xcode/DerivedData/WorkoutTracker-*/info.plist; do
     if [ "$(plutil -extract WorkspacePath raw "$plist")" = "$project" ]; then
@@ -343,6 +353,7 @@ case $cmd in
       echo "captured nothing for $name; run: $0 doctor" >&2
       exit 70
     fi
+    [ -z "$prev" ] || refuse_frozen_frame "$dir" "$prev" "$name"
     mv "$dir/.$name.png" "$dir/$name.png"
     mv "$dir/.$name.tree.txt" "$dir/$name.tree.txt"
     echo "$dir/$name.png"
