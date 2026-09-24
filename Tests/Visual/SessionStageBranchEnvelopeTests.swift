@@ -9,7 +9,7 @@ import UIKit
 struct SessionStageBranchEnvelopeTests {
     nonisolated static let heights = stride(from: 70, through: 200, by: 2).map { CGFloat($0) }
     static let setCounts = [3, 5, 8]
-    static let inkAbove = Theme.stageColumnSpacing + 4
+    static let inkAbove = Theme.stageColumnSpacing + Theme.stageBranchTopPadding
     static let inkBelow = Theme.stageColumnSpacing - 2
 
     @Test(arguments: heights)
@@ -22,7 +22,7 @@ struct SessionStageBranchEnvelopeTests {
 
             let taps = try branch.tapBoxes(height: height)
             #expect(taps.count == setCount, "every Set has a leaf to tap")
-            #expect(taps.map(\.minY).min() ?? 0 >= -4, "\(setCount) Sets")
+            #expect(taps.map(\.minY).min() ?? 0 >= -Theme.stageBranchTopPadding, "\(setCount) Sets")
             #expect(taps.map(\.maxY).max() ?? 0 <= height, "\(setCount) Sets")
         }
     }

@@ -380,7 +380,7 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
 
     private var flexibleBranch: some View {
         branch()
-            .padding(.top, 4)
+            .padding(.top, Theme.stageBranchTopPadding)
     }
 
     @ViewBuilder
