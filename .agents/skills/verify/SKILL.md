@@ -157,6 +157,9 @@ apart, so a shot taken right on a tap can show one state and describe another. W
 after a tap before a shot, or run `burst`. After a log the rest pill counts down once a second, so
 the changed lines always carry it.
 
+`shot` refuses a PNG byte-identical to the run's newest shot, a retake of the same name included,
+while the tree changed. It saves nothing, prints the changed lines, and exits 70.
+
 ## Cleanup
 
 ```bash
