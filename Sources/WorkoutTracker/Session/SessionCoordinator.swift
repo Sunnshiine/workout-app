@@ -56,7 +56,7 @@ struct SessionPendingWriteSyncAdapter: SessionSyncAdapter {
 
     func requestPendingWriteFlush() {
         guard let id = settings.spreadsheetId else { return }
-        // Holding it means keeping flushes apart, which changes when Set Logs are flushed (#702).
+        // Awaiting it would keep flushes apart, which changes when Set Logs are flushed (#702).
         // swiftlint:disable:next unstructured_task_is_held
         Task { await sync.flushPending(spreadsheetId: id) }
     }

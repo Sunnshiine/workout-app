@@ -49,7 +49,7 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
         startUpdateTask?.cancel()
         startUpdateTask = nil
         startUpdateID = nil
-        // Holding it means the next start awaits this end, which reorders teardown (#699).
+        // Awaiting it would make the next start wait for this end, which reorders teardown (#699).
         // swiftlint:disable:next unstructured_task_is_held
         Task { @MainActor [controller] in
             await controller.end()
