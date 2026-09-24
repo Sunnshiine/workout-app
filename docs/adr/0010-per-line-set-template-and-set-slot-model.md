@@ -65,5 +65,8 @@ Set-Slot model that both the reader (`SheetParser`) and the write planner
   larger count. This is the one place a human may later choose to reinterpret.
 - The numeric cap on day count is removed entirely; 2–6 is the supported and
   tested range, but any `Day N` parses.
+- **Amended 2026-09-24 (#749):** a Session's Day number is now the N of its `Day N` header, and
+  only `Day 1` to `Day 7`, each used once per Week, name a Session, because a Week is a 7-day
+  window; any other `Day N` header is left out with a parse warning.
 
 See PRD and slices: issues #297–#301.
