@@ -140,7 +140,6 @@ def by_label(root: dict, label: str) -> List[TreeLine]:
     return [line for line in lines(root) if line.label.strip() == wanted]
 
 
-# The roles of axe 1.8.0's actionableTypes, which break a tie between elements that share a label.
 CONTROLS = frozenset({
     "AXButton", "AXCell", "AXCheckBox", "AXLink", "AXMenuItem", "AXPopUpButton", "AXRadioButton",
     "AXSecureTextField", "AXSegmentedControl", "AXSlider", "AXSwitch", "AXTab", "AXTabBarButton",
