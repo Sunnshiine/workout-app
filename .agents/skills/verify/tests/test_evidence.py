@@ -1057,6 +1057,7 @@ PRO_MAX = {"name": "iPhone 17 Pro Max", "identifier": "com.apple.CoreSimulator.S
 AIR = {"name": "iPhone Air", "identifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-Air"}
 CREATE_PRO = ("xcrun simctl create iPhone 17 Pro com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro "
               "com.apple.CoreSimulator.SimRuntime.iOS-27-0")
+NO_PRO = "no available iPhone 17 Pro simulator; verify.sh launch or scripts/test-sim.sh creates one\n"
 
 
 def device(name, udid, state="Shutdown", available=True):
@@ -1148,6 +1149,11 @@ class SimulatorPick(unittest.TestCase):
                 "-destination platform=iOS Simulator,id=%s -skipPackagePluginValidation -skipMacroValidation "
                 "CODE_SIGNING_ALLOWED=NO" % (self.checkout, udid))
 
+    def build_on(self, udid):
+        return ("xcodebuild build -project %s/WorkoutTracker.xcodeproj -scheme WorkoutTracker "
+                "-destination platform=iOS Simulator,id=%s -skipPackagePluginValidation -skipMacroValidation "
+                "CODE_SIGNING_ALLOWED=NO" % (self.checkout, udid))
+
     def test_test_sim_creates_the_missing_iphone_17_pro_on_the_baseline_runtime_and_runs_on_it(self):
         self.fresh_machine()
         code, out, err, calls = self.run_test_sim()
@@ -1155,9 +1161,10 @@ class SimulatorPick(unittest.TestCase):
             "xcrun simctl list devices available -j",
             "xcrun simctl list -j",
             CREATE_PRO,
+            "xcrun simctl list devices available -j",
             "xcrun simctl boot %s" % self.created,
             self.build_for_testing_on(self.created),
-        ], "the created simulator is booted and built for")
+        ], "the created simulator is picked from simctl again, then booted and built for")
         self.assertEqual((code, out, err), (65, "", "creating iPhone 17 Pro on iOS 27.0\n" + self.failed_build()))
 
     def test_verify_launch_creates_the_missing_iphone_17_pro_and_waits_on_its_boot(self):
@@ -1167,11 +1174,31 @@ class SimulatorPick(unittest.TestCase):
             "xcrun simctl list devices available -j",
             "xcrun simctl list -j",
             CREATE_PRO,
+            "xcrun simctl list devices available -j",
             "plutil -extract WorkspacePath raw %s" % self.plist,
             "xcrun simctl bootstatus %s -b" % self.created,
         ], "the launch claims and boots the simulator it created")
         self.assertEqual((code, out, err), (70, "", "creating iPhone 17 Pro on iOS 27.0\nsimulator %s did not boot\n"
                                             % self.created))
+
+    def test_verify_build_creates_the_missing_iphone_17_pro_and_builds_for_it(self):
+        self.fresh_machine()
+        code, out, err, calls = self.verify("build")
+        self.assertEqual(calls, [
+            "xcrun simctl list devices available -j",
+            "xcrun simctl list -j",
+            CREATE_PRO,
+            "xcrun simctl list devices available -j",
+            "xcrun simctl boot %s" % self.created,
+            self.build_on(self.created),
+        ], "the created simulator is booted and built for")
+        self.assertEqual((code, out, err), (65, "", "creating iPhone 17 Pro on iOS 27.0\n" + self.failed_build()))
+
+    def test_every_other_verify_command_creates_nothing_and_says_which_ones_do(self):
+        self.fresh_machine()
+        for argv in [["doctor"], ["stop"], ["tree"], ["sheet"], ["diff", "01-before", "02-after-log"]]:
+            with self.subTest(argv=argv):
+                self.assertEqual(self.verify(*argv), (1, "", NO_PRO, ["xcrun simctl list devices available -j"]))
 
     def test_a_missing_runtime_or_device_type_fails_with_what_the_machine_has(self):
         unavailable = pick_udid(4)
@@ -1186,7 +1213,8 @@ class SimulatorPick(unittest.TestCase):
                 {IOS_27_0["identifier"]: [device("iPhone 17 Pro", unavailable, available=False)]}, no_type),
         }
         for machine, (runtimes, devicetypes, devices, message) in machines.items():
-            for script, run in [("test-sim.sh", self.run_test_sim), ("verify.sh launch", self.launch)]:
+            for script, run in [("test-sim.sh", self.run_test_sim), ("verify.sh launch", self.launch),
+                                ("verify.sh build", lambda: self.verify("build"))]:
                 with self.subTest(machine=machine, script=script):
                     self.machine(runtimes, devicetypes, devices)
                     code, out, err, calls = run()

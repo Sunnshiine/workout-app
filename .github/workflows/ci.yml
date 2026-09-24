@@ -118,7 +118,8 @@ jobs:
     timeout-minutes: 45
     # Every committed baseline was recorded on this exact pair (ADR-0007, issue #479).
     # Renders differ across machines and runtimes at the suite's exact precision, so treat
-    # a change to either value as a re-record of every baseline.
+    # a change to either value as a re-record of every baseline. scripts/sim-lock.sh creates
+    # local simulators on the same pair, so a re-record updates both.
     env:
       BASELINE_DEVICE: iPhone 17 Pro
       BASELINE_RUNTIME: "27.0"

@@ -35,9 +35,9 @@ Usage: .claude/skills/verify/verify.sh <command> [args]
                               says when the run has shots that are not on a sheet yet. A run
                               launched with Live Activities on is uninstalled, which ends them
   axe ARG...                  raw axe call with --udid filled in
-Environment: SIM (simulator UDID, default the booted iPhone 17 Pro, else the newest one, else one
-                  created on iOS 27.0, booted for you;
-                  launch boots a named one too, and waits for either boot to finish),
+Environment: SIM (simulator UDID, default the booted iPhone 17 Pro, else the newest one, booted for you;
+                  launch boots a named one too, and waits for either boot to finish; with no iPhone
+                  17 Pro, build and launch create one on iOS 27.0 and every other command exits 1),
              VERIFY_RUN (names the run; give it to launch and every later command remembers it),
              VERIFY_LIVE_ACTIVITIES=1 (launch without -UITEST_DISABLE_LIVE_ACTIVITIES; for
              features/live-activity.md, and its shots carry the activity overlay).
@@ -62,7 +62,7 @@ state_dir=
 resolve_sim() {
   [ -n "$sim" ] && return 0
   local picked
-  picked=$(pick_sim "${SIM:-}") || exit
+  picked=$(pick_sim "${SIM:-}" "${1:-}") || exit
   read -r sim sim_state <<< "$picked"
   state_dir=/tmp/workout-verify-$sim
 }
@@ -105,7 +105,7 @@ run_dir() {
 
 recorded_run_dir() {
   local name
-  name=$(current_run)
+  name=$(current_run) || exit
   if [ -n "$name" ] && [ -d "$work/evidence/$name" ]; then
     printf '%s\n' "$work/evidence/$name"
     return 0
@@ -187,6 +187,7 @@ shift
 
 case $cmd in
   build)
+    resolve_sim create
     need_sim
     mkdir -p "$work"
     log=$work/$(date +%Y%m%d-%H%M%S)-build.log
@@ -202,7 +203,7 @@ case $cmd in
   launch)
     fixture=${1:-}; [ -n "$fixture" ] || usage; shift
     fixture_flags=$(fixture_args "$fixture")
-    resolve_sim
+    resolve_sim create
     claim_sim "$sim" "verify.sh launch"
     app=$(app_path)
     [ -d "$app" ] || { echo "no built app for $project; run: $0 build" >&2; exit 65; }

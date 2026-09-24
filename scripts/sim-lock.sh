@@ -1,26 +1,37 @@
 # shellcheck shell=bash
-# Prints the UDID a run drives, which is also its lock key, and that simulator's state. A named UDID
-# counts as Booted because neither script boots a simulator it was handed. With no iPhone 17 Pro at all
-# it creates one on iOS 27.0, the runtime the Visual baselines were recorded on (ci.yml pins the same).
+# Prints the UDID a run drives, which is also its lock key, and its state. A named UDID is uppercased,
+# the spelling simctl lists, and reads as Booted so no caller runs simctl boot on it (verify.sh launch
+# still waits on it with bootstatus -b). `create` makes a missing iPhone 17 Pro on iOS 27.0, the runtime
+# the Visual baselines were recorded on, which ci.yml's visual-tests job pins too.
 pick_sim() {
-  local picked
+  local device='iPhone 17 Pro' picked
   if [ -n "$1" ]; then
     picked=$(printf %s "$1" | tr '[:lower:]' '[:upper:]')
     echo "$picked Booted"
     return
   fi
-  picked=$(xcrun simctl list devices available -j | python3 -c '
-import json, sys
+  picked=$(available_sim "$device") || return
+  if [ -z "$picked" ] && [ "${2:-}" = create ]; then
+    "$(dirname "${BASH_SOURCE[0]}")/ensure-simulator.sh" "$device" 27.0 >/dev/null || return
+    picked=$(available_sim "$device") || return
+  fi
+  if [ -z "$picked" ]; then
+    echo "no available $device simulator; verify.sh launch or scripts/test-sim.sh creates one" >&2
+    return 1
+  fi
+  echo "$picked"
+}
+
+available_sim() {
+  xcrun simctl list devices available -j | NAME="$1" python3 -c '
+import json, os, sys
 def version(runtime): return tuple(int(n) for n in runtime.rsplit("iOS-", 1)[-1].split("-"))
-devices = [(version(runtime), d) for runtime, ds in json.load(sys.stdin)["devices"].items() for d in ds if d["name"] == "iPhone 17 Pro"]
+devices = [(version(runtime), d) for runtime, ds in json.load(sys.stdin)["devices"].items()
+           for d in ds if d["name"] == os.environ["NAME"]]
 booted = [d for d in devices if d[1]["state"] == "Booted"]
 if devices:
     pick = max(booted or devices, key=lambda pair: pair[0])[1]
-    print(pick["udid"], pick["state"])') || return
-  if [ -z "$picked" ]; then
-    picked="$("$(dirname "${BASH_SOURCE[0]}")/ensure-simulator.sh" 'iPhone 17 Pro' 27.0) Shutdown" || return
-  fi
-  echo "$picked"
+    print(pick["udid"], pick["state"])'
 }
 
 sim_flock() {
