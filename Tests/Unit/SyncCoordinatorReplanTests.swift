@@ -8,6 +8,8 @@ private final class LiveSheetClient: SheetsClient, @unchecked Sendable {
     private var grid: SheetGrid
     private let editsLandingBeforeFetch: [Int: [String: String]]
     private let rowsHiddenBeforeFetch: [Int: [Int]]
+    private let failingFetch: Int?
+    private let failingUpdateRequest: Int?
     private var rowVisibility: [Int: SheetRowVisibility] = [:]
     private(set) var fetchCount = 0
     private(set) var updateRequestCount = 0
@@ -15,11 +17,15 @@ private final class LiveSheetClient: SheetsClient, @unchecked Sendable {
     init(
         grid: SheetGrid,
         editsLandingBeforeFetch: [Int: [String: String]] = [:],
-        rowsHiddenBeforeFetch: [Int: [Int]] = [:]
+        rowsHiddenBeforeFetch: [Int: [Int]] = [:],
+        failingFetch: Int? = nil,
+        failingUpdateRequest: Int? = nil
     ) {
         self.grid = grid
         self.editsLandingBeforeFetch = editsLandingBeforeFetch
         self.rowsHiddenBeforeFetch = rowsHiddenBeforeFetch
+        self.failingFetch = failingFetch
+        self.failingUpdateRequest = failingUpdateRequest
     }
 
     func cell(_ a1: String) -> String {
@@ -31,6 +37,7 @@ private final class LiveSheetClient: SheetsClient, @unchecked Sendable {
 
     func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
         fetchCount += 1
+        if fetchCount == failingFetch { throw URLError(.notConnectedToInternet) }
         for (a1, value) in editsLandingBeforeFetch[fetchCount] ?? [:] {
             write([[value]], to: a1)
         }
@@ -46,6 +53,7 @@ private final class LiveSheetClient: SheetsClient, @unchecked Sendable {
 
     func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
         updateRequestCount += 1
+        if updateRequestCount == failingUpdateRequest { throw URLError(.cannotConnectToHost) }
         for update in updates {
             try await updateCells(spreadsheetId: spreadsheetId, range: update.range, values: update.values)
         }
@@ -651,4 +659,56 @@ private func squatCoachNoteGrid() -> SheetGrid {
     #expect(client.cell("K17") == "")
     #expect(client.fetchCount == 1)
     #expect(sync.outcome == .writesRefused(["Bench Press: Expected '205x3@9', found ''"]))
+}
+
+@MainActor
+@Test func replanningWhenTheInterimFlushFailsKeepsBothWritesQueuedForRetry() async throws {
+    let container = try makeReplanContainer()
+    let ctx = container.mainContext
+    ctx.insert(replanPendingWrite(createdAt: 1, valueToWrite: "185x5@8", expectedCurrentValue: ""))
+    ctx.insert(replanPendingWrite(createdAt: 2, valueToWrite: "205x3@10", expectedCurrentValue: "205x3@9"))
+    try ctx.save()
+    let client = LiveSheetClient(grid: squatOneSetGrid(), failingUpdateRequest: 1)
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(client.cell("K15") == "")
+    #expect(client.fetchCount == 1)
+    #expect(sync.outcome == .writesQueued(2))
+    let remaining = try ctx.fetch(FetchDescriptor<PendingWrite>(sortBy: [SortDescriptor(\.createdAt)]))
+    #expect(remaining.map(\.status) == [.pending, .pending])
+    #expect(remaining.map(\.retryCount) == [1, 0])
+    #expect(remaining.map(\.valueToWrite) == ["185x5@8", "205x3@10"])
+    #expect(try ctx.fetch(FetchDescriptor<WriteTargetAuditEntry>()).isEmpty)
+}
+
+@MainActor
+@Test func replanningWhenTheRefetchFailsKeepsTheLandedWriteAndQueuesTheReplannedOne() async throws {
+    let container = try makeReplanContainer()
+    let ctx = container.mainContext
+    ctx.insert(replanPendingWrite(createdAt: 1, valueToWrite: "185x5@8", expectedCurrentValue: ""))
+    ctx.insert(replanPendingWrite(createdAt: 2, valueToWrite: "205x3@10", expectedCurrentValue: "205x3@9"))
+    try ctx.save()
+    let client = LiveSheetClient(grid: squatOneSetGrid(), failingFetch: 2)
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(client.cell("K15") == "185x5@8")
+    #expect(client.fetchCount == 2)
+    // Head reports writesQueued(2) with one write left, the open defect #744, so the count stays unpinned.
+    #expect(sync.outcome.isWritesQueued)
+    let remaining = try ctx.fetch(FetchDescriptor<PendingWrite>())
+    #expect(remaining.map(\.status) == [.pending])
+    #expect(remaining.map(\.retryCount) == [1])
+    #expect(remaining.map(\.valueToWrite) == ["205x3@10"])
+    #expect(try ctx.fetch(FetchDescriptor<WriteTargetAuditEntry>()).map(\.finalStatus) == [.succeeded])
+}
+
+extension SyncOutcome {
+    fileprivate var isWritesQueued: Bool {
+        if case .writesQueued = self { return true }
+        return false
+    }
 }
