@@ -25,7 +25,7 @@ struct SessionStageLayoutTests {
         #expect(
             oneLine
                 == PageFrames(
-                    banner: CGRect(x: 0, y: 70, width: 402, height: 34),
+                    banner: CGRect(x: 16, y: 70, width: 370, height: 34),
                     stage: CGRect(x: 0, y: 104, width: 402, height: 736),
                     name: CGRect(x: 16, y: 175, width: 173, height: 41),
                     card: CGRect(x: 16, y: 418, width: 370, height: 308)
@@ -35,7 +35,7 @@ struct SessionStageLayoutTests {
         #expect(
             twoLines
                 == PageFrames(
-                    banner: CGRect(x: 0, y: 70, width: 402, height: 55),
+                    banner: CGRect(x: 16, y: 70, width: 370, height: 55),
                     stage: CGRect(x: 0, y: 125, width: 402, height: 715),
                     name: CGRect(x: 16, y: 196, width: 173, height: 41),
                     card: CGRect(x: 16, y: 418, width: 370, height: 308)
@@ -58,7 +58,7 @@ struct SessionStageLayoutTests {
         #expect(
             oneLine
                 == PageFrames(
-                    banner: CGRect(x: 0, y: 70, width: 402, height: 34),
+                    banner: CGRect(x: 16, y: 70, width: 370, height: 34),
                     stage: CGRect(x: 0, y: 104, width: 402, height: 736),
                     name: CGRect(x: 16, y: 175, width: 173, height: 41),
                     card: CGRect(x: 16, y: 418, width: 370, height: 308)
@@ -68,7 +68,7 @@ struct SessionStageLayoutTests {
         #expect(
             twoLines
                 == PageFrames(
-                    banner: CGRect(x: 0, y: 70, width: 402, height: 55),
+                    banner: CGRect(x: 16, y: 70, width: 370, height: 55),
                     stage: CGRect(x: 0, y: 125, width: 402, height: 715),
                     name: CGRect(x: 16, y: 196, width: 173, height: 41),
                     card: CGRect(x: 16, y: 418, width: 370, height: 308)
@@ -81,7 +81,7 @@ struct SessionStageLayoutTests {
         #expect(
             withDetail
                 == PageFrames(
-                    banner: CGRect(x: 0, y: 70, width: 402, height: 76),
+                    banner: CGRect(x: 16, y: 70, width: 370, height: 76),
                     stage: CGRect(x: 0, y: 146, width: 402, height: 694),
                     name: CGRect(x: 16, y: 217, width: 173, height: 41),
                     card: CGRect(x: 16, y: 418, width: 370, height: 308)
@@ -140,8 +140,6 @@ private struct PageFrames: Equatable, CustomStringConvertible {
 
 @MainActor
 private final class FrameProbe {
-    /// A banner with nothing to say still reports a frame, of zero size.
-    var banner: CGRect?
     var stage: CGRect?
 }
 
@@ -158,11 +156,6 @@ private struct SessionPage: View {
         NavigationStack {
             VStack(spacing: 0) {
                 bannerSlot
-                    .onGeometryChange(for: CGRect.self) {
-                        $0.frame(in: .global)
-                    } action: {
-                        probe.banner = $0
-                    }
                     .padding(.top, 8)
 
                 SessionStageView(
@@ -189,10 +182,18 @@ private struct SessionPage: View {
         case .outcome(let outcome):
             SyncStatusBanner(outcome: outcome, isSyncing: false)
         case .twoLineHeightStandIn:
-            Color.clear.frame(height: 55)
+            standIn(height: 55)
         case .detailHeightStandIn:
-            Color.clear.frame(height: 76)
+            standIn(height: 76)
         }
+    }
+
+    private func standIn(height: CGFloat) -> some View {
+        Color.clear
+            .frame(height: height)
+            .accessibilityElement()
+            .accessibilityLabel("Sync status: stand-in")
+            .padding(.horizontal)
     }
 }
 
@@ -245,10 +246,10 @@ private enum SessionPageHost {
             #expect(!controller.view.layer.needsLayout(), "the page settles in one layout")
 
             return PageFrames(
-                banner: probe.banner.flatMap { $0.isEmpty ? nil : $0 },
+                banner: window.accessibilityFrame { $0.accessibilityLabel?.hasPrefix("Sync status:") == true },
                 stage: probe.stage,
-                name: window.accessibilityFrame(identifier: "stage-exercise-name"),
-                card: window.accessibilityFrame(identifier: "active-set-card")
+                name: window.accessibilityFrame { $0.accessibilityIdentifier == "stage-exercise-name" },
+                card: window.accessibilityFrame { $0.accessibilityIdentifier == "active-set-card" }
             )
         }
     }
@@ -290,18 +291,22 @@ extension SessionStageActions {
 }
 
 extension NSObject {
-    /// The frame VoiceOver and the UI tests read for the element carrying `identifier`.
-    fileprivate func accessibilityFrame(identifier: String) -> CGRect? {
-        let isIdentifiable = responds(to: #selector(getter: UIAccessibilityIdentification.accessibilityIdentifier))
-        if isIdentifiable, value(forKey: "accessibilityIdentifier") as? String == identifier {
+    /// The frame VoiceOver and the UI tests read for the first element that `matches`.
+    fileprivate func accessibilityFrame(where matches: (NSObject) -> Bool) -> CGRect? {
+        if matches(self) {
             return accessibilityFrame
         }
         for child in accessibilityChildren {
-            if let frame = child.accessibilityFrame(identifier: identifier) {
+            if let frame = child.accessibilityFrame(where: matches) {
                 return frame
             }
         }
         return nil
+    }
+
+    fileprivate var accessibilityIdentifier: String? {
+        let isIdentifiable = responds(to: #selector(getter: UIAccessibilityIdentification.accessibilityIdentifier))
+        return isIdentifiable ? value(forKey: "accessibilityIdentifier") as? String : nil
     }
 
     private var accessibilityChildren: [NSObject] {
