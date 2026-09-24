@@ -240,6 +240,8 @@ def main() -> None:
         if sys.argv[2] == "--label":
             label = sys.argv[3]
             found = tap_candidates(by_label(root, label))
+            if not found:
+                sys.exit(f"no element with label {label}")
             if len(found) > 1:
                 listed = [f"{len(found)} elements carry the label {label}; "
                           "pick one by its id, or tap its centre with -x -y:"]
@@ -247,8 +249,6 @@ def main() -> None:
                     x, y = line.frame.center
                     listed.append(f"{line.text}\t-x {x:.0f} -y {y:.0f}")
                 sys.exit("\n".join(listed))
-            if not found:
-                sys.exit(f"no element with label {label}")
         else:
             found = by_id(root, sys.argv[2])
             if not found:
