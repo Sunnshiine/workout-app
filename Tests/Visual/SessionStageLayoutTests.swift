@@ -531,23 +531,25 @@ private enum SessionPageHost {
         let cgImage = try #require(image.cgImage)
         let width = cgImage.width
         var pixels = [UInt8](repeating: 0, count: width * cgImage.height * 4)
-        let context = try #require(
-            CGContext(
-                data: &pixels,
-                width: width,
-                height: cgImage.height,
-                bitsPerComponent: 8,
-                bytesPerRow: width * 4,
-                space: CGColorSpaceCreateDeviceRGB(),
-                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        return try pixels.withUnsafeMutableBytes { bytes in
+            let context = try #require(
+                CGContext(
+                    data: bytes.baseAddress,
+                    width: width,
+                    height: cgImage.height,
+                    bitsPerComponent: 8,
+                    bytesPerRow: width * 4,
+                    space: CGColorSpaceCreateDeviceRGB(),
+                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                )
             )
-        )
-        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: cgImage.height))
-        let paper = Array(pixels[0..<3])
-        return stride(from: 0, to: pixels.count, by: 4).filter { offset in
-            (0..<3).contains { abs(Int(pixels[offset + $0]) - Int(paper[$0])) > 24 }
+            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: cgImage.height))
+            let paper = Array(bytes[0..<3])
+            return stride(from: 0, to: bytes.count, by: 4).filter { offset in
+                (0..<3).contains { abs(Int(bytes[offset + $0]) - Int(paper[$0])) > 24 }
+            }
+            .count
         }
-        .count
     }
 }
 

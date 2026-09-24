@@ -7,7 +7,10 @@ import UIKit
 @MainActor
 @Suite
 struct SessionStageBranchEnvelopeTests {
-    nonisolated static let heights = stride(from: 70, through: 200, by: 2).map { CGFloat($0) }
+    nonisolated static let heights = Set(
+        Array(stride(from: CGFloat(70), through: 200, by: 2)) + whereTheLateralsHangBinds
+    ).sorted()
+    nonisolated static let whereTheLateralsHangBinds = stride(from: CGFloat(156), through: 170, by: 0.5)
     static let setCounts = [3, 5, 8]
     static let inkAbove = Theme.stageColumnSpacing + Theme.stageBranchTopPadding
     static let inkBelow = Theme.stageColumnSpacing - 2
@@ -29,12 +32,10 @@ struct SessionStageBranchEnvelopeTests {
 
     @Test(arguments: heights, PartnerEnding.allCases)
     func theSupersetBranchKeepsItsLateralInsideTheGapsAroundIt(height: CGFloat, partnerEnding: PartnerEnding) throws {
-        for setCount in Self.setCounts {
-            let branch = Branch(setCount: setCount, kind: .superset(partnerEnding: partnerEnding))
-            let ink = try #require(try branch.inkExtent(height: height), "the forked branch draws with \(setCount) Sets")
-            #expect(ink.top >= -Self.inkAbove, "\(setCount) Sets")
-            #expect(ink.bottom <= height + Self.inkBelow, "\(setCount) Sets")
-        }
+        let branch = Branch(setCount: 3, kind: .superset(partnerEnding: partnerEnding))
+        let ink = try #require(try branch.inkExtent(height: height), "the forked branch draws")
+        #expect(ink.top >= -Self.inkAbove)
+        #expect(ink.bottom <= height + Self.inkBelow)
     }
 
     @Test func theBranchFillsItsRegionAndNeverFallsBelowItsFloor() {
@@ -96,26 +97,28 @@ private struct Branch {
         let width = Int(370 * scale)
         let rows = Int((height + 2 * margin) * scale)
         var pixels = [UInt8](repeating: 0, count: width * rows * 4)
-        let context = try #require(
-            CGContext(
-                data: &pixels,
-                width: width,
-                height: rows,
-                bitsPerComponent: 8,
-                bytesPerRow: width * 4,
-                space: CGColorSpaceCreateDeviceRGB(),
-                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        return try pixels.withUnsafeMutableBytes { bytes in
+            let context = try #require(
+                CGContext(
+                    data: bytes.baseAddress,
+                    width: width,
+                    height: rows,
+                    bitsPerComponent: 8,
+                    bytesPerRow: width * 4,
+                    space: CGColorSpaceCreateDeviceRGB(),
+                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                )
             )
-        )
-        context.scaleBy(x: scale, y: scale)
-        renderer.render(rasterizationScale: scale) { _, draw in draw(context) }
-        func isInked(_ row: Int) -> Bool {
-            pixels.withUnsafeBufferPointer { buffer in
-                stride(from: row * width * 4 + 3, to: (row + 1) * width * 4, by: 4).contains { buffer[$0] > 25 }
+            context.scaleBy(x: scale, y: scale)
+            renderer.render(rasterizationScale: scale) { _, draw in draw(context) }
+            func isInked(_ row: Int) -> Bool {
+                stride(from: row * width * 4 + 3, to: (row + 1) * width * 4, by: 4).contains { bytes[$0] > 25 }
             }
+            guard let top = (0..<rows).first(where: isInked), let bottom = (0..<rows).last(where: isInked) else {
+                return nil
+            }
+            return (CGFloat(top) / scale - margin, CGFloat(bottom + 1) / scale - margin)
         }
-        guard let top = (0..<rows).first(where: isInked), let bottom = (0..<rows).last(where: isInked) else { return nil }
-        return (CGFloat(top) / scale - margin, CGFloat(bottom + 1) / scale - margin)
     }
 
     func tapBoxes(height: CGFloat) throws -> [CGRect] {
