@@ -39,8 +39,12 @@ struct OptionalBoolNeedsANilAnswer {
         isComplete == true
     }
 
-    func mapWithATrailingClosureIsMissed(session: Session?) -> Bool {
+    func mapWithATrailingClosureComparedToTrueIsFlagged(session: Session?) -> Bool {
         session.map { $0.isComplete } == true
+    }
+
+    func flatMapWithATrailingClosureNotEqualToFalseIsFlagged(session: Session?) -> Bool {
+        session.flatMap { $0.isPending } != false
     }
 
     func comparisonInACommentPasses(session: Session?) -> Bool {
