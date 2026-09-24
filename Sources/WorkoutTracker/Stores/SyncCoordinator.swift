@@ -220,7 +220,7 @@ private struct PlannedPendingWrite {
     let auditDetails: SheetWriteAuditDetails
 
     /// Declared in the struct body so it replaces the memberwise init. A planned write is then built
-    /// from one read only, so its target, value check, and audit row cannot disagree (#726).
+    /// from one read only, so its target, value check, and audit row cannot disagree.
     @MainActor
     init(_ write: PendingWrite, against snapshot: SheetWritePlanningSnapshot, planner: SheetWritePlanner) throws {
         let request = SheetWriteRequest(write)
@@ -230,7 +230,7 @@ private struct PlannedPendingWrite {
         } catch let error as SheetWriterError {
             throw PendingWritePlanningConflict(
                 error: error,
-                target: nil,
+                refusedTarget: nil,
                 auditDetails: planner.auditDetails(for: request, error: error, in: snapshot, target: nil)
             )
         }
@@ -239,7 +239,7 @@ private struct PlannedPendingWrite {
         } catch let error as SheetWriterError {
             throw PendingWritePlanningConflict(
                 error: error,
-                target: target,
+                refusedTarget: target,
                 auditDetails: planner.auditDetails(for: request, error: error, in: snapshot, target: target)
             )
         }
@@ -280,8 +280,7 @@ private struct PendingWriteBatchFailure: Error {
 private struct PendingWriteFlushInProgress: Error {}
 private struct PendingWritePlanningConflict: Error {
     let error: SheetWriterError
-    /// The cell whose value check refused the write, or nil when the read had no cell to address.
-    let target: SheetWriteTarget?
+    let refusedTarget: SheetWriteTarget?
     let auditDetails: SheetWriteAuditDetails
 }
 
@@ -386,7 +385,7 @@ extension SyncCoordinator {
 
     /// A refusal at a cell the batch already holds was checked against what the batch predicts, not
     /// what the Sheet holds. The coach may have moved or hidden that cell since the first read, so
-    /// the write is addressed again against a fresh read of the tab (ADR-0003, ADR-0006).
+    /// the write is addressed again against a fresh read of the tab (ADR-0003).
     fileprivate func plan(
         _ write: PendingWrite,
         context flushContext: PendingWriteFlushContext,
@@ -396,7 +395,7 @@ extension SyncCoordinator {
         let workingCopy = try await gridSnapshot(for: write.blockTab, context: flushContext, snapshots: &snapshots)
         do {
             return try PlannedPendingWrite(write, against: workingCopy, planner: flushContext.planner)
-        } catch let conflict as PendingWritePlanningConflict where conflict.target.map(batch.overlaps) ?? false {
+        } catch let conflict as PendingWritePlanningConflict where conflict.refusedTarget.map(batch.overlaps) ?? false {
             try await flush(batch, context: flushContext)
             batch.removeAll()
             let refetched = try await refetchedGridSnapshot(for: write.blockTab, context: flushContext, snapshots: &snapshots)

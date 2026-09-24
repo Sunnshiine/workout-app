@@ -11,7 +11,6 @@ private final class LiveSheetClient: SheetsClient, @unchecked Sendable {
     private var rowVisibility: [Int: SheetRowVisibility] = [:]
     private(set) var fetchCount = 0
 
-    /// `rowsHiddenBeforeFetch` names Sheet row numbers, as the coach sees them.
     init(
         grid: SheetGrid,
         editsLandingBeforeFetch: [Int: [String: String]] = [:],
@@ -151,8 +150,6 @@ private func squatOneSetGrid() -> SheetGrid {
     #expect(conflictEntry.valueCheckOutcome == "Expected '205x3@9', found '300x1@10'.")
 }
 
-/// The coach swaps the Last set RPE and Notes headers between the two reads, so the re-plan
-/// addresses K15, now headed Last set RPE, whatever the coach left in I15.
 @MainActor
 @Test(arguments: ["185x5@8", "", "185x5@8, 185x5@9"])
 func replanningALastSetRPEWriteAfterTheCoachSwapsHeadersWritesTheCellNowHeadedLastSetRPE(
@@ -207,8 +204,6 @@ private func squatCoachNoteGrid() -> SheetGrid {
     )
 }
 
-/// The Coach Note in K15 sends Set Logs to K16. Hiding row 16 between the two reads moves the
-/// Visible Writable Row to K17, which does not hold the coach's edit the write expects.
 @MainActor
 @Test func replanningAfterTheCoachHidesTheSetRowConflictsOnTheNextVisibleWritableRow() async throws {
     let container = try makeReplanContainer()
@@ -244,8 +239,6 @@ private func squatCoachNoteGrid() -> SheetGrid {
     #expect(entries.last?.valueCheckOutcome == "Expected '205x3@9', found ''.")
 }
 
-/// The coach moves the logged Set from row 16 to row 17 and hides row 16, so the Visible Writable
-/// Row the second read resolves holds what the write expects.
 @MainActor
 @Test func replanningAfterTheCoachMovesTheSetRowWritesTheRowItMovedTo() async throws {
     let container = try makeReplanContainer()
@@ -273,8 +266,6 @@ private func squatCoachNoteGrid() -> SheetGrid {
     #expect(entries.map(\.finalStatus) == [.succeeded, .succeeded])
 }
 
-/// Clearing the role header between the two reads leaves the second read with no column to
-/// address, so the write conflicts with no target instead of landing under a blank header.
 @MainActor
 @Test func replanningAfterTheCoachClearsTheNotesHeaderConflictsWithNoTarget() async throws {
     let container = try makeReplanContainer()
