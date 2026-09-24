@@ -352,7 +352,8 @@ private func squatCoachNoteGrid() -> SheetGrid {
 }
 
 @MainActor
-@Test func replanningAfterTheCoachHidesEveryRowBelowACoachNoteAlsoRefusesThePairedLastSetRPE() async throws {
+@Test(arguments: ["185x5@8, , 205x3@9", "205x3@9"])
+func replanningAfterTheCoachHidesEveryRowBelowACoachNoteAlsoRefusesThePairedLastSetRPE(coachK16: String) async throws {
     let container = try makeReplanContainer()
     let ctx = container.mainContext
     ctx.insert(replanPendingWrite(createdAt: 1, valueToWrite: "185x5@8", expectedCurrentValue: ""))
@@ -365,7 +366,7 @@ private func squatCoachNoteGrid() -> SheetGrid {
             "C15": "Squat", "D15": "3", "K15": "Keep elbows soft",
             "C19": "Bench Press", "D19": "1"
         ]),
-        editsLandingBeforeFetch: [2: ["K16": "185x5@8, , 205x3@9"]],
+        editsLandingBeforeFetch: [2: ["K16": coachK16]],
         rowsHiddenBeforeFetch: [2: [16, 17, 18]]
     )
     let sync = SyncCoordinator(client: client, context: ctx)
@@ -376,7 +377,7 @@ private func squatCoachNoteGrid() -> SheetGrid {
         "Squat: Set 3 for Squat cannot be written because existing header Notes prevent writing there, and no safe "
         + "Set row exists before the next Exercise. Add a row in the Sheet, clear or migrate the existing header "
         + "note, then sync again."
-    #expect(client.cell("K16") == "185x5@8, , 205x3@9")
+    #expect(client.cell("K16") == coachK16)
     #expect(client.cell("K17") == "")
     #expect(client.cell("K18") == "")
     #expect(client.cell("K19") == "")
