@@ -72,4 +72,16 @@ struct OptionalBoolNeedsANilAnswer {
     func mapThenATrailingClosureCallIsFalselyFlagged(sessions: [Session]) -> Bool {
         sessions.map { $0.isComplete }.allSatisfy { $0 } == true
     }
+
+    func mapWithAClosureThatSpansLinesIsMissed(session: Session?) -> Bool {
+        session.map {
+            $0.isComplete
+        } == true
+    }
+
+    func flatMapWithAnArgumentThatSpansLinesIsMissed(session: Session?) -> Bool {
+        session.flatMap(
+            \.isPending
+        ) != false
+    }
 }

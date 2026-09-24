@@ -89,12 +89,13 @@ judges what each regex misses. A hit is fixed in the code, or exempted on its li
   It flags a Task held on the line after `x =` and a Task a function returns implicitly, though
   both are held.
 - `optional_bool_needs_a_nil_answer` catches `x?.flag`, `(try? …)`, `x.map(…)`, and `x.map { … }`
-  compared to a Bool literal. A reversed comparison (`true == x?.flag`), a chain past a call
-  (`x?.f().flag`), a nested call inside the chain (`x?.f(g(a))`), a subscript (`x?[i].flag`), and
-  a plain `Bool?` value compared to a literal pass it. It flags a non-optional call chained after
-  the map (`.map(abs).contains(1) == true`, `.map { … }.allSatisfy { … } == true`) and a comparison
-  inside a string literal. It skips `Tests/`, where `#expect(x?.flag == true)` failing on nil is
-  the assertion doing its job.
+  compared to a Bool literal on one line. A reversed comparison (`true == x?.flag`), a chain past
+  a call (`x?.f().flag`), a nested call inside the chain (`x?.f(g(a))`), a subscript
+  (`x?[i].flag`), a map whose closure or argument spans lines, and a plain `Bool?` value compared
+  to a literal pass it. It flags a non-optional call chained after the map
+  (`.map(abs).contains(1) == true`, `.map { … }.allSatisfy { … } == true`) and a comparison inside
+  a string literal. It skips `Tests/`, where `#expect(x?.flag == true)` failing on nil is the
+  assertion doing its job.
 - `fixture_dates_are_literal` catches `Date()`, `Date.now`, `Date(timeIntervalSinceNow:)`, and the
   current `TimeZone` and `Calendar`. The `.now` shorthand, a `DateFormatter` or a
   `Calendar(identifier:)` left on the machine time zone (#597), `Locale.current`, and a
