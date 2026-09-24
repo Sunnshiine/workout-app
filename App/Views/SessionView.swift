@@ -57,7 +57,7 @@ struct SessionView: View {
                 }
                 .animation(
                     reduceMotion ? nil : .smooth(duration: 0.25),
-                    value: showsSyncBanner
+                    value: syncBannerText
                 )
             } else {
                 ScrollView {
@@ -122,8 +122,8 @@ struct SessionView: View {
         }
     }
 
-    private var showsSyncBanner: Bool {
-        SyncStatusBannerPresentation(outcome: sync.outcome, isSyncing: sync.isSyncing) != nil
+    private var syncBannerText: String? {
+        SyncStatusBannerPresentation(outcome: sync.outcome, isSyncing: sync.isSyncing)?.text
     }
 
     private func bindCoordinator(to session: Session) {
