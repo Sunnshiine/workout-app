@@ -352,16 +352,22 @@ struct SheetParser {
             block: ParsedBlockModel(tabName: tabName, weeks: weeks, trainingMaxes: trainingMaxes),
             warnings: layout.weeks.isEmpty
                 ? ["Parse warning: no week sections (no 'Day N' headers) in \(tabName)"]
-                : layout.weeks.compactMap { ignoredDayHeaderWarning(for: $0, in: tabName) }
+                : layout.weeks.flatMap { week in
+                    week.ignoredDayHeaders.map { warning(for: $0, week: week.number, in: tabName) }
+                }
         )
     }
 
-    private func ignoredDayHeaderWarning(for week: SheetLayoutWeek, in tabName: String) -> String? {
-        guard !week.ignoredDayHeaders.isEmpty else { return nil }
-        let quoted = week.ignoredDayHeaders.map { "'\($0)'" }.joined(separator: ", ")
-        let range = "Day \(Week.dayNumbers.lowerBound) to Day \(Week.dayNumbers.upperBound)"
-        return "Parse warning: Week \(week.number) in \(tabName) has Day headers the app cannot show (\(quoted)); "
-            + "a Day header reads \(range), once per Week"
+    private func warning(for ignored: IgnoredDayHeader, week: Int, in tabName: String) -> String {
+        switch ignored {
+        case .repeated(let dayNumber):
+            return "Parse warning: Week \(week) in \(tabName) has more than one Day \(dayNumber) header, "
+                + "so none of them shows"
+        case .outsideWeek(let header):
+            let range = "Day \(Week.dayNumbers.lowerBound) to Day \(Week.dayNumbers.upperBound)"
+            return "Parse warning: Week \(week) in \(tabName) has a '\(header)' header, "
+                + "but a Week runs \(range), so it does not show"
+        }
     }
 
     private func parseDate(_ s: String) -> Date? {

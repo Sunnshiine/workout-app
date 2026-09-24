@@ -4,19 +4,23 @@ private nonisolated(unsafe) let legacyLogTokenPattern =
     /^(?:BW|\d+(?:\.\d+)?)(?:(?:x\d+)|(?:@\d+(?:\.\d+)?))(?:@\d+(?:\.\d+)?)?$/
 private nonisolated(unsafe) let legacyNumberTokenPattern = /^\d+(?:\.\d+)?$/
 
-/// Every header bounds a column span, whether or not it names a Session, so a coach's column
-/// groups never bleed into each other.
-struct DayHeader: Sendable {
-    let col: Int
-    let text: String
-    let number: Int?
+/// Why a `Day N` header names no Session. Its column still ends the span to its left.
+enum IgnoredDayHeader: Sendable, Equatable {
+    /// More than one header in the Week reads this number, so a write for it could land in either group.
+    case repeated(dayNumber: Int)
+    /// N is outside `Week.dayNumbers`, or `Int` cannot read it.
+    case outsideWeek(header: String)
+}
 
-    init?(col: Int, cell: String) {
-        guard let match = cell.wholeMatch(of: sheetLayoutDayHeaderPattern) else { return nil }
-        self.col = col
-        text = cell
-        number = Int(match.1).flatMap { Week.dayNumbers.contains($0) ? $0 : nil }
+/// Every header bounds a column span, whether or not it names a Session.
+struct DayHeader: Sendable {
+    enum Reading: Sendable {
+        case session(Int)
+        case ignored(IgnoredDayHeader)
     }
+
+    let col: Int
+    let reading: Reading
 }
 
 struct WeekSection: Sendable {
@@ -57,8 +61,8 @@ struct SheetLayoutWeek: Sendable {
     let roleHeaderRow: Int
     let dateRow: Int
     let endRow: Int
-    let days: [SheetLayoutDay]  // column order, not sorted by number
-    let ignoredDayHeaders: [String]
+    let days: [SheetLayoutDay]
+    let ignoredDayHeaders: [IgnoredDayHeader]
 }
 
 struct SheetLayoutDay: Sendable {
@@ -369,9 +373,8 @@ struct SheetLayoutInterpreter: Sendable {
             let firstBodyRow = section.roleHeaderRow + 1
             let upper = min(endRow, grid.count)
             let bodyRows = firstBodyRow..<max(firstBodyRow, upper)
-            let numbers = sessionNumbers(of: section.dayHeaders)
-            let days = zip(section.dayHeaders.indices, numbers).compactMap { dayIndex, number -> SheetLayoutDay? in
-                guard let number else { return nil }
+            let days = section.dayHeaders.enumerated().compactMap { dayIndex, header -> SheetLayoutDay? in
+                guard case .session(let number) = header.reading else { return nil }
                 let columns = resolveDayColumns(
                     in: grid,
                     section: section,
@@ -396,9 +399,10 @@ struct SheetLayoutInterpreter: Sendable {
                 roleHeaderRow: section.roleHeaderRow,
                 dateRow: section.dateRow,
                 endRow: endRow,
-                days: days,
-                ignoredDayHeaders: zip(section.dayHeaders, numbers).compactMap { header, number in
-                    number == nil ? header.text : nil
+                days: days.sorted { $0.number < $1.number },
+                ignoredDayHeaders: section.dayHeaders.reduce(into: []) { ignored, header in
+                    guard case .ignored(let reason) = header.reading, !ignored.contains(reason) else { return }
+                    ignored.append(reason)
                 }
             )
         }
@@ -406,11 +410,24 @@ struct SheetLayoutInterpreter: Sendable {
     }
 }
 
-/// A number two headers in one Week share names no Session, because a write for that Day could
-/// land in either group (ADR-0003).
-private func sessionNumbers(of headers: [DayHeader]) -> [Int?] {
-    let counts = Dictionary(headers.compactMap(\.number).map { ($0, 1) }, uniquingKeysWith: +)
-    return headers.map { header in header.number.flatMap { counts[$0] == 1 ? $0 : nil } }
+/// Reads one Week's header row. A number two headers share names no Session, because a write for
+/// that Day could land in either group (ADR-0003).
+private func dayHeaders(reading cells: [(col: Int, text: String)]) -> [DayHeader] {
+    let numbers = cells.map { cell in
+        cell.text.wholeMatch(of: sheetLayoutDayHeaderPattern).flatMap { Int($0.1) }.flatMap {
+            Week.dayNumbers.contains($0) ? $0 : nil
+        }
+    }
+    let counts = Dictionary(numbers.compactMap { $0 }.map { ($0, 1) }, uniquingKeysWith: +)
+    return zip(cells, numbers).map { cell, number in
+        let reading: DayHeader.Reading =
+            switch number {
+            case nil: .ignored(.outsideWeek(header: cell.text))
+            case let number? where counts[number, default: 0] > 1: .ignored(.repeated(dayNumber: number))
+            case let number?: .session(number)
+            }
+        return DayHeader(col: cell.col, reading: reading)
+    }
 }
 
 // No upper bound on N: a `Day 8` header names no Session but must still end Day 7's column span.
@@ -459,15 +476,14 @@ func resolveDayColumns(
 }
 
 func locateWeekSections(in grid: SheetGrid) -> [WeekSection] {
-    var byRow: [Int: [DayHeader]] = [:]
+    var byRow: [Int: [(col: Int, text: String)]] = [:]
     for row in 0..<grid.count {
-        for col in 0..<grid[row].count {
-            guard let header = DayHeader(col: col, cell: grid[row][col]) else { continue }
-            byRow[row, default: []].append(header)
+        for col in 0..<grid[row].count where isSheetLayoutDayHeader(grid[row][col]) {
+            byRow[row, default: []].append((col, grid[row][col]))
         }
     }
-    return byRow.sorted { $0.key < $1.key }.map { row, headers in
-        WeekSection(headerRow: row, roleHeaderRow: row + 2, dateRow: row + 1, dayHeaders: headers)
+    return byRow.sorted { $0.key < $1.key }.map { row, cells in
+        WeekSection(headerRow: row, roleHeaderRow: row + 2, dateRow: row + 1, dayHeaders: dayHeaders(reading: cells))
     }
 }
 
