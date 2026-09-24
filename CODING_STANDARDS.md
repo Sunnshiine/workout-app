@@ -5,8 +5,8 @@ Each bullet names a defect this repo shipped that takes context a regex does not
 
 Apply every rule to every hunk, cite the bullet, and quote the hunk. Flag only what a lint does not
 already judge, and never a preference. A force unwrap, force try, force cast, or a font built
-outside the Theme seam is a lint error, not a finding; `Tests/.swiftlint.yml` lists what a test body
-may do. Read a trailing issue or symbol when a bullet does not settle a hunk.
+outside the Theme seam in the app is a lint error, not a finding; `Tests/.swiftlint.yml` lists
+what a test body may do. Read a trailing issue or symbol when a bullet does not settle a hunk.
 
 ## Architecture
 
@@ -106,7 +106,7 @@ judges what each regex misses. A hit is fixed in the code, or exempted on its li
   whose index is named (`for i in 0..<n`) passes it.
 
 `unstructured_task_is_held` and `optional_bool_needs_a_nil_answer` also reach `WorkoutShared/` and
-`WorkoutWidgets/`. The font and microlabel rules stop at the app, so the review judges type and
-case in the widget. The widget target does not compile `Sources/WorkoutTracker/`, so the Theme seam
-the font rule points to is not there. `scripts/tests/swiftlint-custom-rules.test.sh` pins every shape
-named here.
+`WorkoutWidgets/`. The font and microlabel rules stop at the app, and no bullet here judges type
+or case in the widget. The widget target does not compile `Sources/WorkoutTracker/`, so the Theme
+seam the font rule points to is not there. `scripts/tests/swiftlint-custom-rules.test.sh` pins
+every shape named here.
