@@ -1039,7 +1039,7 @@ private final class HeldSheetsClient: SheetsClient {
     private let titles: [String]
     private let grid: SheetGrid
     private let holdsTabSnapshot: Bool
-    private var held: CheckedContinuation<Void, Never>?
+    private let held = HeldCall()
 
     init(titles: [String], grid: SheetGrid, holdsTabSnapshot: Bool = false) {
         self.titles = titles
@@ -1049,7 +1049,7 @@ private final class HeldSheetsClient: SheetsClient {
 
     func listTabTitles(spreadsheetId: String) async throws -> [String] {
         tabTitleReads += 1
-        if tabTitleReads == 1 { await park() }
+        if tabTitleReads == 1 { await held.hold() }
         return titles
     }
 
@@ -1059,27 +1059,18 @@ private final class HeldSheetsClient: SheetsClient {
 
     func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
         tabSnapshotReads += 1
-        if holdsTabSnapshot, tabSnapshotReads == 1 { await park() }
+        if holdsTabSnapshot, tabSnapshotReads == 1 { await held.hold() }
         return SheetSnapshot(values: grid)
     }
 
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
 
     func waitUntilHeld() async {
-        for _ in 0..<10_000 {
-            if held != nil { return }
-            await Task.yield()
-        }
-        Issue.record("the sync never reached the Sheet read this client holds")
+        await held.waitUntilHeld(orRecord: "the sync never reached the Sheet read this client holds")
     }
 
     func release() {
-        held?.resume()
-        held = nil
-    }
-
-    private func park() async {
-        await withCheckedContinuation { held = $0 }
+        held.release()
     }
 }
 
@@ -1158,37 +1149,30 @@ private final class StubConfiguredSheetSync: ConfiguredSheetSyncing {
 @MainActor
 private final class SuspendedConfiguredSheetSync: ConfiguredSheetSyncing {
     private(set) var isSyncing = false
-    private var syncContinuation: CheckedContinuation<Void, Never>?
+    private let heldSync = HeldCall()
     private(set) var syncedSpreadsheetIds: [String] = []
 
     func sync(spreadsheetId: String) async -> Bool {
         syncedSpreadsheetIds.append(spreadsheetId)
         isSyncing = true
         defer { isSyncing = false }
-        await withCheckedContinuation { continuation in
-            syncContinuation = continuation
-        }
+        await heldSync.hold()
         return true
     }
 
     func waitForSyncStart() async {
-        for _ in 0..<10_000 {
-            if syncContinuation != nil { return }
-            await Task.yield()
-        }
-        Issue.record("the configured Sheet sync never started")
+        await heldSync.waitUntilHeld(orRecord: "the configured Sheet sync never started")
     }
 
     func completeSync() {
-        syncContinuation?.resume()
-        syncContinuation = nil
+        heldSync.release()
     }
 }
 
 @MainActor
 private final class SuspendedDiscardSheetSwitchSync: SheetSwitchSyncing {
     var isSyncing = false
-    private var discardContinuation: CheckedContinuation<Void, Never>?
+    private let heldDiscard = HeldCall()
     private(set) var discardPendingWriteCallCount = 0
     private(set) var syncedSpreadsheetIds: [String] = []
 
@@ -1198,13 +1182,11 @@ private final class SuspendedDiscardSheetSwitchSync: SheetSwitchSyncing {
 
     func discardPendingWrites() async throws {
         discardPendingWriteCallCount += 1
-        guard discardContinuation == nil else {
+        guard !heldDiscard.isHeld else {
             throw StubSheetSwitchError.discardFailed
         }
 
-        await withCheckedContinuation { continuation in
-            discardContinuation = continuation
-        }
+        await heldDiscard.hold()
     }
 
     func sync(spreadsheetId: String) async -> Bool {
@@ -1213,23 +1195,18 @@ private final class SuspendedDiscardSheetSwitchSync: SheetSwitchSyncing {
     }
 
     func waitForDiscardStart() async {
-        for _ in 0..<10_000 {
-            if discardContinuation != nil { return }
-            await Task.yield()
-        }
-        Issue.record("the sheet switch never started discarding its pending writes")
+        await heldDiscard.waitUntilHeld(orRecord: "the sheet switch never started discarding its pending writes")
     }
 
     func completeDiscard() {
-        discardContinuation?.resume()
-        discardContinuation = nil
+        heldDiscard.release()
     }
 }
 
 @MainActor
 private final class SuspendedSheetSwitchSync: SheetSwitchSyncing {
     private(set) var isSyncing = false
-    private var syncContinuation: CheckedContinuation<Void, Never>?
+    private let heldSync = HeldCall()
     private(set) var syncedSpreadsheetIds: [String] = []
 
     func hasPendingWrites() throws -> Bool {
@@ -1242,22 +1219,15 @@ private final class SuspendedSheetSwitchSync: SheetSwitchSyncing {
         syncedSpreadsheetIds.append(spreadsheetId)
         isSyncing = true
         defer { isSyncing = false }
-        await withCheckedContinuation { continuation in
-            syncContinuation = continuation
-        }
+        await heldSync.hold()
         return true
     }
 
     func waitForSyncStart() async {
-        for _ in 0..<10_000 {
-            if syncContinuation != nil { return }
-            await Task.yield()
-        }
-        Issue.record("the sheet switch never started its sync")
+        await heldSync.waitUntilHeld(orRecord: "the sheet switch never started its sync")
     }
 
     func completeSync() {
-        syncContinuation?.resume()
-        syncContinuation = nil
+        heldSync.release()
     }
 }

@@ -633,17 +633,17 @@ private final class OutcomePinClient: SheetsClient {
 private final class HeldOutcomePinClient: SheetsClient {
     /// `tabSnapshot` parks the first read a flush makes; `tabTitles` parks the first read `sync`
     /// makes after the flush has already finished.
-    enum HeldCall {
+    enum SheetCall {
         case tabTitles, tabSnapshot
     }
 
-    private let heldCall: HeldCall
+    private let heldCall: SheetCall
     private let titles: [String]
     private let grid: SheetGrid
-    private var held: CheckedContinuation<Void, Never>?
+    private let held = HeldCall()
     private var holdsRemaining = 1
 
-    init(heldCall: HeldCall, titles: [String] = ["Intro", "Block 27"], grid: SheetGrid) {
+    init(heldCall: SheetCall, titles: [String] = ["Intro", "Block 27"], grid: SheetGrid) {
         self.heldCall = heldCall
         self.titles = titles
         self.grid = grid
@@ -662,21 +662,16 @@ private final class HeldOutcomePinClient: SheetsClient {
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
 
     func waitUntilHeld() async {
-        for _ in 0..<10_000 {
-            if held != nil { return }
-            await Task.yield()
-        }
-        Issue.record("the coordinator never reached the Sheet call this client holds")
+        await held.waitUntilHeld(orRecord: "the coordinator never reached the Sheet call this client holds")
     }
 
     func release() {
-        held?.resume()
-        held = nil
+        held.release()
     }
 
     private func park() async {
         guard holdsRemaining > 0 else { return }
         holdsRemaining -= 1
-        await withCheckedContinuation { held = $0 }
+        await held.hold()
     }
 }
