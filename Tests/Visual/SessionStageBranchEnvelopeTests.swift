@@ -33,9 +33,9 @@ struct SessionStageBranchEnvelopeTests {
         #expect(ink.bottom <= height + 14)
     }
 
-    @Test func theBranchFillsItsRegionAndNeverFallsBelowItsFloor() throws {
+    @Test func theBranchFillsItsRegionAndNeverFallsBelowItsFloor() {
         let branch = Branch(setCount: 3, partnerSetCount: nil)
-        let heights = try ([20, nil, 300] as [CGFloat?]).map { try branch.height(proposing: $0) }
+        let heights = ([20, nil, 300] as [CGFloat?]).map { branch.height(proposing: $0) }
         #expect(heights == [70, 70, 300])
     }
 }
@@ -56,14 +56,17 @@ private struct Branch {
     }
 
     /// The height the branch takes when the column proposes `proposal` (`nil` asks for its ideal).
-    func height(proposing proposal: CGFloat?) throws -> CGFloat {
+    func height(proposing proposal: CGFloat?) -> CGFloat {
         let renderer = ImageRenderer(content: view.environment(\.themePalette, Theme.palette(for: .day)))
         renderer.proposedSize = ProposedViewSize(width: 370, height: proposal)
-        renderer.scale = 1
-        return CGFloat(try #require(renderer.cgImage).height)
+        var height: CGFloat = 0
+        renderer.render { size, _ in height = size.height }
+        return height
     }
 
-    /// The inked rows of an offscreen render, in points from the top of a `height` frame.
+    /// The inked rows of an offscreen render, in points from the top of a `height` frame. It draws
+    /// through Core Graphics because `cgImage` renders on the GPU, which comes back blank while a
+    /// cold machine compiles its first stroke pipeline (#599).
     func inkExtent(height: CGFloat) throws -> (top: CGFloat, bottom: CGFloat)? {
         let margin: CGFloat = 80
         let scale: CGFloat = 3
@@ -74,23 +77,23 @@ private struct Branch {
                 .padding(.vertical, margin)
                 .environment(\.themePalette, Theme.palette(for: .day))
         )
-        renderer.scale = scale
-        let image = try #require(renderer.cgImage)
-        let width = image.width
-        var pixels = [UInt8](repeating: 0, count: width * image.height * 4)
+        let width = Int(370 * scale)
+        let rows = Int((height + 2 * margin) * scale)
+        var pixels = [UInt8](repeating: 0, count: width * rows * 4)
         let context = try #require(
             CGContext(
                 data: &pixels,
                 width: width,
-                height: image.height,
+                height: rows,
                 bitsPerComponent: 8,
                 bytesPerRow: width * 4,
                 space: CGColorSpaceCreateDeviceRGB(),
                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
             )
         )
-        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: image.height))
-        let inkedRows = (0..<image.height).filter { row in
+        context.scaleBy(x: scale, y: scale)
+        renderer.render(rasterizationScale: scale) { _, draw in draw(context) }
+        let inkedRows = (0..<rows).filter { row in
             (0..<width).contains { column in pixels[(row * width + column) * 4 + 3] > 25 }
         }
         guard let top = inkedRows.first, let bottom = inkedRows.last else { return nil }
