@@ -174,7 +174,7 @@ import Testing
         cols: 30
     )
     let anchorSnapshot = SheetSnapshot(values: grid)
-    let layout = SheetLayoutInterpreter().interpret(grid)
+    let layout = SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid))
     let day = try #require(layout.day(week: 1, day: 1))
     let anchor = try #require(day.exerciseAnchors.first { $0.name == "Ab of Choice" })
     guard case .placed(let placement) = anchor.setLogPlacement(for: 1, in: anchorSnapshot, cols: day.columns) else {

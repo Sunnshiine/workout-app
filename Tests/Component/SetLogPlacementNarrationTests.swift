@@ -88,17 +88,6 @@ import Testing
         )
             == "No row selected: no visible writable row below protected header Notes before the next Exercise."
     )
-
-    // No Notes column at all: Set Logs cannot be placed anywhere.
-    #expect(
-        auditRowScan(
-            cells: ["C15": "Squat", "D15": "2", "C19": "Bench", "D19": "1"],
-            notesHeader: false,
-            exercise: "Squat",
-            setIndex: 0
-        )
-            == "No row selected: no visible Set row found for Set 1 before the next Exercise."
-    )
 }
 
 @Test func rowScanReportsThatAHiddenPrescriptionLineRowPrescribesNothing() {
@@ -143,6 +132,28 @@ import Testing
     )
 }
 
+@Test func rowScanNamesTheMissingColumnTheWriteWasRefusedFor() {
+    let cells = ["C15": "Squat", "D15": "2", "C19": "Bench", "D19": "1"]
+
+    #expect(
+        auditRowScan(cells: cells, lastSetRPEHeader: false, exercise: "Squat", setIndex: 1, column: .lastSetRPE)
+            == "No row selected: Week 1, Day 1 has no Last set RPE column."
+    )
+    #expect(
+        auditRowScan(cells: cells, notesHeader: false, exercise: "Squat", setIndex: 0)
+            == "No row selected: Week 1, Day 1 has no Notes column."
+    )
+}
+
+@Test func rowScanNamesTheMissingColumnBeforeTheMissingExercise() {
+    let cells = ["C15": "Squat", "D15": "2", "C19": "Bench", "D19": "1"]
+
+    #expect(
+        auditRowScan(cells: cells, lastSetRPEHeader: false, exercise: "Deadlift", setIndex: 0, column: .lastSetRPE)
+            == "No row selected: Week 1, Day 1 has no Last set RPE column."
+    )
+}
+
 @Test func rowScanNamesTheMissingSessionOrExerciseBeforeItScansRows() {
     let cells = ["C15": "Squat", "D15": "2", "C19": "Bench", "D19": "1"]
 
@@ -163,6 +174,7 @@ private func auditRowScan(
     cells: [String: String],
     rowVisibility: [Int: SheetRowVisibility] = [:],
     notesHeader: Bool = true,
+    lastSetRPEHeader: Bool = true,
     day: Int = 1,
     exercise: String,
     setIndex: Int,
@@ -170,8 +182,9 @@ private func auditRowScan(
 ) -> String {
     var allCells = [
         "C12": "Day 1", "S12": "Day 2",
-        "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE"
+        "D14": "Sets", "F14": "Reps", "H14": "Load"
     ]
+    if lastSetRPEHeader { allCells["I14"] = "Last set RPE" }
     if notesHeader { allCells["K14"] = "Notes" }
     allCells.merge(cells) { _, new in new }
 

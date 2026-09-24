@@ -1,30 +1,26 @@
 import Foundation
 
-/// How one Set-Log placement decision reads to a developer in the Write Target Audit Log: the rows
-/// the addressing rule scanned, what landing on a row means, and why no row was selected when the
-/// scan came up empty. Each `SetLogPlacementKind` and each unresolved `SetLogPlacementResolution`
-/// names its own narration here, beside the decision, so a new placement rule cannot ship with a
-/// stale audit story.
-struct SetLogPlacementNarration: Sendable, Equatable {
-    /// The rows the rule scanned, narrated as skipped when hidden.
-    let scannedRows: [Int]
-    /// What the selected row is, as the clause after "Selected row N: ".
-    let selection: String
-    /// Why no row was selected, as the clause after "No row selected: ".
-    let absence: String
+enum SetLogPlacementNarration: Sendable, Equatable {
+    case row(Int, selection: String)
+    case scan(rows: [Int], selection: String, absence: String)
 
     func text(selectedRow: Int?, in snapshot: SheetSnapshot) -> String {
-        let prefix = hiddenRowsPrefix(in: snapshot)
-        if let selectedRow {
-            return "\(prefix)Selected row \(selectedRow + 1): \(selection)"
+        switch self {
+        case .row(let row, let selection):
+            return "Selected row \((selectedRow ?? row) + 1): \(selection)"
+        case .scan(let rows, let selection, let absence):
+            let prefix = Self.hiddenRowsPrefix(rows, in: snapshot)
+            if let selectedRow {
+                return "\(prefix)Selected row \(selectedRow + 1): \(selection)"
+            }
+            return "\(prefix)No row selected: \(absence)"
         }
-        return "\(prefix)No row selected: \(absence)"
     }
 
-    private func hiddenRowsPrefix(in snapshot: SheetSnapshot) -> String {
-        let hidden = scannedRows.compactMap { row -> String? in
+    private static func hiddenRowsPrefix(_ rows: [Int], in snapshot: SheetSnapshot) -> String {
+        let hidden = rows.compactMap { row -> String? in
             guard let visibility = snapshot.rowVisibility[row], !visibility.isVisible else { return nil }
-            return "row \(row + 1) \(Self.hiddenReason(visibility))"
+            return "row \(row + 1) \(hiddenReason(visibility))"
         }
         guard !hidden.isEmpty else { return "" }
         return "Skipped hidden rows: \(hidden.joined(separator: ", ")). "
@@ -46,27 +42,22 @@ struct SetLogPlacementNarration: Sendable, Equatable {
 
 extension SetLogPlacementNarration {
     static func multiLinePrescriptionLine(row: Int, listPosition: Int?) -> Self {
-        Self(
-            scannedRows: [row],
+        .row(
+            row,
             selection: """
                 Prescription Line row stores this Line's Set logs as a comma-separated list \
                 (Set \((listPosition ?? 0) + 1) of the Line).
-                """,
-            absence: "Prescription Line row \(row + 1) is hidden."
+                """
         )
     }
 
     static func compactHeaderList(anchor: SheetLayoutExerciseAnchor) -> Self {
-        Self(
-            scannedRows: [anchor.row],
-            selection: "compact header Notes row stores Set logs as a comma-separated list.",
-            absence: "compact header Notes row \(anchor.row + 1) is hidden."
-        )
+        .row(anchor.row, selection: "compact header Notes row stores Set logs as a comma-separated list.")
     }
 
     static func protectedHeaderVisibleWritableRow(anchor: SheetLayoutExerciseAnchor) -> Self {
-        Self(
-            scannedRows: Array(anchor.row + 1..<anchor.nextAnchorRow),
+        .scan(
+            rows: Array(anchor.row + 1..<anchor.nextAnchorRow),
             selection: "first visible writable row below protected header Notes before the next Exercise.",
             absence: "no visible writable row below protected header Notes before the next Exercise."
         )
@@ -75,21 +66,15 @@ extension SetLogPlacementNarration {
     /// The per-Set-row scan always starts below the anchor: a compact header keeps Set logs on the
     /// anchor row under its own placement kind, so this narration never claims the anchor row.
     static func visibleSetLogRow(setIndex: Int, anchor: SheetLayoutExerciseAnchor) -> Self {
-        Self(
-            scannedRows: Array(anchor.row + 1..<anchor.nextAnchorRow),
+        .scan(
+            rows: Array(anchor.row + 1..<anchor.nextAnchorRow),
             selection: "visible Set row for Set \(setIndex + 1).",
             absence: "no visible Set row found for Set \(setIndex + 1) before the next Exercise."
         )
     }
 
-    /// Last Set RPE is not resolved by the Set-Log addressing tree; it stays on the Exercise anchor
-    /// row (ADR-0003), and its scan says so.
     static func lastSetRPE(anchor: SheetLayoutExerciseAnchor) -> Self {
-        Self(
-            scannedRows: [anchor.row],
-            selection: "visible Exercise row for Last Set RPE.",
-            absence: "Exercise row \(anchor.row + 1) is hidden."
-        )
+        .row(anchor.row, selection: "visible Exercise row for Last Set RPE.")
     }
 }
 
