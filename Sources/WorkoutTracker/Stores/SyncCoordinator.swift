@@ -219,8 +219,8 @@ private struct PlannedPendingWrite {
     let snapshot: SheetWritePlanningSnapshot
     let auditDetails: SheetWriteAuditDetails
 
-    /// Declared in the struct body so it replaces the memberwise init. A planned write, or the
-    /// conflict it throws, can then only pair a target with the read that target came from (#726).
+    /// Declared in the struct body so it replaces the memberwise init. A planned write is then built
+    /// from one read only, so its target, value check, and audit row cannot disagree (#726).
     @MainActor
     init(_ write: PendingWrite, against snapshot: SheetWritePlanningSnapshot, planner: SheetWritePlanner) throws {
         let request = SheetWriteRequest(write)
@@ -280,6 +280,7 @@ private struct PendingWriteBatchFailure: Error {
 private struct PendingWriteFlushInProgress: Error {}
 private struct PendingWritePlanningConflict: Error {
     let error: SheetWriterError
+    /// The cell whose value check refused the write, or nil when the read had no cell to address.
     let target: SheetWriteTarget?
     let auditDetails: SheetWriteAuditDetails
 }
