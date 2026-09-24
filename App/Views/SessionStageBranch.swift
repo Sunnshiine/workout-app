@@ -65,9 +65,10 @@ struct SessionStageBranch: View {
         static let lastNodeT: CGFloat = 0.9
         static let maxNodeStep: CGFloat = 0.2
         static let leafLength: CGFloat = 34 // subordinate to the focused leaf, at full height
-        // How far the full-size lateral's lowest blade hangs under the drawing: the worst of an inked
-        // and a dashed last blade in SessionStageBranchEnvelopeTests' render, rounded up to 0.5pt.
-        static let hang: CGFloat = 25.5
+        // How far the lateral's lowest blade hangs under the drawing per unit of scale: the worst over
+        // SessionStageBranchEnvelopeTests' sweep, rounded up to 0.5pt. A dashed blade keeps its dash
+        // length as it scales, so a scaled one can hang further than its full-size hang predicts.
+        static let hang: CGFloat = 26
         static let clearance: CGFloat = 2 // kept between the lateral's lowest ink and the next line
     }
 
