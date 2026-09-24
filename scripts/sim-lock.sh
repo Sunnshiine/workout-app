@@ -1,18 +1,14 @@
 # shellcheck shell=bash
-# Prints the UDID a run drives, which is also its lock key, and its state. A named UDID is uppercased,
-# the spelling simctl lists, and reads as Booted so no caller runs simctl boot on it (verify.sh launch
-# still waits on it with bootstatus -b). `create` makes a missing iPhone 17 Pro on iOS 27.0, the runtime
-# the Visual baselines were recorded on, which ci.yml's visual-tests job pins too.
 pick_sim() {
-  local device='iPhone 17 Pro' picked
-  if [ -n "$1" ]; then
-    picked=$(printf %s "$1" | tr '[:lower:]' '[:upper:]')
-    echo "$picked Booted"
+  local named=$1 mode=${2:-lookup} device='iPhone 17 Pro' visual_baseline_runtime=27.0 simctl_udid picked
+  if [ -n "$named" ]; then
+    simctl_udid=$(printf %s "$named" | tr '[:lower:]' '[:upper:]')
+    echo "$simctl_udid named"
     return
   fi
   picked=$(available_sim "$device") || return
-  if [ -z "$picked" ] && [ "${2:-}" = create ]; then
-    "$(dirname "${BASH_SOURCE[0]}")/ensure-simulator.sh" "$device" 27.0 >/dev/null || return
+  if [ -z "$picked" ] && [ "$mode" = create ]; then
+    "$(dirname "${BASH_SOURCE[0]}")/ensure-simulator.sh" "$device" "$visual_baseline_runtime" >/dev/null || return
     picked=$(available_sim "$device") || return
   fi
   if [ -z "$picked" ]; then

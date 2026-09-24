@@ -42,7 +42,7 @@ done
 
 picked=$(pick_sim "$sim" create)
 read -r sim state <<< "$picked"
-[ "$state" = Booted ] || xcrun simctl boot "$sim"
+[ "$state" != Shutdown ] || xcrun simctl boot "$sim"
 claim_sim "$sim" "test-sim.sh run"
 destination="platform=iOS Simulator,id=$sim"
 

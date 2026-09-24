@@ -1194,6 +1194,14 @@ class SimulatorPick(unittest.TestCase):
         ], "the created simulator is booted and built for")
         self.assertEqual((code, out, err), (65, "", "creating iPhone 17 Pro on iOS 27.0\n" + self.failed_build()))
 
+    def test_the_created_simulator_is_the_pair_the_visual_baselines_were_recorded_on(self):
+        ci = (REPO / ".github" / "workflows" / "ci.yml").read_text()
+        pinned = re.search(r"BASELINE_DEVICE: (.+)\n\s+BASELINE_RUNTIME: \"(.+)\"", ci).groups()
+        self.fresh_machine()
+        code, out, err, calls = self.run_test_sim()
+        self.assertEqual(err.splitlines()[0], "creating %s on iOS %s" % pinned,
+                         "re-recording the baselines on a new pair moves pick_sim's pair with it")
+
     def test_every_other_verify_command_creates_nothing_and_says_which_ones_do(self):
         self.fresh_machine()
         for argv in [["doctor"], ["stop"], ["tree"], ["sheet"], ["diff", "01-before", "02-after-log"]]:

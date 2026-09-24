@@ -70,7 +70,7 @@ resolve_sim() {
 
 need_sim() {
   resolve_sim
-  [ "$sim_state" = Booted ] || xcrun simctl boot "$sim"
+  [ "$sim_state" != Shutdown ] || xcrun simctl boot "$sim"
   sim_state=Booted
 }
 
