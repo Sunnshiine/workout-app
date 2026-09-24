@@ -705,13 +705,13 @@ class SimulatorLock(unittest.TestCase):
     def test_test_sim_refuses_while_a_launch_is_under_way(self):
         launch = self.spawn([str(SKILL / "verify.sh"), "launch", "session"], hold=True,
                             SIM=self.sim, VERIFY_RUN="issue-626")
-        self.wait_for_hold(launch, "npm or plutil")
+        self.wait_for_hold(launch, "plutil")
         run = self.spawn_test_sim()
         out, err = run.communicate(timeout=30)
         self.assertEqual(run.returncode, 75, err)
         self.assertIn("verify.sh launch (pid %d)" % launch.pid, err, "names the launch that holds it")
-        self.assertIn(self.first_words(), [[["npm", "install"]], [["plutil", "-extract"]]],
-                      "the launch got as far as its axe install or its app lookup, and test-sim.sh ran no xcodebuild")
+        self.assertEqual(self.first_words(), [["plutil", "-extract"]],
+                         "the launch got as far as its app lookup, and test-sim.sh ran no xcodebuild")
 
     def test_stop_refuses_to_uninstall_while_a_test_sim_run_holds_the_simulator(self):
         self.state.mkdir(parents=True, exist_ok=True)
@@ -800,12 +800,28 @@ class SimulatorLock(unittest.TestCase):
 
 
 BOOT_STUB = """#!/bin/sh
+lock=/tmp/workout-verify-{sim}/lock
 if [ "$*" = "simctl list devices available -j" ]; then
   echo '{"devices": {"com.apple.CoreSimulator.SimRuntime.iOS-27-0": [{"name": "iPhone 17 Pro", "udid": "{sim}", "state": "Shutdown"}]}}'
   exit 0
 fi
-printf '%s under %s\\n' "$(basename "$0") $*" "$(cat /tmp/workout-verify-{sim}/lock 2>/dev/null)" >> "{dir}/calls"
-case $(basename "$0") in plutil) echo "{project}" ;; *) exit 1 ;; esac
+held=$(python3 -c 'import fcntl, sys
+try: fcntl.flock(open(sys.argv[1]), fcntl.LOCK_SH | fcntl.LOCK_NB)
+except BlockingIOError: print("held by " + open(sys.argv[1]).read().strip())
+else: print("free")' "$lock")
+printf '%s, lock %s\\n' "$(basename "$0") $*" "$held" >> "{dir}/calls"
+case "$(basename "$0") $2" in
+  "plutil WorkspacePath") echo "{project}" ;;
+  "xcrun bootstatus")
+    if [ -n "${STUB_HOLD:-}" ]; then
+      echo $$ > "{dir}/holding"
+      i=0
+      while [ ! -f "{dir}/release" ] && [ $i -lt 300 ]; do sleep 0.1; i=$((i + 1)); done
+    fi
+    exit "${STUB_BOOTSTATUS:-1}" ;;
+  "xcrun list") ;;
+  *) exit 1 ;;
+esac
 """
 
 
@@ -826,38 +842,71 @@ class LaunchBoots(unittest.TestCase):
         for tool in ["xcodebuild", "xcrun", "npm", "plutil"]:
             (self.stubs / tool).write_text(stub)
             (self.stubs / tool).chmod(0o755)
+        self.runs = []
 
     def tearDown(self):
+        (self.stubs / "release").touch()
+        for run in self.runs:
+            if run.poll() is None:
+                os.killpg(run.pid, 9)
+                run.wait()
+            for pipe in (run.stdout, run.stderr):
+                pipe.close()
         shutil.rmtree(self.home, ignore_errors=True)
         shutil.rmtree(self.state, ignore_errors=True)
 
-    def launch(self, sim):
-        env = dict(os.environ, HOME=str(self.home), PATH="%s:%s" % (self.stubs, os.environ["PATH"]), VERIFY_RUN="issue-676")
+    def spawn(self, sim, **env):
+        env = dict(os.environ, HOME=str(self.home), PATH="%s:%s" % (self.stubs, os.environ["PATH"]),
+                   VERIFY_RUN="issue-676", **env)
         env.pop("SIM", None)
         if sim:
             env["SIM"] = sim
         run = subprocess.Popen(
-            [str(SKILL / "verify.sh"), "launch", "session"], cwd=str(REPO), env=env,
+            [str(SKILL / "verify.sh"), "launch", "session"], cwd=str(REPO), env=env, start_new_session=True,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
         )
+        self.runs.append(run)
+        return run
+
+    def launch(self, sim, **env):
+        (self.stubs / "calls").unlink(missing_ok=True)
+        run = self.spawn(sim, **env)
         out, err = run.communicate(timeout=30)
-        return run, out, err
+        calls = self.stubs / "calls"
+        return run, calls.read_text().splitlines() if calls.exists() else [], (run.returncode, out, err)
 
     def test_launch_waits_on_the_boot_under_its_lock_and_installs_nothing_when_it_fails(self):
         for named in [self.sim, None]:
             with self.subTest(SIM=named):
-                (self.stubs / "calls").unlink(missing_ok=True)
-                run, out, err = self.launch(named)
-                holder = "verify.sh launch (pid %d)" % run.pid
-                self.assertEqual(
-                    (self.stubs / "calls").read_text().splitlines(),
-                    [
-                        "plutil -extract WorkspacePath raw %s under %s" % (self.plist, holder),
-                        "xcrun simctl bootstatus %s -b under %s" % (self.sim, holder),
-                    ],
-                    "the shut-down simulator is booted and waited on while the launch holds it, and never installed to",
-                )
-                self.assertEqual((run.returncode, out, err), (70, "", "simulator %s did not boot\n" % self.sim))
+                run, calls, result = self.launch(named)
+                holder = "lock held by verify.sh launch (pid %d)" % run.pid
+                self.assertEqual(calls, [
+                    "plutil -extract WorkspacePath raw %s, %s" % (self.plist, holder),
+                    "xcrun simctl bootstatus %s -b, %s" % (self.sim, holder),
+                ], "the shut-down simulator is booted and waited on while the launch holds it, and never installed to")
+                self.assertEqual(result, (70, "", "simulator %s did not boot\n" % self.sim))
+
+    def test_a_boot_wait_that_ends_with_the_simulator_down_installs_nothing(self):
+        run, calls, result = self.launch(self.sim, STUB_BOOTSTATUS="0")
+        self.assertEqual(calls[1:], [
+            "xcrun simctl bootstatus %s -b, lock held by verify.sh launch (pid %d)" % (self.sim, run.pid),
+            "xcrun simctl list devices booted, lock held by verify.sh launch (pid %d)" % run.pid,
+        ], "bootstatus exits 0 when a shutdown ends the boot, so the launch reads the state before it installs")
+        self.assertEqual(result, (70, "", "simulator %s did not boot\n" % self.sim))
+
+    def test_a_launch_killed_during_its_boot_wait_frees_the_simulator_at_once(self):
+        killed = self.spawn(self.sim, STUB_HOLD="1")
+        for _ in range(100):
+            if (self.stubs / "holding").exists() or killed.poll() is not None:
+                break
+            time.sleep(0.1)
+        self.assertTrue((self.stubs / "holding").exists(), "the launch never reached its boot wait")
+        os.kill(killed.pid, 9)
+        killed.wait()
+        run, calls, result = self.launch(self.sim)
+        os.kill(int((self.stubs / "holding").read_text()), 0)
+        self.assertEqual(result, (70, "", "simulator %s did not boot\n" % self.sim),
+                         "the next launch takes the simulator while the killed one's boot wait still runs")
 
 
 @unittest.skipUnless(sys.platform == "darwin", "the tiler is a Swift script and runs on macOS only")
