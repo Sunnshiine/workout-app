@@ -339,8 +339,9 @@ foliage with cream ribs, and the active leaf carries the page's one glow.
   shape says what it is). It shrinks then truncates, never wraps. A
   Movement-level fallback match labels itself with the matched entry's own
   entered name in muted italic (*as "Standing Calve Raises"*). Tapping it
-  opens the Exercise History sheet — its only entry point, with at most the
-  subtlest disclosure hint.
+  opens the Exercise History sheet, with at most the subtlest disclosure
+  hint. It is the sheet's only entry point, so while a short page has shed
+  it the sheet is out of reach from the stage.
 - **The stage foot:** an `N of M` **queue pill** owns position and opens the
   day's Exercise queue sheet; beside it, a plain `Up next · ` preview. The
   old glass up-next bar and the position label above the name are gone.
@@ -352,6 +353,19 @@ foliage with cream ribs, and the active leaf carries the page's one glow.
   the top. The rest pill keeps its place under the card; if it ends mid-edit,
   its room stays empty until the edit ends, so the capsule never moves under
   a finger. The page returns when the weight field folds.
+- **When the page runs short** (a rest running, a sync banner, a small
+  phone), what does not fit yields in a fixed order and the Active Set Card
+  never does: first the air under the branch, then the branch's height,
+  which flattens from 156pt to a 70pt floor; then Last Performed; then the
+  Cadence line; then the coach note; and only then the branch, which leaves
+  the Exercise name above the card. A Superset's drooping lateral lifts and
+  shortens its leaves as the air under it closes. The sync banner comes and
+  goes without moving the card or its Log capsule. On a short page Last
+  Performed is the first line to leave, and with it the only entry point to
+  Exercise History; the follow-up is #759.
+- **When a finished Session runs short**, the Open Exercises list under the
+  summary leaves when it does not fit, so Move On always fits. The queue
+  sheet still lists the Open Exercises.
 
 **The Stage Shows One Thing Rule** (carried forward). Exactly one Exercise
 or Superset renders at a time. No stacked section-headed Exercises, no

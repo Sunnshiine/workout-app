@@ -32,7 +32,9 @@ enum WorkoutScenarios {
     ]
 
     @MainActor
-    static func freshConfiguredApp() throws -> ConfiguredAppScenario {
+    static func freshConfiguredApp(
+        block: Block = WorkoutFixtureScenarios.currentSessionWithPendingSetsBlock()
+    ) throws -> ConfiguredAppScenario {
         let container = try ModelContainer(
             for: Block.self,
             PendingWrite.self,
@@ -44,7 +46,7 @@ enum WorkoutScenarios {
             )
         )
         let context = container.mainContext
-        context.insert(WorkoutFixtureScenarios.currentSessionWithPendingSetsBlock())
+        context.insert(block)
         try context.save()
 
         let settings = SettingsStore(defaults: .inMemory())

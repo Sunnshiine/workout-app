@@ -91,8 +91,8 @@ struct SunbirdMomentsVisualTests {
         // iOS 27 resolves OnboardingView's environment lookups during offscreen
         // render, so inject everything it observes even in the sign-in state.
         let scenario = try WorkoutScenarios.freshConfiguredApp()
-        SunbirdFixtureRetainer.retain(scenario)
-        let sync = SyncCoordinator(client: SunbirdNoopSheetsClient(), context: scenario.context)
+        VisualFixtureRetainer.retain(scenario)
+        let sync = SyncCoordinator(client: VisualNoopSheetsClient(), context: scenario.context)
 
         let view = OnboardingView()
             .environment(settings)
@@ -135,23 +135,4 @@ struct SunbirdMomentsVisualTests {
             testName: testName
         )
     }
-}
-
-@MainActor
-private enum SunbirdFixtureRetainer {
-    private static var retainedScenarios: [ConfiguredAppScenario] = []
-
-    static func retain(_ scenario: ConfiguredAppScenario) {
-        retainedScenarios.append(scenario)
-    }
-}
-
-private actor SunbirdNoopSheetsClient: SheetsClient {
-    func listTabTitles(spreadsheetId: String) async throws -> [String] { [] }
-
-    func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
-        SheetSnapshot(values: [], rowVisibility: [:])
-    }
-
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
 }

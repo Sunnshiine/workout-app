@@ -7,6 +7,7 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
+        let safeTop = app.otherElements["session-header-hud"].frame.minY
 
         app.buttons["rpe-6"].tap()
         let logButton = app.buttons["log-active-set-button"]
@@ -15,6 +16,10 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
 
         XCTAssertTrue(app.buttons["Set 1, 237.5x5@6"].appears(within: 3))
         XCTAssertTrue(app.staticTexts["Set 2 of 3"].appears(within: 3))
+
+        let banner = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Sync status:")).firstMatch
+        XCTAssertTrue(banner.appears(within: 3))
+        XCTAssertGreaterThanOrEqual(banner.frame.minY, safeTop, "the banner starts at or below the safe top, where the HUD started")
     }
 
     @MainActor
