@@ -18,7 +18,7 @@ Usage: .claude/skills/verify/verify.sh <command> [args]
                               to be enabled, on screen, and with its centre inside every element
                               of nonzero size containing it, then tap that centre; exit 1 and say
                               which it was not. --label is the exact label, a control over a text
-                              that shares it; when two controls carry it, exit 1 listing each
+                              that shares it; when more than one is left, exit 1 listing each
                               with its centre. -x -y taps the point and reports whatever it hits
   hold <id> [seconds]         long press an element by identifier (default 1.2 s)
   type TEXT                   type into the focused field

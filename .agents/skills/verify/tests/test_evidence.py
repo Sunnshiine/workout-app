@@ -440,7 +440,7 @@ class TappableByLabel(unittest.TestCase):
         code, out, err = tree_py("tappable", "--label", "Sign Out", stdin=SIGN_OUT_ALERT)
         self.assertEqual((code, out), (1, ""))
         self.assertEqual(err.splitlines(), [
-            "2 elements labelled Sign Out could take this tap; pick one by its id, or tap its centre with -x -y:",
+            "2 elements carry the label Sign Out; pick one by its id, or tap its centre with -x -y:",
             "AXButton\tsettings-sign-out-button\tSign Out\t\t@16,657 370x52\t-x 201 -y 683",
             "AXButton\t\tSign Out\t\t@205,484 140x48\t-x 275 -y 508",
         ], "the Settings row behind the alert, then the alert's own button")

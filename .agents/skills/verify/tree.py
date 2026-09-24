@@ -10,8 +10,9 @@ Reads an `axe describe-ui` JSON tree on stdin:
   tree.py tappable <id>  "x y" of the first hit that is enabled, on screen, and not clipped, so a tap
                          on it lands; exit 1 with the same notes find prints when there is no such hit
   tree.py tappable --label TEXT
-                         the same for the one element labelled exactly TEXT, a control over a text with
-                         that label; exit 1 listing each with its centre when more than one is left
+                         the same for the one element whose trimmed label is TEXT, a control over
+                         a text with that label; exit 1 listing each with its centre when more
+                         than one is left
   tree.py pid            the frontmost application's pid
   tree.py frame          the application's width and height
   tree.py center <id>    "x y" of the element with that accessibility identifier; exit 1 if absent
@@ -240,7 +241,7 @@ def main() -> None:
             label = sys.argv[3]
             found = tap_candidates(by_label(root, label))
             if len(found) > 1:
-                listed = [f"{len(found)} elements labelled {label} could take this tap; "
+                listed = [f"{len(found)} elements carry the label {label}; "
                           "pick one by its id, or tap its centre with -x -y:"]
                 for line in found:
                     x, y = line.frame.center
