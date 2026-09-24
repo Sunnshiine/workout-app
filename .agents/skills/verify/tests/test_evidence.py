@@ -415,14 +415,22 @@ class TappableByLabel(unittest.TestCase):
         self.assertEqual(tree_py("tappable", "--label", "Weight, 237.5", stdin=MINI), (0, "201 564\n", ""))
 
     def test_a_control_wins_over_the_text_that_shares_its_label(self):
-        for label, point in [
-            ("Developer Tools", "201 596\n"),
-            ("Standard, 2:00", "201 353\n"),
-            ("Standard", "67 353\n"),
-            ("  Sign Out ", "201 683\n"),
-        ]:
+        for label, point in [("Developer Tools", "201 596\n"), ("Standard, 2:00", "201 353\n")]:
             with self.subTest(label=label):
                 self.assertEqual(tree_py("tappable", "--label", label, stdin=SETTINGS), (0, point, ""))
+
+    def test_a_label_only_a_text_carries_is_that_texts_centre(self):
+        self.assertEqual(tree_py("tappable", "--label", "Standard", stdin=SETTINGS), (0, "67 353\n", ""))
+
+    def test_spaces_around_the_label_are_trimmed(self):
+        self.assertEqual(tree_py("tappable", "--label", "  Sign Out ", stdin=SETTINGS), (0, "201 683\n", ""))
+
+    def test_two_texts_with_one_label_and_no_control_are_listed(self):
+        self.assertEqual(tree_py("tappable", "--label", "RPE", stdin=SESSION_RAILS), (1, "", "\n".join([
+            "2 elements carry the label RPE; pick one by its id, or tap its centre with -x -y:",
+            "AXGroup\t\tRPE\t\t@207,612 163x83\t-x 288 -y 654",
+            "AXStaticText\t\tRPE\t\t@278,678 21x17\t-x 289 -y 687",
+        ]) + "\n"), "the rail and its caption; neither wins, so neither is tapped")
 
     def test_a_label_below_the_fold_is_refused(self):
         self.assertEqual(tree_py("tappable", "--label", "Farmer Carry", stdin=MINI),
