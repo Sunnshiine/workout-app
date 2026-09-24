@@ -59,14 +59,8 @@ struct SessionStageView: View {
                 }
             }
             // The zero minimum keeps an overflowing column from growing this frame, which would
-            // hand the overflow to a centering parent. Ternaries, not a switch: a switch would give
-            // the page a second identity and drop the weight field's focus.
-            .frame(
-                maxWidth: .infinity,
-                minHeight: composition == .editingWeight ? 0 : nil,
-                maxHeight: .infinity,
-                alignment: composition == .editingWeight ? .bottom : .top
-            )
+            // hand the overflow to a centering parent.
+            .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .bottom)
             .padding(.horizontal)
             .padding(.top, composition == .reading ? Theme.sectionSpacing : 0)
 
@@ -330,29 +324,31 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
         VStack(alignment: .leading, spacing: 14) {
             switch composition {
             case .reading:
-                if let cadence = exercise.cadence, !cadence.isEmpty {
-                    Text(cadence)
-                        .font(Theme.font(.cadence))
-                        .foregroundStyle(palette.textSecondary)
-                        .accessibilityIdentifier("stage-cadence")
+                // What does not fit yields in this order, and the card never does: the air under the
+                // branch, the branch, Last Performed, the Cadence line and coach note, then the name
+                // (DESIGN.md 5.1).
+                ViewThatFits(in: .vertical) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        cadenceLine
+                        name()
+                        noteLine
+                        branch()
+                            .padding(.top, 4)
+                            .frame(maxHeight: .infinity, alignment: .top)
+                        lastPerformed
+                    }
+                    VStack(alignment: .leading, spacing: 14) {
+                        cadenceLine
+                        name()
+                        noteLine
+                        Spacer(minLength: 0)
+                    }
+                    VStack(alignment: .leading, spacing: 14) {
+                        name()
+                        Spacer(minLength: 0)
+                    }
+                    emptyFallback
                 }
-
-                name()
-
-                if let note = exercise.coachNote {
-                    Text(note)
-                        .font(Theme.font(.coachNote))
-                        .foregroundStyle(palette.textSecondary)
-                        .lineSpacing(4)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                branch()
-                    .padding(.top, 4)
-
-                Spacer(minLength: 12)
-
-                lastPerformed
             case .editingWeight:
                 ViewThatFits(in: .vertical) {
                     VStack(alignment: .leading, spacing: 14) {
@@ -360,16 +356,42 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
                         lastPerformed
                     }
                     lastPerformed
-                    // Falling back to a candidate with no accessibility node leaves the last drawn
-                    // candidate's elements in the tree, so the empty fallback carries an empty one.
-                    Color.clear.frame(height: 0)
-                        .accessibilityElement(children: .contain)
+                    emptyFallback
                 }
             }
 
             card()
+                .fixedSize(horizontal: false, vertical: composition == .reading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var cadenceLine: some View {
+        if let cadence = exercise.cadence, !cadence.isEmpty {
+            Text(cadence)
+                .font(Theme.font(.cadence))
+                .foregroundStyle(palette.textSecondary)
+                .accessibilityIdentifier("stage-cadence")
+        }
+    }
+
+    @ViewBuilder
+    private var noteLine: some View {
+        if let note = exercise.coachNote {
+            Text(note)
+                .font(Theme.font(.coachNote))
+                .foregroundStyle(palette.textSecondary)
+                .lineSpacing(4)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // Falling back to a candidate with no accessibility node leaves the last drawn candidate's
+    // elements in the tree, so the empty fallback carries an empty one.
+    private var emptyFallback: some View {
+        Color.clear.frame(height: 0)
+            .accessibilityElement(children: .contain)
     }
 }
 

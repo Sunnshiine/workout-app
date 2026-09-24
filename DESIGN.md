@@ -352,6 +352,13 @@ foliage with cream ribs, and the active leaf carries the page's one glow.
   the top. The rest pill keeps its place under the card; if it ends mid-edit,
   its room stays empty until the edit ends, so the capsule never moves under
   a finger. The page returns when the weight field folds.
+- **When the page runs short** (a rest running, a sync banner, a small
+  phone), what does not fit yields in a fixed order and the Active Set Card
+  never does: first the air under the branch, then the branch, which
+  flattens and below 80pt steps aside for the plain `Set N of M` head; then
+  Last Performed; then the Cadence line and coach note; the Exercise name
+  last. The sync banner comes and goes without moving the card or its Log
+  capsule.
 
 **The Stage Shows One Thing Rule** (carried forward). Exactly one Exercise
 or Superset renders at a time. No stacked section-headed Exercises, no

@@ -29,10 +29,15 @@ struct SessionStageBranch: View {
 
     private enum Metrics {
         static let height: CGFloat = 156
+        // Below this the climb lies nearly flat and its top blades reach the coach note, so the
+        // branch steps aside and the card's `Set N of M` head carries position.
+        static let minimumDrawnHeight: CGFloat = 80
         static let leadInset: CGFloat = 24
         static let trailInset: CGFloat = 28
         static let rootY: CGFloat = 0.82 // fraction of height — the low leading root
-        static let tipY: CGFloat = 0.13 // fraction of height — the high trailing tip
+        // The high trailing tip, pinned in points so a flattened branch raises its root instead of
+        // lifting its top blades into the coach note.
+        static let tipInset: CGFloat = height * 0.13
         static let bow: CGFloat = 30 // upward bow of the climbing stem
         static let firstNodeT: CGFloat = 0.16 // the span floor node steps never pass
         static let lastNodeT: CGFloat = 0.80 // the terminal node every cluster anchors to
@@ -73,6 +78,7 @@ struct SessionStageBranch: View {
     var body: some View {
         GeometryReader { geo in
             let size = geo.size
+            let isDrawn = size.height >= Metrics.minimumDrawnHeight
             ZStack {
                 if partnerSets != nil {
                     partnerBranch(in: size)
@@ -82,7 +88,7 @@ struct SessionStageBranch: View {
                     leadInset: Metrics.leadInset,
                     trailInset: Metrics.trailInset,
                     rootY: Metrics.rootY,
-                    tipY: Metrics.tipY,
+                    tipInset: Metrics.tipInset,
                     bow: Metrics.bow
                 )
                 .stroke(palette.stem, style: StrokeStyle(lineWidth: Metrics.stemWidth, lineCap: .round))
@@ -94,8 +100,11 @@ struct SessionStageBranch: View {
                         .position(point)
                 }
             }
+            .opacity(isDrawn ? 1 : 0)
+            .allowsHitTesting(isDrawn)
+            .accessibilityHidden(!isDrawn)
         }
-        .frame(height: Metrics.height)
+        .frame(minHeight: 0, idealHeight: 0, maxHeight: Metrics.height)
         .frame(maxWidth: .infinity)
         .animation(reduceMotion ? nil : Theme.wingAnimation(duration: Theme.Motion.leafInk), value: activeSetID)
         .animation(reduceMotion ? nil : Theme.wingAnimation(duration: Theme.Motion.leafInk), value: sets.count)
@@ -281,7 +290,7 @@ struct SessionStageBranch: View {
     /// leading, tip at high trailing.
     private func stemCurve(in size: CGSize) -> QuadraticBezier {
         let p0 = CGPoint(x: Metrics.leadInset, y: size.height * Metrics.rootY)
-        let p1 = CGPoint(x: size.width - Metrics.trailInset, y: size.height * Metrics.tipY)
+        let p1 = CGPoint(x: size.width - Metrics.trailInset, y: Metrics.tipInset)
         let control = CGPoint(x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 - Metrics.bow)
         return QuadraticBezier(start: p0, control: control, end: p1)
     }
@@ -305,12 +314,12 @@ private struct StemPath: Shape {
     let leadInset: CGFloat
     let trailInset: CGFloat
     let rootY: CGFloat
-    let tipY: CGFloat
+    let tipInset: CGFloat
     let bow: CGFloat
 
     func path(in rect: CGRect) -> Path {
         let p0 = CGPoint(x: leadInset, y: rect.height * rootY)
-        let p1 = CGPoint(x: rect.width - trailInset, y: rect.height * tipY)
+        let p1 = CGPoint(x: rect.width - trailInset, y: tipInset)
         let control = CGPoint(x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 - bow)
         var path = Path()
         path.move(to: p0)
