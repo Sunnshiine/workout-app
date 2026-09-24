@@ -66,19 +66,23 @@ anything. An empty tree on a healthy pid means the simulator's accessibility bri
 .claude/skills/verify/verify.sh axe swipe --start-x 200 --start-y 90 --end-x 200 --end-y 420 --duration 0.4   # any axe verb
 ```
 
-Alert buttons have labels but no identifiers, and a label can match twice (`Sign Out` is both a
-Settings row and its alert button). When `tap --label` reports multiple matches, read the frame
-from `tree` and tap its center with `-x -y`.
-
 Target elements by accessibility identifier (`tap --id`) first, by label second, by coordinates
-only when the element has neither. `tap --id` polls up to 3 s for that element to be enabled, on
-screen, and with its centre inside the frame of every element that contains it, then taps that
-centre. A container with a zero width or height holds no point, so it is skipped. The keyboard
-toolbar wraps `Done` in a 0x0 group. When `tap --id` never gets such a hit it exits 1 and says
-`off-screen`, `clipped`, or `disabled`. A `clipped` note names the container whose frame misses
-the centre, such as the RPE track. So a tap that reports success is a tap that could land.
-`tap --label` and `tap -x -y` resolve no element, so they report success whatever is under the
-point.
+only when the element has neither. Alert buttons have labels but no identifiers. `tap --id` polls
+up to 3 s for that element to be enabled, on screen, and with its centre inside the frame of every
+element that contains it, then taps that centre. A container with a zero width or height holds no
+point, so it is skipped. The keyboard toolbar wraps `Done` in a 0x0 group. When `tap --id` never
+gets such a hit it exits 1 and says `off-screen`, `clipped`, or `disabled`. A `clipped` note names
+the container whose frame misses the centre, such as the RPE track. So a tap that reports success
+hit an element that is on screen, enabled, and inside every container that clips it.
+
+`tap --label` resolves its element through the tree the same way, with the same poll and the same
+notes. It matches the whole label as `tree` prints it, case included. When a control and a text
+carry the label, it taps the control. When more than one is left, it exits 1 and lists each with
+its centre. With the sign-out alert up, `tap --label "Sign Out"` lists the Settings row and the
+alert's own button, so tap the alert's button at its centre with `-x -y`. No check sees an alert
+or sheet over an element, so a tap on the Settings row behind that alert still reports success.
+`tap -x -y` resolves no element, so it still reports success whatever is under the point.
+
 After a tap, re-read the tree before asserting. `tree` has no enabled column, so prove a disabled
 state with `find <id>`, which says `disabled` on stderr and still exits 0.
 `-UITEST_DISABLE_ANIMATIONS` stops UIKit animations and clears the animation on every SwiftUI

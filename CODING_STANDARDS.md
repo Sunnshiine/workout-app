@@ -5,8 +5,8 @@ Each bullet names a defect this repo shipped that takes context a regex does not
 
 Apply every rule to every hunk, cite the bullet, and quote the hunk. Flag only what a lint does not
 already judge, and never a preference. A force unwrap, force try, force cast, or a font built
-outside the Theme seam is a lint error, not a finding; `Tests/.swiftlint.yml` lists what a test body
-may do. Read a trailing issue or symbol when a bullet does not settle a hunk.
+outside the Theme seam in the app is a lint error, not a finding; `Tests/.swiftlint.yml` lists
+what a test body may do. Read a trailing issue or symbol when a bullet does not settle a hunk.
 
 ## Architecture
 
@@ -65,30 +65,47 @@ may do. Read a trailing issue or symbol when a bullet does not settle a hunk.
   parsed date pinned to an instant rather than the coach's cell text. `SheetParser.parseDate`
   resolves in the machine's time zone. (#597, fixed in #684.)
 - **A wait that ends on a count or a clock.** Counted `Task.yield()`, a wall-clock budget, and an
-  unbounded poll are the three flake shapes. The fake resumes the test, or a bounded poll records a
-  failure when it runs out, as `waitUntilHeld()` does. The poll, the state it reads, and the work
-  that sets it share one actor, so each yield gives that work a turn. A poll on another actor can
-  exhaust its count before a loaded main actor runs the work. (#548, `docs/TESTING.md`,
-  `ControlledValidationClient` in #637.)
+  unbounded poll are the three flake shapes. A bounded poll records a failure when it runs out, as
+  `HeldCall` in `Tests/Support/` does. A continuation ignores the time limit's cancellation, so a
+  wait on one with no bound hangs the run instead of failing it (#746). The poll, the state it
+  reads, and the work that sets it share one actor, so each yield gives that work a turn. A poll on
+  another actor can exhaust its count before a loaded main actor runs the work. (#548,
+  `docs/TESTING.md`, `ControlledValidationClient` in #637, #707.)
 - **A platform `#if` inside a `@Test` body,** where the assertions compile away and the test passes
-  empty. It goes on the declaration. (#608. The lint catches the body's first line. Judge the rest.)
+  empty. It goes on the declaration. (#608. The lint catches a guard below comment lines and
+  single-line `let` or `var` bindings. It misses one below a binding that holds a closure, a binding
+  that spans lines, or any other statement, so judge those.)
 - **A test that mirrors a one-line mapping.** It breaks on any refactor and the gate does not need
   it. A complexity-1 function scores 2 uncovered, under the target.
 
 Four shapes a regex can catch are SwiftLint errors in `.swiftlint.yml` (#637). The review still
-judges what each regex misses:
+judges what each regex misses. A hit is fixed in the code, or exempted on its line with a reason:
 
 - `unstructured_task_is_held` skips `App/Views/`, where `Button { Task { … } }` is the idiom, so the
   review judges a View method that starts a Task writing a store field. The rule reads only a line
-  that starts with `Task`, so `_ = Task { }`, `Task<Void, Never> { }`, a `Task {` in the middle of a
-  line, and `Task(priority: f()) {` pass it.
-- `optional_bool_needs_a_nil_answer` catches `x?.flag`, `(try? …)`, and `x.map(…)` compared to a
-  Bool literal. A reversed comparison (`true == x?.flag`), a chain past a call (`x?.f().flag`), and a
-  plain `Bool?` value compared to a literal pass it. It skips `Tests/`, where
-  `#expect(x?.flag == true)` failing on nil is the assertion doing its job.
+  that starts with `Task`, so `_ = Task { }`, `let _ = Task { }`, `Task<Void, Never> { }`,
+  `Task(operation: { })`, a `Task {` in the middle of a line, and `Task(priority: f()) {` pass it.
+  It flags a Task held on the line after `x =` and a Task a function returns implicitly, though
+  both are held.
+- `optional_bool_needs_a_nil_answer` catches `x?.flag`, `(try? …)`, `x.map(…)`, and `x.map { … }`
+  compared to a Bool literal. A reversed comparison (`true == x?.flag`), a chain past a call
+  (`x?.f().flag`), a nested call inside the chain (`x?.f(g(a))`), a subscript (`x?[i].flag`), a
+  `(try? …)` or a map whose parentheses or closure span lines, and a plain `Bool?` value compared
+  to a literal pass it. It flags a non-optional call chained after the map
+  (`.map(abs).contains(1) == true`, `.map { … }.allSatisfy { … } == true`) and a comparison inside
+  a string literal. It skips `Tests/`, where `#expect(x?.flag == true)` failing on nil is the
+  assertion doing its job.
 - `fixture_dates_are_literal` catches `Date()`, `Date.now`, `Date(timeIntervalSinceNow:)`, and the
-  current `TimeZone` and `Calendar`. The `.now` shorthand and a `DateFormatter` left on the machine
-  time zone pass it. It skips `Tests/UI/`, whose polling helpers keep wall-clock deadlines.
+  current `TimeZone` and `Calendar`. The `.now` shorthand, a `DateFormatter` or a
+  `Calendar(identifier:)` left on the machine time zone (#597), `Locale.current`, and a
+  `ContinuousClock.now` deadline pass it. It skips `Tests/UI/`, whose polling helpers keep
+  wall-clock deadlines.
 - `polling_loops_are_bounded` catches a `while`, `repeat`, or `for _ in` loop whose whole body is
-  `await Task.yield()`. A loop whose condition holds a closure, or whose body does anything else,
-  passes it.
+  `await Task.yield()`. A loop whose condition holds a closure, whose body does anything else, or
+  whose index is named (`for i in 0..<n`) passes it.
+
+`unstructured_task_is_held` and `optional_bool_needs_a_nil_answer` also reach `WorkoutShared/` and
+`WorkoutWidgets/`. The font and microlabel rules stop at the app, and no bullet here judges type
+or case in the widget. The widget target does not compile `Sources/WorkoutTracker/`, so the Theme
+seam the font rule points to is not there. `scripts/tests/swiftlint-custom-rules.test.sh` pins
+every shape named here.

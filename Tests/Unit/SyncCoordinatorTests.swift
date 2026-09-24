@@ -440,7 +440,7 @@ struct SyncOutcomeCharacterizationTests {
     func theFlushRefusalIsInvisibleInOutcomeForTheWholeNetworkPhaseOfASync() async throws {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
-        let client = HeldOutcomePinClient(heldCall: .tabTitles, grid: coachEditedGrid())
+        let client = HeldOutcomePinClient(holding: .tabTitles, grid: coachEditedGrid())
         let sync = SyncCoordinator(client: client, context: container.mainContext)
         sync.reportLocalWriteFailure(LocalWriteFailure())
 
@@ -463,7 +463,7 @@ struct SyncOutcomeCharacterizationTests {
     func midFlushTheCoordinatorSaysSyncingWhileTheFlushCountRefusesToAnswer() async throws {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
-        let client = HeldOutcomePinClient(heldCall: .tabSnapshot, grid: coachEditedGrid())
+        let client = HeldOutcomePinClient(holding: .tabSnapshot, grid: coachEditedGrid())
         let sync = SyncCoordinator(client: client, context: container.mainContext)
 
         let running = Task { await sync.flushPending(spreadsheetId: "sid") }
@@ -633,50 +633,38 @@ private final class OutcomePinClient: SheetsClient {
 private final class HeldOutcomePinClient: SheetsClient {
     /// `tabSnapshot` parks the first read a flush makes; `tabTitles` parks the first read `sync`
     /// makes after the flush has already finished.
-    enum HeldCall {
+    enum SheetCall {
         case tabTitles, tabSnapshot
     }
 
-    private let heldCall: HeldCall
+    private let heldSheetCall: SheetCall
     private let titles: [String]
     private let grid: SheetGrid
-    private var held: CheckedContinuation<Void, Never>?
-    private var holdsRemaining = 1
+    private let held = HeldCall()
 
-    init(heldCall: HeldCall, titles: [String] = ["Intro", "Block 27"], grid: SheetGrid) {
-        self.heldCall = heldCall
+    init(holding heldSheetCall: SheetCall, titles: [String] = ["Intro", "Block 27"], grid: SheetGrid) {
+        self.heldSheetCall = heldSheetCall
         self.titles = titles
         self.grid = grid
     }
 
     func listTabTitles(spreadsheetId: String) async throws -> [String] {
-        if heldCall == .tabTitles { await park() }
+        if heldSheetCall == .tabTitles { await held.hold() }
         return titles
     }
 
     func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
-        if heldCall == .tabSnapshot { await park() }
+        if heldSheetCall == .tabSnapshot { await held.hold() }
         return SheetSnapshot(values: grid)
     }
 
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
 
     func waitUntilHeld() async {
-        for _ in 0..<10_000 {
-            if held != nil { return }
-            await Task.yield()
-        }
-        Issue.record("the coordinator never reached the Sheet call this client holds")
+        await held.waitUntilHeld(orRecord: "the coordinator never reached the Sheet call this client holds")
     }
 
     func release() {
-        held?.resume()
-        held = nil
-    }
-
-    private func park() async {
-        guard holdsRemaining > 0 else { return }
-        holdsRemaining -= 1
-        await withCheckedContinuation { held = $0 }
+        held.release()
     }
 }

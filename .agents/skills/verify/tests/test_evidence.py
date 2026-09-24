@@ -262,6 +262,8 @@ class Tappable(unittest.TestCase):
 SESSION_RAILS = (FIXTURES / "session-rails.describe-ui.json").read_text()
 KEYBOARD_DONE = (FIXTURES / "keyboard-done.describe-ui.json").read_text()
 HOME_SCREEN = (FIXTURES / "home-screen.describe-ui.json").read_text()
+SETTINGS = (FIXTURES / "settings.describe-ui.json").read_text()
+SIGN_OUT_ALERT = (FIXTURES / "settings-sign-out-alert.describe-ui.json").read_text()
 RPE_CLIPPED = "clipped: outside AXGroup RPE @207,612 163x83; bring it inside that frame before tapping\n"
 REPS_CLIPPED = "clipped: outside AXGroup Reps @32,612 163x83; bring it inside that frame before tapping\n"
 
@@ -408,6 +410,58 @@ class Clipped(unittest.TestCase):
                          "describe-ui --point at each centre on the live app returned something else for these seven")
 
 
+class TappableByLabel(unittest.TestCase):
+    def test_a_label_on_one_enabled_on_screen_element_is_its_centre(self):
+        self.assertEqual(tree_py("tappable", "--label", "Weight, 237.5", stdin=MINI), (0, "201 564\n", ""))
+
+    def test_a_control_wins_over_the_text_that_shares_its_label(self):
+        for label, point in [("Developer Tools", "201 596\n"), ("Standard, 2:00", "201 353\n")]:
+            with self.subTest(label=label):
+                self.assertEqual(tree_py("tappable", "--label", label, stdin=SETTINGS), (0, point, ""))
+
+    def test_a_label_only_a_text_carries_is_that_texts_centre(self):
+        self.assertEqual(tree_py("tappable", "--label", "Standard", stdin=SETTINGS), (0, "67 353\n", ""))
+
+    def test_spaces_around_the_label_are_trimmed(self):
+        self.assertEqual(tree_py("tappable", "--label", "  Sign Out ", stdin=SETTINGS), (0, "201 683\n", ""))
+
+    def test_two_texts_with_one_label_and_no_control_are_listed(self):
+        self.assertEqual(tree_py("tappable", "--label", "RPE", stdin=SESSION_RAILS), (1, "", "\n".join([
+            "2 elements carry the label RPE; pick one by its id, or tap its centre with -x -y:",
+            "AXGroup\t\tRPE\t\t@207,612 163x83\t-x 288 -y 654",
+            "AXStaticText\t\tRPE\t\t@278,678 21x17\t-x 289 -y 687",
+        ]) + "\n"), "the rail and its caption; neither wins, so neither is tapped")
+
+    def test_a_label_below_the_fold_is_refused(self):
+        self.assertEqual(tree_py("tappable", "--label", "Farmer Carry", stdin=MINI),
+                         (1, "", "off-screen: swipe it into view before tapping\n"))
+
+    def test_a_disabled_label_is_refused(self):
+        self.assertEqual(tree_py("tappable", "--label", "Clear Write Log", stdin=with_disabled()),
+                         (1, "", "disabled: a tap on it does nothing\n"))
+
+    def test_a_chip_the_rail_does_not_draw_is_refused_by_its_label(self):
+        self.assertEqual(tree_py("tappable", "--label", "RPE 7", stdin=SESSION_RAILS), (1, "", RPE_CLIPPED),
+                         "RPE 7.5 is a different label, so the match is exact")
+
+    def test_two_controls_with_one_label_are_listed_with_their_centres(self):
+        code, out, err = tree_py("tappable", "--label", "Sign Out", stdin=SIGN_OUT_ALERT)
+        self.assertEqual((code, out), (1, ""))
+        self.assertEqual(err.splitlines(), [
+            "2 elements carry the label Sign Out; pick one by its id, or tap its centre with -x -y:",
+            "AXButton\tsettings-sign-out-button\tSign Out\t\t@16,657 370x52\t-x 201 -y 683",
+            "AXButton\t\tSign Out\t\t@205,484 140x48\t-x 275 -y 508",
+        ], "the Settings row behind the alert, then the alert's own button")
+
+    def test_a_label_nothing_carries_is_named(self):
+        self.assertEqual(tree_py("tappable", "--label", "Sign out", stdin=SETTINGS),
+                         (1, "", "no element with label Sign out\n"), "the match is case-sensitive")
+
+    def test_a_blank_label_matches_nothing(self):
+        self.assertEqual(tree_py("tappable", "--label", " ", stdin=MINI), (1, "", "no element with label  \n"),
+                         "active-set-card has an id and no label, and a blank query must not reach it")
+
+
 class Diff(unittest.TestCase):
     def test_diff_of_the_log_a_set_shots_is_the_semantic_hunks(self):
         code, out, err = tree_py(
@@ -502,6 +556,70 @@ class VerifyDiff(unittest.TestCase):
         for name in ["_sheet", "a.burst", "-x"]:
             code, out, err = verify_sh("shot", name, run=self.run)
             self.assertEqual(code, 2, "%s must be refused before any simulator is touched: %s" % (name, err))
+
+
+FAKE_AXE = """#!/bin/sh
+case $1 in
+  describe-ui) cat "{dir}/describe-ui.json" ;;
+  tap) printf '%s\\n' "$*" >> "{dir}/calls"; echo "Tap completed" ;;
+  *) exit 64 ;;
+esac
+"""
+
+
+class VerifyTap(unittest.TestCase):
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp())
+        skill = self.root / ".agents" / "skills" / "verify"
+        skill.mkdir(parents=True)
+        for name in ["verify.sh", "tree.py"]:
+            (skill / name).symlink_to(SKILL / name)
+        (self.root / "scripts").mkdir()
+        (self.root / "scripts" / "sim-lock.sh").symlink_to(REPO / "scripts" / "sim-lock.sh")
+        axe = self.root / ".build" / "verify" / "node_modules" / "xcodebuildmcp" / "bundled" / "axe"
+        axe.parent.mkdir(parents=True)
+        axe.write_text(FAKE_AXE.replace("{dir}", str(self.root)))
+        axe.chmod(0o755)
+        self.verify = skill / "verify.sh"
+        self.sim = "tap-test-%d" % os.getpid()
+
+    def tearDown(self):
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def tap(self, tree, *args):
+        (self.root / "describe-ui.json").write_text(tree)
+        env = dict(os.environ, SIM=self.sim)
+        env.pop("VERIFY_RUN", None)
+        done = subprocess.run(
+            [str(self.verify), "tap"] + list(args), cwd=str(self.root), env=env,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
+        )
+        calls = self.root / "calls"
+        return done.returncode, done.stdout, done.stderr, calls.read_text().splitlines() if calls.exists() else []
+
+    def test_a_label_tree_py_refuses_is_never_tapped(self):
+        self.assertEqual(self.tap(MINI, "--label", "Farmer Carry", "--wait-timeout", "0"),
+                         (1, "", "off-screen: swipe it into view before tapping\n", []))
+
+    def test_a_label_tree_py_resolves_is_tapped_once_at_its_centre(self):
+        self.assertEqual(self.tap(SETTINGS, "--label", "Developer Tools", "--wait-timeout", "0"),
+                         (0, "Tap completed\n", "", ["tap --udid %s -x 201 -y 596" % self.sim]))
+
+    def test_a_coordinate_tap_still_goes_straight_to_axe(self):
+        self.assertEqual(self.tap(MINI, "-x", "5", "-y", "6"),
+                         (0, "Tap completed\n", "", ["tap --udid %s --wait-timeout 3 -x 5 -y 6" % self.sim]),
+                         "no element is resolved, so it reports success whatever is under 5,6")
+
+    def test_a_label_without_its_text_or_beside_an_id_is_usage(self):
+        for argv in [["--label"], ["--id", "settings-sign-out-button", "--label", "Sign Out"]]:
+            with self.subTest(argv=argv):
+                code, out, err, calls = self.tap(SETTINGS, *argv)
+                self.assertEqual((code, out, calls), (2, "", []), err)
+                self.assertIn("Usage:", err)
+
+    def test_a_label_refuses_a_wait_timeout_it_cannot_count(self):
+        self.assertEqual(self.tap(SETTINGS, "--label", "Developer Tools", "--wait-timeout", "1.5"),
+                         (2, "", "--wait-timeout with --id or --label is whole seconds: 1.5\n", []))
 
 
 class VerifyStop(unittest.TestCase):

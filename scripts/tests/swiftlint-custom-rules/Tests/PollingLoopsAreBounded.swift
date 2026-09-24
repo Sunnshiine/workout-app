@@ -55,4 +55,8 @@ enum PollingLoopsAreBounded {
     static func yieldLoopInAStringPasses() -> String {
         "while !store.isIdle { await Task.yield() }"
     }
+
+    static func countedLoopWithANamedIndexIsMissed() async {
+        for index in 0..<10 { await Task.yield() }
+    }
 }

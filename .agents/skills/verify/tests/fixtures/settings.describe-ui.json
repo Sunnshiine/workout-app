@@ -1,0 +1,1013 @@
+[
+ {
+  "role": "AXApplication",
+  "AXLabel": "WorkoutTracker",
+  "pid": 890,
+  "frame": {
+   "y": 0,
+   "height": 874,
+   "width": 402,
+   "x": 0
+  },
+  "children": [
+   {
+    "role": "AXGroup",
+    "frame": {
+     "width": 402,
+     "height": 874,
+     "x": 0,
+     "y": 0
+    },
+    "children": [
+     {
+      "role": "AXGroup",
+      "frame": {
+       "y": 0,
+       "height": 874,
+       "width": 402,
+       "x": 0
+      },
+      "children": [
+       {
+        "role": "AXGroup",
+        "frame": {
+         "width": 402,
+         "height": 874,
+         "x": 0,
+         "y": 0
+        },
+        "children": [
+         {
+          "role": "AXGroup",
+          "frame": {
+           "y": 0,
+           "width": 402,
+           "height": 874,
+           "x": 0
+          },
+          "children": [
+           {
+            "role": "AXGroup",
+            "frame": {
+             "y": 0,
+             "width": 402,
+             "height": 874,
+             "x": 0
+            },
+            "children": [
+             {
+              "role": "AXGroup",
+              "frame": {
+               "width": 402,
+               "height": 874,
+               "x": 0,
+               "y": 0
+              },
+              "children": [
+               {
+                "role": "AXGroup",
+                "AXUniqueId": "Settings",
+                "frame": {
+                 "width": 402,
+                 "height": 106,
+                 "x": 0,
+                 "y": 62
+                },
+                "children": [
+                 {
+                  "role": "AXGroup",
+                  "frame": {
+                   "width": 65.66666666666669,
+                   "height": 36,
+                   "x": 316.3333333333333,
+                   "y": 66
+                  },
+                  "children": [
+                   {
+                    "role": "AXGroup",
+                    "frame": {
+                     "width": 65.66666666666669,
+                     "height": 36,
+                     "x": 316.3333333333333,
+                     "y": 66
+                    },
+                    "children": [
+                     {
+                      "role": "AXButton",
+                      "AXUniqueId": "settings-done-button",
+                      "AXLabel": "Done",
+                      "frame": {
+                       "width": 65.66666666666669,
+                       "height": 36,
+                       "x": 316.3333333333333,
+                       "y": 66
+                      }
+                     }
+                    ]
+                   }
+                  ]
+                 },
+                 {
+                  "role": "AXHeading",
+                  "AXLabel": "Settings",
+                  "frame": {
+                   "width": 133,
+                   "height": 40.66666666666667,
+                   "x": 16,
+                   "y": 119.66666666666667
+                  }
+                 }
+                ]
+               },
+               {
+                "role": "AXGroup",
+                "frame": {
+                 "width": 402,
+                 "height": 874,
+                 "x": 0,
+                 "y": 0
+                },
+                "children": [
+                 {
+                  "role": "AXGroup",
+                  "frame": {
+                   "y": 0,
+                   "width": 402,
+                   "height": 874,
+                   "x": 0
+                  },
+                  "children": [
+                   {
+                    "role": "AXGroup",
+                    "frame": {
+                     "y": 0,
+                     "height": 874,
+                     "width": 402,
+                     "x": 0
+                    },
+                    "children": [
+                     {
+                      "role": "AXGroup",
+                      "frame": {
+                       "width": 402,
+                       "height": 874,
+                       "x": 0,
+                       "y": 0
+                      },
+                      "children": [
+                       {
+                        "role": "AXGroup",
+                        "frame": {
+                         "width": 402,
+                         "height": 874,
+                         "x": 0,
+                         "y": 0
+                        },
+                        "children": [
+                         {
+                          "role": "AXGroup",
+                          "frame": {
+                           "width": 434,
+                           "height": 1867,
+                           "x": -16,
+                           "y": -1580
+                          }
+                         },
+                         {
+                          "role": "AXGroup",
+                          "frame": {
+                           "width": 402,
+                           "height": 874,
+                           "x": 0,
+                           "y": 0
+                          },
+                          "children": [
+                           {
+                            "role": "AXGroup",
+                            "frame": {
+                             "width": 402,
+                             "height": 156,
+                             "x": 0,
+                             "y": 0
+                            }
+                           }
+                          ]
+                         },
+                         {
+                          "role": "AXGroup",
+                          "frame": {
+                           "width": 402,
+                           "height": 874,
+                           "x": 0,
+                           "y": 0
+                          }
+                         },
+                         {
+                          "role": "AXGroup",
+                          "frame": {
+                           "width": 370,
+                           "height": 40.33333333333334,
+                           "x": 16,
+                           "y": 168
+                          },
+                          "children": [
+                           {
+                            "role": "AXGroup",
+                            "frame": {
+                             "width": 370,
+                             "height": 40.33333333333334,
+                             "x": 16,
+                             "y": 168
+                            },
+                            "children": [
+                             {
+                              "role": "AXGroup",
+                              "frame": {
+                               "width": 370,
+                               "height": 40.33333333333334,
+                               "x": 16,
+                               "y": 168
+                              },
+                              "children": [
+                               {
+                                "role": "AXHeading",
+                                "AXLabel": "Appearance",
+                                "frame": {
+                                 "width": 370,
+                                 "height": 40.33333333333334,
+                                 "x": 16,
+                                 "y": 168
+                                }
+                               }
+                              ]
+                             }
+                            ]
+                           }
+                          ]
+                         },
+                         {
+                          "role": "AXGroup",
+                          "frame": {
+                           "width": 370,
+                           "height": 61.00000000000003,
+                           "x": 16,
+                           "y": 208.33333333333334
+                          },
+                          "children": [
+                           {
+                            "role": "AXGroup",
+                            "frame": {
+                             "width": 370,
+                             "height": 61.00000000000003,
+                             "x": 16,
+                             "y": 208.33333333333334
+                            },
+                            "children": [
+                             {
+                              "role": "AXGroup",
+                              "frame": {
+                               "width": 370,
+                               "height": 61.00000000000003,
+                               "x": 16,
+                               "y": 208.33333333333334
+                              },
+                              "children": [
+                               {
+                                "role": "AXTabGroup",
+                                "AXUniqueId": "settings-appearance-picker",
+                                "frame": {
+                                 "width": 338,
+                                 "height": 31,
+                                 "x": 32,
+                                 "y": 223.33333333333334
+                                },
+                                "children": [
+                                 {
+                                  "role": "AXRadioButton",
+                                  "AXLabel": "System",
+                                  "AXValue": 1,
+                                  "frame": {
+                                   "width": 112,
+                                   "height": 32,
+                                   "x": 32,
+                                   "y": 223.33333333333334
+                                  }
+                                 },
+                                 {
+                                  "role": "AXRadioButton",
+                                  "AXLabel": "Light",
+                                  "AXValue": 0,
+                                  "frame": {
+                                   "width": 113,
+                                   "height": 32,
+                                   "x": 144,
+                                   "y": 223.33333333333334
+                                  }
+                                 },
+                                 {
+                                  "role": "AXRadioButton",
+                                  "AXLabel": "Night",
+                                  "AXValue": 0,
+                                  "frame": {
+                                   "width": 113,
+                                   "height": 32,
+                                   "x": 257,
+                                   "y": 223.33333333333334
+                                  }
+                                 }
+                                ]
+                               }
+                              ]
+                             }
+                            ]
+                           }
+                          ]
+                         },
+                         {
+                          "role": "AXGroup",
+                          "frame": {
+                           "width": 434,
+                           "height": 162,
+                           "x": -16,
+                           "y": 287
+                          }
+                         },
+                         {
+                          "role": "AXGroup",
+                          "frame": {
+                           "height": 40.333333333333314,
+                           "y": 287,
+                           "x": 16,
+                           "width": 370
+                          },
+                          "children": [
+                           {
+                            "role": "AXGroup",
+                            "frame": {
+                             "width": 370,
+                             "height": 40.333333333333314,
+                             "x": 16,
+                             "y": 287
+                            },
+                            "children": [
+                             {
+                              "role": "AXGroup",
+                              "frame": {
+                               "width": 370,
+                               "height": 40.333333333333314,
+                               "x": 16,
+                               "y": 287
+                              },
+                              "children": [
+                               {
+                                "role": "AXHeading",
+                                "AXLabel": "Rest",
+                                "frame": {
+                                 "width": 370,
+                                 "height": 40.333333333333314,
+                                 "x": 16,
+                                 "y": 287
+                                }
+                               }
+                              ]
+                             }
+                            ]
+                           }
+                          ]
+                         },
+                         {
+                          "role": "AXGroup",
+                          "frame": {
+                           "height": 52,
+                           "y": 327.33333333333337,
+                           "x": 16,
+                           "width": 370
+                          },
+                          "children": [
+                           {
+                            "role": "AXGroup",
+                            "frame": {
+                             "height": 52,
+                             "y": 327.33333333333337,
+                             "x": 16,
+                             "width": 370
+                            },
+                            "children": [
+                             {
+                              "role": "AXGroup",
+                              "frame": {
+                               "height": 52,
+                               "y": 327.33333333333337,
+                               "x": 16,
+                               "width": 370
+                              },
+                              "children": [
+                               {
+                                "role": "AXSlider",
+                                "AXUniqueId": "settings-standard-rest-stepper",
+                                "AXLabel": "Standard, 2:00",
+                                "AXValue": "120",
+                                "frame": {
+                                 "height": 32,
+                                 "y": 337.3333435058594,
+                                 "x": 32,
+                                 "width": 338
+                                },
+                                "children": [
+                                 {
+                                  "role": "AXButton",
+                                  "AXUniqueId": "settings-standard-rest-stepper-Decrement",
+                                  "AXLabel": "Standard, 2:00, Decrement",
+                                  "AXValue": "120",
+                                  "frame": {
+                                   "height": 32,
+                                   "y": 337.33333333333337,
+                                   "x": 276,
+                                   "width": 47
+                                  }
+                                 },
+                                 {
+                                  "role": "AXButton",
+                                  "AXUniqueId": "settings-standard-rest-stepper-Increment",
+                                  "AXLabel": "Standard, 2:00, Increment",
+                                  "AXValue": "120",
+                                  "frame": {
+                                   "height": 32,
+                                   "y": 337.33333333333337,
+                                   "x": 323,
+                                   "width": 47
+                                  }
+                                 }
+                                ]
+                               },
+                               {
+                                "role": "AXStaticText",
+                                "AXLabel": "Standard, 2:00",
+                                "frame": {
+                                 "height": 20.333343505859375,
+                                 "y": 343.1666564941406,
+                                 "x": 32,
+                                 "width": 236
+                                }
+                               },
+                               {
+                                "role": "AXStaticText",
+                                "AXLabel": "Standard",
+                                "frame": {
+                                 "height": 20.333333333333314,
+                                 "y": 343.16666666666674,
+                                 "x": 32,
+                                 "width": 69.66666666666666
+                                }
+                               }
+                              ]
+                             }
+                            ]
+                           }
+                          ]
+                         },
+                         {
+                          "role": "AXGroup",
+                          "frame": {
+                           "height": 52,
+                           "y": 379.33333333333337,
+                           "x": 16,
+                           "width": 370
+                          },
+                          "children": [
+                           {
+                            "role": "AXGroup",
+                            "frame": {
+                             "height": 52,
+                             "y": 379.33333333333337,
+                             "x": 16,
+                             "width": 370
+                            },
+                            "children": [
+                             {
+                              "role": "AXGroup",
+                              "frame": {
+                               "height": 52,
+                               "y": 379.33333333333337,
+                               "x": 16,
+                               "width": 370
+                              },
+                              "children": [
+                               {
+                                "role": "AXSlider",
+                                "AXUniqueId": "settings-superset-rest-stepper",
+                                "AXLabel": "Superset rest, 0:30",
+                                "AXValue": "30",
+                                "frame": {
+                                 "height": 32,
+                                 "y": 389.3333435058594,
+                                 "x": 32,
+                                 "width": 338
+                                },
+                                "children": [
+                                 {
+                                  "role": "AXButton",
+                                  "AXUniqueId": "settings-superset-rest-stepper-Decrement",
+                                  "AXLabel": "Superset rest, 0:30, Decrement",
+                                  "AXValue": "30",
+                                  "enabled": false,
+                                  "frame": {
+                                   "height": 32,
+                                   "y": 389.33333333333337,
+                                   "x": 276,
+                                   "width": 47
+                                  }
+                                 },
+                                 {
+                                  "role": "AXButton",
+                                  "AXUniqueId": "settings-superset-rest-stepper-Increment",
+                                  "AXLabel": "Superset rest, 0:30, Increment",
+                                  "AXValue": "30",
+                                  "frame": {
+                                   "height": 32,
+                                   "y": 389.33333333333337,
+                                   "x": 323,
+                                   "width": 47
+                                  }
+                                 }
+                                ]
+                               },
+                               {
+                                "role": "AXStaticText",
+                                "AXLabel": "Superset rest, 0:30",
+                                "frame": {
+                                 "height": 20.333343505859375,
+                                 "y": 395.1666564941406,
+                                 "x": 32,
+                                 "width": 236
+                                }
+                               },
+                               {
+                                "role": "AXStaticText",
+                                "AXLabel": "Superset rest",
+                                "frame": {
+                                 "height": 20.333333333333314,
+                                 "y": 395.16666666666674,
+                                 "x": 32,
+                                 "width": 102.33333333333331
+                                }
+                               }
+                              ]
+                             }
+                            ]
+                           }
+                          ]
+                         },
+                         {
+                          "role": "AXGroup",
+                          "frame": {
+                           "height": 1,
+                           "y": 378.33333333333337,
+                           "x": 32,
+                           "width": 338
+                          }
+                         },
+                         {
+                          "role": "AXGroup",
+                          "frame": {
+                           "height": 191.00000000000006,
+                           "y": 448.6666666666667,
+                           "x": -16,
+                           "width": 434
+                          }
+                         },
+                         {
+                          "role": "AXGroup",
+                          "frame": {
+                           "height": 51.99999999999994,
+                           "y": 466.3333333333333,
+                           "x": 16,
+                           "width": 370
+                          },
+                          "children": [
+                           {
+                            "role": "AXGroup",
+                            "frame": {
+                             "height": 51.99999999999994,
+                             "y": 466.3333333333333,
+                             "x": 16,
+                             "width": 370
+                            },
+                            "children": [
+                             {
+                              "role": "AXGroup",
+                              "frame": {
+                               "height": 51.99999999999994,
+                               "y": 466.3333333333333,
+                               "x": 16,
+                               "width": 370
+                              },
+                              "children": [
+                               {
+                                "role": "AXButton",
+                                "AXUniqueId": "settings-training-sheet-row",
+                                "AXLabel": "Training Sheet, Fixture Training Log",
+                                "frame": {
+                                 "height": 51.99999999999994,
+                                 "y": 466.3333333333333,
+                                 "x": 16,
+                                 "width": 370
+                                },
+                                "children": [
+                                 {
+                                  "role": "AXStaticText",
+                                  "AXLabel": "Training Sheet, Fixture Training Log",
+                                  "frame": {
+                                   "height": 20.333343505859375,
+                                   "y": 482.1666564941406,
+                                   "x": 32,
+                                   "width": 338
+                                  }
+                                 },
+                                 {
+                                  "role": "AXStaticText",
+                                  "AXLabel": "Training Sheet",
+                                  "frame": {
+                                   "height": 20.33333333333337,
+                                   "y": 482.16666666666663,
+                                   "x": 32,
+                                   "width": 109.33333333333331
+                                  }
+                                 }
+                                ]
+                               }
+                              ]
+                             }
+                            ]
+                           }
+                          ]
+                         },
+                         {
+                          "role": "AXGroup",
+                          "frame": {
+                           "height": 52,
+                           "y": 518.3333333333333,
+                           "x": 16,
+                           "width": 370
+                          },
+                          "children": [
+                           {
+                            "role": "AXGroup",
+                            "frame": {
+                             "height": 52,
+                             "y": 518.3333333333333,
+                             "x": 16,
+                             "width": 370
+                            },
+                            "children": [
+                             {
+                              "role": "AXGroup",
+                              "frame": {
+                               "height": 52,
+                               "y": 518.3333333333333,
+                               "x": 16,
+                               "width": 370
+                              },
+                              "children": [
+                               {
+                                "role": "AXButton",
+                                "AXUniqueId": "settings-sync-now-button",
+                                "AXLabel": "Sync now, Refresh workout state",
+                                "AXValue": "Refresh workout state",
+                                "frame": {
+                                 "height": 52,
+                                 "y": 518.3333333333333,
+                                 "x": 16,
+                                 "width": 370
+                                },
+                                "children": [
+                                 {
+                                  "role": "AXStaticText",
+                                  "AXLabel": "Sync now",
+                                  "frame": {
+                                   "height": 20.333333333333485,
+                                   "y": 534.1666666666665,
+                                   "x": 32,
+                                   "width": 73.66666666666666
+                                  }
+                                 },
+                                 {
+                                  "role": "AXStaticText",
+                                  "AXLabel": "Sync now, Refresh workout state",
+                                  "frame": {
+                                   "height": 20.33331298828125,
+                                   "y": 534.1666870117188,
+                                   "x": 32,
+                                   "width": 338
+                                  }
+                                 }
+                                ]
+                               }
+                              ]
+                             }
+                            ]
+                           }
+                          ]
+                         },
+                         {
+                          "role": "AXGroup",
+                          "frame": {
+                           "height": 1,
+                           "y": 517.3333333333333,
+                           "x": 32,
+                           "width": 338
+                          }
+                         },
+                         {
+                          "role": "AXGroup",
+                          "frame": {
+                           "y": 570.3333333333333,
+                           "width": 370,
+                           "height": 52,
+                           "x": 16
+                          },
+                          "children": [
+                           {
+                            "role": "AXGroup",
+                            "frame": {
+                             "y": 570.3333333333333,
+                             "height": 52,
+                             "width": 370,
+                             "x": 16
+                            },
+                            "children": [
+                             {
+                              "role": "AXGroup",
+                              "frame": {
+                               "y": 570.3333333333333,
+                               "width": 370,
+                               "height": 52,
+                               "x": 16
+                              },
+                              "children": [
+                               {
+                                "role": "AXButton",
+                                "AXUniqueId": "settings-developer-tools-row",
+                                "AXLabel": "Developer Tools",
+                                "frame": {
+                                 "y": 570.3333333333333,
+                                 "width": 370,
+                                 "height": 52,
+                                 "x": 16
+                                },
+                                "children": [
+                                 {
+                                  "role": "AXStaticText",
+                                  "AXLabel": "Developer Tools",
+                                  "frame": {
+                                   "y": 586.1666666666665,
+                                   "height": 20.333333333333485,
+                                   "width": 122.33333333333331,
+                                   "x": 32
+                                  }
+                                 },
+                                 {
+                                  "role": "AXImage",
+                                  "AXUniqueId": "chevron.forward",
+                                  "AXLabel": "",
+                                  "frame": {
+                                   "y": 590.3333333333333,
+                                   "height": 12,
+                                   "width": 7,
+                                   "x": 360.6666666666667
+                                  }
+                                 }
+                                ]
+                               }
+                              ]
+                             }
+                            ]
+                           }
+                          ]
+                         },
+                         {
+                          "role": "AXGroup",
+                          "frame": {
+                           "y": 569.3333333333333,
+                           "height": 1,
+                           "width": 338,
+                           "x": 32
+                          }
+                         },
+                         {
+                          "role": "AXGroup",
+                          "frame": {
+                           "y": 639.6666666666667,
+                           "width": 434,
+                           "height": 87,
+                           "x": -16
+                          }
+                         },
+                         {
+                          "role": "AXGroup",
+                          "frame": {
+                           "y": 657.3333333333333,
+                           "height": 52,
+                           "width": 370,
+                           "x": 16
+                          },
+                          "children": [
+                           {
+                            "role": "AXGroup",
+                            "frame": {
+                             "y": 657.3333333333333,
+                             "height": 52,
+                             "width": 370,
+                             "x": 16
+                            },
+                            "children": [
+                             {
+                              "role": "AXGroup",
+                              "frame": {
+                               "y": 657.3333333333333,
+                               "width": 370,
+                               "height": 52,
+                               "x": 16
+                              },
+                              "children": [
+                               {
+                                "role": "AXButton",
+                                "AXUniqueId": "settings-sign-out-button",
+                                "AXLabel": "Sign Out",
+                                "frame": {
+                                 "y": 657.3333333333333,
+                                 "height": 52,
+                                 "width": 370,
+                                 "x": 16
+                                }
+                               }
+                              ]
+                             }
+                            ]
+                           }
+                          ]
+                         },
+                         {
+                          "role": "AXGroup",
+                          "frame": {
+                           "y": 726.6666666666666,
+                           "width": 434,
+                           "height": 1837.666666666667,
+                           "x": -16
+                          }
+                         },
+                         {
+                          "role": "AXGroup",
+                          "frame": {
+                           "y": 744.3333333333334,
+                           "height": 52,
+                           "width": 370,
+                           "x": 16
+                          },
+                          "children": [
+                           {
+                            "role": "AXGroup",
+                            "frame": {
+                             "y": 744.3333333333334,
+                             "width": 370,
+                             "height": 52,
+                             "x": 16
+                            },
+                            "children": [
+                             {
+                              "role": "AXGroup",
+                              "frame": {
+                               "y": 744.3333333333334,
+                               "width": 370,
+                               "height": 52,
+                               "x": 16
+                              },
+                              "children": [
+                               {
+                                "role": "AXButton",
+                                "AXUniqueId": "settings-build-identity-footer",
+                                "AXLabel": "1.0 (1) \u00b7 local build",
+                                "frame": {
+                                 "y": 744.3333333333334,
+                                 "height": 52,
+                                 "width": 370,
+                                 "x": 16
+                                }
+                               }
+                              ]
+                             }
+                            ]
+                           },
+                           {
+                            "role": "AXGroup",
+                            "frame": {
+                             "y": 744.3333333333334,
+                             "height": 52,
+                             "width": 370,
+                             "x": 16
+                            },
+                            "children": [
+                             {
+                              "role": "AXGroup",
+                              "frame": {
+                               "y": 744.3333333333334,
+                               "width": 370,
+                               "height": 52,
+                               "x": 16
+                              }
+                             }
+                            ]
+                           }
+                          ]
+                         },
+                         {
+                          "role": "AXSlider",
+                          "AXLabel": "Vertical scroll bar, 1 page",
+                          "AXValue": "0%",
+                          "frame": {
+                           "y": 116,
+                           "width": 30,
+                           "height": 696,
+                           "x": 369
+                          },
+                          "children": [
+                           {
+                            "role": "AXGroup",
+                            "frame": {
+                             "y": 142.66666666666663,
+                             "width": 3,
+                             "height": 666.3333333333334,
+                             "x": 396
+                            }
+                           }
+                          ]
+                         },
+                         {
+                          "role": "AXSlider",
+                          "AXLabel": "Vertical scroll bar, 1 page",
+                          "AXValue": "0%",
+                          "frame": {
+                           "y": 116,
+                           "height": 696,
+                           "width": 30,
+                           "x": 369
+                          },
+                          "children": [
+                           {
+                            "role": "AXGroup",
+                            "frame": {
+                             "y": 142.66666666666663,
+                             "width": 3,
+                             "height": 666.3333333333334,
+                             "x": 396
+                            }
+                           }
+                          ]
+                         }
+                        ]
+                       }
+                      ]
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "role": "AXGroup",
+                "AXUniqueId": "Toolbar",
+                "AXLabel": "Toolbar",
+                "frame": {
+                 "y": 0,
+                 "height": 874,
+                 "width": 402,
+                 "x": 0
+                },
+                "children": [
+                 {
+                  "role": "AXGroup",
+                  "frame": {
+                   "y": 0,
+                   "height": 874,
+                   "width": 402,
+                   "x": 0
+                  }
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+]

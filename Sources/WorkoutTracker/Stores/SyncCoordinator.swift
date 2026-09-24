@@ -218,6 +218,35 @@ private struct PlannedPendingWrite {
     let update: SheetCellUpdate
     let snapshot: SheetWritePlanningSnapshot
     let auditDetails: SheetWriteAuditDetails
+
+    /// Declared in the struct body so it replaces the memberwise init. A planned write is then built
+    /// from one read only, so its target, value check, and audit row cannot disagree.
+    @MainActor
+    init(_ write: PendingWrite, against snapshot: SheetWritePlanningSnapshot, planner: SheetWritePlanner) throws {
+        let request = SheetWriteRequest(write)
+        let target: SheetWriteTarget
+        do {
+            target = try planner.target(for: request, in: snapshot)
+        } catch let error as SheetWriterError {
+            throw PendingWritePlanningConflict(
+                error: error,
+                refusedTarget: nil,
+                auditDetails: planner.auditDetails(for: request, error: error, in: snapshot, target: nil)
+            )
+        }
+        do {
+            update = try planner.plan(request, target: target, in: snapshot)
+        } catch let error as SheetWriterError {
+            throw PendingWritePlanningConflict(
+                error: error,
+                refusedTarget: target,
+                auditDetails: planner.auditDetails(for: request, error: error, in: snapshot, target: target)
+            )
+        }
+        self.write = write
+        self.snapshot = snapshot
+        auditDetails = planner.auditDetails(for: request, target: target, in: snapshot)
+    }
 }
 
 private struct PendingWriteBatch {
@@ -251,9 +280,8 @@ private struct PendingWriteBatchFailure: Error {
 private struct PendingWriteFlushInProgress: Error {}
 private struct PendingWritePlanningConflict: Error {
     let error: SheetWriterError
-    let request: SheetWriteRequest
-    let snapshot: SheetWritePlanningSnapshot
-    let target: SheetWriteTarget?
+    let refusedTarget: SheetWriteTarget?
+    let auditDetails: SheetWriteAuditDetails
 }
 
 extension SyncCoordinator {
@@ -308,7 +336,7 @@ extension SyncCoordinator {
             } catch let failure as PendingWriteBatchFailure {
                 return .stoppedForRetry(queued: failure.queued)
             } catch let planningConflict as PendingWritePlanningConflict {
-                let message = recordConflict(planningConflict, for: write, planner: flushContext.planner)
+                let message = recordConflict(planningConflict, for: write)
                 conflicts.append(message)
                 conflicts.append(contentsOf: recordDependentLastSetRPEConflicts(message, for: write, in: pending))
             } catch {
@@ -342,24 +370,10 @@ extension SyncCoordinator {
         )
     }
 
-    fileprivate func recordConflict(
-        _ conflict: PendingWritePlanningConflict,
-        for write: PendingWrite,
-        planner: SheetWritePlanner
-    ) -> String {
+    fileprivate func recordConflict(_ conflict: PendingWritePlanningConflict, for write: PendingWrite) -> String {
         let message = conflict.error.errorDescription ?? String(describing: conflict.error)
         write.markConflict(message)
-        recordWriteTargetAudit(
-            for: write,
-            details: planner.auditDetails(
-                for: conflict.request,
-                error: conflict.error,
-                in: conflict.snapshot,
-                target: conflict.target
-            ),
-            finalStatus: .conflict,
-            message: message
-        )
+        recordWriteTargetAudit(for: write, details: conflict.auditDetails, finalStatus: .conflict, message: message)
         return "\(write.exerciseName): \(message)"
     }
 
@@ -369,51 +383,23 @@ extension SyncCoordinator {
         try? context.save()
     }
 
+    /// A refusal at a cell the batch already holds was checked against what the batch predicts, not
+    /// what the Sheet holds. The coach may have moved or hidden that cell since the first read, so
+    /// the write is addressed again against a fresh read of the tab (ADR-0003).
     fileprivate func plan(
         _ write: PendingWrite,
         context flushContext: PendingWriteFlushContext,
         snapshots: inout [String: SheetWritePlanningSnapshot],
         batch: inout PendingWriteBatch
     ) async throws -> PlannedPendingWrite {
-        let request = SheetWriteRequest(write)
-        var snapshot = try await gridSnapshot(for: request.blockTab, context: flushContext, snapshots: &snapshots)
-        let target: SheetWriteTarget
+        let workingCopy = try await gridSnapshot(for: write.blockTab, context: flushContext, snapshots: &snapshots)
         do {
-            target = try flushContext.planner.target(for: request, in: snapshot)
-        } catch let error as SheetWriterError {
-            throw PendingWritePlanningConflict(error: error, request: request, snapshot: snapshot, target: nil)
-        }
-
-        do {
-            let update = try flushContext.planner.plan(request, target: target, in: snapshot)
-            return PlannedPendingWrite(
-                write: write,
-                update: update,
-                snapshot: snapshot,
-                auditDetails: flushContext.planner.auditDetails(for: request, target: target, in: snapshot)
-            )
-        } catch is SheetWriterError where batch.overlaps(target) {
+            return try PlannedPendingWrite(write, against: workingCopy, planner: flushContext.planner)
+        } catch let conflict as PendingWritePlanningConflict where conflict.refusedTarget.map(batch.overlaps) ?? false {
             try await flush(batch, context: flushContext)
             batch.removeAll()
-            snapshot = try await refetchedGridSnapshot(for: request.blockTab, context: flushContext, snapshots: &snapshots)
-            do {
-                let update = try flushContext.planner.plan(request, target: target, in: snapshot)
-                return PlannedPendingWrite(
-                    write: write,
-                    update: update,
-                    snapshot: snapshot,
-                    auditDetails: flushContext.planner.auditDetails(for: request, target: target, in: snapshot)
-                )
-            } catch let replannedError as SheetWriterError {
-                throw PendingWritePlanningConflict(
-                    error: replannedError,
-                    request: request,
-                    snapshot: snapshot,
-                    target: target
-                )
-            }
-        } catch let planningError as SheetWriterError {
-            throw PendingWritePlanningConflict(error: planningError, request: request, snapshot: snapshot, target: target)
+            let refetched = try await refetchedGridSnapshot(for: write.blockTab, context: flushContext, snapshots: &snapshots)
+            return try PlannedPendingWrite(write, against: refetched, planner: flushContext.planner)
         }
     }
 

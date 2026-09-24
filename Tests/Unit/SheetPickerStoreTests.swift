@@ -237,12 +237,16 @@ private final class StubPickerClient: SheetsClient, @unchecked Sendable {
 
 @MainActor
 private final class ControlledValidationClient: SheetsClient {
-    private var continuations: [String: CheckedContinuation<[String], Error>] = [:]
+    private struct ReturnedBeforeComplete: Error {}
+
+    private var heldRequests: [String: HeldCall] = [:]
+    private var completedTitles: [String: [String]] = [:]
+    private var gaveUp = false
 
     func listTabTitles(spreadsheetId: String) async throws -> [String] {
-        try await withCheckedThrowingContinuation { continuation in
-            continuations[spreadsheetId] = continuation
-        }
+        await heldRequest(for: spreadsheetId).hold()
+        guard let titles = completedTitles[spreadsheetId] else { throw ReturnedBeforeComplete() }
+        return titles
     }
 
     func listSpreadsheets(pageToken: String?) async throws -> SpreadsheetListPage {
@@ -256,14 +260,23 @@ private final class ControlledValidationClient: SheetsClient {
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
 
     func waitForRequest(spreadsheetId: String) async {
-        for _ in 0..<10_000 {
-            if continuations[spreadsheetId] != nil { return }
-            await Task.yield()
-        }
-        Issue.record("the validation never requested the tab titles of \(spreadsheetId)")
+        let request = heldRequest(for: spreadsheetId)
+        await request.waitUntilHeld(orRecord: "the validation never requested the tab titles of \(spreadsheetId)")
+        guard !request.isHeld else { return }
+        gaveUp = true
+        for held in heldRequests.values { held.abandon() }
     }
 
     func complete(spreadsheetId: String, titles: [String]) {
-        continuations.removeValue(forKey: spreadsheetId)?.resume(returning: titles)
+        completedTitles[spreadsheetId] = titles
+        heldRequest(for: spreadsheetId).release()
+    }
+
+    private func heldRequest(for spreadsheetId: String) -> HeldCall {
+        if let request = heldRequests[spreadsheetId] { return request }
+        let request = HeldCall()
+        if gaveUp { request.abandon() }
+        heldRequests[spreadsheetId] = request
+        return request
     }
 }

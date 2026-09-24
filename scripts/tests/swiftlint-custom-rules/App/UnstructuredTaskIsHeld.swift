@@ -83,4 +83,16 @@ final class UnstructuredTaskIsHeld {
         }
         """
     }
+
+    func taskWithAnOperationLabelIsMissed() {
+        Task(operation: {
+            await sync()
+        })
+    }
+
+    func taskDiscardedThroughLetIsMissed() {
+        let _ = Task {
+            await sync()
+        }
+    }
 }
