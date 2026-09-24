@@ -440,7 +440,7 @@ struct SyncOutcomeCharacterizationTests {
     func theFlushRefusalIsInvisibleInOutcomeForTheWholeNetworkPhaseOfASync() async throws {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
-        let client = HeldOutcomePinClient(heldCall: .tabTitles, grid: coachEditedGrid())
+        let client = HeldOutcomePinClient(holding: .tabTitles, grid: coachEditedGrid())
         let sync = SyncCoordinator(client: client, context: container.mainContext)
         sync.reportLocalWriteFailure(LocalWriteFailure())
 
@@ -463,7 +463,7 @@ struct SyncOutcomeCharacterizationTests {
     func midFlushTheCoordinatorSaysSyncingWhileTheFlushCountRefusesToAnswer() async throws {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
-        let client = HeldOutcomePinClient(heldCall: .tabSnapshot, grid: coachEditedGrid())
+        let client = HeldOutcomePinClient(holding: .tabSnapshot, grid: coachEditedGrid())
         let sync = SyncCoordinator(client: client, context: container.mainContext)
 
         let running = Task { await sync.flushPending(spreadsheetId: "sid") }
@@ -637,24 +637,24 @@ private final class HeldOutcomePinClient: SheetsClient {
         case tabTitles, tabSnapshot
     }
 
-    private let heldCall: SheetCall
+    private let heldSheetCall: SheetCall
     private let titles: [String]
     private let grid: SheetGrid
     private let held = HeldCall()
 
-    init(heldCall: SheetCall, titles: [String] = ["Intro", "Block 27"], grid: SheetGrid) {
-        self.heldCall = heldCall
+    init(holding heldSheetCall: SheetCall, titles: [String] = ["Intro", "Block 27"], grid: SheetGrid) {
+        self.heldSheetCall = heldSheetCall
         self.titles = titles
         self.grid = grid
     }
 
     func listTabTitles(spreadsheetId: String) async throws -> [String] {
-        if heldCall == .tabTitles { await held.hold() }
+        if heldSheetCall == .tabTitles { await held.hold() }
         return titles
     }
 
     func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
-        if heldCall == .tabSnapshot { await held.hold() }
+        if heldSheetCall == .tabSnapshot { await held.hold() }
         return SheetSnapshot(values: grid)
     }
 
