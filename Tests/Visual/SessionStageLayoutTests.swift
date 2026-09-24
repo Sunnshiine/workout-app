@@ -91,7 +91,7 @@ struct SessionStageLayoutTests {
     }
 
     @Test func aDetailHeightBannerTakesLastPerformedAndLeavesTheCardWhereItWas() throws {
-        let withDetail = try SessionPageHost.layout(.exercise, banner: .detailHeightStandIn, windowHeight: 874)
+        let withDetail = try SessionPageHost.layout(.exercise, banner: .standIn(height: 76), windowHeight: 874)
         #expect(
             withDetail
                 == PageFrames(
@@ -136,6 +136,67 @@ struct SessionStageLayoutTests {
         )
     }
 
+    @Test func aTextAndDetailBannerTakesTheSupersetsCadenceAndKeepsItsNote() throws {
+        let textAndDetail = try SessionPageHost.layout(.superset, banner: .standIn(height: 54), windowHeight: 874)
+        #expect(
+            textAndDetail
+                == PageFrames(
+                    banner: CGRect(x: 16, y: 70, width: 370, height: 54),
+                    stage: CGRect(x: 0, y: 124, width: 402, height: 716),
+                    cadence: nil,
+                    name: CGRect(x: 16, y: 195, width: 123, height: 41),
+                    partner: CGRect(x: 16, y: 239, width: 125, height: 25),
+                    note: CGRect(x: 16, y: 278, width: 262, height: 22),
+                    leaves: [],
+                    branchIsDrawn: true,
+                    lastPerformed: nil,
+                    card: CGRect(x: 16, y: 418, width: 370, height: 308)
+                )
+        )
+    }
+
+    @Test func aMiniHeightWindowTakesTheSupersetsNoteAndKeepsItsBranch() throws {
+        let oneLine = try SessionPageHost.layout(.superset, banner: .outcome(.writesQueued(1)), windowHeight: 793)
+        #expect(
+            oneLine
+                == PageFrames(
+                    banner: CGRect(x: 16, y: 70, width: 370, height: 34),
+                    stage: CGRect(x: 0, y: 104, width: 402, height: 689),
+                    cadence: nil,
+                    name: CGRect(x: 16, y: 175, width: 123, height: 41),
+                    partner: CGRect(x: 16, y: 219, width: 125, height: 25),
+                    note: nil,
+                    leaves: [],
+                    branchIsDrawn: true,
+                    lastPerformed: nil,
+                    card: CGRect(x: 16, y: 371, width: 370, height: 308)
+                )
+        )
+    }
+
+    @Test func anSEHeightWindowAtRestGivesUpTheNoteAndKeepsTheBranch() throws {
+        let restOnly = try SessionPageHost.layout(.exercise, banner: .outcome(.clear), windowHeight: 709)
+        #expect(
+            restOnly
+                == PageFrames(
+                    banner: nil,
+                    stage: CGRect(x: 0, y: 62, width: 402, height: 647),
+                    cadence: nil,
+                    name: CGRect(x: 16, y: 133, width: 173, height: 41),
+                    partner: nil,
+                    note: nil,
+                    leaves: [
+                        CGRect(x: 272, y: 194, width: 44, height: 44),
+                        CGRect(x: 196, y: 203, width: 44, height: 44),
+                        CGRect(x: 120, y: 215, width: 44, height: 44)
+                    ],
+                    branchIsDrawn: true,
+                    lastPerformed: nil,
+                    card: CGRect(x: 16, y: 287, width: 370, height: 308)
+                )
+        )
+    }
+
     @Test func anSEHeightWindowKeepsTheNameAndTheCard() throws {
         let oneLine = try SessionPageHost.layout(.exercise, banner: .outcome(.writesQueued(1)), windowHeight: 709)
         #expect(
@@ -156,6 +217,61 @@ struct SessionStageLayoutTests {
     }
 }
 
+/// One window shrunk in place, as a rung switch happens at log time, rather than a fresh window per
+/// height: a `ViewThatFits` that falls back can leave the lines it dropped in the accessibility tree.
+@MainActor
+@Suite
+struct SessionStageLadderTransitionTests {
+    @Test func shrinkingTheWindowDropsEveryLineTheShorterRungGivesUp() throws {
+        let pages = try SessionPageHost.layouts(.exercise, banner: .outcome(.writesQueued(1)), windowHeights: [874, 709])
+        #expect(
+            pages == [
+                PageFrames(
+                    banner: CGRect(x: 16, y: 70, width: 370, height: 34),
+                    stage: CGRect(x: 0, y: 104, width: 402, height: 736),
+                    cadence: nil,
+                    name: CGRect(x: 16, y: 175, width: 173, height: 41),
+                    partner: nil,
+                    note: CGRect(x: 16, y: 230, width: 270, height: 22),
+                    leaves: [
+                        CGRect(x: 272, y: 274, width: 44, height: 44),
+                        CGRect(x: 196, y: 286, width: 44, height: 44),
+                        CGRect(x: 120, y: 302, width: 44, height: 44)
+                    ],
+                    branchIsDrawn: true,
+                    lastPerformed: CGRect(x: 16, y: 386, width: 370, height: 18),
+                    card: CGRect(x: 16, y: 418, width: 370, height: 308)
+                ),
+                PageFrames(
+                    banner: CGRect(x: 16, y: 70, width: 370, height: 34),
+                    stage: CGRect(x: 0, y: 104, width: 402, height: 605),
+                    cadence: nil,
+                    name: CGRect(x: 16, y: 175, width: 173, height: 41),
+                    partner: nil,
+                    note: nil,
+                    leaves: [],
+                    branchIsDrawn: false,
+                    lastPerformed: nil,
+                    card: CGRect(x: 16, y: 287, width: 370, height: 308)
+                )
+            ]
+        )
+    }
+
+    @Test func shrinkingTheCompletionStageDropsTheOpenExercises() throws {
+        let labels = try SessionPageHost.completionLabels(windowHeights: [874, 300])
+        #expect(
+            labels == [
+                [
+                    "Session complete", "2 sets done across 1 exercise", "Open Exercises",
+                    "Back Squat, 1 pending set, W1 D1", "Bench Press, 1 pending set, W1 D2", "1 of 1"
+                ],
+                ["Session complete", "2 sets done across 1 exercise", "1 of 1"]
+            ]
+        )
+    }
+}
+
 private enum StageKind {
     case exercise
     /// Back Squat paired with BB RDL. After Back Squat's Set 1 the focus is on BB RDL, which has a
@@ -163,11 +279,12 @@ private enum StageKind {
     case superset
 }
 
-/// No banner `text` wraps at this width, so the banner with its `detail` line is a stand-in of the
-/// capsule's height: two lines of `text` and a `detail` line under them.
+/// No banner `text` wraps at this width and the banner does not yet render its `detail` line, so a
+/// taller banner is a stand-in of the capsule's height: 54pt is one line of `text` and a `detail`
+/// line, 76pt two lines of `text` and a `detail` line.
 private enum BannerSlot {
     case outcome(SyncOutcome)
-    case detailHeightStandIn
+    case standIn(height: CGFloat)
 }
 
 private struct PageFrames: Equatable, CustomStringConvertible {
@@ -275,9 +392,9 @@ private struct SessionPage: View {
         switch banner {
         case .outcome(let outcome):
             SyncStatusBanner(outcome: outcome, isSyncing: false)
-        case .detailHeightStandIn:
+        case .standIn(let height):
             Color.clear
-                .frame(height: 76)
+                .frame(height: height)
                 .accessibilityElement()
                 .accessibilityLabel("Sync status: stand-in")
                 .padding(.horizontal)
@@ -290,6 +407,12 @@ private enum SessionPageHost {
     private static var retainedScenarios: [ConfiguredAppScenario] = []
 
     static func layout(_ stage: StageKind, banner: BannerSlot, windowHeight: CGFloat) throws -> PageFrames {
+        try layouts(stage, banner: banner, windowHeights: [windowHeight])[0]
+    }
+
+    /// The page read in one window at each height in turn, resized in place, so a rung switch happens
+    /// inside a live hierarchy.
+    static func layouts(_ stage: StageKind, banner: BannerSlot, windowHeights: [CGFloat]) throws -> [PageFrames] {
         let scenario = try WorkoutScenarios.freshConfiguredApp()
         retainedScenarios.append(scenario)
         let lastPerformedLookup = LastPerformedLookupStore(context: scenario.context)
@@ -316,43 +439,92 @@ private enum SessionPageHost {
             banner: banner,
             probe: probe
         )
-        .environment(scenario.store)
-        .environment(lastPerformedLookup)
-        .environment(
-            ExerciseHistoryFill(client: InertSheetsClient(), context: scenario.context, index: lastPerformedLookup)
-        )
-        .environment(\.themePalette, Theme.palette(for: .day))
-        .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
-        .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)
-
-        return try AccessibilityHost.read(page, in: CGSize(width: 402, height: windowHeight)) { window in
-            func frame(_ matches: (NSObject) -> Bool) -> CGRect? {
-                window.accessibilityFrames(where: matches).first
-            }
-            let cadence = frame { $0.accessibilityIdentifier == "stage-cadence" }
-            let name = frame { $0.accessibilityIdentifier == "stage-exercise-name" }
-            let partner = frame { $0.accessibilityIdentifier == "superset-partner-name" }
-            let note = frame { $0.accessibilityLabel == focused.coachNote }
-            let lastPerformed = frame { $0.accessibilityLabel?.hasPrefix("Block ") == true }
-            let card = frame { $0.accessibilityIdentifier == "active-set-card" }
-            let words = [cadence, name, partner, note].compactMap { $0?.maxY }
-            return PageFrames(
-                banner: frame { $0.accessibilityLabel?.hasPrefix("Sync status:") == true },
-                stage: probe.stage,
-                cadence: cadence,
-                name: name,
-                partner: partner,
-                note: note,
-                leaves: window.accessibilityFrames { $0.accessibilityLabel.map(isLeafLabel) == true },
-                branchIsDrawn: try inkedPixels(
-                    in: window,
-                    fromY: words.max() ?? 0,
-                    toY: (lastPerformed ?? card)?.minY ?? 0
-                ) > 1500,
-                lastPerformed: lastPerformed,
-                card: card
-            )
+        return try read(page, scenario: scenario, lastPerformedLookup: lastPerformedLookup, windowHeights: windowHeights) { window in
+            try frames(in: window, focused: focused, probe: probe)
         }
+    }
+
+    /// The accessibility labels of the `openExercisesBlock` day's completion stage, with every Set
+    /// logged and two Open Exercises from earlier days, read at each window height in turn.
+    static func completionLabels(windowHeights: [CGFloat]) throws -> [[String]] {
+        let scenario = try WorkoutScenarios.freshConfiguredApp(block: WorkoutFixtureScenarios.openExercisesBlock())
+        retainedScenarios.append(scenario)
+        let session = try #require(scenario.store.viewedSession)
+        for set in session.exercises.flatMap(\.sets) where set.isPending {
+            try scenario.store.log(set, as: SetLog(weight: .pounds(315), reps: 3, rpe: .eight))
+        }
+        let page = SessionPage(
+            session: session,
+            coordinator: SessionCoordinator(session: session),
+            restTimer: RestTimer(),
+            banner: .outcome(.clear),
+            probe: FrameProbe()
+        )
+        let lookup = LastPerformedLookupStore(context: scenario.context)
+        return try read(page, scenario: scenario, lastPerformedLookup: lookup, windowHeights: windowHeights) { window in
+            var labels: [String] = []
+            _ = window.accessibilityFrames { element in
+                if let label = element.accessibilityLabel, !label.isEmpty { labels.append(label) }
+                return false
+            }
+            return labels
+        }
+    }
+
+    private static func read<Result>(
+        _ page: SessionPage,
+        scenario: ConfiguredAppScenario,
+        lastPerformedLookup: LastPerformedLookupStore,
+        windowHeights: [CGFloat],
+        _ body: (UIWindow) throws -> Result
+    ) throws -> [Result] {
+        let hosted =
+            page
+            .environment(scenario.store)
+            .environment(lastPerformedLookup)
+            .environment(
+                ExerciseHistoryFill(client: InertSheetsClient(), context: scenario.context, index: lastPerformedLookup)
+            )
+            .environment(\.themePalette, Theme.palette(for: .day))
+            .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
+            .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)
+        let first = try #require(windowHeights.first)
+        return try AccessibilityHost.read(hosted, in: CGSize(width: 402, height: first)) { window in
+            try windowHeights.map { height in
+                window.frame = CGRect(x: 0, y: 0, width: 402, height: height)
+                window.layoutIfNeeded()
+                return try body(window)
+            }
+        }
+    }
+
+    private static func frames(in window: UIWindow, focused: Exercise, probe: FrameProbe) throws -> PageFrames {
+        func frame(_ matches: (NSObject) -> Bool) -> CGRect? {
+            window.accessibilityFrames(where: matches).first
+        }
+        let cadence = frame { $0.accessibilityIdentifier == "stage-cadence" }
+        let name = frame { $0.accessibilityIdentifier == "stage-exercise-name" }
+        let partner = frame { $0.accessibilityIdentifier == "superset-partner-name" }
+        let note = frame { $0.accessibilityLabel == focused.coachNote }
+        let lastPerformed = frame { $0.accessibilityLabel?.hasPrefix("Block ") == true }
+        let card = frame { $0.accessibilityIdentifier == "active-set-card" }
+        let words = [cadence, name, partner, note].compactMap { $0?.maxY }
+        return PageFrames(
+            banner: frame { $0.accessibilityLabel?.hasPrefix("Sync status:") == true },
+            stage: probe.stage,
+            cadence: cadence,
+            name: name,
+            partner: partner,
+            note: note,
+            leaves: window.accessibilityFrames { $0.accessibilityLabel.map(isLeafLabel) == true },
+            branchIsDrawn: try inkedPixels(
+                in: window,
+                fromY: words.max() ?? 0,
+                toY: (lastPerformed ?? card)?.minY ?? 0
+            ) > 1500,
+            lastPerformed: lastPerformed,
+            card: card
+        )
     }
 
     /// A leaf reads `Set 1, 237.5x5@6`; the card's head reads `Set 2 of 3`.
