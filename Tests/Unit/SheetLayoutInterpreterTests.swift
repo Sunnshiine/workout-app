@@ -442,3 +442,50 @@ private enum PlacementTestError: Error { case notPlaced }
     #expect(oneDayLayout.week(number: 2) == nil)
     #expect(oneDayLayout.day(week: 1, day: 2) == nil)
 }
+
+@Test func layoutInterpreterNumbersADayByItsHeaderNotItsPosition() {
+    let grid = gridFromA1(
+        ["S12": "Day 2", "T14": "Sets", "AA14": "Notes", "S15": "Squat", "T15": "2"],
+        rows: 20,
+        cols: 40
+    )
+
+    let layout = SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid))
+
+    #expect(layout.weeks.count == 1)
+    #expect(layout.week(number: 1)?.days.map(\.number) == [2])
+    #expect(layout.day(week: 1, day: 1) == nil)
+    #expect(layout.day(week: 1, day: 2)?.columns.name == 18)
+    #expect(layout.day(week: 1, day: 2)?.columns.notes == 26)
+    #expect(layout.day(week: 1, day: 2)?.exerciseAnchors.map(\.name) == ["Squat"])
+}
+
+@Test func layoutInterpreterKeepsTheNumberOfADayAfterAGap() {
+    let grid = gridFromA1(["C12": "Day 1", "S12": "Day 3"], rows: 20, cols: 40)
+
+    let layout = SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid))
+
+    #expect(layout.week(number: 1)?.days.map(\.number) == [1, 3])
+    #expect(layout.day(week: 1, day: 2) == nil)
+    #expect(layout.day(week: 1, day: 3)?.columns.span == 18..<34)
+}
+
+@Test func layoutInterpreterNumbersSwappedDayHeadersByTheirText() {
+    let grid = gridFromA1(["C12": "Day 2", "S12": "Day 1"], rows: 20, cols: 40)
+
+    let layout = SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid))
+
+    #expect(layout.week(number: 1)?.days.map(\.number) == [2, 1])
+    #expect(layout.week(number: 1)?.days.map(\.columns.span) == [2..<18, 18..<34])
+    #expect(layout.day(week: 1, day: 1)?.columns.span == 18..<34)
+    #expect(layout.day(week: 1, day: 2)?.columns.span == 2..<18)
+}
+
+@Test func layoutInterpreterReadsAZeroPaddedDayNumber() {
+    let grid = gridFromA1(["C12": "Day 01", "S12": "Day 007"], rows: 20, cols: 40)
+
+    let layout = SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid))
+
+    #expect(layout.week(number: 1)?.days.map(\.number) == [1, 7])
+    #expect(layout.day(week: 1, day: 7)?.columns.name == 18)
+}
