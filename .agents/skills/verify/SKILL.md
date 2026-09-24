@@ -73,7 +73,7 @@ element that contains it, then taps that centre. A container with a zero width o
 point, so it is skipped. The keyboard toolbar wraps `Done` in a 0x0 group. When `tap --id` never
 gets such a hit it exits 1 and says `off-screen`, `clipped`, or `disabled`. A `clipped` note names
 the container whose frame misses the centre, such as the RPE track. So a tap that reports success
-is a tap that could land.
+hit an element that is on screen, enabled, and inside every container that clips it.
 
 `tap --label` resolves its element through the tree the same way, with the same poll and the same
 notes. It matches the whole label as `tree` prints it, case included. When a control and a text
