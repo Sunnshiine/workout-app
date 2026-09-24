@@ -9,6 +9,9 @@ Reads an `axe describe-ui` JSON tree on stdin:
                          of an ancestor of nonzero size), or disabled
   tree.py tappable <id>  "x y" of the first hit that is enabled, on screen, and not clipped, so a tap
                          on it lands; exit 1 with the same notes find prints when there is no such hit
+  tree.py tappable --label TEXT
+                         the same for the one element labelled exactly TEXT, a control over a text with
+                         that label; exit 1 listing each with its centre when more than one is left
   tree.py pid            the frontmost application's pid
   tree.py frame          the application's width and height
   tree.py center <id>    "x y" of the element with that accessibility identifier; exit 1 if absent
@@ -129,6 +132,23 @@ def by_id(root: dict, ident: str) -> List[TreeLine]:
     return [line for line in lines(root) if line.ident == ident]
 
 
+def by_label(root: dict, label: str) -> List[TreeLine]:
+    return [line for line in lines(root) if line.label.strip() == label.strip()]
+
+
+# The roles of axe 1.8.0's actionableTypes, which break a tie between elements that share a label.
+CONTROLS = frozenset({
+    "AXButton", "AXCell", "AXCheckBox", "AXLink", "AXMenuItem", "AXPopUpButton", "AXRadioButton",
+    "AXSecureTextField", "AXSegmentedControl", "AXSlider", "AXSwitch", "AXTab", "AXTabBarButton",
+    "AXTextField", "AXToggle",
+})
+
+
+def tap_candidates(matches: List[TreeLine]) -> List[TreeLine]:
+    controls = [line for line in matches if line.role in CONTROLS]
+    return controls or matches
+
+
 def obstacles(found: List[TreeLine], screen: Frame) -> List[str]:
     notes = []
     if any(not line.frame.intersects(screen) for line in found):
@@ -213,9 +233,22 @@ def main() -> None:
         for note in obstacles(found, screen):
             print(note, file=sys.stderr)
     elif mode == "tappable":
-        found = by_id(root, sys.argv[2])
-        if not found:
-            sys.exit(f"no element with id {sys.argv[2]}")
+        if sys.argv[2] == "--label":
+            label = sys.argv[3]
+            found = tap_candidates(by_label(root, label))
+            if len(found) > 1:
+                listed = [f"{len(found)} elements labelled {label} could take this tap; "
+                          "pick one by its id, or tap its centre with -x -y:"]
+                for line in found:
+                    x, y = line.frame.center
+                    listed.append(f"{line.text}\t-x {x:.0f} -y {y:.0f}")
+                sys.exit("\n".join(listed))
+            if not found:
+                sys.exit(f"no element with label {label}")
+        else:
+            found = by_id(root, sys.argv[2])
+            if not found:
+                sys.exit(f"no element with id {sys.argv[2]}")
         for line in found:
             if not obstacles([line], screen):
                 x, y = line.frame.center
