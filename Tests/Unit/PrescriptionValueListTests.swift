@@ -52,7 +52,7 @@ import Testing
     )
     let section = locateWeekSections(in: grid)[0]
 
-    let squat = parseDay(in: grid, section: section, dayIndex: 0)[0]
+    let squat = parseDay(in: grid, section: section, headerIndex: 0)[0]
 
     #expect(squat.sets.map(\.prescribedReps) == ["5", "5", "3", "3"])
     #expect(squat.sets.map(\.prescribedLoad) == ["225", "BW+25", "BW+35", "BW+35"])

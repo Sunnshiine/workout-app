@@ -32,6 +32,8 @@ extension Block {
 
 @Model
 final class Week {
+    static let dayNumbers = 1...7
+
     var number: Int
     var block: Block?
     @Relationship(deleteRule: .cascade, inverse: \Session.week) var sessions: [Session] = []

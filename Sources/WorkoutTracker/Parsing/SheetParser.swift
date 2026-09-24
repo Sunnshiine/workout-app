@@ -251,15 +251,16 @@ private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns,
 
 /// Parses all exercises in one day group. Anchor rows have a non-empty name cell;
 /// the row count for an exercise is `max(Sets value, 1)`.
-func parseDay(in grid: SheetGrid, section: WeekSection, dayIndex: Int) -> [ParsedExercise] {
+func parseDay(in grid: SheetGrid, section: WeekSection, headerIndex: Int) -> [ParsedExercise] {
     let snapshot = SheetSnapshot(values: grid)
     let layout = SheetLayoutInterpreter().interpret(snapshot)
     guard
+        section.dayStartCols.indices.contains(headerIndex),
         let week = layout.weeks.first(where: { $0.headerRow == section.headerRow }),
-        dayIndex < week.days.count
+        let day = week.days.first(where: { $0.columns.name == section.dayStartCols[headerIndex] })
     else { return [] }
 
-    return parseDay(in: snapshot, day: week.days[dayIndex])
+    return parseDay(in: snapshot, day: day)
 }
 
 private func parseDay(in snapshot: SheetSnapshot, day: SheetLayoutDay) -> [ParsedExercise] {
@@ -352,8 +353,22 @@ struct SheetParser {
             block: ParsedBlockModel(tabName: tabName, weeks: weeks, trainingMaxes: trainingMaxes),
             warnings: layout.weeks.isEmpty
                 ? ["Parse warning: no week sections (no 'Day N' headers) in \(tabName)"]
-                : []
+                : layout.weeks.flatMap { week in
+                    week.ignoredDayHeaders.map { warning(for: $0, week: week.number, in: tabName) }
+                }
         )
+    }
+
+    private func warning(for ignored: IgnoredDayHeader, week: Int, in tabName: String) -> String {
+        switch ignored {
+        case .repeated(let dayNumber):
+            return "Parse warning: Week \(week) in \(tabName) has more than one Day \(dayNumber) header, "
+                + "so none of them shows"
+        case .outsideWeek(let header):
+            let range = "Day \(Week.dayNumbers.lowerBound) to Day \(Week.dayNumbers.upperBound)"
+            return "Parse warning: Week \(week) in \(tabName) has a '\(header)' header, "
+                + "but a Week runs \(range), so it does not show"
+        }
     }
 
     private func parseDate(_ s: String) -> Date? {

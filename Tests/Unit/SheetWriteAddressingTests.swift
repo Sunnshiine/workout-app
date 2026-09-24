@@ -66,6 +66,16 @@ private func planError(
     #expect(error?.errorDescription == "Day 3 was not found in the sheet")
 }
 
+@Test func refusesADayWhoseNumberTwoHeadersRead() {
+    let error = planError(
+        addressingRequest(),
+        grid: addressingGrid(["S12": "Day 1", "T14": "Sets", "AA14": "Notes", "S15": "Squat", "T15": "2"])
+    )
+
+    #expect(error == .dayNotFound(1))
+    #expect(error?.errorDescription == "Day 1 was not found in the sheet")
+}
+
 @Test func refusesAnExerciseThatIsNotInTheSession() {
     let error = planError(addressingRequest(exerciseName: "Deadlift"), grid: addressingGrid())
 
