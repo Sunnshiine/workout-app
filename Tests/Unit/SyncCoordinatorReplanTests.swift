@@ -77,6 +77,10 @@ private func makeReplanContainer() throws -> ModelContainer {
 
 private func replanPendingWrite(
     createdAt: TimeInterval,
+    day: Int = 1,
+    exerciseName: String = "Squat",
+    setIndex: Int = 0,
+    column: PendingWriteColumn = .notes,
     valueToWrite: String,
     expectedCurrentValue: String
 ) -> PendingWrite {
@@ -84,26 +88,29 @@ private func replanPendingWrite(
         createdAt: Date(timeIntervalSince1970: createdAt),
         blockTab: "Block 27",
         week: 1,
-        day: 1,
-        exerciseName: "Squat",
-        setIndex: 0,
-        column: .notes,
+        day: day,
+        exerciseName: exerciseName,
+        setIndex: setIndex,
+        column: column,
         operation: .upsert,
         valueToWrite: valueToWrite,
         expectedCurrentValue: expectedCurrentValue
     )
 }
 
-private func squatOneSetGrid() -> SheetGrid {
+private func replanGrid(_ cells: [String: String]) -> SheetGrid {
     gridFromA1(
         [
             "C12": "Day 1", "S12": "Day 2",
-            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
-            "C15": "Squat", "D15": "1"
-        ],
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes"
+        ].merging(cells) { _, new in new },
         rows: 24,
         cols: 30
     )
+}
+
+private func squatOneSetGrid() -> SheetGrid {
+    replanGrid(["C15": "Squat", "D15": "1"])
 }
 
 /// Both Notes writes resolve to K15, so the second one is planned against a batch that already
@@ -172,23 +179,11 @@ func replanningALastSetRPEWriteAfterTheCoachSwapsHeadersWritesTheCellNowHeadedLa
 ) async throws {
     let container = try makeReplanContainer()
     let ctx = container.mainContext
-    for (createdAt, rpe) in [(1.0, "8"), (2.0, "9")] {
-        let write = replanPendingWrite(createdAt: createdAt, valueToWrite: rpe, expectedCurrentValue: "")
-        write.column = .lastSetRPE
-        write.setIndex = 1
-        ctx.insert(write)
-    }
+    ctx.insert(replanPendingWrite(createdAt: 1, setIndex: 1, column: .lastSetRPE, valueToWrite: "8", expectedCurrentValue: ""))
+    ctx.insert(replanPendingWrite(createdAt: 2, setIndex: 1, column: .lastSetRPE, valueToWrite: "9", expectedCurrentValue: ""))
     try ctx.save()
     let client = LiveSheetClient(
-        grid: gridFromA1(
-            [
-                "C12": "Day 1", "S12": "Day 2",
-                "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
-                "C15": "Squat", "D15": "2"
-            ],
-            rows: 24,
-            cols: 30
-        ),
+        grid: replanGrid(["I14": "Last set RPE", "C15": "Squat", "D15": "2"]),
         editsLandingBeforeFetch: [2: ["I14": "Notes", "K14": "Last set RPE", "I15": coachI15]]
     )
     let sync = SyncCoordinator(client: client, context: ctx)
@@ -215,15 +210,7 @@ func replanningALastSetRPEWriteAfterTheCoachSwapsHeadersWritesTheCellNowHeadedLa
     ctx.insert(replanPendingWrite(createdAt: 2, valueToWrite: "205x3@10", expectedCurrentValue: "205x3@9"))
     try ctx.save()
     let client = LiveSheetClient(
-        grid: gridFromA1(
-            [
-                "C12": "Day 1", "S12": "Day 2",
-                "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
-                "C15": "Squat", "D15": "1"
-            ],
-            rows: 24,
-            cols: 30
-        ),
+        grid: replanGrid(["I14": "Last set RPE", "C15": "Squat", "D15": "1"]),
         editsLandingBeforeFetch: [2: ["I14": "Notes", "K14": "Last set RPE", "K15": "205x3@9"]]
     )
     let sync = SyncCoordinator(client: client, context: ctx)
@@ -248,15 +235,7 @@ func replanningALastSetRPEWriteAfterTheCoachSwapsHeadersWritesTheCellNowHeadedLa
 }
 
 private func squatCoachNoteGrid() -> SheetGrid {
-    gridFromA1(
-        [
-            "C12": "Day 1", "S12": "Day 2",
-            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
-            "C15": "Squat", "D15": "1", "K15": "Keep elbows soft"
-        ],
-        rows: 24,
-        cols: 30
-    )
+    replanGrid(["C15": "Squat", "D15": "1", "K15": "Keep elbows soft"])
 }
 
 @MainActor
@@ -329,16 +308,7 @@ private func squatCoachNoteGrid() -> SheetGrid {
     ctx.insert(replanPendingWrite(createdAt: 2, valueToWrite: "205x3@10", expectedCurrentValue: "205x3@9"))
     try ctx.save()
     let client = LiveSheetClient(
-        grid: gridFromA1(
-            [
-                "C12": "Day 1", "S12": "Day 2",
-                "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
-                "C15": "Squat", "D15": "1", "K15": "Keep elbows soft",
-                "C18": "Bench Press", "D18": "1"
-            ],
-            rows: 24,
-            cols: 30
-        ),
+        grid: replanGrid(["C15": "Squat", "D15": "1", "K15": "Keep elbows soft", "C18": "Bench Press", "D18": "1"]),
         editsLandingBeforeFetch: [2: ["K16": "205x3@9"]],
         rowsHiddenBeforeFetch: [2: [16, 17]]
     )
@@ -377,25 +347,15 @@ private func squatCoachNoteGrid() -> SheetGrid {
     let container = try makeReplanContainer()
     let ctx = container.mainContext
     ctx.insert(replanPendingWrite(createdAt: 1, valueToWrite: "185x5@8", expectedCurrentValue: ""))
-    let setThree = replanPendingWrite(createdAt: 2, valueToWrite: "205x3@10", expectedCurrentValue: "205x3@9")
-    setThree.setIndex = 2
-    ctx.insert(setThree)
-    let setThreeRPE = replanPendingWrite(createdAt: 3, valueToWrite: "10", expectedCurrentValue: "")
-    setThreeRPE.setIndex = 2
-    setThreeRPE.column = .lastSetRPE
-    ctx.insert(setThreeRPE)
+    ctx.insert(replanPendingWrite(createdAt: 2, setIndex: 2, valueToWrite: "205x3@10", expectedCurrentValue: "205x3@9"))
+    ctx.insert(replanPendingWrite(createdAt: 3, setIndex: 2, column: .lastSetRPE, valueToWrite: "10", expectedCurrentValue: ""))
     try ctx.save()
     let client = LiveSheetClient(
-        grid: gridFromA1(
-            [
-                "C12": "Day 1", "S12": "Day 2",
-                "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
-                "C15": "Squat", "D15": "3", "K15": "Keep elbows soft",
-                "C19": "Bench Press", "D19": "1"
-            ],
-            rows: 24,
-            cols: 30
-        ),
+        grid: replanGrid([
+            "I14": "Last set RPE",
+            "C15": "Squat", "D15": "3", "K15": "Keep elbows soft",
+            "C19": "Bench Press", "D19": "1"
+        ]),
         editsLandingBeforeFetch: [2: ["K16": "185x5@8, , 205x3@9"]],
         rowsHiddenBeforeFetch: [2: [16, 17, 18]]
     )
@@ -467,22 +427,11 @@ private func squatCoachNoteGrid() -> SheetGrid {
 @Test func replanningAfterTheCoachClearsTheLastSetRPEHeaderConflictsWithNoTarget() async throws {
     let container = try makeReplanContainer()
     let ctx = container.mainContext
-    for (createdAt, rpe, expected) in [(1.0, "8", ""), (2.0, "9", "7")] {
-        let write = replanPendingWrite(createdAt: createdAt, valueToWrite: rpe, expectedCurrentValue: expected)
-        write.column = .lastSetRPE
-        ctx.insert(write)
-    }
+    ctx.insert(replanPendingWrite(createdAt: 1, column: .lastSetRPE, valueToWrite: "8", expectedCurrentValue: ""))
+    ctx.insert(replanPendingWrite(createdAt: 2, column: .lastSetRPE, valueToWrite: "9", expectedCurrentValue: "7"))
     try ctx.save()
     let client = LiveSheetClient(
-        grid: gridFromA1(
-            [
-                "C12": "Day 1", "S12": "Day 2",
-                "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
-                "C15": "Squat", "D15": "1"
-            ],
-            rows: 24,
-            cols: 30
-        ),
+        grid: replanGrid(["I14": "Last set RPE", "C15": "Squat", "D15": "1"]),
         editsLandingBeforeFetch: [2: ["I14": "", "I15": "7"]]
     )
     let sync = SyncCoordinator(client: client, context: ctx)
@@ -532,24 +481,15 @@ private func squatCoachNoteGrid() -> SheetGrid {
 @Test func replanningAfterTheCoachDeletesTheDayConflictsWithNoTarget() async throws {
     let container = try makeReplanContainer()
     let ctx = container.mainContext
-    for (createdAt, value, expected) in [(1.0, "185x5@8", ""), (2.0, "205x3@10", "205x3@9")] {
-        let write = replanPendingWrite(createdAt: createdAt, valueToWrite: value, expectedCurrentValue: expected)
-        write.day = 2
-        ctx.insert(write)
-    }
+    ctx.insert(replanPendingWrite(createdAt: 1, day: 2, valueToWrite: "185x5@8", expectedCurrentValue: ""))
+    ctx.insert(replanPendingWrite(createdAt: 2, day: 2, valueToWrite: "205x3@10", expectedCurrentValue: "205x3@9"))
     try ctx.save()
     let client = LiveSheetClient(
-        grid: gridFromA1(
-            [
-                "C12": "Day 1", "S12": "Day 2",
-                "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
-                "T14": "Sets", "V14": "Reps", "X14": "Load", "AA14": "Notes",
-                "C15": "Squat", "D15": "1",
-                "S15": "Squat", "T15": "1"
-            ],
-            rows: 24,
-            cols: 30
-        ),
+        grid: replanGrid([
+            "T14": "Sets", "V14": "Reps", "X14": "Load", "AA14": "Notes",
+            "C15": "Squat", "D15": "1",
+            "S15": "Squat", "T15": "1"
+        ]),
         editsLandingBeforeFetch: [2: ["S12": "", "AA15": "205x3@9"]]
     )
     let sync = SyncCoordinator(client: client, context: ctx)
@@ -576,27 +516,17 @@ private func squatCoachNoteGrid() -> SheetGrid {
 @Test func replanningAfterTheCoachInsertsARowLandsTheWriteAndTheNextSetInOneBatch() async throws {
     let container = try makeReplanContainer()
     let ctx = container.mainContext
-    for (createdAt, setIndex, value, expected) in [
-        (1.0, 1, "185x5@8", ""), (2.0, 1, "205x3@10", "205x3@9"), (3.0, 2, "150x3@7", "")
-    ] {
-        let write = replanPendingWrite(createdAt: createdAt, valueToWrite: value, expectedCurrentValue: expected)
-        write.setIndex = setIndex
-        ctx.insert(write)
-    }
+    ctx.insert(replanPendingWrite(createdAt: 1, setIndex: 1, valueToWrite: "185x5@8", expectedCurrentValue: ""))
+    ctx.insert(replanPendingWrite(createdAt: 2, setIndex: 1, valueToWrite: "205x3@10", expectedCurrentValue: "205x3@9"))
+    ctx.insert(replanPendingWrite(createdAt: 3, setIndex: 2, valueToWrite: "150x3@7", expectedCurrentValue: ""))
     try ctx.save()
     let client = LiveSheetClient(
-        grid: gridFromA1(
-            [
-                "C12": "Day 1", "S12": "Day 2",
-                "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
-                "C15": "Squat", "D15": "1", "F15": "5",
-                "D16": "1", "F16": "5",
-                "D17": "1", "F17": "3",
-                "C20": "Bench Press", "D20": "1"
-            ],
-            rows: 24,
-            cols: 30
-        ),
+        grid: replanGrid([
+            "C15": "Squat", "D15": "1", "F15": "5",
+            "D16": "1", "F16": "5",
+            "D17": "1", "F17": "3",
+            "C20": "Bench Press", "D20": "1"
+        ]),
         editsLandingBeforeFetch: [
             2: [
                 "D16": "", "F16": "", "K16": "",
@@ -635,22 +565,11 @@ private func squatCoachNoteGrid() -> SheetGrid {
     let container = try makeReplanContainer()
     let ctx = container.mainContext
     ctx.insert(replanPendingWrite(createdAt: 1, valueToWrite: "185x5@8", expectedCurrentValue: ""))
-    let mismatched = replanPendingWrite(createdAt: 2, valueToWrite: "225x3@9", expectedCurrentValue: "205x3@9")
-    mismatched.exerciseName = "Bench Press"
-    ctx.insert(mismatched)
-    try ctx.save()
-    let client = LiveSheetClient(
-        grid: gridFromA1(
-            [
-                "C12": "Day 1", "S12": "Day 2",
-                "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
-                "C15": "Squat", "D15": "1",
-                "C17": "Bench Press", "D17": "1"
-            ],
-            rows: 24,
-            cols: 30
-        )
+    ctx.insert(
+        replanPendingWrite(createdAt: 2, exerciseName: "Bench Press", valueToWrite: "225x3@9", expectedCurrentValue: "205x3@9")
     )
+    try ctx.save()
+    let client = LiveSheetClient(grid: replanGrid(["C15": "Squat", "D15": "1", "C17": "Bench Press", "D17": "1"]))
     let sync = SyncCoordinator(client: client, context: ctx)
 
     await sync.flushPending(spreadsheetId: "sid")
