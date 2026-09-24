@@ -551,9 +551,6 @@ func replanningAfterTheCoachHidesEveryRowBelowACoachNoteAlsoRefusesThePairedLast
     #expect(entries.last?.rowScanDetails == "No row selected: Week 1, Day 2 was not found.")
 }
 
-/// The coach inserts a blank row 16, which moves the second and third Prescription Lines down one row,
-/// and corrects the moved Set Log in K17. The interim flush is one update request and the final batch,
-/// holding K17 and K18, is the second.
 @MainActor
 @Test func replanningAfterTheCoachInsertsARowLandsTheWriteAndTheNextSetInOneBatch() async throws {
     let container = try makeReplanContainer()
@@ -595,9 +592,6 @@ func replanningAfterTheCoachHidesEveryRowBelowACoachNoteAlsoRefusesThePairedLast
     )
 }
 
-/// The coach inserts a blank row 16 and corrects nothing, so the re-planned correction finds the app's
-/// first Set Log moved to K17 and refuses. Set 3 then plans against that fresh read and lands on K18.
-/// Planned against the working copy from before the insert, it would land on K17 over the moved log.
 @MainActor
 @Test func replanningAfterTheCoachInsertsARowRefusesTheCorrectionAndPlansTheNextSetAgainstTheFreshRead() async throws {
     let container = try makeReplanContainer()
