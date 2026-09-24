@@ -81,13 +81,20 @@ point.
 After a tap, re-read the tree before asserting. `tree` has no enabled column, so prove a disabled
 state with `find <id>`, which says `disabled` on stderr and still exits 0.
 `-UITEST_DISABLE_ANIMATIONS` stops UIKit animations and clears the animation on every SwiftUI
-transaction in the main window. A burst has proved one path. A log on the `session` fixture swaps
-the card in one frame with no transition between the old card and the new one. The `1 unsynced`
-pill lands a moment later, when the flush answers, and moves the stage down about 20 points. Two
-bursts in six caught the frame between. No burst has covered the Move On celebration, the rest
-pill's pulses, which timers hold for 160 and 220 ms, or the Superset retiring card, which stays
-mounted for 0.65 s. Nobody has checked a skip or state inside a sheet either. A state absent after
-one second is still absent. `burst` shows frame by frame what an action changed.
+transaction in the main window. Bursts and screen recordings under it show each of these as one
+cut from the old screen to the new: a log, a skip, a Superset log, the Move On celebration opening
+and closing, and the pairing state inside the queue sheet. A Superset log's retiring card never
+draws. After a log the sync pill lands about 20 ms after the card, reads `Syncing` for about 20 ms,
+then `1 unsynced`, and moves the stage down about 20 points, so a burst can catch the new card with
+no pill yet. Timers still drive three changes under the flag (issue 739). A log while rest runs
+makes the rest pill about 3% larger and brighter for 150 ms. In each of the last five seconds of
+rest the countdown digits grow about 3% for 230 ms. A skip hold's fill jumps to a full `Skipped`
+250 ms into the press, and the skip commits at 850 ms, so a shot taken mid-hold shows a skip that
+does not exist yet. Burst frames land about 220 ms apart, as far as 560 ms, and the first can land
+400 ms after the action. So a burst that shows only a before and an after says nothing about a
+motion shorter than that gap, and a 3% change is easy to miss on the tile. The full-size frames are
+in `<name>.burst/`. Any path not named here is unmeasured. A state absent after one second is still
+absent. `burst` shows frame by frame what an action changed.
 
 `tree` lists what is on screen and says on stderr how many elements it left out. A scrolled-out
 row and the tail of the reps picker are out; a card wider than the screen is in. `find <id>`
