@@ -487,6 +487,35 @@ private func squatCoachNoteGrid() -> SheetGrid {
 }
 
 @MainActor
+@Test func replanningALastSetRPEWriteAfterTheCoachHidesTheExerciseRowConflictsWithNoTarget() async throws {
+    let container = try makeReplanContainer()
+    let ctx = container.mainContext
+    ctx.insert(replanPendingWrite(createdAt: 1, setIndex: 1, column: .lastSetRPE, valueToWrite: "8", expectedCurrentValue: ""))
+    ctx.insert(replanPendingWrite(createdAt: 2, setIndex: 1, column: .lastSetRPE, valueToWrite: "9", expectedCurrentValue: "7"))
+    try ctx.save()
+    let client = LiveSheetClient(
+        grid: replanGrid(["I14": "Last set RPE", "C15": "Squat", "D15": "2"]),
+        editsLandingBeforeFetch: [2: ["I15": "7"]],
+        rowsHiddenBeforeFetch: [2: [15]]
+    )
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(client.cell("I15") == "7")
+    #expect(client.fetchCount == 2)
+    #expect(sync.outcome == .writesRefused(["Squat: Squat was not found in the sheet"]))
+    let remaining = try ctx.fetch(FetchDescriptor<PendingWrite>())
+    #expect(remaining.map(\.status) == [.conflict])
+    #expect(remaining.map(\.valueToWrite) == ["9"])
+
+    let entries = try ctx.fetch(FetchDescriptor<WriteTargetAuditEntry>(sortBy: [SortDescriptor(\.createdAt)]))
+    #expect(entries.map(\.selectedA1Target) == ["'Block 27'!I15", nil])
+    #expect(entries.map(\.finalStatus) == [.succeeded, .conflict])
+    #expect(entries.last?.rowScanDetails == "No row selected: Squat was not found in Week 1, Day 1.")
+}
+
+@MainActor
 @Test func replanningAfterTheCoachClearsTheDayTwoHeaderConflictsWithNoTarget() async throws {
     let container = try makeReplanContainer()
     let ctx = container.mainContext
