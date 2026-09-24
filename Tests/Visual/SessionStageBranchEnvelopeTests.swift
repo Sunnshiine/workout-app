@@ -131,10 +131,10 @@ private struct Branch {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .ignoresSafeArea()
             .environment(\.themePalette, Theme.palette(for: .day))
-        return try AccessibilityHost.read(page, in: CGSize(width: 402, height: 874)) { window in
+        return try AccessibilityHost.read(page, in: [CGSize(width: 402, height: 874)]) { window in
             window.accessibilityFrames { $0.accessibilityLabel?.hasPrefix("Set ") == true }
                 .map { $0.offsetBy(dx: -origin.x, dy: -origin.y) }
-        }
+        }[0]
     }
 
     private static func sets(count: Int, order: Int, last: SetState) -> [ExerciseSet] {

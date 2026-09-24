@@ -264,7 +264,7 @@ struct SessionStageLadderTransitionTests {
         let pages = try SessionPageHost.layouts(
             .exercise,
             banner: .outcome(.writesQueued(1)),
-            windowHeights: [WindowHeight.iPhone17Pro, WindowHeight.se]
+            windowHeights: [WindowHeight.iPhone17Pro, WindowHeight.mini, WindowHeight.se]
         )
         #expect(
             pages == [
@@ -283,6 +283,22 @@ struct SessionStageLadderTransitionTests {
                     branchIsDrawn: true,
                     lastPerformed: CGRect(x: 16, y: 386, width: 370, height: 18),
                     card: CGRect(x: 16, y: 418, width: 370, height: 308)
+                ),
+                PageFrames(
+                    banner: CGRect(x: 16, y: 70, width: 370, height: 34),
+                    stage: CGRect(x: 0, y: 104, width: 402, height: 689),
+                    cadence: nil,
+                    name: CGRect(x: 16, y: 175, width: 173, height: 41),
+                    partner: nil,
+                    note: CGRect(x: 16, y: 230, width: 270, height: 22),
+                    leaves: [
+                        CGRect(x: 272, y: 273, width: 44, height: 44),
+                        CGRect(x: 196, y: 282, width: 44, height: 44),
+                        CGRect(x: 120, y: 295, width: 44, height: 44)
+                    ],
+                    branchIsDrawn: true,
+                    lastPerformed: nil,
+                    card: CGRect(x: 16, y: 371, width: 370, height: 308)
                 ),
                 PageFrames(
                     banner: CGRect(x: 16, y: 70, width: 370, height: 34),
@@ -522,12 +538,7 @@ private enum SessionPageHost {
         )
         let lookup = LastPerformedLookupStore(context: scenario.context)
         return try read(page, scenario: scenario, lastPerformedLookup: lookup, windowHeights: windowHeights) { window in
-            var labels: [String] = []
-            _ = window.accessibilityFrames { element in
-                if let label = element.accessibilityLabel, !label.isEmpty { labels.append(label) }
-                return false
-            }
-            return labels
+            window.accessibilityTree.compactMap { $0.accessibilityLabel }.filter { !$0.isEmpty }
         }
     }
 
@@ -548,14 +559,7 @@ private enum SessionPageHost {
             .environment(\.themePalette, Theme.palette(for: .day))
             .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
             .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)
-        let first = try #require(windowHeights.first)
-        return try AccessibilityHost.read(hosted, in: CGSize(width: 402, height: first)) { window in
-            try windowHeights.map { height in
-                window.frame = CGRect(x: 0, y: 0, width: 402, height: height)
-                window.layoutIfNeeded()
-                return try body(window)
-            }
-        }
+        return try AccessibilityHost.read(hosted, in: windowHeights.map { CGSize(width: 402, height: $0) }, body)
     }
 
     private static func frames(in window: UIWindow, focused: Exercise, probe: FrameProbe) throws -> PageFrames {

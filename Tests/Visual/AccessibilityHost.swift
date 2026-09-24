@@ -6,20 +6,24 @@ import UIKit
 enum AccessibilityHost {
     static func read<Content: View, Result>(
         _ content: Content,
-        in size: CGSize,
+        in sizes: [CGSize],
         _ body: (UIWindow) throws -> Result
-    ) throws -> Result {
+    ) throws -> [Result] {
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let first = try #require(sizes.first)
         return try asAccessibilityClient {
             let controller = UIHostingController(rootView: content)
             let window = UIWindow(windowScene: scene)
-            window.frame = CGRect(origin: .zero, size: size)
+            window.frame = CGRect(origin: .zero, size: first)
             window.rootViewController = controller
             window.isHidden = false
             defer { window.isHidden = true }
-            window.layoutIfNeeded()
-            #expect(!controller.view.layer.needsLayout(), "the view settles in one layout")
-            return try body(window)
+            return try sizes.map { size in
+                window.frame = CGRect(origin: .zero, size: size)
+                window.layoutIfNeeded()
+                #expect(!controller.view.layer.needsLayout(), "the view settles in one layout at \(size.height)pt")
+                return try body(window)
+            }
         }
     }
 
@@ -42,18 +46,20 @@ enum AccessibilityHost {
 }
 
 extension NSObject {
-    func accessibilityFrames(where matches: (NSObject) -> Bool) -> [CGRect] {
+    var accessibilityTree: [NSObject] {
         var visited: Set<ObjectIdentifier> = []
-        var frames: [CGRect] = []
+        var elements: [NSObject] = []
         func visit(_ object: NSObject) {
             guard visited.insert(ObjectIdentifier(object)).inserted else { return }
-            if matches(object) {
-                frames.append(object.accessibilityFrame)
-            }
+            elements.append(object)
             object.accessibilityChildren.forEach(visit)
         }
         visit(self)
-        return frames
+        return elements
+    }
+
+    func accessibilityFrames(where matches: (NSObject) -> Bool) -> [CGRect] {
+        accessibilityTree.filter(matches).map { $0.accessibilityFrame }
     }
 
     var elementIdentifier: String? {
