@@ -151,13 +151,13 @@ capture() {
 }
 
 refuse_frozen_frame() {
-  local dir=$1 name=$2 last changes
+  local dir=$1 new=$2/$3 name=$3 last changes
   last=$(shot_names "$dir" | tail -1)
   [ -n "$last" ] || return 0
-  cmp -s "$dir/$last.png" "$dir/.pending/$name.png" || return 0
-  changes=$(python3 "$tree" diff "$dir/$last.tree.txt" "$dir/.pending/$name.tree.txt")
+  cmp -s "$dir/$last.png" "$new.png" || return 0
+  changes=$(python3 "$tree" diff "$dir/$last.tree.txt" "$new.tree.txt")
   case $changes in "no tree changes "*) return 0 ;; esac
-  rm -f "$dir/.pending/$name.png" "$dir/.pending/$name.tree.txt"
+  rm -f "$new.png" "$new.tree.txt"
   {
     echo "refused $name: its frame is byte-identical to $last.png but its tree changed, so the pixels did not move while the tree did"
     printf '%s\n' "$changes"
@@ -363,7 +363,7 @@ case $cmd in
       echo "captured nothing for $name; run: $0 doctor" >&2
       exit 70
     fi
-    refuse_frozen_frame "$dir" "$name"
+    refuse_frozen_frame "$dir" "$pending" "$name"
     mv "$pending/$name.png" "$dir/$name.png"
     mv "$pending/$name.tree.txt" "$dir/$name.tree.txt"
     echo "$dir/$name.png"

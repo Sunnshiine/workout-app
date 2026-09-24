@@ -1067,9 +1067,6 @@ class VerifyShot(unittest.TestCase):
         )
         return done.returncode, done.stdout, done.stderr
 
-    def shots(self):
-        return sorted(p.name for p in self.evidence.iterdir() if not p.name.startswith("."))
-
     def test_a_frame_identical_to_the_last_shot_while_the_tree_moved_is_refused(self):
         self.assertEqual(self.shot("01-before", self.stage, MINI)[0], 0)
         code, out, err = self.shot("02-after-log", self.stage, AFTER_LOG)
@@ -1089,7 +1086,8 @@ class VerifyShot(unittest.TestCase):
             "(run: xcrun simctl shutdown %s, then SIM=%s VERIFY_RUN=issue-674 %s launch <fixture>, "
             "and shoot 01-before again)\n" % (self.sim, self.sim, self.verify)
         ))
-        self.assertEqual(self.shots(), ["01-before.png", "01-before.tree.txt"], "the frozen frame is not filed as evidence")
+        self.assertEqual(sorted(p.name for p in self.evidence.iterdir() if not p.name.startswith(".")),
+                         ["01-before.png", "01-before.tree.txt"], "the frozen frame is not filed as evidence")
         code, out, err = self.shot("02-after-log", self.home, AFTER_LOG)
         self.assertEqual(code, 0, err)
         self.assertEqual(out.splitlines()[-1], "2 changed, 3 unchanged", "shooting again once the frame moved lands")
