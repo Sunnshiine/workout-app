@@ -14,11 +14,12 @@ Usage: .claude/skills/verify/verify.sh <command> [args]
   find <id>                   one element by accessibility identifier, on screen or off; exit 1 if absent;
                               says on stderr when it is off-screen, clipped, or disabled
   tap --id ID | --label TEXT | -x X -y Y
-                              --id waits up to 3 s (--wait-timeout N) for that element to be
-                              enabled, on screen, and with its centre inside every element of
-                              nonzero size containing it, then taps that centre; exit 1 and says
-                              which it was not. --label and -x -y tap the point and report
-                              whatever they hit
+                              --id and --label wait up to 3 s (--wait-timeout N) for that element
+                              to be enabled, on screen, and with its centre inside every element
+                              of nonzero size containing it, then tap that centre; exit 1 and say
+                              which it was not. --label is the exact label, a control over a text
+                              that shares it; when more than one is left, exit 1 listing each
+                              with its centre. -x -y taps the point and reports whatever it hits
   hold <id> [seconds]         long press an element by identifier (default 1.2 s)
   type TEXT                   type into the focused field
   swipe up|down               scroll the screen by half its height
@@ -274,21 +275,22 @@ case $cmd in
     ;;
 
   tap)
-    id=; timeout=3; rest=()
+    target=(); timeout=3; rest=()
     while [ $# -gt 0 ]; do
       case $1 in
-        --id) id=${2:-}; [ -n "$id" ] || usage; shift 2 ;;
+        --id) [ -n "${2:-}" ] && [ ${#target[@]} -eq 0 ] || usage; target=("$2"); shift 2 ;;
+        --label) [ -n "${2:-}" ] && [ ${#target[@]} -eq 0 ] || usage; target=(--label "$2"); shift 2 ;;
         --wait-timeout) timeout=${2:-}; [ -n "$timeout" ] || usage; shift 2 ;;
         *) rest+=("$1"); shift ;;
       esac
     done
-    if [ -n "$id" ]; then
+    if [ ${#target[@]} -gt 0 ]; then
       case $timeout in
-        ''|*[!0-9]*) echo "--wait-timeout with --id is whole seconds: $timeout" >&2; exit 2 ;;
+        ''|*[!0-9]*) echo "--wait-timeout with --id or --label is whole seconds: $timeout" >&2; exit 2 ;;
       esac
     fi
     need_sim; ensure_axe
-    if [ -z "$id" ]; then
+    if [ ${#target[@]} -eq 0 ]; then
       "$axe" tap --udid "$sim" --wait-timeout "$timeout" ${rest[@]+"${rest[@]}"}
       exit
     fi
@@ -297,10 +299,10 @@ case $cmd in
     SECONDS=0
     while :; do
       if [ "$SECONDS" -ge "$timeout" ]; then
-        point=$(describe | python3 "$tree" tappable "$id") || exit 1
+        point=$(describe | python3 "$tree" tappable "${target[@]}") || exit 1
         break
       fi
-      if point=$(describe | python3 "$tree" tappable "$id" 2>/dev/null); then break; fi
+      if point=$(describe | python3 "$tree" tappable "${target[@]}" 2>/dev/null); then break; fi
       sleep 0.2
     done
     read -r x y <<< "$point"
