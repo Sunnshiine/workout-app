@@ -207,21 +207,7 @@ struct SessionStageView: View {
                 .font(Theme.font(.coachNote))
                 .foregroundStyle(palette.textSecondary)
 
-            ViewThatFits(in: .vertical) {
-                VStack(alignment: .leading, spacing: 14) {
-                    if !liveEdgeOpenExercises.isEmpty {
-                        OpenExercisesSection(
-                            exercises: liveEdgeOpenExercises,
-                            onSelect: actions.showSourceSession
-                        )
-                        .padding(.top, Theme.cardSpacing)
-                    }
-
-                    Spacer(minLength: 12)
-                }
-                Spacer(minLength: 12)
-                    .emptyFallbackNode()
-            }
+            openExercisesIfMoveOnStillFits
 
             if workout.isViewingLiveEdge, workout.canMoveOn {
                 SessionMoveOnButton(onTap: actions.moveOn)
@@ -229,6 +215,24 @@ struct SessionStageView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, Theme.sectionSpacing)
+    }
+
+    private var openExercisesIfMoveOnStillFits: some View {
+        ViewThatFits(in: .vertical) {
+            VStack(alignment: .leading, spacing: 14) {
+                if !liveEdgeOpenExercises.isEmpty {
+                    OpenExercisesSection(
+                        exercises: liveEdgeOpenExercises,
+                        onSelect: actions.showSourceSession
+                    )
+                    .padding(.top, Theme.cardSpacing)
+                }
+
+                Spacer(minLength: 12)
+            }
+            Spacer(minLength: 12)
+                .emptyFallbackNode()
+        }
     }
 
     // MARK: - Queue
@@ -335,23 +339,23 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
                         cadenceLine
                         name()
                         noteLine
-                        branchRegion
+                        flexibleBranch
                         lastPerformed
                     }
                     VStack(alignment: .leading, spacing: Theme.stageColumnSpacing) {
                         cadenceLine
                         name()
                         noteLine
-                        branchRegion
+                        flexibleBranch
                     }
                     VStack(alignment: .leading, spacing: Theme.stageColumnSpacing) {
                         name()
                         noteLine
-                        branchRegion
+                        flexibleBranch
                     }
                     VStack(alignment: .leading, spacing: Theme.stageColumnSpacing) {
                         name()
-                        branchRegion
+                        flexibleBranch
                     }
                     name()
                         .frame(maxHeight: .infinity, alignment: .top)
@@ -374,7 +378,7 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var branchRegion: some View {
+    private var flexibleBranch: some View {
         branch()
             .padding(.top, 4)
     }

@@ -75,21 +75,21 @@ struct SessionStageBranch: View {
 
     var body: some View {
         GeometryReader { geo in
-            let size = CGSize(width: geo.size.width, height: min(geo.size.height, Metrics.fullHeight))
+            let drawing = CGSize(width: geo.size.width, height: min(geo.size.height, Metrics.fullHeight))
             ZStack {
                 if partnerSets != nil {
                     partnerBranch(
-                        in: size,
-                        room: geo.size.height - size.height + Theme.stageColumnSpacing - PartnerMetrics.clearance
+                        in: drawing,
+                        room: geo.size.height - drawing.height + Theme.stageColumnSpacing - PartnerMetrics.clearance
                     )
                 }
 
-                CurvePath(curve: stemCurve(in: size))
+                CurvePath(curve: stemCurve(in: drawing))
                     .stroke(palette.stem, style: StrokeStyle(lineWidth: Metrics.stemWidth, lineCap: .round))
 
                 ForEach(Array(nodes.enumerated()), id: \.element.set.persistentModelID) { index, node in
-                    let point = stemPoint(t: nodeT(index), in: size)
-                    let angle = stemAngle(t: nodeT(index), in: size)
+                    let point = stemPoint(t: nodeT(index), in: drawing)
+                    let angle = stemAngle(t: nodeT(index), in: drawing)
                     nodeCell(node.set, state: node.state, above: index.isMultiple(of: 2), angle: angle)
                         .position(point)
                 }

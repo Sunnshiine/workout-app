@@ -57,7 +57,7 @@ struct SessionView: View {
                 }
                 .animation(
                     reduceMotion ? nil : .smooth(duration: 0.25),
-                    value: SyncStatusBannerPresentation(outcome: sync.outcome, isSyncing: sync.isSyncing) != nil
+                    value: showsSyncBanner
                 )
             } else {
                 ScrollView {
@@ -120,6 +120,10 @@ struct SessionView: View {
             guard !Task.isCancelled, sessionSettingsOverpullState.isPinned else { return }
             sessionSettingsOverpullState = sessionSettingsOverpullState.dismissedAfterIdle()
         }
+    }
+
+    private var showsSyncBanner: Bool {
+        SyncStatusBannerPresentation(outcome: sync.outcome, isSyncing: sync.isSyncing) != nil
     }
 
     private func bindCoordinator(to session: Session) {
