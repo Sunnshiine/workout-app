@@ -235,6 +235,17 @@ import Testing
     )
 }
 
+@Test func parseDayReadsTheGroupUnderTheHeaderAtItsIndex() {
+    let grid = gridFromA1(
+        ["C12": "Day 0", "S12": "Day 1", "C15": "Bench Press", "S15": "Squat"],
+        rows: 20,
+        cols: 40
+    )
+    let section = locateWeekSections(in: grid)[0]
+
+    #expect(parseDay(in: grid, section: section, dayIndex: 1).map(\.name) == ["Squat"])
+}
+
 @Test func perSetLoadAndRepsAreSplitByComma() {
     // Issue #7: comma-separated values (e.g. "RPE 9, 10") map one token per set,
     // repeating the last token when fewer tokens than sets.
