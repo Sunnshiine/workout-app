@@ -28,17 +28,17 @@ struct SessionStageBranch: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private enum Metrics {
-        static let height: CGFloat = 156
-        // Below this the climb lies nearly flat and its top blades reach the coach note, so the
-        // branch steps aside and the card's `Set N of M` head carries position.
-        static let minimumDrawnHeight: CGFloat = 80
+        // The reading column gives the branch what is left of the page, between these two heights
+        // (DESIGN.md 5.1). SessionStageBranchEnvelopeTests owns the floor.
+        static let maximumHeight: CGFloat = 156
+        static let minimumHeight: CGFloat = 70
         static let leadInset: CGFloat = 24
         static let trailInset: CGFloat = 28
         static let rootY: CGFloat = 0.82 // fraction of height — the low leading root
-        // The high trailing tip, pinned in points so a flattened branch raises its root instead of
-        // lifting its top blades into the coach note.
-        static let tipInset: CGFloat = height * 0.13
-        static let bow: CGFloat = 30 // upward bow of the climbing stem
+        // The high trailing tip, pinned in points so a short branch keeps its top blades under the
+        // coach note.
+        static let tipInset: CGFloat = maximumHeight * 0.13
+        static let bow: CGFloat = 30 // upward bow of the climbing stem at full height
         static let firstNodeT: CGFloat = 0.16 // the span floor node steps never pass
         static let lastNodeT: CGFloat = 0.80 // the terminal node every cluster anchors to
         static let maxNodeStep: CGFloat = 0.24 // cap the gap so few Sets cluster like a real sprig
@@ -59,11 +59,11 @@ struct SessionStageBranch: View {
         static let forkT: CGFloat = 0.30 // where on the focused stem the lateral forks
         static let endX: CGFloat = 0.62 // fraction of width for the drooping tip
         static let endY: CGFloat = 0.99 // fraction of height — the tip droops low
-        static let droop: CGFloat = 30 // downward bow of the drooping lateral
+        static let droop: CGFloat = 30 // downward bow of the drooping lateral at full height
         static let firstNodeT: CGFloat = 0.42
         static let lastNodeT: CGFloat = 0.9
         static let maxNodeStep: CGFloat = 0.2
-        static let leafLength: CGFloat = 34 // subordinate to the focused leaf
+        static let leafLength: CGFloat = 34 // subordinate to the focused leaf, at full height
     }
 
     private var nodes: [(set: ExerciseSet, state: BranchNodeState)] {
@@ -78,20 +78,13 @@ struct SessionStageBranch: View {
     var body: some View {
         GeometryReader { geo in
             let size = geo.size
-            let isDrawn = size.height >= Metrics.minimumDrawnHeight
             ZStack {
                 if partnerSets != nil {
                     partnerBranch(in: size)
                 }
 
-                StemPath(
-                    leadInset: Metrics.leadInset,
-                    trailInset: Metrics.trailInset,
-                    rootY: Metrics.rootY,
-                    tipInset: Metrics.tipInset,
-                    bow: Metrics.bow
-                )
-                .stroke(palette.stem, style: StrokeStyle(lineWidth: Metrics.stemWidth, lineCap: .round))
+                CurvePath(curve: stemCurve(in: size))
+                    .stroke(palette.stem, style: StrokeStyle(lineWidth: Metrics.stemWidth, lineCap: .round))
 
                 ForEach(Array(nodes.enumerated()), id: \.element.set.persistentModelID) { index, node in
                     let point = stemPoint(t: nodeT(index), in: size)
@@ -100,11 +93,8 @@ struct SessionStageBranch: View {
                         .position(point)
                 }
             }
-            .opacity(isDrawn ? 1 : 0)
-            .allowsHitTesting(isDrawn)
-            .accessibilityHidden(!isDrawn)
         }
-        .frame(minHeight: 0, idealHeight: 0, maxHeight: Metrics.height)
+        .frame(minHeight: Metrics.minimumHeight, idealHeight: Metrics.minimumHeight, maxHeight: Metrics.maximumHeight)
         .frame(maxWidth: .infinity)
         .animation(reduceMotion ? nil : Theme.wingAnimation(duration: Theme.Motion.leafInk), value: activeSetID)
         .animation(reduceMotion ? nil : Theme.wingAnimation(duration: Theme.Motion.leafInk), value: sets.count)
@@ -188,7 +178,7 @@ struct SessionStageBranch: View {
     private func partnerBranch(in size: CGSize) -> some View {
         let fork = stemPoint(t: PartnerMetrics.forkT, in: size)
         ZStack {
-            LateralPath(fork: fork, tip: partnerTip(in: size), droop: PartnerMetrics.droop)
+            CurvePath(curve: partnerCurve(fork: fork, in: size))
                 .stroke(
                     palette.supersetPartnerBranch,
                     style: StrokeStyle(lineWidth: PartnerMetrics.stemWidth, lineCap: .round)
@@ -197,8 +187,13 @@ struct SessionStageBranch: View {
             ForEach(Array(partnerNodes.enumerated()), id: \.element.set.persistentModelID) { index, node in
                 let point = partnerPoint(t: partnerNodeT(index), fork: fork, in: size)
                 let angle = partnerAngle(t: partnerNodeT(index), fork: fork, in: size)
-                partnerGlyph(node.state, below: index.isMultiple(of: 2), angle: angle)
-                    .position(point)
+                partnerGlyph(
+                    node.state,
+                    below: index.isMultiple(of: 2),
+                    angle: angle,
+                    leafLength: PartnerMetrics.leafLength * heightScale(size)
+                )
+                .position(point)
             }
         }
         // The partner is a passive lateral — it never receives focus taps (the
@@ -207,19 +202,19 @@ struct SessionStageBranch: View {
     }
 
     @ViewBuilder
-    private func partnerGlyph(_ state: BranchNodeState, below: Bool, angle: Angle) -> some View {
+    private func partnerGlyph(_ state: BranchNodeState, below: Bool, angle: Angle, leafLength: CGFloat) -> some View {
         let pigment = palette.supersetPartnerBranch
         switch state {
         case .leaf:
-            partnerBlade(.inked(fill: pigment, rib: nil), below: below, angle: angle)
+            partnerBlade(.inked(fill: pigment, rib: nil), below: below, angle: angle, length: leafLength)
         case .dashedLeaf:
-            partnerBlade(.dashed(pigment), below: below, angle: angle)
+            partnerBlade(.dashed(pigment), below: below, angle: angle, length: leafLength)
         case .future:
             partnerBlade(
                 .ghost(pigment.opacity(0.55)),
                 below: below,
                 angle: angle,
-                length: PartnerMetrics.leafLength * Metrics.ghostScale
+                length: leafLength * Metrics.ghostScale
             )
         case .bud:
             // The partner never carries the active blade; the seam demotes it to a future.
@@ -233,7 +228,7 @@ struct SessionStageBranch: View {
         _ style: BranchBladeGlyph.Style,
         below: Bool,
         angle: Angle,
-        length: CGFloat = PartnerMetrics.leafLength
+        length: CGFloat
     ) -> some View {
         let size = CGSize(width: length, height: length * LeafShape.aspectRatio)
         let tilt = Angle(degrees: below ? Metrics.leafTiltBelow : -Metrics.leafTiltAbove)
@@ -248,7 +243,7 @@ struct SessionStageBranch: View {
 
     private func partnerControl(fork: CGPoint, in size: CGSize) -> CGPoint {
         let tip = partnerTip(in: size)
-        return CGPoint(x: (fork.x + tip.x) / 2, y: (fork.y + tip.y) / 2 + PartnerMetrics.droop)
+        return CGPoint(x: (fork.x + tip.x) / 2, y: (fork.y + tip.y) / 2 + PartnerMetrics.droop * heightScale(size))
     }
 
     private func partnerNodeT(_ index: Int) -> CGFloat {
@@ -291,8 +286,14 @@ struct SessionStageBranch: View {
     private func stemCurve(in size: CGSize) -> QuadraticBezier {
         let p0 = CGPoint(x: Metrics.leadInset, y: size.height * Metrics.rootY)
         let p1 = CGPoint(x: size.width - Metrics.trailInset, y: Metrics.tipInset)
-        let control = CGPoint(x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 - Metrics.bow)
+        let control = CGPoint(x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 - Metrics.bow * heightScale(size))
         return QuadraticBezier(start: p0, control: control, end: p1)
+    }
+
+    /// 1 at full height, so the full drawing is the one the pick settled. Below it the bows and the
+    /// partner's blades shrink with the branch.
+    private func heightScale(_ size: CGSize) -> CGFloat {
+        size.height / Metrics.maximumHeight
     }
 
     /// A point on the climbing stem at parameter `t`.
@@ -308,39 +309,14 @@ struct SessionStageBranch: View {
     }
 }
 
-/// The climbing stem's path — a quadratic bezier root→tip, computed from the
-/// same metrics the nodes use so glyphs land on the drawn stem.
-private struct StemPath: Shape {
-    let leadInset: CGFloat
-    let trailInset: CGFloat
-    let rootY: CGFloat
-    let tipInset: CGFloat
-    let bow: CGFloat
+/// A branch stem drawn from the curve its nodes are placed on, so the leaves land on the ink.
+private struct CurvePath: Shape {
+    let curve: QuadraticBezier
 
-    func path(in rect: CGRect) -> Path {
-        let p0 = CGPoint(x: leadInset, y: rect.height * rootY)
-        let p1 = CGPoint(x: rect.width - trailInset, y: tipInset)
-        let control = CGPoint(x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 - bow)
+    func path(in _: CGRect) -> Path {
         var path = Path()
-        path.move(to: p0)
-        path.addQuadCurve(to: p1, control: control)
-        return path
-    }
-}
-
-/// The Superset partner's drooping lateral — a quadratic bezier forking off the
-/// focused stem and bowing downward, so the partner reads as a subordinate branch
-/// of one plant rather than a second climbing stem (DESIGN.md §5.4).
-private struct LateralPath: Shape {
-    let fork: CGPoint
-    let tip: CGPoint
-    let droop: CGFloat
-
-    func path(in rect: CGRect) -> Path {
-        let control = CGPoint(x: (fork.x + tip.x) / 2, y: (fork.y + tip.y) / 2 + droop)
-        var path = Path()
-        path.move(to: fork)
-        path.addQuadCurve(to: tip, control: control)
+        path.move(to: curve.start)
+        path.addQuadCurve(to: curve.end, control: curve.control)
         return path
     }
 }

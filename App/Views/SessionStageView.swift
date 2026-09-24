@@ -207,15 +207,22 @@ struct SessionStageView: View {
                 .font(Theme.font(.coachNote))
                 .foregroundStyle(palette.textSecondary)
 
-            if !liveEdgeOpenExercises.isEmpty {
-                OpenExercisesSection(
-                    exercises: liveEdgeOpenExercises,
-                    onSelect: actions.showSourceSession
-                )
-                .padding(.top, Theme.cardSpacing)
-            }
+            // The Open Exercises list leaves when it does not fit, and the queue sheet still lists
+            // it, so Move On always fits.
+            ViewThatFits(in: .vertical) {
+                VStack(alignment: .leading, spacing: 14) {
+                    if !liveEdgeOpenExercises.isEmpty {
+                        OpenExercisesSection(
+                            exercises: liveEdgeOpenExercises,
+                            onSelect: actions.showSourceSession
+                        )
+                        .padding(.top, Theme.cardSpacing)
+                    }
 
-            Spacer(minLength: 12)
+                    Spacer(minLength: 12)
+                }
+                Spacer(minLength: 12)
+            }
 
             if workout.isViewingLiveEdge, workout.canMoveOn {
                 SessionMoveOnButton(onTap: actions.moveOn)
@@ -325,29 +332,33 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
             switch composition {
             case .reading:
                 // What does not fit yields in this order, and the card never does: the air under the
-                // branch, the branch, Last Performed, the Cadence line and coach note, then the name
-                // (DESIGN.md 5.1).
+                // branch, the branch down to its floor, Last Performed, the Cadence line, the coach
+                // note, and only then the branch (DESIGN.md 5.1).
                 ViewThatFits(in: .vertical) {
                     VStack(alignment: .leading, spacing: 14) {
                         cadenceLine
                         name()
                         noteLine
-                        branch()
-                            .padding(.top, 4)
-                            .frame(maxHeight: .infinity, alignment: .top)
+                        branchRegion
                         lastPerformed
                     }
                     VStack(alignment: .leading, spacing: 14) {
                         cadenceLine
                         name()
                         noteLine
-                        Spacer(minLength: 0)
+                        branchRegion
                     }
                     VStack(alignment: .leading, spacing: 14) {
                         name()
-                        Spacer(minLength: 0)
+                        noteLine
+                        branchRegion
                     }
-                    emptyFallback
+                    VStack(alignment: .leading, spacing: 14) {
+                        name()
+                        branchRegion
+                    }
+                    name()
+                        .frame(maxHeight: .infinity, alignment: .top)
                 }
             case .editingWeight:
                 ViewThatFits(in: .vertical) {
@@ -364,6 +375,14 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
                 .fixedSize(horizontal: false, vertical: composition == .reading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // The flexible child of every rung but the last. The branch takes what the words and the card
+    // leave, up to its full height, and the rest is air under it.
+    private var branchRegion: some View {
+        branch()
+            .padding(.top, 4)
+            .frame(maxHeight: .infinity, alignment: .top)
     }
 
     @ViewBuilder

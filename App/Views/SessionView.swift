@@ -55,6 +55,12 @@ struct SessionView: View {
                             bindCoordinator(to: session)
                         }
                 }
+                // Every online log's flush shows Syncing for a moment, so the stage under the banner
+                // slides rather than jumps.
+                .animation(
+                    reduceMotion ? nil : .smooth(duration: 0.25),
+                    value: SyncStatusBannerPresentation(outcome: sync.outcome, isSyncing: sync.isSyncing)
+                )
             } else {
                 ScrollView {
                     EmptyStateView {

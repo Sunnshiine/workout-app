@@ -354,11 +354,14 @@ foliage with cream ribs, and the active leaf carries the page's one glow.
   a finger. The page returns when the weight field folds.
 - **When the page runs short** (a rest running, a sync banner, a small
   phone), what does not fit yields in a fixed order and the Active Set Card
-  never does: first the air under the branch, then the branch, which
-  flattens and below 80pt steps aside for the plain `Set N of M` head; then
-  Last Performed; then the Cadence line and coach note; the Exercise name
-  last. The sync banner comes and goes without moving the card or its Log
-  capsule.
+  never does: first the air under the branch, then the branch's height,
+  which flattens from 156pt to a 70pt floor; then Last Performed; then the
+  Cadence line; then the coach note; and only then the branch, which leaves
+  the Exercise name above the card. The sync banner comes and goes without
+  moving the card or its Log capsule.
+- **When a finished Session runs short**, the Open Exercises list under the
+  summary leaves when it does not fit, so Move On always fits. The queue
+  sheet still lists the Open Exercises.
 
 **The Stage Shows One Thing Rule** (carried forward). Exactly one Exercise
 or Superset renders at a time. No stacked section-headed Exercises, no
