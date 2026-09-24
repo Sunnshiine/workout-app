@@ -28,7 +28,8 @@ if runtime is None:
     have = ", ".join(sorted(r["version"] for r in runtimes)) or "none"
     sys.exit(f"no available iOS {version} runtime. available: {have}")
 
-existing = next((d for d in catalog["devices"].get(runtime["identifier"], []) if d["name"] == name), None)
+existing = next((d for d in catalog["devices"].get(runtime["identifier"], [])
+                 if d["name"] == name and d.get("isAvailable")), None)
 if existing:
     print(existing["udid"], "-", runtime["identifier"])
 else:

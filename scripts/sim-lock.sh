@@ -1,4 +1,35 @@
 # shellcheck shell=bash
+pick_sim() {
+  local named=$1 mode=${2:-lookup} device='iPhone 17 Pro' visual_baseline_runtime=27.0 simctl_udid picked
+  if [ -n "$named" ]; then
+    simctl_udid=$(printf %s "$named" | tr '[:lower:]' '[:upper:]')
+    echo "$simctl_udid named"
+    return
+  fi
+  picked=$(available_sim "$device") || return
+  if [ -z "$picked" ] && [ "$mode" = create ]; then
+    "$(dirname "${BASH_SOURCE[0]}")/ensure-simulator.sh" "$device" "$visual_baseline_runtime" >/dev/null || return
+    picked=$(available_sim "$device") || return
+  fi
+  if [ -z "$picked" ]; then
+    echo "no available $device simulator; verify.sh launch or scripts/test-sim.sh creates one" >&2
+    return 1
+  fi
+  echo "$picked"
+}
+
+available_sim() {
+  xcrun simctl list devices available -j | NAME="$1" python3 -c '
+import json, os, sys
+def version(runtime): return tuple(int(n) for n in runtime.rsplit("iOS-", 1)[-1].split("-"))
+devices = [(version(runtime), d) for runtime, ds in json.load(sys.stdin)["devices"].items()
+           for d in ds if d["name"] == os.environ["NAME"]]
+booted = [d for d in devices if d[1]["state"] == "Booted"]
+if devices:
+    pick = max(booted or devices, key=lambda pair: pair[0])[1]
+    print(pick["udid"], pick["state"])'
+}
+
 sim_flock() {
   local lock=/tmp/workout-verify-$1/lock rc=0
   python3 -c 'import fcntl, sys, time
