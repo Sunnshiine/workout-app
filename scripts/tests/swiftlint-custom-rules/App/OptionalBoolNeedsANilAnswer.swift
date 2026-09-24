@@ -84,4 +84,9 @@ struct OptionalBoolNeedsANilAnswer {
             \.isPending
         ) != false
     }
+
+    func tryOptionalThatSpansLinesIsMissed(store: SessionStore) -> Bool {
+        (try?
+            store.isPending()) == true
+    }
 }
