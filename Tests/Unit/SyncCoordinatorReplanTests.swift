@@ -127,8 +127,10 @@ private func squatOneSetGrid() -> SheetGrid {
 ///
 /// #750's C03 to C05 (three Sets in one list cell, the other tokens kept) have no case here. Their
 /// target never moves, so the re-plan reaches the token merge only through the same
-/// `PlannedPendingWrite(write, against: refetched, ...)` this test drives, and
-/// `correctsUnstructuredSetLogInCompactListOnCoachNoteRedirectedRow` pins that merge.
+/// `PlannedPendingWrite(write, against: refetched, ...)` this test drives. Replacing a later token
+/// in a compact header list is pinned by `parserAndWriterAgreeOnCompactHeaderAggregateSetLogs`,
+/// the refusal on an unexpected token by `expectedCurrentValueChecksExerciseRowListEntry`, and
+/// keeping the tokens on both sides by `setLogListWriteOverwritesInPlace`.
 @MainActor
 @Test func replanningAnAlreadyBatchedTargetReadsTheSheetAgainAndLandsTheWrite() async throws {
     let container = try makeReplanContainer()
