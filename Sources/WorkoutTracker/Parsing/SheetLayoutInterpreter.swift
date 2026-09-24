@@ -367,12 +367,12 @@ struct SheetLayoutInterpreter: Sendable {
             let firstBodyRow = section.roleHeaderRow + 1
             let upper = min(endRow, grid.count)
             let bodyRows = firstBodyRow..<max(firstBodyRow, upper)
-            let days = section.dayHeaders.enumerated().compactMap { dayIndex, header -> SheetLayoutDay? in
+            let days = section.dayHeaders.enumerated().compactMap { headerIndex, header -> SheetLayoutDay? in
                 guard case .session(let number) = header.reading else { return nil }
                 let columns = resolveDayColumns(
                     in: grid,
                     section: section,
-                    dayIndex: dayIndex,
+                    headerIndex: headerIndex,
                     bodyRows: bodyRows
                 )
                 let anchors = exerciseAnchors(
@@ -431,14 +431,14 @@ private nonisolated(unsafe) let sheetLayoutDayHeaderPattern = /^Day (\d+)$/
 func resolveDayColumns(
     in grid: SheetGrid,
     section: WeekSection,
-    dayIndex: Int,
+    headerIndex: Int,
     bodyRows: Range<Int> = 0..<0
 ) -> DayColumns {
     let starts = section.dayStartCols
-    let start = starts[dayIndex]
+    let start = starts[headerIndex]
     let end =
-        dayIndex + 1 < starts.count
-        ? starts[dayIndex + 1]
+        headerIndex + 1 < starts.count
+        ? starts[headerIndex + 1]
         : start + (starts.count > 1 ? starts[1] - starts[0] : 16)
     let span = start..<end
 
