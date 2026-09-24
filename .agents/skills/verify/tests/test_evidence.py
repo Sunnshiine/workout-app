@@ -449,6 +449,10 @@ class TappableByLabel(unittest.TestCase):
         self.assertEqual(tree_py("tappable", "--label", "Sign out", stdin=SETTINGS),
                          (1, "", "no element with label Sign out\n"), "the match is case-sensitive")
 
+    def test_a_blank_label_matches_nothing(self):
+        self.assertEqual(tree_py("tappable", "--label", " ", stdin=MINI), (1, "", "no element with label  \n"),
+                         "active-set-card has an id and no label, and a blank query must not reach it")
+
 
 class Diff(unittest.TestCase):
     def test_diff_of_the_log_a_set_shots_is_the_semantic_hunks(self):
