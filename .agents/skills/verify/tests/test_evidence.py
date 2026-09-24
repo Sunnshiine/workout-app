@@ -1075,7 +1075,7 @@ class VerifyShot(unittest.TestCase):
             "refused 02-after-log: its frame is byte-identical to 01-before.png but its tree changed, "
             "so the pixels did not move while the tree did\n"
             "either the shot fired before a transition drew (wait a second and shoot again) or the screenshot "
-            "pipeline is wedged, as one axe button lock leaves it until a reboot "
+            "pipeline is wedged, as the axe button lock in issue 674 left it "
             "(run: xcrun simctl shutdown %s, then %s launch <fixture>)\n" % (self.sim, self.verify)
         ))
         self.assertEqual(sorted(p.name for p in self.evidence.iterdir()), ["01-before.png", "01-before.tree.txt"],

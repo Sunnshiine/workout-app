@@ -155,7 +155,7 @@ refuse_frozen_frame() {
   case $(python3 "$tree" diff "$dir/$prev.tree.txt" "$dir/.$name.tree.txt") in "no tree changes "*) return 0 ;; esac
   rm -f "$dir/.$name.png" "$dir/.$name.tree.txt"
   echo "refused $name: its frame is byte-identical to $prev.png but its tree changed, so the pixels did not move while the tree did" >&2
-  echo "either the shot fired before a transition drew (wait a second and shoot again) or the screenshot pipeline is wedged, as one axe button lock leaves it until a reboot (run: xcrun simctl shutdown $sim, then $0 launch <fixture>)" >&2
+  echo "either the shot fired before a transition drew (wait a second and shoot again) or the screenshot pipeline is wedged, as the axe button lock in issue 674 left it (run: xcrun simctl shutdown $sim, then $0 launch <fixture>)" >&2
   exit 70
 }
 

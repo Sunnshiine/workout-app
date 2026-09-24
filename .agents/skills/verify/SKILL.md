@@ -157,6 +157,14 @@ apart, so a shot taken right on a tap can show one state and describe another. W
 after a tap before a shot, or run `burst`. After a log the rest pill counts down once a second, so
 the changed lines always carry it.
 
+`shot` refuses a PNG byte-identical to the previous shot's while the tree changed. It saves
+nothing and exits 70, because the pixels did not move while the tree did. Either the shot fired
+before the change drew, and a second shot a moment later lands, or the screenshot pipeline is
+wedged, as it was after an `axe button lock` in issue 674. Shut the simulator down and `launch`
+again, which boots it. The refusal sees only identical bytes. A frozen frame that differs from
+the shot before it still lands, and so does a redraw that lags the tree with new pixels in it, so
+the sheet read stays owed.
+
 ## Cleanup
 
 ```bash
