@@ -16,8 +16,8 @@ struct SessionStageBranchEnvelopeTests {
     func theExerciseBranchStaysInsideTheGapsAroundIt(height: CGFloat, setCount: Int) throws {
         let branch = Branch(setCount: setCount, partnerSetCount: nil)
         let ink = try #require(try branch.inkExtent(height: height), "the branch draws at \(height)pt")
-        #expect(ink.top >= -18)
-        #expect(ink.bottom <= height + 14)
+        #expect(ink.top >= -(Theme.stageColumnSpacing + 4))
+        #expect(ink.bottom <= height + Theme.stageColumnSpacing)
 
         let taps = try branch.tapBoxes(height: height)
         #expect(taps.count == setCount, "every Set has a leaf to tap")
@@ -29,8 +29,8 @@ struct SessionStageBranchEnvelopeTests {
     func theSupersetBranchKeepsItsLateralInsideTheGapsAroundIt(height: CGFloat, setCount: Int) throws {
         let branch = Branch(setCount: setCount, partnerSetCount: 3)
         let ink = try #require(try branch.inkExtent(height: height), "the forked branch draws at \(height)pt")
-        #expect(ink.top >= -18)
-        #expect(ink.bottom <= height + 14)
+        #expect(ink.top >= -(Theme.stageColumnSpacing + 4))
+        #expect(ink.bottom <= height + Theme.stageColumnSpacing)
     }
 
     @Test func theBranchFillsItsRegionAndNeverFallsBelowItsFloor() {

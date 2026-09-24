@@ -329,32 +329,32 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
     @Environment(\.themePalette) private var palette
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: Theme.stageColumnSpacing) {
             switch composition {
             case .reading:
                 // What does not fit yields in this order, and the card never does: the air under the
                 // branch, the branch down to its floor, Last Performed, the Cadence line, the coach
                 // note, and only then the branch (DESIGN.md 5.1).
                 ViewThatFits(in: .vertical) {
-                    VStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: Theme.stageColumnSpacing) {
                         cadenceLine
                         name()
                         noteLine
                         branchRegion
                         lastPerformed
                     }
-                    VStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: Theme.stageColumnSpacing) {
                         cadenceLine
                         name()
                         noteLine
                         branchRegion
                     }
-                    VStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: Theme.stageColumnSpacing) {
                         name()
                         noteLine
                         branchRegion
                     }
-                    VStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: Theme.stageColumnSpacing) {
                         name()
                         branchRegion
                     }
@@ -363,7 +363,7 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
                 }
             case .editingWeight:
                 ViewThatFits(in: .vertical) {
-                    VStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: Theme.stageColumnSpacing) {
                         name()
                         lastPerformed
                     }

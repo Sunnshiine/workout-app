@@ -33,7 +33,6 @@ struct SessionStageBranch: View {
         // `fullHeight` tall. Anything taller is air under the drawing (DESIGN.md 5.1).
         static let minimumHeight: CGFloat = 70
         static let fullHeight: CGFloat = 156
-        static let gapBelow: CGFloat = 14 // the column's gap under the branch, which ink may hang into
         static let leadInset: CGFloat = 24
         static let trailInset: CGFloat = 28
         static let rootY: CGFloat = 0.82 // fraction of height — the low leading root
@@ -85,7 +84,7 @@ struct SessionStageBranch: View {
             let size = CGSize(width: geo.size.width, height: min(geo.size.height, Metrics.fullHeight))
             ZStack {
                 if partnerSets != nil {
-                    partnerBranch(in: size, room: geo.size.height - size.height + Metrics.gapBelow)
+                    partnerBranch(in: size, room: geo.size.height - size.height + Theme.stageColumnSpacing)
                 }
 
                 CurvePath(curve: stemCurve(in: size))
