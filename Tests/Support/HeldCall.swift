@@ -1,8 +1,8 @@
 import Testing
 
-/// Parks one call until the test releases it. Once `waitUntilHeld` gives up, a call that arrives
-/// later returns at once: a continuation ignores the time limit's cancellation, so a call parked
-/// after the poll gave up would hang the run.
+/// Parks one call until the test releases it. A call that arrives while another is held, or after
+/// `waitUntilHeld` gave up, returns at once: a continuation ignores the time limit's cancellation,
+/// so a call parked where no release will reach it would hang the run.
 @MainActor
 final class HeldCall {
     private enum State {
@@ -19,7 +19,7 @@ final class HeldCall {
     }
 
     func hold() async {
-        if case .abandoned = state { return }
+        guard case .idle = state else { return }
         await withCheckedContinuation { state = .held($0) }
     }
 

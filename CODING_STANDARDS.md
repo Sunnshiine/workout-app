@@ -66,10 +66,12 @@ may do. Read a trailing issue or symbol when a bullet does not settle a hunk.
   resolves in the machine's time zone. (#597, fixed in #684.)
 - **A wait that ends on a count or a clock.** Counted `Task.yield()`, a wall-clock budget, and an
   unbounded poll are the three flake shapes. The fake resumes the test, or a bounded poll records a
-  failure when it runs out, as `waitUntilHeld()` does. The poll, the state it reads, and the work
-  that sets it share one actor, so each yield gives that work a turn. A poll on another actor can
-  exhaust its count before a loaded main actor runs the work. (#548, `docs/TESTING.md`,
-  `ControlledValidationClient` in #637.)
+  failure when it runs out, as `HeldCall` in `Tests/Support/` does. A continuation ignores the time
+  limit's cancellation, so `HeldCall` parks one call at a time and none after its poll gave up. Any
+  other call returns at once, and the test fails instead of hanging. The poll, the state it reads,
+  and the work that sets it share one actor, so each yield gives that work a turn. A poll on
+  another actor can exhaust its count before a loaded main actor runs the work. (#548,
+  `docs/TESTING.md`, `ControlledValidationClient` in #637, #707.)
 - **A platform `#if` inside a `@Test` body,** where the assertions compile away and the test passes
   empty. It goes on the declaration. (#608. The lint catches a guard below comment lines and
   single-line `let` or `var` bindings. It misses one below a binding that holds a closure, a binding
