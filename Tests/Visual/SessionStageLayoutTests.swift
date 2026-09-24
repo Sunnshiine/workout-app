@@ -316,17 +316,22 @@ struct SessionStageLadderTransitionTests {
         )
     }
 
-    @Test func shrinkingTheCompletionStageDropsTheOpenExercises() throws {
-        let labels = try SessionPageHost.completionLabels(windowHeights: [WindowHeight.iPhone17Pro, 300])
+    @Test func shrinkingTheCompletionStageDropsTheOpenExercisesAndKeepsMoveOn() throws {
+        let heights: [CGFloat] = [WindowHeight.iPhone17Pro, 300]
+        let pages = try SessionPageHost.completionPages(windowHeights: heights)
         #expect(
-            labels == [
+            pages.map(\.labels) == [
                 [
-                    "Session complete", "2 sets done across 1 exercise", "Open Exercises",
-                    "Back Squat, 1 pending set, W1 D1", "Bench Press, 1 pending set, W1 D2", "1 of 1"
+                    "Session complete", "1 set done across 1 exercise", "Open Exercises",
+                    "Back Squat, 1 pending set, W1 D1", "Move On", "1 of 1"
                 ],
-                ["Session complete", "2 sets done across 1 exercise", "1 of 1"]
+                ["Session complete", "1 set done across 1 exercise", "Move On", "1 of 1"]
             ]
         )
+        for (page, height) in zip(pages, heights) {
+            let window = CGRect(x: 0, y: 0, width: 402, height: height)
+            #expect(page.moveOn.map(window.contains) == true, "Move On lies inside the \(Int(height))pt window")
+        }
     }
 }
 
@@ -421,6 +426,11 @@ private struct PageFrames: Equatable, CustomStringConvertible {
     private static func describe(_ frame: CGRect) -> String {
         "\(Int(frame.minX)),\(Int(frame.minY)) \(Int(frame.width))x\(Int(frame.height))"
     }
+}
+
+private struct CompletionPage {
+    let labels: [String]
+    let moveOn: CGRect?
 }
 
 @MainActor
@@ -522,13 +532,12 @@ private enum SessionPageHost {
         }
     }
 
-    static func completionLabels(windowHeights: [CGFloat]) throws -> [[String]] {
-        let scenario = try WorkoutScenarios.freshConfiguredApp(block: WorkoutFixtureScenarios.openExercisesBlock())
+    static func completionPages(windowHeights: [CGFloat]) throws -> [CompletionPage] {
+        let scenario = try WorkoutScenarios.freshConfiguredApp(
+            block: WorkoutFixtureScenarios.completedSessionWithOpenExercisesBlock()
+        )
         VisualFixtureRetainer.retain(scenario)
         let session = try #require(scenario.store.viewedSession)
-        for set in session.exercises.flatMap(\.sets) where set.isPending {
-            try scenario.store.log(set, as: SetLog(weight: .pounds(315), reps: 3, rpe: .eight))
-        }
         let page = SessionPage(
             session: session,
             coordinator: SessionCoordinator(session: session),
@@ -538,7 +547,10 @@ private enum SessionPageHost {
         )
         let lookup = LastPerformedLookupStore(context: scenario.context)
         return try read(page, scenario: scenario, lastPerformedLookup: lookup, windowHeights: windowHeights) { window in
-            window.accessibilityTree.compactMap { $0.accessibilityLabel }.filter { !$0.isEmpty }
+            CompletionPage(
+                labels: window.accessibilityTree.compactMap { $0.accessibilityLabel }.filter { !$0.isEmpty },
+                moveOn: window.accessibilityFrames { $0.elementIdentifier == "move-on-button" }.first
+            )
         }
     }
 
