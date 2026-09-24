@@ -62,7 +62,9 @@ extension NSObject {
         return frames
     }
 
-    var accessibilityIdentifier: String? {
+    /// The element's accessibility identifier. UIKit declares that property only on
+    /// `UIAccessibilityIdentification` conformers, so this reads it from any element that answers it.
+    var elementIdentifier: String? {
         let isIdentifiable = responds(to: #selector(getter: UIAccessibilityIdentification.accessibilityIdentifier))
         return isIdentifiable ? value(forKey: "accessibilityIdentifier") as? String : nil
     }

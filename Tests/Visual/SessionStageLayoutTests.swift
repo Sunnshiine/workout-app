@@ -404,8 +404,6 @@ private struct SessionPage: View {
 
 @MainActor
 private enum SessionPageHost {
-    private static var retainedScenarios: [ConfiguredAppScenario] = []
-
     static func layout(_ stage: StageKind, banner: BannerSlot, windowHeight: CGFloat) throws -> PageFrames {
         try layouts(stage, banner: banner, windowHeights: [windowHeight])[0]
     }
@@ -414,7 +412,7 @@ private enum SessionPageHost {
     /// inside a live hierarchy.
     static func layouts(_ stage: StageKind, banner: BannerSlot, windowHeights: [CGFloat]) throws -> [PageFrames] {
         let scenario = try WorkoutScenarios.freshConfiguredApp()
-        retainedScenarios.append(scenario)
+        VisualFixtureRetainer.retain(scenario)
         let lastPerformedLookup = LastPerformedLookupStore(context: scenario.context)
         try lastPerformedLookup.ingest(WorkoutFixtureScenarios.backSquatHistory())
         let session = try #require(scenario.store.viewedSession)
@@ -448,7 +446,7 @@ private enum SessionPageHost {
     /// logged and two Open Exercises from earlier days, read at each window height in turn.
     static func completionLabels(windowHeights: [CGFloat]) throws -> [[String]] {
         let scenario = try WorkoutScenarios.freshConfiguredApp(block: WorkoutFixtureScenarios.openExercisesBlock())
-        retainedScenarios.append(scenario)
+        VisualFixtureRetainer.retain(scenario)
         let session = try #require(scenario.store.viewedSession)
         for set in session.exercises.flatMap(\.sets) where set.isPending {
             try scenario.store.log(set, as: SetLog(weight: .pounds(315), reps: 3, rpe: .eight))
@@ -483,7 +481,7 @@ private enum SessionPageHost {
             .environment(scenario.store)
             .environment(lastPerformedLookup)
             .environment(
-                ExerciseHistoryFill(client: InertSheetsClient(), context: scenario.context, index: lastPerformedLookup)
+                ExerciseHistoryFill(client: VisualNoopSheetsClient(), context: scenario.context, index: lastPerformedLookup)
             )
             .environment(\.themePalette, Theme.palette(for: .day))
             .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
@@ -502,12 +500,12 @@ private enum SessionPageHost {
         func frame(_ matches: (NSObject) -> Bool) -> CGRect? {
             window.accessibilityFrames(where: matches).first
         }
-        let cadence = frame { $0.accessibilityIdentifier == "stage-cadence" }
-        let name = frame { $0.accessibilityIdentifier == "stage-exercise-name" }
-        let partner = frame { $0.accessibilityIdentifier == "superset-partner-name" }
+        let cadence = frame { $0.elementIdentifier == "stage-cadence" }
+        let name = frame { $0.elementIdentifier == "stage-exercise-name" }
+        let partner = frame { $0.elementIdentifier == "superset-partner-name" }
         let note = frame { $0.accessibilityLabel == focused.coachNote }
         let lastPerformed = frame { $0.accessibilityLabel?.hasPrefix("Block ") == true }
-        let card = frame { $0.accessibilityIdentifier == "active-set-card" }
+        let card = frame { $0.elementIdentifier == "active-set-card" }
         let words = [cadence, name, partner, note].compactMap { $0?.maxY }
         return PageFrames(
             banner: frame { $0.accessibilityLabel?.hasPrefix("Sync status:") == true },
@@ -576,16 +574,4 @@ extension SessionStageActions {
             moveOn: {}
         )
     }
-}
-
-private actor InertSheetsClient: SheetsClient {
-    func listTabTitles(spreadsheetId: String) async throws -> [String] {
-        []
-    }
-
-    func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
-        SheetSnapshot(values: [], rowVisibility: [:])
-    }
-
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
 }
