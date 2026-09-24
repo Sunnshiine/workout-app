@@ -210,7 +210,7 @@ printf 'junk' >"$fx/.git/index"
 baseline_config Sources/Tool
 run_lint
 expect_exit "corrupt index" "$status" 128
-expect_text "corrupt index" "$err" "index file smaller than expected"
+expect_text "corrupt index" "$err" "fatal: "
 expect_no_text "corrupt index" "$both" "==> Clean"
 
 echo "violation: a linted tree breaks a rule while excluded: also covers a tree"

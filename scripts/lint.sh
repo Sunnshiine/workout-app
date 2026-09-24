@@ -64,7 +64,7 @@ fi
 # than deleting or reading the first run's files.
 if [ -z "${LINT_SH_LOCKED:-}" ]; then
     LOCK="$(git rev-parse --git-dir)/lint.lock"
-    LINT_SH_LOCKED=1 exec lockf "$LOCK" "$ROOT/scripts/lint.sh" "$@"
+    LINT_SH_LOCKED=1 exec lockf -k "$LOCK" "$ROOT/scripts/lint.sh" "$@"
 fi
 
 # SwiftLintPlugins is a thin wrapper: its Package.swift declares one binaryTarget pointing at this
