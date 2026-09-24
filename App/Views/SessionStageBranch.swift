@@ -65,9 +65,10 @@ struct SessionStageBranch: View {
         static let lastNodeT: CGFloat = 0.9
         static let maxNodeStep: CGFloat = 0.2
         static let leafLength: CGFloat = 34 // subordinate to the focused leaf, at full height
-        // How far the full-size lateral's lowest blade hangs under the drawing, as
-        // SessionStageBranchEnvelopeTests measures it in a 167pt frame.
-        static let hang: CGFloat = 25
+        // How far the full-size lateral's lowest blade hangs under the drawing: the worst of an inked
+        // and a dashed last blade in SessionStageBranchEnvelopeTests' render, rounded up to 0.5pt.
+        static let hang: CGFloat = 25.5
+        static let clearance: CGFloat = 2 // kept between the lateral's lowest ink and the next line
     }
 
     private var nodes: [(set: ExerciseSet, state: BranchNodeState)] {
@@ -84,7 +85,10 @@ struct SessionStageBranch: View {
             let size = CGSize(width: geo.size.width, height: min(geo.size.height, Metrics.fullHeight))
             ZStack {
                 if partnerSets != nil {
-                    partnerBranch(in: size, room: geo.size.height - size.height + Theme.stageColumnSpacing)
+                    partnerBranch(
+                        in: size,
+                        room: geo.size.height - size.height + Theme.stageColumnSpacing - PartnerMetrics.clearance
+                    )
                 }
 
                 CurvePath(curve: stemCurve(in: size))
