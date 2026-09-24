@@ -52,4 +52,16 @@ enum FixtureDatesAreLiteral {
     static func dateInAStringPasses() -> String {
         "Date.now"
     }
+
+    static func calendarOnTheMachineTimeZoneIsMissed() -> Calendar {
+        Calendar(identifier: .gregorian)
+    }
+
+    static func currentLocaleIsMissed() -> Locale {
+        Locale.current
+    }
+
+    static func continuousClockDeadlineIsMissed() -> ContinuousClock.Instant {
+        ContinuousClock.now.advanced(by: .seconds(1))
+    }
 }

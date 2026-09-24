@@ -56,4 +56,20 @@ struct OptionalBoolNeedsANilAnswer {
         /// session?.isComplete == true
         session?.isComplete ?? false
     }
+
+    func optionalChainedCallWithANestedCallIsMissed(store: SessionStore?) -> Bool {
+        store?.isPending(for: current()) == true
+    }
+
+    func optionalSubscriptIsMissed(sessions: [Session]?) -> Bool {
+        sessions?[0].isComplete == true
+    }
+
+    func mapThenANonOptionalCallIsFalselyFlagged(reps: [Int]) -> Bool {
+        reps.map(abs).contains(1) == true
+    }
+
+    func mapThenATrailingClosureCallIsFalselyFlagged(sessions: [Session]) -> Bool {
+        sessions.map { $0.isComplete }.allSatisfy { $0 } == true
+    }
 }
