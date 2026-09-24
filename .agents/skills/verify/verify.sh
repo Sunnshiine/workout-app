@@ -199,9 +199,8 @@ case $cmd in
     claim_sim "$sim" "verify.sh launch"
     app=$(app_path)
     [ -d "$app" ] || { echo "no built app for $project; run: $0 build" >&2; exit 65; }
-    # bootstatus only watches CoreSimulator boot the device, so it gets no copy of the lock and a
-    # killed launch frees the simulator at once. It also exits 0 when a shutdown ends the boot.
-    xcrun simctl bootstatus "$sim" -b >/dev/null 9>&- && xcrun simctl list devices booted | grep -q "$sim" \
+    # bootstatus exits 0 when a shutdown ends the boot.
+    without_sim_lock xcrun simctl bootstatus "$sim" -b >/dev/null && xcrun simctl list devices booted | grep -q "$sim" \
       || { echo "simulator $sim did not boot" >&2; exit 70; }
     ensure_axe
     read -r -a extra <<< "$fixture_flags"
