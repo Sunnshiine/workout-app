@@ -346,8 +346,6 @@ private func pendingWrite(
     #expect(sync.outcome.isWritesRefused)
 }
 
-/// Day 1's group still holds a Squat row after its header is cleared, and so does Day 2's, so only
-/// the Day number can keep the queued log out of Day 2.
 @MainActor
 @Test func flushRefusesAQueuedWriteWhoseDayHeaderWasCleared() async throws {
     let container = try makeContainer()

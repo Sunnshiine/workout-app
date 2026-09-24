@@ -52,9 +52,6 @@ struct PersistedSessionIdentity: Equatable {
 }
 
 struct SessionProgressTracker {
-    /// Stride between Weeks when encoding a Session's block-wide order. The layout reads no Day number
-    /// outside `Week.dayNumbers`, so striding by its count keeps order strictly increasing across
-    /// Weeks; a stride of 4 collided once a Week held more than 4 days (e.g. Day 5/6).
     private static let weekOrderStride = Week.dayNumbers.count
 
     /// Order index across the block: (week-1)*stride + day.

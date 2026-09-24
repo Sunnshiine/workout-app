@@ -4,15 +4,11 @@ private nonisolated(unsafe) let legacyLogTokenPattern =
     /^(?:BW|\d+(?:\.\d+)?)(?:(?:x\d+)|(?:@\d+(?:\.\d+)?))(?:@\d+(?:\.\d+)?)?$/
 private nonisolated(unsafe) let legacyNumberTokenPattern = /^\d+(?:\.\d+)?$/
 
-/// Why a `Day N` header names no Session. Its column still ends the span to its left.
 enum IgnoredDayHeader: Sendable, Equatable {
-    /// More than one header in the Week reads this number, so a write for it could land in either group.
     case repeated(dayNumber: Int)
-    /// N is outside `Week.dayNumbers`, or `Int` cannot read it.
     case outsideWeek(header: String)
 }
 
-/// Every header bounds a column span, whether or not it names a Session.
 struct DayHeader: Sendable {
     enum Reading: Sendable {
         case session(Int)
@@ -27,7 +23,7 @@ struct WeekSection: Sendable {
     let headerRow: Int  // 0-based row holding "Day N"
     let roleHeaderRow: Int  // headerRow + 2
     let dateRow: Int  // headerRow + 1
-    let dayHeaders: [DayHeader]  // left to right
+    let dayHeaders: [DayHeader]
 
     var dayStartCols: [Int] { dayHeaders.map(\.col) }
 }
@@ -66,8 +62,6 @@ struct SheetLayoutWeek: Sendable {
 }
 
 struct SheetLayoutDay: Sendable {
-    /// Read from the `Day N` header, never from position: a cleared header must conflict a queued
-    /// write for its Day rather than hand the write to the group that now sits first.
     let number: Int
     let columns: DayColumns
     let exerciseAnchors: [SheetLayoutExerciseAnchor]
@@ -410,8 +404,6 @@ struct SheetLayoutInterpreter: Sendable {
     }
 }
 
-/// Reads one Week's header row. A number two headers share names no Session, because a write for
-/// that Day could land in either group (ADR-0003).
 private func dayHeaders(reading cells: [(col: Int, text: String)]) -> [DayHeader] {
     let numbers = cells.map { cell in
         cell.text.wholeMatch(of: sheetLayoutDayHeaderPattern).flatMap { Int($0.1) }.flatMap {
@@ -430,7 +422,6 @@ private func dayHeaders(reading cells: [(col: Int, text: String)]) -> [DayHeader
     }
 }
 
-// No upper bound on N: a `Day 8` header names no Session but must still end Day 7's column span.
 private nonisolated(unsafe) let sheetLayoutDayHeaderPattern = /^Day (\d+)$/
 
 /// Resolves role columns by scanning the role-header row within the day's span.
