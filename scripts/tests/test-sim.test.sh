@@ -3,7 +3,7 @@ set -uo pipefail
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 root=$(mktemp -d) || exit 3
-sim=test-sim-test-$$
+sim=TEST-SIM-TEST-$$
 trap 'rm -rf "$root" "/tmp/workout-verify-$sim"' EXIT
 repo=$root/repo
 products=$root/home/Library/Developer/Xcode/DerivedData/WorkoutTracker-stub/Build/Products
@@ -86,6 +86,23 @@ check "a selection that runs no tests exits 65" 65 \
 "** TEST EXECUTE SUCCEEDED **" "$no_tests_ran" 0 \
 "Test Suite 'All tests' passed at 2026-09-24 11:33:21.004.
 	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.004) seconds
+** TEST EXECUTE SUCCEEDED **"
+
+check "a Swift Testing selection that runs no tests exits 65" 65 \
+"✔ Test run with 0 tests in 1 suite passed after 0.001 seconds.
+** TEST EXECUTE SUCCEEDED **" "$no_tests_ran" 0 \
+"	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+◇ Test run started.
+↳ Testing Library Version: 2084
+✔ Test run with 0 tests in 1 suite passed after 0.001 seconds.
+** TEST EXECUTE SUCCEEDED **"
+
+colored=$'\e[90m━\e[0m Test run with 1020 tests in 11 suites passed after 2.921 seconds with 1 known issue.'
+check "a colored summary counts, whatever its glyph" 0 \
+"$colored
+** TEST EXECUTE SUCCEEDED **" "" 0 \
+"◇ Test run started.
+$colored
 ** TEST EXECUTE SUCCEEDED **"
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
