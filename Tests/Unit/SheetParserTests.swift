@@ -229,10 +229,8 @@ import Testing
     #expect(parsed.block.weeks.map { $0.days.map(\.dayNumber) } == [[2], [1]])
     #expect(
         parsed.warnings == [
-            "Parse warning: Week 1 in Block 27 has Day headers the app cannot show ('Day 1', 'Day 1'); "
-                + "a Day header reads Day 1 to Day 7, once per Week",
-            "Parse warning: Week 2 in Block 27 has Day headers the app cannot show ('Day 8'); "
-                + "a Day header reads Day 1 to Day 7, once per Week"
+            "Parse warning: Week 1 in Block 27 has more than one Day 1 header, so none of them shows",
+            "Parse warning: Week 2 in Block 27 has a 'Day 8' header, but a Week runs Day 1 to Day 7, so it does not show"
         ]
     )
 }

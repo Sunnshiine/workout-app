@@ -476,8 +476,8 @@ private enum PlacementTestError: Error { case notPlaced }
 
     let layout = SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid))
 
-    #expect(layout.week(number: 1)?.days.map(\.number) == [2, 1])
-    #expect(layout.week(number: 1)?.days.map(\.columns.span) == [2..<18, 18..<34])
+    #expect(layout.week(number: 1)?.days.map(\.number) == [1, 2])
+    #expect(layout.week(number: 1)?.days.map(\.columns.span) == [18..<34, 2..<18])
     #expect(layout.day(week: 1, day: 1)?.columns.span == 18..<34)
     #expect(layout.day(week: 1, day: 2)?.columns.span == 2..<18)
 }
@@ -510,7 +510,7 @@ private enum PlacementTestError: Error { case notPlaced }
     #expect(layout.day(week: 1, day: 1) == nil)
     #expect(layout.day(week: 1, day: 3)?.columns.span == 34..<50)
     #expect(layout.day(week: 1, day: 3)?.columns.notes == 42)
-    #expect(layout.weeks.map(\.ignoredDayHeaders) == [["Day 1", "Day 1"], []])
+    #expect(layout.weeks.map(\.ignoredDayHeaders) == [[.repeated(dayNumber: 1)], []])
 }
 
 @Test func layoutInterpreterMakesNoSessionOfADayNumberOutsideTheWeek() {
@@ -524,5 +524,11 @@ private enum PlacementTestError: Error { case notPlaced }
 
     #expect(layout.week(number: 1)?.days.map(\.number) == [7])
     #expect(layout.day(week: 1, day: 7)?.columns.span == 18..<34)
-    #expect(layout.week(number: 1)?.ignoredDayHeaders == ["Day 0", "Day 8", "Day 99999999999999999999"])
+    #expect(
+        layout.week(number: 1)?.ignoredDayHeaders == [
+            .outsideWeek(header: "Day 0"),
+            .outsideWeek(header: "Day 8"),
+            .outsideWeek(header: "Day 99999999999999999999")
+        ]
+    )
 }
