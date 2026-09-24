@@ -6,6 +6,7 @@ import Testing
 
 private final class LiveSheetClient: SheetsClient, @unchecked Sendable {
     private var grid: SheetGrid
+    private let rowsInsertedBeforeFetch: [Int: [Int]]
     private let editsLandingBeforeFetch: [Int: [String: String]]
     private let rowsHiddenBeforeFetch: [Int: [Int]]
     private let failingFetch: Int?
@@ -16,12 +17,14 @@ private final class LiveSheetClient: SheetsClient, @unchecked Sendable {
 
     init(
         grid: SheetGrid,
+        rowsInsertedBeforeFetch: [Int: [Int]] = [:],
         editsLandingBeforeFetch: [Int: [String: String]] = [:],
         rowsHiddenBeforeFetch: [Int: [Int]] = [:],
         failingFetch: Int? = nil,
         failingUpdateRequest: Int? = nil
     ) {
         self.grid = grid
+        self.rowsInsertedBeforeFetch = rowsInsertedBeforeFetch
         self.editsLandingBeforeFetch = editsLandingBeforeFetch
         self.rowsHiddenBeforeFetch = rowsHiddenBeforeFetch
         self.failingFetch = failingFetch
@@ -38,6 +41,12 @@ private final class LiveSheetClient: SheetsClient, @unchecked Sendable {
     func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
         fetchCount += 1
         if fetchCount == failingFetch { throw URLError(.notConnectedToInternet) }
+        for row in rowsInsertedBeforeFetch[fetchCount] ?? [] {
+            grid.insert([], at: row - 1)
+            rowVisibility = Dictionary(
+                uniqueKeysWithValues: rowVisibility.map { index, visibility in (index >= row - 1 ? index + 1 : index, visibility) }
+            )
+        }
         for (a1, value) in editsLandingBeforeFetch[fetchCount] ?? [:] {
             write([[value]], to: a1)
         }
@@ -510,8 +519,9 @@ private func squatCoachNoteGrid() -> SheetGrid {
     #expect(entries.last?.rowScanDetails == "No row selected: Week 1, Day 2 was not found.")
 }
 
-/// The coach inserts a blank row 16, so the second and third Prescription Lines move down one row. The
-/// interim flush is one update request and the final batch, holding K17 and K18, is the second.
+/// The coach inserts a blank row 16, which moves the second and third Prescription Lines down one row,
+/// and corrects the moved Set Log in K17. The interim flush is one update request and the final batch,
+/// holding K17 and K18, is the second.
 @MainActor
 @Test func replanningAfterTheCoachInsertsARowLandsTheWriteAndTheNextSetInOneBatch() async throws {
     let container = try makeReplanContainer()
@@ -527,14 +537,8 @@ private func squatCoachNoteGrid() -> SheetGrid {
             "D17": "1", "F17": "3",
             "C20": "Bench Press", "D20": "1"
         ]),
-        editsLandingBeforeFetch: [
-            2: [
-                "D16": "", "F16": "", "K16": "",
-                "D17": "1", "F17": "5", "K17": "205x3@9",
-                "D18": "1", "F18": "3",
-                "C20": "", "D20": "", "C21": "Bench Press", "D21": "1"
-            ]
-        ]
+        rowsInsertedBeforeFetch: [2: [16]],
+        editsLandingBeforeFetch: [2: ["K17": "205x3@9"]]
     )
     let sync = SyncCoordinator(client: client, context: ctx)
 
@@ -557,6 +561,49 @@ private func squatCoachNoteGrid() -> SheetGrid {
     #expect(
         entries.map(\.rowScanDetails) == ["Selected row 16" + lineRow, "Selected row 17" + lineRow, "Selected row 18" + lineRow]
     )
+}
+
+/// The coach inserts a blank row 16 and corrects nothing, so the re-planned correction finds the app's
+/// first Set Log moved to K17 and refuses. Set 3 then plans against that fresh read and lands on K18.
+/// Planned against the working copy from before the insert, it would land on K17 over the moved log.
+@MainActor
+@Test func replanningAfterTheCoachInsertsARowRefusesTheCorrectionAndPlansTheNextSetAgainstTheFreshRead() async throws {
+    let container = try makeReplanContainer()
+    let ctx = container.mainContext
+    ctx.insert(replanPendingWrite(createdAt: 1, setIndex: 1, valueToWrite: "185x5@8", expectedCurrentValue: ""))
+    ctx.insert(replanPendingWrite(createdAt: 2, setIndex: 1, valueToWrite: "205x3@10", expectedCurrentValue: "205x3@9"))
+    ctx.insert(replanPendingWrite(createdAt: 3, setIndex: 2, valueToWrite: "150x3@7", expectedCurrentValue: ""))
+    try ctx.save()
+    let client = LiveSheetClient(
+        grid: replanGrid([
+            "C15": "Squat", "D15": "1", "F15": "5",
+            "D16": "1", "F16": "5",
+            "D17": "1", "F17": "3",
+            "C20": "Bench Press", "D20": "1"
+        ]),
+        rowsInsertedBeforeFetch: [2: [16]]
+    )
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(client.cell("K16") == "")
+    #expect(client.cell("K17") == "185x5@8")
+    #expect(client.cell("K18") == "150x3@7")
+    #expect(client.fetchCount == 2)
+    #expect(sync.outcome == .writesRefused(["Squat: Expected '205x3@9', found '185x5@8'"]))
+    let remaining = try ctx.fetch(FetchDescriptor<PendingWrite>())
+    #expect(remaining.map(\.status) == [.conflict])
+    #expect(remaining.map(\.valueToWrite) == ["205x3@10"])
+
+    let entries = try ctx.fetch(FetchDescriptor<WriteTargetAuditEntry>(sortBy: [SortDescriptor(\.createdAt)]))
+    #expect(entries.map(\.selectedA1Target) == ["'Block 27'!K16", "'Block 27'!K17", "'Block 27'!K18"])
+    #expect(entries.map(\.finalStatus) == [.succeeded, .conflict, .succeeded])
+    let lineRow = ": Prescription Line row stores this Line's Set logs as a comma-separated list (Set 1 of the Line)."
+    #expect(
+        entries.map(\.rowScanDetails) == ["Selected row 16" + lineRow, "Selected row 17" + lineRow, "Selected row 18" + lineRow]
+    )
+    #expect(entries.first { $0.finalStatus == .conflict }?.valueCheckOutcome == "Expected '205x3@9', found '185x5@8'.")
 }
 
 /// The second write lands on a different Exercise, so nothing overlaps and no re-plan happens.
