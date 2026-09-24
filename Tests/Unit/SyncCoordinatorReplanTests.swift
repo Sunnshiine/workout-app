@@ -676,7 +676,7 @@ func replanningAfterTheCoachHidesEveryRowBelowACoachNoteAlsoRefusesThePairedLast
     #expect(sync.outcome == .writesQueued(2))
     let remaining = try ctx.fetch(FetchDescriptor<PendingWrite>(sortBy: [SortDescriptor(\.createdAt)]))
     #expect(remaining.map(\.status) == [.pending, .pending])
-    #expect(remaining.map(\.retryCount) == [1, 0])
+    #expect(remaining.map(\.lastError) == [#"Error Domain=NSURLErrorDomain Code=-1004 "(null)""#, nil])
     #expect(remaining.map(\.valueToWrite) == ["185x5@8", "205x3@10"])
     #expect(try ctx.fetch(FetchDescriptor<WriteTargetAuditEntry>()).isEmpty)
 }
@@ -695,18 +695,12 @@ func replanningAfterTheCoachHidesEveryRowBelowACoachNoteAlsoRefusesThePairedLast
 
     #expect(client.cell("K15") == "185x5@8")
     #expect(client.fetchCount == 2)
-    // Head reports writesQueued(2) with one write left, the open defect #744, so the count stays unpinned.
-    #expect(sync.outcome.isWritesQueued)
+    withKnownIssue("#744: the outcome counts the write the interim flush already landed") {
+        #expect(sync.outcome == .writesQueued(1))
+    }
     let remaining = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(remaining.map(\.status) == [.pending])
-    #expect(remaining.map(\.retryCount) == [1])
+    #expect(remaining.map(\.lastError) == [#"Error Domain=NSURLErrorDomain Code=-1009 "(null)""#])
     #expect(remaining.map(\.valueToWrite) == ["205x3@10"])
     #expect(try ctx.fetch(FetchDescriptor<WriteTargetAuditEntry>()).map(\.finalStatus) == [.succeeded])
-}
-
-extension SyncOutcome {
-    fileprivate var isWritesQueued: Bool {
-        if case .writesQueued = self { return true }
-        return false
-    }
 }
