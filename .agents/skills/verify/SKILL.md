@@ -29,8 +29,9 @@ activity outlives `stop` and sits over the top of every later shot on the shared
 `VERIFY_LIVE_ACTIVITIES=1 verify.sh launch session` drops that one flag, so the rest timer and the
 Live Activity Lab work and every shot of that run may carry the activity overlay. `stop` uninstalls
 such a run, which is what ends the activity. Drive it from `features/live-activity.md`. A
-relaunch is `stop` then `launch`, and it resets all state. The simulator is the
-booted iPhone 17 Pro, else the newest one, which the script boots. Override with `SIM=<udid>`.
+relaunch is `stop` then `launch`, and it resets all state. The simulator is the one
+`SIM=<udid>` names, else the booted iPhone 17 Pro, else the newest one. `launch` boots it when it
+is shut down and waits for the boot to finish before it installs the app.
 
 For the CLI there is no server. Build once, then every drive gets its own home:
 
