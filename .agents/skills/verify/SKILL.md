@@ -158,15 +158,7 @@ after a tap before a shot, or run `burst`. After a log the rest pill counts down
 the changed lines always carry it.
 
 `shot` refuses a PNG byte-identical to the run's newest shot, a retake of the same name included,
-while the tree changed. It saves nothing, prints the changed lines, and exits 70, because the
-pixels did not move while the tree did. Three things do that. The app changed text it does not
-draw, such as the detail in the sync banner's label. Then the newest shot already holds these
-pixels, and the printed lines are the evidence. The shot fired before the change drew, and a
-second shot a moment later lands. Or the screenshot pipeline is wedged, as it was after an
-`axe button lock` in issue 674, and the newest shot may be frozen too. Shut the simulator down,
-`launch` again with the same `SIM` and `VERIFY_RUN`, which boots it, and retake both. The refusal
-sees only identical bytes. A frozen frame that differs from the shot before it still lands, and so
-does a redraw that lags the tree with new pixels in it, so the sheet read stays owed.
+while the tree changed. It saves nothing, prints the changed lines, and exits 70.
 
 ## Cleanup
 

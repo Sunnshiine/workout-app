@@ -150,19 +150,19 @@ capture() {
   fi
 }
 
-refuse_frozen_frame() {
-  local dir=$1 new=$2/$3 name=$3 last changes
-  last=$(shot_names "$dir" | tail -1)
-  [ -n "$last" ] || return 0
-  cmp -s "$dir/$last.png" "$new.png" || return 0
-  changes=$(python3 "$tree" diff "$dir/$last.tree.txt" "$new.tree.txt")
+refuse_unmoved_frame() {
+  local dir=$1 new=$2/$3 name=$3 newest changes
+  newest=$(shot_names "$dir" | tail -1)
+  [ -n "$newest" ] || return 0
+  cmp -s "$dir/$newest.png" "$new.png" || return 0
+  changes=$(python3 "$tree" diff "$dir/$newest.tree.txt" "$new.tree.txt")
   case $changes in "no tree changes "*) return 0 ;; esac
   rm -f "$new.png" "$new.tree.txt"
   {
-    echo "refused $name: its frame is byte-identical to $last.png but its tree changed, so the pixels did not move while the tree did"
+    echo "refused $name: its frame is byte-identical to $newest.png but its tree changed, so the pixels did not move while the tree did"
     printf '%s\n' "$changes"
-    echo "if those lines are text the app does not draw, $last.png already shows this screen and the lines are the evidence"
-    echo "if not, the shot fired before a transition drew (wait a second and shoot again) or the screenshot pipeline is wedged, as the axe button lock in issue 674 left it, and $last.png may be frozen too (run: xcrun simctl shutdown $sim, then SIM=$sim VERIFY_RUN=${dir##*/} $0 launch <fixture>, and shoot $last again)"
+    echo "if those lines are text the app does not draw, $newest.png already shows this screen and the lines are the evidence"
+    echo "if not, the shot fired before a transition drew (wait a second and shoot again) or the screenshot pipeline is wedged, as the axe button lock in issue 674 left it, and $newest.png may be frozen too (run: xcrun simctl shutdown $sim, then SIM=$sim VERIFY_RUN=${dir##*/} $0 launch <fixture>, and shoot $newest again)"
   } >&2
   exit 70
 }
@@ -363,7 +363,7 @@ case $cmd in
       echo "captured nothing for $name; run: $0 doctor" >&2
       exit 70
     fi
-    refuse_frozen_frame "$dir" "$pending" "$name"
+    refuse_unmoved_frame "$dir" "$pending" "$name"
     mv "$pending/$name.png" "$dir/$name.png"
     mv "$pending/$name.tree.txt" "$dir/$name.tree.txt"
     echo "$dir/$name.png"
