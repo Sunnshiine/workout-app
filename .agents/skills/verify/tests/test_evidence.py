@@ -813,11 +813,7 @@ printf '%s, lock %s\\n' "$(basename "$0") $*" "$held" >> "{dir}/calls"
 case "$(basename "$0") $2" in
   "plutil WorkspacePath") echo "{project}" ;;
   "xcrun bootstatus")
-    if [ -n "${STUB_HOLD:-}" ]; then
-      echo $$ > "{dir}/holding"
-      i=0
-      while [ ! -f "{dir}/release" ] && [ $i -lt 300 ]; do sleep 0.1; i=$((i + 1)); done
-    fi
+    if [ -n "${STUB_HOLD:-}" ]; then echo $$ > "{dir}/holding"; exec sleep 30; fi
     exit "${STUB_BOOTSTATUS:-1}" ;;
   "xcrun list") ;;
   *) exit 1 ;;
@@ -845,7 +841,6 @@ class LaunchBoots(unittest.TestCase):
         self.runs = []
 
     def tearDown(self):
-        (self.stubs / "release").touch()
         for run in self.runs:
             if run.poll() is None:
                 os.killpg(run.pid, 9)
@@ -903,8 +898,10 @@ class LaunchBoots(unittest.TestCase):
         self.assertTrue((self.stubs / "holding").exists(), "the launch never reached its boot wait")
         os.kill(killed.pid, 9)
         killed.wait()
+        boot_wait = int((self.stubs / "holding").read_text())
+        self.addCleanup(os.kill, boot_wait, 9)
         run, calls, result = self.launch(self.sim)
-        os.kill(int((self.stubs / "holding").read_text()), 0)
+        os.kill(boot_wait, 0)
         self.assertEqual(result, (70, "", "simulator %s did not boot\n" % self.sim),
                          "the next launch takes the simulator while the killed one's boot wait still runs")
 
