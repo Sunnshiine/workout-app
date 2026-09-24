@@ -468,6 +468,7 @@ private enum PlacementTestError: Error { case notPlaced }
     #expect(layout.week(number: 1)?.days.map(\.number) == [1, 3])
     #expect(layout.day(week: 1, day: 2) == nil)
     #expect(layout.day(week: 1, day: 3)?.columns.span == 18..<34)
+    #expect(layout.week(number: 1)?.ignoredDayHeaders == [])
 }
 
 @Test func layoutInterpreterNumbersSwappedDayHeadersByTheirText() {
@@ -488,4 +489,40 @@ private enum PlacementTestError: Error { case notPlaced }
 
     #expect(layout.week(number: 1)?.days.map(\.number) == [1, 7])
     #expect(layout.day(week: 1, day: 7)?.columns.name == 18)
+    #expect(layout.week(number: 1)?.ignoredDayHeaders == [])
+}
+
+@Test func layoutInterpreterMakesNoSessionOfADuplicatedDayNumber() {
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 1", "AI12": "Day 3",
+            "K14": "Notes", "AA14": "Notes", "AQ14": "Notes",
+            "C37": "Day 1", "S37": "Day 2"
+        ],
+        rows: 45,
+        cols: 55
+    )
+
+    let layout = SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid))
+
+    #expect(layout.weeks.map(\.number) == [1, 2])
+    #expect(layout.weeks.map { $0.days.map(\.number) } == [[3], [1, 2]])
+    #expect(layout.day(week: 1, day: 1) == nil)
+    #expect(layout.day(week: 1, day: 3)?.columns.span == 34..<50)
+    #expect(layout.day(week: 1, day: 3)?.columns.notes == 42)
+    #expect(layout.weeks.map(\.ignoredDayHeaders) == [["Day 1", "Day 1"], []])
+}
+
+@Test func layoutInterpreterMakesNoSessionOfADayNumberOutsideTheWeek() {
+    let grid = gridFromA1(
+        ["C12": "Day 0", "S12": "Day 007", "AI12": "Day 8", "AX12": "Day 99999999999999999999"],
+        rows: 20,
+        cols: 70
+    )
+
+    let layout = SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid))
+
+    #expect(layout.week(number: 1)?.days.map(\.number) == [7])
+    #expect(layout.day(week: 1, day: 7)?.columns.span == 18..<34)
+    #expect(layout.week(number: 1)?.ignoredDayHeaders == ["Day 0", "Day 8", "Day 99999999999999999999"])
 }

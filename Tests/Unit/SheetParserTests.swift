@@ -217,6 +217,26 @@ import Testing
     #expect(parsed.warnings.contains { $0.contains("no week sections") })
 }
 
+@Test func parserWarnsAboutDayHeadersItShowsNoSessionFor() {
+    let grid = gridFromA1(
+        ["C12": "Day 1", "S12": "Day 1", "AI12": "Day 2", "C37": "Day 1", "S37": "Day 8"],
+        rows: 50,
+        cols: 60
+    )
+
+    let parsed = SheetParser().parse(grid: grid, tabName: "Block 27")
+
+    #expect(parsed.block.weeks.map { $0.days.map(\.dayNumber) } == [[2], [1]])
+    #expect(
+        parsed.warnings == [
+            "Parse warning: Week 1 in Block 27 has Day headers the app cannot show ('Day 1', 'Day 1'); "
+                + "a Day header reads Day 1 to Day 7, once per Week",
+            "Parse warning: Week 2 in Block 27 has Day headers the app cannot show ('Day 8'); "
+                + "a Day header reads Day 1 to Day 7, once per Week"
+        ]
+    )
+}
+
 @Test func perSetLoadAndRepsAreSplitByComma() {
     // Issue #7: comma-separated values (e.g. "RPE 9, 10") map one token per set,
     // repeating the last token when fewer tokens than sets.
