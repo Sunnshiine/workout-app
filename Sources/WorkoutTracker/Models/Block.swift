@@ -32,7 +32,6 @@ extension Block {
 
 @Model
 final class Week {
-    /// A Week is a 7-day window, so these are the only Day numbers a Session can carry.
     static let dayNumbers = 1...7
 
     var number: Int

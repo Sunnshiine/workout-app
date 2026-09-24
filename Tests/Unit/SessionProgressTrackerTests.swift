@@ -171,7 +171,6 @@ private func sortedSessions(in block: Block) -> [Session] {
     }
 }
 
-/// A saved Current Session override holds this value, so a change to it re-keys every one.
 @MainActor
 @Test func persistedIdentityKeepsTheStoredOverrideEncoding() throws {
     let block = makeBlock()
