@@ -1039,12 +1039,13 @@ private final class HeldSheetsClient: SheetsClient {
     private let titles: [String]
     private let grid: SheetGrid
     private let holdsTabSnapshot: Bool
-    private let held = HeldCall()
+    private let held: HeldCall
 
     init(titles: [String], grid: SheetGrid, holdsTabSnapshot: Bool = false) {
         self.titles = titles
         self.grid = grid
         self.holdsTabSnapshot = holdsTabSnapshot
+        held = HeldCall(parks: holdsTabSnapshot ? 2 : 1)
     }
 
     func listTabTitles(spreadsheetId: String) async throws -> [String] {

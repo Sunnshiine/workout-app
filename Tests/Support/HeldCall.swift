@@ -1,25 +1,23 @@
 import Testing
 
-/// A continuation ignores the time limit's cancellation, so a call parked where no release will
-/// reach it would hang the run.
+/// Parks at most `parks` calls, one at a time, and returns at once from a call made while another
+/// is held, after the budget is spent, or after a poll gave up. A continuation ignores the time
+/// limit's cancellation, so a call parked where no release reaches it would hang the run.
 @MainActor
 final class HeldCall {
-    private enum State {
-        case idle
-        case held(CheckedContinuation<Void, Never>)
-        case abandoned
+    private var parked: CheckedContinuation<Void, Never>?
+    private var parksLeft: Int
+
+    init(parks: Int = 1) {
+        parksLeft = parks
     }
 
-    private var state = State.idle
-
-    var isHeld: Bool {
-        if case .held = state { return true }
-        return false
-    }
+    var isHeld: Bool { parked != nil }
 
     func hold() async {
-        guard case .idle = state else { return }
-        await withCheckedContinuation { state = .held($0) }
+        guard parked == nil, parksLeft > 0 else { return }
+        parksLeft -= 1
+        await withCheckedContinuation { parked = $0 }
     }
 
     func waitUntilHeld(orRecord failure: Comment, sourceLocation: SourceLocation = #_sourceLocation) async {
@@ -27,13 +25,13 @@ final class HeldCall {
             if isHeld { return }
             await Task.yield()
         }
-        if case .idle = state { state = .abandoned }
+        parksLeft = 0
         Issue.record(failure, sourceLocation: sourceLocation)
     }
 
     func release() {
-        guard case .held(let continuation) = state else { return }
-        state = .idle
-        continuation.resume()
+        let continuation = parked
+        parked = nil
+        continuation?.resume()
     }
 }

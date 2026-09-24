@@ -641,7 +641,6 @@ private final class HeldOutcomePinClient: SheetsClient {
     private let titles: [String]
     private let grid: SheetGrid
     private let held = HeldCall()
-    private var holdsRemaining = 1
 
     init(heldCall: SheetCall, titles: [String] = ["Intro", "Block 27"], grid: SheetGrid) {
         self.heldCall = heldCall
@@ -650,12 +649,12 @@ private final class HeldOutcomePinClient: SheetsClient {
     }
 
     func listTabTitles(spreadsheetId: String) async throws -> [String] {
-        if heldCall == .tabTitles { await park() }
+        if heldCall == .tabTitles { await held.hold() }
         return titles
     }
 
     func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
-        if heldCall == .tabSnapshot { await park() }
+        if heldCall == .tabSnapshot { await held.hold() }
         return SheetSnapshot(values: grid)
     }
 
@@ -667,11 +666,5 @@ private final class HeldOutcomePinClient: SheetsClient {
 
     func release() {
         held.release()
-    }
-
-    private func park() async {
-        guard holdsRemaining > 0 else { return }
-        holdsRemaining -= 1
-        await held.hold()
     }
 }
