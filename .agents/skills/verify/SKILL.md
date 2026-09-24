@@ -96,12 +96,12 @@ the rest pill about 3% larger and brighter for about 150 ms; a burst caught that
 rest ran. Each second from `0:05` to `0:00` the countdown digits grow about 3% for about 230 ms. A
 skip hold's fill jumps to a full `Skipped` 250 ms into the press, and the skip lands about 900 ms
 in, so a shot in between shows a skip that has not happened. In the history sheet the Volume chip
-still fades for about 250 ms after a tap (issue 618).
+still fades for about 250 ms after a tap (issue 739).
 
 `burst` takes its first frame before the drive command runs and the other eleven after it returns,
 timed from the return. In the issue 696 runs the first frame came 1.3 to 8.7 s before it, and a
 `hold` spends its whole press inside the drive, so a burst never shows the middle of a hold. After
-the return, frames land about 200 ms apart, up to 1.1 s apart on a busy simulator, and the first
+the return, frames land about 200 ms apart, more than 2 s apart on a busy simulator, and the first
 lands 140 to 750 ms after it. A burst that shows only a before and an after says nothing about a
 state shorter than those gaps, and a 3% change is easy to miss on the tile, so read the full-size
 frames in `<name>.burst/`. Any other path is unproved under the flag. A state an action has not
