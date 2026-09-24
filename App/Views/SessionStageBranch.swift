@@ -28,16 +28,18 @@ struct SessionStageBranch: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private enum Metrics {
-        // The reading column gives the branch what is left of the page, between these two heights
-        // (DESIGN.md 5.1). SessionStageBranchEnvelopeTests owns the floor.
-        static let maximumHeight: CGFloat = 156
+        // The branch fills what the reading column leaves it, never less than this floor
+        // (SessionStageBranchEnvelopeTests owns it), and draws at the top of that frame, at most
+        // `fullHeight` tall. Anything taller is air under the drawing (DESIGN.md 5.1).
         static let minimumHeight: CGFloat = 70
+        static let fullHeight: CGFloat = 156
+        static let gapBelow: CGFloat = 14 // the column's gap under the branch, which ink may hang into
         static let leadInset: CGFloat = 24
         static let trailInset: CGFloat = 28
         static let rootY: CGFloat = 0.82 // fraction of height — the low leading root
         // The high trailing tip, pinned in points so a short branch keeps its top blades under the
         // coach note.
-        static let tipInset: CGFloat = maximumHeight * 0.13
+        static let tipInset: CGFloat = fullHeight * 0.13
         static let bow: CGFloat = 30 // upward bow of the climbing stem at full height
         static let firstNodeT: CGFloat = 0.16 // the span floor node steps never pass
         static let lastNodeT: CGFloat = 0.80 // the terminal node every cluster anchors to
@@ -64,6 +66,9 @@ struct SessionStageBranch: View {
         static let lastNodeT: CGFloat = 0.9
         static let maxNodeStep: CGFloat = 0.2
         static let leafLength: CGFloat = 34 // subordinate to the focused leaf, at full height
+        // How far the full-size lateral's lowest blade hangs under the drawing, as
+        // SessionStageBranchEnvelopeTests measures it in a 167pt frame.
+        static let hang: CGFloat = 25
     }
 
     private var nodes: [(set: ExerciseSet, state: BranchNodeState)] {
@@ -77,10 +82,10 @@ struct SessionStageBranch: View {
 
     var body: some View {
         GeometryReader { geo in
-            let size = geo.size
+            let size = CGSize(width: geo.size.width, height: min(geo.size.height, Metrics.fullHeight))
             ZStack {
                 if partnerSets != nil {
-                    partnerBranch(in: size)
+                    partnerBranch(in: size, room: geo.size.height - size.height + Metrics.gapBelow)
                 }
 
                 CurvePath(curve: stemCurve(in: size))
@@ -94,7 +99,7 @@ struct SessionStageBranch: View {
                 }
             }
         }
-        .frame(minHeight: Metrics.minimumHeight, idealHeight: Metrics.minimumHeight, maxHeight: Metrics.maximumHeight)
+        .frame(minHeight: Metrics.minimumHeight, idealHeight: Metrics.minimumHeight, maxHeight: .infinity)
         .frame(maxWidth: .infinity)
         .animation(reduceMotion ? nil : Theme.wingAnimation(duration: Theme.Motion.leafInk), value: activeSetID)
         .animation(reduceMotion ? nil : Theme.wingAnimation(duration: Theme.Motion.leafInk), value: sets.count)
@@ -174,26 +179,29 @@ struct SessionStageBranch: View {
 
     // MARK: - Partner lateral
 
+    /// `room` is the height under the drawing that the lateral may hang into. Its droop and blades
+    /// shrink with the drawing, and further when its full hang would not fit in `room`.
     @ViewBuilder
-    private func partnerBranch(in size: CGSize) -> some View {
-        let fork = stemPoint(t: PartnerMetrics.forkT, in: size)
+    private func partnerBranch(in size: CGSize, room: CGFloat) -> some View {
+        let scale = min(heightScale(size), room / PartnerMetrics.hang)
+        let curve = partnerCurve(in: size, droop: PartnerMetrics.droop * scale)
         ZStack {
-            CurvePath(curve: partnerCurve(fork: fork, in: size))
+            CurvePath(curve: curve)
                 .stroke(
                     palette.supersetPartnerBranch,
                     style: StrokeStyle(lineWidth: PartnerMetrics.stemWidth, lineCap: .round)
                 )
 
             ForEach(Array(partnerNodes.enumerated()), id: \.element.set.persistentModelID) { index, node in
-                let point = partnerPoint(t: partnerNodeT(index), fork: fork, in: size)
-                let angle = partnerAngle(t: partnerNodeT(index), fork: fork, in: size)
+                let t = partnerNodeT(index)
+                let tangent = curve.tangent(at: t)
                 partnerGlyph(
                     node.state,
                     below: index.isMultiple(of: 2),
-                    angle: angle,
-                    leafLength: PartnerMetrics.leafLength * heightScale(size)
+                    angle: Angle(radians: atan2(tangent.dy, tangent.dx)),
+                    leafLength: PartnerMetrics.leafLength * scale
                 )
-                .position(point)
+                .position(curve.point(at: t))
             }
         }
         // The partner is a passive lateral — it never receives focus taps (the
@@ -237,15 +245,6 @@ struct SessionStageBranch: View {
             .rotationEffect(angle + tilt)
     }
 
-    private func partnerTip(in size: CGSize) -> CGPoint {
-        CGPoint(x: size.width * PartnerMetrics.endX, y: size.height * PartnerMetrics.endY)
-    }
-
-    private func partnerControl(fork: CGPoint, in size: CGSize) -> CGPoint {
-        let tip = partnerTip(in: size)
-        return CGPoint(x: (fork.x + tip.x) / 2, y: (fork.y + tip.y) / 2 + PartnerMetrics.droop * heightScale(size))
-    }
-
     private func partnerNodeT(_ index: Int) -> CGFloat {
         BranchNodeLayout.nodeT(
             index: index,
@@ -256,17 +255,12 @@ struct SessionStageBranch: View {
         )
     }
 
-    private func partnerCurve(fork: CGPoint, in size: CGSize) -> QuadraticBezier {
-        QuadraticBezier(start: fork, control: partnerControl(fork: fork, in: size), end: partnerTip(in: size))
-    }
-
-    private func partnerPoint(t: CGFloat, fork: CGPoint, in size: CGSize) -> CGPoint {
-        partnerCurve(fork: fork, in: size).point(at: t)
-    }
-
-    private func partnerAngle(t: CGFloat, fork: CGPoint, in size: CGSize) -> Angle {
-        let tangent = partnerCurve(fork: fork, in: size).tangent(at: t)
-        return Angle(radians: atan2(tangent.dy, tangent.dx))
+    /// The lateral forks off the focused stem and bows `droop` below the straight line to its tip.
+    private func partnerCurve(in size: CGSize, droop: CGFloat) -> QuadraticBezier {
+        let fork = stemPoint(t: PartnerMetrics.forkT, in: size)
+        let tip = CGPoint(x: size.width * PartnerMetrics.endX, y: size.height * PartnerMetrics.endY)
+        let control = CGPoint(x: (fork.x + tip.x) / 2, y: (fork.y + tip.y) / 2 + droop)
+        return QuadraticBezier(start: fork, control: control, end: tip)
     }
 
     // MARK: - Stem geometry
@@ -290,10 +284,10 @@ struct SessionStageBranch: View {
         return QuadraticBezier(start: p0, control: control, end: p1)
     }
 
-    /// 1 at full height, so the full drawing is the one the pick settled. Below it the bows and the
-    /// partner's blades shrink with the branch.
+    /// 1 at full height, so the full drawing is the one the pick settled. A shorter drawing lowers
+    /// the stem's bow in proportion.
     private func heightScale(_ size: CGSize) -> CGFloat {
-        size.height / Metrics.maximumHeight
+        size.height / Metrics.fullHeight
     }
 
     /// A point on the climbing stem at parameter `t`.

@@ -357,8 +357,9 @@ foliage with cream ribs, and the active leaf carries the page's one glow.
   never does: first the air under the branch, then the branch's height,
   which flattens from 156pt to a 70pt floor; then Last Performed; then the
   Cadence line; then the coach note; and only then the branch, which leaves
-  the Exercise name above the card. The sync banner comes and goes without
-  moving the card or its Log capsule.
+  the Exercise name above the card. A Superset's drooping lateral lifts and
+  shortens its leaves as the air under it closes. The sync banner comes and
+  goes without moving the card or its Log capsule.
 - **When a finished Session runs short**, the Open Exercises list under the
   summary leaves when it does not fit, so Move On always fits. The queue
   sheet still lists the Open Exercises.

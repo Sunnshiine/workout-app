@@ -222,6 +222,7 @@ struct SessionStageView: View {
                     Spacer(minLength: 12)
                 }
                 Spacer(minLength: 12)
+                    .emptyFallbackNode()
             }
 
             if workout.isViewingLiveEdge, workout.canMoveOn {
@@ -377,12 +378,11 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // The flexible child of every rung but the last. The branch takes what the words and the card
-    // leave, up to its full height, and the rest is air under it.
+    // The flexible child of every rung but the last. The branch fills what the words and the card
+    // leave and draws at the top of it.
     private var branchRegion: some View {
         branch()
             .padding(.top, 4)
-            .frame(maxHeight: .infinity, alignment: .top)
     }
 
     @ViewBuilder
@@ -406,11 +406,17 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
         }
     }
 
-    // Falling back to a candidate with no accessibility node leaves the last drawn candidate's
-    // elements in the tree, so the empty fallback carries an empty one.
     private var emptyFallback: some View {
         Color.clear.frame(height: 0)
-            .accessibilityElement(children: .contain)
+            .emptyFallbackNode()
+    }
+}
+
+extension View {
+    /// Falling back to a `ViewThatFits` candidate with no accessibility node leaves the last drawn
+    /// candidate's elements in the tree, so a fallback that draws nothing carries an empty one.
+    fileprivate func emptyFallbackNode() -> some View {
+        accessibilityElement(children: .contain)
     }
 }
 
