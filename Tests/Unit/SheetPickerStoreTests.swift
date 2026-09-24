@@ -241,6 +241,7 @@ private final class ControlledValidationClient: SheetsClient {
 
     private var heldRequests: [String: HeldCall] = [:]
     private var completedTitles: [String: [String]] = [:]
+    private var gaveUp = false
 
     func listTabTitles(spreadsheetId: String) async throws -> [String] {
         await heldRequest(for: spreadsheetId).hold()
@@ -259,8 +260,11 @@ private final class ControlledValidationClient: SheetsClient {
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
 
     func waitForRequest(spreadsheetId: String) async {
-        await heldRequest(for: spreadsheetId)
-            .waitUntilHeld(orRecord: "the validation never requested the tab titles of \(spreadsheetId)")
+        let request = heldRequest(for: spreadsheetId)
+        await request.waitUntilHeld(orRecord: "the validation never requested the tab titles of \(spreadsheetId)")
+        guard !request.isHeld else { return }
+        gaveUp = true
+        for held in heldRequests.values { held.abandon() }
     }
 
     func complete(spreadsheetId: String, titles: [String]) {
@@ -271,6 +275,7 @@ private final class ControlledValidationClient: SheetsClient {
     private func heldRequest(for spreadsheetId: String) -> HeldCall {
         if let request = heldRequests[spreadsheetId] { return request }
         let request = HeldCall()
+        if gaveUp { request.abandon() }
         heldRequests[spreadsheetId] = request
         return request
     }

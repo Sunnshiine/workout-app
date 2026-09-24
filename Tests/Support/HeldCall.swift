@@ -1,7 +1,7 @@
 import Testing
 
 /// Parks at most `parks` calls, one at a time, and returns at once from a call made while another
-/// is held, after the budget is spent, or after a poll gave up. A continuation ignores the time
+/// is held, after the budget is spent, or after `abandon()`. A continuation ignores the time
 /// limit's cancellation, so a call parked where no release reaches it would hang the run.
 @MainActor
 final class HeldCall {
@@ -25,7 +25,7 @@ final class HeldCall {
             if isHeld { return }
             await Task.yield()
         }
-        parksLeft = 0
+        abandon()
         Issue.record(failure, sourceLocation: sourceLocation)
     }
 
@@ -33,5 +33,10 @@ final class HeldCall {
         let continuation = parked
         parked = nil
         continuation?.resume()
+    }
+
+    func abandon() {
+        parksLeft = 0
+        release()
     }
 }
