@@ -1059,8 +1059,8 @@ CREATE_PRO = ("xcrun simctl create iPhone 17 Pro com.apple.CoreSimulator.SimDevi
               "com.apple.CoreSimulator.SimRuntime.iOS-27-0")
 
 
-def device(name, udid, state="Shutdown"):
-    return {"name": name, "udid": udid, "state": state, "isAvailable": True}
+def device(name, udid, state="Shutdown", available=True):
+    return {"name": name, "udid": udid, "state": state, "isAvailable": available}
 
 
 def pick_udid(serial):
@@ -1106,7 +1106,8 @@ class SimulatorPick(unittest.TestCase):
         self.locks += [d["udid"] for ds in devices.values() for d in ds]
         catalog = {"runtimes": runtimes, "devicetypes": devicetypes, "devices": devices}
         (self.stubs / "catalog.json").write_text(json.dumps(catalog))
-        (self.stubs / "devices.json").write_text(json.dumps({"devices": devices}))
+        available = {runtime: [d for d in ds if d["isAvailable"]] for runtime, ds in devices.items()}
+        (self.stubs / "devices.json").write_text(json.dumps({"devices": available}))
 
     def fresh_machine(self):
         self.machine([IOS_26_5, IOS_27_0], [PRO, PRO_MAX, AIR], {
@@ -1173,19 +1174,27 @@ class SimulatorPick(unittest.TestCase):
                                             % self.created))
 
     def test_a_missing_runtime_or_device_type_fails_with_what_the_machine_has(self):
+        unavailable = pick_udid(4)
+        no_type = "Xcode has no iPhone 17 Pro device type. available:\n  iPhone 17 Pro Max\n  iPhone Air\n"
         machines = {
-            "no iOS 27.0": ([IOS_26_5], [PRO, PRO_MAX], "no available iOS 27.0 runtime. available: 26.5\n"),
+            "no iOS 27.0": ([IOS_26_5], [PRO, PRO_MAX], {IOS_26_5["identifier"]: []},
+                            "no available iOS 27.0 runtime. available: 26.5\n"),
             "no iPhone 17 Pro": ([IOS_26_5, IOS_27_0], [PRO_MAX, AIR],
-                                 "Xcode has no iPhone 17 Pro device type. available:\n  iPhone 17 Pro Max\n  iPhone Air\n"),
+                                 {IOS_26_5["identifier"]: [], IOS_27_0["identifier"]: []}, no_type),
+            "an unavailable iPhone 17 Pro and no type": (
+                [IOS_26_5, IOS_27_0], [PRO_MAX, AIR],
+                {IOS_27_0["identifier"]: [device("iPhone 17 Pro", unavailable, available=False)]}, no_type),
         }
-        for machine, (runtimes, devicetypes, message) in machines.items():
+        for machine, (runtimes, devicetypes, devices, message) in machines.items():
             for script, run in [("test-sim.sh", self.run_test_sim), ("verify.sh launch", self.launch)]:
                 with self.subTest(machine=machine, script=script):
-                    self.machine(runtimes, devicetypes, {r["identifier"]: [] for r in runtimes})
+                    self.machine(runtimes, devicetypes, devices)
                     code, out, err, calls = run()
                     self.assertEqual((code, out, err), (1, "", message))
                     self.assertEqual(calls, ["xcrun simctl list devices available -j", "xcrun simctl list -j"],
                                      "nothing is created, booted, locked, or built")
+                    self.assertFalse(Path("/tmp/workout-verify-%s" % unavailable).exists(),
+                                     "the unavailable one is never claimed")
 
     def test_an_existing_iphone_17_pro_is_picked_booted_first_then_newest_and_nothing_is_created(self):
         old, new = pick_udid(0x2605), pick_udid(0x2700)
