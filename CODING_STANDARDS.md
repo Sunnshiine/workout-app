@@ -80,7 +80,7 @@ may do. Read a trailing issue or symbol when a bullet does not settle a hunk.
   it. A complexity-1 function scores 2 uncovered, under the target.
 
 Four shapes a regex can catch are SwiftLint errors in `.swiftlint.yml` (#637). The review still
-judges what each regex misses, and a false positive is fixed in the code or exempted with a reason:
+judges what each regex misses. A hit is fixed in the code, or exempted on its line with a reason:
 
 - `unstructured_task_is_held` skips `App/Views/`, where `Button { Task { … } }` is the idiom, so the
   review judges a View method that starts a Task writing a store field. The rule reads only a line

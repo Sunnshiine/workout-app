@@ -1,8 +1,7 @@
 import Testing
 
-/// Parks one call until the test releases it. A call that arrives while another is held, or after
-/// `waitUntilHeld` gave up, returns at once: a continuation ignores the time limit's cancellation,
-/// so a call parked where no release will reach it would hang the run.
+/// A continuation ignores the time limit's cancellation, so a call parked where no release will
+/// reach it would hang the run.
 @MainActor
 final class HeldCall {
     private enum State {

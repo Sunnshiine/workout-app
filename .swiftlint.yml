@@ -80,13 +80,6 @@ custom_rules:
   # The vacuous-test trap (issues #608, #636). `message:` below is the reason a reader gets at the
   # violation; this is the reason the pattern has the shape it has.
   #
-  # The predicate is "every assertion is inside the guard", not "the body opens with one". A test can
-  # lead with a comment or a binding and still assert nothing, so the `#if` may follow comment lines
-  # and `let`/`var` bindings that fit on one line with no brace. A binding that holds a closure or
-  # spans lines, and any other statement, ends the match (CODING_STANDARDS.md lists the misses). Its
-  # `#endif` must then reach the closing brace: a test that also asserts outside the guard runs for
-  # real on both platforms, and moving its guard up would delete assertions that belong on iOS.
-  #
   # An `#if`/`#else` pair in a test body matches too, as it did under the #608 rule. That is #632's
   # call and it stands: two branches want two guarded declarations, not one test that means
   # different things per platform. `message:` says so, because the plain advice would be wrong there.
