@@ -37,7 +37,8 @@ Usage: .claude/skills/verify/verify.sh <command> [args]
   axe ARG...                  raw axe call with --udid filled in
 Environment: SIM (simulator UDID, default the booted iPhone 17 Pro, else the newest one, booted for you;
                   launch boots a named one too, and waits for either boot to finish; with no iPhone
-                  17 Pro, build and launch create one on iOS 27.0 and every other command exits 1),
+                  17 Pro, build and launch create one on iOS 27.0, and every other command that
+                  looks one up exits 1),
              VERIFY_RUN (names the run; give it to launch and every later command remembers it),
              VERIFY_LIVE_ACTIVITIES=1 (launch without -UITEST_DISABLE_LIVE_ACTIVITIES; for
              features/live-activity.md, and its shots carry the activity overlay).
