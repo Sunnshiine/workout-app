@@ -14,7 +14,8 @@
 # knows about, and every tree must have at least one linted file. That refuses both ways a tree can
 # leave the gate: an `included:` root that is misspelled or moved, and an `excluded:` entry that
 # covers a whole tree. A narrow exclusion passes. `**/Generated` drops generated code inside a tree,
-# and the rest of the tree is still linted.
+# and the rest of the tree is still linted. A generated or vendored directory directly inside a root
+# is a tree itself, so that code belongs one level deeper, where a narrow entry can drop it.
 #
 #   scripts/lint.sh                  lint (what CI runs)
 #   scripts/lint.sh --fix            autocorrect what SwiftLint can, then lint
@@ -59,6 +60,13 @@ if [ "$MODE" = "print-version" ]; then
     exit 0
 fi
 
+# SwiftLint writes its benchmark files into ROOT, so a second run in this checkout waits here rather
+# than deleting or reading the first run's files.
+if [ -z "${LINT_SH_LOCKED:-}" ]; then
+    LOCK="$(git rev-parse --git-dir)/lint.lock"
+    LINT_SH_LOCKED=1 exec lockf "$LOCK" "$ROOT/scripts/lint.sh" "$@"
+fi
+
 # SwiftLintPlugins is a thin wrapper: its Package.swift declares one binaryTarget pointing at this
 # exact artifact bundle. Fetching it here is not "the same version number" as the plugin, it is the
 # same binary, so CI and the app build cannot disagree about what a violation is.
@@ -88,6 +96,8 @@ included_roots() {
          inside && /^[[:space:]]*-[[:space:]]/ {
              sub(/^[[:space:]]*-[[:space:]]*/, "")
              gsub(/^"|"$/, "")
+             sub(/^\.\//, "")
+             sub(/\/+$/, "")
              print
          }' "$CONFIG"
 }
@@ -98,45 +108,49 @@ if [ -z "$ROOTS" ]; then
     exit 1
 fi
 
-# Reads SwiftLint's benchmark file list. Prints `typo <root>` for a root with no Swift file that
-# SwiftLint linted or git knows about, and `widened <tree>` for a tree whose Swift files SwiftLint
-# linted none of. A root with no linted file is reported alone, not again for each tree inside it.
+# Prints `typo <root>` for a root holding no Swift file git knows about, and `widened <tree>` for a
+# tree whose Swift files SwiftLint linted none of. A root with no linted file is reported alone, not
+# again for each tree inside it.
 tree_failures() {
+    local roots=$1 known=$2 deleted=$3 linted=$4 physical_root=$5
     {
-        printf '%s\n' "$ROOTS" | sed 's/^/root /'
-        git -c core.quotePath=false ls-files --deleted -- '*.swift' | sed 's/^/gone /'
-        git -c core.quotePath=false ls-files --cached --others --exclude-standard -- '*.swift' |
-            sed 's/^/known /'
-        sed 's/^[^:]*: /linted /' "$1"
-    } | awk -v prefix="$ROOT/" '
-        $1 == "root" { roots[++n] = substr($0, 6); next }
-        $1 == "gone" { gone[substr($0, 6)] = 1; next }
-        $1 == "known" && (substr($0, 7) in gone) { next }
+        printf '%s\n' "$roots" | sed 's/^/root /'
+        printf '%s\n' "$deleted" | sed 's/^/gone /'
+        printf '%s\n' "$known" | sed 's/^/known /'
+        sed 's/^[^:]*: /linted /' "$linted"
+    } | awk -v physical="$physical_root" '
+        { tag = $1; path = substr($0, length(tag) + 2) }
+        tag == "root" { roots[++n] = path; next }
+        tag == "gone" { gone[path] = 1; next }
+        tag == "known" && (path in gone) { next }
+        # SwiftLint writes each path with symlinks resolved and a leading /private dropped.
+        tag == "linted" {
+            if (index("/private" path, physical "/") == 1) path = "/private" path
+            if (index(path, physical "/") == 1) path = substr(path, length(physical) + 2)
+        }
         {
-            path = substr($0, length($1) + 2)
-            if (index(path, prefix) == 1) path = substr(path, length(prefix) + 1)
             for (i = 1; i <= n; i++) {
                 r = roots[i]
                 if (path != r && index(path, r "/") != 1) continue
-                count[$1, r]++
+                count[tag, r]++
                 rest = substr(path, length(r) + 2)
                 slash = index(rest, "/")
                 if (slash == 0) continue
                 tree = r "/" substr(rest, 1, slash - 1)
-                count[$1, tree]++
-                if ($1 == "known" && !(tree in seen)) { seen[tree] = 1; trees[++t] = tree; parent[t] = r }
+                count[tag, tree]++
+                if (tag == "known" && !(tree in seen)) { seen[tree] = 1; trees[++t] = tree; parent[t] = r }
             }
         }
         END {
             for (i = 1; i <= n; i++) {
                 r = roots[i]
-                if (count["linted", r]) {
-                    for (j = 1; j <= t; j++)
-                        if (parent[j] == r && !count["linted", trees[j]]) print "widened " trees[j]
-                } else if (count["known", r]) {
+                if (!count["known", r]) {
+                    print "typo " r
+                } else if (!count["linted", r]) {
                     print "widened " r
                 } else {
-                    print "typo " r
+                    for (j = 1; j <= t; j++)
+                        if (parent[j] == r && !count["linted", trees[j]]) print "widened " trees[j]
                 }
             }
         }'
@@ -166,7 +180,10 @@ if [ ! -f "$LINTED" ]; then
     exit 1
 fi
 
-FAILURES="$(tree_failures "$LINTED")"
+# Top-level assignments, so a git failure stops the run here instead of emptying the list of trees.
+KNOWN="$(git -c core.quotePath=false ls-files --cached --others --exclude-standard -- '*.swift')"
+DELETED="$(git -c core.quotePath=false ls-files --deleted -- '*.swift')"
+FAILURES="$(tree_failures "$ROOTS" "$KNOWN" "$DELETED" "$LINTED" "$(pwd -P)")"
 while read -r kind tree; do
     case "$kind" in
         typo)
@@ -177,7 +194,9 @@ while read -r kind tree; do
         widened)
             echo "error: '$tree' holds Swift files, but SwiftLint linted none of them." >&2
             echo "       An 'excluded:' entry in $CONFIG covers the whole tree, so the gate would lint" >&2
-            echo "       less than it claims. Narrow the entry to the generated or vendored path inside the tree." >&2
+            echo "       less than it claims. Exclude a path inside the tree instead. If the tree is" >&2
+            echo "       generated or vendored code, move it below the first level of its 'included:'" >&2
+            echo "       root, so it sits inside a tree and a narrow entry can drop it." >&2
             ;;
     esac
 done <<FAILURES_EOF
