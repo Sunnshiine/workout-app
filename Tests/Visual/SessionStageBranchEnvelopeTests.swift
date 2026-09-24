@@ -4,20 +4,20 @@ import UIKit
 
 @testable import WorkoutTracker
 
-/// The branch at every height the reading column can give it, from its floor to its full 156pt
-/// (#599). The coach note ends 18pt above the branch frame and Last Performed or the card starts
-/// 14pt below it, so the ink stays within 14pt above and 10pt below the frame, and a leaf's tap box
-/// within 4pt above and never below. Every blade is drawn full length: all Sets but the active one
-/// are logged, on the partner too.
+/// The branch in every frame the reading column can give it, from its floor past its full 156pt
+/// drawing (#599). The coach note ends 18pt above the frame (the 4pt padding and the column's 14pt
+/// gap) and Last Performed or the card starts 14pt below it, so the ink stays inside those gaps and a
+/// leaf's tap box within 4pt above the frame and never below it. Every blade is drawn full length:
+/// all Sets but the active one are logged, on the partner too.
 @MainActor
 @Suite
 struct SessionStageBranchEnvelopeTests {
-    @Test(arguments: [70, 90, 120] as [CGFloat], [3, 5, 8])
+    @Test(arguments: [70, 90, 120, 156, 167] as [CGFloat], [3, 5, 8])
     func theExerciseBranchStaysInsideTheGapsAroundIt(height: CGFloat, setCount: Int) throws {
         let branch = Branch(setCount: setCount, partnerSetCount: nil)
         let ink = try #require(try branch.inkExtent(height: height), "the branch draws at \(height)pt")
-        #expect(ink.top >= -14)
-        #expect(ink.bottom <= height + 10)
+        #expect(ink.top >= -18)
+        #expect(ink.bottom <= height + 14)
 
         let taps = try branch.tapBoxes(height: height)
         #expect(taps.count == setCount, "every Set has a leaf to tap")
@@ -25,20 +25,18 @@ struct SessionStageBranchEnvelopeTests {
         #expect(taps.map(\.maxY).max() ?? 0 <= height)
     }
 
-    @Test(arguments: [70, 90, 120] as [CGFloat], [3, 5, 8])
+    @Test(arguments: [70, 90, 120, 156, 167] as [CGFloat], [3, 5, 8])
     func theSupersetBranchKeepsItsLateralInsideTheGapsAroundIt(height: CGFloat, setCount: Int) throws {
         let branch = Branch(setCount: setCount, partnerSetCount: 3)
         let ink = try #require(try branch.inkExtent(height: height), "the forked branch draws at \(height)pt")
-        #expect(ink.top >= -14)
-        #expect(ink.bottom <= height + 10)
+        #expect(ink.top >= -18)
+        #expect(ink.bottom <= height + 14)
     }
 
-    @Test func theBranchNeverDrawsShorterThanItsFloorNorTallerThan156() {
-        let branch = Branch(setCount: 3, partnerSetCount: nil).view
-        let controller = UIHostingController(rootView: branch.environment(\.themePalette, Theme.palette(for: .day)))
-        #expect(controller.sizeThatFits(in: CGSize(width: 370, height: 20)).height == 70)
-        #expect(controller.sizeThatFits(in: CGSize(width: 370, height: 100)).height == 100)
-        #expect(controller.sizeThatFits(in: CGSize(width: 370, height: 400)).height == 156)
+    @Test func theBranchFillsItsRegionAndNeverFallsBelowItsFloor() throws {
+        let branch = Branch(setCount: 3, partnerSetCount: nil)
+        let heights = try ([20, nil, 300] as [CGFloat?]).map { try branch.height(proposing: $0) }
+        #expect(heights == [70, 70, 300])
     }
 }
 
@@ -55,6 +53,14 @@ private struct Branch {
             partnerSets: partnerSetCount.map { Self.sets(count: $0, order: 1, allLogged: true) },
             onTap: partnerSetCount == nil ? { _ in } : nil
         )
+    }
+
+    /// The height the branch takes when the column proposes `proposal` (`nil` asks for its ideal).
+    func height(proposing proposal: CGFloat?) throws -> CGFloat {
+        let renderer = ImageRenderer(content: view.environment(\.themePalette, Theme.palette(for: .day)))
+        renderer.proposedSize = ProposedViewSize(width: 370, height: proposal)
+        renderer.scale = 1
+        return CGFloat(try #require(renderer.cgImage).height)
     }
 
     /// The inked rows of an offscreen render, in points from the top of a `height` frame.

@@ -55,7 +55,23 @@ struct SessionStageLayoutTests {
         )
     }
 
-    @Test func theSupersetStageKeepsItsBranchUnderAOneLineBanner() throws {
+    @Test func theSupersetStageKeepsItsBranchAtRestAndUnderAOneLineBanner() throws {
+        let restOnly = try SessionPageHost.layout(.superset, banner: .outcome(.clear), windowHeight: 874)
+        #expect(
+            restOnly
+                == PageFrames(
+                    banner: nil,
+                    stage: CGRect(x: 0, y: 62, width: 402, height: 778),
+                    cadence: CGRect(x: 16, y: 133, width: 32, height: 16),
+                    name: CGRect(x: 16, y: 163, width: 123, height: 41),
+                    partner: CGRect(x: 16, y: 207, width: 125, height: 25),
+                    note: CGRect(x: 16, y: 245, width: 262, height: 22),
+                    leaves: [],
+                    branchIsDrawn: true,
+                    lastPerformed: nil,
+                    card: CGRect(x: 16, y: 418, width: 370, height: 308)
+                )
+        )
         let oneLine = try SessionPageHost.layout(.superset, banner: .outcome(.writesQueued(1)), windowHeight: 874)
         #expect(
             oneLine
