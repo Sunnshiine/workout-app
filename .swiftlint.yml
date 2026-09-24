@@ -27,6 +27,8 @@ included:
   - App
   - Sources
   - Tests
+  - WorkoutShared
+  - WorkoutWidgets
 
 excluded:
   - .build
@@ -78,12 +80,6 @@ custom_rules:
   # The vacuous-test trap (issues #608, #636). `message:` below is the reason a reader gets at the
   # violation; this is the reason the pattern has the shape it has.
   #
-  # The predicate is "every assertion is inside the guard", not "the body opens with one". A test can
-  # lead with a comment or a binding and still assert nothing, so the `#if` may follow comment and
-  # `let`/`var` lines. Its `#endif` must then reach the closing brace: a test that also asserts
-  # outside the guard runs for real on both platforms, and moving its guard up would delete
-  # assertions that belong on iOS.
-  #
   # An `#if`/`#else` pair in a test body matches too, as it did under the #608 rule. That is #632's
   # call and it stands: two branches want two guarded declarations, not one test that means
   # different things per platform. `message:` says so, because the plain advice would be wrong there.
@@ -105,7 +101,7 @@ custom_rules:
       await structured work instead. A dropped Task { } raced shared sync state in #585 and #514.
     regex: '^[ \t]*Task(\.detached)?[ \t]*(\([^)\n]*\))?[ \t]*\{'
     included:
-      - '.*/(App|Sources)/.*'
+      - '.*/(App|Sources|WorkoutShared|WorkoutWidgets)/.*'
       - '.*/Tests/.*'
     excluded:
       - '.*/App/Views/.*'
@@ -121,8 +117,8 @@ custom_rules:
       nil is a third answer here. Unwrap and decide it (guard let, or ?? with the answer nil means
       here) so a missing value cannot read as "not busy" or "not pending" (CODING_STANDARDS.md
       §optionals, #582).
-    regex: '(\?\.[A-Za-z_][\w.]*(\([^)]*\))?|\(try\?[^\n]*\)|\.(map|flatMap)\([^\n]*\))\s*[!=]=\s*(true|false)\b'
-    included: '.*/(App|Sources)/.*'
+    regex: '(\?\.[A-Za-z_][\w.]*(\([^)]*\))?|\(try\?[^\n]*\)|\.(map|flatMap)\s*(\([^\n]*\)|\{[^\n]*\}))\s*[!=]=\s*(true|false)\b'
+    included: '.*/(App|Sources|WorkoutShared|WorkoutWidgets)/.*'
     excluded_match_kinds:
       - comment
       - doccomment
@@ -150,7 +146,8 @@ custom_rules:
     message: >
       Check a condition, bound the loop, and record a failure when it runs out (for _ in 0..<10_000
       { if done { return }; await Task.yield() }; Issue.record(…)). An unbounded yield loop hangs CI
-      instead of failing, and a counted one flakes.
+      instead of failing, and a counted one flakes. A fake that parks a call uses `HeldCall` in
+      `Tests/Support/`, which also returns the call once the poll gives up.
     regex: '(\bwhile\b[^\n{]*|\brepeat\s*|\bfor\s+_\s+in\b[^\n{]*)\{\s*(try\s+)?await\s+Task\.yield\(\)\s*\}'
     included: '.*/Tests/.*'
     excluded_match_kinds:
