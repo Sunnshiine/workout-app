@@ -12,6 +12,7 @@ Usage: scripts/test-sim.sh [--no-build] [--sim UDID] <unit|visual|ui|all|TEST-ID
 Builds once with build-for-testing, then runs every requested suite in one test-without-building
 session from the xctestrun file. --no-build reuses the last build when only the selection changed.
 The simulator is the booted iPhone 17 Pro, else the newest available one, which the script boots.
+With no iPhone 17 Pro at all it creates one on iOS 27.0 (scripts/ensure-simulator.sh) and boots that.
 Refuses (exit 75) while another test-sim.sh run or a verify run's app holds that simulator.
 EOF
   exit 2
@@ -39,17 +40,9 @@ while [ $# -gt 0 ]; do
 done
 [ ${#targets[@]} -gt 0 ] || usage
 
-if [ -z "$sim" ]; then
-  sim=$(xcrun simctl list devices available -j | python3 -c '
-import json, sys
-def version(runtime): return tuple(int(n) for n in runtime.rsplit("iOS-", 1)[-1].split("-"))
-devices = [(version(runtime), d) for runtime, ds in json.load(sys.stdin)["devices"].items() for d in ds if d["name"] == "iPhone 17 Pro"]
-booted = [d for d in devices if d[1]["state"] == "Booted"]
-pick = max(booted or devices, key=lambda pair: pair[0])[1]
-print(pick["udid"], pick["state"])')
-  read -r sim state <<< "$sim"
-  [ "$state" = Booted ] || xcrun simctl boot "$sim"
-fi
+picked=$(pick_sim "$sim")
+read -r sim state <<< "$picked"
+[ "$state" = Booted ] || xcrun simctl boot "$sim"
 claim_sim "$sim" "test-sim.sh run"
 destination="platform=iOS Simulator,id=$sim"
 

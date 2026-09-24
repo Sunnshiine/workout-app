@@ -35,7 +35,8 @@ Usage: .claude/skills/verify/verify.sh <command> [args]
                               says when the run has shots that are not on a sheet yet. A run
                               launched with Live Activities on is uninstalled, which ends them
   axe ARG...                  raw axe call with --udid filled in
-Environment: SIM (simulator UDID, default the booted iPhone 17 Pro, else the newest one, booted for you;
+Environment: SIM (simulator UDID, default the booted iPhone 17 Pro, else the newest one, else one
+                  created on iOS 27.0, booted for you;
                   launch boots a named one too, and waits for either boot to finish),
              VERIFY_RUN (names the run; give it to launch and every later command remembers it),
              VERIFY_LIVE_ACTIVITIES=1 (launch without -UITEST_DISABLE_LIVE_ACTIVITIES; for
@@ -58,24 +59,11 @@ sim=
 sim_state=
 state_dir=
 
-pick_sim() {
-  xcrun simctl list devices available -j | python3 -c '
-import json, sys
-def version(runtime): return tuple(int(n) for n in runtime.rsplit("iOS-", 1)[-1].split("-"))
-devices = [(version(runtime), d) for runtime, ds in json.load(sys.stdin)["devices"].items() for d in ds if d["name"] == "iPhone 17 Pro"]
-booted = [d for d in devices if d[1]["state"] == "Booted"]
-pick = max(booted or devices, key=lambda pair: pair[0])[1]
-print(pick["udid"], pick["state"])'
-}
-
 resolve_sim() {
   [ -n "$sim" ] && return 0
-  if [ -n "${SIM:-}" ]; then
-    sim=$SIM
-    sim_state=Booted
-  else
-    read -r sim sim_state <<< "$(pick_sim)"
-  fi
+  local picked
+  picked=$(pick_sim "${SIM:-}") || exit
+  read -r sim sim_state <<< "$picked"
   state_dir=/tmp/workout-verify-$sim
 }
 

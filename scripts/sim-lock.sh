@@ -1,4 +1,28 @@
 # shellcheck shell=bash
+# Prints the UDID a run drives, which is also its lock key, and that simulator's state. A named UDID
+# counts as Booted because neither script boots a simulator it was handed. With no iPhone 17 Pro at all
+# it creates one on iOS 27.0, the runtime the Visual baselines were recorded on (ci.yml pins the same).
+pick_sim() {
+  local picked
+  if [ -n "$1" ]; then
+    picked=$(printf %s "$1" | tr '[:lower:]' '[:upper:]')
+    echo "$picked Booted"
+    return
+  fi
+  picked=$(xcrun simctl list devices available -j | python3 -c '
+import json, sys
+def version(runtime): return tuple(int(n) for n in runtime.rsplit("iOS-", 1)[-1].split("-"))
+devices = [(version(runtime), d) for runtime, ds in json.load(sys.stdin)["devices"].items() for d in ds if d["name"] == "iPhone 17 Pro"]
+booted = [d for d in devices if d[1]["state"] == "Booted"]
+if devices:
+    pick = max(booted or devices, key=lambda pair: pair[0])[1]
+    print(pick["udid"], pick["state"])') || return
+  if [ -z "$picked" ]; then
+    picked="$("$(dirname "${BASH_SOURCE[0]}")/ensure-simulator.sh" 'iPhone 17 Pro' 27.0) Shutdown" || return
+  fi
+  echo "$picked"
+}
+
 sim_flock() {
   local lock=/tmp/workout-verify-$1/lock rc=0
   python3 -c 'import fcntl, sys, time
