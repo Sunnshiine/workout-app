@@ -33,7 +33,8 @@ Usage: .claude/skills/verify/verify.sh <command> [args]
                               says when the run has shots that are not on a sheet yet. A run
                               launched with Live Activities on is uninstalled, which ends them
   axe ARG...                  raw axe call with --udid filled in
-Environment: SIM (simulator UDID, default the booted iPhone 17 Pro, else the newest one, booted for you),
+Environment: SIM (simulator UDID, default the booted iPhone 17 Pro, else the newest one, booted for you;
+                  launch boots a named one too, and waits for either boot to finish),
              VERIFY_RUN (names the run; give it to launch and every later command remembers it),
              VERIFY_LIVE_ACTIVITIES=1 (launch without -UITEST_DISABLE_LIVE_ACTIVITIES; for
              features/live-activity.md, and its shots carry the activity overlay).
@@ -194,11 +195,14 @@ case $cmd in
   launch)
     fixture=${1:-}; [ -n "$fixture" ] || usage; shift
     fixture_flags=$(fixture_args "$fixture")
-    need_sim
+    resolve_sim
     claim_sim "$sim" "verify.sh launch"
-    ensure_axe
     app=$(app_path)
     [ -d "$app" ] || { echo "no built app for $project; run: $0 build" >&2; exit 65; }
+    # bootstatus exits 0 when a shutdown ends the boot.
+    without_sim_lock xcrun simctl bootstatus "$sim" -b >/dev/null && xcrun simctl list devices booted | grep -q "$sim" \
+      || { echo "simulator $sim did not boot" >&2; exit 70; }
+    ensure_axe
     read -r -a extra <<< "$fixture_flags"
     activities=(-UITEST_DISABLE_LIVE_ACTIVITIES)
     [ -z "${VERIFY_LIVE_ACTIVITIES:-}" ] || activities=()

@@ -7,9 +7,7 @@
 # (issue #607). This runs the same binary the plugin runs, over the same config, with no build.
 #
 # The run takes no path arguments on purpose. SwiftLint's `included:` overrides command-line paths,
-# so a script that passes its own list lints something other than what it names. With no arguments
-# `included:` is the only thing deciding what is linted, and the check below refuses to run when an
-# entry reaches no Swift file, which is the one way a tree could drop out of the gate unnoticed.
+# so a script that passes its own list lints something other than what it names.
 #
 #   scripts/lint.sh                  lint (what CI runs)
 #   scripts/lint.sh --fix            autocorrect what SwiftLint can, then lint
@@ -54,6 +52,13 @@ if [ "$MODE" = "print-version" ]; then
     exit 0
 fi
 
+# SwiftLint writes its benchmark files into ROOT, so a second run in this checkout waits here rather
+# than deleting or reading the first run's files.
+if [ -z "${LINT_SH_LOCKED:-}" ]; then
+    LOCK="$(git rev-parse --git-dir)/lint.lock"
+    LINT_SH_LOCKED=1 exec lockf -k "$LOCK" "$ROOT/scripts/lint.sh" "$@"
+fi
+
 # SwiftLintPlugins is a thin wrapper: its Package.swift declares one binaryTarget pointing at this
 # exact artifact bundle. Fetching it here is not "the same version number" as the plugin, it is the
 # same binary, so CI and the app build cannot disagree about what a violation is.
@@ -75,15 +80,15 @@ if [ "$REPORTED" != "$VERSION" ]; then
     exit 1
 fi
 
-# SwiftLint skips an `included:` entry that matches nothing and still exits 0. That is how this
-# config came to claim three trees while linting one, so a root that reaches no Swift file is a
-# hard failure here rather than a quietly smaller run.
+# SwiftLint skips an `included:` entry that matches nothing and still exits 0.
 included_roots() {
     awk '/^included:/ { inside = 1; next }
          inside && /^[^[:space:]#]/ { exit }
          inside && /^[[:space:]]*-[[:space:]]/ {
              sub(/^[[:space:]]*-[[:space:]]*/, "")
              gsub(/^"|"$/, "")
+             sub(/^\.\//, "")
+             sub(/\/+$/, "")
              print
          }' "$CONFIG"
 }
@@ -93,17 +98,54 @@ if [ -z "$ROOTS" ]; then
     echo "error: $CONFIG has no 'included:' entries, so this run would lint nothing." >&2
     exit 1
 fi
-while IFS= read -r root; do
-    [ -n "$root" ] || continue
-    if [ -z "$(find "$root" -name '*.swift' -print -quit 2>/dev/null)" ]; then
-        echo "error: $CONFIG 'included:' names '$root', which holds no Swift file." >&2
-        echo "       SwiftLint would skip it and still exit 0, so the gate would lint less than it" >&2
-        echo "       claims. Correct the path or drop the entry." >&2
-        exit 1
-    fi
-done <<ROOTS_EOF
-$ROOTS
-ROOTS_EOF
+
+tree_failures() {
+    local roots=$1 known=$2 deleted=$3 linted=$4 physical_root=$5
+    {
+        printf '%s\n' "$roots" | sed 's/^/root /'
+        printf '%s\n' "$deleted" | sed 's/^/gone /'
+        printf '%s\n' "$known" | sed 's/^/known /'
+        sed 's/^[^:]*: /linted /' "$linted"
+    } | awk -v physical="$physical_root" '
+        function tree_inside(root, path,    rest, slash) {
+            rest = substr(path, length(root) + 2)
+            slash = index(rest, "/")
+            return slash ? root "/" substr(rest, 1, slash - 1) : ""
+        }
+        { tag = $1; path = substr($0, length(tag) + 2) }
+        tag == "root" { roots[++n] = path; next }
+        tag == "gone" { gone[path] = 1; next }
+        tag == "known" && (path in gone) { next }
+        # SwiftLint writes each path with symlinks resolved and a leading /private dropped.
+        tag == "linted" {
+            if (index("/private" path, physical "/") == 1) path = "/private" path
+            if (index(path, physical "/") == 1) path = substr(path, length(physical) + 2)
+        }
+        {
+            for (i = 1; i <= n; i++) {
+                r = roots[i]
+                if (path != r && index(path, r "/") != 1) continue
+                count[tag, r]++
+                tree = tree_inside(r, path)
+                if (tree == "") continue
+                count[tag, tree]++
+                if (tag == "known" && !(tree in seen)) { seen[tree] = 1; trees[++t] = tree; parent[t] = r }
+            }
+        }
+        END {
+            for (i = 1; i <= n; i++) {
+                r = roots[i]
+                if (!count["known", r]) {
+                    print "typo " r
+                } else if (!count["linted", r]) {
+                    print "widened " r
+                } else {
+                    for (j = 1; j <= t; j++)
+                        if (parent[j] == r && !count["linted", trees[j]]) print "widened " trees[j]
+                }
+            }
+        }'
+}
 
 if [ "$MODE" = "fix" ]; then
     "$SWIFTLINT" --fix
@@ -115,6 +157,42 @@ fi
 #
 # --strict fails on warnings too. Every tree is at zero, and a warning nobody gates on is the state
 # this gate exists to end.
+#
+# --benchmark writes benchmark_files_<timestamp>.txt into the working directory, one
+# `<seconds>: <absolute path>` line per linted file, and a rules file beside it.
+rm -f "$ROOT"/benchmark_files_*.txt "$ROOT"/benchmark_rules_*.txt
+trap 'rm -f "$ROOT"/benchmark_files_*.txt "$ROOT"/benchmark_rules_*.txt' EXIT
 echo "==> SwiftLint $VERSION over $CONFIG 'included:'"
-"$SWIFTLINT" lint --strict --quiet
+"$SWIFTLINT" lint --strict --quiet --benchmark
+
+LINTED="$(ls "$ROOT"/benchmark_files_*.txt 2>/dev/null || true)"
+if [ ! -f "$LINTED" ]; then
+    echo "error: SwiftLint --benchmark left no benchmark_files_*.txt, so nothing shows what it linted." >&2
+    exit 1
+fi
+
+KNOWN="$(git -c core.quotePath=false ls-files --cached --others --exclude-standard -- '*.swift')" || exit
+DELETED="$(git -c core.quotePath=false ls-files --deleted -- '*.swift')" || exit
+FAILURES="$(tree_failures "$ROOTS" "$KNOWN" "$DELETED" "$LINTED" "$(pwd -P)")"
+while read -r kind tree; do
+    case "$kind" in
+        typo)
+            echo "error: $CONFIG 'included:' names '$tree', which holds no Swift file." >&2
+            echo "       SwiftLint would skip it and still exit 0, so the gate would lint less than it" >&2
+            echo "       claims. Correct the path or drop the entry." >&2
+            ;;
+        widened)
+            echo "error: '$tree' holds Swift files, but SwiftLint linted none of them." >&2
+            echo "       An 'excluded:' entry in $CONFIG covers the whole tree, so the gate would lint" >&2
+            echo "       less than it claims. Exclude a path inside the tree instead. If the tree is" >&2
+            echo "       generated or vendored code, move it below the first level of its 'included:'" >&2
+            echo "       root, so it sits inside a tree and a narrow entry can drop it." >&2
+            ;;
+    esac
+done <<FAILURES_EOF
+$FAILURES
+FAILURES_EOF
+if [ -n "$FAILURES" ]; then
+    exit 1
+fi
 echo "==> Clean"

@@ -351,12 +351,6 @@ struct SheetLayoutExerciseAnchor: Sendable {
 }
 
 struct SheetLayoutInterpreter: Sendable {
-    /// Interprets a grid whose rows are all visible. Callers holding a fetched Sheet pass the
-    /// `SheetSnapshot` instead, so row visibility reaches anchor detection.
-    func interpret(_ grid: SheetGrid) -> SheetLayout {
-        interpret(SheetSnapshot(values: grid))
-    }
-
     func interpret(_ snapshot: SheetSnapshot) -> SheetLayout {
         let grid = snapshot.values
         let sections = locateWeekSections(in: grid)
