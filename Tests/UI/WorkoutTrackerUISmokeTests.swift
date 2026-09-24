@@ -15,6 +15,14 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
 
         XCTAssertTrue(app.buttons["Set 1, 237.5x5@6"].appears(within: 3))
         XCTAssertTrue(app.staticTexts["Set 2 of 3"].appears(within: 3))
+
+        let banner = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Sync status:")).firstMatch
+        XCTAssertTrue(banner.appears(within: 3))
+        XCTAssertEqual(banner.frame.minY, 70, accuracy: 0.5, "the banner sits 8pt under the safe-area top")
+        XCTAssertEqual(banner.frame.height, 34, accuracy: 0.5)
+        let restPill = app.descendants(matching: .any)["rest-pill"]
+        XCTAssertTrue(restPill.exists)
+        XCTAssertLessThanOrEqual(restPill.frame.maxY, 840, "the rest pill stays above the safe-area bottom")
     }
 
     @MainActor
