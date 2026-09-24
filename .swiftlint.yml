@@ -121,7 +121,7 @@ custom_rules:
       nil is a third answer here. Unwrap and decide it (guard let, or ?? with the answer nil means
       here) so a missing value cannot read as "not busy" or "not pending" (CODING_STANDARDS.md
       §optionals, #582).
-    regex: '(\?\.[A-Za-z_][\w.]*(\([^)]*\))?|\(try\?[^\n]*\)|\.(map|flatMap)\([^\n]*\))\s*[!=]=\s*(true|false)\b'
+    regex: '(\?\.[A-Za-z_][\w.]*(\([^)]*\))?|\(try\?[^\n]*\)|\.(map|flatMap)\s*(\([^\n]*\)|\{[^\n]*\}))\s*[!=]=\s*(true|false)\b'
     included: '.*/(App|Sources)/.*'
     excluded_match_kinds:
       - comment
