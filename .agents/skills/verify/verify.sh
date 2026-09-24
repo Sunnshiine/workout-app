@@ -24,7 +24,8 @@ Usage: .claude/skills/verify/verify.sh <command> [args]
   type TEXT                   type into the focused field
   swipe up|down               scroll the screen by half its height
   shot NAME                   NAME.png and NAME.tree.txt into the run, then the tree lines that
-                              changed since the previous shot
+                              changed since the previous shot; saves nothing and exits 70 when
+                              the PNG is byte-identical to the newest shot's while the tree changed
   diff A B                    the tree lines that changed between two shots of this run, frames ignored
   sheet                       every shot of this run tiled 12 to an image, numbered and labelled; Read each image it prints
   burst NAME [COMMAND...]     12 frames over about 2 s tiled into one image, labelled with their
@@ -150,12 +151,19 @@ capture() {
 }
 
 refuse_frozen_frame() {
-  local dir=$1 prev=$2 name=$3
-  cmp -s "$dir/$prev.png" "$dir/.$name.png" || return 0
-  case $(python3 "$tree" diff "$dir/$prev.tree.txt" "$dir/.$name.tree.txt") in "no tree changes "*) return 0 ;; esac
-  rm -f "$dir/.$name.png" "$dir/.$name.tree.txt"
-  echo "refused $name: its frame is byte-identical to $prev.png but its tree changed, so the pixels did not move while the tree did" >&2
-  echo "either the shot fired before a transition drew (wait a second and shoot again) or the screenshot pipeline is wedged, as the axe button lock in issue 674 left it (run: xcrun simctl shutdown $sim, then $0 launch <fixture>)" >&2
+  local dir=$1 name=$2 last changes
+  last=$(shot_names "$dir" | tail -1)
+  [ -n "$last" ] || return 0
+  cmp -s "$dir/$last.png" "$dir/.pending/$name.png" || return 0
+  changes=$(python3 "$tree" diff "$dir/$last.tree.txt" "$dir/.pending/$name.tree.txt")
+  case $changes in "no tree changes "*) return 0 ;; esac
+  rm -f "$dir/.pending/$name.png" "$dir/.pending/$name.tree.txt"
+  {
+    echo "refused $name: its frame is byte-identical to $last.png but its tree changed, so the pixels did not move while the tree did"
+    printf '%s\n' "$changes"
+    echo "if those lines are text the app does not draw, $last.png already shows this screen and the lines are the evidence"
+    echo "if not, the shot fired before a transition drew (wait a second and shoot again) or the screenshot pipeline is wedged, as the axe button lock in issue 674 left it, and $last.png may be frozen too (run: xcrun simctl shutdown $sim, then SIM=$sim VERIFY_RUN=${dir##*/} $0 launch <fixture>, and shoot $last again)"
+  } >&2
   exit 70
 }
 
@@ -345,17 +353,19 @@ case $cmd in
     valid_name "$name"
     need_sim; require_sim_free "$sim"; ensure_axe
     dir=$(run_dir)
+    pending=$dir/.pending
+    mkdir -p "$pending"
     prev=$(shot_names "$dir" | grep -vx -- "$name" | tail -1 || true)
-    capture "$dir/.$name.png"
-    describe | python3 "$tree" flat 2>/dev/null > "$dir/.$name.tree.txt"
-    if [ ! -s "$dir/.$name.png" ] || [ ! -s "$dir/.$name.tree.txt" ]; then
-      rm -f "$dir/.$name.png" "$dir/.$name.tree.txt"
+    capture "$pending/$name.png"
+    describe | python3 "$tree" flat 2>/dev/null > "$pending/$name.tree.txt"
+    if [ ! -s "$pending/$name.png" ] || [ ! -s "$pending/$name.tree.txt" ]; then
+      rm -f "$pending/$name.png" "$pending/$name.tree.txt"
       echo "captured nothing for $name; run: $0 doctor" >&2
       exit 70
     fi
-    [ -z "$prev" ] || refuse_frozen_frame "$dir" "$prev" "$name"
-    mv "$dir/.$name.png" "$dir/$name.png"
-    mv "$dir/.$name.tree.txt" "$dir/$name.tree.txt"
+    refuse_frozen_frame "$dir" "$name"
+    mv "$pending/$name.png" "$dir/$name.png"
+    mv "$pending/$name.tree.txt" "$dir/$name.tree.txt"
     echo "$dir/$name.png"
     echo "$dir/$name.tree.txt"
     [ -z "$prev" ] || python3 "$tree" diff "$dir/$prev.tree.txt" "$dir/$name.tree.txt"

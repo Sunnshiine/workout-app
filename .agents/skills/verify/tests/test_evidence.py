@@ -1067,6 +1067,9 @@ class VerifyShot(unittest.TestCase):
         )
         return done.returncode, done.stdout, done.stderr
 
+    def shots(self):
+        return sorted(p.name for p in self.evidence.iterdir() if not p.name.startswith("."))
+
     def test_a_frame_identical_to_the_last_shot_while_the_tree_moved_is_refused(self):
         self.assertEqual(self.shot("01-before", self.stage, MINI)[0], 0)
         code, out, err = self.shot("02-after-log", self.stage, AFTER_LOG)
@@ -1074,15 +1077,34 @@ class VerifyShot(unittest.TestCase):
         self.assertEqual(err, (
             "refused 02-after-log: its frame is byte-identical to 01-before.png but its tree changed, "
             "so the pixels did not move while the tree did\n"
-            "either the shot fired before a transition drew (wait a second and shoot again) or the screenshot "
-            "pipeline is wedged, as the axe button lock in issue 674 left it "
-            "(run: xcrun simctl shutdown %s, then %s launch <fixture>)\n" % (self.sim, self.verify)
+            "changed from 01-before to 02-after-log, frames ignored:\n"
+            "- AXButton\tweight-pill\tWeight, 237.5\t\t@98,531 206x66\n"
+            "+ AXButton\tweight-pill\tWeight, 252.5\t\t@98,531 206x66\n"
+            "\n"
+            "2 changed, 3 unchanged\n"
+            "if those lines are text the app does not draw, 01-before.png already shows this screen and the "
+            "lines are the evidence\n"
+            "if not, the shot fired before a transition drew (wait a second and shoot again) or the screenshot "
+            "pipeline is wedged, as the axe button lock in issue 674 left it, and 01-before.png may be frozen too "
+            "(run: xcrun simctl shutdown %s, then SIM=%s VERIFY_RUN=issue-674 %s launch <fixture>, "
+            "and shoot 01-before again)\n" % (self.sim, self.sim, self.verify)
         ))
-        self.assertEqual(sorted(p.name for p in self.evidence.iterdir()), ["01-before.png", "01-before.tree.txt"],
-                         "the frozen frame is not filed as evidence")
+        self.assertEqual(self.shots(), ["01-before.png", "01-before.tree.txt"], "the frozen frame is not filed as evidence")
         code, out, err = self.shot("02-after-log", self.home, AFTER_LOG)
         self.assertEqual(code, 0, err)
         self.assertEqual(out.splitlines()[-1], "2 changed, 3 unchanged", "shooting again once the frame moved lands")
+
+    def test_retaking_a_landed_shot_with_its_own_frame_while_the_tree_moved_is_refused(self):
+        self.assertEqual(self.shot("01-before", self.home, MINI)[0], 0)
+        self.assertEqual(self.shot("02-after-log", self.stage, AFTER_LOG)[0], 0)
+        code, out, err = self.shot("02-after-log", self.stage, AFTER_LOG.replace("1:58", "1:57"))
+        self.assertEqual((code, out), (70, ""), err)
+        self.assertEqual(err.splitlines()[0], "refused 02-after-log: its frame is byte-identical to 02-after-log.png "
+                         "but its tree changed, so the pixels did not move while the tree did")
+        self.assertEqual((self.evidence / "02-after-log.png").read_bytes(), self.stage.read_bytes())
+        self.assertIn("AXStaticText\t\tRest 1:58 remaining\t\t@100,816 202x51",
+                      (self.evidence / "02-after-log.tree.txt").read_text().splitlines(),
+                      "the shot that landed under that name keeps its tree")
 
     def test_an_unchanged_screen_with_an_unchanged_tree_still_shoots(self):
         self.assertEqual(self.shot("01-before", self.stage, MINI)[0], 0)
