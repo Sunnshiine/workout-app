@@ -1024,6 +1024,74 @@ class LaunchBoots(unittest.TestCase):
                          "the next launch takes the simulator while the killed one's boot wait still runs")
 
 
+AXE_STUB = """#!/bin/sh
+case $1 in
+  screenshot) cp "$STUB_FRAME" "$5" ;;
+  describe-ui) cat "$STUB_TREE" ;;
+  *) exit 1 ;;
+esac
+"""
+AFTER_LOG = MINI.replace("Weight, 237.5", "Weight, 252.5")
+
+
+class VerifyShot(unittest.TestCase):
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp())
+        skill = self.root / ".agents" / "skills" / "verify"
+        skill.mkdir(parents=True)
+        (self.root / "scripts").mkdir()
+        (skill / "verify.sh").symlink_to(SKILL / "verify.sh")
+        (skill / "tree.py").symlink_to(SKILL / "tree.py")
+        (self.root / "scripts" / "sim-lock.sh").symlink_to(REPO / "scripts" / "sim-lock.sh")
+        axe = self.root / ".build" / "verify" / "node_modules" / "xcodebuildmcp" / "bundled" / "axe"
+        axe.parent.mkdir(parents=True)
+        axe.write_text(AXE_STUB)
+        axe.chmod(0o755)
+        self.verify = skill / "verify.sh"
+        self.sim = "shot-test-%d" % os.getpid()
+        self.evidence = self.root / ".build" / "verify" / "evidence" / "issue-674"
+        self.home, self.stage = self.root / "home.png", self.root / "stage.png"
+        write_png(self.home, 4, 4, (32, 96, 160))
+        write_png(self.stage, 4, 4, (240, 240, 240))
+
+    def tearDown(self):
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def shot(self, name, frame, tree):
+        described = self.root / ("%s.describe-ui.json" % name)
+        described.write_text(tree)
+        env = dict(os.environ, SIM=self.sim, VERIFY_RUN="issue-674", STUB_FRAME=str(frame), STUB_TREE=str(described))
+        done = subprocess.run(
+            [str(self.verify), "shot", name], cwd=str(self.root), env=env,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
+        )
+        return done.returncode, done.stdout, done.stderr
+
+    def test_a_frame_identical_to_the_last_shot_while_the_tree_moved_is_refused(self):
+        self.assertEqual(self.shot("01-before", self.stage, MINI)[0], 0)
+        code, out, err = self.shot("02-after-log", self.stage, AFTER_LOG)
+        self.assertEqual((code, out), (70, ""), "a wedged simulator returned the old frame: %s" % err)
+        self.assertEqual(err, (
+            "refused 02-after-log: its frame is byte-identical to 01-before.png but its tree changed, "
+            "so the pixels did not move while the tree did\n"
+            "either the shot fired before a transition drew (wait a second and shoot again) or the screenshot "
+            "pipeline is wedged, as one axe button lock leaves it until a reboot "
+            "(run: xcrun simctl shutdown %s, then %s launch <fixture>)\n" % (self.sim, self.verify)
+        ))
+        self.assertEqual(sorted(p.name for p in self.evidence.iterdir()), ["01-before.png", "01-before.tree.txt"],
+                         "the frozen frame is not filed as evidence")
+        code, out, err = self.shot("02-after-log", self.home, AFTER_LOG)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out.splitlines()[-1], "2 changed, 3 unchanged", "shooting again once the frame moved lands")
+
+    def test_an_unchanged_screen_with_an_unchanged_tree_still_shoots(self):
+        self.assertEqual(self.shot("01-before", self.stage, MINI)[0], 0)
+        code, out, err = self.shot("02-still", self.stage, MINI)
+        self.assertEqual((code, err), (0, ""))
+        self.assertEqual(out, "%s/02-still.png\n%s/02-still.tree.txt\nno tree changes from 01-before to 02-still, frames ignored\n"
+                         % (self.evidence, self.evidence), "the same bytes are the right frame when nothing changed")
+
+
 @unittest.skipUnless(sys.platform == "darwin", "the tiler is a Swift script and runs on macOS only")
 class VerifySheet(unittest.TestCase):
     def setUp(self):
