@@ -4,54 +4,70 @@ import UIKit
 
 @testable import WorkoutTracker
 
-/// The branch in every frame the reading column can give it, from its floor past its full 156pt
-/// drawing (#599). The coach note ends 18pt above the frame (the 4pt padding and the column's 14pt
-/// gap) and Last Performed or the card starts 14pt below it, so the ink stays inside those gaps and a
-/// leaf's tap box within 4pt above the frame and never below it. Every blade is drawn full length:
-/// all Sets but the active one are logged, on the partner too.
+/// The branch in every frame the reading column can give it, every 2pt from its 70pt floor past its
+/// full 156pt drawing, with 3, 5, and 8 Sets (#599). The coach note ends above the frame by the 4pt
+/// padding and the column gap, and Last Performed or the card starts one column gap below it. So the
+/// ink stays inside the gap above and 2pt clear of the next line below, and a leaf's tap box stays
+/// within 4pt above the frame and never below it. Every blade is drawn full length: all Sets but
+/// the active one are logged, and the partner's last Set is logged or skipped (its blade dashed).
 @MainActor
 @Suite
 struct SessionStageBranchEnvelopeTests {
-    @Test(arguments: [70, 90, 120, 156, 167] as [CGFloat], [3, 5, 8])
-    func theExerciseBranchStaysInsideTheGapsAroundIt(height: CGFloat, setCount: Int) throws {
-        let branch = Branch(setCount: setCount, partnerSetCount: nil)
-        let ink = try #require(try branch.inkExtent(height: height), "the branch draws at \(height)pt")
-        #expect(ink.top >= -(Theme.stageColumnSpacing + 4))
-        #expect(ink.bottom <= height + Theme.stageColumnSpacing)
+    nonisolated static let heights = stride(from: 70, through: 200, by: 2).map { CGFloat($0) }
+    static let setCounts = [3, 5, 8]
+    static let inkAbove = Theme.stageColumnSpacing + 4
+    static let inkBelow = Theme.stageColumnSpacing - 2
 
-        let taps = try branch.tapBoxes(height: height)
-        #expect(taps.count == setCount, "every Set has a leaf to tap")
-        #expect(taps.map(\.minY).min() ?? 0 >= -4)
-        #expect(taps.map(\.maxY).max() ?? 0 <= height)
+    @Test(arguments: heights)
+    func theExerciseBranchStaysInsideTheGapsAroundIt(height: CGFloat) throws {
+        for setCount in Self.setCounts {
+            let branch = Branch(setCount: setCount, partnerEnding: nil)
+            let ink = try #require(try branch.inkExtent(height: height), "the branch draws with \(setCount) Sets")
+            #expect(ink.top >= -Self.inkAbove, "\(setCount) Sets")
+            #expect(ink.bottom <= height + Self.inkBelow, "\(setCount) Sets")
+
+            let taps = try branch.tapBoxes(height: height)
+            #expect(taps.count == setCount, "every Set has a leaf to tap")
+            #expect(taps.map(\.minY).min() ?? 0 >= -4, "\(setCount) Sets")
+            #expect(taps.map(\.maxY).max() ?? 0 <= height, "\(setCount) Sets")
+        }
     }
 
-    @Test(arguments: [70, 90, 120, 156, 167] as [CGFloat], [3, 5, 8])
-    func theSupersetBranchKeepsItsLateralInsideTheGapsAroundIt(height: CGFloat, setCount: Int) throws {
-        let branch = Branch(setCount: setCount, partnerSetCount: 3)
-        let ink = try #require(try branch.inkExtent(height: height), "the forked branch draws at \(height)pt")
-        #expect(ink.top >= -(Theme.stageColumnSpacing + 4))
-        #expect(ink.bottom <= height + Theme.stageColumnSpacing)
+    @Test(arguments: heights, PartnerEnding.allCases)
+    func theSupersetBranchKeepsItsLateralInsideTheGapsAroundIt(height: CGFloat, partnerEnding: PartnerEnding) throws {
+        for setCount in Self.setCounts {
+            let branch = Branch(setCount: setCount, partnerEnding: partnerEnding)
+            let ink = try #require(try branch.inkExtent(height: height), "the forked branch draws with \(setCount) Sets")
+            #expect(ink.top >= -Self.inkAbove, "\(setCount) Sets")
+            #expect(ink.bottom <= height + Self.inkBelow, "\(setCount) Sets")
+        }
     }
 
     @Test func theBranchFillsItsRegionAndNeverFallsBelowItsFloor() {
-        let branch = Branch(setCount: 3, partnerSetCount: nil)
+        let branch = Branch(setCount: 3, partnerEnding: nil)
         let heights = ([20, nil, 300] as [CGFloat?]).map { branch.height(proposing: $0) }
         #expect(heights == [70, 70, 300])
     }
 }
 
+/// How a Superset partner's last Set ended: logged draws an inked blade, skipped a dashed one.
+enum PartnerEnding: CaseIterable, Sendable {
+    case logged
+    case skipped
+}
+
 @MainActor
 private struct Branch {
     let setCount: Int
-    let partnerSetCount: Int?
+    /// `nil` draws an Exercise branch; otherwise a Superset's, with a partner of 3 Sets.
+    let partnerEnding: PartnerEnding?
 
     var view: SessionStageBranch {
-        let sets = Self.sets(count: setCount, order: 0, allLogged: false)
-        return SessionStageBranch(
-            sets: sets,
+        SessionStageBranch(
+            sets: Self.sets(count: setCount, order: 0, last: .pending),
             activeSetID: ActiveSetID(exerciseOrder: 0, setIndex: setCount - 1),
-            partnerSets: partnerSetCount.map { Self.sets(count: $0, order: 1, allLogged: true) },
-            onTap: partnerSetCount == nil ? { _ in } : nil
+            partnerSets: partnerEnding.map { Self.sets(count: 3, order: 1, last: $0 == .skipped ? .skipped : .logged) },
+            onTap: partnerEnding == nil ? { _ in } : nil
         )
     }
 
@@ -93,10 +109,12 @@ private struct Branch {
         )
         context.scaleBy(x: scale, y: scale)
         renderer.render(rasterizationScale: scale) { _, draw in draw(context) }
-        let inkedRows = (0..<rows).filter { row in
-            (0..<width).contains { column in pixels[(row * width + column) * 4 + 3] > 25 }
+        func isInked(_ row: Int) -> Bool {
+            pixels.withUnsafeBufferPointer { buffer in
+                stride(from: row * width * 4 + 3, to: (row + 1) * width * 4, by: 4).contains { buffer[$0] > 25 }
+            }
         }
-        guard let top = inkedRows.first, let bottom = inkedRows.last else { return nil }
+        guard let top = (0..<rows).first(where: isInked), let bottom = (0..<rows).last(where: isInked) else { return nil }
         return (CGFloat(top) / scale - margin, CGFloat(bottom + 1) / scale - margin)
     }
 
@@ -117,18 +135,19 @@ private struct Branch {
         }
     }
 
-    private static func sets(count: Int, order: Int, allLogged: Bool) -> [ExerciseSet] {
+    /// Every Set but the last is logged, and the last ends `last`.
+    private static func sets(count: Int, order: Int, last: SetState) -> [ExerciseSet] {
         let exercise = Exercise(name: "Back Squat", baseName: "Back Squat", cadence: nil, coachNote: nil, order: order)
         exercise.sets = (0..<count).map { index in
-            let isLogged = allLogged || index < count - 1
+            let state = index < count - 1 ? SetState.logged : last
             let set = ExerciseSet(
                 index: index,
                 prescribedReps: "5",
                 prescribedLoad: "RPE7",
                 percentOneRM: nil,
-                state: isLogged ? .logged : .pending
+                state: state
             )
-            if isLogged { set.setLog = SetLog(weight: .pounds(235), reps: 5, rpe: .seven) }
+            if state == .logged { set.setLog = SetLog(weight: .pounds(235), reps: 5, rpe: .seven) }
             return set
         }
         return exercise.sets.sorted { $0.index < $1.index }
