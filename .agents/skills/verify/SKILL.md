@@ -81,20 +81,32 @@ point.
 After a tap, re-read the tree before asserting. `tree` has no enabled column, so prove a disabled
 state with `find <id>`, which says `disabled` on stderr and still exits 0.
 `-UITEST_DISABLE_ANIMATIONS` stops UIKit animations and clears the animation on every SwiftUI
-transaction in the main window. Bursts and screen recordings under it show each of these as one
-cut from the old screen to the new: a log, a skip, a Superset log, the Move On celebration opening
-and closing, and the pairing state inside the queue sheet. A Superset log's retiring card never
-draws. After a log the sync pill lands about 20 ms after the card, reads `Syncing` for about 20 ms,
-then `1 unsynced`, and moves the stage down about 20 points, so a burst can catch the new card with
-no pill yet. Timers still drive three changes under the flag (issue 739). A log while rest runs
-makes the rest pill about 3% larger and brighter for 150 ms. In each of the last five seconds of
-rest the countdown digits grow about 3% for 230 ms. A skip hold's fill jumps to a full `Skipped`
-250 ms into the press, and the skip commits at 850 ms, so a shot taken mid-hold shows a skip that
-does not exist yet. Burst frames land about 220 ms apart, as far as 560 ms, and the first can land
-400 ms after the action. So a burst that shows only a before and an after says nothing about a
-motion shorter than that gap, and a 3% change is easy to miss on the tile. The full-size frames are
-in `<name>.burst/`. Any path not named here is unmeasured. A state absent after one second is still
-absent. `burst` shows frame by frame what an action changed.
+transaction in the main window. Bursts and screen recordings under it, each checked against a run
+without it that moved, show one cut from the old screen to the new for these: a log with the
+weight keyboard closed, a skip's commit, a Superset log, the Move On celebration opening and
+closing, and the pairing state inside the queue sheet. The tapped button can show its pressed
+colour for up to about 90 ms before that cut. A Superset log's retiring card never draws. After a
+log the sync pill lands a frame or two after the card, reads `Syncing`, then `1 unsynced`, and
+moves everything below it down about 20 points, the rest pill included. Two of the five log bursts
+saved for issues 618 and 696 caught the new card with no sync pill.
+
+Some states still change under the flag (issue 739). The rest pill's countdown and progress line
+change on their own while rest runs. Every rest after the first on the Session screen starts with
+the rest pill about 3% larger and brighter for about 150 ms; a burst caught that on a log while
+rest ran. Each second from `0:05` to `0:00` the countdown digits grow about 3% for about 230 ms. A
+skip hold's fill jumps to a full `Skipped` 250 ms into the press, and the skip lands about 900 ms
+in, so a shot in between shows a skip that has not happened. In the history sheet the Volume chip
+still fades for about 250 ms after a tap (issue 618).
+
+`burst` takes its first frame before the drive command runs and the other eleven after it returns,
+timed from the return. In the issue 696 runs the first frame came 1.3 to 8.7 s before it, and a
+`hold` spends its whole press inside the drive, so a burst never shows the middle of a hold. After
+the return, frames land about 200 ms apart, up to 1.1 s apart on a busy simulator, and the first
+lands 140 to 750 ms after it. A burst that shows only a before and an after says nothing about a
+state shorter than those gaps, and a 3% change is easy to miss on the tile, so read the full-size
+frames in `<name>.burst/`. Any other path is unproved under the flag. A state an action has not
+caused within one second will not appear later. `burst` shows frame by frame what an action
+changed.
 
 `tree` lists what is on screen and says on stderr how many elements it left out. A scrolled-out
 row and the tail of the reps picker are out; a card wider than the screen is in. `find <id>`
