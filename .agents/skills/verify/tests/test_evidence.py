@@ -799,6 +799,67 @@ class SimulatorLock(unittest.TestCase):
         self.assertRegex((self.state / "lock").read_text(), r"^verify\.sh launch \(pid \d+\)\n$", "the launch took it")
 
 
+BOOT_STUB = """#!/bin/sh
+if [ "$*" = "simctl list devices available -j" ]; then
+  echo '{"devices": {"com.apple.CoreSimulator.SimRuntime.iOS-27-0": [{"name": "iPhone 17 Pro", "udid": "{sim}", "state": "Shutdown"}]}}'
+  exit 0
+fi
+printf '%s under %s\\n' "$(basename "$0") $*" "$(cat /tmp/workout-verify-{sim}/lock 2>/dev/null)" >> "{dir}/calls"
+case $(basename "$0") in plutil) echo "{project}" ;; *) exit 1 ;; esac
+"""
+
+
+class LaunchBoots(unittest.TestCase):
+    def setUp(self):
+        self.sim = "boot-test-%d" % os.getpid()
+        self.state = Path("/tmp/workout-verify-%s" % self.sim)
+        shutil.rmtree(self.state, ignore_errors=True)
+        self.home = Path(tempfile.mkdtemp())
+        derived = self.home / "Library" / "Developer" / "Xcode" / "DerivedData" / "WorkoutTracker-test"
+        (derived / "Build" / "Products" / "Debug-iphonesimulator" / "WorkoutTracker.app").mkdir(parents=True)
+        self.plist = derived / "info.plist"
+        self.plist.touch()
+        self.stubs = self.home / "bin"
+        self.stubs.mkdir()
+        stub = BOOT_STUB.replace("{sim}", self.sim).replace("{dir}", str(self.stubs))
+        stub = stub.replace("{project}", str(REPO / "WorkoutTracker.xcodeproj"))
+        for tool in ["xcodebuild", "xcrun", "npm", "plutil"]:
+            (self.stubs / tool).write_text(stub)
+            (self.stubs / tool).chmod(0o755)
+
+    def tearDown(self):
+        shutil.rmtree(self.home, ignore_errors=True)
+        shutil.rmtree(self.state, ignore_errors=True)
+
+    def launch(self, sim):
+        env = dict(os.environ, HOME=str(self.home), PATH="%s:%s" % (self.stubs, os.environ["PATH"]), VERIFY_RUN="issue-676")
+        env.pop("SIM", None)
+        if sim:
+            env["SIM"] = sim
+        run = subprocess.Popen(
+            [str(SKILL / "verify.sh"), "launch", "session"], cwd=str(REPO), env=env,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
+        )
+        out, err = run.communicate(timeout=30)
+        return run, out, err
+
+    def test_launch_waits_on_the_boot_under_its_lock_and_installs_nothing_when_it_fails(self):
+        for named in [self.sim, None]:
+            with self.subTest(SIM=named):
+                (self.stubs / "calls").unlink(missing_ok=True)
+                run, out, err = self.launch(named)
+                holder = "verify.sh launch (pid %d)" % run.pid
+                self.assertEqual(
+                    (self.stubs / "calls").read_text().splitlines(),
+                    [
+                        "plutil -extract WorkspacePath raw %s under %s" % (self.plist, holder),
+                        "xcrun simctl bootstatus %s -b under %s" % (self.sim, holder),
+                    ],
+                    "the shut-down simulator is booted and waited on while the launch holds it, and never installed to",
+                )
+                self.assertEqual((run.returncode, out, err), (70, "", "simulator %s did not boot\n" % self.sim))
+
+
 @unittest.skipUnless(sys.platform == "darwin", "the tiler is a Swift script and runs on macOS only")
 class VerifySheet(unittest.TestCase):
     def setUp(self):
