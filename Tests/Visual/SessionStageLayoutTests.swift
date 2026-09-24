@@ -4,11 +4,6 @@ import UIKit
 
 @testable import WorkoutTracker
 
-/// The `session` fixture's first Session once Set 1 is logged and the focus has moved on, with a rest
-/// running, under each height of sync banner (#599). The window is 402pt wide: 874 is the iPhone 17
-/// Pro (safe area 62 top and 34 bottom). The shorter windows keep its 62pt top inset and leave about
-/// the safe height of a 13 mini (793, 731 safe) and of an SE (709, 647 safe). Frames are global and
-/// rounded to whole points.
 @MainActor
 @Suite
 struct SessionStageLayoutTests {
@@ -217,8 +212,6 @@ struct SessionStageLayoutTests {
     }
 }
 
-/// One window shrunk in place, as a rung switch happens at log time, rather than a fresh window per
-/// height: a `ViewThatFits` that falls back can leave the lines it dropped in the accessibility tree.
 @MainActor
 @Suite
 struct SessionStageLadderTransitionTests {
@@ -274,14 +267,9 @@ struct SessionStageLadderTransitionTests {
 
 private enum StageKind {
     case exercise
-    /// Back Squat paired with BB RDL. After Back Squat's Set 1 the focus is on BB RDL, which has a
-    /// Cadence line and no Last Performed, and its partner line reads `& Back Squat`.
     case superset
 }
 
-/// No banner `text` wraps at this width and the banner does not yet render its `detail` line, so a
-/// taller banner is a stand-in of the capsule's height: 54pt is one line of `text` and a `detail`
-/// line, 76pt two lines of `text` and a `detail` line.
 private enum BannerSlot {
     case outcome(SyncOutcome)
     case standIn(height: CGFloat)
@@ -294,9 +282,7 @@ private struct PageFrames: Equatable, CustomStringConvertible {
     let name: CGRect?
     let partner: CGRect?
     let note: CGRect?
-    /// The branch's leaf buttons, top to bottom. The Superset branch has no leaf buttons.
     let leaves: [CGRect]
-    /// Ink between the last line of words and whatever follows the branch.
     let branchIsDrawn: Bool
     let lastPerformed: CGRect?
     let card: CGRect?
@@ -354,8 +340,6 @@ private final class FrameProbe {
     var stage: CGRect?
 }
 
-/// `SessionView`'s arrangement: the banner slot 8pt under the safe top, then the real stage with a
-/// stand-in for the 43pt HUD above it and the real rest pill slot below it.
 private struct SessionPage: View {
     let session: Session
     let coordinator: SessionCoordinator
@@ -408,8 +392,6 @@ private enum SessionPageHost {
         try layouts(stage, banner: banner, windowHeights: [windowHeight])[0]
     }
 
-    /// The page read in one window at each height in turn, resized in place, so a rung switch happens
-    /// inside a live hierarchy.
     static func layouts(_ stage: StageKind, banner: BannerSlot, windowHeights: [CGFloat]) throws -> [PageFrames] {
         let scenario = try WorkoutScenarios.freshConfiguredApp()
         VisualFixtureRetainer.retain(scenario)
@@ -442,8 +424,6 @@ private enum SessionPageHost {
         }
     }
 
-    /// The accessibility labels of the `openExercisesBlock` day's completion stage, with every Set
-    /// logged and two Open Exercises from earlier days, read at each window height in turn.
     static func completionLabels(windowHeights: [CGFloat]) throws -> [[String]] {
         let scenario = try WorkoutScenarios.freshConfiguredApp(block: WorkoutFixtureScenarios.openExercisesBlock())
         VisualFixtureRetainer.retain(scenario)
@@ -525,12 +505,10 @@ private enum SessionPageHost {
         )
     }
 
-    /// A leaf reads `Set 1, 237.5x5@6`; the card's head reads `Set 2 of 3`.
     private static func isLeafLabel(_ label: String) -> Bool {
         label.hasPrefix("Set ") && label.contains(", ")
     }
 
-    /// Pixels in the band that differ from the page's paper, rendered at the window's scale.
     private static func inkedPixels(in window: UIWindow, fromY top: CGFloat, toY bottom: CGFloat) throws -> Int {
         guard bottom > top else { return 0 }
         let band = CGRect(x: 0, y: top, width: window.bounds.width, height: bottom - top)

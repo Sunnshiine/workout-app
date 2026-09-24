@@ -14,9 +14,6 @@ struct SyncStatusBanner: View {
     }
 
     private func banner(_ presentation: SyncStatusBannerPresentation) -> some View {
-        // No icon, because the stage's icon budget is spent on the branch (ledger §10.3). No `detail`,
-        // because it is the sync step's raw message. It reaches the athlete through the label below
-        // and the Settings `Sync now` row.
         HStack(spacing: 8) {
             Text(presentation.text)
                 .lineLimit(2)

@@ -28,18 +28,13 @@ struct SessionStageBranch: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private enum Metrics {
-        // The branch fills what the reading column leaves it, never less than this floor
-        // (SessionStageBranchEnvelopeTests owns it), and draws at the top of that frame, at most
-        // `fullHeight` tall. Anything taller is air under the drawing (DESIGN.md 5.1).
         static let minimumHeight: CGFloat = 70
         static let fullHeight: CGFloat = 156
         static let leadInset: CGFloat = 24
         static let trailInset: CGFloat = 28
         static let rootY: CGFloat = 0.82 // fraction of height — the low leading root
-        // The high trailing tip, pinned in points so a short branch keeps its top blades under the
-        // coach note.
         static let tipInset: CGFloat = fullHeight * 0.13
-        static let bow: CGFloat = 30 // upward bow of the climbing stem at full height
+        static let bow: CGFloat = 30
         static let firstNodeT: CGFloat = 0.16 // the span floor node steps never pass
         static let lastNodeT: CGFloat = 0.80 // the terminal node every cluster anchors to
         static let maxNodeStep: CGFloat = 0.24 // cap the gap so few Sets cluster like a real sprig
@@ -60,16 +55,13 @@ struct SessionStageBranch: View {
         static let forkT: CGFloat = 0.30 // where on the focused stem the lateral forks
         static let endX: CGFloat = 0.62 // fraction of width for the drooping tip
         static let endY: CGFloat = 0.99 // fraction of height — the tip droops low
-        static let droop: CGFloat = 30 // downward bow of the drooping lateral at full height
+        static let droop: CGFloat = 30
         static let firstNodeT: CGFloat = 0.42
         static let lastNodeT: CGFloat = 0.9
         static let maxNodeStep: CGFloat = 0.2
-        static let leafLength: CGFloat = 34 // subordinate to the focused leaf, at full height
-        // How far the lateral's lowest blade hangs under the drawing per unit of scale: the worst over
-        // SessionStageBranchEnvelopeTests' sweep, rounded up to 0.5pt. A dashed blade keeps its dash
-        // length as it scales, so a scaled one can hang further than its full-size hang predicts.
+        static let leafLength: CGFloat = 34
         static let hang: CGFloat = 26
-        static let clearance: CGFloat = 2 // kept between the lateral's lowest ink and the next line
+        static let clearance: CGFloat = 2
     }
 
     private var nodes: [(set: ExerciseSet, state: BranchNodeState)] {
@@ -183,8 +175,6 @@ struct SessionStageBranch: View {
 
     // MARK: - Partner lateral
 
-    /// `room` is the height under the drawing that the lateral may hang into. Its droop and blades
-    /// shrink with the drawing, and further when its full hang would not fit in `room`.
     @ViewBuilder
     private func partnerBranch(in size: CGSize, room: CGFloat) -> some View {
         let scale = min(heightScale(size), room / PartnerMetrics.hang)
@@ -259,7 +249,6 @@ struct SessionStageBranch: View {
         )
     }
 
-    /// The lateral forks off the focused stem and bows `droop` below the straight line to its tip.
     private func partnerCurve(in size: CGSize, droop: CGFloat) -> QuadraticBezier {
         let fork = stemPoint(t: PartnerMetrics.forkT, in: size)
         let tip = CGPoint(x: size.width * PartnerMetrics.endX, y: size.height * PartnerMetrics.endY)
@@ -288,8 +277,6 @@ struct SessionStageBranch: View {
         return QuadraticBezier(start: p0, control: control, end: p1)
     }
 
-    /// 1 at full height, so the full drawing is the one the pick settled. A shorter drawing lowers
-    /// the stem's bow in proportion.
     private func heightScale(_ size: CGSize) -> CGFloat {
         size.height / Metrics.fullHeight
     }
@@ -307,7 +294,6 @@ struct SessionStageBranch: View {
     }
 }
 
-/// A branch stem drawn from the curve its nodes are placed on, so the leaves land on the ink.
 private struct CurvePath: Shape {
     let curve: QuadraticBezier
 

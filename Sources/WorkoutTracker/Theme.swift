@@ -412,7 +412,6 @@ enum Theme {  // swiftlint:disable:this type_body_length
     static let sectionSpacing: CGFloat = 28
     static let editingWeightFootGap: CGFloat = 10
     static let supersetRestingSpacing: CGFloat = 24
-    /// The gap between the Session stage column's lines. The branch's ink may reach into it.
     static let stageColumnSpacing: CGFloat = 14
     static let sessionTileMinHeight: CGFloat = 86
     static let sessionTileSpacing: CGFloat = 10

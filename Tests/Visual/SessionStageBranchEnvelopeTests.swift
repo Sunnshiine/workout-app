@@ -4,12 +4,6 @@ import UIKit
 
 @testable import WorkoutTracker
 
-/// The branch in every frame the reading column can give it, every 2pt from its 70pt floor past its
-/// full 156pt drawing, with 3, 5, and 8 Sets (#599). The coach note ends above the frame by the 4pt
-/// padding and the column gap, and Last Performed or the card starts one column gap below it. So the
-/// ink stays inside the gap above and 2pt clear of the next line below, and a leaf's tap box stays
-/// within 4pt above the frame and never below it. Every blade is drawn full length: all Sets but
-/// the active one are logged, and the partner's last Set is logged or skipped (its blade dashed).
 @MainActor
 @Suite
 struct SessionStageBranchEnvelopeTests {
@@ -50,7 +44,6 @@ struct SessionStageBranchEnvelopeTests {
     }
 }
 
-/// How a Superset partner's last Set ended: logged draws an inked blade, skipped a dashed one.
 enum PartnerEnding: CaseIterable, Sendable {
     case logged
     case skipped
@@ -59,7 +52,6 @@ enum PartnerEnding: CaseIterable, Sendable {
 @MainActor
 private struct Branch {
     let setCount: Int
-    /// `nil` draws an Exercise branch; otherwise a Superset's, with a partner of 3 Sets.
     let partnerEnding: PartnerEnding?
 
     var view: SessionStageBranch {
@@ -71,7 +63,6 @@ private struct Branch {
         )
     }
 
-    /// The height the branch takes when the column proposes `proposal` (`nil` asks for its ideal).
     func height(proposing proposal: CGFloat?) -> CGFloat {
         let renderer = ImageRenderer(content: view.environment(\.themePalette, Theme.palette(for: .day)))
         renderer.proposedSize = ProposedViewSize(width: 370, height: proposal)
@@ -80,9 +71,8 @@ private struct Branch {
         return height
     }
 
-    /// The inked rows of an offscreen render, in points from the top of a `height` frame. It draws
-    /// through Core Graphics because `cgImage` renders on the GPU, which comes back blank while a
-    /// cold machine compiles its first stroke pipeline (#599).
+    /// Draws through Core Graphics because `cgImage` renders on the GPU, which comes back blank while
+    /// a cold machine compiles its first stroke pipeline.
     func inkExtent(height: CGFloat) throws -> (top: CGFloat, bottom: CGFloat)? {
         let margin: CGFloat = 80
         let scale: CGFloat = 3
@@ -118,7 +108,6 @@ private struct Branch {
         return (CGFloat(top) / scale - margin, CGFloat(bottom + 1) / scale - margin)
     }
 
-    /// The leaves' tap boxes, in points from the top of a `height` frame.
     func tapBoxes(height: CGFloat) throws -> [CGRect] {
         let origin = CGPoint(x: 16, y: 200)
         let page =
@@ -135,7 +124,6 @@ private struct Branch {
         }
     }
 
-    /// Every Set but the last is logged, and the last ends `last`.
     private static func sets(count: Int, order: Int, last: SetState) -> [ExerciseSet] {
         let exercise = Exercise(name: "Back Squat", baseName: "Back Squat", cadence: nil, coachNote: nil, order: order)
         exercise.sets = (0..<count).map { index in

@@ -207,8 +207,6 @@ struct SessionStageView: View {
                 .font(Theme.font(.coachNote))
                 .foregroundStyle(palette.textSecondary)
 
-            // The Open Exercises list leaves when it does not fit, and the queue sheet still lists
-            // it, so Move On always fits.
             ViewThatFits(in: .vertical) {
                 VStack(alignment: .leading, spacing: 14) {
                     if !liveEdgeOpenExercises.isEmpty {
@@ -332,9 +330,6 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
         VStack(alignment: .leading, spacing: Theme.stageColumnSpacing) {
             switch composition {
             case .reading:
-                // What does not fit yields in this order, and the card never does: the air under the
-                // branch, the branch down to its floor, Last Performed, the Cadence line, the coach
-                // note, and only then the branch (DESIGN.md 5.1).
                 ViewThatFits(in: .vertical) {
                     VStack(alignment: .leading, spacing: Theme.stageColumnSpacing) {
                         cadenceLine
@@ -379,8 +374,6 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // The flexible child of every rung but the last. The branch fills what the words and the card
-    // leave and draws at the top of it.
     private var branchRegion: some View {
         branch()
             .padding(.top, 4)
