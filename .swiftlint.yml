@@ -27,6 +27,8 @@ included:
   - App
   - Sources
   - Tests
+  - WorkoutShared
+  - WorkoutWidgets
 
 excluded:
   - .build
@@ -105,7 +107,7 @@ custom_rules:
       await structured work instead. A dropped Task { } raced shared sync state in #585 and #514.
     regex: '^[ \t]*Task(\.detached)?[ \t]*(\([^)\n]*\))?[ \t]*\{'
     included:
-      - '.*/(App|Sources)/.*'
+      - '.*/(App|Sources|WorkoutShared|WorkoutWidgets)/.*'
       - '.*/Tests/.*'
     excluded:
       - '.*/App/Views/.*'
@@ -122,7 +124,7 @@ custom_rules:
       here) so a missing value cannot read as "not busy" or "not pending" (CODING_STANDARDS.md
       §optionals, #582).
     regex: '(\?\.[A-Za-z_][\w.]*(\([^)]*\))?|\(try\?[^\n]*\)|\.(map|flatMap)\s*(\([^\n]*\)|\{[^\n]*\}))\s*[!=]=\s*(true|false)\b'
-    included: '.*/(App|Sources)/.*'
+    included: '.*/(App|Sources|WorkoutShared|WorkoutWidgets)/.*'
     excluded_match_kinds:
       - comment
       - doccomment
