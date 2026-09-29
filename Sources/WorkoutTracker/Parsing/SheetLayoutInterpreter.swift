@@ -19,15 +19,6 @@ struct DayHeader: Sendable {
     let reading: Reading
 }
 
-enum DayNumbering: String, Sendable {
-    case headerNumber
-    case legacyHeaderRank
-
-    init(stored raw: String?) {
-        self = raw.flatMap(Self.init(rawValue:)) ?? .legacyHeaderRank
-    }
-}
-
 struct WeekSection: Sendable {
     let headerRow: Int  // 0-based row holding "Day N"
     let roleHeaderRow: Int  // headerRow + 2

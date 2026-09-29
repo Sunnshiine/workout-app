@@ -1,6 +1,15 @@
 import Foundation
 import SwiftData
 
+enum DayNumbering: String, Sendable {
+    case headerNumber
+    case legacyHeaderRank
+
+    init(stored raw: String?) {
+        self = raw.flatMap(Self.init(rawValue:)) ?? .legacyHeaderRank
+    }
+}
+
 enum PendingWriteColumn: String, Codable, Sendable {
     case notes
     case lastSetRPE
