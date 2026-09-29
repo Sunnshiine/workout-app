@@ -7,6 +7,18 @@ struct SheetWriteAuditDetails: Sendable, Equatable {
     let valueCheckOutcome: String
 }
 
+extension SheetWriteAuditDetails {
+    static func dayHeadersChangedMeaning(week: Int, day: Int) -> SheetWriteAuditDetails {
+        SheetWriteAuditDetails(
+            selectedA1Target: nil,
+            rowScanDetails: "No row selected: Week \(week), Day \(day) was queued by header rank, "
+                + "and the Week's Day header at rank \(day) does not read Day \(day).",
+            currentValue: nil,
+            valueCheckOutcome: "Not checked because no target was selected."
+        )
+    }
+}
+
 extension SheetWritePlanner {
     func auditDetails(
         for request: SheetWriteRequest,

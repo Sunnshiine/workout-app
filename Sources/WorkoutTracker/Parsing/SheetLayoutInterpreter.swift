@@ -57,6 +57,15 @@ struct SheetLayout: Sendable {
     func day(week weekNumber: Int, day dayNumber: Int) -> SheetLayoutDay? {
         week(number: weekNumber)?.days.first { $0.number == dayNumber }
     }
+
+    /// Whether Day `day` of Week `weekNumber`, numbered by `numbering`, names the Session this build
+    /// reads as Day `day`, or names none under either numbering. A header number always does. A
+    /// header rank does only when the Week's `day`-th Day header reads as Day `day` (#749).
+    func namesTheSameSession(week weekNumber: Int, day: Int, numberedBy numbering: DayNumbering) -> Bool {
+        guard numbering == .headerRank, let week = week(number: weekNumber) else { return true }
+        guard week.dayHeaders.indices.contains(day - 1) else { return !week.days.contains { $0.number == day } }
+        return week.dayHeaders[day - 1].reading == .session(day)
+    }
 }
 
 struct SheetLayoutWeek: Sendable {
