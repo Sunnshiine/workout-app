@@ -383,6 +383,7 @@ extension SyncCoordinator {
         try? context.save()
     }
 
+    /// A write refused at a cell the batch holds is planned again from a fresh read (ADR-0006).
     fileprivate func plan(
         _ write: PendingWrite,
         context flushContext: PendingWriteFlushContext,
