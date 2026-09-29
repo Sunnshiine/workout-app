@@ -479,3 +479,25 @@ func aHeaderRankWriteTheFlushStoppedBeforeShowsOnlyWhereItsRankAndNumberAgree(
     #expect(writes.map(\.status) == [.conflict])
     #expect(writes.map(\.lastError) == [dayHeadersChangedMeaning])
 }
+
+@MainActor
+@Test func aSetLoggedOnABlockThisBuildParsedFromSwappedHeadersLandsUnderItsDayHeader() async throws {
+    let container = try makeHeaderRankContainer()
+    let ctx = container.mainContext
+    let client = HeaderRankStubClient(grid: threeSquatDayGroups(headedBy: ["Day 2", "Day 1"]))
+    let sync = SyncCoordinator(client: client, context: ctx)
+    await sync.sync(spreadsheetId: "sid")
+    let store = WorkoutStore(context: ctx, defaults: .inMemory())
+    store.reload()
+    let set = try #require(
+        store.block?.weeks.first?.sessions.first { $0.dayNumber == 1 }?.exercises.first?.sets.first { $0.index == 0 }
+    )
+    try store.log(set, as: SetLog(weight: .pounds(190), reps: 5, rpe: .eight))
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(client.updates.map(\.0) == ["'Block 27'!AA15"])
+    #expect(client.updates.map(\.1) == [[["190x5@8"]]])
+    #expect(sync.outcome == .clear)
+    #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
+}
