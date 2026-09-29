@@ -61,7 +61,7 @@ final class PendingWrite {
     func keepsItsDay(on layout: SheetLayout) -> Bool {
         switch dayNumbering {
         case .headerNumber: true
-        case .legacyHeaderRank: layout.rankAndNumberAgree(week: week, day: day)
+        case .legacyHeaderRank: status == .pending && layout.rankAndNumberAgree(week: week, day: day)
         }
     }
 

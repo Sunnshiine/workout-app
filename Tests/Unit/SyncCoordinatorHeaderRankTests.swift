@@ -323,7 +323,7 @@ private func flushLandsAQueuedWriteWhereItsDayNamesOneSession(_ landing: QueuedW
 }
 
 @MainActor
-@Test func aRefusedHeaderRankWriteShowsOnNeitherSessionOnThisOrALaterSync() async throws {
+@Test func aRefusedHeaderRankWriteShowsOnNeitherSessionWhileTheHeadersStaySwapped() async throws {
     let container = try makeHeaderRankContainer()
     let ctx = container.mainContext
     ctx.insert(headerRankPendingWrite(createdAt: 1, dayNumbering: .legacyHeaderRank, setIndex: 1, valueToWrite: "190x5@8"))
@@ -346,6 +346,39 @@ private func flushLandsAQueuedWriteWhereItsDayNamesOneSession(_ landing: QueuedW
     #expect(writes.map(\.lastError) == [dayHeadersChangedMeaning])
     let loggedAfterALaterSync = try loggedSquatSets(in: ctx)
     #expect(loggedAfterALaterSync == ["w1d2 s0=185x5@8"])
+}
+
+@MainActor
+@Test func aRefusedHeaderRankWriteStaysUnloggedOnceTheCoachRestoresTheHeadersSoItsRelogLands() async throws {
+    let container = try makeHeaderRankContainer()
+    let ctx = container.mainContext
+    ctx.insert(headerRankPendingWrite(createdAt: 1, dayNumbering: .legacyHeaderRank, valueToWrite: "190x5@8"))
+    try ctx.save()
+    let client = HeaderRankStubClient(grid: threeSquatDayGroups(headedBy: ["Day 2", "Day 1"]))
+    let sync = SyncCoordinator(client: client, context: ctx)
+    await sync.sync(spreadsheetId: "sid")
+    #expect(sync.outcome == .writesRefused(["Squat: \(dayHeadersChangedMeaning)"]))
+    client.grid = threeSquatDayGroups(headedBy: ["Day 1", "Day 2"])
+
+    await sync.sync(spreadsheetId: "sid")
+
+    #expect(sync.outcome == .clear)
+    let loggedOnceTheHeadersAreRestored = try loggedSquatSets(in: ctx)
+    #expect(loggedOnceTheHeadersAreRestored == [])
+    let refused = try ctx.fetch(FetchDescriptor<PendingWrite>())
+    #expect(refused.map(\.status) == [.conflict])
+    #expect(refused.map(\.lastError) == [dayHeadersChangedMeaning])
+
+    let store = WorkoutStore(context: ctx, defaults: .inMemory())
+    store.reload()
+    let set = try #require(
+        store.block?.weeks.first?.sessions.first { $0.dayNumber == 1 }?.exercises.first?.sets.first { $0.index == 0 }
+    )
+    try store.log(set, as: SetLog(weight: .pounds(195), reps: 5, rpe: .eight))
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(client.updates.map(\.0) == ["'Block 27'!K15"])
+    #expect(client.updates.map(\.1) == [[["195x5@8"]]])
 }
 
 @MainActor
