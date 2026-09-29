@@ -47,6 +47,7 @@ private func headerRankPendingWrite(
     day: Int = 1,
     dayNumbering: DayNumbering,
     setIndex: Int = 0,
+    column: PendingWriteColumn = .notes,
     valueToWrite: String
 ) -> PendingWrite {
     PendingWrite(
@@ -57,7 +58,7 @@ private func headerRankPendingWrite(
         dayNumbering: dayNumbering,
         exerciseName: "Squat",
         setIndex: setIndex,
-        column: .notes,
+        column: column,
         operation: .upsert,
         valueToWrite: valueToWrite,
         expectedCurrentValue: ""
@@ -76,6 +77,19 @@ private func threeSquatDayGroups(headedBy headers: [String?], notes: [String: St
         cells["\(sets)15"] = "3"
     }
     return gridFromA1(cells, rows: 24, cols: 52)
+}
+
+private func oneSetSquatDayGroupsWithLastSetRPE(headedBy headers: [String]) -> SheetGrid {
+    var cells: [String: String] = [:]
+    for ((name, sets, rpe, notesColumn), header) in zip([("C", "D", "I", "K"), ("S", "T", "Y", "AA")], headers) {
+        cells["\(name)12"] = header
+        cells["\(sets)14"] = "Sets"
+        cells["\(rpe)14"] = "Last set RPE"
+        cells["\(notesColumn)14"] = "Notes"
+        cells["\(name)15"] = "Squat"
+        cells["\(sets)15"] = "1"
+    }
+    return gridFromA1(cells, rows: 24, cols: 40)
 }
 
 @MainActor
@@ -407,6 +421,27 @@ func aHeaderRankWriteTheFlushStoppedBeforeShowsOnlyWhereItsRankAndNumberAgree(
     #expect(write.retryCount == 1)
     let overlaid = try loggedSquatSets(in: ctx)
     #expect(overlaid == logged)
+}
+
+@MainActor
+@Test func aRefusedHeaderRankSetLogLeavesAHeaderNumberLastSetRPEForTheSameCoordinatesToLand() async throws {
+    let container = try makeHeaderRankContainer()
+    let ctx = container.mainContext
+    ctx.insert(headerRankPendingWrite(createdAt: 1, dayNumbering: .legacyHeaderRank, valueToWrite: "185x5@8"))
+    ctx.insert(headerRankPendingWrite(createdAt: 2, dayNumbering: .headerNumber, valueToWrite: "190x5@9"))
+    ctx.insert(headerRankPendingWrite(createdAt: 3, dayNumbering: .headerNumber, column: .lastSetRPE, valueToWrite: "9"))
+    try ctx.save()
+    let client = HeaderRankStubClient(grid: oneSetSquatDayGroupsWithLastSetRPE(headedBy: ["Day 2", "Day 1"]))
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(client.updates.map(\.0) == ["'Block 27'!AA15", "'Block 27'!Y15"])
+    #expect(client.updates.map(\.1) == [[["190x5@9"]], [["9"]]])
+    #expect(sync.outcome == .writesRefused(["Squat: \(dayHeadersChangedMeaning)"]))
+    let remaining = try ctx.fetch(FetchDescriptor<PendingWrite>())
+    #expect(remaining.map(\.valueToWrite) == ["185x5@8"])
+    #expect(remaining.map(\.status) == [.conflict])
 }
 
 @MainActor

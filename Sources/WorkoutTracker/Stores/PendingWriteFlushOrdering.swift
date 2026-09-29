@@ -36,7 +36,8 @@ extension SyncCoordinator {
             guard
                 write.status == .pending,
                 write.column == .lastSetRPE,
-                SetCoordinates.ID(write) == key
+                SetCoordinates.ID(write) == key,
+                write.dayNumbering == setLogWrite.dayNumbering
             else { return nil }
             return recordDependentLastSetRPEConflict(setLogConflict, for: write)
         }
