@@ -7,6 +7,8 @@ final class Block {
     var squatTM: Double?
     var benchTM: Double?
     var deadliftTM: Double?
+    /// Nil in a Block a build before #749 cached.
+    var dayNumberingRaw: String?
     @Relationship(deleteRule: .cascade, inverse: \Week.block) var weeks: [Week] = []
 
     init(tabName: String, trainingMaxes: [MainLift: Double] = [:]) {
@@ -14,6 +16,13 @@ final class Block {
         squatTM = trainingMaxes[.squat]
         benchTM = trainingMaxes[.bench]
         deadliftTM = trainingMaxes[.deadlift]
+        dayNumberingRaw = DayNumbering.headerNumber.rawValue
+    }
+
+    /// How its Sessions' Day numbers were read, and so how a write queued from one of its Sets
+    /// numbers its Day.
+    var dayNumbering: DayNumbering {
+        dayNumberingRaw.flatMap(DayNumbering.init(rawValue:)) ?? .headerRank
     }
 }
 

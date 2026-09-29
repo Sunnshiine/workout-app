@@ -10,13 +10,21 @@ enum IgnoredDayHeader: Sendable, Equatable {
 }
 
 struct DayHeader: Sendable {
-    enum Reading: Sendable {
+    enum Reading: Sendable, Equatable {
         case session(Int)
         case ignored(IgnoredDayHeader)
     }
 
     let col: Int
     let reading: Reading
+}
+
+/// How a Day number names its Session. This build reads the N of the Session's `Day N` header. A
+/// build before #749 counted the Session's rank among its Week's Day headers, left to right, so a
+/// Block it cached and a pending write it queued number their Days that way.
+enum DayNumbering: String, Sendable {
+    case headerNumber
+    case headerRank
 }
 
 struct WeekSection: Sendable {
@@ -58,7 +66,15 @@ struct SheetLayoutWeek: Sendable {
     let dateRow: Int
     let endRow: Int
     let days: [SheetLayoutDay]
-    let ignoredDayHeaders: [IgnoredDayHeader]
+    /// Every `Day N` header in the Week in column order, so a header's index is its rank.
+    let dayHeaders: [DayHeader]
+
+    var ignoredDayHeaders: [IgnoredDayHeader] {
+        dayHeaders.reduce(into: []) { ignored, header in
+            guard case .ignored(let reason) = header.reading, !ignored.contains(reason) else { return }
+            ignored.append(reason)
+        }
+    }
 }
 
 struct SheetLayoutDay: Sendable {
@@ -394,10 +410,7 @@ struct SheetLayoutInterpreter: Sendable {
                 dateRow: section.dateRow,
                 endRow: endRow,
                 days: days.sorted { $0.number < $1.number },
-                ignoredDayHeaders: section.dayHeaders.reduce(into: []) { ignored, header in
-                    guard case .ignored(let reason) = header.reading, !ignored.contains(reason) else { return }
-                    ignored.append(reason)
-                }
+                dayHeaders: section.dayHeaders
             )
         }
         return SheetLayout(weeks: weeks)

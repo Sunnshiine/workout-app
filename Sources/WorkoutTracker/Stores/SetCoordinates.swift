@@ -7,6 +7,7 @@ struct SetCoordinates: Equatable {
     let blockTab: String
     let weekNumber: Int
     let dayNumber: Int
+    let dayNumbering: DayNumbering
     let exerciseName: String
     let exerciseBaseName: String
     let setIndex: Int
@@ -21,6 +22,7 @@ struct SetCoordinates: Equatable {
         self.blockTab = block.tabName
         self.weekNumber = week.number
         self.dayNumber = session.dayNumber
+        self.dayNumbering = block.dayNumbering
         self.exerciseName = exercise.name
         self.exerciseBaseName = exercise.baseName
         self.setIndex = set.index

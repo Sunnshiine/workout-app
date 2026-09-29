@@ -28,6 +28,8 @@ final class PendingWrite {
     var blockTab: String
     var week: Int
     var day: Int
+    /// Nil in a row a build before #749 stored.
+    var dayNumberingRaw: String?
     var exerciseName: String
     var setIndex: Int
     var columnRaw: String
@@ -53,12 +55,17 @@ final class PendingWrite {
         set { statusRaw = newValue.rawValue }
     }
 
+    var dayNumbering: DayNumbering {
+        dayNumberingRaw.flatMap(DayNumbering.init(rawValue:)) ?? .headerRank
+    }
+
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
         blockTab: String,
         week: Int,
         day: Int,
+        dayNumbering: DayNumbering = .headerRank,
         exerciseName: String,
         setIndex: Int,
         column: PendingWriteColumn,
@@ -71,6 +78,7 @@ final class PendingWrite {
         self.blockTab = blockTab
         self.week = week
         self.day = day
+        self.dayNumberingRaw = dayNumbering.rawValue
         self.exerciseName = exerciseName
         self.setIndex = setIndex
         self.columnRaw = column.rawValue

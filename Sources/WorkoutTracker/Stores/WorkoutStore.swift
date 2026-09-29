@@ -220,6 +220,7 @@ final class WorkoutStore {
                 blockTab: coordinates.blockTab,
                 week: coordinates.weekNumber,
                 day: coordinates.dayNumber,
+                dayNumbering: coordinates.dayNumbering,
                 exerciseName: coordinates.exerciseName,
                 setIndex: coordinates.setIndex,
                 column: column,

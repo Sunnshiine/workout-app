@@ -324,6 +324,8 @@ struct ParsedBlockModel {
 struct ParsedBlock {
     var block: ParsedBlockModel
     var warnings: [String]
+    /// The reading `block` came from, which judges the pending writes overlaid on it.
+    let layout: SheetLayout
 }
 
 struct SheetParser {
@@ -355,7 +357,8 @@ struct SheetParser {
                 ? ["Parse warning: no week sections (no 'Day N' headers) in \(tabName)"]
                 : layout.weeks.flatMap { week in
                     week.ignoredDayHeaders.map { warning(for: $0, week: week.number, in: tabName) }
-                }
+                },
+            layout: layout
         )
     }
 
