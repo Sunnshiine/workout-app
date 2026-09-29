@@ -706,7 +706,13 @@ func replanningAfterTheCoachHidesEveryRowBelowACoachNoteAlsoRefusesThePairedLast
     let container = try makeReplanContainer()
     let ctx = container.mainContext
     ctx.insert(replanPendingWrite(createdAt: 1, dayNumbering: .legacyHeaderRank, valueToWrite: "185x5@8", expectedCurrentValue: ""))
-    ctx.insert(replanPendingWrite(createdAt: 2, dayNumbering: .legacyHeaderRank, valueToWrite: "190x5@8", expectedCurrentValue: ""))
+    let targetsTheK15TheBatchHolds = replanPendingWrite(
+        createdAt: 2,
+        dayNumbering: .legacyHeaderRank,
+        valueToWrite: "190x5@8",
+        expectedCurrentValue: ""
+    )
+    ctx.insert(targetsTheK15TheBatchHolds)
     try ctx.save()
     let client = LiveSheetClient(
         grid: replanGrid(["C15": "Squat", "D15": "1", "T14": "Sets", "AA14": "Notes", "S15": "Squat", "T15": "1"]),
