@@ -30,8 +30,9 @@ struct SetCoordinates: Equatable {
     }
 
     /// The part of a Set's coordinates that still names the same Set after a freshly parsed Block
-    /// replaces the cached one. The Session date and the Exercise base name are re-read from the
-    /// Sheet on every parse, so they can move while the Set stays the one a pending write addressed.
+    /// replaces the cached one, when both Blocks number their Days the same way. The Session date
+    /// and the Exercise base name are re-read from the Sheet on every parse, so they can move while
+    /// the Set stays the one a pending write addressed.
     struct ID: Hashable {
         let blockTab: String
         let weekNumber: Int
