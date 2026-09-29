@@ -11,6 +11,7 @@ import Testing
         blockTab: "Block 27",
         week: 2,
         day: 3,
+        dayNumbering: .headerNumber,
         exerciseName: "Back Squat",
         setIndex: 1,
         column: .notes,
@@ -310,6 +311,7 @@ import Testing
 
 private func makeDiagnosticWrite(
     createdAt: Date,
+    dayNumbering: DayNumbering = .headerNumber,
     exerciseName: String,
     valueToWrite: String?
 ) -> PendingWrite {
@@ -318,6 +320,7 @@ private func makeDiagnosticWrite(
         blockTab: "Block 27",
         week: 1,
         day: 1,
+        dayNumbering: dayNumbering,
         exerciseName: exerciseName,
         setIndex: 0,
         column: .notes,

@@ -81,7 +81,7 @@ private func makeContainer() throws -> ModelContainer {
 
 private func pendingWrite(
     createdAt: TimeInterval,
-    dayNumbering: DayNumbering = .legacyHeaderRank,
+    dayNumbering: DayNumbering = .headerNumber,
     exerciseName: String = "Squat",
     setIndex: Int = 0,
     column: PendingWriteColumn = .notes,
@@ -112,6 +112,7 @@ private func pendingWrite(
             blockTab: "Block 27",
             week: 1,
             day: 1,
+            dayNumbering: .headerNumber,
             exerciseName: "Squat",
             setIndex: 0,
             column: .notes,
@@ -160,6 +161,7 @@ private func pendingWrite(
             blockTab: "Block 27",
             week: 1,
             day: 1,
+            dayNumbering: .headerNumber,
             exerciseName: "Squat",
             setIndex: 0,
             column: .notes,
@@ -174,6 +176,7 @@ private func pendingWrite(
             blockTab: "Block 27",
             week: 1,
             day: 1,
+            dayNumbering: .headerNumber,
             exerciseName: "Squat",
             setIndex: 0,
             column: .notes,
@@ -246,6 +249,7 @@ private func pendingWrite(
             blockTab: "Block 27",
             week: 1,
             day: 1,
+            dayNumbering: .headerNumber,
             exerciseName: "Squat",
             setIndex: 0,
             column: .notes,
@@ -284,6 +288,7 @@ private func pendingWrite(
             blockTab: "Block 27",
             week: 1,
             day: 1,
+            dayNumbering: .headerNumber,
             exerciseName: "Squat",
             setIndex: 0,
             column: .notes,
@@ -352,7 +357,7 @@ private func pendingWrite(
 @Test func flushRefusesAQueuedWriteWhoseDayHeaderWasCleared() async throws {
     let container = try makeContainer()
     let ctx = container.mainContext
-    ctx.insert(pendingWrite(createdAt: 1, dayNumbering: .headerNumber))
+    ctx.insert(pendingWrite(createdAt: 1))
     try ctx.save()
     let client = FlushStubClient(
         grid: gridFromA1(
@@ -389,6 +394,7 @@ private func pendingWrite(
             blockTab: "Block 27",
             week: 1,
             day: 1,
+            dayNumbering: .headerNumber,
             exerciseName: "Squat",
             setIndex: 0,
             column: .notes,
@@ -401,6 +407,7 @@ private func pendingWrite(
         blockTab: "Block 27",
         week: 1,
         day: 1,
+        dayNumbering: .headerNumber,
         exerciseName: "Bench Press",
         setIndex: 0,
         column: .notes,
@@ -568,6 +575,7 @@ extension SyncOutcome {
         blockTab: "Block 27",
         week: 1,
         day: 1,
+        dayNumbering: .headerNumber,
         exerciseName: "Squat",
         setIndex: 0,
         column: .notes,
@@ -618,6 +626,7 @@ extension SyncOutcome {
 /// write queued for the overlay to replay.
 @MainActor
 private func queuedSquatNotesWrite(
+    dayNumbering: DayNumbering = .headerNumber,
     setIndex: Int,
     operation: PendingWriteOperation,
     value: String?
@@ -626,7 +635,7 @@ private func queuedSquatNotesWrite(
         blockTab: "Block 27",
         week: 1,
         day: 1,
-        dayNumbering: .headerNumber,
+        dayNumbering: dayNumbering,
         exerciseName: "Squat",
         setIndex: setIndex,
         column: .notes,

@@ -543,12 +543,16 @@ extension SyncOutcomeCharacterizationTests {
         )
     }
 
-    fileprivate func queueSquatLog(in context: ModelContext) throws {
+    fileprivate func queueSquatLog(
+        in context: ModelContext,
+        dayNumbering: DayNumbering = .headerNumber
+    ) throws {
         context.insert(
             PendingWrite(
                 blockTab: "Block 27",
                 week: 1,
                 day: 1,
+                dayNumbering: dayNumbering,
                 exerciseName: "Squat",
                 setIndex: 0,
                 column: .notes,

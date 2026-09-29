@@ -87,7 +87,7 @@ private func makeReplanContainer() throws -> ModelContainer {
 private func replanPendingWrite(
     createdAt: TimeInterval,
     day: Int = 1,
-    dayNumbering: DayNumbering = .legacyHeaderRank,
+    dayNumbering: DayNumbering = .headerNumber,
     exerciseName: String = "Squat",
     setIndex: Int = 0,
     column: PendingWriteColumn = .notes,

@@ -80,7 +80,7 @@ final class PendingWrite {
         blockTab: String,
         week: Int,
         day: Int,
-        dayNumbering: DayNumbering = .legacyHeaderRank,
+        dayNumbering: DayNumbering,
         exerciseName: String,
         setIndex: Int,
         column: PendingWriteColumn,

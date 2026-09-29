@@ -76,6 +76,7 @@ private func makeBatchContainer() throws -> ModelContainer {
 
 private func batchPendingWrite(
     createdAt: TimeInterval,
+    dayNumbering: DayNumbering = .headerNumber,
     exerciseName: String = "Squat",
     setIndex: Int = 0,
     column: PendingWriteColumn = .notes,
@@ -88,6 +89,7 @@ private func batchPendingWrite(
         blockTab: "Block 27",
         week: 1,
         day: 1,
+        dayNumbering: dayNumbering,
         exerciseName: exerciseName,
         setIndex: setIndex,
         column: column,
