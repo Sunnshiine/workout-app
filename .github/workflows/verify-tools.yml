@@ -9,6 +9,7 @@ on:
       - "scripts/ensure-simulator.sh"
       - "scripts/sim-lock.sh"
       - "scripts/test-sim.sh"
+      - "scripts/tests/test-sim.test.sh"
       - ".github/workflows/verify-tools.yml"
       - ".github/workflows/ci.yml"
   push:
@@ -20,6 +21,7 @@ on:
       - "scripts/ensure-simulator.sh"
       - "scripts/sim-lock.sh"
       - "scripts/test-sim.sh"
+      - "scripts/tests/test-sim.test.sh"
       - ".github/workflows/verify-tools.yml"
       - ".github/workflows/ci.yml"
 
@@ -45,5 +47,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: scripts/contact-sheet.test.sh
+      - run: scripts/tests/test-sim.test.sh
       - name: test_evidence.py, with the VerifySheet tests that only run on macOS
         run: python3 .agents/skills/verify/tests/test_evidence.py
