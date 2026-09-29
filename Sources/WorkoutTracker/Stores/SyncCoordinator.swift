@@ -383,9 +383,7 @@ extension SyncCoordinator {
         try? context.save()
     }
 
-    /// A refusal at a cell the batch already holds was checked against what the batch predicts, not
-    /// what the Sheet holds. The coach may have moved or hidden that cell since the first read, so
-    /// the write is addressed again against a fresh read of the tab (ADR-0003).
+    /// A write refused at a cell the batch holds is planned again from a fresh read (ADR-0006).
     fileprivate func plan(
         _ write: PendingWrite,
         context flushContext: PendingWriteFlushContext,
