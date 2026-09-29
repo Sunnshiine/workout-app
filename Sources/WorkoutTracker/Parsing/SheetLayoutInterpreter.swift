@@ -19,9 +19,6 @@ struct DayHeader: Sendable {
     let reading: Reading
 }
 
-/// How a Day number names its Session. This build reads the N of the Session's `Day N` header. A
-/// build before #749 counted the Session's rank among its Week's Day headers, left to right, so a
-/// Block it cached and a pending write it queued number their Days that way.
 enum DayNumbering: String, Sendable {
     case headerNumber
     case headerRank
@@ -58,9 +55,6 @@ struct SheetLayout: Sendable {
         week(number: weekNumber)?.days.first { $0.number == dayNumber }
     }
 
-    /// Whether Day `day` of Week `weekNumber`, numbered by `numbering`, names the Session this build
-    /// reads as Day `day`, or names none under either numbering. A header number always does. A
-    /// header rank does only when the Week's `day`-th Day header reads as Day `day` (#749).
     func namesTheSameSession(week weekNumber: Int, day: Int, numberedBy numbering: DayNumbering) -> Bool {
         guard numbering == .headerRank, let week = week(number: weekNumber) else { return true }
         guard week.dayHeaders.indices.contains(day - 1) else { return !week.days.contains { $0.number == day } }
@@ -75,7 +69,6 @@ struct SheetLayoutWeek: Sendable {
     let dateRow: Int
     let endRow: Int
     let days: [SheetLayoutDay]
-    /// Every `Day N` header in the Week in column order, so a header's index is its rank.
     let dayHeaders: [DayHeader]
 
     var ignoredDayHeaders: [IgnoredDayHeader] {

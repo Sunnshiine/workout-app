@@ -701,8 +701,6 @@ func replanningAfterTheCoachHidesEveryRowBelowACoachNoteAlsoRefusesThePairedLast
     #expect(try ctx.fetch(FetchDescriptor<WriteTargetAuditEntry>()).map(\.finalStatus) == [.succeeded])
 }
 
-/// The second write targets K15, which the batch already holds, so the flush sends the batch and
-/// plans that write again against a second read, where the coach has swapped the Day headers.
 @MainActor
 @Test func replanningAHeaderRankWriteAfterTheCoachSwapsTheDayHeadersRefusesItOnTheFreshRead() async throws {
     let container = try makeReplanContainer()

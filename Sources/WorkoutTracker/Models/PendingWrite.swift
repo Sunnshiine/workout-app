@@ -28,7 +28,6 @@ final class PendingWrite {
     var blockTab: String
     var week: Int
     var day: Int
-    /// Nil in a row a build before #749 stored.
     var dayNumberingRaw: String?
     var exerciseName: String
     var setIndex: Int

@@ -324,7 +324,6 @@ struct ParsedBlockModel {
 struct ParsedBlock {
     var block: ParsedBlockModel
     var warnings: [String]
-    /// The reading `block` came from, which judges the pending writes overlaid on it.
     let layout: SheetLayout
 }
 

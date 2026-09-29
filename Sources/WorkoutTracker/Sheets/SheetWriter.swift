@@ -11,9 +11,6 @@ struct SheetWriteRequest: Sendable, Equatable {
     var valueToWrite: String?
     var expectedCurrentValue: String
 
-    /// A write queued by header rank is refused where its rank and its number name different
-    /// Sessions, since the sheet it was queued against is gone and either Session could be the one
-    /// the athlete logged (#749).
     @MainActor
     init(_ write: PendingWrite, on layout: SheetLayout) throws(SheetWriterError) {
         guard layout.namesTheSameSession(week: write.week, day: write.day, numberedBy: write.dayNumbering) else {

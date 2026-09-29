@@ -157,8 +157,6 @@ final class SyncCoordinator {
         try context.save()
     }
 
-    /// A write whose Day names one Session by rank and another by number shows on neither, since the
-    /// flush refuses it for the same reason (`SheetWriteRequest.init(_:on:)`).
     private func overlayPendingWrites(on block: Block, layout: SheetLayout) {
         let writes = (try? context.fetch(FetchDescriptor<PendingWrite>())) ?? []
         let sets = block.setsByID

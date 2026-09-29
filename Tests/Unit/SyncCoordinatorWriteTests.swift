@@ -663,8 +663,6 @@ private func overlaidSquatSet(index: Int, in ctx: ModelContext) throws -> Exerci
 
 private let dayHeadersChangedMeaning = "The sheet's Day headers changed meaning since this Set was logged. Log it again."
 
-/// Column groups 16 wide from C, headed by `headers` in row 12 (nil leaves a group unheaded). Each
-/// holds a three-Set Squat in row 15 whose Notes cell is K15, AA15, or AQ15.
 private func upgradeGrid(_ headers: [String?], notes: [String: String] = [:]) -> SheetGrid {
     var cells = notes
     for ((name, sets, notesColumn), header) in zip([("C", "D", "K"), ("S", "T", "AA"), ("AI", "AJ", "AQ")], headers) {
@@ -677,7 +675,6 @@ private func upgradeGrid(_ headers: [String?], notes: [String: String] = [:]) ->
     return gridFromA1(cells, rows: 24, cols: 52)
 }
 
-/// Every logged Squat Set in the cached Block, as `w1d<day> s<index>=<Set Log>`.
 @MainActor
 private func loggedSquatSets(in ctx: ModelContext) throws -> [String] {
     let week = try ctx.fetch(FetchDescriptor<Block>()).first?.weeks.first { $0.number == 1 }
