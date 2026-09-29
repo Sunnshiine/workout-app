@@ -101,8 +101,8 @@ struct GlassBearingViewsVisualTests {
 
     @Test func developerToolsViewMatchesVisualBaseline() throws {
         let scenario = try WorkoutScenarios.freshConfiguredApp()
-        GlassVisualFixtureRetainer.retain(scenario)
-        let sync = SyncCoordinator(client: GlassVisualNoopSheetsClient(), context: scenario.context)
+        VisualFixtureRetainer.retain(scenario)
+        let sync = SyncCoordinator(client: VisualNoopSheetsClient(), context: scenario.context)
 
         assertFullScreenBaseline {
             NavigationStack {
@@ -183,25 +183,4 @@ private final class VisualRestClock: RestClock {
     init(now: Date) {
         self.now = now
     }
-}
-
-@MainActor
-private enum GlassVisualFixtureRetainer {
-    private static var retainedScenarios: [ConfiguredAppScenario] = []
-
-    static func retain(_ scenario: ConfiguredAppScenario) {
-        retainedScenarios.append(scenario)
-    }
-}
-
-private actor GlassVisualNoopSheetsClient: SheetsClient {
-    func listTabTitles(spreadsheetId: String) async throws -> [String] {
-        []
-    }
-
-    func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
-        SheetSnapshot(values: [], rowVisibility: [:])
-    }
-
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
 }

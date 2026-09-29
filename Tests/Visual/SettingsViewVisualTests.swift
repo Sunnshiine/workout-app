@@ -28,8 +28,8 @@ struct SettingsViewVisualTests {
         testName: String = #function
     ) throws {
         let scenario = try WorkoutScenarios.freshConfiguredApp()
-        SettingsVisualFixtureRetainer.retain(scenario)
-        let sync = SyncCoordinator(client: SettingsVisualNoopSheetsClient(), context: scenario.context)
+        VisualFixtureRetainer.retain(scenario)
+        let sync = SyncCoordinator(client: VisualNoopSheetsClient(), context: scenario.context)
 
         let view = SettingsView()
             .environment(scenario.settings)
@@ -49,25 +49,4 @@ struct SettingsViewVisualTests {
             testName: testName
         )
     }
-}
-
-@MainActor
-private enum SettingsVisualFixtureRetainer {
-    private static var retainedScenarios: [ConfiguredAppScenario] = []
-
-    static func retain(_ scenario: ConfiguredAppScenario) {
-        retainedScenarios.append(scenario)
-    }
-}
-
-private actor SettingsVisualNoopSheetsClient: SheetsClient {
-    func listTabTitles(spreadsheetId: String) async throws -> [String] {
-        []
-    }
-
-    func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
-        SheetSnapshot(values: [], rowVisibility: [:])
-    }
-
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
 }

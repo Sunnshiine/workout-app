@@ -412,6 +412,8 @@ enum Theme {  // swiftlint:disable:this type_body_length
     static let sectionSpacing: CGFloat = 28
     static let editingWeightFootGap: CGFloat = 10
     static let supersetRestingSpacing: CGFloat = 24
+    static let stageColumnSpacing: CGFloat = 14
+    static let stageBranchTopPadding: CGFloat = 4
     static let sessionTileMinHeight: CGFloat = 86
     static let sessionTileSpacing: CGFloat = 10
     static let sessionTileCurrentBorderWidth: CGFloat = 1.5

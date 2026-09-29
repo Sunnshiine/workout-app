@@ -14,10 +14,6 @@ struct SyncStatusBanner: View {
     }
 
     private func banner(_ presentation: SyncStatusBannerPresentation) -> some View {
-        // No icon: the stage's icon budget is spent on the branch (ledger §10.3). One line, because
-        // the capsule tucks under the status bar and a second runs behind the Dynamic Island (#599),
-        // which is why `presentation.detail` reaches the athlete through the label below and the
-        // Settings `Sync now` row rather than the screen.
         HStack(spacing: 8) {
             Text(presentation.text)
                 .lineLimit(2)
