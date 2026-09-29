@@ -21,7 +21,11 @@ struct DayHeader: Sendable {
 
 enum DayNumbering: String, Sendable {
     case headerNumber
-    case headerRank
+    case legacyHeaderRank
+
+    init(stored raw: String?) {
+        self = raw.flatMap(Self.init(rawValue:)) ?? .legacyHeaderRank
+    }
 }
 
 struct WeekSection: Sendable {
@@ -56,7 +60,7 @@ struct SheetLayout: Sendable {
     }
 
     func namesTheSameSession(week weekNumber: Int, day: Int, numberedBy numbering: DayNumbering) -> Bool {
-        guard numbering == .headerRank, let week = week(number: weekNumber) else { return true }
+        guard numbering == .legacyHeaderRank, let week = week(number: weekNumber) else { return true }
         guard week.dayHeaders.indices.contains(day - 1) else { return !week.days.contains { $0.number == day } }
         return week.dayHeaders[day - 1].reading == .session(day)
     }

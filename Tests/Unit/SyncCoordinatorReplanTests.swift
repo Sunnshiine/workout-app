@@ -87,7 +87,7 @@ private func makeReplanContainer() throws -> ModelContainer {
 private func replanPendingWrite(
     createdAt: TimeInterval,
     day: Int = 1,
-    dayNumbering: DayNumbering = .headerRank,
+    dayNumbering: DayNumbering = .legacyHeaderRank,
     exerciseName: String = "Squat",
     setIndex: Int = 0,
     column: PendingWriteColumn = .notes,
@@ -705,8 +705,8 @@ func replanningAfterTheCoachHidesEveryRowBelowACoachNoteAlsoRefusesThePairedLast
 @Test func replanningAHeaderRankWriteAfterTheCoachSwapsTheDayHeadersRefusesItOnTheFreshRead() async throws {
     let container = try makeReplanContainer()
     let ctx = container.mainContext
-    ctx.insert(replanPendingWrite(createdAt: 1, dayNumbering: .headerRank, valueToWrite: "185x5@8", expectedCurrentValue: ""))
-    ctx.insert(replanPendingWrite(createdAt: 2, dayNumbering: .headerRank, valueToWrite: "190x5@8", expectedCurrentValue: ""))
+    ctx.insert(replanPendingWrite(createdAt: 1, dayNumbering: .legacyHeaderRank, valueToWrite: "185x5@8", expectedCurrentValue: ""))
+    ctx.insert(replanPendingWrite(createdAt: 2, dayNumbering: .legacyHeaderRank, valueToWrite: "190x5@8", expectedCurrentValue: ""))
     try ctx.save()
     let client = LiveSheetClient(
         grid: replanGrid(["C15": "Squat", "D15": "1", "T14": "Sets", "AA14": "Notes", "S15": "Squat", "T15": "1"]),

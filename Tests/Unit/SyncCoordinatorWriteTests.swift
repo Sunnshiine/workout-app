@@ -87,7 +87,7 @@ private func makeContainer() throws -> ModelContainer {
 private func pendingWrite(
     createdAt: TimeInterval,
     day: Int = 1,
-    dayNumbering: DayNumbering = .headerRank,
+    dayNumbering: DayNumbering = .legacyHeaderRank,
     exerciseName: String = "Squat",
     setIndex: Int = 0,
     column: PendingWriteColumn = .notes,
@@ -819,7 +819,7 @@ private func flushRefusesAWriteQueuedByHeaderRankWhereItsRankAndNumberDisagree(
         pendingWrite(
             createdAt: 1,
             day: refusal.day,
-            dayNumbering: .headerRank,
+            dayNumbering: .legacyHeaderRank,
             setIndex: refusal.setIndex,
             valueToWrite: "190x5@8"
         )
@@ -859,7 +859,7 @@ private struct QueuedWriteLanding: Sendable, CustomTestStringConvertible {
         headers: ["Day 1", "Day 2", "Day 3"],
         notes: ["AA15": "185x5@8"],
         day: 2,
-        dayNumbering: .headerRank,
+        dayNumbering: .legacyHeaderRank,
         setIndex: 1,
         range: "'Block 27'!AA15",
         value: "185x5@8, 190x5@8"
@@ -869,7 +869,7 @@ private struct QueuedWriteLanding: Sendable, CustomTestStringConvertible {
         headers: ["Day 1", "Day 1", "Day 3"],
         notes: [:],
         day: 3,
-        dayNumbering: .headerRank,
+        dayNumbering: .legacyHeaderRank,
         setIndex: 0,
         range: "'Block 27'!AQ15",
         value: "190x5@8"
@@ -879,7 +879,7 @@ private struct QueuedWriteLanding: Sendable, CustomTestStringConvertible {
         headers: ["Day 1", "Day 2", "Day 8"],
         notes: [:],
         day: 2,
-        dayNumbering: .headerRank,
+        dayNumbering: .legacyHeaderRank,
         setIndex: 0,
         range: "'Block 27'!AA15",
         value: "190x5@8"
@@ -923,7 +923,7 @@ private func flushLandsAQueuedWriteWhereItsDayNamesOneSession(_ landing: QueuedW
 @Test func aRefusedHeaderRankWriteShowsOnNeitherSessionOnThisOrALaterSync() async throws {
     let container = try makeContainer()
     let ctx = container.mainContext
-    ctx.insert(pendingWrite(createdAt: 1, dayNumbering: .headerRank, setIndex: 1, valueToWrite: "190x5@8"))
+    ctx.insert(pendingWrite(createdAt: 1, dayNumbering: .legacyHeaderRank, setIndex: 1, valueToWrite: "190x5@8"))
     try ctx.save()
     let client = FlushStubClient(grid: upgradeGrid(["Day 2", "Day 1"], notes: ["K15": "185x5@8"]))
     let sync = SyncCoordinator(client: client, context: ctx)
@@ -956,7 +956,7 @@ func aHeaderRankWriteTheFlushStoppedBeforeShowsOnlyWhereItsRankAndNumberAgree(
 ) async throws {
     let container = try makeContainer()
     let ctx = container.mainContext
-    let write = pendingWrite(createdAt: 1, dayNumbering: .headerRank, valueToWrite: "190x5@8")
+    let write = pendingWrite(createdAt: 1, dayNumbering: .legacyHeaderRank, valueToWrite: "190x5@8")
     ctx.insert(write)
     try ctx.save()
     let client = FlushStubClient(grid: upgradeGrid(headers))

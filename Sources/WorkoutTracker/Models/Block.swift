@@ -19,7 +19,7 @@ final class Block {
     }
 
     var dayNumbering: DayNumbering {
-        dayNumberingRaw.flatMap(DayNumbering.init(rawValue:)) ?? .headerRank
+        DayNumbering(stored: dayNumberingRaw)
     }
 }
 

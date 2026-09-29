@@ -55,7 +55,7 @@ final class PendingWrite {
     }
 
     var dayNumbering: DayNumbering {
-        dayNumberingRaw.flatMap(DayNumbering.init(rawValue:)) ?? .headerRank
+        DayNumbering(stored: dayNumberingRaw)
     }
 
     init(
@@ -64,7 +64,7 @@ final class PendingWrite {
         blockTab: String,
         week: Int,
         day: Int,
-        dayNumbering: DayNumbering = .headerRank,
+        dayNumbering: DayNumbering = .legacyHeaderRank,
         exerciseName: String,
         setIndex: Int,
         column: PendingWriteColumn,
