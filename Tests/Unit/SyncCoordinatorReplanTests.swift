@@ -741,6 +741,6 @@ func replanningAfterTheCoachHidesEveryRowBelowACoachNoteAlsoRefusesThePairedLast
     #expect(
         entries.last?.rowScanDetails
             == "No row selected: Week 1, Day 1 was queued by header rank, "
-            + "and on this sheet rank 1 and the header Day 1 do not name the same Session."
+            + "and reading Day 1 by rank and by header number does not give the same Session on this sheet."
     )
 }
