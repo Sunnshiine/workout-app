@@ -12,10 +12,8 @@ struct SheetWriteRequest: Sendable, Equatable {
     var expectedCurrentValue: String
 
     @MainActor
-    init(_ write: PendingWrite, on layout: SheetLayout) throws(SheetWriterError) {
-        guard layout.namesTheSameSession(week: write.week, day: write.day, numberedBy: write.dayNumbering) else {
-            throw .dayHeadersChangedMeaning
-        }
+    init?(_ write: PendingWrite, on layout: SheetLayout) {
+        guard write.keepsItsDay(on: layout) else { return nil }
         self.init(
             blockTab: write.blockTab,
             week: write.week,

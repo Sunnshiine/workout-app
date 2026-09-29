@@ -59,8 +59,8 @@ struct SheetLayout: Sendable {
         week(number: weekNumber)?.days.first { $0.number == dayNumber }
     }
 
-    func namesTheSameSession(week weekNumber: Int, day: Int, numberedBy numbering: DayNumbering) -> Bool {
-        guard numbering == .legacyHeaderRank, let week = week(number: weekNumber) else { return true }
+    func rankAndNumberAgree(week weekNumber: Int, day: Int) -> Bool {
+        guard let week = week(number: weekNumber) else { return true }
         guard week.dayHeaders.indices.contains(day - 1) else { return !week.days.contains { $0.number == day } }
         return week.dayHeaders[day - 1].reading == .session(day)
     }

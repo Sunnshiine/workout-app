@@ -161,7 +161,7 @@ final class SyncCoordinator {
         let writes = (try? context.fetch(FetchDescriptor<PendingWrite>())) ?? []
         let sets = block.setsByID
         for write in writes where write.blockTab == block.tabName && write.column == .notes {
-            guard layout.namesTheSameSession(week: write.week, day: write.day, numberedBy: write.dayNumbering) else { continue }
+            guard write.keepsItsDay(on: layout) else { continue }
             sets[SetCoordinates.ID(write)]?.apply(write)
         }
     }
@@ -224,12 +224,9 @@ private struct PlannedPendingWrite {
     /// from one read only, so its target, value check, and audit row cannot disagree.
     @MainActor
     init(_ write: PendingWrite, against snapshot: SheetWritePlanningSnapshot, planner: SheetWritePlanner) throws {
-        let request: SheetWriteRequest
-        do {
-            request = try SheetWriteRequest(write, on: snapshot.layout)
-        } catch {
+        guard let request = SheetWriteRequest(write, on: snapshot.layout) else {
             throw PendingWritePlanningConflict(
-                error: error,
+                error: .dayHeadersChangedMeaning,
                 refusedTarget: nil,
                 auditDetails: .dayHeadersChangedMeaning(week: write.week, day: write.day)
             )

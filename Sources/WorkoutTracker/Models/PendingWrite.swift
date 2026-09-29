@@ -58,6 +58,13 @@ final class PendingWrite {
         DayNumbering(stored: dayNumberingRaw)
     }
 
+    func keepsItsDay(on layout: SheetLayout) -> Bool {
+        switch dayNumbering {
+        case .headerNumber: true
+        case .legacyHeaderRank: layout.rankAndNumberAgree(week: week, day: day)
+        }
+    }
+
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
