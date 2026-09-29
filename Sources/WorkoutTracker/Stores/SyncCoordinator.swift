@@ -162,10 +162,8 @@ final class SyncCoordinator {
     private func overlayPendingWrites(on block: Block, layout: SheetLayout) {
         let writes = (try? context.fetch(FetchDescriptor<PendingWrite>())) ?? []
         let sets = block.setsByID
-        for write in writes
-        where write.blockTab == block.tabName && write.column == .notes
-            && layout.namesTheSameSession(week: write.week, day: write.day, numberedBy: write.dayNumbering)
-        {
+        for write in writes where write.blockTab == block.tabName && write.column == .notes {
+            guard layout.namesTheSameSession(week: write.week, day: write.day, numberedBy: write.dayNumbering) else { continue }
             sets[SetCoordinates.ID(write)]?.apply(write)
         }
     }
