@@ -161,7 +161,7 @@ final class SyncCoordinator {
         let writes = (try? context.fetch(FetchDescriptor<PendingWrite>())) ?? []
         let sets = block.setsByID
         for write in writes where write.blockTab == block.tabName && write.column == .notes {
-            guard write.keepsItsDay(on: layout) else { continue }
+            guard write.overlays(on: layout) else { continue }
             sets[SetCoordinates.ID(write)]?.apply(write)
         }
     }

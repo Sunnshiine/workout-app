@@ -13,7 +13,7 @@ struct SheetWriteRequest: Sendable, Equatable {
 
     @MainActor
     init?(_ write: PendingWrite, on layout: SheetLayout) {
-        guard write.keepsItsDay(on: layout) else { return nil }
+        guard write.namesOneSession(on: layout) else { return nil }
         self.init(
             blockTab: write.blockTab,
             week: write.week,
