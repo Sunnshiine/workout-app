@@ -125,7 +125,7 @@ private struct HeaderRankRefusal: Sendable, CustomTestStringConvertible {
         setIndex: 1,
         lastError: dayHeadersChangedMeaning,
         rowScan: "No row selected: Week 1, Day 1 was queued by header rank, "
-            + "and the Week's Day header at rank 1 does not read Day 1."
+            + "and on this sheet rank 1 and the header Day 1 do not name the same Session."
     ),
     HeaderRankRefusal(
         testDescription: "U2q swapped",
@@ -135,7 +135,7 @@ private struct HeaderRankRefusal: Sendable, CustomTestStringConvertible {
         setIndex: 0,
         lastError: dayHeadersChangedMeaning,
         rowScan: "No row selected: Week 1, Day 1 was queued by header rank, "
-            + "and the Week's Day header at rank 1 does not read Day 1."
+            + "and on this sheet rank 1 and the header Day 1 do not name the same Session."
     ),
     HeaderRankRefusal(
         testDescription: "U3 Day 1 cleared, AQ15 logged",
@@ -145,7 +145,7 @@ private struct HeaderRankRefusal: Sendable, CustomTestStringConvertible {
         setIndex: 1,
         lastError: dayHeadersChangedMeaning,
         rowScan: "No row selected: Week 1, Day 2 was queued by header rank, "
-            + "and the Week's Day header at rank 2 does not read Day 2."
+            + "and on this sheet rank 2 and the header Day 2 do not name the same Session."
     ),
     HeaderRankRefusal(
         testDescription: "U3q Day 1 cleared",
@@ -155,7 +155,7 @@ private struct HeaderRankRefusal: Sendable, CustomTestStringConvertible {
         setIndex: 0,
         lastError: dayHeadersChangedMeaning,
         rowScan: "No row selected: Week 1, Day 2 was queued by header rank, "
-            + "and the Week's Day header at rank 2 does not read Day 2."
+            + "and on this sheet rank 2 and the header Day 2 do not name the same Session."
     ),
     HeaderRankRefusal(
         testDescription: "U3r Day 1 cleared, rank 1",
@@ -165,7 +165,7 @@ private struct HeaderRankRefusal: Sendable, CustomTestStringConvertible {
         setIndex: 0,
         lastError: dayHeadersChangedMeaning,
         rowScan: "No row selected: Week 1, Day 1 was queued by header rank, "
-            + "and the Week's Day header at rank 1 does not read Day 1."
+            + "and on this sheet rank 1 and the header Day 1 do not name the same Session."
     ),
     HeaderRankRefusal(
         testDescription: "U4 middle cleared",
@@ -175,7 +175,7 @@ private struct HeaderRankRefusal: Sendable, CustomTestStringConvertible {
         setIndex: 0,
         lastError: dayHeadersChangedMeaning,
         rowScan: "No row selected: Week 1, Day 2 was queued by header rank, "
-            + "and the Week's Day header at rank 2 does not read Day 2."
+            + "and on this sheet rank 2 and the header Day 2 do not name the same Session."
     ),
     HeaderRankRefusal(
         testDescription: "U5 gap",
@@ -185,7 +185,7 @@ private struct HeaderRankRefusal: Sendable, CustomTestStringConvertible {
         setIndex: 0,
         lastError: dayHeadersChangedMeaning,
         rowScan: "No row selected: Week 1, Day 2 was queued by header rank, "
-            + "and the Week's Day header at rank 2 does not read Day 2."
+            + "and on this sheet rank 2 and the header Day 2 do not name the same Session."
     ),
     HeaderRankRefusal(
         testDescription: "Day 8 at rank 3",
@@ -195,7 +195,17 @@ private struct HeaderRankRefusal: Sendable, CustomTestStringConvertible {
         setIndex: 0,
         lastError: dayHeadersChangedMeaning,
         rowScan: "No row selected: Week 1, Day 3 was queued by header rank, "
-            + "and the Week's Day header at rank 3 does not read Day 3."
+            + "and on this sheet rank 3 and the header Day 3 do not name the same Session."
+    ),
+    HeaderRankRefusal(
+        testDescription: "rank 3 past the last header, which reads Day 3",
+        headers: ["Day 1", "Day 3"],
+        notes: [:],
+        day: 3,
+        setIndex: 0,
+        lastError: dayHeadersChangedMeaning,
+        rowScan: "No row selected: Week 1, Day 3 was queued by header rank, "
+            + "and on this sheet rank 3 and the header Day 3 do not name the same Session."
     ),
     HeaderRankRefusal(
         testDescription: "Day 1 repeated, rank 1",
@@ -205,7 +215,7 @@ private struct HeaderRankRefusal: Sendable, CustomTestStringConvertible {
         setIndex: 0,
         lastError: dayHeadersChangedMeaning,
         rowScan: "No row selected: Week 1, Day 1 was queued by header rank, "
-            + "and the Week's Day header at rank 1 does not read Day 1."
+            + "and on this sheet rank 1 and the header Day 1 do not name the same Session."
     ),
     HeaderRankRefusal(
         testDescription: "Day 1 repeated, rank 2",
@@ -215,7 +225,7 @@ private struct HeaderRankRefusal: Sendable, CustomTestStringConvertible {
         setIndex: 0,
         lastError: dayHeadersChangedMeaning,
         rowScan: "No row selected: Week 1, Day 2 was queued by header rank, "
-            + "and the Week's Day header at rank 2 does not read Day 2."
+            + "and on this sheet rank 2 and the header Day 2 do not name the same Session."
     ),
     HeaderRankRefusal(
         testDescription: "rank and number both name no Day",

@@ -12,7 +12,7 @@ extension SheetWriteAuditDetails {
         SheetWriteAuditDetails(
             selectedA1Target: nil,
             rowScanDetails: "No row selected: Week \(week), Day \(day) was queued by header rank, "
-                + "and the Week's Day header at rank \(day) does not read Day \(day).",
+                + "and on this sheet rank \(day) and the header Day \(day) do not name the same Session.",
             currentValue: nil,
             valueCheckOutcome: "Not checked because no target was selected."
         )
