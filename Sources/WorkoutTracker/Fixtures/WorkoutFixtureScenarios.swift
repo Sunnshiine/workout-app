@@ -63,6 +63,7 @@
                 blockTab: blockTab,
                 week: 1,
                 day: 1,
+                dayNumbering: .headerNumber,
                 exerciseName: "Back Squat",
                 setIndex: 0,
                 column: .notes,

@@ -732,6 +732,7 @@ import Testing
             blockTab: "Block 26",
             week: 1,
             day: 1,
+            dayNumbering: .headerNumber,
             exerciseName: "Squat",
             setIndex: 0,
             column: .notes,
@@ -966,12 +967,16 @@ private func seedStaleBlock(tabName: String, into context: ModelContext) {
 }
 
 @MainActor
-private func queueReplacementSquatLog(in context: ModelContext) throws {
+private func queueReplacementSquatLog(
+    in context: ModelContext,
+    dayNumbering: DayNumbering = .headerNumber
+) throws {
     context.insert(
         PendingWrite(
             blockTab: "Block 27",
             week: 1,
             day: 1,
+            dayNumbering: dayNumbering,
             exerciseName: "Replacement Squat",
             setIndex: 0,
             column: .notes,

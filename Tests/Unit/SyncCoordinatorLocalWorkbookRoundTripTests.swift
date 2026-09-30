@@ -19,6 +19,7 @@ private func localWorkbookPendingWrite(
     exerciseName: String = "2-3:1:0 Incline DB BP",
     week: Int = 2,
     day: Int = 1,
+    dayNumbering: DayNumbering = .headerNumber,
     setIndex: Int,
     column: PendingWriteColumn = .notes,
     valueToWrite: String
@@ -28,6 +29,7 @@ private func localWorkbookPendingWrite(
         blockTab: "Block 27",
         week: week,
         day: day,
+        dayNumbering: dayNumbering,
         exerciseName: exerciseName,
         setIndex: setIndex,
         column: column,

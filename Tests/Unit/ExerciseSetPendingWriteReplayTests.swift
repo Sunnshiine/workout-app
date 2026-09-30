@@ -19,6 +19,7 @@ private func replaySet(state: SetState, setLog: SetLog?, unstructuredSetLog: Str
 }
 
 private func replayWrite(
+    dayNumbering: DayNumbering = .headerNumber,
     operation: PendingWriteOperation = .upsert,
     valueToWrite: String?
 ) -> PendingWrite {
@@ -27,6 +28,7 @@ private func replayWrite(
         blockTab: "Block 27",
         week: 1,
         day: 1,
+        dayNumbering: dayNumbering,
         exerciseName: "Squat",
         setIndex: 0,
         column: .notes,

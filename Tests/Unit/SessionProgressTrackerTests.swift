@@ -172,6 +172,18 @@ private func sortedSessions(in block: Block) -> [Session] {
 }
 
 @MainActor
+@Test func persistedIdentityKeepsTheStoredOverrideEncoding() throws {
+    let block = makeBlock()
+    let tracker = SessionProgressTracker()
+    let sessions = sortedSessions(in: block)
+    let week2Day1 = try #require(sessions.first { $0.week?.number == 2 && $0.dayNumber == 1 })
+    let week1Day2 = try #require(sessions.first { $0.week?.number == 1 && $0.dayNumber == 2 })
+
+    #expect(tracker.persistedIdentity(of: week2Day1).storageValue == 8)
+    #expect(tracker.persistedIdentity(of: week1Day2).storageValue == 2)
+}
+
+@MainActor
 @Test func currentSessionOverrideStorageKeyIsNamespacedPerBlockTab() {
     let tracker = SessionProgressTracker()
 

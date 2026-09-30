@@ -125,7 +125,7 @@ final class SyncCoordinator {
             syncLogger.debug("Grid: \(snapshot.values.count) rows")
             let parsed = SheetParser().parse(snapshot: snapshot, tabName: tab)
             syncLogger.debug("Parsed: \(parsed.block.weeks.count) weeks, warnings: \(parsed.warnings, privacy: .public)")
-            try replacePersistedBlock(with: BlockBuilder.makeBlock(from: parsed.block))
+            try replacePersistedBlock(with: BlockBuilder.makeBlock(from: parsed.block), layout: parsed.layout)
             let lastPerformedEntries = LastPerformedExtractor.entries(from: parsed.block)
             if !lastPerformedEntries.isEmpty {
                 try lastPerformed.ingest(lastPerformedEntries)
@@ -148,19 +148,20 @@ final class SyncCoordinator {
         }
     }
 
-    private func replacePersistedBlock(with block: Block) throws {
+    private func replacePersistedBlock(with block: Block, layout: SheetLayout) throws {
         let loggedAtBySet = try localLoggedAtBySetID()
-        overlayPendingWrites(on: block)
+        overlayPendingWrites(on: block, layout: layout)
         preserveLocalLoggedAt(on: block, loggedAtBySet: loggedAtBySet)
         for existing in try context.fetch(FetchDescriptor<Block>()) { context.delete(existing) }
         context.insert(block)
         try context.save()
     }
 
-    private func overlayPendingWrites(on block: Block) {
+    private func overlayPendingWrites(on block: Block, layout: SheetLayout) {
         let writes = (try? context.fetch(FetchDescriptor<PendingWrite>())) ?? []
         let sets = block.setsByID
         for write in writes where write.blockTab == block.tabName && write.column == .notes {
+            guard write.overlays(on: layout) else { continue }
             sets[SetCoordinates.ID(write)]?.apply(write)
         }
     }
@@ -223,7 +224,13 @@ private struct PlannedPendingWrite {
     /// from one read only, so its target, value check, and audit row cannot disagree.
     @MainActor
     init(_ write: PendingWrite, against snapshot: SheetWritePlanningSnapshot, planner: SheetWritePlanner) throws {
-        let request = SheetWriteRequest(write)
+        guard let request = SheetWriteRequest(write, on: snapshot.layout) else {
+            throw PendingWritePlanningConflict(
+                error: .dayHeadersChangedMeaning,
+                refusedTarget: nil,
+                auditDetails: .dayHeadersChangedMeaning(week: write.week, day: write.day)
+            )
+        }
         let target: SheetWriteTarget
         do {
             target = try planner.target(for: request, in: snapshot)

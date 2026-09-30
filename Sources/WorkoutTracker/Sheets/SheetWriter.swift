@@ -12,7 +12,8 @@ struct SheetWriteRequest: Sendable, Equatable {
     var expectedCurrentValue: String
 
     @MainActor
-    init(_ write: PendingWrite) {
+    init?(_ write: PendingWrite, on layout: SheetLayout) {
+        guard write.namesOneSession(on: layout) else { return nil }
         self.init(
             blockTab: write.blockTab,
             week: write.week,
@@ -57,6 +58,7 @@ struct SheetWriteRequest: Sendable, Equatable {
 enum SheetWriterError: Error, Equatable, LocalizedError {
     case weekNotFound(Int)
     case dayNotFound(Int)
+    case dayHeadersChangedMeaning
     case columnNotFound(String)
     case exerciseNotFound(String)
     case setRowNotFound(exerciseName: String, setIndex: Int)
@@ -67,6 +69,8 @@ enum SheetWriterError: Error, Equatable, LocalizedError {
         switch self {
         case .weekNotFound(let week): return "Week \(week) was not found in the sheet"
         case .dayNotFound(let day): return "Day \(day) was not found in the sheet"
+        case .dayHeadersChangedMeaning:
+            return "The sheet's Day headers changed meaning since this Set was logged. Log it again."
         case .columnNotFound(let column): return "\(column) column was not found"
         case .exerciseNotFound(let name): return "\(name) was not found in the sheet"
         case .setRowNotFound(let name, let index): return "Set \(index + 1) row was not found for \(name)"

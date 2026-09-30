@@ -7,6 +7,7 @@ struct SetCoordinates: Equatable {
     let blockTab: String
     let weekNumber: Int
     let dayNumber: Int
+    let dayNumbering: DayNumbering
     let exerciseName: String
     let exerciseBaseName: String
     let setIndex: Int
@@ -21,6 +22,7 @@ struct SetCoordinates: Equatable {
         self.blockTab = block.tabName
         self.weekNumber = week.number
         self.dayNumber = session.dayNumber
+        self.dayNumbering = block.dayNumbering
         self.exerciseName = exercise.name
         self.exerciseBaseName = exercise.baseName
         self.setIndex = set.index
@@ -28,8 +30,9 @@ struct SetCoordinates: Equatable {
     }
 
     /// The part of a Set's coordinates that still names the same Set after a freshly parsed Block
-    /// replaces the cached one. The Session date and the Exercise base name are re-read from the
-    /// Sheet on every parse, so they can move while the Set stays the one a pending write addressed.
+    /// replaces the cached one, when both Blocks number their Days the same way. The Session date
+    /// and the Exercise base name are re-read from the Sheet on every parse, so they can move while
+    /// the Set stays the one a pending write addressed.
     struct ID: Hashable {
         let blockTab: String
         let weekNumber: Int

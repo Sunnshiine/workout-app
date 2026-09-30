@@ -87,6 +87,7 @@ private func makeReplanContainer() throws -> ModelContainer {
 private func replanPendingWrite(
     createdAt: TimeInterval,
     day: Int = 1,
+    dayNumbering: DayNumbering = .headerNumber,
     exerciseName: String = "Squat",
     setIndex: Int = 0,
     column: PendingWriteColumn = .notes,
@@ -98,6 +99,7 @@ private func replanPendingWrite(
         blockTab: "Block 27",
         week: 1,
         day: day,
+        dayNumbering: dayNumbering,
         exerciseName: exerciseName,
         setIndex: setIndex,
         column: column,
@@ -697,4 +699,48 @@ func replanningAfterTheCoachHidesEveryRowBelowACoachNoteAlsoRefusesThePairedLast
     #expect(remaining.map(\.lastError) == [#"Error Domain=NSURLErrorDomain Code=-1009 "(null)""#])
     #expect(remaining.map(\.valueToWrite) == ["205x3@10"])
     #expect(try ctx.fetch(FetchDescriptor<WriteTargetAuditEntry>()).map(\.finalStatus) == [.succeeded])
+}
+
+@MainActor
+@Test func replanningAHeaderRankWriteAfterTheCoachSwapsTheDayHeadersRefusesItOnTheFreshRead() async throws {
+    let container = try makeReplanContainer()
+    let ctx = container.mainContext
+    ctx.insert(replanPendingWrite(createdAt: 1, dayNumbering: .legacyHeaderRank, valueToWrite: "185x5@8", expectedCurrentValue: ""))
+    let targetsTheK15TheBatchHolds = replanPendingWrite(
+        createdAt: 2,
+        dayNumbering: .legacyHeaderRank,
+        valueToWrite: "190x5@8",
+        expectedCurrentValue: ""
+    )
+    ctx.insert(targetsTheK15TheBatchHolds)
+    try ctx.save()
+    let client = LiveSheetClient(
+        grid: replanGrid(["C15": "Squat", "D15": "1", "T14": "Sets", "AA14": "Notes", "S15": "Squat", "T15": "1"]),
+        editsLandingBeforeFetch: [2: ["C12": "Day 2", "S12": "Day 1"]]
+    )
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(client.cell("K15") == "185x5@8")
+    #expect(client.cell("AA15") == "")
+    #expect(client.fetchCount == 2)
+    #expect(
+        sync.outcome
+            == .writesRefused(["Squat: The sheet's Day headers changed meaning since this Set was logged. Log it again."])
+    )
+    let remaining = try ctx.fetch(FetchDescriptor<PendingWrite>())
+    #expect(remaining.map(\.valueToWrite) == ["190x5@8"])
+    #expect(remaining.map(\.status) == [.conflict])
+    #expect(
+        remaining.map(\.lastError) == ["The sheet's Day headers changed meaning since this Set was logged. Log it again."]
+    )
+    let entries = try ctx.fetch(FetchDescriptor<WriteTargetAuditEntry>(sortBy: [SortDescriptor(\.createdAt)]))
+    #expect(entries.map(\.finalStatus) == [.succeeded, .conflict])
+    #expect(entries.map(\.selectedA1Target) == ["'Block 27'!K15", nil])
+    #expect(
+        entries.last?.rowScanDetails
+            == "No row selected: Week 1, Day 1 was queued by header rank, "
+            + "and reading Day 1 by rank and by header number does not give the same Session on this sheet."
+    )
 }

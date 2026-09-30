@@ -16,7 +16,7 @@ import Testing
     )
     let section = locateWeekSections(in: grid)[0]
 
-    let cols = resolveDayColumns(in: grid, section: section, dayIndex: 0)
+    let cols = resolveDayColumns(in: grid, section: section, headerIndex: 0)
     #expect(cols.name == 2)  // C
     #expect(cols.sets == 3)  // D
     #expect(cols.reps == 5)  // F
@@ -48,8 +48,8 @@ import Testing
     // The interpreter must not cap day headers at "Day 4".
     for dayCount in [2, 3, 5, 6] {
         var cells: [String: String] = [:]
-        for dayIndex in 0..<dayCount {
-            cells["\(columnName(2 + dayIndex * 16))12"] = "Day \(dayIndex + 1)"
+        for headerIndex in 0..<dayCount {
+            cells["\(columnName(2 + headerIndex * 16))12"] = "Day \(headerIndex + 1)"
         }
         let grid = gridFromA1(cells, rows: 24, cols: 2 + dayCount * 16 + 16)
 
@@ -168,7 +168,7 @@ import Testing
     )
     let section = locateWeekSections(in: grid)[0]
 
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
+    let exercises = parseDay(in: grid, section: section, headerIndex: 0)
     #expect(exercises.count == 2)
     #expect(exercises[0].name == "0:3:0 Standing Calve Raises")
     #expect(exercises[0].baseName == "Standing Calve Raises")
@@ -217,6 +217,35 @@ import Testing
     #expect(parsed.warnings.contains { $0.contains("no week sections") })
 }
 
+@Test func parserWarnsAboutDayHeadersItShowsNoSessionFor() {
+    let grid = gridFromA1(
+        ["C12": "Day 1", "S12": "Day 1", "AI12": "Day 2", "C37": "Day 1", "S37": "Day 8"],
+        rows: 50,
+        cols: 60
+    )
+
+    let parsed = SheetParser().parse(grid: grid, tabName: "Block 27")
+
+    #expect(parsed.block.weeks.map { $0.days.map(\.dayNumber) } == [[2], [1]])
+    #expect(
+        parsed.warnings == [
+            "Parse warning: Week 1 in Block 27 has more than one Day 1 header, so none of them shows",
+            "Parse warning: Week 2 in Block 27 has a 'Day 8' header, but a Week runs Day 1 to Day 7, so it does not show"
+        ]
+    )
+}
+
+@Test func parseDayReadsTheGroupUnderTheHeaderAtItsIndex() {
+    let grid = gridFromA1(
+        ["C12": "Day 0", "S12": "Day 1", "C15": "Bench Press", "S15": "Squat"],
+        rows: 20,
+        cols: 40
+    )
+    let section = locateWeekSections(in: grid)[0]
+
+    #expect(parseDay(in: grid, section: section, headerIndex: 1).map(\.name) == ["Squat"])
+}
+
 @Test func perSetLoadAndRepsAreSplitByComma() {
     // Issue #7: comma-separated values (e.g. "RPE 9, 10") map one token per set,
     // repeating the last token when fewer tokens than sets.
@@ -233,7 +262,7 @@ import Testing
         cols: 30
     )
     let section = locateWeekSections(in: grid)[0]
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
+    let exercises = parseDay(in: grid, section: section, headerIndex: 0)
 
     let squat = exercises[0]
     #expect(squat.sets[0].prescribedLoad == "RPE 9")
@@ -258,7 +287,7 @@ import Testing
         cols: 30
     )
     let section = locateWeekSections(in: grid)[0]
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
+    let exercises = parseDay(in: grid, section: section, headerIndex: 0)
 
     #expect(exercises[0].sets[0].prescribedLoad == "RPE 9")
     #expect(exercises[0].sets[1].prescribedLoad == "RPE 10")
@@ -284,7 +313,7 @@ import Testing
         cols: 30
     )
     let section = locateWeekSections(in: grid)[0]
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
+    let exercises = parseDay(in: grid, section: section, headerIndex: 0)
 
     #expect(exercises.count == 2)
 
@@ -323,7 +352,7 @@ import Testing
         cols: 30
     )
     let section = locateWeekSections(in: grid)[0]
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
+    let exercises = parseDay(in: grid, section: section, headerIndex: 0)
 
     let compSQ = exercises[0]
     #expect(compSQ.baseName == "Comp SQ")
@@ -352,7 +381,7 @@ import Testing
         cols: 30
     )
     let section = locateWeekSections(in: grid)[0]
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
+    let exercises = parseDay(in: grid, section: section, headerIndex: 0)
 
     let compSQ = exercises[0]
     #expect(compSQ.sets.count == 3)
@@ -377,7 +406,7 @@ import Testing
         cols: 40
     )
     let section = locateWeekSections(in: grid)[0]
-    let exercises = parseDay(in: grid, section: section, dayIndex: 1)
+    let exercises = parseDay(in: grid, section: section, headerIndex: 1)
 
     #expect(exercises.count == 1)
     let lunges = exercises[0]
@@ -402,7 +431,7 @@ import Testing
         cols: 40
     )
     let section = locateWeekSections(in: grid)[0]
-    let exercises = parseDay(in: grid, section: section, dayIndex: 1)
+    let exercises = parseDay(in: grid, section: section, headerIndex: 1)
 
     #expect(exercises.count == 1)
     #expect(exercises[0].sets.count == 2)
@@ -420,7 +449,7 @@ import Testing
         cols: 30
     )
     let section = locateWeekSections(in: grid)[0]
-    let exercises = parseDay(in: grid, section: section, dayIndex: 0)
+    let exercises = parseDay(in: grid, section: section, headerIndex: 0)
 
     #expect(exercises[0].coachNote == "Keep elbows soft")
     #expect(exercises[0].sets[0].setLog == SetLog(weight: .pounds(25), reps: 12, rpe: .seven))

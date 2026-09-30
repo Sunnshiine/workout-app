@@ -81,6 +81,7 @@ private func makeContainer() throws -> ModelContainer {
 
 private func pendingWrite(
     createdAt: TimeInterval,
+    dayNumbering: DayNumbering = .headerNumber,
     exerciseName: String = "Squat",
     setIndex: Int = 0,
     column: PendingWriteColumn = .notes,
@@ -92,6 +93,7 @@ private func pendingWrite(
         blockTab: "Block 27",
         week: 1,
         day: 1,
+        dayNumbering: dayNumbering,
         exerciseName: exerciseName,
         setIndex: setIndex,
         column: column,
@@ -110,6 +112,7 @@ private func pendingWrite(
             blockTab: "Block 27",
             week: 1,
             day: 1,
+            dayNumbering: .headerNumber,
             exerciseName: "Squat",
             setIndex: 0,
             column: .notes,
@@ -158,6 +161,7 @@ private func pendingWrite(
             blockTab: "Block 27",
             week: 1,
             day: 1,
+            dayNumbering: .headerNumber,
             exerciseName: "Squat",
             setIndex: 0,
             column: .notes,
@@ -172,6 +176,7 @@ private func pendingWrite(
             blockTab: "Block 27",
             week: 1,
             day: 1,
+            dayNumbering: .headerNumber,
             exerciseName: "Squat",
             setIndex: 0,
             column: .notes,
@@ -244,6 +249,7 @@ private func pendingWrite(
             blockTab: "Block 27",
             week: 1,
             day: 1,
+            dayNumbering: .headerNumber,
             exerciseName: "Squat",
             setIndex: 0,
             column: .notes,
@@ -282,6 +288,7 @@ private func pendingWrite(
             blockTab: "Block 27",
             week: 1,
             day: 1,
+            dayNumbering: .headerNumber,
             exerciseName: "Squat",
             setIndex: 0,
             column: .notes,
@@ -347,6 +354,38 @@ private func pendingWrite(
 }
 
 @MainActor
+@Test func flushRefusesAQueuedWriteWhoseDayHeaderWasCleared() async throws {
+    let container = try makeContainer()
+    let ctx = container.mainContext
+    ctx.insert(pendingWrite(createdAt: 1))
+    try ctx.save()
+    let client = FlushStubClient(
+        grid: gridFromA1(
+            [
+                "S12": "Day 2",
+                "D14": "Sets", "K14": "Notes", "C15": "Squat", "D15": "1",
+                "T14": "Sets", "AA14": "Notes", "S15": "Squat", "T15": "1"
+            ],
+            rows: 24,
+            cols: 40
+        )
+    )
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(client.updates.isEmpty)
+    #expect(sync.outcome == .writesRefused(["Squat: Day 1 was not found in the sheet"]))
+    let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
+    #expect(writes.map(\.status) == [.conflict])
+    #expect(writes.map(\.lastError) == ["Day 1 was not found in the sheet"])
+    let entries = try ctx.fetch(FetchDescriptor<WriteTargetAuditEntry>())
+    #expect(entries.map(\.selectedA1Target) == [nil])
+    #expect(entries.map(\.finalStatus) == [.conflict])
+    #expect(entries.map(\.rowScanDetails) == ["No row selected: Week 1, Day 1 was not found."])
+}
+
+@MainActor
 @Test func discardPendingWritesRemovesQueuedAndConflictedWrites() async throws {
     let container = try makeContainer()
     let ctx = container.mainContext
@@ -355,6 +394,7 @@ private func pendingWrite(
             blockTab: "Block 27",
             week: 1,
             day: 1,
+            dayNumbering: .headerNumber,
             exerciseName: "Squat",
             setIndex: 0,
             column: .notes,
@@ -367,6 +407,7 @@ private func pendingWrite(
         blockTab: "Block 27",
         week: 1,
         day: 1,
+        dayNumbering: .headerNumber,
         exerciseName: "Bench Press",
         setIndex: 0,
         column: .notes,
@@ -397,6 +438,7 @@ private func pendingWrite(
             blockTab: "Block 27",
             week: 1,
             day: 1,
+            dayNumbering: .headerNumber,
             exerciseName: "Squat",
             setIndex: 0,
             column: .notes,
@@ -533,6 +575,7 @@ extension SyncOutcome {
         blockTab: "Block 27",
         week: 1,
         day: 1,
+        dayNumbering: .headerNumber,
         exerciseName: "Squat",
         setIndex: 0,
         column: .notes,
@@ -583,6 +626,7 @@ extension SyncOutcome {
 /// write queued for the overlay to replay.
 @MainActor
 private func queuedSquatNotesWrite(
+    dayNumbering: DayNumbering = .headerNumber,
     setIndex: Int,
     operation: PendingWriteOperation,
     value: String?
@@ -591,6 +635,7 @@ private func queuedSquatNotesWrite(
         blockTab: "Block 27",
         week: 1,
         day: 1,
+        dayNumbering: dayNumbering,
         exerciseName: "Squat",
         setIndex: setIndex,
         column: .notes,

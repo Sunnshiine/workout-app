@@ -1,6 +1,15 @@
 import Foundation
 import SwiftData
 
+enum DayNumbering: String, Sendable {
+    case headerNumber
+    case legacyHeaderRank
+
+    init(stored raw: String?) {
+        self = raw.flatMap(Self.init(rawValue:)) ?? .legacyHeaderRank
+    }
+}
+
 enum PendingWriteColumn: String, Codable, Sendable {
     case notes
     case lastSetRPE
@@ -28,6 +37,7 @@ final class PendingWrite {
     var blockTab: String
     var week: Int
     var day: Int
+    var dayNumberingRaw: String?
     var exerciseName: String
     var setIndex: Int
     var columnRaw: String
@@ -53,12 +63,31 @@ final class PendingWrite {
         set { statusRaw = newValue.rawValue }
     }
 
+    var dayNumbering: DayNumbering {
+        DayNumbering(stored: dayNumberingRaw)
+    }
+
+    func namesOneSession(on layout: SheetLayout) -> Bool {
+        switch dayNumbering {
+        case .headerNumber: true
+        case .legacyHeaderRank: layout.rankAndNumberAgree(week: week, day: day)
+        }
+    }
+
+    func overlays(on layout: SheetLayout) -> Bool {
+        switch dayNumbering {
+        case .headerNumber: namesOneSession(on: layout)
+        case .legacyHeaderRank: namesOneSession(on: layout) && status == .pending
+        }
+    }
+
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
         blockTab: String,
         week: Int,
         day: Int,
+        dayNumbering: DayNumbering,
         exerciseName: String,
         setIndex: Int,
         column: PendingWriteColumn,
@@ -71,6 +100,7 @@ final class PendingWrite {
         self.blockTab = blockTab
         self.week = week
         self.day = day
+        self.dayNumberingRaw = dayNumbering.rawValue
         self.exerciseName = exerciseName
         self.setIndex = setIndex
         self.columnRaw = column.rawValue

@@ -7,6 +7,7 @@ final class Block {
     var squatTM: Double?
     var benchTM: Double?
     var deadliftTM: Double?
+    var dayNumberingRaw: String?
     @Relationship(deleteRule: .cascade, inverse: \Week.block) var weeks: [Week] = []
 
     init(tabName: String, trainingMaxes: [MainLift: Double] = [:]) {
@@ -14,6 +15,11 @@ final class Block {
         squatTM = trainingMaxes[.squat]
         benchTM = trainingMaxes[.bench]
         deadliftTM = trainingMaxes[.deadlift]
+        dayNumberingRaw = DayNumbering.headerNumber.rawValue
+    }
+
+    var dayNumbering: DayNumbering {
+        DayNumbering(stored: dayNumberingRaw)
     }
 }
 
@@ -32,6 +38,8 @@ extension Block {
 
 @Model
 final class Week {
+    static let dayNumbers = 1...7
+
     var number: Int
     var block: Block?
     @Relationship(deleteRule: .cascade, inverse: \Session.week) var sessions: [Session] = []
