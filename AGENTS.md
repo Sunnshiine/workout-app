@@ -21,8 +21,8 @@ Each of these wins over anything written here. Read the one that governs the wor
 - `Sources/WorkoutCLI/README.md` owns the `workout` CLI. ADR-0015 records the boundary it runs on.
 - `.agents/skills/verify/SKILL.md` drives the app on the simulator and captures proof. Read the
   matching file under `.agents/skills/verify/features/` before driving.
-- Project skills live in `.agents/skills/<name>/`. Each `.claude/skills/<name>` is a tracked
-  symlink to that directory, so a skill has one copy and either path reaches it.
+- Edit project skills under `.agents/skills/`. Each `.claude/skills/<name>` is a tracked symlink
+  to `.agents/skills/<name>/`, not a copy.
 
 ## Repository map
 
@@ -100,9 +100,8 @@ more) starts no run.
   iPhone 17 Pro, and xcodebuild may pick the wrong one.
 - Concurrent simulator runs each need their own worktree and their own simulator. Pass the UDID
   as `scripts/test-sim.sh --sim <UDID> ...`. The script locks that simulator and exits 75 while
-  another `test-sim.sh` run or a verify session holds it.
-- macOS has no `timeout`. Run a command that blocks for minutes (`scripts/test-sim.sh`,
-  `scripts/ci-wait.sh`, `scripts/flake-hunt.sh`) in the background instead of wrapping it.
+  another `test-sim.sh` run or a verify run holds it.
+- macOS has no `timeout`, so `timeout N cmd` exits 127 without running the command.
 - The `WorkoutTracker` scheme launches against local fixtures (`-UITEST_FIXTURE true`), never the
   live Sheet. `Copy of WorkoutTracker` runs live.
 - Visual Baselines are recorded on the CI runner, not locally, because renders differ across
