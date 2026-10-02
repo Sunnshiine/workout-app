@@ -1,9 +1,11 @@
 #!/usr/bin/env swift
 // usage: scripts/contact-sheet.swift OUT.png IMAGE...
+//        scripts/contact-sheet.swift --crop X,Y,W,H OUT.png IMAGE
 //
 // Tiles images into one PNG sized for a model to read in a single Read call. More than 12 images
 // become balanced pages: OUT.png, OUT-2.png, and so on. Prints one line per page:
 //   <path> TAB <width>x<height> TAB <n> images TAB about <t> tokens TAB 1. <stem>  2. <stem>  ...
+// --crop writes that rectangle of IMAGE's pixels, origin top left, to OUT.png and prints nothing.
 // Exit 64 on bad usage, 66 when an image cannot be read, 73 when a page cannot be written.
 
 import AppKit
@@ -42,7 +44,7 @@ enum Failure: Error {
 
     var message: String {
         switch self {
-        case .usage: "usage: contact-sheet.swift OUT.png IMAGE..."
+        case .usage: "usage: contact-sheet.swift OUT.png IMAGE... | --crop X,Y,W,H OUT.png IMAGE"
         case .unreadable(let path): "cannot read image: \(path)"
         case .unwritable(let path): "cannot write page: \(path)"
         }
@@ -213,8 +215,25 @@ func line(for page: URL, grid: Grid, cells: ArraySlice<Cell>) -> String {
     ].joined(separator: "\t")
 }
 
+func crop(_ arguments: [String]) throws {
+    let rect = arguments.first.map { $0.split(separator: ",").compactMap { Int($0) } } ?? []
+    guard arguments.count == 3, rect.count == 4, arguments[1].hasSuffix(".png") else { throw Failure.usage }
+    let region = CGRect(x: rect[0], y: rect[1], width: rect[2], height: rect[3])
+    let image = try load(arguments[2])
+    guard CGRect(x: 0, y: 0, width: image.width, height: image.height).contains(region),
+        let cut = image.cropping(to: region)
+    else {
+        throw Failure.usage
+    }
+    try write(cut, to: URL(fileURLWithPath: arguments[1]))
+}
+
 func run() throws {
     let arguments = Array(CommandLine.arguments.dropFirst())
+    if arguments.first == "--crop" {
+        try crop(Array(arguments.dropFirst()))
+        return
+    }
     guard arguments.count >= 2, arguments[0].hasSuffix(".png") else { throw Failure.usage }
     let out = URL(fileURLWithPath: arguments[0])
     let paths = Array(arguments.dropFirst())

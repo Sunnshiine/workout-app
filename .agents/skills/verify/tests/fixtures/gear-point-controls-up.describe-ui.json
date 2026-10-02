@@ -1,0 +1,30 @@
+{
+  "custom_actions" : [
+
+  ],
+  "content_required" : false,
+  "pid" : 53393,
+  "role_description" : "button",
+  "AXFrame" : "{{334, 65}, {44, 44}}",
+  "frame" : {
+    "y" : 65,
+    "width" : 44,
+    "x" : 334,
+    "height" : 44
+  },
+  "title" : null,
+  "children" : [
+
+  ],
+  "AXValue" : null,
+  "AXLabel" : "Settings",
+  "type" : "Button",
+  "role" : "AXButton",
+  "traits" : [
+
+  ],
+  "subrole" : null,
+  "help" : null,
+  "AXUniqueId" : "session-controls-settings-button",
+  "enabled" : true
+}

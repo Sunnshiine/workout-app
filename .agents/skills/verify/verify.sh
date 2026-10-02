@@ -15,9 +15,10 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
                               says on stderr when it is off-screen, clipped, or disabled
   tap --id ID | --label TEXT | -x X -y Y
                               --id and --label wait up to 3 s (--wait-timeout N) for that element
-                              to be enabled, on screen, and with its centre inside every element
-                              of nonzero size containing it, then tap that centre; exit 1 and say
-                              which it was not. --label is the exact label, a control over a text
+                              to be enabled, on screen, with its centre inside every element of
+                              nonzero size containing it, and on top at that centre, then tap the
+                              centre; exit 1 and say which it was not (off-screen, clipped,
+                              disabled, covered). --label is the exact label, a control over a text
                               that shares it; when more than one is left, exit 1 listing each
                               with its centre. -x -y taps the point and reports whatever it hits
   hold <id> [seconds]         long press an element by identifier (default 1.2 s)
@@ -28,6 +29,11 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
                               the PNG is byte-identical to the newest shot's while the tree changed
   diff A B                    the tree lines that changed between two shots of this run, frames ignored
   sheet                       every shot of this run tiled 12 to an image, numbered and labelled; Read each image it prints
+  crop SHOT ID | crop SHOT X Y W H
+                              SHOT-crop-X_Y_WxH.png at the shot's own pixels: ID's frame on that shot
+                              with 8 points around it, or that rect in tree points, clipped to the
+                              screen; prints its path and pixel size. Not a shot, so sheet, diff,
+                              and stop never see it
   burst NAME [COMMAND...]     12 frames over about 2 s tiled into one image, labelled with their
                               timing; COMMAND is a drive command fired after the first frame, as in
                               burst log-transition tap --id log-active-set-button
@@ -310,18 +316,21 @@ case $cmd in
       "$axe" tap --udid "$sim" --wait-timeout "$timeout" ${rest[@]+"${rest[@]}"}
       exit
     fi
-    # axe taps a coordinate and calls that a success, so it cannot tell a tap that landed from one
-    # that hit nothing.
+    # axe calls a tap on any coordinate a success, so the tree finds the target and a point read
+    # checks that nothing else is on top of its centre.
+    app_pid=$(cat "$state_dir/pid" 2>/dev/null || true)
+    lands() {
+      local resolved
+      resolved=$(describe | python3 "$tree" tappable "${target[@]}") || return 1
+      read -r x y <<< "$resolved"
+      "$axe" describe-ui --udid "$sim" --point "$x,$y" | python3 "$tree" landing "${resolved#*$'\n'}" ${app_pid:+"$app_pid"}
+    }
     SECONDS=0
     while :; do
-      if [ "$SECONDS" -ge "$timeout" ]; then
-        point=$(describe | python3 "$tree" tappable "${target[@]}") || exit 1
-        break
-      fi
-      if point=$(describe | python3 "$tree" tappable "${target[@]}" 2>/dev/null); then break; fi
+      if [ "$SECONDS" -ge "$timeout" ]; then lands || exit 1; break; fi
+      if lands 2>/dev/null; then break; fi
       sleep 0.2
     done
-    read -r x y <<< "$point"
     "$axe" tap --udid "$sim" -x "$x" -y "$y" ${rest[@]+"${rest[@]}"}
     ;;
 
@@ -387,6 +396,22 @@ case $cmd in
     shots=()
     for n in $names; do shots+=("$dir/$n.png"); done
     "$tiler" "$dir/_sheet.png" "${shots[@]}"
+    ;;
+
+  crop)
+    shot=${1:-}
+    valid_name "$shot"
+    shift
+    { [ $# -eq 1 ] || [ $# -eq 4 ]; } || usage
+    dir=$(recorded_run_dir)
+    [ -f "$dir/$shot.png" ] && [ -f "$dir/$shot.tree.txt" ] \
+      || { echo "no shot $shot in $dir; shots: $(shot_names "$dir" | tr '\n' ' ')" >&2; exit 1; }
+    width=$(sips -g pixelWidth "$dir/$shot.png" | awk '/pixelWidth:/ { print $2 }')
+    region=$(python3 "$tree" crop "$dir/$shot.tree.txt" "$width" "$@") || exit
+    read -r px py pw ph rect <<< "$region"
+    out=$dir/$shot-crop-$rect.png
+    "$tiler" --crop "$px,$py,$pw,$ph" "$out" "$dir/$shot.png"
+    printf '%s\t%sx%s\n' "$out" "$pw" "$ph"
     ;;
 
   burst)

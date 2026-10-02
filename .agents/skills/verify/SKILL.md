@@ -74,19 +74,26 @@ anything. An empty tree on a healthy pid means the simulator's accessibility bri
 Target elements by accessibility identifier (`tap --id`) first, by label second, by coordinates
 only when the element has neither. Alert buttons have labels but no identifiers. `tap --id` polls
 up to 3 s for that element to be enabled, on screen, and with its centre inside the frame of every
-element that contains it, then taps that centre. A container with a zero width or height holds no
-point, so it is skipped. The keyboard toolbar wraps `Done` in a 0x0 group. When `tap --id` never
-gets such a hit it exits 1 and says `off-screen`, `clipped`, or `disabled`. A `clipped` note names
-the container whose frame misses the centre, such as the RPE track. So a tap that reports success
-hit an element that is on screen, enabled, and inside every container that clips it.
+element that contains it. A container with a zero width or height holds no point, so it is skipped.
+The keyboard toolbar wraps `Done` in a 0x0 group. Last, `tap --id` asks axe what is on top at that
+centre, which costs about 0.5 s more per tap. The answer must be the element or something inside
+its frame, and then it taps that centre. The check holds only inside the app this run launched. On
+the Home Screen axe's point read names a different icon from the one its tree places there, so a
+tap there goes by the tree alone. When `tap --id` never gets such a hit it exits 1 and says
+`off-screen`, `clipped`, `disabled`, or `covered`. A `clipped` note names the container whose frame
+misses the centre, such as the RPE track. A `covered` note names what is on top instead, such as an
+alert's backdrop, or whatever took the place of an element that went away after the tree was read.
+So a tap that reports success aimed at an element that was on screen, enabled, inside every
+container that clips it, and on top. The tap lands up to about a second after that last look, and
+an element that leaves in that second still reports success. The session controls, which hide
+2.5 s after a drag, do. So prove a tap by what it changed.
 
 `tap --label` resolves its element through the tree the same way, with the same poll and the same
 notes. It matches the whole label as `tree` prints it, case included. When a control and a text
 carry the label, it taps the control. When more than one is left, it exits 1 and lists each with
 its centre. With the sign-out alert up, `tap --label "Sign Out"` lists the Settings row and the
-alert's own button, so tap the alert's button at its centre with `-x -y`. No check sees an alert
-or sheet over an element, so a tap on the Settings row behind that alert still reports success.
-`tap -x -y` resolves no element, so it still reports success whatever is under the point.
+alert's own button, so tap the alert's button at its centre with `-x -y`. `tap -x -y` resolves no
+element, so it still reports success whatever is under the point.
 
 After a tap, re-read the tree before asserting. `tree` has no enabled column, so prove a disabled
 state with `find <id>`, which says `disabled` on stderr and still exits 0.
@@ -138,6 +145,7 @@ VERIFY_RUN=issue-536 .agents/skills/verify/verify.sh launch session   # names th
 .agents/skills/verify/verify.sh shot 02-after-log                     # those two files, then the lines that changed since 01-before
 .agents/skills/verify/verify.sh diff 01-before 02-after-log           # the same comparison for any two shots of the run
 .agents/skills/verify/verify.sh sheet                                 # every shot of the run, 12 to an image, numbered and labelled
+.agents/skills/verify/verify.sh crop 02-after-log rest-pill           # the pill at the shot's own pixels; or crop NAME X Y W H
 ```
 
 Artifacts land in `.build/verify/evidence/<run>/` and survive `stop`. `launch` names the run from
@@ -157,10 +165,12 @@ Finish every UI proof with `sheet` and Read every image it prints, one per 12 sh
 owed for one shot too, because nothing else looks at the pixels. Report what you see by cell
 number, and say anything the tree cannot show. Overlap, colour, clipping, an element under the
 status bar. Give that read to your strongest model. A smaller one read every string on a 12-up
-sheet and still missed a layout defect on it. A shot's PNG and its tree are captured about 0.2 s
-apart, so a shot taken right on a tap can show one state and describe another. Wait a second
-after a tap before a shot, or run `burst`. After a log the rest pill counts down once a second, so
-the changed lines always carry it.
+sheet and still missed a layout defect on it. A full shot reads at about 0.76x. To read a detail,
+`crop` it by id, which takes 8 points around the element, or by the points of a tree line, then
+Read the path it prints. The crop is the shot's own pixels, and it is never on a sheet. A shot's
+PNG and its tree are captured about 0.2 s apart, so a shot taken right on a tap can show one state
+and describe another. Wait a second after a tap before a shot, or run `burst`. After a log the
+rest pill counts down once a second, so the changed lines always carry it.
 
 `shot` refuses a PNG byte-identical to the run's newest shot, a retake of the same name included,
 while the tree changed. It saves nothing, prints the changed lines, and exits 70.
