@@ -134,6 +134,22 @@ Failing tests:
 
 ** TEST EXECUTE FAILED **"
 
+check "a failing XCTest names where it failed" 65 \
+"/repo/Tests/UI/WorkoutTrackerUISmokeTests.swift:39: error: -[WorkoutTrackerUITests.WorkoutTrackerUISmokeTests testMoveOnAdvancesToNextExercise] : XCTAssertTrue failed
+	 Executed 12 tests, with 1 failure (0 unexpected) in 41.203 (41.311) seconds
+Failing tests:
+	WorkoutTrackerUISmokeTests.testMoveOnAdvancesToNextExercise()
+** TEST EXECUTE FAILED **" "" 65 \
+"Test Case '-[WorkoutTrackerUITests.WorkoutTrackerUISmokeTests testMoveOnAdvancesToNextExercise]' started.
+/repo/Tests/UI/WorkoutTrackerUISmokeTests.swift:39: error: -[WorkoutTrackerUITests.WorkoutTrackerUISmokeTests testMoveOnAdvancesToNextExercise] : XCTAssertTrue failed
+Test Case '-[WorkoutTrackerUITests.WorkoutTrackerUISmokeTests testMoveOnAdvancesToNextExercise]' failed (9.120 seconds).
+	 Executed 12 tests, with 1 failure (0 unexpected) in 41.203 (41.311) seconds
+
+Failing tests:
+	WorkoutTrackerUISmokeTests.testMoveOnAdvancesToNextExercise()
+
+** TEST EXECUTE FAILED **"
+
 check "xcodebuild failing before any test names its error, not the selection" 70 \
 "xcodebuild: error: Unable to find a device matching the provided destination specifier:" \
 "no tests ran; xcodebuild exited 70 before the first test, for the reason above" 70 \
