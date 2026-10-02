@@ -255,7 +255,7 @@ enum Theme {  // swiftlint:disable:this type_body_length
         let sheetFill: Color
         let chipCarvedFill: Color
         /// The carve's dark top inner shadow — what makes a chip read *below* the sheet, not raised
-        /// (token sheet §5.6: `inset 0 1px 2px rgba(21,33,24,0.14)`). Re-lit for Night as a deep
+        /// (token sheet §3: `inset 0 1px 2px rgba(21,33,24,0.14)`). Re-lit for Night as a deep
         /// sage-ink shadow (never neutral black, Room Re-lights Rule).
         let chipCarveShadow: Color
         /// The carve's light bottom edge (`0 1px 0 rgba(255,255,255,0.6)`), the highlight lip below
@@ -421,7 +421,7 @@ enum Theme {  // swiftlint:disable:this type_body_length
     static let pillMinHeight: CGFloat = 86
     static let pillSpacing: CGFloat = 10
 
-    // MARK: - Active Set Card & input block geometry (token sheet §5.2 / §5.3)
+    // MARK: - Active Set Card & input block geometry (DESIGN.md §5.2 / §5.3)
     //
     // Type-coupled geometry kept in Theme so it graduates to @ScaledMetric in one place if the
     // fixed-size stance ever reverses. Radii come from the named family; these are the sizes.
@@ -934,7 +934,7 @@ extension View {
     }
 
     /// The app's only below-flat elevation: a carved chip / well / pressed control, cut *into* the
-    /// living paper (token sheet §5.6). The low-opacity `chipCarvedFill` sits under a dark top inner
+    /// living paper (token sheet §3). The low-opacity `chipCarvedFill` sits under a dark top inner
     /// shadow (`chipCarveShadow`) with a light bottom edge (`chipCarveEdge`), so it reads pressed
     /// below the sheet, never as a soft-raised top highlight. Re-lights per appearance.
     func themeCarve(_ palette: Theme.Palette, in shape: some InsettableShape) -> some View {
