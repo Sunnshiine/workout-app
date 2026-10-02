@@ -87,8 +87,6 @@ struct MoveOnCelebrationView: View {
 
             Spacer(minLength: 12)
 
-            // The `Move On` line is quiet secondary text, not a button: no uppercase,
-            // tracking, or action green (DESIGN.md §2, the Green Means Action Rule).
             Text(presentation.actionText)
                 .font(Theme.font(.runlineSecondary))
                 .foregroundStyle(palette.textSecondary)

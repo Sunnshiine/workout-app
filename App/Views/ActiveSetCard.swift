@@ -1,9 +1,5 @@
 import SwiftUI
 
-/// The one soft container (DESIGN.md §5.2, pick input-block3-c): radius `soft` 30, the day double
-/// `surfaceShadow` / night inset cream border, padding 16/16/14. Its head is a plain `Set N of M`,
-/// with no uppercase status microlabel, no carved capsule badge, and no in-card Exercise-name
-/// repeat. The input block itself is `SmartValuePills`.
 struct ActiveSetCard: View {
     /// How the card participates in the Session: logging the active pending
     /// Set, or reviewing an already-logged one with a collapse affordance.
@@ -28,8 +24,6 @@ struct ActiveSetCard: View {
     let onSkip: () -> Void
     let onDelete: () -> Void
     var showsLoggedCheckmark = false
-    /// Retained for the Superset composition (#489); the card does not repeat the Exercise name
-    /// or its badge inside itself.
     var identityLabel: String?
     @Environment(\.themePalette) private var palette
     @State private var inputDismissalRequestID = 0

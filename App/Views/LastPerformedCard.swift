@@ -10,9 +10,6 @@ struct LastPerformedCard: View {
 
     @Environment(\.themePalette) private var palette
 
-    // The label-free runline anchored to the Active Set Card (DESIGN.md §5.1):
-    // the Set-Log shape says what it is, so no "Last Performed" label rides it.
-    // It shrinks toward an ≈11pt floor, then truncates — never wraps.
     var body: some View {
         line
             .font(Theme.font(.lastPerformed))

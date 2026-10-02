@@ -1,17 +1,5 @@
 import SwiftUI
 
-/// The living stage's branch — the page's one icon and its only piece of flora
-/// (DESIGN.md §5.1, pick session-stage-a). A 2px round-cap stem *climbs* the
-/// page from a low leading root to a high trailing tip; every mark along it is
-/// **the same slender blade** in a different state: inked per Logged Set, a
-/// dashed outline per Skipped Set, cream-filled inside a green stroke for the
-/// active Set (logging inks it solid — the pick's clever leaf fill; it carries
-/// the page's one glow at Night), and a faint **ghost outline** for each Pending
-/// Set still ahead. Nodes anchor to a terminal at t=0.80 and step down the stem,
-/// so even 2–3 Sets read as one sprig on a full-length stem, never a horizontal
-/// progress slider. The branch stands textless; the plain `Set N of M` head
-/// carries the reading in words. Node states come from
-/// `SessionStagePresentation.branchNodeStates`, so the branch owns geometry only.
 struct SessionStageBranch: View {
     let sets: [ExerciseSet]
     var activeSetID: ActiveSetID?
@@ -137,10 +125,6 @@ struct SessionStageBranch: View {
             blade(.dashed(palette.skipStroke), above: above, angle: angle)
                 .transition(.opacity)
         case .bud:
-            // One Log, One Fill (DESIGN.md §7): the active blade *wakes* on its
-            // own tokenized timing — 0.34s starting 0.26s into the previous
-            // leaf's ink — reading as a cream leaf opening (that logging then
-            // inks solid), never a second leaf filling.
             blade(.cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow), above: above, angle: angle)
                 .transition(.scale(scale: 0.3).combined(with: .opacity))
                 .animation(
@@ -150,8 +134,6 @@ struct SessionStageBranch: View {
                     value: activeSetID
                 )
         case .future:
-            // A ghost of the leaf to come — a faint, smaller outline of the same
-            // blade, never an angled stroke or a circular dot (DESIGN.md §5.1).
             blade(.ghost(palette.futureStroke), above: above, angle: angle, length: Metrics.leafLength * Metrics.ghostScale)
         }
     }

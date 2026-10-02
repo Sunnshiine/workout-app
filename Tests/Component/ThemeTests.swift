@@ -367,12 +367,10 @@ import Testing
     }
 #endif
 
-// MARK: - Input-block roles (token sheet §Active Set Card)
+// MARK: - Input-block roles
 
 #if canImport(AppKit)
     @Test func themePillFillIsCreamNotTheSurfaceAlias() {
-        // The token sheet says the stepper buttons are cream @ 85% by Day and cream @ 6% at Night,
-        // not the `surface` role (cream @ 52%).
         expectRGB(
             Theme.palette(for: Theme.Appearance.day).pillFill,
             red: 242 / 255, green: 247 / 255, blue: 232 / 255, alpha: 0.85
@@ -386,8 +384,6 @@ import Testing
 
 #if canImport(AppKit)
     @Test func themePillStrokeIsItsOwnHairlineNotTheQueueStroke() {
-        // The token sheet says rgba(82,111,90,0.34) by Day and cream @ 16% at Night, not the
-        // `queueStroke` role (0.38 / cream @ 20%).
         expectRGB(
             Theme.palette(for: Theme.Appearance.day).pillStroke,
             red: 82 / 255, green: 111 / 255, blue: 90 / 255, alpha: 0.34
@@ -399,7 +395,7 @@ import Testing
     }
 #endif
 
-// MARK: - Elevation & light kit (token sheet §3; DESIGN.md §5.5 / §5.6)
+// MARK: - Elevation & light kit
 
 #if canImport(AppKit)
     @Test func themeSurfaceShadowIsADayDoubleDropAndANightInsetBorder() {
@@ -432,8 +428,6 @@ import Testing
 
 #if canImport(AppKit)
     @Test func themeSkipFillOverlayIsMutedInBothAppearances() throws {
-        // Token sheet §Log capsule: the hold-to-skip overlay is muted @ 30% — never danger red.
-        // The night recipe lands with this input-block build slice (#488).
         expectRGB(
             try #require(Theme.palette(for: Theme.Appearance.day).skipFillOverlay),
             red: 82 / 255, green: 100 / 255, blue: 87 / 255, alpha: 0.30

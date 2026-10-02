@@ -229,10 +229,6 @@ private func date(_ daysAgo: Int) -> Date {
 }
 
 @Test func fullyUnparseableEntrySurfacesItsRawLineInTheWellAndIsNeverChipless() {
-    // The re-drive decision (#458 addendum): a fully-unparseable Legacy Log yields no chips, but the
-    // row is never represented chipless — its `*` well carries the raw Sheet line verbatim, and the
-    // gutter row is anchored by that `*` rather than an empty chip strip. The unknown total is left
-    // off the chart, not plotted as a misleading zero.
     let raw = "gym was packed, did what I could"
     let presentation = ExerciseHistorySheetPresentation(
         anchorBaseName: "Deadlift",

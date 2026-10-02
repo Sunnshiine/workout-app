@@ -76,7 +76,7 @@ enum Theme {  // swiftlint:disable:this type_body_length
         let washes: [RadialWash]
     }
 
-    // MARK: - Elevation & light kit (token sheet §3; DESIGN.md §5.5 / §5.6)
+    // MARK: - Elevation & light kit
 
     /// A single CSS box-shadow transcribed verbatim from the token sheet. Offsets, `blur` and
     /// `spread` keep the sheet's px values; `swiftUIRadius` maps CSS blur onto SwiftUI's radius
@@ -130,9 +130,6 @@ enum Theme {  // swiftlint:disable:this type_body_length
         let hasPaperCore: Bool
     }
 
-    /// The Block-grid / Exercise-History day "light and shade" kit (token sheet §3; DESIGN.md
-    /// §5.5 / §5.6; #435 variant d). These are the sunlit-hour recipes; the night set re-lights
-    /// by the Room Re-lights Rule (DESIGN.md §2).
     enum LightKit {
         /// The collapsed week card's quiet shade (`cardLow`) — it sits "in shade" under the focus card.
         static let cardLow: [BoxShadow] = [
@@ -218,11 +215,7 @@ enum Theme {  // swiftlint:disable:this type_body_length
 
         // Active Set Card & input block
         let surface: Color
-        /// The one soft container's elevation: a day double-drop; at Night an inset cream
-        /// border-as-light (no drop). Token sheet §Active Set Card.
         let surfaceShadow: [BoxShadow]
-        /// The stepper buttons' fill and hairline (token sheet §Active Set Card). A role of its own,
-        /// not an alias of `surface` or `queueStroke`, whose values differ.
         let pillFill: Color
         let pillStroke: Color
         let railFill: Color
@@ -254,9 +247,6 @@ enum Theme {  // swiftlint:disable:this type_body_length
         // Exercise History sheet
         let sheetFill: Color
         let chipCarvedFill: Color
-        /// The carve's dark top inner shadow — what makes a chip read *below* the sheet, not raised
-        /// (token sheet §3: `inset 0 1px 2px rgba(21,33,24,0.14)`). Re-lit for Night as a deep
-        /// sage-ink shadow (never neutral black, Room Re-lights Rule).
         let chipCarveShadow: Color
         /// The carve's light bottom edge (`0 1px 0 rgba(255,255,255,0.6)`), the highlight lip below
         /// the pressed fill; cream-toned at Night.
@@ -421,7 +411,7 @@ enum Theme {  // swiftlint:disable:this type_body_length
     static let pillMinHeight: CGFloat = 86
     static let pillSpacing: CGFloat = 10
 
-    // MARK: - Active Set Card & input block geometry (DESIGN.md §5.2 / §5.3)
+    // MARK: - Active Set Card & input block geometry
     //
     // Type-coupled geometry kept in Theme so it graduates to @ScaledMetric in one place if the
     // fixed-size stance ever reverses. Radii come from the named family; these are the sizes.
@@ -597,8 +587,8 @@ extension Theme {
             BoxShadow(y: 1, blur: 2, color: rgb(21, 33, 24, 0.04)),
             BoxShadow(y: 14, blur: 30, color: rgb(21, 33, 24, 0.07))
         ],
-        pillFill: Paint.cream.opacity(0.85), // stepper buttons — cream @ 85%
-        pillStroke: rgb(82, 111, 90, 0.34), // not the queue stroke
+        pillFill: Paint.cream.opacity(0.85),
+        pillStroke: rgb(82, 111, 90, 0.34),
         railFill: Paint.cream.opacity(0.55),
         railSelectedFill: Paint.cream.opacity(0.95),
         prescriptionTick: Paint.actionDay,
@@ -659,8 +649,8 @@ extension Theme {
         surfaceShadow: [
             BoxShadow(y: 0, blur: 0, spread: 1, color: Paint.cream.opacity(0.10), inset: true) // border-as-light, no drop
         ],
-        pillFill: Paint.cream.opacity(0.06), // stepper buttons — cream @ 6%
-        pillStroke: Paint.cream.opacity(0.16), // not the queue stroke
+        pillFill: Paint.cream.opacity(0.06),
+        pillStroke: Paint.cream.opacity(0.16),
         railFill: Paint.cream.opacity(0.06),
         railSelectedFill: Paint.cream.opacity(0.14),
         prescriptionTick: Paint.actionNight,
@@ -933,10 +923,6 @@ extension View {
         modifier(Theme.Elevation(shadows: shadows, shape: shape))
     }
 
-    /// The app's only below-flat elevation: a carved chip / well / pressed control, cut *into* the
-    /// living paper (token sheet §3). The low-opacity `chipCarvedFill` sits under a dark top inner
-    /// shadow (`chipCarveShadow`) with a light bottom edge (`chipCarveEdge`), so it reads pressed
-    /// below the sheet, never as a soft-raised top highlight. Re-lights per appearance.
     func themeCarve(_ palette: Theme.Palette, in shape: some InsettableShape) -> some View {
         background {
             shape

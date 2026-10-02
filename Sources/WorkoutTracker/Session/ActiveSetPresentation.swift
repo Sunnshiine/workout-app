@@ -13,8 +13,6 @@ struct HoldToSkipPolicy: Equatable, Sendable {
     let tapMaximumDuration: TimeInterval
     let revealDelay: TimeInterval
 
-    /// The tokenized timings are the policy's source of truth (token sheet §7): the idle Set
-    /// commits at 850ms, a logged Set at 900ms and a skipped Set at 1100ms, all revealed at 250ms.
     init(
         holdDuration: TimeInterval = Theme.Motion.holdToSkipCommit,
         tapMaximumDuration: TimeInterval = Theme.holdToSkipTapMaximumDuration,
@@ -181,10 +179,6 @@ struct SetCardPresentation: Equatable, Sendable {
     }
 }
 
-/// The Session stage's plain header runline (picks session-stage-a/-d): a
-/// left-aligned `Block · Week · Day` line with an `N Sets left` count on the
-/// right. The segmented progress rail is retired — the branch carries progress
-/// as flora, and the words carry it as the no-botany pressure valve.
 struct SessionProgressHeaderPresentation: Equatable, Sendable {
     let runlineText: String
     let completedSetCount: Int

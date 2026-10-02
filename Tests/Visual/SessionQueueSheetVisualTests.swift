@@ -4,12 +4,6 @@ import Testing
 
 @testable import WorkoutTracker
 
-/// The Session queue sheet on living paper (DESIGN.md §2 / §5.4, pick superset-stage4-c),
-/// in both appearances. The sheet carries the wash recipe as its paper — bare cream reads too white —
-/// on soft shoulders; rows carry no icons (no per-row checkmark), so a completed row reads as
-/// complete from its dimmed title and settled Set dots alone, and only the on-stage row still speaks
-/// ("Now"). The confirming-pair ring is one clean soft-radius stroke with no accent glow — no
-/// second glow to break the One Glow Rule at night. Pairing controls stay.
 @MainActor
 @Suite(.snapshots(record: .never))
 struct SessionQueueSheetVisualTests {
@@ -27,8 +21,6 @@ struct SessionQueueSheetVisualTests {
         }
     }
 
-    /// Confirming a pairing: the source row carries the link, the confirming target the clean
-    /// soft-radius ring with no glow, and ineligible rows quiet down.
     @Test func queueSheetPairingConfirmationMatchesVisualBaseline() {
         assertQueueSheet(appearance: .day, colorScheme: .light) {
             pairingSheet()

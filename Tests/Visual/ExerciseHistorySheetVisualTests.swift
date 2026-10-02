@@ -5,26 +5,9 @@ import Testing
 
 @testable import WorkoutTracker
 
-/// The Exercise History sheet — the chip ledger (DESIGN.md §5.6, picks exercise-history6-a/-b), in
-/// both appearances. Every Set is a carved chip that reads *below* the sheet — a dark top inner
-/// shadow with a light bottom edge, not a soft-raised highlight (token sheet §3) — under quiet
-/// sentence-case Block headers. The athlete-summoned volume chart draws its ink line with
-/// paper-cored data dots, a hollow `≈` dot where a Legacy Log makes the total best-effort, and a
-/// dotted Block seam; the Volume control raises on the cream recipe at rest (token sheet §3).
-///
-/// The sheet is one of the two surfaces never re-prototyped at Night; the map required its Night
-/// appearance validated on the pinned iPhone 17 Pro simulator against the Room Re-lights Rule before
-/// its baseline locks (DESIGN.md §2 / §5.6). The Night baselines below are that validation's pixel
-/// record; `Tests/Component/ThemeTests.swift` (`nightExerciseHistorySheetObeysTheRoomRelightsRule`)
-/// is its programmatic half.
 @MainActor
 @Suite(.snapshots(record: .never))
 struct ExerciseHistorySheetVisualTests {
-    /// A representative Movement history covering every content state the chip ledger renders
-    /// (`DESIGN.md` §5.6): structured Sets as carved chips with muted RPE; a mixed entry whose skip
-    /// and Legacy rawness hide behind the `*` well while its total plots as a hollow `≈` dot; a
-    /// spelling-variant entry annotated in the well; and a fully-unparseable Legacy Log that carries
-    /// only its `*` well — never chipless (#458 re-drive addendum). Two Blocks give the chart its dotted seam.
     private func historyEntry(
         fullName: String,
         baseName: String,
@@ -73,8 +56,6 @@ struct ExerciseHistorySheetVisualTests {
         }
     }
 
-    /// The volume chart summoned on (pick exercise-history6-b): the ink line over paper-cored dots, a
-    /// hollow `≈` dot for the best-effort total, and the dotted Block seam.
     @Test func exerciseHistoryVolumeChartMatchesVisualBaseline() {
         assertSheet(appearance: .day, colorScheme: .light, height: 560) {
             ExerciseHistorySheet(presentation: historyPresentation, showVolume: true)

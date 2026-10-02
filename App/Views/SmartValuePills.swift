@@ -264,11 +264,6 @@ struct SmartValuePills: View {
 
 // MARK: - Value rail (Reps / RPE)
 
-/// A scroll rail (DESIGN.md §5.2): 48×44 cells inside a `rail`-radius track, the selected value a
-/// cream chip with an inset action ring, its prescription tick below. The strip is offset-driven —
-/// tapping a visible cell re-centers it, and a horizontal drag slides through the values one detent
-/// at a time — so the selected value renders centered in offscreen snapshots, which never apply
-/// async scrolling.
 private struct ValueRail: View {
     let chips: [ValueRailChip]
     let selectedIndex: Int
@@ -669,8 +664,6 @@ private struct HoldToSkipLogButton: View {
 
 // MARK: - Input haptics
 
-/// The Crisp input haptics (token sheet §7): rail detent ticks, stepper ± ticks with
-/// the floor dud, the firm log tap, the skip dud. Semantic-only — never on form fields or chrome.
 @MainActor
 final class InputHapticPlayer {
     static let shared = InputHapticPlayer()

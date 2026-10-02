@@ -22,8 +22,6 @@ import Testing
 
 @MainActor
 @Test func repsRailCentersOnSelectionThenPrescribedThenDefault() {
-    // Reps=5 sits at index 4, which an offscreen snapshot render never scrolls to; the
-    // presentation resolves the centered index deterministically, no runtime scroll.
     #expect(RepsScalePresentation(prescribedReps: "5", selection: "5").selectedIndex == 4)
     #expect(RepsScalePresentation(prescribedReps: "12", selection: "").selectedIndex == 11)
     #expect(RepsScalePresentation(prescribedReps: "AMRAP", selection: "").selectedIndex == RepsScalePresentation.defaultSelection - 1)
