@@ -49,9 +49,10 @@
 
         var startsWithPendingWrite: Bool { has("-UITEST_PENDING_WRITE") }
 
-        /// Holds every fixture Sheet read open for a few seconds. The fixture client normally
-        /// answers within the same run loop turn, so nothing that is only true mid-sync — the
-        /// disabled Sheet and Sign Out rows — ever reaches the screen for a driver to read.
+        /// Holds the fixture's tab-list read (`listTabTitles`) open for 20 s; the other fixture reads
+        /// answer at once. The fixture client normally answers within the same run loop turn, so
+        /// nothing that is only true mid-sync — the disabled Sheet and Sign Out rows — ever reaches
+        /// the screen for a driver to read.
         var holdsSheetReads: Bool { has("-UITEST_SLOW_SYNC") }
 
         var startsInDeveloperTools: Bool { has("-UITEST_DEVELOPER_TOOLS") }
