@@ -146,26 +146,20 @@ UI XCUITest boundary:
 Smoke selector command:
 
 ```bash
-xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-  -parallel-testing-enabled NO \
-  -test-timeouts-enabled NO \
-  -only-testing:WorkoutTrackerUITests/WorkoutTrackerUISmokeTests \
-  -only-testing:WorkoutTrackerUITests/PartiallyUploadedBlockUISmokeTests
+scripts/test-sim.sh \
+  WorkoutTrackerUITests/WorkoutTrackerUISmokeTests \
+  WorkoutTrackerUITests/PartiallyUploadedBlockUISmokeTests
 ```
 
 Manual or non-Ralph UI Interaction Suite command:
 
 ```bash
-xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-  -parallel-testing-enabled NO \
-  -test-timeouts-enabled NO \
-  -only-testing:WorkoutTrackerUITests/WorkoutTrackerInteractionUITests \
-  -only-testing:WorkoutTrackerUITests/WorkoutTrackerAppearanceUITests \
-  -only-testing:WorkoutTrackerUITests/WorkoutTrackerLongSessionUITests \
-  -only-testing:WorkoutTrackerUITests/WorkoutTrackerSkipUITests \
-  -only-testing:WorkoutTrackerUITests/PartiallyUploadedBlockUITests
+scripts/test-sim.sh \
+  WorkoutTrackerUITests/WorkoutTrackerInteractionUITests \
+  WorkoutTrackerUITests/WorkoutTrackerAppearanceUITests \
+  WorkoutTrackerUITests/WorkoutTrackerLongSessionUITests \
+  WorkoutTrackerUITests/WorkoutTrackerSkipUITests \
+  WorkoutTrackerUITests/PartiallyUploadedBlockUITests
 ```
 
 Shared fixture policy:
@@ -290,7 +284,7 @@ Or from the Xcode menu: **Product → Scheme → Edit Scheme → Arguments** and
 ```bash
 xcodebuild -project WorkoutTracker.xcodeproj \
   -scheme WorkoutTracker \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' \
   build
 ```
 
@@ -304,7 +298,7 @@ open -a Simulator
 # Build + install
 xcodebuild -project WorkoutTracker.xcodeproj \
   -scheme WorkoutTracker \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' \
   -configuration Debug \
   build
 
