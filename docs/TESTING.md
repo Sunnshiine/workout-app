@@ -66,8 +66,8 @@ mode, `en_US`, fixed default Dynamic Type, and exact precision (`1.0`).
 Recording recipe (issue #471): the recording switch is the suite trait, not an environment
 variable — `SNAPSHOT_TESTING_RECORD` is overridden by the explicit trait and does nothing here.
 To record: flip the affected suite's `@Suite(.snapshots(record: .never))` to
-`.snapshots(record: .all)` in `Tests/Visual/*.swift`, run the Visual suite
-(`scripts/test-sim.sh visual`), then
+`.snapshots(record: .all)` in `Tests/Visual/*.swift`, run the Visual suite on the pinned
+simulator (`scripts/test-sim.sh --sim "$(scripts/ensure-simulator.sh 'iPhone 17 Pro' 27.0)" visual`), then
 revert the trait to `.never` before committing. Two caveats: a record run that crashes leaves
 the stale PNG silently in place, and the CI runner is the canonical recorder — baselines
 recorded on other machines differ at exact precision (issue #479). CI agents record on the
