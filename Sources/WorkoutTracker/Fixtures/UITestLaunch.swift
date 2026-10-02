@@ -49,7 +49,7 @@
 
         var startsWithPendingWrite: Bool { has("-UITEST_PENDING_WRITE") }
 
-        var holdsSheetReads: Bool { has("-UITEST_SLOW_SYNC") }
+        var holdsTabListRead: Bool { has("-UITEST_SLOW_SYNC") }
 
         var startsInDeveloperTools: Bool { has("-UITEST_DEVELOPER_TOOLS") }
 

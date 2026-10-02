@@ -24,7 +24,6 @@ struct ActiveSetCard: View {
     let onSkip: () -> Void
     let onDelete: () -> Void
     var showsLoggedCheckmark = false
-    var identityLabel: String?
     @Environment(\.themePalette) private var palette
     @State private var inputDismissalRequestID = 0
 
