@@ -64,10 +64,7 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
 
     @MainActor
     private func launchCurrentSessionSmokeApp() -> XCUIApplication {
-        launchWorkoutApp(
-            fixture: .currentSession,
-            options: [.disableCelebrationBloom]
-        )
+        launchWorkoutApp(fixture: .currentSession)
     }
 
     @MainActor
