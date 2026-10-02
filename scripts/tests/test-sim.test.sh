@@ -134,6 +134,28 @@ Failing tests:
 
 ** TEST EXECUTE FAILED **"
 
+check "a test that records many issues prints its first three" 65 \
+"✘ Test grows(height:setCount:) recorded an issue with 2 arguments height → 70, setCount → 3 at GrowSuite.swift:19:9: Expectation failed
+✘ Test grows(height:setCount:) recorded an issue with 2 arguments height → 70, setCount → 5 at GrowSuite.swift:19:9: Expectation failed
+✘ Test grows(height:setCount:) recorded an issue with 2 arguments height → 90, setCount → 3 at GrowSuite.swift:19:9: Expectation failed
+✘ Test grows(height:setCount:) recorded more issues than these 3; the log holds every one
+✘ Test run with 3 tests in 1 suite failed after 0.100 seconds with 5 issues.
+Failing tests:
+	-[GrowSuite grows(height:setCount:)]
+** TEST EXECUTE FAILED **" "" 65 \
+"◇ Test run started.
+✘ Test grows(height:setCount:) recorded an issue with 2 arguments height → 70, setCount → 3 at GrowSuite.swift:19:9: Expectation failed
+✘ Test grows(height:setCount:) recorded an issue with 2 arguments height → 70, setCount → 5 at GrowSuite.swift:19:9: Expectation failed
+✘ Test grows(height:setCount:) recorded an issue with 2 arguments height → 90, setCount → 3 at GrowSuite.swift:19:9: Expectation failed
+✘ Test grows(height:setCount:) recorded an issue with 2 arguments height → 90, setCount → 5 at GrowSuite.swift:19:9: Expectation failed
+✘ Test grows(height:setCount:) recorded an issue with 2 arguments height → 120, setCount → 3 at GrowSuite.swift:19:9: Expectation failed
+✘ Test run with 3 tests in 1 suite failed after 0.100 seconds with 5 issues.
+
+Failing tests:
+	-[GrowSuite grows(height:setCount:)]
+
+** TEST EXECUTE FAILED **"
+
 check "a failing XCTest names where it failed" 65 \
 "/repo/Tests/UI/WorkoutTrackerUISmokeTests.swift:39: error: -[WorkoutTrackerUITests.WorkoutTrackerUISmokeTests testMoveOnAdvancesToNextExercise] : XCTAssertTrue failed
 	 Executed 12 tests, with 1 failure (0 unexpected) in 41.203 (41.311) seconds
