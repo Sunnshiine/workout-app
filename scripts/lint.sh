@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
 # Lint every tree .swiftlint.yml claims, without building the app.
 #
-# The app target runs SwiftLint through SwiftLintBuildToolPlugin, so every file it compiles is linted
-# on every Xcode build. The rest of `included:` belongs to no target that carries the plugin; before
-# this script, `Sources/WorkoutCLI` and `Tests` were linted nowhere (issue #607). This runs the same
-# binary the plugin runs, over the same config, with no build.
-#
 # The run takes no path arguments on purpose. SwiftLint's `included:` overrides command-line paths,
 # so a script that passes its own list lints something other than what it names.
 #
@@ -13,12 +8,6 @@
 #   scripts/lint.sh --fix            autocorrect what SwiftLint can, then lint
 #   scripts/lint.sh --print-version  print the pinned SwiftLint version and exit
 #   scripts/lint.sh --print-path     fetch the pinned binary if needed, print its path, and exit
-#
-# For anything else, run the pinned binary yourself from the repo root, where it finds .swiftlint.yml
-# and the nested Tests/.swiftlint.yml on its own:
-#
-#   "$(scripts/lint.sh --print-path)" lint --strict App/Views/SessionView.swift
-#   "$(scripts/lint.sh --print-path)" rules force_unwrapping
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

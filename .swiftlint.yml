@@ -1,11 +1,5 @@
 # SwiftLint configuration
 #
-# Two runners, one config. The Xcode app target runs SwiftLint through the SwiftLintPlugins build
-# tool plugin, so every file the app target compiles is linted on every app build. `scripts/lint.sh`
-# runs the same pinned binary over everything `included:` names, with no build, and CI calls it.
-# Before that script existed the plugin was the only runner, so `Sources/WorkoutCLI` and `Tests`
-# were linted nowhere (issue #607).
-#
 # `Tests` carries its own nested `Tests/.swiftlint.yml` that switches off three rules a test body
 # reads better without. SwiftLint merges it into this file; nothing else overrides anything here.
 
