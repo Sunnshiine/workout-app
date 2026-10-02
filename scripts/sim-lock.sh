@@ -55,7 +55,7 @@ claim_sim() {
   printf '%s (pid %s)\n' "$2" "$$" > "$dir/lock"
   pid=$(cat "$dir/pid" 2>/dev/null) && is_fixture_launch "$pid" || return 0
   run=$(cat "$dir/run" 2>/dev/null) || true
-  stop="SIM=$1 ${run:+VERIFY_RUN=$run }$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.claude/skills/verify/verify.sh stop"
+  stop="SIM=$1 ${run:+VERIFY_RUN=$run }$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.agents/skills/verify/verify.sh stop"
   echo "a verify run${run:+ $run} owns the app on $1 (pid $pid); if it is yours, run: $stop, else use another simulator" >&2
   exit 75
 }

@@ -8,14 +8,15 @@ description: Drive the WorkoutTracker iOS app on the simulator (and the headless
 Two user surfaces. The iPhone app on the simulator is primary. The `workout` CLI runs the same
 stores headless against a workbook file and is the fast path for store and sync behavior that has
 no UI question attached. Everything below runs from the repo root. The helper is
-`.claude/skills/verify/verify.sh` (call it `verify.sh` here). Read `features/README.md` and the
-matching feature file before driving; the map lists every entry point a proof must cover.
+`.agents/skills/verify/verify.sh` (call it `verify.sh` here). `.claude/skills/verify` is a tracked
+symlink to this directory, so there is one copy and either path works. Read `features/README.md`
+and the matching feature file before driving; the map lists every entry point a proof must cover.
 
 ## Launch
 
 ```bash
-.claude/skills/verify/verify.sh build              # xcodebuild build, about 10 s warm, 2 min cold
-.claude/skills/verify/verify.sh launch session     # install + launch into a fixture, returns when the tree answers
+.agents/skills/verify/verify.sh build              # xcodebuild build, about 10 s warm, 2 min cold
+.agents/skills/verify/verify.sh launch session     # install + launch into a fixture, returns when the tree answers
 ```
 
 Fixtures: `session` (Block 27 W1 D1, Back Squat then BB RDL, 5 pending sets), `settings`,
@@ -47,7 +48,7 @@ export WORKOUT_HOME=$(mktemp -d) && .build/debug/workout init --scenario fresh-b
 ## Doctor
 
 ```bash
-.claude/skills/verify/verify.sh doctor
+.agents/skills/verify/verify.sh doctor
 ```
 
 Read-only. Run it after every `launch`, and again whenever a tap does nothing or the tree looks
@@ -59,15 +60,15 @@ anything. An empty tree on a healthy pid means the simulator's accessibility bri
 ## Drive
 
 ```bash
-.claude/skills/verify/verify.sh tree                       # what is on screen: role  id  label  value  @x,y wxh
-.claude/skills/verify/verify.sh tree --all                 # plus what is scrolled out of view
-.claude/skills/verify/verify.sh find log-active-set-button # one line, on screen or off; exit 1 if absent; stderr says off-screen, clipped, or disabled
-.claude/skills/verify/verify.sh tap --id rpe-6             # or --label "Sign Out", or -x 201 -y 740
-.claude/skills/verify/verify.sh hold log-active-set-button # long press, 1.2 s default
-.claude/skills/verify/verify.sh type 245                   # into the focused field
-.claude/skills/verify/verify.sh swipe up                   # scroll half a screen
-.claude/skills/verify/verify.sh burst log-transition tap --id log-active-set-button   # one action, 12 frames over 2 s, one image
-.claude/skills/verify/verify.sh axe swipe --start-x 200 --start-y 90 --end-x 200 --end-y 420 --duration 0.4   # any axe verb
+.agents/skills/verify/verify.sh tree                       # what is on screen: role  id  label  value  @x,y wxh
+.agents/skills/verify/verify.sh tree --all                 # plus what is scrolled out of view
+.agents/skills/verify/verify.sh find log-active-set-button # one line, on screen or off; exit 1 if absent; stderr says off-screen, clipped, or disabled
+.agents/skills/verify/verify.sh tap --id rpe-6             # or --label "Sign Out", or -x 201 -y 740
+.agents/skills/verify/verify.sh hold log-active-set-button # long press, 1.2 s default
+.agents/skills/verify/verify.sh type 245                   # into the focused field
+.agents/skills/verify/verify.sh swipe up                   # scroll half a screen
+.agents/skills/verify/verify.sh burst log-transition tap --id log-active-set-button   # one action, 12 frames over 2 s, one image
+.agents/skills/verify/verify.sh axe swipe --start-x 200 --start-y 90 --end-x 200 --end-y 420 --duration 0.4   # any axe verb
 ```
 
 Target elements by accessibility identifier (`tap --id`) first, by label second, by coordinates
@@ -131,12 +132,12 @@ CLI drive is the binary itself. Capture stdout, stderr, and the exit code of eac
 ## Evidence
 
 ```bash
-VERIFY_RUN=issue-536 .claude/skills/verify/verify.sh launch session   # names the run; prints its directory
-.claude/skills/verify/verify.sh shot 01-before                        # 01-before.png + 01-before.tree.txt
-.claude/skills/verify/verify.sh tap --id log-active-set-button
-.claude/skills/verify/verify.sh shot 02-after-log                     # those two files, then the lines that changed since 01-before
-.claude/skills/verify/verify.sh diff 01-before 02-after-log           # the same comparison for any two shots of the run
-.claude/skills/verify/verify.sh sheet                                 # every shot of the run, 12 to an image, numbered and labelled
+VERIFY_RUN=issue-536 .agents/skills/verify/verify.sh launch session   # names the run; prints its directory
+.agents/skills/verify/verify.sh shot 01-before                        # 01-before.png + 01-before.tree.txt
+.agents/skills/verify/verify.sh tap --id log-active-set-button
+.agents/skills/verify/verify.sh shot 02-after-log                     # those two files, then the lines that changed since 01-before
+.agents/skills/verify/verify.sh diff 01-before 02-after-log           # the same comparison for any two shots of the run
+.agents/skills/verify/verify.sh sheet                                 # every shot of the run, 12 to an image, numbered and labelled
 ```
 
 Artifacts land in `.build/verify/evidence/<run>/` and survive `stop`. `launch` names the run from
@@ -167,7 +168,7 @@ while the tree changed. It saves nothing, prints the changed lines, and exits 70
 ## Cleanup
 
 ```bash
-.claude/skills/verify/verify.sh stop     # terminates the pid this run launched; the simulator stays up
+.agents/skills/verify/verify.sh stop     # terminates the pid this run launched; the simulator stays up
 rm -rf "$WORKOUT_HOME"
 ```
 

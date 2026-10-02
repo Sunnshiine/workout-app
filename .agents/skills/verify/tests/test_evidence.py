@@ -808,7 +808,7 @@ class SimulatorLock(unittest.TestCase):
         self.assertEqual(
             err,
             "a verify run owner-626 owns the app on %s (pid %d); if it is yours, run: SIM=%s VERIFY_RUN=owner-626 "
-            "%s/.claude/skills/verify/verify.sh stop, else use another simulator\n" % (self.sim, app.pid, self.sim, REPO),
+            "%s/.agents/skills/verify/verify.sh stop, else use another simulator\n" % (self.sim, app.pid, self.sim, REPO),
             "names the verify run and its app, and a stop that frees this simulator from any directory",
         )
         self.assertEqual(self.calls(), [], "refused before xcodebuild")
@@ -1262,7 +1262,7 @@ class SimulatorPick(unittest.TestCase):
         code, out, err, calls = self.run_test_sim("--sim", udid.lower(), "unit")
         self.assertEqual((code, out, err), (75, "", (
             "a verify run owner-579 owns the app on %s (pid %d); if it is yours, run: SIM=%s VERIFY_RUN=owner-579 "
-            "%s/.claude/skills/verify/verify.sh stop, else use another simulator\n") % (udid, app.pid, udid, self.checkout)),
+            "%s/.agents/skills/verify/verify.sh stop, else use another simulator\n") % (udid, app.pid, udid, self.checkout)),
             "the lock is keyed by the one spelling, so a case-sensitive /tmp cannot split it")
         self.assertEqual(calls, [])
 

@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat >&2 <<'EOF'
-Usage: .claude/skills/verify/verify.sh <command> [args]
+Usage: .agents/skills/verify/verify.sh <command> [args]
   build                       build WorkoutTracker for the simulator (rerun after any source change)
   launch <fixture> [ARG...]   install the built app and launch it into a fixture (extra -UITEST_* ARGs pass through)
                               fixtures: session settings onboarding long-session partial-block
