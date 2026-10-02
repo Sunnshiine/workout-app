@@ -173,8 +173,9 @@ Failing tests:
 ** TEST EXECUTE FAILED **"
 
 check "xcodebuild failing before any test names its error, not the selection" 70 \
-"xcodebuild: error: Unable to find a device matching the provided destination specifier:" \
-"no tests ran; xcodebuild exited 70 before the first test, for the reason above" 70 \
+"xcodebuild: error: Unable to find a device matching the provided destination specifier:
+		{ platform:iOS Simulator, id:00000000-0000-0000-0000-000000000769 }" \
+"xcodebuild exited 70 before the test run finished; the lines above and the log say why" 70 \
 "Command line invocation:
     /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild test-without-building
 
@@ -187,12 +188,29 @@ check "a test host that fails to launch names the launch error, not the selectio
 "Testing failed:
 	WorkoutTracker (14855) encountered an error (Early unexpected exit, operation never finished bootstrapping - no restart will be attempted. (Underlying Error: Test crashed with signal abrt before establishing connection.))
 ** TEST EXECUTE FAILED **" \
-"no tests ran; xcodebuild exited 65 before the first test, for the reason above" 65 \
+"xcodebuild exited 65 before the test run finished; the lines above and the log say why" 65 \
 "Test session results, code coverage, and logs:
 	/tmp/run.xcresult
 
 Testing failed:
 	WorkoutTracker (14855) encountered an error (Early unexpected exit, operation never finished bootstrapping - no restart will be attempted. (Underlying Error: Test crashed with signal abrt before establishing connection.))
+
+** TEST EXECUTE FAILED **"
+
+check "a host that dies mid-run names the test it was running" 65 \
+"Failing tests:
+	AtmosphereVisualTests.livingPaperMatchesVisualBaseline()
+** TEST EXECUTE FAILED **" \
+"xcodebuild exited 65 before the test run finished; the lines above and the log say why" 65 \
+"	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+◇ Test run started.
+◇ Test activeSetCardMatchesVisualBaseline() started.
+✔ Test activeSetCardMatchesVisualBaseline() passed after 1.204 seconds.
+◇ Test livingPaperMatchesVisualBaseline() started.
+Failed to send signal 19 to process 41235
+
+Failing tests:
+	AtmosphereVisualTests.livingPaperMatchesVisualBaseline()
 
 ** TEST EXECUTE FAILED **"
 
