@@ -11,6 +11,8 @@ Usage: scripts/test-sim.sh [--no-build] [--sim UDID] <unit|visual|ui|all|TEST-ID
            WorkoutTrackerUITests/WorkoutTrackerUISmokeTests/testCurrentSessionLogsFirstSetAndAdvancesActiveSet
 Builds once with build-for-testing, then runs every requested suite in one test-without-building
 session from the xctestrun file. --no-build reuses the last build when only the selection changed.
+Prints each log path before its step starts. The summary at the end holds the run counts, every
+issue a test recorded, every failing test, and any error xcodebuild hit before the first test.
 The simulator is the booted iPhone 17 Pro, else the newest available one, which the script boots.
 With no available iPhone 17 Pro it creates one on iOS 27.0 (scripts/ensure-simulator.sh) and boots that.
 Refuses (exit 75) while another test-sim.sh run or a verify run's app holds that simulator.
@@ -51,9 +53,10 @@ mkdir -p "$logs"
 stamp=$(date +%Y%m%d-%H%M%S)
 
 if [ $build = 1 ]; then
+  echo "build log: $logs/$stamp-build.log"
   xcodebuild build-for-testing -project "$project" -scheme WorkoutTracker -destination "$destination" \
     -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO > "$logs/$stamp-build.log" 2>&1 \
-    || { grep -E "error:|BUILD FAILED" "$logs/$stamp-build.log" | head -20 >&2; echo "build log: $logs/$stamp-build.log" >&2; exit 65; }
+    || { grep -E "error:|BUILD FAILED" "$logs/$stamp-build.log" | head -20 >&2; exit 65; }
 fi
 
 xctestrun=$(for plist in ~/Library/Developer/Xcode/DerivedData/WorkoutTracker-*/info.plist; do
@@ -63,16 +66,29 @@ xctestrun=$(for plist in ~/Library/Developer/Xcode/DerivedData/WorkoutTracker-*/
 done | head -1) || true
 [ -n "$xctestrun" ] || { echo "no xctestrun for $project; run without --no-build" >&2; exit 65; }
 
+log=$logs/$stamp-test.log
+echo "log: $log"
 set +e
 xcodebuild test-without-building -xctestrun "$xctestrun" -destination "$destination" \
-  -collect-test-diagnostics never CODE_SIGNING_ALLOWED=NO "${targets[@]}" > "$logs/$stamp-test.log" 2>&1
+  -collect-test-diagnostics never CODE_SIGNING_ALLOWED=NO "${targets[@]}" > "$log" 2>&1
 rc=$?
 set -e
 summary='^[^ ]+ Test run with'
 executed='Executed [1-9][0-9]* tests?, with'
-grep -E "$summary|$executed|error: .*\.swift:[0-9]+|^Failing tests:|^	[A-Za-z_.]+(\(\))?$|\*\* TEST EXECUTE" "$logs/$stamp-test.log" | uniq
-echo "log: $logs/$stamp-test.log"
-if ! grep -qE "$summary [1-9]|$executed" "$logs/$stamp-test.log"; then
+KEEP="$summary|$executed|\.swift:[0-9]+: error: |^xcodebuild: error:|\*\* TEST EXECUTE" awk '
+  /^[^ ]+ Test .* recorded an issue/ {
+    test = $0; sub(/ recorded an issue.*/, "", test)
+    if (++issues[test] <= 3) print
+    else if (issues[test] == 4) print test " recorded more issues than these 3; the log holds every one"
+    next
+  }
+  /^(Failing tests|Testing failed):$/ { block = 1; print; next }
+  block && /^\t/ { print; next }
+  { block = 0 }
+  $0 ~ ENVIRON["KEEP"]
+' "$log" | uniq
+if ! grep -qE "$summary [1-9]|$executed" "$log"; then
+  [ $rc = 0 ] || { echo "no tests ran; xcodebuild exited $rc before the first test, for the reason above" >&2; exit $rc; }
   echo "no tests ran; check the selection (${targets[*]})" >&2
   exit 65
 fi
