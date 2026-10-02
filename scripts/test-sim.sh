@@ -11,8 +11,9 @@ Usage: scripts/test-sim.sh [--no-build] [--sim UDID] <unit|visual|ui|all|TEST-ID
            WorkoutTrackerUITests/WorkoutTrackerUISmokeTests/testCurrentSessionLogsFirstSetAndAdvancesActiveSet
 Builds once with build-for-testing, then runs every requested suite in one test-without-building
 session from the xctestrun file. --no-build reuses the last build when only the selection changed.
-Prints each log path before its step starts. The summary at the end holds the run counts, every
-issue a test recorded, every failing test, and any error xcodebuild hit before the first test.
+Prints the test log path before the run starts. The summary at the end holds the run counts, the
+first three issues each test recorded, every failing test, and any error xcodebuild hit before the
+first test.
 The simulator is the booted iPhone 17 Pro, else the newest available one, which the script boots.
 With no available iPhone 17 Pro it creates one on iOS 27.0 (scripts/ensure-simulator.sh) and boots that.
 Refuses (exit 75) while another test-sim.sh run or a verify run's app holds that simulator.
@@ -53,10 +54,9 @@ mkdir -p "$logs"
 stamp=$(date +%Y%m%d-%H%M%S)
 
 if [ $build = 1 ]; then
-  echo "build log: $logs/$stamp-build.log"
   xcodebuild build-for-testing -project "$project" -scheme WorkoutTracker -destination "$destination" \
     -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO > "$logs/$stamp-build.log" 2>&1 \
-    || { grep -E "error:|BUILD FAILED" "$logs/$stamp-build.log" | head -20 >&2; exit 65; }
+    || { grep -E "error:|BUILD FAILED" "$logs/$stamp-build.log" | head -20 >&2; echo "build log: $logs/$stamp-build.log" >&2; exit 65; }
 fi
 
 xctestrun=$(for plist in ~/Library/Developer/Xcode/DerivedData/WorkoutTracker-*/info.plist; do
