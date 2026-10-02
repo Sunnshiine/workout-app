@@ -1,15 +1,6 @@
 import Foundation
 import SwiftData
 
-/// How a stored Week and Day pair was numbered: by the N of the Session's `Day N` header, or, for a
-/// row an older build stored, by the header's rank in its Week (ADR-0010, #762).
-///
-/// The app remembers a Session by Week and Day number in `PendingWrite`, the cached `Block`,
-/// `SetCoordinates.ID`, `SessionCoordinate` (Exercise History), `PersistedSessionIdentity` (the
-/// Current Session override), `WorkoutStore.browsedTo` (the Viewed Session a sync restores),
-/// `WriteTargetAuditEntry`, `SupersetExerciseIdentity`, `LiveActivitySessionIdentity`, the CLI's
-/// `SessionAddress`, and the accessibility ids and labels in `BlockOverviewPresentation` and
-/// `ActiveSetPresentation`. A change to how a Day is numbered migrates or re-keys each of them.
 enum DayNumbering: String, Sendable {
     case headerNumber
     case legacyHeaderRank
