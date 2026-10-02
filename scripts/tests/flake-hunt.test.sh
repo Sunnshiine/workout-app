@@ -6,7 +6,7 @@ root=$(mktemp -d) || exit 3
 trap 'rm -rf "$root"' EXIT
 repo=$root/repo
 mkdir -p "$repo/scripts" "$root/bin"
-cp "$script_dir/../flake-hunt.sh" "$repo/scripts/"
+cp "$script_dir/../flake-hunt.sh" "$script_dir/../test-log-summary.awk" "$repo/scripts/"
 pass=0
 fail=0
 

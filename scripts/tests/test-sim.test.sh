@@ -8,7 +8,7 @@ trap 'rm -rf "$root" "/tmp/workout-verify-$sim"' EXIT
 repo=$root/repo
 products=$root/home/Library/Developer/Xcode/DerivedData/WorkoutTracker-stub/Build/Products
 mkdir -p "$repo/scripts" "$root/bin" "$products"
-cp "$script_dir/../test-sim.sh" "$script_dir/../sim-lock.sh" "$repo/scripts/"
+cp "$script_dir/../test-sim.sh" "$script_dir/../sim-lock.sh" "$script_dir/../test-log-summary.awk" "$repo/scripts/"
 touch "$products/../../info.plist" "$products/WorkoutTracker_iphonesimulator27.0-arm64.xctestrun"
 pass=0
 fail=0

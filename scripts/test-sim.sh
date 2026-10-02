@@ -12,8 +12,8 @@ Usage: scripts/test-sim.sh [--no-build] [--sim UDID] <unit|visual|ui|all|TEST-ID
 Builds once with build-for-testing, then runs every requested suite in one test-without-building
 session from the xctestrun file. --no-build reuses the last build when only the selection changed.
 Prints the test log path before the run starts. The summary at the end holds the run counts, the
-first three issues each test recorded, every failing test, and any error xcodebuild hit before the
-first test.
+first three issues each test recorded, every failing test, and any error or crash that stopped
+xcodebuild before the run finished.
 The simulator is the booted iPhone 17 Pro, else the newest available one, which the script boots.
 With no available iPhone 17 Pro it creates one on iOS 27.0 (scripts/ensure-simulator.sh) and boots that.
 Refuses (exit 75) while another test-sim.sh run or a verify run's app holds that simulator.
@@ -73,21 +73,7 @@ xcodebuild test-without-building -xctestrun "$xctestrun" -destination "$destinat
   -collect-test-diagnostics never CODE_SIGNING_ALLOWED=NO "${targets[@]}" > "$log" 2>&1
 rc=$?
 set -e
-summary='^[^ ]+ Test run with'
-executed='Executed [1-9][0-9]* tests?, with'
-KEEP="$summary|$executed|\.swift:[0-9]+: error: |\*\* TEST EXECUTE" awk '
-  /^[^ ]+ Test .* recorded an issue/ {
-    test = $0; sub(/ recorded an issue.*/, "", test)
-    if (++issues[test] <= 3) print
-    else if (issues[test] == 4) print test " recorded more issues than these 3; the log holds every one"
-    next
-  }
-  /^(Failing tests:|Testing failed:|xcodebuild: error:)/ { block = 1; print; next }
-  block && /^\t/ { print; next }
-  { block = 0 }
-  $0 ~ ENVIRON["KEEP"]
-' "$log" | uniq
-if ! grep -qE "$summary [1-9]|$executed" "$log"; then
+if ! awk -f "$repo/scripts/test-log-summary.awk" "$log" | uniq; then
   [ $rc = 0 ] || { echo "xcodebuild exited $rc before the test run finished; the lines above and the log say why" >&2; exit $rc; }
   echo "no tests ran; check the selection (${targets[*]})" >&2
   exit 65
