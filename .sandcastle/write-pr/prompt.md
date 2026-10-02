@@ -11,7 +11,7 @@ tests. You are summarising work that already exists.
 Read the issue:
 
 ```
-gh issue view {{ISSUE_NUMBER}} --comments
+gh issue view {{ISSUE_NUMBER}} --json title,body,labels,comments --jq '{title, body, labels: [.labels[].name], comments: [.comments[].body]}'
 ```
 
 Read what changed on the branch:

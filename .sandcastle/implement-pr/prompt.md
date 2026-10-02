@@ -10,7 +10,7 @@ Read `CONTEXT.md` and any relevant ADRs under `docs/adr/` if you need domain con
 
 <linked-issue>
 
-!`gh issue view {{ISSUE_NUMBER}} --comments`
+!`gh issue view {{ISSUE_NUMBER}} --json title,body,labels,comments --jq '{title, body, labels: [.labels[].name], comments: [.comments[].body]}'`
 
 </linked-issue>
 

@@ -11,8 +11,8 @@ or rewrite that history. Add your work on top.
 
 Pull both issues in for context:
 
-- `gh issue view {{PRD_NUMBER}} --comments` — the full PRD. Read this carefully; your implementation of this sub-issue must fit the larger plan.
-- `gh issue view {{SUB_ISSUE_NUMBER}} --comments` — the specific step you are implementing now.
+- `gh issue view {{PRD_NUMBER}} --json title,body,labels,comments --jq '{title, body, labels: [.labels[].name], comments: [.comments[].body]}'` — the full PRD. Read this carefully; your implementation of this sub-issue must fit the larger plan.
+- `gh issue view {{SUB_ISSUE_NUMBER}} --json title,body,labels,comments --jq '{title, body, labels: [.labels[].name], comments: [.comments[].body]}'` — the specific step you are implementing now.
 
 You also have access to the full list of sibling sub-issues:
 

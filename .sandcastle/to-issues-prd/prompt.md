@@ -11,7 +11,7 @@ script creates and attaches the sub-issues deterministically.
 1. Fetch the PRD:
 
    ```
-   gh issue view {{PRD_NUMBER}} --comments
+   gh issue view {{PRD_NUMBER}} --json title,body,labels,comments --jq '{title, body, labels: [.labels[].name], comments: [.comments[].body]}'
    ```
 
    If the PRD is ambiguous, make the most reasonable interpretation and proceed; do not stop to ask.
