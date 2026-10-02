@@ -7,9 +7,11 @@ on:
       - ".claude/skills/verify"
       - "scripts/contact-sheet.*"
       - "scripts/ensure-simulator.sh"
+      - "scripts/flake-hunt.sh"
       - "scripts/sim-lock.sh"
       - "scripts/test-sim.sh"
       - "scripts/tests/test-sim.test.sh"
+      - "scripts/tests/flake-hunt.test.sh"
       - ".github/workflows/verify-tools.yml"
       - ".github/workflows/ci.yml"
   push:
@@ -19,9 +21,11 @@ on:
       - ".claude/skills/verify"
       - "scripts/contact-sheet.*"
       - "scripts/ensure-simulator.sh"
+      - "scripts/flake-hunt.sh"
       - "scripts/sim-lock.sh"
       - "scripts/test-sim.sh"
       - "scripts/tests/test-sim.test.sh"
+      - "scripts/tests/flake-hunt.test.sh"
       - ".github/workflows/verify-tools.yml"
       - ".github/workflows/ci.yml"
 
@@ -48,5 +52,6 @@ jobs:
       - uses: actions/checkout@v4
       - run: scripts/contact-sheet.test.sh
       - run: scripts/tests/test-sim.test.sh
+      - run: scripts/tests/flake-hunt.test.sh
       - name: test_evidence.py, with the VerifySheet tests that only run on macOS
         run: python3 .agents/skills/verify/tests/test_evidence.py

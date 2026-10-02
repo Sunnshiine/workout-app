@@ -43,6 +43,6 @@ swift test --skip-build ${filter[@]+"${filter[@]}"} --repeat-until fail --maximu
 rc=$?
 set -e
 
-grep -E '^✘ Test .*(recorded an issue|failed after)|unexpected signal|^✔ Test run with|^✘ Test run with' "$log" | uniq || true
+grep -E '^[^ ]+ Test .*(recorded an issue|failed after)|unexpected signal|^[^ ]+ Test run with' "$log" | uniq || true
 echo "log: $log"
 exit $(( rc == 0 ? 0 : 1 ))
