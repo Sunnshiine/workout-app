@@ -22,6 +22,7 @@ echo "$repo/WorkoutTracker.xcodeproj"
 STUB
 cat >"$root/bin/xcodebuild" <<'STUB'
 #!/bin/sh
+cp "$STUB_OUT" "$STUB_SEEN"
 cat "$STUB_LOG"
 exit "$STUB_RC"
 STUB
@@ -30,7 +31,7 @@ chmod +x "$root/bin/plutil" "$root/bin/xcodebuild"
 check() {
     local name=$1 want_status=$2 want_out=$3 want_err=$4 xcodebuild_status=$5 log=$6
     printf '%s\n' "$log" >"$root/xcodebuild.log"
-    STUB_LOG=$root/xcodebuild.log STUB_RC=$xcodebuild_status HOME=$root/home PATH="$root/bin:$PATH" \
+    STUB_LOG=$root/xcodebuild.log STUB_RC=$xcodebuild_status STUB_OUT=$root/out STUB_SEEN=$root/seen HOME=$root/home PATH="$root/bin:$PATH" \
         "$repo/scripts/test-sim.sh" --no-build --sim "$sim" unit >"$root/out" 2>"$root/err"
     local status=$?
     local out err
@@ -104,6 +105,64 @@ check "a colored summary counts, whatever its glyph" 0 \
 "◇ Test run started.
 $colored
 ** TEST EXECUTE SUCCEEDED **"
+
+check "every failing name prints, whatever characters it holds" 65 \
+"✘ Test someTest(height:setCount:) recorded an issue with 2 arguments height → 70.0, setCount → 3 at SomeSuite.swift:19:9: Expectation failed: 1 == 2
+✘ Test failsOnPurpose() recorded an issue at Issue769FailingProbeTests.swift:5:9: Expectation failed: 1 + 1 == 3
+✘ Test run with 1021 tests in 12 suites failed after 2.172 seconds with 3 issues (including 1 known issue).
+	 Executed 3 tests, with 1 failure (0 unexpected) in 0.100 (0.104) seconds
+Failing tests:
+	-[SomeSuite someTest(height:setCount:)]
+	Issue769FailingProbeTests.failsOnPurpose()
+	PlainSuite.plainTest()
+** TEST EXECUTE FAILED **" "" 65 \
+"◇ Test run started.
+✘ Test someTest(height:setCount:) recorded an issue with 2 arguments height → 70.0, setCount → 3 at SomeSuite.swift:19:9: Expectation failed: 1 == 2
+✘ Test failsOnPurpose() recorded an issue at Issue769FailingProbeTests.swift:5:9: Expectation failed: 1 + 1 == 3
+━ Test replanningKeepsTheLandedWrite() recorded a known issue at SyncCoordinatorReplanTests.swift:693:9: Expectation failed
+✘ Test run with 1021 tests in 12 suites failed after 2.172 seconds with 3 issues (including 1 known issue).
+	 Executed 3 tests, with 1 failure (0 unexpected) in 0.100 (0.104) seconds
+
+Test session results, code coverage, and logs:
+	/tmp/Test-WorkoutTracker.xcresult
+
+Failing tests:
+	-[SomeSuite someTest(height:setCount:)]
+	-[SomeSuite someTest(height:setCount:)]
+	Issue769FailingProbeTests.failsOnPurpose()
+	PlainSuite.plainTest()
+
+** TEST EXECUTE FAILED **"
+
+check "xcodebuild failing before any test names its error, not the selection" 70 \
+"xcodebuild: error: Unable to find a device matching the provided destination specifier:" \
+"no tests ran; xcodebuild exited 70 before the first test, for the reason above" 70 \
+"Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild test-without-building
+
+xcodebuild: error: Unable to find a device matching the provided destination specifier:
+		{ platform:iOS Simulator, id:00000000-0000-0000-0000-000000000769 }
+
+	The requested device could not be found because no available devices matched the request."
+
+check "a test host that fails to launch names the launch error, not the selection" 65 \
+"Testing failed:
+	WorkoutTracker (14855) encountered an error (Early unexpected exit, operation never finished bootstrapping - no restart will be attempted. (Underlying Error: Test crashed with signal abrt before establishing connection.))
+** TEST EXECUTE FAILED **" \
+"no tests ran; xcodebuild exited 65 before the first test, for the reason above" 65 \
+"Test session results, code coverage, and logs:
+	/tmp/run.xcresult
+
+Testing failed:
+	WorkoutTracker (14855) encountered an error (Early unexpected exit, operation never finished bootstrapping - no restart will be attempted. (Underlying Error: Test crashed with signal abrt before establishing connection.))
+
+** TEST EXECUTE FAILED **"
+
+if grep -q '^log: .*-test\.log$' "$root/seen"; then
+    ok "the log path prints before xcodebuild starts"
+else
+    bad "the log path prints before xcodebuild starts: stdout at start was '$(cat "$root/seen")'"
+fi
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1
