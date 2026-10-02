@@ -1,4 +1,3 @@
-# Summarizes an xcodebuild or `swift test` log. Exits 0 when a test ran, 1 when none did.
 /^[^ ]+ Test .* recorded an issue/ {
   test = $0
   sub(/ recorded an issue.*/, "", test)
