@@ -235,15 +235,28 @@ for pair in 1 2 3; do
     expect_exit "concurrent pair $pair, second run" "$?" 0
 done
 
-echo "print path: stdout is the pinned binary and nothing else, so \$(...) can run it"
+echo "print path: a cold cache fetches, and stdout is the binary's path and nothing else"
 fresh_fixture
+bundle="$(dirname "$(dirname "$(dirname "$("$repo/scripts/lint.sh" --print-path)")")")/bundle.zip"
+mkdir -p "$root/bin"
+cat >"$root/bin/curl" <<CURL
+#!/usr/bin/env bash
+while [ "\$1" != "-o" ]; do shift; done
+cp "$bundle" "\$2"
+CURL
+chmod +x "$root/bin/curl"
 version=$("$fx/scripts/lint.sh" --print-version)
-"$fx/scripts/lint.sh" --print-path >"$root/stdout" 2>"$root/stderr"
+SWIFTLINT_CACHE_DIR="$root/cold" PATH="$root/bin:$PATH" "$fx/scripts/lint.sh" --print-path \
+    >"$root/stdout" 2>"$root/stderr"
 expect_exit "print path" "$?" 0
-binary=$(cat "$root/stdout")
-expect_line "print path stdout" "$binary" "${SWIFTLINT_CACHE_DIR:-$HOME/.cache/workout-swiftlint}/$version/SwiftLintBinary.artifactbundle/macos/swiftlint"
-expect_line "print path binary" "$("$binary" version)" "$version"
-expect_no_text "print path" "$binary$(cat "$root/stderr")" "==> SwiftLint"
+expected="$root/cold/$version/SwiftLintBinary.artifactbundle/macos/swiftlint"
+if [ "$(cat "$root/stdout")" = "$expected" ]; then
+    ok "print path stdout is the binary's path alone"
+else
+    bad "print path stdout is not the binary's path alone: $(cat "$root/stdout")"
+fi
+expect_line "print path stderr" "$(cat "$root/stderr")" "==> Fetching SwiftLint $version"
+expect_line "print path binary" "$("$expected" version)" "$version"
 
 echo
 echo "$pass passed, $fail failed"

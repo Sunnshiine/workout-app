@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Lint every tree .swiftlint.yml claims, without building the app.
 #
-# The run takes no path arguments on purpose. SwiftLint's `included:` overrides command-line paths,
-# so a script that passes its own list lints something other than what it names.
+# The run takes no path arguments on purpose. SwiftLint lints a file argument alone, but swaps a
+# directory or a missing path for the whole `included:` set and still exits 0, so a script that
+# passed paths through would lint something other than what it names.
 #
 #   scripts/lint.sh                  lint (what CI runs)
 #   scripts/lint.sh --fix            autocorrect what SwiftLint can, then lint
