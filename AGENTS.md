@@ -67,7 +67,8 @@ scripts/crap.sh gate                              # the change-risk gate CI runs
 scripts/test-sim.sh unit                          # simulator suites from one build: unit | visual | ui | all
 scripts/test-sim.sh --no-build WorkoutTrackerUITests/WorkoutTrackerUISmokeTests/testCurrentSessionLogsFirstSetAndAdvancesActiveSet
 xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0'
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' \
+  -skipPackagePluginValidation -skipMacroValidation
 scripts/flake-hunt.sh --repetitions 1000 SyncCoordinatorTests   # repeat a concurrent test under load
 scripts/mutate.sh --filter <suite> <file> '<sed>'   # which tests kill a mutant; --help for the form
 ```

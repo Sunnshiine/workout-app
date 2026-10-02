@@ -285,6 +285,7 @@ Or from the Xcode menu: **Product → Scheme → Edit Scheme → Arguments** and
 xcodebuild -project WorkoutTracker.xcodeproj \
   -scheme WorkoutTracker \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' \
+  -skipPackagePluginValidation -skipMacroValidation \
   build
 ```
 
@@ -299,6 +300,7 @@ open -a Simulator
 xcodebuild -project WorkoutTracker.xcodeproj \
   -scheme WorkoutTracker \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' \
+  -skipPackagePluginValidation -skipMacroValidation \
   -configuration Debug \
   build
 
