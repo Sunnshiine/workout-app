@@ -204,3 +204,9 @@ the holder and its pid. The lock sees only `scripts/test-sim.sh`, so an XcodeBui
 a raw `xcodebuild test` on the same UDID is invisible to it. Before a `launch` when another agent
 may be testing, run `pgrep -fl "id=<udid>"`. Two CLI drives never collide if each has its own
 `WORKOUT_HOME`.
+
+## Changing this skill
+
+After an edit to `verify.sh`, `tree.py`, or `frames.py`, run
+`python3 .agents/skills/verify/tests/test_evidence.py`. CI runs the same file through
+`.github/workflows/verify-tools.yml`, on Linux and on macOS.
