@@ -97,10 +97,6 @@ Target directory structure:
   Uses a separate Xcode UI-test target, split by purpose into UI Integration Smoke and the
   UI Interaction Suite.
 
-Migration policy: move the existing flat `WorkoutTrackerTests` files into this structure in one
-mechanical change before adding new coverage. Update `Package.swift` and verify with `swift test`
-plus `xcodebuild test` immediately after the move.
-
 Test doubles policy:
 
 - `Tests/Unit` may use pure fixtures and protocol stubs at true I/O boundaries only: Sheets client,
