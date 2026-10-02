@@ -138,7 +138,7 @@ check "a test that records many issues prints its first three" 65 \
 "✘ Test grows(height:setCount:) recorded an issue with 2 arguments height → 70, setCount → 3 at GrowSuite.swift:19:9: Expectation failed
 ✘ Test grows(height:setCount:) recorded an issue with 2 arguments height → 70, setCount → 5 at GrowSuite.swift:19:9: Expectation failed
 ✘ Test grows(height:setCount:) recorded an issue with 2 arguments height → 90, setCount → 3 at GrowSuite.swift:19:9: Expectation failed
-✘ Test grows(height:setCount:) recorded more issues than these 3; the log holds every one
+✘ Test grows(height:setCount:) recorded more issues; the log holds every one
 ✘ Test run with 3 tests in 1 suite failed after 0.100 seconds with 5 issues.
 Failing tests:
 	-[GrowSuite grows(height:setCount:)]
@@ -211,6 +211,25 @@ Failed to send signal 19 to process 41235
 
 Failing tests:
 	AtmosphereVisualTests.livingPaperMatchesVisualBaseline()
+
+** TEST EXECUTE FAILED **"
+
+check "a crash xcodebuild restarts past says so" 65 \
+"Restarting after unexpected exit, crash, or test timeout; summary will include totals from previous launches.
+✔ Test run with 30 tests in 8 suites passed after 4.437 seconds.
+Failing tests:
+	BlockGridVisualTests.threeDayGridMatchesVisualBaseline()
+** TEST EXECUTE FAILED **" "" 65 \
+"◇ Test threeDayGridMatchesVisualBaseline() started.
+
+Restarting after unexpected exit, crash, or test timeout; summary will include totals from previous launches.
+
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+◇ Test run started.
+✔ Test run with 30 tests in 8 suites passed after 4.437 seconds.
+
+Failing tests:
+	BlockGridVisualTests.threeDayGridMatchesVisualBaseline()
 
 ** TEST EXECUTE FAILED **"
 

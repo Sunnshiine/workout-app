@@ -29,6 +29,9 @@ check() {
     local status=$?
     local out
     out=$(grep -v '^log: ' "$root/out")
+    local first
+    first=$(head -1 "$root/out")
+    [ -f "${first#log: }" ] || bad "$name: the first line is not the log path: $first"
     if [ "$status" = "$want_status" ] && [ "$out" = "$want_out" ]; then
         ok "$name"
     else
@@ -61,6 +64,22 @@ check "a failing run prints each issue, the failed test, and the summary" 1 \
 ✘ Test envelope(height:setCount:) recorded an issue with 2 arguments height → 70.0, setCount → 3 at SessionStageBranchEnvelopeTests.swift:19:9: Expectation failed
 ✘ Test failsOnPurpose() failed after 0.001 seconds with 1 issue.
 ✘ Test run with 1021 tests in 12 suites failed after 2.172 seconds with 3 issues (including 1 known issue)."
+
+check "a test that records many issues prints its first three" 1 \
+"✘ Test grows(n:) recorded an issue with 1 argument n → 1 at GrowSuite.swift:5:9: Expectation failed: n == 0
+✘ Test grows(n:) recorded an issue with 1 argument n → 2 at GrowSuite.swift:5:9: Expectation failed: n == 0
+✘ Test grows(n:) recorded an issue with 1 argument n → 3 at GrowSuite.swift:5:9: Expectation failed: n == 0
+✘ Test grows(n:) recorded more issues; the log holds every one
+✘ Test grows(n:) failed after 0.001 seconds with 5 issues.
+✘ Test run with 1 test in 1 suite failed after 0.002 seconds with 5 issues." 1 \
+"◇ Test run started.
+✘ Test grows(n:) recorded an issue with 1 argument n → 1 at GrowSuite.swift:5:9: Expectation failed: n == 0
+✘ Test grows(n:) recorded an issue with 1 argument n → 2 at GrowSuite.swift:5:9: Expectation failed: n == 0
+✘ Test grows(n:) recorded an issue with 1 argument n → 3 at GrowSuite.swift:5:9: Expectation failed: n == 0
+✘ Test grows(n:) recorded an issue with 1 argument n → 4 at GrowSuite.swift:5:9: Expectation failed: n == 0
+✘ Test grows(n:) recorded an issue with 1 argument n → 5 at GrowSuite.swift:5:9: Expectation failed: n == 0
+✘ Test grows(n:) failed after 0.001 seconds with 5 issues.
+✘ Test run with 1 test in 1 suite failed after 0.002 seconds with 5 issues."
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1
