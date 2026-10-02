@@ -237,7 +237,6 @@ done
 
 echo "print path: stdout is the pinned binary and nothing else, so \$(...) can run it"
 fresh_fixture
-baseline_config
 version=$("$fx/scripts/lint.sh" --print-version)
 "$fx/scripts/lint.sh" --print-path >"$root/stdout" 2>"$root/stderr"
 expect_exit "print path" "$?" 0
