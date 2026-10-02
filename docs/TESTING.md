@@ -39,7 +39,7 @@ Layer duties:
 - `swift test` proves domain and module behavior through public interfaces with realistic inputs.
 - Component tests prove SwiftUI component state contracts at unit-test speed, without rendering
   pixels.
-- `xcodebuild test` proves the app target compiles and simulator-hosted tests run.
+- `scripts/test-sim.sh unit` proves the app target compiles and simulator-hosted tests run.
 - Visual Regression tests prove rendered screens match committed Visual Baselines.
 - UI tests prove critical user flows through real controls.
 
@@ -67,7 +67,7 @@ Recording recipe (issue #471): the recording switch is the suite trait, not an e
 variable — `SNAPSHOT_TESTING_RECORD` is overridden by the explicit trait and does nothing here.
 To record: flip the affected suite's `@Suite(.snapshots(record: .never))` to
 `.snapshots(record: .all)` in `Tests/Visual/*.swift`, run the Visual suite
-(`xcodebuild test … -only-testing:WorkoutTrackerSnapshotTests` on the pinned destination), then
+(`scripts/test-sim.sh visual`), then
 revert the trait to `.never` before committing. Two caveats: a record run that crashes leaves
 the stale PNG silently in place, and the CI runner is the canonical recorder — baselines
 recorded on other machines differ at exact precision (issue #479). CI agents record on the
@@ -151,15 +151,10 @@ scripts/test-sim.sh \
   WorkoutTrackerUITests/PartiallyUploadedBlockUISmokeTests
 ```
 
-Manual or non-Ralph UI Interaction Suite command:
+Manual or non-Ralph UI Interaction Suite command, which runs the whole UI target, smoke included:
 
 ```bash
-scripts/test-sim.sh \
-  WorkoutTrackerUITests/WorkoutTrackerInteractionUITests \
-  WorkoutTrackerUITests/WorkoutTrackerAppearanceUITests \
-  WorkoutTrackerUITests/WorkoutTrackerLongSessionUITests \
-  WorkoutTrackerUITests/WorkoutTrackerSkipUITests \
-  WorkoutTrackerUITests/PartiallyUploadedBlockUITests
+scripts/test-sim.sh ui
 ```
 
 Shared fixture policy:
@@ -199,9 +194,10 @@ Agent gate policy:
   `WorkoutTrackerUITests`. Ralph must not run the full UI target or the UI Interaction Suite. If no
   smoke-only selector exists, Ralph's autonomous issue loop is non-UI.
 - Before an issue is complete or merged outside Ralph, it must pass the relevant automated testing framework:
-  `swift test`, `xcodebuild test` for unit/component tests, `xcodebuild test` for Visual Regression
-  tests when applicable, UI Integration Smoke when mechanically selected, explicit UI Interaction
-  Suite runs when higher-flake interaction confidence is required, and `swiftlint lint --quiet`.
+  `swift test`, `scripts/test-sim.sh unit` for unit/component tests, `scripts/test-sim.sh visual`
+  for Visual Regression tests when applicable, UI Integration Smoke when mechanically selected,
+  explicit UI Interaction Suite runs when higher-flake interaction confidence is required, and
+  `scripts/lint.sh`.
 - Ralph's README, prompts, and gate script must keep this boundary mechanical so autonomous issues
   cannot silently run the full UI target or the UI Interaction Suite during the loop.
 
@@ -238,18 +234,14 @@ and celebration visibility-ratio checks in the UI Interaction Suite.
 
 ## Prerequisites
 
-- **Xcode 26.3** — required for the iOS 26.0 deployment target
-- **iOS 26.3.1 simulator runtime** — should already be installed; check via
-  Xcode → Settings → Platforms if the app fails to launch
+- **Xcode 27** with the **iOS 27.0 simulator runtime**, the runtime CI and the Visual Baselines use.
+  Check Xcode → Settings → Platforms if the app fails to launch.
 
 ## Running the App
 
 1. Open `WorkoutTracker.xcodeproj` in Xcode
 2. Select the **WorkoutTracker** scheme (top bar, left of the device picker)
-3. Choose a simulator — **iPhone 17 Pro** is a good default
-
-   > Available devices: iPhone 17, iPhone 17 Pro, iPhone 17 Pro Max, iPhone Air, iPhone 16e.
-   > "iPhone 16" does not exist in the iOS 26.3.1 runtime — don't use it.
+3. Choose a simulator — **iPhone 17 Pro** on iOS 27.0 is a good default
 
 4. Press **Cmd+R** to build and run
 
@@ -264,13 +256,6 @@ The app opens to **OnboardingView** on a fresh install (no sign-in, no sheet con
 3. Tap **Save**. The app validates the URL and extracts the sheet ID. A bad URL shows an inline error.
 4. On success the app navigates to **SessionView**.
 
-## What This Branch Has (plan-1/read-only-viewer)
-
-- Onboarding flow (sign in + sheet URL)
-- `SyncCoordinator` — fetches the sheet from the Sheets REST API, parses it, and persists the Block to SwiftData
-- `WorkoutStore` — loads the Block and derives the current Session
-- `SessionView` — displays the current Session read-only (exercises and sets, no logging yet)
-
 ## Resetting State
 
 To start fresh (re-trigger onboarding):
@@ -281,28 +266,5 @@ Or from the Xcode menu: **Product → Scheme → Edit Scheme → Arguments** and
 
 ## Running via xcodebuild (no Xcode GUI)
 
-```bash
-xcodebuild -project WorkoutTracker.xcodeproj \
-  -scheme WorkoutTracker \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' \
-  -skipPackagePluginValidation -skipMacroValidation \
-  build
-```
-
-To boot and install without Xcode:
-
-```bash
-# Boot the simulator
-xcrun simctl boot "iPhone 17 Pro"
-open -a Simulator
-
-# Build + install
-xcodebuild -project WorkoutTracker.xcodeproj \
-  -scheme WorkoutTracker \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' \
-  -skipPackagePluginValidation -skipMacroValidation \
-  -configuration Debug \
-  build
-
-# The .app path is in DerivedData — easier to just use Cmd+R in Xcode
-```
+`AGENTS.md` lists the `xcodebuild build` command. Cmd+R in Xcode is the quickest way to install and
+run the build.
