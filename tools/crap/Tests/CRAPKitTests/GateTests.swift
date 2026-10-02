@@ -43,7 +43,7 @@ private func evaluate(_ report: Report, _ baseline: [BaselineEntry]) -> GateOutc
     @Test func cleanWhenEveryViolationIsBaselinedAtItsRecordedScore() {
         let outcome = evaluate(
             report([("A.f()", 5, 30.0), ("A.g()", 2, 4.0)]),
-            [BaselineEntry(file: "A.swift", name: "A.f()", crap: 30.0)]
+            [BaselineEntry(file: "A.swift", name: "A.f()", crap: 30.0, reason: "held")]
         )
         #expect(outcome.findings.isEmpty)
         #expect(outcome.isClean)
@@ -59,7 +59,7 @@ private func evaluate(_ report: Report, _ baseline: [BaselineEntry]) -> GateOutc
     @Test func worsened() {
         let outcome = evaluate(
             report([("A.f()", 6, 42.0)]),
-            [BaselineEntry(file: "A.swift", name: "A.f()", crap: 30.0)]
+            [BaselineEntry(file: "A.swift", name: "A.f()", crap: 30.0, reason: "held")]
         )
         #expect(
             outcome.findings == [
@@ -70,7 +70,7 @@ private func evaluate(_ report: Report, _ baseline: [BaselineEntry]) -> GateOutc
     }
 
     @Test func staleWhenTheFunctionIsGone() {
-        let outcome = evaluate(report([]), [BaselineEntry(file: "A.swift", name: "A.f()", crap: 30.0)])
+        let outcome = evaluate(report([]), [BaselineEntry(file: "A.swift", name: "A.f()", crap: 30.0, reason: "held")])
         #expect(outcome.findings == [.stale(file: "A.swift", name: "A.f()", recorded: 30.0, reason: .missing)])
         #expect(outcome.exitCode == 1)
     }
@@ -78,7 +78,7 @@ private func evaluate(_ report: Report, _ baseline: [BaselineEntry]) -> GateOutc
     @Test func staleWhenTheFunctionDroppedToTheThreshold() {
         let outcome = evaluate(
             report([("A.f()", 5, 9.0)]),
-            [BaselineEntry(file: "A.swift", name: "A.f()", crap: 30.0)]
+            [BaselineEntry(file: "A.swift", name: "A.f()", crap: 30.0, reason: "held")]
         )
         #expect(
             outcome.findings == [
@@ -91,7 +91,7 @@ private func evaluate(_ report: Report, _ baseline: [BaselineEntry]) -> GateOutc
     @Test func improvedIsANoteNotAFailure() {
         let outcome = evaluate(
             report([("A.f()", 4, 20.0)]),
-            [BaselineEntry(file: "A.swift", name: "A.f()", crap: 30.0)]
+            [BaselineEntry(file: "A.swift", name: "A.f()", crap: 30.0, reason: "held")]
         )
         #expect(outcome.findings == [.improved(file: "A.swift", name: "A.f()", crap: 20.0, recorded: 30.0)])
         #expect(outcome.isClean)
@@ -110,15 +110,29 @@ private func evaluate(_ report: Report, _ baseline: [BaselineEntry]) -> GateOutc
         #expect(
             message
                 == "newViolation  A.swift  A.f()  crap 30.0 > threshold 6.0, not in the baseline; "
-                + "test or simplify it to 6.0 or below, or run scripts/crap.sh baseline --no-test "
-                + "and write why in the new row's reason column"
+                + "test or simplify it to 6.0 or below, or add it to tools/crap/baseline.tsv "
+                + "with why it stays above in the fourth column"
+        )
+    }
+
+    @Test func unexplainedRowFailsUntilItGivesAReason() {
+        let outcome = evaluate(
+            report([("A.f()", 5, 30.0)]),
+            [BaselineEntry(file: "A.swift", name: "A.f()", crap: 30.0, reason: " ")]
+        )
+        #expect(outcome.findings == [.unexplained(file: "A.swift", name: "A.f()")])
+        #expect(outcome.exitCode == 1)
+        #expect(
+            outcome.findings[0].message
+                == "unexplained   A.swift  A.f()  baseline row has no reason; "
+                + "write why it stays above the threshold in its fourth column"
         )
     }
 
     @Test func toleranceAbsorbsSmallMovement() {
         let outcome = evaluate(
             report([("A.f()", 5, 30.3)]),
-            [BaselineEntry(file: "A.swift", name: "A.f()", crap: 30.0)]
+            [BaselineEntry(file: "A.swift", name: "A.f()", crap: 30.0, reason: "held")]
         )
         #expect(outcome.findings.isEmpty)
     }

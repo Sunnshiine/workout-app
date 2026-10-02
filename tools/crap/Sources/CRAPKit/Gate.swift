@@ -27,10 +27,11 @@ public enum Finding: Sendable, Equatable {
     case worsened(file: String, name: String, crap: Double, recorded: Double, tolerance: Double)
     case stale(file: String, name: String, recorded: Double, reason: StaleReason)
     case improved(file: String, name: String, crap: Double, recorded: Double)
+    case unexplained(file: String, name: String)
 
     public var fails: Bool {
         switch self {
-        case .newViolation, .worsened, .stale: true
+        case .newViolation, .worsened, .stale, .unexplained: true
         case .improved: false
         }
     }
@@ -39,8 +40,8 @@ public enum Finding: Sendable, Equatable {
         switch self {
         case .newViolation(let file, let name, let crap, let threshold):
             "newViolation  \(file)  \(name)  crap \(format(crap)) > threshold \(format(threshold)), not in the baseline; "
-                + "test or simplify it to \(format(threshold)) or below, or run scripts/crap.sh baseline --no-test "
-                + "and write why in the new row's reason column"
+                + "test or simplify it to \(format(threshold)) or below, or add it to tools/crap/baseline.tsv "
+                + "with why it stays above in the fourth column"
         case .worsened(let file, let name, let crap, let recorded, let tolerance):
             "worsened      \(file)  \(name)  crap \(format(crap)) > baseline \(format(recorded)) + tolerance \(format(tolerance))"
         case .stale(let file, let name, let recorded, let reason):
@@ -49,6 +50,9 @@ public enum Finding: Sendable, Equatable {
         case .improved(let file, let name, let crap, let recorded):
             "improved      \(file)  \(name)  crap \(format(crap)) < baseline \(format(recorded)); "
                 + "rerun scripts/crap.sh baseline to bank it"
+        case .unexplained(let file, let name):
+            "unexplained   \(file)  \(name)  baseline row has no reason; "
+                + "write why it stays above the threshold in its fourth column"
         }
     }
 
@@ -97,6 +101,9 @@ public enum Gate {
         for entry in baseline.sorted(by: { ($0.file, $0.name) < ($1.file, $1.name) }) {
             let key = Key(file: entry.file, name: entry.name)
             recorded.insert(key)
+            if entry.reason.trimmingCharacters(in: .whitespaces).isEmpty {
+                findings.append(.unexplained(file: entry.file, name: entry.name))
+            }
             guard let row = rows[key] else {
                 findings.append(.stale(file: entry.file, name: entry.name, recorded: entry.crap, reason: .missing))
                 continue
