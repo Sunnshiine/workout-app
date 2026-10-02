@@ -235,6 +235,17 @@ for pair in 1 2 3; do
     expect_exit "concurrent pair $pair, second run" "$?" 0
 done
 
+echo "print path: stdout is the pinned binary and nothing else, so \$(...) can run it"
+fresh_fixture
+baseline_config
+version=$("$fx/scripts/lint.sh" --print-version)
+"$fx/scripts/lint.sh" --print-path >"$root/stdout" 2>"$root/stderr"
+expect_exit "print path" "$?" 0
+binary=$(cat "$root/stdout")
+expect_line "print path stdout" "$binary" "${SWIFTLINT_CACHE_DIR:-$HOME/.cache/workout-swiftlint}/$version/SwiftLintBinary.artifactbundle/macos/swiftlint"
+expect_line "print path binary" "$("$binary" version)" "$version"
+expect_no_text "print path" "$binary$(cat "$root/stderr")" "==> SwiftLint"
+
 echo
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ]

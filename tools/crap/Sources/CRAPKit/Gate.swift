@@ -38,7 +38,9 @@ public enum Finding: Sendable, Equatable {
     public var message: String {
         switch self {
         case .newViolation(let file, let name, let crap, let threshold):
-            "newViolation  \(file)  \(name)  crap \(format(crap)) > threshold \(format(threshold)), not in the baseline"
+            "newViolation  \(file)  \(name)  crap \(format(crap)) > threshold \(format(threshold)), not in the baseline; "
+                + "test or simplify it to \(format(threshold)) or below, or run scripts/crap.sh baseline --no-test "
+                + "and write why in the new row's reason column"
         case .worsened(let file, let name, let crap, let recorded, let tolerance):
             "worsened      \(file)  \(name)  crap \(format(crap)) > baseline \(format(recorded)) + tolerance \(format(tolerance))"
         case .stale(let file, let name, let recorded, let reason):

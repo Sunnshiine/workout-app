@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Lint every tree .swiftlint.yml claims, without building the app.
 #
-# The app target runs SwiftLint through SwiftLintBuildToolPlugin, so `App` and
-# `Sources/WorkoutTracker` are linted on every Xcode build. `Sources/WorkoutCLI` and `Tests` belong
-# to no target that carries the plugin, so until this script existed they were never linted anywhere
-# (issue #607). This runs the same binary the plugin runs, over the same config, with no build.
+# The app target runs SwiftLint through SwiftLintBuildToolPlugin, so every file it compiles is linted
+# on every Xcode build. The rest of `included:` belongs to no target that carries the plugin; before
+# this script, `Sources/WorkoutCLI` and `Tests` were linted nowhere (issue #607). This runs the same
+# binary the plugin runs, over the same config, with no build.
 #
 # The run takes no path arguments on purpose. SwiftLint's `included:` overrides command-line paths,
 # so a script that passes its own list lints something other than what it names.
@@ -12,6 +12,13 @@
 #   scripts/lint.sh                  lint (what CI runs)
 #   scripts/lint.sh --fix            autocorrect what SwiftLint can, then lint
 #   scripts/lint.sh --print-version  print the pinned SwiftLint version and exit
+#   scripts/lint.sh --print-path     fetch the pinned binary if needed, print its path, and exit
+#
+# For anything else, run the pinned binary yourself from the repo root, where it finds .swiftlint.yml
+# and the nested Tests/.swiftlint.yml on its own:
+#
+#   "$(scripts/lint.sh --print-path)" lint --strict App/Views/SessionView.swift
+#   "$(scripts/lint.sh --print-path)" rules force_unwrapping
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -25,9 +32,10 @@ MODE="lint"
 case "${1:-}" in
     --fix) MODE="fix" ;;
     --print-version) MODE="print-version" ;;
+    --print-path) MODE="print-path" ;;
     "") ;;
     *)
-        echo "usage: scripts/lint.sh [--fix|--print-version]" >&2
+        echo "usage: scripts/lint.sh [--fix|--print-version|--print-path]" >&2
         exit 64
         ;;
 esac
@@ -66,7 +74,7 @@ BUNDLE_URL="https://github.com/realm/SwiftLint/releases/download/$VERSION/SwiftL
 SWIFTLINT="$CACHE_DIR/$VERSION/SwiftLintBinary.artifactbundle/macos/swiftlint"
 
 if [ ! -x "$SWIFTLINT" ]; then
-    echo "==> Fetching SwiftLint $VERSION"
+    echo "==> Fetching SwiftLint $VERSION" >&2
     mkdir -p "$CACHE_DIR/$VERSION"
     curl -fsSL -o "$CACHE_DIR/$VERSION/bundle.zip" "$BUNDLE_URL"
     unzip -qo "$CACHE_DIR/$VERSION/bundle.zip" -d "$CACHE_DIR/$VERSION"
@@ -78,6 +86,11 @@ if [ "$REPORTED" != "$VERSION" ]; then
     echo "error: $SWIFTLINT reports $REPORTED but the project pins $VERSION." >&2
     echo "       CI and the app build would disagree about what a violation is. Clear $CACHE_DIR." >&2
     exit 1
+fi
+
+if [ "$MODE" = "print-path" ]; then
+    echo "$SWIFTLINT"
+    exit 0
 fi
 
 # SwiftLint skips an `included:` entry that matches nothing and still exits 0.

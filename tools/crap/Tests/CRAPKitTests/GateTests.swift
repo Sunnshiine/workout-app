@@ -105,6 +105,16 @@ private func evaluate(_ report: Report, _ baseline: [BaselineEntry]) -> GateOutc
         #expect(message.hasSuffix("delete its line from the baseline or rerun scripts/crap.sh baseline"))
     }
 
+    @Test func newViolationMessageNamesBothWaysOut() {
+        let message = Finding.newViolation(file: "A.swift", name: "A.f()", crap: 30.0, threshold: 6).message
+        #expect(
+            message
+                == "newViolation  A.swift  A.f()  crap 30.0 > threshold 6.0, not in the baseline; "
+                + "test or simplify it to 6.0 or below, or run scripts/crap.sh baseline --no-test "
+                + "and write why in the new row's reason column"
+        )
+    }
+
     @Test func toleranceAbsorbsSmallMovement() {
         let outcome = evaluate(
             report([("A.f()", 5, 30.3)]),
