@@ -75,20 +75,20 @@ rc=$?
 set -e
 summary='^[^ ]+ Test run with'
 executed='Executed [1-9][0-9]* tests?, with'
-KEEP="$summary|$executed|\.swift:[0-9]+: error: |^xcodebuild: error:|\*\* TEST EXECUTE" awk '
+KEEP="$summary|$executed|\.swift:[0-9]+: error: |\*\* TEST EXECUTE" awk '
   /^[^ ]+ Test .* recorded an issue/ {
     test = $0; sub(/ recorded an issue.*/, "", test)
     if (++issues[test] <= 3) print
     else if (issues[test] == 4) print test " recorded more issues than these 3; the log holds every one"
     next
   }
-  /^(Failing tests|Testing failed):$/ { block = 1; print; next }
+  /^(Failing tests:|Testing failed:|xcodebuild: error:)/ { block = 1; print; next }
   block && /^\t/ { print; next }
   { block = 0 }
   $0 ~ ENVIRON["KEEP"]
 ' "$log" | uniq
 if ! grep -qE "$summary [1-9]|$executed" "$log"; then
-  [ $rc = 0 ] || { echo "no tests ran; xcodebuild exited $rc before the first test, for the reason above" >&2; exit $rc; }
+  [ $rc = 0 ] || { echo "xcodebuild exited $rc before the test run finished; the lines above and the log say why" >&2; exit $rc; }
   echo "no tests ran; check the selection (${targets[*]})" >&2
   exit 65
 fi
