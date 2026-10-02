@@ -4,10 +4,9 @@ import SwiftUI
 /// used quietly in-app as a brand element. It is the app's *one* glass survivor
 /// (ADR-0014): a bottle-green glass disc carrying the icon's three-stop greens,
 /// a diagonal sheen, and a crisp rim, with the negative-space bird **cut out** of
-/// the disc so the room shows through it. The old composition punched the cutout
-/// to solid black (ledger §9.2); here the bird region is erased with
+/// the disc so the room shows through it. The bird region is erased with
 /// `.destinationOut` inside a `compositingGroup`, so whatever paper sits behind
-/// the mark reads through the wings.
+/// the mark reads through the wings instead of a solid black backing.
 ///
 /// **The Mark Stays Whole:** it renders only as the complete glass mark, never
 /// disc-only or wing-curve chrome, and never below the 28pt honesty floor — its

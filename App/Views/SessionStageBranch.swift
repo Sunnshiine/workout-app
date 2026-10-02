@@ -9,8 +9,8 @@ import SwiftUI
 /// the page's one glow at Night), and a faint **ghost outline** for each Pending
 /// Set still ahead. Nodes anchor to a terminal at t=0.80 and step down the stem,
 /// so even 2–3 Sets read as one sprig on a full-length stem, never a horizontal
-/// progress slider (ledger §4.1). The branch stands textless; the plain
-/// `Set N of M` head carries the reading in words. Node states come from
+/// progress slider. The branch stands textless; the plain `Set N of M` head
+/// carries the reading in words. Node states come from
 /// `SessionStagePresentation.branchNodeStates`, so the branch owns geometry only.
 struct SessionStageBranch: View {
     let sets: [ExerciseSet]
@@ -137,7 +137,7 @@ struct SessionStageBranch: View {
             blade(.dashed(palette.skipStroke), above: above, angle: angle)
                 .transition(.opacity)
         case .bud:
-            // One Log, One Fill (ledger §4.4): the active blade *wakes* on its
+            // One Log, One Fill (DESIGN.md §7): the active blade *wakes* on its
             // own tokenized timing — 0.34s starting 0.26s into the previous
             // leaf's ink — reading as a cream leaf opening (that logging then
             // inks solid), never a second leaf filling.
@@ -151,7 +151,7 @@ struct SessionStageBranch: View {
                 )
         case .future:
             // A ghost of the leaf to come — a faint, smaller outline of the same
-            // blade, never an angled stroke or a circular dot (verdict, §4.1).
+            // blade, never an angled stroke or a circular dot (DESIGN.md §5.1).
             blade(.ghost(palette.futureStroke), above: above, angle: angle, length: Metrics.leafLength * Metrics.ghostScale)
         }
     }

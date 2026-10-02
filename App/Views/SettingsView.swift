@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Settings stays native (DESIGN.md §5.9, ledger §10.4): system-owned `Form` rows, native text
+/// Settings stays native (DESIGN.md §5.9): system-owned `Form` rows, native text
 /// styles, and normal Dynamic Type — no glass card, no hand-built role table. Appearance
 /// (System / Light / Night) lives here, and manual sync is the `Sync now` row (the Settings Own
 /// Manual Sync Rule).

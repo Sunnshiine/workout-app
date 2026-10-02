@@ -65,7 +65,7 @@ struct SessionQueueSheet: View {
         .animation(.easeInOut(duration: 0.18), value: pairingMode)
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
-        // Living paper (DESIGN.md §2, ledger §10.1): the queue sheet carries the washes on soft
+        // Living paper (DESIGN.md §2): the queue sheet carries the washes on soft
         // shoulders — bare cream reads too white — so it stays in the same room as the stage.
         .presentationCornerRadius(Theme.Radius.soft)
         .presentationBackground { palette.paperBackground }
@@ -99,9 +99,9 @@ struct SessionQueueSheet: View {
                 onJump(item)
             } label: {
                 rowLabel(for: item) {
-                    // Rows shed their icons (ledger §10.2): the stage's icon budget is spent on the
-                    // branch. A completed row reads as complete from its dimmed title and settled Set
-                    // dots alone; only the on-stage row still speaks, in words.
+                    // Rows carry no icons (One Icon Per Page Rule, DESIGN.md §5.1): the stage's icon
+                    // budget is spent on the branch. A completed row reads as complete from its dimmed
+                    // title and settled Set dots alone; only the on-stage row still speaks, in words.
                     if isOnStage {
                         Text("Now")
                             .font(Theme.font(.fieldLabel))
@@ -145,8 +145,8 @@ struct SessionQueueSheet: View {
         .opacity(role == .ineligibleTarget ? Theme.pairingUnavailableOpacity : 1)
         .overlay {
             if role == .confirmingTarget {
-                // The confirming-pair ring loses its accent glow and retired radius-16 (ledger §10.2):
-                // one clean soft-radius stroke, no second glow to break the One Glow Rule at night.
+                // The confirming-pair ring is one clean soft-radius stroke with no accent glow: a
+                // second glow would break the One Glow Rule (DESIGN.md §2) at night.
                 RoundedRectangle(cornerRadius: Theme.Radius.soft)
                     .stroke(palette.accent, lineWidth: 2)
             }

@@ -5,7 +5,7 @@ import Testing
 
 @testable import WorkoutTracker
 
-/// Native Settings (DESIGN.md §5.9, ledger §10.4), in both appearances. Settings is built of
+/// Native Settings (DESIGN.md §5.9), in both appearances. Settings is built of
 /// system-owned `Form` rows with native text styles and normal Dynamic Type — no glass card, no
 /// hand-built role table. Appearance (System / Light / Night) and the `Sync now` row live here.
 ///
