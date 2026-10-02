@@ -399,7 +399,7 @@ import Testing
     }
 #endif
 
-// MARK: - Elevation & light kit (token sheet §3 / §5.5 / §5.6)
+// MARK: - Elevation & light kit (token sheet §3; DESIGN.md §5.5 / §5.6)
 
 #if canImport(AppKit)
     @Test func themeSurfaceShadowIsADayDoubleDropAndANightInsetBorder() {

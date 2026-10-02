@@ -10,7 +10,7 @@ import SwiftUI
 /// Skips, Legacy Log rawness, and fallback-spelling annotations never sit in the ledger: they hide
 /// behind a `*` on the W/D label that expands into a small carved well. A fully-unparseable entry
 /// still carries its `*` well — the raw Sheet line inside it — so a row never renders chipless
-/// (re-drive addendum §7.5). A Volume control (off by default, raised at rest on the cream recipe,
+/// (#458 re-drive addendum). A Volume control (off by default, raised at rest on the cream recipe,
 /// pressed below flat when active) summons the one chart — total volume per Session, hollow `≈`
 /// dots where Legacy Logs make totals approximate, a dotted Block seam — never pushed.
 struct ExerciseHistorySheet: View {

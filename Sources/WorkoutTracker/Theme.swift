@@ -76,7 +76,7 @@ enum Theme {  // swiftlint:disable:this type_body_length
         let washes: [RadialWash]
     }
 
-    // MARK: - Elevation & light kit (token sheet §3 / §5.5 / §5.6)
+    // MARK: - Elevation & light kit (token sheet §3; DESIGN.md §5.5 / §5.6)
 
     /// A single CSS box-shadow transcribed verbatim from the token sheet. Offsets, `blur` and
     /// `spread` keep the sheet's px values; `swiftUIRadius` maps CSS blur onto SwiftUI's radius
@@ -130,9 +130,9 @@ enum Theme {  // swiftlint:disable:this type_body_length
         let hasPaperCore: Bool
     }
 
-    /// The Block-grid / Exercise-History day "light and shade" kit (token sheet §5.5 / §5.6,
-    /// #435 variant d). These are the sunlit-hour recipes; the night set re-lights by the Room
-    /// Re-lights Rule (DESIGN.md §2).
+    /// The Block-grid / Exercise-History day "light and shade" kit (token sheet §3; DESIGN.md
+    /// §5.5 / §5.6; #435 variant d). These are the sunlit-hour recipes; the night set re-lights
+    /// by the Room Re-lights Rule (DESIGN.md §2).
     enum LightKit {
         /// The collapsed week card's quiet shade (`cardLow`) — it sits "in shade" under the focus card.
         static let cardLow: [BoxShadow] = [

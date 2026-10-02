@@ -185,8 +185,8 @@ struct ExerciseHistorySheetPresentation: Equatable, Sendable {
     /// rawness survived.
     ///
     /// A fully-unparseable entry keeps its whole line as `rawText` and yields no chips — the view then
-    /// renders the row by its `*` well (the raw Sheet line inside it), never chipless (re-drive
-    /// addendum §7.5).
+    /// renders the row by its `*` well (the raw Sheet line inside it), never chipless (#458 re-drive
+    /// addendum).
     private static func parse(_ resultText: String) -> Parsed {
         var chips: [Chip] = []
         var skipCount = 0

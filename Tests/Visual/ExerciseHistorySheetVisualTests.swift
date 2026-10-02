@@ -24,7 +24,7 @@ struct ExerciseHistorySheetVisualTests {
     /// (`DESIGN.md` §5.6): structured Sets as carved chips with muted RPE; a mixed entry whose skip
     /// and Legacy rawness hide behind the `*` well while its total plots as a hollow `≈` dot; a
     /// spelling-variant entry annotated in the well; and a fully-unparseable Legacy Log that carries
-    /// only its `*` well — never chipless (addendum §7.5). Two Blocks give the chart its dotted seam.
+    /// only its `*` well — never chipless (#458 re-drive addendum). Two Blocks give the chart its dotted seam.
     private func historyEntry(
         fullName: String,
         baseName: String,
