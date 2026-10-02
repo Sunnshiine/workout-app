@@ -21,6 +21,8 @@ Each of these wins over anything written here. Read the one that governs the wor
 - `Sources/WorkoutCLI/README.md` owns the `workout` CLI. ADR-0015 records the boundary it runs on.
 - `.agents/skills/verify/SKILL.md` drives the app on the simulator and captures proof. Read the
   matching file under `.agents/skills/verify/features/` before driving.
+- Project skills live in `.agents/skills/<name>/`. Each `.claude/skills/<name>` is a tracked
+  symlink to that directory, so a skill has one copy and either path reaches it.
 
 ## Repository map
 
@@ -82,8 +84,10 @@ workout log w1d1.e0.s0 185x5@8 && workout flush && workout sheet --cell K15   # 
 ## Verification
 
 Run `scripts/lint.sh` and `swift test` before finishing. On every PR, CI runs those, the CRAP
-gate, the simulator-hosted unit and component suite, and the visual gate. A PR whose changed paths
-all sit in `ci.yml`'s `paths-ignore` (Markdown, `docs/`, agent files, and more) starts no run.
+gate, the simulator-hosted unit and component suite, and the visual gate. CI never runs
+`WorkoutTrackerUITests` (#662), so only a local `scripts/test-sim.sh ui` proves a UI test. A PR
+whose changed paths all sit in `ci.yml`'s `paths-ignore` (Markdown, `docs/`, agent files, and
+more) starts no run.
 
 - Neither test run is a superset of the other. `swift test` compiles `Sources/` alone, so a green
   run does not prove the app compiles. `scripts/test-sim.sh unit` compiles the app and skips the
@@ -93,9 +97,11 @@ all sit in `ci.yml`'s `paths-ignore` (Markdown, `docs/`, agent files, and more) 
   validation on a fresh machine and can hang collecting diagnostics after a failure.
 - Pin `OS=27.0` in every `-destination`. A machine with two runtimes holds two devices named
   iPhone 17 Pro, and xcodebuild may pick the wrong one.
-- Concurrent UI-test sessions must not share a simulator. Give each its own UDID
-  (`-destination 'platform=iOS Simulator,id=<UDID>'`) and its own `-derivedDataPath` and
-  `-clonedSourcePackagesDirPath`.
+- Concurrent simulator runs each need their own worktree and their own simulator. Pass the UDID
+  as `scripts/test-sim.sh --sim <UDID> ...`. The script locks that simulator and exits 75 while
+  another `test-sim.sh` run or a verify session holds it.
+- macOS has no `timeout`. Run a command that blocks for minutes (`scripts/test-sim.sh`,
+  `scripts/ci-wait.sh`, `scripts/flake-hunt.sh`) in the background instead of wrapping it.
 - The `WorkoutTracker` scheme launches against local fixtures (`-UITEST_FIXTURE true`), never the
   live Sheet. `Copy of WorkoutTracker` runs live.
 - Visual Baselines are recorded on the CI runner, not locally, because renders differ across
