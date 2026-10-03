@@ -8,8 +8,8 @@ scores every production function in the headless scope with CRAP (`cc^2 * (1 - c
 and fails when a function not in `tools/crap/baseline.tsv` scores above 6, when a baselined function
 scores above its recorded value, when a baseline row no longer applies, or when a row gives no reason.
 After lowering a score, run `scripts/crap.sh baseline` and commit the smaller baseline. A new function
-that stays above 6 gets its own row with a written reason, or the gate keeps failing. ADR-0016 records
-the decision; the counting rules and their tests live in `tools/crap/`.
+that stays above 6 needs a row from `scripts/crap.sh baseline` with a written reason, or the gate keeps
+failing. ADR-0016 records the decision; the counting rules and their tests live in `tools/crap/`.
 
 Coverage counts only lines `swift test` executes. A test that covers a function through the interface
 its callers use is the intended way to lower a score; a test that calls internals to paint lines green
