@@ -74,8 +74,6 @@
             Self.scenarioArguments.first { has($0.argument) }?.scenario ?? .partialUpload
         }
 
-        /// The preference a fixture launch pins: System without the flag, and a refusal for a value
-        /// the preference does not store, because a silent fallback screenshots the wrong appearance.
         var appearance: AppearancePreference {
             get throws(UnknownAppearance) {
                 guard let flagIndex = arguments.firstIndex(of: "-UITEST_APPEARANCE") else {
