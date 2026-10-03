@@ -154,7 +154,6 @@ final class WriteTargetAuditEntry {
         set { finalStatusRaw = newValue.rawValue }
     }
 
-    /// The audited write's `recordedSession`, so its Day can be a header rank.
     var recordedSession: SessionCoordinate {
         SessionCoordinate(blockTab: blockTab, address: SessionAddress(week: week, day: day))
     }
