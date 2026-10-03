@@ -909,6 +909,7 @@ class VerifyStop(unittest.TestCase):
 
 
 STUB = """#!/bin/sh
+[ "$(basename "$0") $*" != "xcrun simctl list devices available -j" ] || { echo '{"devices": {"iOS-27-0": [{"udid": "{sim}"}]}}'; exit 0; }
 printf '%s\\n' "$(basename "$0") $*" >> "{dir}/calls"
 [ "$(basename "$0")" != xcodebuild ] || echo "** BUILD FAILED **"
 [ -n "${STUB_HOLD:-}" ] || exit 1
@@ -927,7 +928,7 @@ class SimulatorLock(unittest.TestCase):
         shutil.rmtree(self.state, ignore_errors=True)
         self.stubs = Path(tempfile.mkdtemp())
         for tool in ["xcodebuild", "xcrun", "npm", "plutil"]:
-            (self.stubs / tool).write_text(STUB.replace("{dir}", str(self.stubs)))
+            (self.stubs / tool).write_text(STUB.replace("{dir}", str(self.stubs)).replace("{sim}", self.sim))
             (self.stubs / tool).chmod(0o755)
         self.path = "%s:%s" % (self.stubs, os.environ["PATH"])
         self.runs = []
@@ -1271,7 +1272,7 @@ class SimulatorPick(unittest.TestCase):
         skill = self.checkout / ".agents" / "skills" / "verify"
         skill.mkdir(parents=True)
         (self.checkout / "scripts").mkdir()
-        for name in ["test-sim.sh", "sim-lock.sh", "ensure-simulator.sh"]:
+        for name in ["test-sim.sh", "test-log-summary.awk", "sim-lock.sh", "ensure-simulator.sh"]:
             (self.checkout / "scripts" / name).symlink_to(REPO / "scripts" / name)
         for name in ["verify.sh", "tree.py"]:
             (skill / name).symlink_to(SKILL / name)
@@ -1455,12 +1456,13 @@ class SimulatorPick(unittest.TestCase):
         self.addCleanup(app.kill)
         (state / "run").write_text("owner-579\n")
         (state / "pid").write_text("%d\n" % app.pid)
+        self.machine([IOS_27_0], [PRO], {IOS_27_0["identifier"]: [device("iPhone 17 Pro", udid)]})
         code, out, err, calls = self.run_test_sim("--sim", udid.lower(), "unit")
         self.assertEqual((code, out, err), (75, "", (
             "a verify run owner-579 owns the app on %s (pid %d); if it is yours, run: SIM=%s VERIFY_RUN=owner-579 "
             "%s/.agents/skills/verify/verify.sh stop, else use another simulator\n") % (udid, app.pid, udid, self.checkout)),
             "the lock is keyed by the one spelling, so a case-sensitive /tmp cannot split it")
-        self.assertEqual(calls, [])
+        self.assertEqual(calls, ["xcrun simctl list devices available -j"])
 
     def test_a_lowercase_sim_launches_on_the_simulator_simctl_spells_in_capitals(self):
         udid = pick_udid(3)

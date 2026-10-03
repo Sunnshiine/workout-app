@@ -30,6 +30,16 @@ if devices:
     print(pick["udid"], pick["state"])'
 }
 
+sim_available() {
+  local listing
+  listing=$(xcrun simctl list devices available -j) || return
+  printf %s "$listing" | UDID="$1" python3 -c '
+import json, os, sys
+sys.exit(all(d["udid"] != os.environ["UDID"] for ds in json.load(sys.stdin)["devices"].values() for d in ds))' && return
+  echo "no available simulator $1; xcrun simctl list devices available lists them" >&2
+  return 2
+}
+
 sim_flock() {
   local lock=/tmp/workout-verify-$1/lock rc=0
   python3 -c 'import fcntl, sys, time
