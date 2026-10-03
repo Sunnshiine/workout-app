@@ -64,10 +64,9 @@ def verify_sh(*args, run, sim=None, path=None):
     return done.returncode, done.stdout, done.stderr
 
 
-def write_png(path, width, height, colour, box=None):
-    """box is ((x, y, w, h), colour): a rectangle of another colour painted over the plain image."""
+def write_png(path, width, height, colour, box_frame=(0, 0, 0, 0), box_colour=None):
     plain = b"\x00" + bytes(colour) * width
-    (x, y, w, h), inside = box or ((0, 0, 0, 0), colour)
+    (x, y, w, h), inside = box_frame, box_colour or colour
     band = b"\x00" + bytes(colour) * x + bytes(inside) * w + bytes(colour) * (width - x - w)
     scanlines = b"".join(band if y <= row < y + h else plain for row in range(height))
 
@@ -1615,7 +1614,7 @@ class VerifyCrop(unittest.TestCase):
         self.dir = REPO / ".build" / "verify" / "evidence" / self.run
         self.dir.mkdir(parents=True, exist_ok=True)
         shutil.copy(BEFORE_TREE, self.dir / "01-before.tree.txt")
-        write_png(self.dir / "01-before.png", 804, 1748, self.SURROUND, box=((196, 1062, 412, 132), self.PILL))
+        write_png(self.dir / "01-before.png", 804, 1748, self.SURROUND, box_frame=(196, 1062, 412, 132), box_colour=self.PILL)
         self.crop = self.dir / "01-before-crop-90_523_222x82.png"
 
     def tearDown(self):
@@ -1650,7 +1649,7 @@ class VerifyCrop(unittest.TestCase):
                          "the pill starts 16 pixels in from the top left and ends 16 from the bottom right")
 
     def test_a_crop_at_the_top_left_corner_starts_there(self):
-        write_png(self.dir / "01-before.png", 804, 1748, self.SURROUND, box=((0, 0, 8, 8), self.PILL))
+        write_png(self.dir / "01-before.png", 804, 1748, self.SURROUND, box_frame=(0, 0, 8, 8), box_colour=self.PILL)
         corner = self.dir / "01-before-crop-0_0_10x10.png"
         self.assertEqual(verify_sh("crop", "01-before", "0", "0", "10", "10", run=self.run),
                          (0, "%s\t20x20\n" % corner, ""))

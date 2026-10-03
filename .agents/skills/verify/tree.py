@@ -47,6 +47,7 @@ def clean(field: Any) -> str:
 
 
 FRAME_TEXT = re.compile(r"@(-?\d+),(-?\d+) (\d+)x(\d+)")
+PRINTED_FRAME_MARGIN = 1
 
 
 class Frame(NamedTuple):
@@ -195,16 +196,14 @@ def obstacles(found: List[TreeLine], screen: Frame) -> List[str]:
 
 
 def covered(target: TreeLine, answer: Any, front_pid: str, app_pid: Optional[str]) -> Optional[str]:
-    # On the Home Screen axe's point read names the icon one column to the left of the one its tree
-    # puts there, so the check holds only while the app this run launched is in front.
+    # axe's point read on the Home Screen names a different icon from the one its tree puts there.
     if app_pid and front_pid != app_pid:
         return None
     hit = answer[0] if isinstance(answer, list) and answer else answer
     if isinstance(hit, dict):
         hit_frame = Frame.of(hit)
-        # LINE's frame is printed in whole points, so each edge sits within a point of the real one.
         if str(hit.get("pid")) == front_pid and (
-            (target.ident and hit.get("AXUniqueId") == target.ident) or target.frame.grown(1).covers(hit_frame)
+            (target.ident and hit.get("AXUniqueId") == target.ident) or target.frame.grown(PRINTED_FRAME_MARGIN).covers(hit_frame)
         ):
             return None
         name = clean(hit.get("AXUniqueId") or hit.get("AXLabel"))

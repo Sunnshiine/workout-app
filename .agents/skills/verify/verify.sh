@@ -316,8 +316,6 @@ case $cmd in
       "$axe" tap --udid "$sim" --wait-timeout "$timeout" ${rest[@]+"${rest[@]}"}
       exit
     fi
-    # axe calls a tap on any coordinate a success, so the tree finds the target and a point read
-    # checks that nothing else is on top of its centre.
     app_pid=$(cat "$state_dir/pid" 2>/dev/null || true)
     lands() {
       local screen resolved front

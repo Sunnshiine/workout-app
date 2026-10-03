@@ -78,7 +78,6 @@ import Testing
     let offline = try #require(SyncStatusBannerPresentation(outcome: .sheetUnreachable, isSyncing: false))
     #expect(offline.accessibilityLabel == "Sync status: Offline")
 
-    // The string `.agents/skills/verify/features/log-a-set.md` greps for on the live app.
     let queued = try #require(SyncStatusBannerPresentation(outcome: .writesQueued(1), isSyncing: false))
     #expect(queued.accessibilityLabel == "Sync status: 1 unsynced")
 }
