@@ -18,7 +18,7 @@
         static let disablesAnimations = isEnabled && launch.disablesAnimations
 
         static func makeSheetsClient() -> any SheetsClient {
-            FixtureSheetsClient(holdsTabListRead: launch.holdsTabListRead)
+            FixtureSheetsClient(slowsSync: launch.slowsSync)
         }
 
         @MainActor
@@ -56,10 +56,10 @@
     }
 
     private struct FixtureSheetsClient: SheetsClient {
-        let holdsTabListRead: Bool
+        let slowsSync: Bool
 
         func listTabTitles(spreadsheetId: String) async throws -> [String] {
-            if holdsTabListRead {
+            if slowsSync {
                 try await Task.sleep(for: .seconds(20))
             }
             return ["Block 27"]

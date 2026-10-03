@@ -1,7 +1,5 @@
 import Foundation
 
-/// The fill-in-progress affordance's presentation model (PRD #357 §4, sub-issue #366).
-///
 /// Projects one `ExerciseHistoryFill.Progress` tick into muted, warm-voice copy plus a determinate
 /// fraction, so the Exercise History sheet shows honest, moving progress rather than a dead spinner.
 /// It lives in the quiet Last Performed reference vocabulary — no mint — and the view stays a dumb

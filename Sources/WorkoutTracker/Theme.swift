@@ -124,7 +124,6 @@ enum Theme {  // swiftlint:disable:this type_body_length
     /// means a filled dot; a non-zero width is a hollow outline. `hasPaperCore` punches the paper
     /// through a solid dot so it reads as a plotted point, not a blob.
     struct DotSpec: Equatable {
-        let color: Color
         let radius: CGFloat
         let lineWidth: CGFloat
         let hasPaperCore: Bool
@@ -181,8 +180,8 @@ enum Theme {  // swiftlint:disable:this type_body_length
 
         /// The volume chart's plotted points: a solid ink dot with a paper core, and the
         /// approximate-value dot as a hollow ink outline.
-        static let dataDot = DotSpec(color: Paint.ink, radius: 4.5, lineWidth: 0, hasPaperCore: true)
-        static let approxDot = DotSpec(color: Paint.ink, radius: 4, lineWidth: 1.5, hasPaperCore: false)
+        static let dataDot = DotSpec(radius: 4.5, lineWidth: 0, hasPaperCore: true)
+        static let approxDot = DotSpec(radius: 4, lineWidth: 1.5, hasPaperCore: false)
     }
 
     // MARK: - Palette (flat semantic roles)

@@ -49,9 +49,7 @@
 
         var startsWithPendingWrite: Bool { has("-UITEST_PENDING_WRITE") }
 
-        /// The fixture client answers within one run-loop turn, so without this hold no mid-sync
-        /// state reaches the screen. `.agents/skills/verify/features/settings.md` drives it.
-        var holdsTabListRead: Bool { has("-UITEST_SLOW_SYNC") }
+        var slowsSync: Bool { has("-UITEST_SLOW_SYNC") }
 
         var startsInDeveloperTools: Bool { has("-UITEST_DEVELOPER_TOOLS") }
 

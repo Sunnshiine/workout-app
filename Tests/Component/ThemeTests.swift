@@ -499,7 +499,7 @@ import Testing
         expectRGB(Theme.LightKit.volumeControlRaisedFill, red: 242 / 255, green: 247 / 255, blue: 232 / 255, alpha: 0.90)
 
         // Data dot: solid ink r4.5 with a paper core. Approx dot: hollow ink outline r4 @ 1.5.
-        #expect(Theme.LightKit.dataDot == Theme.DotSpec(color: Theme.Paint.ink, radius: 4.5, lineWidth: 0, hasPaperCore: true))
-        #expect(Theme.LightKit.approxDot == Theme.DotSpec(color: Theme.Paint.ink, radius: 4, lineWidth: 1.5, hasPaperCore: false))
+        #expect(Theme.LightKit.dataDot == Theme.DotSpec(radius: 4.5, lineWidth: 0, hasPaperCore: true))
+        #expect(Theme.LightKit.approxDot == Theme.DotSpec(radius: 4, lineWidth: 1.5, hasPaperCore: false))
     }
 #endif
