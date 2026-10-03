@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# Claude Code loads a repo skill only through .claude/skills/<name>, a link to .agents/skills/<name>.
-# A skill with no link never loads, and a link to a deleted skill loads nothing.
-#
-#   scripts/lint-skill-links.sh         check this checkout
-#   scripts/lint-skill-links.sh <root>  check another tree (the tests use this)
 set -euo pipefail
 
 cd "${1:-$(dirname "${BASH_SOURCE[0]}")/..}"

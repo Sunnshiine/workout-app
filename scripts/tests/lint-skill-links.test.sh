@@ -26,7 +26,6 @@ expect_count() {
     if [ "$got" -eq "$3" ]; then ok "$1 reports $3 error(s)"; else bad "$1 reports $3 error(s), got $got"; fi
 }
 
-# A tree with the given skill folders, each linked the way the repo links them.
 linked_tree() {
     local root="$tmp/$1" name
     shift
