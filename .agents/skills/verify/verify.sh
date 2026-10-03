@@ -320,10 +320,13 @@ case $cmd in
     # checks that nothing else is on top of its centre.
     app_pid=$(cat "$state_dir/pid" 2>/dev/null || true)
     lands() {
-      local resolved
-      resolved=$(describe | python3 "$tree" tappable "${target[@]}") || return 1
+      local screen resolved front
+      screen=$(describe) || return 1
+      resolved=$(python3 "$tree" tappable "${target[@]}" <<< "$screen") || return 1
+      front=$(python3 "$tree" pid <<< "$screen")
       read -r x y <<< "$resolved"
-      "$axe" describe-ui --udid "$sim" --point "$x,$y" | python3 "$tree" landing "${resolved#*$'\n'}" ${app_pid:+"$app_pid"}
+      "$axe" describe-ui --udid "$sim" --point "$x,$y" \
+        | python3 "$tree" landing "${resolved#*$'\n'}" "$front" ${app_pid:+"$app_pid"}
     }
     SECONDS=0
     while :; do

@@ -19,10 +19,10 @@ Reads an `axe describe-ui` JSON tree on stdin:
   tree.py center <id>    "x y" of the element with that accessibility identifier; exit 1 if absent
 
 Reads a `describe-ui --point` answer on stdin (an object, a list led by it, or empty):
-  tree.py landing LINE [PID]
-                         exit 0 when the answer is LINE's element or lies inside LINE's frame, both
-                         rounded to whole points, or belongs to a process other than PID; else exit 1
-                         with a covered: note
+  tree.py landing LINE FRONT_PID [APP_PID]
+                         exit 0 when the answer belongs to FRONT_PID, the tree's application, and is
+                         LINE's element or lies within a point of LINE's frame, or when APP_PID is
+                         given and is not FRONT_PID; else exit 1 with a covered: note
 
 Reads saved trees:
   tree.py diff A.tree.txt B.tree.txt   the lines that changed, frames ignored
@@ -71,9 +71,8 @@ class Frame(NamedTuple):
     def text(self) -> str:
         return f"@{self.x:.0f},{self.y:.0f} {self.width:.0f}x{self.height:.0f}"
 
-    @property
-    def rounded(self) -> "Frame":
-        return Frame(*(round(side) for side in self))
+    def grown(self, by: float) -> "Frame":
+        return Frame(self.x - by, self.y - by, self.width + 2 * by, self.height + 2 * by)
 
     @property
     def center(self) -> Tuple[float, float]:
@@ -195,17 +194,18 @@ def obstacles(found: List[TreeLine], screen: Frame) -> List[str]:
     return notes
 
 
-def covered(target: TreeLine, answer: Any, app_pid: Optional[str]) -> Optional[str]:
+def covered(target: TreeLine, answer: Any, front_pid: str, app_pid: Optional[str]) -> Optional[str]:
+    # On the Home Screen axe's point read names the icon one column to the left of the one its tree
+    # puts there, so the check holds only while the app this run launched is in front.
+    if app_pid and front_pid != app_pid:
+        return None
     hit = answer[0] if isinstance(answer, list) and answer else answer
     if isinstance(hit, dict):
-        # On the Home Screen axe's point read names the icon one column to the left of the one its
-        # tree puts there, so the check holds only inside the app this run launched.
-        if app_pid and str(hit.get("pid")) != app_pid:
-            return None
-        if target.ident and hit.get("AXUniqueId") == target.ident:
-            return None
         hit_frame = Frame.of(hit)
-        if target.frame.rounded.covers(hit_frame.rounded):
+        # LINE's frame is printed in whole points, so each edge sits within a point of the real one.
+        if str(hit.get("pid")) == front_pid and (
+            (target.ident and hit.get("AXUniqueId") == target.ident) or target.frame.grown(1).covers(hit_frame)
+        ):
             return None
         name = clean(hit.get("AXUniqueId") or hit.get("AXLabel"))
         seen = " ".join(part for part in (clean(hit.get("role")), name, hit_frame.text) if part)
@@ -238,8 +238,7 @@ def crop(args: List[str]) -> None:
         if found is None:
             ids = " ".join(dict.fromkeys(line.ident for line in shot if line.ident))
             sys.exit(f"no element {args[2]} on {shot_name(tree_path)}; its ids: {ids}")
-        x, y, width, height = found.frame
-        wanted = Frame(x - CROP_PAD, y - CROP_PAD, width + 2 * CROP_PAD, height + 2 * CROP_PAD)
+        wanted = found.frame.grown(CROP_PAD)
     left, top = max(wanted.x, screen.x), max(wanted.y, screen.y)
     right = min(wanted.x + wanted.width, screen.x + screen.width)
     bottom = min(wanted.y + wanted.height, screen.y + screen.height)
@@ -305,7 +304,7 @@ def main() -> None:
     if mode == "landing":
         answer = sys.stdin.read().strip()
         note = covered(TreeLine.parse(sys.argv[2]), json.loads(answer) if answer else None,
-                       sys.argv[3] if len(sys.argv) > 3 else None)
+                       sys.argv[3], sys.argv[4] if len(sys.argv) > 4 else None)
         if note:
             sys.exit(note)
         return

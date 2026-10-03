@@ -76,10 +76,11 @@ only when the element has neither. Alert buttons have labels but no identifiers.
 up to 3 s for that element to be enabled, on screen, and with its centre inside the frame of every
 element that contains it. A container with a zero width or height holds no point, so it is skipped.
 The keyboard toolbar wraps `Done` in a 0x0 group. Last, `tap --id` asks axe what is on top at that
-centre, which costs about 0.5 s more per tap. The answer must be the element or something inside
-its frame, and then it taps that centre. The check holds only inside the app this run launched. On
-the Home Screen axe's point read names a different icon from the one its tree places there, so a
-tap there goes by the tree alone. When `tap --id` never gets such a hit it exits 1 and says
+centre, which costs about 0.5 s more per tap. The answer must belong to the app in front and be
+the element or something inside its frame, and then it taps that centre. A system prompt over the
+app is covered. The check holds only while the app this run launched is in front. On the Home
+Screen axe's point read names a different icon from the one its tree places there, so a tap there
+goes by the tree alone. When `tap --id` never gets such a hit it exits 1 and says
 `off-screen`, `clipped`, `disabled`, or `covered`. A `clipped` note names the container whose frame
 misses the centre, such as the RPE track. A `covered` note names what is on top instead, such as an
 alert's backdrop, or whatever took the place of an element that went away after the tree was read.
@@ -217,6 +218,7 @@ may be testing, run `pgrep -fl "id=<udid>"`. Two CLI drives never collide if eac
 
 ## Changing this skill
 
-After an edit to `verify.sh`, `tree.py`, or `frames.py`, run
-`python3 .agents/skills/verify/tests/test_evidence.py`. CI runs the same file through
-`.github/workflows/verify-tools.yml`, on Linux and on macOS.
+After an edit to `verify.sh`, `tree.py`, `frames.py`, `scripts/contact-sheet.swift`, or
+`scripts/sim-lock.sh`, run `python3 .agents/skills/verify/tests/test_evidence.py`, and after an
+edit to the tiler `scripts/contact-sheet.test.sh` as well. CI runs both through
+`.github/workflows/verify-tools.yml`.
