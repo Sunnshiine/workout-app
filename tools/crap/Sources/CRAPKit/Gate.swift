@@ -23,7 +23,7 @@ public enum StaleReason: String, Sendable {
 }
 
 public enum Finding: Sendable, Equatable {
-    case newViolation(file: String, name: String, crap: Double, threshold: Double)
+    case newViolation(file: String, name: String, crap: Double, threshold: Double, cc: Int, coverage: Double)
     case worsened(file: String, name: String, crap: Double, recorded: Double, tolerance: Double, cc: Int, coverage: Double)
     case stale(file: String, name: String, recorded: Double, reason: StaleReason)
     case improved(file: String, name: String, crap: Double, recorded: Double)
@@ -38,13 +38,14 @@ public enum Finding: Sendable, Equatable {
 
     public var message: String {
         switch self {
-        case .newViolation(let file, let name, let crap, let threshold):
-            "newViolation  \(file)  \(name)  crap \(format(crap)) > threshold \(format(threshold)), not in the baseline; "
-                + "test or simplify it to \(format(threshold)) or below, "
-                + "or run scripts/crap.sh baseline to add its row and then give the row a reason"
+        case .newViolation(let file, let name, let crap, let threshold, let cc, let coverage):
+            "newViolation  \(file)  \(name)  crap \(format(crap)) > threshold \(format(threshold)) "
+                + "at cc \(cc) and coverage \(percent(coverage)), not in the baseline; "
+                + route(cc: cc, limit: threshold)
+                + "or, as a last resort, run scripts/crap.sh baseline to add its row and then give the row a reason"
         case .worsened(let file, let name, let crap, let recorded, let tolerance, let cc, let coverage):
             "worsened      \(file)  \(name)  crap \(format(crap)) > baseline \(format(recorded)) + tolerance \(format(tolerance)) "
-                + "at cc \(cc) and coverage \(String(format: "%.0f", coverage * 100))%; "
+                + "at cc \(cc) and coverage \(percent(coverage)); "
                 + route(cc: cc, limit: recorded + tolerance)
                 + "or, as a last resort, raise its crap in the baseline by hand and say why in its reason "
                 + "(scripts/crap.sh baseline never raises a score)"
@@ -63,8 +64,12 @@ public enum Finding: Sendable, Equatable {
     private func route(cc: Int, limit: Double) -> String {
         Double(cc) > limit
             ? "cc alone is over \(format(limit)) and crap never drops below cc, so testing alone cannot help; "
-                + "simplify it back down to \(format(limit)) or below, "
-            : "full coverage brings crap down to its cc, \(cc), so test it back down to \(format(limit)) or below, "
+                + "simplify it down to \(format(limit)) or below, "
+            : "full coverage brings crap down to its cc, \(cc), so test it down to \(format(limit)) or below, "
+    }
+
+    private func percent(_ fraction: Double) -> String {
+        String(format: "%.0f", fraction * 100) + "%"
     }
 
     private func format(_ value: Double) -> String {
@@ -145,10 +150,19 @@ public enum Gate {
         }
 
         for row in report.functions {
-            guard let crap = row.crap, crap > threshold else { continue }
+            guard let crap = row.crap, let coverage = row.coverage, crap > threshold else { continue }
             let key = Key(file: row.file, name: row.name)
             guard !recorded.contains(key) else { continue }
-            findings.append(.newViolation(file: row.file, name: row.name, crap: crap, threshold: threshold))
+            findings.append(
+                .newViolation(
+                    file: row.file,
+                    name: row.name,
+                    crap: crap,
+                    threshold: threshold,
+                    cc: row.cc,
+                    coverage: coverage
+                )
+            )
         }
         return GateOutcome(findings: findings)
     }

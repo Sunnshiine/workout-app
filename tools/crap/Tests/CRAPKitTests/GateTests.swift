@@ -52,7 +52,11 @@ private func evaluate(_ report: Report, _ baseline: [BaselineEntry]) -> GateOutc
 
     @Test func newViolation() {
         let outcome = evaluate(report([("A.f()", 5, 30.0)]), [])
-        #expect(outcome.findings == [.newViolation(file: "A.swift", name: "A.f()", crap: 30.0, threshold: 12)])
+        #expect(
+            outcome.findings == [
+                .newViolation(file: "A.swift", name: "A.f()", crap: 30.0, threshold: 12, cc: 5, coverage: 0)
+            ]
+        )
         #expect(outcome.exitCode == 1)
     }
 
@@ -117,13 +121,55 @@ private func evaluate(_ report: Report, _ baseline: [BaselineEntry]) -> GateOutc
         #expect(message.hasSuffix("delete its line from the baseline or rerun scripts/crap.sh baseline"))
     }
 
-    @Test func newViolationMessageNamesBothWaysOut() {
-        let message = Finding.newViolation(file: "A.swift", name: "A.f()", crap: 30.0, threshold: 6).message
+    @Test func newViolationOverTheThresholdAtFullCoverageNamesSimplifying() {
+        let message = Finding.newViolation(
+            file: "A.swift",
+            name: "A.f()",
+            crap: 7.0,
+            threshold: 6,
+            cc: 7,
+            coverage: 1
+        ).message
         #expect(
             message
-                == "newViolation  A.swift  A.f()  crap 30.0 > threshold 6.0, not in the baseline; "
-                + "test or simplify it to 6.0 or below, "
-                + "or run scripts/crap.sh baseline to add its row and then give the row a reason"
+                == "newViolation  A.swift  A.f()  crap 7.0 > threshold 6.0 at cc 7 and coverage 100%, not in the baseline; "
+                + "cc alone is over 6.0 and crap never drops below cc, so testing alone cannot help; "
+                + "simplify it down to 6.0 or below, "
+                + "or, as a last resort, run scripts/crap.sh baseline to add its row and then give the row a reason"
+        )
+    }
+
+    @Test func newViolationUnderCoveredNamesTesting() {
+        let message = Finding.newViolation(
+            file: "A.swift",
+            name: "A.f()",
+            crap: 30.0,
+            threshold: 6,
+            cc: 5,
+            coverage: 0
+        ).message
+        #expect(
+            message
+                == "newViolation  A.swift  A.f()  crap 30.0 > threshold 6.0 at cc 5 and coverage 0%, not in the baseline; "
+                + "full coverage brings crap down to its cc, 5, so test it down to 6.0 or below, "
+                + "or, as a last resort, run scripts/crap.sh baseline to add its row and then give the row a reason"
+        )
+    }
+
+    @Test func newViolationWithCCAtTheThresholdNamesTesting() {
+        let message = Finding.newViolation(
+            file: "A.swift",
+            name: "A.f()",
+            crap: 6.6,
+            threshold: 6,
+            cc: 6,
+            coverage: 0.75
+        ).message
+        #expect(
+            message
+                == "newViolation  A.swift  A.f()  crap 6.6 > threshold 6.0 at cc 6 and coverage 75%, not in the baseline; "
+                + "full coverage brings crap down to its cc, 6, so test it down to 6.0 or below, "
+                + "or, as a last resort, run scripts/crap.sh baseline to add its row and then give the row a reason"
         )
     }
 
@@ -140,7 +186,7 @@ private func evaluate(_ report: Report, _ baseline: [BaselineEntry]) -> GateOutc
         #expect(
             message
                 == "worsened      A.swift  A.f()  crap 10.3 > baseline 9.0 + tolerance 0.5 at cc 9 and coverage 75%; "
-                + "full coverage brings crap down to its cc, 9, so test it back down to 9.5 or below, "
+                + "full coverage brings crap down to its cc, 9, so test it down to 9.5 or below, "
                 + "or, as a last resort, raise its crap in the baseline by hand and say why in its reason "
                 + "(scripts/crap.sh baseline never raises a score)"
         )
@@ -160,7 +206,7 @@ private func evaluate(_ report: Report, _ baseline: [BaselineEntry]) -> GateOutc
             message
                 == "worsened      A.swift  A.f()  crap 8.0 > baseline 7.0 + tolerance 0.5 at cc 8 and coverage 100%; "
                 + "cc alone is over 7.5 and crap never drops below cc, so testing alone cannot help; "
-                + "simplify it back down to 7.5 or below, "
+                + "simplify it down to 7.5 or below, "
                 + "or, as a last resort, raise its crap in the baseline by hand and say why in its reason "
                 + "(scripts/crap.sh baseline never raises a score)"
         )
@@ -179,7 +225,7 @@ private func evaluate(_ report: Report, _ baseline: [BaselineEntry]) -> GateOutc
         #expect(
             message
                 == "worsened      A.swift  A.f()  crap 8.9 > baseline 7.5 + tolerance 0.5 at cc 8 and coverage 90%; "
-                + "full coverage brings crap down to its cc, 8, so test it back down to 8.0 or below, "
+                + "full coverage brings crap down to its cc, 8, so test it down to 8.0 or below, "
                 + "or, as a last resort, raise its crap in the baseline by hand and say why in its reason "
                 + "(scripts/crap.sh baseline never raises a score)"
         )
