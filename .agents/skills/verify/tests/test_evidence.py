@@ -909,7 +909,7 @@ class VerifyStop(unittest.TestCase):
 
 
 STUB = """#!/bin/sh
-[ "$(basename "$0") $*" != "xcrun simctl list devices available -j" ] || { echo '{"udid": "{sim}"}'; exit 0; }
+[ "$(basename "$0") $*" != "xcrun simctl list devices available -j" ] || { echo '{"devices": {"iOS-27-0": [{"udid": "{sim}"}]}}'; exit 0; }
 printf '%s\\n' "$(basename "$0") $*" >> "{dir}/calls"
 [ "$(basename "$0")" != xcodebuild ] || echo "** BUILD FAILED **"
 [ -n "${STUB_HOLD:-}" ] || exit 1

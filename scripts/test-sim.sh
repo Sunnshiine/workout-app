@@ -46,7 +46,7 @@ done
 
 picked=$(pick_sim "$sim" create)
 read -r sim state <<< "$picked"
-[ "$state" != named ] || xcrun simctl list devices available -j | grep -F "\"$sim\"" >/dev/null \
+[ "$state" != named ] || sim_available "$sim" \
   || { echo "no available simulator $sim; xcrun simctl list devices available lists them" >&2; exit 2; }
 [ "$state" != Shutdown ] || xcrun simctl boot "$sim"
 claim_sim "$sim" "test-sim.sh run"

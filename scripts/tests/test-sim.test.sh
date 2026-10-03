@@ -4,7 +4,8 @@ set -uo pipefail
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 root=$(mktemp -d) || exit 3
 sim=TEST-SIM-TEST-$$
-trap 'rm -rf "$root" "/tmp/workout-verify-$sim"' EXIT
+unknown=DEADBEEF-0000-4000-8000-000000000790
+trap 'rm -rf "$root" "/tmp/workout-verify-$sim" "/tmp/workout-verify-$unknown"' EXIT
 repo=$root/repo
 products=$root/home/Library/Developer/Xcode/DerivedData/WorkoutTracker-stub/Build/Products
 mkdir -p "$repo/scripts" "$root/bin" "$products"
@@ -211,6 +212,40 @@ check "a failing multi-line expectation prints the values it compared" 65 \
 ✘ Test run with 1042 tests in 11 suites failed after 5.575 seconds with 1 issue.
 ** TEST EXECUTE FAILED **"
 
+check "an expectation's comment and a recorded issue's message print with the issue" 65 \
+"✘ Test branchFits(height:) recorded an issue with 1 argument height → 78.0 at SessionStageBranchEnvelopeTests.swift:24:13: Expectation failed: ink.bottom <= height + Self.inkBelow
+↳ 3 Sets
+↳   ink.bottom → 90.33333333333334
+↳   height + Self.inkBelow → 90.0
+✘ Test branchFits(height:) recorded an issue with 1 argument height → 78.0 at SessionStageBranchEnvelopeTests.swift:24:13: Expectation failed: ink.bottom <= height + Self.inkBelow
+↳ 5 Sets
+↳   ink.bottom → 90.33333333333334
+↳   height + Self.inkBelow → 90.0
+✘ Test seededSessionViewMatchesVisualBaseline() recorded an issue at SessionViewVisualTests.swift:11:32: Issue recorded
+↳ Snapshot does not match reference.
+✘ Test run with 2 tests in 2 suites failed after 1.100 seconds with 3 issues.
+** TEST EXECUTE FAILED **" "" 65 \
+"◇ Test run started.
+✘ Test branchFits(height:) recorded an issue with 1 argument height → 78.0 at SessionStageBranchEnvelopeTests.swift:24:13: Expectation failed: ink.bottom <= height + Self.inkBelow
+↳ 3 Sets
+↳ ink.bottom <= height + Self.inkBelow → false
+↳   ink.bottom → 90.33333333333334
+↳   height + Self.inkBelow → 90.0
+✘ Test branchFits(height:) recorded an issue with 1 argument height → 78.0 at SessionStageBranchEnvelopeTests.swift:24:13: Expectation failed: ink.bottom <= height + Self.inkBelow
+↳ 5 Sets
+↳ ink.bottom <= height + Self.inkBelow → false
+↳   ink.bottom → 90.33333333333334
+↳   height + Self.inkBelow → 90.0
+✘ Test seededSessionViewMatchesVisualBaseline() recorded an issue at SessionViewVisualTests.swift:11:32: Issue recorded
+↳ Snapshot does not match reference.
+  
+  @−
+  \"file:///repo/Tests/Visual/__Snapshots__/SessionViewVisualTests/seededSessionViewMatchesVisualBaseline.1.png\"
+  
+  Newly-taken snapshot does not match reference.
+✘ Test run with 2 tests in 2 suites failed after 1.100 seconds with 3 issues.
+** TEST EXECUTE FAILED **"
+
 check "xcodebuild failing before any test names its error, not the selection" 70 \
 "xcodebuild: error: Unable to find a device matching the provided destination specifier:
 		{ platform:iOS Simulator, id:00000000-0000-0000-0000-000000000769 }" \
@@ -278,17 +313,17 @@ else
     bad "the log path prints before xcodebuild starts: stdout at start was '$(cat "$root/seen")'"
 fi
 
-unknown=DEADBEEF-0000-4000-8000-000000000790
 for flags in "--no-build --sim" "--sim"; do
     rm -f "$root/seen"
     STUB_LOG=$root/xcodebuild.log STUB_RC=70 STUB_OUT=$root/out STUB_SEEN=$root/seen HOME=$root/home PATH="$root/bin:$PATH" \
         "$repo/scripts/test-sim.sh" $flags "$unknown" unit >"$root/out" 2>"$root/err"
     status=$?
     want="no available simulator $unknown; xcrun simctl list devices available lists them"
-    if [ $status = 2 ] && [ ! -s "$root/out" ] && [ "$(cat "$root/err")" = "$want" ] && [ ! -e "$root/seen" ]; then
-        ok "an unknown --sim UDID ($flags) is refused before xcodebuild starts"
+    if [ $status = 2 ] && [ ! -s "$root/out" ] && [ "$(cat "$root/err")" = "$want" ] && [ ! -e "$root/seen" ] \
+        && [ ! -e "/tmp/workout-verify-$unknown" ]; then
+        ok "an unknown --sim UDID ($flags) is refused before it claims the simulator or xcodebuild starts"
     else
-        bad "an unknown --sim UDID ($flags) is refused before xcodebuild starts: exit $status, xcodebuild ran: $([ -e "$root/seen" ] && echo yes || echo no)"
+        bad "an unknown --sim UDID ($flags) is refused before it claims the simulator or xcodebuild starts: exit $status, xcodebuild ran: $([ -e "$root/seen" ] && echo yes || echo no)"
         printf '    stdout:\n%s\n    stderr:\n%s\n' "$(cat "$root/out")" "$(cat "$root/err")"
     fi
 done
