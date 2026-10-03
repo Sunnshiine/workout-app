@@ -4,7 +4,7 @@ set -uo pipefail
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 root=$(mktemp -d) || exit 3
 sim=TEST-SIM-TEST-$$
-unknown=DEADBEEF-0000-4000-8000-000000000790
+unknown=DEADBEEF-0000-4000-8000-$(printf %012d $$)
 trap 'rm -rf "$root" "/tmp/workout-verify-$sim" "/tmp/workout-verify-$unknown"' EXIT
 repo=$root/repo
 products=$root/home/Library/Developer/Xcode/DerivedData/WorkoutTracker-stub/Build/Products
@@ -353,6 +353,7 @@ fi
 
 for flags in "--no-build --sim" "--sim"; do
     rm -f "$root/seen"
+    # shellcheck disable=SC2086
     STUB_LOG=$root/xcodebuild.log STUB_RC=70 STUB_OUT=$root/out STUB_SEEN=$root/seen HOME=$root/home PATH="$root/bin:$PATH" \
         "$repo/scripts/test-sim.sh" $flags "$unknown" unit >"$root/out" 2>"$root/err"
     status=$?
