@@ -12,11 +12,12 @@ Usage: scripts/test-sim.sh [--no-build] [--sim UDID] <unit|visual|ui|all|TEST-ID
 Builds once with build-for-testing, then runs every requested suite in one test-without-building
 session from the xctestrun file. --no-build reuses the last build when only the selection changed.
 Prints the test log path before the run starts. The summary at the end holds the run counts, the
-first three issues each test recorded, every failing test, and any error or crash that stopped
-xcodebuild before the run finished.
+first three issues each test recorded with the values each one compared, every failing test, and
+any error or crash that stopped xcodebuild before the run finished.
 The simulator is the booted iPhone 17 Pro, else the newest available one, which the script boots.
 With no available iPhone 17 Pro it creates one on iOS 27.0 (scripts/ensure-simulator.sh) and boots that.
-Refuses (exit 75) while another test-sim.sh run or a verify run's app holds that simulator.
+Refuses (exit 75) while another test-sim.sh run or a verify run's app holds that simulator, and
+refuses (exit 2) a --sim UDID that simctl lists no available simulator for.
 EOF
   exit 2
 }
@@ -45,6 +46,8 @@ done
 
 picked=$(pick_sim "$sim" create)
 read -r sim state <<< "$picked"
+[ "$state" != named ] || xcrun simctl list devices available -j | grep -F "\"$sim\"" >/dev/null \
+  || { echo "no available simulator $sim; xcrun simctl list devices available lists them" >&2; exit 2; }
 [ "$state" != Shutdown ] || xcrun simctl boot "$sim"
 claim_sim "$sim" "test-sim.sh run"
 destination="platform=iOS Simulator,id=$sim"
