@@ -115,14 +115,14 @@ private func evaluate(_ report: Report, _ baseline: [BaselineEntry]) -> GateOutc
         )
     }
 
-    @Test func worsenedMessageNamesBothWaysOut() {
+    @Test func worsenedMessageNamesEveryWayOut() {
         let message = Finding.worsened(file: "A.swift", name: "A.f()", crap: 42.0, recorded: 30.0, tolerance: 0.5)
             .message
         #expect(
             message
                 == "worsened      A.swift  A.f()  crap 42.0 > baseline 30.0 + tolerance 0.5; "
-                + "test it back down to 30.5 or below, or raise its crap in the baseline by hand and say why "
-                + "in its reason (scripts/crap.sh baseline never raises a score)"
+                + "test or simplify it back down to 30.5 or below, or, as a last resort, raise its crap in the "
+                + "baseline by hand and say why in its reason (scripts/crap.sh baseline never raises a score)"
         )
     }
 
