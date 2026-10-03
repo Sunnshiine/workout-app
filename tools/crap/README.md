@@ -136,12 +136,12 @@ where the rules are silent.
   ways out: test the function down, or run `scripts/crap.sh baseline` and give the new row a reason.
 - `worsened`: in the baseline and `crap > recorded + tolerance`. Fails. `scripts/crap.sh baseline` keeps
   the lower recorded score, so the row fails until the function comes back down. The message prints
-  the function's `CC` and coverage and names one route. When `CC` alone is over the limit it names
-  simplifying; otherwise coverage fell and it names testing. Both name a hand raise of the row, with
-  a reason, as the last resort.
+  the function's `CC` and coverage and names one route. When `CC` alone is over the limit, testing
+  alone cannot help and it names simplifying; otherwise full coverage brings crap down to `CC` and it
+  names testing. Both name a hand raise of the row, with a reason, as the last resort.
 - `stale`: in the baseline but missing from the report, at or below the threshold, or no longer
-  measured. Fails on purpose, so the baseline shrinks as functions improve and grows only by a hand
-  raise. The message names the row to delete.
+  measured. Fails on purpose, so a row leaves the baseline once its function no longer needs it. The
+  message names the row to delete. A recorded score rises only by a hand raise.
 - `improved`: in the baseline, `crap < recorded - tolerance`, and still above the threshold. Printed as
   a note suggesting `scripts/crap.sh baseline`; does not fail.
 - `unexplained`: a baseline row whose `reason` is empty. Fails, so no row is held above the threshold

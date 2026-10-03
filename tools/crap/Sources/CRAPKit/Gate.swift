@@ -45,11 +45,7 @@ public enum Finding: Sendable, Equatable {
         case .worsened(let file, let name, let crap, let recorded, let tolerance, let cc, let coverage):
             "worsened      \(file)  \(name)  crap \(format(crap)) > baseline \(format(recorded)) + tolerance \(format(tolerance)) "
                 + "at cc \(cc) and coverage \(String(format: "%.0f", coverage * 100))%; "
-                + (Double(cc) > recorded + tolerance
-                    ? "cc alone is over \(format(recorded + tolerance)) and crap never drops below cc, so testing cannot help; "
-                        + "simplify it back down to \(format(recorded + tolerance)) or below, "
-                    : "coverage fell, so test it back down to \(format(recorded + tolerance)) or below "
-                        + "(full coverage brings crap down to its cc, \(cc)), ")
+                + route(cc: cc, limit: recorded + tolerance)
                 + "or, as a last resort, raise its crap in the baseline by hand and say why in its reason "
                 + "(scripts/crap.sh baseline never raises a score)"
         case .stale(let file, let name, let recorded, let reason):
@@ -62,6 +58,13 @@ public enum Finding: Sendable, Equatable {
             "unexplained   \(file)  \(name)  baseline row has no reason; "
                 + "write why it stays above the threshold in its reason column"
         }
+    }
+
+    private func route(cc: Int, limit: Double) -> String {
+        Double(cc) > limit
+            ? "cc alone is over \(format(limit)) and crap never drops below cc, so testing alone cannot help; "
+                + "simplify it back down to \(format(limit)) or below, "
+            : "full coverage brings crap down to its cc, \(cc), so test it back down to \(format(limit)) or below, "
     }
 
     private func format(_ value: Double) -> String {

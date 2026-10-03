@@ -2,7 +2,7 @@ import Testing
 
 @testable import CRAPKit
 
-private func report(_ rows: [(name: String, cc: Int, crap: Double?)]) -> Report {
+private func report(_ rows: [(name: String, cc: Int, crap: Double?)], coverage: Double = 0) -> Report {
     let functions = rows.map { row in
         FunctionRow(
             file: "A.swift",
@@ -13,7 +13,7 @@ private func report(_ rows: [(name: String, cc: Int, crap: Double?)]) -> Report 
             cc: row.cc,
             linesInstrumented: row.crap == nil ? 0 : 2,
             linesCovered: 0,
-            coverage: row.crap == nil ? nil : 0,
+            coverage: row.crap == nil ? nil : coverage,
             crap: row.crap
         )
     }
@@ -67,6 +67,18 @@ private func evaluate(_ report: Report, _ baseline: [BaselineEntry]) -> GateOutc
             ]
         )
         #expect(outcome.exitCode == 1)
+    }
+
+    @Test func worsenedCarriesTheFunctionsCCAndCoverage() {
+        let outcome = evaluate(
+            report([("A.f()", 14, 14.0)], coverage: 1),
+            [BaselineEntry(file: "A.swift", name: "A.f()", crap: 12.5, reason: "held")]
+        )
+        #expect(
+            outcome.findings == [
+                .worsened(file: "A.swift", name: "A.f()", crap: 14.0, recorded: 12.5, tolerance: 0.5, cc: 14, coverage: 1)
+            ]
+        )
     }
 
     @Test func staleWhenTheFunctionIsGone() {
@@ -128,7 +140,7 @@ private func evaluate(_ report: Report, _ baseline: [BaselineEntry]) -> GateOutc
         #expect(
             message
                 == "worsened      A.swift  A.f()  crap 10.3 > baseline 9.0 + tolerance 0.5 at cc 9 and coverage 75%; "
-                + "coverage fell, so test it back down to 9.5 or below (full coverage brings crap down to its cc, 9), "
+                + "full coverage brings crap down to its cc, 9, so test it back down to 9.5 or below, "
                 + "or, as a last resort, raise its crap in the baseline by hand and say why in its reason "
                 + "(scripts/crap.sh baseline never raises a score)"
         )
@@ -147,8 +159,27 @@ private func evaluate(_ report: Report, _ baseline: [BaselineEntry]) -> GateOutc
         #expect(
             message
                 == "worsened      A.swift  A.f()  crap 8.0 > baseline 7.0 + tolerance 0.5 at cc 8 and coverage 100%; "
-                + "cc alone is over 7.5 and crap never drops below cc, so testing cannot help; "
+                + "cc alone is over 7.5 and crap never drops below cc, so testing alone cannot help; "
                 + "simplify it back down to 7.5 or below, "
+                + "or, as a last resort, raise its crap in the baseline by hand and say why in its reason "
+                + "(scripts/crap.sh baseline never raises a score)"
+        )
+    }
+
+    @Test func worsenedWithCCAtTheLimitNamesTesting() {
+        let message = Finding.worsened(
+            file: "A.swift",
+            name: "A.f()",
+            crap: 8.9,
+            recorded: 7.5,
+            tolerance: 0.5,
+            cc: 8,
+            coverage: 0.9
+        ).message
+        #expect(
+            message
+                == "worsened      A.swift  A.f()  crap 8.9 > baseline 7.5 + tolerance 0.5 at cc 8 and coverage 90%; "
+                + "full coverage brings crap down to its cc, 8, so test it back down to 8.0 or below, "
                 + "or, as a last resort, raise its crap in the baseline by hand and say why in its reason "
                 + "(scripts/crap.sh baseline never raises a score)"
         )
