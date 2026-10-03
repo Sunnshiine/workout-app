@@ -13,7 +13,8 @@ that drives one convenient entry point is incomplete when the feature file lists
 - To find where an identifier is set, run `git grep -n '"<prefix>-' -- App Sources`. The identifiers
   `rpe-*`, `reps-*`, and `session-tile-W*-D*` are built in `Sources/` (`RPEScalePresentation`,
   `BlockOverviewPresentation`), not `App/Views`. The `exercise-N` or `superset-N` that ends a
-  `stage-queue-row-*` comes from `SessionRenderItem.id`.
+  `stage-queue-row-*` comes from `SessionRenderItem.id`. Its third case, `hidden-paired-exercise-N`,
+  ends no row, because `SessionStagePresentation.items` drops hidden paired entries.
 
 ## Proof and skip reporting
 

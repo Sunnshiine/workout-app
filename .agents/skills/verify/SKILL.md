@@ -76,18 +76,29 @@ only when the element has neither. Alert buttons have labels but no identifiers.
 up to 3 s for that element to be enabled, on screen, and with its centre inside the frame of every
 element that contains it. A container with a zero width or height holds no point, so it is skipped.
 The keyboard toolbar wraps `Done` in a 0x0 group. Last, `tap --id` asks axe what is on top at that
-centre, which costs about 0.5 s more per tap. The answer must belong to the app in front and be
-the element or something inside its frame, and then it taps that centre. A system prompt over the
-app is covered. The check holds only while the app this run launched is in front. On the Home
-Screen axe's point read names a different icon from the one its tree places there, so a tap there
-goes by the tree alone. When `tap --id` never gets such a hit it exits 1 and says
-`off-screen`, `clipped`, `disabled`, or `covered`. A `clipped` note names the container whose frame
-misses the centre, such as the RPE track. A `covered` note names what is on top instead, such as an
-alert's backdrop, or whatever took the place of an element that went away after the tree was read.
-So a tap that reports success aimed at an element that was on screen, enabled, inside every
-container that clips it, and on top. The tap lands up to about a second after that last look, and
-an element that leaves in that second still reports success. The session controls, which hide
-2.5 s after a drag, do. So prove a tap by what it changed.
+centre. The answer must belong to the app in front and be the element or something inside its
+frame, and then it taps that centre. A system prompt over the app is covered. The pid file that
+`launch` writes decides when this check runs:
+
+- While the app `launch` started is in front, the check runs.
+- While another pid is in front, the check stands aside and the tap goes by the tree alone. `tap`
+  prints `not checked for cover:` on stderr with both pids. This covers the Home Screen, another
+  app, and the app relaunched under a new pid, which `doctor` flags.
+- With no pid file, after `stop` or for an app `launch` did not start, the check runs for whatever
+  is in front. On the Home Screen axe's point read can name a neighbouring icon, and then the tap
+  is refused as `covered`.
+
+That second read makes a tap that lands take about 3 s, against about 2 s without it.
+
+When `tap --id` never gets a hit that passes every check, it exits 1 and says `off-screen`,
+`clipped`, `disabled`, or `covered`. A refusal takes 4 to 7 s, because it polls the full 3 s and
+then reads once more. A `clipped` note names the container whose frame misses the centre, such as
+the RPE track. A `covered` note names what is on top instead, such as an alert's backdrop, or
+whatever took the place of an element that went away after the tree was read. So a tap that reports
+success aimed at an element that was on screen, enabled, inside every container that clips it, and
+on top, unless it printed `not checked for cover:`. The tap lands up to about a second after that
+last look, and an element that leaves in that second still reports success. The session controls,
+which hide 2.5 s after a drag, do. So prove a tap by what it changed.
 
 `tap --label` resolves its element through the tree the same way, with the same poll and the same
 notes. It matches the whole label as `tree` prints it, case included. When a control and a text
