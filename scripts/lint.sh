@@ -1,34 +1,71 @@
 #!/usr/bin/env bash
-# Lint every tree .swiftlint.yml claims, without building the app.
+# Lint every tree .swiftlint.yml claims, or only the Swift files named, without building the app.
 #
-# The run takes no path arguments on purpose. SwiftLint lints a file argument alone, but swaps a
-# directory or a missing path for the whole `included:` set and still exits 0, so a script that
-# passed paths through would lint something other than what it names.
+# A file argument lints that file alone, with CI's config and --strict. The script refuses a
+# directory or a missing path because SwiftLint would swap it for the whole `included:` set and
+# still exit 0, and refuses a file outside `included:` because CI never lints it.
 #
-#   scripts/lint.sh                  lint (what CI runs)
-#   scripts/lint.sh --fix            autocorrect what SwiftLint can, then lint
-#   scripts/lint.sh --print-version  print the pinned SwiftLint version and exit
-#   scripts/lint.sh --print-path     fetch the pinned binary if needed, print its path, and exit
+#   scripts/lint.sh                      lint (what CI runs)
+#   scripts/lint.sh <file.swift>...      lint those files alone
+#   scripts/lint.sh --fix [<file>...]    autocorrect what SwiftLint can, then lint
+#   scripts/lint.sh --print-version      print the pinned SwiftLint version and exit
+#   scripts/lint.sh --print-path         fetch the pinned binary if needed, print its path, and exit
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PHYSICAL_ROOT="$(cd "$ROOT" && pwd -P)"
+
+usage() {
+    echo "usage: scripts/lint.sh [--fix] [<file.swift>...] | --print-version | --print-path" >&2
+    exit 64
+}
+
+# SwiftLint finds the root .swiftlint.yml only in its working directory, so each path is made
+# relative to the root here and linted from there. The lockf re-exec below parses these again from
+# ROOT, which leaves them unchanged.
+root_relative() {
+    local arg=$1 dir
+    case "$arg" in
+        *.swift) ;;
+        *) echo "error: '$arg' is not a .swift file." >&2; exit 64 ;;
+    esac
+    if [ ! -f "$arg" ]; then
+        echo "error: '$arg' is not a file." >&2
+        exit 64
+    fi
+    dir="$(cd "$(dirname "$arg")" && pwd -P)/"
+    case "$dir" in
+        "$PHYSICAL_ROOT"/*) ;;
+        *) echo "error: '$arg' is outside this checkout." >&2; exit 64 ;;
+    esac
+    echo "${dir#"$PHYSICAL_ROOT"/}$(basename "$arg")"
+}
+
+MODE="lint"
+FILES=()
+ARGS=()
+for arg in "$@"; do
+    case "$arg" in
+        --fix) MODE="fix"; ARGS+=("$arg") ;;
+        --print-version | --print-path)
+            [ "$#" -eq 1 ] || usage
+            MODE="${arg#--}"
+            ARGS+=("$arg")
+            ;;
+        -*) usage ;;
+        *)
+            file="$(root_relative "$arg")" || exit
+            FILES+=("$file")
+            ARGS+=("$file")
+            ;;
+    esac
+done
+
 cd "$ROOT"
 
 CONFIG=".swiftlint.yml"
 RESOLVED="WorkoutTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
 CACHE_DIR="${SWIFTLINT_CACHE_DIR:-$HOME/.cache/workout-swiftlint}"
-
-MODE="lint"
-case "${1:-}" in
-    --fix) MODE="fix" ;;
-    --print-version) MODE="print-version" ;;
-    --print-path) MODE="print-path" ;;
-    "") ;;
-    *)
-        echo "usage: scripts/lint.sh [--fix|--print-version|--print-path]" >&2
-        exit 64
-        ;;
-esac
 
 # The version the Xcode build plugin resolves to. Xcode writes this file, so when the plugin's
 # package moves this script follows it and there is no second place to edit. To re-pin: bump
@@ -54,7 +91,7 @@ fi
 # than deleting or reading the first run's files.
 if [ -z "${LINT_SH_LOCKED:-}" ]; then
     LOCK="$(git rev-parse --git-dir)/lint.lock"
-    LINT_SH_LOCKED=1 exec lockf -k "$LOCK" "$ROOT/scripts/lint.sh" "$@"
+    LINT_SH_LOCKED=1 exec lockf -k "$LOCK" "$ROOT/scripts/lint.sh" ${ARGS[@]+"${ARGS[@]}"}
 fi
 
 # SwiftLintPlugins is a thin wrapper: its Package.swift declares one binaryTarget pointing at this
@@ -101,6 +138,19 @@ if [ -z "$ROOTS" ]; then
     echo "error: $CONFIG has no 'included:' entries, so this run would lint nothing." >&2
     exit 1
 fi
+
+for file in ${FILES[@]+"${FILES[@]}"}; do
+    inside=""
+    while read -r included; do
+        case "$file" in "$included"/*) inside=1 ;; esac
+    done <<ROOTS_EOF
+$ROOTS
+ROOTS_EOF
+    if [ -z "$inside" ]; then
+        echo "error: '$file' is outside $CONFIG 'included:', so CI does not lint it." >&2
+        exit 64
+    fi
+done
 
 tree_failures() {
     local roots=$1 known=$2 deleted=$3 linted=$4 physical_root=$5
@@ -151,7 +201,7 @@ tree_failures() {
 }
 
 if [ "$MODE" = "fix" ]; then
-    "$SWIFTLINT" --fix
+    "$SWIFTLINT" --fix ${FILES[@]+"${FILES[@]}"}
 fi
 
 # No --config on purpose. Passing one turns off SwiftLint's nested-config discovery, and
@@ -160,7 +210,13 @@ fi
 #
 # --strict fails on warnings too. Every tree is at zero, and a warning nobody gates on is the state
 # this gate exists to end.
-#
+if [ "${#FILES[@]}" -gt 0 ]; then
+    echo "==> SwiftLint $VERSION over ${#FILES[@]} file(s)"
+    "$SWIFTLINT" lint --strict --quiet "${FILES[@]}"
+    echo "==> Clean"
+    exit 0
+fi
+
 # --benchmark writes benchmark_files_<timestamp>.txt into the working directory, one
 # `<seconds>: <absolute path>` line per linted file, and a rules file beside it.
 rm -f "$ROOT"/benchmark_files_*.txt "$ROOT"/benchmark_rules_*.txt

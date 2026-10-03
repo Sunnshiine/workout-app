@@ -62,7 +62,7 @@ YAML
 }
 
 run_lint() {
-    "${1:-$fx/scripts/lint.sh}" >"$root/stdout" 2>"$root/stderr"
+    "${1:-$fx/scripts/lint.sh}" "${@:2}" >"$root/stdout" 2>"$root/stderr"
     status=$?
     out=$(cat "$root/stdout")
     err=$(cat "$root/stderr")
@@ -220,6 +220,60 @@ expect_text "violation" "$both" "$fx/Sources/Core/Bad.swift:1:5: error:"
 expect_text "violation" "$both" "(identifier_name)"
 expect_no_text "violation" "$both" "holds Swift files"
 expect_no_text "violation" "$both" "==> Clean"
+
+echo "named: a file argument is linted alone, and a warning fails it"
+fresh_fixture
+baseline_config
+printf 'let xy = 1\n' >"$fx/App/Named.swift"
+printf '%s\n' "$violation" >"$fx/App/Unnamed.swift"
+run_lint "$fx/scripts/lint.sh" "$fx/App/Named.swift"
+expect_exit "named" "$status" 2
+expect_line "named" "$out" "==> SwiftLint $("$fx/scripts/lint.sh" --print-version) over 1 file(s)"
+expect_line "named" "$both" "$fx/App/Named.swift:1:5: error: Identifier Name Violation: Variable name 'xy' should be between 3 and 40 characters long (identifier_name)"
+expect_no_text "named" "$both" "Unnamed.swift"
+expect_no_text "named" "$both" "==> Clean"
+
+echo "subdirectory: a path relative to App/ is linted under the root config"
+fresh_fixture
+baseline_config
+printf 'disabled_rules:\n  - identifier_name\n' >>"$fx/.swiftlint.yml"
+printf 'let xy = 1\n' >"$fx/App/Views/Screen.swift"
+cd "$fx/App" || exit 3
+run_lint ../scripts/lint.sh Views/Screen.swift
+cd "$root" || exit 3
+expect_exit "subdirectory" "$status" 0
+expect_line "subdirectory" "$out" "==> Clean"
+
+echo "refused: a directory, a missing path, a non-Swift file, and a file outside included:"
+fresh_fixture
+baseline_config
+mkdir -p "$fx/tools"
+printf 'let tool = 1\n' >"$fx/tools/Tool.swift"
+printf 'notes\n' >"$fx/README.md"
+for refused in \
+    "App/Views|error: 'App/Views' is not a .swift file." \
+    "App/Nope.swift|error: 'App/Nope.swift' is not a file." \
+    "README.md|error: 'README.md' is not a .swift file." \
+    "tools/Tool.swift|error: 'tools/Tool.swift' is outside .swiftlint.yml 'included:', so CI does not lint it."; do
+    path=${refused%%|*}
+    cd "$fx" || exit 3
+    run_lint scripts/lint.sh "$path"
+    cd "$root" || exit 3
+    expect_exit "refused $path" "$status" 64
+    expect_line "refused $path" "$err" "${refused#*|}"
+    expect_no_text "refused $path" "$both" "==> Clean"
+done
+
+echo "fix one file: --fix corrects the named file and leaves another alone"
+fresh_fixture
+baseline_config
+printf 'let appRoot = 1;\n' >"$fx/App/Root.swift"
+printf 'let screen = 1;\n' >"$fx/App/Views/Screen.swift"
+run_lint "$fx/scripts/lint.sh" --fix "$fx/App/Root.swift"
+expect_exit "fix one file" "$status" 0
+expect_line "fix one file" "$out" "==> Clean"
+expect_line "fix one file, named" "$(cat "$fx/App/Root.swift")" "let appRoot = 1"
+expect_line "fix one file, unnamed" "$(cat "$fx/App/Views/Screen.swift")" "let screen = 1;"
 
 echo "concurrent: two runs at once in one checkout both pass"
 fresh_fixture
