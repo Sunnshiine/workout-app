@@ -4,9 +4,7 @@ import Testing
 @testable import WorkoutTracker
 
 private struct PendingWriteRow: Equatable {
-    let blockTab: String
-    let week: Int
-    let day: Int
+    let session: SessionCoordinate
     let exerciseName: String
     let setIndex: Int
     let column: PendingWriteColumn
@@ -16,9 +14,7 @@ private struct PendingWriteRow: Equatable {
 
     @MainActor
     init(_ write: PendingWrite) {
-        blockTab = write.blockTab
-        week = write.week
-        day = write.day
+        session = write.session
         exerciseName = write.exerciseName
         setIndex = write.setIndex
         column = write.column

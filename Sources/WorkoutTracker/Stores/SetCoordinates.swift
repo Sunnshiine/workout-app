@@ -4,9 +4,7 @@ import Foundation
 /// (ADR-0006): Block tab, Week, Day, Exercise, Set index — plus the Session date and the
 /// Exercise base name that the Last Performed index records alongside them.
 struct SetCoordinates: Equatable {
-    let blockTab: String
-    let weekNumber: Int
-    let dayNumber: Int
+    let session: SessionCoordinate
     let dayNumbering: DayNumbering
     let exerciseName: String
     let exerciseBaseName: String
@@ -19,9 +17,7 @@ struct SetCoordinates: Equatable {
         guard let session = exercise.session else { throw WorkoutLoggingError.missingSession }
         guard let week = session.week else { throw WorkoutLoggingError.missingWeek }
         guard let block = week.block else { throw WorkoutLoggingError.missingBlock }
-        self.blockTab = block.tabName
-        self.weekNumber = week.number
-        self.dayNumber = session.dayNumber
+        self.session = SessionCoordinate(blockTab: block.tabName, address: week.address(of: session))
         self.dayNumbering = block.dayNumbering
         self.exerciseName = exercise.name
         self.exerciseBaseName = exercise.baseName
@@ -34,9 +30,7 @@ struct SetCoordinates: Equatable {
     /// and the Exercise base name are re-read from the Sheet on every parse, so they can move while
     /// the Set stays the one a pending write addressed.
     struct ID: Hashable {
-        let blockTab: String
-        let weekNumber: Int
-        let dayNumber: Int
+        let session: SessionCoordinate
         let exerciseName: String
         let setIndex: Int
     }
@@ -45,13 +39,7 @@ struct SetCoordinates: Equatable {
 extension SetCoordinates.ID {
     @MainActor
     init(_ write: PendingWrite) {
-        self.init(
-            blockTab: write.blockTab,
-            weekNumber: write.week,
-            dayNumber: write.day,
-            exerciseName: write.exerciseName,
-            setIndex: write.setIndex
-        )
+        self.init(session: write.session, exerciseName: write.exerciseName, setIndex: write.setIndex)
     }
 }
 
@@ -67,9 +55,7 @@ extension Block {
                 for exercise in session.exercises {
                     for set in exercise.sets {
                         let id = SetCoordinates.ID(
-                            blockTab: tabName,
-                            weekNumber: week.number,
-                            dayNumber: session.dayNumber,
+                            session: SessionCoordinate(blockTab: tabName, address: week.address(of: session)),
                             exerciseName: exercise.name,
                             setIndex: set.index
                         )

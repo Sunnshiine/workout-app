@@ -13,9 +13,7 @@ import Testing
     )
     let ctx = container.mainContext
     let write = PendingWrite(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         dayNumbering: .headerNumber,
         exerciseName: "Squat",
         setIndex: 0,
@@ -28,14 +26,14 @@ import Testing
     try ctx.save()
 
     let fetched = try #require(try ctx.fetch(FetchDescriptor<PendingWrite>()).first)
-    #expect(fetched.blockTab == "Block 27")
+    #expect(fetched.session.blockTab == "Block 27")
     #expect(fetched.column == .notes)
     #expect(fetched.operation == .upsert)
     #expect(fetched.status == .pending)
     #expect(fetched.expectedCurrentValue == "")
 
     let durableText = [
-        fetched.blockTab,
+        fetched.session.blockTab,
         fetched.exerciseName,
         fetched.columnRaw,
         fetched.operationRaw,
@@ -51,9 +49,7 @@ import Testing
 @MainActor
 @Test func pendingWriteConflictStatusRoundTrips() throws {
     let write = PendingWrite(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         dayNumbering: .headerNumber,
         exerciseName: "Squat",
         setIndex: 0,
@@ -67,4 +63,13 @@ import Testing
 
     #expect(write.status == .conflict)
     #expect(write.lastError == "Expected 185x5@8, found 190x5@9")
+}
+
+@Test func storedSessionAttributesKeepTheirShippedNames() throws {
+    func names(_ type: any PersistentModel.Type) throws -> Set<String> {
+        Set(try #require(Schema([type]).entities.first).attributes.map(\.name))
+    }
+
+    #expect(try names(PendingWrite.self).isSuperset(of: ["blockTab", "week", "day", "dayNumberingRaw"]))
+    #expect(try names(WriteTargetAuditEntry.self).isSuperset(of: ["blockTab", "week", "day"]))
 }

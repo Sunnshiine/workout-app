@@ -60,9 +60,7 @@
         static func queuedWrite() -> PendingWrite {
             PendingWrite(
                 createdAt: Date(timeIntervalSinceReferenceDate: 0),
-                blockTab: blockTab,
-                week: 1,
-                day: 1,
+                session: SessionCoordinate(blockTab: blockTab, address: SessionAddress(week: 1, day: 1)),
                 dayNumbering: .headerNumber,
                 exerciseName: "Back Squat",
                 setIndex: 0,

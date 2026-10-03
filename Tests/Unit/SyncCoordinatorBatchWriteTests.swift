@@ -86,9 +86,7 @@ private func batchPendingWrite(
 ) -> PendingWrite {
     PendingWrite(
         createdAt: Date(timeIntervalSince1970: createdAt),
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         dayNumbering: dayNumbering,
         exerciseName: exerciseName,
         setIndex: setIndex,
@@ -160,9 +158,9 @@ private func batchPendingWrite(
     let entries = try ctx.fetch(FetchDescriptor<WriteTargetAuditEntry>())
     let entry = try #require(entries.first)
     #expect(entries.count == 1)
-    #expect(entry.blockTab == "Block 27")
-    #expect(entry.week == 1)
-    #expect(entry.day == 1)
+    #expect(entry.session.blockTab == "Block 27")
+    #expect(entry.session.address.week == 1)
+    #expect(entry.session.address.day == 1)
     #expect(entry.exerciseName == "Squat")
     #expect(entry.setIndex == 0)
     #expect(entry.column == .notes)
@@ -229,9 +227,7 @@ private func batchPendingWrite(
         ctx.insert(
             WriteTargetAuditEntry(
                 createdAt: Date(timeIntervalSince1970: TimeInterval(index)),
-                blockTab: "Block 27",
-                week: 1,
-                day: 1,
+                session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
                 exerciseName: "Old \(index)",
                 setIndex: 0,
                 column: .notes,

@@ -14,7 +14,7 @@ struct SheetWriteRequest: Sendable, Equatable {
     init?(_ write: PendingWrite, on layout: SheetLayout) {
         guard write.namesOneSession(on: layout) else { return nil }
         self.init(
-            session: SessionCoordinate(blockTab: write.blockTab, address: SessionAddress(week: write.week, day: write.day)),
+            session: write.session,
             exerciseName: write.exerciseName,
             setIndex: write.setIndex,
             column: write.column,

@@ -213,9 +213,7 @@ final class WorkoutStore {
         let coordinates = try SetCoordinates(of: set)
         context.insert(
             PendingWrite(
-                blockTab: coordinates.blockTab,
-                week: coordinates.weekNumber,
-                day: coordinates.dayNumber,
+                session: coordinates.session,
                 dayNumbering: coordinates.dayNumbering,
                 exerciseName: coordinates.exerciseName,
                 setIndex: coordinates.setIndex,
@@ -235,10 +233,7 @@ final class WorkoutStore {
                 baseName: coordinates.exerciseBaseName,
                 result: log,
                 performedOn: coordinates.sessionDate ?? Date(),
-                source: SessionCoordinate(
-                    blockTab: coordinates.blockTab,
-                    address: SessionAddress(week: coordinates.weekNumber, day: coordinates.dayNumber)
-                ).storageValue
+                source: coordinates.session.storageValue
             )
         ])
     }

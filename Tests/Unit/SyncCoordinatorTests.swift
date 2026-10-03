@@ -549,9 +549,7 @@ extension SyncOutcomeCharacterizationTests {
     ) throws {
         context.insert(
             PendingWrite(
-                blockTab: "Block 27",
-                week: 1,
-                day: 1,
+                session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
                 dayNumbering: dayNumbering,
                 exerciseName: "Squat",
                 setIndex: 0,

@@ -28,17 +28,16 @@ func makeExercise(
 
 @MainActor
 func makeSession(
-    weekNumber: Int,
-    dayNumber: Int,
+    at address: SessionAddress,
     setStates: [SetState],
     exerciseName: String = "Competition Squat"
 ) -> Session {
-    let session = Session(dayNumber: dayNumber, date: nil)
+    let session = Session(dayNumber: address.day, date: nil)
     session.exercises = [
         makeExercise(name: exerciseName, setStates: setStates)
     ]
 
-    let week = Week(number: weekNumber)
+    let week = Week(number: address.week)
     week.sessions = [session]
     return session
 }

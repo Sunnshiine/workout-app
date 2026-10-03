@@ -64,8 +64,7 @@ struct GlassBearingViewsVisualTests {
 
     @Test func sessionProgressHeaderMatchesVisualBaseline() {
         let session = makeSession(
-            weekNumber: 3,
-            dayNumber: 2,
+            at: SessionAddress(week: 3, day: 2),
             setStates: [.logged, .logged, .pending, .pending],
             exerciseName: "Bench Press"
         )

@@ -8,11 +8,11 @@ struct SheetWriteAuditDetails: Sendable, Equatable {
 }
 
 extension SheetWriteAuditDetails {
-    static func dayHeadersChangedMeaning(week: Int, day: Int) -> SheetWriteAuditDetails {
+    static func dayHeadersChangedMeaning(recorded: SessionAddress) -> SheetWriteAuditDetails {
         SheetWriteAuditDetails(
             selectedA1Target: nil,
-            rowScanDetails: "No row selected: Week \(week), Day \(day) was queued by header rank, "
-                + "and reading Day \(day) by rank and by header number does not give the same Session on this sheet.",
+            rowScanDetails: "No row selected: Week \(recorded.week), Day \(recorded.day) was queued by header rank, "
+                + "and reading Day \(recorded.day) by rank and by header number does not give the same Session on this sheet.",
             currentValue: nil,
             valueCheckOutcome: "Not checked because no target was selected."
         )
@@ -139,9 +139,9 @@ struct PendingWriteDiagnostic: Equatable, Identifiable, Sendable {
 
     init(write: PendingWrite) {
         id = write.id
-        block = write.blockTab
-        week = "Week \(write.week)"
-        day = "Day \(write.day)"
+        block = write.session.blockTab
+        week = "Week \(write.session.address.week)"
+        day = "Day \(write.session.address.day)"
         exercise = write.exerciseName
         set = "Set \(write.setIndex + 1)"
         column = Self.columnLabel(for: write.column)
@@ -183,9 +183,9 @@ struct WriteTargetAuditDiagnostic: Equatable, Identifiable, Sendable {
         id = entry.id
         createdAt = entry.createdAt
         semanticTarget = [
-            entry.blockTab,
-            "Week \(entry.week)",
-            "Day \(entry.day)",
+            entry.session.blockTab,
+            "Week \(entry.session.address.week)",
+            "Day \(entry.session.address.day)",
             entry.exerciseName,
             "Set \(entry.setIndex + 1)",
             PendingWriteDiagnostic.columnLabel(for: entry.column)

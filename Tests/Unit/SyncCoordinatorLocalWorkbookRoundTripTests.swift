@@ -26,9 +26,7 @@ private func localWorkbookPendingWrite(
 ) -> PendingWrite {
     PendingWrite(
         createdAt: Date(timeIntervalSince1970: createdAt),
-        blockTab: "Block 27",
-        week: week,
-        day: day,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: week, day: day)),
         dayNumbering: dayNumbering,
         exerciseName: exerciseName,
         setIndex: setIndex,

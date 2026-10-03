@@ -96,9 +96,7 @@ private func replanPendingWrite(
 ) -> PendingWrite {
     PendingWrite(
         createdAt: Date(timeIntervalSince1970: createdAt),
-        blockTab: "Block 27",
-        week: 1,
-        day: day,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: day)),
         dayNumbering: dayNumbering,
         exerciseName: exerciseName,
         setIndex: setIndex,

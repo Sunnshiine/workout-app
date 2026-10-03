@@ -28,9 +28,9 @@ private func makeExercise() -> Exercise {
 
         let coordinates = try SetCoordinates(of: set)
 
-        #expect(coordinates.blockTab == "Block 27")
-        #expect(coordinates.weekNumber == 3)
-        #expect(coordinates.dayNumber == 4)
+        #expect(coordinates.session.blockTab == "Block 27")
+        #expect(coordinates.session.address.week == 3)
+        #expect(coordinates.session.address.day == 4)
         #expect(coordinates.exerciseName == "Back Squat - Comp")
         #expect(coordinates.exerciseBaseName == "Back Squat")
         #expect(coordinates.setIndex == 2)
