@@ -20,17 +20,6 @@ struct BlockScenario {
 }
 
 enum WorkoutScenarios {
-    static let names = [
-        "fresh configured app",
-        "current session with pending sets",
-        "partially logged session",
-        "open exercises",
-        "sync failure",
-        "queued write",
-        "block overview with mixed session states",
-        "partially uploaded block"
-    ]
-
     @MainActor
     static func freshConfiguredApp(
         block: Block = WorkoutFixtureScenarios.currentSessionWithPendingSetsBlock()

@@ -534,8 +534,7 @@ private func makeRestActionFixture(
 
     await clock.waitForSleep()
 
-    let expectedDuration = Duration.nanoseconds(Int64((Theme.pairingConfirmationDuration * 1_000_000_000).rounded()))
-    #expect(clock.sleptDurations == [expectedDuration])
+    #expect(clock.sleptDurations == [.milliseconds(220)])
     #expect(coordinator.supersetSections(in: session).isEmpty)
 
     await clock.advance()

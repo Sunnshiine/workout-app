@@ -17,9 +17,6 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         XCTAssertFalse(app.keyboards.firstMatch.appears(within: 1))
         XCTAssertTrue(app.buttons["log-active-set-button"].exists)
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
-
-        XCTAssertTrue(app.buttons["log-active-set-button"].exists)
-        XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
     }
 
     @MainActor

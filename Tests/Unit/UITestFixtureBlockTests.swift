@@ -86,8 +86,7 @@ private let expectedShapes: [UITestLaunch.Scenario: BlockShape] = [
 
 @MainActor
 @Test func everyScenarioSeedsItsOwnFixtureBlock() {
-    #expect(UITestLaunch.Scenario.allCases.count == 6)
-    #expect(Set(expectedShapes.values).count == 6)
+    #expect(Set(expectedShapes.values).count == expectedShapes.count)
     for scenario in UITestLaunch.Scenario.allCases {
         #expect(shape(of: scenario) == expectedShapes[scenario], "\(scenario) seeded the wrong Block")
     }
