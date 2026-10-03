@@ -96,6 +96,24 @@ import Testing
     }
 #endif
 
+// MARK: - Motion & haptics (token sheet §7)
+
+@Test func themeMotionTokensMatchTokenSheet() {
+    #expect(Theme.wingEase == Theme.BezierEase(x1: 0.46, y1: -0.09, x2: 0.83, y2: 0.32))
+    #expect(Theme.Motion.leafInk == 0.42)
+    #expect(Theme.Motion.budOpen == 0.34)
+    #expect(Theme.Motion.budOpenDelay == 0.26)
+    #expect(Theme.Motion.ceremonyStem == 1.0)
+    #expect(Theme.Motion.ceremonyBeat == 0.10)
+}
+
+@Test func themeHapticTuningsMatchTokenSheet() {
+    #expect(Theme.Haptics.railDetentTick == Theme.HapticTuning(intensity: 0.35, sharpness: 0.85))
+    #expect(Theme.Haptics.logTap == Theme.HapticTuning(intensity: 1.0, sharpness: 0.65))
+    #expect(Theme.Haptics.skipDud == Theme.HapticTuning(intensity: 0.45, sharpness: 0.15))
+    #expect(Theme.Haptics.stepperTick == Theme.HapticTuning(intensity: 0.45, sharpness: 0.80))
+}
+
 // MARK: - Night validation of the two flagged surfaces (PRD #458 slice 8, ADR-0007)
 //
 // The Exercise History sheet and the Block grid were the two surfaces never re-prototyped at
