@@ -319,12 +319,18 @@ case $cmd in
     app_pid=$(cat "$state_dir/pid" 2>/dev/null || true)
     lands() {
       local screen resolved front
+      unchecked=
       screen=$(describe) || return 1
       resolved=$(python3 "$tree" tappable "${target[@]}" <<< "$screen") || return 1
       front=$(python3 "$tree" pid <<< "$screen")
       read -r x y <<< "$resolved"
+      # axe's point read on the Home Screen can name a neighbouring icon instead of the one tapped.
+      if [ -n "$app_pid" ] && [ "$front" != "$app_pid" ]; then
+        unchecked="not checked for cover: pid $front is in front, not pid $app_pid that launch started, so this tap goes by the tree alone"
+        return
+      fi
       "$axe" describe-ui --udid "$sim" --point "$x,$y" \
-        | python3 "$tree" landing "${resolved#*$'\n'}" "$front" ${app_pid:+"$app_pid"}
+        | python3 "$tree" landing "${resolved#*$'\n'}" "$front"
     }
     SECONDS=0
     while :; do
@@ -332,6 +338,7 @@ case $cmd in
       if lands 2>/dev/null; then break; fi
       sleep 0.2
     done
+    [ -z "$unchecked" ] || echo "$unchecked" >&2
     "$axe" tap --udid "$sim" -x "$x" -y "$y" ${rest[@]+"${rest[@]}"}
     ;;
 

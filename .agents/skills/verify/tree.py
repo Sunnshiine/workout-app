@@ -19,10 +19,10 @@ Reads an `axe describe-ui` JSON tree on stdin:
   tree.py center <id>    "x y" of the element with that accessibility identifier; exit 1 if absent
 
 Reads a `describe-ui --point` answer on stdin (an object, a list led by it, or empty):
-  tree.py landing LINE FRONT_PID [APP_PID]
+  tree.py landing LINE FRONT_PID
                          exit 0 when the answer belongs to FRONT_PID, the tree's application, and is
-                         LINE's element or lies within a point of LINE's frame, or when APP_PID is
-                         given and is not FRONT_PID; else exit 1 with a covered: note
+                         LINE's element or lies within a point of LINE's frame; else exit 1 with a
+                         covered: note
 
 Reads saved trees:
   tree.py diff A.tree.txt B.tree.txt   the lines that changed, frames ignored
@@ -195,10 +195,7 @@ def obstacles(found: List[TreeLine], screen: Frame) -> List[str]:
     return notes
 
 
-def covered(target: TreeLine, answer: Any, front_pid: str, app_pid: Optional[str]) -> Optional[str]:
-    # axe's point read on the Home Screen names a different icon from the one its tree puts there.
-    if app_pid and front_pid != app_pid:
-        return None
+def covered(target: TreeLine, answer: Any, front_pid: str) -> Optional[str]:
     hit = answer[0] if isinstance(answer, list) and answer else answer
     if isinstance(hit, dict):
         hit_frame = Frame.of(hit)
@@ -302,8 +299,7 @@ def main() -> None:
         return
     if mode == "landing":
         answer = sys.stdin.read().strip()
-        note = covered(TreeLine.parse(sys.argv[2]), json.loads(answer) if answer else None,
-                       sys.argv[3], sys.argv[4] if len(sys.argv) > 4 else None)
+        note = covered(TreeLine.parse(sys.argv[2]), json.loads(answer) if answer else None, sys.argv[3])
         if note:
             sys.exit(note)
         return

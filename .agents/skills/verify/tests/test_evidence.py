@@ -534,21 +534,11 @@ class Landing(unittest.TestCase):
         for hit in [{"role": "AXButton", "AXLabel": "Allow", "pid": 111}, {"role": "AXButton", "AXLabel": "Allow"}]:
             with self.subTest(pid=hit.get("pid")):
                 hit["frame"] = {"x": 334, "y": 65, "width": 44, "height": 44}
-                self.assertEqual(tree_py("landing", GEAR, APP, APP, stdin=json.dumps(hit)), (1, "", (
+                self.assertEqual(tree_py("landing", GEAR, APP, stdin=json.dumps(hit)), (1, "", (
                     "covered: at 356,87 the screen has AXButton Allow @334,65 44x44, "
                     "not AXButton session-controls-settings-button" + COVERED
                 )), "a system prompt the size of the gear, or a hit with no process, is not the app's gear")
 
-    def test_the_check_stands_aside_while_another_app_is_in_front(self):
-        icon = "AXButton\tWorkoutTracker\tWorkoutTracker\t\t@10,289 105x94"
-        misread = (FIXTURES / "home-screen-icon-point.describe-ui.json").read_text()
-        self.assertEqual(tree_py("landing", icon, "83134", "7427", stdin=misread), (0, "", ""),
-                         "on the Home Screen the point read named Contacts, one column left of the icon a tap opened")
-        self.assertEqual(tree_py("landing", icon, "83134", stdin=misread), (1, "", (
-            "covered: at 62,336 the screen has AXButton Contacts @211,188 72x91, not AXButton WorkoutTracker" + COVERED
-        )), "with no app pid the check has nothing to tell the Home Screen apart by")
-        self.assertEqual(tree_py("landing", GEAR, APP, APP, stdin=GEAR_HIDDEN), (1, "", GEAR_COVERED),
-                         "while the app this run launched is in front the check still holds")
 
 
 CROP_USAGE = "usage: tree.py crop SHOT.tree.txt PNG_WIDTH ID | crop SHOT.tree.txt PNG_WIDTH X Y W H\n"
@@ -786,14 +776,30 @@ class VerifyTap(unittest.TestCase):
                                  "not AXButton session-controls-settings-button" + COVERED,
                           ["describe-ui --udid %s" % self.sim, "describe-ui --udid %s --point 356,87" % self.sim]))
 
-    def test_a_home_screen_icon_is_tapped_by_the_tree_alone_while_the_app_is_away(self):
+    def test_a_home_screen_icon_is_tapped_by_the_tree_alone_while_the_app_is_away_and_says_so(self):
         self.launched("7427")
         misread = (FIXTURES / "home-screen-icon-point.describe-ui.json").read_text()
         self.assertEqual(self.tap(HOME_SCREEN, "--id", "WorkoutTracker", "--wait-timeout", "0", point=misread),
-                         (0, "Tap completed\n", "", ["describe-ui --udid %s" % self.sim,
-                                                      "describe-ui --udid %s --point 62,336" % self.sim,
-                                                      "tap --udid %s -x 62 -y 336" % self.sim]),
+                         (0, "Tap completed\n",
+                          "not checked for cover: pid 90129 is in front, not pid 7427 that launch started, "
+                          "so this tap goes by the tree alone\n",
+                          ["describe-ui --udid %s" % self.sim, "tap --udid %s -x 62 -y 336" % self.sim]),
                          "live-activity.md reopens the app this way; the springboard's point read is not its tree")
+
+    def test_with_no_launch_pid_the_check_holds_on_the_home_screen_too(self):
+        misread = (FIXTURES / "home-screen-icon-point.describe-ui.json").read_text()
+        self.assertEqual(self.tap(HOME_SCREEN, "--id", "WorkoutTracker", "--wait-timeout", "0", point=misread),
+                         (1, "", "covered: at 62,336 the screen has AXButton Contacts @211,188 72x91, "
+                                 "not AXButton WorkoutTracker" + COVERED,
+                          ["describe-ui --udid %s" % self.sim, "describe-ui --udid %s --point 62,336" % self.sim]),
+                         "after stop, or for an app launch did not start, nothing tells the Home Screen apart")
+
+    def test_the_launched_app_in_front_is_checked_and_prints_no_note(self):
+        self.launched(APP)
+        self.assertEqual(self.tap(WITH_GEAR, "--id", "session-controls-settings-button", "--wait-timeout", "0",
+                                  point=GEAR_HIDDEN),
+                         (1, "", GEAR_COVERED, ["describe-ui --udid %s" % self.sim,
+                                                "describe-ui --udid %s --point 356,87" % self.sim]))
 
     def test_a_coordinate_tap_still_goes_straight_to_axe(self):
         self.assertEqual(self.tap(MINI, "-x", "5", "-y", "6"),
