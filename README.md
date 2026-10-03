@@ -48,14 +48,10 @@ against live Google account data.
 swift test
 
 # Xcode unit/component tests
-xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-  -only-testing:WorkoutTrackerTests
+scripts/test-sim.sh unit
 
 # UI integration tests
-xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-  -only-testing:WorkoutTrackerUITests
+scripts/test-sim.sh ui
 ```
 
 ## Docs

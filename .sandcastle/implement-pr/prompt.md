@@ -10,7 +10,7 @@ Read `CONTEXT.md` and any relevant ADRs under `docs/adr/` if you need domain con
 
 <linked-issue>
 
-!`gh issue view {{ISSUE_NUMBER}} --comments`
+{{LINKED_ISSUE}}
 
 </linked-issue>
 

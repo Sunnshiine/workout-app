@@ -12,7 +12,7 @@ individual sub-issue. You are NOT implementing anything.
 Read the PRD and its sub-issues:
 
 ```
-gh issue view {{PRD_NUMBER}} --comments
+gh issue view {{PRD_NUMBER}} --json title,body,labels,comments --jq '{title, body, labels: [.labels[].name], comments: [.comments[].body]}'
 gh api repos/$GH_REPO/issues/{{PRD_NUMBER}}/sub_issues
 ```
 

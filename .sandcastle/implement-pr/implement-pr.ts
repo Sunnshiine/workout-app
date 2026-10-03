@@ -36,6 +36,9 @@ const ISSUE_NUMBER = issueMatch?.[1] ?? "";
 const ISSUE_TITLE = ISSUE_NUMBER
   ? safeSh(`gh issue view ${ISSUE_NUMBER} --json title --jq .title`).trim()
   : "";
+const LINKED_ISSUE = ISSUE_NUMBER
+  ? sh(`gh issue view ${ISSUE_NUMBER} --json title,body,labels,comments --jq '{title, body, labels: [.labels[].name], comments: [.comments[].body]}'`)
+  : "The PR description names no issue with Closes, Fixes, or Resolves.";
 
 const reviewsJson = sh(
   `gh api repos/{owner}/{repo}/pulls/${PR_NUMBER}/reviews`
@@ -183,6 +186,7 @@ const result = await runWithExtraction({
     BRANCH,
     ISSUE_NUMBER: ISSUE_NUMBER || "(none)",
     ISSUE_TITLE: ISSUE_TITLE || "(no linked issue)",
+    LINKED_ISSUE,
     PR_COMMENTS_JSON: JSON.stringify(prComments, null, 2),
   },
   output: sandcastle.Output.object({

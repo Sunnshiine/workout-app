@@ -3,7 +3,7 @@
 Implement issue #{{ISSUE_NUMBER}}: {{ISSUE_TITLE}}
 
 You are on branch `{{BRANCH}}`, already created from `main`. Pull in the
-issue with `gh issue view {{ISSUE_NUMBER}} --comments`. If it has a
+issue with `gh issue view {{ISSUE_NUMBER}} --json title,body,labels,comments --jq '{title, body, labels: [.labels[].name], comments: [.comments[].body]}'`. If it has a
 parent PRD, pull that in too.
 
 # CONTEXT

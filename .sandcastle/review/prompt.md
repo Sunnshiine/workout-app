@@ -10,7 +10,7 @@ Read `CONTEXT.md`, `CODING_STANDARDS.md`, and any relevant ADRs under `docs/adr/
 
 <linked-issue>
 
-!`gh issue view {{ISSUE_NUMBER}} --comments`
+{{LINKED_ISSUE}}
 
 </linked-issue>
 
@@ -38,7 +38,7 @@ The following PR comments have been fetched by the workflow. They are tagged by 
 
 ## 1. Analyse with the `code-review` skill
 
-Use the **`code-review` skill** (installed globally at `~/.claude/skills/code-review`) to produce the review. It analyses the diff along two axes — **Standards** and **Spec** — using parallel sub-agents. Its findings are the **single source of truth** for what's wrong with this branch: act only on what it reports, not on a separate ad-hoc pass of your own.
+Use the **`code-review` skill** to produce the review. It analyses the diff along two axes — **Standards** and **Spec** — using parallel sub-agents. Its findings are the **single source of truth** for what's wrong with this branch: act only on what it reports, not on a separate ad-hoc pass of your own.
 
 Invoke it with everything it needs, so it does **not** run its own discovery and does **not** prompt or pause:
 
