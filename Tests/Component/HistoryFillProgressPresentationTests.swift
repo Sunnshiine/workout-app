@@ -8,6 +8,7 @@ import Testing
         ExerciseHistoryFill.Progress(tab: "Block 25", tabsCompleted: 2, tabsToScan: 3)
     )
 
+    #expect(presentation.message == "Digging up more of your history…")
     #expect(presentation.detail == "Block 25 · 2 of 3")
     #expect(presentation.fraction == 2.0 / 3.0)
 }

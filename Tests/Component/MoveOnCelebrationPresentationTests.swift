@@ -113,6 +113,7 @@ import Testing
         presentation.accessibilityValue
             == "Day 3, done., Steady work travels., 5 Sets, 2 Exercises, 2 Left"
     )
+    #expect(presentation.accessibilityHint == "Double tap to continue")
 }
 
 @MainActor
