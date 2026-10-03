@@ -351,11 +351,11 @@ else
     bad "the log path prints before xcodebuild starts: stdout at start was '$(cat "$root/seen")'"
 fi
 
-for flags in "--no-build --sim" "--sim"; do
+for build in --no-build ""; do
+    flags="${build:+$build }--sim"
     rm -f "$root/seen"
-    # shellcheck disable=SC2086
     STUB_LOG=$root/xcodebuild.log STUB_RC=70 STUB_OUT=$root/out STUB_SEEN=$root/seen HOME=$root/home PATH="$root/bin:$PATH" \
-        "$repo/scripts/test-sim.sh" $flags "$unknown" unit >"$root/out" 2>"$root/err"
+        "$repo/scripts/test-sim.sh" ${build:+"$build"} --sim "$unknown" unit >"$root/out" 2>"$root/err"
     status=$?
     want="no available simulator $unknown; xcrun simctl list devices available lists them"
     if [ $status = 2 ] && [ ! -s "$root/out" ] && [ "$(cat "$root/err")" = "$want" ] && [ ! -e "$root/seen" ] \
