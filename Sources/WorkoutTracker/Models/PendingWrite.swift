@@ -64,7 +64,9 @@ final class PendingWrite {
         set { statusRaw = newValue.rawValue }
     }
 
-    var session: SessionCoordinate {
+    /// When `dayNumbering` is `.legacyHeaderRank`, its Day is a header rank, so it names a Session
+    /// only where `namesOneSession(on:)` holds.
+    var recordedSession: SessionCoordinate {
         SessionCoordinate(blockTab: blockTab, address: SessionAddress(week: week, day: day))
     }
 
@@ -75,7 +77,7 @@ final class PendingWrite {
     func namesOneSession(on layout: SheetLayout) -> Bool {
         switch dayNumbering {
         case .headerNumber: true
-        case .legacyHeaderRank: layout.rankAndNumberAgree(at: session.address)
+        case .legacyHeaderRank: layout.rankAndNumberAgree(week: week, rank: day)
         }
     }
 

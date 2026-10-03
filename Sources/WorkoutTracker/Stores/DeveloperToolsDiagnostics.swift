@@ -139,9 +139,9 @@ struct PendingWriteDiagnostic: Equatable, Identifiable, Sendable {
 
     init(write: PendingWrite) {
         id = write.id
-        block = write.session.blockTab
-        week = "Week \(write.session.address.week)"
-        day = "Day \(write.session.address.day)"
+        block = write.recordedSession.blockTab
+        week = "Week \(write.recordedSession.address.week)"
+        day = "Day \(write.recordedSession.address.day)"
         exercise = write.exerciseName
         set = "Set \(write.setIndex + 1)"
         column = Self.columnLabel(for: write.column)

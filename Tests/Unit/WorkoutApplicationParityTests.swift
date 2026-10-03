@@ -14,7 +14,7 @@ private struct PendingWriteRow: Equatable {
 
     @MainActor
     init(_ write: PendingWrite) {
-        session = write.session
+        session = write.recordedSession
         exerciseName = write.exerciseName
         setIndex = write.setIndex
         column = write.column

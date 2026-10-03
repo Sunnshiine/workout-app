@@ -39,7 +39,7 @@ struct SetCoordinates: Equatable {
 extension SetCoordinates.ID {
     @MainActor
     init(_ write: PendingWrite) {
-        self.init(session: write.session, exerciseName: write.exerciseName, setIndex: write.setIndex)
+        self.init(session: write.recordedSession, exerciseName: write.exerciseName, setIndex: write.setIndex)
     }
 }
 

@@ -26,14 +26,14 @@ import Testing
     try ctx.save()
 
     let fetched = try #require(try ctx.fetch(FetchDescriptor<PendingWrite>()).first)
-    #expect(fetched.session.blockTab == "Block 27")
+    #expect(fetched.recordedSession.blockTab == "Block 27")
     #expect(fetched.column == .notes)
     #expect(fetched.operation == .upsert)
     #expect(fetched.status == .pending)
     #expect(fetched.expectedCurrentValue == "")
 
     let durableText = [
-        fetched.session.blockTab,
+        fetched.recordedSession.blockTab,
         fetched.exerciseName,
         fetched.columnRaw,
         fetched.operationRaw,

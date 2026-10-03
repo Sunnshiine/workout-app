@@ -50,11 +50,10 @@ struct SheetLayout: Sendable {
         week(number: address.week)?.days.first { $0.number == address.day }
     }
 
-    func rankAndNumberAgree(at address: SessionAddress) -> Bool {
-        let day = address.day
-        guard let week = week(number: address.week) else { return true }
-        guard week.dayHeaders.indices.contains(day - 1) else { return !week.days.contains { $0.number == day } }
-        return week.dayHeaders[day - 1].reading == .session(day)
+    func rankAndNumberAgree(week weekNumber: Int, rank: Int) -> Bool {
+        guard let week = week(number: weekNumber) else { return true }
+        guard week.dayHeaders.indices.contains(rank - 1) else { return !week.days.contains { $0.number == rank } }
+        return week.dayHeaders[rank - 1].reading == .session(rank)
     }
 }
 

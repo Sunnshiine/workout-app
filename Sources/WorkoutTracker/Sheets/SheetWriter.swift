@@ -13,7 +13,7 @@ struct SheetWriteRequest: Sendable, Equatable {
     init?(_ write: PendingWrite, on layout: SheetLayout) {
         guard write.namesOneSession(on: layout) else { return nil }
         self.init(
-            session: write.session,
+            session: write.recordedSession,
             exerciseName: write.exerciseName,
             setIndex: write.setIndex,
             column: write.column,
