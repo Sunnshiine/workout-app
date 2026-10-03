@@ -1,7 +1,6 @@
 import Foundation
 
-/// The fill-in-progress affordance's presentation model (revised `DESIGN.md` §Exercise History
-/// Sheet — "While the history index is still filling…", PRD #357 §4, sub-issue #366).
+/// The fill-in-progress affordance's presentation model (PRD #357 §4, sub-issue #366).
 ///
 /// Projects one `ExerciseHistoryFill.Progress` tick into muted, warm-voice copy plus a determinate
 /// fraction, so the Exercise History sheet shows honest, moving progress rather than a dead spinner.

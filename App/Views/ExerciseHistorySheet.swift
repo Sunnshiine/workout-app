@@ -109,6 +109,7 @@ struct ExerciseHistorySheet: View {
                 .fill(Theme.LightKit.volumeControlRaisedFill)
                 .themeElevation(Theme.LightKit.volumeControlRaisedShadow, in: Capsule())
         } else {
+            // At Night it matches the night focus card, with no cream bloom.
             Capsule()
                 .fill(palette.surface)
                 .themeElevation(palette.surfaceShadow, in: Capsule())
@@ -360,6 +361,7 @@ private struct VolumeChart: View {
         }
     }
 
+    /// Ink and core take re-lit palette roles because the static day ink vanishes into night paper.
     private func dot(_ spec: Theme.DotSpec) -> some View {
         ZStack {
             if spec.lineWidth > 0 {
