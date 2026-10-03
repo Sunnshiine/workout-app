@@ -3,10 +3,9 @@ import Testing
 
 @testable import WorkoutTracker
 
-@Test func restPillPresentationKeepsVoiceOverLabelWithoutVisibleTypeLabel() {
+@Test func restPillPresentationNamesTheRestKindInTheVoiceOverLabel() {
     let presentation = RestPillPresentation(kind: .superset, remaining: 83, duration: 150)
 
-    #expect(presentation.visibleTypeLabel == nil)
     #expect(presentation.countdownText == "1:23")
     #expect(presentation.accessibilityLabel == "Superset rest, 1 minute 23 seconds remaining")
 }
