@@ -85,7 +85,7 @@ import Testing
 
 @Test func themeResolvesLightPreferenceToDayAndNightPreferenceToNight() {
     #expect(Theme.palette(for: AppearancePreference.light).appearance == .day)
-    #expect(Theme.palette(for: AppearancePreference.dark).appearance == .night)
+    #expect(Theme.palette(for: AppearancePreference.night).appearance == .night)
 }
 
 @Test func themeSystemPreferenceFollowsColorSchemeAndSystemDarkMapsToNight() {
@@ -95,13 +95,13 @@ import Testing
 
 @Test func themeForcedPreferencesIgnoreCurrentColorScheme() {
     #expect(Theme.palette(for: AppearancePreference.light, colorScheme: .dark).appearance == .day)
-    #expect(Theme.palette(for: AppearancePreference.dark, colorScheme: .light).appearance == .night)
+    #expect(Theme.palette(for: AppearancePreference.night, colorScheme: .light).appearance == .night)
 }
 
 @Test func themeColorSchemeOverrideOnlyForForcedPreferences() {
     #expect(Theme.colorSchemeOverride(for: AppearancePreference.system) == nil)
     #expect(Theme.colorSchemeOverride(for: AppearancePreference.light) == .light)
-    #expect(Theme.colorSchemeOverride(for: AppearancePreference.dark) == .dark)
+    #expect(Theme.colorSchemeOverride(for: AppearancePreference.night) == .dark)
 }
 
 // MARK: - Paint box (token sheet §2)

@@ -490,7 +490,7 @@ extension Theme {
         switch preference {
         case .light:
             palette(for: .day)
-        case .dark:
+        case .night:
             palette(for: .night)
         case .system:
             switch colorScheme {
@@ -510,7 +510,7 @@ extension Theme {
             nil
         case .light:
             .light
-        case .dark:
+        case .night:
             .dark
         }
     }

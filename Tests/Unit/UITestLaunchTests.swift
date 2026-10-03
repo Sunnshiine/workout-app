@@ -77,7 +77,7 @@ import Testing
 
     @Test func appearanceLaunchArgumentParsesSupportedAppearances() {
         #expect(UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_APPEARANCE", "light"]).appearanceOverride == .light)
-        #expect(UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_APPEARANCE", "dark"]).appearanceOverride == .dark)
+        #expect(UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_APPEARANCE", "dark"]).appearanceOverride == .night)
         #expect(
             UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_APPEARANCE", "system"]).appearanceOverride == .system
         )
