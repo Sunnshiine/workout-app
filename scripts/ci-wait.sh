@@ -32,8 +32,6 @@ if pr=$(gh pr view "$target" --json headRefOid --jq .headRefOid 2>&1); then
     event=pull_request
 elif [[ "$pr" == *"no pull requests found for branch"* || "$pr" == *"Could not resolve to a PullRequest"* ]]; then
     sha=$(gh api "repos/{owner}/{repo}/commits/$target" --jq .sha)
-    # main's head also carries every issues-event agent run, enough to push its own runs past
-    # any list limit.
     event=push
 else
     echo "$pr" >&2
