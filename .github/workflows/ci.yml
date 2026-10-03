@@ -1,8 +1,7 @@
 name: CI
 
 # Note: pushes made with the plain GITHUB_TOKEN do not trigger this workflow
-# (GitHub suppresses token-driven events). Every agent workflow that pushes
-# checks out with AGENT_PAT when that secret is set, so its pushes trigger it.
+# (GitHub suppresses token-driven events).
 
 on:
   pull_request:
