@@ -17,7 +17,7 @@ scripts/crap.sh [measure|gate|baseline] [options]
 
   measure    Score every production function and print the worst ones (default).
   gate       Fail on a new or worsened violation, a stale baseline row, or a row with no reason.
-  baseline   Rewrite tools/crap/baseline.tsv from the current report.
+  baseline   Rewrite tools/crap/baseline.tsv from the current report, never raising a recorded score.
 
   --no-test          Reuse the existing coverage profile instead of running swift test.
   --xcodebuild DIR   Run the tests with xcodebuild and its compilation cache instead of swift test.

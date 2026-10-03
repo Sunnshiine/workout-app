@@ -43,7 +43,10 @@ public enum Finding: Sendable, Equatable {
                 + "test or simplify it to \(format(threshold)) or below, "
                 + "or run scripts/crap.sh baseline to add its row and then give the row a reason"
         case .worsened(let file, let name, let crap, let recorded, let tolerance):
-            "worsened      \(file)  \(name)  crap \(format(crap)) > baseline \(format(recorded)) + tolerance \(format(tolerance))"
+            "worsened      \(file)  \(name)  crap \(format(crap)) > baseline \(format(recorded)) + tolerance \(format(tolerance)); "
+                + "test it back down to \(format(recorded + tolerance)) or below, "
+                + "or raise its crap in the baseline by hand and say why in its reason "
+                + "(scripts/crap.sh baseline never raises a score)"
         case .stale(let file, let name, let recorded, let reason):
             "stale         \(file)  \(name)  baseline records \(format(recorded)) but \(reason.explanation); "
                 + "delete its line from the baseline or rerun scripts/crap.sh baseline"

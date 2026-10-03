@@ -107,7 +107,7 @@ struct GateCommand: ParsableCommand {
 struct BaselineCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "baseline",
-        abstract: "Write every measured function above the threshold to a TSV baseline."
+        abstract: "Write every measured function above the threshold to a TSV baseline, never raising a recorded score."
     )
 
     @Option(help: "JSON report written by `crap measure --json`.") var report: String
