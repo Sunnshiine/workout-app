@@ -162,7 +162,9 @@ following iOS. "Dark" leaves the product vocabulary. All five legacy palettes
 (`dark`, `black`, `mintGreen`, `sageLight`, `blueLight`) are retired. A fixture
 launch pins the preference for screenshots and tests: `-UITEST_APPEARANCE dark`
 renders Night and `-UITEST_APPEARANCE light` renders Day, whatever the
-simulator's appearance. Without the flag a fixture launch follows System.
+simulator's appearance. The flag takes the preference's stored values, `system`,
+`light`, and `dark`, so `night` is ignored. Without the flag, or with a value it
+ignores, a fixture launch follows System.
 
 **Night is a hand-lit value sheet, never derived from Day.** The room is
 re-lit, not recolored: deep sage paper (`#232C20 → #121D14`, hue-preserved —

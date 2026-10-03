@@ -236,12 +236,12 @@ import Testing
     @Test func themeDangerStaysADistinctDestructiveRed() {
         for appearance in Theme.Appearance.allCases {
             guard let danger = rgbaComponents(of: Theme.palette(for: appearance).danger) else {
-                Issue.record("Could not resolve \(appearance.rawValue) danger")
+                Issue.record("Could not resolve \(appearance) danger")
                 return
             }
-            #expect(danger.red > 0.85, "\(appearance.rawValue) danger should read as red")
-            #expect(danger.green < 0.35, "\(appearance.rawValue) danger should not drift orange or green")
-            #expect(danger.blue < 0.25, "\(appearance.rawValue) danger should not drift purple")
+            #expect(danger.red > 0.85, "\(appearance) danger should read as red")
+            #expect(danger.green < 0.35, "\(appearance) danger should not drift orange or green")
+            #expect(danger.blue < 0.25, "\(appearance) danger should not drift purple")
         }
     }
 #endif

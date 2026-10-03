@@ -27,7 +27,7 @@ extension EnvironmentValues {
 enum Theme {  // swiftlint:disable:this type_body_length
     /// The two shipping appearances. Day is primary; Night is the same room re-lit, never
     /// recolored. There is no Day→Night derivation rule — each is hand-lit.
-    enum Appearance: String, CaseIterable {
+    enum Appearance: CaseIterable {
         case day
         case night
     }

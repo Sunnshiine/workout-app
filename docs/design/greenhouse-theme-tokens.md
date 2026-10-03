@@ -17,7 +17,8 @@ are recorded inline.
 - **All five legacy palettes are retired** (`dark`, `black`, `mintGreen`,
   `sageLight`, `blueLight`). A fixture launch pins the preference for
   screenshots and tests: `-UITEST_APPEARANCE dark` renders Night and
-  `-UITEST_APPEARANCE light` renders Day.
+  `-UITEST_APPEARANCE light` renders Day. The flag takes the preference's
+  stored values (`system`, `light`, `dark`), so `night` is ignored.
 
 ## 2. Token architecture
 
