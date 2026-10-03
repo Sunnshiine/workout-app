@@ -153,6 +153,18 @@ private func evaluate(_ report: Report, _ baseline: [BaselineEntry]) -> GateOutc
         #expect(text == "file\tname\tcrap\treason\nA.swift\tA.f()\t30.0\tdevice I/O\nA.swift\tA.h()\t14.0\t\n")
     }
 
+    @Test func rewritingTheBaselineForANewRowLeavesAWorsenedRowFailing() {
+        let measured = report([("A.f()", 6, 42.0), ("A.n()", 4, 14.0)])
+        let prior = [BaselineEntry(file: "A.swift", name: "A.f()", crap: 30.0, reason: "device I/O")]
+        let rewritten = Baseline.parse(text: Baseline.render(report: measured, threshold: 12, carrying: prior))
+        #expect(
+            evaluate(measured, rewritten).findings == [
+                .worsened(file: "A.swift", name: "A.f()", crap: 42.0, recorded: 30.0, tolerance: 0.5),
+                .unexplained(file: "A.swift", name: "A.n()"),
+            ]
+        )
+    }
+
     @Test func baselineWrittenBeforeTheReasonColumnStillParses() {
         let entries = Baseline.parse(text: "file\tname\tcrap\nA.swift\tA.f()\t30.0\n")
         #expect(entries == [BaselineEntry(file: "A.swift", name: "A.f()", crap: 30.0, reason: "")])

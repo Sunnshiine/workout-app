@@ -162,16 +162,18 @@ public enum Baseline {
     }
 
     /// Renders every measured function above the threshold, keeping the reason a prior baseline
-    /// recorded for a row that is still above it.
+    /// recorded for a row that is still above it. A prior row keeps its recorded score when the
+    /// function scores higher now, so a rewrite never hides a worsened function.
     public static func render(report: Report, threshold: Double, carrying prior: [BaselineEntry] = []) -> String {
-        let reasons = Dictionary(prior.map { ($0.file + "\t" + $0.name, $0.reason) }, uniquingKeysWith: { _, last in last })
+        let priorRows = Dictionary(prior.map { ($0.file + "\t" + $0.name, $0) }, uniquingKeysWith: { _, last in last })
         let entries =
             report.functions
             .filter { ($0.crap ?? 0) > threshold }
             .sorted { ($0.file, $0.name) < ($1.file, $1.name) }
             .map { row in
-                let reason = reasons[row.file + "\t" + row.name] ?? ""
-                return "\(row.file)\t\(row.name)\t\(String(format: "%.1f", row.crap ?? 0))\t\(reason)"
+                let recorded = priorRows[row.file + "\t" + row.name]
+                let crap = min(row.crap ?? 0, recorded?.crap ?? .infinity)
+                return "\(row.file)\t\(row.name)\t\(String(format: "%.1f", crap))\t\(recorded?.reason ?? "")"
             }
         return ([header] + entries).joined(separator: "\n") + "\n"
     }

@@ -133,8 +133,10 @@ where the rules are silent.
 `crap gate` compares the report against `baseline.tsv` and prints every finding on its own line.
 
 - `newViolation`: measured, `crap > threshold`, not in the baseline. Fails. The message names the two
-  ways out: test the function down, or add its row with a reason.
-- `worsened`: in the baseline and `crap > recorded + tolerance`. Fails.
+  ways out: test the function down, or run `scripts/crap.sh baseline` and give the new row a reason.
+- `worsened`: in the baseline and `crap > recorded + tolerance`. Fails. `scripts/crap.sh baseline` keeps
+  the lower recorded score, so the row fails until the function is tested back down or the row is
+  raised by hand.
 - `stale`: in the baseline but missing from the report, at or below the threshold, or no longer
   measured. Fails on purpose, so the baseline only ever shrinks. The message names the row to
   delete.
