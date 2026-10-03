@@ -49,7 +49,7 @@ done
 case "$sub" in
     "pr view")
         if [ -n "${STUB_PR_ERROR:-}" ]; then echo "$STUB_PR_ERROR" >&2; exit 1; fi
-        jq -nr --arg s "$STUB_SHA" '{headRefName: "topic", headRefOid: $s}' | jq -r "$jq_expr" ;;
+        jq -nr --arg s "$STUB_SHA" '{headRefName: "topic", headRefOid: $s, isCrossRepository: ($ENV.STUB_FORK == "true")}' | jq -r "$jq_expr" ;;
     "api repos/{owner}/{repo}/git/ref/heads/topic")
         jq -nr --arg s "$(branch_tip)" '{object: {sha: $s}}' | jq -r "$jq_expr" ;;
     "run list")
@@ -99,7 +99,7 @@ check() {
     for h in ${branch_tips:-}; do echo "$h" >"$dir/head.$i"; i=$((i + 1)); done
     echo 0 >"$dir/cursor"
     : >"$dir/calls.log"
-    STUB_DIR="$dir" STUB_SHA="$sha" STUB_PR_ERROR="${pr_error:-}" PATH="$root/bin:$PATH" "$ci_wait" ${arg:+"$arg"} >"$dir/out" 2>"$dir/err"
+    STUB_DIR="$dir" STUB_SHA="$sha" STUB_FORK="${fork:-}" STUB_PR_ERROR="${pr_error:-}" PATH="$root/bin:$PATH" "$ci_wait" ${arg:+"$arg"} >"$dir/out" 2>"$dir/err"
     local status=$?
     if [ "$status" -eq "$want_status" ] && [ "$(cat "$dir/out")" = "$want_out" ]; then
         ok "$name"
@@ -252,6 +252,43 @@ check "a workflow that failed to start fails" 1 "$ci_a_success
 Workflow lint startup_failure on 73b27aa (run $L)" 668 \
     "[$(ci $A completed success), $(jq -c '.jobs = []' <<<"$(workflow_run "Workflow lint" $L completed startup_failure)")]"
 
+echo "late runs: never answer from an earlier event's finished runs"
+
+check "a workflow created after a finished one is waited on" 1 "CI failure on 73b27aa (run $A)
+  swift-tests: failure
+  lint: failure
+  visual-tests: failure
+Workflow lint success on 73b27aa (run $L)
+  skill-links: success" 668 \
+    "[]" \
+    "[$(workflow_run "Workflow lint" $L completed success skill-links)]" \
+    "[$(workflow_run "Workflow lint" $L completed success skill-links), $(ci $A in_progress "")]" \
+    "[$(workflow_run "Workflow lint" $L completed success skill-links), $(ci $A completed failure)]"
+
+check "a re-trigger on a green head waits for its new run" 1 "CI failure on 73b27aa (run $B)
+  swift-tests: failure
+  lint: failure
+  visual-tests: failure" 668 \
+    "[$(ci $A completed success)]" \
+    "[$(ci $B queued ""), $(ci $A completed success)]" \
+    "[$(ci $B completed failure), $(ci $A completed success)]"
+
+check "a testflight label applied just before the wait is waited on" 1 "$ci_a_success
+TestFlight PR failure on 73b27aa (run $C)
+  archive: failure
+  upload: failure" 668 \
+    "[$(ci $A completed success)]" \
+    "[$(workflow_run "TestFlight PR" $C queued "" archive upload), $(ci $A completed success)]" \
+    "[$(workflow_run "TestFlight PR" $C completed failure archive upload), $(ci $A completed success)]"
+
+branch_tips="$pushed $pushed $pushed" check "a force-push back to a tested commit waits for its new run" 1 "CI failure on f2c0ffe (run $B)
+  swift-tests: failure
+  lint: failure
+  visual-tests: failure" 668 \
+    "[$(on_pushed "$(ci $A completed success)")]" \
+    "[$(on_pushed "$(ci $B queued "")"), $(on_pushed "$(ci $A completed success)")]" \
+    "[$(on_pushed "$(ci $B completed failure)"), $(on_pushed "$(ci $A completed success)")]"
+
 echo "head moved: never vouch for a head it did not watch"
 
 branch_tips="$sha $pushed $pushed" check "a push that cancels nothing on the watched head, onto a red head, fails" 1 "" 668 \
@@ -270,7 +307,8 @@ branch_tips="$sha $sha $pushed" check "a push during a wait that found no run fa
 echo "no run: exit 3"
 
 check "a PR that starts no run exits 3 and prints no merge command" 3 "" 668 "[]"
-check_err "a PR that starts no run names the commit it searched" "no pull_request workflow ran on 73b27aa within 5 minutes"
+check_err "a PR that starts no run names the commit and what to check before landing" "no pull_request workflow ran on 73b27aa within 5 minutes
+land #668 only when every path it changes is in ci.yml's paths-ignore and no agent workflow pushed 73b27aa (#805)"
 
 check "a PR whose only runs were skipped exits 3" 3 "" 668 \
     "[$(workflow_run "TestFlight PR" $A completed skipped build), $(workflow_run "Verify tools" $W completed skipped sheet)]"
@@ -280,6 +318,10 @@ echo "arguments"
 for arg in "" main fix/retro-ciwait 999b783; do
     check "'$arg' is not a PR number and exits 2" 2 "" "$arg" "[$(ci $A completed success)]"
 done
+
+fork=true check "a PR from a fork exits 1, though this repo has a branch of the same name" 1 "" 668 \
+    "[$(ci $A completed success)]"
+check_err "a PR from a fork says the script does not handle it" "#668 comes from a fork, and ci-wait.sh does not handle fork PRs"
 
 pr_error="HTTP 502: Bad Gateway (https://api.github.com/graphql)" check "a gh pr view failure exits 1" 1 "" 668 \
     "[$(ci $A completed success)]"
