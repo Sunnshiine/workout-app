@@ -69,12 +69,14 @@ import Testing
 }
 
 @MainActor
-@Test func storedDarkAppearanceLoadsAsNight() throws {
+@Test(arguments: [("system", AppearancePreference.system), ("light", .light), ("dark", .night)])
+func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: AppearancePreference) throws {
     let defaults = AppDefaults.inMemory()
-    defaults.set("dark", forKey: "appearance")
+    defaults.set("SHEET123", forKey: "spreadsheetId")
+    defaults.set(stored, forKey: "appearance")
 
-    #expect(SettingsStore(defaults: defaults).appearance == .night)
-    #expect(defaults.string(forKey: "appearance") == "dark")
+    #expect(SettingsStore(defaults: defaults).appearance == expected)
+    #expect(defaults.string(forKey: "appearance") == stored)
 }
 
 @MainActor
