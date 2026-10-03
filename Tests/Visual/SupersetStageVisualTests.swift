@@ -9,8 +9,6 @@ import Testing
 /// "& partner" line (foliage green by Day, translucent foliage at Night — the manual focus switch)
 /// and the branch becomes **one forked stem** — the focused Exercise climbs at full stroke and
 /// alone carries the bud, while the partner grows along a shorter, bud-less drooping lateral.
-///
-/// Closes the fixture gap (§11): before this the Superset stage had no Visual baseline at all.
 @MainActor
 @Suite(.snapshots(record: .never))
 struct SupersetStageVisualTests {

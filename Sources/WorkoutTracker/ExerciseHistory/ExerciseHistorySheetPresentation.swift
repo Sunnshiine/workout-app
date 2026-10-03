@@ -183,10 +183,6 @@ struct ExerciseHistorySheetPresentation: Equatable, Sendable {
     /// rawness that never enters the ledger. Raw fragments coalesce back with `", "` so the well
     /// shows them verbatim (ADR-0005 "never normalized"); the volume is best-effort whenever any
     /// rawness survived.
-    ///
-    /// A fully-unparseable entry keeps its whole line as `rawText` and yields no chips — the view then
-    /// renders the row by its `*` well (the raw Sheet line inside it), never chipless (re-drive
-    /// addendum §7.5).
     private static func parse(_ resultText: String) -> Parsed {
         var chips: [Chip] = []
         var skipCount = 0

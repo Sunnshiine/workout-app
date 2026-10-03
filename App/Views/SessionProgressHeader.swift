@@ -30,9 +30,6 @@ struct SessionProgressHeader: View {
         SessionProgressHeaderPresentation(session: session, block: block)
     }
 
-    // The plain header runline (ledger §4.3, picks session-stage-a/-d): a
-    // left-aligned `Block · Week · Day` line with `N Sets left` on the right. The
-    // segmented progress rail is retired — the branch carries progress as flora.
     var body: some View {
         HStack(spacing: 10) {
             locationLabel

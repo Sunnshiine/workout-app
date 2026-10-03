@@ -87,8 +87,6 @@ struct MoveOnCelebrationView: View {
 
             Spacer(minLength: 12)
 
-            // The `Move On` microlabel loses its uppercase, tracked, action-green
-            // register (ledger §8) — it is a quiet secondary line, not a button.
             Text(presentation.actionText)
                 .font(Theme.font(.runlineSecondary))
                 .foregroundStyle(palette.textSecondary)

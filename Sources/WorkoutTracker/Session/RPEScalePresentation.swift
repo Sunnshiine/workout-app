@@ -16,7 +16,7 @@ struct ValueRailChip: Equatable, Hashable, Identifiable, Sendable {
 /// The deterministic offset that centers a rail's selected cell. The rails are
 /// offset-driven, never `scrollTo`/`scrollPosition`: offscreen snapshot renders
 /// never apply async scrolling (they leave the content offset at 0), so the
-/// centered value is computed from layout instead (ledger salvage note 1).
+/// centered value is computed from layout instead.
 enum ValueRailLayout {
     static func contentOffset(
         trackWidth: CGFloat,

@@ -1,14 +1,5 @@
 import SwiftUI
 
-/// The Sunbird colophon — the app icon's whole glass mark (#370, DESIGN.md §6),
-/// used quietly in-app as a brand element. It is the app's *one* glass survivor
-/// (ADR-0014): a bottle-green glass disc carrying the icon's three-stop greens,
-/// a diagonal sheen, and a crisp rim, with the negative-space bird **cut out** of
-/// the disc so the room shows through it. The old composition punched the cutout
-/// to solid black (ledger §9.2); here the bird region is erased with
-/// `.destinationOut` inside a `compositingGroup`, so whatever paper sits behind
-/// the mark reads through the wings.
-///
 /// **The Mark Stays Whole:** it renders only as the complete glass mark, never
 /// disc-only or wing-curve chrome, and never below the 28pt honesty floor — its
 /// home size is 40pt. The glass keeps its icon greens **unchanged at night**.

@@ -2,18 +2,10 @@ import SwiftUI
 
 struct LastPerformedCard: View {
     let presentation: LastPerformedCardPresentation
-    /// The Exercise History sheet's only entry point (revised `DESIGN.md` §Last Performed): when
-    /// set, tapping the line opens the sheet. `nil` keeps the line a plain, non-tappable reference
-    /// (e.g. inside a Superset side). Declared `let` — not a defaulted `var` — so every call site
-    /// must state its intent, rather than silently omitting the tap (CODING_STANDARDS.md §optionals).
     let onTap: (() -> Void)?
 
     @Environment(\.themePalette) private var palette
 
-    // The label-free runline anchored to the Active Set Card (ledger §4.8,
-    // DESIGN.md §5.1): the Set-Log shape says what it is, so no "Last Performed"
-    // label rides it. It shrinks toward an ≈11pt floor, then truncates — never
-    // wraps.
     var body: some View {
         line
             .font(Theme.font(.lastPerformed))

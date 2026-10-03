@@ -6,15 +6,6 @@ import Testing
 
 /// The Block grid — the focus week — against picks block-grid-focus4-d-2d / -3d / -6d
 /// (DESIGN.md §5.5), at the three picked day-counts and in both appearances.
-///
-/// The one Week holding the Current Session expands into full, wordless tiles under morning
-/// light (`focusCardFill` + the cream `focusCardGlowRim`); the current tile alone carries the
-/// sunlit-hour `sunGlow`; every other Week collapses to a shaded card (`weekCardShade` + `cardLow`)
-/// with a mini day-strip; the page sunbeam and the tiles' top-light complete the sunlit hour.
-/// At Night the room re-lights by the Room Re-lights Rule — foliage tiles, deep-ink text — the
-/// carried slice-8 debt this slice validates on the full grid for the first time (#490, §11).
-///
-/// Closes the fixture gap (§11): before this the Block grid had only a lone `SessionTile` baseline.
 @MainActor
 @Suite(.snapshots(record: .never))
 struct BlockGridVisualTests {

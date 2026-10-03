@@ -16,8 +16,6 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 }
 
 @Test func holdToSkipPolicyDefaultsToTheTokenizedTimings() {
-    // Ledger §1.4: the tokenized timings are the policy's source of truth — reveal 250ms, commit
-    // 850ms — retiring the hardcoded 0.8s. Logged and skipped Sets hold longer (900ms / 1100ms).
     let standard = HoldToSkipPolicy()
     #expect(standard.holdDuration == Theme.Motion.holdToSkipCommit)
     #expect(standard.holdDuration == 0.85)
@@ -245,7 +243,6 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 
     let presentation = SessionProgressHeaderPresentation(session: session, block: block)
 
-    // The locked composition's plain runline (ledger §4.3): `Block · Week · Day` with `N Sets left`.
     #expect(presentation.runlineText == "Block 27 · Week 2 · Day 3")
     #expect(presentation.completedSetCount == 2)
     #expect(presentation.totalSetCount == 3)

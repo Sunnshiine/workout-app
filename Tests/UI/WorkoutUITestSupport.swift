@@ -27,7 +27,6 @@ enum WorkoutUITestFixture {
 }
 
 enum WorkoutUITestFixtureOption: String {
-    case disableCelebrationBloom = "-UITEST_DISABLE_CELEBRATION_BLOOM"
     case openExercises = "-UITEST_OPEN_EXERCISES"
     case pendingWrite = "-UITEST_PENDING_WRITE"
 }

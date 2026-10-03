@@ -367,12 +367,10 @@ import Testing
     }
 #endif
 
-// MARK: - Input-block roles (token sheet §Active Set Card; ledger §1.1 — the two fixed alias wrongs)
+// MARK: - Input-block roles
 
 #if canImport(AppKit)
     @Test func themePillFillIsCreamNotTheSurfaceAlias() {
-        // The first pass mapped `pillFill → surface` (cream @ 52%); the token sheet says the stepper
-        // buttons are cream @ 85% by Day, cream @ 6% at Night (ledger §1.1).
         expectRGB(
             Theme.palette(for: Theme.Appearance.day).pillFill,
             red: 242 / 255, green: 247 / 255, blue: 232 / 255, alpha: 0.85
@@ -386,8 +384,6 @@ import Testing
 
 #if canImport(AppKit)
     @Test func themePillStrokeIsItsOwnHairlineNotTheQueueStroke() {
-        // The first pass mapped `pillStroke → queueStroke` (0.38 / cream @ 20%); the token sheet says
-        // rgba(82,111,90,0.34) by Day and cream @ 16% at Night (ledger §1.1).
         expectRGB(
             Theme.palette(for: Theme.Appearance.day).pillStroke,
             red: 82 / 255, green: 111 / 255, blue: 90 / 255, alpha: 0.34
@@ -399,7 +395,7 @@ import Testing
     }
 #endif
 
-// MARK: - Elevation & light kit (token sheet §3 / §5.5 / §5.6; ledger §1.2 — the absent tokens)
+// MARK: - Elevation & light kit
 
 #if canImport(AppKit)
     @Test func themeSurfaceShadowIsADayDoubleDropAndANightInsetBorder() {
@@ -432,8 +428,6 @@ import Testing
 
 #if canImport(AppKit)
     @Test func themeSkipFillOverlayIsMutedInBothAppearances() throws {
-        // Token sheet §Log capsule: the hold-to-skip overlay is muted @ 30% — never danger red
-        // (ledger §2.8). The night recipe lands with this input-block build slice (#488).
         expectRGB(
             try #require(Theme.palette(for: Theme.Appearance.day).skipFillOverlay),
             red: 82 / 255, green: 100 / 255, blue: 87 / 255, alpha: 0.30
@@ -505,7 +499,7 @@ import Testing
         expectRGB(Theme.LightKit.volumeControlRaisedFill, red: 242 / 255, green: 247 / 255, blue: 232 / 255, alpha: 0.90)
 
         // Data dot: solid ink r4.5 with a paper core. Approx dot: hollow ink outline r4 @ 1.5.
-        #expect(Theme.LightKit.dataDot == Theme.DotSpec(color: Theme.Paint.ink, radius: 4.5, lineWidth: 0, hasPaperCore: true))
-        #expect(Theme.LightKit.approxDot == Theme.DotSpec(color: Theme.Paint.ink, radius: 4, lineWidth: 1.5, hasPaperCore: false))
+        #expect(Theme.LightKit.dataDot == Theme.DotSpec(radius: 4.5, lineWidth: 0, hasPaperCore: true))
+        #expect(Theme.LightKit.approxDot == Theme.DotSpec(radius: 4, lineWidth: 1.5, hasPaperCore: false))
     }
 #endif

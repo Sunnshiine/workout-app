@@ -147,10 +147,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
     @MainActor
     func testCompletionStageListsOpenExercisesAndNavigatesToSource() throws {
-        let app = launchWorkoutApp(
-            fixture: .completedSessionWithOpenExercises,
-            options: [.disableCelebrationBloom]
-        )
+        let app = launchWorkoutApp(fixture: .completedSessionWithOpenExercises)
 
         XCTAssertTrue(app.staticTexts["Session complete"].appears(within: 3))
 
@@ -182,18 +179,12 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
     @MainActor
     private func launchFixtureApp(options: [WorkoutUITestFixtureOption] = []) -> XCUIApplication {
-        launchWorkoutApp(
-            fixture: .currentSession,
-            options: [.disableCelebrationBloom] + options
-        )
+        launchWorkoutApp(fixture: .currentSession, options: options)
     }
 
     @MainActor
     private func launchSettingsFixtureApp(options: [WorkoutUITestFixtureOption] = []) -> XCUIApplication {
-        launchWorkoutApp(
-            fixture: .settings,
-            options: [.disableCelebrationBloom] + options
-        )
+        launchWorkoutApp(fixture: .settings, options: options)
     }
 }
 
@@ -227,7 +218,7 @@ final class WorkoutTrackerOnboardingSwitchUITests: XCTestCase {
     /// selected sheet and land on its freshly parsed session, never presenting the stale cached Block.
     @MainActor
     func testOnboardingSheetSelectionAutoSyncsAndReplacesStaleCachedBlock() throws {
-        let app = launchWorkoutApp(fixture: .onboarding, options: [.disableCelebrationBloom])
+        let app = launchWorkoutApp(fixture: .onboarding)
 
         XCTAssertTrue(app.staticTexts["Choose your training sheet"].appears(within: 3))
         XCTAssertFalse(app.staticTexts["Back Squat"].exists)
@@ -247,7 +238,7 @@ final class WorkoutTrackerOnboardingSwitchUITests: XCTestCase {
     /// except by coordinate. The assertion before `typeText` is the one that fails unlabelled.
     @MainActor
     func testPastedURLGoesThroughANamedFieldAndLandsOnTheSyncedSession() throws {
-        let app = launchWorkoutApp(fixture: .onboarding, options: [.disableCelebrationBloom])
+        let app = launchWorkoutApp(fixture: .onboarding)
 
         XCTAssertTrue(app.staticTexts["Choose your training sheet"].appears(within: 3))
         tapWhenHittable(app.buttons["Paste a URL instead"])

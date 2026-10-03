@@ -47,9 +47,6 @@ struct SessionStageView: View {
         let focusID = coordinator.visualFocusOwner?.setID ?? coordinator.activeSetID
         let stageItem = SessionStagePresentation.stageItem(in: items, focusID: focusID)
 
-        // Training surfaces never scroll (ledger §4.5, the Product Scale Rule): the
-        // stage is a single page that fits, not a ScrollView, and the stage
-        // container sheds its glass (glass dies in the contract slice).
         VStack(spacing: 0) {
             VStack(spacing: Theme.sectionSpacing) {
                 if let stageItem {
@@ -194,9 +191,6 @@ struct SessionStageView: View {
         }
     }
 
-    // The completion stage sheds its extra icons (ledger §4.7): no checkmark, no
-    // arrow — the branch is the page's one icon budget, and the reading is carried
-    // in type-role text alone.
     private func completionStage(items: [SessionStageItem]) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Session complete")
@@ -420,8 +414,6 @@ struct SessionMoveOnButton: View {
     let onTap: () -> Void
     @Environment(\.themePalette) private var palette
 
-    // De-glassed (ledger §4): a plain green action capsule, text only — no arrow
-    // icon (Green Means Action, One Icon Per Page).
     var body: some View {
         Button(action: onTap) {
             Text("Move On")

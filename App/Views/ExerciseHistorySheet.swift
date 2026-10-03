@@ -1,18 +1,5 @@
 import SwiftUI
 
-/// The Exercise History sheet (`DESIGN.md` §5.6 — the chip ledger): a `.medium` detent opened only
-/// from the Last Performed line, showing the last ~5 entries for the viewed Exercise's Movement as
-/// calm reference material. Living-paper fill and `soft` shoulders keep it in the same room; every
-/// Set is a **carved chip** — the app's only below-flat elevation, cut into the sheet under a dark
-/// top inner shadow with a light bottom edge (ledger §7.1) — flowing off a `Wn Dn` gutter under
-/// quiet muted sentence-case Block headers (ledger §7.4), newest first.
-///
-/// Skips, Legacy Log rawness, and fallback-spelling annotations never sit in the ledger: they hide
-/// behind a `*` on the W/D label that expands into a small carved well. A fully-unparseable entry
-/// still carries its `*` well — the raw Sheet line inside it — so a row never renders chipless
-/// (re-drive addendum §7.5). A Volume control (off by default, raised at rest on the cream recipe,
-/// pressed below flat when active) summons the one chart — total volume per Session, hollow `≈`
-/// dots where Legacy Logs make totals approximate, a dotted Block seam — never pushed.
 struct ExerciseHistorySheet: View {
     let presentation: ExerciseHistorySheetPresentation
     /// The fill-in-progress affordance, present only while history for this Movement may still
@@ -91,9 +78,6 @@ struct ExerciseHistorySheet: View {
         }
     }
 
-    /// The Volume control — a chip-vocabulary pill. At rest it sits *raised* on the cream recipe
-    /// (`volumeControlRaisedFill` over the `cardLow` lift); when active it presses below flat into the
-    /// carved-chip recipe (ledger §7.2). No action green.
     private var volumeControl: some View {
         Button {
             showVolume.toggle()
@@ -118,10 +102,6 @@ struct ExerciseHistorySheet: View {
         .accessibilityValue(showVolume ? "on" : "off")
     }
 
-    /// The Volume control's at-rest raised recipe. By Day it sits on the cream lift
-    /// (`volumeControlRaisedFill` over `cardLow`); at Night the room re-lights to a quiet lifted sage
-    /// surface under an inset cream border-as-light — no cream bloom, matching the night focus card
-    /// (Room Re-lights Rule; the sheet's night set was flagged for build validation, PRD #497 §11).
     @ViewBuilder
     private var volumeControlRaisedBackground: some View {
         if palette.appearance == .day {
@@ -165,8 +145,6 @@ struct ExerciseHistorySheet: View {
 
     private func blockSection(_ block: ExerciseHistorySheetPresentation.Block) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            // A quiet muted sentence-case Block header (`Block 27`) — no rule, no uppercase editorial
-            // scaffolding; the pick's calm register (ledger §7.4).
             Text(block.header)
                 .font(Theme.font(.queuePill))
                 .foregroundStyle(palette.textSecondary)
@@ -260,8 +238,6 @@ private struct ExerciseHistoryRow: View {
         .lineLimit(1)
         .padding(.horizontal, 10)
         .padding(.vertical, 4)
-        // Carved: the app's only below-flat elevation — a dark top inner shadow and a light bottom
-        // edge press the chip into the sheet, never a raised highlight (ledger §7.1).
         .themeCarve(palette, in: Capsule())
     }
 
@@ -373,7 +349,6 @@ private struct VolumeChart: View {
                 path.move(to: CGPoint(x: seamX, y: 0))
                 path.addLine(to: CGPoint(x: seamX, y: height))
             }
-            // Dotted `1 4`, not dashed — the quiet seam of the token sheet (ledger §7.3).
             .stroke(palette.blockSeam, style: StrokeStyle(lineWidth: 1, lineCap: .round, dash: [1, 4]))
         }
     }
@@ -385,10 +360,6 @@ private struct VolumeChart: View {
         }
     }
 
-    /// A plotted point. The exact dot is a solid ink disc with a punched paper core (it reads as a
-    /// filled dot lifting off the paper); the approximate `≈` dot is a hollow ink outline (ledger §7.3).
-    /// The "ink" and the paper core both take the re-lit palette roles (`textPrimary` over `sheetFill`)
-    /// so the dots stay legible at Night, where the static day ink would vanish into the deep paper.
     private func dot(_ spec: Theme.DotSpec) -> some View {
         ZStack {
             if spec.lineWidth > 0 {
