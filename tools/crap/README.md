@@ -135,12 +135,13 @@ where the rules are silent.
 - `newViolation`: measured, `crap > threshold`, not in the baseline. Fails. The message names the two
   ways out: test the function down, or run `scripts/crap.sh baseline` and give the new row a reason.
 - `worsened`: in the baseline and `crap > recorded + tolerance`. Fails. `scripts/crap.sh baseline` keeps
-  the lower recorded score, so the row fails until the function is tested or simplified back down.
-  Testing recovers lost coverage. A function that gained a branch needs simplifying, because crap
-  never drops below `CC`. Raising the row by hand, with a reason, is the last resort.
+  the lower recorded score, so the row fails until the function comes back down. The message prints
+  the function's `CC` and coverage and names one route. When `CC` alone is over the limit it names
+  simplifying; otherwise coverage fell and it names testing. Both name a hand raise of the row, with
+  a reason, as the last resort.
 - `stale`: in the baseline but missing from the report, at or below the threshold, or no longer
-  measured. Fails on purpose, so the baseline only ever shrinks. The message names the row to
-  delete.
+  measured. Fails on purpose, so the baseline shrinks as functions improve and grows only by a hand
+  raise. The message names the row to delete.
 - `improved`: in the baseline, `crap < recorded - tolerance`, and still above the threshold. Printed as
   a note suggesting `scripts/crap.sh baseline`; does not fail.
 - `unexplained`: a baseline row whose `reason` is empty. Fails, so no row is held above the threshold

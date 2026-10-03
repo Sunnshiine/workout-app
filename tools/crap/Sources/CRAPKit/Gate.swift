@@ -24,7 +24,7 @@ public enum StaleReason: String, Sendable {
 
 public enum Finding: Sendable, Equatable {
     case newViolation(file: String, name: String, crap: Double, threshold: Double)
-    case worsened(file: String, name: String, crap: Double, recorded: Double, tolerance: Double)
+    case worsened(file: String, name: String, crap: Double, recorded: Double, tolerance: Double, cc: Int, coverage: Double)
     case stale(file: String, name: String, recorded: Double, reason: StaleReason)
     case improved(file: String, name: String, crap: Double, recorded: Double)
     case unexplained(file: String, name: String)
@@ -42,9 +42,14 @@ public enum Finding: Sendable, Equatable {
             "newViolation  \(file)  \(name)  crap \(format(crap)) > threshold \(format(threshold)), not in the baseline; "
                 + "test or simplify it to \(format(threshold)) or below, "
                 + "or run scripts/crap.sh baseline to add its row and then give the row a reason"
-        case .worsened(let file, let name, let crap, let recorded, let tolerance):
-            "worsened      \(file)  \(name)  crap \(format(crap)) > baseline \(format(recorded)) + tolerance \(format(tolerance)); "
-                + "test or simplify it back down to \(format(recorded + tolerance)) or below, "
+        case .worsened(let file, let name, let crap, let recorded, let tolerance, let cc, let coverage):
+            "worsened      \(file)  \(name)  crap \(format(crap)) > baseline \(format(recorded)) + tolerance \(format(tolerance)) "
+                + "at cc \(cc) and coverage \(String(format: "%.0f", coverage * 100))%; "
+                + (Double(cc) > recorded + tolerance
+                    ? "cc alone is over \(format(recorded + tolerance)) and crap never drops below cc, so testing cannot help; "
+                        + "simplify it back down to \(format(recorded + tolerance)) or below, "
+                    : "coverage fell, so test it back down to \(format(recorded + tolerance)) or below "
+                        + "(full coverage brings crap down to its cc, \(cc)), ")
                 + "or, as a last resort, raise its crap in the baseline by hand and say why in its reason "
                 + "(scripts/crap.sh baseline never raises a score)"
         case .stale(let file, let name, let recorded, let reason):
@@ -111,7 +116,7 @@ public enum Gate {
                 findings.append(.stale(file: entry.file, name: entry.name, recorded: entry.crap, reason: .missing))
                 continue
             }
-            guard let crap = row.crap else {
+            guard let crap = row.crap, let coverage = row.coverage else {
                 findings.append(.stale(file: entry.file, name: entry.name, recorded: entry.crap, reason: .unmeasured))
                 continue
             }
@@ -126,7 +131,9 @@ public enum Gate {
                         name: entry.name,
                         crap: crap,
                         recorded: entry.crap,
-                        tolerance: tolerance
+                        tolerance: tolerance,
+                        cc: row.cc,
+                        coverage: coverage
                     )
                 )
             } else if crap < entry.crap - tolerance {
