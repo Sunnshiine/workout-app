@@ -50,7 +50,6 @@ struct SheetLayout: Sendable {
         week(number: address.week)?.days.first { $0.number == address.day }
     }
 
-    /// Reads `address.day` as a header rank.
     func rankAndNumberAgree(at address: SessionAddress) -> Bool {
         let day = address.day
         guard let week = week(number: address.week) else { return true }

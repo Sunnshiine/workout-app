@@ -34,7 +34,7 @@ enum WriteTargetAuditStatus: String, Codable, Sendable {
 final class PendingWrite {
     @Attribute(.unique) var id: UUID
     var createdAt: Date
-    // Shipped stores hold these attribute names. Read them through `session` and `dayNumbering`.
+    // Shipped stores hold these attribute names.
     private var blockTab: String
     private var week: Int
     private var day: Int
@@ -64,7 +64,6 @@ final class PendingWrite {
         set { statusRaw = newValue.rawValue }
     }
 
-    /// The Session as recorded at enqueue. Its Day reads per `dayNumbering`.
     var session: SessionCoordinate {
         SessionCoordinate(blockTab: blockTab, address: SessionAddress(week: week, day: day))
     }
@@ -128,7 +127,7 @@ final class WriteTargetAuditEntry {
 
     @Attribute(.unique) var id: UUID
     var createdAt: Date
-    // Shipped stores hold these attribute names. Read them through `session`.
+    // Shipped stores hold these attribute names.
     private var blockTab: String
     private var week: Int
     private var day: Int

@@ -4,9 +4,7 @@ import Foundation
 ///
 /// The entry's persisted `source` is this coordinate's `storageValue`, and ADR-0012 makes that string
 /// the append-only table's dedup key. The encoding is therefore an identity, not a label — changing it
-/// would make every stored entry miss dedup and re-append on the next sync. Everything the athlete
-/// reads is a separate projection (`blockTab` as the sheet's Block header, `address.sessionLabel` as
-/// its gutter), so a cosmetic change to how a Session reads on screen cannot re-key the store.
+/// would make every stored entry miss dedup and re-append on the next sync.
 struct SessionCoordinate: Hashable, Sendable {
     let blockTab: String
     let address: SessionAddress

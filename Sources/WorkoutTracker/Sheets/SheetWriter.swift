@@ -1,7 +1,6 @@
 import Foundation
 
 struct SheetWriteRequest: Sendable, Equatable {
-    /// Its Day is a header number, whatever numbering the queued write recorded.
     var session: SessionCoordinate
     var exerciseName: String
     var setIndex: Int
