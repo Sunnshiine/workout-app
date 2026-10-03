@@ -46,13 +46,13 @@ while [ $# -gt 0 ]; do
 done
 case "$sub" in
     "pr view")
-        [ "$id" != main ] || { echo 'no pull requests found for branch "main"' >&2; exit 1; }
+        if [[ "$id" == main || "$id" =~ ^[0-9a-f]{7,40}$ ]]; then echo "no pull requests found for branch \"$id\"" >&2; exit 1; fi
         jq -nr --arg s "$STUB_SHA" '{headRefOid: $s}' | jq -r "$jq_expr" ;;
     "api repos/{owner}/{repo}/commits/"*) jq -nr --arg s "$STUB_SHA" '{sha: $s}' | jq -r "$jq_expr" ;;
     "run list")
         for f in ${fields//,/ }; do
             case "$f" in
-                databaseId | workflowName | event | status | conclusion | headSha) ;;
+                databaseId | workflowName | event | status | conclusion | headSha | createdAt | updatedAt) ;;
                 *) echo "gh stub: gh run list has no JSON field $f" >&2; exit 1 ;;
             esac
         done
@@ -192,8 +192,8 @@ check "a run that appears after two polls" 0 "CI success on 73b27aa (run $A)
     "[$(workflow_run CI push $A completed success swift-tests lint visual-tests)]"
 
 check "a commit that never gets a run exits 3" 3 "" 668 "[]"
-if grep -qx "no workflow ran on 73b27aa; path filters or job conditions skipped every one" "$root/case/err"; then
-    ok "a commit that never gets a run names the path-filter cause"
+if grep -qx "no pull_request workflow ran on 73b27aa" "$root/case/err"; then
+    ok "a commit that never gets a run names the event it searched"
 else
     bad "a commit that never gets a run: stderr was $(cat "$root/case/err")"
 fi
@@ -270,20 +270,33 @@ check "a failed build is not erased by a later skipped run of its workflow" 1 "T
   build: failure" 505 \
     "[$(workflow_run "TestFlight PR" pull_request $C completed skipped build), $(workflow_run "TestFlight PR" pull_request $B completed failure build)]"
 
-later_merge="$(workflow_run "TestFlight Stable" push $C completed success archive upload | jq -c '.headSha = "later"')"
-check "on main, a run a later merge cancelled is superseded, not failed" 0 "CI success on 73b27aa (run $A)
+cancelled_at() { jq -c --arg c "$2" '.updatedAt = $c' <<<"$1"; }
+later_run() { jq -c --arg c "$2" '.headSha = "later" | .createdAt = $c' <<<"$1"; }
+later_merge=$(later_run "$(workflow_run "TestFlight Stable" push $C completed success archive upload)" 2026-09-24T00:03:30Z)
+for target in main 999b783; do
+    check "on $target, a run a later merge cancelled is superseded, not failed" 0 "CI success on 73b27aa (run $A)
   swift-tests: success
   lint: success
   visual-tests: success
 TestFlight Stable superseded on 73b27aa (run $B)
   archive: cancelled
+  upload: cancelled" "$target" \
+        "[$later_merge, $(workflow_run CI push $A completed success swift-tests lint visual-tests), $(cancelled_at "$(workflow_run "TestFlight Stable" push $B completed cancelled archive upload)" 2026-09-24T00:04:02Z)]"
+done
+
+check "on main, a run cancelled before any later run started fails" 1 "TestFlight Stable cancelled on 73b27aa (run $B)
+  archive: cancelled
   upload: cancelled" main \
-    "[$later_merge, $(workflow_run CI push $A completed success swift-tests lint visual-tests), $(workflow_run "TestFlight Stable" push $B completed cancelled archive upload)]"
+    "[$later_merge, $(cancelled_at "$(workflow_run "TestFlight Stable" push $B completed cancelled archive upload)" 2026-09-24T00:03:00Z)]"
 
 check "on main, a cancelled run with no later run of its workflow fails" 1 "TestFlight Stable cancelled on 73b27aa (run $B)
   archive: cancelled
   upload: cancelled" main \
     "[$(workflow_run "TestFlight Stable" push $B completed cancelled archive upload)]"
+
+check "a failed build is not erased by a cancelled retry and a later skipped run" 1 "TestFlight PR failure on 73b27aa (run $A)
+  build: failure" 505 \
+    "[$(workflow_run "TestFlight PR" pull_request $C completed skipped build), $(workflow_run "TestFlight PR" pull_request $B completed cancelled build), $(workflow_run "TestFlight PR" pull_request $A completed failure build)]"
 
 check "a PR named by its branch answers for its pull_request runs" 0 "$success_b" fix/retro-ciwait \
     "[$(run_record $B completed success visual-tests swift-tests lint)]"

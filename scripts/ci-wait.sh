@@ -11,9 +11,9 @@ and its jobs. Exits 0 when every workflow succeeded, 1 when one failed or was ca
 when no workflow ran.
 
 Runs are matched by commit, so right after a merge this waits for the merge's own runs instead of
-reporting the previous ones. Each workflow answers with its newest run on the commit that was not
-skipped. A run cancelled by a newer run of its workflow does not count: on the same commit the
-newer run answers instead, and on main a later commit's run supersedes it.
+reporting the previous ones. Each workflow answers with its newest run on the commit that was
+neither skipped nor cancelled by a newer run of that workflow. On main, a run that a later
+merge's run cancelled prints as superseded and passes.
 EOF
 }
 
@@ -38,9 +38,9 @@ newest_runs() {
     gh run list --commit "$sha" --event "$event" --limit 100 \
         --json databaseId,workflowName,status,conclusion \
         --jq 'group_by(.workflowName) | map(
-                (map(select(.conclusion != "skipped")) | max_by(.databaseId)) as $ran
-                | select($ran != null and ($ran.conclusion != "cancelled" or $ran == max_by(.databaseId)))
-                | $ran)
+                max_by(.databaseId).databaseId as $newest
+                | map(select(.conclusion != "skipped" and (.conclusion != "cancelled" or .databaseId == $newest)))
+                | max_by(.databaseId) | select(. != null))
             | .[] | [.databaseId, .status, .conclusion, .workflowName] | @tsv'
 }
 
@@ -58,14 +58,17 @@ while pending=$(awk -F'\t' 'NF && $2 != "completed" { print $1; exit }' <<<"$run
 done
 
 if [[ -z "$runs" ]]; then
-    echo "no workflow ran on ${sha:0:7}; path filters or job conditions skipped every one" >&2
+    echo "no $event workflow ran on ${sha:0:7}" >&2
     exit 3
 fi
 
 failed=0
 while IFS=$'\t' read -r run _ conclusion workflow; do
+    # TestFlight Stable shares one concurrency group across commits, so the next merge cancels it.
     if [[ "$event" == push && "$conclusion" == cancelled ]] &&
-        (( $(gh run list --workflow "$workflow" --event push --limit 1 --json databaseId --jq '.[0].databaseId' </dev/null) > run )); then
+        gh run list --workflow "$workflow" --event push --limit 100 --json databaseId,createdAt,updatedAt \
+            --jq "(map(select(.databaseId == $run))[0].updatedAt) as \$end
+                | any(.[]; .databaseId > $run and .createdAt <= \$end)" </dev/null | grep -qx true; then
         conclusion=superseded
     fi
     echo "$workflow $conclusion on ${sha:0:7} (run $run)"
