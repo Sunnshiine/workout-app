@@ -110,7 +110,7 @@ all sit in `ci.yml`'s `paths-ignore` (Markdown, `docs/`, agent files, and more) 
 - XcodeBuildMCP session defaults point at the primary checkout. From a worktree, pass
   `-project <worktree>/WorkoutTracker.xcodeproj` explicitly. The `.mcp.json` pin stays at 2.7.0 or
   later, because older builds fail every accessibility call on Xcode 27.
-- Land with `scripts/ci-wait.sh N` and then `gh pr merge N --squash`. Leave out `--delete-branch`.
+- Land with `scripts/ci-wait.sh N` and the merge command it prints. Leave out `--delete-branch`.
   GitHub deletes the remote branch itself, and the flag switches whichever worktree holds the
   branch onto `main`. `scripts/prune-merged-worktrees.sh` lists worktrees whose PR has merged or
   closed and removes them only under `--apply`.
