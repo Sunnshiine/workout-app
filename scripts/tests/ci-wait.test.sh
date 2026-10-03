@@ -30,13 +30,14 @@ printf '%s\n' "$*" >>"$STUB_DIR/calls.log"
 frame="$STUB_DIR/frames/$(cat "$STUB_DIR/cursor").json"
 sub="$1 $2"
 shift 2
-id="" jq_expr="." limit=20 commit="" workflow=""
+id="" jq_expr="." limit=20 commit="" workflow="" event=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --jq) jq_expr=$2; shift 2 ;;
         --limit) limit=$2; shift 2 ;;
         --commit) commit=$2; shift 2 ;;
         --workflow) workflow=$2; shift 2 ;;
+        --event) event=$2; shift 2 ;;
         --json | --interval) shift 2 ;;
         -*) echo "gh stub: unexpected flag $1" >&2; exit 1 ;;
         *) id=$1; shift ;;
@@ -46,8 +47,27 @@ case "$sub" in
     "pr view") jq -nr --arg s "$STUB_SHA" '{headRefOid: $s}' | jq -r "$jq_expr" ;;
     "api repos/{owner}/{repo}/commits/"*) jq -nr --arg s "$STUB_SHA" '{sha: $s}' | jq -r "$jq_expr" ;;
     "run list")
-        [ "$workflow" = CI ] || { echo "gh stub: workflow $workflow" >&2; exit 1; }
-        if [ "$commit" = "$STUB_SHA" ]; then jq ".[:$limit]" "$frame"; else echo '[]'; fi | jq -r "$jq_expr" ;;
+        [ "$commit" = "$STUB_SHA" ] || { echo '[]' | jq -r "$jq_expr"; exit 0; }
+        jq --arg w "$workflow" --arg e "$event" \
+            "map(select((\$w == \"\" or .workflowName == \$w) and (\$e == \"\" or .event == \$e))) | .[:$limit]" \
+            "$frame" | jq -r "$jq_expr" ;;
+    "pr checks")
+        # gh keeps the most recently started job per workflow, job name, and event; a queued job
+        # has not started, so a started job of an older run wins over it.
+        jq '[.[] | . as $run | .jobs[] | {
+                name, workflow: $run.workflowName, event: $run.event,
+                startedAt: (if $run.status == "queued" then 0 else $run.databaseId end),
+                state: ((if $run.status == "completed" then .conclusion else $run.status end) | ascii_upcase),
+                link: "https://github.com/o/r/actions/runs/\($run.databaseId)"}
+                | .bucket = ({SUCCESS: "pass", SKIPPED: "skipping", NEUTRAL: "skipping", FAILURE: "fail",
+                              TIMED_OUT: "fail", CANCELLED: "cancel"}[.state] // "pending")]
+            | sort_by(-.startedAt) | unique_by([.workflow, .name, .event]) | sort_by(-.startedAt)' \
+            "$frame" >"$STUB_DIR/checks.json"
+        if [ "$(jq length "$STUB_DIR/checks.json")" -eq 0 ]; then
+            echo "no checks reported on the 'stub' branch" >&2
+            exit 1
+        fi
+        jq -r "$jq_expr" "$STUB_DIR/checks.json" ;;
     "run watch") next-frame ;;
     "run view")
         jq -e --argjson id "$id" '.[] | select(.databaseId == $id)' "$frame" >"$STUB_DIR/view.json" \
@@ -66,14 +86,20 @@ run_record() {
     local id=$1 status=$2 conclusion=$3
     shift 3
     [ $# -gt 0 ] || set -- swift-tests lint visual-tests
-    jq -nc --argjson id "$id" --arg s "$status" --arg c "$conclusion" \
-        '{databaseId: $id, status: $s, conclusion: $c,
+    workflow_run CI pull_request "$id" "$status" "$conclusion" "$@"
+}
+
+workflow_run() {
+    local workflow=$1 event=$2 id=$3 status=$4 conclusion=$5
+    shift 5
+    jq -nc --arg w "$workflow" --arg e "$event" --argjson id "$id" --arg s "$status" --arg c "$conclusion" \
+        '{databaseId: $id, workflowName: $w, event: $e, status: $s, conclusion: $c,
           jobs: [$ARGS.positional[] | {name: ., conclusion: $c}]}' --args "$@"
 }
 
-check() {
-    local name=$1 want_status=$2 want_out=$3 arg=$4
-    shift 4
+run_case() {
+    local arg=$1
+    shift
     local dir="$root/case"
     rm -rf "$dir"
     mkdir -p "$dir/frames"
@@ -82,15 +108,37 @@ check() {
     echo 0 >"$dir/cursor"
     : >"$dir/calls.log"
     STUB_DIR="$dir" STUB_SHA="$sha" PATH="$root/bin:$PATH" "$ci_wait" "$arg" >"$dir/out" 2>"$dir/err"
-    local status=$?
-    if [ "$status" -eq "$want_status" ] && [ "$(cat "$dir/out")" = "$want_out" ]; then
+    status=$?
+}
+
+report_failure() {
+    local dir="$root/case"
+    bad "$1"
+    printf 'want exit %s, stdout:\n%s\n' "$2" "$3" | sed 's/^/       /'
+    printf 'got exit %s, stdout:\n%s\n' "$status" "$(cat "$dir/out")" | sed 's/^/       /'
+    [ -s "$dir/err" ] && sed 's/^/       stderr: /' "$dir/err"
+    sed 's/^/       gh /' "$dir/calls.log"
+}
+
+check() {
+    local name=$1 want_status=$2 want_out=$3
+    shift 3
+    run_case "$@"
+    if [ "$status" -eq "$want_status" ] && [ "$(cat "$root/case/out")" = "$want_out" ]; then
         ok "$name"
     else
-        bad "$name"
-        printf 'want exit %s, stdout:\n%s\n' "$want_status" "$want_out" | sed 's/^/       /'
-        printf 'got exit %s, stdout:\n%s\n' "$status" "$(cat "$dir/out")" | sed 's/^/       /'
-        [ -s "$dir/err" ] && sed 's/^/       stderr: /' "$dir/err"
-        sed 's/^/       gh /' "$dir/calls.log"
+        report_failure "$name" "$want_status" "$want_out"
+    fi
+}
+
+check_line() {
+    local name=$1 want_status=$2 want_line=$3
+    shift 3
+    run_case "$@"
+    if [ "$status" -eq "$want_status" ] && grep -qxF -- "$want_line" "$root/case/out"; then
+        ok "$name"
+    else
+        report_failure "$name" "$want_status" "a line reading: $want_line"
     fi
 }
 
@@ -179,6 +227,19 @@ if grep -qx "no CI run for 73b27aa after 5 minutes; ci.yml paths-ignore skips do
 else
     bad "a commit that never gets a run: stderr was $(cat "$root/case/err")"
 fi
+
+# #796: probe PR #795 changed one skill file, so CI skipped it and Workflow lint failed it.
+L=37087587279
+
+check_line "#796: a red check from another workflow fails a PR that CI skipped" 1 "  skill-links: failure" 795 \
+    "[$(workflow_run "Workflow lint" pull_request $L completed failure skill-links)]"
+
+check_line "#796: a red check from another workflow fails a PR whose CI is green" 1 "  skill-links: failure" 795 \
+    "[$(workflow_run "Workflow lint" pull_request $L completed failure skill-links), $(run_record $A completed success)]"
+
+check_line "#796: a PR whose only workflow is not CI and passes succeeds" 0 "  skill-links: success" 795 \
+    "[$(workflow_run "Workflow lint" pull_request $L in_progress "" skill-links)]" \
+    "[$(workflow_run "Workflow lint" pull_request $L completed success skill-links)]"
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1
