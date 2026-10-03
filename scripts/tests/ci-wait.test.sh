@@ -30,7 +30,7 @@ printf '%s\n' "$*" >>"$STUB_DIR/calls.log"
 frame="$STUB_DIR/frames/$(cat "$STUB_DIR/cursor").json"
 sub="$1 $2"
 shift 2
-id="" jq_expr="." limit=20 commit="" workflow="" event=""
+id="" jq_expr="." limit=20 commit="" workflow="" event="" fields=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --jq) jq_expr=$2; shift 2 ;;
@@ -38,7 +38,8 @@ while [ $# -gt 0 ]; do
         --commit) commit=$2; shift 2 ;;
         --workflow) workflow=$2; shift 2 ;;
         --event) event=$2; shift 2 ;;
-        --json | --interval) shift 2 ;;
+        --json) fields=$2; shift 2 ;;
+        --interval) shift 2 ;;
         -*) echo "gh stub: unexpected flag $1" >&2; exit 1 ;;
         *) id=$1; shift ;;
     esac
@@ -47,27 +48,16 @@ case "$sub" in
     "pr view") jq -nr --arg s "$STUB_SHA" '{headRefOid: $s}' | jq -r "$jq_expr" ;;
     "api repos/{owner}/{repo}/commits/"*) jq -nr --arg s "$STUB_SHA" '{sha: $s}' | jq -r "$jq_expr" ;;
     "run list")
+        for f in ${fields//,/ }; do
+            case "$f" in
+                databaseId | workflowName | event | status | conclusion | headSha) ;;
+                *) echo "gh stub: gh run list has no JSON field $f" >&2; exit 1 ;;
+            esac
+        done
         [ "$commit" = "$STUB_SHA" ] || { echo '[]' | jq -r "$jq_expr"; exit 0; }
         jq --arg w "$workflow" --arg e "$event" \
             "map(select((\$w == \"\" or .workflowName == \$w) and (\$e == \"\" or .event == \$e))) | .[:$limit]" \
             "$frame" | jq -r "$jq_expr" ;;
-    "pr checks")
-        # gh keeps the most recently started job per workflow, job name, and event; a queued job
-        # has not started, so a started job of an older run wins over it.
-        jq '[.[] | . as $run | .jobs[] | {
-                name, workflow: $run.workflowName, event: $run.event,
-                startedAt: (if $run.status == "queued" then 0 else $run.databaseId end),
-                state: ((if $run.status == "completed" then .conclusion else $run.status end) | ascii_upcase),
-                link: "https://github.com/o/r/actions/runs/\($run.databaseId)"}
-                | .bucket = ({SUCCESS: "pass", SKIPPED: "skipping", NEUTRAL: "skipping", FAILURE: "fail",
-                              TIMED_OUT: "fail", CANCELLED: "cancel"}[.state] // "pending")]
-            | sort_by(-.startedAt) | unique_by([.workflow, .name, .event]) | sort_by(-.startedAt)' \
-            "$frame" >"$STUB_DIR/checks.json"
-        if [ "$(jq length "$STUB_DIR/checks.json")" -eq 0 ]; then
-            echo "no checks reported on the 'stub' branch" >&2
-            exit 1
-        fi
-        jq -r "$jq_expr" "$STUB_DIR/checks.json" ;;
     "run watch") next-frame ;;
     "run view")
         jq -e --argjson id "$id" '.[] | select(.databaseId == $id)' "$frame" >"$STUB_DIR/view.json" \
@@ -97,9 +87,9 @@ workflow_run() {
           jobs: [$ARGS.positional[] | {name: ., conclusion: $c}]}' --args "$@"
 }
 
-run_case() {
-    local arg=$1
-    shift
+check() {
+    local name=$1 want_status=$2 want_out=$3 arg=$4
+    shift 4
     local dir="$root/case"
     rm -rf "$dir"
     mkdir -p "$dir/frames"
@@ -108,37 +98,15 @@ run_case() {
     echo 0 >"$dir/cursor"
     : >"$dir/calls.log"
     STUB_DIR="$dir" STUB_SHA="$sha" PATH="$root/bin:$PATH" "$ci_wait" "$arg" >"$dir/out" 2>"$dir/err"
-    status=$?
-}
-
-report_failure() {
-    local dir="$root/case"
-    bad "$1"
-    printf 'want exit %s, stdout:\n%s\n' "$2" "$3" | sed 's/^/       /'
-    printf 'got exit %s, stdout:\n%s\n' "$status" "$(cat "$dir/out")" | sed 's/^/       /'
-    [ -s "$dir/err" ] && sed 's/^/       stderr: /' "$dir/err"
-    sed 's/^/       gh /' "$dir/calls.log"
-}
-
-check() {
-    local name=$1 want_status=$2 want_out=$3
-    shift 3
-    run_case "$@"
-    if [ "$status" -eq "$want_status" ] && [ "$(cat "$root/case/out")" = "$want_out" ]; then
+    local status=$?
+    if [ "$status" -eq "$want_status" ] && [ "$(cat "$dir/out")" = "$want_out" ]; then
         ok "$name"
     else
-        report_failure "$name" "$want_status" "$want_out"
-    fi
-}
-
-check_line() {
-    local name=$1 want_status=$2 want_line=$3
-    shift 3
-    run_case "$@"
-    if [ "$status" -eq "$want_status" ] && grep -qxF -- "$want_line" "$root/case/out"; then
-        ok "$name"
-    else
-        report_failure "$name" "$want_status" "a line reading: $want_line"
+        bad "$name"
+        printf 'want exit %s, stdout:\n%s\n' "$want_status" "$want_out" | sed 's/^/       /'
+        printf 'got exit %s, stdout:\n%s\n' "$status" "$(cat "$dir/out")" | sed 's/^/       /'
+        [ -s "$dir/err" ] && sed 's/^/       stderr: /' "$dir/err"
+        sed 's/^/       gh /' "$dir/calls.log"
     fi
 }
 
@@ -218,12 +186,12 @@ check "a run that appears after two polls" 0 "CI success on 73b27aa (run $A)
   lint: success
   visual-tests: success" main \
     "[]" "[]" \
-    "[$(run_record $A in_progress "")]" \
-    "[$(run_record $A completed success)]"
+    "[$(workflow_run CI push $A in_progress "" swift-tests lint visual-tests)]" \
+    "[$(workflow_run CI push $A completed success swift-tests lint visual-tests)]"
 
 check "a commit that never gets a run exits 3" 3 "" 668 "[]"
-if grep -qx "no CI run for 73b27aa after 5 minutes; ci.yml paths-ignore skips docs-only changes" "$root/case/err"; then
-    ok "a commit that never gets a run names the paths-ignore cause"
+if grep -qx "no workflow ran on 73b27aa within 5 minutes; path filters skipped every workflow" "$root/case/err"; then
+    ok "a commit that never gets a run names the path-filter cause"
 else
     bad "a commit that never gets a run: stderr was $(cat "$root/case/err")"
 fi
@@ -231,15 +199,71 @@ fi
 # #796: probe PR #795 changed one skill file, so CI skipped it and Workflow lint failed it.
 L=37087587279
 
-check_line "#796: a red check from another workflow fails a PR that CI skipped" 1 "  skill-links: failure" 795 \
+check "#796: a red check from another workflow fails a PR that CI skipped" 1 "Workflow lint failure on 73b27aa (run $L)
+  skill-links: failure" 795 \
     "[$(workflow_run "Workflow lint" pull_request $L completed failure skill-links)]"
 
-check_line "#796: a red check from another workflow fails a PR whose CI is green" 1 "  skill-links: failure" 795 \
+check "#796: a red check from another workflow fails a PR whose CI is green" 1 "CI success on 73b27aa (run $A)
+  swift-tests: success
+  lint: success
+  visual-tests: success
+Workflow lint failure on 73b27aa (run $L)
+  skill-links: failure" 795 \
     "[$(workflow_run "Workflow lint" pull_request $L completed failure skill-links), $(run_record $A completed success)]"
 
-check_line "#796: a PR whose only workflow is not CI and passes succeeds" 0 "  skill-links: success" 795 \
+check "#796: a PR whose only workflow is not CI and passes succeeds" 0 "Workflow lint success on 73b27aa (run $L)
+  skill-links: success" 795 \
     "[$(workflow_run "Workflow lint" pull_request $L in_progress "" skill-links)]" \
     "[$(workflow_run "Workflow lint" pull_request $L completed success skill-links)]"
+
+V=35742049109
+W=35742049659
+
+check "PR 668 live: each workflow's cancelled duplicate loses to its newer run" 0 "CI success on 73b27aa (run $B)
+  swift-tests: success
+  lint: success
+  visual-tests: success
+Verify tools success on 73b27aa (run $W)
+  sheet: success
+  tree: success" 668 \
+    "[$(run_record $B completed success), $(workflow_run "Verify tools" pull_request $V completed cancelled sheet tree), $(workflow_run "Verify tools" pull_request $W completed success sheet tree), $(run_record $A completed cancelled)]"
+
+check "a queued replacement is waited on, not hidden behind the run it cancelled" 0 "$success_b" 668 \
+    "[$(run_record $A in_progress "")]" \
+    "[$(run_record $B queued "" visual-tests swift-tests lint), $(run_record $A completed cancelled)]" \
+    "[$(run_record $B completed success visual-tests swift-tests lint), $(run_record $A completed cancelled)]"
+
+check "a workflow still running after CI finished decides" 1 "CI success on 73b27aa (run $A)
+  swift-tests: success
+  lint: success
+  visual-tests: success
+Verify tools failure on 73b27aa (run $W)
+  sheet: failure
+  tree: failure" 668 \
+    "[$(run_record $A in_progress ""), $(workflow_run "Verify tools" pull_request $W in_progress "" sheet tree)]" \
+    "[$(run_record $A completed success), $(workflow_run "Verify tools" pull_request $W in_progress "" sheet tree)]" \
+    "[$(run_record $A completed success), $(workflow_run "Verify tools" pull_request $W completed failure sheet tree)]"
+
+check "a skipped run that cancelled a build leaves only CI to answer" 0 "CI success on 73b27aa (run $A)
+  swift-tests: success
+  lint: success
+  visual-tests: success" 668 \
+    "[$(workflow_run testflight-pr pull_request $C completed skipped build), $(workflow_run testflight-pr pull_request $B completed cancelled build), $(run_record $A completed success)]"
+
+check "a PR whose only runs were skipped exits 3" 3 "" 788 \
+    "[$(workflow_run testflight-pr pull_request $A completed skipped build)]"
+
+issue_runs="$(workflow_run "Agent Implement" issues $((C + 2)) in_progress "" implement), $(workflow_run "Agent To Issues PRD" issues $((C + 1)) completed failure to-issues), "
+check "main answers for its push runs, not the issues-event agent runs on its head" 0 "CI success on 73b27aa (run $A)
+  swift-tests: success
+  lint: success
+  visual-tests: success
+TestFlight Stable success on 73b27aa (run $B)
+  archive: success
+  upload: success" main \
+    "[${issue_runs}$(workflow_run CI push $A in_progress "" swift-tests lint visual-tests), $(workflow_run "TestFlight Stable" push $B in_progress "" archive upload)]" \
+    "[${issue_runs}$(workflow_run CI push $A completed success swift-tests lint visual-tests), $(workflow_run "TestFlight Stable" push $B in_progress "" archive upload)]" \
+    "[${issue_runs}$(workflow_run CI push $A completed success swift-tests lint visual-tests), $(workflow_run "TestFlight Stable" push $B completed success archive upload)]"
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1
