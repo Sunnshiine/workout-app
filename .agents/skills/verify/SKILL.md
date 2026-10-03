@@ -91,7 +91,7 @@ frame, and then it taps that centre. A system prompt over the app is covered. Th
 That second read makes a tap that lands take about 3 s, against about 2 s without it.
 
 When `tap --id` never gets a hit that passes every check, it exits 1 and says `off-screen`,
-`clipped`, `disabled`, or `covered`. A refusal takes 4 to 7 s, because it polls the full 3 s and
+`clipped`, `disabled`, or `covered`. A refusal takes 4 s or more, because it polls the full 3 s and
 then reads once more. A `clipped` note names the container whose frame misses the centre, such as
 the RPE track. A `covered` note names what is on top instead, such as an alert's backdrop, or
 whatever took the place of an element that went away after the tree was read. So a tap that reports
