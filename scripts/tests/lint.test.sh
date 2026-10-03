@@ -264,17 +264,20 @@ expect_exit "outside" "$status" 64
 expect_line "outside" "$err" "error: '$root/Elsewhere.swift' is outside this checkout."
 expect_no_text "outside" "$both" "==> Clean"
 
-echo "refused: a directory, a missing path, a non-Swift file, and a file outside included:"
+echo "refused: a directory, a missing path, a non-Swift file, a file outside included:, and an excluded file"
 fresh_fixture
 baseline_config
 mkdir -p "$fx/tools"
 printf 'let tool = 1\n' >"$fx/tools/Tool.swift"
 printf 'notes\n' >"$fx/README.md"
+mkdir -p "$fx/Sources/Core/Generated"
+printf '%s\n' "$violation" >"$fx/Sources/Core/Generated/Table.swift"
 for refused in \
     "App/Views|error: 'App/Views' is not a .swift file." \
     "App/Nope.swift|error: 'App/Nope.swift' is not a file." \
     "README.md|error: 'README.md' is not a .swift file." \
-    "tools/Tool.swift|error: 'tools/Tool.swift' is outside .swiftlint.yml 'included:', so CI does not lint it."; do
+    "tools/Tool.swift|error: 'tools/Tool.swift' is outside .swiftlint.yml 'included:', so CI does not lint it." \
+    "Sources/Core/Generated/Table.swift|error: 'Sources/Core/Generated/Table.swift' is under .swiftlint.yml 'excluded:' entry '**/Generated', so CI does not lint it."; do
     path=${refused%%|*}
     cd "$fx" || exit 3
     run_lint scripts/lint.sh "$path"

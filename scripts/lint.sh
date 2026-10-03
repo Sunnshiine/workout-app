@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
 # Lint every tree .swiftlint.yml claims, or only the Swift files named, without building the app.
 #
-# A file argument lints that file alone, with CI's config and --strict. The script refuses a
-# directory or a missing path because SwiftLint would swap it for the whole `included:` set and
-# still exit 0, and refuses a file outside `included:` because CI never lints it. A named file under
-# an `excluded:` entry is still linted: --force-exclude would skip it and print Clean over nothing,
-# and no tracked Swift file sits under one.
+# The script refuses a directory or a missing path because SwiftLint would swap it for the whole
+# `included:` set and still exit 0.
 #
 #   scripts/lint.sh                      lint (what CI runs)
 #   scripts/lint.sh <file.swift>...      lint those files alone
@@ -18,9 +15,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PHYSICAL_ROOT="$(cd "$ROOT" && pwd -P)"
 CONFIG=".swiftlint.yml"
 
-# SwiftLint skips an `included:` entry that matches nothing and still exits 0.
-included_roots() {
-    awk '/^included:/ { inside = 1; next }
+config_list() {
+    awk -v key="$1" '$0 ~ "^" key ":" { inside = 1; next }
          inside && /^[^[:space:]#]/ { exit }
          inside && /^[[:space:]]*-[[:space:]]/ {
              sub(/^[[:space:]]*-[[:space:]]*/, "")
@@ -36,10 +32,8 @@ usage() {
     exit 64
 }
 
-# SwiftLint finds the root .swiftlint.yml only in its working directory, so each path is made
-# relative to the root here and linted from there.
 root_relative() {
-    local arg=$1 dir file included
+    local arg=$1 dir file entry inside=""
     case "$arg" in
         *.swift) ;;
         *) echo "error: '$arg' is not a .swift file." >&2; exit 64 ;;
@@ -54,17 +48,25 @@ root_relative() {
         *) echo "error: '$arg' is outside this checkout." >&2; exit 64 ;;
     esac
     file="${dir#"$PHYSICAL_ROOT"/}$(basename "$arg")"
-    while read -r included; do
-        case "$file" in "$included"/*)
-            echo "$file"
-            return
+    while read -r entry; do
+        case "$file" in "$entry"/*) inside=1 ;; esac
+    done <<INCLUDED_EOF
+$(config_list included)
+INCLUDED_EOF
+    if [ -z "$inside" ]; then
+        echo "error: '$file' is outside $CONFIG 'included:', so CI does not lint it." >&2
+        exit 64
+    fi
+    while read -r entry; do
+        case "$file" in $entry | $entry/*)
+            echo "error: '$file' is under $CONFIG 'excluded:' entry '$entry', so CI does not lint it." >&2
+            exit 64
             ;;
         esac
-    done <<ROOTS_EOF
-$(included_roots)
-ROOTS_EOF
-    echo "error: '$file' is outside $CONFIG 'included:', so CI does not lint it." >&2
-    exit 64
+    done <<EXCLUDED_EOF
+$(config_list excluded)
+EXCLUDED_EOF
+    echo "$file"
 }
 
 MODE="lint"
@@ -110,7 +112,7 @@ if [ "$MODE" = "print-version" ]; then
 fi
 
 # SwiftLint writes its benchmark files into ROOT, so a second whole-tree run in this checkout waits
-# here rather than deleting or reading the first run's files. A file run writes none.
+# here rather than deleting or reading the first run's files.
 if [ -z "${LINT_SH_LOCKED:-}" ] && [ "${#FILES[@]}" -eq 0 ]; then
     LOCK="$(git rev-parse --git-dir)/lint.lock"
     LINT_SH_LOCKED=1 exec lockf -k "$LOCK" "$ROOT/scripts/lint.sh" "$@"
@@ -142,7 +144,7 @@ if [ "$MODE" = "print-path" ]; then
     exit 0
 fi
 
-ROOTS="$(included_roots)"
+ROOTS="$(config_list included)"
 if [ -z "$ROOTS" ]; then
     echo "error: $CONFIG has no 'included:' entries, so this run would lint nothing." >&2
     exit 1
