@@ -46,12 +46,14 @@ struct SheetLayout: Sendable {
         weeks.first { $0.number == number }
     }
 
-    func day(week weekNumber: Int, day dayNumber: Int) -> SheetLayoutDay? {
-        week(number: weekNumber)?.days.first { $0.number == dayNumber }
+    func day(at address: SessionAddress) -> SheetLayoutDay? {
+        week(number: address.week)?.days.first { $0.number == address.day }
     }
 
-    func rankAndNumberAgree(week weekNumber: Int, day: Int) -> Bool {
-        guard let week = week(number: weekNumber) else { return true }
+    /// Reads `address.day` as a header rank.
+    func rankAndNumberAgree(at address: SessionAddress) -> Bool {
+        let day = address.day
+        guard let week = week(number: address.week) else { return true }
         guard week.dayHeaders.indices.contains(day - 1) else { return !week.days.contains { $0.number == day } }
         return week.dayHeaders[day - 1].reading == .session(day)
     }

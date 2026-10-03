@@ -42,7 +42,7 @@ import Testing
         cols: 30
     )
 
-    let day = try #require(SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid)).day(week: 1, day: 1))
+    let day = try #require(SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid)).day(at: SessionAddress(week: 1, day: 1)))
 
     #expect(day.columns.name == 2)
     #expect(day.columns.sets == 4)
@@ -65,7 +65,7 @@ import Testing
         cols: 30
     )
 
-    let day = try #require(SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid)).day(week: 1, day: 1))
+    let day = try #require(SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid)).day(at: SessionAddress(week: 1, day: 1)))
 
     #expect(day.exerciseAnchors.map(\.name) == ["Squat", "Bench Press"])
     #expect(day.exerciseAnchors.map(\.row) == [17, 24])
@@ -88,7 +88,7 @@ import Testing
         rowVisibility: [16: SheetRowVisibility(hiddenByUser: true)]
     )
 
-    let day = try #require(SheetLayoutInterpreter().interpret(snapshot).day(week: 1, day: 1))
+    let day = try #require(SheetLayoutInterpreter().interpret(snapshot).day(at: SessionAddress(week: 1, day: 1)))
 
     #expect(day.exerciseAnchors.map(\.name) == ["Back Squat", "2-3:1:0 BB RDL"])
     #expect(day.exerciseAnchors.map(\.row) == [14, 18])
@@ -122,7 +122,7 @@ import Testing
         rowVisibility: [16: SheetRowVisibility(hiddenByUser: true)]
     )
 
-    let day = try #require(SheetLayoutInterpreter().interpret(snapshot).day(week: 1, day: 1))
+    let day = try #require(SheetLayoutInterpreter().interpret(snapshot).day(at: SessionAddress(week: 1, day: 1)))
     let backSquat = try #require(day.exerciseAnchors.first)
 
     #expect(day.exerciseAnchors.map(\.name) == ["Back Squat", "2-3:1:0 BB RDL"])
@@ -143,7 +143,7 @@ import Testing
 
     for hidden in [SheetRowVisibility(hiddenByUser: true), SheetRowVisibility(hiddenByFilter: true)] {
         let snapshot = SheetSnapshot(values: grid, rowVisibility: [16: hidden])
-        let day = try #require(SheetLayoutInterpreter().interpret(snapshot).day(week: 1, day: 1))
+        let day = try #require(SheetLayoutInterpreter().interpret(snapshot).day(at: SessionAddress(week: 1, day: 1)))
         #expect(day.exerciseAnchors.map(\.name) == ["Back Squat"])
     }
 }
@@ -151,7 +151,7 @@ import Testing
 @Test func layoutInterpreterDescribesProtectedHeaderAndContinuationRows() throws {
     let grid = coachNoteLayoutGrid()
 
-    let day = try #require(SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid)).day(week: 1, day: 1))
+    let day = try #require(SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid)).day(at: SessionAddress(week: 1, day: 1)))
     let anchor = try #require(day.exerciseAnchors.first)
 
     #expect(anchor.headerNotesRole(in: grid, cols: day.columns) == .coachNote("Keep elbows soft"))
@@ -205,7 +205,7 @@ private func placement(
     rowVisibility: [Int: SheetRowVisibility] = [:]
 ) throws -> SetLogPlacementResolution {
     let snapshot = SheetSnapshot(values: grid, rowVisibility: rowVisibility)
-    let day = try #require(SheetLayoutInterpreter().interpret(snapshot).day(week: 1, day: 1))
+    let day = try #require(SheetLayoutInterpreter().interpret(snapshot).day(at: SessionAddress(week: 1, day: 1)))
     let anchor = try #require(day.exerciseAnchors.first { $0.name == exercise })
     return anchor.setLogPlacement(for: setIndex, in: snapshot, cols: day.columns)
 }
@@ -434,13 +434,13 @@ private enum PlacementTestError: Error { case notPlaced }
     let emptyLayout = SheetLayoutInterpreter().interpret(SheetSnapshot(values: gridFromA1([:], rows: 5, cols: 5)))
     #expect(emptyLayout.weeks.isEmpty)
     #expect(emptyLayout.week(number: 1) == nil)
-    #expect(emptyLayout.day(week: 1, day: 1) == nil)
+    #expect(emptyLayout.day(at: SessionAddress(week: 1, day: 1)) == nil)
 
     let oneDayLayout = SheetLayoutInterpreter().interpret(
         SheetSnapshot(values: gridFromA1(["C12": "Day 1"], rows: 20, cols: 20))
     )
     #expect(oneDayLayout.week(number: 2) == nil)
-    #expect(oneDayLayout.day(week: 1, day: 2) == nil)
+    #expect(oneDayLayout.day(at: SessionAddress(week: 1, day: 2)) == nil)
 }
 
 @Test func layoutInterpreterNumbersADayByItsHeaderNotItsPosition() {
@@ -454,10 +454,10 @@ private enum PlacementTestError: Error { case notPlaced }
 
     #expect(layout.weeks.count == 1)
     #expect(layout.week(number: 1)?.days.map(\.number) == [2])
-    #expect(layout.day(week: 1, day: 1) == nil)
-    #expect(layout.day(week: 1, day: 2)?.columns.name == 18)
-    #expect(layout.day(week: 1, day: 2)?.columns.notes == 26)
-    #expect(layout.day(week: 1, day: 2)?.exerciseAnchors.map(\.name) == ["Squat"])
+    #expect(layout.day(at: SessionAddress(week: 1, day: 1)) == nil)
+    #expect(layout.day(at: SessionAddress(week: 1, day: 2))?.columns.name == 18)
+    #expect(layout.day(at: SessionAddress(week: 1, day: 2))?.columns.notes == 26)
+    #expect(layout.day(at: SessionAddress(week: 1, day: 2))?.exerciseAnchors.map(\.name) == ["Squat"])
 }
 
 @Test func layoutInterpreterKeepsTheNumberOfADayAfterAGap() {
@@ -466,8 +466,8 @@ private enum PlacementTestError: Error { case notPlaced }
     let layout = SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid))
 
     #expect(layout.week(number: 1)?.days.map(\.number) == [1, 3])
-    #expect(layout.day(week: 1, day: 2) == nil)
-    #expect(layout.day(week: 1, day: 3)?.columns.span == 18..<34)
+    #expect(layout.day(at: SessionAddress(week: 1, day: 2)) == nil)
+    #expect(layout.day(at: SessionAddress(week: 1, day: 3))?.columns.span == 18..<34)
     #expect(layout.week(number: 1)?.ignoredDayHeaders == [])
 }
 
@@ -478,8 +478,8 @@ private enum PlacementTestError: Error { case notPlaced }
 
     #expect(layout.week(number: 1)?.days.map(\.number) == [1, 2])
     #expect(layout.week(number: 1)?.days.map(\.columns.span) == [18..<34, 2..<18])
-    #expect(layout.day(week: 1, day: 1)?.columns.span == 18..<34)
-    #expect(layout.day(week: 1, day: 2)?.columns.span == 2..<18)
+    #expect(layout.day(at: SessionAddress(week: 1, day: 1))?.columns.span == 18..<34)
+    #expect(layout.day(at: SessionAddress(week: 1, day: 2))?.columns.span == 2..<18)
 }
 
 @Test func layoutInterpreterReadsAZeroPaddedDayNumber() {
@@ -488,7 +488,7 @@ private enum PlacementTestError: Error { case notPlaced }
     let layout = SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid))
 
     #expect(layout.week(number: 1)?.days.map(\.number) == [1, 7])
-    #expect(layout.day(week: 1, day: 7)?.columns.name == 18)
+    #expect(layout.day(at: SessionAddress(week: 1, day: 7))?.columns.name == 18)
     #expect(layout.week(number: 1)?.ignoredDayHeaders == [])
 }
 
@@ -507,9 +507,9 @@ private enum PlacementTestError: Error { case notPlaced }
 
     #expect(layout.weeks.map(\.number) == [1, 2])
     #expect(layout.weeks.map { $0.days.map(\.number) } == [[3], [1, 2]])
-    #expect(layout.day(week: 1, day: 1) == nil)
-    #expect(layout.day(week: 1, day: 3)?.columns.span == 34..<50)
-    #expect(layout.day(week: 1, day: 3)?.columns.notes == 42)
+    #expect(layout.day(at: SessionAddress(week: 1, day: 1)) == nil)
+    #expect(layout.day(at: SessionAddress(week: 1, day: 3))?.columns.span == 34..<50)
+    #expect(layout.day(at: SessionAddress(week: 1, day: 3))?.columns.notes == 42)
     #expect(layout.weeks.map(\.ignoredDayHeaders) == [[.repeated(dayNumber: 1)], []])
 }
 
@@ -523,7 +523,7 @@ private enum PlacementTestError: Error { case notPlaced }
     let layout = SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid))
 
     #expect(layout.week(number: 1)?.days.map(\.number) == [7])
-    #expect(layout.day(week: 1, day: 7)?.columns.span == 18..<34)
+    #expect(layout.day(at: SessionAddress(week: 1, day: 7))?.columns.span == 18..<34)
     #expect(
         layout.week(number: 1)?.ignoredDayHeaders == [
             .outsideWeek(header: "Day 0"),

@@ -70,7 +70,7 @@ final class PendingWrite {
     func namesOneSession(on layout: SheetLayout) -> Bool {
         switch dayNumbering {
         case .headerNumber: true
-        case .legacyHeaderRank: layout.rankAndNumberAgree(week: week, day: day)
+        case .legacyHeaderRank: layout.rankAndNumberAgree(at: SessionAddress(week: week, day: day))
         }
     }
 

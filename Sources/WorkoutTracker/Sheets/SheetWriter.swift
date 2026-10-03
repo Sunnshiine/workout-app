@@ -1,9 +1,8 @@
 import Foundation
 
 struct SheetWriteRequest: Sendable, Equatable {
-    var blockTab: String
-    var week: Int
-    var day: Int
+    /// Its Day is a header number, whatever numbering the queued write recorded.
+    var session: SessionCoordinate
     var exerciseName: String
     var setIndex: Int
     var column: PendingWriteColumn
@@ -15,9 +14,7 @@ struct SheetWriteRequest: Sendable, Equatable {
     init?(_ write: PendingWrite, on layout: SheetLayout) {
         guard write.namesOneSession(on: layout) else { return nil }
         self.init(
-            blockTab: write.blockTab,
-            week: write.week,
-            day: write.day,
+            session: SessionCoordinate(blockTab: write.blockTab, address: SessionAddress(week: write.week, day: write.day)),
             exerciseName: write.exerciseName,
             setIndex: write.setIndex,
             column: write.column,
@@ -28,9 +25,7 @@ struct SheetWriteRequest: Sendable, Equatable {
     }
 
     init(
-        blockTab: String,
-        week: Int,
-        day: Int,
+        session: SessionCoordinate,
         exerciseName: String,
         setIndex: Int,
         column: PendingWriteColumn,
@@ -38,9 +33,7 @@ struct SheetWriteRequest: Sendable, Equatable {
         valueToWrite: String?,
         expectedCurrentValue: String
     ) {
-        self.blockTab = blockTab
-        self.week = week
-        self.day = day
+        self.session = session
         self.exerciseName = exerciseName
         self.setIndex = setIndex
         self.column = column
@@ -138,9 +131,9 @@ enum SheetWriteAddressing: Sendable {
     func addressedCell(for request: SheetWriteRequest) throws -> (row: Int, col: Int) {
         switch self {
         case .weekNotFound:
-            throw SheetWriterError.weekNotFound(request.week)
+            throw SheetWriterError.weekNotFound(request.session.address.week)
         case .dayNotFound:
-            throw SheetWriterError.dayNotFound(request.day)
+            throw SheetWriterError.dayNotFound(request.session.address.day)
         case .columnNotFound(let header):
             throw SheetWriterError.columnNotFound(header)
         case .exerciseNotFound:
@@ -227,7 +220,7 @@ struct SheetWritePlanner: Sendable {
 
     func target(for request: SheetWriteRequest, in snapshot: SheetWritePlanningSnapshot) throws -> SheetWriteTarget {
         let (row, col) = try addressing(for: request, in: snapshot).addressedCell(for: request)
-        return SheetWriteTarget(tabName: request.blockTab, row: row, col: col)
+        return SheetWriteTarget(tabName: request.session.blockTab, row: row, col: col)
     }
 
     func plan(
@@ -268,8 +261,8 @@ struct SheetWritePlanner: Sendable {
 
     func addressing(for request: SheetWriteRequest, in snapshot: SheetWritePlanningSnapshot) -> SheetWriteAddressing {
         let layout = snapshot.layout
-        guard layout.week(number: request.week) != nil else { return .weekNotFound }
-        guard let day = layout.day(week: request.week, day: request.day) else { return .dayNotFound }
+        guard layout.week(number: request.session.address.week) != nil else { return .weekNotFound }
+        guard let day = layout.day(at: request.session.address) else { return .dayNotFound }
 
         let (header, col): (String, Int?) =
             switch request.column {

@@ -82,7 +82,7 @@ extension SheetWritePlanner {
         selectedRow: Int?,
         in snapshot: SheetWritePlanningSnapshot
     ) -> String {
-        let session = "Week \(request.week), Day \(request.day)"
+        let session = "Week \(request.session.address.week), Day \(request.session.address.day)"
         let narration: SetLogPlacementNarration
         switch addressing(for: request, in: snapshot) {
         case .weekNotFound, .dayNotFound:

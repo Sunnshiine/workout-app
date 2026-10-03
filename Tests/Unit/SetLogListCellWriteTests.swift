@@ -19,9 +19,7 @@ import Testing
         cols: 30
     )
     let request = SheetWriteRequest(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: "Comp SQ",
         setIndex: 2,
         column: .notes,

@@ -23,9 +23,7 @@ private func snapshotWriterGrid(_ cells: [String: String]) -> SheetGrid {
 
     let update = try planner.plan(
         SheetWriteRequest(
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
+            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
             exerciseName: "Squat",
             setIndex: 0,
             column: .notes,
@@ -50,9 +48,7 @@ private func snapshotWriterGrid(_ cells: [String: String]) -> SheetGrid {
 
     let setOneUpdate = try planner.plan(
         SheetWriteRequest(
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
+            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
             exerciseName: "Squat",
             setIndex: 0,
             column: .notes,
@@ -65,9 +61,7 @@ private func snapshotWriterGrid(_ cells: [String: String]) -> SheetGrid {
     let updatedSnapshot = planner.applying(setOneUpdate, to: planningSnapshot)
     let setTwoUpdate = try planner.plan(
         SheetWriteRequest(
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
+            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
             exerciseName: "Squat",
             setIndex: 1,
             column: .notes,
@@ -91,9 +85,7 @@ private func snapshotWriterGrid(_ cells: [String: String]) -> SheetGrid {
     do {
         _ = try planner.plan(
             SheetWriteRequest(
-                blockTab: "Block 27",
-                week: 1,
-                day: 1,
+                session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
                 exerciseName: "Squat",
                 setIndex: 0,
                 column: .notes,
@@ -116,9 +108,7 @@ private func coachNoteSquatCorrection(notesRow: String, expectedCurrentValue: St
     let planner = SheetWritePlanner()
     return try planner.plan(
         SheetWriteRequest(
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
+            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
             exerciseName: "Squat",
             setIndex: 0,
             column: .notes,
@@ -168,9 +158,7 @@ private func coachNoteSquatCorrection(notesRow: String, expectedCurrentValue: St
 
     let update = try planner.plan(
         SheetWriteRequest(
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
+            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
             exerciseName: "Squat",
             setIndex: 0,
             column: .notes,
@@ -190,9 +178,7 @@ private func coachNoteSquatCorrection(notesRow: String, expectedCurrentValue: St
 
     let update = try planner.plan(
         SheetWriteRequest(
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
+            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
             exerciseName: "Squat",
             setIndex: 0,
             column: .notes,
@@ -218,9 +204,7 @@ private func coachNoteSquatCorrection(notesRow: String, expectedCurrentValue: St
 
     let setOneUpdate = try planner.plan(
         SheetWriteRequest(
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
+            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
             exerciseName: "Lateral Neck Flexion",
             setIndex: 0,
             column: .notes,
@@ -233,9 +217,7 @@ private func coachNoteSquatCorrection(notesRow: String, expectedCurrentValue: St
     let updatedSnapshot = planner.applying(setOneUpdate, to: planningSnapshot)
     let setTwoUpdate = try planner.plan(
         SheetWriteRequest(
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
+            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
             exerciseName: "Lateral Neck Flexion",
             setIndex: 1,
             column: .notes,
@@ -263,9 +245,7 @@ private func coachNoteSquatCorrection(notesRow: String, expectedCurrentValue: St
     do {
         _ = try planner.plan(
             SheetWriteRequest(
-                blockTab: "Block 27",
-                week: 1,
-                day: 1,
+                session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
                 exerciseName: "Lateral Neck Flexion",
                 setIndex: 0,
                 column: .notes,

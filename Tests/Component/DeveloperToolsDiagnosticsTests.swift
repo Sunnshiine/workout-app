@@ -55,9 +55,7 @@ import Testing
     let planner = SheetWritePlanner()
     let snapshot = planner.snapshot(for: grid)
     let request = SheetWriteRequest(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: "Comp BP",
         setIndex: 2,
         column: .notes,
@@ -96,9 +94,7 @@ import Testing
     let planner = SheetWritePlanner()
     let snapshot = planner.snapshot(for: grid)
     let request = SheetWriteRequest(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: "Ab of Choice",
         setIndex: 1,
         column: .notes,
@@ -137,9 +133,7 @@ import Testing
     let planner = SheetWritePlanner()
     let snapshot = planner.snapshot(for: grid)
     let request = SheetWriteRequest(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: "Squat",
         setIndex: 1,
         column: .notes,
@@ -176,7 +170,7 @@ import Testing
     )
     let anchorSnapshot = SheetSnapshot(values: grid)
     let layout = SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid))
-    let day = try #require(layout.day(week: 1, day: 1))
+    let day = try #require(layout.day(at: SessionAddress(week: 1, day: 1)))
     let anchor = try #require(day.exerciseAnchors.first { $0.name == "Ab of Choice" })
     guard case .placed(let placement) = anchor.setLogPlacement(for: 1, in: anchorSnapshot, cols: day.columns) else {
         Issue.record("Expected a resolved placement for Set 2")
@@ -187,9 +181,7 @@ import Testing
     let planner = SheetWritePlanner()
     let planningSnapshot = planner.snapshot(for: grid)
     let request = SheetWriteRequest(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: "Ab of Choice",
         setIndex: 1,
         column: .notes,
