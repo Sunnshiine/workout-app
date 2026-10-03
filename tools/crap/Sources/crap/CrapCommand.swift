@@ -74,7 +74,7 @@ struct Measure: ParsableCommand {
 struct GateCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "gate",
-        abstract: "Compare a report against the baseline and fail on new or worsened violations."
+        abstract: "Compare a report against the baseline and fail on new, worsened, stale, or unexplained rows."
     )
 
     @Option(help: "JSON report written by `crap measure --json`.") var report: String
@@ -107,7 +107,7 @@ struct GateCommand: ParsableCommand {
 struct BaselineCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "baseline",
-        abstract: "Write every measured function above the threshold to a TSV baseline."
+        abstract: "Write every measured function above the threshold to a TSV baseline, never raising a recorded score."
     )
 
     @Option(help: "JSON report written by `crap measure --json`.") var report: String

@@ -18,8 +18,8 @@ exports lcov, builds this package (debug), and calls the executable.
 
 ```bash
 scripts/crap.sh measure --top 30   # score everything, print the worst rows
-scripts/crap.sh gate               # fail on new violations, worsened rows, or a stale baseline
-scripts/crap.sh baseline           # rewrite tools/crap/baseline.tsv from the current report
+scripts/crap.sh gate               # fail on new, worsened, stale, or unexplained rows
+scripts/crap.sh baseline           # rewrite tools/crap/baseline.tsv from the report, never raising a score
 scripts/crap.sh gate --no-test     # reuse the coverage profile from the previous run
 scripts/crap.sh gate --xcodebuild "$RUNNER_TEMP/swift-tests"   # CI: xcodebuild with a compilation cache
 scripts/crap.sh --help
@@ -132,13 +132,23 @@ where the rules are silent.
 
 `crap gate` compares the report against `baseline.tsv` and prints every finding on its own line.
 
-- `newViolation`: measured, `crap > threshold`, not in the baseline. Fails.
-- `worsened`: in the baseline and `crap > recorded + tolerance`. Fails.
+- `newViolation`: measured, `crap > threshold`, not in the baseline. Fails. The message prints the
+  function's `CC` and coverage and names one route. When `CC` alone is over the threshold, testing
+  alone cannot help and it names simplifying; otherwise full coverage brings crap down to `CC` and it
+  names testing. Both name running `scripts/crap.sh baseline` and giving the new row a reason as the
+  last resort.
+- `worsened`: in the baseline and `crap > recorded + tolerance`. Fails. `scripts/crap.sh baseline` keeps
+  the lower recorded score, so the row fails until the function comes back down. The message prints
+  the function's `CC` and coverage and names one route. When `CC` alone is over the limit, testing
+  alone cannot help and it names simplifying; otherwise full coverage brings crap down to `CC` and it
+  names testing. Both name a hand raise of the row, with a reason, as the last resort.
 - `stale`: in the baseline but missing from the report, at or below the threshold, or no longer
-  measured. Fails on purpose, so the baseline only ever shrinks. The message names the row to
-  delete.
+  measured. Fails on purpose, so a row leaves the baseline once its function no longer needs it. The
+  message names the row to delete. A recorded score rises only by a hand raise.
 - `improved`: in the baseline, `crap < recorded - tolerance`, and still above the threshold. Printed as
   a note suggesting `scripts/crap.sh baseline`; does not fail.
+- `unexplained`: a baseline row whose `reason` is empty. Fails, so no row is held above the threshold
+  without saying why.
 
 Exit codes: 0 when clean, 1 when any finding fails.
 

@@ -1,36 +1,95 @@
 #!/usr/bin/env bash
-# Lint every tree .swiftlint.yml claims, without building the app.
+# Lint every tree .swiftlint.yml claims, or only the Swift files named, without building the app.
 #
-# The app target runs SwiftLint through SwiftLintBuildToolPlugin, so `App` and
-# `Sources/WorkoutTracker` are linted on every Xcode build. `Sources/WorkoutCLI` and `Tests` belong
-# to no target that carries the plugin, so until this script existed they were never linted anywhere
-# (issue #607). This runs the same binary the plugin runs, over the same config, with no build.
+# The script refuses a directory or a missing path because SwiftLint would swap it for the whole
+# `included:` set and still exit 0.
 #
-# The run takes no path arguments on purpose. SwiftLint's `included:` overrides command-line paths,
-# so a script that passes its own list lints something other than what it names.
-#
-#   scripts/lint.sh                  lint (what CI runs)
-#   scripts/lint.sh --fix            autocorrect what SwiftLint can, then lint
-#   scripts/lint.sh --print-version  print the pinned SwiftLint version and exit
+#   scripts/lint.sh                      lint (what CI runs)
+#   scripts/lint.sh <file.swift>...      lint those files alone
+#   scripts/lint.sh --fix [<file>...]    autocorrect what SwiftLint can, then lint
+#   scripts/lint.sh --print-version      print the pinned SwiftLint version and exit
+#   scripts/lint.sh --print-path         fetch the pinned binary if needed, print its path, and exit
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT"
-
+PHYSICAL_ROOT="$(cd "$ROOT" && pwd -P)"
 CONFIG=".swiftlint.yml"
-RESOLVED="WorkoutTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
-CACHE_DIR="${SWIFTLINT_CACHE_DIR:-$HOME/.cache/workout-swiftlint}"
+
+config_list() {
+    awk -v key="$1" '$0 ~ "^" key ":" { inside = 1; next }
+         inside && /^[^[:space:]#]/ { exit }
+         inside && /^[[:space:]]*-[[:space:]]/ {
+             sub(/^[[:space:]]*-[[:space:]]*/, "")
+             gsub(/^"|"$/, "")
+             sub(/^\.\//, "")
+             sub(/\/+$/, "")
+             print
+         }' "$ROOT/$CONFIG"
+}
+
+usage() {
+    echo "usage: scripts/lint.sh [--fix] [<file.swift>...] | --print-version | --print-path" >&2
+    exit 64
+}
+
+root_relative() {
+    local arg=$1 dir file entry inside=""
+    case "$arg" in
+        *.swift) ;;
+        *) echo "error: '$arg' is not a .swift file." >&2; exit 64 ;;
+    esac
+    if [ ! -f "$arg" ]; then
+        echo "error: '$arg' is not a file." >&2
+        exit 64
+    fi
+    dir="$(cd "$(dirname "$arg")" && pwd -P)/"
+    case "$dir" in
+        "$PHYSICAL_ROOT"/*) ;;
+        *) echo "error: '$arg' is outside this checkout." >&2; exit 64 ;;
+    esac
+    file="${dir#"$PHYSICAL_ROOT"/}$(basename "$arg")"
+    while read -r entry; do
+        case "$file" in "$entry"/*) inside=1 ;; esac
+    done <<INCLUDED_EOF
+$(config_list included)
+INCLUDED_EOF
+    if [ -z "$inside" ]; then
+        echo "error: '$file' is outside $CONFIG 'included:', so CI does not lint it." >&2
+        exit 64
+    fi
+    while read -r entry; do
+        case "$file" in $entry | $entry/*)
+            echo "error: '$file' is under $CONFIG 'excluded:' entry '$entry', so CI does not lint it." >&2
+            exit 64
+            ;;
+        esac
+    done <<EXCLUDED_EOF
+$(config_list excluded)
+EXCLUDED_EOF
+    echo "$file"
+}
 
 MODE="lint"
-case "${1:-}" in
-    --fix) MODE="fix" ;;
-    --print-version) MODE="print-version" ;;
-    "") ;;
-    *)
-        echo "usage: scripts/lint.sh [--fix|--print-version]" >&2
-        exit 64
-        ;;
-esac
+FILES=()
+for arg in "$@"; do
+    case "$arg" in
+        --fix) MODE="fix" ;;
+        --print-version | --print-path)
+            [ "$#" -eq 1 ] || usage
+            MODE="${arg#--}"
+            ;;
+        -*) usage ;;
+        *)
+            file="$(root_relative "$arg")" || exit
+            FILES+=("$file")
+            ;;
+    esac
+done
+
+cd "$ROOT"
+
+RESOLVED="WorkoutTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+CACHE_DIR="${SWIFTLINT_CACHE_DIR:-$HOME/.cache/workout-swiftlint}"
 
 # The version the Xcode build plugin resolves to. Xcode writes this file, so when the plugin's
 # package moves this script follows it and there is no second place to edit. To re-pin: bump
@@ -52,9 +111,9 @@ if [ "$MODE" = "print-version" ]; then
     exit 0
 fi
 
-# SwiftLint writes its benchmark files into ROOT, so a second run in this checkout waits here rather
-# than deleting or reading the first run's files.
-if [ -z "${LINT_SH_LOCKED:-}" ]; then
+# SwiftLint writes its benchmark files into ROOT, so a second whole-tree run in this checkout waits
+# here rather than deleting or reading the first run's files.
+if [ -z "${LINT_SH_LOCKED:-}" ] && [ "${#FILES[@]}" -eq 0 ]; then
     LOCK="$(git rev-parse --git-dir)/lint.lock"
     LINT_SH_LOCKED=1 exec lockf -k "$LOCK" "$ROOT/scripts/lint.sh" "$@"
 fi
@@ -66,7 +125,7 @@ BUNDLE_URL="https://github.com/realm/SwiftLint/releases/download/$VERSION/SwiftL
 SWIFTLINT="$CACHE_DIR/$VERSION/SwiftLintBinary.artifactbundle/macos/swiftlint"
 
 if [ ! -x "$SWIFTLINT" ]; then
-    echo "==> Fetching SwiftLint $VERSION"
+    echo "==> Fetching SwiftLint $VERSION" >&2
     mkdir -p "$CACHE_DIR/$VERSION"
     curl -fsSL -o "$CACHE_DIR/$VERSION/bundle.zip" "$BUNDLE_URL"
     unzip -qo "$CACHE_DIR/$VERSION/bundle.zip" -d "$CACHE_DIR/$VERSION"
@@ -80,20 +139,12 @@ if [ "$REPORTED" != "$VERSION" ]; then
     exit 1
 fi
 
-# SwiftLint skips an `included:` entry that matches nothing and still exits 0.
-included_roots() {
-    awk '/^included:/ { inside = 1; next }
-         inside && /^[^[:space:]#]/ { exit }
-         inside && /^[[:space:]]*-[[:space:]]/ {
-             sub(/^[[:space:]]*-[[:space:]]*/, "")
-             gsub(/^"|"$/, "")
-             sub(/^\.\//, "")
-             sub(/\/+$/, "")
-             print
-         }' "$CONFIG"
-}
+if [ "$MODE" = "print-path" ]; then
+    echo "$SWIFTLINT"
+    exit 0
+fi
 
-ROOTS="$(included_roots)"
+ROOTS="$(config_list included)"
 if [ -z "$ROOTS" ]; then
     echo "error: $CONFIG has no 'included:' entries, so this run would lint nothing." >&2
     exit 1
@@ -148,7 +199,7 @@ tree_failures() {
 }
 
 if [ "$MODE" = "fix" ]; then
-    "$SWIFTLINT" --fix
+    "$SWIFTLINT" --fix ${FILES[@]+"${FILES[@]}"}
 fi
 
 # No --config on purpose. Passing one turns off SwiftLint's nested-config discovery, and
@@ -157,7 +208,13 @@ fi
 #
 # --strict fails on warnings too. Every tree is at zero, and a warning nobody gates on is the state
 # this gate exists to end.
-#
+if [ "${#FILES[@]}" -gt 0 ]; then
+    echo "==> SwiftLint $VERSION over ${#FILES[@]} file(s)"
+    "$SWIFTLINT" lint --strict --quiet "${FILES[@]}"
+    echo "==> Clean"
+    exit 0
+fi
+
 # --benchmark writes benchmark_files_<timestamp>.txt into the working directory, one
 # `<seconds>: <absolute path>` line per linted file, and a rules file beside it.
 rm -f "$ROOT"/benchmark_files_*.txt "$ROOT"/benchmark_rules_*.txt

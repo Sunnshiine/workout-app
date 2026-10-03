@@ -22,17 +22,7 @@ if [ ! -f "$config" ]; then
     exit 64
 fi
 
-version=$("$repo/scripts/lint.sh" --print-version) || exit 3
-swiftlint="${SWIFTLINT_CACHE_DIR:-$HOME/.cache/workout-swiftlint}/$version/SwiftLintBinary.artifactbundle/macos/swiftlint"
-if [ ! -x "$swiftlint" ]; then
-    echo "error: no SwiftLint $version at $swiftlint; run scripts/lint.sh once to fetch it." >&2
-    exit 3
-fi
-reported=$("$swiftlint" version)
-if [ "$reported" != "$version" ]; then
-    echo "error: $swiftlint reports $reported but the project pins $version." >&2
-    exit 3
-fi
+swiftlint=$("$repo/scripts/lint.sh" --print-path) || exit 3
 if ! command -v jq >/dev/null; then
     echo "error: jq is not on PATH." >&2
     exit 3

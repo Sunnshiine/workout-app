@@ -62,7 +62,7 @@ YAML
 }
 
 run_lint() {
-    "${1:-$fx/scripts/lint.sh}" >"$root/stdout" 2>"$root/stderr"
+    "${1:-$fx/scripts/lint.sh}" "${@:2}" >"$root/stdout" 2>"$root/stderr"
     status=$?
     out=$(cat "$root/stdout")
     err=$(cat "$root/stderr")
@@ -221,6 +221,83 @@ expect_text "violation" "$both" "(identifier_name)"
 expect_no_text "violation" "$both" "holds Swift files"
 expect_no_text "violation" "$both" "==> Clean"
 
+echo "named: a file argument is linted alone, and a warning fails it"
+fresh_fixture
+baseline_config
+printf 'let xy = 1\n' >"$fx/App/Named.swift"
+printf '%s\n' "$violation" >"$fx/App/Unnamed.swift"
+run_lint "$fx/scripts/lint.sh" "$fx/App/Named.swift"
+expect_exit "named" "$status" 2
+expect_line "named" "$out" "==> SwiftLint $("$fx/scripts/lint.sh" --print-version) over 1 file(s)"
+expect_line "named" "$both" "$fx/App/Named.swift:1:5: error: Identifier Name Violation: Variable name 'xy' should be between 3 and 40 characters long (identifier_name)"
+expect_no_text "named" "$both" "Unnamed.swift"
+expect_no_text "named" "$both" "==> Clean"
+
+echo "subdirectory: a path relative to App/ is linted under the root config"
+fresh_fixture
+baseline_config
+printf 'disabled_rules:\n  - identifier_name\n' >>"$fx/.swiftlint.yml"
+printf 'let xy = 1\n' >"$fx/App/Views/Screen.swift"
+cd "$fx/App" || exit 3
+run_lint ../scripts/lint.sh Views/Screen.swift
+cd "$root" || exit 3
+expect_exit "subdirectory" "$status" 0
+expect_line "subdirectory" "$out" "==> Clean"
+
+echo "nested: a named Tests file takes Tests/.swiftlint.yml, a named App file does not"
+fresh_fixture
+baseline_config
+printf 'opt_in_rules:\n  - force_unwrapping\n' >>"$fx/.swiftlint.yml"
+printf 'let maybe: Int? = 1\nlet sure = maybe!\n' >"$fx/Tests/Unit/Unwrap.swift"
+printf 'let maybe: Int? = 1\nlet sure = maybe!\n' >"$fx/App/Unwrap.swift"
+run_lint "$fx/scripts/lint.sh" "$fx/Tests/Unit/Unwrap.swift"
+expect_exit "nested, Tests" "$status" 0
+expect_line "nested, Tests" "$out" "==> Clean"
+run_lint "$fx/scripts/lint.sh" "$fx/App/Unwrap.swift"
+expect_exit "nested, App" "$status" 2
+expect_text "nested, App" "$both" "$fx/App/Unwrap.swift:2:17: error: Force Unwrapping Violation"
+
+echo "outside: a Swift file outside the checkout"
+printf 'let elsewhere = 1\n' >"$root/Elsewhere.swift"
+run_lint "$fx/scripts/lint.sh" "$root/Elsewhere.swift"
+expect_exit "outside" "$status" 64
+expect_line "outside" "$err" "error: '$root/Elsewhere.swift' is outside this checkout."
+expect_no_text "outside" "$both" "==> Clean"
+
+echo "refused: a directory, a missing path, a non-Swift file, a file outside included:, and an excluded file"
+fresh_fixture
+baseline_config
+mkdir -p "$fx/tools"
+printf 'let tool = 1\n' >"$fx/tools/Tool.swift"
+printf 'notes\n' >"$fx/README.md"
+mkdir -p "$fx/Sources/Core/Generated"
+printf '%s\n' "$violation" >"$fx/Sources/Core/Generated/Table.swift"
+for refused in \
+    "App/Views|error: 'App/Views' is not a .swift file." \
+    "App/Nope.swift|error: 'App/Nope.swift' is not a file." \
+    "README.md|error: 'README.md' is not a .swift file." \
+    "tools/Tool.swift|error: 'tools/Tool.swift' is outside .swiftlint.yml 'included:', so CI does not lint it." \
+    "Sources/Core/Generated/Table.swift|error: 'Sources/Core/Generated/Table.swift' is under .swiftlint.yml 'excluded:' entry '**/Generated', so CI does not lint it."; do
+    path=${refused%%|*}
+    cd "$fx" || exit 3
+    run_lint scripts/lint.sh "$path"
+    cd "$root" || exit 3
+    expect_exit "refused $path" "$status" 64
+    expect_line "refused $path" "$err" "${refused#*|}"
+    expect_no_text "refused $path" "$both" "==> Clean"
+done
+
+echo "fix one file: --fix corrects the named file and leaves another alone"
+fresh_fixture
+baseline_config
+printf 'let appRoot = 1;\n' >"$fx/App/Root.swift"
+printf 'let screen = 1;\n' >"$fx/App/Views/Screen.swift"
+run_lint "$fx/scripts/lint.sh" --fix "$fx/App/Root.swift"
+expect_exit "fix one file" "$status" 0
+expect_line "fix one file" "$out" "==> Clean"
+expect_line "fix one file, named" "$(cat "$fx/App/Root.swift")" "let appRoot = 1"
+expect_line "fix one file, unnamed" "$(cat "$fx/App/Views/Screen.swift")" "let screen = 1;"
+
 echo "concurrent: two runs at once in one checkout both pass"
 fresh_fixture
 baseline_config
@@ -234,6 +311,29 @@ for pair in 1 2 3; do
     wait "$second"
     expect_exit "concurrent pair $pair, second run" "$?" 0
 done
+
+echo "print path: a cold cache fetches, and stdout is the binary's path and nothing else"
+fresh_fixture
+bundle="$(dirname "$(dirname "$(dirname "$("$repo/scripts/lint.sh" --print-path)")")")/bundle.zip"
+mkdir -p "$root/bin"
+cat >"$root/bin/curl" <<CURL
+#!/usr/bin/env bash
+while [ "\$1" != "-o" ]; do shift; done
+cp "$bundle" "\$2"
+CURL
+chmod +x "$root/bin/curl"
+version=$("$fx/scripts/lint.sh" --print-version)
+SWIFTLINT_CACHE_DIR="$root/cold" PATH="$root/bin:$PATH" "$fx/scripts/lint.sh" --print-path \
+    >"$root/stdout" 2>"$root/stderr"
+expect_exit "print path" "$?" 0
+expected="$root/cold/$version/SwiftLintBinary.artifactbundle/macos/swiftlint"
+if [ "$(cat "$root/stdout")" = "$expected" ]; then
+    ok "print path stdout is the binary's path alone"
+else
+    bad "print path stdout is not the binary's path alone: $(cat "$root/stdout")"
+fi
+expect_line "print path stderr" "$(cat "$root/stderr")" "==> Fetching SwiftLint $version"
+expect_line "print path binary" "$("$expected" version)" "$version"
 
 echo
 echo "$pass passed, $fail failed"

@@ -61,7 +61,7 @@ of the bundle, add a membership exception in the project, as each `Info.plist` h
 ```bash
 swift test                                        # unit + component; no Secrets.xcconfig needed
 swift test --filter ActiveSetFocusManagerTests    # one file's tests, about a second
-scripts/lint.sh                                   # what CI runs, --strict; --fix autocorrects first
+scripts/lint.sh [file.swift ...]                  # what CI runs, --strict, or just those files; --fix autocorrects first
 swift-format -i -r App/ Sources/ Tests/           # format
 scripts/crap.sh gate                              # the change-risk gate CI runs (ADR-0016)
 scripts/test-sim.sh unit                          # simulator suites from one build: unit | visual | ui | all

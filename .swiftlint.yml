@@ -1,11 +1,5 @@
 # SwiftLint configuration
 #
-# Two runners, one config. The Xcode app target runs SwiftLint through the SwiftLintPlugins build
-# tool plugin, so `App` and `Sources/WorkoutTracker` are linted on every app build. `scripts/lint.sh`
-# runs the same pinned binary over everything `included:` names, with no build, and CI calls it.
-# Before that script existed the plugin was the only runner, so `Sources/WorkoutCLI` and `Tests`
-# were linted nowhere (issue #607).
-#
 # `Tests` carries its own nested `Tests/.swiftlint.yml` that switches off three rules a test body
 # reads better without. SwiftLint merges it into this file; nothing else overrides anything here.
 
@@ -42,10 +36,6 @@ custom_rules:
   # Font.custom(…), .system(size:…), and the shorthand system text styles (.font(.headline) …) —
   # so type cannot drift per-view and adopting Dynamic Type later stays a one-file diff. The
   # glyphFont(…) hatch is retired (it minted arbitrary system fonts through the seam).
-  #
-  # The pre-Greenhouse screens still use the shorthand; each is grandfathered below until its
-  # composition slice rebuilds it onto Theme.font(_:) and drops it from this list. Theme.swift is
-  # the sanctioned home of the role table (its off-device fallback uses Font.custom).
   font_construction_via_theme:
     name: "Font construction via the Theme seam"
     message: >
