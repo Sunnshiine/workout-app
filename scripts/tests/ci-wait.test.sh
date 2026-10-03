@@ -49,7 +49,7 @@ done
 case "$sub" in
     "pr view")
         if [ -n "${STUB_PR_ERROR:-}" ]; then echo "$STUB_PR_ERROR" >&2; exit 1; fi
-        jq -nr --arg s "${STUB_PR_HEAD:-$(branch_tip)}" '{headRefName: "topic", headRefOid: $s}' | jq -r "$jq_expr" ;;
+        jq -nr --arg s "$STUB_SHA" '{headRefName: "topic", headRefOid: $s}' | jq -r "$jq_expr" ;;
     "api repos/{owner}/{repo}/git/ref/heads/topic")
         jq -nr --arg s "$(branch_tip)" '{object: {sha: $s}}' | jq -r "$jq_expr" ;;
     "run list")
@@ -88,9 +88,6 @@ ci() { workflow_run CI "$1" "$2" "$3" swift-tests lint visual-tests; }
 
 on_pushed() { jq -c --arg s "$pushed" '.headSha = $s' <<<"$1"; }
 
-# Each frame argument is one gh run list answer; gh run watch and sleep advance to the next.
-# heads="a b c" puts the branch tip at a in frame 0, b in frame 1, and so on. pr_head="x" makes
-# gh pr view report x as the head, as it does for up to two minutes after a push (#694).
 check() {
     local name=$1 want_status=$2 want_out=$3 arg=$4
     shift 4
@@ -99,10 +96,10 @@ check() {
     mkdir -p "$dir/frames"
     for f in "$@"; do printf '%s\n' "$f" >"$dir/frames/$i.json"; i=$((i + 1)); done
     i=0
-    for h in ${heads:-}; do echo "$h" >"$dir/head.$i"; i=$((i + 1)); done
+    for h in ${branch_tips:-}; do echo "$h" >"$dir/head.$i"; i=$((i + 1)); done
     echo 0 >"$dir/cursor"
     : >"$dir/calls.log"
-    STUB_DIR="$dir" STUB_SHA="$sha" STUB_PR_ERROR="${pr_error:-}" STUB_PR_HEAD="${pr_head:-}" PATH="$root/bin:$PATH" "$ci_wait" ${arg:+"$arg"} >"$dir/out" 2>"$dir/err"
+    STUB_DIR="$dir" STUB_SHA="$sha" STUB_PR_ERROR="${pr_error:-}" PATH="$root/bin:$PATH" "$ci_wait" ${arg:+"$arg"} >"$dir/out" 2>"$dir/err"
     local status=$?
     if [ "$status" -eq "$want_status" ] && [ "$(cat "$dir/out")" = "$want_out" ]; then
         ok "$name"
@@ -119,7 +116,6 @@ check_err() {
     if [ "$(cat "$root/case/err")" = "$2" ]; then ok "$1"; else bad "$1: stderr was $(cat "$root/case/err")"; fi
 }
 
-# Frames list runs in the API's order: newest createdAt first, lower id first on a tie.
 A=35742049156
 B=35742049318
 C=35742049999
@@ -189,7 +185,7 @@ check "a skipped run, and a run from another event on the head, are not read" 0 
 $merge" 668 \
     "[$(workflow_run "TestFlight PR" $C completed skipped archive upload), $(jq -c '.event = "issues"' <<<"$(workflow_run "Agent Review" $B completed failure review)"), $(ci $A completed success)]"
 
-heads="$pushed $pushed $pushed" pr_head=$sha check "#694: a head pushed seconds ago is waited on, not the previous head's green run" 0 "CI success on f2c0ffe (run $C)
+branch_tips="$pushed $pushed $pushed" check "#694: a head pushed seconds ago is waited on, not the previous head's green run" 0 "CI success on f2c0ffe (run $C)
   swift-tests: success
   lint: success
   visual-tests: success
@@ -258,17 +254,17 @@ Workflow lint startup_failure on 73b27aa (run $L)" 668 \
 
 echo "head moved: never vouch for a head it did not watch"
 
-heads="$sha $pushed $pushed" check "a push that cancels nothing on the watched head, onto a red head, fails" 1 "" 668 \
+branch_tips="$sha $pushed $pushed" check "a push that cancels nothing on the watched head, onto a red head, fails" 1 "" 668 \
     "[$(ci $A completed success), $(workflow_run "TestFlight PR" $B in_progress "" archive upload)]" \
     "[$(on_pushed "$(ci $C in_progress "")"), $(ci $A completed success), $(workflow_run "TestFlight PR" $B in_progress "" archive upload)]" \
     "[$(on_pushed "$(ci $C completed failure)"), $(ci $A completed success), $(workflow_run "TestFlight PR" $B completed success archive upload)]"
 check_err "a moved head names both commits" "the head of #668 moved from 73b27aa to f2c0ffe during the wait; run ci-wait.sh 668 again"
 
-heads="$sha $pushed" check "a push that cancels the watched run fails" 1 "" 668 \
+branch_tips="$sha $pushed" check "a push that cancels the watched run fails" 1 "" 668 \
     "[$(ci $A in_progress "")]" \
     "[$(on_pushed "$(ci $B in_progress "")"), $(ci $A completed cancelled)]"
 
-heads="$sha $sha $pushed" check "a push during a wait that found no run fails instead of exiting 3" 1 "" 668 \
+branch_tips="$sha $sha $pushed" check "a push during a wait that found no run fails instead of exiting 3" 1 "" 668 \
     "[]" "[]" "[$(on_pushed "$(ci $B in_progress "")")]"
 
 echo "no run: exit 3"

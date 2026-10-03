@@ -9,11 +9,8 @@ Waits for every pull_request workflow run on the tip of the pull request's branc
 each workflow's conclusion and its jobs. Each workflow answers with its newest run that was not
 skipped. When every workflow succeeded, prints the gh pr merge command pinned to that commit.
 
-The tip comes from the branch ref, which moves at push time. The pull request's own head can lag a
-push by two minutes (#694).
-
-Exits 0 when every workflow succeeded, 1 when one failed or was cancelled or the head moved during
-the wait, and 3 when no workflow ran.
+Exits 0 when every workflow succeeded; 1 when one did not, the head moved during the wait, or a gh
+call failed; 2 on a missing or non-numeric argument; and 3 when no workflow ran.
 EOF
 }
 
@@ -30,6 +27,7 @@ esac
 
 pr=$1
 branch=$(gh pr view "$pr" --json headRefName --jq .headRefName)
+# headRefOid lags a push by up to two minutes (#694); the branch ref moves at push time.
 head_sha() { gh api "repos/{owner}/{repo}/git/ref/heads/$branch" --jq .object.sha; }
 sha=$(head_sha) || { echo "branch $branch of #$pr is gone or in a fork" >&2; exit 1; }
 
