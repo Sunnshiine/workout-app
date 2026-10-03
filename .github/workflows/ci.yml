@@ -18,6 +18,8 @@ on:
       - "scripts/contact-sheet.*"
       - "scripts/lint-workflow-ifs.sh"
       - "scripts/tests/lint-workflow-ifs.test.sh"
+      - "scripts/lint-skill-links.sh"
+      - "scripts/tests/lint-skill-links.test.sh"
       - ".github/actions/**"
       - ".github/workflows/agent-*.yml"
       - ".github/workflows/verify-tools.yml"
