@@ -83,10 +83,10 @@ extension WorkoutApplication {
             syncOutcome: SyncOutcomeSnapshot(sync.outcome),
             pendingWriteCount: try queuedWrites().count,
             block: workout.block.map(BlockSummary.init),
-            currentSession: current.flatMap(address(of:)),
+            currentSession: current.flatMap(\.address),
             currentSessionReason: workout.currentSessionDebugInfo.reason,
             currentSessionIsOverridden: workout.hasCurrentSessionOverride,
-            viewedSession: workout.viewedSession.flatMap(address(of:)),
+            viewedSession: workout.viewedSession.flatMap(\.address),
             canMoveOn: workout.canMoveOn,
             openExercises: workout.openExercises.compactMap(address(of:)),
             sessions: orderedSessions().map { session in
@@ -95,12 +95,12 @@ extension WorkoutApplication {
         )
     }
 
-    /// `WorkoutStore.show(week:day:)`, or `showCurrent()` when the address is `nil`.
+    /// `WorkoutStore.show(_:)`, or `showCurrent()` when the address is `nil`.
     @discardableResult
     public func view(_ address: SessionAddress?) throws -> AppSnapshot {
         if let address {
             _ = try resolveSession(address)
-            workout.show(week: address.week, day: address.day)
+            workout.show(address)
         } else {
             workout.showCurrent()
         }
@@ -163,8 +163,8 @@ extension WorkoutApplication {
         return SyncReport(
             syncOutcome: outcome,
             block: workout.block.map(BlockSummary.init),
-            currentSession: workout.currentSession.flatMap(address(of:)),
-            viewedSession: workout.viewedSession.flatMap(address(of:)),
+            currentSession: workout.currentSession.flatMap(\.address),
+            viewedSession: workout.viewedSession.flatMap(\.address),
             pendingWriteCount: queued.count,
             conflictedWrites: conflictMessages(in: queued)
         )
@@ -216,21 +216,17 @@ extension WorkoutApplication {
             .flatMap { week in
                 week.sessions
                     .sorted { $0.dayNumber < $1.dayNumber }
-                    .map { AddressedSession(id: SessionAddress(week: week.number, day: $0.dayNumber), model: $0) }
+                    .map { AddressedSession(id: week.address(of: $0), model: $0) }
             }
     }
 
-    fileprivate func address(of session: Session) -> SessionAddress? {
-        session.week.map { SessionAddress(week: $0.number, day: session.dayNumber) }
-    }
-
     fileprivate func address(of exercise: Exercise) -> ExerciseAddress? {
-        exercise.session.flatMap(address(of:)).map { ExerciseAddress(session: $0, order: exercise.order) }
+        exercise.session?.address.map { ExerciseAddress(session: $0, order: exercise.order) }
     }
 
     fileprivate func resolveCurrentSession() throws -> AddressedSession {
         guard workout.block != nil else { throw ApplicationError.noBlock }
-        guard let current = workout.currentSession, let id = address(of: current) else {
+        guard let current = workout.currentSession, let id = current.address else {
             throw ApplicationError.notFound(.session, name: "current", candidates: orderedSessions().map(\.id.description))
         }
         return AddressedSession(id: id, model: current)

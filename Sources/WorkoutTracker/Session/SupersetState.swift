@@ -6,34 +6,26 @@ import Foundation
 /// reuses the template between Blocks: without it Block 29 · W1 D2 and Block 30 · W1 D2 spell the
 /// same identity, and a pair made in one would reattach in the other.
 struct SupersetExerciseIdentity: Hashable, Sendable {
-    let blockTabName: String?
-    let weekNumber: Int?
-    let dayNumber: Int
+    let session: SessionReparseIdentity
     let exerciseOrder: Int
     let exerciseName: String
     let baseName: String
 
     init(exercise: Exercise) {
-        blockTabName = exercise.session?.week?.block?.tabName
-        weekNumber = exercise.session?.week?.number
-        dayNumber = exercise.session?.dayNumber ?? 0
+        session = exercise.session?.reparseIdentity ?? .weekless(dayNumber: 0)
         exerciseOrder = exercise.order
         exerciseName = exercise.name
         baseName = exercise.baseName
     }
 
     static func == (lhs: SupersetExerciseIdentity, rhs: SupersetExerciseIdentity) -> Bool {
-        lhs.blockTabName == rhs.blockTabName
-            && lhs.weekNumber == rhs.weekNumber
-            && lhs.dayNumber == rhs.dayNumber
+        lhs.session == rhs.session
             && lhs.exerciseName == rhs.exerciseName
             && lhs.baseName == rhs.baseName
     }
 
     func hash(into hasher: inout Hasher) {
-        hasher.combine(blockTabName)
-        hasher.combine(weekNumber)
-        hasher.combine(dayNumber)
+        hasher.combine(session)
         hasher.combine(exerciseName)
         hasher.combine(baseName)
     }

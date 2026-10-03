@@ -38,10 +38,32 @@ extension Week {
 extension Session {
     /// Nil when the Session has no Week. Each caller states its own fallback.
     var address: SessionAddress? { week?.address(of: self) }
+
+    var reparseIdentity: SessionReparseIdentity {
+        guard let week else { return .weekless(dayNumber: dayNumber) }
+        return .inWeek(week.address(of: self), blockTab: week.block?.tabName)
+    }
+}
+
+/// Which Session a live model is, in terms that still match after a sync replaces the Block.
+///
+/// The Block tab is reached through the Week, so a Session with no Week has no tab either: the two
+/// cases cover every shape a Session's graph can take.
+enum SessionReparseIdentity: Hashable, Sendable {
+    /// `blockTab` is nil when the Week has no Block.
+    case inWeek(SessionAddress, blockTab: String?)
+    case weekless(dayNumber: Int)
 }
 
 extension ParsedWeek {
     func address(of session: ParsedSession) -> SessionAddress {
         SessionAddress(week: number, day: session.dayNumber)
+    }
+}
+
+extension Block {
+    /// The first Week with the address's number, then the first Session in it with its Day.
+    func session(at address: SessionAddress) -> Session? {
+        weeks.first { $0.number == address.week }?.sessions.first { $0.dayNumber == address.day }
     }
 }

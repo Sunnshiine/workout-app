@@ -148,8 +148,8 @@ struct SessionView: View {
 
     private func showSourceSession(for exercise: Exercise) {
         coordinator.cancelPairing()
-        guard let session = exercise.session, let week = session.week else { return }
-        workout.show(week: week.number, day: session.dayNumber)
+        guard let address = exercise.session?.address else { return }
+        workout.show(address)
     }
 
     private func focusWithMorph(_ set: ExerciseSet) {

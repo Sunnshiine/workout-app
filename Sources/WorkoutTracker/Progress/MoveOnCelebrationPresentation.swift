@@ -32,7 +32,7 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
 
     @MainActor
     init(session: Session, quoteText requestedQuoteText: String? = nil) {
-        let weekNumber = session.week?.number ?? 0
+        let weekNumber = session.address?.week ?? 0
         let dayNumber = session.dayNumber
         let sets = session.exercises.flatMap(\.sets)
         let totalSetCount = sets.count

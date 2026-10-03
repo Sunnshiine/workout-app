@@ -120,8 +120,7 @@
                         1,
                         sessions: [
                             Factory.session(
-                                weekNumber: 1,
-                                dayNumber: 1,
+                                at: SessionAddress(week: 1, day: 1),
                                 exercises: [Factory.backSquat(), Factory.rdl()]
                             )
                         ]
@@ -138,8 +137,7 @@
                         1,
                         sessions: [
                             Factory.session(
-                                weekNumber: 1,
-                                dayNumber: 1,
+                                at: SessionAddress(week: 1, day: 1),
                                 exercises: [Factory.partiallyLoggedBackSquat()]
                             )
                         ]
@@ -174,8 +172,7 @@
                             openBackSquatSession(),
                             completedBenchSession(),
                             Factory.session(
-                                weekNumber: 1,
-                                dayNumber: 3,
+                                at: SessionAddress(week: 1, day: 3),
                                 exercises: [Factory.deadlift()]
                             )
                         ]
@@ -208,7 +205,7 @@
                     Factory.week(
                         weekNumber,
                         sessions: (1...4).map { dayNumber in
-                            partialUploadSession(weekNumber: weekNumber, dayNumber: dayNumber)
+                            partialUploadSession(at: SessionAddress(week: weekNumber, day: dayNumber))
                         }
                     )
                 }
@@ -223,8 +220,7 @@
                         1,
                         sessions: [
                             Factory.session(
-                                weekNumber: 1,
-                                dayNumber: 1,
+                                at: SessionAddress(week: 1, day: 1),
                                 exercises: [
                                     Factory.exercise(
                                         name: "Back Squat",
@@ -239,8 +235,7 @@
                                 ]
                             ),
                             Factory.session(
-                                weekNumber: 1,
-                                dayNumber: 2,
+                                at: SessionAddress(week: 1, day: 2),
                                 exercises: []
                             )
                         ]
@@ -256,7 +251,7 @@
                     Factory.week(
                         weekNumber,
                         sessions: (1...4).map { dayNumber in
-                            uiLaunchSession(weekNumber: weekNumber, dayNumber: dayNumber)
+                            uiLaunchSession(at: SessionAddress(week: weekNumber, day: dayNumber))
                         }
                     )
                 }
@@ -271,8 +266,7 @@
                         1,
                         sessions: [
                             Factory.session(
-                                weekNumber: 1,
-                                dayNumber: 1,
+                                at: SessionAddress(week: 1, day: 1),
                                 exercises: longSessionExercises()
                             )
                         ]
@@ -316,9 +310,9 @@
             )
         }
 
-        private static func uiLaunchSession(weekNumber: Int, dayNumber: Int) -> Session {
+        private static func uiLaunchSession(at address: SessionAddress) -> Session {
             let exercises: [Exercise] =
-                switch (weekNumber, dayNumber) {
+                switch (address.week, address.day) {
                 case (1, 1):
                     [Factory.backSquat(), Factory.rdl()]
                 case (1, 2):
@@ -326,14 +320,14 @@
                 case (1, 3):
                     [Factory.deadlift()]
                 default:
-                    [Factory.accessory(weekNumber: weekNumber, dayNumber: dayNumber)]
+                    [Factory.accessory(at: address)]
                 }
-            return Factory.session(weekNumber: weekNumber, dayNumber: dayNumber, exercises: exercises)
+            return Factory.session(at: address, exercises: exercises)
         }
 
-        private static func partialUploadSession(weekNumber: Int, dayNumber: Int) -> Session {
+        private static func partialUploadSession(at address: SessionAddress) -> Session {
             let exercises: [Exercise] =
-                switch (weekNumber, dayNumber) {
+                switch (address.week, address.day) {
                 case (1, 1):
                     [Factory.backSquat(), Factory.rdl()]
                 case (1, 2):
@@ -341,33 +335,30 @@
                 case (2, 1):
                     [Factory.deadlift()]
                 case (3, 1), (4, 1):
-                    [Factory.accessory(weekNumber: weekNumber, dayNumber: dayNumber)]
+                    [Factory.accessory(at: address)]
                 default:
                     []
                 }
-            return Factory.session(weekNumber: weekNumber, dayNumber: dayNumber, exercises: exercises)
+            return Factory.session(at: address, exercises: exercises)
         }
 
         private static func openBackSquatSession() -> Session {
             Factory.session(
-                weekNumber: 1,
-                dayNumber: 1,
+                at: SessionAddress(week: 1, day: 1),
                 exercises: [Factory.partiallyLoggedBackSquat()]
             )
         }
 
         private static func openBenchPressSession() -> Session {
             Factory.session(
-                weekNumber: 1,
-                dayNumber: 2,
+                at: SessionAddress(week: 1, day: 2),
                 exercises: [Factory.partiallyLoggedBenchPress()]
             )
         }
 
         private static func currentDeadliftSession() -> Session {
             Factory.session(
-                weekNumber: 1,
-                dayNumber: 3,
+                at: SessionAddress(week: 1, day: 3),
                 exercises: [Factory.partiallyLoggedDeadlift()]
             )
         }
@@ -376,8 +367,7 @@
         /// completion stage while Day 1's Back Squat is still open.
         private static func completedBenchSession() -> Session {
             Factory.session(
-                weekNumber: 1,
-                dayNumber: 2,
+                at: SessionAddress(week: 1, day: 2),
                 exercises: [
                     Factory.benchPress(
                         sets: [
@@ -390,8 +380,7 @@
 
         private static func completeOverviewSession() -> Session {
             Factory.session(
-                weekNumber: 1,
-                dayNumber: 1,
+                at: SessionAddress(week: 1, day: 1),
                 exercises: [
                     Factory.exercise(
                         name: "Competition Squat",
@@ -409,8 +398,7 @@
 
         private static func hasOpenOverviewSession() -> Session {
             Factory.session(
-                weekNumber: 1,
-                dayNumber: 2,
+                at: SessionAddress(week: 1, day: 2),
                 exercises: [
                     Factory.exercise(
                         name: "Paused Bench Press",
@@ -428,8 +416,7 @@
 
         private static func currentOverviewSession() -> Session {
             Factory.session(
-                weekNumber: 1,
-                dayNumber: 3,
+                at: SessionAddress(week: 1, day: 3),
                 exercises: [
                     Factory.exercise(
                         name: "Current Deadlift",
@@ -447,8 +434,7 @@
 
         private static func upcomingOverviewSession() -> Session {
             Factory.session(
-                weekNumber: 2,
-                dayNumber: 1,
+                at: SessionAddress(week: 2, day: 1),
                 exercises: [
                     Factory.exercise(
                         name: "Upcoming Squat",
@@ -483,12 +469,12 @@
             return week
         }
 
-        static func session(weekNumber: Int, dayNumber: Int, exercises: [Exercise]) -> Session {
+        static func session(at address: SessionAddress, exercises: [Exercise]) -> Session {
             // Spacing only needs to keep fixture dates distinct and increasing; a 7-day stride
             // stays collision-free for Weeks of up to 7 days (matches SessionProgressTracker).
-            let order = ((weekNumber - 1) * 7) + dayNumber
+            let order = ((address.week - 1) * 7) + address.day
             let session = Session(
-                dayNumber: dayNumber,
+                dayNumber: address.day,
                 date: Date(timeIntervalSinceReferenceDate: TimeInterval(order * 86_400))
             )
             session.exercises = exercises
@@ -583,9 +569,9 @@
             exercise(name: "Deadlift", baseName: "Deadlift", coachNote: "Pull fast from the floor.", order: 0, sets: sets)
         }
 
-        static func accessory(weekNumber: Int, dayNumber: Int) -> Exercise {
+        static func accessory(at address: SessionAddress) -> Exercise {
             exercise(
-                name: "Accessory W\(weekNumber) D\(dayNumber)",
+                name: "Accessory W\(address.week) D\(address.day)",
                 baseName: "Accessory",
                 coachNote: "Controlled reps.",
                 order: 0,

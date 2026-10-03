@@ -148,7 +148,7 @@ import Testing
     #expect(content.restStartDate == startDate)
     #expect(content.restEndDate == endDate)
     #expect(content.target?.setID == ActiveSetID(exerciseOrder: 0, setIndex: 1))
-    #expect(content.target?.session == LiveActivitySessionIdentity(blockTab: nil, weekNumber: 1, dayNumber: 1))
+    #expect(content.target?.session == SessionReparseIdentity.inWeek(SessionAddress(week: 1, day: 1), blockTab: nil))
 }
 
 @MainActor
@@ -243,7 +243,7 @@ import Testing
 
     #expect(content.exerciseName == "DB Row")
     #expect(content.setsLeftText == "1 set left")
-    #expect(content.target?.session == LiveActivitySessionIdentity(blockTab: nil, weekNumber: 1, dayNumber: 1))
+    #expect(content.target?.session == SessionReparseIdentity.inWeek(SessionAddress(week: 1, day: 1), blockTab: nil))
 }
 
 @MainActor
@@ -307,7 +307,7 @@ import Testing
     )
 
     #expect(content.exerciseName == "DB Row")
-    #expect(content.target?.session == LiveActivitySessionIdentity(blockTab: nil, weekNumber: 1, dayNumber: 1))
+    #expect(content.target?.session == SessionReparseIdentity.inWeek(SessionAddress(week: 1, day: 1), blockTab: nil))
     #expect(content.target?.setID == ActiveSetID(exerciseOrder: 1, setIndex: 1))
 }
 
@@ -340,7 +340,7 @@ import Testing
 
     // Widget up-next: the earlier day's Open Exercise.
     #expect(content.exerciseName == "DB Row")
-    #expect(content.target?.session == LiveActivitySessionIdentity(blockTab: nil, weekNumber: 1, dayNumber: 1))
+    #expect(content.target?.session == SessionReparseIdentity.inWeek(SessionAddress(week: 1, day: 1), blockTab: nil))
     // On-screen focus: nothing left in the Current Session, and no fallback.
     #expect(focus.activeSetID == nil)
     // The two scopes disagree, by design.

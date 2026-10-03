@@ -195,7 +195,7 @@ struct SessionProgressHeaderPresentation: Equatable, Sendable {
     }
 
     init(session: Session, block: Block? = nil) {
-        let weekNumber = session.week?.number ?? 0
+        let weekNumber = session.address?.week ?? 0
         let dayNumber = session.dayNumber
         let locationCore = "Week \(weekNumber) · Day \(dayNumber)"
         if let block {

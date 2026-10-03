@@ -66,7 +66,7 @@ import Testing
     let presentation = BlockOverviewPresentation(block: block, currentSession: nil)
 
     let tiles = presentation.weeks[0].tiles
-    #expect(tiles.map(\.dayNumber) == [1, 3, 2])
+    #expect(tiles.map(\.address.day) == [1, 3, 2])
     #expect(tiles.map(\.state) == [.incomplete, .incomplete, .unavailable])
 }
 
@@ -133,8 +133,8 @@ private func makeSession(dayNumber: Int, day: DayState) -> Session {
     let presentation = BlockOverviewPresentation(block: scenario.block, currentSession: scenario.currentSession)
 
     #expect(presentation.title == "Block 27")
-    #expect(presentation.tiles.map(\.weekNumber) == [1, 1, 1, 2])
-    #expect(presentation.tiles.map(\.dayNumber) == [1, 2, 3, 1])
+    #expect(presentation.tiles.map(\.address.week) == [1, 1, 1, 2])
+    #expect(presentation.tiles.map(\.address.day) == [1, 2, 3, 1])
     #expect(presentation.tiles.map(\.state) == [.complete, .incomplete, .current, .incomplete])
     #expect(presentation.tiles.map(\.accessibilityValue) == ["Complete", "Incomplete", "Current", "Incomplete"])
     let identifiers = presentation.tiles.map(\.accessibilityIdentifier)
@@ -192,11 +192,11 @@ private func uniformDayBlock(daysPerWeek: Int, weeks: Int = 2) -> Block {
     #expect(
         presentation.tiles
             .filter { $0.state != .unavailable }
-            .map { "W\($0.weekNumber)D\($0.dayNumber)" }
+            .map { "W\($0.address.week)D\($0.address.day)" }
             == ["W1D1", "W1D2", "W2D1", "W3D1", "W4D1"]
     )
 
-    let unavailable = presentation.tiles.first { $0.weekNumber == 1 && $0.dayNumber == 3 }
+    let unavailable = presentation.tiles.first { $0.address == SessionAddress(week: 1, day: 3) }
     #expect(unavailable?.state == .unavailable)
     #expect(unavailable?.accessibilityValue == "Not uploaded")
     #expect(unavailable?.accessibilityIdentifier == "session-tile-W1-D3")

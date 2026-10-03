@@ -92,7 +92,7 @@ private func makeStore(
 
     #expect(store.block?.tabName == "Block 27")
     #expect(store.viewedSession == nil)
-    store.show(week: 1, day: 3)
+    store.show(SessionAddress(week: 1, day: 3))
     #expect(store.viewedSession?.dayNumber == 3)
 }
 
@@ -123,7 +123,7 @@ private func makeStore(
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
 
-    store.show(week: 1, day: 3)
+    store.show(SessionAddress(week: 1, day: 3))
     store.reload()
 
     #expect(store.viewedSession?.week?.number == 1)
@@ -137,7 +137,7 @@ private func makeStore(
     let store = fixture.store
     let day2Set = try #require(store.block?.weeks.first?.sessions.first { $0.dayNumber == 2 }?.exercises[0].sets[0])
 
-    store.show(week: 1, day: 4)
+    store.show(SessionAddress(week: 1, day: 4))
     day2Set.state = .logged
     store.reload()
 
@@ -153,7 +153,7 @@ private func makeStore(
     let store = fixture.store
     let context = fixture.container.mainContext
 
-    store.show(week: 2, day: 3)
+    store.show(SessionAddress(week: 2, day: 3))
     #expect(store.viewedSession?.week?.number == 2)
 
     // SyncCoordinator.replacePersistedBlock, inlined.
@@ -173,7 +173,7 @@ private func makeStore(
     let store = fixture.store
     let context = fixture.container.mainContext
 
-    store.show(week: 1, day: 4)
+    store.show(SessionAddress(week: 1, day: 4))
     #expect(store.viewedSession?.dayNumber == 4)
 
     for existing in try context.fetch(FetchDescriptor<Block>()) { context.delete(existing) }
@@ -208,7 +208,7 @@ private func makeStore(
     day3.exercises[0].sets[0].state = .logged
     store.reload()
 
-    store.show(week: 1, day: 1)
+    store.show(SessionAddress(week: 1, day: 1))
     #expect(store.viewedSession?.dayNumber == 1)
 
     store.showCurrent()
@@ -223,7 +223,7 @@ private func makeStore(
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
 
-    store.show(week: 1, day: 3)
+    store.show(SessionAddress(week: 1, day: 3))
 
     #expect(store.currentSession?.dayNumber == 1)
     #expect(store.viewedSession?.dayNumber == 3)
@@ -240,7 +240,7 @@ private func makeStore(
     store.reload()
     #expect(store.currentSession?.dayNumber == 3)
 
-    store.show(week: 1, day: 1)
+    store.show(SessionAddress(week: 1, day: 1))
     store.makeViewedSessionCurrent()
 
     #expect(store.currentSession?.dayNumber == 1)
@@ -274,7 +274,7 @@ private func makeStore(
     day3Set.state = .logged
     store.reload()
 
-    store.show(week: 1, day: 1)
+    store.show(SessionAddress(week: 1, day: 1))
     store.makeViewedSessionCurrent()
     store.reload()
 
@@ -288,7 +288,7 @@ private func makeStore(
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
 
-    store.show(week: 1, day: 2)
+    store.show(SessionAddress(week: 1, day: 2))
     store.makeViewedSessionCurrent()
 
     let writes = try fixture.container.mainContext.fetch(FetchDescriptor<PendingWrite>())
@@ -304,7 +304,7 @@ private func makeStore(
     day3Set.state = .logged
     store.reload()
 
-    store.show(week: 1, day: 1)
+    store.show(SessionAddress(week: 1, day: 1))
 
     let info = store.currentSessionDebugInfo
 
@@ -327,7 +327,7 @@ private func makeStore(
     day3Set.state = .logged
     store.reload()
 
-    store.show(week: 1, day: 1)
+    store.show(SessionAddress(week: 1, day: 1))
     store.makeViewedSessionCurrent()
 
     let info = store.currentSessionDebugInfo
@@ -349,7 +349,7 @@ private func makeStore(
     let day3Set = try #require(store.block?.weeks.first?.sessions.first { $0.dayNumber == 3 }?.exercises[0].sets[0])
     day3Set.state = .logged
     store.reload()
-    store.show(week: 1, day: 1)
+    store.show(SessionAddress(week: 1, day: 1))
     store.makeViewedSessionCurrent()
 
     store.resetCurrentSessionOverride()
@@ -371,9 +371,9 @@ private func makeStore(
         withExtendedLifetime(block27.container) {}
         withExtendedLifetime(block28.container) {}
     }
-    block27.store.show(week: 1, day: 2)
+    block27.store.show(SessionAddress(week: 1, day: 2))
     block27.store.makeViewedSessionCurrent()
-    block28.store.show(week: 1, day: 3)
+    block28.store.show(SessionAddress(week: 1, day: 3))
     block28.store.makeViewedSessionCurrent()
 
     block27.store.resetCurrentSessionOverride()
@@ -405,7 +405,7 @@ private func makeStore(
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
 
-    store.show(week: 1, day: 3)
+    store.show(SessionAddress(week: 1, day: 3))
     store.makeViewedSessionCurrent()
     store.moveOn()
 
