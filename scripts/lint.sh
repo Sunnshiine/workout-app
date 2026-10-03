@@ -3,7 +3,9 @@
 #
 # A file argument lints that file alone, with CI's config and --strict. The script refuses a
 # directory or a missing path because SwiftLint would swap it for the whole `included:` set and
-# still exit 0, and refuses a file outside `included:` because CI never lints it.
+# still exit 0, and refuses a file outside `included:` because CI never lints it. A named file under
+# an `excluded:` entry is still linted: --force-exclude would skip it and print Clean over nothing,
+# and no tracked Swift file sits under one.
 #
 #   scripts/lint.sh                      lint (what CI runs)
 #   scripts/lint.sh <file.swift>...      lint those files alone
@@ -14,6 +16,20 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PHYSICAL_ROOT="$(cd "$ROOT" && pwd -P)"
+CONFIG=".swiftlint.yml"
+
+# SwiftLint skips an `included:` entry that matches nothing and still exits 0.
+included_roots() {
+    awk '/^included:/ { inside = 1; next }
+         inside && /^[^[:space:]#]/ { exit }
+         inside && /^[[:space:]]*-[[:space:]]/ {
+             sub(/^[[:space:]]*-[[:space:]]*/, "")
+             gsub(/^"|"$/, "")
+             sub(/^\.\//, "")
+             sub(/\/+$/, "")
+             print
+         }' "$ROOT/$CONFIG"
+}
 
 usage() {
     echo "usage: scripts/lint.sh [--fix] [<file.swift>...] | --print-version | --print-path" >&2
@@ -21,10 +37,9 @@ usage() {
 }
 
 # SwiftLint finds the root .swiftlint.yml only in its working directory, so each path is made
-# relative to the root here and linted from there. The lockf re-exec below parses these again from
-# ROOT, which leaves them unchanged.
+# relative to the root here and linted from there.
 root_relative() {
-    local arg=$1 dir
+    local arg=$1 dir file included
     case "$arg" in
         *.swift) ;;
         *) echo "error: '$arg' is not a .swift file." >&2; exit 64 ;;
@@ -38,32 +53,39 @@ root_relative() {
         "$PHYSICAL_ROOT"/*) ;;
         *) echo "error: '$arg' is outside this checkout." >&2; exit 64 ;;
     esac
-    echo "${dir#"$PHYSICAL_ROOT"/}$(basename "$arg")"
+    file="${dir#"$PHYSICAL_ROOT"/}$(basename "$arg")"
+    while read -r included; do
+        case "$file" in "$included"/*)
+            echo "$file"
+            return
+            ;;
+        esac
+    done <<ROOTS_EOF
+$(included_roots)
+ROOTS_EOF
+    echo "error: '$file' is outside $CONFIG 'included:', so CI does not lint it." >&2
+    exit 64
 }
 
 MODE="lint"
 FILES=()
-ARGS=()
 for arg in "$@"; do
     case "$arg" in
-        --fix) MODE="fix"; ARGS+=("$arg") ;;
+        --fix) MODE="fix" ;;
         --print-version | --print-path)
             [ "$#" -eq 1 ] || usage
             MODE="${arg#--}"
-            ARGS+=("$arg")
             ;;
         -*) usage ;;
         *)
             file="$(root_relative "$arg")" || exit
             FILES+=("$file")
-            ARGS+=("$file")
             ;;
     esac
 done
 
 cd "$ROOT"
 
-CONFIG=".swiftlint.yml"
 RESOLVED="WorkoutTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
 CACHE_DIR="${SWIFTLINT_CACHE_DIR:-$HOME/.cache/workout-swiftlint}"
 
@@ -87,11 +109,11 @@ if [ "$MODE" = "print-version" ]; then
     exit 0
 fi
 
-# SwiftLint writes its benchmark files into ROOT, so a second run in this checkout waits here rather
-# than deleting or reading the first run's files.
-if [ -z "${LINT_SH_LOCKED:-}" ]; then
+# SwiftLint writes its benchmark files into ROOT, so a second whole-tree run in this checkout waits
+# here rather than deleting or reading the first run's files. A file run writes none.
+if [ -z "${LINT_SH_LOCKED:-}" ] && [ "${#FILES[@]}" -eq 0 ]; then
     LOCK="$(git rev-parse --git-dir)/lint.lock"
-    LINT_SH_LOCKED=1 exec lockf -k "$LOCK" "$ROOT/scripts/lint.sh" ${ARGS[@]+"${ARGS[@]}"}
+    LINT_SH_LOCKED=1 exec lockf -k "$LOCK" "$ROOT/scripts/lint.sh" "$@"
 fi
 
 # SwiftLintPlugins is a thin wrapper: its Package.swift declares one binaryTarget pointing at this
@@ -120,37 +142,11 @@ if [ "$MODE" = "print-path" ]; then
     exit 0
 fi
 
-# SwiftLint skips an `included:` entry that matches nothing and still exits 0.
-included_roots() {
-    awk '/^included:/ { inside = 1; next }
-         inside && /^[^[:space:]#]/ { exit }
-         inside && /^[[:space:]]*-[[:space:]]/ {
-             sub(/^[[:space:]]*-[[:space:]]*/, "")
-             gsub(/^"|"$/, "")
-             sub(/^\.\//, "")
-             sub(/\/+$/, "")
-             print
-         }' "$CONFIG"
-}
-
 ROOTS="$(included_roots)"
 if [ -z "$ROOTS" ]; then
     echo "error: $CONFIG has no 'included:' entries, so this run would lint nothing." >&2
     exit 1
 fi
-
-for file in ${FILES[@]+"${FILES[@]}"}; do
-    inside=""
-    while read -r included; do
-        case "$file" in "$included"/*) inside=1 ;; esac
-    done <<ROOTS_EOF
-$ROOTS
-ROOTS_EOF
-    if [ -z "$inside" ]; then
-        echo "error: '$file' is outside $CONFIG 'included:', so CI does not lint it." >&2
-        exit 64
-    fi
-done
 
 tree_failures() {
     local roots=$1 known=$2 deleted=$3 linted=$4 physical_root=$5

@@ -244,6 +244,26 @@ cd "$root" || exit 3
 expect_exit "subdirectory" "$status" 0
 expect_line "subdirectory" "$out" "==> Clean"
 
+echo "nested: a named Tests file takes Tests/.swiftlint.yml, a named App file does not"
+fresh_fixture
+baseline_config
+printf 'opt_in_rules:\n  - force_unwrapping\n' >>"$fx/.swiftlint.yml"
+printf 'let maybe: Int? = 1\nlet sure = maybe!\n' >"$fx/Tests/Unit/Unwrap.swift"
+printf 'let maybe: Int? = 1\nlet sure = maybe!\n' >"$fx/App/Unwrap.swift"
+run_lint "$fx/scripts/lint.sh" "$fx/Tests/Unit/Unwrap.swift"
+expect_exit "nested, Tests" "$status" 0
+expect_line "nested, Tests" "$out" "==> Clean"
+run_lint "$fx/scripts/lint.sh" "$fx/App/Unwrap.swift"
+expect_exit "nested, App" "$status" 2
+expect_text "nested, App" "$both" "$fx/App/Unwrap.swift:2:17: error: Force Unwrapping Violation"
+
+echo "outside: a Swift file outside the checkout"
+printf 'let elsewhere = 1\n' >"$root/Elsewhere.swift"
+run_lint "$fx/scripts/lint.sh" "$root/Elsewhere.swift"
+expect_exit "outside" "$status" 64
+expect_line "outside" "$err" "error: '$root/Elsewhere.swift' is outside this checkout."
+expect_no_text "outside" "$both" "==> Clean"
+
 echo "refused: a directory, a missing path, a non-Swift file, and a file outside included:"
 fresh_fixture
 baseline_config
