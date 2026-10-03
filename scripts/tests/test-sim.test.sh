@@ -26,7 +26,11 @@ cp "$STUB_OUT" "$STUB_SEEN"
 cat "$STUB_LOG"
 exit "$STUB_RC"
 STUB
-chmod +x "$root/bin/plutil" "$root/bin/xcodebuild"
+cat >"$root/bin/xcrun" <<STUB
+#!/bin/sh
+echo '{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-27-0":[{"udid":"$sim","state":"Booted","name":"iPhone 17 Pro"}]}}'
+STUB
+chmod +x "$root/bin/plutil" "$root/bin/xcodebuild" "$root/bin/xcrun"
 
 check() {
     local name=$1 want_status=$2 want_out=$3 want_err=$4 xcodebuild_status=$5 log=$6
@@ -156,20 +160,54 @@ Failing tests:
 
 ** TEST EXECUTE FAILED **"
 
-check "a failing XCTest names where it failed" 65 \
+check "a failing XCTest names where it failed and counts its run once" 65 \
 "/repo/Tests/UI/WorkoutTrackerUISmokeTests.swift:39: error: -[WorkoutTrackerUITests.WorkoutTrackerUISmokeTests testMoveOnAdvancesToNextExercise] : XCTAssertTrue failed
-	 Executed 12 tests, with 1 failure (0 unexpected) in 41.203 (41.311) seconds
+	 Executed 4 tests, with 1 failure (0 unexpected) in 49.621 (49.644) seconds
 Failing tests:
 	WorkoutTrackerUISmokeTests.testMoveOnAdvancesToNextExercise()
 ** TEST EXECUTE FAILED **" "" 65 \
 "Test Case '-[WorkoutTrackerUITests.WorkoutTrackerUISmokeTests testMoveOnAdvancesToNextExercise]' started.
 /repo/Tests/UI/WorkoutTrackerUISmokeTests.swift:39: error: -[WorkoutTrackerUITests.WorkoutTrackerUISmokeTests testMoveOnAdvancesToNextExercise] : XCTAssertTrue failed
 Test Case '-[WorkoutTrackerUITests.WorkoutTrackerUISmokeTests testMoveOnAdvancesToNextExercise]' failed (9.120 seconds).
-	 Executed 12 tests, with 1 failure (0 unexpected) in 41.203 (41.311) seconds
+Test Suite 'WorkoutTrackerUISmokeTests' failed at 2026-09-14 09:57:09.224.
+	 Executed 4 tests, with 1 failure (0 unexpected) in 49.621 (49.637) seconds
+Test Suite 'WorkoutTrackerUITests.xctest' failed at 2026-09-14 09:57:09.227.
+	 Executed 4 tests, with 1 failure (0 unexpected) in 49.621 (49.640) seconds
+Test Suite 'Selected tests' failed at 2026-09-14 09:57:09.227.
+	 Executed 4 tests, with 1 failure (0 unexpected) in 49.621 (49.644) seconds
 
 Failing tests:
 	WorkoutTrackerUISmokeTests.testMoveOnAdvancesToNextExercise()
 
+** TEST EXECUTE FAILED **"
+
+check "a failing multi-line expectation prints the values it compared" 65 \
+"✘ Test suggestsLoadForDropPrescriptionFromPreviousSetWeight() recorded an issue at LoadSuggestionEngineTests.swift:6:5: Expectation failed: LoadSuggestionEngine.suggest(
+↳   LoadSuggestionEngine.suggest(
+            ) → .weight(185.0)
+↳   .weight(186) → .weight(186.0)
+✘ Test suggestsLoadForDropPrescriptionFromPreviousSetWeight() failed after 0.013 seconds with 1 issue.
+✘ Test run with 1042 tests in 11 suites failed after 5.575 seconds with 1 issue.
+** TEST EXECUTE FAILED **" "" 65 \
+"◇ Test run started.
+↳ Testing Library Version: 2084
+✘ Test suggestsLoadForDropPrescriptionFromPreviousSetWeight() recorded an issue at LoadSuggestionEngineTests.swift:6:5: Expectation failed: LoadSuggestionEngine.suggest(
+            prescribedLoad: \"Drop 17.5%\",
+            previousSetWeight: 225
+        ) == .weight(186)
+↳ LoadSuggestionEngine.suggest(
+              prescribedLoad: \"Drop 17.5%\",
+              previousSetWeight: 225
+          ) == .weight(186) → false
+↳   LoadSuggestionEngine.suggest(
+                prescribedLoad: \"Drop 17.5%\",
+                previousSetWeight: 225
+            ) → .weight(185.0)
+↳     weight → 185.0
+↳   .weight(186) → .weight(186.0)
+↳     weight → 186.0
+✘ Test suggestsLoadForDropPrescriptionFromPreviousSetWeight() failed after 0.013 seconds with 1 issue.
+✘ Test run with 1042 tests in 11 suites failed after 5.575 seconds with 1 issue.
 ** TEST EXECUTE FAILED **"
 
 check "xcodebuild failing before any test names its error, not the selection" 70 \
@@ -238,6 +276,21 @@ if grep -q '^log: .*-test\.log$' "$root/seen"; then
 else
     bad "the log path prints before xcodebuild starts: stdout at start was '$(cat "$root/seen")'"
 fi
+
+unknown=DEADBEEF-0000-4000-8000-000000000790
+for flags in "--no-build --sim" "--sim"; do
+    rm -f "$root/seen"
+    STUB_LOG=$root/xcodebuild.log STUB_RC=70 STUB_OUT=$root/out STUB_SEEN=$root/seen HOME=$root/home PATH="$root/bin:$PATH" \
+        "$repo/scripts/test-sim.sh" $flags "$unknown" unit >"$root/out" 2>"$root/err"
+    status=$?
+    want="no available simulator $unknown; xcrun simctl list devices available lists them"
+    if [ $status = 1 ] && [ ! -s "$root/out" ] && [ "$(cat "$root/err")" = "$want" ] && [ ! -e "$root/seen" ]; then
+        ok "an unknown --sim UDID ($flags) is refused before xcodebuild starts"
+    else
+        bad "an unknown --sim UDID ($flags) is refused before xcodebuild starts: exit $status, xcodebuild ran: $([ -e "$root/seen" ] && echo yes || echo no)"
+        printf '    stdout:\n%s\n    stderr:\n%s\n' "$(cat "$root/out")" "$(cat "$root/err")"
+    fi
+done
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1
