@@ -1,7 +1,6 @@
 import Foundation
 
 struct RestPillPresentation: Equatable, Sendable {
-    let visibleTypeLabel: String?
     let countdownText: String
     let accessibilityLabel: String
     let progressFraction: Double
@@ -12,7 +11,6 @@ struct RestPillPresentation: Equatable, Sendable {
         let minutes = totalSeconds / 60
         let seconds = totalSeconds % 60
 
-        visibleTypeLabel = nil
         countdownText = RestInterval.countdownText(seconds: totalSeconds)
         progressFraction = RestInterval.progressFraction(remaining: clampedRemaining, duration: duration)
         accessibilityLabel = Self.accessibilityLabel(kind: kind, minutes: minutes, seconds: seconds)
