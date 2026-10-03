@@ -1,0 +1,30 @@
+{
+  "type" : "Group",
+  "role_description" : "group",
+  "subrole" : null,
+  "pid" : 62389,
+  "content_required" : false,
+  "role" : "AXGroup",
+  "enabled" : true,
+  "AXFrame" : "{{0, 0}, {402, 874}}",
+  "help" : null,
+  "frame" : {
+    "y" : 0,
+    "height" : 874,
+    "width" : 402,
+    "x" : 0
+  },
+  "children" : [
+
+  ],
+  "custom_actions" : [
+
+  ],
+  "title" : null,
+  "AXValue" : null,
+  "AXLabel" : null,
+  "traits" : [
+
+  ],
+  "AXUniqueId" : null
+}

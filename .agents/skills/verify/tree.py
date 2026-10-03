@@ -8,7 +8,8 @@ Reads an `axe describe-ui` JSON tree on stdin:
                          says on stderr when it is off-screen, clipped (its centre outside the frame
                          of an ancestor of nonzero size), or disabled
   tree.py tappable <id>  "x y" of the first hit that is enabled, on screen, and not clipped, so a tap
-                         on it lands; exit 1 with the same notes find prints when there is no such hit
+                         on it lands, then that hit's line; exit 1 with the same notes find prints when
+                         there is no such hit
   tree.py tappable --label TEXT
                          the same for the one element whose trimmed label is TEXT, a control over
                          a text with that label; exit 1 listing each with its centre when more
@@ -17,11 +18,23 @@ Reads an `axe describe-ui` JSON tree on stdin:
   tree.py frame          the application's width and height
   tree.py center <id>    "x y" of the element with that accessibility identifier; exit 1 if absent
 
-Reads two saved trees:
+Reads a `describe-ui --point` answer on stdin (an object, a list led by it, or empty):
+  tree.py landing LINE FRONT_PID
+                         exit 0 when the answer belongs to FRONT_PID, the tree's application, and is
+                         LINE's element or lies within a point of LINE's frame; else exit 1 with a
+                         covered: note
+
+Reads saved trees:
   tree.py diff A.tree.txt B.tree.txt   the lines that changed, frames ignored
+  tree.py crop SHOT.tree.txt PNG_WIDTH ID | crop SHOT.tree.txt PNG_WIDTH X Y W H
+                         "px py pw ph X_Y_WxH": ID's frame grown by 8 points, or that rect in points,
+                         clipped to the screen (the first line), in the PNG's pixels rounded outward,
+                         then the clipped points; exit 1 when ID is absent or the rect is off the
+                         screen, 2 on a malformed argument list
 """
 import difflib
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any, Iterator, List, NamedTuple, Optional, Tuple
@@ -31,6 +44,10 @@ def clean(field: Any) -> str:
     if field is None:
         return ""
     return str(field).replace("\t", " ").replace("\n", " ")
+
+
+FRAME_TEXT = re.compile(r"@(-?\d+),(-?\d+) (\d+)x(\d+)")
+PRINTED_FRAME_MARGIN = 1
 
 
 class Frame(NamedTuple):
@@ -44,9 +61,19 @@ class Frame(NamedTuple):
         frame = node["frame"]
         return cls(frame["x"], frame["y"], frame["width"], frame["height"])
 
+    @classmethod
+    def parse(cls, text: str) -> "Frame":
+        match = FRAME_TEXT.fullmatch(text)
+        if match is None:
+            raise ValueError(f"not a frame: {text}")
+        return cls(*(int(side) for side in match.groups()))
+
     @property
     def text(self) -> str:
         return f"@{self.x:.0f},{self.y:.0f} {self.width:.0f}x{self.height:.0f}"
+
+    def grown(self, by: float) -> "Frame":
+        return Frame(self.x - by, self.y - by, self.width + 2 * by, self.height + 2 * by)
 
     @property
     def center(self) -> Tuple[float, float]:
@@ -98,6 +125,11 @@ class TreeLine(NamedTuple):
             clean(node.get("role")), clean(ident), clean(label), clean(node.get("AXValue")), frame,
             node.get("enabled") is not False, clipper(frame, ancestors, screen),
         )
+
+    @classmethod
+    def parse(cls, text_line: str) -> "TreeLine":
+        role, ident, label, value, frame = text_line.split("\t")
+        return cls(role, ident, label, value, Frame.parse(frame), True, None)
 
     @property
     def text(self) -> str:
@@ -163,6 +195,57 @@ def obstacles(found: List[TreeLine], screen: Frame) -> List[str]:
     return notes
 
 
+def covered(target: TreeLine, answer: Any, front_pid: str) -> Optional[str]:
+    hit = answer[0] if isinstance(answer, list) and answer else answer
+    if isinstance(hit, dict):
+        hit_frame = Frame.of(hit)
+        if str(hit.get("pid")) == front_pid and (
+            (target.ident and hit.get("AXUniqueId") == target.ident) or target.frame.grown(PRINTED_FRAME_MARGIN).covers(hit_frame)
+        ):
+            return None
+        name = clean(hit.get("AXUniqueId") or hit.get("AXLabel"))
+        seen = " ".join(part for part in (clean(hit.get("role")), name, hit_frame.text) if part)
+    else:
+        seen = "nothing"
+    x, y = target.frame.center
+    return (f"covered: at {x:.0f},{y:.0f} the screen has {seen}, not {target.role} {target.ident or target.label}; "
+            "something is over it, or it left the screen after the tree was read")
+
+
+CROP_PAD = 8
+CROP_USAGE = "usage: tree.py crop SHOT.tree.txt PNG_WIDTH ID | crop SHOT.tree.txt PNG_WIDTH X Y W H"
+
+
+def crop(args: List[str]) -> None:
+    try:
+        if len(args) not in (3, 6):
+            raise ValueError
+        tree_path, png_width = args[0], int(args[1])
+        wanted = Frame(*(int(arg) for arg in args[2:])) if len(args) == 6 else None
+        if png_width <= 0 or (wanted is not None and min(wanted.width, wanted.height) <= 0):
+            raise ValueError
+    except ValueError:
+        print(CROP_USAGE, file=sys.stderr)
+        sys.exit(2)
+    shot = [TreeLine.parse(line) for line in read_tree(tree_path)]
+    screen = shot[0].frame
+    if wanted is None:
+        found = next((line for line in shot if line.ident == args[2]), None)
+        if found is None:
+            ids = " ".join(dict.fromkeys(line.ident for line in shot if line.ident))
+            sys.exit(f"no element {args[2]} on {shot_name(tree_path)}; its ids: {ids}")
+        wanted = found.frame.grown(CROP_PAD)
+    left, top = max(wanted.x, screen.x), max(wanted.y, screen.y)
+    right = min(wanted.x + wanted.width, screen.x + screen.width)
+    bottom = min(wanted.y + wanted.height, screen.y + screen.height)
+    if right <= left or bottom <= top:
+        sys.exit(f"{wanted.text} is off the {screen.width}x{screen.height} screen")
+    px, py = left * png_width // screen.width, top * png_width // screen.width
+    pw = -(-right * png_width // screen.width) - px
+    ph = -(-bottom * png_width // screen.width) - py
+    print(f"{px} {py} {pw} {ph} {left}_{top}_{right - left}x{bottom - top}")
+
+
 def changed(before: List[str], after: List[str]) -> Diff:
     matcher = difflib.SequenceMatcher(
         a=[identity(line) for line in before], b=[identity(line) for line in after], autojunk=False
@@ -211,6 +294,15 @@ def main() -> None:
     if mode == "diff":
         diff(sys.argv[2], sys.argv[3])
         return
+    if mode == "crop":
+        crop(sys.argv[2:])
+        return
+    if mode == "landing":
+        answer = sys.stdin.read().strip()
+        note = covered(TreeLine.parse(sys.argv[2]), json.loads(answer) if answer else None, sys.argv[3])
+        if note:
+            sys.exit(note)
+        return
     if mode not in ("pid", "frame", "flat", "find", "tappable", "center"):
         sys.exit(__doc__)
     root = json.load(sys.stdin)[0]
@@ -256,6 +348,7 @@ def main() -> None:
             if not obstacles([line], screen):
                 x, y = line.frame.center
                 print(f"{x:.0f} {y:.0f}")
+                print(line.text)
                 return
         sys.exit("\n".join(obstacles(found, screen)))
     elif mode == "center":

@@ -8,14 +8,15 @@ description: Drive the WorkoutTracker iOS app on the simulator (and the headless
 Two user surfaces. The iPhone app on the simulator is primary. The `workout` CLI runs the same
 stores headless against a workbook file and is the fast path for store and sync behavior that has
 no UI question attached. Everything below runs from the repo root. The helper is
-`.claude/skills/verify/verify.sh` (call it `verify.sh` here). Read `features/README.md` and the
-matching feature file before driving; the map lists every entry point a proof must cover.
+`.agents/skills/verify/verify.sh` (call it `verify.sh` here). `.claude/skills/verify` is a tracked
+symlink to this directory, so there is one copy and either path works. Read `features/README.md`
+and the matching feature file before driving; the map lists every entry point a proof must cover.
 
 ## Launch
 
 ```bash
-.claude/skills/verify/verify.sh build              # xcodebuild build, about 10 s warm, 2 min cold
-.claude/skills/verify/verify.sh launch session     # install + launch into a fixture, returns when the tree answers
+.agents/skills/verify/verify.sh build              # xcodebuild build, about 10 s warm, 2 min cold
+.agents/skills/verify/verify.sh launch session     # install + launch into a fixture, returns when the tree answers
 ```
 
 Fixtures: `session` (Block 27 W1 D1, Back Squat then BB RDL, 5 pending sets), `settings`,
@@ -47,7 +48,7 @@ export WORKOUT_HOME=$(mktemp -d) && .build/debug/workout init --scenario fresh-b
 ## Doctor
 
 ```bash
-.claude/skills/verify/verify.sh doctor
+.agents/skills/verify/verify.sh doctor
 ```
 
 Read-only. Run it after every `launch`, and again whenever a tap does nothing or the tree looks
@@ -59,33 +60,52 @@ anything. An empty tree on a healthy pid means the simulator's accessibility bri
 ## Drive
 
 ```bash
-.claude/skills/verify/verify.sh tree                       # what is on screen: role  id  label  value  @x,y wxh
-.claude/skills/verify/verify.sh tree --all                 # plus what is scrolled out of view
-.claude/skills/verify/verify.sh find log-active-set-button # one line, on screen or off; exit 1 if absent; stderr says off-screen, clipped, or disabled
-.claude/skills/verify/verify.sh tap --id rpe-6             # or --label "Sign Out", or -x 201 -y 740
-.claude/skills/verify/verify.sh hold log-active-set-button # long press, 1.2 s default
-.claude/skills/verify/verify.sh type 245                   # into the focused field
-.claude/skills/verify/verify.sh swipe up                   # scroll half a screen
-.claude/skills/verify/verify.sh burst log-transition tap --id log-active-set-button   # one action, 12 frames over 2 s, one image
-.claude/skills/verify/verify.sh axe swipe --start-x 200 --start-y 90 --end-x 200 --end-y 420 --duration 0.4   # any axe verb
+.agents/skills/verify/verify.sh tree                       # what is on screen: role  id  label  value  @x,y wxh
+.agents/skills/verify/verify.sh tree --all                 # plus what is scrolled out of view
+.agents/skills/verify/verify.sh find log-active-set-button # one line, on screen or off; exit 1 if absent; stderr says off-screen, clipped, or disabled
+.agents/skills/verify/verify.sh tap --id rpe-6             # or --label "Sign Out", or -x 201 -y 740
+.agents/skills/verify/verify.sh hold log-active-set-button # long press, 1.2 s default
+.agents/skills/verify/verify.sh type 245                   # into the focused field
+.agents/skills/verify/verify.sh swipe up                   # scroll half a screen
+.agents/skills/verify/verify.sh burst log-transition tap --id log-active-set-button   # one action, 12 frames over 2 s, one image
+.agents/skills/verify/verify.sh axe swipe --start-x 200 --start-y 90 --end-x 200 --end-y 420 --duration 0.4   # any axe verb
 ```
 
 Target elements by accessibility identifier (`tap --id`) first, by label second, by coordinates
 only when the element has neither. Alert buttons have labels but no identifiers. `tap --id` polls
 up to 3 s for that element to be enabled, on screen, and with its centre inside the frame of every
-element that contains it, then taps that centre. A container with a zero width or height holds no
-point, so it is skipped. The keyboard toolbar wraps `Done` in a 0x0 group. When `tap --id` never
-gets such a hit it exits 1 and says `off-screen`, `clipped`, or `disabled`. A `clipped` note names
-the container whose frame misses the centre, such as the RPE track. So a tap that reports success
-hit an element that is on screen, enabled, and inside every container that clips it.
+element that contains it. A container with a zero width or height holds no point, so it is skipped.
+The keyboard toolbar wraps `Done` in a 0x0 group. Last, `tap --id` asks axe what is on top at that
+centre. The answer must belong to the app in front and be the element or something inside its
+frame, and then it taps that centre. A system prompt over the app is covered. The pid file that
+`launch` writes decides when this check runs:
+
+- While the app `launch` started is in front, the check runs.
+- While another pid is in front, the check stands aside and the tap goes by the tree alone. `tap`
+  prints `not checked for cover:` on stderr with both pids. This covers the Home Screen, another
+  app, and the app relaunched under a new pid, which `doctor` flags.
+- With no pid file, after `stop` or for an app `launch` did not start, the check runs for whatever
+  is in front. On the Home Screen axe's point read can name a neighbouring icon, and then the tap
+  is refused as `covered`.
+
+That second read makes a tap that lands take about 3 s, against about 2 s without it.
+
+When `tap --id` never gets a hit that passes every check, it exits 1 and says `off-screen`,
+`clipped`, `disabled`, or `covered`. A refusal takes 4 s or more, because it polls the full 3 s and
+then reads once more. A `clipped` note names the container whose frame misses the centre, such as
+the RPE track. A `covered` note names what is on top instead, such as an alert's backdrop, or
+whatever took the place of an element that went away after the tree was read. So a tap that reports
+success aimed at an element that was on screen, enabled, inside every container that clips it, and
+on top, unless it printed `not checked for cover:`. The tap lands up to about a second after that
+last look, and an element that leaves in that second still reports success. The session controls,
+which hide 2.5 s after a drag, do. So prove a tap by what it changed.
 
 `tap --label` resolves its element through the tree the same way, with the same poll and the same
 notes. It matches the whole label as `tree` prints it, case included. When a control and a text
 carry the label, it taps the control. When more than one is left, it exits 1 and lists each with
 its centre. With the sign-out alert up, `tap --label "Sign Out"` lists the Settings row and the
-alert's own button, so tap the alert's button at its centre with `-x -y`. No check sees an alert
-or sheet over an element, so a tap on the Settings row behind that alert still reports success.
-`tap -x -y` resolves no element, so it still reports success whatever is under the point.
+alert's own button, so tap the alert's button at its centre with `-x -y`. `tap -x -y` resolves no
+element, so it still reports success whatever is under the point.
 
 After a tap, re-read the tree before asserting. `tree` has no enabled column, so prove a disabled
 state with `find <id>`, which says `disabled` on stderr and still exits 0.
@@ -131,12 +151,13 @@ CLI drive is the binary itself. Capture stdout, stderr, and the exit code of eac
 ## Evidence
 
 ```bash
-VERIFY_RUN=issue-536 .claude/skills/verify/verify.sh launch session   # names the run; prints its directory
-.claude/skills/verify/verify.sh shot 01-before                        # 01-before.png + 01-before.tree.txt
-.claude/skills/verify/verify.sh tap --id log-active-set-button
-.claude/skills/verify/verify.sh shot 02-after-log                     # those two files, then the lines that changed since 01-before
-.claude/skills/verify/verify.sh diff 01-before 02-after-log           # the same comparison for any two shots of the run
-.claude/skills/verify/verify.sh sheet                                 # every shot of the run, 12 to an image, numbered and labelled
+VERIFY_RUN=issue-536 .agents/skills/verify/verify.sh launch session   # names the run; prints its directory
+.agents/skills/verify/verify.sh shot 01-before                        # 01-before.png + 01-before.tree.txt
+.agents/skills/verify/verify.sh tap --id log-active-set-button
+.agents/skills/verify/verify.sh shot 02-after-log                     # those two files, then the lines that changed since 01-before
+.agents/skills/verify/verify.sh diff 01-before 02-after-log           # the same comparison for any two shots of the run
+.agents/skills/verify/verify.sh sheet                                 # every shot of the run, 12 to an image, numbered and labelled
+.agents/skills/verify/verify.sh crop 02-after-log rest-pill           # the pill at the shot's own pixels; or crop NAME X Y W H
 ```
 
 Artifacts land in `.build/verify/evidence/<run>/` and survive `stop`. `launch` names the run from
@@ -156,10 +177,12 @@ Finish every UI proof with `sheet` and Read every image it prints, one per 12 sh
 owed for one shot too, because nothing else looks at the pixels. Report what you see by cell
 number, and say anything the tree cannot show. Overlap, colour, clipping, an element under the
 status bar. Give that read to your strongest model. A smaller one read every string on a 12-up
-sheet and still missed a layout defect on it. A shot's PNG and its tree are captured about 0.2 s
-apart, so a shot taken right on a tap can show one state and describe another. Wait a second
-after a tap before a shot, or run `burst`. After a log the rest pill counts down once a second, so
-the changed lines always carry it.
+sheet and still missed a layout defect on it. A full shot reads at about 0.76x. To read a detail,
+`crop` it by id, which takes 8 points around the element, or by the points of a tree line, then
+Read the path it prints. The crop is the shot's own pixels, and it is never on a sheet. A shot's
+PNG and its tree are captured about 0.2 s apart, so a shot taken right on a tap can show one state
+and describe another. Wait a second after a tap before a shot, or run `burst`. After a log the
+rest pill counts down once a second, so the changed lines always carry it.
 
 `shot` refuses a PNG byte-identical to the run's newest shot, a retake of the same name included,
 while the tree changed. It saves nothing, prints the changed lines, and exits 70.
@@ -167,7 +190,7 @@ while the tree changed. It saves nothing, prints the changed lines, and exits 70
 ## Cleanup
 
 ```bash
-.claude/skills/verify/verify.sh stop     # terminates the pid this run launched; the simulator stays up
+.agents/skills/verify/verify.sh stop     # terminates the pid this run launched; the simulator stays up
 rm -rf "$WORKOUT_HOME"
 ```
 
@@ -203,3 +226,10 @@ the holder and its pid. The lock sees only `scripts/test-sim.sh`, so an XcodeBui
 a raw `xcodebuild test` on the same UDID is invisible to it. Before a `launch` when another agent
 may be testing, run `pgrep -fl "id=<udid>"`. Two CLI drives never collide if each has its own
 `WORKOUT_HOME`.
+
+## Changing this skill
+
+After an edit to `verify.sh`, `tree.py`, `frames.py`, `scripts/contact-sheet.swift`, or
+`scripts/sim-lock.sh`, run `python3 .agents/skills/verify/tests/test_evidence.py`, and after an
+edit to the tiler `scripts/contact-sheet.test.sh` as well. CI runs both through
+`.github/workflows/verify-tools.yml`.

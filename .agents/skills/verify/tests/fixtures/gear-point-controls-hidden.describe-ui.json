@@ -1,0 +1,30 @@
+{
+  "title" : null,
+  "role" : "AXStaticText",
+  "subrole" : null,
+  "frame" : {
+    "y" : 77.333333333333329,
+    "height" : 19.333333333333329,
+    "width" : 55.333333333333314,
+    "x" : 316.66666666666669
+  },
+  "AXFrame" : "{{316.66666666666669, 77.333333333333329}, {55.333333333333314, 19.333333333333329}}",
+  "role_description" : "text",
+  "custom_actions" : [
+
+  ],
+  "content_required" : false,
+  "traits" : [
+
+  ],
+  "AXUniqueId" : "session-remaining-count",
+  "help" : null,
+  "AXLabel" : "5 Sets left",
+  "AXValue" : null,
+  "type" : "StaticText",
+  "enabled" : true,
+  "pid" : 53393,
+  "children" : [
+
+  ]
+}
