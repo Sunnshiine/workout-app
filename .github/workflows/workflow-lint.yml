@@ -36,7 +36,6 @@ jobs:
       - name: Every workflow's if guards
         run: scripts/lint-workflow-ifs.sh
 
-  # ci.yml ignores .agents/** and .claude/**, so a PR that only adds a skill runs this workflow alone.
   skill-links:
     runs-on: ubuntu-latest
     timeout-minutes: 5
