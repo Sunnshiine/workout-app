@@ -33,7 +33,6 @@ linked_tree() {
     mkdir -p "$root/.agents/skills" "$root/.claude/skills"
     for name in "$@"; do
         mkdir "$root/.agents/skills/$name"
-        echo "---" >"$root/.agents/skills/$name/SKILL.md"
         ln -s "../../.agents/skills/$name" "$root/.claude/skills/$name"
     done
     echo "$root"
