@@ -29,6 +29,7 @@ exit "$STUB_RC"
 STUB
 cat >"$root/bin/xcrun" <<STUB
 #!/bin/sh
+[ -z "\${STUB_SIMCTL_DOWN:-}" ] || { echo "An error was encountered processing the command (code=405)" >&2; exit 1; }
 echo '{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-27-0":[{"udid":"$sim","state":"Booted","name":"iPhone 17 Pro"}]}}'
 STUB
 chmod +x "$root/bin/plutil" "$root/bin/xcodebuild" "$root/bin/xcrun"
@@ -223,6 +224,8 @@ check "an expectation's comment and a recorded issue's message print with the is
 ↳   height + Self.inkBelow → 90.0
 ✘ Test seededSessionViewMatchesVisualBaseline() recorded an issue at SessionViewVisualTests.swift:11:32: Issue recorded
 ↳ Snapshot does not match reference.
+✘ Test parses() recorded an issue at ParserTests.swift:9:5: Expectation failed: isValid
+↳ isValid after parsing 185x5@8
 ✘ Test run with 2 tests in 2 suites failed after 1.100 seconds with 3 issues.
 ** TEST EXECUTE FAILED **" "" 65 \
 "◇ Test run started.
@@ -243,7 +246,42 @@ check "an expectation's comment and a recorded issue's message print with the is
   \"file:///repo/Tests/Visual/__Snapshots__/SessionViewVisualTests/seededSessionViewMatchesVisualBaseline.1.png\"
   
   Newly-taken snapshot does not match reference.
+✘ Test parses() recorded an issue at ParserTests.swift:9:5: Expectation failed: isValid
+↳ isValid after parsing 185x5@8
+↳ isValid → false
 ✘ Test run with 2 tests in 2 suites failed after 1.100 seconds with 3 issues.
+** TEST EXECUTE FAILED **"
+
+check "only a printed issue's values print" 65 \
+"✘ Test grows(height:) recorded an issue with 1 argument height → 70 at GrowSuite.swift:19:9: Expectation failed: ink.top >= -4
+↳   ink.top → -1.0
+✘ Test grows(height:) recorded an issue with 1 argument height → 80 at GrowSuite.swift:19:9: Expectation failed: ink.top >= -4
+↳   ink.top → -2.0
+✘ Test grows(height:) recorded an issue with 1 argument height → 90 at GrowSuite.swift:19:9: Expectation failed: ink.top >= -4
+↳   ink.top → -3.0
+✘ Test grows(height:) recorded more issues; the log holds every one
+✘ Test grows(height:) with 4 test cases failed after 0.002 seconds with 4 issues.
+✘ Test run with 2 tests in 1 suite failed after 0.100 seconds with 5 issues (including 1 known issue).
+** TEST EXECUTE FAILED **" "" 65 \
+"◇ Test run started.
+✘ Test grows(height:) recorded an issue with 1 argument height → 70 at GrowSuite.swift:19:9: Expectation failed: ink.top >= -4
+↳ ink.top >= -4 → false
+↳   ink.top → -1.0
+✘ Test grows(height:) recorded an issue with 1 argument height → 80 at GrowSuite.swift:19:9: Expectation failed: ink.top >= -4
+↳ ink.top >= -4 → false
+↳   ink.top → -2.0
+✘ Test grows(height:) recorded an issue with 1 argument height → 90 at GrowSuite.swift:19:9: Expectation failed: ink.top >= -4
+↳ ink.top >= -4 → false
+↳   ink.top → -3.0
+✘ Test grows(height:) recorded an issue with 1 argument height → 99 at GrowSuite.swift:19:9: Expectation failed: ink.top >= -4
+↳ 4 Sets
+↳ ink.top >= -4 → false
+↳   ink.top → -4.5
+✘ Test grows(height:) with 4 test cases failed after 0.002 seconds with 4 issues.
+↳ /// The branch stays inside the gaps around it.
+━ Test replanningKeepsTheLandedWrite() recorded a known issue at SyncCoordinatorReplanTests.swift:693:9: Expectation failed: sync.outcome == .flushed
+↳   sync.outcome → .writesQueued(2)
+✘ Test run with 2 tests in 1 suite failed after 0.100 seconds with 5 issues (including 1 known issue).
 ** TEST EXECUTE FAILED **"
 
 check "xcodebuild failing before any test names its error, not the selection" 70 \
@@ -327,6 +365,14 @@ for flags in "--no-build --sim" "--sim"; do
         printf '    stdout:\n%s\n    stderr:\n%s\n' "$(cat "$root/out")" "$(cat "$root/err")"
     fi
 done
+
+STUB_SIMCTL_DOWN=1 HOME=$root/home PATH="$root/bin:$PATH" "$repo/scripts/test-sim.sh" --sim "$sim" unit >"$root/out" 2>"$root/err"
+status=$?
+if [ $status = 1 ] && [ "$(cat "$root/err")" = "An error was encountered processing the command (code=405)" ]; then
+    ok "a simctl failure prints simctl's error, not a refused UDID"
+else
+    bad "a simctl failure prints simctl's error, not a refused UDID: exit $status, stderr '$(cat "$root/err")'"
+fi
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1

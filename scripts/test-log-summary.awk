@@ -1,27 +1,26 @@
 /^[^ ]+ Test .* recorded an issue/ {
   test = $0
   sub(/ recorded an issue.*/, "", test)
-  shown = ++issues[test] <= 3
   expression = $0
   if (!sub(/.*Expectation failed: /, "", expression)) expression = ""
   operand = 0
-  if (shown) print
+  mode = ++issues[test] <= 3 ? "issue" : ""
+  if (mode) print
   else if (issues[test] == 4) print test " recorded more issues; the log holds every one"
   next
 }
-shown && /^(↳| )/ {
-  if (/^↳ [^ ]/) { if (expression == "" || index($0, "↳ " expression) != 1) print }
+mode == "issue" && /^(↳| )/ {
+  if (/^↳ [^ ]/) { if ($0 != "↳ " expression && index($0, "↳ " expression " → ") != 1) print }
   else if (/^↳   [^ ]/) { print; operand = !/ → / }
   else if (operand && / → /) { print; operand = 0 }
   next
 }
-{ shown = 0 }
-/^(Failing tests:|Testing failed:|xcodebuild: error:)/ { block = 1; print; next }
-block && /^\t/ { print; next }
-{ block = 0 }
+/^(Failing tests:|Testing failed:|xcodebuild: error:)/ { mode = "block"; print; next }
+mode == "block" && /^\t/ { print; next }
+{ mode = "" }
 /^[^ ]+ Test run with [1-9]/ { ran = 1 }
-/Executed [1-9][0-9]* tests?, with/ { ran = 1; if (outermost) print }
-{ outermost = /^Test Suite '(All|Selected) tests' / }
+/Executed [1-9][0-9]* tests?, with/ { ran = 1; if (previous ~ /^Test Suite '(All|Selected) tests' /) print }
 /^[^ ]+ Test run with/ || /^[^ ]+ Test .* failed after/ \
   || /\.swift:[0-9]+: error: / || /unexpected signal/ || /^Restarting after unexpected exit/ || /\*\* TEST EXECUTE/
+{ previous = $0 }
 END { exit !ran }

@@ -31,9 +31,13 @@ if devices:
 }
 
 sim_available() {
-  xcrun simctl list devices available -j | UDID="$1" python3 -c '
+  local listing
+  listing=$(xcrun simctl list devices available -j) || return
+  printf %s "$listing" | UDID="$1" python3 -c '
 import json, os, sys
-sys.exit(all(d["udid"] != os.environ["UDID"] for ds in json.load(sys.stdin)["devices"].values() for d in ds))'
+sys.exit(all(d["udid"] != os.environ["UDID"] for ds in json.load(sys.stdin)["devices"].values() for d in ds))' && return
+  echo "no available simulator $1; xcrun simctl list devices available lists them" >&2
+  return 2
 }
 
 sim_flock() {
