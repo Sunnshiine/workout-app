@@ -1,0 +1,33 @@
+name: Skill links
+
+on:
+  pull_request:
+    paths:
+      - ".agents/skills/**"
+      - ".claude/skills/**"
+      - "scripts/lint-skill-links.sh"
+      - "scripts/tests/lint-skill-links.test.sh"
+      - ".github/workflows/skill-links.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".agents/skills/**"
+      - ".claude/skills/**"
+      - "scripts/lint-skill-links.sh"
+      - "scripts/tests/lint-skill-links.test.sh"
+      - ".github/workflows/skill-links.yml"
+
+concurrency:
+  group: skill-links-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  skill-links:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checker tests
+        run: scripts/tests/lint-skill-links.test.sh
+      - name: Every skill linked from .claude/skills
+        run: scripts/lint-skill-links.sh
