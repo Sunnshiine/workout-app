@@ -125,6 +125,7 @@ Failing tests:
 ✘ Test failsOnPurpose() recorded an issue at Issue769FailingProbeTests.swift:5:9: Expectation failed: 1 + 1 == 3
 ━ Test replanningKeepsTheLandedWrite() recorded a known issue at SyncCoordinatorReplanTests.swift:693:9: Expectation failed
 ✘ Test run with 1021 tests in 12 suites failed after 2.172 seconds with 3 issues (including 1 known issue).
+Test Suite 'Selected tests' failed at 2026-09-24 11:52:20.004.
 	 Executed 3 tests, with 1 failure (0 unexpected) in 0.100 (0.104) seconds
 
 Test session results, code coverage, and logs:
@@ -284,7 +285,7 @@ for flags in "--no-build --sim" "--sim"; do
         "$repo/scripts/test-sim.sh" $flags "$unknown" unit >"$root/out" 2>"$root/err"
     status=$?
     want="no available simulator $unknown; xcrun simctl list devices available lists them"
-    if [ $status = 1 ] && [ ! -s "$root/out" ] && [ "$(cat "$root/err")" = "$want" ] && [ ! -e "$root/seen" ]; then
+    if [ $status = 2 ] && [ ! -s "$root/out" ] && [ "$(cat "$root/err")" = "$want" ] && [ ! -e "$root/seen" ]; then
         ok "an unknown --sim UDID ($flags) is refused before xcodebuild starts"
     else
         bad "an unknown --sim UDID ($flags) is refused before xcodebuild starts: exit $status, xcodebuild ran: $([ -e "$root/seen" ] && echo yes || echo no)"
