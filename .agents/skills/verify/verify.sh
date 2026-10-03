@@ -230,6 +230,14 @@ case $cmd in
         echo "evidence $(run_dir)"
         exit 0
       fi
+      if ! kill -0 "$pid" 2>/dev/null; then
+        echo "pid $pid exited during launch" >&2
+        # simctl launch --stderr captures nothing on iOS 27, so a fatalError's message is read back from the log.
+        xcrun simctl spawn "$sim" log show --last 1m --style compact \
+          --predicate "processID == $pid AND senderImagePath ENDSWITH \"libswiftCore.dylib\"" 2>/dev/null \
+          | sed -n 's/^.*(libswiftCore.dylib) //p' >&2 || true
+        exit 70
+      fi
       sleep 0.25
     done
     echo "pid $pid never became the frontmost accessibility app; run: $0 doctor" >&2

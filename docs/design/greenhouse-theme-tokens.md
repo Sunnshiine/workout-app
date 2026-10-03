@@ -18,7 +18,8 @@ are recorded inline.
   `sageLight`, `blueLight`). A fixture launch pins the preference for
   screenshots and tests: `-UITEST_APPEARANCE dark` renders Night and
   `-UITEST_APPEARANCE light` renders Day. The flag takes the preference's
-  stored values (`system`, `light`, `dark`), so `night` is ignored.
+  stored values (`system`, `light`, `dark`), and any other value, `night`
+  included, stops the launch with a fatal error that names them.
 
 ## 2. Token architecture
 
