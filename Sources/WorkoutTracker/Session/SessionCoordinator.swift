@@ -216,14 +216,6 @@ final class SessionCoordinator {
         pairingConfirmationTask?.cancel()
     }
 
-    func configure(
-        logging: any SessionLoggingAdapter,
-        sync: any SessionSyncAdapter
-    ) {
-        loggingAdapter = logging
-        syncAdapter = sync
-    }
-
     func bind(to session: Session?) {
         self.session = session
         savedLoggedSetID = nil
@@ -251,7 +243,8 @@ final class SessionCoordinator {
             liveActivityAdapter = liveActivity
         }
         self.liveEdge = liveEdge
-        configure(logging: logging, sync: sync)
+        loggingAdapter = logging
+        syncAdapter = sync
         bind(to: session)
     }
 
