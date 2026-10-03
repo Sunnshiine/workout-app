@@ -16,7 +16,7 @@ usage() {
 scripts/crap.sh [measure|gate|baseline] [options]
 
   measure    Score every production function and print the worst ones (default).
-  gate       Fail if a function is a new or worsened violation, or if the baseline is stale.
+  gate       Fail on a new or worsened violation, a stale baseline row, or a row with no reason.
   baseline   Rewrite tools/crap/baseline.tsv from the current report.
 
   --no-test          Reuse the existing coverage profile instead of running swift test.

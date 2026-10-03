@@ -5,7 +5,7 @@ public struct BaselineEntry: Sendable, Equatable {
     public var name: String
     public var crap: Double
     /// Why the row is held above the threshold. Written by hand, kept across `crap baseline` rewrites
-    /// while the row survives, and gone with the row. Empty until someone says.
+    /// while the row survives, and gone with the row. The gate fails a row whose reason is empty.
     public var reason: String
 
     public init(file: String, name: String, crap: Double, reason: String = "") {
@@ -40,8 +40,8 @@ public enum Finding: Sendable, Equatable {
         switch self {
         case .newViolation(let file, let name, let crap, let threshold):
             "newViolation  \(file)  \(name)  crap \(format(crap)) > threshold \(format(threshold)), not in the baseline; "
-                + "test or simplify it to \(format(threshold)) or below, or add it to tools/crap/baseline.tsv "
-                + "with why it stays above in the fourth column"
+                + "test or simplify it to \(format(threshold)) or below, "
+                + "or run scripts/crap.sh baseline to add its row and then give the row a reason"
         case .worsened(let file, let name, let crap, let recorded, let tolerance):
             "worsened      \(file)  \(name)  crap \(format(crap)) > baseline \(format(recorded)) + tolerance \(format(tolerance))"
         case .stale(let file, let name, let recorded, let reason):
@@ -52,7 +52,7 @@ public enum Finding: Sendable, Equatable {
                 + "rerun scripts/crap.sh baseline to bank it"
         case .unexplained(let file, let name):
             "unexplained   \(file)  \(name)  baseline row has no reason; "
-                + "write why it stays above the threshold in its fourth column"
+                + "write why it stays above the threshold in its reason column"
         }
     }
 

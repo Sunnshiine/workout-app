@@ -110,22 +110,23 @@ private func evaluate(_ report: Report, _ baseline: [BaselineEntry]) -> GateOutc
         #expect(
             message
                 == "newViolation  A.swift  A.f()  crap 30.0 > threshold 6.0, not in the baseline; "
-                + "test or simplify it to 6.0 or below, or add it to tools/crap/baseline.tsv "
-                + "with why it stays above in the fourth column"
+                + "test or simplify it to 6.0 or below, "
+                + "or run scripts/crap.sh baseline to add its row and then give the row a reason"
         )
     }
 
-    @Test func unexplainedRowFailsUntilItGivesAReason() {
+    @Test func unexplainedRowFailsUntilItGivesAReason() throws {
         let outcome = evaluate(
             report([("A.f()", 5, 30.0)]),
             [BaselineEntry(file: "A.swift", name: "A.f()", crap: 30.0, reason: " ")]
         )
         #expect(outcome.findings == [.unexplained(file: "A.swift", name: "A.f()")])
         #expect(outcome.exitCode == 1)
+        let finding = try #require(outcome.findings.first)
         #expect(
-            outcome.findings[0].message
+            finding.message
                 == "unexplained   A.swift  A.f()  baseline row has no reason; "
-                + "write why it stays above the threshold in its fourth column"
+                + "write why it stays above the threshold in its reason column"
         )
     }
 
