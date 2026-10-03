@@ -2,13 +2,16 @@
   test = $0
   sub(/ recorded an issue.*/, "", test)
   shown = ++issues[test] <= 3
+  expression = $0
+  if (!sub(/.*Expectation failed: /, "", expression)) expression = ""
   operand = 0
   if (shown) print
   else if (issues[test] == 4) print test " recorded more issues; the log holds every one"
   next
 }
 shown && /^(↳| )/ {
-  if (/^↳   [^ ]/) { print; operand = !/ → / }
+  if (/^↳ [^ ]/) { if (expression == "" || index($0, "↳ " expression) != 1) print }
+  else if (/^↳   [^ ]/) { print; operand = !/ → / }
   else if (operand && / → /) { print; operand = 0 }
   next
 }
