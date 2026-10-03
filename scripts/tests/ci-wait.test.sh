@@ -26,7 +26,7 @@ cat >"$root/bin/gh" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
 [ "$(wc -l <"$STUB_DIR/calls.log")" -lt 200 ] || { echo "gh stub: 200 calls, ci-wait.sh is looping" >&2; exit 99; }
-printf '%s\n' "$*" >>"$STUB_DIR/calls.log"
+printf '%s\n' "${*//$'\n'/ }" >>"$STUB_DIR/calls.log"
 frame="$STUB_DIR/frames/$(cat "$STUB_DIR/cursor").json"
 sub="$1 $2"
 shift 2
@@ -45,7 +45,9 @@ while [ $# -gt 0 ]; do
     esac
 done
 case "$sub" in
-    "pr view") jq -nr --arg s "$STUB_SHA" '{headRefOid: $s}' | jq -r "$jq_expr" ;;
+    "pr view")
+        [ "$id" != main ] || { echo 'no pull requests found for branch "main"' >&2; exit 1; }
+        jq -nr --arg s "$STUB_SHA" '{headRefOid: $s}' | jq -r "$jq_expr" ;;
     "api repos/{owner}/{repo}/commits/"*) jq -nr --arg s "$STUB_SHA" '{sha: $s}' | jq -r "$jq_expr" ;;
     "run list")
         for f in ${fields//,/ }; do
@@ -54,9 +56,9 @@ case "$sub" in
                 *) echo "gh stub: gh run list has no JSON field $f" >&2; exit 1 ;;
             esac
         done
-        [ "$commit" = "$STUB_SHA" ] || { echo '[]' | jq -r "$jq_expr"; exit 0; }
-        jq --arg w "$workflow" --arg e "$event" \
-            "map(select((\$w == \"\" or .workflowName == \$w) and (\$e == \"\" or .event == \$e))) | .[:$limit]" \
+        jq --arg c "$commit" --arg s "$STUB_SHA" --arg w "$workflow" --arg e "$event" \
+            "map(select((\$c == \"\" or (.headSha // \$s) == \$c) and (\$w == \"\" or .workflowName == \$w)
+                        and (\$e == \"\" or .event == \$e))) | .[:$limit]" \
             "$frame" | jq -r "$jq_expr" ;;
     "run watch") next-frame ;;
     "run view")
@@ -190,13 +192,12 @@ check "a run that appears after two polls" 0 "CI success on 73b27aa (run $A)
     "[$(workflow_run CI push $A completed success swift-tests lint visual-tests)]"
 
 check "a commit that never gets a run exits 3" 3 "" 668 "[]"
-if grep -qx "no workflow ran on 73b27aa within 5 minutes; path filters skipped every workflow" "$root/case/err"; then
+if grep -qx "no workflow ran on 73b27aa; path filters or job conditions skipped every one" "$root/case/err"; then
     ok "a commit that never gets a run names the path-filter cause"
 else
     bad "a commit that never gets a run: stderr was $(cat "$root/case/err")"
 fi
 
-# #796: probe PR #795 changed one skill file, so CI skipped it and Workflow lint failed it.
 L=37087587279
 
 check "#796: a red check from another workflow fails a PR that CI skipped" 1 "Workflow lint failure on 73b27aa (run $L)
@@ -264,6 +265,35 @@ TestFlight Stable success on 73b27aa (run $B)
     "[${issue_runs}$(workflow_run CI push $A in_progress "" swift-tests lint visual-tests), $(workflow_run "TestFlight Stable" push $B in_progress "" archive upload)]" \
     "[${issue_runs}$(workflow_run CI push $A completed success swift-tests lint visual-tests), $(workflow_run "TestFlight Stable" push $B in_progress "" archive upload)]" \
     "[${issue_runs}$(workflow_run CI push $A completed success swift-tests lint visual-tests), $(workflow_run "TestFlight Stable" push $B completed success archive upload)]"
+
+check "a failed build is not erased by a later skipped run of its workflow" 1 "TestFlight PR failure on 73b27aa (run $B)
+  build: failure" 505 \
+    "[$(workflow_run "TestFlight PR" pull_request $C completed skipped build), $(workflow_run "TestFlight PR" pull_request $B completed failure build)]"
+
+later_merge="$(workflow_run "TestFlight Stable" push $C completed success archive upload | jq -c '.headSha = "later"')"
+check "on main, a run a later merge cancelled is superseded, not failed" 0 "CI success on 73b27aa (run $A)
+  swift-tests: success
+  lint: success
+  visual-tests: success
+TestFlight Stable superseded on 73b27aa (run $B)
+  archive: cancelled
+  upload: cancelled" main \
+    "[$later_merge, $(workflow_run CI push $A completed success swift-tests lint visual-tests), $(workflow_run "TestFlight Stable" push $B completed cancelled archive upload)]"
+
+check "on main, a cancelled run with no later run of its workflow fails" 1 "TestFlight Stable cancelled on 73b27aa (run $B)
+  archive: cancelled
+  upload: cancelled" main \
+    "[$(workflow_run "TestFlight Stable" push $B completed cancelled archive upload)]"
+
+check "a PR named by its branch answers for its pull_request runs" 0 "$success_b" fix/retro-ciwait \
+    "[$(run_record $B completed success visual-tests swift-tests lint)]"
+
+other_pr="$(run_record $C completed success | jq -c '.headSha = "other-pr"')"
+check "a PR's cancelled run fails even when another PR ran its workflow since" 1 "CI cancelled on 73b27aa (run $A)
+  swift-tests: cancelled
+  lint: cancelled
+  visual-tests: cancelled" 668 \
+    "[$other_pr, $(run_record $A completed cancelled)]"
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1
