@@ -107,6 +107,8 @@ jobs:
           path: ${{ runner.temp }}/swift-tests/CompilationCache
           key: swift-tests-cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
           restore-keys: swift-tests-cas-${{ steps.xcode.outputs.build }}-
+      - name: Test the CRAP scorer
+        run: swift test --package-path tools/crap
       - name: Run unit + component tests and the CRAP gate (ADR-0016)
         run: scripts/crap.sh gate --xcodebuild "$RUNNER_TEMP/swift-tests"
       - name: Save the compilation cache
