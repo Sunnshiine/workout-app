@@ -30,6 +30,7 @@ set -euo pipefail
 printf '%s\n' "${*//$'\n'/ }" >>"$STUB_DIR/calls.log"
 cursor=$(cat "$STUB_DIR/cursor")
 frame="$STUB_DIR/frames/$cursor.json"
+branch_tip() { cat "$STUB_DIR/head.$cursor" 2>/dev/null || echo "$STUB_SHA"; }
 sub="$1 $2"
 shift 2
 id="" jq_expr="." limit=20 commit="" event="" fields=""
@@ -48,9 +49,9 @@ done
 case "$sub" in
     "pr view")
         if [ -n "${STUB_PR_ERROR:-}" ]; then echo "$STUB_PR_ERROR" >&2; exit 1; fi
-        head=$STUB_SHA
-        [ -f "$STUB_DIR/head.$cursor" ] && head=$(cat "$STUB_DIR/head.$cursor")
-        jq -nr --arg s "$head" '{headRefOid: $s}' | jq -r "$jq_expr" ;;
+        jq -nr --arg s "${STUB_PR_HEAD:-$(branch_tip)}" '{headRefName: "topic", headRefOid: $s}' | jq -r "$jq_expr" ;;
+    "api repos/{owner}/{repo}/git/ref/heads/topic")
+        jq -nr --arg s "$(branch_tip)" '{object: {sha: $s}}' | jq -r "$jq_expr" ;;
     "run list")
         for f in ${fields//,/ }; do
             case "$f" in
@@ -88,7 +89,8 @@ ci() { workflow_run CI "$1" "$2" "$3" swift-tests lint visual-tests; }
 on_pushed() { jq -c --arg s "$pushed" '.headSha = $s' <<<"$1"; }
 
 # Each frame argument is one gh run list answer; gh run watch and sleep advance to the next.
-# heads="a b c" makes gh pr view answer a in frame 0, b in frame 1, and so on.
+# heads="a b c" puts the branch tip at a in frame 0, b in frame 1, and so on. pr_head="x" makes
+# gh pr view report x as the head, as it does for up to two minutes after a push (#694).
 check() {
     local name=$1 want_status=$2 want_out=$3 arg=$4
     shift 4
@@ -100,7 +102,7 @@ check() {
     for h in ${heads:-}; do echo "$h" >"$dir/head.$i"; i=$((i + 1)); done
     echo 0 >"$dir/cursor"
     : >"$dir/calls.log"
-    STUB_DIR="$dir" STUB_SHA="$sha" STUB_PR_ERROR="${pr_error:-}" PATH="$root/bin:$PATH" "$ci_wait" ${arg:+"$arg"} >"$dir/out" 2>"$dir/err"
+    STUB_DIR="$dir" STUB_SHA="$sha" STUB_PR_ERROR="${pr_error:-}" STUB_PR_HEAD="${pr_head:-}" PATH="$root/bin:$PATH" "$ci_wait" ${arg:+"$arg"} >"$dir/out" 2>"$dir/err"
     local status=$?
     if [ "$status" -eq "$want_status" ] && [ "$(cat "$dir/out")" = "$want_out" ]; then
         ok "$name"
@@ -166,7 +168,7 @@ Verify tools success on 73b27aa (run $W)
 $merge" 668 \
     "[$(ci $B completed success), $(workflow_run "Verify tools" $V completed cancelled sheet tree), $(workflow_run "Verify tools" $W completed success sheet tree), $(ci $A completed cancelled)]"
 
-check "a re-run that passes after the watched run failed decides" 0 "$ci_b_success
+check "a newer run that passes after the watched run failed decides" 0 "$ci_b_success
 $merge" 668 \
     "[$(ci $A in_progress "")]" \
     "[$(ci $B in_progress ""), $(ci $A completed failure)]" \
@@ -183,9 +185,18 @@ $merge" 668 \
     "[$(workflow_run "Workflow lint" $L in_progress "" skill-links)]" \
     "[$(workflow_run "Workflow lint" $L completed success skill-links)]"
 
-check "a skipped run of another workflow is not read" 0 "$ci_a_success
+check "a skipped run, and a run from another event on the head, are not read" 0 "$ci_a_success
 $merge" 668 \
-    "[$(workflow_run "TestFlight PR" $C completed skipped archive upload), $(ci $A completed success)]"
+    "[$(workflow_run "TestFlight PR" $C completed skipped archive upload), $(jq -c '.event = "issues"' <<<"$(workflow_run "Agent Review" $B completed failure review)"), $(ci $A completed success)]"
+
+heads="$pushed $pushed $pushed" pr_head=$sha check "#694: a head pushed seconds ago is waited on, not the previous head's green run" 0 "CI success on f2c0ffe (run $C)
+  swift-tests: success
+  lint: success
+  visual-tests: success
+gh pr merge 668 --squash --match-head-commit $pushed" 668 \
+    "[$(ci $A completed success)]" \
+    "[$(on_pushed "$(ci $C in_progress "")"), $(ci $A completed success)]" \
+    "[$(on_pushed "$(ci $C completed success)"), $(ci $A completed success)]"
 
 echo "red or unfinished: never exit 0"
 
@@ -262,10 +273,10 @@ heads="$sha $sha $pushed" check "a push during a wait that found no run fails in
 
 echo "no run: exit 3"
 
-check "a PR that starts no run exits 3" 3 "$merge" 668 "[]"
+check "a PR that starts no run exits 3 and prints no merge command" 3 "" 668 "[]"
 check_err "a PR that starts no run names the commit it searched" "no pull_request workflow ran on 73b27aa within 5 minutes"
 
-check "a PR whose only runs were skipped exits 3" 3 "$merge" 668 \
+check "a PR whose only runs were skipped exits 3" 3 "" 668 \
     "[$(workflow_run "TestFlight PR" $A completed skipped build), $(workflow_run "Verify tools" $W completed skipped sheet)]"
 
 echo "arguments"

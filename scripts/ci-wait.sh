@@ -5,9 +5,12 @@ usage() {
     cat <<'EOF'
 scripts/ci-wait.sh PR_NUMBER
 
-Waits for every pull_request workflow run on the pull request's head commit, then prints each
-workflow's conclusion and its jobs. Each workflow answers with its newest run that was not skipped.
-When the wait ends with no failure, prints the gh pr merge command pinned to the commit it watched.
+Waits for every pull_request workflow run on the tip of the pull request's branch, then prints
+each workflow's conclusion and its jobs. Each workflow answers with its newest run that was not
+skipped. When every workflow succeeded, prints the gh pr merge command pinned to that commit.
+
+The tip comes from the branch ref, which moves at push time. The pull request's own head can lag a
+push by two minutes (#694).
 
 Exits 0 when every workflow succeeded, 1 when one failed or was cancelled or the head moved during
 the wait, and 3 when no workflow ran.
@@ -26,8 +29,9 @@ case "${1:-}" in
 esac
 
 pr=$1
-head_sha() { gh pr view "$pr" --json headRefOid --jq .headRefOid; }
-sha=$(head_sha)
+branch=$(gh pr view "$pr" --json headRefName --jq .headRefName)
+head_sha() { gh api "repos/{owner}/{repo}/git/ref/heads/$branch" --jq .object.sha; }
+sha=$(head_sha) || { echo "branch $branch of #$pr is gone or in a fork" >&2; exit 1; }
 
 newest_runs() {
     gh run list --commit "$sha" --event pull_request --limit 100 \
@@ -36,7 +40,6 @@ newest_runs() {
             | [.databaseId, .status, .conclusion, .workflowName] | @tsv'
 }
 
-runs=""
 for _ in $(seq 60); do
     runs=$(newest_runs)
     [[ -n "$runs" ]] && break
@@ -53,10 +56,8 @@ if [[ "$now" != "$sha" ]]; then
     exit 1
 fi
 
-merge="gh pr merge $pr --squash --match-head-commit $sha"
 if [[ -z "$runs" ]]; then
     echo "no pull_request workflow ran on ${sha:0:7} within 5 minutes" >&2
-    echo "$merge"
     exit 3
 fi
 
@@ -67,4 +68,4 @@ while IFS=$'\t' read -r run _ conclusion workflow; do
     [[ "$conclusion" == success ]] || failed=1
 done <<<"$runs"
 [[ "$failed" == 0 ]] || exit 1
-echo "$merge"
+echo "gh pr merge $pr --squash --match-head-commit $sha"
