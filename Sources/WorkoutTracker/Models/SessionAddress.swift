@@ -4,7 +4,7 @@ import Foundation
 ///
 /// It carries no Block tab, so it re-resolves against whichever Block is cached: the Viewed Session
 /// survives a sheet switch, and a CLI address names a Session of the cached Block. A holder that
-/// must tell Blocks apart holds a `SessionCoordinate`. Deliberately not `Comparable`: the one
+/// must tell Blocks apart holds a `SessionCoordinate` or a `SessionReparseIdentity`. Deliberately not `Comparable`: the one
 /// persisted order is the current-Session override's `(week - 1) * 7 + day`.
 public struct SessionAddress: StringCodedAddress {
     public let week: Int

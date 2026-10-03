@@ -65,11 +65,20 @@ import Testing
     #expect(write.lastError == "Expected 185x5@8, found 190x5@9")
 }
 
-@Test func storedSessionAttributesKeepTheirShippedNames() throws {
-    func names(_ type: any PersistentModel.Type) throws -> Set<String> {
-        Set(try #require(Schema([type]).entities.first).attributes.map(\.name))
+@Test func storedSessionAttributesKeepTheirShippedNamesAndTypes() throws {
+    func types(_ type: any PersistentModel.Type, _ names: [String]) throws -> [String: String] {
+        let attributes = try #require(Schema([type]).entities.first).attributes
+        return Dictionary(
+            uniqueKeysWithValues: attributes.filter { names.contains($0.name) }.map { ($0.name, "\($0.valueType)") }
+        )
     }
 
-    #expect(try names(PendingWrite.self).isSuperset(of: ["blockTab", "week", "day", "dayNumberingRaw"]))
-    #expect(try names(WriteTargetAuditEntry.self).isSuperset(of: ["blockTab", "week", "day"]))
+    #expect(
+        try types(PendingWrite.self, ["blockTab", "week", "day", "dayNumberingRaw"])
+            == ["blockTab": "String", "week": "Int", "day": "Int", "dayNumberingRaw": "Optional<String>"]
+    )
+    #expect(
+        try types(WriteTargetAuditEntry.self, ["blockTab", "week", "day"])
+            == ["blockTab": "String", "week": "Int", "day": "Int"]
+    )
 }

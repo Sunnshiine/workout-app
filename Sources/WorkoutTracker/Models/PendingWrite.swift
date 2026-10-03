@@ -34,7 +34,7 @@ enum WriteTargetAuditStatus: String, Codable, Sendable {
 final class PendingWrite {
     @Attribute(.unique) var id: UUID
     var createdAt: Date
-    // Shipped stores hold these attribute names. Read them through `session`.
+    // Shipped stores hold these attribute names. Read them through `session` and `dayNumbering`.
     private var blockTab: String
     private var week: Int
     private var day: Int

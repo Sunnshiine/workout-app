@@ -1,7 +1,7 @@
 import Foundation
 
-/// Which Exercise a Superset side names, as the Session Coordinate that survives a reparse plus the
-/// Exercise's name. `exerciseOrder` is carried for callers but left out of `==` and `hash`, because
+/// Which Exercise a Superset side names, as its Session's reparse identity plus the Exercise's
+/// name. `exerciseOrder` is carried for callers but left out of `==` and `hash`, because
 /// a coach who reorders the Sheet must not dissolve the pair. The Block tab is in, because a coach
 /// reuses the template between Blocks: without it Block 29 · W1 D2 and Block 30 · W1 D2 spell the
 /// same identity, and a pair made in one would reattach in the other.
