@@ -25,7 +25,7 @@ import Testing
     ctx.insert(write)
     try ctx.save()
 
-    let fetched = try #require(try ctx.fetch(FetchDescriptor<PendingWrite>()).first)
+    let fetched = try #require(try ModelContext(container).fetch(FetchDescriptor<PendingWrite>()).first)
     #expect(fetched.recordedSession.blockTab == "Block 27")
     #expect(fetched.column == .notes)
     #expect(fetched.operation == .upsert)
