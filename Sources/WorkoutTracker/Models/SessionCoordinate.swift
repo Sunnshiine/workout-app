@@ -1,6 +1,7 @@
 import Foundation
 
-/// Which Session an Exercise History entry was performed in: Block tab · Session Address (ADR-0012).
+/// Which Session of which Block: Block tab · Session Address. Queued writes and Exercise History
+/// entries (ADR-0012) hold one.
 ///
 /// The entry's persisted `source` is this coordinate's `storageValue`, and ADR-0012 makes that string
 /// the append-only table's dedup key. The encoding is therefore an identity, not a label — changing it
@@ -10,7 +11,7 @@ struct SessionCoordinate: Hashable, Sendable {
     let address: SessionAddress
 
     /// `Block 27 · W1 D1` — the canonical encoding every writer persists, and the ADR-0012 dedup key.
-    var storageValue: String { blockTab + Self.separator + address.sessionLabel }
+    var storageValue: String { blockTab + Self.separator + "W\(address.week) D\(address.day)" }
 
     init(blockTab: String, address: SessionAddress) {
         self.blockTab = blockTab

@@ -167,7 +167,7 @@ private func noteSetDrift(handBuilt: Exercise, parsed: Exercise, at exercise: Ex
 private func sessionsByAddress(_ block: Block) -> [SessionAddress: Session] {
     Dictionary(
         uniqueKeysWithValues: block.weeks.flatMap { week in
-            week.sessions.map { (SessionAddress(week: week.number, day: $0.dayNumber), $0) }
+            week.sessions.map { (week.address(of: $0), $0) }
         }
     )
 }

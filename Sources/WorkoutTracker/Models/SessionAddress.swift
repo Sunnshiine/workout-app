@@ -2,7 +2,8 @@ import Foundation
 
 /// A Session by its 1-based Week number and Day number: `w1d3`.
 ///
-/// It carries no Block tab, so it re-resolves against whichever Block is cached.
+/// It carries no Block tab, so it re-resolves against whichever Block is cached. Deliberately not
+/// `Comparable`: the one persisted order is the current-Session override's `(week - 1) * 7 + day`.
 public struct SessionAddress: StringCodedAddress {
     public let week: Int
     public let day: Int

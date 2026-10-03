@@ -1,5 +1,7 @@
 import Foundation
 
+/// Which Exercise a Superset side names. Sheet order stays out, so a coach who reorders the Sheet
+/// keeps the pair. The Block tab stays in, because a coach reuses the template between Blocks.
 struct SupersetExerciseIdentity: Hashable, Sendable {
     let session: SessionReparseIdentity
     let exerciseName: String

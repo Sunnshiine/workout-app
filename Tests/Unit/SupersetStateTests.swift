@@ -373,3 +373,18 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     #expect(loggedSet.state == .logged)
     #expect(loggedSet.setLog == SetLog(weight: .pounds(185), reps: 5, rpe: .seven))
 }
+
+@MainActor
+@Test func supersetIdentityTellsSessionsWithoutAWeekApartByDay() {
+    func squatIdentity(inDay day: Int?) -> SupersetExerciseIdentity {
+        let squat = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil, order: 0)
+        if let day {
+            Session(dayNumber: day, date: nil).exercises = [squat]
+        }
+        return SupersetExerciseIdentity(exercise: squat)
+    }
+
+    #expect(squatIdentity(inDay: 2) == squatIdentity(inDay: 2))
+    #expect(squatIdentity(inDay: 1) != squatIdentity(inDay: 2))
+    #expect(squatIdentity(inDay: nil) == squatIdentity(inDay: 0))
+}

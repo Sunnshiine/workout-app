@@ -55,8 +55,7 @@ struct SessionProgressTracker {
     private static let weekOrderStride = Week.dayNumbers.count
 
     private func order(of session: Session) -> Int {
-        let address = session.address ?? SessionAddress(week: 1, day: session.dayNumber)
-        return (address.week - 1) * Self.weekOrderStride + address.day
+        session.address.map { ($0.week - 1) * Self.weekOrderStride + $0.day } ?? session.dayNumber
     }
 
     private func session(at order: Int, in block: Block) -> Session? {
