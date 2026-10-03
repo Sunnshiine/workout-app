@@ -1,7 +1,7 @@
 enum AppearancePreference: String, CaseIterable {
     case system
     case light
-    case dark
+    case night = "dark"
 
     var label: String {
         switch self {
@@ -9,7 +9,7 @@ enum AppearancePreference: String, CaseIterable {
             "System"
         case .light:
             "Light"
-        case .dark:
+        case .night:
             "Night"
         }
     }

@@ -33,39 +33,50 @@ import Testing
     let store = SettingsStore(defaults: defaults)
 
     #expect(store.appearance == .system)
-    #expect(defaults.string(forKey: "appearance") == AppearancePreference.system.rawValue)
+    #expect(defaults.string(forKey: "appearance") == "system")
 }
 
 @MainActor
-@Test func existingInstallWithoutAppearanceSeedsDark() throws {
+@Test func existingInstallWithoutAppearanceSeedsNight() throws {
     let defaults = AppDefaults.inMemory()
     defaults.set("SHEET123", forKey: "spreadsheetId")
 
     let store = SettingsStore(defaults: defaults)
 
-    #expect(store.appearance == .dark)
-    #expect(defaults.string(forKey: "appearance") == AppearancePreference.dark.rawValue)
+    #expect(store.appearance == .night)
+    #expect(defaults.string(forKey: "appearance") == "dark")
 }
 
 @MainActor
-@Test func cachedInstallWithoutAppearanceSeedsDark() throws {
+@Test func cachedInstallWithoutAppearanceSeedsNight() throws {
     let defaults = AppDefaults.inMemory()
 
     let store = SettingsStore(defaults: defaults, hasPriorAppState: true)
 
-    #expect(store.appearance == .dark)
-    #expect(defaults.string(forKey: "appearance") == AppearancePreference.dark.rawValue)
+    #expect(store.appearance == .night)
+    #expect(defaults.string(forKey: "appearance") == "dark")
 }
 
 @MainActor
-@Test func invalidAppearanceFallsBackToDark() throws {
+@Test func invalidAppearanceFallsBackToNight() throws {
     let defaults = AppDefaults.inMemory()
     defaults.set("legacy", forKey: "appearance")
 
     let store = SettingsStore(defaults: defaults)
 
-    #expect(store.appearance == .dark)
-    #expect(defaults.string(forKey: "appearance") == AppearancePreference.dark.rawValue)
+    #expect(store.appearance == .night)
+    #expect(defaults.string(forKey: "appearance") == "dark")
+}
+
+@MainActor
+@Test(arguments: [("system", AppearancePreference.system), ("light", .light), ("dark", .night)])
+func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: AppearancePreference) throws {
+    let defaults = AppDefaults.inMemory()
+    defaults.set("SHEET123", forKey: "spreadsheetId")
+    defaults.set(stored, forKey: "appearance")
+
+    #expect(SettingsStore(defaults: defaults).appearance == expected)
+    #expect(defaults.string(forKey: "appearance") == stored)
 }
 
 @MainActor
@@ -76,8 +87,8 @@ import Testing
     store.setAppearance(.light)
     #expect(SettingsStore(defaults: defaults).appearance == .light)
 
-    store.setAppearance(.dark)
-    #expect(SettingsStore(defaults: defaults).appearance == .dark)
+    store.setAppearance(.night)
+    #expect(SettingsStore(defaults: defaults).appearance == .night)
 
     store.setAppearance(.system)
     defaults.set("SHEET123", forKey: "spreadsheetId")

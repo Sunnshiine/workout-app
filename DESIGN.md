@@ -159,9 +159,12 @@ survive from the previous system.
 Exactly **two appearances ship: Day and Night** (`.day` / `.night`). The
 Settings preference stays three-way — System / Light / Night — with System
 following iOS. "Dark" leaves the product vocabulary. All five legacy palettes
-(`dark`, `black`, `mintGreen`, `sageLight`, `blueLight`) are retired; the
-`-WORKOUT_THEME` launch argument survives as the screenshot/test pin with
-`day` and `night` as its only values.
+(`dark`, `black`, `mintGreen`, `sageLight`, `blueLight`) are retired. A fixture
+launch pins the preference for screenshots and tests: `-UITEST_APPEARANCE dark`
+renders Night and `-UITEST_APPEARANCE light` renders Day, whatever the
+simulator's appearance. The flag takes the preference's stored values, `system`,
+`light`, and `dark`, and any other value, `night` included, stops the launch with
+a fatal error that names them. Without the flag, a fixture launch follows System.
 
 **Night is a hand-lit value sheet, never derived from Day.** The room is
 re-lit, not recolored: deep sage paper (`#232C20 → #121D14`, hue-preserved —

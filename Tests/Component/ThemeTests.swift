@@ -85,7 +85,7 @@ import Testing
 
 @Test func themeResolvesLightPreferenceToDayAndNightPreferenceToNight() {
     #expect(Theme.palette(for: AppearancePreference.light).appearance == .day)
-    #expect(Theme.palette(for: AppearancePreference.dark).appearance == .night)
+    #expect(Theme.palette(for: AppearancePreference.night).appearance == .night)
 }
 
 @Test func themeSystemPreferenceFollowsColorSchemeAndSystemDarkMapsToNight() {
@@ -95,35 +95,13 @@ import Testing
 
 @Test func themeForcedPreferencesIgnoreCurrentColorScheme() {
     #expect(Theme.palette(for: AppearancePreference.light, colorScheme: .dark).appearance == .day)
-    #expect(Theme.palette(for: AppearancePreference.dark, colorScheme: .light).appearance == .night)
+    #expect(Theme.palette(for: AppearancePreference.night, colorScheme: .light).appearance == .night)
 }
 
 @Test func themeColorSchemeOverrideOnlyForForcedPreferences() {
     #expect(Theme.colorSchemeOverride(for: AppearancePreference.system) == nil)
     #expect(Theme.colorSchemeOverride(for: AppearancePreference.light) == .light)
-    #expect(Theme.colorSchemeOverride(for: AppearancePreference.dark) == .dark)
-}
-
-// MARK: - Launch-argument parsing
-
-@Test func themeLaunchArgumentAcceptsOnlyDayAndNight() {
-    #expect(Theme.appearance(from: ["WorkoutTracker", Theme.paletteLaunchArgument, "day"]) == .day)
-    #expect(Theme.appearance(from: ["WorkoutTracker", Theme.paletteLaunchArgument, "night"]) == .night)
-}
-
-@Test func themeLaunchArgumentDefaultsToDayWhenMissingOrUnknown() {
-    #expect(Theme.appearance(from: ["WorkoutTracker"]) == .day)
-    #expect(Theme.appearance(from: ["WorkoutTracker", Theme.paletteLaunchArgument]) == .day)
-    #expect(Theme.appearance(from: ["WorkoutTracker", Theme.paletteLaunchArgument, "unknown"]) == .day)
-}
-
-@Test func themeLaunchArgumentRejectsTheFiveRetiredPalettes() {
-    for retired in ["dark", "black", "mintGreen", "sageLight", "blueLight"] {
-        #expect(
-            Theme.appearance(from: ["WorkoutTracker", Theme.paletteLaunchArgument, retired]) == .day,
-            "\(retired) is a retired legacy palette and must not resolve to a shipping appearance"
-        )
-    }
+    #expect(Theme.colorSchemeOverride(for: AppearancePreference.night) == .dark)
 }
 
 // MARK: - Paint box (token sheet §2)
@@ -258,12 +236,12 @@ import Testing
     @Test func themeDangerStaysADistinctDestructiveRed() {
         for appearance in Theme.Appearance.allCases {
             guard let danger = rgbaComponents(of: Theme.palette(for: appearance).danger) else {
-                Issue.record("Could not resolve \(appearance.rawValue) danger")
+                Issue.record("Could not resolve \(appearance) danger")
                 return
             }
-            #expect(danger.red > 0.85, "\(appearance.rawValue) danger should read as red")
-            #expect(danger.green < 0.35, "\(appearance.rawValue) danger should not drift orange or green")
-            #expect(danger.blue < 0.25, "\(appearance.rawValue) danger should not drift purple")
+            #expect(danger.red > 0.85, "\(appearance) danger should read as red")
+            #expect(danger.green < 0.35, "\(appearance) danger should not drift orange or green")
+            #expect(danger.blue < 0.25, "\(appearance) danger should not drift purple")
         }
     }
 #endif

@@ -15,8 +15,11 @@ are recorded inline.
   Night** in Settings. System follows iOS (system-dark → Night). "Dark"
   leaves the product vocabulary.
 - **All five legacy palettes are retired** (`dark`, `black`, `mintGreen`,
-  `sageLight`, `blueLight`). The `-WORKOUT_THEME` launch argument survives
-  as the screenshot/test pin, with `day` and `night` as its only values.
+  `sageLight`, `blueLight`). A fixture launch pins the preference for
+  screenshots and tests: `-UITEST_APPEARANCE dark` renders Night and
+  `-UITEST_APPEARANCE light` renders Day. The flag takes the preference's
+  stored values (`system`, `light`, `dark`), and any other value, `night`
+  included, stops the launch with a fatal error that names them.
 
 ## 2. Token architecture
 

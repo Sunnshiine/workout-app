@@ -89,7 +89,7 @@ final class SettingsStore {
 
         let seededPreference: AppearancePreference =
             hasPriorAppState || hasStoredAppState(in: defaults) || defaults.hasValue(forKey: appearanceKey)
-            ? .dark
+            ? .night
             : .system
         defaults.set(seededPreference.rawValue, forKey: appearanceKey)
         return seededPreference

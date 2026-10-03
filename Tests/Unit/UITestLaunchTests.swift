@@ -19,7 +19,6 @@ import Testing
         #expect(launch.startsWithCurrentSessionOverride == false)
         #expect(launch.startsWithMoveOnCelebration == false)
         #expect(launch.startsWithPerfectMoveOnCelebration == false)
-        #expect(launch.appearanceOverride == nil)
     }
 
     @Test func eachLaunchFlagParsesFromItsArgument() {
@@ -75,18 +74,21 @@ import Testing
         #expect(UITestLaunch(arguments: ["-UITEST_ONBOARDING"]).startsInBlockOverview == false)
     }
 
-    @Test func appearanceLaunchArgumentParsesSupportedAppearances() {
-        #expect(UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_APPEARANCE", "light"]).appearanceOverride == .light)
-        #expect(UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_APPEARANCE", "dark"]).appearanceOverride == .dark)
-        #expect(
-            UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_APPEARANCE", "system"]).appearanceOverride == .system
-        )
+    @Test func appearanceLaunchArgumentPinsEachStoredPreference() throws {
+        #expect(try UITestLaunch(arguments: ["WorkoutTracker"]).appearance == .system)
+        #expect(try UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_APPEARANCE", "system"]).appearance == .system)
+        #expect(try UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_APPEARANCE", "light"]).appearance == .light)
+        #expect(try UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_APPEARANCE", "dark"]).appearance == .night)
     }
 
-    @Test func appearanceLaunchArgumentIgnoresMissingOrUnsupportedAppearances() {
-        #expect(UITestLaunch(arguments: ["WorkoutTracker"]).appearanceOverride == nil)
-        #expect(UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_APPEARANCE"]).appearanceOverride == nil)
-        #expect(UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_APPEARANCE", "black"]).appearanceOverride == nil)
+    @Test func appearanceLaunchArgumentRefusesAValueThePreferenceDoesNotStore() {
+        let night = #expect(throws: UITestLaunch.UnknownAppearance.self) {
+            try UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_APPEARANCE", "night"]).appearance
+        }
+        #expect(night?.description == "-UITEST_APPEARANCE takes system, light, dark, not \"night\"")
+        #expect(throws: UITestLaunch.UnknownAppearance(value: "")) {
+            try UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_APPEARANCE"]).appearance
+        }
     }
 
     @MainActor

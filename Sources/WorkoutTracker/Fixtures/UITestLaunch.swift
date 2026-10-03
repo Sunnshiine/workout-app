@@ -74,14 +74,26 @@
             Self.scenarioArguments.first { has($0.argument) }?.scenario ?? .partialUpload
         }
 
-        var appearanceOverride: AppearancePreference? {
-            guard
-                let flagIndex = arguments.firstIndex(of: "-UITEST_APPEARANCE"),
-                arguments.indices.contains(arguments.index(after: flagIndex))
-            else {
-                return nil
+        var appearance: AppearancePreference {
+            get throws(UnknownAppearance) {
+                guard let flagIndex = arguments.firstIndex(of: "-UITEST_APPEARANCE") else {
+                    return .system
+                }
+                let value = arguments.dropFirst(flagIndex + 1).first ?? ""
+                guard let preference = AppearancePreference(rawValue: value) else {
+                    throw UnknownAppearance(value: value)
+                }
+                return preference
             }
-            return AppearancePreference(rawValue: arguments[arguments.index(after: flagIndex)])
+        }
+
+        struct UnknownAppearance: Error, Equatable, CustomStringConvertible {
+            let value: String
+
+            var description: String {
+                let accepted = AppearancePreference.allCases.map(\.rawValue).joined(separator: ", ")
+                return "-UITEST_APPEARANCE takes \(accepted), not \"\(value)\""
+            }
         }
 
         private func has(_ argument: String) -> Bool {

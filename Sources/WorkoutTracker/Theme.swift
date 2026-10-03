@@ -25,9 +25,7 @@ extension EnvironmentValues {
 /// Its length is the point rather than an accident. This is the one type role and token table, so
 /// splitting it to satisfy a line count would put rows of a single table in two files.
 enum Theme {  // swiftlint:disable:this type_body_length
-    /// The two shipping appearances. Day is primary; Night is the same room re-lit, never
-    /// recolored. There is no Day→Night derivation rule — each is hand-lit.
-    enum Appearance: String, CaseIterable {
+    enum Appearance: CaseIterable {
         case day
         case night
     }
@@ -299,17 +297,6 @@ enum Theme {  // swiftlint:disable:this type_body_length
         }
     }
 
-    // MARK: - Launch argument
-
-    static let paletteLaunchArgument = "-WORKOUT_THEME"
-
-    static let activeAppearance = appearance(from: ProcessInfo.processInfo.arguments)
-    static let activePalette = palette(for: activeAppearance)
-
-    static let preferredColorScheme = activePalette.preferredColorScheme
-    static let danger = activePalette.danger
-    static let sessionTileCurrentBorder = activePalette.tileCurrentBorder
-
     // MARK: - Radius family (token sheet §6)
     //
     // A named concentric family replacing the retired 8 / 16 / 28 scale. Approved pixel values are
@@ -499,26 +486,11 @@ enum Theme {  // swiftlint:disable:this type_body_length
 // MARK: - Appearance resolution
 
 extension Theme {
-    /// Resolves the `-WORKOUT_THEME` screenshot/test pin. Only `day` and `night` are accepted; the
-    /// five retired legacy palette names resolve to the Day default.
-    static func appearance(from arguments: [String]) -> Appearance {
-        guard
-            let argumentIndex = arguments.firstIndex(of: paletteLaunchArgument),
-            arguments.indices.contains(arguments.index(after: argumentIndex)),
-            let appearance = Appearance(rawValue: arguments[arguments.index(after: argumentIndex)])
-        else {
-            return .day
-        }
-        return appearance
-    }
-
-    /// Resolves the user's three-way preference against the current system scheme (system-dark maps
-    /// to Night). "Dark" has left the product vocabulary — the forced case is Night.
     static func palette(for preference: AppearancePreference, colorScheme: ColorScheme = .light) -> Palette {
         switch preference {
         case .light:
             palette(for: .day)
-        case .dark:
+        case .night:
             palette(for: .night)
         case .system:
             switch colorScheme {
@@ -538,7 +510,7 @@ extension Theme {
             nil
         case .light:
             .light
-        case .dark:
+        case .night:
             .dark
         }
     }
