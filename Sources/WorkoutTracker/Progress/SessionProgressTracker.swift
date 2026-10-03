@@ -54,9 +54,8 @@ struct PersistedSessionIdentity: Equatable {
 struct SessionProgressTracker {
     private static let weekOrderStride = Week.dayNumbers.count
 
-    /// Order index across the block: (week-1)*stride + day.
     private func order(of session: Session) -> Int {
-        ((session.week?.number ?? 1) - 1) * Self.weekOrderStride + session.dayNumber
+        session.address.map { ($0.week - 1) * Self.weekOrderStride + $0.day } ?? session.dayNumber
     }
 
     private func session(at order: Int, in block: Block) -> Session? {

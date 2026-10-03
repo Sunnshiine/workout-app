@@ -8,9 +8,7 @@ import Testing
 @Test func pendingWriteDiagnosticShowsCompactWriteContext() throws {
     let write = PendingWrite(
         id: UUID(uuidString: "00000000-0000-0000-0000-000000000086") ?? UUID(),
-        blockTab: "Block 27",
-        week: 2,
-        day: 3,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 2, day: 3)),
         dayNumbering: .headerNumber,
         exerciseName: "Back Squat",
         setIndex: 1,
@@ -55,9 +53,7 @@ import Testing
     let planner = SheetWritePlanner()
     let snapshot = planner.snapshot(for: grid)
     let request = SheetWriteRequest(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: "Comp BP",
         setIndex: 2,
         column: .notes,
@@ -96,9 +92,7 @@ import Testing
     let planner = SheetWritePlanner()
     let snapshot = planner.snapshot(for: grid)
     let request = SheetWriteRequest(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: "Ab of Choice",
         setIndex: 1,
         column: .notes,
@@ -137,9 +131,7 @@ import Testing
     let planner = SheetWritePlanner()
     let snapshot = planner.snapshot(for: grid)
     let request = SheetWriteRequest(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: "Squat",
         setIndex: 1,
         column: .notes,
@@ -176,7 +168,7 @@ import Testing
     )
     let anchorSnapshot = SheetSnapshot(values: grid)
     let layout = SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid))
-    let day = try #require(layout.day(week: 1, day: 1))
+    let day = try #require(layout.day(at: SessionAddress(week: 1, day: 1)))
     let anchor = try #require(day.exerciseAnchors.first { $0.name == "Ab of Choice" })
     guard case .placed(let placement) = anchor.setLogPlacement(for: 1, in: anchorSnapshot, cols: day.columns) else {
         Issue.record("Expected a resolved placement for Set 2")
@@ -187,9 +179,7 @@ import Testing
     let planner = SheetWritePlanner()
     let planningSnapshot = planner.snapshot(for: grid)
     let request = SheetWriteRequest(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: "Ab of Choice",
         setIndex: 1,
         column: .notes,
@@ -248,9 +238,7 @@ import Testing
     let entry = WriteTargetAuditEntry(
         id: UUID(uuidString: "00000000-0000-0000-0000-000000000110") ?? UUID(),
         createdAt: Date(timeIntervalSince1970: 1_800_000_000),
-        blockTab: "Block 27",
-        week: 2,
-        day: 3,
+        recordedSession: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 2, day: 3)),
         exerciseName: "Back Squat",
         setIndex: 1,
         column: .notes,
@@ -317,9 +305,7 @@ private func makeDiagnosticWrite(
 ) -> PendingWrite {
     PendingWrite(
         createdAt: createdAt,
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         dayNumbering: dayNumbering,
         exerciseName: exerciseName,
         setIndex: 0,
@@ -332,9 +318,7 @@ private func makeDiagnosticWrite(
 
 private func makeAuditEntry(exerciseName: String) -> WriteTargetAuditEntry {
     WriteTargetAuditEntry(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        recordedSession: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: exerciseName,
         setIndex: 0,
         column: .notes,

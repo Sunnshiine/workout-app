@@ -25,11 +25,8 @@ enum LastPerformedExtractor {
                             baseName: exercise.baseName,
                             resultText: resultText,
                             performedOn: session.date ?? .distantPast,
-                            source: SessionCoordinate(
-                                blockTab: block.tabName,
-                                weekNumber: week.number,
-                                dayNumber: session.dayNumber
-                            ).storageValue
+                            source: SessionCoordinate(blockTab: block.tabName, address: week.address(of: session))
+                                .storageValue
                         )
                     )
                 }

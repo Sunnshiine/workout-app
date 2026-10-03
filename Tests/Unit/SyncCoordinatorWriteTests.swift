@@ -90,9 +90,7 @@ private func pendingWrite(
 ) -> PendingWrite {
     PendingWrite(
         createdAt: Date(timeIntervalSince1970: createdAt),
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         dayNumbering: dayNumbering,
         exerciseName: exerciseName,
         setIndex: setIndex,
@@ -109,9 +107,7 @@ private func pendingWrite(
     let ctx = container.mainContext
     ctx.insert(
         PendingWrite(
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
+            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
             dayNumbering: .headerNumber,
             exerciseName: "Squat",
             setIndex: 0,
@@ -158,9 +154,7 @@ private func pendingWrite(
     ctx.insert(
         PendingWrite(
             createdAt: Date(timeIntervalSince1970: 1),
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
+            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
             dayNumbering: .headerNumber,
             exerciseName: "Squat",
             setIndex: 0,
@@ -173,9 +167,7 @@ private func pendingWrite(
     ctx.insert(
         PendingWrite(
             createdAt: Date(timeIntervalSince1970: 2),
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
+            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
             dayNumbering: .headerNumber,
             exerciseName: "Squat",
             setIndex: 0,
@@ -246,9 +238,7 @@ private func pendingWrite(
     let ctx = container.mainContext
     ctx.insert(
         PendingWrite(
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
+            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
             dayNumbering: .headerNumber,
             exerciseName: "Squat",
             setIndex: 0,
@@ -285,9 +275,7 @@ private func pendingWrite(
     let ctx = container.mainContext
     ctx.insert(
         PendingWrite(
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
+            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
             dayNumbering: .headerNumber,
             exerciseName: "Squat",
             setIndex: 0,
@@ -391,9 +379,7 @@ private func pendingWrite(
     let ctx = container.mainContext
     ctx.insert(
         PendingWrite(
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
+            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
             dayNumbering: .headerNumber,
             exerciseName: "Squat",
             setIndex: 0,
@@ -404,9 +390,7 @@ private func pendingWrite(
         )
     )
     let conflicted = PendingWrite(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         dayNumbering: .headerNumber,
         exerciseName: "Bench Press",
         setIndex: 0,
@@ -435,9 +419,7 @@ private func pendingWrite(
     let ctx = container.mainContext
     ctx.insert(
         PendingWrite(
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
+            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
             dayNumbering: .headerNumber,
             exerciseName: "Squat",
             setIndex: 0,
@@ -572,9 +554,7 @@ extension SyncOutcome {
     let container = try makeContainer()
     let ctx = container.mainContext
     let write = PendingWrite(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         dayNumbering: .headerNumber,
         exerciseName: "Squat",
         setIndex: 0,
@@ -632,9 +612,7 @@ private func queuedSquatNotesWrite(
     value: String?
 ) -> PendingWrite {
     PendingWrite(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         dayNumbering: dayNumbering,
         exerciseName: "Squat",
         setIndex: setIndex,

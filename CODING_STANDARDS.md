@@ -37,8 +37,8 @@ what a test body may do. Read a trailing issue or symbol when a bullet does not 
 
 - **A dropped or detached `Task` that assigns a store field after its owning method returned.**
   Hold and await work the sequence needs. (#514, #585, fixed in #595.)
-- **A `@Model` object held across a reload.** Hold an address (week and day, or a
-  `persistentModelID`) and re-resolve. `===` is sound only within one read pass. (#586,
+- **A `@Model` object held across a reload.** Hold a `SessionAddress` or a
+  `persistentModelID` and re-resolve. `===` is sound only within one read pass. (#586,
   `WorkoutStore.browsedTo`.)
 
 ## Optionals

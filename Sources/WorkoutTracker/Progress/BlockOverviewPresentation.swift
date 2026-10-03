@@ -1,8 +1,7 @@
 import Foundation
 
 struct BlockOverviewTilePresentation: Equatable, Sendable {
-    let weekNumber: Int
-    let dayNumber: Int
+    let address: SessionAddress
     let state: SessionTileState
     /// Ink rising from the tile's foot in quantized quarters (0...4), so partial work is
     /// visible without numbers (DESIGN.md §5.5). 0 is an empty foot (untouched or
@@ -91,7 +90,7 @@ struct BlockOverviewPresentation: Equatable, Sendable {
                     let lhsEmpty = lhs.state == .unavailable
                     let rhsEmpty = rhs.state == .unavailable
                     if lhsEmpty != rhsEmpty { return !lhsEmpty }
-                    return lhs.dayNumber < rhs.dayNumber
+                    return lhs.address.day < rhs.address.day
                 }
             let dayCount = week.sessions.count
             let available = week.sessions.filter { tracker.isAvailable($0) }
@@ -127,19 +126,18 @@ struct BlockOverviewPresentation: Equatable, Sendable {
         currentSession: Session?,
         tracker: SessionProgressTracker
     ) -> BlockOverviewTilePresentation {
-        let weekNumber = session.week?.number ?? week.number
+        let address = (session.week ?? week).address(of: session)
         let state = tracker.tileState(for: session, currentSession: currentSession)
         return BlockOverviewTilePresentation(
-            weekNumber: weekNumber,
-            dayNumber: session.dayNumber,
+            address: address,
             state: state,
             fillQuarters: BlockOverviewTilePresentation.fillQuarters(
                 completed: session.completedSetCount,
                 total: session.totalSetCount
             ),
-            accessibilityLabel: "Week \(weekNumber), Day \(session.dayNumber)",
+            accessibilityLabel: "Week \(address.week), Day \(address.day)",
             accessibilityValue: state.accessibilityValue,
-            accessibilityIdentifier: "session-tile-W\(weekNumber)-D\(session.dayNumber)"
+            accessibilityIdentifier: "session-tile-W\(address.week)-D\(address.day)"
         )
     }
 }

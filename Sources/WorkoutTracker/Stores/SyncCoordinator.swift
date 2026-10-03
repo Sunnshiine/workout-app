@@ -160,7 +160,7 @@ final class SyncCoordinator {
     private func overlayPendingWrites(on block: Block, layout: SheetLayout) {
         let writes = (try? context.fetch(FetchDescriptor<PendingWrite>())) ?? []
         let sets = block.setsByID
-        for write in writes where write.blockTab == block.tabName && write.column == .notes {
+        for write in writes where write.recordedSession.blockTab == block.tabName && write.column == .notes {
             guard write.overlays(on: layout) else { continue }
             sets[SetCoordinates.ID(write)]?.apply(write)
         }
@@ -228,7 +228,7 @@ private struct PlannedPendingWrite {
             throw PendingWritePlanningConflict(
                 error: .dayHeadersChangedMeaning,
                 refusedTarget: nil,
-                auditDetails: .dayHeadersChangedMeaning(week: write.week, day: write.day)
+                auditDetails: .dayHeadersChangedMeaning(recorded: write.recordedSession.address)
             )
         }
         let target: SheetWriteTarget
@@ -397,13 +397,17 @@ extension SyncCoordinator {
         snapshots: inout [String: SheetWritePlanningSnapshot],
         batch: inout PendingWriteBatch
     ) async throws -> PlannedPendingWrite {
-        let workingCopy = try await gridSnapshot(for: write.blockTab, context: flushContext, snapshots: &snapshots)
+        let workingCopy = try await gridSnapshot(for: write.recordedSession.blockTab, context: flushContext, snapshots: &snapshots)
         do {
             return try PlannedPendingWrite(write, against: workingCopy, planner: flushContext.planner)
         } catch let conflict as PendingWritePlanningConflict where conflict.refusedTarget.map(batch.overlaps) ?? false {
             try await flush(batch, context: flushContext)
             batch.removeAll()
-            let refetched = try await refetchedGridSnapshot(for: write.blockTab, context: flushContext, snapshots: &snapshots)
+            let refetched = try await refetchedGridSnapshot(
+                for: write.recordedSession.blockTab,
+                context: flushContext,
+                snapshots: &snapshots
+            )
             return try PlannedPendingWrite(write, against: refetched, planner: flushContext.planner)
         }
     }
@@ -468,9 +472,7 @@ extension SyncCoordinator {
     ) {
         context.insert(
             WriteTargetAuditEntry(
-                blockTab: write.blockTab,
-                week: write.week,
-                day: write.day,
+                recordedSession: write.recordedSession,
                 exerciseName: write.exerciseName,
                 setIndex: write.setIndex,
                 column: write.column,

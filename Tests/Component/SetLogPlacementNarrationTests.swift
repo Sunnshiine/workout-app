@@ -196,9 +196,7 @@ private func auditRowScan(
         )
     )
     let request = SheetWriteRequest(
-        blockTab: "Block 27",
-        week: 1,
-        day: day,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: day)),
         exerciseName: exercise,
         setIndex: setIndex,
         column: column,

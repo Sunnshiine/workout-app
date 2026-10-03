@@ -39,9 +39,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
     let planner = SheetWritePlanner()
     let writer = SheetWriter(client: client)
     let request = SheetWriteRequest(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: "Squat",
         setIndex: 0,
         column: .notes,
@@ -62,9 +60,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
     let client = writerFixture(["C15": "Ab of Choice", "D15": "1", "C16": "Bench"])
     let planner = SheetWritePlanner()
     let request = SheetWriteRequest(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: "Ab of Choice",
         setIndex: 0,
         column: .notes,
@@ -85,9 +81,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
 
     let setTwoUpdate = try planner.plan(
         SheetWriteRequest(
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
+            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
             exerciseName: "Ab of Choice",
             setIndex: 1,
             column: .notes,
@@ -107,9 +101,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
 
     let setTwoUpdate = try planner.plan(
         SheetWriteRequest(
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
+            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
             exerciseName: "Ab of Choice",
             setIndex: 1,
             column: .notes,
@@ -131,9 +123,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
 
     let setOneUpdate = try planner.plan(
         SheetWriteRequest(
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
+            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
             exerciseName: "Ab of Choice",
             setIndex: 0,
             column: .notes,
@@ -146,9 +136,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
     let updatedSnapshot = planner.applying(setOneUpdate, to: snapshot)
     let setTwoUpdate = try planner.plan(
         SheetWriteRequest(
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
+            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
             exerciseName: "Ab of Choice",
             setIndex: 1,
             column: .notes,
@@ -169,9 +157,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
     let client = writerFixture(["C15": "Ab of Choice", "D15": "1", "K15": "25x12@7", "C16": "Bench"])
     let planner = SheetWritePlanner()
     let request = SheetWriteRequest(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: "Ab of Choice",
         setIndex: 0,
         column: .notes,
@@ -190,9 +176,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
     let client = writerFixture(["C15": "Squat", "D15": "1", "K15": "Coach note", "C16": "Bench"])
     let planner = SheetWritePlanner()
     let request = SheetWriteRequest(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: "Squat",
         setIndex: 0,
         column: .notes,
@@ -232,9 +216,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
     let client = writerFixture(["C15": "Squat", "D15": "1", "K15": "Coach note"])
     let planner = SheetWritePlanner()
     let request = SheetWriteRequest(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: "Squat",
         setIndex: 0,
         column: .notes,
@@ -252,9 +234,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
     let client = writerFixture(["C15": "Squat", "D15": "2"])
     let planner = SheetWritePlanner()
     let request = SheetWriteRequest(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: "Squat",
         setIndex: 1,
         column: .lastSetRPE,
@@ -283,9 +263,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
 
     let notesUpdate = try planner.plan(
         SheetWriteRequest(
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
+            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
             exerciseName: "Squat",
             setIndex: 0,
             column: .notes,
@@ -297,9 +275,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
     )
     let rpeUpdate = try planner.plan(
         SheetWriteRequest(
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
+            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
             exerciseName: "Squat",
             setIndex: 1,
             column: .lastSetRPE,
@@ -328,9 +304,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
 
     let update = try planner.plan(
         SheetWriteRequest(
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
+            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
             exerciseName: "Squat",
             setIndex: 1,
             column: .notes,
@@ -364,9 +338,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
 
     let update = try SheetWritePlanner().plan(
         SheetWriteRequest(
-            blockTab: "Block 27",
-            week: 1,
-            day: 1,
+            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
             exerciseName: "Chest Fly",
             setIndex: 1,
             column: .notes,
@@ -402,9 +374,7 @@ private func multiLinePrescriptionGrid(_ extra: [String: String] = [:]) -> Sheet
 private func multiLineNotesRequest(_ name: String, _ setIndex: Int, value: String, expected: String = "")
     -> SheetWriteRequest {
     SheetWriteRequest(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: name,
         setIndex: setIndex,
         column: .notes,
@@ -488,9 +458,7 @@ private func multiLineNotesRequest(_ name: String, _ setIndex: Int, value: Strin
     let client = writerFixture(["C15": "Squat", "D15": "1", "K15": "Coach note", "K16": "coach edited"])
     let planner = SheetWritePlanner()
     let request = SheetWriteRequest(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: "Squat",
         setIndex: 0,
         column: .notes,
@@ -514,9 +482,7 @@ private func multiLineNotesRequest(_ name: String, _ setIndex: Int, value: Strin
     let client = writerFixture(["C15": "Squat", "D15": "1", "K15": "Coach note", "C16": "Bench"])
     let planner = SheetWritePlanner()
     let request = SheetWriteRequest(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: "Squat",
         setIndex: 0,
         column: .notes,
@@ -539,9 +505,7 @@ private func multiLineNotesRequest(_ name: String, _ setIndex: Int, value: Strin
     let client = writerFixture(["C15": "Squat", "D15": "2", "K15": "70@10, 80"])
     let planner = SheetWritePlanner()
     let request = SheetWriteRequest(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: "Squat",
         setIndex: 0,
         column: .notes,
@@ -559,9 +523,7 @@ private func multiLineNotesRequest(_ name: String, _ setIndex: Int, value: Strin
     let client = writerFixture(["C15": "Squat", "D15": "1", "K15": "70@10", "C16": "Bench"])
     let planner = SheetWritePlanner()
     let request = SheetWriteRequest(
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: "Squat",
         setIndex: 0,
         column: .notes,

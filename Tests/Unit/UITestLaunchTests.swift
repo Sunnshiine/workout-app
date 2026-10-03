@@ -96,11 +96,11 @@ import Testing
         let seeded = try seed(arguments: ["-UITEST_FULL_BLOCK"])
         defer { withExtendedLifetime(seeded.container) {} }
 
-        #expect(exerciseNames(in: seeded.block, week: 1, day: 1) == ["Back Squat", "2-3:1:0 BB RDL"])
-        #expect(exerciseNames(in: seeded.block, week: 1, day: 2) == ["Bench Press", "Pull-Up"])
-        #expect(exerciseNames(in: seeded.block, week: 1, day: 3) == ["Deadlift"])
-        #expect(exerciseNames(in: seeded.block, week: 1, day: 4) == ["Accessory W1 D4"])
-        #expect(exerciseNames(in: seeded.block, week: 3, day: 2) == ["Accessory W3 D2"])
+        #expect(exerciseNames(in: seeded.block, at: SessionAddress(week: 1, day: 1)) == ["Back Squat", "2-3:1:0 BB RDL"])
+        #expect(exerciseNames(in: seeded.block, at: SessionAddress(week: 1, day: 2)) == ["Bench Press", "Pull-Up"])
+        #expect(exerciseNames(in: seeded.block, at: SessionAddress(week: 1, day: 3)) == ["Deadlift"])
+        #expect(exerciseNames(in: seeded.block, at: SessionAddress(week: 1, day: 4)) == ["Accessory W1 D4"])
+        #expect(exerciseNames(in: seeded.block, at: SessionAddress(week: 3, day: 2)) == ["Accessory W3 D2"])
         #expect(seeded.block.weeks.map(\.number).sorted() == [1, 2, 3, 4])
     }
 
@@ -128,7 +128,7 @@ import Testing
 
             #expect(weekOne.sessions.map(\.dayNumber).sorted() == shape.weekOneDayNumbers)
             #expect(
-                exerciseNames(in: seeded.block, week: 1, day: 1) == shape.weekOneDayOneNames,
+                exerciseNames(in: seeded.block, at: SessionAddress(week: 1, day: 1)) == shape.weekOneDayOneNames,
                 "scenario \(shape.arguments)"
             )
         }
@@ -167,11 +167,8 @@ import Testing
     }
 
     @MainActor
-    private func exerciseNames(in block: Block, week: Int, day: Int) -> [String] {
-        block.weeks
-            .first { $0.number == week }?
-            .sessions
-            .first { $0.dayNumber == day }?
+    private func exerciseNames(in block: Block, at address: SessionAddress) -> [String] {
+        block.session(at: address)?
             .exercises
             .sorted { $0.order < $1.order }
             .map(\.name) ?? []

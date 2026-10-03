@@ -132,7 +132,7 @@ struct BlockOverviewView: View {
                 .accessibilityIdentifier(tile.accessibilityIdentifier)
         } else {
             Button {
-                show(week: tile.weekNumber, day: tile.dayNumber)
+                show(tile.address)
             } label: {
                 SessionTile(state: tile.state, fillQuarters: tile.fillQuarters, variant: variant)
             }
@@ -144,8 +144,8 @@ struct BlockOverviewView: View {
         }
     }
 
-    private func show(week: Int, day: Int) {
-        workout.show(week: week, day: day)
+    private func show(_ address: SessionAddress) {
+        workout.show(address)
         dismiss()
     }
 }

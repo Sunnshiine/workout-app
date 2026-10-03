@@ -28,7 +28,7 @@ final class WorkoutStore {
     /// An address rather than the Session itself, captured while that Session is still live: a
     /// sync deletes the whole Block and inserts the re-parsed one, and the deleted Session no
     /// longer reliably knows its own Week.
-    private var browsedTo: (week: Int, day: Int)?
+    private var browsedTo: SessionAddress?
     private var currentSessionOverrideRevision = 0
 
     private let context: ModelContext
@@ -111,7 +111,7 @@ final class WorkoutStore {
     func reload() {
         block = try? context.fetch(FetchDescriptor<Block>()).first
 
-        guard let browsed = browsedTo, let browsedSession = session(inWeek: browsed.week, day: browsed.day) else {
+        guard let browsed = browsedTo, let browsedSession = block?.session(at: browsed) else {
             view(currentSession)
             return
         }
@@ -119,8 +119,8 @@ final class WorkoutStore {
         view(browsedSession)
     }
 
-    func show(week: Int, day: Int) {
-        view(session(inWeek: week, day: day))
+    func show(_ address: SessionAddress) {
+        view(block?.session(at: address))
     }
 
     func showCurrent() {
@@ -186,15 +186,11 @@ final class WorkoutStore {
 
     private func view(_ session: Session?) {
         viewedSession = session
-        guard !isViewingLiveEdge, let session, let week = session.week else {
+        guard !isViewingLiveEdge, let address = session?.address else {
             browsedTo = nil
             return
         }
-        browsedTo = (week: week.number, day: session.dayNumber)
-    }
-
-    private func session(inWeek week: Int, day: Int) -> Session? {
-        block?.weeks.first { $0.number == week }?.sessions.first { $0.dayNumber == day }
+        browsedTo = address
     }
 
     private func notesValue(for set: ExerciseSet) -> String {
@@ -217,9 +213,7 @@ final class WorkoutStore {
         let coordinates = try SetCoordinates(of: set)
         context.insert(
             PendingWrite(
-                blockTab: coordinates.blockTab,
-                week: coordinates.weekNumber,
-                day: coordinates.dayNumber,
+                session: coordinates.session,
                 dayNumbering: coordinates.dayNumbering,
                 exerciseName: coordinates.exerciseName,
                 setIndex: coordinates.setIndex,
@@ -239,11 +233,7 @@ final class WorkoutStore {
                 baseName: coordinates.exerciseBaseName,
                 result: log,
                 performedOn: coordinates.sessionDate ?? Date(),
-                source: SessionCoordinate(
-                    blockTab: coordinates.blockTab,
-                    weekNumber: coordinates.weekNumber,
-                    dayNumber: coordinates.dayNumber
-                ).storageValue
+                source: coordinates.session.storageValue
             )
         ])
     }
@@ -273,8 +263,8 @@ final class WorkoutStore {
     }
 
     private func sessionLabel(for session: Session?) -> String {
-        guard let session, let week = session.week else { return "None" }
-        return "Week \(week.number), Day \(session.dayNumber)"
+        guard let address = session?.address else { return "None" }
+        return "Week \(address.week), Day \(address.day)"
     }
 
     private func manualOverrideLabel(hasOverride: Bool, session: Session?) -> String {

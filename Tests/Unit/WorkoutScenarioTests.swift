@@ -45,7 +45,7 @@ import Testing
     #expect(failure.detail == "Sheet write failed")
 
     let queuedWrite = WorkoutScenarios.queuedWrite()
-    #expect(queuedWrite.blockTab == "Block 27")
+    #expect(queuedWrite.recordedSession.blockTab == "Block 27")
     #expect(queuedWrite.exerciseName == "Back Squat")
     #expect(queuedWrite.valueToWrite == "185x5@8")
 

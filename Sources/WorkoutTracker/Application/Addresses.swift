@@ -21,26 +21,6 @@ extension StringCodedAddress {
     }
 }
 
-/// A Session by its 1-based Week number and Day number: `w1d3`.
-public struct SessionAddress: StringCodedAddress {
-    public let week: Int
-    public let day: Int
-
-    public init(week: Int, day: Int) {
-        self.week = week
-        self.day = day
-    }
-
-    public init?(_ description: String) {
-        guard let match = description.wholeMatch(of: /w(\d+)d(\d+)/), let week = Int(match.1), let day = Int(match.2) else {
-            return nil
-        }
-        self.init(week: week, day: day)
-    }
-
-    public var description: String { "w\(week)d\(day)" }
-}
-
 /// An Exercise by its Session and its 0-based `Exercise.order`: `w1d3.e0`.
 public struct ExerciseAddress: StringCodedAddress {
     public let session: SessionAddress

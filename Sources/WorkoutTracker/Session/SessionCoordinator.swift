@@ -555,8 +555,8 @@ extension SessionCoordinator {
     }
 
     fileprivate func liveActivitySessionLabel(for session: Session) -> String {
-        if let week = session.week {
-            return "Week \(week.number) - Day \(session.dayNumber)"
+        if let address = session.address {
+            return "Week \(address.week) - Day \(address.day)"
         }
         return "Day \(session.dayNumber)"
     }

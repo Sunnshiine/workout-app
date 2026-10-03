@@ -23,9 +23,7 @@ private func addressingRequest(
     column: PendingWriteColumn = .notes
 ) -> SheetWriteRequest {
     SheetWriteRequest(
-        blockTab: "Block 27",
-        week: week,
-        day: day,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: week, day: day)),
         exerciseName: exerciseName,
         setIndex: setIndex,
         column: column,

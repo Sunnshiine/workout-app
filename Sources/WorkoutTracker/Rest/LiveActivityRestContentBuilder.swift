@@ -52,14 +52,8 @@ enum LiveActivityRestContentVariant: Equatable, Sendable {
     case restTimerSetsLeft
 }
 
-struct LiveActivitySessionIdentity: Equatable, Sendable {
-    let blockTab: String?
-    let weekNumber: Int?
-    let dayNumber: Int
-}
-
 struct LiveActivityRestTarget: Equatable, Sendable {
-    let session: LiveActivitySessionIdentity
+    let session: SessionReparseIdentity
     let setID: ActiveSetID
 }
 
@@ -141,7 +135,7 @@ enum LiveActivityInvalidationPolicy {
         guard let target = content.target else { return true }
         guard
             let targetSession = SessionProgressTracker().sessionsInCurrentWeek(for: currentSession).first(where: {
-                sessionIdentity(for: $0) == target.session
+                $0.reparseIdentity == target.session
             })
         else {
             return true
@@ -153,15 +147,6 @@ enum LiveActivityInvalidationPolicy {
             .first { $0.index == target.setID.setIndex }
         guard let set else { return true }
         return !set.isPending
-    }
-
-    @MainActor
-    private static func sessionIdentity(for session: Session) -> LiveActivitySessionIdentity {
-        LiveActivitySessionIdentity(
-            blockTab: session.week?.block?.tabName,
-            weekNumber: session.week?.number,
-            dayNumber: session.dayNumber
-        )
     }
 }
 
@@ -198,7 +183,7 @@ enum LiveActivityRestContentBuilder {
             restStartDate: restStartDate,
             restEndDate: restEndDate,
             target: LiveActivityRestTarget(
-                session: sessionIdentity(for: target.session),
+                session: target.session.reparseIdentity,
                 setID: ActiveSetID(exerciseOrder: target.exercise.order, setIndex: target.set.index)
             )
         )
@@ -248,13 +233,5 @@ enum LiveActivityRestContentBuilder {
         in session: Session
     ) -> SessionSetPosition? {
         SessionSetOrder.orderedSets(in: session).first { $0.setID == setID }
-    }
-
-    private static func sessionIdentity(for session: Session) -> LiveActivitySessionIdentity {
-        LiveActivitySessionIdentity(
-            blockTab: session.week?.block?.tabName,
-            weekNumber: session.week?.number,
-            dayNumber: session.dayNumber
-        )
     }
 }

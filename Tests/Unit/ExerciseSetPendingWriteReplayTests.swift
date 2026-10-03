@@ -25,9 +25,7 @@ private func replayWrite(
 ) -> PendingWrite {
     PendingWrite(
         createdAt: Date(timeIntervalSinceReferenceDate: 0),
-        blockTab: "Block 27",
-        week: 1,
-        day: 1,
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         dayNumbering: dayNumbering,
         exerciseName: "Squat",
         setIndex: 0,

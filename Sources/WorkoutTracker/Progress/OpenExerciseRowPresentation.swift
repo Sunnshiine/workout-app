@@ -15,10 +15,6 @@ struct OpenExerciseRowPresentation {
         let pendingSetCount = exercise.pendingSetCount
         pendingSetLabel = pendingSetCount == 1 ? "1 pending set" : "\(pendingSetCount) pending sets"
 
-        if let session = exercise.session, let week = session.week {
-            sourceLabel = SessionCoordinate.sessionLabel(weekNumber: week.number, dayNumber: session.dayNumber)
-        } else {
-            sourceLabel = ""
-        }
+        sourceLabel = exercise.session?.address?.sessionLabel ?? ""
     }
 }

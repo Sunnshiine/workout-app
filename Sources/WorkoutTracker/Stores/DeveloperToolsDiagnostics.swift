@@ -8,11 +8,11 @@ struct SheetWriteAuditDetails: Sendable, Equatable {
 }
 
 extension SheetWriteAuditDetails {
-    static func dayHeadersChangedMeaning(week: Int, day: Int) -> SheetWriteAuditDetails {
+    static func dayHeadersChangedMeaning(recorded: SessionAddress) -> SheetWriteAuditDetails {
         SheetWriteAuditDetails(
             selectedA1Target: nil,
-            rowScanDetails: "No row selected: Week \(week), Day \(day) was queued by header rank, "
-                + "and reading Day \(day) by rank and by header number does not give the same Session on this sheet.",
+            rowScanDetails: "No row selected: Week \(recorded.week), Day \(recorded.day) was queued by header rank, "
+                + "and reading Day \(recorded.day) by rank and by header number does not give the same Session on this sheet.",
             currentValue: nil,
             valueCheckOutcome: "Not checked because no target was selected."
         )
@@ -82,7 +82,7 @@ extension SheetWritePlanner {
         selectedRow: Int?,
         in snapshot: SheetWritePlanningSnapshot
     ) -> String {
-        let session = "Week \(request.week), Day \(request.day)"
+        let session = "Week \(request.session.address.week), Day \(request.session.address.day)"
         let narration: SetLogPlacementNarration
         switch addressing(for: request, in: snapshot) {
         case .weekNotFound, .dayNotFound:
@@ -139,9 +139,9 @@ struct PendingWriteDiagnostic: Equatable, Identifiable, Sendable {
 
     init(write: PendingWrite) {
         id = write.id
-        block = write.blockTab
-        week = "Week \(write.week)"
-        day = "Day \(write.day)"
+        block = write.recordedSession.blockTab
+        week = "Week \(write.recordedSession.address.week)"
+        day = "Day \(write.recordedSession.address.day)"
         exercise = write.exerciseName
         set = "Set \(write.setIndex + 1)"
         column = Self.columnLabel(for: write.column)
@@ -183,9 +183,9 @@ struct WriteTargetAuditDiagnostic: Equatable, Identifiable, Sendable {
         id = entry.id
         createdAt = entry.createdAt
         semanticTarget = [
-            entry.blockTab,
-            "Week \(entry.week)",
-            "Day \(entry.day)",
+            entry.recordedSession.blockTab,
+            "Week \(entry.recordedSession.address.week)",
+            "Day \(entry.recordedSession.address.day)",
             entry.exerciseName,
             "Set \(entry.setIndex + 1)",
             PendingWriteDiagnostic.columnLabel(for: entry.column)

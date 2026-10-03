@@ -34,10 +34,11 @@ enum WriteTargetAuditStatus: String, Codable, Sendable {
 final class PendingWrite {
     @Attribute(.unique) var id: UUID
     var createdAt: Date
-    var blockTab: String
-    var week: Int
-    var day: Int
-    var dayNumberingRaw: String?
+    // Shipped stores hold these attribute names.
+    private var blockTab: String
+    private var week: Int
+    private var day: Int
+    private var dayNumberingRaw: String?
     var exerciseName: String
     var setIndex: Int
     var columnRaw: String
@@ -63,6 +64,12 @@ final class PendingWrite {
         set { statusRaw = newValue.rawValue }
     }
 
+    /// When `dayNumbering` is `.legacyHeaderRank`, its Day is a header rank, so it names a Session
+    /// only where `namesOneSession(on:)` holds.
+    var recordedSession: SessionCoordinate {
+        SessionCoordinate(blockTab: blockTab, address: SessionAddress(week: week, day: day))
+    }
+
     var dayNumbering: DayNumbering {
         DayNumbering(stored: dayNumberingRaw)
     }
@@ -70,7 +77,7 @@ final class PendingWrite {
     func namesOneSession(on layout: SheetLayout) -> Bool {
         switch dayNumbering {
         case .headerNumber: true
-        case .legacyHeaderRank: layout.rankAndNumberAgree(week: week, day: day)
+        case .legacyHeaderRank: layout.rankAndNumberAgree(week: week, rank: day)
         }
     }
 
@@ -84,9 +91,7 @@ final class PendingWrite {
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
-        blockTab: String,
-        week: Int,
-        day: Int,
+        session: SessionCoordinate,
         dayNumbering: DayNumbering,
         exerciseName: String,
         setIndex: Int,
@@ -97,9 +102,9 @@ final class PendingWrite {
     ) {
         self.id = id
         self.createdAt = createdAt
-        self.blockTab = blockTab
-        self.week = week
-        self.day = day
+        self.blockTab = session.blockTab
+        self.week = session.address.week
+        self.day = session.address.day
         self.dayNumberingRaw = dayNumbering.rawValue
         self.exerciseName = exerciseName
         self.setIndex = setIndex
@@ -124,9 +129,10 @@ final class WriteTargetAuditEntry {
 
     @Attribute(.unique) var id: UUID
     var createdAt: Date
-    var blockTab: String
-    var week: Int
-    var day: Int
+    // Shipped stores hold these attribute names.
+    private var blockTab: String
+    private var week: Int
+    private var day: Int
     var exerciseName: String
     var setIndex: Int
     var columnRaw: String
@@ -148,12 +154,14 @@ final class WriteTargetAuditEntry {
         set { finalStatusRaw = newValue.rawValue }
     }
 
+    var recordedSession: SessionCoordinate {
+        SessionCoordinate(blockTab: blockTab, address: SessionAddress(week: week, day: day))
+    }
+
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
-        blockTab: String,
-        week: Int,
-        day: Int,
+        recordedSession: SessionCoordinate,
         exerciseName: String,
         setIndex: Int,
         column: PendingWriteColumn,
@@ -167,9 +175,9 @@ final class WriteTargetAuditEntry {
     ) {
         self.id = id
         self.createdAt = createdAt
-        self.blockTab = blockTab
-        self.week = week
-        self.day = day
+        self.blockTab = recordedSession.blockTab
+        self.week = recordedSession.address.week
+        self.day = recordedSession.address.day
         self.exerciseName = exerciseName
         self.setIndex = setIndex
         self.columnRaw = column.rawValue
