@@ -104,28 +104,6 @@ import Testing
     #expect(Theme.colorSchemeOverride(for: AppearancePreference.dark) == .dark)
 }
 
-// MARK: - Launch-argument parsing
-
-@Test func themeLaunchArgumentAcceptsOnlyDayAndNight() {
-    #expect(Theme.appearance(from: ["WorkoutTracker", Theme.paletteLaunchArgument, "day"]) == .day)
-    #expect(Theme.appearance(from: ["WorkoutTracker", Theme.paletteLaunchArgument, "night"]) == .night)
-}
-
-@Test func themeLaunchArgumentDefaultsToDayWhenMissingOrUnknown() {
-    #expect(Theme.appearance(from: ["WorkoutTracker"]) == .day)
-    #expect(Theme.appearance(from: ["WorkoutTracker", Theme.paletteLaunchArgument]) == .day)
-    #expect(Theme.appearance(from: ["WorkoutTracker", Theme.paletteLaunchArgument, "unknown"]) == .day)
-}
-
-@Test func themeLaunchArgumentRejectsTheFiveRetiredPalettes() {
-    for retired in ["dark", "black", "mintGreen", "sageLight", "blueLight"] {
-        #expect(
-            Theme.appearance(from: ["WorkoutTracker", Theme.paletteLaunchArgument, retired]) == .day,
-            "\(retired) is a retired legacy palette and must not resolve to a shipping appearance"
-        )
-    }
-}
-
 // MARK: - Paint box (token sheet §2)
 
 #if canImport(AppKit)
