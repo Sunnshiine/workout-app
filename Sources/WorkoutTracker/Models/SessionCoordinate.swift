@@ -1,29 +1,22 @@
 import Foundation
 
-/// Which Session an Exercise History entry was performed in: Block tab · Week number · Day number
-/// (ADR-0012).
+/// Which Session an Exercise History entry was performed in: Block tab · Session Address (ADR-0012).
 ///
 /// The entry's persisted `source` is this coordinate's `storageValue`, and ADR-0012 makes that string
 /// the append-only table's dedup key. The encoding is therefore an identity, not a label — changing it
 /// would make every stored entry miss dedup and re-append on the next sync. Everything the athlete
-/// reads is a separate projection (`blockTab` as the sheet's Block header, `sessionLabel` as its
-/// gutter), so a cosmetic change to how a Session reads on screen cannot re-key the store.
+/// reads is a separate projection (`blockTab` as the sheet's Block header, `address.sessionLabel` as
+/// its gutter), so a cosmetic change to how a Session reads on screen cannot re-key the store.
 struct SessionCoordinate: Hashable, Sendable {
     let blockTab: String
-    let weekNumber: Int
-    let dayNumber: Int
+    let address: SessionAddress
 
     /// `Block 27 · W1 D1` — the canonical encoding every writer persists, and the ADR-0012 dedup key.
-    var storageValue: String { blockTab + Self.separator + sessionLabel }
+    var storageValue: String { blockTab + Self.separator + address.sessionLabel }
 
-    /// `W1 D1` — the Session label, stated once so the Exercise History gutter (`DESIGN.md` §5.6) and
-    /// the makeup queue's Open Exercise row cannot drift apart.
-    var sessionLabel: String { Self.sessionLabel(weekNumber: weekNumber, dayNumber: dayNumber) }
-
-    init(blockTab: String, weekNumber: Int, dayNumber: Int) {
+    init(blockTab: String, address: SessionAddress) {
         self.blockTab = blockTab
-        self.weekNumber = weekNumber
-        self.dayNumber = dayNumber
+        self.address = address
     }
 
     /// Reads back a persisted `source`, or `nil` when the value does not carry the canonical shape —
@@ -38,15 +31,8 @@ struct SessionCoordinate: Hashable, Sendable {
         else { return nil }
         self.init(
             blockTab: String(storageValue[..<separator.lowerBound]),
-            weekNumber: weekNumber,
-            dayNumber: dayNumber
+            address: SessionAddress(week: weekNumber, day: dayNumber)
         )
-    }
-
-    /// The Session label for a Week and Day that are not part of a stored coordinate — the live
-    /// Session an Open Exercise was left behind in.
-    static func sessionLabel(weekNumber: Int, dayNumber: Int) -> String {
-        "W\(weekNumber) D\(dayNumber)"
     }
 
     /// How a stored `source` reads in the Exercise History sheet: its Block header, kept in the
@@ -54,7 +40,7 @@ struct SessionCoordinate: Hashable, Sendable {
     /// rendering whole as its own header with an empty gutter, rather than dropping out of the ledger.
     static func labels(forStoredValue stored: String) -> (blockHeader: String, sessionLabel: String) {
         guard let coordinate = SessionCoordinate(storageValue: stored) else { return (stored, "") }
-        return (coordinate.blockTab, coordinate.sessionLabel)
+        return (coordinate.blockTab, coordinate.address.sessionLabel)
     }
 
     private static let separator = " · "

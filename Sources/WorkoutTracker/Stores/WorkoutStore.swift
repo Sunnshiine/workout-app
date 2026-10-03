@@ -241,8 +241,7 @@ final class WorkoutStore {
                 performedOn: coordinates.sessionDate ?? Date(),
                 source: SessionCoordinate(
                     blockTab: coordinates.blockTab,
-                    weekNumber: coordinates.weekNumber,
-                    dayNumber: coordinates.dayNumber
+                    address: SessionAddress(week: coordinates.weekNumber, day: coordinates.dayNumber)
                 ).storageValue
             )
         ])

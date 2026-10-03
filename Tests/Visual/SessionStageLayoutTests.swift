@@ -362,7 +362,7 @@ private enum History {
                 baseName: "BB RDL",
                 resultText: "185x8, 195x8",
                 performedOn: Date(timeIntervalSinceReferenceDate: 100),
-                source: SessionCoordinate(blockTab: "Block 26", weekNumber: 4, dayNumber: 3).storageValue
+                source: SessionCoordinate(blockTab: "Block 26", address: SessionAddress(week: 4, day: 3)).storageValue
             )
         ]
     }
