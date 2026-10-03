@@ -472,7 +472,7 @@ extension SyncCoordinator {
     ) {
         context.insert(
             WriteTargetAuditEntry(
-                session: write.recordedSession,
+                recordedSession: write.recordedSession,
                 exerciseName: write.exerciseName,
                 setIndex: write.setIndex,
                 column: write.column,

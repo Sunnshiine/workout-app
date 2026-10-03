@@ -154,14 +154,15 @@ final class WriteTargetAuditEntry {
         set { finalStatusRaw = newValue.rawValue }
     }
 
-    var session: SessionCoordinate {
+    /// The audited write's `recordedSession`, so its Day can be a header rank.
+    var recordedSession: SessionCoordinate {
         SessionCoordinate(blockTab: blockTab, address: SessionAddress(week: week, day: day))
     }
 
     init(
         id: UUID = UUID(),
         createdAt: Date = Date(),
-        session: SessionCoordinate,
+        recordedSession: SessionCoordinate,
         exerciseName: String,
         setIndex: Int,
         column: PendingWriteColumn,
@@ -175,9 +176,9 @@ final class WriteTargetAuditEntry {
     ) {
         self.id = id
         self.createdAt = createdAt
-        self.blockTab = session.blockTab
-        self.week = session.address.week
-        self.day = session.address.day
+        self.blockTab = recordedSession.blockTab
+        self.week = recordedSession.address.week
+        self.day = recordedSession.address.day
         self.exerciseName = exerciseName
         self.setIndex = setIndex
         self.columnRaw = column.rawValue

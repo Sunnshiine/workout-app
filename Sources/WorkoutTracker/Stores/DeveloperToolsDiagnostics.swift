@@ -183,9 +183,9 @@ struct WriteTargetAuditDiagnostic: Equatable, Identifiable, Sendable {
         id = entry.id
         createdAt = entry.createdAt
         semanticTarget = [
-            entry.session.blockTab,
-            "Week \(entry.session.address.week)",
-            "Day \(entry.session.address.day)",
+            entry.recordedSession.blockTab,
+            "Week \(entry.recordedSession.address.week)",
+            "Day \(entry.recordedSession.address.day)",
             entry.exerciseName,
             "Set \(entry.setIndex + 1)",
             PendingWriteDiagnostic.columnLabel(for: entry.column)

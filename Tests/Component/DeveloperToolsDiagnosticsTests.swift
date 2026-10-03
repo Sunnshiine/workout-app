@@ -238,7 +238,7 @@ import Testing
     let entry = WriteTargetAuditEntry(
         id: UUID(uuidString: "00000000-0000-0000-0000-000000000110") ?? UUID(),
         createdAt: Date(timeIntervalSince1970: 1_800_000_000),
-        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 2, day: 3)),
+        recordedSession: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 2, day: 3)),
         exerciseName: "Back Squat",
         setIndex: 1,
         column: .notes,
@@ -318,7 +318,7 @@ private func makeDiagnosticWrite(
 
 private func makeAuditEntry(exerciseName: String) -> WriteTargetAuditEntry {
     WriteTargetAuditEntry(
-        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
+        recordedSession: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: exerciseName,
         setIndex: 0,
         column: .notes,
