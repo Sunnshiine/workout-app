@@ -39,6 +39,10 @@ day (mint fails the night action role; growth elements re-light to foliage
 green). The five legacy palettes are retired; `-WORKOUT_THEME` accepts only
 `day` and `night`.
 
+**Amended 2026-10-02 (#801):** `-WORKOUT_THEME` is deleted. The app had not read it since the
+Settings preference arrived; a fixture launch pins the preference with `-UITEST_APPEARANCE dark`
+or `light` instead.
+
 ### Token architecture
 
 A small paint box plus flat semantic roles, consumed via the environment
