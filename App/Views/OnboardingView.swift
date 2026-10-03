@@ -60,8 +60,7 @@ struct OnboardingView: View {
     // MARK: - Phase 1: Connect screen (flat calm)
 
     private var connectScreen: some View {
-        let copy = OnboardingConnectPresentation()
-        return ZStack {
+        ZStack {
             palette.paperBackground
                 .ignoresSafeArea()
 
@@ -71,14 +70,14 @@ struct OnboardingView: View {
                 ConnectPerch(width: 240)
                     .accessibilityHidden(true)
 
-                Text(copy.title)
+                Text("Plant the program.")
                     .font(Theme.font(.connectTitle))
                     .foregroundStyle(palette.textPrimary)
                     .multilineTextAlignment(.center)
                     .padding(.top, 24)
                     .accessibilityIdentifier("onboarding-title")
 
-                Text(copy.subtitle)
+                Text("Connect the Sheet your coach programs. The app keeps it fresh and carries your logs back.")
                     .font(Theme.font(.coachNote))
                     .foregroundStyle(palette.textSecondary)
                     .multilineTextAlignment(.center)
@@ -94,7 +93,7 @@ struct OnboardingView: View {
                     .padding(.bottom, 28)
 
                 Button(action: signIn) {
-                    Text(copy.connectButtonTitle)
+                    Text("Connect Google Sheet")
                         .font(Theme.font(.logCapsule))
                         .foregroundStyle(palette.actionText)
                         .frame(maxWidth: .infinity)
