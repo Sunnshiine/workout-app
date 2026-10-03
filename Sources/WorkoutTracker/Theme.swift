@@ -25,8 +25,6 @@ extension EnvironmentValues {
 /// Its length is the point rather than an accident. This is the one type role and token table, so
 /// splitting it to satisfy a line count would put rows of a single table in two files.
 enum Theme {  // swiftlint:disable:this type_body_length
-    /// The two shipping appearances. Day is primary; Night is the same room re-lit, never
-    /// recolored. There is no Day→Night derivation rule — each is hand-lit.
     enum Appearance: CaseIterable {
         case day
         case night
@@ -488,8 +486,6 @@ enum Theme {  // swiftlint:disable:this type_body_length
 // MARK: - Appearance resolution
 
 extension Theme {
-    /// Resolves the user's three-way preference against the current system scheme (system-dark maps
-    /// to Night). "Dark" has left the product vocabulary — the forced case is Night.
     static func palette(for preference: AppearancePreference, colorScheme: ColorScheme = .light) -> Palette {
         switch preference {
         case .light:
