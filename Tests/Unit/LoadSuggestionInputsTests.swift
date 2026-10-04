@@ -110,6 +110,13 @@ private let historyWithTheSetsOwnSession = LastPerformedLookupSnapshot(occurrenc
         #expect(LoadSuggestionEngine.suggest(for: set, history: historyWithTheSetsOwnSession) == .estimate(182.5, basis: basis))
     }
 
+    @Test func theSetsPercentOneRMOfItsExercisesTrainingMaxBeatsHistory() {
+        let set = makeBenchPress(loads: ["RPE6"], trainingMaxes: [.bench: 265]).sets[0]
+        set.percentOneRM = "70%"
+
+        #expect(LoadSuggestionEngine.suggest(for: set, history: historyWithTheSetsOwnSession) == .prescribedWeight(185))
+    }
+
     @Test func anEarlierLoggedSetOfTheExerciseIsTheBasis() throws {
         let sets = makeBenchPress(loads: ["RPE6", "RPE7"]).sets.sorted { $0.index < $1.index }
         let setOne = SetLog(weight: .pounds(185), reps: 5, rpe: .seven)

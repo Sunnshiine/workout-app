@@ -60,9 +60,10 @@ func makeBlock(tabName: String = "Block 40", sessions: [Session]) -> Block {
 func makeBenchPress(
     loads: [String],
     blockTab: String = "Block 27",
-    at address: SessionAddress = SessionAddress(week: 1, day: 2)
+    at address: SessionAddress = SessionAddress(week: 1, day: 2),
+    trainingMaxes: [MainLift: Double] = [:]
 ) -> Exercise {
-    let block = Block(tabName: blockTab)
+    let block = Block(tabName: blockTab, trainingMaxes: trainingMaxes)
     let week = Week(number: address.week)
     week.block = block
     let session = Session(dayNumber: address.day, date: nil)
