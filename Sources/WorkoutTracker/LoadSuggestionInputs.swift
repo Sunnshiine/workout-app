@@ -1,29 +1,40 @@
 import Foundation
 
-/// The two Exercise-derived inputs `LoadSuggestionEngine.suggest` needs: the Training Max
-/// that applies to this Exercise, and the weight the athlete last put on the bar.
+struct LoadSuggestionInputs: Sendable {
+    let prescribedReps: String
+    let prescribedLoad: String
+    let percentOneRM: String?
+    let trainingMax: Double?
+    /// Nearest first.
+    let earlierSets: [(index: Int, setLog: SetLog)]
+    let lastPerformed: LastPerformedLookupEntry?
+}
+
+extension LoadSuggestionInputs {
+    @MainActor
+    init(set: ExerciseSet, history: LastPerformedLookupSnapshot) {
+        let exercise = set.exercise
+        let coordinates = try? SetCoordinates(of: set)
+        self.init(
+            prescribedReps: set.prescribedReps,
+            prescribedLoad: set.prescribedLoad,
+            percentOneRM: set.percentOneRM,
+            trainingMax: exercise?.trainingMax,
+            earlierSets: (exercise?.sets ?? [])
+                .filter { $0.index < set.index }
+                .sorted { $0.index > $1.index }
+                .compactMap { earlier in earlier.setLog.map { (index: earlier.index, setLog: $0) } },
+            lastPerformed: coordinates.flatMap {
+                history.excluding(session: $0.session).lookup(for: $0.exerciseName)
+            }
+        )
+    }
+}
+
 extension Exercise {
-    /// `MainLift` owns the matching rule and the reasoning behind it.
     var trainingMax: Double? {
         guard let block = session?.week?.block, let lift = MainLift(matchingBaseName: baseName)
         else { return nil }
         return block.trainingMaxes[lift]
-    }
-
-    /// The nearest earlier Set's logged weight in pounds. Bodyweight and unlogged Sets carry no
-    /// weight, so the scan passes over them to the next one back.
-    func mostRecentLoggedPounds(before setIndex: Int) -> Double? {
-        sets
-            .filter { $0.index < setIndex }
-            .sorted { $0.index > $1.index }
-            .compactMap { previousSet -> Double? in
-                switch previousSet.setLog?.weight {
-                case .pounds(let pounds):
-                    return pounds
-                case .bodyweight, nil:
-                    return nil
-                }
-            }
-            .first
     }
 }

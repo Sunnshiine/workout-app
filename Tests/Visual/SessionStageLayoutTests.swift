@@ -582,7 +582,7 @@ private enum SessionPageHost {
         let name = frame { $0.elementIdentifier == "stage-exercise-name" }
         let partner = frame { $0.elementIdentifier == "superset-partner-name" }
         let note = frame { $0.accessibilityLabel == focused.coachNote }
-        let lastPerformed = frame { $0.accessibilityLabel?.hasPrefix("Block ") == true }
+        let lastPerformed = frame { $0.elementIdentifier == "last-performed-line" }
         let card = frame { $0.elementIdentifier == "active-set-card" }
         let words = [cadence, name, partner, note].compactMap { $0?.maxY }
         return PageFrames(

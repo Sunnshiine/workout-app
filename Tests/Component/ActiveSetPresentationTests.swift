@@ -310,7 +310,7 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     let entry = LastPerformedEntry(
         fullName: "DB Fly",
         baseName: "DB Fly",
-        result: SetLog(weight: .pounds(25), reps: 12, rpe: .nine),
+        resultText: "25x12@9",
         performedOn: Date(timeIntervalSinceReferenceDate: 100),
         source: "W4 D3"
     )
@@ -345,7 +345,7 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
         LastPerformedEntry(
             fullName: "2-3:1:0 BB RDL",
             baseName: "BB RDL",
-            result: SetLog(weight: .pounds(185), reps: 7, rpe: .six),
+            resultText: "185x7@6",
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "W3 D1"
         )

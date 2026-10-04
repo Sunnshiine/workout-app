@@ -110,7 +110,12 @@ extension WorkoutApplication {
     /// `nil` is the Current Session.
     public func session(_ address: SessionAddress?) throws -> SessionSnapshot {
         let session = try address.map(resolveSession) ?? resolveCurrentSession()
-        return SessionSnapshot(session.model, id: session.id, isCurrent: session.model === workout.currentSession)
+        return SessionSnapshot(
+            session.model,
+            id: session.id,
+            isCurrent: session.model === workout.currentSession,
+            history: lastPerformed.snapshot
+        )
     }
 
     /// `WorkoutStore.log(_:as:)`: the same call the Session stage makes.
@@ -119,7 +124,7 @@ extension WorkoutApplication {
         let set = try resolveSet(address)
         try workout.log(set, as: parsed)
         return LogReport(
-            set: SetSnapshot(set, id: address),
+            set: SetSnapshot(set, id: address, history: lastPerformed.snapshot),
             pendingWriteCount: try queuedWrites().count,
             exerciseIsComplete: set.exercise?.isComplete ?? false
         )
@@ -130,7 +135,7 @@ extension WorkoutApplication {
         let set = try resolveSet(address)
         try workout.skip(set)
         return LogReport(
-            set: SetSnapshot(set, id: address),
+            set: SetSnapshot(set, id: address, history: lastPerformed.snapshot),
             pendingWriteCount: try queuedWrites().count,
             exerciseIsComplete: set.exercise?.isComplete ?? false
         )

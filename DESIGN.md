@@ -338,8 +338,8 @@ foliage with cream ribs, and the active leaf carries the page's one glow.
   text; the branch is never the only way to read them. This is the no-botany
   pressure valve — under extreme content the words still carry the page.
 - **Last Performed** is a quiet muted runline anchored to the Active Set
-  Card — `W1 D2 — 90×5 @8 · …` — no "Last performed" label (the Set-Log
-  shape says what it is). It shrinks then truncates, never wraps. A
+  Card — `Block 26 · W4 D3 — 245x5@6, 255x5@7` — no "Last performed" label
+  (the Set-Log shape says what it is). It shrinks then truncates, never wraps. A
   Movement-level fallback match labels itself with the matched entry's own
   entered name in muted italic (*as "Standing Calve Raises"*). Tapping it
   opens the Exercise History sheet, with at most the subtlest disclosure
@@ -394,10 +394,27 @@ after:
   round ± steppers flanking it; tap-to-type raises the keyboard.
 - **Reps (1–100) and RPE (5–10) are side-by-side one-tap scroll rails**,
   labels below; selected chips take a cream fill with an inset action ring.
-- **Everything prefills from last week's actuals** — not a computed
-  suggestion.
+- **The weight pre-fills from the coach's number** when there is one: BW, a
+  Drop from the previous Set, or a %1RM of the Training Max. For an RPE target
+  it pre-fills the Load Suggestion estimated from the athlete's own Set Logs
+  (ADR-0018). Reps and RPE pre-fill from the prescription when it names one
+  value.
+- **The athlete sees only the estimated weight.** A basis line naming where it
+  came from is a developer aid, off until Developer Tools' *Show Load Basis*
+  turns it on. Mid-set, the number is the decision and its provenance is
+  noise. When on, it sits directly under the weight in the athlete's own
+  notation: `from 315x5@7 · W1 D2`,
+  `from Set 1 today`, or `from 195x5@8 · Block 26 W4 D1` for another Block.
+  When the Last Performed ladder, run without the Viewed Session, matched the
+  entry at Movement level, the line ends with the entry's own name,
+  `from 195x5@8 · W1 D2 as “Comp Bench Press”`. The Last Performed line above
+  it includes the Viewed Session, so once a Set is logged today the two lines
+  can name different entries. Whether they should is #803's open question.
+  It is a `runline` in `textSecondary`, shrinks then truncates, and leaves as
+  soon as the athlete changes the weight, so it never explains a number that is
+  no longer on the card. Cards without an estimate carry no line.
 - **No units anywhere** in the block.
-- A prescription tick marks last week's value on the rails.
+- A prescription tick marks the coach's prescribed reps and RPE on the rails.
 
 Card padding is 16 / 16 / 14; steppers hold ~54pt targets, rail cells 48×44.
 Invalid fields mark themselves with `danger` on the specific bad field only;

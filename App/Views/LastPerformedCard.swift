@@ -16,11 +16,10 @@ struct LastPerformedCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
             .accessibilityHint(onTap == nil ? "" : "Opens Exercise History")
+            .accessibilityIdentifier("last-performed-line")
             .modifier(TapModifier(onTap: onTap))
     }
 
-    // `W1 D2 — 90×5 @8 · 90×5 @8 · …`: the source anchors the line, an em dash
-    // leads into the Set-Log evidence.
     private var line: Text {
         Text(presentation.sourceText)
             + Text(" — ")

@@ -102,6 +102,18 @@
                 )
             ]
         }
+
+        static func benchPressHistory() -> [LastPerformedEntry] {
+            [
+                LastPerformedEntry(
+                    fullName: "Bench Press",
+                    baseName: "Bench Press",
+                    resultText: "185x5@7, 195x5@8",
+                    performedOn: Date(timeIntervalSinceReferenceDate: 90),
+                    source: SessionCoordinate(blockTab: "Block 26", address: SessionAddress(week: 4, day: 1)).storageValue
+                )
+            ]
+        }
     }
 
     // Fixture data, not behavior: every line is one literal Block graph a scenario reads. Extracting
@@ -538,8 +550,8 @@
 
         static func benchPress(
             sets: [ExerciseSet] = [
-                set(0, reps: "5", load: "RPE6", percentOneRM: "70%"),
-                set(1, reps: "5", load: "RPE7", percentOneRM: "75%")
+                set(0, reps: "5", load: "RPE6"),
+                set(1, reps: "5", load: "RPE7")
             ]
         ) -> Exercise {
             exercise(name: "Bench Press", baseName: "Bench Press", coachNote: "Pause every rep.", order: 0, sets: sets)

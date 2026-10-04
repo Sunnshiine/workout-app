@@ -28,21 +28,6 @@ private func exercise(name: String, baseName: String, in block: Block) -> Exerci
 }
 
 @MainActor
-private func loggedSet(index: Int, weight: Weight?) -> ExerciseSet {
-    let set = ExerciseSet(
-        index: index,
-        prescribedReps: "5",
-        prescribedLoad: "RPE 8",
-        percentOneRM: nil,
-        state: weight == nil ? .pending : .logged
-    )
-    if let weight {
-        set.setLog = SetLog(weight: weight, reps: 5, rpe: .eight)
-    }
-    return set
-}
-
-@MainActor
 @Suite struct TrainingMaxLookupTests {
     @Test func backSquatTakesTheSquatTrainingMax() {
         #expect(exercise(named: "Back Squat").trainingMax == 405)
@@ -96,34 +81,63 @@ private func loggedSet(index: Int, weight: Weight?) -> ExerciseSet {
     }
 }
 
+private func benchEntry(_ resultText: String, at source: String, performedOn: Double) -> LastPerformedOccurrence {
+    LastPerformedOccurrence(
+        fullName: "Bench Press",
+        baseName: "Bench Press",
+        resultText: resultText,
+        performedOn: Date(timeIntervalSinceReferenceDate: performedOn),
+        source: source
+    )
+}
+
+private let historyWithTheSetsOwnSession = LastPerformedLookupSnapshot(occurrences: [
+    benchEntry("185x5@7, 195x5@8", at: "Block 26 · W4 D1", performedOn: 90),
+    benchEntry("405x5@7", at: "Block 27 · W1 D2", performedOn: 200)
+])
+
 @MainActor
-@Suite struct MostRecentLoggedPoundsTests {
-    @Test func takesTheNearestEarlierLoggedPounds() {
-        let exercise = exercise(named: "Back Squat")
-        exercise.sets = [
-            loggedSet(index: 0, weight: .pounds(185)),
-            loggedSet(index: 1, weight: .pounds(225)),
-            loggedSet(index: 2, weight: nil)
-        ]
+@Suite struct SuggestForASetTests {
+    @Test func theBasisLeavesOutTheSetsOwnSession() throws {
+        let set = makeBenchPress(loads: ["RPE6", "RPE7"]).sets.sorted { $0.index < $1.index }[0]
+        let basis = try #require(
+            LoadBasis(
+                setLog: SetLog(weight: .pounds(195), reps: 5, rpe: .eight),
+                origin: .history(SessionCoordinate(blockTab: "Block 26", address: SessionAddress(week: 4, day: 1)), matchedName: nil)
+            )
+        )
 
-        #expect(exercise.mostRecentLoggedPounds(before: 2) == 225)
+        #expect(LoadSuggestionEngine.suggest(for: set, history: historyWithTheSetsOwnSession) == .estimate(182.5, basis: basis))
     }
 
-    @Test func skipsBodyweightAndUnloggedSets() {
-        let exercise = exercise(named: "Back Squat")
-        exercise.sets = [
-            loggedSet(index: 0, weight: .pounds(185)),
-            loggedSet(index: 1, weight: .bodyweight),
-            loggedSet(index: 2, weight: nil)
-        ]
+    @Test func theSetsPercentOneRMOfItsExercisesTrainingMaxBeatsHistory() {
+        let set = makeBenchPress(loads: ["RPE6"], trainingMaxes: [.bench: 265]).sets[0]
+        set.percentOneRM = "70%"
 
-        #expect(exercise.mostRecentLoggedPounds(before: 3) == 185)
+        #expect(LoadSuggestionEngine.suggest(for: set, history: historyWithTheSetsOwnSession) == .prescribedWeight(185))
     }
 
-    @Test func theFirstSetHasNoEarlierWeight() {
-        let exercise = exercise(named: "Back Squat")
-        exercise.sets = [loggedSet(index: 0, weight: .pounds(185))]
+    @Test func anEarlierLoggedSetOfTheExerciseIsTheBasis() throws {
+        let sets = makeBenchPress(loads: ["RPE6", "RPE7"]).sets.sorted { $0.index < $1.index }
+        let setOne = SetLog(weight: .pounds(185), reps: 5, rpe: .seven)
+        sets[0].markLogged(setOne, at: Date(timeIntervalSinceReferenceDate: 0))
+        let basis = try #require(LoadBasis(setLog: setOne, origin: .today(setIndex: 0)))
 
-        #expect(exercise.mostRecentLoggedPounds(before: 0) == nil)
+        #expect(LoadSuggestionEngine.suggest(for: sets[1], history: historyWithTheSetsOwnSession) == .estimate(185, basis: basis))
+    }
+
+    @Test func dropReadsTheNearestEarlierSetOfTheExercise() {
+        let sets = makeBenchPress(loads: ["RPE6", "RPE7", "Drop 20%"]).sets.sorted { $0.index < $1.index }
+        sets[0].markLogged(SetLog(weight: .pounds(185), reps: 5, rpe: .seven), at: Date(timeIntervalSinceReferenceDate: 0))
+        sets[1].markLogged(SetLog(weight: .pounds(225), reps: 5, rpe: .eight), at: Date(timeIntervalSinceReferenceDate: 60))
+
+        #expect(LoadSuggestionEngine.suggest(for: sets[2], history: .empty) == .prescribedWeight(180))
+    }
+
+    @Test func aSetHoldingASetLogConsultsNothing() {
+        let set = makeBenchPress(loads: ["RPE6"]).sets[0]
+        set.markLogged(SetLog(weight: .pounds(185), reps: 5, rpe: .seven), at: Date(timeIntervalSinceReferenceDate: 0))
+
+        #expect(LoadSuggestionEngine.suggest(for: set, history: historyWithTheSetsOwnSession) == .noSuggestion)
     }
 }

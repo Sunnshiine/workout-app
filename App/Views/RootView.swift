@@ -31,6 +31,7 @@ struct RootView: View {
             #endif
         }
         .environment(\.themePalette, palette)
+        .environment(\.showsLoadBasis, settings.showsLoadBasis)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.gradient.ignoresSafeArea())
         .preferredColorScheme(Theme.colorSchemeOverride(for: settings.appearance))

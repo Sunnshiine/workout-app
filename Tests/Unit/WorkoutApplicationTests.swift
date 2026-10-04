@@ -251,3 +251,75 @@ private func address(_ raw: String) throws -> SetAddress {
         try await app.sheet(tab: "Block 26")
     }
 }
+
+private func wire(_ suggestion: LoadSuggestionSnapshot) throws -> String {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+    return try #require(String(bytes: try encoder.encode(suggestion), encoding: .utf8))
+}
+
+@MainActor
+@Test func anRPETargetEstimatesFromTheLastOtherSessionThenRecalibratesFromSetOneToday() async throws {
+    let app = try await makeSelectedApp()
+    _ = try app.log(address("w1d1.e0.s0"), setLog: "315x5@7")
+    _ = try app.log(address("w1d1.e0.s1"), setLog: "295x5@6")
+
+    let setOne = try app.session(SessionAddress(week: 2, day: 1)).exercises[0].sets[0]
+    #expect(
+        try wire(setOne.loadSuggestion)
+            == #"{"basis":{"origin":"history","session":"Block 27 · W1 D1","setLog":"315x5@7","text":"from 315x5@7 · W1 D1"},"#
+            + #""kind":"estimate","weight":315}"#
+    )
+
+    let report = try app.log(address("w2d1.e0.s0"), setLog: "315x5@8.5")
+    #expect(try wire(report.set.loadSuggestion) == #"{"kind":"none"}"#)
+
+    let setTwo = try app.session(SessionAddress(week: 2, day: 1)).exercises[0].sets[1]
+    #expect(
+        try wire(setTwo.loadSuggestion)
+            == #"{"basis":{"origin":"today","set":"w2d1.e0.s0","setLog":"315x5@8.5","text":"from Set 1 today"},"#
+            + #""kind":"estimate","weight":300}"#
+    )
+}
+
+@MainActor
+@Test func anRPETargetNeverEstimatesFromItsOwnSession() async throws {
+    let app = try await makeSelectedApp()
+    _ = try app.log(address("w1d1.e0.s0"), setLog: "315x5@7")
+    _ = try app.log(address("w2d1.e0.s1"), setLog: "400x5@7")
+
+    let setOne = try app.session(SessionAddress(week: 2, day: 1)).exercises[0].sets[0]
+
+    #expect(setOne.loadSuggestion.weight == 315)
+    #expect(setOne.loadSuggestion.basis?.session == "Block 27 · W1 D1")
+}
+
+@MainActor
+@Test func skippingTheOnlyLoggedSetLeavesNoBasisAfterFlushAndSync() async throws {
+    let app = try await makeSelectedApp()
+    _ = try app.log(address("w1d1.e0.s0"), setLog: "315x5@7")
+    _ = try app.skip(address("w1d1.e0.s0"))
+    _ = try await app.flush()
+    _ = try await app.sync()
+
+    let setOne = try app.session(SessionAddress(week: 2, day: 1)).exercises[0].sets[0]
+
+    #expect(try wire(setOne.loadSuggestion) == #"{"kind":"none"}"#)
+}
+
+@MainActor
+@Test func deletingTheOnlySetLogLeavesNoBasis() async throws {
+    let app = try await makeSelectedApp()
+    _ = try app.log(address("w1d1.e0.s0"), setLog: "315x5@7")
+    let set = try #require(
+        app.workout.block?.weeks.first { $0.number == 1 }?
+            .sessions.first { $0.dayNumber == 1 }?
+            .exercises.first { $0.order == 0 }?
+            .sets.first { $0.index == 0 }
+    )
+
+    try app.workout.deleteLog(for: set)
+
+    let setOne = try app.session(SessionAddress(week: 2, day: 1)).exercises[0].sets[0]
+    #expect(try wire(setOne.loadSuggestion) == #"{"kind":"none"}"#)
+}

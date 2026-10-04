@@ -35,18 +35,6 @@ final class LastPerformedEntry {
         self.source = source
     }
 
-    /// Convenience for the live-logging path, where evidence is a lone structured Set Log: its
-    /// display text is `SetLog.formatted`, derived here so callers never hold the dual shape.
-    convenience init(fullName: String, baseName: String, result: SetLog, performedOn: Date, source: String) {
-        self.init(
-            fullName: fullName,
-            baseName: baseName,
-            resultText: result.formatted,
-            performedOn: performedOn,
-            source: source
-        )
-    }
-
     convenience init(_ occurrence: LastPerformedOccurrence) {
         self.init(
             fullName: occurrence.fullName,

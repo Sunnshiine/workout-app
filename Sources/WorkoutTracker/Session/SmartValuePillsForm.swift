@@ -14,9 +14,20 @@ struct SmartValuePillsForm {
     let prescribedRPE: RPE?
     let repsPlaceholder: String?
     private var showsInvalidFields = false
-    private let initialWeightText: String
+    private var estimateBasisText: String?
+    private var initialWeightText: String
     private let initialRepsText: String
     private let initialRPEText: String
+
+    struct LoadBasisLine: Equatable {
+        let text: String
+        let isShown: Bool
+    }
+
+    /// An override hides the text but keeps its space, so the bottom-anchored card does not shift.
+    var loadBasisLine: LoadBasisLine? {
+        estimateBasisText.map { LoadBasisLine(text: $0, isShown: weightText == initialWeightText) }
+    }
 
     var weightDisplay: String {
         weightText.isEmpty ? "—" : weightText
@@ -73,18 +84,15 @@ struct SmartValuePillsForm {
         return "Log \(log.weight.label) × \(log.reps) @\(log.rpe.label)"
     }
 
-    init(set: ExerciseSet, previousSetWeight: Double?, trainingMax: Double?) {
+    init(set: ExerciseSet, suggestion: LoadSuggestion) {
         prescribedRPE = RPE(prescribedLoad: set.prescribedLoad)
         if let setLog = set.setLog {
             weightText = setLog.weight.label
             repsText = String(setLog.reps)
             rpeText = setLog.rpe.label
+            estimateBasisText = nil
         } else {
-            weightText = Self.initialWeightText(
-                for: set,
-                previousSetWeight: previousSetWeight,
-                trainingMax: trainingMax
-            )
+            (weightText, estimateBasisText) = Self.prefill(from: suggestion, for: set)
             repsText = Self.initialRepsText(for: set.prescribedReps)
             rpeText = prescribedRPE?.label ?? ""
         }
@@ -92,6 +100,14 @@ struct SmartValuePillsForm {
         initialWeightText = weightText
         initialRepsText = repsText
         initialRPEText = rpeText
+    }
+
+    /// A suggestion can arrive after the card renders, once a sync or the Exercise History fill
+    /// lands. It replaces the pre-fill only while the athlete has not touched the weight.
+    mutating func refreshPrefill(from suggestion: LoadSuggestion, for set: ExerciseSet) {
+        guard set.setLog == nil, weightText == initialWeightText else { return }
+        (weightText, estimateBasisText) = Self.prefill(from: suggestion, for: set)
+        initialWeightText = weightText
     }
 
     mutating func adjustWeight(by increment: Double) {
@@ -186,23 +202,19 @@ struct SmartValuePillsForm {
         RPE(text: rpeText)
     }
 
-    private static func initialWeightText(
-        for set: ExerciseSet,
-        previousSetWeight: Double?,
-        trainingMax: Double?
-    ) -> String {
-        switch LoadSuggestionEngine.suggest(
-            prescribedLoad: set.prescribedLoad,
-            percentOneRM: set.percentOneRM,
-            previousSetWeight: previousSetWeight,
-            trainingMax: trainingMax
-        ) {
-        case .weight(let weight):
-            return Weight.pounds(weight).label
+    private static func prefill(
+        from suggestion: LoadSuggestion,
+        for set: ExerciseSet
+    ) -> (weightText: String, basisText: String?) {
+        switch suggestion {
+        case .prescribedWeight(let weight):
+            (Weight.pounds(weight).label, nil)
+        case .estimate(let weight, let basis):
+            (Weight.pounds(weight).label, LoadBasisPresentation(basis, for: set).text)
         case .bodyweight:
-            return "BW"
+            ("BW", nil)
         case .noSuggestion:
-            return ""
+            ("", nil)
         }
     }
 

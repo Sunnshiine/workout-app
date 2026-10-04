@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import WorkoutTracker
@@ -5,9 +6,8 @@ import Testing
 @MainActor
 @Test func weightPillPrefillsFromLoadSuggestion() {
     let form = SmartValuePillsForm(
-        set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE6", percentOneRM: "75%", state: .pending),
-        previousSetWeight: nil,
-        trainingMax: 265
+        set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "", percentOneRM: nil, state: .pending),
+        suggestion: .prescribedWeight(200)
     )
 
     #expect(form.weightText == "200")
@@ -15,34 +15,10 @@ import Testing
 }
 
 @MainActor
-@Test func weightPillUsesPercentOneRMColumnForLoadSuggestion() {
-    let form = SmartValuePillsForm(
-        set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE6", percentOneRM: "75%", state: .pending),
-        previousSetWeight: nil,
-        trainingMax: 265
-    )
-
-    #expect(form.weightText == "200")
-}
-
-@MainActor
 @Test func weightPillPrefillsBodyweightPrescription() {
     let form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "12", prescribedLoad: "BW", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
-    )
-
-    #expect(form.weightText == "BW")
-    #expect(form.weightDisplay == "BW")
-}
-
-@MainActor
-@Test func weightPillPrefersBodyweightOverAPresentPercentOneRM() {
-    let form = SmartValuePillsForm(
-        set: ExerciseSet(index: 0, prescribedReps: "12", prescribedLoad: "BW", percentOneRM: "75%", state: .pending),
-        previousSetWeight: nil,
-        trainingMax: 265
+        suggestion: .bodyweight
     )
 
     #expect(form.weightText == "BW")
@@ -53,8 +29,7 @@ import Testing
 @Test func weightPillShowsDashWhenDropPercentCannotCalculateYet() {
     let form = SmartValuePillsForm(
         set: ExerciseSet(index: 1, prescribedReps: "8", prescribedLoad: "Drop 17.5%", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .noSuggestion
     )
 
     #expect(form.weightText == "")
@@ -65,8 +40,7 @@ import Testing
 @Test func weightPillRendersADropSuggestionPastIntRangeInsteadOfTrapping() {
     let form = SmartValuePillsForm(
         set: ExerciseSet(index: 1, prescribedReps: "5", prescribedLoad: "Drop 50%", percentOneRM: nil, state: .pending),
-        previousSetWeight: 2e19,
-        trainingMax: nil
+        suggestion: .prescribedWeight(1e19)
     )
 
     #expect(form.weightText == "1e+19")
@@ -76,13 +50,11 @@ import Testing
 @Test func repsPillPrefillsPrescribedRepsAndLeavesAMRAPEmpty() {
     let prescribed = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .noSuggestion
     )
     let amrap = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "AMRAP", prescribedLoad: "BW", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .bodyweight
     )
 
     #expect(prescribed.repsText == "8")
@@ -95,13 +67,11 @@ import Testing
 @Test func repsPillShowsNonIntegerPrescriptionAsHint() {
     let range = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "10-15", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .noSuggestion
     )
     let amrap = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "AMRAP", prescribedLoad: "BW", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .bodyweight
     )
 
     #expect(range.repsText == "")
@@ -116,8 +86,7 @@ import Testing
 @Test func fineWeightIncrementIsTwoAndAHalfUnderThresholdAndFiveAtOrAboveIt() {
     var form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .noSuggestion
     )
     form.weightText = "100"
     #expect(form.fineWeightIncrement == 2.5)
@@ -130,8 +99,7 @@ import Testing
 @Test func weightSteppingIsHiddenUntilThereIsANumericWeight() {
     var bodyweight = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "12", prescribedLoad: "BW", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .bodyweight
     )
     #expect(!bodyweight.allowsWeightStepping)
 
@@ -152,8 +120,7 @@ import Testing
 @Test func weightIncrementButtonsAdjustCurrentWeight() {
     var form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .noSuggestion
     )
     form.weightText = "95"
 
@@ -168,8 +135,7 @@ import Testing
 @Test func logButtonPreviewUpdatesAndRequiresCompleteSetLog() {
     var form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "75%1RM", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .noSuggestion
     )
     form.weightText = "185"
 
@@ -187,8 +153,7 @@ import Testing
 @Test func logButtonTitleUsesGenericIncompletePromptWhenMultipleFieldsAreMissing() {
     let form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "AMRAP", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .noSuggestion
     )
 
     #expect(form.logButtonTitle == "Complete Set Log")
@@ -199,8 +164,7 @@ import Testing
 @Test func formValidationMarksInvalidFieldsAndClearsThemAsTheyBecomeValid() {
     var form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "10-15", prescribedLoad: "75%1RM", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .noSuggestion
     )
 
     #expect(form.invalidFields.isEmpty)
@@ -222,8 +186,7 @@ import Testing
 @Test func selectedRPEStateCanMoveFromHalfStepBackToWholeStep() {
     var form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 6", percentOneRM: "95%", state: .pending),
-        previousSetWeight: nil,
-        trainingMax: 250
+        suggestion: .prescribedWeight(237.5)
     )
 
     form.rpeText = "6.5"
@@ -239,7 +202,7 @@ import Testing
     let loggedSet = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .logged)
     loggedSet.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: .sixPointFive)
 
-    let form = SmartValuePillsForm(set: loggedSet, previousSetWeight: nil, trainingMax: nil)
+    let form = SmartValuePillsForm(set: loggedSet, suggestion: .noSuggestion)
 
     #expect(form.rpeText == "6.5")
     #expect(form.logButtonTitle == "Log 185 × 5 @6.5")
@@ -250,8 +213,7 @@ import Testing
     func prefill(_ prescribedLoad: String) -> String {
         SmartValuePillsForm(
             set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: prescribedLoad, percentOneRM: nil, state: .pending),
-            previousSetWeight: nil,
-            trainingMax: nil
+            suggestion: .noSuggestion
         ).rpeText
     }
 
@@ -269,8 +231,7 @@ import Testing
 @Test func submittingInvalidLogMarksInvalidFieldsWithoutProducingLog() {
     var form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "AMRAP", prescribedLoad: "75%1RM", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .noSuggestion
     )
 
     #expect(form.submitLog() == nil)
@@ -288,8 +249,7 @@ import Testing
 @Test func logFormAcceptsOnlyBodyweightOrFiniteWeightIntegerRepsAndRailPointRPE() {
     var form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "BW", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .bodyweight
     )
     form.repsText = "8"
     form.rpeText = "5"
@@ -325,7 +285,7 @@ import Testing
 @Test func cancelRestoresLoggedSetOrSuggestionState() {
     let loggedSet = ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 7", percentOneRM: nil, state: .logged)
     loggedSet.setLog = SetLog(weight: .pounds(185), reps: 7, rpe: .eight)
-    var logged = SmartValuePillsForm(set: loggedSet, previousSetWeight: nil, trainingMax: nil)
+    var logged = SmartValuePillsForm(set: loggedSet, suggestion: .noSuggestion)
     logged.weightText = "200"
     logged.repsText = "9"
     logged.rpeText = "9"
@@ -337,7 +297,7 @@ import Testing
     #expect(logged.rpeText == "8")
 
     let suggestedSet = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "", percentOneRM: "75%", state: .pending)
-    var suggested = SmartValuePillsForm(set: suggestedSet, previousSetWeight: nil, trainingMax: 265)
+    var suggested = SmartValuePillsForm(set: suggestedSet, suggestion: .prescribedWeight(200))
     suggested.weightText = "190"
 
     suggested.cancel()
@@ -351,7 +311,7 @@ import Testing
 @Test func loggedSetDraftOnlyProducesChangedValidLog() {
     let loggedSet = ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 7", percentOneRM: nil, state: .logged)
     loggedSet.setLog = SetLog(weight: .pounds(185), reps: 7, rpe: .eight)
-    var form = SmartValuePillsForm(set: loggedSet, previousSetWeight: nil, trainingMax: nil)
+    var form = SmartValuePillsForm(set: loggedSet, suggestion: .noSuggestion)
 
     #expect(form.changedValidLog == nil)
 
@@ -368,8 +328,7 @@ import Testing
 @Test func prescribedRPEComesFromPrescribedLoad() {
     let form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .noSuggestion
     )
 
     #expect(form.prescribedRPE == .eight)
@@ -381,8 +340,7 @@ import Testing
     // freshly-focused set can be logged at the prescription with a single tap.
     let prescribed = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: "75%", state: .pending),
-        previousSetWeight: nil,
-        trainingMax: 265
+        suggestion: .prescribedWeight(200)
     )
 
     #expect(prescribed.rpeText == "8")
@@ -390,8 +348,7 @@ import Testing
 
     let noPrescribedRPE = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "", percentOneRM: "75%", state: .pending),
-        previousSetWeight: nil,
-        trainingMax: 265
+        suggestion: .prescribedWeight(200)
     )
 
     #expect(noPrescribedRPE.rpeText == "")
@@ -401,8 +358,7 @@ import Testing
 private func stepForm(weight: String) -> SmartValuePillsForm {
     var form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .noSuggestion
     )
     form.weightText = weight
     return form
@@ -410,7 +366,7 @@ private func stepForm(weight: String) -> SmartValuePillsForm {
 
 @MainActor
 @Test func stepWeightAddsAndSubtractsTheFineIncrementWithoutHittingTheFloor() {
-    var form = stepForm(weight: "185") // above the gym threshold → heavy step of 5
+    var form = stepForm(weight: "185")
     #expect(form.fineWeightIncrement == 5)
 
     #expect(form.stepWeight(.up) == false)
@@ -422,7 +378,7 @@ private func stepForm(weight: String) -> SmartValuePillsForm {
 
 @MainActor
 @Test func stepWeightLandingExactlyOnZeroIsANormalStepNotAFloorHit() {
-    var form = stepForm(weight: "2.5") // at/below the threshold → light step of 2.5
+    var form = stepForm(weight: "2.5")
 
     // 2.5 − 2.5 == 0 exactly: a valid step down to zero, so no floor hit (the tick, not the dud).
     #expect(form.stepWeight(.down) == false)
@@ -444,4 +400,166 @@ private func stepForm(weight: String) -> SmartValuePillsForm {
 
     form.stepWeight(.up)
     #expect(form.weightText == "1e+19")
+}
+
+private func benchHistory(_ entries: [(resultText: String, source: String)]) -> LastPerformedLookupSnapshot {
+    LastPerformedLookupSnapshot(
+        occurrences: entries.map {
+            LastPerformedOccurrence(
+                fullName: "Bench Press",
+                baseName: "Bench Press",
+                resultText: $0.resultText,
+                performedOn: Date(timeIntervalSinceReferenceDate: 0),
+                source: $0.source
+            )
+        }
+    )
+}
+
+@MainActor
+private func cardForm(_ set: ExerciseSet, history: [(resultText: String, source: String)]) -> SmartValuePillsForm {
+    SmartValuePillsForm(set: set, suggestion: LoadSuggestionEngine.suggest(for: set, history: benchHistory(history)))
+}
+
+@MainActor
+@Test func anEstimateFromAnotherBlockNamesItsBlockAndSession() {
+    let set = makeBenchPress(loads: ["RPE6"]).sets[0]
+
+    let form = cardForm(set, history: [("185x5@7, 195x5@8", "Block 26 · W4 D1")])
+
+    #expect(form.weightText == "182.5")
+    #expect(form.loadBasisLine == .init(text: "from 195x5@8 · Block 26 W4 D1", isShown: true))
+}
+
+@MainActor
+@Test func anEstimateFromTheSameBlockNamesOnlyItsSession() {
+    let set = makeBenchPress(loads: ["RPE7"], at: SessionAddress(week: 2, day: 1)).sets[0]
+
+    let form = cardForm(set, history: [("315x5@7, 295x5@6", "Block 27 · W1 D1")])
+
+    #expect(form.weightText == "315")
+    #expect(form.loadBasisLine == .init(text: "from 315x5@7 · W1 D1", isShown: true))
+}
+
+@MainActor
+private func competitionBenchPress() -> Exercise {
+    let exercise = makeBenchPress(loads: ["RPE6"], at: SessionAddress(week: 2, day: 2))
+    exercise.name = "Competition Bench Press"
+    exercise.baseName = "Competition Bench Press"
+    return exercise
+}
+
+private func competitionBenchHistory(fullName: String, baseName: String) -> LastPerformedLookupSnapshot {
+    LastPerformedLookupSnapshot(occurrences: [
+        LastPerformedOccurrence(
+            fullName: fullName,
+            baseName: baseName,
+            resultText: "185x5@7, 195x5@8",
+            performedOn: Date(timeIntervalSinceReferenceDate: 0),
+            source: "Block 27 · W1 D2"
+        )
+    ])
+}
+
+@MainActor
+private func estimateForm(_ exercise: Exercise, history: LastPerformedLookupSnapshot) -> SmartValuePillsForm {
+    SmartValuePillsForm(set: exercise.sets[0], suggestion: LoadSuggestionEngine.suggest(for: exercise.sets[0], history: history))
+}
+
+@MainActor
+@Test func anEstimateFromAMovementLevelMatchNamesTheEntryItCameFrom() {
+    let history = competitionBenchHistory(fullName: "Comp Bench Press", baseName: "Comp Bench Press")
+
+    let form = estimateForm(competitionBenchPress(), history: history)
+
+    #expect(form.weightText == "182.5")
+    #expect(form.loadBasisLine == .init(text: "from 195x5@8 · W1 D2 as “Comp Bench Press”", isShown: true))
+}
+
+@MainActor
+@Test func aCaseOnlyMovementLevelMatchNamesTheEntryAsLastPerformedDoes() {
+    let exercise = competitionBenchPress()
+    let history = competitionBenchHistory(fullName: "competition bench press", baseName: "competition bench press")
+
+    let form = estimateForm(exercise, history: history)
+
+    #expect(form.weightText == "182.5")
+    #expect(form.loadBasisLine == .init(text: "from 195x5@8 · W1 D2 as “competition bench press”", isShown: true))
+    #expect(LastPerformedCardPresentation(exercise: exercise, lookup: history)?.matchedName == "competition bench press")
+}
+
+@MainActor
+@Test func anEstimateFromAnEntryWithTheExercisesBaseNameNamesNoEntry() {
+    let history = competitionBenchHistory(fullName: "2-0:1:0 Competition Bench Press", baseName: "Competition Bench Press")
+
+    let form = estimateForm(competitionBenchPress(), history: history)
+
+    #expect(form.weightText == "182.5")
+    #expect(form.loadBasisLine == .init(text: "from 195x5@8 · W1 D2", isShown: true))
+}
+
+@MainActor
+@Test func anEstimateFromAnEarlierSetNamesItAsToday() {
+    let sets = makeBenchPress(loads: ["RPE6", "RPE7"]).sets.sorted { $0.index < $1.index }
+    sets[0].markLogged(SetLog(weight: .pounds(185), reps: 5, rpe: .seven), at: Date(timeIntervalSinceReferenceDate: 0))
+
+    let form = cardForm(sets[1], history: [("185x5@7, 195x5@8", "Block 26 · W4 D1")])
+
+    #expect(form.weightText == "185")
+    #expect(form.loadBasisLine == .init(text: "from Set 1 today", isShown: true))
+}
+
+@MainActor
+@Test func overridingTheEstimatedWeightHidesTheLoadBasisLineButKeepsItsSpace() {
+    let set = makeBenchPress(loads: ["RPE6"]).sets[0]
+    var form = cardForm(set, history: [("185x5@7, 195x5@8", "Block 26 · W4 D1")])
+
+    form.stepWeight(.up)
+    #expect(form.weightText == "187.5")
+    #expect(form.loadBasisLine == .init(text: "from 195x5@8 · Block 26 W4 D1", isShown: false))
+
+    form.cancel()
+    #expect(form.loadBasisLine == .init(text: "from 195x5@8 · Block 26 W4 D1", isShown: true))
+}
+
+@MainActor
+@Test func aLaterSuggestionReplacesAnUntouchedPrefillAndItsBasisLine() {
+    let set = makeBenchPress(loads: ["RPE6"]).sets[0]
+    var form = SmartValuePillsForm(set: set, suggestion: LoadSuggestionEngine.suggest(for: set, history: .empty))
+    #expect(form.weightText == "")
+
+    form.refreshPrefill(
+        from: LoadSuggestionEngine.suggest(for: set, history: benchHistory([("185x5@7, 195x5@8", "Block 26 · W4 D1")])),
+        for: set
+    )
+
+    #expect(form.weightText == "182.5")
+    #expect(form.loadBasisLine == .init(text: "from 195x5@8 · Block 26 W4 D1", isShown: true))
+    #expect(form.hasChanges == false)
+}
+
+@MainActor
+@Test func aLaterSuggestionLeavesAnOverriddenWeightAlone() {
+    let set = makeBenchPress(loads: ["RPE6"]).sets[0]
+    var form = SmartValuePillsForm(set: set, suggestion: LoadSuggestionEngine.suggest(for: set, history: .empty))
+    form.weightText = "205"
+
+    form.refreshPrefill(
+        from: LoadSuggestionEngine.suggest(for: set, history: benchHistory([("185x5@7, 195x5@8", "Block 26 · W4 D1")])),
+        for: set
+    )
+
+    #expect(form.weightText == "205")
+    #expect(form.loadBasisLine == nil)
+}
+
+@MainActor
+@Test func aLaterSuggestionLeavesALoggedSetsWeightAlone() {
+    let set = makeBenchPress(loads: ["RPE6"]).sets[0]
+    set.markLogged(SetLog(weight: .pounds(185), reps: 5, rpe: .seven), at: Date(timeIntervalSinceReferenceDate: 0))
+    var form = SmartValuePillsForm(set: set, suggestion: .noSuggestion)
+
+    form.refreshPrefill(from: .prescribedWeight(200), for: set)
+
+    #expect(form.weightText == "185")
 }

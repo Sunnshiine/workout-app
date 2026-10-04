@@ -15,7 +15,6 @@ struct ActiveSetCard: View {
         }
     }
 
-    let exercise: Exercise
     let set: ExerciseSet
     let setOrdinal: Int
     let setCount: Int
@@ -24,6 +23,7 @@ struct ActiveSetCard: View {
     let onSkip: () -> Void
     let onDelete: () -> Void
     var showsLoggedCheckmark = false
+    @Environment(LastPerformedLookupStore.self) private var history
     @Environment(\.themePalette) private var palette
     @State private var inputDismissalRequestID = 0
 
@@ -49,8 +49,7 @@ struct ActiveSetCard: View {
             SmartValuePills(
                 set: set,
                 mode: mode.setCardMode,
-                previousSetWeight: exercise.mostRecentLoggedPounds(before: set.index),
-                trainingMax: exercise.trainingMax,
+                suggestion: LoadSuggestionEngine.suggest(for: set, history: history.snapshot),
                 onLog: onLog,
                 onSkip: onSkip,
                 onDelete: onDelete,

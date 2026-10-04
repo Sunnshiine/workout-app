@@ -225,13 +225,17 @@ final class WorkoutStore {
         )
     }
 
-    private func updateLastPerformed(for set: ExerciseSet, log: SetLog) throws {
+    private func refreshLastPerformed(for set: ExerciseSet) throws {
         let coordinates = try SetCoordinates(of: set)
+        guard let resultText = set.exercise?.setLevelCompletionEvidence.resultText else {
+            try lastPerformed.retract(fullName: coordinates.exerciseName, source: coordinates.session.storageValue)
+            return
+        }
         try lastPerformed.ingest([
             LastPerformedEntry(
                 fullName: coordinates.exerciseName,
                 baseName: coordinates.exerciseBaseName,
-                result: log,
+                resultText: resultText,
                 performedOn: coordinates.sessionDate ?? Date(),
                 source: coordinates.session.storageValue
             )
@@ -307,7 +311,7 @@ extension WorkoutStore {
             expectedCurrentValue: previousValue
         )
         try enqueueLastSetRPEMirror(for: set, replacing: previousRPE)
-        try updateLastPerformed(for: set, log: log)
+        try refreshLastPerformed(for: set)
         try context.save()
     }
 
@@ -323,6 +327,7 @@ extension WorkoutStore {
             expectedCurrentValue: previousValue
         )
         try enqueueLastSetRPEMirror(for: set, replacing: previousRPE)
+        try refreshLastPerformed(for: set)
         try context.save()
     }
 
@@ -338,6 +343,7 @@ extension WorkoutStore {
             expectedCurrentValue: previousValue
         )
         try enqueueLastSetRPEMirror(for: set, replacing: previousRPE)
+        try refreshLastPerformed(for: set)
         try context.save()
     }
 }

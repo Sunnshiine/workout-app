@@ -24,7 +24,7 @@
         @MainActor
         static func seed(into context: ModelContext, launch: UITestLaunch) throws {
             context.insert(block(for: launch.scenario))
-            for entry in WorkoutFixtureScenarios.backSquatHistory() {
+            for entry in WorkoutFixtureScenarios.backSquatHistory() + WorkoutFixtureScenarios.benchPressHistory() {
                 context.insert(entry)
             }
             if launch.startsWithPendingWrite {

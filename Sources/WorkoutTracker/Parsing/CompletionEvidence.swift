@@ -19,12 +19,39 @@ enum SetCompletionEvidence: Equatable, Sendable {
     }
 }
 
+extension SetCompletionEvidence {
+    init?(state: SetState, setLog: SetLog?, unstructuredSetLog: String?) {
+        if let setLog {
+            self = .logged(setLog.formatted)
+            return
+        }
+        let entered = unstructuredSetLog?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if state == .logged, !entered.isEmpty {
+            self = .logged(entered)
+            return
+        }
+        guard state == .skipped else { return nil }
+        self = .skipped
+    }
+}
+
+extension [SetCompletionEvidence] {
+    var resultText: String? {
+        contains(where: \.isLogged) ? map(\.token).joined(separator: ", ") : nil
+    }
+}
+
 extension ParsedSet {
     var completionEvidence: SetCompletionEvidence? {
-        if let setLog { return .logged(setLog.formatted) }
-        let entered = unstructuredSetLog?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if state == .logged, !entered.isEmpty { return .logged(entered) }
-        return state == .skipped ? .skipped : nil
+        SetCompletionEvidence(state: state, setLog: setLog, unstructuredSetLog: unstructuredSetLog)
+    }
+}
+
+extension Exercise {
+    var setLevelCompletionEvidence: [SetCompletionEvidence] {
+        sets.sorted { $0.index < $1.index }.compactMap {
+            SetCompletionEvidence(state: $0.state, setLog: $0.setLog, unstructuredSetLog: $0.unstructuredSetLog)
+        }
     }
 }
 
@@ -41,7 +68,7 @@ extension ParsedExercise {
     /// Unstructured Set Log "Set-level completion evidence, distinct from a Legacy Log". A Skipped
     /// Set does not count, because a skip records that the athlete did not perform the Set.
     var hasSetLevelCompletionEvidence: Bool {
-        setLevelCompletionEvidence.contains(where: \.isLogged)
+        setLevelCompletionEvidence.resultText != nil
     }
 
     var legacyLogAsCompletionEvidence: String? {

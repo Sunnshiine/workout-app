@@ -162,7 +162,6 @@ struct SessionStageView: View {
         if let expandedID = config.expandedLoggedSetID,
             let set = SessionStagePresentation.set(matching: expandedID, in: sortedSets) {
             ActiveSetCard(
-                exercise: config.exercise,
                 set: set,
                 setOrdinal: SessionStagePresentation.ordinal(of: set, in: sortedSets),
                 setCount: sortedSets.count,
@@ -178,7 +177,6 @@ struct SessionStageView: View {
             .transition(.push(from: .bottom))
         } else if let set = SessionStagePresentation.stageSet(activeSetID: config.activeSetID, in: sortedSets) {
             ActiveSetCard(
-                exercise: config.exercise,
                 set: set,
                 setOrdinal: SessionStagePresentation.ordinal(of: set, in: sortedSets),
                 setCount: sortedSets.count,

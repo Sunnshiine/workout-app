@@ -11,14 +11,53 @@ import Testing
 @Suite(.snapshots(record: .never))
 struct ActiveSetCardVisualTests {
     @Test func activeSetCardMatchesVisualBaseline() throws {
-        try assertCardSnapshot(appearance: .day, colorScheme: .light)
+        try assertCardSnapshot(makeCardScenario(), setOrdinal: 3, history: [], appearance: .day, colorScheme: .light)
     }
 
     @Test func activeSetCardMatchesNightVisualBaseline() throws {
-        try assertCardSnapshot(appearance: .night, colorScheme: .dark)
+        try assertCardSnapshot(makeCardScenario(), setOrdinal: 3, history: [], appearance: .night, colorScheme: .dark)
+    }
+
+    @Test func activeSetCardWithAHistoryEstimateMatchesVisualBaseline() throws {
+        let lastBlock = LastPerformedEntry(
+            fullName: "Competition Bench Press",
+            baseName: "Competition Bench Press",
+            resultText: "185x5@7, 195x5@8",
+            performedOn: Date(timeIntervalSinceReferenceDate: 0),
+            source: "Block 26 · W4 D1"
+        )
+
+        try assertCardSnapshot(
+            makeHistoryEstimateScenario(),
+            setOrdinal: 1,
+            history: [lastBlock],
+            appearance: .day,
+            colorScheme: .light
+        )
+    }
+
+    @Test func activeSetCardWithAMovementLevelEstimateMatchesVisualBaseline() throws {
+        let differentlyNamedEntry = LastPerformedEntry(
+            fullName: "Comp Bench Press",
+            baseName: "Comp Bench Press",
+            resultText: "185x5@7, 195x5@8",
+            performedOn: Date(timeIntervalSinceReferenceDate: 0),
+            source: "Block 26 · W4 D1"
+        )
+
+        try assertCardSnapshot(
+            makeHistoryEstimateScenario(),
+            setOrdinal: 1,
+            history: [differentlyNamedEntry],
+            appearance: .day,
+            colorScheme: .light
+        )
     }
 
     private func assertCardSnapshot(
+        _ card: (exercise: Exercise, set: ExerciseSet),
+        setOrdinal: Int,
+        history: [LastPerformedEntry],
         appearance: Theme.Appearance,
         colorScheme: ColorScheme,
         fileID: StaticString = #fileID,
@@ -27,7 +66,10 @@ struct ActiveSetCardVisualTests {
         line: UInt = #line,
         column: UInt = #column
     ) throws {
-        let (exercise, set) = makeCardScenario()
+        let scenario = try WorkoutScenarios.freshConfiguredApp()
+        VisualFixtureRetainer.retain(scenario)
+        let lastPerformed = LastPerformedLookupStore(context: scenario.context)
+        try lastPerformed.ingest(history)
 
         let view = ZStack {
             Theme.palette(for: appearance).paperBackground
@@ -36,9 +78,8 @@ struct ActiveSetCardVisualTests {
             VStack {
                 Spacer(minLength: 0)
                 ActiveSetCard(
-                    exercise: exercise,
-                    set: set,
-                    setOrdinal: 3,
+                    set: card.set,
+                    setOrdinal: setOrdinal,
                     setCount: 5,
                     onLog: { _ in },
                     onSkip: {},
@@ -48,6 +89,8 @@ struct ActiveSetCardVisualTests {
                 Spacer(minLength: 0)
             }
         }
+        .environment(lastPerformed)
+        .environment(\.showsLoadBasis, true)
         .environment(\.themePalette, Theme.palette(for: appearance))
         .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
         .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)
@@ -65,6 +108,7 @@ struct ActiveSetCardVisualTests {
             line: line,
             column: column
         )
+        withExtendedLifetime(card.exercise) {}
     }
 
     /// Reproduces the pick: Set 3 of 5 of a bench press, weight prefilled to 90 (60% of a 150
@@ -99,5 +143,29 @@ struct ActiveSetCardVisualTests {
         block.weeks = [week]
 
         return (exercise, exercise.sets[2])
+    }
+
+    /// Set 1 of 5 of a bench press at an RPE target with no %1RM, so the card estimates from the
+    /// last Block's entry and names it as its Load Basis.
+    private func makeHistoryEstimateScenario() -> (Exercise, ExerciseSet) {
+        let exercise = Exercise(
+            name: "Competition Bench Press",
+            baseName: "Competition Bench Press",
+            cadence: nil,
+            coachNote: nil,
+            order: 0
+        )
+        exercise.sets = (0..<5).map { index in
+            ExerciseSet(index: index, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
+        }
+
+        let session = Session(dayNumber: 2, date: nil)
+        session.exercises = [exercise]
+        let week = Week(number: 2)
+        week.sessions = [session]
+        let block = Block(tabName: "Block 27")
+        block.weeks = [week]
+
+        return (exercise, exercise.sets[0])
     }
 }

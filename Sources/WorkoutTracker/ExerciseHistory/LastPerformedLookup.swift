@@ -23,7 +23,7 @@ struct LastPerformedLookupEntry: Equatable, Sendable {
 }
 
 struct LastPerformedLookupSnapshot: Equatable, Sendable {
-    static let empty = LastPerformedLookupSnapshot()
+    static let empty = LastPerformedLookupSnapshot(occurrences: [])
 
     private let exactMatches: [String: LastPerformedOccurrence]
     private let fallbackMatches: [String: LastPerformedOccurrence]
@@ -31,25 +31,24 @@ struct LastPerformedLookupSnapshot: Equatable, Sendable {
     /// for a Movement — the Last Performed line's dictionaries reduce to one-per-name and cannot.
     private let occurrences: [LastPerformedOccurrence]
 
-    init(
-        exactMatches: [String: LastPerformedOccurrence] = [:],
-        fallbackMatches: [String: LastPerformedOccurrence] = [:],
-        occurrences: [LastPerformedOccurrence] = []
-    ) {
-        self.exactMatches = exactMatches
-        self.fallbackMatches = fallbackMatches
-        self.occurrences = occurrences
-    }
-
-    init(entries: [LastPerformedEntry]) {
-        let occurrences = entries.map(\.occurrence)
+    init(occurrences: [LastPerformedOccurrence]) {
         var exactMatches: [String: LastPerformedOccurrence] = [:]
         var fallbackMatches: [String: LastPerformedOccurrence] = [:]
         for occurrence in occurrences {
             Self.keepingNewest(&exactMatches, occurrence.fullName, occurrence)
             Self.keepingNewest(&fallbackMatches, occurrence.baseName, occurrence)
         }
-        self.init(exactMatches: exactMatches, fallbackMatches: fallbackMatches, occurrences: occurrences)
+        self.exactMatches = exactMatches
+        self.fallbackMatches = fallbackMatches
+        self.occurrences = occurrences
+    }
+
+    init(entries: [LastPerformedEntry]) {
+        self.init(occurrences: entries.map(\.occurrence))
+    }
+
+    func excluding(session: SessionCoordinate) -> LastPerformedLookupSnapshot {
+        LastPerformedLookupSnapshot(occurrences: occurrences.filter { $0.source != session.storageValue })
     }
 
     /// The recency dedup, stated once: within a key an occurrence replaces the incumbent unless the

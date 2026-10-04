@@ -117,3 +117,24 @@ private func occurrenceUnstructuredSet(index: Int, _ text: String) -> ParsedSet 
 private func occurrenceSkippedSet(index: Int) -> ParsedSet {
     ParsedSet(index: index, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .skipped)
 }
+
+private func occurrence(resultText: String) -> LastPerformedOccurrence {
+    LastPerformedOccurrence(
+        fullName: "Back Squat",
+        baseName: "Back Squat",
+        resultText: resultText,
+        performedOn: Date(timeIntervalSinceReferenceDate: 0),
+        source: "Block 27 · W1 D2"
+    )
+}
+
+@Test func aLegacyLogOccurrenceHoldsNoSetLogs() {
+    #expect(occurrence(resultText: "55x8, 60x7@9.5").setLogs == nil)
+}
+
+@Test func anOccurrenceWithASkipHoldsTheSetLogsAroundIt() {
+    #expect(
+        occurrence(resultText: "315x5@7, skip, 325x5@8").setLogs
+            == [SetLog(weight: .pounds(315), reps: 5, rpe: .seven), SetLog(weight: .pounds(325), reps: 5, rpe: .eight)]
+    )
+}

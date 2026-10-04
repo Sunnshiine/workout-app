@@ -10,7 +10,7 @@ Settings lets the athlete pick appearance, set rest timers, see and change the c
 - `settings-sync` triggers a sync and shows its outcome on the row.
 - `settings-sign-out` signs out, with a confirmation when writes are pending.
 - `settings-build` shows the build identity in the footer and copies it on tap.
-- `settings-developer-tools` opens Developer Tools with the Current Session debug info, the Live Activity Lab, pending writes, and the write log.
+- `settings-developer-tools` opens Developer Tools with the Current Session debug info, the *Show Load Basis* switch (`developer-tools-shows-load-basis-toggle`, driven in `log-a-set.md`), the Live Activity Lab, pending writes, and the write log.
 
 ## How to get to it (user POV)
 

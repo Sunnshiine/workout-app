@@ -19,6 +19,7 @@ struct EditingWeightPreferenceKey: PreferenceKey {
 struct SmartValuePills: View {
     let set: ExerciseSet
     let mode: SetCardMode
+    let suggestion: LoadSuggestion
     let onLog: (SetLog) -> Void
     let onSkip: () -> Void
     let onDelete: () -> Void
@@ -28,13 +29,13 @@ struct SmartValuePills: View {
     @State private var isEditingWeight = false
     @State private var showsLoggedCheckmark = false
     @Environment(\.themePalette) private var palette
+    @Environment(\.showsLoadBasis) private var showsLoadBasis
     @FocusState private var weightFieldFocused: Bool
 
     init(
         set: ExerciseSet,
         mode: SetCardMode = .logging,
-        previousSetWeight: Double?,
-        trainingMax: Double?,
+        suggestion: LoadSuggestion,
         onLog: @escaping (SetLog) -> Void,
         onSkip: @escaping () -> Void,
         onDelete: @escaping () -> Void,
@@ -43,17 +44,12 @@ struct SmartValuePills: View {
     ) {
         self.set = set
         self.mode = mode
+        self.suggestion = suggestion
         self.onLog = onLog
         self.onSkip = onSkip
         self.onDelete = onDelete
         self.inputDismissalRequestID = inputDismissalRequestID
-        _form = State(
-            initialValue: SmartValuePillsForm(
-                set: set,
-                previousSetWeight: previousSetWeight,
-                trainingMax: trainingMax
-            )
-        )
+        _form = State(initialValue: SmartValuePillsForm(set: set, suggestion: suggestion))
         _showsLoggedCheckmark = State(initialValue: showsLoggedCheckmarkInitially)
     }
 
@@ -106,6 +102,9 @@ struct SmartValuePills: View {
         .onChange(of: inputDismissalRequestID) { _, _ in
             dismissFieldUI()
         }
+        .onChange(of: suggestion) { _, later in
+            form.refreshPrefill(from: later, for: set)
+        }
         .onDisappear(perform: commitChangedDraftIfNeeded)
         .preference(key: EditingWeightPreferenceKey.self, value: isEditingWeight)
     }
@@ -125,15 +124,36 @@ struct SmartValuePills: View {
     // MARK: - Weight (the card's biggest number)
 
     private var weightControl: some View {
-        HStack(spacing: 12) {
-            weightStepper(.decrement, id: "weight-decrement")
+        VStack(spacing: 4) {
+            HStack(spacing: 12) {
+                weightStepper(.decrement, id: "weight-decrement")
 
-            weightValue
-                .frame(maxWidth: .infinity)
+                weightValue
+                    .frame(maxWidth: .infinity)
 
-            weightStepper(.increment, id: "weight-increment")
+                weightStepper(.increment, id: "weight-increment")
+            }
+
+            if showsLoadBasis, let loadBasisLine = form.loadBasisLine {
+                if loadBasisLine.isShown {
+                    loadBasisText(loadBasisLine.text)
+                        .accessibilityIdentifier("load-basis-line")
+                } else {
+                    loadBasisText(loadBasisLine.text)
+                        .hidden()
+                }
+            }
         }
         .accessibilityElement(children: .contain)
+    }
+
+    private func loadBasisText(_ text: String) -> some View {
+        Text(text)
+            .font(Theme.font(.runline))
+            .foregroundStyle(palette.textSecondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.82)
+            .truncationMode(.tail)
     }
 
     /// Validation marks only the offending field with `danger` (DESIGN.md §5.2): an invalid weight
@@ -701,4 +721,8 @@ final class InputHapticPlayer {
     #else
         func play(_: Theme.HapticTuning) {}
     #endif
+}
+
+extension EnvironmentValues {
+    @Entry var showsLoadBasis = false
 }

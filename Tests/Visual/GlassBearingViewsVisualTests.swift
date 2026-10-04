@@ -30,8 +30,7 @@ struct GlassBearingViewsVisualTests {
         assertGlassBaseline(precision: WorkoutVisualBaseline.labelAntialiasingPrecision) {
             SmartValuePills(
                 set: set,
-                previousSetWeight: 275,
-                trainingMax: 405,
+                suggestion: .noSuggestion,
                 onLog: { _ in },
                 onSkip: {},
                 onDelete: {}
@@ -52,8 +51,7 @@ struct GlassBearingViewsVisualTests {
         assertGlassBaseline {
             SmartValuePills(
                 set: set,
-                previousSetWeight: nil,
-                trainingMax: 405,
+                suggestion: .prescribedWeight(282.5),
                 onLog: { _ in },
                 onSkip: {},
                 onDelete: {}
