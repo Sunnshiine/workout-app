@@ -167,6 +167,10 @@ func aHistoryEntryWithNoUsableSetLogSuggestsNothing(resultText: String) {
     #expect(suggest(history: resultText) == .noSuggestion)
 }
 
+@Test func anEntryWithOneUnstructuredSetLogSuppliesNoBasis() {
+    #expect(suggest(history: "315x5@7, 315x5") == .noSuggestion)
+}
+
 @Test func aSingleAtRPE10IsTheTablesTopPoint() throws {
     #expect(
         suggest(reps: "1", load: "RPE10", history: "100x1@10")
