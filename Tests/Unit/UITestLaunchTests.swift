@@ -135,12 +135,12 @@ import Testing
     }
 
     @MainActor
-    @Test func seedingAlwaysInsertsBackSquatHistoryAndOnlyQueuesAWriteWhenAsked() throws {
+    @Test func seedingAlwaysInsertsTheFixtureHistoryAndOnlyQueuesAWriteWhenAsked() throws {
         let plain = try seed(arguments: [])
         defer { withExtendedLifetime(plain.container) {} }
         #expect(
             try plain.context.fetch(FetchDescriptor<LastPerformedEntry>()).map(\.resultText).sorted()
-                == ["225x5@7", "235x5@6, 245x5@7", "245x5@6, 255x5@7"]
+                == ["185x5@7, 195x5@8", "225x5@7", "235x5@6, 245x5@7", "245x5@6, 255x5@7"]
         )
         #expect(try plain.context.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
 
@@ -149,6 +149,25 @@ import Testing
         let queued = try pending.context.fetch(FetchDescriptor<PendingWrite>())
         #expect(queued.map(\.valueToWrite) == ["185x5@8"])
         #expect(queued.map { $0.createdAt.ISO8601Format() } == ["2001-01-01T00:00:00Z"])
+    }
+
+    /// The default launch's W1 D2, the tile the verify skill already taps, as its Set card fills it.
+    @MainActor
+    @Test func theDefaultLaunchBenchPressEstimatesFromHistoryThenFromSetOneToday() throws {
+        let seeded = try seed(arguments: [])
+        defer { withExtendedLifetime(seeded.container) {} }
+        let history = LastPerformedLookupStore(context: seeded.context).snapshot
+        let sets = try #require(seeded.block.session(at: SessionAddress(week: 1, day: 2))?.exercises.first { $0.name == "Bench Press" })
+            .sets.sorted { $0.index < $1.index }
+        func card(_ set: ExerciseSet) -> SmartValuePillsForm {
+            SmartValuePillsForm(set: set, suggestion: LoadSuggestionEngine.suggest(for: set, history: history))
+        }
+
+        #expect((card(sets[0]).weightText, card(sets[0]).loadBasisText) == ("182.5", "from 195x5@8 · Block 26 W4 D1"))
+
+        sets[0].markLogged(SetLog(weight: .pounds(185), reps: 5, rpe: .seven), at: Date(timeIntervalSinceReferenceDate: 0))
+
+        #expect((card(sets[1]).weightText, card(sets[1]).loadBasisText) == ("185", "from Set 1 today"))
     }
 
     @MainActor

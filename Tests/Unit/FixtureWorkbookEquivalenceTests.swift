@@ -290,8 +290,6 @@ private let recordedDrift: [WorkbookScenario: [Drift]] = [
 
         .field("w1d2.e0", "coachNote", handBuilt: "Pause every rep.", parsed: nil),
         .field("w1d2.e0.s0", "prescribedLoad", handBuilt: "RPE6", parsed: "RPE7"),
-        .field("w1d2.e0.s0", "percentOneRM", handBuilt: "70%", parsed: nil),
-        .field("w1d2.e0.s1", "percentOneRM", handBuilt: "75%", parsed: nil),
 
         // The two fixtures disagree about the workout: the workbook prescribes three Sets of Bench
         // Press and the graph two. Undecided.
