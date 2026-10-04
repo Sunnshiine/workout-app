@@ -19,6 +19,7 @@ struct EditingWeightPreferenceKey: PreferenceKey {
 struct SmartValuePills: View {
     let set: ExerciseSet
     let mode: SetCardMode
+    let suggestion: LoadSuggestion
     let onLog: (SetLog) -> Void
     let onSkip: () -> Void
     let onDelete: () -> Void
@@ -42,6 +43,7 @@ struct SmartValuePills: View {
     ) {
         self.set = set
         self.mode = mode
+        self.suggestion = suggestion
         self.onLog = onLog
         self.onSkip = onSkip
         self.onDelete = onDelete
@@ -98,6 +100,9 @@ struct SmartValuePills: View {
         }
         .onChange(of: inputDismissalRequestID) { _, _ in
             dismissFieldUI()
+        }
+        .onChange(of: suggestion) { _, later in
+            form.refreshPrefill(from: later, for: set)
         }
         .onDisappear(perform: commitChangedDraftIfNeeded)
         .preference(key: EditingWeightPreferenceKey.self, value: isEditingWeight)

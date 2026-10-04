@@ -14,8 +14,8 @@ struct SmartValuePillsForm {
     let prescribedRPE: RPE?
     let repsPlaceholder: String?
     private var showsInvalidFields = false
-    private let estimateBasisText: String?
-    private let initialWeightText: String
+    private var estimateBasisText: String?
+    private var initialWeightText: String
     private let initialRepsText: String
     private let initialRPEText: String
 
@@ -86,9 +86,7 @@ struct SmartValuePillsForm {
             rpeText = setLog.rpe.label
             estimateBasisText = nil
         } else {
-            weightText = Self.initialWeightText(for: suggestion)
-            estimateBasisText =
-                if case .estimate(_, let basis) = suggestion { LoadBasisPresentation(basis, for: set).text } else { nil }
+            (weightText, estimateBasisText) = Self.prefill(from: suggestion, for: set)
             repsText = Self.initialRepsText(for: set.prescribedReps)
             rpeText = prescribedRPE?.label ?? ""
         }
@@ -96,6 +94,14 @@ struct SmartValuePillsForm {
         initialWeightText = weightText
         initialRepsText = repsText
         initialRPEText = rpeText
+    }
+
+    /// A suggestion can arrive after the card renders, once a sync or the Exercise History fill
+    /// lands. It replaces the pre-fill only while the athlete has not touched the weight.
+    mutating func refreshPrefill(from suggestion: LoadSuggestion, for set: ExerciseSet) {
+        guard set.setLog == nil, weightText == initialWeightText else { return }
+        (weightText, estimateBasisText) = Self.prefill(from: suggestion, for: set)
+        initialWeightText = weightText
     }
 
     mutating func adjustWeight(by increment: Double) {
@@ -190,14 +196,19 @@ struct SmartValuePillsForm {
         RPE(text: rpeText)
     }
 
-    private static func initialWeightText(for suggestion: LoadSuggestion) -> String {
+    private static func prefill(
+        from suggestion: LoadSuggestion,
+        for set: ExerciseSet
+    ) -> (weightText: String, basisText: String?) {
         switch suggestion {
-        case .prescribedWeight(let weight), .estimate(let weight, _):
-            return Weight.pounds(weight).label
+        case .prescribedWeight(let weight):
+            (Weight.pounds(weight).label, nil)
+        case .estimate(let weight, let basis):
+            (Weight.pounds(weight).label, LoadBasisPresentation(basis, for: set).text)
         case .bodyweight:
-            return "BW"
+            ("BW", nil)
         case .noSuggestion:
-            return ""
+            ("", nil)
         }
     }
 

@@ -402,10 +402,9 @@ private func stepForm(weight: String) -> SmartValuePillsForm {
     #expect(form.weightText == "1e+19")
 }
 
-@MainActor
-private func cardForm(_ set: ExerciseSet, history: [(resultText: String, source: String)]) -> SmartValuePillsForm {
-    let snapshot = LastPerformedLookupSnapshot(
-        occurrences: history.map {
+private func benchHistory(_ entries: [(resultText: String, source: String)]) -> LastPerformedLookupSnapshot {
+    LastPerformedLookupSnapshot(
+        occurrences: entries.map {
             LastPerformedOccurrence(
                 fullName: "Bench Press",
                 baseName: "Bench Press",
@@ -415,7 +414,11 @@ private func cardForm(_ set: ExerciseSet, history: [(resultText: String, source:
             )
         }
     )
-    return SmartValuePillsForm(set: set, suggestion: LoadSuggestionEngine.suggest(for: set, history: snapshot))
+}
+
+@MainActor
+private func cardForm(_ set: ExerciseSet, history: [(resultText: String, source: String)]) -> SmartValuePillsForm {
+    SmartValuePillsForm(set: set, suggestion: LoadSuggestionEngine.suggest(for: set, history: benchHistory(history)))
 }
 
 @MainActor
@@ -460,4 +463,46 @@ private func cardForm(_ set: ExerciseSet, history: [(resultText: String, source:
 
     form.cancel()
     #expect(form.loadBasisText == "from 195x5@8 · Block 26 W4 D1")
+}
+
+@MainActor
+@Test func aLaterSuggestionReplacesAnUntouchedPrefillAndItsBasisLine() {
+    let set = makeBenchPress(loads: ["RPE6"]).sets[0]
+    var form = SmartValuePillsForm(set: set, suggestion: LoadSuggestionEngine.suggest(for: set, history: .empty))
+    #expect(form.weightText == "")
+
+    form.refreshPrefill(
+        from: LoadSuggestionEngine.suggest(for: set, history: benchHistory([("185x5@7, 195x5@8", "Block 26 · W4 D1")])),
+        for: set
+    )
+
+    #expect(form.weightText == "182.5")
+    #expect(form.loadBasisText == "from 195x5@8 · Block 26 W4 D1")
+    #expect(form.hasChanges == false)
+}
+
+@MainActor
+@Test func aLaterSuggestionLeavesAnOverriddenWeightAlone() {
+    let set = makeBenchPress(loads: ["RPE6"]).sets[0]
+    var form = SmartValuePillsForm(set: set, suggestion: LoadSuggestionEngine.suggest(for: set, history: .empty))
+    form.weightText = "205"
+
+    form.refreshPrefill(
+        from: LoadSuggestionEngine.suggest(for: set, history: benchHistory([("185x5@7, 195x5@8", "Block 26 · W4 D1")])),
+        for: set
+    )
+
+    #expect(form.weightText == "205")
+    #expect(form.loadBasisText == nil)
+}
+
+@MainActor
+@Test func aLaterSuggestionLeavesALoggedSetsWeightAlone() {
+    let set = makeBenchPress(loads: ["RPE6"]).sets[0]
+    set.markLogged(SetLog(weight: .pounds(185), reps: 5, rpe: .seven), at: Date(timeIntervalSinceReferenceDate: 0))
+    var form = SmartValuePillsForm(set: set, suggestion: .noSuggestion)
+
+    form.refreshPrefill(from: .prescribedWeight(200), for: set)
+
+    #expect(form.weightText == "185")
 }
