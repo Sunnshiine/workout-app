@@ -3,143 +3,58 @@ import Testing
 
 @testable import WorkoutTracker
 
-private func suggest(
-    prescribedLoad: String,
-    percentOneRM: String?,
-    previousSetWeight: Double?,
-    trainingMax: Double?
-) -> LoadSuggestion {
-    LoadSuggestionEngine.suggest(
-        LoadSuggestionInputs(
-            prescribedReps: "5",
-            prescribedLoad: prescribedLoad,
-            percentOneRM: percentOneRM,
-            trainingMax: trainingMax,
-            earlierSets: previousSetWeight.map { [(index: 0, setLog: SetLog(weight: .pounds($0), reps: 5, rpe: .eight))] } ?? [],
-            lastPerformed: nil
-        )
-    )
-}
-
-private func dropSuggestion(after earlierSets: [(index: Int, setLog: SetLog)]) -> LoadSuggestion {
-    LoadSuggestionEngine.suggest(
-        LoadSuggestionInputs(
-            prescribedReps: "5",
-            prescribedLoad: "Drop 20%",
-            percentOneRM: nil,
-            trainingMax: nil,
-            earlierSets: earlierSets,
-            lastPerformed: nil
-        )
-    )
-}
-
 private func logged(_ weight: Weight) -> SetLog {
     SetLog(weight: weight, reps: 5, rpe: .eight)
 }
 
 @Test func suggestsLoadForDropPrescriptionFromPreviousSetWeight() {
-    #expect(
-        suggest(
-            prescribedLoad: "Drop 17.5%",
-            percentOneRM: nil,
-            previousSetWeight: 225,
-            trainingMax: nil
-        ) == .prescribedWeight(185)
-    )
+    #expect(suggest(load: "Drop 17.5%", today: [(index: 0, setLog: logged(.pounds(225)))]) == .prescribedWeight(185))
 }
 
 @Test func suggestsLoadForPercentOneRMPrescriptionFromTrainingMax() {
-    #expect(
-        suggest(
-            prescribedLoad: "RPE6",
-            percentOneRM: "75%",
-            previousSetWeight: nil,
-            trainingMax: 265
-        ) == .prescribedWeight(200)
-    )
+    #expect(suggest(load: "RPE6", percentOneRM: "75%", trainingMax: 265) == .prescribedWeight(200))
 }
 
 @Test func roundsLoadSuggestionToNearestPlateIncrement() {
-    #expect(
-        suggest(
-            prescribedLoad: "Drop 12%",
-            percentOneRM: nil,
-            previousSetWeight: 185,
-            trainingMax: nil
-        ) == .prescribedWeight(162.5)
-    )
+    #expect(suggest(load: "Drop 12%", today: [(index: 0, setLog: logged(.pounds(185)))]) == .prescribedWeight(162.5))
 }
 
 @Test func bodyweightPrescriptionPreFillsBodyweight() {
-    #expect(
-        suggest(
-            prescribedLoad: "BW",
-            percentOneRM: nil,
-            previousSetWeight: nil,
-            trainingMax: nil
-        ) == .bodyweight
-    )
+    #expect(suggest(load: "BW") == .bodyweight)
 }
 
 @Test func bodyweightWinsOverAPresentPercentOneRM() {
-    #expect(
-        suggest(
-            prescribedLoad: "BW",
-            percentOneRM: "75%",
-            previousSetWeight: nil,
-            trainingMax: 265
-        ) == .bodyweight
-    )
+    #expect(suggest(load: "BW", percentOneRM: "75%", trainingMax: 265) == .bodyweight)
 }
 
 @Test("Unsupported Prescribed Load returns no Load Suggestion", arguments: ["RPE 5", "Start conservative"])
 func unsupportedPrescribedLoadReturnsNone(prescribedLoad: String) {
     #expect(
-        suggest(
-            prescribedLoad: prescribedLoad,
-            percentOneRM: nil,
-            previousSetWeight: 225,
-            trainingMax: 265
-        ) == .noSuggestion
+        suggest(load: prescribedLoad, trainingMax: 265, today: [(index: 0, setLog: logged(.pounds(225)))]) == .noSuggestion
     )
 }
 
 @Test func missingContextReturnsNoneForLoadSuggestion() {
-    #expect(
-        suggest(
-            prescribedLoad: "Drop 17.5%",
-            percentOneRM: nil,
-            previousSetWeight: nil,
-            trainingMax: 265
-        ) == .noSuggestion
-    )
-    #expect(
-        suggest(
-            prescribedLoad: "RPE6",
-            percentOneRM: "75%",
-            previousSetWeight: nil,
-            trainingMax: nil
-        ) == .noSuggestion
-    )
+    #expect(suggest(load: "Drop 17.5%", trainingMax: 265) == .noSuggestion)
+    #expect(suggest(load: "RPE6", percentOneRM: "75%") == .noSuggestion)
 }
 
 @Test func dropReadsTheNearestEarlierSet() {
     #expect(
-        dropSuggestion(after: [(index: 1, setLog: logged(.pounds(225))), (index: 0, setLog: logged(.pounds(185)))])
+        suggest(load: "Drop 20%", today: [(index: 1, setLog: logged(.pounds(225))), (index: 0, setLog: logged(.pounds(185)))])
             == .prescribedWeight(180)
     )
 }
 
 @Test func dropPassesOverABodyweightSetToTheNextOneBack() {
     #expect(
-        dropSuggestion(after: [(index: 1, setLog: logged(.bodyweight)), (index: 0, setLog: logged(.pounds(185)))])
+        suggest(load: "Drop 20%", today: [(index: 1, setLog: logged(.bodyweight)), (index: 0, setLog: logged(.pounds(185)))])
             == .prescribedWeight(147.5)
     )
 }
 
 @Test func dropOnTheFirstSetHasNothingToDropFrom() {
-    #expect(dropSuggestion(after: []) == .noSuggestion)
+    #expect(suggest(load: "Drop 20%") == .noSuggestion)
 }
 
 private let block27W1D2 = SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 2))
@@ -154,7 +69,7 @@ private func entry(_ resultText: String) -> LastPerformedOccurrence {
     )
 }
 
-private func rpeTarget(
+private func suggest(
     reps: String = "5",
     load: String = "RPE8",
     percentOneRM: String? = nil,
@@ -183,12 +98,12 @@ private func basis(_ formatted: String, _ origin: LoadBasis.Origin) throws -> Lo
 }
 
 @Test func aHistorySetLogEstimatesAHarderTargetThroughTheRPETable() throws {
-    #expect(rpeTarget(history: "315x5@7") == .estimate(325, basis: try basis("315x5@7", .history(block27W1D2))))
+    #expect(suggest(history: "315x5@7") == .estimate(325, basis: try basis("315x5@7", .history(block27W1D2))))
 }
 
 @Test func anEarlierSetTodayIsTheBasisBeforeAnyHistory() throws {
     #expect(
-        rpeTarget(today: [(index: 0, setLog: try setLog("315x5@7"))], history: "405x5@7")
+        suggest(today: [(index: 0, setLog: try setLog("315x5@7"))], history: "405x5@7")
             == .estimate(325, basis: try basis("315x5@7", .today(setIndex: 0)))
     )
 }
@@ -196,44 +111,44 @@ private func basis(_ formatted: String, _ origin: LoadBasis.Origin) throws -> Lo
 @Test func anUnusableNearerSetTodayIsPassedOverForAnEarlierUsableOne() throws {
     let today = [(index: 1, setLog: try setLog("BWx5@8")), (index: 0, setLog: try setLog("315x5@7"))]
 
-    #expect(rpeTarget(today: today) == .estimate(325, basis: try basis("315x5@7", .today(setIndex: 0))))
+    #expect(suggest(today: today) == .estimate(325, basis: try basis("315x5@7", .today(setIndex: 0))))
 }
 
 @Test func aSetThatRanHarderTodayLowersTheNextSet() throws {
     #expect(
-        rpeTarget(load: "RPE7", today: [(index: 0, setLog: try setLog("315x5@8.5"))], history: "315x5@7")
+        suggest(load: "RPE7", today: [(index: 0, setLog: try setLog("315x5@8.5"))], history: "315x5@7")
             == .estimate(300, basis: try basis("315x5@8.5", .today(setIndex: 0)))
     )
 }
 
 @Test func theHistoryBasisIsTheEntrysHighestRPESetLog() throws {
     #expect(
-        rpeTarget(load: "RPE7", history: "315x5@7, 295x5@6")
+        suggest(load: "RPE7", history: "315x5@7, 295x5@6")
             == .estimate(315, basis: try basis("315x5@7", .history(block27W1D2)))
     )
 }
 
 @Test func aTieInRPEGoesToTheLaterSetLog() throws {
     #expect(
-        rpeTarget(history: "300x5@8, 290x5@8")
+        suggest(history: "300x5@8, 290x5@8")
             == .estimate(290, basis: try basis("290x5@8", .history(block27W1D2)))
     )
 }
 
 @Test func aSkipInTheEntryLeavesItsSetLogsUsable() throws {
-    #expect(rpeTarget(history: "skip, 315x5@7") == .estimate(325, basis: try basis("315x5@7", .history(block27W1D2))))
+    #expect(suggest(history: "skip, 315x5@7") == .estimate(325, basis: try basis("315x5@7", .history(block27W1D2))))
 }
 
 @Test func aPercentOneRMWithATrainingMaxBeatsHistory() {
-    #expect(rpeTarget(percentOneRM: "75%", trainingMax: 400, history: "315x5@7") == .prescribedWeight(300))
+    #expect(suggest(percentOneRM: "75%", trainingMax: 400, history: "315x5@7") == .prescribedWeight(300))
 }
 
 @Test func aRepRangeTargetsItsMidpoint() throws {
     let basis = try basis("315x5@7", .history(block27W1D2))
 
-    #expect(rpeTarget(reps: "8-10", history: "315x5@7") == .estimate(282.5, basis: basis))
-    #expect(rpeTarget(reps: "7 - 8", history: "315x5@7") == .estimate(300, basis: basis))
-    #expect(rpeTarget(reps: "7 – 8", history: "315x5@7") == .estimate(300, basis: basis))
+    #expect(suggest(reps: "8-10", history: "315x5@7") == .estimate(282.5, basis: basis))
+    #expect(suggest(reps: "7 - 8", history: "315x5@7") == .estimate(300, basis: basis))
+    #expect(suggest(reps: "7 – 8", history: "315x5@7") == .estimate(300, basis: basis))
 }
 
 @Test(
@@ -249,14 +164,14 @@ private func basis(_ formatted: String, _ origin: LoadBasis.Origin) throws -> Lo
     ]
 )
 func aHistoryEntryWithNoUsableSetLogSuggestsNothing(resultText: String) {
-    #expect(rpeTarget(history: resultText) == .noSuggestion)
+    #expect(suggest(history: resultText) == .noSuggestion)
 }
 
 @Test func aSetLogWithTheLargestRepCountSuggestsNothing() throws {
     let largest = "100x9223372036854775807@8"
     #expect(try setLog(largest).reps == .max)
 
-    #expect(rpeTarget(history: largest) == .noSuggestion)
+    #expect(suggest(history: largest) == .noSuggestion)
 }
 
 @Test(
@@ -267,7 +182,7 @@ func aHistoryEntryWithNoUsableSetLogSuggestsNothing(resultText: String) {
     ]
 )
 func aTargetTheRPETableCannotPlaceSuggestsNothing(reps: String, load: String) {
-    #expect(rpeTarget(reps: reps, load: load, history: "315x5@7") == .noSuggestion)
+    #expect(suggest(reps: reps, load: load, history: "315x5@7") == .noSuggestion)
 }
 
 @Test func anEntryFromAnUnrecognizedSourceSuggestsNothing() {
