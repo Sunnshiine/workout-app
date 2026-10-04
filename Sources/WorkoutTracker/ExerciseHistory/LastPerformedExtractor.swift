@@ -40,11 +40,7 @@ enum LastPerformedExtractor {
     /// when the occurrence earns no entry.
     private static func displayText(for exercise: ParsedExercise) -> String? {
         let evidence = exercise.setLevelCompletionEvidence
-
-        if exercise.hasSetLevelCompletionEvidence {
-            return evidence.map(\.token).joined(separator: ", ")
-        }
-
+        if let resultText = evidence.resultText { return resultText }
         if evidence.contains(.skipped) { return nil }
         return exercise.legacyLogAsCompletionEvidence
     }

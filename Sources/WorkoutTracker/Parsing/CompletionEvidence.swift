@@ -19,12 +19,43 @@ enum SetCompletionEvidence: Equatable, Sendable {
     }
 }
 
+extension SetCompletionEvidence {
+    /// The one Set-level rule, shared by the parsed Sheet and the live model so the Exercise History
+    /// entry a live log writes is the entry the next sync's extract writes.
+    init?(state: SetState, setLog: SetLog?, unstructuredSetLog: String?) {
+        if let setLog {
+            self = .logged(setLog.formatted)
+            return
+        }
+        let entered = unstructuredSetLog?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if state == .logged, !entered.isEmpty {
+            self = .logged(entered)
+            return
+        }
+        guard state == .skipped else { return nil }
+        self = .skipped
+    }
+}
+
+extension [SetCompletionEvidence] {
+    /// An Exercise History entry's text for Set-level evidence: every token in Set order, or nil
+    /// when no Set is Logged, because a Session with nothing performed earns no entry.
+    var resultText: String? {
+        contains(where: \.isLogged) ? map(\.token).joined(separator: ", ") : nil
+    }
+}
+
 extension ParsedSet {
     var completionEvidence: SetCompletionEvidence? {
-        if let setLog { return .logged(setLog.formatted) }
-        let entered = unstructuredSetLog?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if state == .logged, !entered.isEmpty { return .logged(entered) }
-        return state == .skipped ? .skipped : nil
+        SetCompletionEvidence(state: state, setLog: setLog, unstructuredSetLog: unstructuredSetLog)
+    }
+}
+
+extension Exercise {
+    var setLevelCompletionEvidence: [SetCompletionEvidence] {
+        sets.sorted { $0.index < $1.index }.compactMap {
+            SetCompletionEvidence(state: $0.state, setLog: $0.setLog, unstructuredSetLog: $0.unstructuredSetLog)
+        }
     }
 }
 

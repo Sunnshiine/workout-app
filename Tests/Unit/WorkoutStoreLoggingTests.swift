@@ -304,6 +304,24 @@ private func seededStore(now: @escaping @MainActor () -> Date) throws -> SeededL
 }
 
 @MainActor
+@Test func theLiveEntryHoldsEverySetOfTheSessionThroughLogDeleteAndSkip() throws {
+    let fixture = try seededStore()
+    withExtendedLifetime(fixture.container) {}
+    let secondSet = try #require(fixture.firstSet.exercise?.sets.first { $0.index == 1 })
+    func entryText() -> String? { fixture.lookupStore.snapshot.lookup(for: "Squat")?.resultText }
+
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(315), reps: 5, rpe: .seven))
+    try fixture.store.log(secondSet, as: SetLog(weight: .pounds(295), reps: 5, rpe: .six))
+    #expect(entryText() == "315x5@7, 295x5@6")
+
+    try fixture.store.deleteLog(for: secondSet)
+    #expect(entryText() == "315x5@7")
+
+    try fixture.store.skip(secondSet)
+    #expect(entryText() == "315x5@7, skip")
+}
+
+@MainActor
 @Test func logSetRefreshesLastPerformedLookupSnapshotForDisplay() throws {
     let fixture = try seededStore()
     withExtendedLifetime(fixture.container) {}
