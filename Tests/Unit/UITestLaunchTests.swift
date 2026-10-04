@@ -162,11 +162,13 @@ import Testing
             SmartValuePillsForm(set: set, suggestion: LoadSuggestionEngine.suggest(for: set, history: history))
         }
 
-        #expect((card(sets[0]).weightText, card(sets[0]).loadBasisText) == ("182.5", "from 195x5@8 · Block 26 W4 D1"))
+        #expect(card(sets[0]).weightText == "182.5")
+        #expect(card(sets[0]).loadBasisLine == SmartValuePillsForm.LoadBasisLine(text: "from 195x5@8 · Block 26 W4 D1", isShown: true))
 
         sets[0].markLogged(SetLog(weight: .pounds(185), reps: 5, rpe: .seven), at: Date(timeIntervalSinceReferenceDate: 0))
 
-        #expect((card(sets[1]).weightText, card(sets[1]).loadBasisText) == ("185", "from Set 1 today"))
+        #expect(card(sets[1]).weightText == "185")
+        #expect(card(sets[1]).loadBasisLine == SmartValuePillsForm.LoadBasisLine(text: "from Set 1 today", isShown: true))
     }
 
     @MainActor

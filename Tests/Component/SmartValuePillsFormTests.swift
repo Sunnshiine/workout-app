@@ -428,7 +428,7 @@ private func cardForm(_ set: ExerciseSet, history: [(resultText: String, source:
     let form = cardForm(set, history: [("185x5@7, 195x5@8", "Block 26 · W4 D1")])
 
     #expect(form.weightText == "182.5")
-    #expect(form.loadBasisText == "from 195x5@8 · Block 26 W4 D1")
+    #expect(form.loadBasisLine == .init(text: "from 195x5@8 · Block 26 W4 D1", isShown: true))
 }
 
 @MainActor
@@ -438,7 +438,7 @@ private func cardForm(_ set: ExerciseSet, history: [(resultText: String, source:
     let form = cardForm(set, history: [("315x5@7, 295x5@6", "Block 27 · W1 D1")])
 
     #expect(form.weightText == "315")
-    #expect(form.loadBasisText == "from 315x5@7 · W1 D1")
+    #expect(form.loadBasisLine == .init(text: "from 315x5@7 · W1 D1", isShown: true))
 }
 
 @MainActor
@@ -449,30 +449,20 @@ private func cardForm(_ set: ExerciseSet, history: [(resultText: String, source:
     let form = cardForm(sets[1], history: [("185x5@7, 195x5@8", "Block 26 · W4 D1")])
 
     #expect(form.weightText == "185")
-    #expect(form.loadBasisText == "from Set 1 today")
+    #expect(form.loadBasisLine == .init(text: "from Set 1 today", isShown: true))
 }
 
 @MainActor
-@Test func overridingTheEstimatedWeightHidesTheLoadBasisLine() {
+@Test func overridingTheEstimatedWeightHidesTheLoadBasisLineButKeepsItsSpace() {
     let set = makeBenchPress(loads: ["RPE6"]).sets[0]
     var form = cardForm(set, history: [("185x5@7, 195x5@8", "Block 26 · W4 D1")])
 
     form.stepWeight(.up)
     #expect(form.weightText == "187.5")
-    #expect(form.loadBasisText == nil)
+    #expect(form.loadBasisLine == .init(text: "from 195x5@8 · Block 26 W4 D1", isShown: false))
 
     form.cancel()
-    #expect(form.loadBasisText == "from 195x5@8 · Block 26 W4 D1")
-}
-
-@MainActor
-@Test func anOverriddenEstimateKeepsItsLoadBasisLineSpaceWithTheTextHidden() {
-    let set = makeBenchPress(loads: ["RPE6"]).sets[0]
-    var form = cardForm(set, history: [("185x5@7, 195x5@8", "Block 26 · W4 D1")])
-
-    form.stepWeight(.up)
-
-    #expect(form.loadBasisLine == .init(text: "from 195x5@8 · Block 26 W4 D1", isShown: false))
+    #expect(form.loadBasisLine == .init(text: "from 195x5@8 · Block 26 W4 D1", isShown: true))
 }
 
 @MainActor
@@ -487,7 +477,7 @@ private func cardForm(_ set: ExerciseSet, history: [(resultText: String, source:
     )
 
     #expect(form.weightText == "182.5")
-    #expect(form.loadBasisText == "from 195x5@8 · Block 26 W4 D1")
+    #expect(form.loadBasisLine == .init(text: "from 195x5@8 · Block 26 W4 D1", isShown: true))
     #expect(form.hasChanges == false)
 }
 
@@ -503,7 +493,7 @@ private func cardForm(_ set: ExerciseSet, history: [(resultText: String, source:
     )
 
     #expect(form.weightText == "205")
-    #expect(form.loadBasisText == nil)
+    #expect(form.loadBasisLine == nil)
 }
 
 @MainActor

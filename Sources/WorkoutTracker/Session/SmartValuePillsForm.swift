@@ -29,10 +29,6 @@ struct SmartValuePillsForm {
         estimateBasisText.map { LoadBasisLine(text: $0, isShown: weightText == initialWeightText) }
     }
 
-    var loadBasisText: String? {
-        loadBasisLine.flatMap { $0.isShown ? $0.text : nil }
-    }
-
     var weightDisplay: String {
         weightText.isEmpty ? "—" : weightText
     }
