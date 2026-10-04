@@ -97,6 +97,67 @@ public struct SessionSummary: Encodable, Equatable, Sendable {
     }
 }
 
+/// A Set's Load Suggestion as the `workout` CLI prints it, one `kind` per case:
+/// `{"kind":"estimate","weight":315,"basis":{"origin":"history","setLog":"315x5@7",
+/// "session":"Block 27 · W1 D1","text":"from 315x5@7 · W1 D1"}}`. A Set that holds a Set Log
+/// reads `{"kind":"none"}`. The Estimated Single is never on the wire.
+public struct LoadSuggestionSnapshot: Encodable, Equatable, Sendable {
+    public enum Kind: String, Encodable, Sendable {
+        case weight, bodyweight, estimate, none
+    }
+
+    public let kind: Kind
+    /// `weight` and `estimate` only.
+    public let weight: Double?
+    /// `estimate` only.
+    public let basis: LoadBasisSnapshot?
+
+    @MainActor
+    init(for set: ExerciseSet, id: SetAddress, history: LastPerformedLookupSnapshot) {
+        switch LoadSuggestionEngine.suggest(for: set, history: history) {
+        case .weight(let weight):
+            (kind, self.weight, basis) = (.weight, weight, nil)
+        case .bodyweight:
+            (kind, weight, basis) = (.bodyweight, nil, nil)
+        case .noSuggestion:
+            (kind, weight, basis) = (.none, nil, nil)
+        case .estimate(let weight, let loadBasis):
+            (kind, self.weight) = (.estimate, weight)
+            basis = LoadBasisSnapshot(loadBasis, for: set, id: id)
+        }
+    }
+}
+
+/// The Load Basis of an `estimate`, as `LoadSuggestionSnapshot` prints it.
+public struct LoadBasisSnapshot: Encodable, Equatable, Sendable {
+    public enum Origin: String, Encodable, Sendable {
+        case today, history
+    }
+
+    public let origin: Origin
+    public let setLog: String
+    /// `today` only: the Set the basis was logged on.
+    public let set: SetAddress?
+    /// `history` only: the entry's Session Coordinate.
+    public let session: String?
+    /// The line the Set card shows under the weight.
+    public let text: String
+}
+
+extension LoadBasisSnapshot {
+    @MainActor
+    fileprivate init(_ basis: LoadBasis, for set: ExerciseSet, id: SetAddress) {
+        setLog = basis.setLog.formatted
+        text = LoadBasisPresentation(basis, for: set).text
+        switch basis.origin {
+        case .today(let setIndex):
+            (origin, self.set, session) = (.today, SetAddress(exercise: id.exercise, index: setIndex), nil)
+        case .history(let coordinate):
+            (origin, self.set, session) = (.history, nil, coordinate.storageValue)
+        }
+    }
+}
+
 public struct SetSnapshot: Encodable, Equatable, Sendable {
     public let id: SetAddress
     public let index: Int
@@ -108,8 +169,10 @@ public struct SetSnapshot: Encodable, Equatable, Sendable {
     public let setLog: String?
     public let unstructuredSetLog: String?
     public let loggedAt: Date?
+    public let loadSuggestion: LoadSuggestionSnapshot
 
-    init(_ set: ExerciseSet, id: SetAddress) {
+    @MainActor
+    init(_ set: ExerciseSet, id: SetAddress, history: LastPerformedLookupSnapshot) {
         self.id = id
         index = set.index
         state = set.state.rawValue
@@ -119,6 +182,7 @@ public struct SetSnapshot: Encodable, Equatable, Sendable {
         setLog = set.setLog?.formatted
         unstructuredSetLog = set.unstructuredSetLog
         loggedAt = set.loggedAt
+        loadSuggestion = LoadSuggestionSnapshot(for: set, id: id, history: history)
     }
 }
 
@@ -133,7 +197,8 @@ public struct ExerciseSnapshot: Encodable, Equatable, Sendable {
     public let isComplete: Bool
     public let sets: [SetSnapshot]
 
-    init(_ exercise: Exercise, id: ExerciseAddress) {
+    @MainActor
+    init(_ exercise: Exercise, id: ExerciseAddress, history: LastPerformedLookupSnapshot) {
         self.id = id
         order = exercise.order
         name = exercise.name
@@ -144,7 +209,7 @@ public struct ExerciseSnapshot: Encodable, Equatable, Sendable {
         isComplete = exercise.isComplete
         sets = exercise.sets
             .sorted { $0.index < $1.index }
-            .map { SetSnapshot($0, id: SetAddress(exercise: id, index: $0.index)) }
+            .map { SetSnapshot($0, id: SetAddress(exercise: id, index: $0.index), history: history) }
     }
 }
 
@@ -158,7 +223,8 @@ public struct SessionSnapshot: Encodable, Equatable, Sendable {
     public let totalSetCount: Int
     public let exercises: [ExerciseSnapshot]
 
-    init(_ session: Session, id: SessionAddress, isCurrent: Bool) {
+    @MainActor
+    init(_ session: Session, id: SessionAddress, isCurrent: Bool, history: LastPerformedLookupSnapshot) {
         let summary = SessionSummary(session, id: id, isCurrent: isCurrent)
         self.id = id
         date = summary.date
@@ -169,7 +235,7 @@ public struct SessionSnapshot: Encodable, Equatable, Sendable {
         totalSetCount = summary.totalSetCount
         exercises = session.exercises
             .sorted { $0.order < $1.order }
-            .map { ExerciseSnapshot($0, id: ExerciseAddress(session: id, order: $0.order)) }
+            .map { ExerciseSnapshot($0, id: ExerciseAddress(session: id, order: $0.order), history: history) }
     }
 }
 

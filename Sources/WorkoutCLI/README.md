@@ -59,6 +59,18 @@ never retried, exactly as in the app. `flush` and `sync` print the report to std
 `conflictedWrites` on every later run, and exit 4 until it is discarded, so a retry cannot read
 "nothing left to attempt" as "everything landed". Discarding is the next verb (`discard-writes`).
 
+Every Set that `session`, `log`, and `skip` print carries `loadSuggestion`, the weight the Set card
+pre-fills. Its `kind` is `weight` (a Drop or a %1RM), `bodyweight`, `estimate` (read through the
+RPE Table from a Set Log), or `none`, which is also every Set that holds a Set Log. An `estimate`
+names its Load Basis: `origin` `today` with the `set` it was logged on, or `history` with the
+entry's `session`, plus the `setLog` and the `text` the card shows.
+
+```console
+$ workout log w1d1.e0.s0 315x5@7 > /dev/null
+$ workout session w2d1 | jq -c '.exercises[0].sets[0].loadSuggestion'
+{"basis":{"origin":"history","session":"Block 27 · W1 D1","setLog":"315x5@7","text":"from 315x5@7 · W1 D1"},"kind":"estimate","weight":315}
+```
+
 ## Sync outcome
 
 `status`, `flush`, and `sync` print `syncOutcome`, which carries one `status` per outcome, so a
