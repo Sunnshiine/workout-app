@@ -167,6 +167,24 @@ func aHistoryEntryWithNoUsableSetLogSuggestsNothing(resultText: String) {
     #expect(suggest(history: resultText) == .noSuggestion)
 }
 
+@Test func aSingleAtRPE10IsTheTablesTopPoint() throws {
+    #expect(
+        suggest(reps: "1", load: "RPE10", history: "100x1@10")
+            == .estimate(100, basis: try basis("100x1@10", .history(block27W1D2)))
+    )
+}
+
+@Test func twelveRepsAtRPE6IsTheTablesBottomPointAt57Point4Percent() throws {
+    #expect(
+        suggest(reps: "1", load: "RPE10", history: "287x12@6")
+            == .estimate(500, basis: try basis("287x12@6", .history(block27W1D2)))
+    )
+    #expect(
+        suggest(reps: "12", load: "RPE6", history: "100x1@10")
+            == .estimate(57.5, basis: try basis("100x1@10", .history(block27W1D2)))
+    )
+}
+
 @Test func aSetLogWithTheLargestRepCountSuggestsNothing() throws {
     let largest = "100x9223372036854775807@8"
     #expect(try setLog(largest).reps == .max)
