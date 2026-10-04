@@ -1,6 +1,6 @@
 import Foundation
 
-struct RPEChartPoint: Equatable, Sendable {
+struct RPETablePoint: Equatable, Sendable {
     private static let reps = 1...12
 
     private let halfReps: Int

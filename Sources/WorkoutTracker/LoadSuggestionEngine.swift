@@ -16,11 +16,11 @@ struct LoadBasis: Equatable, Sendable {
     let setLog: SetLog
     let origin: Origin
     private let pounds: Double
-    private let point: RPEChartPoint
+    private let point: RPETablePoint
 
     init?(setLog: SetLog, origin: Origin) {
         guard case .pounds(let pounds) = setLog.weight, pounds > 0,
-            let point = RPEChartPoint(reps: setLog.reps, rpe: setLog.rpe)
+            let point = RPETablePoint(reps: setLog.reps, rpe: setLog.rpe)
         else { return nil }
         self.setLog = setLog
         self.origin = origin
@@ -67,7 +67,7 @@ enum LoadSuggestionEngine {
 
     private static func rpeTable(_ inputs: LoadSuggestionInputs) -> LoadSuggestion? {
         guard
-            let target = RPEChartPoint(prescribedReps: inputs.prescribedReps, prescribedLoad: inputs.prescribedLoad),
+            let target = RPETablePoint(prescribedReps: inputs.prescribedReps, prescribedLoad: inputs.prescribedLoad),
             let basis = todayBasis(inputs) ?? inputs.lastPerformed.flatMap(historyBasis)
         else { return nil }
         return .estimate(roundToNearestPlateIncrement(basis.estimatedSingle * target.share), basis: basis)
