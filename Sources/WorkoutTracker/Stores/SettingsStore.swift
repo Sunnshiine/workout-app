@@ -9,12 +9,14 @@ final class SettingsStore {
     private(set) var supersetRestDuration: RestDurationSetting
     private(set) var spreadsheetId: String?
     private(set) var spreadsheetTitle: String?
+    private(set) var showsLoadBasis: Bool
     private let defaults: AppDefaults
     private static let appearanceKey = "appearance"
     private static let standardRestDurationSecondsKey = "standardRestDurationSeconds"
     private static let supersetRestDurationSecondsKey = "supersetRestDurationSeconds"
     private static let spreadsheetIdKey = "spreadsheetId"
     private static let spreadsheetTitleKey = "spreadsheetTitle"
+    private static let showsLoadBasisKey = "showsLoadBasis"
     // Matches both the legacy "advancedToOrder_" and the current "advancedToOrderV2_" override
     // keys (the Session order encoding was re-versioned for 2–6 day Weeks) so prior app state is
     // still recognised regardless of which one is stored.
@@ -27,6 +29,7 @@ final class SettingsStore {
         self.appearance = Self.loadAppearance(defaults: defaults, hasPriorAppState: hasPriorAppState)
         self.standardRestDuration = Self.loadStandardRestDuration(defaults: defaults)
         self.supersetRestDuration = Self.loadSupersetRestDuration(defaults: defaults)
+        self.showsLoadBasis = defaults.integer(forKey: Self.showsLoadBasisKey) == 1
     }
 
     var isConfigured: Bool { isSignedIn && spreadsheetId != nil }
@@ -68,6 +71,11 @@ final class SettingsStore {
     func setSupersetRestDuration(_ duration: RestDurationSetting) {
         supersetRestDuration = duration
         defaults.set(duration.seconds, forKey: Self.supersetRestDurationSecondsKey)
+    }
+
+    func setShowsLoadBasis(_ shows: Bool) {
+        showsLoadBasis = shows
+        defaults.set(shows ? 1 : 0, forKey: Self.showsLoadBasisKey)
     }
 
     func signOut() {

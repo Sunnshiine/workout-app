@@ -90,6 +90,7 @@ struct ActiveSetCardVisualTests {
             }
         }
         .environment(lastPerformed)
+        .environment(\.showsLoadBasis, true)
         .environment(\.themePalette, Theme.palette(for: appearance))
         .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
         .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)

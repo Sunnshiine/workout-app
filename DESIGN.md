@@ -399,8 +399,11 @@ after:
   it pre-fills the Load Suggestion estimated from the athlete's own Set Logs
   (ADR-0018). Reps and RPE pre-fill from the prescription when it names one
   value.
-- **A basis line names where an estimated weight came from.** It sits directly
-  under the weight in the athlete's own notation: `from 315x5@7 · W1 D2`,
+- **The athlete sees only the estimated weight.** A basis line naming where it
+  came from is a developer aid, off until Developer Tools' *Show Load Basis*
+  turns it on. Mid-set, the number is the decision and its provenance is
+  noise. When on, it sits directly under the weight in the athlete's own
+  notation: `from 315x5@7 · W1 D2`,
   `from Set 1 today`, or `from 195x5@8 · Block 26 W4 D1` for another Block.
   When the Last Performed ladder, run without the Viewed Session, matched the
   entry at Movement level, the line ends with the entry's own name,

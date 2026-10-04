@@ -20,6 +20,7 @@ struct DeveloperToolsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.cardSpacing) {
                     currentSessionSection
+                    loadSuggestionSection
                     liveActivitySection
                     pendingWritesSection
                     actionsSection
@@ -113,6 +114,16 @@ struct DeveloperToolsView: View {
                 .accessibilityLabel("Reset Current Session Override")
                 .accessibilityIdentifier("reset-current-session-override-button")
             }
+        }
+    }
+
+    private var loadSuggestionSection: some View {
+        DeveloperToolsSection(title: "Load Suggestion") {
+            Toggle(
+                "Show Load Basis",
+                isOn: Binding(get: { settings.showsLoadBasis }, set: { settings.setShowsLoadBasis($0) })
+            )
+            .accessibilityIdentifier("developer-tools-shows-load-basis-toggle")
         }
     }
 

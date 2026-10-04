@@ -29,6 +29,7 @@ struct SmartValuePills: View {
     @State private var isEditingWeight = false
     @State private var showsLoggedCheckmark = false
     @Environment(\.themePalette) private var palette
+    @Environment(\.showsLoadBasis) private var showsLoadBasis
     @FocusState private var weightFieldFocused: Bool
 
     init(
@@ -133,7 +134,7 @@ struct SmartValuePills: View {
                 weightStepper(.increment, id: "weight-increment")
             }
 
-            if let loadBasisLine = form.loadBasisLine {
+            if showsLoadBasis, let loadBasisLine = form.loadBasisLine {
                 if loadBasisLine.isShown {
                     loadBasisText(loadBasisLine.text)
                         .accessibilityIdentifier("load-basis-line")
@@ -720,4 +721,8 @@ final class InputHapticPlayer {
     #else
         func play(_: Theme.HapticTuning) {}
     #endif
+}
+
+extension EnvironmentValues {
+    @Entry var showsLoadBasis = false
 }

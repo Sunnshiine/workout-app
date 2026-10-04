@@ -126,6 +126,20 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
 }
 
 @MainActor
+@Test func loadBasisLineStaysOffUntilDeveloperToolsTurnsItOnAndPersists() throws {
+    let defaults = AppDefaults.inMemory()
+    let store = SettingsStore(defaults: defaults)
+
+    #expect(store.showsLoadBasis == false)
+
+    store.setShowsLoadBasis(true)
+    #expect(SettingsStore(defaults: defaults).showsLoadBasis == true)
+
+    store.setShowsLoadBasis(false)
+    #expect(SettingsStore(defaults: defaults).showsLoadBasis == false)
+}
+
+@MainActor
 @Test func signOutClearsAuthAndSpreadsheetSelection() throws {
     let defaults = AppDefaults.inMemory()
     let store = SettingsStore(defaults: defaults)

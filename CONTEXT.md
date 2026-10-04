@@ -44,7 +44,7 @@ A mobile client for powerlifting athletes that surfaces and logs workouts from a
 
 **Unstructured Set Log**: Non-empty athlete text for a Set that marks that Set Logged but does not parse as a structured Set Log. It is Set-level completion evidence, distinct from a Legacy Log, and may be overwritten by a structured Set Log when the athlete corrects it. Avoid: completed from sheet, legacy log, already logged.
 
-**Load Suggestion**: A calculated weight hint pre-filled in the set weight input. Three sources, the coach's explicit numbers first: (1) "Drop X%" — computed from the previous set's logged weight once the athlete has logged it; (2) "%1RM" — computed from the Block's Training Max; (3) an RPE target ("RPE8" for 5 Reps) — computed from the athlete's own Set Logs through the RPE Table, and shown with its Load Basis. Always overridable. Avoid: recommended weight, auto-fill.
+**Load Suggestion**: A calculated weight hint pre-filled in the set weight input. Three sources, the coach's explicit numbers first: (1) "Drop X%" — computed from the previous set's logged weight once the athlete has logged it; (2) "%1RM" — computed from the Block's Training Max; (3) an RPE target ("RPE8" for 5 Reps) — computed from the athlete's own Set Logs through the RPE Table, and carrying its Load Basis, which Developer Tools can show on the card. Always overridable. Avoid: recommended weight, auto-fill.
 
 **RPE Table**: The curve that relates a Set's reps and RPE to a share of the athlete's Estimated Single. One RPE point below 10 is one rep in reserve, so a Set of 5 @8 and a Set of 7 @10 sit at the same point of the curve. Covers reps 1 to 12 at RPE 6 to 10, and a Set outside that range estimates nothing. Avoid: RPE chart, percentage chart.
 
