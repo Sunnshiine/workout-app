@@ -16,12 +16,13 @@ import Testing
         session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         dayNumbering: .headerNumber,
         exerciseName: "Squat",
-        setIndex: 0,
+        setIndex: 2,
         column: .lastSetRPE,
         operation: .delete,
         valueToWrite: nil,
         expectedCurrentValue: "185x5@8"
     )
+    write.markConflict("Expected 185x5@8, found 190x5@9")
     ctx.insert(write)
     try ctx.save()
 
@@ -29,7 +30,9 @@ import Testing
     #expect(fetched.recordedSession.blockTab == "Block 27")
     #expect(fetched.column == .lastSetRPE)
     #expect(fetched.operation == .delete)
-    #expect(fetched.status == .pending)
+    #expect(fetched.setIndex == 2)
+    #expect(fetched.status == .conflict)
+    #expect(fetched.lastError == "Expected 185x5@8, found 190x5@9")
     #expect(fetched.expectedCurrentValue == "185x5@8")
 
     let durableText = [
