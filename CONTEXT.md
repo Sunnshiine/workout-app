@@ -44,7 +44,13 @@ A mobile client for powerlifting athletes that surfaces and logs workouts from a
 
 **Unstructured Set Log**: Non-empty athlete text for a Set that marks that Set Logged but does not parse as a structured Set Log. It is Set-level completion evidence, distinct from a Legacy Log, and may be overwritten by a structured Set Log when the athlete corrects it. Avoid: completed from sheet, legacy log, already logged.
 
-**Load Suggestion**: A calculated weight hint pre-filled in the set weight input, derived from the coach's prescription. Two sources: (1) "Drop X%" — computed from the previous set's logged weight once the athlete has logged it; (2) "%1RM" — computed from the Block's Training Max. Always overridable. Avoid: recommended weight, auto-fill.
+**Load Suggestion**: A calculated weight hint pre-filled in the set weight input. Three sources, the coach's explicit numbers first: (1) "Drop X%" — computed from the previous set's logged weight once the athlete has logged it; (2) "%1RM" — computed from the Block's Training Max; (3) an RPE target ("RPE8" for 5 Reps) — computed from the athlete's own Set Logs through the RPE Table, and shown with its Load Basis. Always overridable. Avoid: recommended weight, auto-fill.
+
+**RPE Table**: The curve that relates a Set's reps and RPE to a share of the athlete's Estimated Single. One RPE point below 10 is one rep in reserve, so a Set of 5 @8 and a Set of 7 @10 sit at the same point of the curve. Covers 1 to 12 reps; past that, effort is too noisy to estimate from. Avoid: RPE chart, percentage chart.
+
+**Estimated Single**: The weight one structured Set Log implies the athlete could lift for a single rep at RPE 10 that day, read through the RPE Table. A step inside the History Load Suggestion, never shown, never stored, and never written to the Sheet. Distinct from Training Max, which the coach derives and the estimate never reads. Avoid: 1RM, e1RM, max, Training Max.
+
+**Load Basis**: The one Set Log a history-based Load Suggestion was computed from, and where it was logged: a Set of the same Exercise earlier in the Viewed Session ("from Set 1 today"), or otherwise a Set Log of the Exercise's most recent Exercise History entry ("from 315x5@7 · W1 D2"). Today's Set Log always wins over history, so a first Set that ran harder than prescribed lowers the next. Avoid: source, reference set, anchor.
 
 **Last Set RPE**: The RPE the athlete reports for the final Set of an Exercise. Stored in column I — the app extracts it from the last Set Log and writes it there automatically. It mirrors that one Set Log and holds no state of its own, so it is cleared whenever the final Set stops being Logged, by a Skip as well as by a delete. No parser path reads column I back into the model, so a stale value is invisible in the app and visible only to the coach. Avoid: actual RPE.
 
