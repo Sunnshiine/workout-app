@@ -1,23 +1,15 @@
 import Foundation
 
-/// The outcome of a Load Suggestion. Only `estimate` carries a Load Basis, so the coach's arithmetic
-/// cannot claim one and an estimate cannot lack one.
 enum LoadSuggestion: Equatable, Sendable {
-    /// A Drop from the previous Set, or a %1RM of the Training Max.
     case weight(Double)
     case bodyweight
-    /// Read through the RPE Table from the athlete's own Set Log.
     case estimate(Double, basis: LoadBasis)
     case noSuggestion
 }
 
-/// CONTEXT.md *Load Basis*. Only a usable Set Log builds one: pounds above zero, with reps and RPE
-/// the RPE Table covers.
 struct LoadBasis: Equatable, Sendable {
     enum Origin: Equatable, Sendable {
-        /// A Set of the same Exercise earlier in the Set's own Session, by 0-based Set index.
         case today(setIndex: Int)
-        /// A Set Log of the Exercise's most recent Exercise History entry outside the Set's own Session.
         case history(SessionCoordinate)
     }
 
@@ -36,21 +28,16 @@ struct LoadBasis: Equatable, Sendable {
         self.point = point
     }
 
-    /// CONTEXT.md *Estimated Single*: a step inside the estimate, never shown, stored, or encoded.
     fileprivate var estimatedSingle: Double { pounds / point.share }
 }
 
 enum LoadSuggestionEngine {
     private static let plateIncrement = 2.5
 
-    /// CONTEXT.md *Load Suggestion*, the coach's explicit numbers first. The first arm that answers
-    /// wins, so `BW` pre-fills BW even when a `percentOneRM` value is also present.
     private static let precedence: [@Sendable (LoadSuggestionInputs) -> LoadSuggestion?] = [
         bodyweight, drop, percentOneRM, rpeTable
     ]
 
-    /// The question the Set card and the `workout` CLI ask. A Set that holds a structured Set Log
-    /// shows that log, so it consults nothing.
     @MainActor
     static func suggest(for set: ExerciseSet, history: LastPerformedLookupSnapshot) -> LoadSuggestion {
         guard set.setLog == nil else { return .noSuggestion }
@@ -78,7 +65,6 @@ enum LoadSuggestionEngine {
         return .weight(roundToNearestPlateIncrement(trainingMax * percent / 100))
     }
 
-    /// Never reads the Training Max: the estimate is the athlete's own Set Log, not the coach's number.
     private static func rpeTable(_ inputs: LoadSuggestionInputs) -> LoadSuggestion? {
         guard
             let target = RPEChartPoint(prescribedReps: inputs.prescribedReps, prescribedLoad: inputs.prescribedLoad),
@@ -87,8 +73,6 @@ enum LoadSuggestionEngine {
         return .estimate(roundToNearestPlateIncrement(basis.estimatedSingle * target.share), basis: basis)
     }
 
-    /// The nearest earlier Set by index whose Set Log is usable. A nearer unusable Set (BW, past the
-    /// table) is passed over, as Drop passes over BW, so "the previous Set" means one thing.
     private static func todayBasis(_ inputs: LoadSuggestionInputs) -> LoadBasis? {
         inputs.earlierSets
             .sorted { $0.index > $1.index }
@@ -97,10 +81,6 @@ enum LoadSuggestionEngine {
             .first
     }
 
-    /// The entry's highest-RPE usable Set Log, a tie going to the later Set. RPE is rated most
-    /// accurately near failure, and on a top Set with back-offs this picks the top Set rather than
-    /// a fatigued back-off. A Legacy Log is never a basis: by the Header Notes Role it always holds a
-    /// token that is neither a Set Log nor `skip`, so every token must be one of those two.
     private static func historyBasis(_ entry: LastPerformedOccurrence) -> LoadBasis? {
         let tokens = splitSheetNotesList(entry.resultText)
         guard tokens.allSatisfy(SetLogToken.isSetLogListValue),
@@ -114,8 +94,6 @@ enum LoadSuggestionEngine {
             .element
     }
 
-    /// The nearest earlier Set's logged weight in pounds. A bodyweight Set carries no weight, so the
-    /// scan passes over it to the next one back.
     private static func previousSetPounds(_ inputs: LoadSuggestionInputs) -> Double? {
         inputs.earlierSets
             .sorted { $0.index > $1.index }

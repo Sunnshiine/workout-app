@@ -91,7 +91,6 @@ private func benchEntry(_ resultText: String, at source: String, performedOn: Do
     )
 }
 
-/// The Set's own Session is newer than every other entry and would win the ladder if it were read.
 private let historyWithTheSetsOwnSession = LastPerformedLookupSnapshot(occurrences: [
     benchEntry("185x5@7, 195x5@8", at: "Block 26 · W4 D1", performedOn: 90),
     benchEntry("405x5@7", at: "Block 27 · W1 D2", performedOn: 200)
@@ -99,7 +98,6 @@ private let historyWithTheSetsOwnSession = LastPerformedLookupSnapshot(occurrenc
 
 @MainActor
 @Suite struct SuggestForASetTests {
-    /// 195x5@8 (81.1%) toward 5 @6 (76.2%): 183.2, rounded to 182.5.
     @Test func theBasisLeavesOutTheSetsOwnSession() throws {
         let set = makeBenchPress(loads: ["RPE6", "RPE7"]).sets.sorted { $0.index < $1.index }[0]
         let basis = try #require(

@@ -258,8 +258,6 @@ private func wire(_ suggestion: LoadSuggestionSnapshot) throws -> String {
     return try #require(String(bytes: try encoder.encode(suggestion), encoding: .utf8))
 }
 
-/// The heavier Set is logged first, so an entry holding only the last Set logged would answer 305
-/// from 295x5@6. A harder Set 1 in W2 D1 then lowers Set 2 from 315 to 300.
 @MainActor
 @Test func anRPETargetEstimatesFromTheLastOtherSessionThenRecalibratesFromSetOneToday() async throws {
     let app = try await makeSelectedApp()
@@ -284,7 +282,6 @@ private func wire(_ suggestion: LoadSuggestionSnapshot) throws -> String {
     )
 }
 
-/// W2 D1's own entry (400x5@7) is newer than W1 D1's and would answer 400 if it were read.
 @MainActor
 @Test func anRPETargetNeverEstimatesFromItsOwnSession() async throws {
     let app = try await makeSelectedApp()

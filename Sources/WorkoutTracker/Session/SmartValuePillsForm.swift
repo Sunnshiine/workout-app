@@ -19,8 +19,6 @@ struct SmartValuePillsForm {
     private let initialRepsText: String
     private let initialRPEText: String
 
-    /// The Load Basis line under the weight, shown only while the weight is still the estimate it
-    /// explains, so an override never leaves the line vouching for a number the athlete replaced.
     var loadBasisText: String? {
         weightText == initialWeightText ? estimateBasisText : nil
     }

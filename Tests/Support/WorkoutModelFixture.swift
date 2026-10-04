@@ -56,8 +56,6 @@ func makeBlock(tabName: String = "Block 40", sessions: [Session]) -> Block {
     return block
 }
 
-/// A Bench Press of five-rep Sets at the given Prescribed Loads and no %1RM, parented up to a Block
-/// so a Set can name its own Session, which is all the RPE Table arm needs.
 @MainActor
 func makeBenchPress(
     loads: [String],

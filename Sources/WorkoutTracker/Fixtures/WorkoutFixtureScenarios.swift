@@ -103,8 +103,6 @@
             ]
         }
 
-        /// One Bench Press entry, so the default launch's W1 D2 reaches the RPE Table arm with no setup:
-        /// Set 1 estimates 182.5 from 195x5@8, and a logged Set 1 recalibrates Set 2.
         static func benchPressHistory() -> [LastPerformedEntry] {
             [
                 LastPerformedEntry(

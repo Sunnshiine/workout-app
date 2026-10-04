@@ -366,7 +366,7 @@ private func stepForm(weight: String) -> SmartValuePillsForm {
 
 @MainActor
 @Test func stepWeightAddsAndSubtractsTheFineIncrementWithoutHittingTheFloor() {
-    var form = stepForm(weight: "185")  // above the gym threshold → heavy step of 5
+    var form = stepForm(weight: "185")
     #expect(form.fineWeightIncrement == 5)
 
     #expect(form.stepWeight(.up) == false)
@@ -378,7 +378,7 @@ private func stepForm(weight: String) -> SmartValuePillsForm {
 
 @MainActor
 @Test func stepWeightLandingExactlyOnZeroIsANormalStepNotAFloorHit() {
-    var form = stepForm(weight: "2.5")  // at/below the threshold → light step of 2.5
+    var form = stepForm(weight: "2.5")
 
     // 2.5 − 2.5 == 0 exactly: a valid step down to zero, so no floor hit (the tick, not the dud).
     #expect(form.stepWeight(.down) == false)
@@ -401,8 +401,6 @@ private func stepForm(weight: String) -> SmartValuePillsForm {
     form.stepWeight(.up)
     #expect(form.weightText == "1e+19")
 }
-
-// MARK: - The Load Basis line
 
 @MainActor
 private func cardForm(_ set: ExerciseSet, history: [(resultText: String, source: String)]) -> SmartValuePillsForm {

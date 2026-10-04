@@ -23,7 +23,6 @@ struct ActiveSetCard: View {
     let onSkip: () -> Void
     let onDelete: () -> Void
     var showsLoggedCheckmark = false
-    /// Required, so a host that forgets to inject it fails loudly instead of losing the estimate.
     @Environment(LastPerformedLookupStore.self) private var history
     @Environment(\.themePalette) private var palette
     @State private var inputDismissalRequestID = 0

@@ -151,7 +151,6 @@ import Testing
         #expect(queued.map { $0.createdAt.ISO8601Format() } == ["2001-01-01T00:00:00Z"])
     }
 
-    /// The default launch's W1 D2, the tile the verify skill already taps, as its Set card fills it.
     @MainActor
     @Test func theDefaultLaunchBenchPressEstimatesFromHistoryThenFromSetOneToday() throws {
         let seeded = try seed(arguments: [])

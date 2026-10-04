@@ -20,8 +20,6 @@ enum SetCompletionEvidence: Equatable, Sendable {
 }
 
 extension SetCompletionEvidence {
-    /// The one Set-level rule, shared by the parsed Sheet and the live model so the Exercise History
-    /// entry a live log writes is the entry the next sync's extract writes.
     init?(state: SetState, setLog: SetLog?, unstructuredSetLog: String?) {
         if let setLog {
             self = .logged(setLog.formatted)
@@ -38,8 +36,6 @@ extension SetCompletionEvidence {
 }
 
 extension [SetCompletionEvidence] {
-    /// An Exercise History entry's text for Set-level evidence: every token in Set order, or nil
-    /// when no Set is Logged, because a Session with nothing performed earns no entry.
     var resultText: String? {
         contains(where: \.isLogged) ? map(\.token).joined(separator: ", ") : nil
     }

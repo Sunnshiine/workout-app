@@ -100,7 +100,7 @@ public struct SessionSummary: Encodable, Equatable, Sendable {
 /// A Set's Load Suggestion as the `workout` CLI prints it, one `kind` per case:
 /// `{"kind":"estimate","weight":315,"basis":{"origin":"history","setLog":"315x5@7",
 /// "session":"Block 27 · W1 D1","text":"from 315x5@7 · W1 D1"}}`. A Set that holds a Set Log
-/// reads `{"kind":"none"}`. The Estimated Single is never on the wire.
+/// reads `{"kind":"none"}`.
 public struct LoadSuggestionSnapshot: Encodable, Equatable, Sendable {
     public enum Kind: String, Encodable, Sendable {
         case weight, bodyweight, estimate, none
@@ -128,7 +128,6 @@ public struct LoadSuggestionSnapshot: Encodable, Equatable, Sendable {
     }
 }
 
-/// The Load Basis of an `estimate`, as `LoadSuggestionSnapshot` prints it.
 public struct LoadBasisSnapshot: Encodable, Equatable, Sendable {
     public enum Origin: String, Encodable, Sendable {
         case today, history

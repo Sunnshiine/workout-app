@@ -47,8 +47,6 @@ struct LastPerformedLookupSnapshot: Equatable, Sendable {
         self.init(occurrences: entries.map(\.occurrence))
     }
 
-    /// The same index without one Session's entries. A Set's Load Basis reads this with its own
-    /// Session left out, because that Session's entry joins the index as soon as one Set is logged.
     func excluding(session: SessionCoordinate) -> LastPerformedLookupSnapshot {
         LastPerformedLookupSnapshot(occurrences: occurrences.filter { $0.source != session.storageValue })
     }

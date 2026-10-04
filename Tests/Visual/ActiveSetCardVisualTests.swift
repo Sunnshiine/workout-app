@@ -67,7 +67,6 @@ struct ActiveSetCardVisualTests {
             line: line,
             column: column
         )
-        // The card reads the Training Max up the Set's parent chain, which only this graph retains.
         withExtendedLifetime(exercise) {}
     }
 
