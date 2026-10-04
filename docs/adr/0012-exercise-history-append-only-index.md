@@ -2,6 +2,8 @@
 
 Supersedes [ADR-0002](0002-last-performed-local-index.md).
 
+Amended by [ADR-0018](0018-rpe-table-history-load-suggestion.md): when the athlete undoes the only Logged Set of an Exercise in the Viewed Session, the live path retracts the entry it wrote for that Session. That is the one exception to append-only.
+
 Athletes need to open an Exercise's history mid-Session — the last ~5 entries, read in seconds at the rack, offline. ADR-0002's `last_performed` index cannot serve this: `LastPerformedIndex.ingest` overwrites the single row per exercise name, destroying every older entry on each sync.
 
 We replace the single-entry index with one append-only `exercise_history` table. Each row is an **entry** — an Exercise as logged in one past Session: display string (Set Logs in Set order, or Legacy Log / Unstructured Set Log text as entered), date, `source` (tab·week·day), full name, and base name. `source` is the dedup key, because dates degrade to `.distantPast` when unparseable. Existing `last_performed` rows seed the table. **Last Performed** becomes a query over these rows — most recent entry via a three-tier ladder: full name including Cadence, then base name, then Movement level — while Exercise History queries the same rows at Movement level throughout (matching rules: [ADR-0013](0013-movement-level-matching.md)). There is no second store and no dual write.
