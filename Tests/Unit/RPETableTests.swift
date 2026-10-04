@@ -34,6 +34,8 @@ func rpeTableMatchesThePublishedRTSChart(row: (reps: Int, percents: [Double])) t
     #expect(RPETable.share(reps: 7, rpe: .ten) == 81.1 / 100)
 }
 
-@Test func aRepRangeReadsAtItsMidpointOnTheHalfRepGrid() {
+@Test func anEvenRepRangeTargetsTheWeightBetweenItsEnds() {
     #expect(RPETable.share(reps: 7...8, rpe: .eight) == 75.1 / 100)
+    #expect(RPETable.share(reps: 7, rpe: .sevenPointFive) == 75.1 / 100)
+    #expect(RPETable.share(reps: 8, rpe: .eightPointFive) == 75.1 / 100)
 }

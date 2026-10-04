@@ -6,8 +6,9 @@ enum RPETable {
     private static let supportedRPE: ClosedRange<Double> = 6...10
 
     /// One RPE point below 10 is one rep in reserve, so every row of the RTS chart is a shift of this one
-    /// curve over effective reps (reps plus reps in reserve). Each key is a whole or half number, which a
-    /// Double holds exactly, so a key built by adding two of them always matches.
+    /// curve over effective reps (reps plus reps in reserve). Reps are whole, so a half key comes from a
+    /// half-point RPE or the middle of an even rep range. A Double holds whole and half numbers exactly, so a
+    /// key built by adding two of them always matches.
     private static let percentByEffectiveReps: [Double: Double] = [
         1: 100, 1.5: 97.8,
         2: 95.5, 2.5: 93.9,
