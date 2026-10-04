@@ -402,6 +402,9 @@ after:
 - **A basis line names where an estimated weight came from.** It sits directly
   under the weight in the athlete's own notation: `from 315x5@7 · W1 D2`,
   `from Set 1 today`, or `from 195x5@8 · Block 26 W4 D1` for another Block.
+  An entry matched at Movement level under another name ends the line with
+  that name, `from 195x5@8 · W1 D2 as “Comp Bench Press”`, as the Last
+  Performed line does.
   It is a `runline` in `textSecondary`, shrinks then truncates, and leaves as
   soon as the athlete changes the weight, so it never explains a number that is
   no longer on the card. Cards without an estimate carry no line.
