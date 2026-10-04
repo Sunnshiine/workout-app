@@ -39,8 +39,10 @@ struct SmartValuePillsForm {
         return currentInvalidFields
     }
 
+    /// Plates come in pairs, so a useful step is a fixed weight rather than a fraction of the load.
     var fineWeightIncrement: Double {
-        WeightIncrement.fine(forWeight: Double(weightText))
+        guard let weight = Double(weightText), weight > 100 else { return 2.5 }
+        return 5
     }
 
     /// Stepping only makes sense for a numeric weight — hidden for bodyweight and
