@@ -124,7 +124,7 @@ func unsupportedPrescribedLoadReturnsNone(prescribedLoad: String) {
     )
 }
 
-@Test func dropReadsTheNearestEarlierSetByIndexInAnyOrder() {
+@Test func dropReadsTheNearestEarlierSet() {
     #expect(
         dropSuggestion(after: [(index: 1, setLog: logged(.pounds(225))), (index: 0, setLog: logged(.pounds(185)))])
             == .prescribedWeight(180)
@@ -133,7 +133,7 @@ func unsupportedPrescribedLoadReturnsNone(prescribedLoad: String) {
 
 @Test func dropPassesOverABodyweightSetToTheNextOneBack() {
     #expect(
-        dropSuggestion(after: [(index: 0, setLog: logged(.pounds(185))), (index: 1, setLog: logged(.bodyweight))])
+        dropSuggestion(after: [(index: 1, setLog: logged(.bodyweight)), (index: 0, setLog: logged(.pounds(185)))])
             == .prescribedWeight(147.5)
     )
 }
@@ -194,7 +194,7 @@ private func basis(_ formatted: String, _ origin: LoadBasis.Origin) throws -> Lo
 }
 
 @Test func anUnusableNearerSetTodayIsPassedOverForAnEarlierUsableOne() throws {
-    let today = [(index: 0, setLog: try setLog("315x5@7")), (index: 1, setLog: try setLog("BWx5@8"))]
+    let today = [(index: 1, setLog: try setLog("BWx5@8")), (index: 0, setLog: try setLog("315x5@7"))]
 
     #expect(rpeTarget(today: today) == .estimate(325, basis: try basis("315x5@7", .today(setIndex: 0))))
 }

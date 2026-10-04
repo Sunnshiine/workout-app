@@ -34,10 +34,6 @@ struct LoadBasis: Equatable, Sendable {
 enum LoadSuggestionEngine {
     private static let plateIncrement = 2.5
 
-    private static let precedence: [@Sendable (LoadSuggestionInputs) -> LoadSuggestion?] = [
-        bodyweight, drop, percentOneRM, rpeTable
-    ]
-
     @MainActor
     static func suggest(for set: ExerciseSet, history: LastPerformedLookupSnapshot) -> LoadSuggestion {
         guard set.setLog == nil else { return .noSuggestion }
@@ -45,7 +41,7 @@ enum LoadSuggestionEngine {
     }
 
     static func suggest(_ inputs: LoadSuggestionInputs) -> LoadSuggestion {
-        precedence.lazy.compactMap { $0(inputs) }.first ?? .noSuggestion
+        bodyweight(inputs) ?? drop(inputs) ?? percentOneRM(inputs) ?? rpeTable(inputs) ?? .noSuggestion
     }
 
     private static func bodyweight(_ inputs: LoadSuggestionInputs) -> LoadSuggestion? {
@@ -75,7 +71,6 @@ enum LoadSuggestionEngine {
 
     private static func todayBasis(_ inputs: LoadSuggestionInputs) -> LoadBasis? {
         inputs.earlierSets
-            .sorted { $0.index > $1.index }
             .lazy
             .compactMap { LoadBasis(setLog: $0.setLog, origin: .today(setIndex: $0.index)) }
             .first
@@ -96,7 +91,6 @@ enum LoadSuggestionEngine {
 
     private static func previousSetPounds(_ inputs: LoadSuggestionInputs) -> Double? {
         inputs.earlierSets
-            .sorted { $0.index > $1.index }
             .lazy
             .compactMap { earlier -> Double? in
                 guard case .pounds(let pounds) = earlier.setLog.weight else { return nil }

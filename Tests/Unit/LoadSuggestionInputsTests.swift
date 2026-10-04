@@ -119,6 +119,14 @@ private let historyWithTheSetsOwnSession = LastPerformedLookupSnapshot(occurrenc
         #expect(LoadSuggestionEngine.suggest(for: sets[1], history: historyWithTheSetsOwnSession) == .estimate(185, basis: basis))
     }
 
+    @Test func dropReadsTheNearestEarlierSetOfTheExercise() {
+        let sets = makeBenchPress(loads: ["RPE6", "RPE7", "Drop 20%"]).sets.sorted { $0.index < $1.index }
+        sets[0].markLogged(SetLog(weight: .pounds(185), reps: 5, rpe: .seven), at: Date(timeIntervalSinceReferenceDate: 0))
+        sets[1].markLogged(SetLog(weight: .pounds(225), reps: 5, rpe: .eight), at: Date(timeIntervalSinceReferenceDate: 60))
+
+        #expect(LoadSuggestionEngine.suggest(for: sets[2], history: .empty) == .prescribedWeight(180))
+    }
+
     @Test func aSetHoldingASetLogConsultsNothing() {
         let set = makeBenchPress(loads: ["RPE6"]).sets[0]
         set.markLogged(SetLog(weight: .pounds(185), reps: 5, rpe: .seven), at: Date(timeIntervalSinceReferenceDate: 0))
