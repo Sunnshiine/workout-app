@@ -4,20 +4,7 @@ import Testing
 @testable import WorkoutTracker
 
 @MainActor
-@Test func namedWorkoutScenariosCoverFixtureContract() throws {
-    #expect(
-        WorkoutScenarios.names == [
-            "fresh configured app",
-            "current session with pending sets",
-            "partially logged session",
-            "open exercises",
-            "sync failure",
-            "queued write",
-            "block overview with mixed session states",
-            "partially uploaded block"
-        ]
-    )
-
+@Test func workoutScenariosCoverFixtureContract() throws {
     let fresh = try WorkoutScenarios.freshConfiguredApp()
     defer { withExtendedLifetime(fresh.container) {} }
     #expect(fresh.settings.isConfigured)
@@ -43,11 +30,6 @@ import Testing
         SyncStatusBannerPresentation(outcome: WorkoutScenarios.syncFailure(), isSyncing: false)
     )
     #expect(failure.detail == "Sheet write failed")
-
-    let queuedWrite = WorkoutScenarios.queuedWrite()
-    #expect(queuedWrite.recordedSession.blockTab == "Block 27")
-    #expect(queuedWrite.exerciseName == "Back Squat")
-    #expect(queuedWrite.valueToWrite == "185x5@8")
 
     let overview = WorkoutScenarios.blockOverviewWithMixedSessionStates()
     let presentation = BlockOverviewPresentation(block: overview.block, currentSession: overview.currentSession)

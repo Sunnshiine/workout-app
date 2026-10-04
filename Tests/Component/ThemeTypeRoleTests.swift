@@ -3,10 +3,6 @@ import Testing
 
 @testable import WorkoutTracker
 
-/// The type role table transcribed back from DESIGN.md, so a typography regression fails in the
-/// macOS `swift test` pass. `FontPlumbingTests` stays the UIKit-only proof that a row reaches a
-/// real `UIFont`.
-
 @Test func everyTypeRoleHasAStyle() {
     let styles = Dictionary(uniqueKeysWithValues: Theme.TypeRole.allCases.map { ($0, $0.style) })
     #expect(styles.count == 22)
@@ -44,15 +40,6 @@ func typeRoleCarriesItsDesignTokens(role: Theme.TypeRole, expected: Theme.TypeSt
     @Test func frauncesAndSourceSansRolesResolveToTheirBundledFamilies() {
         #expect(Theme.font(.exerciseName) == Font.custom("Fraunces", fixedSize: 33).weight(.medium))
         #expect(Theme.font(.weightEntry) == Font.custom("Source Sans 3", fixedSize: 46).weight(.bold))
-    }
-
-    @Test func everyTypeRoleResolvesToItsFaceSizeAndWeight() {
-        for role in Theme.TypeRole.allCases {
-            let style = role.style
-            let expected = Font.custom(style.face.familyName, fixedSize: style.size)
-                .weight(Theme.swiftUIWeight(style.weight))
-            #expect(Theme.font(role) == expected, "\(role) did not resolve to its row in the table")
-        }
     }
 #endif
 

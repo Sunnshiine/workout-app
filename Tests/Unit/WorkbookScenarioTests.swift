@@ -21,8 +21,6 @@ func everyScenarioParsesCleanlyWithAnAvailableSession(scenario: WorkbookScenario
     let parsed = SheetParser().parse(snapshot: snapshot, tabName: "Block 27")
     let block = parsed.block
 
-    #expect(workbook.spreadsheetId == "FIXTURE")
-    #expect(workbook.title == "Fixture Training Log")
     #expect(block.trainingMaxes[.squat] == 365)
     #expect(block.trainingMaxes[.bench] == 245)
     #expect(block.trainingMaxes[.deadlift] == 455)

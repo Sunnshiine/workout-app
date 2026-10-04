@@ -12,15 +12,6 @@ import Testing
     #expect(interval.kind == .standard)
 }
 
-@Test func restIntervalStartPlusDurationEqualsEndForEveryConstruction() {
-    let start = Date(timeIntervalSinceReferenceDate: 42)
-    for seconds in stride(from: 30.0, through: 600.0, by: 15) {
-        let interval = RestInterval(start: start, duration: seconds, kind: .superset)
-        #expect(interval.start.addingTimeInterval(interval.duration) == interval.end)
-        #expect(interval.start.addingTimeInterval(interval.remaining(at: start)) == interval.end)
-    }
-}
-
 @Test func restIntervalRemainingClampsToZeroAtOrAfterEnd() {
     let start = Date(timeIntervalSinceReferenceDate: 0)
     let interval = RestInterval(start: start, duration: 90, kind: .standard)

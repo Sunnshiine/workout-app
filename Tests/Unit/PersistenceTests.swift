@@ -23,7 +23,7 @@ import Testing
     ctx.insert(block)
     try ctx.save()
 
-    let fetched = try ctx.fetch(FetchDescriptor<Block>())
+    let fetched = try ModelContext(container).fetch(FetchDescriptor<Block>())
     #expect(fetched.count == 1)
     #expect(fetched[0].weeks.first?.sessions.first?.exercises.first?.sets.first?.prescribedReps == "12")
 }

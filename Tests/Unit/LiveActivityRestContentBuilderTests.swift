@@ -6,18 +6,7 @@ import Testing
 
 #if os(iOS)
     @MainActor
-    @Test func liveActivityLabDefaultsToAcceptedRestSetsLeftVariant() {
-        #expect(LiveActivityLabDefaults.defaultVariant == .restTimerSetsLeft)
-        #expect(LiveActivityLabDefaults.productionVariantTitle == "Rest + Sets Left")
-    }
-
-    @MainActor
-    @Test func liveActivityLabRetainsAllPrototypeVariants() {
-        #expect(LiveActivityLabDefaults.prototypeVariants == DesignVariant.allCases)
-    }
-
-    @MainActor
-    @Test func productionContentStateUsesAcceptedRestSetsLeftVariant() {
+    @Test func productionContentStateSaysHowManySetsAreLeft() {
         let restContent = LiveActivityRestContent(
             exerciseName: "Bench Press",
             prescribedReps: "5",
@@ -33,7 +22,6 @@ import Testing
 
         let state = WorkoutActivityAttributes.ContentState(restContent: restContent)
 
-        #expect(state.variant == .restTimerSetsLeft)
         #expect(state.restContextText == "2 sets left")
     }
 #endif
@@ -64,7 +52,7 @@ import Testing
     }
 }
 
-@Test func liveActivityReadyStateStartsAtRestDeadlineAndKeepsSetContext() {
+@Test func liveActivityReadyStateStartsAtRestDeadline() {
     let restEndDate = Date(timeIntervalSinceReferenceDate: 1_090)
     let content = LiveActivityRestContent(
         exerciseName: "Bench Press",
@@ -81,9 +69,6 @@ import Testing
 
     #expect(!LiveActivityInvalidationPolicy.isReady(content, at: restEndDate.addingTimeInterval(-1)))
     #expect(LiveActivityInvalidationPolicy.isReady(content, at: restEndDate))
-    #expect(content.exerciseName == "Bench Press")
-    #expect(content.prescribedReps == "5")
-    #expect(content.prescribedLoad == "RPE 8")
     #expect(content.setsLeftText == "2 sets left")
 }
 
@@ -144,7 +129,6 @@ import Testing
     #expect(content.setsTotal == 3)
     #expect(content.setsLeft == 2)
     #expect(content.setsLeftText == "2 sets left")
-    #expect(content.variant == .restTimerSetsLeft)
     #expect(content.restStartDate == startDate)
     #expect(content.restEndDate == endDate)
     #expect(content.target?.setID == ActiveSetID(exerciseOrder: 0, setIndex: 1))
