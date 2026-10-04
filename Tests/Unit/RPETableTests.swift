@@ -25,7 +25,15 @@ private let publishedRTSChart: [(reps: Int, percents: [Double])] = [
 func rpeTableMatchesThePublishedRTSChart(row: (reps: Int, percents: [Double])) throws {
     #expect(row.percents.count == chartColumns.count)
     for (rpe, percent) in zip(chartColumns, row.percents) {
-        let point = try #require(RPETablePoint(reps: row.reps, rpe: rpe))
-        #expect(point.share == percent / 100, "\(row.reps) reps at RPE \(rpe.rawValue)")
+        #expect(RPETable.share(reps: row.reps, rpe: rpe) == percent / 100, "\(row.reps) reps at RPE \(rpe.rawValue)")
     }
+}
+
+@Test func oneRPEPointBelowTenIsOneRepInReserve() {
+    #expect(RPETable.share(reps: 5, rpe: .eight) == 81.1 / 100)
+    #expect(RPETable.share(reps: 7, rpe: .ten) == 81.1 / 100)
+}
+
+@Test func aRepRangeReadsAtItsMidpointOnTheHalfRepGrid() {
+    #expect(RPETable.share(reps: 7...8, rpe: .eight) == 75.1 / 100)
 }

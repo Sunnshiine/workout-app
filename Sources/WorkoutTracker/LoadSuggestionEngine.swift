@@ -15,20 +15,16 @@ struct LoadBasis: Equatable, Sendable {
 
     let setLog: SetLog
     let origin: Origin
-    private let pounds: Double
-    private let point: RPETablePoint
+    fileprivate let estimatedSingle: Double
 
     init?(setLog: SetLog, origin: Origin) {
         guard case .pounds(let pounds) = setLog.weight, pounds > 0,
-            let point = RPETablePoint(reps: setLog.reps, rpe: setLog.rpe)
+            let share = RPETable.share(reps: setLog.reps, rpe: setLog.rpe)
         else { return nil }
         self.setLog = setLog
         self.origin = origin
-        self.pounds = pounds
-        self.point = point
+        self.estimatedSingle = pounds / share
     }
-
-    fileprivate var estimatedSingle: Double { pounds / point.share }
 }
 
 enum LoadSuggestionEngine {
@@ -62,11 +58,11 @@ enum LoadSuggestionEngine {
     }
 
     private static func rpeTable(_ inputs: LoadSuggestionInputs) -> LoadSuggestion? {
-        guard
-            let target = RPETablePoint(prescribedReps: inputs.prescribedReps, prescribedLoad: inputs.prescribedLoad),
+        guard let reps = repRange(from: inputs.prescribedReps), let rpe = RPE(prescribedLoad: inputs.prescribedLoad),
+            let targetShare = RPETable.share(reps: reps, rpe: rpe),
             let basis = todayBasis(inputs) ?? inputs.lastPerformed.flatMap(historyBasis)
         else { return nil }
-        return .estimate(roundToNearestPlateIncrement(basis.estimatedSingle * target.share), basis: basis)
+        return .estimate(roundToNearestPlateIncrement(basis.estimatedSingle * targetShare), basis: basis)
     }
 
     private static func todayBasis(_ inputs: LoadSuggestionInputs) -> LoadBasis? {
@@ -95,6 +91,13 @@ enum LoadSuggestionEngine {
                 return pounds
             }
             .first
+    }
+
+    private static func repRange(from prescribedReps: String) -> ClosedRange<Int>? {
+        let trimmed = prescribedReps.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let match = trimmed.wholeMatch(of: /(\d+)(?:\s*[-–]\s*(\d+))?/), let low = Int(match.1) else { return nil }
+        let high = match.2.flatMap { Int($0) } ?? low
+        return low <= high ? low...high : nil
     }
 
     private static func dropPercent(from prescribedLoad: String) -> Double? {
