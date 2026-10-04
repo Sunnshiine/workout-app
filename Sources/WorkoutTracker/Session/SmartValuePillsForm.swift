@@ -73,18 +73,14 @@ struct SmartValuePillsForm {
         return "Log \(log.weight.label) × \(log.reps) @\(log.rpe.label)"
     }
 
-    init(set: ExerciseSet, previousSetWeight: Double?, trainingMax: Double?) {
+    init(set: ExerciseSet, suggestion: LoadSuggestion) {
         prescribedRPE = RPE(prescribedLoad: set.prescribedLoad)
         if let setLog = set.setLog {
             weightText = setLog.weight.label
             repsText = String(setLog.reps)
             rpeText = setLog.rpe.label
         } else {
-            weightText = Self.initialWeightText(
-                for: set,
-                previousSetWeight: previousSetWeight,
-                trainingMax: trainingMax
-            )
+            weightText = Self.initialWeightText(for: suggestion)
             repsText = Self.initialRepsText(for: set.prescribedReps)
             rpeText = prescribedRPE?.label ?? ""
         }
@@ -186,17 +182,8 @@ struct SmartValuePillsForm {
         RPE(text: rpeText)
     }
 
-    private static func initialWeightText(
-        for set: ExerciseSet,
-        previousSetWeight: Double?,
-        trainingMax: Double?
-    ) -> String {
-        switch LoadSuggestionEngine.suggest(
-            prescribedLoad: set.prescribedLoad,
-            percentOneRM: set.percentOneRM,
-            previousSetWeight: previousSetWeight,
-            trainingMax: trainingMax
-        ) {
+    private static func initialWeightText(for suggestion: LoadSuggestion) -> String {
+        switch suggestion {
         case .weight(let weight):
             return Weight.pounds(weight).label
         case .bodyweight:

@@ -36,7 +36,6 @@ struct ActiveSetCardVisualTests {
             VStack {
                 Spacer(minLength: 0)
                 ActiveSetCard(
-                    exercise: exercise,
                     set: set,
                     setOrdinal: 3,
                     setCount: 5,
@@ -65,6 +64,8 @@ struct ActiveSetCardVisualTests {
             line: line,
             column: column
         )
+        // The card reads the Training Max up the Set's parent chain, which only this graph retains.
+        withExtendedLifetime(exercise) {}
     }
 
     /// Reproduces the pick: Set 3 of 5 of a bench press, weight prefilled to 90 (60% of a 150

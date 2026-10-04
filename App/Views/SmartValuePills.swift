@@ -33,8 +33,7 @@ struct SmartValuePills: View {
     init(
         set: ExerciseSet,
         mode: SetCardMode = .logging,
-        previousSetWeight: Double?,
-        trainingMax: Double?,
+        suggestion: LoadSuggestion,
         onLog: @escaping (SetLog) -> Void,
         onSkip: @escaping () -> Void,
         onDelete: @escaping () -> Void,
@@ -47,13 +46,7 @@ struct SmartValuePills: View {
         self.onSkip = onSkip
         self.onDelete = onDelete
         self.inputDismissalRequestID = inputDismissalRequestID
-        _form = State(
-            initialValue: SmartValuePillsForm(
-                set: set,
-                previousSetWeight: previousSetWeight,
-                trainingMax: trainingMax
-            )
-        )
+        _form = State(initialValue: SmartValuePillsForm(set: set, suggestion: suggestion))
         _showsLoggedCheckmark = State(initialValue: showsLoggedCheckmarkInitially)
     }
 

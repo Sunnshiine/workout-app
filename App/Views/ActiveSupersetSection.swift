@@ -107,7 +107,6 @@ struct ActiveSupersetSection: View {
             ZStack(alignment: .topLeading) {
                 IncomingActiveSetCard(
                     transition: incomingTransition,
-                    exercise: focusedExercise,
                     set: activeSet,
                     setOrdinal: setOrdinal(for: activeSet),
                     setCount: focusedSortedSets.count,
@@ -119,7 +118,6 @@ struct ActiveSupersetSection: View {
                 if let transition = config.retiringTransition, transition.outgoingSetID == activeSetID {
                     RetiringActiveSetCard(
                         transition: transition,
-                        exercise: focusedExercise,
                         set: activeSet,
                         setOrdinal: setOrdinal(for: activeSet),
                         setCount: focusedSortedSets.count
@@ -129,7 +127,6 @@ struct ActiveSupersetSection: View {
             .id(activeSetID)
         } else if let fallbackSet = stageSet {
             ActiveSetCard(
-                exercise: focusedExercise,
                 set: fallbackSet,
                 setOrdinal: setOrdinal(for: fallbackSet),
                 setCount: focusedSortedSets.count,
@@ -152,7 +149,6 @@ struct ActiveSupersetSection: View {
 
 private struct IncomingActiveSetCard: View {
     let transition: ActiveSetTransition?
-    let exercise: Exercise
     let set: ExerciseSet
     let setOrdinal: Int
     let setCount: Int
@@ -163,7 +159,6 @@ private struct IncomingActiveSetCard: View {
 
     var body: some View {
         ActiveSetCard(
-            exercise: exercise,
             set: set,
             setOrdinal: setOrdinal,
             setCount: setCount,
@@ -221,7 +216,6 @@ private struct IncomingActiveSetCard: View {
 
 private struct RetiringActiveSetCard: View {
     let transition: ActiveSetTransition
-    let exercise: Exercise
     let set: ExerciseSet
     let setOrdinal: Int
     let setCount: Int
@@ -229,7 +223,6 @@ private struct RetiringActiveSetCard: View {
 
     var body: some View {
         ActiveSetCard(
-            exercise: exercise,
             set: set,
             setOrdinal: setOrdinal,
             setCount: setCount,

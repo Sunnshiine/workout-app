@@ -1,44 +1,62 @@
 import Foundation
 
-/// The outcome of a Load Suggestion: a calculated weight hint, the bodyweight
+/// The outcome of a Load Suggestion: the coach's arithmetic (a Drop or a %1RM), the bodyweight
 /// pre-fill when the coach prescribes `BW`, or no suggestion at all.
-public enum LoadSuggestion: Equatable, Sendable {
+enum LoadSuggestion: Equatable, Sendable {
     case weight(Double)
     case bodyweight
     case noSuggestion
 }
 
-public enum LoadSuggestionEngine {
+enum LoadSuggestionEngine {
     private static let plateIncrement = 2.5
 
-    /// Owns the full Drop → %1RM → BW → none source selection. BW takes
-    /// precedence over Drop and %1RM: a bodyweight-prescribed Set pre-fills BW
-    /// even when a `percentOneRM` value is also present.
-    public static func suggest(
-        prescribedLoad: String,
-        percentOneRM: String?,
-        previousSetWeight: Double?,
-        trainingMax: Double?
-    ) -> LoadSuggestion {
-        if isBodyweight(prescribedLoad) {
-            return .bodyweight
-        }
+    /// CONTEXT.md *Load Suggestion*, the coach's explicit numbers first. The first arm that answers
+    /// wins, so `BW` pre-fills BW even when a `percentOneRM` value is also present.
+    private static let precedence: [@Sendable (LoadSuggestionInputs) -> LoadSuggestion?] = [
+        bodyweight, drop, percentOneRM
+    ]
 
-        if let dropPercent = dropPercent(from: prescribedLoad), let previousSetWeight {
-            let unrounded = previousSetWeight * (1 - dropPercent / 100)
-            return .weight(roundToNearestPlateIncrement(unrounded))
-        }
-
-        if let percent = percentOneRMValue(from: percentOneRM), let trainingMax {
-            let unrounded = trainingMax * percent / 100
-            return .weight(roundToNearestPlateIncrement(unrounded))
-        }
-
-        return .noSuggestion
+    /// The question the Set card asks. A Set that holds a structured Set Log shows that log, so it
+    /// consults nothing.
+    @MainActor
+    static func suggest(for set: ExerciseSet) -> LoadSuggestion {
+        guard set.setLog == nil else { return .noSuggestion }
+        return suggest(LoadSuggestionInputs(set: set))
     }
 
-    private static func isBodyweight(_ prescribedLoad: String) -> Bool {
-        Weight(text: prescribedLoad.trimmingCharacters(in: .whitespacesAndNewlines)) == .bodyweight
+    static func suggest(_ inputs: LoadSuggestionInputs) -> LoadSuggestion {
+        precedence.lazy.compactMap { $0(inputs) }.first ?? .noSuggestion
+    }
+
+    private static func bodyweight(_ inputs: LoadSuggestionInputs) -> LoadSuggestion? {
+        Weight(text: inputs.prescribedLoad.trimmingCharacters(in: .whitespacesAndNewlines)) == .bodyweight
+            ? .bodyweight : nil
+    }
+
+    private static func drop(_ inputs: LoadSuggestionInputs) -> LoadSuggestion? {
+        guard let dropPercent = dropPercent(from: inputs.prescribedLoad), let previous = previousSetPounds(inputs)
+        else { return nil }
+        return .weight(roundToNearestPlateIncrement(previous * (1 - dropPercent / 100)))
+    }
+
+    private static func percentOneRM(_ inputs: LoadSuggestionInputs) -> LoadSuggestion? {
+        guard let percent = percentOneRMValue(from: inputs.percentOneRM), let trainingMax = inputs.trainingMax
+        else { return nil }
+        return .weight(roundToNearestPlateIncrement(trainingMax * percent / 100))
+    }
+
+    /// The nearest earlier Set's logged weight in pounds. A bodyweight Set carries no weight, so the
+    /// scan passes over it to the next one back.
+    private static func previousSetPounds(_ inputs: LoadSuggestionInputs) -> Double? {
+        inputs.earlierSets
+            .sorted { $0.index > $1.index }
+            .lazy
+            .compactMap { earlier -> Double? in
+                guard case .pounds(let pounds) = earlier.setLog.weight else { return nil }
+                return pounds
+            }
+            .first
     }
 
     private static func dropPercent(from prescribedLoad: String) -> Double? {

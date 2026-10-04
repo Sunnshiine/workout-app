@@ -6,8 +6,7 @@ import Testing
 @Test func weightPillPrefillsFromLoadSuggestion() {
     let form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE6", percentOneRM: "75%", state: .pending),
-        previousSetWeight: nil,
-        trainingMax: 265
+        suggestion: .weight(200)
     )
 
     #expect(form.weightText == "200")
@@ -15,34 +14,10 @@ import Testing
 }
 
 @MainActor
-@Test func weightPillUsesPercentOneRMColumnForLoadSuggestion() {
-    let form = SmartValuePillsForm(
-        set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE6", percentOneRM: "75%", state: .pending),
-        previousSetWeight: nil,
-        trainingMax: 265
-    )
-
-    #expect(form.weightText == "200")
-}
-
-@MainActor
 @Test func weightPillPrefillsBodyweightPrescription() {
     let form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "12", prescribedLoad: "BW", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
-    )
-
-    #expect(form.weightText == "BW")
-    #expect(form.weightDisplay == "BW")
-}
-
-@MainActor
-@Test func weightPillPrefersBodyweightOverAPresentPercentOneRM() {
-    let form = SmartValuePillsForm(
-        set: ExerciseSet(index: 0, prescribedReps: "12", prescribedLoad: "BW", percentOneRM: "75%", state: .pending),
-        previousSetWeight: nil,
-        trainingMax: 265
+        suggestion: .bodyweight
     )
 
     #expect(form.weightText == "BW")
@@ -53,8 +28,7 @@ import Testing
 @Test func weightPillShowsDashWhenDropPercentCannotCalculateYet() {
     let form = SmartValuePillsForm(
         set: ExerciseSet(index: 1, prescribedReps: "8", prescribedLoad: "Drop 17.5%", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .noSuggestion
     )
 
     #expect(form.weightText == "")
@@ -65,8 +39,7 @@ import Testing
 @Test func weightPillRendersADropSuggestionPastIntRangeInsteadOfTrapping() {
     let form = SmartValuePillsForm(
         set: ExerciseSet(index: 1, prescribedReps: "5", prescribedLoad: "Drop 50%", percentOneRM: nil, state: .pending),
-        previousSetWeight: 2e19,
-        trainingMax: nil
+        suggestion: .weight(1e19)
     )
 
     #expect(form.weightText == "1e+19")
@@ -76,13 +49,11 @@ import Testing
 @Test func repsPillPrefillsPrescribedRepsAndLeavesAMRAPEmpty() {
     let prescribed = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .noSuggestion
     )
     let amrap = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "AMRAP", prescribedLoad: "BW", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .bodyweight
     )
 
     #expect(prescribed.repsText == "8")
@@ -95,13 +66,11 @@ import Testing
 @Test func repsPillShowsNonIntegerPrescriptionAsHint() {
     let range = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "10-15", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .noSuggestion
     )
     let amrap = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "AMRAP", prescribedLoad: "BW", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .bodyweight
     )
 
     #expect(range.repsText == "")
@@ -116,8 +85,7 @@ import Testing
 @Test func fineWeightIncrementIsTwoAndAHalfUnderThresholdAndFiveAtOrAboveIt() {
     var form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .noSuggestion
     )
     form.weightText = "100"
     #expect(form.fineWeightIncrement == 2.5)
@@ -130,8 +98,7 @@ import Testing
 @Test func weightSteppingIsHiddenUntilThereIsANumericWeight() {
     var bodyweight = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "12", prescribedLoad: "BW", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .bodyweight
     )
     #expect(!bodyweight.allowsWeightStepping)
 
@@ -152,8 +119,7 @@ import Testing
 @Test func weightIncrementButtonsAdjustCurrentWeight() {
     var form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .noSuggestion
     )
     form.weightText = "95"
 
@@ -168,8 +134,7 @@ import Testing
 @Test func logButtonPreviewUpdatesAndRequiresCompleteSetLog() {
     var form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "75%1RM", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .noSuggestion
     )
     form.weightText = "185"
 
@@ -187,8 +152,7 @@ import Testing
 @Test func logButtonTitleUsesGenericIncompletePromptWhenMultipleFieldsAreMissing() {
     let form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "AMRAP", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .noSuggestion
     )
 
     #expect(form.logButtonTitle == "Complete Set Log")
@@ -199,8 +163,7 @@ import Testing
 @Test func formValidationMarksInvalidFieldsAndClearsThemAsTheyBecomeValid() {
     var form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "10-15", prescribedLoad: "75%1RM", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .noSuggestion
     )
 
     #expect(form.invalidFields.isEmpty)
@@ -222,8 +185,7 @@ import Testing
 @Test func selectedRPEStateCanMoveFromHalfStepBackToWholeStep() {
     var form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 6", percentOneRM: "95%", state: .pending),
-        previousSetWeight: nil,
-        trainingMax: 250
+        suggestion: .weight(237.5)
     )
 
     form.rpeText = "6.5"
@@ -239,7 +201,7 @@ import Testing
     let loggedSet = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .logged)
     loggedSet.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: .sixPointFive)
 
-    let form = SmartValuePillsForm(set: loggedSet, previousSetWeight: nil, trainingMax: nil)
+    let form = SmartValuePillsForm(set: loggedSet, suggestion: .noSuggestion)
 
     #expect(form.rpeText == "6.5")
     #expect(form.logButtonTitle == "Log 185 × 5 @6.5")
@@ -250,8 +212,7 @@ import Testing
     func prefill(_ prescribedLoad: String) -> String {
         SmartValuePillsForm(
             set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: prescribedLoad, percentOneRM: nil, state: .pending),
-            previousSetWeight: nil,
-            trainingMax: nil
+            suggestion: .noSuggestion
         ).rpeText
     }
 
@@ -269,8 +230,7 @@ import Testing
 @Test func submittingInvalidLogMarksInvalidFieldsWithoutProducingLog() {
     var form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "AMRAP", prescribedLoad: "75%1RM", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .noSuggestion
     )
 
     #expect(form.submitLog() == nil)
@@ -288,8 +248,7 @@ import Testing
 @Test func logFormAcceptsOnlyBodyweightOrFiniteWeightIntegerRepsAndRailPointRPE() {
     var form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "BW", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .bodyweight
     )
     form.repsText = "8"
     form.rpeText = "5"
@@ -325,7 +284,7 @@ import Testing
 @Test func cancelRestoresLoggedSetOrSuggestionState() {
     let loggedSet = ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 7", percentOneRM: nil, state: .logged)
     loggedSet.setLog = SetLog(weight: .pounds(185), reps: 7, rpe: .eight)
-    var logged = SmartValuePillsForm(set: loggedSet, previousSetWeight: nil, trainingMax: nil)
+    var logged = SmartValuePillsForm(set: loggedSet, suggestion: .noSuggestion)
     logged.weightText = "200"
     logged.repsText = "9"
     logged.rpeText = "9"
@@ -337,7 +296,7 @@ import Testing
     #expect(logged.rpeText == "8")
 
     let suggestedSet = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "", percentOneRM: "75%", state: .pending)
-    var suggested = SmartValuePillsForm(set: suggestedSet, previousSetWeight: nil, trainingMax: 265)
+    var suggested = SmartValuePillsForm(set: suggestedSet, suggestion: .weight(200))
     suggested.weightText = "190"
 
     suggested.cancel()
@@ -351,7 +310,7 @@ import Testing
 @Test func loggedSetDraftOnlyProducesChangedValidLog() {
     let loggedSet = ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 7", percentOneRM: nil, state: .logged)
     loggedSet.setLog = SetLog(weight: .pounds(185), reps: 7, rpe: .eight)
-    var form = SmartValuePillsForm(set: loggedSet, previousSetWeight: nil, trainingMax: nil)
+    var form = SmartValuePillsForm(set: loggedSet, suggestion: .noSuggestion)
 
     #expect(form.changedValidLog == nil)
 
@@ -368,8 +327,7 @@ import Testing
 @Test func prescribedRPEComesFromPrescribedLoad() {
     let form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .noSuggestion
     )
 
     #expect(form.prescribedRPE == .eight)
@@ -381,8 +339,7 @@ import Testing
     // freshly-focused set can be logged at the prescription with a single tap.
     let prescribed = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: "75%", state: .pending),
-        previousSetWeight: nil,
-        trainingMax: 265
+        suggestion: .weight(200)
     )
 
     #expect(prescribed.rpeText == "8")
@@ -390,8 +347,7 @@ import Testing
 
     let noPrescribedRPE = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "", percentOneRM: "75%", state: .pending),
-        previousSetWeight: nil,
-        trainingMax: 265
+        suggestion: .weight(200)
     )
 
     #expect(noPrescribedRPE.rpeText == "")
@@ -401,8 +357,7 @@ import Testing
 private func stepForm(weight: String) -> SmartValuePillsForm {
     var form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil, state: .pending),
-        previousSetWeight: nil,
-        trainingMax: nil
+        suggestion: .noSuggestion
     )
     form.weightText = weight
     return form
@@ -410,7 +365,7 @@ private func stepForm(weight: String) -> SmartValuePillsForm {
 
 @MainActor
 @Test func stepWeightAddsAndSubtractsTheFineIncrementWithoutHittingTheFloor() {
-    var form = stepForm(weight: "185") // above the gym threshold → heavy step of 5
+    var form = stepForm(weight: "185")  // above the gym threshold → heavy step of 5
     #expect(form.fineWeightIncrement == 5)
 
     #expect(form.stepWeight(.up) == false)
@@ -422,7 +377,7 @@ private func stepForm(weight: String) -> SmartValuePillsForm {
 
 @MainActor
 @Test func stepWeightLandingExactlyOnZeroIsANormalStepNotAFloorHit() {
-    var form = stepForm(weight: "2.5") // at/below the threshold → light step of 2.5
+    var form = stepForm(weight: "2.5")  // at/below the threshold → light step of 2.5
 
     // 2.5 − 2.5 == 0 exactly: a valid step down to zero, so no floor hit (the tick, not the dud).
     #expect(form.stepWeight(.down) == false)

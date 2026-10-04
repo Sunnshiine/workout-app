@@ -15,7 +15,6 @@ struct ActiveSetCard: View {
         }
     }
 
-    let exercise: Exercise
     let set: ExerciseSet
     let setOrdinal: Int
     let setCount: Int
@@ -49,8 +48,7 @@ struct ActiveSetCard: View {
             SmartValuePills(
                 set: set,
                 mode: mode.setCardMode,
-                previousSetWeight: exercise.mostRecentLoggedPounds(before: set.index),
-                trainingMax: exercise.trainingMax,
+                suggestion: LoadSuggestionEngine.suggest(for: set),
                 onLog: onLog,
                 onSkip: onSkip,
                 onDelete: onDelete,

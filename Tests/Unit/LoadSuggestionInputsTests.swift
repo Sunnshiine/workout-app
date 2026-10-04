@@ -28,21 +28,6 @@ private func exercise(name: String, baseName: String, in block: Block) -> Exerci
 }
 
 @MainActor
-private func loggedSet(index: Int, weight: Weight?) -> ExerciseSet {
-    let set = ExerciseSet(
-        index: index,
-        prescribedReps: "5",
-        prescribedLoad: "RPE 8",
-        percentOneRM: nil,
-        state: weight == nil ? .pending : .logged
-    )
-    if let weight {
-        set.setLog = SetLog(weight: weight, reps: 5, rpe: .eight)
-    }
-    return set
-}
-
-@MainActor
 @Suite struct TrainingMaxLookupTests {
     @Test func backSquatTakesTheSquatTrainingMax() {
         #expect(exercise(named: "Back Squat").trainingMax == 405)
@@ -93,37 +78,5 @@ private func loggedSet(index: Int, weight: Weight?) -> ExerciseSet {
 
         #expect(exercise(name: "0:3:0 Back Squat", baseName: "Back Squat", in: block).trainingMax == 405)
         #expect(exercise(name: "Bench Press", baseName: "RDL", in: block).trainingMax == nil)
-    }
-}
-
-@MainActor
-@Suite struct MostRecentLoggedPoundsTests {
-    @Test func takesTheNearestEarlierLoggedPounds() {
-        let exercise = exercise(named: "Back Squat")
-        exercise.sets = [
-            loggedSet(index: 0, weight: .pounds(185)),
-            loggedSet(index: 1, weight: .pounds(225)),
-            loggedSet(index: 2, weight: nil)
-        ]
-
-        #expect(exercise.mostRecentLoggedPounds(before: 2) == 225)
-    }
-
-    @Test func skipsBodyweightAndUnloggedSets() {
-        let exercise = exercise(named: "Back Squat")
-        exercise.sets = [
-            loggedSet(index: 0, weight: .pounds(185)),
-            loggedSet(index: 1, weight: .bodyweight),
-            loggedSet(index: 2, weight: nil)
-        ]
-
-        #expect(exercise.mostRecentLoggedPounds(before: 3) == 185)
-    }
-
-    @Test func theFirstSetHasNoEarlierWeight() {
-        let exercise = exercise(named: "Back Squat")
-        exercise.sets = [loggedSet(index: 0, weight: .pounds(185))]
-
-        #expect(exercise.mostRecentLoggedPounds(before: 0) == nil)
     }
 }
