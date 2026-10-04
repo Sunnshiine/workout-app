@@ -134,18 +134,25 @@ struct SmartValuePills: View {
             }
 
             if let loadBasisLine = form.loadBasisLine {
-                Text(loadBasisLine.text)
-                    .font(Theme.font(.runline))
-                    .foregroundStyle(palette.textSecondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.82)
-                    .truncationMode(.tail)
-                    .opacity(loadBasisLine.isShown ? 1 : 0)
-                    .accessibilityHidden(!loadBasisLine.isShown)
-                    .accessibilityIdentifier("load-basis-line")
+                if loadBasisLine.isShown {
+                    loadBasisText(loadBasisLine.text)
+                        .accessibilityIdentifier("load-basis-line")
+                } else {
+                    loadBasisText(loadBasisLine.text)
+                        .hidden()
+                }
             }
         }
         .accessibilityElement(children: .contain)
+    }
+
+    private func loadBasisText(_ text: String) -> some View {
+        Text(text)
+            .font(Theme.font(.runline))
+            .foregroundStyle(palette.textSecondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.82)
+            .truncationMode(.tail)
     }
 
     /// Validation marks only the offending field with `danger` (DESIGN.md §5.2): an invalid weight
