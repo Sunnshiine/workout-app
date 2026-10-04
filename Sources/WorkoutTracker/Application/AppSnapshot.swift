@@ -151,7 +151,7 @@ extension LoadBasisSnapshot {
         switch basis.origin {
         case .today(let setIndex):
             (origin, self.set, session) = (.today, SetAddress(exercise: id.exercise, index: setIndex), nil)
-        case .history(let coordinate):
+        case .history(let coordinate, _):
             (origin, self.set, session) = (.history, nil, coordinate.storageValue)
         }
     }

@@ -8,12 +8,13 @@ struct LoadBasisPresentation: Equatable, Sendable {
         switch basis.origin {
         case .today(let setIndex):
             text = "from Set \(setIndex + 1) today"
-        case .history(let session):
+        case .history(let session, let baseName):
             let sessionLabel = session.address.sessionLabel
             let place =
                 session.blockTab == set.exercise?.session?.week?.block?.tabName
                 ? sessionLabel : "\(session.blockTab) \(sessionLabel)"
-            text = "from \(basis.setLog.formatted) · \(place)"
+            let matchedName = baseName.lowercased() == set.exercise?.baseName.lowercased() ? "" : " as “\(baseName)”"
+            text = "from \(basis.setLog.formatted) · \(place)\(matchedName)"
         }
     }
 }

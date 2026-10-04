@@ -442,6 +442,39 @@ private func cardForm(_ set: ExerciseSet, history: [(resultText: String, source:
 }
 
 @MainActor
+private func movementLevelForm(entryBaseName: String) -> SmartValuePillsForm {
+    let exercise = makeBenchPress(loads: ["RPE6"], at: SessionAddress(week: 2, day: 2))
+    exercise.name = "Competition Bench Press"
+    exercise.baseName = "Competition Bench Press"
+    let history = LastPerformedLookupSnapshot(occurrences: [
+        LastPerformedOccurrence(
+            fullName: entryBaseName,
+            baseName: entryBaseName,
+            resultText: "185x5@7, 195x5@8",
+            performedOn: Date(timeIntervalSinceReferenceDate: 0),
+            source: "Block 27 · W1 D2"
+        )
+    ])
+    return SmartValuePillsForm(set: exercise.sets[0], suggestion: LoadSuggestionEngine.suggest(for: exercise.sets[0], history: history))
+}
+
+@MainActor
+@Test func anEstimateFromAMovementLevelMatchNamesTheEntryItCameFrom() {
+    let form = movementLevelForm(entryBaseName: "Comp Bench Press")
+
+    #expect(form.weightText == "182.5")
+    #expect(form.loadBasisLine == .init(text: "from 195x5@8 · W1 D2 as “Comp Bench Press”", isShown: true))
+}
+
+@MainActor
+@Test func anEstimateFromAnEntryNamedDifferentlyOnlyInCaseNamesNoEntry() {
+    let form = movementLevelForm(entryBaseName: "competition bench press")
+
+    #expect(form.weightText == "182.5")
+    #expect(form.loadBasisLine == .init(text: "from 195x5@8 · W1 D2", isShown: true))
+}
+
+@MainActor
 @Test func anEstimateFromAnEarlierSetNamesItAsToday() {
     let sets = makeBenchPress(loads: ["RPE6", "RPE7"]).sets.sorted { $0.index < $1.index }
     sets[0].markLogged(SetLog(weight: .pounds(185), reps: 5, rpe: .seven), at: Date(timeIntervalSinceReferenceDate: 0))

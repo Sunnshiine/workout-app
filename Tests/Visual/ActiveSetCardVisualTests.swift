@@ -36,6 +36,24 @@ struct ActiveSetCardVisualTests {
         )
     }
 
+    @Test func activeSetCardWithAMovementLevelEstimateMatchesVisualBaseline() throws {
+        let differentlyNamedEntry = LastPerformedEntry(
+            fullName: "Comp Bench Press",
+            baseName: "Comp Bench Press",
+            resultText: "185x5@7, 195x5@8",
+            performedOn: Date(timeIntervalSinceReferenceDate: 0),
+            source: "Block 27 · W1 D2"
+        )
+
+        try assertCardSnapshot(
+            makeHistoryEstimateScenario(),
+            setOrdinal: 1,
+            history: [differentlyNamedEntry],
+            appearance: .day,
+            colorScheme: .light
+        )
+    }
+
     private func assertCardSnapshot(
         _ card: (exercise: Exercise, set: ExerciseSet),
         setOrdinal: Int,
