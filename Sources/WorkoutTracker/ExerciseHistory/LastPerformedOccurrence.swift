@@ -17,3 +17,12 @@ struct LastPerformedOccurrence: Sendable, Equatable {
     /// The performed-in Session as a `SessionCoordinate.storageValue`, and the ADR-0012 dedup key.
     let source: String
 }
+
+extension LastPerformedOccurrence {
+    /// Nil when any token is neither a Set Log nor `skip`, so a Legacy Log yields none (ADR-0018).
+    var setLogs: [SetLog]? {
+        let tokens = splitSheetNotesList(resultText)
+        guard tokens.allSatisfy(SetLogToken.isSetLogListValue) else { return nil }
+        return tokens.compactMap(SetLog.init(formatted:))
+    }
+}

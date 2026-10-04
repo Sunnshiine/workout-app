@@ -77,13 +77,10 @@ enum LoadSuggestionEngine {
     }
 
     private static func historyBasis(_ entry: LastPerformedOccurrence) -> LoadBasis? {
-        let tokens = splitSheetNotesList(entry.resultText)
-        guard tokens.allSatisfy(SetLogToken.isSetLogListValue),
-            let session = SessionCoordinate(storageValue: entry.source)
-        else { return nil }
+        guard let setLogs = entry.setLogs, let session = SessionCoordinate(storageValue: entry.source) else { return nil }
         return
-            tokens
-            .compactMap { SetLog(formatted: $0).flatMap { LoadBasis(setLog: $0, origin: .history(session)) } }
+            setLogs
+            .compactMap { LoadBasis(setLog: $0, origin: .history(session)) }
             .enumerated()
             .max { ($0.element.setLog.rpe.rawValue, $0.offset) < ($1.element.setLog.rpe.rawValue, $1.offset) }?
             .element
