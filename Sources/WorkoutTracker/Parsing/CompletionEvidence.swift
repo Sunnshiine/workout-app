@@ -68,7 +68,7 @@ extension ParsedExercise {
     /// Unstructured Set Log "Set-level completion evidence, distinct from a Legacy Log". A Skipped
     /// Set does not count, because a skip records that the athlete did not perform the Set.
     var hasSetLevelCompletionEvidence: Bool {
-        setLevelCompletionEvidence.contains(where: \.isLogged)
+        setLevelCompletionEvidence.resultText != nil
     }
 
     var legacyLogAsCompletionEvidence: String? {
