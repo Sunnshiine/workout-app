@@ -6,7 +6,7 @@ import Testing
 @MainActor
 @Test func weightPillPrefillsFromLoadSuggestion() {
     let form = SmartValuePillsForm(
-        set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE6", percentOneRM: "75%", state: .pending),
+        set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "", percentOneRM: nil, state: .pending),
         suggestion: .prescribedWeight(200)
     )
 

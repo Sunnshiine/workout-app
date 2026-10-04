@@ -427,7 +427,7 @@ private func makeRestActionFixture(
         LastPerformedEntry(
             fullName: "Bench Press",
             baseName: "Bench Press",
-            result: SetLog(weight: .pounds(185), reps: 6, rpe: .seven),
+            resultText: "185x6@7",
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "W3 D2"
         )
