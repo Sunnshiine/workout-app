@@ -16,6 +16,7 @@ struct LastPerformedCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
             .accessibilityHint(onTap == nil ? "" : "Opens Exercise History")
+            .accessibilityIdentifier("last-performed-line")
             .modifier(TapModifier(onTap: onTap))
     }
 

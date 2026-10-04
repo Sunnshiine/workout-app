@@ -77,10 +77,9 @@ struct SupersetStageVisualTests {
     /// Reproduces the pick: DB Incline Press (Set 2 of 4, first Set logged 30×10 @8) forked with a
     /// resting Chest-Supported Row, the focus on the press.
     private func makeSupersetConfig() throws -> SessionSupersetRenderConfig {
-        // The focused Exercise is named to contain "bench" so its Load Suggestion resolves through
-        // the block's benchTM (150 × 20% = 30) — the fixture's stand-in for the pick's
-        // prefill-from-last-week's-actuals (DESIGN.md §5.2), which the current engine only produces
-        // from a %1RM or Drop prescription. This fills the card exactly as the pick shows it.
+        // The press is named "bench" and prescribed 20% so %1RM, which outranks the RPE target's
+        // estimate, fills 30 from the Block's bench Training Max (150 × 20%) with no Load Basis
+        // line, as the pick shows.
         let press = Exercise(
             name: "Incline Bench Press",
             baseName: "Incline Bench Press",
