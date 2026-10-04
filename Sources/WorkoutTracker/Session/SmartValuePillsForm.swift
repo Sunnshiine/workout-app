@@ -192,7 +192,7 @@ struct SmartValuePillsForm {
 
     private static func initialWeightText(for suggestion: LoadSuggestion) -> String {
         switch suggestion {
-        case .weight(let weight), .estimate(let weight, _):
+        case .prescribedWeight(let weight), .estimate(let weight, _):
             return Weight.pounds(weight).label
         case .bodyweight:
             return "BW"

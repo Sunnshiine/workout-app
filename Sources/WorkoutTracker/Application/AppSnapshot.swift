@@ -115,7 +115,7 @@ public struct LoadSuggestionSnapshot: Encodable, Equatable, Sendable {
     @MainActor
     init(for set: ExerciseSet, id: SetAddress, history: LastPerformedLookupSnapshot) {
         switch LoadSuggestionEngine.suggest(for: set, history: history) {
-        case .weight(let weight):
+        case .prescribedWeight(let weight):
             (kind, self.weight, basis) = (.weight, weight, nil)
         case .bodyweight:
             (kind, weight, basis) = (.bodyweight, nil, nil)

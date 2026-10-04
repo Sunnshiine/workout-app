@@ -7,7 +7,7 @@ import Testing
 @Test func weightPillPrefillsFromLoadSuggestion() {
     let form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE6", percentOneRM: "75%", state: .pending),
-        suggestion: .weight(200)
+        suggestion: .prescribedWeight(200)
     )
 
     #expect(form.weightText == "200")
@@ -40,7 +40,7 @@ import Testing
 @Test func weightPillRendersADropSuggestionPastIntRangeInsteadOfTrapping() {
     let form = SmartValuePillsForm(
         set: ExerciseSet(index: 1, prescribedReps: "5", prescribedLoad: "Drop 50%", percentOneRM: nil, state: .pending),
-        suggestion: .weight(1e19)
+        suggestion: .prescribedWeight(1e19)
     )
 
     #expect(form.weightText == "1e+19")
@@ -186,7 +186,7 @@ import Testing
 @Test func selectedRPEStateCanMoveFromHalfStepBackToWholeStep() {
     var form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 6", percentOneRM: "95%", state: .pending),
-        suggestion: .weight(237.5)
+        suggestion: .prescribedWeight(237.5)
     )
 
     form.rpeText = "6.5"
@@ -297,7 +297,7 @@ import Testing
     #expect(logged.rpeText == "8")
 
     let suggestedSet = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "", percentOneRM: "75%", state: .pending)
-    var suggested = SmartValuePillsForm(set: suggestedSet, suggestion: .weight(200))
+    var suggested = SmartValuePillsForm(set: suggestedSet, suggestion: .prescribedWeight(200))
     suggested.weightText = "190"
 
     suggested.cancel()
@@ -340,7 +340,7 @@ import Testing
     // freshly-focused set can be logged at the prescription with a single tap.
     let prescribed = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: "75%", state: .pending),
-        suggestion: .weight(200)
+        suggestion: .prescribedWeight(200)
     )
 
     #expect(prescribed.rpeText == "8")
@@ -348,7 +348,7 @@ import Testing
 
     let noPrescribedRPE = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "", percentOneRM: "75%", state: .pending),
-        suggestion: .weight(200)
+        suggestion: .prescribedWeight(200)
     )
 
     #expect(noPrescribedRPE.rpeText == "")

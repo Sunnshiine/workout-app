@@ -1,7 +1,7 @@
 import Foundation
 
 enum LoadSuggestion: Equatable, Sendable {
-    case weight(Double)
+    case prescribedWeight(Double)
     case bodyweight
     case estimate(Double, basis: LoadBasis)
     case noSuggestion
@@ -56,13 +56,13 @@ enum LoadSuggestionEngine {
     private static func drop(_ inputs: LoadSuggestionInputs) -> LoadSuggestion? {
         guard let dropPercent = dropPercent(from: inputs.prescribedLoad), let previous = previousSetPounds(inputs)
         else { return nil }
-        return .weight(roundToNearestPlateIncrement(previous * (1 - dropPercent / 100)))
+        return .prescribedWeight(roundToNearestPlateIncrement(previous * (1 - dropPercent / 100)))
     }
 
     private static func percentOneRM(_ inputs: LoadSuggestionInputs) -> LoadSuggestion? {
         guard let percent = percentOneRMValue(from: inputs.percentOneRM), let trainingMax = inputs.trainingMax
         else { return nil }
-        return .weight(roundToNearestPlateIncrement(trainingMax * percent / 100))
+        return .prescribedWeight(roundToNearestPlateIncrement(trainingMax * percent / 100))
     }
 
     private static func rpeTable(_ inputs: LoadSuggestionInputs) -> LoadSuggestion? {

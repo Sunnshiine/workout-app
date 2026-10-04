@@ -45,7 +45,7 @@ private func logged(_ weight: Weight) -> SetLog {
             percentOneRM: nil,
             previousSetWeight: 225,
             trainingMax: nil
-        ) == .weight(185)
+        ) == .prescribedWeight(185)
     )
 }
 
@@ -56,7 +56,7 @@ private func logged(_ weight: Weight) -> SetLog {
             percentOneRM: "75%",
             previousSetWeight: nil,
             trainingMax: 265
-        ) == .weight(200)
+        ) == .prescribedWeight(200)
     )
 }
 
@@ -67,7 +67,7 @@ private func logged(_ weight: Weight) -> SetLog {
             percentOneRM: nil,
             previousSetWeight: 185,
             trainingMax: nil
-        ) == .weight(162.5)
+        ) == .prescribedWeight(162.5)
     )
 }
 
@@ -125,11 +125,17 @@ func unsupportedPrescribedLoadReturnsNone(prescribedLoad: String) {
 }
 
 @Test func dropReadsTheNearestEarlierSetByIndexInAnyOrder() {
-    #expect(dropSuggestion(after: [(index: 1, setLog: logged(.pounds(225))), (index: 0, setLog: logged(.pounds(185)))]) == .weight(180))
+    #expect(
+        dropSuggestion(after: [(index: 1, setLog: logged(.pounds(225))), (index: 0, setLog: logged(.pounds(185)))])
+            == .prescribedWeight(180)
+    )
 }
 
 @Test func dropPassesOverABodyweightSetToTheNextOneBack() {
-    #expect(dropSuggestion(after: [(index: 0, setLog: logged(.pounds(185))), (index: 1, setLog: logged(.bodyweight))]) == .weight(147.5))
+    #expect(
+        dropSuggestion(after: [(index: 0, setLog: logged(.pounds(185))), (index: 1, setLog: logged(.bodyweight))])
+            == .prescribedWeight(147.5)
+    )
 }
 
 @Test func dropOnTheFirstSetHasNothingToDropFrom() {
@@ -219,7 +225,7 @@ private func basis(_ formatted: String, _ origin: LoadBasis.Origin) throws -> Lo
 }
 
 @Test func aPercentOneRMWithATrainingMaxBeatsHistory() {
-    #expect(rpeTarget(percentOneRM: "75%", trainingMax: 400, history: "315x5@7") == .weight(300))
+    #expect(rpeTarget(percentOneRM: "75%", trainingMax: 400, history: "315x5@7") == .prescribedWeight(300))
 }
 
 @Test func aRepRangeTargetsItsMidpoint() throws {

@@ -51,7 +51,7 @@ struct GlassBearingViewsVisualTests {
         assertGlassBaseline {
             SmartValuePills(
                 set: set,
-                suggestion: .weight(282.5),
+                suggestion: .prescribedWeight(282.5),
                 onLog: { _ in },
                 onSkip: {},
                 onDelete: {}
