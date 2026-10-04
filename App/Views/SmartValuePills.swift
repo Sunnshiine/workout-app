@@ -133,13 +133,15 @@ struct SmartValuePills: View {
                 weightStepper(.increment, id: "weight-increment")
             }
 
-            if let loadBasisText = form.loadBasisText {
-                Text(loadBasisText)
+            if let loadBasisLine = form.loadBasisLine {
+                Text(loadBasisLine.text)
                     .font(Theme.font(.runline))
                     .foregroundStyle(palette.textSecondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
                     .truncationMode(.tail)
+                    .opacity(loadBasisLine.isShown ? 1 : 0)
+                    .accessibilityHidden(!loadBasisLine.isShown)
                     .accessibilityIdentifier("load-basis-line")
             }
         }

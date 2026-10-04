@@ -19,8 +19,18 @@ struct SmartValuePillsForm {
     private let initialRepsText: String
     private let initialRPEText: String
 
+    struct LoadBasisLine: Equatable {
+        let text: String
+        let isShown: Bool
+    }
+
+    /// An override hides the text but keeps its space, so the bottom-anchored card does not shift.
+    var loadBasisLine: LoadBasisLine? {
+        estimateBasisText.map { LoadBasisLine(text: $0, isShown: weightText == initialWeightText) }
+    }
+
     var loadBasisText: String? {
-        weightText == initialWeightText ? estimateBasisText : nil
+        loadBasisLine.flatMap { $0.isShown ? $0.text : nil }
     }
 
     var weightDisplay: String {

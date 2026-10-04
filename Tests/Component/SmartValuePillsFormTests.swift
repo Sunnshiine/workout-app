@@ -466,6 +466,16 @@ private func cardForm(_ set: ExerciseSet, history: [(resultText: String, source:
 }
 
 @MainActor
+@Test func anOverriddenEstimateKeepsItsLoadBasisLineSpaceWithTheTextHidden() {
+    let set = makeBenchPress(loads: ["RPE6"]).sets[0]
+    var form = cardForm(set, history: [("185x5@7, 195x5@8", "Block 26 · W4 D1")])
+
+    form.stepWeight(.up)
+
+    #expect(form.loadBasisLine == .init(text: "from 195x5@8 · Block 26 W4 D1", isShown: false))
+}
+
+@MainActor
 @Test func aLaterSuggestionReplacesAnUntouchedPrefillAndItsBasisLine() {
     let set = makeBenchPress(loads: ["RPE6"]).sets[0]
     var form = SmartValuePillsForm(set: set, suggestion: LoadSuggestionEngine.suggest(for: set, history: .empty))
