@@ -402,9 +402,11 @@ after:
 - **A basis line names where an estimated weight came from.** It sits directly
   under the weight in the athlete's own notation: `from 315x5@7 · W1 D2`,
   `from Set 1 today`, or `from 195x5@8 · Block 26 W4 D1` for another Block.
-  When the Last Performed ladder matched the entry at Movement level, the
-  line ends with the entry's own name, `from 195x5@8 · W1 D2 as “Comp Bench
-  Press”`, exactly when the Last Performed line above it does.
+  When the Last Performed ladder, run without the Viewed Session, matched the
+  entry at Movement level, the line ends with the entry's own name,
+  `from 195x5@8 · W1 D2 as “Comp Bench Press”`. The Last Performed line above
+  it includes the Viewed Session, so once a Set is logged today the two lines
+  can name different entries. Whether they should is #803's open question.
   It is a `runline` in `textSecondary`, shrinks then truncates, and leaves as
   soon as the athlete changes the weight, so it never explains a number that is
   no longer on the card. Cards without an estimate carry no line.

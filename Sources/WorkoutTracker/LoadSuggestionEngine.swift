@@ -10,7 +10,7 @@ enum LoadSuggestion: Equatable, Sendable {
 struct LoadBasis: Equatable, Sendable {
     enum Origin: Equatable, Sendable {
         case today(setIndex: Int)
-        case history(SessionCoordinate, matchedName: String? = nil)
+        case history(SessionCoordinate, matchedName: String?)
     }
 
     let setLog: SetLog

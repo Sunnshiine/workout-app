@@ -103,7 +103,7 @@ private let historyWithTheSetsOwnSession = LastPerformedLookupSnapshot(occurrenc
         let basis = try #require(
             LoadBasis(
                 setLog: SetLog(weight: .pounds(195), reps: 5, rpe: .eight),
-                origin: .history(SessionCoordinate(blockTab: "Block 26", address: SessionAddress(week: 4, day: 1)))
+                origin: .history(SessionCoordinate(blockTab: "Block 26", address: SessionAddress(week: 4, day: 1)), matchedName: nil)
             )
         )
 

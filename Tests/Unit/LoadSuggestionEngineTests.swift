@@ -98,7 +98,7 @@ private func basis(_ formatted: String, _ origin: LoadBasis.Origin) throws -> Lo
 }
 
 @Test func aHistorySetLogEstimatesAHarderTargetThroughTheRPETable() throws {
-    #expect(suggest(history: "315x5@7") == .estimate(325, basis: try basis("315x5@7", .history(block27W1D2))))
+    #expect(suggest(history: "315x5@7") == .estimate(325, basis: try basis("315x5@7", .history(block27W1D2, matchedName: nil))))
 }
 
 @Test func anEarlierSetTodayIsTheBasisBeforeAnyHistory() throws {
@@ -124,19 +124,19 @@ private func basis(_ formatted: String, _ origin: LoadBasis.Origin) throws -> Lo
 @Test func theHistoryBasisIsTheEntrysHighestRPESetLog() throws {
     #expect(
         suggest(load: "RPE7", history: "315x5@7, 295x5@6")
-            == .estimate(315, basis: try basis("315x5@7", .history(block27W1D2)))
+            == .estimate(315, basis: try basis("315x5@7", .history(block27W1D2, matchedName: nil)))
     )
 }
 
 @Test func aTieInRPEGoesToTheLaterSetLog() throws {
     #expect(
         suggest(history: "300x5@8, 290x5@8")
-            == .estimate(290, basis: try basis("290x5@8", .history(block27W1D2)))
+            == .estimate(290, basis: try basis("290x5@8", .history(block27W1D2, matchedName: nil)))
     )
 }
 
 @Test func aSkipInTheEntryLeavesItsSetLogsUsable() throws {
-    #expect(suggest(history: "skip, 315x5@7") == .estimate(325, basis: try basis("315x5@7", .history(block27W1D2))))
+    #expect(suggest(history: "skip, 315x5@7") == .estimate(325, basis: try basis("315x5@7", .history(block27W1D2, matchedName: nil))))
 }
 
 @Test func aPercentOneRMWithATrainingMaxBeatsHistory() {
@@ -144,7 +144,7 @@ private func basis(_ formatted: String, _ origin: LoadBasis.Origin) throws -> Lo
 }
 
 @Test func aRepRangeTargetsItsMidpoint() throws {
-    let basis = try basis("315x5@7", .history(block27W1D2))
+    let basis = try basis("315x5@7", .history(block27W1D2, matchedName: nil))
 
     #expect(suggest(reps: "8-10", history: "315x5@7") == .estimate(282.5, basis: basis))
     #expect(suggest(reps: "7 - 8", history: "315x5@7") == .estimate(300, basis: basis))
@@ -174,18 +174,18 @@ func aHistoryEntryWithNoUsableSetLogSuggestsNothing(resultText: String) {
 @Test func aSingleAtRPE10IsTheTablesTopPoint() throws {
     #expect(
         suggest(reps: "1", load: "RPE10", history: "100x1@10")
-            == .estimate(100, basis: try basis("100x1@10", .history(block27W1D2)))
+            == .estimate(100, basis: try basis("100x1@10", .history(block27W1D2, matchedName: nil)))
     )
 }
 
 @Test func twelveRepsAtRPE6IsTheTablesBottomPointAt57Point4Percent() throws {
     #expect(
         suggest(reps: "1", load: "RPE10", history: "287x12@6")
-            == .estimate(500, basis: try basis("287x12@6", .history(block27W1D2)))
+            == .estimate(500, basis: try basis("287x12@6", .history(block27W1D2, matchedName: nil)))
     )
     #expect(
         suggest(reps: "12", load: "RPE6", history: "100x1@10")
-            == .estimate(57.5, basis: try basis("100x1@10", .history(block27W1D2)))
+            == .estimate(57.5, basis: try basis("100x1@10", .history(block27W1D2, matchedName: nil)))
     )
 }
 
