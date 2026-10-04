@@ -452,8 +452,8 @@ private func makeRestActionFixture(
     let session = makeCoordinatorSession()
     let coordinator = SessionCoordinator(session: session)
     let lookup = LastPerformedLookupSnapshot(
-        exactMatches: [
-            "Bench Press": LastPerformedOccurrence(
+        occurrences: [
+            LastPerformedOccurrence(
                 fullName: "Bench Press",
                 baseName: "Bench Press",
                 resultText: "185x6@7",

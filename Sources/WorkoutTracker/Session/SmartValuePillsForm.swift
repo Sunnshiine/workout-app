@@ -14,9 +14,16 @@ struct SmartValuePillsForm {
     let prescribedRPE: RPE?
     let repsPlaceholder: String?
     private var showsInvalidFields = false
+    private let estimateBasisText: String?
     private let initialWeightText: String
     private let initialRepsText: String
     private let initialRPEText: String
+
+    /// The Load Basis line under the weight, shown only while the weight is still the estimate it
+    /// explains, so an override never leaves the line vouching for a number the athlete replaced.
+    var loadBasisText: String? {
+        weightText == initialWeightText ? estimateBasisText : nil
+    }
 
     var weightDisplay: String {
         weightText.isEmpty ? "—" : weightText
@@ -79,8 +86,11 @@ struct SmartValuePillsForm {
             weightText = setLog.weight.label
             repsText = String(setLog.reps)
             rpeText = setLog.rpe.label
+            estimateBasisText = nil
         } else {
             weightText = Self.initialWeightText(for: suggestion)
+            estimateBasisText =
+                if case .estimate(_, let basis) = suggestion { LoadBasisPresentation(basis, for: set).text } else { nil }
             repsText = Self.initialRepsText(for: set.prescribedReps)
             rpeText = prescribedRPE?.label ?? ""
         }
@@ -184,7 +194,7 @@ struct SmartValuePillsForm {
 
     private static func initialWeightText(for suggestion: LoadSuggestion) -> String {
         switch suggestion {
-        case .weight(let weight):
+        case .weight(let weight), .estimate(let weight, _):
             return Weight.pounds(weight).label
         case .bodyweight:
             return "BW"

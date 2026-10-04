@@ -23,6 +23,8 @@ struct ActiveSetCard: View {
     let onSkip: () -> Void
     let onDelete: () -> Void
     var showsLoggedCheckmark = false
+    /// Required, so a host that forgets to inject it fails loudly instead of losing the estimate.
+    @Environment(LastPerformedLookupStore.self) private var history
     @Environment(\.themePalette) private var palette
     @State private var inputDismissalRequestID = 0
 
@@ -48,7 +50,7 @@ struct ActiveSetCard: View {
             SmartValuePills(
                 set: set,
                 mode: mode.setCardMode,
-                suggestion: LoadSuggestionEngine.suggest(for: set),
+                suggestion: LoadSuggestionEngine.suggest(for: set, history: history.snapshot),
                 onLog: onLog,
                 onSkip: onSkip,
                 onDelete: onDelete,

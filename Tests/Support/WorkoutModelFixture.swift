@@ -55,3 +55,24 @@ func makeBlock(tabName: String = "Block 40", sessions: [Session]) -> Block {
     }
     return block
 }
+
+/// A Bench Press of five-rep Sets at the given Prescribed Loads and no %1RM, parented up to a Block
+/// so a Set can name its own Session, which is all the RPE Table arm needs.
+@MainActor
+func makeBenchPress(
+    loads: [String],
+    blockTab: String = "Block 27",
+    at address: SessionAddress = SessionAddress(week: 1, day: 2)
+) -> Exercise {
+    let block = Block(tabName: blockTab)
+    let week = Week(number: address.week)
+    week.block = block
+    let session = Session(dayNumber: address.day, date: nil)
+    session.week = week
+    let exercise = Exercise(name: "Bench Press", baseName: "Bench Press", cadence: nil, coachNote: nil, order: 0)
+    exercise.session = session
+    exercise.sets = loads.enumerated().map { index, load in
+        ExerciseSet(index: index, prescribedReps: "5", prescribedLoad: load, percentOneRM: nil, state: .pending)
+    }
+    return exercise
+}

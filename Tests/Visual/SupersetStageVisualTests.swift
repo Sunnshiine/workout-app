@@ -30,6 +30,8 @@ struct SupersetStageVisualTests {
         column: UInt = #column
     ) throws {
         let config = try makeSupersetConfig()
+        let scenario = try WorkoutScenarios.freshConfiguredApp()
+        VisualFixtureRetainer.retain(scenario)
 
         let view = ZStack {
             Theme.palette(for: appearance).paperBackground
@@ -52,6 +54,7 @@ struct SupersetStageVisualTests {
                 Spacer(minLength: 0)
             }
         }
+        .environment(LastPerformedLookupStore(context: scenario.context))
         .environment(\.themePalette, Theme.palette(for: appearance))
         .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
         .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)

@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import WorkoutTracker
@@ -399,4 +400,66 @@ private func stepForm(weight: String) -> SmartValuePillsForm {
 
     form.stepWeight(.up)
     #expect(form.weightText == "1e+19")
+}
+
+// MARK: - The Load Basis line
+
+@MainActor
+private func cardForm(_ set: ExerciseSet, history: [(resultText: String, source: String)]) -> SmartValuePillsForm {
+    let snapshot = LastPerformedLookupSnapshot(
+        occurrences: history.map {
+            LastPerformedOccurrence(
+                fullName: "Bench Press",
+                baseName: "Bench Press",
+                resultText: $0.resultText,
+                performedOn: Date(timeIntervalSinceReferenceDate: 0),
+                source: $0.source
+            )
+        }
+    )
+    return SmartValuePillsForm(set: set, suggestion: LoadSuggestionEngine.suggest(for: set, history: snapshot))
+}
+
+@MainActor
+@Test func anEstimateFromAnotherBlockNamesItsBlockAndSession() {
+    let set = makeBenchPress(loads: ["RPE6"]).sets[0]
+
+    let form = cardForm(set, history: [("185x5@7, 195x5@8", "Block 26 · W4 D1")])
+
+    #expect(form.weightText == "182.5")
+    #expect(form.loadBasisText == "from 195x5@8 · Block 26 W4 D1")
+}
+
+@MainActor
+@Test func anEstimateFromTheSameBlockNamesOnlyItsSession() {
+    let set = makeBenchPress(loads: ["RPE7"], at: SessionAddress(week: 2, day: 1)).sets[0]
+
+    let form = cardForm(set, history: [("315x5@7, 295x5@6", "Block 27 · W1 D1")])
+
+    #expect(form.weightText == "315")
+    #expect(form.loadBasisText == "from 315x5@7 · W1 D1")
+}
+
+@MainActor
+@Test func anEstimateFromAnEarlierSetNamesItAsToday() {
+    let sets = makeBenchPress(loads: ["RPE6", "RPE7"]).sets.sorted { $0.index < $1.index }
+    sets[0].markLogged(SetLog(weight: .pounds(185), reps: 5, rpe: .seven), at: Date(timeIntervalSinceReferenceDate: 0))
+
+    let form = cardForm(sets[1], history: [("185x5@7, 195x5@8", "Block 26 · W4 D1")])
+
+    #expect(form.weightText == "185")
+    #expect(form.loadBasisText == "from Set 1 today")
+}
+
+@MainActor
+@Test func overridingTheEstimatedWeightHidesTheLoadBasisLine() {
+    let set = makeBenchPress(loads: ["RPE6"]).sets[0]
+    var form = cardForm(set, history: [("185x5@7, 195x5@8", "Block 26 · W4 D1")])
+
+    form.stepWeight(.up)
+    #expect(form.weightText == "187.5")
+    #expect(form.loadBasisText == nil)
+
+    form.cancel()
+    #expect(form.loadBasisText == "from 195x5@8 · Block 26 W4 D1")
 }

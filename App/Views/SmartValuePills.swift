@@ -118,13 +118,25 @@ struct SmartValuePills: View {
     // MARK: - Weight (the card's biggest number)
 
     private var weightControl: some View {
-        HStack(spacing: 12) {
-            weightStepper(.decrement, id: "weight-decrement")
+        VStack(spacing: 4) {
+            HStack(spacing: 12) {
+                weightStepper(.decrement, id: "weight-decrement")
 
-            weightValue
-                .frame(maxWidth: .infinity)
+                weightValue
+                    .frame(maxWidth: .infinity)
 
-            weightStepper(.increment, id: "weight-increment")
+                weightStepper(.increment, id: "weight-increment")
+            }
+
+            if let loadBasisText = form.loadBasisText {
+                Text(loadBasisText)
+                    .font(Theme.font(.runline))
+                    .foregroundStyle(palette.textSecondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+                    .truncationMode(.tail)
+                    .accessibilityIdentifier("load-basis-line")
+            }
         }
         .accessibilityElement(children: .contain)
     }

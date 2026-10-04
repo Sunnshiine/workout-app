@@ -80,3 +80,51 @@ private func exercise(name: String, baseName: String, in block: Block) -> Exerci
         #expect(exercise(name: "Bench Press", baseName: "RDL", in: block).trainingMax == nil)
     }
 }
+
+private func benchEntry(_ resultText: String, at source: String, performedOn: Double) -> LastPerformedOccurrence {
+    LastPerformedOccurrence(
+        fullName: "Bench Press",
+        baseName: "Bench Press",
+        resultText: resultText,
+        performedOn: Date(timeIntervalSinceReferenceDate: performedOn),
+        source: source
+    )
+}
+
+/// The Set's own Session is newer than every other entry and would win the ladder if it were read.
+private let historyWithTheSetsOwnSession = LastPerformedLookupSnapshot(occurrences: [
+    benchEntry("185x5@7, 195x5@8", at: "Block 26 · W4 D1", performedOn: 90),
+    benchEntry("405x5@7", at: "Block 27 · W1 D2", performedOn: 200)
+])
+
+@MainActor
+@Suite struct SuggestForASetTests {
+    /// 195x5@8 (81.1%) toward 5 @6 (76.2%): 183.2, rounded to 182.5.
+    @Test func theBasisLeavesOutTheSetsOwnSession() throws {
+        let set = makeBenchPress(loads: ["RPE6", "RPE7"]).sets.sorted { $0.index < $1.index }[0]
+        let basis = try #require(
+            LoadBasis(
+                setLog: SetLog(weight: .pounds(195), reps: 5, rpe: .eight),
+                origin: .history(SessionCoordinate(blockTab: "Block 26", address: SessionAddress(week: 4, day: 1)))
+            )
+        )
+
+        #expect(LoadSuggestionEngine.suggest(for: set, history: historyWithTheSetsOwnSession) == .estimate(182.5, basis: basis))
+    }
+
+    @Test func anEarlierLoggedSetOfTheExerciseIsTheBasis() throws {
+        let sets = makeBenchPress(loads: ["RPE6", "RPE7"]).sets.sorted { $0.index < $1.index }
+        let setOne = SetLog(weight: .pounds(185), reps: 5, rpe: .seven)
+        sets[0].markLogged(setOne, at: Date(timeIntervalSinceReferenceDate: 0))
+        let basis = try #require(LoadBasis(setLog: setOne, origin: .today(setIndex: 0)))
+
+        #expect(LoadSuggestionEngine.suggest(for: sets[1], history: historyWithTheSetsOwnSession) == .estimate(185, basis: basis))
+    }
+
+    @Test func aSetHoldingASetLogConsultsNothing() {
+        let set = makeBenchPress(loads: ["RPE6"]).sets[0]
+        set.markLogged(SetLog(weight: .pounds(185), reps: 5, rpe: .seven), at: Date(timeIntervalSinceReferenceDate: 0))
+
+        #expect(LoadSuggestionEngine.suggest(for: set, history: historyWithTheSetsOwnSession) == .noSuggestion)
+    }
+}
