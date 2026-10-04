@@ -42,7 +42,7 @@ struct ActiveSetCardVisualTests {
             baseName: "Comp Bench Press",
             resultText: "185x5@7, 195x5@8",
             performedOn: Date(timeIntervalSinceReferenceDate: 0),
-            source: "Block 27 · W1 D2"
+            source: "Block 26 · W4 D1"
         )
 
         try assertCardSnapshot(

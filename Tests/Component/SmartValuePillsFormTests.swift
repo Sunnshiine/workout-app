@@ -442,33 +442,57 @@ private func cardForm(_ set: ExerciseSet, history: [(resultText: String, source:
 }
 
 @MainActor
-private func movementLevelForm(entryBaseName: String) -> SmartValuePillsForm {
+private func competitionBenchPress() -> Exercise {
     let exercise = makeBenchPress(loads: ["RPE6"], at: SessionAddress(week: 2, day: 2))
     exercise.name = "Competition Bench Press"
     exercise.baseName = "Competition Bench Press"
-    let history = LastPerformedLookupSnapshot(occurrences: [
+    return exercise
+}
+
+private func competitionBenchHistory(fullName: String, baseName: String) -> LastPerformedLookupSnapshot {
+    LastPerformedLookupSnapshot(occurrences: [
         LastPerformedOccurrence(
-            fullName: entryBaseName,
-            baseName: entryBaseName,
+            fullName: fullName,
+            baseName: baseName,
             resultText: "185x5@7, 195x5@8",
             performedOn: Date(timeIntervalSinceReferenceDate: 0),
             source: "Block 27 · W1 D2"
         )
     ])
-    return SmartValuePillsForm(set: exercise.sets[0], suggestion: LoadSuggestionEngine.suggest(for: exercise.sets[0], history: history))
+}
+
+@MainActor
+private func estimateForm(_ exercise: Exercise, history: LastPerformedLookupSnapshot) -> SmartValuePillsForm {
+    SmartValuePillsForm(set: exercise.sets[0], suggestion: LoadSuggestionEngine.suggest(for: exercise.sets[0], history: history))
 }
 
 @MainActor
 @Test func anEstimateFromAMovementLevelMatchNamesTheEntryItCameFrom() {
-    let form = movementLevelForm(entryBaseName: "Comp Bench Press")
+    let history = competitionBenchHistory(fullName: "Comp Bench Press", baseName: "Comp Bench Press")
+
+    let form = estimateForm(competitionBenchPress(), history: history)
 
     #expect(form.weightText == "182.5")
     #expect(form.loadBasisLine == .init(text: "from 195x5@8 · W1 D2 as “Comp Bench Press”", isShown: true))
 }
 
 @MainActor
-@Test func anEstimateFromAnEntryNamedDifferentlyOnlyInCaseNamesNoEntry() {
-    let form = movementLevelForm(entryBaseName: "competition bench press")
+@Test func aCaseOnlyMovementLevelMatchNamesTheEntryAsLastPerformedDoes() {
+    let exercise = competitionBenchPress()
+    let history = competitionBenchHistory(fullName: "competition bench press", baseName: "competition bench press")
+
+    let form = estimateForm(exercise, history: history)
+
+    #expect(form.weightText == "182.5")
+    #expect(form.loadBasisLine == .init(text: "from 195x5@8 · W1 D2 as “competition bench press”", isShown: true))
+    #expect(LastPerformedCardPresentation(exercise: exercise, lookup: history)?.matchedName == "competition bench press")
+}
+
+@MainActor
+@Test func anEstimateFromAnEntryWithTheExercisesBaseNameNamesNoEntry() {
+    let history = competitionBenchHistory(fullName: "2-0:1:0 Competition Bench Press", baseName: "Competition Bench Press")
+
+    let form = estimateForm(competitionBenchPress(), history: history)
 
     #expect(form.weightText == "182.5")
     #expect(form.loadBasisLine == .init(text: "from 195x5@8 · W1 D2", isShown: true))

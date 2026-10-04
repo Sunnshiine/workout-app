@@ -10,7 +10,7 @@ enum LoadSuggestion: Equatable, Sendable {
 struct LoadBasis: Equatable, Sendable {
     enum Origin: Equatable, Sendable {
         case today(setIndex: Int)
-        case history(SessionCoordinate, baseName: String)
+        case history(SessionCoordinate, matchedName: String? = nil)
     }
 
     let setLog: SetLog
@@ -76,11 +76,12 @@ enum LoadSuggestionEngine {
             .first
     }
 
-    private static func historyBasis(_ entry: LastPerformedOccurrence) -> LoadBasis? {
-        guard let setLogs = entry.setLogs, let session = SessionCoordinate(storageValue: entry.source) else { return nil }
+    private static func historyBasis(_ entry: LastPerformedLookupEntry) -> LoadBasis? {
+        guard let setLogs = entry.occurrence.setLogs, let session = SessionCoordinate(storageValue: entry.occurrence.source)
+        else { return nil }
         return
             setLogs
-            .compactMap { LoadBasis(setLog: $0, origin: .history(session, baseName: entry.baseName)) }
+            .compactMap { LoadBasis(setLog: $0, origin: .history(session, matchedName: entry.matchedName)) }
             .enumerated()
             .max { ($0.element.setLog.rpe.rawValue, $0.offset) < ($1.element.setLog.rpe.rawValue, $1.offset) }?
             .element
