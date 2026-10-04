@@ -246,6 +246,13 @@ func aHistoryEntryWithNoUsableSetLogSuggestsNothing(resultText: String) {
     #expect(rpeTarget(history: resultText) == .noSuggestion)
 }
 
+@Test func aSetLogWithTheLargestRepCountSuggestsNothing() throws {
+    let largest = "100x9223372036854775807@8"
+    #expect(try setLog(largest).reps == .max)
+
+    #expect(rpeTarget(history: largest) == .noSuggestion)
+}
+
 @Test(
     "A target the RPE Table cannot place suggests nothing",
     arguments: [

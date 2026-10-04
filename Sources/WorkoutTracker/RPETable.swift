@@ -7,6 +7,7 @@ struct RPEChartPoint: Equatable, Sendable {
     private let rpe: RPE
 
     init?(reps: Int, rpe: RPE) {
+        guard Self.reps.contains(reps) else { return nil }
         self.init(halfReps: reps * 2, rpe: rpe)
     }
 
