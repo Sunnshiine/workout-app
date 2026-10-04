@@ -13,12 +13,16 @@ protocol LastPerformedIndexing {
     /// Number of stored entries whose Cadence-stripped base name matches — the coverage-fill
     /// counting unit (ADR-0012).
     func entryCount(baseName: String) -> Int
+    /// Deletes the entry a live edit wrote once its Session holds no Logged Set of that Exercise,
+    /// the one exception to append-only (ADR-0018).
+    func retract(fullName: String, source: String) throws
 }
 
 @MainActor
 struct NoopLastPerformedIndex: LastPerformedIndexing {
     func ingest(_ entries: [LastPerformedEntry]) throws {}
     func entryCount(baseName: String) -> Int { 0 }
+    func retract(fullName: String, source: String) throws {}
 }
 
 /// The single Last Performed owner: it owns the persisted index and the published display snapshot,
@@ -67,6 +71,13 @@ final class LastPerformedLookupStore: LastPerformedIndexing {
             predicate: #Predicate { $0.baseName == baseName }
         )
         return (try? context.fetchCount(descriptor)) ?? 0
+    }
+
+    func retract(fullName: String, source: String) throws {
+        guard let existing = existingEntry(fullName: fullName, source: source) else { return }
+        context.delete(existing)
+        try context.save()
+        refresh()
     }
 
     private func refresh() {

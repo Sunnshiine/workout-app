@@ -293,3 +293,33 @@ private func wire(_ suggestion: LoadSuggestionSnapshot) throws -> String {
     #expect(setOne.loadSuggestion.weight == 315)
     #expect(setOne.loadSuggestion.basis?.session == "Block 27 · W1 D1")
 }
+
+@MainActor
+@Test func skippingTheOnlyLoggedSetLeavesNoBasisAfterFlushAndSync() async throws {
+    let app = try await makeSelectedApp()
+    _ = try app.log(address("w1d1.e0.s0"), setLog: "315x5@7")
+    _ = try app.skip(address("w1d1.e0.s0"))
+    _ = try await app.flush()
+    _ = try await app.sync()
+
+    let setOne = try app.session(SessionAddress(week: 2, day: 1)).exercises[0].sets[0]
+
+    #expect(try wire(setOne.loadSuggestion) == #"{"kind":"none"}"#)
+}
+
+@MainActor
+@Test func deletingTheOnlySetLogLeavesNoBasis() async throws {
+    let app = try await makeSelectedApp()
+    _ = try app.log(address("w1d1.e0.s0"), setLog: "315x5@7")
+    let set = try #require(
+        app.workout.block?.weeks.first { $0.number == 1 }?
+            .sessions.first { $0.dayNumber == 1 }?
+            .exercises.first { $0.order == 0 }?
+            .sets.first { $0.index == 0 }
+    )
+
+    try app.workout.deleteLog(for: set)
+
+    let setOne = try app.session(SessionAddress(week: 2, day: 1)).exercises[0].sets[0]
+    #expect(try wire(setOne.loadSuggestion) == #"{"kind":"none"}"#)
+}

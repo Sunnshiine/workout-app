@@ -321,6 +321,27 @@ private func seededStore(now: @escaping @MainActor () -> Date) throws -> SeededL
     #expect(entryText() == "315x5@7, skip")
 }
 
+enum LiveRetraction: CaseIterable, Sendable {
+    case skip, deleteLog
+}
+
+@MainActor
+@Test(arguments: LiveRetraction.allCases)
+func theLiveEntryLeavesTheIndexWhenItsOnlyLoggedSetIsUndone(_ retraction: LiveRetraction) throws {
+    let fixture = try seededStore()
+    withExtendedLifetime(fixture.container) {}
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(315), reps: 5, rpe: .seven))
+    #expect(fixture.lookupStore.snapshot.lookup(for: "Squat")?.resultText == "315x5@7")
+
+    switch retraction {
+    case .skip: try fixture.store.skip(fixture.firstSet)
+    case .deleteLog: try fixture.store.deleteLog(for: fixture.firstSet)
+    }
+
+    #expect(fixture.lookupStore.snapshot.lookup(for: "Squat") == nil)
+    #expect(try fixture.context.fetchCount(FetchDescriptor<LastPerformedEntry>()) == 0)
+}
+
 @MainActor
 @Test func logSetRefreshesLastPerformedLookupSnapshotForDisplay() throws {
     let fixture = try seededStore()
