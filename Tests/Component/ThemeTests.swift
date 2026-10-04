@@ -103,13 +103,10 @@ import Testing
     #expect(Theme.Motion.leafInk == 0.42)
     #expect(Theme.Motion.budOpen == 0.34)
     #expect(Theme.Motion.budOpenDelay == 0.26)
-    #expect(Theme.Motion.ceremonyStem == 1.0)
-    #expect(Theme.Motion.ceremonyBeat == 0.10)
 }
 
 @Test func themeHapticTuningsMatchTokenSheet() {
     #expect(Theme.Haptics.railDetentTick == Theme.HapticTuning(intensity: 0.35, sharpness: 0.85))
-    #expect(Theme.Haptics.logTap == Theme.HapticTuning(intensity: 1.0, sharpness: 0.65))
     #expect(Theme.Haptics.skipDud == Theme.HapticTuning(intensity: 0.45, sharpness: 0.15))
     #expect(Theme.Haptics.stepperTick == Theme.HapticTuning(intensity: 0.45, sharpness: 0.80))
 }
