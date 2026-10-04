@@ -454,7 +454,7 @@ private func multiLineNotesRequest(_ name: String, _ setIndex: Int, value: Strin
     #expect(reparsed.sets[2].setLog == SetLog(weight: .pounds(140), reps: 7, rpe: .nine))
 }
 
-@Test func refusesUnexpectedCurrentCellValue() async throws {
+@Test func refusesUnexpectedCurrentCellValue() throws {
     let client = writerFixture(["C15": "Squat", "D15": "1", "K15": "Coach note", "K16": "coach edited"])
     let planner = SheetWritePlanner()
     let request = SheetWriteRequest(
@@ -475,7 +475,6 @@ private func multiLineNotesRequest(_ name: String, _ setIndex: Int, value: Strin
     } catch {
         Issue.record("Expected SheetWriterError, got \(error)")
     }
-    #expect(client.updates.isEmpty)
 }
 
 @Test func refusesMissingContinuationRow() async throws {

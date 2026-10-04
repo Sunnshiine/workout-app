@@ -67,7 +67,7 @@ import Testing
     ctx.insert(block)
     try ctx.save()
 
-    let fetchedSet = try #require(try ctx.fetch(FetchDescriptor<Block>())
+    let fetchedSet = try #require(try ModelContext(container).fetch(FetchDescriptor<Block>())
         .first?.weeks.first?.sessions.first?.exercises.first?.sets.first)
     #expect(fetchedSet.state == .logged)
     #expect(fetchedSet.setLog?.formatted == "185x7@8")

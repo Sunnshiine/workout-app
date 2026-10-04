@@ -68,6 +68,10 @@ import Testing
     #expect(defaults.string(forKey: "appearance") == "dark")
 }
 
+@Test func appearancePickerOffersSystemLightAndNightInOrder() {
+    #expect(AppearancePreference.allCases.map(\.label) == ["System", "Light", "Night"])
+}
+
 @MainActor
 @Test(arguments: [("system", AppearancePreference.system), ("light", .light), ("dark", .night)])
 func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: AppearancePreference) throws {
@@ -93,11 +97,6 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     store.setAppearance(.system)
     defaults.set("SHEET123", forKey: "spreadsheetId")
     #expect(SettingsStore(defaults: defaults).appearance == .system)
-}
-
-@Test func appearancePickerOptionsExposeOnlySupportedPreferences() {
-    #expect(AppearancePreference.allCases.map(\.rawValue) == ["system", "light", "dark"])
-    #expect(AppearancePreference.allCases.map(\.label) == ["System", "Light", "Night"])
 }
 
 @MainActor
@@ -365,7 +364,6 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     #expect(store.pendingConfirmation == SheetSelection(newSheet))
     #expect(settings.spreadsheetId == "old-sheet")
     #expect(settings.spreadsheetTitle == "Old Training Log")
-    #expect(sync.hasPendingWritesValue == true)
     #expect(sync.syncedSpreadsheetIds.isEmpty)
     #expect(store.errorMessage != nil)
 }
@@ -545,7 +543,6 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
 
     #expect(prepared == false)
     #expect(store.errorMessage == "Couldn't discard pending logs. Try again.")
-    #expect(sync.hasPendingWritesValue == true)
     #expect(settings.spreadsheetId == "current-sheet")
 }
 

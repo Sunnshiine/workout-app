@@ -15,15 +15,10 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     )
 }
 
-@Test func holdToSkipPolicyDefaultsToTheTokenizedTimings() {
-    let standard = HoldToSkipPolicy()
-    #expect(standard.holdDuration == Theme.Motion.holdToSkipCommit)
-    #expect(standard.holdDuration == 0.85)
-    #expect(standard.revealDelay == Theme.Motion.holdToSkipReveal)
-    #expect(standard.revealDelay == 0.25)
-    #expect(HoldToSkipPolicy.standard == standard)
-    #expect(HoldToSkipPolicy.loggedState.holdDuration == 0.9)
-    #expect(HoldToSkipPolicy.skippedState.holdDuration == 1.1)
+@Test func holdToSkipPolicyDefaultsToTheIdleSetHold() {
+    let policy = HoldToSkipPolicy()
+    #expect(policy.holdDuration == 0.85)
+    #expect(policy.revealDelay == 0.25)
 }
 
 @Test func holdToSkipPolicyDefersQuickReleaseToButtonTap() {

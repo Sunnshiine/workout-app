@@ -77,6 +77,17 @@ what a test body may do. Read a trailing issue or symbol when a bullet does not 
   that spans lines, or any other statement, so judge those.)
 - **A test that mirrors a one-line mapping.** It breaks on any refactor and the gate does not need
   it. A complexity-1 function scores 2 uncovered, under the target.
+- **A test that passes whatever the code under test does.** It compares a value with itself or
+  with the same call made twice, takes its expected value from the code under test, asserts a
+  stub's own state, fetches what it inserted from the same SwiftData context, writes only the
+  values a model falls back to, or exercises only what the compiler synthesizes. Break the logic or
+  the wiring with `scripts/mutate.sh`: cross two cases, read the wrong token, keep a field out of
+  the store. If no mutant turns the test red, delete it, or assert a literal that a plausible bug
+  would change. Editing a constant's own literal always fails its pin, so judge a test that
+  restates a constant or a copy string another way. It is tautological when another gate already
+  pins the value, as the Visual baselines pin the palette, surfaces, and radii, or when nothing
+  reads it. A token DESIGN.md specifies that no other gate sees, such as a motion duration, a haptic
+  tuning, or a tabular-figures flag, is that spec's one pin and stays. (#807, #808, #809.)
 
 Four shapes a regex can catch are SwiftLint errors in `.swiftlint.yml` (#637). The review still
 judges what each regex misses. A hit is fixed in the code, or exempted on its line with a reason:

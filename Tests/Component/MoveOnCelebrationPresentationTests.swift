@@ -38,7 +38,7 @@ import Testing
 }
 
 @MainActor
-@Test func moveOnCelebrationPresentationDescribesStaticShell() {
+@Test func moveOnCelebrationPresentationShowsTheRequestedQuote() {
     let session = makeMoveOnSession(
         exercises: [
             makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .pending])
@@ -47,8 +47,6 @@ import Testing
 
     let presentation = MoveOnCelebrationPresentation(session: session, quoteText: "Steady work travels.")
 
-    #expect(presentation.actionText == "Move On")
-    #expect(presentation.continueText == "Continue")
     #expect(presentation.quoteText == "Steady work travels.")
 }
 
@@ -119,7 +117,7 @@ import Testing
 }
 
 @MainActor
-@Test func moveOnCelebrationPresentationSelectsOneStableApprovedQuote() {
+@Test func moveOnCelebrationPresentationSelectsAnApprovedQuote() {
     let session = makeMoveOnSession(
         exercises: [
             makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged])
@@ -127,10 +125,8 @@ import Testing
     )
 
     let presentation = MoveOnCelebrationPresentation(session: session)
-    let selectedQuote = presentation.quoteText
 
-    #expect(MoveOnCelebrationPresentation.approvedQuotes.contains(selectedQuote))
-    #expect(presentation.quoteText == selectedQuote)
+    #expect(MoveOnCelebrationPresentation.approvedQuotes.contains(presentation.quoteText))
 }
 
 @MainActor
@@ -146,7 +142,6 @@ import Testing
         quoteText: MoveOnCelebrationPresentation.longQuoteFixture
     )
 
-    #expect(MoveOnCelebrationPresentation.longQuoteFixture.count >= 110)
     #expect(!MoveOnCelebrationPresentation.approvedQuotes.contains(presentation.quoteText))
     #expect(presentation.accessibilityValue.contains(MoveOnCelebrationPresentation.longQuoteFixture))
 }

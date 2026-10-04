@@ -284,11 +284,6 @@ private func sortedSessions(in block: Block) -> [Session] {
 }
 
 @MainActor
-@Test func sessionTileStateHasFourCases() {
-    #expect(SessionTileState.allCases == [.complete, .current, .incomplete, .unavailable])
-}
-
-@MainActor
 @Test func tileStatePrioritizesCompletionOverCurrentSession() {
     let block = makeBlock()
     let session = block.weeks[0].sessions[0]

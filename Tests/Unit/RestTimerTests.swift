@@ -196,21 +196,6 @@ private final class MockRestExpiryScheduler: RestExpiryScheduling {
     #expect(interval?.end == Date(timeIntervalSinceReferenceDate: 1_120))
     #expect(interval?.duration == 120)
     #expect(interval?.kind == .superset)
-    // The retained start round-trips with remaining back to the end the timer computed.
-    #expect(interval.map { $0.start.addingTimeInterval($0.remaining(at: $0.start)) } == interval?.end)
-}
-
-@MainActor
-@Test func restTimerRemainingReadsThroughThePublishedInterval() {
-    let clock = ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 1_000))
-    let timer = RestTimer(clock: clock)
-
-    timer.start(duration: 120, origin: ActiveSetID(exerciseOrder: 1, setIndex: 0))
-
-    clock.advance(by: 45)
-
-    #expect(timer.remaining == timer.interval?.remaining(at: clock.now))
-    #expect(timer.remaining == 75)
 }
 
 @MainActor

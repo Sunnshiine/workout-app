@@ -107,7 +107,7 @@ import Testing
 @Test func serializesSkippedStateAsSkipSentinel() {
     let classification = SetLogToken.Classification(state: .skipped, setLog: nil, unstructuredSetLog: nil)
 
-    #expect(SetLogToken.serialize(classification) == SetLogToken.skipSentinel)
+    #expect(SetLogToken.serialize(classification) == "skip")
 }
 
 @Test func serializesPendingStateAsEmptyToken() {

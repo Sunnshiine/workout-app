@@ -24,7 +24,7 @@ import Testing
 @Test func repsRailCentersOnSelectionThenPrescribedThenDefault() {
     #expect(RepsScalePresentation(prescribedReps: "5", selection: "5").selectedIndex == 4)
     #expect(RepsScalePresentation(prescribedReps: "12", selection: "").selectedIndex == 11)
-    #expect(RepsScalePresentation(prescribedReps: "AMRAP", selection: "").selectedIndex == RepsScalePresentation.defaultSelection - 1)
+    #expect(RepsScalePresentation(prescribedReps: "AMRAP", selection: "").selectedIndex == 4)
 }
 
 @MainActor
