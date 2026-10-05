@@ -93,6 +93,20 @@ private enum SessionVerbEntry: Equatable {
     case failureReported
 }
 
+/// Samples a value just before and just after each transaction's change.
+@MainActor
+private final class SampleAroundMotion: SessionMotionPerforming {
+    var around: () -> Int = { 0 }
+    private(set) var firedAroundAnimation: [Int] = []
+    var reducesMotion: Bool { false }
+
+    func animate(_ motion: SessionMotion, _ change: () throws -> Void) rethrows {
+        firedAroundAnimation.append(around())
+        try change()
+        firedAroundAnimation.append(around())
+    }
+}
+
 @MainActor
 private final class SessionVerbLedger: SessionMotionPerforming, SessionLoggingAdapter, SessionSyncAdapter, SessionLiveActivityAdapter {
     var reducesMotion = false
@@ -1820,6 +1834,7 @@ private func makeRestActionFixture(
     let session = makePlannedPairingSession()
     connectCoordinatorWeek([session])
     let liveActivity = SpySessionLiveActivityAdapter()
+    let motion = SampleAroundMotion()
     let coordinator = SessionCoordinator()
     coordinator.bind(
         to: session,
@@ -1827,6 +1842,7 @@ private func makeRestActionFixture(
         sync: SpySessionSyncAdapter(),
         restTimer: RestTimer(clock: ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))),
         liveActivity: liveActivity,
+        motion: motion,
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
     let squat = try #require(session.exercises.first { $0.order == 1 })
@@ -1835,16 +1851,12 @@ private func makeRestActionFixture(
     #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
     let changes = ObservedChanges()
     changes.watch { _ = coordinator.canPair(bench, in: session) }
-    var firedAroundAnimation: [Int] = []
+    motion.around = { changes.fired }
 
-    coordinator.log(lastSquatSet, as: SetLog(weight: .pounds(315), reps: 5, rpe: .seven)) { update in
-        firedAroundAnimation.append(changes.fired)
-        update()
-        firedAroundAnimation.append(changes.fired)
-    }
+    coordinator.log(lastSquatSet, as: SetLog(weight: .pounds(315), reps: 5, rpe: .seven))
 
     #expect(liveActivity.calls.count == 1)
-    #expect(firedAroundAnimation == [0, 1])
+    #expect(motion.firedAroundAnimation == [0, 1])
     #expect(coordinator.canPair(bench, in: session))
 }
 
