@@ -1696,3 +1696,20 @@ private func makeRestActionFixture(
         ]
     )
 }
+
+@MainActor
+@Test func aSupersetEndedByLoggingOneSidesLastSetStaysEndedWhenThatLogIsDeleted() throws {
+    let session = makePlannedPairingSession()
+    let coordinator = SessionCoordinator(session: session, logging: SpySessionLoggingAdapter(), sync: SpySessionSyncAdapter())
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+    let lastSquatSet = try #require(squat.sets.first)
+    #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
+
+    coordinator.log(lastSquatSet, as: SetLog(weight: .pounds(315), reps: 5, rpe: .seven))
+    coordinator.deleteLog(for: lastSquatSet)
+
+    #expect(lastSquatSet.state == .pending)
+    #expect(coordinator.renderItems(in: session).map(\.id) == ["exercise-0", "exercise-1", "exercise-2"])
+    #expect(coordinator.canPair(squat, in: session))
+}
