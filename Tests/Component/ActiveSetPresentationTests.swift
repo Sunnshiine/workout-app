@@ -209,12 +209,6 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     #expect(policy.shouldAnimate(.supersetSwitchSucceeded))
 }
 
-@Test func focusMorphPolicyDoesNotAnimateFailedSupersetSwitch() {
-    let policy = SessionFocusMorphPolicy(reduceMotion: false)
-
-    #expect(!policy.shouldAnimate(.supersetSwitchFailed))
-}
-
 @Test func focusMorphPolicyDisablesSupersetSwitchWhenReduceMotionIsEnabled() {
     let policy = SessionFocusMorphPolicy(reduceMotion: true)
 

@@ -45,8 +45,7 @@ struct SupersetStageVisualTests {
                     onShowHistory: { _ in },
                     onLog: { _, _ in },
                     onSkip: { _ in },
-                    onDelete: { _ in },
-                    onDismiss: {}
+                    onDelete: { _ in }
                 )
                 .padding(.horizontal)
                 .padding(.top, Theme.sectionSpacing)
@@ -142,9 +141,7 @@ struct SupersetStageVisualTests {
         return SessionSupersetRenderConfig(
             presentation: presentation,
             exercises: [press, row],
-            visualFocusOwner: nil,
             activeSetTransition: nil,
-            retiringTransition: nil,
             lastPerformedPresentation: LastPerformedCardPresentation(entry: lastPerformed)
         )
     }

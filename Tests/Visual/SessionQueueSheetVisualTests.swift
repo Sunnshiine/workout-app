@@ -104,16 +104,10 @@ struct SessionQueueSheetVisualTests {
         .exercise(
             SessionExerciseRenderConfig(
                 exercise: exercise,
-                visualFocusOwner: nil,
                 activeSetID: nil,
                 expandedLoggedSetID: nil,
                 savedLoggedSetID: nil,
-                activeSetTransition: nil,
-                retiringTransition: nil,
-                isCollapsed: false,
-                showsPairingGrip: false,
                 pairingAvailability: pairingAvailability,
-                isPairingConfirmation: false,
                 lastPerformedPresentation: nil
             )
         )

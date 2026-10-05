@@ -26,16 +26,10 @@ private func exerciseItem(
     .exercise(
         SessionExerciseRenderConfig(
             exercise: exercise,
-            visualFocusOwner: nil,
             activeSetID: activeSetID,
             expandedLoggedSetID: nil,
             savedLoggedSetID: nil,
-            activeSetTransition: nil,
-            retiringTransition: nil,
-            isCollapsed: false,
-            showsPairingGrip: false,
             pairingAvailability: pairingAvailability,
-            isPairingConfirmation: false,
             lastPerformedPresentation: nil
         )
     )
@@ -50,9 +44,7 @@ private func supersetItem(_ first: Exercise, _ second: Exercise) throws -> Sessi
         SessionSupersetRenderConfig(
             presentation: presentation,
             exercises: [first, second],
-            visualFocusOwner: nil,
             activeSetTransition: nil,
-            retiringTransition: nil,
             lastPerformedPresentation: nil
         )
     )
@@ -149,18 +141,6 @@ struct SessionStagePresentationTests {
 
         #expect(SessionStagePresentation.stageIdentity(in: inProgress, focusID: nil) == "exercise-1")
         #expect(SessionStagePresentation.stageIdentity(in: complete, focusID: nil) == "complete")
-    }
-
-    @Test func positionLabelCountsSupersetAsOneSlot() throws {
-        let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged])
-        let press = makeExercise(name: "Press", order: 1, setStates: [.pending])
-        let row = makeExercise(name: "Row", order: 2, setStates: [.pending])
-        let items = SessionStagePresentation.items(
-            [exerciseItem(squat), try supersetItem(press, row)]
-        )
-        let superset = try #require(items.last)
-
-        #expect(SessionStagePresentation.positionLabel(of: superset, in: items) == "Exercise 2 of 2")
     }
 
     @Test func upNextReturnsTheNextIncompleteItemAfterTheStage() {
