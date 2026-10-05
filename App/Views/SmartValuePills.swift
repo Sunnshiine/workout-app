@@ -153,39 +153,50 @@ struct SmartValuePills: View {
     @ViewBuilder
     private var weightValue: some View {
         if isEditingWeight {
-            TextField(form.weightDisplay, text: $form.weightText)
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.center)
-                .font(Theme.font(.weightEntry))
-                .foregroundStyle(weightForeground)
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
-                .focused($weightFieldFocused)
-                // The decimal pad carries no return key, so give the athlete a discoverable way out
-                // of the field when they open it and choose not to enter a weight — dismissing the
-                // keyboard without logging (any tap on non-interactive stage space is the same
-                // escape). Semantic-only, so no haptic here.
-                .toolbar {
-                    ToolbarItemGroup(placement: .keyboard) {
-                        Spacer()
-                        Button("Done", action: dismissFieldUI)
-                            .accessibilityIdentifier("weight-keyboard-done")
-                    }
-                }
-                .accessibilityIdentifier("weight-pill")
+            // The field sits over the number it replaces, so its taller line box never grows the card.
+            weightNumber
+                .hidden()
+                .overlay { weightField }
         } else {
-            Text(form.weightDisplay)
-                .font(Theme.font(.weightEntry))
-                .foregroundStyle(weightForeground)
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
-                .frame(maxWidth: .infinity)
+            weightNumber
                 .contentShape(.rect)
                 .onTapGesture { isEditingWeight = true }
                 .accessibilityLabel("Weight, \(form.weightDisplay)")
                 .accessibilityIdentifier("weight-pill")
                 .accessibilityAddTraits(.isButton)
         }
+    }
+
+    private var weightNumber: some View {
+        Text(form.weightDisplay)
+            .font(Theme.font(.weightEntry))
+            .foregroundStyle(weightForeground)
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
+            .frame(maxWidth: .infinity)
+    }
+
+    private var weightField: some View {
+        TextField(form.weightDisplay, text: $form.weightText)
+            .keyboardType(.decimalPad)
+            .multilineTextAlignment(.center)
+            .font(Theme.font(.weightEntry))
+            .foregroundStyle(weightForeground)
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
+            .focused($weightFieldFocused)
+            // The decimal pad carries no return key, so give the athlete a discoverable way out
+            // of the field when they open it and choose not to enter a weight — dismissing the
+            // keyboard without logging (any tap on non-interactive stage space is the same
+            // escape). Semantic-only, so no haptic here.
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") { weightFieldFocused = false }
+                        .accessibilityIdentifier("weight-keyboard-done")
+                }
+            }
+            .accessibilityIdentifier("weight-pill")
     }
 
     @ViewBuilder
