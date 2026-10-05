@@ -48,7 +48,11 @@ struct SessionView: View {
 
                     productionStage(for: session)
                         .onAppear {
-                            bindCoordinator(to: session)
+                            var transaction = Transaction()
+                            transaction.disablesAnimations = true
+                            withTransaction(transaction) {
+                                bindCoordinator(to: session)
+                            }
                         }
                         .onChange(of: session.persistentModelID) { _, _ in
                             bindCoordinator(to: session)
