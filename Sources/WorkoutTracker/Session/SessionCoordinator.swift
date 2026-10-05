@@ -251,7 +251,7 @@ final class SessionCoordinator {
     func log(_ set: ExerciseSet, as log: SetLog, animateFocus: SessionFocusAnimation? = nil) {
         do {
             let session = try actionSession(for: set)
-            let wasSupersetMember = isSupersetMember(set, in: session)
+            let wasSupersetMember = isSupersetMember(set)
             try loggingAdapter.log(set, as: log)
             let restKind = RestTriggerPolicy.restKind(
                 afterLogging: set,
@@ -438,9 +438,9 @@ extension SessionCoordinator {
 }
 
 extension SessionCoordinator {
-    fileprivate func isSupersetMember(_ set: ExerciseSet, in session: Session) -> Bool {
+    fileprivate func isSupersetMember(_ set: ExerciseSet) -> Bool {
         guard let exercise = set.exercise else { return false }
-        return focusManager.isPaired(exercise, in: session)
+        return focusManager.isPaired(exercise)
     }
 
     fileprivate func restDuration(for kind: RestKind) -> TimeInterval {

@@ -37,6 +37,8 @@ final class SupersetState {
     private var activeSetID: ActiveSetID?
     private var activeSetExerciseIdentity: SupersetExerciseIdentity?
 
+    var supersetCount: Int { pairs.count }
+
     func canCreateSuperset(with exercises: [Exercise], in session: Session) -> Bool {
         guard exercises.count == 2 else { return false }
         let identities = exercises.map(SupersetExerciseIdentity.init)
@@ -45,7 +47,7 @@ final class SupersetState {
         return exercises.allSatisfy { exercise in
             sessionContains(exercise, in: session)
                 && exercise.hasPendingSet
-                && !isPaired(exercise, in: session)
+                && !isPaired(exercise)
         }
     }
 
@@ -86,8 +88,12 @@ final class SupersetState {
     func nextSetID(after set: ExerciseSet, in session: Session) -> ActiveSetID? {
         guard
             let exercise = set.exercise,
-            let pair = pair(containing: exercise, in: session)
+            let pair = pair(containing: exercise)
         else {
+            return nil
+        }
+        guard bothSidesHavePendingSet(pair, in: session) else {
+            dissolve(pair)
             return nil
         }
 
@@ -100,12 +106,12 @@ final class SupersetState {
     }
 
     func canFocusNextPendingSet(for exercise: Exercise, in session: Session) -> Bool {
-        guard pair(containing: exercise, in: session) != nil else { return false }
+        guard pair(containing: exercise) != nil else { return false }
         return nextPendingSetID(for: SupersetExerciseIdentity(exercise: exercise), in: session) != nil
     }
 
     func focusNextPendingSet(for exercise: Exercise, in session: Session) -> ActiveSetID? {
-        guard let pair = pair(containing: exercise, in: session) else { return nil }
+        guard let pair = pair(containing: exercise) else { return nil }
         let identity = SupersetExerciseIdentity(exercise: exercise)
         guard let nextSetID = nextPendingSetID(for: identity, in: session) else { return nil }
         activePair = pair
@@ -114,13 +120,14 @@ final class SupersetState {
         return nextSetID
     }
 
-    func dismissSuperset(containing exercise: Exercise, in session: Session) {
-        guard let pair = pair(containing: exercise, in: session) else { return }
+    func dismissSuperset(containing exercise: Exercise) {
+        guard let pair = pair(containing: exercise) else { return }
         dissolve(pair)
     }
 
     func exercisePairs(in session: Session) -> [[Exercise]] {
-        livePairs(in: session).compactMap { pair in
+        pairs.compactMap { pair in
+            guard bothSidesHavePendingSet(pair, in: session) else { return nil }
             let exercises = [pair.first, pair.second].compactMap { identity in
                 exercise(matching: identity, in: session)
             }
@@ -129,7 +136,7 @@ final class SupersetState {
     }
 
     func refresh(in session: Session) {
-        pairs = livePairs(in: session)
+        pairs.removeAll { !bothSidesHavePendingSet($0, in: session) }
         if let activePair, !pairs.contains(activePair) {
             self.activePair = nil
             activeSetID = nil
@@ -139,8 +146,9 @@ final class SupersetState {
         }
     }
 
-    func isPaired(_ exercise: Exercise, in session: Session) -> Bool {
-        pair(containing: exercise, in: session) != nil
+    func isPaired(_ exercise: Exercise) -> Bool {
+        let identity = SupersetExerciseIdentity(exercise: exercise)
+        return pairs.contains { $0.contains(identity) }
     }
 
     /// The Exercise's next Pending Set — the first Pending Set by Set index, or `nil` when the
@@ -166,18 +174,14 @@ final class SupersetState {
         session.exercises.contains { candidate in candidate === exercise }
     }
 
-    private func livePairs(in session: Session) -> [SupersetPair] {
-        pairs.filter { bothSidesHavePendingSet($0, in: session) }
-    }
-
-    private func pair(containing exercise: Exercise, in session: Session) -> SupersetPair? {
+    private func pair(containing exercise: Exercise) -> SupersetPair? {
         let identity = SupersetExerciseIdentity(exercise: exercise)
-        return livePairs(in: session).first { $0.contains(identity) }
+        return pairs.first { $0.contains(identity) }
     }
 
     private func pair(containing setID: ActiveSetID, in session: Session) -> SupersetPair? {
         guard let exercise = exercise(containing: setID, in: session) else { return nil }
-        return pair(containing: exercise, in: session)
+        return pair(containing: exercise)
     }
 
     /// The Superset's own focus survives only while its pair is still paired and the Set it holds
@@ -194,6 +198,8 @@ final class SupersetState {
         return activeSetID
     }
 
+    /// A pair alternates only while both sides still have somewhere to go. When one side runs out,
+    /// the Superset is over.
     private func bothSidesHavePendingSet(_ pair: SupersetPair, in session: Session) -> Bool {
         hasPendingSet(for: pair.first, in: session) && hasPendingSet(for: pair.second, in: session)
     }

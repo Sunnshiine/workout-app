@@ -151,23 +151,26 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     let state = SupersetState()
 
     state.createSuperset(with: [squat, bench], in: session)
-    state.dismissSuperset(containing: squat, in: session)
+    state.dismissSuperset(containing: squat)
 
-    #expect(!state.isPaired(squat, in: session))
-    #expect(!state.isPaired(bench, in: session))
+    #expect(state.supersetCount == 0)
+    #expect(!state.isPaired(squat))
+    #expect(!state.isPaired(bench))
 
     state.createSuperset(with: [squat, bench], in: session)
     squat.sets.forEach { $0.state = .logged }
     state.refresh(in: session)
 
-    #expect(!state.isPaired(squat, in: session))
-    #expect(!state.isPaired(bench, in: session))
+    #expect(state.supersetCount == 0)
+    #expect(!state.isPaired(squat))
+    #expect(!state.isPaired(bench))
 
     squat.sets[0].state = .pending
     state.refresh(in: session)
 
-    #expect(!state.isPaired(squat, in: session))
-    #expect(!state.isPaired(bench, in: session))
+    #expect(state.supersetCount == 0)
+    #expect(!state.isPaired(squat))
+    #expect(!state.isPaired(bench))
 }
 
 @MainActor
@@ -205,8 +208,9 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
 
     state.refresh(in: refreshedSession)
 
-    #expect(state.isPaired(refreshedSquat, in: refreshedSession))
-    #expect(state.isPaired(refreshedBench, in: refreshedSession))
+    #expect(state.supersetCount == 1)
+    #expect(state.isPaired(refreshedSquat))
+    #expect(state.isPaired(refreshedBench))
 }
 
 @MainActor
@@ -222,6 +226,7 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     state.refresh(in: secondBlock)
 
     #expect(state.exercisePairs(in: secondBlock).map { $0.map(\.name) } == [])
+    #expect(state.supersetCount == 0)
 }
 
 @MainActor
@@ -262,8 +267,9 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
 
     state.refresh(in: refreshedSession)
 
-    #expect(state.isPaired(refreshedSquat, in: refreshedSession))
-    #expect(state.isPaired(refreshedBench, in: refreshedSession))
+    #expect(state.supersetCount == 1)
+    #expect(state.isPaired(refreshedSquat))
+    #expect(state.isPaired(refreshedBench))
 }
 
 @MainActor
@@ -301,7 +307,8 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     refreshedSession.exercises.removeAll { $0.name == "Bench Press" }
     state.refresh(in: refreshedSession)
 
-    #expect(!state.isPaired(squat, in: refreshedSession))
+    #expect(state.supersetCount == 0)
+    #expect(!state.isPaired(squat))
 }
 
 @MainActor
@@ -324,7 +331,7 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     firstSquatSet.state = .pending
     state.refresh(in: session)
 
-    #expect(state.isPaired(squat, in: session))
+    #expect(state.supersetCount == 1)
     #expect(state.focusedSetID(whenNormalFocusIs: nil, in: session) == ActiveSetID(exerciseOrder: 0, setIndex: 0))
 }
 
@@ -342,7 +349,7 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     finalSquatSet.state = .skipped
 
     #expect(state.nextSetID(after: finalSquatSet, in: session) == nil)
-    #expect(!state.isPaired(bench, in: session))
+    #expect(state.supersetCount == 0)
 }
 
 @MainActor
@@ -359,7 +366,7 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
 
     state.createSuperset(with: [squat, bench], in: session, currentActiveSetID: ActiveSetID(exerciseOrder: 0, setIndex: 0))
     _ = state.focusNextPendingSet(for: bench, in: session)
-    state.dismissSuperset(containing: squat, in: session)
+    state.dismissSuperset(containing: squat)
 
     #expect(firstSquatSet.state == .pending)
     #expect(firstBenchSet.state == .pending)
