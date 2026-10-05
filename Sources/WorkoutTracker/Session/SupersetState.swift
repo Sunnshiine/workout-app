@@ -32,7 +32,7 @@ private struct SupersetPair: Equatable, Sendable {
 @MainActor
 @Observable
 final class SupersetState {
-    private var pairsIncludingEnded: [SupersetPair] = []
+    private var pairs: [SupersetPair] = []
     private var activePair: SupersetPair?
     private var activeSetID: ActiveSetID?
     private var activeSetExerciseIdentity: SupersetExerciseIdentity?
@@ -56,12 +56,12 @@ final class SupersetState {
         currentActiveSetID: ActiveSetID? = nil
     ) -> Bool {
         guard canCreateSuperset(with: exercises, in: session) else { return false }
-        pairsIncludingEnded = livePairs(in: session)
+        pairs = livePairs(in: session)
         let pair = SupersetPair(
             first: SupersetExerciseIdentity(exercise: exercises[0]),
             second: SupersetExerciseIdentity(exercise: exercises[1])
         )
-        pairsIncludingEnded.append(pair)
+        pairs.append(pair)
         if let currentActiveSetID, self.pair(containing: currentActiveSetID, in: session) == pair {
             activePair = pair
             activeSetID = currentActiveSetID
@@ -130,8 +130,8 @@ final class SupersetState {
     }
 
     func refresh(in session: Session) {
-        pairsIncludingEnded = livePairs(in: session)
-        if let activePair, !pairsIncludingEnded.contains(activePair) {
+        pairs = livePairs(in: session)
+        if let activePair, !pairs.contains(activePair) {
             self.activePair = nil
             activeSetID = nil
             activeSetExerciseIdentity = nil
@@ -168,7 +168,7 @@ final class SupersetState {
     }
 
     private func livePairs(in session: Session) -> [SupersetPair] {
-        pairsIncludingEnded.filter { bothSidesHavePendingSet($0, in: session) }
+        pairs.filter { bothSidesHavePendingSet($0, in: session) }
     }
 
     private func pair(containing exercise: Exercise, in session: Session) -> SupersetPair? {
@@ -186,7 +186,7 @@ final class SupersetState {
     private func liveActiveSetID(in session: Session) -> ActiveSetID? {
         guard
             let activePair,
-            livePairs(in: session).contains(activePair),
+            pairs.contains(activePair),
             let activeSetID,
             isPending(activeSetID, in: session)
         else {
@@ -245,7 +245,7 @@ final class SupersetState {
     }
 
     private func dissolve(_ pair: SupersetPair) {
-        pairsIncludingEnded.removeAll { $0 == pair }
+        pairs.removeAll { $0 == pair }
         if activePair == pair {
             activePair = nil
             activeSetID = nil
