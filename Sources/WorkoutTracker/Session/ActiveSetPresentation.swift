@@ -150,7 +150,7 @@ struct SetCardPresentation: Equatable, Sendable {
     init(mode: SetCardMode, set: ExerciseSet) {
         self.mode = mode
         isSkipped = set.state == .skipped
-        loggedLine = set.setLog?.formatted ?? set.displayReps
+        loggedLine = set.displayReps
         switch mode {
         case .logging:
             showsClearMenu = set.state != .pending
