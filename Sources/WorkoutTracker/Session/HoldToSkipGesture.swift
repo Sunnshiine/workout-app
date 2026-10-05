@@ -78,6 +78,9 @@ struct HoldToSkipGesture: Equatable, Sendable {
     }
 
     mutating func tapped(at now: ContinuousClock.Instant) -> [HoldToSkipEffect] {
+        if case .pressing(_, _, revealed: true) = phase {
+            return []
+        }
         if let until = suppressTapsUntil, now < until {
             suppressTapsUntil = nil
             return []
