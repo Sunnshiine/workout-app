@@ -183,6 +183,8 @@ private struct GrowingCeremonyBranch: View, Animatable {
         let frame = MoveOnCeremonyFrame(elapsed: elapsed)
         GeometryReader { geo in
             let size = geo.size
+            let curve = stemCurve(in: size)
+            let leafLengthFractions = (0..<max(0, leafCount)).map { curve.lengthFraction(at: leafT($0)) }
             ZStack {
                 StemArc(
                     leadInset: Metrics.leadInset,
@@ -198,7 +200,7 @@ private struct GrowingCeremonyBranch: View, Animatable {
                     let point = stemPoint(t: leafT(index), in: size)
                     let angle = stemAngle(t: leafT(index), in: size)
                     let above = index.isMultiple(of: 2)
-                    let ink = frame.leafInk(atLengthFraction: stemCurve(in: size).lengthFraction(at: leafT(index)))
+                    let ink = frame.leafInk(atLengthFraction: leafLengthFractions[index])
                     BranchLeaf(fill: palette.leafFill, rib: palette.leafRib, size: Metrics.leafSize)
                         .scaleEffect(0.9 + 0.1 * ink)
                         .opacity(ink)
