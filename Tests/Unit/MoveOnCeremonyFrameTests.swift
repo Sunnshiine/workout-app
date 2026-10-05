@@ -34,6 +34,10 @@ private let tolerance = 1e-6
         #expect(MoveOnCeremonyFrame(elapsed: 5.0) == grown)
     }
 
+    @Test func theGrownFrameInksALeafAtTheTipFully() {
+        #expect(MoveOnCeremonyFrame(elapsed: MoveOnCeremonyFrame.duration).leafInk(atLengthFraction: 0.99) == 1)
+    }
+
     @Test func aLeafInksAsTheTrimPassesItsPlaceOnTheStem() {
         let frame = MoveOnCeremonyFrame(elapsed: 0.75)
 
