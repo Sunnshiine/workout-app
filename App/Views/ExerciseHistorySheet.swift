@@ -102,17 +102,10 @@ struct ExerciseHistorySheet: View {
         .accessibilityValue(showVolume ? "on" : "off")
     }
 
-    @ViewBuilder
     private var volumeControlRaisedBackground: some View {
-        if palette.appearance == .day {
-            Capsule()
-                .fill(Theme.LightKit.volumeControlRaisedFill)
-                .themeElevation(Theme.LightKit.volumeControlRaisedShadow, in: Capsule())
-        } else {
-            Capsule()
-                .fill(palette.surface)
-                .themeElevation(palette.surfaceShadow, in: Capsule())
-        }
+        Capsule()
+            .fill(palette.lighting.raisedControlFill)
+            .themeElevation(palette.lighting.raisedControlShadow, in: Capsule())
     }
 
     /// A visible, playful fill affordance in the product's warm voice: a warm line, a muted
