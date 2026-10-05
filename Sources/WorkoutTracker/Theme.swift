@@ -894,14 +894,6 @@ extension View {
         modifier(Theme.Elevation(shadows: shadows, shape: shape))
     }
 
-    @ViewBuilder
-    func themeTileGlow(_ glow: Theme.CurrentTileGlow, in shape: some InsettableShape) -> some View {
-        switch glow {
-        case .halo(let shadows): themeElevation(shadows, in: shape)
-        case .bud(let color, let radius): shadow(color: color, radius: radius)
-        }
-    }
-
     func themeCarve(_ palette: Theme.Palette, in shape: some InsettableShape) -> some View {
         background {
             shape
