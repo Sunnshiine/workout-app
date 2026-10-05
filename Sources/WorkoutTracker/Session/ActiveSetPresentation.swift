@@ -136,20 +136,25 @@ struct SetCardPresentation: Equatable, Sendable {
         case skipped
         /// The unfilled, inert capsule a review shows in the Log capsule's place.
         case logged(line: String)
+        /// The same capsule carrying `incompleteDraftHint` once a structured Set Log's review draft
+        /// no longer makes a Set Log.
+        case incompleteDraft
     }
 
-    private static let incompleteDraftHint = "Complete weight, reps, and RPE"
+    static let incompleteDraftHint = "Complete weight, reps, and RPE"
 
     let showsClearMenu: Bool
     let commitsChangesOnDisappear: Bool
     private let mode: SetCardMode
     private let isSkipped: Bool
+    private let isUnstructuredSetLog: Bool
     private let loggedLine: String
 
     @MainActor
     init(mode: SetCardMode, set: ExerciseSet) {
         self.mode = mode
         isSkipped = set.state == .skipped
+        isUnstructuredSetLog = set.setLog == nil
         loggedLine = set.displayReps
         switch mode {
         case .logging:
@@ -161,15 +166,16 @@ struct SetCardPresentation: Equatable, Sendable {
         }
     }
 
-    /// The action row reads the draft because a review's line turns into the hint once the athlete
-    /// edits the logged Set into something that is no longer a valid Set Log.
+    /// The action row reads the draft because a structured Set Log's review turns into the hint once
+    /// the athlete edits it into something that is no longer a Set Log. An Unstructured Set Log keeps
+    /// its text on the line, since that text is what the athlete is rebuilding as a Set Log.
     @MainActor
     func actionRow(for draft: SmartValuePillsForm) -> ActionRow {
         switch mode {
         case .logging:
             isSkipped ? .skipped : .log
         case .reviewingLogged:
-            .logged(line: draft.hasChanges && !draft.canLog ? Self.incompleteDraftHint : loggedLine)
+            draft.hasChanges && !draft.canLog && !isUnstructuredSetLog ? .incompleteDraft : .logged(line: loggedLine)
         }
     }
 }
