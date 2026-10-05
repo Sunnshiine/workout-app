@@ -1658,3 +1658,41 @@ private func makeRestActionFixture(
 
     #expect(changes.fired == 0)
 }
+
+@MainActor
+@Test func aSideSwitchALogASkipAndATapEachMoveTheFocusInsideTheInjectedAnimation() throws {
+    let session = Session(dayNumber: 1, date: nil)
+    let squat = Exercise(name: "Back Squat", baseName: "Back Squat", cadence: nil, coachNote: nil, order: 0)
+    let rdl = Exercise(name: "2-3:1:0 BB RDL", baseName: "BB RDL", cadence: "2-3:1:0", coachNote: nil, order: 1)
+    for exercise in [squat, rdl] {
+        exercise.sets = (0..<2).map {
+            ExerciseSet(index: $0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
+        }
+    }
+    session.exercises = [squat, rdl]
+    let coordinator = SessionCoordinator(session: session, logging: SpySessionLoggingAdapter(), sync: SpySessionSyncAdapter())
+    #expect(coordinator.createSuperset(from: squat, to: rdl, in: session))
+    let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
+    let secondSquatSet = try #require(squat.sets.first { $0.index == 1 })
+    let firstRDLSet = try #require(rdl.sets.first { $0.index == 0 })
+    var focusMoves: [[ActiveSetID?]] = []
+    let animation: SessionFocusAnimation = { update in
+        let before = coordinator.activeSetID
+        update()
+        focusMoves.append([before, coordinator.activeSetID])
+    }
+
+    #expect(coordinator.focusNextSupersetSet(for: rdl, in: session, animateFocus: animation))
+    coordinator.log(firstRDLSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: .seven), animateFocus: animation)
+    coordinator.skip(firstSquatSet, animateFocus: animation)
+    coordinator.focus(on: secondSquatSet, animateFocus: animation)
+
+    #expect(
+        focusMoves == [
+            [ActiveSetID(exerciseOrder: 0, setIndex: 0), ActiveSetID(exerciseOrder: 1, setIndex: 0)],
+            [ActiveSetID(exerciseOrder: 1, setIndex: 0), ActiveSetID(exerciseOrder: 0, setIndex: 0)],
+            [ActiveSetID(exerciseOrder: 0, setIndex: 0), ActiveSetID(exerciseOrder: 1, setIndex: 1)],
+            [ActiveSetID(exerciseOrder: 1, setIndex: 1), ActiveSetID(exerciseOrder: 0, setIndex: 1)]
+        ]
+    )
+}
