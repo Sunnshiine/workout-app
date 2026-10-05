@@ -4,8 +4,6 @@ import UIKit
 
 @testable import WorkoutTracker
 
-/// Every card mode draws the head row, the weight row, the rails row, and the action row, in the
-/// same frames inside the same card frame. A mode changes what a row says, never whether it exists.
 @MainActor
 @Suite
 struct ActiveSetCardLayoutTests {
@@ -91,8 +89,6 @@ private struct CardRows: Equatable, CustomStringConvertible {
     }
 }
 
-/// `actionControl` names the control the action row holds; `headControls` maps each control in the
-/// head row's trailing slot to its frame.
 private struct CardDrawing: Equatable, CustomStringConvertible {
     let rows: CardRows
     let actionControl: String
