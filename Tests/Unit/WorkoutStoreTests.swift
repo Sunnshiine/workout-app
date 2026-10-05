@@ -618,3 +618,47 @@ private func makeStore(
     #expect(set.state == .logged)
     #expect(store.currentSession?.dayNumber == 2)
 }
+
+@MainActor
+private final class CurrentSessionChanges {
+    private(set) var count = 0
+
+    init(watching store: WorkoutStore) {
+        observe(store)
+    }
+
+    private func observe(_ store: WorkoutStore) {
+        withObservationTracking {
+            _ = store.currentSession
+        } onChange: {
+            MainActor.assumeIsolated {
+                self.count += 1
+                self.observe(store)
+            }
+        }
+    }
+}
+
+@MainActor
+@Test func observersHearTheCurrentSessionOnlyWhenItMoves() throws {
+    let fixture = try makeStore()
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+    let sessions = try #require(store.block?.weeks.first?.sessions)
+    func firstSet(ofDay day: Int) throws -> ExerciseSet {
+        try #require(sessions.first { $0.dayNumber == day }?.exercises.first?.sets.first)
+    }
+    let changes = CurrentSessionChanges(watching: store)
+    var counts: [Int] = []
+
+    store.reload()
+    counts.append(changes.count)
+    try store.log(try firstSet(ofDay: 1), as: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
+    counts.append(changes.count)
+    try store.log(try firstSet(ofDay: 2), as: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
+    counts.append(changes.count)
+    store.moveOn()
+    counts.append(changes.count)
+
+    #expect(counts == [0, 0, 1, 2])
+}

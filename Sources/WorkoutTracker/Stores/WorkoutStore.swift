@@ -128,15 +128,13 @@ final class WorkoutStore {
 
     func makeViewedSessionCurrent() {
         guard let block, let viewedSession else { return }
-        persistCurrentSessionOverride(tracker.persistedIdentity(of: viewedSession), in: block)
+        writeCurrentSessionOverride(tracker.persistedIdentity(of: viewedSession), in: block)
         view(viewedSession)
     }
 
     func resetCurrentSessionOverride() {
         guard let block else { return }
-        defaults.removeValue(forKey: tracker.currentSessionOverrideStorageKey(forBlockTab: block.tabName))
-        currentSessionOverrideRevision += 1
-        refreshCurrentSession()
+        writeCurrentSessionOverride(nil, in: block)
         view(currentSession)
     }
 
@@ -177,7 +175,7 @@ final class WorkoutStore {
         case .returnToBlockOverview:
             requestBlockOverviewPresentation()
         case .advance(to: let nextSession):
-            persistCurrentSessionOverride(tracker.persistedIdentity(of: nextSession), in: block)
+            writeCurrentSessionOverride(tracker.persistedIdentity(of: nextSession), in: block)
             view(nextSession)
         }
     }
@@ -185,8 +183,7 @@ final class WorkoutStore {
     // MARK: - Private Helpers
 
     private func refreshCurrentSession() {
-        let resolved = block.flatMap { tracker.currentSession(in: $0, override: currentSessionOverride(in: $0)) }
-        if resolved !== currentSession { currentSession = resolved }
+        currentSession = block.flatMap { tracker.currentSession(in: $0, override: currentSessionOverride(in: $0)) }
     }
 
     private func view(_ session: Session?) {
@@ -266,8 +263,14 @@ final class WorkoutStore {
         return defaults.integer(forKey: key).map(PersistedSessionIdentity.init(storageValue:))
     }
 
-    private func persistCurrentSessionOverride(_ identity: PersistedSessionIdentity, in block: Block) {
-        defaults.set(identity.storageValue, forKey: tracker.currentSessionOverrideStorageKey(forBlockTab: block.tabName))
+    /// The one override writer. A nil `identity` removes the override.
+    private func writeCurrentSessionOverride(_ identity: PersistedSessionIdentity?, in block: Block) {
+        let key = tracker.currentSessionOverrideStorageKey(forBlockTab: block.tabName)
+        if let identity {
+            defaults.set(identity.storageValue, forKey: key)
+        } else {
+            defaults.removeValue(forKey: key)
+        }
         currentSessionOverrideRevision += 1
         refreshCurrentSession()
     }
