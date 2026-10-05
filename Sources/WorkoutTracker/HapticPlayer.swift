@@ -13,7 +13,6 @@ enum Haptic: Equatable, Sendable {
     /// this same pattern.
     case moveOn
 
-    /// A Crisp input transient: a log, a skip dud, a stepper or rail detent tick.
     case input(Theme.HapticTuning)
 
     func pattern() throws -> CHHapticPattern {
