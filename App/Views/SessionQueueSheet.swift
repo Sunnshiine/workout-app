@@ -70,7 +70,6 @@ struct SessionQueueSheet: View {
         .presentationBackground { palette.paperBackground }
         .onDisappear {
             onCancelPairing()
-            // The ceremony overlay waits for the sheet to finish sliding out.
             if movesOnWhenDismissed { onMoveOn() }
         }
     }

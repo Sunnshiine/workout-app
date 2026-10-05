@@ -7,10 +7,6 @@ enum Haptic: Equatable, Sendable {
     /// A rest-timer cue, one per `RestHapticEvent` the schedule makes due.
     case rest(RestHapticKind)
 
-    /// The Move On ceremony's one Crisp pattern (DESIGN.md §7). The values are timed to the
-    /// animation, not chosen for feel alone. The swell rises through the stem's climb (1.0s) and
-    /// the peak transient lands with the bird on the branch tip, after the beat and the drop
-    /// (1.45s). Every Move On plays this same pattern, Reduce Motion included.
     case moveOn
 
     case input(Theme.HapticTuning)

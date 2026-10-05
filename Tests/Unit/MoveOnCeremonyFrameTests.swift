@@ -9,6 +9,7 @@ private let tolerance = 1e-6
 @Suite struct MoveOnCeremonyFrameTests {
     @Test func theStemDrawsOnTheWingOverItsFirstSecondThenHolds() {
         #expect(MoveOnCeremonyFrame(elapsed: 0).stemTrim == 0)
+        #expect(MoveOnCeremonyFrame(elapsed: 0.1).stemTrim == 0)
         #expect(abs(MoveOnCeremonyFrame(elapsed: 0.5).stemTrim - 0.115986) < tolerance)
         #expect(abs(MoveOnCeremonyFrame(elapsed: 0.75).stemTrim - 0.390863) < tolerance)
         #expect(MoveOnCeremonyFrame(elapsed: 1.0).stemTrim == 1)
@@ -21,6 +22,7 @@ private let tolerance = 1e-6
         #expect(MoveOnCeremonyFrame(elapsed: 0.5).birdLanding == 0)
         #expect(MoveOnCeremonyFrame(elapsed: 1.0).birdLanding == 0)
         #expect(MoveOnCeremonyFrame(elapsed: 1.1).birdLanding == 0)
+        #expect(MoveOnCeremonyFrame(elapsed: 1.135).birdLanding == 0)
         #expect(abs(MoveOnCeremonyFrame(elapsed: 1.275).birdLanding - 0.115986) < tolerance)
         #expect(abs(MoveOnCeremonyFrame(elapsed: 1.45).birdLanding - 1) < tolerance)
     }

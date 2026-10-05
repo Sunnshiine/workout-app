@@ -78,8 +78,6 @@ private func exported(_ haptic: Haptic) throws -> String {
         )
     }
 
-    /// The DESIGN.md §7 tuning: a 1.0s swell curving 0.2 -> 1.0, then the Crisp log-tap peak
-    /// (1.0 / 0.65) at 1.45s, when the bird lands after the 0.10s beat and the 0.35s drop.
     @Test func moveOnIsASwellCurvingIntoAPeakWhenTheBirdLands() throws {
         #expect(
             try exported(.moveOn) == """
