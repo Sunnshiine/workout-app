@@ -29,8 +29,8 @@ private struct SupersetPair: Equatable, Sendable {
     }
 }
 
-/// Reads are pure: they filter to live pairs and never write. Only `ActiveSetFocusManager`'s
-/// write paths prune and reconcile, through `refresh(in:)` and `focusedSetID(whenNormalFocusIs:in:)`.
+/// Reads are pure: they filter to live pairs and never write, because views read them in `body`.
+/// Only writes prune: `createSuperset`, `refresh(in:)`, and `focusedSetID(whenNormalFocusIs:in:)`.
 @MainActor
 @Observable
 final class SupersetState {
