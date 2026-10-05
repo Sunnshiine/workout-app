@@ -3,7 +3,7 @@ import SwiftUI
 /// The Block grid — the focus week. One Week (the one holding the Current Session) stands in
 /// morning light with a glowing rim; every other Week collapses to a card in shade carrying a
 /// summary and a mini day-strip. Hierarchy is **light and shade at one elevation**, and the
-/// sunlit hour (page sunbeam, the focus card's rim, the current tile's `sunGlow`, tile top-light)
+/// sunlit hour (page sunbeam, the focus card's rim, the current tile's glow, tile top-light)
 /// is the page's only delight — no branches, no bird (DESIGN.md §5.5).
 struct BlockOverviewView: View {
     @Environment(WorkoutStore.self) private var workout
