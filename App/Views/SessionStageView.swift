@@ -231,6 +231,7 @@ struct SessionStageView: View {
     // up-next bar and its uppercase label + arrow icon are gone.
     private func queueBar(stageItem: SessionStageItem?, items: [SessionStageItem]) -> some View {
         let upNext = SessionStagePresentation.upNextItem(after: stageItem, in: items)
+        let position = SessionStagePresentation.queuePosition(of: stageItem, in: items)
 
         return HStack(spacing: 12) {
             if let upNext {
@@ -258,7 +259,7 @@ struct SessionStageView: View {
             Button {
                 isQueuePresented = true
             } label: {
-                Text(SessionStagePresentation.queueProgressLabel(for: items))
+                Text(position.label)
                     .font(Theme.font(.queuePill))
                     .foregroundStyle(palette.textPrimary)
                     .padding(.horizontal, 16)
@@ -271,6 +272,7 @@ struct SessionStageView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(position.accessibilityLabel)
             .accessibilityIdentifier("stage-queue-button")
         }
         .padding(.horizontal)
