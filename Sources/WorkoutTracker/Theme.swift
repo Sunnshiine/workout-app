@@ -131,48 +131,6 @@ enum Theme {
             BoxShadow(y: 3, blur: 8, color: Paint.ink.opacity(0.07))
         ]
 
-        /// The current tile's sunlit-hour glow — a cream/sun halo, never green.
-        static let sunGlow: [BoxShadow] = [
-            BoxShadow(y: 0, blur: 0, spread: 4, color: rgb(242, 247, 232, 0.45)),
-            BoxShadow(y: 2, blur: 18, color: rgb(220, 235, 190, 0.9))
-        ]
-
-        /// The focus card's morning-light fill (`rgba(248,251,238,0.96)`).
-        static let focusCardFill = rgb(248, 251, 238, 0.96)
-
-        /// The focus card's glowing rim: `cardLow` under a cream 5px halo and a soft sun bloom.
-        static let focusCardGlowRim: [BoxShadow] = cardLow + [
-            BoxShadow(y: 0, blur: 0, spread: 5, color: rgb(250, 252, 238, 0.5)),
-            BoxShadow(y: 6, blur: 30, color: rgb(228, 240, 200, 0.95))
-        ]
-
-        /// A tile's top-light sheen (`radial-gradient(90% 160% at 78% -30%, rgba(255,255,245,0.85), transparent 55%)`).
-        static let tileTopLight = RadialLight(
-            stops: [
-                Gradient.Stop(color: rgb(255, 255, 245, 0.85), location: 0),
-                Gradient.Stop(color: .clear, location: 0.55)
-            ],
-            center: UnitPoint(x: 0.78, y: -0.30),
-            radiusFraction: 0.55
-        )
-
-        /// The page sunbeam over the Block grid
-        /// (`radial-gradient(120% 85% at 82% -8%, rgba(253,254,242,0.85), rgba(250,252,238,0.28) 46%, transparent 70%)`).
-        static let pageSunbeam = RadialLight(
-            stops: [
-                Gradient.Stop(color: rgb(253, 254, 242, 0.85), location: 0),
-                Gradient.Stop(color: rgb(250, 252, 238, 0.28), location: 0.46),
-                Gradient.Stop(color: .clear, location: 0.70)
-            ],
-            center: UnitPoint(x: 0.82, y: -0.08),
-            radiusFraction: 0.85
-        )
-
-        /// The Exercise-History volume control's raised state: cream @ 90% over the `cardLow` raise
-        /// (its pressed state is the carved-chip recipe, `chipCarvedFill`).
-        static let volumeControlRaisedFill = Paint.cream.opacity(0.90)
-        static let volumeControlRaisedShadow: [BoxShadow] = cardLow
-
         /// The volume chart's plotted points: a solid ink dot with a paper core, and the
         /// approximate-value dot as a hollow ink outline.
         static let dataDot = DotSpec(radius: 4.5, lineWidth: 0, hasPaperCore: true)
@@ -182,7 +140,6 @@ enum Theme {
     // MARK: - Palette (flat semantic roles)
 
     struct Palette {
-        let appearance: Appearance
         let preferredColorScheme: ColorScheme
         let paper: PaperRecipe
 
@@ -242,7 +199,6 @@ enum Theme {
         let chipCarveEdge: Color
         let chartLine: Color
         let blockSeam: Color
-        let grabber: Color
 
         // Bird & colophon
         let birdFill: Color
@@ -250,6 +206,8 @@ enum Theme {
 
         // Destructive
         let danger: Color
+
+        let lighting: Lighting
 
         // MARK: Legacy role aliases
         //
@@ -369,7 +327,6 @@ enum Theme {
     static let blockTileGhostDash: CGFloat = 4
     static let blockWeekCardPadding: CGFloat = 14
     static let blockFocusCardPadding: CGFloat = 16
-    static let blockFocusGlowRadius: CGFloat = 14 // the focus card's glowing rim / sunlit hour
 
     static let cardSpacing: CGFloat = 16
     static let sectionSpacing: CGFloat = 28
@@ -446,6 +403,67 @@ enum Theme {
     }
 }
 
+// MARK: - Lighting
+
+extension Theme {
+    struct Lighting: Equatable {
+        let pageSunbeam: RadialLight?
+        let tileTopLight: RadialLight?
+        let focusCardFill: Color
+        let focusCardElevation: [BoxShadow]
+        let raisedControlFill: Color
+        let raisedControlShadow: [BoxShadow]
+        let currentTileGlow: [BoxShadow]
+
+        static let day = Lighting(
+            pageSunbeam: RadialLight(
+                stops: [
+                    Gradient.Stop(color: rgb(253, 254, 242, 0.85), location: 0),
+                    Gradient.Stop(color: rgb(250, 252, 238, 0.28), location: 0.46),
+                    Gradient.Stop(color: .clear, location: 0.70)
+                ],
+                center: UnitPoint(x: 0.82, y: -0.08),
+                radiusFraction: 0.85
+            ),
+            tileTopLight: RadialLight(
+                stops: [
+                    Gradient.Stop(color: rgb(255, 255, 245, 0.85), location: 0),
+                    Gradient.Stop(color: .clear, location: 0.55)
+                ],
+                center: UnitPoint(x: 0.78, y: -0.30),
+                radiusFraction: 0.55
+            ),
+            focusCardFill: rgb(248, 251, 238, 0.96),
+            focusCardElevation: LightKit.cardLow + [
+                BoxShadow(y: 0, blur: 0, spread: 5, color: rgb(250, 252, 238, 0.5)),
+                BoxShadow(y: 6, blur: 30, color: rgb(228, 240, 200, 0.95))
+            ],
+            raisedControlFill: Paint.cream.opacity(0.90),
+            raisedControlShadow: LightKit.cardLow,
+            currentTileGlow: [
+                BoxShadow(y: 0, blur: 0, spread: 4, color: rgb(242, 247, 232, 0.45)),
+                BoxShadow(y: 2, blur: 18, color: rgb(220, 235, 190, 0.9))
+            ]
+        )
+
+        static let night = Lighting(
+            pageSunbeam: nil,
+            tileTopLight: nil,
+            focusCardFill: nightSurface,
+            focusCardElevation: nightSurfaceShadow,
+            raisedControlFill: nightSurface,
+            raisedControlShadow: nightSurfaceShadow,
+            currentTileGlow: [BoxShadow(y: 0, blur: 14, color: nightBudGlow)]
+        )
+    }
+
+    private static let nightSurface = Paint.cream.opacity(0.07)
+    private static let nightSurfaceShadow = [
+        BoxShadow(y: 0, blur: 0, spread: 1, color: Paint.cream.opacity(0.10), inset: true)
+    ]
+    private static let nightBudGlow = rgb(120, 240, 178, 0.32)
+}
+
 // MARK: - Appearance resolution
 
 extension Theme {
@@ -490,7 +508,6 @@ extension Theme {
     // MARK: - Hand-lit value sheets
 
     private static let dayPalette = Palette(
-        appearance: .day,
         preferredColorScheme: .light,
         paper: PaperRecipe(
             baseTop: Paint.paperDayTop,
@@ -543,14 +560,13 @@ extension Theme {
         chipCarveEdge: Color.white.opacity(0.6), // the light bottom lip
         chartLine: Paint.ink.opacity(0.35),
         blockSeam: Paint.ink.opacity(0.14),
-        grabber: Paint.ink.opacity(0.18),
         birdFill: Paint.actionDay,
         birdRib: Paint.cream.opacity(0.50),
-        danger: rgb(255, 59, 48) // system red, carried forward pending danger pass
+        danger: rgb(255, 59, 48), // system red, carried forward pending danger pass
+        lighting: .day
     )
 
     private static let nightPalette = Palette(
-        appearance: .night,
         preferredColorScheme: .dark,
         paper: PaperRecipe(
             baseTop: Paint.paperNightTop,
@@ -571,12 +587,10 @@ extension Theme {
         budStroke: rgb(120, 240, 178), // #78F0B2 — the bud carries the page's one glow
         futureStroke: Paint.foliage.opacity(0.45),
         skipStroke: Paint.mutedNight.opacity(0.40),
-        budGlow: rgb(120, 240, 178, 0.32), // drop-shadow(0 0 7px rgba(120,240,178,0.32)) — the page's one glow
+        budGlow: nightBudGlow,
         supersetPartnerBranch: Paint.foliage.opacity(0.55), // Night quiets the partner by translucency
-        surface: Paint.cream.opacity(0.07),
-        surfaceShadow: [
-            BoxShadow(y: 0, blur: 0, spread: 1, color: Paint.cream.opacity(0.10), inset: true) // border-as-light, no drop
-        ],
+        surface: nightSurface,
+        surfaceShadow: nightSurfaceShadow,
         pillFill: Paint.cream.opacity(0.06),
         pillStroke: Paint.cream.opacity(0.16),
         railFill: Paint.cream.opacity(0.06),
@@ -600,10 +614,10 @@ extension Theme {
         chipCarveEdge: Paint.cream.opacity(0.10), // cream-toned bottom lip at Night
         chartLine: Paint.inkNight.opacity(0.35),
         blockSeam: Paint.inkNight.opacity(0.14),
-        grabber: Paint.cream.opacity(0.18),
         birdFill: Paint.foliage,
         birdRib: Paint.cream.opacity(0.55),
-        danger: rgb(255, 59, 48)
+        danger: rgb(255, 59, 48),
+        lighting: .night
     )
 
     /// 0–255 sRGB channel helper so the value sheets read like the token-sheet hex/rgba literals.

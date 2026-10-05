@@ -53,25 +53,25 @@ import Testing
 @Test func themeDayAppearanceIsLightNightIsDark() {
     #expect(Theme.palette(for: Theme.Appearance.day).preferredColorScheme == .light)
     #expect(Theme.palette(for: Theme.Appearance.night).preferredColorScheme == .dark)
-    #expect(Theme.palette(for: Theme.Appearance.day).appearance == .day)
-    #expect(Theme.palette(for: Theme.Appearance.night).appearance == .night)
+    #expect(Theme.palette(for: Theme.Appearance.day).lighting == .day)
+    #expect(Theme.palette(for: Theme.Appearance.night).lighting == .night)
 }
 
 // MARK: - Appearance resolution (preference × system scheme)
 
 @Test func themeResolvesLightPreferenceToDayAndNightPreferenceToNight() {
-    #expect(Theme.palette(for: AppearancePreference.light).appearance == .day)
-    #expect(Theme.palette(for: AppearancePreference.night).appearance == .night)
+    #expect(Theme.palette(for: AppearancePreference.light).lighting == .day)
+    #expect(Theme.palette(for: AppearancePreference.night).lighting == .night)
 }
 
 @Test func themeSystemPreferenceFollowsColorSchemeAndSystemDarkMapsToNight() {
-    #expect(Theme.palette(for: AppearancePreference.system, colorScheme: .light).appearance == .day)
-    #expect(Theme.palette(for: AppearancePreference.system, colorScheme: .dark).appearance == .night)
+    #expect(Theme.palette(for: AppearancePreference.system, colorScheme: .light).lighting == .day)
+    #expect(Theme.palette(for: AppearancePreference.system, colorScheme: .dark).lighting == .night)
 }
 
 @Test func themeForcedPreferencesIgnoreCurrentColorScheme() {
-    #expect(Theme.palette(for: AppearancePreference.light, colorScheme: .dark).appearance == .day)
-    #expect(Theme.palette(for: AppearancePreference.night, colorScheme: .light).appearance == .night)
+    #expect(Theme.palette(for: AppearancePreference.light, colorScheme: .dark).lighting == .day)
+    #expect(Theme.palette(for: AppearancePreference.night, colorScheme: .light).lighting == .night)
 }
 
 @Test func themeColorSchemeOverrideOnlyForForcedPreferences() {
@@ -130,12 +130,9 @@ import Testing
             #expect(sheet.green < 0.2, "the night sheet stays a deep sage paper, not a mid-tone")
         }
 
-        // Cream stays the light source: carved chips and the grabber are cream at low opacity.
-        for creamSurface in [night.chipCarvedFill, night.grabber] {
-            expectSageLed(creamSurface)
-            if let cream = rgbaComponents(of: creamSurface) {
-                #expect(cream.green > 0.85, "cream is kept as the light source, sage-led and bright")
-            }
+        expectSageLed(night.chipCarvedFill)
+        if let cream = rgbaComponents(of: night.chipCarvedFill) {
+            #expect(cream.green > 0.85, "cream is kept as the light source, sage-led and bright")
         }
     }
 #endif
