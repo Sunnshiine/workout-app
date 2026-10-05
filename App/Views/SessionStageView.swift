@@ -1,19 +1,6 @@
 import SwiftUI
 import UIKit
 
-/// The production Session surface mutation handlers, animation-wrapped by
-/// SessionView so every path keeps the coordinator's focus semantics.
-struct SessionStageActions {
-    let focus: (ExerciseSet) -> Void
-    let log: (ExerciseSet, SetLog) -> Void
-    let updateLoggedSet: (ExerciseSet, SetLog) -> Void
-    let skip: (ExerciseSet) -> Void
-    let delete: (ExerciseSet) -> Void
-    let focusSupersetExercise: (Exercise) -> Void
-    let showSourceSession: (Exercise) -> Void
-    let moveOn: () -> Void
-}
-
 /// Stage: the Session screen is a single "now playing" surface — the Exercise
 /// name, its context, and the active Set card. Orientation is on demand: an
 /// up-next hint at the bottom and the full queue in a sheet.
@@ -21,7 +8,6 @@ struct SessionStageView: View {
     let session: Session
     let coordinator: SessionCoordinator
     let composition: SessionStageComposition
-    let actions: SessionStageActions
     @Environment(WorkoutStore.self) private var workout
     @Environment(LastPerformedLookupStore.self) private var lastPerformedLookup
     @Environment(ExerciseHistoryFill.self) private var historyFill
@@ -85,8 +71,8 @@ struct SessionStageView: View {
                 pairingMode: coordinator.pairingMode,
                 canBeginPairing: canBeginPairing(_:),
                 onJump: jump(to:),
-                onMoveOn: actions.moveOn,
-                onSelectOpenExercise: actions.showSourceSession,
+                onMoveOn: moveOn,
+                onSelectOpenExercise: showSourceSession(of:),
                 onBeginPairing: beginPairing(from:),
                 onPairingTap: handlePairingTap(on:),
                 onCancelPairing: coordinator.cancelPairing
@@ -114,11 +100,11 @@ struct SessionStageView: View {
             ActiveSupersetSection(
                 config: config,
                 composition: composition,
-                onFocusExercise: actions.focusSupersetExercise,
+                onFocusExercise: { coordinator.focusNextSupersetSet(for: $0, in: session) },
                 onShowHistory: { historyExercise = $0 },
-                onLog: actions.log,
-                onSkip: actions.skip,
-                onDelete: actions.delete
+                onLog: { coordinator.log($0, as: $1) },
+                onSkip: coordinator.skip(_:),
+                onDelete: coordinator.deleteLog(for:)
             )
         case .hiddenPairedExercise:
             EmptyView()
@@ -147,7 +133,7 @@ struct SessionStageView: View {
             SessionStageBranch(
                 sets: sortedSets,
                 activeSetID: config.activeSetID,
-                onTap: actions.focus
+                onTap: coordinator.focus(on:)
             )
         } card: {
             stageCard(config, sortedSets: sortedSets)
@@ -164,11 +150,11 @@ struct SessionStageView: View {
                 setCount: sortedSets.count,
                 mode: .reviewingLogged(
                     showsSavedConfirmation: expandedID == config.savedLoggedSetID,
-                    onCollapse: { actions.focus(set) }
+                    onCollapse: { coordinator.focus(on: set) }
                 ),
-                onLog: { actions.updateLoggedSet(set, $0) },
-                onSkip: { actions.skip(set) },
-                onDelete: { actions.delete(set) }
+                onLog: { coordinator.updateLoggedSet(set, as: $0) },
+                onSkip: { coordinator.skip(set) },
+                onDelete: { coordinator.deleteLog(for: set) }
             )
             .id("stage-review-\(expandedID.exerciseOrder)-\(expandedID.setIndex)")
             .transition(.push(from: .bottom))
@@ -177,9 +163,9 @@ struct SessionStageView: View {
                 set: set,
                 setOrdinal: SessionStagePresentation.ordinal(of: set, in: sortedSets),
                 setCount: sortedSets.count,
-                onLog: { actions.log(set, $0) },
-                onSkip: { actions.skip(set) },
-                onDelete: { actions.delete(set) }
+                onLog: { coordinator.log(set, as: $0) },
+                onSkip: { coordinator.skip(set) },
+                onDelete: { coordinator.deleteLog(for: set) }
             )
             .id("stage-active-\(config.exercise.order)-\(set.index)")
             .transition(.push(from: .bottom))
@@ -199,7 +185,7 @@ struct SessionStageView: View {
             openExercisesIfMoveOnStillFits
 
             if workout.isViewingLiveEdge, workout.canMoveOn {
-                SessionMoveOnButton(onTap: actions.moveOn)
+                SessionMoveOnButton(onTap: moveOn)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -212,7 +198,7 @@ struct SessionStageView: View {
                 if !liveEdgeOpenExercises.isEmpty {
                     OpenExercisesSection(
                         exercises: liveEdgeOpenExercises,
-                        onSelect: actions.showSourceSession
+                        onSelect: showSourceSession(of:)
                     )
                     .padding(.top, Theme.cardSpacing)
                 }
@@ -281,7 +267,18 @@ struct SessionStageView: View {
 
     private func jump(to item: SessionStageItem) {
         guard let nextSet = item.nextPendingSet else { return }
-        actions.focus(nextSet)
+        coordinator.focus(on: nextSet)
+    }
+
+    private func moveOn() {
+        coordinator.cancelRestForSessionExit()
+        workout.requestMoveOnCelebration()
+    }
+
+    private func showSourceSession(of exercise: Exercise) {
+        coordinator.cancelPairing()
+        guard let address = exercise.session?.address else { return }
+        workout.show(address)
     }
 
     private func dismissKeyboard() {

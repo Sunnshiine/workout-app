@@ -206,46 +206,17 @@ struct SetCardPresentationTests {
     }
 }
 
-@Test func focusMorphPolicyAnimatesPendingFocusWhenMotionIsAllowed() {
-    let policy = SessionFocusMorphPolicy(reduceMotion: false)
+@Test func onlyTheFocusMorphYieldsToReduceMotion() {
+    let motions: [SessionMotion] = [.momentumFlow, .skipFadeUp, .focusMorph]
 
-    #expect(policy.shouldAnimate(.pendingFocus))
+    #expect(motions.map { $0.runs(reducingMotion: false) } == [true, true, true])
+    #expect(motions.map { $0.runs(reducingMotion: true) } == [true, true, false])
 }
 
-@Test func focusMorphPolicyDisablesPendingFocusWhenReduceMotionIsEnabled() {
-    let policy = SessionFocusMorphPolicy(reduceMotion: true)
-
-    #expect(!policy.shouldAnimate(.pendingFocus))
-}
-
-@Test func focusMorphPolicyAnimatesLoggedReviewOpenWhenMotionIsAllowed() {
-    let policy = SessionFocusMorphPolicy(reduceMotion: false)
-
-    #expect(policy.shouldAnimate(.loggedReviewOpen))
-}
-
-@Test func focusMorphPolicyDoesNotAnimateLoggedReviewCollapse() {
-    let policy = SessionFocusMorphPolicy(reduceMotion: false)
-
-    #expect(!policy.shouldAnimate(.loggedReviewCollapse))
-}
-
-@Test func focusMorphPolicyDisablesLoggedReviewOpenWhenReduceMotionIsEnabled() {
-    let policy = SessionFocusMorphPolicy(reduceMotion: true)
-
-    #expect(!policy.shouldAnimate(.loggedReviewOpen))
-}
-
-@Test func focusMorphPolicyAnimatesSuccessfulSupersetSwitchWhenMotionIsAllowed() {
-    let policy = SessionFocusMorphPolicy(reduceMotion: false)
-
-    #expect(policy.shouldAnimate(.supersetSwitchSucceeded))
-}
-
-@Test func focusMorphPolicyDisablesSupersetSwitchWhenReduceMotionIsEnabled() {
-    let policy = SessionFocusMorphPolicy(reduceMotion: true)
-
-    #expect(!policy.shouldAnimate(.supersetSwitchSucceeded))
+@Test func eachSessionMotionRunsItsDesignedCurveAndDuration() {
+    #expect(SessionMotion.momentumFlow.animation == .easeInOut(duration: 0.65))
+    #expect(SessionMotion.skipFadeUp.animation == .easeOut(duration: 0.45))
+    #expect(SessionMotion.focusMorph.animation == .easeInOut(duration: 0.28))
 }
 
 @MainActor
