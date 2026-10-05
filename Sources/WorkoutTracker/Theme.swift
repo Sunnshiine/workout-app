@@ -327,7 +327,6 @@ enum Theme {
     static let blockTileGhostDash: CGFloat = 4
     static let blockWeekCardPadding: CGFloat = 14
     static let blockFocusCardPadding: CGFloat = 16
-    static let blockFocusGlowRadius: CGFloat = 14 // the focus card's glowing rim / sunlit hour
 
     static let cardSpacing: CGFloat = 16
     static let sectionSpacing: CGFloat = 28
@@ -407,22 +406,16 @@ enum Theme {
 // MARK: - Lighting
 
 extension Theme {
-    /// The sunlit hour by Day, and the same room re-lit at Night (Room Re-lights Rule).
     struct Lighting: Equatable {
         let pageSunbeam: RadialLight?
-        /// A full tile's top-light sheen.
         let tileTopLight: RadialLight?
         let focusCardFill: Color
         let focusCardElevation: [BoxShadow]
-        /// The Exercise History Volume toggle's raised state (its pressed state is the carved-chip
-        /// recipe, `chipCarvedFill`).
         let raisedControlFill: Color
         let raisedControlShadow: [BoxShadow]
-        /// The current tile's glow, the page's one delight (DESIGN.md One Glow Rule).
         let currentTileGlow: [BoxShadow]
 
         static let day = Lighting(
-            // radial-gradient(120% 85% at 82% -8%, rgba(253,254,242,0.85), rgba(250,252,238,0.28) 46%, transparent 70%)
             pageSunbeam: RadialLight(
                 stops: [
                     Gradient.Stop(color: rgb(253, 254, 242, 0.85), location: 0),
@@ -432,7 +425,6 @@ extension Theme {
                 center: UnitPoint(x: 0.82, y: -0.08),
                 radiusFraction: 0.85
             ),
-            // radial-gradient(90% 160% at 78% -30%, rgba(255,255,245,0.85), transparent 55%)
             tileTopLight: RadialLight(
                 stops: [
                     Gradient.Stop(color: rgb(255, 255, 245, 0.85), location: 0),
@@ -461,15 +453,15 @@ extension Theme {
             focusCardElevation: nightSurfaceShadow,
             raisedControlFill: nightSurface,
             raisedControlShadow: nightSurfaceShadow,
-            currentTileGlow: [BoxShadow(y: 0, blur: blockFocusGlowRadius, color: nightBudGlow)] // SwiftUI radius 7
+            currentTileGlow: [BoxShadow(y: 0, blur: 14, color: nightBudGlow)]
         )
     }
 
     private static let nightSurface = Paint.cream.opacity(0.07)
     private static let nightSurfaceShadow = [
-        BoxShadow(y: 0, blur: 0, spread: 1, color: Paint.cream.opacity(0.10), inset: true) // border-as-light, no drop
+        BoxShadow(y: 0, blur: 0, spread: 1, color: Paint.cream.opacity(0.10), inset: true)
     ]
-    private static let nightBudGlow = rgb(120, 240, 178, 0.32) // drop-shadow(0 0 7px rgba(120,240,178,0.32)) — the page's one glow
+    private static let nightBudGlow = rgb(120, 240, 178, 0.32)
 }
 
 // MARK: - Appearance resolution
