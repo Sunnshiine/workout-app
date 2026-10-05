@@ -44,7 +44,6 @@ private func supersetItem(_ first: Exercise, _ second: Exercise) throws -> Sessi
         SessionSupersetRenderConfig(
             presentation: presentation,
             exercises: [first, second],
-            activeSetTransition: nil,
             lastPerformedPresentation: nil
         )
     )

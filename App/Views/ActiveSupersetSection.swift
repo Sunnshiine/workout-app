@@ -101,8 +101,7 @@ struct ActiveSupersetSection: View {
     @ViewBuilder
     private var cardRegion: some View {
         if let activeSetID = config.presentation.activeSetID, let activeSet = stageSet {
-            IncomingActiveSetCard(
-                transition: incomingTransition,
+            ActiveSetCard(
                 set: activeSet,
                 setOrdinal: setOrdinal(for: activeSet),
                 setCount: focusedSortedSets.count,
@@ -123,79 +122,7 @@ struct ActiveSupersetSection: View {
         }
     }
 
-    private var incomingTransition: ActiveSetTransition? {
-        guard config.activeSetTransition?.incomingSetID == config.presentation.activeSetID else { return nil }
-        return config.activeSetTransition
-    }
-
     private func setOrdinal(for set: ExerciseSet) -> Int {
         (focusedSortedSets.firstIndex { $0.persistentModelID == set.persistentModelID } ?? set.index) + 1
-    }
-}
-
-private struct IncomingActiveSetCard: View {
-    let transition: ActiveSetTransition?
-    let set: ExerciseSet
-    let setOrdinal: Int
-    let setCount: Int
-    let onLog: (SetLog) -> Void
-    let onSkip: () -> Void
-    let onDelete: () -> Void
-    @State private var hasSettled = false
-
-    var body: some View {
-        ActiveSetCard(
-            set: set,
-            setOrdinal: setOrdinal,
-            setCount: setCount,
-            onLog: onLog,
-            onSkip: onSkip,
-            onDelete: onDelete
-        )
-        .offset(y: shouldAnimate && !hasSettled ? incomingOffset : 0)
-        .opacity(shouldAnimate && !hasSettled ? 0 : 1)
-        .onAppear(perform: runIncomingAnimationIfNeeded)
-        .onChange(of: transition) { _, _ in
-            runIncomingAnimationIfNeeded()
-        }
-    }
-
-    private var shouldAnimate: Bool {
-        transition != nil
-    }
-
-    private var incomingOffset: CGFloat {
-        guard let transition else { return 0 }
-        switch transition.kind {
-        case .momentumFlow:
-            return Theme.momentumRiseOffset
-        case .softFadeUp:
-            return 0
-        case .collapseAndRise:
-            return Theme.exerciseRiseOffset
-        }
-    }
-
-    private var animation: Animation {
-        guard let transition else { return .default }
-        switch transition.kind {
-        case .momentumFlow:
-            return Theme.momentumRiseAnimation
-        case .softFadeUp:
-            return Theme.skipFadeUpAnimation
-        case .collapseAndRise:
-            return Theme.exerciseRiseAnimation
-        }
-    }
-
-    private func runIncomingAnimationIfNeeded() {
-        guard shouldAnimate else {
-            hasSettled = true
-            return
-        }
-        hasSettled = false
-        withAnimation(animation) {
-            hasSettled = true
-        }
     }
 }
