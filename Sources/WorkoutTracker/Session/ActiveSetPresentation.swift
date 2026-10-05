@@ -145,38 +145,31 @@ struct SetCardPresentation: Equatable, Sendable {
 
     let showsClearMenu: Bool
     let commitsChangesOnDisappear: Bool
-    private let mode: SetCardMode
-    private let isSkipped: Bool
-    private let isUnstructuredSetLog: Bool
-    private let loggedLine: String
+    private let row: ActionRow
+    private let incompleteDraftRow: ActionRow
 
+    /// A structured Set Log's review turns into the hint once the athlete edits it into something that
+    /// is no longer a Set Log. An Unstructured Set Log keeps its text on the line, since that text is
+    /// what the athlete is rebuilding as a Set Log.
     @MainActor
     init(mode: SetCardMode, set: ExerciseSet) {
-        self.mode = mode
-        isSkipped = set.state == .skipped
-        isUnstructuredSetLog = set.setLog == nil
-        loggedLine = set.displayReps
         switch mode {
         case .logging:
             showsClearMenu = set.state != .pending
             commitsChangesOnDisappear = false
+            row = set.state == .skipped ? .skipped : .log
+            incompleteDraftRow = row
         case .reviewingLogged:
             showsClearMenu = false
             commitsChangesOnDisappear = true
+            row = .logged(line: set.displayReps)
+            incompleteDraftRow = set.setLog == nil ? row : .incompleteDraft
         }
     }
 
-    /// The action row reads the draft because a structured Set Log's review turns into the hint once
-    /// the athlete edits it into something that is no longer a Set Log. An Unstructured Set Log keeps
-    /// its text on the line, since that text is what the athlete is rebuilding as a Set Log.
     @MainActor
     func actionRow(for draft: SmartValuePillsForm) -> ActionRow {
-        switch mode {
-        case .logging:
-            isSkipped ? .skipped : .log
-        case .reviewingLogged:
-            draft.hasChanges && !draft.canLog && !isUnstructuredSetLog ? .incompleteDraft : .logged(line: loggedLine)
-        }
+        draft.hasChanges && !draft.canLog ? incompleteDraftRow : row
     }
 }
 
