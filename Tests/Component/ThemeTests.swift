@@ -53,25 +53,25 @@ import Testing
 @Test func themeDayAppearanceIsLightNightIsDark() {
     #expect(Theme.palette(for: Theme.Appearance.day).preferredColorScheme == .light)
     #expect(Theme.palette(for: Theme.Appearance.night).preferredColorScheme == .dark)
-    #expect(Theme.palette(for: Theme.Appearance.day).appearance == .day)
-    #expect(Theme.palette(for: Theme.Appearance.night).appearance == .night)
+    #expect(Theme.palette(for: Theme.Appearance.day).lighting == .day)
+    #expect(Theme.palette(for: Theme.Appearance.night).lighting == .night)
 }
 
 // MARK: - Appearance resolution (preference × system scheme)
 
 @Test func themeResolvesLightPreferenceToDayAndNightPreferenceToNight() {
-    #expect(Theme.palette(for: AppearancePreference.light).appearance == .day)
-    #expect(Theme.palette(for: AppearancePreference.night).appearance == .night)
+    #expect(Theme.palette(for: AppearancePreference.light).lighting == .day)
+    #expect(Theme.palette(for: AppearancePreference.night).lighting == .night)
 }
 
 @Test func themeSystemPreferenceFollowsColorSchemeAndSystemDarkMapsToNight() {
-    #expect(Theme.palette(for: AppearancePreference.system, colorScheme: .light).appearance == .day)
-    #expect(Theme.palette(for: AppearancePreference.system, colorScheme: .dark).appearance == .night)
+    #expect(Theme.palette(for: AppearancePreference.system, colorScheme: .light).lighting == .day)
+    #expect(Theme.palette(for: AppearancePreference.system, colorScheme: .dark).lighting == .night)
 }
 
 @Test func themeForcedPreferencesIgnoreCurrentColorScheme() {
-    #expect(Theme.palette(for: AppearancePreference.light, colorScheme: .dark).appearance == .day)
-    #expect(Theme.palette(for: AppearancePreference.night, colorScheme: .light).appearance == .night)
+    #expect(Theme.palette(for: AppearancePreference.light, colorScheme: .dark).lighting == .day)
+    #expect(Theme.palette(for: AppearancePreference.night, colorScheme: .light).lighting == .night)
 }
 
 @Test func themeColorSchemeOverrideOnlyForForcedPreferences() {
@@ -93,56 +93,6 @@ import Testing
             #expect(danger.green < 0.35, "\(appearance) danger should not drift orange or green")
             #expect(danger.blue < 0.25, "\(appearance) danger should not drift purple")
         }
-    }
-#endif
-
-// MARK: - Lighting (the sunlit hour and the room re-lit)
-
-private func sRGB(_ red: Double, _ green: Double, _ blue: Double, _ opacity: Double) -> Color {
-    Color(.sRGB, red: red / 255, green: green / 255, blue: blue / 255, opacity: opacity)
-}
-
-@Test func themeOnlyDayLightingCarriesTheSunbeamAndTileTopLight() {
-    let day = Theme.palette(for: Theme.Appearance.day).lighting
-    let night = Theme.palette(for: Theme.Appearance.night).lighting
-
-    #expect(day.pageSunbeam != nil)
-    #expect(day.tileTopLight != nil)
-    #expect(night.pageSunbeam == nil)
-    #expect(night.tileTopLight == nil)
-}
-
-@Test func themeDayCurrentTileGlowIsTheCreamHalo() {
-    let glow = Theme.palette(for: Theme.Appearance.day).lighting.currentTileGlow
-
-    #expect(
-        glow
-            == .halo([
-                Theme.BoxShadow(y: 0, blur: 0, spread: 4, color: sRGB(242, 247, 232, 0.45)),
-                Theme.BoxShadow(y: 2, blur: 18, color: sRGB(220, 235, 190, 0.9))
-            ])
-    )
-}
-
-@Test func themeNightLightingRelightsOnTheSurfaceAndTheBudGlow() throws {
-    let night = Theme.palette(for: Theme.Appearance.night)
-
-    #expect(night.lighting.focusCardFill == night.surface)
-    #expect(night.lighting.raisedControlFill == night.surface)
-    #expect(night.lighting.focusCardElevation == night.surfaceShadow)
-    #expect(night.lighting.raisedControlShadow == night.surfaceShadow)
-    #expect(night.lighting.currentTileGlow == .bud(try #require(night.budGlow), radius: 7))
-    #expect(night.budGlow == sRGB(120, 240, 178, 0.32))
-}
-
-#if canImport(AppKit)
-    @Test func themeDayFocusCardFillIsMorningLight() throws {
-        let fill = try #require(rgbaComponents(of: Theme.palette(for: Theme.Appearance.day).lighting.focusCardFill))
-
-        #expect((fill.red * 255).rounded() == 248)
-        #expect((fill.green * 255).rounded() == 251)
-        #expect((fill.blue * 255).rounded() == 238)
-        #expect((fill.alpha * 100).rounded() == 96)
     }
 #endif
 

@@ -52,7 +52,10 @@ struct SessionTile: View {
         }
         .clipShape(shape)
         .overlay { strokeOverlay }
-        .modifier(TileGlow(glow: state == .current && variant == .full ? palette.lighting.currentTileGlow : nil))
+        .themeElevation(
+            state == .current && variant == .full ? palette.lighting.currentTileGlow : [],
+            in: RoundedRectangle(cornerRadius: Theme.Radius.tile)
+        )
     }
 
     @ViewBuilder
@@ -84,19 +87,6 @@ struct SessionTile: View {
                 palette.tileGhostStroke,
                 style: StrokeStyle(lineWidth: Theme.blockTileGhostStroke, dash: [Theme.blockTileGhostDash])
             )
-        }
-    }
-}
-
-private struct TileGlow: ViewModifier {
-    let glow: Theme.CurrentTileGlow?
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        switch glow {
-        case .halo(let shadows): content.themeElevation(shadows, in: RoundedRectangle(cornerRadius: Theme.Radius.tile))
-        case .bud(let color, let radius): content.shadow(color: color, radius: radius)
-        case nil: content
         }
     }
 }

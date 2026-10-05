@@ -140,7 +140,6 @@ enum Theme {
     // MARK: - Palette (flat semantic roles)
 
     struct Palette {
-        let appearance: Appearance
         let preferredColorScheme: ColorScheme
         let paper: PaperRecipe
 
@@ -408,12 +407,6 @@ enum Theme {
 // MARK: - Lighting
 
 extension Theme {
-    /// The current tile's glow, the page's one delight (DESIGN.md One Glow Rule).
-    enum CurrentTileGlow: Equatable {
-        case halo([BoxShadow])
-        case bud(Color, radius: CGFloat)
-    }
-
     /// The sunlit hour by Day, and the same room re-lit at Night (Room Re-lights Rule).
     struct Lighting: Equatable {
         let pageSunbeam: RadialLight?
@@ -425,7 +418,8 @@ extension Theme {
         /// recipe, `chipCarvedFill`).
         let raisedControlFill: Color
         let raisedControlShadow: [BoxShadow]
-        let currentTileGlow: CurrentTileGlow
+        /// The current tile's glow, the page's one delight (DESIGN.md One Glow Rule).
+        let currentTileGlow: [BoxShadow]
 
         static let day = Lighting(
             // radial-gradient(120% 85% at 82% -8%, rgba(253,254,242,0.85), rgba(250,252,238,0.28) 46%, transparent 70%)
@@ -454,10 +448,10 @@ extension Theme {
             ],
             raisedControlFill: Paint.cream.opacity(0.90),
             raisedControlShadow: LightKit.cardLow,
-            currentTileGlow: .halo([
+            currentTileGlow: [
                 BoxShadow(y: 0, blur: 0, spread: 4, color: rgb(242, 247, 232, 0.45)),
                 BoxShadow(y: 2, blur: 18, color: rgb(220, 235, 190, 0.9))
-            ])
+            ]
         )
 
         static let night = Lighting(
@@ -467,7 +461,7 @@ extension Theme {
             focusCardElevation: nightSurfaceShadow,
             raisedControlFill: nightSurface,
             raisedControlShadow: nightSurfaceShadow,
-            currentTileGlow: .bud(nightBudGlow, radius: blockFocusGlowRadius / 2)
+            currentTileGlow: [BoxShadow(y: 0, blur: blockFocusGlowRadius, color: nightBudGlow)] // SwiftUI radius 7
         )
     }
 
@@ -522,7 +516,6 @@ extension Theme {
     // MARK: - Hand-lit value sheets
 
     private static let dayPalette = Palette(
-        appearance: .day,
         preferredColorScheme: .light,
         paper: PaperRecipe(
             baseTop: Paint.paperDayTop,
@@ -582,7 +575,6 @@ extension Theme {
     )
 
     private static let nightPalette = Palette(
-        appearance: .night,
         preferredColorScheme: .dark,
         paper: PaperRecipe(
             baseTop: Paint.paperNightTop,
