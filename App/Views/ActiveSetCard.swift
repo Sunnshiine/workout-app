@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 struct ActiveSetCard: View {
@@ -13,6 +14,13 @@ struct ActiveSetCard: View {
             case .reviewingLogged: .reviewingLogged
             }
         }
+    }
+
+    /// A review opening or collapsing on the Set already shown remounts the pills, so the collapse
+    /// commits the review draft on disappear and the draft never leaks into logging.
+    private struct PillsIdentity: Hashable {
+        let set: PersistentIdentifier
+        let mode: SetCardMode
     }
 
     let set: ExerciseSet
@@ -46,7 +54,7 @@ struct ActiveSetCard: View {
                 onSkip: onSkip,
                 inputDismissalRequestID: inputDismissalRequestID
             )
-            .id(set.persistentModelID)
+            .id(PillsIdentity(set: set.persistentModelID, mode: mode.setCardMode))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Theme.cardContentPadding)
