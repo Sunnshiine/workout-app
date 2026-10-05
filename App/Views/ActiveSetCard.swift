@@ -1,22 +1,33 @@
 import SwiftUI
 
 struct ActiveSetCard: View {
+    /// How the card participates in the Session: logging the active pending
+    /// Set, or reviewing an already-logged one with a collapse affordance.
+    enum Mode {
+        case logging
+        case reviewingLogged(showsSavedConfirmation: Bool, onCollapse: () -> Void)
+
+        var setCardMode: SetCardMode {
+            switch self {
+            case .logging: .logging
+            case .reviewingLogged: .reviewingLogged
+            }
+        }
+    }
+
     let set: ExerciseSet
     let setOrdinal: Int
     let setCount: Int
-    var mode: SetCardMode = .logging
-    var showsSavedConfirmation = false
-    var onCollapse: () -> Void = {}
+    var mode: Mode = .logging
     let onLog: (SetLog) -> Void
     let onSkip: () -> Void
     let onDelete: () -> Void
-    var showsLoggedCheckmark = false
     @Environment(LastPerformedLookupStore.self) private var history
     @Environment(\.themePalette) private var palette
     @State private var inputDismissalRequestID = 0
 
     private var presentation: SetCardPresentation {
-        SetCardPresentation(mode: mode, set: set)
+        SetCardPresentation(mode: mode.setCardMode, set: set)
     }
 
     var body: some View {
@@ -36,12 +47,11 @@ struct ActiveSetCard: View {
 
             SmartValuePills(
                 set: set,
-                mode: mode,
+                mode: mode.setCardMode,
                 suggestion: LoadSuggestionEngine.suggest(for: set, history: history.snapshot),
                 onLog: onLog,
                 onSkip: onSkip,
                 onDelete: onDelete,
-                showsLoggedCheckmarkInitially: showsLoggedCheckmark,
                 inputDismissalRequestID: inputDismissalRequestID
             )
             .id(set.persistentModelID)
@@ -67,7 +77,7 @@ struct ActiveSetCard: View {
 
             Spacer(minLength: 0)
 
-            if mode == .reviewingLogged {
+            if case .reviewingLogged(let showsSavedConfirmation, let onCollapse) = mode {
                 if showsSavedConfirmation {
                     Label("Saved", systemImage: "checkmark.circle.fill")
                         .font(Theme.font(.setOf))
@@ -88,7 +98,7 @@ struct ActiveSetCard: View {
     }
 
     private func dismissInputIfLogging() {
-        if mode == .logging {
+        if case .logging = mode {
             inputDismissalRequestID += 1
         }
     }

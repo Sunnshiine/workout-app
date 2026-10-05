@@ -101,17 +101,15 @@ struct ActiveSupersetSection: View {
     @ViewBuilder
     private var cardRegion: some View {
         if let activeSetID = config.presentation.activeSetID, let activeSet = stageSet {
-            ZStack(alignment: .topLeading) {
-                IncomingActiveSetCard(
-                    transition: incomingTransition,
-                    set: activeSet,
-                    setOrdinal: setOrdinal(for: activeSet),
-                    setCount: focusedSortedSets.count,
-                    onLog: { onLog(activeSet, $0) },
-                    onSkip: { onSkip(activeSet) },
-                    onDelete: { onDelete(activeSet) }
-                )
-            }
+            IncomingActiveSetCard(
+                transition: incomingTransition,
+                set: activeSet,
+                setOrdinal: setOrdinal(for: activeSet),
+                setCount: focusedSortedSets.count,
+                onLog: { onLog(activeSet, $0) },
+                onSkip: { onSkip(activeSet) },
+                onDelete: { onDelete(activeSet) }
+            )
             .id(activeSetID)
         } else if let fallbackSet = stageSet {
             ActiveSetCard(

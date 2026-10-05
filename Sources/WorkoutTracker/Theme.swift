@@ -405,11 +405,8 @@ enum Theme {
     static let stageCompositionDuration = 0.25
     static let momentumSpringStiffness = 220.0
     static let momentumSpringDamping = 22.0
-    static let momentumDropOffset: CGFloat = 180
     static let momentumRiseOffset: CGFloat = 44
-    static let skipFadeUpOffset: CGFloat = -24
     static let exerciseRiseOffset: CGFloat = 36
-    static let exerciseCompressionScale: CGFloat = 0.02
     static let pairingUnavailableOpacity = 0.3
     static let pairingConfirmationDuration = 0.22
 
@@ -419,10 +416,6 @@ enum Theme {
 
     static var momentumFlowAnimation: Animation {
         .easeInOut(duration: momentumFlowTotalDuration)
-    }
-
-    static var momentumDropAnimation: Animation {
-        .timingCurve(0.2, 0.0, 0.12, 1.0, duration: momentumDropDuration)
     }
 
     static var momentumRiseAnimation: Animation {
@@ -437,10 +430,6 @@ enum Theme {
 
     static var skipFadeUpAnimation: Animation {
         .easeOut(duration: skipFadeUpDuration)
-    }
-
-    static var exerciseCollapseAnimation: Animation {
-        .easeInOut(duration: momentumDropDuration)
     }
 
     static var exerciseRiseAnimation: Animation {
