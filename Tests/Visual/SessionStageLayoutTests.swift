@@ -454,10 +454,10 @@ private struct SessionPage: View {
                 SessionStageView(
                     session: session,
                     coordinator: coordinator,
-                    composition: .reading
+                    composition: .reading,
+                    restTimer: restTimer
                 )
                 .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 43) }
-                .restPillInset(restTimer, composition: .reading)
                 .onGeometryChange(for: CGRect.self) {
                     $0.frame(in: .global)
                 } action: {
