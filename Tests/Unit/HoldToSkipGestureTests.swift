@@ -40,6 +40,24 @@ func holdToSkipGestureCommitsAtTheSetStatesHold(state: SetState, commitMilliseco
     #expect(gesture.tapped(at: at(1_000)) == [.log])
 }
 
+@Test func holdToSkipGestureDoesNotLogWhenTheFingerLiftsAfterTheFillShows() {
+    var gesture = HoldToSkipGesture()
+    _ = gesture.pressBegan(at: at(0), policy: .forSet(in: .pending))
+    _ = gesture.deadlineReached(at: at(250))
+
+    #expect(gesture.tapped(at: at(516)) == [])
+    #expect(gesture.pressEnded(at: at(634)) == [.retreatFill])
+    #expect(gesture.tapped(at: at(1_000)) == [.log])
+}
+
+@Test func holdToSkipGestureLogsATapThatLiftsBeforeTheFillShows() {
+    var gesture = HoldToSkipGesture()
+    _ = gesture.pressBegan(at: at(0), policy: .forSet(in: .pending))
+
+    #expect(gesture.tapped(at: at(120)) == [.log])
+    #expect(gesture.pressEnded(at: at(240)) == [.retreatFill])
+}
+
 @Test func holdToSkipGestureKeepsThePolicyItsPressBeganWith() {
     var gesture = HoldToSkipGesture()
     _ = gesture.pressBegan(at: at(0), policy: .forSet(in: .pending))
