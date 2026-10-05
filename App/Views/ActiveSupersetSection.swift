@@ -100,25 +100,17 @@ struct ActiveSupersetSection: View {
 
     @ViewBuilder
     private var cardRegion: some View {
-        if let activeSetID = config.presentation.activeSetID, let activeSet = stageSet {
+        if let set = stageSet {
             ActiveSetCard(
-                set: activeSet,
-                setOrdinal: setOrdinal(for: activeSet),
+                set: set,
+                setOrdinal: setOrdinal(for: set),
                 setCount: focusedSortedSets.count,
-                onLog: { onLog(activeSet, $0) },
-                onSkip: { onSkip(activeSet) },
-                onDelete: { onDelete(activeSet) }
+                mode: .logging,
+                onLog: { onLog(set, $0) },
+                onSkip: { onSkip(set) },
+                onDelete: { onDelete(set) }
             )
-            .id(activeSetID)
-        } else if let fallbackSet = stageSet {
-            ActiveSetCard(
-                set: fallbackSet,
-                setOrdinal: setOrdinal(for: fallbackSet),
-                setCount: focusedSortedSets.count,
-                onLog: { onLog(fallbackSet, $0) },
-                onSkip: { onSkip(fallbackSet) },
-                onDelete: { onDelete(fallbackSet) }
-            )
+            .holdsStill(acrossChangesOf: "superset-active-\(focusedExercise.order)-\(set.index)")
         }
     }
 

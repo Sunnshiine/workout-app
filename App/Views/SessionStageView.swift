@@ -140,35 +140,30 @@ struct SessionStageView: View {
         }
     }
 
+    /// One card call for review and logging alike, so a log, a focus change, or a review opening
+    /// reuses the card instead of swapping it for another (DESIGN.md §5.2).
     @ViewBuilder
     private func stageCard(_ config: SessionExerciseRenderConfig, sortedSets: [ExerciseSet]) -> some View {
-        if let expandedID = config.expandedLoggedSetID,
-            let set = SessionStagePresentation.set(matching: expandedID, in: sortedSets) {
+        let reviewedSet = config.expandedLoggedSetID.flatMap {
+            SessionStagePresentation.set(matching: $0, in: sortedSets)
+        }
+        if let set = reviewedSet ?? SessionStagePresentation.stageSet(activeSetID: config.activeSetID, in: sortedSets) {
+            let isReview = reviewedSet != nil
             ActiveSetCard(
                 set: set,
                 setOrdinal: SessionStagePresentation.ordinal(of: set, in: sortedSets),
                 setCount: sortedSets.count,
-                mode: .reviewingLogged(
-                    showsSavedConfirmation: expandedID == config.savedLoggedSetID,
-                    onCollapse: { coordinator.focus(on: set) }
-                ),
-                onLog: { coordinator.updateLoggedSet(set, as: $0) },
+                mode: isReview
+                    ? .reviewingLogged(
+                        showsSavedConfirmation: config.expandedLoggedSetID == config.savedLoggedSetID,
+                        onCollapse: { coordinator.focus(on: set) }
+                    )
+                    : .logging,
+                onLog: { isReview ? coordinator.updateLoggedSet(set, as: $0) : coordinator.log(set, as: $0) },
                 onSkip: { coordinator.skip(set) },
                 onDelete: { coordinator.deleteLog(for: set) }
             )
-            .id("stage-review-\(expandedID.exerciseOrder)-\(expandedID.setIndex)")
-            .transition(.push(from: .bottom))
-        } else if let set = SessionStagePresentation.stageSet(activeSetID: config.activeSetID, in: sortedSets) {
-            ActiveSetCard(
-                set: set,
-                setOrdinal: SessionStagePresentation.ordinal(of: set, in: sortedSets),
-                setCount: sortedSets.count,
-                onLog: { coordinator.log(set, as: $0) },
-                onSkip: { coordinator.skip(set) },
-                onDelete: { coordinator.deleteLog(for: set) }
-            )
-            .id("stage-active-\(config.exercise.order)-\(set.index)")
-            .transition(.push(from: .bottom))
+            .holdsStill(acrossChangesOf: "stage-\(isReview ? "review" : "active")-\(config.exercise.order)-\(set.index)")
         }
     }
 
@@ -361,7 +356,7 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
             }
 
             card()
-                .fixedSize(horizontal: false, vertical: composition == .reading)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -394,6 +389,13 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
 }
 
 extension View {
+    /// The verbs animate the branch's leaf and stem, never the card's frame or values. The `value:`
+    /// form scopes the opt-out to the card's Set changing, so the rail recentring and the
+    /// hold-to-skip fill that a finger starts inside the card still animate.
+    func holdsStill(acrossChangesOf cardIdentity: String) -> some View {
+        transaction(value: cardIdentity) { $0.animation = nil }
+    }
+
     /// Falling back to a `ViewThatFits` candidate with no accessibility node leaves the last drawn
     /// candidate's elements in the tree, so a fallback that draws nothing carries an empty one.
     fileprivate func emptyFallbackNode() -> some View {
