@@ -15,8 +15,6 @@ enum Haptic: Equatable, Sendable {
 
     case input(Theme.HapticTuning)
 
-    /// A refused action, such as pairing with an Exercise that cannot pair. Two transients 120 ms
-    /// apart stand in for `UINotificationFeedbackGenerator`'s warning.
     case warning
 
     func pattern() throws -> CHHapticPattern {
