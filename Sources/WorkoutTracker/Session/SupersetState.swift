@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 /// Which Exercise a Superset side names. Sheet order stays out, so a coach who reorders the Sheet
 /// keeps the pair. The Block tab stays in, because a coach reuses the template between Blocks.
@@ -28,7 +29,10 @@ private struct SupersetPair: Equatable, Sendable {
     }
 }
 
+/// Reads are pure: they filter to live pairs and never write. Only `ActiveSetFocusManager`'s
+/// write paths prune and reconcile, through `refresh(in:)` and `focusedSetID(whenNormalFocusIs:in:)`.
 @MainActor
+@Observable
 final class SupersetState {
     private var pairs: [SupersetPair] = []
     private var activePair: SupersetPair?
@@ -103,6 +107,12 @@ final class SupersetState {
         return nextSetID
     }
 
+    /// Whether `focusNextPendingSet(for:in:)` would move focus. Pure.
+    func canFocusNextPendingSet(for exercise: Exercise, in session: Session) -> Bool {
+        guard pair(containing: exercise) != nil else { return false }
+        return nextPendingSetID(for: SupersetExerciseIdentity(exercise: exercise), in: session) != nil
+    }
+
     func focusNextPendingSet(for exercise: Exercise, in session: Session) -> ActiveSetID? {
         guard let pair = pair(containing: exercise) else { return nil }
         let identity = SupersetExerciseIdentity(exercise: exercise)
@@ -119,20 +129,12 @@ final class SupersetState {
     }
 
     func exercisePairs(in session: Session) -> [[Exercise]] {
-        refresh(in: session)
-        return pairs.compactMap { pair in
+        pairs.compactMap { pair in
+            guard bothSidesHavePendingSet(pair, in: session) else { return nil }
             let exercises = [pair.first, pair.second].compactMap { identity in
                 exercise(matching: identity, in: session)
             }
             return exercises.count == 2 ? exercises : nil
-        }
-    }
-
-    func activeExercises(in session: Session) -> [Exercise] {
-        refresh(in: session)
-        guard let activePair else { return [] }
-        return [activePair.first, activePair.second].compactMap { identity in
-            exercise(matching: identity, in: session)
         }
     }
 

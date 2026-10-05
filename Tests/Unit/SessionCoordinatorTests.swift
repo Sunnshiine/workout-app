@@ -1642,3 +1642,48 @@ private func makeRestActionFixture(
 
     #expect(restTimer.remaining == 30)
 }
+
+@MainActor
+private final class ObservedChanges {
+    private(set) var count = 0
+
+    func watch(_ read: @escaping @MainActor () -> Void) {
+        withObservationTracking {
+            read()
+        } onChange: {
+            MainActor.assumeIsolated { self.count += 1 }
+        }
+    }
+}
+
+@MainActor
+@Test func creatingASupersetNotifiesAReaderOfTheStageInputs() throws {
+    let session = makePlannedPairingSession()
+    let coordinator = SessionCoordinator(session: session)
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+    let changes = ObservedChanges()
+    changes.watch { _ = coordinator.renderItems(in: session) }
+
+    #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
+
+    #expect(changes.count == 1)
+    #expect(coordinator.renderItems(in: session).map(\.id) == ["exercise-0", "superset-1", "hidden-paired-exercise-2"])
+}
+
+@MainActor
+@Test func readingTheSupersetSectionsWritesNoObservedState() throws {
+    let session = makePlannedPairingSession()
+    let coordinator = SessionCoordinator(session: session)
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+    #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
+    squat.sets.forEach { $0.state = .logged }
+    let changes = ObservedChanges()
+    changes.watch { _ = coordinator.supersetSections(in: session) }
+
+    let sections = coordinator.supersetSections(in: session)
+
+    #expect(sections.isEmpty)
+    #expect(changes.count == 0)
+}

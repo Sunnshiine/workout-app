@@ -155,11 +155,7 @@ typealias SessionFocusAnimation = (() -> Void) -> Void
 @Observable
 final class SessionCoordinator {
     private(set) var session: Session?
-    private(set) var activeSetID: ActiveSetID?
-    private(set) var expandedLoggedSetID: ActiveSetID?
-    private(set) var visualFocusOwner: ActiveSetVisualFocusOwner?
     private(set) var savedLoggedSetID: ActiveSetID?
-    private(set) var activeSetTransition: ActiveSetTransition?
     private(set) var pairingMode: PairingMode = .inactive
 
     @ObservationIgnored private let focusManager: ActiveSetFocusManager
@@ -173,7 +169,6 @@ final class SessionCoordinator {
     @ObservationIgnored private var supersetRestDuration: () -> TimeInterval
     @ObservationIgnored private var transitionExpiryTask: Task<Void, Never>?
     @ObservationIgnored private var pairingConfirmationTask: Task<Void, Never>?
-    private var renderRevision = 0
 
     init(
         session: Session? = nil,
@@ -194,8 +189,13 @@ final class SessionCoordinator {
         self.restTimer = restTimer
         self.standardRestDuration = standardRestDuration
         self.supersetRestDuration = supersetRestDuration
-        syncFocusState()
     }
+
+    // Read through to the focus manager, which Observation tracks directly.
+    var activeSetID: ActiveSetID? { focusManager.activeSetID }
+    var expandedLoggedSetID: ActiveSetID? { focusManager.expandedLoggedSetID }
+    var visualFocusOwner: ActiveSetVisualFocusOwner? { focusManager.visualFocusOwner }
+    var activeSetTransition: ActiveSetTransition? { focusManager.activeSetTransition }
 
     deinit {
         transitionExpiryTask?.cancel()
@@ -208,8 +208,6 @@ final class SessionCoordinator {
         cancelPairing()
         cancelTransitionExpiry()
         focusManager.reset(to: session)
-        syncFocusState()
-        invalidateRenderItems()
     }
 
     func bind(
@@ -236,14 +234,10 @@ final class SessionCoordinator {
 
     func advanceAfterLog(_ set: ExerciseSet, in session: Session) {
         focusManager.advanceAfterLog(set, in: session)
-        syncFocusState()
-        invalidateRenderItems()
     }
 
     func advanceAfterSkip(_ set: ExerciseSet, in session: Session) {
         focusManager.advanceAfterSkip(set, in: session)
-        syncFocusState()
-        invalidateRenderItems()
     }
 
     func focus(on set: ExerciseSet, animateFocus: SessionFocusAnimation? = nil) {
@@ -252,8 +246,6 @@ final class SessionCoordinator {
             if case .loggedSetReview = focusManager.visualFocusOwner {
                 cancelTransitionExpiry()
             }
-            syncFocusState()
-            invalidateRenderItems()
         }
     }
 
@@ -330,9 +322,7 @@ final class SessionCoordinator {
             if focusManager.expandedLoggedSetID == updatedSetID {
                 focusManager.collapseLoggedSetReview()
             }
-            syncFocusState()
             cancelTransitionExpiry()
-            invalidateRenderItems()
             syncAdapter.requestPendingWriteFlush()
         } catch {
             syncAdapter.reportLocalWriteFailure(error)
@@ -345,22 +335,16 @@ final class SessionCoordinator {
 
     @discardableResult
     func createSuperset(from source: Exercise, to target: Exercise, in session: Session) -> Bool {
-        let created = focusManager.createSuperset(from: source, to: target, in: session)
-        syncFocusState()
-        invalidateRenderItems()
-        return created
+        focusManager.createSuperset(from: source, to: target, in: session)
     }
 
     func dismissSuperset(containing exercise: Exercise, in session: Session) {
         cancelPairing()
         focusManager.dismissSuperset(containing: exercise, in: session)
-        syncFocusState()
-        invalidateRenderItems()
     }
 
     func supersetSections(in session: Session) -> [SupersetSectionState] {
-        _ = renderRevision
-        return focusManager.supersetSections(in: session)
+        focusManager.supersetSections(in: session)
     }
 
     @discardableResult
@@ -369,36 +353,22 @@ final class SessionCoordinator {
         in session: Session,
         animateFocus: SessionFocusAnimation? = nil
     ) -> Bool {
-        guard focusManager.focusNextSupersetSet(for: exercise, in: session) else {
+        guard focusManager.canFocusNextSupersetSet(for: exercise, in: session) else {
             return false
         }
 
         performFocusUpdate(animateFocus) {
-            syncFocusState()
-            invalidateRenderItems()
+            focusManager.focusNextSupersetSet(for: exercise, in: session)
         }
         return true
     }
 
     func clearTransition(_ transition: ActiveSetTransition) {
         focusManager.clearTransition(transition)
-        syncFocusState()
-        invalidateRenderItems()
     }
 
     static func activeSetID(for set: ExerciseSet) -> ActiveSetID? {
         ActiveSetFocusManager.id(for: set)
-    }
-
-    private func syncFocusState() {
-        activeSetID = focusManager.activeSetID
-        expandedLoggedSetID = focusManager.expandedLoggedSetID
-        visualFocusOwner = focusManager.visualFocusOwner
-        activeSetTransition = focusManager.activeSetTransition
-    }
-
-    private func invalidateRenderItems() {
-        renderRevision += 1
     }
 
     private func performFocusUpdate(
@@ -682,7 +652,6 @@ extension SessionCoordinator {
         pairingConfirmationTask?.cancel()
         pairingConfirmationTask = nil
         pairingMode = .selecting(sourceOrder: exercise.order)
-        invalidateRenderItems()
         return true
     }
 
@@ -691,7 +660,6 @@ extension SessionCoordinator {
         pairingConfirmationTask = nil
         guard pairingMode != .inactive else { return }
         pairingMode = .inactive
-        invalidateRenderItems()
     }
 
     @discardableResult
@@ -710,7 +678,6 @@ extension SessionCoordinator {
             return .ignored
         }
         pairingMode = .confirming(sourceOrder: sourceOrder, targetOrder: exercise.order)
-        invalidateRenderItems()
         confirmPairing(sourceOrder: sourceOrder, targetOrder: exercise.order, in: session)
         return .confirming
     }
@@ -749,7 +716,6 @@ extension SessionCoordinator {
             _ = self.createSuperset(from: source, to: target, in: session)
             self.pairingMode = .inactive
             self.pairingConfirmationTask = nil
-            self.invalidateRenderItems()
         }
     }
 

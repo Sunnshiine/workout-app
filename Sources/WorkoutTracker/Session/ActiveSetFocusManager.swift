@@ -140,10 +140,6 @@ final class ActiveSetFocusManager {
         supersetSections(in: session).first { $0.presentation.activeExerciseOrder != nil }?.presentation
     }
 
-    func activeSupersetExercises(in session: Session) -> [Exercise] {
-        supersetState.activeExercises(in: session)
-    }
-
     func liveActivityRestContent(
         afterLogging set: ExerciseSet,
         in session: Session,
@@ -163,6 +159,10 @@ final class ActiveSetFocusManager {
     /// owner's domain membership predicate.
     func isPaired(_ exercise: Exercise) -> Bool {
         supersetState.isPaired(exercise)
+    }
+
+    func canFocusNextSupersetSet(for exercise: Exercise, in session: Session) -> Bool {
+        supersetState.canFocusNextPendingSet(for: exercise, in: session)
     }
 
     @discardableResult
