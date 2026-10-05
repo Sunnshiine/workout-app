@@ -556,3 +556,47 @@ private func makeStore(
     #expect(store.currentSession?.dayNumber == 4)
     #expect(!store.canMoveOn)
 }
+
+@MainActor
+@Test func theStoredCurrentSessionMatchesAFreshResolveAfterEveryWritePoint() throws {
+    let fixture = try makeStore()
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+    let sessions = try #require(store.block?.weeks.first?.sessions)
+    func firstSet(ofDay day: Int) throws -> ExerciseSet {
+        try #require(sessions.first { $0.dayNumber == day }?.exercises.first?.sets.first)
+    }
+    var stored: [String] = []
+    func record() {
+        let label = store.currentSession?.address.map { "Week \($0.week), Day \($0.day)" } ?? "None"
+        #expect(label == store.currentSessionDebugInfo.resolvedCurrentSession)
+        stored.append(label)
+    }
+
+    record()
+    let log = SetLog(weight: .pounds(185), reps: 5, rpe: .eight)
+    try store.log(try firstSet(ofDay: 2), as: log)
+    record()
+    try store.log(try firstSet(ofDay: 3), as: log)
+    record()
+    try store.skip(try firstSet(ofDay: 3))
+    record()
+    try store.deleteLog(for: try firstSet(ofDay: 2))
+    record()
+    store.reload()
+    record()
+    store.show(SessionAddress(week: 1, day: 2))
+    store.makeViewedSessionCurrent()
+    record()
+    store.resetCurrentSessionOverride()
+    record()
+    store.moveOn()
+    record()
+
+    #expect(
+        stored == [
+            "Week 1, Day 1", "Week 1, Day 2", "Week 1, Day 3", "Week 1, Day 2", "Week 1, Day 1",
+            "Week 1, Day 1", "Week 1, Day 2", "Week 1, Day 1", "Week 1, Day 2"
+        ]
+    )
+}

@@ -21,6 +21,9 @@ final class WorkoutStore {
     private(set) var moveOnCelebrationSession: Session?
     private(set) var moveOnCelebrationRequestedAt: Date?
     private(set) var pendingBlockOverviewRequest: BlockOverviewNavigationRequest?
+    /// Stored rather than computed so a read never walks the Block's Set states.
+    /// `refreshCurrentSession()` resolves it at every write point that can move it.
+    private(set) var currentSession: Session?
     /// Answered in `view(_:)` rather than derived in `reload()`, because a sync can land a log
     /// that moves the Current Session under an athlete who never navigated anywhere: they were
     /// at the live edge when they chose, so the reload has to carry them forward with it.
@@ -47,11 +50,6 @@ final class WorkoutStore {
         self.defaults = defaults
         self.lastPerformed = lastPerformed
         self.now = now
-    }
-
-    var currentSession: Session? {
-        _ = currentSessionOverrideRevision
-        return block.flatMap { tracker.currentSession(in: $0, override: currentSessionOverride(in: $0)) }
     }
 
     var canMoveOn: Bool {
@@ -110,6 +108,7 @@ final class WorkoutStore {
 
     func reload() {
         block = try? context.fetch(FetchDescriptor<Block>()).first
+        refreshCurrentSession()
 
         guard let browsed = browsedTo, let browsedSession = block?.session(at: browsed) else {
             view(currentSession)
@@ -137,6 +136,7 @@ final class WorkoutStore {
         guard let block else { return }
         defaults.removeValue(forKey: tracker.currentSessionOverrideStorageKey(forBlockTab: block.tabName))
         currentSessionOverrideRevision += 1
+        refreshCurrentSession()
         view(currentSession)
     }
 
@@ -183,6 +183,18 @@ final class WorkoutStore {
     }
 
     // MARK: - Private Helpers
+
+    private func refreshCurrentSession() {
+        let resolved = block.flatMap { tracker.currentSession(in: $0, override: currentSessionOverride(in: $0)) }
+        if resolved !== currentSession { currentSession = resolved }
+    }
+
+    /// Ends every Set-state write, because `log`, `skip`, and `deleteLog` can each move the
+    /// Current Session.
+    private func commit() throws {
+        try context.save()
+        refreshCurrentSession()
+    }
 
     private func view(_ session: Session?) {
         viewedSession = session
@@ -264,6 +276,7 @@ final class WorkoutStore {
     private func persistCurrentSessionOverride(_ identity: PersistedSessionIdentity, in block: Block) {
         defaults.set(identity.storageValue, forKey: tracker.currentSessionOverrideStorageKey(forBlockTab: block.tabName))
         currentSessionOverrideRevision += 1
+        refreshCurrentSession()
     }
 
     private func sessionLabel(for session: Session?) -> String {
@@ -312,7 +325,7 @@ extension WorkoutStore {
         )
         try enqueueLastSetRPEMirror(for: set, replacing: previousRPE)
         try refreshLastPerformed(for: set)
-        try context.save()
+        try commit()
     }
 
     func skip(_ set: ExerciseSet) throws {
@@ -328,7 +341,7 @@ extension WorkoutStore {
         )
         try enqueueLastSetRPEMirror(for: set, replacing: previousRPE)
         try refreshLastPerformed(for: set)
-        try context.save()
+        try commit()
     }
 
     func deleteLog(for set: ExerciseSet) throws {
@@ -344,6 +357,6 @@ extension WorkoutStore {
         )
         try enqueueLastSetRPEMirror(for: set, replacing: previousRPE)
         try refreshLastPerformed(for: set)
-        try context.save()
+        try commit()
     }
 }
