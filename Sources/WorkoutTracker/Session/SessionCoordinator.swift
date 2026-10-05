@@ -424,8 +424,6 @@ final class SessionCoordinator {
         return session
     }
 
-    /// The incoming card reads the transition only while its entrance runs, so it expires after
-    /// the kind's duration; otherwise a remounted card would replay the entrance.
     private func scheduleTransitionExpiry() {
         guard let transition = activeSetTransition else { return }
 

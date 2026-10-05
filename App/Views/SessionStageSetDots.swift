@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// One dot per Set: filled accent when logged, dimmed when skipped, hollow when
-/// pending.
 struct SessionStageSetDots: View {
     let sets: [ExerciseSet]
     private let dotSize: CGFloat = 6

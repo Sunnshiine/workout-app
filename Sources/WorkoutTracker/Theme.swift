@@ -21,9 +21,6 @@ extension EnvironmentValues {
 /// palette and named tokens from `Theme`; nothing styles itself outside this seam. The Greenhouse
 /// system ships exactly two hand-lit appearances — `.day` and `.night`, the same room re-lit —
 /// each a value sheet transcribed from `docs/design/greenhouse-theme-tokens.md`.
-///
-/// Its length is the point rather than an accident. This is the one type role and token table, so
-/// splitting it to satisfy a line count would put rows of a single table in two files.
 enum Theme {
     enum Appearance: CaseIterable {
         case day
@@ -224,7 +221,6 @@ enum Theme {
         let actionText: Color
         /// The Log capsule's elevation: a day green drop; at Night a green light (glow, no drop).
         let logShadow: [BoxShadow]
-        /// The muted hold-to-skip overlay (muted @ 30% by Day; Night deferred to the build slice).
         let skipFillOverlay: Color?
 
         // Stage foot
@@ -306,7 +302,6 @@ enum Theme {
         static let tile: CGFloat = 15 // day tiles
         static let cell: CGFloat = 14 // rail chips
         static let mini: CGFloat = 6 // week mini-chips
-        static let hairline: CGFloat = 2 // grabber, home bar, prescription tick (2–3)
     }
 
     // MARK: - Motion & haptics (token sheet §7)
