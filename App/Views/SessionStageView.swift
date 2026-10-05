@@ -95,6 +95,7 @@ struct SessionStageView: View {
         switch item.item {
         case .exercise(let config):
             exerciseStage(config)
+                .transition(.identity)
         case .superset(let config):
             ActiveSupersetSection(
                 config: config,
@@ -105,6 +106,7 @@ struct SessionStageView: View {
                 onSkip: coordinator.skip(_:),
                 onDelete: coordinator.deleteLog(for:)
             )
+            .transition(.identity)
         case .hiddenPairedExercise:
             EmptyView()
         }
