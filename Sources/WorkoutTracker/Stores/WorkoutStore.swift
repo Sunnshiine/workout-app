@@ -21,8 +21,6 @@ final class WorkoutStore {
     private(set) var moveOnCelebrationSession: Session?
     private(set) var moveOnCelebrationRequestedAt: Date?
     private(set) var pendingBlockOverviewRequest: BlockOverviewNavigationRequest?
-    /// Stored rather than computed so a read never walks the Block's Set states.
-    /// `refreshCurrentSession()` resolves it at every write point that can move it.
     private(set) var currentSession: Session?
     /// Answered in `view(_:)` rather than derived in `reload()`, because a sync can land a log
     /// that moves the Current Session under an athlete who never navigated anywhere: they were
@@ -263,7 +261,6 @@ final class WorkoutStore {
         return defaults.integer(forKey: key).map(PersistedSessionIdentity.init(storageValue:))
     }
 
-    /// The one override writer. A nil `identity` removes the override.
     private func writeCurrentSessionOverride(_ identity: PersistedSessionIdentity?, in block: Block) {
         let key = tracker.currentSessionOverrideStorageKey(forBlockTab: block.tabName)
         if let identity {
@@ -320,8 +317,6 @@ extension WorkoutStore {
         try writeNotes(of: set, operation: .delete, valueToWrite: nil) { set.markPending() }
     }
 
-    /// The one Set-state writer. The refresh is deferred because `transition` moves the Set in
-    /// memory before any step that can throw, and nothing rolls it back.
     private func writeNotes(
         of set: ExerciseSet,
         operation: PendingWriteOperation,
