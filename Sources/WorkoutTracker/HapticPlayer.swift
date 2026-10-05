@@ -89,10 +89,7 @@ enum Haptic: Equatable, Sendable {
             relativeTime: 0
         )
 
-        let peak = transient(
-            Theme.Haptics.logTap,
-            at: Theme.Motion.ceremonyStem + Theme.Motion.ceremonyBeat + Theme.Motion.ceremonyBird
-        )
+        let peak = transient(Theme.Haptics.logTap, at: MoveOnCeremonyFrame.duration)
 
         return try CHHapticPattern(events: [swell, peak], parameterCurves: [swellCurve])
     }
