@@ -48,9 +48,9 @@ struct SessionView: View {
 
                     productionStage(for: session)
                         .onAppear {
-                            var transaction = Transaction()
-                            transaction.disablesAnimations = true
-                            withTransaction(transaction) {
+                            // An unbound coordinator has no focus, so animating its first bind
+                            // slides the Active Set Card in. A rebind on return keeps its motion.
+                            withTransaction(\.disablesAnimations, coordinator.session == nil) {
                                 bindCoordinator(to: session)
                             }
                         }
