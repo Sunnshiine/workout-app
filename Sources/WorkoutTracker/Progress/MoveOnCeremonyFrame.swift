@@ -5,12 +5,10 @@ import Foundation
 /// wing, each leaf inks as the stem passes it, a beat, then the songbird drops onto the tip.
 struct MoveOnCeremonyFrame: Equatable {
     static let duration = Theme.Motion.ceremonyStem + Theme.Motion.ceremonyBeat + Theme.Motion.ceremonyBird
-    /// The end state, and all that Reduce Motion shows.
-    static let grown = MoveOnCeremonyFrame(elapsed: duration)
 
     /// How much of the stem's length is drawn, 0...1.
     let stemTrim: Double
-    /// 0 is clear and 24 pt above the perch, 1 is landed.
+    /// 0 is clear and lifted off the perch, 1 is landed.
     let birdLanding: Double
 
     init(elapsed: TimeInterval) {
