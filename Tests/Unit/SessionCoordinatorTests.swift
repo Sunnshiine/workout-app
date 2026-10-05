@@ -1759,11 +1759,12 @@ private func makeRestActionFixture(
     let rowSet = try #require(session.exercises.first { $0.order == 2 }?.sets.first)
     rowSet.state = .skipped
 
-    coordinator.focus(on: secondBenchSet)
-    coordinator.focus(on: squatSet)
-    coordinator.focus(on: squatSet)
-    coordinator.focus(on: rowSet)
-    #expect(ledger.motions == [.focusMorph, .focusMorph])
+    let motionPerFocus = [secondBenchSet, squatSet, squatSet, rowSet].map { set in
+        let motionsBefore = ledger.motions.count
+        coordinator.focus(on: set)
+        return ledger.motions.dropFirst(motionsBefore).first
+    }
+    #expect(motionPerFocus == [.focusMorph, .focusMorph, nil, nil])
 
     ledger.reducesMotion = true
     coordinator.focus(on: squatSet)
