@@ -368,13 +368,11 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     let state = SupersetState()
     #expect(state.createSuperset(with: [squat, bench], in: session))
     firstSquatSet.state = .logged
+    #expect(state.focusNextPendingSet(for: squat, in: session) == ActiveSetID(exerciseOrder: 0, setIndex: 1))
 
     #expect(state.nextSetID(after: firstSquatSet, in: session) == ActiveSetID(exerciseOrder: 1, setIndex: 0))
 
-    #expect(
-        state.focusedSetID(whenNormalFocusIs: ActiveSetID(exerciseOrder: 0, setIndex: 1), in: session)
-            == ActiveSetID(exerciseOrder: 0, setIndex: 1)
-    )
+    #expect(state.focusedSetID(whenNormalFocusIs: nil, in: session) == ActiveSetID(exerciseOrder: 0, setIndex: 1))
 }
 
 @MainActor

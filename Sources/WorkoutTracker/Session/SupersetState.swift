@@ -183,8 +183,8 @@ final class SupersetState {
     ) -> SupersetAlternation? {
         guard
             let exercise = set.exercise,
-            let pair = pair(containing: exercise),
-            bothSidesHavePendingSet(pair, in: session)
+            exercise.hasPendingSet,
+            let pair = pair(containing: exercise)
         else {
             return nil
         }

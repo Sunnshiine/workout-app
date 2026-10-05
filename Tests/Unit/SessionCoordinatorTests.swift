@@ -1771,10 +1771,15 @@ private func makeRestActionFixture(
 @MainActor
 @Test func rebindingAfterASupersetLogKeepsTheFocusOnThePartner() throws {
     let session = makeSquatAndRDLSession()
+    let press = Exercise(name: "Press", baseName: "Press", cadence: nil, coachNote: nil, order: 2)
+    press.sets = [ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)]
+    session.exercises.append(press)
     let squat = try #require(session.exercises.first { $0.order == 0 })
     let rdl = try #require(session.exercises.first { $0.order == 1 })
     let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
+    let pressSet = try #require(press.sets.first)
     let coordinator = SessionCoordinator(session: session, logging: SpySessionLoggingAdapter(), sync: SpySessionSyncAdapter())
+    coordinator.focus(on: pressSet)
     #expect(coordinator.createSuperset(from: squat, to: rdl, in: session))
     coordinator.log(firstSquatSet, as: SetLog(weight: .pounds(225), reps: 5, rpe: .seven))
 
