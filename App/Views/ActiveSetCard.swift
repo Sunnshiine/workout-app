@@ -26,6 +26,10 @@ struct ActiveSetCard: View {
     @Environment(\.themePalette) private var palette
     @State private var inputDismissalRequestID = 0
 
+    private static let headTargetSize: CGFloat = 44
+    /// Lets the 44pt targets reach into the card's trailing padding, so the glyphs sit at the content edge.
+    private static let headTargetInset: CGFloat = 12
+
     private var presentation: SetCardPresentation {
         SetCardPresentation(mode: mode.setCardMode, set: set)
     }
@@ -34,24 +38,12 @@ struct ActiveSetCard: View {
         VStack(alignment: .leading, spacing: 16) {
             header
 
-            if let referenceText = presentation.referenceText {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Original Unstructured Set Log")
-                        .font(Theme.font(.fieldLabel))
-                        .foregroundStyle(palette.textSecondary)
-                    Text(referenceText)
-                        .font(Theme.font(.runline))
-                        .foregroundStyle(palette.textPrimary)
-                }
-            }
-
             SmartValuePills(
                 set: set,
                 mode: mode.setCardMode,
                 suggestion: LoadSuggestionEngine.suggest(for: set, history: history.snapshot),
                 onLog: onLog,
                 onSkip: onSkip,
-                onDelete: onDelete,
                 inputDismissalRequestID: inputDismissalRequestID
             )
             .id(set.persistentModelID)
@@ -64,8 +56,9 @@ struct ActiveSetCard: View {
         .accessibilityIdentifier("active-set-card")
     }
 
-    // The plain `Set N of M` head: `Set 3` in 16pt/700 tnum, ` of 5` in 14pt/500 muted. Reviewing a
-    // logged Set adds the Saved confirmation and a collapse chevron on the trailing edge.
+    // The plain `Set N of M` head: `Set 3` in 16pt/700 tnum, ` of 5` in 14pt/500 muted. The trailing
+    // slot (Saved, the review chevron, the Clear menu) is an overlay, so its 44pt targets never make
+    // the head taller than its text in any mode.
     private var header: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text("Set \(setOrdinal)")
@@ -76,7 +69,14 @@ struct ActiveSetCard: View {
                 .foregroundColor(palette.textSecondary)
 
             Spacer(minLength: 0)
+        }
+        .contentShape(.rect)
+        .onTapGesture(perform: dismissInputIfLogging)
+        .overlay(alignment: .trailing) { headTrailingSlot }
+    }
 
+    private var headTrailingSlot: some View {
+        HStack(spacing: 0) {
             if case .reviewingLogged(let showsSavedConfirmation, let onCollapse) = mode {
                 if showsSavedConfirmation {
                     Label("Saved", systemImage: "checkmark.circle.fill")
@@ -88,13 +88,27 @@ struct ActiveSetCard: View {
                     Image(systemName: "chevron.up")
                         .imageScale(.medium)
                         .foregroundStyle(palette.textSecondary)
-                        .accessibilityLabel("Collapse logged set")
+                        .frame(width: Self.headTargetSize, height: Self.headTargetSize)
+                        .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Collapse logged set")
+            }
+
+            if presentation.showsClearMenu {
+                Menu {
+                    Button("Clear", role: .destructive, action: onDelete)
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .imageScale(.large)
+                        .foregroundStyle(palette.textSecondary)
+                        .frame(width: Self.headTargetSize, height: Self.headTargetSize)
+                        .contentShape(.rect)
+                }
+                .accessibilityIdentifier("clear-logged-set-menu")
             }
         }
-        .contentShape(.rect)
-        .onTapGesture(perform: dismissInputIfLogging)
+        .padding(.trailing, -Self.headTargetInset)
     }
 
     private func dismissInputIfLogging() {

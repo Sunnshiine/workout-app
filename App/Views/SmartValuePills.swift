@@ -22,7 +22,6 @@ struct SmartValuePills: View {
     let suggestion: LoadSuggestion
     let onLog: (SetLog) -> Void
     let onSkip: () -> Void
-    let onDelete: () -> Void
     let inputDismissalRequestID: Int
 
     @State private var form: SmartValuePillsForm
@@ -37,7 +36,6 @@ struct SmartValuePills: View {
         suggestion: LoadSuggestion,
         onLog: @escaping (SetLog) -> Void,
         onSkip: @escaping () -> Void,
-        onDelete: @escaping () -> Void,
         inputDismissalRequestID: Int = 0
     ) {
         self.set = set
@@ -45,7 +43,6 @@ struct SmartValuePills: View {
         self.suggestion = suggestion
         self.onLog = onLog
         self.onSkip = onSkip
-        self.onDelete = onDelete
         self.inputDismissalRequestID = inputDismissalRequestID
         _form = State(initialValue: SmartValuePillsForm(set: set, suggestion: suggestion))
     }
@@ -72,13 +69,7 @@ struct SmartValuePills: View {
                 )
             }
 
-            if presentation.showsLogControls {
-                actionControls
-            } else if form.hasChanges, form.changedValidLog == nil {
-                Text("Complete weight, reps, and RPE to update this logged set.")
-                    .font(Theme.font(.fieldLabel))
-                    .foregroundStyle(palette.textSecondary)
-            }
+            actionRow
         }
         .task(id: isEditingWeight) {
             weightFieldFocused = isEditingWeight
@@ -218,31 +209,36 @@ struct SmartValuePills: View {
 
     // MARK: - Log capsule / skip
 
-    private var actionControls: some View {
-        VStack(spacing: 8) {
+    @ViewBuilder
+    private var actionRow: some View {
+        let row = presentation.actionRow(for: form)
+        if case .logged(let line) = row {
+            loggedSetCapsule(line)
+        } else {
             HoldToSkipLogButton(
                 logTitle: form.logButtonTitle,
                 canLog: form.canLog,
-                isSkipped: set.state == .skipped,
+                isSkipped: row == .skipped,
                 onLogTap: submitLog,
                 onSkip: skip
             )
-
-            if set.state != .pending {
-                HStack {
-                    Spacer()
-
-                    Menu {
-                        Button("Clear", role: .destructive, action: onDelete)
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .imageScale(.large)
-                            .foregroundStyle(palette.textSecondary)
-                    }
-                    .accessibilityIdentifier("clear-logged-set-menu")
-                }
-            }
         }
+    }
+
+    /// A review's action row: the Log capsule's shape, unfilled and inert, reading the logged Set Log.
+    private func loggedSetCapsule(_ line: String) -> some View {
+        Text(line)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .padding(.horizontal, 16)
+            .logCapsuleMetrics()
+            .foregroundStyle(palette.textSecondary)
+            .overlay {
+                Capsule().strokeBorder(palette.pillStroke, lineWidth: 1)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(line)
+            .accessibilityIdentifier("logged-set-capsule")
     }
 
     /// Reviewing an already-logged Set commits silently: any changed, valid draft is written when
@@ -515,10 +511,8 @@ private struct HoldToSkipLogButton: View {
 
     private var logButtonSurface: some View {
         buttonContent
-            .font(Theme.font(.logCapsule))
+            .logCapsuleMetrics()
             .foregroundStyle(logForegroundStyle)
-            .padding(.vertical, 16)
-            .frame(maxWidth: .infinity)
             .background {
                 ZStack(alignment: .leading) {
                     logBackgroundStyle
@@ -538,10 +532,8 @@ private struct HoldToSkipLogButton: View {
     /// The dashed "empty bed" the skipped state settles into (§5.3): transparent, muted text.
     private var skippedBed: some View {
         Text("Skipped")
-            .font(Theme.font(.logCapsule))
+            .logCapsuleMetrics()
             .foregroundStyle(palette.textSecondary)
-            .padding(.vertical, 16)
-            .frame(maxWidth: .infinity)
             .overlay {
                 Capsule()
                     .strokeBorder(palette.skipStroke, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
@@ -664,6 +656,16 @@ private struct HoldToSkipLogButton: View {
         withAnimation(.easeOut(duration: Theme.logButtonCheckmarkDuration)) {
             skipProgress = 0
         }
+    }
+}
+
+extension View {
+    /// The Log capsule's type and padding, shared by every capsule the action row holds, so no mode
+    /// changes the card's height.
+    fileprivate func logCapsuleMetrics() -> some View {
+        font(Theme.font(.logCapsule))
+            .padding(.vertical, 16)
+            .frame(maxWidth: .infinity)
     }
 }
 
