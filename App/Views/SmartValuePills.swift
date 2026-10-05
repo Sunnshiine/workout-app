@@ -496,7 +496,7 @@ private struct HoldToSkipLogButton: View {
             pressing: { isPressing in
                 apply(isPressing ? gesture.pressBegan(at: .now, policy: policy) : gesture.pressEnded(at: .now))
             },
-            perform: { apply(gesture.skipRequested(at: .now)) }
+            perform: { apply(gesture.holdRecognized(at: .now)) }
         )
         .contentShape(.rect)
         .onTapGesture { apply(gesture.tapped(at: .now)) }
@@ -505,6 +505,7 @@ private struct HoldToSkipLogButton: View {
             do { try await Task.sleep(until: deadline, clock: .continuous) } catch { return }
             apply(gesture.deadlineReached(at: .now))
         }
+        .onDisappear { gesture.disappeared() }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
         .accessibilityValue(skipProgress > 0 ? "\(Int((skipProgress * 100).rounded()))% Skip" : "")

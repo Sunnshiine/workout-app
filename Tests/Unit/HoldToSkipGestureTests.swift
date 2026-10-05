@@ -50,12 +50,15 @@ func holdToSkipGestureCommitsAtTheSetStatesHold(state: SetState, commitMilliseco
     #expect(gesture.tapped(at: at(1_000)) == [.log])
 }
 
-@Test func holdToSkipGestureLogsATapThatLiftsBeforeTheFillShows() {
+@Test func holdToSkipGestureLogsATapThatLiftsBeforeTheFillShowsAndEndsThePress() {
     var gesture = HoldToSkipGesture()
     _ = gesture.pressBegan(at: at(0), policy: .forSet(in: .pending))
 
     #expect(gesture.tapped(at: at(120)) == [.log])
-    #expect(gesture.pressEnded(at: at(240)) == [.retreatFill])
+    #expect(gesture.nextDeadline == nil)
+    #expect(gesture.pressEnded(at: at(240)) == [])
+    #expect(gesture.deadlineReached(at: at(850)) == [])
+    #expect(gesture.holdRecognized(at: at(900)) == [])
 }
 
 @Test func holdToSkipGestureKeepsThePolicyItsPressBeganWith() {
@@ -102,7 +105,7 @@ func holdToSkipGestureCommitsAtTheSetStatesHold(state: SetState, commitMilliseco
 
     #expect(gesture.pressBegan(at: at(860), policy: .forSet(in: .skipped)) == [])
     #expect(gesture.nextDeadline == nil)
-    #expect(gesture.skipRequested(at: at(870)) == [])
+    #expect(gesture.holdRecognized(at: at(870)) == [])
     #expect(gesture.pressEnded(at: at(3_000)) == [])
     #expect(gesture.pressBegan(at: at(3_500), policy: .forSet(in: .skipped)) == [.clearFill])
 }
@@ -113,12 +116,25 @@ func holdToSkipGestureCommitsAtTheSetStatesHold(state: SetState, commitMilliseco
 
     #expect(deadlineFirst.deadlineReached(at: at(850)) == [.skip])
     #expect(deadlineFirst.pressEnded(at: at(851)) == [])
-    #expect(deadlineFirst.skipRequested(at: at(852)) == [])
+    #expect(deadlineFirst.holdRecognized(at: at(852)) == [])
 
     var releaseFirst = HoldToSkipGesture()
     _ = releaseFirst.pressBegan(at: at(0), policy: .forSet(in: .pending))
 
     #expect(releaseFirst.pressEnded(at: at(860)) == [.skip])
-    #expect(releaseFirst.skipRequested(at: at(861)) == [])
+    #expect(releaseFirst.holdRecognized(at: at(861)) == [])
     #expect(releaseFirst.deadlineReached(at: at(862)) == [])
+}
+
+@Test func holdToSkipGestureCommitsNothingAfterTheCapsuleDisappearsMidHold() {
+    var gesture = HoldToSkipGesture()
+    _ = gesture.pressBegan(at: at(0), policy: .forSet(in: .pending))
+    _ = gesture.deadlineReached(at: at(250))
+
+    gesture.disappeared()
+
+    #expect(gesture.nextDeadline == nil)
+    #expect(gesture.deadlineReached(at: at(850)) == [])
+    #expect(gesture.holdRecognized(at: at(1_000)) == [])
+    #expect(gesture.pressEnded(at: at(1_340)) == [])
 }
