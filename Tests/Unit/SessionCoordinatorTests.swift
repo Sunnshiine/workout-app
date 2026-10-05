@@ -1716,3 +1716,36 @@ private func makeRestActionFixture(
     #expect(coordinator.renderItems(in: session).map(\.id) == ["exercise-0", "exercise-1", "exercise-2"])
     #expect(coordinator.canPair(squat, in: session))
 }
+
+@MainActor
+@Test func aLiveEdgeLogThatEndsASupersetEndsItInsideTheInjectedAnimation() throws {
+    let session = makePlannedPairingSession()
+    connectCoordinatorWeek([session])
+    let liveActivity = SpySessionLiveActivityAdapter()
+    let coordinator = SessionCoordinator()
+    coordinator.bind(
+        to: session,
+        logging: SpySessionLoggingAdapter(),
+        sync: SpySessionSyncAdapter(),
+        restTimer: RestTimer(clock: ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))),
+        liveActivity: liveActivity,
+        liveEdge: { .atLiveEdge(currentSession: $0) }
+    )
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+    let lastSquatSet = try #require(squat.sets.first)
+    #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
+    let changes = ObservedChanges()
+    changes.watch { _ = coordinator.canPair(bench, in: session) }
+    var firedBeforeAnimation: Int?
+
+    coordinator.log(lastSquatSet, as: SetLog(weight: .pounds(315), reps: 5, rpe: .seven)) { update in
+        firedBeforeAnimation = changes.fired
+        update()
+    }
+
+    #expect(liveActivity.calls.count == 1)
+    #expect(firedBeforeAnimation == 0)
+    #expect(changes.fired == 1)
+    #expect(coordinator.canPair(bench, in: session))
+}

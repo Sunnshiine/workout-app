@@ -342,14 +342,15 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
     let finalSquatSet = try #require(squat.sets.first { $0.index == 1 })
-    let state = SupersetState()
+    let focus = ActiveSetFocusManager(session: session)
     firstSquatSet.state = .logged
-    state.createSuperset(with: [squat, bench], in: session)
+    #expect(focus.createSuperset(with: [squat, bench], in: session))
 
     finalSquatSet.state = .skipped
+    focus.advanceAfterSkip(finalSquatSet, in: session)
 
-    #expect(state.nextSetID(after: finalSquatSet, in: session) == nil)
-    #expect(state.supersetCount == 0)
+    #expect(!focus.isPaired(squat))
+    #expect(!focus.isPaired(bench))
 }
 
 @MainActor

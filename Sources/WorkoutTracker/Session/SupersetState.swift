@@ -92,10 +92,7 @@ final class SupersetState {
         else {
             return nil
         }
-        guard bothSidesHavePendingSet(pair, in: session) else {
-            dissolve(pair)
-            return nil
-        }
+        guard bothSidesHavePendingSet(pair, in: session) else { return nil }
 
         let nextIdentity = pair.other(than: SupersetExerciseIdentity(exercise: exercise))
         let nextSetID = nextPendingSetID(for: nextIdentity, in: session)
