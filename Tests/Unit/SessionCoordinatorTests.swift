@@ -90,6 +90,7 @@ private enum SessionVerbEntry: Equatable {
     case liveActivityReconciled
     case ended(focus: ActiveSetID?)
     case flushRequested
+    case failureReported
 }
 
 /// Records, in order, every motion a verb runs and each adapter call it makes, so a test reads
@@ -97,6 +98,7 @@ private enum SessionVerbEntry: Equatable {
 @MainActor
 private final class SessionVerbLedger: SessionMotionPerforming, SessionLoggingAdapter, SessionSyncAdapter, SessionLiveActivityAdapter {
     var reducesMotion = false
+    var writeError: TestLoggingError?
     weak var coordinator: SessionCoordinator?
     private(set) var entries: [SessionVerbEntry] = []
 
@@ -114,6 +116,7 @@ private final class SessionVerbLedger: SessionMotionPerforming, SessionLoggingAd
     }
 
     func log(_ set: ExerciseSet, as log: SetLog) throws {
+        if let writeError { throw writeError }
         entries.append(.logged)
         set.setLog = log
         set.state = .logged
@@ -131,7 +134,9 @@ private final class SessionVerbLedger: SessionMotionPerforming, SessionLoggingAd
         set.state = .pending
     }
 
-    func reportLocalWriteFailure(_ error: any Error) {}
+    func reportLocalWriteFailure(_ error: any Error) {
+        entries.append(.failureReported)
+    }
 
     func requestPendingWriteFlush() {
         entries.append(.flushRequested)
@@ -1706,6 +1711,28 @@ private func makeRestActionFixture(
         ]
     )
     #expect(restTimer.interval?.end == Date(timeIntervalSinceReferenceDate: 2_210))
+}
+
+@MainActor
+@Test func aLogWhoseWriteFailsStartsNoRestOrLiveActivityKeepsFocusAndRequestsNoFlush() throws {
+    let session = makeCoordinatorSession()
+    connectCoordinatorWeek([session])
+    let restTimer = RestTimer(clock: ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000)))
+    let (coordinator, ledger) = makeLedgerCoordinator(session: session, restTimer: restTimer)
+    ledger.writeError = .failed
+    let firstBenchSet = try #require(session.exercises.first { $0.order == 1 }?.sets.first { $0.index == 0 })
+
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
+
+    #expect(
+        ledger.entries == [
+            .began(.momentumFlow, focus: ActiveSetID(exerciseOrder: 1, setIndex: 0)),
+            .ended(focus: ActiveSetID(exerciseOrder: 1, setIndex: 0)),
+            .failureReported
+        ]
+    )
+    #expect(restTimer.interval == nil)
+    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
 }
 
 @MainActor
