@@ -285,15 +285,11 @@ struct ActiveSupersetSidePresentation: Equatable, Sendable {
     @MainActor
     init?(exercise: Exercise, isActive: Bool, activeSetIndex: Int?) {
         let sortedSets = exercise.sets.sorted { $0.index < $1.index }
-        let nextSet =
-            if isActive {
-                sortedSets.first { $0.index == activeSetIndex && $0.state == .pending }
-            } else {
-                // Route the ordering-and-first selection through the Superset owner's single home
-                // rather than re-deriving it.
-                SupersetState.nextPendingSet(for: exercise)
-            }
-        guard let nextSet else { return nil }
+        // The focused Set is already Logged between a log and its focus move, so the active side falls
+        // back to its next Pending Set, as `stageSet` does for one Exercise, rather than dissolving the
+        // Superset for that render (#740).
+        let focusedSet = isActive ? sortedSets.first { $0.index == activeSetIndex && $0.isPending } : nil
+        guard let nextSet = focusedSet ?? SupersetState.nextPendingSet(for: exercise) else { return nil }
 
         let ordinal = (sortedSets.firstIndex { $0.persistentModelID == nextSet.persistentModelID } ?? nextSet.index) + 1
         let nextSetText = "Set \(ordinal) of \(sortedSets.count)"
