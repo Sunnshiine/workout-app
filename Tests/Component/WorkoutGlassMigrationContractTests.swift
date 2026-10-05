@@ -77,8 +77,6 @@ private func moveOnCelebrationSource() throws -> String {
 @Test func moveOnCelebrationRetiresTheAnimatedOrbitForAByteStableCeremony() throws {
     let source = try moveOnCelebrationSource()
 
-    // The per-frame timing nucleus is gone — the source of the #482 baseline flake (PRD #497
-    // slice 7). No live TimelineView, no orbit, so the render is byte-stable.
     #expect(!source.contains("TimelineView(.animation"))
     #expect(!source.contains("move-on-celebration-orbit"))
 }

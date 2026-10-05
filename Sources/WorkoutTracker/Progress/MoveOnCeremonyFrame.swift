@@ -2,37 +2,25 @@ import CoreGraphics
 import Foundation
 import SwiftUI
 
-/// The Move On ceremony at one instant of its growth (DESIGN.md §5.7, §7): the stem draws on the
-/// wing, each leaf inks as the stem passes it, a beat, then the songbird drops onto the tip.
 struct MoveOnCeremonyFrame: Equatable {
     static let duration = Theme.Motion.ceremonyStem + Theme.Motion.ceremonyBeat + Theme.Motion.ceremonyBird
 
-    /// How much of the stem's length is drawn, 0 to 1 on the wing ease. The ease dips just below 0
-    /// (about -0.012) early in its span.
     let stemTrim: Double
-    /// 0 is clear and lifted off the perch, 1 is landed, on the wing ease. Like `stemTrim` it dips
-    /// just below 0 early in its span.
     let birdLanding: Double
 
     init(elapsed: TimeInterval) {
         let birdStart = Theme.Motion.ceremonyStem + Theme.Motion.ceremonyBeat
-        stemTrim = Self.wing.value(at: elapsed / Theme.Motion.ceremonyStem)
-        birdLanding = Self.wing.value(at: (elapsed - birdStart) / Theme.Motion.ceremonyBird)
+        stemTrim = max(0, Self.wing.value(at: elapsed / Theme.Motion.ceremonyStem))
+        birdLanding = max(0, Self.wing.value(at: (elapsed - birdStart) / Theme.Motion.ceremonyBird))
     }
 
-    /// The wing ease on a linear clock. It clamps outside 0...1, so a finished span draws today's
-    /// pixels.
     private static let wing = UnitCurve.bezier(
         startControlPoint: UnitPoint(x: Theme.wingEase.x1, y: Theme.wingEase.y1),
         endControlPoint: UnitPoint(x: Theme.wingEase.x2, y: Theme.wingEase.y2)
     )
 
-    /// The stretch of stem the trim draws past a leaf while it inks, so each leaf fades in behind
-    /// the tip instead of popping.
     private static let inkSpan = 0.08
 
-    /// A leaf's ink, 0...1, once the drawn stem passes its place along the stem's length. The
-    /// grown stem inks every leaf, however close to the tip it sits.
     func leafInk(atLengthFraction position: Double) -> Double {
         guard stemTrim < 1 else { return 1 }
         return min(max((stemTrim - position) / Self.inkSpan, 0), 1)
@@ -40,8 +28,7 @@ struct MoveOnCeremonyFrame: Equatable {
 }
 
 extension QuadraticBezier {
-    /// The share of the curve's length that lies before parameter `t`. A path's trim runs on
-    /// length, not on `t`.
+    /// A path's trim runs on length, not on `t`.
     func lengthFraction(at t: CGFloat) -> CGFloat {
         length(to: t) / length(to: 1)
     }

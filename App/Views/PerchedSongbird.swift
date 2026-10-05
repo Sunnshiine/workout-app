@@ -149,8 +149,6 @@ struct CeremonyBranch: View {
     }
 }
 
-/// The ceremony branch drawn at one instant. SwiftUI interpolates `elapsed`, so the growth redraws
-/// only while the animation runs, and a transaction without animation lands on the grown frame.
 private struct GrowingCeremonyBranch: View, Animatable {
     @Environment(\.themePalette) private var palette
     var elapsed: TimeInterval
