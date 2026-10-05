@@ -115,24 +115,34 @@ struct SessionStageBranch: View {
         }
     }
 
-    @ViewBuilder
+    /// Every dress stays drawn and the state picks which one shows. A switch would remove the old
+    /// dress with a transition, and SwiftUI leaves a removing view where it was last laid out, so a
+    /// stage shift during the ink (the first sync banner) would strand it off the stem.
     private func nodeGlyph(_ state: BranchNodeState, above: Bool, angle: Angle) -> some View {
-        switch state {
+        ZStack {
+            ForEach(BranchNodeState.allCases, id: \.self) { dress in
+                nodeDress(dress, above: above, angle: angle)
+                    .scaleEffect(dress == .bud && state != .bud ? 0.3 : 1)
+                    .opacity(dress == state ? 1 : 0)
+                    .transaction(value: state) { transaction in
+                        guard dress == .bud, state == .bud else { return }
+                        transaction.animation = reduceMotion
+                            ? nil
+                            : Theme.wingAnimation(duration: Theme.Motion.budOpen).delay(Theme.Motion.budOpenDelay)
+                    }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func nodeDress(_ dress: BranchNodeState, above: Bool, angle: Angle) -> some View {
+        switch dress {
         case .leaf:
             blade(.inked(fill: palette.leafFill, rib: palette.leafRib), above: above, angle: angle)
-                .transition(.opacity)
         case .dashedLeaf:
             blade(.dashed(palette.skipStroke), above: above, angle: angle)
-                .transition(.opacity)
         case .bud:
             blade(.cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow), above: above, angle: angle)
-                .transition(.scale(scale: 0.3).combined(with: .opacity))
-                .animation(
-                    reduceMotion
-                        ? nil
-                        : Theme.wingAnimation(duration: Theme.Motion.budOpen).delay(Theme.Motion.budOpenDelay),
-                    value: activeSetID
-                )
         case .future:
             blade(.ghost(palette.futureStroke), above: above, angle: angle, length: Metrics.leafLength * Metrics.ghostScale)
         }
@@ -185,10 +195,19 @@ struct SessionStageBranch: View {
         .accessibilityHidden(true)
     }
 
-    @ViewBuilder
     private func partnerGlyph(_ state: BranchNodeState, below: Bool, angle: Angle, leafLength: CGFloat) -> some View {
+        ZStack {
+            ForEach(BranchNodeState.allCases, id: \.self) { dress in
+                partnerDress(dress, below: below, angle: angle, leafLength: leafLength)
+                    .opacity(dress == state ? 1 : 0)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func partnerDress(_ dress: BranchNodeState, below: Bool, angle: Angle, leafLength: CGFloat) -> some View {
         let pigment = palette.supersetPartnerBranch
-        switch state {
+        switch dress {
         case .leaf:
             partnerBlade(.inked(fill: pigment, rib: nil), below: below, angle: angle, length: leafLength)
         case .dashedLeaf:

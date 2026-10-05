@@ -98,7 +98,7 @@ struct SessionStageItem: Identifiable {
 /// A node on the living stage's branch. The branch replaces the retired Set
 /// dots entirely; each state derives purely from existing Set State data plus
 /// which Set is on stage, so the branch stays textless and needs no new seam.
-enum BranchNodeState: Equatable, Sendable {
+enum BranchNodeState: CaseIterable, Equatable, Sendable {
     /// A Logged Set — an inked leaf.
     case leaf
     /// A Skipped Set — a dashed-outline leaf (the "empty bed" vocabulary).
