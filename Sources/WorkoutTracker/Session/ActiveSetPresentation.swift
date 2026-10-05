@@ -145,38 +145,37 @@ struct SetCardPresentation: Equatable, Sendable {
 
     let showsClearMenu: Bool
     let commitsChangesOnDisappear: Bool
-    private let mode: SetCardMode
-    private let isSkipped: Bool
-    private let isUnstructuredSetLog: Bool
+    /// Logging's action row, which no draft changes. Nil while reviewing.
+    private let loggingActionRow: ActionRow?
+    /// An Unstructured Set Log keeps its text on the line, since that text is what the athlete is
+    /// rebuilding as a Set Log.
+    private let hintsIncompleteDraft: Bool
     private let loggedLine: String
 
     @MainActor
     init(mode: SetCardMode, set: ExerciseSet) {
-        self.mode = mode
-        isSkipped = set.state == .skipped
-        isUnstructuredSetLog = set.setLog == nil
+        hintsIncompleteDraft = set.setLog != nil
         loggedLine = set.displayReps
         switch mode {
         case .logging:
             showsClearMenu = set.state != .pending
             commitsChangesOnDisappear = false
+            loggingActionRow = set.state == .skipped ? .skipped : .log
         case .reviewingLogged:
             showsClearMenu = false
             commitsChangesOnDisappear = true
+            loggingActionRow = nil
         }
     }
 
-    /// The action row reads the draft because a structured Set Log's review turns into the hint once
-    /// the athlete edits it into something that is no longer a Set Log. An Unstructured Set Log keeps
-    /// its text on the line, since that text is what the athlete is rebuilding as a Set Log.
+    /// A review reads the draft because a structured Set Log's line turns into the hint once the
+    /// athlete edits it into something that is no longer a Set Log.
     @MainActor
     func actionRow(for draft: SmartValuePillsForm) -> ActionRow {
-        switch mode {
-        case .logging:
-            isSkipped ? .skipped : .log
-        case .reviewingLogged:
-            draft.hasChanges && !draft.canLog && !isUnstructuredSetLog ? .incompleteDraft : .logged(line: loggedLine)
+        if let loggingActionRow {
+            return loggingActionRow
         }
+        return hintsIncompleteDraft && draft.hasChanges && !draft.canLog ? .incompleteDraft : .logged(line: loggedLine)
     }
 }
 
