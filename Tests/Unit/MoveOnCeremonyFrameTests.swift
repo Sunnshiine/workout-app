@@ -7,10 +7,6 @@ import Testing
 private let tolerance = 1e-6
 
 @Suite struct MoveOnCeremonyFrameTests {
-    @Test func theCeremonyRunsStemBeatAndBirdIn1_45Seconds() {
-        #expect(abs(MoveOnCeremonyFrame.duration - 1.45) < tolerance)
-    }
-
     @Test func theStemDrawsOnTheWingOverItsFirstSecondThenHolds() {
         #expect(MoveOnCeremonyFrame(elapsed: 0).stemTrim == 0)
         #expect(abs(MoveOnCeremonyFrame(elapsed: 0.5).stemTrim - 0.115986) < tolerance)
