@@ -104,7 +104,7 @@ func holdToSkipGestureCommitsAtTheSetStatesHold(state: SetState, commitMilliseco
 
     #expect(gesture.pressBegan(at: at(860), policy: .forSet(in: .skipped)) == [])
     #expect(gesture.nextDeadline == nil)
-    #expect(gesture.skipRequested(at: at(870)) == [])
+    #expect(gesture.deadlineReached(at: at(870)) == [])
     #expect(gesture.pressEnded(at: at(3_000)) == [])
     #expect(gesture.pressBegan(at: at(3_500), policy: .forSet(in: .skipped)) == [.clearFill])
 }
@@ -121,7 +121,6 @@ func holdToSkipGestureCommitsAtTheSetStatesHold(state: SetState, commitMilliseco
     _ = releaseFirst.pressBegan(at: at(0), policy: .forSet(in: .pending))
 
     #expect(releaseFirst.pressEnded(at: at(860)) == [.skip])
-    #expect(releaseFirst.skipRequested(at: at(861)) == [])
     #expect(releaseFirst.deadlineReached(at: at(862)) == [])
 }
 
