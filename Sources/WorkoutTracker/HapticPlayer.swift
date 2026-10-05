@@ -9,8 +9,8 @@ enum Haptic: Equatable, Sendable {
 
     /// The Move On ceremony's one Crisp pattern (DESIGN.md §7). The values are timed to the
     /// animation, not chosen for feel alone. The swell rises through the stem's climb (1.0s) and
-    /// the peak transient lands as the bird drops to the branch tip (1.1s). Every Move On plays
-    /// this same pattern.
+    /// the peak transient lands with the bird on the branch tip, after the beat and the drop
+    /// (1.45s). Every Move On plays this same pattern, Reduce Motion included.
     case moveOn
 
     case input(Theme.HapticTuning)
@@ -89,7 +89,10 @@ enum Haptic: Equatable, Sendable {
             relativeTime: 0
         )
 
-        let peak = transient(Theme.Haptics.logTap, at: Theme.Motion.ceremonyStem + Theme.Motion.ceremonyBeat)
+        let peak = transient(
+            Theme.Haptics.logTap,
+            at: Theme.Motion.ceremonyStem + Theme.Motion.ceremonyBeat + Theme.Motion.ceremonyBird
+        )
 
         return try CHHapticPattern(events: [swell, peak], parameterCurves: [swellCurve])
     }

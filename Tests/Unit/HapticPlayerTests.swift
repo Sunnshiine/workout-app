@@ -79,8 +79,8 @@ private func exported(_ haptic: Haptic) throws -> String {
     }
 
     /// The DESIGN.md §7 tuning: a 1.0s swell curving 0.2 -> 1.0, then the Crisp log-tap peak
-    /// (1.0 / 0.65) one beat later at 1.1s.
-    @Test func moveOnIsASwellCurvingIntoAPeakAtOnePointOneSeconds() throws {
+    /// (1.0 / 0.65) at 1.45s, when the bird lands after the 0.10s beat and the 0.35s drop.
+    @Test func moveOnIsASwellCurvingIntoAPeakWhenTheBirdLands() throws {
         #expect(
             try exported(.moveOn) == """
                 {CHHapticPatternKey(_rawValue: Pattern)=[{Event={EventDuration=1.000000,\
@@ -89,7 +89,7 @@ private func exported(_ haptic: Haptic) throws -> String {
                 EventType=HapticContinuous,Time=0.000000}},{Event={EventDuration=0.000000,\
                 EventParameters=[{ParameterID=HapticIntensity,ParameterValue=1.000000},\
                 {ParameterID=HapticSharpness,ParameterValue=0.650000}],\
-                EventType=HapticTransient,Time=1.100000}},{ParameterCurve=\
+                EventType=HapticTransient,Time=1.450000}},{ParameterCurve=\
                 {ParameterCurveControlPoints=[{ParameterValue=0.200000,Time=0.000000},\
                 {ParameterValue=1.000000,Time=1.000000}],ParameterID=HapticIntensityControl,\
                 Time=0.000000}}]}
