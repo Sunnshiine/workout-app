@@ -131,20 +131,6 @@ private func makePlannedSupersetSession() -> Session {
 }
 
 @MainActor
-@Test func loggingFinalPendingSetCollapsesCompletedExercise() throws {
-    let session = makeMultiExercisePendingSession()
-    let squatSets = try #require(session.exercises.first { $0.order == 0 }?.sets)
-    squatSets.forEach { $0.state = .logged }
-    let finalSquatSet = try #require(squatSets.first { $0.index == 1 })
-    let squat = try #require(finalSquatSet.exercise)
-    let focus = ActiveSetFocusManager(session: session)
-
-    focus.advanceAfterLog(finalSquatSet, in: session)
-
-    #expect(focus.isCollapsed(squat))
-}
-
-@MainActor
 @Test func loggingFinalPendingSetRecordsCollapseAndRiseTransition() throws {
     let session = makeMultiExercisePendingSession()
     let squatSets = try #require(session.exercises.first { $0.order == 0 }?.sets)
@@ -166,19 +152,16 @@ private func makePlannedSupersetSession() -> Session {
 }
 
 @MainActor
-@Test func reexpandingCompletedExercisePreservesCurrentFocusAndExpandsLoggedSetReview() throws {
+@Test func focusingACompletedExercisesLoggedSetPreservesCurrentFocusAndTogglesItsReview() throws {
     let session = makeMultiExercisePendingSession()
     let squatSets = try #require(session.exercises.first { $0.order == 0 }?.sets)
     squatSets.forEach { $0.state = .logged }
     let firstSquatSet = try #require(squatSets.first { $0.index == 0 })
     let finalSquatSet = try #require(squatSets.first { $0.index == 1 })
-    let squat = try #require(finalSquatSet.exercise)
     let focus = ActiveSetFocusManager(session: session)
 
     focus.advanceAfterLog(finalSquatSet, in: session)
-    focus.reexpand(squat)
 
-    #expect(!focus.isCollapsed(squat))
     #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
 
     focus.focus(on: firstSquatSet)
@@ -315,13 +298,11 @@ private func makePlannedSupersetSession() -> Session {
     #expect(focus.createSuperset(with: [bench, squat], in: session))
 
     #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
-    #expect(focus.scrollTargetID == nil)
 
     firstSquatSet.state = .logged
     focus.advanceAfterLog(firstSquatSet, in: session)
 
     #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
-    #expect(focus.scrollTargetID == nil)
 }
 
 @MainActor
@@ -351,7 +332,6 @@ private func makePlannedSupersetSession() -> Session {
     focus.advanceAfterLog(rowSet, in: session)
 
     #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
-    #expect(focus.scrollTargetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
     #expect(
         focus.activeSetTransition
             == ActiveSetTransition(
@@ -366,7 +346,6 @@ private func makePlannedSupersetSession() -> Session {
     focus.advanceAfterLog(firstSquatSet, in: session)
 
     #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 2, setIndex: 0))
-    #expect(focus.scrollTargetID == nil)
 }
 
 @MainActor
@@ -416,7 +395,7 @@ private func makePlannedSupersetSession() -> Session {
 }
 
 @MainActor
-@Test func creatingPlannedSupersetFormsSurfaceAndScrollTargetWithoutChangingFocus() throws {
+@Test func creatingPlannedSupersetFormsSurfaceWithoutChangingFocus() throws {
     let session = makePlannedSupersetSession()
     let squat = try #require(session.exercises.first { $0.order == 1 })
     let bench = try #require(session.exercises.first { $0.order == 2 })
@@ -425,7 +404,6 @@ private func makePlannedSupersetSession() -> Session {
     #expect(focus.createSuperset(from: squat, to: bench, in: session))
 
     #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
-    #expect(focus.supersetScrollTargetOrder == 1)
 
     let surface = try #require(focus.supersetSections(in: session).first?.presentation)
     #expect(surface.activeSetID == nil)

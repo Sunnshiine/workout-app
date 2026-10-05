@@ -94,18 +94,6 @@ import Testing
 }
 
 @MainActor
-@Test func liveActivityInvalidationPolicyEndsForSheetAndAuthEventsButNotAmbientEvents() {
-    #expect(LiveActivityInvalidationPolicy.shouldEnd(for: .moveOn))
-    #expect(LiveActivityInvalidationPolicy.shouldEnd(for: .sheetSwitch))
-    #expect(LiveActivityInvalidationPolicy.shouldEnd(for: .signOut))
-    #expect(!LiveActivityInvalidationPolicy.shouldEnd(for: .restExpired))
-    #expect(!LiveActivityInvalidationPolicy.shouldEnd(for: .appBackgrounded))
-    #expect(!LiveActivityInvalidationPolicy.shouldEnd(for: .syncStateChanged))
-    #expect(!LiveActivityInvalidationPolicy.shouldEnd(for: .settingsOpened))
-    #expect(!LiveActivityInvalidationPolicy.shouldEnd(for: .developerToolsOpened))
-}
-
-@MainActor
 @Test func liveActivityContentTargetsNextPendingSetInSameExerciseAndCountsDisplayedExercisePendingSets() throws {
     let startDate = Date(timeIntervalSinceReferenceDate: 1_000)
     let endDate = Date(timeIntervalSinceReferenceDate: 1_090)

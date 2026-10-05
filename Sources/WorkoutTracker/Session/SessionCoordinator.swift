@@ -101,27 +101,17 @@ enum ExercisePairingAvailability: Equatable, Sendable {
 
 struct SessionExerciseRenderConfig {
     let exercise: Exercise
-    let visualFocusOwner: ActiveSetVisualFocusOwner?
     let activeSetID: ActiveSetID?
     let expandedLoggedSetID: ActiveSetID?
     let savedLoggedSetID: ActiveSetID?
-    let activeSetTransition: ActiveSetTransition?
-    let retiringTransition: ActiveSetTransition?
-    let isCollapsed: Bool
-    let showsPairingGrip: Bool
     let pairingAvailability: ExercisePairingAvailability
-    let isPairingConfirmation: Bool
     let lastPerformedPresentation: LastPerformedCardPresentation?
 }
-
-typealias SessionExerciseRenderItem = SessionExerciseRenderConfig
 
 struct SessionSupersetRenderConfig {
     let presentation: ActiveSupersetPresentation
     let exercises: [Exercise]
-    let visualFocusOwner: ActiveSetVisualFocusOwner?
     let activeSetTransition: ActiveSetTransition?
-    let retiringTransition: ActiveSetTransition?
     let lastPerformedPresentation: LastPerformedCardPresentation?
 }
 
@@ -134,7 +124,6 @@ private struct SessionRenderContext {
     let supersetByContainerOrder: [Int: SupersetSectionState]
     let containerOrderByPairedExerciseOrder: [Int: Int]
     let pairingSourceOrder: Int?
-    let pairingConfirmationOrder: Int?
     let lastPerformedLookup: LastPerformedLookupSnapshot?
 }
 
@@ -171,9 +160,6 @@ final class SessionCoordinator {
     private(set) var visualFocusOwner: ActiveSetVisualFocusOwner?
     private(set) var savedLoggedSetID: ActiveSetID?
     private(set) var activeSetTransition: ActiveSetTransition?
-    private(set) var retiringTransition: ActiveSetTransition?
-    private(set) var scrollTargetID: ActiveSetID?
-    private(set) var supersetScrollTargetOrder: Int?
     private(set) var pairingMode: PairingMode = .inactive
 
     @ObservationIgnored private let focusManager: ActiveSetFocusManager
@@ -185,7 +171,7 @@ final class SessionCoordinator {
     @ObservationIgnored private var restTimer: RestTimer?
     @ObservationIgnored private var standardRestDuration: () -> TimeInterval
     @ObservationIgnored private var supersetRestDuration: () -> TimeInterval
-    @ObservationIgnored private var retirementTask: Task<Void, Never>?
+    @ObservationIgnored private var transitionExpiryTask: Task<Void, Never>?
     @ObservationIgnored private var pairingConfirmationTask: Task<Void, Never>?
     private var renderRevision = 0
 
@@ -212,7 +198,7 @@ final class SessionCoordinator {
     }
 
     deinit {
-        retirementTask?.cancel()
+        transitionExpiryTask?.cancel()
         pairingConfirmationTask?.cancel()
     }
 
@@ -220,7 +206,7 @@ final class SessionCoordinator {
         self.session = session
         savedLoggedSetID = nil
         cancelPairing()
-        clearRetiringTransition()
+        cancelTransitionExpiry()
         focusManager.reset(to: session)
         syncFocusState()
         invalidateRenderItems()
@@ -264,7 +250,7 @@ final class SessionCoordinator {
         performFocusUpdate(animateFocus) {
             focusManager.focus(on: set)
             if case .loggedSetReview = focusManager.visualFocusOwner {
-                clearRetiringTransition()
+                cancelTransitionExpiry()
             }
             syncFocusState()
             invalidateRenderItems()
@@ -295,7 +281,7 @@ final class SessionCoordinator {
             performFocusUpdate(animateFocus) {
                 advanceAfterLog(set, in: session)
             }
-            retireActiveSetTransition()
+            scheduleTransitionExpiry()
             syncAdapter.requestPendingWriteFlush()
         } catch {
             syncAdapter.reportLocalWriteFailure(error)
@@ -310,7 +296,7 @@ final class SessionCoordinator {
             performFocusUpdate(animateFocus) {
                 advanceAfterSkip(set, in: session)
             }
-            retireActiveSetTransition()
+            scheduleTransitionExpiry()
             syncAdapter.requestPendingWriteFlush()
         } catch {
             syncAdapter.reportLocalWriteFailure(error)
@@ -327,7 +313,7 @@ final class SessionCoordinator {
             )
             reconcileLiveActivity(for: session)
             focus(on: set)
-            clearRetiringTransition()
+            cancelTransitionExpiry()
             syncAdapter.requestPendingWriteFlush()
         } catch {
             syncAdapter.reportLocalWriteFailure(error)
@@ -345,7 +331,7 @@ final class SessionCoordinator {
                 focusManager.collapseLoggedSetReview()
             }
             syncFocusState()
-            clearRetiringTransition()
+            cancelTransitionExpiry()
             invalidateRenderItems()
             syncAdapter.requestPendingWriteFlush()
         } catch {
@@ -400,11 +386,6 @@ final class SessionCoordinator {
         invalidateRenderItems()
     }
 
-    func reexpand(_ exercise: Exercise) {
-        focusManager.reexpand(exercise)
-        invalidateRenderItems()
-    }
-
     static func activeSetID(for set: ExerciseSet) -> ActiveSetID? {
         ActiveSetFocusManager.id(for: set)
     }
@@ -414,8 +395,6 @@ final class SessionCoordinator {
         expandedLoggedSetID = focusManager.expandedLoggedSetID
         visualFocusOwner = focusManager.visualFocusOwner
         activeSetTransition = focusManager.activeSetTransition
-        scrollTargetID = focusManager.scrollTargetID
-        supersetScrollTargetOrder = focusManager.supersetScrollTargetOrder
     }
 
     private func invalidateRenderItems() {
@@ -445,32 +424,25 @@ final class SessionCoordinator {
         return session
     }
 
-    private func retireActiveSetTransition() {
+    private func scheduleTransitionExpiry() {
         guard let transition = activeSetTransition else { return }
 
-        retirementTask?.cancel()
-        retiringTransition = transition
+        transitionExpiryTask?.cancel()
         let duration = transitionClearDuration(for: transition)
         let clock = transitionClock
 
-        retirementTask = Task { @MainActor [weak self] in
+        transitionExpiryTask = Task { @MainActor [weak self] in
             await clock.sleep(for: duration)
-            guard
-                !Task.isCancelled,
-                let self,
-                self.retiringTransition == transition
-            else { return }
+            guard !Task.isCancelled, let self else { return }
 
-            self.retiringTransition = nil
             self.clearTransition(transition)
-            self.retirementTask = nil
+            self.transitionExpiryTask = nil
         }
     }
 
-    private func clearRetiringTransition() {
-        retirementTask?.cancel()
-        retirementTask = nil
-        retiringTransition = nil
+    private func cancelTransitionExpiry() {
+        transitionExpiryTask?.cancel()
+        transitionExpiryTask = nil
     }
 
     private func transitionClearDuration(for transition: ActiveSetTransition) -> Duration {
@@ -490,12 +462,6 @@ final class SessionCoordinator {
 }
 
 extension SessionCoordinator {
-    func collapseLoggedSetReview() {
-        focusManager.collapseLoggedSetReview()
-        syncFocusState()
-        invalidateRenderItems()
-    }
-
     func cancelRestForSessionExit() {
         restTimer?.dismiss()
         liveActivityAdapter.end()
@@ -556,22 +522,6 @@ extension SessionCoordinator {
 }
 
 extension SessionCoordinator {
-    func exerciseRenderItems() -> [SessionExerciseRenderItem] {
-        guard let session else { return [] }
-        return exerciseRenderItems(in: session)
-    }
-
-    func exerciseRenderItems(in session: Session) -> [SessionExerciseRenderItem] {
-        renderItems(in: session).compactMap(\.exerciseConfig)
-    }
-
-    func renderItems(
-        lastPerformedLookup: LastPerformedLookupSnapshot? = nil
-    ) -> [SessionRenderItem] {
-        guard let session else { return [] }
-        return renderItems(in: session, lastPerformedLookup: lastPerformedLookup)
-    }
-
     func renderItems(
         in session: Session,
         lastPerformedLookup: LastPerformedLookupSnapshot? = nil
@@ -593,7 +543,6 @@ extension SessionCoordinator {
                 }
             ),
             pairingSourceOrder: pairingSourceOrder,
-            pairingConfirmationOrder: pairingConfirmationOrder,
             lastPerformedLookup: lastPerformedLookup
         )
 
@@ -642,9 +591,7 @@ extension SessionCoordinator {
         return SessionSupersetRenderConfig(
             presentation: section.presentation,
             exercises: section.exercises,
-            visualFocusOwner: section.presentation.activeSetID.map(ActiveSetVisualFocusOwner.activeSet),
             activeSetTransition: transition(activeSetTransition, scopedTo: exerciseOrders),
-            retiringTransition: transition(retiringTransition, scopedTo: exerciseOrders),
             lastPerformedPresentation: lastPerformedPresentation(
                 for: activeExercise,
                 lookup: lastPerformedLookup
@@ -659,20 +606,14 @@ extension SessionCoordinator {
     ) -> SessionExerciseRenderConfig {
         SessionExerciseRenderConfig(
             exercise: exercise,
-            visualFocusOwner: visualFocusOwner(scopedTo: exercise),
             activeSetID: activeSetID(scopedTo: exercise),
             expandedLoggedSetID: expandedLoggedSetID(scopedTo: exercise),
             savedLoggedSetID: savedLoggedSetID(scopedTo: exercise),
-            activeSetTransition: transition(activeSetTransition, scopedTo: [exercise.order]),
-            retiringTransition: transition(retiringTransition, scopedTo: [exercise.order]),
-            isCollapsed: focusManager.isCollapsed(exercise),
-            showsPairingGrip: context.pairingSourceOrder != nil,
             pairingAvailability: pairingAvailability(
                 for: exercise,
                 in: session,
                 pairingSourceOrder: context.pairingSourceOrder
             ),
-            isPairingConfirmation: context.pairingConfirmationOrder == exercise.order,
             lastPerformedPresentation: lastPerformedPresentation(
                 for: exercise,
                 lookup: context.lastPerformedLookup
@@ -780,15 +721,6 @@ extension SessionCoordinator {
             nil
         case .selecting(let sourceOrder), .confirming(let sourceOrder, _):
             sourceOrder
-        }
-    }
-
-    private var pairingConfirmationOrder: Int? {
-        switch pairingMode {
-        case .inactive, .selecting:
-            nil
-        case .confirming(_, let targetOrder):
-            targetOrder
         }
     }
 

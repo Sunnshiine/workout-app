@@ -43,11 +43,11 @@ struct RootView: View {
             liveActivityAdapter.endIfReadyCapExpired()
         }
         .onChange(of: settings.spreadsheetId) { oldValue, newValue in
-            guard oldValue != newValue, LiveActivityInvalidationPolicy.shouldEnd(for: .sheetSwitch) else { return }
+            guard oldValue != newValue else { return }
             liveActivityAdapter.end()
         }
         .onChange(of: settings.isSignedIn) { _, isSignedIn in
-            guard !isSignedIn, LiveActivityInvalidationPolicy.shouldEnd(for: .signOut) else { return }
+            guard !isSignedIn else { return }
             liveActivityAdapter.end()
         }
     }
