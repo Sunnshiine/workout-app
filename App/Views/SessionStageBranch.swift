@@ -75,19 +75,19 @@ struct SessionStageBranch: View {
                 CurvePath(curve: stemCurve(in: drawing))
                     .stroke(palette.stem, style: StrokeStyle(lineWidth: Metrics.stemWidth, lineCap: .round))
 
-                // Keyed by place on the stem, so a Superset switch redresses each node rather than
-                // removing it. A dropped node leaves at once: see nodeGlyph for why a fade strands.
-                ForEach(Array(nodes.enumerated()), id: \.offset) { index, node in
+                ForEach(Array(nodes.enumerated()), id: \.element.set.persistentModelID) { index, node in
                     let point = stemPoint(t: nodeT(index), in: drawing)
                     let angle = stemAngle(t: nodeT(index), in: drawing)
                     nodeCell(node.set, state: node.state, above: index.isMultiple(of: 2), angle: angle)
                         .position(point)
-                        .transition(.asymmetric(insertion: .opacity, removal: .identity))
                 }
             }
         }
         .frame(minHeight: Metrics.minimumHeight, idealHeight: Metrics.minimumHeight, maxHeight: .infinity)
         .frame(maxWidth: .infinity)
+        // A node leaving or joining mid-ink keeps the frame it had when it left or joined. Grouped,
+        // that frame is the branch's, so it rides the stem when the stage slides under it.
+        .geometryGroup()
         .animation(reduceMotion ? nil : Theme.wingAnimation(duration: Theme.Motion.leafInk), value: activeSetID)
         .animation(reduceMotion ? nil : Theme.wingAnimation(duration: Theme.Motion.leafInk), value: sets.count)
         .accessibilityElement(children: onTap == nil ? .ignore : .contain)
@@ -118,34 +118,24 @@ struct SessionStageBranch: View {
         }
     }
 
-    /// Every dress stays drawn and the state picks which one shows. A switch would remove the old
-    /// dress with a transition, and SwiftUI leaves a removing view where it was last laid out, so a
-    /// stage shift during the ink (the first sync banner) would strand it off the stem.
-    private func nodeGlyph(_ state: BranchNodeState, above: Bool, angle: Angle) -> some View {
-        ZStack {
-            ForEach(BranchNodeState.allCases, id: \.self) { dress in
-                nodeDress(dress, above: above, angle: angle)
-                    .scaleEffect(dress == .bud && state != .bud ? 0.3 : 1)
-                    .opacity(dress == state ? 1 : 0)
-                    .transaction(value: state) { transaction in
-                        guard dress == .bud, state == .bud else { return }
-                        transaction.animation = reduceMotion
-                            ? nil
-                            : Theme.wingAnimation(duration: Theme.Motion.budOpen).delay(Theme.Motion.budOpenDelay)
-                    }
-            }
-        }
-    }
-
     @ViewBuilder
-    private func nodeDress(_ dress: BranchNodeState, above: Bool, angle: Angle) -> some View {
-        switch dress {
+    private func nodeGlyph(_ state: BranchNodeState, above: Bool, angle: Angle) -> some View {
+        switch state {
         case .leaf:
             blade(.inked(fill: palette.leafFill, rib: palette.leafRib), above: above, angle: angle)
+                .transition(.opacity)
         case .dashedLeaf:
             blade(.dashed(palette.skipStroke), above: above, angle: angle)
+                .transition(.opacity)
         case .bud:
             blade(.cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow), above: above, angle: angle)
+                .transition(.scale(scale: 0.3).combined(with: .opacity))
+                .animation(
+                    reduceMotion
+                        ? nil
+                        : Theme.wingAnimation(duration: Theme.Motion.budOpen).delay(Theme.Motion.budOpenDelay),
+                    value: activeSetID
+                )
         case .future:
             blade(.ghost(palette.futureStroke), above: above, angle: angle, length: Metrics.leafLength * Metrics.ghostScale)
         }
@@ -181,7 +171,7 @@ struct SessionStageBranch: View {
                     style: StrokeStyle(lineWidth: PartnerMetrics.stemWidth, lineCap: .round)
                 )
 
-            ForEach(Array(partnerNodes.enumerated()), id: \.offset) { index, node in
+            ForEach(Array(partnerNodes.enumerated()), id: \.element.set.persistentModelID) { index, node in
                 let t = partnerNodeT(index)
                 let tangent = curve.tangent(at: t)
                 partnerGlyph(
@@ -191,7 +181,6 @@ struct SessionStageBranch: View {
                     leafLength: PartnerMetrics.leafLength * scale
                 )
                 .position(curve.point(at: t))
-                .transition(.asymmetric(insertion: .opacity, removal: .identity))
             }
         }
         // The partner is a passive lateral — it never receives focus taps (the
@@ -199,19 +188,10 @@ struct SessionStageBranch: View {
         .accessibilityHidden(true)
     }
 
-    private func partnerGlyph(_ state: BranchNodeState, below: Bool, angle: Angle, leafLength: CGFloat) -> some View {
-        ZStack {
-            ForEach(BranchNodeState.allCases, id: \.self) { dress in
-                partnerDress(dress, below: below, angle: angle, leafLength: leafLength)
-                    .opacity(dress == state ? 1 : 0)
-            }
-        }
-    }
-
     @ViewBuilder
-    private func partnerDress(_ dress: BranchNodeState, below: Bool, angle: Angle, leafLength: CGFloat) -> some View {
+    private func partnerGlyph(_ state: BranchNodeState, below: Bool, angle: Angle, leafLength: CGFloat) -> some View {
         let pigment = palette.supersetPartnerBranch
-        switch dress {
+        switch state {
         case .leaf:
             partnerBlade(.inked(fill: pigment, rib: nil), below: below, angle: angle, length: leafLength)
         case .dashedLeaf:
