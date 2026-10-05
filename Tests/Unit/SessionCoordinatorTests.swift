@@ -1652,10 +1652,9 @@ private func makeRestActionFixture(
     #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
     squat.sets.forEach { $0.state = .logged }
     let changes = ObservedChanges()
-    changes.watch { _ = coordinator.supersetSections(in: session) }
+    changes.watch { _ = coordinator.canPair(bench, in: session) }
 
-    let sections = coordinator.supersetSections(in: session)
+    #expect(coordinator.supersetSections(in: session).isEmpty)
 
-    #expect(sections.isEmpty)
     #expect(changes.fired == 0)
 }
