@@ -42,8 +42,6 @@ struct SessionTile: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: height)
-        // Full tiles only: the mini strip is too small to carry the sheen, and unavailable beds
-        // are empty.
         .overlay {
             if variant == .full, state != .unavailable, let topLight = palette.lighting.tileTopLight {
                 topLight.gradientView
