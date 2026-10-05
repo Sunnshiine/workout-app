@@ -42,6 +42,17 @@ private func exported(_ haptic: Haptic) throws -> String {
         )
     }
 
+    @Test func inputIsOneTransientAtItsTuning() throws {
+        #expect(
+            try exported(.input(Theme.Haptics.logTap)) == """
+                {CHHapticPatternKey(_rawValue: Pattern)=[{Event={EventDuration=0.000000,\
+                EventParameters=[{ParameterID=HapticIntensity,ParameterValue=1.000000},\
+                {ParameterID=HapticSharpness,ParameterValue=0.650000}],\
+                EventType=HapticTransient,Time=0.000000}}]}
+                """
+        )
+    }
+
     @Test func expiryBuzzIsA650msContinuousEvent() throws {
         #expect(
             try exported(.rest(.expiryBuzz)) == """

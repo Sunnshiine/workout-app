@@ -13,20 +13,17 @@ enum Haptic: Equatable, Sendable {
     /// this same pattern.
     case moveOn
 
+    /// A Crisp input transient: a log, a skip dud, a stepper or rail detent tick.
+    case input(Theme.HapticTuning)
+
     func pattern() throws -> CHHapticPattern {
         switch self {
+        case .input(let tuning):
+            return try CHHapticPattern(events: [Self.transient(tuning)], parameters: [])
+
         case .rest(.lightTap):
             return try CHHapticPattern(
-                events: [
-                    CHHapticEvent(
-                        eventType: .hapticTransient,
-                        parameters: [
-                            CHHapticEventParameter(parameterID: .hapticIntensity, value: 0.35),
-                            CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.45)
-                        ],
-                        relativeTime: 0
-                    )
-                ],
+                events: [Self.transient(Theme.HapticTuning(intensity: 0.35, sharpness: 0.45))],
                 parameters: []
             )
 
@@ -51,6 +48,17 @@ enum Haptic: Equatable, Sendable {
         }
     }
 
+    private static func transient(_ tuning: Theme.HapticTuning, at time: TimeInterval = 0) -> CHHapticEvent {
+        CHHapticEvent(
+            eventType: .hapticTransient,
+            parameters: [
+                CHHapticEventParameter(parameterID: .hapticIntensity, value: Float(tuning.intensity)),
+                CHHapticEventParameter(parameterID: .hapticSharpness, value: Float(tuning.sharpness))
+            ],
+            relativeTime: time
+        )
+    }
+
     private static func moveOnPattern() throws -> CHHapticPattern {
         let swell = CHHapticEvent(
             eventType: .hapticContinuous,
@@ -71,14 +79,7 @@ enum Haptic: Equatable, Sendable {
             relativeTime: 0
         )
 
-        let peak = CHHapticEvent(
-            eventType: .hapticTransient,
-            parameters: [
-                CHHapticEventParameter(parameterID: .hapticIntensity, value: Float(Theme.Haptics.logTap.intensity)),
-                CHHapticEventParameter(parameterID: .hapticSharpness, value: Float(Theme.Haptics.logTap.sharpness))
-            ],
-            relativeTime: Theme.Motion.ceremonyStem + Theme.Motion.ceremonyBeat
-        )
+        let peak = transient(Theme.Haptics.logTap, at: Theme.Motion.ceremonyStem + Theme.Motion.ceremonyBeat)
 
         return try CHHapticPattern(events: [swell, peak], parameterCurves: [swellCurve])
     }
@@ -102,6 +103,8 @@ extension CHHapticEngine: HapticEngine {}
 /// silent for the rest of the session.
 @MainActor
 final class HapticPlayer {
+    static let shared = HapticPlayer()
+
     private let makeEngine: @MainActor () throws -> HapticEngine
     private var engine: HapticEngine?
 
