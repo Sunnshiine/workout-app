@@ -25,9 +25,15 @@ struct MoveOnCeremonyFrame: Equatable {
         endControlPoint: UnitPoint(x: Theme.wingEase.x2, y: Theme.wingEase.y2)
     )
 
-    /// A leaf's ink, 0...1, once the drawn stem passes its place along the stem's length.
+    /// The stretch of stem the trim draws past a leaf while it inks, so each leaf fades in behind
+    /// the tip instead of popping.
+    private static let inkSpan = 0.08
+
+    /// A leaf's ink, 0...1, once the drawn stem passes its place along the stem's length. The
+    /// grown stem inks every leaf, however close to the tip it sits.
     func leafInk(atLengthFraction position: Double) -> Double {
-        min(max((stemTrim - position) / 0.08, 0), 1)
+        guard stemTrim < 1 else { return 1 }
+        return min(max((stemTrim - position) / Self.inkSpan, 0), 1)
     }
 }
 
