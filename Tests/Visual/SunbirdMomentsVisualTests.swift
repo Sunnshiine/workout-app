@@ -7,9 +7,9 @@ import Testing
 /// The Sunbird moments (PRD #497 slice 7, DESIGN.md §5.7 / §5.8 / §6, picks
 /// sunbird-moments-a/-c/-d/-e): the Move On ceremony, the Sheet-connect screen,
 /// and the glass colophon standalone — each rendered full-screen in both
-/// appearances. The ceremony fixture freezes end states (reduced motion) so the
-/// baseline shows the grown branch + perched bird and stays byte-stable across
-/// repeat runs, retiring the #482 animation-frame flake at its source.
+/// appearances. The ceremony renders with animation off, so the baseline shows the
+/// grown branch + perched bird and stays byte-stable across repeat runs, retiring
+/// the #482 animation-frame flake at its source.
 @MainActor
 @Suite(.snapshots(record: .never))
 struct SunbirdMomentsVisualTests {
@@ -53,9 +53,12 @@ struct SunbirdMomentsVisualTests {
         .environment(\.themePalette, Theme.palette(for: appearance))
         .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
         .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)
-        // The redesigned ceremony draws its grown branch + perched bird as a
-        // static end state (the animated timing nucleus is retired), so the
-        // baseline is byte-stable without capturing any animation frame (#482).
+        // The branch grows on appear. With no animation the growth lands on the
+        // grown frame at once, so no animation frame is captured (#482).
+        .transaction { transaction in
+            transaction.animation = nil
+            transaction.disablesAnimations = true
+        }
         .preferredColorScheme(colorScheme)
 
         assertSnapshot(
