@@ -53,7 +53,7 @@ struct SessionStageView: View {
                     Color.clear.frame(height: Theme.editingWeightFootGap)
                 }
             }
-            .overlay(alignment: .leading) { restPill }
+            .overlay(alignment: composition == .reading ? .leading : .topLeading) { restPill }
         }
         // The whole stage is the keyboard's escape surface: any tap that no control claims
         // resigns the weight field. Attached to the stage root so it covers the editorial
@@ -272,7 +272,8 @@ struct SessionStageView: View {
 
     /// Rest takes the `Up next` slot over a foot row that keeps its height, so the card never moves
     /// when rest starts or ends (DESIGN.md §5.1). One mount in both compositions keeps the pill's
-    /// haptics running under a weight edit, where it shows nothing and takes no room.
+    /// haptics and expiry buzz running under a weight edit. There it hangs from the foot's top edge,
+    /// below the card, and it moves and hides in one frame so it never fades over the Log capsule.
     @ViewBuilder
     private var restPill: some View {
         if isResting {
@@ -281,6 +282,7 @@ struct SessionStageView: View {
                 .opacity(composition == .reading ? 1 : 0)
                 .accessibilityHidden(composition != .reading)
                 .allowsHitTesting(composition == .reading)
+                .animation(nil, value: composition)
         }
     }
 
