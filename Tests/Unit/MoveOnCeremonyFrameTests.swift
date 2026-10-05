@@ -30,9 +30,12 @@ private let tolerance = 1e-6
     }
 
     @Test func theGrownFrameHasTheWholeStemAndTheBirdLanded() {
-        #expect(MoveOnCeremonyFrame.grown.stemTrim == 1)
-        #expect(MoveOnCeremonyFrame.grown.birdLanding == 1)
-        #expect(MoveOnCeremonyFrame(elapsed: 5.0) == .grown)
+        let grown = MoveOnCeremonyFrame(elapsed: MoveOnCeremonyFrame.duration)
+
+        #expect(grown.stemTrim == 1)
+        #expect(grown.birdLanding == 1)
+        #expect(grown.leafInk(atLengthFraction: 0.91) == 1)
+        #expect(MoveOnCeremonyFrame(elapsed: 5.0) == grown)
     }
 
     @Test func aLeafInksAsTheTrimPassesItsPlaceOnTheStem() {
@@ -41,7 +44,6 @@ private let tolerance = 1e-6
         #expect(frame.leafInk(atLengthFraction: 0.5) == 0)
         #expect(abs(frame.leafInk(atLengthFraction: 0.35) - 0.510793) < tolerance)
         #expect(frame.leafInk(atLengthFraction: 0.1) == 1)
-        #expect(MoveOnCeremonyFrame.grown.leafInk(atLengthFraction: 0.91) == 1)
     }
 
     @Test func aBezierFractionMeasuresPathLengthNotParameter() {
