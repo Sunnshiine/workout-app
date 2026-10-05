@@ -220,7 +220,7 @@ struct SmartValuePills: View {
             HoldToSkipLogButton(
                 logTitle: form.logButtonTitle,
                 canLog: form.canLog,
-                isSkipped: set.state == .skipped,
+                setState: set.state,
                 showsLoggedCheckmark: showsLoggedCheckmark,
                 onLogTap: submitLog,
                 onSkip: skip
@@ -465,23 +465,18 @@ private struct StepperGlyph: Shape {
 private struct HoldToSkipLogButton: View {
     let logTitle: String
     let canLog: Bool
-    let isSkipped: Bool
+    let setState: SetState
     let showsLoggedCheckmark: Bool
     let onLogTap: () -> Void
     let onSkip: () -> Void
 
+    @State private var gesture = HoldToSkipGesture()
     @State private var skipProgress = 0.0
-    @State private var skipPressStartedAt: Date?
-    @State private var skipCompleted = false
-    @State private var suppressNextLogTap = false
-    @State private var skipRevealTask: Task<Void, Never>?
-    @State private var skipTask: Task<Void, Never>?
-    @State private var suppressLogTapTask: Task<Void, Never>?
     @Environment(\.themePalette) private var palette
 
     var body: some View {
         Group {
-            if isSkipped {
+            if setState == .skipped {
                 skippedBed
             } else {
                 logButtonSurface
@@ -491,16 +486,17 @@ private struct HoldToSkipLogButton: View {
             minimumDuration: policy.holdDuration,
             maximumDistance: 44,
             pressing: { isPressing in
-                if isPressing {
-                    startSkipHoldIfNeeded()
-                } else {
-                    finishSkipHold()
-                }
+                apply(isPressing ? gesture.pressBegan(at: .now, policy: policy) : gesture.pressEnded(at: .now))
             },
-            perform: completeSkip
+            perform: { apply(gesture.skipRequested(at: .now)) }
         )
         .contentShape(.rect)
-        .onTapGesture(perform: logTap)
+        .onTapGesture { apply(gesture.tapped(at: .now)) }
+        .task(id: gesture.nextDeadline) {
+            guard let deadline = gesture.nextDeadline else { return }
+            do { try await Task.sleep(until: deadline, clock: .continuous) } catch { return }
+            apply(gesture.deadlineReached(at: .now))
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
         .accessibilityValue(skipProgress > 0 ? "\(Int((skipProgress * 100).rounded()))% Skip" : "")
@@ -508,10 +504,10 @@ private struct HoldToSkipLogButton: View {
         .accessibilityIdentifier("log-active-set-button")
         .accessibilityAddTraits(.isButton)
         .accessibilityAction {
-            logTap()
+            apply(gesture.tapped(at: .now))
         }
         .accessibilityAction(named: "Skip") {
-            completeSkip()
+            apply(gesture.skipRequested(at: .now))
         }
     }
 
@@ -592,86 +588,21 @@ private struct HoldToSkipLogButton: View {
     }
 
     private var policy: HoldToSkipPolicy {
-        HoldToSkipPolicy()
+        .forSet(in: setState)
     }
 
-    private func logTap() {
-        guard !suppressNextLogTap else {
-            suppressNextLogTap = false
-            return
-        }
-        onLogTap()
-    }
-
-    private func startSkipHoldIfNeeded() {
-        guard skipPressStartedAt == nil else { return }
-        skipPressStartedAt = Date()
-        skipCompleted = false
-        skipProgress = 0
-        skipRevealTask?.cancel()
-        skipTask?.cancel()
-        skipRevealTask = Task { @MainActor in
-            try? await Task.sleep(for: .nanoseconds(Int64((policy.revealDelay * 1_000_000_000).rounded())))
-            let elapsed = skipPressStartedAt.map { Date().timeIntervalSince($0) } ?? 0
-            guard !Task.isCancelled, policy.shouldRevealProgress(elapsed: elapsed), !skipCompleted else { return }
-            withAnimation(.linear(duration: policy.progressAnimationDuration)) {
-                skipProgress = 1
+    private func apply(_ effects: [HoldToSkipEffect]) {
+        for effect in effects {
+            switch effect {
+            case .progress(let target, let duration, let linear):
+                withAnimation(linear ? .linear(duration: duration) : .easeOut(duration: duration)) {
+                    skipProgress = target
+                }
+            case .log:
+                onLogTap()
+            case .skip:
+                onSkip()
             }
-        }
-        skipTask = Task { @MainActor in
-            try? await Task.sleep(for: .nanoseconds(Int64((policy.holdDuration * 1_000_000_000).rounded())))
-            guard !Task.isCancelled else { return }
-            completeSkip()
-        }
-    }
-
-    private func finishSkipHold() {
-        let elapsed = skipPressStartedAt.map { Date().timeIntervalSince($0) } ?? 0
-        let outcome = policy.releaseOutcome(elapsed: elapsed, skipCompleted: skipCompleted)
-        skipRevealTask?.cancel()
-        skipRevealTask = nil
-        skipTask?.cancel()
-        skipTask = nil
-        skipPressStartedAt = nil
-
-        switch outcome {
-        case .deferToTap:
-            resetSkipProgress()
-        case .cancelSkip:
-            resetSkipProgress()
-            suppressLogTapOnce()
-        case .skip:
-            completeSkip()
-        case .ignore:
-            suppressLogTapOnce()
-        }
-    }
-
-    private func completeSkip() {
-        guard !skipCompleted else { return }
-        suppressLogTapOnce()
-        skipCompleted = true
-        skipRevealTask?.cancel()
-        skipRevealTask = nil
-        skipTask?.cancel()
-        skipTask = nil
-        onSkip()
-    }
-
-    private func suppressLogTapOnce() {
-        suppressNextLogTap = true
-        suppressLogTapTask?.cancel()
-        suppressLogTapTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(250))
-            guard !Task.isCancelled else { return }
-            suppressNextLogTap = false
-            suppressLogTapTask = nil
-        }
-    }
-
-    private func resetSkipProgress() {
-        withAnimation(.easeOut(duration: Theme.logButtonCheckmarkDuration)) {
-            skipProgress = 0
         }
     }
 }
