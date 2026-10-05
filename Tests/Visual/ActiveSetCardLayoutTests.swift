@@ -174,7 +174,7 @@ private enum CardHost {
             set.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: .eight)
         case .loggedUnstructured:
             set.state = .logged
-            set.unstructuredSetLog = "185 for 5, belt on the last rep"
+            set.unstructuredSetLog = "185 for 5, belt on the last rep, then two paused back-off singles at 205 with straps"
         }
         let mode: ActiveSetCard.Mode =
             switch scene.mode {
