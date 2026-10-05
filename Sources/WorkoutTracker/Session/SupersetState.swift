@@ -29,8 +29,6 @@ private struct SupersetPair: Equatable, Sendable {
     }
 }
 
-/// Reads are pure: they filter to live pairs and never write, because views read them in `body`.
-/// Only writes prune: `createSuperset`, `refresh(in:)`, and `focusedSetID(whenNormalFocusIs:in:)`.
 @MainActor
 @Observable
 final class SupersetState {
@@ -102,7 +100,6 @@ final class SupersetState {
         return nextSetID
     }
 
-    /// Whether `focusNextPendingSet(for:in:)` would move focus. Pure.
     func canFocusNextPendingSet(for exercise: Exercise, in session: Session) -> Bool {
         guard pair(containing: exercise, in: session) != nil else { return false }
         return nextPendingSetID(for: SupersetExerciseIdentity(exercise: exercise), in: session) != nil
@@ -170,8 +167,6 @@ final class SupersetState {
         session.exercises.contains { candidate in candidate === exercise }
     }
 
-    /// A pair alternates only while both sides still have somewhere to go. When one side runs out,
-    /// the Superset is over, whether or not a write has pruned it from `pairs` yet.
     private func livePairs(in session: Session) -> [SupersetPair] {
         pairs.filter { bothSidesHavePendingSet($0, in: session) }
     }

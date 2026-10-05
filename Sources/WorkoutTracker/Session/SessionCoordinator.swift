@@ -191,7 +191,6 @@ final class SessionCoordinator {
         self.supersetRestDuration = supersetRestDuration
     }
 
-    // Read through to the focus manager, which Observation tracks directly.
     var activeSetID: ActiveSetID? { focusManager.activeSetID }
     var expandedLoggedSetID: ActiveSetID? { focusManager.expandedLoggedSetID }
     var visualFocusOwner: ActiveSetVisualFocusOwner? { focusManager.visualFocusOwner }
