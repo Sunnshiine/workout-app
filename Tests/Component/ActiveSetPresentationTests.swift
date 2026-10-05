@@ -128,92 +128,134 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 
 @MainActor
 struct SetCardPresentationTests {
-    private func untouchedDraft(_ set: ExerciseSet) -> SmartValuePillsForm {
-        SmartValuePillsForm(set: set, suggestion: .noSuggestion)
+    @MainActor
+    private struct CardCase {
+        let mode: SetCardMode
+        let set: ExerciseSet
+        let makeIncomplete: (inout SmartValuePillsForm) -> Void
+        let makeValid: (inout SmartValuePillsForm) -> Void
+
+        var drafts: [SmartValuePillsForm] {
+            let untouched = SmartValuePillsForm(set: set, suggestion: .noSuggestion)
+            var incomplete = untouched
+            makeIncomplete(&incomplete)
+            var valid = untouched
+            makeValid(&valid)
+            return [untouched, incomplete, valid]
+        }
+
+        var actionRows: [SetCardPresentation.ActionRow] {
+            let presentation = SetCardPresentation(mode: mode, set: set)
+            return drafts.map(presentation.actionRow(for:))
+        }
     }
 
-    private func loggedSet(_ setLog: SetLog) -> ExerciseSet {
-        let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .logged)
-        set.setLog = setLog
+    private static func structuredSet(_ state: SetState) -> ExerciseSet {
+        let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: state)
+        if state == .logged {
+            set.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: .eight)
+        }
         return set
     }
 
-    @Test func loggingAPendingSetShowsTheLogCapsuleAndNoClearMenu() {
-        let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
-
-        let presentation = SetCardPresentation(mode: .logging, set: set)
-
-        #expect(presentation.actionRow(for: untouchedDraft(set)) == .log)
-        #expect(!presentation.showsClearMenu)
-        #expect(!presentation.commitsChangesOnDisappear)
-    }
-
-    @Test func loggingASkippedSetShowsTheSkippedCapsuleAndTheClearMenu() {
-        let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .skipped)
-
-        let presentation = SetCardPresentation(mode: .logging, set: set)
-
-        #expect(presentation.actionRow(for: untouchedDraft(set)) == .skipped)
-        #expect(presentation.showsClearMenu)
-    }
-
-    @Test func loggingALoggedSetShowsTheLogCapsuleAndTheClearMenu() {
-        let set = loggedSet(SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
-
-        let presentation = SetCardPresentation(mode: .logging, set: set)
-
-        #expect(presentation.actionRow(for: untouchedDraft(set)) == .log)
-        #expect(presentation.showsClearMenu)
-    }
-
-    @Test func reviewShowsTheLoggedSetLogWithNoClearMenuAndCommitsOnDisappear() {
-        let set = loggedSet(SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
-
-        let presentation = SetCardPresentation(mode: .reviewingLogged, set: set)
-
-        #expect(presentation.actionRow(for: untouchedDraft(set)) == .logged(line: "185x5@8"))
-        #expect(!presentation.showsClearMenu)
-        #expect(presentation.commitsChangesOnDisappear)
-    }
-
-    @Test func reviewOfAnUnstructuredSetLogShowsItsOriginalText() {
+    private static func unstructuredLoggedSet() -> ExerciseSet {
         let set = ExerciseSet(index: 1, prescribedReps: "AMRAP", prescribedLoad: "BW", percentOneRM: nil, state: .logged)
         set.unstructuredSetLog = "BW and vest for 12"
-
-        let presentation = SetCardPresentation(mode: .reviewingLogged, set: set)
-
-        #expect(presentation.actionRow(for: untouchedDraft(set)) == .logged(line: "BW and vest for 12"))
+        return set
     }
 
-    @Test func reviewWithAnIncompleteDraftShowsTheHint() {
-        let set = loggedSet(SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
-        var draft = untouchedDraft(set)
-        draft.rpeText = ""
+    private let cases: KeyValuePairs<String, CardCase> = [
+        "logging a pending Set": CardCase(
+            mode: .logging,
+            set: structuredSet(.pending),
+            makeIncomplete: { $0.repsText = "" },
+            makeValid: { $0.weightText = "185" }
+        ),
+        "logging a skipped Set": CardCase(
+            mode: .logging,
+            set: structuredSet(.skipped),
+            makeIncomplete: { $0.repsText = "" },
+            makeValid: { $0.weightText = "185" }
+        ),
+        "logging a logged Set": CardCase(
+            mode: .logging,
+            set: structuredSet(.logged),
+            makeIncomplete: { $0.rpeText = "" },
+            makeValid: { $0.stepWeight(.up) }
+        ),
+        "reviewing a structured Set Log": CardCase(
+            mode: .reviewingLogged,
+            set: structuredSet(.logged),
+            makeIncomplete: { $0.rpeText = "" },
+            makeValid: { $0.stepWeight(.up) }
+        ),
+        "reviewing an Unstructured Set Log": CardCase(
+            mode: .reviewingLogged,
+            set: unstructuredLoggedSet(),
+            makeIncomplete: { $0.repsText = "12" },
+            makeValid: {
+                $0.weightText = "BW"
+                $0.repsText = "12"
+                $0.rpeText = "8"
+            }
+        )
+    ]
 
-        let presentation = SetCardPresentation(mode: .reviewingLogged, set: set)
+    @Test func eachCaseDraftsAnUntouchedThenAChangedIncompleteThenAChangedValidSetLog() {
+        let states = Dictionary(
+            uniqueKeysWithValues: cases.map { name, card in
+                (name, card.drafts.map { [$0.hasChanges, $0.canLog] })
+            }
+        )
 
-        #expect(presentation.actionRow(for: draft) == .incompleteDraft)
+        #expect(
+            states == [
+                "logging a pending Set": [[false, false], [true, false], [true, true]],
+                "logging a skipped Set": [[false, false], [true, false], [true, true]],
+                "logging a logged Set": [[false, true], [true, false], [true, true]],
+                "reviewing a structured Set Log": [[false, true], [true, false], [true, true]],
+                "reviewing an Unstructured Set Log": [[false, false], [true, false], [true, true]]
+            ]
+        )
     }
 
-    @Test func reviewOfAnUnstructuredSetLogKeepsItsTextWhileAPartialDraftIsIncomplete() {
-        let set = ExerciseSet(index: 1, prescribedReps: "AMRAP", prescribedLoad: "BW", percentOneRM: nil, state: .logged)
-        set.unstructuredSetLog = "BW and vest for 12"
-        var draft = untouchedDraft(set)
-        draft.repsText = "12"
+    @Test func eachCardModeDrawsItsActionRowForAnUntouchedAnIncompleteAndAValidDraft() {
+        let rows = Dictionary(uniqueKeysWithValues: cases.map { ($0.key, $0.value.actionRows) })
 
-        let presentation = SetCardPresentation(mode: .reviewingLogged, set: set)
-
-        #expect(presentation.actionRow(for: draft) == .logged(line: "BW and vest for 12"))
+        #expect(
+            rows == [
+                "logging a pending Set": [.log, .log, .log],
+                "logging a skipped Set": [.skipped, .skipped, .skipped],
+                "logging a logged Set": [.log, .log, .log],
+                "reviewing a structured Set Log": [
+                    .logged(line: "185x5@8"), .incompleteDraft, .logged(line: "185x5@8")
+                ],
+                "reviewing an Unstructured Set Log": [
+                    .logged(line: "BW and vest for 12"),
+                    .logged(line: "BW and vest for 12"),
+                    .logged(line: "BW and vest for 12")
+                ]
+            ]
+        )
     }
 
-    @Test func reviewWithAValidChangedDraftKeepsTheLoggedSetLog() {
-        let set = loggedSet(SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
-        var draft = untouchedDraft(set)
-        draft.stepWeight(.up)
+    @Test func onlyLoggingASetAlreadyDoneOffersClearAndOnlyAReviewCommitsOnDisappear() {
+        let flags = Dictionary(
+            uniqueKeysWithValues: cases.map { name, card in
+                let presentation = SetCardPresentation(mode: card.mode, set: card.set)
+                return (name, [presentation.showsClearMenu, presentation.commitsChangesOnDisappear])
+            }
+        )
 
-        let presentation = SetCardPresentation(mode: .reviewingLogged, set: set)
-
-        #expect(presentation.actionRow(for: draft) == .logged(line: "185x5@8"))
+        #expect(
+            flags == [
+                "logging a pending Set": [false, false],
+                "logging a skipped Set": [true, false],
+                "logging a logged Set": [true, false],
+                "reviewing a structured Set Log": [false, true],
+                "reviewing an Unstructured Set Log": [false, true]
+            ]
+        )
     }
 }
 
