@@ -141,8 +141,8 @@ struct CeremonyBranch: View {
             elapsed: reduceMotion ? MoveOnCeremonyFrame.duration : elapsed,
             leafCount: leafCount
         )
-        // onAppear writes inside the overlay's insertion, where withAnimation loses to SessionView's
-        // 0.18 s crossfade; the nearest .animation wins.
+        // A withAnimation in onAppear loses to the presenter's 0.18 s .animation over the overlay's
+        // insertion; the nearest .animation wins.
         .animation(.linear(duration: MoveOnCeremonyFrame.duration), value: elapsed)
         .onAppear { elapsed = MoveOnCeremonyFrame.duration }
     }
