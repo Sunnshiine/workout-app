@@ -36,15 +36,8 @@ struct BlockOverviewView: View {
             .padding()
         }
         .background {
-            // The living paper under the page sunbeam — the warm morning falling from the
-            // top-right, the page's single wash of Day light. The sunlit hour is a Day delight;
-            // at Night the room re-lights on the paper's own lamp pool alone (One Glow Rule).
             palette.paperBackground
-                .overlay {
-                    if palette.appearance == .day {
-                        Theme.LightKit.pageSunbeam.gradientView
-                    }
-                }
+                .overlay { palette.lighting.pageSunbeam?.gradientView }
                 .ignoresSafeArea()
         }
         .navigationTitle(presentation.title)
@@ -73,19 +66,8 @@ struct BlockOverviewView: View {
         }
         .padding(Theme.blockFocusCardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        // By Day the focus card stands in morning light — the dedicated cream fill under the cream
-        // glow rim (the sunlit hour). At Night the room re-lights: a quiet lifted sage surface
-        // distinguished by the inset cream border-as-light, no cream bloom (Room Re-lights Rule).
-        .background(focusCardFill, in: .rect(cornerRadius: Theme.Radius.focusCard))
-        .themeElevation(focusCardElevation, in: .rect(cornerRadius: Theme.Radius.focusCard))
-    }
-
-    private var focusCardFill: Color {
-        palette.appearance == .day ? Theme.LightKit.focusCardFill : palette.surface
-    }
-
-    private var focusCardElevation: [Theme.BoxShadow] {
-        palette.appearance == .day ? Theme.LightKit.focusCardGlowRim : palette.surfaceShadow
+        .background(palette.lighting.focusCardFill, in: .rect(cornerRadius: Theme.Radius.focusCard))
+        .themeElevation(palette.lighting.focusCardElevation, in: .rect(cornerRadius: Theme.Radius.focusCard))
     }
 
     // MARK: - Collapsed week — an elevated card in shade with a mini day-strip

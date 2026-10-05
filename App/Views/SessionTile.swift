@@ -42,18 +42,17 @@ struct SessionTile: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: height)
-        // The tile's top-light sheen — the morning falling across every pane (full tiles only;
-        // the mini strip is too small to carry it). The sunlit hour is a Day delight; at Night the
-        // room re-lights with no cream sheen (One Glow Rule). Unavailable beds are empty, no sheen.
+        // Full tiles only: the mini strip is too small to carry the sheen, and unavailable beds
+        // are empty.
         .overlay {
-            if variant == .full, state != .unavailable, palette.appearance == .day {
-                Theme.LightKit.tileTopLight.gradientView
+            if variant == .full, state != .unavailable, let topLight = palette.lighting.tileTopLight {
+                topLight.gradientView
                     .allowsHitTesting(false)
             }
         }
         .clipShape(shape)
         .overlay { strokeOverlay }
-        .modifier(TileGlow(state: state, variant: variant, palette: palette))
+        .modifier(TileGlow(isLit: state == .current && variant == .full, glow: palette.lighting.currentTileGlow))
     }
 
     @ViewBuilder
@@ -89,20 +88,16 @@ struct SessionTile: View {
     }
 }
 
-/// The current tile alone carries a glow — the page's one delight, the sunlit hour. By Day it
-/// is the cream/sun `sunGlow` (never green); at Night it re-lights to the one bud glow.
 private struct TileGlow: ViewModifier {
-    let state: SessionTileState
-    let variant: SessionTile.Variant
-    let palette: Theme.Palette
+    let isLit: Bool
+    let glow: Theme.CurrentTileGlow
 
+    @ViewBuilder
     func body(content: Content) -> some View {
-        guard state == .current, variant == .full else { return AnyView(content) }
-        if let budGlow = palette.budGlow {
-            // Night: the one glow re-lights the current tile like the opening bud.
-            return AnyView(content.shadow(color: budGlow, radius: Theme.blockFocusGlowRadius / 2))
+        if isLit {
+            content.themeTileGlow(glow, in: RoundedRectangle(cornerRadius: Theme.Radius.tile))
+        } else {
+            content
         }
-        // Day: the cream/sun halo — a soft ring under a warm bloom, no green.
-        return AnyView(content.themeElevation(Theme.LightKit.sunGlow, in: RoundedRectangle(cornerRadius: Theme.Radius.tile)))
     }
 }
