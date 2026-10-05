@@ -357,12 +357,11 @@ foliage with cream ribs, and the active leaf carries the page's one glow.
   the Log capsule stays in reach. The HUD, Cadence line, coach note, branch,
   and stage foot step aside. The Exercise name and Last Performed stay above
   the card only while they fit, and anything that does not fit leaves from
-  the top. The rest pill keeps its place under the card; if it ends mid-edit,
-  its room stays empty until the edit ends, so the capsule never moves under
-  a finger. The page returns when the weight field folds.
-- **When the page runs short** (a rest running, a sync banner, a small
-  phone), what does not fit yields in a fixed order and the Active Set Card
-  never does: first the air under the branch, then the branch's height,
+  the top. The rest pill steps aside with the foot and keeps counting, so the
+  card's editing frame is the same with or without rest. The page returns
+  when the weight field folds.
+- **When the page runs short** (a sync banner, a small phone), what does
+  not fit yields in a fixed order and the Active Set Card never does: first the air under the branch, then the branch's height,
   which flattens from 156pt to a 70pt floor; then Last Performed; then the
   Cadence line; then the coach note; and only then the branch, which leaves
   the Exercise name above the card. A Superset's drooping lateral lifts and
