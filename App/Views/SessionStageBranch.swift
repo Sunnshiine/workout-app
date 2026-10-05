@@ -277,7 +277,29 @@ struct SessionStageBranch: View {
 }
 
 private struct CurvePath: Shape {
-    let curve: QuadraticBezier
+    var curve: QuadraticBezier
+
+    typealias AnimatableData = AnimatablePair<
+        AnimatablePair<CGPoint.AnimatableData, CGPoint.AnimatableData>, CGPoint.AnimatableData
+    >
+
+    nonisolated var animatableData: AnimatableData {
+        get {
+            AnimatablePair(
+                AnimatablePair(curve.start.animatableData, curve.control.animatableData),
+                curve.end.animatableData
+            )
+        }
+        set {
+            var start = CGPoint.zero
+            var control = CGPoint.zero
+            var end = CGPoint.zero
+            start.animatableData = newValue.first.first
+            control.animatableData = newValue.first.second
+            end.animatableData = newValue.second
+            curve = QuadraticBezier(start: start, control: control, end: end)
+        }
+    }
 
     func path(in _: CGRect) -> Path {
         var path = Path()
