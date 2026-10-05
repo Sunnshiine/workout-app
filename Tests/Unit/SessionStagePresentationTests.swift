@@ -106,22 +106,7 @@ struct SessionStagePresentationTests {
         #expect(SessionStagePresentation.stageItem(in: items, focusID: nil) == nil)
     }
 
-    @Test func restingSupersetSideSelectsItsNextPendingSetViaTheSharedQuery() throws {
-        let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged, .pending, .pending])
-        let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending, .pending])
-        let presentation = try #require(
-            ActiveSupersetPresentation(exercises: [squat, bench], activeSetID: nil)
-        )
-
-        let squatSide = try #require(presentation.sides.first { $0.exerciseOrder == 0 })
-        let squatNextSet = try #require(SupersetState.nextPendingSet(for: squat))
-
-        // The resting strip's "Set X of N" reflects the shared query's selection, not the first Set.
-        #expect(squatNextSet.index == 1)
-        #expect(squatSide.nextSetText == "Set 2 of 3")
-    }
-
-    @Test func activeSupersetSideFallsBackToItsNextPendingSetOnceTheFocusedSetIsLogged() throws {
+    @Test func supersetStaysPairedWhileFocusStillNamesTheJustLoggedSet() throws {
         let squat = makeExercise(name: "Back Squat", order: 0, setStates: [.logged, .pending, .pending])
         let rdl = makeExercise(name: "BB RDL", order: 1, setStates: [.pending, .pending])
         let presentation = try #require(
@@ -129,8 +114,15 @@ struct SessionStagePresentationTests {
         )
 
         #expect(presentation.sides.map(\.exerciseOrder) == [0, 1])
-        #expect(presentation.sides.map(\.nextSetText) == ["Set 2 of 3", "Set 1 of 2"])
         #expect(presentation.activeExerciseOrder == 0)
+        #expect(presentation.containerExerciseOrder == 0)
+    }
+
+    @Test func supersetDissolvesOnceEitherExerciseHasNoPendingSet() {
+        let squat = makeExercise(name: "Back Squat", order: 0, setStates: [.logged, .skipped])
+        let rdl = makeExercise(name: "BB RDL", order: 1, setStates: [.pending, .pending])
+
+        #expect(ActiveSupersetPresentation(exercises: [squat, rdl], activeSetID: ActiveSetID(exerciseOrder: 1, setIndex: 0)) == nil)
     }
 
     @Test func stageIdentityTracksTheFocusedSet() {
@@ -225,7 +217,7 @@ struct SessionStagePresentationTests {
         let second = SessionStagePresentation.queuePosition(of: items[1], in: items)
 
         #expect(first.label == "1 of 2")
-        #expect(first.accessibilityLabel == "Exercise 1 of 2")
+        #expect(first.accessibilityLabel == "Queue, 1 of 2")
         #expect(second.label == "2 of 2")
     }
 

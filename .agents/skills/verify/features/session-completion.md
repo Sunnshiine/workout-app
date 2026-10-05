@@ -21,7 +21,7 @@ Preconditions:
 
 - `verify.sh launch completed-open-exercises` landed on `Session complete` with `session-remaining-count` reading `0 Sets left`.
 
-- **Summary.** Capture the stage. Run `verify.sh shot 01-complete`. The tree has `Session complete`, `1 set done across 1 exercise`, `Open Exercises`, `move-on-button`, and `stage-queue-button` reading `1 of 1`.
+- **Summary.** Capture the stage. Run `verify.sh shot 01-complete`. The tree has `Session complete`, `1 set done across 1 exercise`, `Open Exercises`, `move-on-button`, and `stage-queue-button` reading `Queue, 1 of 1`.
 - **Open exercise.** Tap the open Back Squat row. Run `verify.sh tap --label "Back Squat, 1 pending set, W1 D1"`. `go-back-current-session-button` appears and `Back Squat` is on the stage. Run `verify.sh tap --id go-back-current-session-button` to return.
 - **Open exercises in the queue.** Run `verify.sh tap --id stage-queue-button`. The sheet repeats `Open Exercises` with the same row above `queue-move-on-button`. Close it with `verify.sh tap -x 200 -y 150`.
 - **Move on from the stage.** Run `verify.sh tap --id move-on-button`. `find move-on-celebration` is labeled `Week 1, Day 2` and its value ends `1 Sets, 1 Exercises, 0 Left`. Run `verify.sh shot 02-celebration`.

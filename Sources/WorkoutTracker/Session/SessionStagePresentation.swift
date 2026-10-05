@@ -110,13 +110,12 @@ enum BranchNodeState: Equatable, Sendable {
     case future
 }
 
-/// The queue pill's `N of M`: the stage item's place in Session order (DESIGN.md §5.1, "owns position").
 struct QueuePosition: Equatable, Sendable {
     let number: Int
     let count: Int
 
     var label: String { "\(number) of \(count)" }
-    var accessibilityLabel: String { "Exercise \(number) of \(count)" }
+    var accessibilityLabel: String { "Queue, \(number) of \(count)" }
 }
 
 /// The part a queue row plays while Superset pairing is in flight.
@@ -182,10 +181,9 @@ enum SessionStagePresentation {
         return items.first { !$0.isComplete && $0.id != stageItem.id }
     }
 
-    /// A complete Session has no stage item and reads as the last place.
     static func queuePosition(of stageItem: SessionStageItem?, in items: [SessionStageItem]) -> QueuePosition {
-        let index = items.firstIndex { $0.id == stageItem?.id } ?? items.count - 1
-        return QueuePosition(number: index + 1, count: items.count)
+        let number = items.firstIndex { $0.id == stageItem?.id }.map { $0 + 1 } ?? items.count
+        return QueuePosition(number: number, count: items.count)
     }
 
     /// The completion stage summary, e.g. "12 sets done across 4 exercises".
