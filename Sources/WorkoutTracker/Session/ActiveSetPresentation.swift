@@ -121,35 +121,55 @@ struct SetRowPresentation: Equatable, Sendable {
 /// The one Set card serves two modes: logging the active pending Set, or
 /// reviewing an already-logged one in place. The mode decides the commit
 /// trigger — the Log button when logging, an automatic commit of changed valid
-/// values when the review collapses — and the header chrome around the shared
-/// weight/reps/RPE fields.
+/// values when the review collapses — and what the card's rows say.
 enum SetCardMode: Equatable, Sendable {
     case logging
     case reviewingLogged
 }
 
+/// Every mode draws the same four rows — the head, the weight, the rails, and the action row — so
+/// the card never changes height (DESIGN.md §5.2, the Card Holds Still Rule). A mode changes what
+/// the head's trailing slot and the action row say, never whether a row exists.
 struct SetCardPresentation: Equatable, Sendable {
-    /// Original text of an Unstructured Set Log, kept visible as reference
-    /// while its structured replacement is edited.
-    let referenceText: String?
-    let showsLogControls: Bool
+    enum ActionRow: Equatable, Sendable {
+        case log
+        case skipped
+        /// The unfilled, inert capsule a review shows in the Log capsule's place.
+        case logged(line: String)
+    }
+
+    private static let incompleteDraftHint = "Complete weight, reps, and RPE"
+
+    let showsClearMenu: Bool
     let commitsChangesOnDisappear: Bool
+    private let mode: SetCardMode
+    private let isSkipped: Bool
+    private let loggedLine: String
 
     @MainActor
     init(mode: SetCardMode, set: ExerciseSet) {
+        self.mode = mode
+        isSkipped = set.state == .skipped
+        loggedLine = set.setLog?.formatted ?? set.displayReps
         switch mode {
         case .logging:
-            referenceText = nil
-            showsLogControls = true
+            showsClearMenu = set.state != .pending
             commitsChangesOnDisappear = false
         case .reviewingLogged:
-            if set.setLog == nil, let unstructuredSetLog = set.unstructuredSetLog {
-                referenceText = unstructuredSetLog
-            } else {
-                referenceText = nil
-            }
-            showsLogControls = false
+            showsClearMenu = false
             commitsChangesOnDisappear = true
+        }
+    }
+
+    /// The action row reads the draft because a review's line turns into the hint once the athlete
+    /// edits the logged Set into something that is no longer a valid Set Log.
+    @MainActor
+    func actionRow(for draft: SmartValuePillsForm) -> ActionRow {
+        switch mode {
+        case .logging:
+            isSkipped ? .skipped : .log
+        case .reviewingLogged:
+            .logged(line: draft.hasChanges && !draft.canLog ? Self.incompleteDraftHint : loggedLine)
         }
     }
 }
