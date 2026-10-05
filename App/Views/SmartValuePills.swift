@@ -223,9 +223,12 @@ struct SmartValuePills: View {
     @ViewBuilder
     private var actionRow: some View {
         let row = presentation.actionRow(for: form)
-        if case .logged(let line) = row {
+        switch row {
+        case .logged(let line):
             loggedSetCapsule(line)
-        } else {
+        case .incompleteDraft:
+            loggedSetCapsule(SetCardPresentation.incompleteDraftHint)
+        case .log, .skipped:
             HoldToSkipLogButton(
                 logTitle: form.logButtonTitle,
                 canLog: form.canLog,

@@ -192,7 +192,18 @@ struct SetCardPresentationTests {
 
         let presentation = SetCardPresentation(mode: .reviewingLogged, set: set)
 
-        #expect(presentation.actionRow(for: draft) == .logged(line: "Complete weight, reps, and RPE"))
+        #expect(presentation.actionRow(for: draft) == .incompleteDraft)
+    }
+
+    @Test func reviewOfAnUnstructuredSetLogKeepsItsTextWhileAPartialDraftIsIncomplete() {
+        let set = ExerciseSet(index: 1, prescribedReps: "AMRAP", prescribedLoad: "BW", percentOneRM: nil, state: .logged)
+        set.unstructuredSetLog = "BW and vest for 12"
+        var draft = untouchedDraft(set)
+        draft.repsText = "12"
+
+        let presentation = SetCardPresentation(mode: .reviewingLogged, set: set)
+
+        #expect(presentation.actionRow(for: draft) == .logged(line: "BW and vest for 12"))
     }
 
     @Test func reviewWithAValidChangedDraftKeepsTheLoggedSetLog() {
