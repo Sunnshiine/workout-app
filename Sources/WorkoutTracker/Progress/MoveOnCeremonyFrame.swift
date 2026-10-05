@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import SwiftUI
 
 /// The Move On ceremony at one instant of its growth (DESIGN.md §5.7, §7): the stem draws on the
 /// wing, each leaf inks as the stem passes it, a beat, then the songbird drops onto the tip.
@@ -13,34 +14,20 @@ struct MoveOnCeremonyFrame: Equatable {
 
     init(elapsed: TimeInterval) {
         let birdStart = Theme.Motion.ceremonyStem + Theme.Motion.ceremonyBeat
-        stemTrim = Theme.wingEase.progress(at: elapsed / Theme.Motion.ceremonyStem)
-        birdLanding = Theme.wingEase.progress(at: (elapsed - birdStart) / Theme.Motion.ceremonyBird)
+        stemTrim = Self.wing.value(at: elapsed / Theme.Motion.ceremonyStem)
+        birdLanding = Self.wing.value(at: (elapsed - birdStart) / Theme.Motion.ceremonyBird)
     }
+
+    /// The wing ease on a linear clock. It clamps outside 0...1, so a finished span draws today's
+    /// pixels.
+    private static let wing = UnitCurve.bezier(
+        startControlPoint: UnitPoint(x: Theme.wingEase.x1, y: Theme.wingEase.y1),
+        endControlPoint: UnitPoint(x: Theme.wingEase.x2, y: Theme.wingEase.y2)
+    )
 
     /// A leaf's ink, 0...1, once the drawn stem passes its place along the stem's length.
     func leafInk(atLengthFraction position: Double) -> Double {
         min(max((stemTrim - position) / 0.08, 0), 1)
-    }
-}
-
-extension Theme.BezierEase {
-    /// The eased progress at linear time `x`, so one clock can carry the ease on each of its spans.
-    func progress(at x: Double) -> Double {
-        // The clamps return exact end values, so a finished span draws today's pixels.
-        guard x > 0 else { return 0 }
-        guard x < 1 else { return 1 }
-        var low = 0.0
-        var high = 1.0
-        for _ in 0..<50 {
-            let mid = (low + high) / 2
-            if Self.coordinate(mid, x1, x2) < x { low = mid } else { high = mid }
-        }
-        return Self.coordinate((low + high) / 2, y1, y2)
-    }
-
-    private static func coordinate(_ t: Double, _ p1: Double, _ p2: Double) -> Double {
-        let u = 1 - t
-        return 3 * u * u * t * p1 + 3 * u * t * t * p2 + t * t * t
     }
 }
 
