@@ -13,7 +13,6 @@ struct MoveOnCelebrationView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.themePalette) private var palette
     @State private var presentation: MoveOnCelebrationPresentation
-    @State private var hapticPlayer = HapticPlayer()
 
     init(
         session: Session,
@@ -74,7 +73,7 @@ struct MoveOnCelebrationView: View {
         .preferredColorScheme(palette.preferredColorScheme)
         .task {
             guard !reduceMotion else { return }
-            hapticPlayer.play(.moveOn)
+            HapticPlayer.shared.play(.moveOn)
         }
     }
 
