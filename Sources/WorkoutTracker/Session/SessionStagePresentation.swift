@@ -110,7 +110,7 @@ enum BranchNodeState: Equatable, Sendable {
     case future
 }
 
-/// The stage foot's queue pill, `N of M`: where the stage item sits in the day's queue.
+/// The queue pill's `N of M`: the stage item's place in Session order (DESIGN.md §5.1, "owns position").
 struct QueuePosition: Equatable, Sendable {
     let number: Int
     let count: Int
@@ -182,8 +182,7 @@ enum SessionStagePresentation {
         return items.first { !$0.isComplete && $0.id != stageItem.id }
     }
 
-    /// The queue pill's place in Session order (DESIGN.md §5.1, "owns position"): the stage item's
-    /// position out of all items. A complete Session has no stage item and reads as the last place.
+    /// A complete Session has no stage item and reads as the last place.
     static func queuePosition(of stageItem: SessionStageItem?, in items: [SessionStageItem]) -> QueuePosition {
         let index = items.firstIndex { $0.id == stageItem?.id } ?? items.count - 1
         return QueuePosition(number: index + 1, count: items.count)
