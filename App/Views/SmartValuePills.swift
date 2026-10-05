@@ -1,10 +1,6 @@
 import SwiftUI
 import UIKit
 
-#if canImport(CoreHaptics)
-    import CoreHaptics
-#endif
-
 struct EditingWeightPreferenceKey: PreferenceKey {
     static let defaultValue = false
 
@@ -214,7 +210,7 @@ struct SmartValuePills: View {
         // The form owns the clamp; the View only answers with the matching haptic —
         // the dud at the floor, the detent tick on a normal step.
         let hitFloor = form.stepWeight(direction == .increment ? .up : .down)
-        InputHapticPlayer.shared.play(hitFloor ? Theme.Haptics.skipDud : Theme.Haptics.stepperTick)
+        HapticPlayer.shared.play(.input(hitFloor ? Theme.Haptics.skipDud : Theme.Haptics.stepperTick))
     }
 
     // MARK: - Log capsule / skip
@@ -224,7 +220,7 @@ struct SmartValuePills: View {
             HoldToSkipLogButton(
                 logTitle: form.logButtonTitle,
                 canLog: form.canLog,
-                isSkipped: set.state == .skipped,
+                setState: set.state,
                 showsLoggedCheckmark: showsLoggedCheckmark,
                 onLogTap: submitLog,
                 onSkip: skip
@@ -261,7 +257,7 @@ struct SmartValuePills: View {
         // keyboard open" bug).
         dismissFieldUI()
         guard let log = form.submitLog() else { return }
-        InputHapticPlayer.shared.play(Theme.Haptics.logTap)
+        HapticPlayer.shared.play(.input(Theme.Haptics.logTap))
         withAnimation(Theme.logButtonCheckmarkAnimation) {
             showsLoggedCheckmark = true
         }
@@ -270,7 +266,7 @@ struct SmartValuePills: View {
 
     private func skip() {
         dismissFieldUI()
-        InputHapticPlayer.shared.play(Theme.Haptics.skipDud)
+        HapticPlayer.shared.play(.input(Theme.Haptics.skipDud))
         onSkip()
     }
 
@@ -354,7 +350,7 @@ private struct ValueRail: View {
                 )
                 guard target != selectedIndex, chips.indices.contains(target) else { return }
                 onSelect(chips[target].label)
-                InputHapticPlayer.shared.play(Theme.Haptics.railDetentTick)
+                HapticPlayer.shared.play(.input(Theme.Haptics.railDetentTick))
             }
             .onEnded { _ in
                 dragAnchorIndex = nil
@@ -370,7 +366,7 @@ private struct ValueRail: View {
             // lifted finger — the drag's selection is authoritative (see `isDragging`).
             guard !isDragging else { return }
             onSelect(chip.label)
-            InputHapticPlayer.shared.play(Theme.Haptics.railDetentTick)
+            HapticPlayer.shared.play(.input(Theme.Haptics.railDetentTick))
         } label: {
             Text(chip.label)
                 .font(Theme.font(.railChipValue))
@@ -469,23 +465,18 @@ private struct StepperGlyph: Shape {
 private struct HoldToSkipLogButton: View {
     let logTitle: String
     let canLog: Bool
-    let isSkipped: Bool
+    let setState: SetState
     let showsLoggedCheckmark: Bool
     let onLogTap: () -> Void
     let onSkip: () -> Void
 
+    @State private var gesture = HoldToSkipGesture()
     @State private var skipProgress = 0.0
-    @State private var skipPressStartedAt: Date?
-    @State private var skipCompleted = false
-    @State private var suppressNextLogTap = false
-    @State private var skipRevealTask: Task<Void, Never>?
-    @State private var skipTask: Task<Void, Never>?
-    @State private var suppressLogTapTask: Task<Void, Never>?
     @Environment(\.themePalette) private var palette
 
     var body: some View {
         Group {
-            if isSkipped {
+            if setState == .skipped {
                 skippedBed
             } else {
                 logButtonSurface
@@ -495,16 +486,18 @@ private struct HoldToSkipLogButton: View {
             minimumDuration: policy.holdDuration,
             maximumDistance: 44,
             pressing: { isPressing in
-                if isPressing {
-                    startSkipHoldIfNeeded()
-                } else {
-                    finishSkipHold()
-                }
+                apply(isPressing ? gesture.pressBegan(at: .now, policy: policy) : gesture.pressEnded(at: .now))
             },
-            perform: completeSkip
+            perform: { apply(gesture.deadlineReached(at: .now)) }
         )
         .contentShape(.rect)
-        .onTapGesture(perform: logTap)
+        .onTapGesture { apply(gesture.tapped(at: .now)) }
+        .task(id: gesture.nextDeadline) {
+            guard let deadline = gesture.nextDeadline else { return }
+            do { try await Task.sleep(until: deadline, clock: .continuous) } catch { return }
+            apply(gesture.deadlineReached(at: .now))
+        }
+        .onDisappear { gesture.disappeared() }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
         .accessibilityValue(skipProgress > 0 ? "\(Int((skipProgress * 100).rounded()))% Skip" : "")
@@ -512,10 +505,10 @@ private struct HoldToSkipLogButton: View {
         .accessibilityIdentifier("log-active-set-button")
         .accessibilityAddTraits(.isButton)
         .accessibilityAction {
-            logTap()
+            apply(gesture.tapped(at: .now))
         }
         .accessibilityAction(named: "Skip") {
-            completeSkip()
+            apply(gesture.skipRequested(at: .now))
         }
     }
 
@@ -596,129 +589,29 @@ private struct HoldToSkipLogButton: View {
     }
 
     private var policy: HoldToSkipPolicy {
-        HoldToSkipPolicy()
+        .forSet(in: setState)
     }
 
-    private func logTap() {
-        guard !suppressNextLogTap else {
-            suppressNextLogTap = false
-            return
-        }
-        onLogTap()
-    }
-
-    private func startSkipHoldIfNeeded() {
-        guard skipPressStartedAt == nil else { return }
-        skipPressStartedAt = Date()
-        skipCompleted = false
-        skipProgress = 0
-        skipRevealTask?.cancel()
-        skipTask?.cancel()
-        skipRevealTask = Task { @MainActor in
-            try? await Task.sleep(for: .nanoseconds(Int64((policy.revealDelay * 1_000_000_000).rounded())))
-            let elapsed = skipPressStartedAt.map { Date().timeIntervalSince($0) } ?? 0
-            guard !Task.isCancelled, policy.shouldRevealProgress(elapsed: elapsed), !skipCompleted else { return }
-            withAnimation(.linear(duration: policy.progressAnimationDuration)) {
-                skipProgress = 1
+    private func apply(_ effects: [HoldToSkipEffect]) {
+        for effect in effects {
+            switch effect {
+            case .clearFill:
+                skipProgress = 0
+            case .revealFill(let duration):
+                withAnimation(.linear(duration: duration)) {
+                    skipProgress = 1
+                }
+            case .retreatFill:
+                withAnimation(.easeOut(duration: Theme.Motion.holdToSkipRetreat)) {
+                    skipProgress = 0
+                }
+            case .log:
+                onLogTap()
+            case .skip:
+                onSkip()
             }
         }
-        skipTask = Task { @MainActor in
-            try? await Task.sleep(for: .nanoseconds(Int64((policy.holdDuration * 1_000_000_000).rounded())))
-            guard !Task.isCancelled else { return }
-            completeSkip()
-        }
     }
-
-    private func finishSkipHold() {
-        let elapsed = skipPressStartedAt.map { Date().timeIntervalSince($0) } ?? 0
-        let outcome = policy.releaseOutcome(elapsed: elapsed, skipCompleted: skipCompleted)
-        skipRevealTask?.cancel()
-        skipRevealTask = nil
-        skipTask?.cancel()
-        skipTask = nil
-        skipPressStartedAt = nil
-
-        switch outcome {
-        case .deferToTap:
-            resetSkipProgress()
-        case .cancelSkip:
-            resetSkipProgress()
-            suppressLogTapOnce()
-        case .skip:
-            completeSkip()
-        case .ignore:
-            suppressLogTapOnce()
-        }
-    }
-
-    private func completeSkip() {
-        guard !skipCompleted else { return }
-        suppressLogTapOnce()
-        skipCompleted = true
-        skipRevealTask?.cancel()
-        skipRevealTask = nil
-        skipTask?.cancel()
-        skipTask = nil
-        onSkip()
-    }
-
-    private func suppressLogTapOnce() {
-        suppressNextLogTap = true
-        suppressLogTapTask?.cancel()
-        suppressLogTapTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(250))
-            guard !Task.isCancelled else { return }
-            suppressNextLogTap = false
-            suppressLogTapTask = nil
-        }
-    }
-
-    private func resetSkipProgress() {
-        withAnimation(.easeOut(duration: Theme.logButtonCheckmarkDuration)) {
-            skipProgress = 0
-        }
-    }
-}
-
-// MARK: - Input haptics
-
-@MainActor
-final class InputHapticPlayer {
-    static let shared = InputHapticPlayer()
-
-    #if canImport(CoreHaptics)
-        private var engine: CHHapticEngine?
-
-        func play(_ tuning: Theme.HapticTuning) {
-            guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
-            do {
-                let engine = try activeEngine()
-                let event = CHHapticEvent(
-                    eventType: .hapticTransient,
-                    parameters: [
-                        CHHapticEventParameter(parameterID: .hapticIntensity, value: Float(tuning.intensity)),
-                        CHHapticEventParameter(parameterID: .hapticSharpness, value: Float(tuning.sharpness))
-                    ],
-                    relativeTime: 0
-                )
-                let pattern = try CHHapticPattern(events: [event], parameters: [])
-                let player = try engine.makePlayer(with: pattern)
-                try player.start(atTime: 0)
-            } catch {
-                engine = nil
-            }
-        }
-
-        private func activeEngine() throws -> CHHapticEngine {
-            if let engine { return engine }
-            let engine = try CHHapticEngine()
-            try engine.start()
-            self.engine = engine
-            return engine
-        }
-    #else
-        func play(_: Theme.HapticTuning) {}
-    #endif
 }
 
 extension EnvironmentValues {

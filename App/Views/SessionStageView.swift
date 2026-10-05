@@ -303,7 +303,7 @@ struct SessionStageView: View {
     private func handlePairingTap(on item: SessionStageItem) {
         guard let exercise = item.exercises.first else { return }
         if coordinator.handlePairingTap(on: exercise, in: session) == .unavailable {
-            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            HapticPlayer.shared.play(.warning)
         }
     }
 }
