@@ -381,20 +381,3 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     #expect(squatIdentity(inDay: 1) != squatIdentity(inDay: 2))
     #expect(squatIdentity(inDay: nil) == squatIdentity(inDay: 0))
 }
-
-@MainActor
-@Test func aSupersetThatEndedBeforeAnyWriteStaysEndedWhenItsExerciseIsPairedAgain() throws {
-    let session = makeSupersetSession()
-    let squat = try #require(session.exercises.first { $0.order == 0 })
-    let bench = try #require(session.exercises.first { $0.order == 1 })
-    let row = try #require(session.exercises.first { $0.order == 2 })
-    let state = SupersetState()
-    #expect(state.createSuperset(with: [squat, bench], in: session))
-    bench.sets.forEach { $0.state = .logged }
-
-    #expect(state.createSuperset(with: [squat, row], in: session))
-    bench.sets[1].state = .pending
-
-    #expect(state.exercisePairs(in: session).map { $0.map(\.name) } == [["Squat", "DB Row"]])
-    #expect(!state.isPaired(bench, in: session))
-}

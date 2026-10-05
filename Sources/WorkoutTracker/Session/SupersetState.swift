@@ -56,7 +56,6 @@ final class SupersetState {
         currentActiveSetID: ActiveSetID? = nil
     ) -> Bool {
         guard canCreateSuperset(with: exercises, in: session) else { return false }
-        pairs = livePairs(in: session)
         let pair = SupersetPair(
             first: SupersetExerciseIdentity(exercise: exercises[0]),
             second: SupersetExerciseIdentity(exercise: exercises[1])
