@@ -594,9 +594,15 @@ private struct HoldToSkipLogButton: View {
     private func apply(_ effects: [HoldToSkipEffect]) {
         for effect in effects {
             switch effect {
-            case .progress(let target, let duration, let linear):
-                withAnimation(linear ? .linear(duration: duration) : .easeOut(duration: duration)) {
-                    skipProgress = target
+            case .clearFill:
+                skipProgress = 0
+            case .revealFill(let duration):
+                withAnimation(.linear(duration: duration)) {
+                    skipProgress = 1
+                }
+            case .retreatFill:
+                withAnimation(.easeOut(duration: Theme.Motion.holdToSkipRetreat)) {
+                    skipProgress = 0
                 }
             case .log:
                 onLogTap()
