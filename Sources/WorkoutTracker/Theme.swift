@@ -330,6 +330,7 @@ enum Theme {
         static let ceremonyBeat = 0.10
         static let holdToSkipReveal = 0.25 // reveal at 250ms
         static let holdToSkipCommit = 0.85 // commit at 850ms
+        static let holdToSkipRetreat = 0.2
         static let holdToSkipLoggedCommit = 0.9 // logged-state hold
         static let holdToSkipSkippedCommit = 1.1 // skipped-state hold
     }
