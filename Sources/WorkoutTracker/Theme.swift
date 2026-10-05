@@ -410,10 +410,6 @@ enum Theme {
     static let pairingUnavailableOpacity = 0.3
     static let pairingConfirmationDuration = 0.22
 
-    static var logButtonCheckmarkAnimation: Animation {
-        .easeOut(duration: logButtonCheckmarkDuration)
-    }
-
     static var momentumFlowAnimation: Animation {
         .easeInOut(duration: momentumFlowTotalDuration)
     }
