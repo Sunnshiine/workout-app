@@ -488,7 +488,7 @@ private struct HoldToSkipLogButton: View {
             pressing: { isPressing in
                 apply(isPressing ? gesture.pressBegan(at: .now, policy: policy) : gesture.pressEnded(at: .now))
             },
-            perform: { apply(gesture.holdRecognized(at: .now)) }
+            perform: { apply(gesture.deadlineReached(at: .now)) }
         )
         .contentShape(.rect)
         .onTapGesture { apply(gesture.tapped(at: .now)) }
