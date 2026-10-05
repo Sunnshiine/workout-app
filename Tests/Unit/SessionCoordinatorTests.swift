@@ -798,6 +798,33 @@ private func makeRestActionFixture(
 }
 
 @MainActor
+@Test func loggingASetAfterAReloadEmptiesItsPartnerStartsStandardRest() throws {
+    let session = makeCoordinatorSession()
+    let logging = SpySessionLoggingAdapter()
+    let sync = SpySessionSyncAdapter()
+    let clock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
+    let restTimer = RestTimer(clock: clock)
+    let coordinator = SessionCoordinator(
+        session: session,
+        logging: logging,
+        sync: sync,
+        restTimer: restTimer,
+        standardRestDuration: { 210 },
+        supersetRestDuration: { 45 }
+    )
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let row = try #require(session.exercises.first { $0.order == 2 })
+    let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
+    #expect(coordinator.createSuperset(from: bench, to: row, in: session))
+    row.sets.forEach { $0.state = .logged }
+
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
+
+    #expect(restTimer.remaining == 210)
+    #expect(restTimer.label == "Rest")
+}
+
+@MainActor
 @Test func loggingEachSupersetSetRestartsSupersetRestTimer() throws {
     let session = makeCoordinatorSession()
     let logging = SpySessionLoggingAdapter()

@@ -123,7 +123,7 @@ final class ActiveSetFocusManager {
     }
 
     func dismissSuperset(containing exercise: Exercise, in session: Session) {
-        supersetState.dismissSuperset(containing: exercise)
+        supersetState.dismissSuperset(containing: exercise, in: session)
         activeSetID = supersetState.focusedSetID(whenNormalFocusIs: activeSetID, in: session)
     }
 
@@ -157,8 +157,8 @@ final class ActiveSetFocusManager {
 
     /// Whether the Exercise belongs to a Superset — a thin pass-through to the Superset
     /// owner's domain membership predicate.
-    func isPaired(_ exercise: Exercise) -> Bool {
-        supersetState.isPaired(exercise)
+    func isPaired(_ exercise: Exercise, in session: Session) -> Bool {
+        supersetState.isPaired(exercise, in: session)
     }
 
     func canFocusNextSupersetSet(for exercise: Exercise, in session: Session) -> Bool {
