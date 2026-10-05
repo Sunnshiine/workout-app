@@ -8,6 +8,7 @@ struct SessionStageView: View {
     let session: Session
     let coordinator: SessionCoordinator
     let composition: SessionStageComposition
+    let restTimer: RestTimer
     @Environment(WorkoutStore.self) private var workout
     @Environment(LastPerformedLookupStore.self) private var lastPerformedLookup
     @Environment(ExerciseHistoryFill.self) private var historyFill
@@ -45,12 +46,15 @@ struct SessionStageView: View {
             .padding(.horizontal)
             .padding(.top, composition == .reading ? Theme.sectionSpacing : 0)
 
-            switch composition {
-            case .reading:
-                queueBar(stageItem: stageItem, items: items)
-            case .editingWeight:
-                Color.clear.frame(height: Theme.editingWeightFootGap)
+            ZStack {
+                switch composition {
+                case .reading:
+                    queueBar(stageItem: stageItem, items: items)
+                case .editingWeight:
+                    Color.clear.frame(height: Theme.editingWeightFootGap)
+                }
             }
+            .overlay(alignment: .leading) { restPill }
         }
         .animation(
             reduceMotion ? nil : Theme.momentumFlowAnimation,
@@ -233,6 +237,9 @@ struct SessionStageView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("stage-up-next")
+                .opacity(isResting ? 0 : 1)
+                .accessibilityHidden(isResting)
+                .allowsHitTesting(!isResting)
             }
 
             Spacer(minLength: 8)
@@ -258,6 +265,26 @@ struct SessionStageView: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 10)
+    }
+
+    /// Gated on the interval, not the time-derived `isRunning`: the interval is held a beat past
+    /// the deadline so the pill stays mounted to play the expiry buzz.
+    private var isResting: Bool {
+        restTimer.interval != nil
+    }
+
+    /// Rest takes the `Up next` slot over a foot row that keeps its height, so the card never moves
+    /// when rest starts or ends (DESIGN.md §5.1). One mount in both compositions keeps the pill's
+    /// haptics running under a weight edit, where it shows nothing and takes no room.
+    @ViewBuilder
+    private var restPill: some View {
+        if isResting {
+            RestPillView(restTimer: restTimer)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .opacity(composition == .reading ? 1 : 0)
+                .accessibilityHidden(composition != .reading)
+                .allowsHitTesting(composition == .reading)
+        }
     }
 
     private func jump(to item: SessionStageItem) {
