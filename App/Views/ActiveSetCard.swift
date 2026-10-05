@@ -70,8 +70,12 @@ struct ActiveSetCard: View {
 
             Spacer(minLength: 0)
         }
-        .contentShape(.rect)
-        .onTapGesture(perform: dismissInputIfLogging)
+        .background {
+            Color.clear
+                .contentShape(.rect)
+                .onTapGesture(perform: dismissInputIfLogging)
+                .accessibilityHidden(true)
+        }
         .overlay(alignment: .trailing) { headTrailingSlot }
     }
 
