@@ -53,6 +53,20 @@ private func exported(_ haptic: Haptic) throws -> String {
         )
     }
 
+    @Test func warningIsTwoTransients120msApart() throws {
+        #expect(
+            try exported(.warning) == """
+                {CHHapticPatternKey(_rawValue: Pattern)=[{Event={EventDuration=0.000000,\
+                EventParameters=[{ParameterID=HapticIntensity,ParameterValue=0.800000},\
+                {ParameterID=HapticSharpness,ParameterValue=0.500000}],\
+                EventType=HapticTransient,Time=0.000000}},{Event={EventDuration=0.000000,\
+                EventParameters=[{ParameterID=HapticIntensity,ParameterValue=0.600000},\
+                {ParameterID=HapticSharpness,ParameterValue=0.500000}],\
+                EventType=HapticTransient,Time=0.120000}}]}
+                """
+        )
+    }
+
     @Test func expiryBuzzIsA650msContinuousEvent() throws {
         #expect(
             try exported(.rest(.expiryBuzz)) == """
