@@ -348,6 +348,10 @@ foliage with cream ribs, and the active leaf carries the page's one glow.
 - **The stage foot:** an `N of M` **queue pill** owns position and opens the
   day's Exercise queue sheet; beside it, a plain `Up next · ` preview. The
   old glass up-next bar and the position label above the name are gone.
+  While rest runs, the rest pill takes the `Up next` slot in the foot, so
+  rest starting and ending never moves the card. Measured on iPhone 17 Pro,
+  13 mini, and SE (3rd gen), the Log capsule held its y through a log, rest,
+  and rest end, where an inset above the foot moved it 58pt each way.
 - **While the weight is being edited** the page switches composition. The
   Active Set Card pins above the keyboard's Done toolbar with a 10pt gap, so
   the Log capsule stays in reach. The HUD, Cadence line, coach note, branch,
@@ -419,6 +423,19 @@ after:
 Card padding is 16 / 16 / 14; steppers hold ~54pt targets, rail cells 48×44.
 Invalid fields mark themselves with `danger` on the specific bad field only;
 disabled states reduce opacity, not hue.
+
+**The Card Holds Still Rule.** The Active Set Card is the surface the
+athlete touches most, so its box never animates and never changes size. A
+log, a skip, a Superset switch, a branch-node tap, a review opening or
+closing, rest, and sync all leave its frame where it was. Its values change
+in the next frame, with no crossfade. Every mode draws the same rows: the
+head, the weight, the rails, and the action capsule. A mode changes what a
+row says, never whether the row is there. The review chevron, Saved, and
+Clear sit in the head's trailing slot. Inside the card, only what answers
+the athlete's own finger moves: the press, the rail recentring, and the
+hold-to-skip fill. A Superset switch is told above the card, by the Exercise
+name line and the active leaf. While the weight is edited, the card rides
+above the keyboard in one piece at the same size (§5.1).
 
 **Inert-Space All-Clear Rule** (carried forward). Tapping inert stage
 background clears transient UI — dismisses keyboard editing and transient
@@ -574,6 +591,9 @@ the ceremony · none on form fields. Hold-to-skip: reveal 250ms, commit
 
 **Reduced motion** keeps end states via crossfade — the ceremony fades in
 fully grown. Haptics are unaffected.
+
+The Active Set Card has no motion to reduce, so Reduce Motion leaves it
+unchanged (§5.2).
 
 ## 8. Do's and Don'ts
 
