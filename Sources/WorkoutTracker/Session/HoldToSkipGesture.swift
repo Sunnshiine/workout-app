@@ -1,7 +1,9 @@
 import Foundation
 
 enum HoldToSkipEffect: Equatable, Sendable {
-    case progress(to: Double, over: TimeInterval, linear: Bool)
+    case clearFill
+    case revealFill(over: TimeInterval)
+    case retreatFill
     case log
     case skip
 }
@@ -20,7 +22,7 @@ struct HoldToSkipGesture: Equatable, Sendable {
     private enum Phase: Equatable, Sendable {
         case idle
         case pressing(since: ContinuousClock.Instant, policy: HoldToSkipPolicy, revealed: Bool)
-        case committedAwaitingRelease
+        case skipped(fingerDown: Bool)
     }
 
     private static let tapSuppression = Duration.milliseconds(250)
@@ -35,39 +37,43 @@ struct HoldToSkipGesture: Equatable, Sendable {
     }
 
     mutating func pressBegan(at now: ContinuousClock.Instant, policy: HoldToSkipPolicy) -> [HoldToSkipEffect] {
-        guard phase == .idle else { return [] }
+        switch phase {
+        case .pressing, .skipped(fingerDown: true): return []
+        case .idle, .skipped(fingerDown: false): break
+        }
         phase = .pressing(since: now, policy: policy, revealed: false)
-        return [.progress(to: 0, over: 0, linear: true)]
+        return [.clearFill]
     }
 
     mutating func deadlineReached(at now: ContinuousClock.Instant) -> [HoldToSkipEffect] {
         guard case .pressing(let since, let policy, let revealed) = phase else { return [] }
         let deadlines = Self.deadlines(since: since, policy: policy)
         if now >= deadlines.commit {
-            return commit(at: now)
+            return skip(at: now, fingerDown: true)
         }
         guard !revealed, now >= deadlines.reveal else { return [] }
         phase = .pressing(since: since, policy: policy, revealed: true)
-        return [.progress(to: 1, over: policy.progressAnimationDuration, linear: true)]
+        return [.revealFill(over: policy.progressAnimationDuration)]
     }
 
     mutating func pressEnded(at now: ContinuousClock.Instant) -> [HoldToSkipEffect] {
         guard case .pressing(let since, let policy, _) = phase else {
-            if phase == .committedAwaitingRelease {
+            if phase == .skipped(fingerDown: true) {
+                phase = .skipped(fingerDown: false)
                 suppressTapsUntil = now + Self.tapSuppression
             }
-            phase = .idle
             return []
         }
-        phase = .idle
         switch policy.releaseOutcome(elapsed: since.duration(to: now) / .seconds(1), skipCompleted: false) {
         case .skip:
-            return commit(at: now)
+            return skip(at: now, fingerDown: false)
         case .deferToTap:
-            return [Self.retreat]
+            phase = .idle
+            return [.retreatFill]
         case .cancelSkip, .ignore:
+            phase = .idle
             suppressTapsUntil = now + Self.tapSuppression
-            return [Self.retreat]
+            return [.retreatFill]
         }
     }
 
@@ -80,19 +86,18 @@ struct HoldToSkipGesture: Equatable, Sendable {
     }
 
     mutating func skipRequested(at now: ContinuousClock.Instant) -> [HoldToSkipEffect] {
-        commit(at: now)
+        if case .pressing = phase {
+            return skip(at: now, fingerDown: true)
+        }
+        return skip(at: now, fingerDown: false)
     }
 
-    private mutating func commit(at now: ContinuousClock.Instant) -> [HoldToSkipEffect] {
-        guard phase != .committedAwaitingRelease else { return [] }
-        if case .pressing = phase {
-            phase = .committedAwaitingRelease
-        }
+    private mutating func skip(at now: ContinuousClock.Instant, fingerDown: Bool) -> [HoldToSkipEffect] {
+        if case .skipped = phase { return [] }
+        phase = .skipped(fingerDown: fingerDown)
         suppressTapsUntil = now + Self.tapSuppression
         return [.skip]
     }
-
-    private static let retreat = HoldToSkipEffect.progress(to: 0, over: Theme.Motion.holdToSkipRetreat, linear: false)
 
     private static func deadlines(
         since: ContinuousClock.Instant,
