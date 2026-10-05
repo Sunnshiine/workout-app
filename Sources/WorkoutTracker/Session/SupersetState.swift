@@ -33,9 +33,9 @@ private struct SupersetPair: Equatable, Sendable {
 @Observable
 final class SupersetState {
     private var pairs: [SupersetPair] = []
-    private var activePair: SupersetPair?
-    private var activeSetID: ActiveSetID?
-    private var activeSetExerciseIdentity: SupersetExerciseIdentity?
+    @ObservationIgnored private var activePair: SupersetPair?
+    @ObservationIgnored private var activeSetID: ActiveSetID?
+    @ObservationIgnored private var activeSetExerciseIdentity: SupersetExerciseIdentity?
 
     var supersetCount: Int { pairs.count }
 
