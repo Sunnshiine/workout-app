@@ -52,7 +52,7 @@ struct SessionTile: View {
         }
         .clipShape(shape)
         .overlay { strokeOverlay }
-        .modifier(TileGlow(isLit: state == .current && variant == .full, glow: palette.lighting.currentTileGlow))
+        .modifier(TileGlow(glow: state == .current && variant == .full ? palette.lighting.currentTileGlow : nil))
     }
 
     @ViewBuilder
@@ -89,15 +89,14 @@ struct SessionTile: View {
 }
 
 private struct TileGlow: ViewModifier {
-    let isLit: Bool
-    let glow: Theme.CurrentTileGlow
+    let glow: Theme.CurrentTileGlow?
 
     @ViewBuilder
     func body(content: Content) -> some View {
-        if isLit {
-            content.themeTileGlow(glow, in: RoundedRectangle(cornerRadius: Theme.Radius.tile))
-        } else {
-            content
+        switch glow {
+        case .halo(let shadows): content.themeElevation(shadows, in: RoundedRectangle(cornerRadius: Theme.Radius.tile))
+        case .bud(let color, let radius): content.shadow(color: color, radius: radius)
+        case nil: content
         }
     }
 }
