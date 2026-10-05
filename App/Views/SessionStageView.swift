@@ -162,10 +162,9 @@ struct SessionStageView: View {
                 set: set,
                 setOrdinal: SessionStagePresentation.ordinal(of: set, in: sortedSets),
                 setCount: sortedSets.count,
-                mode: .reviewingLogged(
-                    showsSavedConfirmation: expandedID == config.savedLoggedSetID,
-                    onCollapse: { actions.focus(set) }
-                ),
+                mode: .reviewingLogged,
+                showsSavedConfirmation: expandedID == config.savedLoggedSetID,
+                onCollapse: { actions.focus(set) },
                 onLog: { actions.updateLoggedSet(set, $0) },
                 onSkip: { actions.skip(set) },
                 onDelete: { actions.delete(set) }

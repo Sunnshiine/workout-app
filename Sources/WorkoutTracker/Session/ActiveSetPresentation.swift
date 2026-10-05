@@ -96,45 +96,24 @@ struct HoldToSkipButtonPresentation: Equatable, Sendable {
         canLog ? .primary : .incomplete
     }
 
-    var controlOpacity: Double {
-        1
-    }
-
-    var showsSkipAffordance: Bool {
-        false
-    }
-
     private var clampedProgress: Double {
         min(max(progress, 0), 1)
     }
 }
 
-enum SetRowTone: Equatable, Sendable {
-    case accent
-    case muted
-}
-
 struct SetRowPresentation: Equatable, Sendable {
     let title: String
-    let tone: SetRowTone
-    let showsCheckmark: Bool
 
     init(set: ExerciseSet) {
         switch set.state {
         case .logged:
             title = set.setLog?.formatted ?? set.displayReps
-            tone = .accent
-            showsCheckmark = true
         case .skipped:
             title = SetLogToken.skipSentinel
-            tone = .muted
-            showsCheckmark = false
         case .pending:
             title = [set.prescribedReps, set.prescribedLoad]
                 .filter { !$0.isEmpty }
                 .joined(separator: " · ")
-            tone = .muted
-            showsCheckmark = false
         }
     }
 }
@@ -150,7 +129,6 @@ enum SetCardMode: Equatable, Sendable {
 }
 
 struct SetCardPresentation: Equatable, Sendable {
-    let statusText: String
     /// Original text of an Unstructured Set Log, kept visible as reference
     /// while its structured replacement is edited.
     let referenceText: String?
@@ -161,16 +139,13 @@ struct SetCardPresentation: Equatable, Sendable {
     init(mode: SetCardMode, set: ExerciseSet) {
         switch mode {
         case .logging:
-            statusText = "Up next"
             referenceText = nil
             showsLogControls = true
             commitsChangesOnDisappear = false
         case .reviewingLogged:
             if set.setLog == nil, let unstructuredSetLog = set.unstructuredSetLog {
-                statusText = "Unstructured Set Log"
                 referenceText = unstructuredSetLog
             } else {
-                statusText = "Set Log"
                 referenceText = nil
             }
             showsLogControls = false

@@ -1,24 +1,12 @@
 import SwiftUI
 
 struct ActiveSetCard: View {
-    /// How the card participates in the Session: logging the active pending
-    /// Set, or reviewing an already-logged one with a collapse affordance.
-    enum Mode {
-        case logging
-        case reviewingLogged(showsSavedConfirmation: Bool, onCollapse: () -> Void)
-
-        var setCardMode: SetCardMode {
-            switch self {
-            case .logging: .logging
-            case .reviewingLogged: .reviewingLogged
-            }
-        }
-    }
-
     let set: ExerciseSet
     let setOrdinal: Int
     let setCount: Int
-    var mode: Mode = .logging
+    var mode: SetCardMode = .logging
+    var showsSavedConfirmation = false
+    var onCollapse: () -> Void = {}
     let onLog: (SetLog) -> Void
     let onSkip: () -> Void
     let onDelete: () -> Void
@@ -28,7 +16,7 @@ struct ActiveSetCard: View {
     @State private var inputDismissalRequestID = 0
 
     private var presentation: SetCardPresentation {
-        SetCardPresentation(mode: mode.setCardMode, set: set)
+        SetCardPresentation(mode: mode, set: set)
     }
 
     var body: some View {
@@ -48,7 +36,7 @@ struct ActiveSetCard: View {
 
             SmartValuePills(
                 set: set,
-                mode: mode.setCardMode,
+                mode: mode,
                 suggestion: LoadSuggestionEngine.suggest(for: set, history: history.snapshot),
                 onLog: onLog,
                 onSkip: onSkip,
@@ -79,7 +67,7 @@ struct ActiveSetCard: View {
 
             Spacer(minLength: 0)
 
-            if case .reviewingLogged(let showsSavedConfirmation, let onCollapse) = mode {
+            if mode == .reviewingLogged {
                 if showsSavedConfirmation {
                     Label("Saved", systemImage: "checkmark.circle.fill")
                         .font(Theme.font(.setOf))
@@ -100,7 +88,7 @@ struct ActiveSetCard: View {
     }
 
     private func dismissInputIfLogging() {
-        if case .logging = mode {
+        if mode == .logging {
             inputDismissalRequestID += 1
         }
     }
