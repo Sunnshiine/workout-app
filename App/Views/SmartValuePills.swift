@@ -27,7 +27,6 @@ struct SmartValuePills: View {
 
     @State private var form: SmartValuePillsForm
     @State private var isEditingWeight = false
-    @State private var showsLoggedCheckmark = false
     @Environment(\.themePalette) private var palette
     @Environment(\.showsLoadBasis) private var showsLoadBasis
     @FocusState private var weightFieldFocused: Bool
@@ -225,7 +224,6 @@ struct SmartValuePills: View {
                 logTitle: form.logButtonTitle,
                 canLog: form.canLog,
                 isSkipped: set.state == .skipped,
-                showsLoggedCheckmark: showsLoggedCheckmark,
                 onLogTap: submitLog,
                 onSkip: skip
             )
@@ -262,9 +260,6 @@ struct SmartValuePills: View {
         dismissFieldUI()
         guard let log = form.submitLog() else { return }
         InputHapticPlayer.shared.play(Theme.Haptics.logTap)
-        withAnimation(Theme.logButtonCheckmarkAnimation) {
-            showsLoggedCheckmark = true
-        }
         onLog(log)
     }
 
@@ -470,7 +465,6 @@ private struct HoldToSkipLogButton: View {
     let logTitle: String
     let canLog: Bool
     let isSkipped: Bool
-    let showsLoggedCheckmark: Bool
     let onLogTap: () -> Void
     let onSkip: () -> Void
 
@@ -556,15 +550,8 @@ private struct HoldToSkipLogButton: View {
 
     private var buttonContent: some View {
         ZStack {
-            HStack(spacing: 8) {
-                if showsLoggedCheckmark {
-                    Image(systemName: "checkmark")
-                        .transition(.scale.combined(with: .opacity))
-                }
-
-                Text(logTitle)
-            }
-            .opacity(presentation.logOpacity)
+            Text(logTitle)
+                .opacity(presentation.logOpacity)
 
             Text("Skipped")
                 .opacity(presentation.skipOpacity)
