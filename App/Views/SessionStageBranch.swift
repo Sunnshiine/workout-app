@@ -75,11 +75,14 @@ struct SessionStageBranch: View {
                 CurvePath(curve: stemCurve(in: drawing))
                     .stroke(palette.stem, style: StrokeStyle(lineWidth: Metrics.stemWidth, lineCap: .round))
 
-                ForEach(Array(nodes.enumerated()), id: \.element.set.persistentModelID) { index, node in
+                // Keyed by place on the stem, so a Superset switch redresses each node rather than
+                // removing it. A dropped node leaves at once: see nodeGlyph for why a fade strands.
+                ForEach(Array(nodes.enumerated()), id: \.offset) { index, node in
                     let point = stemPoint(t: nodeT(index), in: drawing)
                     let angle = stemAngle(t: nodeT(index), in: drawing)
                     nodeCell(node.set, state: node.state, above: index.isMultiple(of: 2), angle: angle)
                         .position(point)
+                        .transition(.asymmetric(insertion: .opacity, removal: .identity))
                 }
             }
         }
@@ -178,7 +181,7 @@ struct SessionStageBranch: View {
                     style: StrokeStyle(lineWidth: PartnerMetrics.stemWidth, lineCap: .round)
                 )
 
-            ForEach(Array(partnerNodes.enumerated()), id: \.element.set.persistentModelID) { index, node in
+            ForEach(Array(partnerNodes.enumerated()), id: \.offset) { index, node in
                 let t = partnerNodeT(index)
                 let tangent = curve.tangent(at: t)
                 partnerGlyph(
@@ -188,6 +191,7 @@ struct SessionStageBranch: View {
                     leafLength: PartnerMetrics.leafLength * scale
                 )
                 .position(curve.point(at: t))
+                .transition(.asymmetric(insertion: .opacity, removal: .identity))
             }
         }
         // The partner is a passive lateral — it never receives focus taps (the
