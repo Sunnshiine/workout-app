@@ -192,7 +192,7 @@ struct SmartValuePills: View {
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("Done") { weightFieldFocused = false }
+                    Button("Done", action: dismissFieldUI)
                         .accessibilityIdentifier("weight-keyboard-done")
                 }
             }
@@ -276,9 +276,14 @@ struct SmartValuePills: View {
         onSkip()
     }
 
+    /// A focused field only resigns, and the focus change folds it. Removing the field while it is
+    /// still first responder leaves a bottom keyboard inset behind that lifts the card 14pt.
     private func dismissFieldUI() {
-        isEditingWeight = false
-        weightFieldFocused = false
+        if weightFieldFocused {
+            weightFieldFocused = false
+        } else {
+            isEditingWeight = false
+        }
     }
 }
 
