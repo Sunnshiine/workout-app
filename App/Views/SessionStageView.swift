@@ -13,7 +13,6 @@ struct SessionStageView: View {
     @Environment(LastPerformedLookupStore.self) private var lastPerformedLookup
     @Environment(ExerciseHistoryFill.self) private var historyFill
     @Environment(\.themePalette) private var palette
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isQueuePresented = false
     /// The Exercise whose history the sheet is showing — its only entry point is a tap on that
     /// Exercise's Last Performed line.
@@ -56,10 +55,6 @@ struct SessionStageView: View {
             }
             .overlay(alignment: .leading) { restPill }
         }
-        .animation(
-            reduceMotion ? nil : Theme.momentumFlowAnimation,
-            value: SessionStagePresentation.stageIdentity(in: items, focusID: focusID)
-        )
         // The whole stage is the keyboard's escape surface: any tap that no control claims
         // resigns the weight field. Attached to the stage root so it covers the editorial
         // column, the card's chrome, and empty space alike — child buttons and gestures
