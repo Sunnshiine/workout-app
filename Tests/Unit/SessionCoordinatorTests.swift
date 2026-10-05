@@ -1737,15 +1737,48 @@ private func makeRestActionFixture(
     #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
     let changes = ObservedChanges()
     changes.watch { _ = coordinator.canPair(bench, in: session) }
-    var firedBeforeAnimation: Int?
+    var firedAroundAnimation: [Int] = []
 
     coordinator.log(lastSquatSet, as: SetLog(weight: .pounds(315), reps: 5, rpe: .seven)) { update in
-        firedBeforeAnimation = changes.fired
+        firedAroundAnimation.append(changes.fired)
         update()
+        firedAroundAnimation.append(changes.fired)
     }
 
     #expect(liveActivity.calls.count == 1)
-    #expect(firedBeforeAnimation == 0)
-    #expect(changes.fired == 1)
+    #expect(firedAroundAnimation == [0, 1])
     #expect(coordinator.canPair(bench, in: session))
+}
+
+@MainActor
+@Test func loggingASetOutsideEverySupersetNotifiesNoPairingReader() throws {
+    let session = makePlannedPairingSession()
+    let coordinator = SessionCoordinator(session: session, logging: SpySessionLoggingAdapter(), sync: SpySessionSyncAdapter())
+    let press = try #require(session.exercises.first { $0.order == 0 })
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+    let pressSet = try #require(press.sets.first)
+    #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
+    let changes = ObservedChanges()
+    changes.watch { _ = coordinator.canPair(bench, in: session) }
+
+    coordinator.log(pressSet, as: SetLog(weight: .pounds(135), reps: 5, rpe: .seven))
+
+    #expect(pressSet.state == .logged)
+    #expect(changes.fired == 0)
+}
+
+@MainActor
+@Test func rebindingAfterASupersetLogKeepsTheFocusOnThePartner() throws {
+    let session = makeSquatAndRDLSession()
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let rdl = try #require(session.exercises.first { $0.order == 1 })
+    let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
+    let coordinator = SessionCoordinator(session: session, logging: SpySessionLoggingAdapter(), sync: SpySessionSyncAdapter())
+    #expect(coordinator.createSuperset(from: squat, to: rdl, in: session))
+    coordinator.log(firstSquatSet, as: SetLog(weight: .pounds(225), reps: 5, rpe: .seven))
+
+    coordinator.bind(to: session)
+
+    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
 }

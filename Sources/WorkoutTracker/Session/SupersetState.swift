@@ -29,6 +29,12 @@ private struct SupersetPair: Equatable, Sendable {
     }
 }
 
+private struct SupersetAlternation {
+    let pair: SupersetPair
+    let identity: SupersetExerciseIdentity
+    let setID: ActiveSetID
+}
+
 @MainActor
 @Observable
 final class SupersetState {
@@ -86,20 +92,15 @@ final class SupersetState {
     }
 
     func nextSetID(after set: ExerciseSet, in session: Session) -> ActiveSetID? {
-        guard
-            let exercise = set.exercise,
-            let pair = pair(containing: exercise)
-        else {
-            return nil
-        }
-        guard bothSidesHavePendingSet(pair, in: session) else { return nil }
+        alternation(after: set, in: session)?.setID
+    }
 
-        let nextIdentity = pair.other(than: SupersetExerciseIdentity(exercise: exercise))
-        let nextSetID = nextPendingSetID(for: nextIdentity, in: session)
-        activePair = pair
-        activeSetID = nextSetID
-        activeSetExerciseIdentity = nextSetID == nil ? nil : nextIdentity
-        return nextSetID
+    func focusNextSetID(after set: ExerciseSet, in session: Session) -> ActiveSetID? {
+        guard let alternation = alternation(after: set, in: session) else { return nil }
+        activePair = alternation.pair
+        activeSetID = alternation.setID
+        activeSetExerciseIdentity = alternation.identity
+        return alternation.setID
     }
 
     func canFocusNextPendingSet(for exercise: Exercise, in session: Session) -> Bool {
@@ -133,7 +134,7 @@ final class SupersetState {
     }
 
     func refresh(in session: Session) {
-        pairs.removeAll { !bothSidesHavePendingSet($0, in: session) }
+        pairs = pairs.filter { bothSidesHavePendingSet($0, in: session) }
         if let activePair, !pairs.contains(activePair) {
             self.activePair = nil
             activeSetID = nil
@@ -174,6 +175,22 @@ final class SupersetState {
     private func pair(containing exercise: Exercise) -> SupersetPair? {
         let identity = SupersetExerciseIdentity(exercise: exercise)
         return pairs.first { $0.contains(identity) }
+    }
+
+    private func alternation(
+        after set: ExerciseSet,
+        in session: Session
+    ) -> SupersetAlternation? {
+        guard
+            let exercise = set.exercise,
+            let pair = pair(containing: exercise),
+            bothSidesHavePendingSet(pair, in: session)
+        else {
+            return nil
+        }
+        let identity = pair.other(than: SupersetExerciseIdentity(exercise: exercise))
+        guard let setID = nextPendingSetID(for: identity, in: session) else { return nil }
+        return SupersetAlternation(pair: pair, identity: identity, setID: setID)
     }
 
     private func pair(containing setID: ActiveSetID, in session: Session) -> SupersetPair? {

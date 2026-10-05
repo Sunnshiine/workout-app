@@ -336,21 +336,45 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
 }
 
 @MainActor
-@Test func skippingFinalPendingSetInsideSupersetDissolvesPair() throws {
+@Test func aSupersetWhoseSideRanOutEndsOnRefreshAndNotWhenAskedForTheNextSet() throws {
     let session = makeSupersetSession()
     let squat = try #require(session.exercises.first { $0.order == 0 })
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
     let finalSquatSet = try #require(squat.sets.first { $0.index == 1 })
-    let focus = ActiveSetFocusManager(session: session)
+    let state = SupersetState()
     firstSquatSet.state = .logged
-    #expect(focus.createSuperset(with: [squat, bench], in: session))
-
+    #expect(state.createSuperset(with: [squat, bench], in: session))
     finalSquatSet.state = .skipped
-    focus.advanceAfterSkip(finalSquatSet, in: session)
+    let changes = ObservedChanges()
+    changes.watch { _ = state.isPaired(bench) }
 
-    #expect(!focus.isPaired(squat))
-    #expect(!focus.isPaired(bench))
+    #expect(state.nextSetID(after: finalSquatSet, in: session) == nil)
+    #expect(changes.fired == 0)
+
+    state.refresh(in: session)
+
+    #expect(changes.fired == 1)
+    #expect(!state.isPaired(squat))
+    #expect(!state.isPaired(bench))
+}
+
+@MainActor
+@Test func askingForTheNextSupersetSetLeavesTheSupersetFocusWhereItWas() throws {
+    let session = makeSupersetSession()
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
+    let state = SupersetState()
+    #expect(state.createSuperset(with: [squat, bench], in: session))
+    firstSquatSet.state = .logged
+
+    #expect(state.nextSetID(after: firstSquatSet, in: session) == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+
+    #expect(
+        state.focusedSetID(whenNormalFocusIs: ActiveSetID(exerciseOrder: 0, setIndex: 1), in: session)
+            == ActiveSetID(exerciseOrder: 0, setIndex: 1)
+    )
 }
 
 @MainActor
