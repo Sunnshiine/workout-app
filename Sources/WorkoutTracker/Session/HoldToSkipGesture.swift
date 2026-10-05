@@ -85,7 +85,15 @@ struct HoldToSkipGesture: Equatable, Sendable {
             suppressTapsUntil = nil
             return []
         }
+        if case .pressing = phase {
+            phase = .idle
+        }
         return [.log]
+    }
+
+    mutating func holdRecognized(at now: ContinuousClock.Instant) -> [HoldToSkipEffect] {
+        guard case .pressing = phase else { return [] }
+        return skip(at: now, fingerDown: true)
     }
 
     mutating func skipRequested(at now: ContinuousClock.Instant) -> [HoldToSkipEffect] {
@@ -93,6 +101,10 @@ struct HoldToSkipGesture: Equatable, Sendable {
             return skip(at: now, fingerDown: true)
         }
         return skip(at: now, fingerDown: false)
+    }
+
+    mutating func disappeared() {
+        phase = .idle
     }
 
     private mutating func skip(at now: ContinuousClock.Instant, fingerDown: Bool) -> [HoldToSkipEffect] {
