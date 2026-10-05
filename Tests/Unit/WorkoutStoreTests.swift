@@ -50,6 +50,7 @@ private func makeStore(
     tabName: String = "Block 27",
     weekCount: Int = 1,
     defaults: AppDefaults = .inMemory(),
+    lastPerformed: any LastPerformedIndexing = NoopLastPerformedIndex(),
     now: @escaping @MainActor () -> Date = Date.init
 ) throws -> WorkoutStoreFixture {
     let container = try ModelContainer(
@@ -64,7 +65,7 @@ private func makeStore(
     let ctx = container.mainContext
     ctx.insert(makeStoreBlock(tabName: tabName, weekCount: weekCount))
     try ctx.save()
-    let store = WorkoutStore(context: ctx, defaults: defaults, now: now)
+    let store = WorkoutStore(context: ctx, defaults: defaults, lastPerformed: lastPerformed, now: now)
     store.reload()
     return WorkoutStoreFixture(store: store, container: container)
 }
@@ -599,4 +600,21 @@ private func makeStore(
             "Week 1, Day 1", "Week 1, Day 2", "Week 1, Day 1", "Week 1, Day 2"
         ]
     )
+}
+
+@MainActor
+@Test func aWriteThatThrowsAfterMovingTheSetStillMovesTheStoredCurrentSession() throws {
+    let fixture = try makeStore(lastPerformed: RefusingIndex())
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+    let set = try #require(
+        store.block?.weeks.first?.sessions.first { $0.dayNumber == 2 }?.exercises.first?.sets.first
+    )
+
+    #expect(throws: (any Error).self) {
+        try store.log(set, as: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
+    }
+
+    #expect(set.state == .logged)
+    #expect(store.currentSession?.dayNumber == 2)
 }

@@ -189,13 +189,6 @@ final class WorkoutStore {
         if resolved !== currentSession { currentSession = resolved }
     }
 
-    /// Ends every Set-state write, because `log`, `skip`, and `deleteLog` can each move the
-    /// Current Session.
-    private func commit() throws {
-        try context.save()
-        refreshCurrentSession()
-    }
-
     private func view(_ session: Session?) {
         viewedSession = session
         guard !isViewingLiveEdge, let address = session?.address else {
@@ -313,50 +306,38 @@ final class WorkoutStore {
 
 extension WorkoutStore {
     func log(_ set: ExerciseSet, as log: SetLog) throws {
-        let previousValue = notesValue(for: set)
-        let previousRPE = set.setLog?.rpe
-        set.markLogged(log, at: now())
-        try enqueue(
-            for: set,
-            column: .notes,
-            operation: .upsert,
-            valueToWrite: log.formatted,
-            expectedCurrentValue: previousValue
-        )
-        try enqueueLastSetRPEMirror(for: set, replacing: previousRPE)
-        try refreshLastPerformed(for: set)
-        try commit()
+        try writeNotes(of: set, operation: .upsert, valueToWrite: log.formatted) { set.markLogged(log, at: now()) }
     }
 
     func skip(_ set: ExerciseSet) throws {
-        let previousValue = notesValue(for: set)
-        let previousRPE = set.setLog?.rpe
-        set.markSkipped()
-        try enqueue(
-            for: set,
-            column: .notes,
-            operation: .upsert,
-            valueToWrite: SetLogToken.skipSentinel,
-            expectedCurrentValue: previousValue
-        )
-        try enqueueLastSetRPEMirror(for: set, replacing: previousRPE)
-        try refreshLastPerformed(for: set)
-        try commit()
+        try writeNotes(of: set, operation: .upsert, valueToWrite: SetLogToken.skipSentinel) { set.markSkipped() }
     }
 
     func deleteLog(for set: ExerciseSet) throws {
+        try writeNotes(of: set, operation: .delete, valueToWrite: nil) { set.markPending() }
+    }
+
+    /// The one Set-state writer. The refresh is deferred because `transition` moves the Set in
+    /// memory before any step that can throw, and nothing rolls it back.
+    private func writeNotes(
+        of set: ExerciseSet,
+        operation: PendingWriteOperation,
+        valueToWrite: String?,
+        transition: () -> Void
+    ) throws {
+        defer { refreshCurrentSession() }
         let previousValue = notesValue(for: set)
         let previousRPE = set.setLog?.rpe
-        set.markPending()
+        transition()
         try enqueue(
             for: set,
             column: .notes,
-            operation: .delete,
-            valueToWrite: nil,
+            operation: operation,
+            valueToWrite: valueToWrite,
             expectedCurrentValue: previousValue
         )
         try enqueueLastSetRPEMirror(for: set, replacing: previousRPE)
         try refreshLastPerformed(for: set)
-        try commit()
+        try context.save()
     }
 }
