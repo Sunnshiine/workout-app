@@ -68,6 +68,14 @@ struct ExerciseHistorySheetVisualTests {
         }
     }
 
+    /// The Night raised Volume control's 1pt inset rim moves too few pixels for the sheet baseline's
+    /// label-antialiasing budget, so this crop of the header holds it at exact precision.
+    @Test func exerciseHistoryRaisedVolumeControlMatchesNightVisualBaseline() {
+        assertSheet(appearance: .night, colorScheme: .dark, height: 80, precision: WorkoutVisualBaseline.precision) {
+            ExerciseHistorySheet(presentation: historyPresentation)
+        }
+    }
+
     /// The fill-in-progress affordance: a warm-voice line, a muted determinate bar, and an honest
     /// per-tab detail shown above readable entries — never mint, never a dead spinner (#366).
     @Test func exerciseHistorySheetFillInProgressMatchesVisualBaseline() {
@@ -97,6 +105,7 @@ struct ExerciseHistorySheetVisualTests {
         appearance: Theme.Appearance,
         colorScheme: ColorScheme,
         height: CGFloat = 420,
+        precision: Float = WorkoutVisualBaseline.labelAntialiasingPrecision,
         testName: String = #function,
         @ViewBuilder _ content: () -> some View
     ) {
@@ -111,7 +120,7 @@ struct ExerciseHistorySheetVisualTests {
         assertSnapshot(
             of: view,
             as: .image(
-                precision: WorkoutVisualBaseline.labelAntialiasingPrecision,
+                precision: precision,
                 layout: .device(config: .workoutVisualBaseline)
             ),
             testName: testName
