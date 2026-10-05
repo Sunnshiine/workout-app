@@ -141,8 +141,6 @@ struct SessionStageView: View {
         }
     }
 
-    /// One card call for review and logging alike, so a log, a focus change, or a review opening
-    /// reuses the card instead of swapping it for another (DESIGN.md §5.2).
     @ViewBuilder
     private func stageCard(_ config: SessionExerciseRenderConfig, sortedSets: [ExerciseSet]) -> some View {
         let reviewedSet = config.expandedLoggedSetID.flatMap {
@@ -234,9 +232,9 @@ struct SessionStageView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("stage-up-next")
-                .opacity(isResting ? 0 : 1)
-                .accessibilityHidden(isResting)
-                .allowsHitTesting(!isResting)
+                .opacity(isRestPillMounted ? 0 : 1)
+                .accessibilityHidden(isRestPillMounted)
+                .allowsHitTesting(!isRestPillMounted)
             }
 
             Spacer(minLength: 8)
@@ -264,19 +262,13 @@ struct SessionStageView: View {
         .padding(.vertical, 10)
     }
 
-    /// Gated on the interval, not the time-derived `isRunning`: the interval is held a beat past
-    /// the deadline so the pill stays mounted to play the expiry buzz.
-    private var isResting: Bool {
+    private var isRestPillMounted: Bool {
         restTimer.interval != nil
     }
 
-    /// Rest takes the `Up next` slot over a foot row that keeps its height, so the card never moves
-    /// when rest starts or ends (DESIGN.md §5.1). One mount in both compositions keeps the pill's
-    /// haptics and expiry buzz running under a weight edit. There it hangs from the foot's top edge,
-    /// below the card, and it moves and hides in one frame so it never fades over the Log capsule.
     @ViewBuilder
     private var restPill: some View {
-        if isResting {
+        if isRestPillMounted {
             RestPillView(restTimer: restTimer)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .opacity(composition == .reading ? 1 : 0)
@@ -415,11 +407,6 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
 }
 
 extension View {
-    /// The verbs animate the branch's leaf and stem, never the card's frame or values. The animation
-    /// is cleared only in the transaction where the card's identity changes, so the frame and values
-    /// land in the next frame. A finger-driven animation that leaves the identity alone, such as the
-    /// hold-to-skip fill or a rail tap's own recentring, keeps its curve. On a Set change the rails
-    /// jump rather than recentre, because `SmartValuePills` remounts.
     func holdsStill(acrossChangesOf cardIdentity: String) -> some View {
         transaction(value: cardIdentity) { $0.animation = nil }
     }
