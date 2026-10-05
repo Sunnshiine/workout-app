@@ -7,9 +7,11 @@ import SwiftUI
 struct MoveOnCeremonyFrame: Equatable {
     static let duration = Theme.Motion.ceremonyStem + Theme.Motion.ceremonyBeat + Theme.Motion.ceremonyBird
 
-    /// How much of the stem's length is drawn, 0...1.
+    /// How much of the stem's length is drawn, 0 to 1 on the wing ease. The ease dips just below 0
+    /// (about -0.012) early in its span.
     let stemTrim: Double
-    /// 0 is clear and lifted off the perch, 1 is landed.
+    /// 0 is clear and lifted off the perch, 1 is landed, on the wing ease. Like `stemTrim` it dips
+    /// just below 0 early in its span.
     let birdLanding: Double
 
     init(elapsed: TimeInterval) {
