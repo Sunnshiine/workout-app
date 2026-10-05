@@ -127,38 +127,83 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 }
 
 @MainActor
-@Test func setCardLoggingModeShowsLogControlsAndNeverAutoCommits() {
-    let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
+struct SetCardPresentationTests {
+    private func untouchedDraft(_ set: ExerciseSet) -> SmartValuePillsForm {
+        SmartValuePillsForm(set: set, suggestion: .noSuggestion)
+    }
 
-    let presentation = SetCardPresentation(mode: .logging, set: set)
+    private func loggedSet(_ setLog: SetLog) -> ExerciseSet {
+        let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .logged)
+        set.setLog = setLog
+        return set
+    }
 
-    #expect(presentation.referenceText == nil)
-    #expect(presentation.showsLogControls)
-    #expect(!presentation.commitsChangesOnDisappear)
-}
+    @Test func loggingAPendingSetShowsTheLogCapsuleAndNoClearMenu() {
+        let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
 
-@MainActor
-@Test func setCardReviewModeHidesLogControlsAndCommitsChangesOnDisappear() {
-    let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .logged)
-    set.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: .eight)
+        let presentation = SetCardPresentation(mode: .logging, set: set)
 
-    let presentation = SetCardPresentation(mode: .reviewingLogged, set: set)
+        #expect(presentation.actionRow(for: untouchedDraft(set)) == .log)
+        #expect(!presentation.showsClearMenu)
+        #expect(!presentation.commitsChangesOnDisappear)
+    }
 
-    #expect(presentation.referenceText == nil)
-    #expect(!presentation.showsLogControls)
-    #expect(presentation.commitsChangesOnDisappear)
-}
+    @Test func loggingASkippedSetShowsTheSkippedCapsuleAndTheClearMenu() {
+        let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .skipped)
 
-@MainActor
-@Test func setCardReviewModeKeepsUnstructuredLogTextAsReference() {
-    let set = ExerciseSet(index: 1, prescribedReps: "AMRAP", prescribedLoad: "BW", percentOneRM: nil, state: .logged)
-    set.unstructuredSetLog = "BW and vest for 12"
+        let presentation = SetCardPresentation(mode: .logging, set: set)
 
-    let presentation = SetCardPresentation(mode: .reviewingLogged, set: set)
+        #expect(presentation.actionRow(for: untouchedDraft(set)) == .skipped)
+        #expect(presentation.showsClearMenu)
+    }
 
-    #expect(presentation.referenceText == "BW and vest for 12")
-    #expect(!presentation.showsLogControls)
-    #expect(presentation.commitsChangesOnDisappear)
+    @Test func loggingALoggedSetShowsTheLogCapsuleAndTheClearMenu() {
+        let set = loggedSet(SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
+
+        let presentation = SetCardPresentation(mode: .logging, set: set)
+
+        #expect(presentation.actionRow(for: untouchedDraft(set)) == .log)
+        #expect(presentation.showsClearMenu)
+    }
+
+    @Test func reviewShowsTheLoggedSetLogWithNoClearMenuAndCommitsOnDisappear() {
+        let set = loggedSet(SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
+
+        let presentation = SetCardPresentation(mode: .reviewingLogged, set: set)
+
+        #expect(presentation.actionRow(for: untouchedDraft(set)) == .logged(line: "185x5@8"))
+        #expect(!presentation.showsClearMenu)
+        #expect(presentation.commitsChangesOnDisappear)
+    }
+
+    @Test func reviewOfAnUnstructuredSetLogShowsItsOriginalText() {
+        let set = ExerciseSet(index: 1, prescribedReps: "AMRAP", prescribedLoad: "BW", percentOneRM: nil, state: .logged)
+        set.unstructuredSetLog = "BW and vest for 12"
+
+        let presentation = SetCardPresentation(mode: .reviewingLogged, set: set)
+
+        #expect(presentation.actionRow(for: untouchedDraft(set)) == .logged(line: "BW and vest for 12"))
+    }
+
+    @Test func reviewWithAnIncompleteDraftShowsTheHint() {
+        let set = loggedSet(SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
+        var draft = untouchedDraft(set)
+        draft.rpeText = ""
+
+        let presentation = SetCardPresentation(mode: .reviewingLogged, set: set)
+
+        #expect(presentation.actionRow(for: draft) == .logged(line: "Complete weight, reps, and RPE"))
+    }
+
+    @Test func reviewWithAValidChangedDraftKeepsTheLoggedSetLog() {
+        let set = loggedSet(SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
+        var draft = untouchedDraft(set)
+        draft.stepWeight(.up)
+
+        let presentation = SetCardPresentation(mode: .reviewingLogged, set: set)
+
+        #expect(presentation.actionRow(for: draft) == .logged(line: "185x5@8"))
+    }
 }
 
 @Test func focusMorphPolicyAnimatesPendingFocusWhenMotionIsAllowed() {
