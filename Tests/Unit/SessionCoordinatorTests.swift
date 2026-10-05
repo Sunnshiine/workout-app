@@ -1187,6 +1187,60 @@ private func makeRestActionFixture(
 }
 
 @MainActor
+@Test func aSupersetCarriesTheTransitionOfASetLoggedInsideItAndNotOfOneLoggedOutsideIt() throws {
+    let session = makeIntegratedCoordinatorSession()
+    let coordinator = SessionCoordinator(
+        session: session,
+        logging: SpySessionLoggingAdapter(),
+        sync: SpySessionSyncAdapter(),
+        transitionClock: ManualSessionTransitionClock()
+    )
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let row = try #require(session.exercises.first { $0.order == 2 })
+    let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
+    let firstBenchSet = try #require(bench.sets.first)
+    bench.sets.append(
+        ExerciseSet(index: 1, prescribedReps: "6", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
+    )
+    #expect(coordinator.createSuperset(from: bench, to: row, in: session))
+    func supersetTransition() throws -> ActiveSetTransition? {
+        let supersets = coordinator.renderItems(in: session).compactMap { item -> SessionSupersetRenderConfig? in
+            guard case .superset(let config) = item else { return nil }
+            return config
+        }
+        return try #require(supersets.first).activeSetTransition
+    }
+
+    coordinator.log(firstSquatSet, as: SetLog(weight: .pounds(225), reps: 5, rpe: .seven))
+
+    #expect(
+        coordinator.activeSetTransition
+            == ActiveSetTransition(
+                kind: .momentumFlow,
+                outgoingSetID: ActiveSetID(exerciseOrder: 0, setIndex: 0),
+                incomingSetID: ActiveSetID(exerciseOrder: 0, setIndex: 1),
+                completedExerciseOrder: nil
+            )
+    )
+    let supersetTransitionAfterOutsideLog = try supersetTransition()
+    #expect(supersetTransitionAfterOutsideLog == nil)
+
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
+
+    let supersetTransitionAfterInsideLog = try supersetTransition()
+    #expect(
+        supersetTransitionAfterInsideLog
+            == ActiveSetTransition(
+                kind: .momentumFlow,
+                outgoingSetID: ActiveSetID(exerciseOrder: 1, setIndex: 0),
+                incomingSetID: ActiveSetID(exerciseOrder: 2, setIndex: 0),
+                completedExerciseOrder: nil
+            )
+    )
+}
+
+@MainActor
 @Test func pendingFocusUsesInjectedAnimationForEachRetargetWithoutActiveSetTransition() throws {
     let fixture = try makeActionFixture()
     let bench = try #require(fixture.session.exercises.first { $0.order == 1 })
