@@ -1,10 +1,6 @@
 import SwiftUI
 import UIKit
 
-#if canImport(CoreHaptics)
-    import CoreHaptics
-#endif
-
 struct EditingWeightPreferenceKey: PreferenceKey {
     static let defaultValue = false
 
@@ -214,7 +210,7 @@ struct SmartValuePills: View {
         // The form owns the clamp; the View only answers with the matching haptic —
         // the dud at the floor, the detent tick on a normal step.
         let hitFloor = form.stepWeight(direction == .increment ? .up : .down)
-        InputHapticPlayer.shared.play(hitFloor ? Theme.Haptics.skipDud : Theme.Haptics.stepperTick)
+        HapticPlayer.shared.play(.input(hitFloor ? Theme.Haptics.skipDud : Theme.Haptics.stepperTick))
     }
 
     // MARK: - Log capsule / skip
@@ -261,7 +257,7 @@ struct SmartValuePills: View {
         // keyboard open" bug).
         dismissFieldUI()
         guard let log = form.submitLog() else { return }
-        InputHapticPlayer.shared.play(Theme.Haptics.logTap)
+        HapticPlayer.shared.play(.input(Theme.Haptics.logTap))
         withAnimation(Theme.logButtonCheckmarkAnimation) {
             showsLoggedCheckmark = true
         }
@@ -270,7 +266,7 @@ struct SmartValuePills: View {
 
     private func skip() {
         dismissFieldUI()
-        InputHapticPlayer.shared.play(Theme.Haptics.skipDud)
+        HapticPlayer.shared.play(.input(Theme.Haptics.skipDud))
         onSkip()
     }
 
@@ -354,7 +350,7 @@ private struct ValueRail: View {
                 )
                 guard target != selectedIndex, chips.indices.contains(target) else { return }
                 onSelect(chips[target].label)
-                InputHapticPlayer.shared.play(Theme.Haptics.railDetentTick)
+                HapticPlayer.shared.play(.input(Theme.Haptics.railDetentTick))
             }
             .onEnded { _ in
                 dragAnchorIndex = nil
@@ -370,7 +366,7 @@ private struct ValueRail: View {
             // lifted finger — the drag's selection is authoritative (see `isDragging`).
             guard !isDragging else { return }
             onSelect(chip.label)
-            InputHapticPlayer.shared.play(Theme.Haptics.railDetentTick)
+            HapticPlayer.shared.play(.input(Theme.Haptics.railDetentTick))
         } label: {
             Text(chip.label)
                 .font(Theme.font(.railChipValue))
@@ -678,47 +674,6 @@ private struct HoldToSkipLogButton: View {
             skipProgress = 0
         }
     }
-}
-
-// MARK: - Input haptics
-
-@MainActor
-final class InputHapticPlayer {
-    static let shared = InputHapticPlayer()
-
-    #if canImport(CoreHaptics)
-        private var engine: CHHapticEngine?
-
-        func play(_ tuning: Theme.HapticTuning) {
-            guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
-            do {
-                let engine = try activeEngine()
-                let event = CHHapticEvent(
-                    eventType: .hapticTransient,
-                    parameters: [
-                        CHHapticEventParameter(parameterID: .hapticIntensity, value: Float(tuning.intensity)),
-                        CHHapticEventParameter(parameterID: .hapticSharpness, value: Float(tuning.sharpness))
-                    ],
-                    relativeTime: 0
-                )
-                let pattern = try CHHapticPattern(events: [event], parameters: [])
-                let player = try engine.makePlayer(with: pattern)
-                try player.start(atTime: 0)
-            } catch {
-                engine = nil
-            }
-        }
-
-        private func activeEngine() throws -> CHHapticEngine {
-            if let engine { return engine }
-            let engine = try CHHapticEngine()
-            try engine.start()
-            self.engine = engine
-            return engine
-        }
-    #else
-        func play(_: Theme.HapticTuning) {}
-    #endif
 }
 
 extension EnvironmentValues {
