@@ -242,7 +242,6 @@ enum Theme {
         let chipCarveEdge: Color
         let chartLine: Color
         let blockSeam: Color
-        let grabber: Color
 
         // Bird & colophon
         let birdFill: Color
@@ -543,7 +542,6 @@ extension Theme {
         chipCarveEdge: Color.white.opacity(0.6), // the light bottom lip
         chartLine: Paint.ink.opacity(0.35),
         blockSeam: Paint.ink.opacity(0.14),
-        grabber: Paint.ink.opacity(0.18),
         birdFill: Paint.actionDay,
         birdRib: Paint.cream.opacity(0.50),
         danger: rgb(255, 59, 48) // system red, carried forward pending danger pass
@@ -600,7 +598,6 @@ extension Theme {
         chipCarveEdge: Paint.cream.opacity(0.10), // cream-toned bottom lip at Night
         chartLine: Paint.inkNight.opacity(0.35),
         blockSeam: Paint.inkNight.opacity(0.14),
-        grabber: Paint.cream.opacity(0.18),
         birdFill: Paint.foliage,
         birdRib: Paint.cream.opacity(0.55),
         danger: rgb(255, 59, 48)

@@ -130,12 +130,10 @@ import Testing
             #expect(sheet.green < 0.2, "the night sheet stays a deep sage paper, not a mid-tone")
         }
 
-        // Cream stays the light source: carved chips and the grabber are cream at low opacity.
-        for creamSurface in [night.chipCarvedFill, night.grabber] {
-            expectSageLed(creamSurface)
-            if let cream = rgbaComponents(of: creamSurface) {
-                #expect(cream.green > 0.85, "cream is kept as the light source, sage-led and bright")
-            }
+        // Cream stays the light source: carved chips are cream at low opacity.
+        expectSageLed(night.chipCarvedFill)
+        if let cream = rgbaComponents(of: night.chipCarvedFill) {
+            #expect(cream.green > 0.85, "cream is kept as the light source, sage-led and bright")
         }
     }
 #endif
