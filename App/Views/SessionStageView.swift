@@ -415,9 +415,11 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
 }
 
 extension View {
-    /// The verbs animate the branch's leaf and stem, never the card's frame or values. The `value:`
-    /// form scopes the opt-out to the card's Set changing, so the rail recentring and the
-    /// hold-to-skip fill that a finger starts inside the card still animate.
+    /// The verbs animate the branch's leaf and stem, never the card's frame or values. The animation
+    /// is cleared only in the transaction where the card's identity changes, so the frame and values
+    /// land in the next frame. A finger-driven animation that leaves the identity alone, such as the
+    /// hold-to-skip fill or a rail tap's own recentring, keeps its curve. On a Set change the rails
+    /// jump rather than recentre, because `SmartValuePills` remounts.
     func holdsStill(acrossChangesOf cardIdentity: String) -> some View {
         transaction(value: cardIdentity) { $0.animation = nil }
     }
