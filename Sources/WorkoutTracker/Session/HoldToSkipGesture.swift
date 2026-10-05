@@ -23,6 +23,8 @@ struct HoldToSkipGesture: Equatable, Sendable {
     private enum Phase: Equatable, Sendable {
         case idle
         case pressing(since: ContinuousClock.Instant, policy: HoldToSkipPolicy, revealed: Bool)
+        /// The hold skipped and the finger is still down. A new press waits for the release, so a
+        /// hold that turns a Set skipped cannot run on into the skipped Set's own hold.
         case committed
     }
 
@@ -38,7 +40,7 @@ struct HoldToSkipGesture: Equatable, Sendable {
     }
 
     mutating func pressBegan(at now: ContinuousClock.Instant, policy: HoldToSkipPolicy) -> [HoldToSkipEffect] {
-        if case .pressing = phase { return [] }
+        guard phase == .idle else { return [] }
         phase = .pressing(since: now, policy: policy, revealed: false)
         return [.progress(to: 0, over: 0, linear: true)]
     }
@@ -88,7 +90,9 @@ struct HoldToSkipGesture: Equatable, Sendable {
 
     private mutating func commit(at now: ContinuousClock.Instant) -> [HoldToSkipEffect] {
         guard phase != .committed else { return [] }
-        phase = .committed
+        if case .pressing = phase {
+            phase = .committed
+        }
         suppressTapsUntil = now + Self.tapSuppression
         return [.skip]
     }
