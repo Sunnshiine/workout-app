@@ -15,10 +15,23 @@ enum Haptic: Equatable, Sendable {
 
     case input(Theme.HapticTuning)
 
+    /// A refused action, such as pairing with an Exercise that cannot pair. Two transients 120 ms
+    /// apart stand in for `UINotificationFeedbackGenerator`'s warning.
+    case warning
+
     func pattern() throws -> CHHapticPattern {
         switch self {
         case .input(let tuning):
             return try CHHapticPattern(events: [Self.transient(tuning)], parameters: [])
+
+        case .warning:
+            return try CHHapticPattern(
+                events: [
+                    Self.transient(Theme.HapticTuning(intensity: 0.8, sharpness: 0.5)),
+                    Self.transient(Theme.HapticTuning(intensity: 0.6, sharpness: 0.5), at: 0.12)
+                ],
+                parameters: []
+            )
 
         case .rest(.lightTap):
             return try CHHapticPattern(

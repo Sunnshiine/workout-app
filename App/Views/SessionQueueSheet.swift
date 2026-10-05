@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 /// The full Session queue in a medium sheet: every stage item in Session order
 /// with its Set dots, the one on stage marked "Now", and Move On in the footer
@@ -122,7 +121,7 @@ struct SessionQueueSheet: View {
     private func pairingRow(for row: SessionQueue.Row) -> some View {
         Button {
             if coordinator.handlePairingTap(on: row.pairingExercise, in: session) == .unavailable {
-                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                HapticPlayer.shared.play(.warning)
             }
         } label: {
             rowLabel(for: row) {
