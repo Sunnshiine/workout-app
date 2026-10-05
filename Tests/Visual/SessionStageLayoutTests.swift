@@ -454,8 +454,7 @@ private struct SessionPage: View {
                 SessionStageView(
                     session: session,
                     coordinator: coordinator,
-                    composition: .reading,
-                    actions: .inert
+                    composition: .reading
                 )
                 .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 43) }
                 .restPillInset(restTimer, composition: .reading)
@@ -634,20 +633,5 @@ private enum SessionPageHost {
             }
             .count
         }
-    }
-}
-
-extension SessionStageActions {
-    fileprivate static var inert: SessionStageActions {
-        SessionStageActions(
-            focus: { _ in },
-            log: { _, _ in },
-            updateLoggedSet: { _, _ in },
-            skip: { _ in },
-            delete: { _ in },
-            focusSupersetExercise: { _ in },
-            showSourceSession: { _ in },
-            moveOn: {}
-        )
     }
 }

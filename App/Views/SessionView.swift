@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct SessionView: View {
     let liveActivityAdapter: LiveActivityProductionAdapter
@@ -134,6 +135,7 @@ struct SessionView: View {
             standardRestDuration: { settings.standardRestDuration.timeInterval },
             supersetRestDuration: { settings.supersetRestDuration.timeInterval },
             liveActivity: liveActivityAdapter,
+            motion: SwiftUISessionMotion(),
             liveEdge: { [workout] session in
                 LiveEdge.resolve(viewedSession: session, currentSession: workout.currentSession)
             }
@@ -144,44 +146,6 @@ struct SessionView: View {
     private func reconcileLiveActivity() {
         liveActivityAdapter.endIfInvalidated(at: workout.liveEdge)
     }
-
-    private func showSourceSession(for exercise: Exercise) {
-        coordinator.cancelPairing()
-        guard let address = exercise.session?.address else { return }
-        workout.show(address)
-    }
-
-    private func focusWithMorph(_ set: ExerciseSet) {
-        let action = focusMorphAction(for: set)
-        let policy = SessionFocusMorphPolicy(reduceMotion: reduceMotion)
-        guard policy.shouldAnimate(action) else {
-            coordinator.focus(on: set)
-            return
-        }
-
-        coordinator.focus(on: set) { updateFocus in
-            withAnimation(Theme.focusMorphAnimation) {
-                updateFocus()
-            }
-        }
-    }
-
-    private func logWithMomentum(_ set: ExerciseSet, _ log: SetLog) {
-        coordinator.log(set, as: log) { updateFocus in
-            withAnimation(Theme.momentumFlowAnimation) {
-                updateFocus()
-            }
-        }
-    }
-
-    private func skipWithFade(_ set: ExerciseSet) {
-        coordinator.skip(set) { updateFocus in
-            withAnimation(Theme.skipFadeUpAnimation) {
-                updateFocus()
-            }
-        }
-    }
-
 }
 
 extension SessionView {
@@ -189,8 +153,7 @@ extension SessionView {
         SessionStageView(
             session: session,
             coordinator: coordinator,
-            composition: stageComposition,
-            actions: stageActions(in: session)
+            composition: stageComposition
         )
         .safeAreaInset(edge: .top, spacing: 0) {
             if stageComposition == .reading {
@@ -203,24 +166,6 @@ extension SessionView {
                 stageComposition = SessionStageComposition(isEditingWeight: isEditingWeight)
             }
         }
-    }
-
-    private func stageActions(in session: Session) -> SessionStageActions {
-        SessionStageActions(
-            focus: focusWithMorph,
-            log: logWithMomentum,
-            updateLoggedSet: coordinator.updateLoggedSet(_:as:),
-            skip: skipWithFade,
-            delete: coordinator.deleteLog(for:),
-            focusSupersetExercise: { exercise in
-                focusSupersetWithMorph(exercise, in: session)
-            },
-            showSourceSession: showSourceSession(for:),
-            moveOn: {
-                coordinator.cancelRestForSessionExit()
-                workout.requestMoveOnCelebration()
-            }
-        )
     }
 
     private func updateSessionSettingsOverpull(topContentOffset: CGFloat) {
@@ -333,29 +278,15 @@ extension SessionView {
             }
         }
     }
+}
 
-    private func focusMorphAction(for set: ExerciseSet) -> SessionFocusMorphAction {
-        guard set.state == .logged else {
-            return set.state == .pending ? .pendingFocus : .loggedReviewCollapse
-        }
-        let setID = SessionCoordinator.activeSetID(for: set)
-        return setID == coordinator.expandedLoggedSetID ? .loggedReviewCollapse : .loggedReviewOpen
+/// The one place a coordinator verb's transaction meets SwiftUI.
+private struct SwiftUISessionMotion: SessionMotionPerforming {
+    var reducesMotion: Bool { UIAccessibility.isReduceMotionEnabled }
+
+    func animate(_ motion: SessionMotion, _ change: () throws -> Void) rethrows {
+        try withAnimation(motion.animation, change)
     }
-
-    private func focusSupersetWithMorph(_ exercise: Exercise, in session: Session) {
-        let policy = SessionFocusMorphPolicy(reduceMotion: reduceMotion)
-        guard policy.shouldAnimate(.supersetSwitchSucceeded) else {
-            _ = coordinator.focusNextSupersetSet(for: exercise, in: session)
-            return
-        }
-
-        _ = coordinator.focusNextSupersetSet(for: exercise, in: session) { updateFocus in
-            withAnimation(Theme.focusMorphAnimation) {
-                updateFocus()
-            }
-        }
-    }
-
 }
 
 private enum SessionSettingsHeaderDrag {
