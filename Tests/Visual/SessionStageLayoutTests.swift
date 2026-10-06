@@ -512,8 +512,7 @@ private func boundCoordinator(to session: Session, store: WorkoutStore) -> Sessi
         logging: store,
         sync: InertSessionSync(),
         navigation: store,
-        motion: ImmediateSessionMotion(),
-        liveEdge: { LiveEdge.resolve(viewedSession: $0, currentSession: store.currentSession) }
+        motion: ImmediateSessionMotion()
     )
     return coordinator
 }
