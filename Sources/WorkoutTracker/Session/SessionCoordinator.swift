@@ -122,9 +122,9 @@ final class SessionCoordinator {
     @ObservationIgnored private var loggingAdapter: any SessionLoggingAdapter
     @ObservationIgnored private var syncAdapter: any SessionSyncAdapter
     @ObservationIgnored private var liveActivityAdapter: any SessionLiveActivityAdapter
-    @ObservationIgnored private var navigationAdapter: any SessionNavigationAdapter
+    private var navigationAdapter: any SessionNavigationAdapter
     @ObservationIgnored private var motion: any SessionMotionPerforming
-    @ObservationIgnored private var liveEdge: (Session) -> LiveEdge = { _ in .browsedAway }
+    private var liveEdge: (Session) -> LiveEdge = { _ in .browsedAway }
     @ObservationIgnored private let transitionClock: any SessionTransitionClock
     @ObservationIgnored private var restTimer: RestTimer?
     @ObservationIgnored private var standardRestDuration: () -> TimeInterval
