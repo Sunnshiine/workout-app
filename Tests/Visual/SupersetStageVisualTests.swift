@@ -135,7 +135,7 @@ struct SupersetStageVisualTests {
             focus: SessionFocusSnapshot(
                 activeSetID: ActiveSetID(exerciseOrder: press.order, setIndex: 1),
                 expandedLoggedSetID: nil,
-                supersets: [[press, row]],
+                supersets: [Superset(first: press, second: row)],
                 pairableExerciseOrders: []
             ),
             savedLoggedSetID: nil,

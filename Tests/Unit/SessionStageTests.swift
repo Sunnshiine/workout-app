@@ -9,7 +9,7 @@ private func makeStage(
     active: ActiveSetID? = nil,
     expanded: ActiveSetID? = nil,
     saved: ActiveSetID? = nil,
-    supersets: [[Exercise]] = [],
+    supersets: [Superset] = [],
     pairable: Set<Int> = [],
     pairingMode: PairingMode = .inactive,
     liveEdge: LiveEdgeContext = .browsedAway,
@@ -72,7 +72,7 @@ struct SessionStageTests {
         let row = makeExercise(name: "Row", order: 2, setStates: [.pending])
         let carry = makeExercise(name: "Farmer Carry", order: 3, setStates: [.pending])
 
-        let stage = makeStage([carry, row, squat, press], supersets: [[carry, press]])
+        let stage = makeStage([carry, row, squat, press], supersets: [Superset(first: carry, second: press)])
 
         #expect(stage.queue.rows.map(\.id) == ["exercise-0", "superset-1", "exercise-2"])
         #expect(stage.queue.rows.map(\.title) == ["Squat", "Farmer Carry + Press", "Row"])
@@ -243,7 +243,7 @@ struct SessionStageTests {
         let stage = makeStage(
             [press, row],
             active: ActiveSetID(exerciseOrder: 1, setIndex: 1),
-            supersets: [[row, press]],
+            supersets: [Superset(first: row, second: press)],
             lookup: benchHistory()
         )
 
@@ -268,7 +268,7 @@ struct SessionStageTests {
         let stage = makeStage(
             [bench, row],
             active: ActiveSetID(exerciseOrder: 2, setIndex: 0),
-            supersets: [[bench, row]],
+            supersets: [Superset(first: bench, second: row)],
             lookup: benchHistory()
         )
 
@@ -292,7 +292,7 @@ struct SessionStageTests {
         let stage = makeStage(
             [bench, row],
             active: ActiveSetID(exerciseOrder: 1, setIndex: 0),
-            supersets: [[bench, row]],
+            supersets: [Superset(first: bench, second: row)],
             lookup: benchHistory()
         )
 
@@ -307,7 +307,7 @@ struct SessionStageTests {
         let stage = makeStage(
             [squat, bench, row],
             expanded: ActiveSetID(exerciseOrder: 1, setIndex: 0),
-            supersets: [[row, bench]],
+            supersets: [Superset(first: row, second: bench)],
             lookup: benchHistory()
         )
 
@@ -325,7 +325,11 @@ struct SessionStageTests {
         let squat = makeExercise(name: "Back Squat", order: 0, setStates: [.logged, .pending, .pending])
         let rdl = makeExercise(name: "BB RDL", order: 1, setStates: [.pending, .pending])
 
-        let stage = makeStage([squat, rdl], active: ActiveSetID(exerciseOrder: 0, setIndex: 0), supersets: [[squat, rdl]])
+        let stage = makeStage(
+            [squat, rdl],
+            active: ActiveSetID(exerciseOrder: 0, setIndex: 0),
+            supersets: [Superset(first: squat, second: rdl)]
+        )
 
         let superset = try #require(supersetStage(stage))
         #expect(superset.focused === squat)
@@ -340,7 +344,11 @@ struct SessionStageTests {
         let press = makeExercise(name: "Press", order: 1, setStates: [.logged, .skipped, .pending])
         let row = makeExercise(name: "Row", order: 2, setStates: [.pending, .logged])
 
-        let stage = makeStage([row, press], active: ActiveSetID(exerciseOrder: 2, setIndex: 0), supersets: [[press, row]])
+        let stage = makeStage(
+            [row, press],
+            active: ActiveSetID(exerciseOrder: 2, setIndex: 0),
+            supersets: [Superset(first: press, second: row)]
+        )
 
         let queueRow = stage.queue.rows[0]
         #expect(queueRow.title == "Press + Row")
@@ -408,7 +416,7 @@ extension SessionStageTests {
         let superset = makeStage(
             [squat, press, row],
             active: ActiveSetID(exerciseOrder: 2, setIndex: 0),
-            supersets: [[press, row]]
+            supersets: [Superset(first: press, second: row)]
         ).queue.position
 
         #expect(first.label == "1 of 3")
@@ -503,7 +511,7 @@ extension SessionStageTests {
         let press = makeExercise(name: "Press", order: 2, setStates: [.pending])
         let row = makeExercise(name: "Row", order: 3, setStates: [.pending])
 
-        let queue = makeStage([squat, bench, press, row], supersets: [[press, row]], pairable: [1, 2]).queue
+        let queue = makeStage([squat, bench, press, row], supersets: [Superset(first: press, second: row)], pairable: [1, 2]).queue
 
         #expect(queue.rows.map(\.id) == ["exercise-0", "exercise-1", "superset-2"])
         #expect(queue.rows.map(\.canBeginPairing) == [false, true, false])
@@ -541,7 +549,7 @@ extension SessionStageTests {
 
         let queue = makeStage(
             [squat, press, row],
-            supersets: [[press, row]],
+            supersets: [Superset(first: press, second: row)],
             pairable: [0, 1, 2],
             pairingMode: .selecting(sourceOrder: 0)
         ).queue
