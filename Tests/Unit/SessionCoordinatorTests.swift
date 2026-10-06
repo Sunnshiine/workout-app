@@ -25,12 +25,14 @@ private final class SpySessionLoggingAdapter: SessionLoggingAdapter {
     private(set) var skippedSets: [ExerciseSet] = []
     private(set) var deletedSets: [ExerciseSet] = []
     var error: TestLoggingError?
+    var afterLogWrite: () -> Void = {}
 
     func log(_ set: ExerciseSet, as log: SetLog) throws {
         if let error { throw error }
         loggedSets.append((set, log))
         set.setLog = log
         set.state = .logged
+        afterLogWrite()
     }
 
     func skip(_ set: ExerciseSet) throws {
@@ -399,6 +401,23 @@ private struct CoordinatorRestActionFixture {
 }
 
 @MainActor
+private func stageRowIDs(_ coordinator: SessionCoordinator, in session: Session) -> [String] {
+    coordinator.stage(in: session, lookup: .empty).queue.rows.map(\.id)
+}
+
+@MainActor
+private func exerciseStage(_ coordinator: SessionCoordinator, in session: Session) -> ExerciseStage? {
+    guard case .exercise(let stage) = coordinator.stage(in: session, lookup: .empty).focus else { return nil }
+    return stage
+}
+
+@MainActor
+private func supersetStage(_ coordinator: SessionCoordinator, in session: Session) -> SupersetStage? {
+    guard case .superset(let stage) = coordinator.stage(in: session, lookup: .empty).focus else { return nil }
+    return stage
+}
+
+@MainActor
 private func makeActionFixture() throws -> CoordinatorActionFixture {
     let session = makeCoordinatorSession()
     let logging = SpySessionLoggingAdapter()
@@ -455,7 +474,7 @@ private func makeRestActionFixture(
 }
 
 @MainActor
-@Test func coordinatorBuildsOrdinaryExerciseRenderItemsInSessionOrder() throws {
+@Test func theStageListsOrdinaryExercisesInSessionOrderWithTheirPairingRoles() throws {
     let session = makeCoordinatorSession()
     let clock = ManualSessionTransitionClock()
     let coordinator = SessionCoordinator(session: session, transitionClock: clock)
@@ -468,12 +487,12 @@ private func makeRestActionFixture(
     #expect(coordinator.beginPairing(from: bench, in: session))
     #expect(coordinator.handlePairingTap(on: row, in: session) == .confirming)
 
-    let items = coordinator.renderItems(in: session).compactMap(\.exerciseConfig)
+    let stage = coordinator.stage(in: session, lookup: .empty)
 
-    #expect(items.map { $0.exercise.order } == [0, 1, 2])
-    let expectedActiveSetID = ActiveSetID(exerciseOrder: 1, setIndex: 1)
-    #expect(items.map(\.activeSetID) == [nil, expectedActiveSetID, nil])
-    #expect(items.map(\.pairingAvailability) == [.unavailable, .available, .available])
+    #expect(stage.queue.rows.map(\.id) == ["exercise-0", "exercise-1", "exercise-2"])
+    #expect(stage.queue.rows.map(\.isOnStage) == [false, true, false])
+    #expect(exerciseStage(coordinator, in: session)?.branch.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 1))
+    #expect(stage.queue.rows.map(\.pairingRole) == [.ineligibleTarget, .source, .confirmingTarget])
 }
 
 @MainActor
@@ -488,26 +507,22 @@ private func makeRestActionFixture(
     #expect(coordinator.expandedLoggedSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
     #expect(coordinator.visualFocusOwner == .loggedSetReview(ActiveSetID(exerciseOrder: 0, setIndex: 0)))
 
-    let renderItems = coordinator.renderItems(in: session).compactMap(\.exerciseConfig)
-    let squatConfig = try #require(renderItems.first { $0.exercise.order == 0 })
-    let benchConfig = try #require(renderItems.first { $0.exercise.order == 1 })
-    #expect(squatConfig.activeSetID == nil)
-    #expect(squatConfig.expandedLoggedSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
-    #expect(benchConfig.activeSetID == nil)
-    #expect(benchConfig.expandedLoggedSetID == nil)
+    let review = try #require(exerciseStage(coordinator, in: session))
+    #expect(review.exercise === completedSquatSet.exercise)
+    #expect(review.branch.activeSetID == nil)
+    #expect(review.card?.id == "stage-review-0-0")
 
     coordinator.focus(on: completedSquatSet)
 
     #expect(coordinator.expandedLoggedSetID == nil)
     #expect(coordinator.visualFocusOwner == .activeSet(ActiveSetID(exerciseOrder: 1, setIndex: 0)))
-    #expect(
-        coordinator.renderItems(in: session).compactMap(\.exerciseConfig).map(\.activeSetID)
-            == [nil, ActiveSetID(exerciseOrder: 1, setIndex: 0), nil]
-    )
+    let active = try #require(exerciseStage(coordinator, in: session))
+    #expect(active.branch.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    #expect(active.card?.id == "stage-active-1-0")
 }
 
 @MainActor
-@Test func coordinatorBuildsOrderedRenderItemsWithSupersetsAndHiddenPairedExercises() throws {
+@Test func theStageFusesASupersetAtItsLowerOrderedSideInSessionOrder() throws {
     let session = makeFourExercisePairingSession()
     let coordinator = SessionCoordinator(session: session)
     let press = try #require(session.exercises.first { $0.order == 0 })
@@ -517,36 +532,16 @@ private func makeRestActionFixture(
 
     #expect(coordinator.createSuperset(from: squat, to: row, in: session))
 
-    let items = coordinator.renderItems(in: session)
+    let rows = coordinator.stage(in: session, lookup: .empty).queue.rows
 
-    #expect(items.map(\.id) == ["exercise-0", "superset-1", "exercise-2", "hidden-paired-exercise-3"])
-    guard case .exercise(let firstExercise) = items[0] else {
-        Issue.record("Expected ordinary Exercise render item for Press")
-        return
-    }
-    guard case .superset(let superset) = items[1] else {
-        Issue.record("Expected Superset render item for Squat and DB Row")
-        return
-    }
-    guard case .exercise(let thirdExercise) = items[2] else {
-        Issue.record("Expected ordinary Exercise render item for Bench Press")
-        return
-    }
-    guard case .hiddenPairedExercise(let hidden) = items[3] else {
-        Issue.record("Expected hidden paired Exercise placeholder for DB Row")
-        return
-    }
-
-    #expect(firstExercise.exercise === press)
-    #expect(superset.exercises.map(\.order) == [1, 3])
-    #expect(superset.presentation.containerExerciseOrder == 1)
-    #expect(thirdExercise.exercise === bench)
-    #expect(hidden.exercise === row)
-    #expect(hidden.containerExerciseOrder == 1)
+    #expect(rows.map(\.id) == ["exercise-0", "superset-1", "exercise-2"])
+    #expect(rows.map(\.title) == ["Press", "Squat + DB Row", "Bench Press"])
+    #expect(rows.map(\.exercise) == [press, squat, bench])
+    #expect(rows[1].sets == squat.sets + row.sets)
 }
 
 @MainActor
-@Test func coordinatorRenderItemsCarryLastPerformedPresentations() throws {
+@Test func theStageCarriesTheLastPerformedLineFromTheLookupStore() throws {
     let container = try sessionCoordinatorContainer()
     let context = container.mainContext
     context.insert(
@@ -562,38 +557,16 @@ private func makeRestActionFixture(
     let session = makeCoordinatorSession()
     let coordinator = SessionCoordinator(session: session)
 
-    let items = coordinator.renderItems(
-        in: session,
-        lastPerformedLookup: LastPerformedLookupStore(context: context).snapshot
-    )
+    let stage = coordinator.stage(in: session, lookup: LastPerformedLookupStore(context: context).snapshot)
 
-    let benchConfig = try #require(items.compactMap(\.exerciseConfig).first { $0.exercise.order == 1 })
-    #expect(benchConfig.lastPerformedPresentation?.resultText == "185x6@7")
-    #expect(benchConfig.lastPerformedPresentation?.sourceText == "W3 D2")
+    guard case .exercise(let bench) = stage.focus else {
+        Issue.record("Expected Bench Press on stage")
+        return
+    }
+    #expect(bench.exercise.order == 1)
+    #expect(bench.lastPerformed?.resultText == "185x6@7")
+    #expect(bench.lastPerformed?.sourceText == "W3 D2")
     withExtendedLifetime(container) {}
-}
-
-@MainActor
-@Test func coordinatorRenderItemsBuildFromPureLastPerformedLookup() throws {
-    let session = makeCoordinatorSession()
-    let coordinator = SessionCoordinator(session: session)
-    let lookup = LastPerformedLookupSnapshot(
-        occurrences: [
-            LastPerformedOccurrence(
-                fullName: "Bench Press",
-                baseName: "Bench Press",
-                resultText: "185x6@7",
-                performedOn: Date(timeIntervalSinceReferenceDate: 100),
-                source: "W3 D2"
-            )
-        ]
-    )
-
-    let items = coordinator.renderItems(in: session, lastPerformedLookup: lookup)
-
-    let benchConfig = try #require(items.compactMap(\.exerciseConfig).first { $0.exercise.order == 1 })
-    #expect(benchConfig.lastPerformedPresentation?.resultText == "185x6@7")
-    #expect(benchConfig.lastPerformedPresentation?.sourceText == "W3 D2")
 }
 
 @MainActor
@@ -641,7 +614,7 @@ private func makeRestActionFixture(
 
     #expect(coordinator.handlePairingTap(on: bench, in: session) == .cancelled)
     #expect(coordinator.pairingMode == .inactive)
-    #expect(coordinator.supersetSections(in: session).isEmpty)
+    #expect(stageRowIDs(coordinator, in: session) == ["exercise-0", "exercise-1", "exercise-2"])
 }
 
 @MainActor
@@ -656,19 +629,20 @@ private func makeRestActionFixture(
     #expect(coordinator.beginPairing(from: squat, in: session))
     #expect(coordinator.handlePairingTap(on: bench, in: session) == .confirming)
     #expect(coordinator.pairingMode == .confirming(sourceOrder: 1, targetOrder: 2))
-    #expect(coordinator.supersetSections(in: session).isEmpty)
+    #expect(stageRowIDs(coordinator, in: session) == ["exercise-0", "exercise-1", "exercise-2"])
 
     await clock.waitForSleep()
 
     #expect(clock.sleptDurations == [.milliseconds(220)])
-    #expect(coordinator.supersetSections(in: session).isEmpty)
+    #expect(stageRowIDs(coordinator, in: session) == ["exercise-0", "exercise-1", "exercise-2"])
 
     await clock.advance()
 
     #expect(coordinator.pairingMode == .inactive)
     #expect(coordinator.activeSetID == initialActiveSetID)
-    let section = try #require(coordinator.supersetSections(in: session).first)
-    #expect(section.exercises.map(\.order) == [1, 2])
+    let rows = coordinator.stage(in: session, lookup: .empty).queue.rows
+    #expect(rows.map(\.id) == ["exercise-0", "superset-1"])
+    #expect(rows.map(\.title) == ["Press", "Squat + Bench Press"])
 }
 
 @MainActor
@@ -685,7 +659,7 @@ private func makeRestActionFixture(
     coordinator.dismissSuperset(containing: press, in: session)
 
     #expect(coordinator.pairingMode == .inactive)
-    #expect(coordinator.supersetSections(in: session).isEmpty)
+    #expect(stageRowIDs(coordinator, in: session) == ["exercise-0", "exercise-1", "exercise-2", "exercise-3"])
     #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
 }
 
@@ -741,11 +715,9 @@ private func makeRestActionFixture(
     #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
     #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
 
-    // The render projection reports the two paired Exercises and not the unpaired one.
-    let section = try #require(coordinator.supersetSections(in: session).first)
-    let projectedOrders = Set(section.exercises.map(\.order))
-    #expect(projectedOrders == [1, 2])
-    #expect(!projectedOrders.contains(press.order))
+    // The stage fuses the two paired Exercises and keeps the unpaired one on stage alone.
+    #expect(stageRowIDs(coordinator, in: session) == ["exercise-0", "superset-1"])
+    #expect(exerciseStage(coordinator, in: session)?.exercise === press)
 
     // The domain-predicate membership answers must agree with that projection while the
     // Superset is planned but not yet active: the unpaired press is not a member, so it
@@ -759,23 +731,33 @@ private func makeRestActionFixture(
 }
 
 @MainActor
-@Test func supersetLogRendersThePairBeforeAndAfterTheLog() throws {
+@Test func aSupersetLogKeepsThePairOnStageBeforeDuringAndAfterTheFocusMove() throws {
     let session = makeSquatAndRDLSession()
     let squat = try #require(session.exercises.first { $0.order == 0 })
     let rdl = try #require(session.exercises.first { $0.order == 1 })
-    let coordinator = SessionCoordinator(session: session, logging: SpySessionLoggingAdapter(), sync: SpySessionSyncAdapter())
+    let logging = SpySessionLoggingAdapter()
+    let coordinator = SessionCoordinator(session: session, logging: logging, sync: SpySessionSyncAdapter())
     #expect(coordinator.createSuperset(from: squat, to: rdl, in: session))
     let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
-    #expect(coordinator.renderItems(in: session).map(\.id) == ["superset-0", "hidden-paired-exercise-1"])
+    #expect(supersetStage(coordinator, in: session)?.card?.id == "superset-active-0-0")
+    var focusInsideTheLog: ActiveSetID?
+    var cardInsideTheLog: String?
+    logging.afterLogWrite = {
+        focusInsideTheLog = coordinator.activeSetID
+        cardInsideTheLog = supersetStage(coordinator, in: session)?.card?.id
+    }
 
     coordinator.log(firstSquatSet, as: SetLog(weight: .pounds(225), reps: 5, rpe: .seven))
 
-    #expect(coordinator.renderItems(in: session).map(\.id) == ["superset-0", "hidden-paired-exercise-1"])
+    #expect(focusInsideTheLog == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+    #expect(cardInsideTheLog == "superset-active-0-0")
     #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    #expect(supersetStage(coordinator, in: session)?.card?.id == "superset-active-1-0")
+    #expect(stageRowIDs(coordinator, in: session) == ["superset-0"])
 }
 
 @MainActor
-@Test func coordinatorPreservesCurrentSessionFlowThroughRenderItems() throws {
+@Test func coordinatorPreservesCurrentSessionFlowThroughTheStage() throws {
     let session = makeIntegratedCoordinatorSession()
     let logging = SpySessionLoggingAdapter()
     let sync = SpySessionSyncAdapter()
@@ -806,20 +788,16 @@ private func makeRestActionFixture(
 
     #expect(coordinator.createSuperset(from: bench, to: row, in: session))
 
-    let pairedItems = coordinator.renderItems(in: session)
-    #expect(pairedItems.map(\.id) == ["exercise-0", "superset-1", "hidden-paired-exercise-2", "exercise-3"])
-    let activeSuperset = try #require(coordinator.supersetSections(in: session).first?.presentation)
-    #expect(activeSuperset.activeExerciseOrder == 1)
+    #expect(stageRowIDs(coordinator, in: session) == ["exercise-0", "superset-1", "exercise-3"])
+    #expect(supersetStage(coordinator, in: session)?.branch.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
 
     #expect(coordinator.focusNextSupersetSet(for: row, in: session))
-    let focusedSuperset = try #require(coordinator.supersetSections(in: session).first?.presentation)
     #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 2, setIndex: 0))
-    #expect(focusedSuperset.activeExerciseOrder == 2)
+    #expect(supersetStage(coordinator, in: session)?.focused === row)
 
     coordinator.dismissSuperset(containing: row, in: session)
 
-    #expect(coordinator.supersetSections(in: session).isEmpty)
-    #expect(coordinator.renderItems(in: session).map(\.id) == ["exercise-0", "exercise-1", "exercise-2", "exercise-3"])
+    #expect(stageRowIDs(coordinator, in: session) == ["exercise-0", "exercise-1", "exercise-2", "exercise-3"])
     #expect(logging.loggedSets.map(\.set) == [firstSquatSet, firstSquatSet])
     #expect(logging.skippedSets == [finalSquatSet])
     #expect(logging.deletedSets == [firstSquatSet])
@@ -1384,10 +1362,9 @@ private func makeRestActionFixture(
     fixture.coordinator.focus(on: firstBenchSet)
 
     #expect(fixture.coordinator.visualFocusOwner == .loggedSetReview(ActiveSetID(exerciseOrder: 1, setIndex: 0)))
-    let benchConfig = try #require(
-        fixture.coordinator.renderItems(in: fixture.session).compactMap(\.exerciseConfig).first { $0.exercise.order == 1 }
-    )
-    #expect(benchConfig.expandedLoggedSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    let card = try #require(exerciseStage(fixture.coordinator, in: fixture.session)?.card)
+    #expect(card.id == "stage-review-1-0")
+    #expect(card.mode == .reviewingLogged(showsSavedConfirmation: false))
 }
 
 @MainActor
@@ -1753,7 +1730,7 @@ private func makeRestActionFixture(
 }
 
 @MainActor
-@Test func readingTheSupersetSectionsWritesNoObservedState() throws {
+@Test func readingTheStageWritesNoObservedState() throws {
     let session = makePlannedPairingSession()
     let coordinator = SessionCoordinator(session: session)
     let squat = try #require(session.exercises.first { $0.order == 1 })
@@ -1765,7 +1742,7 @@ private func makeRestActionFixture(
     let changes = ObservedChanges()
     changes.watch { _ = coordinator.canPair(bench, in: session) }
 
-    #expect(coordinator.supersetSections(in: session).isEmpty)
+    #expect(stageRowIDs(coordinator, in: session) == ["exercise-0", "exercise-1", "exercise-2"])
 
     #expect(changes.fired == 0)
 }
@@ -1930,7 +1907,7 @@ private func makeRestActionFixture(
     coordinator.deleteLog(for: lastSquatSet)
 
     #expect(lastSquatSet.state == .pending)
-    #expect(coordinator.renderItems(in: session).map(\.id) == ["exercise-0", "exercise-1", "exercise-2"])
+    #expect(stageRowIDs(coordinator, in: session) == ["exercise-0", "exercise-1", "exercise-2"])
     #expect(coordinator.canPair(squat, in: session))
 }
 
