@@ -34,14 +34,14 @@ enum Theme {
     enum Paint {
         static let ink = rgb(21, 33, 24) // #152118 — day text
         static let inkNight = rgb(239, 243, 227) // #EFF3E3 — night text
-        static let muted = rgb(64, 78, 68)
+        static let muted = rgb(64, 78, 68) // #404E44 — day secondary
         static let mutedNight = rgb(154, 170, 155) // #9AAA9B — night secondary
-        static let mutedNightLight = rgb(170, 186, 170)
+        static let mutedNightLight = rgb(170, 186, 170) // #AABAAA — night Superset partner name
         static let cream = rgb(242, 247, 232) // #F2F7E8 — the workhorse
         static let actionDay = rgb(13, 107, 64) // #0D6B40 — day action / leaf / stem / bird
         static let actionNight = rgb(31, 133, 82) // #1F8552 — night action (mint is banned at night)
         static let foliage = rgb(87, 145, 104) // #579168 — the night pigment
-        static let foliageDeep = rgb(63, 106, 75)
+        static let foliageDeep = rgb(63, 106, 75) // #3F6A4B — day Superset partner name
         static let paperDayTop = rgb(233, 238, 220) // #E9EEDC
         static let paperDayBottom = rgb(203, 225, 194) // #CBE1C2
         static let paperNightTop = rgb(35, 44, 32) // #232C20
@@ -323,7 +323,7 @@ enum Theme {
     static let blockTileSpacing: CGFloat = 10
     static let blockTileMiniSpacing: CGFloat = 5
     static let blockTileStroke: CGFloat = 1 // quiet available / mini strokes
-    static let blockTileCurrentStroke: CGFloat = 1.5
+    static let blockTileCurrentStroke: CGFloat = 1.5 // the current tile's rim
     static let blockTileGhostStroke: CGFloat = 1.5 // the empty bed's dashed outline
     static let blockTileGhostDash: CGFloat = 4
     static let blockWeekCardPadding: CGFloat = 14
@@ -462,7 +462,7 @@ extension Theme {
     private static let nightSurfaceShadow = [
         BoxShadow(y: 0, blur: 0, spread: 1, color: Paint.cream.opacity(0.10), inset: true)
     ]
-    private static let nightBud = rgb(120, 240, 178)
+    private static let nightBud = rgb(120, 240, 178) // #78F0B2 — the bud carries the page's one glow
     private static let nightBudGlow = rgb(120, 240, 178, 0.32)
 }
 
