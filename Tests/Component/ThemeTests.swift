@@ -141,17 +141,17 @@ import Testing
     @Test func nightBlockGridObeysTheRoomRelightsRule() {
         let night = Theme.palette(for: Theme.Appearance.night)
 
-        expectSageLed(night.sessionTileComplete)
-        if let foliage = rgbaComponents(of: night.sessionTileComplete) {
-            #expect(foliage.green > 0.4 && foliage.green < 0.75, "the complete tile is mid foliage, not ink or cream")
+        for foliageTile in [night.sessionTileComplete, night.tileCurrentFill] {
+            expectSageLed(foliageTile)
+            if let foliage = rgbaComponents(of: foliageTile) {
+                #expect(foliage.green > 0.4 && foliage.green < 0.75, "night tiles are mid foliage, not ink or cream")
+            }
         }
 
         expectSageLed(night.tileGhostStroke)
-        for creamSurface in [night.tileCurrentFill, night.weekCardShade] {
-            expectSageLed(creamSurface)
-            if let cream = rgbaComponents(of: creamSurface) {
-                #expect(cream.green > 0.85, "cream is kept as the light source, sage-led and bright")
-            }
+        expectSageLed(night.weekCardShade)
+        if let cream = rgbaComponents(of: night.weekCardShade) {
+            #expect(cream.green > 0.85, "cream is kept as the light source, sage-led and bright")
         }
     }
 #endif

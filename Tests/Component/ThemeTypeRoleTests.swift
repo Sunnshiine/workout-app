@@ -5,7 +5,7 @@ import Testing
 
 @Test func everyTypeRoleHasAStyle() {
     let styles = Dictionary(uniqueKeysWithValues: Theme.TypeRole.allCases.map { ($0, $0.style) })
-    #expect(styles.count == 22)
+    #expect(styles.count == 23)
 }
 
 @Test(arguments: [
@@ -13,6 +13,7 @@ import Testing
     (.ceremonyTitle, Theme.TypeStyle(face: .fraunces, size: 38, weight: 490, lineHeight: 1.10)),
     (.connectTitle, Theme.TypeStyle(face: .fraunces, size: 36, weight: 490)),
     (.sheetTitle, Theme.TypeStyle(face: .fraunces, size: 24, weight: 490, lineHeight: 1.1, opticalSize: 22)),
+    (.heading, Theme.TypeStyle(face: .sourceSans3, size: 17, weight: 650)),
     (.supersetPartner, Theme.TypeStyle(face: .fraunces, size: 20, weight: 490, lineHeight: 1.10, opticalSize: 20)),
     (.weightEntry, Theme.TypeStyle(face: .sourceSans3, size: 46, weight: 700, tabular: true, tracking: -0.69)),
     (.logCapsule, Theme.TypeStyle(face: .sourceSans3, size: 18, weight: 650, tabular: true, tracking: 0.18)),

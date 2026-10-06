@@ -40,12 +40,14 @@ are recorded inline.
 |---|---|---|
 | `ink` | `#152118` | day text; at low opacity: carved chips, scrim, shadows |
 | `inkNight` | `#EFF3E3` | night text |
-| `muted` | `#526457` | day secondary text |
+| `muted` | `#404E44` | day secondary text; at low opacity: `skipStroke`, `skipFillOverlay`, `tileGhostStroke` |
 | `mutedNight` | `#9AAA9B` | night secondary text |
+| `mutedNightLight` | `#AABAAA` | night Superset partner name; mutedNight falls under 4.5:1 beneath the sun wash |
 | `cream` | `#F2F7E8` | the workhorse — surfaces, pills, buds, ribs, action text (~15 roles at varying opacity) |
 | `actionDay` | `#0D6B40` | day action green; also day leaf/stem/bird pigment |
 | `actionNight` | `#1F8552` | night action green (mint is banned from the action role at night) |
 | `foliage` | `#579168` | *the* night pigment: leaves, stems, bird, tiles re-light to this |
+| `foliageDeep` | `#3F6A4B` | day Superset partner name; a foliage deep enough for 4.5:1 on Day paper |
 | `paperDay` | `#E9EEDC → #CBE1C2` | base pair under the day washes (atmosphere pick — supersedes `#E8EDDB → #C7E0BF`) |
 | `paperNight` | `#232C20 → #121D14` | hue-preserved deep sage, never neutral black (#418) |
 
@@ -97,6 +99,7 @@ appearance.
 | `budRib` | actionDay @ 55% | foliage @ 60% |
 | `futureStroke` | actionDay @ 40% | foliage @ 45% |
 | `skipStroke` (dashed 5 4) | muted @ 42% | mutedNight @ 40% |
+| `supersetPartnerName` (the "& partner" line) | foliageDeep | mutedNightLight |
 | `budGlow` | none | `drop-shadow(0 0 7px rgba(120,240,178,0.32))` — the page's one glow |
 
 Blade geometry (`M0,10 C16,-2 46,-4 64,3 C44,16 14,19 0,10 Z` in a 64x20
@@ -116,6 +119,7 @@ per layout, not tokenized.
 | `surfaceShadow` | `0 1px 2px rgba(21,33,24,0.04), 0 14px 30px rgba(21,33,24,0.07)` | `inset 0 0 0 1px` cream @ 10% (border-as-light, no drop) |
 | `pillFill` (stepper buttons) | cream @ 85% | cream @ 6% |
 | `pillStroke` | `rgba(82,111,90,0.34)` | cream @ 16% |
+| `stepperGlyph` (weight ±) | actionDay | cream |
 | `railFill` (reps/RPE rails) | cream @ 55% | cream @ 6% |
 | rail chip selected | cream fill + inset 2px `action` ring | same recipe, night values |
 | prescription tick (last week) | `action`, 18×3, r2 | `action` |
@@ -148,8 +152,8 @@ composition itself are locked by #455.
 | Role | Value (day) |
 |---|---|
 | `tileComplete` / text | actionDay / cream |
-| `tileCurrentFill` | cream @ 95% |
-| `tileCurrentBorder` | **literal `#1F8552`** + `sunGlow` — kept exactly as approved; deliberately *not* aliased to a paint (it is the night action green used as a day accent, and normalizing it to actionDay would change the validated artifact) |
+| `tileCurrentFill` | cream @ 95%; Night: foliage |
+| `tileCurrentBorder` | **literal `#1F8552`** + `sunGlow` — kept exactly as approved; deliberately *not* aliased to a paint (it is the night action green used as a day accent, and normalizing it to actionDay would change the validated artifact). Night: the bud's `#78F0B2` rim |
 | `sunGlow` | `0 0 0 4px rgba(242,247,232,0.45), 0 2px 18px rgba(220,235,190,0.9)` |
 | tile top-light | `radial-gradient(90% 160% at 78% -30%, rgba(255,255,245,0.85), transparent 55%)` |
 | `tileGhostStroke` (empty bed: un-uploaded day; dashed = "empty bed" incl. Skipped, amending #419) | muted @ 38%, 1.5px dashed |
@@ -205,6 +209,7 @@ tabular** (#411).
 | `ceremonyTitle` | Fraunces | 38pt / 1.10, centered |
 | `connectTitle` | Fraunces | 36pt |
 | `sheetTitle` | Fraunces | 24pt / 1.1 (opsz 22) |
+| `heading` | SS3 | 17pt / 650; utility section heads and picker rows, where Fraunces may not go |
 | `weightEntry` | SS3 | 46pt / 700, ls −0.015em, tnum |
 | `logCapsule` | SS3 | 18pt / 650, ls +0.01em, tnum |
 | `setNumber` / `setOf` | SS3 | 16pt / 700 tnum · 14pt / 500 muted |

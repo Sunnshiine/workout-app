@@ -172,11 +172,11 @@ struct DeveloperToolsView: View {
             if let diagnosticsErrorMessage {
                 Text(diagnosticsErrorMessage)
                     .font(Theme.font(.queuePill))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.textSecondary)
             } else if diagnostics.isEmpty {
                 Text("No pending or conflicted writes")
                     .font(Theme.font(.queuePill))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.textSecondary)
             } else {
                 VStack(spacing: 10) {
                     ForEach(diagnostics) { diagnostic in
@@ -192,11 +192,11 @@ struct DeveloperToolsView: View {
             if let writeAuditErrorMessage {
                 Text(writeAuditErrorMessage)
                     .font(Theme.font(.queuePill))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.textSecondary)
             } else if writeAuditDiagnostics.isEmpty {
                 Text("No write-target audit entries")
                     .font(Theme.font(.queuePill))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.textSecondary)
             } else {
                 VStack(spacing: 10) {
                     ForEach(writeAuditDiagnostics) { diagnostic in
@@ -272,6 +272,8 @@ struct DeveloperToolsView: View {
 }
 
 private struct CurrentSessionDebugRow: View {
+    @Environment(\.themePalette) private var palette
+
     let label: String
     let value: String
     let valueIdentifier: String
@@ -280,7 +282,7 @@ private struct CurrentSessionDebugRow: View {
         VStack(alignment: .leading, spacing: 3) {
             Text(label)
                 .font(Theme.font(.cadence))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.textSecondary)
 
             Text(value)
                 .font(Theme.font(.queuePill))
@@ -300,7 +302,7 @@ private struct DeveloperToolsSection<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title)
-                .font(Theme.font(.sheetTitle))
+                .font(Theme.font(.heading))
 
             content
         }
@@ -342,9 +344,7 @@ private struct PendingWriteDiagnosticRow: View {
             }
 
             if let error = diagnostic.error, !error.isEmpty {
-                Text(error)
-                    .font(Theme.font(.historyChip))
-                    .foregroundStyle(.red)
+                DangerMarkedText(message: error, role: .historyChip)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -355,7 +355,7 @@ private struct PendingWriteDiagnosticRow: View {
     }
 
     private var statusColor: Color {
-        diagnostic.status == "Conflict" ? .red : palette.accent
+        diagnostic.status == "Conflict" ? palette.danger : palette.accent
     }
 
     private var accessibilityLabel: String {
@@ -370,7 +370,7 @@ private struct PendingWriteDiagnosticRow: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
                 .font(Theme.font(.cadence))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.textSecondary)
             Text(value)
                 .font(Theme.font(.historyChip))
                 .foregroundStyle(.primary)
@@ -403,9 +403,7 @@ private struct WriteTargetAuditDiagnosticRow: View {
             diagnosticField("Row Scan", diagnostic.rowScanDetails)
 
             if let message = diagnostic.message, !message.isEmpty {
-                Text(message)
-                    .font(Theme.font(.historyChip))
-                    .foregroundStyle(.red)
+                DangerMarkedText(message: message, role: .historyChip)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -416,7 +414,7 @@ private struct WriteTargetAuditDiagnosticRow: View {
     }
 
     private var statusColor: Color {
-        diagnostic.status == "Conflict" ? .red : palette.accent
+        diagnostic.status == "Conflict" ? palette.danger : palette.accent
     }
 
     private var accessibilityLabel: String {
@@ -436,7 +434,7 @@ private struct WriteTargetAuditDiagnosticRow: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
                 .font(Theme.font(.cadence))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.textSecondary)
             Text(value)
                 .font(Theme.font(.historyChip))
                 .foregroundStyle(.primary)

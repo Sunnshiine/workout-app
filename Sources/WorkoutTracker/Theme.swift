@@ -34,12 +34,14 @@ enum Theme {
     enum Paint {
         static let ink = rgb(21, 33, 24) // #152118 — day text
         static let inkNight = rgb(239, 243, 227) // #EFF3E3 — night text
-        static let muted = rgb(82, 100, 87) // #526457 — day secondary
+        static let muted = rgb(64, 78, 68) // #404E44 — day secondary
         static let mutedNight = rgb(154, 170, 155) // #9AAA9B — night secondary
+        static let mutedNightLight = rgb(170, 186, 170) // #AABAAA — night Superset partner name
         static let cream = rgb(242, 247, 232) // #F2F7E8 — the workhorse
         static let actionDay = rgb(13, 107, 64) // #0D6B40 — day action / leaf / stem / bird
         static let actionNight = rgb(31, 133, 82) // #1F8552 — night action (mint is banned at night)
         static let foliage = rgb(87, 145, 104) // #579168 — the night pigment
+        static let foliageDeep = rgb(63, 106, 75) // #3F6A4B — day Superset partner name
         static let paperDayTop = rgb(233, 238, 220) // #E9EEDC
         static let paperDayBottom = rgb(203, 225, 194) // #CBE1C2
         static let paperNightTop = rgb(35, 44, 32) // #232C20
@@ -157,16 +159,15 @@ enum Theme {
         let skipStroke: Color
         /// The page's one glow: the active bud is lit at Night, unlit by Day (nil).
         let budGlow: Color?
-        /// The Superset partner branch's pigment (DESIGN.md §5.4). The partner
-        /// subordinates by pigment by Day (a foliage tone against the focus's
-        /// darker `stem`/`leafFill`) and by translucency at Night (foliage @ 0.55).
         let supersetPartnerBranch: Color
+        let supersetPartnerName: Color
 
         // Active Set Card & input block
         let surface: Color
         let surfaceShadow: [BoxShadow]
         let pillFill: Color
         let pillStroke: Color
+        let stepperGlyph: Color
         let railFill: Color
         /// The selected rail chip's cream fill, lit under the inset action ring (token sheet
         /// §Active Set Card, "rail chip selected").
@@ -322,7 +323,7 @@ enum Theme {
     static let blockTileSpacing: CGFloat = 10
     static let blockTileMiniSpacing: CGFloat = 5
     static let blockTileStroke: CGFloat = 1 // quiet available / mini strokes
-    static let blockTileCurrentStroke: CGFloat = 1.5 // the cream-bud current tile's #1F8552 rim
+    static let blockTileCurrentStroke: CGFloat = 1.5 // the current tile's rim
     static let blockTileGhostStroke: CGFloat = 1.5 // the empty bed's dashed outline
     static let blockTileGhostDash: CGFloat = 4
     static let blockWeekCardPadding: CGFloat = 14
@@ -461,6 +462,7 @@ extension Theme {
     private static let nightSurfaceShadow = [
         BoxShadow(y: 0, blur: 0, spread: 1, color: Paint.cream.opacity(0.10), inset: true)
     ]
+    private static let nightBud = rgb(120, 240, 178) // #78F0B2 — the bud carries the page's one glow
     private static let nightBudGlow = rgb(120, 240, 178, 0.32)
 }
 
@@ -530,6 +532,7 @@ extension Theme {
         skipStroke: Paint.muted.opacity(0.42),
         budGlow: nil,
         supersetPartnerBranch: Paint.foliage, // Day quiets the partner by pigment
+        supersetPartnerName: Paint.foliageDeep,
 
         surface: Paint.cream.opacity(0.52),
         surfaceShadow: [
@@ -538,6 +541,7 @@ extension Theme {
         ],
         pillFill: Paint.cream.opacity(0.85),
         pillStroke: rgb(82, 111, 90, 0.34),
+        stepperGlyph: Paint.actionDay,
         railFill: Paint.cream.opacity(0.55),
         railSelectedFill: Paint.cream.opacity(0.95),
         prescriptionTick: Paint.actionDay,
@@ -584,15 +588,17 @@ extension Theme {
         leafFill: Paint.foliage,
         leafRib: Paint.cream.opacity(0.55),
         budFill: Paint.cream.opacity(0.92),
-        budStroke: rgb(120, 240, 178), // #78F0B2 — the bud carries the page's one glow
+        budStroke: nightBud,
         futureStroke: Paint.foliage.opacity(0.45),
         skipStroke: Paint.mutedNight.opacity(0.40),
         budGlow: nightBudGlow,
         supersetPartnerBranch: Paint.foliage.opacity(0.55), // Night quiets the partner by translucency
+        supersetPartnerName: Paint.mutedNightLight,
         surface: nightSurface,
         surfaceShadow: nightSurfaceShadow,
         pillFill: Paint.cream.opacity(0.06),
         pillStroke: Paint.cream.opacity(0.16),
+        stepperGlyph: Paint.cream,
         railFill: Paint.cream.opacity(0.06),
         railSelectedFill: Paint.cream.opacity(0.14),
         prescriptionTick: Paint.actionNight,
@@ -604,8 +610,8 @@ extension Theme {
         skipFillOverlay: Paint.mutedNight.opacity(0.30), // muted hold-to-skip overlay, re-lit for Night (#488)
         footFill: Paint.cream.opacity(0.06),
         queueStroke: Paint.cream.opacity(0.20),
-        tileCurrentFill: Paint.cream.opacity(0.95),
-        tileCurrentBorder: rgb(31, 133, 82), // literal #1F8552 — kept exactly as approved
+        tileCurrentFill: Paint.foliage,
+        tileCurrentBorder: nightBud,
         tileGhostStroke: Paint.mutedNight.opacity(0.38),
         weekCardShade: Paint.cream.opacity(0.06),
         sheetFill: rgb(31, 40, 29), // night sheet follows the #418 recipe (flagged for build validation)
@@ -689,6 +695,7 @@ extension Theme {
         case ceremonyTitle
         case connectTitle
         case sheetTitle
+        case heading
         case supersetPartner
         case weightEntry
         case logCapsule
@@ -716,6 +723,7 @@ extension Theme {
             .ceremonyTitle: TypeStyle(face: .fraunces, size: 38, weight: 490, lineHeight: 1.10),
             .connectTitle: TypeStyle(face: .fraunces, size: 36, weight: 490),
             .sheetTitle: TypeStyle(face: .fraunces, size: 24, weight: 490, lineHeight: 1.1, opticalSize: 22),
+            .heading: TypeStyle(face: .sourceSans3, size: 17, weight: 650),
             // The Superset "& partner" name line: the warm serif voice, subordinate to the
             // 33pt focused Exercise name and doubling as the manual focus switch (DESIGN.md §5.4).
             .supersetPartner: TypeStyle(face: .fraunces, size: 20, weight: 490, lineHeight: 1.10, opticalSize: 20),

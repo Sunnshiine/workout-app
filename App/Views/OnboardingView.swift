@@ -6,6 +6,7 @@ struct OnboardingView: View {
     @Environment(WorkoutStore.self) private var workout
     @Environment(\.themePalette) private var palette
     @State private var urlText = ""
+    @FocusState private var urlFieldFocused: Bool
     @State private var urlError = false
     @State private var showsURLFallback = false
     @State private var switchStore: SettingsSheetSwitchStore?
@@ -144,18 +145,27 @@ struct OnboardingView: View {
             Text("Paste your sheet URL")
                 .font(Theme.font(.sheetTitle))
 
-            TextField(fieldName, text: $urlText)
-                .textFieldStyle(.roundedBorder)
-                .autocorrectionDisabled()
-                .textInputAutocapitalization(.never)
-                .accessibilityIdentifier("onboarding-url-field")
-                .accessibilityLabel(fieldName)
-                .onChange(of: urlText) { urlError = false }
+            TextField(
+                fieldName,
+                text: $urlText,
+                prompt: Text(fieldName).foregroundStyle(palette.textSecondary)
+            )
+            .textFieldStyle(.plain)
+            .autocorrectionDisabled()
+            .textInputAutocapitalization(.never)
+            .focused($urlFieldFocused)
+            .accessibilityIdentifier("onboarding-url-field")
+            .accessibilityLabel(fieldName)
+            .onChange(of: urlText) { urlError = false }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(palette.pillFill, in: .capsule)
+            .overlay { Capsule().strokeBorder(palette.pillStroke, lineWidth: 1) }
+            .contentShape(Capsule())
+            .onTapGesture { urlFieldFocused = true }
 
             if urlError {
-                Text("That doesn't look like a Sheet URL")
-                    .font(Theme.font(.historyChip))
-                    .foregroundStyle(.red)
+                DangerMarkedText(message: "That doesn't look like a Sheet URL", role: .historyChip)
             }
 
             Button("Save") { saveURL() }
@@ -297,9 +307,7 @@ struct SheetPickerView: View {
         if let store {
             if let message = store.listErrorMessage {
                 VStack(spacing: 12) {
-                    Text(message)
-                        .font(Theme.font(.queuePill))
-                        .foregroundStyle(.red)
+                    DangerMarkedText(message: message, role: .queuePill)
 
                     Button("Retry") {
                         Task { await store.loadInitial() }
@@ -371,13 +379,13 @@ private struct SheetPickerRow: View {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(spreadsheet.name)
-                            .font(Theme.font(.sheetTitle))
+                            .font(Theme.font(.heading))
                             .foregroundStyle(.primary)
                             .lineLimit(2)
 
                         Text(modifiedText)
                             .font(Theme.font(.historyChip))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(palette.textSecondary)
                     }
 
                     Spacer()
@@ -388,9 +396,7 @@ private struct SheetPickerRow: View {
                 }
 
                 if let errorMessage {
-                    Text(errorMessage)
-                        .font(Theme.font(.historyChip))
-                        .foregroundStyle(.red)
+                    DangerMarkedText(message: errorMessage, role: .historyChip)
                 }
             }
             .padding(14)
