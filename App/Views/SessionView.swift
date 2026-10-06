@@ -216,10 +216,7 @@ extension SessionView {
             skip: skipWithFade,
             delete: coordinator.deleteLog(for:),
             focusSupersetExercise: { exercise in
-                // The stage animates when its focused Set changes, and a side switch must not move the card.
-                withTransaction(\.disablesAnimations, true) {
-                    coordinator.focusNextSupersetSet(for: exercise, in: session)
-                }
+                switchSupersetSideInOneFrame(to: exercise, in: session)
             },
             showSourceSession: showSourceSession(for:),
             moveOn: {
@@ -346,6 +343,12 @@ extension SessionView {
         }
         let setID = SessionCoordinator.activeSetID(for: set)
         return setID == coordinator.expandedLoggedSetID ? .loggedReviewCollapse : .loggedReviewOpen
+    }
+
+    private func switchSupersetSideInOneFrame(to exercise: Exercise, in session: Session) {
+        _ = withTransaction(\.disablesAnimations, true) {
+            coordinator.focusNextSupersetSet(for: exercise, in: session)
+        }
     }
 
 }
