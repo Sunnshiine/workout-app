@@ -716,6 +716,7 @@ extension Theme {
         case ceremonyTitle
         case connectTitle
         case sheetTitle
+        case heading
         case supersetPartner
         case weightEntry
         case logCapsule
@@ -743,6 +744,8 @@ extension Theme {
             .ceremonyTitle: TypeStyle(face: .fraunces, size: 38, weight: 490, lineHeight: 1.10),
             .connectTitle: TypeStyle(face: .fraunces, size: 36, weight: 490),
             .sheetTitle: TypeStyle(face: .fraunces, size: 24, weight: 490, lineHeight: 1.1, opticalSize: 22),
+            // Heads utility sections and picker rows, where Fraunces may not go (One Voice Rule).
+            .heading: TypeStyle(face: .sourceSans3, size: 17, weight: 650),
             // The Superset "& partner" name line: the warm serif voice, subordinate to the
             // 33pt focused Exercise name and doubling as the manual focus switch (DESIGN.md §5.4).
             .supersetPartner: TypeStyle(face: .fraunces, size: 20, weight: 490, lineHeight: 1.10, opticalSize: 20),

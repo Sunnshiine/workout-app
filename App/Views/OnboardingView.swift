@@ -341,7 +341,7 @@ private struct SheetPickerRow: View {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(spreadsheet.name)
-                            .font(Theme.font(.sheetTitle))
+                            .font(Theme.font(.heading))
                             .foregroundStyle(.primary)
                             .lineLimit(2)
 
