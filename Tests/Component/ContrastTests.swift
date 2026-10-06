@@ -19,8 +19,8 @@ private func srgbComponents(of color: Color) -> (rgb: SRGB, alpha: Double) {
     return (rgb, Double(resolved.opacity))
 }
 
-private func composite(_ layers: [Color]) -> SRGB {
-    layers.dropFirst().reduce(srgbComponents(of: layers[0]).rgb) { ground, layer in
+private func composite(_ layers: [Color], over ground: Color) -> SRGB {
+    layers.reduce(srgbComponents(of: ground).rgb) { ground, layer in
         let (top, alpha) = srgbComponents(of: layer)
         return SRGB(
             red: top.red * alpha + ground.red * (1 - alpha),
@@ -38,14 +38,34 @@ private func relativeLuminance(_ color: SRGB) -> Double {
     return 0.2126 * linear(color.red) + 0.7152 * linear(color.green) + 0.0722 * linear(color.blue)
 }
 
-private func contrast(of mark: Color, over ground: [Color]) -> Double {
-    let lighter = relativeLuminance(composite(ground + [mark]))
-    let darker = relativeLuminance(composite(ground))
+private struct Ground {
+    let base: Color
+    let layers: [Color]
+}
+
+private func contrast(of mark: Color, over ground: Ground) -> Double {
+    let lighter = relativeLuminance(composite(ground.layers + [mark], over: ground.base))
+    let darker = relativeLuminance(composite(ground.layers, over: ground.base))
     return (max(lighter, darker) + 0.05) / (min(lighter, darker) + 0.05)
 }
 
-private func stepperGround(_ palette: Theme.Palette) -> [Color] {
-    [palette.paper.baseTop, palette.surface, palette.pillFill]
+private func stepperPillGround(_ palette: Theme.Palette) -> Ground {
+    Ground(base: palette.paper.baseTop, layers: [palette.surface, palette.pillFill])
+}
+
+/// The base gradient a third of the way down the page, below the partner name, with no wash.
+private func dayUpperStageGround(_ day: Theme.Palette) -> Ground {
+    Ground(base: day.paper.baseTop, layers: [day.paper.baseBottom.opacity(0.35)])
+}
+
+/// The top stop under the sun wash at full strength, the lightest ground light text meets up top.
+private func nightSunlitGround(_ night: Theme.Palette) throws -> Ground {
+    Ground(base: night.paper.baseTop, layers: [try #require(night.paper.washes.first).color])
+}
+
+/// The bottom stop under the foot wash at full strength, the darkest Day ground under text.
+private func dayFootGround(_ day: Theme.Palette) throws -> Ground {
+    Ground(base: day.paper.baseBottom, layers: [try #require(day.paper.washes.last).color])
 }
 
 @Test func paletteTokensResolveToTheirSRGBChannels() {
@@ -55,28 +75,25 @@ private func stepperGround(_ palette: Theme.Palette) -> [Color] {
 
 @Test func nightWeightStepperGlyphReadsAtThreeToOne() {
     let night = Theme.palette(for: Theme.Appearance.night)
-    #expect(contrast(of: night.stepperGlyph, over: stepperGround(night)) >= 3.0)
+    #expect(contrast(of: night.stepperGlyph, over: stepperPillGround(night)) >= 3.0)
 }
 
 @Test func dayWeightStepperGlyphReadsAtThreeToOne() {
     let day = Theme.palette(for: Theme.Appearance.day)
-    #expect(contrast(of: day.stepperGlyph, over: stepperGround(day)) >= 3.0)
+    #expect(contrast(of: day.stepperGlyph, over: stepperPillGround(day)) >= 3.0)
 }
 
 @Test func daySupersetPartnerNameReadsAsText() {
     let day = Theme.palette(for: Theme.Appearance.day)
-    let ground = [day.paper.baseTop, day.paper.baseBottom.opacity(0.35)]
-    #expect(contrast(of: day.supersetPartnerName, over: ground) >= 4.5)
+    #expect(contrast(of: day.supersetPartnerName, over: dayUpperStageGround(day)) >= 4.5)
 }
 
 @Test func nightSupersetPartnerNameReadsAsText() throws {
     let night = Theme.palette(for: Theme.Appearance.night)
-    let sunWash = try #require(night.paper.washes.first)
-    #expect(contrast(of: night.supersetPartnerName, over: [night.paper.baseTop, sunWash.color]) >= 4.5)
+    #expect(contrast(of: night.supersetPartnerName, over: try nightSunlitGround(night)) >= 4.5)
 }
 
 @Test func daySecondaryTextReadsAsTextInTheStageFoot() throws {
     let day = Theme.palette(for: Theme.Appearance.day)
-    let footWash = try #require(day.paper.washes.last)
-    #expect(contrast(of: day.textSecondary, over: [day.paper.baseBottom, footWash.color]) >= 4.5)
+    #expect(contrast(of: day.textSecondary, over: try dayFootGround(day)) >= 4.5)
 }

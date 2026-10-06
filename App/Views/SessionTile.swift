@@ -1,5 +1,9 @@
 import SwiftUI
 
+/// A wordless Block-grid day tile: fill and stroke alone say state — inked complete,
+/// the bud current with its rim and glow, quiet available (with ink rising from the
+/// foot in quantized quarters for partial work), and the dashed empty bed for an
+/// un-uploaded day. No text, no icons — the lock is dead (DESIGN.md §5.5).
 struct SessionTile: View {
     enum Variant {
         /// A full day tile in the focus week.
