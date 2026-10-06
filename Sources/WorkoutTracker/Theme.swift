@@ -36,10 +36,12 @@ enum Theme {
         static let inkNight = rgb(239, 243, 227) // #EFF3E3 — night text
         static let muted = rgb(64, 78, 68) // #404E44 — day secondary
         static let mutedNight = rgb(154, 170, 155) // #9AAA9B — night secondary
+        static let mutedNightLight = rgb(170, 186, 170) // #AABAAA — night Superset partner name
         static let cream = rgb(242, 247, 232) // #F2F7E8 — the workhorse
         static let actionDay = rgb(13, 107, 64) // #0D6B40 — day action / leaf / stem / bird
         static let actionNight = rgb(31, 133, 82) // #1F8552 — night action (mint is banned at night)
         static let foliage = rgb(87, 145, 104) // #579168 — the night pigment
+        static let foliageDeep = rgb(63, 106, 75) // #3F6A4B — day Superset partner name
         static let paperDayTop = rgb(233, 238, 220) // #E9EEDC
         static let paperDayBottom = rgb(203, 225, 194) // #CBE1C2
         static let paperNightTop = rgb(35, 44, 32) // #232C20
@@ -163,7 +165,7 @@ enum Theme {
         let supersetPartnerBranch: Color
         /// The Superset "& partner" name line, which is also the manual focus switch. It
         /// subordinates by its smaller size and a muted tone rather than the branch's translucency,
-        /// which drew the name at 2.16:1 at Night where text needs 4.5:1.
+        /// which drew the name at 1.7:1 under the Night sun wash where text needs 4.5:1.
         let supersetPartnerName: Color
 
         // Active Set Card & input block
@@ -538,7 +540,7 @@ extension Theme {
         skipStroke: Paint.muted.opacity(0.42),
         budGlow: nil,
         supersetPartnerBranch: Paint.foliage, // Day quiets the partner by pigment
-        supersetPartnerName: rgb(69, 115, 82), // #457352 — a deeper foliage that holds 4.5:1 on Day paper
+        supersetPartnerName: Paint.foliageDeep,
 
         surface: Paint.cream.opacity(0.52),
         surfaceShadow: [
@@ -599,7 +601,7 @@ extension Theme {
         skipStroke: Paint.mutedNight.opacity(0.40),
         budGlow: nightBudGlow,
         supersetPartnerBranch: Paint.foliage.opacity(0.55), // Night quiets the partner by translucency
-        supersetPartnerName: Paint.mutedNight,
+        supersetPartnerName: Paint.mutedNightLight,
         surface: nightSurface,
         surfaceShadow: nightSurfaceShadow,
         pillFill: Paint.cream.opacity(0.06),

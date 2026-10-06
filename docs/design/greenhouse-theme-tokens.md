@@ -42,10 +42,12 @@ are recorded inline.
 | `inkNight` | `#EFF3E3` | night text |
 | `muted` | `#404E44` | day secondary text |
 | `mutedNight` | `#9AAA9B` | night secondary text |
+| `mutedNightLight` | `#AABAAA` | night Superset partner name; mutedNight falls under 4.5:1 beneath the sun wash |
 | `cream` | `#F2F7E8` | the workhorse — surfaces, pills, buds, ribs, action text (~15 roles at varying opacity) |
 | `actionDay` | `#0D6B40` | day action green; also day leaf/stem/bird pigment |
 | `actionNight` | `#1F8552` | night action green (mint is banned from the action role at night) |
 | `foliage` | `#579168` | *the* night pigment: leaves, stems, bird, tiles re-light to this |
+| `foliageDeep` | `#3F6A4B` | day Superset partner name; a foliage deep enough for 4.5:1 on Day paper |
 | `paperDay` | `#E9EEDC → #CBE1C2` | base pair under the day washes (atmosphere pick — supersedes `#E8EDDB → #C7E0BF`) |
 | `paperNight` | `#232C20 → #121D14` | hue-preserved deep sage, never neutral black (#418) |
 
