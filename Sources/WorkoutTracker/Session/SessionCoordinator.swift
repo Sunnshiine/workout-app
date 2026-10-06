@@ -21,11 +21,13 @@ protocol SessionLiveActivityAdapter {
     func endIfInvalidated(at liveEdge: LiveEdge)
 }
 
-/// Whether Move On and the Open Exercises are offered, and where they take the athlete.
+/// Whether a Session is at the live edge, whether Move On and the Open Exercises are offered
+/// there, and where they take the athlete.
 @MainActor
 protocol SessionNavigationAdapter {
     var canMoveOn: Bool { get }
     var openExercises: [Exercise] { get }
+    func liveEdge(for session: Session) -> LiveEdge
     func requestMoveOnCelebration()
     func show(_ address: SessionAddress)
 }
@@ -101,6 +103,7 @@ private struct NoopSessionLiveActivityAdapter: SessionLiveActivityAdapter {
 private struct NoopSessionNavigationAdapter: SessionNavigationAdapter {
     var canMoveOn: Bool { false }
     var openExercises: [Exercise] { [] }
+    func liveEdge(for session: Session) -> LiveEdge { .browsedAway }
     func requestMoveOnCelebration() {}
     func show(_ address: SessionAddress) {}
 }
@@ -124,7 +127,6 @@ final class SessionCoordinator {
     @ObservationIgnored private var liveActivityAdapter: any SessionLiveActivityAdapter
     private var navigationAdapter: any SessionNavigationAdapter
     @ObservationIgnored private var motion: any SessionMotionPerforming
-    private var liveEdge: (Session) -> LiveEdge = { _ in .browsedAway }
     @ObservationIgnored private let transitionClock: any SessionTransitionClock
     @ObservationIgnored private var restTimer: RestTimer?
     @ObservationIgnored private var standardRestDuration: () -> TimeInterval
@@ -171,7 +173,6 @@ final class SessionCoordinator {
         focusManager.reset(to: session)
     }
 
-    // swiftlint:disable:next function_parameter_count
     func bind(
         to session: Session?,
         logging: any SessionLoggingAdapter,
@@ -181,8 +182,7 @@ final class SessionCoordinator {
         supersetRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.superset.timeInterval },
         liveActivity: (any SessionLiveActivityAdapter)? = nil,
         navigation: any SessionNavigationAdapter,
-        motion: any SessionMotionPerforming,
-        liveEdge: @escaping (Session) -> LiveEdge
+        motion: any SessionMotionPerforming
     ) {
         navigationAdapter = navigation
         self.motion = motion
@@ -192,7 +192,6 @@ final class SessionCoordinator {
         if let liveActivity {
             liveActivityAdapter = liveActivity
         }
-        self.liveEdge = liveEdge
         loggingAdapter = logging
         syncAdapter = sync
         bind(to: session)
@@ -353,7 +352,7 @@ extension SessionCoordinator {
     }
 
     private func liveEdgeContext(for session: Session) -> LiveEdgeContext {
-        guard liveEdge(session).isAtLiveEdge else { return .browsedAway }
+        guard navigationAdapter.liveEdge(for: session).isAtLiveEdge else { return .browsedAway }
         return .atLiveEdge(canMoveOn: navigationAdapter.canMoveOn, openExercises: navigationAdapter.openExercises)
     }
 }
@@ -395,7 +394,7 @@ extension SessionCoordinator {
         let event = LiveActivityProductionEvent(
             source: .userSetLog,
             outcome: .success,
-            sessionScope: liveEdge(session).isAtLiveEdge ? .currentSession : .nonCurrentSession
+            sessionScope: navigationAdapter.liveEdge(for: session).isAtLiveEdge ? .currentSession : .nonCurrentSession
         )
         guard
             LiveActivityCreationPolicy.shouldCreateOrUpdate(for: event),
@@ -418,7 +417,7 @@ extension SessionCoordinator {
     }
 
     fileprivate func reconcileLiveActivity(for session: Session) {
-        liveActivityAdapter.endIfInvalidated(at: liveEdge(session))
+        liveActivityAdapter.endIfInvalidated(at: navigationAdapter.liveEdge(for: session))
     }
 
     fileprivate func liveActivitySessionLabel(for session: Session) -> String {
