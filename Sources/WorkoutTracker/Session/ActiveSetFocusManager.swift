@@ -161,10 +161,6 @@ final class ActiveSetFocusManager {
         supersetState.isPaired(exercise)
     }
 
-    func canFocusNextSupersetSet(for exercise: Exercise, in session: Session) -> Bool {
-        supersetState.canFocusNextPendingSet(for: exercise, in: session)
-    }
-
     @discardableResult
     func focusNextSupersetSet(for exercise: Exercise, in session: Session) -> Bool {
         guard let nextSetID = supersetState.focusNextPendingSet(for: exercise, in: session) else {

@@ -216,7 +216,7 @@ extension SessionView {
             skip: skipWithFade,
             delete: coordinator.deleteLog(for:),
             focusSupersetExercise: { exercise in
-                focusSupersetWithMorph(exercise, in: session)
+                coordinator.focusNextSupersetSet(for: exercise, in: session)
             },
             showSourceSession: showSourceSession(for:),
             moveOn: {
@@ -343,20 +343,6 @@ extension SessionView {
         }
         let setID = SessionCoordinator.activeSetID(for: set)
         return setID == coordinator.expandedLoggedSetID ? .loggedReviewCollapse : .loggedReviewOpen
-    }
-
-    private func focusSupersetWithMorph(_ exercise: Exercise, in session: Session) {
-        let policy = SessionFocusMorphPolicy(reduceMotion: reduceMotion)
-        guard policy.shouldAnimate(.supersetSwitchSucceeded) else {
-            _ = coordinator.focusNextSupersetSet(for: exercise, in: session)
-            return
-        }
-
-        _ = coordinator.focusNextSupersetSet(for: exercise, in: session) { updateFocus in
-            withAnimation(Theme.focusMorphAnimation) {
-                updateFocus()
-            }
-        }
     }
 
 }

@@ -347,19 +347,8 @@ final class SessionCoordinator {
     }
 
     @discardableResult
-    func focusNextSupersetSet(
-        for exercise: Exercise,
-        in session: Session,
-        animateFocus: SessionFocusAnimation? = nil
-    ) -> Bool {
-        guard focusManager.canFocusNextSupersetSet(for: exercise, in: session) else {
-            return false
-        }
-
-        performFocusUpdate(animateFocus) {
-            focusManager.focusNextSupersetSet(for: exercise, in: session)
-        }
-        return true
+    func focusNextSupersetSet(for exercise: Exercise, in session: Session) -> Bool {
+        focusManager.focusNextSupersetSet(for: exercise, in: session)
     }
 
     func clearTransition(_ transition: ActiveSetTransition) {

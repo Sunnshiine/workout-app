@@ -585,44 +585,6 @@ private func makeRestActionFixture(
 }
 
 @MainActor
-@Test func coordinatorSupersetSideSwitchUsesInjectedFocusAnimationWithoutTransition() throws {
-    let session = makePlannedPairingSession()
-    let coordinator = SessionCoordinator(session: session)
-    let squat = try #require(session.exercises.first { $0.order == 1 })
-    let bench = try #require(session.exercises.first { $0.order == 2 })
-    var animationCallCount = 0
-    let animation: SessionFocusAnimation = { update in
-        animationCallCount += 1
-        update()
-    }
-
-    #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
-    #expect(coordinator.focusNextSupersetSet(for: bench, in: session, animateFocus: animation))
-
-    let expectedSetID = ActiveSetID(exerciseOrder: 2, setIndex: 0)
-    #expect(animationCallCount == 1)
-    #expect(coordinator.activeSetID == expectedSetID)
-    #expect(coordinator.activeSetTransition == nil)
-}
-
-@MainActor
-@Test func coordinatorFailedSupersetSideSwitchDoesNotUseInjectedFocusAnimation() throws {
-    let session = makePlannedPairingSession()
-    let coordinator = SessionCoordinator(session: session)
-    let press = try #require(session.exercises.first { $0.order == 0 })
-    var animationCallCount = 0
-    let animation: SessionFocusAnimation = { update in
-        animationCallCount += 1
-        update()
-    }
-
-    #expect(!coordinator.focusNextSupersetSet(for: press, in: session, animateFocus: animation))
-
-    #expect(animationCallCount == 0)
-    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
-}
-
-@MainActor
 @Test func coordinatorMembershipAgreesForPlannedButNotYetActiveSuperset() throws {
     let session = makePlannedPairingSession()
     let coordinator = SessionCoordinator(session: session)
@@ -1669,7 +1631,7 @@ private func makeRestActionFixture(
 }
 
 @MainActor
-@Test func aSideSwitchALogASkipAndATapEachMoveTheFocusInsideTheInjectedAnimation() throws {
+@Test func aLogASkipAndATapEachMoveTheFocusInsideTheInjectedAnimation() throws {
     let session = makeSquatAndRDLSession()
     let squat = try #require(session.exercises.first { $0.order == 0 })
     let rdl = try #require(session.exercises.first { $0.order == 1 })
@@ -1685,14 +1647,13 @@ private func makeRestActionFixture(
         focusMoves.append([before, coordinator.activeSetID])
     }
 
-    #expect(coordinator.focusNextSupersetSet(for: rdl, in: session, animateFocus: animation))
+    #expect(coordinator.focusNextSupersetSet(for: rdl, in: session))
     coordinator.log(firstRDLSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: .seven), animateFocus: animation)
     coordinator.skip(firstSquatSet, animateFocus: animation)
     coordinator.focus(on: secondSquatSet, animateFocus: animation)
 
     #expect(
         focusMoves == [
-            [ActiveSetID(exerciseOrder: 0, setIndex: 0), ActiveSetID(exerciseOrder: 1, setIndex: 0)],
             [ActiveSetID(exerciseOrder: 1, setIndex: 0), ActiveSetID(exerciseOrder: 0, setIndex: 0)],
             [ActiveSetID(exerciseOrder: 0, setIndex: 0), ActiveSetID(exerciseOrder: 1, setIndex: 1)],
             [ActiveSetID(exerciseOrder: 1, setIndex: 1), ActiveSetID(exerciseOrder: 0, setIndex: 1)]

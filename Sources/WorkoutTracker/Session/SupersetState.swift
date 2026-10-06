@@ -103,11 +103,6 @@ final class SupersetState {
         return alternation.setID
     }
 
-    func canFocusNextPendingSet(for exercise: Exercise, in session: Session) -> Bool {
-        guard pair(containing: exercise) != nil else { return false }
-        return nextPendingSetID(for: SupersetExerciseIdentity(exercise: exercise), in: session) != nil
-    }
-
     func focusNextPendingSet(for exercise: Exercise, in session: Session) -> ActiveSetID? {
         guard let pair = pair(containing: exercise) else { return nil }
         let identity = SupersetExerciseIdentity(exercise: exercise)
