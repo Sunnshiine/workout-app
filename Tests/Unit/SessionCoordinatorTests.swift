@@ -1238,6 +1238,29 @@ private func makeRestActionFixture(
 }
 
 @MainActor
+@Test func aCompletedStageReadBeforeTheBindHearsTheBindThatBringsMoveOn() throws {
+    let (session, set) = makeSingleSetSession(dayNumber: 1)
+    set.state = .logged
+    let navigation = SpySessionNavigationAdapter()
+    navigation.canMoveOn = true
+    let coordinator = SessionCoordinator()
+    let changes = ObservedChanges()
+    changes.watch { _ = coordinator.stage(in: session, lookup: .empty) }
+
+    coordinator.bind(
+        to: session,
+        logging: SpySessionLoggingAdapter(),
+        sync: SpySessionSyncAdapter(),
+        navigation: navigation,
+        motion: ImmediateSessionMotion(),
+        liveEdge: { .atLiveEdge(currentSession: $0) }
+    )
+
+    #expect(changes.fired == 1)
+    #expect(coordinator.stage(in: session, lookup: .empty).queue.showsMoveOn)
+}
+
+@MainActor
 @Test func loggingLastCurrentWeekPendingSetDoesNotStartRestTimer() throws {
     let current = makeSingleSetSession(dayNumber: 1)
     connectCoordinatorWeek([current.session])
