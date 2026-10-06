@@ -278,7 +278,7 @@ private func makePlannedSupersetSession() -> Session {
     #expect(focus.createSuperset(with: [squat, bench], in: session))
 
     let initial = focus.snapshot(in: session)
-    #expect(initial.supersets.map { $0.map(\.order) } == [[0, 1]])
+    #expect(initial.supersets.map { $0.exercises.map(\.order) } == [[0, 1]])
     #expect(initial.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
 
     #expect(focus.focusNextSupersetSet(for: bench, in: session))
@@ -323,7 +323,7 @@ private func makePlannedSupersetSession() -> Session {
     #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
 
     let snapshot = focus.snapshot(in: session)
-    #expect(snapshot.supersets.map { $0.map(\.order) } == [[1, 2]])
+    #expect(snapshot.supersets.map { $0.exercises.map(\.order) } == [[1, 2]])
     #expect(snapshot.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
     #expect(snapshot.pairableExerciseOrders.isEmpty)
 }

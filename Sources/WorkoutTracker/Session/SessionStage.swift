@@ -25,8 +25,7 @@ struct UpNext: Equatable {
 struct SessionFocusSnapshot: Equatable {
     let activeSetID: ActiveSetID?
     let expandedLoggedSetID: ActiveSetID?
-    /// Live Supersets, each as its two Exercises in the order they were paired.
-    let supersets: [[Exercise]]
+    let supersets: [Superset]
     /// Orders of the Exercises that could start or join a Superset now.
     let pairableExerciseOrders: Set<Int>
 }
@@ -223,11 +222,10 @@ extension ExerciseStage {
 
 @MainActor
 extension SupersetStage {
-    fileprivate init(_ exercises: [Exercise], snapshot: SessionFocusSnapshot, lookup: LastPerformedLookupSnapshot) {
-        let activeSetID = snapshot.visualActiveSetID.scoped(to: exercises)
-        let lowerFirst = exercises.sorted { $0.order < $1.order }
-        let focused = lowerFirst.first { $0.order == activeSetID?.exerciseOrder } ?? lowerFirst[0]
-        let partner = exercises.first { $0.order != focused.order } ?? focused
+    fileprivate init(_ superset: Superset, snapshot: SessionFocusSnapshot, lookup: LastPerformedLookupSnapshot) {
+        let activeSetID = snapshot.visualActiveSetID.scoped(to: superset.exercises)
+        let focused = superset.exercises.first { $0.order == activeSetID?.exerciseOrder } ?? superset.lowerOrdered
+        let partner = superset.other(than: focused)
         let sets = focused.sortedSets
         self.focused = focused
         self.partner = partner
@@ -358,20 +356,19 @@ extension SessionQueue {
 private struct StageItem {
     enum Kind {
         case exercise(Exercise)
-        /// The Superset's Exercises in the order they were paired.
-        case superset([Exercise])
+        case superset(Superset)
     }
 
     let kind: Kind
 
-    static func items(in session: Session, supersets: [[Exercise]]) -> [StageItem] {
+    static func items(in session: Session, supersets: [Superset]) -> [StageItem] {
         session.exercises
             .sorted { $0.order < $1.order }
             .compactMap { exercise in
-                guard let superset = supersets.first(where: { $0.contains { $0.order == exercise.order } }) else {
+                guard let superset = supersets.first(where: { $0.exercises.contains { $0.order == exercise.order } }) else {
                     return StageItem(kind: .exercise(exercise))
                 }
-                return exercise.order == superset.map(\.order).min() ? StageItem(kind: .superset(superset)) : nil
+                return exercise.order == superset.lowerOrdered.order ? StageItem(kind: .superset(superset)) : nil
             }
     }
 
@@ -400,22 +397,22 @@ private struct StageItem {
         switch kind {
         case .exercise(let exercise):
             .exercise(ExerciseStage(exercise, snapshot: snapshot, savedLoggedSetID: savedLoggedSetID, lookup: lookup))
-        case .superset(let exercises):
-            .superset(SupersetStage(exercises, snapshot: snapshot, lookup: lookup))
+        case .superset(let superset):
+            .superset(SupersetStage(superset, snapshot: snapshot, lookup: lookup))
         }
     }
 
     var exercises: [Exercise] {
         switch kind {
         case .exercise(let exercise): [exercise]
-        case .superset(let exercises): exercises
+        case .superset(let superset): superset.exercises
         }
     }
 
     var id: String {
         switch kind {
         case .exercise(let exercise): "exercise-\(exercise.order)"
-        case .superset(let exercises): "superset-\(exercises.map(\.order).min() ?? Int.min)"
+        case .superset(let superset): "superset-\(superset.lowerOrdered.order)"
         }
     }
 
@@ -433,7 +430,11 @@ private struct StageItem {
     }
 
     func row(isOnStage: Bool, pairable: Set<Int>, pairingMode: PairingMode) -> SessionQueue.Row {
-        let exercise = exercises[0]
+        let (exercise, canBeginPairing): (Exercise, Bool) =
+            switch kind {
+            case .exercise(let exercise): (exercise, pairable.contains(exercise.order))
+            case .superset(let superset): (superset.first, false)
+            }
         return SessionQueue.Row(
             id: id,
             title: title,
@@ -442,7 +443,7 @@ private struct StageItem {
             isOnStage: isOnStage,
             exercise: exercise,
             jumpTarget: nextPendingSet,
-            canBeginPairing: exercises.count == 1 && pairable.contains(exercise.order),
+            canBeginPairing: canBeginPairing,
             pairingRole: pairingRole(mode: pairingMode, pairable: pairable)
         )
     }

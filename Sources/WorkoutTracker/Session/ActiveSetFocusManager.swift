@@ -105,7 +105,7 @@ final class ActiveSetFocusManager {
         SessionFocusSnapshot(
             activeSetID: activeSetID,
             expandedLoggedSetID: expandedLoggedSetID,
-            supersets: supersetState.exercisePairs(in: session),
+            supersets: supersetState.supersets(in: session),
             pairableExerciseOrders: Set(session.exercises.filter { canPair($0, in: session) }.map(\.order))
         )
     }
