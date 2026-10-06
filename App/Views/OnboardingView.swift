@@ -347,7 +347,7 @@ private struct SheetPickerRow: View {
 
                         Text(modifiedText)
                             .font(Theme.font(.historyChip))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(palette.textSecondary)
                     }
 
                     Spacer()
