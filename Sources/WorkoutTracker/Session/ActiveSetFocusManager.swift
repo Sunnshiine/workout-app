@@ -101,6 +101,17 @@ final class ActiveSetFocusManager {
         activeSetTransition = nil
     }
 
+    func motion(forFocusing set: ExerciseSet) -> SessionMotion? {
+        switch set.state {
+        case .pending:
+            .focusMorph
+        case .skipped:
+            nil
+        case .logged:
+            Self.id(for: set) == expandedLoggedSetID ? nil : .focusMorph
+        }
+    }
+
     func collapseLoggedSetReview() {
         expandedLoggedSetID = nil
     }

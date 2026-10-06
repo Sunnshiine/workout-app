@@ -149,8 +149,6 @@ enum SessionRenderItem {
     }
 }
 
-typealias SessionFocusAnimation = (() -> Void) -> Void
-
 @MainActor
 @Observable
 final class SessionCoordinator {
@@ -162,6 +160,7 @@ final class SessionCoordinator {
     @ObservationIgnored private var loggingAdapter: any SessionLoggingAdapter
     @ObservationIgnored private var syncAdapter: any SessionSyncAdapter
     @ObservationIgnored private var liveActivityAdapter: any SessionLiveActivityAdapter
+    @ObservationIgnored private var motion: any SessionMotionPerforming
     @ObservationIgnored private var liveEdge: (Session) -> LiveEdge = { _ in .browsedAway }
     @ObservationIgnored private let transitionClock: any SessionTransitionClock
     @ObservationIgnored private var restTimer: RestTimer?
@@ -178,9 +177,11 @@ final class SessionCoordinator {
         restTimer: RestTimer? = nil,
         standardRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.standard.timeInterval },
         supersetRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.superset.timeInterval },
-        liveActivity: any SessionLiveActivityAdapter = NoopSessionLiveActivityAdapter()
+        liveActivity: any SessionLiveActivityAdapter = NoopSessionLiveActivityAdapter(),
+        motion: any SessionMotionPerforming = ImmediateSessionMotion()
     ) {
         self.session = session
+        self.motion = motion
         self.focusManager = ActiveSetFocusManager(session: session)
         self.loggingAdapter = logging
         self.syncAdapter = sync
@@ -217,8 +218,10 @@ final class SessionCoordinator {
         standardRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.standard.timeInterval },
         supersetRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.superset.timeInterval },
         liveActivity: (any SessionLiveActivityAdapter)? = nil,
+        motion: any SessionMotionPerforming,
         liveEdge: @escaping (Session) -> LiveEdge
     ) {
+        self.motion = motion
         self.restTimer = restTimer
         self.standardRestDuration = standardRestDuration
         self.supersetRestDuration = supersetRestDuration
@@ -239,37 +242,22 @@ final class SessionCoordinator {
         focusManager.advanceAfterSkip(set, in: session)
     }
 
-    func focus(on set: ExerciseSet, animateFocus: SessionFocusAnimation? = nil) {
-        performFocusUpdate(animateFocus) {
-            focusManager.focus(on: set)
-            if case .loggedSetReview = focusManager.visualFocusOwner {
-                cancelTransitionExpiry()
-            }
+    func focus(on set: ExerciseSet) {
+        perform(focusManager.motion(forFocusing: set)) {
+            applyFocus(on: set)
         }
     }
 
-    func log(_ set: ExerciseSet, as log: SetLog, animateFocus: SessionFocusAnimation? = nil) {
+    /// The write, the rest, and the focus advance share one transaction. Split, an Observation
+    /// flush lands the write on its own with no animation, and the leaf snaps (#767).
+    func log(_ set: ExerciseSet, as log: SetLog) {
         do {
             let session = try actionSession(for: set)
             let wasSupersetMember = isSupersetMember(set)
-            try loggingAdapter.log(set, as: log)
-            let restKind = RestTriggerPolicy.restKind(
-                afterLogging: set,
-                in: session,
-                isSupersetMember: wasSupersetMember,
-                isRestRunning: restTimer?.isRunning ?? false
-            )
-            if let restKind {
-                restTimer?.start(
-                    duration: restDuration(for: restKind),
-                    origin: Self.activeSetID(for: set),
-                    originSetObjectID: ObjectIdentifier(set),
-                    kind: restKind
-                )
-                startOrUpdateLiveActivity(afterLogging: set, in: session)
-            }
-            reconcileLiveActivity(for: session)
-            performFocusUpdate(animateFocus) {
+            try perform(.momentumFlow) {
+                try loggingAdapter.log(set, as: log)
+                startRest(afterLogging: set, in: session, wasSupersetMember: wasSupersetMember)
+                reconcileLiveActivity(for: session)
                 advanceAfterLog(set, in: session)
             }
             scheduleTransitionExpiry()
@@ -279,12 +267,12 @@ final class SessionCoordinator {
         }
     }
 
-    func skip(_ set: ExerciseSet, animateFocus: SessionFocusAnimation? = nil) {
+    func skip(_ set: ExerciseSet) {
         do {
             let session = try actionSession(for: set)
-            try loggingAdapter.skip(set)
-            reconcileLiveActivity(for: session)
-            performFocusUpdate(animateFocus) {
+            try perform(.skipFadeUp) {
+                try loggingAdapter.skip(set)
+                reconcileLiveActivity(for: session)
                 advanceAfterSkip(set, in: session)
             }
             scheduleTransitionExpiry()
@@ -303,7 +291,7 @@ final class SessionCoordinator {
                 originSetObjectID: ObjectIdentifier(set)
             )
             reconcileLiveActivity(for: session)
-            focus(on: set)
+            applyFocus(on: set)
             cancelTransitionExpiry()
             syncAdapter.requestPendingWriteFlush()
         } catch {
@@ -348,7 +336,11 @@ final class SessionCoordinator {
 
     @discardableResult
     func focusNextSupersetSet(for exercise: Exercise, in session: Session) -> Bool {
-        focusManager.focusNextSupersetSet(for: exercise, in: session)
+        var focused = false
+        perform(.cut) {
+            focused = focusManager.focusNextSupersetSet(for: exercise, in: session)
+        }
+        return focused
     }
 
     func clearTransition(_ transition: ActiveSetTransition) {
@@ -359,14 +351,18 @@ final class SessionCoordinator {
         ActiveSetFocusManager.id(for: set)
     }
 
-    private func performFocusUpdate(
-        _ animation: SessionFocusAnimation?,
-        update: () -> Void
-    ) {
-        if let animation {
-            animation(update)
-        } else {
-            update()
+    private func perform(_ requested: SessionMotion?, _ change: () throws -> Void) rethrows {
+        guard let requested, requested.runs(reducingMotion: motion.reducesMotion) else {
+            try change()
+            return
+        }
+        try motion.animate(requested, change)
+    }
+
+    private func applyFocus(on set: ExerciseSet) {
+        focusManager.focus(on: set)
+        if case .loggedSetReview = focusManager.visualFocusOwner {
+            cancelTransitionExpiry()
         }
     }
 
@@ -439,6 +435,24 @@ extension SessionCoordinator {
         case .superset:
             supersetRestDuration()
         }
+    }
+
+    fileprivate func startRest(afterLogging set: ExerciseSet, in session: Session, wasSupersetMember: Bool) {
+        guard
+            let restKind = RestTriggerPolicy.restKind(
+                afterLogging: set,
+                in: session,
+                isSupersetMember: wasSupersetMember,
+                isRestRunning: restTimer?.isRunning ?? false
+            )
+        else { return }
+        restTimer?.start(
+            duration: restDuration(for: restKind),
+            origin: Self.activeSetID(for: set),
+            originSetObjectID: ObjectIdentifier(set),
+            kind: restKind
+        )
+        startOrUpdateLiveActivity(afterLogging: set, in: session)
     }
 
     fileprivate func startOrUpdateLiveActivity(afterLogging set: ExerciseSet, in session: Session) {
