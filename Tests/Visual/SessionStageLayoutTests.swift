@@ -503,7 +503,6 @@ private struct SessionPage: View {
     }
 }
 
-/// The coordinator SessionView binds, minus the screen's sync, rest, and motion.
 @MainActor
 private func boundCoordinator(to session: Session, store: WorkoutStore) -> SessionCoordinator {
     let coordinator = SessionCoordinator()
