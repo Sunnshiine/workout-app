@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// The full Session queue in a medium sheet: every stage item in Session order
 /// with its Set dots, the one on stage marked "Now", and Move On in the footer
@@ -8,23 +9,14 @@ import SwiftUI
 /// starts pairing, the row taps pick the partner, and the sheet falls back to
 /// browsing when pairing ends or the sheet closes.
 struct SessionQueueSheet: View {
-    let items: [SessionStageItem]
-    let stageItemID: String?
-    let showsMoveOn: Bool
-    let openExercises: [Exercise]
-    let pairingMode: PairingMode
-    let canBeginPairing: (SessionStageItem) -> Bool
-    let onJump: (SessionStageItem) -> Void
-    let onMoveOn: () -> Void
-    let onSelectOpenExercise: (Exercise) -> Void
-    let onBeginPairing: (SessionStageItem) -> Void
-    let onPairingTap: (SessionStageItem) -> Void
-    let onCancelPairing: () -> Void
+    let queue: SessionQueue
+    let session: Session
+    let coordinator: SessionCoordinator
     @Environment(\.dismiss) private var dismiss
     @Environment(\.themePalette) private var palette
 
     private var isPairing: Bool {
-        pairingMode != .inactive
+        queue.isPairing
     }
 
     var body: some View {
@@ -32,29 +24,26 @@ struct SessionQueueSheet: View {
             VStack(alignment: .leading, spacing: 10) {
                 header
 
-                ForEach(items) { item in
+                ForEach(queue.rows) { row in
                     if isPairing {
-                        pairingRow(
-                            for: item,
-                            role: SessionStagePresentation.pairingRole(of: item, mode: pairingMode)
-                        )
+                        pairingRow(for: row)
                     } else {
-                        queueRow(for: item, isOnStage: item.id == stageItemID)
+                        queueRow(for: row)
                     }
                 }
 
-                if !isPairing, !openExercises.isEmpty {
-                    OpenExercisesSection(exercises: openExercises) { exercise in
+                if !isPairing, !queue.openExercises.isEmpty {
+                    OpenExercisesSection(exercises: queue.openExercises) { exercise in
                         dismiss()
-                        onSelectOpenExercise(exercise)
+                        coordinator.showSourceSession(of: exercise)
                     }
                     .padding(.top, Theme.cardSpacing)
                 }
 
-                if showsMoveOn, !isPairing {
+                if queue.showsMoveOn, !isPairing {
                     SessionMoveOnButton(accessibilityID: "queue-move-on-button") {
                         dismiss()
-                        onMoveOn()
+                        coordinator.moveOn()
                     }
                     .padding(.top, Theme.cardSpacing)
                 }
@@ -62,12 +51,12 @@ struct SessionQueueSheet: View {
             .padding(.horizontal)
             .padding(.bottom)
         }
-        .animation(.easeInOut(duration: 0.18), value: pairingMode)
+        .animation(.easeInOut(duration: 0.18), value: queue.pairingMode)
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
         .presentationCornerRadius(Theme.Radius.soft)
         .presentationBackground { palette.paperBackground }
-        .onDisappear(perform: onCancelPairing)
+        .onDisappear(perform: coordinator.cancelPairing)
     }
 
     private var header: some View {
@@ -79,7 +68,7 @@ struct SessionQueueSheet: View {
             Spacer(minLength: 12)
 
             if isPairing {
-                Button("Cancel", action: onCancelPairing)
+                Button("Cancel", action: coordinator.cancelPairing)
                     .font(Theme.font(.queuePill))
                     .foregroundStyle(palette.accent)
                     .accessibilityIdentifier("stage-queue-cancel-pairing")
@@ -90,14 +79,16 @@ struct SessionQueueSheet: View {
 
     // MARK: - Browsing
 
-    private func queueRow(for item: SessionStageItem, isOnStage: Bool) -> some View {
+    private func queueRow(for row: SessionQueue.Row) -> some View {
         HStack(spacing: 0) {
             Button {
                 dismiss()
-                onJump(item)
+                if let target = row.jumpTarget {
+                    coordinator.focus(on: target)
+                }
             } label: {
-                rowLabel(for: item) {
-                    if isOnStage {
+                rowLabel(for: row) {
+                    if row.isOnStage {
                         Text("Now")
                             .font(Theme.font(.fieldLabel))
                             .foregroundStyle(palette.accent)
@@ -105,12 +96,12 @@ struct SessionQueueSheet: View {
                 }
             }
             .buttonStyle(.plain)
-            .disabled(item.isComplete)
-            .accessibilityIdentifier("stage-queue-row-\(item.id)")
+            .disabled(row.isComplete)
+            .accessibilityIdentifier("stage-queue-row-\(row.id)")
 
-            if canBeginPairing(item) {
+            if row.canBeginPairing {
                 Button {
-                    onBeginPairing(item)
+                    coordinator.beginPairing(from: row.exercise, in: session)
                 } label: {
                     Image(systemName: "link")
                         .font(Theme.font(.queuePill))
@@ -120,31 +111,33 @@ struct SessionQueueSheet: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Pair \(item.title) into a superset")
-                .accessibilityIdentifier("stage-queue-pair-\(item.id)")
+                .accessibilityLabel("Pair \(row.title) into a superset")
+                .accessibilityIdentifier("stage-queue-pair-\(row.id)")
             }
         }
     }
 
     // MARK: - Pairing
 
-    private func pairingRow(for item: SessionStageItem, role: QueuePairingRole) -> some View {
+    private func pairingRow(for row: SessionQueue.Row) -> some View {
         Button {
-            onPairingTap(item)
+            if coordinator.handlePairingTap(on: row.exercise, in: session) == .unavailable {
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            }
         } label: {
-            rowLabel(for: item) {
-                pairingIndicator(for: role)
+            rowLabel(for: row) {
+                pairingIndicator(for: row.pairingRole)
             }
         }
         .buttonStyle(.plain)
-        .opacity(role == .ineligibleTarget ? Theme.pairingUnavailableOpacity : 1)
+        .opacity(row.pairingRole == .ineligibleTarget ? Theme.pairingUnavailableOpacity : 1)
         .overlay {
-            if role == .confirmingTarget {
+            if row.pairingRole == .confirmingTarget {
                 RoundedRectangle(cornerRadius: Theme.Radius.soft)
                     .stroke(palette.accent, lineWidth: 2)
             }
         }
-        .accessibilityIdentifier("stage-queue-row-\(item.id)")
+        .accessibilityIdentifier("stage-queue-row-\(row.id)")
     }
 
     @ViewBuilder
@@ -165,15 +158,15 @@ struct SessionQueueSheet: View {
 
     // MARK: - Row label
 
-    private func rowLabel(for item: SessionStageItem, @ViewBuilder trailing: () -> some View) -> some View {
+    private func rowLabel(for row: SessionQueue.Row, @ViewBuilder trailing: () -> some View) -> some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(item.title)
+                Text(row.title)
                     .font(Theme.font(.queuePill))
-                    .foregroundStyle(item.isComplete ? palette.textSecondary : palette.textPrimary)
+                    .foregroundStyle(row.isComplete ? palette.textSecondary : palette.textPrimary)
                     .lineLimit(1)
 
-                SessionStageSetDots(sets: item.sortedSets)
+                SessionStageSetDots(sets: row.sets)
             }
 
             Spacer(minLength: 12)
