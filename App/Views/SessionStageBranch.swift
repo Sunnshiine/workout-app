@@ -82,12 +82,13 @@ struct SessionStageBranch: View {
                         .position(point)
                 }
             }
+            // A node leaving or joining mid-ink keeps the frame it had when it left or joined. Grouped,
+            // that frame is the branch's, so it rides the stem when the stage slides under it. Outside the
+            // reader, the group would round the size the reader measures and hang the lateral past its room.
+            .geometryGroup()
         }
         .frame(minHeight: Metrics.minimumHeight, idealHeight: Metrics.minimumHeight, maxHeight: .infinity)
         .frame(maxWidth: .infinity)
-        // A node leaving or joining mid-ink keeps the frame it had when it left or joined. Grouped,
-        // that frame is the branch's, so it rides the stem when the stage slides under it.
-        .geometryGroup()
         .animation(reduceMotion ? nil : Theme.wingAnimation(duration: Theme.Motion.leafInk), value: activeSetID)
         .animation(reduceMotion ? nil : Theme.wingAnimation(duration: Theme.Motion.leafInk), value: sets.count)
         .accessibilityElement(children: onTap == nil ? .ignore : .contain)
