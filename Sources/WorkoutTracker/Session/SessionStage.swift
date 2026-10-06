@@ -482,7 +482,6 @@ extension [ExerciseSet] {
 }
 
 extension ActiveSetID? {
-    /// The id when it names a Set of one of `exercises`.
     fileprivate func scoped(to exercises: [Exercise]) -> ActiveSetID? {
         flatMap { id in exercises.contains { $0.order == id.exerciseOrder } ? id : nil }
     }
