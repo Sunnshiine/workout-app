@@ -329,7 +329,7 @@ enum Theme {
     static let blockTileSpacing: CGFloat = 10
     static let blockTileMiniSpacing: CGFloat = 5
     static let blockTileStroke: CGFloat = 1 // quiet available / mini strokes
-    static let blockTileCurrentStroke: CGFloat = 1.5 // the cream-bud current tile's #1F8552 rim
+    static let blockTileCurrentStroke: CGFloat = 1.5 // the current tile's rim
     static let blockTileGhostStroke: CGFloat = 1.5 // the empty bed's dashed outline
     static let blockTileGhostDash: CGFloat = 4
     static let blockWeekCardPadding: CGFloat = 14
@@ -468,6 +468,7 @@ extension Theme {
     private static let nightSurfaceShadow = [
         BoxShadow(y: 0, blur: 0, spread: 1, color: Paint.cream.opacity(0.10), inset: true)
     ]
+    private static let nightBud = rgb(120, 240, 178) // #78F0B2 — the bud carries the page's one glow
     private static let nightBudGlow = rgb(120, 240, 178, 0.32)
 }
 
@@ -593,7 +594,7 @@ extension Theme {
         leafFill: Paint.foliage,
         leafRib: Paint.cream.opacity(0.55),
         budFill: Paint.cream.opacity(0.92),
-        budStroke: rgb(120, 240, 178), // #78F0B2 — the bud carries the page's one glow
+        budStroke: nightBud,
         futureStroke: Paint.foliage.opacity(0.45),
         skipStroke: Paint.mutedNight.opacity(0.40),
         budGlow: nightBudGlow,
@@ -615,8 +616,8 @@ extension Theme {
         skipFillOverlay: Paint.mutedNight.opacity(0.30), // muted hold-to-skip overlay, re-lit for Night (#488)
         footFill: Paint.cream.opacity(0.06),
         queueStroke: Paint.cream.opacity(0.20),
-        tileCurrentFill: Paint.cream.opacity(0.95),
-        tileCurrentBorder: rgb(31, 133, 82), // literal #1F8552 — kept exactly as approved
+        tileCurrentFill: Paint.foliage,
+        tileCurrentBorder: nightBud,
         tileGhostStroke: Paint.mutedNight.opacity(0.38),
         weekCardShade: Paint.cream.opacity(0.06),
         sheetFill: rgb(31, 40, 29), // night sheet follows the #418 recipe (flagged for build validation)
