@@ -40,7 +40,7 @@ are recorded inline.
 |---|---|---|
 | `ink` | `#152118` | day text; at low opacity: carved chips, scrim, shadows |
 | `inkNight` | `#EFF3E3` | night text |
-| `muted` | `#404E44` | day secondary text |
+| `muted` | `#404E44` | day secondary text; at low opacity: `skipStroke`, `skipFillOverlay`, `tileGhostStroke` |
 | `mutedNight` | `#9AAA9B` | night secondary text |
 | `mutedNightLight` | `#AABAAA` | night Superset partner name; mutedNight falls under 4.5:1 beneath the sun wash |
 | `cream` | `#F2F7E8` | the workhorse — surfaces, pills, buds, ribs, action text (~15 roles at varying opacity) |
@@ -99,6 +99,7 @@ appearance.
 | `budRib` | actionDay @ 55% | foliage @ 60% |
 | `futureStroke` | actionDay @ 40% | foliage @ 45% |
 | `skipStroke` (dashed 5 4) | muted @ 42% | mutedNight @ 40% |
+| `supersetPartnerName` (the "& partner" line) | foliageDeep | mutedNightLight |
 | `budGlow` | none | `drop-shadow(0 0 7px rgba(120,240,178,0.32))` — the page's one glow |
 
 Blade geometry (`M0,10 C16,-2 46,-4 64,3 C44,16 14,19 0,10 Z` in a 64x20
@@ -118,6 +119,7 @@ per layout, not tokenized.
 | `surfaceShadow` | `0 1px 2px rgba(21,33,24,0.04), 0 14px 30px rgba(21,33,24,0.07)` | `inset 0 0 0 1px` cream @ 10% (border-as-light, no drop) |
 | `pillFill` (stepper buttons) | cream @ 85% | cream @ 6% |
 | `pillStroke` | `rgba(82,111,90,0.34)` | cream @ 16% |
+| `stepperGlyph` (weight ±) | actionDay | cream |
 | `railFill` (reps/RPE rails) | cream @ 55% | cream @ 6% |
 | rail chip selected | cream fill + inset 2px `action` ring | same recipe, night values |
 | prescription tick (last week) | `action`, 18×3, r2 | `action` |
@@ -150,8 +152,8 @@ composition itself are locked by #455.
 | Role | Value (day) |
 |---|---|
 | `tileComplete` / text | actionDay / cream |
-| `tileCurrentFill` | cream @ 95% |
-| `tileCurrentBorder` | **literal `#1F8552`** + `sunGlow` — kept exactly as approved; deliberately *not* aliased to a paint (it is the night action green used as a day accent, and normalizing it to actionDay would change the validated artifact) |
+| `tileCurrentFill` | cream @ 95%; Night: foliage |
+| `tileCurrentBorder` | **literal `#1F8552`** + `sunGlow` — kept exactly as approved; deliberately *not* aliased to a paint (it is the night action green used as a day accent, and normalizing it to actionDay would change the validated artifact). Night: the bud's `#78F0B2` rim |
 | `sunGlow` | `0 0 0 4px rgba(242,247,232,0.45), 0 2px 18px rgba(220,235,190,0.9)` |
 | tile top-light | `radial-gradient(90% 160% at 78% -30%, rgba(255,255,245,0.85), transparent 55%)` |
 | `tileGhostStroke` (empty bed: un-uploaded day; dashed = "empty bed" incl. Skipped, amending #419) | muted @ 38%, 1.5px dashed |
