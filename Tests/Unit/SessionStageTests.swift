@@ -74,7 +74,7 @@ struct SessionStageTests {
 
         #expect(stage.queue.rows.map(\.id) == ["exercise-0", "superset-1", "exercise-2"])
         #expect(stage.queue.rows.map(\.title) == ["Squat", "Farmer Carry + Press", "Row"])
-        #expect(stage.queue.rows[1].exercise === carry)
+        #expect(stage.queue.rows[1].pairingExercise === carry)
     }
 
     @Test func theStageFollowsFocusIntoItsOwningItem() throws {
@@ -134,7 +134,7 @@ struct SessionStageTests {
         #expect(card.ordinal == 3)
         #expect(card.count == 3)
         #expect(card.mode == .logging)
-        #expect(card.id == "stage-active-0-2")
+        #expect(card.cardIdentity == "stage-active-0-2")
     }
 
     @Test func theCardSkipsSettledSetsToTheFirstPendingSetWithoutAnActiveSet() throws {
@@ -145,7 +145,7 @@ struct SessionStageTests {
         let card = try #require(exerciseStage(stage)?.card)
         #expect(card.set === squat.sets.first { $0.index == 2 })
         #expect(card.ordinal == 3)
-        #expect(card.id == "stage-active-0-2")
+        #expect(card.cardIdentity == "stage-active-0-2")
     }
 
     @Test func theCardHoldsAnActiveSetThatIsAlreadyLogged() throws {
@@ -157,7 +157,7 @@ struct SessionStageTests {
         let card = try #require(exerciseStage(stage)?.card)
         #expect(card.set === squat.sets.first { $0.index == 0 })
         #expect(card.mode == .logging)
-        #expect(card.id == "stage-active-0-0")
+        #expect(card.cardIdentity == "stage-active-0-0")
     }
 
     @Test func aLoggedSetOpenForReviewTakesTheCard() throws {
@@ -173,7 +173,7 @@ struct SessionStageTests {
         #expect(card.set === bench.sets.first { $0.index == 0 })
         #expect(card.ordinal == 1)
         #expect(card.mode == .reviewingLogged(showsSavedConfirmation: false))
-        #expect(card.id == "stage-review-1-0")
+        #expect(card.cardIdentity == "stage-review-1-0")
         #expect(exerciseStage(stage)?.branch.activeSetID == nil)
     }
 
@@ -250,7 +250,7 @@ struct SessionStageTests {
         #expect(card.ordinal == 2)
         #expect(card.count == 2)
         #expect(card.mode == .logging)
-        #expect(card.id == "superset-active-1-1")
+        #expect(card.cardIdentity == "superset-active-1-1")
     }
 
     @Test func aSupersetFocusedOnItsHigherSideLeadsWithThatSide() throws {
@@ -269,7 +269,7 @@ struct SessionStageTests {
         #expect(superset.partner === bench)
         #expect(superset.branch.nodes.map(\.state) == [.bud, .future, .future])
         #expect(superset.partnerNodes.map(\.state) == [.leaf, .future])
-        #expect(superset.card?.id == "superset-active-2-0")
+        #expect(superset.card?.cardIdentity == "superset-active-2-0")
         #expect(superset.card?.ordinal == 1)
         #expect(superset.card?.count == 3)
         #expect(superset.lastPerformed == nil)
@@ -309,7 +309,7 @@ struct SessionStageTests {
         #expect(superset.branch.activeSetID == nil)
         #expect(superset.branch.nodes.map(\.state) == [.leaf, .bud, .future])
         #expect(superset.card?.set === bench.sets.first { $0.index == 1 })
-        #expect(superset.card?.id == "superset-active-1-1")
+        #expect(superset.card?.cardIdentity == "superset-active-1-1")
         #expect(superset.lastPerformed == nil)
     }
 
@@ -327,7 +327,7 @@ struct SessionStageTests {
         #expect(superset.focused === squat)
         #expect(superset.card?.set === squat.sets.first { $0.index == 0 })
         #expect(superset.card?.mode == .logging)
-        #expect(superset.card?.id == "superset-active-0-0")
+        #expect(superset.card?.cardIdentity == "superset-active-0-0")
         #expect(superset.branch.nodes.map(\.state) == [.leaf, .bud, .future])
         #expect(stage.queue.rows.map(\.id) == ["superset-0"])
     }
