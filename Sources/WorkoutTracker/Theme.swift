@@ -174,7 +174,7 @@ enum Theme {
         let pillFill: Color
         let pillStroke: Color
         /// The weight ± glyph: action green by Day; cream at Night, where action green on the
-        /// night pill measures 2.6:1 and a control glyph needs 3:1.
+        /// night pill measures 2.1:1 and a control glyph needs 3:1.
         let stepperGlyph: Color
         let railFill: Color
         /// The selected rail chip's cream fill, lit under the inset action ring (token sheet
