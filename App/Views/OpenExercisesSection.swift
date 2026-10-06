@@ -8,7 +8,7 @@ struct OpenExercisesSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Open Exercises")
-                .font(Theme.font(.sheetTitle))
+                .font(Theme.font(.heading))
 
             ForEach(exercises, id: \.persistentModelID) { exercise in
                 Button {
@@ -39,7 +39,7 @@ private struct OpenExerciseCard: View {
                     .foregroundStyle(.primary)
                 Text(row.pendingSetLabel)
                     .font(Theme.font(.historyChip))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.textSecondary)
             }
 
             Spacer(minLength: 12)
