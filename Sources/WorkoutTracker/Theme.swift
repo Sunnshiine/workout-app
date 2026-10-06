@@ -34,14 +34,14 @@ enum Theme {
     enum Paint {
         static let ink = rgb(21, 33, 24) // #152118 — day text
         static let inkNight = rgb(239, 243, 227) // #EFF3E3 — night text
-        static let muted = rgb(64, 78, 68) // #404E44 — day secondary
+        static let muted = rgb(64, 78, 68)
         static let mutedNight = rgb(154, 170, 155) // #9AAA9B — night secondary
-        static let mutedNightLight = rgb(170, 186, 170) // #AABAAA — night Superset partner name
+        static let mutedNightLight = rgb(170, 186, 170)
         static let cream = rgb(242, 247, 232) // #F2F7E8 — the workhorse
         static let actionDay = rgb(13, 107, 64) // #0D6B40 — day action / leaf / stem / bird
         static let actionNight = rgb(31, 133, 82) // #1F8552 — night action (mint is banned at night)
         static let foliage = rgb(87, 145, 104) // #579168 — the night pigment
-        static let foliageDeep = rgb(63, 106, 75) // #3F6A4B — day Superset partner name
+        static let foliageDeep = rgb(63, 106, 75)
         static let paperDayTop = rgb(233, 238, 220) // #E9EEDC
         static let paperDayBottom = rgb(203, 225, 194) // #CBE1C2
         static let paperNightTop = rgb(35, 44, 32) // #232C20
@@ -159,13 +159,7 @@ enum Theme {
         let skipStroke: Color
         /// The page's one glow: the active bud is lit at Night, unlit by Day (nil).
         let budGlow: Color?
-        /// The Superset partner branch's pigment (DESIGN.md §5.4). The branch subordinates by
-        /// pigment by Day (a foliage tone against the focus's darker `stem`/`leafFill`) and by
-        /// translucency at Night (foliage @ 0.55), where foliage is the focus's own pigment.
         let supersetPartnerBranch: Color
-        /// The Superset "& partner" name line, which is also the manual focus switch. It
-        /// subordinates by its smaller size and a muted tone rather than the branch's translucency,
-        /// which drew the name at 1.7:1 under the Night sun wash where text needs 4.5:1.
         let supersetPartnerName: Color
 
         // Active Set Card & input block
@@ -173,8 +167,6 @@ enum Theme {
         let surfaceShadow: [BoxShadow]
         let pillFill: Color
         let pillStroke: Color
-        /// The weight ± glyph: action green by Day; cream at Night, where action green on the
-        /// night pill measures 2.1:1 and a control glyph needs 3:1.
         let stepperGlyph: Color
         let railFill: Color
         /// The selected rail chip's cream fill, lit under the inset action ring (token sheet
@@ -331,7 +323,7 @@ enum Theme {
     static let blockTileSpacing: CGFloat = 10
     static let blockTileMiniSpacing: CGFloat = 5
     static let blockTileStroke: CGFloat = 1 // quiet available / mini strokes
-    static let blockTileCurrentStroke: CGFloat = 1.5 // the current tile's rim
+    static let blockTileCurrentStroke: CGFloat = 1.5
     static let blockTileGhostStroke: CGFloat = 1.5 // the empty bed's dashed outline
     static let blockTileGhostDash: CGFloat = 4
     static let blockWeekCardPadding: CGFloat = 14
@@ -470,7 +462,7 @@ extension Theme {
     private static let nightSurfaceShadow = [
         BoxShadow(y: 0, blur: 0, spread: 1, color: Paint.cream.opacity(0.10), inset: true)
     ]
-    private static let nightBud = rgb(120, 240, 178) // #78F0B2 — the bud carries the page's one glow
+    private static let nightBud = rgb(120, 240, 178)
     private static let nightBudGlow = rgb(120, 240, 178, 0.32)
 }
 
@@ -731,7 +723,6 @@ extension Theme {
             .ceremonyTitle: TypeStyle(face: .fraunces, size: 38, weight: 490, lineHeight: 1.10),
             .connectTitle: TypeStyle(face: .fraunces, size: 36, weight: 490),
             .sheetTitle: TypeStyle(face: .fraunces, size: 24, weight: 490, lineHeight: 1.1, opticalSize: 22),
-            // Heads utility sections and picker rows, where Fraunces may not go (One Voice Rule).
             .heading: TypeStyle(face: .sourceSans3, size: 17, weight: 650),
             // The Superset "& partner" name line: the warm serif voice, subordinate to the
             // 33pt focused Exercise name and doubling as the manual focus switch (DESIGN.md §5.4).

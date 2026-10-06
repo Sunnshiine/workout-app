@@ -3,17 +3,6 @@ import Testing
 
 @testable import WorkoutTracker
 
-// WCAG 2 contrast for the marks that sit nearest their floor, computed from the palette tokens so
-// a token that regresses fails here: 3:1 for a control glyph, 4.5:1 for text. A wash in a ground is
-// at full strength or absent, so no ground moves when a wash's fade is retuned.
-// - The weight ± glyph: the pill over the Active Set Card surface over the paper's top stop.
-// - The Night partner name: the top stop under the sun wash that lifts the upper left, where light
-//   text is weakest.
-// - The Day partner name: the base gradient a third of the way down, below where the name sits, with
-//   no wash.
-// - Day secondary text in the stage foot: the bottom stop under the last wash, the deep sage that
-//   pools at the foot.
-
 private struct SRGB {
     let red: Double
     let green: Double
@@ -30,8 +19,6 @@ private func srgbComponents(of color: Color) -> (rgb: SRGB, alpha: Double) {
     return (rgb, Double(resolved.opacity))
 }
 
-/// Paints `layers` bottom to top with source-over in sRGB 0–255. The bottom layer is the opaque
-/// ground, so its own alpha is ignored.
 private func composite(_ layers: [Color]) -> SRGB {
     layers.dropFirst().reduce(srgbComponents(of: layers[0]).rgb) { ground, layer in
         let (top, alpha) = srgbComponents(of: layer)
@@ -51,7 +38,6 @@ private func relativeLuminance(_ color: SRGB) -> Double {
     return 0.2126 * linear(color.red) + 0.7152 * linear(color.green) + 0.0722 * linear(color.blue)
 }
 
-/// The contrast of `mark` drawn over `ground`, the layers under it listed bottom to top.
 private func contrast(of mark: Color, over ground: [Color]) -> Double {
     let lighter = relativeLuminance(composite(ground + [mark]))
     let darker = relativeLuminance(composite(ground))

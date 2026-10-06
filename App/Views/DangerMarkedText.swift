@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// An error line in ink, led by a small danger mark: red text measured 2.99:1 on Day paper.
 struct DangerMarkedText: View {
     @Environment(\.themePalette) private var palette
 

@@ -69,8 +69,6 @@ struct ActiveSupersetSection: View {
         }
     }
 
-    // The focused Exercise's Fraunces name leads; below it the "& partner" line, smaller and in
-    // a muted tone, is the manual focus switch onto the resting side (DESIGN.md §5.4).
     private var nameBlock: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(focusedExercise.baseName)
