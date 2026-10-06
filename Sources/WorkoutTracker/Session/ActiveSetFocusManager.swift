@@ -114,6 +114,16 @@ final class ActiveSetFocusManager {
         }
     }
 
+    /// Focus and the live Supersets as one value for `SessionStage`. It reads and never writes.
+    func snapshot(in session: Session) -> SessionFocusSnapshot {
+        SessionFocusSnapshot(
+            activeSetID: activeSetID,
+            expandedLoggedSetID: expandedLoggedSetID,
+            supersets: supersetState.exercisePairs(in: session),
+            pairableExerciseOrders: Set(session.exercises.filter { canPair($0, in: session) }.map(\.order))
+        )
+    }
+
     func activeSupersetPresentation(in session: Session) -> ActiveSupersetPresentation? {
         supersetSections(in: session).first { $0.presentation.activeExerciseOrder != nil }?.presentation
     }
