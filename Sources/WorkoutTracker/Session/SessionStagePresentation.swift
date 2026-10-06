@@ -46,47 +46,6 @@ struct SessionStageItem: Identifiable {
     }
 }
 
-/// A node on the living stage's branch. The branch replaces the retired Set
-/// dots entirely; each state derives purely from existing Set State data plus
-/// which Set is on stage, so the branch stays textless and needs no new seam.
-enum BranchNodeState: Equatable, Sendable {
-    /// A Logged Set — an inked leaf.
-    case leaf
-    /// A Skipped Set — a dashed-outline leaf (the "empty bed" vocabulary).
-    case dashedLeaf
-    /// The active Set — the same leaf cream-filled inside a green stroke
-    /// (logging inks it solid); carries the page's one glow at Night.
-    case bud
-    /// A Pending Set still ahead — a faint ghost outline of the leaf to come.
-    case future
-}
-
-struct QueuePosition: Equatable, Sendable {
-    let number: Int
-    let count: Int
-
-    var label: String { "\(number) of \(count)" }
-    var accessibilityLabel: String { "Queue, \(number) of \(count)" }
-}
-
-/// The part a queue row plays while Superset pairing is in flight.
-enum QueuePairingRole: Equatable, Sendable {
-    case none
-    case source
-    case eligibleTarget
-    case ineligibleTarget
-    case confirmingTarget
-}
-
-enum SessionStageComposition: Equatable, Sendable {
-    case reading
-    case editingWeight
-
-    init(isEditingWeight: Bool) {
-        self = isEditingWeight ? .editingWeight : .reading
-    }
-}
-
 /// Stage resolution: which item is on stage, which Set it shows, what is up
 /// next, and the queue/completion summaries. Kept out of the view layer so the
 /// Stage's follow-the-focus behavior is unit-testable.

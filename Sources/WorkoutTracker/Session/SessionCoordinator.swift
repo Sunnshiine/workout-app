@@ -21,6 +21,15 @@ protocol SessionLiveActivityAdapter {
     func endIfInvalidated(at liveEdge: LiveEdge)
 }
 
+/// Whether Move On and the Open Exercises are offered, and where they take the athlete.
+@MainActor
+protocol SessionNavigationAdapter {
+    var canMoveOn: Bool { get }
+    var openExercises: [Exercise] { get }
+    func requestMoveOnCelebration()
+    func show(_ address: SessionAddress)
+}
+
 @MainActor
 protocol SessionTransitionClock {
     func sleep(for duration: Duration) async
@@ -45,6 +54,8 @@ enum PairingTapResult: Equatable, Sendable {
 }
 
 extension WorkoutStore: SessionLoggingAdapter {}
+
+extension WorkoutStore: SessionNavigationAdapter {}
 
 struct SessionPendingWriteSyncAdapter: SessionSyncAdapter {
     let sync: SyncCoordinator
@@ -85,6 +96,13 @@ private struct NoopSessionLiveActivityAdapter: SessionLiveActivityAdapter {
     func startOrUpdate(restContent: LiveActivityRestContent, sessionLabel: String) {}
     func end() {}
     func endIfInvalidated(at liveEdge: LiveEdge) {}
+}
+
+private struct NoopSessionNavigationAdapter: SessionNavigationAdapter {
+    var canMoveOn: Bool { false }
+    var openExercises: [Exercise] { [] }
+    func requestMoveOnCelebration() {}
+    func show(_ address: SessionAddress) {}
 }
 
 private struct TaskSessionTransitionClock: SessionTransitionClock {
@@ -159,6 +177,7 @@ final class SessionCoordinator {
     @ObservationIgnored private var loggingAdapter: any SessionLoggingAdapter
     @ObservationIgnored private var syncAdapter: any SessionSyncAdapter
     @ObservationIgnored private var liveActivityAdapter: any SessionLiveActivityAdapter
+    @ObservationIgnored private var navigationAdapter: any SessionNavigationAdapter
     @ObservationIgnored private var motion: any SessionMotionPerforming
     @ObservationIgnored private var liveEdge: (Session) -> LiveEdge = { _ in .browsedAway }
     @ObservationIgnored private let transitionClock: any SessionTransitionClock
@@ -176,9 +195,11 @@ final class SessionCoordinator {
         standardRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.standard.timeInterval },
         supersetRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.superset.timeInterval },
         liveActivity: any SessionLiveActivityAdapter = NoopSessionLiveActivityAdapter(),
+        navigation: any SessionNavigationAdapter = NoopSessionNavigationAdapter(),
         motion: any SessionMotionPerforming = ImmediateSessionMotion()
     ) {
         self.session = session
+        self.navigationAdapter = navigation
         self.motion = motion
         self.focusManager = ActiveSetFocusManager(session: session)
         self.loggingAdapter = logging
@@ -205,6 +226,7 @@ final class SessionCoordinator {
         focusManager.reset(to: session)
     }
 
+    // swiftlint:disable:next function_parameter_count
     func bind(
         to session: Session?,
         logging: any SessionLoggingAdapter,
@@ -213,9 +235,11 @@ final class SessionCoordinator {
         standardRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.standard.timeInterval },
         supersetRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.superset.timeInterval },
         liveActivity: (any SessionLiveActivityAdapter)? = nil,
+        navigation: any SessionNavigationAdapter,
         motion: any SessionMotionPerforming,
         liveEdge: @escaping (Session) -> LiveEdge
     ) {
+        navigationAdapter = navigation
         self.motion = motion
         self.restTimer = restTimer
         self.standardRestDuration = standardRestDuration
@@ -361,6 +385,35 @@ extension SessionCoordinator {
     func cancelRestForSessionExit() {
         restTimer?.dismiss()
         liveActivityAdapter.end()
+    }
+
+    func moveOn() {
+        cancelRestForSessionExit()
+        navigationAdapter.requestMoveOnCelebration()
+    }
+
+    func showSourceSession(of exercise: Exercise) {
+        cancelPairing()
+        guard let address = exercise.session?.address else { return }
+        navigationAdapter.show(address)
+    }
+
+    /// What the stage shows for `session` now: the App's one read of focus, pairing, and the live
+    /// edge. It reads observed state and never writes it.
+    func stage(in session: Session, lookup: LastPerformedLookupSnapshot) -> SessionStage {
+        SessionStage(
+            session: session,
+            focus: focusManager.snapshot(in: session),
+            savedLoggedSetID: savedLoggedSetID,
+            pairingMode: pairingMode,
+            liveEdge: liveEdgeContext(for: session),
+            lookup: lookup
+        )
+    }
+
+    private func liveEdgeContext(for session: Session) -> LiveEdgeContext {
+        guard liveEdge(session).isAtLiveEdge else { return .browsedAway }
+        return .atLiveEdge(canMoveOn: navigationAdapter.canMoveOn, openExercises: navigationAdapter.openExercises)
     }
 }
 

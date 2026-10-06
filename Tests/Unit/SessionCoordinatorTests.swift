@@ -63,6 +63,23 @@ private final class SpySessionSyncAdapter: SessionSyncAdapter {
 }
 
 @MainActor
+private final class SpySessionNavigationAdapter: SessionNavigationAdapter {
+    var canMoveOn = false
+    var openExercises: [Exercise] = []
+    var readAtCelebrationRequest: () -> Bool = { false }
+    private(set) var celebrationRequests: [Bool] = []
+    private(set) var shownAddresses: [SessionAddress] = []
+
+    func requestMoveOnCelebration() {
+        celebrationRequests.append(readAtCelebrationRequest())
+    }
+
+    func show(_ address: SessionAddress) {
+        shownAddresses.append(address)
+    }
+}
+
+@MainActor
 private final class SpySessionLiveActivityAdapter: SessionLiveActivityAdapter {
     private(set) var calls: [(content: LiveActivityRestContent, sessionLabel: String)] = []
     private(set) var endCallCount = 0
@@ -176,6 +193,7 @@ private func makeLedgerCoordinator(session: Session, restTimer: RestTimer? = nil
         restTimer: restTimer,
         standardRestDuration: { 210 },
         liveActivity: ledger,
+        navigation: SpySessionNavigationAdapter(),
         motion: ledger,
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
@@ -415,6 +433,7 @@ private func makeRestActionFixture(
         sync: sync,
         restTimer: restTimer,
         liveActivity: liveActivity,
+        navigation: SpySessionNavigationAdapter(),
         motion: ImmediateSessionMotion(),
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
@@ -956,6 +975,7 @@ private func makeRestActionFixture(
         restTimer: restTimer,
         standardRestDuration: { 210 },
         liveActivity: liveActivity,
+        navigation: SpySessionNavigationAdapter(),
         motion: ImmediateSessionMotion(),
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
@@ -994,6 +1014,7 @@ private func makeRestActionFixture(
         restTimer: restTimer,
         standardRestDuration: { 210 },
         liveActivity: liveActivity,
+        navigation: SpySessionNavigationAdapter(),
         motion: ImmediateSessionMotion(),
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
@@ -1029,6 +1050,7 @@ private func makeRestActionFixture(
         restTimer: restTimer,
         standardRestDuration: { 210 },
         liveActivity: liveActivity,
+        navigation: SpySessionNavigationAdapter(),
         motion: ImmediateSessionMotion(),
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
@@ -1059,6 +1081,7 @@ private func makeRestActionFixture(
         restTimer: restTimer,
         standardRestDuration: { 210 },
         liveActivity: liveActivity,
+        navigation: SpySessionNavigationAdapter(),
         motion: ImmediateSessionMotion(),
         liveEdge: { LiveEdge.resolve(viewedSession: $0, currentSession: current.session) }
     )
@@ -1160,6 +1183,80 @@ private func makeRestActionFixture(
     #expect(fixture.restTimer.origin == nil)
     #expect(!fixture.restTimer.isRunning)
     #expect(liveActivity.endCallCount == 1)
+}
+
+@MainActor
+@Test func moveOnEndsTheRestBeforeItAsksForTheCelebration() throws {
+    let session = makeCoordinatorSession()
+    let restTimer = RestTimer(clock: ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000)))
+    let liveActivity = SpySessionLiveActivityAdapter()
+    let navigation = SpySessionNavigationAdapter()
+    navigation.readAtCelebrationRequest = { restTimer.isRunning }
+    let coordinator = SessionCoordinator()
+    coordinator.bind(
+        to: session,
+        logging: SpySessionLoggingAdapter(),
+        sync: SpySessionSyncAdapter(),
+        restTimer: restTimer,
+        liveActivity: liveActivity,
+        navigation: navigation,
+        motion: ImmediateSessionMotion(),
+        liveEdge: { .atLiveEdge(currentSession: $0) }
+    )
+    let firstBenchSet = try #require(session.exercises.first { $0.order == 1 }?.sets.first { $0.index == 0 })
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
+    #expect(restTimer.isRunning)
+
+    coordinator.moveOn()
+
+    #expect(navigation.celebrationRequests == [false])
+    #expect(liveActivity.endCallCount == 1)
+}
+
+@MainActor
+@Test func showingAnOpenExercisesSessionCancelsPairingAndShowsItsAddress() throws {
+    let session = makeCoordinatorSession()
+    let earlier = Session(dayNumber: 1, date: nil)
+    let makeup = Exercise(name: "Front Squat", baseName: "Front Squat", cadence: nil, coachNote: nil, order: 0)
+    earlier.exercises = [makeup]
+    connectCoordinatorWeek([earlier, session])
+    let navigation = SpySessionNavigationAdapter()
+    let coordinator = SessionCoordinator(session: session, navigation: navigation)
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    #expect(coordinator.beginPairing(from: bench, in: session))
+
+    coordinator.showSourceSession(of: makeup)
+
+    #expect(coordinator.pairingMode == .inactive)
+    #expect(navigation.shownAddresses == [SessionAddress(week: 1, day: 1)])
+}
+
+@MainActor
+@Test func theStageOffersMoveOnAndOpenExercisesOnlyAtTheLiveEdge() throws {
+    let session = makeCoordinatorSession()
+    let makeup = Exercise(name: "Front Squat", baseName: "Front Squat", cadence: nil, coachNote: nil, order: 0)
+    let navigation = SpySessionNavigationAdapter()
+    navigation.canMoveOn = true
+    navigation.openExercises = [makeup]
+    var isAtLiveEdge = true
+    let coordinator = SessionCoordinator()
+    coordinator.bind(
+        to: session,
+        logging: SpySessionLoggingAdapter(),
+        sync: SpySessionSyncAdapter(),
+        navigation: navigation,
+        motion: ImmediateSessionMotion(),
+        liveEdge: { isAtLiveEdge ? .atLiveEdge(currentSession: $0) : .browsedAway }
+    )
+
+    let atLiveEdge = coordinator.stage(in: session, lookup: .empty).queue
+    isAtLiveEdge = false
+    let browsedAway = coordinator.stage(in: session, lookup: .empty).queue
+
+    #expect(atLiveEdge.showsMoveOn)
+    #expect(atLiveEdge.openExercises == [makeup])
+    #expect(!browsedAway.showsMoveOn)
+    #expect(browsedAway.openExercises.isEmpty)
 }
 
 @MainActor
@@ -1438,6 +1535,7 @@ private func makeRestActionFixture(
         to: session,
         logging: logging,
         sync: sync,
+        navigation: SpySessionNavigationAdapter(),
         motion: ImmediateSessionMotion(),
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
@@ -1466,6 +1564,7 @@ private func makeRestActionFixture(
         restTimer: restTimer,
         standardRestDuration: { 123 },
         supersetRestDuration: { 77 },
+        navigation: SpySessionNavigationAdapter(),
         motion: ImmediateSessionMotion(),
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
@@ -1492,6 +1591,7 @@ private func makeRestActionFixture(
         restTimer: restTimer,
         standardRestDuration: { 123 },
         supersetRestDuration: { 77 },
+        navigation: SpySessionNavigationAdapter(),
         motion: ImmediateSessionMotion(),
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
@@ -1524,6 +1624,7 @@ private func makeRestActionFixture(
         restTimer: restTimer,
         standardRestDuration: { 123 },
         liveActivity: bound,
+        navigation: SpySessionNavigationAdapter(),
         motion: ImmediateSessionMotion(),
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
@@ -1554,6 +1655,7 @@ private func makeRestActionFixture(
         sync: SpySessionSyncAdapter(),
         restTimer: restTimer,
         standardRestDuration: { 123 },
+        navigation: SpySessionNavigationAdapter(),
         motion: ImmediateSessionMotion(),
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
@@ -1581,6 +1683,7 @@ private func makeRestActionFixture(
         sync: SpySessionSyncAdapter(),
         restTimer: restTimer,
         standardRestDuration: { 123 },
+        navigation: SpySessionNavigationAdapter(),
         motion: ImmediateSessionMotion(),
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
@@ -1607,6 +1710,7 @@ private func makeRestActionFixture(
         sync: SpySessionSyncAdapter(),
         restTimer: restTimer,
         standardRestDuration: { 123 },
+        navigation: SpySessionNavigationAdapter(),
         motion: ImmediateSessionMotion(),
         liveEdge: { _ in .browsedAway }
     )
@@ -1630,6 +1734,7 @@ private func makeRestActionFixture(
         logging: SpySessionLoggingAdapter(),
         sync: SpySessionSyncAdapter(),
         restTimer: restTimer,
+        navigation: SpySessionNavigationAdapter(),
         motion: ImmediateSessionMotion(),
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
@@ -1842,6 +1947,7 @@ private func makeRestActionFixture(
         sync: SpySessionSyncAdapter(),
         restTimer: RestTimer(clock: ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))),
         liveActivity: liveActivity,
+        navigation: SpySessionNavigationAdapter(),
         motion: motion,
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
