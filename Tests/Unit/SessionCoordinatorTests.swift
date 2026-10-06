@@ -517,7 +517,7 @@ private func makeRestActionFixture(
     let review = try #require(exerciseStage(coordinator, in: session))
     #expect(review.exercise === completedSquatSet.exercise)
     #expect(review.branch.activeSetID == nil)
-    #expect(review.card?.id == "stage-review-0-0")
+    #expect(review.card?.cardIdentity == "stage-review-0-0")
 
     coordinator.focus(on: completedSquatSet)
 
@@ -525,7 +525,7 @@ private func makeRestActionFixture(
     #expect(coordinator.visualFocusOwner == .activeSet(ActiveSetID(exerciseOrder: 1, setIndex: 0)))
     let active = try #require(exerciseStage(coordinator, in: session))
     #expect(active.branch.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
-    #expect(active.card?.id == "stage-active-1-0")
+    #expect(active.card?.cardIdentity == "stage-active-1-0")
 }
 
 @MainActor
@@ -543,7 +543,7 @@ private func makeRestActionFixture(
 
     #expect(rows.map(\.id) == ["exercise-0", "superset-1", "exercise-2"])
     #expect(rows.map(\.title) == ["Press", "Squat + DB Row", "Bench Press"])
-    #expect(rows.map(\.exercise) == [press, squat, bench])
+    #expect(rows.map(\.pairingExercise) == [press, squat, bench])
     #expect(rows[1].sets == squat.sets + row.sets)
 }
 
@@ -745,12 +745,12 @@ private func makeRestActionFixture(
     let coordinator = SessionCoordinator(session: session, logging: logging, sync: SpySessionSyncAdapter())
     #expect(coordinator.createSuperset(from: squat, to: rdl, in: session))
     let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
-    #expect(supersetStage(coordinator, in: session)?.card?.id == "superset-active-0-0")
+    #expect(supersetStage(coordinator, in: session)?.card?.cardIdentity == "superset-active-0-0")
     var focusInsideTheLog: ActiveSetID?
     var cardInsideTheLog: String?
     logging.afterLogWrite = {
         focusInsideTheLog = coordinator.activeSetID
-        cardInsideTheLog = supersetStage(coordinator, in: session)?.card?.id
+        cardInsideTheLog = supersetStage(coordinator, in: session)?.card?.cardIdentity
     }
 
     coordinator.log(firstSquatSet, as: SetLog(weight: .pounds(225), reps: 5, rpe: .seven))
@@ -758,7 +758,7 @@ private func makeRestActionFixture(
     #expect(focusInsideTheLog == ActiveSetID(exerciseOrder: 0, setIndex: 0))
     #expect(cardInsideTheLog == "superset-active-0-0")
     #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
-    #expect(supersetStage(coordinator, in: session)?.card?.id == "superset-active-1-0")
+    #expect(supersetStage(coordinator, in: session)?.card?.cardIdentity == "superset-active-1-0")
     #expect(stageRowIDs(coordinator, in: session) == ["superset-0"])
 }
 
@@ -1386,7 +1386,7 @@ private func makeRestActionFixture(
 
     #expect(fixture.coordinator.visualFocusOwner == .loggedSetReview(ActiveSetID(exerciseOrder: 1, setIndex: 0)))
     let card = try #require(exerciseStage(fixture.coordinator, in: fixture.session)?.card)
-    #expect(card.id == "stage-review-1-0")
+    #expect(card.cardIdentity == "stage-review-1-0")
     #expect(card.mode == .reviewingLogged(showsSavedConfirmation: false))
 }
 

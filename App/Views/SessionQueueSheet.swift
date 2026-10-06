@@ -101,7 +101,7 @@ struct SessionQueueSheet: View {
 
             if row.canBeginPairing {
                 Button {
-                    coordinator.beginPairing(from: row.exercise, in: session)
+                    coordinator.beginPairing(from: row.pairingExercise, in: session)
                 } label: {
                     Image(systemName: "link")
                         .font(Theme.font(.queuePill))
@@ -121,7 +121,7 @@ struct SessionQueueSheet: View {
 
     private func pairingRow(for row: SessionQueue.Row) -> some View {
         Button {
-            if coordinator.handlePairingTap(on: row.exercise, in: session) == .unavailable {
+            if coordinator.handlePairingTap(on: row.pairingExercise, in: session) == .unavailable {
                 UINotificationFeedbackGenerator().notificationOccurred(.warning)
             }
         } label: {

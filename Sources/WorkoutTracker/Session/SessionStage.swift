@@ -70,7 +70,7 @@ struct SetCardSlot: Equatable {
     let ordinal: Int
     let count: Int
     let mode: Mode
-    let id: String
+    let cardIdentity: String
 }
 
 struct ExerciseStage: Equatable {
@@ -118,7 +118,7 @@ struct SessionQueue: Equatable {
         let sets: [ExerciseSet]
         let isComplete: Bool
         let isOnStage: Bool
-        let exercise: Exercise
+        let pairingExercise: Exercise
         let jumpTarget: ExerciseSet?
         let canBeginPairing: Bool
         let pairingRole: QueuePairingRole
@@ -266,11 +266,11 @@ extension SetCardSlot {
                 reviewed,
                 in: sets,
                 mode: .reviewingLogged(showsSavedConfirmation: reviewedSetID == savedLoggedSetID),
-                id: "stage-review-\(exerciseOrder)-\(reviewed.index)"
+                cardIdentity: "stage-review-\(exerciseOrder)-\(reviewed.index)"
             )
         }
         guard let set = sets.first(matching: activeSetID) ?? sets.first(where: \.isPending) else { return nil }
-        return SetCardSlot(set, in: sets, mode: .logging, id: "stage-active-\(exerciseOrder)-\(set.index)")
+        return SetCardSlot(set, in: sets, mode: .logging, cardIdentity: "stage-active-\(exerciseOrder)-\(set.index)")
     }
 
     fileprivate static func supersetCard(
@@ -285,15 +285,15 @@ extension SetCardSlot {
                 SupersetState.nextPendingSet(for: focused)
             }
         guard let set else { return nil }
-        return SetCardSlot(set, in: sets, mode: .logging, id: "superset-active-\(focused.order)-\(set.index)")
+        return SetCardSlot(set, in: sets, mode: .logging, cardIdentity: "superset-active-\(focused.order)-\(set.index)")
     }
 
-    private init(_ set: ExerciseSet, in sets: [ExerciseSet], mode: Mode, id: String) {
+    private init(_ set: ExerciseSet, in sets: [ExerciseSet], mode: Mode, cardIdentity: String) {
         self.set = set
         ordinal = (sets.firstIndex { $0 === set } ?? set.index) + 1
         count = sets.count
         self.mode = mode
-        self.id = id
+        self.cardIdentity = cardIdentity
     }
 }
 
@@ -408,7 +408,7 @@ private struct StageItem {
             sets: SessionSetOrder.orderedSets(in: exercises).map(\.set),
             isComplete: isComplete,
             isOnStage: isOnStage,
-            exercise: exercise,
+            pairingExercise: exercise,
             jumpTarget: nextPendingSet,
             canBeginPairing: canBeginPairing,
             pairingRole: pairingRole(mode: pairingMode, pairable: pairable)

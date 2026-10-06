@@ -98,7 +98,7 @@ struct SessionStageView: View {
         } card: {
             if let slot = stage.card {
                 ActiveSetCard(slot: slot, coordinator: coordinator)
-                    .holdsStill(acrossChangesOf: slot.id)
+                    .holdsStill(acrossChangesOf: slot.cardIdentity)
             }
         }
     }
