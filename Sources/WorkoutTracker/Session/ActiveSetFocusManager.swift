@@ -100,7 +100,6 @@ final class ActiveSetFocusManager {
         activeSetID = supersetState.focusedSetID(whenNormalFocusIs: activeSetID, in: session)
     }
 
-    /// Focus and the live Supersets as one value for `SessionStage`. It reads and never writes.
     func snapshot(in session: Session) -> SessionFocusSnapshot {
         SessionFocusSnapshot(
             activeSetID: activeSetID,

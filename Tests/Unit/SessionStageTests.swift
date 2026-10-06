@@ -64,8 +64,6 @@ private func benchHistory() -> LastPerformedLookupSnapshot {
 @MainActor
 @Suite("SessionStage")
 struct SessionStageTests {
-    // MARK: - Which item is on stage
-
     @Test func aSupersetFusesAtItsLowerOrderedSideAndTheRestKeepSessionOrder() {
         let squat = makeExercise(name: "Squat", order: 0, setStates: [.pending])
         let press = makeExercise(name: "Press", order: 1, setStates: [.pending])
@@ -125,8 +123,6 @@ struct SessionStageTests {
         #expect(!stage.queue.rows[0].isComplete)
         #expect(stage.queue.rows[0].jumpTarget == nil)
     }
-
-    // MARK: - The single-Exercise card
 
     @Test func theCardHoldsTheActiveSetOverTheFirstPendingSet() throws {
         let squat = makeExercise(name: "Squat", order: 0, setStates: [.pending, .pending, .pending])
@@ -202,8 +198,6 @@ struct SessionStageTests {
         #expect(lastPerformed.sourceText == "W3 D2")
     }
 
-    // MARK: - The branch
-
     @Test func theBranchInksOneLeafPerLoggedSetAndADashedLeafPerSkip() throws {
         let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged, .skipped, .pending, .pending])
 
@@ -233,8 +227,6 @@ struct SessionStageTests {
 
         #expect(branch.nodes.map(\.state) == [.leaf, .leaf])
     }
-
-    // MARK: - The Superset stage
 
     @Test func aSupersetFocusedOnItsLowerSideLeadsWithThatSide() throws {
         let press = makeExercise(name: "Press", order: 1, setStates: [.logged, .pending])
@@ -361,8 +353,6 @@ struct SessionStageTests {
 }
 
 extension SessionStageTests {
-    // MARK: - Up next
-
     @Test func upNextIsTheNextIncompleteItemAfterTheStage() throws {
         let squat = makeExercise(name: "Squat", order: 0, setStates: [.pending])
         let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.logged])
@@ -404,8 +394,6 @@ extension SessionStageTests {
         #expect(stage.queue.rows.map(\.title) == ["Squat", "BB RDL"])
     }
 
-    // MARK: - The queue pill
-
     @Test func thePillCountsThePlaceOfTheItemOnStage() {
         let squat = makeExercise(name: "Squat", order: 0, setStates: [.pending])
         let press = makeExercise(name: "Press", order: 1, setStates: [.pending])
@@ -432,8 +420,6 @@ extension SessionStageTests {
 
         #expect(makeStage([squat, rdl]).queue.position.label == "2 of 2")
     }
-
-    // MARK: - Completion and the live edge
 
     @Test func everySetResolvedIsTheCompletionStage() throws {
         let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged, .logged])
@@ -492,8 +478,6 @@ extension SessionStageTests {
         #expect(!inProgress.queue.showsMoveOn)
         #expect(inProgress.queue.openExercises.isEmpty)
     }
-
-    // MARK: - Pairing
 
     @Test func noRowHasAPairingRoleWhilePairingIsInactive() {
         let squat = makeExercise(name: "Squat", order: 0, setStates: [.pending])

@@ -3,8 +3,6 @@ import Testing
 
 @testable import WorkoutTracker
 
-// MARK: - Quadratic bezier (the shared stem/branch geometry)
-
 @Test func quadraticBezierAnchorsAtItsEndpoints() {
     let curve = QuadraticBezier(
         start: CGPoint(x: 10, y: 90),
@@ -23,8 +21,6 @@ import Testing
         end: CGPoint(x: 100, y: 40)
     )
 
-    // An independent re-derivation of the formula the views used inline before the extraction,
-    // proving the shared helper is byte-identical (the visual baselines depend on it).
     for t in stride(from: 0.0 as CGFloat, through: 1.0, by: 0.1) {
         let mt = 1 - t
         let expected = CGPoint(
@@ -51,16 +47,11 @@ import Testing
         #expect(curve.tangent(at: t) == expected)
     }
 
-    // This stem climbs left→right, so every tangent advances in +x (leaves never point backwards).
     #expect(curve.tangent(at: 0).dx > 0)
     #expect(curve.tangent(at: 1).dx > 0)
 }
 
-// MARK: - Branch node layout (terminal-anchored spacing along the stem)
-
 @Test func branchNodeLayoutSpreadsManyNodesAcrossTheFullSpan() {
-    // Five nodes over 0.16…0.80: the natural step (0.16) is under the cap, so
-    // the ends pin to the span — larger counts spread exactly as before.
     let ts = (0..<5).map {
         BranchNodeLayout.nodeT(index: $0, count: 5, first: 0.16, last: 0.80, maxStep: 0.24)
     }
@@ -70,9 +61,6 @@ import Testing
 }
 
 @Test func branchNodeLayoutAnchorsTwoNodesToTheTerminal() {
-    // Two Sets: the uncapped step would pin them to opposite ends of the branch
-    // — too far apart to read as one sprig. The verdict anchors the last node
-    // to the terminal and steps the other down by the capped step.
     let first = BranchNodeLayout.nodeT(index: 0, count: 2, first: 0.16, last: 0.80, maxStep: 0.24)
     let second = BranchNodeLayout.nodeT(index: 1, count: 2, first: 0.16, last: 0.80, maxStep: 0.24)
 

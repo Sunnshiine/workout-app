@@ -722,7 +722,6 @@ private func makeRestActionFixture(
     #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
     #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
 
-    // The stage fuses the two paired Exercises and keeps the unpaired one on stage alone.
     #expect(stageRowIDs(coordinator, in: session) == ["exercise-0", "superset-1"])
     #expect(exerciseStage(coordinator, in: session)?.exercise === press)
 

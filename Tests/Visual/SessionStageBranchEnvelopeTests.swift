@@ -60,8 +60,6 @@ private struct Branch {
     let setCount: Int
     let kind: BranchKind
 
-    /// Every Set but the last is Logged; the focused stem's last Set is the Active Set, and the
-    /// partner's ends Logged or Skipped.
     var view: SessionStageBranch {
         let partnerNodes: [BranchNode]? =
             switch kind {
