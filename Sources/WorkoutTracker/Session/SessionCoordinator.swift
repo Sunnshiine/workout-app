@@ -21,8 +21,6 @@ protocol SessionLiveActivityAdapter {
     func endIfInvalidated(at liveEdge: LiveEdge)
 }
 
-/// Whether a Session is at the live edge, whether Move On and the Open Exercises are offered
-/// there, and where they take the athlete.
 @MainActor
 protocol SessionNavigationAdapter {
     var canMoveOn: Bool { get }
@@ -341,8 +339,6 @@ extension SessionCoordinator {
         navigationAdapter.show(address)
     }
 
-    /// What the stage shows for `session` now: the App's one read of focus, pairing, and the live
-    /// edge. It reads observed state and never writes it.
     func stage(in session: Session, lookup: LastPerformedLookupSnapshot) -> SessionStage {
         SessionStage(
             session: session,

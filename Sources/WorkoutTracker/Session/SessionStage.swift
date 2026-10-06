@@ -1,7 +1,5 @@
 import Foundation
 
-/// What the Session stage shows, decided once per render by `SessionCoordinator.stage(in:lookup:)`.
-/// Views switch on it and lay it out; they never pick an item, a Set, a side, or a gate.
 struct SessionStage: Equatable {
     enum Focus: Equatable {
         case exercise(ExerciseStage)
@@ -10,27 +8,22 @@ struct SessionStage: Equatable {
     }
 
     let focus: Focus
-    /// The next incomplete item after the one on stage, wrapping; nil on the completion stage.
     let upNext: UpNext?
     let queue: SessionQueue
 }
 
 struct UpNext: Equatable {
     let title: String
-    /// The item's first Pending Set, which a tap brings on stage.
     let target: ExerciseSet?
 }
 
-/// The focus manager's state a stage is built from, as one value.
 struct SessionFocusSnapshot: Equatable {
     let activeSetID: ActiveSetID?
     let expandedLoggedSetID: ActiveSetID?
     let supersets: [Superset]
-    /// Orders of the Exercises that could start or join a Superset now.
     let pairableExerciseOrders: Set<Int>
 }
 
-/// Move On and the Open Exercises makeup queue exist only at the live edge.
 enum LiveEdgeContext: Equatable {
     case atLiveEdge(canMoveOn: Bool, openExercises: [Exercise])
     case browsedAway
@@ -50,16 +43,10 @@ enum LiveEdgeContext: Equatable {
     }
 }
 
-/// A node on the living stage's branch. Each state derives from Set State plus which Set is on
-/// stage, so the branch stays textless.
 enum BranchNodeState: Equatable, Sendable {
-    /// A Logged Set: an inked leaf.
     case leaf
-    /// A Skipped Set: a dashed-outline leaf.
     case dashedLeaf
-    /// The active Set: a cream-filled leaf inside a green stroke.
     case bud
-    /// A Pending Set still ahead: a faint ghost outline.
     case future
 }
 
@@ -70,12 +57,9 @@ struct BranchNode: Equatable {
 
 struct StageBranch: Equatable {
     let nodes: [BranchNode]
-    /// The Active Set when it belongs to this branch; the branch animates its leaves on it.
     let activeSetID: ActiveSetID?
 }
 
-/// The one Active Set Card on stage. `id` keys `holdsStill(acrossChangesOf:)`, so a change of Set
-/// or mode never animates the card's frame.
 struct SetCardSlot: Equatable {
     enum Mode: Equatable {
         case logging
@@ -97,14 +81,11 @@ struct ExerciseStage: Equatable {
 }
 
 struct SupersetStage: Equatable {
-    /// The side holding the Active Set, else the lower-ordered side.
     let focused: Exercise
     let partner: Exercise
     let branch: StageBranch
-    /// Bud-less: the bud rides the focus (DESIGN.md §5.4).
     let partnerNodes: [BranchNode]
     let card: SetCardSlot?
-    /// Only while the Active Set is in this Superset.
     let lastPerformed: LastPerformedCardPresentation?
 }
 
@@ -122,7 +103,6 @@ struct QueuePosition: Equatable, Sendable {
     var accessibilityLabel: String { "Queue, \(number) of \(count)" }
 }
 
-/// The part a queue row plays while Superset pairing is in flight.
 enum QueuePairingRole: Equatable, Sendable {
     case none
     case source
@@ -133,23 +113,18 @@ enum QueuePairingRole: Equatable, Sendable {
 
 struct SessionQueue: Equatable {
     struct Row: Equatable, Identifiable {
-        /// `exercise-<order>` or `superset-<order>`; UI tests key `stage-queue-row-<id>` on it.
         let id: String
         let title: String
-        /// The item's Sets in Exercise order then Set order, for the dots.
         let sets: [ExerciseSet]
         let isComplete: Bool
         let isOnStage: Bool
-        /// The Exercise the pairing verbs take: the single Exercise, or the Superset's first side.
         let exercise: Exercise
-        /// The item's first Pending Set, which a tap brings on stage.
         let jumpTarget: ExerciseSet?
         let canBeginPairing: Bool
         let pairingRole: QueuePairingRole
     }
 
     let rows: [Row]
-    /// The stage item's place in the queue; the last place once the Session is complete.
     let position: QueuePosition
     let pairingMode: PairingMode
     let showsMoveOn: Bool
@@ -191,7 +166,6 @@ extension SessionStage {
 
 @MainActor
 extension SessionFocusSnapshot {
-    /// The Active Set while no Logged Set is open for review.
     fileprivate var visualActiveSetID: ActiveSetID? {
         expandedLoggedSetID == nil ? activeSetID : nil
     }
@@ -253,8 +227,6 @@ extension CompletionStage {
 
 @MainActor
 extension StageBranch {
-    /// One leaf per Logged Set, a dashed leaf per Skipped Set, the bud on the Active Set when it is
-    /// Pending (else the first Pending Set), and ghost outlines for the rest.
     fileprivate init(sets: [ExerciseSet], activeSetID: ActiveSetID?) {
         let bud = Self.budSet(in: sets, activeSetID: activeSetID)
         nodes = sets.map { BranchNode(set: $0, state: BranchNodeState(of: $0, bud: bud)) }
@@ -282,7 +254,6 @@ extension BranchNodeState {
 
 @MainActor
 extension SetCardSlot {
-    /// The Logged Set open for review, else the Active Set, else the first Pending Set.
     fileprivate static func exerciseCard(
         in sets: [ExerciseSet],
         exerciseOrder: Int,
@@ -302,7 +273,6 @@ extension SetCardSlot {
         return SetCardSlot(set, in: sets, mode: .logging, id: "stage-active-\(exerciseOrder)-\(set.index)")
     }
 
-    /// The Active Set in whatever state it is in, else the focused side's next Pending Set.
     fileprivate static func supersetCard(
         in sets: [ExerciseSet],
         focused: Exercise,
@@ -351,7 +321,6 @@ extension SessionQueue {
     }
 }
 
-/// One stage item: a single Exercise, or a live Superset fused at its lower-ordered side.
 @MainActor
 private struct StageItem {
     enum Kind {
@@ -372,12 +341,10 @@ private struct StageItem {
             }
     }
 
-    /// The item holding focus, else the first incomplete one; nil once the Session is complete.
     static func onStage(in items: [StageItem], focusID: ActiveSetID?) -> StageItem? {
         items.first { $0.contains(focusID) } ?? items.first { !$0.isComplete }
     }
 
-    /// The next incomplete item after `onStage`, wrapping around to earlier ones; never `onStage`.
     static func upNext(after onStage: StageItem, in items: [StageItem]) -> UpNext? {
         let next: StageItem?
         if let index = items.firstIndex(where: { $0.id == onStage.id }),

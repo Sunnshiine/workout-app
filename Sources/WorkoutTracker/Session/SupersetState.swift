@@ -15,7 +15,6 @@ struct SupersetExerciseIdentity: Hashable, Sendable {
     }
 }
 
-/// A live Superset: its two Exercises in the order the athlete paired them.
 struct Superset: Equatable {
     let first: Exercise
     let second: Exercise

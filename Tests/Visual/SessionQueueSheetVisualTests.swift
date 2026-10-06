@@ -41,7 +41,6 @@ struct SessionQueueSheetVisualTests {
         queueSheet(pairable: [2, 3, 4], pairingMode: .confirming(sourceOrder: 2, targetOrder: 3))
     }
 
-    /// Two completed Exercises, then DB Incline Press on stage as the first incomplete one.
     private func queueSheet(pairable: Set<Int>, pairingMode: PairingMode) -> SessionQueueSheet {
         let session = Session(dayNumber: 1, date: nil)
         session.exercises = [

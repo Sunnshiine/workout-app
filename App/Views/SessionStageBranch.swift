@@ -2,11 +2,6 @@ import SwiftUI
 
 struct SessionStageBranch: View {
     let branch: StageBranch
-    /// A Superset partner's nodes. When present the branch becomes **one forked
-    /// stem** (DESIGN.md §5.4): the focused Exercise's nodes climb at full stroke
-    /// and alone carry the cream-filled active leaf, while the partner's nodes grow
-    /// along a shorter drooping lateral that never carries it. `nil` keeps the
-    /// page a single climbing stem.
     var partnerNodes: [BranchNode]?
     /// Tapping a node focuses its Set — matching the retired dots' behavior. `nil`
     /// keeps the branch a passive glyph.
