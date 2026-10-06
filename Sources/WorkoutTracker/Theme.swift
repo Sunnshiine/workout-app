@@ -157,10 +157,14 @@ enum Theme {
         let skipStroke: Color
         /// The page's one glow: the active bud is lit at Night, unlit by Day (nil).
         let budGlow: Color?
-        /// The Superset partner branch's pigment (DESIGN.md §5.4). The partner
-        /// subordinates by pigment by Day (a foliage tone against the focus's
-        /// darker `stem`/`leafFill`) and by translucency at Night (foliage @ 0.55).
+        /// The Superset partner branch's pigment (DESIGN.md §5.4). The branch subordinates by
+        /// pigment by Day (a foliage tone against the focus's darker `stem`/`leafFill`) and by
+        /// translucency at Night (foliage @ 0.55), where foliage is the focus's own pigment.
         let supersetPartnerBranch: Color
+        /// The Superset "& partner" name line, which is also the manual focus switch. It
+        /// subordinates by its smaller size and a muted tone rather than the branch's translucency,
+        /// which drew the name at 2.16:1 at Night where text needs 4.5:1.
+        let supersetPartnerName: Color
 
         // Active Set Card & input block
         let surface: Color
@@ -533,6 +537,7 @@ extension Theme {
         skipStroke: Paint.muted.opacity(0.42),
         budGlow: nil,
         supersetPartnerBranch: Paint.foliage, // Day quiets the partner by pigment
+        supersetPartnerName: rgb(69, 115, 82), // #457352 — a deeper foliage that holds 4.5:1 on Day paper
 
         surface: Paint.cream.opacity(0.52),
         surfaceShadow: [
@@ -593,6 +598,7 @@ extension Theme {
         skipStroke: Paint.mutedNight.opacity(0.40),
         budGlow: nightBudGlow,
         supersetPartnerBranch: Paint.foliage.opacity(0.55), // Night quiets the partner by translucency
+        supersetPartnerName: Paint.mutedNight,
         surface: nightSurface,
         surfaceShadow: nightSurfaceShadow,
         pillFill: Paint.cream.opacity(0.06),
