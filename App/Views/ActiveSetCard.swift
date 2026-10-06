@@ -16,8 +16,6 @@ struct ActiveSetCard: View {
         }
     }
 
-    /// A review opening or collapsing on the Set already shown remounts the pills, so the collapse
-    /// commits the review draft on disappear and the draft never leaks into logging.
     private struct PillsIdentity: Hashable {
         let set: PersistentIdentifier
         let mode: SetCardMode
@@ -35,8 +33,7 @@ struct ActiveSetCard: View {
     @State private var inputDismissalRequestID = 0
 
     private static let headTargetSize: CGFloat = 44
-    /// Lets the 44pt targets reach into the card's trailing padding, so the glyphs sit at the content edge.
-    private static let headTargetInset: CGFloat = 12
+    private static let headTargetOverhang: CGFloat = 12
 
     private var presentation: SetCardPresentation {
         SetCardPresentation(mode: mode.setCardMode, set: set)
@@ -64,9 +61,6 @@ struct ActiveSetCard: View {
         .accessibilityIdentifier("active-set-card")
     }
 
-    // The plain `Set N of M` head: `Set 3` in 16pt/700 tnum, ` of 5` in 14pt/500 muted. The trailing
-    // slot (Saved, the review chevron, the Clear menu) is an overlay, so its 44pt targets never make
-    // the head taller than its text in any mode.
     private var header: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text("Set \(setOrdinal)")
@@ -120,7 +114,7 @@ struct ActiveSetCard: View {
                 .accessibilityIdentifier("clear-logged-set-menu")
             }
         }
-        .padding(.trailing, -Self.headTargetInset)
+        .padding(.trailing, -Self.headTargetOverhang)
     }
 
     private func dismissInputIfLogging() {

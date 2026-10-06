@@ -118,26 +118,16 @@ struct SetRowPresentation: Equatable, Sendable {
     }
 }
 
-/// The one Set card serves two modes: logging the active pending Set, or
-/// reviewing an already-logged one in place. The mode decides the commit
-/// trigger — the Log button when logging, an automatic commit of changed valid
-/// values when the review collapses — and what the card's rows say.
 enum SetCardMode: Equatable, Sendable {
     case logging
     case reviewingLogged
 }
 
-/// Every mode draws the same four rows — the head, the weight, the rails, and the action row — so
-/// the card never changes height (DESIGN.md §5.2, the Card Holds Still Rule). A mode changes what
-/// the head's trailing slot and the action row say, never whether a row exists.
 struct SetCardPresentation: Equatable, Sendable {
     enum ActionRow: Equatable, Sendable {
         case log
         case skipped
-        /// The unfilled, inert capsule a review shows in the Log capsule's place.
         case logged(line: String)
-        /// The same capsule carrying `incompleteDraftHint` once a structured Set Log's review draft
-        /// no longer makes a Set Log.
         case incompleteDraft
     }
 
@@ -148,9 +138,6 @@ struct SetCardPresentation: Equatable, Sendable {
     private let row: ActionRow
     private let incompleteDraftRow: ActionRow
 
-    /// A structured Set Log's review turns into the hint once the athlete edits it into something that
-    /// is no longer a Set Log. An Unstructured Set Log keeps its text on the line, since that text is
-    /// what the athlete is rebuilding as a Set Log.
     @MainActor
     init(mode: SetCardMode, set: ExerciseSet) {
         switch mode {
@@ -163,7 +150,8 @@ struct SetCardPresentation: Equatable, Sendable {
             showsClearMenu = false
             commitsChangesOnDisappear = true
             row = .logged(line: set.displayReps)
-            incompleteDraftRow = set.setLog == nil ? row : .incompleteDraft
+            let isUnstructuredSetLog = set.setLog == nil
+            incompleteDraftRow = isUnstructuredSetLog ? row : .incompleteDraft
         }
     }
 

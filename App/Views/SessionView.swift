@@ -283,7 +283,6 @@ extension SessionView {
     }
 }
 
-/// The one place a coordinator verb's transaction meets SwiftUI.
 private struct SwiftUISessionMotion: SessionMotionPerforming {
     var reducesMotion: Bool { UIAccessibility.isReduceMotionEnabled }
 

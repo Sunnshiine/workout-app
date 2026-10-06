@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// The transaction a coordinator verb runs its change in. The coordinator picks it; the App's
-/// performer only wraps the change in the matching animation, or in none for a cut.
 enum SessionMotion: Equatable, Sendable {
     case momentumFlow
     case skipFadeUp
@@ -32,7 +30,6 @@ protocol SessionMotionPerforming {
     func animate(_ motion: SessionMotion, _ change: () throws -> Void) rethrows
 }
 
-/// What a coordinator with no screen bound performs: every change lands at once.
 struct ImmediateSessionMotion: SessionMotionPerforming {
     var reducesMotion: Bool { false }
 

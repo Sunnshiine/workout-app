@@ -185,10 +185,6 @@ struct SmartValuePills: View {
             .lineLimit(1)
             .minimumScaleFactor(0.5)
             .focused($weightFieldFocused)
-            // The decimal pad carries no return key, so give the athlete a discoverable way out
-            // of the field when they open it and choose not to enter a weight — dismissing the
-            // keyboard without logging (any tap on non-interactive stage space is the same
-            // escape). Semantic-only, so no haptic here.
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
@@ -239,7 +235,6 @@ struct SmartValuePills: View {
         }
     }
 
-    /// A review's action row: the Log capsule's shape, unfilled and inert, reading the logged Set Log.
     private func loggedSetCapsule(_ line: String) -> some View {
         Text(line)
             .lineLimit(1)
@@ -681,8 +676,6 @@ private struct HoldToSkipLogButton: View {
 }
 
 extension View {
-    /// The Log capsule's type and padding, shared by every capsule the action row holds, so no mode
-    /// changes the card's height.
     fileprivate func logCapsuleMetrics() -> some View {
         font(Theme.font(.logCapsule))
             .padding(.vertical, 16)

@@ -93,8 +93,6 @@ private enum SessionVerbEntry: Equatable {
     case failureReported
 }
 
-/// Records, in order, every motion a verb runs and each adapter call it makes, so a test reads
-/// which calls landed inside the transaction.
 @MainActor
 private final class SessionVerbLedger: SessionMotionPerforming, SessionLoggingAdapter, SessionSyncAdapter, SessionLiveActivityAdapter {
     var reducesMotion = false

@@ -243,8 +243,6 @@ final class SessionCoordinator {
         }
     }
 
-    /// The write, the rest, and the focus advance share one transaction. Split, an Observation
-    /// flush lands the write on its own with no animation, and the leaf snaps (#767).
     func log(_ set: ExerciseSet, as log: SetLog) {
         do {
             let session = try actionSession(for: set)
