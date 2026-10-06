@@ -216,7 +216,10 @@ extension SessionView {
             skip: skipWithFade,
             delete: coordinator.deleteLog(for:),
             focusSupersetExercise: { exercise in
-                coordinator.focusNextSupersetSet(for: exercise, in: session)
+                // The stage animates when its focused Set changes, and a side switch must not move the card.
+                withTransaction(\.disablesAnimations, true) {
+                    coordinator.focusNextSupersetSet(for: exercise, in: session)
+                }
             },
             showSourceSession: showSourceSession(for:),
             moveOn: {
