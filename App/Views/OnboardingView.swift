@@ -145,17 +145,19 @@ struct OnboardingView: View {
                 .font(Theme.font(.sheetTitle))
 
             TextField(fieldName, text: $urlText)
-                .textFieldStyle(.roundedBorder)
+                .textFieldStyle(.plain)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
                 .accessibilityIdentifier("onboarding-url-field")
                 .accessibilityLabel(fieldName)
                 .onChange(of: urlText) { urlError = false }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .background(palette.pillFill, in: .capsule)
+                .overlay { Capsule().strokeBorder(palette.pillStroke, lineWidth: 1) }
 
             if urlError {
-                Text("That doesn't look like a Sheet URL")
-                    .font(Theme.font(.historyChip))
-                    .foregroundStyle(.red)
+                DangerMarkedText(message: "That doesn't look like a Sheet URL", role: .historyChip)
             }
 
             Button("Save") { saveURL() }
@@ -297,9 +299,7 @@ struct SheetPickerView: View {
         if let store {
             if let message = store.listErrorMessage {
                 VStack(spacing: 12) {
-                    Text(message)
-                        .font(Theme.font(.queuePill))
-                        .foregroundStyle(.red)
+                    DangerMarkedText(message: message, role: .queuePill)
 
                     Button("Retry") {
                         Task { await store.loadInitial() }
@@ -388,9 +388,7 @@ private struct SheetPickerRow: View {
                 }
 
                 if let errorMessage {
-                    Text(errorMessage)
-                        .font(Theme.font(.historyChip))
-                        .foregroundStyle(.red)
+                    DangerMarkedText(message: errorMessage, role: .historyChip)
                 }
             }
             .padding(14)
@@ -403,6 +401,25 @@ private struct SheetPickerRow: View {
         }
         .buttonStyle(.plain)
         .disabled(isDisabled)
+    }
+}
+
+/// An error line in ink, led by a small danger mark: red text measured 2.99:1 on Day paper.
+private struct DangerMarkedText: View {
+    @Environment(\.themePalette) private var palette
+
+    let message: String
+    let role: Theme.TypeRole
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Image(systemName: "exclamationmark.circle.fill")
+                .foregroundStyle(palette.danger)
+                .accessibilityHidden(true)
+            Text(message)
+                .foregroundStyle(palette.textPrimary)
+        }
+        .font(Theme.font(role))
     }
 }
 
