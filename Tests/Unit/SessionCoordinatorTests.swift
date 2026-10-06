@@ -1631,6 +1631,23 @@ private func makeRestActionFixture(
 }
 
 @MainActor
+@Test func switchingSidesRightAfterASupersetLogDropsTheIncomingCardTransition() throws {
+    let session = makeSquatAndRDLSession()
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let rdl = try #require(session.exercises.first { $0.order == 1 })
+    let coordinator = SessionCoordinator(session: session, logging: SpySessionLoggingAdapter(), sync: SpySessionSyncAdapter())
+    #expect(coordinator.createSuperset(from: squat, to: rdl, in: session))
+    let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
+    coordinator.log(firstSquatSet, as: SetLog(weight: .pounds(315), reps: 5, rpe: .seven))
+    #expect(coordinator.activeSetTransition?.incomingSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+
+    #expect(coordinator.focusNextSupersetSet(for: squat, in: session))
+
+    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 1))
+    #expect(coordinator.activeSetTransition == nil)
+}
+
+@MainActor
 @Test func aLogASkipAndATapEachMoveTheFocusInsideTheInjectedAnimation() throws {
     let session = makeSquatAndRDLSession()
     let squat = try #require(session.exercises.first { $0.order == 0 })
