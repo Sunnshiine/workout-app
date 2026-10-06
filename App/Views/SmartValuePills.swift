@@ -363,6 +363,7 @@ private struct ValueRail: View {
                 .font(Theme.font(.railChipValue))
                 .foregroundStyle(chip.isSelected ? palette.textPrimary : palette.textSecondary)
                 .frame(width: Theme.railCellWidth, height: Theme.railCellHeight)
+                .contentShape(.rect)
                 .background {
                     if chip.isSelected {
                         RoundedRectangle(cornerRadius: Theme.Radius.cell)
@@ -552,6 +553,7 @@ private struct HoldToSkipLogButton: View {
 
             Text("Skipped")
                 .opacity(presentation.skipOpacity)
+                .accessibilityHidden(true)
         }
         .frame(maxWidth: .infinity)
     }
