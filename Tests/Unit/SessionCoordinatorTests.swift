@@ -355,7 +355,6 @@ private struct CoordinatorActionFixture {
     let coordinator: SessionCoordinator
     let logging: SpySessionLoggingAdapter
     let sync: SpySessionSyncAdapter
-    let clock: ManualSessionTransitionClock
 }
 
 private struct CoordinatorRestActionFixture {
@@ -369,19 +368,17 @@ private func makeActionFixture() throws -> CoordinatorActionFixture {
     let session = makeCoordinatorSession()
     let logging = SpySessionLoggingAdapter()
     let sync = SpySessionSyncAdapter()
-    let clock = ManualSessionTransitionClock()
     let coordinator = SessionCoordinator(
         session: session,
         logging: logging,
         sync: sync,
-        transitionClock: clock
+        transitionClock: ManualSessionTransitionClock()
     )
     return CoordinatorActionFixture(
         session: session,
         coordinator: coordinator,
         logging: logging,
-        sync: sync,
-        clock: clock
+        sync: sync
     )
 }
 
@@ -671,7 +668,7 @@ private func makeRestActionFixture(
 }
 
 @MainActor
-@Test func coordinatorSupersetSideSwitchCutsWithoutTransition() throws {
+@Test func coordinatorSupersetSideSwitchCuts() throws {
     let session = makePlannedPairingSession()
     let (coordinator, ledger) = makeLedgerCoordinator(session: session)
     let squat = try #require(session.exercises.first { $0.order == 1 })
@@ -683,7 +680,6 @@ private func makeRestActionFixture(
     let expectedSetID = ActiveSetID(exerciseOrder: 2, setIndex: 0)
     #expect(ledger.motions == [.cut])
     #expect(coordinator.activeSetID == expectedSetID)
-    #expect(coordinator.activeSetTransition == nil)
 }
 
 @MainActor
@@ -795,7 +791,7 @@ private func makeRestActionFixture(
 }
 
 @MainActor
-@Test func loggingSetUsesAdaptersAdvancesFocusStartsTransitionAndFlushes() throws {
+@Test func loggingSetUsesAdaptersAdvancesFocusAndFlushes() throws {
     let fixture = try makeActionFixture()
     let bench = try #require(fixture.session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -807,16 +803,6 @@ private func makeRestActionFixture(
     #expect(fixture.logging.loggedSets.first?.set === firstBenchSet)
     #expect(fixture.logging.loggedSets.first?.log == log)
     #expect(fixture.coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 1))
-    let transition = try #require(fixture.coordinator.activeSetTransition)
-    #expect(
-        transition
-            == ActiveSetTransition(
-                kind: .momentumFlow,
-                outgoingSetID: ActiveSetID(exerciseOrder: 1, setIndex: 0),
-                incomingSetID: ActiveSetID(exerciseOrder: 1, setIndex: 1),
-                completedExerciseOrder: nil
-            )
-    )
     #expect(fixture.sync.flushRequestCount == 1)
     #expect(fixture.sync.reportedErrors.isEmpty)
 }
@@ -1270,24 +1256,20 @@ private func makeRestActionFixture(
     #expect(fixture.coordinator.expandedLoggedSetID == nil)
     #expect(fixture.coordinator.visualFocusOwner == .activeSet(ActiveSetID(exerciseOrder: 1, setIndex: 0)))
     #expect(fixture.coordinator.savedLoggedSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
-    #expect(fixture.coordinator.activeSetTransition == nil)
     #expect(fixture.sync.flushRequestCount == 1)
     #expect(fixture.sync.reportedErrors.isEmpty)
 }
 
 @MainActor
-@Test func openingLoggedSetReviewClearsTheTransition() throws {
+@Test func openingTheReviewOfASetJustLoggedRendersItExpanded() throws {
     let fixture = try makeActionFixture()
     let bench = try #require(fixture.session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
 
     fixture.coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
-    #expect(fixture.coordinator.activeSetTransition != nil)
-
     fixture.coordinator.focus(on: firstBenchSet)
 
     #expect(fixture.coordinator.visualFocusOwner == .loggedSetReview(ActiveSetID(exerciseOrder: 1, setIndex: 0)))
-    #expect(fixture.coordinator.activeSetTransition == nil)
     let benchConfig = try #require(
         fixture.coordinator.renderItems(in: fixture.session).compactMap(\.exerciseConfig).first { $0.exercise.order == 1 }
     )
@@ -1295,61 +1277,7 @@ private func makeRestActionFixture(
 }
 
 @MainActor
-@Test func aSupersetCarriesTheTransitionOfASetLoggedInsideItAndNotOfOneLoggedOutsideIt() throws {
-    let session = makeIntegratedCoordinatorSession()
-    let coordinator = SessionCoordinator(
-        session: session,
-        logging: SpySessionLoggingAdapter(),
-        sync: SpySessionSyncAdapter(),
-        transitionClock: ManualSessionTransitionClock()
-    )
-    let squat = try #require(session.exercises.first { $0.order == 0 })
-    let bench = try #require(session.exercises.first { $0.order == 1 })
-    let row = try #require(session.exercises.first { $0.order == 2 })
-    let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
-    let firstBenchSet = try #require(bench.sets.first)
-    bench.sets.append(
-        ExerciseSet(index: 1, prescribedReps: "6", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
-    )
-    #expect(coordinator.createSuperset(from: bench, to: row, in: session))
-    func supersetTransition() throws -> ActiveSetTransition? {
-        let supersets = coordinator.renderItems(in: session).compactMap { item -> SessionSupersetRenderConfig? in
-            guard case .superset(let config) = item else { return nil }
-            return config
-        }
-        return try #require(supersets.first).activeSetTransition
-    }
-
-    coordinator.log(firstSquatSet, as: SetLog(weight: .pounds(225), reps: 5, rpe: .seven))
-
-    #expect(
-        coordinator.activeSetTransition
-            == ActiveSetTransition(
-                kind: .momentumFlow,
-                outgoingSetID: ActiveSetID(exerciseOrder: 0, setIndex: 0),
-                incomingSetID: ActiveSetID(exerciseOrder: 0, setIndex: 1),
-                completedExerciseOrder: nil
-            )
-    )
-    let supersetTransitionAfterOutsideLog = try supersetTransition()
-    #expect(supersetTransitionAfterOutsideLog == nil)
-
-    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
-
-    let supersetTransitionAfterInsideLog = try supersetTransition()
-    #expect(
-        supersetTransitionAfterInsideLog
-            == ActiveSetTransition(
-                kind: .momentumFlow,
-                outgoingSetID: ActiveSetID(exerciseOrder: 1, setIndex: 0),
-                incomingSetID: ActiveSetID(exerciseOrder: 2, setIndex: 0),
-                completedExerciseOrder: nil
-            )
-    )
-}
-
-@MainActor
-@Test func pendingFocusMorphsForEachRetargetWithoutActiveSetTransition() throws {
+@Test func pendingFocusMorphsForEachRetarget() throws {
     let session = makeCoordinatorSession()
     let (coordinator, ledger) = makeLedgerCoordinator(session: session)
     let bench = try #require(session.exercises.first { $0.order == 1 })
@@ -1363,7 +1291,6 @@ private func makeRestActionFixture(
 
     #expect(ledger.motions == [.focusMorph, .focusMorph, .focusMorph])
     #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
-    #expect(coordinator.activeSetTransition == nil)
 }
 
 @MainActor
@@ -1397,7 +1324,7 @@ private func makeRestActionFixture(
 }
 
 @MainActor
-@Test func skippingSetUsesAdaptersAdvancesFocusStartsTransitionAndFlushes() throws {
+@Test func skippingSetUsesAdaptersAdvancesFocusAndFlushes() throws {
     let fixture = try makeActionFixture()
     let bench = try #require(fixture.session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -1407,22 +1334,12 @@ private func makeRestActionFixture(
     #expect(fixture.logging.skippedSets.count == 1)
     #expect(fixture.logging.skippedSets.first === firstBenchSet)
     #expect(fixture.coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 1))
-    let transition = try #require(fixture.coordinator.activeSetTransition)
-    #expect(
-        transition
-            == ActiveSetTransition(
-                kind: .softFadeUp,
-                outgoingSetID: ActiveSetID(exerciseOrder: 1, setIndex: 0),
-                incomingSetID: ActiveSetID(exerciseOrder: 1, setIndex: 1),
-                completedExerciseOrder: nil
-            )
-    )
     #expect(fixture.sync.flushRequestCount == 1)
     #expect(fixture.sync.reportedErrors.isEmpty)
 }
 
 @MainActor
-@Test func deletingSetLogUsesAdaptersFocusesDeletedSetClearsTransitionAndFlushes() throws {
+@Test func deletingSetLogUsesAdaptersFocusesDeletedSetAndFlushes() throws {
     let fixture = try makeActionFixture()
     let bench = try #require(fixture.session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -1434,7 +1351,6 @@ private func makeRestActionFixture(
     #expect(fixture.logging.deletedSets.count == 1)
     #expect(fixture.logging.deletedSets.first === firstBenchSet)
     #expect(fixture.coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
-    #expect(fixture.coordinator.activeSetTransition == nil)
     #expect(fixture.sync.flushRequestCount == 2)
     #expect(fixture.sync.reportedErrors.isEmpty)
 }
@@ -1450,7 +1366,6 @@ private func makeRestActionFixture(
     fixture.coordinator.log(firstBenchSet, as: log)
 
     #expect(fixture.coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
-    #expect(fixture.coordinator.activeSetTransition == nil)
     #expect(firstBenchSet.state == .pending)
     #expect(fixture.sync.flushRequestCount == 0)
     #expect(fixture.sync.reportedErrors == ["failed"])
@@ -1471,7 +1386,7 @@ private func makeRestActionFixture(
     #expect(logging.loggedSets.first?.set === new.set)
     #expect(new.set.state == .logged)
     #expect(old.set.state == .pending)
-    #expect(coordinator.activeSetTransition?.outgoingSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+    #expect(coordinator.activeSetID == nil)
     #expect(sync.flushRequestCount == 1)
 }
 
@@ -1492,26 +1407,7 @@ private func makeRestActionFixture(
     #expect(new.set.state == .pending)
     #expect(old.set.state == .pending)
     #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
-    #expect(coordinator.activeSetTransition == nil)
     #expect(sync.flushRequestCount == 1)
-}
-
-@MainActor
-@Test func transitionExpiryUsesInjectedClockWithoutRealSleep() async throws {
-    let fixture = try makeActionFixture()
-    let bench = try #require(fixture.session.exercises.first { $0.order == 1 })
-    let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
-
-    fixture.coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
-    let transition = try #require(fixture.coordinator.activeSetTransition)
-    await fixture.clock.waitForSleep()
-
-    #expect(fixture.clock.sleptDurations == [.nanoseconds(650_000_000)])
-    #expect(fixture.coordinator.activeSetTransition == transition)
-
-    await fixture.clock.advance()
-
-    #expect(fixture.coordinator.activeSetTransition == nil)
 }
 
 @MainActor
@@ -1750,23 +1646,6 @@ private func makeRestActionFixture(
     #expect(coordinator.supersetSections(in: session).isEmpty)
 
     #expect(changes.fired == 0)
-}
-
-@MainActor
-@Test func switchingSidesRightAfterASupersetLogDropsTheIncomingCardTransition() throws {
-    let session = makeSquatAndRDLSession()
-    let squat = try #require(session.exercises.first { $0.order == 0 })
-    let rdl = try #require(session.exercises.first { $0.order == 1 })
-    let coordinator = SessionCoordinator(session: session, logging: SpySessionLoggingAdapter(), sync: SpySessionSyncAdapter())
-    #expect(coordinator.createSuperset(from: squat, to: rdl, in: session))
-    let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
-    coordinator.log(firstSquatSet, as: SetLog(weight: .pounds(315), reps: 5, rpe: .seven))
-    #expect(coordinator.activeSetTransition?.incomingSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
-
-    #expect(coordinator.focusNextSupersetSet(for: squat, in: session))
-
-    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 1))
-    #expect(coordinator.activeSetTransition == nil)
 }
 
 @MainActor
