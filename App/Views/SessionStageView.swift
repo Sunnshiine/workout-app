@@ -308,7 +308,6 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
 }
 
 extension ActiveSetCard {
-    /// The card a stage slot describes, wired to the coordinator's verbs.
     init(slot: SetCardSlot, coordinator: SessionCoordinator) {
         switch slot.mode {
         case .logging:
