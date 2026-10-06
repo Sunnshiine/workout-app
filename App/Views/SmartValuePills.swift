@@ -21,7 +21,6 @@ struct SmartValuePills: View {
     let inputDismissalRequestID: Int
 
     @State private var form: SmartValuePillsForm
-    @State private var isEditingWeight = false
     @Environment(\.themePalette) private var palette
     @Environment(\.showsLoadBasis) private var showsLoadBasis
     @FocusState private var weightFieldFocused: Bool
@@ -67,17 +66,6 @@ struct SmartValuePills: View {
 
             actionRow
         }
-        .task(id: isEditingWeight) {
-            weightFieldFocused = isEditingWeight
-        }
-        // Focus can be taken away from outside this view (the stage-wide tap-to-dismiss
-        // surface resigns the first responder directly); fold the edit UI when that happens
-        // so the field doesn't linger unfocused.
-        .onChange(of: weightFieldFocused) { _, focused in
-            if !focused {
-                isEditingWeight = false
-            }
-        }
         .background {
             Color.clear
                 .contentShape(Rectangle())
@@ -90,7 +78,7 @@ struct SmartValuePills: View {
             form.refreshPrefill(from: later, for: set)
         }
         .onDisappear(perform: commitChangedDraftIfNeeded)
-        .preference(key: EditingWeightPreferenceKey.self, value: isEditingWeight)
+        .preference(key: EditingWeightPreferenceKey.self, value: weightFieldFocused)
     }
 
     private var presentation: SetCardPresentation {
@@ -146,49 +134,45 @@ struct SmartValuePills: View {
         form.invalidFields.contains(.weight) ? palette.danger : palette.textPrimary
     }
 
-    @ViewBuilder
+    /// The field stays mounted so focus is the one owner of editing; the Text reads it when unfocused.
     private var weightValue: some View {
-        if isEditingWeight {
-            // The field sits over the number it replaces, so its taller line box never grows the card.
-            weightNumber
-                .hidden()
-                .overlay { weightField }
-        } else {
-            weightNumber
-                .contentShape(.rect)
-                .onTapGesture { isEditingWeight = true }
-                .accessibilityLabel("Weight, \(form.weightDisplay)")
-                .accessibilityIdentifier("weight-pill")
-                .accessibilityAddTraits(.isButton)
-        }
-    }
-
-    private var weightNumber: some View {
-        Text(form.weightDisplay)
-            .font(Theme.font(.weightEntry))
-            .foregroundStyle(weightForeground)
-            .lineLimit(1)
-            .minimumScaleFactor(0.5)
-            .frame(maxWidth: .infinity)
-    }
-
-    private var weightField: some View {
-        TextField(form.weightDisplay, text: $form.weightText)
-            .keyboardType(.decimalPad)
-            .multilineTextAlignment(.center)
-            .font(Theme.font(.weightEntry))
-            .foregroundStyle(weightForeground)
-            .lineLimit(1)
-            .minimumScaleFactor(0.5)
-            .focused($weightFieldFocused)
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done", action: dismissFieldUI)
-                        .accessibilityIdentifier("weight-keyboard-done")
+        ZStack {
+            TextField(form.weightDisplay, text: $form.weightText)
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.center)
+                .font(Theme.font(.weightEntry))
+                .foregroundStyle(weightForeground)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .focused($weightFieldFocused)
+                // The decimal pad carries no return key, so give the athlete a discoverable way out
+                // of the field when they open it and choose not to enter a weight — dismissing the
+                // keyboard without logging (any tap on non-interactive stage space is the same
+                // escape). Semantic-only, so no haptic here.
+                .toolbar {
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button("Done", action: dismissFieldUI)
+                            .accessibilityIdentifier("weight-keyboard-done")
+                    }
                 }
+                .opacity(weightFieldFocused ? 1 : 0)
+                .accessibilityHidden(!weightFieldFocused)
+                .accessibilityIdentifier("weight-pill")
+            if !weightFieldFocused {
+                Text(form.weightDisplay)
+                    .font(Theme.font(.weightEntry))
+                    .foregroundStyle(weightForeground)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .frame(maxWidth: .infinity)
+                    .contentShape(.rect)
+                    .onTapGesture { weightFieldFocused = true }
+                    .accessibilityLabel("Weight, \(form.weightDisplay)")
+                    .accessibilityIdentifier("weight-pill")
+                    .accessibilityAddTraits(.isButton)
             }
-            .accessibilityIdentifier("weight-pill")
+        }
     }
 
     @ViewBuilder
@@ -275,10 +259,7 @@ struct SmartValuePills: View {
     /// while it is still first responder, as a log's remount does, leaves a bottom keyboard inset
     /// behind that lifts the card 14pt.
     private func dismissFieldUI() {
-        guard weightFieldFocused else {
-            isEditingWeight = false
-            return
-        }
+        guard weightFieldFocused else { return }
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         weightFieldFocused = false
     }
