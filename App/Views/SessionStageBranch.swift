@@ -1,14 +1,13 @@
 import SwiftUI
 
 struct SessionStageBranch: View {
-    let sets: [ExerciseSet]
-    var activeSetID: ActiveSetID?
-    /// A Superset partner's Sets. When present the branch becomes **one forked
-    /// stem** (DESIGN.md §5.4): the focused Exercise's `sets` climb at full stroke
-    /// and alone carry the cream-filled active leaf, while the partner's Sets grow
+    let branch: StageBranch
+    /// A Superset partner's nodes. When present the branch becomes **one forked
+    /// stem** (DESIGN.md §5.4): the focused Exercise's nodes climb at full stroke
+    /// and alone carry the cream-filled active leaf, while the partner's nodes grow
     /// along a shorter drooping lateral that never carries it. `nil` keeps the
     /// page a single climbing stem.
-    var partnerSets: [ExerciseSet]?
+    var partnerNodes: [BranchNode]?
     /// Tapping a node focuses its Set — matching the retired dots' behavior. `nil`
     /// keeps the branch a passive glyph.
     var onTap: ((ExerciseSet) -> Void)?
@@ -52,21 +51,16 @@ struct SessionStageBranch: View {
         static let clearance: CGFloat = 2
     }
 
-    private var nodes: [(set: ExerciseSet, state: BranchNodeState)] {
-        Array(zip(sets, SessionStagePresentation.branchNodeStates(for: sets, activeSetID: activeSetID)))
-    }
-
-    private var partnerNodes: [(set: ExerciseSet, state: BranchNodeState)] {
-        guard let partnerSets else { return [] }
-        return Array(zip(partnerSets, SessionStagePresentation.supersetPartnerNodeStates(for: partnerSets)))
-    }
+    private var nodes: [BranchNode] { branch.nodes }
+    private var activeSetID: ActiveSetID? { branch.activeSetID }
 
     var body: some View {
         GeometryReader { geo in
             let drawing = CGSize(width: geo.size.width, height: min(geo.size.height, Metrics.fullHeight))
             ZStack {
-                if partnerSets != nil {
+                if let partnerNodes {
                     partnerBranch(
+                        partnerNodes,
                         in: drawing,
                         room: geo.size.height - drawing.height + Theme.stageColumnSpacing - PartnerMetrics.clearance
                     )
@@ -90,7 +84,7 @@ struct SessionStageBranch: View {
         .frame(minHeight: Metrics.minimumHeight, idealHeight: Metrics.minimumHeight, maxHeight: .infinity)
         .frame(maxWidth: .infinity)
         .animation(reduceMotion ? nil : Theme.wingAnimation(duration: Theme.Motion.leafInk), value: activeSetID)
-        .animation(reduceMotion ? nil : Theme.wingAnimation(duration: Theme.Motion.leafInk), value: sets.count)
+        .animation(reduceMotion ? nil : Theme.wingAnimation(duration: Theme.Motion.leafInk), value: nodes.count)
         .accessibilityElement(children: onTap == nil ? .ignore : .contain)
     }
 
@@ -162,7 +156,7 @@ struct SessionStageBranch: View {
     // MARK: - Partner lateral
 
     @ViewBuilder
-    private func partnerBranch(in size: CGSize, room: CGFloat) -> some View {
+    private func partnerBranch(_ partnerNodes: [BranchNode], in size: CGSize, room: CGFloat) -> some View {
         let scale = min(heightScale(size), room / PartnerMetrics.hang)
         let curve = partnerCurve(in: size, droop: PartnerMetrics.droop * scale)
         ZStack {
@@ -173,7 +167,7 @@ struct SessionStageBranch: View {
                 )
 
             ForEach(Array(partnerNodes.enumerated()), id: \.element.set.persistentModelID) { index, node in
-                let t = partnerNodeT(index)
+                let t = partnerNodeT(index, count: partnerNodes.count)
                 let tangent = curve.tangent(at: t)
                 partnerGlyph(
                     node.state,
@@ -225,10 +219,10 @@ struct SessionStageBranch: View {
             .rotationEffect(angle + tilt)
     }
 
-    private func partnerNodeT(_ index: Int) -> CGFloat {
+    private func partnerNodeT(_ index: Int, count: Int) -> CGFloat {
         BranchNodeLayout.nodeT(
             index: index,
-            count: partnerNodes.count,
+            count: count,
             first: PartnerMetrics.firstNodeT,
             last: PartnerMetrics.lastNodeT,
             maxStep: PartnerMetrics.maxNodeStep

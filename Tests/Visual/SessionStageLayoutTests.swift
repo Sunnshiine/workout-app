@@ -503,6 +503,26 @@ private struct SessionPage: View {
     }
 }
 
+/// The coordinator SessionView binds, minus the screen's sync, rest, and motion.
+@MainActor
+private func boundCoordinator(to session: Session, store: WorkoutStore) -> SessionCoordinator {
+    let coordinator = SessionCoordinator()
+    coordinator.bind(
+        to: session,
+        logging: store,
+        sync: InertSessionSync(),
+        navigation: store,
+        motion: ImmediateSessionMotion(),
+        liveEdge: { LiveEdge.resolve(viewedSession: $0, currentSession: store.currentSession) }
+    )
+    return coordinator
+}
+
+private struct InertSessionSync: SessionSyncAdapter {
+    func reportLocalWriteFailure(_ error: any Error) {}
+    func requestPendingWriteFlush() {}
+}
+
 @MainActor
 private enum SessionPageHost {
     static func layout(
@@ -528,7 +548,7 @@ private enum SessionPageHost {
         try lastPerformedLookup.ingest(history)
         let session = try #require(scenario.store.viewedSession)
         let exercises = session.exercises.sorted { $0.order < $1.order }
-        let coordinator = SessionCoordinator(session: session)
+        let coordinator = boundCoordinator(to: session, store: scenario.store)
         if stage == .superset {
             try #require(coordinator.createSuperset(from: exercises[0], to: exercises[1], in: session))
         }
@@ -563,7 +583,7 @@ private enum SessionPageHost {
         let session = try #require(scenario.store.viewedSession)
         let page = SessionPage(
             session: session,
-            coordinator: SessionCoordinator(session: session),
+            coordinator: boundCoordinator(to: session, store: scenario.store),
             restTimer: RestTimer(),
             banner: .outcome(.clear),
             probe: FrameProbe()

@@ -9,7 +9,6 @@ struct SessionStageView: View {
     let coordinator: SessionCoordinator
     let composition: SessionStageComposition
     let restTimer: RestTimer
-    @Environment(WorkoutStore.self) private var workout
     @Environment(LastPerformedLookupStore.self) private var lastPerformedLookup
     @Environment(ExerciseHistoryFill.self) private var historyFill
     @Environment(\.themePalette) private var palette
@@ -18,25 +17,26 @@ struct SessionStageView: View {
     /// Exercise's Last Performed line.
     @State private var historyExercise: Exercise?
 
-    /// Open Exercises are makeup work from earlier Sessions, only meaningful
-    /// while the athlete is at the live edge of their plan.
-    private var liveEdgeOpenExercises: [Exercise] {
-        workout.isViewingLiveEdge ? workout.openExercises : []
-    }
-
     var body: some View {
-        let items = SessionStagePresentation.items(
-            coordinator.renderItems(in: session, lastPerformedLookup: lastPerformedLookup.snapshot)
-        )
-        let focusID = coordinator.visualFocusOwner?.setID ?? coordinator.activeSetID
-        let stageItem = SessionStagePresentation.stageItem(in: items, focusID: focusID)
+        let stage = coordinator.stage(in: session, lookup: lastPerformedLookup.snapshot)
 
         VStack(spacing: 0) {
             VStack(spacing: Theme.sectionSpacing) {
-                if let stageItem {
-                    stageContent(stageItem, items: items)
-                } else {
-                    completionStage(items: items)
+                switch stage.focus {
+                case .exercise(let exercise):
+                    exerciseStage(exercise)
+                        .transition(.identity)
+                case .superset(let superset):
+                    ActiveSupersetSection(
+                        stage: superset,
+                        session: session,
+                        coordinator: coordinator,
+                        composition: composition,
+                        onShowHistory: { historyExercise = $0 }
+                    )
+                    .transition(.identity)
+                case .complete(let completion):
+                    completionStage(completion)
                 }
             }
             // The zero minimum keeps an overflowing column from growing this frame, which would
@@ -48,7 +48,7 @@ struct SessionStageView: View {
             ZStack {
                 switch composition {
                 case .reading:
-                    queueBar(stageItem: stageItem, items: items)
+                    queueBar(stage)
                 case .editingWeight:
                     Color.clear.frame(height: Theme.editingWeightFootGap)
                 }
@@ -62,20 +62,7 @@ struct SessionStageView: View {
         .contentShape(Rectangle())
         .onTapGesture(perform: dismissKeyboard)
         .sheet(isPresented: $isQueuePresented) {
-            SessionQueueSheet(
-                items: items,
-                stageItemID: stageItem?.id,
-                showsMoveOn: workout.isViewingLiveEdge && workout.canMoveOn,
-                openExercises: liveEdgeOpenExercises,
-                pairingMode: coordinator.pairingMode,
-                canBeginPairing: canBeginPairing(_:),
-                onJump: jump(to:),
-                onMoveOn: moveOn,
-                onSelectOpenExercise: showSourceSession(of:),
-                onBeginPairing: beginPairing(from:),
-                onPairingTap: handlePairingTap(on:),
-                onCancelPairing: coordinator.cancelPairing
-            )
+            SessionQueueSheet(queue: stage.queue, session: session, coordinator: coordinator)
         }
         .sheet(item: $historyExercise) { exercise in
             ExerciseHistorySheet(
@@ -90,109 +77,59 @@ struct SessionStageView: View {
 
     // MARK: - Stage
 
-    @ViewBuilder
-    private func stageContent(_ item: SessionStageItem, items: [SessionStageItem]) -> some View {
-        switch item.item {
-        case .exercise(let config):
-            exerciseStage(config)
-                .transition(.identity)
-        case .superset(let config):
-            ActiveSupersetSection(
-                config: config,
-                composition: composition,
-                onFocusExercise: { coordinator.focusNextSupersetSet(for: $0, in: session) },
-                onShowHistory: { historyExercise = $0 },
-                onLog: { coordinator.log($0, as: $1) },
-                onSkip: coordinator.skip(_:),
-                onDelete: coordinator.deleteLog(for:)
-            )
-            .transition(.identity)
-        case .hiddenPairedExercise:
-            EmptyView()
-        }
-    }
-
-    private func exerciseStage(_ config: SessionExerciseRenderConfig) -> some View {
-        let sortedSets = config.exercise.sets.sorted { $0.index < $1.index }
-
-        return SessionStageColumn(
-            exercise: config.exercise,
+    private func exerciseStage(_ stage: ExerciseStage) -> some View {
+        SessionStageColumn(
+            exercise: stage.exercise,
             composition: composition,
-            lastPerformed: config.lastPerformedPresentation.map { presentation in
+            lastPerformed: stage.lastPerformed.map { presentation in
                 LastPerformedCard(presentation: presentation) {
-                    historyExercise = config.exercise
+                    historyExercise = stage.exercise
                 }
             }
         ) {
-            Text(config.exercise.baseName)
+            Text(stage.exercise.baseName)
                 .font(Theme.font(.exerciseName))
                 .foregroundStyle(palette.textPrimary)
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("stage-exercise-name")
         } branch: {
-            SessionStageBranch(
-                sets: sortedSets,
-                activeSetID: config.activeSetID,
-                onTap: coordinator.focus(on:)
-            )
+            SessionStageBranch(branch: stage.branch, onTap: coordinator.focus(on:))
         } card: {
-            stageCard(config, sortedSets: sortedSets)
+            if let slot = stage.card {
+                ActiveSetCard(slot: slot, coordinator: coordinator)
+                    .holdsStill(acrossChangesOf: slot.id)
+            }
         }
     }
 
-    @ViewBuilder
-    private func stageCard(_ config: SessionExerciseRenderConfig, sortedSets: [ExerciseSet]) -> some View {
-        let reviewedSet = config.expandedLoggedSetID.flatMap {
-            SessionStagePresentation.set(matching: $0, in: sortedSets)
-        }
-        if let set = reviewedSet ?? SessionStagePresentation.stageSet(activeSetID: config.activeSetID, in: sortedSets) {
-            let isReview = reviewedSet != nil
-            ActiveSetCard(
-                set: set,
-                setOrdinal: SessionStagePresentation.ordinal(of: set, in: sortedSets),
-                setCount: sortedSets.count,
-                mode: isReview
-                    ? .reviewingLogged(
-                        showsSavedConfirmation: config.expandedLoggedSetID == config.savedLoggedSetID,
-                        onCollapse: { coordinator.focus(on: set) }
-                    )
-                    : .logging,
-                onLog: { isReview ? coordinator.updateLoggedSet(set, as: $0) : coordinator.log(set, as: $0) },
-                onSkip: { coordinator.skip(set) },
-                onDelete: { coordinator.deleteLog(for: set) }
-            )
-            .holdsStill(acrossChangesOf: "stage-\(isReview ? "review" : "active")-\(config.exercise.order)-\(set.index)")
-        }
-    }
-
-    private func completionStage(items: [SessionStageItem]) -> some View {
+    private func completionStage(_ completion: CompletionStage) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Session complete")
                 .font(Theme.font(.exerciseName))
                 .foregroundStyle(palette.textPrimary)
 
-            Text(SessionStagePresentation.completionSummary(for: items))
+            Text(completion.summary)
                 .font(Theme.font(.coachNote))
                 .foregroundStyle(palette.textSecondary)
 
-            openExercisesIfMoveOnStillFits
+            openExercisesIfMoveOnStillFits(completion.openExercises)
 
-            if workout.isViewingLiveEdge, workout.canMoveOn {
-                SessionMoveOnButton(onTap: moveOn)
+            if completion.showsMoveOn {
+                SessionMoveOnButton(onTap: coordinator.moveOn)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, Theme.sectionSpacing)
     }
 
-    private var openExercisesIfMoveOnStillFits: some View {
+    private func openExercisesIfMoveOnStillFits(_ openExercises: [Exercise]) -> some View {
         ViewThatFits(in: .vertical) {
             VStack(alignment: .leading, spacing: 14) {
-                if !liveEdgeOpenExercises.isEmpty {
+                if !openExercises.isEmpty {
                     OpenExercisesSection(
-                        exercises: liveEdgeOpenExercises,
-                        onSelect: showSourceSession(of:)
+                        exercises: openExercises,
+                        onSelect: coordinator.showSourceSession(of:)
                     )
                     .padding(.top, Theme.cardSpacing)
                 }
@@ -209,14 +146,13 @@ struct SessionStageView: View {
     // The stage foot (DESIGN.md §5.1, pick session-stage-a): a plain `Up next ·`
     // preview on the left and the `N of M` queue pill on the right. The old glass
     // up-next bar and its uppercase label + arrow icon are gone.
-    private func queueBar(stageItem: SessionStageItem?, items: [SessionStageItem]) -> some View {
-        let upNext = SessionStagePresentation.upNextItem(after: stageItem, in: items)
-        let position = SessionStagePresentation.queuePosition(of: stageItem, in: items)
-
-        return HStack(spacing: 12) {
-            if let upNext {
+    private func queueBar(_ stage: SessionStage) -> some View {
+        HStack(spacing: 12) {
+            if let upNext = stage.upNext {
                 Button {
-                    jump(to: upNext)
+                    if let target = upNext.target {
+                        coordinator.focus(on: target)
+                    }
                 } label: {
                     HStack(spacing: 5) {
                         Text("Up next ·")
@@ -242,7 +178,7 @@ struct SessionStageView: View {
             Button {
                 isQueuePresented = true
             } label: {
-                Text(position.label)
+                Text(stage.queue.position.label)
                     .font(Theme.font(.queuePill))
                     .foregroundStyle(palette.textPrimary)
                     .padding(.horizontal, 16)
@@ -255,7 +191,7 @@ struct SessionStageView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(position.accessibilityLabel)
+            .accessibilityLabel(stage.queue.position.accessibilityLabel)
             .accessibilityIdentifier("stage-queue-button")
         }
         .padding(.horizontal)
@@ -278,45 +214,10 @@ struct SessionStageView: View {
         }
     }
 
-    private func jump(to item: SessionStageItem) {
-        guard let nextSet = item.nextPendingSet else { return }
-        coordinator.focus(on: nextSet)
-    }
-
-    private func moveOn() {
-        coordinator.cancelRestForSessionExit()
-        workout.requestMoveOnCelebration()
-    }
-
-    private func showSourceSession(of exercise: Exercise) {
-        coordinator.cancelPairing()
-        guard let address = exercise.session?.address else { return }
-        workout.show(address)
-    }
-
     private func dismissKeyboard() {
         UIApplication.shared.sendAction(
             #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
         )
-    }
-
-    // MARK: - Pairing
-
-    private func canBeginPairing(_ item: SessionStageItem) -> Bool {
-        guard item.exercises.count == 1, let exercise = item.exercises.first else { return false }
-        return coordinator.canPair(exercise, in: session)
-    }
-
-    private func beginPairing(from item: SessionStageItem) {
-        guard let exercise = item.exercises.first else { return }
-        coordinator.beginPairing(from: exercise, in: session)
-    }
-
-    private func handlePairingTap(on item: SessionStageItem) {
-        guard let exercise = item.exercises.first else { return }
-        if coordinator.handlePairingTap(on: exercise, in: session) == .unavailable {
-            UINotificationFeedbackGenerator().notificationOccurred(.warning)
-        }
     }
 }
 
@@ -402,6 +303,37 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
                 .foregroundStyle(palette.textSecondary)
                 .lineSpacing(4)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+extension ActiveSetCard {
+    /// The card a stage slot describes, wired to the coordinator's verbs.
+    init(slot: SetCardSlot, coordinator: SessionCoordinator) {
+        switch slot.mode {
+        case .logging:
+            self.init(
+                set: slot.set,
+                setOrdinal: slot.ordinal,
+                setCount: slot.count,
+                mode: .logging,
+                onLog: { coordinator.log(slot.set, as: $0) },
+                onSkip: { coordinator.skip(slot.set) },
+                onDelete: { coordinator.deleteLog(for: slot.set) }
+            )
+        case .reviewingLogged(let showsSavedConfirmation):
+            self.init(
+                set: slot.set,
+                setOrdinal: slot.ordinal,
+                setCount: slot.count,
+                mode: .reviewingLogged(
+                    showsSavedConfirmation: showsSavedConfirmation,
+                    onCollapse: { coordinator.focus(on: slot.set) }
+                ),
+                onLog: { coordinator.updateLoggedSet(slot.set, as: $0) },
+                onSkip: { coordinator.skip(slot.set) },
+                onDelete: { coordinator.deleteLog(for: slot.set) }
+            )
         }
     }
 }

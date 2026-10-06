@@ -20,7 +20,7 @@ struct SessionSetPosition {
 /// Three consumers used to each re-walk this ordering by hand — the on-screen
 /// Active Set (`ActiveSetFocusManager`), the Live Activity rest widget's "up
 /// next" (`LiveActivityRestContentBuilder`), and the Stage
-/// (`SessionStagePresentation`) — spelling the Pending predicate two different
+/// (`SessionStage`) — spelling the Pending predicate two different
 /// ways for the same concept. This owner states the ordering, the Pending
 /// predicate, and the first/next/wrap-around rule exactly once; those consumers
 /// keep their own policy layers on top but stop owning the walk.
