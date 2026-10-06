@@ -29,9 +29,8 @@ struct ActiveSupersetSection: View {
         }
     }
 
-    // The focused Exercise's Fraunces name leads; below it the subordinate
-    // "& partner" line (foliage green by Day, translucent foliage at Night) is the
-    // manual focus switch onto the resting side (DESIGN.md §5.4).
+    // The focused Exercise's Fraunces name leads; below it the "& partner" line, smaller and in
+    // a muted tone, is the manual focus switch onto the resting side (DESIGN.md §5.4).
     private var nameBlock: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(stage.focused.baseName)
@@ -46,7 +45,7 @@ struct ActiveSupersetSection: View {
             } label: {
                 Text("& \(stage.partner.baseName)")
                     .font(Theme.font(.supersetPartner))
-                    .foregroundStyle(palette.supersetPartnerBranch)
+                    .foregroundStyle(palette.supersetPartnerName)
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
                     .contentShape(Rectangle())
