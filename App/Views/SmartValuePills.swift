@@ -168,7 +168,8 @@ struct SmartValuePills: View {
                 }
                 .opacity(weightFieldFocused ? 1 : 0)
                 .accessibilityHidden(!weightFieldFocused)
-                .accessibilityIdentifier("weight-pill")
+                // An identifier keeps a hidden element in the accessibility tree, so the idle field carries none.
+                .accessibilityIdentifier(weightFieldFocused ? "weight-pill" : "")
             if !weightFieldFocused {
                 Text(form.weightDisplay)
                     .font(Theme.font(.weightEntry))
