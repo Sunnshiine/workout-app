@@ -6,6 +6,7 @@ struct OnboardingView: View {
     @Environment(WorkoutStore.self) private var workout
     @Environment(\.themePalette) private var palette
     @State private var urlText = ""
+    @FocusState private var urlFieldFocused: Bool
     @State private var urlError = false
     @State private var showsURLFallback = false
     @State private var switchStore: SettingsSheetSwitchStore?
@@ -144,17 +145,24 @@ struct OnboardingView: View {
             Text("Paste your sheet URL")
                 .font(Theme.font(.sheetTitle))
 
-            TextField(fieldName, text: $urlText)
-                .textFieldStyle(.plain)
-                .autocorrectionDisabled()
-                .textInputAutocapitalization(.never)
-                .accessibilityIdentifier("onboarding-url-field")
-                .accessibilityLabel(fieldName)
-                .onChange(of: urlText) { urlError = false }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .background(palette.pillFill, in: .capsule)
-                .overlay { Capsule().strokeBorder(palette.pillStroke, lineWidth: 1) }
+            TextField(
+                fieldName,
+                text: $urlText,
+                prompt: Text(fieldName).foregroundStyle(palette.textSecondary)
+            )
+            .textFieldStyle(.plain)
+            .autocorrectionDisabled()
+            .textInputAutocapitalization(.never)
+            .focused($urlFieldFocused)
+            .accessibilityIdentifier("onboarding-url-field")
+            .accessibilityLabel(fieldName)
+            .onChange(of: urlText) { urlError = false }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(palette.pillFill, in: .capsule)
+            .overlay { Capsule().strokeBorder(palette.pillStroke, lineWidth: 1) }
+            .contentShape(Capsule())
+            .onTapGesture { urlFieldFocused = true }
 
             if urlError {
                 DangerMarkedText(message: "That doesn't look like a Sheet URL", role: .historyChip)
