@@ -144,7 +144,6 @@ struct SmartValuePills: View {
         form.invalidFields.contains(.weight) ? palette.danger : palette.textPrimary
     }
 
-    /// The field stays mounted so a tap can focus it directly, which leaves focus the one owner of editing.
     private var weightValue: some View {
         ZStack {
             TextField(form.weightDisplay, text: $form.weightText)
@@ -551,8 +550,7 @@ private struct HoldToSkipLogButton: View {
             }
             .opacity(presentation.logOpacity)
 
-            // The capsule's own label says Skipped once the fill starts. accessibilityHidden leaves
-            // this crossfade text in the tree, an empty label drops it.
+            // accessibilityHidden leaves this crossfade text in the tree, an empty label drops it.
             Text("Skipped")
                 .opacity(presentation.skipOpacity)
                 .accessibilityLabel("")
