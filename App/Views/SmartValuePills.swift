@@ -434,7 +434,7 @@ struct WeightStepperButton: View {
         Button(action: action) {
             StepperGlyph(direction: direction)
                 .stroke(style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                .foregroundStyle(palette.action)
+                .foregroundStyle(palette.stepperGlyph)
                 .frame(width: 22, height: 22)
                 .frame(width: Theme.weightStepperDiameter, height: Theme.weightStepperDiameter)
                 .background(palette.pillFill, in: .circle)
