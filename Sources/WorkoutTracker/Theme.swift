@@ -170,6 +170,9 @@ enum Theme {
         let surfaceShadow: [BoxShadow]
         let pillFill: Color
         let pillStroke: Color
+        /// The weight ± glyph: action green by Day; cream at Night, where action green on the
+        /// night pill measures 2.6:1 and a control glyph needs 3:1.
+        let stepperGlyph: Color
         let railFill: Color
         /// The selected rail chip's cream fill, lit under the inset action ring (token sheet
         /// §Active Set Card, "rail chip selected").
@@ -544,6 +547,7 @@ extension Theme {
         ],
         pillFill: Paint.cream.opacity(0.85),
         pillStroke: rgb(82, 111, 90, 0.34),
+        stepperGlyph: Paint.actionDay,
         railFill: Paint.cream.opacity(0.55),
         railSelectedFill: Paint.cream.opacity(0.95),
         prescriptionTick: Paint.actionDay,
@@ -600,6 +604,7 @@ extension Theme {
         surfaceShadow: nightSurfaceShadow,
         pillFill: Paint.cream.opacity(0.06),
         pillStroke: Paint.cream.opacity(0.16),
+        stepperGlyph: Paint.cream,
         railFill: Paint.cream.opacity(0.06),
         railSelectedFill: Paint.cream.opacity(0.14),
         prescriptionTick: Paint.actionNight,
