@@ -40,7 +40,7 @@ are recorded inline.
 |---|---|---|
 | `ink` | `#152118` | day text; at low opacity: carved chips, scrim, shadows |
 | `inkNight` | `#EFF3E3` | night text |
-| `muted` | `#526457` | day secondary text |
+| `muted` | `#404E44` | day secondary text |
 | `mutedNight` | `#9AAA9B` | night secondary text |
 | `cream` | `#F2F7E8` | the workhorse — surfaces, pills, buds, ribs, action text (~15 roles at varying opacity) |
 | `actionDay` | `#0D6B40` | day action green; also day leaf/stem/bird pigment |
