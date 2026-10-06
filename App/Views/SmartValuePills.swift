@@ -22,7 +22,6 @@ struct SmartValuePills: View {
     let inputDismissalRequestID: Int
 
     @State private var form: SmartValuePillsForm
-    @State private var isEditingWeight = false
     @State private var showsLoggedCheckmark = false
     @Environment(\.themePalette) private var palette
     @Environment(\.showsLoadBasis) private var showsLoadBasis
@@ -77,17 +76,6 @@ struct SmartValuePills: View {
                     .foregroundStyle(palette.textSecondary)
             }
         }
-        .task(id: isEditingWeight) {
-            weightFieldFocused = isEditingWeight
-        }
-        // Focus can be taken away from outside this view (the stage-wide tap-to-dismiss
-        // surface resigns the first responder directly); fold the edit UI when that happens
-        // so the field doesn't linger unfocused.
-        .onChange(of: weightFieldFocused) { _, focused in
-            if !focused {
-                isEditingWeight = false
-            }
-        }
         .background {
             Color.clear
                 .contentShape(Rectangle())
@@ -100,7 +88,7 @@ struct SmartValuePills: View {
             form.refreshPrefill(from: later, for: set)
         }
         .onDisappear(perform: commitChangedDraftIfNeeded)
-        .preference(key: EditingWeightPreferenceKey.self, value: isEditingWeight)
+        .preference(key: EditingWeightPreferenceKey.self, value: weightFieldFocused)
     }
 
     private var presentation: SetCardPresentation {
@@ -156,9 +144,9 @@ struct SmartValuePills: View {
         form.invalidFields.contains(.weight) ? palette.danger : palette.textPrimary
     }
 
-    @ViewBuilder
+    /// The field stays mounted so focus is the one owner of editing; the Text reads it when unfocused.
     private var weightValue: some View {
-        if isEditingWeight {
+        ZStack {
             TextField(form.weightDisplay, text: $form.weightText)
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.center)
@@ -178,19 +166,22 @@ struct SmartValuePills: View {
                             .accessibilityIdentifier("weight-keyboard-done")
                     }
                 }
+                .opacity(weightFieldFocused ? 1 : 0)
+                .accessibilityHidden(!weightFieldFocused)
                 .accessibilityIdentifier("weight-pill")
-        } else {
-            Text(form.weightDisplay)
-                .font(Theme.font(.weightEntry))
-                .foregroundStyle(weightForeground)
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
-                .frame(maxWidth: .infinity)
-                .contentShape(.rect)
-                .onTapGesture { isEditingWeight = true }
-                .accessibilityLabel("Weight, \(form.weightDisplay)")
-                .accessibilityIdentifier("weight-pill")
-                .accessibilityAddTraits(.isButton)
+            if !weightFieldFocused {
+                Text(form.weightDisplay)
+                    .font(Theme.font(.weightEntry))
+                    .foregroundStyle(weightForeground)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .frame(maxWidth: .infinity)
+                    .contentShape(.rect)
+                    .onTapGesture { weightFieldFocused = true }
+                    .accessibilityLabel("Weight, \(form.weightDisplay)")
+                    .accessibilityIdentifier("weight-pill")
+                    .accessibilityAddTraits(.isButton)
+            }
         }
     }
 
@@ -271,7 +262,6 @@ struct SmartValuePills: View {
     }
 
     private func dismissFieldUI() {
-        isEditingWeight = false
         weightFieldFocused = false
     }
 }
