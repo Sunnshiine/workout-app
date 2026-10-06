@@ -144,7 +144,7 @@ struct SmartValuePills: View {
         form.invalidFields.contains(.weight) ? palette.danger : palette.textPrimary
     }
 
-    /// The field stays mounted so focus is the one owner of editing; the Text reads it when unfocused.
+    /// The field stays mounted so a tap can focus it directly, which leaves focus the one owner of editing.
     private var weightValue: some View {
         ZStack {
             TextField(form.weightDisplay, text: $form.weightText)
