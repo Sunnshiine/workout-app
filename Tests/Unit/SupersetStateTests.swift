@@ -220,12 +220,12 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     let bench = try #require(firstBlock.exercises.first { $0.name == "Bench Press" })
     let state = SupersetState()
     state.createSuperset(with: [squat, bench], in: firstBlock)
-    #expect(state.exercisePairs(in: firstBlock).map { $0.map(\.name) } == [["Squat", "Bench Press"]])
+    #expect(state.supersets(in: firstBlock).map { $0.exercises.map(\.name) } == [["Squat", "Bench Press"]])
 
     let secondBlock = makeSupersetSession(blockTab: "Block 30")
     state.refresh(in: secondBlock)
 
-    #expect(state.exercisePairs(in: secondBlock).map { $0.map(\.name) } == [])
+    #expect(state.supersets(in: secondBlock).map { $0.exercises.map(\.name) } == [])
     #expect(state.supersetCount == 0)
 }
 

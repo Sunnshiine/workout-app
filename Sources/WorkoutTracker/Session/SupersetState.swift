@@ -15,6 +15,20 @@ struct SupersetExerciseIdentity: Hashable, Sendable {
     }
 }
 
+/// A live Superset: its two Exercises in the order the athlete paired them.
+struct Superset: Equatable {
+    let first: Exercise
+    let second: Exercise
+
+    var exercises: [Exercise] { [first, second] }
+
+    var lowerOrdered: Exercise { second.order < first.order ? second : first }
+
+    func other(than exercise: Exercise) -> Exercise {
+        first === exercise ? second : first
+    }
+}
+
 private struct SupersetPair: Equatable, Sendable {
     let first: SupersetExerciseIdentity
     let second: SupersetExerciseIdentity
@@ -118,13 +132,14 @@ final class SupersetState {
         dissolve(pair)
     }
 
-    func exercisePairs(in session: Session) -> [[Exercise]] {
+    func supersets(in session: Session) -> [Superset] {
         pairs.compactMap { pair in
-            guard bothSidesHavePendingSet(pair, in: session) else { return nil }
-            let exercises = [pair.first, pair.second].compactMap { identity in
-                exercise(matching: identity, in: session)
-            }
-            return exercises.count == 2 ? exercises : nil
+            guard
+                bothSidesHavePendingSet(pair, in: session),
+                let first = exercise(matching: pair.first, in: session),
+                let second = exercise(matching: pair.second, in: session)
+            else { return nil }
+            return Superset(first: first, second: second)
         }
     }
 
