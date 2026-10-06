@@ -205,6 +205,7 @@ tabular** (#411).
 | `ceremonyTitle` | Fraunces | 38pt / 1.10, centered |
 | `connectTitle` | Fraunces | 36pt |
 | `sheetTitle` | Fraunces | 24pt / 1.1 (opsz 22) |
+| `heading` | SS3 | 17pt / 650; utility section heads and picker rows, where Fraunces may not go |
 | `weightEntry` | SS3 | 46pt / 700, ls −0.015em, tnum |
 | `logCapsule` | SS3 | 18pt / 650, ls +0.01em, tnum |
 | `setNumber` / `setOf` | SS3 | 16pt / 700 tnum · 14pt / 500 muted |
