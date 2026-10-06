@@ -551,9 +551,11 @@ private struct HoldToSkipLogButton: View {
             }
             .opacity(presentation.logOpacity)
 
+            // The capsule's own label says Skipped once the fill starts. accessibilityHidden leaves
+            // this crossfade text in the tree, an empty label drops it.
             Text("Skipped")
                 .opacity(presentation.skipOpacity)
-                .accessibilityHidden(true)
+                .accessibilityLabel("")
         }
         .frame(maxWidth: .infinity)
     }
