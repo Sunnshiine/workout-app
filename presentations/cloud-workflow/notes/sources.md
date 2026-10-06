@@ -62,8 +62,8 @@ timezone is not on record, so the deck presents "overnight" as the owner's own a
 | Ticket #460 asked that "weight leads at 46pt centered". The first build's ledger: "**Weight does not lead**: label "Weight" *above* a ~20pt value". | [#460](https://github.com/Sunnshiine/workout-app/issues/460), [ledger](https://github.com/Sunnshiine/workout-app/pull/467#issuecomment-5018113535) |
 | The Sheet is the single source of truth; the app is a read-write client with a local cache. | `docs/adr/0001-sheet-as-backend-local-first.md`; AGENTS.md |
 | Wayfinder node titles on slide 6 are the titles of #408's sub-issues (#409 to #414, #418 to #423, #430, #434, #435, #452, #455). | [#408](https://github.com/Sunnshiine/workout-app/issues/408) |
-| Slice titles on slide 11 are the titles of #459 to #466; #458: "where it and DESIGN.md could ever disagree, DESIGN.md wins". | [#458](https://github.com/Sunnshiine/workout-app/issues/458), #459 to #466 |
-| Slide 12 places each block at the start and end of the eight implement runs and the review run on #458/#467, which sum to 172 run-minutes. | `gh run list --workflow agent-implement-prd.yml` and run [29674128625](https://github.com/Sunnshiine/workout-app/actions/runs/29674128625) |
+| Slice titles on slide 10 are the titles of #459 to #466; #458: "where it and DESIGN.md could ever disagree, DESIGN.md wins". | [#458](https://github.com/Sunnshiine/workout-app/issues/458), #459 to #466 |
+| Slide 11 places each block at the start and end of the eight implement runs and the review run on #458/#467, which sum to 172 run-minutes. | `gh run list --workflow agent-implement-prd.yml` and run [29674128625](https://github.com/Sunnshiine/workout-app/actions/runs/29674128625) |
 | Ralph ran locally with a simulator and screenshotted its UI work; the first cloud pipeline compile-checked only. | `ralph/README.md`@5e50302d; `.sandcastle/implement-prd/prompt.md`@374707885 |
 | The first implementer was told to compile-check with "no booted simulator needed", and "UI-affecting changes still get a human/Ralph pass locally." | `.sandcastle/implement-prd/prompt.md`@374707885 |
 | The accepted prototypes were not on main when #467 ran. | `docs/design/greenhouse-picks` absent @374707885; added by #470 in 383ee20a |
@@ -75,8 +75,10 @@ timezone is not on record, so the deck presents "overnight" as the owner's own a
 | #505 phone builds 39, 44, 45, 47, 52, 53. | receipts on #505 |
 | #408 calls the redesign "a deliberate departure from the "Warm Training Cockpit" system, not a cleanup of it". | [#408](https://github.com/Sunnshiine/workout-app/issues/408) body, line 3 |
 | On the re-drive the owner restarted the implement run three times after it blocked: removed `agent:blocked` and re-applied `agent:implement` on #497 at 07-23 00:48, 02:51, and 14:01. The workflows never remove `agent:blocked`. | [#497](https://github.com/Sunnshiine/workout-app/issues/497) timeline; blocked comments 07-22 18:40, 07-23 01:22, 07-23 08:12 |
-| The first-build images on slides 13 and 14 are the audit's renders of PR #467 (head c929cf2 merged with main), recorded on `claude/wayfinder-issue-473-f0f9ql`. They are not photos of the phone build WT Dev 0.467 (36). | 56848626; `assets-staging/CATALOG.md` |
-| Slide 16's "today" image is the Active Set Card fixture baseline, one component rendered from test data, not a full-app screenshot. | `Tests/Visual/__Snapshots__/ActiveSetCardVisualTests/activeSetCardMatchesVisualBaseline.1.png`@7fefd137 |
+| The first-build images on slides 12 and 13 are the audit's renders of PR #467 (head c929cf2 merged with main), recorded on `claude/wayfinder-issue-473-f0f9ql`. They are not photos of the phone build WT Dev 0.467 (36). | 56848626; `assets-staging/CATALOG.md` |
+| Slide 15's "today" image is the Active Set Card fixture baseline, one component rendered from test data, not a full-app screenshot. | `Tests/Visual/__Snapshots__/ActiveSetCardVisualTests/activeSetCardMatchesVisualBaseline.1.png`@7fefd137 |
+| The slices are tracer bullets: "Break the PRD into **tracer-bullet** vertical slices. Each slice is a thin vertical cut through every layer it touches", "a narrow but COMPLETE path through every layer", "demoable or verifiable on its own". The owner's framing: kept, not thrown away, each one a real piece of the app. | `.sandcastle/to-issues-prd/prompt.md`@3747078; `.agents/skills/to-tickets/SKILL.md`@3747078 |
+| The closing slide's Set Log: 17 decisions on the map, 8 slices (#459 to #466), 2 tries (#467, then #505); "from map to merge" runs from the map's creation on Jul 14 to the re-drive's merge on Aug 6. | #408; #459 to #466; #467; #505; 67099cfa |
 
 ## Claims the deck avoids
 

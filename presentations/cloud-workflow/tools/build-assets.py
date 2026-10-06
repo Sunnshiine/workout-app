@@ -32,20 +32,20 @@ GALLERY = [
 
 # name: (staging file, crop box, output width, role chip, slides)
 JOBS = {
-    "today-day.webp": (f"current-app/{SESSION}.1.png", APP_SCREEN, 760, "APP RENDER · 7fefd137", "1, 13"),
+    "today-day.webp": (f"current-app/{SESSION}.1.png", APP_SCREEN, 760, "APP RENDER · 7fefd137", "1, 12"),
     "today-night.webp": (f"current-app/SessionViewVisualTests--seededSessionViewMatchesNightVisualBaseline.1.png", APP_SCREEN, 760, "APP RENDER · 7fefd137", "1"),
-    "old-session.webp": (f"old-app/{SESSION}.1.png", APP_SCREEN, 760, "APP RENDER · 9c90b127", "2, 5, 13"),
-    "first-build-session.webp": (f"failed-implementation/{SESSION}-day.1.png", APP_SCREEN, 760, "AUDIT RENDER of PR #467 · 56848626", "13"),
-    "first-build-card.webp": (f"failed-implementation/{SESSION}-day.1.png", (40, 1210, 1170, 1770), 760, "AUDIT RENDER of PR #467 · 56848626", "14"),
-    "pick-screen.webp": ("accepted-prototypes/input-block3-c.png", PROTO_SCREEN, 760, "PROTOTYPE · accepted pick", "9, 13"),
-    "pick-card.webp": ("accepted-prototypes/input-block3-c.png", (80, 1370, 1100, 2280), 760, "PROTOTYPE · accepted pick", "16"),
-    "today-card.webp": ("current-app/ActiveSetCardVisualTests--activeSetCardMatchesVisualBaseline.1.png", (40, 870, 1170, 1830), 760, "APP RENDER · Active Set Card fixture · 7fefd137", "16"),
-    "wt-dev-icon.webp": ("brand/AppIconDev-Icon-1024.png", None, 240, "real WT Dev icon inside RECONSTRUCTION · drawn for this talk", "7"),
-    "ib-p.webp": ("input-block-prototypes/input-block-p.png", (0, 700, 1179, 1970), 520, "PRODUCTION · redrawn in HTML", "9"),
-    **{f"ib1-{v}.webp": (f"input-block-prototypes/input-block-{v}.png", PROTO_CARD, 520, "PROTOTYPE · browser render", "9") for v in "abcde"},
-    **{f"ib2-{v}.webp": (f"input-block-prototypes/input-block2-{v}.png", PROTO_CARD, 520, "PROTOTYPE · browser render", "9") for v in "abcd"},
-    **{f"ib3-{v}.webp": (f"input-block-prototypes/input-block3-{v}.png", PROTO_CARD, 520, "PROTOTYPE · browser render", "9") for v in "abcd"},
-    **{f"pick-{g}.webp": (f"accepted-prototypes/{g}.png", PROTO_SCREEN, 420, "PROTOTYPE · accepted pick", "10") for g in GALLERY},
+    "old-session.webp": (f"old-app/{SESSION}.1.png", APP_SCREEN, 760, "APP RENDER · 9c90b127", "2, 5, 12"),
+    "first-build-session.webp": (f"failed-implementation/{SESSION}-day.1.png", APP_SCREEN, 760, "AUDIT RENDER of PR #467 · 56848626", "12"),
+    "first-build-card.webp": (f"failed-implementation/{SESSION}-day.1.png", (40, 1210, 1170, 1770), 760, "AUDIT RENDER of PR #467 · 56848626", "13"),
+    "pick-screen.webp": ("accepted-prototypes/input-block3-c.png", PROTO_SCREEN, 760, "PROTOTYPE · accepted pick", "8, 12"),
+    "pick-card.webp": ("accepted-prototypes/input-block3-c.png", (80, 1370, 1100, 2280), 760, "PROTOTYPE · accepted pick", "15"),
+    "today-card.webp": ("current-app/ActiveSetCardVisualTests--activeSetCardMatchesVisualBaseline.1.png", (40, 870, 1170, 1830), 760, "APP RENDER · Active Set Card fixture · 7fefd137", "15"),
+    "wt-dev-icon.webp": ("brand/AppIconDev-Icon-1024.png", None, 240, "none; the real WT Dev icon inside a drawing (data-decor)", "7"),
+    "ib-p.webp": ("input-block-prototypes/input-block-p.png", (0, 700, 1179, 1970), 520, "PRODUCTION · redrawn in HTML", "8"),
+    **{f"ib1-{v}.webp": (f"input-block-prototypes/input-block-{v}.png", PROTO_CARD, 520, "PROTOTYPE · browser render", "8") for v in "abcde"},
+    **{f"ib2-{v}.webp": (f"input-block-prototypes/input-block2-{v}.png", PROTO_CARD, 520, "PROTOTYPE · browser render", "8") for v in "abcd"},
+    **{f"ib3-{v}.webp": (f"input-block-prototypes/input-block3-{v}.png", PROTO_CARD, 520, "PROTOTYPE · browser render", "8") for v in "abcd"},
+    **{f"pick-{g}.webp": (f"accepted-prototypes/{g}.png", PROTO_SCREEN, 420, "PROTOTYPE · accepted pick", "9") for g in GALLERY},
 }
 
 manifest = {}

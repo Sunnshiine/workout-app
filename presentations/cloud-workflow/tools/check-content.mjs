@@ -1,4 +1,4 @@
-// Checks the deck's content rules that a screenshot cannot: type sizes, role chips, dashes, notes length.
+// Checks the deck's content rules that a screenshot cannot: type sizes, role chips, dashes, notes length, click cues.
 // Usage: node tools/check-content.mjs <dir holding playwright-core in node_modules>
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
@@ -13,7 +13,6 @@ const IMAGE_CHIPS = [
   /^PROTOTYPE · (browser render|accepted pick)$/,
   /^PRODUCTION · redrawn in HTML$/,
   /^AUDIT RENDER of PR #467 · [0-9a-f]{8}$/,
-  /^RECONSTRUCTION · drawn for this talk$/,
   /^TICKET · #\d+$/,
   /^RUN RECORD$/,
 ];
@@ -49,8 +48,10 @@ const slides = await page.evaluate(() => [...document.querySelectorAll('section.
   return {
     n: i + 1,
     chips: [...slide.querySelectorAll('.chip')].map((c) => c.textContent.replace(/\s+/g, ' ').trim()),
-    // An svg marked data-decor holds icons, not a figure, so it needs no role chip.
-    hasVisual: !!slide.querySelector('img, svg.art:not([data-decor]), .mini-map'),
+    // Drawings were made for the talk and carry no chip. An image does, unless it is marked data-decor.
+    hasImage: !!slide.querySelector('img:not([data-decor])'),
+    steps: Math.max(0, ...[...slide.querySelectorAll('[data-step]')].map((el) => +el.dataset.step)),
+    clicks: [...(notes?.querySelectorAll('b') ?? [])].filter((b) => b.textContent === '[click]').length,
     tooSmall,
     visible,
     allText: `${slide.textContent} ${alts}`,
@@ -69,8 +70,9 @@ for (const s of slides) {
   for (const t of s.tooSmall) problems.push(`slide ${s.n}: text below the size floor: ${t}`);
   const unknown = s.chips.filter((c) => ![...IMAGE_CHIPS, ...QUOTE_CHIPS].some((re) => re.test(c)));
   for (const c of unknown) problems.push(`slide ${s.n}: unknown chip "${c}"`);
-  if (s.hasVisual && !s.chips.some((c) => IMAGE_CHIPS.some((re) => re.test(c)))) problems.push(`slide ${s.n}: visual without a role chip`);
+  if (s.hasImage && !s.chips.some((c) => IMAGE_CHIPS.some((re) => re.test(c)))) problems.push(`slide ${s.n}: image without a role chip`);
+  if (s.clicks !== s.steps) problems.push(`slide ${s.n}: ${s.steps} steps but ${s.clicks} bold [click] cues in the notes`);
 }
-for (const s of slides) console.log(`slide ${String(s.n).padStart(2)}  notes ${s.notes.split(/\s+/).length} words  chips: ${s.chips.join(' | ')}`);
+for (const s of slides) console.log(`slide ${String(s.n).padStart(2)}  steps ${s.steps}  clicks ${s.clicks}  notes ${s.notes.split(/\s+/).length} words  chips: ${s.chips.join(' | ')}`);
 console.log(problems.length ? `\n${problems.join('\n')}` : '\nno problems');
 process.exit(problems.length ? 1 : 0);

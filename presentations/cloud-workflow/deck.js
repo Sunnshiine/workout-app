@@ -1,8 +1,9 @@
 (() => {
   const deck = document.querySelector('.deck');
   const slides = [...document.querySelectorAll('section.slide')];
+  const lastSteps = slides.map((slide) => Math.max(0, ...[...slide.querySelectorAll('[data-step]')].map((el) => +el.dataset.step)));
   const presenter = new URLSearchParams(location.search).has('presenter');
-  let current = -1;
+  let at = { slide: -1, step: 0 };
   let audience = null;
 
   addArrowheads();
@@ -12,46 +13,74 @@
     deck.style.setProperty('--fit', s);
   }
 
-  function indexFromHash() {
-    const n = parseInt(location.hash.slice(1), 10);
-    return Number.isFinite(n) ? clamp(n - 1) : 0;
+  function place(slide, step) {
+    slide = Math.max(0, Math.min(slides.length - 1, slide));
+    return { slide, step: Math.max(0, Math.min(lastSteps[slide], step)) };
   }
 
-  function clamp(i) {
-    return Math.max(0, Math.min(slides.length - 1, i));
+  function placeFromHash() {
+    const [n, s] = location.hash.slice(1).split('.').map((x) => parseInt(x, 10));
+    return place(Number.isFinite(n) ? n - 1 : 0, Number.isFinite(s) ? s : 0);
   }
 
-  function go(i, { broadcast = true } = {}) {
-    i = clamp(i);
-    if (i === current) return;
-    current = i;
-    slides.forEach((s, k) => s.classList.toggle('active', k === i));
-    history.replaceState(null, '', `${location.pathname}${location.search}#${i + 1}`);
+  function reveal(slide, step) {
+    for (const el of slide.querySelectorAll('[data-step]')) el.classList.toggle('on', +el.dataset.step <= step);
+  }
+
+  function go(target, { broadcast = true } = {}) {
+    const { slide, step } = place(target.slide, target.step);
+    if (slide === at.slide && step === at.step) return;
+    const el = slides[slide];
+    // Only a forward step on the same slide animates. Hiding, and arriving on a slide at any step, is instant.
+    const animate = slide === at.slide && step > at.step;
+    if (!animate) el.classList.add('instant');
+    reveal(el, step);
+    if (!animate) {
+      void el.offsetWidth;
+      el.classList.remove('instant');
+    }
+    if (slide !== at.slide) slides.forEach((s, k) => s.classList.toggle('active', k === slide));
+    at = { slide, step };
+    history.replaceState(null, '', `${location.pathname}${location.search}#${slide + 1}${step ? `.${step}` : ''}`);
     if (presenter) renderPresenter();
     if (!broadcast) return;
-    const msg = { deckSlide: i };
+    const msg = { deckSlide: slide, deckStep: step };
     if (audience && !audience.closed) audience.postMessage(msg, '*');
     if (window.opener && !presenter) window.opener.postMessage(msg, '*');
+  }
+
+  function following({ slide, step }) {
+    if (step < lastSteps[slide]) return { slide, step: step + 1 };
+    if (slide < slides.length - 1) return { slide: slide + 1, step: 0 };
+    return null;
+  }
+
+  function preceding({ slide, step }) {
+    if (step > 0) return { slide, step: step - 1 };
+    if (slide > 0) return { slide: slide - 1, step: lastSteps[slide - 1] };
+    return null;
   }
 
   addEventListener('keydown', (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const next = ['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'];
     const prev = ['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'];
-    if (next.includes(e.key)) go(current + 1);
-    else if (prev.includes(e.key)) go(current - 1);
-    else if (e.key === 'Home') go(0);
-    else if (e.key === 'End') go(slides.length - 1);
+    let target;
+    if (next.includes(e.key)) target = following(at);
+    else if (prev.includes(e.key)) target = preceding(at);
+    else if (e.key === 'Home') target = { slide: 0, step: 0 };
+    else if (e.key === 'End') target = { slide: slides.length - 1, step: lastSteps[slides.length - 1] };
     else if (e.key === 'f' || e.key === 'F') toggleFullscreen();
     else return;
     e.preventDefault();
+    if (target) go(target);
   });
-  addEventListener('hashchange', () => go(indexFromHash()));
+  addEventListener('hashchange', () => go(placeFromHash()));
   addEventListener('message', (e) => {
     if (typeof e.data?.deckSlide !== 'number') return;
     // A reloaded presenter has lost its window handle; the audience's next key press hands it back.
     if (presenter) audience = e.source;
-    go(e.data.deckSlide, { broadcast: false });
+    go({ slide: e.data.deckSlide, step: e.data.deckStep ?? 0 }, { broadcast: false });
   });
 
   function toggleFullscreen() {
@@ -73,9 +102,10 @@
       for (const attr of ['class', 'stroke', 'stroke-width', 'style']) {
         if (path.hasAttribute(attr)) head.setAttribute(attr, path.getAttribute(attr));
       }
-      const d = parseInt(path.style.getPropertyValue('--d') || '0', 10);
+      // The head draws after the shaft: shaft 240 ms, head 120 ms, 360 ms in all.
+      const d = parseInt(getComputedStyle(path).getPropertyValue('--d') || '0', 10);
       head.style.setProperty('--d', `${d + 240}ms`);
-      head.style.setProperty('animation-duration', '120ms');
+      head.style.setProperty('--dur', '120ms');
       path.after(head);
     }
   }
@@ -90,8 +120,9 @@
     ui.innerHTML = `
       <header>
         <span class="count"></span>
+        <span class="title"></span>
         <button type="button" data-open>Open audience window</button>
-        <span>Arrows, Space, or a clicker drive both windows. Press F in the audience window for fullscreen.</span>
+        <span class="hint">Arrows, Space, or a clicker drive both windows. Press F in the audience window for fullscreen.</span>
         <span class="clock" title="Click to reset">0:00</span>
       </header>
       <div class="p-slides">
@@ -101,7 +132,7 @@
       <div class="p-notes"><div class="label">Notes</div><div data-presenter-notes></div></div>`;
     document.body.append(ui);
     ui.querySelector('[data-open]').addEventListener('click', () => {
-      audience = window.open(`${location.pathname}#${current + 1}`, 'deck-audience');
+      audience = window.open(`${location.pathname}${location.hash}`, 'deck-audience');
     });
     const clock = ui.querySelector('.clock');
     clock.addEventListener('click', () => { startedAt = Date.now(); });
@@ -112,13 +143,14 @@
     addEventListener('resize', renderPresenter);
   }
 
-  function mount(frame, slide) {
+  function mount(frame, state) {
     frame.replaceChildren();
-    frame.classList.toggle('empty', !slide);
-    if (!slide) return;
-    const copy = slide.cloneNode(true);
+    frame.classList.toggle('empty', !state);
+    if (!state) return;
+    const copy = slides[state.slide].cloneNode(true);
     copy.classList.add('active');
     copy.querySelector('aside.notes')?.remove();
+    reveal(copy, state.step);
     copy.style.transform = `scale(${frame.clientWidth / 1920})`;
     frame.append(copy);
   }
@@ -126,15 +158,16 @@
   function renderPresenter() {
     if (!ui) return;
     const [now, next] = ui.querySelectorAll('.frame');
-    mount(now, slides[current]);
-    mount(next, slides[current + 1]);
-    ui.querySelector('.count').textContent = `${current + 1} / ${slides.length}  ·  ${slides[current].dataset.title}`;
-    const notes = slides[current].querySelector('aside.notes');
+    mount(now, at);
+    mount(next, following(at));
+    ui.querySelector('.count').textContent = `slide ${at.slide + 1} / ${slides.length}  ·  step ${at.step} / ${lastSteps[at.slide]}`;
+    ui.querySelector('.title').textContent = slides[at.slide].dataset.title;
+    const notes = slides[at.slide].querySelector('aside.notes');
     ui.querySelector('[data-presenter-notes]').innerHTML = notes ? notes.innerHTML : '';
   }
 
   if (presenter) buildPresenter();
   fit();
   addEventListener('resize', fit);
-  go(indexFromHash(), { broadcast: false });
+  go(placeFromHash(), { broadcast: false });
 })();

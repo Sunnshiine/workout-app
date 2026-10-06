@@ -94,18 +94,19 @@ body {
 .art .hand { font-family: var(--display); font-style: italic; font-weight: 500; fill: var(--action); font-variation-settings: 'SOFT' 100, 'WONK' 1; }
 .sketch { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 
-@keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
-/* No `to` frame: the rise ends on each element's own opacity and transform (dimmed thumbs, tilted prints). */
-@keyframes rise { from { opacity: 0; translate: 0 10px; } }
-.slide.active .draw {
-  stroke-dasharray: 1 1;
-  animation: draw 300ms var(--ease-out) both;
-  animation-delay: var(--d, 0ms);
+/* Progressive disclosure. Each [data-step="k"] shows once the slide reaches step k. Hiding is instant;
+   only a forward step animates, and deck.js adds .instant when a slide is entered at any step. */
+[data-step] { opacity: 0; translate: 0 8px; }
+[data-step].on {
+  opacity: 1;
+  translate: 0 0;
+  transition: opacity 200ms var(--ease-out) var(--d, 0ms), translate 200ms var(--ease-out) var(--d, 0ms);
 }
-.slide.active .rise {
-  animation: rise 260ms var(--ease-out) backwards;
-  animation-delay: var(--d, 0ms);
-}
+/* An arrow inside a step draws on: shaft 240 ms, then deck.js gives its head --d + 240 ms and --dur 120 ms. */
+.draw { stroke-dasharray: 1 1; stroke-dashoffset: 0; }
+[data-step]:not(.on) .draw { stroke-dashoffset: 1; }
+.on .draw { transition: stroke-dashoffset var(--dur, 240ms) var(--ease-out) var(--d, 0ms); }
+.slide.instant [data-step], .slide.instant .draw { transition: none; }
 
 /* Who does what (takeaway and close) */
 .lane-night { fill: url(#night); }
@@ -132,9 +133,14 @@ body {
   font: 700 18px/30px var(--body);
   text-align: center;
 }
-.thumb.lost { opacity: 0.42; filter: saturate(0.4); }
-.thumb.won { outline: 4px solid var(--action); outline-offset: 3px; }
-.thumb.won b { background: var(--action); }
+.ring {
+  position: absolute;
+  width: 180px;
+  height: 194px;
+  border-radius: 18px;
+  outline: 4px solid var(--action);
+  outline-offset: 3px;
+}
 
 .round {
   position: absolute;
@@ -145,26 +151,6 @@ body {
   font: 600 26px/41px var(--display);
   text-align: center;
   background: var(--cream);
-}
-
-.verdicts {
-  position: absolute;
-  left: 300px;
-  width: 1110px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 14px;
-}
-.verdicts span {
-  padding: 4px 16px 6px;
-  white-space: nowrap;
-  font: italic 500 24px/1.2 var(--display);
-  font-variation-settings: 'SOFT' 100, 'WONK' 1;
-  color: var(--action);
-  background: rgba(242, 247, 232, 0.7);
-  border: 2px solid var(--foliage);
-  border-radius: 255px 18px 225px 18px / 18px 225px 18px 255px;
 }
 
 .phone {
@@ -219,7 +205,6 @@ body {
   white-space: nowrap;
 }
 .chip.free { position: absolute; }
-.verdicts .chip { font-style: normal; }
 .fig { position: absolute; }
 .fig > .chip { position: absolute; left: 0; top: calc(100% + 16px); }
 
@@ -266,16 +251,13 @@ body {
   font-variation-settings: 'SOFT' 100, 'WONK' 1;
   color: var(--action);
 }
-.mini-map {
+.hl {
   position: absolute;
-  left: 0;
-  top: 0;
-  width: 1920px;
-  height: 1080px;
-  transform: translate(250px, 150px) scale(0.74);
-  transform-origin: 0 0;
+  border-radius: 24px;
+  outline: 4px solid var(--action);
+  outline-offset: 2px;
+  background: rgba(13, 107, 64, 0.07);
 }
-.mini-map .art { position: absolute; }
 
 /* gallery wall */
 .print {
@@ -338,6 +320,80 @@ body {
   box-shadow: 0 18px 36px -24px rgba(21, 33, 24, 0.55);
 }
 
+/* Closing: the app's Move On ceremony, re-lit at Night */
+.slide.night {
+  color: var(--cream);
+  background:
+    radial-gradient(900px 620px at 14% 0%, rgba(92, 88, 52, 0.55), transparent 70%),
+    linear-gradient(172deg, var(--night-top) 0%, var(--night-bottom) 100%);
+}
+.done-header {
+  position: absolute;
+  top: 64px;
+  margin: 0;
+  font: 600 28px/1 var(--body);
+  color: var(--cream);
+}
+.slide h1.done-title {
+  left: 0;
+  right: 0;
+  top: 132px;
+  text-align: center;
+  font-size: 150px;
+  font-weight: 500;
+  color: var(--cream);
+}
+.done-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 700px;
+  margin: 0;
+  text-align: center;
+  font: 400 32px/1.2 var(--body);
+  color: #A9BFA8;
+}
+.done-stats {
+  position: absolute;
+  left: 560px;
+  top: 768px;
+  width: 800px;
+  height: 140px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: center;
+  border-radius: 64px;
+  background: rgba(242, 247, 232, 0.06);
+  border: 2px solid rgba(242, 247, 232, 0.13);
+}
+.done-stats div { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.done-stats b { font: 700 60px/1 var(--body); color: var(--cream); }
+.done-stats span { font: 600 26px/1 var(--body); color: #A9BFA8; }
+.done-action {
+  position: absolute;
+  left: 560px;
+  top: 944px;
+  width: 800px;
+  height: 92px;
+  margin: 0;
+  border-radius: 46px;
+  background: #1F8A55;
+  text-align: center;
+  font: 700 36px/92px var(--body);
+  color: var(--cream);
+}
+
+/* The one celebratory moment: the branch draws, the leaves ink base to tip, the songbird settles. 1.6 s in all. */
+@keyframes branch-draw { from { stroke-dashoffset: 1; } }
+@keyframes leaf-ink { from { opacity: 0; scale: 0.4; } }
+@keyframes bird-settle { from { opacity: 0; translate: 26px -34px; rotate: 10deg; } }
+.celebrate .branch { stroke-dasharray: 1 1; }
+.celebrate .leaf-ink { transform-box: fill-box; transform-origin: 0% 50%; }
+.celebrate .bird { transform-box: fill-box; transform-origin: 50% 100%; }
+.slide.active .celebrate .branch { animation: branch-draw 420ms var(--ease-out) backwards; }
+.slide.active .celebrate .leaf-ink { animation: leaf-ink 280ms var(--ease-out) backwards; animation-delay: calc(200ms + var(--i) * 95ms); }
+.slide.active .celebrate .bird { animation: bird-settle 360ms var(--ease-out) backwards 1240ms; }
+
 /* Presenter view */
 body.presenter { background: #0c130e; color: var(--cream); overflow: auto; }
 body.presenter .deck { display: none; }
@@ -358,7 +414,9 @@ body.presenter .deck { display: none; }
   color: #9fb39f;
   white-space: nowrap;
 }
-.presenter-ui header .count { font: 600 24px/1 var(--display); color: var(--cream); }
+.presenter-ui header .count { font: 600 24px/1 var(--display); color: var(--cream); white-space: pre; }
+.presenter-ui header .title { font: 500 20px/1 var(--body); color: var(--cream); }
+.presenter-ui header .hint { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .presenter-ui header .clock { margin-left: auto; font: 500 28px/1 var(--body); color: var(--cream); font-variant-numeric: tabular-nums; cursor: pointer; }
 .presenter-ui button {
   font: 600 16px/1 var(--body);
@@ -378,7 +436,7 @@ body.presenter .deck { display: none; }
 .frame { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 10px; background: var(--night-bottom); }
 .p-now .frame { width: auto; max-height: 50vh; box-shadow: 0 0 0 2px #579168; }
 .frame .slide { opacity: 1; visibility: visible; transition: none; transform-origin: 0 0; width: 1920px; height: 1080px; }
-.frame .slide * { animation: none !important; }
+.frame .slide, .frame .slide * { animation: none !important; transition: none !important; }
 .frame.empty::after { content: 'End of deck'; position: absolute; inset: 0; display: grid; place-items: center; color: #9fb39f; font: 500 22px var(--body); }
 [data-presenter-notes] {
   overflow: auto;
@@ -391,5 +449,9 @@ body.presenter .deck { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .slide, .slide.active { transition: none; }
-  .slide.active .draw, .slide.active .rise { animation: none; }
+  [data-step] { translate: none; }
+  [data-step].on { transition: opacity 150ms var(--ease-out); }
+  [data-step]:not(.on) .draw { stroke-dashoffset: 0; }
+  .on .draw { transition: none; }
+  .slide.active .celebrate .branch, .slide.active .celebrate .leaf-ink, .slide.active .celebrate .bird { animation: none; }
 }
