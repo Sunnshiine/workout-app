@@ -4,12 +4,15 @@ import Testing
 @testable import WorkoutTracker
 
 // WCAG 2 contrast for the marks that sit nearest their floor, computed from the palette tokens so
-// a token that regresses fails here: 3:1 for a control glyph, 4.5:1 for text. Each mark is
-// composited over the ground it is drawn on. The weight ± glyph sits on the pill, over the Active
-// Set Card surface, over the paper's top stop. The Superset partner name sits on the paper's top
-// stop. Day secondary text in the stage foot sits on the paper's bottom stop under the last wash,
-// the deep sage that pools at the foot; it is the darkest Day ground secondary text meets, so it
-// is the worst case.
+// a token that regresses fails here: 3:1 for a control glyph, 4.5:1 for text. A wash in a ground is
+// at full strength or absent, so no ground moves when a wash's fade is retuned.
+// - The weight ± glyph: the pill over the Active Set Card surface over the paper's top stop.
+// - The Night partner name: the top stop under the sun wash that lifts the upper left, where light
+//   text is weakest.
+// - The Day partner name: the base gradient a third of the way down, below where the name sits, with
+//   no wash.
+// - Day secondary text in the stage foot: the bottom stop under the last wash, the deep sage that
+//   pools at the foot.
 
 private struct SRGB {
     let red: Double
@@ -76,12 +79,14 @@ private func stepperGround(_ palette: Theme.Palette) -> [Color] {
 
 @Test func daySupersetPartnerNameReadsAsText() {
     let day = Theme.palette(for: Theme.Appearance.day)
-    #expect(contrast(of: day.supersetPartnerName, over: [day.paper.baseTop]) >= 4.5)
+    let ground = [day.paper.baseTop, day.paper.baseBottom.opacity(0.35)]
+    #expect(contrast(of: day.supersetPartnerName, over: ground) >= 4.5)
 }
 
-@Test func nightSupersetPartnerNameReadsAsText() {
+@Test func nightSupersetPartnerNameReadsAsText() throws {
     let night = Theme.palette(for: Theme.Appearance.night)
-    #expect(contrast(of: night.supersetPartnerName, over: [night.paper.baseTop]) >= 4.5)
+    let sunWash = try #require(night.paper.washes.first)
+    #expect(contrast(of: night.supersetPartnerName, over: [night.paper.baseTop, sunWash.color]) >= 4.5)
 }
 
 @Test func daySecondaryTextReadsAsTextInTheStageFoot() throws {

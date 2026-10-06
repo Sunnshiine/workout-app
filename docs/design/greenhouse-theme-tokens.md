@@ -42,12 +42,14 @@ are recorded inline.
 | `inkNight` | `#EFF3E3` | night text |
 | `muted` | `#404E44` | day secondary text |
 | `mutedNight` | `#9AAA9B` | night secondary text |
+| `mutedNightLight` | `#AABAAA` | night Superset partner name; mutedNight falls under 4.5:1 beneath the sun wash |
 | `cream` | `#F2F7E8` | the workhorse — surfaces, pills, buds, ribs, action text (~15 roles at varying opacity) |
 | `actionDay` | `#0D6B40` | day action green; also day leaf/stem/bird pigment |
 | `actionDayInk` | `#0A5936` | day action green as words, glyphs, and system tint: the pressed Log green, because `#0D6B40` measures 3.97 to 4.40:1 as small text on the queue sheet's darker foot |
 | `actionNight` | `#1F8552` | night action green (mint is banned from the action role at night) |
 | `actionNightInk` | `#A8CFB4` | night action green as words, glyphs, and system tint: actionNight under cream @ 65%, because `#1F8552` measures 1.9 to 3.7:1 as text on night paper |
 | `foliage` | `#579168` | *the* night pigment: leaves, stems, bird, tiles re-light to this |
+| `foliageDeep` | `#3F6A4B` | day Superset partner name; a foliage deep enough for 4.5:1 on Day paper |
 | `paperDay` | `#E9EEDC → #CBE1C2` | base pair under the day washes (atmosphere pick — supersedes `#E8EDDB → #C7E0BF`) |
 | `paperNight` | `#232C20 → #121D14` | hue-preserved deep sage, never neutral black (#418) |
 
