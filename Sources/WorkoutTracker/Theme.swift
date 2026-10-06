@@ -34,7 +34,7 @@ enum Theme {
     enum Paint {
         static let ink = rgb(21, 33, 24) // #152118 — day text
         static let inkNight = rgb(239, 243, 227) // #EFF3E3 — night text
-        static let muted = rgb(82, 100, 87) // #526457 — day secondary
+        static let muted = rgb(64, 78, 68) // #404E44 — day secondary
         static let mutedNight = rgb(154, 170, 155) // #9AAA9B — night secondary
         static let cream = rgb(242, 247, 232) // #F2F7E8 — the workhorse
         static let actionDay = rgb(13, 107, 64) // #0D6B40 — day action / leaf / stem / bird
