@@ -48,7 +48,10 @@ struct SessionView: View {
 
                     productionStage(for: session)
                         .onAppear {
-                            bindCoordinator(to: session)
+                            let isFirstBind = coordinator.session == nil
+                            withTransaction(\.disablesAnimations, isFirstBind) {
+                                bindCoordinator(to: session)
+                            }
                         }
                         .onChange(of: session.persistentModelID) { _, _ in
                             bindCoordinator(to: session)
@@ -213,7 +216,7 @@ extension SessionView {
             skip: skipWithFade,
             delete: coordinator.deleteLog(for:),
             focusSupersetExercise: { exercise in
-                focusSupersetWithMorph(exercise, in: session)
+                switchSupersetSideInOneFrame(to: exercise, in: session)
             },
             showSourceSession: showSourceSession(for:),
             moveOn: {
@@ -342,17 +345,9 @@ extension SessionView {
         return setID == coordinator.expandedLoggedSetID ? .loggedReviewCollapse : .loggedReviewOpen
     }
 
-    private func focusSupersetWithMorph(_ exercise: Exercise, in session: Session) {
-        let policy = SessionFocusMorphPolicy(reduceMotion: reduceMotion)
-        guard policy.shouldAnimate(.supersetSwitchSucceeded) else {
-            _ = coordinator.focusNextSupersetSet(for: exercise, in: session)
-            return
-        }
-
-        _ = coordinator.focusNextSupersetSet(for: exercise, in: session) { updateFocus in
-            withAnimation(Theme.focusMorphAnimation) {
-                updateFocus()
-            }
+    private func switchSupersetSideInOneFrame(to exercise: Exercise, in session: Session) {
+        _ = withTransaction(\.disablesAnimations, true) {
+            coordinator.focusNextSupersetSet(for: exercise, in: session)
         }
     }
 

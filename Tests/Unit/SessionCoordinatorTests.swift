@@ -171,6 +171,19 @@ private func makePlannedPairingSession() -> Session {
     return session
 }
 
+private func makeSquatAndRDLSession() -> Session {
+    let session = Session(dayNumber: 1, date: nil)
+    let squat = Exercise(name: "Back Squat", baseName: "Back Squat", cadence: nil, coachNote: nil, order: 0)
+    let rdl = Exercise(name: "2-3:1:0 BB RDL", baseName: "BB RDL", cadence: "2-3:1:0", coachNote: nil, order: 1)
+    for exercise in [squat, rdl] {
+        exercise.sets = (0..<2).map {
+            ExerciseSet(index: $0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
+        }
+    }
+    session.exercises = [squat, rdl]
+    return session
+}
+
 private func makeFourExercisePairingSession() -> Session {
     let session = Session(dayNumber: 1, date: nil)
 
@@ -572,44 +585,6 @@ private func makeRestActionFixture(
 }
 
 @MainActor
-@Test func coordinatorSupersetSideSwitchUsesInjectedFocusAnimationWithoutTransition() throws {
-    let session = makePlannedPairingSession()
-    let coordinator = SessionCoordinator(session: session)
-    let squat = try #require(session.exercises.first { $0.order == 1 })
-    let bench = try #require(session.exercises.first { $0.order == 2 })
-    var animationCallCount = 0
-    let animation: SessionFocusAnimation = { update in
-        animationCallCount += 1
-        update()
-    }
-
-    #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
-    #expect(coordinator.focusNextSupersetSet(for: bench, in: session, animateFocus: animation))
-
-    let expectedSetID = ActiveSetID(exerciseOrder: 2, setIndex: 0)
-    #expect(animationCallCount == 1)
-    #expect(coordinator.activeSetID == expectedSetID)
-    #expect(coordinator.activeSetTransition == nil)
-}
-
-@MainActor
-@Test func coordinatorFailedSupersetSideSwitchDoesNotUseInjectedFocusAnimation() throws {
-    let session = makePlannedPairingSession()
-    let coordinator = SessionCoordinator(session: session)
-    let press = try #require(session.exercises.first { $0.order == 0 })
-    var animationCallCount = 0
-    let animation: SessionFocusAnimation = { update in
-        animationCallCount += 1
-        update()
-    }
-
-    #expect(!coordinator.focusNextSupersetSet(for: press, in: session, animateFocus: animation))
-
-    #expect(animationCallCount == 0)
-    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
-}
-
-@MainActor
 @Test func coordinatorMembershipAgreesForPlannedButNotYetActiveSuperset() throws {
     let session = makePlannedPairingSession()
     let coordinator = SessionCoordinator(session: session)
@@ -640,15 +615,9 @@ private func makeRestActionFixture(
 
 @MainActor
 @Test func supersetLogRendersThePairBeforeAndAfterTheFocusMove() throws {
-    let session = Session(dayNumber: 1, date: nil)
-    let squat = Exercise(name: "Back Squat", baseName: "Back Squat", cadence: nil, coachNote: nil, order: 0)
-    let rdl = Exercise(name: "2-3:1:0 BB RDL", baseName: "BB RDL", cadence: "2-3:1:0", coachNote: nil, order: 1)
-    for exercise in [squat, rdl] {
-        exercise.sets = (0..<2).map {
-            ExerciseSet(index: $0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
-        }
-    }
-    session.exercises = [squat, rdl]
+    let session = makeSquatAndRDLSession()
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let rdl = try #require(session.exercises.first { $0.order == 1 })
     let coordinator = SessionCoordinator(session: session, logging: SpySessionLoggingAdapter(), sync: SpySessionSyncAdapter())
     #expect(coordinator.createSuperset(from: squat, to: rdl, in: session))
     let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
@@ -1641,4 +1610,158 @@ private func makeRestActionFixture(
     coordinator.log(secondBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .eight))
 
     #expect(restTimer.remaining == 30)
+}
+
+@MainActor
+@Test func readingTheSupersetSectionsWritesNoObservedState() throws {
+    let session = makePlannedPairingSession()
+    let coordinator = SessionCoordinator(session: session)
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+    #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
+    for set in squat.sets {
+        set.state = .logged
+    }
+    let changes = ObservedChanges()
+    changes.watch { _ = coordinator.canPair(bench, in: session) }
+
+    #expect(coordinator.supersetSections(in: session).isEmpty)
+
+    #expect(changes.fired == 0)
+}
+
+@MainActor
+@Test func switchingSidesRightAfterASupersetLogDropsTheIncomingCardTransition() throws {
+    let session = makeSquatAndRDLSession()
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let rdl = try #require(session.exercises.first { $0.order == 1 })
+    let coordinator = SessionCoordinator(session: session, logging: SpySessionLoggingAdapter(), sync: SpySessionSyncAdapter())
+    #expect(coordinator.createSuperset(from: squat, to: rdl, in: session))
+    let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
+    coordinator.log(firstSquatSet, as: SetLog(weight: .pounds(315), reps: 5, rpe: .seven))
+    #expect(coordinator.activeSetTransition?.incomingSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+
+    #expect(coordinator.focusNextSupersetSet(for: squat, in: session))
+
+    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 1))
+    #expect(coordinator.activeSetTransition == nil)
+}
+
+@MainActor
+@Test func aLogASkipAndATapEachMoveTheFocusInsideTheInjectedAnimation() throws {
+    let session = makeSquatAndRDLSession()
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let rdl = try #require(session.exercises.first { $0.order == 1 })
+    let coordinator = SessionCoordinator(session: session, logging: SpySessionLoggingAdapter(), sync: SpySessionSyncAdapter())
+    #expect(coordinator.createSuperset(from: squat, to: rdl, in: session))
+    let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
+    let secondSquatSet = try #require(squat.sets.first { $0.index == 1 })
+    let firstRDLSet = try #require(rdl.sets.first { $0.index == 0 })
+    var focusMoves: [[ActiveSetID?]] = []
+    let animation: SessionFocusAnimation = { update in
+        let before = coordinator.activeSetID
+        update()
+        focusMoves.append([before, coordinator.activeSetID])
+    }
+
+    #expect(coordinator.focusNextSupersetSet(for: rdl, in: session))
+    coordinator.log(firstRDLSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: .seven), animateFocus: animation)
+    coordinator.skip(firstSquatSet, animateFocus: animation)
+    coordinator.focus(on: secondSquatSet, animateFocus: animation)
+
+    #expect(
+        focusMoves == [
+            [ActiveSetID(exerciseOrder: 1, setIndex: 0), ActiveSetID(exerciseOrder: 0, setIndex: 0)],
+            [ActiveSetID(exerciseOrder: 0, setIndex: 0), ActiveSetID(exerciseOrder: 1, setIndex: 1)],
+            [ActiveSetID(exerciseOrder: 1, setIndex: 1), ActiveSetID(exerciseOrder: 0, setIndex: 1)]
+        ]
+    )
+}
+
+@MainActor
+@Test func aSupersetEndedByLoggingOneSidesLastSetStaysEndedWhenThatLogIsDeleted() throws {
+    let session = makePlannedPairingSession()
+    let coordinator = SessionCoordinator(session: session, logging: SpySessionLoggingAdapter(), sync: SpySessionSyncAdapter())
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+    let lastSquatSet = try #require(squat.sets.first)
+    #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
+
+    coordinator.log(lastSquatSet, as: SetLog(weight: .pounds(315), reps: 5, rpe: .seven))
+    coordinator.deleteLog(for: lastSquatSet)
+
+    #expect(lastSquatSet.state == .pending)
+    #expect(coordinator.renderItems(in: session).map(\.id) == ["exercise-0", "exercise-1", "exercise-2"])
+    #expect(coordinator.canPair(squat, in: session))
+}
+
+@MainActor
+@Test func aLiveEdgeLogThatEndsASupersetEndsItInsideTheInjectedAnimation() throws {
+    let session = makePlannedPairingSession()
+    connectCoordinatorWeek([session])
+    let liveActivity = SpySessionLiveActivityAdapter()
+    let coordinator = SessionCoordinator()
+    coordinator.bind(
+        to: session,
+        logging: SpySessionLoggingAdapter(),
+        sync: SpySessionSyncAdapter(),
+        restTimer: RestTimer(clock: ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))),
+        liveActivity: liveActivity,
+        liveEdge: { .atLiveEdge(currentSession: $0) }
+    )
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+    let lastSquatSet = try #require(squat.sets.first)
+    #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
+    let changes = ObservedChanges()
+    changes.watch { _ = coordinator.canPair(bench, in: session) }
+    var firedAroundAnimation: [Int] = []
+
+    coordinator.log(lastSquatSet, as: SetLog(weight: .pounds(315), reps: 5, rpe: .seven)) { update in
+        firedAroundAnimation.append(changes.fired)
+        update()
+        firedAroundAnimation.append(changes.fired)
+    }
+
+    #expect(liveActivity.calls.count == 1)
+    #expect(firedAroundAnimation == [0, 1])
+    #expect(coordinator.canPair(bench, in: session))
+}
+
+@MainActor
+@Test func loggingASetOutsideEverySupersetNotifiesNoPairingReader() throws {
+    let session = makePlannedPairingSession()
+    let coordinator = SessionCoordinator(session: session, logging: SpySessionLoggingAdapter(), sync: SpySessionSyncAdapter())
+    let press = try #require(session.exercises.first { $0.order == 0 })
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+    let pressSet = try #require(press.sets.first)
+    #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
+    let changes = ObservedChanges()
+    changes.watch { _ = coordinator.canPair(bench, in: session) }
+
+    coordinator.log(pressSet, as: SetLog(weight: .pounds(135), reps: 5, rpe: .seven))
+
+    #expect(pressSet.state == .logged)
+    #expect(changes.fired == 0)
+}
+
+@MainActor
+@Test func rebindingAfterASupersetLogKeepsTheFocusOnThePartner() throws {
+    let session = makeSquatAndRDLSession()
+    let press = Exercise(name: "Press", baseName: "Press", cadence: nil, coachNote: nil, order: 2)
+    press.sets = [ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)]
+    session.exercises.append(press)
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let rdl = try #require(session.exercises.first { $0.order == 1 })
+    let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
+    let pressSet = try #require(press.sets.first)
+    let coordinator = SessionCoordinator(session: session, logging: SpySessionLoggingAdapter(), sync: SpySessionSyncAdapter())
+    coordinator.focus(on: pressSet)
+    #expect(coordinator.createSuperset(from: squat, to: rdl, in: session))
+    coordinator.log(firstSquatSet, as: SetLog(weight: .pounds(225), reps: 5, rpe: .seven))
+
+    coordinator.bind(to: session)
+
+    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
 }

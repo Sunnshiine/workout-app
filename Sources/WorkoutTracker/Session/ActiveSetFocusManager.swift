@@ -140,10 +140,6 @@ final class ActiveSetFocusManager {
         supersetSections(in: session).first { $0.presentation.activeExerciseOrder != nil }?.presentation
     }
 
-    func activeSupersetExercises(in session: Session) -> [Exercise] {
-        supersetState.activeExercises(in: session)
-    }
-
     func liveActivityRestContent(
         afterLogging set: ExerciseSet,
         in session: Session,
@@ -198,7 +194,7 @@ final class ActiveSetFocusManager {
     }
 
     private func nextActiveSetID(after set: ExerciseSet, in session: Session) -> ActiveSetID? {
-        if let supersetNextSetID = supersetState.nextSetID(after: set, in: session) {
+        if let supersetNextSetID = supersetState.focusNextSetID(after: set, in: session) {
             return supersetNextSetID
         }
         let normalNextSetID = SessionSetOrder.nextPendingSet(after: set, in: session)?.setID
