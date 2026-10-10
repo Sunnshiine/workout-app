@@ -34,7 +34,7 @@ struct SessionView: View {
 
                     if !workout.isViewingLiveEdge {
                         OffLiveEdgeControls(
-                            currentLabel: workout.currentSession?.address?.sessionLabel ?? "current",
+                            backLabel: OffLiveEdgePresentation(currentSession: workout.currentSession).backLabel,
                             onGoBack: {
                                 sessionSettingsOverpullState = .hidden
                                 workout.showCurrent()
@@ -298,7 +298,7 @@ private enum SessionSettingsHeaderDrag {
 }
 
 private struct OffLiveEdgeControls: View {
-    let currentLabel: String
+    let backLabel: String
     let onGoBack: () -> Void
     let onMakeCurrent: () -> Void
     @Environment(\.themePalette) private var palette
@@ -313,7 +313,7 @@ private struct OffLiveEdgeControls: View {
     }
 
     private var goBackButton: some View {
-        capsule("Back to \(currentLabel)", action: onGoBack)
+        capsule(backLabel, action: onGoBack)
             .accessibilityHint("Returns to the current session")
             .accessibilityIdentifier("go-back-current-session-button")
     }
