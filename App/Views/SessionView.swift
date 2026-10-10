@@ -235,8 +235,6 @@ extension SessionView {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("session-header-hud")
         .overlay(alignment: .top) {
-            // The banner covers the HUD row, so it takes no touches, leaving the runline link
-            // and the over-pull drag to the HUD, and it steps aside while the Settings gear shows.
             SessionSyncBanner()
                 .padding(.top, 8)
                 .allowsHitTesting(false)
@@ -290,8 +288,6 @@ private struct SwiftUISessionMotion: SessionMotionPerforming {
     }
 }
 
-/// The sync banner drawn over the HUD. It owns the SyncCoordinator reads, so a sync flip
-/// re-runs this body alone, and its animation reaches only the banner, never the stage below.
 private struct SessionSyncBanner: View {
     @Environment(SyncCoordinator.self) private var sync
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
