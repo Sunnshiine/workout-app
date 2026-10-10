@@ -43,10 +43,6 @@ protocol SheetSwitchSyncing: AnyObject {
     func discardPendingWrites() async throws
 }
 
-extension SheetSwitchSyncing {
-    var outcome: SyncOutcome { .clear }
-}
-
 /// The athlete's connection to the configured Sheet: Sync now, switching Sheets, and signing out.
 /// Switching and signing out are one Destructive Transition, and neither may start while a sync runs.
 @MainActor
