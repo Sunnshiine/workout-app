@@ -235,8 +235,13 @@ extension SessionView {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("session-header-hud")
         .overlay(alignment: .top) {
+            // The banner covers the HUD row, so it takes no touches, leaving the runline link
+            // and the over-pull drag to the HUD, and it steps aside while the Settings gear shows.
             SessionSyncBanner()
                 .padding(.top, 8)
+                .allowsHitTesting(false)
+                .opacity(sessionSettingsOverpullState.isVisible ? 0 : 1)
+                .accessibilityHidden(sessionSettingsOverpullState.isVisible)
         }
     }
 

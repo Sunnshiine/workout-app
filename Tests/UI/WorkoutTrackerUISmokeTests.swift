@@ -7,7 +7,8 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
-        let safeTop = app.otherElements["session-header-hud"].frame.minY
+        let hud = app.otherElements["session-header-hud"].frame
+        let name = app.staticTexts["stage-exercise-name"].frame
 
         app.buttons["rpe-6"].tap()
         let logButton = app.buttons["log-active-set-button"]
@@ -19,7 +20,12 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
 
         let banner = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Sync status:")).firstMatch
         XCTAssertTrue(banner.appears(within: 3))
-        XCTAssertGreaterThanOrEqual(banner.frame.minY, safeTop, "the banner starts at or below the safe top, where the HUD started")
+        XCTAssertGreaterThanOrEqual(banner.frame.minY, hud.minY, "the banner starts at or below the HUD's top")
+        XCTAssertEqual(app.otherElements["session-header-hud"].frame, hud, "the banner leaves the HUD where it was")
+        XCTAssertEqual(app.staticTexts["stage-exercise-name"].frame, name, "the banner leaves the Exercise name where it was")
+
+        app.buttons["session-location-button"].tap()
+        XCTAssertTrue(app.navigationBars["Block 27"].appears(within: 3), "the runline under the banner still opens Block Overview")
     }
 
     @MainActor

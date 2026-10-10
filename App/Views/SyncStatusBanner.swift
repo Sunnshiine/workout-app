@@ -23,8 +23,8 @@ struct SyncStatusBanner: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(palette.bannerFill, in: Capsule())
-        // The banner sits over the HUD, so a solid paper base keeps the HUD text from showing
-        // through the translucent fill.
+        // A solid paper base under the translucent fill, so nothing the banner overlays shows
+        // through it.
         .background(palette.paper.baseTop, in: Capsule())
         .overlay(Capsule().strokeBorder(palette.bannerStroke, lineWidth: 0.5))
         .padding(.horizontal)
