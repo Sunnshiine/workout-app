@@ -29,8 +29,6 @@ enum DestructiveTransitionFailure: Error, Equatable {
     }
 }
 
-/// Not a `SpreadsheetFile`, because the pasted-URL fallback has no title and must still switch
-/// through the same Destructive Transition as the Drive picker.
 struct SheetSelection: Equatable {
     let spreadsheetId: String
     let title: String?
@@ -48,8 +46,6 @@ struct SheetSelection: Equatable {
 
 @MainActor
 protocol SheetSwitchSyncing: AnyObject {
-    /// Any sync or pending-write flush, including those this connection did not start: the flush a
-    /// logged Set queues, or the stage's sync on appear.
     var isSyncing: Bool { get }
     var outcome: SyncOutcome { get }
 
@@ -58,10 +54,6 @@ protocol SheetSwitchSyncing: AnyObject {
     func discardPendingWrites() async throws
 }
 
-/// Sync now, switching the configured Sheet, and signing out. Switching and signing out are one
-/// Destructive Transition, refused while any sync or flush runs. One instance serves onboarding,
-/// Settings, Developer Tools, and the CLI for the app's lifetime, so it holds no presentation
-/// state. Each result carries its reason, and each caller keeps its own alert.
 @MainActor
 @Observable
 final class SheetConnection {
@@ -136,8 +128,6 @@ final class SheetConnection {
         }
     }
 
-    /// Onboarding's selection, returning the message to show when it did not commit. A prior Sheet's
-    /// unsynced writes are reported, not offered for discard; that choice lives in Settings.
     func connect(_ selection: SheetSelection) async -> String? {
         switch await requestSwitch(to: selection) {
         case .switched, .unchanged: nil
@@ -146,7 +136,6 @@ final class SheetConnection {
         }
     }
 
-    /// Discards the pending writes, then makes the switch `requestSwitch` held for confirmation.
     func confirmSwitch(to selection: SheetSelection) async throws(DestructiveTransitionFailure) {
         guard canBeginDestructiveTransition else { throw .syncInProgress }
 
@@ -170,7 +159,6 @@ final class SheetConnection {
         }
     }
 
-    /// Discards the pending writes and clears the selection; the caller ends the Google session.
     func signOut() async throws(DestructiveTransitionFailure) {
         guard canBeginDestructiveTransition else { throw .syncInProgress }
 

@@ -14,8 +14,6 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
     #expect(failure.message == expected)
 }
 
-// MARK: - Sync now
-
 @MainActor
 @Test func syncNowSyncsTheConfiguredSheetAndReloadsWorkoutState() async throws {
     let container = try makeCacheSafetyContainer()
@@ -57,8 +55,6 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
     #expect(client.tabTitleReads == 1)
 }
 
-// MARK: - Sheet switch
-
 @MainActor
 @Test func sheetSwitchReplacesStaleCachedBlockOnlyAfterSyncingNewSheet() async throws {
     let container = try makeCacheSafetyContainer()
@@ -83,8 +79,6 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
     #expect(await client.syncedSpreadsheetIds() == ["new-sheet"])
 }
 
-// The onboarding pasted-URL fallback commits a titleless `SheetSelection`, so the safe transaction
-// must sync the new sheet first, then commit the id while clearing any stale title left behind.
 @MainActor
 @Test func titlelessSelectionSwitchSyncsNewSheetThenClearsStaleTitle() async throws {
     let container = try makeCacheSafetyContainer()
@@ -149,7 +143,6 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
 
     let result = await connection.requestSwitch(to: newSheet)
 
-    // A pending write for the old sheet forces confirmation before anything is synced.
     #expect(result == .requiresConfirmation(SheetSelection(spreadsheetId: "new-sheet", title: "New Training Log")))
     #expect(settings.spreadsheetId == "old-sheet")
     #expect(try context.fetch(FetchDescriptor<PendingWrite>()).map(\.valueToWrite) == ["185x5@8"])
@@ -160,8 +153,6 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
     #expect(settings.spreadsheetId == "new-sheet")
     #expect(settings.spreadsheetTitle == "New Training Log")
     #expect(reloadCount == 1)
-    // The old pending write was discarded before the new sheet synced, so it can never be written
-    // into the newly selected spreadsheet.
     #expect(await client.updatedSpreadsheetIds() == [])
     #expect(await client.syncedSpreadsheetIds() == ["new-sheet"])
     #expect(try context.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
@@ -230,8 +221,6 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
     #expect(try context.fetch(FetchDescriptor<Block>()).map(\.tabName) == ["Block 26"])
 }
 
-// A failed titleless selection switch (pasted URL that can't sync) must leave onboarding's previous
-// selection and cache untouched, exactly like the Drive-picker path.
 @MainActor
 @Test func failedTitlelessSelectionSwitchKeepsPreviousSelectionAndCache() async throws {
     let container = try makeCacheSafetyContainer()
@@ -328,8 +317,6 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
     #expect(sync.syncedSpreadsheetIds == ["new-sheet"])
 }
 
-// MARK: - Sign out
-
 @MainActor
 @Test func signingOutWithNothingQueuedClearsTheSheetAndTheSession() async throws {
     let container = try makeCacheSafetyContainer()
@@ -369,8 +356,6 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
     #expect(settings.isSignedIn == false)
 }
 
-/// Set Logs a failed discard leaves queued still belong on the Sheet (ADR-0001), so the sign-out
-/// keeps the Sheet they flush to.
 @MainActor
 @Test func failedPendingWriteDiscardKeepsTheSheetAndTheSession() async throws {
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
@@ -424,11 +409,6 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
     #expect(settings.isSignedIn == true)
 }
 
-// MARK: - The guard against any running sync
-
-/// A sync nobody in Settings started — the stage's sync on appear, or the flush the athlete's last
-/// logged Set queued — is still the `SyncCoordinator` talking to the Sheet, and abandoning pending
-/// logs underneath it is what `canBeginDestructiveTransition` exists to refuse.
 @MainActor
 @Test func signOutAndSheetSwitchAreRejectedWhileABackgroundSyncIsRunning() async throws {
     let container = try makeCacheSafetyContainer()
@@ -450,7 +430,6 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
         try await connection.confirmSwitch(to: SheetSelection(spreadsheetId: "other-sheet"))
     }
     #expect(settings.spreadsheetId == "current-sheet")
-    // Nothing reached the coordinator: no discard, and no second sync against the other sheet.
     #expect(client.tabTitleReads == 1)
 
     client.release()
@@ -459,10 +438,6 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
     #expect(connection.canBeginDestructiveTransition == true)
 }
 
-/// The overlap is reachable in the app. `SessionPendingWriteSyncAdapter.requestPendingWriteFlush()`
-/// fires a flush after every logged Set and `workout flush` makes the same call, so an athlete
-/// logging during the stage's sync on appear reaches it. This calls `flushPending` directly, so the
-/// interleaving is deterministic rather than a race on an unowned Task (#585).
 @MainActor
 @Test(.timeLimit(.minutes(1)))
 func aFlushThatOverlapsASyncLeavesTheDestructiveTransitionGuardClosed() async throws {
@@ -486,7 +461,6 @@ func aFlushThatOverlapsASyncLeavesTheDestructiveTransitionGuardClosed() async th
 
     await sync.flushPending(spreadsheetId: "current-sheet")
 
-    // The banner half of the same guard. The banner reads the in-flight count, not the last verdict.
     #expect(SyncStatusBannerPresentation(outcome: sync.outcome, isSyncing: sync.isSyncing)?.text == "Syncing")
     #expect(sync.isSyncing == true)
     #expect(connection.canBeginDestructiveTransition == false)
@@ -504,7 +478,6 @@ func aFlushThatOverlapsASyncLeavesTheDestructiveTransitionGuardClosed() async th
     #expect(connection.canBeginDestructiveTransition == true)
 }
 
-/// Guards the flush half of `isSyncing`, so a fix aimed at the sync half cannot narrow it.
 @MainActor
 @Test(.timeLimit(.minutes(1)))
 func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async throws {
@@ -550,7 +523,6 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
 
     #expect(await connection.syncNow() == false)
     #expect(reloadCount == 0)
-    // The Sync now tap stopped at the guard instead of starting a second sync against the same sheet.
     #expect(client.tabTitleReads == 1)
 
     client.release()
@@ -593,9 +565,6 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
     #expect(settings.spreadsheetId == nil)
 }
 
-/// Onboarding's "Paste a URL instead" stays live while a picked Sheet syncs, so a pasted URL can
-/// be refused mid-sync. The refusal is onboarding's to show; the picked Sheet still commits, and
-/// the connection is free for the next transition.
 @MainActor
 @Test(.timeLimit(.minutes(1))) func anOnboardingSelectionRefusedMidSyncReturnsTheRefusalAndThePickedSheetCommits() async throws {
     let container = try makeCacheSafetyContainer()
@@ -668,7 +637,6 @@ private func seedStaleBlock(tabName: String, into context: ModelContext) {
         )
     )
     context.insert(block)
-    // swiftlint:disable:next force_try
     try! context.save()
 }
 

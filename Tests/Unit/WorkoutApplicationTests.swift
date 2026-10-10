@@ -211,8 +211,6 @@ private func address(_ raw: String) throws -> SetAddress {
     #expect(throws: ApplicationError.noBlock) { try app.session(nil) }
 }
 
-/// `workout sync` runs Sync now's guard, so a second sync against a Sheet already syncing is refused
-/// before it reaches the Sheet, and the first still completes.
 @MainActor
 @Test(.timeLimit(.minutes(1))) func syncIsRefusedWhileAnotherSyncIsRunning() async throws {
     let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
@@ -230,7 +228,6 @@ private func address(_ raw: String) throws -> SetAddress {
     #expect(client.tabTitleReads == 1)
 }
 
-/// `workout init` reports a refused switch in the words Settings shows.
 @MainActor
 @Test(.timeLimit(.minutes(1))) func selectingASheetWhileASyncRunsIsRefusedWithTheReason() async throws {
     let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
