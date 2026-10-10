@@ -357,11 +357,34 @@ final class WorkoutTrackerSupersetUITests: XCTestCase {
         tapWhenHittable(app.buttons["stage-queue-pair-exercise-0"])
         XCTAssertTrue(app.staticTexts["Pick a partner"].appears(within: 3))
 
-        tapWhenHittable(app.buttons["stage-queue-cancel-pairing"])
+        // XCUITest calls the pinned header's Cancel unhittable because the sheet's ScrollView frame
+        // spans the bar above it; a touch at its centre still lands on Cancel.
+        let cancel = app.buttons["stage-queue-cancel-pairing"]
+        waitUntilEnabled(cancel)
+        cancel.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
 
         XCTAssertTrue(app.staticTexts["This Session"].appears(within: 3))
         XCTAssertTrue(app.buttons["stage-queue-pair-exercise-0"].exists)
         XCTAssertFalse(app.buttons["stage-queue-row-superset-0"].exists)
+    }
+
+    @MainActor
+    func testUnlinkInTheQueueSplitsTheSupersetBackIntoItsExercises() throws {
+        let app = launchWorkoutApp(fixture: .currentSession)
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+
+        app.buttons["stage-queue-button"].tap()
+        XCTAssertTrue(app.staticTexts["This Session"].appears(within: 3))
+        tapWhenHittable(app.buttons["stage-queue-pair-exercise-0"])
+        tapWhenHittable(app.buttons["stage-queue-row-exercise-1"])
+        XCTAssertTrue(app.buttons["stage-queue-row-superset-0"].appears(within: 3))
+
+        tapWhenHittable(app.buttons["stage-queue-unlink-superset-0"])
+
+        XCTAssertTrue(app.buttons["stage-queue-row-exercise-0"].appears(within: 3))
+        XCTAssertTrue(app.buttons["stage-queue-row-exercise-1"].exists)
+        XCTAssertTrue(app.buttons["stage-queue-row-superset-0"].waitForNonExistence(timeout: 3))
     }
 }
 

@@ -216,8 +216,8 @@ Representative UI Integration Smoke scope:
   next active Set advances.
 - Move On from a deterministic completed or ready-to-advance Session, dismiss the Move On
   Celebration, and verify the next intended Session or Exercise appears.
-- Open Block Overview, switch to a non-current Session, verify Make Current / Go Back controls, and
-  return to the Current Session.
+- Open Block Overview, switch to a non-current Session, verify the `Make current` and
+  `Back to W1 D1` capsules, and return to the Current Session.
 - Open Settings from a deterministic route and exercise one representative pending-write sign-out
   confirmation path.
 - Open a Partially Uploaded Block, verify one Unavailable Session is inert, and verify one Available

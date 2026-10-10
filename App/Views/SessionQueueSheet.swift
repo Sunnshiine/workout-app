@@ -1,13 +1,6 @@
 import SwiftUI
 import UIKit
 
-/// The full Session queue in a medium sheet: every stage item in Session order
-/// with its Set dots, the one on stage marked "Now", and Move On in the footer
-/// when the Session can advance. Tapping an incomplete row brings it on stage.
-///
-/// Superset pairing also lives here: the link affordance on an eligible row
-/// starts pairing, the row taps pick the partner, and the sheet falls back to
-/// browsing when pairing ends or the sheet closes.
 struct SessionQueueSheet: View {
     let queue: SessionQueue
     let session: Session
@@ -22,14 +15,8 @@ struct SessionQueueSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
-                header
-
                 ForEach(queue.rows) { row in
-                    if isPairing {
-                        pairingRow(for: row)
-                    } else {
-                        queueRow(for: row)
-                    }
+                    queueRow(for: row)
                 }
 
                 if !isPairing, !queue.openExercises.isEmpty {
@@ -51,7 +38,14 @@ struct SessionQueueSheet: View {
             .padding(.horizontal)
             .padding(.bottom)
         }
+        .scrollEdgeEffectStyle(.soft, for: .top)
+        .safeAreaBar(edge: .top) {
+            header
+                .padding(.horizontal)
+                .padding(.bottom, 8)
+        }
         .animation(.easeInOut(duration: 0.18), value: queue.pairingMode)
+        .animation(.easeInOut(duration: 0.18), value: queue.rows.map(\.id))
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
         .presentationCornerRadius(Theme.Radius.soft)
@@ -67,54 +61,90 @@ struct SessionQueueSheet: View {
 
             Spacer(minLength: 12)
 
-            if isPairing {
-                Button("Cancel", action: coordinator.cancelPairing)
-                    .font(Theme.font(.queuePill))
-                    .foregroundStyle(palette.accent)
-                    .accessibilityIdentifier("stage-queue-cancel-pairing")
-            }
+            textButton("Cancel", color: palette.accent, action: coordinator.cancelPairing)
+                .accessibilityIdentifier("stage-queue-cancel-pairing")
+                .visibleKeepingFrame(isPairing)
         }
         .padding(.top, 18)
     }
 
-    // MARK: - Browsing
-
+    @ViewBuilder
     private func queueRow(for row: SessionQueue.Row) -> some View {
-        HStack(spacing: 0) {
-            Button {
-                dismiss()
-                if let target = row.jumpTarget {
-                    coordinator.focus(on: target)
-                }
-            } label: {
-                rowLabel(for: row) {
-                    if row.isOnStage {
-                        Text("Now")
-                            .font(Theme.font(.fieldLabel))
-                            .foregroundStyle(palette.accent)
+        switch row.kind {
+        case .exercise:
+            rowButton(for: row)
+        case .pairableExercise:
+            HStack(spacing: 0) {
+                rowButton(for: row)
+                if !isPairing {
+                    textButton("Pair", color: palette.textSecondary) {
+                        coordinator.beginPairing(from: row.pairingExercise, in: session)
                     }
+                    .accessibilityLabel("Pair \(row.title) into a superset")
+                    .accessibilityIdentifier("stage-queue-pair-\(row.id)")
                 }
             }
-            .buttonStyle(.plain)
-            .disabled(row.isComplete)
-            .accessibilityIdentifier("stage-queue-row-\(row.id)")
-
-            if row.canBeginPairing {
-                Button {
-                    coordinator.beginPairing(from: row.pairingExercise, in: session)
-                } label: {
-                    Image(systemName: "link")
-                        .font(Theme.font(.queuePill))
+        case .superset:
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Superset")
+                        .font(Theme.font(.fieldLabel))
                         .foregroundStyle(palette.textSecondary)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 16)
-                        .contentShape(Rectangle())
+
+                    Spacer(minLength: 12)
+
+                    textButton("Unlink", color: palette.textSecondary) {
+                        coordinator.dismissSuperset(containing: row.pairingExercise, in: session)
+                    }
+                    .accessibilityLabel("Unlink \(row.title)")
+                    .accessibilityIdentifier("stage-queue-unlink-\(row.id)")
+                    .visibleKeepingFrame(!isPairing)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Pair \(row.title) into a superset")
-                .accessibilityIdentifier("stage-queue-pair-\(row.id)")
+                .padding(.leading, 14)
+
+                rowButton(for: row)
+            }
+            .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.card))
+        }
+    }
+
+    @ViewBuilder
+    private func rowButton(for row: SessionQueue.Row) -> some View {
+        if isPairing {
+            pairingRow(for: row)
+        } else {
+            jumpButton(for: row)
+        }
+    }
+
+    private func jumpButton(for row: SessionQueue.Row) -> some View {
+        Button {
+            dismiss()
+            if let target = row.jumpTarget {
+                coordinator.focus(on: target)
+            }
+        } label: {
+            rowLabel(for: row) {
+                if row.isOnStage {
+                    accentWord("Now")
+                }
             }
         }
+        .buttonStyle(.plain)
+        .disabled(row.isComplete)
+        .accessibilityIdentifier("stage-queue-row-\(row.id)")
+    }
+
+    private func textButton(_ title: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(Theme.font(.queuePill))
+                .foregroundStyle(color)
+                .padding(.horizontal, 14)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Pairing
@@ -144,19 +174,21 @@ struct SessionQueueSheet: View {
     private func pairingIndicator(for role: QueuePairingRole) -> some View {
         switch role {
         case .source:
-            Image(systemName: "link")
-                .font(Theme.font(.fieldLabel))
-                .foregroundStyle(palette.accent)
-        case .confirmingTarget:
-            Image(systemName: "link.badge.plus")
-                .font(Theme.font(.fieldLabel))
-                .foregroundStyle(palette.accent)
-        case .none, .eligibleTarget, .ineligibleTarget:
+            accentWord("Pairing")
+        case .eligibleTarget, .confirmingTarget:
+            accentWord("Pair with this")
+        case .none, .ineligibleTarget:
             EmptyView()
         }
     }
 
     // MARK: - Row label
+
+    private func accentWord(_ word: String) -> some View {
+        Text(word)
+            .font(Theme.font(.fieldLabel))
+            .foregroundStyle(palette.accent)
+    }
 
     private func rowLabel(for row: SessionQueue.Row, @ViewBuilder trailing: () -> some View) -> some View {
         HStack(spacing: 12) {
@@ -177,5 +209,13 @@ struct SessionQueueSheet: View {
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
+    }
+}
+
+extension View {
+    fileprivate func visibleKeepingFrame(_ isShown: Bool) -> some View {
+        opacity(isShown ? 1 : 0)
+            .disabled(!isShown)
+            .accessibilityHidden(!isShown)
     }
 }

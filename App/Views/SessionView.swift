@@ -34,6 +34,7 @@ struct SessionView: View {
 
                     if !workout.isViewingLiveEdge {
                         OffLiveEdgeControls(
+                            backLabel: OffLiveEdgePresentation(currentSession: workout.currentSession).backLabel,
                             onGoBack: {
                                 sessionSettingsOverpullState = .hidden
                                 workout.showCurrent()
@@ -297,39 +298,44 @@ private enum SessionSettingsHeaderDrag {
 }
 
 private struct OffLiveEdgeControls: View {
+    let backLabel: String
     let onGoBack: () -> Void
     let onMakeCurrent: () -> Void
+    @Environment(\.themePalette) private var palette
 
     var body: some View {
         HStack {
             goBackButton
-            Spacer(minLength: 0)
+            Spacer(minLength: 8)
             makeCurrentButton
         }
         .accessibilityElement(children: .contain)
     }
 
     private var goBackButton: some View {
-        Button(action: onGoBack) {
-            Label("Go back", systemImage: "arrow.uturn.left")
-                .labelStyle(.iconOnly)
-                .font(Theme.font(.logCapsule))
-                .frame(width: 44, height: 44)
-        }
-        .buttonStyle(.bordered)
-        .accessibilityHint("Returns to the current session")
-        .accessibilityIdentifier("go-back-current-session-button")
+        capsule(backLabel, action: onGoBack)
+            .accessibilityHint("Returns to the current session")
+            .accessibilityIdentifier("go-back-current-session-button")
     }
 
     private var makeCurrentButton: some View {
-        Button(action: onMakeCurrent) {
-            Label("Make Current", systemImage: "pin.fill")
-                .labelStyle(.iconOnly)
-                .font(Theme.font(.logCapsule))
-                .frame(width: 44, height: 44)
+        capsule("Make current", action: onMakeCurrent)
+            .accessibilityHint("Makes the viewed session the current session")
+            .accessibilityIdentifier("make-current-session-button")
+    }
+
+    private func capsule(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(Theme.font(.queuePill))
+                .foregroundStyle(palette.accent)
+                .lineLimit(1)
+                .padding(.horizontal, 16)
+                .frame(minHeight: 44)
+                .background(palette.footFill, in: .capsule)
+                .overlay(Capsule().strokeBorder(palette.queueStroke, lineWidth: 1))
+                .contentShape(.capsule)
         }
-        .buttonStyle(.bordered)
-        .accessibilityHint("Makes the viewed session the current session")
-        .accessibilityIdentifier("make-current-session-button")
+        .buttonStyle(.plain)
     }
 }
