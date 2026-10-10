@@ -26,8 +26,7 @@ struct ActiveSupersetSection: View {
         } branch: {
             SessionStageBranch(
                 branch: stage.branch,
-                partnerNodes: stage.partnerNodes,
-                focusedArm: stage.focused.order < stage.partner.order ? .stem : .lateral
+                partner: (stage.partnerNodes, stage.partner.order < stage.focused.order ? .stem : .lateral)
             )
         } card: {
             if let slot = stage.card {

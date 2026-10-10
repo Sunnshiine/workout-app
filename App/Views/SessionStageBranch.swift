@@ -7,8 +7,8 @@ enum BranchArm {
 
 struct SessionStageBranch: View {
     let branch: StageBranch
-    var partnerNodes: [BranchNode]?
-    var focusedArm: BranchArm = .stem
+    /// A Superset's resting Exercise and the arm it keeps; `branch` climbs the other arm.
+    var partner: (nodes: [BranchNode], arm: BranchArm)?
     /// Tapping a node focuses its Set — matching the retired dots' behavior. `nil`
     /// keeps the branch a passive glyph.
     var onTap: ((ExerciseSet) -> Void)?
@@ -49,15 +49,19 @@ struct SessionStageBranch: View {
         static let clearance: CGFloat = 2
     }
 
-    private var stemNodes: [BranchNode] { focusedArm == .stem ? branch.nodes : partnerNodes ?? [] }
-    private var lateralNodes: [BranchNode]? { focusedArm == .stem ? partnerNodes : branch.nodes }
+    private var focusedArm: BranchArm { partner?.arm == .stem ? .lateral : .stem }
+    private var arms: (stem: [BranchNode], lateral: [BranchNode]?) {
+        guard let partner else { return (branch.nodes, nil) }
+        return partner.arm == .stem ? (partner.nodes, branch.nodes) : (branch.nodes, partner.nodes)
+    }
+    private var stemNodes: [BranchNode] { arms.stem }
     private var activeSetID: ActiveSetID? { branch.activeSetID }
 
     var body: some View {
         GeometryReader { geo in
             let drawing = CGSize(width: geo.size.width, height: min(geo.size.height, Metrics.fullHeight))
             ZStack {
-                if let lateralNodes {
+                if let lateralNodes = arms.lateral {
                     lateralBranch(
                         lateralNodes,
                         in: drawing,
@@ -71,7 +75,7 @@ struct SessionStageBranch: View {
                 ForEach(Array(stemNodes.enumerated()), id: \.element.set.persistentModelID) { index, node in
                     let point = stemPoint(t: nodeT(index), in: drawing)
                     let angle = stemAngle(t: nodeT(index), in: drawing)
-                    nodeCell(node.set, state: node.state, above: index.isMultiple(of: 2), angle: angle)
+                    nodeCell(node.set, glyph: glyph(node.state, on: .stem, index: index, angle: angle, leafLength: Metrics.leafLength))
                         .position(point)
                 }
             }
@@ -90,13 +94,7 @@ struct SessionStageBranch: View {
     // MARK: - Nodes
 
     @ViewBuilder
-    private func nodeCell(
-        _ set: ExerciseSet,
-        state: BranchNodeState,
-        above: Bool,
-        angle: Angle
-    ) -> some View {
-        let glyph = nodeGlyph(state, above: above, angle: angle)
+    private func nodeCell(_ set: ExerciseSet, glyph: some View) -> some View {
         if let onTap {
             Button {
                 onTap(set)
@@ -112,20 +110,39 @@ struct SessionStageBranch: View {
         }
     }
 
+    /// One blade off an arm: its base sits on the node, and it angles up- or down-forward off the
+    /// arm's run, alternating sides, the lateral mirroring the stem. The pre-rotation x-offset moves
+    /// the base onto the rotation anchor, so the blade pivots around where it meets the arm.
     @ViewBuilder
-    private func nodeGlyph(_ state: BranchNodeState, above: Bool, angle: Angle) -> some View {
+    private func glyph(
+        _ state: BranchNodeState,
+        on arm: BranchArm,
+        index: Int,
+        angle: Angle,
+        leafLength: CGFloat
+    ) -> some View {
+        let focused = arm == focusedArm
+        let leansUp = index.isMultiple(of: 2) == (arm == .stem)
+        let tilt = Angle(degrees: leansUp ? -Metrics.leafTiltAbove : Metrics.leafTiltBelow)
+        let blade = { (style: BranchBladeGlyph.Style, length: CGFloat) in
+            let size = CGSize(width: length, height: length * LeafShape.aspectRatio)
+            return BranchBladeGlyph(style: style, size: size)
+                .offset(x: size.width / 2)
+                .rotationEffect(angle + tilt)
+        }
         switch state {
         case .leaf:
-            blade(.inked(fill: pigment(.stem, focused: palette.leafFill), rib: palette.leafRib), above: above, angle: angle)
-                .transition(.opacity)
+            blade(.inked(fill: pigment(arm, focused: palette.leafFill), rib: focused ? palette.leafRib : nil), leafLength)
         case .dashedLeaf:
-            blade(.dashed(pigment(.stem, focused: palette.skipStroke)), above: above, angle: angle)
-                .transition(.opacity)
-        case .bud:
-            blade(.cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow), above: above, angle: angle)
+            blade(.dashed(pigment(arm, focused: palette.skipStroke)), leafLength)
+        case .bud where focused:
+            blade(.cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow), leafLength)
                 .transition(budWake)
-        case .future:
-            blade(.ghost(ghostPigment(.stem)), above: above, angle: angle, length: Metrics.leafLength * Metrics.ghostScale)
+        case .bud, .future:
+            blade(
+                .ghost(focused ? palette.futureStroke : palette.supersetPartnerBranch.opacity(0.55)),
+                leafLength * Metrics.ghostScale
+            )
         }
     }
 
@@ -144,27 +161,6 @@ struct SessionStageBranch: View {
         arm == focusedArm ? focused : palette.supersetPartnerBranch
     }
 
-    private func ghostPigment(_ arm: BranchArm) -> Color {
-        arm == focusedArm ? palette.futureStroke : palette.supersetPartnerBranch.opacity(0.55)
-    }
-
-    /// One blade off the stem: its base sits on the node, and it angles up- or
-    /// down-forward off the stem's climb, alternating sides. The pre-rotation
-    /// x-offset moves the base onto the rotation anchor, so the blade pivots
-    /// around where it meets the stem.
-    private func blade(
-        _ style: BranchBladeGlyph.Style,
-        above: Bool,
-        angle: Angle,
-        length: CGFloat = Metrics.leafLength
-    ) -> some View {
-        let size = CGSize(width: length, height: length * LeafShape.aspectRatio)
-        let tilt = Angle(degrees: above ? -Metrics.leafTiltAbove : Metrics.leafTiltBelow)
-        return BranchBladeGlyph(style: style, size: size)
-            .offset(x: size.width / 2)
-            .rotationEffect(angle + tilt)
-    }
-
     @ViewBuilder
     private func lateralBranch(_ lateralNodes: [BranchNode], in size: CGSize, room: CGFloat) -> some View {
         let scale = min(heightScale(size), room / LateralMetrics.hang)
@@ -179,9 +175,10 @@ struct SessionStageBranch: View {
             ForEach(Array(lateralNodes.enumerated()), id: \.element.set.persistentModelID) { index, node in
                 let t = lateralNodeT(index, count: lateralNodes.count)
                 let tangent = curve.tangent(at: t)
-                lateralGlyph(
+                glyph(
                     node.state,
-                    below: index.isMultiple(of: 2),
+                    on: .lateral,
+                    index: index,
                     angle: Angle(radians: atan2(tangent.dy, tangent.dx)),
                     leafLength: LateralMetrics.leafLength * scale
                 )
@@ -189,50 +186,6 @@ struct SessionStageBranch: View {
             }
         }
         .accessibilityHidden(true)
-    }
-
-    @ViewBuilder
-    private func lateralGlyph(_ state: BranchNodeState, below: Bool, angle: Angle, leafLength: CGFloat) -> some View {
-        switch state {
-        case .leaf:
-            lateralBlade(
-                .inked(fill: pigment(.lateral, focused: palette.leafFill), rib: nil),
-                below: below,
-                angle: angle,
-                length: leafLength
-            )
-            .transition(.opacity)
-        case .dashedLeaf:
-            lateralBlade(.dashed(pigment(.lateral, focused: palette.skipStroke)), below: below, angle: angle, length: leafLength)
-        case .bud:
-            lateralBlade(
-                .cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow),
-                below: below,
-                angle: angle,
-                length: leafLength
-            )
-            .transition(budWake)
-        case .future:
-            lateralBlade(
-                .ghost(ghostPigment(.lateral)),
-                below: below,
-                angle: angle,
-                length: leafLength * Metrics.ghostScale
-            )
-        }
-    }
-
-    private func lateralBlade(
-        _ style: BranchBladeGlyph.Style,
-        below: Bool,
-        angle: Angle,
-        length: CGFloat
-    ) -> some View {
-        let size = CGSize(width: length, height: length * LeafShape.aspectRatio)
-        let tilt = Angle(degrees: below ? Metrics.leafTiltBelow : -Metrics.leafTiltAbove)
-        return BranchBladeGlyph(style: style, size: size)
-            .offset(x: size.width / 2)
-            .rotationEffect(angle + tilt)
     }
 
     private func lateralNodeT(_ index: Int, count: Int) -> CGFloat {

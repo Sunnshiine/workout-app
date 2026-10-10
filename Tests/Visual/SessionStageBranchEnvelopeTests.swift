@@ -74,7 +74,7 @@ private struct Branch {
         }
         return SessionStageBranch(
             branch: StageBranch(nodes: nodes, activeSetID: ActiveSetID(exerciseOrder: 0, setIndex: setCount - 1)),
-            partnerNodes: partnerNodes,
+            partner: partnerNodes.map { ($0, .lateral) },
             onTap: partnerNodes == nil ? { _ in } : nil
         )
     }
