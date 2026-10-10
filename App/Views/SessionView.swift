@@ -304,16 +304,10 @@ private struct OffLiveEdgeControls: View {
     @Environment(\.themePalette) private var palette
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack {
-                goBackButton
-                Spacer(minLength: 8)
-                makeCurrentButton
-            }
-            VStack(alignment: .leading, spacing: 8) {
-                goBackButton
-                makeCurrentButton
-            }
+        HStack {
+            goBackButton
+            Spacer(minLength: 8)
+            makeCurrentButton
         }
         .accessibilityElement(children: .contain)
     }
