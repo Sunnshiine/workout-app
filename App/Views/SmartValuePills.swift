@@ -165,17 +165,6 @@ struct SmartValuePills: View {
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.center)
                     .focused($weightFieldFocused)
-                    // The decimal pad carries no return key, so give the athlete a discoverable way out
-                    // of the field when they open it and choose not to enter a weight — dismissing the
-                    // keyboard without logging (any tap on non-interactive stage space is the same
-                    // escape). Semantic-only, so no haptic here.
-                    .toolbar {
-                        ToolbarItemGroup(placement: .keyboard) {
-                            Spacer()
-                            Button("Done", action: dismissFieldUI)
-                                .accessibilityIdentifier("weight-keyboard-done")
-                        }
-                    }
                     .opacity(weightFieldFocused ? 1 : 0)
                     .accessibilityHidden(!weightFieldFocused)
                     // Measured: the hidden field stayed in the accessibility tree while it carried an identifier.
@@ -196,6 +185,18 @@ struct SmartValuePills: View {
             .foregroundStyle(weightForeground)
             .lineLimit(1)
             .minimumScaleFactor(0.5)
+            // The decimal pad carries no return key, so give the athlete a discoverable way out
+            // of the field when they open it and choose not to enter a weight — dismissing the
+            // keyboard without logging (any tap on non-interactive stage space is the same
+            // escape). Semantic-only, so no haptic here. Attached outside the weight font and
+            // colour, which the toolbar's Done button would otherwise inherit.
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done", action: dismissFieldUI)
+                        .accessibilityIdentifier("weight-keyboard-done")
+                }
+            }
     }
 
     @ViewBuilder
