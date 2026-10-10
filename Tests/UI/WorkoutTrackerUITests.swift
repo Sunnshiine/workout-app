@@ -179,6 +179,25 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
     }
 
     @MainActor
+    func testSwipeDismissingASheetOpenedWhileTypingFoldsTheWeightEdit() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+        openWeightKeyboard(in: app)
+        XCTAssertFalse(app.otherElements["session-header-hud"].exists)
+
+        tapWhenHittable(app.staticTexts["Block 26 · W4 D3 — 245x5@6, 255x5@7"])
+        let historyTitle = app.staticTexts["Exercise History · last 5"]
+        XCTAssertTrue(historyTitle.appears(within: 3))
+        historyTitle.swipeDown(velocity: .fast)
+
+        XCTAssertTrue(app.otherElements["session-header-hud"].appears(within: 3))
+        XCTAssertTrue(app.buttons["stage-queue-button"].exists)
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+        waitForLabel("Weight, 237.5", on: app.buttons["weight-pill"])
+    }
+
+    @MainActor
     private func launchFixtureApp(options: [WorkoutUITestFixtureOption] = []) -> XCUIApplication {
         launchWorkoutApp(fixture: .currentSession, options: options)
     }

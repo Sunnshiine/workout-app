@@ -87,6 +87,10 @@ struct SmartValuePills: View {
         .onChange(of: suggestion) { _, later in
             form.refreshPrefill(from: later, for: set)
         }
+        // A sheet swiped away after it hid the keyboard leaves focus true with no first responder (#697).
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            weightFieldFocused = false
+        }
         .onDisappear(perform: commitChangedDraftIfNeeded)
         .preference(key: EditingWeightPreferenceKey.self, value: weightFieldFocused)
     }
