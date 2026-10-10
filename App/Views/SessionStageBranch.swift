@@ -78,8 +78,9 @@ struct SessionStageBranch: View {
         }
         .frame(minHeight: Metrics.minimumHeight, idealHeight: Metrics.minimumHeight, maxHeight: .infinity)
         .frame(maxWidth: .infinity)
-        .animation(reduceMotion ? nil : Theme.wingAnimation(duration: Theme.Motion.leafInk), value: activeSetID)
-        .animation(reduceMotion ? nil : Theme.wingAnimation(duration: Theme.Motion.leafInk), value: nodes.count)
+        .animation(reduceMotion ? Theme.reducedMotionCrossfade : Theme.leafInkAnimation, value: activeSetID)
+        // Under Reduce Motion a count change lands in place, so no node travels along the stem.
+        .animation(reduceMotion ? nil : Theme.leafInkAnimation, value: nodes.count)
         .accessibilityElement(children: onTap == nil ? .ignore : .contain)
     }
 
@@ -119,16 +120,21 @@ struct SessionStageBranch: View {
                 .transition(.opacity)
         case .bud:
             blade(.cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow), above: above, angle: angle)
-                .transition(.scale(scale: 0.3).combined(with: .opacity))
-                .animation(
-                    reduceMotion
-                        ? nil
-                        : Theme.wingAnimation(duration: Theme.Motion.budOpen).delay(Theme.Motion.budOpenDelay),
-                    value: activeSetID
-                )
+                .transition(budWake)
         case .future:
             blade(.ghost(palette.futureStroke), above: above, angle: angle, length: Metrics.leafLength * Metrics.ghostScale)
         }
+    }
+
+    /// The bud wakes on its own timing, which an `.animation` on the inserted bud cannot drive, so the
+    /// transition carries it. The old bud leaves with the log, so no frame shows two cream leaves.
+    private var budWake: AnyTransition {
+        .asymmetric(
+            insertion: reduceMotion
+                ? .opacity.animation(Theme.reducedMotionCrossfade)
+                : .scale(scale: 0.3).combined(with: .opacity).animation(Theme.budWakeAnimation),
+            removal: .identity
+        )
     }
 
     /// One blade off the stem: its base sits on the node, and it angles up- or
@@ -184,6 +190,7 @@ struct SessionStageBranch: View {
         switch state {
         case .leaf:
             partnerBlade(.inked(fill: pigment, rib: nil), below: below, angle: angle, length: leafLength)
+                .transition(.opacity)
         case .dashedLeaf:
             partnerBlade(.dashed(pigment), below: below, angle: angle, length: leafLength)
         case .future:
