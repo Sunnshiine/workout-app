@@ -123,13 +123,13 @@ struct SessionStageBranch: View {
             blade(.inked(fill: pigment(.stem, focused: palette.leafFill), rib: palette.leafRib), above: above, angle: angle)
                 .transition(.opacity)
         case .dashedLeaf:
-            blade(.dashed(palette.skipStroke), above: above, angle: angle)
+            blade(.dashed(pigment(.stem, focused: palette.skipStroke)), above: above, angle: angle)
                 .transition(.opacity)
         case .bud:
             blade(.cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow), above: above, angle: angle)
                 .transition(budWake)
         case .future:
-            blade(.ghost(palette.futureStroke), above: above, angle: angle, length: Metrics.leafLength * Metrics.ghostScale)
+            blade(.ghost(ghostPigment(.stem)), above: above, angle: angle, length: Metrics.leafLength * Metrics.ghostScale)
         }
     }
 
@@ -146,6 +146,10 @@ struct SessionStageBranch: View {
 
     private func pigment(_ arm: BranchArm, focused: Color) -> Color {
         arm == focusedArm ? focused : palette.supersetPartnerBranch
+    }
+
+    private func ghostPigment(_ arm: BranchArm) -> Color {
+        arm == focusedArm ? palette.futureStroke : palette.supersetPartnerBranch.opacity(0.55)
     }
 
     /// One blade off the stem: its base sits on the node, and it angles up- or
@@ -207,7 +211,7 @@ struct SessionStageBranch: View {
             )
             .transition(.opacity)
         case .dashedLeaf:
-            lateralBlade(.dashed(palette.supersetPartnerBranch), below: below, angle: angle, length: leafLength)
+            lateralBlade(.dashed(pigment(.lateral, focused: palette.skipStroke)), below: below, angle: angle, length: leafLength)
         case .bud:
             lateralBlade(
                 .cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow),
@@ -218,7 +222,7 @@ struct SessionStageBranch: View {
             .transition(budWake)
         case .future:
             lateralBlade(
-                .ghost(palette.supersetPartnerBranch.opacity(0.55)),
+                .ghost(ghostPigment(.lateral)),
                 below: below,
                 angle: angle,
                 length: leafLength * Metrics.ghostScale
