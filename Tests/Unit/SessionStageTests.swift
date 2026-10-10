@@ -273,6 +273,24 @@ struct SessionStageTests {
         #expect(stage.queue.rows[0].isOnStage)
     }
 
+    @Test func eachSupersetExerciseKeepsItsArmAsFocusMoves() throws {
+        let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.logged, .pending])
+        let row = makeExercise(name: "Row", order: 2, setStates: [.logged, .pending])
+        let pairing = [Superset(first: row, second: bench)]
+
+        let onBench = try #require(
+            supersetStage(makeStage([bench, row], focus: .activeSet(ActiveSetID(exerciseOrder: 1, setIndex: 1)), supersets: pairing))
+        )
+        let onRow = try #require(
+            supersetStage(makeStage([bench, row], focus: .activeSet(ActiveSetID(exerciseOrder: 2, setIndex: 1)), supersets: pairing))
+        )
+
+        #expect(onBench.partner === row)
+        #expect(onBench.partnerArm == .lateral)
+        #expect(onRow.partner === bench)
+        #expect(onRow.partnerArm == .stem)
+    }
+
     @Test func aSupersetCarriesTheFocusedSidesLastPerformedLine() throws {
         let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending])
         let row = makeExercise(name: "Row", order: 2, setStates: [.pending])

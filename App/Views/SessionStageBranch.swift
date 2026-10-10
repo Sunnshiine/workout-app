@@ -1,10 +1,5 @@
 import SwiftUI
 
-enum BranchArm {
-    case stem
-    case lateral
-}
-
 struct SessionStageBranch: View {
     let branch: StageBranch
     /// A Superset's resting Exercise and the arm it keeps; `branch` climbs the other arm.

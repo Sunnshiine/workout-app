@@ -49,6 +49,11 @@ enum BranchNodeState: Equatable, Sendable {
     case future
 }
 
+enum BranchArm: Equatable, Sendable {
+    case stem
+    case lateral
+}
+
 struct BranchNode: Equatable {
     let set: ExerciseSet
     let state: BranchNodeState
@@ -84,6 +89,7 @@ struct SupersetStage: Equatable {
     let partner: Exercise
     let branch: StageBranch
     let partnerNodes: [BranchNode]
+    let partnerArm: BranchArm
     let card: SetCardSlot?
     let lastPerformed: LastPerformedCardPresentation?
 }
@@ -198,6 +204,7 @@ extension SupersetStage {
         partnerNodes = StageBranch(sets: partner.sortedSets, activeSetID: nil).nodes.map { node in
             BranchNode(set: node.set, state: node.state == .bud ? .future : node.state)
         }
+        partnerArm = partner === superset.lowerOrdered ? .stem : .lateral
         card = SetCardSlot.supersetCard(in: sets, focused: focused, activeSetID: activeSetID)
         lastPerformed = activeSetID == nil ? nil : LastPerformedCardPresentation(exercise: focused, lookup: lookup)
     }
