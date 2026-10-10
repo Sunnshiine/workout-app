@@ -10,16 +10,15 @@ import Testing
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
     let sync = StubSheetSwitchSync()
-    var reloadCount = 0
+    var reloads: [String] = []
     let connection = SheetConnection(settings: settings, sync: sync) {
-        reloadCount += 1
+        reloads.append("after syncing \(sync.syncedSpreadsheetIds) on \(settings.spreadsheetId ?? "no sheet")")
     }
 
     let didSync = await connection.syncNow()
 
     #expect(didSync == true)
-    #expect(sync.syncedSpreadsheetIds == ["current-sheet"])
-    #expect(reloadCount == 1)
+    #expect(reloads == [#"after syncing ["current-sheet"] on current-sheet"#])
     #expect(connection.isSyncInFlight == false)
 }
 
@@ -78,9 +77,9 @@ import Testing
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = StubSheetSwitchSync()
-    var reloadCount = 0
+    var reloads: [String] = []
     let connection = SheetConnection(settings: settings, sync: sync) {
-        reloadCount += 1
+        reloads.append("after syncing \(sync.syncedSpreadsheetIds) on \(settings.spreadsheetId ?? "no sheet")")
     }
 
     let result = await connection.requestSwitch(
@@ -90,9 +89,8 @@ import Testing
     #expect(result == .switched)
     #expect(settings.spreadsheetId == "new-sheet")
     #expect(settings.spreadsheetTitle == "New Training Log")
-    #expect(sync.syncedSpreadsheetIds == ["new-sheet"])
     #expect(sync.discardPendingWriteCallCount == 0)
-    #expect(reloadCount == 1)
+    #expect(reloads == [#"after syncing ["new-sheet"] on new-sheet"#])
 }
 
 @MainActor
