@@ -45,7 +45,7 @@ struct SessionStageBranch: View {
         static let lastNodeT: CGFloat = 0.9
         static let maxNodeStep: CGFloat = 0.2
         static let leafLength: CGFloat = 34
-        static let hang: CGFloat = 26
+        static let hang: CGFloat = 28 // ink below the drawing at full scale, a bud's outline included
         static let clearance: CGFloat = 2
     }
 
