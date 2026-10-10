@@ -322,22 +322,18 @@ extension SessionQueue {
 }
 
 @MainActor
-private struct StageItem {
-    enum Kind {
-        case exercise(Exercise)
-        case superset(Superset)
-    }
-
-    let kind: Kind
+private enum StageItem {
+    case exercise(Exercise)
+    case superset(Superset)
 
     static func items(in session: Session, supersets: [Superset]) -> [StageItem] {
         session.exercises
             .sorted { $0.order < $1.order }
             .compactMap { exercise in
                 guard let superset = supersets.first(where: { $0.exercises.contains { $0.order == exercise.order } }) else {
-                    return StageItem(kind: .exercise(exercise))
+                    return .exercise(exercise)
                 }
-                return exercise.order == superset.lowerOrdered.order ? StageItem(kind: .superset(superset)) : nil
+                return exercise.order == superset.lowerOrdered.order ? .superset(superset) : nil
             }
     }
 
@@ -361,7 +357,7 @@ private struct StageItem {
         savedLoggedSetID: ActiveSetID?,
         lookup: LastPerformedLookupSnapshot
     ) -> SessionStage.Focus {
-        switch kind {
+        switch self {
         case .exercise(let exercise):
             .exercise(ExerciseStage(exercise, snapshot: snapshot, savedLoggedSetID: savedLoggedSetID, lookup: lookup))
         case .superset(let superset):
@@ -370,14 +366,14 @@ private struct StageItem {
     }
 
     var exercises: [Exercise] {
-        switch kind {
+        switch self {
         case .exercise(let exercise): [exercise]
         case .superset(let superset): superset.exercises
         }
     }
 
     var id: String {
-        switch kind {
+        switch self {
         case .exercise(let exercise): "exercise-\(exercise.order)"
         case .superset(let superset): "superset-\(superset.lowerOrdered.order)"
         }
@@ -398,7 +394,7 @@ private struct StageItem {
 
     func row(isOnStage: Bool, pairable: Set<Int>, pairingMode: PairingMode) -> SessionQueue.Row {
         let (exercise, canBeginPairing): (Exercise, Bool) =
-            switch kind {
+            switch self {
             case .exercise(let exercise): (exercise, pairable.contains(exercise.order))
             case .superset(let superset): (superset.first, false)
             }
@@ -427,7 +423,7 @@ private struct StageItem {
     }
 
     private func pairingRole(sourceOrder: Int, confirmingOrder: Int?, pairable: Set<Int>) -> QueuePairingRole {
-        guard case .exercise(let exercise) = kind else { return .ineligibleTarget }
+        guard case .exercise(let exercise) = self else { return .ineligibleTarget }
         if exercise.order == confirmingOrder { return .confirmingTarget }
         if exercise.order == sourceOrder { return .source }
         return pairable.contains(exercise.order) ? .eligibleTarget : .ineligibleTarget
