@@ -22,7 +22,6 @@ struct SmartValuePills: View {
     let inputDismissalRequestID: Int
 
     @State private var form: SmartValuePillsForm
-    @State private var isEditingWeight = false
     @State private var showsLoggedCheckmark = false
     @Environment(\.themePalette) private var palette
     @Environment(\.showsLoadBasis) private var showsLoadBasis
@@ -77,17 +76,6 @@ struct SmartValuePills: View {
                     .foregroundStyle(palette.textSecondary)
             }
         }
-        .task(id: isEditingWeight) {
-            weightFieldFocused = isEditingWeight
-        }
-        // Focus can be taken away from outside this view (the stage-wide tap-to-dismiss
-        // surface resigns the first responder directly); fold the edit UI when that happens
-        // so the field doesn't linger unfocused.
-        .onChange(of: weightFieldFocused) { _, focused in
-            if !focused {
-                isEditingWeight = false
-            }
-        }
         .background {
             Color.clear
                 .contentShape(Rectangle())
@@ -99,8 +87,17 @@ struct SmartValuePills: View {
         .onChange(of: suggestion) { _, later in
             form.refreshPrefill(from: later, for: set)
         }
+        // After a sheet takes the keyboard and is swiped away, SwiftUI keeps the focus true with no
+        // first responder (#697).
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { note in
+            guard let screen = note.object as? UIScreen,
+                let end = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect,
+                KeyboardHide.leavesScreen(endFrame: end, screenBounds: screen.bounds)
+            else { return }
+            weightFieldFocused = false
+        }
         .onDisappear(perform: commitChangedDraftIfNeeded)
-        .preference(key: EditingWeightPreferenceKey.self, value: isEditingWeight)
+        .preference(key: EditingWeightPreferenceKey.self, value: weightFieldFocused)
     }
 
     private var presentation: SetCardPresentation {
@@ -156,42 +153,49 @@ struct SmartValuePills: View {
         form.invalidFields.contains(.weight) ? palette.danger : palette.textPrimary
     }
 
-    @ViewBuilder
     private var weightValue: some View {
-        if isEditingWeight {
-            TextField(form.weightDisplay, text: $form.weightText)
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.center)
-                .font(Theme.font(.weightEntry))
-                .foregroundStyle(weightForeground)
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
-                .focused($weightFieldFocused)
-                // The decimal pad carries no return key, so give the athlete a discoverable way out
-                // of the field when they open it and choose not to enter a weight — dismissing the
-                // keyboard without logging (any tap on non-interactive stage space is the same
-                // escape). Semantic-only, so no haptic here.
-                .toolbar {
-                    ToolbarItemGroup(placement: .keyboard) {
-                        Spacer()
-                        Button("Done", action: dismissFieldUI)
-                            .accessibilityIdentifier("weight-keyboard-done")
+        // A hidden one-line Text sizes the row in every state, so neither the taller UITextField nor a
+        // long typed weight resizes the card.
+        Text(verbatim: "0")
+            .fixedSize(horizontal: false, vertical: true)
+            .hidden()
+            .frame(maxWidth: .infinity)
+            .overlay {
+                TextField(form.weightDisplay, text: $form.weightText)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.center)
+                    .focused($weightFieldFocused)
+                    // The decimal pad carries no return key, so give the athlete a discoverable way out
+                    // of the field when they open it and choose not to enter a weight — dismissing the
+                    // keyboard without logging (any tap on non-interactive stage space is the same
+                    // escape). Semantic-only, so no haptic here.
+                    .toolbar {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            Button("Done", action: dismissFieldUI)
+                                .accessibilityIdentifier("weight-keyboard-done")
+                        }
                     }
+                    .opacity(weightFieldFocused ? 1 : 0)
+                    .accessibilityHidden(!weightFieldFocused)
+                    // Measured: the hidden field stayed in the accessibility tree while it carried an identifier.
+                    .accessibilityIdentifier(weightFieldFocused ? "weight-pill" : "")
+            }
+            .overlay {
+                if !weightFieldFocused {
+                    Text(form.weightDisplay)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .contentShape(.rect)
+                        .onTapGesture { weightFieldFocused = true }
+                        .accessibilityLabel("Weight, \(form.weightDisplay)")
+                        .accessibilityIdentifier("weight-pill")
+                        .accessibilityAddTraits(.isButton)
                 }
-                .accessibilityIdentifier("weight-pill")
-        } else {
-            Text(form.weightDisplay)
-                .font(Theme.font(.weightEntry))
-                .foregroundStyle(weightForeground)
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
-                .frame(maxWidth: .infinity)
-                .contentShape(.rect)
-                .onTapGesture { isEditingWeight = true }
-                .accessibilityLabel("Weight, \(form.weightDisplay)")
-                .accessibilityIdentifier("weight-pill")
-                .accessibilityAddTraits(.isButton)
-        }
+            }
+            .font(Theme.font(.weightEntry))
+            .foregroundStyle(weightForeground)
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
     }
 
     @ViewBuilder
@@ -271,7 +275,6 @@ struct SmartValuePills: View {
     }
 
     private func dismissFieldUI() {
-        isEditingWeight = false
         weightFieldFocused = false
     }
 }
@@ -372,6 +375,7 @@ private struct ValueRail: View {
                 .font(Theme.font(.railChipValue))
                 .foregroundStyle(chip.isSelected ? palette.textPrimary : palette.textSecondary)
                 .frame(width: Theme.railCellWidth, height: Theme.railCellHeight)
+                .contentShape(.rect)
                 .background {
                     if chip.isSelected {
                         RoundedRectangle(cornerRadius: Theme.Radius.cell)
@@ -559,8 +563,10 @@ private struct HoldToSkipLogButton: View {
             }
             .opacity(presentation.logOpacity)
 
+            // accessibilityHidden leaves this crossfade text in the tree, an empty label drops it.
             Text("Skipped")
                 .opacity(presentation.skipOpacity)
+                .accessibilityLabel("")
         }
         .frame(maxWidth: .infinity)
     }
