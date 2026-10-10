@@ -104,7 +104,7 @@ struct GlassBearingViewsVisualTests {
             }
             .environment(scenario.settings)
             .environment(sync)
-            .environment(SheetConnection(settings: scenario.settings, sync: sync))
+            .environment(SheetConnection(settings: scenario.settings, sync: sync) { scenario.store.reload() })
             .environment(scenario.store)
         }
     }
