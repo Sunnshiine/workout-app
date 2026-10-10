@@ -170,7 +170,8 @@ final class SheetConnection {
         }
     }
 
-    func prepareSignOut() async throws(DestructiveTransitionFailure) {
+    /// Discards the pending writes and clears the selection; the caller ends the Google session.
+    func signOut() async throws(DestructiveTransitionFailure) {
         guard canBeginDestructiveTransition else { throw .syncInProgress }
 
         isTransitioning = true
@@ -180,11 +181,6 @@ final class SheetConnection {
         } catch {
             throw .discardFailed
         }
-    }
-
-    /// Discards the pending writes and clears the selection; the caller ends the Google session.
-    func signOut() async throws(DestructiveTransitionFailure) {
-        try await prepareSignOut()
         settings.signOut()
     }
 
