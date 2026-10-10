@@ -412,19 +412,9 @@ private enum StageItem {
     }
 
     private func pairingRole(mode: PairingMode, pairable: Set<Int>) -> QueuePairingRole {
-        switch mode {
-        case .inactive:
-            .none
-        case .selecting(let sourceOrder):
-            pairingRole(sourceOrder: sourceOrder, confirmingOrder: nil, pairable: pairable)
-        case .confirming(let sourceOrder, let targetOrder):
-            pairingRole(sourceOrder: sourceOrder, confirmingOrder: targetOrder, pairable: pairable)
-        }
-    }
-
-    private func pairingRole(sourceOrder: Int, confirmingOrder: Int?, pairable: Set<Int>) -> QueuePairingRole {
+        guard let sourceOrder = mode.sourceOrder else { return .none }
         guard case .exercise(let exercise) = self else { return .ineligibleTarget }
-        if exercise.order == confirmingOrder { return .confirmingTarget }
+        if case .confirming(_, exercise.order) = mode { return .confirmingTarget }
         if exercise.order == sourceOrder { return .source }
         return pairable.contains(exercise.order) ? .eligibleTarget : .ineligibleTarget
     }
