@@ -8,7 +8,7 @@ import Testing
 @Suite(.snapshots(record: .never))
 struct SessionQueueSheetVisualTests {
     /// Browsing the day's queue: two completed Exercises (no checkmark), the Exercise on stage marked
-    /// "Now", and two still-pending — the living-paper hero shot.
+    /// "Now" and offering `Pair`, and the two still-pending ones grouped as a Superset under `Unlink`.
     @Test func queueSheetBrowsingMatchesVisualBaseline() {
         assertQueueSheet(appearance: .day, colorScheme: .light) {
             browsingSheet()
@@ -34,27 +34,32 @@ struct SessionQueueSheetVisualTests {
     }
 
     private func browsingSheet() -> SessionQueueSheet {
-        queueSheet(pairable: [], pairingMode: .inactive)
+        queueSheet(pairable: [2], superset: (first: 3, second: 4), pairingMode: .inactive)
     }
 
     private func pairingSheet() -> SessionQueueSheet {
-        queueSheet(pairable: [2, 3, 4], pairingMode: .confirming(sourceOrder: 2, targetOrder: 3))
+        queueSheet(pairable: [2, 3, 4], superset: nil, pairingMode: .confirming(sourceOrder: 2, targetOrder: 3))
     }
 
-    private func queueSheet(pairable: Set<Int>, pairingMode: PairingMode) -> SessionQueueSheet {
+    private func queueSheet(
+        pairable: Set<Int>,
+        superset: (first: Int, second: Int)?,
+        pairingMode: PairingMode
+    ) -> SessionQueueSheet {
         let session = Session(dayNumber: 1, date: nil)
-        session.exercises = [
+        let exercises = [
             makeExercise(name: "Competition Bench Press", order: 0, setStates: [.logged, .logged, .logged, .logged, .logged]),
             makeExercise(name: "Larsen Press", order: 1, setStates: [.logged, .logged, .logged]),
             makeExercise(name: "DB Incline Press", order: 2, setStates: [.logged, .pending, .pending, .pending]),
             makeExercise(name: "Chest-Supported Row", order: 3, setStates: [.pending, .pending, .pending]),
             makeExercise(name: "Seated DB OHP", order: 4, setStates: [.pending, .pending])
         ]
+        session.exercises = exercises
         let stage = SessionStage(
             session: session,
             focus: SessionFocusSnapshot(
                 visualFocusOwner: nil,
-                supersets: [],
+                supersets: superset.map { [Superset(first: exercises[$0.first], second: exercises[$0.second])] } ?? [],
                 pairableExerciseOrders: pairable
             ),
             savedLoggedSetID: nil,
