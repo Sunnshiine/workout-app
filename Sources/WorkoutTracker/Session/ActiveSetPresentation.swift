@@ -1,4 +1,3 @@
-import CoreGraphics
 import Foundation
 
 enum HoldToSkipReleaseOutcome: Equatable, Sendable {
@@ -199,60 +198,6 @@ struct SessionProgressHeaderPresentation: Equatable, Sendable {
         let remaining = totalSetCount - completedSetCount
         let remainingPhrase = remaining == 1 ? "1 Set left" : "\(remaining) Sets left"
         progressAccessibilityValue = "\(runlineText), \(remainingPhrase)"
-    }
-}
-
-struct SessionSettingsOverpullState: Equatable, Sendable {
-    enum Phase: Equatable, Sendable {
-        case hidden
-        case pinned
-    }
-
-    static let hidden = SessionSettingsOverpullState(phase: .hidden, progress: 0)
-    static let pinned = SessionSettingsOverpullState(phase: .pinned, progress: 1)
-
-    static let idleDismissDelay: TimeInterval = 2.5
-
-    private static let revealThreshold: CGFloat = 72
-    private static let contentDismissOffset: CGFloat = -16
-
-    let phase: Phase
-    let progress: CGFloat
-
-    var isVisible: Bool {
-        phase != .hidden
-    }
-
-    var isPinned: Bool {
-        phase == .pinned
-    }
-
-    func tracking(topContentOffset: CGFloat) -> Self {
-        // An active upward scroll into the content dismisses the reveal.
-        if topContentOffset <= Self.contentDismissOffset {
-            return .hidden
-        }
-
-        // Once revealed, stay revealed so transient top-edge geometry settling
-        // cannot retract the control mid-pull.
-        if isVisible {
-            return self
-        }
-
-        // Reveal as soon as the overpull clears the threshold.
-        guard topContentOffset >= Self.revealThreshold else {
-            return .hidden
-        }
-
-        return .pinned
-    }
-
-    func dismissedAfterIdle() -> Self {
-        .hidden
-    }
-
-    static func overpullDistance(startTopContentOffset: CGFloat, translationHeight: CGFloat) -> CGFloat {
-        max(0, startTopContentOffset + translationHeight)
     }
 }
 
