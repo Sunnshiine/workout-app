@@ -1,12 +1,13 @@
 import SwiftUI
 
 struct SessionStageBranch: View {
-    let branch: StageBranch
-    /// A Superset's resting Exercise and the arm it keeps; `branch` climbs the other arm.
-    var partner: (nodes: [BranchNode], arm: BranchArm)?
+    private let stem: [BranchNode]
+    private let lateral: [BranchNode]?
+    private let focusedArm: BranchArm
+    private let activeSetID: ActiveSetID?
     /// Tapping a node focuses its Set — matching the retired dots' behavior. `nil`
     /// keeps the branch a passive glyph.
-    var onTap: ((ExerciseSet) -> Void)?
+    private let onTap: ((ExerciseSet) -> Void)?
     @Environment(\.themePalette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -44,21 +45,29 @@ struct SessionStageBranch: View {
         static let clearance: CGFloat = 2
     }
 
-    private var focusedArm: BranchArm { partner?.arm == .stem ? .lateral : .stem }
-    private var arms: (stem: [BranchNode], lateral: [BranchNode]?) {
-        guard let partner else { return (branch.nodes, nil) }
-        return partner.arm == .stem ? (partner.nodes, branch.nodes) : (branch.nodes, partner.nodes)
+    init(branch: StageBranch, onTap: @escaping (ExerciseSet) -> Void) {
+        stem = branch.nodes
+        lateral = nil
+        focusedArm = .stem
+        activeSetID = branch.activeSetID
+        self.onTap = onTap
     }
-    private var stemNodes: [BranchNode] { arms.stem }
-    private var activeSetID: ActiveSetID? { branch.activeSetID }
+
+    init(fork: ForkedBranch) {
+        stem = fork.stem
+        lateral = fork.lateral
+        focusedArm = fork.focusedArm
+        activeSetID = fork.activeSetID
+        onTap = nil
+    }
 
     var body: some View {
         GeometryReader { geo in
             let drawing = CGSize(width: geo.size.width, height: min(geo.size.height, Metrics.fullHeight))
             ZStack {
-                if let lateralNodes = arms.lateral {
+                if let lateral {
                     lateralBranch(
-                        lateralNodes,
+                        lateral,
                         in: drawing,
                         room: geo.size.height - drawing.height + Theme.stageColumnSpacing - LateralMetrics.clearance
                     )
@@ -67,7 +76,7 @@ struct SessionStageBranch: View {
                 CurvePath(curve: stemCurve(in: drawing))
                     .stroke(pigment(.stem, focused: palette.stem), style: StrokeStyle(lineWidth: Metrics.stemWidth, lineCap: .round))
 
-                ForEach(Array(stemNodes.enumerated()), id: \.element.set.persistentModelID) { index, node in
+                ForEach(Array(stem.enumerated()), id: \.element.set.persistentModelID) { index, node in
                     let point = stemPoint(t: nodeT(index), in: drawing)
                     let angle = stemAngle(t: nodeT(index), in: drawing)
                     nodeCell(node.set, glyph: glyph(node.state, on: .stem, index: index, angle: angle, leafLength: Metrics.leafLength))
@@ -82,7 +91,7 @@ struct SessionStageBranch: View {
         .frame(minHeight: Metrics.minimumHeight, idealHeight: Metrics.minimumHeight, maxHeight: .infinity)
         .frame(maxWidth: .infinity)
         .animation(reduceMotion ? Theme.reducedMotionCrossfade : Theme.leafInkAnimation, value: activeSetID)
-        .animation(reduceMotion ? nil : Theme.leafInkAnimation, value: stemNodes.count)
+        .animation(reduceMotion ? nil : Theme.leafInkAnimation, value: stem.count)
         .accessibilityElement(children: onTap == nil ? .ignore : .contain)
     }
 
@@ -130,10 +139,10 @@ struct SessionStageBranch: View {
             blade(.inked(fill: pigment(arm, focused: palette.leafFill), rib: focused ? palette.leafRib : nil), leafLength)
         case .dashedLeaf:
             blade(.dashed(pigment(arm, focused: palette.skipStroke)), leafLength)
-        case .bud where focused:
+        case .bud:
             blade(.cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow), leafLength)
                 .transition(budWake)
-        case .bud, .future:
+        case .future:
             blade(
                 .ghost(focused ? palette.futureStroke : palette.supersetPartnerBranch.opacity(0.55)),
                 leafLength * Metrics.ghostScale
@@ -141,8 +150,7 @@ struct SessionStageBranch: View {
         }
     }
 
-    /// The bud wakes on its own timing, which an `.animation` on the inserted bud cannot drive, so the
-    /// transition carries it.
+    /// Removal is `.identity` because the old bud leaves with the log, so no frame shows two cream leaves.
     private var budWake: AnyTransition {
         .asymmetric(
             insertion: reduceMotion
@@ -180,7 +188,6 @@ struct SessionStageBranch: View {
                 .position(curve.point(at: t))
             }
         }
-        .accessibilityHidden(true)
     }
 
     private func lateralNodeT(_ index: Int, count: Int) -> CGFloat {
@@ -205,7 +212,7 @@ struct SessionStageBranch: View {
     private func nodeT(_ index: Int) -> CGFloat {
         BranchNodeLayout.nodeT(
             index: index,
-            count: stemNodes.count,
+            count: stem.count,
             first: Metrics.firstNodeT,
             last: Metrics.lastNodeT,
             maxStep: Metrics.maxNodeStep

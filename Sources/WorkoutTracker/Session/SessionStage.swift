@@ -64,6 +64,13 @@ struct StageBranch: Equatable {
     let activeSetID: ActiveSetID?
 }
 
+struct ForkedBranch: Equatable {
+    let stem: [BranchNode]
+    let lateral: [BranchNode]
+    let focusedArm: BranchArm
+    let activeSetID: ActiveSetID?
+}
+
 struct SetCardSlot: Equatable {
     enum Mode: Equatable {
         case logging
@@ -87,9 +94,7 @@ struct ExerciseStage: Equatable {
 struct SupersetStage: Equatable {
     let focused: Exercise
     let partner: Exercise
-    let branch: StageBranch
-    let partnerNodes: [BranchNode]
-    let partnerArm: BranchArm
+    let branch: ForkedBranch
     let card: SetCardSlot?
     let lastPerformed: LastPerformedCardPresentation?
 }
@@ -196,17 +201,27 @@ extension SupersetStage {
     fileprivate init(_ superset: Superset, snapshot: SessionFocusSnapshot, lookup: LastPerformedLookupSnapshot) {
         let activeSetID = snapshot.visualFocusOwner.scoped(to: superset.exercises)?.activeSetID
         let focused = superset.exercises.first { $0.order == activeSetID?.exerciseOrder } ?? superset.lowerOrdered
-        let partner = superset.other(than: focused)
         let sets = focused.sortedSets
         self.focused = focused
-        self.partner = partner
-        branch = StageBranch(sets: sets, activeSetID: activeSetID)
-        partnerNodes = StageBranch(sets: partner.sortedSets, activeSetID: nil).nodes.map { node in
-            BranchNode(set: node.set, state: node.state == .bud ? .future : node.state)
-        }
-        partnerArm = partner === superset.lowerOrdered ? .stem : .lateral
+        partner = superset.other(than: focused)
+        branch = ForkedBranch(superset, focused: focused, activeSetID: activeSetID)
         card = SetCardSlot.supersetCard(in: sets, focused: focused, activeSetID: activeSetID)
         lastPerformed = activeSetID == nil ? nil : LastPerformedCardPresentation(exercise: focused, lookup: lookup)
+    }
+}
+
+@MainActor
+extension ForkedBranch {
+    fileprivate init(_ superset: Superset, focused: Exercise, activeSetID: ActiveSetID?) {
+        let focusedNodes = StageBranch(sets: focused.sortedSets, activeSetID: activeSetID).nodes
+        let partnerNodes = StageBranch(sets: superset.other(than: focused).sortedSets, activeSetID: nil).nodes.map { node in
+            BranchNode(set: node.set, state: node.state == .bud ? .future : node.state)
+        }
+        let focusedOnStem = focused === superset.lowerOrdered
+        focusedArm = focusedOnStem ? .stem : .lateral
+        stem = focusedOnStem ? focusedNodes : partnerNodes
+        lateral = focusedOnStem ? partnerNodes : focusedNodes
+        self.activeSetID = activeSetID
     }
 }
 

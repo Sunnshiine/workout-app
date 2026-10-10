@@ -70,13 +70,17 @@ private struct Branch {
         let nodes = Self.sets(count: setCount, order: 0, last: .pending).map { set in
             BranchNode(set: set, state: set.state == .pending ? .bud : .leaf)
         }
-        let branch = StageBranch(nodes: nodes, activeSetID: ActiveSetID(exerciseOrder: 0, setIndex: setCount - 1))
+        let activeSetID = ActiveSetID(exerciseOrder: 0, setIndex: setCount - 1)
         guard case .superset(let focus) = kind else {
-            return SessionStageBranch(branch: branch, onTap: { _ in })
+            return SessionStageBranch(branch: StageBranch(nodes: nodes, activeSetID: activeSetID), onTap: { _ in })
         }
         let partnerNodes = Self.sets(count: 3, order: 1, last: focus == .onTheStemWithThePartnerSkipped ? .skipped : .logged)
             .map { set in BranchNode(set: set, state: set.state == .skipped ? .dashedLeaf : .leaf) }
-        return SessionStageBranch(branch: branch, partner: (partnerNodes, focus == .onTheLateral ? .stem : .lateral))
+        let fork =
+            focus == .onTheLateral
+            ? ForkedBranch(stem: partnerNodes, lateral: nodes, focusedArm: .lateral, activeSetID: activeSetID)
+            : ForkedBranch(stem: nodes, lateral: partnerNodes, focusedArm: .stem, activeSetID: activeSetID)
+        return SessionStageBranch(fork: fork)
     }
 
     func height(proposing proposal: CGFloat?) -> CGFloat {

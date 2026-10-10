@@ -24,7 +24,7 @@ struct ActiveSupersetSection: View {
         ) {
             nameBlock
         } branch: {
-            SessionStageBranch(branch: stage.branch, partner: (stage.partnerNodes, stage.partnerArm))
+            SessionStageBranch(fork: stage.branch)
         } card: {
             if let slot = stage.card {
                 ActiveSetCard(slot: slot, coordinator: coordinator)
