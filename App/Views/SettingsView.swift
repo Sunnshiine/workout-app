@@ -20,6 +20,7 @@ struct SettingsView: View {
                     .pickerStyle(.segmented)
                     .accessibilityIdentifier("settings-appearance-picker")
                 }
+                .listRowBackground(palette.surface)
 
                 Section("Rest") {
                     Stepper(value: standardRestSeconds, in: restRange, step: RestDurationSetting.stepSeconds) {
@@ -32,6 +33,7 @@ struct SettingsView: View {
                     }
                     .accessibilityIdentifier("settings-superset-rest-stepper")
                 }
+                .listRowBackground(palette.surface)
 
                 Section {
                     Button {
@@ -60,6 +62,7 @@ struct SettingsView: View {
                     }
                     .accessibilityIdentifier("settings-developer-tools-row")
                 }
+                .listRowBackground(palette.surface)
 
                 Section {
                     Button(role: .destructive) {
@@ -70,6 +73,7 @@ struct SettingsView: View {
                     .disabled(isSheetBusy)
                     .accessibilityIdentifier("settings-sign-out-button")
                 }
+                .listRowBackground(palette.surface)
 
                 Section {
                     BuildIdentityFooter()
@@ -77,6 +81,8 @@ struct SettingsView: View {
                         .listRowBackground(Color.clear)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(palette.paperBackground.ignoresSafeArea())
             .navigationTitle("Settings")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
