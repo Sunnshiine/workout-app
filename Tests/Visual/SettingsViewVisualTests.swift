@@ -11,14 +11,15 @@ import Testing
 @Suite(.snapshots(record: .never))
 struct SettingsViewVisualTests {
     @Test func settingsViewMatchesVisualBaseline() throws {
-        try assertSettings(colorScheme: .light, config: .workoutVisualBaseline)
+        try assertSettings(appearance: .day, colorScheme: .light, config: .workoutVisualBaseline)
     }
 
     @Test func settingsViewMatchesNightVisualBaseline() throws {
-        try assertSettings(colorScheme: .dark, config: .workoutVisualBaselineNight)
+        try assertSettings(appearance: .night, colorScheme: .dark, config: .workoutVisualBaselineNight)
     }
 
     private func assertSettings(
+        appearance: Theme.Appearance,
         colorScheme: ColorScheme,
         config: ViewImageConfig,
         testName: String = #function
@@ -31,6 +32,7 @@ struct SettingsViewVisualTests {
             .environment(scenario.settings)
             .environment(sync)
             .environment(scenario.store)
+            .environment(\.themePalette, Theme.palette(for: appearance))
             .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
             .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)
             .preferredColorScheme(colorScheme)
