@@ -166,6 +166,46 @@ struct SessionStageLayoutTests {
 @MainActor
 @Suite
 struct SessionStageLadderTransitionTests {
+    @Test func shrinkingTheWindowDropsTheCoachNoteBeforeTheBranch() throws {
+        let pages = try SessionPageHost.layouts(.exercise, banner: .clear, windowHeights: [694, 659])
+        #expect(
+            pages == [
+                PageFrames(
+                    banner: nil,
+                    stage: CGRect(x: 0, y: 62, width: 402, height: 632),
+                    cadence: nil,
+                    name: CGRect(x: 16, y: 133, width: 173, height: 41),
+                    partner: nil,
+                    note: CGRect(x: 16, y: 188, width: 270, height: 22),
+                    leaves: [
+                        CGRect(x: 272, y: 231, width: 44, height: 44),
+                        CGRect(x: 196, y: 240, width: 44, height: 44),
+                        CGRect(x: 120, y: 254, width: 44, height: 44)
+                    ],
+                    branchIsDrawn: true,
+                    lastPerformed: nil,
+                    card: CGRect(x: 16, y: 330, width: 370, height: 308)
+                ),
+                PageFrames(
+                    banner: nil,
+                    stage: CGRect(x: 0, y: 62, width: 402, height: 597),
+                    cadence: nil,
+                    name: CGRect(x: 16, y: 133, width: 173, height: 41),
+                    partner: nil,
+                    note: nil,
+                    leaves: [
+                        CGRect(x: 272, y: 195, width: 44, height: 44),
+                        CGRect(x: 196, y: 205, width: 44, height: 44),
+                        CGRect(x: 120, y: 219, width: 44, height: 44)
+                    ],
+                    branchIsDrawn: true,
+                    lastPerformed: nil,
+                    card: CGRect(x: 16, y: 295, width: 370, height: 308)
+                )
+            ]
+        )
+    }
+
     @Test func shrinkingTheWindowDropsEveryLineTheShorterRungGivesUp() throws {
         let pages = try SessionPageHost.layouts(
             .superset,
