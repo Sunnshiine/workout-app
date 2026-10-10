@@ -5,6 +5,15 @@ enum SheetSwitchResult: Equatable {
     case requiresConfirmation(SheetSelection)
     case unchanged
     case failed(DestructiveTransitionFailure)
+
+    var onboardingMessage: String? {
+        switch self {
+        case .switched, .unchanged: nil
+        case .requiresConfirmation:
+            "You have unsynced changes from a previous sheet. Review them in Settings before switching."
+        case .failed(let failure): failure.message
+        }
+    }
 }
 
 enum SignOutResult: Equatable {
@@ -69,8 +78,6 @@ final class SheetConnection {
     private let settings: SettingsStore
     private let sync: any SheetSwitchSyncing
     private let onSynced: () -> Void
-    private static let unsyncedFromPreviousSheetMessage =
-        "You have unsynced changes from a previous sheet. Review them in Settings before switching."
 
     init(settings: SettingsStore, sync: any SheetSwitchSyncing, onSynced: @escaping () -> Void) {
         self.settings = settings
@@ -129,14 +136,6 @@ final class SheetConnection {
             return .switched
         } catch {
             return .failed(error)
-        }
-    }
-
-    func connect(_ selection: SheetSelection) async -> String? {
-        switch await requestSwitch(to: selection) {
-        case .switched, .unchanged: nil
-        case .requiresConfirmation: Self.unsyncedFromPreviousSheetMessage
-        case .failed(let failure): failure.message
         }
     }
 
