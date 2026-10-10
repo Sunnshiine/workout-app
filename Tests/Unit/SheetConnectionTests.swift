@@ -4,21 +4,36 @@ import Testing
 
 @testable import WorkoutTracker
 
+@Test(arguments: [
+    (DestructiveTransitionFailure.syncInProgress, "A sync is already in progress."),
+    (.pendingCheckFailed, "Couldn't check pending logs. Try again."),
+    (.discardFailed, "Couldn't discard pending logs. Try again."),
+    (.syncFailed, "Couldn't sync selected sheet. Try again.")
+])
+func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFailure, expected: String) {
+    #expect(failure.message == expected)
+}
+
+// MARK: - Sync now
+
 @MainActor
 @Test func syncNowSyncsTheConfiguredSheetAndReloadsWorkoutState() async throws {
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
+    let container = try makeCacheSafetyContainer()
+    let context = container.mainContext
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
-    let sync = StubSheetSwitchSync()
-    var reloads: [String] = []
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let sync = SyncCoordinator(client: client, context: context)
+    var reloadedBlockTabs: [String] = []
     let connection = SheetConnection(settings: settings, sync: sync) {
-        reloads.append("after syncing \(sync.syncedSpreadsheetIds) on \(settings.spreadsheetId ?? "no sheet")")
+        reloadedBlockTabs += (try? context.fetch(FetchDescriptor<Block>()).map(\.tabName)) ?? []
     }
 
     let didSync = await connection.syncNow()
 
     #expect(didSync == true)
-    #expect(reloads == [#"after syncing ["current-sheet"] on current-sheet"#])
+    #expect(reloadedBlockTabs == ["Block 27"])
+    #expect(await client.syncedSpreadsheetIds() == ["current-sheet"])
 }
 
 @MainActor
@@ -42,16 +57,19 @@ import Testing
     #expect(client.tabTitleReads == 1)
 }
 
+// MARK: - Sheet switch
+
 @MainActor
-@Test func sheetSwitchWithoutPendingWritesCommitsAndSyncsNewSheet() async throws {
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
+@Test func sheetSwitchReplacesStaleCachedBlockOnlyAfterSyncingNewSheet() async throws {
+    let container = try makeCacheSafetyContainer()
+    let context = container.mainContext
+    seedStaleBlock(tabName: "Block 26", into: context)
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
-    let sync = StubSheetSwitchSync()
-    var reloads: [String] = []
-    let connection = SheetConnection(settings: settings, sync: sync) {
-        reloads.append("after syncing \(sync.syncedSpreadsheetIds) on \(settings.spreadsheetId ?? "no sheet")")
-    }
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let sync = SyncCoordinator(client: client, context: context)
+    var reloadedOn: [String?] = []
+    let connection = SheetConnection(settings: settings, sync: sync) { reloadedOn.append(settings.spreadsheetId) }
 
     let result = await connection.requestSwitch(
         to: SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
@@ -60,178 +78,207 @@ import Testing
     #expect(result == .switched)
     #expect(settings.spreadsheetId == "new-sheet")
     #expect(settings.spreadsheetTitle == "New Training Log")
-    #expect(sync.discardPendingWriteCallCount == 0)
-    #expect(reloads == [#"after syncing ["new-sheet"] on new-sheet"#])
+    #expect(reloadedOn == ["new-sheet"])
+    #expect(try context.fetch(FetchDescriptor<Block>()).map(\.tabName) == ["Block 27"])
+    #expect(await client.syncedSpreadsheetIds() == ["new-sheet"])
 }
 
+// The onboarding pasted-URL fallback commits a titleless `SheetSelection`, so the safe transaction
+// must sync the new sheet first, then commit the id while clearing any stale title left behind.
 @MainActor
-@Test func sheetSwitchWithPendingWritesWaitsForConfirmation() async throws {
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
+@Test func titlelessSelectionSwitchSyncsNewSheetThenClearsStaleTitle() async throws {
+    let container = try makeCacheSafetyContainer()
+    let context = container.mainContext
+    seedStaleBlock(tabName: "Block 26", into: context)
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
-    let sync = StubSheetSwitchSync(hasPendingWrites: true)
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let sync = SyncCoordinator(client: client, context: context)
     var reloadCount = 0
-    let connection = SheetConnection(settings: settings, sync: sync) {
-        reloadCount += 1
-    }
-    let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
+    let connection = SheetConnection(settings: settings, sync: sync) { reloadCount += 1 }
 
-    let result = await connection.requestSwitch(to: newSheet)
+    let result = await connection.requestSwitch(to: SheetSelection(spreadsheetId: "new-sheet", title: nil))
 
-    #expect(result == .requiresConfirmation)
-    #expect(connection.pendingConfirmation == SheetSelection(newSheet))
-    #expect(settings.spreadsheetId == "old-sheet")
-    #expect(settings.spreadsheetTitle == "Old Training Log")
-    #expect(sync.syncedSpreadsheetIds.isEmpty)
-    #expect(sync.discardPendingWriteCallCount == 0)
-
-    connection.cancelPendingSwitch()
-
-    #expect(connection.pendingConfirmation == nil)
-    #expect(settings.spreadsheetId == "old-sheet")
-    #expect(sync.syncedSpreadsheetIds.isEmpty)
-    #expect(reloadCount == 0)
-}
-
-@MainActor
-@Test func confirmingSheetSwitchDiscardsPendingWritesThenSyncsNewSheet() async throws {
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
-    settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
-    let sync = StubSheetSwitchSync(hasPendingWrites: true)
-    var reloadCount = 0
-    let connection = SheetConnection(settings: settings, sync: sync) {
-        reloadCount += 1
-    }
-    let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
-
-    _ = await connection.requestSwitch(to: newSheet)
-    let confirmed = await connection.confirmPendingSwitch()
-
-    #expect(confirmed == true)
-    #expect(connection.pendingConfirmation == nil)
+    #expect(result == .switched)
     #expect(settings.spreadsheetId == "new-sheet")
-    #expect(settings.spreadsheetTitle == "New Training Log")
-    #expect(sync.hasPendingWritesValue == false)
-    #expect(sync.discardPendingWriteCallCount == 1)
-    #expect(sync.syncedSpreadsheetIds == ["new-sheet"])
+    #expect(settings.spreadsheetTitle == nil)
     #expect(reloadCount == 1)
+    #expect(try context.fetch(FetchDescriptor<Block>()).map(\.tabName) == ["Block 27"])
+    #expect(await client.syncedSpreadsheetIds() == ["new-sheet"])
 }
 
 @MainActor
 @Test func reselectingTheCurrentSheetRefreshesItsTitleWithoutSyncing() async throws {
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
+    let container = try makeCacheSafetyContainer()
+    let context = container.mainContext
+    try queueReplacementSquatLog(in: context)
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "same-sheet", title: "Old Training Log")
-    let sync = StubSheetSwitchSync(hasPendingWrites: true)
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
     var reloadCount = 0
-    let connection = SheetConnection(settings: settings, sync: sync) {
+    let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: context)) {
         reloadCount += 1
     }
-    let renamed = SpreadsheetFile(name: "Renamed Training Log", spreadsheetId: "same-sheet", modifiedDate: .distantPast)
 
-    let result = await connection.requestSwitch(to: renamed)
+    let result = await connection.requestSwitch(
+        to: SpreadsheetFile(name: "Renamed Training Log", spreadsheetId: "same-sheet", modifiedDate: .distantPast)
+    )
 
     #expect(result == .unchanged)
     #expect(settings.spreadsheetId == "same-sheet")
     #expect(settings.spreadsheetTitle == "Renamed Training Log")
-    #expect(connection.pendingConfirmation == nil)
-    #expect(connection.errorMessage == nil)
-    #expect(sync.syncedSpreadsheetIds.isEmpty)
-    #expect(sync.discardPendingWriteCallCount == 0)
+    #expect(try context.fetch(FetchDescriptor<PendingWrite>()).map(\.valueToWrite) == ["185x5@8"])
+    #expect(await client.syncedSpreadsheetIds() == [])
     #expect(reloadCount == 0)
 }
 
 @MainActor
-@Test func unreadablePendingWriteCountLeavesTheSheetAloneAndSaysSo() async throws {
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
+@Test func oldSheetPendingWritesAreNeverFlushedToNewlySelectedSheet() async throws {
+    let container = try makeCacheSafetyContainer()
+    let context = container.mainContext
+    seedStaleBlock(tabName: "Block 26", into: context)
+    try queueReplacementSquatLog(in: context)
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
-    let sync = StubSheetSwitchSync(pendingWritesError: StubSheetSwitchError.pendingWriteLookupFailed)
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
     var reloadCount = 0
-    let connection = SheetConnection(settings: settings, sync: sync) {
+    let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: context)) {
         reloadCount += 1
     }
     let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
 
     let result = await connection.requestSwitch(to: newSheet)
 
-    #expect(result == .failed)
-    #expect(connection.errorMessage == "Couldn't check pending logs. Try again.")
-    #expect(connection.pendingConfirmation == nil)
+    // A pending write for the old sheet forces confirmation before anything is synced.
+    #expect(result == .requiresConfirmation(SheetSelection(spreadsheetId: "new-sheet", title: "New Training Log")))
+    #expect(settings.spreadsheetId == "old-sheet")
+    #expect(try context.fetch(FetchDescriptor<PendingWrite>()).map(\.valueToWrite) == ["185x5@8"])
+    #expect(await client.syncedSpreadsheetIds() == [])
+
+    try await connection.confirmSwitch(to: SheetSelection(newSheet))
+
+    #expect(settings.spreadsheetId == "new-sheet")
+    #expect(settings.spreadsheetTitle == "New Training Log")
+    #expect(reloadCount == 1)
+    // The old pending write was discarded before the new sheet synced, so it can never be written
+    // into the newly selected spreadsheet.
+    #expect(await client.updatedSpreadsheetIds() == [])
+    #expect(await client.syncedSpreadsheetIds() == ["new-sheet"])
+    #expect(try context.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
+    #expect(try context.fetch(FetchDescriptor<Block>()).map(\.tabName) == ["Block 27"])
+}
+
+@MainActor
+@Test func unreadablePendingWriteCountLeavesTheSheetAloneAndSaysSo() async throws {
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
+    settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
+    let sync = StubSheetSwitchSync(pendingWritesError: StubSheetSwitchError.pendingWriteLookupFailed)
+    var reloadCount = 0
+    let connection = SheetConnection(settings: settings, sync: sync) { reloadCount += 1 }
+    let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
+
+    let result = await connection.requestSwitch(to: newSheet)
+
+    #expect(result == .failed(.pendingCheckFailed))
     #expect(connection.canBeginDestructiveTransition == true)
     #expect(settings.spreadsheetId == "old-sheet")
     #expect(settings.spreadsheetTitle == "Old Training Log")
-    #expect(sync.syncedSpreadsheetIds.isEmpty)
-    #expect(sync.discardPendingWriteCallCount == 0)
+    #expect(sync.syncedSpreadsheetIds == [])
     #expect(reloadCount == 0)
 }
 
 @MainActor
 @Test func failedPendingWriteDiscardDoesNotSwitchSheets() async throws {
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = StubSheetSwitchSync(hasPendingWrites: true, discardError: StubSheetSwitchError.discardFailed)
     let connection = SheetConnection(settings: settings, sync: sync)
-    let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
+    let newSheet = SheetSelection(spreadsheetId: "new-sheet", title: "New Training Log")
 
-    _ = await connection.requestSwitch(to: newSheet)
-    let confirmed = await connection.confirmPendingSwitch()
+    #expect(await connection.requestSwitch(to: newSheet) == .requiresConfirmation(newSheet))
+    await #expect(throws: DestructiveTransitionFailure.discardFailed) {
+        try await connection.confirmSwitch(to: newSheet)
+    }
 
-    #expect(confirmed == false)
-    #expect(connection.pendingConfirmation == SheetSelection(newSheet))
     #expect(settings.spreadsheetId == "old-sheet")
     #expect(settings.spreadsheetTitle == "Old Training Log")
-    #expect(sync.syncedSpreadsheetIds.isEmpty)
-    #expect(connection.errorMessage != nil)
+    #expect(sync.syncedSpreadsheetIds == [])
+    #expect(connection.canBeginDestructiveTransition == true)
 }
 
 @MainActor
-@Test func failedSheetSwitchSyncDoesNotCommitOrReload() async throws {
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
+@Test func failedSheetSwitchSyncKeepsStaleCacheAndDoesNotCommitSelection() async throws {
+    let container = try makeCacheSafetyContainer()
+    let context = container.mainContext
+    seedStaleBlock(tabName: "Block 26", into: context)
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
-    let sync = StubSheetSwitchSync(syncSucceeds: false)
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid(), failOffline: true)
     var reloadCount = 0
-    let connection = SheetConnection(settings: settings, sync: sync) {
+    let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: context)) {
         reloadCount += 1
     }
-    let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
 
-    let result = await connection.requestSwitch(to: newSheet)
+    let result = await connection.requestSwitch(
+        to: SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
+    )
 
-    #expect(result == .failed)
+    #expect(result == .failed(.syncFailed))
     #expect(settings.spreadsheetId == "old-sheet")
     #expect(settings.spreadsheetTitle == "Old Training Log")
-    #expect(sync.syncedSpreadsheetIds == ["new-sheet"])
     #expect(reloadCount == 0)
-    #expect(connection.errorMessage != nil)
+    #expect(try context.fetch(FetchDescriptor<Block>()).map(\.tabName) == ["Block 26"])
+}
+
+// A failed titleless selection switch (pasted URL that can't sync) must leave onboarding's previous
+// selection and cache untouched, exactly like the Drive-picker path.
+@MainActor
+@Test func failedTitlelessSelectionSwitchKeepsPreviousSelectionAndCache() async throws {
+    let container = try makeCacheSafetyContainer()
+    let context = container.mainContext
+    seedStaleBlock(tabName: "Block 26", into: context)
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
+    settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid(), failOffline: true)
+    var reloadCount = 0
+    let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: context)) {
+        reloadCount += 1
+    }
+
+    let result = await connection.requestSwitch(to: SheetSelection(spreadsheetId: "new-sheet", title: nil))
+
+    #expect(result == .failed(.syncFailed))
+    #expect(settings.spreadsheetId == "old-sheet")
+    #expect(settings.spreadsheetTitle == "Old Training Log")
+    #expect(reloadCount == 0)
+    #expect(try context.fetch(FetchDescriptor<Block>()).map(\.tabName) == ["Block 26"])
 }
 
 @MainActor
-@Test func failedConfirmedSheetSwitchSyncDoesNotCommitOrReload() async throws {
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
+@Test func failedConfirmedSheetSwitchSyncDiscardsTheOldLogsButKeepsTheOldSheet() async throws {
+    let container = try makeCacheSafetyContainer()
+    let context = container.mainContext
+    seedStaleBlock(tabName: "Block 26", into: context)
+    try queueReplacementSquatLog(in: context)
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
-    let sync = StubSheetSwitchSync(hasPendingWrites: true, syncSucceeds: false)
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid(), failOffline: true)
     var reloadCount = 0
-    let connection = SheetConnection(settings: settings, sync: sync) {
+    let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: context)) {
         reloadCount += 1
     }
-    let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
+    let newSheet = SheetSelection(spreadsheetId: "new-sheet", title: "New Training Log")
 
-    _ = await connection.requestSwitch(to: newSheet)
-    let confirmed = await connection.confirmPendingSwitch()
+    #expect(await connection.requestSwitch(to: newSheet) == .requiresConfirmation(newSheet))
+    await #expect(throws: DestructiveTransitionFailure.syncFailed) {
+        try await connection.confirmSwitch(to: newSheet)
+    }
 
-    #expect(confirmed == false)
-    #expect(connection.pendingConfirmation == nil)
     #expect(settings.spreadsheetId == "old-sheet")
     #expect(settings.spreadsheetTitle == "Old Training Log")
-    #expect(sync.discardPendingWriteCallCount == 1)
-    #expect(sync.syncedSpreadsheetIds == ["new-sheet"])
     #expect(reloadCount == 0)
-    #expect(connection.errorMessage != nil)
+    #expect(try context.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
+    #expect(try context.fetch(FetchDescriptor<Block>()).map(\.tabName) == ["Block 26"])
 }
 
 @MainActor
@@ -252,8 +299,7 @@ import Testing
     let firstResult = await firstTask.value
 
     #expect(firstResult == .switched)
-    #expect(secondResult == .failed)
-    #expect(connection.errorMessage == "A sync is already in progress.")
+    #expect(secondResult == .failed(.syncInProgress))
     #expect(settings.spreadsheetId == "first-sheet")
     #expect(settings.spreadsheetTitle == "First Training Log")
     #expect(client.tabTitleReads == 1)
@@ -261,26 +307,22 @@ import Testing
 
 @MainActor
 @Test(.timeLimit(.minutes(1))) func overlappingConfirmedSheetSwitchIsRejectedWhileDiscardIsRunning() async throws {
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = SuspendedDiscardSheetSwitchSync()
     let connection = SheetConnection(settings: settings, sync: sync)
-    let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
+    let newSheet = SheetSelection(spreadsheetId: "new-sheet", title: "New Training Log")
 
-    _ = await connection.requestSwitch(to: newSheet)
-
-    let confirmTask = Task { await connection.confirmPendingSwitch() }
+    let confirmTask = Task { try await connection.confirmSwitch(to: newSheet) }
     await sync.waitForDiscardStart()
 
     #expect(connection.canBeginDestructiveTransition == false)
-
-    let overlappingConfirm = await connection.confirmPendingSwitch()
+    await #expect(throws: DestructiveTransitionFailure.syncInProgress) {
+        try await connection.confirmSwitch(to: newSheet)
+    }
     sync.completeDiscard()
-    let confirmed = await confirmTask.value
+    try await confirmTask.value
 
-    #expect(overlappingConfirm == false)
-    #expect(confirmed == true)
     #expect(sync.discardPendingWriteCallCount == 1)
     #expect(settings.spreadsheetId == "new-sheet")
     #expect(sync.syncedSpreadsheetIds == ["new-sheet"])
@@ -290,272 +332,85 @@ import Testing
 
 @MainActor
 @Test func signOutWithoutPendingWritesIsReadyImmediately() throws {
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
     let sync = StubSheetSwitchSync()
     let connection = SheetConnection(settings: settings, sync: sync)
 
-    let request = connection.requestSignOut()
-
-    #expect(request == .ready)
-    #expect(connection.errorMessage == nil)
+    #expect(connection.requestSignOut() == .ready)
     #expect(sync.discardPendingWriteCallCount == 0)
 }
 
 @MainActor
 @Test func signOutWithPendingWritesWaitsForConfirmation() throws {
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
     let sync = StubSheetSwitchSync(hasPendingWrites: true)
     let connection = SheetConnection(settings: settings, sync: sync)
 
-    let request = connection.requestSignOut()
-
-    #expect(request == .requiresConfirmation)
-    #expect(connection.errorMessage == nil)
+    #expect(connection.requestSignOut() == .requiresConfirmation)
     #expect(sync.hasPendingWritesValue == true)
     #expect(sync.discardPendingWriteCallCount == 0)
 }
 
 @MainActor
 @Test func preparingSignOutDiscardsPendingWrites() async throws {
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
     let sync = StubSheetSwitchSync(hasPendingWrites: true)
     let connection = SheetConnection(settings: settings, sync: sync)
 
-    let prepared = await connection.prepareSignOut()
+    try await connection.prepareSignOut()
 
-    #expect(prepared == true)
-    #expect(connection.errorMessage == nil)
     #expect(sync.hasPendingWritesValue == false)
     #expect(sync.discardPendingWriteCallCount == 1)
 }
 
 @MainActor
 @Test func unreadablePendingWriteCountBlocksSignOutAndSaysSo() throws {
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
     let sync = StubSheetSwitchSync(pendingWritesError: StubSheetSwitchError.pendingWriteLookupFailed)
     let connection = SheetConnection(settings: settings, sync: sync)
 
-    let request = connection.requestSignOut()
-
-    #expect(request == .failed)
-    #expect(connection.errorMessage == "Couldn't check pending logs. Try again.")
+    #expect(connection.requestSignOut() == .failed(.pendingCheckFailed))
     #expect(sync.discardPendingWriteCallCount == 0)
 }
 
 @MainActor
 @Test func failedPendingWriteDiscardBlocksSignOut() async throws {
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
     let sync = StubSheetSwitchSync(hasPendingWrites: true, discardError: StubSheetSwitchError.discardFailed)
     let connection = SheetConnection(settings: settings, sync: sync)
 
-    let prepared = await connection.prepareSignOut()
-
-    #expect(prepared == false)
-    #expect(connection.errorMessage == "Couldn't discard pending logs. Try again.")
+    await #expect(throws: DestructiveTransitionFailure.discardFailed) {
+        try await connection.prepareSignOut()
+    }
     #expect(settings.spreadsheetId == "current-sheet")
 }
 
 @MainActor
 @Test(.timeLimit(.minutes(1))) func signOutIsRejectedWhileASheetSwitchDiscardIsRunning() async throws {
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = SuspendedDiscardSheetSwitchSync()
     let connection = SheetConnection(settings: settings, sync: sync)
-    let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
 
-    _ = await connection.requestSwitch(to: newSheet)
-    let confirmTask = Task { await connection.confirmPendingSwitch() }
+    let confirmTask = Task { try await connection.confirmSwitch(to: SheetSelection(spreadsheetId: "new-sheet")) }
     await sync.waitForDiscardStart()
 
-    let request = connection.requestSignOut()
-    let prepared = await connection.prepareSignOut()
+    #expect(connection.requestSignOut() == .failed(.syncInProgress))
+    await #expect(throws: DestructiveTransitionFailure.syncInProgress) {
+        try await connection.prepareSignOut()
+    }
     sync.completeDiscard()
-    _ = await confirmTask.value
+    try await confirmTask.value
 
-    #expect(request == .failed)
-    #expect(prepared == false)
-    #expect(connection.errorMessage == "A sync is already in progress.")
     #expect(sync.discardPendingWriteCallCount == 1)
 }
 
-// MARK: - Cache safety against a real SyncCoordinator
-
-@MainActor
-@Test func sheetSwitchReplacesStaleCachedBlockOnlyAfterSyncingNewSheet() async throws {
-    let container = try makeCacheSafetyContainer()
-    let context = container.mainContext
-    seedStaleBlock(tabName: "Block 26", into: context)
-
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
-    settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
-
-    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
-    let sync = SyncCoordinator(client: client, context: context)
-    var reloadCount = 0
-    let connection = SheetConnection(settings: settings, sync: sync) { reloadCount += 1 }
-
-    let result = await connection.requestSwitch(
-        to: SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
-    )
-
-    #expect(result == .switched)
-    #expect(settings.spreadsheetId == "new-sheet")
-    #expect(settings.spreadsheetTitle == "New Training Log")
-    #expect(reloadCount == 1)
-
-    let blocks = try context.fetch(FetchDescriptor<Block>())
-    #expect(blocks.count == 1)
-    #expect(blocks.first?.tabName == "Block 27")
-    #expect(await client.syncedSpreadsheetIds() == ["new-sheet"])
-}
-
-// The onboarding pasted-URL fallback commits a titleless `SheetSelection`, so the safe transaction
-// must sync the new sheet first, then commit the id while clearing any stale title left behind.
-@MainActor
-@Test func titlelessSelectionSwitchSyncsNewSheetThenClearsStaleTitle() async throws {
-    let container = try makeCacheSafetyContainer()
-    let context = container.mainContext
-    seedStaleBlock(tabName: "Block 26", into: context)
-
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
-    settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
-
-    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
-    let sync = SyncCoordinator(client: client, context: context)
-    var reloadCount = 0
-    let connection = SheetConnection(settings: settings, sync: sync) { reloadCount += 1 }
-
-    let result = await connection.requestSwitch(to: SheetSelection(spreadsheetId: "new-sheet", title: nil))
-
-    #expect(result == .switched)
-    #expect(settings.spreadsheetId == "new-sheet")
-    #expect(settings.spreadsheetTitle == nil)
-    #expect(reloadCount == 1)
-
-    let blocks = try context.fetch(FetchDescriptor<Block>())
-    #expect(blocks.count == 1)
-    #expect(blocks.first?.tabName == "Block 27")
-    #expect(await client.syncedSpreadsheetIds() == ["new-sheet"])
-}
-
-// A failed titleless selection switch (pasted URL that can't sync) must leave onboarding's previous
-// selection and cache untouched, exactly like the Drive-picker path.
-@MainActor
-@Test func failedTitlelessSelectionSwitchKeepsPreviousSelectionAndCache() async throws {
-    let container = try makeCacheSafetyContainer()
-    let context = container.mainContext
-    seedStaleBlock(tabName: "Block 26", into: context)
-
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
-    settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
-
-    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid(), failOffline: true)
-    let sync = SyncCoordinator(client: client, context: context)
-    var reloadCount = 0
-    let connection = SheetConnection(settings: settings, sync: sync) { reloadCount += 1 }
-
-    let result = await connection.requestSwitch(to: SheetSelection(spreadsheetId: "new-sheet", title: nil))
-
-    #expect(result == .failed)
-    #expect(settings.spreadsheetId == "old-sheet")
-    #expect(settings.spreadsheetTitle == "Old Training Log")
-    #expect(reloadCount == 0)
-
-    let blocks = try context.fetch(FetchDescriptor<Block>())
-    #expect(blocks.count == 1)
-    #expect(blocks.first?.tabName == "Block 26")
-}
-
-@MainActor
-@Test func failedSheetSwitchSyncKeepsStaleCacheAndDoesNotCommitSelection() async throws {
-    let container = try makeCacheSafetyContainer()
-    let context = container.mainContext
-    seedStaleBlock(tabName: "Block 26", into: context)
-
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
-    settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
-
-    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid(), failOffline: true)
-    let sync = SyncCoordinator(client: client, context: context)
-    var reloadCount = 0
-    let connection = SheetConnection(settings: settings, sync: sync) { reloadCount += 1 }
-
-    let result = await connection.requestSwitch(
-        to: SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
-    )
-
-    #expect(result == .failed)
-    #expect(settings.spreadsheetId == "old-sheet")
-    #expect(settings.spreadsheetTitle == "Old Training Log")
-    #expect(reloadCount == 0)
-
-    // The previous usable cache is preserved verbatim.
-    let blocks = try context.fetch(FetchDescriptor<Block>())
-    #expect(blocks.count == 1)
-    #expect(blocks.first?.tabName == "Block 26")
-}
-
-@MainActor
-@Test func oldSheetPendingWritesAreNeverFlushedToNewlySelectedSheet() async throws {
-    let container = try makeCacheSafetyContainer()
-    let context = container.mainContext
-    seedStaleBlock(tabName: "Block 26", into: context)
-    context.insert(
-        PendingWrite(
-            session: SessionCoordinate(blockTab: "Block 26", address: SessionAddress(week: 1, day: 1)),
-            dayNumbering: .headerNumber,
-            exerciseName: "Squat",
-            setIndex: 0,
-            column: .notes,
-            operation: .upsert,
-            valueToWrite: "185x5@8",
-            expectedCurrentValue: ""
-        )
-    )
-    try context.save()
-
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
-    settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
-
-    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
-    let sync = SyncCoordinator(client: client, context: context)
-    let connection = SheetConnection(settings: settings, sync: sync)
-    let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
-
-    let firstResult = await connection.requestSwitch(to: newSheet)
-
-    // A pending write for the old sheet forces confirmation before anything is synced.
-    #expect(firstResult == .requiresConfirmation)
-    #expect(await client.updatedSpreadsheetIds().isEmpty)
-    #expect(await client.syncedSpreadsheetIds().isEmpty)
-
-    let confirmed = await connection.confirmPendingSwitch()
-
-    #expect(confirmed == true)
-    #expect(settings.spreadsheetId == "new-sheet")
-    // The old pending write was discarded before the new sheet synced, so it can never be written
-    // into the newly selected spreadsheet.
-    #expect(await client.updatedSpreadsheetIds().isEmpty)
-    #expect(await client.syncedSpreadsheetIds() == ["new-sheet"])
-    #expect(try context.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
-    #expect(try context.fetch(FetchDescriptor<Block>()).first?.tabName == "Block 27")
-}
+// MARK: - The guard against any running sync
 
 /// A sync nobody in Settings started — the stage's sync on appear, or the flush the athlete's last
 /// logged Set queued — is still the `SyncCoordinator` talking to the Sheet, and abandoning pending
@@ -563,10 +418,8 @@ import Testing
 @MainActor
 @Test func signOutAndSheetSwitchAreRejectedWhileABackgroundSyncIsRunning() async throws {
     let container = try makeCacheSafetyContainer()
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
-
     let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
     let sync = SyncCoordinator(client: client, context: container.mainContext)
     let connection = SheetConnection(settings: settings, sync: sync)
@@ -576,10 +429,12 @@ import Testing
 
     #expect(SyncStatusBannerPresentation(outcome: sync.outcome, isSyncing: sync.isSyncing)?.text == "Syncing")
     #expect(connection.canBeginDestructiveTransition == false)
-    #expect(connection.requestSignOut() == .failed)
-    #expect(await connection.prepareSignOut() == false)
-    #expect(await connection.requestSwitch(to: SheetSelection(spreadsheetId: "other-sheet")) == .failed)
-    #expect(connection.errorMessage == "A sync is already in progress.")
+    #expect(connection.requestSignOut() == .failed(.syncInProgress))
+    await #expect(throws: DestructiveTransitionFailure.syncInProgress) { try await connection.signOut() }
+    #expect(await connection.requestSwitch(to: SheetSelection(spreadsheetId: "other-sheet")) == .failed(.syncInProgress))
+    await #expect(throws: DestructiveTransitionFailure.syncInProgress) {
+        try await connection.confirmSwitch(to: SheetSelection(spreadsheetId: "other-sheet"))
+    }
     #expect(settings.spreadsheetId == "current-sheet")
     // Nothing reached the coordinator: no discard, and no second sync against the other sheet.
     #expect(client.tabTitleReads == 1)
@@ -598,8 +453,7 @@ import Testing
 @Test(.timeLimit(.minutes(1)))
 func aFlushThatOverlapsASyncLeavesTheDestructiveTransitionGuardClosed() async throws {
     let container = try makeCacheSafetyContainer()
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
 
     let client = HeldSheetsClient(
@@ -622,8 +476,7 @@ func aFlushThatOverlapsASyncLeavesTheDestructiveTransitionGuardClosed() async th
     #expect(SyncStatusBannerPresentation(outcome: sync.outcome, isSyncing: sync.isSyncing)?.text == "Syncing")
     #expect(sync.isSyncing == true)
     #expect(connection.canBeginDestructiveTransition == false)
-    #expect(connection.requestSignOut() == .failed)
-    #expect(connection.errorMessage == "A sync is already in progress.")
+    #expect(connection.requestSignOut() == .failed(.syncInProgress))
 
     client.release()
     await client.waitUntilHeld()
@@ -642,8 +495,7 @@ func aFlushThatOverlapsASyncLeavesTheDestructiveTransitionGuardClosed() async th
 @Test(.timeLimit(.minutes(1)))
 func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async throws {
     let container = try makeCacheSafetyContainer()
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
     try queueReplacementSquatLog(in: container.mainContext)
 
@@ -671,8 +523,7 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
 @MainActor
 @Test func syncNowIsRejectedWhileABackgroundSyncIsRunning() async throws {
     let container = try makeCacheSafetyContainer()
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
 
     let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
@@ -699,33 +550,39 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
 // MARK: - Onboarding
 
 @MainActor
-@Test func onboardingSelectionWithAPreviousSheetsPendingLogsSaysSoAndLeavesNothingPending() async throws {
+@Test func onboardingSelectionWithAPreviousSheetsPendingLogsSaysSoAndKeepsThem() async throws {
+    let container = try makeCacheSafetyContainer()
+    let context = container.mainContext
+    try queueReplacementSquatLog(in: context)
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
-    let sync = StubSheetSwitchSync(hasPendingWrites: true)
-    let connection = SheetConnection(settings: settings, sync: sync)
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: context))
 
     let message = await connection.connect(SheetSelection(spreadsheetId: "new-sheet"))
 
     #expect(message == "You have unsynced changes from a previous sheet. Review them in Settings before switching.")
-    #expect(connection.pendingConfirmation == nil)
     #expect(settings.spreadsheetId == "old-sheet")
+    #expect(try context.fetch(FetchDescriptor<PendingWrite>()).map(\.valueToWrite) == ["185x5@8"])
+    #expect(await client.syncedSpreadsheetIds() == [])
 }
 
 @MainActor
 @Test func onboardingSelectionThatFailsToSyncReturnsTheReason() async throws {
+    let container = try makeCacheSafetyContainer()
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
-    let connection = SheetConnection(settings: settings, sync: StubSheetSwitchSync(syncSucceeds: false))
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid(), failOffline: true)
+    let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: container.mainContext))
 
     #expect(await connection.connect(SheetSelection(spreadsheetId: "new-sheet")) == "Couldn't sync selected sheet. Try again.")
     #expect(settings.spreadsheetId == nil)
 }
 
 /// Onboarding's "Paste a URL instead" stays live while a picked Sheet syncs, so a pasted URL can
-/// be refused mid-sync. Onboarding shows that refusal itself; the first selection then opens the
-/// session, and Settings must not open on the same refusal.
+/// be refused mid-sync. The refusal is onboarding's to show; the picked Sheet still commits, and
+/// the connection is free for the next transition.
 @MainActor
-@Test(.timeLimit(.minutes(1))) func anOnboardingSelectionRefusedMidSyncLeavesNoErrorForSettings() async throws {
+@Test(.timeLimit(.minutes(1))) func anOnboardingSelectionRefusedMidSyncReturnsTheRefusalAndThePickedSheetCommits() async throws {
     let container = try makeCacheSafetyContainer()
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
@@ -740,7 +597,8 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
     #expect(pastedMessage == "A sync is already in progress.")
     #expect(pickedMessage == nil)
     #expect(settings.spreadsheetId == "picked-sheet")
-    #expect(connection.errorMessage == nil)
+    #expect(settings.spreadsheetTitle == "Picked")
+    #expect(connection.canBeginDestructiveTransition == true)
 }
 
 @MainActor
@@ -867,20 +725,17 @@ private final class StubSheetSwitchSync: SheetSwitchSyncing {
     var hasPendingWritesValue: Bool
     private let pendingWritesError: Error?
     private let discardError: Error?
-    private let syncSucceeds: Bool
     private(set) var discardPendingWriteCallCount = 0
     private(set) var syncedSpreadsheetIds: [String] = []
 
     init(
         hasPendingWrites: Bool = false,
         pendingWritesError: Error? = nil,
-        discardError: Error? = nil,
-        syncSucceeds: Bool = true
+        discardError: Error? = nil
     ) {
         self.hasPendingWritesValue = hasPendingWrites
         self.pendingWritesError = pendingWritesError
         self.discardError = discardError
-        self.syncSucceeds = syncSucceeds
     }
 
     func hasPendingWrites() throws -> Bool {
@@ -900,7 +755,7 @@ private final class StubSheetSwitchSync: SheetSwitchSyncing {
 
     func sync(spreadsheetId: String) async -> Bool {
         syncedSpreadsheetIds.append(spreadsheetId)
-        return syncSucceeds
+        return true
     }
 }
 
