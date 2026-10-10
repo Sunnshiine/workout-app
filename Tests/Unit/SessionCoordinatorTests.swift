@@ -1261,6 +1261,35 @@ private func makeRestActionFixture(
 }
 
 @MainActor
+@Test func rebindingToTheSameNavigationAdapterLeavesAStageReadAlone() throws {
+    let (session, set) = makeSingleSetSession(dayNumber: 1)
+    set.state = .logged
+    let navigation = SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) })
+    navigation.canMoveOn = true
+    let coordinator = SessionCoordinator()
+    let bindToSession = {
+        coordinator.bind(
+            to: session,
+            logging: SpySessionLoggingAdapter(),
+            sync: SpySessionSyncAdapter(),
+            navigation: navigation,
+            motion: ImmediateSessionMotion()
+        )
+    }
+    let firstBind = ObservedChanges()
+    firstBind.watch { _ = coordinator.stage(in: session, lookup: .empty) }
+    bindToSession()
+    let secondBind = ObservedChanges()
+    secondBind.watch { _ = coordinator.stage(in: session, lookup: .empty) }
+
+    bindToSession()
+
+    #expect(firstBind.fired == 1)
+    #expect(secondBind.fired == 0)
+    #expect(coordinator.stage(in: session, lookup: .empty).queue.showsMoveOn)
+}
+
+@MainActor
 @Test func loggingLastCurrentWeekPendingSetDoesNotStartRestTimer() throws {
     let current = makeSingleSetSession(dayNumber: 1)
     connectCoordinatorWeek([current.session])
