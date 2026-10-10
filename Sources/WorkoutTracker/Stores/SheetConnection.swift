@@ -13,6 +13,13 @@ enum SignOutResult: Equatable {
     case failed(DestructiveTransitionFailure)
 }
 
+enum SyncNowResult: Equatable {
+    case synced
+    case noSheet
+    case syncInProgress
+    case failed
+}
+
 enum DestructiveTransitionFailure: Error, Equatable {
     case syncInProgress
     case pendingCheckFailed
@@ -76,11 +83,7 @@ final class SheetConnection {
     }
 
     var canSyncNow: Bool {
-        sheetToSync != nil
-    }
-
-    private var sheetToSync: String? {
-        canBeginDestructiveTransition ? settings.spreadsheetId : nil
+        canBeginDestructiveTransition && settings.spreadsheetId != nil
     }
 
     var syncNowDetail: String {
@@ -92,12 +95,13 @@ final class SheetConnection {
     }
 
     @discardableResult
-    func syncNow() async -> Bool {
-        guard let spreadsheetId = sheetToSync else { return false }
+    func syncNow() async -> SyncNowResult {
+        guard let spreadsheetId = settings.spreadsheetId else { return .noSheet }
+        guard canBeginDestructiveTransition else { return .syncInProgress }
 
         let didSync = await sync.sync(spreadsheetId: spreadsheetId)
         onSynced()
-        return didSync
+        return didSync ? .synced : .failed
     }
 
     func requestSwitch(to spreadsheet: SpreadsheetFile) async -> SheetSwitchResult {
