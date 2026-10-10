@@ -2,15 +2,31 @@ import Observation
 
 enum SettingsSheetSwitchResult: Equatable {
     case switched
-    case requiresConfirmation
+    case requiresConfirmation(SheetSelection)
     case unchanged
-    case failed
+    case failed(DestructiveTransitionFailure)
 }
 
 enum SettingsSignOutResult: Equatable {
     case ready
     case requiresConfirmation
-    case failed
+    case failed(DestructiveTransitionFailure)
+}
+
+enum DestructiveTransitionFailure: Error, Equatable {
+    case syncInProgress
+    case pendingCheckFailed
+    case discardFailed
+    case syncFailed
+
+    var message: String {
+        switch self {
+        case .syncInProgress: "A sync is already in progress."
+        case .pendingCheckFailed: "Couldn't check pending logs. Try again."
+        case .discardFailed: "Couldn't discard pending logs. Try again."
+        case .syncFailed: "Couldn't sync selected sheet. Try again."
+        }
+    }
 }
 
 /// Not a `SpreadsheetFile`, because the pasted-URL fallback has no title and must still switch
@@ -44,21 +60,16 @@ protocol SheetSwitchSyncing: AnyObject {
 
 /// Sync now, switching the configured Sheet, and signing out. Switching and signing out are one
 /// Destructive Transition, refused while any sync or flush runs. One instance serves onboarding,
-/// Settings, Developer Tools, and the CLI for the app's lifetime, and Settings presents whatever
-/// `errorMessage` and `pendingConfirmation` hold.
+/// Settings, Developer Tools, and the CLI for the app's lifetime, so it holds no presentation
+/// state. Each result carries its reason, and each caller keeps its own alert.
 @MainActor
 @Observable
 final class SheetConnection {
-    private(set) var pendingConfirmation: SheetSelection?
-    private(set) var errorMessage: String?
-    private(set) var isTransitioning = false
+    private var isTransitioning = false
 
     private let settings: SettingsStore
     private let sync: any SheetSwitchSyncing
     private let onSynced: () -> Void
-    private static let syncInProgressMessage = "A sync is already in progress."
-    private static let pendingCheckFailedMessage = "Couldn't check pending logs. Try again."
-    private static let discardFailedMessage = "Couldn't discard pending logs. Try again."
     private static let unsyncedFromPreviousSheetMessage =
         "You have unsynced changes from a previous sheet. Review them in Settings before switching."
 
@@ -102,11 +113,7 @@ final class SheetConnection {
     }
 
     func requestSwitch(to selection: SheetSelection) async -> SettingsSheetSwitchResult {
-        errorMessage = nil
-        guard canBeginDestructiveTransition else {
-            errorMessage = Self.syncInProgressMessage
-            return .failed
-        }
+        guard canBeginDestructiveTransition else { return .failed(.syncInProgress) }
 
         if selection.spreadsheetId == settings.spreadsheetId {
             commit(selection)
@@ -114,115 +121,77 @@ final class SheetConnection {
         }
 
         do {
-            guard try !sync.hasPendingWrites() else {
-                pendingConfirmation = selection
-                return .requiresConfirmation
-            }
+            guard try !sync.hasPendingWrites() else { return .requiresConfirmation(selection) }
         } catch {
-            errorMessage = Self.pendingCheckFailedMessage
-            return .failed
+            return .failed(.pendingCheckFailed)
         }
 
         isTransitioning = true
         defer { isTransitioning = false }
-        return await switchNow(to: selection) ? .switched : .failed
+        do {
+            try await switchNow(to: selection)
+            return .switched
+        } catch {
+            return .failed(error)
+        }
     }
 
     /// Onboarding's selection, returning the message to show when it did not commit. A prior Sheet's
     /// unsynced writes are reported, not offered for discard; that choice lives in Settings.
     func connect(_ selection: SheetSelection) async -> String? {
-        defer {
-            errorMessage = nil
-            pendingConfirmation = nil
-        }
         switch await requestSwitch(to: selection) {
-        case .switched, .unchanged:
-            return nil
-        case .failed:
-            return errorMessage
-        case .requiresConfirmation:
-            return Self.unsyncedFromPreviousSheetMessage
+        case .switched, .unchanged: nil
+        case .requiresConfirmation: Self.unsyncedFromPreviousSheetMessage
+        case .failed(let failure): failure.message
         }
     }
 
-    func confirmPendingSwitch() async -> Bool {
-        errorMessage = nil
-        guard let selection = pendingConfirmation else { return false }
-        guard canBeginDestructiveTransition else {
-            errorMessage = Self.syncInProgressMessage
-            return false
-        }
+    /// Discards the pending writes, then makes the switch `requestSwitch` held for confirmation.
+    func confirmSwitch(to selection: SheetSelection) async throws(DestructiveTransitionFailure) {
+        guard canBeginDestructiveTransition else { throw .syncInProgress }
 
         isTransitioning = true
         defer { isTransitioning = false }
-
         do {
             try await sync.discardPendingWrites()
         } catch {
-            errorMessage = Self.discardFailedMessage
-            return false
+            throw .discardFailed
         }
-        pendingConfirmation = nil
-        return await switchNow(to: selection)
-    }
-
-    func cancelPendingSwitch() {
-        pendingConfirmation = nil
+        try await switchNow(to: selection)
     }
 
     func requestSignOut() -> SettingsSignOutResult {
-        errorMessage = nil
-        guard canBeginDestructiveTransition else {
-            errorMessage = Self.syncInProgressMessage
-            return .failed
-        }
+        guard canBeginDestructiveTransition else { return .failed(.syncInProgress) }
 
         do {
             return try sync.hasPendingWrites() ? .requiresConfirmation : .ready
         } catch {
-            errorMessage = Self.pendingCheckFailedMessage
-            return .failed
+            return .failed(.pendingCheckFailed)
         }
     }
 
-    func prepareSignOut() async -> Bool {
-        errorMessage = nil
-        guard canBeginDestructiveTransition else {
-            errorMessage = Self.syncInProgressMessage
-            return false
-        }
+    func prepareSignOut() async throws(DestructiveTransitionFailure) {
+        guard canBeginDestructiveTransition else { throw .syncInProgress }
 
         isTransitioning = true
         defer { isTransitioning = false }
-
         do {
             try await sync.discardPendingWrites()
         } catch {
-            errorMessage = Self.discardFailedMessage
-            return false
+            throw .discardFailed
         }
-        return true
     }
 
     /// Discards the pending writes and clears the selection; the caller ends the Google session.
-    func signOut() async -> Bool {
-        guard await prepareSignOut() else { return false }
+    func signOut() async throws(DestructiveTransitionFailure) {
+        try await prepareSignOut()
         settings.signOut()
-        return true
     }
 
-    func clearError() {
-        errorMessage = nil
-    }
-
-    private func switchNow(to selection: SheetSelection) async -> Bool {
-        guard await sync.sync(spreadsheetId: selection.spreadsheetId) else {
-            errorMessage = "Couldn't sync selected sheet. Try again."
-            return false
-        }
+    private func switchNow(to selection: SheetSelection) async throws(DestructiveTransitionFailure) {
+        guard await sync.sync(spreadsheetId: selection.spreadsheetId) else { throw .syncFailed }
         commit(selection)
         onSynced()
-        return true
     }
 
     private func commit(_ selection: SheetSelection) {
