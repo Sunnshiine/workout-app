@@ -34,7 +34,6 @@ struct SyncStatusBanner: View {
     }
 }
 
-/// Fades in over the banner's ground, which arrives without a fade.
 private struct SyncStatusBannerLabel: View {
     let text: String
     @State private var isShown = false
