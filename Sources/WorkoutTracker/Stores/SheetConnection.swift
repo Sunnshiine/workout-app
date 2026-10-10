@@ -13,9 +13,8 @@ enum SettingsSignOutResult: Equatable {
     case failed
 }
 
-/// A spreadsheet the athlete has chosen to switch to. Modelled independently of `SpreadsheetFile`
-/// so every selection path — the Drive picker (which carries a title) and the pasted-URL fallback
-/// (which does not) — can flow through the same safe switch transaction.
+/// Not a `SpreadsheetFile`, because the pasted-URL fallback has no title and must still switch
+/// through the same Destructive Transition as the Drive picker.
 struct SheetSelection: Equatable {
     let spreadsheetId: String
     let title: String?
@@ -33,8 +32,8 @@ struct SheetSelection: Equatable {
 
 @MainActor
 protocol SheetSwitchSyncing: AnyObject {
-    /// A sync or a pending-write flush is running right now, whoever started it: the background
-    /// flush the athlete's last logged Set queued, or the sync the stage ran on appear.
+    /// Any sync or pending-write flush, including those this connection did not start: the flush a
+    /// logged Set queues, or the stage's sync on appear.
     var isSyncing: Bool { get }
     var outcome: SyncOutcome { get }
 
@@ -43,8 +42,10 @@ protocol SheetSwitchSyncing: AnyObject {
     func discardPendingWrites() async throws
 }
 
-/// The athlete's connection to the configured Sheet: Sync now, switching Sheets, and signing out.
-/// Switching and signing out are one Destructive Transition, and neither may start while a sync runs.
+/// Sync now, switching the configured Sheet, and signing out. Switching and signing out are one
+/// Destructive Transition, refused while any sync or flush runs. One instance serves onboarding,
+/// Settings, Developer Tools, and the CLI for the app's lifetime, and Settings presents whatever
+/// `errorMessage` and `pendingConfirmation` hold.
 @MainActor
 @Observable
 final class SheetConnection {
@@ -126,10 +127,8 @@ final class SheetConnection {
         return await switchNow(to: selection) ? .switched : .failed
     }
 
-    /// Onboarding's selection: the alert message when the selection did not commit, `nil` when it did.
-    /// The message is returned, never left in `errorMessage`, because this connection outlives
-    /// onboarding and Settings presents whatever `errorMessage` holds. A prior sheet's unsynced
-    /// writes are reported rather than offered for discard; that flow lives in Settings.
+    /// Onboarding's selection, returning the message to show when it did not commit. A prior Sheet's
+    /// unsynced writes are reported, not offered for discard; that choice lives in Settings.
     func connect(_ selection: SheetSelection) async -> String? {
         defer {
             errorMessage = nil
