@@ -7,8 +7,6 @@ import Testing
 @MainActor
 @Suite(.snapshots(record: .never))
 struct SessionQueueSheetVisualTests {
-    /// Browsing the day's queue: two completed Exercises (no checkmark), the Exercise on stage marked
-    /// "Now" and offering `Pair`, and the two still-pending ones grouped as a Superset under `Unlink`.
     @Test func queueSheetBrowsingMatchesVisualBaseline() {
         assertQueueSheet(appearance: .day, colorScheme: .light) {
             browsingSheet()
