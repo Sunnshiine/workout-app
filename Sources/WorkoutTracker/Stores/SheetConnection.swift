@@ -1,13 +1,13 @@
 import Observation
 
-enum SettingsSheetSwitchResult: Equatable {
+enum SheetSwitchResult: Equatable {
     case switched
     case requiresConfirmation(SheetSelection)
     case unchanged
     case failed(DestructiveTransitionFailure)
 }
 
-enum SettingsSignOutResult: Equatable {
+enum SignOutResult: Equatable {
     case ready
     case requiresConfirmation
     case failed(DestructiveTransitionFailure)
@@ -73,7 +73,7 @@ final class SheetConnection {
     private static let unsyncedFromPreviousSheetMessage =
         "You have unsynced changes from a previous sheet. Review them in Settings before switching."
 
-    init(settings: SettingsStore, sync: any SheetSwitchSyncing, onSynced: @escaping () -> Void = {}) {
+    init(settings: SettingsStore, sync: any SheetSwitchSyncing, onSynced: @escaping () -> Void) {
         self.settings = settings
         self.sync = sync
         self.onSynced = onSynced
@@ -108,11 +108,11 @@ final class SheetConnection {
         return didSync
     }
 
-    func requestSwitch(to spreadsheet: SpreadsheetFile) async -> SettingsSheetSwitchResult {
+    func requestSwitch(to spreadsheet: SpreadsheetFile) async -> SheetSwitchResult {
         await requestSwitch(to: SheetSelection(spreadsheet))
     }
 
-    func requestSwitch(to selection: SheetSelection) async -> SettingsSheetSwitchResult {
+    func requestSwitch(to selection: SheetSelection) async -> SheetSwitchResult {
         guard canBeginDestructiveTransition else { return .failed(.syncInProgress) }
 
         if selection.spreadsheetId == settings.spreadsheetId {
@@ -160,7 +160,7 @@ final class SheetConnection {
         try await switchNow(to: selection)
     }
 
-    func requestSignOut() -> SettingsSignOutResult {
+    func requestSignOut() -> SignOutResult {
         guard canBeginDestructiveTransition else { return .failed(.syncInProgress) }
 
         do {

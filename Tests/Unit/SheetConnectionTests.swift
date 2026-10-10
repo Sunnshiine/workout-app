@@ -192,7 +192,7 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = StubSheetSwitchSync(hasPendingWrites: true, discardError: StubSheetSwitchError.discardFailed)
-    let connection = SheetConnection(settings: settings, sync: sync)
+    let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
     let newSheet = SheetSelection(spreadsheetId: "new-sheet", title: "New Training Log")
 
     #expect(await connection.requestSwitch(to: newSheet) == .requiresConfirmation(newSheet))
@@ -288,7 +288,7 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
     let sync = SyncCoordinator(client: client, context: container.mainContext)
-    let connection = SheetConnection(settings: settings, sync: sync)
+    let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
     let firstSheet = SpreadsheetFile(name: "First Training Log", spreadsheetId: "first-sheet", modifiedDate: .distantPast)
     let secondSheet = SpreadsheetFile(name: "Second Training Log", spreadsheetId: "second-sheet", modifiedDate: .distantPast)
 
@@ -310,7 +310,7 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = SuspendedDiscardSheetSwitchSync()
-    let connection = SheetConnection(settings: settings, sync: sync)
+    let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
     let newSheet = SheetSelection(spreadsheetId: "new-sheet", title: "New Training Log")
 
     let confirmTask = Task { try await connection.confirmSwitch(to: newSheet) }
@@ -337,7 +337,8 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
     settings.isSignedIn = true
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
     let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
-    let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: container.mainContext))
+    let sync = SyncCoordinator(client: client, context: container.mainContext)
+    let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
 
     #expect(connection.requestSignOut() == .ready)
     try await connection.signOut()
@@ -356,7 +357,7 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
     settings.isSignedIn = true
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
     let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
-    let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: context))
+    let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: context), onSynced: {})
 
     #expect(connection.requestSignOut() == .requiresConfirmation)
     #expect(try context.fetch(FetchDescriptor<PendingWrite>()).map(\.valueToWrite) == ["185x5@8"])
@@ -376,7 +377,7 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
     settings.isSignedIn = true
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
     let sync = StubSheetSwitchSync(hasPendingWrites: true, discardError: StubSheetSwitchError.discardFailed)
-    let connection = SheetConnection(settings: settings, sync: sync)
+    let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
 
     #expect(connection.requestSignOut() == .requiresConfirmation)
     await #expect(throws: DestructiveTransitionFailure.discardFailed) {
@@ -394,7 +395,7 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
     let sync = StubSheetSwitchSync(pendingWritesError: StubSheetSwitchError.pendingWriteLookupFailed)
-    let connection = SheetConnection(settings: settings, sync: sync)
+    let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
 
     #expect(connection.requestSignOut() == .failed(.pendingCheckFailed))
     #expect(settings.spreadsheetId == "current-sheet")
@@ -406,7 +407,7 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
     settings.isSignedIn = true
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = SuspendedDiscardSheetSwitchSync()
-    let connection = SheetConnection(settings: settings, sync: sync)
+    let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
 
     let confirmTask = Task { try await connection.confirmSwitch(to: SheetSelection(spreadsheetId: "new-sheet")) }
     await sync.waitForDiscardStart()
@@ -435,7 +436,7 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
     let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
     let sync = SyncCoordinator(client: client, context: container.mainContext)
-    let connection = SheetConnection(settings: settings, sync: sync)
+    let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
 
     let backgroundSync = Task { await sync.sync(spreadsheetId: "current-sheet") }
     await client.waitUntilHeld()
@@ -475,7 +476,7 @@ func aFlushThatOverlapsASyncLeavesTheDestructiveTransitionGuardClosed() async th
         holdsTabSnapshot: true
     )
     let sync = SyncCoordinator(client: client, context: container.mainContext)
-    let connection = SheetConnection(settings: settings, sync: sync)
+    let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
 
     let backgroundSync = Task { await sync.sync(spreadsheetId: "current-sheet") }
 
@@ -518,7 +519,7 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
         holdsTabSnapshot: true
     )
     let sync = SyncCoordinator(client: client, context: container.mainContext)
-    let connection = SheetConnection(settings: settings, sync: sync)
+    let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
 
     let flush = Task { await sync.flushPending(spreadsheetId: "current-sheet") }
 
@@ -570,7 +571,7 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
-    let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: context))
+    let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: context), onSynced: {})
 
     let message = await connection.connect(SheetSelection(spreadsheetId: "new-sheet"))
 
@@ -585,7 +586,8 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
     let container = try makeCacheSafetyContainer()
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid(), failOffline: true)
-    let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: container.mainContext))
+    let sync = SyncCoordinator(client: client, context: container.mainContext)
+    let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
 
     #expect(await connection.connect(SheetSelection(spreadsheetId: "new-sheet")) == "Couldn't sync selected sheet. Try again.")
     #expect(settings.spreadsheetId == nil)
@@ -599,7 +601,8 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
     let container = try makeCacheSafetyContainer()
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
-    let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: container.mainContext))
+    let sync = SyncCoordinator(client: client, context: container.mainContext)
+    let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
 
     let picked = Task { await connection.connect(SheetSelection(spreadsheetId: "picked-sheet", title: "Picked")) }
     await client.waitUntilHeld()
