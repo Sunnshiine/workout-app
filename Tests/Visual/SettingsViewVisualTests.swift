@@ -31,6 +31,7 @@ struct SettingsViewVisualTests {
         let view = SettingsView()
             .environment(scenario.settings)
             .environment(sync)
+            .environment(SheetConnection(settings: scenario.settings, sync: sync))
             .environment(scenario.store)
             .environment(\.themePalette, Theme.palette(for: appearance))
             .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
