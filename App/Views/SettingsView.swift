@@ -42,7 +42,11 @@ struct SettingsView: View {
                     Button {
                         isSheetPickerPresented = true
                     } label: {
-                        LabeledContent("Training Sheet", value: sheetDisplayName)
+                        LabeledContent {
+                            Text(sheetDisplayName)
+                        } label: {
+                            RowLabel(title: "Training Sheet", color: palette.textPrimary)
+                        }
                     }
                     .disabled(isSheetBusy)
                     .accessibilityIdentifier("settings-training-sheet-row")
@@ -50,8 +54,10 @@ struct SettingsView: View {
                     Button {
                         Task { await connection.syncNow() }
                     } label: {
-                        LabeledContent("Sync now") {
+                        LabeledContent {
                             Text(connection.syncNowDetail)
+                        } label: {
+                            RowLabel(title: "Sync now", color: palette.textPrimary)
                         }
                     }
                     .disabled(!connection.canSyncNow)
@@ -71,7 +77,7 @@ struct SettingsView: View {
                     Button(role: .destructive) {
                         requestSignOut()
                     } label: {
-                        Text("Sign Out")
+                        RowLabel(title: "Sign Out", color: palette.dangerText)
                     }
                     .disabled(isSheetBusy)
                     .accessibilityIdentifier("settings-sign-out-button")
@@ -243,6 +249,18 @@ struct SettingsView: View {
                 settingsError = nil
             }
         }
+    }
+}
+
+/// A disabled Form button drops its tint for the primary colour, which a textPrimary label already
+/// is, so the label dims itself to the tertiary label colour a disabled destructive row draws.
+private struct RowLabel: View {
+    @Environment(\.isEnabled) private var isEnabled
+    let title: String
+    let color: Color
+
+    var body: some View {
+        Text(title).foregroundStyle(isEnabled ? color : Color(.tertiaryLabel))
     }
 }
 
