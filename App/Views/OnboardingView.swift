@@ -182,7 +182,7 @@ struct OnboardingView: View {
     }
 
     private func commitSelection(_ selection: SheetSelection) async {
-        selectionErrorMessage = await connection.connect(selection)
+        selectionErrorMessage = await connection.requestSwitch(to: selection).onboardingMessage
     }
 }
 
