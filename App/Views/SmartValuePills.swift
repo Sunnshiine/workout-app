@@ -87,7 +87,8 @@ struct SmartValuePills: View {
         .onChange(of: suggestion) { _, later in
             form.refreshPrefill(from: later, for: set)
         }
-        // A sheet swiped away after it hid the keyboard leaves focus true with no first responder (#697).
+        // Any keyboard hide ends the edit: after a sheet takes the keyboard and is swiped away,
+        // SwiftUI keeps the focus true with no first responder (#697).
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
             weightFieldFocused = false
         }
@@ -149,44 +150,47 @@ struct SmartValuePills: View {
     }
 
     private var weightValue: some View {
-        ZStack {
-            TextField(form.weightDisplay, text: $form.weightText)
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.center)
-                .font(Theme.font(.weightEntry))
-                .foregroundStyle(weightForeground)
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
-                .focused($weightFieldFocused)
-                // The decimal pad carries no return key, so give the athlete a discoverable way out
-                // of the field when they open it and choose not to enter a weight — dismissing the
-                // keyboard without logging (any tap on non-interactive stage space is the same
-                // escape). Semantic-only, so no haptic here.
-                .toolbar {
-                    ToolbarItemGroup(placement: .keyboard) {
-                        Spacer()
-                        Button("Done", action: dismissFieldUI)
-                            .accessibilityIdentifier("weight-keyboard-done")
+        // The idle Text sizes the row in every state, so the taller UITextField never resizes the card.
+        Text(form.weightDisplay)
+            .fixedSize(horizontal: false, vertical: true)
+            .hidden()
+            .frame(maxWidth: .infinity)
+            .overlay {
+                TextField(form.weightDisplay, text: $form.weightText)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.center)
+                    .focused($weightFieldFocused)
+                    // The decimal pad carries no return key, so give the athlete a discoverable way out
+                    // of the field when they open it and choose not to enter a weight — dismissing the
+                    // keyboard without logging (any tap on non-interactive stage space is the same
+                    // escape). Semantic-only, so no haptic here.
+                    .toolbar {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            Button("Done", action: dismissFieldUI)
+                                .accessibilityIdentifier("weight-keyboard-done")
+                        }
                     }
-                }
-                .opacity(weightFieldFocused ? 1 : 0)
-                .accessibilityHidden(!weightFieldFocused)
-                // An identifier keeps a hidden element in the accessibility tree, so the idle field carries none.
-                .accessibilityIdentifier(weightFieldFocused ? "weight-pill" : "")
-            if !weightFieldFocused {
-                Text(form.weightDisplay)
-                    .font(Theme.font(.weightEntry))
-                    .foregroundStyle(weightForeground)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.5)
-                    .frame(maxWidth: .infinity)
-                    .contentShape(.rect)
-                    .onTapGesture { weightFieldFocused = true }
-                    .accessibilityLabel("Weight, \(form.weightDisplay)")
-                    .accessibilityIdentifier("weight-pill")
-                    .accessibilityAddTraits(.isButton)
+                    .opacity(weightFieldFocused ? 1 : 0)
+                    .accessibilityHidden(!weightFieldFocused)
+                    // Measured: the hidden field stayed in the accessibility tree while it carried an identifier.
+                    .accessibilityIdentifier(weightFieldFocused ? "weight-pill" : "")
             }
-        }
+            .overlay {
+                if !weightFieldFocused {
+                    Text(form.weightDisplay)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .contentShape(.rect)
+                        .onTapGesture { weightFieldFocused = true }
+                        .accessibilityLabel("Weight, \(form.weightDisplay)")
+                        .accessibilityIdentifier("weight-pill")
+                        .accessibilityAddTraits(.isButton)
+                }
+            }
+            .font(Theme.font(.weightEntry))
+            .foregroundStyle(weightForeground)
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
     }
 
     @ViewBuilder
