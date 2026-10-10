@@ -88,7 +88,7 @@ struct SessionQueueSheet: View {
             HStack(spacing: 0) {
                 rowButton(for: row)
                 if !isPairing {
-                    textButton("Pair") {
+                    textButton("Pair", color: palette.textSecondary) {
                         coordinator.beginPairing(from: row.pairingExercise, in: session)
                     }
                     .accessibilityLabel("Pair \(row.title) into a superset")
@@ -104,7 +104,7 @@ struct SessionQueueSheet: View {
 
                     Spacer(minLength: 12)
 
-                    textButton("Unlink") {
+                    textButton("Unlink", color: palette.textSecondary) {
                         coordinator.dismissSuperset(containing: row.pairingExercise, in: session)
                     }
                     .accessibilityLabel("Unlink \(row.title)")
@@ -150,11 +150,11 @@ struct SessionQueueSheet: View {
         .accessibilityIdentifier("stage-queue-row-\(row.id)")
     }
 
-    private func textButton(_ title: String, action: @escaping () -> Void) -> some View {
+    private func textButton(_ title: String, color: Color, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
                 .font(Theme.font(.queuePill))
-                .foregroundStyle(palette.accent)
+                .foregroundStyle(color)
                 .padding(.horizontal, 14)
                 .frame(minHeight: 44)
                 .contentShape(Rectangle())
