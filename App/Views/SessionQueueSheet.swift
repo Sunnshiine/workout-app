@@ -1,12 +1,5 @@
 import SwiftUI
 
-/// The full Session queue in a medium sheet: every stage item in Session order
-/// with its Set dots, the one on stage marked "Now", and Move On in the footer
-/// when the Session can advance. Tapping an incomplete row brings it on stage.
-///
-/// Superset pairing also lives here: `Pair` on an eligible row starts pairing,
-/// the row taps pick the partner, `Unlink` on a Superset's group dissolves it,
-/// and the sheet falls back to browsing when pairing ends or the sheet closes.
 struct SessionQueueSheet: View {
     let queue: SessionQueue
     let session: Session
@@ -73,12 +66,10 @@ struct SessionQueueSheet: View {
 
             textButton("Cancel", color: palette.accent, action: coordinator.cancelPairing)
                 .accessibilityIdentifier("stage-queue-cancel-pairing")
-                .shown(isPairing)
+                .visibleKeepingFrame(isPairing)
         }
         .padding(.top, 18)
     }
-
-    // MARK: - Rows
 
     @ViewBuilder
     private func queueRow(for row: SessionQueue.Row) -> some View {
@@ -110,7 +101,7 @@ struct SessionQueueSheet: View {
                     }
                     .accessibilityLabel("Unlink \(row.title)")
                     .accessibilityIdentifier("stage-queue-unlink-\(row.id)")
-                    .shown(!isPairing)
+                    .visibleKeepingFrame(!isPairing)
                 }
                 .padding(.leading, 14)
 
@@ -128,8 +119,6 @@ struct SessionQueueSheet: View {
             jumpButton(for: row)
         }
     }
-
-    // MARK: - Browsing
 
     private func jumpButton(for row: SessionQueue.Row) -> some View {
         Button {
@@ -227,8 +216,7 @@ struct SessionQueueSheet: View {
 }
 
 extension View {
-    /// Hides a control without giving up its frame, so the rows around it hold still.
-    fileprivate func shown(_ isShown: Bool) -> some View {
+    fileprivate func visibleKeepingFrame(_ isShown: Bool) -> some View {
         opacity(isShown ? 1 : 0)
             .disabled(!isShown)
             .accessibilityHidden(!isShown)
