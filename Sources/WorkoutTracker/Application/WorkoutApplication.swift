@@ -11,6 +11,7 @@ public final class WorkoutApplication {
     let sync: SyncCoordinator
     let lastPerformed: LastPerformedLookupStore
     let historyFill: ExerciseHistoryFill
+    let connection: SheetConnection
     let sheetsClient: any SheetsClient
 
     static let schema = Schema([
@@ -40,6 +41,7 @@ public final class WorkoutApplication {
             lastPerformed: lastPerformed,
             historyFill: historyFill
         )
+        connection = SheetConnection(settings: settings, sync: sync) { [workout] in workout.reload() }
         workout.reload()
     }
 
@@ -61,17 +63,17 @@ public final class WorkoutApplication {
 }
 
 extension WorkoutApplication {
-    /// The onboarding path: `SettingsSheetSwitchStore.requestSwitch`, which syncs, commits the
-    /// selection, and reloads the store.
+    /// The onboarding path: `SheetConnection.requestSwitch`, which syncs, commits the selection,
+    /// and reloads the store.
     public func selectSpreadsheet(id: String, title: String?) async throws -> AppSnapshot {
-        let switcher = SettingsSheetSwitchStore(settings: settings, sync: sync) { [workout] in workout.reload() }
-        switch await switcher.requestSwitch(to: SheetSelection(spreadsheetId: id, title: title)) {
+        switch await connection.requestSwitch(to: SheetSelection(spreadsheetId: id, title: title)) {
         case .switched, .unchanged:
             return try snapshot()
         case .requiresConfirmation:
+            connection.cancelPendingSwitch()
             throw ApplicationError.sheetSwitchRequiresDiscard
         case .failed:
-            throw ApplicationError.sheetSwitchFailed(switcher.errorMessage ?? "unknown")
+            throw ApplicationError.sheetSwitchFailed(connection.errorMessage ?? "unknown")
         }
     }
 
@@ -157,11 +159,10 @@ extension WorkoutApplication {
         )
     }
 
-    /// `SyncCoordinator.sync(spreadsheetId:)` followed by the reload every `onSynced` performs.
+    /// `SheetConnection.syncNow()`: the Sync now button's call, which reloads the store.
     public func sync() async throws -> SyncReport {
-        let spreadsheetId = try configuredSpreadsheetId()
-        let didSync = await sync.sync(spreadsheetId: spreadsheetId)
-        workout.reload()
+        _ = try configuredSpreadsheetId()
+        let didSync = await connection.syncNow()
         let outcome = SyncOutcomeSnapshot(sync.outcome)
         guard didSync else { throw ApplicationError.syncFailed(outcome.status) }
         let queued = try queuedWrites()

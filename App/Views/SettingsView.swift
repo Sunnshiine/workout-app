@@ -2,15 +2,11 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(SettingsStore.self) private var settings
-    @Environment(SyncCoordinator.self) private var sync
-    @Environment(WorkoutStore.self) private var workout
+    @Environment(SheetConnection.self) private var connection
     @Environment(\.themePalette) private var palette
     @Environment(\.dismiss) private var dismiss
     @State private var isSheetPickerPresented = false
     @State private var isSignOutConfirmationPresented = false
-    @State private var syncActivity = SettingsSyncActivity()
-    @State private var manualSyncStore: SettingsManualSyncStore?
-    @State private var sheetSwitchStore: SettingsSheetSwitchStore?
 
     var body: some View {
         NavigationStack {
@@ -47,15 +43,15 @@ struct SettingsView: View {
                     .accessibilityIdentifier("settings-training-sheet-row")
 
                     Button {
-                        syncNow()
+                        Task { await connection.syncNow() }
                     } label: {
                         LabeledContent("Sync now") {
-                            Text(manualSyncDetail ?? "")
+                            Text(connection.syncNowDetail)
                         }
                     }
-                    .disabled(isManualSyncDisabled)
+                    .disabled(!connection.canSyncNow)
                     .accessibilityIdentifier("settings-sync-now-button")
-                    .accessibilityValue(manualSyncDetail ?? "")
+                    .accessibilityValue(connection.syncNowDetail)
 
                     NavigationLink {
                         DeveloperToolsView()
@@ -91,7 +87,6 @@ struct SettingsView: View {
                 }
             }
         }
-        .onAppear(perform: ensureSettingsStores)
         .sheet(isPresented: $isSheetPickerPresented) {
             sheetPickerSheet
         }
@@ -108,10 +103,10 @@ struct SettingsView: View {
         }
         .alert("Settings Error", isPresented: settingsErrorPresented) {
             Button("OK", role: .cancel) {
-                clearSettingsError()
+                connection.clearError()
             }
         } message: {
-            Text(currentSettingsErrorMessage)
+            Text(connection.errorMessage ?? "")
         }
         .preferredColorScheme(Theme.colorSchemeOverride(for: settings.appearance))
         .toolbarColorScheme(Theme.colorSchemeOverride(for: settings.appearance), for: .navigationBar)
@@ -149,133 +144,69 @@ struct SettingsView: View {
         }
     }
 
-    private var isManualSyncDisabled: Bool {
-        settings.spreadsheetId == nil || isSheetBusy
-    }
-
     private var isSheetBusy: Bool {
-        guard let sheetSwitchStore else { return sync.isSyncing }
-        return !sheetSwitchStore.canBeginDestructiveTransition
-    }
-
-    private var manualSyncDetail: String? {
-        if syncActivity.isSyncInFlight || sync.isSyncing {
-            return "Syncing..."
-        }
-
-        switch sync.outcome {
-        case .clear:
-            return settings.spreadsheetId == nil ? "Connect a sheet first" : "Refresh workout state"
-        case .sheetUnreachable:
-            return "Offline"
-        case .writesQueued(let count):
-            return count == 1 ? "1 unsynced log" : "\(count) unsynced logs"
-        case .localWriteFailed:
-            return "Log not saved"
-        case .writesRefused:
-            return "Log not written"
-        case .noBlockTab:
-            return "No block tab"
-        case .parseWarnings:
-            return "Synced with a note"
-        case .historyFillFailed:
-            return "History incomplete"
-        }
-    }
-
-    private func ensureSettingsStores() {
-        ensureManualSyncStore()
-        ensureSheetSwitchStore()
-    }
-
-    private func ensureManualSyncStore() {
-        guard manualSyncStore == nil else { return }
-        manualSyncStore = SettingsManualSyncStore(settings: settings, sync: sync, syncActivity: syncActivity) {
-            workout.reload()
-        }
-    }
-
-    private func ensureSheetSwitchStore() {
-        guard sheetSwitchStore == nil else { return }
-        sheetSwitchStore = SettingsSheetSwitchStore(settings: settings, sync: sync, syncActivity: syncActivity) {
-            workout.reload()
-        }
-    }
-
-    private func syncNow() {
-        ensureManualSyncStore()
-        Task {
-            await manualSyncStore?.syncNow()
-        }
+        !connection.canBeginDestructiveTransition
     }
 
     private func requestSignOut() {
-        ensureSheetSwitchStore()
-        switch sheetSwitchStore?.requestSignOut() {
+        switch connection.requestSignOut() {
         case .requiresConfirmation:
             isSignOutConfirmationPresented = true
         case .ready:
             Task { await signOutNow() }
-        case .failed, .none:
+        case .failed:
             break
         }
     }
 
     private func signOutNow() async {
-        guard let sheetSwitchStore, await sheetSwitchStore.prepareSignOut() else { return }
+        guard await connection.signOut() else { return }
 
         GoogleAuth.signOut()
-        settings.signOut()
         dismiss()
     }
 
-    @ViewBuilder
     private var sheetPickerSheet: some View {
-        if let sheetSwitchStore {
-            NavigationStack {
-                SheetPickerView(
-                    client: GoogleSheetsClient.forCurrentEnvironment(),
-                    onValidatedSelection: { spreadsheet in
-                        let result = await sheetSwitchStore.requestSwitch(to: spreadsheet)
-                        if result == .switched || result == .unchanged {
-                            isSheetPickerPresented = false
-                        }
-                    },
-                    onDone: {
+        NavigationStack {
+            SheetPickerView(
+                client: GoogleSheetsClient.forCurrentEnvironment(),
+                onValidatedSelection: { spreadsheet in
+                    let result = await connection.requestSwitch(to: spreadsheet)
+                    if result == .switched || result == .unchanged {
                         isSheetPickerPresented = false
-                    },
-                    isSelectionDisabled: isSheetBusy
-                )
-                .background(palette.gradient.ignoresSafeArea())
-                .navigationTitle("Training Sheet")
+                    }
+                },
+                onDone: {
+                    isSheetPickerPresented = false
+                },
+                isSelectionDisabled: isSheetBusy
+            )
+            .background(palette.gradient.ignoresSafeArea())
+            .navigationTitle("Training Sheet")
+        }
+        .alert(
+            "You have unsynced changes. Switch anyway?",
+            isPresented: pendingSwitchConfirmation
+        ) {
+            Button("Cancel", role: .cancel) {
+                connection.cancelPendingSwitch()
             }
-            .alert(
-                "You have unsynced changes. Switch anyway?",
-                isPresented: pendingSwitchConfirmation
-            ) {
-                Button("Cancel", role: .cancel) {
-                    sheetSwitchStore.cancelPendingSwitch()
-                }
-                Button("Switch Anyway", role: .destructive) {
-                    Task {
-                        let didSwitch = await sheetSwitchStore.confirmPendingSwitch()
-                        if didSwitch {
-                            isSheetPickerPresented = false
-                        }
+            Button("Switch Anyway", role: .destructive) {
+                Task {
+                    let didSwitch = await connection.confirmPendingSwitch()
+                    if didSwitch {
+                        isSheetPickerPresented = false
                     }
                 }
-            } message: {
-                Text("Pending logs for the current sheet will be discarded.")
             }
-        } else {
-            ProgressView()
-                .task { ensureSheetSwitchStore() }
+        } message: {
+            Text("Pending logs for the current sheet will be discarded.")
         }
     }
 
     private var pendingSwitchConfirmation: Binding<Bool> {
         Binding {
-            sheetSwitchStore?.pendingConfirmation != nil
+            connection.pendingConfirmation != nil
         } set: { _ in
             // Alert buttons own cancellation so "Switch Anyway" can still confirm the pending sheet.
         }
@@ -283,19 +214,11 @@ struct SettingsView: View {
 
     private var settingsErrorPresented: Binding<Bool> {
         Binding {
-            sheetSwitchStore?.errorMessage != nil
+            connection.errorMessage != nil
         } set: { isPresented in
             if !isPresented {
-                clearSettingsError()
+                connection.clearError()
             }
         }
-    }
-
-    private var currentSettingsErrorMessage: String {
-        sheetSwitchStore?.errorMessage ?? "Something went wrong."
-    }
-
-    private func clearSettingsError() {
-        sheetSwitchStore?.clearError()
     }
 }

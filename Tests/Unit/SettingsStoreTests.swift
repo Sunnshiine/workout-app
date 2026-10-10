@@ -162,9 +162,9 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
-    let sync = StubConfiguredSheetSync()
+    let sync = StubSheetSwitchSync()
     var reloadCount = 0
-    let store = SettingsManualSyncStore(settings: settings, sync: sync) {
+    let store = SheetConnection(settings: settings, sync: sync) {
         reloadCount += 1
     }
 
@@ -181,9 +181,9 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
-    let sync = SuspendedConfiguredSheetSync()
+    let sync = SuspendedSheetSwitchSync()
     var reloadCount = 0
-    let store = SettingsManualSyncStore(settings: settings, sync: sync) {
+    let store = SheetConnection(settings: settings, sync: sync) {
         reloadCount += 1
     }
 
@@ -208,32 +208,21 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
-    let syncActivity = SettingsSyncActivity()
-    let manualSync = SuspendedConfiguredSheetSync()
-    let manualStore = SettingsManualSyncStore(
-        settings: settings,
-        sync: manualSync,
-        syncActivity: syncActivity
-    )
-    let switchSync = StubSheetSwitchSync()
-    let switchStore = SettingsSheetSwitchStore(
-        settings: settings,
-        sync: switchSync,
-        syncActivity: syncActivity
-    )
+    let sync = SuspendedSheetSwitchSync()
+    let connection = SheetConnection(settings: settings, sync: sync)
     let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
 
-    let manualTask = Task { await manualStore.syncNow() }
-    await manualSync.waitForSyncStart()
+    let manualTask = Task { await connection.syncNow() }
+    await sync.waitForSyncStart()
 
-    let switchResult = await switchStore.requestSwitch(to: newSheet)
-    manualSync.completeSync()
+    let switchResult = await connection.requestSwitch(to: newSheet)
+    sync.completeSync()
     _ = await manualTask.value
 
     #expect(switchResult == .failed)
     #expect(settings.spreadsheetId == "old-sheet")
-    #expect(switchSync.syncedSpreadsheetIds.isEmpty)
-    #expect(switchStore.errorMessage != nil)
+    #expect(sync.syncedSpreadsheetIds == ["old-sheet"])
+    #expect(connection.errorMessage == "A sync is already in progress.")
 }
 
 @MainActor
@@ -243,7 +232,7 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = StubSheetSwitchSync()
     var reloadCount = 0
-    let store = SettingsSheetSwitchStore(settings: settings, sync: sync) {
+    let store = SheetConnection(settings: settings, sync: sync) {
         reloadCount += 1
     }
 
@@ -266,7 +255,7 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = StubSheetSwitchSync(hasPendingWrites: true)
     var reloadCount = 0
-    let store = SettingsSheetSwitchStore(settings: settings, sync: sync) {
+    let store = SheetConnection(settings: settings, sync: sync) {
         reloadCount += 1
     }
     let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
@@ -295,7 +284,7 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = StubSheetSwitchSync(hasPendingWrites: true)
     var reloadCount = 0
-    let store = SettingsSheetSwitchStore(settings: settings, sync: sync) {
+    let store = SheetConnection(settings: settings, sync: sync) {
         reloadCount += 1
     }
     let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
@@ -320,7 +309,7 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     settings.setSpreadsheet(id: "same-sheet", title: "Old Training Log")
     let sync = StubSheetSwitchSync(hasPendingWrites: true)
     var reloadCount = 0
-    let store = SettingsSheetSwitchStore(settings: settings, sync: sync) {
+    let store = SheetConnection(settings: settings, sync: sync) {
         reloadCount += 1
     }
     let renamed = SpreadsheetFile(name: "Renamed Training Log", spreadsheetId: "same-sheet", modifiedDate: .distantPast)
@@ -344,7 +333,7 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = StubSheetSwitchSync(pendingWritesError: StubSheetSwitchError.pendingWriteLookupFailed)
     var reloadCount = 0
-    let store = SettingsSheetSwitchStore(settings: settings, sync: sync) {
+    let store = SheetConnection(settings: settings, sync: sync) {
         reloadCount += 1
     }
     let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
@@ -368,7 +357,7 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = StubSheetSwitchSync(hasPendingWrites: true, discardError: StubSheetSwitchError.discardFailed)
-    let store = SettingsSheetSwitchStore(settings: settings, sync: sync)
+    let store = SheetConnection(settings: settings, sync: sync)
     let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
 
     _ = await store.requestSwitch(to: newSheet)
@@ -389,7 +378,7 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = StubSheetSwitchSync(syncSucceeds: false)
     var reloadCount = 0
-    let store = SettingsSheetSwitchStore(settings: settings, sync: sync) {
+    let store = SheetConnection(settings: settings, sync: sync) {
         reloadCount += 1
     }
     let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
@@ -411,7 +400,7 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = StubSheetSwitchSync(hasPendingWrites: true, syncSucceeds: false)
     var reloadCount = 0
-    let store = SettingsSheetSwitchStore(settings: settings, sync: sync) {
+    let store = SheetConnection(settings: settings, sync: sync) {
         reloadCount += 1
     }
     let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
@@ -435,7 +424,7 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = SuspendedSheetSwitchSync()
-    let store = SettingsSheetSwitchStore(settings: settings, sync: sync)
+    let store = SheetConnection(settings: settings, sync: sync)
     let firstSheet = SpreadsheetFile(name: "First Training Log", spreadsheetId: "first-sheet", modifiedDate: .distantPast)
     let secondSheet = SpreadsheetFile(name: "Second Training Log", spreadsheetId: "second-sheet", modifiedDate: .distantPast)
 
@@ -460,7 +449,7 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = SuspendedDiscardSheetSwitchSync()
-    let store = SettingsSheetSwitchStore(settings: settings, sync: sync)
+    let store = SheetConnection(settings: settings, sync: sync)
     let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
 
     _ = await store.requestSwitch(to: newSheet)
@@ -489,7 +478,7 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
     let sync = StubSheetSwitchSync()
-    let store = SettingsSheetSwitchStore(settings: settings, sync: sync)
+    let store = SheetConnection(settings: settings, sync: sync)
 
     let request = store.requestSignOut()
 
@@ -504,7 +493,7 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
     let sync = StubSheetSwitchSync(hasPendingWrites: true)
-    let store = SettingsSheetSwitchStore(settings: settings, sync: sync)
+    let store = SheetConnection(settings: settings, sync: sync)
 
     let request = store.requestSignOut()
 
@@ -520,7 +509,7 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
     let sync = StubSheetSwitchSync(hasPendingWrites: true)
-    let store = SettingsSheetSwitchStore(settings: settings, sync: sync)
+    let store = SheetConnection(settings: settings, sync: sync)
 
     let prepared = await store.prepareSignOut()
 
@@ -536,7 +525,7 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
     let sync = StubSheetSwitchSync(pendingWritesError: StubSheetSwitchError.pendingWriteLookupFailed)
-    let store = SettingsSheetSwitchStore(settings: settings, sync: sync)
+    let store = SheetConnection(settings: settings, sync: sync)
 
     let request = store.requestSignOut()
 
@@ -551,7 +540,7 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
     let sync = StubSheetSwitchSync(hasPendingWrites: true, discardError: StubSheetSwitchError.discardFailed)
-    let store = SettingsSheetSwitchStore(settings: settings, sync: sync)
+    let store = SheetConnection(settings: settings, sync: sync)
 
     let prepared = await store.prepareSignOut()
 
@@ -565,33 +554,21 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     let defaults = AppDefaults.inMemory()
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
-    let syncActivity = SettingsSyncActivity()
-    let manualSync = SuspendedConfiguredSheetSync()
-    let manualStore = SettingsManualSyncStore(
-        settings: settings,
-        sync: manualSync,
-        syncActivity: syncActivity
-    )
-    let signOutSync = StubSheetSwitchSync(hasPendingWrites: true)
-    let store = SettingsSheetSwitchStore(
-        settings: settings,
-        sync: signOutSync,
-        syncActivity: syncActivity
-    )
+    let sync = SuspendedSheetSwitchSync()
+    let connection = SheetConnection(settings: settings, sync: sync)
 
-    let manualTask = Task { await manualStore.syncNow() }
-    await manualSync.waitForSyncStart()
+    let manualTask = Task { await connection.syncNow() }
+    await sync.waitForSyncStart()
 
-    let request = store.requestSignOut()
-    let prepared = await store.prepareSignOut()
-    manualSync.completeSync()
+    let request = connection.requestSignOut()
+    let prepared = await connection.prepareSignOut()
+    sync.completeSync()
     _ = await manualTask.value
 
     #expect(request == .failed)
     #expect(prepared == false)
-    #expect(store.errorMessage == "A sync is already in progress.")
-    #expect(signOutSync.discardPendingWriteCallCount == 0)
-    #expect(signOutSync.hasPendingWritesValue == true)
+    #expect(connection.errorMessage == "A sync is already in progress.")
+    #expect(settings.spreadsheetId == "current-sheet")
 }
 
 @MainActor
@@ -600,7 +577,7 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     let settings = SettingsStore(defaults: defaults)
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = SuspendedDiscardSheetSwitchSync()
-    let store = SettingsSheetSwitchStore(settings: settings, sync: sync)
+    let store = SheetConnection(settings: settings, sync: sync)
     let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
 
     _ = await store.requestSwitch(to: newSheet)
@@ -638,7 +615,7 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
     let sync = SyncCoordinator(client: client, context: context)
     var reloadCount = 0
-    let store = SettingsSheetSwitchStore(settings: settings, sync: sync) { reloadCount += 1 }
+    let store = SheetConnection(settings: settings, sync: sync) { reloadCount += 1 }
 
     let result = await store.requestSwitch(
         to: SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
@@ -670,7 +647,7 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
     let sync = SyncCoordinator(client: client, context: context)
     var reloadCount = 0
-    let store = SettingsSheetSwitchStore(settings: settings, sync: sync) { reloadCount += 1 }
+    let store = SheetConnection(settings: settings, sync: sync) { reloadCount += 1 }
 
     let result = await store.requestSwitch(to: SheetSelection(spreadsheetId: "new-sheet", title: nil))
 
@@ -700,7 +677,7 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid(), failOffline: true)
     let sync = SyncCoordinator(client: client, context: context)
     var reloadCount = 0
-    let store = SettingsSheetSwitchStore(settings: settings, sync: sync) { reloadCount += 1 }
+    let store = SheetConnection(settings: settings, sync: sync) { reloadCount += 1 }
 
     let result = await store.requestSwitch(to: SheetSelection(spreadsheetId: "new-sheet", title: nil))
 
@@ -727,7 +704,7 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
     let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid(), failOffline: true)
     let sync = SyncCoordinator(client: client, context: context)
     var reloadCount = 0
-    let store = SettingsSheetSwitchStore(settings: settings, sync: sync) { reloadCount += 1 }
+    let store = SheetConnection(settings: settings, sync: sync) { reloadCount += 1 }
 
     let result = await store.requestSwitch(
         to: SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
@@ -769,7 +746,7 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
 
     let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
     let sync = SyncCoordinator(client: client, context: context)
-    let store = SettingsSheetSwitchStore(settings: settings, sync: sync)
+    let store = SheetConnection(settings: settings, sync: sync)
     let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
 
     let firstResult = await store.requestSwitch(to: newSheet)
@@ -793,8 +770,8 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
 
 /// A sync nobody in Settings started — the stage's sync on appear, or the flush the athlete's last
 /// logged Set queued — is still the `SyncCoordinator` talking to the Sheet, and abandoning pending
-/// logs underneath it is what `canBeginDestructiveTransition` exists to refuse. `SettingsSyncActivity`
-/// cannot see that sync; `ConfiguredSheetSyncing.isSyncing` can.
+/// logs underneath it is what `canBeginDestructiveTransition` exists to refuse. `isSyncInFlight`
+/// cannot see that sync; `SheetSwitchSyncing.isSyncing` can.
 @MainActor
 @Test func signOutAndSheetSwitchAreRejectedWhileABackgroundSyncIsRunning() async throws {
     let container = try makeCacheSafetyContainer()
@@ -804,7 +781,7 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
 
     let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
     let sync = SyncCoordinator(client: client, context: container.mainContext)
-    let store = SettingsSheetSwitchStore(settings: settings, sync: sync)
+    let store = SheetConnection(settings: settings, sync: sync)
 
     let backgroundSync = Task { await sync.sync(spreadsheetId: "current-sheet") }
     await client.waitUntilHeld()
@@ -843,7 +820,7 @@ func aFlushThatOverlapsASyncLeavesTheDestructiveTransitionGuardClosed() async th
         holdsTabSnapshot: true
     )
     let sync = SyncCoordinator(client: client, context: container.mainContext)
-    let store = SettingsSheetSwitchStore(settings: settings, sync: sync)
+    let store = SheetConnection(settings: settings, sync: sync)
 
     let backgroundSync = Task { await sync.sync(spreadsheetId: "current-sheet") }
 
@@ -888,7 +865,7 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
         holdsTabSnapshot: true
     )
     let sync = SyncCoordinator(client: client, context: container.mainContext)
-    let store = SettingsSheetSwitchStore(settings: settings, sync: sync)
+    let store = SheetConnection(settings: settings, sync: sync)
 
     let flush = Task { await sync.flushPending(spreadsheetId: "current-sheet") }
 
@@ -913,7 +890,7 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
     let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
     let sync = SyncCoordinator(client: client, context: container.mainContext)
     var reloadCount = 0
-    let store = SettingsManualSyncStore(settings: settings, sync: sync) { reloadCount += 1 }
+    let store = SheetConnection(settings: settings, sync: sync) { reloadCount += 1 }
 
     let backgroundSync = Task { await sync.sync(spreadsheetId: "current-sheet") }
     await client.waitUntilHeld()
@@ -1152,45 +1129,6 @@ private enum StubSheetSwitchError: Error {
 }
 
 @MainActor
-private final class StubConfiguredSheetSync: ConfiguredSheetSyncing {
-    var isSyncing = false
-    private let syncSucceeds: Bool
-    private(set) var syncedSpreadsheetIds: [String] = []
-
-    init(syncSucceeds: Bool = true) {
-        self.syncSucceeds = syncSucceeds
-    }
-
-    func sync(spreadsheetId: String) async -> Bool {
-        syncedSpreadsheetIds.append(spreadsheetId)
-        return syncSucceeds
-    }
-}
-
-@MainActor
-private final class SuspendedConfiguredSheetSync: ConfiguredSheetSyncing {
-    private(set) var isSyncing = false
-    private let heldSync = HeldCall()
-    private(set) var syncedSpreadsheetIds: [String] = []
-
-    func sync(spreadsheetId: String) async -> Bool {
-        syncedSpreadsheetIds.append(spreadsheetId)
-        isSyncing = true
-        defer { isSyncing = false }
-        await heldSync.hold()
-        return true
-    }
-
-    func waitForSyncStart() async {
-        await heldSync.waitUntilHeld(orRecord: "the configured Sheet sync never started")
-    }
-
-    func completeSync() {
-        heldSync.release()
-    }
-}
-
-@MainActor
 private final class SuspendedDiscardSheetSwitchSync: SheetSwitchSyncing {
     var isSyncing = false
     private let heldDiscard = HeldCall()
@@ -1251,4 +1189,27 @@ private final class SuspendedSheetSwitchSync: SheetSwitchSyncing {
     func completeSync() {
         heldSync.release()
     }
+}
+
+@MainActor
+@Test func onboardingSelectionWithAPreviousSheetsPendingLogsSaysSoAndLeavesNothingPending() async throws {
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
+    settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
+    let sync = StubSheetSwitchSync(hasPendingWrites: true)
+    let connection = SheetConnection(settings: settings, sync: sync)
+
+    let message = await connection.connect(SheetSelection(spreadsheetId: "new-sheet"))
+
+    #expect(message == "You have unsynced changes from a previous sheet. Review them in Settings before switching.")
+    #expect(connection.pendingConfirmation == nil)
+    #expect(settings.spreadsheetId == "old-sheet")
+}
+
+@MainActor
+@Test func onboardingSelectionThatFailsToSyncReturnsTheReason() async throws {
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
+    let connection = SheetConnection(settings: settings, sync: StubSheetSwitchSync(syncSucceeds: false))
+
+    #expect(await connection.connect(SheetSelection(spreadsheetId: "new-sheet")) == "Couldn't sync selected sheet. Try again.")
+    #expect(settings.spreadsheetId == nil)
 }
