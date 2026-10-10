@@ -44,6 +44,13 @@ enum PairingMode: Equatable, Sendable {
     case inactive
     case selecting(sourceOrder: Int)
     case confirming(sourceOrder: Int, targetOrder: Int)
+
+    var sourceOrder: Int? {
+        switch self {
+        case .inactive: nil
+        case .selecting(let sourceOrder), .confirming(let sourceOrder, _): sourceOrder
+        }
+    }
 }
 
 enum PairingTapResult: Equatable, Sendable {
@@ -445,7 +452,7 @@ extension SessionCoordinator {
 
     @discardableResult
     func handlePairingTap(on exercise: Exercise, in session: Session) -> PairingTapResult {
-        guard let sourceOrder = pairingSourceOrder else {
+        guard let sourceOrder = pairingMode.sourceOrder else {
             return .ignored
         }
         guard exercise.order != sourceOrder else {
@@ -461,15 +468,6 @@ extension SessionCoordinator {
         pairingMode = .confirming(sourceOrder: sourceOrder, targetOrder: exercise.order)
         confirmPairing(sourceOrder: sourceOrder, targetOrder: exercise.order, in: session)
         return .confirming
-    }
-
-    private var pairingSourceOrder: Int? {
-        switch pairingMode {
-        case .inactive:
-            nil
-        case .selecting(let sourceOrder), .confirming(let sourceOrder, _):
-            sourceOrder
-        }
     }
 
     private func confirmPairing(sourceOrder: Int, targetOrder: Int, in session: Session) {
