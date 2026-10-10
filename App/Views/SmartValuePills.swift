@@ -87,13 +87,12 @@ struct SmartValuePills: View {
         .onChange(of: suggestion) { _, later in
             form.refreshPrefill(from: later, for: set)
         }
-        // A keyboard that leaves the screen ends the edit: after a sheet takes it and is swiped away,
-        // SwiftUI keeps the focus true with no first responder (#697). A hardware keyboard's
-        // minimized bar also posts a hide but stays on screen, and the edit goes on.
+        // After a sheet takes the keyboard and is swiped away, SwiftUI keeps the focus true with no
+        // first responder (#697).
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { note in
             guard let screen = note.object as? UIScreen,
                 let end = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect,
-                end.minY >= screen.bounds.maxY
+                KeyboardHide.leavesScreen(endFrame: end, screenBounds: screen.bounds)
             else { return }
             weightFieldFocused = false
         }
