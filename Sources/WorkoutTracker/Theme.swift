@@ -253,7 +253,6 @@ enum Theme {
 
         // Destructive
         let danger: Color
-        let dangerText: Color
 
         // MARK: Legacy role aliases
         //
@@ -553,8 +552,7 @@ extension Theme {
         grabber: Paint.ink.opacity(0.18),
         birdFill: Paint.actionDay,
         birdRib: Paint.cream.opacity(0.50),
-        danger: rgb(255, 59, 48), // system red, carried forward pending danger pass
-        dangerText: rgb(179, 38, 30)
+        danger: rgb(255, 59, 48) // system red, carried forward pending danger pass
     )
 
     private static let nightPalette = Palette(
@@ -612,8 +610,7 @@ extension Theme {
         grabber: Paint.cream.opacity(0.18),
         birdFill: Paint.foliage,
         birdRib: Paint.cream.opacity(0.55),
-        danger: rgb(255, 59, 48),
-        dangerText: rgb(255, 105, 97)
+        danger: rgb(255, 59, 48)
     )
 
     /// 0–255 sRGB channel helper so the value sheets read like the token-sheet hex/rgba literals.

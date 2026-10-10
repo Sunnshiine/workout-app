@@ -21,8 +21,6 @@ colors:
   tile-current-border: "#1F8552"
   sheet-fill-day: "#EFF4E4"
   danger: "#FF3B30"
-  danger-text-day: "#B3261E"
-  danger-text-night: "#FF6961"
 typography:
   exercise-name:
     fontFamily: "Fraunces"
@@ -200,9 +198,6 @@ environment palette. Full role tables: `docs/design/greenhouse-theme-tokens.md`.
 - **`paperDay` / `paperNight`** — the base gradient pairs under the washes.
 - **`danger`** — system red, hold-to-skip only. Carried forward unchanged; no
   Greenhouse prototype styled an error state, so it awaits the build.
-- **`dangerText`** (`#B3261E` Day, `#FF6961` Night) — destructive text on the
-  sage rows, Settings' Sign Out. System red reads 3.0:1 (Day) and 3.9:1
-  (Night) there; these read 4.8:1 and 4.9:1.
 
 ### Living paper (atmosphere)
 
