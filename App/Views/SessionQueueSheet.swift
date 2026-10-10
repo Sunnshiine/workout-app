@@ -5,9 +5,9 @@ import UIKit
 /// with its Set dots, the one on stage marked "Now", and Move On in the footer
 /// when the Session can advance. Tapping an incomplete row brings it on stage.
 ///
-/// Superset pairing also lives here: the link affordance on an eligible row
-/// starts pairing, the row taps pick the partner, and the sheet falls back to
-/// browsing when pairing ends or the sheet closes.
+/// Superset pairing also lives here: `Pair` on an eligible row starts pairing,
+/// the row taps pick the partner, `Unlink` on a Superset's group dissolves it,
+/// and the sheet falls back to browsing when pairing ends or the sheet closes.
 struct SessionQueueSheet: View {
     let queue: SessionQueue
     let session: Session
@@ -22,8 +22,6 @@ struct SessionQueueSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
-                header
-
                 ForEach(queue.rows) { row in
                     if isPairing {
                         pairingRow(for: row)
@@ -50,6 +48,12 @@ struct SessionQueueSheet: View {
             }
             .padding(.horizontal)
             .padding(.bottom)
+        }
+        .scrollEdgeEffectStyle(.soft, for: .top)
+        .safeAreaBar(edge: .top) {
+            header
+                .padding(.horizontal)
+                .padding(.bottom, 8)
         }
         .animation(.easeInOut(duration: 0.18), value: queue.pairingMode)
         .presentationDetents([.medium])
@@ -79,42 +83,73 @@ struct SessionQueueSheet: View {
 
     // MARK: - Browsing
 
+    @ViewBuilder
     private func queueRow(for row: SessionQueue.Row) -> some View {
-        HStack(spacing: 0) {
-            Button {
-                dismiss()
-                if let target = row.jumpTarget {
-                    coordinator.focus(on: target)
-                }
-            } label: {
-                rowLabel(for: row) {
-                    if row.isOnStage {
-                        Text("Now")
-                            .font(Theme.font(.fieldLabel))
-                            .foregroundStyle(palette.accent)
-                    }
-                }
-            }
-            .buttonStyle(.plain)
-            .disabled(row.isComplete)
-            .accessibilityIdentifier("stage-queue-row-\(row.id)")
-
-            if row.action == .pair {
-                Button {
+        switch row.action {
+        case .none:
+            jumpButton(for: row)
+        case .pair:
+            HStack(spacing: 0) {
+                jumpButton(for: row)
+                textButton("Pair") {
                     coordinator.beginPairing(from: row.pairingExercise, in: session)
-                } label: {
-                    Image(systemName: "link")
-                        .font(Theme.font(.queuePill))
-                        .foregroundStyle(palette.textSecondary)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 16)
-                        .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
                 .accessibilityLabel("Pair \(row.title) into a superset")
                 .accessibilityIdentifier("stage-queue-pair-\(row.id)")
             }
+        case .unlink:
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Superset")
+                        .font(Theme.font(.fieldLabel))
+                        .foregroundStyle(palette.textSecondary)
+
+                    Spacer(minLength: 12)
+
+                    textButton("Unlink") {
+                        coordinator.dismissSuperset(containing: row.pairingExercise, in: session)
+                    }
+                    .accessibilityLabel("Unlink \(row.title)")
+                    .accessibilityIdentifier("stage-queue-unlink-\(row.id)")
+                }
+                .padding(.leading, 14)
+
+                jumpButton(for: row)
+            }
+            .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.card))
         }
+    }
+
+    private func jumpButton(for row: SessionQueue.Row) -> some View {
+        Button {
+            dismiss()
+            if let target = row.jumpTarget {
+                coordinator.focus(on: target)
+            }
+        } label: {
+            rowLabel(for: row) {
+                if row.isOnStage {
+                    Text("Now")
+                        .font(Theme.font(.fieldLabel))
+                        .foregroundStyle(palette.accent)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(row.isComplete)
+        .accessibilityIdentifier("stage-queue-row-\(row.id)")
+    }
+
+    private func textButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(Theme.font(.queuePill))
+                .foregroundStyle(palette.accent)
+                .padding(.horizontal, 14)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Pairing
@@ -144,16 +179,18 @@ struct SessionQueueSheet: View {
     private func pairingIndicator(for role: QueuePairingRole) -> some View {
         switch role {
         case .source:
-            Image(systemName: "link")
-                .font(Theme.font(.fieldLabel))
-                .foregroundStyle(palette.accent)
-        case .confirmingTarget:
-            Image(systemName: "link.badge.plus")
-                .font(Theme.font(.fieldLabel))
-                .foregroundStyle(palette.accent)
-        case .none, .eligibleTarget, .ineligibleTarget:
+            pairingWord("Pairing")
+        case .eligibleTarget, .confirmingTarget:
+            pairingWord("Pair with this")
+        case .none, .ineligibleTarget:
             EmptyView()
         }
+    }
+
+    private func pairingWord(_ word: String) -> some View {
+        Text(word)
+            .font(Theme.font(.fieldLabel))
+            .foregroundStyle(palette.accent)
     }
 
     // MARK: - Row label
