@@ -778,6 +778,27 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
     #expect(settings.spreadsheetId == nil)
 }
 
+/// Onboarding's "Paste a URL instead" stays live while a picked Sheet syncs, so a pasted URL can
+/// be refused mid-sync. Onboarding shows that refusal itself; the first selection then opens the
+/// session, and Settings must not open on the same refusal.
+@MainActor
+@Test(.timeLimit(.minutes(1))) func anOnboardingSelectionRefusedMidSyncLeavesNoErrorForSettings() async throws {
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
+    let sync = SuspendedSheetSwitchSync()
+    let connection = SheetConnection(settings: settings, sync: sync)
+
+    let picked = Task { await connection.connect(SheetSelection(spreadsheetId: "picked-sheet", title: "Picked")) }
+    await sync.waitForSyncStart()
+    let pastedMessage = await connection.connect(SheetSelection(spreadsheetId: "pasted-sheet"))
+    sync.completeSync()
+    let pickedMessage = await picked.value
+
+    #expect(pastedMessage == "A sync is already in progress.")
+    #expect(pickedMessage == nil)
+    #expect(settings.spreadsheetId == "picked-sheet")
+    #expect(connection.errorMessage == nil)
+}
+
 @MainActor
 private func makeCacheSafetyContainer() throws -> ModelContainer {
     try ModelContainer(
