@@ -19,7 +19,7 @@ struct RestPillView: View {
         if let visualBaselineDate {
             pillContainer(at: visualBaselineDate)
         } else {
-            TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
+            TimelineView(.periodic(from: restTimer.interval?.start ?? .now, by: 1)) { context in
                 let remaining = restTimer.remaining(at: context.date)
                 pillContainer(at: context.date)
                     .task(id: restTimer.restartRevision) {
@@ -36,6 +36,7 @@ struct RestPillView: View {
                         playExpiryHaptics(events)
                     }
             }
+            .id(restTimer.interval?.start)
         }
     }
 
@@ -101,7 +102,6 @@ struct RestPillView: View {
                     .fill(railColor(for: cue).opacity(countdownOpacity(for: cue)))
                     .frame(width: proxy.size.width * CGFloat(presentation.progressFraction))
                     .scaleEffect(x: 1, y: finalFiveScale(for: cue), anchor: .center)
-                    .animation(.linear(duration: 1.0 / 30), value: presentation.progressFraction)
                     .animation(finalFiveAnimation(for: cue), value: finalFivePulse)
             }
         }

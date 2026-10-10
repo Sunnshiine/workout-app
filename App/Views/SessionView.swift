@@ -29,9 +29,6 @@ struct SessionView: View {
         Group {
             if let session = workout.viewedSession {
                 VStack(spacing: 0) {
-                    SyncStatusBanner(outcome: sync.outcome, isSyncing: sync.isSyncing)
-                        .padding(.top, 8)
-
                     if !workout.isViewingLiveEdge {
                         OffLiveEdgeControls(
                             onGoBack: {
@@ -58,10 +55,6 @@ struct SessionView: View {
                             bindCoordinator(to: session)
                         }
                 }
-                .animation(
-                    reduceMotion ? nil : .smooth(duration: 0.25),
-                    value: syncBannerText
-                )
             } else {
                 ScrollView {
                     EmptyStateView {
@@ -123,10 +116,6 @@ struct SessionView: View {
             guard !Task.isCancelled, sessionSettingsOverpullState.isPinned else { return }
             sessionSettingsOverpullState = sessionSettingsOverpullState.dismissedAfterIdle()
         }
-    }
-
-    private var syncBannerText: String? {
-        SyncStatusBannerPresentation(outcome: sync.outcome, isSyncing: sync.isSyncing)?.text
     }
 
     private func bindCoordinator(to session: Session) {
@@ -245,6 +234,13 @@ extension SessionView {
         .simultaneousGesture(sessionSettingsOverpullGesture)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("session-header-hud")
+        .overlay(alignment: .top) {
+            SessionSyncBanner()
+                .padding(.top, 8)
+                .allowsHitTesting(false)
+                .opacity(sessionSettingsOverpullState.isVisible ? 0 : 1)
+                .accessibilityHidden(sessionSettingsOverpullState.isVisible)
+        }
     }
 
     private var sessionSettingsOverpullGesture: some Gesture {
@@ -289,6 +285,19 @@ private struct SwiftUISessionMotion: SessionMotionPerforming {
             return try withTransaction(\.disablesAnimations, true, change)
         }
         try withAnimation(animation, change)
+    }
+}
+
+private struct SessionSyncBanner: View {
+    @Environment(SyncCoordinator.self) private var sync
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        SyncStatusBanner(outcome: sync.outcome, isSyncing: sync.isSyncing)
+            .animation(
+                reduceMotion ? nil : .smooth(duration: 0.25),
+                value: SyncStatusBannerPresentation(outcome: sync.outcome, isSyncing: sync.isSyncing)?.text
+            )
     }
 }
 

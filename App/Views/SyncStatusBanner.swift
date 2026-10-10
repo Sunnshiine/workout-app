@@ -23,6 +23,7 @@ struct SyncStatusBanner: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(palette.bannerFill, in: Capsule())
+        .background(palette.paper.baseTop, in: Capsule())
         .overlay(Capsule().strokeBorder(palette.bannerStroke, lineWidth: 0.5))
         .padding(.horizontal)
         // The explicit label replaces the combined children, so it is the whole of what VoiceOver
