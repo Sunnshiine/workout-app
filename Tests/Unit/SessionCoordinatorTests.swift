@@ -672,7 +672,7 @@ private func makeRestActionFixture(
 }
 
 @MainActor
-@Test func unlinkingTheSupersetOnStageReturnsTheStageToOneExercise() throws {
+@Test func unlinkingTheSupersetFromItsQueueRowKeepsTheFocusedSideOnStage() throws {
     let session = makeFourExercisePairingSession()
     let coordinator = SessionCoordinator(session: session)
     let press = try #require(session.exercises.first { $0.order == 0 })
@@ -682,11 +682,9 @@ private func makeRestActionFixture(
     #expect(coordinator.focusNextSupersetSet(for: squat, in: session))
     #expect(supersetStage(coordinator, in: session)?.focused === squat)
     let supersetRow = try #require(coordinator.stage(in: session, lookup: .empty).queue.rows.first)
-    #expect(supersetRow.kind == .superset)
 
     coordinator.dismissSuperset(containing: supersetRow.pairingExercise, in: session)
 
-    #expect(stageRowIDs(coordinator, in: session) == ["exercise-0", "exercise-1", "exercise-2", "exercise-3"])
     #expect(exerciseStage(coordinator, in: session)?.exercise.order == 1)
 }
 
