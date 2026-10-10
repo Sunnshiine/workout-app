@@ -127,16 +127,20 @@ final class SheetConnection {
     }
 
     /// Onboarding's selection: the alert message when the selection did not commit, `nil` when it did.
-    /// Onboarding starts with no committed sheet, so a prior sheet's unsynced writes are surfaced
-    /// rather than offered for discard; that flow lives in Settings.
+    /// The message is returned, never left in `errorMessage`, because this connection outlives
+    /// onboarding and Settings presents whatever `errorMessage` holds. A prior sheet's unsynced
+    /// writes are reported rather than offered for discard; that flow lives in Settings.
     func connect(_ selection: SheetSelection) async -> String? {
+        defer {
+            errorMessage = nil
+            pendingConfirmation = nil
+        }
         switch await requestSwitch(to: selection) {
         case .switched, .unchanged:
             return nil
         case .failed:
             return errorMessage
         case .requiresConfirmation:
-            pendingConfirmation = nil
             return Self.unsyncedFromPreviousSheetMessage
         }
     }
