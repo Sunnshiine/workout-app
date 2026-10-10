@@ -87,7 +87,7 @@ func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expecte
 @Test func sheetSwitchReplacesStaleCachedBlockOnlyAfterSyncingNewSheet() async throws {
     let container = try makeCacheSafetyContainer()
     let context = container.mainContext
-    seedStaleBlock(tabName: "Block 26", into: context)
+    try seedStaleBlock(tabName: "Block 26", into: context)
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
@@ -111,7 +111,7 @@ func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expecte
 @Test func titlelessSelectionSwitchSyncsNewSheetThenClearsStaleTitle() async throws {
     let container = try makeCacheSafetyContainer()
     let context = container.mainContext
-    seedStaleBlock(tabName: "Block 26", into: context)
+    try seedStaleBlock(tabName: "Block 26", into: context)
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
@@ -158,7 +158,7 @@ func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expecte
 @Test func oldSheetPendingWritesAreNeverFlushedToNewlySelectedSheet() async throws {
     let container = try makeCacheSafetyContainer()
     let context = container.mainContext
-    seedStaleBlock(tabName: "Block 26", into: context)
+    try seedStaleBlock(tabName: "Block 26", into: context)
     try queueReplacementSquatLog(in: context)
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
@@ -229,7 +229,7 @@ func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expecte
 @Test func failedSheetSwitchSyncKeepsStaleCacheAndDoesNotCommitSelection() async throws {
     let container = try makeCacheSafetyContainer()
     let context = container.mainContext
-    seedStaleBlock(tabName: "Block 26", into: context)
+    try seedStaleBlock(tabName: "Block 26", into: context)
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid(), failOffline: true)
@@ -253,7 +253,7 @@ func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expecte
 @Test func failedTitlelessSelectionSwitchKeepsPreviousSelectionAndCache() async throws {
     let container = try makeCacheSafetyContainer()
     let context = container.mainContext
-    seedStaleBlock(tabName: "Block 26", into: context)
+    try seedStaleBlock(tabName: "Block 26", into: context)
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid(), failOffline: true)
@@ -275,7 +275,7 @@ func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expecte
 @Test func failedConfirmedSheetSwitchSyncDiscardsTheOldLogsButKeepsTheOldSheet() async throws {
     let container = try makeCacheSafetyContainer()
     let context = container.mainContext
-    seedStaleBlock(tabName: "Block 26", into: context)
+    try seedStaleBlock(tabName: "Block 26", into: context)
     try queueReplacementSquatLog(in: context)
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
@@ -628,7 +628,7 @@ private func makeCacheSafetyContainer() throws -> ModelContainer {
 }
 
 @MainActor
-private func seedStaleBlock(tabName: String, into context: ModelContext) {
+private func seedStaleBlock(tabName: String, into context: ModelContext) throws {
     let block = BlockBuilder.makeBlock(
         from: ParsedBlockModel(
             tabName: tabName,
@@ -664,7 +664,7 @@ private func seedStaleBlock(tabName: String, into context: ModelContext) {
         )
     )
     context.insert(block)
-    try! context.save()
+    try context.save()
 }
 
 @MainActor
