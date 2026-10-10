@@ -22,7 +22,7 @@ protocol SessionLiveActivityAdapter {
 }
 
 @MainActor
-protocol SessionNavigationAdapter {
+protocol SessionNavigationAdapter: AnyObject {
     var canMoveOn: Bool { get }
     var openExercises: [Exercise] { get }
     func liveEdge(for session: Session) -> LiveEdge
@@ -98,7 +98,7 @@ private struct NoopSessionLiveActivityAdapter: SessionLiveActivityAdapter {
     func endIfInvalidated(at liveEdge: LiveEdge) {}
 }
 
-private struct NoopSessionNavigationAdapter: SessionNavigationAdapter {
+private final class NoopSessionNavigationAdapter: SessionNavigationAdapter {
     var canMoveOn: Bool { false }
     var openExercises: [Exercise] { [] }
     func liveEdge(for session: Session) -> LiveEdge { .browsedAway }
@@ -182,7 +182,9 @@ final class SessionCoordinator {
         navigation: any SessionNavigationAdapter,
         motion: any SessionMotionPerforming
     ) {
-        navigationAdapter = navigation
+        if navigationAdapter !== navigation {
+            navigationAdapter = navigation
+        }
         self.motion = motion
         self.restTimer = restTimer
         self.standardRestDuration = standardRestDuration
