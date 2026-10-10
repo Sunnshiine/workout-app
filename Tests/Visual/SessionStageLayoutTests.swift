@@ -167,7 +167,11 @@ struct SessionStageLayoutTests {
 @Suite
 struct SessionStageLadderTransitionTests {
     @Test func shrinkingTheWindowDropsTheCoachNoteBeforeTheBranch() throws {
-        let pages = try SessionPageHost.layouts(.exercise, banner: .clear, windowHeights: [694, 659])
+        let pages = try SessionPageHost.layouts(
+            .exercise,
+            banner: .clear,
+            windowHeights: [WindowHeight.noteRung, WindowHeight.nameAndBranchRung]
+        )
         #expect(
             pages == [
                 PageFrames(
@@ -283,6 +287,10 @@ private enum WindowHeight {
     static let iPhone17Pro: CGFloat = 874
     static let mini: CGFloat = 793
     static let se: CGFloat = 709
+    // The single-Exercise stage holds the note rung from 679 to 704 pt and the name and branch
+    // rung from 644 to 674 pt; each height sits mid-band.
+    static let noteRung: CGFloat = 694
+    static let nameAndBranchRung: CGFloat = 659
 }
 
 private enum History {
