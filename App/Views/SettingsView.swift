@@ -7,6 +7,8 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isSheetPickerPresented = false
     @State private var isSignOutConfirmationPresented = false
+    @State private var pendingSwitch: SheetSelection?
+    @State private var settingsError: DestructiveTransitionFailure?
 
     var body: some View {
         NavigationStack {
@@ -94,12 +96,6 @@ struct SettingsView: View {
                 }
             }
         }
-        // The connection outlives this sheet, so a switch that failed after Settings last closed
-        // would otherwise greet this visit with its stale error or confirmation.
-        .onAppear {
-            connection.clearError()
-            connection.cancelPendingSwitch()
-        }
         .sheet(isPresented: $isSheetPickerPresented) {
             sheetPickerSheet
         }
@@ -114,12 +110,10 @@ struct SettingsView: View {
         } message: {
             Text("Pending logs for the current sheet will be discarded.")
         }
-        .alert("Settings Error", isPresented: settingsErrorPresented) {
-            Button("OK", role: .cancel) {
-                connection.clearError()
-            }
-        } message: {
-            Text(connection.errorMessage ?? "")
+        .alert("Settings Error", isPresented: settingsErrorPresented, presenting: settingsError) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { failure in
+            Text(failure.message)
         }
         .preferredColorScheme(Theme.colorSchemeOverride(for: settings.appearance))
         .toolbarColorScheme(Theme.colorSchemeOverride(for: settings.appearance), for: .navigationBar)
@@ -167,16 +161,39 @@ struct SettingsView: View {
             isSignOutConfirmationPresented = true
         case .ready:
             Task { await signOutNow() }
-        case .failed:
-            break
+        case .failed(let failure):
+            settingsError = failure
         }
     }
 
     private func signOutNow() async {
-        guard await connection.signOut() else { return }
+        do throws(DestructiveTransitionFailure) {
+            try await connection.signOut()
+            GoogleAuth.signOut()
+            dismiss()
+        } catch {
+            settingsError = error
+        }
+    }
 
-        GoogleAuth.signOut()
-        dismiss()
+    private func requestSwitch(to spreadsheet: SpreadsheetFile) async {
+        switch await connection.requestSwitch(to: spreadsheet) {
+        case .switched, .unchanged:
+            isSheetPickerPresented = false
+        case .requiresConfirmation(let selection):
+            pendingSwitch = selection
+        case .failed(let failure):
+            settingsError = failure
+        }
+    }
+
+    private func confirmSwitch(to selection: SheetSelection) async {
+        do throws(DestructiveTransitionFailure) {
+            try await connection.confirmSwitch(to: selection)
+            isSheetPickerPresented = false
+        } catch {
+            settingsError = error
+        }
     }
 
     private var sheetPickerSheet: some View {
@@ -184,10 +201,7 @@ struct SettingsView: View {
             SheetPickerView(
                 client: GoogleSheetsClient.forCurrentEnvironment(),
                 onValidatedSelection: { spreadsheet in
-                    let result = await connection.requestSwitch(to: spreadsheet)
-                    if result == .switched || result == .unchanged {
-                        isSheetPickerPresented = false
-                    }
+                    await requestSwitch(to: spreadsheet)
                 },
                 onDone: {
                     isSheetPickerPresented = false
@@ -199,38 +213,34 @@ struct SettingsView: View {
         }
         .alert(
             "You have unsynced changes. Switch anyway?",
-            isPresented: pendingSwitchConfirmation
-        ) {
-            Button("Cancel", role: .cancel) {
-                connection.cancelPendingSwitch()
-            }
+            isPresented: pendingSwitchConfirmation,
+            presenting: pendingSwitch
+        ) { selection in
+            Button("Cancel", role: .cancel) {}
             Button("Switch Anyway", role: .destructive) {
-                Task {
-                    let didSwitch = await connection.confirmPendingSwitch()
-                    if didSwitch {
-                        isSheetPickerPresented = false
-                    }
-                }
+                Task { await confirmSwitch(to: selection) }
             }
-        } message: {
+        } message: { _ in
             Text("Pending logs for the current sheet will be discarded.")
         }
     }
 
     private var pendingSwitchConfirmation: Binding<Bool> {
         Binding {
-            connection.pendingConfirmation != nil
-        } set: { _ in
-            // Alert buttons own cancellation so "Switch Anyway" can still confirm the pending sheet.
+            pendingSwitch != nil
+        } set: { isPresented in
+            if !isPresented {
+                pendingSwitch = nil
+            }
         }
     }
 
     private var settingsErrorPresented: Binding<Bool> {
         Binding {
-            connection.errorMessage != nil
+            settingsError != nil
         } set: { isPresented in
             if !isPresented {
-                connection.clearError()
+                settingsError = nil
             }
         }
     }

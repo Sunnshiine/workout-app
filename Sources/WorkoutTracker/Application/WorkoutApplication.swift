@@ -70,10 +70,9 @@ extension WorkoutApplication {
         case .switched, .unchanged:
             return try snapshot()
         case .requiresConfirmation:
-            connection.cancelPendingSwitch()
             throw ApplicationError.sheetSwitchRequiresDiscard
-        case .failed:
-            throw ApplicationError.sheetSwitchFailed(connection.errorMessage ?? "unknown")
+        case .failed(let failure):
+            throw ApplicationError.sheetSwitchFailed(failure.message)
         }
     }
 
