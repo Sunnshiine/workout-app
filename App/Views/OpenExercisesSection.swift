@@ -14,7 +14,7 @@ struct OpenExercisesSection: View {
                 Button {
                     onSelect(exercise)
                 } label: {
-                    OpenExerciseCard(exercise: exercise)
+                    OpenExerciseRow(exercise: exercise)
                 }
                 .buttonStyle(.plain)
             }
@@ -25,7 +25,7 @@ struct OpenExercisesSection: View {
     }
 }
 
-private struct OpenExerciseCard: View {
+private struct OpenExerciseRow: View {
     let exercise: Exercise
     @Environment(\.themePalette) private var palette
 
@@ -52,12 +52,7 @@ private struct OpenExerciseCard: View {
             }
             .foregroundStyle(palette.accent)
         }
-        .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(palette.pillFill, in: .rect(cornerRadius: Theme.Radius.card))
-        .overlay {
-            RoundedRectangle(cornerRadius: Theme.Radius.card)
-                .stroke(palette.pillStroke, lineWidth: 1)
-        }
+        .contentShape(Rectangle())
     }
 }
