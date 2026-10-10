@@ -295,8 +295,6 @@ private struct SessionSyncBanner: View {
 
     var body: some View {
         SyncStatusBanner(outcome: sync.outcome, isSyncing: sync.isSyncing)
-            // The banner covers HUD text, which would show through a ground caught mid-fade.
-            .transaction { $0.animation = nil }
     }
 }
 

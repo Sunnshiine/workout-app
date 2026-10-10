@@ -6,11 +6,13 @@ struct SyncStatusBanner: View {
     @Environment(\.themePalette) private var palette
 
     var body: some View {
-        if let presentation = SyncStatusBannerPresentation(outcome: outcome, isSyncing: isSyncing) {
-            banner(presentation)
-        } else {
-            EmptyView()
+        Group {
+            if let presentation = SyncStatusBannerPresentation(outcome: outcome, isSyncing: isSyncing) {
+                banner(presentation)
+            }
         }
+        // The banner can sit over other text, which would show through a ground caught mid-fade.
+        .transaction { $0.animation = nil }
     }
 
     private func banner(_ presentation: SyncStatusBannerPresentation) -> some View {
@@ -32,8 +34,7 @@ struct SyncStatusBanner: View {
     }
 }
 
-/// Fades in over the banner's ground, which never fades, so nothing behind the banner shows
-/// through while it arrives.
+/// Fades in over the banner's ground, which arrives without a fade.
 private struct SyncStatusBannerLabel: View {
     let text: String
     @State private var isShown = false
@@ -42,7 +43,7 @@ private struct SyncStatusBannerLabel: View {
         Text(text)
             .lineLimit(2)
             .opacity(isShown ? 1 : 0)
-            .animation(.easeOut(duration: 0.18), value: isShown)
+            .animation(.smooth(duration: 0.18), value: isShown)
             .onAppear { isShown = true }
     }
 }
