@@ -442,11 +442,6 @@ import Testing
 
 // MARK: - Cache safety against a real SyncCoordinator
 
-// The safe switch transaction, exercised end to end against a real `SyncCoordinator` (not a stub),
-// so the behaviour that protects the local-first cache is covered: a stale cached Block
-// is only replaced once the newly selected sheet syncs, a failed sync leaves the previous cache and
-// selection untouched, and old-sheet pending writes can never be flushed to the new sheet.
-
 @MainActor
 @Test func sheetSwitchReplacesStaleCachedBlockOnlyAfterSyncingNewSheet() async throws {
     let container = try makeCacheSafetyContainer()
