@@ -45,7 +45,7 @@ struct SettingsView: View {
                         LabeledContent {
                             Text(sheetDisplayName)
                         } label: {
-                            RowLabel(title: "Training Sheet", color: palette.textPrimary)
+                            RowLabel(title: "Training Sheet")
                         }
                     }
                     .disabled(isSheetBusy)
@@ -57,7 +57,7 @@ struct SettingsView: View {
                         LabeledContent {
                             Text(connection.syncNowDetail)
                         } label: {
-                            RowLabel(title: "Sync now", color: palette.textPrimary)
+                            RowLabel(title: "Sync now")
                         }
                     }
                     .disabled(!connection.canSyncNow)
@@ -77,7 +77,7 @@ struct SettingsView: View {
                     Button(role: .destructive) {
                         requestSignOut()
                     } label: {
-                        RowLabel(title: "Sign Out", color: palette.dangerText)
+                        RowLabel(title: "Sign Out")
                     }
                     .disabled(isSheetBusy)
                     .accessibilityIdentifier("settings-sign-out-button")
@@ -252,15 +252,15 @@ struct SettingsView: View {
     }
 }
 
-/// A disabled Form button drops its tint for the primary colour, which a textPrimary label already
-/// is, so the label dims itself to the tertiary label colour a disabled destructive row draws.
+/// System blue and red read under 4.5:1 on the sage rows, so the labels draw in textPrimary. A
+/// colour set on the label also stops a disabled row from dimming, so the label dims itself.
 private struct RowLabel: View {
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.themePalette) private var palette
     let title: String
-    let color: Color
 
     var body: some View {
-        Text(title).foregroundStyle(isEnabled ? color : Color(.tertiaryLabel))
+        Text(title).foregroundStyle(isEnabled ? palette.textPrimary : Color(.tertiaryLabel))
     }
 }
 
