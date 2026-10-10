@@ -22,12 +22,10 @@ struct SmartValuePills: View {
     let suggestion: LoadSuggestion
     let onLog: (SetLog) -> Void
     let onSkip: () -> Void
-    let onDelete: () -> Void
     let inputDismissalRequestID: Int
 
     @State private var form: SmartValuePillsForm
     @State private var isEditingWeight = false
-    @State private var showsLoggedCheckmark = false
     @Environment(\.themePalette) private var palette
     @Environment(\.showsLoadBasis) private var showsLoadBasis
     @FocusState private var weightFieldFocused: Bool
@@ -38,8 +36,6 @@ struct SmartValuePills: View {
         suggestion: LoadSuggestion,
         onLog: @escaping (SetLog) -> Void,
         onSkip: @escaping () -> Void,
-        onDelete: @escaping () -> Void,
-        showsLoggedCheckmarkInitially: Bool = false,
         inputDismissalRequestID: Int = 0
     ) {
         self.set = set
@@ -47,10 +43,8 @@ struct SmartValuePills: View {
         self.suggestion = suggestion
         self.onLog = onLog
         self.onSkip = onSkip
-        self.onDelete = onDelete
         self.inputDismissalRequestID = inputDismissalRequestID
         _form = State(initialValue: SmartValuePillsForm(set: set, suggestion: suggestion))
-        _showsLoggedCheckmark = State(initialValue: showsLoggedCheckmarkInitially)
     }
 
     var body: some View {
@@ -75,13 +69,7 @@ struct SmartValuePills: View {
                 )
             }
 
-            if presentation.showsLogControls {
-                actionControls
-            } else if form.hasChanges, form.changedValidLog == nil {
-                Text("Complete weight, reps, and RPE to update this logged set.")
-                    .font(Theme.font(.fieldLabel))
-                    .foregroundStyle(palette.textSecondary)
-            }
+            actionRow
         }
         .task(id: isEditingWeight) {
             weightFieldFocused = isEditingWeight
@@ -165,39 +153,46 @@ struct SmartValuePills: View {
     @ViewBuilder
     private var weightValue: some View {
         if isEditingWeight {
-            TextField(form.weightDisplay, text: $form.weightText)
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.center)
-                .font(Theme.font(.weightEntry))
-                .foregroundStyle(weightForeground)
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
-                .focused($weightFieldFocused)
-                // The decimal pad carries no return key, so give the athlete a discoverable way out
-                // of the field when they open it and choose not to enter a weight — dismissing the
-                // keyboard without logging (any tap on non-interactive stage space is the same
-                // escape). Semantic-only, so no haptic here.
-                .toolbar {
-                    ToolbarItemGroup(placement: .keyboard) {
-                        Spacer()
-                        Button("Done", action: dismissFieldUI)
-                            .accessibilityIdentifier("weight-keyboard-done")
-                    }
-                }
-                .accessibilityIdentifier("weight-pill")
+            // The field sits over the number it replaces, so its taller line box never grows the card.
+            weightNumber
+                .hidden()
+                .overlay { weightField }
         } else {
-            Text(form.weightDisplay)
-                .font(Theme.font(.weightEntry))
-                .foregroundStyle(weightForeground)
-                .lineLimit(1)
-                .minimumScaleFactor(0.5)
-                .frame(maxWidth: .infinity)
+            weightNumber
                 .contentShape(.rect)
                 .onTapGesture { isEditingWeight = true }
                 .accessibilityLabel("Weight, \(form.weightDisplay)")
                 .accessibilityIdentifier("weight-pill")
                 .accessibilityAddTraits(.isButton)
         }
+    }
+
+    private var weightNumber: some View {
+        Text(form.weightDisplay)
+            .font(Theme.font(.weightEntry))
+            .foregroundStyle(weightForeground)
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
+            .frame(maxWidth: .infinity)
+    }
+
+    private var weightField: some View {
+        TextField(form.weightDisplay, text: $form.weightText)
+            .keyboardType(.decimalPad)
+            .multilineTextAlignment(.center)
+            .font(Theme.font(.weightEntry))
+            .foregroundStyle(weightForeground)
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
+            .focused($weightFieldFocused)
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done", action: dismissFieldUI)
+                        .accessibilityIdentifier("weight-keyboard-done")
+                }
+            }
+            .accessibilityIdentifier("weight-pill")
     }
 
     @ViewBuilder
@@ -221,32 +216,38 @@ struct SmartValuePills: View {
 
     // MARK: - Log capsule / skip
 
-    private var actionControls: some View {
-        VStack(spacing: 8) {
+    @ViewBuilder
+    private var actionRow: some View {
+        let row = presentation.actionRow(for: form)
+        switch row {
+        case .logged(let line):
+            loggedSetCapsule(line)
+        case .incompleteDraft:
+            loggedSetCapsule(SetCardPresentation.incompleteDraftHint)
+        case .log, .skipped:
             HoldToSkipLogButton(
                 logTitle: form.logButtonTitle,
                 canLog: form.canLog,
-                isSkipped: set.state == .skipped,
-                showsLoggedCheckmark: showsLoggedCheckmark,
+                isSkipped: row == .skipped,
                 onLogTap: submitLog,
                 onSkip: skip
             )
-
-            if set.state != .pending {
-                HStack {
-                    Spacer()
-
-                    Menu {
-                        Button("Clear", role: .destructive, action: onDelete)
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .imageScale(.large)
-                            .foregroundStyle(palette.textSecondary)
-                    }
-                    .accessibilityIdentifier("clear-logged-set-menu")
-                }
-            }
         }
+    }
+
+    private func loggedSetCapsule(_ line: String) -> some View {
+        Text(line)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .padding(.horizontal, 16)
+            .logCapsuleMetrics()
+            .foregroundStyle(palette.textSecondary)
+            .overlay {
+                Capsule().strokeBorder(palette.pillStroke, lineWidth: 1)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(line)
+            .accessibilityIdentifier("logged-set-capsule")
     }
 
     /// Reviewing an already-logged Set commits silently: any changed, valid draft is written when
@@ -264,9 +265,6 @@ struct SmartValuePills: View {
         dismissFieldUI()
         guard let log = form.submitLog() else { return }
         InputHapticPlayer.shared.play(Theme.Haptics.logTap)
-        withAnimation(Theme.logButtonCheckmarkAnimation) {
-            showsLoggedCheckmark = true
-        }
         onLog(log)
     }
 
@@ -276,8 +274,15 @@ struct SmartValuePills: View {
         onSkip()
     }
 
+    /// A focused field resigns through UIKit first, and the focus change folds it. Removing the field
+    /// while it is still first responder, as a log's remount does, leaves a bottom keyboard inset
+    /// behind that lifts the card 14pt.
     private func dismissFieldUI() {
-        isEditingWeight = false
+        guard weightFieldFocused else {
+            isEditingWeight = false
+            return
+        }
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         weightFieldFocused = false
     }
 }
@@ -472,7 +477,6 @@ private struct HoldToSkipLogButton: View {
     let logTitle: String
     let canLog: Bool
     let isSkipped: Bool
-    let showsLoggedCheckmark: Bool
     let onLogTap: () -> Void
     let onSkip: () -> Void
 
@@ -523,10 +527,8 @@ private struct HoldToSkipLogButton: View {
 
     private var logButtonSurface: some View {
         buttonContent
-            .font(Theme.font(.logCapsule))
+            .logCapsuleMetrics()
             .foregroundStyle(logForegroundStyle)
-            .padding(.vertical, 16)
-            .frame(maxWidth: .infinity)
             .background {
                 ZStack(alignment: .leading) {
                     logBackgroundStyle
@@ -546,10 +548,8 @@ private struct HoldToSkipLogButton: View {
     /// The dashed "empty bed" the skipped state settles into (§5.3): transparent, muted text.
     private var skippedBed: some View {
         Text("Skipped")
-            .font(Theme.font(.logCapsule))
+            .logCapsuleMetrics()
             .foregroundStyle(palette.textSecondary)
-            .padding(.vertical, 16)
-            .frame(maxWidth: .infinity)
             .overlay {
                 Capsule()
                     .strokeBorder(palette.skipStroke, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
@@ -558,15 +558,8 @@ private struct HoldToSkipLogButton: View {
 
     private var buttonContent: some View {
         ZStack {
-            HStack(spacing: 8) {
-                if showsLoggedCheckmark {
-                    Image(systemName: "checkmark")
-                        .transition(.scale.combined(with: .opacity))
-                }
-
-                Text(logTitle)
-            }
-            .opacity(presentation.logOpacity)
+            Text(logTitle)
+                .opacity(presentation.logOpacity)
 
             Text("Skipped")
                 .opacity(presentation.skipOpacity)
@@ -679,6 +672,14 @@ private struct HoldToSkipLogButton: View {
         withAnimation(.easeOut(duration: Theme.logButtonCheckmarkDuration)) {
             skipProgress = 0
         }
+    }
+}
+
+extension View {
+    fileprivate func logCapsuleMetrics() -> some View {
+        font(Theme.font(.logCapsule))
+            .padding(.vertical, 16)
+            .frame(maxWidth: .infinity)
     }
 }
 

@@ -26,16 +26,10 @@ private func exerciseItem(
     .exercise(
         SessionExerciseRenderConfig(
             exercise: exercise,
-            visualFocusOwner: nil,
             activeSetID: activeSetID,
             expandedLoggedSetID: nil,
             savedLoggedSetID: nil,
-            activeSetTransition: nil,
-            retiringTransition: nil,
-            isCollapsed: false,
-            showsPairingGrip: false,
             pairingAvailability: pairingAvailability,
-            isPairingConfirmation: false,
             lastPerformedPresentation: nil
         )
     )
@@ -50,9 +44,6 @@ private func supersetItem(_ first: Exercise, _ second: Exercise) throws -> Sessi
         SessionSupersetRenderConfig(
             presentation: presentation,
             exercises: [first, second],
-            visualFocusOwner: nil,
-            activeSetTransition: nil,
-            retiringTransition: nil,
             lastPerformedPresentation: nil
         )
     )
@@ -114,53 +105,23 @@ struct SessionStagePresentationTests {
         #expect(SessionStagePresentation.stageItem(in: items, focusID: nil) == nil)
     }
 
-    @Test func restingSupersetSideSelectsItsNextPendingSetViaTheSharedQuery() throws {
-        let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged, .pending, .pending])
-        let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending, .pending])
+    @Test func supersetStaysPairedWhileFocusStillNamesTheJustLoggedSet() throws {
+        let squat = makeExercise(name: "Back Squat", order: 0, setStates: [.logged, .pending, .pending])
+        let rdl = makeExercise(name: "BB RDL", order: 1, setStates: [.pending, .pending])
         let presentation = try #require(
-            ActiveSupersetPresentation(exercises: [squat, bench], activeSetID: nil)
+            ActiveSupersetPresentation(exercises: [squat, rdl], activeSetID: ActiveSetID(exerciseOrder: 0, setIndex: 0))
         )
 
-        let squatSide = try #require(presentation.sides.first { $0.exerciseOrder == 0 })
-        let squatNextSet = try #require(SupersetState.nextPendingSet(for: squat))
-
-        // The resting strip's "Set X of N" reflects the shared query's selection, not the first Set.
-        #expect(squatNextSet.index == 1)
-        #expect(squatSide.nextSetText == "Set 2 of 3")
+        #expect(presentation.sides.map(\.exerciseOrder) == [0, 1])
+        #expect(presentation.activeExerciseOrder == 0)
+        #expect(presentation.containerExerciseOrder == 0)
     }
 
-    @Test func stageIdentityTracksTheFocusedSet() {
-        let squat = makeExercise(name: "Squat", order: 0, setStates: [.pending, .pending])
-        let items = SessionStagePresentation.items([exerciseItem(squat)])
+    @Test func supersetDissolvesOnceEitherExerciseHasNoPendingSet() {
+        let squat = makeExercise(name: "Back Squat", order: 0, setStates: [.logged, .skipped])
+        let rdl = makeExercise(name: "BB RDL", order: 1, setStates: [.pending, .pending])
 
-        let identity = SessionStagePresentation.stageIdentity(
-            in: items,
-            focusID: ActiveSetID(exerciseOrder: 0, setIndex: 1)
-        )
-
-        #expect(identity == "0-1")
-    }
-
-    @Test func stageIdentityFallsBackToStageItemThenCompletion() {
-        let logged = makeExercise(name: "Squat", order: 0, setStates: [.logged])
-        let pending = makeExercise(name: "Bench Press", order: 1, setStates: [.pending])
-        let inProgress = SessionStagePresentation.items([exerciseItem(logged), exerciseItem(pending)])
-        let complete = SessionStagePresentation.items([exerciseItem(logged)])
-
-        #expect(SessionStagePresentation.stageIdentity(in: inProgress, focusID: nil) == "exercise-1")
-        #expect(SessionStagePresentation.stageIdentity(in: complete, focusID: nil) == "complete")
-    }
-
-    @Test func positionLabelCountsSupersetAsOneSlot() throws {
-        let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged])
-        let press = makeExercise(name: "Press", order: 1, setStates: [.pending])
-        let row = makeExercise(name: "Row", order: 2, setStates: [.pending])
-        let items = SessionStagePresentation.items(
-            [exerciseItem(squat), try supersetItem(press, row)]
-        )
-        let superset = try #require(items.last)
-
-        #expect(SessionStagePresentation.positionLabel(of: superset, in: items) == "Exercise 2 of 2")
+        #expect(ActiveSupersetPresentation(exercises: [squat, rdl], activeSetID: ActiveSetID(exerciseOrder: 1, setIndex: 0)) == nil)
     }
 
     @Test func upNextReturnsTheNextIncompleteItemAfterTheStage() {
@@ -224,15 +185,25 @@ struct SessionStagePresentationTests {
         #expect(item.isComplete)
     }
 
-    @Test func queueProgressLabelCountsCompletedItems() {
-        let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged])
-        let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.skipped])
-        let row = makeExercise(name: "DB Row", order: 2, setStates: [.pending])
-        let items = SessionStagePresentation.items(
-            [exerciseItem(squat), exerciseItem(bench), exerciseItem(row)]
-        )
+    @Test func queuePositionCountsThePlaceOfTheStageItem() {
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.pending])
+        let rdl = makeExercise(name: "BB RDL", order: 1, setStates: [.pending])
+        let items = SessionStagePresentation.items([exerciseItem(squat), exerciseItem(rdl)])
 
-        #expect(SessionStagePresentation.queueProgressLabel(for: items) == "2 of 3")
+        let first = SessionStagePresentation.queuePosition(of: items[0], in: items)
+        let second = SessionStagePresentation.queuePosition(of: items[1], in: items)
+
+        #expect(first.label == "1 of 2")
+        #expect(first.accessibilityLabel == "Queue, 1 of 2")
+        #expect(second.label == "2 of 2")
+    }
+
+    @Test func queuePositionOfACompleteSessionReadsAsTheLastPlace() {
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged])
+        let rdl = makeExercise(name: "BB RDL", order: 1, setStates: [.skipped])
+        let items = SessionStagePresentation.items([exerciseItem(squat), exerciseItem(rdl)])
+
+        #expect(SessionStagePresentation.queuePosition(of: nil, in: items).label == "2 of 2")
     }
 
     @Test func completionSummaryCountsSupersetExercisesIndividually() throws {
@@ -319,6 +290,13 @@ struct SessionStagePresentationTests {
 
         #expect(sortedSets.count == 3)
         #expect(SessionStagePresentation.ordinal(of: firstRowSet, in: sortedSets) == 3)
+    }
+
+    @Test func exerciseItemTitleDropsTheCadencePrefix() {
+        let rdl = Exercise(name: "2-3:1:0 BB RDL", baseName: "BB RDL", cadence: "2-3:1:0", coachNote: nil, order: 1)
+        let item = SessionStagePresentation.items([exerciseItem(rdl)])[0]
+
+        #expect(item.title == "BB RDL")
     }
 
     @Test func supersetItemContainsSetsFromBothExercisesAndJoinsTitles() throws {

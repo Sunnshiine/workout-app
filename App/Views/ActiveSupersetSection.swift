@@ -15,9 +15,6 @@ struct ActiveSupersetSection: View {
     let onLog: (ExerciseSet, SetLog) -> Void
     let onSkip: (ExerciseSet) -> Void
     let onDelete: (ExerciseSet) -> Void
-    /// Retired from the stage: Unlink now lives in the queue sheet's containment
-    /// group (DESIGN.md §5.4). Kept so the call site's dismiss wiring is untouched.
-    let onDismiss: () -> Void
     @Environment(\.themePalette) private var palette
 
     private var orderedExercises: [Exercise] {
@@ -103,175 +100,21 @@ struct ActiveSupersetSection: View {
 
     @ViewBuilder
     private var cardRegion: some View {
-        if let activeSetID = config.presentation.activeSetID, let activeSet = stageSet {
-            ZStack(alignment: .topLeading) {
-                IncomingActiveSetCard(
-                    transition: incomingTransition,
-                    set: activeSet,
-                    setOrdinal: setOrdinal(for: activeSet),
-                    setCount: focusedSortedSets.count,
-                    onLog: { onLog(activeSet, $0) },
-                    onSkip: { onSkip(activeSet) },
-                    onDelete: { onDelete(activeSet) }
-                )
-
-                if let transition = config.retiringTransition, transition.outgoingSetID == activeSetID {
-                    RetiringActiveSetCard(
-                        transition: transition,
-                        set: activeSet,
-                        setOrdinal: setOrdinal(for: activeSet),
-                        setCount: focusedSortedSets.count
-                    )
-                }
-            }
-            .id(activeSetID)
-        } else if let fallbackSet = stageSet {
+        if let set = stageSet {
             ActiveSetCard(
-                set: fallbackSet,
-                setOrdinal: setOrdinal(for: fallbackSet),
+                set: set,
+                setOrdinal: setOrdinal(for: set),
                 setCount: focusedSortedSets.count,
-                onLog: { onLog(fallbackSet, $0) },
-                onSkip: { onSkip(fallbackSet) },
-                onDelete: { onDelete(fallbackSet) }
+                mode: .logging,
+                onLog: { onLog(set, $0) },
+                onSkip: { onSkip(set) },
+                onDelete: { onDelete(set) }
             )
+            .holdsStill(acrossChangesOf: "superset-active-\(focusedExercise.order)-\(set.index)")
         }
-    }
-
-    private var incomingTransition: ActiveSetTransition? {
-        guard config.activeSetTransition?.incomingSetID == config.presentation.activeSetID else { return nil }
-        return config.activeSetTransition
     }
 
     private func setOrdinal(for set: ExerciseSet) -> Int {
         (focusedSortedSets.firstIndex { $0.persistentModelID == set.persistentModelID } ?? set.index) + 1
-    }
-}
-
-private struct IncomingActiveSetCard: View {
-    let transition: ActiveSetTransition?
-    let set: ExerciseSet
-    let setOrdinal: Int
-    let setCount: Int
-    let onLog: (SetLog) -> Void
-    let onSkip: () -> Void
-    let onDelete: () -> Void
-    @State private var hasSettled = false
-
-    var body: some View {
-        ActiveSetCard(
-            set: set,
-            setOrdinal: setOrdinal,
-            setCount: setCount,
-            onLog: onLog,
-            onSkip: onSkip,
-            onDelete: onDelete
-        )
-        .offset(y: shouldAnimate && !hasSettled ? incomingOffset : 0)
-        .opacity(shouldAnimate && !hasSettled ? 0 : 1)
-        .onAppear(perform: runIncomingAnimationIfNeeded)
-        .onChange(of: transition) { _, _ in
-            runIncomingAnimationIfNeeded()
-        }
-    }
-
-    private var shouldAnimate: Bool {
-        transition != nil
-    }
-
-    private var incomingOffset: CGFloat {
-        guard let transition else { return 0 }
-        switch transition.kind {
-        case .momentumFlow:
-            return Theme.momentumRiseOffset
-        case .softFadeUp:
-            return 0
-        case .collapseAndRise:
-            return Theme.exerciseRiseOffset
-        }
-    }
-
-    private var animation: Animation {
-        guard let transition else { return .default }
-        switch transition.kind {
-        case .momentumFlow:
-            return Theme.momentumRiseAnimation
-        case .softFadeUp:
-            return Theme.skipFadeUpAnimation
-        case .collapseAndRise:
-            return Theme.exerciseRiseAnimation
-        }
-    }
-
-    private func runIncomingAnimationIfNeeded() {
-        guard shouldAnimate else {
-            hasSettled = true
-            return
-        }
-        hasSettled = false
-        withAnimation(animation) {
-            hasSettled = true
-        }
-    }
-}
-
-private struct RetiringActiveSetCard: View {
-    let transition: ActiveSetTransition
-    let set: ExerciseSet
-    let setOrdinal: Int
-    let setCount: Int
-    @State private var hasRetired = false
-
-    var body: some View {
-        ActiveSetCard(
-            set: set,
-            setOrdinal: setOrdinal,
-            setCount: setCount,
-            onLog: { _ in },
-            onSkip: {},
-            onDelete: {},
-            showsLoggedCheckmark: transition.kind == .momentumFlow
-        )
-        .allowsHitTesting(false)
-        .offset(y: retiringOffset)
-        .scaleEffect(x: 1, y: retiringScale, anchor: .top)
-        .opacity(hasRetired ? 0 : 1)
-        .onAppear {
-            withAnimation(retiringAnimation) {
-                hasRetired = true
-            }
-        }
-    }
-
-    private var retiringOffset: CGFloat {
-        guard hasRetired else { return 0 }
-        switch transition.kind {
-        case .momentumFlow:
-            return Theme.momentumDropOffset
-        case .softFadeUp:
-            return Theme.skipFadeUpOffset
-        case .collapseAndRise:
-            return 0
-        }
-    }
-
-    private var retiringScale: CGFloat {
-        guard hasRetired else { return 1 }
-        switch transition.kind {
-        case .momentumFlow:
-            return 1
-        case .softFadeUp, .collapseAndRise:
-            return Theme.exerciseCompressionScale
-        }
-    }
-
-    private var retiringAnimation: Animation {
-        switch transition.kind {
-        case .momentumFlow:
-            return Theme.momentumDropAnimation
-        case .softFadeUp:
-            return Theme.skipFadeUpAnimation
-        case .collapseAndRise:
-            return Theme.exerciseCollapseAnimation
-        }
     }
 }

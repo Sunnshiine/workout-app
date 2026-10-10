@@ -86,8 +86,6 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 @Test func holdToSkipButtonPresentationKeepsIncompleteLogIdleStateClean() {
     let presentation = HoldToSkipButtonPresentation(progress: 0, logTitle: "Choose RPE to log", canLog: false)
 
-    #expect(presentation.controlOpacity == 1)
-    #expect(!presentation.showsSkipAffordance)
     #expect(presentation.skipOpacity == 0)
     #expect(presentation.tone == .incomplete)
     #expect(presentation.accessibilityHint == "Double tap to show what is missing. Press and hold to skip this Set.")
@@ -96,129 +94,183 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 @Test func holdToSkipButtonPresentationShowsSkippedFeedbackOnlyDuringHoldProgress() {
     let presentation = HoldToSkipButtonPresentation(progress: 0.65, logTitle: "Log", canLog: false)
 
-    #expect(!presentation.showsSkipAffordance)
     #expect(abs(presentation.skipOpacity - 0.65) < 0.001)
     #expect(presentation.accessibilityLabel == "Skipped")
 }
 
 @MainActor
-@Test func setRowPresentationShowsLoggedSetWithAccentAndCheckmark() {
+@Test func setRowPresentationShowsLoggedSetLog() {
     let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .logged)
     set.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: .eight)
 
     let presentation = SetRowPresentation(set: set)
 
     #expect(presentation.title == "185x5@8")
-    #expect(presentation.tone == .accent)
-    #expect(presentation.showsCheckmark)
 }
 
 @MainActor
-@Test func setRowPresentationShowsSkippedSetAsMutedSkip() {
+@Test func setRowPresentationShowsSkippedSetAsSkip() {
     let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .skipped)
 
     let presentation = SetRowPresentation(set: set)
 
     #expect(presentation.title == "skip")
-    #expect(presentation.tone == .muted)
-    #expect(!presentation.showsCheckmark)
 }
 
 @MainActor
-@Test func setRowPresentationShowsPendingSetAsMutedPrescription() {
+@Test func setRowPresentationShowsPendingSetAsPrescription() {
     let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
 
     let presentation = SetRowPresentation(set: set)
 
     #expect(presentation.title == "5 · RPE 8")
-    #expect(presentation.tone == .muted)
-    #expect(!presentation.showsCheckmark)
 }
 
 @MainActor
-@Test func setCardLoggingModeShowsLogControlsAndNeverAutoCommits() {
-    let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
+struct SetCardPresentationTests {
+    @MainActor
+    private struct CardCase {
+        let mode: SetCardMode
+        let set: ExerciseSet
+        let makeIncomplete: (inout SmartValuePillsForm) -> Void
+        let makeValid: (inout SmartValuePillsForm) -> Void
 
-    let presentation = SetCardPresentation(mode: .logging, set: set)
+        var drafts: [SmartValuePillsForm] {
+            let untouched = SmartValuePillsForm(set: set, suggestion: .noSuggestion)
+            var incomplete = untouched
+            makeIncomplete(&incomplete)
+            var valid = untouched
+            makeValid(&valid)
+            return [untouched, incomplete, valid]
+        }
 
-    #expect(presentation.statusText == "Up next")
-    #expect(presentation.referenceText == nil)
-    #expect(presentation.showsLogControls)
-    #expect(!presentation.commitsChangesOnDisappear)
+        var actionRows: [SetCardPresentation.ActionRow] {
+            let presentation = SetCardPresentation(mode: mode, set: set)
+            return drafts.map(presentation.actionRow(for:))
+        }
+    }
+
+    private static func structuredSet(_ state: SetState) -> ExerciseSet {
+        let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: state)
+        if state == .logged {
+            set.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: .eight)
+        }
+        return set
+    }
+
+    private static func unstructuredLoggedSet() -> ExerciseSet {
+        let set = ExerciseSet(index: 1, prescribedReps: "AMRAP", prescribedLoad: "BW", percentOneRM: nil, state: .logged)
+        set.unstructuredSetLog = "BW and vest for 12"
+        return set
+    }
+
+    private let cases: KeyValuePairs<String, CardCase> = [
+        "logging a pending Set": CardCase(
+            mode: .logging,
+            set: structuredSet(.pending),
+            makeIncomplete: { $0.repsText = "" },
+            makeValid: { $0.weightText = "185" }
+        ),
+        "logging a skipped Set": CardCase(
+            mode: .logging,
+            set: structuredSet(.skipped),
+            makeIncomplete: { $0.repsText = "" },
+            makeValid: { $0.weightText = "185" }
+        ),
+        "logging a logged Set": CardCase(
+            mode: .logging,
+            set: structuredSet(.logged),
+            makeIncomplete: { $0.rpeText = "" },
+            makeValid: { $0.stepWeight(.up) }
+        ),
+        "reviewing a structured Set Log": CardCase(
+            mode: .reviewingLogged,
+            set: structuredSet(.logged),
+            makeIncomplete: { $0.rpeText = "" },
+            makeValid: { $0.stepWeight(.up) }
+        ),
+        "reviewing an Unstructured Set Log": CardCase(
+            mode: .reviewingLogged,
+            set: unstructuredLoggedSet(),
+            makeIncomplete: { $0.repsText = "12" },
+            makeValid: {
+                $0.weightText = "BW"
+                $0.repsText = "12"
+                $0.rpeText = "8"
+            }
+        )
+    ]
+
+    @Test func eachCaseDraftsAnUntouchedThenAChangedIncompleteThenAChangedValidSetLog() {
+        let states = Dictionary(
+            uniqueKeysWithValues: cases.map { name, card in
+                (name, card.drafts.map { [$0.hasChanges, $0.canLog] })
+            }
+        )
+
+        #expect(
+            states == [
+                "logging a pending Set": [[false, false], [true, false], [true, true]],
+                "logging a skipped Set": [[false, false], [true, false], [true, true]],
+                "logging a logged Set": [[false, true], [true, false], [true, true]],
+                "reviewing a structured Set Log": [[false, true], [true, false], [true, true]],
+                "reviewing an Unstructured Set Log": [[false, false], [true, false], [true, true]]
+            ]
+        )
+    }
+
+    @Test func eachCardModeDrawsItsActionRowForAnUntouchedAnIncompleteAndAValidDraft() {
+        let rows = Dictionary(uniqueKeysWithValues: cases.map { ($0.key, $0.value.actionRows) })
+
+        #expect(
+            rows == [
+                "logging a pending Set": [.log, .log, .log],
+                "logging a skipped Set": [.skipped, .skipped, .skipped],
+                "logging a logged Set": [.log, .log, .log],
+                "reviewing a structured Set Log": [
+                    .logged(line: "185x5@8"), .incompleteDraft, .logged(line: "185x5@8")
+                ],
+                "reviewing an Unstructured Set Log": [
+                    .logged(line: "BW and vest for 12"),
+                    .logged(line: "BW and vest for 12"),
+                    .logged(line: "BW and vest for 12")
+                ]
+            ]
+        )
+    }
+
+    @Test func onlyLoggingASetAlreadyDoneOffersClearAndOnlyAReviewCommitsOnDisappear() {
+        let flags = Dictionary(
+            uniqueKeysWithValues: cases.map { name, card in
+                let presentation = SetCardPresentation(mode: card.mode, set: card.set)
+                return (name, [presentation.showsClearMenu, presentation.commitsChangesOnDisappear])
+            }
+        )
+
+        #expect(
+            flags == [
+                "logging a pending Set": [false, false],
+                "logging a skipped Set": [true, false],
+                "logging a logged Set": [true, false],
+                "reviewing a structured Set Log": [false, true],
+                "reviewing an Unstructured Set Log": [false, true]
+            ]
+        )
+    }
 }
 
-@MainActor
-@Test func setCardReviewModeHidesLogControlsAndCommitsChangesOnDisappear() {
-    let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .logged)
-    set.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: .eight)
+@Test func onlyTheFocusMorphYieldsToReduceMotion() {
+    let motions: [SessionMotion] = [.momentumFlow, .skipFadeUp, .focusMorph, .cut]
 
-    let presentation = SetCardPresentation(mode: .reviewingLogged, set: set)
-
-    #expect(presentation.statusText == "Set Log")
-    #expect(presentation.referenceText == nil)
-    #expect(!presentation.showsLogControls)
-    #expect(presentation.commitsChangesOnDisappear)
+    #expect(motions.map { $0.runs(reducingMotion: false) } == [true, true, true, true])
+    #expect(motions.map { $0.runs(reducingMotion: true) } == [true, true, false, true])
 }
 
-@MainActor
-@Test func setCardReviewModeKeepsUnstructuredLogTextAsReference() {
-    let set = ExerciseSet(index: 1, prescribedReps: "AMRAP", prescribedLoad: "BW", percentOneRM: nil, state: .logged)
-    set.unstructuredSetLog = "BW and vest for 12"
-
-    let presentation = SetCardPresentation(mode: .reviewingLogged, set: set)
-
-    #expect(presentation.statusText == "Unstructured Set Log")
-    #expect(presentation.referenceText == "BW and vest for 12")
-    #expect(!presentation.showsLogControls)
-    #expect(presentation.commitsChangesOnDisappear)
-}
-
-@Test func focusMorphPolicyAnimatesPendingFocusWhenMotionIsAllowed() {
-    let policy = SessionFocusMorphPolicy(reduceMotion: false)
-
-    #expect(policy.shouldAnimate(.pendingFocus))
-}
-
-@Test func focusMorphPolicyDisablesPendingFocusWhenReduceMotionIsEnabled() {
-    let policy = SessionFocusMorphPolicy(reduceMotion: true)
-
-    #expect(!policy.shouldAnimate(.pendingFocus))
-}
-
-@Test func focusMorphPolicyAnimatesLoggedReviewOpenWhenMotionIsAllowed() {
-    let policy = SessionFocusMorphPolicy(reduceMotion: false)
-
-    #expect(policy.shouldAnimate(.loggedReviewOpen))
-}
-
-@Test func focusMorphPolicyDoesNotAnimateLoggedReviewCollapse() {
-    let policy = SessionFocusMorphPolicy(reduceMotion: false)
-
-    #expect(!policy.shouldAnimate(.loggedReviewCollapse))
-}
-
-@Test func focusMorphPolicyDisablesLoggedReviewOpenWhenReduceMotionIsEnabled() {
-    let policy = SessionFocusMorphPolicy(reduceMotion: true)
-
-    #expect(!policy.shouldAnimate(.loggedReviewOpen))
-}
-
-@Test func focusMorphPolicyAnimatesSuccessfulSupersetSwitchWhenMotionIsAllowed() {
-    let policy = SessionFocusMorphPolicy(reduceMotion: false)
-
-    #expect(policy.shouldAnimate(.supersetSwitchSucceeded))
-}
-
-@Test func focusMorphPolicyDoesNotAnimateFailedSupersetSwitch() {
-    let policy = SessionFocusMorphPolicy(reduceMotion: false)
-
-    #expect(!policy.shouldAnimate(.supersetSwitchFailed))
-}
-
-@Test func focusMorphPolicyDisablesSupersetSwitchWhenReduceMotionIsEnabled() {
-    let policy = SessionFocusMorphPolicy(reduceMotion: true)
-
-    #expect(!policy.shouldAnimate(.supersetSwitchSucceeded))
+@Test func eachSessionMotionRunsItsDesignedCurveAndDuration() {
+    #expect(SessionMotion.momentumFlow.animation == .easeInOut(duration: 0.65))
+    #expect(SessionMotion.skipFadeUp.animation == .easeOut(duration: 0.45))
+    #expect(SessionMotion.focusMorph.animation == .easeInOut(duration: 0.28))
+    #expect(SessionMotion.cut.animation == nil)
 }
 
 @MainActor

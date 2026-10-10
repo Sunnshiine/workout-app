@@ -13,19 +13,6 @@ enum ActiveSetVisualFocusOwner: Equatable, Sendable {
     }
 }
 
-struct ActiveSetTransition: Equatable, Sendable {
-    enum Kind: Equatable, Sendable {
-        case momentumFlow
-        case softFadeUp
-        case collapseAndRise
-    }
-
-    let kind: Kind
-    let outgoingSetID: ActiveSetID
-    let incomingSetID: ActiveSetID?
-    let completedExerciseOrder: Int?
-}
-
 struct SupersetSectionState {
     let presentation: ActiveSupersetPresentation
     let exercises: [Exercise]
@@ -36,11 +23,7 @@ struct SupersetSectionState {
 final class ActiveSetFocusManager {
     private(set) var activeSetID: ActiveSetID?
     private(set) var expandedLoggedSetID: ActiveSetID?
-    private(set) var activeSetTransition: ActiveSetTransition?
-    private(set) var scrollTargetID: ActiveSetID?
-    private(set) var supersetScrollTargetOrder: Int?
     private let supersetState = SupersetState()
-    private var expandedCompletedExerciseOrders: Set<Int> = []
 
     init(session: Session?) {
         activeSetID = session.flatMap { SessionSetOrder.firstPendingSet(in: $0)?.setID }
@@ -61,58 +44,39 @@ final class ActiveSetFocusManager {
         } else {
             activeSetID = nil
         }
-        activeSetTransition = nil
         expandedLoggedSetID = nil
-        scrollTargetID = nil
-        supersetScrollTargetOrder = nil
-        expandedCompletedExerciseOrders = []
     }
 
     func advanceAfterLog(_ set: ExerciseSet, in session: Session) {
         expandedLoggedSetID = nil
-        let nextSet = nextActiveSet(after: set, in: session)
-        let completedExerciseOrder = completedExerciseOrder(containing: set)
-        activeSetTransition = transition(
-            kind: completedExerciseOrder == nil ? .momentumFlow : .collapseAndRise,
-            from: set,
-            to: nextSet.id,
-            completedExerciseOrder: completedExerciseOrder
-        )
-        activeSetID = nextSet.id
-        scrollTargetID = nextSet.activatesPlannedSuperset ? nextSet.id : nil
-        collapseCompletedExercise(containing: set)
+        activeSetID = nextActiveSetID(after: set, in: session)
     }
 
     func advanceAfterSkip(_ set: ExerciseSet, in session: Session) {
         expandedLoggedSetID = nil
-        let nextSet = nextActiveSet(after: set, in: session)
-        let completedExerciseOrder = completedExerciseOrder(containing: set)
-        activeSetTransition = transition(
-            kind: completedExerciseOrder == nil ? .softFadeUp : .collapseAndRise,
-            from: set,
-            to: nextSet.id,
-            completedExerciseOrder: completedExerciseOrder
-        )
-        activeSetID = nextSet.id
-        scrollTargetID = nextSet.activatesPlannedSuperset ? nextSet.id : nil
-        collapseCompletedExercise(containing: set)
+        activeSetID = nextActiveSetID(after: set, in: session)
     }
 
     func focus(on set: ExerciseSet) {
         guard let setID = Self.id(for: set) else { return }
         if set.state == .logged {
             expandedLoggedSetID = expandedLoggedSetID == setID ? nil : setID
-            activeSetTransition = nil
-            scrollTargetID = nil
-            supersetScrollTargetOrder = nil
             return
         }
 
         expandedLoggedSetID = nil
         activeSetID = setID
-        activeSetTransition = nil
-        scrollTargetID = nil
-        supersetScrollTargetOrder = nil
+    }
+
+    func motion(forFocusing set: ExerciseSet) -> SessionMotion? {
+        switch set.state {
+        case .pending:
+            .focusMorph
+        case .skipped:
+            nil
+        case .logged:
+            Self.id(for: set) == expandedLoggedSetID ? nil : .focusMorph
+        }
     }
 
     func collapseLoggedSetReview() {
@@ -128,11 +92,7 @@ final class ActiveSetFocusManager {
 
     @discardableResult
     func createSuperset(with exercises: [Exercise], in session: Session) -> Bool {
-        guard supersetState.createSuperset(with: exercises, in: session, currentActiveSetID: activeSetID) else {
-            return false
-        }
-        supersetScrollTargetOrder = exercises.map(\.order).min()
-        return true
+        supersetState.createSuperset(with: exercises, in: session, currentActiveSetID: activeSetID)
     }
 
     @discardableResult
@@ -142,7 +102,6 @@ final class ActiveSetFocusManager {
 
     func dismissSuperset(containing exercise: Exercise, in session: Session) {
         supersetState.dismissSuperset(containing: exercise)
-        supersetScrollTargetOrder = nil
         activeSetID = supersetState.focusedSetID(whenNormalFocusIs: activeSetID, in: session)
     }
 
@@ -157,10 +116,6 @@ final class ActiveSetFocusManager {
 
     func activeSupersetPresentation(in session: Session) -> ActiveSupersetPresentation? {
         supersetSections(in: session).first { $0.presentation.activeExerciseOrder != nil }?.presentation
-    }
-
-    func activeSupersetExercises(in session: Session) -> [Exercise] {
-        supersetState.activeExercises(in: session)
     }
 
     func liveActivityRestContent(
@@ -190,24 +145,7 @@ final class ActiveSetFocusManager {
             return false
         }
         activeSetID = nextSetID
-        activeSetTransition = nil
-        scrollTargetID = nextSetID
-        supersetScrollTargetOrder = nil
         return true
-    }
-
-    func clearTransition(_ transition: ActiveSetTransition) {
-        guard activeSetTransition == transition else { return }
-        activeSetTransition = nil
-    }
-
-    func reexpand(_ exercise: Exercise) {
-        guard exercise.isComplete else { return }
-        expandedCompletedExerciseOrders.insert(exercise.order)
-    }
-
-    func isCollapsed(_ exercise: Exercise) -> Bool {
-        exercise.isComplete && !expandedCompletedExerciseOrders.contains(exercise.order)
     }
 
     static func id(for set: ExerciseSet) -> ActiveSetID? {
@@ -227,47 +165,11 @@ final class ActiveSetFocusManager {
         return exercises.contains { $0.order == activeSetID.exerciseOrder } ? activeSetID : nil
     }
 
-    private func collapseCompletedExercise(containing set: ExerciseSet) {
-        guard let exercise = set.exercise, exercise.isComplete else { return }
-        expandedCompletedExerciseOrders.remove(exercise.order)
-    }
-
-    private func nextActiveSet(
-        after set: ExerciseSet,
-        in session: Session
-    ) -> (
-        id: ActiveSetID?,
-        activatesPlannedSuperset: Bool
-    ) {
-        if let supersetNextSetID = supersetState.nextSetID(after: set, in: session) {
-            return (supersetNextSetID, false)
+    private func nextActiveSetID(after set: ExerciseSet, in session: Session) -> ActiveSetID? {
+        if let supersetNextSetID = supersetState.focusNextSetID(after: set, in: session) {
+            return supersetNextSetID
         }
         let normalNextSetID = SessionSetOrder.nextPendingSet(after: set, in: session)?.setID
-        let activatesPlannedSuperset = supersetState.willActivatePlannedSuperset(
-            whenNormalFocusIs: normalNextSetID,
-            in: session
-        )
-        let nextSetID = supersetState.focusedSetID(whenNormalFocusIs: normalNextSetID, in: session)
-        return (nextSetID, activatesPlannedSuperset)
-    }
-
-    private func transition(
-        kind: ActiveSetTransition.Kind,
-        from set: ExerciseSet,
-        to incomingSetID: ActiveSetID?,
-        completedExerciseOrder: Int?
-    ) -> ActiveSetTransition? {
-        guard let outgoingSetID = Self.id(for: set) else { return nil }
-        return ActiveSetTransition(
-            kind: kind,
-            outgoingSetID: outgoingSetID,
-            incomingSetID: incomingSetID,
-            completedExerciseOrder: completedExerciseOrder
-        )
-    }
-
-    private func completedExerciseOrder(containing set: ExerciseSet) -> Int? {
-        guard let exercise = set.exercise, exercise.isComplete else { return nil }
-        return exercise.order
+        return supersetState.focusedSetID(whenNormalFocusIs: normalNextSetID, in: session)
     }
 }

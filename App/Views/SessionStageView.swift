@@ -1,20 +1,6 @@
 import SwiftUI
 import UIKit
 
-/// The production Session surface mutation handlers, animation-wrapped by
-/// SessionView so every path keeps the coordinator's focus semantics.
-struct SessionStageActions {
-    let focus: (ExerciseSet) -> Void
-    let log: (ExerciseSet, SetLog) -> Void
-    let updateLoggedSet: (ExerciseSet, SetLog) -> Void
-    let skip: (ExerciseSet) -> Void
-    let delete: (ExerciseSet) -> Void
-    let focusSupersetExercise: (Exercise) -> Void
-    let dismissSuperset: (SessionSupersetRenderConfig) -> Void
-    let showSourceSession: (Exercise) -> Void
-    let moveOn: () -> Void
-}
-
 /// Stage: the Session screen is a single "now playing" surface — the Exercise
 /// name, its context, and the active Set card. Orientation is on demand: an
 /// up-next hint at the bottom and the full queue in a sheet.
@@ -22,13 +8,11 @@ struct SessionStageView: View {
     let session: Session
     let coordinator: SessionCoordinator
     let composition: SessionStageComposition
-    let actions: SessionStageActions
-    let onTopContentOffsetChange: (CGFloat) -> Void
+    let restTimer: RestTimer
     @Environment(WorkoutStore.self) private var workout
     @Environment(LastPerformedLookupStore.self) private var lastPerformedLookup
     @Environment(ExerciseHistoryFill.self) private var historyFill
     @Environment(\.themePalette) private var palette
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isQueuePresented = false
     /// The Exercise whose history the sheet is showing — its only entry point is a tap on that
     /// Exercise's Last Performed line.
@@ -61,17 +45,16 @@ struct SessionStageView: View {
             .padding(.horizontal)
             .padding(.top, composition == .reading ? Theme.sectionSpacing : 0)
 
-            switch composition {
-            case .reading:
-                queueBar(stageItem: stageItem, items: items)
-            case .editingWeight:
-                Color.clear.frame(height: Theme.editingWeightFootGap)
+            ZStack {
+                switch composition {
+                case .reading:
+                    queueBar(stageItem: stageItem, items: items)
+                case .editingWeight:
+                    Color.clear.frame(height: Theme.editingWeightFootGap)
+                }
             }
+            .overlay(alignment: composition == .reading ? .leading : .topLeading) { restPill }
         }
-        .animation(
-            reduceMotion ? nil : Theme.momentumFlowAnimation,
-            value: SessionStagePresentation.stageIdentity(in: items, focusID: focusID)
-        )
         // The whole stage is the keyboard's escape surface: any tap that no control claims
         // resigns the weight field. Attached to the stage root so it covers the editorial
         // column, the card's chrome, and empty space alike — child buttons and gestures
@@ -87,8 +70,8 @@ struct SessionStageView: View {
                 pairingMode: coordinator.pairingMode,
                 canBeginPairing: canBeginPairing(_:),
                 onJump: jump(to:),
-                onMoveOn: actions.moveOn,
-                onSelectOpenExercise: actions.showSourceSession,
+                onMoveOn: moveOn,
+                onSelectOpenExercise: showSourceSession(of:),
                 onBeginPairing: beginPairing(from:),
                 onPairingTap: handlePairingTap(on:),
                 onCancelPairing: coordinator.cancelPairing
@@ -112,17 +95,18 @@ struct SessionStageView: View {
         switch item.item {
         case .exercise(let config):
             exerciseStage(config)
+                .transition(.identity)
         case .superset(let config):
             ActiveSupersetSection(
                 config: config,
                 composition: composition,
-                onFocusExercise: actions.focusSupersetExercise,
+                onFocusExercise: { coordinator.focusNextSupersetSet(for: $0, in: session) },
                 onShowHistory: { historyExercise = $0 },
-                onLog: actions.log,
-                onSkip: actions.skip,
-                onDelete: actions.delete,
-                onDismiss: { actions.dismissSuperset(config) }
+                onLog: { coordinator.log($0, as: $1) },
+                onSkip: coordinator.skip(_:),
+                onDelete: coordinator.deleteLog(for:)
             )
+            .transition(.identity)
         case .hiddenPairedExercise:
             EmptyView()
         }
@@ -150,7 +134,7 @@ struct SessionStageView: View {
             SessionStageBranch(
                 sets: sortedSets,
                 activeSetID: config.activeSetID,
-                onTap: actions.focus
+                onTap: coordinator.focus(on:)
             )
         } card: {
             stageCard(config, sortedSets: sortedSets)
@@ -159,33 +143,26 @@ struct SessionStageView: View {
 
     @ViewBuilder
     private func stageCard(_ config: SessionExerciseRenderConfig, sortedSets: [ExerciseSet]) -> some View {
-        if let expandedID = config.expandedLoggedSetID,
-            let set = SessionStagePresentation.set(matching: expandedID, in: sortedSets) {
+        let reviewedSet = config.expandedLoggedSetID.flatMap {
+            SessionStagePresentation.set(matching: $0, in: sortedSets)
+        }
+        if let set = reviewedSet ?? SessionStagePresentation.stageSet(activeSetID: config.activeSetID, in: sortedSets) {
+            let isReview = reviewedSet != nil
             ActiveSetCard(
                 set: set,
                 setOrdinal: SessionStagePresentation.ordinal(of: set, in: sortedSets),
                 setCount: sortedSets.count,
-                mode: .reviewingLogged(
-                    showsSavedConfirmation: expandedID == config.savedLoggedSetID,
-                    onCollapse: { actions.focus(set) }
-                ),
-                onLog: { actions.updateLoggedSet(set, $0) },
-                onSkip: { actions.skip(set) },
-                onDelete: { actions.delete(set) }
+                mode: isReview
+                    ? .reviewingLogged(
+                        showsSavedConfirmation: config.expandedLoggedSetID == config.savedLoggedSetID,
+                        onCollapse: { coordinator.focus(on: set) }
+                    )
+                    : .logging,
+                onLog: { isReview ? coordinator.updateLoggedSet(set, as: $0) : coordinator.log(set, as: $0) },
+                onSkip: { coordinator.skip(set) },
+                onDelete: { coordinator.deleteLog(for: set) }
             )
-            .id("stage-review-\(expandedID.exerciseOrder)-\(expandedID.setIndex)")
-            .transition(.push(from: .bottom))
-        } else if let set = SessionStagePresentation.stageSet(activeSetID: config.activeSetID, in: sortedSets) {
-            ActiveSetCard(
-                set: set,
-                setOrdinal: SessionStagePresentation.ordinal(of: set, in: sortedSets),
-                setCount: sortedSets.count,
-                onLog: { actions.log(set, $0) },
-                onSkip: { actions.skip(set) },
-                onDelete: { actions.delete(set) }
-            )
-            .id("stage-active-\(config.exercise.order)-\(set.index)")
-            .transition(.push(from: .bottom))
+            .holdsStill(acrossChangesOf: "stage-\(isReview ? "review" : "active")-\(config.exercise.order)-\(set.index)")
         }
     }
 
@@ -202,7 +179,7 @@ struct SessionStageView: View {
             openExercisesIfMoveOnStillFits
 
             if workout.isViewingLiveEdge, workout.canMoveOn {
-                SessionMoveOnButton(onTap: actions.moveOn)
+                SessionMoveOnButton(onTap: moveOn)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -215,7 +192,7 @@ struct SessionStageView: View {
                 if !liveEdgeOpenExercises.isEmpty {
                     OpenExercisesSection(
                         exercises: liveEdgeOpenExercises,
-                        onSelect: actions.showSourceSession
+                        onSelect: showSourceSession(of:)
                     )
                     .padding(.top, Theme.cardSpacing)
                 }
@@ -234,6 +211,7 @@ struct SessionStageView: View {
     // up-next bar and its uppercase label + arrow icon are gone.
     private func queueBar(stageItem: SessionStageItem?, items: [SessionStageItem]) -> some View {
         let upNext = SessionStagePresentation.upNextItem(after: stageItem, in: items)
+        let position = SessionStagePresentation.queuePosition(of: stageItem, in: items)
 
         return HStack(spacing: 12) {
             if let upNext {
@@ -254,6 +232,9 @@ struct SessionStageView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("stage-up-next")
+                .opacity(isRestPillMounted ? 0 : 1)
+                .accessibilityHidden(isRestPillMounted)
+                .allowsHitTesting(!isRestPillMounted)
             }
 
             Spacer(minLength: 8)
@@ -261,7 +242,7 @@ struct SessionStageView: View {
             Button {
                 isQueuePresented = true
             } label: {
-                Text(SessionStagePresentation.queueProgressLabel(for: items))
+                Text(position.label)
                     .font(Theme.font(.queuePill))
                     .foregroundStyle(palette.textPrimary)
                     .padding(.horizontal, 16)
@@ -274,15 +255,43 @@ struct SessionStageView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(position.accessibilityLabel)
             .accessibilityIdentifier("stage-queue-button")
         }
         .padding(.horizontal)
         .padding(.vertical, 10)
     }
 
+    private var isRestPillMounted: Bool {
+        restTimer.interval != nil
+    }
+
+    @ViewBuilder
+    private var restPill: some View {
+        if isRestPillMounted {
+            RestPillView(restTimer: restTimer)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .opacity(composition == .reading ? 1 : 0)
+                .accessibilityHidden(composition != .reading)
+                .allowsHitTesting(composition == .reading)
+                .animation(nil, value: composition)
+        }
+    }
+
     private func jump(to item: SessionStageItem) {
         guard let nextSet = item.nextPendingSet else { return }
-        actions.focus(nextSet)
+        coordinator.focus(on: nextSet)
+    }
+
+    private func moveOn() {
+        coordinator.cancelRestForSessionExit()
+        workout.requestMoveOnCelebration()
+    }
+
+    private func showSourceSession(of exercise: Exercise) {
+        coordinator.cancelPairing()
+        guard let address = exercise.session?.address else { return }
+        workout.show(address)
     }
 
     private func dismissKeyboard() {
@@ -365,7 +374,7 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
             }
 
             card()
-                .fixedSize(horizontal: false, vertical: composition == .reading)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -398,6 +407,10 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
 }
 
 extension View {
+    func holdsStill(acrossChangesOf cardIdentity: String) -> some View {
+        transaction(value: cardIdentity) { $0.animation = nil }
+    }
+
     /// Falling back to a `ViewThatFits` candidate with no accessibility node leaves the last drawn
     /// candidate's elements in the tree, so a fallback that draws nothing carries an empty one.
     fileprivate func emptyFallbackNode() -> some View {

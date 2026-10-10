@@ -21,10 +21,7 @@ extension EnvironmentValues {
 /// palette and named tokens from `Theme`; nothing styles itself outside this seam. The Greenhouse
 /// system ships exactly two hand-lit appearances — `.day` and `.night`, the same room re-lit —
 /// each a value sheet transcribed from `docs/design/greenhouse-theme-tokens.md`.
-///
-/// Its length is the point rather than an accident. This is the one type role and token table, so
-/// splitting it to satisfy a line count would put rows of a single table in two files.
-enum Theme {  // swiftlint:disable:this type_body_length
+enum Theme {
     enum Appearance: CaseIterable {
         case day
         case night
@@ -192,7 +189,6 @@ enum Theme {  // swiftlint:disable:this type_body_length
         // Text inks
         let textPrimary: Color
         let textSecondary: Color
-        let homeBar: Color
 
         // Stage & branch
         let stem: Color
@@ -200,7 +196,6 @@ enum Theme {  // swiftlint:disable:this type_body_length
         let leafRib: Color
         let budFill: Color
         let budStroke: Color
-        let budRib: Color
         let futureStroke: Color
         let skipStroke: Color
         /// The page's one glow: the active bud is lit at Night, unlit by Day (nil).
@@ -226,9 +221,6 @@ enum Theme {  // swiftlint:disable:this type_body_length
         let actionText: Color
         /// The Log capsule's elevation: a day green drop; at Night a green light (glow, no drop).
         let logShadow: [BoxShadow]
-        /// The pressed/logged Log-capsule fill (`#0A5936` by Day; Night deferred to the build slice).
-        let pressedFill: Color?
-        /// The muted hold-to-skip overlay (muted @ 30% by Day; Night deferred to the build slice).
         let skipFillOverlay: Color?
 
         // Stage foot
@@ -250,7 +242,6 @@ enum Theme {  // swiftlint:disable:this type_body_length
         let chipCarveEdge: Color
         let chartLine: Color
         let blockSeam: Color
-        let scrim: Color
         let grabber: Color
 
         // Bird & colophon
@@ -311,8 +302,6 @@ enum Theme {  // swiftlint:disable:this type_body_length
         static let tile: CGFloat = 15 // day tiles
         static let cell: CGFloat = 14 // rail chips
         static let mini: CGFloat = 6 // week mini-chips
-        static let hairline: CGFloat = 2 // grabber, home bar, prescription tick (2–3)
-        static let hairlineMax: CGFloat = 3
     }
 
     // MARK: - Motion & haptics (token sheet §7)
@@ -339,10 +328,8 @@ enum Theme {  // swiftlint:disable:this type_body_length
         static let budOpenDelay = 0.26 // …starting inside the leaf's tail (One Log, One Fill)
         static let ceremonyStem = 1.0
         static let ceremonyBeat = 0.10
-        static let ceremonyBird = 0.35
         static let holdToSkipReveal = 0.25 // reveal at 250ms
         static let holdToSkipCommit = 0.85 // commit at 850ms
-        static let holdToSkipRetreat = 0.2
         static let holdToSkipLoggedCommit = 0.9 // logged-state hold
         static let holdToSkipSkippedCommit = 1.1 // skipped-state hold
     }
@@ -387,15 +374,8 @@ enum Theme {  // swiftlint:disable:this type_body_length
     static let cardSpacing: CGFloat = 16
     static let sectionSpacing: CGFloat = 28
     static let editingWeightFootGap: CGFloat = 10
-    static let supersetRestingSpacing: CGFloat = 24
     static let stageColumnSpacing: CGFloat = 14
     static let stageBranchTopPadding: CGFloat = 4
-    static let sessionTileMinHeight: CGFloat = 86
-    static let sessionTileSpacing: CGFloat = 10
-    static let sessionTileCurrentBorderWidth: CGFloat = 1.5
-    static let sessionTileUnavailableOpacity = 0.55
-    static let pillMinHeight: CGFloat = 86
-    static let pillSpacing: CGFloat = 10
 
     // MARK: - Active Set Card & input block geometry
     //
@@ -416,62 +396,18 @@ enum Theme {  // swiftlint:disable:this type_body_length
     static let logButtonCheckmarkDuration = 0.2
     static let holdToSkipTapMaximumDuration = 0.18
     static let momentumFlowTotalDuration = 0.65
-    static let momentumDropDuration = 0.4
-    static let momentumRiseDuration = 0.5
-    static let momentumRiseDelay = 0.15
     static let skipFadeUpDuration = 0.45
-    static let exerciseCompletionBeatDuration = 0.2
     static let focusMorphDuration = 0.28
     static let stageCompositionDuration = 0.25
-    static let momentumSpringStiffness = 220.0
-    static let momentumSpringDamping = 22.0
-    static let momentumDropOffset: CGFloat = 180
-    static let momentumRiseOffset: CGFloat = 44
-    static let skipFadeUpOffset: CGFloat = -24
-    static let exerciseRiseOffset: CGFloat = 36
-    static let exerciseCompressionScale: CGFloat = 0.02
     static let pairingUnavailableOpacity = 0.3
     static let pairingConfirmationDuration = 0.22
-    static let pairingConfirmationRingBleed: CGFloat = 12
-
-    static var logButtonCheckmarkAnimation: Animation {
-        .easeOut(duration: logButtonCheckmarkDuration)
-    }
-
-    /// The hold-to-skip progress sweep, now on the tokenized commit timing (token sheet §7).
-    static var holdToSkipProgressAnimation: Animation {
-        .linear(duration: Motion.holdToSkipCommit)
-    }
 
     static var momentumFlowAnimation: Animation {
         .easeInOut(duration: momentumFlowTotalDuration)
     }
 
-    static var momentumDropAnimation: Animation {
-        .timingCurve(0.2, 0.0, 0.12, 1.0, duration: momentumDropDuration)
-    }
-
-    static var momentumRiseAnimation: Animation {
-        .interpolatingSpring(
-            mass: 1,
-            stiffness: momentumSpringStiffness,
-            damping: momentumSpringDamping,
-            initialVelocity: 0
-        )
-        .delay(momentumRiseDelay)
-    }
-
     static var skipFadeUpAnimation: Animation {
         .easeOut(duration: skipFadeUpDuration)
-    }
-
-    static var exerciseCollapseAnimation: Animation {
-        .easeInOut(duration: momentumDropDuration)
-    }
-
-    static var exerciseRiseAnimation: Animation {
-        .easeOut(duration: momentumRiseDuration)
-            .delay(exerciseCompletionBeatDuration)
     }
 
     static var focusMorphAnimation: Animation {
@@ -541,13 +477,11 @@ extension Theme {
         ),
         textPrimary: Paint.ink,
         textSecondary: Paint.muted,
-        homeBar: Paint.ink.opacity(0.20),
         stem: Paint.actionDay,
         leafFill: Paint.actionDay,
         leafRib: Paint.cream.opacity(0.50),
         budFill: Paint.cream.opacity(0.95),
         budStroke: Paint.actionDay,
-        budRib: Paint.actionDay.opacity(0.55),
         futureStroke: Paint.actionDay.opacity(0.40),
         skipStroke: Paint.muted.opacity(0.42),
         budGlow: nil,
@@ -569,7 +503,6 @@ extension Theme {
             BoxShadow(y: 1, blur: 2, color: rgb(13, 46, 28, 0.22)),
             BoxShadow(y: 10, blur: 22, color: rgb(13, 60, 35, 0.16))
         ],
-        pressedFill: rgb(10, 89, 54), // #0A5936 — pressed / logged Log capsule
         skipFillOverlay: Paint.muted.opacity(0.30),
         footFill: Paint.cream.opacity(0.50),
         queueStroke: rgb(82, 111, 90, 0.38),
@@ -583,7 +516,6 @@ extension Theme {
         chipCarveEdge: Color.white.opacity(0.6), // the light bottom lip
         chartLine: Paint.ink.opacity(0.35),
         blockSeam: Paint.ink.opacity(0.14),
-        scrim: Paint.ink.opacity(0.32),
         grabber: Paint.ink.opacity(0.18),
         birdFill: Paint.actionDay,
         birdRib: Paint.cream.opacity(0.50),
@@ -605,13 +537,11 @@ extension Theme {
         ),
         textPrimary: Paint.inkNight,
         textSecondary: Paint.mutedNight,
-        homeBar: Paint.cream.opacity(0.22),
         stem: Paint.foliage,
         leafFill: Paint.foliage,
         leafRib: Paint.cream.opacity(0.55),
         budFill: Paint.cream.opacity(0.92),
         budStroke: rgb(120, 240, 178), // #78F0B2 — the bud carries the page's one glow
-        budRib: Paint.foliage.opacity(0.60),
         futureStroke: Paint.foliage.opacity(0.45),
         skipStroke: Paint.mutedNight.opacity(0.40),
         budGlow: rgb(120, 240, 178, 0.32), // drop-shadow(0 0 7px rgba(120,240,178,0.32)) — the page's one glow
@@ -630,7 +560,6 @@ extension Theme {
         logShadow: [
             BoxShadow(y: 0, blur: 22, color: rgb(31, 133, 82, 0.35)) // green light — glow, no drop
         ],
-        pressedFill: nil, // night pressed fill deferred — still unconsumed (token sheet §Log capsule)
         skipFillOverlay: Paint.mutedNight.opacity(0.30), // muted hold-to-skip overlay, re-lit for Night (#488)
         footFill: Paint.cream.opacity(0.06),
         queueStroke: Paint.cream.opacity(0.20),
@@ -644,7 +573,6 @@ extension Theme {
         chipCarveEdge: Paint.cream.opacity(0.10), // cream-toned bottom lip at Night
         chartLine: Paint.inkNight.opacity(0.35),
         blockSeam: Paint.inkNight.opacity(0.14),
-        scrim: rgb(9, 18, 12, 0.60),
         grabber: Paint.cream.opacity(0.18),
         birdFill: Paint.foliage,
         birdRib: Paint.cream.opacity(0.55),

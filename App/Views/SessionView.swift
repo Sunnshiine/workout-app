@@ -1,11 +1,11 @@
 import SwiftUI
+import UIKit
 
 struct SessionView: View {
     let liveActivityAdapter: LiveActivityProductionAdapter
     @Environment(WorkoutStore.self) private var workout
     @Environment(SyncCoordinator.self) private var sync
     @Environment(SettingsStore.self) private var settings
-    @Environment(LastPerformedLookupStore.self) private var lastPerformedLookup
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.themePalette) private var palette
     @State private var coordinator = SessionCoordinator(session: nil)
@@ -49,7 +49,10 @@ struct SessionView: View {
 
                     productionStage(for: session)
                         .onAppear {
-                            bindCoordinator(to: session)
+                            let isFirstBind = coordinator.session == nil
+                            withTransaction(\.disablesAnimations, isFirstBind) {
+                                bindCoordinator(to: session)
+                            }
                         }
                         .onChange(of: session.persistentModelID) { _, _ in
                             bindCoordinator(to: session)
@@ -135,6 +138,7 @@ struct SessionView: View {
             standardRestDuration: { settings.standardRestDuration.timeInterval },
             supersetRestDuration: { settings.supersetRestDuration.timeInterval },
             liveActivity: liveActivityAdapter,
+            motion: SwiftUISessionMotion(),
             liveEdge: { [workout] session in
                 LiveEdge.resolve(viewedSession: session, currentSession: workout.currentSession)
             }
@@ -145,51 +149,6 @@ struct SessionView: View {
     private func reconcileLiveActivity() {
         liveActivityAdapter.endIfInvalidated(at: workout.liveEdge)
     }
-
-    private func showSourceSession(for exercise: Exercise) {
-        coordinator.cancelPairing()
-        guard let address = exercise.session?.address else { return }
-        workout.show(address)
-    }
-
-    private func focusWithMorph(_ set: ExerciseSet) {
-        let action = focusMorphAction(for: set)
-        let policy = SessionFocusMorphPolicy(reduceMotion: reduceMotion)
-        guard policy.shouldAnimate(action) else {
-            coordinator.focus(on: set)
-            return
-        }
-
-        coordinator.focus(on: set) { updateFocus in
-            withAnimation(Theme.focusMorphAnimation) {
-                updateFocus()
-            }
-        }
-    }
-
-    private func logWithMomentum(_ set: ExerciseSet, _ log: SetLog) {
-        coordinator.log(set, as: log) { updateFocus in
-            withAnimation(Theme.momentumFlowAnimation) {
-                updateFocus()
-            }
-        }
-    }
-
-    private func skipWithFade(_ set: ExerciseSet) {
-        coordinator.skip(set) { updateFocus in
-            withAnimation(Theme.skipFadeUpAnimation) {
-                updateFocus()
-            }
-        }
-    }
-
-    private func dismissSuperset(_ config: SessionSupersetRenderConfig, in session: Session) {
-        guard let exercise = config.exercises.first else { return }
-        withAnimation(Theme.momentumFlowAnimation) {
-            coordinator.dismissSuperset(containing: exercise, in: session)
-        }
-    }
-
 }
 
 extension SessionView {
@@ -198,41 +157,18 @@ extension SessionView {
             session: session,
             coordinator: coordinator,
             composition: stageComposition,
-            actions: stageActions(in: session),
-            onTopContentOffsetChange: updateSessionSettingsOverpull(topContentOffset:)
+            restTimer: restTimer
         )
         .safeAreaInset(edge: .top, spacing: 0) {
             if stageComposition == .reading {
                 sessionHeaderHUD(session: session)
             }
         }
-        .restPillInset(restTimer, composition: stageComposition)
         .onPreferenceChange(EditingWeightPreferenceKey.self) { isEditingWeight in
             withAnimation(reduceMotion ? nil : Theme.stageCompositionAnimation) {
                 stageComposition = SessionStageComposition(isEditingWeight: isEditingWeight)
             }
         }
-    }
-
-    private func stageActions(in session: Session) -> SessionStageActions {
-        SessionStageActions(
-            focus: focusWithMorph,
-            log: logWithMomentum,
-            updateLoggedSet: coordinator.updateLoggedSet(_:as:),
-            skip: skipWithFade,
-            delete: coordinator.deleteLog(for:),
-            focusSupersetExercise: { exercise in
-                focusSupersetWithMorph(exercise, in: session)
-            },
-            dismissSuperset: { config in
-                dismissSuperset(config, in: session)
-            },
-            showSourceSession: showSourceSession(for:),
-            moveOn: {
-                coordinator.cancelRestForSessionExit()
-                workout.requestMoveOnCelebration()
-            }
-        )
     }
 
     private func updateSessionSettingsOverpull(topContentOffset: CGFloat) {
@@ -345,57 +281,21 @@ extension SessionView {
             }
         }
     }
+}
 
-    private func focusMorphAction(for set: ExerciseSet) -> SessionFocusMorphAction {
-        guard set.state == .logged else {
-            return set.state == .pending ? .pendingFocus : .loggedReviewCollapse
+private struct SwiftUISessionMotion: SessionMotionPerforming {
+    var reducesMotion: Bool { UIAccessibility.isReduceMotionEnabled }
+
+    func animate(_ motion: SessionMotion, _ change: () throws -> Void) rethrows {
+        guard let animation = motion.animation else {
+            return try withTransaction(\.disablesAnimations, true, change)
         }
-        let setID = SessionCoordinator.activeSetID(for: set)
-        return setID == coordinator.expandedLoggedSetID ? .loggedReviewCollapse : .loggedReviewOpen
+        try withAnimation(animation, change)
     }
-
-    private func focusSupersetWithMorph(_ exercise: Exercise, in session: Session) {
-        let policy = SessionFocusMorphPolicy(reduceMotion: reduceMotion)
-        guard policy.shouldAnimate(.supersetSwitchSucceeded) else {
-            _ = coordinator.focusNextSupersetSet(for: exercise, in: session)
-            return
-        }
-
-        _ = coordinator.focusNextSupersetSet(for: exercise, in: session) { updateFocus in
-            withAnimation(Theme.focusMorphAnimation) {
-                updateFocus()
-            }
-        }
-    }
-
 }
 
 private enum SessionSettingsHeaderDrag {
     static let overpullDamping: CGFloat = 0.4
-}
-
-extension View {
-    func restPillInset(_ restTimer: RestTimer, composition: SessionStageComposition) -> some View {
-        safeAreaInset(edge: .bottom, spacing: 0) {
-            RestPillSlot(restTimer: restTimer, keepsRoomWhenRestEnds: composition == .editingWeight)
-        }
-    }
-}
-
-private struct RestPillSlot: View {
-    let restTimer: RestTimer
-    let keepsRoomWhenRestEnds: Bool
-    @State private var lastMeasuredHeight: CGFloat = 0
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // Gate on the published interval, not the time-derived `isRunning`: the interval is
-            // held a beat past the deadline so the pill stays mounted to play the expiry buzz.
-            if restTimer.interval != nil { RestPillView(restTimer: restTimer) }
-        }
-        .frame(minHeight: keepsRoomWhenRestEnds ? lastMeasuredHeight : nil)
-        .onGeometryChange(for: CGFloat.self, of: \.size.height) { lastMeasuredHeight = $0 }
-    }
 }
 
 private struct OffLiveEdgeControls: View {

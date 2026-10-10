@@ -67,7 +67,7 @@ struct SessionStageItem: Identifiable {
 
     var title: String {
         switch item {
-        case .exercise(let config): config.exercise.name
+        case .exercise(let config): config.exercise.baseName
         case .superset(let config): config.exercises.map(\.baseName).joined(separator: " + ")
         case .hiddenPairedExercise: ""
         }
@@ -110,6 +110,14 @@ enum BranchNodeState: Equatable, Sendable {
     case future
 }
 
+struct QueuePosition: Equatable, Sendable {
+    let number: Int
+    let count: Int
+
+    var label: String { "\(number) of \(count)" }
+    var accessibilityLabel: String { "Queue, \(number) of \(count)" }
+}
+
 /// The part a queue row plays while Superset pairing is in flight.
 enum QueuePairingRole: Equatable, Sendable {
     case none
@@ -150,20 +158,6 @@ enum SessionStagePresentation {
         return items.first { !$0.isComplete }
     }
 
-    /// Animation identity for the stage surface — changes exactly when focus
-    /// moves to another Set so the stage transition runs once per move.
-    static func stageIdentity(in items: [SessionStageItem], focusID: ActiveSetID?) -> String {
-        guard let focusID else {
-            return stageItem(in: items, focusID: nil)?.id ?? "complete"
-        }
-        return "\(focusID.exerciseOrder)-\(focusID.setIndex)"
-    }
-
-    static func positionLabel(of item: SessionStageItem, in items: [SessionStageItem]) -> String {
-        guard let index = items.firstIndex(where: { $0.id == item.id }) else { return "" }
-        return "Exercise \(index + 1) of \(items.count)"
-    }
-
     /// The next incomplete item after the stage item in Session order, wrapping
     /// around to earlier skipped-over items; never the stage item itself.
     static func upNextItem(
@@ -178,9 +172,9 @@ enum SessionStagePresentation {
         return items.first { !$0.isComplete && $0.id != stageItem.id }
     }
 
-    /// The queue button label: completed items out of all items.
-    static func queueProgressLabel(for items: [SessionStageItem]) -> String {
-        "\(items.filter(\.isComplete).count) of \(items.count)"
+    static func queuePosition(of stageItem: SessionStageItem?, in items: [SessionStageItem]) -> QueuePosition {
+        let number = items.firstIndex { $0.id == stageItem?.id }.map { $0 + 1 } ?? items.count
+        return QueuePosition(number: number, count: items.count)
     }
 
     /// The completion stage summary, e.g. "12 sets done across 4 exercises".

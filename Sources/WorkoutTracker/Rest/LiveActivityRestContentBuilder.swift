@@ -37,17 +37,6 @@ enum LiveActivityCreationPolicy {
     }
 }
 
-enum LiveActivityInvalidationEvent: Equatable, Sendable {
-    case moveOn
-    case sheetSwitch
-    case signOut
-    case restExpired
-    case appBackgrounded
-    case syncStateChanged
-    case settingsOpened
-    case developerToolsOpened
-}
-
 enum LiveActivityRestContentVariant: Equatable, Sendable {
     case restTimerSetsLeft
 }
@@ -118,15 +107,6 @@ enum LiveActivityInvalidationPolicy {
 
     static func shouldEndReadyReminder(for content: LiveActivityRestContent, at date: Date) -> Bool {
         date >= postRestCapEndDate(for: content)
-    }
-
-    static func shouldEnd(for event: LiveActivityInvalidationEvent) -> Bool {
-        switch event {
-        case .moveOn, .sheetSwitch, .signOut:
-            true
-        case .restExpired, .appBackgrounded, .syncStateChanged, .settingsOpened, .developerToolsOpened:
-            false
-        }
     }
 
     @MainActor

@@ -82,6 +82,10 @@ struct SessionStageBranch: View {
                         .position(point)
                 }
             }
+            // A node leaving or joining mid-ink keeps the frame it had when it left or joined. Grouped,
+            // that frame is the branch's, so it rides the stem when the stage slides under it. Outside the
+            // reader, the group would round the size the reader measures and hang the lateral past its room.
+            .geometryGroup()
         }
         .frame(minHeight: Metrics.minimumHeight, idealHeight: Metrics.minimumHeight, maxHeight: .infinity)
         .frame(maxWidth: .infinity)
@@ -277,7 +281,29 @@ struct SessionStageBranch: View {
 }
 
 private struct CurvePath: Shape {
-    let curve: QuadraticBezier
+    var curve: QuadraticBezier
+
+    typealias AnimatableData = AnimatablePair<
+        AnimatablePair<CGPoint.AnimatableData, CGPoint.AnimatableData>, CGPoint.AnimatableData
+    >
+
+    nonisolated var animatableData: AnimatableData {
+        get {
+            AnimatablePair(
+                AnimatablePair(curve.start.animatableData, curve.control.animatableData),
+                curve.end.animatableData
+            )
+        }
+        set {
+            var start = CGPoint.zero
+            var control = CGPoint.zero
+            var end = CGPoint.zero
+            start.animatableData = newValue.first.first
+            control.animatableData = newValue.first.second
+            end.animatableData = newValue.second
+            curve = QuadraticBezier(start: start, control: control, end: end)
+        }
+    }
 
     func path(in _: CGRect) -> Path {
         var path = Path()
