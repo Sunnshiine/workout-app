@@ -19,56 +19,27 @@ import Testing
 
     #expect(didSync == true)
     #expect(reloads == [#"after syncing ["current-sheet"] on current-sheet"#])
-    #expect(connection.isSyncInFlight == false)
 }
 
 @MainActor
 @Test(.timeLimit(.minutes(1))) func syncNowRejectsARepeatTapWhileItsSyncIsRunning() async throws {
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
+    let container = try makeCacheSafetyContainer()
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
-    let sync = SuspendedSheetSwitchSync()
+    let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let sync = SyncCoordinator(client: client, context: container.mainContext)
     var reloadCount = 0
-    let connection = SheetConnection(settings: settings, sync: sync) {
-        reloadCount += 1
-    }
+    let connection = SheetConnection(settings: settings, sync: sync) { reloadCount += 1 }
 
-    let firstSync = Task { await connection.syncNow() }
-    await sync.waitForSyncStart()
+    let firstTap = Task { await connection.syncNow() }
+    await client.waitUntilHeld()
+    let repeatTap = await connection.syncNow()
+    client.release()
 
-    #expect(connection.isSyncInFlight == true)
-
-    let repeatTapResult = await connection.syncNow()
-    sync.completeSync()
-    let firstSyncResult = await firstSync.value
-
-    #expect(firstSyncResult == true)
-    #expect(repeatTapResult == false)
-    #expect(sync.syncedSpreadsheetIds == ["current-sheet"])
+    #expect(repeatTap == false)
+    #expect(await firstTap.value == true)
     #expect(reloadCount == 1)
-    #expect(connection.isSyncInFlight == false)
-}
-
-@MainActor
-@Test(.timeLimit(.minutes(1))) func sheetSwitchIsRejectedWhileSyncNowIsRunning() async throws {
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
-    settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
-    let sync = SuspendedSheetSwitchSync()
-    let connection = SheetConnection(settings: settings, sync: sync)
-    let newSheet = SpreadsheetFile(name: "New Training Log", spreadsheetId: "new-sheet", modifiedDate: .distantPast)
-
-    let syncNowTask = Task { await connection.syncNow() }
-    await sync.waitForSyncStart()
-
-    let switchResult = await connection.requestSwitch(to: newSheet)
-    sync.completeSync()
-    _ = await syncNowTask.value
-
-    #expect(switchResult == .failed)
-    #expect(settings.spreadsheetId == "old-sheet")
-    #expect(sync.syncedSpreadsheetIds == ["old-sheet"])
-    #expect(connection.errorMessage == "A sync is already in progress.")
+    #expect(client.tabTitleReads == 1)
 }
 
 @MainActor
@@ -188,7 +159,7 @@ import Testing
     #expect(result == .failed)
     #expect(connection.errorMessage == "Couldn't check pending logs. Try again.")
     #expect(connection.pendingConfirmation == nil)
-    #expect(connection.isTransitioning == false)
+    #expect(connection.canBeginDestructiveTransition == true)
     #expect(settings.spreadsheetId == "old-sheet")
     #expect(settings.spreadsheetTitle == "Old Training Log")
     #expect(sync.syncedSpreadsheetIds.isEmpty)
@@ -265,27 +236,27 @@ import Testing
 
 @MainActor
 @Test(.timeLimit(.minutes(1))) func overlappingSheetSwitchIsRejectedWhileFirstSyncIsRunning() async throws {
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
+    let container = try makeCacheSafetyContainer()
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
-    let sync = SuspendedSheetSwitchSync()
+    let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let sync = SyncCoordinator(client: client, context: container.mainContext)
     let connection = SheetConnection(settings: settings, sync: sync)
     let firstSheet = SpreadsheetFile(name: "First Training Log", spreadsheetId: "first-sheet", modifiedDate: .distantPast)
     let secondSheet = SpreadsheetFile(name: "Second Training Log", spreadsheetId: "second-sheet", modifiedDate: .distantPast)
 
     let firstTask = Task { await connection.requestSwitch(to: firstSheet) }
-    await sync.waitForSyncStart()
-
+    await client.waitUntilHeld()
     let secondResult = await connection.requestSwitch(to: secondSheet)
-    sync.completeSync()
+    client.release()
     let firstResult = await firstTask.value
 
     #expect(firstResult == .switched)
     #expect(secondResult == .failed)
+    #expect(connection.errorMessage == "A sync is already in progress.")
     #expect(settings.spreadsheetId == "first-sheet")
     #expect(settings.spreadsheetTitle == "First Training Log")
-    #expect(sync.syncedSpreadsheetIds == ["first-sheet"])
-    #expect(connection.errorMessage != nil)
+    #expect(client.tabTitleReads == 1)
 }
 
 @MainActor
@@ -302,7 +273,7 @@ import Testing
     let confirmTask = Task { await connection.confirmPendingSwitch() }
     await sync.waitForDiscardStart()
 
-    #expect(connection.isTransitioning == true)
+    #expect(connection.canBeginDestructiveTransition == false)
 
     let overlappingConfirm = await connection.confirmPendingSwitch()
     sync.completeDiscard()
@@ -391,28 +362,6 @@ import Testing
 
     #expect(prepared == false)
     #expect(connection.errorMessage == "Couldn't discard pending logs. Try again.")
-    #expect(settings.spreadsheetId == "current-sheet")
-}
-
-@MainActor
-@Test(.timeLimit(.minutes(1))) func signOutIsRejectedWhileSyncNowIsRunning() async throws {
-    let defaults = AppDefaults.inMemory()
-    let settings = SettingsStore(defaults: defaults)
-    settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
-    let sync = SuspendedSheetSwitchSync()
-    let connection = SheetConnection(settings: settings, sync: sync)
-
-    let syncNowTask = Task { await connection.syncNow() }
-    await sync.waitForSyncStart()
-
-    let request = connection.requestSignOut()
-    let prepared = await connection.prepareSignOut()
-    sync.completeSync()
-    _ = await syncNowTask.value
-
-    #expect(request == .failed)
-    #expect(prepared == false)
-    #expect(connection.errorMessage == "A sync is already in progress.")
     #expect(settings.spreadsheetId == "current-sheet")
 }
 
@@ -610,8 +559,7 @@ import Testing
 
 /// A sync nobody in Settings started — the stage's sync on appear, or the flush the athlete's last
 /// logged Set queued — is still the `SyncCoordinator` talking to the Sheet, and abandoning pending
-/// logs underneath it is what `canBeginDestructiveTransition` exists to refuse. `isSyncInFlight`
-/// cannot see that sync; `SheetSwitchSyncing.isSyncing` can.
+/// logs underneath it is what `canBeginDestructiveTransition` exists to refuse.
 @MainActor
 @Test func signOutAndSheetSwitchAreRejectedWhileABackgroundSyncIsRunning() async throws {
     let container = try makeCacheSafetyContainer()
@@ -778,14 +726,15 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
 /// session, and Settings must not open on the same refusal.
 @MainActor
 @Test(.timeLimit(.minutes(1))) func anOnboardingSelectionRefusedMidSyncLeavesNoErrorForSettings() async throws {
+    let container = try makeCacheSafetyContainer()
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
-    let sync = SuspendedSheetSwitchSync()
-    let connection = SheetConnection(settings: settings, sync: sync)
+    let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: container.mainContext))
 
     let picked = Task { await connection.connect(SheetSelection(spreadsheetId: "picked-sheet", title: "Picked")) }
-    await sync.waitForSyncStart()
+    await client.waitUntilHeld()
     let pastedMessage = await connection.connect(SheetSelection(spreadsheetId: "pasted-sheet"))
-    sync.completeSync()
+    client.release()
     let pickedMessage = await picked.value
 
     #expect(pastedMessage == "A sync is already in progress.")
@@ -913,7 +862,7 @@ private actor CallRecorder {
 
 @MainActor
 private final class StubSheetSwitchSync: SheetSwitchSyncing {
-    var isSyncing = false
+    let isSyncing = false
     let outcome = SyncOutcome.clear
     var hasPendingWritesValue: Bool
     private let pendingWritesError: Error?
@@ -962,7 +911,7 @@ private enum StubSheetSwitchError: Error {
 
 @MainActor
 private final class SuspendedDiscardSheetSwitchSync: SheetSwitchSyncing {
-    var isSyncing = false
+    let isSyncing = false
     let outcome = SyncOutcome.clear
     private let heldDiscard = HeldCall()
     private(set) var discardPendingWriteCallCount = 0
@@ -992,35 +941,5 @@ private final class SuspendedDiscardSheetSwitchSync: SheetSwitchSyncing {
 
     func completeDiscard() {
         heldDiscard.release()
-    }
-}
-
-@MainActor
-private final class SuspendedSheetSwitchSync: SheetSwitchSyncing {
-    private(set) var isSyncing = false
-    let outcome = SyncOutcome.clear
-    private let heldSync = HeldCall()
-    private(set) var syncedSpreadsheetIds: [String] = []
-
-    func hasPendingWrites() throws -> Bool {
-        false
-    }
-
-    func discardPendingWrites() async throws {}
-
-    func sync(spreadsheetId: String) async -> Bool {
-        syncedSpreadsheetIds.append(spreadsheetId)
-        isSyncing = true
-        defer { isSyncing = false }
-        await heldSync.hold()
-        return true
-    }
-
-    func waitForSyncStart() async {
-        await heldSync.waitUntilHeld(orRecord: "the sheet switch never started its sync")
-    }
-
-    func completeSync() {
-        heldSync.release()
     }
 }
