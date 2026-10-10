@@ -1,6 +1,5 @@
 import Foundation
 
-/// What the back control reads while a Session other than the current one is open.
 struct OffLiveEdgePresentation {
     let backLabel: String
 
