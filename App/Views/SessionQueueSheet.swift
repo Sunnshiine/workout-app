@@ -52,6 +52,7 @@ struct SessionQueueSheet: View {
                 .padding(.bottom, 8)
         }
         .animation(.easeInOut(duration: 0.18), value: queue.pairingMode)
+        .animation(.easeInOut(duration: 0.18), value: queue.rows.map(\.id))
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
         .presentationCornerRadius(Theme.Radius.soft)
