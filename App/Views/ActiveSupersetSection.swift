@@ -3,12 +3,7 @@ import SwiftUI
 /// The Superset stage (DESIGN.md §5.4, picks superset-stage4-a/-b): the same
 /// editorial column as a single Exercise — Cadence, the Fraunces name, the coach
 /// note, the branch, Last Performed, and the Active Set Card — but the name gains
-/// a subordinate "& partner" line and the branch becomes **one forked stem**. The
-/// Exercise first in the queue climbs the stem and the other droops off it, each on
-/// its own arm while focus moves between them; the "& partner" line is the manual
-/// focus switch onto the resting side. Superset mechanics (alternation, pairing,
-/// the queue sheet's containment) are untouched — this slice rebuilds only the
-/// composition.
+/// a subordinate "& partner" line and the branch becomes **one forked stem**.
 struct ActiveSupersetSection: View {
     let stage: SupersetStage
     let session: Session

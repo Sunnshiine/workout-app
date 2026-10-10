@@ -8,7 +8,6 @@ enum BranchArm {
 struct SessionStageBranch: View {
     let branch: StageBranch
     var partnerNodes: [BranchNode]?
-    /// The arm `branch` climbs; `partnerNodes` climbs the other, so each Superset Exercise keeps its arm.
     var focusedArm: BranchArm = .stem
     /// Tapping a node focuses its Set — matching the retired dots' behavior. `nil`
     /// keeps the branch a passive glyph.
@@ -36,11 +35,9 @@ struct SessionStageBranch: View {
         static let stemWidth: CGFloat = 2
     }
 
-    /// The drooping lateral (DESIGN.md §5.4): a thinner, shorter stem that forks
-    /// off the main stem's lower reach and droops down-trailing.
     private enum LateralMetrics {
         static let stemWidth: CGFloat = 1.6
-        static let forkT: CGFloat = 0.30 // where on the main stem the lateral forks
+        static let forkOnStemT: CGFloat = 0.30
         static let endX: CGFloat = 0.62 // fraction of width for the drooping tip
         static let endY: CGFloat = 0.99 // fraction of height — the tip droops low
         static let droop: CGFloat = 30
@@ -86,7 +83,6 @@ struct SessionStageBranch: View {
         .frame(minHeight: Metrics.minimumHeight, idealHeight: Metrics.minimumHeight, maxHeight: .infinity)
         .frame(maxWidth: .infinity)
         .animation(reduceMotion ? Theme.reducedMotionCrossfade : Theme.leafInkAnimation, value: activeSetID)
-        // Under Reduce Motion a count change lands in place, so no node travels along the stem.
         .animation(reduceMotion ? nil : Theme.leafInkAnimation, value: stemNodes.count)
         .accessibilityElement(children: onTap == nil ? .ignore : .contain)
     }
@@ -134,7 +130,7 @@ struct SessionStageBranch: View {
     }
 
     /// The bud wakes on its own timing, which an `.animation` on the inserted bud cannot drive, so the
-    /// transition carries it. The old bud leaves with the log, so no frame shows two cream leaves.
+    /// transition carries it.
     private var budWake: AnyTransition {
         .asymmetric(
             insertion: reduceMotion
@@ -169,8 +165,6 @@ struct SessionStageBranch: View {
             .rotationEffect(angle + tilt)
     }
 
-    // MARK: - Lateral
-
     @ViewBuilder
     private func lateralBranch(_ lateralNodes: [BranchNode], in size: CGSize, room: CGFloat) -> some View {
         let scale = min(heightScale(size), room / LateralMetrics.hang)
@@ -194,8 +188,6 @@ struct SessionStageBranch: View {
                 .position(curve.point(at: t))
             }
         }
-        // The lateral never takes focus taps, even when it carries the focus. The
-        // "& partner" name line is the manual focus switch (DESIGN.md §5.4).
         .accessibilityHidden(true)
     }
 
@@ -230,8 +222,6 @@ struct SessionStageBranch: View {
         }
     }
 
-    /// The lateral's blades speak the main stem's vocabulary at a smaller
-    /// scale, with the tilt sides mirrored for the droop.
     private func lateralBlade(
         _ style: BranchBladeGlyph.Style,
         below: Bool,
@@ -256,7 +246,7 @@ struct SessionStageBranch: View {
     }
 
     private func lateralCurve(in size: CGSize, droop: CGFloat) -> QuadraticBezier {
-        let fork = stemPoint(t: LateralMetrics.forkT, in: size)
+        let fork = stemPoint(t: LateralMetrics.forkOnStemT, in: size)
         let tip = CGPoint(x: size.width * LateralMetrics.endX, y: size.height * LateralMetrics.endY)
         let control = CGPoint(x: (fork.x + tip.x) / 2, y: (fork.y + tip.y) / 2 + droop)
         return QuadraticBezier(start: fork, control: control, end: tip)

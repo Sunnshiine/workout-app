@@ -324,7 +324,6 @@ enum Theme {
 
     static let leafInkAnimation = wingAnimation(duration: Motion.leafInk)
     static let budWakeAnimation = wingAnimation(duration: Motion.budOpen).delay(Motion.budOpenDelay)
-    /// Reduce Motion keeps a growth moment's end state and fades to it, with nothing scaling or travelling.
     static let reducedMotionCrossfade = Animation.easeInOut(duration: 0.2)
 
     enum Motion {
