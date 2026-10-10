@@ -1421,6 +1421,37 @@ private func makeRestActionFixture(
 }
 
 @MainActor
+@Test func aLogFromTheActiveCardLogsTheSetAndAdvancesTheCard() throws {
+    let fixture = try makeActionFixture()
+    let firstBenchSet = try #require(fixture.session.exercises.first { $0.order == 1 }?.sets.first { $0.index == 0 })
+    let slot = try #require(exerciseStage(fixture.coordinator, in: fixture.session)?.card)
+    let log = SetLog(weight: .pounds(185), reps: 6, rpe: .seven)
+
+    fixture.coordinator.log(log, for: slot)
+
+    #expect(fixture.logging.loggedSets.map(\.set) == [firstBenchSet])
+    #expect(fixture.logging.loggedSets.map(\.log) == [log])
+    #expect(exerciseStage(fixture.coordinator, in: fixture.session)?.card?.cardIdentity == "stage-active-1-1")
+    #expect(fixture.coordinator.savedLoggedSetID == nil)
+}
+
+@MainActor
+@Test func aLogFromTheReviewCardUpdatesTheLoggedSetAndCollapsesTheReview() throws {
+    let fixture = try makeActionFixture()
+    let squatSet = try #require(fixture.session.exercises.first { $0.order == 0 }?.sets.first)
+    fixture.coordinator.focus(on: squatSet)
+    let slot = try #require(exerciseStage(fixture.coordinator, in: fixture.session)?.card)
+    let log = SetLog(weight: .pounds(205), reps: 5, rpe: .eight)
+
+    fixture.coordinator.log(log, for: slot)
+
+    #expect(fixture.logging.loggedSets.map(\.set) == [squatSet])
+    #expect(fixture.logging.loggedSets.map(\.log) == [log])
+    #expect(exerciseStage(fixture.coordinator, in: fixture.session)?.card?.cardIdentity == "stage-active-1-0")
+    #expect(fixture.coordinator.savedLoggedSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+}
+
+@MainActor
 @Test func reopeningTheReviewOfASetJustUpdatedConfirmsTheSave() throws {
     let fixture = try makeActionFixture()
     let squatSet = try #require(fixture.session.exercises.first { $0.order == 0 }?.sets.first)

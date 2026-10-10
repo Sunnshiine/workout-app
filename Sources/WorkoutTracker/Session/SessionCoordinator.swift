@@ -233,6 +233,15 @@ final class SessionCoordinator {
         }
     }
 
+    func log(_ setLog: SetLog, for slot: SetCardSlot) {
+        switch slot.mode {
+        case .logging:
+            log(slot.set, as: setLog)
+        case .reviewingLogged:
+            updateLoggedSet(slot.set, as: setLog)
+        }
+    }
+
     func skip(_ set: ExerciseSet) {
         do {
             let session = try actionSession(for: set)

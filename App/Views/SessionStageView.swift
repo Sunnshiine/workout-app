@@ -309,31 +309,25 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
 
 extension ActiveSetCard {
     init(slot: SetCardSlot, coordinator: SessionCoordinator) {
-        switch slot.mode {
-        case .logging:
-            self.init(
-                set: slot.set,
-                setOrdinal: slot.ordinal,
-                setCount: slot.count,
-                mode: .logging,
-                onLog: { coordinator.log(slot.set, as: $0) },
-                onSkip: { coordinator.skip(slot.set) },
-                onDelete: { coordinator.deleteLog(for: slot.set) }
-            )
-        case .reviewingLogged(let showsSavedConfirmation):
-            self.init(
-                set: slot.set,
-                setOrdinal: slot.ordinal,
-                setCount: slot.count,
-                mode: .reviewingLogged(
+        let mode: Mode =
+            switch slot.mode {
+            case .logging:
+                .logging
+            case .reviewingLogged(let showsSavedConfirmation):
+                .reviewingLogged(
                     showsSavedConfirmation: showsSavedConfirmation,
                     onCollapse: { coordinator.focus(on: slot.set) }
-                ),
-                onLog: { coordinator.updateLoggedSet(slot.set, as: $0) },
-                onSkip: { coordinator.skip(slot.set) },
-                onDelete: { coordinator.deleteLog(for: slot.set) }
-            )
-        }
+                )
+            }
+        self.init(
+            set: slot.set,
+            setOrdinal: slot.ordinal,
+            setCount: slot.count,
+            mode: mode,
+            onLog: { coordinator.log($0, for: slot) },
+            onSkip: { coordinator.skip(slot.set) },
+            onDelete: { coordinator.deleteLog(for: slot.set) }
+        )
     }
 }
 
