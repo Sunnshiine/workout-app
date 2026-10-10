@@ -453,10 +453,13 @@ dashed stroke — the dashed "empty bed" vocabulary.
 ### 5.4 Superset stage — one plant, two branches
 
 A Superset draws as a **single forked stem** — still the page's one icon.
-The focused Exercise's branch leads at full stroke and alone carries the
-cream-filled active leaf (**the active leaf rides the focus**); the
-partner's branch is a shorter drooping lateral (1.6px). Alternation is one
-active leaf settling and one waking — never a branch redraw.
+The Exercise first in the queue climbs the stem, and the other droops off
+it as a shorter lateral (1.6px). Each Exercise keeps its arm for the whole
+Superset. The focused arm carries full pigment and alone carries the
+cream-filled active leaf (**the active leaf rides the focus**). Alternation
+is one active leaf settling and one waking — never a branch redraw. A log
+inks the leaf in place on its own arm, and the partner's bud wakes on the
+other.
 
 The focus tie is **tone coupling**: by day the partner's whole branch and
 its Fraunces "**& partner**" name line (the manual focus switch) carry
