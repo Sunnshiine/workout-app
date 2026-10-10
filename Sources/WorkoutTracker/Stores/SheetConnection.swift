@@ -32,42 +32,71 @@ struct SheetSelection: Equatable {
 }
 
 @MainActor
-protocol SheetSwitchSyncing: ConfiguredSheetSyncing {
+protocol SheetSwitchSyncing: AnyObject {
+    /// A sync or a pending-write flush is running right now, whoever started it: the background
+    /// flush the athlete's last logged Set queued, or the sync the stage ran on appear.
+    var isSyncing: Bool { get }
+    var outcome: SyncOutcome { get }
+
+    func sync(spreadsheetId: String) async -> Bool
     func hasPendingWrites() throws -> Bool
     func discardPendingWrites() async throws
 }
 
+extension SheetSwitchSyncing {
+    var outcome: SyncOutcome { .clear }
+}
+
+/// The athlete's connection to the configured Sheet: Sync now, switching Sheets, and signing out.
+/// Switching and signing out are one Destructive Transition, and neither may start while a sync runs.
 @MainActor
 @Observable
-final class SettingsSheetSwitchStore {
+final class SheetConnection {
     private(set) var pendingConfirmation: SheetSelection?
     private(set) var errorMessage: String?
     private(set) var isTransitioning = false
+    private(set) var isSyncInFlight = false
 
     private let settings: SettingsStore
     private let sync: any SheetSwitchSyncing
-    private let syncActivity: SettingsSyncActivity
     private let onSynced: () -> Void
     private static let syncInProgressMessage = "A sync is already in progress."
     private static let pendingCheckFailedMessage = "Couldn't check pending logs. Try again."
     private static let discardFailedMessage = "Couldn't discard pending logs. Try again."
+    private static let unsyncedFromPreviousSheetMessage =
+        "You have unsynced changes from a previous sheet. Review them in Settings before switching."
 
-    init(
-        settings: SettingsStore,
-        sync: any SheetSwitchSyncing,
-        syncActivity: SettingsSyncActivity = SettingsSyncActivity(),
-        onSynced: @escaping () -> Void = {}
-    ) {
+    init(settings: SettingsStore, sync: any SheetSwitchSyncing, onSynced: @escaping () -> Void = {}) {
         self.settings = settings
         self.sync = sync
-        self.syncActivity = syncActivity
         self.onSynced = onSynced
     }
 
-    /// Switching the configured Sheet and signing out are one domain move. Both abandon Set Logs
-    /// the athlete recorded locally that have not yet reached the Sheet (ADR-0001).
     var canBeginDestructiveTransition: Bool {
-        !isTransitioning && !syncActivity.isSyncInFlight && !sync.isSyncing
+        !isTransitioning && !isSyncInFlight && !sync.isSyncing
+    }
+
+    var canSyncNow: Bool {
+        settings.spreadsheetId != nil && canBeginDestructiveTransition
+    }
+
+    var syncNowDetail: String {
+        SyncNowDetail.text(
+            outcome: sync.outcome,
+            isSyncing: isSyncInFlight || sync.isSyncing,
+            hasSheet: settings.spreadsheetId != nil
+        )
+    }
+
+    @discardableResult
+    func syncNow() async -> Bool {
+        guard let spreadsheetId = settings.spreadsheetId, !sync.isSyncing else { return false }
+
+        return await runSync {
+            let didSync = await sync.sync(spreadsheetId: spreadsheetId)
+            onSynced()
+            return didSync
+        } ?? false
     }
 
     func requestSwitch(to spreadsheet: SpreadsheetFile) async -> SettingsSheetSwitchResult {
@@ -99,6 +128,21 @@ final class SettingsSheetSwitchStore {
         isTransitioning = true
         defer { isTransitioning = false }
         return await switchNow(to: selection) ? .switched : .failed
+    }
+
+    /// Onboarding's selection: the alert message when the selection did not commit, `nil` when it did.
+    /// Onboarding starts with no committed sheet, so a prior sheet's unsynced writes are surfaced
+    /// rather than offered for discard; that flow lives in Settings.
+    func connect(_ selection: SheetSelection) async -> String? {
+        switch await requestSwitch(to: selection) {
+        case .switched, .unchanged:
+            return nil
+        case .failed:
+            return errorMessage
+        case .requiresConfirmation:
+            pendingConfirmation = nil
+            return Self.unsyncedFromPreviousSheetMessage
+        }
     }
 
     func confirmPendingSwitch() async -> Bool {
@@ -160,13 +204,29 @@ final class SettingsSheetSwitchStore {
         return true
     }
 
+    /// Discards the pending writes and clears the selection; the caller ends the Google session.
+    func signOut() async -> Bool {
+        guard await prepareSignOut() else { return false }
+        settings.signOut()
+        return true
+    }
+
     func clearError() {
         errorMessage = nil
     }
 
+    private func runSync<T: Sendable>(_ operation: () async -> T) async -> T? {
+        guard !isSyncInFlight else { return nil }
+
+        isSyncInFlight = true
+        defer { isSyncInFlight = false }
+
+        return await operation()
+    }
+
     private func switchNow(to selection: SheetSelection) async -> Bool {
         guard
-            let didSync = await syncActivity.run({
+            let didSync = await runSync({
                 await sync.sync(spreadsheetId: selection.spreadsheetId)
             })
         else {

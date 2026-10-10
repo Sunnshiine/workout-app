@@ -73,6 +73,7 @@ struct WorkoutTrackerApp: App {
                 .environment(app.sync)
                 .environment(app.lastPerformed)
                 .environment(app.historyFill)
+                .environment(app.connection)
                 #if DEBUG
                     .transaction { transaction in
                         guard UITestFixture.disablesAnimations else { return }
