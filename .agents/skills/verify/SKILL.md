@@ -97,8 +97,8 @@ the RPE track. A `covered` note names what is on top instead, such as an alert's
 whatever took the place of an element that went away after the tree was read. So a tap that reports
 success aimed at an element that was on screen, enabled, inside every container that clips it, and
 on top, unless it printed `not checked for cover:`. The tap lands up to about a second after that
-last look, and an element that leaves in that second still reports success. The session controls,
-which hide 2.5 s after a drag, do. So prove a tap by what it changed.
+last look, and an element that leaves in that second still reports success. So prove a tap by
+what it changed.
 
 `tap --label` resolves its element through the tree the same way, with the same poll and the same
 notes. It matches the whole label as `tree` prints it, case included. When a control and a text
