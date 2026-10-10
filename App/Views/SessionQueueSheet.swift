@@ -67,12 +67,9 @@ struct SessionQueueSheet: View {
 
             Spacer(minLength: 12)
 
-            if isPairing {
-                Button("Cancel", action: coordinator.cancelPairing)
-                    .font(Theme.font(.queuePill))
-                    .foregroundStyle(palette.accent)
-                    .accessibilityIdentifier("stage-queue-cancel-pairing")
-            }
+            textButton("Cancel", color: palette.accent, action: coordinator.cancelPairing)
+                .accessibilityIdentifier("stage-queue-cancel-pairing")
+                .shown(isPairing)
         }
         .padding(.top, 18)
     }
@@ -139,9 +136,7 @@ struct SessionQueueSheet: View {
         } label: {
             rowLabel(for: row) {
                 if row.isOnStage {
-                    Text("Now")
-                        .font(Theme.font(.fieldLabel))
-                        .foregroundStyle(palette.accent)
+                    accentWord("Now")
                 }
             }
         }
@@ -189,21 +184,21 @@ struct SessionQueueSheet: View {
     private func pairingIndicator(for role: QueuePairingRole) -> some View {
         switch role {
         case .source:
-            pairingWord("Pairing")
+            accentWord("Pairing")
         case .eligibleTarget, .confirmingTarget:
-            pairingWord("Pair with this")
+            accentWord("Pair with this")
         case .none, .ineligibleTarget:
             EmptyView()
         }
     }
 
-    private func pairingWord(_ word: String) -> some View {
+    // MARK: - Row label
+
+    private func accentWord(_ word: String) -> some View {
         Text(word)
             .font(Theme.font(.fieldLabel))
             .foregroundStyle(palette.accent)
     }
-
-    // MARK: - Row label
 
     private func rowLabel(for row: SessionQueue.Row, @ViewBuilder trailing: () -> some View) -> some View {
         HStack(spacing: 12) {
