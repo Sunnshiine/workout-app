@@ -14,6 +14,22 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
     #expect(failure.message == expected)
 }
 
+@Test(
+    arguments: [
+        (SheetSwitchResult.switched, nil),
+        (.unchanged, nil),
+        (
+            .requiresConfirmation(SheetSelection(spreadsheetId: "new-sheet")),
+            "You have unsynced changes from a previous sheet. Review them in Settings before switching."
+        ),
+        (.failed(.syncFailed), "Couldn't sync selected sheet. Try again."),
+        (.failed(.syncInProgress), "A sync is already in progress.")
+    ] as [(SheetSwitchResult, String?)]
+)
+func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expected: String?) {
+    #expect(result.onboardingMessage == expected)
+}
+
 @MainActor
 @Test func syncNowSyncsTheConfiguredSheetAndReloadsWorkoutState() async throws {
     let container = try makeCacheSafetyContainer()
@@ -548,7 +564,7 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
 // MARK: - Onboarding
 
 @MainActor
-@Test func onboardingSelectionWithAPreviousSheetsPendingLogsSaysSoAndKeepsThem() async throws {
+@Test func onboardingSelectionWithAPreviousSheetsPendingLogsAsksForConfirmationAndKeepsThem() async throws {
     let container = try makeCacheSafetyContainer()
     let context = container.mainContext
     try queueReplacementSquatLog(in: context)
@@ -557,9 +573,9 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
     let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
     let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: context), onSynced: {})
 
-    let message = await connection.connect(SheetSelection(spreadsheetId: "new-sheet"))
+    let result = await connection.requestSwitch(to: SheetSelection(spreadsheetId: "new-sheet"))
 
-    #expect(message == "You have unsynced changes from a previous sheet. Review them in Settings before switching.")
+    #expect(result == .requiresConfirmation(SheetSelection(spreadsheetId: "new-sheet")))
     #expect(settings.spreadsheetId == "old-sheet")
     #expect(try context.fetch(FetchDescriptor<PendingWrite>()).map(\.valueToWrite) == ["185x5@8"])
     #expect(await client.syncedSpreadsheetIds() == [])
@@ -573,7 +589,7 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
     let sync = SyncCoordinator(client: client, context: container.mainContext)
     let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
 
-    #expect(await connection.connect(SheetSelection(spreadsheetId: "new-sheet")) == "Couldn't sync selected sheet. Try again.")
+    #expect(await connection.requestSwitch(to: SheetSelection(spreadsheetId: "new-sheet")) == .failed(.syncFailed))
     #expect(settings.spreadsheetId == nil)
 }
 
@@ -585,14 +601,13 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
     let sync = SyncCoordinator(client: client, context: container.mainContext)
     let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
 
-    let picked = Task { await connection.connect(SheetSelection(spreadsheetId: "picked-sheet", title: "Picked")) }
+    let picked = Task { await connection.requestSwitch(to: SheetSelection(spreadsheetId: "picked-sheet", title: "Picked")) }
     await client.waitUntilHeld()
-    let pastedMessage = await connection.connect(SheetSelection(spreadsheetId: "pasted-sheet"))
+    let pasted = await connection.requestSwitch(to: SheetSelection(spreadsheetId: "pasted-sheet"))
     client.release()
-    let pickedMessage = await picked.value
 
-    #expect(pastedMessage == "A sync is already in progress.")
-    #expect(pickedMessage == nil)
+    #expect(pasted == .failed(.syncInProgress))
+    #expect(await picked.value == .switched)
     #expect(settings.spreadsheetId == "picked-sheet")
     #expect(settings.spreadsheetTitle == "Picked")
     #expect(connection.canBeginDestructiveTransition == true)
