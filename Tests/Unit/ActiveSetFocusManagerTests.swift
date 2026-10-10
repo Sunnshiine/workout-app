@@ -374,6 +374,25 @@ private func makePlannedSupersetSession() -> Session {
 }
 
 @MainActor
+@Test func advancingPastASetOutsideEverySupersetNotifiesNoPairingReader() throws {
+    let session = makePlannedSupersetSession()
+    let row = try #require(session.exercises.first { $0.order == 0 })
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+    let rowSet = try #require(row.sets.first)
+    let focus = ActiveSetFocusManager(session: session)
+    #expect(focus.createSuperset(from: squat, to: bench, in: session))
+    let changes = ObservedChanges()
+    changes.watch { _ = focus.canPair(bench, in: session) }
+
+    rowSet.state = .logged
+    focus.advanceAfterLog(rowSet, in: session)
+
+    #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    #expect(changes.fired == 0)
+}
+
+@MainActor
 @Test func focusingASetNotifiesAReaderOfTheStageFocus() throws {
     let session = makePendingSession()
     let secondSet = try #require(session.exercises.first?.sets.first { $0.index == 1 })
@@ -384,7 +403,9 @@ private func makePlannedSupersetSession() -> Session {
     coordinator.focus(on: secondSet)
 
     #expect(changes.fired == 1)
-    #expect(coordinator.visualFocusOwner == .activeSet(ActiveSetID(exerciseOrder: 0, setIndex: 1)))
+    let card: SetCardSlot? =
+        if case .exercise(let stage) = coordinator.stage(in: session, lookup: .empty).focus { stage.card } else { nil }
+    #expect(card?.cardIdentity == "stage-active-0-1")
 }
 
 @MainActor
