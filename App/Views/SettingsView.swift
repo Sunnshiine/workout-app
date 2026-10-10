@@ -33,6 +33,7 @@ struct SettingsView: View {
                     }
                     .accessibilityIdentifier("settings-superset-rest-stepper")
                 }
+                .labeledContentStyle(StackedAtAccessibilitySizes())
                 .listRowBackground(palette.surface)
 
                 Section {
@@ -225,6 +226,24 @@ struct SettingsView: View {
             if !isPresented {
                 connection.clearError()
             }
+        }
+    }
+}
+
+/// A Stepper lays out through LabeledContent. Beside its control, an accessibility-size label has
+/// too little width and hyphenates mid-word (`Stan-dard`), so at those sizes the control drops
+/// below the label. The other rows already stack on their own.
+private struct StackedAtAccessibilitySizes: LabeledContentStyle {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    func makeBody(configuration: Configuration) -> some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 2) {
+                configuration.label
+                configuration.content
+            }
+        } else {
+            LabeledContent(configuration)
         }
     }
 }
