@@ -115,7 +115,7 @@ struct SessionStageView: View {
                 config: config,
                 composition: composition,
                 onFocusExercise: actions.focusSupersetExercise,
-                onShowHistory: { historyExercise = $0 },
+                onShowHistory: showHistory(of:),
                 onLog: actions.log,
                 onSkip: actions.skip,
                 onDelete: actions.delete
@@ -133,7 +133,7 @@ struct SessionStageView: View {
             composition: composition,
             lastPerformed: config.lastPerformedPresentation.map { presentation in
                 LastPerformedCard(presentation: presentation) {
-                    historyExercise = config.exercise
+                    showHistory(of: config.exercise)
                 }
             }
         ) {
@@ -280,6 +280,13 @@ struct SessionStageView: View {
     private func jump(to item: SessionStageItem) {
         guard let nextSet = item.nextPendingSet else { return }
         actions.focus(nextSet)
+    }
+
+    // UIKit hands the first responder back when a sheet closes, so the weight keyboard would reopen
+    // over the stage unless the field resigns before the sheet presents (#697).
+    private func showHistory(of exercise: Exercise) {
+        dismissKeyboard()
+        historyExercise = exercise
     }
 
     private func dismissKeyboard() {
