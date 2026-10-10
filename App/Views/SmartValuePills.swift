@@ -23,7 +23,7 @@ struct SmartValuePills: View {
 
     @State private var form: SmartValuePillsForm
     @State private var showsLoggedCheckmark = false
-    @State private var isOpeningWeightField = false
+    @State private var holdsWeightKeyboard = false
     @Environment(\.themePalette) private var palette
     @Environment(\.showsLoadBasis) private var showsLoadBasis
     @FocusState private var weightFieldFocused: Bool
@@ -87,6 +87,9 @@ struct SmartValuePills: View {
         }
         .onChange(of: suggestion) { _, later in
             form.refreshPrefill(from: later, for: set)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidHideNotification)) { _ in
+            holdsWeightKeyboard = false
         }
         .onDisappear(perform: commitChangedDraftIfNeeded)
         .preference(key: EditingWeightPreferenceKey.self, value: weightFieldFocused)
@@ -154,8 +157,9 @@ struct SmartValuePills: View {
             .frame(maxWidth: .infinity)
             .overlay {
                 // A mounted text field stays in the accessibility tree whatever its modifiers say, so the
-                // field exists only while it holds focus or is taking it.
-                if weightFieldFocused || isOpeningWeightField {
+                // field exists only from the tap until its keyboard has gone. Unmounting it while the
+                // keyboard hides drops the stage's keyboard animation and the card jumps.
+                if weightFieldFocused || holdsWeightKeyboard {
                     TextField(form.weightDisplay, text: $form.weightText)
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.center)
@@ -165,13 +169,15 @@ struct SmartValuePills: View {
                         .onAppear { weightFieldFocused = true }
                 }
             }
-            .onChange(of: weightFieldFocused) { isOpeningWeightField = false }
             .overlay {
                 if !weightFieldFocused {
                     Text(form.weightDisplay)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .contentShape(.rect)
-                        .onTapGesture { isOpeningWeightField = true }
+                        .onTapGesture {
+                            holdsWeightKeyboard = true
+                            weightFieldFocused = true
+                        }
                         .accessibilityLabel("Weight, \(form.weightDisplay)")
                         .accessibilityIdentifier("weight-pill")
                         .accessibilityAddTraits(.isButton)
