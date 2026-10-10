@@ -105,6 +105,12 @@ import Testing
     #expect(Theme.Motion.budOpenDelay == 0.26)
 }
 
+@Test func growthMomentMotionRunsOnItsOwnTimings() {
+    #expect(Theme.leafInkAnimation == .timingCurve(0.46, -0.09, 0.83, 0.32, duration: 0.42))
+    #expect(Theme.budWakeAnimation == .timingCurve(0.46, -0.09, 0.83, 0.32, duration: 0.34).delay(0.26))
+    #expect(Theme.reducedMotionCrossfade == .easeInOut(duration: 0.2))
+}
+
 @Test func themeHapticTuningsMatchTokenSheet() {
     #expect(Theme.Haptics.railDetentTick == Theme.HapticTuning(intensity: 0.35, sharpness: 0.85))
     #expect(Theme.Haptics.skipDud == Theme.HapticTuning(intensity: 0.45, sharpness: 0.15))

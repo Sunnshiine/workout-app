@@ -322,6 +322,11 @@ enum Theme {
         .timingCurve(wingEase.x1, wingEase.y1, wingEase.x2, wingEase.y2, duration: duration)
     }
 
+    static let leafInkAnimation = wingAnimation(duration: Motion.leafInk)
+    static let budWakeAnimation = wingAnimation(duration: Motion.budOpen).delay(Motion.budOpenDelay)
+    /// Reduce Motion keeps a growth moment's end state and fades to it, with nothing scaling or travelling.
+    static let reducedMotionCrossfade = Animation.easeInOut(duration: 0.2)
+
     enum Motion {
         static let leafInk = 0.42 // a leaf inks in
         static let budOpen = 0.34 // the next bud wakes…
