@@ -103,6 +103,7 @@ import Testing
     #expect(Theme.Motion.leafInk == 0.42)
     #expect(Theme.Motion.budOpen == 0.34)
     #expect(Theme.Motion.budOpenDelay == 0.26)
+    #expect(Theme.Motion.crossfade == 0.2)
 }
 
 @Test func growthMomentMotionRunsOnItsOwnTimings() {

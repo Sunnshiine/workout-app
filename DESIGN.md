@@ -592,8 +592,8 @@ floor hits the dud) · one identical swell-and-peak Move On pattern timed to
 the ceremony · none on form fields. Hold-to-skip: reveal 250ms, commit
 850ms, retreat 0.2s; logged-state hold 900ms, skipped-state hold 1100ms.
 
-**Reduced motion** keeps end states via crossfade — the ceremony fades in
-fully grown. Haptics are unaffected.
+**Reduced motion** keeps end states via a 0.2s crossfade — the ceremony
+fades in fully grown. Haptics are unaffected.
 
 The Active Set Card has no motion to reduce, so Reduce Motion leaves it
 unchanged (§5.2).

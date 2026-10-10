@@ -324,12 +324,13 @@ enum Theme {
 
     static let leafInkAnimation = wingAnimation(duration: Motion.leafInk)
     static let budWakeAnimation = wingAnimation(duration: Motion.budOpen).delay(Motion.budOpenDelay)
-    static let reducedMotionCrossfade = Animation.easeInOut(duration: 0.2)
+    static let reducedMotionCrossfade = Animation.easeInOut(duration: Motion.crossfade)
 
     enum Motion {
         static let leafInk = 0.42 // a leaf inks in
         static let budOpen = 0.34 // the next bud wakes…
         static let budOpenDelay = 0.26 // …starting inside the leaf's tail (One Log, One Fill)
+        static let crossfade = 0.2
         static let ceremonyStem = 1.0
         static let ceremonyBeat = 0.10
         static let holdToSkipReveal = 0.25 // reveal at 250ms
