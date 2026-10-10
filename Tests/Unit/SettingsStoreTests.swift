@@ -1083,6 +1083,7 @@ private actor CallRecorder {
 @MainActor
 private final class StubSheetSwitchSync: SheetSwitchSyncing {
     var isSyncing = false
+    let outcome = SyncOutcome.clear
     var hasPendingWritesValue: Bool
     private let pendingWritesError: Error?
     private let discardError: Error?
@@ -1131,6 +1132,7 @@ private enum StubSheetSwitchError: Error {
 @MainActor
 private final class SuspendedDiscardSheetSwitchSync: SheetSwitchSyncing {
     var isSyncing = false
+    let outcome = SyncOutcome.clear
     private let heldDiscard = HeldCall()
     private(set) var discardPendingWriteCallCount = 0
     private(set) var syncedSpreadsheetIds: [String] = []
@@ -1165,6 +1167,7 @@ private final class SuspendedDiscardSheetSwitchSync: SheetSwitchSyncing {
 @MainActor
 private final class SuspendedSheetSwitchSync: SheetSwitchSyncing {
     private(set) var isSyncing = false
+    let outcome = SyncOutcome.clear
     private let heldSync = HeldCall()
     private(set) var syncedSpreadsheetIds: [String] = []
 
