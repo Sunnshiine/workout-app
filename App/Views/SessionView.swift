@@ -130,6 +130,9 @@ extension SessionView {
                     .compositingGroup()
             }
         }
+        // While the keyboard hides, SwiftUI keeps its toolbar's height as a bottom inset until the
+        // hide ends and then drops it in one frame. Only weight editing needs keyboard room.
+        .ignoresSafeArea(stageComposition == .reading ? .keyboard : [], edges: .bottom)
         .onPreferenceChange(EditingWeightPreferenceKey.self) { isEditingWeight in
             withAnimation(reduceMotion ? nil : Theme.stageCompositionAnimation) {
                 stageComposition = SessionStageComposition(isEditingWeight: isEditingWeight)
