@@ -102,8 +102,7 @@ final class ActiveSetFocusManager {
 
     func snapshot(in session: Session) -> SessionFocusSnapshot {
         SessionFocusSnapshot(
-            activeSetID: activeSetID,
-            expandedLoggedSetID: expandedLoggedSetID,
+            visualFocusOwner: visualFocusOwner,
             supersets: supersetState.supersets(in: session),
             pairableExerciseOrders: Set(session.exercises.filter { canPair($0, in: session) }.map(\.order))
         )
