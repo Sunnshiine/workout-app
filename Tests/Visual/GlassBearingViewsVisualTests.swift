@@ -70,8 +70,7 @@ struct GlassBearingViewsVisualTests {
             SessionProgressHeader(
                 session: session,
                 block: block,
-                currentSession: session,
-                sessionSettingsOverpullState: .pinned
+                currentSession: session
             )
             .padding(14)
             .frame(width: 360)
