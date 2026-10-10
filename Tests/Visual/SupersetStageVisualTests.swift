@@ -133,8 +133,7 @@ struct SupersetStageVisualTests {
         let stage = SessionStage(
             session: session,
             focus: SessionFocusSnapshot(
-                activeSetID: ActiveSetID(exerciseOrder: press.order, setIndex: 1),
-                expandedLoggedSetID: nil,
+                visualFocusOwner: .activeSet(ActiveSetID(exerciseOrder: press.order, setIndex: 1)),
                 supersets: [Superset(first: press, second: row)],
                 pairableExerciseOrders: []
             ),

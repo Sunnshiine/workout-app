@@ -53,8 +53,7 @@ struct SessionQueueSheetVisualTests {
         let stage = SessionStage(
             session: session,
             focus: SessionFocusSnapshot(
-                activeSetID: nil,
-                expandedLoggedSetID: nil,
+                visualFocusOwner: nil,
                 supersets: [],
                 pairableExerciseOrders: pairable
             ),

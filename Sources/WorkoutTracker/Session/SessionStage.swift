@@ -18,8 +18,7 @@ struct UpNext: Equatable {
 }
 
 struct SessionFocusSnapshot: Equatable {
-    let activeSetID: ActiveSetID?
-    let expandedLoggedSetID: ActiveSetID?
+    let visualFocusOwner: ActiveSetVisualFocusOwner?
     let supersets: [Superset]
     let pairableExerciseOrders: Set<Int>
 }
@@ -153,7 +152,7 @@ extension SessionStage {
         lookup: LastPerformedLookupSnapshot
     ) {
         let items = StageItem.items(in: session, supersets: focus.supersets)
-        let onStage = StageItem.onStage(in: items, focusID: focus.expandedLoggedSetID ?? focus.activeSetID)
+        let onStage = StageItem.onStage(in: items, focusID: focus.visualFocusOwner?.setID)
         upNext = onStage.flatMap { StageItem.upNext(after: $0, in: items) }
         queue = SessionQueue(items: items, onStage: onStage, snapshot: focus, pairingMode: pairingMode, liveEdge: liveEdge)
         guard let onStage else {
@@ -161,13 +160,6 @@ extension SessionStage {
             return
         }
         self.focus = onStage.focus(snapshot: focus, savedLoggedSetID: savedLoggedSetID, lookup: lookup)
-    }
-}
-
-@MainActor
-extension SessionFocusSnapshot {
-    fileprivate var visualActiveSetID: ActiveSetID? {
-        expandedLoggedSetID == nil ? activeSetID : nil
     }
 }
 
@@ -180,14 +172,13 @@ extension ExerciseStage {
         lookup: LastPerformedLookupSnapshot
     ) {
         let sets = exercise.sortedSets
-        let activeSetID = snapshot.visualActiveSetID.scoped(to: [exercise])
+        let owner = snapshot.visualFocusOwner.scoped(to: [exercise])
         self.exercise = exercise
-        branch = StageBranch(sets: sets, activeSetID: activeSetID)
+        branch = StageBranch(sets: sets, activeSetID: owner?.activeSetID)
         card = SetCardSlot.exerciseCard(
             in: sets,
             exerciseOrder: exercise.order,
-            activeSetID: activeSetID,
-            reviewedSetID: snapshot.expandedLoggedSetID.scoped(to: [exercise]),
+            owner: owner,
             savedLoggedSetID: savedLoggedSetID
         )
         lastPerformed = LastPerformedCardPresentation(exercise: exercise, lookup: lookup)
@@ -197,7 +188,7 @@ extension ExerciseStage {
 @MainActor
 extension SupersetStage {
     fileprivate init(_ superset: Superset, snapshot: SessionFocusSnapshot, lookup: LastPerformedLookupSnapshot) {
-        let activeSetID = snapshot.visualActiveSetID.scoped(to: superset.exercises)
+        let activeSetID = snapshot.visualFocusOwner.scoped(to: superset.exercises)?.activeSetID
         let focused = superset.exercises.first { $0.order == activeSetID?.exerciseOrder } ?? superset.lowerOrdered
         let partner = superset.other(than: focused)
         let sets = focused.sortedSets
@@ -257,11 +248,10 @@ extension SetCardSlot {
     fileprivate static func exerciseCard(
         in sets: [ExerciseSet],
         exerciseOrder: Int,
-        activeSetID: ActiveSetID?,
-        reviewedSetID: ActiveSetID?,
+        owner: ActiveSetVisualFocusOwner?,
         savedLoggedSetID: ActiveSetID?
     ) -> SetCardSlot? {
-        if let reviewed = sets.first(matching: reviewedSetID) {
+        if case .loggedSetReview(let reviewedSetID) = owner, let reviewed = sets.first(matching: reviewedSetID) {
             return SetCardSlot(
                 reviewed,
                 in: sets,
@@ -269,7 +259,7 @@ extension SetCardSlot {
                 cardIdentity: "stage-review-\(exerciseOrder)-\(reviewed.index)"
             )
         }
-        guard let set = sets.first(matching: activeSetID) ?? sets.first(where: \.isPending) else { return nil }
+        guard let set = sets.first(matching: owner?.activeSetID) ?? sets.first(where: \.isPending) else { return nil }
         return SetCardSlot(set, in: sets, mode: .logging, cardIdentity: "stage-active-\(exerciseOrder)-\(set.index)")
     }
 
@@ -435,8 +425,15 @@ extension [ExerciseSet] {
     }
 }
 
-extension ActiveSetID? {
-    fileprivate func scoped(to exercises: [Exercise]) -> ActiveSetID? {
-        flatMap { id in exercises.contains { $0.order == id.exerciseOrder } ? id : nil }
+extension ActiveSetVisualFocusOwner {
+    fileprivate var activeSetID: ActiveSetID? {
+        guard case .activeSet(let setID) = self else { return nil }
+        return setID
+    }
+}
+
+extension ActiveSetVisualFocusOwner? {
+    fileprivate func scoped(to exercises: [Exercise]) -> ActiveSetVisualFocusOwner? {
+        flatMap { owner in exercises.contains { $0.order == owner.setID.exerciseOrder } ? owner : nil }
     }
 }
