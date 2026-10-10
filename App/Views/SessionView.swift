@@ -14,10 +14,6 @@ struct SessionView: View {
     #else
         @State private var restTimer = RestTimer()
     #endif
-    @State private var sessionSettingsOverpullState = SessionSettingsOverpullState.hidden
-    @State private var sessionSettingsOverpullDismissalID = 0
-    @State private var sessionSettingsTopContentOffset: CGFloat = 0
-    @State private var sessionSettingsDragStartTopContentOffset: CGFloat?
     @State private var isSettingsPresented = false
     @State private var stageComposition = SessionStageComposition.reading
 
@@ -31,14 +27,8 @@ struct SessionView: View {
                 VStack(spacing: 0) {
                     if !workout.isViewingLiveEdge {
                         OffLiveEdgeControls(
-                            onGoBack: {
-                                sessionSettingsOverpullState = .hidden
-                                workout.showCurrent()
-                            },
-                            onMakeCurrent: {
-                                sessionSettingsOverpullState = .hidden
-                                workout.makeViewedSessionCurrent()
-                            }
+                            onGoBack: workout.showCurrent,
+                            onMakeCurrent: workout.makeViewedSessionCurrent
                         )
                         .padding(.horizontal)
                         .padding(.top, 8)
@@ -64,10 +54,6 @@ struct SessionView: View {
                     .padding(.horizontal)
                     .padding(.vertical, 80)
                 }
-                .scrollBounceBehavior(.always)
-                .onScrollGeometryChange(for: CGFloat.self, of: topContentOffset) { _, offset in
-                    updateSessionSettingsOverpull(topContentOffset: offset)
-                }
             }
         }
         .accessibilityHidden(workout.moveOnCelebrationSession != nil)
@@ -80,7 +66,6 @@ struct SessionView: View {
                 .transition(.opacity)
             }
         }
-        .animation(sessionSettingsOverpullAnimation, value: sessionSettingsOverpullState)
         .animation(.easeInOut(duration: 0.18), value: workout.moveOnCelebrationSession?.persistentModelID)
         .navigationDestination(isPresented: blockOverviewRequestBinding) {
             if let block = workout.block {
@@ -107,14 +92,6 @@ struct SessionView: View {
         }
         .onChange(of: workout.viewedSession?.persistentModelID) { _, _ in
             reconcileLiveActivity()
-        }
-        .task(id: sessionSettingsOverpullDismissalID) {
-            guard sessionSettingsOverpullState.isPinned else { return }
-            try? await Task.sleep(
-                nanoseconds: UInt64(SessionSettingsOverpullState.idleDismissDelay * 1_000_000_000)
-            )
-            guard !Task.isCancelled, sessionSettingsOverpullState.isPinned else { return }
-            sessionSettingsOverpullState = sessionSettingsOverpullState.dismissedAfterIdle()
         }
     }
 
@@ -160,72 +137,12 @@ extension SessionView {
         }
     }
 
-    private func updateSessionSettingsOverpull(topContentOffset: CGFloat) {
-        sessionSettingsTopContentOffset = topContentOffset
-        guard canRevealSessionControls else {
-            if sessionSettingsOverpullState != .hidden {
-                sessionSettingsOverpullState = .hidden
-            }
-            return
-        }
-
-        guard sessionSettingsDragStartTopContentOffset == nil else { return }
-
-        applySessionSettingsOverpullState(
-            sessionSettingsOverpullState.tracking(topContentOffset: topContentOffset)
-        )
-    }
-
-    private func updateSessionSettingsOverpullDrag(translationHeight: CGFloat) {
-        guard canRevealSessionControls, translationHeight > 0 else { return }
-        let startTopContentOffset = sessionSettingsDragStartTopContentOffset ?? max(0, sessionSettingsTopContentOffset)
-        sessionSettingsDragStartTopContentOffset = startTopContentOffset
-        applySessionSettingsOverpullState(
-            sessionSettingsOverpullState.tracking(
-                topContentOffset: SessionSettingsOverpullState.overpullDistance(
-                    startTopContentOffset: startTopContentOffset,
-                    translationHeight: translationHeight * SessionSettingsHeaderDrag.overpullDamping
-                )
-            )
-        )
-    }
-
-    private func finishSessionSettingsOverpullDrag() {
-        let shouldStartIdleDismissal = sessionSettingsOverpullState.isPinned
-        sessionSettingsDragStartTopContentOffset = nil
-        if shouldStartIdleDismissal {
-            startSessionSettingsOverpullIdleDismissal()
-        }
-    }
-
-    private func applySessionSettingsOverpullState(_ state: SessionSettingsOverpullState) {
-        guard state != sessionSettingsOverpullState else { return }
-        let startsPinned = state.isPinned && !sessionSettingsOverpullState.isPinned
-        sessionSettingsOverpullState = state
-        if startsPinned, sessionSettingsDragStartTopContentOffset == nil {
-            startSessionSettingsOverpullIdleDismissal()
-        }
-    }
-
-    private func startSessionSettingsOverpullIdleDismissal() {
-        sessionSettingsOverpullDismissalID += 1
-    }
-
-    /// The W1D1 · N-left · progress-rail header, floated as an inset Liquid Glass
-    /// HUD pinned to the top. Content scrolls beneath it; over-pulling past the
-    /// reveal threshold morphs it open to expose Settings on top.
-    @ViewBuilder
     private func sessionHeaderHUD(session: Session) -> some View {
         SessionProgressHeader(
             session: session,
             block: workout.block,
             currentSession: workout.currentSession,
-            sessionSettingsOverpullState: sessionSettingsOverpullState,
-            onNavigate: coordinator.cancelPairing,
-            onSettings: {
-                sessionSettingsOverpullState = .hidden
-                isSettingsPresented = true
-            }
+            onNavigate: coordinator.cancelPairing
         )
         .padding(.horizontal, 14)
         .padding(.top, 1)
@@ -233,40 +150,13 @@ extension SessionView {
         .padding(.horizontal)
         .padding(.top, 8)
         .contentShape(Rectangle())
-        .simultaneousGesture(sessionSettingsOverpullGesture)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("session-header-hud")
         .overlay(alignment: .top) {
             SessionSyncBanner()
                 .padding(.top, 8)
                 .allowsHitTesting(false)
-                .opacity(sessionSettingsOverpullState.isVisible ? 0 : 1)
-                .animation(nil, value: sessionSettingsOverpullState.isVisible)
-                .accessibilityHidden(sessionSettingsOverpullState.isVisible)
         }
-    }
-
-    private var sessionSettingsOverpullGesture: some Gesture {
-        DragGesture(minimumDistance: 12)
-            .onChanged { value in
-                updateSessionSettingsOverpullDrag(translationHeight: value.translation.height)
-            }
-            .onEnded { value in
-                updateSessionSettingsOverpullDrag(translationHeight: value.translation.height)
-                finishSessionSettingsOverpullDrag()
-            }
-    }
-
-    private func topContentOffset(_ geometry: ScrollGeometry) -> CGFloat {
-        -(geometry.contentOffset.y + geometry.contentInsets.top)
-    }
-
-    private var canRevealSessionControls: Bool {
-        workout.viewedSession != nil && workout.isViewingLiveEdge && workout.moveOnCelebrationSession == nil
-    }
-
-    private var sessionSettingsOverpullAnimation: Animation {
-        reduceMotion ? .easeOut(duration: 0.12) : .smooth(duration: 0.22)
     }
 
     private var blockOverviewRequestBinding: Binding<Bool> {
@@ -297,10 +187,6 @@ private struct SessionSyncBanner: View {
     var body: some View {
         SyncStatusBanner(outcome: sync.outcome, isSyncing: sync.isSyncing)
     }
-}
-
-private enum SessionSettingsHeaderDrag {
-    static let overpullDamping: CGFloat = 0.4
 }
 
 private struct OffLiveEdgeControls: View {
