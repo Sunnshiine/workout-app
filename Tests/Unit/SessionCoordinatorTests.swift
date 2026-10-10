@@ -492,6 +492,10 @@ private func makeRestActionFixture(
     firstBenchSet.state = .logged
     coordinator.advanceAfterLog(firstBenchSet, in: session)
     #expect(coordinator.beginPairing(from: bench, in: session))
+    let selecting = coordinator.stage(in: session, lookup: .empty).queue
+    #expect(selecting.pairingMode == .selecting(sourceOrder: 1))
+    #expect(selecting.rows.map(\.pairingRole) == [.ineligibleTarget, .source, .eligibleTarget])
+    #expect(selecting.rows.map(\.canBeginPairing) == [false, true, true])
     #expect(coordinator.handlePairingTap(on: row, in: session) == .confirming)
 
     let stage = coordinator.stage(in: session, lookup: .empty)
@@ -1414,6 +1418,20 @@ private func makeRestActionFixture(
     let card = try #require(exerciseStage(fixture.coordinator, in: fixture.session)?.card)
     #expect(card.cardIdentity == "stage-review-1-0")
     #expect(card.mode == .reviewingLogged(showsSavedConfirmation: false))
+}
+
+@MainActor
+@Test func reopeningTheReviewOfASetJustUpdatedConfirmsTheSave() throws {
+    let fixture = try makeActionFixture()
+    let squatSet = try #require(fixture.session.exercises.first { $0.order == 0 }?.sets.first)
+
+    fixture.coordinator.focus(on: squatSet)
+    fixture.coordinator.updateLoggedSet(squatSet, as: SetLog(weight: .pounds(205), reps: 5, rpe: .eight))
+    fixture.coordinator.focus(on: squatSet)
+
+    let card = try #require(exerciseStage(fixture.coordinator, in: fixture.session)?.card)
+    #expect(card.cardIdentity == "stage-review-0-0")
+    #expect(card.mode == .reviewingLogged(showsSavedConfirmation: true))
 }
 
 @MainActor
