@@ -92,6 +92,7 @@ struct SunbirdMomentsVisualTests {
         let view = OnboardingView()
             .environment(settings)
             .environment(sync)
+            .environment(SheetConnection(settings: settings, sync: sync))
             .environment(scenario.store)
             .environment(\.themePalette, Theme.palette(for: appearance))
             .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
