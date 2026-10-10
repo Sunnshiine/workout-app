@@ -148,7 +148,9 @@ extension SessionView {
         )
         .safeAreaInset(edge: .top, spacing: 0) {
             if stageComposition == .reading {
+                // Fades as one image, so the HUD text never shows through the banner over it.
                 sessionHeaderHUD(session: session)
+                    .compositingGroup()
             }
         }
         .onPreferenceChange(EditingWeightPreferenceKey.self) { isEditingWeight in
