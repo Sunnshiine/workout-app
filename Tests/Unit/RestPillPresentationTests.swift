@@ -42,15 +42,3 @@ import Testing
     #expect(expired.progressFraction == 0)
     #expect(invalidDuration.progressFraction == 0)
 }
-
-@Test func restPillPerSecondStateCarriesTheRailFractionAndTheFinalFiveFlag() {
-    func state(remaining: TimeInterval) -> (text: String, rail: Double, finalFive: Bool) {
-        let presentation = RestPillPresentation(kind: .standard, remaining: remaining, duration: 100)
-        let cue = RestPillUrgencyCue(remaining: remaining, reduceMotion: false)
-        return (presentation.countdownText, presentation.progressFraction, cue.isActive)
-    }
-
-    #expect(state(remaining: 6) == ("0:06", 0.06, false))
-    #expect(state(remaining: 5) == ("0:05", 0.05, true))
-    #expect(state(remaining: 0) == ("0:00", 0, true))
-}

@@ -101,3 +101,37 @@ private func startedTimer(duration: TimeInterval, at start: Date) -> (RestTimer,
 
     #expect(timer.dueHapticEvents(at: clock.now, sceneActive: true).isEmpty)
 }
+
+@MainActor
+@Test func restPillTicksOnTheIntervalsWholeSecondsReadTheExactSecond() {
+    // A real start date with a fractional second, ticked the way the pill's 1 Hz timeline is:
+    // start plus a whole number of seconds.
+    let start = Date(timeIntervalSinceReferenceDate: 813_000_000.123_456)
+    let (timer, _) = startedTimer(duration: 100, at: start)
+    _ = timer.dueHapticEvents(at: start, sceneActive: true)
+
+    var ticks: [String] = []
+    for second in 1...100 {
+        let tick = start.addingTimeInterval(TimeInterval(second))
+        let remaining = timer.remaining(at: tick)
+        let presentation = RestPillPresentation(kind: .standard, remaining: remaining, duration: 100)
+        let finalFive = RestPillUrgencyCue(remaining: remaining, reduceMotion: false).isActive
+        let haptics = timer.dueHapticEvents(at: tick, sceneActive: true).map { "\($0.kind)" }
+        guard second >= 94 else { continue }
+        ticks.append(
+            "\(presentation.countdownText) \(presentation.progressFraction) \(finalFive) \(haptics)"
+        )
+    }
+
+    #expect(
+        ticks == [
+            "0:06 0.06 false []",
+            "0:05 0.05 true [\"lightTap\"]",
+            "0:04 0.04 true [\"lightTap\"]",
+            "0:03 0.03 true [\"lightTap\"]",
+            "0:02 0.02 true [\"lightTap\"]",
+            "0:01 0.01 true [\"lightTap\"]",
+            "0:00 0.0 true [\"expiryBuzz\"]"
+        ]
+    )
+}

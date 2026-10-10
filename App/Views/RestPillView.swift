@@ -20,7 +20,8 @@ struct RestPillView: View {
             pillContainer(at: visualBaselineDate)
         } else {
             // Ticks fall on the interval's whole seconds, so the countdown, the rail, and the
-            // haptic offsets all read the same exact second.
+            // haptic offsets all read the same exact second. A restarted rest gets a fresh
+            // timeline, so its ticks align to its own start.
             TimelineView(.periodic(from: restTimer.interval?.start ?? .now, by: 1)) { context in
                 let remaining = restTimer.remaining(at: context.date)
                 pillContainer(at: context.date)
@@ -38,6 +39,7 @@ struct RestPillView: View {
                         playExpiryHaptics(events)
                     }
             }
+            .id(restTimer.interval?.start)
         }
     }
 
