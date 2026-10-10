@@ -159,7 +159,8 @@ extension WorkoutApplication {
         )
     }
 
-    /// `SheetConnection.syncNow()`: the Sync now button's call, which reloads the store.
+    /// `SheetConnection.syncNow()`: the Sync now button's call, which reloads the store. It refuses a
+    /// missing Sheet and a sync already running with the same `false`, so the Sheet is checked first.
     public func sync() async throws -> SyncReport {
         _ = try configuredSpreadsheetId()
         let didSync = await connection.syncNow()

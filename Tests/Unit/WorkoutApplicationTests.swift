@@ -211,6 +211,25 @@ private func address(_ raw: String) throws -> SetAddress {
     #expect(throws: ApplicationError.noBlock) { try app.session(nil) }
 }
 
+/// `workout sync` runs Sync now's guard, so a second sync against a Sheet already syncing is refused
+/// before it reaches the Sheet, and the first still completes.
+@MainActor
+@Test(.timeLimit(.minutes(1))) func syncIsRefusedWhileAnotherSyncIsRunning() async throws {
+    let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let app = try WorkoutApplication(
+        environment: AppEnvironment(storage: .inMemory, sheetsClient: client, defaults: .inMemory(), now: { frozenNow }, seed: nil)
+    )
+    app.settings.setSpreadsheet(id: "held-sheet")
+
+    let first = Task { try await app.sync() }
+    await client.waitUntilHeld()
+    await #expect(throws: ApplicationError.syncFailed(.clear)) { try await app.sync() }
+    client.release()
+
+    #expect(try await first.value.block?.tabName == "Block 27")
+    #expect(client.tabTitleReads == 1)
+}
+
 @MainActor
 @Test func aConflictedWriteIsReportedByEveryLaterFlushAndSync() async throws {
     let app = try await makeSelectedApp()
