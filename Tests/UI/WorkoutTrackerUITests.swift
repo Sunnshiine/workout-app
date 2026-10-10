@@ -111,7 +111,9 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         let hud = app.otherElements["session-header-hud"]
         let stageTop = hud.frame.minY
         let weightControls = app.descendants(matching: .any).matching(identifier: "weight-pill")
+        let cardTextFields = app.otherElements["active-set-card"].textFields
         XCTAssertEqual(weightControls.count, 1)
+        XCTAssertEqual(cardTextFields.count, 0)
 
         openWeightKeyboard(in: app)
         XCTAssertFalse(hud.exists, "the HUD steps aside while the weight is being edited")
@@ -123,6 +125,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
         waitForLabel("Weight, 237.5", on: app.buttons["weight-pill"])
         XCTAssertEqual(weightControls.count, 1)
+        XCTAssertEqual(cardTextFields.count, 0)
         XCTAssertTrue(app.buttons["log-active-set-button"].exists)
     }
 
@@ -207,7 +210,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         openWeightKeyboard(in: app)
         XCTAssertFalse(app.otherElements["session-header-hud"].exists)
 
-        tapWhenHittable(app.staticTexts["Block 26 · W4 D3 — 245x5@6, 255x5@7"])
+        tapWhenHittable(app.staticTexts["last-performed-line"])
         let historyTitle = app.staticTexts["Exercise History · last 5"]
         XCTAssertTrue(historyTitle.appears(within: 3))
         historyTitle.swipeDown(velocity: .fast)
@@ -216,6 +219,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         XCTAssertTrue(app.buttons["stage-queue-button"].exists)
         XCTAssertFalse(app.keyboards.firstMatch.exists)
         waitForLabel("Weight, 237.5", on: app.buttons["weight-pill"])
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "weight-pill").count, 1)
     }
 
     @MainActor
