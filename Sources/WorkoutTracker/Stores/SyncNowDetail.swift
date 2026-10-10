@@ -1,4 +1,3 @@
-/// The words beside Settings' Sync now button: what tapping it would do, or why it cannot.
 enum SyncNowDetail {
     static func text(outcome: SyncOutcome, isSyncing: Bool, hasSheet: Bool) -> String {
         if isSyncing {

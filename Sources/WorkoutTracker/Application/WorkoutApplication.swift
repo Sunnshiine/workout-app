@@ -63,8 +63,6 @@ public final class WorkoutApplication {
 }
 
 extension WorkoutApplication {
-    /// The onboarding path: `SheetConnection.requestSwitch`, which syncs, commits the selection,
-    /// and reloads the store.
     public func selectSpreadsheet(id: String, title: String?) async throws -> AppSnapshot {
         switch await connection.requestSwitch(to: SheetSelection(spreadsheetId: id, title: title)) {
         case .switched, .unchanged:
@@ -158,8 +156,6 @@ extension WorkoutApplication {
         )
     }
 
-    /// `SheetConnection.syncNow()`: the Sync now button's call, which reloads the store. It refuses a
-    /// missing Sheet and a sync already running with the same `false`, so the Sheet is checked first.
     public func sync() async throws -> SyncReport {
         _ = try configuredSpreadsheetId()
         let didSync = await connection.syncNow()

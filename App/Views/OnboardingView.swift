@@ -181,8 +181,6 @@ struct OnboardingView: View {
         Task { await commitSelection(SheetSelection(spreadsheetId: id, title: nil)) }
     }
 
-    /// Runs every onboarding selection through the same safe switch transaction as Settings: sync
-    /// the newly selected sheet first, then commit. A failed sync leaves the app on onboarding.
     private func commitSelection(_ selection: SheetSelection) async {
         selectionErrorMessage = await connection.connect(selection)
     }
