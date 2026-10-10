@@ -52,7 +52,6 @@ final class SheetConnection {
     private(set) var pendingConfirmation: SheetSelection?
     private(set) var errorMessage: String?
     private(set) var isTransitioning = false
-    private(set) var isSyncInFlight = false
 
     private let settings: SettingsStore
     private let sync: any SheetSwitchSyncing
@@ -70,30 +69,32 @@ final class SheetConnection {
     }
 
     var canBeginDestructiveTransition: Bool {
-        !isTransitioning && !isSyncInFlight && !sync.isSyncing
+        !isTransitioning && !sync.isSyncing
     }
 
     var canSyncNow: Bool {
-        settings.spreadsheetId != nil && canBeginDestructiveTransition
+        sheetToSync != nil
+    }
+
+    private var sheetToSync: String? {
+        canBeginDestructiveTransition ? settings.spreadsheetId : nil
     }
 
     var syncNowDetail: String {
         SyncNowDetail.text(
             outcome: sync.outcome,
-            isSyncing: isSyncInFlight || sync.isSyncing,
+            isSyncing: sync.isSyncing,
             hasSheet: settings.spreadsheetId != nil
         )
     }
 
     @discardableResult
     func syncNow() async -> Bool {
-        guard let spreadsheetId = settings.spreadsheetId, !sync.isSyncing else { return false }
+        guard let spreadsheetId = sheetToSync else { return false }
 
-        return await runSync {
-            let didSync = await sync.sync(spreadsheetId: spreadsheetId)
-            onSynced()
-            return didSync
-        } ?? false
+        let didSync = await sync.sync(spreadsheetId: spreadsheetId)
+        onSynced()
+        return didSync
     }
 
     func requestSwitch(to spreadsheet: SpreadsheetFile) async -> SettingsSheetSwitchResult {
@@ -214,26 +215,8 @@ final class SheetConnection {
         errorMessage = nil
     }
 
-    private func runSync<T: Sendable>(_ operation: () async -> T) async -> T? {
-        guard !isSyncInFlight else { return nil }
-
-        isSyncInFlight = true
-        defer { isSyncInFlight = false }
-
-        return await operation()
-    }
-
     private func switchNow(to selection: SheetSelection) async -> Bool {
-        guard
-            let didSync = await runSync({
-                await sync.sync(spreadsheetId: selection.spreadsheetId)
-            })
-        else {
-            errorMessage = Self.syncInProgressMessage
-            return false
-        }
-
-        guard didSync else {
+        guard await sync.sync(spreadsheetId: selection.spreadsheetId) else {
             errorMessage = "Couldn't sync selected sheet. Try again."
             return false
         }
