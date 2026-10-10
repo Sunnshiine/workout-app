@@ -485,7 +485,7 @@ extension SessionStageTests {
         #expect(queue.rows.map(\.pairingRole) == [QueuePairingRole.none, .none])
     }
 
-    @Test func onlyAPairableSingleExerciseCanBeginPairing() {
+    @Test func aPairableExerciseOffersPairAndASupersetOffersUnlink() {
         let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged])
         let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending])
         let press = makeExercise(name: "Press", order: 2, setStates: [.pending])
@@ -494,7 +494,7 @@ extension SessionStageTests {
         let queue = makeStage([squat, bench, press, row], supersets: [Superset(first: press, second: row)], pairable: [1, 2]).queue
 
         #expect(queue.rows.map(\.id) == ["exercise-0", "exercise-1", "superset-2"])
-        #expect(queue.rows.map(\.canBeginPairing) == [false, true, false])
+        #expect(queue.rows.map(\.action) == [QueueRowAction.none, .pair, .unlink])
     }
 
     @Test func selectingMarksTheSourceAndEachTargetsEligibility() {
