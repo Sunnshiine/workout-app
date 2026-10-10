@@ -6,6 +6,7 @@ import Testing
     (SyncOutcome.clear, false, true, "Refresh workout state"),
     (.clear, false, false, "Connect a sheet first"),
     (.clear, true, true, "Syncing..."),
+    (.writesQueued(2), true, true, "Syncing..."),
     (.sheetUnreachable, false, true, "Offline"),
     (.writesQueued(1), false, true, "1 unsynced log"),
     (.writesQueued(3), false, true, "3 unsynced logs"),
