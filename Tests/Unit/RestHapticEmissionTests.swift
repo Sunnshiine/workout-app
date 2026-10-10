@@ -104,15 +104,13 @@ private func startedTimer(duration: TimeInterval, at start: Date) -> (RestTimer,
 
 @MainActor
 @Test func restPillTicksOnTheIntervalsWholeSecondsReadTheExactSecond() {
-    // A real start date with a fractional second, ticked the way the pill's 1 Hz timeline is:
-    // start plus a whole number of seconds.
-    let start = Date(timeIntervalSinceReferenceDate: 813_000_000.123_456)
-    let (timer, _) = startedTimer(duration: 100, at: start)
-    _ = timer.dueHapticEvents(at: start, sceneActive: true)
+    let startWithFractionalSecond = Date(timeIntervalSinceReferenceDate: 813_000_000.123_456)
+    let (timer, _) = startedTimer(duration: 100, at: startWithFractionalSecond)
+    _ = timer.dueHapticEvents(at: startWithFractionalSecond, sceneActive: true)
 
     var ticks: [String] = []
     for second in 1...100 {
-        let tick = start.addingTimeInterval(TimeInterval(second))
+        let tick = startWithFractionalSecond.addingTimeInterval(TimeInterval(second))
         let remaining = timer.remaining(at: tick)
         let presentation = RestPillPresentation(kind: .standard, remaining: remaining, duration: 100)
         let finalFive = RestPillUrgencyCue(remaining: remaining, reduceMotion: false).isActive
