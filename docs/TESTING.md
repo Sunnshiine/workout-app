@@ -180,9 +180,10 @@ UI-test frame assertions:
 
 - Accessibility frames are hit targets, not visual bounds. Do not treat a native 44 pt hit target
   intersecting a compact visual element's layout frame as proof of a visual collision. For compact
-  header controls such as the Current Session Settings gear, prefer assertions that prove the
-  control exists, is hittable, remains separated from real neighboring controls/cards, and opens the
-  intended surface. Use Visual Regression tests or human review for actual visual-overlap questions.
+  header controls such as the stage's session location button (`session-location-button`), prefer
+  assertions that prove the control exists, is hittable, remains separated from real neighboring
+  controls/cards, and opens the intended surface. Use Visual Regression tests or human review for
+  actual visual-overlap questions.
 
 Agent gate policy:
 
