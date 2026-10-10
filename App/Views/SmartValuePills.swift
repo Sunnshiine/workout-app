@@ -77,15 +77,6 @@ struct SmartValuePills: View {
         .onChange(of: suggestion) { _, later in
             form.refreshPrefill(from: later, for: set)
         }
-        // After a sheet takes the keyboard and is swiped away, SwiftUI keeps the focus true with no
-        // first responder (#697).
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { note in
-            guard let screen = note.object as? UIScreen,
-                let end = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect,
-                KeyboardHide.leavesScreen(endFrame: end, screenBounds: screen.bounds)
-            else { return }
-            weightFieldFocused = false
-        }
         .onDisappear(perform: commitChangedDraftIfNeeded)
         .preference(key: EditingWeightPreferenceKey.self, value: weightFieldFocused)
     }
