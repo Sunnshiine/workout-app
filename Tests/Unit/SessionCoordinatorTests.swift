@@ -495,7 +495,7 @@ private func makeRestActionFixture(
     let selecting = coordinator.stage(in: session, lookup: .empty).queue
     #expect(selecting.pairingMode == .selecting(sourceOrder: 1))
     #expect(selecting.rows.map(\.pairingRole) == [.ineligibleTarget, .source, .eligibleTarget])
-    #expect(selecting.rows.map(\.canBeginPairing) == [false, true, true])
+    #expect(selecting.rows.map(\.action) == [QueueRowAction.none, .pair, .pair])
     #expect(coordinator.handlePairingTap(on: row, in: session) == .confirming)
 
     let stage = coordinator.stage(in: session, lookup: .empty)
@@ -670,6 +670,25 @@ private func makeRestActionFixture(
     #expect(coordinator.pairingMode == .inactive)
     #expect(stageRowIDs(coordinator, in: session) == ["exercise-0", "exercise-1", "exercise-2", "exercise-3"])
     #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+}
+
+@MainActor
+@Test func unlinkingTheSupersetOnStageReturnsTheStageToOneExercise() throws {
+    let session = makeFourExercisePairingSession()
+    let coordinator = SessionCoordinator(session: session)
+    let press = try #require(session.exercises.first { $0.order == 0 })
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+
+    #expect(coordinator.createSuperset(from: press, to: squat, in: session))
+    #expect(coordinator.focusNextSupersetSet(for: squat, in: session))
+    #expect(supersetStage(coordinator, in: session)?.focused === squat)
+    let supersetRow = try #require(coordinator.stage(in: session, lookup: .empty).queue.rows.first)
+    #expect(supersetRow.action == .unlink)
+
+    coordinator.dismissSuperset(containing: supersetRow.pairingExercise, in: session)
+
+    #expect(stageRowIDs(coordinator, in: session) == ["exercise-0", "exercise-1", "exercise-2", "exercise-3"])
+    #expect(exerciseStage(coordinator, in: session)?.exercise.order == 1)
 }
 
 @MainActor
@@ -1999,7 +2018,7 @@ private func makeRestActionFixture(
     #expect(lastSquatSet.state == .pending)
     let rows = coordinator.stage(in: session, lookup: .empty).queue.rows
     #expect(rows.map(\.id) == ["exercise-0", "exercise-1", "exercise-2"])
-    #expect(rows.map(\.canBeginPairing) == [true, true, true])
+    #expect(rows.map(\.action) == [.pair, .pair, .pair])
 }
 
 @MainActor
@@ -2028,7 +2047,7 @@ private func makeRestActionFixture(
 
     #expect(liveActivity.calls.count == 1)
     #expect(motion.rowsAroundAnimation == [["exercise-0", "superset-1"], ["exercise-0", "exercise-1", "exercise-2"]])
-    #expect(coordinator.stage(in: session, lookup: .empty).queue.rows.map(\.canBeginPairing) == [true, false, true])
+    #expect(coordinator.stage(in: session, lookup: .empty).queue.rows.map(\.action) == [.pair, .none, .pair])
 }
 
 @MainActor

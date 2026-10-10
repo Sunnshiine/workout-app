@@ -110,6 +110,12 @@ enum QueuePairingRole: Equatable, Sendable {
     case confirmingTarget
 }
 
+enum QueueRowAction: Equatable, Sendable {
+    case none
+    case pair
+    case unlink
+}
+
 struct SessionQueue: Equatable {
     struct Row: Equatable, Identifiable {
         let id: String
@@ -119,7 +125,7 @@ struct SessionQueue: Equatable {
         let isOnStage: Bool
         let pairingExercise: Exercise
         let jumpTarget: ExerciseSet?
-        let canBeginPairing: Bool
+        let action: QueueRowAction
         let pairingRole: QueuePairingRole
     }
 
@@ -383,10 +389,10 @@ private enum StageItem {
     }
 
     func row(isOnStage: Bool, pairable: Set<Int>, pairingMode: PairingMode) -> SessionQueue.Row {
-        let (exercise, canBeginPairing): (Exercise, Bool) =
+        let (exercise, action): (Exercise, QueueRowAction) =
             switch self {
-            case .exercise(let exercise): (exercise, pairable.contains(exercise.order))
-            case .superset(let superset): (superset.first, false)
+            case .exercise(let exercise): (exercise, pairable.contains(exercise.order) ? .pair : .none)
+            case .superset(let superset): (superset.first, .unlink)
             }
         return SessionQueue.Row(
             id: id,
@@ -396,7 +402,7 @@ private enum StageItem {
             isOnStage: isOnStage,
             pairingExercise: exercise,
             jumpTarget: nextPendingSet,
-            canBeginPairing: canBeginPairing,
+            action: action,
             pairingRole: pairingRole(mode: pairingMode, pairable: pairable)
         )
     }
