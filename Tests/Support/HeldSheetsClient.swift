@@ -2,8 +2,6 @@ import Testing
 
 @testable import WorkoutTracker
 
-/// A Sheet whose first tab-title read parks until `release()`, so a test can act while a sync is
-/// in flight. `holdsTabSnapshot` parks the first tab read as well.
 @MainActor
 final class HeldSheetsClient: SheetsClient {
     private(set) var tabTitleReads = 0
