@@ -290,14 +290,11 @@ private struct SwiftUISessionMotion: SessionMotionPerforming {
 
 private struct SessionSyncBanner: View {
     @Environment(SyncCoordinator.self) private var sync
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         SyncStatusBanner(outcome: sync.outcome, isSyncing: sync.isSyncing)
-            .animation(
-                reduceMotion ? nil : .smooth(duration: 0.25),
-                value: SyncStatusBannerPresentation(outcome: sync.outcome, isSyncing: sync.isSyncing)?.text
-            )
+            // The banner covers HUD text, which would show through a ground caught mid-fade.
+            .transaction { $0.animation = nil }
     }
 }
 

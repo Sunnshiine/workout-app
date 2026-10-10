@@ -15,8 +15,7 @@ struct SyncStatusBanner: View {
 
     private func banner(_ presentation: SyncStatusBannerPresentation) -> some View {
         HStack(spacing: 8) {
-            Text(presentation.text)
-                .lineLimit(2)
+            SyncStatusBannerLabel(text: presentation.text)
             Spacer(minLength: 0)
         }
         .font(Theme.font(.lastPerformed))
@@ -30,5 +29,20 @@ struct SyncStatusBanner: View {
         // reads here.
         .accessibilityElement(children: .combine)
         .accessibilityLabel(presentation.accessibilityLabel)
+    }
+}
+
+/// Fades in over the banner's ground, which never fades, so nothing behind the banner shows
+/// through while it arrives.
+private struct SyncStatusBannerLabel: View {
+    let text: String
+    @State private var isShown = false
+
+    var body: some View {
+        Text(text)
+            .lineLimit(2)
+            .opacity(isShown ? 1 : 0)
+            .animation(.easeOut(duration: 0.18), value: isShown)
+            .onAppear { isShown = true }
     }
 }
