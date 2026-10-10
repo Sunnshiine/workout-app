@@ -357,7 +357,11 @@ final class WorkoutTrackerSupersetUITests: XCTestCase {
         tapWhenHittable(app.buttons["stage-queue-pair-exercise-0"])
         XCTAssertTrue(app.staticTexts["Pick a partner"].appears(within: 3))
 
-        tapWhenHittable(app.buttons["stage-queue-cancel-pairing"])
+        // XCUITest calls the pinned header's Cancel unhittable because the sheet's ScrollView frame
+        // spans the bar above it; a touch at its centre still lands on Cancel.
+        let cancel = app.buttons["stage-queue-cancel-pairing"]
+        waitUntilEnabled(cancel)
+        cancel.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
 
         XCTAssertTrue(app.staticTexts["This Session"].appears(within: 3))
         XCTAssertTrue(app.buttons["stage-queue-pair-exercise-0"].exists)
