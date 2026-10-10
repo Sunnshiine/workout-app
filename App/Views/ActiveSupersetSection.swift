@@ -8,64 +8,31 @@ import SwiftUI
 /// the resting side. Superset mechanics (alternation, pairing, the queue sheet's
 /// containment) are untouched — this slice rebuilds only the composition.
 struct ActiveSupersetSection: View {
-    let config: SessionSupersetRenderConfig
+    let stage: SupersetStage
+    let session: Session
+    let coordinator: SessionCoordinator
     let composition: SessionStageComposition
-    let onFocusExercise: (Exercise) -> Void
     let onShowHistory: (Exercise) -> Void
-    let onLog: (ExerciseSet, SetLog) -> Void
-    let onSkip: (ExerciseSet) -> Void
-    let onDelete: (ExerciseSet) -> Void
     @Environment(\.themePalette) private var palette
-
-    private var orderedExercises: [Exercise] {
-        config.exercises.sorted { $0.order < $1.order }
-    }
-
-    /// The Exercise the stage follows: the active side, else the container (the
-    /// lower-ordered side) when neither is active.
-    private var focusedExercise: Exercise {
-        if let active = config.exercises.first(where: { $0.order == config.presentation.activeExerciseOrder }) {
-            return active
-        }
-        return orderedExercises.first ?? config.exercises[0]
-    }
-
-    private var partnerExercise: Exercise {
-        config.exercises.first { $0.order != focusedExercise.order } ?? focusedExercise
-    }
-
-    private var focusedSortedSets: [ExerciseSet] {
-        focusedExercise.sets.sorted { $0.index < $1.index }
-    }
-
-    /// The Set on stage: the active Set when one is focused, else the focused
-    /// side's next Pending Set — so the card follows the focus (DESIGN.md §5.4).
-    private var stageSet: ExerciseSet? {
-        if let activeSetID = config.presentation.activeSetID {
-            return focusedSortedSets.first { $0.index == activeSetID.setIndex }
-        }
-        return SupersetState.nextPendingSet(for: focusedExercise)
-    }
 
     var body: some View {
         SessionStageColumn(
-            exercise: focusedExercise,
+            exercise: stage.focused,
             composition: composition,
-            lastPerformed: config.lastPerformedPresentation.map { presentation in
+            lastPerformed: stage.lastPerformed.map { presentation in
                 LastPerformedCard(presentation: presentation) {
-                    onShowHistory(focusedExercise)
+                    onShowHistory(stage.focused)
                 }
             }
         ) {
             nameBlock
         } branch: {
-            SessionStageBranch(
-                sets: focusedSortedSets,
-                activeSetID: config.presentation.activeSetID,
-                partnerSets: partnerExercise.sets.sorted { $0.index < $1.index }
-            )
+            SessionStageBranch(branch: stage.branch, partnerNodes: stage.partnerNodes)
         } card: {
-            cardRegion
+            if let slot = stage.card {
+                ActiveSetCard(slot: slot, coordinator: coordinator)
+                    .holdsStill(acrossChangesOf: slot.cardIdentity)
+            }
         }
     }
 
@@ -74,7 +41,7 @@ struct ActiveSupersetSection: View {
     // manual focus switch onto the resting side (DESIGN.md §5.4).
     private var nameBlock: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(focusedExercise.baseName)
+            Text(stage.focused.baseName)
                 .font(Theme.font(.exerciseName))
                 .foregroundStyle(palette.textPrimary)
                 .lineSpacing(3)
@@ -82,9 +49,9 @@ struct ActiveSupersetSection: View {
                 .accessibilityIdentifier("stage-exercise-name")
 
             Button {
-                onFocusExercise(partnerExercise)
+                coordinator.focusNextSupersetSet(for: stage.partner, in: session)
             } label: {
-                Text("& \(partnerExercise.baseName)")
+                Text("& \(stage.partner.baseName)")
                     .font(Theme.font(.supersetPartner))
                     .foregroundStyle(palette.supersetPartnerBranch)
                     .lineSpacing(2)
@@ -92,29 +59,9 @@ struct ActiveSupersetSection: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("& \(partnerExercise.baseName)")
-            .accessibilityHint("Switches focus to \(partnerExercise.baseName)")
+            .accessibilityLabel("& \(stage.partner.baseName)")
+            .accessibilityHint("Switches focus to \(stage.partner.baseName)")
             .accessibilityIdentifier("superset-partner-name")
         }
-    }
-
-    @ViewBuilder
-    private var cardRegion: some View {
-        if let set = stageSet {
-            ActiveSetCard(
-                set: set,
-                setOrdinal: setOrdinal(for: set),
-                setCount: focusedSortedSets.count,
-                mode: .logging,
-                onLog: { onLog(set, $0) },
-                onSkip: { onSkip(set) },
-                onDelete: { onDelete(set) }
-            )
-            .holdsStill(acrossChangesOf: "superset-active-\(focusedExercise.order)-\(set.index)")
-        }
-    }
-
-    private func setOrdinal(for set: ExerciseSet) -> Int {
-        (focusedSortedSets.firstIndex { $0.persistentModelID == set.persistentModelID } ?? set.index) + 1
     }
 }

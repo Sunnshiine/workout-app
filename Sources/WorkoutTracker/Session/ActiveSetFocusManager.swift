@@ -13,11 +13,6 @@ enum ActiveSetVisualFocusOwner: Equatable, Sendable {
     }
 }
 
-struct SupersetSectionState {
-    let presentation: ActiveSupersetPresentation
-    let exercises: [Exercise]
-}
-
 @MainActor
 @Observable
 final class ActiveSetFocusManager {
@@ -105,17 +100,12 @@ final class ActiveSetFocusManager {
         activeSetID = supersetState.focusedSetID(whenNormalFocusIs: activeSetID, in: session)
     }
 
-    func supersetSections(in session: Session) -> [SupersetSectionState] {
-        let pairs = supersetState.exercisePairs(in: session)
-        let sections = pairs.compactMap { sectionState(for: $0) }
-        return sections.sorted {
-            ($0.presentation.containerExerciseOrder ?? Int.max)
-                < ($1.presentation.containerExerciseOrder ?? Int.max)
-        }
-    }
-
-    func activeSupersetPresentation(in session: Session) -> ActiveSupersetPresentation? {
-        supersetSections(in: session).first { $0.presentation.activeExerciseOrder != nil }?.presentation
+    func snapshot(in session: Session) -> SessionFocusSnapshot {
+        SessionFocusSnapshot(
+            visualFocusOwner: visualFocusOwner,
+            supersets: supersetState.supersets(in: session),
+            pairableExerciseOrders: Set(session.exercises.filter { canPair($0, in: session) }.map(\.order))
+        )
     }
 
     func liveActivityRestContent(
@@ -150,19 +140,6 @@ final class ActiveSetFocusManager {
 
     static func id(for set: ExerciseSet) -> ActiveSetID? {
         set.exercise.map { SessionSetPosition(exercise: $0, set: set).setID }
-    }
-
-    private func sectionState(for exercises: [Exercise]) -> SupersetSectionState? {
-        let sectionActiveSetID = visualActiveSetID(containedIn: exercises)
-        guard let presentation = ActiveSupersetPresentation(exercises: exercises, activeSetID: sectionActiveSetID) else {
-            return nil
-        }
-        return SupersetSectionState(presentation: presentation, exercises: exercises)
-    }
-
-    private func visualActiveSetID(containedIn exercises: [Exercise]) -> ActiveSetID? {
-        guard case .activeSet(let activeSetID) = visualFocusOwner else { return nil }
-        return exercises.contains { $0.order == activeSetID.exerciseOrder } ? activeSetID : nil
     }
 
     private func nextActiveSetID(after set: ExerciseSet, in session: Session) -> ActiveSetID? {

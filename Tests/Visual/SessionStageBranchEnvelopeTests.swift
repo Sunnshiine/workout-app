@@ -61,16 +61,21 @@ private struct Branch {
     let kind: BranchKind
 
     var view: SessionStageBranch {
-        let partnerSets: [ExerciseSet]? =
+        let partnerNodes: [BranchNode]? =
             switch kind {
             case .exercise: nil
-            case .superset(let ending): Self.sets(count: 3, order: 1, last: ending == .skipped ? .skipped : .logged)
+            case .superset(let ending):
+                Self.sets(count: 3, order: 1, last: ending == .skipped ? .skipped : .logged).map { set in
+                    BranchNode(set: set, state: set.state == .skipped ? .dashedLeaf : .leaf)
+                }
             }
+        let nodes = Self.sets(count: setCount, order: 0, last: .pending).map { set in
+            BranchNode(set: set, state: set.state == .pending ? .bud : .leaf)
+        }
         return SessionStageBranch(
-            sets: Self.sets(count: setCount, order: 0, last: .pending),
-            activeSetID: ActiveSetID(exerciseOrder: 0, setIndex: setCount - 1),
-            partnerSets: partnerSets,
-            onTap: partnerSets == nil ? { _ in } : nil
+            branch: StageBranch(nodes: nodes, activeSetID: ActiveSetID(exerciseOrder: 0, setIndex: setCount - 1)),
+            partnerNodes: partnerNodes,
+            onTap: partnerNodes == nil ? { _ in } : nil
         )
     }
 

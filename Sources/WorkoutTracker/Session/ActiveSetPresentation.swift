@@ -278,34 +278,3 @@ struct LastPerformedCardPresentation: Equatable, Sendable {
         matchedName = entry.matchedName
     }
 }
-
-struct ActiveSupersetSidePresentation: Equatable, Sendable {
-    let exerciseOrder: Int
-    let isActive: Bool
-}
-
-struct ActiveSupersetPresentation: Equatable, Sendable {
-    let activeSetID: ActiveSetID?
-    let sides: [ActiveSupersetSidePresentation]
-
-    var activeExerciseOrder: Int? {
-        sides.first { $0.isActive }?.exerciseOrder
-    }
-
-    var containerExerciseOrder: Int? {
-        sides.map(\.exerciseOrder).min()
-    }
-
-    @MainActor
-    init?(exercises: [Exercise], activeSetID: ActiveSetID?) {
-        guard exercises.count == 2, exercises.allSatisfy(\.hasPendingSet) else { return nil }
-        self.activeSetID = activeSetID
-        // A / B identity follows Session (sheet) order: the higher Exercise is A.
-        sides = exercises.sorted { $0.order < $1.order }.map { exercise in
-            ActiveSupersetSidePresentation(
-                exerciseOrder: exercise.order,
-                isActive: exercise.order == activeSetID?.exerciseOrder
-            )
-        }
-    }
-}

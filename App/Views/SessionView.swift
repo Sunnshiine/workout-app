@@ -138,10 +138,8 @@ struct SessionView: View {
             standardRestDuration: { settings.standardRestDuration.timeInterval },
             supersetRestDuration: { settings.supersetRestDuration.timeInterval },
             liveActivity: liveActivityAdapter,
-            motion: SwiftUISessionMotion(),
-            liveEdge: { [workout] session in
-                LiveEdge.resolve(viewedSession: session, currentSession: workout.currentSession)
-            }
+            navigation: workout,
+            motion: SwiftUISessionMotion()
         )
         reconcileLiveActivity()
     }

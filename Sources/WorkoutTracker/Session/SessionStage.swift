@@ -1,0 +1,439 @@
+import Foundation
+
+struct SessionStage: Equatable {
+    enum Focus: Equatable {
+        case exercise(ExerciseStage)
+        case superset(SupersetStage)
+        case complete(CompletionStage)
+    }
+
+    let focus: Focus
+    let upNext: UpNext?
+    let queue: SessionQueue
+}
+
+struct UpNext: Equatable {
+    let title: String
+    let target: ExerciseSet?
+}
+
+struct SessionFocusSnapshot: Equatable {
+    let visualFocusOwner: ActiveSetVisualFocusOwner?
+    let supersets: [Superset]
+    let pairableExerciseOrders: Set<Int>
+}
+
+enum LiveEdgeContext: Equatable {
+    case atLiveEdge(canMoveOn: Bool, openExercises: [Exercise])
+    case browsedAway
+
+    var showsMoveOn: Bool {
+        switch self {
+        case .atLiveEdge(let canMoveOn, _): canMoveOn
+        case .browsedAway: false
+        }
+    }
+
+    var openExercises: [Exercise] {
+        switch self {
+        case .atLiveEdge(_, let openExercises): openExercises
+        case .browsedAway: []
+        }
+    }
+}
+
+enum BranchNodeState: Equatable, Sendable {
+    case leaf
+    case dashedLeaf
+    case bud
+    case future
+}
+
+struct BranchNode: Equatable {
+    let set: ExerciseSet
+    let state: BranchNodeState
+}
+
+struct StageBranch: Equatable {
+    let nodes: [BranchNode]
+    let activeSetID: ActiveSetID?
+}
+
+struct SetCardSlot: Equatable {
+    enum Mode: Equatable {
+        case logging
+        case reviewingLogged(showsSavedConfirmation: Bool)
+    }
+
+    let set: ExerciseSet
+    let ordinal: Int
+    let count: Int
+    let mode: Mode
+    let cardIdentity: String
+}
+
+struct ExerciseStage: Equatable {
+    let exercise: Exercise
+    let branch: StageBranch
+    let card: SetCardSlot?
+    let lastPerformed: LastPerformedCardPresentation?
+}
+
+struct SupersetStage: Equatable {
+    let focused: Exercise
+    let partner: Exercise
+    let branch: StageBranch
+    let partnerNodes: [BranchNode]
+    let card: SetCardSlot?
+    let lastPerformed: LastPerformedCardPresentation?
+}
+
+struct CompletionStage: Equatable {
+    let summary: String
+    let openExercises: [Exercise]
+    let showsMoveOn: Bool
+}
+
+struct QueuePosition: Equatable, Sendable {
+    let number: Int
+    let count: Int
+
+    var label: String { "\(number) of \(count)" }
+    var accessibilityLabel: String { "Queue, \(number) of \(count)" }
+}
+
+enum QueuePairingRole: Equatable, Sendable {
+    case none
+    case source
+    case eligibleTarget
+    case ineligibleTarget
+    case confirmingTarget
+}
+
+struct SessionQueue: Equatable {
+    struct Row: Equatable, Identifiable {
+        let id: String
+        let title: String
+        let sets: [ExerciseSet]
+        let isComplete: Bool
+        let isOnStage: Bool
+        let pairingExercise: Exercise
+        let jumpTarget: ExerciseSet?
+        let canBeginPairing: Bool
+        let pairingRole: QueuePairingRole
+    }
+
+    let rows: [Row]
+    let position: QueuePosition
+    let pairingMode: PairingMode
+    let showsMoveOn: Bool
+    let openExercises: [Exercise]
+
+    var isPairing: Bool { pairingMode != .inactive }
+}
+
+enum SessionStageComposition: Equatable, Sendable {
+    case reading
+    case editingWeight
+
+    init(isEditingWeight: Bool) {
+        self = isEditingWeight ? .editingWeight : .reading
+    }
+}
+
+@MainActor
+extension SessionStage {
+    init(
+        session: Session,
+        focus: SessionFocusSnapshot,
+        savedLoggedSetID: ActiveSetID?,
+        pairingMode: PairingMode,
+        liveEdge: LiveEdgeContext,
+        lookup: LastPerformedLookupSnapshot
+    ) {
+        let items = StageItem.items(in: session, supersets: focus.supersets)
+        let onStage = StageItem.onStage(in: items, focusID: focus.visualFocusOwner?.setID)
+        upNext = onStage.flatMap { StageItem.upNext(after: $0, in: items) }
+        queue = SessionQueue(items: items, onStage: onStage, snapshot: focus, pairingMode: pairingMode, liveEdge: liveEdge)
+        guard let onStage else {
+            self.focus = .complete(CompletionStage(items: items, liveEdge: liveEdge))
+            return
+        }
+        self.focus = onStage.focus(snapshot: focus, savedLoggedSetID: savedLoggedSetID, lookup: lookup)
+    }
+}
+
+@MainActor
+extension ExerciseStage {
+    fileprivate init(
+        _ exercise: Exercise,
+        snapshot: SessionFocusSnapshot,
+        savedLoggedSetID: ActiveSetID?,
+        lookup: LastPerformedLookupSnapshot
+    ) {
+        let sets = exercise.sortedSets
+        let owner = snapshot.visualFocusOwner.scoped(to: [exercise])
+        self.exercise = exercise
+        branch = StageBranch(sets: sets, activeSetID: owner?.activeSetID)
+        card = SetCardSlot.exerciseCard(
+            in: sets,
+            exerciseOrder: exercise.order,
+            owner: owner,
+            savedLoggedSetID: savedLoggedSetID
+        )
+        lastPerformed = LastPerformedCardPresentation(exercise: exercise, lookup: lookup)
+    }
+}
+
+@MainActor
+extension SupersetStage {
+    fileprivate init(_ superset: Superset, snapshot: SessionFocusSnapshot, lookup: LastPerformedLookupSnapshot) {
+        let activeSetID = snapshot.visualFocusOwner.scoped(to: superset.exercises)?.activeSetID
+        let focused = superset.exercises.first { $0.order == activeSetID?.exerciseOrder } ?? superset.lowerOrdered
+        let partner = superset.other(than: focused)
+        let sets = focused.sortedSets
+        self.focused = focused
+        self.partner = partner
+        branch = StageBranch(sets: sets, activeSetID: activeSetID)
+        partnerNodes = StageBranch(sets: partner.sortedSets, activeSetID: nil).nodes.map { node in
+            BranchNode(set: node.set, state: node.state == .bud ? .future : node.state)
+        }
+        card = SetCardSlot.supersetCard(in: sets, focused: focused, activeSetID: activeSetID)
+        lastPerformed = activeSetID == nil ? nil : LastPerformedCardPresentation(exercise: focused, lookup: lookup)
+    }
+}
+
+@MainActor
+extension CompletionStage {
+    fileprivate init(items: [StageItem], liveEdge: LiveEdgeContext) {
+        let setCount = items.reduce(0) { $0 + $1.exercises.completedSetCount }
+        let exerciseCount = items.reduce(0) { $0 + $1.exercises.count }
+        let sets = setCount == 1 ? "1 set" : "\(setCount) sets"
+        let exercises = exerciseCount == 1 ? "1 exercise" : "\(exerciseCount) exercises"
+        summary = "\(sets) done across \(exercises)"
+        openExercises = liveEdge.openExercises
+        showsMoveOn = liveEdge.showsMoveOn
+    }
+}
+
+@MainActor
+extension StageBranch {
+    fileprivate init(sets: [ExerciseSet], activeSetID: ActiveSetID?) {
+        let bud = Self.budSet(in: sets, activeSetID: activeSetID)
+        nodes = sets.map { BranchNode(set: $0, state: BranchNodeState(of: $0, bud: bud)) }
+        self.activeSetID = activeSetID
+    }
+
+    private static func budSet(in sets: [ExerciseSet], activeSetID: ActiveSetID?) -> ExerciseSet? {
+        if let active = sets.first(matching: activeSetID), active.isPending {
+            return active
+        }
+        return sets.first(where: \.isPending)
+    }
+}
+
+@MainActor
+extension BranchNodeState {
+    fileprivate init(of set: ExerciseSet, bud: ExerciseSet?) {
+        switch set.state {
+        case .logged: self = .leaf
+        case .skipped: self = .dashedLeaf
+        case .pending: self = set === bud ? .bud : .future
+        }
+    }
+}
+
+@MainActor
+extension SetCardSlot {
+    fileprivate static func exerciseCard(
+        in sets: [ExerciseSet],
+        exerciseOrder: Int,
+        owner: ActiveSetVisualFocusOwner?,
+        savedLoggedSetID: ActiveSetID?
+    ) -> SetCardSlot? {
+        if case .loggedSetReview(let reviewedSetID) = owner, let reviewed = sets.first(matching: reviewedSetID) {
+            return SetCardSlot(
+                reviewed,
+                in: sets,
+                mode: .reviewingLogged(showsSavedConfirmation: reviewedSetID == savedLoggedSetID),
+                cardIdentity: "stage-review-\(exerciseOrder)-\(reviewed.index)"
+            )
+        }
+        guard let set = sets.first(matching: owner?.activeSetID) ?? sets.first(where: \.isPending) else { return nil }
+        return SetCardSlot(set, in: sets, mode: .logging, cardIdentity: "stage-active-\(exerciseOrder)-\(set.index)")
+    }
+
+    fileprivate static func supersetCard(
+        in sets: [ExerciseSet],
+        focused: Exercise,
+        activeSetID: ActiveSetID?
+    ) -> SetCardSlot? {
+        let set: ExerciseSet? =
+            if let activeSetID {
+                sets.first { $0.index == activeSetID.setIndex }
+            } else {
+                SupersetState.nextPendingSet(for: focused)
+            }
+        guard let set else { return nil }
+        return SetCardSlot(set, in: sets, mode: .logging, cardIdentity: "superset-active-\(focused.order)-\(set.index)")
+    }
+
+    private init(_ set: ExerciseSet, in sets: [ExerciseSet], mode: Mode, cardIdentity: String) {
+        self.set = set
+        ordinal = (sets.firstIndex { $0 === set } ?? set.index) + 1
+        count = sets.count
+        self.mode = mode
+        self.cardIdentity = cardIdentity
+    }
+}
+
+@MainActor
+extension SessionQueue {
+    fileprivate init(
+        items: [StageItem],
+        onStage: StageItem?,
+        snapshot: SessionFocusSnapshot,
+        pairingMode: PairingMode,
+        liveEdge: LiveEdgeContext
+    ) {
+        rows = items.map { item in
+            item.row(
+                isOnStage: item.id == onStage?.id,
+                pairable: snapshot.pairableExerciseOrders,
+                pairingMode: pairingMode
+            )
+        }
+        let onStageIndex = items.firstIndex { $0.id == onStage?.id }
+        position = QueuePosition(number: onStageIndex.map { $0 + 1 } ?? items.count, count: items.count)
+        self.pairingMode = pairingMode
+        showsMoveOn = liveEdge.showsMoveOn
+        openExercises = liveEdge.openExercises
+    }
+}
+
+@MainActor
+private enum StageItem {
+    case exercise(Exercise)
+    case superset(Superset)
+
+    static func items(in session: Session, supersets: [Superset]) -> [StageItem] {
+        session.exercises
+            .sorted { $0.order < $1.order }
+            .compactMap { exercise in
+                guard let superset = supersets.first(where: { $0.exercises.contains { $0.order == exercise.order } }) else {
+                    return .exercise(exercise)
+                }
+                return exercise.order == superset.lowerOrdered.order ? .superset(superset) : nil
+            }
+    }
+
+    static func onStage(in items: [StageItem], focusID: ActiveSetID?) -> StageItem? {
+        items.first { $0.contains(focusID) } ?? items.first { !$0.isComplete }
+    }
+
+    static func upNext(after onStage: StageItem, in items: [StageItem]) -> UpNext? {
+        let next: StageItem?
+        if let index = items.firstIndex(where: { $0.id == onStage.id }),
+            let after = items[items.index(after: index)...].first(where: { !$0.isComplete }) {
+            next = after
+        } else {
+            next = items.first { !$0.isComplete && $0.id != onStage.id }
+        }
+        return next.map { UpNext(title: $0.title, target: $0.nextPendingSet) }
+    }
+
+    func focus(
+        snapshot: SessionFocusSnapshot,
+        savedLoggedSetID: ActiveSetID?,
+        lookup: LastPerformedLookupSnapshot
+    ) -> SessionStage.Focus {
+        switch self {
+        case .exercise(let exercise):
+            .exercise(ExerciseStage(exercise, snapshot: snapshot, savedLoggedSetID: savedLoggedSetID, lookup: lookup))
+        case .superset(let superset):
+            .superset(SupersetStage(superset, snapshot: snapshot, lookup: lookup))
+        }
+    }
+
+    var exercises: [Exercise] {
+        switch self {
+        case .exercise(let exercise): [exercise]
+        case .superset(let superset): superset.exercises
+        }
+    }
+
+    var id: String {
+        switch self {
+        case .exercise(let exercise): "exercise-\(exercise.order)"
+        case .superset(let superset): "superset-\(superset.lowerOrdered.order)"
+        }
+    }
+
+    var title: String {
+        exercises.map(\.baseName).joined(separator: " + ")
+    }
+
+    var isComplete: Bool { exercises.allSetsComplete }
+
+    var nextPendingSet: ExerciseSet? { SessionSetOrder.firstPendingSet(in: exercises)?.set }
+
+    func contains(_ setID: ActiveSetID?) -> Bool {
+        guard let setID else { return false }
+        return exercises.contains { $0.order == setID.exerciseOrder }
+    }
+
+    func row(isOnStage: Bool, pairable: Set<Int>, pairingMode: PairingMode) -> SessionQueue.Row {
+        let (exercise, canBeginPairing): (Exercise, Bool) =
+            switch self {
+            case .exercise(let exercise): (exercise, pairable.contains(exercise.order))
+            case .superset(let superset): (superset.first, false)
+            }
+        return SessionQueue.Row(
+            id: id,
+            title: title,
+            sets: SessionSetOrder.orderedSets(in: exercises).map(\.set),
+            isComplete: isComplete,
+            isOnStage: isOnStage,
+            pairingExercise: exercise,
+            jumpTarget: nextPendingSet,
+            canBeginPairing: canBeginPairing,
+            pairingRole: pairingRole(mode: pairingMode, pairable: pairable)
+        )
+    }
+
+    private func pairingRole(mode: PairingMode, pairable: Set<Int>) -> QueuePairingRole {
+        guard let sourceOrder = mode.sourceOrder else { return .none }
+        guard case .exercise(let exercise) = self else { return .ineligibleTarget }
+        if case .confirming(_, exercise.order) = mode { return .confirmingTarget }
+        if exercise.order == sourceOrder { return .source }
+        return pairable.contains(exercise.order) ? .eligibleTarget : .ineligibleTarget
+    }
+}
+
+@MainActor
+extension Exercise {
+    fileprivate var sortedSets: [ExerciseSet] {
+        sets.sorted { $0.index < $1.index }
+    }
+}
+
+@MainActor
+extension [ExerciseSet] {
+    fileprivate func first(matching id: ActiveSetID?) -> ExerciseSet? {
+        guard let id else { return nil }
+        return first { ActiveSetFocusManager.id(for: $0) == id }
+    }
+}
+
+extension ActiveSetVisualFocusOwner {
+    fileprivate var activeSetID: ActiveSetID? {
+        guard case .activeSet(let setID) = self else { return nil }
+        return setID
+    }
+}
+
+extension ActiveSetVisualFocusOwner? {
+    fileprivate func scoped(to exercises: [Exercise]) -> ActiveSetVisualFocusOwner? {
+        flatMap { owner in exercises.contains { $0.order == owner.setID.exerciseOrder } ? owner : nil }
+    }
+}
