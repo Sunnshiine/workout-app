@@ -155,8 +155,9 @@ struct SmartValuePills: View {
     }
 
     private var weightValue: some View {
-        // The idle Text sizes the row in every state, so the taller UITextField never resizes the card.
-        Text(form.weightDisplay)
+        // A hidden one-line Text sizes the row in every state, so neither the taller UITextField nor a
+        // long typed weight resizes the card.
+        Text(verbatim: "0")
             .fixedSize(horizontal: false, vertical: true)
             .hidden()
             .frame(maxWidth: .infinity)
