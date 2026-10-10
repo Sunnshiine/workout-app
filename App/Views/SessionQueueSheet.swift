@@ -23,11 +23,7 @@ struct SessionQueueSheet: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(queue.rows) { row in
-                    if isPairing {
-                        pairingRow(for: row)
-                    } else {
-                        queueRow(for: row)
-                    }
+                    queueRow(for: row)
                 }
 
                 if !isPairing, !queue.openExercises.isEmpty {
@@ -81,23 +77,25 @@ struct SessionQueueSheet: View {
         .padding(.top, 18)
     }
 
-    // MARK: - Browsing
+    // MARK: - Rows
 
     @ViewBuilder
     private func queueRow(for row: SessionQueue.Row) -> some View {
-        switch row.action {
-        case .none:
-            jumpButton(for: row)
-        case .pair:
+        switch row.kind {
+        case .exercise:
+            rowButton(for: row)
+        case .pairableExercise:
             HStack(spacing: 0) {
-                jumpButton(for: row)
-                textButton("Pair") {
-                    coordinator.beginPairing(from: row.pairingExercise, in: session)
+                rowButton(for: row)
+                if !isPairing {
+                    textButton("Pair") {
+                        coordinator.beginPairing(from: row.pairingExercise, in: session)
+                    }
+                    .accessibilityLabel("Pair \(row.title) into a superset")
+                    .accessibilityIdentifier("stage-queue-pair-\(row.id)")
                 }
-                .accessibilityLabel("Pair \(row.title) into a superset")
-                .accessibilityIdentifier("stage-queue-pair-\(row.id)")
             }
-        case .unlink:
+        case .superset:
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("Superset")
@@ -111,14 +109,26 @@ struct SessionQueueSheet: View {
                     }
                     .accessibilityLabel("Unlink \(row.title)")
                     .accessibilityIdentifier("stage-queue-unlink-\(row.id)")
+                    .shown(!isPairing)
                 }
                 .padding(.leading, 14)
 
-                jumpButton(for: row)
+                rowButton(for: row)
             }
             .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.card))
         }
     }
+
+    @ViewBuilder
+    private func rowButton(for row: SessionQueue.Row) -> some View {
+        if isPairing {
+            pairingRow(for: row)
+        } else {
+            jumpButton(for: row)
+        }
+    }
+
+    // MARK: - Browsing
 
     private func jumpButton(for row: SessionQueue.Row) -> some View {
         Button {
@@ -214,5 +224,14 @@ struct SessionQueueSheet: View {
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
+    }
+}
+
+extension View {
+    /// Hides a control without giving up its frame, so the rows around it hold still.
+    fileprivate func shown(_ isShown: Bool) -> some View {
+        opacity(isShown ? 1 : 0)
+            .disabled(!isShown)
+            .accessibilityHidden(!isShown)
     }
 }
