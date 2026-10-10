@@ -27,11 +27,23 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
         reloadedBlockTabs += (try? context.fetch(FetchDescriptor<Block>()).map(\.tabName)) ?? []
     }
 
-    let didSync = await connection.syncNow()
+    let result = await connection.syncNow()
 
-    #expect(didSync == true)
+    #expect(result == .synced)
     #expect(reloadedBlockTabs == ["Block 27"])
     #expect(await client.syncedSpreadsheetIds() == ["current-sheet"])
+}
+
+@MainActor
+@Test func syncNowReportsASyncThatCouldNotReachTheSheetAsFailed() async throws {
+    let container = try makeCacheSafetyContainer()
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
+    settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid(), failOffline: true)
+    let sync = SyncCoordinator(client: client, context: container.mainContext)
+    let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
+
+    #expect(await connection.syncNow() == .failed)
 }
 
 @MainActor
@@ -49,8 +61,8 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
     let repeatTap = await connection.syncNow()
     client.release()
 
-    #expect(repeatTap == false)
-    #expect(await firstTap.value == true)
+    #expect(repeatTap == .syncInProgress)
+    #expect(await firstTap.value == .synced)
     #expect(reloadCount == 1)
     #expect(client.tabTitleReads == 1)
 }
@@ -521,14 +533,14 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
     let backgroundSync = Task { await sync.sync(spreadsheetId: "current-sheet") }
     await client.waitUntilHeld()
 
-    #expect(await connection.syncNow() == false)
+    #expect(await connection.syncNow() == .syncInProgress)
     #expect(reloadCount == 0)
     #expect(client.tabTitleReads == 1)
 
     client.release()
 
     #expect(await backgroundSync.value == true)
-    #expect(await connection.syncNow() == true)
+    #expect(await connection.syncNow() == .synced)
     #expect(reloadCount == 1)
     #expect(client.tabTitleReads == 2)
 }
