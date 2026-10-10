@@ -7,10 +7,10 @@ import UIKit
 @MainActor
 @Suite
 struct SessionStageLayoutTests {
-    @Test func theExerciseBranchStaysDrawnWithNoBannerAndUnderAOneLineBanner() throws {
-        let noBanner = try SessionPageHost.layout(.exercise, banner: .outcome(.clear), windowHeight: WindowHeight.iPhone17Pro)
+    @Test func theExerciseBranchStaysDrawnInAFullHeightWindow() throws {
+        let page = try SessionPageHost.layout(.exercise, banner: .clear, windowHeight: WindowHeight.iPhone17Pro)
         #expect(
-            noBanner
+            page
                 == PageFrames(
                     banner: nil,
                     stage: CGRect(x: 0, y: 62, width: 402, height: 778),
@@ -28,32 +28,12 @@ struct SessionStageLayoutTests {
                     card: CGRect(x: 16, y: 476, width: 370, height: 308)
                 )
         )
-        let oneLine = try SessionPageHost.layout(.exercise, banner: .outcome(.writesQueued(1)), windowHeight: WindowHeight.iPhone17Pro)
-        #expect(
-            oneLine
-                == PageFrames(
-                    banner: CGRect(x: 16, y: 70, width: 370, height: 34),
-                    stage: CGRect(x: 0, y: 104, width: 402, height: 736),
-                    cadence: nil,
-                    name: CGRect(x: 16, y: 175, width: 173, height: 41),
-                    partner: nil,
-                    note: CGRect(x: 16, y: 230, width: 270, height: 22),
-                    leaves: [
-                        CGRect(x: 272, y: 280, width: 44, height: 44),
-                        CGRect(x: 196, y: 301, width: 44, height: 44),
-                        CGRect(x: 120, y: 328, width: 44, height: 44)
-                    ],
-                    branchIsDrawn: true,
-                    lastPerformed: CGRect(x: 16, y: 444, width: 370, height: 18),
-                    card: CGRect(x: 16, y: 476, width: 370, height: 308)
-                )
-        )
     }
 
-    @Test func theSupersetStageKeepsItsBranchWithNoBannerAndUnderAOneLineBanner() throws {
-        let noBanner = try SessionPageHost.layout(.superset, banner: .outcome(.clear), windowHeight: WindowHeight.iPhone17Pro)
+    @Test func theSupersetStageKeepsItsBranchInAFullHeightWindow() throws {
+        let page = try SessionPageHost.layout(.superset, banner: .clear, windowHeight: WindowHeight.iPhone17Pro)
         #expect(
-            noBanner
+            page
                 == PageFrames(
                     banner: nil,
                     stage: CGRect(x: 0, y: 62, width: 402, height: 778),
@@ -67,62 +47,58 @@ struct SessionStageLayoutTests {
                     card: CGRect(x: 16, y: 476, width: 370, height: 308)
                 )
         )
-        let oneLine = try SessionPageHost.layout(.superset, banner: .outcome(.writesQueued(1)), windowHeight: WindowHeight.iPhone17Pro)
-        #expect(
-            oneLine
-                == PageFrames(
-                    banner: CGRect(x: 16, y: 70, width: 370, height: 34),
-                    stage: CGRect(x: 0, y: 104, width: 402, height: 736),
-                    cadence: CGRect(x: 16, y: 175, width: 32, height: 16),
-                    name: CGRect(x: 16, y: 205, width: 123, height: 41),
-                    partner: CGRect(x: 16, y: 249, width: 125, height: 25),
-                    note: CGRect(x: 16, y: 287, width: 262, height: 22),
-                    leaves: [],
-                    branchIsDrawn: true,
-                    lastPerformed: nil,
-                    card: CGRect(x: 16, y: 476, width: 370, height: 308)
-                )
-        )
     }
 
-    @Test func aDetailHeightBannerKeepsLastPerformedAndLeavesTheCardWhereItWas() throws {
-        let withDetail = try SessionPageHost.layout(.exercise, banner: .twoLinesAndDetail, windowHeight: WindowHeight.iPhone17Pro)
-        #expect(
-            withDetail
-                == PageFrames(
-                    banner: CGRect(x: 16, y: 70, width: 370, height: 76),
-                    stage: CGRect(x: 0, y: 146, width: 402, height: 694),
-                    cadence: nil,
-                    name: CGRect(x: 16, y: 217, width: 173, height: 41),
-                    partner: nil,
-                    note: CGRect(x: 16, y: 272, width: 270, height: 22),
-                    leaves: [
-                        CGRect(x: 272, y: 318, width: 44, height: 44),
-                        CGRect(x: 196, y: 332, width: 44, height: 44),
-                        CGRect(x: 120, y: 352, width: 44, height: 44)
-                    ],
-                    branchIsDrawn: true,
-                    lastPerformed: CGRect(x: 16, y: 444, width: 370, height: 18),
-                    card: CGRect(x: 16, y: 476, width: 370, height: 308)
-                )
-        )
+    @Test func aSyncBannerMovesNothingAndClearsTheExerciseName() throws {
+        let heights = [WindowHeight.iPhone17Pro, WindowHeight.mini, WindowHeight.se]
+        let banners: [(outcome: SyncOutcome, frames: [CGRect])] = [
+            (
+                .writesQueued(1),
+                [
+                    CGRect(x: 16, y: 70, width: 370, height: 34),
+                    CGRect(x: 16, y: 70, width: 370, height: 34),
+                    CGRect(x: 16, y: 70, width: 370, height: 34)
+                ]
+            ),
+            (
+                .writesRefused(["x"]),
+                [
+                    CGRect(x: 16, y: 70, width: 370, height: 34),
+                    CGRect(x: 16, y: 70, width: 370, height: 34),
+                    CGRect(x: 16, y: 70, width: 370, height: 34)
+                ]
+            )
+        ]
+        for stage in [StageKind.exercise, .superset] {
+            let clear = try SessionPageHost.layouts(stage, banner: .clear, windowHeights: heights)
+            for banner in banners {
+                let pages = try SessionPageHost.layouts(stage, banner: banner.outcome, windowHeights: heights)
+                #expect(pages.map(\.banner) == banner.frames, "\(stage) page under \(banner.outcome)")
+                #expect(pages.map(\.withoutBanner) == clear, "\(stage) page under \(banner.outcome)")
+                for page in pages {
+                    let bannerFrame = try #require(page.banner)
+                    let name = try #require(page.name)
+                    #expect(!bannerFrame.intersects(name), "\(stage) page under \(banner.outcome): \(page)")
+                }
+            }
+        }
     }
 
     @Test func aMiniHeightWindowKeepsLastPerformedAndTheBranch() throws {
-        let oneLine = try SessionPageHost.layout(.exercise, banner: .outcome(.writesQueued(1)), windowHeight: WindowHeight.mini)
+        let page = try SessionPageHost.layout(.exercise, banner: .clear, windowHeight: WindowHeight.mini)
         #expect(
-            oneLine
+            page
                 == PageFrames(
-                    banner: CGRect(x: 16, y: 70, width: 370, height: 34),
-                    stage: CGRect(x: 0, y: 104, width: 402, height: 689),
+                    banner: nil,
+                    stage: CGRect(x: 0, y: 62, width: 402, height: 731),
                     cadence: nil,
-                    name: CGRect(x: 16, y: 175, width: 173, height: 41),
+                    name: CGRect(x: 16, y: 133, width: 173, height: 41),
                     partner: nil,
-                    note: CGRect(x: 16, y: 230, width: 270, height: 22),
+                    note: CGRect(x: 16, y: 188, width: 270, height: 22),
                     leaves: [
-                        CGRect(x: 272, y: 275, width: 44, height: 44),
-                        CGRect(x: 196, y: 289, width: 44, height: 44),
-                        CGRect(x: 120, y: 308, width: 44, height: 44)
+                        CGRect(x: 272, y: 238, width: 44, height: 44),
+                        CGRect(x: 196, y: 258, width: 44, height: 44),
+                        CGRect(x: 120, y: 286, width: 44, height: 44)
                     ],
                     branchIsDrawn: true,
                     lastPerformed: CGRect(x: 16, y: 397, width: 370, height: 18),
@@ -131,81 +107,17 @@ struct SessionStageLayoutTests {
         )
     }
 
-    @Test func aTextAndDetailBannerKeepsTheSupersetsCadenceAndItsNote() throws {
-        let textAndDetail = try SessionPageHost.layout(.superset, banner: .textAndDetail, windowHeight: WindowHeight.iPhone17Pro)
+    @Test func aMiniHeightWindowKeepsTheSupersetsCadenceNoteAndBranch() throws {
+        let page = try SessionPageHost.layout(.superset, banner: .clear, windowHeight: WindowHeight.mini)
         #expect(
-            textAndDetail
-                == PageFrames(
-                    banner: CGRect(x: 16, y: 70, width: 370, height: 54),
-                    stage: CGRect(x: 0, y: 124, width: 402, height: 716),
-                    cadence: CGRect(x: 16, y: 195, width: 32, height: 16),
-                    name: CGRect(x: 16, y: 225, width: 123, height: 41),
-                    partner: CGRect(x: 16, y: 269, width: 125, height: 25),
-                    note: CGRect(x: 16, y: 307, width: 262, height: 22),
-                    leaves: [],
-                    branchIsDrawn: true,
-                    lastPerformed: nil,
-                    card: CGRect(x: 16, y: 476, width: 370, height: 308)
-                )
-        )
-    }
-
-    @Test func aOneLineBannerKeepsTheSupersetsLastPerformedAndItsCadence() throws {
-        let noBanner = try SessionPageHost.layout(
-            .superset,
-            banner: .outcome(.clear),
-            windowHeight: WindowHeight.iPhone17Pro,
-            history: History.backSquatAndBBRDL()
-        )
-        #expect(
-            noBanner
+            page
                 == PageFrames(
                     banner: nil,
-                    stage: CGRect(x: 0, y: 62, width: 402, height: 778),
+                    stage: CGRect(x: 0, y: 62, width: 402, height: 731),
                     cadence: CGRect(x: 16, y: 133, width: 32, height: 16),
                     name: CGRect(x: 16, y: 163, width: 123, height: 41),
                     partner: CGRect(x: 16, y: 207, width: 125, height: 25),
                     note: CGRect(x: 16, y: 245, width: 262, height: 22),
-                    leaves: [],
-                    branchIsDrawn: true,
-                    lastPerformed: CGRect(x: 16, y: 444, width: 370, height: 18),
-                    card: CGRect(x: 16, y: 476, width: 370, height: 308)
-                )
-        )
-        let oneLine = try SessionPageHost.layout(
-            .superset,
-            banner: .outcome(.writesQueued(1)),
-            windowHeight: WindowHeight.iPhone17Pro,
-            history: History.backSquatAndBBRDL()
-        )
-        #expect(
-            oneLine
-                == PageFrames(
-                    banner: CGRect(x: 16, y: 70, width: 370, height: 34),
-                    stage: CGRect(x: 0, y: 104, width: 402, height: 736),
-                    cadence: CGRect(x: 16, y: 175, width: 32, height: 16),
-                    name: CGRect(x: 16, y: 205, width: 123, height: 41),
-                    partner: CGRect(x: 16, y: 249, width: 125, height: 25),
-                    note: CGRect(x: 16, y: 287, width: 262, height: 22),
-                    leaves: [],
-                    branchIsDrawn: true,
-                    lastPerformed: CGRect(x: 16, y: 444, width: 370, height: 18),
-                    card: CGRect(x: 16, y: 476, width: 370, height: 308)
-                )
-        )
-    }
-
-    @Test func aMiniHeightWindowKeepsTheSupersetsCadenceNoteAndBranch() throws {
-        let oneLine = try SessionPageHost.layout(.superset, banner: .outcome(.writesQueued(1)), windowHeight: WindowHeight.mini)
-        #expect(
-            oneLine
-                == PageFrames(
-                    banner: CGRect(x: 16, y: 70, width: 370, height: 34),
-                    stage: CGRect(x: 0, y: 104, width: 402, height: 689),
-                    cadence: CGRect(x: 16, y: 175, width: 32, height: 16),
-                    name: CGRect(x: 16, y: 205, width: 123, height: 41),
-                    partner: CGRect(x: 16, y: 249, width: 125, height: 25),
-                    note: CGRect(x: 16, y: 287, width: 262, height: 22),
                     leaves: [],
                     branchIsDrawn: true,
                     lastPerformed: nil,
@@ -214,10 +126,10 @@ struct SessionStageLayoutTests {
         )
     }
 
-    @Test func anSEHeightWindowWithNoBannerKeepsTheNoteLastPerformedAndTheBranch() throws {
-        let noBanner = try SessionPageHost.layout(.exercise, banner: .outcome(.clear), windowHeight: WindowHeight.se)
+    @Test func anSEHeightWindowKeepsTheNoteLastPerformedAndTheBranch() throws {
+        let page = try SessionPageHost.layout(.exercise, banner: .clear, windowHeight: WindowHeight.se)
         #expect(
-            noBanner
+            page
                 == PageFrames(
                     banner: nil,
                     stage: CGRect(x: 0, y: 62, width: 402, height: 647),
@@ -237,35 +149,12 @@ struct SessionStageLayoutTests {
         )
     }
 
-    @Test func anSEHeightWindowUnderAOneLineBannerGivesUpTheNoteAndLastPerformedButKeepsTheBranch() throws {
-        let oneLine = try SessionPageHost.layout(.exercise, banner: .outcome(.writesQueued(1)), windowHeight: WindowHeight.se)
-        #expect(
-            oneLine
-                == PageFrames(
-                    banner: CGRect(x: 16, y: 70, width: 370, height: 34),
-                    stage: CGRect(x: 0, y: 104, width: 402, height: 605),
-                    cadence: nil,
-                    name: CGRect(x: 16, y: 175, width: 173, height: 41),
-                    partner: nil,
-                    note: nil,
-                    leaves: [
-                        CGRect(x: 272, y: 238, width: 44, height: 44),
-                        CGRect(x: 196, y: 249, width: 44, height: 44),
-                        CGRect(x: 120, y: 264, width: 44, height: 44)
-                    ],
-                    branchIsDrawn: true,
-                    lastPerformed: nil,
-                    card: CGRect(x: 16, y: 345, width: 370, height: 308)
-                )
-        )
-    }
-
     @Test func aRunningRestLeavesTheExerciseAndSupersetPagesWhereTheyWere() throws {
         for stage in [StageKind.exercise, .superset] {
-            let resting = try SessionPageHost.layout(stage, banner: .outcome(.clear), windowHeight: WindowHeight.iPhone17Pro)
+            let resting = try SessionPageHost.layout(stage, banner: .clear, windowHeight: WindowHeight.iPhone17Pro)
             let notResting = try SessionPageHost.layout(
                 stage,
-                banner: .outcome(.clear),
+                banner: .clear,
                 windowHeight: WindowHeight.iPhone17Pro,
                 isResting: false
             )
@@ -279,56 +168,45 @@ struct SessionStageLayoutTests {
 struct SessionStageLadderTransitionTests {
     @Test func shrinkingTheWindowDropsEveryLineTheShorterRungGivesUp() throws {
         let pages = try SessionPageHost.layouts(
-            .exercise,
-            banner: .outcome(.writesQueued(1)),
-            windowHeights: [WindowHeight.iPhone17Pro, WindowHeight.mini, WindowHeight.se]
+            .superset,
+            banner: .clear,
+            windowHeights: [WindowHeight.iPhone17Pro, WindowHeight.mini, WindowHeight.se],
+            history: History.backSquatAndBBRDL()
         )
         #expect(
             pages == [
                 PageFrames(
-                    banner: CGRect(x: 16, y: 70, width: 370, height: 34),
-                    stage: CGRect(x: 0, y: 104, width: 402, height: 736),
-                    cadence: nil,
-                    name: CGRect(x: 16, y: 175, width: 173, height: 41),
-                    partner: nil,
-                    note: CGRect(x: 16, y: 230, width: 270, height: 22),
-                    leaves: [
-                        CGRect(x: 272, y: 280, width: 44, height: 44),
-                        CGRect(x: 196, y: 301, width: 44, height: 44),
-                        CGRect(x: 120, y: 328, width: 44, height: 44)
-                    ],
+                    banner: nil,
+                    stage: CGRect(x: 0, y: 62, width: 402, height: 778),
+                    cadence: CGRect(x: 16, y: 133, width: 32, height: 16),
+                    name: CGRect(x: 16, y: 163, width: 123, height: 41),
+                    partner: CGRect(x: 16, y: 207, width: 125, height: 25),
+                    note: CGRect(x: 16, y: 245, width: 262, height: 22),
+                    leaves: [],
                     branchIsDrawn: true,
                     lastPerformed: CGRect(x: 16, y: 444, width: 370, height: 18),
                     card: CGRect(x: 16, y: 476, width: 370, height: 308)
                 ),
                 PageFrames(
-                    banner: CGRect(x: 16, y: 70, width: 370, height: 34),
-                    stage: CGRect(x: 0, y: 104, width: 402, height: 689),
-                    cadence: nil,
-                    name: CGRect(x: 16, y: 175, width: 173, height: 41),
-                    partner: nil,
-                    note: CGRect(x: 16, y: 230, width: 270, height: 22),
-                    leaves: [
-                        CGRect(x: 272, y: 275, width: 44, height: 44),
-                        CGRect(x: 196, y: 289, width: 44, height: 44),
-                        CGRect(x: 120, y: 308, width: 44, height: 44)
-                    ],
+                    banner: nil,
+                    stage: CGRect(x: 0, y: 62, width: 402, height: 731),
+                    cadence: CGRect(x: 16, y: 133, width: 32, height: 16),
+                    name: CGRect(x: 16, y: 163, width: 123, height: 41),
+                    partner: CGRect(x: 16, y: 207, width: 125, height: 25),
+                    note: CGRect(x: 16, y: 245, width: 262, height: 22),
+                    leaves: [],
                     branchIsDrawn: true,
                     lastPerformed: CGRect(x: 16, y: 397, width: 370, height: 18),
                     card: CGRect(x: 16, y: 429, width: 370, height: 308)
                 ),
                 PageFrames(
-                    banner: CGRect(x: 16, y: 70, width: 370, height: 34),
-                    stage: CGRect(x: 0, y: 104, width: 402, height: 605),
+                    banner: nil,
+                    stage: CGRect(x: 0, y: 62, width: 402, height: 647),
                     cadence: nil,
-                    name: CGRect(x: 16, y: 175, width: 173, height: 41),
-                    partner: nil,
-                    note: nil,
-                    leaves: [
-                        CGRect(x: 272, y: 238, width: 44, height: 44),
-                        CGRect(x: 196, y: 249, width: 44, height: 44),
-                        CGRect(x: 120, y: 264, width: 44, height: 44)
-                    ],
+                    name: CGRect(x: 16, y: 133, width: 123, height: 41),
+                    partner: CGRect(x: 16, y: 177, width: 125, height: 25),
+                    note: CGRect(x: 16, y: 216, width: 262, height: 22),
+                    leaves: [],
                     branchIsDrawn: true,
                     lastPerformed: nil,
                     card: CGRect(x: 16, y: 345, width: 370, height: 308)
@@ -367,14 +245,6 @@ private enum WindowHeight {
     static let se: CGFloat = 709
 }
 
-private enum BannerSlot {
-    case outcome(SyncOutcome)
-    case standIn(height: CGFloat)
-
-    static let textAndDetail = standIn(height: 54)
-    static let twoLinesAndDetail = standIn(height: 76)
-}
-
 private enum History {
     static func backSquatAndBBRDL() -> [LastPerformedEntry] {
         WorkoutFixtureScenarios.backSquatHistory() + [
@@ -390,7 +260,7 @@ private enum History {
 }
 
 private struct PageFrames: Equatable, CustomStringConvertible {
-    let banner: CGRect?
+    var banner: CGRect?
     let stage: CGRect?
     let cadence: CGRect?
     let name: CGRect?
@@ -423,6 +293,12 @@ private struct PageFrames: Equatable, CustomStringConvertible {
         self.branchIsDrawn = branchIsDrawn
         self.lastPerformed = lastPerformed.map(Self.rounded)
         self.card = card.map(Self.rounded)
+    }
+
+    var withoutBanner: PageFrames {
+        var page = self
+        page.banner = nil
+        return page
     }
 
     var description: String {
@@ -463,42 +339,30 @@ private struct SessionPage: View {
     let session: Session
     let coordinator: SessionCoordinator
     let restTimer: RestTimer
-    let banner: BannerSlot
+    let banner: SyncOutcome
     let probe: FrameProbe
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                bannerSlot
-                    .padding(.top, 8)
-
-                SessionStageView(
-                    session: session,
-                    coordinator: coordinator,
-                    composition: .reading,
-                    restTimer: restTimer
-                )
-                .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 43) }
-                .onGeometryChange(for: CGRect.self) {
-                    $0.frame(in: .global)
-                } action: {
-                    probe.stage = $0
-                }
+            SessionStageView(
+                session: session,
+                coordinator: coordinator,
+                composition: .reading,
+                restTimer: restTimer
+            )
+            .safeAreaInset(edge: .top, spacing: 0) {
+                Color.clear
+                    .frame(height: 43)
+                    .overlay(alignment: .top) {
+                        SyncStatusBanner(outcome: banner, isSyncing: false)
+                            .padding(.top, 8)
+                    }
             }
-        }
-    }
-
-    @ViewBuilder
-    private var bannerSlot: some View {
-        switch banner {
-        case .outcome(let outcome):
-            SyncStatusBanner(outcome: outcome, isSyncing: false)
-        case .standIn(let height):
-            Color.clear
-                .frame(height: height)
-                .accessibilityElement()
-                .accessibilityLabel("Sync status: stand-in")
-                .padding(.horizontal)
+            .onGeometryChange(for: CGRect.self) {
+                $0.frame(in: .global)
+            } action: {
+                probe.stage = $0
+            }
         }
     }
 }
@@ -525,7 +389,7 @@ private struct InertSessionSync: SessionSyncAdapter {
 private enum SessionPageHost {
     static func layout(
         _ stage: StageKind,
-        banner: BannerSlot,
+        banner: SyncOutcome,
         windowHeight: CGFloat,
         history: [LastPerformedEntry] = WorkoutFixtureScenarios.backSquatHistory(),
         isResting: Bool = true
@@ -535,7 +399,7 @@ private enum SessionPageHost {
 
     static func layouts(
         _ stage: StageKind,
-        banner: BannerSlot,
+        banner: SyncOutcome,
         windowHeights: [CGFloat],
         history: [LastPerformedEntry] = WorkoutFixtureScenarios.backSquatHistory(),
         isResting: Bool = true
@@ -583,7 +447,7 @@ private enum SessionPageHost {
             session: session,
             coordinator: boundCoordinator(to: session, store: scenario.store),
             restTimer: RestTimer(),
-            banner: .outcome(.clear),
+            banner: .clear,
             probe: FrameProbe()
         )
         let lookup = LastPerformedLookupStore(context: scenario.context)
