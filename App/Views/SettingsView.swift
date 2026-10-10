@@ -94,6 +94,12 @@ struct SettingsView: View {
                 }
             }
         }
+        // The connection outlives this sheet, so a switch that failed after Settings last closed
+        // would otherwise greet this visit with its stale error or confirmation.
+        .onAppear {
+            connection.clearError()
+            connection.cancelPendingSwitch()
+        }
         .sheet(isPresented: $isSheetPickerPresented) {
             sheetPickerSheet
         }
