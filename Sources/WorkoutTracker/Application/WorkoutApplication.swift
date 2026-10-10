@@ -157,10 +157,12 @@ extension WorkoutApplication {
     }
 
     public func sync() async throws -> SyncReport {
-        _ = try configuredSpreadsheetId()
-        let didSync = await connection.syncNow()
+        switch await connection.syncNow() {
+        case .synced: break
+        case .noSheet: throw ApplicationError.notConfigured
+        case .syncInProgress, .failed: throw ApplicationError.syncFailed(SyncOutcomeSnapshot(sync.outcome).status)
+        }
         let outcome = SyncOutcomeSnapshot(sync.outcome)
-        guard didSync else { throw ApplicationError.syncFailed(outcome.status) }
         let queued = try queuedWrites()
         return SyncReport(
             syncOutcome: outcome,
