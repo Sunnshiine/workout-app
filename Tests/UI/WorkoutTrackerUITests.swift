@@ -180,7 +180,9 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
     @MainActor
     func testSwipeDismissingASheetOpenedWhileTypingFoldsTheWeightEdit() throws {
-        let app = launchFixtureApp()
+        // With UIKit animations off, a closing sheet never hands its first responder back, so only
+        // an animated launch takes the path an athlete takes (#697).
+        let app = launchFixtureApp(animated: true)
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         openWeightKeyboard(in: app)
@@ -190,17 +192,18 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         let historyTitle = app.staticTexts["Exercise History · last 5"]
         XCTAssertTrue(historyTitle.appears(within: 3))
         historyTitle.swipeDown(velocity: .fast)
+        XCTAssertTrue(historyTitle.waitForNonExistence(timeout: 3))
 
-        XCTAssertTrue(app.otherElements["session-header-hud"].appears(within: 3))
+        XCTAssertFalse(app.keyboards.firstMatch.appears(within: 1), "closing the sheet reopened the weight keyboard")
+        XCTAssertTrue(app.otherElements["session-header-hud"].exists)
         XCTAssertTrue(app.buttons["stage-queue-button"].exists)
-        XCTAssertFalse(app.keyboards.firstMatch.exists)
         waitForLabel("Weight, 237.5", on: app.buttons["weight-pill"])
         XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "weight-pill").count, 1)
     }
 
     @MainActor
-    private func launchFixtureApp(options: [WorkoutUITestFixtureOption] = []) -> XCUIApplication {
-        launchWorkoutApp(fixture: .currentSession, options: options)
+    private func launchFixtureApp(options: [WorkoutUITestFixtureOption] = [], animated: Bool = false) -> XCUIApplication {
+        launchWorkoutApp(fixture: .currentSession, options: options, animated: animated)
     }
 
     @MainActor

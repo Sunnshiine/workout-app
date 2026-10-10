@@ -35,14 +35,14 @@ extension XCTestCase {
     @MainActor
     func launchWorkoutApp(
         fixture: WorkoutUITestFixture,
-        options: [WorkoutUITestFixtureOption] = []
+        options: [WorkoutUITestFixtureOption] = [],
+        animated: Bool = false
     ) -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchArguments =
-            fixture.launchArguments + options.map(\.rawValue) + [
-                "-UITEST_DISABLE_ANIMATIONS", "-UITEST_DISABLE_LIVE_ACTIVITIES"
-            ]
+            fixture.launchArguments + options.map(\.rawValue)
+            + (animated ? [] : ["-UITEST_DISABLE_ANIMATIONS"]) + ["-UITEST_DISABLE_LIVE_ACTIVITIES"]
         app.launch()
         return app
     }
