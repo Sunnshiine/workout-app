@@ -331,39 +331,62 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
 // MARK: - Sign out
 
 @MainActor
-@Test func signOutWithoutPendingWritesIsReadyImmediately() throws {
+@Test func signingOutWithNothingQueuedClearsTheSheetAndTheSession() async throws {
+    let container = try makeCacheSafetyContainer()
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
+    settings.isSignedIn = true
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
-    let sync = StubSheetSwitchSync()
-    let connection = SheetConnection(settings: settings, sync: sync)
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: container.mainContext))
 
     #expect(connection.requestSignOut() == .ready)
-    #expect(sync.discardPendingWriteCallCount == 0)
+    try await connection.signOut()
+
+    #expect(settings.spreadsheetId == nil)
+    #expect(settings.spreadsheetTitle == nil)
+    #expect(settings.isSignedIn == false)
 }
 
 @MainActor
-@Test func signOutWithPendingWritesWaitsForConfirmation() throws {
+@Test func confirmedSignOutDiscardsTheQueuedSetLogsAndClearsTheSheet() async throws {
+    let container = try makeCacheSafetyContainer()
+    let context = container.mainContext
+    try queueReplacementSquatLog(in: context)
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
+    settings.isSignedIn = true
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
-    let sync = StubSheetSwitchSync(hasPendingWrites: true)
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: context))
+
+    #expect(connection.requestSignOut() == .requiresConfirmation)
+    #expect(try context.fetch(FetchDescriptor<PendingWrite>()).map(\.valueToWrite) == ["185x5@8"])
+    try await connection.signOut()
+
+    #expect(try context.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
+    #expect(await client.updatedSpreadsheetIds() == [])
+    #expect(settings.spreadsheetId == nil)
+    #expect(settings.isSignedIn == false)
+}
+
+/// Set Logs a failed discard leaves queued still belong on the Sheet (ADR-0001), so the sign-out
+/// keeps the Sheet they flush to.
+@MainActor
+@Test func failedPendingWriteDiscardKeepsTheSheetAndTheSession() async throws {
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
+    settings.isSignedIn = true
+    settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
+    let sync = StubSheetSwitchSync(hasPendingWrites: true, discardError: StubSheetSwitchError.discardFailed)
     let connection = SheetConnection(settings: settings, sync: sync)
 
     #expect(connection.requestSignOut() == .requiresConfirmation)
-    #expect(sync.hasPendingWritesValue == true)
-    #expect(sync.discardPendingWriteCallCount == 0)
-}
+    await #expect(throws: DestructiveTransitionFailure.discardFailed) {
+        try await connection.signOut()
+    }
 
-@MainActor
-@Test func preparingSignOutDiscardsPendingWrites() async throws {
-    let settings = SettingsStore(defaults: AppDefaults.inMemory())
-    settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
-    let sync = StubSheetSwitchSync(hasPendingWrites: true)
-    let connection = SheetConnection(settings: settings, sync: sync)
-
-    try await connection.prepareSignOut()
-
-    #expect(sync.hasPendingWritesValue == false)
-    #expect(sync.discardPendingWriteCallCount == 1)
+    #expect(settings.spreadsheetId == "current-sheet")
+    #expect(settings.spreadsheetTitle == "Current Training Log")
+    #expect(settings.isSignedIn == true)
+    #expect(connection.canBeginDestructiveTransition == true)
 }
 
 @MainActor
@@ -374,25 +397,13 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
     let connection = SheetConnection(settings: settings, sync: sync)
 
     #expect(connection.requestSignOut() == .failed(.pendingCheckFailed))
-    #expect(sync.discardPendingWriteCallCount == 0)
-}
-
-@MainActor
-@Test func failedPendingWriteDiscardBlocksSignOut() async throws {
-    let settings = SettingsStore(defaults: AppDefaults.inMemory())
-    settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
-    let sync = StubSheetSwitchSync(hasPendingWrites: true, discardError: StubSheetSwitchError.discardFailed)
-    let connection = SheetConnection(settings: settings, sync: sync)
-
-    await #expect(throws: DestructiveTransitionFailure.discardFailed) {
-        try await connection.prepareSignOut()
-    }
     #expect(settings.spreadsheetId == "current-sheet")
 }
 
 @MainActor
 @Test(.timeLimit(.minutes(1))) func signOutIsRejectedWhileASheetSwitchDiscardIsRunning() async throws {
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
+    settings.isSignedIn = true
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = SuspendedDiscardSheetSwitchSync()
     let connection = SheetConnection(settings: settings, sync: sync)
@@ -402,12 +413,14 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
 
     #expect(connection.requestSignOut() == .failed(.syncInProgress))
     await #expect(throws: DestructiveTransitionFailure.syncInProgress) {
-        try await connection.prepareSignOut()
+        try await connection.signOut()
     }
     sync.completeDiscard()
     try await confirmTask.value
 
     #expect(sync.discardPendingWriteCallCount == 1)
+    #expect(settings.spreadsheetId == "new-sheet")
+    #expect(settings.isSignedIn == true)
 }
 
 // MARK: - The guard against any running sync
@@ -722,17 +735,12 @@ private actor CallRecorder {
 private final class StubSheetSwitchSync: SheetSwitchSyncing {
     let isSyncing = false
     let outcome = SyncOutcome.clear
-    var hasPendingWritesValue: Bool
+    private let hasPendingWritesValue: Bool
     private let pendingWritesError: Error?
     private let discardError: Error?
-    private(set) var discardPendingWriteCallCount = 0
     private(set) var syncedSpreadsheetIds: [String] = []
 
-    init(
-        hasPendingWrites: Bool = false,
-        pendingWritesError: Error? = nil,
-        discardError: Error? = nil
-    ) {
+    init(hasPendingWrites: Bool = false, pendingWritesError: Error? = nil, discardError: Error? = nil) {
         self.hasPendingWritesValue = hasPendingWrites
         self.pendingWritesError = pendingWritesError
         self.discardError = discardError
@@ -749,8 +757,6 @@ private final class StubSheetSwitchSync: SheetSwitchSyncing {
         if let discardError {
             throw discardError
         }
-        hasPendingWritesValue = false
-        discardPendingWriteCallCount += 1
     }
 
     func sync(spreadsheetId: String) async -> Bool {
