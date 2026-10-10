@@ -165,7 +165,6 @@ final class SessionCoordinator {
 
     var activeSetID: ActiveSetID? { focusManager.activeSetID }
     var expandedLoggedSetID: ActiveSetID? { focusManager.expandedLoggedSetID }
-    var visualFocusOwner: ActiveSetVisualFocusOwner? { focusManager.visualFocusOwner }
 
     deinit {
         pairingConfirmationTask?.cancel()
@@ -278,10 +277,6 @@ final class SessionCoordinator {
         } catch {
             syncAdapter.reportLocalWriteFailure(error)
         }
-    }
-
-    func canPair(_ exercise: Exercise, in session: Session) -> Bool {
-        focusManager.canPair(exercise, in: session)
     }
 
     @discardableResult
@@ -436,7 +431,7 @@ extension SessionCoordinator {
 extension SessionCoordinator {
     @discardableResult
     func beginPairing(from exercise: Exercise, in session: Session) -> Bool {
-        guard canPair(exercise, in: session) else { return false }
+        guard focusManager.canPair(exercise, in: session) else { return false }
         pairingConfirmationTask?.cancel()
         pairingConfirmationTask = nil
         pairingMode = .selecting(sourceOrder: exercise.order)
@@ -459,7 +454,7 @@ extension SessionCoordinator {
             cancelPairing()
             return .cancelled
         }
-        guard canPair(exercise, in: session) else {
+        guard focusManager.canPair(exercise, in: session) else {
             return .unavailable
         }
         guard case .selecting = pairingMode else {
