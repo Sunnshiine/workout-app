@@ -287,8 +287,8 @@ private enum WindowHeight {
     static let iPhone17Pro: CGFloat = 874
     static let mini: CGFloat = 793
     static let se: CGFloat = 709
-    // The single-Exercise stage holds the note rung from 679 to 704 pt and the name and branch
-    // rung from 644 to 674 pt; each height sits mid-band.
+    // Measured in 5 pt steps, the single-Exercise stage holds the note rung from 679 to 704 pt
+    // and the name and branch rung from 644 to 674 pt.
     static let noteRung: CGFloat = 694
     static let nameAndBranchRung: CGFloat = 659
 }
