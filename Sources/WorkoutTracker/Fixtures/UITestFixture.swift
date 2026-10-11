@@ -17,14 +17,18 @@
 
         static let disablesAnimations = isEnabled && launch.disablesAnimations
 
-        static func makeSheetsClient() -> any SheetsClient {
-            FixtureSheetsClient(
-                slowsSync: launch.slowsSync,
-                replacementSheet: LocalWorkbookSheetsClient(
+        static func makeSheetsClient(launch: UITestLaunch) -> any SheetsClient {
+            var sheets = [
+                WorkoutFixtureScenarios.replacementSheetId: LocalWorkbookSheetsClient(
                     spreadsheetId: WorkoutFixtureScenarios.replacementSheetId,
                     tabs: [WorkoutFixtureScenarios.blockTab: WorkoutFixtureScenarios.replacementSheetGrid]
                 )
-            )
+            ]
+            // The seeded write needs a Sheet that Sync now can write and read back.
+            if launch.startsWithPendingWrite {
+                sheets[WorkoutFixtureScenarios.sheetId] = LocalWorkbookSheetsClient(workbook: WorkbookScenario.freshBlock.workbook())
+            }
+            return FixtureSheetsClient(slowsSync: launch.slowsSync, sheets: sheets)
         }
 
         @MainActor
@@ -63,7 +67,7 @@
 
     private struct FixtureSheetsClient: SheetsClient {
         let slowsSync: Bool
-        let replacementSheet: LocalWorkbookSheetsClient
+        let sheets: [String: LocalWorkbookSheetsClient]
 
         func listTabTitles(spreadsheetId: String) async throws -> [String] {
             if slowsSync {
@@ -86,10 +90,10 @@
         }
 
         func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
-            guard spreadsheetId == WorkoutFixtureScenarios.replacementSheetId else {
+            guard let sheet = sheets[spreadsheetId] else {
                 throw SheetsError.malformedResponse
             }
-            return try await replacementSheet.fetchTabSnapshot(spreadsheetId: spreadsheetId, tabName: tabName)
+            return try await sheet.fetchTabSnapshot(spreadsheetId: spreadsheetId, tabName: tabName)
         }
 
         func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
@@ -97,8 +101,7 @@
         }
 
         func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
-            guard spreadsheetId == WorkoutFixtureScenarios.replacementSheetId else { return }
-            try await replacementSheet.updateCells(spreadsheetId: spreadsheetId, updates: updates)
+            try await sheets[spreadsheetId]?.updateCells(spreadsheetId: spreadsheetId, updates: updates)
         }
     }
 #endif
