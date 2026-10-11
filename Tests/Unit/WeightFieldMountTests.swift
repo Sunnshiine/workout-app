@@ -47,3 +47,18 @@ import Testing
     mount.keyboardDidHide(fieldFocused: false)
     #expect(mount.mountsField(focused: false) == false)
 }
+
+@Test func doneShowsFromTheTapUntilFocusLeavesEvenWhileTheFieldStaysMounted() {
+    var mount = WeightFieldMount()
+    #expect(mount.showsDone == false)
+
+    mount.tapped()
+    #expect(mount.showsDone == true)
+    mount.focusChanged(to: true)
+    mount.focusChanged(to: false)
+    #expect(mount.showsDone == false)
+    #expect(mount.mountsField(focused: false) == true)
+
+    mount.tapped()
+    #expect(mount.showsDone == true)
+}

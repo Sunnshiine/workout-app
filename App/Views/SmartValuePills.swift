@@ -81,6 +81,10 @@ struct SmartValuePills: View {
         .onChange(of: weightFieldFocused) { _, focused in
             weightFieldMount.focusChanged(to: focused)
         }
+        // Focus waits for the update that puts Done on the keyboard.
+        .onChange(of: weightFieldMount.showsDone) { _, showsDone in
+            if showsDone { weightFieldFocused = true }
+        }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidHideNotification)) { _ in
             weightFieldMount.keyboardDidHide(fieldFocused: weightFieldFocused)
         }
@@ -165,7 +169,6 @@ struct SmartValuePills: View {
                         .contentShape(.rect)
                         .onTapGesture {
                             weightFieldMount.tapped()
-                            weightFieldFocused = true
                         }
                         .accessibilityLabel("Weight, \(form.weightDisplay)")
                         .accessibilityIdentifier("weight-pill")
@@ -177,10 +180,9 @@ struct SmartValuePills: View {
             .lineLimit(1)
             .minimumScaleFactor(0.5)
             // The decimal pad has no return key, so Done is the way out. Attached outside the weight
-            // font and colour, which Done would otherwise inherit. A toolbar left up through the
-            // keyboard's hide drops out of later keyboards' bottom inset, and Log slides under them.
+            // font and colour, which Done would otherwise inherit.
             .toolbar {
-                if weightFieldFocused {
+                if weightFieldMount.showsDone {
                     ToolbarItemGroup(placement: .keyboard) {
                         Spacer()
                         Button("Done", action: dismissFieldUI)
