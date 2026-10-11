@@ -460,7 +460,7 @@ func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expecte
 }
 
 @MainActor
-@Test func syncNowWaitsForASheetAndSaysSo() async {
+@Test func syncNowIsRefusedUntilASheetIsConnected() async {
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     let sync = StubSheetSwitchSync()
     let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
