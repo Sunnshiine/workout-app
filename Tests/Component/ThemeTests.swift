@@ -192,11 +192,11 @@ import Testing
         return 0.2126 * linear(color.red) + 0.7152 * linear(color.green) + 0.0722 * linear(color.blue)
     }
 
-    private let nightLampLitCapsuleFill = Theme.rgb(70, 76, 58)
+    private let nightOpenedSessionBorderedButtonFill = Theme.rgb(76, 81, 71)
     private let dayQueueSheetFootFill = Theme.rgb(181, 209, 171)
 
     @Test(arguments: [
-        (Theme.Appearance.night, nightLampLitCapsuleFill),
+        (Theme.Appearance.night, nightOpenedSessionBorderedButtonFill),
         (Theme.Appearance.day, dayQueueSheetFootFill)
     ])
     func actionInkReadsAtWCAGBodyContrastOnItsHardestFill(appearance: Theme.Appearance, fill: Color) throws {
