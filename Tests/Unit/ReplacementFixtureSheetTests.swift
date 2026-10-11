@@ -32,3 +32,19 @@ import Testing
     #expect(squat.sets.map(\.state) == ["logged"])
     #expect(squat.sets.map(\.setLog) == ["185x5@8"])
 }
+
+@MainActor
+@Test func thePendingWriteLaunchHoldsItsWriteUntilSyncNowWritesItAndReloadsTheFixtureSheet() async throws {
+    let app = try WorkoutApplication(environment: .uiTestFixture(launch: UITestLaunch(arguments: ["-UITEST_PENDING_WRITE"])))
+    app.settings.setSpreadsheet(id: WorkoutFixtureScenarios.sheetId, title: "Fixture Training Log")
+    #expect(try app.snapshot().pendingWriteCount == 1)
+
+    let synced = try await app.sync()
+
+    #expect(synced.syncOutcome.status == .clear)
+    #expect(synced.pendingWriteCount == 0)
+    #expect(try await app.sheet(tab: nil).cells["K15"] == "185x5@8")
+    let squat = try #require(try app.session(SessionAddress(week: 1, day: 1)).exercises.first)
+    #expect(squat.sets.map(\.state) == ["logged", "pending", "pending"])
+    #expect(squat.sets.map(\.setLog) == ["185x5@8", nil, nil])
+}
