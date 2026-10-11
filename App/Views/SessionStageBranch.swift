@@ -135,10 +135,10 @@ struct SessionStageBranch: View {
             switch state {
             case .leaf:
                 blade(.inked(fill: pigment(arm, focused: palette.leafFill), rib: focused ? palette.leafRib : nil), leafLength)
-                    .transition(budExitTransitions.ink)
+                    .transition(budExitLayers.ink)
             case .dashedLeaf:
                 blade(.dashed(pigment(arm, focused: palette.skipStroke)), leafLength)
-                    .transition(budExitTransitions.ink)
+                    .transition(budExitLayers.ink)
             case .future:
                 blade(
                     .ghost(focused ? palette.futureStroke : palette.supersetPartnerBranch.opacity(0.55)),
@@ -149,8 +149,8 @@ struct SessionStageBranch: View {
             }
             if state == .bud {
                 blade(.cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow), leafLength)
-                    .transition(.asymmetric(insertion: budWake, removal: budExitTransitions.bud))
-                    .zIndex(1)
+                    .transition(.asymmetric(insertion: budWake, removal: budExitLayers.bud))
+                    .zIndex(budExitLayers.budZIndex)
             }
         }
     }
@@ -165,10 +165,22 @@ struct SessionStageBranch: View {
         bloom.animation(Theme.branchAnimation(.budWake, reducingMotion: reduceMotion))
     }
 
-    private var budExitTransitions: (ink: AnyTransition, bud: AnyTransition) {
+    private struct BudExitLayers {
+        let ink: AnyTransition
+        let bud: AnyTransition
+        let budZIndex: Double
+    }
+
+    private var budExitLayers: BudExitLayers {
         switch budExit {
-        case .fold: (ink: .opacity, bud: bloom)
-        case .lift: (ink: .identity, bud: AnyTransition.opacity.animation(Theme.branchAnimation(.budLift, reducingMotion: reduceMotion)))
+        case .fold:
+            BudExitLayers(ink: .opacity, bud: bloom, budZIndex: 0)
+        case .lift:
+            BudExitLayers(
+                ink: .identity,
+                bud: .opacity.animation(Theme.branchAnimation(.budLift, reducingMotion: reduceMotion)),
+                budZIndex: 1
+            )
         }
     }
 
