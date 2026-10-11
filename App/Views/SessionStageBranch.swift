@@ -150,6 +150,7 @@ struct SessionStageBranch: View {
             if state == .bud {
                 blade(.cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow), leafLength)
                     .transition(.asymmetric(insertion: budWake, removal: budExitTransitions.bud))
+                    .zIndex(1)
             }
         }
     }
