@@ -36,7 +36,7 @@ func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expecte
     let context = container.mainContext
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
-    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
     let sync = SyncCoordinator(client: client, context: context)
     var reloadedBlockTabs: [String] = []
     let connection = SheetConnection(settings: settings, sync: sync) {
@@ -55,7 +55,7 @@ func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expecte
     let container = try makeCacheSafetyContainer()
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
-    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid(), failOffline: true)
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid, failOffline: true)
     let sync = SyncCoordinator(client: client, context: container.mainContext)
     let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
 
@@ -67,7 +67,7 @@ func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expecte
     let container = try makeCacheSafetyContainer()
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
-    let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
     let sync = SyncCoordinator(client: client, context: container.mainContext)
     var reloadCount = 0
     let connection = SheetConnection(settings: settings, sync: sync) { reloadCount += 1 }
@@ -90,7 +90,7 @@ func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expecte
     try seedStaleBlock(tabName: "Block 26", into: context)
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
-    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
     let sync = SyncCoordinator(client: client, context: context)
     var reloadedOn: [String?] = []
     let connection = SheetConnection(settings: settings, sync: sync) { reloadedOn.append(settings.spreadsheetId) }
@@ -114,7 +114,7 @@ func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expecte
     try seedStaleBlock(tabName: "Block 26", into: context)
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
-    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
     let sync = SyncCoordinator(client: client, context: context)
     var reloadCount = 0
     let connection = SheetConnection(settings: settings, sync: sync) { reloadCount += 1 }
@@ -136,7 +136,7 @@ func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expecte
     try queueReplacementSquatLog(in: context)
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "same-sheet", title: "Old Training Log")
-    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
     var reloadCount = 0
     let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: context)) {
         reloadCount += 1
@@ -162,7 +162,7 @@ func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expecte
     try queueReplacementSquatLog(in: context)
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
-    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
     var reloadCount = 0
     let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: context)) {
         reloadCount += 1
@@ -232,7 +232,7 @@ func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expecte
     try seedStaleBlock(tabName: "Block 26", into: context)
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
-    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid(), failOffline: true)
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid, failOffline: true)
     var reloadCount = 0
     let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: context)) {
         reloadCount += 1
@@ -256,7 +256,7 @@ func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expecte
     try seedStaleBlock(tabName: "Block 26", into: context)
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
-    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid(), failOffline: true)
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid, failOffline: true)
     var reloadCount = 0
     let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: context)) {
         reloadCount += 1
@@ -279,7 +279,7 @@ func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expecte
     try queueReplacementSquatLog(in: context)
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
-    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid(), failOffline: true)
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid, failOffline: true)
     var reloadCount = 0
     let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: context)) {
         reloadCount += 1
@@ -303,7 +303,7 @@ func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expecte
     let container = try makeCacheSafetyContainer()
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
-    let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
     let sync = SyncCoordinator(client: client, context: container.mainContext)
     let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
     let firstSheet = SpreadsheetFile(name: "First Training Log", spreadsheetId: "first-sheet", modifiedDate: .distantPast)
@@ -351,7 +351,7 @@ func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expecte
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.isSignedIn = true
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
-    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
     let sync = SyncCoordinator(client: client, context: container.mainContext)
     let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
 
@@ -371,7 +371,7 @@ func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expecte
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.isSignedIn = true
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
-    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
     let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: context), onSynced: {})
 
     #expect(connection.requestSignOut() == .requiresConfirmation)
@@ -481,7 +481,7 @@ func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expecte
     let container = try makeCacheSafetyContainer()
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
-    let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
     let sync = SyncCoordinator(client: client, context: container.mainContext)
     let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
 
@@ -514,7 +514,7 @@ func aFlushThatOverlapsASyncLeavesTheDestructiveTransitionGuardClosed() async th
 
     let client = HeldSheetsClient(
         titles: ["Intro", "Block 27"],
-        grid: replacementSquatGrid(),
+        grid: WorkoutFixtureScenarios.replacementSheetGrid,
         holdsTabSnapshot: true
     )
     let sync = SyncCoordinator(client: client, context: container.mainContext)
@@ -555,7 +555,7 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
 
     let client = HeldSheetsClient(
         titles: ["Intro", "Block 27"],
-        grid: replacementSquatGrid(),
+        grid: WorkoutFixtureScenarios.replacementSheetGrid,
         holdsTabSnapshot: true
     )
     let sync = SyncCoordinator(client: client, context: container.mainContext)
@@ -580,7 +580,7 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
 
-    let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
     let sync = SyncCoordinator(client: client, context: container.mainContext)
     var reloadCount = 0
     let connection = SheetConnection(settings: settings, sync: sync) { reloadCount += 1 }
@@ -609,7 +609,7 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
     try queueReplacementSquatLog(in: context)
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
-    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
     let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: context), onSynced: {})
 
     let result = await connection.requestSwitch(to: SheetSelection(spreadsheetId: "new-sheet"))
@@ -624,7 +624,7 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
 @Test func onboardingSelectionThatFailsToSyncReturnsTheReason() async throws {
     let container = try makeCacheSafetyContainer()
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
-    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid(), failOffline: true)
+    let client = RecordingSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid, failOffline: true)
     let sync = SyncCoordinator(client: client, context: container.mainContext)
     let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
 
@@ -636,7 +636,7 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
 @Test(.timeLimit(.minutes(1))) func anOnboardingSelectionRefusedMidSyncReturnsTheRefusalAndThePickedSheetCommits() async throws {
     let container = try makeCacheSafetyContainer()
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
-    let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: replacementSquatGrid())
+    let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
     let sync = SyncCoordinator(client: client, context: container.mainContext)
     let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
 
