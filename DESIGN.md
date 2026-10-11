@@ -9,9 +9,9 @@ colors:
   muted-night: "#9AAA9B"
   cream: "#F2F7E8"
   action-day: "#0D6B40"
-  action-day-text: "#0A5936"
+  action-day-ink: "#0A5936"
   action-night: "#1F8552"
-  action-night-text: "#A8CFB4"
+  action-night-ink: "#A8CFB4"
   foliage: "#579168"
   paper-day-top: "#E9EEDC"
   paper-day-bottom: "#CBE1C2"
@@ -187,7 +187,7 @@ environment palette. Full role tables: `docs/design/greenhouse-theme-tokens.md`.
 - **`actionNight` (`#1F8552`)** — the night action green. **Mint fails the
   action role at night** (it reads candy and reverts to cockpit); the Log
   capsule stays green-fill with cream text in both appearances.
-- **`actionDayText` (`#0A5936`) / `actionNightText` (`#A8CFB4`)** — the action
+- **`actionDayInk` (`#0A5936`) / `actionNightInk` (`#A8CFB4`)** — the action
   green as words on paper and as the system tint. Day uses the pressed Log
   green; Night is `actionNight` under cream @ 65%. The action greens stay fill
   and stroke colours: as small text `#1F8552` measures 1.9 to 3.7:1 on night

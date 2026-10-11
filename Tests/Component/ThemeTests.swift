@@ -192,14 +192,15 @@ import Testing
         return 0.2126 * linear(color.red) + 0.7152 * linear(color.green) + 0.0722 * linear(color.blue)
     }
 
-    /// The lightest fill behind green words at Night (the opened Session's lamp-lit capsule) and the
-    /// darkest by Day (the queue sheet's foot), sampled from simulator captures.
+    private let nightLampLitCapsuleFill = Theme.rgb(70, 76, 58)
+    private let dayQueueSheetFootFill = Theme.rgb(181, 209, 171)
+
     @Test(arguments: [
-        (Theme.Appearance.night, Theme.rgb(70, 76, 58)),
-        (Theme.Appearance.day, Theme.rgb(181, 209, 171))
+        (Theme.Appearance.night, nightLampLitCapsuleFill),
+        (Theme.Appearance.day, dayQueueSheetFootFill)
     ])
-    func actionTextReadsAtWCAGBodyContrastOnItsHardestFill(appearance: Theme.Appearance, fill: Color) throws {
-        let text = try #require(rgbaComponents(of: Theme.palette(for: appearance).textAction))
+    func actionInkReadsAtWCAGBodyContrastOnItsHardestFill(appearance: Theme.Appearance, fill: Color) throws {
+        let text = try #require(rgbaComponents(of: Theme.palette(for: appearance).actionInk))
         let ground = try #require(rgbaComponents(of: fill))
         let luminances = [relativeLuminance(text), relativeLuminance(ground)].sorted()
 
@@ -208,13 +209,14 @@ import Testing
         #expect(ratio >= 4.5, "\(appearance) action text measures \(ratio):1")
     }
 
-    @Test func nightActionTextIsSageNotMint() throws {
-        let text = try #require(rgbaComponents(of: Theme.palette(for: Theme.Appearance.night).textAction))
+    @Test func nightActionInkIsSageNotMint() throws {
+        let actionInk = Theme.palette(for: Theme.Appearance.night).actionInk
+        let text = try #require(rgbaComponents(of: actionInk))
         let (high, low) = (max(text.red, text.green, text.blue), min(text.red, text.green, text.blue))
 
         let saturation = (high - low) / (1 - abs(high + low - 1))
 
         #expect(saturation < 0.5, "HSL saturation \(saturation); the mint bud stroke #78F0B2 is 0.80")
-        expectSageLed(Theme.palette(for: Theme.Appearance.night).textAction)
+        expectSageLed(actionInk)
     }
 #endif
