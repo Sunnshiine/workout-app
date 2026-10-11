@@ -223,6 +223,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         XCTAssertTrue(app.buttons["stage-queue-button"].exists)
         waitForLabel("Weight, 237.5", on: app.buttons["weight-pill"])
         XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "weight-pill").count, 1)
+        XCTAssertEqual(app.textFields.count, 0, "a folded weight exposes no text field")
     }
 
     @MainActor
