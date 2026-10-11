@@ -322,9 +322,20 @@ enum Theme {
         .timingCurve(wingEase.x1, wingEase.y1, wingEase.x2, wingEase.y2, duration: duration)
     }
 
-    static let leafInkAnimation = wingAnimation(duration: Motion.leafInk)
-    static let budWakeAnimation = wingAnimation(duration: Motion.budOpen).delay(Motion.budOpenDelay)
-    static let reducedMotionCrossfade = Animation.easeInOut(duration: Motion.crossfade)
+    enum BranchGrowth {
+        case leafInk
+        case budWake
+        case relayout
+    }
+
+    static func branchAnimation(_ growth: BranchGrowth, reducingMotion: Bool) -> Animation? {
+        switch (growth, reducingMotion) {
+        case (.leafInk, false), (.relayout, false): wingAnimation(duration: Motion.leafInk)
+        case (.budWake, false): wingAnimation(duration: Motion.budOpen).delay(Motion.budOpenDelay)
+        case (.leafInk, true), (.budWake, true): .easeInOut(duration: Motion.crossfade)
+        case (.relayout, true): nil
+        }
+    }
 
     enum Motion {
         static let leafInk = 0.42 // a leaf inks in

@@ -90,8 +90,8 @@ struct SessionStageBranch: View {
         }
         .frame(minHeight: Metrics.minimumHeight, idealHeight: Metrics.minimumHeight, maxHeight: .infinity)
         .frame(maxWidth: .infinity)
-        .animation(reduceMotion ? Theme.reducedMotionCrossfade : Theme.leafInkAnimation, value: activeSetID)
-        .animation(reduceMotion ? nil : Theme.leafInkAnimation, value: stem.count)
+        .animation(Theme.branchAnimation(.leafInk, reducingMotion: reduceMotion), value: activeSetID)
+        .animation(Theme.branchAnimation(.relayout, reducingMotion: reduceMotion), value: [stem.count, lateral?.count ?? 0])
         .accessibilityElement(children: onTap == nil ? .ignore : .contain)
     }
 
@@ -145,11 +145,12 @@ struct SessionStageBranch: View {
         }
     }
 
+    /// The bud wakes on its own delay, which only an animation the transition carries can run; an
+    /// `.animation` keyed on the branch would wake it with the leaf.
     private var budWakeCut: AnyTransition {
-        .asymmetric(
-            insertion: reduceMotion
-                ? .opacity.animation(Theme.reducedMotionCrossfade)
-                : .scale(scale: 0.3).combined(with: .opacity).animation(Theme.budWakeAnimation),
+        let wake: AnyTransition = reduceMotion ? .opacity : .scale(scale: 0.3).combined(with: .opacity)
+        return .asymmetric(
+            insertion: wake.animation(Theme.branchAnimation(.budWake, reducingMotion: reduceMotion)),
             removal: .identity
         )
     }
