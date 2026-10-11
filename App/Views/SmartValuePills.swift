@@ -149,8 +149,7 @@ struct SmartValuePills: View {
     }
 
     private var weightValue: some View {
-        // A hidden one-line Text sizes the row in every state, so neither the taller UITextField nor a
-        // long typed weight resizes the card.
+        // Sizes the row, so neither the taller text field nor a long typed weight resizes the card.
         Text(verbatim: "0")
             .fixedSize(horizontal: false, vertical: true)
             .hidden()
@@ -191,7 +190,7 @@ struct SmartValuePills: View {
             // of the field when they open it and choose not to enter a weight — dismissing the
             // keyboard without logging (any tap on non-interactive stage space is the same
             // escape). Semantic-only, so no haptic here. Attached outside the weight font and
-            // colour, which the toolbar's Done button would otherwise inherit.
+            // colour, which Done would otherwise inherit.
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
