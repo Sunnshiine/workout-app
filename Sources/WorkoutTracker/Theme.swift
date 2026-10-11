@@ -332,7 +332,8 @@ enum Theme {
         switch (growth, reducingMotion) {
         case (.leafInk, false), (.relayout, false): wingAnimation(duration: Motion.leafInk)
         case (.budWake, false): wingAnimation(duration: Motion.budOpen).delay(Motion.budOpenDelay)
-        case (.leafInk, true), (.budWake, true): .easeInOut(duration: Motion.crossfade)
+        case (.leafInk, true): .easeInOut(duration: Motion.crossfade)
+        case (.budWake, true): .easeInOut(duration: Motion.crossfade).delay(Motion.crossfade)
         case (.relayout, true): nil
         }
     }

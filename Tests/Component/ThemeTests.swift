@@ -111,7 +111,7 @@ import Testing
     #expect(Theme.branchAnimation(.budWake, reducingMotion: false) == .timingCurve(0.46, -0.09, 0.83, 0.32, duration: 0.34).delay(0.26))
     #expect(Theme.branchAnimation(.relayout, reducingMotion: false) == .timingCurve(0.46, -0.09, 0.83, 0.32, duration: 0.42))
     #expect(Theme.branchAnimation(.leafInk, reducingMotion: true) == .easeInOut(duration: 0.2))
-    #expect(Theme.branchAnimation(.budWake, reducingMotion: true) == .easeInOut(duration: 0.2))
+    #expect(Theme.branchAnimation(.budWake, reducingMotion: true) == .easeInOut(duration: 0.2).delay(0.2))
     #expect(Theme.branchAnimation(.relayout, reducingMotion: true) == nil)
 }
 
