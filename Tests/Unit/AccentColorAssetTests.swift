@@ -47,7 +47,7 @@ private func rgb(of color: Color) -> RGB {
 }
 
 @MainActor
-@Test func theAccentColorAssetMatchesTheThemesActionGreens() throws {
+@Test func theAccentColorAssetMatchesTheThemesActionText() throws {
     let url = try RepositoryFiles.existingURL(of: "App/Assets.xcassets/AccentColor.colorset/Contents.json")
     let colorSet = try JSONDecoder().decode(ColorSet.self, from: Data(contentsOf: url))
     let universal = try #require(colorSet.colors.first { $0.appearances == nil })
@@ -55,6 +55,6 @@ private func rgb(of color: Color) -> RGB {
         colorSet.colors.first { $0.appearances?.contains { $0.appearance == "luminosity" && $0.value == "dark" } == true }
     )
 
-    #expect(try rgb(of: universal.color) == rgb(of: Theme.Paint.actionDay))
-    #expect(try rgb(of: dark.color) == rgb(of: Theme.Paint.actionNight))
+    #expect(try rgb(of: universal.color) == rgb(of: Theme.palette(for: .day).textAction))
+    #expect(try rgb(of: dark.color) == rgb(of: Theme.palette(for: .night).textAction))
 }
