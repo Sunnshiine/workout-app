@@ -132,6 +132,7 @@ struct SessionQueueSheet: View {
                         .foregroundStyle(palette.textSecondary)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 16)
+                        .frame(minWidth: 44, minHeight: 44)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
