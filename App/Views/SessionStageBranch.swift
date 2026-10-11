@@ -141,7 +141,7 @@ struct SessionStageBranch: View {
         case .bud:
             blade(.cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow), leafLength)
                 .transition(budTransition)
-                .zIndex(1)
+                .zIndex(budExit == .lift ? 1 : 0)
         case .future:
             blade(
                 .ghost(focused ? palette.futureStroke : palette.supersetPartnerBranch.opacity(0.55)),
