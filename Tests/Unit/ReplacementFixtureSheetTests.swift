@@ -1,42 +1,34 @@
-import Foundation
-import SwiftData
 import Testing
 
 @testable import WorkoutTracker
 
-/// Logging the only Set of the Replacement Squat queues its Set Log and its Last Set RPE mirror.
-/// The fixture's Replacement Sheet must take both in one flush, or a fixture launch that switches
-/// to it can never empty its pending-write queue.
 @MainActor
-@Test func theReplacementFixtureSheetTakesBothWritesOfALoggedSet() async throws {
-    let container = try ModelContainer(
-        for: Block.self,
-        PendingWrite.self,
-        WriteTargetAuditEntry.self,
-        LastPerformedEntry.self,
-        configurations: ModelConfiguration("replacement-fixture-\(UUID().uuidString)", isStoredInMemoryOnly: true)
+@Test func aSetLoggedOnTheReplacementFixtureSheetStaysLoggedAfterTheNextSync() async throws {
+    let app = try WorkoutApplication(environment: .uiTestFixture())
+    _ = try await app.selectSpreadsheet(
+        id: WorkoutFixtureScenarios.replacementSheetId,
+        title: "Replacement Training Log"
     )
-    let context = container.mainContext
-    for (createdAt, column, value) in [(1.0, PendingWriteColumn.notes, "185x5@8"), (2.0, .lastSetRPE, "8")] {
-        context.insert(
-            PendingWrite(
-                createdAt: Date(timeIntervalSinceReferenceDate: createdAt),
-                session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
-                dayNumbering: .headerNumber,
-                exerciseName: "Replacement Squat",
-                setIndex: 0,
-                column: column,
-                operation: .upsert,
-                valueToWrite: value,
-                expectedCurrentValue: ""
+
+    _ = try app.log(try #require(SetAddress("w1d1.e0.s0")), setLog: "185x5@8")
+    let flush = try await app.flush()
+
+    #expect(
+        flush
+            == FlushReport(
+                attempted: 2,
+                written: 2,
+                conflictedWrites: [],
+                remainingPendingWrites: 0,
+                syncOutcome: SyncOutcomeSnapshot(.clear)
             )
-        )
-    }
-    try context.save()
-    let sync = SyncCoordinator(client: UITestFixture.makeSheetsClient(), context: context)
+    )
 
-    await sync.flushPending(spreadsheetId: WorkoutFixtureScenarios.replacementSheetId)
-
-    #expect(sync.outcome == SyncOutcome.clear)
-    #expect(try context.fetch(FetchDescriptor<PendingWrite>()).map(\.statusRaw) == [String]())
+    let synced = try await app.sync()
+    #expect(synced.syncOutcome.status == .clear)
+    #expect(synced.pendingWriteCount == 0)
+    let squat = try #require(try app.session(SessionAddress(week: 1, day: 1)).exercises.first)
+    #expect(squat.name == "Replacement Squat")
+    #expect(squat.sets.map(\.state) == ["logged"])
+    #expect(squat.sets.map(\.setLog) == ["185x5@8"])
 }
