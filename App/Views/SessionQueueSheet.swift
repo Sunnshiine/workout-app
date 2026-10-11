@@ -7,6 +7,7 @@ struct SessionQueueSheet: View {
     let coordinator: SessionCoordinator
     @Environment(\.dismiss) private var dismiss
     @Environment(\.themePalette) private var palette
+    @State private var isScrolled = false
 
     private var isPairing: Bool {
         queue.isPairing
@@ -55,9 +56,12 @@ struct SessionQueueSheet: View {
             .padding(.bottom)
         }
         .safeAreaPadding(.top, 8)
+        .onScrollGeometryChange(for: Bool.self) { $0.contentOffset.y + $0.contentInsets.top > 0 } action: {
+            isScrolled = $1
+        }
         .mask {
             VStack(spacing: 0) {
-                LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
+                LinearGradient(colors: [isScrolled ? .clear : .black, .black], startPoint: .top, endPoint: .bottom)
                     .frame(height: 16)
                 Color.black
             }
@@ -137,7 +141,7 @@ struct SessionQueueSheet: View {
         } label: {
             rowLabel(for: row) {
                 if row.isOnStage {
-                    accentWord("Now")
+                    actionWord("Now")
                 }
             }
         }
@@ -185,9 +189,9 @@ struct SessionQueueSheet: View {
     private func pairingIndicator(for role: QueuePairingRole) -> some View {
         switch role {
         case .source:
-            accentWord("Pairing")
+            actionWord("Pairing")
         case .eligibleTarget, .confirmingTarget:
-            accentWord("Pair with this")
+            actionWord("Pair with this")
         case .none, .ineligibleTarget:
             EmptyView()
         }
@@ -195,7 +199,7 @@ struct SessionQueueSheet: View {
 
     // MARK: - Row label
 
-    private func accentWord(_ word: String) -> some View {
+    private func actionWord(_ word: String) -> some View {
         Text(word)
             .font(Theme.font(.fieldLabel))
             .foregroundStyle(palette.textAction)

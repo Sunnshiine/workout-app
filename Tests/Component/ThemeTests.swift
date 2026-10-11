@@ -180,22 +180,29 @@ import Testing
         return 0.2126 * linear(color.red) + 0.7152 * linear(color.green) + 0.0722 * linear(color.blue)
     }
 
-    private func composite(_ top: Color, over bottom: Color) -> Color {
-        guard let top = rgbaComponents(of: top), let bottom = rgbaComponents(of: bottom) else { return .clear }
-        func mix(_ upper: Double, _ lower: Double) -> Double { upper * top.alpha + lower * (1 - top.alpha) }
-        return Color(red: mix(top.red, bottom.red), green: mix(top.green, bottom.green), blue: mix(top.blue, bottom.blue))
+    /// The lightest fill behind green words at Night (the opened Session's lamp-lit capsule) and the
+    /// darkest by Day (the queue sheet's foot), sampled from simulator captures.
+    @Test(arguments: [
+        (Theme.Appearance.night, Theme.rgb(70, 76, 58)),
+        (Theme.Appearance.day, Theme.rgb(181, 209, 171))
+    ])
+    func actionTextReadsAtWCAGBodyContrastOnItsHardestFill(appearance: Theme.Appearance, fill: Color) throws {
+        let text = try #require(rgbaComponents(of: Theme.palette(for: appearance).textAction))
+        let ground = try #require(rgbaComponents(of: fill))
+        let luminances = [relativeLuminance(text), relativeLuminance(ground)].sorted()
+
+        let ratio = (luminances[1] + 0.05) / (luminances[0] + 0.05)
+
+        #expect(ratio >= 4.5, "\(appearance) action text measures \(ratio):1")
     }
 
-    @Test func nightActionTextReadsAtWCAGBodyContrastOnTheLampLitCapsule() throws {
-        let night = Theme.palette(for: Theme.Appearance.night)
-        let lamp = try #require(night.paper.washes.first)
-        let capsule = composite(night.footFill, over: composite(lamp.color, over: night.paper.baseTop))
-        let text = try #require(rgbaComponents(of: night.textAction))
-        let fill = try #require(rgbaComponents(of: capsule))
+    @Test func nightActionTextIsSageNotMint() throws {
+        let text = try #require(rgbaComponents(of: Theme.palette(for: Theme.Appearance.night).textAction))
+        let (high, low) = (max(text.red, text.green, text.blue), min(text.red, text.green, text.blue))
 
-        let ratio = (relativeLuminance(text) + 0.05) / (relativeLuminance(fill) + 0.05)
+        let saturation = (high - low) / (1 - abs(high + low - 1))
 
-        #expect(ratio >= 4.5, "night action text measures \(ratio):1 on the lamp-lit capsule")
-        expectSageLed(night.textAction)
+        #expect(saturation < 0.5, "HSL saturation \(saturation); the mint bud stroke #78F0B2 is 0.80")
+        expectSageLed(Theme.palette(for: Theme.Appearance.night).textAction)
     }
 #endif
