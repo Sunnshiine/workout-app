@@ -78,8 +78,13 @@ struct SmartValuePills: View {
         .onChange(of: suggestion) { _, later in
             form.refreshPrefill(from: later, for: set)
         }
+        // A re-tap during a fold lands the old hide's didHide late, before or after the new focus
+        // commits. Either order must leave the refocused field holding its keyboard.
+        .onChange(of: weightFieldFocused) { _, focused in
+            if focused { holdsWeightKeyboard = true }
+        }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidHideNotification)) { _ in
-            holdsWeightKeyboard = false
+            holdsWeightKeyboard = weightFieldFocused
         }
         .onDisappear(perform: commitChangedDraftIfNeeded)
         .preference(key: EditingWeightPreferenceKey.self, value: weightFieldFocused)
