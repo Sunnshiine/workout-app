@@ -171,3 +171,31 @@ import Testing
         }
     }
 #endif
+
+#if canImport(AppKit)
+    private func relativeLuminance(_ color: RGBAComponents) -> Double {
+        func linear(_ channel: Double) -> Double {
+            channel <= 0.04045 ? channel / 12.92 : pow((channel + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * linear(color.red) + 0.7152 * linear(color.green) + 0.0722 * linear(color.blue)
+    }
+
+    private func composite(_ top: Color, over bottom: Color) -> Color {
+        guard let top = rgbaComponents(of: top), let bottom = rgbaComponents(of: bottom) else { return .clear }
+        func mix(_ upper: Double, _ lower: Double) -> Double { upper * top.alpha + lower * (1 - top.alpha) }
+        return Color(red: mix(top.red, bottom.red), green: mix(top.green, bottom.green), blue: mix(top.blue, bottom.blue))
+    }
+
+    @Test func nightActionTextReadsAtWCAGBodyContrastOnTheLampLitCapsule() throws {
+        let night = Theme.palette(for: Theme.Appearance.night)
+        let lamp = try #require(night.paper.washes.first)
+        let capsule = composite(night.footFill, over: composite(lamp.color, over: night.paper.baseTop))
+        let text = try #require(rgbaComponents(of: night.textAction))
+        let fill = try #require(rgbaComponents(of: capsule))
+
+        let ratio = (relativeLuminance(text) + 0.05) / (relativeLuminance(fill) + 0.05)
+
+        #expect(ratio >= 4.5, "night action text measures \(ratio):1 on the lamp-lit capsule")
+        expectSageLed(night.textAction)
+    }
+#endif
