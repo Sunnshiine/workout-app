@@ -131,39 +131,44 @@ struct SessionStageBranch: View {
             let size = CGSize(width: length, height: length * LeafShape.aspectRatio)
             return BranchBladeGlyph(style: style, size: size, angle: angle + tilt)
         }
-        switch state {
-        case .leaf:
-            blade(.inked(fill: pigment(arm, focused: palette.leafFill), rib: focused ? palette.leafRib : nil), leafLength)
-                .transition(inkTransition)
-        case .dashedLeaf:
-            blade(.dashed(pigment(arm, focused: palette.skipStroke)), leafLength)
-                .transition(inkTransition)
-        case .bud:
-            blade(.cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow), leafLength)
-                .transition(budTransition)
-                .zIndex(budExit == .lift ? 1 : 0)
-        case .future:
-            blade(
-                .ghost(focused ? palette.futureStroke : palette.supersetPartnerBranch.opacity(0.55)),
-                leafLength * Metrics.ghostScale
-            )
+        ZStack {
+            switch state {
+            case .leaf:
+                blade(.inked(fill: pigment(arm, focused: palette.leafFill), rib: focused ? palette.leafRib : nil), leafLength)
+                    .transition(budExitTransitions.ink)
+            case .dashedLeaf:
+                blade(.dashed(pigment(arm, focused: palette.skipStroke)), leafLength)
+                    .transition(budExitTransitions.ink)
+            case .future:
+                blade(
+                    .ghost(focused ? palette.futureStroke : palette.supersetPartnerBranch.opacity(0.55)),
+                    leafLength * Metrics.ghostScale
+                )
+            case .bud:
+                EmptyView()
+            }
+            if state == .bud {
+                blade(.cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow), leafLength)
+                    .transition(.asymmetric(insertion: budWake, removal: budExitTransitions.bud))
+            }
         }
+    }
+
+    private var bloom: AnyTransition {
+        reduceMotion ? .opacity : .scale(scale: 0.3).combined(with: .opacity)
     }
 
     /// The bud wakes on its own delay, which only an animation the transition carries can run; an
     /// `.animation` keyed on the branch would wake it with the leaf.
-    private var budTransition: AnyTransition {
-        let bloom: AnyTransition = reduceMotion ? .opacity : .scale(scale: 0.3).combined(with: .opacity)
-        return .asymmetric(
-            insertion: bloom.animation(Theme.branchAnimation(.budWake, reducingMotion: reduceMotion)),
-            removal: budExit == .fold
-                ? bloom
-                : AnyTransition.opacity.animation(Theme.branchAnimation(.budLift, reducingMotion: reduceMotion))
-        )
+    private var budWake: AnyTransition {
+        bloom.animation(Theme.branchAnimation(.budWake, reducingMotion: reduceMotion))
     }
 
-    private var inkTransition: AnyTransition {
-        budExit == .fold ? .opacity : .identity
+    private var budExitTransitions: (ink: AnyTransition, bud: AnyTransition) {
+        switch budExit {
+        case .fold: (ink: .opacity, bud: bloom)
+        case .lift: (ink: .identity, bud: AnyTransition.opacity.animation(Theme.branchAnimation(.budLift, reducingMotion: reduceMotion)))
+        }
     }
 
     private func pigment(_ arm: BranchArm, focused: Color) -> Color {

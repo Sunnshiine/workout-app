@@ -581,12 +581,12 @@ every piece of chrome — including the Log capsule — rides stock system
 springs.
 
 1. **Leaf inks on log** — 0.42s; a dashed Skip draws in the same language.
+   On a Superset the leaf inks at once under its bud, and the bud lifts
+   off over the 0.26s before the partner's bud wakes, so the logged node
+   never empties and the stage never shows two cream leaves.
 2. **Next leaf wakes** — inside the leaf's tail (starts 0.26s in, runs
    0.34s). **One Log, One Fill:** the transition must read as the cream
    leaf waking (logging then inks it solid), never a second leaf filling.
-   On a Superset the leaf inks at once under its bud, and the bud lifts
-   off in a 0.2s crossfade before the partner's bud wakes, so the logged
-   node never empties and the stage never shows two cream leaves.
 3. **Ceremony** — stem 1.0s, 0.10s beat, bird drops 0.35s (≈1.5s, Brisk).
 
 Haptics are **Crisp, silent-chrome, semantic-only**: RPE detent tick
@@ -598,7 +598,8 @@ the ceremony · none on form fields. Hold-to-skip: reveal 250ms, commit
 **Reduced motion** turns the leaf ink and the bud wake into 0.2s
 crossfades to their end states, so both appear in place. The bud's
 crossfade starts as the leaf's ends, so the stage never shows two cream
-leaves. The ceremony fades in fully grown. Haptics are unaffected.
+leaves. A Superset bud lifts off its ink in the same 0.2s, before its
+partner's bud wakes. The ceremony fades in fully grown. Haptics are unaffected.
 
 The Active Set Card has no motion to reduce, so Reduce Motion leaves it
 unchanged (§5.2).
