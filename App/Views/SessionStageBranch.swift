@@ -145,9 +145,8 @@ struct SessionStageBranch: View {
                     leafLength * Metrics.ghostScale
                 )
             case .bud:
-                EmptyView()
-            }
-            if state == .bud {
+                // A removed view draws under the one inserted beside it, so only a zIndex keeps a lifting bud
+                // above its ink.
                 blade(.cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow), leafLength)
                     .transition(.asymmetric(insertion: budWake, removal: budExitLayers.bud))
                     .zIndex(budExitLayers.budZIndex)
