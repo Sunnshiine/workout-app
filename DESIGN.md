@@ -593,9 +593,9 @@ the ceremony · none on form fields. Hold-to-skip: reveal 250ms, commit
 850ms, retreat 0.2s; logged-state hold 900ms, skipped-state hold 1100ms.
 
 **Reduced motion** turns the leaf ink and the bud wake into 0.2s
-crossfades to their end states, so both appear in place. The bud's starts
-as the leaf's ends, so the stage never shows two cream leaves. The ceremony
-fades in fully grown. Haptics are unaffected.
+crossfades to their end states, so both appear in place. The bud's
+crossfade starts as the leaf's ends, so the stage never shows two cream
+leaves. The ceremony fades in fully grown. Haptics are unaffected.
 
 The Active Set Card has no motion to reduce, so Reduce Motion leaves it
 unchanged (§5.2).
