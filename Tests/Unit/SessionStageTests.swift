@@ -214,6 +214,20 @@ struct SessionStageTests {
         #expect(branch.activeSetID == activeSetID)
     }
 
+    @Test func aSingleBranchFoldsItsBudIntoTheInkAndASupersetForkLiftsItOff() throws {
+        let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending])
+        let row = makeExercise(name: "Row", order: 2, setStates: [.pending])
+        let onBench = ActiveSetID(exerciseOrder: 1, setIndex: 0)
+
+        let single = try #require(exerciseStage(makeStage([bench, row], focus: .activeSet(onBench))))
+        let fork = try #require(
+            supersetStage(makeStage([bench, row], focus: .activeSet(onBench), supersets: [Superset(first: bench, second: row)]))
+        )
+
+        #expect(single.branch.budExit == .fold)
+        #expect(fork.branch.budExit == .lift)
+    }
+
     @Test func theBranchIsAllLeavesWhenEverySetIsLogged() throws {
         let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged, .logged])
 

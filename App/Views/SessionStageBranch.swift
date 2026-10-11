@@ -5,6 +5,7 @@ struct SessionStageBranch: View {
     private let lateral: [BranchNode]?
     private let focusedArm: BranchArm
     private let activeSetID: ActiveSetID?
+    private let budExit: BudExit
     /// A Superset's fork takes no tap, so its branch stays a passive glyph.
     private let onTap: ((ExerciseSet) -> Void)?
     @Environment(\.themePalette) private var palette
@@ -49,6 +50,7 @@ struct SessionStageBranch: View {
         lateral = nil
         focusedArm = .stem
         activeSetID = branch.activeSetID
+        budExit = branch.budExit
         self.onTap = onTap
     }
 
@@ -57,6 +59,7 @@ struct SessionStageBranch: View {
         lateral = fork.lateral
         focusedArm = fork.focusedArm
         activeSetID = fork.activeSetID
+        budExit = fork.budExit
         onTap = nil
     }
 
@@ -131,11 +134,14 @@ struct SessionStageBranch: View {
         switch state {
         case .leaf:
             blade(.inked(fill: pigment(arm, focused: palette.leafFill), rib: focused ? palette.leafRib : nil), leafLength)
+                .transition(inkTransition)
         case .dashedLeaf:
             blade(.dashed(pigment(arm, focused: palette.skipStroke)), leafLength)
+                .transition(inkTransition)
         case .bud:
             blade(.cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow), leafLength)
                 .transition(budTransition)
+                .zIndex(1)
         case .future:
             blade(
                 .ghost(focused ? palette.futureStroke : palette.supersetPartnerBranch.opacity(0.55)),
@@ -150,8 +156,14 @@ struct SessionStageBranch: View {
         let bloom: AnyTransition = reduceMotion ? .opacity : .scale(scale: 0.3).combined(with: .opacity)
         return .asymmetric(
             insertion: bloom.animation(Theme.branchAnimation(.budWake, reducingMotion: reduceMotion)),
-            removal: Theme.budExit(crossingArms: lateral != nil) == .fade ? bloom : .identity
+            removal: budExit == .fold
+                ? bloom
+                : AnyTransition.opacity.animation(Theme.branchAnimation(.budLift, reducingMotion: reduceMotion))
         )
+    }
+
+    private var inkTransition: AnyTransition {
+        budExit == .fold ? .opacity : .identity
     }
 
     private func pigment(_ arm: BranchArm, focused: Color) -> Color {

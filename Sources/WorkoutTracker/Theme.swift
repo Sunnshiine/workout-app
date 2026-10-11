@@ -325,6 +325,7 @@ enum Theme {
     enum BranchGrowth {
         case leafInk
         case budWake
+        case budLift
         case relayout
     }
 
@@ -334,17 +335,9 @@ enum Theme {
         case (.budWake, false): wingAnimation(duration: Motion.budOpen).delay(Motion.budOpenDelay)
         case (.leafInk, true): .easeInOut(duration: Motion.crossfade)
         case (.budWake, true): .easeInOut(duration: Motion.crossfade).delay(Motion.crossfade)
+        case (.budLift, _): .easeInOut(duration: Motion.crossfade)
         case (.relayout, true): nil
         }
-    }
-
-    enum BudExit {
-        case fade
-        case cut
-    }
-
-    static func budExit(crossingArms: Bool) -> BudExit {
-        crossingArms ? .cut : .fade
     }
 
     enum Motion {

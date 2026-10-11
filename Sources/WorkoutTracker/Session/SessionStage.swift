@@ -54,6 +54,13 @@ enum BranchArm: Equatable, Sendable {
     case lateral
 }
 
+enum BudExit: Equatable, Sendable {
+    case fold
+    /// The leaf inks at once under the bud and the bud lifts off before any next bud wakes, so a bud
+    /// waking on the other arm never shares the stage with it and the logged node never empties.
+    case lift
+}
+
 struct BranchNode: Equatable {
     let set: ExerciseSet
     let state: BranchNodeState
@@ -62,6 +69,8 @@ struct BranchNode: Equatable {
 struct StageBranch: Equatable {
     let nodes: [BranchNode]
     let activeSetID: ActiveSetID?
+
+    var budExit: BudExit { .fold }
 }
 
 struct ForkedBranch: Equatable {
@@ -69,6 +78,8 @@ struct ForkedBranch: Equatable {
     let lateral: [BranchNode]
     let focusedArm: BranchArm
     let activeSetID: ActiveSetID?
+
+    var budExit: BudExit { .lift }
 }
 
 struct SetCardSlot: Equatable {

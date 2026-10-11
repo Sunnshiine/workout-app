@@ -584,6 +584,9 @@ springs.
 2. **Next leaf wakes** — inside the leaf's tail (starts 0.26s in, runs
    0.34s). **One Log, One Fill:** the transition must read as the cream
    leaf waking (logging then inks it solid), never a second leaf filling.
+   On a Superset the leaf inks at once under its bud, and the bud lifts
+   off in a 0.2s crossfade before the partner's bud wakes, so the logged
+   node never empties and the stage never shows two cream leaves.
 3. **Ceremony** — stem 1.0s, 0.10s beat, bird drops 0.35s (≈1.5s, Brisk).
 
 Haptics are **Crisp, silent-chrome, semantic-only**: RPE detent tick
