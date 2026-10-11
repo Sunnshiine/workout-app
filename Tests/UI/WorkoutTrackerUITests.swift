@@ -60,6 +60,29 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
     }
 
     @MainActor
+    func testEveryWeightEditClosedWithDoneKeepsLogInReach() throws {
+        let app = launchFixtureApp(animated: true)
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+        let card = app.otherElements["active-set-card"]
+        let done = app.buttons["weight-keyboard-done"]
+        var cardTops: [CGFloat] = []
+        for _ in 1...3 {
+            openWeightKeyboard(in: app)
+            cardTops.append(settledFrame(of: card).minY)
+            XCTAssertEqual(done.frame.width, 62, accuracy: 2, "Done keeps the system font, not the weight's")
+            done.tap()
+            XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
+        }
+        XCTAssertEqual(cardTops[2], cardTops[0], accuracy: 1, "edit tops \(cardTops)")
+
+        openWeightKeyboard(in: app)
+        app.buttons["log-active-set-button"].tap()
+
+        XCTAssertTrue(app.buttons["Set 1, 237.5x5@6"].appears(within: 3))
+    }
+
+    @MainActor
     func testSupersetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused() throws {
         let app = launchFixtureApp()
 
@@ -345,6 +368,19 @@ private func openWeightKeyboard(in app: XCUIApplication) {
         "the software keyboard is below the window. Run `xcrun simctl spawn <udid> defaults write "
             + "com.apple.keyboard.preferences AutomaticMinimizationEnabled -bool false`, then reboot the simulator (#700)"
     )
+}
+
+@MainActor
+private func settledFrame(of element: XCUIElement) -> CGRect {
+    var frame = element.frame
+    let deadline = Date().addingTimeInterval(3)
+    while Date() < deadline {
+        RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+        let next = element.frame
+        if next == frame { break }
+        frame = next
+    }
+    return frame
 }
 
 /// The keyboard's Done toolbar is the `Toolbar` group that is not the full-window one.
