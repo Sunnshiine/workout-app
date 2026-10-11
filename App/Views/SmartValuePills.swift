@@ -81,12 +81,11 @@ struct SmartValuePills: View {
         .onChange(of: weightFieldFocused) { _, focused in
             weightFieldMount.focusChanged(to: focused)
         }
-        // Focus waits for the update that puts Done on the keyboard.
-        .onChange(of: weightFieldMount.showsDone) { _, showsDone in
-            if showsDone { weightFieldFocused = true }
+        .onChange(of: weightFieldMount.focusRequests) {
+            weightFieldFocused = true
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidHideNotification)) { _ in
-            weightFieldMount.keyboardDidHide(fieldFocused: weightFieldFocused)
+            weightFieldMount.keyboardDidHide()
         }
         .onDisappear(perform: commitChangedDraftIfNeeded)
         .preference(key: EditingWeightPreferenceKey.self, value: weightFieldFocused)
@@ -152,7 +151,7 @@ struct SmartValuePills: View {
             .frame(maxWidth: .infinity)
             .overlay {
                 // A mounted text field stays in the accessibility tree whatever its modifiers say.
-                if weightFieldMount.mountsField(focused: weightFieldFocused) {
+                if weightFieldMount.mountsField {
                     TextField(form.weightDisplay, text: $form.weightText)
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.center)
