@@ -4,7 +4,7 @@ import Testing
 
 @MainActor
 @Test func aSetLoggedOnTheReplacementFixtureSheetStaysLoggedAfterTheNextSync() async throws {
-    let app = try WorkoutApplication(environment: .uiTestFixture())
+    let app = try WorkoutApplication(environment: .uiTestFixture(launch: UITestLaunch(arguments: [])))
     _ = try await app.selectSpreadsheet(
         id: WorkoutFixtureScenarios.replacementSheetId,
         title: "Replacement Training Log"
@@ -34,7 +34,7 @@ import Testing
 }
 
 @MainActor
-@Test func thePendingWriteLaunchHoldsItsWriteUntilSyncNowWritesItAndReloadsTheFixtureSheet() async throws {
+@Test func syncNowWritesThePendingWriteLaunchsQueuedWriteAndReloadsTheFixtureSheet() async throws {
     let app = try WorkoutApplication(environment: .uiTestFixture(launch: UITestLaunch(arguments: ["-UITEST_PENDING_WRITE"])))
     app.settings.setSpreadsheet(id: WorkoutFixtureScenarios.sheetId, title: "Fixture Training Log")
     #expect(try app.snapshot().pendingWriteCount == 1)
@@ -47,4 +47,14 @@ import Testing
     let squat = try #require(try app.session(SessionAddress(week: 1, day: 1)).exercises.first)
     #expect(squat.sets.map(\.state) == ["logged", "pending", "pending"])
     #expect(squat.sets.map(\.setLog) == ["185x5@8", nil, nil])
+}
+
+@MainActor
+@Test func withoutThePendingWriteLaunchTheFixtureSheetStaysUnreachable() async throws {
+    let app = try WorkoutApplication(environment: .uiTestFixture(launch: UITestLaunch(arguments: [])))
+    app.settings.setSpreadsheet(id: WorkoutFixtureScenarios.sheetId, title: "Fixture Training Log")
+
+    await #expect(throws: ApplicationError.self) { try await app.sync() }
+
+    #expect(try app.snapshot().syncOutcome.status == .sheetUnreachable)
 }

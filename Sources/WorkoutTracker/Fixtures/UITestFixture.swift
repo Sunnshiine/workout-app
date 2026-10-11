@@ -24,9 +24,8 @@
                     tabs: [WorkoutFixtureScenarios.blockTab: WorkoutFixtureScenarios.replacementSheetGrid]
                 )
             ]
-            // The seeded write needs a Sheet that Sync now can write and read back.
             if launch.startsWithPendingWrite {
-                sheets[WorkoutFixtureScenarios.sheetId] = LocalWorkbookSheetsClient(workbook: WorkbookScenario.freshBlock.workbook())
+                sheets[WorkoutFixtureScenarios.sheetId] = LocalWorkbookSheetsClient(workbook: WorkoutFixtureScenarios.queuedWriteSheet)
             }
             return FixtureSheetsClient(slowsSync: launch.slowsSync, sheets: sheets)
         }

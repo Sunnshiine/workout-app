@@ -82,6 +82,8 @@
             )
         }
 
+        static let queuedWriteSheet = WorkbookScenario.freshBlock.workbook()
+
         static func lastPerformedBackSquat() -> LastPerformedEntry {
             LastPerformedEntry(
                 fullName: "Back Squat",
