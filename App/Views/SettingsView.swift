@@ -71,8 +71,6 @@ struct SettingsView: View {
                     }
                     .accessibilityIdentifier("settings-developer-tools-row")
                 }
-                // Pinned so the app accent colour cannot repaint these action rows.
-                .tint(.blue)
                 .listRowBackground(palette.surface)
 
                 Section {
@@ -254,14 +252,15 @@ struct SettingsView: View {
     }
 }
 
-/// A Button whose label is a LabeledContent draws that label in the primary colour once disabled,
-/// so a busy row would read as tappable. This label keeps the tint and dims itself instead.
+/// System blue, named rather than read from the tint, so an app accent colour cannot repaint the
+/// row. A Button whose label is a LabeledContent draws that label in the primary colour once
+/// disabled, where it would read as tappable, so the label dims itself.
 private struct RowLabel: View {
     @Environment(\.isEnabled) private var isEnabled
     let title: String
 
     var body: some View {
-        Text(title).foregroundStyle(isEnabled ? AnyShapeStyle(.tint) : AnyShapeStyle(Color(.tertiaryLabel)))
+        Text(title).foregroundStyle(isEnabled ? Color.blue : Color(.tertiaryLabel))
     }
 }
 
