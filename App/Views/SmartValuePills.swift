@@ -179,12 +179,15 @@ struct SmartValuePills: View {
             .lineLimit(1)
             .minimumScaleFactor(0.5)
             // The decimal pad has no return key, so Done is the way out. Attached outside the weight
-            // font and colour, which Done would otherwise inherit.
+            // font and colour, which Done would otherwise inherit. A toolbar left up through the
+            // keyboard's hide drops out of later keyboards' bottom inset, and Log slides under them.
             .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done", action: dismissFieldUI)
-                        .accessibilityIdentifier("weight-keyboard-done")
+                if weightFieldFocused {
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button("Done", action: dismissFieldUI)
+                            .accessibilityIdentifier("weight-keyboard-done")
+                    }
                 }
             }
     }
