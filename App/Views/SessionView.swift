@@ -328,7 +328,7 @@ private struct OffLiveEdgeControls: View {
         Button(action: action) {
             Text(title)
                 .font(Theme.font(.queuePill))
-                .foregroundStyle(palette.textAction)
+                .foregroundStyle(palette.actionInk)
                 .lineLimit(1)
                 .padding(.horizontal, 16)
                 .frame(minHeight: 44)
