@@ -131,26 +131,24 @@ struct SessionStageBranch: View {
             let size = CGSize(width: length, height: length * LeafShape.aspectRatio)
             return BranchBladeGlyph(style: style, size: size, angle: angle + tilt)
         }
-        ZStack {
-            switch state {
-            case .leaf:
-                blade(.inked(fill: pigment(arm, focused: palette.leafFill), rib: focused ? palette.leafRib : nil), leafLength)
-                    .transition(budExitLayers.ink)
-            case .dashedLeaf:
-                blade(.dashed(pigment(arm, focused: palette.skipStroke)), leafLength)
-                    .transition(budExitLayers.ink)
-            case .future:
-                blade(
-                    .ghost(focused ? palette.futureStroke : palette.supersetPartnerBranch.opacity(0.55)),
-                    leafLength * Metrics.ghostScale
-                )
-            case .bud:
-                // A removed view draws under the one inserted beside it, so only a zIndex keeps a lifting bud
-                // above its ink.
-                blade(.cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow), leafLength)
-                    .transition(.asymmetric(insertion: budWake, removal: budExitLayers.bud))
-                    .zIndex(budExitLayers.budZIndex)
-            }
+        switch state {
+        case .leaf:
+            blade(.inked(fill: pigment(arm, focused: palette.leafFill), rib: focused ? palette.leafRib : nil), leafLength)
+                .transition(budExitLayers.ink)
+        case .dashedLeaf:
+            blade(.dashed(pigment(arm, focused: palette.skipStroke)), leafLength)
+                .transition(budExitLayers.ink)
+        case .future:
+            blade(
+                .ghost(focused ? palette.futureStroke : palette.supersetPartnerBranch.opacity(0.55)),
+                leafLength * Metrics.ghostScale
+            )
+        case .bud:
+            // A removed view draws under the one inserted beside it, so only a zIndex keeps a lifting bud
+            // above its ink.
+            blade(.cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow), leafLength)
+                .transition(.asymmetric(insertion: budWake, removal: budExitLayers.bud))
+                .zIndex(budExitLayers.budZIndex)
         }
     }
 
