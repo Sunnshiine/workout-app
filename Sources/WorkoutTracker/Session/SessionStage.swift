@@ -213,14 +213,15 @@ extension SupersetStage {
 @MainActor
 extension ForkedBranch {
     fileprivate init(_ superset: Superset, focused: Exercise, activeSetID: ActiveSetID?) {
-        let focusedNodes = StageBranch(sets: focused.sortedSets, activeSetID: activeSetID).nodes
-        let partnerNodes = StageBranch(sets: superset.other(than: focused).sortedSets, activeSetID: nil).nodes.map { node in
-            BranchNode(set: node.set, state: node.state == .bud ? .future : node.state)
+        let arm = { (exercise: Exercise) in
+            exercise === focused
+                ? StageBranch(sets: exercise.sortedSets, activeSetID: activeSetID).nodes
+                : exercise.sortedSets.map { BranchNode(set: $0, state: BranchNodeState(of: $0, bud: nil)) }
         }
-        let focusedOnStem = focused === superset.lowerOrdered
-        focusedArm = focusedOnStem ? .stem : .lateral
-        stem = focusedOnStem ? focusedNodes : partnerNodes
-        lateral = focusedOnStem ? partnerNodes : focusedNodes
+        let lower = superset.lowerOrdered
+        stem = arm(lower)
+        lateral = arm(superset.other(than: lower))
+        focusedArm = focused === lower ? .stem : .lateral
         self.activeSetID = activeSetID
     }
 }
