@@ -241,6 +241,8 @@ extension SessionView {
                 .padding(.top, 8)
                 .allowsHitTesting(false)
                 .opacity(sessionSettingsOverpullState.isVisible ? 0 : 1)
+                // Cuts like the banner's own ground, so the runline never shows through it mid-fade.
+                .animation(nil, value: sessionSettingsOverpullState.isVisible)
                 .accessibilityHidden(sessionSettingsOverpullState.isVisible)
         }
     }
