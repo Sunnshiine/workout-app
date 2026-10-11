@@ -71,13 +71,15 @@ struct SettingsView: View {
                     }
                     .accessibilityIdentifier("settings-developer-tools-row")
                 }
+                // Pinned so the app accent colour cannot repaint these action rows.
+                .tint(.blue)
                 .listRowBackground(palette.surface)
 
                 Section {
                     Button(role: .destructive) {
                         requestSignOut()
                     } label: {
-                        RowLabel(title: "Sign Out")
+                        Text("Sign Out")
                     }
                     .disabled(isSheetBusy)
                     .accessibilityIdentifier("settings-sign-out-button")
@@ -252,15 +254,14 @@ struct SettingsView: View {
     }
 }
 
-/// System blue and red read under 4.5:1 on the sage rows, so the labels draw in textPrimary. A
-/// colour set on the label also stops a disabled row from dimming, so the label dims itself.
+/// A Button whose label is a LabeledContent draws that label in the primary colour once disabled,
+/// so a busy row would read as tappable. This label keeps the tint and dims itself instead.
 private struct RowLabel: View {
     @Environment(\.isEnabled) private var isEnabled
-    @Environment(\.themePalette) private var palette
     let title: String
 
     var body: some View {
-        Text(title).foregroundStyle(isEnabled ? palette.textPrimary : Color(.tertiaryLabel))
+        Text(title).foregroundStyle(isEnabled ? AnyShapeStyle(.tint) : AnyShapeStyle(Color(.tertiaryLabel)))
     }
 }
 
