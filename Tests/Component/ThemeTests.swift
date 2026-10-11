@@ -115,9 +115,9 @@ import Testing
     #expect(Theme.branchAnimation(.relayout, reducingMotion: true) == nil)
 }
 
-@Test func theOldBudFadesIntoItsInkOnASingleBranchAndCutsOnAFork() {
-    #expect(Theme.budExit(onFork: false) == .fade)
-    #expect(Theme.budExit(onFork: true) == .cut)
+@Test func theOldBudCutsWhenTheNextWakesOnTheOtherArmAndOtherwiseFadesIntoItsInk() {
+    #expect(Theme.budExit(crossingArms: false) == .fade)
+    #expect(Theme.budExit(crossingArms: true) == .cut)
 }
 
 @Test func themeHapticTuningsMatchTokenSheet() {

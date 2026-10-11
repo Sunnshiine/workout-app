@@ -150,7 +150,7 @@ struct SessionStageBranch: View {
         let bloom: AnyTransition = reduceMotion ? .opacity : .scale(scale: 0.3).combined(with: .opacity)
         return .asymmetric(
             insertion: bloom.animation(Theme.branchAnimation(.budWake, reducingMotion: reduceMotion)),
-            removal: Theme.budExit(onFork: lateral != nil) == .fade ? bloom : .identity
+            removal: Theme.budExit(crossingArms: lateral != nil) == .fade ? bloom : .identity
         )
     }
 
