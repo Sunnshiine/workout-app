@@ -1,4 +1,3 @@
-import CoreGraphics
 import Foundation
 import SwiftUI
 
@@ -24,24 +23,5 @@ struct MoveOnCeremonyFrame: Equatable {
     func leafInk(atLengthFraction position: Double) -> Double {
         guard stemTrim < 1 else { return 1 }
         return min(max((stemTrim - position) / Self.inkSpan, 0), 1)
-    }
-}
-
-extension QuadraticBezier {
-    /// A path's trim runs on length, not on `t`.
-    func lengthFraction(at t: CGFloat) -> CGFloat {
-        length(to: t) / length(to: 1)
-    }
-
-    private func length(to t: CGFloat) -> CGFloat {
-        let samples = 200
-        var total: CGFloat = 0
-        var last = start
-        for index in 1...samples {
-            let next = point(at: t * CGFloat(index) / CGFloat(samples))
-            total += hypot(next.x - last.x, next.y - last.y)
-            last = next
-        }
-        return total
     }
 }

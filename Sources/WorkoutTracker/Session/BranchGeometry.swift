@@ -20,6 +20,23 @@ struct QuadraticBezier: Equatable {
             dy: 2 * mt * (control.y - start.y) + 2 * t * (end.y - control.y)
         )
     }
+
+    /// A path's trim runs on length, not on `t`.
+    func lengthFraction(at t: CGFloat) -> CGFloat {
+        length(to: t) / length(to: 1)
+    }
+
+    private func length(to t: CGFloat) -> CGFloat {
+        let samples = 200
+        var total: CGFloat = 0
+        var last = start
+        for index in 1...samples {
+            let next = point(at: t * CGFloat(index) / CGFloat(samples))
+            total += hypot(next.x - last.x, next.y - last.y)
+            last = next
+        }
+        return total
+    }
 }
 
 enum BranchNodeLayout {

@@ -1,4 +1,3 @@
-import CoreGraphics
 import Foundation
 import Testing
 
@@ -46,17 +45,5 @@ private let tolerance = 1e-6
         #expect(frame.leafInk(atLengthFraction: 0.5) == 0)
         #expect(abs(frame.leafInk(atLengthFraction: 0.35) - 0.510793) < tolerance)
         #expect(frame.leafInk(atLengthFraction: 0.1) == 1)
-    }
-
-    @Test func aBezierFractionMeasuresPathLengthNotParameter() {
-        let curve = QuadraticBezier(
-            start: CGPoint(x: 10, y: 90),
-            control: CGPoint(x: 55, y: 20),
-            end: CGPoint(x: 100, y: 40)
-        )
-
-        #expect(curve.lengthFraction(at: 0) == 0)
-        #expect(curve.lengthFraction(at: 1) == 1)
-        #expect(abs(curve.lengthFraction(at: 0.5) - 0.584947) < 1e-4)
     }
 }
