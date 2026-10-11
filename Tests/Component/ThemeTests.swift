@@ -115,6 +115,11 @@ import Testing
     #expect(Theme.branchAnimation(.relayout, reducingMotion: true) == nil)
 }
 
+@Test func theOldBudFadesIntoItsInkOnASingleBranchAndCutsOnAFork() {
+    #expect(Theme.budExit(onFork: false) == .fade)
+    #expect(Theme.budExit(onFork: true) == .cut)
+}
+
 @Test func themeHapticTuningsMatchTokenSheet() {
     #expect(Theme.Haptics.railDetentTick == Theme.HapticTuning(intensity: 0.35, sharpness: 0.85))
     #expect(Theme.Haptics.skipDud == Theme.HapticTuning(intensity: 0.45, sharpness: 0.15))

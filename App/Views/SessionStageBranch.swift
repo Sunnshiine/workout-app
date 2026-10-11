@@ -147,12 +147,10 @@ struct SessionStageBranch: View {
     /// The bud wakes on its own delay, which only an animation the transition carries can run; an
     /// `.animation` keyed on the branch would wake it with the leaf.
     private var budTransition: AnyTransition {
-        let wake: AnyTransition = reduceMotion ? .opacity : .scale(scale: 0.3).combined(with: .opacity)
+        let bloom: AnyTransition = reduceMotion ? .opacity : .scale(scale: 0.3).combined(with: .opacity)
         return .asymmetric(
-            insertion: wake.animation(Theme.branchAnimation(.budWake, reducingMotion: reduceMotion)),
-            // A Superset dissolves once either side has no Pending Set, so every bud move on a fork
-            // crosses arms; the old bud leaves at once so no frame shows two cream leaves.
-            removal: lateral == nil ? wake : .identity
+            insertion: bloom.animation(Theme.branchAnimation(.budWake, reducingMotion: reduceMotion)),
+            removal: Theme.budExit(onFork: lateral != nil) == .fade ? bloom : .identity
         )
     }
 

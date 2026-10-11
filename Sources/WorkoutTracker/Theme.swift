@@ -337,6 +337,17 @@ enum Theme {
         }
     }
 
+    enum BudExit {
+        case fade
+        case cut
+    }
+
+    /// A Superset dissolves once either side has no Pending Set, so every bud move on a fork crosses arms, and a
+    /// fading old bud would share the stage with the new one. On a single branch the bud fades into its leaf's ink.
+    static func budExit(onFork: Bool) -> BudExit {
+        onFork ? .cut : .fade
+    }
+
     enum Motion {
         static let leafInk = 0.42 // a leaf inks in
         static let budOpen = 0.34 // the next bud wakes…
