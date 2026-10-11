@@ -13,6 +13,11 @@ struct WorkoutTrackerApp: App {
         // swiftlint:disable:next force_try
         let app = try! WorkoutApplication(environment: Self.launchEnvironment())
         _app = State(initialValue: app)
+        // The system's selected-segment thumb takes the sage paper's tone and reads 4.1:1 under white text.
+        let nightThumb = UIColor(Theme.palette(for: .night).action)
+        UISegmentedControl.appearance().selectedSegmentTintColor = UIColor { traits in
+            traits.userInterfaceStyle == .dark ? nightThumb : .white
+        }
         #if DEBUG
             #if canImport(UIKit)
                 if UITestFixture.disablesAnimations {
