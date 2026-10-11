@@ -78,8 +78,6 @@ struct SmartValuePills: View {
         .onChange(of: suggestion) { _, later in
             form.refreshPrefill(from: later, for: set)
         }
-        // A re-tap during a fold lands the old hide's didHide late, before or after the new focus
-        // commits. Either order must leave the refocused field holding its keyboard.
         .onChange(of: weightFieldFocused) { _, focused in
             if focused { holdsWeightKeyboard = true }
         }
@@ -144,7 +142,6 @@ struct SmartValuePills: View {
     }
 
     private var weightValue: some View {
-        // Sizes the row, so neither the taller text field nor a long typed weight resizes the card.
         Text(verbatim: "0")
             .fixedSize(horizontal: false, vertical: true)
             .hidden()
@@ -181,11 +178,8 @@ struct SmartValuePills: View {
             .foregroundStyle(weightForeground)
             .lineLimit(1)
             .minimumScaleFactor(0.5)
-            // The decimal pad carries no return key, so give the athlete a discoverable way out
-            // of the field when they open it and choose not to enter a weight — dismissing the
-            // keyboard without logging (any tap on non-interactive stage space is the same
-            // escape). Semantic-only, so no haptic here. Attached outside the weight font and
-            // colour, which Done would otherwise inherit.
+            // The decimal pad has no return key, so Done is the way out. Attached outside the weight
+            // font and colour, which Done would otherwise inherit.
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
