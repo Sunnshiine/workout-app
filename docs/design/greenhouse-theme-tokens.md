@@ -44,9 +44,9 @@ are recorded inline.
 | `mutedNight` | `#9AAA9B` | night secondary text |
 | `cream` | `#F2F7E8` | the workhorse — surfaces, pills, buds, ribs, action text (~15 roles at varying opacity) |
 | `actionDay` | `#0D6B40` | day action green; also day leaf/stem/bird pigment |
-| `actionDayText` | `#0A5936` | day action green as words and system tint: the pressed Log green, because `#0D6B40` measures 3.97 to 4.40:1 as small text on the queue sheet's darker foot |
+| `actionDayInk` | `#0A5936` | day action green as words and system tint: the pressed Log green, because `#0D6B40` measures 3.97 to 4.40:1 as small text on the queue sheet's darker foot |
 | `actionNight` | `#1F8552` | night action green (mint is banned from the action role at night) |
-| `actionNightText` | `#A8CFB4` | night action green as words and system tint: actionNight under cream @ 65%, because `#1F8552` measures 1.9 to 3.7:1 as text on night paper |
+| `actionNightInk` | `#A8CFB4` | night action green as words and system tint: actionNight under cream @ 65%, because `#1F8552` measures 1.9 to 3.7:1 as text on night paper |
 | `foliage` | `#579168` | *the* night pigment: leaves, stems, bird, tiles re-light to this |
 | `paperDay` | `#E9EEDC → #CBE1C2` | base pair under the day washes (atmosphere pick — supersedes `#E8EDDB → #C7E0BF`) |
 | `paperNight` | `#232C20 → #121D14` | hue-preserved deep sage, never neutral black (#418) |
@@ -133,7 +133,7 @@ composition itself are locked by #455.
 |---|---|---|
 | `action` (fill) | actionDay | actionNight |
 | `actionText` | cream | cream |
-| `textAction` (green words on paper, system tint) | actionDayText | actionNightText |
+| `actionInk` (green words on paper, system tint) | actionDayInk | actionNightInk |
 | `logShadow` | `0 1px 2px rgba(13,46,28,0.22), 0 10px 22px rgba(13,60,35,0.16)` | `0 0 22px rgba(31,133,82,0.35)` (glow, no drop) |
 | pressed/logged fill | `#0A5936` | — (build) |
 | `skipFillOverlay` | muted @ 30% | — (build) |

@@ -50,7 +50,7 @@ private struct OpenExerciseRow: View {
                 Image(systemName: "chevron.right")
                     .font(Theme.font(.historyChip))
             }
-            .foregroundStyle(palette.textAction)
+            .foregroundStyle(palette.actionInk)
         }
         .padding(.vertical, 10)
         .contentShape(Rectangle())
