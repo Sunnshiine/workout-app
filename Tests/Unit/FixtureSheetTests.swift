@@ -34,7 +34,7 @@ import Testing
 }
 
 @MainActor
-@Test func syncNowWritesThePendingWriteLaunchsQueuedWriteAndReloadsTheFixtureSheet() async throws {
+@Test func syncFlushesTheQueuedWriteAndReloadsTheFixtureSheet() async throws {
     let app = try WorkoutApplication(environment: .uiTestFixture(launch: UITestLaunch(arguments: ["-UITEST_PENDING_WRITE"])))
     app.settings.setSpreadsheet(id: WorkoutFixtureScenarios.sheetId, title: "Fixture Training Log")
     #expect(try app.snapshot().pendingWriteCount == 1)
