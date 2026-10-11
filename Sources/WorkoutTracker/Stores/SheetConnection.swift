@@ -129,8 +129,6 @@ final class SheetConnection {
             return .failed(.pendingCheckFailed)
         }
 
-        isTransitioning = true
-        defer { isTransitioning = false }
         do {
             try await switchNow(to: selection)
             return .switched
