@@ -65,13 +65,11 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         let card = app.otherElements["active-set-card"]
-        let done = app.buttons["weight-keyboard-done"]
         var cardTops: [CGFloat] = []
         for _ in 1...3 {
             openWeightKeyboard(in: app)
             cardTops.append(settledFrame(of: card).minY)
-            XCTAssertEqual(done.frame.width, 62, accuracy: 2, "Done keeps the system font, not the weight's")
-            done.tap()
+            app.buttons["weight-keyboard-done"].tap()
             XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
         }
         XCTAssertEqual(cardTops[2], cardTops[0], accuracy: 1, "edit tops \(cardTops)")
@@ -80,6 +78,21 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         app.buttons["log-active-set-button"].tap()
 
         XCTAssertTrue(app.buttons["Set 1, 237.5x5@6"].appears(within: 3))
+    }
+
+    @MainActor
+    func testWeightKeyboardDoneKeepsTheSystemButtonFont() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+        openWeightKeyboard(in: app)
+
+        XCTAssertEqual(
+            app.buttons["weight-keyboard-done"].frame.width,
+            62,
+            accuracy: 2,
+            "at the default text size, Done in the weight font measures 75"
+        )
     }
 
     @MainActor
@@ -377,9 +390,10 @@ private func settledFrame(of element: XCUIElement) -> CGRect {
     while Date() < deadline {
         RunLoop.current.run(until: Date().addingTimeInterval(0.3))
         let next = element.frame
-        if next == frame { break }
+        if next == frame { return frame }
         frame = next
     }
+    XCTFail("\(element) still moving after 3 s, last at \(frame)")
     return frame
 }
 

@@ -2,24 +2,46 @@ import Testing
 
 @testable import WorkoutTracker
 
-@Test func foldedWeightFieldStaysMountedUntilItsKeyboardHasGone() {
+@Test func tappedWeightFieldMountsBeforeFocusAndStaysUntilItsKeyboardHasGone() {
     var mount = WeightFieldMount()
     #expect(mount.mountsField(focused: false) == false)
 
-    mount.fieldTakesFocus()
-    #expect(mount.mountsField(focused: true) == true)
+    mount.tapped()
+    #expect(mount.mountsField(focused: false) == true)
+    mount.focusChanged(to: true)
+    mount.focusChanged(to: false)
     #expect(mount.mountsField(focused: false) == true)
 
     mount.keyboardDidHide(fieldFocused: false)
     #expect(mount.mountsField(focused: false) == false)
 }
 
-@Test func reTapThatFocusesBeforeTheOldHideKeepsTheNextFoldMounted() {
+@Test func reTapWhoseFocusCommitsBeforeTheOldHideKeepsTheNextFoldMounted() {
     var mount = WeightFieldMount()
-    mount.fieldTakesFocus()
+    mount.tapped()
+    mount.focusChanged(to: true)
+    mount.focusChanged(to: false)
 
-    mount.fieldTakesFocus()
+    mount.tapped()
+    mount.focusChanged(to: true)
     mount.keyboardDidHide(fieldFocused: true)
+    mount.focusChanged(to: false)
+
+    #expect(mount.mountsField(focused: false) == true)
+    mount.keyboardDidHide(fieldFocused: false)
+    #expect(mount.mountsField(focused: false) == false)
+}
+
+@Test func reTapWhoseFocusCommitsAfterTheOldHideKeepsTheNextFoldMounted() {
+    var mount = WeightFieldMount()
+    mount.tapped()
+    mount.focusChanged(to: true)
+    mount.focusChanged(to: false)
+
+    mount.tapped()
+    mount.keyboardDidHide(fieldFocused: false)
+    mount.focusChanged(to: true)
+    mount.focusChanged(to: false)
 
     #expect(mount.mountsField(focused: false) == true)
     mount.keyboardDidHide(fieldFocused: false)

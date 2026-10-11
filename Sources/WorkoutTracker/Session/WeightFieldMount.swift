@@ -1,20 +1,25 @@
-/// Keeps the weight's text field mounted from the tap that focuses it until the keyboard it raised
-/// has gone. Unmounting the field while its keyboard hides drops the stage's keyboard animation, and
-/// the card jumps.
-struct WeightFieldMount: Equatable {
-    private var holdsKeyboard = false
+/// Decides whether the weight's text field is mounted. The tap mounts it before focus can land on it,
+/// and it stays until the keyboard it raised has gone: unmounting the field while its keyboard hides
+/// drops the stage's keyboard animation, and the card jumps.
+struct WeightFieldMount {
+    private var keepsField = false
 
-    mutating func fieldTakesFocus() {
-        holdsKeyboard = true
+    mutating func tapped() {
+        keepsField = true
+    }
+
+    mutating func focusChanged(to focused: Bool) {
+        if focused { keepsField = true }
     }
 
     /// A re-tap during a fold receives the old hide's didHide either before or after its own focus
-    /// commits, so a hide releases only an unfocused field, and the focus that follows re-holds it.
+    /// commits. A hide releases only an unfocused field, and a focus that commits after it keeps the
+    /// field again.
     mutating func keyboardDidHide(fieldFocused: Bool) {
-        holdsKeyboard = fieldFocused
+        keepsField = fieldFocused
     }
 
     func mountsField(focused: Bool) -> Bool {
-        focused || holdsKeyboard
+        focused || keepsField
     }
 }

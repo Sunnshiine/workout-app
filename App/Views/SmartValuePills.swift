@@ -79,7 +79,7 @@ struct SmartValuePills: View {
             form.refreshPrefill(from: later, for: set)
         }
         .onChange(of: weightFieldFocused) { _, focused in
-            if focused { weightFieldMount.fieldTakesFocus() }
+            weightFieldMount.focusChanged(to: focused)
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidHideNotification)) { _ in
             weightFieldMount.keyboardDidHide(fieldFocused: weightFieldFocused)
@@ -164,7 +164,7 @@ struct SmartValuePills: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .contentShape(.rect)
                         .onTapGesture {
-                            weightFieldMount.fieldTakesFocus()
+                            weightFieldMount.tapped()
                             weightFieldFocused = true
                         }
                         .accessibilityLabel("Weight, \(form.weightDisplay)")
