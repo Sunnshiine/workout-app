@@ -44,15 +44,3 @@ final class HeldSheetsClient: SheetsClient {
         held.release()
     }
 }
-
-func replacementSquatGrid() -> SheetGrid {
-    gridFromA1(
-        [
-            "C12": "Day 1", "S12": "Day 2", "AI12": "Day 3", "AX12": "Day 4",
-            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
-            "C15": "Replacement Squat", "D15": "1", "F15": "5", "H15": "RPE8"
-        ],
-        rows: 20,
-        cols: 60
-    )
-}

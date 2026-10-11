@@ -8,6 +8,17 @@
         static let sheetURL = "https://docs.google.com/spreadsheets/d/\(sheetId)/edit"
         static let blockTab = "Block 27"
 
+        static let replacementSheetGrid = gridFromA1(
+            [
+                "C12": "Day 1", "S12": "Day 2", "AI12": "Day 3", "AX12": "Day 4",
+                "C13": "5/1/2026",
+                "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
+                "C15": "Replacement Squat", "D15": "1", "F15": "5", "H15": "RPE8"
+            ],
+            rows: 20,
+            cols: 60
+        )
+
         @MainActor
         static func currentSessionWithPendingSetsBlock() -> Block {
             WorkoutFixtureBlocks.currentSessionWithPendingSetsBlock()
