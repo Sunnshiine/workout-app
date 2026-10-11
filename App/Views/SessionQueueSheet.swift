@@ -13,6 +13,22 @@ struct SessionQueueSheet: View {
     }
 
     var body: some View {
+        VStack(spacing: 0) {
+            header
+                .padding(.horizontal)
+
+            rows
+        }
+        .animation(.easeInOut(duration: 0.18), value: queue.pairingMode)
+        .animation(.easeInOut(duration: 0.18), value: queue.rows.map(\.id))
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
+        .presentationCornerRadius(Theme.Radius.soft)
+        .presentationBackground { palette.paperBackground }
+        .onDisappear(perform: coordinator.cancelPairing)
+    }
+
+    private var rows: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(queue.rows) { row in
@@ -38,19 +54,14 @@ struct SessionQueueSheet: View {
             .padding(.horizontal)
             .padding(.bottom)
         }
-        .scrollEdgeEffectStyle(.soft, for: .top)
-        .safeAreaBar(edge: .top) {
-            header
-                .padding(.horizontal)
-                .padding(.bottom, 8)
+        .safeAreaPadding(.top, 8)
+        .mask {
+            VStack(spacing: 0) {
+                LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
+                    .frame(height: 16)
+                Color.black
+            }
         }
-        .animation(.easeInOut(duration: 0.18), value: queue.pairingMode)
-        .animation(.easeInOut(duration: 0.18), value: queue.rows.map(\.id))
-        .presentationDetents([.medium])
-        .presentationDragIndicator(.visible)
-        .presentationCornerRadius(Theme.Radius.soft)
-        .presentationBackground { palette.paperBackground }
-        .onDisappear(perform: coordinator.cancelPairing)
     }
 
     private var header: some View {
@@ -214,8 +225,10 @@ struct SessionQueueSheet: View {
 
 extension View {
     fileprivate func visibleKeepingFrame(_ isShown: Bool) -> some View {
-        opacity(isShown ? 1 : 0)
-            .disabled(!isShown)
-            .accessibilityHidden(!isShown)
+        hidden().overlay {
+            if isShown {
+                self
+            }
+        }
     }
 }
