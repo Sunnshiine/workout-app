@@ -29,7 +29,7 @@ struct WorkoutTrackerApp: App {
     private static func launchEnvironment() -> AppEnvironment {
         #if DEBUG
             if UITestFixture.isEnabled {
-                return .uiTestFixture()
+                return .uiTestFixture(launch: UITestFixture.launch)
             }
         #endif
         return .device()

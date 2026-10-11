@@ -59,7 +59,7 @@ public struct AppEnvironment {
     }
 
     #if DEBUG
-        static func uiTestFixture(launch: UITestLaunch = UITestFixture.launch) -> AppEnvironment {
+        static func uiTestFixture(launch: UITestLaunch) -> AppEnvironment {
             AppEnvironment(
                 storage: .inMemory,
                 sheetsClient: UITestFixture.makeSheetsClient(launch: launch),
