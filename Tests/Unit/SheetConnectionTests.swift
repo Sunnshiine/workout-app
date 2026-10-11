@@ -438,6 +438,45 @@ func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expecte
 }
 
 @MainActor
+@Test(.timeLimit(.minutes(1))) func syncNowAndASheetSwitchAreRejectedWhileSignOutDiscardsTheQueue() async throws {
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
+    settings.isSignedIn = true
+    settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
+    let sync = SuspendedDiscardSheetSwitchSync()
+    let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
+
+    let signOutTask = Task { try await connection.signOut() }
+    await sync.waitForDiscardStart()
+
+    #expect(connection.canSyncNow == false)
+    #expect(await connection.syncNow() == .syncInProgress)
+    #expect(await connection.requestSwitch(to: SheetSelection(spreadsheetId: "other-sheet")) == .failed(.syncInProgress))
+    sync.completeDiscard()
+    try await signOutTask.value
+
+    #expect(sync.syncedSpreadsheetIds == [])
+    #expect(settings.spreadsheetId == nil)
+    #expect(settings.isSignedIn == false)
+}
+
+@MainActor
+@Test func syncNowWaitsForASheetAndSaysSo() async {
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
+    let sync = StubSheetSwitchSync()
+    let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
+
+    #expect(connection.canSyncNow == false)
+    #expect(connection.syncNowDetail == "Connect a sheet first")
+    #expect(await connection.syncNow() == .noSheet)
+    #expect(sync.syncedSpreadsheetIds == [])
+
+    settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
+
+    #expect(connection.canSyncNow == true)
+    #expect(connection.syncNowDetail == "Refresh workout state")
+}
+
+@MainActor
 @Test func signOutAndSheetSwitchAreRejectedWhileABackgroundSyncIsRunning() async throws {
     let container = try makeCacheSafetyContainer()
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
