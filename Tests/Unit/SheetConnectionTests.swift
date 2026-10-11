@@ -438,6 +438,29 @@ func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expecte
 }
 
 @MainActor
+@Test(.timeLimit(.minutes(1))) func syncNowSignOutAndASecondSwitchAreRejectedWhileASwitchSyncsTheNewSheet() async throws {
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
+    settings.isSignedIn = true
+    settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
+    let sync = SuspendedSyncSheetSwitchSync()
+    let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
+
+    let switchTask = Task { await connection.requestSwitch(to: SheetSelection(spreadsheetId: "new-sheet")) }
+    await sync.waitForSyncStart()
+
+    #expect(connection.canSyncNow == false)
+    #expect(await connection.syncNow() == .syncInProgress)
+    #expect(connection.requestSignOut() == .failed(.syncInProgress))
+    #expect(await connection.requestSwitch(to: SheetSelection(spreadsheetId: "other-sheet")) == .failed(.syncInProgress))
+    sync.completeSync()
+
+    #expect(await switchTask.value == .switched)
+    #expect(sync.syncedSpreadsheetIds == ["new-sheet"])
+    #expect(settings.spreadsheetId == "new-sheet")
+    #expect(settings.isSignedIn == true)
+}
+
+@MainActor
 @Test(.timeLimit(.minutes(1))) func syncNowAndASheetSwitchAreRejectedWhileSignOutDiscardsTheQueue() async throws {
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.isSignedIn = true
@@ -839,5 +862,33 @@ private final class SuspendedDiscardSheetSwitchSync: SheetSwitchSyncing {
 
     func completeDiscard() {
         heldDiscard.release()
+    }
+}
+
+@MainActor
+private final class SuspendedSyncSheetSwitchSync: SheetSwitchSyncing {
+    let isSyncing = false
+    let outcome = SyncOutcome.clear
+    private let heldSync = HeldCall()
+    private(set) var syncedSpreadsheetIds: [String] = []
+
+    func hasPendingWrites() throws -> Bool {
+        false
+    }
+
+    func discardPendingWrites() async throws {}
+
+    func sync(spreadsheetId: String) async -> Bool {
+        syncedSpreadsheetIds.append(spreadsheetId)
+        await heldSync.hold()
+        return true
+    }
+
+    func waitForSyncStart() async {
+        await heldSync.waitUntilHeld(orRecord: "the sheet switch never started syncing the new sheet")
+    }
+
+    func completeSync() {
+        heldSync.release()
     }
 }
