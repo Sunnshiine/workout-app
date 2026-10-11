@@ -135,7 +135,7 @@ struct SessionStageBranch: View {
             blade(.dashed(pigment(arm, focused: palette.skipStroke)), leafLength)
         case .bud:
             blade(.cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow), leafLength)
-                .transition(budWakeCut)
+                .transition(budTransition)
         case .future:
             blade(
                 .ghost(focused ? palette.futureStroke : palette.supersetPartnerBranch.opacity(0.55)),
@@ -146,11 +146,13 @@ struct SessionStageBranch: View {
 
     /// The bud wakes on its own delay, which only an animation the transition carries can run; an
     /// `.animation` keyed on the branch would wake it with the leaf.
-    private var budWakeCut: AnyTransition {
+    private var budTransition: AnyTransition {
         let wake: AnyTransition = reduceMotion ? .opacity : .scale(scale: 0.3).combined(with: .opacity)
         return .asymmetric(
             insertion: wake.animation(Theme.branchAnimation(.budWake, reducingMotion: reduceMotion)),
-            removal: .identity
+            // A Superset dissolves once either side has no Pending Set, so every bud move on a fork
+            // crosses arms; the old bud leaves at once so no frame shows two cream leaves.
+            removal: lateral == nil ? wake : .identity
         )
     }
 
