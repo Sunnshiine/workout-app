@@ -327,18 +327,26 @@ enum Theme {
         case budWake
         case budLift
         case relayout
+
+        fileprivate var wing: Animation {
+            switch self {
+            case .leafInk, .relayout: Theme.wingAnimation(duration: Motion.leafInk)
+            case .budWake: Theme.wingAnimation(duration: Motion.budOpen).delay(Motion.budOpenDelay)
+            case .budLift: Theme.wingAnimation(duration: Motion.budOpenDelay)
+            }
+        }
+
+        fileprivate var crossfade: Animation? {
+            switch self {
+            case .leafInk, .budLift: .easeInOut(duration: Motion.crossfade)
+            case .budWake: .easeInOut(duration: Motion.crossfade).delay(Motion.crossfade)
+            case .relayout: nil
+            }
+        }
     }
 
     static func branchAnimation(_ growth: BranchGrowth, reducingMotion: Bool) -> Animation? {
-        switch (growth, reducingMotion) {
-        case (.leafInk, false), (.relayout, false): wingAnimation(duration: Motion.leafInk)
-        case (.budWake, false): wingAnimation(duration: Motion.budOpen).delay(Motion.budOpenDelay)
-        case (.budLift, false): wingAnimation(duration: Motion.budOpenDelay)
-        case (.leafInk, true): .easeInOut(duration: Motion.crossfade)
-        case (.budWake, true): .easeInOut(duration: Motion.crossfade).delay(Motion.crossfade)
-        case (.budLift, true): .easeInOut(duration: Motion.crossfade)
-        case (.relayout, true): nil
-        }
+        reducingMotion ? growth.crossfade : growth.wing
     }
 
     enum Motion {
