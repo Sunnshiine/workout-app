@@ -39,6 +39,8 @@ enum Theme {
         static let cream = rgb(242, 247, 232) // #F2F7E8 — the workhorse
         static let actionDay = rgb(13, 107, 64) // #0D6B40 — day action / leaf / stem / bird
         static let actionNight = rgb(31, 133, 82) // #1F8552 — night action (mint is banned at night)
+        static let actionDayText = rgb(10, 89, 54) // #0A5936 — the pressed Log green, legible as text on the sheet foot
+        static let actionNightText = rgb(168, 207, 180) // #A8CFB4 — actionNight under cream @ 65%, legible as text
         static let foliage = rgb(87, 145, 104) // #579168 — the night pigment
         static let paperDayTop = rgb(233, 238, 220) // #E9EEDC
         static let paperDayBottom = rgb(203, 225, 194) // #CBE1C2
@@ -189,6 +191,9 @@ enum Theme {
         // Text inks
         let textPrimary: Color
         let textSecondary: Color
+        /// Action-green words on paper, and the system tint. `action` is a fill colour: as small text
+        /// it measures under 4.5:1 on night paper and on the day sheet's darker foot.
+        let textAction: Color
 
         // Stage & branch
         let stem: Color
@@ -506,6 +511,7 @@ extension Theme {
         ),
         textPrimary: Paint.ink,
         textSecondary: Paint.muted,
+        textAction: Paint.actionDayText,
         stem: Paint.actionDay,
         leafFill: Paint.actionDay,
         leafRib: Paint.cream.opacity(0.50),
@@ -566,6 +572,7 @@ extension Theme {
         ),
         textPrimary: Paint.inkNight,
         textSecondary: Paint.mutedNight,
+        textAction: Paint.actionNightText,
         stem: Paint.foliage,
         leafFill: Paint.foliage,
         leafRib: Paint.cream.opacity(0.55),

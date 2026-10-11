@@ -64,7 +64,7 @@ struct SessionQueueSheet: View {
 
             Spacer(minLength: 12)
 
-            textButton("Cancel", color: palette.accent, action: coordinator.cancelPairing)
+            textButton("Cancel", color: palette.textAction, action: coordinator.cancelPairing)
                 .accessibilityIdentifier("stage-queue-cancel-pairing")
                 .visibleKeepingFrame(isPairing)
         }
@@ -190,7 +190,7 @@ struct SessionQueueSheet: View {
     private func accentWord(_ word: String) -> some View {
         Text(word)
             .font(Theme.font(.fieldLabel))
-            .foregroundStyle(palette.accent)
+            .foregroundStyle(palette.textAction)
     }
 
     private func rowLabel(for row: SessionQueue.Row, @ViewBuilder trailing: () -> some View) -> some View {
