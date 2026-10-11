@@ -56,8 +56,6 @@ enum BranchArm: Equatable, Sendable {
 
 enum BudExit: Equatable, Sendable {
     case fold
-    /// The leaf inks at once under the bud and the bud lifts off before any next bud wakes, so a bud
-    /// waking on the other arm never shares the stage with it and the logged node never empties.
     case lift
 }
 
