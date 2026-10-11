@@ -5,8 +5,7 @@ struct SessionStageBranch: View {
     private let lateral: [BranchNode]?
     private let focusedArm: BranchArm
     private let activeSetID: ActiveSetID?
-    /// Tapping a node focuses its Set — matching the retired dots' behavior. `nil`
-    /// keeps the branch a passive glyph.
+    /// A Superset's fork takes no tap, so its branch stays a passive glyph.
     private let onTap: ((ExerciseSet) -> Void)?
     @Environment(\.themePalette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -127,7 +126,7 @@ struct SessionStageBranch: View {
         let tilt = Angle(degrees: leansUp ? -Metrics.leafTiltAbove : Metrics.leafTiltBelow)
         let blade = { (style: BranchBladeGlyph.Style, length: CGFloat) in
             let size = CGSize(width: length, height: length * LeafShape.aspectRatio)
-            return BranchBladeGlyph(style: style, size: size).pivotingAtBase(length: length, by: angle + tilt)
+            return BranchBladeGlyph(style: style, size: size, angle: angle + tilt)
         }
         switch state {
         case .leaf:
@@ -289,6 +288,7 @@ private struct BranchBladeGlyph: View {
 
     let style: Style
     let size: CGSize
+    let angle: Angle
 
     var body: some View {
         Group {
@@ -316,6 +316,8 @@ private struct BranchBladeGlyph: View {
             }
         }
         .frame(width: size.width, height: size.height)
+        .offset(x: size.width / 2)
+        .rotationEffect(angle)
     }
 }
 
@@ -346,11 +348,5 @@ struct RibShape: Shape {
         path.move(to: CGPoint(x: 7, y: 8.6))
         path.addCurve(to: CGPoint(x: 56, y: 3.4), control1: CGPoint(x: 24, y: 4.6), control2: CGPoint(x: 42, y: 2.6))
         return path.applying(CGAffineTransform(scaleX: rect.width / 64, y: rect.height / 20))
-    }
-}
-
-extension View {
-    fileprivate func pivotingAtBase(length: CGFloat, by angle: Angle) -> some View {
-        offset(x: length / 2).rotationEffect(angle)
     }
 }
