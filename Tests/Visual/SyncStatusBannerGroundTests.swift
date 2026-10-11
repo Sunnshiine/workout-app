@@ -13,11 +13,11 @@ struct SyncStatusBannerGroundTests {
             .environment(\.themePalette, Theme.palette(for: .day))
             .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)
         let inked = try AccessibilityHost.read(page, in: [CGSize(width: 402, height: 120)]) { window in
-            let absent = try inkedPixels(in: window, within: Region.clearOfTheLabel)
+            let absent = try inkedPixels(in: window, within: Region.insideTheCapsuleRightOfTheLabel)
             withAnimation(.linear(duration: 10)) {
                 banner.outcome = .writesQueued(1)
             }
-            let firstFrame = try inkedPixels(in: window, within: Region.clearOfTheLabel)
+            let firstFrame = try inkedPixels(in: window, within: Region.insideTheCapsuleRightOfTheLabel)
             return (absent: absent, firstFrame: firstFrame)
         }[0]
         #expect(inked.absent == 25_200, "with no banner, the ink under the banner's place shows")
@@ -29,8 +29,7 @@ struct SyncStatusBannerGroundTests {
 }
 
 private enum Region {
-    // Inside the capsule, right of where "1 unsynced" ends and clear of its rounded end and stroke.
-    static let clearOfTheLabel = CGRect(x: 220, y: 16, width: 140, height: 20)
+    static let insideTheCapsuleRightOfTheLabel = CGRect(x: 220, y: 16, width: 140, height: 20)
 }
 
 @MainActor
@@ -43,7 +42,6 @@ private struct BannerOverInk: View {
     let banner: BannerState
 
     var body: some View {
-        // Solid ink stands in for the runline's text, so the pixel count is the same on every machine.
         Rectangle()
             .fill(.black)
             .frame(height: 50)
