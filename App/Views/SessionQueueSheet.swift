@@ -135,7 +135,7 @@ struct SessionQueueSheet: View {
                         .foregroundStyle(palette.textSecondary)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 16)
-                        .frame(minWidth: 44, minHeight: 44)
+                        .frame(minWidth: 44)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -159,6 +159,7 @@ struct SessionQueueSheet: View {
         }
         .buttonStyle(.plain)
         .opacity(row.pairingRole == .ineligibleTarget ? Theme.pairingUnavailableOpacity : 1)
+        .accessibilityValue(row.pairingRole == .ineligibleTarget ? "Unavailable" : "")
         .overlay {
             if row.pairingRole == .confirmingTarget {
                 RoundedRectangle(cornerRadius: Theme.Radius.soft)
@@ -180,7 +181,7 @@ struct SessionQueueSheet: View {
             Image(systemName: "link.badge.plus")
                 .font(Theme.font(.fieldLabel))
                 .foregroundStyle(palette.actionInk)
-                .accessibilityLabel("Pair with this")
+                .accessibilityLabel("Pairing with this")
         case .none, .eligibleTarget, .ineligibleTarget:
             EmptyView()
         }
