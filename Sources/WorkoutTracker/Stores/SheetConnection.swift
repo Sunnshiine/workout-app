@@ -62,14 +62,11 @@ struct SheetSelection: Equatable {
 
 @MainActor
 protocol SheetSwitchSyncing: AnyObject {
-    /// True from entry into `sync(spreadsheetId:)`, before its first suspension, until it returns.
-    /// `SheetConnection.requestSwitch` relies on this to refuse a second transition.
     var isSyncing: Bool { get }
     var outcome: SyncOutcome { get }
 
     func sync(spreadsheetId: String) async -> Bool
     func hasPendingWrites() throws -> Bool
-    /// `isSyncing` does not cover this call, so `SheetConnection` marks itself transitioning around it.
     func discardPendingWrites() async throws
 }
 
@@ -132,6 +129,8 @@ final class SheetConnection {
             return .failed(.pendingCheckFailed)
         }
 
+        isTransitioning = true
+        defer { isTransitioning = false }
         do {
             try await switchNow(to: selection)
             return .switched
