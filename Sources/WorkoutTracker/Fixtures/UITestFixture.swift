@@ -18,7 +18,13 @@
         static let disablesAnimations = isEnabled && launch.disablesAnimations
 
         static func makeSheetsClient() -> any SheetsClient {
-            FixtureSheetsClient(slowsSync: launch.slowsSync)
+            FixtureSheetsClient(
+                slowsSync: launch.slowsSync,
+                replacementSheet: LocalWorkbookSheetsClient(
+                    spreadsheetId: WorkoutFixtureScenarios.replacementSheetId,
+                    tabs: [WorkoutFixtureScenarios.blockTab: WorkoutFixtureScenarios.replacementSheetGrid]
+                )
+            )
         }
 
         @MainActor
@@ -57,6 +63,7 @@
 
     private struct FixtureSheetsClient: SheetsClient {
         let slowsSync: Bool
+        let replacementSheet: LocalWorkbookSheetsClient
 
         func listTabTitles(spreadsheetId: String) async throws -> [String] {
             if slowsSync {
@@ -82,12 +89,16 @@
             guard spreadsheetId == WorkoutFixtureScenarios.replacementSheetId else {
                 throw SheetsError.malformedResponse
             }
-
-            return SheetSnapshot(values: WorkoutFixtureScenarios.replacementSheetGrid)
+            return try await replacementSheet.fetchTabSnapshot(spreadsheetId: spreadsheetId, tabName: tabName)
         }
 
-        func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
+        func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
+            try await updateCells(spreadsheetId: spreadsheetId, updates: [SheetValueRangeUpdate(range: range, values: values)])
+        }
 
-        func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {}
+        func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
+            guard spreadsheetId == WorkoutFixtureScenarios.replacementSheetId else { return }
+            try await replacementSheet.updateCells(spreadsheetId: spreadsheetId, updates: updates)
+        }
     }
 #endif
