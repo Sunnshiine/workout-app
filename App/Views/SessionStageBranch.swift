@@ -41,7 +41,7 @@ struct SessionStageBranch: View {
         static let lastNodeT: CGFloat = 0.9
         static let maxNodeStep: CGFloat = 0.2
         static let leafLength: CGFloat = 34
-        static let hang: CGFloat = 28 // ink below the drawing at full scale, a bud's outline included
+        static let inkBelowDrawing: CGFloat = 28
         static let clearance: CGFloat = 2
     }
 
@@ -114,9 +114,6 @@ struct SessionStageBranch: View {
         }
     }
 
-    /// One blade off an arm: its base sits on the node, and it angles up- or down-forward off the
-    /// arm's run, alternating sides, the lateral mirroring the stem. The pre-rotation x-offset moves
-    /// the base onto the rotation anchor, so the blade pivots around where it meets the arm.
     @ViewBuilder
     private func glyph(
         _ state: BranchNodeState,
@@ -130,9 +127,7 @@ struct SessionStageBranch: View {
         let tilt = Angle(degrees: leansUp ? -Metrics.leafTiltAbove : Metrics.leafTiltBelow)
         let blade = { (style: BranchBladeGlyph.Style, length: CGFloat) in
             let size = CGSize(width: length, height: length * LeafShape.aspectRatio)
-            return BranchBladeGlyph(style: style, size: size)
-                .offset(x: size.width / 2)
-                .rotationEffect(angle + tilt)
+            return BranchBladeGlyph(style: style, size: size).pivotingAtBase(length: length, by: angle + tilt)
         }
         switch state {
         case .leaf:
@@ -141,7 +136,7 @@ struct SessionStageBranch: View {
             blade(.dashed(pigment(arm, focused: palette.skipStroke)), leafLength)
         case .bud:
             blade(.cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow), leafLength)
-                .transition(budWake)
+                .transition(budWakeCut)
         case .future:
             blade(
                 .ghost(focused ? palette.futureStroke : palette.supersetPartnerBranch.opacity(0.55)),
@@ -150,8 +145,7 @@ struct SessionStageBranch: View {
         }
     }
 
-    /// Removal is `.identity` because the old bud leaves with the log, so no frame shows two cream leaves.
-    private var budWake: AnyTransition {
+    private var budWakeCut: AnyTransition {
         .asymmetric(
             insertion: reduceMotion
                 ? .opacity.animation(Theme.reducedMotionCrossfade)
@@ -166,7 +160,7 @@ struct SessionStageBranch: View {
 
     @ViewBuilder
     private func lateralBranch(_ lateralNodes: [BranchNode], in size: CGSize, room: CGFloat) -> some View {
-        let scale = min(heightScale(size), room / LateralMetrics.hang)
+        let scale = min(heightScale(size), room / LateralMetrics.inkBelowDrawing)
         let curve = lateralCurve(in: size, droop: LateralMetrics.droop * scale)
         ZStack {
             CurvePath(curve: curve)
@@ -351,5 +345,11 @@ struct RibShape: Shape {
         path.move(to: CGPoint(x: 7, y: 8.6))
         path.addCurve(to: CGPoint(x: 56, y: 3.4), control1: CGPoint(x: 24, y: 4.6), control2: CGPoint(x: 42, y: 2.6))
         return path.applying(CGAffineTransform(scaleX: rect.width / 64, y: rect.height / 20))
+    }
+}
+
+extension View {
+    fileprivate func pivotingAtBase(length: CGFloat, by angle: Angle) -> some View {
+        offset(x: length / 2).rotationEffect(angle)
     }
 }

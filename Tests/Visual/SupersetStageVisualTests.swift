@@ -4,12 +4,6 @@ import Testing
 
 @testable import WorkoutTracker
 
-/// The Superset stage against picks superset-stage4-a/-b (DESIGN.md §5.4), in both appearances:
-/// the same editorial column as a single Exercise, but the Fraunces name gains a subordinate
-/// "& partner" line (foliage green by Day, translucent foliage at Night — the manual focus switch)
-/// and the branch becomes **one forked stem**. The Exercise first in Session order climbs the stem
-/// and the other droops along a shorter lateral, each keeping its arm while the focus, with its
-/// full pigment and the bud, moves between them.
 @MainActor
 @Suite(.snapshots(record: .never))
 struct SupersetStageVisualTests {
@@ -86,8 +80,6 @@ struct SupersetStageVisualTests {
         )
     }
 
-    /// Reproduces the pick: DB Incline Press (Set 2 of 4, first Set logged 30×10 @8) on the stem, forked
-    /// with Chest-Supported Row (Set 2 of 3, first Set logged) on the lateral. The pick focuses the press.
     private func makeSupersetStage(focus: Focus) throws -> (SupersetStage, Session) {
         // The press is named "bench" and prescribed 20% so %1RM, which outranks the RPE target's
         // estimate, fills 30 from the Block's bench Training Max (150 × 20%) with no Load Basis
