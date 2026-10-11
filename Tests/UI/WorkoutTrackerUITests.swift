@@ -215,7 +215,12 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         tapWhenHittable(app.staticTexts["last-performed-line"])
         let historyTitle = app.staticTexts["Exercise History · last 5"]
         XCTAssertTrue(historyTitle.appears(within: 3))
-        historyTitle.swipeDown(velocity: .fast)
+        historyTitle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(
+            forDuration: 0.1,
+            thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 1)),
+            withVelocity: .fast,
+            thenHoldForDuration: 0
+        )
         XCTAssertTrue(historyTitle.waitForNonExistence(timeout: 3))
 
         XCTAssertFalse(app.keyboards.firstMatch.appears(within: 1), "closing the sheet reopened the weight keyboard")
