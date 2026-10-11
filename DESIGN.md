@@ -474,10 +474,12 @@ instead (foliage @ 0.55). Day quiets by pigment, night by translucency.
 
 Coach note, Last Performed, and the Active Set Card follow the focus (the
 card head stays plain `Set N of M`); the foot's up-next names the partner's
-next Set. In the queue sheet, a Superset reads by **containment**: one soft
-group, a sentence-case `Superset` caption, `Unlink`, and creation via
-`Pair` → `Pair with this` — no bracket glyph. The queue sheet itself is
-living paper (§2).
+next Set. In the queue sheet, glyphs carry pairing, not words: a grey `link`
+glyph on an eligible row begins pairing, `link` marks the row it started
+from, and `link.badge.plus` marks the chosen partner. A Superset row reads
+like any other row. Unpairing from the sheet waits on its own prototype
+(operator ruling 2026-10-11: self-describing icons over words, minimal text).
+The queue sheet itself is living paper (§2).
 
 ### 5.5 Block grid — the focus week
 
