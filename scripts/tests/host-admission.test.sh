@@ -67,7 +67,8 @@ shut = sys.argv[2].split()
 booted = open(sys.argv[3]).read().split() if os.path.exists(sys.argv[3]) else []
 booting = open(sys.argv[4]).read().split() if os.path.exists(sys.argv[4]) else []
 ours = ["$sim"] + [u for u in shut if u != "$sim"]
-state = lambda u: "Booting" if u in booting else "Shutdown" if u in shut and u not in booted else "Booted"
+stopping = os.environ.get("STUB_SHUTTING_DOWN", "").split()
+state = lambda u: "Shutting Down" if u in stopping else "Booting" if u in booting else "Shutdown" if u in shut and u not in booted else "Booted"
 print(json.dumps({"devices": {"iOS-27-0": others + [
     {"udid": u, "state": state(u), "name": "iPhone 17 Pro"} for u in ours]}}))' \
     "\${STUB_BOOTED_OTHERS:-0}" "\${STUB_SHUTDOWN:-}" "$root/booted" "$root/booting"
@@ -117,7 +118,7 @@ reset; own_the_app abandoned-run 61
 test_sim --no-build; status=$?
 expect "a run unused for 61 min is reclaimed and the claim goes on" "$status $(builds)" "65 test-without-building"
 expect "the reclaim names the run and its idle time" "$(head -1 "$root/err")" \
-    "reclaimed $sim from verify run abandoned-run (pid $app): no verify.sh call used it for 61 min, and the lease is 60 min"
+    "reclaimed $sim from verify run abandoned-run (pid $app): its lease was last renewed 61 min ago, and the lease is 60 min"
 expect "a reclaim drops the abandoned run's record, so no later call renews it" "$(ls "$state" | tr '\n' ' ')" "lock run "
 expect "an app launched without Live Activities is left for the next install to replace" "$(cat "$root/xcrun-calls" 2>/dev/null)" ""
 
@@ -174,8 +175,10 @@ age_minutes "$state/pid" 59
 SIM=$sim "$repo/.agents/skills/verify/verify.sh" tree >/dev/null 2>&1
 expect "a verify.sh call that names no run renews the recorded one" "$(minutes_old "$state/pid")" "0"
 age_minutes "$state/pid" 61
-SIM=$sim "$repo/.agents/skills/verify/verify.sh" tree >/dev/null 2>&1
+SIM=$sim "$repo/.agents/skills/verify/verify.sh" tree >/dev/null 2>"$root/err"
 expect "a verify.sh call that names no run does not revive an expired lease" "$(minutes_old "$state/pid")" "61"
+expect "and says how to renew it" "$(head -1 "$root/err")" \
+    "the lease of verify run lane-812 on $sim lapsed 61 min ago, so a claim may take its app; name it with VERIFY_RUN=lane-812 to renew it"
 rm "$state/pid"
 SIM=$sim "$repo/.agents/skills/verify/verify.sh" tree >/dev/null 2>&1
 expect "renewing never recreates a stopped run's pid file" "$(ls "$state" | tr '\n' ' ')" "args run "
@@ -214,6 +217,20 @@ STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=6 WORKOUT_ADMIT_WAIT=0 "$repo/.agents/skil
 expect "verify.sh boots a shut-down simulator only through admission" "$status $(cat "$root/xcrun-calls" 2>/dev/null | grep -c 'simctl boot') $(builds)" "75 0 "
 
 reset
+STUB_SHUTTING_DOWN=$sim WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+expect "a simulator still shutting down waits, so the cap counts its boot" "$status $(refusal)" \
+    "75 gave up after N s waiting for the host before taking $sim: $sim is shutting down"
+
+reset
+STUB_SHUTDOWN=$sim2 STUB_BOOTED_OTHERS=6 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=4 \
+    "$repo/scripts/test-sim.sh" --sim "$sim2" unit >/dev/null 2>&1 &
+first=$!
+sleep 1
+STUB_SHUTDOWN=$sim2 STUB_BOOTED_OTHERS=6 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
+wait "$first"
+expect "a build claim waiting at the cap holds no build slot" "$status $(builds)" "65 build-for-testing"
+
+reset
 STUB_SHUTDOWN=$sim STUB_BOOT_FAILS=raced test_sim --no-build; status=$?
 expect "a boot that fails because another process booted the simulator goes on" "$status $(builds)" "65 test-without-building"
 reset
@@ -225,13 +242,14 @@ expect "a boot that fails leaves it shut down, exits 70, and says why" "$status 
     "70  could not boot $sim: Unable to boot device in current state: Booted"
 
 reset
-STUB_SHUTDOWN=$sim STUB_BOOT_HOLD=1 "$repo/scripts/test-sim.sh" --no-build --sim "$sim" unit >/dev/null 2>&1 &
+STUB_SHUTDOWN=$sim STUB_BOOT_HOLD=1 WORKOUT_BUILD_SLOTS=1 "$repo/scripts/test-sim.sh" --sim "$sim" unit >/dev/null 2>&1 &
 first=$!
 for _ in $(seq 1 100); do [ -f "$root/boot-holding" ] && break; sleep 0.1; done
 kill -9 "$first"; wait "$first" 2>/dev/null
-WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
 touch "$root/release"
-expect "a claimer killed during its boot frees the simulator and the admit lock at once" "$status $(builds)" "65 test-without-building"
+expect "a claimer killed during its boot frees the simulator, the admit lock and its build slot at once" "$status $(builds)" \
+    "65 build-for-testing"
 
 reset
 STUB_LIST_WARNING=1 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
@@ -263,6 +281,9 @@ expect "claims that boot a simulator are admitted one at a time" "$status $(refu
     "75 gave up after N s waiting for the host before taking $sim: another claim is booting a simulator (lsof $root/locks/admit lists it)"
 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
 expect "a claim on a booted simulator does not wait behind another claim's boot" "$status $(builds)" "65 test-without-building"
+STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=6 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+expect "a claim the cap refuses never waits for the admit lock" "$status $(refusal)" \
+    "75 gave up after N s waiting for the host before taking $sim: 6 other simulators are booted, at the cap of 6 (WORKOUT_SIM_CAP)"
 kill "$admitting"; wait "$admitting" 2>/dev/null
 
 reset
@@ -285,7 +306,10 @@ first=$!
 for _ in $(seq 1 100); do [ -f "$root/holding" ] && break; sleep 0.1; done
 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
 expect "a build waits while every slot is taken, and gives up with 75, not a build failure" "$status $(builds)" "75 build"
-expect "the slot refusal reaches stderr through the build log's redirect" "$(refusal)" \
+expect "the claim names the slot holders" "$(refusal)" \
+    "gave up after N s waiting for the host before taking $sim: all 1 build slots are taken (WORKOUT_BUILD_SLOTS): verify.sh (pid $first); lsof $root/locks/build-* lists every process holding one"
+WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 verify_build >"$root/out" 2>"$root/err"
+expect "verify.sh build's slot refusal reaches stderr through the build log's redirect" "$(refusal)" \
     "gave up after N s waiting for a build slot: all 1 build slots are taken (WORKOUT_BUILD_SLOTS): verify.sh (pid $first); lsof $root/locks/build-* lists every process holding one"
 kill -9 "$first"; wait "$first" 2>/dev/null
 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
@@ -317,6 +341,8 @@ expect "a load under the limit exits 0 and says nothing" "$status $(cat "$root/e
 reset
 STUB_LOAD=80.00 WORKOUT_LOAD_LIMIT=100 "$repo/scripts/wait-load.sh" 2>"$root/err"; status=$?
 expect "with no arguments the limit is WORKOUT_LOAD_LIMIT" "$status" "0"
+STUB_LOAD=80.00 WORKOUT_LOAD_LIMIT=0 "$repo/scripts/wait-load.sh" 100 0 2>"$root/err"; status=$?
+expect "an argument overrides WORKOUT_LOAD_LIMIT before it is checked" "$status $(cat "$root/err")" "0 "
 "$repo/scripts/wait-load.sh" fifty 2>"$root/err"; status=$?
 expect "a limit that is not a whole number is a usage error" "$status $(cat "$root/err")" "2 WORKOUT_LOAD_LIMIT must be a whole number: fifty"
 "$repo/scripts/wait-load.sh" --help 2>"$root/err"; status=$?

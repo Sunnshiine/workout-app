@@ -1,6 +1,4 @@
 # shellcheck shell=bash
-# Waits and refusals about the host go to the caller's stderr as it was when this was sourced, so they
-# reach the agent from inside test-sim.sh's redirected build too.
 exec 6>&2
 verify_lease_minutes=60
 
@@ -66,10 +64,6 @@ is_fixture_launch() {
   return 1
 }
 
-# A verify run's app holds its simulator only while some verify.sh call renewed the run's lease, the
-# pid file's mtime, within the last verify_lease_minutes: its launcher is a shell that exits after
-# every call, so no process says whether the run is still in use. A call that names no run may be any
-# agent's, so it extends a live lease but never revives an expired one.
 renew_lease() {
   local dir=/tmp/workout-verify-$1 run idle
   [ -f "$dir/pid" ] || return 0
@@ -78,7 +72,12 @@ renew_lease() {
     [ "$VERIFY_RUN" = "$run" ] || return 0
   else
     idle=$(idle_minutes "$dir/pid")
-    [ -n "$idle" ] && [ "$idle" -lt "$verify_lease_minutes" ] || return 0
+    [ -n "$idle" ] || return 0
+    if [ "$idle" -ge "$verify_lease_minutes" ]; then
+      is_fixture_launch "$(cat "$dir/pid" 2>/dev/null)" \
+        && echo "the lease of verify run${run:+ $run} on $1 lapsed $idle min ago, so a claim may take its app; ${run:+name it with VERIFY_RUN=$run to renew it}" >&2
+      return 0
+    fi
   fi
   touch -c "$dir/pid"
 }
@@ -89,11 +88,6 @@ try: print(int((time.time() - os.stat(sys.argv[1]).st_mtime) // 60))
 except FileNotFoundError: pass' "$1"
 }
 
-# With the simulator's flock held, decides whether this claim may have the app of the verify run
-# recorded on UDID: a run in use refuses (75); an abandoned run or the claimer's own (VERIFY_RUN names
-# it) gives its app up. Only "take", after admission, says so and acts. The claimer's own run keeps its
-# record, so a claim refused later still protects the app. An abandoned run loses it at once: every
-# verify.sh call that names no run renews the recorded run, and the claimer's next one would revive it.
 settle_run() {
   local dir=/tmp/workout-verify-$1 pid run idle stop abandoned=
   pid=$(cat "$dir/pid" 2>/dev/null) && is_fixture_launch "$pid" || return 0
@@ -105,7 +99,7 @@ settle_run() {
     echo "taking over the app of your own verify run $run on $1 (pid $pid)" >&2
   elif [ "$idle" -ge "$verify_lease_minutes" ]; then
     [ -n "${2:-}" ] || return 0
-    echo "reclaimed $1 from verify run${run:+ $run} (pid $pid): no verify.sh call used it for $idle min, and the lease is $verify_lease_minutes min" >&2
+    echo "reclaimed $1 from verify run${run:+ $run} (pid $pid): its lease was last renewed $idle min ago, and the lease is $verify_lease_minutes min" >&2
     abandoned=1
   else
     stop="SIM=$1 ${run:+VERIFY_RUN=$run }$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.agents/skills/verify/verify.sh stop"
@@ -114,39 +108,34 @@ settle_run() {
   fi
   # A Live Activity outlives its app's process, so a run launched with them on is uninstalled, as stop does.
   if [ -f "$dir/args" ] && ! grep -q -- -UITEST_DISABLE_LIVE_ACTIVITIES "$dir/args"; then
-    xcrun simctl uninstall "$1" com.sunnypatel.WorkoutTracker || echo "could not uninstall the app on $1; a Live Activity run $run started may still be on it" >&2
+    xcrun simctl uninstall "$1" com.sunnypatel.WorkoutTracker 8>&- 9>&- || echo "could not uninstall the app on $1; a Live Activity run $run started may still be on it" >&2
   fi
   [ -z "$abandoned" ] || rm -f "$dir/pid" "$dir/args"
 }
 
-# Claims UDID for WHO. With BUILD 1 the claim also holds a build slot for the caller's with_build_slot,
-# so every gate that can refuse comes before the first change: a boot, a takeover, an uninstall.
 claim_sim() {
-  local dir=/tmp/workout-verify-$1
+  local udid=$1 who=$2 build=${3:-0} dir=/tmp/workout-verify-$1
   mkdir -p "$dir"
   exec 9>>"$dir/lock"
-  sim_flock "$1" LOCK_EX
-  printf '%s (pid %s)\n' "$2" "$$" > "$dir/lock"
-  settle_run "$1"
-  [ "${3:-0}" = 0 ] || wait_until_clear "a build slot" take_build_slot
-  wait_until_clear "the host before taking $1" host_clear "$1"
-  settle_run "$1" take
+  sim_flock "$udid" LOCK_EX
+  printf '%s (pid %s)\n' "$who" "$$" > "$dir/lock"
+  settle_run "$udid"
+  wait_until_clear "the host before taking $udid" admit_claim "$udid" "$build"
+  settle_run "$udid" take
 }
 
-# Sets env knob NAME to its value, else DEFAULT; exits 2 unless that is a whole number of at least MIN.
 host_knob() {
-  local value
-  eval "value=\${$1:-$2}"
+  local name=$1 default=$2 min=$3 value
+  eval "value=\${$name:-$default}"
   case $value in
-    ''|*[!0-9]*) echo "$1 must be a whole number: $value" >&6; exit 2 ;;
+    ''|*[!0-9]*) echo "$name must be a whole number: $value" >&6; exit 2 ;;
   esac
-  [ "$value" -ge "$3" ] || { echo "$1 must be at least $3: $value" >&6; exit 2; }
-  eval "$1=\$value"
+  [ "$value" -ge "$min" ] || { echo "$name must be at least $min: $value" >&6; exit 2; }
+  eval "$name=\$value"
 }
 
-# Runs CHECK ARG... in this shell until it returns 0, so a lock CHECK takes stays held. A failing CHECK
-# sets busy_reason. Says why on the first wait and once a minute. Every wait in one script shares one
-# WORKOUT_ADMIT_WAIT, so the 75 arrives inside the Bash tool's ten minutes, last poll included.
+# Every wait in one script shares one WORKOUT_ADMIT_WAIT, so the 75 arrives inside the Bash tool's
+# ten-minute timeout.
 wait_until_clear() {
   local what=$1 waited said=-60
   shift
@@ -174,8 +163,6 @@ load_clear() {
   return 1
 }
 
-# Sets others, the count of booted or booting simulators besides UDID, and own, UDID's state; on a
-# failed listing sets busy_reason instead and returns 1.
 sim_states() {
   local listing counts err=$host_lock_dir/list-$$.err rc=0
   if ! listing=$(xcrun simctl list devices available -j 2>"$err"); then
@@ -195,27 +182,26 @@ print(sum(d.get("state") in ("Booted", "Booting") and d["udid"] != os.environ["U
   return $rc
 }
 
-# Admits a claim on UDID while the load leaves room. A shut-down UDID also needs room under the booted
-# cap, and is booted once admitted. Only those claims take the admit lock, one at a time, so the next
-# one counts the simulator this one booted, and a slow boot holds up no claim that boots nothing.
-host_clear() {
-  local others own rc=1
+admit_claim() {
+  local udid=$1 build=$2 others own rc=1
   load_clear "$WORKOUT_LOAD_LIMIT" || return 1
-  sim_states "$1" || return 1
-  [ "${own:-}" = Shutdown ] || return 0
+  sim_states "$udid" || return 1
+  case ${own:-} in
+    "Shutting Down") busy_reason="$udid is shutting down"; return 1 ;;
+    Shutdown) cap_room || return 1 ;;
+    *) [ "$build" = 0 ] || take_build_slot; return ;;
+  esac
   exec 7>>"$host_lock_dir/admit"
   if ! try_flock 7 LOCK_EX 20; then
     exec 7>&-
     busy_reason="another claim is booting a simulator (lsof $host_lock_dir/admit lists it)"
     return 1
   fi
-  if sim_states "$1"; then
-    if [ "${own:-}" != Shutdown ]; then
-      rc=0
-    elif [ "$others" -ge "$WORKOUT_SIM_CAP" ]; then
-      busy_reason="$others other simulators are booted, at the cap of $WORKOUT_SIM_CAP (WORKOUT_SIM_CAP)"
-    else
-      boot_sim "$1"
+  if sim_states "$udid"; then
+    if [ "${own:-}" = Shutdown ] && ! cap_room; then
+      :
+    elif [ "$build" = 0 ] || take_build_slot; then
+      [ "${own:-}" != Shutdown ] || boot_sim "$udid"
       rc=0
     fi
   fi
@@ -223,17 +209,21 @@ host_clear() {
   return $rc
 }
 
-# Boots UDID without passing on the admit or simulator lock, so a killed claimer frees both at once; a
-# command substitution would hold them in its subshell until simctl returns. A boot that lost the race
-# to another booter succeeds.
+cap_room() {
+  [ "$others" -ge "$WORKOUT_SIM_CAP" ] || return 0
+  busy_reason="$others other simulators are booted, at the cap of $WORKOUT_SIM_CAP (WORKOUT_SIM_CAP)"
+  return 1
+}
+
+# A flock is held by every process sharing its fd, so simctl gets no lock fd and a killed claimer frees
+# them all at once. simctl boot exits 149 on a device another booter already started.
 boot_sim() {
-  local err=$host_lock_dir/boot-$$.err
-  xcrun simctl boot "$1" 7>&- 9>&- 2>"$err" && { rm -f "$err"; return; }
+  local err=$host_lock_dir/boot.err
+  xcrun simctl boot "$1" 7>&- 8>&- 9>&- 2>"$err" && return
   if sim_states "$1"; then
-    case ${own:-} in Booted|Booting) rm -f "$err"; return ;; esac
+    case ${own:-} in Booted|Booting) return ;; esac
   fi
   echo "could not boot $1: $(cat "$err")" >&6
-  rm -f "$err"
   exit 70
 }
 
@@ -254,8 +244,6 @@ take_build_slot() {
   return 1
 }
 
-# Runs COMMAND in one of the host's build slots. The command inherits the slot's fd, so the xcodebuild
-# of a killed script keeps loading the host and keeps its slot until it exits.
 with_build_slot() {
   local rc=0
   [ -n "${build_slot:-}" ] || wait_until_clear "a build slot" take_build_slot

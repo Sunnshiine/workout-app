@@ -14,9 +14,7 @@ USAGE
 
 case ${1:-} in -h|--help) usage ;; esac
 [ $# -le 2 ] || usage
+[ -z "${1:-}" ] || export WORKOUT_LOAD_LIMIT=$1
+[ -z "${2:-}" ] || export WORKOUT_ADMIT_WAIT=$2
 . "$(cd "$(dirname "$0")" && pwd)/sim-lock.sh"
-WORKOUT_LOAD_LIMIT=${1:-$WORKOUT_LOAD_LIMIT}
-WORKOUT_ADMIT_WAIT=${2:-$WORKOUT_ADMIT_WAIT}
-host_knob WORKOUT_LOAD_LIMIT 50 1
-host_knob WORKOUT_ADMIT_WAIT 540 0
 wait_until_clear "the load to fall to $WORKOUT_LOAD_LIMIT" load_clear "$WORKOUT_LOAD_LIMIT"
