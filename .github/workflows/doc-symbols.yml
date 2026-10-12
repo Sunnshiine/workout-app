@@ -1,0 +1,27 @@
+name: Doc symbols
+
+# No paths filter: a Swift rename breaks a doc as surely as a doc edit does, and ci.yml, which runs
+# the same lint through scripts/lint.sh, skips a PR that touches only Markdown.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: doc-symbols-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  doc-symbols:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      # 3.9 is what /usr/bin/python3 is on a stock Xcode machine, and scripts/lint.sh runs it there.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+      - name: Checker tests
+        run: scripts/tests/lint-doc-symbols.test.sh
+      - name: Every doc span names something in the tree
+        run: python3 scripts/lint-doc-symbols.py

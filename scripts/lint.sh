@@ -4,7 +4,7 @@
 # The script refuses a directory or a missing path because SwiftLint would swap it for the whole
 # `included:` set and still exit 0.
 #
-#   scripts/lint.sh                      lint (what CI runs)
+#   scripts/lint.sh                      lint, then scripts/lint-doc-symbols.py (what CI runs)
 #   scripts/lint.sh <file.swift>...      lint those files alone
 #   scripts/lint.sh --fix [<file>...]    autocorrect what SwiftLint can, then lint
 #   scripts/lint.sh --print-version      print the pinned SwiftLint version and exit
@@ -253,3 +253,6 @@ if [ -n "$FAILURES" ]; then
     exit 1
 fi
 echo "==> Clean"
+
+echo "==> Doc symbols"
+python3 "$ROOT/scripts/lint-doc-symbols.py" "$ROOT"

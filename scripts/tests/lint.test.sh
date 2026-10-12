@@ -37,6 +37,10 @@ fresh_fixture() {
     mkdir -p "$fx/scripts" "$fx/$(dirname "$resolved")" \
         "$fx/App/Views" "$fx/Sources/Core" "$fx/Sources/Tool" "$fx/Tests/Unit" "$fx/Tests/Support"
     cp "$lint" "$fx/scripts/lint.sh"
+    cp "$repo/scripts/lint-doc-symbols.py" "$fx/scripts/lint-doc-symbols.py"
+    mkdir -p "$fx/.agents/skills/verify"
+    printf '| `-UITEST_FIXTURE` | Switch | Runs on fixtures. |\n' >"$fx/.agents/skills/verify/launch-flags.md"
+    printf 'Lint with `scripts/lint.sh`.\n' >"$fx/AGENTS.md"
     cp "$repo/$resolved" "$fx/$resolved"
     printf 'disabled_rules:\n  - force_unwrapping\n' >"$fx/Tests/.swiftlint.yml"
     printf 'let appRoot = 1\n' >"$fx/App/Root.swift"
@@ -75,6 +79,18 @@ baseline_config
 run_lint
 expect_exit "baseline" "$status" 0
 expect_line "baseline" "$out" "==> Clean"
+expect_line "baseline" "$out" "==> Clean: 2 docs, 1 launch flags"
+
+echo "doc symbols: a whole-tree run fails on a doc span the tree lacks, and a file run skips it"
+fresh_fixture
+baseline_config
+printf 'Lint with `scripts/lint-gone.sh`.\n' >"$fx/AGENTS.md"
+run_lint
+expect_exit "doc symbols" "$status" 1
+expect_line "doc symbols" "$err" "error: AGENTS.md:1: \`scripts/lint-gone.sh\` is not a path in this tree."
+run_lint "$fx/scripts/lint.sh" "$fx/App/Root.swift"
+expect_exit "doc symbols, file run" "$status" 0
+expect_no_text "doc symbols, file run" "$both" "Doc symbols"
 
 echo "widened: excluded covers the Tests root and the Sources/Tool tree"
 fresh_fixture
