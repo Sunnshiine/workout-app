@@ -44,7 +44,6 @@ here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 version=1
 template=workout-template-v$version
 building=$template-building
-# The recipe version a template's name carries, or -1 for a name that carries none.
 version_of='function version_of(name, n) {
   if (name !~ /^workout-template-v[0-9]+(-building)?$/) return -1
   n = substr(name, 19); sub(/-building$/, "", n); return n + 0 }'
@@ -60,7 +59,6 @@ case $cap in '' | *[!0-9]* | 0) die 2 "WORKOUT_SIM_CAP must be a whole number of
 # A flock is shared by every process holding the fd, so nothing that may outlive this script gets one.
 simctl() { xcrun simctl "$@" 4>&- 5>&- 9>&-; }
 
-# Waits on the lock that fd $1 holds open, up to $2 seconds; 75 when the time runs out.
 flock_fd() {
   python3 -c 'import fcntl, sys, time
 deadline = time.time() + float(sys.argv[2])
@@ -81,8 +79,6 @@ lock_pool() {
   printf 'sim-pool.sh %s (pid %s)\n' "$1" "$$" >"$lock"
 }
 
-# Sets $devices to one line per device on the host: UDID, state, name, tab-separated. Call it outside a
-# command substitution, so its exit 70 stops the script rather than a subshell.
 load_devices() {
   local listing
   listing=$(simctl list devices -j) || die 70 "xcrun simctl list devices failed"
@@ -94,7 +90,6 @@ for ds in json.load(sys.stdin)["devices"].values():
 
 pick() { printf '%s\n' "$devices" | awk -F '\t' "$@"; }
 
-# Sets $udid and $state to the one device named $1, both empty when there is none; exits 70 on two.
 find_named() {
   local found count
   load_devices
@@ -130,7 +125,6 @@ remove_device() {
   rm -rf "/tmp/workout-verify-$1"
 }
 
-# Interim host cap until PR #883 lands; then this body becomes its claim_sim. Takes the same admit lock.
 boot_capped() {
   local start others reason
   state_of "$1"
@@ -158,8 +152,6 @@ boot_capped() {
   done
 }
 
-# Prints the template's UDID. The rename is the commit point: a crash leaves only a -building device,
-# which the next run deletes, so a half-built template is never cloned.
 ensure_template() {
   local udid state rc=0 doomed
   find_named "$template"
@@ -209,9 +201,6 @@ clone_lane() {
   printf '%s\n' "$udid"
 }
 
-# Holds the simulator's verify lock from before the shutdown until its directory is gone, so no
-# test-sim or verify run can claim it in between. Not claim_sim, which boots a Shutdown simulator
-# once #883 lands.
 delete_lane() {
   local lane=workout-lane-$1 doomed found dir pid run stop
   load_devices

@@ -53,7 +53,6 @@ print(s["passedTests"], s["failedTests"], s["expectedFailures"])' 2>/dev/null) |
   read -r passed failed expected <<< "$counts"
   result="test-sim: suite=${suite:--} passed=$passed failed=$failed expected=$expected exit=$rc load1=$load_start/$(load1) bundle=$shown"
   if [ -n "$stamp" ]; then
-    # A log cut off mid-line would hide the result line from the retention check.
     {
       [ -z "$(tail -c 1 "$logs/$stamp-test.log")" ] || echo
       echo "$result"
@@ -136,8 +135,6 @@ ls -t "$logs" | sed -nE 's/^([0-9]{8}-[0-9]{6})(-build\.log|-test\.log|\.xcresul
     for file in "$logs/$old-build.log" "$logs/$old-test.log" "$logs/$old.xcresult" "$logs/$old-diffs"; do
       [ ! -e "$file" ] || files+=("$file")
     done
-    # A run with no result line either is still going or was killed (SIGKILL, power loss); a day
-    # with no write tells the two apart.
     case $(tail -n 1 "$logs/$old-test.log" 2>/dev/null) in
       "test-sim: "*) quiet=30 ;;
       *) quiet=1440 ;;

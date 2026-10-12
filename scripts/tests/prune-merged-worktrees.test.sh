@@ -417,8 +417,6 @@ fi
 
 say
 say "=== lanes: detached worktrees under .claude/worktrees ==="
-# A third repository whose scripts/ holds lane.sh, run against a fake xcrun, so
-# no lane case reaches a real simulator.
 lane_repo="$root/lane repo"
 lanes="$lane_repo/.claude/worktrees"
 P=PRUNE$$
@@ -452,7 +450,6 @@ git -C "$lane_repo" push -q -u origin main
 
 up() { PATH="$lane_path" "$lane_repo/scripts/lane.sh" up "$1" "${2:-main}" >/dev/null 2>"$root/up.err" || cat "$root/up.err"; }
 age_days() {
-    # age_days <days> <path>...
     python3 -c 'import os, sys, time
 t = time.time() - float(sys.argv[1]) * 86400
 for p in sys.argv[2:]: os.utime(p, (t, t))' "$@"
@@ -484,7 +481,6 @@ lanes_status=$?
 cat "$root/out.txt"
 row_for() { awk -v w="$lanes/$2" '/^'"$1"'$/{f=1;next} /^[A-Z]+$/{f=0} f && index($0, "  " w) == length($0) - length(w) - 1'  "$root/out.txt"; }
 assert_lane() {
-    # assert_lane <section> <lane> <literal reason, or "-" for a candidate>
     local line
     line=$(row_for "$1" "$2")
     if [ -z "$line" ]; then

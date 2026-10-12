@@ -59,7 +59,6 @@ here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 common=$(git -C "$here" rev-parse --path-format=absolute --git-common-dir) || die 2 "$here is not in a git checkout"
 primary=$(dirname "$common")
 case $primary in *"'"* | *$'\n'*) die 2 "the checkout path holds a quote or a newline, which the printed env cannot carry: $primary" ;; esac
-# Out of the caller's directory, which may be the lane, so no child of this script holds it.
 cd "$primary"
 
 set_lane() {
@@ -71,8 +70,6 @@ set_lane() {
 
 whole_days() { case $1 in '' | *[!0-9]*) usage ;; esac; }
 
-# The porcelain lines of the lane's worktree record (HEAD, detached or branch, locked), empty when git
-# does not list it.
 registration() {
   git -C "$primary" worktree list --porcelain | awk -v w="worktree $wt" '$0 == w { f = 1; next } f && $0 == "" { exit } f'
 }
@@ -99,8 +96,6 @@ lane_udids() {
   "$here/sim-pool.sh" list | awk -F '\t' -v n="workout-lane-$name" '$3 == "lane" && $4 == n { print $1 }'
 }
 
-# Untracked and ignored paths, NUL-separated, leaving out what a build, a session, or the bootstrap
-# regenerates. --directory names a wholly ignored directory once instead of every file in it.
 files_to_save() {
   git -C "$wt" ls-files -z -o --exclude-standard
   git -C "$wt" ls-files -z -o -i --exclude-standard --directory --no-empty-directory | python3 -c '
@@ -115,8 +110,6 @@ for path in sys.stdin.buffer.read().split(b"\0"):
     sys.stdout.buffer.write(path + b"\0")'
 }
 
-# Sets $created, the commit the lane was made at, and $visited, HEAD and every commit the lane's HEAD
-# has pointed at.
 read_lane_history() {
   local admin
   admin=$(git -C "$wt" rev-parse --absolute-git-dir 2>/dev/null) || return 1
@@ -125,15 +118,10 @@ read_lane_history() {
   visited=$(git -C "$wt" rev-parse HEAD 2>/dev/null && git -C "$wt" log -g --format=%H HEAD 2>/dev/null) || return 1
 }
 
-# The commits removal would lose. A remote-tracking ref proves only that this machine once saw a branch
-# the server may since have deleted, so it holds nothing here. Call read_lane_history first.
 unique_commits() {
-  # shellcheck disable=SC2086
   git -C "$wt" rev-list $visited --not --branches --tags "$created"
 }
 
-# Prints "<pid> <command>" of a process whose working directory lies inside the worktree, leaving
-# out this script and its callers; returns 1 when lsof lists nothing.
 cwd_holder() {
   local cwds skip=" $$ " p=$$
   while p=$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' ') && [ -n "$p" ] && [ "$p" -gt 1 ]; do skip="$skip$p "; done
@@ -143,7 +131,6 @@ cwd_holder() {
     /^n/ { n = substr($0, 2); if ((n == w || index(n, w "/") == 1) && !index(skip, " " pid " ")) { print pid " " cmd; exit } }'
 }
 
-# Newest mtime, in epoch seconds, of each path and of what lies up to <depth> levels below it.
 newest_mtime() {
   python3 -c 'import os, sys
 def times(path, depth):
@@ -155,9 +142,6 @@ found = [t for arg in sys.argv[1:] for t in times(arg.rsplit(":", 1)[0], int(arg
 if found: print(int(max(found)))' "$@"
 }
 
-# Sets verdict and reason. Ordered, first match wins, and a fact it cannot read keeps the lane: the
-# index is not an activity mark because git status rewrites it, and the HEAD commit date is not one
-# because a fresh lane can sit on an old commit.
 assess() {
   local days=$1 reg branch porcelain work admin commits holder udid lock newest age
   verdict=keep
@@ -185,6 +169,7 @@ assess() {
     lock=/tmp/workout-verify-$udid/lock
     if ! (require_sim_free "$udid") 2>/dev/null; then reason="in use by $(cat "$lock" 2>/dev/null)"; return; fi
   done
+  # The index is not an activity mark, because git status rewrites it.
   newest=$(newest_mtime "$admin/logs/HEAD:0" "$admin/HEAD:0" "$wt/.build:2" "$evidence:2")
   if [ -z "$newest" ]; then reason="could not read activity times"; return; fi
   age=$((($(date +%s) - newest) / 86400))
@@ -247,14 +232,12 @@ lane_env() {
   print_env "$udid"
 }
 
-# Bundles $commits. A bundle records only refs, so each tip other than HEAD gets a per-worktree ref,
+# A bundle records only refs, so each tip other than HEAD gets a per-worktree ref,
 # which git worktree remove deletes with the lane.
 save_commits() {
   local head tip tips args=()
   head=$(git -C "$wt" rev-parse HEAD) || return
-  # shellcheck disable=SC2086
   tips=$(printf '%s\n' $visited | grep -Fx -f <(printf '%s\n' "$commits") | sort -u) || return
-  # shellcheck disable=SC2086
   for tip in $(git -C "$wt" merge-base --independent $tips); do
     if [ "$tip" = "$head" ]; then
       args+=(HEAD)
@@ -267,7 +250,6 @@ save_commits() {
     && git -C "$wt" bundle verify "$1" >/dev/null 2>&1
 }
 
-# Prints the name of each file it saved. Any failure exits 70 before anything is removed.
 save_lane() {
   local dir=$1 list d commits
   mkdir -p "$dir" || die 70 "could not create $dir"
@@ -335,7 +317,6 @@ lane_down() {
     holder=$(cwd_holder) || die 70 "could not list process working directories"
     [ -z "$holder" ] || die 75 "pid ${holder%% *} (${holder#* }) works in $wt; stop it or cd out"
   fi
-  # First, so a simulator a run holds stops down (exit 75) before anything is saved or removed.
   "$here/sim-pool.sh" delete "$name" || exit
   if [ -n "$reg" ]; then
     dir=$evidence/down-$(date +%Y%m%d-%H%M%S)
