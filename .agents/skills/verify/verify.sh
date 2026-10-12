@@ -78,8 +78,10 @@ bundle=com.sunnypatel.WorkoutTracker
 work=$repo/.build/verify
 axe=$work/node_modules/xcodebuildmcp/bundled/axe
 stamp_name=verify-stamp
+# The project's buildable folders, which BuildableFolderContractTests pins to the pbxproj.
+sources=(App Sources/WorkoutTracker WorkoutShared WorkoutWidgets)
 # What the app compiles: build's dirty marker and doctor's sources-newer check both read it.
-sources=(App Sources/WorkoutTracker WorkoutShared WorkoutWidgets WorkoutTracker.xcodeproj Package.swift Package.resolved)
+inputs=("${sources[@]}" WorkoutTracker.xcodeproj Package.swift Package.resolved)
 sim=
 state_dir=
 built_hash=
@@ -504,11 +506,11 @@ reset_keyboard() {
 
 sources_newer() {  # <app>
   local d stale rc=0
-  for d in "${sources[@]}"; do
+  for d in "${inputs[@]}"; do
     [ -e "$repo/$d" ] || { echo "FAIL source $d is gone, so a stale build can hide; fix the list in $0"; rc=1; }
   done
   # Not just *.swift: Xcode copies every other file in a buildable folder into the bundle too (ADR-0017).
-  stale=$(cd "$repo" && find "${sources[@]}" -type f -not -name '.*' -not -path '*/xcuserdata/*' -newer "$1" 2>/dev/null | head -3 || true)
+  stale=$(cd "$repo" && find "${inputs[@]}" -type f -not -name '.*' -not -path '*/xcuserdata/*' -newer "$1" 2>/dev/null | head -3 || true)
   [ -z "$stale" ] || { echo "FAIL sources newer than the app (run: $0 build):"; echo "$stale" | sed 's/^/     /'; rc=1; }
   return $rc
 }
@@ -548,7 +550,7 @@ case $cmd in
   build)
     resolve_sim
     commit=$(git -C "$repo" rev-parse HEAD)
-    changes=$(git -C "$repo" status --porcelain -- "${sources[@]}")
+    changes=$(git -C "$repo" status --porcelain -- "${inputs[@]}")
     xcodebuild_build "$project" "" "$work/$(date +%Y%m%d-%H%M%S)-build.log" || exit
     app=$(app_path)
     # An incremental build that produces no new bytes leaves the bundle's mtime alone, and doctor
