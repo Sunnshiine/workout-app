@@ -37,7 +37,8 @@ Each later Bash call re-derives them, for example:
   env=$(scripts/lane.sh env e8) && eval "$env" && "$LANE_WORKTREE/scripts/test-sim.sh" unit
 
 Exit codes: 0 done; 1 env: no such lane, or down --if-idle: the lane is not idle (stderr SKIPPED:
-<reason>); 2 usage, a bad name, an unknown commit, a lane at another commit, a locked lane or one holding
+<reason>); 2 usage, a bad name, an unknown commit, a lane at another commit, a worktree on a branch,
+a locked lane or one holding
 a nested worktree, or down run from the lane's own copy of this script; 69 the simulator runtime is
 missing; 70 git, simctl, or a save failed (down then removes nothing); 75 a test-sim or verify run holds
 the lane's simulator, or the simulator pool is busy.
@@ -249,7 +250,7 @@ for d in sorted(glob.glob(os.path.join(sys.argv[1], "WorkoutTracker-*"))):
 }
 
 lane_down() {
-  local idle= udid reg work dir saved removed=0 d
+  local idle= udid reg branch work dir saved removed=0 d
   if [ "${1:-}" = --if-idle ]; then
     [ $# -eq 3 ] || usage
     whole_days "$2"
@@ -268,6 +269,8 @@ lane_down() {
   git -C "$primary" worktree prune
   reg=$(registration)
   if [ -n "$reg" ]; then
+    branch=$(field "$reg" 'branch refs/heads/')
+    [ -z "$branch" ] || die 2 "$wt is on branch $branch, not a lane; prune-merged-worktrees.sh decides branch worktrees"
     ! printf '%s\n' "$reg" | grep -q '^locked' || die 2 "lane $name is locked; git worktree unlock $wt first"
     work=$(nested_worktree)
     [ -z "$work" ] || die 2 "lane $name holds the worktree $work; remove that first"
