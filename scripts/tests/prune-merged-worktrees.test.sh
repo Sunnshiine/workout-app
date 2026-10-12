@@ -477,6 +477,7 @@ idle unref
 mkdir -p "$lanes/work/.claude/work"
 echo plan >"$lanes/work/.claude/work/plan.md"
 git -C "$lane_repo" worktree add -q --detach "$root/outside" main
+git -C "$lane_repo" worktree add -q --detach "$lanes/not a lane" main
 
 PATH="$lane_path" "$prune" --repo "$lane_repo" --no-size >"$root/out.txt" 2>"$root/err.txt"
 lanes_status=$?
@@ -504,6 +505,7 @@ assert_lane KEPT dirty "lane uncommitted changes (1)"
 assert_lane KEPT unref "lane commits no branch or tag holds (1)"
 assert_lane CANDIDATES work -
 assert_lane KEPT oldsha "lane active 0d ago, threshold 3d"
+assert_lane KEPT "not a lane" "detached under .claude/worktrees, but 'not a lane' is not a lane name; remove it by hand"
 if kept | grep -F "$root/outside" | grep -qF "detached HEAD: no branch resolves to a PR"; then
     ok "a detached worktree outside .claude/worktrees keeps today's reason"
 else

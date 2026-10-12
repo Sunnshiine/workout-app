@@ -42,7 +42,9 @@ by its directory. Its verdict and reason come from
 <primary>/scripts/lane.sh assess <name> N, and --apply removes it with
 lane.sh down --if-idle N <name>, which re-checks, saves its work to the lane's
 evidence dir, and deletes its DerivedData and simulator too. A lane that stopped
-being idle since the scan prints SKIPPED. Any other detached HEAD is kept.
+being idle since the scan prints SKIPPED. A directory there whose name is not
+a lane name (lane.sh --help) is kept for removal by hand. Any other detached
+HEAD is kept.
 
 An unresolvable fact keeps the worktree. Nothing unknown is ever removed.
 
@@ -296,7 +298,9 @@ while IFS= read -r -d '' wt && IFS= read -r -d '' branch \
             reason="detached HEAD: no branch resolves to a PR, and no ref would survive removal"
         elif [ "$remote" = detached ]; then
             pr_state=lane
-            if [ ! -x "$lane_sh" ]; then
+            if ! [[ $(basename "$wt") =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]]; then
+                reason="detached under .claude/worktrees, but '$(basename "$wt")' is not a lane name; remove it by hand"
+            elif [ ! -x "$lane_sh" ]; then
                 reason="lane, but $lane_sh is missing to assess it"
             elif ! assessed=$("$lane_sh" assess "$(basename "$wt")" "$lane_idle_days" 2>"$work/assess.err"); then
                 reason="lane.sh assess failed: $(head -1 "$work/assess.err")"
