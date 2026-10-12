@@ -26,7 +26,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Callable, Dict, List, Sequence, Tuple
+from typing import Dict, List, Sequence, Tuple
 
 STOP_GRACE = 15.0
 POLL = 0.05
@@ -62,8 +62,7 @@ def pixels(text: str) -> Tuple[int, int]:
     return int(width), int(height)
 
 
-Field = Tuple[Callable[[str], object], Callable]
-FIELDS: Dict[str, Field] = {
+FIELDS = {
     "name": (str, str),
     "video": (str, str),
     "drive": (str, str),
