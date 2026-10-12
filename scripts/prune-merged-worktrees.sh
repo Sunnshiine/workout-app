@@ -88,7 +88,6 @@ cd "$repo" || exit 2
 # The primary checkout holds .git as a real directory; every linked worktree
 # points into it. Deriving it this way does not depend on list ordering.
 primary=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
-# The primary's copy, because lane.sh manages the lanes of the checkout it lives in.
 lane_sh="$primary/scripts/lane.sh"
 
 # True for the main working tree of any repository, including a submodule or a
