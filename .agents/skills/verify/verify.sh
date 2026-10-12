@@ -647,7 +647,7 @@ admit_load() {
   local limit=$1 wait=$2 waited=0 step load
   while :; do
     load=$(sysctl -n vm.loadavg | awk '{ print $2 }')
-    if awk -v load="$load" -v limit="$limit" 'BEGIN { exit !(load < limit) }'; then
+    if awk -v current="$load" -v limit="$limit" 'BEGIN { exit !(current < limit) }'; then
       echo "$load"
       return 0
     fi
