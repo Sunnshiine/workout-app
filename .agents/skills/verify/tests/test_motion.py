@@ -424,6 +424,44 @@ class Takes(unittest.TestCase):
         self.assertEqual(cardstill.evidence_dir(launch), Path("/e/lane-head"))
 
 
+FAKE_VERIFY = """#!/bin/sh
+echo "$VERIFY_RUN $*" >> "{dir}/calls"
+case $1 in
+  launch) [ ! -e "{dir}/alive" ] || exit 75; touch "{dir}/alive"; echo "evidence {dir}/$VERIFY_RUN" ;;
+  stop) rm -f "{dir}/alive" ;;
+  tree) printf 'AXButton\\t\\tSet 1, 185 x 5, logged\\t\\t@20,300 40x40\\nAXButton\\t\\tSet 3, 195 x 5\\t\\t@120,300 40x40\\n' ;;
+  record) exit 75 ;;
+esac
+"""
+
+
+class Film(unittest.TestCase):
+    def setUp(self):
+        self.dir = Path(tempfile.mkdtemp())
+        fake = self.dir / "verify.sh"
+        fake.write_text(FAKE_VERIFY.replace("{dir}", str(self.dir)))
+        fake.chmod(0o755)
+        self.saved = cardstill.VERIFY, cardstill.REST_END_AFTER_S, cardstill.PAIR_TAPS
+        cardstill.VERIFY, cardstill.REST_END_AFTER_S = fake, 0.0
+        cardstill.PAIR_TAPS = tuple((ident, 0) for ident, _ in cardstill.PAIR_TAPS)
+
+    def tearDown(self):
+        cardstill.VERIFY, cardstill.REST_END_AFTER_S, cardstill.PAIR_TAPS = self.saved
+
+    def test_each_relaunch_stops_the_side_s_app_first_so_launch_is_never_refused(self):
+        results = cardstill.Side("lane-control", "7fefd137").film()
+        calls = (self.dir / "calls").read_text().splitlines()
+        self.assertEqual([c for c in calls if " launch " in c or c.endswith(" stop")], [
+            "lane-control stop",
+            "lane-control stop",
+            "lane-control launch --at 7fefd137 --animated session",
+            "lane-control stop",
+            "lane-control launch --at 7fefd137 --animated session",
+            "lane-control stop",
+        ])
+        self.assertEqual([r.reason for r in results], ["record exited 75"] * 8)
+
+
 class JudgeTake(unittest.TestCase):
     def test_the_truth_table(self):
         cases = [
