@@ -158,7 +158,6 @@ struct SmartValuePills: View {
                         .focused($weightFieldFocused)
                         .opacity(weightFieldFocused ? 1 : 0)
                         .accessibilityIdentifier("weight-pill")
-                        .onAppear { weightFieldFocused = true }
                 }
             }
             .overlay {
