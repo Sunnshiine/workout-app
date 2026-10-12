@@ -6,7 +6,9 @@ name: CI
 
 on:
   pull_request:
-    # A retarget, by hand or by GitHub when a stacked PR's parent merges, fires only edited.
+    # A retarget, by hand or by GitHub when a stacked PR's parent merges, fires only edited. A title
+    # or body edit's jobs skip, and GitHub lists a skipped job under its name expression unevaluated,
+    # so each job's name expression keeps those checks off the real check names in gh pr checks.
     types: [opened, synchronize, reopened, edited]
     paths-ignore:
       - "**.md"
