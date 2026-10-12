@@ -84,7 +84,8 @@
         static let currentSessionOverride = LaunchFlag(
             argument: "-UITEST_CURRENT_SESSION_OVERRIDE",
             meaning:
-                "Makes Week 1 Day 3 the Current Session when the Scenario gives it Exercises, as Full Block does; otherwise the Current Session stays."
+                "Makes Week 1 Day 3 the Current Session when the Scenario gives it Exercises, as Full Block does;"
+                + " otherwise the Current Session stays."
         )
 
         static let moveOnCelebration = LaunchFlag(
@@ -94,8 +95,8 @@
 
         static let appearance = LaunchFlag(
             argument: "-UITEST_APPEARANCE",
-            meaning:
-                "Takes one of \(AppearancePreference.allCases.map(\.rawValue).joined(separator: ", ")) as the next argument and pins the appearance to it; any other value stops the app."
+            meaning: "Takes one of \(AppearancePreference.allCases.map(\.rawValue).joined(separator: ", ")) as the next argument"
+                + " and pins the appearance to it; any other value stops the app."
         )
 
         static let longCelebrationQuote = LaunchFlag(
