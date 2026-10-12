@@ -126,7 +126,7 @@ struct SessionQueueSheet: View {
             .disabled(row.isComplete)
             .accessibilityIdentifier("stage-queue-row-\(row.id)")
 
-            if row.canBeginPairing {
+            if row.kind == .pairableExercise {
                 Button {
                     coordinator.beginPairing(from: row.pairingExercise, in: session)
                 } label: {

@@ -527,7 +527,7 @@ extension SessionStageTests {
         #expect(queue.rows.map(\.pairingRole) == [QueuePairingRole.none, .none])
     }
 
-    @Test func onlyAPairableSingleExerciseCanBeginPairing() {
+    @Test func eachRowNamesItsKind() {
         let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged])
         let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending])
         let press = makeExercise(name: "Press", order: 2, setStates: [.pending])
@@ -536,7 +536,32 @@ extension SessionStageTests {
         let queue = makeStage([squat, bench, press, row], supersets: [Superset(first: press, second: row)], pairable: [1, 2]).queue
 
         #expect(queue.rows.map(\.id) == ["exercise-0", "exercise-1", "superset-2"])
-        #expect(queue.rows.map(\.canBeginPairing) == [false, true, false])
+        #expect(queue.rows.map(\.kind) == [.exercise, .pairableExercise, .superset])
+    }
+
+    @Test func theSupersetSourceIsTheOnStageRowWhenItCanPair() {
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged])
+        let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending])
+        let press = makeExercise(name: "Press", order: 2, setStates: [.pending])
+        let pressFocus = ActiveSetVisualFocusOwner.activeSet(ActiveSetID(exerciseOrder: 2, setIndex: 0))
+
+        let onPress = makeStage([squat, bench, press], focus: pressFocus, pairable: [1, 2]).queue
+        let onUnpairableBench = makeStage([squat, bench, press], pairable: [2]).queue
+
+        #expect(onPress.supersetSource?.id == "exercise-2")
+        #expect(onUnpairableBench.supersetSource == nil)
+    }
+
+    @Test func aSupersetOnStageOffersNoSupersetSource() {
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged])
+        let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending])
+        let press = makeExercise(name: "Press", order: 2, setStates: [.pending])
+        let row = makeExercise(name: "Row", order: 3, setStates: [.pending])
+
+        let queue = makeStage([squat, bench, press, row], supersets: [Superset(first: bench, second: press)], pairable: [1, 2, 3]).queue
+
+        #expect(queue.rows.map(\.isOnStage) == [false, true, false])
+        #expect(queue.supersetSource == nil)
     }
 
     @Test func selectingMarksTheSourceAndEachTargetsEligibility() {
