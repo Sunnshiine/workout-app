@@ -79,6 +79,16 @@ set_lane() {
   evidence=$primary/.claude/work/evidence/detached-$name
 }
 
+flock_fd() {
+  python3 -c 'import fcntl, sys, time
+deadline = time.time() + float(sys.argv[2])
+while True:
+    try: fcntl.flock(int(sys.argv[1]), fcntl.LOCK_EX | fcntl.LOCK_NB); break
+    except BlockingIOError:
+        if time.time() >= deadline: sys.exit(75)
+        time.sleep(0.1)' "$1" "$2"
+}
+
 lock_lane() {
   local lock=${WORKOUT_HOST_LOCK_DIR:-/tmp/workout-host-locks}/lane-$name wait=${WORKOUT_ADMIT_WAIT:-540} rc=0
   case $wait in '' | *[!0-9]*) die 2 "WORKOUT_ADMIT_WAIT must be a whole number of seconds: $wait" ;; esac

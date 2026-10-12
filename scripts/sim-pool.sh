@@ -59,6 +59,16 @@ case $cap in '' | *[!0-9]* | 0) die 2 "WORKOUT_SIM_CAP must be a whole number of
 # A flock is shared by every process holding the fd, so nothing that may outlive this script gets one.
 simctl() { xcrun simctl "$@" 4>&- 5>&- 9>&-; }
 
+flock_fd() {
+  python3 -c 'import fcntl, sys, time
+deadline = time.time() + float(sys.argv[2])
+while True:
+    try: fcntl.flock(int(sys.argv[1]), fcntl.LOCK_EX | fcntl.LOCK_NB); break
+    except BlockingIOError:
+        if time.time() >= deadline: sys.exit(75)
+        time.sleep(0.1)' "$1" "$2"
+}
+
 lock_pool() {
   local lock=$lock_dir/sim-pool rc=0
   mkdir -p "$lock_dir"
