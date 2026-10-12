@@ -55,8 +55,6 @@ class Setup(Enum):
 
 @dataclass(frozen=True)
 class SetNode:
-    """A drive argument that names the branch node `Set N, ...` as the live tree labels it."""
-
     n: int
 
 
@@ -95,8 +93,6 @@ class Verdict(Enum):
 
 @dataclass(frozen=True)
 class Reading:
-    """What one measured take says, as literal values."""
-
     rules: Tuple[str, ...]
     invalid: str
     animations: str
@@ -125,10 +121,7 @@ def judge_take(record_exit: int, reading: Optional[Reading], late_s: float = 0.0
         return Verdict.INVALID, f"record exited {record_exit}"
     if reading is None:
         return Verdict.INVALID, "record left no stamp"
-    # Load and a flagged launch turn motion into a cut; they never invent one. So a card seen to move or
-    # vanish fails a take INVALID only for load, or with animations off. A recorder that stopped early or
-    # badly, or a take that never covered the drive, can cut a still card's video, so those stay INVALID.
-    seen_soundly = reading.first_seen is not None and set(reading.rules) <= {"load"}
+    seen_soundly = reading.first_seen is not None and set(reading.rules) <= take.RULES_THAT_ONLY_HIDE_MOTION
     if seen_soundly and reading.lost > 0:
         return Verdict.FAIL, f"lost the card in {reading.lost} frames"
     if seen_soundly and reading.worst_edge_range > cardframe.STILL_PT:
@@ -154,8 +147,6 @@ class TakeResult:
 
 @dataclass(frozen=True)
 class Filmed:
-    """A take record finished and cardframe has not measured yet."""
-
     name: str
     record_exit: int
     path: Optional[Path]
@@ -163,12 +154,10 @@ class Filmed:
 
 
 def rest_end_at(switch: take.Take) -> float:
-    """When the rest-end take starts: REST_END_AFTER_S after the Superset log tap returned."""
     return switch.started + switch.drive_end + REST_END_AFTER_S
 
 
 def late_by(target: float, rest_end: take.Take) -> float:
-    """How late the rest-end take started, when it is more than LATE_S after target; else 0."""
     over = rest_end.started - target
     return over if over > LATE_S else 0.0
 
@@ -237,7 +226,6 @@ def table(control: Sequence[TakeResult], head: Sequence[TakeResult]) -> List[Lis
 
 
 def node_label(tree: str, n: int) -> Optional[str]:
-    """The label of the first tree line whose label starts `Set n,`."""
     for line in tree.splitlines():
         fields = line.split("\t")
         if len(fields) > 2 and fields[2].startswith(f"Set {n},"):
@@ -262,8 +250,6 @@ class SetupFailed(Exception):
 
 
 class Side:
-    """verify.sh calls for one run of the lane; SIM comes from the environment."""
-
     def __init__(self, run: str, at: Optional[str]) -> None:
         self.run = run
         self.at = at
@@ -281,8 +267,7 @@ class Side:
             raise SetupFailed(f"verify.sh {' '.join(argv)} exited {code}")
         return out
 
-    def launch(self) -> None:
-        # launch refuses while this run's last app is alive, so a relaunch ends it first.
+    def relaunch(self) -> None:
         self.verify("stop")
         at = ("--at", self.at) if self.at else ()
         self.evidence = evidence_dir(self.must("launch", *at, "--animated", "session")) or self.evidence
@@ -331,7 +316,7 @@ class Side:
                 continue
             try:
                 if spec.setup in RELAUNCHES:
-                    self.launch()
+                    self.relaunch()
                 if spec.setup is Setup.LAUNCH_AND_PAIR:
                     self.pair()
                 if spec.setup is Setup.AFTER_REST:

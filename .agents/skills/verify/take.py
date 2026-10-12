@@ -85,19 +85,18 @@ FIELDS = {
     "last_frame": (float, seconds),
     "video_px": (pixels, lambda px: "%dx%d" % px),
 }
-# verify.sh appends these after take.py prints the rest, because only it knows the screen and the launch.
 APPENDED = {"screen_pt": pixels, "animations": str, "app": str}
 
 
-class Reason(NamedTuple):
-    """A failed rule: load, recorder_early, recorder_exit or coverage, and why, in words."""
+RULES_THAT_ONLY_HIDE_MOTION = frozenset({"load"})
 
+
+class Reason(NamedTuple):
     rule: str
     text: str
 
 
 def judge(take: Take) -> List[Reason]:
-    """Why the take is INVALID, one reason per failed rule; empty when it is VALID."""
     reasons = []
     for moment, load in [("the start", take.load_before), ("the end", take.load_after)]:
         if load >= take.load_limit:
@@ -108,7 +107,6 @@ def judge(take: Take) -> List[Reason]:
     if take.recorder_exit != 0:
         reasons.append(Reason("recorder_exit",
                               "recorder exit %d after SIGINT; the video may be cut short" % take.recorder_exit))
-    # The first frame is the screen as the recorder found it, so only a later one can show the drive.
     if take.drive and (take.frames < 2 or take.last_frame < take.drive_start):
         reasons.append(Reason("coverage", "the screen never changed after the drive began at +%.2f s, so the take "
                                           "shows nothing the drive did" % take.drive_start))
@@ -153,7 +151,7 @@ def summary(take: Take) -> str:
 
 
 class NoTake(Exception):
-    """The recorder or ffprobe failed, so there is no video to judge."""
+    pass
 
 
 class DriveFailed(Exception):
@@ -174,7 +172,6 @@ class Recorder:
     def __init__(self, sim: str, out: Path):
         self.log = out.with_name(out.name + ".log")
         with open(str(self.log), "wb") as log:
-            # Its own session, so a Ctrl-C at the terminal reaches it only as the SIGINT this script forwards.
             self.proc = subprocess.Popen(
                 ["xcrun", "simctl", "io", sim, "recordVideo", "--codec", "h264", "--force", str(out)],
                 stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)
@@ -197,7 +194,7 @@ class Recorder:
         return time.time()
 
     def stop(self) -> int:
-        """SIGINT and wait. Never SIGTERM or SIGKILL: a recorder killed mid-write leaves an mp4 with no index."""
+        """Never SIGTERM or SIGKILL: a recorder killed mid-write leaves an mp4 with no index."""
         if self.proc.poll() is None:
             self.proc.send_signal(signal.SIGINT)
         deadline = time.time() + STOP_GRACE
@@ -236,8 +233,7 @@ def probe(video: Path) -> Tuple[List[float], Tuple[int, int]]:
 
 
 def run_drive(argv: List[str], env: dict) -> int:
-    """The drive's exit code. Interrupted, its process group gets SIGINT and DRIVE_GRACE s to exit, so a wrapped
-    launch runs its EXIT trap; bash ignores a SIGINT sent to it alone while a child it waits on survives one."""
+    """bash ignores a SIGINT sent to it alone while a child it waits on survives one."""
     proc = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=sys.stderr.fileno(), stderr=sys.stderr.fileno(),
                             env=env, start_new_session=True)
     try:
@@ -274,7 +270,6 @@ def film(sim: str, run: str, verify: str, out: Path, tail: float, limit: float, 
         except NoTake as stuck:
             if not failed:
                 raise
-            # The failure already on its way out says why there is no take; this one says what is left running.
             print(stuck, file=sys.stderr)
     try:
         load_after = load_now()

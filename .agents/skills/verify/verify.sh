@@ -637,6 +637,12 @@ decimal() {
   case $1 in ''|.|*[!0-9.]*|*.*.*) return 1 ;; esac
 }
 
+keep_video_then_stamp() {
+  mv "$1/$3.mp4" "$2/$3.mp4"
+  mv "$1/$3.take" "$2/$3.take"
+  rmdir "$1" 2>/dev/null || true
+}
+
 admit_load() {
   local limit=$1 wait=$2 waited=0 step load
   while :; do
@@ -967,7 +973,6 @@ case $cmd in
     case $load_wait in ''|*[!0-9]*) echo "VERIFY_LOAD_WAIT is whole seconds: $load_wait" >&2; exit 2 ;; esac
     resolve_sim
     command -v ffprobe >/dev/null || { echo "record reads its video with ffprobe; install it: brew install ffmpeg" >&2; exit 70; }
-    # After the load wait, so the simulator and app checks hold for the take and not for a minute before it.
     load=$(admit_load "$limit" "$load_wait")
     require_sim_free "$sim"; require_own_app; ensure_axe
     dir=$(run_dir)
@@ -992,10 +997,7 @@ case $cmd in
       if grep -q -- -UITEST_DISABLE_ANIMATIONS "$state_dir/args"; then animations=off; fi
     fi
     printf 'screen_pt=%s\nanimations=%s\napp=%s\n' "${screen/ /x}" "$animations" "$(installed_line)" >> "$pending/$name.take"
-    # The video first, so a stamp in the run always has its video beside it.
-    mv "$pending/$name.mp4" "$dir/$name.mp4"
-    mv "$pending/$name.take" "$dir/$name.take"
-    rmdir "$pending" 2>/dev/null || true
+    keep_video_then_stamp "$pending" "$dir" "$name"
     echo "$dir/$name.mp4"
     echo "$dir/$name.take"
     python3 "$here/take.py" summary "$dir/$name.take"

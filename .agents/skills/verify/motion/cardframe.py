@@ -76,8 +76,6 @@ class DecodeFailure(Exception):
 
 @dataclass(frozen=True)
 class Card:
-    """Edges in points; contrast is the mean column contrast over the card's run."""
-
     top: float
     bottom: float
     left: float
@@ -165,7 +163,6 @@ class Measure:
 
 
 def summarize(take: Take, samples: Sequence[Sample], from_s: float) -> Measure:
-    # A frame stands on screen until the next one, so the frame showing at from_s opens the window.
     showing = [s for s in samples if s.t <= from_s][-1:]
     window = tuple(showing) + tuple(s for s in samples if s.t > from_s)
     seen = next((i for i, s in enumerate(window) if s.card is not None), None)
@@ -198,7 +195,6 @@ def summarize(take: Take, samples: Sequence[Sample], from_s: float) -> Measure:
 
 
 def decode(video: Path, width: int, height: int) -> Iterator[np.ndarray]:
-    """Every encoded frame in presentation order, as luminance at the video's own width x height."""
     size = width * height * 3
     # The rawvideo muxer logs every repeated dts at error level; a file keeps the pipe from filling.
     with tempfile.TemporaryFile() as errors:
@@ -249,23 +245,16 @@ def measure(video, from_s: Optional[float] = None, x: float = 28, ref: float = 8
     found = samples(video, take, x, ref)
     if from_s is None:
         drive_start = take.drive_start if take.drive else 0.0
-        from_s = full_size(found, drive_start) if take.drive.split()[:1] == ["launch"] else drive_start
+        from_s = launch_settled_at(found, drive_start) if take.drive.split()[:1] == ["launch"] else drive_start
     return summarize(take, found, from_s)
 
 
-def full_size(found: Sequence[Sample], after: float) -> float:
-    """When a launch's card takes, for good, its final width and nine tenths of its final contrast, read
-    from the last SETTLED_FRAMES cards. iOS opens an app by scaling its window up from the icon, or fading
-    it in from black when the app runs with -UITEST_DISABLE_ANIMATIONS, and until then the system, not the
-    app, moves the card's edges; before the window opens, the springboard can read as a card of another
-    width. One unsettled frame does not end the walk back, so a single stray frame cannot shrink the
-    window to the frames after it; two in a row do."""
+def launch_settled_at(found: Sequence[Sample], after: float) -> float:
     cards = [s for s in found if s.card is not None and s.t >= after]
     if not cards:
         return after
     final = [s.card for s in cards[-SETTLED_FRAMES:]]
     counts = Counter(c.right - c.left for c in final)
-    # A tie goes to the later width: a take can end on the last frames of the zoom.
     width = max(reversed([c.right - c.left for c in final]), key=lambda w: counts[w])
     contrast = median(c.contrast for c in final)
     settled = [s.card.right - s.card.left == width and s.card.contrast >= LAUNCH_CONTRAST * contrast for s in cards]

@@ -3,10 +3,7 @@
 # requires-python = ">=3.9"
 # dependencies = ["numpy"]
 # ///
-"""cardframe.py on clips encoded the way simctl writes them, and cardstill.py's verdicts. No simulator.
-
-  uv run .agents/skills/verify/tests/test_motion.py      (needs ffmpeg and ffprobe on PATH)
-"""
+"""uv run .agents/skills/verify/tests/test_motion.py      (needs ffmpeg and ffprobe on PATH)"""
 import contextlib
 import dataclasses
 import io
@@ -39,7 +36,6 @@ STILL_BOX = (100, 260, 16, 186)
 
 
 def scene_frames(scene, seconds):
-    """scene(i) -> (paper level, [(top, bottom, left, right) in pt]) for frame i at 60 fps."""
     w, h = (n * VIDEO_PX_PER_PT for n in SCREEN_PT)
     for i in range(round(seconds * FPS)):
         paper, boxes = scene(i)
@@ -67,8 +63,6 @@ def encode(path, scene, seconds, lossless=True):
 
 
 def stamp(video, drive="", drive_start=0.0, drive_end=0.0, load_after=14.02, animations="on", like=None):
-    """The stamp `verify.sh record` writes beside video: take.py's lines over the frames ffprobe finds in it
-    (or in like), then the three lines verify.sh appends."""
     pts, size = take.probe(like or video)
     filmed = take.Take(
         name=video.stem, video=video.name, drive=drive, tail=2.0, load_limit=50.0, load_before=12.31,
@@ -93,12 +87,10 @@ def a_third_of_a_point_low(i):
 
 
 def ticks_beside(i):
-    """The card still for 1 s while a box below it, clear of the scanned columns and row, changes ten times."""
     return PAPER, [STILL_BOX, (300, 320, 100, 150, PAPER + 10 + 4 * (i // 6))]
 
 
 def slide(i):
-    """Still for 1 s, then the card slides 160 pt down over 0.4 s and stops."""
     t = i / FPS
     progress = min(max((t - 1.0) / 0.4, 0.0), 1.0)
     top = 40 + 160 * progress
@@ -106,7 +98,6 @@ def slide(i):
 
 
 def cuts(i):
-    """Still for 1 s, then the card jumps 160 pt down in one frame and stays."""
     top = 40 if i < FPS else 200
     return PAPER, [(top, top + 150, 16, 186)]
 
@@ -118,8 +109,6 @@ def zoomed(box, scale):
 
 
 def fades_in(i):
-    """A launch under -UITEST_DISABLE_ANIMATIONS: black frames a shade apart until 1.0 s, then the whole
-    screen fading up from black over 10 frames, the card's contrast with it."""
     if i < FPS:
         return 10 + 3 * i, []
     k = min((i - FPS + 1) / 10, 1.0)
@@ -127,9 +116,6 @@ def fades_in(i):
 
 
 def launches(slide_after=0.0):
-    """A launch: 0.3 s of springboard holding a wider card-like box, black frames a shade apart until 1.0 s,
-    the app's window scaling up from 0.8 over 6 frames, then the card, which slides up by slide_after pt over
-    0.3 s when slide_after is set."""
     def scene(i):
         if i < 18:
             return PAPER, [(100, 300, 12, 196)]
@@ -145,7 +131,6 @@ def launches(slide_after=0.0):
 
 
 def drops_for_three_frames(i):
-    """The card for 1 s, three frames of bare paper (each a shade apart, so all three are encoded), then back."""
     return (PAPER + 3 * (i - FPS + 1), []) if FPS <= i < FPS + 3 else (PAPER, [STILL_BOX])
 
 
@@ -411,23 +396,23 @@ class FullSize(unittest.TestCase):
         return zoom + settled + [Sample(1.2, card(100, right=last_right))]
 
     def test_the_window_opens_after_the_last_two_unsettled_frames_in_a_row(self):
-        self.assertEqual(cardframe.full_size(self.launch(186.0), 0.0), 1.033)
+        self.assertEqual(cardframe.launch_settled_at(self.launch(186.0), 0.0), 1.033)
 
     def test_one_stray_last_frame_keeps_the_window_and_counts_against_still(self):
         found = self.launch(187.0)
-        from_s = cardframe.full_size(found, 0.0)
+        from_s = cardframe.launch_settled_at(found, 0.0)
         m = cardframe.summarize(TAKE, found, from_s)
         self.assertEqual((from_s, len(m.window), m.worst_edge_range, m.still), (1.033, 9, 1.0, False))
 
     def test_one_dim_frame_among_the_settled_ones_is_skipped(self):
         found = self.launch(186.0)
         found[5] = Sample(found[5].t, card(100, contrast=20.0))
-        self.assertEqual(cardframe.full_size(found, 0.0), 1.033)
+        self.assertEqual(cardframe.launch_settled_at(found, 0.0), 1.033)
 
     def test_a_tie_for_the_most_common_width_goes_to_the_later_one(self):
         widths = [150.0, 150.0, 160.0, 160.0, 165.0, 165.0, 170.0, 170.0]
         found = [Sample(round(1.0 + 0.017 * k, 3), card(100, left=16.0, right=16.0 + w)) for k, w in enumerate(widths)]
-        self.assertEqual(cardframe.full_size(found, 0.0), 1.102)
+        self.assertEqual(cardframe.launch_settled_at(found, 0.0), 1.102)
 
 
 class Detect(unittest.TestCase):
