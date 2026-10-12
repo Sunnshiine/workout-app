@@ -406,5 +406,28 @@ WORKOUT_ADMIT_WAIT=0 lane down daemon
 kill "$(cat "$root/daemon.pid")"
 expect "a process git leaves running after up does not hold the lane's lock" "$status $([ -d "$lanes/daemon" ] && echo worktree)" "0 "
 
+lane up booted "$c1"
+booted_udid=$(lane_rows | awk '$2 == "workout-lane-booted" { print $1 }')
+xcrun simctl boot "$booted_udid"
+lane assess booted 0
+xcrun simctl shutdown "$booted_udid"
+expect "assess keeps a lane whose simulator is booted" "$(cat "$root/out")" "keep	simulator $booted_udid is booted"
+lane down booted
+
+lane up quiet "$c1"
+ten_days_ago=$(date -v-10d +%Y%m%d%H%M)
+quiet_admin=$(git -C "$lanes/quiet" rev-parse --absolute-git-dir)
+touch -t "$ten_days_ago" "$quiet_admin/logs/HEAD" "$quiet_admin/HEAD" "$evidence/detached-quiet"
+lane assess quiet 3
+idle_before=$(cat "$root/out")
+mkdir -p "$dd/WorkoutTracker-quiet/Build"
+python3 -c 'import plistlib, sys
+plistlib.dump({"WorkspacePath": sys.argv[2]}, open(sys.argv[1], "wb"))' "$dd/WorkoutTracker-quiet/info.plist" "$lanes/quiet/WorkoutTracker.xcodeproj"
+touch -t "$ten_days_ago" "$dd/WorkoutTracker-quiet" "$dd/WorkoutTracker-quiet/info.plist"
+lane assess quiet 3
+expect "assess keeps a lane idle for 10 days whose DerivedData a build touched today" \
+    "$idle_before | $(cat "$root/out")" "remove	idle 10d | keep	active 0d ago, threshold 3d"
+lane down quiet
+
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1

@@ -29,8 +29,9 @@ matches ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$. For the checkout this script belongs 
           for every detached worktree under .claude/worktrees/. Keeps a lane that is not a registered
           worktree, is on a branch, is locked (a crashed git worktree add's lock, "initializing",
           says so and up or down repairs it), holds a nested worktree, has uncommitted changes or
-          untracked files, holds commits no branch or tag holds, is in use (a process cwd inside it
-          or its simulator's verify lock), or was active within <idle-days>. Ignored files keep
+          untracked files, holds commits no branch or tag holds, is in use (a process cwd inside it,
+          its simulator's verify lock, or its simulator booted), or was active within <idle-days>
+          (its reflog, HEAD, .build, evidence, or DerivedData changed). Ignored files keep
           nothing, because down saves them. A commit counts when HEAD or its reflog reaches it; a
           remote-tracking ref holds nothing, because the server may have deleted the branch.
 
@@ -111,9 +112,11 @@ nested_worktree() {
   git -C "$primary" worktree list --porcelain | sed -n 's/^worktree //p' | awk -v p="$wt/" '!found && index($0, p) == 1 { print; found = 1 }'
 }
 
-lane_udids() {
-  sim_pool list | awk -F '\t' -v n="workout-lane-$name" '$3 == "lane" && $4 == n { print $1 }'
+lane_sims() {
+  sim_pool list | awk -F '\t' -v n="workout-lane-$name" '$3 == "lane" && $4 == n { print $1 "\t" $2 }'
 }
+
+lane_udids() { lane_sims | cut -f1; }
 
 files_to_save() {
   git -C "$wt" ls-files -z -o --exclude-standard
@@ -166,7 +169,7 @@ if found: print(int(max(found)))' "$@"
 }
 
 assess() {
-  local days=$1 reg branch porcelain work admin commits holder udid lock newest age
+  local days=$1 reg branch porcelain work admin commits holder sims udid state lock derived d marks newest age
   verdict=keep
   reg=$(registration)
   if [ -z "$reg" ]; then reason="not a registered worktree"; return; fi
@@ -187,13 +190,18 @@ assess() {
   if [ -n "$commits" ]; then reason="commits no branch or tag holds ($(printf '%s\n' "$commits" | grep -c .))"; return; fi
   if ! holder=$(cwd_holder); then reason="could not list process working directories"; return; fi
   if [ -n "$holder" ]; then reason="in use by pid ${holder%% *} (${holder#* })"; return; fi
-  if ! udid=$(lane_udids 2>/dev/null); then reason="could not list simulators"; return; fi
-  for udid in $udid; do
+  if ! sims=$(lane_sims 2>/dev/null); then reason="could not list simulators"; return; fi
+  while IFS=$'\t' read -r udid state; do
+    [ -n "$udid" ] || continue
     lock=/tmp/workout-verify-$udid/lock
     if ! (require_sim_free "$udid") 2>/dev/null; then reason="in use by $(cat "$lock" 2>/dev/null)"; return; fi
-  done
+    case $state in Booted | Booting) reason="simulator $udid is booted"; return ;; esac
+  done <<<"$sims"
+  if ! derived=$(derived_data_of "$wt/WorkoutTracker.xcodeproj"); then reason="could not read DerivedData"; return; fi
   # The index is not an activity mark, because git status rewrites it.
-  newest=$(newest_mtime "$admin/logs/HEAD:0" "$admin/HEAD:0" "$wt/.build:2" "$evidence:2")
+  marks=("$admin/logs/HEAD:0" "$admin/HEAD:0" "$wt/.build:2" "$evidence:2")
+  while IFS= read -r d; do [ -z "$d" ] || marks+=("$d:2"); done <<<"$derived"
+  newest=$(newest_mtime "${marks[@]}")
   if [ -z "$newest" ]; then reason="could not read activity times"; return; fi
   age=$((($(date +%s) - newest) / 86400))
   if [ "$age" -lt "$days" ]; then reason="active ${age}d ago, threshold ${days}d"; return; fi
