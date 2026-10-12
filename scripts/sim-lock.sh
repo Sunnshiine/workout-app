@@ -190,6 +190,10 @@ admit_claim() {
     [ "$build" = 0 ] || take_build_slot
     return
   fi
+  if [ "$build" != 0 ]; then
+    take_build_slot || return 1
+    drop_build_slot
+  fi
   exec 7>>"$host_lock_dir/admit"
   if ! try_flock 7 LOCK_EX 1; then
     busy_reason="another claim is booting a simulator (lsof $host_lock_dir/admit lists it)"

@@ -242,14 +242,19 @@ open(sys.argv[2], "w").close()
 time.sleep(30)' "$root/locks/build-1" "$root/holding" &
 building=$!
 for _ in $(seq 1 100); do [ -f "$root/holding" ] && break; sleep 0.1; done
-STUB_SHUTDOWN="$sim $sim2" STUB_SLOW_LIST_CALL=3 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=4 \
+STUB_SHUTDOWN=$sim2 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=8 \
     "$repo/scripts/test-sim.sh" --sim "$sim2" unit >/dev/null 2>"$root/err2" &
 first=$!
-for _ in $(seq 1 100); do [ -f "$root/listing-slowly" ] && break; sleep 0.1; done
-STUB_SHUTDOWN="$sim $sim2" WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+for _ in $(seq 1 100); do grep -q "waiting up to" "$root/err2" 2>/dev/null && break; sleep 0.1; done
+held=$(python3 -c 'import fcntl, sys, time
+admit, held = open(sys.argv[1], "a"), 0
+for _ in range(500):
+    try: fcntl.flock(admit, fcntl.LOCK_EX | fcntl.LOCK_NB); fcntl.flock(admit, fcntl.LOCK_UN)
+    except BlockingIOError: held += 1
+    time.sleep(0.01)
+print(held)' "$root/locks/admit")
 kill "$building"; wait "$building" "$first" 2>/dev/null
-expect "a build claim waiting for a slot never holds the admit lock against a claim that only boots" \
-    "$status $(grep -c "simctl boot $sim\$" "$root/xcrun-calls")" "65 1"
+expect "a build claim waiting for a slot never takes the admit lock" "$held" "0"
 
 reset
 STUB_SHUTDOWN=$sim STUB_BOOT_FAILS=raced test_sim --no-build; status=$?
@@ -345,17 +350,20 @@ open(sys.argv[2], "w").close()
 time.sleep(30)' "$root/locks/admit" "$root/holding" &
 admitting=$!
 for _ in $(seq 1 100); do [ -f "$root/holding" ] && break; sleep 0.1; done
-STUB_SHUTDOWN=$sim2 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=6 \
+STUB_SHUTDOWN=$sim2 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=25 \
     "$repo/scripts/test-sim.sh" --sim "$sim2" unit >/dev/null 2>"$root/err2" &
 first=$!
 for _ in $(seq 1 100); do grep -q "waiting up to" "$root/err2" 2>/dev/null && break; sleep 0.1; done
-refused=0
-for _ in 1 2 3 4 5 6 7 8 9 10; do
-    STUB_SHUTDOWN=$sim2 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim
-    [ $? != 75 ] || refused=$((refused + 1))
-done
+held=$(python3 -c 'import fcntl, sys, time
+slot, held = open(sys.argv[1], "a"), 0
+for _ in range(400):
+    try: fcntl.flock(slot, fcntl.LOCK_EX | fcntl.LOCK_NB); fcntl.flock(slot, fcntl.LOCK_UN)
+    except BlockingIOError: held += 1
+    time.sleep(0.01)
+print(held)' "$root/locks/build-1")
 kill "$admitting"; wait "$admitting" "$first" 2>/dev/null
-expect "a build claim waiting for the admit lock never holds a build slot against a build that could run" "$refused" "0"
+expect "a build claim waiting for the admit lock holds its build slot for no more than a probe" \
+    "$([ "$held" -lt 20 ] && echo "under 20 of 400 samples" || echo "$held of 400 samples")" "under 20 of 400 samples"
 
 reset
 STUB_SHUTDOWN=$sim STUB_SLOW_LIST_CALL=3 "$repo/scripts/test-sim.sh" --no-build --sim "$sim" unit >/dev/null 2>&1 &
