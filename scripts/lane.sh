@@ -71,7 +71,7 @@ set_lane() {
 whole_days() { case $1 in '' | *[!0-9]*) usage ;; esac; }
 
 registration() {
-  git -C "$primary" worktree list --porcelain | awk -v w="worktree $wt" '$0 == w { f = 1; next } f && $0 == "" { exit } f'
+  git -C "$primary" worktree list --porcelain | awk -v w="worktree $wt" '$0 == w { f = 1; next } $0 == "" { f = 0 } f'
 }
 
 # A record whose directory is gone blocks git worktree add. Removes that one record; git worktree
@@ -89,7 +89,7 @@ crashed_add() { printf '%s\n' "$reg" | grep -qx 'locked initializing'; }
 field() { printf '%s\n' "$1" | sed -n "s|^$2||p"; }
 
 nested_worktree() {
-  git -C "$primary" worktree list --porcelain | sed -n 's/^worktree //p' | awk -v p="$wt/" 'index($0, p) == 1 { print; exit }'
+  git -C "$primary" worktree list --porcelain | sed -n 's/^worktree //p' | awk -v p="$wt/" '!found && index($0, p) == 1 { print; found = 1 }'
 }
 
 lane_udids() {
@@ -127,8 +127,8 @@ cwd_holder() {
   while p=$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' ') && [ -n "$p" ] && [ "$p" -gt 1 ]; do skip="$skip$p "; done
   cwds=$(lsof -a -d cwd -Fpcn 2>/dev/null) || true
   [ -n "$cwds" ] || return 1
-  printf '%s\n' "$cwds" | awk -v w="$wt" -v skip="$skip" '/^p/ { pid = substr($0, 2) } /^c/ { cmd = substr($0, 2) }
-    /^n/ { n = substr($0, 2); if ((n == w || index(n, w "/") == 1) && !index(skip, " " pid " ")) { print pid " " cmd; exit } }'
+  awk -v w="$wt" -v skip="$skip" '/^p/ { pid = substr($0, 2) } /^c/ { cmd = substr($0, 2) }
+    /^n/ && !found { n = substr($0, 2); if ((n == w || index(n, w "/") == 1) && !index(skip, " " pid " ")) { print pid " " cmd; found = 1 } }' <<<"$cwds"
 }
 
 newest_mtime() {
