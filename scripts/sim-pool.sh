@@ -12,7 +12,9 @@ scripts/lane.sh calls it; call it directly to inspect or repair the pool.
 
   create <lane>  print the UDID of workout-lane-<lane>, cloning it first if it does not exist. Builds the
                  template on first use. Leaves the clone Shutdown, so it holds no slot of the host cap.
-  boot <lane>    boot it within the host cap and print its UDID.
+  boot <lane>    boot it within the host cap and print its UDID. test-sim.sh and verify.sh boot a
+                 lane themselves, outside the cap until #883 lands; run this before a raw
+                 xcodebuild or XcodeBuildMCP call on a lane.
   delete <lane>  shut it down, delete it, and remove /tmp/workout-verify-<UDID>, holding that
                  directory's lock throughout, so no run can claim the simulator meanwhile. A missing
                  device is a note on stderr and exit 0.
