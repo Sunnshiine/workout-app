@@ -11,6 +11,13 @@ products=$root/home/Library/Developer/Xcode/DerivedData/WorkoutTracker-stub/Buil
 mkdir -p "$repo/scripts" "$root/bin" "$products"
 cp "$script_dir/../test-sim.sh" "$script_dir/../sim-lock.sh" "$script_dir/../test-log-summary.awk" "$repo/scripts/"
 touch "$products/../../info.plist" "$products/WorkoutTracker_iphonesimulator27.0-arm64.xctestrun"
+cat >"$repo/scripts/sim-keyboard.sh" <<'STUB'
+#!/bin/sh
+echo "$*$([ -e /dev/fd/9 ] && echo ' with the lock fd open')" >>"$STUB_KEYBOARD_CALLS"
+echo "keyboard: stub"
+exit "${STUB_KEYBOARD_RC:-0}"
+STUB
+chmod +x "$repo/scripts/sim-keyboard.sh"
 pass=0
 fail=0
 
@@ -24,15 +31,30 @@ STUB
 cat >"$root/bin/xcodebuild" <<'STUB'
 #!/bin/sh
 cp "$STUB_OUT" "$STUB_SEEN"
+printf '%s\n' "$@" >"$STUB_ARGS"
+while [ $# -gt 0 ]; do
+    [ "$1" != -resultBundlePath ] || [ -z "${STUB_SUMMARY:-}" ] || mkdir "$2"
+    shift
+done
 cat "$STUB_LOG"
 exit "$STUB_RC"
 STUB
 cat >"$root/bin/xcrun" <<STUB
 #!/bin/sh
+if [ "\$1" = xcresulttool ]; then
+    [ -n "\${STUB_SUMMARY:-}" ] && [ "\$4 \$5" = "summary --path" ] && [ -d "\$6" ] && printf '%s\n' "\$STUB_SUMMARY"
+    exit
+fi
 [ -z "\${STUB_SIMCTL_DOWN:-}" ] || { echo "An error was encountered processing the command (code=405)" >&2; exit 1; }
 echo '{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-27-0":[{"udid":"$sim","state":"Booted","name":"iPhone 17 Pro"}]}}'
 STUB
-chmod +x "$root/bin/plutil" "$root/bin/xcodebuild" "$root/bin/xcrun"
+cat >"$root/bin/sysctl" <<'STUB'
+#!/bin/sh
+echo '{ 1.50 1.25 1.00 }'
+STUB
+chmod +x "$root/bin/plutil" "$root/bin/xcodebuild" "$root/bin/xcrun" "$root/bin/sysctl"
+export STUB_ARGS=$root/args STUB_KEYBOARD_CALLS=$root/keyboard
+result() { echo "test-sim: suite=$1 passed=- failed=- exit=$2 load1=1.50/1.50 bundle=-"; }
 
 check() {
     local name=$1 want_status=$2 want_out=$3 want_err=$4 xcodebuild_status=$5 log=$6
@@ -40,14 +62,16 @@ check() {
     STUB_LOG=$root/xcodebuild.log STUB_RC=$xcodebuild_status STUB_OUT=$root/out STUB_SEEN=$root/seen HOME=$root/home PATH="$root/bin:$PATH" \
         "$repo/scripts/test-sim.sh" --no-build --sim "$sim" unit >"$root/out" 2>"$root/err"
     local status=$?
-    local out err
-    out=$(grep -v '^log: ' "$root/out")
+    local out err last
+    out=$(grep -v -e '^log: ' -e '^bundle: ' -e '^test-sim: ' "$root/out")
     err=$(cat "$root/err")
-    if [ "$status" = "$want_status" ] && [ "$out" = "$want_out" ] && [ "$err" = "$want_err" ]; then
+    last=$(tail -1 "$root/out")
+    if [ "$status" = "$want_status" ] && [ "$out" = "$want_out" ] && [ "$err" = "$want_err" ] \
+        && [ "$last" = "$(result unit "$want_status")" ]; then
         ok "$name"
     else
         bad "$name: exit $status (want $want_status)"
-        printf '    stdout:\n%s\n    stderr:\n%s\n' "$out" "$err"
+        printf '    stdout:\n%s\n    last line:\n%s\n    stderr:\n%s\n' "$out" "$last" "$err"
     fi
 }
 
@@ -358,7 +382,7 @@ for build in --no-build ""; do
         "$repo/scripts/test-sim.sh" ${build:+"$build"} --sim "$unknown" unit >"$root/out" 2>"$root/err"
     status=$?
     want="no available simulator $unknown; xcrun simctl list devices available lists them"
-    if [ $status = 2 ] && [ ! -s "$root/out" ] && [ "$(cat "$root/err")" = "$want" ] && [ ! -e "$root/seen" ] \
+    if [ $status = 2 ] && [ "$(cat "$root/out")" = "$(result unit 2)" ] && [ "$(cat "$root/err")" = "$want" ] && [ ! -e "$root/seen" ] \
         && [ ! -e "/tmp/workout-verify-$unknown" ]; then
         ok "an unknown --sim UDID ($flags) is refused before it claims the simulator or xcodebuild starts"
     else
@@ -374,6 +398,58 @@ if [ $status = 1 ] && [ "$(cat "$root/err")" = "An error was encountered process
 else
     bad "a simctl failure prints simctl's error, not a refused UDID: exit $status, stderr '$(cat "$root/err")'"
 fi
+
+run() {
+    rm -f "$root/seen" "$root/keyboard"
+    STUB_LOG=$root/xcodebuild.log STUB_RC=${rc:-65} STUB_OUT=$root/out STUB_SEEN=$root/seen HOME=$root/home PATH="$root/bin:$PATH" \
+        "$repo/scripts/test-sim.sh" "$@" >"$root/out" 2>"$root/err"
+}
+expect() {
+    if [ "$2" = "$3" ]; then
+        ok "$1"
+    else
+        bad "$1"
+        printf '    got:\n%s\n    want:\n%s\n    stderr:\n%s\n' "$2" "$3" "$(cat "$root/err")"
+    fi
+}
+
+printf '%s\n' "✘ Test run with 30 tests in 8 suites failed after 4.437 seconds with 1 issue." "** TEST EXECUTE FAILED **" >"$root/xcodebuild.log"
+STUB_SUMMARY='{"passedTests":29,"failedTests":1,"skippedTests":0}' run --no-build --sim "$sim" visual
+bundle=$(sed -n 's/^bundle: //p' "$root/out")
+expect "a run hands xcodebuild the bundle path it printed" "$(grep -A1 -x -- -resultBundlePath "$root/args" | tail -1)" "$bundle"
+expect "a failed visual run names the snapshot diff command, then ends with its counts and bundle" "$(tail -2 "$root/out")" \
+"snapshot diffs: scripts/snapshot-diffs.sh $bundle
+test-sim: suite=visual passed=29 failed=1 exit=65 load1=1.50/1.50 bundle=$bundle"
+
+STUB_SUMMARY='{"passedTests":1019,"failedTests":1}' run --no-build --sim "$sim" unit WorkoutTrackerTests/ParserTests
+expect "a failed run with no snapshot suite selected names no diff command" "$(tail -1 "$root/out"; grep -c '^snapshot diffs' "$root/out")" \
+"test-sim: suite=unit,WorkoutTrackerTests/ParserTests passed=1019 failed=1 exit=65 load1=1.50/1.50 bundle=$(sed -n 's/^bundle: //p' "$root/out")
+0"
+
+STUB_SUMMARY='not json' run --no-build --sim "$sim" unit
+expect "an unreadable summary leaves the counts unknown" "$(tail -1 "$root/out")" \
+"test-sim: suite=unit passed=- failed=- exit=65 load1=1.50/1.50 bundle=$(sed -n 's/^bundle: //p' "$root/out")"
+
+run
+status=$?
+expect "a usage error exits 2 and still ends with the result line" "$status $(cat "$root/out")" "2 $(result - 2)"
+
+for selection in ui all WorkoutTrackerUITests/WorkoutTrackerUISmokeTests; do
+    run --no-build --sim "$sim" "$selection"
+    expect "$selection runs the keyboard step once, without the lock fd, before xcodebuild" \
+        "$(cat "$root/keyboard"; grep '^keyboard: ' "$root/out")" "ensure $sim
+keyboard: stub"
+done
+for selection in unit visual WorkoutTrackerSnapshotTests/BlockGridVisualTests; do
+    run --no-build --sim "$sim" "$selection"
+    expect "$selection skips the keyboard step" "$([ -e "$root/keyboard" ] && echo ran || echo skipped)" skipped
+done
+
+STUB_KEYBOARD_RC=70 run --no-build --sim "$sim" ui
+status=$?
+expect "a keyboard step that fails stops the run before xcodebuild with its status" \
+    "$status $([ -e "$root/seen" ] && echo xcodebuild-ran || echo xcodebuild-skipped) $(tail -1 "$root/out")" \
+    "70 xcodebuild-skipped $(result ui 70)"
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1

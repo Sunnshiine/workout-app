@@ -18,9 +18,41 @@ The simulator is the booted iPhone 17 Pro, else the newest available one, which 
 With no available iPhone 17 Pro it creates one on iOS 27.0 (scripts/ensure-simulator.sh) and boots that.
 Refuses (exit 75) while another test-sim.sh run or a verify run's app holds that simulator, and
 refuses (exit 2) a --sim UDID that simctl lists no available simulator for.
+A selection that includes WorkoutTrackerUITests first runs scripts/sim-keyboard.sh ensure, which
+prints one `keyboard:` line and reboots the simulator only when it changed its keyboard preference.
+Every test run writes a result bundle and prints its path. After a failed visual run,
+scripts/snapshot-diffs.sh <bundle> lists the reference, failure, and difference images.
+The last line, on every exit after this usage text, is
+  test-sim: suite=<s> passed=<n> failed=<m> exit=<e> load1=<start>/<end> bundle=<path>
+where exit= is this script's exit status, `-` means unknown, and load1 is the 1-minute load average.
+A pipe such as `| tee` hides the exit status from the caller; read exit= instead.
 EOF
   exit 2
 }
+
+load1() { sysctl -n vm.loadavg | awk '{print $2}'; }
+
+finish() {
+  local rc=$? counts="- -" shown=-
+  if [ -n "$bundle" ] && [ -d "$bundle" ]; then
+    shown=$bundle
+    counts=$(xcrun xcresulttool get test-results summary --path "$bundle" --compact 2>/dev/null | python3 -c '
+import json, sys
+s = json.load(sys.stdin)
+print(s["passedTests"], s["failedTests"])' 2>/dev/null) || counts="- -"
+  fi
+  case "${counts#* } ${targets[*]-}" in
+    0\ * | -\ *) ;;
+    *-only-testing:WorkoutTrackerSnapshotTests*) echo "snapshot diffs: scripts/snapshot-diffs.sh $bundle" ;;
+  esac
+  echo "test-sim: suite=$suite passed=${counts% *} failed=${counts#* } exit=$rc load1=$load_start/$(load1) bundle=$shown"
+  exit "$rc"
+}
+
+load_start=$(load1)
+suite=-
+bundle=
+trap finish EXIT
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
 . "$repo/scripts/sim-lock.sh"
@@ -28,8 +60,10 @@ project=$repo/WorkoutTracker.xcodeproj
 build=1
 sim=${SIM:-}
 targets=()
+selection=()
 
 while [ $# -gt 0 ]; do
+  case $1 in -*) ;; *) selection+=("$1") ;; esac
   case $1 in
     --no-build) build=0 ;;
     --sim) sim=$2; shift ;;
@@ -43,12 +77,16 @@ while [ $# -gt 0 ]; do
   shift
 done
 [ ${#targets[@]} -gt 0 ] || usage
+suite=$(IFS=,; echo "${selection[*]}")
 
 picked=$(pick_sim "$sim" create)
 read -r sim state <<< "$picked"
 [ "$state" != named ] || sim_available "$sim" || exit
 [ "$state" != Shutdown ] || xcrun simctl boot "$sim"
 claim_sim "$sim" "test-sim.sh run"
+case " ${targets[*]}" in
+  *" -only-testing:WorkoutTrackerUITests"*) without_sim_lock "$repo/scripts/sim-keyboard.sh" ensure "$sim" ;;
+esac
 destination="platform=iOS Simulator,id=$sim"
 
 logs=$repo/.build/test-sim
@@ -70,9 +108,11 @@ done | head -1) || true
 
 log=$logs/$stamp-test.log
 echo "log: $log"
+bundle=$logs/$stamp.xcresult
+echo "bundle: $bundle"
 set +e
 xcodebuild test-without-building -xctestrun "$xctestrun" -destination "$destination" \
-  -collect-test-diagnostics never CODE_SIGNING_ALLOWED=NO "${targets[@]}" > "$log" 2>&1
+  -collect-test-diagnostics never -resultBundlePath "$bundle" CODE_SIGNING_ALLOWED=NO "${targets[@]}" > "$log" 2>&1
 rc=$?
 set -e
 if ! awk -f "$repo/scripts/test-log-summary.awk" "$log" | uniq; then
