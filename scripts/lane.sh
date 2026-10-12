@@ -46,7 +46,8 @@ Exit codes: 0 done; 1 env: no such lane, or down --if-idle: the lane is not idle
 <reason>); 2 usage, a bad name, an unknown commit, a lane at another commit, a worktree on a branch,
 a locked lane, one holding a nested worktree, or one registered but missing (moved or deleted),
 or down run from the lane's own copy of this script;
-69 the simulator runtime is missing; 70 git, simctl, or a save failed (down then leaves the worktree);
+69 the simulator runtime is missing; 70 git, simctl, or a save failed (down then leaves the worktree,
+but its simulator is already gone; lane.sh up <name> <commit> makes a new one);
 75 a test-sim or verify run holds the lane's simulator, the simulator pool is busy, down found
 another process working inside the lane (stop it or cd out; this script's callers do not count), or
 another up or down of the same lane held it for WORKOUT_ADMIT_WAIT seconds (default 540).
@@ -341,15 +342,14 @@ lane_down() {
   if [ -n "$reg" ]; then
     branch=$(field "$reg" 'branch refs/heads/')
     [ -z "$branch" ] || die 2 "$wt is on branch $branch, not a lane; prune-merged-worktrees.sh decides branch worktrees"
-    if crashed_add; then
-      git -C "$primary" worktree unlock "$wt" || die 70 "could not unlock $wt"
-    elif printf '%s\n' "$reg" | grep -q '^locked'; then
+    if ! crashed_add && printf '%s\n' "$reg" | grep -q '^locked'; then
       die 2 "lane $name is locked; git worktree unlock $wt first"
     fi
     work=$(nested_worktree)
     [ -z "$work" ] || die 2 "lane $name holds the worktree $work; remove that first"
     holder=$(cwd_holder) || die 70 "could not list process working directories"
     [ -z "$holder" ] || die 75 "pid ${holder%% *} (${holder#* }) works in $wt; stop it or cd out"
+    if crashed_add; then git -C "$primary" worktree unlock "$wt" || die 70 "could not unlock $wt"; fi
   fi
   sim_pool delete "$name" || exit
   if [ -n "$reg" ]; then
