@@ -8,8 +8,9 @@
   uv run .agents/skills/verify/motion/cardframe.py <run>/NAME.mp4 [--tsv PATH] [--from S] [--x 28] [--ref 8]
 
 Reads NAME.take beside the video. Each encoded frame is decoded once and timed by its own presentation
-time, in seconds after the take started. The window is the frames at or after --from, by default the
-drive's end for a launch take (before it the springboard is on screen), else the drive's start, else 0.
+time, in seconds after the take started. recordVideo writes a frame only when the screen changes, so
+the window is the frame showing at --from and every frame after it. --from is by default the drive's end
+for a launch take (before it the springboard is on screen), else the drive's start, else 0.
 The card is the longest vertical run, at least 120 pt with gaps up to 8 pt merged, where the column at
 --x pt is brighter than the paper column at --ref pt by 4.0; left and right come from a row scan at the
 run's middle. Frames before the card first shows are not lost; a frame after it without the card is.
@@ -215,7 +216,9 @@ class Measure:
 
 
 def summarize(take: Take, samples: Sequence[Sample], from_s: float) -> Measure:
-    window = tuple(s for s in samples if s.t >= from_s)
+    # A frame stands on screen until the next one, so the frame showing at from_s opens the window.
+    showing = [s for s in samples if s.t < from_s][-1:]
+    window = tuple(showing) + tuple(s for s in samples if s.t >= from_s)
     seen = next((i for i, s in enumerate(window) if s.card is not None), None)
     after = window[seen:] if seen is not None else ()
     cards = [s for s in after if s.card is not None]

@@ -99,6 +99,12 @@ def slide(i):
     return PAPER, [(top, top + 150, 16, 186)]
 
 
+def cuts(i):
+    """Still for 1 s, then the card jumps 160 pt down in one frame and stays."""
+    top = 40 if i < FPS else 200
+    return PAPER, [(top, top + 150, 16, 186)]
+
+
 def appears_after_black(i):
     """A launch: a dark screen a shade lighter each frame (so every frame is encoded), then the card at 1.0 s."""
     return (10 + 3 * i, []) if i < FPS else (PAPER, [STILL_BOX])
@@ -127,6 +133,7 @@ class CardFrameOnClips(unittest.TestCase):
         for name, scene, seconds in [
             ("still", still, 1.0),
             ("slide", slide, 2.0),
+            ("cut", cuts, 2.0),
             ("appear", appears_after_black, 1.5),
             ("drop", drops_for_three_frames, 1.5),
         ]:
@@ -160,6 +167,13 @@ class CardFrameOnClips(unittest.TestCase):
         self.assertEqual(m.changed_frames, 24)
         self.assertEqual(m.still, False)
 
+    def test_a_cut_after_the_drive_is_measured_from_the_frame_showing_when_the_drive_began(self):
+        video = self.clips["cut"]
+        stamp(video, drive="tap --id log-active-set-button", drive_start="0.300", drive_end="0.500")
+        m = cardframe.measure(video)
+        self.assertEqual((m.frames, len(m.window)), (2, 2))
+        self.assertEqual((m.first_seen, m.worst_edge_range, m.changed_frames, m.still), (0.0, 160.0, 1, False))
+
     def test_the_tsv_has_a_row_per_window_frame_timed_from_the_drive(self):
         video = self.clips["slide"]
         stamp(video, drive="tap --id log-active-set-button", drive_start="0.500", drive_end="0.600")
@@ -174,19 +188,19 @@ class CardFrameOnClips(unittest.TestCase):
         ])
         self.assertEqual(len(rows), 26)
 
-    def test_from_drops_the_frames_before_it_and_rebases_the_card(self):
+    def test_from_starts_at_the_frame_showing_then_and_rebases_the_card(self):
         video = self.clips["slide"]
         stamp(video)
-        m = cardframe.measure(video, from_s=1.2)
-        self.assertEqual(round(m.first_seen, 3), 1.2)
-        self.assertEqual(m.ranges["top"], (120.0, 200.0))
-        self.assertEqual(len(m.window), 13)
+        m = cardframe.measure(video, from_s=1.19)
+        self.assertEqual(round(m.first_seen, 3), 1.183)
+        self.assertEqual(m.ranges["top"], (113.0, 200.0))
+        self.assertEqual(len(m.window), 14)
 
     def test_a_launch_take_is_measured_from_the_drive_end_and_frames_before_the_card_are_not_lost(self):
         video = self.clips["appear"]
         stamp(video, drive="launch --animated session", drive_start="0.000", drive_end="0.500")
         m = cardframe.measure(video)
-        self.assertEqual((m.frames, len(m.window)), (61, 31))
+        self.assertEqual((m.frames, len(m.window)), (61, 32))
         self.assertEqual((m.first_seen, m.lost), (1.0, 0))
         self.assertEqual(m.still, True)
 
@@ -273,8 +287,12 @@ class Summarize(unittest.TestCase):
         self.assertEqual((m.motion, m.changed_frames), ((0.2, 0.2), 1))
 
     def test_a_window_with_no_card_has_no_first_seen_and_is_not_still(self):
-        m = cardframe.summarize(self.take(), [Sample(0.0, card(100)), Sample(1.0, None)], 0.5)
-        self.assertEqual((len(m.window), m.first_seen, m.lost, m.still), (1, None, 0, False))
+        m = cardframe.summarize(self.take(), [Sample(0.0, None), Sample(1.0, None)], 0.5)
+        self.assertEqual((len(m.window), m.first_seen, m.lost, m.still), (2, None, 0, False))
+
+    def test_the_frame_showing_at_from_opens_the_window(self):
+        m = cardframe.summarize(self.take(), [Sample(0.0, card(100)), Sample(0.4, card(120)), Sample(1.0, None)], 0.5)
+        self.assertEqual((len(m.window), m.first_seen, m.lost, m.ranges["top"]), (2, 0.4, 1, (120.0, 120.0)))
 
 
 class Detect(unittest.TestCase):
