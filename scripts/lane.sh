@@ -38,9 +38,8 @@ Each later Bash call re-derives them, for example:
 
 Exit codes: 0 done; 1 env: no such lane, or down --if-idle: the lane is not idle (stderr SKIPPED:
 <reason>); 2 usage, a bad name, an unknown commit, a lane at another commit, a worktree on a branch,
-a locked lane or one holding
-a nested worktree, or down run from the lane's own copy of this script; 69 the simulator runtime is
-missing; 70 git, simctl, or a save failed (down then removes nothing); 75 a test-sim or verify run holds
+a locked lane or one holding a nested worktree, or down run from the lane's own copy of this script;
+69 the simulator runtime is missing; 70 git, simctl, or a save failed (down then removes nothing); 75 a test-sim or verify run holds
 the lane's simulator, or the simulator pool is busy.
 EOF
   exit 2
