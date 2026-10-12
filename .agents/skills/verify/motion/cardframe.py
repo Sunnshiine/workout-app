@@ -11,8 +11,9 @@ Reads NAME.take beside the video. Each encoded frame is decoded once and timed b
 time, in seconds after the take started. recordVideo writes a frame only when the screen changes, so
 the window is the frame showing at --from and every frame after it. --from is by default the drive's start
 (0 with no drive). For a launch take it is the frame from which the card keeps the width of the take's
-last card: iOS opens an app by scaling its window up from the icon, so until the card reaches its full
-width the system, not the app, moves its edges. An app's own scale-in therefore reads as part of the launch.
+last card and nine tenths of its contrast: iOS opens an app by scaling its window up from the icon, or by
+fading it in from black under -UITEST_DISABLE_ANIMATIONS, and until then the system, not the app, moves
+the card's edges. An app's own scale-in or fade-in on launch therefore reads as part of the launch.
 The card is the longest vertical run, at least 120 pt with gaps up to 8 pt merged, where the column at
 --x pt is brighter than the paper column at --ref pt by 4.0; left and right come from a row scan at the
 run's middle. Frames before the card first shows are not lost; a frame after it without the card is.
@@ -53,6 +54,7 @@ MIN_RUN_PT = 120.0
 MERGE_GAP_PT = 8.0
 STILL_PT = 0.5
 STEP_PT = 0.75
+LAUNCH_CONTRAST = 0.9
 EDGES = ("top", "bottom", "left", "right")
 
 
@@ -315,16 +317,17 @@ def measure(video, from_s: Optional[float] = None, x: float = 28, ref: float = 8
 
 
 def full_size(found: Sequence[Sample], after: float) -> float:
-    """When a launch's card takes the width it ends the take at, for good. iOS opens an app by scaling its
-    window up from the icon, so until then the system, not the app, moves the card's edges; before the
-    window even opens, the springboard can read as a card of another width."""
+    """When a launch's card takes, for good, the width it ends the take at and nine tenths of its final
+    contrast. iOS opens an app by scaling its window up from the icon, or fading it in from black when
+    the app runs with -UITEST_DISABLE_ANIMATIONS, and until then the system, not the app, moves the card's
+    edges; before the window opens, the springboard can read as a card of another width."""
     cards = [s for s in found if s.card is not None and s.t >= after]
     if not cards:
         return after
-    final = cards[-1].card.right - cards[-1].card.left
+    last = cards[-1].card
     start = cards[-1].t
     for s in reversed(cards):
-        if s.card.right - s.card.left != final:
+        if s.card.right - s.card.left != last.right - last.left or s.card.contrast < LAUNCH_CONTRAST * last.contrast:
             break
         start = s.t
     return start

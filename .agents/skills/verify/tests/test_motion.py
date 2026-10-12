@@ -36,9 +36,10 @@ def scene_frames(scene, seconds):
     for i in range(round(seconds * FPS)):
         paper, boxes = scene(i)
         img = np.full((h, w), paper, np.uint8)
-        for top, bottom, left, right in boxes:
+        for box in boxes:
+            top, bottom, left, right = box[:4]
             s = VIDEO_PX_PER_PT
-            img[round(top * s):round(bottom * s), round(left * s):round(right * s)] = CARD
+            img[round(top * s):round(bottom * s), round(left * s):round(right * s)] = box[4] if len(box) > 4 else CARD
         yield img
 
 
@@ -111,6 +112,15 @@ def zoomed(box, scale):
     return (cy - h / 2, cy + h / 2, cx - w / 2, cx + w / 2)
 
 
+def fades_in(i):
+    """A launch under -UITEST_DISABLE_ANIMATIONS: black frames a shade apart until 1.0 s, then the whole
+    screen fading up from black over 10 frames, the card's contrast with it."""
+    if i < FPS:
+        return 10 + 3 * i, []
+    k = min((i - FPS + 1) / 10, 1.0)
+    return round(PAPER * k), [STILL_BOX + (round(CARD * k),)]
+
+
 def launches(slide_after=0.0):
     """A launch: 0.3 s of springboard holding a wider card-like box, black frames a shade apart until 1.0 s,
     the app's window scaling up from 0.8 over 6 frames, then the card, which slides up by slide_after pt over
@@ -155,6 +165,7 @@ class CardFrameOnClips(unittest.TestCase):
             ("cut", cuts, 2.0),
             ("launch", launches(), 1.5),
             ("launch-slide", launches(slide_after=40), 1.5),
+            ("launch-fade", fades_in, 1.5),
             ("drop", drops_for_three_frames, 1.5),
         ]:
             cls.clips[name] = cls.dir / f"{name}.mp4"
@@ -221,6 +232,12 @@ class CardFrameOnClips(unittest.TestCase):
         stamp(video, drive="launch --animated session", drive_start="0.000", drive_end="1.400")
         m = cardframe.measure(video)
         self.assertEqual((round(m.first_seen, 3), m.lost, m.worst_edge_range, m.still), (1.1, 0, 0.0, True))
+
+    def test_a_launch_that_fades_in_is_measured_once_the_card_has_its_contrast(self):
+        video = self.clips["launch-fade"]
+        stamp(video, drive="launch session", drive_start="0.000", drive_end="1.400")
+        m = cardframe.measure(video)
+        self.assertEqual((round(m.first_seen, 3), m.worst_edge_range, m.still), (1.133, 0.0, True))
 
     def test_a_card_that_slides_in_after_the_launch_zoom_reads_its_slide(self):
         video = self.clips["launch-slide"]
