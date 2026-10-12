@@ -29,6 +29,16 @@ Two shapes caused every flake found so far, and neither survives the hunt:
 - A wall-clock budget, such as polling for 10 seconds. Under load the budget runs out, the test returns,
   and a task it started keeps running against torn-down state. Await the event or the task instead.
 
+## Parallel Agents
+
+Each concurrent simulator run takes its own worktree and simulator (`AGENTS.md`, Verification).
+`scripts/test-sim.sh` and `verify.sh launch` share the lock in `scripts/sim-lock.sh`, which exits 75
+while another run holds that simulator. Nothing yet limits the host: every booted simulator and
+build slows the rest. A timing or motion measurement taken under load describes the host, not the
+app, so record the 1-minute load (`sysctl -n vm.loadavg`) beside it, and rerun when it is high.
+`verify.sh launch` and the UI tests turn animations off, so neither sees a defect that exists
+only in motion.
+
 ## AI-Generated Code Gate
 
 The acceptance gate prioritizes behavior correctness first. Simulator user-flow tests protect the
