@@ -113,9 +113,18 @@ SPRINGBOARD_FRAMES = 18
 
 
 def launched(app, fade=43):
+    """The springboard fades out over the whole screen, its icons last, to black, and the app fades in from it."""
     def scene(i):
-        if i < SPRINGBOARD_FRAMES:
-            return PAPER, [(100, 300, 12, 196)]
+        icon = (100, 300, 12, 196)
+        if i < SPRINGBOARD_FRAMES - 6:
+            return PAPER, [icon]
+        if i < SPRINGBOARD_FRAMES - 2:
+            k = (SPRINGBOARD_FRAMES - 2 - i) / 5
+            return round(PAPER * k), [icon + (round(CARD * k),)]
+        if i == SPRINGBOARD_FRAMES - 2:
+            return 0, [icon + (round(CARD * 0.2),)]
+        if i == SPRINGBOARD_FRAMES - 1:
+            return 0, []
         faded = i - SPRINGBOARD_FRAMES + 1
         if faded <= fade:
             k = faded / fade
@@ -310,7 +319,7 @@ class CardFrameOnClips(unittest.TestCase):
         code, out, err = self.lines("launch", drive=LAUNCH_DRIVE, drive_end=1.4)
         self.assertEqual(code, 0, err)
         self.assertEqual(out, [
-            "take=VALID animations=on frames=44 window_frames=1",
+            "take=VALID animations=on frames=50 window_frames=1",
             "window=ramp from=1.000 to=3.400 window_s=2.400",
             "first_seen=1.000 lost=0 faint=0 edges=full",
             "top=100.0..100.0 bottom=260.0..260.0 left=16.0..16.0 right=186.0..186.0",
@@ -325,7 +334,7 @@ class CardFrameOnClips(unittest.TestCase):
         code, out, _ = self.lines("launch", drive="launch session", drive_end=1.4, animations="off")
         self.assertEqual(code, 3)
         self.assertEqual((out[0], out[1], out[-1]), ("animations off: this take cannot show motion",
-                                                     "take=VALID animations=off frames=44 window_frames=1",
+                                                     "take=VALID animations=off frames=50 window_frames=1",
                                                      "still=unknown box=still look=still"))
 
     def test_a_card_that_fades_in_place_on_launch_reads_a_still_box_and_a_changed_look(self):
@@ -389,7 +398,7 @@ class CardFrameOnClips(unittest.TestCase):
         code, out, err = self.lines("launch-jump", drive=LAUNCH_DRIVE, drive_end=1.4)
         self.assertEqual(code, 0, err)
         self.assertEqual(out, [
-            "take=VALID animations=on frames=46 window_frames=3",
+            "take=VALID animations=on frames=52 window_frames=3",
             "window=ramp from=1.000 to=3.517 window_s=2.517",
             "first_seen=1.000 lost=0 faint=0 edges=full",
             "top=100.0..100.0 bottom=260.0..280.0 left=16.0..16.0 right=186.0..196.0",
@@ -409,7 +418,7 @@ class CardFrameOnClips(unittest.TestCase):
                         for s in found[jump:]]
         m = cardframe.summarize(filmed, found)
         self.assertEqual(cardframe.report(m), [
-            "take=VALID animations=on frames=45 window_frames=2",
+            "take=VALID animations=on frames=51 window_frames=2",
             "window=ramp from=1.000 to=3.500 window_s=2.500",
             "first_seen=1.500 lost=0 faint=1 edges=partial",
             "top=100.0..100.0 bottom=280.0..280.0 left=16.0..16.0 right=186.0..186.0",
@@ -428,13 +437,13 @@ class CardFrameOnClips(unittest.TestCase):
         self.assertEqual(code, 3)
         self.assertEqual(out[:3], [
             "INVALID take: the window watched 1.40 s from +2.500 s, under 1.5 s",
-            "take=INVALID animations=on frames=134 window_frames=1",
+            "take=INVALID animations=on frames=140 window_frames=1",
             "window=ramp from=2.500 to=3.900 window_s=1.400",
         ])
         self.assertEqual(out[-1], "still=unknown box=still look=still")
         code, out, err = self.lines("launch-late", drive=LAUNCH_DRIVE, drive_end=1.4, stopped=4.0)
         self.assertEqual(code, 0, err)
-        self.assertEqual((out[0], out[1], out[-1]), ("take=VALID animations=on frames=134 window_frames=1",
+        self.assertEqual((out[0], out[1], out[-1]), ("take=VALID animations=on frames=140 window_frames=1",
                                                      "window=ramp from=2.500 to=4.000 window_s=1.500",
                                                      "still=yes box=still look=still"))
 
@@ -577,6 +586,27 @@ FADED_IN = [Sample(0.0, None, DARK), Sample(0.5, None, DARK + 100), Sample(0.6, 
             Sample(0.7, card(100), lit(64)), Sample(0.8, card(100), FLAT)]
 
 
+def lum(value, rows=100):
+    cells = DARK.copy()
+    cells[:rows] = value
+    return cells
+
+
+def launch_frames(from_black=True, dim=False):
+    """The springboard fades out from mean luminance 120, holds black, and the app fades in from black with one
+    repeated frame mid-fade; the card slides 200 pt, and with dim the whole screen dims 1.3 s after it settles."""
+    found = [Sample(0.0, None, lum(120)), Sample(0.1, None, lum(90)), Sample(0.12, None, lum(60)),
+             Sample(0.14, None, lum(30))]
+    if from_black:
+        found += [Sample(0.16, None, lum(30, rows=60)), Sample(0.18, None, DARK), Sample(0.6, None, DARK)]
+    found += [Sample(0.8, None, lum(40)), Sample(0.85, None, lum(80)), Sample(0.9, None, lum(80)),
+              Sample(0.95, card(100), lum(120)), Sample(0.98, card(100), lum(160)), Sample(1.0, card(100), FLAT)]
+    found += [Sample(round(1.0 + 0.1 * k, 3), card(100 + 50 * k), lit(10 * k)) for k in range(1, 5)]
+    if dim:
+        found += [Sample(round(2.7 + 0.02 * k, 3), card(300), FLAT * (1 - 0.05 * k)) for k in range(1, 5)]
+    return found
+
+
 class Summarize(unittest.TestCase):
 
     def test_a_cut_is_one_changed_frame_of_zero_duration(self):
@@ -610,6 +640,13 @@ class Summarize(unittest.TestCase):
                                        Sample(1.0, None, FLAT)], 0.5)
         self.assertEqual((len(m.in_window), m.card.box.first_seen, m.card.box.lost, m.card.box.ranges["top"]),
                          (2, 0.4, 1, (120.0, 120.0)))
+
+    def test_a_slide_after_the_fade_from_black_then_a_full_screen_dim_is_invalid_and_never_still_yes(self):
+        m = cardframe.summarize(LAUNCH, launch_frames(dim=True))
+        self.assertEqual(([r.rule for r in m.invalid], m.card.box.worst_edge_range, m.still),
+                         (["screen"], 200.0, Still.UNKNOWN))
+        m = cardframe.summarize(LAUNCH, launch_frames())
+        self.assertEqual((m.window.at, m.invalid, m.card.box.worst_edge_range, m.still), (1.0, (), 200.0, Still.NO))
 
     def test_a_20_pt_layout_jump_in_the_last_two_frames_of_a_launch_reads_20_pt(self):
         settled = Card(top=470, bottom=820, left=16, right=386, contrast=15)
@@ -703,9 +740,13 @@ class Ramp(unittest.TestCase):
         self.assertEqual(cardframe.changed_fraction(FLAT, lit(64)), 0.6666666666666666)
         self.assertEqual(cardframe.changed_fraction(FLAT, FLAT + 0.5), 0.0)
 
-    def test_the_last_frame_after_the_launch_that_changed_three_quarters_of_the_screen_ends_the_fade(self):
+    def test_the_fade_is_the_first_run_of_full_screen_frames_from_black_after_the_launch_and_ends_at_its_last(self):
         self.assertEqual(cardframe.last_ramp_frame(FADED_IN, 0.05), 2)
         self.assertEqual(cardframe.last_ramp_frame(FADED_IN, 0.65), None)
+        self.assertEqual(cardframe.last_ramp_frame(launch_frames(), 0.05), 12,
+                         "past the springboard's fade-out, through the repeated frame, and not out to the card's slide")
+        self.assertEqual(cardframe.last_ramp_frame(launch_frames(dim=True), 0.05), 12, "a later dim is not the fade")
+        self.assertEqual(cardframe.last_ramp_frame(launch_frames(from_black=False), 0.05), None)
 
 
 class OpenWindow(unittest.TestCase):
@@ -723,6 +764,19 @@ class OpenWindow(unittest.TestCase):
             (1.4, (Reason("window", "the window watched 1.40 s from +0.600 s, under 1.5 s"),)),
             (1.9, ()),
         ])
+
+    def test_a_launch_window_opens_where_the_fade_from_black_ends(self):
+        self.assertEqual(cardframe.open_window(LAUNCH, launch_frames(), None), (Window(Opened.RAMP, 12, 1.0, 3.0), ()))
+
+    def test_a_full_screen_change_after_the_fade_from_black_makes_a_launch_take_invalid(self):
+        self.assertEqual(cardframe.open_window(LAUNCH, launch_frames(dim=True), None), (
+            Window(Opened.RAMP, 12, 1.0, 3.0),
+            (Reason("screen", "a frame at +2.720 s changed three quarters of the screen after iOS's fade-in ended, "
+                              "so the card cannot be read through it"),)))
+
+    def test_a_launch_with_no_full_screen_run_from_black_opens_at_the_drive_and_says_so(self):
+        window, reasons = cardframe.open_window(LAUNCH, launch_frames(from_black=False), None)
+        self.assertEqual((window.opened, [r.rule for r in reasons]), (Opened.DRIVE, ["ramp"]))
 
     def test_a_launch_with_no_fade_opens_at_the_drive_and_says_so(self):
         self.assertEqual(cardframe.open_window(LAUNCH, FADED_IN[2:], None), (Window(Opened.DRIVE, 0, 0.05, 3.95), (

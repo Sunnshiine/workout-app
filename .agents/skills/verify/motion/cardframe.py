@@ -113,6 +113,7 @@ CELL_PT = 4.0
 GRID = (24, 12)
 TILE_LUM = 0.5
 RAMP_FRAC = 0.75
+BLACK_LUM = 2.0
 SOLID_CONTRAST = 0.75
 LOOK_LUM = 0.5
 MIN_WINDOW_S = 1.5
@@ -336,10 +337,25 @@ def screen_changes(samples: Sequence[Sample]) -> List[Optional[float]]:
     return [None] + [changed_fraction(a.cells, b.cells) for a, b in zip(samples, samples[1:])]
 
 
+def full_screen_runs(changes: Sequence[Optional[float]], first: int) -> Iterator[Tuple[int, int]]:
+    """(first, last) frame of each run of frames that changed three quarters of the screen. A frame that changed
+    no tile does not end a run, because recorded fades repeat a frame mid-run."""
+    start = last = None
+    for i in range(first, len(changes)):
+        if changes[i] >= RAMP_FRAC:
+            start = i if start is None else start
+            last = i
+        elif changes[i] > 0 and start is not None:
+            yield start, last
+            start = None
+    if start is not None:
+        yield start, last
+
+
 def last_ramp_frame(samples: Sequence[Sample], after: float) -> Optional[int]:
-    changes = screen_changes(samples)
-    return max((i for i in range(1, len(samples)) if samples[i].t >= after and changes[i] >= RAMP_FRAC),
-               default=None)
+    first = next((i for i in range(1, len(samples)) if samples[i].t >= after), len(samples))
+    return next((last for start, last in full_screen_runs(screen_changes(samples), first)
+                 if samples[start - 1].cells.mean() < BLACK_LUM), None)
 
 
 def _showing(samples: Sequence[Sample], at: float) -> int:
@@ -361,6 +377,12 @@ def open_window(take: Take, samples: Sequence[Sample], from_s: Optional[float]) 
                                               "so iOS's fade-in cannot be told from the app's motion"))
             else:
                 opened, start, at = Opened.RAMP, last, samples[last].t
+                changes = screen_changes(samples)
+                later = next((i for i in range(last + 1, len(samples)) if changes[i] >= RAMP_FRAC), None)
+                if later is not None:
+                    reasons.append(Reason("screen", "a frame at +%.3f s changed three quarters of the screen after "
+                                                    "iOS's fade-in ended, so the card cannot be read through it"
+                                          % samples[later].t))
     seconds = take.stopped - at
     if seconds < MIN_WINDOW_S:
         reasons.append(Reason("window", "the window watched %.2f s from +%.3f s, under %g s"
