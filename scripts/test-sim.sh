@@ -30,7 +30,7 @@ EOF
   exit 2
 }
 
-load1() { sysctl -n vm.loadavg | awk '{print $2}'; }
+load1() { sysctl -n vm.loadavg 2>/dev/null | awk '{print $2}' || echo -; }
 
 finish() {
   local rc=$? counts="- -" passed failed shown=-
