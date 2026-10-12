@@ -5,6 +5,7 @@ usage() {
     cat <<'EOF'
 Usage: scripts/mutate.sh [--sim UDID] [--filter SEL]... FILE SED_EXPR [SED_EXPR...]
        scripts/mutate.sh [--sim UDID] [--filter SEL]... [--max N] --diff BASE [PATH...]
+       scripts/mutate.sh --clean-scratch
 
 Proves that a test pins a line: each mutant is one change to the code, and some test must fail on it.
 Every mutant builds and runs in a scratch tree under the primary checkout's .build/scratch/, never
@@ -24,6 +25,9 @@ snapshot must pass first; then each mutant runs alone.
   --sim UDID     runs every check through the scratch tree's scripts/test-sim.sh --sim UDID.
                  swift test compiles only Sources/, so App/, WorkoutShared/, and WorkoutWidgets/
                  need --sim. Run Sources/ without --sim (seconds) and those with --sim PATH.
+  --clean-scratch  removes every scratch tree no run holds, with the DerivedData its --sim builds
+                 left. A tree holds about 0.3 GB of .build, and 0.8 to 1.1 GB more of DerivedData
+                 once --sim has built in it; SCRATCH_SLOTS trees (default 4) reach about 6 GB.
 MUTATE_TIMEOUT=N bounds each run in seconds (default 5 x the baseline's time, at least 120).
 
 Prints log:, mutants: (--diff), scratch:, and baseline: lines, then a row per mutant as it ends:
@@ -59,6 +63,7 @@ while [ $# -gt 0 ]; do
         --filter) need_value $#; filters+=("$2"); shift 2 ;;
         --diff) need_value $#; base=$2; shift 2 ;;
         --max) need_value $#; max=$2; shift 2 ;;
+        --clean-scratch) scratch_clean; exit 0 ;;
         -h | --help) usage; exit 0 ;;
         -*) usage >&2; exit 2 ;;
         *) break ;;
@@ -196,10 +201,22 @@ one_line() {
 }
 read_log() { awk -v mode="$1" -v root="$scratch/" -f "$script_dir/test-log.awk" "$2"; }
 
-# close_fds=False keeps the slot lock on fd 8 in every child.
+# The command runs in its own session, so a timeout can kill its whole tree, and keeps the slot lock on
+# fd 8 while it lives. The session's leader kills the session when this wrapper dies, so a SIGKILL to
+# mutate.sh's process group leaves nothing running in the slot.
 with_timeout() {
     python3 -c 'import os, signal, subprocess, sys
-p = subprocess.Popen(sys.argv[2:], start_new_session=True, close_fds=False)
+reap = """import os, signal, subprocess, sys
+p = subprocess.Popen(sys.argv[2:], close_fds=False)
+while True:
+    try:
+        rc = p.wait(timeout=0.2)
+        break
+    except subprocess.TimeoutExpired:
+        if os.getppid() != int(sys.argv[1]):
+            os.killpg(0, signal.SIGKILL)
+sys.exit(128 - rc if rc < 0 else rc)"""
+p = subprocess.Popen([sys.executable, "-c", reap, str(os.getpid())] + sys.argv[2:], start_new_session=True, close_fds=False)
 def stop(*_):
     os.killpg(p.pid, signal.SIGKILL)
     sys.exit(124)

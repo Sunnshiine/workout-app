@@ -29,6 +29,33 @@ scratch_claim() {
   exit 75
 }
 
+# Removes every slot no live run holds, with the DerivedData its simulator builds left.
+scratch_clean() {
+  local dir n plist derived kb
+  _scratch_paths
+  for dir in "$pool"/*; do
+    n=${dir##*/}
+    case $n in '' | *[!0-9]*) continue ;; esac
+    if ! _scratch_lock "$n" "mutate.sh --clean-scratch"; then
+      echo "kept $dir: $(cat "$locks/$n.lock")"
+      continue
+    fi
+    derived=""
+    for plist in ~/Library/Developer/Xcode/DerivedData/WorkoutTracker-*/info.plist; do
+      [ "$(plutil -extract WorkspacePath raw "$plist" 2>/dev/null)" != "$dir/WorkoutTracker.xcodeproj" ] ||
+        derived="$derived ${plist%/info.plist}"
+    done
+    # shellcheck disable=SC2086  # $derived holds DerivedData paths, which have no spaces
+    kb=$(du -sk "$dir" $derived | awk '{ kb += $1 } END { print kb }')
+    git worktree remove --force "$dir" 2>/dev/null || rm -rf "$dir"
+    # shellcheck disable=SC2086
+    rm -rf $derived "$locks/$n.owner"
+    exec 8>&-
+    echo "removed $dir ($((kb / 1024)) MB)"
+  done
+  git worktree prune
+}
+
 # A git fsmonitor daemon started from a slot would inherit fd 8 and hold the slot for as long as it
 # lives. The repo's post-checkout hook would run on every per-mutant restore, and its exit status
 # would become checkout's.
