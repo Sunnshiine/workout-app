@@ -57,7 +57,10 @@ jobs:
     runs-on: xcode-27
     timeout-minutes: 10
     steps:
+      # Depth 2 keeps the pull request merge commit's first parent, the base the diff below needs.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       # The version comes from the same Package.resolved the Xcode plugin resolves against, so the
       # cache key moves when the pin moves and never serves a stale binary.
       - name: Read the pinned SwiftLint version
@@ -80,6 +83,24 @@ jobs:
         env:
           SWIFTLINT_CACHE_DIR: ${{ runner.temp }}/swiftlint
         run: scripts/tests/lint.test.sh
+      # Only the files this pull request changes, because main still has findings in files nobody
+      # has touched since. The SwiftLint fixtures are deliberate violations, so they are left out.
+      - name: swift-format the Swift files this pull request changes
+        if: github.event_name == 'pull_request'
+        run: |
+          files=()
+          while IFS= read -r file; do files+=("$file"); done < <(
+            git diff --name-only --diff-filter=d HEAD^1 HEAD -- '*.swift' \
+              ':(exclude)scripts/tests/swiftlint-custom-rules'
+          )
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No changed Swift file to check."
+            exit 0
+          fi
+          if ! xcrun swift-format lint --strict "${files[@]}"; then
+            echo "::error::Format these files with: xcrun swift-format format -i ${files[*]}"
+            exit 1
+          fi
 
   swift-tests:
     runs-on: xcode-27
