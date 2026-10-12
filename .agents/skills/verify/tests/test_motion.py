@@ -24,7 +24,7 @@ sys.path.insert(0, str(MOTION))
 import cardframe  # noqa: E402
 import take  # noqa: E402
 import cardstill  # noqa: E402
-from cardframe import Card, Opened, Reason, Sample, Still, Window  # noqa: E402
+from cardframe import Card, LookKind, Opened, Reason, Sample, Still, Window  # noqa: E402
 from cardstill import Reading, TakeResult, Verdict  # noqa: E402
 
 SCREEN_PT = (200, 400)
@@ -123,25 +123,30 @@ def launched(app, fade=43):
     return scene
 
 
-def eased(j):
+def entered(j):
+    """How far a first-appear animation has run, j frames after the fade: 0 until frame 5, 1 from frame 29."""
     return min(max((j - 5) / 24, 0.0), 1.0)
 
 
 def fades_in_place(j):
-    return PAPER, [STILL_BOX + (round(PAPER + (CARD - PAPER) * eased(j)),)]
+    return PAPER, [STILL_BOX + (round(PAPER + (CARD - PAPER) * entered(j)),)]
 
 
 def slides_in_from_the_right(j):
-    shift = 184 * (1 - eased(j))
+    shift = 184 * (1 - entered(j))
     return PAPER, [(100, 260, 16 + shift, min(186 + shift, SCREEN_PT[0]))]
 
 
 def flies_in_from_the_top(j):
-    return PAPER, [(100 * eased(j), 160 + 100 * eased(j), 16, 186)]
+    return PAPER, [(100 * entered(j), 160 + 100 * entered(j), 16, 186)]
 
 
 def jumps_20_pt_in_its_last_two_frames(j):
     return PAPER, [STILL_BOX if j < 30 else (100, 280, 16, 186) if j == 30 else (100, 280, 16, 196)]
+
+
+def swaps_a_label_inside(i):
+    return PAPER, [STILL_BOX, (120, 160, 40, 80, CARD if i < FPS else 210)]
 
 
 def run_cardframe(*args):
@@ -167,6 +172,7 @@ class CardFrameOnClips(unittest.TestCase):
             ("slide", slide, 2.0),
             ("cut", cuts, 2.0),
             ("drop", drops_for_three_frames, 1.5),
+            ("label", swaps_a_label_inside, 1.5),
             ("launch", launched(still), 1.5),
             ("launch-late", launched(still, fade=133), 2.6),
             ("launch-fade", launched(fades_in_place), 1.6),
@@ -197,7 +203,8 @@ class CardFrameOnClips(unittest.TestCase):
             "worst_edge_range=0.0",
             "contrast=40.0..40.0",
             "motion=none",
-            "still=unknown box=still",
+            "look_peak=0.0 look_frames=0",
+            "still=unknown box=still look=still",
         ])
 
     def test_a_still_card_beside_a_changing_box_reads_still(self):
@@ -211,32 +218,37 @@ class CardFrameOnClips(unittest.TestCase):
             "worst_edge_range=0.0",
             "contrast=40.0..40.0",
             "motion=none",
-            "still=yes box=still",
+            "look_peak=0.0 look_frames=0",
+            "still=yes box=still look=still",
         ])
 
     def test_edges_are_read_at_the_recordings_own_pixels_a_third_of_a_point_apart(self):
         video = self.clips["third"]
         stamp(video)
         m = cardframe.measure(video)
-        self.assertEqual((round(m.box.ranges["top"][0], 3), m.box.ranges["bottom"]), (100.333, (260.0, 260.0)))
+        box = m.card.box
+        self.assertEqual((round(box.ranges["top"][0], 3), box.ranges["bottom"]), (100.333, (260.0, 260.0)))
 
     def test_a_still_card_in_a_lossy_recording_reads_still(self):
         code, out, err = self.lines("lossy")
         self.assertEqual(code, 0, err)
         self.assertEqual((out[0], out[-1]), ("take=VALID animations=on frames=10 window_frames=10",
-                                             "still=yes box=still"))
+                                             "still=yes box=still look=still"))
 
     def test_a_slide_of_160_pt_over_400_ms_reads_its_range_and_duration_by_frame_time(self):
         video = self.clips["slide"]
         stamp(video, drive="tap --id log-active-set-button", drive_start=0.0, drive_end=0.5)
         m = cardframe.measure(video)
-        b = m.box
+        b = m.card.box
         self.assertEqual((m.frames, len(m.in_window)), (25, 25))
         self.assertEqual((b.first_seen, b.lost), (0.0, 0))
         self.assertEqual(b.ranges["top"], (40.0, 200.0))
         self.assertEqual(b.worst_edge_range, 160.0)
         self.assertEqual((round(b.motion[0], 3), round(b.motion[1], 3), b.motion_ms), (1.017, 1.4, 383))
         self.assertEqual(b.changed_frames, 24)
+        look = m.card.look
+        self.assertEqual((round(look.motion[0], 3), look.motion[1], look.ms, look.kind),
+                         (1.033, 1.4, 367, LookKind.CHANGED))
         self.assertEqual(m.still, Still.NO)
 
     def test_a_cut_after_the_drive_is_measured_from_the_frame_showing_when_the_drive_began(self):
@@ -244,8 +256,9 @@ class CardFrameOnClips(unittest.TestCase):
         stamp(video, drive="tap --id log-active-set-button", drive_start=0.3, drive_end=0.5)
         m = cardframe.measure(video)
         self.assertEqual((m.frames, len(m.in_window), m.window.opened), (2, 2, Opened.DRIVE))
-        self.assertEqual((m.box.first_seen, m.box.worst_edge_range, m.box.changed_frames, m.still),
-                         (0.0, 160.0, 1, Still.NO))
+        box, look = m.card.box, m.card.look
+        self.assertEqual((box.first_seen, box.worst_edge_range, box.changed_frames, m.still), (0.0, 160.0, 1, Still.NO))
+        self.assertEqual((look.motion, look.kind), ((1.0, 1.0), LookKind.CUT))
 
     def test_the_tsv_has_a_row_per_window_frame_timed_from_the_drive(self):
         video = self.clips["slide"]
@@ -255,9 +268,9 @@ class CardFrameOnClips(unittest.TestCase):
         self.assertEqual(code, 0, err)
         rows = tsv.read_text().splitlines()
         self.assertEqual(rows[:3], [
-            "t\tt_from_drive\ttop\tbottom\tleft\tright\tcontrast\tscreen",
-            "0.000\t-0.500\t40.0\t190.0\t16.0\t186.0\t40.0\t",
-            "1.017\t0.517\t46.7\t196.7\t16.0\t186.0\t40.0\t0.115",
+            "t\tt_from_drive\ttop\tbottom\tleft\tright\tcontrast\tlook\tscreen",
+            "0.000\t-0.500\t40.0\t190.0\t16.0\t186.0\t40.0\t40.0\t",
+            "1.017\t0.517\t46.7\t196.7\t16.0\t186.0\t40.0\t40.0\t0.115",
         ])
         self.assertEqual(len(rows), 26)
 
@@ -265,8 +278,8 @@ class CardFrameOnClips(unittest.TestCase):
         video = self.clips["slide"]
         stamp(video)
         m = cardframe.measure(video, from_s=1.19)
-        self.assertEqual((m.window.opened, round(m.box.first_seen, 3)), (Opened.FROM, 1.183))
-        self.assertEqual((round(m.box.ranges["top"][0], 3), m.box.ranges["top"][1]), (113.333, 200.0))
+        self.assertEqual((m.window.opened, round(m.card.box.first_seen, 3)), (Opened.FROM, 1.183))
+        self.assertEqual((round(m.card.box.ranges["top"][0], 3), m.card.box.ranges["top"][1]), (113.333, 200.0))
         self.assertEqual(len(m.in_window), 14)
 
     def test_a_launch_with_a_still_card_is_measured_from_the_end_of_ios_s_fade_and_reads_still(self):
@@ -280,7 +293,8 @@ class CardFrameOnClips(unittest.TestCase):
             "worst_edge_range=0.0",
             "contrast=40.0..40.0",
             "motion=none",
-            "still=yes box=still",
+            "look_peak=0.0 look_frames=0",
+            "still=yes box=still look=still",
         ])
 
     def test_an_animations_off_launch_reads_still_and_exits_3_under_a_banner(self):
@@ -288,7 +302,36 @@ class CardFrameOnClips(unittest.TestCase):
         self.assertEqual(code, 3)
         self.assertEqual((out[0], out[1], out[-1]), ("animations off: this take cannot show motion",
                                                      "take=VALID animations=off frames=44 window_frames=1",
-                                                     "still=yes box=still"))
+                                                     "still=yes box=still look=still"))
+
+    def test_a_card_that_fades_in_place_on_launch_reads_a_still_box_and_a_changed_look(self):
+        code, out, err = self.lines("launch-fade", drive=LAUNCH_DRIVE, drive_end=1.4)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out[1:], [
+            "window=ramp from=1.000 to=3.483 window_s=2.483",
+            "first_seen=1.383 lost=0 faint=15 edges=partial",
+            "top=100.0..100.0 bottom=260.0..260.0 left=16.0..16.0 right=186.0..186.0",
+            "worst_edge_range=0.0",
+            "contrast=30.0..40.0",
+            "motion=none",
+            "look_peak=40.0 look_frames=24 look_motion=1.100..1.483 look_ms=383",
+            "still=no box=still look=changed",
+        ])
+
+    def test_a_label_that_swaps_inside_a_still_box_is_a_cut_and_reads_still(self):
+        code, out, err = self.lines("label", drive="tap --id log-active-set-button", drive_start=0.3, drive_end=0.5)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out, [
+            "take=VALID animations=on frames=2 window_frames=2",
+            "window=drive from=0.300 to=3.000 window_s=2.700",
+            "first_seen=0.000 lost=0 faint=0 edges=full",
+            "top=100.0..100.0 bottom=260.0..260.0 left=16.0..16.0 right=186.0..186.0",
+            "worst_edge_range=0.0",
+            "contrast=40.0..40.0",
+            "motion=none",
+            "look_peak=1.8 look_frames=1 look_motion=1.000..1.000 look_ms=0",
+            "still=yes box=still look=cut",
+        ])
 
     def test_a_card_sliding_in_past_the_screen_edge_is_measured_from_the_fade_and_says_its_edges_are_partial(self):
         code, out, err = self.lines("launch-slide", drive=LAUNCH_DRIVE, drive_end=1.4)
@@ -300,7 +343,8 @@ class CardFrameOnClips(unittest.TestCase):
             "worst_edge_range=7.7",
             "contrast=40.0..40.0",
             "motion=1.483..1.483 motion_ms=0 changed_frames=1",
-            "still=no box=changed",
+            "look_peak=40.0 look_frames=22 look_motion=1.133..1.483 look_ms=350",
+            "still=no box=changed look=changed",
         ])
 
     def test_a_card_flying_in_from_the_top_on_launch_reads_its_flight(self):
@@ -313,7 +357,8 @@ class CardFrameOnClips(unittest.TestCase):
             "worst_edge_range=100.0",
             "contrast=40.0..40.0",
             "motion=1.100..1.483 motion_ms=383 changed_frames=24",
-            "still=no box=changed",
+            "look_peak=25.0 look_frames=24 look_motion=1.100..1.483 look_ms=383",
+            "still=no box=changed look=changed",
         ])
 
     def test_a_20_pt_jump_in_the_last_two_frames_of_a_launch_reads_20_pt(self):
@@ -327,7 +372,8 @@ class CardFrameOnClips(unittest.TestCase):
             "worst_edge_range=20.0",
             "contrast=40.0..40.0",
             "motion=1.500..1.517 motion_ms=17 changed_frames=2",
-            "still=no box=changed",
+            "look_peak=6.4 look_frames=2 look_motion=1.500..1.517 look_ms=17",
+            "still=no box=changed look=changed",
         ])
 
     def test_a_launch_whose_fade_ended_after_the_launch_returned_watched_under_its_tail_and_is_invalid(self):
@@ -338,11 +384,11 @@ class CardFrameOnClips(unittest.TestCase):
             "take=INVALID animations=on frames=134 window_frames=1",
             "window=ramp from=2.500 to=3.400 window_s=0.900",
         ])
-        self.assertEqual(out[-1], "still=unknown box=still")
+        self.assertEqual(out[-1], "still=unknown box=still look=still")
         code, out, err = self.lines("launch-late", drive=LAUNCH_DRIVE, drive_end=1.4, stopped=4.5)
         self.assertEqual(code, 0, err)
         self.assertEqual((out[0], out[-1]), ("take=VALID animations=on frames=134 window_frames=1",
-                                             "still=yes box=still"))
+                                             "still=yes box=still look=still"))
 
     def test_a_launch_take_with_no_full_screen_fade_is_invalid_and_measured_from_the_drive(self):
         code, out, _ = self.lines("ticking", drive=LAUNCH_DRIVE, drive_start=0.5, drive_end=0.9)
@@ -353,13 +399,13 @@ class CardFrameOnClips(unittest.TestCase):
             "take=INVALID animations=on frames=10 window_frames=5",
             "window=drive from=0.500 to=2.900 window_s=2.400",
         ])
-        self.assertEqual(out[-1], "still=unknown box=still")
+        self.assertEqual(out[-1], "still=unknown box=still look=still")
 
     def test_from_0_on_a_launch_reads_the_springboard_and_the_fade_as_motion(self):
         video = self.clips["launch"]
         stamp(video, drive=LAUNCH_DRIVE, drive_end=1.4)
         m = cardframe.measure(video, from_s=0)
-        self.assertEqual((m.window.opened, m.box.first_seen, m.box.worst_edge_range, m.still),
+        self.assertEqual((m.window.opened, m.card.box.first_seen, m.card.box.worst_edge_range, m.still),
                          (Opened.FROM, 0.0, 40.0, Still.NO))
 
     def test_three_frames_without_the_card_after_it_showed_are_lost(self):
@@ -367,7 +413,7 @@ class CardFrameOnClips(unittest.TestCase):
         self.assertEqual(code, 0, err)
         self.assertEqual((out[0], out[2], out[-1]), ("take=VALID animations=on frames=5 window_frames=5",
                                                      "first_seen=0.000 lost=3 faint=0 edges=full",
-                                                     "still=no box=changed"))
+                                                     "still=no box=changed look=changed"))
 
     def test_an_invalid_take_is_measured_under_a_banner_reads_still_unknown_and_exits_3(self):
         code, out, _ = self.lines("ticking", load_after=63.2)
@@ -377,12 +423,13 @@ class CardFrameOnClips(unittest.TestCase):
             "take=INVALID animations=on frames=10 window_frames=10",
             "window=start from=0.000 to=2.900 window_s=2.900",
         ])
-        self.assertEqual(out[-1], "still=unknown box=still")
+        self.assertEqual(out[-1], "still=unknown box=still look=still")
 
     def test_a_take_with_animations_off_exits_3_under_a_banner(self):
         code, out, _ = self.lines("ticking", animations="off")
         self.assertEqual(code, 3)
-        self.assertEqual((out[0], out[-1]), ("animations off: this take cannot show motion", "still=yes box=still"))
+        self.assertEqual((out[0], out[-1]), ("animations off: this take cannot show motion",
+                                             "still=yes box=still look=still"))
 
     def test_no_card_in_the_window_exits_1(self):
         code, out, err = self.lines("ticking", "--x", "190")
@@ -464,43 +511,81 @@ class Summarize(unittest.TestCase):
 
     def test_a_cut_is_one_changed_frame_of_zero_duration(self):
         m = cardframe.summarize(TAKE, [Sample(0.0, card(100), FLAT), Sample(1.0, card(260), FLAT)], 0.0)
-        b = m.box
+        b = m.card.box
         self.assertEqual((b.worst_edge_range, b.motion, b.motion_ms, b.changed_frames, m.still),
                          (160.0, (1.0, 1.0), 0, 1, Still.NO))
 
     def test_a_move_under_three_quarters_of_a_point_is_not_motion_but_counts_against_still(self):
         m = cardframe.summarize(TAKE, frames(card(100), card(100.5)), 0.0)
-        self.assertEqual((m.box.worst_edge_range, m.box.motion, m.box.changed_frames, m.still),
+        self.assertEqual((m.card.box.worst_edge_range, m.card.box.motion, m.card.box.changed_frames, m.still),
                          (0.5, None, 0, Still.YES))
         m = cardframe.summarize(TAKE, frames(card(100), card(100.6)), 0.0)
         self.assertEqual(m.still, Still.NO)
 
     def test_frames_without_the_card_before_it_shows_are_not_lost_and_after_it_are(self):
         m = cardframe.summarize(TAKE, frames(None, None, card(100), None, card(100)), 0.0)
-        self.assertEqual((m.box.first_seen, m.box.lost, m.box.partial, m.still), (0.2, 1, True, Still.NO))
+        box = m.card.box
+        self.assertEqual((box.first_seen, box.lost, box.partial, m.still), (0.2, 1, True, Still.NO))
 
     def test_motion_skips_a_lost_frame_and_compares_the_cards_either_side(self):
         m = cardframe.summarize(TAKE, frames(card(100), None, card(110), card(110)), 0.0)
-        self.assertEqual((m.box.motion, m.box.changed_frames), ((0.2, 0.2), 1))
+        self.assertEqual((m.card.box.motion, m.card.box.changed_frames), ((0.2, 0.2), 1))
 
     def test_a_window_with_no_card_has_no_box_and_its_stillness_is_unknown(self):
         m = cardframe.summarize(TAKE, [Sample(0.0, None, FLAT), Sample(1.0, None, FLAT)], 0.5)
-        self.assertEqual((len(m.in_window), m.box, m.still), (2, None, Still.UNKNOWN))
+        self.assertEqual((len(m.in_window), m.card, m.still), (2, None, Still.UNKNOWN))
 
     def test_the_frame_showing_at_from_opens_the_window(self):
         m = cardframe.summarize(TAKE, [Sample(0.0, card(100), FLAT), Sample(0.4, card(120), FLAT),
                                        Sample(1.0, None, FLAT)], 0.5)
-        self.assertEqual((len(m.in_window), m.box.first_seen, m.box.lost, m.box.ranges["top"]),
+        self.assertEqual((len(m.in_window), m.card.box.first_seen, m.card.box.lost, m.card.box.ranges["top"]),
                          (2, 0.4, 1, (120.0, 120.0)))
 
     def test_a_20_pt_layout_jump_in_the_last_two_frames_of_a_launch_reads_20_pt(self):
         settled = Card(top=470, bottom=820, left=16, right=386, contrast=15)
         jumped = Card(top=470, bottom=840, left=16, right=396, contrast=15)
-        found = ([Sample(0.0, None, DARK), Sample(0.4, settled, FLAT)]
-                 + frames(*[settled] * 8, start=0.5) + [Sample(2.0, jumped, FLAT), Sample(2.02, jumped, FLAT)])
+        screen = np.full((218, 100), float(PAPER), np.float32)
+        found = ([Sample(0.0, None, screen * 0), Sample(0.4, settled, screen)]
+                 + [Sample(round(0.5 + 0.1 * k, 3), settled, screen) for k in range(8)]
+                 + [Sample(2.0, jumped, screen), Sample(2.02, jumped, screen)])
         m = cardframe.summarize(LAUNCH, found)
         self.assertEqual(m.window, Window(Opened.RAMP, 1, 0.4, 3.6))
-        self.assertEqual((m.box.worst_edge_range, m.box.motion, m.still), (20.0, (2.0, 2.0), Still.NO))
+        self.assertEqual((m.card.box.worst_edge_range, m.card.box.motion, m.still), (20.0, (2.0, 2.0), Still.NO))
+
+
+def looks(*insides):
+    """One sample per value, 0.1 s apart, the cells inside card(100) at that luminance."""
+    found = []
+    for k, inside in enumerate(insides):
+        cells = FLAT.copy()
+        cells[25:65, 4:46] = inside
+        found.append(Sample(round(0.1 * k, 3), card(100), cells))
+    return found
+
+
+class LookOf(unittest.TestCase):
+    def look(self, *insides):
+        look = cardframe.look_of(looks(*insides), card(100))
+        return round(look.peak, 3), look.frames, look.motion, look.kind
+
+    def test_a_change_in_one_frame_is_a_cut(self):
+        self.assertEqual(self.look(230, 230, 240, 240), (10.0, 1, (0.2, 0.2), LookKind.CUT))
+
+    def test_a_change_over_several_frames_runs_from_the_first_that_left_to_the_first_that_stayed(self):
+        self.assertEqual(self.look(200, 210, 220, 230, 240, 240), (40.0, 4, (0.1, 0.4), LookKind.CHANGED))
+
+    def test_half_a_unit_from_the_last_frame_is_still_and_more_is_a_change(self):
+        self.assertEqual(self.look(240.5, 240, 240.25, 240), (0.5, 0, None, LookKind.STILL))
+        self.assertEqual(self.look(240.75, 240, 240), (0.75, 1, (0.1, 0.1), LookKind.CUT))
+
+    def test_a_one_frame_flash_reads_as_a_change_spanning_both_cuts(self):
+        self.assertEqual(self.look(240, 210, 240, 240), (30.0, 2, (0.1, 0.2), LookKind.CHANGED))
+
+    def test_a_change_that_never_leaves_the_first_frame_by_half_a_unit_is_dated_where_it_settled(self):
+        self.assertEqual(self.look(240.4, 240.75, 240), (0.75, 1, (0.2, 0.2), LookKind.CUT))
+
+    def test_the_box_is_the_cells_wholly_inside_the_card(self):
+        self.assertEqual(cardframe.box_cells(Card(481.3, 777.3, 16.0, 386.0, 12.2)), (slice(121, 194), slice(4, 96)))
 
 
 class Ramp(unittest.TestCase):
@@ -573,8 +658,8 @@ class Detect(unittest.TestCase):
         self.assertEqual(cardframe.detect(lum, 2.0), None)
 
 
-def reading(rules=(), invalid="", animations="on", first_seen=0.0, lost=0, worst=0.0):
-    return Reading(rules, invalid, animations, first_seen, lost, worst, 37, "12.31/14.02")
+def reading(rules=(), invalid="", animations="on", first_seen=0.0, lost=0, worst=0.0, look="still"):
+    return Reading(rules, invalid, animations, first_seen, lost, worst, look, 37, "12.31/14.02")
 
 
 LOAD = "load 63.2 at the end, at or over 50"
@@ -790,21 +875,32 @@ class LaneVerdict(unittest.TestCase):
         self.assertEqual(cardstill.EXIT, {Verdict.PASS: 0, Verdict.FAIL: 1, Verdict.INVALID: 3})
 
 
+class ReadingOf(unittest.TestCase):
+    def test_a_label_swapped_inside_a_still_box_reads_cut_in_the_table_and_passes(self):
+        r = Reading.of(cardframe.summarize(TAKE, looks(230, 230, 240, 240)))
+        self.assertEqual((r.look, r.worst_edge_range, cardstill.judge_take(0, r)), ("cut", 0.0, (Verdict.PASS, "")))
+
+    def test_a_fade_inside_a_still_box_reads_its_duration_in_the_table_and_passes(self):
+        r = Reading.of(cardframe.summarize(TAKE, looks(200, 210, 220, 230, 240, 240)))
+        self.assertEqual((r.look, cardstill.judge_take(0, r)), ("changed 300 ms", (Verdict.PASS, "")))
+
+
 class Table(unittest.TestCase):
     def test_a_row_sets_control_and_head_side_by_side(self):
-        control = [TakeResult("node-tap", Verdict.FAIL, "an edge moved 412.0 pt", reading(worst=412.0))]
+        control = [TakeResult("node-tap", Verdict.FAIL, "an edge moved 412.0 pt",
+                              reading(worst=412.0, look="changed 650 ms"))]
         head = [TakeResult("node-tap", Verdict.INVALID, "record exited 75")]
         rows = cardstill.table(control, head)
         self.assertEqual(rows[0], [
             "take",
-            "control_verdict", "control_worst_edge", "control_lost", "control_frames", "control_load",
-            "control_reason",
-            "head_verdict", "head_worst_edge", "head_lost", "head_frames", "head_load", "head_reason",
+            "control_verdict", "control_worst_edge", "control_lost", "control_look", "control_frames",
+            "control_load", "control_reason",
+            "head_verdict", "head_worst_edge", "head_lost", "head_look", "head_frames", "head_load", "head_reason",
         ])
         self.assertEqual(rows[2], [
             "node-tap",
-            "FAIL", "412.0", "0", "37", "12.31/14.02", "an edge moved 412.0 pt",
-            "INVALID", "", "", "", "", "record exited 75",
+            "FAIL", "412.0", "0", "changed 650 ms", "37", "12.31/14.02", "an edge moved 412.0 pt",
+            "INVALID", "", "", "", "", "", "record exited 75",
         ])
         self.assertEqual(len(rows), 9)
 

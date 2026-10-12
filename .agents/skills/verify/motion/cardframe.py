@@ -3,7 +3,8 @@
 # requires-python = ">=3.9"
 # dependencies = ["numpy"]
 # ///
-"""The Active Set Card's box, in points, in every encoded frame of a `verify.sh record` take.
+"""The Active Set Card in every encoded frame of a `verify.sh record` take: where its box was, and how the
+look inside that box changed.
 
   uv run .agents/skills/verify/motion/cardframe.py <run>/NAME.mp4 [--tsv PATH] [--from S] [--x 28] [--ref 8]
 
@@ -32,6 +33,16 @@ and their edges are not read, because a faint card reads short and narrow. edges
 solid card is not the window's first frame. After it every detection counts, at any contrast, and a frame
 without the card is lost.
 
+Look. In 4 pt cells wholly inside the settled card's box, d is each window frame's mean luminance
+difference from the window's last frame, so the last frame's d is 0 and look_peak is the largest d. The
+look changed when look_peak is over 0.5. look_motion ends at the first frame from which d stays at or
+under 0.5, and starts at the first frame before that whose d differs from the window's first d by more
+than 0.5, else at the same frame. look=cut when it starts and ends on one frame (look_ms=0): the content
+inside a still box swapped in one frame, as a label does, which is not motion. look=changed when it took
+longer, as a fade in place, a slide, or a fly-in does. look_frames counts the frames whose cells differ
+from the frame before by more than 0.5. The look sees only the settled box, so it reports that a card
+changed, not where it went.
+
 Prints key=value lines:
   take=VALID animations=on frames=212 window_frames=87
   window=ramp from=3.948 to=7.320 window_s=3.372
@@ -40,23 +51,27 @@ Prints key=value lines:
   worst_edge_range=16.0
   contrast=12.2..13.0
   motion=5.065..5.148 motion_ms=83 changed_frames=6
-  still=no box=changed
+  look_peak=43.3 look_frames=75 look_motion=4.000..5.198 look_ms=1198
+  still=no box=changed look=changed
 window= is how it opened (ramp, drive, start or from), from= and to= its span, and window_s how long it
 watched. first_seen is the first solid card, lost the frames after it without the card, faint the
 detections before it. Each edge's range and worst_edge_range are over the cards from first_seen on.
 motion spans the first and last of those cards whose edges moved more than 0.75 pt from the card before
 (motion=none when none did). box=changed when the card was lost or an edge ranged over 0.5 pt. still=no
-when the box changed; else unknown when the take is INVALID for any reason, because an INVALID take cannot
-vouch for stillness; else yes. --tsv writes one row per window frame: t, t_from_drive, top, bottom, left,
-right, contrast, screen (the fraction of tiles that changed from the frame before); blank card cells for
-a frame with no card, blank screen on the take's first frame.
+when the box changed or look=changed; else unknown when the take is INVALID for any reason, because an
+INVALID take cannot vouch for stillness; else yes. A cut does not make still=no. --tsv writes one row per
+window frame: t, t_from_drive, top, bottom, left, right, contrast, look (the frame's d), screen (the
+fraction of tiles that changed from the frame before); blank card cells for a frame with no card, blank
+screen on the take's first frame.
 
 It cannot see:
-  - a card that fades in place: its faint frames are not read and its solid frames hold their edges;
   - first-appear motion that ends inside iOS's launch fade, or the part of it that ran under the fade;
-  - where a card went while it was faint, or while its left edge was right of --x (a slide from the
-    side is seen only once it crosses --x, so its edges are partial);
-  - motion still running when the recorder stopped: its range is truncated;
+  - where a card went before its first solid frame, or while its left edge was right of --x: a fade, a
+    slide from the side, or a fly-in shows in the edges only from then (edges=partial), and in the look;
+  - motion still running when the recorder stopped: its range and look_motion are truncated;
+  - a change inside the box under 0.5 of mean luminance, or anything outside the settled box;
+  - two cuts, or a one-frame flash, in one window: they read as one look=changed spanning both;
+  - a card that pops in with no animation inside the window: it reads look=cut;
   - an app change over three quarters of the screen in one frame after a launch: it reads as the fade's
     end.
 
@@ -97,6 +112,8 @@ TILE_LUM = 0.5
 RAMP_FRAC = 0.75
 # Fade frames at 0.54 to 0.66 of the settled contrast read the bottom edge 31 pt short; from 0.67 every edge held.
 SOLID_CONTRAST = 0.75
+# A still box's look stays within 0.26 over 14 s; the smallest real change inside the card peaked at 1.0.
+LOOK_LUM = 0.5
 
 # A window shorter than its tail hides motion and never invents it, as load does.
 HIDES_MOTION = RULES_THAT_ONLY_HIDE_MOTION | {"window"}
@@ -167,6 +184,40 @@ class Box:
         return None if self.motion is None else round((self.motion[1] - self.motion[0]) * 1000)
 
 
+class LookKind(Enum):
+    STILL = "still"
+    CUT = "cut"
+    CHANGED = "changed"
+
+
+@dataclass(frozen=True)
+class Look:
+    """d: each window frame's mean luminance difference from the last, inside the settled box."""
+    d: Tuple[float, ...]
+    frames: int
+    motion: Optional[Tuple[float, float]]
+
+    @property
+    def peak(self) -> float:
+        return max(self.d)
+
+    @property
+    def kind(self) -> LookKind:
+        if self.motion is None:
+            return LookKind.STILL
+        return LookKind.CUT if self.motion[0] == self.motion[1] else LookKind.CHANGED
+
+    @property
+    def ms(self) -> Optional[int]:
+        return None if self.motion is None else round((self.motion[1] - self.motion[0]) * 1000)
+
+
+@dataclass(frozen=True)
+class Seen:
+    box: Box
+    look: Look
+
+
 class Still(Enum):
     YES = "yes"
     NO = "no"
@@ -178,7 +229,7 @@ class Measure:
     take: Take
     samples: Tuple[Sample, ...]
     window: Window
-    box: Optional[Box]
+    card: Optional[Seen]
     invalid: Tuple[Reason, ...]
 
     @property
@@ -191,9 +242,9 @@ class Measure:
 
     @property
     def still(self) -> Still:
-        if self.box is None:
+        if self.card is None:
             return Still.UNKNOWN
-        if self.box.changed:
+        if self.card.box.changed or self.card.look.kind is LookKind.CHANGED:
             return Still.NO
         return Still.UNKNOWN if self.invalid else Still.YES
 
@@ -322,12 +373,30 @@ def box_of(window: Sequence[Sample], settled: Card) -> Box:
     )
 
 
+def box_cells(card: Card) -> Tuple[slice, slice]:
+    """The cells wholly inside the card."""
+    return (slice(math.ceil(card.top / CELL_PT), math.floor(card.bottom / CELL_PT)),
+            slice(math.ceil(card.left / CELL_PT), math.floor(card.right / CELL_PT)))
+
+
+def look_of(window: Sequence[Sample], settled: Card) -> Look:
+    box = box_cells(settled)
+    looks = [s.cells[box] for s in window]
+    d = tuple(float(np.abs(look - looks[-1]).mean()) for look in looks)
+    frames = sum(1 for a, b in zip(looks, looks[1:]) if float(np.abs(b - a).mean()) > LOOK_LUM)
+    if max(d) <= LOOK_LUM:
+        return Look(d, frames, None)
+    settle = next(k for k in range(len(d)) if max(d[k:]) <= LOOK_LUM)
+    depart = next((k for k in range(settle) if abs(d[k] - d[0]) > LOOK_LUM), settle)
+    return Look(d, frames, (window[depart].t, window[settle].t))
+
+
 def summarize(take: Take, samples: Sequence[Sample], from_s: Optional[float] = None) -> Measure:
     window, reasons = open_window(take, samples, from_s)
     frames = samples[window.start:]
     settled = next((s.card for s in reversed(frames) if s.card is not None), None)
-    box = None if settled is None else box_of(frames, settled)
-    return Measure(take, tuple(samples), window, box, tuple(judge(take)) + reasons)
+    card = None if settled is None else Seen(box_of(frames, settled), look_of(frames, settled))
+    return Measure(take, tuple(samples), window, card, tuple(judge(take)) + reasons)
 
 
 def decode(video: Path, width: int, height: int) -> Iterator[np.ndarray]:
@@ -399,9 +468,9 @@ def report(m: Measure) -> List[str]:
                  f"window_frames={len(m.in_window)}")
     w = m.window
     lines.append(f"window={w.opened.value} from={w.at:.3f} to={m.take.stopped:.3f} window_s={w.seconds:.3f}")
-    b = m.box
-    if b is None:
+    if m.card is None:
         return lines
+    b, look = m.card.box, m.card.look
     lines.append(f"first_seen={b.first_seen:.3f} lost={b.lost} faint={b.faint} "
                  f"edges={'partial' if b.partial else 'full'}")
     lines.append(" ".join(f"{name}={_span(*b.ranges[name])}" for name in EDGES))
@@ -412,18 +481,23 @@ def report(m: Measure) -> List[str]:
     else:
         lines.append(f"motion={b.motion[0]:.3f}..{b.motion[1]:.3f} motion_ms={b.motion_ms} "
                      f"changed_frames={b.changed_frames}")
-    lines.append(f"still={m.still.value} box={'changed' if b.changed else 'still'}")
+    lines.append(f"look_peak={look.peak:.1f} look_frames={look.frames}" + (
+        "" if look.motion is None else
+        f" look_motion={look.motion[0]:.3f}..{look.motion[1]:.3f} look_ms={look.ms}"))
+    lines.append(f"still={m.still.value} box={'changed' if b.changed else 'still'} look={look.kind.value}")
     return lines
 
 
 def write_tsv(path: Path, m: Measure) -> None:
     drive_start = m.take.drive_start if m.take.drive else None
     screen = screen_changes(m.samples)[m.window.start:]
-    rows = ["t\tt_from_drive\ttop\tbottom\tleft\tright\tcontrast\tscreen"]
-    for s, changed in zip(m.in_window, screen):
+    looks = m.card.look.d if m.card else [None] * len(m.in_window)
+    rows = ["t\tt_from_drive\ttop\tbottom\tleft\tright\tcontrast\tlook\tscreen"]
+    for s, d, changed in zip(m.in_window, looks, screen):
         from_drive = "" if drive_start is None else f"{s.t - drive_start:.3f}"
         cells = [""] * 5 if s.card is None else [f"{s.card.edge(n):.1f}" for n in EDGES] + [f"{s.card.contrast:.1f}"]
-        rows.append("\t".join([f"{s.t:.3f}", from_drive] + cells + ["" if changed is None else f"{changed:.3f}"]))
+        rows.append("\t".join([f"{s.t:.3f}", from_drive] + cells + ["" if d is None else f"{d:.1f}",
+                                                                     "" if changed is None else f"{changed:.3f}"]))
     path.write_text("\n".join(rows) + "\n")
 
 
@@ -447,7 +521,7 @@ def main(argv: Sequence[str]) -> int:
     print("\n".join(report(m)))
     if args.tsv:
         write_tsv(args.tsv, m)
-    if m.box is None:
+    if m.card is None:
         print(f"no card in any of the {len(m.in_window)} frames from {m.window.at:.3f} s", file=sys.stderr)
         return 1
     return 3 if m.invalid or m.take.animations != "on" else 0

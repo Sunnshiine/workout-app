@@ -20,7 +20,8 @@ INVALID when the take is INVALID, its animations are not on, it started late, or
 because then the metric saw nothing and the take proves nothing; else PASS. So only a lost card or a moved
 edge FAILs a take, on either side, and only those satisfy the control. The lane FAILs when any head take
 FAILs, else is INVALID when any take on either side is, else is INVALID when no control take FAILed (the
-host or the metric cannot see motion now), else PASSes.
+host or the metric cannot see motion now), else PASSes. The look inside the box is printed beside the box
+and never judged, because the static-card rule lets content change inside a box that never moves.
 
 Prints one row per take, control and head side by side, then `cardstill PASS|FAIL|INVALID: <reason>`, and
 writes the table as cardstill.tsv in the head run's evidence directory. The app must be built
@@ -101,21 +102,28 @@ class Reading:
     first_seen: Optional[float]
     lost: int
     worst_edge_range: float
+    look: str
     frames: int
     load: str
 
     @staticmethod
     def of(m: cardframe.Measure) -> "Reading":
+        box = m.card.box if m.card else None
         return Reading(
             rules=tuple(r.rule for r in m.invalid),
             invalid="; ".join(r.text for r in m.invalid),
             animations=m.take.animations,
-            first_seen=m.box.first_seen if m.box else None,
-            lost=m.box.lost if m.box else 0,
-            worst_edge_range=m.box.worst_edge_range if m.box else 0.0,
+            first_seen=box.first_seen if box else None,
+            lost=box.lost if box else 0,
+            worst_edge_range=box.worst_edge_range if box else 0.0,
+            look=look_text(m.card.look) if m.card else "",
             frames=m.frames,
             load=f"{m.take.load_before:.2f}/{m.take.load_after:.2f}",
         )
+
+
+def look_text(look: cardframe.Look) -> str:
+    return f"changed {look.ms} ms" if look.kind is cardframe.LookKind.CHANGED else look.kind.value
 
 
 def judge_take(record_exit: int, reading: Optional[Reading], late_s: float = 0.0) -> Tuple[Verdict, str]:
@@ -202,7 +210,7 @@ def lane_verdict(control_sha: str, control: Sequence[TakeResult], head: Sequence
 
 EXIT = {Verdict.PASS: 0, Verdict.FAIL: 1, Verdict.INVALID: 3}
 
-COLUMNS = ("verdict", "worst_edge", "lost", "frames", "load", "reason")
+COLUMNS = ("verdict", "worst_edge", "lost", "look", "frames", "load", "reason")
 
 
 def cells(r: Optional[TakeResult]) -> List[str]:
@@ -214,6 +222,7 @@ def cells(r: Optional[TakeResult]) -> List[str]:
         r.verdict.value,
         f"{g.worst_edge_range:.1f}" if measured else "",
         str(g.lost) if measured else "",
+        g.look if g else "",
         str(g.frames) if g else "",
         g.load if g else "",
         r.reason,
