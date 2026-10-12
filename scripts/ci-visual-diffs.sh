@@ -14,12 +14,13 @@ prints one tab-separated line per failing snapshot:
 the CI runner produced. The difference image is empty when the runner found no baseline at all.
 
 --apply copies the runner image over each named baseline, or creates it, and prints each path it
-wrote. A name is a <snapshot>, its Suite/test part, or a bare test name, and selects every failing
-snapshot it matches. Nothing is written when any name matches nothing. The runner is the canonical
+wrote. A name is a <snapshot>, its file name, its Suite/test part, or a bare test name, and selects
+every failing snapshot it matches. Nothing is written when any name matches nothing. The runner is the canonical
 recorder (ADR-0007), so commit the result and let the next visual-tests run prove it.
 
-Eight or more digits is a run id. Fewer is a PR number, which resolves to the newest CI run on the
-PR's branch. Every call downloads afresh, so a re-run of the same run id is never served stale.
+Eight or more digits is a run id. Fewer is a PR number, which resolves to the newest finished
+pull_request CI run on the PR's branch, so a dispatch or a run still going never hides it. Every
+call downloads afresh, so a re-run of the same run id is never served stale.
 
 Exits 0 when it listed or applied; 1 when gh or xcresulttool failed or the bundle broke the
 expected shape; 2 on a usage error, including a name that matches nothing; and 3 when the run has
@@ -74,9 +75,13 @@ else
     branch=$(gh pr view "$target" --json headRefName,isCrossRepository \
         --jq 'select(.isCrossRepository | not) | .headRefName')
     [ -n "$branch" ] || die 1 "#$target comes from a fork, and ci-visual-diffs.sh does not handle fork PRs"
-    run=$(gh run list --workflow ci.yml --branch "$branch" --limit 20 --json databaseId,conclusion \
-        --jq 'map(select(.conclusion != "skipped")) | max_by(.databaseId) | .databaseId // empty')
-    [ -n "$run" ] || die 3 "#$target's branch $branch has no CI run"
+    picked=$(gh run list --workflow ci.yml --branch "$branch" --event pull_request --limit 20 \
+        --json databaseId,status,conclusion,headSha \
+        --jq 'map(select(.status == "completed" and .conclusion != "skipped" and .conclusion != "cancelled"))
+            | max_by(.databaseId) | select(. != null) | "\(.databaseId) \(.headSha[0:8])"')
+    [ -n "$picked" ] || die 3 "#$target's branch $branch has no finished CI run"
+    run=${picked% *}
+    echo "#$target: newest finished CI run is $run, on ${picked#* }" >&2
 fi
 
 dir=$repo/.build/ci-visual-diffs/$run
@@ -85,7 +90,8 @@ rm -rf "$work"
 mkdir -p "$work/artifact" "$work/attachments" "$work/snapshots" "$work/diffs"
 
 if ! gh run download "$run" -n visual-baseline-diffs -D "$work/artifact" 2>"$work/gh.err"; then
-    if grep -q "no artifact matches" "$work/gh.err"; then
+    # gh says the first when the run uploaded other artifacts, the second when it uploaded none.
+    if grep -qE "no artifact matches|no valid artifacts found" "$work/gh.err"; then
         die 3 "run $run has no visual-baseline-diffs artifact: its visual-tests job was green, skipped, or has not finished"
     fi
     cat "$work/gh.err" >&2
@@ -178,10 +184,11 @@ fi
 
 [ "$count" -gt 0 ] || die 2 "run $run has no failing snapshot to apply"
 
-# A snapshot answers to itself, to Suite/test (the .<n>.png tail cut), and to the bare test name.
+# A snapshot answers to itself, its file name, Suite/test (the .<n>.png tail cut), and the test name.
 selected=$(printf '%s\n' "${names[@]}" | awk -F'\t' '
-    NR == FNR { s = $1; t = s; sub(/\.[^.\/]+\.png$/, "", t); b = t; sub(/^[^\/]+\//, "", b)
-                rows[++n] = s; key[s, s] = key[t, s] = key[b, s] = 1; next }
+    NR == FNR { s = $1; f = s; sub(/^[^\/]+\//, "", f); t = s; sub(/\.[^.\/]+\.png$/, "", t)
+                b = t; sub(/^[^\/]+\//, "", b)
+                rows[++n] = s; key[s, s] = key[f, s] = key[t, s] = key[b, s] = 1; next }
     { hit = 0
       for (i = 1; i <= n; i++) if (($0, rows[i]) in key) { hit = 1; want[rows[i]] = 1 }
       if (!hit) { print "no failing snapshot matches " $0 > "/dev/stderr"; bad = 1 } }

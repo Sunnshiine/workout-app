@@ -23,13 +23,24 @@ case "$1 $2" in
         [ "${STUB_FORK:-}" = true ] && exit 0
         echo topic ;;
     "run list")
-        [ "$*" = "run list --workflow ci.yml --branch topic --limit 20 --json databaseId,conclusion --jq map(select(.conclusion != \"skipped\")) | max_by(.databaseId) | .databaseId // empty" ] \
-            || { echo "gh stub: unexpected $*" >&2; exit 1; }
-        cat "$STUB_DIR/runs" ;;
+        shift 2
+        jq_expr="" filters=""
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                --jq) jq_expr=$2; shift 2 ;;
+                --json | --limit) shift 2 ;;
+                --workflow | --branch | --event) filters="$filters $1 $2"; shift 2 ;;
+                *) echo "gh stub: unexpected flag $1" >&2; exit 1 ;;
+            esac
+        done
+        [ "$filters" = " --workflow ci.yml --branch topic --event pull_request" ] \
+            || { echo "gh stub: unexpected filters$filters" >&2; exit 1; }
+        jq -r "$jq_expr" "$STUB_DIR/runs.json" ;;
     "run download")
         [ "$3" = "$STUB_RUN" ] || { echo "gh stub: no run $3" >&2; exit 1; }
         case "${STUB_ARTIFACT:-folder}" in
-            none) echo "no artifact matches any of the names or patterns provided" >&2; exit 1 ;;
+            other) echo "no artifact matches any of the names or patterns provided" >&2; exit 1 ;;
+            none) echo "no valid artifacts found to download" >&2; exit 1 ;;
             error) echo "HTTP 502: Bad Gateway" >&2; exit 1 ;;
             folder) mkdir -p "$7/VisualTests.xcresult"; touch "$7/VisualTests.xcresult/Info.plist" ;;
             flat) mkdir -p "$7"; touch "$7/Info.plist" ;;
@@ -76,7 +87,8 @@ fresh() {
     echo old-day >"$repo/$snap/SessionViewVisualTests/day.1.png"
     echo old-night >"$repo/$snap/SessionViewVisualTests/night.1.png"
     : >"$case_dir/calls.log"
-    echo "$run" >"$case_dir/runs"
+    printf '[{"databaseId": %s, "status": "completed", "conclusion": "failure", "headSha": "abcdef1234"}]\n' "$run" \
+        >"$case_dir/runs.json"
     tests_json="[]"
 }
 
@@ -226,7 +238,7 @@ expect "two calls made two downloads" "$(grep -c '^run download' "$case_dir/call
 
 echo "apply"
 
-for name in SessionViewVisualTests/day.1.png SessionViewVisualTests/day day 'day()'; do
+for name in SessionViewVisualTests/day.1.png day.1.png SessionViewVisualTests/day day 'day()'; do
     fresh
     two_mismatches
     check "--apply $name copies that snapshot's render" 0 "$snap/SessionViewVisualTests/day.1.png" "$run" --apply "$name"
@@ -253,20 +265,30 @@ echo "runs and artifacts"
 
 fresh
 two_mismatches
-check "a PR number lists the newest CI run on its branch" 0 \
+jq -c --argjson r "$run" '. + [
+    {databaseId: ($r + 1), status: "in_progress", conclusion: "", headSha: "1111111111"},
+    {databaseId: ($r + 2), status: "completed", conclusion: "cancelled", headSha: "2222222222"},
+    {databaseId: ($r + 3), status: "completed", conclusion: "skipped", headSha: "3333333333"},
+    {databaseId: ($r - 9), status: "completed", conclusion: "success", headSha: "4444444444"}]' \
+    "$case_dir/runs.json" >"$case_dir/runs.tmp" && mv "$case_dir/runs.tmp" "$case_dir/runs.json"
+check "a PR number lists its newest finished run, past running, cancelled and skipped ones" 0 \
     "$(listing SessionViewVisualTests/day.1.png SessionViewVisualTests/night.1.png)" 881
+check_err "it names the run it picked" "#881: newest finished CI run is $run, on abcdef12"
 
 fresh
-: >"$case_dir/runs"
-check "a PR with no CI run exits 3" 3 "" 881
-check_err "it says so" "#881's branch topic has no CI run"
+echo "[]" >"$case_dir/runs.json"
+check "a PR with no finished CI run exits 3" 3 "" 881
+check_err "it says so" "#881's branch topic has no finished CI run"
 
 fresh
 STUB_FORK=true check "a PR from a fork exits 1" 1 "" 881
 
 fresh
-STUB_ARTIFACT=none check "a run with no artifact exits 3" 3 "" "$run"
+STUB_ARTIFACT=other check "a run whose artifacts hold no visual-baseline-diffs exits 3" 3 "" "$run"
 check_err "it says why there may be none" "its visual-tests job was green, skipped, or has not finished"
+
+fresh
+STUB_ARTIFACT=none check "a run with no artifact at all exits 3" 3 "" "$run"
 
 fresh
 STUB_ARTIFACT=error check "a failed download exits 1" 1 "" "$run"
