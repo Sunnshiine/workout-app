@@ -20,9 +20,10 @@ the screen changed from the frame before (24 x 12 tiles, each changed by more th
 Every recorded launch, animations on or off, fades the app in from black that way, and no app motion
 recorded changed more than 0.69 of the screen. The window is INVALID when:
   - a launch take has no such frame (rule ramp), because then the window holds the system's fade;
-  - it watched less than the take's tail, from opening to the recorder's stop (rule window), as when the
-    fade ended after the launch returned. A tap's window opens at the drive's start and always watches
-    its tail.
+  - it watched less than 1.5 s, from opening to the recorder's stop (rule window), as when the fade ended
+    long after the launch returned. Over 13 launch takes the window watched the tail plus 0.24 to 0.62 s,
+    so the default 2 s tail clears 1.5 s, and the slowest first-appear motion measured settled 1.28 s after
+    its window opened. A tap's window opens at the drive's start and watches the whole tail.
 A take is also INVALID for the stamp's own reasons (load, recorder, coverage; see take.py summary).
 
 Box. The card is the longest vertical run, at least 120 pt with gaps up to 8 pt merged, where the column
@@ -110,6 +111,7 @@ TILE_LUM = 0.5
 RAMP_FRAC = 0.75
 SOLID_CONTRAST = 0.75
 LOOK_LUM = 0.5
+MIN_WINDOW_S = 1.5
 
 HIDES_MOTION = RULES_THAT_ONLY_HIDE_MOTION | {"window"}
 
@@ -343,9 +345,9 @@ def open_window(take: Take, samples: Sequence[Sample], from_s: Optional[float]) 
             else:
                 opened, start, at = Opened.RAMP, last, samples[last].t
     seconds = take.stopped - at
-    if seconds < take.tail:
-        reasons.append(Reason("window", "the window watched %.2f s from +%.3f s, under the %g s tail"
-                              % (seconds, at, take.tail)))
+    if seconds < MIN_WINDOW_S:
+        reasons.append(Reason("window", "the window watched %.2f s from +%.3f s, under %g s"
+                              % (seconds, at, MIN_WINDOW_S)))
     return Window(opened, start, at, seconds), tuple(reasons)
 
 

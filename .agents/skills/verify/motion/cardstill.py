@@ -15,8 +15,8 @@ log tap, timed from that take's stamp, and is late when its own stamp started mo
 
 A take is INVALID when record did not exit 0 or 3 with a stamp. Else it FAILs when the card was lost or
 an edge ranged over more than 0.5 pt, even on a take INVALID only for load at its end or for a window
-shorter than its tail, or with animations off, because those can hide motion but never invent it. Else it
-is INVALID when its edges were partial (the card was faint or missing in the window's first frames, so a
+under 1.5 s, or with animations off, because those can hide motion but never invent it. Else it is
+INVALID when its edges were partial (the card was faint or missing in the window's first frames, so a
 move there went unread), the take is INVALID, its animations are not on, it started late, or the card is
 in no frame, because then the metric missed what it had to see and the take proves nothing; else PASS. So
 only a lost card or a moved edge FAILs a take, on either side, and only those satisfy the control. The

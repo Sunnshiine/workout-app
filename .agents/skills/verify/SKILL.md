@@ -272,8 +272,8 @@ look moved, and `box=` and `look=` say which. `still=unknown` means nothing move
 INVALID. `still=yes` means nothing moved on a VALID take. A label that swaps in one frame reads
 `look=cut` and stays still. A launch take is measured from the end of iOS's fade from black, so
 first-appear motion that ends inside that fade is invisible to a launch take. From the fade's end the
-window must watch the take's `--tail`, 2 s by default, or the take is INVALID. That holds whenever the
-fade ends before `launch` returns. A build whose card slides up 300 pt on first appear (5e3a0d12) read
+window must watch 1.5 s or the take is INVALID. A launch with the default 2 s `--tail` watches 2.24 s
+or more. A build whose card slides up 300 pt on first appear (5e3a0d12) read
 `worst_edge_range=127.7` with `edges=partial`, and `look_ms=443`, `still=no`. Without `--animated` the
 same build read `still=yes`. A card that fades in place read `box=still look=changed` and
 `look_ms=1165`. `cardstill.py` prints PASS only when the control commit moved the card on one of its

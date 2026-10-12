@@ -395,19 +395,20 @@ class CardFrameOnClips(unittest.TestCase):
             "still=no box=changed look=changed",
         ])
 
-    def test_a_launch_whose_fade_ended_after_the_launch_returned_watched_under_its_tail_and_is_invalid(self):
-        code, out, _ = self.lines("launch-late", drive=LAUNCH_DRIVE, drive_end=1.4, stopped=3.4)
+    def test_a_launch_whose_fade_ended_late_and_watched_under_1_5_s_is_invalid_and_1_5_s_is_enough(self):
+        code, out, _ = self.lines("launch-late", drive=LAUNCH_DRIVE, drive_end=1.4, stopped=3.9)
         self.assertEqual(code, 3)
         self.assertEqual(out[:3], [
-            "INVALID take: the window watched 0.90 s from +2.500 s, under the 2 s tail",
+            "INVALID take: the window watched 1.40 s from +2.500 s, under 1.5 s",
             "take=INVALID animations=on frames=134 window_frames=1",
-            "window=ramp from=2.500 to=3.400 window_s=0.900",
+            "window=ramp from=2.500 to=3.900 window_s=1.400",
         ])
         self.assertEqual(out[-1], "still=unknown box=still look=still")
-        code, out, err = self.lines("launch-late", drive=LAUNCH_DRIVE, drive_end=1.4, stopped=4.5)
+        code, out, err = self.lines("launch-late", drive=LAUNCH_DRIVE, drive_end=1.4, stopped=4.0)
         self.assertEqual(code, 0, err)
-        self.assertEqual((out[0], out[-1]), ("take=VALID animations=on frames=134 window_frames=1",
-                                             "still=yes box=still look=still"))
+        self.assertEqual((out[0], out[1], out[-1]), ("take=VALID animations=on frames=134 window_frames=1",
+                                                     "window=ramp from=2.500 to=4.000 window_s=1.500",
+                                                     "still=yes box=still look=still"))
 
     def test_a_launch_take_with_no_full_screen_fade_is_invalid_and_measured_from_the_drive(self):
         code, out, _ = self.lines("ticking", drive=LAUNCH_DRIVE, drive_start=0.5, drive_end=0.9)
@@ -684,10 +685,13 @@ class OpenWindow(unittest.TestCase):
         self.assertEqual(cardframe.open_window(tap, FADED_IN, None), (Window(Opened.DRIVE, 2, 0.65, 2.35), ()))
         self.assertEqual(cardframe.open_window(TAKE, FADED_IN, None), (Window(Opened.START, 0, 0.0, 3.0), ()))
 
-    def test_a_window_that_watched_under_the_take_s_tail_says_so(self):
-        window, reasons = cardframe.open_window(dataclasses.replace(LAUNCH, stopped=2.5), FADED_IN, None)
-        self.assertEqual((window.seconds, reasons), (1.9, (
-            Reason("window", "the window watched 1.90 s from +0.600 s, under the 2 s tail"),)))
+    def test_a_window_that_watched_under_1_5_s_says_so_whatever_the_take_s_tail(self):
+        opened = [cardframe.open_window(dataclasses.replace(LAUNCH, stopped=stopped, tail=3.0), FADED_IN, None)
+                  for stopped in (2.0, 2.5)]
+        self.assertEqual([(round(window.seconds, 3), reasons) for window, reasons in opened], [
+            (1.4, (Reason("window", "the window watched 1.40 s from +0.600 s, under 1.5 s"),)),
+            (1.9, ()),
+        ])
 
     def test_a_launch_with_no_fade_opens_at_the_drive_and_says_so(self):
         self.assertEqual(cardframe.open_window(LAUNCH, FADED_IN[2:], None), (Window(Opened.DRIVE, 0, 0.05, 3.95), (
@@ -758,7 +762,7 @@ LOAD = "load 63.2 at the end, at or over 50"
 RECORDER = "recorder exit 1 after SIGINT; the video may be cut short"
 EARLY = "the recorder stopped before the take ended"
 UNCOVERED = "the screen never changed after the drive began at +3.50 s, so the take shows nothing the drive did"
-SHORT = "the window watched 0.90 s from +2.500 s, under the 2 s tail"
+SHORT = "the window watched 0.90 s from +2.500 s, under 1.5 s"
 NO_FADE = ("no frame after the launch began changed three quarters of the screen, so iOS's fade-in cannot be told "
            "from the app's motion")
 
