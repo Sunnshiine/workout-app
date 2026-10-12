@@ -2656,11 +2656,13 @@ class TakeJudge(unittest.TestCase):
                     take.parse(text)
                 self.assertEqual(str(raised.exception), why)
 
-    def test_load_at_or_over_the_limit_at_either_end(self):
+    def test_load_at_or_over_the_limit_at_the_end(self):
         self.assertEqual(take.judge(stamp_with(load_after="63.20")), [("load", "load 63.2 at the end, at or over 50")])
-        self.assertEqual(take.judge(stamp_with(load_before="50.00")),
-                         [("load", "load 50.0 at the start, at or over 50")])
+        self.assertEqual(take.judge(stamp_with(load_after="50.00")), [("load", "load 50.0 at the end, at or over 50")])
         self.assertEqual(take.judge(stamp_with(load_after="49.99")), [])
+
+    def test_load_over_the_limit_at_the_start_is_record_s_refusal_not_a_rule_so_the_take_is_valid(self):
+        self.assertEqual(take.judge(stamp_with(load_before="63.20", load_after="14.02")), [])
 
     def test_a_recorder_that_stopped_early_or_exited_nonzero(self):
         self.assertEqual(take.judge(stamp_with(recorder_early="1")),

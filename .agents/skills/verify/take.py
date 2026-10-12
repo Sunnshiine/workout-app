@@ -7,7 +7,8 @@
       goes to stderr), waits S seconds, stops the recorder with SIGINT only, and prints the stamp's
       take lines on stdout. Exit 0 VALID, 3 INVALID, 1 the drive failed, 70 the recorder or ffprobe
       failed; on 1 and 70 no video is kept. VERIFY_RECORD_START (default 10) is how many seconds
-      the recorder gets to start capturing.
+      the recorder gets to start capturing. B is the load verify.sh admitted the take at, under L; it is
+      stamped, and only the load after the take can make it INVALID.
   take.py summary NAME.take
       one line on stdout, as `take appear VALID 4.71 s, drive +0.32..+2.69 s, 37 frames, last +3.40 s,
       load 12.3 then 14.0 (limit 50), animations on`; each INVALID reason on stderr
@@ -98,10 +99,8 @@ class Reason(NamedTuple):
 
 def judge(take: Take) -> List[Reason]:
     reasons = []
-    for moment, load in [("the start", take.load_before), ("the end", take.load_after)]:
-        if load >= take.load_limit:
-            reasons.append(Reason("load", "load %.1f at %s, at or over %g" % (load, moment, take.load_limit)))
-            break
+    if take.load_after >= take.load_limit:
+        reasons.append(Reason("load", "load %.1f at the end, at or over %g" % (take.load_after, take.load_limit)))
     if take.recorder_early:
         reasons.append(Reason("recorder_early", "the recorder stopped before the take ended"))
     if take.recorder_exit != 0:

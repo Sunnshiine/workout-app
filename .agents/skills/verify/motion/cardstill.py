@@ -14,9 +14,9 @@ filmed, so measuring never loads the host before a take. The rest-end take start
 log tap, timed from that take's stamp, and is late when its own stamp started more than 2 s after that.
 
 A take is INVALID when record did not exit 0 or 3 with a stamp. Else it FAILs when the card was lost or
-an edge ranged over more than 0.5 pt, even on a take INVALID only for load or with animations off, because
-those can hide motion but never invent it. Else it is INVALID when the stamp is INVALID, its animations are
-not on, or it started late; else FAIL when the card was never seen; else PASS. The lane FAILs when any head
+an edge ranged over more than 0.5 pt, even on a take INVALID only for load at its end or with animations
+off, because those can hide motion but never invent it. Else it is INVALID when the stamp is INVALID, its
+animations are not on, or it started late; else FAIL when the card was never seen; else PASS. The lane FAILs when any head
 take FAILs, else is INVALID when any take on either side is, else is INVALID when no control take FAILed
 (the host or the metric cannot see motion now), else PASSes.
 
