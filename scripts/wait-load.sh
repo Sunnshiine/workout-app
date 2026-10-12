@@ -15,5 +15,7 @@ USAGE
 case ${1:-} in -h|--help) usage ;; esac
 [ $# -le 2 ] || usage
 . "$(cd "$(dirname "$0")" && pwd)/sim-lock.sh"
-limit=$(WORKOUT_LOAD_LIMIT=${1:-${WORKOUT_LOAD_LIMIT:-}} host_knob WORKOUT_LOAD_LIMIT 50)
-WORKOUT_ADMIT_WAIT=${2:-${WORKOUT_ADMIT_WAIT:-}} wait_until_clear "the load to fall to $limit" load_clear "$limit"
+WORKOUT_LOAD_LIMIT=${1:-${WORKOUT_LOAD_LIMIT:-}}
+WORKOUT_ADMIT_WAIT=${2:-${WORKOUT_ADMIT_WAIT:-}}
+host_knob WORKOUT_LOAD_LIMIT 50
+wait_until_clear "the load to fall to $WORKOUT_LOAD_LIMIT" load_clear "$WORKOUT_LOAD_LIMIT"

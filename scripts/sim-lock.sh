@@ -104,30 +104,31 @@ claim_sim() {
   wait_until_clear "the host before taking $1" host_clear "$1"
 }
 
+# Sets env knob NAME to its value, else DEFAULT; exits 2 when that is not a whole number.
 host_knob() {
   local value
   eval "value=\${$1:-$2}"
   case $value in
     ''|*[!0-9]*) echo "$1 must be a whole number: $value" >&6; exit 2 ;;
   esac
-  echo "$value"
+  eval "$1=\$value"
 }
 
 # Runs CHECK ARG... in this shell until it returns 0, so a lock CHECK takes stays held. A failing CHECK
 # sets busy_reason. Says why on the first wait and once a minute, and exits 75 after WORKOUT_ADMIT_WAIT.
 wait_until_clear() {
-  local what=$1 max start waited said=-60
+  local what=$1 start waited said=-60
   shift
-  max=$(host_knob WORKOUT_ADMIT_WAIT 600)
+  host_knob WORKOUT_ADMIT_WAIT 600
   start=$(date +%s)
   while ! "$@"; do
     waited=$(($(date +%s) - start))
-    if [ "$waited" -ge "$max" ]; then
+    if [ "$waited" -ge "$WORKOUT_ADMIT_WAIT" ]; then
       echo "gave up after $waited s waiting for $what: $busy_reason" >&6
       exit 75
     fi
     if [ $((waited - said)) -ge 60 ]; then
-      echo "waiting up to $max s for $what: $busy_reason" >&6
+      echo "waiting up to $WORKOUT_ADMIT_WAIT s for $what: $busy_reason" >&6
       said=$waited
     fi
     sleep 2
@@ -144,24 +145,25 @@ load_clear() {
 }
 
 host_clear() {
-  local cap others
-  load_clear "$(host_knob WORKOUT_LOAD_LIMIT 50)" || return 1
-  cap=$(host_knob WORKOUT_SIM_CAP 6)
+  local others
+  host_knob WORKOUT_LOAD_LIMIT 50
+  host_knob WORKOUT_SIM_CAP 6
+  load_clear "$WORKOUT_LOAD_LIMIT" || return 1
   others=$(xcrun simctl list devices available -j 2>/dev/null | UDID="$1" python3 -c '
 import json, os, sys
 try: runtimes = json.load(sys.stdin)["devices"].values()
 except ValueError: runtimes = []
 print(sum(d.get("state") == "Booted" and d.get("udid") != os.environ["UDID"] for ds in runtimes for d in ds))') || true
-  [ "${others:-0}" -ge "$cap" ] || return 0
-  busy_reason="$others other simulators are booted, at the cap of $cap (WORKOUT_SIM_CAP); xcrun simctl shutdown <udid> frees one nobody uses"
+  [ "${others:-0}" -ge "$WORKOUT_SIM_CAP" ] || return 0
+  busy_reason="$others other simulators are booted, at the cap of $WORKOUT_SIM_CAP (WORKOUT_SIM_CAP); xcrun simctl shutdown <udid> frees one nobody uses"
   return 1
 }
 
 take_build_slot() {
-  local dir=${WORKOUT_BUILD_SLOT_DIR:-/tmp/workout-build-slots} slots i holders=
-  slots=$(host_knob WORKOUT_BUILD_SLOTS 2)
+  local dir=${WORKOUT_BUILD_SLOT_DIR:-/tmp/workout-build-slots} i holders=
+  host_knob WORKOUT_BUILD_SLOTS 2
   mkdir -p "$dir"
-  for i in $(seq 1 "$slots"); do
+  for i in $(seq 1 "$WORKOUT_BUILD_SLOTS"); do
     exec 8>>"$dir/$i"
     if try_flock 8 LOCK_EX 1; then
       printf '%s (pid %s)\n' "${0##*/}" "$$" > "$dir/$i"
@@ -170,7 +172,7 @@ take_build_slot() {
     exec 8>&-
     holders="$holders${holders:+, }$(cat "$dir/$i")"
   done
-  busy_reason="all $slots build slots are taken (WORKOUT_BUILD_SLOTS): $holders; lsof $dir/* lists every process holding one"
+  busy_reason="all $WORKOUT_BUILD_SLOTS build slots are taken (WORKOUT_BUILD_SLOTS): $holders; lsof $dir/* lists every process holding one"
   return 1
 }
 

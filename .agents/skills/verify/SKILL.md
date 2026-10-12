@@ -272,8 +272,11 @@ directory yourself once its proof is filed.
 
 ## Isolation
 
-One app instance per simulator, and one run owns it. `launch` refuses (exit 75) while a pid this
-tool launched is alive on the same simulator, yours included; run `stop` or pick another `SIM`.
+One app instance per simulator, and one run owns it. `launch` and `scripts/test-sim.sh` refuse
+(exit 75) while another run's app is alive on the same simulator and a `verify.sh` call for that
+run came in the last 60 minutes. A run quiet for longer counts as abandoned, and the next claim
+takes the simulator and says so. Pass the same `VERIFY_RUN` to take your own run's app with a second
+`launch` or a `test-sim.sh` run; otherwise run `stop` or pick another `SIM`.
 `stop` refuses the same way when it would act on another run's app, so a
 command that lands on the wrong simulator cannot end another agent's drive (issue 660). It can
 only refuse what it can tell apart, and that cuts both ways. An unset `VERIFY_RUN` gives it
@@ -294,9 +297,16 @@ a raw `xcodebuild test` on the same UDID is invisible to it. Before a `launch` w
 may be testing, run `pgrep -fl "id=<udid>"`. Two CLI drives never collide if each has its own
 `WORKOUT_HOME`.
 
+Every claim also waits for the host, up to `WORKOUT_ADMIT_WAIT` seconds (600), while
+`WORKOUT_SIM_CAP` other simulators are booted (6) or the 1-minute load is over `WORKOUT_LOAD_LIMIT`
+(50), and exits 75 with the reason if it never clears. Each `build` and each `test-sim.sh` build
+takes one of `WORKOUT_BUILD_SLOTS` host-wide build slots (2) the same way. Gate anything else heavy
+on `scripts/wait-load.sh [limit] [max-wait]` instead of a hand-written `uptime` loop.
+
 ## Changing this skill
 
 After an edit to `verify.sh`, `tree.py`, `frames.py`, `scripts/contact-sheet.swift`, or
-`scripts/sim-lock.sh`, run `python3 .agents/skills/verify/tests/test_evidence.py`, and after an
-edit to the tiler `scripts/contact-sheet.test.sh` as well. CI runs both through
-`.github/workflows/verify-tools.yml`.
+`scripts/sim-lock.sh`, run `python3 .agents/skills/verify/tests/test_evidence.py`. Also run
+`scripts/tests/host-admission.test.sh` after an edit to `scripts/sim-lock.sh` or
+`scripts/wait-load.sh`, and `scripts/contact-sheet.test.sh` after an edit to the tiler. CI runs all of
+them through `.github/workflows/verify-tools.yml`.
