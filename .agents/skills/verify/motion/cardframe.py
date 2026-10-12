@@ -36,11 +36,11 @@ INVALID when:
     1.28 s after its window opened. A tap's window opens at the drive's start and watches the whole tail.
 A take is also INVALID for the stamp's own reasons (load, recorder, coverage; see take.py summary).
 
-Box. The card is the longest vertical run, from 120 pt to the height of card_pt=, where the column at --x
-pt is brighter than the paper column at --ref pt by 4.0. Runs join across a gap of up to 8 pt only while
-the joined run stays no taller than card_pt=, so a neighbour touching the card, such as the rest pill,
-joins it only while the pair fits that height, and a run taller than card_pt= is no card in that frame.
-left and right come from a row scan at the run's middle. A run whose middle row shows nothing brighter
+Box. The card is the longest vertical run of at least 120 pt where the column at --x pt is brighter than
+the paper column at --ref pt by 4.0. Runs join across a gap of up to 8 pt only while the joined run stays
+no taller than card_pt=, so a neighbour touching the card, such as the rest pill, joins it only while the
+pair fits that height. An unbroken run is the card at any height, so a card that shrinks to card_pt=
+during the take reads its whole range. left and right come from a row scan at the run's middle. A run whose middle row shows nothing brighter
 than the paper, or whose box holds no whole 4 pt cell, is no card. The settled card is the last card the
 window shows. There is no card at all when card_pt=none, when no window frame shows one, or when the
 settled card's middle is more than 8 pt from card_pt='s middle in x or y, as when a sheet over the
@@ -323,8 +323,7 @@ def box_cells(card: Card) -> Tuple[slice, slice]:
 def detect(lum: np.ndarray, px_per_pt: float, height_pt: float, x_pt: float = 28, ref_pt: float = 8) -> Optional[Card]:
     card_band, paper_band = _band(x_pt, px_per_pt), _band(ref_pt, px_per_pt)
     contrast = lum[:, card_band].mean(axis=1) - lum[:, paper_band].mean(axis=1)
-    runs = [r for r in _runs(contrast > THRESHOLD, px_per_pt, height_pt)
-            if (r[1] - r[0]) / px_per_pt >= MIN_RUN_PT and (r[1] + 1 - r[0]) / px_per_pt <= height_pt]
+    runs = [r for r in _runs(contrast > THRESHOLD, px_per_pt, height_pt) if (r[1] - r[0]) / px_per_pt >= MIN_RUN_PT]
     if not runs:
         return None
     start, end = max(runs, key=lambda r: r[1] - r[0])

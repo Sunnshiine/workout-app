@@ -184,6 +184,10 @@ def jumps_then_brightens_to_where_it_sits(i):
     return PAPER, [(140, 300, 16, 186, 225 if i < 48 else CARD)]
 
 
+def shrinks_from_240_pt_to_160_pt(i):
+    return PAPER, [(100, 340 if i < 5 else 260, 16, 186), (360, 380, 100, 150, PAPER + 10 + 4 * min(i, 6))]
+
+
 def swaps_a_label_inside(i):
     return PAPER, [STILL_BOX, (120, 160, 40, 80, CARD if i < FPS else 210)]
 
@@ -213,6 +217,7 @@ class CardFrameOnClips(unittest.TestCase):
             ("cut", cuts, 2.0),
             ("drop", drops_for_three_frames, 1.5),
             ("label", swaps_a_label_inside, 1.5),
+            ("shrink", shrinks_from_240_pt_to_160_pt, 1.0),
             ("rule", a_3_pt_rule_beside_a_ticking_box, 1.0),
             ("faint-tap", jumps_then_brightens_to_where_it_sits, 1.0),
             ("launch", launched(still), 1.5),
@@ -480,12 +485,12 @@ class CardFrameOnClips(unittest.TestCase):
         self.assertEqual((out[2], out[-1]), ("window=drive from=0.050 to=3.000 window_s=2.950",
                                              "still=unknown box=changed look=changed"))
 
-    def test_from_0_on_a_launch_reads_the_fade_as_motion_and_the_springboard_taller_than_the_card_as_no_card(self):
+    def test_from_0_on_a_launch_reads_the_springboard_and_the_fade_as_motion(self):
         video = self.clips["launch"]
         stamp(video, drive=LAUNCH_DRIVE, drive_end=1.4)
         m = cardframe.measure(video, from_s=0)
-        self.assertEqual((m.window.opened, round(m.card.box.first_seen, 3), m.card.box.partial, m.card.look.kind,
-                          m.still), (Opened.FROM, 0.917, True, LookKind.CHANGED, Still.NO))
+        self.assertEqual((m.window.opened, m.card.box.first_seen, m.card.box.partial, m.card.look.kind,
+                          m.still), (Opened.FROM, 0.0, False, LookKind.CHANGED, Still.NO))
 
     def test_three_frames_without_the_card_after_it_showed_are_lost(self):
         code, out, err = self.lines("drop")
@@ -550,6 +555,20 @@ class CardFrameOnClips(unittest.TestCase):
         self.assertEqual(self.judged("ticking", card_pt="@12,105 178x168"), (Verdict.INVALID, why))
         self.assertEqual(self.lines("ticking", card_pt="@20,104 178x168")[0::2], (0, ""),
                          "8 pt off in x and in y is where the tree put it")
+
+    def test_a_card_taller_than_the_trees_card_that_shrinks_to_it_reads_its_whole_range_and_cardstill_fails_it(self):
+        code, out, err = self.lines("shrink", card_pt="@16,100 170x160")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out[2:], [
+            "first_seen=0.000 lost=0 faint=0 edges=full",
+            "top=100.0..100.0 bottom=260.0..340.0 left=16.0..16.0 right=186.0..186.0",
+            "worst_edge_range=80.0",
+            "contrast=40.0..40.0",
+            "motion=0.083..0.083 motion_ms=0 changed_frames=1",
+            "look_peak=0.0 look_frames=0",
+            "still=no box=changed look=still",
+        ])
+        self.assertEqual(self.judged("shrink", card_pt="@16,100 170x160"), (Verdict.FAIL, "an edge moved 80.0 pt"))
 
     def test_cardstill_calls_a_window_with_no_card_in_any_frame_invalid(self):
         self.assertEqual(self.judged("rule"),
@@ -886,11 +905,10 @@ class Detect(unittest.TestCase):
         lum[200:438, 32:372] = CARD
         self.assertEqual(cardframe.detect(lum, 2.0, 168), None)
 
-    def test_a_run_taller_than_the_trees_card_is_no_card(self):
+    def test_an_unbroken_run_taller_than_the_trees_card_is_the_card(self):
         lum = self.paper()
         lum[200:600, 32:372] = CARD
-        self.assertEqual(cardframe.detect(lum, 2.0, 199), None)
-        self.assertEqual(cardframe.detect(lum, 2.0, 200).bottom, 300.0)
+        self.assertEqual(cardframe.detect(lum, 2.0, 160), Card(100.0, 300.0, 16.0, 186.0, 40.0))
 
     def test_two_runs_split_by_a_gap_under_8_pt_are_one_card_and_8_pt_splits_them(self):
         lum = self.paper()

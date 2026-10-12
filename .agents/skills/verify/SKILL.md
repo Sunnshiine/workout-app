@@ -267,11 +267,14 @@ recorder or ffprobe failed, or the screen size could not be read after the take,
 VALID take included. Exit 75 means nothing ran. The recorder writes a frame only when the screen changes,
 so a still screen is one frame. `cardframe.py` is the one frame metric, and it times frames by their own
 pts, because ffmpeg's clock puts simctl frames about 0.8 s early. It reads two things: the card's box,
-from its edges, and its look, the luminance inside the settled box. `still=no` means the box or the look
-moved, and `box=` and `look=` say which, on a take whose INVALID reasons, if any, only hide motion (load,
-a short window), animations on or off. `still=yes` needs `edges=full` and a card where the tree puts it:
-nothing moved on a VALID take with animations on, the card's edges were read from the window's first
-frame, and the box sits within 8 pt of the `card_pt=` frame `record` stamps from the accessibility tree.
+from its edges, and its look, the luminance inside the settled box. A neighbour such as the rest pill joins
+the box across a gap only while the pair fits the height of the `card_pt=` frame `record` stamps from the
+accessibility tree, and an unbroken run counts at any height, so a card that shrinks during the take
+reads its whole range. `still=no` means the box or the look moved, and `box=` and `look=` say which, on a
+take whose INVALID reasons, if any, only hide motion (load, a short window), animations on or off.
+`still=yes` needs `edges=full` and a card where the tree puts it: nothing moved on a VALID take with
+animations on, the card's edges were read from the window's first frame, and the box sits within 8 pt of
+the `card_pt=` frame.
 `still=unknown` covers the rest: nothing moved but the take is INVALID, has animations off, or has
 `edges=partial`; or something moved on a take INVALID for any other reason, such as a launch with no
 fade from black. A take whose tree held no `active-set-card`, or whose box is not where the tree put it,
