@@ -23,33 +23,37 @@ scratch_claim() {
       return 0
     fi
     holders="$holders
-  $pool/$n: $(cat "$locks/$n.lock")"
+  $pool/$n: $held_by"
   done
   echo "every scratch tree is busy; wait for one to finish (lsof $locks/*.lock lists every holder):$holders" >&2
   exit 75
 }
 
-# Removes every slot no live run holds, with the DerivedData its simulator builds left.
+# Removes every slot no live run holds, with the DerivedData its simulator builds left, including
+# DerivedData whose slot folder is already gone.
 scratch_clean() {
-  local dir n plist derived kb
+  local n slots="" plist workspace paths
   _scratch_env
-  for dir in "$pool"/*; do
-    n=${dir##*/}
-    case $n in '' | *[!0-9]*) continue ;; esac
+  for n in "$pool"/*; do slots="$slots ${n##*/}"; done
+  for plist in ~/Library/Developer/Xcode/DerivedData/WorkoutTracker-*/info.plist; do
+    workspace=$(plutil -extract WorkspacePath raw "$plist" 2>/dev/null) || continue
+    case $workspace in "$pool"/*/WorkoutTracker.xcodeproj) n=${workspace#"$pool"/}; slots="$slots ${n%%/*}" ;; esac
+  done
+  for n in $(printf '%s\n' $slots | grep -x '[0-9][0-9]*' | sort -un); do
     if ! _scratch_lock "$n" "mutate.sh --clean-scratch"; then
-      echo "kept $dir: $(cat "$locks/$n.lock")"
+      echo "kept $pool/$n: $held_by"
       continue
     fi
-    derived=()
+    paths=()
+    [ ! -d "$pool/$n" ] || paths+=("$pool/$n")
     for plist in ~/Library/Developer/Xcode/DerivedData/WorkoutTracker-*/info.plist; do
-      [ "$(plutil -extract WorkspacePath raw "$plist" 2>/dev/null)" != "$dir/WorkoutTracker.xcodeproj" ] ||
-        derived+=("${plist%/info.plist}")
+      [ "$(plutil -extract WorkspacePath raw "$plist" 2>/dev/null)" != "$pool/$n/WorkoutTracker.xcodeproj" ] ||
+        paths+=("${plist%/info.plist}")
     done
-    kb=$(du -sk "$dir" ${derived[@]+"${derived[@]}"} | awk '{ kb += $1 } END { print kb }')
-    git worktree remove --force "$dir" 2>/dev/null || rm -rf "$dir"
-    rm -rf ${derived[@]+"${derived[@]}"} "$locks/$n.owner"
+    echo "removed $pool/$n ($(($(du -sk "${paths[@]}" | awk '{ kb += $1 } END { print kb }') / 1024)) MB)"
+    git worktree remove --force "$pool/$n" 2>/dev/null || true
+    rm -rf "${paths[@]}" "$locks/$n.owner"
     exec 8>&-
-    echo "removed $dir ($((kb / 1024)) MB)"
   done
   git worktree prune
 }
@@ -71,7 +75,8 @@ _scratch_env() {
 
 # fd 7 holds claim.lock while one claim probes one slot, so any other process with a slot's lock file
 # open holds that slot or was started by the run that did. A slot whose recorded pid is dead is held
-# only by such leftovers; they are killed and the slot taken.
+# only by such leftovers; they are killed and the slot taken. On failure, $held_by is the holder's
+# record, read under claim.lock.
 _scratch_lock() {
   local lock=$locks/$1.lock pid status=1
   exec 7>>"$locks/claim.lock"
@@ -88,7 +93,11 @@ _scratch_lock() {
       if _scratch_flock 8 5; then status=0; else exec 8>&-; fi
     fi
   fi
-  [ $status != 0 ] || printf '%s (pid %s)\n' "$2" "$$" >"$lock"
+  if [ $status = 0 ]; then
+    printf '%s (pid %s)\n' "$2" "$$" >"$lock"
+  else
+    held_by=$(cat "$lock")
+  fi
   exec 7>&-
   return $status
 }
