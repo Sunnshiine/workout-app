@@ -260,6 +260,18 @@ saved=$(ls -d "$evidence/detached-gone"/down-* 2>/dev/null | head -1)
 expect "down bundles the commit the deleted branch held" \
     "$status $(git -C "$primary" bundle list-heads "$saved/commits.bundle" 2>&1)" "0 $gone_sha HEAD"
 
+g worktree add --detach "$root/moved-away" main
+mv "$root/moved-away" "$root/moved-here"
+lane up m "$c1"
+up_status=$status
+rm -rf "$lanes/m"
+lane up m "$c1"
+again_status=$status
+lane down m
+expect "up and down drop only their own lane's stale record, and keep another worktree's" \
+    "$up_status $again_status $status $(git -C "$primary" worktree list --porcelain | grep -c -e "^worktree $root/moved-away$" -e "^worktree $lanes/m$")" \
+    "0 0 0 1"
+
 g worktree add -b feature "$lanes/feature" main
 lane down feature
 expect "down refuses a worktree on a branch with exit 2 and leaves it" \

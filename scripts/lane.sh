@@ -72,6 +72,14 @@ registration() {
   git -C "$primary" worktree list --porcelain | awk -v w="worktree $wt" '$0 == w { f = 1; next } f && $0 == "" { exit } f'
 }
 
+# A record whose directory is gone blocks git worktree add. Removes that one record; git worktree
+# prune would drop every other worktree's stale record too, and a moved worktree can be repaired.
+drop_stale_record() {
+  printf '%s\n' "$reg" | grep -q '^prunable' || return 0
+  git -C "$primary" worktree remove --force "$wt" >&2 || die 70 "could not drop the stale record of $wt"
+  reg=$(registration)
+}
+
 field() { printf '%s\n' "$1" | sed -n "s|^$2||p"; }
 
 nested_worktree() {
@@ -184,8 +192,8 @@ lane_up() {
       sha=$(resolve "$commit") || die 2 "unknown commit $commit, even after fetching origin"
     fi
   fi
-  git -C "$primary" worktree prune
   reg=$(registration)
+  drop_stale_record
   if [ -z "$reg" ]; then
     [ ! -e "$wt" ] || die 2 "$wt exists but git does not list it as a worktree; move it away first"
     mkdir -p "$(dirname "$wt")"
@@ -289,8 +297,8 @@ lane_down() {
     assess "$idle"
     [ "$verdict" = remove ] || { echo "SKIPPED: $reason" >&2; exit 1; }
   fi
-  git -C "$primary" worktree prune
   reg=$(registration)
+  drop_stale_record
   if [ -n "$reg" ]; then
     branch=$(field "$reg" 'branch refs/heads/')
     [ -z "$branch" ] || die 2 "$wt is on branch $branch, not a lane; prune-merged-worktrees.sh decides branch worktrees"
