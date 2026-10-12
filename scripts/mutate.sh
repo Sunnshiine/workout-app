@@ -161,8 +161,13 @@ else
         }' "$run/sources.tsv" -
 fi
 
-strip_color() { sed $'s/\033\\[[0-9;]*m//g' "$1"; }
-first_error() { strip_color "$1" | { grep -m1 'error:' || true; } | sed "s#$scratch/##"; }
+# SwiftPM prints "error: SwiftCompile ... failed" before the compiler's own file:line: error.
+first_error() {
+    awk '{ gsub(/\033\[[0-9;]*m/, "") }
+         /^[^ ]+:[0-9]+(:[0-9]+)?: error: / { print; found = 1; exit }
+         first == "" && /error:/ { first = $0 }
+         END { if (!found && first != "") print first }' "$1" | sed "s#$scratch/##"
+}
 test_count() {
     awk '/ Test run with [0-9]+ tests? / { for (i = 1; i < NF; i++) if ($i == "with") { run = $(i + 1); break } }
          /Executed [0-9]+ tests?, with/ { for (i = 1; i < NF; i++) if ($i == "Executed") executed = $(i + 1) }

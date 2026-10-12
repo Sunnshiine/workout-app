@@ -31,7 +31,8 @@ cat >"$root/bin/swift" <<'STUB'
 gate=Sources/Gate/Gate.swift
 if [ "$1" = build ]; then
     broken=$(grep -rn BREAK Sources | head -1 | cut -d: -f1,2)
-    [ -z "$broken" ] || { echo "$PWD/$broken:5: error: cannot find 'BREAK' in scope" >&2; exit 1; }
+    [ -z "$broken" ] || { echo "error: SwiftCompile normal arm64 $PWD/${broken%:*} failed with a nonzero exit code." >&2
+        echo "$PWD/$broken:5: error: cannot find 'BREAK' in scope" >&2; exit 1; }
     exit 0
 fi
 { git -C "$STUB_CALLER" status --porcelain; shasum "$STUB_CALLER"/Sources/Gate/*; echo "slot line 5: $(sed -n 5p $gate)"; } >>"$STUB_WATCH"
