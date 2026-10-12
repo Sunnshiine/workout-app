@@ -65,6 +65,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         let card = app.otherElements["active-set-card"]
+        let idleTop = settledFrame(of: card).minY
         var cardTops: [CGFloat] = []
         for _ in 1...3 {
             openWeightKeyboard(in: app)
@@ -78,6 +79,8 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         app.buttons["log-active-set-button"].tap()
 
         XCTAssertTrue(app.buttons["Set 1, 237.5x5@6"].appears(within: 3))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
+        XCTAssertEqual(settledFrame(of: card).minY, idleTop, accuracy: 1, "a keyboard-up log leaves no keyboard inset")
     }
 
     @MainActor
