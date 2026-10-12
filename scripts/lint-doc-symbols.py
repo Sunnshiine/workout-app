@@ -50,6 +50,7 @@ HUMP = re.compile(r"[a-z0-9][A-Z]")
 FILE_NAME = re.compile(r"\.?[\w+-]+(\.[\w+-]+)*\.([A-Za-z]+)")
 SPAN = re.compile(r"(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)", re.S)
 FENCE = re.compile(r"\s*(```+|~~~+)")
+LIST_OR_ROW = re.compile(r"\s*([-*+]|\d+[.)])\s|\s*\|")
 EXEMPTION = re.compile(r"<!--\s*doc-symbols:\s*not-in-tree\s+(.*?)\s*-->")
 TABLE_ROW = re.compile(r"^\|\s*`(-UITEST_[A-Z0-9_]+)`", re.M)
 
@@ -71,6 +72,7 @@ class Claim:
 @dataclass(frozen=True)
 class Tree:
     paths: frozenset[str]
+    top: frozenset[str]
     basenames: frozenset[str]
     identifiers: frozenset[str]
     flags: frozenset[str]
@@ -153,7 +155,8 @@ def resolve(claim: Claim, tree: Tree) -> tuple[str, ...]:
         elif name in tree.paths or name in tree.ignored or name + "/" in tree.ignored:
             return ()
     pattern = claim.names[0]
-    if not is_glob(pattern) and any(p.endswith("/" + pattern) for p in tree.paths):
+    shorthand = pattern.split("/")[0] not in tree.top
+    if shorthand and not is_glob(pattern) and any(p.endswith("/" + pattern) for p in tree.paths):
         return ()
     return (claim.token,)
 
@@ -206,6 +209,8 @@ def spans(text: str) -> list[tuple[int, str]]:
         elif not line.strip():
             flush()
         else:
+            if LIST_OR_ROW.match(line):
+                flush()
             if not paragraph:
                 start = number
             paragraph.append(line)
@@ -229,17 +234,24 @@ def lint_doc(doc: str, text: str, tree: Tree, top: frozenset[str]) -> list[Findi
     for line, span in spans(text):
         for token in span.split():
             claim = classify(token, os.path.dirname(doc), top)
-            missing = resolve(claim, tree) if claim else ()
-            if not missing:
+            if claim is None or claim.kind is Kind.FLAG:
                 continue
-            if all(name in exempt for name in missing):
-                used.update(missing)
-                continue
-            findings.append(Finding(doc, line, message(claim, missing), hint(claim, missing, tree)))
+            missing = resolve(claim, tree)
+            used.update(name for name in missing if name in exempt)
+            missing = tuple(name for name in missing if name not in exempt)
+            if missing:
+                findings.append(Finding(doc, line, message(claim, missing), hint(claim, missing, tree)))
+    for m in FLAG.finditer(text):
+        if m.group() in exempt:
+            used.add(m.group())
+        elif m.group() not in tree.flags:
+            claim = Claim(Kind.FLAG, m.group(), (m.group(),))
+            line = text.count("\n", 0, m.start()) + 1
+            findings.append(Finding(doc, line, message(claim, (m.group(),)), hint(claim, (m.group(),), tree)))
     for name, line in exempt.items():
         if name not in used:
             findings.append(
-                Finding(doc, line, f"the exemption names `{name}`, which no span in this file fails on. Drop it.")
+                Finding(doc, line, f"the exemption names `{name}`, which nothing in this file fails on. Drop it.")
             )
     return findings
 
@@ -251,7 +263,12 @@ def lint_callers(path: str, text: str, flags: frozenset[str]) -> list[Finding]:
         if path.startswith(APP_SOURCES) and path != FLAG_SOURCE:
             findings.append(
                 Finding(path, line, f"`{m.group()}` reads a launch flag outside LaunchFlag. "
-                        "Add a case there and read it through UITestLaunch.")
+                        "Declare it there and read it through UITestLaunch.")
+            )
+        elif path == FLAG_SOURCE and m.group() not in flags:
+            findings.append(
+                Finding(path, line, f"`{m.group()}` is declared in LaunchFlag but missing from LaunchFlag.all. "
+                        "Add it there, then run: RECORD_LAUNCH_FLAGS=1 swift test --filter LaunchFlagTableTests")
             )
         elif m.group() not in flags:
             findings.append(Finding(path, line, message(Claim(Kind.FLAG, m.group(), (m.group(),)), ())))
@@ -344,6 +361,7 @@ def main(argv: list[str]) -> int:
 
     tree = Tree(
         paths=frozenset(paths),
+        top=top,
         basenames=frozenset(os.path.basename(p) for p in paths),
         identifiers=frozenset(identifiers),
         flags=flags,
@@ -359,11 +377,13 @@ def main(argv: list[str]) -> int:
         if finding.hint:
             print(f"       {finding.hint}", file=sys.stderr)
     if findings:
-        print(
-            f"{len(findings)} finding(s). Fix each line above. When a doc span names something outside this tree on purpose\n"
-            "(an Apple accessibility role, a retired name), add <!-- doc-symbols: not-in-tree NAME... --> to that doc.",
-            file=sys.stderr,
-        )
+        print(f"{len(findings)} finding(s). Fix each line above.", file=sys.stderr)
+        if any(finding.doc.endswith(".md") for finding in findings):
+            print(
+                "When a doc names something outside this tree on purpose (an Apple accessibility role, a retired\n"
+                "name), add <!-- doc-symbols: not-in-tree NAME... --> to that doc.",
+                file=sys.stderr,
+            )
         return 1
     print(f"==> Clean: {len(docs)} docs, {len(flags)} launch flags")
     return 0
