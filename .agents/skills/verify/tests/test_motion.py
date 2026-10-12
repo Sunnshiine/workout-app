@@ -712,6 +712,24 @@ class Summarize(unittest.TestCase):
         self.assertEqual((len(m.in_window), m.card.box.first_seen, m.card.box.lost, m.card.box.ranges["top"]),
                          (2, 0.4, 1, (120.0, 120.0)))
 
+    def test_a_move_still_running_when_the_recorder_stopped_reads_still_no_though_the_tree_put_the_card_ahead(self):
+        moving = frames(card(100), card(110), card(120), card(130))
+        m = cardframe.summarize(held_at(card(160)), moving, 0.0)
+        self.assertEqual((m.card.box.motion, m.card.box.worst_edge_range, m.still), ((0.1, 0.3), 30.0, Still.NO))
+
+    def test_a_148_pt_box_on_the_middle_of_a_308_pt_tree_card_is_no_card(self):
+        m = cardframe.summarize(held_at(card(100, 408)), frames(card(180, 328), card(180, 328)), 0.0)
+        self.assertEqual(m.card, cardframe.NoCard("the box read last, 180.0..328.0 16.0..186.0, is not where the "
+                                                  "accessibility tree put active-set-card, @16,100 170x308"))
+
+    def test_a_box_more_than_24_pt_shorter_than_the_tree_card_on_its_middle_is_no_card(self):
+        def read(top, bottom):
+            return cardframe.summarize(TAKE, frames(card(top, bottom), card(top, bottom)), 0.0).card
+        self.assertEqual(read(130, 230), cardframe.NoCard("the box read last, 130.0..230.0 16.0..186.0, is not where "
+                                                          "the accessibility tree put active-set-card, @16,100 170x160"))
+        self.assertIsInstance(read(112, 248), cardframe.Seen, "24 pt shorter is the card")
+        self.assertIsInstance(read(112.1, 247.9), cardframe.NoCard)
+
     def test_a_slide_after_the_fade_from_black_then_a_full_screen_dim_is_invalid_and_never_still_yes(self):
         m = cardframe.summarize(held_at(card(300), LAUNCH), launch_frames(dim=True))
         self.assertEqual(([r.rule for r in m.invalid], m.card.box.worst_edge_range, m.still),

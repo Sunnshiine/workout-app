@@ -43,8 +43,10 @@ pair fits that height. An unbroken run is the card at any height, so a card that
 during the take reads its whole range. left and right come from a row scan at the run's middle. A run whose middle row shows nothing brighter
 than the paper, or whose box holds no whole 4 pt cell, is no card. The settled card is the last card the
 window shows. There is no card at all when card_pt=none, when no window frame shows one, or when the
-settled card's middle is more than 8 pt from card_pt='s middle in x or y, as when a sheet over the
-session shows a section where the tree still holds the card behind it. The box is read from the first
+settled card's height is more than 24 pt from card_pt='s or its middle more than 8 pt from card_pt='s in x
+or y, as when a sheet over the session shows a section where the tree still holds the card behind it,
+unless the card was still moving in its last frame: the tree is read after the recorder stops, so it
+holds where that card was going, and the move reads still=no with its range truncated. The box is read from the first
 solid card: the first detection with at least three quarters of the settled card's contrast. Detections
 before it are faint and their edges are not read, because a faint card reads short and narrow.
 edges=partial when the first solid card is not the window's first frame. After it every detection counts,
@@ -124,6 +126,7 @@ MIN_RUN_PT = 120.0
 MERGE_GAP_PT = 8.0
 STILL_PT = 0.5
 MIDDLE_PT = 8.0
+HEIGHT_PT = 24.0
 EDGES = ("top", "bottom", "left", "right")
 
 CELL_PT = 4.0
@@ -446,18 +449,27 @@ def look_of(window: Sequence[Sample], settled: Card) -> Look:
     return Look(d, frames, (window[depart].t, window[settle].t))
 
 
+def _fits(settled: Card, card_pt: CardPt) -> bool:
+    x, y = card_pt.middle
+    return (abs(settled.bottom - settled.top - card_pt.height) <= HEIGHT_PT
+            and abs((settled.left + settled.right) / 2 - x) <= MIDDLE_PT
+            and abs((settled.top + settled.bottom) / 2 - y) <= MIDDLE_PT)
+
+
 def card_of(card_pt: Union[CardPt, Literal["none"]], window: Sequence[Sample], at: float) -> Union[Seen, NoCard]:
     if card_pt == "none":
         return NoCard("the accessibility tree held no active-set-card when the recorder stopped")
-    settled = next((s.card for s in reversed(window) if s.card is not None), None)
-    if settled is None:
+    last = next((s for s in reversed(window) if s.card is not None), None)
+    if last is None:
         return NoCard(f"none of the {len(window)} frames from {at:.3f} s showed it")
-    x, y = card_pt.middle
-    if (abs((settled.left + settled.right) / 2 - x) > MIDDLE_PT
-            or abs((settled.top + settled.bottom) / 2 - y) > MIDDLE_PT):
+    settled = last.card
+    box = box_of(window, settled)
+    # The tree is read after the recorder stops, so it holds where a box still moving then was going.
+    moving = box.motion is not None and box.motion[1] == last.t
+    if not moving and not _fits(settled, card_pt):
         return NoCard(f"the box read last, {_span(settled.top, settled.bottom)} {_span(settled.left, settled.right)}, "
                       f"is not where the accessibility tree put active-set-card, {card_pt.text}")
-    return Seen(box_of(window, settled), look_of(window, settled))
+    return Seen(box, look_of(window, settled))
 
 
 def summarize(take: Take, samples: Sequence[Sample], from_s: Optional[float] = None) -> Measure:

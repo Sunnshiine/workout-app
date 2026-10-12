@@ -19,8 +19,8 @@ under 1.5 s, or with animations off, because those can hide motion but never inv
 INVALID when its edges were partial (the card was faint or missing in the window's first frames, so a
 move there went unread), the take is INVALID, or its animations are not on, the rule that keeps cardframe
 from printing still=yes; or when it started late, or cardframe read no card (none in the tree, none in
-any frame, or a box away from where the tree put the card), because then the metric missed what it had
-to see and the take proves nothing; else PASS. So
+any frame, or a settled box not the tree's card: its middle over 8 pt away or its height over 24 pt
+off), because then the metric missed what it had to see and the take proves nothing; else PASS. So
 only a lost card or a moved edge FAILs a take, on either side, and only those satisfy the control. The
 lane FAILs when any head take FAILs, else is INVALID when any take on either side is, else is INVALID
 when no control take FAILed (the host or the metric cannot see motion now), else PASSes. The look inside
