@@ -77,8 +77,6 @@ repo="$root/repo"
 case_dir="$root/case"
 snap=Tests/Visual/__Snapshots__
 
-# One fixture per case: a fake repo holding the script and two baselines, and a stub directory of
-# attachments, a summary and per-test activities.
 fresh() {
     rm -rf "$repo" "$case_dir"
     mkdir -p "$repo/scripts" "$repo/$snap/SessionViewVisualTests" "$case_dir/attachments" "$case_dir/activities"
@@ -92,7 +90,6 @@ fresh() {
     tests_json="[]"
 }
 
-# attachment NAME KEY: an attachment activity whose exported file holds "KEY".
 attachment() {
     local uuid
     uuid=$(printf '%08X-0000-0000-0000-%012X' "$RANDOM$RANDOM" "$RANDOM")
@@ -111,7 +108,6 @@ missing_issue() {
 
 other_issue() { jq -nc --arg t "$1" '{isAssociatedWithFailure: true, title: $t}'; }
 
-# failing_test ID ACTIVITY...: one failing test whose single run recorded these activities in order.
 failing_test() {
     local id=$1
     shift

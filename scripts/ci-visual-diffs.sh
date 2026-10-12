@@ -184,13 +184,18 @@ fi
 
 [ "$count" -gt 0 ] || die 2 "run $run has no failing snapshot to apply"
 
-# A snapshot answers to itself, its file name, Suite/test (the .<n>.png tail cut), and the test name.
 selected=$(printf '%s\n' "${names[@]}" | awk -F'\t' '
-    NR == FNR { s = $1; f = s; sub(/^[^\/]+\//, "", f); t = s; sub(/\.[^.\/]+\.png$/, "", t)
-                b = t; sub(/^[^\/]+\//, "", b)
-                rows[++n] = s; key[s, s] = key[f, s] = key[t, s] = key[b, s] = 1; next }
+    function without_suite(path) { sub(/^[^\/]+\//, "", path); return path }
+    NR == FNR {
+        snapshot = $1
+        suite_test = snapshot; sub(/\.[^.\/]+\.png$/, "", suite_test)
+        rows[++n] = snapshot
+        names[snapshot, snapshot] = names[without_suite(snapshot), snapshot] = 1
+        names[suite_test, snapshot] = names[without_suite(suite_test), snapshot] = 1
+        next
+    }
     { hit = 0
-      for (i = 1; i <= n; i++) if (($0, rows[i]) in key) { hit = 1; want[rows[i]] = 1 }
+      for (i = 1; i <= n; i++) if (($0, rows[i]) in names) { hit = 1; want[rows[i]] = 1 }
       if (!hit) { print "no failing snapshot matches " $0 > "/dev/stderr"; bad = 1 } }
     END { if (bad) exit 2; for (i = 1; i <= n; i++) if (rows[i] in want) print rows[i] }
 ' "$dir/index.tsv" -) || die 2 "failing snapshots in run $run: $(tr '\n' ' ' <"$dir/index.tsv")"
