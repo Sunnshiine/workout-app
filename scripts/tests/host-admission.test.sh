@@ -111,7 +111,12 @@ reset() {
         "$root/booted" "$root/booting" "$root/holding" "$root/boot-holding" "$root/release" "$root/listing-slowly" "$root/probing" \
         "$repo/.build/verify/evidence"
 }
-leftovers() { ls "$root/locks" | grep -v -e '^admit$' -e '^build-[0-9]*$' | tr '\n' ' '; }
+leftovers() {
+    local file
+    for file in "$root/locks"/*; do
+        case ${file##*/} in admit|build-[0-9]*) ;; *) printf '%s ' "${file##*/}" ;; esac
+    done
+}
 builds() { cat "$root/builds" 2>/dev/null | tr '\n' ' ' | sed 's/ $//'; }
 test_sim() { "$repo/scripts/test-sim.sh" "$@" --sim "$sim" unit >"$root/out" 2>"$root/err"; }
 verify() { SIM=$sim "$repo/.agents/skills/verify/verify.sh" "$@"; }
@@ -581,7 +586,7 @@ echo "help"
 missing=
 for knob in $(sed -n 's/^host_knob \([A-Z_]*\) .*/\1/p' "$repo/scripts/sim-lock.sh"); do
     for script in "$repo/.agents/skills/verify/verify.sh" "$repo/scripts/test-sim.sh"; do
-        "$script" --help 2>&1 | grep -q "$knob" || missing="$missing${missing:+, }$knob in ${script##*/}"
+        case $("$script" --help 2>&1) in *"$knob"*) ;; *) missing="$missing${missing:+, }$knob in ${script##*/}" ;; esac
     done
 done
 expect "verify.sh --help and test-sim.sh --help name every host knob sim-lock.sh reads" "${missing:-none missing}" "none missing"

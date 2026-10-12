@@ -1,6 +1,5 @@
 # shellcheck shell=bash
 exec 6>&2
-verify_lease_minutes=60
 
 pick_sim() {
   local named=$1 mode=${2:-lookup} device='iPhone 17 Pro' visual_baseline_runtime=27.0 simctl_udid picked
@@ -64,18 +63,23 @@ is_fixture_launch() {
   return 1
 }
 
-renew_lease() {
-  local dir=/tmp/workout-verify-$1 run idle
-  [ -f "$dir/pid" ] || return 0
-  run=$(cat "$dir/run" 2>/dev/null) || true
-  if [ -n "${VERIFY_RUN:-}" ]; then
-    [ "$VERIFY_RUN" = "$run" ] || return 0
-  else
+# Every verify.sh command that acts on its run's app passes here: a reclaimed run is refused, and a
+# live lease is renewed.
+hold_lease() {
+  local dir=/tmp/workout-verify-$1 owner run reclaimer idle
+  owner=$(cat "$dir/run" 2>/dev/null) || true
+  run=${VERIFY_RUN:-$owner}
+  if [ -n "$run" ] && reclaimer=$(cat "$dir/reclaimed.$run" 2>/dev/null); then
+    echo "run $run was reclaimed by $reclaimer; launch again: SIM=$1 VERIFY_RUN=$run $0 launch <fixture>" >&2
+    exit 75
+  fi
+  [ -f "$dir/pid" ] && [ "$run" = "$owner" ] || return 0
+  if [ -z "${VERIFY_RUN:-}" ]; then
     idle=$(idle_minutes "$dir/pid")
     [ -n "$idle" ] || return 0
-    if [ "$idle" -ge "$verify_lease_minutes" ]; then
+    if [ "$idle" -ge "$WORKOUT_LEASE_MINUTES" ]; then
       is_fixture_launch "$(cat "$dir/pid" 2>/dev/null)" \
-        && echo "the lease of verify run${run:+ $run} on $1 expired: last renewed $idle min ago, and the lease is $verify_lease_minutes min, so a claim may take its app${run:+; if the run is yours, name it with VERIFY_RUN=$run to keep it}" >&2
+        && echo "the lease of verify run${run:+ $run} on $1 expired: last renewed $idle min ago, and the lease is $WORKOUT_LEASE_MINUTES min, so a claim may take its app${run:+; if the run is yours, name it with VERIFY_RUN=$run to keep it}" >&2
       return 0
     fi
   fi
@@ -97,14 +101,19 @@ settle_run() {
   if [ -n "$run" ] && [ "$run" = "${VERIFY_RUN:-}" ]; then
     [ -n "${2:-}" ] || return 0
     echo "taking over the app of your own verify run $run on $1 (pid $pid)" >&2
-  elif [ "$idle" -ge "$verify_lease_minutes" ]; then
+  elif [ "$idle" -ge "$WORKOUT_LEASE_MINUTES" ]; then
     [ -n "${2:-}" ] || return 0
-    echo "reclaimed $1 from verify run${run:+ $run} (pid $pid): its lease was last renewed $idle min ago, and the lease is $verify_lease_minutes min" >&2
+    echo "reclaimed $1 from verify run${run:+ $run} (pid $pid): its lease was last renewed $idle min ago, and the lease is $WORKOUT_LEASE_MINUTES min" >&2
     abandoned=1
   else
     stop="SIM=$1 ${run:+VERIFY_RUN=$run }$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.agents/skills/verify/verify.sh stop"
-    echo "a verify run${run:+ $run} owns the app on $1 (pid $pid), last used $idle min ago; a claim takes it once it goes $verify_lease_minutes min unused. If it is yours, ${run:+rerun with VERIFY_RUN=$run or }run: $stop, else use another simulator" >&2
+    echo "a verify run${run:+ $run} owns the app on $1 (pid $pid), last used $idle min ago; a claim takes it once it goes $WORKOUT_LEASE_MINUTES min unused. If it is yours, ${run:+rerun with VERIFY_RUN=$run or }run: $stop, else use another simulator" >&2
     exit 75
+  fi
+  if [ -n "$abandoned" ]; then
+    [ -z "$run" ] || printf '%s%s (pid %s) at %s\n' "$2" "${VERIFY_RUN:+ of run $VERIFY_RUN}" "$$" "$(date '+%Y-%m-%d %H:%M:%S')" \
+      > "$dir/reclaimed.$run"
+    xcrun simctl terminate "$1" com.sunnypatel.WorkoutTracker 8>&- 9>&- 2>/dev/null || true
   fi
   # A Live Activity outlives its app's process, so a run launched with them on is uninstalled, as stop does.
   if [ -f "$dir/args" ] && ! grep -q -- -UITEST_DISABLE_LIVE_ACTIVITIES "$dir/args"; then
@@ -121,7 +130,7 @@ claim_sim() {
   printf '%s (pid %s)\n' "$who" "$$" > "$dir/lock"
   settle_run "$udid"
   wait_until_clear "the host before taking $udid" admit_claim "$udid" "$build"
-  settle_run "$udid" take
+  settle_run "$udid" "$who"
 }
 
 host_knob() {
@@ -155,31 +164,38 @@ wait_until_clear() {
   [ "$said" -lt 0 ] || echo "went ahead after $(($(date +%s) - host_wait_start)) s" >&6
 }
 
+# Linux has no vm.loadavg, so there the load holds no claim.
 load_clear() {
-  local load
-  load=$(sysctl -n vm.loadavg 2>/dev/null | awk '{ print $2 }') || true
-  [ -n "$load" ] && awk -v load="$load" -v limit="$1" 'BEGIN { exit !(load > limit) }' || return 0
-  busy_reason="the 1-minute load is $load, over $1 (WORKOUT_LOAD_LIMIT)"
+  local reading now rc=0
+  reading=$(sysctl -n vm.loadavg 2>/dev/null) || return 0
+  read -r _ now _ <<< "$reading"
+  awk -v now="$now" -v limit="$1" 'BEGIN { if (now !~ /^[0-9]+(\.[0-9]+)?$/) exit 2; exit (now + 0 > limit + 0) }' || rc=$?
+  case $rc in
+    0) return 0 ;;
+    1) busy_reason="the 1-minute load is $now, over $1 (WORKOUT_LOAD_LIMIT)" ;;
+    *) busy_reason="awk could not compare the 1-minute load $now with $1 (exit $rc)" ;;
+  esac
   return 1
 }
 
 sim_states() {
-  local listing=$host_lock_dir/list-$$.json counts err=$host_lock_dir/list-$$.err rc=0
-  if ! xcrun simctl list devices available -j 7>&- 8>&- 9>&- >"$listing" 2>"$err"; then
-    busy_reason="xcrun simctl list devices failed: $(cat "$err")"
-    rc=1
-  elif ! counts=$(UDID="$1" python3 -c '
-import json, os, sys
-devices = [d for ds in json.load(sys.stdin)["devices"].values() for d in ds]
+  local counts
+  if ! counts=$(exec 7>&- 8>&- 9>&-; UDID="$1" exec python3 -c '
+import json, os, subprocess, sys
+listing = subprocess.run(["xcrun", "simctl", "list", "devices", "available", "-j"], capture_output=True, text=True)
+if listing.returncode:
+    sys.exit("xcrun simctl list devices failed: " + listing.stderr.strip())
+try:
+    devices = [d for ds in json.loads(listing.stdout)["devices"].values() for d in ds]
+except (ValueError, KeyError, AttributeError, TypeError) as error:
+    sys.exit("xcrun simctl list devices printed no device list: %r" % error)
 mine = [d.get("state") for d in devices if d["udid"] == os.environ["UDID"]]
-print(sum(d.get("state") in ("Booted", "Booting") and d["udid"] != os.environ["UDID"] for d in devices), *mine[:1])' <"$listing" 2>"$err"); then
-    busy_reason="xcrun simctl list devices printed no device list: $(tail -1 "$err")"
-    rc=1
-  else
-    read -r others own <<< "$counts"
+print(sum(d.get("state") in ("Booted", "Booting") and d["udid"] != os.environ["UDID"] for d in devices), *mine[:1])' \
+    2>&1); then
+    busy_reason=$counts
+    return 1
   fi
-  rm -f "$listing" "$err"
-  return $rc
+  read -r others own <<< "$counts"
 }
 
 admit_claim() {
@@ -217,13 +233,12 @@ host_room() {
 # A flock is held by every process sharing its fd, so simctl gets no lock fd and a killed claimer frees
 # them all at once. simctl boot exits 149 on a device another booter already started.
 boot_sim() {
-  local err=$host_lock_dir/boot-$$.err
-  xcrun simctl boot "$1" 7>&- 8>&- 9>&- 2>"$err" && { rm -f "$err"; return; }
+  local err
+  err=$(exec 7>&- 8>&- 9>&-; exec xcrun simctl boot "$1" 2>&1 >/dev/null) && return
   if sim_states "$1"; then
-    case ${own:-} in Booted|Booting) rm -f "$err"; return ;; esac
+    case ${own:-} in Booted|Booting) return ;; esac
   fi
-  echo "could not boot $1: $(cat "$err")" >&6
-  rm -f "$err"
+  echo "could not boot $1: $err" >&6
   exit 70
 }
 
@@ -268,9 +283,11 @@ drop_build_slot() {
   build_slot=
 }
 
+admit_build() { load_clear "$WORKOUT_LOAD_LIMIT" && take_build_slot; }
+
 with_build_slot() {
   local rc=0
-  [ -n "${build_slot:-}" ] || wait_until_clear "a build slot" take_build_slot
+  [ -n "${build_slot:-}" ] || wait_until_clear "a build slot" admit_build
   "$@" 6>&- || rc=$?
   drop_build_slot
   return $rc
@@ -287,5 +304,6 @@ host_knob WORKOUT_SIM_CAP 6 1
 host_knob WORKOUT_LOAD_LIMIT 50 1
 host_knob WORKOUT_ADMIT_WAIT 540 0
 host_knob WORKOUT_BUILD_SLOTS 2 1
+host_knob WORKOUT_LEASE_MINUTES 60 1
 host_lock_dir=${WORKOUT_HOST_LOCK_DIR:-/tmp/workout-host-locks}
 mkdir -p "$host_lock_dir"

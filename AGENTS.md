@@ -102,7 +102,8 @@ more) starts no run.
   iPhone 17 Pro, and xcodebuild may pick the wrong one.
 - Concurrent simulator runs each need their own worktree and their own simulator. Pass the UDID
   as `scripts/test-sim.sh --sim <UDID> ...`. The script locks that simulator and exits 75 while
-  another `test-sim.sh` run or a verify run holds it.
+  another `test-sim.sh` run or a verify run holds it, or after waiting up to 540 s
+  (`WORKOUT_ADMIT_WAIT`) for the host's load, booted simulators, or build slots; `--help` names each.
 - macOS has no `timeout`, so `timeout N cmd` exits 127 without running the command.
 - The `WorkoutTracker` scheme launches against local fixtures (`-UITEST_FIXTURE true`), never the
   live Sheet. `Copy of WorkoutTracker` runs live.

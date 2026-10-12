@@ -273,11 +273,14 @@ directory yourself once its proof is filed.
 ## Isolation
 
 One app instance per simulator, and one run owns it. `launch` and `scripts/test-sim.sh` refuse
-(exit 75) while another run's app is alive on the same simulator and a `verify.sh` call for that
-run came in the last 60 minutes. A run quiet for longer counts as abandoned, and the next claim
-takes the simulator and says so. A call with no `VERIFY_RUN` keeps a live lease going but cannot
-revive an expired one. Pass the same `VERIFY_RUN` to take your own run's app with a second
-`launch` or a `test-sim.sh` run; otherwise run `stop` or pick another `SIM`.
+(exit 75) while another run's app is alive on the same simulator and that run's lease is live:
+some command for the run came in the last `WORKOUT_LEASE_MINUTES` (60). Every command but `build`,
+`diff`, `sheet`, and `crop` renews the lease. A command with no `VERIFY_RUN` keeps a live lease
+going but cannot revive an expired one. A run quiet for longer counts as abandoned. The next claim
+reclaims the simulator, stops the run's app, and says so. From then on every command for the
+reclaimed run, `stop` included, exits 75 naming who reclaimed it and when, until the run
+launches again. Pass the same `VERIFY_RUN` to take your own run's app with a second `launch` or a
+`test-sim.sh` run; otherwise run `stop` or pick another `SIM`.
 `stop` refuses the same way when it would act on another run's app, so a
 command that lands on the wrong simulator cannot end another agent's drive (issue 660). It can
 only refuse what it can tell apart, and that cuts both ways. An unset `VERIFY_RUN` gives it
@@ -302,7 +305,8 @@ Every claim also waits for the host, up to `WORKOUT_ADMIT_WAIT` seconds (540), w
 load is over `WORKOUT_LOAD_LIMIT` (50), and exits 75 with the reason if it never clears. A claim on a
 shut-down simulator also waits while `WORKOUT_SIM_CAP` other simulators are booted (6), and boots it
 once admitted; every other command that boots one goes through the same gate. Each `build` and each
-`test-sim.sh` build takes one of `WORKOUT_BUILD_SLOTS` host-wide build slots (2) the same way. Gate
+`test-sim.sh` build waits for the same load limit and takes one of `WORKOUT_BUILD_SLOTS` host-wide
+build slots (2) the same way. `build` boots nothing. Gate
 anything else heavy on `scripts/wait-load.sh [limit] [max-wait]` instead of a hand-written `uptime` loop.
 
 ## Changing this skill
