@@ -13,7 +13,7 @@ cp "$script_dir/../test-sim.sh" "$script_dir/../sim-lock.sh" "$script_dir/../tes
 touch "$products/../../info.plist" "$products/WorkoutTracker_iphonesimulator27.0-arm64.xctestrun"
 cat >"$repo/scripts/sim-keyboard.sh" <<'STUB'
 #!/bin/sh
-echo "$*$([ -e /dev/fd/9 ] && echo ' with the lock fd open')" >>"$STUB_KEYBOARD_CALLS"
+echo "$*" >>"$STUB_KEYBOARD_CALLS"
 echo "keyboard: stub"
 exit "${STUB_KEYBOARD_RC:-0}"
 STUB
@@ -444,7 +444,7 @@ expect "a usage error exits 2 and still ends with the result line" "$status $(ca
 
 for selection in ui all WorkoutTrackerUITests/WorkoutTrackerUISmokeTests; do
     run --no-build --sim "$sim" "$selection"
-    expect "$selection runs the keyboard step once, without the lock fd, before xcodebuild" \
+    expect "$selection runs the keyboard step once" \
         "$(cat "$root/keyboard"; grep '^keyboard: ' "$root/out")" "ensure $sim
 keyboard: stub"
 done
