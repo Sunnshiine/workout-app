@@ -197,7 +197,7 @@ one_line() {
 read_log() { awk -v mode="$1" -v root="$scratch/" -f "$script_dir/test-log.awk" "$2"; }
 
 # close_fds=False keeps the slot lock on fd 8 in every child.
-limited() {
+with_timeout() {
     python3 -c 'import os, signal, subprocess, sys
 p = subprocess.Popen(sys.argv[2:], start_new_session=True, close_fds=False)
 def stop(*_):
@@ -213,7 +213,7 @@ run_check() {
     local log=$1 build_only=${2:-} rc=0 test_log start=$SECONDS
     result="" tests=0 killers="" reason=""
     if [ -n "$sim" ]; then
-        limited "$limit" "$scratch/scripts/test-sim.sh" --sim "$sim" "${selections[@]}" </dev/null >"$run/stdout" 2>"$run/stderr" || rc=$?
+        with_timeout "$limit" "$scratch/scripts/test-sim.sh" --sim "$sim" "${selections[@]}" </dev/null >"$run/stdout" 2>"$run/stderr" || rc=$?
         cat "$run/stdout" "$run/stderr" >"$log"
         if [ $rc = 124 ]; then
             result=timeout reason="timed out after ${limit}s"
@@ -232,12 +232,12 @@ run_check() {
         test_log=$(sed -n 's/^log: //p' "$run/stdout" | tail -1)
         [ -z "$test_log" ] || [ ! -f "$test_log" ] || cp "$test_log" "$log"
     else
-        (cd "$scratch" && limited "$limit" swift build --build-tests) </dev/null >"$log" 2>&1 || rc=$?
+        (cd "$scratch" && with_timeout "$limit" swift build --build-tests) </dev/null >"$log" 2>&1 || rc=$?
         if [ $rc = 0 ] && [ -n "$build_only" ]; then
             result=pass
             return
         elif [ $rc = 0 ]; then
-            (cd "$scratch" && limited $((limit - (SECONDS - start))) swift test --skip-build ${swift_filters[@]+"${swift_filters[@]}"}) \
+            (cd "$scratch" && with_timeout $((limit - (SECONDS - start))) swift test --skip-build ${swift_filters[@]+"${swift_filters[@]}"}) \
                 </dev/null >>"$log" 2>"$run/stderr" || rc=$?
             cat "$run/stderr" >>"$log"
         elif [ $rc != 124 ]; then

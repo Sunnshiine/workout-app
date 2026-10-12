@@ -3,7 +3,8 @@
 # deleted lock file would let a second run take a slot the first still holds.
 
 # Sets $scratch to a slot locked for this process. Call it directly, never through $(...): the lock
-# lives on fd 8 of the calling shell, and its exit 75 must end the caller.
+# lives on fd 8 of the calling shell, and its exit 75 must end the caller. fd 9 is sim-lock.sh's
+# simulator lock, which the slot's test-sim.sh takes and closes for its children.
 scratch_claim() {
   local who=$1 common pool locks caller n preferred="" others="" holders=""
   # A git fsmonitor daemon started from here would inherit fd 8 and hold the slot for as long as it
