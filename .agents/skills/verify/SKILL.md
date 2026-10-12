@@ -47,27 +47,29 @@ app 804e750cad00 commit ea5af074-dirty (this worktree's build)
 evidence /Users/me/workout-app/.claude/work/evidence/env-verify-identity/issue-536
 ```
 
-The hash is the sha256 of `WorkoutTracker.debug.dylib`, the code a Debug build runs. Two apps are
-the same app when their hashes match. `build` stamps the commit into the bundle, with `-dirty` when
+The hash covers every file in the bundle (the code, the widget extension, assets, and
+`Info.plist`), so two apps are the same app when their hashes match. `build` stamps the commit into the bundle, with `-dirty` when
 `App/`, `Sources/WorkoutTracker/`, `WorkoutShared/`, `WorkoutWidgets/`, the project, or the package
 files had uncommitted changes. An app whose bytes no stamp describes reads `commit unknown (not
 built by verify.sh)`. When a lock or boot refusal leaves another app installed, the refusal ends
 with `app on <udid> unchanged:`, the app still there, and the app the launch wanted. When the
-installed bytes differ from the build, `launch` exits 70 and names both hashes.
+installed bytes differ from the build, or `simctl install` fails, `launch` exits 70 and names both
+apps.
 
 ### Control and head on one simulator
 
 ```bash
-verify.sh install 9a72f8dc                                     # the control: built once into the app cache, then installed
-VERIFY_RUN=ui12-control verify.sh launch --at 9a72f8dc session  # prints app ... commit 9a72f8dc (cached build)
+VERIFY_RUN=ui12-control verify.sh launch --at 9a72f8dc session  # builds 9a72f8dc into the app cache once, installs, launches
 verify.sh stop
 verify.sh install                                              # the head: this worktree's build, replacing the control
 VERIFY_RUN=ui12-head verify.sh launch session
 ```
 
-`install <commit>` builds that commit in a scratch worktree the first time any worktree asks, and
-every later `install` or `launch --at` of it reuses the build. Two lanes that ask at once build it
-once, and the second says it is waiting. A bare `launch` refuses (exit 65) to replace an installed
+`install <commit>` and `launch --at <commit>` build that commit in a scratch worktree the first
+time any worktree asks, and every later call reuses the build. Give that first call a 10 minute
+timeout. Two lanes that ask at once build it once, and the second says it is waiting. A build that
+was killed resumes in its scratch worktree on the next call for that commit, and a call for any
+other commit removes it. A bare `launch` refuses (exit 65) to replace an installed
 cached build, so a head phase that skipped `install` stops instead of running the control. The cache
 is `<main checkout>/.claude/work/app-cache/<sha>/`. Nothing prunes it; remove an entry by hand, and
 it costs one rebuild.
@@ -209,8 +211,9 @@ VERIFY_RUN=issue-536 .agents/skills/verify/verify.sh launch session   # names th
 Artifacts land in `<main checkout>/.claude/work/evidence/<branch>/<run>/`, so they survive `stop`
 and the removal of the worktree. Any character of the branch outside letters, digits, `.`, `_`,
 and `-` becomes `-`, and a detached worktree uses `detached-<directory>`. `VERIFY_EVIDENCE=<dir>`
-puts runs in `<dir>/<run>/` instead. Each `launch` appends its app line to the run's
-`launches.txt`, so the evidence names its binary after the simulator is gone. `launch` names the run from
+puts runs in `<dir>/<run>/` instead. Each `launch` appends its app line, simulator, and worktree to
+the run's `launches.txt`, and each refused `launch` its refusal, so the evidence names its binary
+after the simulator is gone. `launch` names the run from
 `VERIFY_RUN` (default a timestamp), and every later command finds it without being told. A bare
 `launch` starts a new run, so give the same `VERIFY_RUN` to every `launch` of one task. A proof
 captures the action and the resulting state, not just the final screen. Shoot before, drive, shoot
@@ -269,8 +272,9 @@ command that lands on the wrong simulator cannot end another agent's drive (issu
 only refuse what it can tell apart, and that cuts both ways. An unset `VERIFY_RUN` gives it
 nothing to compare against, so it steps aside. `SIM` has no default, so no command lands on a
 shared simulator by accident. With `VERIFY_RUN` set, `tap`, `hold`, `type`, `swipe`, `shot`,
-`burst`, and `axe` refuse (exit 75) while another run's app is alive on the simulator, so a driver
-that missed its own launch's refusal cannot drive or film that app. Your drive is protected from a
+`burst`, and `axe` refuse (exit 75) while another run's app is alive on the simulator, and after a
+`launch` of the same run was refused, until a `launch` of it succeeds. So a driver that missed its
+own launch's refusal cannot drive or film the app that refusal left behind. Your drive is protected from a
 sibling only when the sibling names its own run. Set both on every call whenever another agent
 might be on this machine. `launch`, `shot`, and `burst` refuse (exit 75) while a `scripts/test-sim.sh` run holds the
 simulator. `test-sim.sh` refuses the same way while a run's app is alive on it. Each refusal names

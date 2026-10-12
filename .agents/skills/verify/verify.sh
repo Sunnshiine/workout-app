@@ -57,7 +57,7 @@ Environment: SIM (the UDID of your own simulator, required by every command that
                   boots it and waits for the boot to finish),
              VERIFY_RUN (names the run; give it to launch and every later command remembers it.
                   tap, hold, type, swipe, shot, burst and axe refuse while another run's app is
-                  alive on SIM),
+                  alive on SIM, and after this run's launch was refused until one succeeds),
              VERIFY_EVIDENCE (the parent of the run directories; default
                   <main checkout>/.claude/work/evidence/<branch>),
              VERIFY_LIVE_ACTIVITIES=1 (launch without -UITEST_DISABLE_LIVE_ACTIVITIES; for
@@ -232,11 +232,11 @@ fixture_args() {
   esac
 }
 
-# A Debug simulator build keeps its code in the debug dylib; the WorkoutTracker executable is a stub.
+# Every file in the bundle, so a widget, asset, or Info.plist change is a different app too. simctl
+# install copies the bundle byte for byte (proof/E-3a), so the installed copy hashes the same.
 app_hash() {
-  local code=$1/WorkoutTracker.debug.dylib
-  [ -f "$code" ] || code=$1/WorkoutTracker
-  shasum -a 256 "$code" | cut -c1-64
+  (cd "$1" && find . -type f ! -name "$stamp_name" -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256) \
+    | shasum -a 256 | cut -c1-64
 }
 
 stamp_field() { sed -n "s/^$2=//p" "$1"; }
@@ -247,11 +247,15 @@ write_stamp() {  # <app> <commit> <dirty 0|1> <origin: worktree path or cache>
   printf 'commit=%s\ndirty=%s\norigin=%s\ncode_sha256=%s\n' "$2" "$3" "$4" "$hash" > "$1/$stamp_name"
 }
 
+stamp_vouches() {  # <app> <its hash>
+  [ -f "$1/$stamp_name" ] && [ "$(stamp_field "$1/$stamp_name" code_sha256)" = "$2" ]
+}
+
 # "<hash> <commit> <dirty> <origin>", commit and origin "-" when no stamp vouches for these bytes.
 identity_of() {
   local stamp=$1/$stamp_name hash
   hash=$(app_hash "$1")
-  if [ -f "$stamp" ] && [ "$(stamp_field "$stamp" code_sha256)" = "$hash" ]; then
+  if stamp_vouches "$1" "$hash"; then
     printf '%s %s %s %s\n' "$hash" "$(stamp_field "$stamp" commit)" "$(stamp_field "$stamp" dirty)" "$(stamp_field "$stamp" origin)"
   else
     printf '%s - 0 -\n' "${hash:--}"
@@ -286,14 +290,19 @@ app_line() {  # <app>
 }
 
 installed_app() { xcrun simctl get_app_container "$sim" "$bundle" 2>/dev/null || true; }
+booted() { xcrun simctl list devices booted | grep -q "$sim"; }
 
 installed_line() {
   local installed
   installed=$(installed_app)
-  if [ -n "$installed" ]; then app_line "$installed"; else echo "nothing installed"; fi
+  if [ -n "$installed" ]; then app_line "$installed"
+  elif booted; then echo "nothing installed"
+  else echo "an unknown app (the simulator is not booted)"
+  fi
 }
 
 # Sets built (empty when this worktree has no build) and its identity in built_hash and friends.
+# identity_line reads built_hash, so every verb that prints an identity runs this first.
 load_worktree_build() {
   built=$(app_path)
   built_hash=''
@@ -328,11 +337,36 @@ resolve_commit() {
     || { echo "$1 names no single commit in this repo (unknown or ambiguous)" >&2; exit 2; }
 }
 
-cache_hit() { [ -f "$1/$stamp_name" ] && [ "$(stamp_field "$1/$stamp_name" code_sha256)" = "$(app_hash "$1")" ]; }
+cache_hit() { [ -d "$1" ] && stamp_vouches "$1" "$(app_hash "$1")"; }
 
 drop_cache_scratch() {
   rm -rf "$1"
   git -C "$repo" worktree prune
+}
+
+try_lock() { python3 -c 'import fcntl, sys; fcntl.flock(int(sys.argv[1]), fcntl.LOCK_EX | fcntl.LOCK_NB)' "$1" 2>/dev/null; }
+
+# Another commit's scratch whose lock is free belongs to an install that was killed, and nothing else
+# would ever remove it or its registered worktree.
+sweep_cache_scratch() {  # <cache root> <the commit this install holds the lock of>
+  local dir sha
+  for dir in "$1"/*.build "$1"/*.tmp; do
+    [ -e "$dir" ] || continue
+    sha=${dir##*/}
+    sha=${sha%.*}
+    [ "$sha" != "$2" ] || continue
+    (exec 7>>"$1/$sha.lock" && try_lock 7 && rm -rf "$dir") || true
+  done
+  git -C "$repo" worktree prune
+}
+
+# A killed install leaves its scratch worktree and DerivedData; building on them makes the retry incremental.
+scratch_checkout() {  # <scratch> <sha>
+  if [ ! -f "$1/src/.git" ] || [ "$(git -C "$1/src" rev-parse HEAD 2>/dev/null)" != "$2" ]; then
+    drop_cache_scratch "$1"
+    git -C "$repo" worktree add --force --force --quiet --detach "$1/src" "$2" >&2
+  fi
+  "$repo/scripts/bootstrap-xcode-worktree.sh" "$1/src"
 }
 
 # Sets app to the cached build of <sha>, building it first when the cache has none. One build per
@@ -354,12 +388,11 @@ except BlockingIOError:
   if cache_hit "$app"; then exec 8>&-; return 0; fi
   scratch=$root/$sha.build
   tmp=$root/$sha.tmp
+  sweep_cache_scratch "$root" "$sha"
   # Under the lock no build of this commit is alive, so whatever is here is a killed one's.
-  drop_cache_scratch "$scratch"
   rm -rf "$tmp" "${root:?}/$sha"
-  echo "building ${sha:0:8} into the app cache at $root (2 to 4 min cold)" >&2
-  git -C "$repo" worktree add --force --force --quiet --detach "$scratch/src" "$sha" >&2
-  "$repo/scripts/bootstrap-xcode-worktree.sh" "$scratch/src"
+  echo "building ${sha:0:8} into the app cache at $root (under a minute to a few; give the call a 10 min timeout)" >&2
+  scratch_checkout "$scratch" "$sha"
   if ! xcodebuild_build "$scratch/src/WorkoutTracker.xcodeproj" "$scratch/dd" "$root/logs/$sha.log"; then
     drop_cache_scratch "$scratch"
     exit 65
@@ -375,24 +408,51 @@ except BlockingIOError:
 # Sets app, the identity it carries (want_hash and friends), and wanted_line. Builds a missing cache
 # entry, so it runs before any simulator lock is taken.
 target_app() {
-  local sha
-  [ -z "$at" ] || sha=$(resolve_commit "$at")
   load_worktree_build
   if [ -n "$at" ]; then
-    cached_app "$sha"
+    cached_app "$at"
   else
     [ -n "$built" ] || { echo "no built app for $project; run: $0 build" >&2; exit 65; }
     app=$built
   fi
   read -r want_hash want_commit want_dirty want_origin <<< "$(identity_of "$app")"
   wanted_line=$(identity_line "$want_hash" "$want_commit" "$want_dirty" "$want_origin")
+  launched_line=$wanted_line
+  [ -z "$at" ] || launched_line="$wanted_line; $(worktree_build_note)"
 }
 
-# The EXIT trap from the claim to the install: whatever refuses in between leaves the old app, so
-# say which one, in case the caller drops the refusal and drives on.
+# A refusal between the claim and the install leaves another app installed. Its run's drive verbs
+# refuse until a launch or install of that run succeeds, in case the caller drops the refusal and
+# drives on, and the run's launches.txt records it.
+mark_refused() {  # <message>
+  echo "$1" >&2
+  [ -n "${VERIFY_RUN:-}" ] || return 0
+  mkdir -p "$state_dir"
+  printf '%s\n' "$1" > "$state_dir/refused.$VERIFY_RUN"
+  printf '%s %s refused: %s\n' "$(date +%Y-%m-%dT%H:%M:%S)" "$cmd" "$1" >> "$(run_dir)/launches.txt"
+}
+
+refuse() {  # <message> <exit code>
+  trap - EXIT
+  mark_refused "$1"
+  exit "$2"
+}
+
+# The EXIT trap from the claim to the install, for the refusals claim_sim and wait_for_boot print.
 report_unchanged() {
   [ $? -ne 0 ] || return 0
-  echo "app on $sim unchanged: $(installed_line); this $cmd wanted $wanted_line" >&2
+  mark_refused "app on $sim unchanged: $(installed_line); this $cmd wanted $wanted_line"
+}
+
+# install and launch: resolve the app first, since a cache build may take minutes, then hold the simulator.
+claim_for_install() {
+  resolve_sim
+  [ -z "$at" ] || at=$(resolve_commit "$at")
+  sim_available "$sim" || exit
+  target_app
+  trap report_unchanged EXIT
+  claim_sim "$sim" "verify.sh $cmd"
+  wait_for_boot
 }
 
 wait_for_boot() {
@@ -408,18 +468,17 @@ refuse_replacing_cache() {
   [ -n "$installed" ] || return 0
   read -r hash commit dirty origin <<< "$(identity_of "$installed")"
   { [ "$origin" = cache ] && [ "$hash" != "$want_hash" ]; } || return 0
-  echo "$sim holds $(identity_line "$hash" "$commit" "$dirty" "$origin"), and this launch would replace it with $wanted_line. To run the cached build: launch --at ${commit:0:8} $fixture. To replace it: install, then launch." >&2
-  exit 65
+  refuse "$sim holds $(identity_line "$hash" "$commit" "$dirty" "$origin"), and this launch would replace it with $wanted_line. To run the cached build: launch --at ${commit:0:8} $fixture. To replace it: install, then launch." 65
 }
 
 install_app() {
   local installed
-  xcrun simctl install "$sim" "$app"
-  trap - EXIT
+  xcrun simctl install "$sim" "$app" || refuse "simctl install failed, so $sim holds $(installed_line), not $wanted_line" 70
   installed=$(installed_app)
-  [ -n "$installed" ] && [ "$(app_hash "$installed")" = "$want_hash" ] && return 0
-  echo "after simctl install, $sim holds $(installed_line), not $wanted_line that this $cmd installed from $app" >&2
-  exit 70
+  [ -n "$installed" ] && [ "$(app_hash "$installed")" = "$want_hash" ] \
+    || refuse "after simctl install, $sim holds $(installed_line), not $wanted_line that this $cmd installed from $app" 70
+  trap - EXIT
+  [ -z "${VERIFY_RUN:-}" ] || rm -f "$state_dir/refused.$VERIFY_RUN"
 }
 
 launch_parse() {
@@ -433,6 +492,9 @@ launch_parse() {
   fixture=${1:-}; [ -n "$fixture" ] || usage; shift
   fixture_flags=$(fixture_args "$fixture")
   passthrough=("$@")
+  for arg in "$@"; do
+    [ "$arg" != --at ] || { echo "--at goes before the fixture: launch --at COMMIT $fixture" >&2; exit 2; }
+  done
 }
 
 launch_args() {
@@ -452,12 +514,11 @@ start_app() {
   printf '%s\n' "${args[*]}" > "$state_dir/args"
   # stop decides whose app it is from this file, so a launch that never comes up still owns its pid.
   begin_run >/dev/null
-  launched_line=$wanted_line
-  [ -z "$at" ] || launched_line="$wanted_line; $(worktree_build_note)"
 }
 
 record_launch() {
-  printf '%s %s %s\n' "$(date +%Y-%m-%dT%H:%M:%S)" "$fixture" "$launched_line" >> "$(run_dir)/launches.txt"
+  printf '%s %s %s on %s from %s\n' "$(date +%Y-%m-%dT%H:%M:%S)" "$fixture" "$launched_line" "$sim" "$repo" \
+    >> "$(run_dir)/launches.txt"
 }
 
 await_front() {
@@ -486,6 +547,10 @@ await_front() {
 require_own_app() {
   local owner pid
   [ -n "${VERIFY_RUN:-}" ] || return 0
+  if [ -f "$state_dir/refused.$VERIFY_RUN" ]; then
+    echo "the last launch of run $VERIFY_RUN on $sim was refused, so the app there is not the one it wanted: $(cat "$state_dir/refused.$VERIFY_RUN"); launch again: SIM=$sim VERIFY_RUN=$VERIFY_RUN $0 launch <fixture>" >&2
+    exit 75
+  fi
   owner=$(cat "$state_dir/run" 2>/dev/null) || return 0
   [ "$owner" != "$VERIFY_RUN" ] || return 0
   pid=$(cat "$state_dir/pid" 2>/dev/null) || return 0
@@ -520,6 +585,7 @@ doctor_app() {
   load_worktree_build
   installed=$(installed_app)
   if [ -z "$installed" ]; then
+    booted || { echo "FAIL installed app unknown, because $sim is not booted (run: $0 launch <fixture>)"; return 1; }
     echo "FAIL nothing installed on $sim (run: $0 launch <fixture>)"
     [ -n "$built" ] || echo "FAIL no built app (run: $0 build)"
     return 1
@@ -549,6 +615,7 @@ shift
 case $cmd in
   build)
     resolve_sim
+    sim_available "$sim" || exit
     commit=$(git -C "$repo" rev-parse HEAD)
     changes=$(git -C "$repo" status --porcelain -- "${inputs[@]}")
     xcodebuild_build "$project" "" "$work/$(date +%Y%m%d-%H%M%S)-build.log" || exit
@@ -566,11 +633,7 @@ case $cmd in
   install)
     [ $# -le 1 ] || usage
     at=${1:-}
-    resolve_sim
-    target_app
-    trap report_unchanged EXIT
-    claim_sim "$sim" "verify.sh install"
-    wait_for_boot
+    claim_for_install
     replaced=$(installed_app)
     [ -z "$replaced" ] || [ "$(app_hash "$replaced")" != "$want_hash" ] || replaced=
     [ -z "$replaced" ] || replaced=$(app_line "$replaced")
@@ -581,11 +644,7 @@ case $cmd in
 
   launch)
     launch_parse "$@"
-    resolve_sim
-    target_app
-    trap report_unchanged EXIT
-    claim_sim "$sim" "verify.sh launch"
-    wait_for_boot
+    claim_for_install
     ensure_axe
     [ -n "$at" ] || refuse_replacing_cache
     install_app
@@ -599,7 +658,7 @@ case $cmd in
     resolve_sim
     ensure_axe
     rc=0
-    xcrun simctl list devices booted | grep -q "$sim" && echo "ok   simulator $sim booted" || { echo "FAIL simulator $sim not booted"; rc=1; }
+    booted && echo "ok   simulator $sim booted" || { echo "FAIL simulator $sim not booted"; rc=1; }
     doctor_app || rc=1
     if [ -f "$state_dir/pid" ] && kill -0 "$(cat "$state_dir/pid")" 2>/dev/null; then
       pid=$(cat "$state_dir/pid")
