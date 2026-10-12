@@ -9,8 +9,11 @@ Waits for every pull_request workflow run on the tip of the pull request's branc
 each workflow's conclusion and its jobs. Each workflow answers with its newest run that was not
 skipped. When every workflow succeeded, prints the gh pr merge command pinned to that commit.
 
-Exits 0 when every workflow succeeded; 1 when one did not, the head moved during the wait, the PR
-comes from a fork, or a gh call failed; 2 on a missing or non-numeric argument; and 3 when no
+A run created before the PR's latest base change tested the earlier base, so it never counts as a
+pass: retargeting a stacked PR, by hand or when its parent merges, needs a run against the new base.
+
+Exits 0 when every workflow succeeded; 1 when one did not, a run predates the latest base change,
+the head moved during the wait, the PR comes from a fork, or a gh call failed; 2 on a missing or non-numeric argument; and 3 when no
 workflow ran.
 EOF
 }
@@ -35,9 +38,26 @@ sha=$(head_sha) || { echo "branch $branch of #$pr is gone" >&2; exit 1; }
 
 newest_runs() {
     gh run list --commit "$sha" --event pull_request --limit 100 \
-        --json databaseId,workflowName,status,conclusion \
+        --json databaseId,workflowName,status,conclusion,createdAt \
         --jq 'map(select(.conclusion != "skipped")) | group_by(.workflowName)[] | max_by(.databaseId)
-            | [.databaseId, .status, .conclusion, .workflowName] | @tsv'
+            | [.databaseId, .status, .conclusion, .createdAt, .workflowName] | @tsv'
+}
+
+base_and_last_change() {
+    gh api graphql -F owner='{owner}' -F repo='{repo}' -F pr="$pr" -f query='
+        query($owner: String!, $repo: String!, $pr: Int!) {
+          repository(owner: $owner, name: $repo) {
+            pullRequest(number: $pr) {
+              baseRefName
+              timelineItems(itemTypes: [BASE_REF_CHANGED_EVENT, AUTOMATIC_BASE_CHANGE_SUCCEEDED_EVENT], last: 1) {
+                nodes {
+                  ... on BaseRefChangedEvent { createdAt }
+                  ... on AutomaticBaseChangeSucceededEvent { createdAt }
+                }
+              }
+            }
+          }
+        }' --jq '.data.repository.pullRequest | [.baseRefName, (.timelineItems.nodes[0].createdAt // "")] | @tsv'
 }
 
 for _ in $(seq 60); do
@@ -65,11 +85,20 @@ if [[ -z "$runs" ]]; then
     exit 3
 fi
 
+base_info=$(base_and_last_change)
+IFS=$'\t' read -r base base_changed <<<"$base_info"
 failed=0
-while IFS=$'\t' read -r run _ conclusion workflow; do
+stale=0
+while IFS=$'\t' read -r run _ conclusion created workflow; do
+    if [[ "$created" < "$base_changed" ]]; then
+        echo "$workflow ran on ${sha:0:7} before #$pr's base changed at $base_changed (run $run)"
+        stale=1
+        continue
+    fi
     echo "$workflow $conclusion on ${sha:0:7} (run $run)"
     gh run view "$run" --json jobs --jq '.jobs[] | "  \(.name): \(.conclusion)"'
     [[ "$conclusion" == success ]] || failed=1
 done <<<"$runs"
-[[ "$failed" == 0 ]] || exit 1
+[[ "$stale" == 0 ]] || echo "#$pr's base is now $base; push to $branch so every workflow runs against it" >&2
+[[ "$failed" == 0 && "$stale" == 0 ]] || exit 1
 echo "gh pr merge $pr --squash --match-head-commit $sha"

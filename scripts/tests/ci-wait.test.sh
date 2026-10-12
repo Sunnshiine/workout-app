@@ -41,7 +41,7 @@ while [ $# -gt 0 ]; do
         --commit) commit=$2; shift 2 ;;
         --event) event=$2; shift 2 ;;
         --json) fields=$2; shift 2 ;;
-        --interval) shift 2 ;;
+        --interval | -f | -F) shift 2 ;;
         -*) echo "gh stub: unexpected flag $1" >&2; exit 1 ;;
         *) id=$1; shift ;;
     esac
@@ -62,6 +62,10 @@ case "$sub" in
         jq --arg c "$commit" --arg s "$STUB_SHA" --arg e "$event" \
             "map(select((\$c == \"\" or (.headSha // \$s) == \$c) and (\$e == \"\" or .event == \$e))) | .[:$limit]" \
             "$frame" | jq -r "$jq_expr" ;;
+    "api graphql")
+        if [ -n "${STUB_GRAPHQL_ERROR:-}" ]; then echo "$STUB_GRAPHQL_ERROR" >&2; exit 1; fi
+        jq -nc --arg t "$STUB_BASE_CHANGED" '{data: {repository: {pullRequest: {baseRefName: "main",
+            timelineItems: {nodes: (if $t == "" then [] else [{createdAt: $t}] end)}}}}}' | jq -r "$jq_expr" ;;
     "run watch") next-frame ;;
     "run view")
         jq -e --argjson id "$id" '.[] | select(.databaseId == $id)' "$frame" >"$STUB_DIR/view.json" \
@@ -80,13 +84,15 @@ workflow_run() {
     local workflow=$1 id=$2 status=$3 conclusion=$4
     shift 4
     jq -nc --arg w "$workflow" --argjson id "$id" --arg s "$status" --arg c "$conclusion" \
-        '{databaseId: $id, workflowName: $w, event: "pull_request", status: $s, conclusion: $c,
+        '{databaseId: $id, workflowName: $w, event: "pull_request", status: $s, conclusion: $c, createdAt: "2026-10-12T10:00:00Z",
           jobs: [$ARGS.positional | to_entries[] | {id: ($id * 100 + .key), name: .value, conclusion: $c}]}' --args "$@"
 }
 
 ci() { workflow_run CI "$1" "$2" "$3" swift-tests lint visual-tests; }
 
 on_pushed() { jq -c --arg s "$pushed" '.headSha = $s' <<<"$1"; }
+
+after_base_change() { jq -c '.createdAt = "2026-10-12T11:00:04Z"' <<<"$1"; }
 
 check() {
     local name=$1 want_status=$2 want_out=$3 arg=$4
@@ -99,7 +105,7 @@ check() {
     for h in ${branch_tips:-}; do echo "$h" >"$dir/head.$i"; i=$((i + 1)); done
     echo 0 >"$dir/cursor"
     : >"$dir/calls.log"
-    STUB_DIR="$dir" STUB_SHA="$sha" STUB_FORK="${fork:-}" STUB_PR_ERROR="${pr_error:-}" PATH="$root/bin:$PATH" "$ci_wait" ${arg:+"$arg"} >"$dir/out" 2>"$dir/err"
+    STUB_DIR="$dir" STUB_SHA="$sha" STUB_FORK="${fork:-}" STUB_PR_ERROR="${pr_error:-}" STUB_BASE_CHANGED="${base_changed:-}" STUB_GRAPHQL_ERROR="${graphql_error:-}" PATH="$root/bin:$PATH" "$ci_wait" ${arg:+"$arg"} >"$dir/out" 2>"$dir/err"
     local status=$?
     if [ "$status" -eq "$want_status" ] && [ "$(cat "$dir/out")" = "$want_out" ]; then
         ok "$name"
@@ -303,6 +309,25 @@ branch_tips="$sha $pushed" check "a push that cancels the watched run fails" 1 "
 
 branch_tips="$sha $sha $pushed" check "a push during a wait that found no run fails instead of exiting 3" 1 "" 668 \
     "[]" "[]" "[$(on_pushed "$(ci $B in_progress "")")]"
+
+echo "base changed: never vouch for a run against the earlier base"
+
+base_changed=2026-10-12T11:00:00Z check "a green run created before the base changed fails" 1 "CI ran on 73b27aa before #668's base changed at 2026-10-12T11:00:00Z (run $A)" 668 \
+    "[$(ci $A completed success)]"
+check_err "a run against the earlier base says how to rerun it" "#668's base is now main; push to topic so every workflow runs against it"
+
+base_changed=2026-10-12T11:00:00Z check "the run a base change starts is waited on and decides" 0 "$ci_b_success
+$merge" 668 \
+    "[$(ci $A completed success)]" \
+    "[$(after_base_change "$(ci $B queued "")"), $(ci $A completed success)]" \
+    "[$(after_base_change "$(ci $B completed success)"), $(ci $A completed success)]"
+
+base_changed=2026-10-12T11:00:00Z check "a workflow that did not rerun after the base changed fails a PR whose CI reran green" 1 "$ci_b_success
+Verify tools ran on 73b27aa before #668's base changed at 2026-10-12T11:00:00Z (run $W)" 668 \
+    "[$(after_base_change "$(ci $B completed success)"), $(ci $A completed success), $(workflow_run "Verify tools" $W completed success sheet tree)]"
+
+graphql_error="HTTP 502: Bad Gateway (https://api.github.com/graphql)" check "a failed base lookup exits 1 with no merge command" 1 "" 668 \
+    "[$(ci $A completed success)]"
 
 echo "no run: exit 3"
 
