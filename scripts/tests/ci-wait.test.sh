@@ -64,8 +64,12 @@ case "$sub" in
             "$frame" | jq -r "$jq_expr" ;;
     "api graphql")
         if [ -n "${STUB_GRAPHQL_ERROR:-}" ]; then echo "$STUB_GRAPHQL_ERROR" >&2; exit 1; fi
-        jq -nc --arg t "$STUB_BASE_CHANGED" '{data: {repository: {pullRequest: {baseRefName: "main",
+        jq -nc --arg t "$STUB_BASE_CHANGED" '{data: {repository: {pullRequest: {baseRefName: $ENV.STUB_BASE,
             timelineItems: {nodes: (if $t == "" then [] else [{createdAt: $t}] end)}}}}}' | jq -r "$jq_expr" ;;
+    "api repos/{owner}/{repo}/actions/runs/"*)
+        jq -e --argjson id "${sub##*/}" '.[] | select(.databaseId == $id)
+            | {pull_requests: (.pullRequests // [{number: ($ENV.STUB_PR | tonumber), base: {ref: "main"}}])}' "$frame" \
+            | jq -r "$jq_expr" ;;
     "run watch") next-frame ;;
     "run view")
         jq -e --argjson id "$id" '.[] | select(.databaseId == $id)' "$frame" >"$STUB_DIR/view.json" \
@@ -94,6 +98,8 @@ on_pushed() { jq -c --arg s "$pushed" '.headSha = $s' <<<"$1"; }
 
 after_base_change() { jq -c '.createdAt = "2026-10-12T11:00:04Z"' <<<"$1"; }
 
+from_probe_pr() { jq -c --arg b "$1" '.pullRequests = [{number: 875, base: {ref: $b}}]' <<<"$2"; }
+
 check() {
     local name=$1 want_status=$2 want_out=$3 arg=$4
     shift 4
@@ -105,7 +111,7 @@ check() {
     for h in ${branch_tips:-}; do echo "$h" >"$dir/head.$i"; i=$((i + 1)); done
     echo 0 >"$dir/cursor"
     : >"$dir/calls.log"
-    STUB_DIR="$dir" STUB_SHA="$sha" STUB_FORK="${fork:-}" STUB_PR_ERROR="${pr_error:-}" STUB_BASE_CHANGED="${base_changed:-}" STUB_GRAPHQL_ERROR="${graphql_error:-}" PATH="$root/bin:$PATH" "$ci_wait" ${arg:+"$arg"} >"$dir/out" 2>"$dir/err"
+    STUB_DIR="$dir" STUB_SHA="$sha" STUB_FORK="${fork:-}" STUB_PR_ERROR="${pr_error:-}" STUB_BASE_CHANGED="${base_changed:-}" STUB_BASE="${base:-main}" STUB_PR="${arg:-0}" STUB_GRAPHQL_ERROR="${graphql_error:-}" PATH="$root/bin:$PATH" "$ci_wait" ${arg:+"$arg"} >"$dir/out" 2>"$dir/err"
     local status=$?
     if [ "$status" -eq "$want_status" ] && [ "$(cat "$dir/out")" = "$want_out" ]; then
         ok "$name"
@@ -312,9 +318,9 @@ branch_tips="$sha $sha $pushed" check "a push during a wait that found no run fa
 
 echo "base changed: never vouch for a run against the earlier base"
 
-base_changed=2026-10-12T11:00:00Z check "a green run created before the base changed fails" 1 "CI ran on 73b27aa before #668's base changed at 2026-10-12T11:00:00Z (run $A)" 668 \
+base_changed=2026-10-12T11:00:00Z check "a green run created before the base changed fails" 1 "CI ran on 73b27aa against a base other than #668's main (run $A)" 668 \
     "[$(ci $A completed success)]"
-check_err "a run against the earlier base says how to rerun it" "#668's base is now main; push to topic so every workflow runs against it"
+check_err "a run against the earlier base says how to rerun it" "push to topic, an empty commit if nothing changed, so every workflow runs against main"
 
 base_changed=2026-10-12T11:00:00Z check "the run a base change starts is waited on and decides" 0 "$ci_b_success
 $merge" 668 \
@@ -323,8 +329,15 @@ $merge" 668 \
     "[$(after_base_change "$(ci $B completed success)"), $(ci $A completed success)]"
 
 base_changed=2026-10-12T11:00:00Z check "a workflow that did not rerun after the base changed fails a PR whose CI reran green" 1 "$ci_b_success
-Verify tools ran on 73b27aa before #668's base changed at 2026-10-12T11:00:00Z (run $W)" 668 \
+Verify tools ran on 73b27aa against a base other than #668's main (run $W)" 668 \
     "[$(after_base_change "$(ci $B completed success)"), $(ci $A completed success), $(workflow_run "Verify tools" $W completed success sheet tree)]"
+
+base=ui/10-move-on-ceremony check "#857 live: another PR's run on the head, against main, does not vouch for a PR based on ui/10" 1 "CI ran on 73b27aa against a base other than #668's ui/10-move-on-ceremony (run $A)" 668 \
+    "[$(from_probe_pr main "$(ci $A completed success)")]"
+
+base_changed=2026-10-12T11:00:00Z check "a probe PR's run against main vouches for a PR retargeted to main after it" 0 "$ci_a_success
+$merge" 668 \
+    "[$(from_probe_pr main "$(ci $A completed success)")]"
 
 graphql_error="HTTP 502: Bad Gateway (https://api.github.com/graphql)" check "a failed base lookup exits 1 with no merge command" 1 "" 668 \
     "[$(ci $A completed success)]"
