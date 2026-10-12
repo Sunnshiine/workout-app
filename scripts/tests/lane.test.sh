@@ -137,13 +137,15 @@ if [ -e "$root/CASE-PROBE" ]; then
     lane up A "$c1"
     expect "on a disk that ignores case, up of a name that differs from lane a only by case exits 2 and names lane a" \
         "$status $(cat "$root/err") | $(ls "$lanes" | tr '\n' ' ')" \
-        "2 lane.sh: $lanes/A is the directory of lane a, because this disk ignores case; pick a name that differs by more than case | a b p "
+        "2 lane.sh: $lanes/A is the directory a, because this disk ignores case; pick a name that differs by more than case | a b p "
     lane down A
     expect "down of that name leaves lane a and says why" \
         "$status $(tail -1 "$root/err") | $(git -C "$lanes/a" rev-parse HEAD)" \
-        "0 lane.sh: left $lanes/A alone: it is the directory of lane a, because this disk ignores case | $c1"
+        "0 lane.sh: left $lanes/A alone: it is the directory a, because this disk ignores case | $c1"
 else
-    ok "case clash: this disk is case-sensitive, so lane A and lane a cannot clash"
+    lane up A "$c1"
+    expect "on a case-sensitive disk, lane A beside lane a is a lane of its own" "$status $(ls "$lanes" | LC_ALL=C sort | tr '\n' ' ')" "0 A a b p "
+    lane down A
 fi
 
 zsh_out=$(cd "$primary" && zsh -fc 'env=$(scripts/lane.sh env a) && eval "$env" && print -r -- "$SIM|$LANE_WORKTREE|$VERIFY_EVIDENCE" && cat "$LANE_WORKTREE/Secrets.xcconfig"' 2>&1)
@@ -272,13 +274,16 @@ for d in $results debug; do
     mkdir -p "$lanes/results/.build/$d"
     echo "$d" >"$lanes/results/.build/$d/result.txt"
 done
+mkdir -p "$lanes/results/.build/verify/node_modules/xcodebuildmcp"
+echo driver >"$lanes/results/.build/verify/node_modules/xcodebuildmcp/axe"
+echo dotfile >"$lanes/results/.build/verify/.state"
 mkdir -p "$lanes/results/.workout-cli"
 echo logged >"$lanes/results/.workout-cli/workbook.json"
 lane down results
 saved=$(ls -d "$evidence/detached-results"/down-* 2>/dev/null | head -1)
 expect "down saves every results dir under .build the repo's scripts write, and the CLI's home, but no build products" \
-    "$status $results| $(cd "$saved" && ls -d */result.txt | tr '\n' ' ')| $(tar -tf "$saved/untracked.tar" | grep -v '/$')" \
-    "0 crap flake-hunt test-sim verify | crap/result.txt flake-hunt/result.txt test-sim/result.txt verify/result.txt | .workout-cli/workbook.json"
+    "$status $results| $(cd "$saved" && find . -type f ! -name head.txt ! -name untracked.tar | sort | tr '\n' ' ')| $(tar -tf "$saved/untracked.tar" | grep -v '/$')" \
+    "0 crap flake-hunt test-sim verify | ./crap/result.txt ./flake-hunt/result.txt ./test-sim/result.txt ./verify/.state ./verify/result.txt | .workout-cli/workbook.json"
 
 lane up staged "$c1"
 echo staged >"$lanes/staged/staged.txt"

@@ -11,8 +11,8 @@ from scripts/sim-keyboard.sh ensure). The script touches no device whose name la
 scripts/lane.sh calls it; call it directly to inspect or repair the pool.
 
   create <lane>  print the UDID of workout-lane-<lane>, cloning it first if it does not exist. Builds the
-                 template on first use, and deletes the half-built device when the build fails after
-                 booting it. Leaves the clone Shutdown, so it holds no slot of the host cap.
+                 template on first use, and deletes the half-built device when its boot or keyboard
+                 step fails; a build killed midway leaves it for the next create to delete. Leaves the clone Shutdown, so it holds no slot of the host cap.
   boot <lane>    boot it within the host cap and print its UDID. test-sim.sh and verify.sh boot a
                  lane themselves, outside the cap until #883 lands; run this before a raw
                  xcodebuild or XcodeBuildMCP call on a lane.
@@ -43,6 +43,8 @@ EOF
 }
 
 usage() { help >&2; exit 2; }
+
+case ${1:-} in -h | --help) help; exit 0 ;; esac
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "$here/sim-lock.sh"
@@ -274,7 +276,6 @@ list_pool() {
 [ $# -ge 1 ] || usage
 command=$1
 case $command in
-  -h | --help) help; exit 0 ;;
   list) [ $# -eq 1 ] || usage; list_pool; exit ;;
   delete-template) [ $# -eq 1 ] || usage; lock_pool delete-template; delete_templates; exit ;;
 esac

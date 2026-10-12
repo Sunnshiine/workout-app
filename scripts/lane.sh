@@ -25,9 +25,10 @@ matches ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$. For the checkout this script belongs 
           else; then save what removal would lose to <evidence>/down-<YYYYmmdd-HHMMSS>/ (head.txt,
           uncommitted.diff against HEAD, staged.diff of the index against HEAD, untracked.tar of
           untracked and ignored files except regenerable ones, commits.bundle of commits no branch
-          or tag holds, copies of the results dirs .build/test-sim, .build/verify, .build/crap, and
-          .build/flake-hunt); then remove the worktree and its DerivedData. Each step skips what is
-          already gone, so a second down exits 0. --if-idle removes only when assess says remove.
+          or tag holds, copies of the results dirs .build/test-sim, .build/verify without its
+          node_modules, .build/crap, and .build/flake-hunt); then remove the worktree and its
+          DerivedData. Each step skips what is already gone, so a second down exits 0. --if-idle
+          removes only when assess says remove.
   assess  print `keep<TAB><reason>` or `remove<TAB>idle Nd`. scripts/prune-merged-worktrees.sh runs it
           for every detached worktree under .claude/worktrees/. Keeps a lane that is not a registered
           worktree, is on a branch, is locked (a crashed git worktree add's lock, "initializing",
@@ -46,8 +47,8 @@ Each later Bash call re-derives them, for example:
   env=$(scripts/lane.sh env e8) && eval "$env" && "$LANE_WORKTREE/scripts/test-sim.sh" unit
 
 Exit codes: 0 done; 1 env: no such lane, or down --if-idle: the lane is not idle (stderr SKIPPED:
-<reason>); 2 usage, a bad name, a name that differs from an existing lane's only by case on a
-disk that ignores case, an unknown commit, a lane at another commit, a worktree on a branch, a
+<reason>); 2 usage, a bad name, a name that differs only by case from a directory already there
+on a disk that ignores case, an unknown commit, a lane at another commit, a worktree on a branch, a
 locked lane, one holding a nested worktree, or one registered but missing (moved or deleted), or
 down run from the lane's own copy of this script;
 69 the simulator runtime is missing; 70 git, simctl, or a save failed (down then leaves the worktree,
@@ -86,8 +87,10 @@ set_lane() {
   evidence=$primary/.claude/work/evidence/detached-$name
 }
 
+# Called only when $wt exists: with no entry named exactly $name, the disk resolved it by case.
 case_twin() {
-  ls -1 "$(dirname "$wt")" 2>/dev/null | awk -v n="$name" '!found && tolower($0) == tolower(n) && $0 != n { print; found = 1 }' || true
+  ls -1 "$(dirname "$wt")" | awk -v n="$name" '$0 == n { exact = 1 } tolower($0) == tolower(n) && twin == "" { twin = $0 }
+    END { if (!exact) print twin }'
 }
 
 flock_fd() {
@@ -258,9 +261,11 @@ lane_up() {
     reg=$(registration)
   fi
   if [ -z "$reg" ]; then
-    twin=$(case_twin)
-    [ -z "$twin" ] || die 2 "$wt is the directory of lane $twin, because this disk ignores case; pick a name that differs by more than case"
-    [ ! -e "$wt" ] || die 2 "$wt exists but git does not list it as a worktree; move it away first"
+    if [ -e "$wt" ]; then
+      twin=$(case_twin)
+      [ -z "$twin" ] || die 2 "$wt is the directory $twin, because this disk ignores case; pick a name that differs by more than case"
+      die 2 "$wt exists but git does not list it as a worktree; move it away first"
+    fi
     mkdir -p "$(dirname "$wt")"
     git -C "$primary" worktree add --detach "$wt" "$sha" >&2 || true
     reg=$(registration)
@@ -307,6 +312,18 @@ save_commits() {
     && git -C "$wt" bundle verify "$1" >/dev/null 2>&1
 }
 
+# verify.sh installs its driver in .build/verify/node_modules, which npm makes again.
+copy_results() {
+  local entry base
+  mkdir -p "$dir/$1" || return
+  for entry in "$wt/.build/$1"/* "$wt/.build/$1"/.[!.]* "$wt/.build/$1"/..?*; do
+    [ -e "$entry" ] || [ -L "$entry" ] || continue
+    base=${entry##*/}
+    [ "$base" != node_modules ] || continue
+    cp -cR "$entry" "$dir/$1/$base" 2>/dev/null || { rm -rf "${dir:?}/$1/$base" && cp -R "$entry" "$dir/$1/$base"; } || return
+  done
+}
+
 save_lane() {
   local dir=$1 list d commits
   mkdir -p "$dir" || die 70 "could not create $dir"
@@ -331,8 +348,7 @@ save_lane() {
   fi
   for d in test-sim verify crap flake-hunt; do
     [ -d "$wt/.build/$d" ] || continue
-    cp -cR "$wt/.build/$d" "$dir/$d" 2>/dev/null || { rm -rf "${dir:?}/$d" && cp -R "$wt/.build/$d" "$dir/$d"; } \
-      || die 70 "could not copy .build/$d"
+    copy_results "$d" || die 70 "could not copy .build/$d"
     echo "$d"
   done
 }
@@ -383,10 +399,13 @@ lane_down() {
     echo "lane.sh: saved $(printf '%s\n' "$saved" | tr '\n' ' ')to $dir" >&2
     git -C "$primary" worktree remove --force "$wt" >&2 || die 70 "git worktree remove $wt failed"
     echo "lane.sh: removed the worktree $wt" >&2
-  elif twin=$(case_twin) && [ -n "$twin" ]; then
-    echo "lane.sh: left $wt alone: it is the directory of lane $twin, because this disk ignores case" >&2
   elif [ -e "$wt" ]; then
-    echo "lane.sh: left $wt alone, because git does not list it as a worktree" >&2
+    twin=$(case_twin)
+    if [ -n "$twin" ]; then
+      echo "lane.sh: left $wt alone: it is the directory $twin, because this disk ignores case" >&2
+    else
+      echo "lane.sh: left $wt alone, because git does not list it as a worktree" >&2
+    fi
   fi
   while IFS= read -r d; do
     rm -rf "$d"

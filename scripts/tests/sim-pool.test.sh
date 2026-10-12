@@ -242,8 +242,8 @@ release
 expect "a held pool lock exits 75 and names the holder" "$status $(cat "$root/err") | $(calls)" \
     "75 sim-pool: waited 0 s for the pool lock, held by sim-pool.sh create z (pid 4243) (lsof $root/locks/sim-pool lists it) | "
 
-pool --help
-expect "--help prints the usage on stdout and exits 0" "$status $(head -1 "$root/out") | $(cat "$root/err")" \
+WORKOUT_SIM_CAP=0 pool --help
+expect "--help prints the usage on stdout and exits 0, even beside a bad setting" "$status $(head -1 "$root/out") | $(cat "$root/err")" \
     "0 Usage: scripts/sim-pool.sh create <lane> | boot <lane> | delete <lane> | delete-template | list | "
 pool create 'lane-x 1a2b3c4'
 expect "a lane name with a space prints usage and exits 2" "$status $(head -1 "$root/err") | $(calls)" \
