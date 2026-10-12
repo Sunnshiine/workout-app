@@ -51,6 +51,13 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
   burst NAME [COMMAND...]     12 frames over about 2 s tiled into one image, labelled with their
                               timing; COMMAND is a drive command fired after the first frame, as in
                               burst log-transition tap --id log-active-set-button
+  record NAME [--tail S] [-- COMMAND...]
+                              NAME.mp4 and NAME.take into the run: films from the moment the recorder
+                              captures, runs COMMAND (a drive command, launch included), then S more
+                              seconds (default 2), and stamps load, timing, frames and the verdict.
+                              Waits for load under the limit first. Exit 0 VALID, 3 INVALID (both kept,
+                              reasons on stderr), 1 COMMAND failed, 70 recorder or ffprobe failed, 75
+                              nothing ran (simulator held or load never fell)
   stop                        terminate the app this run launched; the simulator stays up, and it
                               says when the run has shots that are not on a sheet yet. A run
                               launched with Live Activities on is uninstalled, which ends them
@@ -79,6 +86,9 @@ Environment: SIM (the UDID of your own simulator, required by every command that
                   limit, and before a boot while WORKOUT_SIM_CAP others are booted; build, and a
                   build into the app cache, wait for the load and for one of the host's build slots.
                   A wait says why once a minute, and exits 75 after WORKOUT_ADMIT_WAIT seconds.
+             WORKOUT_LOAD_LIMIT (default 50; record's 1-minute load ceiling),
+             VERIFY_LOAD_WAIT (default 60; seconds record waits for load to fall under it),
+             VERIFY_RECORD_START (default 10; seconds record gives the recorder to start capturing).
 Exit 75: another run holds SIM or owns its app, this run was reclaimed or its last launch was
          refused, or a wait for the host ran out.
 Evidence: <VERIFY_EVIDENCE>/<run>/ survives stop and worktree removal; its launches.txt names the
@@ -623,6 +633,30 @@ reset_minimized_keyboard() {
   fi
 }
 
+decimal() {
+  case $1 in ''|.|*[!0-9.]*|*.*.*) return 1 ;; esac
+}
+
+admit_load() {
+  local limit=$1 wait=$2 waited=0 step load
+  while :; do
+    load=$(sysctl -n vm.loadavg | awk '{ print $2 }')
+    if awk -v load="$load" -v limit="$limit" 'BEGIN { exit !(load < limit) }'; then
+      echo "$load"
+      return 0
+    fi
+    if [ "$waited" -ge "$wait" ]; then
+      echo "load $load at or over $limit after ${waited}s; nothing recorded or driven" >&2
+      exit 75
+    fi
+    [ "$waited" -gt 0 ] || echo "load $load at or over $limit; waiting up to ${wait}s for it to fall" >&2
+    step=$((wait - waited))
+    [ "$step" -le 5 ] || step=5
+    sleep "$step"
+    waited=$((waited + step))
+  done
+}
+
 reset_keyboard() {
   if show_keyboard; then
     echo "AXe keyboard input hides the software keyboard in this app until its next launch (issue 700); the preference that would keep it hidden after that is reset" >&2
@@ -911,6 +945,58 @@ case $cmd in
     paths=()
     while IFS= read -r frame; do paths+=("$frame"); done <<< "$frames"
     "$tiler" "$dir/$name.burst.png" "${paths[@]}"
+    ;;
+
+  record)
+    name=${1:-}
+    valid_name "$name"
+    shift
+    tail=2
+    if [ "${1:-}" = --tail ]; then
+      [ $# -ge 2 ] || usage
+      tail=$2
+      shift 2
+    fi
+    if [ $# -gt 0 ]; then
+      [ "$1" = -- ] || usage
+      shift
+    fi
+    limit=${WORKOUT_LOAD_LIMIT:-50}
+    load_wait=${VERIFY_LOAD_WAIT:-60}
+    { decimal "$tail" && decimal "$limit"; } || usage
+    case $load_wait in ''|*[!0-9]*) echo "VERIFY_LOAD_WAIT is whole seconds: $load_wait" >&2; exit 2 ;; esac
+    resolve_sim; require_sim_free "$sim"; require_own_app; ensure_axe
+    command -v ffprobe >/dev/null || { echo "record reads its video with ffprobe; install it: brew install ffmpeg" >&2; exit 70; }
+    load=$(admit_load "$limit" "$load_wait")
+    dir=$(run_dir)
+    pending=$dir/.pending
+    mkdir -p "$pending"
+    rm -f "$pending/$name.mp4" "$pending/$name.take"
+    rc=0
+    python3 "$here/take.py" record --sim "$sim" --run "${dir##*/}" --verify "$0" --out "$pending/$name.mp4" \
+      --tail "$tail" --limit "$limit" --load-before "$load" -- "$@" > "$pending/$name.take" || rc=$?
+    if [ $rc -ne 0 ] && [ $rc -ne 3 ]; then
+      rm -f "$pending/$name.mp4" "$pending/$name.take"
+      exit $rc
+    fi
+    if ! screen=$(describe | python3 "$tree" frame); then
+      rm -f "$pending/$name.mp4" "$pending/$name.take"
+      echo "could not read the screen's size in points after the take, so $name.take cannot be scaled; run: $0 doctor" >&2
+      exit 70
+    fi
+    animations=unknown
+    if [ -f "$state_dir/args" ]; then
+      animations=on
+      if grep -q -- -UITEST_DISABLE_ANIMATIONS "$state_dir/args"; then animations=off; fi
+    fi
+    printf 'screen_pt=%s\nanimations=%s\napp=%s\n' "${screen/ /x}" "$animations" "$(installed_line)" >> "$pending/$name.take"
+    # The video first, so a stamp in the run always has its video beside it.
+    mv "$pending/$name.mp4" "$dir/$name.mp4"
+    mv "$pending/$name.take" "$dir/$name.take"
+    echo "$dir/$name.mp4"
+    echo "$dir/$name.take"
+    python3 "$here/take.py" summary "$dir/$name.take"
+    exit $rc
     ;;
 
   stop)
