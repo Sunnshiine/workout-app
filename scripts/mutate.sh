@@ -19,7 +19,9 @@ snapshot must pass first; then each mutant runs alone.
                  forced to its early return, a number + 1, in the .swift files under each PATH
                  (from the current directory; default Sources App WorkoutShared WorkoutWidgets).
                  A line inside an #if os(iOS), os(macOS), canImport(UIKit), or canImport(AppKit)
-                 branch the build compiles out is unreachable without a build.
+                 branch the build compiles out is unreachable without a build, so a diff that
+                 touches both arms of such an #if needs a run with --sim and one without, and
+                 each exits 1 on the other's lines.
   --max N        runs at most N generated mutants (default 40), taking each file's first mutant
                  before any file's second; unreachable ones never count.
   --filter SEL   the tests that judge each mutant; repeatable. Without --sim: swift test --filter
