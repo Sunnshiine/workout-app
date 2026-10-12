@@ -212,7 +212,9 @@ function bumpConstant(line, m,    n, i, j, k, prev, intPart, literal) {
             k = j + 1
             while (inSet(substr(m, k, 1), DIGITS "_")) k++
         }
-        if (!inSet(prev, NOT_BEFORE_LITERAL) && !inSet(substr(m, k, 1), IDENT)) {
+        # A literal directly before a colon is a dictionary key or a case label, where + 1 most
+        # often makes a duplicate key or case that does not compile.
+        if (!inSet(prev, NOT_BEFORE_LITERAL) && !inSet(substr(m, k, 1), IDENT ":")) {
             literal = substr(line, i, k - i)
             intPart = substr(line, i, j - i)
             gsub(/_/, "", intPart)

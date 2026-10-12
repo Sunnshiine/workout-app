@@ -157,6 +157,19 @@ Sources/F.swift | 4 | const | 3 | 4 | @State private var count = 4
 Sources/F.swift | 5 | const | 1_000 | 1001 | let big = 1001
 ROWS
 
+echo "a literal directly before a colon is a dictionary key or a case label, so the next one is bumped"
+cat >"$tmp/F.swift" <<'SWIFT'
+let table = [1: 100, 2: 200]
+case 3:
+let pick = a ? 2 : 0
+let named = f(x: 4)
+SWIFT
+check "dictionary key, case label, ternary, argument label" <<'ROWS'
+Sources/F.swift | 1 | const | 100 | 101 | let table = [1: 101, 2: 200]
+Sources/F.swift | 3 | const | 2 | 3 | let pick = a ? 3 : 0
+Sources/F.swift | 4 | const | 4 | 5 | let named = f(x: 5)
+ROWS
+
 echo "declarations, directives, and crash or log calls are never mutated"
 cat >"$tmp/F.swift" <<'SWIFT'
 import Foundation
