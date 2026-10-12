@@ -133,6 +133,11 @@ check failures "a Swift Testing run that ends passing names no crash for a start
 ✔ Test restPillUrgencyCueStaysQuietBeforeFinalFiveSeconds() passed after 0.112 seconds.
 ✔ Test run with 1081 tests in 11 suites passed after 5.683 seconds with 1 known issue." \
 ""
+check failures "a Swift Testing run that ends failing still names a test it never finished" \
+"◇ Test run started.
+◇ Test a() started.
+✘ Test run with 2 tests in 1 suite failed after 0.002 seconds with 1 issue." \
+"a (crashed)"
 check failures "a crash outside any test names the process" \
 "◇ Test run started.
 error: Process 'helper' exited with unexpected signal code 11" \
