@@ -64,8 +64,8 @@ block && /^\t/ { name = $0; sub(/^\t+/, "", name); failed[norm(name)] = 1; next 
   next
 }
 
-# Swift Testing ends its run with this line, so a test it left started finished; its own line was lost.
-/^[^ ]+ Test run with [0-9]+ tests? .* (passed|failed) after / { for (name in swiftTesting) delete running[name] }
+# Swift Testing ends a passing run with this line, so a test it left started passed; its line was lost.
+/^[^ ]+ Test run with [0-9]+ tests? .* passed after / { for (name in swiftTesting) delete running[name] }
 
 /^[^ ]+ Test .* (passed|failed) after / && !/^[^ ]+ Test run with / && !/ recorded (an|a known) issue/ {
   name = $0
