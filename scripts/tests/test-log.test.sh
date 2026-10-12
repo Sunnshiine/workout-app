@@ -126,6 +126,13 @@ check failures "a crash with several tests running names none of them" \
 ◇ Test b() started.
 error: Process 'helper' exited with unexpected signal code 5" \
 "(test process crashed)"
+check failures "a Swift Testing run that ends passing names no crash for a start line it never finished" \
+"◇ Test run started.
+◇ Test restPildge() started.
+◇ Test restPillUrgencyCueStaysQuietBeforeFinalFiveSeconds() started.
+✔ Test restPillUrgencyCueStaysQuietBeforeFinalFiveSeconds() passed after 0.112 seconds.
+✔ Test run with 1081 tests in 11 suites passed after 5.683 seconds with 1 known issue." \
+""
 check failures "a crash outside any test names the process" \
 "◇ Test run started.
 error: Process 'helper' exited with unexpected signal code 11" \
