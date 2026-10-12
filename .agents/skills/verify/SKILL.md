@@ -268,8 +268,8 @@ still screen is one frame. `cardframe.py` is the one frame metric, and it times 
 pts, because ffmpeg's clock puts simctl frames about 0.8 s early. `still=yes` means the card never
 vanished and no edge moved over 0.5 pt. A launch take is measured from when the card reaches its final
 width and contrast, after iOS zooms or fades the app in. On a build whose card slides in on first
-appear, the animated launch read `worst_edge_range=23.3 still=no`, and the same build without
-`--animated` read `still=yes`. `cardstill.py` prints PASS only when the control commit moved the card
+appear, the animated launch read 22 to 24 pt of motion, `still=no`, and the same build without
+`--animated` read `motion=none`. `cardstill.py` prints PASS only when the control commit moved the card
 on one of its eight takes and the head held it still on all eight. After an edit to `take.py` or
 `motion/`, also run `uv run .agents/skills/verify/tests/test_motion.py`.
 
