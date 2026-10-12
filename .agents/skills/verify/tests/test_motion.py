@@ -515,7 +515,7 @@ class CardFrameOnClips(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertEqual(out, ["take=VALID animations=on frames=10 window_frames=10",
                                "window=start from=0.000 to=2.900 window_s=2.900"])
-        self.assertEqual(err, "no card: no card in any of the 10 frames from 0.000 s\n")
+        self.assertEqual(err, "no card: none of the 10 frames from 0.000 s showed it\n")
 
     def test_a_card_that_jumps_while_faint_and_then_brightens_reads_edges_partial_and_cardstill_calls_it_invalid(self):
         video = self.clips["faint-tap"]
@@ -532,7 +532,7 @@ class CardFrameOnClips(unittest.TestCase):
         code, out, err = self.lines("rule", "--x", "102")
         self.assertEqual((code, out, err), (1, ["take=VALID animations=on frames=10 window_frames=10",
                                                 "window=start from=0.000 to=2.900 window_s=2.900"],
-                                            "no card: no card in any of the 10 frames from 0.000 s\n"))
+                                            "no card: none of the 10 frames from 0.000 s showed it\n"))
 
     def test_a_take_whose_tree_held_no_active_set_card_is_no_card_and_cardstill_calls_it_invalid(self):
         code, out, err = self.lines("ticking", card_pt="none")
@@ -553,7 +553,7 @@ class CardFrameOnClips(unittest.TestCase):
 
     def test_cardstill_calls_a_window_with_no_card_in_any_frame_invalid(self):
         self.assertEqual(self.judged("rule"),
-                         (Verdict.INVALID, "no card: no card in any of the 10 frames from 0.000 s"))
+                         (Verdict.INVALID, "no card: none of the 10 frames from 0.000 s showed it"))
 
     def test_a_stamp_without_card_pt_exits_2_naming_it(self):
         video = self.dir / "untreed.mp4"
@@ -685,7 +685,7 @@ class Summarize(unittest.TestCase):
     def test_a_window_with_no_card_has_no_box_and_its_stillness_is_unknown(self):
         m = cardframe.summarize(TAKE, [Sample(0.0, None, FLAT), Sample(1.0, None, FLAT)], 0.5)
         self.assertEqual((len(m.in_window), m.card, m.still),
-                         (2, cardframe.NoCard("no card in any of the 2 frames from 0.500 s"), Still.UNKNOWN))
+                         (2, cardframe.NoCard("none of the 2 frames from 0.500 s showed it"), Still.UNKNOWN))
 
     def test_the_frame_showing_at_from_opens_the_window(self):
         m = cardframe.summarize(held_at(card(120)), [Sample(0.0, card(100), FLAT), Sample(0.4, card(120), FLAT),
@@ -938,7 +938,7 @@ RECORDER = "recorder exit 1 after SIGINT; the video may be cut short"
 EARLY = "the recorder stopped before the take ended"
 UNCOVERED = "the screen never changed after the drive began at +3.50 s, so the take shows nothing the drive did"
 SHORT = "the window watched 0.90 s from +2.500 s, under 1.5 s"
-NO_FRAMES = "no card in any of the 37 frames from 0.000 s"
+NO_FRAMES = "none of the 37 frames from 0.000 s showed it"
 NO_FADE = ("no frame after the launch began changed three quarters of the screen, so iOS's fade-in cannot be told "
            "from the app's motion")
 

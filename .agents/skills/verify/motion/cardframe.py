@@ -452,7 +452,7 @@ def card_of(card_pt: Union[CardPt, Literal["none"]], window: Sequence[Sample], a
         return NoCard("the accessibility tree held no active-set-card when the recorder stopped")
     settled = next((s.card for s in reversed(window) if s.card is not None), None)
     if settled is None:
-        return NoCard(f"no card in any of the {len(window)} frames from {at:.3f} s")
+        return NoCard(f"none of the {len(window)} frames from {at:.3f} s showed it")
     x, y = card_pt.middle
     if (abs((settled.left + settled.right) / 2 - x) > MIDDLE_PT
             or abs((settled.top + settled.bottom) / 2 - y) > MIDDLE_PT):
