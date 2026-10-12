@@ -1986,8 +1986,8 @@ class DriveGuard(Lane):
         for argv in [["tap", "-x", "5", "-y", "6"], ["shot", "02-head"], ["type", "245"]]:
             with self.subTest(argv=argv):
                 self.assertEqual(self.verify(*argv, VERIFY_RUN="ui12"), (75, "", (
-                    "the last launch of run ui12 on {sim} was refused, so the app there is not the one it wanted: "
-                    "{refusal}; launch again: SIM={sim} VERIFY_RUN=ui12 {verify} launch <fixture>\n"
+                    "the last launch of run ui12 on {sim} was refused, so this would drive whatever that refusal left "
+                    "running ({refusal}); launch again: SIM={sim} VERIFY_RUN=ui12 {verify} launch <fixture>\n"
                 ).format(sim=self.sim, refusal=refusal, verify=self.verify_path)))
                 self.assertEqual(self.calls(), [], "the control app is neither driven nor filmed as the head")
         self.assertRegex((self.evidence("main", "ui12") / "launches.txt").read_text(),

@@ -548,7 +548,7 @@ require_own_app() {
   local owner pid
   [ -n "${VERIFY_RUN:-}" ] || return 0
   if [ -f "$state_dir/refused.$VERIFY_RUN" ]; then
-    echo "the last launch of run $VERIFY_RUN on $sim was refused, so the app there is not the one it wanted: $(cat "$state_dir/refused.$VERIFY_RUN"); launch again: SIM=$sim VERIFY_RUN=$VERIFY_RUN $0 launch <fixture>" >&2
+    echo "the last launch of run $VERIFY_RUN on $sim was refused, so this would drive whatever that refusal left running ($(cat "$state_dir/refused.$VERIFY_RUN")); launch again: SIM=$sim VERIFY_RUN=$VERIFY_RUN $0 launch <fixture>" >&2
     exit 75
   fi
   owner=$(cat "$state_dir/run" 2>/dev/null) || return 0
