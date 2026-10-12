@@ -56,8 +56,9 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
                               captures, runs COMMAND (a drive command, launch included), then S more
                               seconds (default 2), and stamps load, timing, frames and the verdict.
                               Waits for load under the limit first. Exit 0 VALID, 3 INVALID (both kept,
-                              reasons on stderr), 1 COMMAND failed, 70 recorder or ffprobe failed, 75
-                              nothing ran (simulator held or load never fell)
+                              reasons on stderr), 1 COMMAND failed, 70 recorder or ffprobe failed, or the
+                              screen size could not be read after the take (nothing kept, a VALID take
+                              included), 75 nothing ran (simulator held or load never fell)
   stop                        terminate the app this run launched; the simulator stays up, and it
                               says when the run has shots that are not on a sheet yet. A run
                               launched with Live Activities on is uninstalled, which ends them
