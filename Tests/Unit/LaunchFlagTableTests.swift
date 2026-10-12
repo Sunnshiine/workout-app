@@ -9,8 +9,8 @@ import Testing
 
     private func launchFlagTable(
         _ flags: [LaunchFlag],
-        scenarios: [LaunchFlag] = UITestLaunch.scenarioFlags.map(\.flag),
-        screens: [LaunchFlag] = UITestLaunch.screenFlags
+        scenarios: [LaunchFlag],
+        screens: [LaunchFlag]
     ) -> String {
         let alone = flags.filter { $0.actsWithoutFixture && $0 != .fixture }.map { "`\($0.argument)`" }
         let fixtureRule =
@@ -39,7 +39,11 @@ import Testing
     }
 
     @Test func launchFlagTableMatchesTheRegistry() throws {
-        let table = launchFlagTable(LaunchFlag.all)
+        let table = launchFlagTable(
+            LaunchFlag.all,
+            scenarios: UITestLaunch.scenarioFlags.map(\.flag),
+            screens: UITestLaunch.screenFlags
+        )
         if ProcessInfo.processInfo.environment["RECORD_LAUNCH_FLAGS"] == "1" {
             let url = try RepositoryFiles.existingURL(of: ".agents/skills/verify").appending(path: "launch-flags.md")
             try table.write(to: url, atomically: true, encoding: .utf8)
