@@ -1,7 +1,12 @@
 # Prints the --diff mutants of one Swift file, one TSV row per mutant:
 #   path  line  op  before  after  mutated_line
 #
-#   awk -v path=Sources/X.swift -v changed=LINES_FILE -f scripts/mutants.awk Sources/X.swift
+#   awk -v path=Sources/X.swift -v changed=LINES_FILE [-v platform=macOS|iOS -v compiledOut=FILE] \
+#       -f scripts/mutants.awk Sources/X.swift
+#
+# With platform, a row on a line inside an #if branch that platform compiles out is appended to
+# compiledOut instead. Only os(...), canImport(UIKit), and canImport(AppKit), each alone or negated,
+# decide a branch; any other condition leaves its branches compiled in.
 #
 # LINES_FILE holds the changed line numbers, one per line. Each op
 # (bool, compare, logic, negate, return, const) yields at most one mutant per line, at its first
@@ -122,8 +127,48 @@ function mask(s,    n, i, c, out, k, h, end, rest) {
     return out
 }
 
-function emit(op, before, after, mutated) {
-    printf "%s\t%d\t%s\t%s\t%s\t%s\n", path, NR, op, before, after, mutated
+function emit(op, before, after, mutated,    row) {
+    row = sprintf("%s\t%d\t%s\t%s\t%s\t%s", path, NR, op, before, after, mutated)
+    if (compiledOutLine) print row >> compiledOut
+    else print row
+}
+
+# 1 when platform compiles the branch in, 0 when it compiles it out, -1 when it cannot tell.
+function branchOn(cond,    negated, v) {
+    gsub(/[ \t]/, "", cond)
+    negated = sub(/^!/, "", cond)
+    if (cond ~ /^os\([A-Za-z]+\)$/) v = cond == "os(" platform ")"
+    else if (cond == "canImport(UIKit)") v = platform == "iOS"
+    else if (cond == "canImport(AppKit)") v = platform == "macOS"
+    else return -1
+    return negated ? 1 - v : v
+}
+
+# Tracks each open #if's branch: on[d] for the branch the line sits in, taken[d] when an earlier branch
+# was compiled in, unsure[d] when an earlier branch could not be told.
+function directive(m,    t, kind, v, d) {
+    t = m
+    gsub(MASK, "", t)
+    sub(/^[ \t]+/, "", t)
+    if (t !~ /^#(if|elseif|else|endif)([^A-Za-z0-9_]|$)/) return
+    kind = t
+    sub(/[^A-Za-z#].*/, "", kind)
+    sub(/^#(if|elseif)/, "", t)
+    if (kind == "#endif") { if (depth > 0) depth--; return }
+    if (kind == "#if") { d = ++depth; taken[d] = 0; unsure[d] = 0 }
+    d = depth
+    if (d == 0) return
+    v = kind == "#else" ? 1 : (platform == "" ? -1 : branchOn(t))
+    if (taken[d] || v == 0) on[d] = 0
+    else if (unsure[d] || v == -1) on[d] = -1
+    else on[d] = 1
+    taken[d] = taken[d] || on[d] == 1
+    unsure[d] = unsure[d] || on[d] == -1
+}
+
+function inCompiledOutBranch(    d) {
+    for (d = 1; d <= depth; d++) if (on[d] == 0) return 1
+    return 0
 }
 
 function findWord(m, word,    from, p, prev, next_) {
@@ -231,7 +276,10 @@ function skipLine(line, m,    t, code) {
 
 {
     m = mask($0)
+    directive(m)
     if (!(NR in want) || skipLine($0, m)) next
+    compiledOutLine = inCompiledOutBranch()
+    if (compiledOutLine && compiledOut == "") next
     swapFirst("bool", $0, m, boolFrom, boolTo, boolCount, 0)
     swapFirst("compare", $0, m, compareFrom, compareTo, compareCount, 1)
     swapFirst("logic", $0, m, logicFrom, logicTo, 2, 1)
