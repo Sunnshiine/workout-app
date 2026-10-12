@@ -3,7 +3,8 @@
 
 Reads an `axe describe-ui` JSON tree on stdin:
   tree.py flat [--all]   one line per labeled or identified element: role, id, label, value, @x,y wxh
-                         on-screen elements only; --all keeps the off-screen ones too
+                         on-screen elements only; --all keeps the off-screen ones and the elements
+                         with neither id nor label too
   tree.py find <id>      that element's line wherever it is, on screen or off; exit 1 if absent
                          says on stderr when it is off-screen, clipped (its centre outside the frame
                          of an ancestor of nonzero size), or disabled
@@ -116,10 +117,8 @@ class TreeLine(NamedTuple):
     clipped_by: Optional[str]
 
     @classmethod
-    def from_node(cls, node: dict, ancestors: Tuple[dict, ...], screen: Frame) -> Optional["TreeLine"]:
+    def from_node(cls, node: dict, ancestors: Tuple[dict, ...], screen: Frame) -> "TreeLine":
         ident, label = node.get("AXUniqueId"), node.get("AXLabel")
-        if not (ident or label):
-            return None
         frame = Frame.of(node)
         return cls(
             clean(node.get("role")), clean(ident), clean(label), clean(node.get("AXValue")), frame,
@@ -130,6 +129,10 @@ class TreeLine(NamedTuple):
     def parse(cls, text_line: str) -> "TreeLine":
         role, ident, label, value, frame = text_line.split("\t")
         return cls(role, ident, label, value, Frame.parse(frame), True, None)
+
+    @property
+    def named(self) -> bool:
+        return bool(self.ident or self.label)
 
     @property
     def text(self) -> str:
@@ -151,10 +154,13 @@ def walk(node: dict, ancestors: Tuple[dict, ...] = ()) -> Iterator[Tuple[dict, T
         yield from walk(child, ancestors + (node,))
 
 
-def lines(root: dict) -> List[TreeLine]:
+def every_line(root: dict) -> List[TreeLine]:
     screen = Frame.of(root)
-    built = (TreeLine.from_node(node, ancestors, screen) for node, ancestors in walk(root))
-    return [line for line in built if line is not None]
+    return [TreeLine.from_node(node, ancestors, screen) for node, ancestors in walk(root)]
+
+
+def lines(root: dict) -> List[TreeLine]:
+    return [line for line in every_line(root) if line.named]
 
 
 def on_screen(all_lines: List[TreeLine], screen: Frame) -> List[TreeLine]:
@@ -312,13 +318,19 @@ def main() -> None:
     elif mode == "frame":
         print(f"{screen.width:.0f} {screen.height:.0f}")
     elif mode == "flat":
-        every = lines(root)
-        shown = every if "--all" in sys.argv[2:] else on_screen(every, screen)
+        every = every_line(root)
+        if "--all" in sys.argv[2:]:
+            for line in every:
+                print(line.text)
+            return
+        named = [line for line in every if line.named]
+        shown = on_screen(named, screen)
         for line in shown:
             print(line.text)
-        hidden = len(every) - len(shown)
-        if hidden:
-            print(f"{hidden} off-screen elements hidden; `verify.sh tree --all` lists them", file=sys.stderr)
+        for count, kind in [(len(named) - len(shown), "off-screen elements"),
+                            (len(every) - len(named), "elements with neither id nor label")]:
+            if count:
+                print(f"{count} {kind} hidden; `verify.sh tree --all` lists them", file=sys.stderr)
     elif mode == "find":
         found = by_id(root, sys.argv[2])
         if not found:

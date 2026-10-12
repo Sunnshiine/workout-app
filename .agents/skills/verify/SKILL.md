@@ -61,7 +61,7 @@ anything. An empty tree on a healthy pid means the simulator's accessibility bri
 
 ```bash
 .agents/skills/verify/verify.sh tree                       # what is on screen: role  id  label  value  @x,y wxh
-.agents/skills/verify/verify.sh tree --all                 # plus what is scrolled out of view
+.agents/skills/verify/verify.sh tree --all                 # plus what is scrolled out of view, and elements with no id or label
 .agents/skills/verify/verify.sh find log-active-set-button # one line, on screen or off; exit 1 if absent; stderr says off-screen, clipped, or disabled
 .agents/skills/verify/verify.sh tap --id rpe-6             # or --label "Sign Out", or -x 201 -y 740
 .agents/skills/verify/verify.sh hold log-active-set-button # long press, 1.2 s default
@@ -70,6 +70,9 @@ anything. An empty tree on a healthy pid means the simulator's accessibility bri
 .agents/skills/verify/verify.sh burst log-transition tap --id log-active-set-button   # one action, 12 frames over 2 s, one image
 .agents/skills/verify/verify.sh axe swipe --start-x 200 --start-y 90 --end-x 200 --end-y 420 --duration 0.4   # any axe verb
 ```
+
+`tree` prints only named elements and says on stderr how many it hid. An element with neither an
+identifier nor a label still exists; `tree --all` prints it with empty id and label columns.
 
 Target elements by accessibility identifier (`tap --id`) first, by label second, by coordinates
 only when the element has neither. Alert buttons have labels but no identifiers. `tap --id` polls

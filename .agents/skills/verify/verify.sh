@@ -10,7 +10,8 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
                                         completed-open-exercises developer-tools
   doctor                      read-only: is the running instance ours, current, and answering?
   tree [--all]                what is on screen, one element per line: role  id  label  value  @x,y wxh
-                              --all adds the off-screen ones (scrolled-out rows, picker tails)
+                              --all adds the off-screen ones (scrolled-out rows, picker tails) and
+                              the ones with neither id nor label, by role, value and frame
   find <id>                   one element by accessibility identifier, on screen or off; exit 1 if absent;
                               says on stderr when it is off-screen, clipped, or disabled
   tap --id ID | --label TEXT | -x X -y Y
