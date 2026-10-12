@@ -11,10 +11,12 @@ Reads NAME.take beside the video. Each encoded frame is decoded once, at the rec
 (video width over the stamp's screen_pt width per point), and timed by its own presentation time, in
 seconds after the take started. recordVideo writes a frame only when the screen changes, so
 the window is the frame showing at --from and every frame after it. --from is by default the drive's start
-(0 with no drive). For a launch take it is the frame from which the card keeps the width of the take's
-last card and nine tenths of its contrast: iOS opens an app by scaling its window up from the icon, or by
-fading it in from black under -UITEST_DISABLE_ANIMATIONS, and until then the system, not the app, moves
-the card's edges. An app's own scale-in or fade-in on launch therefore reads as part of the launch.
+(0 with no drive). For a launch take it is the frame from which the card keeps the most common width of
+the take's last eight cards and nine tenths of their median contrast, one stray frame aside: iOS opens an
+app by scaling its window up from the icon, or by fading it in from black under -UITEST_DISABLE_ANIMATIONS,
+and until then the system, not the app, moves the card's edges. An app's own scale-in or fade-in on launch
+therefore reads as part of the launch, and a first-appear motion that overlaps the launch zoom is measured
+only from when the zoom ends (a 300 pt slide in on first appear read 23 pt).
 The card is the longest vertical run, at least 120 pt with gaps up to 8 pt merged, where the column at
 --x pt is brighter than the paper column at --ref pt by 4.0; left and right come from a row scan at the
 run's middle. Frames before the card first shows are not lost; a frame after it without the card is.
@@ -43,8 +45,10 @@ import math
 import subprocess
 import sys
 import tempfile
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
+from statistics import median
 from typing import Dict, Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
@@ -55,6 +59,7 @@ MERGE_GAP_PT = 8.0
 STILL_PT = 0.5
 STEP_PT = 0.75
 LAUNCH_CONTRAST = 0.9
+SETTLED_FRAMES = 8
 EDGES = ("top", "bottom", "left", "right")
 
 
@@ -316,20 +321,25 @@ def measure(video, from_s: Optional[float] = None, x: float = 28, ref: float = 8
 
 
 def full_size(found: Sequence[Sample], after: float) -> float:
-    """When a launch's card takes, for good, the width it ends the take at and nine tenths of its final
-    contrast. iOS opens an app by scaling its window up from the icon, or fading it in from black when
-    the app runs with -UITEST_DISABLE_ANIMATIONS, and until then the system, not the app, moves the card's
-    edges; before the window opens, the springboard can read as a card of another width."""
+    """When a launch's card takes, for good, its final width and nine tenths of its final contrast, read
+    from the last SETTLED_FRAMES cards. iOS opens an app by scaling its window up from the icon, or fading
+    it in from black when the app runs with -UITEST_DISABLE_ANIMATIONS, and until then the system, not the
+    app, moves the card's edges; before the window opens, the springboard can read as a card of another
+    width. One unsettled frame does not end the walk back, so a single stray frame cannot shrink the
+    window to the frames after it; two in a row do."""
     cards = [s for s in found if s.card is not None and s.t >= after]
     if not cards:
         return after
-    last = cards[-1].card
-    start = cards[-1].t
-    for s in reversed(cards):
-        if s.card.right - s.card.left != last.right - last.left or s.card.contrast < LAUNCH_CONTRAST * last.contrast:
-            break
-        start = s.t
-    return start
+    final = [s.card for s in cards[-SETTLED_FRAMES:]]
+    counts = Counter(c.right - c.left for c in final)
+    # A tie goes to the later width: a take can end on the last frames of the zoom.
+    width = max(reversed([c.right - c.left for c in final]), key=lambda w: counts[w])
+    contrast = median(c.contrast for c in final)
+    settled = [s.card.right - s.card.left == width and s.card.contrast >= LAUNCH_CONTRAST * contrast for s in cards]
+    for i in range(len(cards) - 1, 0, -1):
+        if not settled[i] and not settled[i - 1]:
+            return cards[min(i + 1, len(cards) - 1)].t
+    return cards[0].t
 
 
 def _span(lo: float, hi: float) -> str:

@@ -259,11 +259,11 @@ class CardFrameOnClips(unittest.TestCase):
         m = cardframe.measure(video)
         self.assertEqual((round(m.first_seen, 3), m.lost, m.worst_edge_range, m.still), (1.1, 0, 0.0, True))
 
-    def test_a_launch_that_fades_in_is_measured_once_the_card_has_its_contrast(self):
+    def test_a_launch_that_fades_in_is_measured_once_the_card_nears_the_median_contrast_of_its_last_frames(self):
         video = self.clips["launch-fade"]
         stamp(video, drive="launch session", drive_start="0.000", drive_end="1.400")
         m = cardframe.measure(video)
-        self.assertEqual((round(m.first_seen, 3), m.worst_edge_range, m.still), (1.133, 0.0, True))
+        self.assertEqual((round(m.first_seen, 3), m.worst_edge_range, m.still), (1.083, 0.0, True))
 
     def test_a_card_that_slides_in_after_the_launch_zoom_reads_its_slide(self):
         video = self.clips["launch-slide"]
@@ -367,6 +367,35 @@ class Summarize(unittest.TestCase):
     def test_the_frame_showing_at_from_opens_the_window(self):
         m = cardframe.summarize(self.take(), [Sample(0.0, card(100)), Sample(0.4, card(120)), Sample(1.0, None)], 0.5)
         self.assertEqual((len(m.window), m.first_seen, m.lost, m.ranges["top"]), (2, 0.4, 1, (120.0, 120.0)))
+
+
+class FullSize(unittest.TestCase):
+    def launch(self, last_right):
+        zoom = [Sample(1.0, card(110, left=40.0, right=162.0)), Sample(1.017, card(105, left=28.0, right=174.0))]
+        settled = [Sample(round(1.033 + 0.017 * k, 3), card(100)) for k in range(8)]
+        return zoom + settled + [Sample(1.2, card(100, right=last_right))]
+
+    def test_the_window_opens_after_the_last_two_unsettled_frames_in_a_row(self):
+        self.assertEqual(cardframe.full_size(self.launch(186.0), 0.0), 1.033)
+
+    def test_one_stray_last_frame_keeps_the_window_and_counts_against_still(self):
+        found = self.launch(187.0)
+        from_s = cardframe.full_size(found, 0.0)
+        m = cardframe.summarize(self.take(), found, from_s)
+        self.assertEqual((from_s, len(m.window), m.worst_edge_range, m.still), (1.033, 9, 1.0, False))
+
+    def test_one_dim_frame_among_the_settled_ones_is_skipped(self):
+        found = self.launch(186.0)
+        found[5] = Sample(found[5].t, card(100, contrast=20.0))
+        self.assertEqual(cardframe.full_size(found, 0.0), 1.033)
+
+    def test_a_tie_for_the_most_common_width_goes_to_the_later_one(self):
+        widths = [150.0, 150.0, 160.0, 160.0, 165.0, 165.0, 170.0, 170.0]
+        found = [Sample(round(1.0 + 0.017 * k, 3), card(100, left=16.0, right=16.0 + w)) for k, w in enumerate(widths)]
+        self.assertEqual(cardframe.full_size(found, 0.0), 1.102)
+
+    def take(self):
+        return Summarize.take(self)
 
 
 class Detect(unittest.TestCase):
