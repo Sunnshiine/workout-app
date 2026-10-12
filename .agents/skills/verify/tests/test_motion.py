@@ -146,6 +146,10 @@ def jumps_20_pt_in_its_last_two_frames(j):
     return PAPER, [STILL_BOX if j < 30 else (100, 280, 16, 186) if j == 30 else (100, 280, 16, 196)]
 
 
+def jumps_20_pt_in_its_last_frame(j):
+    return PAPER, [STILL_BOX if j < 30 else (100, 280, 16, 186)]
+
+
 def zooms_from_the_icon(i):
     k = min(max((i - 18) / 20, 0.0), 1.0)
     return PAPER, [(180 - 80 * k, 180 + 80 * k, 101 - 85 * k, 101 + 85 * k)]
@@ -197,6 +201,7 @@ class CardFrameOnClips(unittest.TestCase):
             ("launch-slide", launched(slides_in_from_the_right), 1.6),
             ("launch-fly", launched(flies_in_from_the_top), 1.6),
             ("launch-jump", launched(jumps_20_pt_in_its_last_two_frames), 1.6),
+            ("launch-jump-last", launched(jumps_20_pt_in_its_last_frame), 1.6),
             ("launch-zoom", zooms_from_the_icon, 1.5),
         ]:
             cls.clips[name] = cls.dir / f"{name}.mp4"
@@ -395,6 +400,29 @@ class CardFrameOnClips(unittest.TestCase):
             "still=no box=changed look=changed",
         ])
 
+    def test_a_20_pt_jump_in_a_launch_s_last_frame_that_brightens_x1_34_reads_edges_partial_and_still_unknown(self):
+        video = self.clips["launch-jump-last"]
+        filmed = take.parse(stamp(video, drive=LAUNCH_DRIVE, drive_end=1.4).read_text())
+        found = cardframe.samples(video, filmed)
+        jump = len(found) - 1
+        found[jump:] = [dataclasses.replace(s, card=dataclasses.replace(s.card, contrast=s.card.contrast * 1.34))
+                        for s in found[jump:]]
+        m = cardframe.summarize(filmed, found)
+        self.assertEqual(cardframe.report(m), [
+            "take=VALID animations=on frames=45 window_frames=2",
+            "window=ramp from=1.000 to=3.500 window_s=2.500",
+            "first_seen=1.500 lost=0 faint=1 edges=partial",
+            "top=100.0..100.0 bottom=280.0..280.0 left=16.0..16.0 right=186.0..186.0",
+            "worst_edge_range=0.0",
+            "contrast=53.6..53.6",
+            "motion=none",
+            "look_peak=4.4 look_frames=1 look_motion=1.500..1.500 look_ms=0",
+            "still=unknown box=still look=cut",
+        ])
+        self.assertEqual(cardstill.judge_take(0, Reading.of(m)), (
+            Verdict.INVALID, "the card was faint for its first 1 frames, so its edges were not read from the window's "
+                             "start"))
+
     def test_a_launch_whose_fade_ended_late_and_watched_under_1_5_s_is_invalid_and_1_5_s_is_enough(self):
         code, out, _ = self.lines("launch-late", drive=LAUNCH_DRIVE, drive_end=1.4, stopped=3.9)
         self.assertEqual(code, 3)
@@ -467,9 +495,10 @@ class CardFrameOnClips(unittest.TestCase):
     def test_a_card_that_jumps_while_faint_and_then_brightens_reads_edges_partial_and_cardstill_calls_it_invalid(self):
         video = self.clips["faint-tap"]
         stamp(video, drive="tap --id log-active-set-button", drive_start=0.3, drive_end=0.4)
-        r = Reading.of(cardframe.measure(video))
-        self.assertEqual((r.first_seen, r.faint, r.partial, r.worst_edge_range), (0.8, 2, True, 0.0))
-        self.assertEqual(cardstill.judge_take(0, r), (
+        m = cardframe.measure(video)
+        box = m.card.box
+        self.assertEqual((box.first_seen, box.faint, box.partial, box.worst_edge_range), (0.8, 2, True, 0.0))
+        self.assertEqual(cardstill.judge_take(0, Reading.of(m)), (
             Verdict.INVALID, "the card was faint for its first 2 frames, so its edges were not read from the window's "
                              "start"))
 
@@ -601,7 +630,7 @@ def ruled(m, *rules, animations="on"):
 
 class StillOf(unittest.TestCase):
     def test_only_rules_that_hide_motion_and_never_invent_it_keep_a_move_sound(self):
-        self.assertEqual([cardframe.hides_only(rules) for rules in
+        self.assertEqual([cardframe.moved_counts(rules) for rules in
                           [(), ("load",), ("window",), ("load", "window"), ("ramp",), ("load", "coverage"),
                            ("recorder_exit",), ("recorder_early",)]],
                          [True, True, True, True, False, False, False, False])
@@ -610,6 +639,7 @@ class StillOf(unittest.TestCase):
         moved = cardframe.summarize(TAKE, frames(card(100), card(110)), 0.0)
         faded = cardframe.summarize(TAKE, looks(200, 210, 220, 230, 240, 240), 0.0)
         held = cardframe.summarize(TAKE, frames(card(100), card(100)), 0.0)
+        held_after_a_faint_frame = cardframe.summarize(TAKE, frames(card(100, contrast=5.0), card(100)), 0.0)
         empty = cardframe.summarize(TAKE, [Sample(0.0, None, FLAT)], 0.0)
         cases = [
             ("box moved, VALID", ruled(moved), Still.NO),
@@ -622,6 +652,7 @@ class StillOf(unittest.TestCase):
             ("box moved under load and no coverage", ruled(moved, "load", "coverage"), Still.UNKNOWN),
             ("box moved, recorder exit 1", ruled(moved, "recorder_exit"), Still.UNKNOWN),
             ("nothing moved, VALID", ruled(held), Still.YES),
+            ("nothing moved, VALID, edges partial", ruled(held_after_a_faint_frame), Still.UNKNOWN),
             ("nothing moved under load", ruled(held, "load"), Still.UNKNOWN),
             ("nothing moved, animations off", ruled(held, animations="off"), Still.UNKNOWN),
             ("nothing moved, animations unknown", ruled(held, animations="unknown"), Still.UNKNOWN),
@@ -754,8 +785,9 @@ class Detect(unittest.TestCase):
 
 def reading(rules=(), invalid="", animations="on", first_seen=0.0, lost=0, faint=0, partial=False, worst=0.0,
             look="still"):
-    return Reading(rules=rules, invalid=invalid, animations=animations, first_seen=first_seen, lost=lost, faint=faint,
-                   partial=partial, worst_edge_range=worst, look=look, frames=37, load="12.31/14.02")
+    reasons = [Reason(",".join(rules), invalid)] if rules else []
+    return Reading(rules=rules, unvouched=cardframe.unvouched(reasons, animations, partial, faint),
+                   first_seen=first_seen, lost=lost, worst_edge_range=worst, look=look, frames=37, load="12.31/14.02")
 
 
 LOAD = "load 63.2 at the end, at or over 50"

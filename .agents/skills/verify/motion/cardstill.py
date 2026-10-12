@@ -99,12 +99,9 @@ class Verdict(Enum):
 @dataclass(frozen=True)
 class Reading:
     rules: Tuple[str, ...]
-    invalid: str
-    animations: str
+    unvouched: Optional[str]
     first_seen: Optional[float]
     lost: int
-    faint: int
-    partial: bool
     worst_edge_range: float
     look: str
     frames: int
@@ -115,12 +112,10 @@ class Reading:
         box = m.card.box if m.card else None
         return Reading(
             rules=tuple(r.rule for r in m.invalid),
-            invalid="; ".join(r.text for r in m.invalid),
-            animations=m.take.animations,
+            unvouched=cardframe.unvouched(m.invalid, m.take.animations, box.partial if box else False,
+                                          box.faint if box else 0),
             first_seen=box.first_seen if box else None,
             lost=box.lost if box else 0,
-            faint=box.faint if box else 0,
-            partial=box.partial if box else False,
             worst_edge_range=box.worst_edge_range if box else 0.0,
             look=look_text(m.card.look) if m.card else "",
             frames=m.frames,
@@ -137,19 +132,13 @@ def judge_take(record_exit: int, reading: Optional[Reading], late_s: float = 0.0
         return Verdict.INVALID, f"record exited {record_exit}"
     if reading is None:
         return Verdict.INVALID, "record left no stamp"
-    seen_soundly = reading.first_seen is not None and cardframe.hides_only(reading.rules)
+    seen_soundly = reading.first_seen is not None and cardframe.moved_counts(reading.rules)
     if seen_soundly and reading.lost > 0:
         return Verdict.FAIL, f"lost the card in {reading.lost} frames"
     if seen_soundly and reading.worst_edge_range > cardframe.STILL_PT:
         return Verdict.FAIL, f"an edge moved {reading.worst_edge_range:.1f} pt"
-    if reading.partial:
-        first = (f"was faint for its first {reading.faint} frames" if reading.faint
-                 else "was missing from the window's first frames")
-        return Verdict.INVALID, f"the card {first}, so its edges were not read from the window's start"
-    if reading.rules:
-        return Verdict.INVALID, f"take INVALID: {reading.invalid}"
-    if reading.animations != "on":
-        return Verdict.INVALID, f"animations {reading.animations}"
+    if reading.unvouched is not None:
+        return Verdict.INVALID, reading.unvouched
     if late_s > 0:
         return Verdict.INVALID, f"started {late_s:.1f} s late"
     if reading.first_seen is None:

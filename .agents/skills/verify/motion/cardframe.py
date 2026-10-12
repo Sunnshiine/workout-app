@@ -120,8 +120,20 @@ MIN_WINDOW_S = 1.5
 HIDES_MOTION = RULES_THAT_ONLY_HIDE_MOTION | {"window"}
 
 
-def hides_only(rules: Iterable[str]) -> bool:
+def moved_counts(rules: Iterable[str]) -> bool:
     return set(rules) <= HIDES_MOTION
+
+
+def unvouched(invalid: Sequence[Reason], animations: str, partial: bool, faint: int) -> Optional[str]:
+    if partial:
+        first = (f"was faint for its first {faint} frames" if faint
+                 else "was missing from the window's first frames")
+        return f"the card {first}, so its edges were not read from the window's start"
+    if invalid:
+        return f"take INVALID: {'; '.join(r.text for r in invalid)}"
+    if animations != "on":
+        return f"animations {animations}"
+    return None
 
 
 class Usage(Exception):
@@ -246,9 +258,10 @@ class Measure:
     def still(self) -> Still:
         if self.card is None:
             return Still.UNKNOWN
-        if self.card.box.changed or self.card.look.kind is LookKind.CHANGED:
-            return Still.NO if hides_only(r.rule for r in self.invalid) else Still.UNKNOWN
-        return Still.YES if not self.invalid and self.take.animations == "on" else Still.UNKNOWN
+        box = self.card.box
+        if box.changed or self.card.look.kind is LookKind.CHANGED:
+            return Still.NO if moved_counts(r.rule for r in self.invalid) else Still.UNKNOWN
+        return Still.YES if unvouched(self.invalid, self.take.animations, box.partial, box.faint) is None else Still.UNKNOWN
 
 
 def _band(pt: float, px_per_pt: float) -> slice:
