@@ -186,12 +186,14 @@ admit_claim() {
   local udid=$1 build=$2 others own rc=1
   load_clear "$WORKOUT_LOAD_LIMIT" || return 1
   host_room "$udid" || return 1
-  [ "$build" = 0 ] || take_build_slot || return 1
-  [ "$own" = Shutdown ] || return 0
+  if [ "$own" != Shutdown ]; then
+    [ "$build" = 0 ] || take_build_slot
+    return
+  fi
   exec 7>>"$host_lock_dir/admit"
-  if ! try_flock 7 LOCK_EX 20; then
+  if ! try_flock 7 LOCK_EX 1; then
     busy_reason="another claim is booting a simulator (lsof $host_lock_dir/admit lists it)"
-  elif host_room "$udid"; then
+  elif { [ "$build" = 0 ] || take_build_slot; } && host_room "$udid"; then
     [ "$own" != Shutdown ] || boot_sim "$udid"
     rc=0
   fi

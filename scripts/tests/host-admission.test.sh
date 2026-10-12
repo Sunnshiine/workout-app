@@ -297,7 +297,8 @@ echo listed >> "$root/herd-listed"
 [ "\$(wc -l < "$root/herd-listed")" -eq 2 ] || exec "$root/bin/xcrun" "\$@"
 listing=\$("$root/bin/xcrun" "\$@")
 touch "$root/release"
-while [ ! -f "$root/booted" ]; do sleep 0.1; done
+i=0
+while [ ! -f "$root/booted" ] && [ \$i -lt 100 ]; do sleep 0.1; i=\$((i + 1)); done
 printf '%s\\n' "\$listing"
 STUB
 chmod +x "$root/herd/xcrun"
@@ -310,6 +311,60 @@ PATH="$root/herd:$PATH" STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 WORKOUT_
 wait "$first"; status="$? $status"
 expect "two claims that both counted 5 booted boot one simulator between them, not two" \
     "$status $(grep -c 'simctl boot' "$root/xcrun-calls")" "65 75 1"
+
+reset; rm -f "$root/herd-listed"
+STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 STUB_BOOT_HOLD=1 test_sim --no-build &
+first=$!
+for _ in $(seq 1 100); do [ -f "$root/boot-holding" ] && break; sleep 0.1; done
+PATH="$root/herd:$PATH" STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=5 \
+    "$repo/scripts/test-sim.sh" --sim "$sim2" unit >/dev/null 2>"$root/err2" &
+second=$!
+wait "$first"; rm -f "$root/builds"
+for _ in $(seq 1 100); do grep -q "waiting up to" "$root/err2" 2>/dev/null && break; sleep 0.1; done
+STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
+wait "$second"
+expect "a build claim the recount turns away gives its build slot back" "$status $(builds)" "65 build-for-testing"
+
+reset
+STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 STUB_BOOT_HOLD=1 test_sim --no-build &
+first=$!
+for _ in $(seq 1 100); do [ -f "$root/boot-holding" ] && break; sleep 0.1; done
+STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 WORKOUT_ADMIT_WAIT=0 \
+    "$repo/scripts/test-sim.sh" --no-build --sim "$sim2" unit >/dev/null 2>"$root/err2"; status=$?
+touch "$root/release"; wait "$first"
+expect "a claim holds the admit lock through its boot, so no other boot starts meanwhile" \
+    "$status $(grep -c 'simctl boot' "$root/xcrun-calls") $(tail -1 "$root/err2" | sed 's/^gave up after [0-9]* s/gave up after N s/')" \
+    "75 1 gave up after N s waiting for the host before taking $sim2: another claim is booting a simulator (lsof $root/locks/admit lists it)"
+
+reset
+mkdir -p "$root/locks"
+python3 -c 'import fcntl, sys, time
+admit = open(sys.argv[1], "a")
+fcntl.flock(admit, fcntl.LOCK_EX)
+open(sys.argv[2], "w").close()
+time.sleep(30)' "$root/locks/admit" "$root/holding" &
+admitting=$!
+for _ in $(seq 1 100); do [ -f "$root/holding" ] && break; sleep 0.1; done
+STUB_SHUTDOWN=$sim2 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=6 \
+    "$repo/scripts/test-sim.sh" --sim "$sim2" unit >/dev/null 2>"$root/err2" &
+first=$!
+for _ in $(seq 1 100); do grep -q "waiting up to" "$root/err2" 2>/dev/null && break; sleep 0.1; done
+refused=0
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+    STUB_SHUTDOWN=$sim2 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim
+    [ $? != 75 ] || refused=$((refused + 1))
+done
+kill "$admitting"; wait "$admitting" "$first" 2>/dev/null
+expect "a build claim waiting for the admit lock never holds a build slot against a build that could run" "$refused" "0"
+
+reset
+STUB_SHUTDOWN=$sim STUB_SLOW_LIST_CALL=3 "$repo/scripts/test-sim.sh" --no-build --sim "$sim" unit >/dev/null 2>&1 &
+first=$!
+for _ in $(seq 1 100); do [ -f "$root/listing-slowly" ] && break; sleep 0.1; done
+kill -9 "$first"; wait "$first" 2>/dev/null
+STUB_SHUTDOWN="$sim $sim2" WORKOUT_ADMIT_WAIT=0 "$repo/scripts/test-sim.sh" --no-build --sim "$sim2" unit >/dev/null 2>"$root/err2"; status=$?
+expect "a claimer killed during its listing under the admit lock frees it at once" "$status $(grep -c 'simctl boot' "$root/xcrun-calls")" "65 1"
+sleep 3
 
 reset
 mkdir -p "$root/locks"
