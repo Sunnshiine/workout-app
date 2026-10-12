@@ -25,10 +25,14 @@ build while all WORKOUT_BUILD_SLOTS (2) host-wide build slots are taken. Gives u
 after WORKOUT_ADMIT_WAIT seconds (540).
 A selection that includes WorkoutTrackerUITests first runs scripts/sim-keyboard.sh ensure, which
 turns off the keyboard preference that hides the software keyboard and prints one `keyboard:` line.
-Every test run writes a result bundle and prints its path. Files in .build/test-sim are named by
-run stamp, and each run deletes every file of all but the five runs written last. When a snapshot
-does not match its reference, scripts/snapshot-diffs.sh <bundle> lists the reference, failure, and
-difference images.
+Every test run writes a result bundle and prints its path. A run's files in .build/test-sim are
+<stamp>-build.log, <stamp>-test.log, <stamp>.xcresult, and <stamp>-diffs, and its test log ends
+with its result line. Each run keeps the five runs written last and deletes an older run's files
+only when its test log ends with a result line and none of them changed in the last 30 minutes.
+A run killed before its result line (SIGKILL, power loss) stays until someone deletes it. Copy a
+bundle or diff you cite into your proof directory, since only five finished runs are kept.
+When a snapshot does not match its reference, scripts/snapshot-diffs.sh <bundle> lists the
+reference, failure, and difference images.
 The last line, on every exit after this usage text, is
   test-sim: suite=<s> passed=<n> failed=<m> expected=<k> exit=<e> load1=<start>/<end> bundle=<path>
 where expected= counts tests whose only issues were known issues, which passed= leaves out, exit= is
@@ -41,7 +45,7 @@ EOF
 load1() { sysctl -n vm.loadavg 2>/dev/null | awk '{print $2}' || echo -; }
 
 finish() {
-  local rc=$? counts="- - -" passed failed expected shown=-
+  local rc=$? counts="- - -" passed failed expected shown=- result
   if [ -n "$bundle" ] && [ -d "$bundle" ]; then
     shown=$bundle
     counts=$(xcrun xcresulttool get test-results summary --path "$bundle" --compact 2>/dev/null | python3 -c '
@@ -51,13 +55,22 @@ print(s["passedTests"], s["failedTests"], s["expectedFailures"])' 2>/dev/null) |
     grep -q 'does not match reference' "$log" 2>/dev/null && echo "snapshot diffs: scripts/snapshot-diffs.sh $bundle"
   fi
   read -r passed failed expected <<< "$counts"
-  echo "test-sim: suite=${suite:--} passed=$passed failed=$failed expected=$expected exit=$rc load1=$load_start/$(load1) bundle=$shown"
+  result="test-sim: suite=${suite:--} passed=$passed failed=$failed expected=$expected exit=$rc load1=$load_start/$(load1) bundle=$shown"
+  if [ -n "$stamp" ]; then
+    # A log cut off mid-line would hide the result line from the retention check.
+    {
+      [ -z "$(tail -c 1 "$logs/$stamp-test.log")" ] || echo
+      echo "$result"
+    } 2>/dev/null >>"$logs/$stamp-test.log" || true
+  fi
+  echo "$result"
   exit "$rc"
 }
 
 load_start=$(load1)
 suite=
 bundle=
+stamp=
 trap finish EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
@@ -120,8 +133,15 @@ set +e
 xcodebuild test-without-building -xctestrun "$xctestrun" -destination "$destination" \
   -collect-test-diagnostics never -resultBundlePath "$bundle" CODE_SIGNING_ALLOWED=NO "${targets[@]}" > "$log" 2>&1
 rc=$?
-ls -t "$logs" | sed -n 's/^\([0-9]\{8\}-[0-9]\{6\}\).*/\1/p' | awk '!seen[$0]++' | tail -n +6 \
-  | while IFS= read -r old; do rm -rf "$logs/$old"*; done
+ls -t "$logs" | sed -nE 's/^([0-9]{8}-[0-9]{6})(-build\.log|-test\.log|\.xcresult|-diffs)$/\1/p' \
+  | awk '!seen[$0]++' | tail -n +6 | while IFS= read -r old; do
+    case $(tail -n 1 "$logs/$old-test.log" 2>/dev/null) in "test-sim: "*) ;; *) continue ;; esac
+    files=()
+    for file in "$logs/$old-build.log" "$logs/$old-test.log" "$logs/$old.xcresult" "$logs/$old-diffs"; do
+      [ ! -e "$file" ] || files+=("$file")
+    done
+    [ -z "$(find "${files[@]}" -maxdepth 0 -mmin -30)" ] && rm -rf "${files[@]}"
+  done
 set -e
 if ! awk -f "$repo/scripts/test-log-summary.awk" "$log" | uniq; then
   [ $rc = 0 ] || { echo "xcodebuild exited $rc before the test run finished; the lines above and the log say why" >&2; exit $rc; }
