@@ -918,6 +918,18 @@ i=0
 while [ ! -f "{dir}/release" ] && [ $i -lt 300 ]; do sleep 0.1; i=$((i + 1)); done
 exit 1
 """
+def fake_checkout(root):
+    checkout = root / "checkout"
+    skill = checkout / ".agents" / "skills" / "verify"
+    skill.mkdir(parents=True)
+    (checkout / "scripts").mkdir()
+    for name in ["test-sim.sh", "test-log-summary.awk", "sim-lock.sh", "ensure-simulator.sh"]:
+        (checkout / "scripts" / name).symlink_to(REPO / "scripts" / name)
+    for name in ["verify.sh", "tree.py"]:
+        (skill / name).symlink_to(SKILL / name)
+    return checkout
+
+
 FIXTURE_APP = [sys.executable, "-c", "import time; time.sleep(60)", "-UITEST_FIXTURE"]
 
 
@@ -932,10 +944,7 @@ class SimulatorLock(unittest.TestCase):
             (self.stubs / tool).chmod(0o755)
         self.path = "%s:%s" % (self.stubs, os.environ["PATH"])
         self.runs = []
-        self.checkout = self.stubs / "checkout"
-        (self.checkout / "scripts").mkdir(parents=True)
-        for name in ["test-sim.sh", "test-log-summary.awk", "sim-lock.sh", "ensure-simulator.sh"]:
-            (self.checkout / "scripts" / name).symlink_to(REPO / "scripts" / name)
+        self.checkout = fake_checkout(self.stubs)
 
     def tearDown(self):
         (self.stubs / "release").touch()
@@ -1272,14 +1281,7 @@ def pick_udid(serial):
 class SimulatorPick(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
-        self.checkout = self.tmp / "checkout"
-        skill = self.checkout / ".agents" / "skills" / "verify"
-        skill.mkdir(parents=True)
-        (self.checkout / "scripts").mkdir()
-        for name in ["test-sim.sh", "test-log-summary.awk", "sim-lock.sh", "ensure-simulator.sh"]:
-            (self.checkout / "scripts" / name).symlink_to(REPO / "scripts" / name)
-        for name in ["verify.sh", "tree.py"]:
-            (skill / name).symlink_to(SKILL / name)
+        self.checkout = fake_checkout(self.tmp)
         self.home = self.tmp / "home"
         derived = self.home / "Library" / "Developer" / "Xcode" / "DerivedData" / "WorkoutTracker-test"
         self.app = derived / "Build" / "Products" / "Debug-iphonesimulator" / "WorkoutTracker.app"

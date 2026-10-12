@@ -449,28 +449,32 @@ logs=$repo/.build/test-sim
 rm -rf "$logs"
 mkdir -p "$logs"
 for n in 1 2 3 4 5 6; do
-    mkdir "$logs/20200101-00000$n.xcresult" "$logs/20200101-00000$n-diffs"
-    touch "$logs/20200101-00000$n-test.log"
+    mkdir "$logs/20991231-00000$n.xcresult" "$logs/20991231-00000$n-diffs"
+    touch "$logs/20991231-00000$n-test.log"
+    touch -t "20200101000$n" "$logs/20991231-00000$n"*
 done
+mkdir "$logs/unit.xcresult" "$logs/20991230-000000-diffs"
+touch -t 202001010000 "$logs/unit.xcresult" "$logs/20991230-000000-diffs"
 rc=0 STUB_SUMMARY='{"passedTests":1,"failedTests":0,"expectedFailures":0}' run --no-build --sim "$sim" unit
-expect "a run keeps the five newest bundles, its own included, deletes the older ones with their diffs, and keeps every log" \
-    "$(ls "$logs" | sed 's/^202[1-9][0-9]\{4\}-[0-9]\{6\}/<run>/')" \
-"20200101-000001-test.log
-20200101-000002-test.log
-20200101-000003-diffs
-20200101-000003-test.log
-20200101-000003.xcresult
-20200101-000004-diffs
-20200101-000004-test.log
-20200101-000004.xcresult
-20200101-000005-diffs
-20200101-000005-test.log
-20200101-000005.xcresult
-20200101-000006-diffs
-20200101-000006-test.log
-20200101-000006.xcresult
+bundle=$(sed -n 's/^bundle: //p' "$root/out")
+expect "a run keeps the files of the five runs written last, its own included, whatever their stamps sort as" \
+    "$(tail -1 "$root/out" | sed 's/ load1=.*bundle=/ bundle=/'; ls "$logs" | sed "s/^$(basename "$bundle" .xcresult)/<run>/")" \
+"test-sim: suite=unit passed=1 failed=0 expected=0 exit=0 bundle=$bundle
 <run>-test.log
-<run>.xcresult"
+<run>.xcresult
+20991231-000003-diffs
+20991231-000003-test.log
+20991231-000003.xcresult
+20991231-000004-diffs
+20991231-000004-test.log
+20991231-000004.xcresult
+20991231-000005-diffs
+20991231-000005-test.log
+20991231-000005.xcresult
+20991231-000006-diffs
+20991231-000006-test.log
+20991231-000006.xcresult
+unit.xcresult"
 
 STUB_SUMMARY='not json' run --no-build --sim "$sim" unit
 expect "an unreadable summary leaves the counts unknown" "$(tail -1 "$root/out")" \
