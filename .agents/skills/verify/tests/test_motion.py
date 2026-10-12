@@ -105,9 +105,28 @@ def cuts(i):
     return PAPER, [(top, top + 150, 16, 186)]
 
 
-def appears_after_black(i):
-    """A launch: a dark screen a shade lighter each frame (so every frame is encoded), then the card at 1.0 s."""
-    return (10 + 3 * i, []) if i < FPS else (PAPER, [STILL_BOX])
+def zoomed(box, scale):
+    top, bottom, left, right = box
+    cy, cx, h, w = (top + bottom) / 2, (left + right) / 2, (bottom - top) * scale, (right - left) * scale
+    return (cy - h / 2, cy + h / 2, cx - w / 2, cx + w / 2)
+
+
+def launches(slide_after=0.0):
+    """A launch: 0.3 s of springboard holding a wider card-like box, black frames a shade apart until 1.0 s,
+    the app's window scaling up from 0.8 over 6 frames, then the card, which slides up by slide_after pt over
+    0.3 s when slide_after is set."""
+    def scene(i):
+        if i < 18:
+            return PAPER, [(100, 300, 12, 196)]
+        if i < FPS:
+            return 10 + 3 * i, []
+        if i < FPS + 6:
+            return PAPER, [zoomed(STILL_BOX, 0.8 + 0.2 * (i - FPS) / 6)]
+        progress = min((i - FPS - 6) / 18, 1.0)
+        top, bottom, left, right = STILL_BOX
+        lift = slide_after * (1 - progress)
+        return PAPER, [(top + lift, bottom + lift, left, right)]
+    return scene
 
 
 def drops_for_three_frames(i):
@@ -134,7 +153,8 @@ class CardFrameOnClips(unittest.TestCase):
             ("still", still, 1.0),
             ("slide", slide, 2.0),
             ("cut", cuts, 2.0),
-            ("appear", appears_after_black, 1.5),
+            ("launch", launches(), 1.5),
+            ("launch-slide", launches(slide_after=40), 1.5),
             ("drop", drops_for_three_frames, 1.5),
         ]:
             cls.clips[name] = cls.dir / f"{name}.mp4"
@@ -196,13 +216,24 @@ class CardFrameOnClips(unittest.TestCase):
         self.assertEqual(m.ranges["top"], (113.0, 200.0))
         self.assertEqual(len(m.window), 14)
 
-    def test_a_launch_take_is_measured_from_the_drive_end_and_frames_before_the_card_are_not_lost(self):
-        video = self.clips["appear"]
-        stamp(video, drive="launch --animated session", drive_start="0.000", drive_end="0.500")
+    def test_a_launch_is_measured_from_the_card_at_full_width_so_the_system_zoom_reads_still(self):
+        video = self.clips["launch"]
+        stamp(video, drive="launch --animated session", drive_start="0.000", drive_end="1.400")
         m = cardframe.measure(video)
-        self.assertEqual((m.frames, len(m.window)), (61, 32))
-        self.assertEqual((m.first_seen, m.lost), (1.0, 0))
-        self.assertEqual(m.still, True)
+        self.assertEqual((round(m.first_seen, 3), m.lost, m.worst_edge_range, m.still), (1.1, 0, 0.0, True))
+
+    def test_a_card_that_slides_in_after_the_launch_zoom_reads_its_slide(self):
+        video = self.clips["launch-slide"]
+        stamp(video, drive="launch --animated session", drive_start="0.000", drive_end="1.400")
+        m = cardframe.measure(video)
+        self.assertEqual((round(m.first_seen, 3), m.lost, m.ranges["top"], m.still), (1.1, 0, (100.0, 140.0), False))
+        self.assertEqual((round(m.motion[0], 3), round(m.motion[1], 3)), (1.117, 1.4))
+
+    def test_from_0_on_a_launch_reads_the_springboard_and_the_zoom_as_motion(self):
+        video = self.clips["launch"]
+        stamp(video, drive="launch --animated session", drive_start="0.000", drive_end="1.400")
+        m = cardframe.measure(video, from_s=0)
+        self.assertEqual((m.first_seen, m.still), (0.0, False))
 
     def test_three_frames_without_the_card_after_it_showed_are_lost(self):
         video = self.clips["drop"]
