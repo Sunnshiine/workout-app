@@ -269,12 +269,16 @@ so a still screen is one frame. `cardframe.py` is the one frame metric, and it t
 pts, because ffmpeg's clock puts simctl frames about 0.8 s early. It reads two things: the card's box,
 from its edges, and its look, the luminance inside the settled box. `still=no` means the box or the look
 moved, and `box=` and `look=` say which, on a take whose INVALID reasons, if any, only hide motion (load,
-a short window), animations on or off. `still=yes` means nothing moved on a VALID take with animations
-on. `still=unknown` covers the rest: nothing moved but the take is INVALID or has animations off, or
-something moved on a take INVALID for any other reason, such as a launch with no fade from black. A label
-that swaps in one frame reads `look=cut` and stays still. A launch take is measured from the end of iOS's
-fade from black, so first-appear motion that ends inside that fade is invisible to a launch take. From
-the fade's end the window must watch 1.5 s or the take is INVALID. A launch with the default 2 s `--tail`
+a short window), animations on or off. `still=yes` needs `edges=full` and a card where the tree puts it:
+nothing moved on a VALID take with animations on, the card's edges were read from the window's first
+frame, and the box sits within 8 pt of the `card_pt=` frame `record` stamps from the accessibility tree.
+`still=unknown` covers the rest: nothing moved but the take is INVALID, has animations off, or has
+`edges=partial`; or something moved on a take INVALID for any other reason, such as a launch with no
+fade from black. A take whose tree held no `active-set-card`, or whose box is not where the tree put it,
+exits 1 with `no card:` and its reason. A label that swaps in one frame reads `look=cut` and stays still.
+A launch take's window opens where iOS's fade-in from black ends; any later frame that changes three
+quarters of the screen makes the take INVALID. So first-appear motion that ends inside that fade is
+invisible to a launch take. From the fade's end the window must watch 1.5 s or the take is INVALID. A launch with the default 2 s `--tail`
 watches 2.24 s or more. A build whose card slides up 300 pt on first appear (5e3a0d12) read
 `worst_edge_range=127.7` with `edges=partial`, and `look_ms=443`, `still=no`. Without `--animated` the
 same build read `box=still look=still` and `still=unknown`, because animations off hides motion. A card

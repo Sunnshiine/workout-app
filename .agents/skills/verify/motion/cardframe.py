@@ -8,31 +8,43 @@ look inside that box changed.
 
   uv run .agents/skills/verify/motion/cardframe.py <run>/NAME.mp4 [--tsv PATH] [--from S] [--x 28] [--ref 8]
 
-Reads NAME.take beside the video. Each encoded frame is decoded once, at the recording's own pixels
-(video width over the stamp's screen_pt width per point), and timed by its own presentation time, in
-seconds after the take started. recordVideo writes a frame only when the screen changes, so a still
-screen is one frame and a window is a span of time: the frame showing when it opens, every frame after
-it, and the still screen up to the moment the recorder stopped.
+Reads NAME.take beside the video, whose card_pt= is the card's frame in the accessibility tree when the
+recorder stopped, or none when the tree held no active-set-card. Each encoded frame is decoded once, at
+the recording's own pixels (video width over the stamp's screen_pt width per point), and timed by its own
+presentation time, in seconds after the take started. recordVideo writes a frame only when the screen
+changes, so a still screen is one frame and a window is a span of time: the frame showing when it opens,
+every frame after it, and the still screen up to the moment the recorder stopped.
 
 Window. It opens at --from S, else at the drive's start, else at 0. --from on a launch take skips the
-ramp rule below, so a --from inside the fade reads the fade as motion. Without --from, a launch take
-opens the window at the last frame of iOS's launch fade: the last frame, after the drive began, in which
-at least three quarters of the screen changed from the frame before (24 x 12 tiles, each changed by more
-than 0.5 of mean luminance). Every recorded launch, animations on or off, fades the app in from black
-that way, and no app motion recorded changed more than 0.69 of the screen. The window is INVALID when:
-  - a launch take has no such frame (rule ramp), because then the window holds the system's fade;
+fade rules below, so a --from inside the fade reads the fade as motion. A launch take's window opens where
+iOS's fade-in from black ends; any later frame that changes three quarters of the screen makes the take
+INVALID. The fade is the first run, after the drive began, of frames that each changed at least three
+quarters of the screen from the frame before (24 x 12 tiles, each changed by more than 0.5 of mean
+luminance), whose first frame follows a frame darker than mean luminance 2.0, and it ends at the run's
+last such frame. A frame that changed no tile does not end the run, because recorded fades repeat a frame
+mid-run. Every recorded launch, animations on or off, fades the springboard out over the whole screen,
+holds black, then fades the app in from black, and no app motion recorded changed more than 0.69 of the
+screen. The window is INVALID when:
+  - a launch take has no such run (rule ramp), because then the window holds the system's fade;
+  - a frame after a launch's fade changed three quarters of the screen (rule screen), as a dim does,
+    because the card cannot be read through it;
   - it watched less than 1.5 s, from opening to the recorder's stop (rule window), as when the fade ended
     long after the launch returned. Over 13 launch takes the window watched the tail plus 0.24 to
     0.62 s, so the default 2 s tail clears 1.5 s, and the slowest first-appear motion measured settled
     1.28 s after its window opened. A tap's window opens at the drive's start and watches the whole tail.
 A take is also INVALID for the stamp's own reasons (load, recorder, coverage; see take.py summary).
 
-Box. The card is the longest vertical run, at least 120 pt with gaps up to 8 pt merged, where the column
-at --x pt is brighter than the paper column at --ref pt by 4.0; left and right come from a row scan at
-the run's middle. A run whose middle row shows nothing brighter than the paper, or whose box holds no
-whole 4 pt cell, is no card. The settled card is the last card the window shows. The box is read from the
-first solid card: the first detection with at least three quarters of the settled card's contrast.
-Detections before it are faint and their edges are not read, because a faint card reads short and narrow.
+Box. The card is the longest vertical run, from 120 pt to the height of card_pt=, where the column at --x
+pt is brighter than the paper column at --ref pt by 4.0. Runs join across a gap of up to 8 pt only while
+the joined run stays no taller than card_pt=, so a neighbour touching the card, such as the rest pill,
+joins it only while the pair fits that height, and a run taller than card_pt= is no card in that frame.
+left and right come from a row scan at the run's middle. A run whose middle row shows nothing brighter
+than the paper, or whose box holds no whole 4 pt cell, is no card. The settled card is the last card the
+window shows. There is no card at all when card_pt=none, when no window frame shows one, or when the
+settled card's middle is more than 8 pt from card_pt='s middle in x or y, as when a sheet over the
+session shows a section where the tree still holds the card behind it. The box is read from the first
+solid card: the first detection with at least three quarters of the settled card's contrast. Detections
+before it are faint and their edges are not read, because a faint card reads short and narrow.
 edges=partial when the first solid card is not the window's first frame. After it every detection counts,
 at any contrast, and a frame without the card is lost.
 
@@ -59,13 +71,17 @@ Prints key=value lines:
 window= is how it opened (ramp, drive, start or from), from= and to= its span, and window_s how long it
 watched. first_seen is the first solid card, lost the frames after it without the card, faint the
 detections before it. Each edge's range and worst_edge_range are over the cards from first_seen on.
-motion spans the first and last of those cards whose edges moved more than 0.75 pt from the card before
-(motion=none when none did). box=changed when the card was lost or an edge ranged over 0.5 pt. still=no
-when the box changed or look=changed and every INVALID rule only hides motion (load, window). Animations
-off also only hides motion, so a move seen there reads no. still=yes when the take is VALID, animations
-are on, and nothing moved. Else still=unknown: a move on a take INVALID for any other rule (ramp,
-recorder, coverage), which cannot vouch for it, or nothing moved on a take that is INVALID or has
-animations off, either of which can hide motion. A cut does not make still=no. --tsv writes one row per
+motion runs from the first of those cards more than 0.5 pt from the first solid card on any edge to the
+first card from which every later card stays within 0.5 pt of the settled one on every edge (motion=none
+when the first solid card already did), so an eased move is timed from its first half point to its last.
+changed_frames counts the cards more than 0.5 pt from the card before. box=changed when the card was lost
+or an edge ranged over 0.5 pt. still=no when the box changed or look=changed and every INVALID rule only
+hides motion (load, window). Animations off also only hides motion, so a move seen there reads no.
+still=yes when nothing moved on a card where the tree puts it, the take is VALID, animations are on, and
+edges=full. Else still=unknown: a move on a take INVALID for any other rule (ramp, screen, recorder,
+coverage), which cannot vouch for it; nothing moved on a take that is INVALID, has animations off, or
+has partial edges, any of which can hide motion; or no card. cardstill.py judges a take by the same rule.
+A cut does not make still=no. --tsv writes one row per
 window frame: t, t_from_drive, top, bottom, left, right, contrast, look (the frame's d), screen (the
 fraction of tiles that changed from the frame before); blank card cells for a frame with no card, blank
 screen on the take's first frame.
@@ -78,12 +94,12 @@ It cannot see:
   - a change inside the box under 0.5 of mean luminance, or anything outside the settled box;
   - two cuts, or a one-frame flash, in one window: they read as one look=changed spanning both;
   - a card that pops in with no animation inside the window: it reads look=cut;
-  - an app change over three quarters of the screen in one frame after a launch: it reads as the fade's
-    end.
+  - a full-screen change after a launch with no frame between it and iOS's fade that changed only part
+    of the screen: it joins the fade's run and reads as its end.
 
-Exit 0 measured, 1 no card in any window frame, 3 measured but INVALID or animations not on (a banner line
-first), 2 usage, no readable NAME.take with a screen_pt=, or pixels per point that do not tile 4 pt cells,
-70 ffmpeg or ffprobe failed.
+Exit 0 measured, 1 no card (`no card: <why>` on stderr), 3 measured but INVALID or animations not on (a
+banner line first), 2 usage, no readable NAME.take with a screen_pt= and a card_pt=, or pixels per point
+that do not tile 4 pt cells, 70 ffmpeg or ffprobe failed.
 """
 from __future__ import annotations
 
