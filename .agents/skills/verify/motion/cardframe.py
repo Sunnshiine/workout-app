@@ -103,19 +103,13 @@ STILL_PT = 0.5
 STEP_PT = 0.75
 EDGES = ("top", "bottom", "left", "right")
 
-# 218 x 100 float32 cells per 1206 x 2622 frame, 87 KB, against 12.6 MB for the frame itself.
 CELL_PT = 4.0
 GRID = (24, 12)
-# The fade's last frames change the screen by +0.7 to +1.3 each, which a 2.0 tile threshold missed.
 TILE_LUM = 0.5
-# The fade's last frame changed 0.91 to 0.98 of the tiles on all 7 recorded launches; app motion at most 0.69.
 RAMP_FRAC = 0.75
-# Fade frames at 0.54 to 0.66 of the settled contrast read the bottom edge 31 pt short; from 0.67 every edge held.
 SOLID_CONTRAST = 0.75
-# A still box's look stays within 0.26 over 14 s; the smallest real change inside the card peaked at 1.0.
 LOOK_LUM = 0.5
 
-# A window shorter than its tail hides motion and never invents it, as load does.
 HIDES_MOTION = RULES_THAT_ONLY_HIDE_MOTION | {"window"}
 
 
@@ -141,7 +135,6 @@ class Card:
 
 @dataclass(frozen=True)
 class Sample:
-    """One encoded frame. cells is its mean luminance in CELL_PT squares, row 0 at the top."""
     t: float
     card: Optional[Card]
     cells: np.ndarray
@@ -156,7 +149,6 @@ class Opened(Enum):
 
 @dataclass(frozen=True)
 class Window:
-    """samples[start:], watched from `at` for `seconds`, until the recorder stopped."""
     opened: Opened
     start: int
     at: float
@@ -192,14 +184,13 @@ class LookKind(Enum):
 
 @dataclass(frozen=True)
 class Look:
-    """d: each window frame's mean luminance difference from the last, inside the settled box."""
-    d: Tuple[float, ...]
+    from_settled: Tuple[float, ...]
     frames: int
     motion: Optional[Tuple[float, float]]
 
     @property
     def peak(self) -> float:
-        return max(self.d)
+        return max(self.from_settled)
 
     @property
     def kind(self) -> LookKind:
@@ -307,7 +298,6 @@ def _tiles(cells: np.ndarray) -> np.ndarray:
 
 
 def changed_fraction(before: np.ndarray, after: np.ndarray) -> float:
-    """The fraction of GRID tiles whose mean luminance moved more than TILE_LUM between two frames' cells."""
     return float((np.abs(_tiles(after) - _tiles(before)) > TILE_LUM).mean())
 
 
@@ -316,7 +306,6 @@ def screen_changes(samples: Sequence[Sample]) -> List[Optional[float]]:
 
 
 def last_ramp_frame(samples: Sequence[Sample], after: float) -> Optional[int]:
-    """The last frame at or after `after` that changed RAMP_FRAC of the screen from the frame before."""
     changes = screen_changes(samples)
     return max((i for i in range(1, len(samples)) if samples[i].t >= after and changes[i] >= RAMP_FRAC),
                default=None)
@@ -374,7 +363,6 @@ def box_of(window: Sequence[Sample], settled: Card) -> Box:
 
 
 def box_cells(card: Card) -> Tuple[slice, slice]:
-    """The cells wholly inside the card."""
     return (slice(math.ceil(card.top / CELL_PT), math.floor(card.bottom / CELL_PT)),
             slice(math.ceil(card.left / CELL_PT), math.floor(card.right / CELL_PT)))
 
@@ -491,7 +479,7 @@ def report(m: Measure) -> List[str]:
 def write_tsv(path: Path, m: Measure) -> None:
     drive_start = m.take.drive_start if m.take.drive else None
     screen = screen_changes(m.samples)[m.window.start:]
-    looks = m.card.look.d if m.card else [None] * len(m.in_window)
+    looks = m.card.look.from_settled if m.card else [None] * len(m.in_window)
     rows = ["t\tt_from_drive\ttop\tbottom\tleft\tright\tcontrast\tlook\tscreen"]
     for s, d, changed in zip(m.in_window, looks, screen):
         from_drive = "" if drive_start is None else f"{s.t - drive_start:.3f}"

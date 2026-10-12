@@ -265,8 +265,7 @@ uv run .agents/skills/verify/motion/cardstill.py --control <a commit whose card 
 capturing and stops it with SIGINT. Exit 0 is a VALID take. Exit 3 is INVALID, files kept, reasons on
 stderr. Exit 70 means the recorder or ffprobe failed, or the screen size could not be read after
 the take, and nothing is kept, a VALID take included. Exit 75 means nothing ran. The recorder
-writes a frame only when the screen changes, so a
-still screen is one frame. `cardframe.py` is the one frame metric, and it times frames by their own
+writes a frame only when the screen changes, so a still screen is one frame. `cardframe.py` is the one frame metric, and it times frames by their own
 pts, because ffmpeg's clock puts simctl frames about 0.8 s early. It reads two things: the card's box,
 from its edges, and its look, the luminance inside the settled box. `still=no` means the box or the
 look moved, and `box=` and `look=` say which. `still=unknown` means nothing moved but the take is

@@ -109,22 +109,23 @@ def drops_for_three_frames(i):
     return (PAPER + 3 * (i - FPS + 1), []) if FPS <= i < FPS + 3 else (PAPER, [STILL_BOX])
 
 
+SPRINGBOARD_FRAMES = 18
+
+
 def launched(app, fade=43):
-    """iOS's launch as every recorded one shows it: the springboard, then the app's first frame faded in from
-    black over `fade` frames, the last at frame 17 + fade, then app(j) from j = 1."""
     def scene(i):
-        if i < 18:
+        if i < SPRINGBOARD_FRAMES:
             return PAPER, [(100, 300, 12, 196)]
-        if i < 18 + fade:
-            k = (i - 17) / fade
+        faded = i - SPRINGBOARD_FRAMES + 1
+        if faded <= fade:
+            k = faded / fade
             paper, boxes = app(0)
             return round(paper * k), [box[:4] + (round((box[4] if len(box) > 4 else CARD) * k),) for box in boxes]
-        return app(i - 17 - fade)
+        return app(faded - fade)
     return scene
 
 
 def entered(j):
-    """How far a first-appear animation has run, j frames after the fade: 0 until frame 5, 1 from frame 29."""
     return min(max((j - 5) / 24, 0.0), 1.0)
 
 
@@ -554,11 +555,10 @@ class Summarize(unittest.TestCase):
 
 
 def looks(*insides):
-    """One sample per value, 0.1 s apart, the cells inside card(100) at that luminance."""
     found = []
     for k, inside in enumerate(insides):
         cells = FLAT.copy()
-        cells[25:65, 4:46] = inside
+        cells[cardframe.box_cells(card(100))] = inside
         found.append(Sample(round(0.1 * k, 3), card(100), cells))
     return found
 
