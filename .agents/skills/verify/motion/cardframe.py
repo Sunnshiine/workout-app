@@ -7,8 +7,9 @@
 
   uv run .agents/skills/verify/motion/cardframe.py <run>/NAME.mp4 [--tsv PATH] [--from S] [--x 28] [--ref 8]
 
-Reads NAME.take beside the video. Each encoded frame is decoded once and timed by its own presentation
-time, in seconds after the take started. recordVideo writes a frame only when the screen changes, so
+Reads NAME.take beside the video. Each encoded frame is decoded once, at the recording's own pixels
+(video width over the stamp's screen_pt width per point), and timed by its own presentation time, in
+seconds after the take started. recordVideo writes a frame only when the screen changes, so
 the window is the frame showing at --from and every frame after it. --from is by default the drive's start
 (0 with no drive). For a launch take it is the frame from which the card keeps the width of the take's
 last card and nine tenths of its contrast: iOS opens an app by scaling its window up from the icon, or by
@@ -48,7 +49,6 @@ from typing import Dict, Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-PX_PER_PT = 2.0
 THRESHOLD = 4.0
 MIN_RUN_PT = 120.0
 MERGE_GAP_PT = 8.0
@@ -154,12 +154,12 @@ class Sample:
     card: Optional[Card]
 
 
-def _band(pt: float) -> slice:
-    px = int(pt * PX_PER_PT)
+def _band(pt: float, px_per_pt: float) -> slice:
+    px = int(pt * px_per_pt)
     return slice(px - 2, px + 3)
 
 
-def _runs(mask: np.ndarray) -> List[Tuple[int, int]]:
+def _runs(mask: np.ndarray, px_per_pt: float) -> List[Tuple[int, int]]:
     runs: List[Tuple[int, int]] = []
     start = None
     for y, on in enumerate(mask):
@@ -172,29 +172,28 @@ def _runs(mask: np.ndarray) -> List[Tuple[int, int]]:
         runs.append((start, len(mask) - 1))
     merged: List[Tuple[int, int]] = []
     for run in runs:
-        if merged and run[0] - merged[-1][1] <= MERGE_GAP_PT * PX_PER_PT:
+        if merged and run[0] - merged[-1][1] <= MERGE_GAP_PT * px_per_pt:
             merged[-1] = (merged[-1][0], run[1])
         else:
             merged.append(run)
     return merged
 
 
-def detect(lum: np.ndarray, x_pt: float = 28, ref_pt: float = 8) -> Optional[Card]:
-    """lum is a luminance image at PX_PER_PT."""
-    card_band, paper_band = _band(x_pt), _band(ref_pt)
+def detect(lum: np.ndarray, px_per_pt: float, x_pt: float = 28, ref_pt: float = 8) -> Optional[Card]:
+    card_band, paper_band = _band(x_pt, px_per_pt), _band(ref_pt, px_per_pt)
     contrast = lum[:, card_band].mean(axis=1) - lum[:, paper_band].mean(axis=1)
-    runs = [r for r in _runs(contrast > THRESHOLD) if (r[1] - r[0]) / PX_PER_PT >= MIN_RUN_PT]
+    runs = [r for r in _runs(contrast > THRESHOLD, px_per_pt) if (r[1] - r[0]) / px_per_pt >= MIN_RUN_PT]
     if not runs:
         return None
     start, end = max(runs, key=lambda r: r[1] - r[0])
     middle = (start + end) // 2
     row = lum[max(0, middle - 2):middle + 3].mean(axis=0)
     on = np.where(row - row[paper_band].mean() > THRESHOLD)[0]
-    left = on[0] / PX_PER_PT if len(on) else math.nan
-    right = (on[-1] + 1) / PX_PER_PT if len(on) else math.nan
+    left = on[0] / px_per_pt if len(on) else math.nan
+    right = (on[-1] + 1) / px_per_pt if len(on) else math.nan
     return Card(
-        top=start / PX_PER_PT,
-        bottom=(end + 1) / PX_PER_PT,
+        top=start / px_per_pt,
+        bottom=(end + 1) / px_per_pt,
         left=float(left),
         right=float(right),
         contrast=float(contrast[start:end + 1].mean()),
@@ -269,13 +268,13 @@ def frame_times(video: Path) -> List[float]:
 
 
 def decode(video: Path, width: int, height: int) -> Iterator[np.ndarray]:
-    """Every encoded frame in presentation order, as luminance at width x height."""
+    """Every encoded frame in presentation order, as luminance at the video's own width x height."""
     size = width * height * 3
     # The rawvideo muxer logs every repeated dts at error level; a file keeps the pipe from filling.
     with tempfile.TemporaryFile() as errors:
         proc = subprocess.Popen(
-            ["ffmpeg", "-v", "error", "-nostdin", "-i", str(video), "-fps_mode", "passthrough",
-             "-vf", f"scale={width}:{height}", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+            ["ffmpeg", "-v", "error", "-nostdin", "-i", str(video), "-fps_mode", "passthrough", "-f", "rawvideo",
+             "-pix_fmt", "rgb24", "-"],
             stdout=subprocess.PIPE, stderr=errors,
         )
         try:
@@ -295,9 +294,9 @@ def decode(video: Path, width: int, height: int) -> Iterator[np.ndarray]:
 
 def samples(video: Path, take: Take, x: float = 28, ref: float = 8) -> List[Sample]:
     times = frame_times(video)
-    width = round(take.screen_pt[0] * PX_PER_PT)
-    height = round(take.video_px[1] * width / take.video_px[0])
-    cards = [detect(lum, x, ref) for lum in decode(video, width, height)]
+    width, height = take.video_px
+    px_per_pt = width / take.screen_pt[0]
+    cards = [detect(lum, px_per_pt, x, ref) for lum in decode(video, width, height)]
     if len(cards) != len(times):
         raise DecodeFailure(f"ffmpeg decoded {len(cards)} frames of {video} and ffprobe timed {len(times)}")
     return [Sample(t, card) for t, card in zip(times, cards)]
