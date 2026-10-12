@@ -40,16 +40,14 @@ scratch_clean() {
       echo "kept $dir: $(cat "$locks/$n.lock")"
       continue
     fi
-    derived=""
+    derived=()
     for plist in ~/Library/Developer/Xcode/DerivedData/WorkoutTracker-*/info.plist; do
       [ "$(plutil -extract WorkspacePath raw "$plist" 2>/dev/null)" != "$dir/WorkoutTracker.xcodeproj" ] ||
-        derived="$derived ${plist%/info.plist}"
+        derived+=("${plist%/info.plist}")
     done
-    # shellcheck disable=SC2086  # $derived holds DerivedData paths, which have no spaces
-    kb=$(du -sk "$dir" $derived | awk '{ kb += $1 } END { print kb }')
+    kb=$(du -sk "$dir" ${derived[@]+"${derived[@]}"} | awk '{ kb += $1 } END { print kb }')
     git worktree remove --force "$dir" 2>/dev/null || rm -rf "$dir"
-    # shellcheck disable=SC2086
-    rm -rf $derived "$locks/$n.owner"
+    rm -rf ${derived[@]+"${derived[@]}"} "$locks/$n.owner"
     exec 8>&-
     echo "removed $dir ($((kb / 1024)) MB)"
   done

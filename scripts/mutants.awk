@@ -154,10 +154,9 @@ function directive(m,    t, kind, v, d) {
     kind = t
     sub(/[^A-Za-z#].*/, "", kind)
     sub(/^#(if|elseif)/, "", t)
-    if (kind == "#endif") { if (depth > 0) depth--; return }
-    if (kind == "#if") { d = ++depth; taken[d] = 0; unsure[d] = 0 }
+    if (kind == "#endif") { depth--; return }
+    if (kind == "#if") { depth++; taken[depth] = 0; unsure[depth] = 0 }
     d = depth
-    if (d == 0) return
     v = kind == "#else" ? 1 : (platform == "" ? -1 : branchOn(t))
     if (taken[d] || v == 0) on[d] = 0
     else if (unsure[d] || v == -1) on[d] = -1
