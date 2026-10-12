@@ -1,6 +1,6 @@
 # Greenhouse → Theme.swift: the decided token sheet
 
-<!-- doc-symbols: not-in-tree mintGreen blueLight paperDay paperNight -->
+<!-- doc-symbols: not-in-tree mintGreen blueLight -->
 
 Resolution asset for wayfinder ticket #422 (map #408). This records the
 *decisions* the DESIGN.md rewrite (#423) encodes — implementation is out of
@@ -52,8 +52,8 @@ are recorded inline.
 | `actionNightInk` | `#A8CFB4` | night action green as words, glyphs, and system tint: actionNight under cream @ 65%, because `#1F8552` measures 1.9 to 3.7:1 as text on night paper |
 | `foliage` | `#579168` | *the* night pigment: leaves, stems, bird, tiles re-light to this |
 | `foliageDeep` | `#3F6A4B` | day Superset partner name; a foliage deep enough for 4.5:1 on Day paper |
-| `paperDay` | `#E9EEDC → #CBE1C2` | base pair under the day washes (atmosphere pick — supersedes `#E8EDDB → #C7E0BF`) |
-| `paperNight` | `#232C20 → #121D14` | hue-preserved deep sage, never neutral black (#418) |
+| `paperDayTop` → `paperDayBottom` | `#E9EEDC → #CBE1C2` | base pair under the day washes (atmosphere pick — supersedes `#E8EDDB → #C7E0BF`) |
+| `paperNightTop` → `paperNightBottom` | `#232C20 → #121D14` | hue-preserved deep sage, never neutral black (#418) |
 
 ## 3. Semantic roles — Day · Night
 
