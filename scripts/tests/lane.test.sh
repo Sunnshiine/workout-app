@@ -363,5 +363,36 @@ expect "down bundles the commit of a lane whose reflog is entirely expired, and 
     "$status $(bundle_subjects "$(ls -d "$evidence/detached-nolog"/down-*)/commits.bundle")| $([ -d "$lanes/nolog" ] && echo worktree)" \
     "0 no-reflog | "
 
+common="$primary/.git"
+printf 'two.txt filter=slow\n' >"$common/info/attributes"
+g config filter.slow.smudge 'sleep 2; cat'
+"$primary/scripts/lane.sh" up z "$c2" >"$root/z1.out" 2>"$root/z1.err" &
+first_up=$!
+for _ in $(seq 100); do [ -f "$common/worktrees/z/locked" ] && break; sleep 0.05; done
+lane up z "$c2"
+second=$status
+wait "$first_up"
+first=$?
+rm "$common/info/attributes"
+g config --unset filter.slow.smudge
+expect "a second up of a lane waits out the first's slow checkout, prints the same lines, and repairs nothing" \
+    "$first $second $(cat "$root/z1.out") | $(cat "$root/out") | $(git -C "$primary" worktree list --porcelain | grep -c "^worktree $lanes/z$") $(cat "$root/z1.err" "$root/err" | grep -c crashed)" \
+    "0 0 $(env_lines "$(lane_rows | awk '$2 == "workout-lane-z" { print $1 }')" z) | $(env_lines "$(lane_rows | awk '$2 == "workout-lane-z" { print $1 }')" z) | 1 0"
+
+hold "$root/locks/lane-z" "lane.sh down z (pid 4245)"
+WORKOUT_ADMIT_WAIT=0 lane down z
+release
+expect "down of a lane another up or down holds exits 75 and names the holder" \
+    "$status $(cat "$root/err") | $([ -d "$lanes/z" ] && echo worktree)" \
+    "75 lane.sh: waited 0 s for lane z, held by lane.sh down z (pid 4245) (lsof $root/locks/lane-z lists it) | worktree"
+
+printf '#!/bin/sh\n(cd / && exec sleep 30) >/dev/null 2>&1 &\necho $! >"%s"\n' "$root/daemon.pid" >"$common/hooks/post-checkout"
+chmod +x "$common/hooks/post-checkout"
+lane up daemon "$c2"
+rm "$common/hooks/post-checkout"
+WORKOUT_ADMIT_WAIT=0 lane down daemon
+kill "$(cat "$root/daemon.pid")"
+expect "a process git leaves running after up does not hold the lane's lock" "$status $([ -d "$lanes/daemon" ] && echo worktree)" "0 "
+
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1
