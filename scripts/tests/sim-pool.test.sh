@@ -119,7 +119,7 @@ expect "delete while a run holds the simulator exits 75 and deletes nothing" \
 xcrun simctl boot "$P-4"
 FAKE_SIM_SLOW_SHUTDOWN="$root/shutting" "$scripts/sim-pool.sh" delete c >"$root/out" 2>"$root/err" &
 deleter=$!
-while [ ! -f "$root/shutting" ]; do sleep 0.05; done
+for _ in $(seq 100); do [ ! -f "$root/shutting" ] || break; sleep 0.05; done
 claim=$(bash -c '. "$1/sim-lock.sh" && claim_sim "$2" "test-sim.sh run" && echo claimed' _ "$scripts" "$P-4" 2>&1)
 claim_status=$?
 wait "$deleter"
@@ -170,6 +170,17 @@ clone $P-3 workout-lane-a | UDID	STATE	ROLE	NAME
 $P-4	Shutdown	lane	workout-lane-a
 $P-2	Shutdown	lane	workout-lane-old
 $P-3	Shutdown	template	workout-template-v1
+booted: 0 of cap 6"
+
+fresh
+seed workout-template-v2
+pool create a
+expect "a newer recipe's template survives an older script, which builds and clones its own" \
+    "$status $(calls | grep -c '^delete') $(calls | tail -1) | $(listing)" \
+    "0 0 clone $P-2 workout-lane-a | UDID	STATE	ROLE	NAME
+$P-3	Shutdown	lane	workout-lane-a
+$P-2	Shutdown	template	workout-template-v1
+$P-1	Shutdown	newer-template	workout-template-v2
 booted: 0 of cap 6"
 
 fresh
