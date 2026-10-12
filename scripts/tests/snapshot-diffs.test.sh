@@ -70,9 +70,14 @@ touch "$out/stale.png"
 diffs failed.json "$bundle"
 expect "a rerun replaces the directory" "$status $(ls "$out" | tr '\n' ' ')" "0 difference_0.png failure_0.png reference_0.png "
 
-diffs failed.json "$bundle" "$root/elsewhere"
-expect "a second argument picks the directory" "$status $(head -1 "$root/out")" \
-    "0 $root/elsewhere/ActiveSetCardVisualTests/activeSetCardMatchesVisualBaseline/difference_0.png"
+diffs failed.json "$bundle/"
+expect "a tab-completed bundle path with a trailing slash still writes beside the bundle" "$status $(head -1 "$root/out")" \
+    "0 $out/difference_0.png"
+
+mkdir -p "$root/keep"
+touch "$root/keep/log"
+diffs failed.json "$bundle" "$root/keep"
+expect "a second argument is refused, so no caller directory is ever deleted" "$status $(ls "$root/keep")" "2 log"
 
 diffs none.json "$bundle"
 expect "a bundle whose failures attached no image exits 1 and says so" "$status $(cat "$root/out")$(cat "$root/err")" \
@@ -80,7 +85,10 @@ expect "a bundle whose failures attached no image exits 1 and says so" "$status 
 
 diffs failed.json "$root/missing.xcresult"
 expect "a missing bundle prints usage and exits 2" "$status $(head -1 "$root/err")" \
-    "2 Usage: scripts/snapshot-diffs.sh <bundle.xcresult> [out-dir]"
+    "2 Usage: scripts/snapshot-diffs.sh <bundle.xcresult>"
+
+diffs failed.json "$root"
+expect "a directory that is not a result bundle is refused" "$status" "2"
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1

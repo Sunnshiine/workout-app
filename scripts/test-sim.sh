@@ -20,8 +20,8 @@ Refuses (exit 75) while another test-sim.sh run or a verify run's app holds that
 refuses (exit 2) a --sim UDID that simctl lists no available simulator for.
 A selection that includes WorkoutTrackerUITests first runs scripts/sim-keyboard.sh ensure, which
 turns off the keyboard preference that hides the software keyboard and prints one `keyboard:` line.
-Every test run writes a result bundle and prints its path. After a failed visual run,
-scripts/snapshot-diffs.sh <bundle> lists the reference, failure, and difference images.
+Every test run writes a result bundle and prints its path. When a snapshot does not match its
+reference, scripts/snapshot-diffs.sh <bundle> lists the reference, failure, and difference images.
 The last line, on every exit after this usage text, is
   test-sim: suite=<s> passed=<n> failed=<m> exit=<e> load1=<start>/<end> bundle=<path>
 where exit= is this script's exit status, `-` means unknown, and load1 is the 1-minute load average.
@@ -33,26 +33,27 @@ EOF
 load1() { sysctl -n vm.loadavg | awk '{print $2}'; }
 
 finish() {
-  local rc=$? counts="- -" shown=-
+  local rc=$? counts="- -" passed failed shown=-
   if [ -n "$bundle" ] && [ -d "$bundle" ]; then
     shown=$bundle
     counts=$(xcrun xcresulttool get test-results summary --path "$bundle" --compact 2>/dev/null | python3 -c '
 import json, sys
 s = json.load(sys.stdin)
 print(s["passedTests"], s["failedTests"])' 2>/dev/null) || counts="- -"
+    grep -q 'does not match reference' "$log" 2>/dev/null && echo "snapshot diffs: scripts/snapshot-diffs.sh $bundle"
   fi
-  case "${counts#* } ${targets[*]-}" in
-    0\ * | -\ *) ;;
-    *-only-testing:WorkoutTrackerSnapshotTests*) echo "snapshot diffs: scripts/snapshot-diffs.sh $bundle" ;;
-  esac
-  echo "test-sim: suite=$suite passed=${counts% *} failed=${counts#* } exit=$rc load1=$load_start/$(load1) bundle=$shown"
+  read -r passed failed <<< "$counts"
+  echo "test-sim: suite=${suite:--} passed=$passed failed=$failed exit=$rc load1=$load_start/$(load1) bundle=$shown"
   exit "$rc"
 }
 
 load_start=$(load1)
-suite=-
+suite=
 bundle=
 trap finish EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+trap 'exit 129' HUP
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
 . "$repo/scripts/sim-lock.sh"
@@ -60,33 +61,31 @@ project=$repo/WorkoutTracker.xcodeproj
 build=1
 sim=${SIM:-}
 targets=()
-selection=()
+ui=0
 
 while [ $# -gt 0 ]; do
-  case $1 in -*) ;; *) selection+=("$1") ;; esac
+  case $1 in -*) ;; *) suite=${suite:+$suite,}$1 ;; esac
   case $1 in
     --no-build) build=0 ;;
-    --sim) sim=$2; shift ;;
+    --sim) [ $# -ge 2 ] || usage; sim=$2; shift ;;
+    -*) usage ;;
     unit) targets+=(-only-testing:WorkoutTrackerTests) ;;
     visual) targets+=(-only-testing:WorkoutTrackerSnapshotTests) ;;
-    ui) targets+=(-only-testing:WorkoutTrackerUITests) ;;
-    all) targets+=(-only-testing:WorkoutTrackerTests -only-testing:WorkoutTrackerSnapshotTests -only-testing:WorkoutTrackerUITests) ;;
-    -*) usage ;;
+    ui) targets+=(-only-testing:WorkoutTrackerUITests); ui=1 ;;
+    all) targets+=(-only-testing:WorkoutTrackerTests -only-testing:WorkoutTrackerSnapshotTests -only-testing:WorkoutTrackerUITests); ui=1 ;;
+    WorkoutTrackerUITests*) targets+=("-only-testing:$1"); ui=1 ;;
     *) targets+=("-only-testing:$1") ;;
   esac
   shift
 done
 [ ${#targets[@]} -gt 0 ] || usage
-suite=$(IFS=,; echo "${selection[*]}")
 
 picked=$(pick_sim "$sim" create)
 read -r sim state <<< "$picked"
 [ "$state" != named ] || sim_available "$sim" || exit
 [ "$state" != Shutdown ] || xcrun simctl boot "$sim"
 claim_sim "$sim" "test-sim.sh run"
-case " ${targets[*]}" in
-  *" -only-testing:WorkoutTrackerUITests"*) "$repo/scripts/sim-keyboard.sh" ensure "$sim" ;;
-esac
+[ $ui = 0 ] || "$repo/scripts/sim-keyboard.sh" ensure "$sim"
 destination="platform=iOS Simulator,id=$sim"
 
 logs=$repo/.build/test-sim
