@@ -16,7 +16,8 @@ matches ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$. For the checkout this script belongs 
 
   up      create whatever is missing and print the env; a rerun prints the same lines. Fetches origin
           when <commit> is not here yet. Runs .githooks/post-checkout in the worktree, so it has
-          Secrets.xcconfig. Leaves the simulator Shutdown; test-sim.sh and verify.sh boot it.
+          Secrets.xcconfig. Leaves the simulator Shutdown; test-sim.sh and verify.sh boot it. A
+          worktree a crashed git worktree add left (locked "initializing") is removed and added again.
   env     print the env of an existing lane; reads only.
   down    delete the simulator first, so a run holding it stops down with exit 75 before anything
           else; then save what removal would lose to <evidence>/down-<YYYYmmdd-HHMMSS>/ (head.txt,
@@ -26,7 +27,8 @@ matches ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$. For the checkout this script belongs 
           already gone, so a second down exits 0. --if-idle removes only when assess says remove.
   assess  print `keep<TAB><reason>` or `remove<TAB>idle Nd`. scripts/prune-merged-worktrees.sh runs it
           for every detached worktree under .claude/worktrees/. Keeps a lane that is not a registered
-          worktree, is on a branch, is locked, holds a nested worktree, has uncommitted changes or
+          worktree, is on a branch, is locked (a crashed git worktree add's lock, "initializing",
+          says so and up or down repairs it), holds a nested worktree, has uncommitted changes or
           untracked files, holds commits no branch or tag holds, is in use (a process cwd inside it
           or its simulator's verify lock), or was active within <idle-days>. Ignored files keep
           nothing, because down saves them. A commit counts when HEAD or its reflog reaches it; a
@@ -82,6 +84,10 @@ drop_stale_record() {
   git -C "$primary" worktree remove --force "$wt" >&2 || die 70 "could not drop the stale record of $wt"
   reg=$(registration)
 }
+
+# git worktree add locks its record "initializing" until it finishes, so that lock is a crash, not
+# a human's.
+crashed_add() { printf '%s\n' "$reg" | grep -qx 'locked initializing'; }
 
 field() { printf '%s\n' "$1" | sed -n "s|^$2||p"; }
 
@@ -159,6 +165,7 @@ assess() {
   if [ -z "$reg" ]; then reason="not a registered worktree"; return; fi
   branch=$(field "$reg" 'branch refs/heads/')
   if [ -n "$branch" ]; then reason="on branch $branch; the PR rows decide"; return; fi
+  if crashed_add; then reason="a git worktree add crashed here; lane.sh up or down repairs it"; return; fi
   if printf '%s\n' "$reg" | grep -q '^locked'; then reason="locked"; return; fi
   work=$(nested_worktree)
   if [ -n "$work" ]; then reason="holds the worktree $work"; return; fi
@@ -205,6 +212,12 @@ lane_up() {
   fi
   reg=$(registration)
   drop_stale_record
+  if crashed_add; then
+    echo "lane.sh: a git worktree add crashed in $wt; adding it again" >&2
+    git -C "$primary" worktree unlock "$wt" && git -C "$primary" worktree remove --force "$wt" >&2 \
+      || die 70 "could not remove the worktree a crashed git worktree add left in $wt"
+    reg=$(registration)
+  fi
   if [ -z "$reg" ]; then
     [ ! -e "$wt" ] || die 2 "$wt exists but git does not list it as a worktree; move it away first"
     mkdir -p "$(dirname "$wt")"
@@ -312,7 +325,11 @@ lane_down() {
   if [ -n "$reg" ]; then
     branch=$(field "$reg" 'branch refs/heads/')
     [ -z "$branch" ] || die 2 "$wt is on branch $branch, not a lane; prune-merged-worktrees.sh decides branch worktrees"
-    ! printf '%s\n' "$reg" | grep -q '^locked' || die 2 "lane $name is locked; git worktree unlock $wt first"
+    if crashed_add; then
+      git -C "$primary" worktree unlock "$wt" || die 70 "could not unlock $wt"
+    elif printf '%s\n' "$reg" | grep -q '^locked'; then
+      die 2 "lane $name is locked; git worktree unlock $wt first"
+    fi
     work=$(nested_worktree)
     [ -z "$work" ] || die 2 "lane $name holds the worktree $work; remove that first"
     holder=$(cwd_holder) || die 70 "could not list process working directories"

@@ -275,6 +275,24 @@ expect "down while another process works in the lane exits 75 and removes nothin
 (cd "$lanes/busy" && "$primary/scripts/lane.sh" down busy >"$root/out" 2>"$root/err")
 expect "down run from a shell inside the lane removes it" "$? $([ -d "$lanes/busy" ] && echo worktree)" "0 "
 
+crash_add() {
+    lane up "$1" "$c1"
+    echo initializing >"$(git -C "$lanes/$1" rev-parse --absolute-git-dir)/locked"
+}
+locked() { git -C "$primary" worktree list --porcelain | grep -c "^locked" || true; }
+crash_add crashed
+lane assess crashed 0
+expect "assess keeps a lane a crashed git worktree add left, and says how to repair it" \
+    "$(cat "$root/out")" "keep	a git worktree add crashed here; lane.sh up or down repairs it"
+lane up crashed "$c1"
+expect "up repairs a lane a crashed git worktree add left" \
+    "$status $(locked) $(git -C "$lanes/crashed" rev-parse HEAD)" "0 0 $c1"
+crash_add crashed2
+lane down crashed2
+expect "down saves and removes a lane a crashed git worktree add left" \
+    "$status $([ -d "$lanes/crashed2" ] && echo worktree) $(ls "$evidence/detached-crashed2" | grep -c down-) $(locked)" "0  1 0"
+lane down crashed
+
 lane up ign "$c1"
 mkdir -p "$lanes/ign/.claude"
 echo profile >"$lanes/ign/default.profraw"
