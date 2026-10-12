@@ -7,7 +7,11 @@ import Testing
 
     private let launchFlagTablePath = ".agents/skills/verify/launch-flags.md"
 
-    private func launchFlagTable(_ flags: [LaunchFlag]) -> String {
+    private func launchFlagTable(
+        _ flags: [LaunchFlag],
+        scenarios: [LaunchFlag] = UITestLaunch.scenarioFlags.map(\.flag),
+        screens: [LaunchFlag] = UITestLaunch.screenFlags
+    ) -> String {
         let alone = flags.filter { $0.actsWithoutFixture && $0 != .fixture }.map { "`\($0.argument)`" }
         let fixtureRule =
             alone.isEmpty
@@ -25,14 +29,13 @@ import Testing
             | --- | --- | --- |
 
             """
-        return header + flags.map { "| `\($0.argument)` | \(kind(of: $0)) | \($0.meaning) |\n" }.joined()
-    }
-
-    private func kind(of flag: LaunchFlag) -> String {
-        if let priority = UITestLaunch.scenarioFlags.firstIndex(where: { $0.flag == flag }) {
-            return "Scenario \(priority + 1)"
-        }
-        return UITestLaunch.screenFlags.contains(flag) ? "Screen" : "Switch"
+        return header
+            + flags.map { flag in
+                let kind =
+                    scenarios.firstIndex(of: flag).map { "Scenario \($0 + 1)" }
+                    ?? (screens.contains(flag) ? "Screen" : "Switch")
+                return "| `\(flag.argument)` | \(kind) | \(flag.meaning) |\n"
+            }.joined()
     }
 
     @Test func launchFlagTableMatchesTheRegistry() throws {
@@ -48,12 +51,19 @@ import Testing
     }
 
     @Test func launchFlagTableRendersOneRowPerFlagInTheOrderGiven() {
-        let rows = launchFlagTable([.fullBlock, .settings]).split(separator: "\n").suffix(2)
+        let first = LaunchFlag(argument: "-FIRST_SCENARIO", meaning: "Seeds the first Block.")
+        let second = LaunchFlag(argument: "-SECOND_SCENARIO", meaning: "Seeds the second Block.")
+        let screen = LaunchFlag(argument: "-SCREEN", meaning: "Opens a screen.")
+        let toggle = LaunchFlag(argument: "-SWITCH", meaning: "Turns a thing off.")
+
+        let rows = launchFlagTable([toggle, second, screen], scenarios: [first, second], screens: [screen])
+            .split(separator: "\n").suffix(3)
 
         #expect(
             Array(rows) == [
-                "| `-UITEST_FULL_BLOCK` | Scenario 5 | Seeds four Weeks of four Sessions, every one an Available Session. |",
-                "| `-UITEST_SETTINGS` | Screen | Opens Settings in place of the Session screen. |"
+                "| `-SWITCH` | Switch | Turns a thing off. |",
+                "| `-SECOND_SCENARIO` | Scenario 2 | Seeds the second Block. |",
+                "| `-SCREEN` | Screen | Opens a screen. |"
             ]
         )
     }
