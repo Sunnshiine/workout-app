@@ -9,11 +9,7 @@
       "PushNotification",
       "RemoteTrigger",
       "ReportFindings",
-      "ScheduleWakeup",
-      "AskUserQuestion",
-      "CronCreate",
-      "CronDelete",
-      "CronList"
+      "AskUserQuestion"
     ]
   },
   "hooks": {
