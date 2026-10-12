@@ -215,5 +215,11 @@ lane down lane-a
 expect "a second down exits 0" "$status $(cat "$root/err")" \
     "0 sim-pool: no device is named workout-lane-lane-a; nothing to delete"
 
+g worktree add -b feature "$lanes/feature" main
+lane down feature
+expect "down refuses a worktree on a branch with exit 2 and leaves it" \
+    "$status $(cat "$root/err") | $([ -d "$lanes/feature" ] && echo kept)" \
+    "2 lane.sh: $lanes/feature is on branch feature, not a lane; prune-merged-worktrees.sh decides branch worktrees | kept"
+
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1
