@@ -18,7 +18,10 @@ snapshot must pass first; then each mutant runs alone.
                  edits included: true/false flips, comparison and &&/|| swaps, if-negation, guard
                  forced to its early return, a number + 1, in the .swift files under each PATH
                  (from the current directory; default Sources App WorkoutShared WorkoutWidgets).
-  --max N        runs at most N generated mutants (default 40); unreachable ones never count.
+                 A line inside an #if os(iOS), os(macOS), canImport(UIKit), or canImport(AppKit)
+                 branch the build compiles out is unreachable without a build.
+  --max N        runs at most N generated mutants (default 40), taking each file's first mutant
+                 before any file's second; unreachable ones never count.
   --filter SEL   the tests that judge each mutant; repeatable. Without --sim: swift test --filter
                  SEL (default the whole suite). With --sim: unit, visual, ui, or a test-sim.sh
                  TEST-ID; a bare suite name means WorkoutTrackerTests/SUITE (default unit).
@@ -38,6 +41,10 @@ Prints log:, mutants: (--diff), scratch:, and baseline: lines, then a row per mu
   nocompile    the compiler rejects the mutated file
   unreachable  this build never compiles the line (#if, no target; App/ needs --sim)
   error        the runner failed without naming a failing test, or the build failed elsewhere
+  not run      --max left it out
+The #error probe misjudges a hand-written mutant in two places: on a continuation line inside an #if
+branch the build compiles out it reads SURVIVED, and inside a multi-line string literal it reads
+unreachable. --diff never mutates inside a string and decides the #if branches above itself.
 Exits 0 when every mutant was killed (a generated nocompile does not count); 1 when any was flaky,
 SURVIVED, unreachable, an error, or a hand-written nocompile, when --max left any unrun, or when
 none was killed; 2 on usage or a failing baseline; 75 when every scratch tree or the simulator is
@@ -156,8 +163,15 @@ else
     [ ${#paths[@]} -gt 0 ] || paths=(Sources App WorkoutShared WorkoutWidgets)
     git diff --name-only --no-renames --diff-filter=AM "$merge_base" "$tree" -- "${paths[@]}" >"$run/files"
     : >"$run/runnable.tsv"
+    : >"$run/compiled-out.tsv"
     : >"$run/unreachable.tsv"
     : >"$run/sources.tsv"
+    why() { awk -v why="$1" '{ print why "\t" $0 }'; }
+    if [ -n "$sim" ]; then
+        platform=iOS compiled_out="an #if compiles it out of the simulator build; rerun without --sim"
+    else
+        platform=macOS compiled_out="an #if compiles it out of swift test; rerun with --sim UDID"
+    fi
     k=0 changed=0
     while IFS= read -r f; do
         case $f in Sources/*.swift | App/*.swift | WorkoutShared/*.swift | WorkoutWidgets/*.swift) ;; *) continue ;; esac
@@ -167,30 +181,47 @@ else
         git diff -U0 --no-color "$merge_base" "$tree" -- "$f" |
             awk '/^@@/ { n = split(substr($3, 2), r, ","); count = n > 1 ? r[2] : 1; for (i = 0; i < count; i++) print r[1] + i }' >"$run/changed$k"
         changed=$((changed + $(wc -l <"$run/changed$k")))
-        rows=$run/unreachable.tsv
-        ! reachable "$f" || rows=$run/runnable.tsv
-        awk -v changed="$run/changed$k" -v path="$f" -f "$script_dir/mutants.awk" "$run/source$k.swift" >>"$rows"
+        if reachable "$f"; then
+            awk -v changed="$run/changed$k" -v path="$f" -v platform=$platform -v compiledOut="$run/compiled-out.tsv" \
+                -f "$script_dir/mutants.awk" "$run/source$k.swift" | why "" >>"$run/runnable.tsv"
+        else
+            awk -v changed="$run/changed$k" -v path="$f" -f "$script_dir/mutants.awk" "$run/source$k.swift" |
+                why "swift test never compiles it; rerun with --sim UDID" >>"$run/unreachable.tsv"
+        fi
     done <"$run/files"
-    runnable=$(($(wc -l <"$run/runnable.tsv")))
-    generated=$((runnable + $(wc -l <"$run/unreachable.tsv")))
-    [ "$runnable" -le "$max" ] || dropped=$((runnable - max)) runnable=$max
+    generated=$(($(cat "$run/runnable.tsv" "$run/compiled-out.tsv" "$run/unreachable.tsv" | wc -l)))
     echo "mutants: $generated on $(plural "$changed" "changed line") in $(plural $k file) since ${merge_base:0:8}"
     [ "$generated" -gt 0 ] || exit 0
+    awk -F'\t' -v max="$max" -v run="$run" '
+        { row[NR] = $0; rank[NR] = ++seen[$2] }
+        END {
+            for (r = 1; taken < max; r++) {
+                found = 0
+                for (i = 1; i <= NR && taken < max; i++) if (rank[i] == r) { picked[i] = 1; taken++; found = 1 }
+                if (!found) break
+            }
+            for (i = 1; i <= NR; i++) print row[i] > (run "/" (i in picked ? "picked" : "unrun") ".tsv")
+        }' "$run/runnable.tsv"
+    touch "$run/picked.tsv" "$run/unrun.tsv"
+    runnable=$(($(wc -l <"$run/picked.tsv")))
+    dropped=$(($(wc -l <"$run/unrun.tsv")))
     # mutants.awk prints the whole mutated line last, so it is read from the file, never through -v,
-    # which would rewrite its backslashes.
-    { head -n "$max" "$run/runnable.tsv"; cat "$run/unreachable.tsv"; } | awk -F'\t' -v run="$run" '
+    # which would rewrite its backslashes. Each row arrives with the reason it cannot run first.
+    { cat "$run/picked.tsv"; why "$compiled_out" <"$run/compiled-out.tsv"; cat "$run/unreachable.tsv"; } | awk -F'\t' -v run="$run" '
         FNR == NR { source[$1] = $2; next }
         {
             id = "m" FNR
             mutated = $0
-            for (i = 1; i <= 5; i++) sub(/^[^\t]*\t/, "", mutated)
-            print id "\t" $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 > (run "/mutants.tsv")
+            for (i = 1; i <= 6; i++) sub(/^[^\t]*\t/, "", mutated)
+            print id "\t" $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6 > (run "/mutants.tsv")
+            if ($1 != "") print $1 > (run "/" id ".why")
             out = run "/" id ".swift"
             n = 0
-            while ((getline text < source[$1]) > 0) print (++n == $2 ? mutated : text) > out
-            close(source[$1])
+            while ((getline text < source[$2]) > 0) print (++n == $3 ? mutated : text) > out
+            close(source[$2])
             close(out)
         }' "$run/sources.tsv" -
+    awk -F'\t' '{ print "-\t" $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6 }' "$run/unrun.tsv" >"$run/not-run.tsv"
 fi
 
 one_line() {
@@ -324,8 +355,9 @@ if [ $runnable -gt 0 ]; then
     echo "baseline: passed $(plural "$tests" test) ($runner)"
 fi
 
-loc_width=$(awk -F'\t' '{ w = length($2 ":" $3); if (w > max) max = w } END { print max }' "$run/mutants.tsv")
-change_width=$(awk -F'\t' '{ w = length($5 ($6 == "" ? "" : " -> " $6)); if (w > max) max = w } END { print max }' "$run/mutants.tsv")
+touch "$run/not-run.tsv"
+loc_width=$(awk -F'\t' '{ w = length($2 ":" $3); if (w > max) max = w } END { print max }' "$run/mutants.tsv" "$run/not-run.tsv")
+change_width=$(awk -F'\t' '{ w = length($5 ($6 == "" ? "" : " -> " $6)); if (w > max) max = w } END { print max }' "$run/mutants.tsv" "$run/not-run.tsv")
 print_row() {
     local row
     row=$(printf "%-11s  %-${loc_width}s  %-7s  %-${change_width}s  %s" "$@")
@@ -335,13 +367,13 @@ print_row() {
 killed=0 flaky=0 survived=0 nocompile=0 unreachable=0 errors=0 total=0 busy=""
 : >"$run/named-kills.tsv"
 while IFS=$'\t' read -r id mfile line op before after <&3; do
-    if reachable "$mfile"; then
+    if [ -f "$run/$id.why" ]; then
+        result=unreachable reason=$(cat "$run/$id.why")
+    else
         cp "$run/$id.swift" "$scratch/$mfile"
         run_check "$run/$id.log"
         git -C "$scratch" checkout -q "$tree" -- "$mfile"
         [ "$result" != pass ] || probe_reach "$id" "$mfile" "$line"
-    else
-        result=unreachable reason="swift test never compiles it; rerun with --sim UDID"
     fi
     if [ "$result" = busy ]; then
         busy=$reason
@@ -368,6 +400,9 @@ while IFS=$'\t' read -r id mfile line op before after <&3; do
     [ "$outcome" = killed ] || printf '%s\t%s\t%s\n' "$id" "$outcome" "$reason" >>"$run/results.tsv"
     print_row "$outcome" "$mfile:$line" "$op" "$before${after:+ -> $after}" "$detail"
 done 3<"$run/mutants.tsv"
+while IFS=$'\t' read -r _ mfile line op before after; do
+    print_row "not run" "$mfile:$line" "$op" "$before${after:+ -> $after}"
+done <"$run/not-run.tsv"
 
 if [ -z "$busy" ] && [ -s "$run/named-kills.tsv" ]; then
     run_check "$run/recheck.log"
