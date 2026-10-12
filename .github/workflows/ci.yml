@@ -24,6 +24,8 @@ on:
       - ".github/workflows/agent-*.yml"
       - ".github/workflows/verify-tools.yml"
       - ".github/workflows/script-tests.yml"
+      - "scripts/ci-visual-diffs.sh"
+      - "scripts/tests/ci-visual-diffs.test.sh"
       - ".github/workflows/workflow-lint.yml"
       - ".github/workflows/skill-links.yml"
       - ".github/workflows/architecture-review.yml"
@@ -40,10 +42,10 @@ on:
   workflow_dispatch:
 
 # A pull request cancels its own superseded runs. A push to main is keyed on its commit, so a
-# merge that lands mid-run never cancels the run verifying the merge before it. The event name
-# keeps a dispatch on main's tip from cancelling that commit's push run.
+# merge that lands mid-run never cancels the run verifying the merge before it. Each dispatch is
+# its own group, so a repeated dispatch never cancels the one before it or a push run.
 concurrency:
-  group: ci-${{ github.event.pull_request.number || format('{0}-{1}', github.event_name, github.sha) }}
+  group: ci-${{ github.event.pull_request.number || (github.event_name == 'workflow_dispatch' && github.run_id) || github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -88,11 +90,10 @@ jobs:
       - name: swift-format the Swift files this pull request changes
         if: github.event_name == 'pull_request'
         run: |
+          changed=$(git diff --name-only --diff-filter=d HEAD^1 HEAD -- '*.swift' \
+            ':(exclude)scripts/tests/swiftlint-custom-rules')
           files=()
-          while IFS= read -r file; do files+=("$file"); done < <(
-            git diff --name-only --diff-filter=d HEAD^1 HEAD -- '*.swift' \
-              ':(exclude)scripts/tests/swiftlint-custom-rules'
-          )
+          while IFS= read -r file; do [ -z "$file" ] || files+=("$file"); done <<<"$changed"
           if [ "${#files[@]}" -eq 0 ]; then
             echo "No changed Swift file to check."
             exit 0
@@ -152,6 +153,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
+      # The UI suite (#662) is the only check that reaches App/ behaviour through real controls. It
+      # runs when the change touches App/ or Tests/UI/, and on every manual dispatch. Deciding
+      # before any test runs keeps a red Visual gate from skipping the decision.
+      - name: Decide whether the UI suite runs
+        id: ui-scope
+        run: |
+          changed=$(git diff --name-only HEAD^1 HEAD -- App Tests/UI)
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [ -n "$changed" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
       # Creating the device is enough. xcodebuild boots it itself for the test step below.
       - name: Ensure the pinned baseline simulator exists
         run: scripts/ensure-simulator.sh "$BASELINE_DEVICE" "$BASELINE_RUNTIME"
@@ -215,6 +226,7 @@ jobs:
       # green job and always-false on a red one, and a baseline mismatch silently skips the
       # hosted suite. Run 35515594647 recorded that skip before this line was fixed.
       - name: Run the hosted unit and component suite (WorkoutTrackerTests)
+        id: hosted
         if: ${{ !cancelled() && (steps.visual.conclusion == 'success' || steps.visual.conclusion == 'failure') }}
         run: |
           xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
@@ -228,17 +240,14 @@ jobs:
             -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
             COMPILATION_CACHE_ENABLE_CACHING=YES \
             COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache"
-      # The UI suite (#662) is the only check that reaches App/ behaviour through real controls. It
-      # runs when the change touches App/ or Tests/UI/, and on every manual dispatch, reusing the
-      # build above.
-      - name: Decide whether the UI suite runs
-        id: ui-scope
-        run: |
-          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] ||
-            [ -n "$(git diff --name-only HEAD^1 HEAD -- App Tests/UI)" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Save the compilation cache
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/CompilationCache
+          key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
       - name: Run the UI suite (WorkoutTrackerUITests)
+        id: ui
         if: ${{ !cancelled() && steps.ui-scope.outputs.run == 'true' && (steps.visual.conclusion == 'success' || steps.visual.conclusion == 'failure') }}
         run: |
           xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
@@ -252,30 +261,24 @@ jobs:
             -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
             COMPILATION_CACHE_ENABLE_CACHING=YES \
             COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache"
-      - name: Save the compilation cache
-        if: github.event_name == 'push'
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ runner.temp }}/CompilationCache
-          key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
       # The result bundle holds each failing snapshot's reference, render and difference images.
       # scripts/ci-visual-diffs.sh lists them and copies the runner's render over a baseline.
       - name: Upload Visual Baseline diffs
-        if: failure()
+        if: failure() && steps.visual.conclusion == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: visual-baseline-diffs
           path: VisualTests.xcresult
           if-no-files-found: ignore
       - name: Upload hosted test results
-        if: failure()
+        if: failure() && steps.hosted.conclusion == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: hosted-test-results
           path: HostedTests.xcresult
           if-no-files-found: ignore
       - name: Upload UI test results
-        if: failure()
+        if: failure() && steps.ui.conclusion == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: ui-test-results
