@@ -275,11 +275,8 @@ list_pool() {
 command=$1
 case $command in
   -h | --help) help; exit 0 ;;
-  list | delete-template)
-    [ $# -eq 1 ] || usage
-    if [ "$command" = list ]; then list_pool; else lock_pool delete-template; delete_templates; fi
-    exit
-    ;;
+  list) [ $# -eq 1 ] || usage; list_pool; exit ;;
+  delete-template) [ $# -eq 1 ] || usage; lock_pool delete-template; delete_templates; exit ;;
 esac
 [ $# -eq 2 ] || usage
 lane=$2

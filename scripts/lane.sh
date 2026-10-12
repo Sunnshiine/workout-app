@@ -16,9 +16,10 @@ matches ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$. For the checkout this script belongs 
 
   up      create whatever is missing and print the env; a rerun prints the same lines. Fetches origin
           when <commit> is not here yet. Records <commit> as the lane's base when it adds the
-          worktree; a rerun never moves it, so assess and down still count the lane's own commits. Runs .githooks/post-checkout in the worktree, so it has
-          Secrets.xcconfig. Leaves the simulator Shutdown; test-sim.sh and verify.sh boot it. A
-          worktree a crashed git worktree add left (locked "initializing") is removed and added again.
+          worktree; a rerun never moves it, so assess and down still count the lane's own commits.
+          Runs .githooks/post-checkout in the worktree, so it has Secrets.xcconfig. Leaves the
+          simulator Shutdown; test-sim.sh and verify.sh boot it. A worktree a crashed git worktree
+          add left (locked "initializing") is removed and added again.
   env     print the env of an existing lane; reads only.
   down    delete the simulator first, so a run holding it stops down with exit 75 before anything
           else; then save what removal would lose to <evidence>/down-<YYYYmmdd-HHMMSS>/ (head.txt,
@@ -45,10 +46,10 @@ Each later Bash call re-derives them, for example:
   env=$(scripts/lane.sh env e8) && eval "$env" && "$LANE_WORKTREE/scripts/test-sim.sh" unit
 
 Exit codes: 0 done; 1 env: no such lane, or down --if-idle: the lane is not idle (stderr SKIPPED:
-<reason>); 2 usage, a bad name or one that differs from an existing lane's only by case on a disk that
-ignores case, an unknown commit, a lane at another commit, a worktree on a branch,
-a locked lane, one holding a nested worktree, or one registered but missing (moved or deleted),
-or down run from the lane's own copy of this script;
+<reason>); 2 usage, a bad name, a name that differs from an existing lane's only by case on a
+disk that ignores case, an unknown commit, a lane at another commit, a worktree on a branch, a
+locked lane, one holding a nested worktree, or one registered but missing (moved or deleted), or
+down run from the lane's own copy of this script;
 69 the simulator runtime is missing; 70 git, simctl, or a save failed (down then leaves the worktree,
 but its simulator is already gone; lane.sh up <name> <commit> makes a new one);
 75 a test-sim or verify run holds the lane's simulator, the simulator pool is busy, down found
