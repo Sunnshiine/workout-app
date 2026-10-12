@@ -190,8 +190,6 @@ jobs:
           path: ${{ runner.temp }}/CompilationCache
           key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
           restore-keys: cas-${{ steps.xcode.outputs.build }}-
-      # TEST_RUNNER_SNAPSHOT_ARTIFACTS lands swift-snapshot-testing's failure diffs in a
-      # known folder so the artifact upload below can show why the gate went red.
       - name: Run Visual Regression tests (ADR-0007 gate)
         id: visual
         run: |
@@ -205,8 +203,7 @@ jobs:
             -collect-test-diagnostics never \
             -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
             COMPILATION_CACHE_ENABLE_CACHING=YES \
-            COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache" \
-            TEST_RUNNER_SNAPSHOT_ARTIFACTS="$PWD/snapshot-diffs"
+            COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache"
       # WorkoutTrackerTests hosted in the app reaches what `swift test` on macOS cannot: UIKit
       # font registration, Live Activity content state, and the Google auth scopes (#606). The
       # two runs cover deliberately different sets (#592); do not reconcile them. Every flag
@@ -230,8 +227,7 @@ jobs:
             -collect-test-diagnostics never \
             -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
             COMPILATION_CACHE_ENABLE_CACHING=YES \
-            COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache" \
-            TEST_RUNNER_SNAPSHOT_ARTIFACTS="$PWD/snapshot-diffs"
+            COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache"
       # The UI suite (#662) is the only check that reaches App/ behaviour through real controls. It
       # runs when the change touches App/ or Tests/UI/, and on every manual dispatch, reusing the
       # build above.
@@ -262,14 +258,14 @@ jobs:
         with:
           path: ${{ runner.temp }}/CompilationCache
           key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
+      # The result bundle holds each failing snapshot's reference, render and difference images.
+      # scripts/ci-visual-diffs.sh lists them and copies the runner's render over a baseline.
       - name: Upload Visual Baseline diffs
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: visual-baseline-diffs
-          path: |
-            snapshot-diffs
-            VisualTests.xcresult
+          path: VisualTests.xcresult
           if-no-files-found: ignore
       - name: Upload hosted test results
         if: failure()
