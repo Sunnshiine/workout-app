@@ -18,6 +18,8 @@ SKILL = Path(__file__).resolve().parent.parent
 REPO = SKILL.parent.parent.parent
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 FRAME = re.compile(r"^@(-?\d+),(-?\d+) (\d+)x(\d+)$")
+sys.path.insert(0, str(SKILL))
+import take  # noqa: E402
 
 
 MINI_TREE = [
@@ -2573,6 +2575,80 @@ class BurstFrames(unittest.TestCase):
         self.assertNotEqual(done.returncode, 0, "one cell must never stand for two moments")
         self.assertIn("+0373ms.png", done.stderr)
         self.assertEqual(len(list(self.dir.glob("*.png"))), 4, "no frame was overwritten")
+
+
+TAKE_LINES = """format=take/1
+name=appear
+video=appear.mp4
+drive=launch --animated session
+tail=2.0
+load_limit=50
+load_before=12.31
+load_after=14.02
+started=1791817306.217
+drive_start=0.004
+drive_end=2.694
+stopped=4.714
+recorder_exit=0
+recorder_early=0
+frames=37
+first_frame=0.000
+last_frame=3.402
+video_px=1206x2622
+verdict=VALID
+invalid=
+"""
+STAMP = TAKE_LINES + "screen_pt=402x874\nanimations=on\napp=app 804e750cad00 commit ea5af074 (this worktree's build)\n"
+
+
+def stamp_with(**changes):
+    text = STAMP
+    for key, value in changes.items():
+        text = re.sub(r"(?m)^%s=.*$" % key, "%s=%s" % (key, value), text)
+    return take.parse(text)
+
+
+class TakeJudge(unittest.TestCase):
+    def test_a_take_that_breaks_no_rule_is_valid_and_writes_back_the_same_take_lines(self):
+        self.assertEqual(take.judge(take.parse(STAMP)), [])
+        self.assertEqual("\n".join(take.take_lines(take.parse(STAMP))) + "\n", TAKE_LINES)
+
+    def test_the_summary_reads_the_whole_stamp(self):
+        self.assertEqual(take.summary(take.parse(STAMP), "on"), (
+            "take appear VALID 4.71 s, drive +0.00..+2.69 s, 37 frames, last +3.40 s, load 12.3 then 14.0 (limit 50), "
+            "animations on"))
+        self.assertEqual(take.summary(stamp_with(drive="", frames=1, load_after="63.20"), "off"), (
+            "take appear INVALID 4.71 s, no drive, 1 frame, last +3.40 s, load 12.3 then 63.2 (limit 50), "
+            "animations off"))
+
+    def test_load_at_or_over_the_limit_at_either_end(self):
+        self.assertEqual(take.judge(stamp_with(load_after="63.20")), ["load 63.2 at the end, at or over 50"])
+        self.assertEqual(take.judge(stamp_with(load_before="50.00")), ["load 50.0 at the start, at or over 50"])
+        self.assertEqual(take.judge(stamp_with(load_after="49.99")), [])
+
+    def test_a_recorder_that_stopped_early_or_exited_nonzero(self):
+        self.assertEqual(take.judge(stamp_with(recorder_early="1")), ["the recorder stopped before the take ended"])
+        self.assertEqual(take.judge(stamp_with(recorder_exit="1")),
+                         ["recorder exit 1 after SIGINT; the video may be cut short"])
+
+    def test_a_drive_needs_a_frame_at_or_after_it_began(self):
+        self.assertEqual(take.judge(stamp_with(drive_start="0.320", last_frame="0.300")), [
+            "no frame at or after the drive began at +0.32 s, so the take shows nothing the drive changed"])
+        self.assertEqual(take.judge(stamp_with(drive_start="0.320", last_frame="0.320", frames="1")), [])
+
+    def test_a_take_with_no_drive_needs_two_frames(self):
+        self.assertEqual(take.judge(stamp_with(drive="", frames="1", last_frame="0.000")),
+                         ["one frame: the screen never changed while recording"])
+        self.assertEqual(take.judge(stamp_with(drive="", frames="2")), [])
+
+    def test_every_failed_rule_gives_its_reason_in_rule_order(self):
+        self.assertEqual(take.judge(stamp_with(load_after="70.00", recorder_early="1", recorder_exit="2",
+                                               drive_start="3.500")), [
+            "load 70.0 at the end, at or over 50",
+            "the recorder stopped before the take ended",
+            "recorder exit 2 after SIGINT; the video may be cut short",
+            "no frame at or after the drive began at +3.50 s, so the take shows nothing the drive changed",
+        ])
 
 
 if __name__ == "__main__":
