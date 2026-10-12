@@ -437,5 +437,13 @@ $err" "2
 
 .build/mutate matches no file in your working tree (an ignored file cannot be mutated)"
 
+HOME=$root/home mutate --clean-scratch
+expect "--clean-scratch removes every scratch tree no run holds" "$status
+$(sed -E 's/\(([0-9]+) MB\)/(N MB)/' <<<"$out")
+$(git -C "$repo" worktree list | grep -c "$pool/")" "0
+removed $pool/1 (N MB)
+removed $pool/2 (N MB)
+0"
+
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1

@@ -117,6 +117,22 @@ got=$(SCRATCH_SLOTS=1 in_tree "$repo" 'scratch_claim t; scratch_sync HEAD; echo 
 expect "a scratch checkout never runs the repo's post-checkout hook" "$got" "a"
 git -C "$repo" config --unset core.hooksPath
 
+hold 3
+mkdir -p "$pool/2/.build" "$root/DerivedData/WorkoutTracker-abc" "$root/DerivedData/WorkoutTracker-other"
+plutil -create xml1 "$root/DerivedData/WorkoutTracker-abc/info.plist"
+plutil -insert WorkspacePath -string "$pool/2/WorkoutTracker.xcodeproj" "$root/DerivedData/WorkoutTracker-abc/info.plist"
+cp "$root/DerivedData/WorkoutTracker-abc/info.plist" "$root/DerivedData/WorkoutTracker-other/info.plist"
+plutil -replace WorkspacePath -string "$root/elsewhere/WorkoutTracker.xcodeproj" "$root/DerivedData/WorkoutTracker-other/info.plist"
+got=$(HOME=$root/home in_tree "$repo" 'mkdir -p ~/Library/Developer/Xcode && ln -s "'"$root"'/DerivedData" ~/Library/Developer/Xcode/DerivedData
+    scratch_clean | sed -E "s/\(([0-9]+) MB\)/(N MB)/"; ls "'"$root"'/DerivedData"; ls "$pool"; git worktree list | grep -c "$pool/"')
+expect "a clean removes every slot no live run holds, with the DerivedData built from it, and keeps a held one" "$got" \
+"kept $pool/1: holder 3 (pid $(cat "$root/pid3"))
+removed $pool/2 (N MB)
+WorkoutTracker-other
+1
+1"
+rm "$root/gate3"
+
 rm -rf "$pool/1"
 got=$(in_tree "$repo" 'scratch_claim t; git -C "$scratch" rev-parse --show-toplevel; ls "$scratch"')
 expect "a deleted slot is rebuilt" "$got" "$pool/1
