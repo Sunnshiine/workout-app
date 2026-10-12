@@ -232,28 +232,56 @@ one_line() {
 }
 read_log() { awk -v mode="$1" -v root="$scratch/" -f "$script_dir/test-log.awk" "$2"; }
 
-# close_fds=False keeps the slot lock on fd 8 in every child.
-with_timeout() {
-    python3 -c 'import os, signal, subprocess, sys
-die_with_wrapper = """import os, signal, subprocess, sys
-p = subprocess.Popen(sys.argv[2:], close_fds=False)
-while True:
-    try:
-        rc = p.wait(timeout=0.2)
-        break
-    except subprocess.TimeoutExpired:
-        if os.getppid() != int(sys.argv[1]):
-            os.killpg(0, signal.SIGKILL)
-sys.exit(128 - rc if rc < 0 else rc)"""
-p = subprocess.Popen([sys.executable, "-c", die_with_wrapper, str(os.getpid())] + sys.argv[2:], start_new_session=True, close_fds=False)
+# close_fds=False keeps the slot lock on fd 8 in every child. SwiftPM runs the tests in a process
+# group of their own, so only a kill by session reaches them. The session's leader kills its session
+# when the wrapper dies, as it does when a harness SIGKILLs mutate.sh's process group.
+with_timeout_py='import os, signal, subprocess, sys, time
+
+def kill_session(sid):
+    for _ in range(50):
+        members = []
+        for line in subprocess.run(["ps", "-axo", "pid=,stat="], capture_output=True, text=True).stdout.splitlines():
+            pid, stat = line.split()
+            try:
+                if int(pid) != os.getpid() and not stat.startswith("Z") and os.getsid(int(pid)) == sid:
+                    members.append(int(pid))
+            except OSError:
+                pass
+        if not members:
+            return
+        for pid in members:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except OSError:
+                pass
+        time.sleep(0.05)
+
+def exit_like(rc):
+    sys.exit(128 - rc if rc < 0 else rc)
+
+if sys.argv[1] == "--session-of":
+    child = subprocess.Popen(sys.argv[3:], close_fds=False)
+    while True:
+        try:
+            exit_like(child.wait(timeout=0.2))
+        except subprocess.TimeoutExpired:
+            if os.getppid() != int(sys.argv[2]):
+                kill_session(os.getpid())
+                sys.exit(137)
+
+leader = subprocess.Popen([sys.executable, "-c", os.environ["WITH_TIMEOUT_PY"], "--session-of", str(os.getpid())] + sys.argv[2:],
+                          start_new_session=True, close_fds=False)
 def stop(*_):
-    os.killpg(p.pid, signal.SIGKILL)
+    kill_session(leader.pid)
     sys.exit(124)
-for s in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP): signal.signal(s, stop)
-try: rc = p.wait(timeout=max(1, int(sys.argv[1])))
-except subprocess.TimeoutExpired: stop()
-sys.exit(128 - rc if rc < 0 else rc)' "$@"
-}
+for s in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+    signal.signal(s, stop)
+try:
+    rc = leader.wait(timeout=max(1, int(sys.argv[1])))
+except subprocess.TimeoutExpired:
+    stop()
+exit_like(rc)'
+with_timeout() { WITH_TIMEOUT_PY=$with_timeout_py python3 -c "$with_timeout_py" "$@"; }
 
 run_check() {
     local log=$1 build_only=${2:-} rc=0 test_log start=$SECONDS
