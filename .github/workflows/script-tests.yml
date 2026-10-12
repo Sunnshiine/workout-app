@@ -2,6 +2,8 @@ name: Script tests
 
 on:
   pull_request:
+    # edited for a base change, as in ci.yml.
+    types: [opened, synchronize, reopened, edited]
     paths:
       - "scripts/**"
       - ".sandcastle/**"
@@ -27,11 +29,12 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: script-tests-${{ github.event.pull_request.number || (github.event_name == 'workflow_dispatch' && github.run_id) || github.sha }}
+  group: script-tests-${{ ((github.event_name == 'workflow_dispatch' || (github.event.action == 'edited' && !github.event.changes.base)) && github.run_id) || github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 jobs:
   script-tests:
+    if: github.event.action != 'edited' || github.event.changes.base
     runs-on: xcode-27
     timeout-minutes: 15
     steps:

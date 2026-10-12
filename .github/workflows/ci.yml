@@ -6,6 +6,9 @@ name: CI
 
 on:
   pull_request:
+    # A retarget, by hand or by GitHub when a stacked PR's parent merges, fires only edited. Each
+    # job's if skips the edits that leave the base alone.
+    types: [opened, synchronize, reopened, edited]
     paths-ignore:
       - "**.md"
       - "docs/**"
@@ -44,10 +47,11 @@ on:
         type: boolean
         default: false
 
-# A pull request cancels its own superseded runs. A push to main is keyed on its commit, so a
-# merge that lands mid-run never cancels the run verifying the merge before it.
+# A pull request cancels its own superseded runs. A title or body edit gets a group of its own, so
+# it never cancels one. A push to main is keyed on its commit, so a merge that lands mid-run never
+# cancels the run verifying the merge before it.
 concurrency:
-  group: ci-${{ github.event.pull_request.number || (github.event_name == 'workflow_dispatch' && github.run_id) || github.sha }}
+  group: ci-${{ ((github.event_name == 'workflow_dispatch' || (github.event.action == 'edited' && !github.event.changes.base)) && github.run_id) || github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -56,6 +60,7 @@ jobs:
   # config's `included:` list and linted nowhere (issue #607). Nothing here builds the app, so it
   # finishes in about a minute alongside the two test jobs rather than extending them.
   lint:
+    if: github.event.action != 'edited' || github.event.changes.base
     # SwiftLint needs no Xcode and no simulator. This label is the repo's runner pool, not a
     # toolchain requirement.
     runs-on: xcode-27
@@ -84,6 +89,7 @@ jobs:
         run: scripts/swift-format-changed.sh HEAD^1
 
   swift-tests:
+    if: github.event.action != 'edited' || github.event.changes.base
     runs-on: xcode-27
     timeout-minutes: 30
     steps:
@@ -120,6 +126,7 @@ jobs:
           key: swift-tests-cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
 
   visual-tests:
+    if: github.event.action != 'edited' || github.event.changes.base
     runs-on: xcode-27
     timeout-minutes: 45
     # Every committed baseline was recorded on this exact pair (ADR-0007, issue #479).
