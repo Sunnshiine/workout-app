@@ -12,19 +12,17 @@ fail=0
 ok()  { pass=$((pass + 1)); printf '  ok   %s\n' "$1"; }
 bad() { fail=$((fail + 1)); printf '  FAIL %s\n' "$1"; }
 
-# The simulator's defaults live in $STUB_DEFAULTS, a file holding the value or nothing. Every call
-# except a read is logged. STUB_STUCK makes a write do nothing; STUB_SPAWN_DOWN fails every read.
 cat >"$root/bin/xcrun" <<'STUB'
 #!/bin/sh
 shift
 case "$1 $4" in
     "spawn read")
-        [ -z "${STUB_SPAWN_DOWN:-}" ] || { echo "Process spawn via launchd failed (code=405)" >&2; exit 1; }
+        [ -z "${STUB_READ_FAILS:-}" ] || { echo "Process spawn via launchd failed (code=405)" >&2; exit 1; }
         [ -s "$STUB_DEFAULTS" ] && cat "$STUB_DEFAULTS" || { echo "Error: Could not find key '$6' in domain '$5'." >&2; exit 1; }
         ;;
     "spawn write")
         echo "$*" >>"$STUB_CALLS"
-        [ -n "${STUB_STUCK:-}" ] || echo 0 >"$STUB_DEFAULTS"
+        [ -n "${STUB_WRITE_IGNORED:-}" ] || echo 0 >"$STUB_DEFAULTS"
         ;;
     *) echo "$*" >>"$STUB_CALLS" ;;
 esac
@@ -63,11 +61,11 @@ expect "an absent key passes the keyboard tests, so ensure leaves it" "$status $
     "0 keyboard: $sim has AutomaticMinimizationEnabled=unset"
 
 echo 1 >"$root/defaults"
-STUB_STUCK=1 keyboard ensure "$sim"
+STUB_WRITE_IGNORED=1 keyboard ensure "$sim"
 expect "a write that does not read back exits 70" "$status $(cat "$root/err")" \
     "70 keyboard: wrote AutomaticMinimizationEnabled=0 on $sim but it reads 1 (#700)"
 
-STUB_SPAWN_DOWN=1 keyboard ensure "$sim"
+STUB_READ_FAILS=1 keyboard ensure "$sim"
 expect "a read that fails for another reason than a missing key exits 69 and writes nothing" \
     "$status $(cat "$root/err") | $(calls)" \
     "69 keyboard: cannot read AutomaticMinimizationEnabled on $sim: Process spawn via launchd failed (code=405) | bootstatus $sim -b"

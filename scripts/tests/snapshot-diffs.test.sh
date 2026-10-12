@@ -12,8 +12,6 @@ fail=0
 ok()  { pass=$((pass + 1)); printf '  ok   %s\n' "$1"; }
 bad() { fail=$((fail + 1)); printf '  FAIL %s\n' "$1"; }
 
-# Writes what `xcresulttool export attachments` writes for a real visual run: UUID-named files and
-# a manifest.json that maps them to tests. $STUB_MANIFEST picks the manifest.
 cat >"$root/bin/xcrun" <<'STUB'
 #!/bin/sh
 [ "$1 $2 $3 $4 $6" = "xcresulttool export attachments --path --output-path" ] || exit 64
