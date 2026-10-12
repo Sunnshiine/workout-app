@@ -21,17 +21,62 @@ import argparse
 import dataclasses
 import json
 import os
+import re
 import shlex
 import signal
 import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import List, NamedTuple, Optional, Sequence, Tuple
+from typing import List, Literal, NamedTuple, Optional, Sequence, Tuple, Union
 
 STOP_GRACE = 15.0
 DRIVE_GRACE = 5.0
 POLL = 0.05
+
+
+class CardPt(NamedTuple):
+    """The Active Set Card's frame in points, as the accessibility tree held it when the recorder stopped."""
+    x: int
+    y: int
+    width: int
+    height: int
+
+    @property
+    def top(self) -> int:
+        return self.y
+
+    @property
+    def bottom(self) -> int:
+        return self.y + self.height
+
+    @property
+    def left(self) -> int:
+        return self.x
+
+    @property
+    def right(self) -> int:
+        return self.x + self.width
+
+    @property
+    def middle(self) -> Tuple[float, float]:
+        return self.x + self.width / 2, self.y + self.height / 2
+
+    @property
+    def text(self) -> str:
+        return "@%d,%d %dx%d" % self
+
+
+FRAME_TEXT = re.compile(r"@(-?\d+),(-?\d+) (\d+)x(\d+)")
+
+
+def card_frame(text: str) -> Union[CardPt, Literal["none"]]:
+    if text == "none":
+        return "none"
+    match = FRAME_TEXT.fullmatch(text)
+    if match is None:
+        raise ValueError(text)
+    return CardPt(*(int(side) for side in match.groups()))
 
 
 @dataclasses.dataclass(frozen=True)
@@ -56,6 +101,7 @@ class Take:
     screen_pt: Optional[Tuple[int, int]] = None
     animations: str = "unknown"
     app: str = ""
+    card_pt: Union[CardPt, Literal["none"], None] = None
 
 
 def seconds(value: float) -> str:
@@ -86,7 +132,7 @@ FIELDS = {
     "last_frame": (float, seconds),
     "video_px": (pixels, lambda px: "%dx%d" % px),
 }
-APPENDED = {"screen_pt": pixels, "animations": str, "app": str}
+APPENDED = {"screen_pt": pixels, "card_pt": card_frame, "animations": str, "app": str}
 
 
 RULES_THAT_ONLY_HIDE_MOTION = frozenset({"load"})

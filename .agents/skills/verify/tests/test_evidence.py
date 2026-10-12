@@ -2622,7 +2622,8 @@ verdict=VALID
 invalid=
 invalid_rules=
 """
-STAMP = TAKE_LINES + "screen_pt=402x874\nanimations=on\napp=app 804e750cad00 commit ea5af074 (this worktree's build)\n"
+STAMP = TAKE_LINES + ("screen_pt=402x874\ncard_pt=@16,476 370x308\nanimations=on\n"
+                      "app=app 804e750cad00 commit ea5af074 (this worktree's build)\n")
 
 
 def stamp_with(**changes):
@@ -2645,12 +2646,20 @@ class TakeJudge(unittest.TestCase):
             "take appear INVALID 4.71 s, no drive, 1 frame, last +3.40 s, load 12.3 then 63.2 (limit 50), "
             "animations off"))
 
-    def test_parse_reads_the_three_lines_verify_sh_appends_and_defaults_them_when_absent(self):
+    def test_parse_reads_the_four_lines_verify_sh_appends_and_defaults_them_when_absent(self):
         appended = take.parse(STAMP)
-        self.assertEqual((appended.screen_pt, appended.animations, appended.app),
-                         ((402, 874), "on", "app 804e750cad00 commit ea5af074 (this worktree's build)"))
+        self.assertEqual((appended.screen_pt, appended.card_pt, appended.animations, appended.app),
+                         ((402, 874), (16, 476, 370, 308), "on", "app 804e750cad00 commit ea5af074 (this worktree's build)"))
         bare = take.parse(TAKE_LINES)
-        self.assertEqual((bare.screen_pt, bare.animations, bare.app), (None, "unknown", ""))
+        self.assertEqual((bare.screen_pt, bare.card_pt, bare.animations, bare.app), (None, None, "unknown", ""))
+
+    def test_card_pt_is_the_trees_frame_of_the_card_in_points_or_none(self):
+        card = take.parse(STAMP).card_pt
+        self.assertEqual((card.top, card.bottom, card.left, card.right, card.middle, card.text),
+                         (476, 784, 16, 386, (201.0, 630.0), "@16,476 370x308"))
+        self.assertEqual(take.parse(STAMP.replace("card_pt=@16,476 370x308", "card_pt=@-83,476 4770x308")).card_pt.text,
+                         "@-83,476 4770x308")
+        self.assertEqual(take.parse(STAMP.replace("card_pt=@16,476 370x308", "card_pt=none")).card_pt, "none")
 
     def test_parse_refuses_a_stamp_that_is_not_take_1_naming_what_is_wrong(self):
         for text, why in [
@@ -2659,6 +2668,7 @@ class TakeJudge(unittest.TestCase):
             (re.sub(r"(?m)^(drive_start|frames)=.*\n", "", STAMP), "no drive_start= frames="),
             (STAMP.replace("frames=37", "frames=many"), "frames=many does not parse"),
             (STAMP.replace("screen_pt=402x874", "screen_pt=402"), "screen_pt=402 does not parse"),
+            (STAMP.replace("card_pt=@16,476 370x308", "card_pt=@16,476"), "card_pt=@16,476 does not parse"),
         ]:
             with self.subTest(why=why):
                 with self.assertRaises(ValueError) as raised:
@@ -2809,7 +2819,8 @@ echo "{ 63.20 9.00 8.00 }"
 """
 TAKE_KEYS = ["format", "name", "video", "drive", "tail", "load_limit", "load_before", "load_after", "started",
              "drive_start", "drive_end", "stopped", "recorder_exit", "recorder_early", "frames", "first_frame",
-             "last_frame", "video_px", "verdict", "invalid", "invalid_rules", "screen_pt", "animations", "app"]
+             "last_frame", "video_px", "verdict", "invalid", "invalid_rules", "screen_pt", "card_pt", "animations",
+             "app"]
 SUMMARY = re.compile(r"^take appear (VALID|INVALID) \d+\.\d\d s, drive \+\d+\.\d\d\.\.\+\d+\.\d\d s, 3 frames, "
                      r"last \+3\.40 s, load 12\.3 then (\d+\.\d) \(limit 50\), animations on$")
 
@@ -2858,7 +2869,7 @@ class Record(Lane):
             "load_limit": "50", "load_before": "12.31", "load_after": "14.02", "recorder_exit": "0",
             "recorder_early": "0", "frames": "3", "first_frame": "0.000", "last_frame": "3.402",
             "video_px": "1206x2622", "verdict": "VALID", "invalid": "", "invalid_rules": "", "screen_pt": "402x874",
-            "animations": "on",
+            "card_pt": "@-83,476 4770x308", "animations": "on",
             "app": self.worktree_build(b"v2\n", self.b)})
         self.assertTrue(before < timed["started"] < time.time(), timed)
         self.assertTrue(0 <= timed["drive_start"] <= timed["drive_end"], timed)
@@ -2871,6 +2882,18 @@ class Record(Lane):
             "Recording started",
             "axe tap --udid %s --wait-timeout 3 -x 5 -y 6" % self.sim,
         ], "the drive ran only after the recorder said it was capturing")
+        self.assertEqual(self.calls().count("axe describe-ui --udid %s" % self.sim), 1,
+                         "screen_pt= and card_pt= come from one describe after the take")
+
+    def test_a_take_whose_tree_holds_no_active_set_card_stamps_card_pt_none(self):
+        self.launch()
+        tree = json.loads(MINI)
+        tree[0]["children"] = [node for node in tree[0]["children"] if node.get("AXUniqueId") != "active-set-card"]
+        (self.tmp / "describe-ui.json").write_text(json.dumps(tree))
+        code, _, err = self.record("--", "tap", "-x", "5", "-y", "6")
+        self.assertEqual((code, err), (0, ""))
+        self.assertEqual((dict(self.stamp())["screen_pt"], dict(self.stamp())["card_pt"]), ("402x874", "none"))
+        self.assertEqual(self.calls().count("axe describe-ui --udid %s" % self.sim), 1)
 
     def test_load_over_the_limit_after_the_take_keeps_it_and_exits_3_with_the_reason(self):
         self.launch()

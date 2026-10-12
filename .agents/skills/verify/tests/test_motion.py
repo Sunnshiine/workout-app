@@ -63,8 +63,16 @@ def encode(path, scene, seconds, lossless=True):
     assert proc.wait() == 0, f"ffmpeg could not encode {path}"
 
 
+def around(top, bottom, left, right):
+    """The card's frame as the accessibility tree prints it, 4 pt outside the bright box the frames show."""
+    return f"@{left - 4},{top - 4} {right - left + 8}x{bottom - top + 8}"
+
+
+RESTS = around(*STILL_BOX)
+
+
 def stamp(video, drive="", drive_start=0.0, drive_end=0.0, load_after=14.02, animations="on", like=None,
-          stopped=None):
+          stopped=None, card_pt=RESTS):
     pts, size = take.probe(like or video)
     filmed = take.Take(
         name=video.stem, video=video.name, drive=drive, tail=2.0, load_limit=50.0, load_before=12.31,
@@ -75,6 +83,7 @@ def stamp(video, drive="", drive_start=0.0, drive_end=0.0, load_after=14.02, ani
     path = video.with_suffix(".take")
     path.write_text("\n".join(take.take_lines(filmed) + [
         f"screen_pt={SCREEN_PT[0]}x{SCREEN_PT[1]}",
+        f"card_pt={card_pt}",
         f"animations={animations}",
         "app=app 804e750cad00 commit ea5af074 (this worktree's build)",
     ]) + "\n")
@@ -187,6 +196,7 @@ def run_cardframe(*args):
 
 
 LAUNCH_DRIVE = "launch --animated session"
+SLID = around(200, 350, 16, 186)
 
 
 class CardFrameOnClips(unittest.TestCase):
@@ -223,6 +233,10 @@ class CardFrameOnClips(unittest.TestCase):
         stamp(video, **stamped)
         code, out, err = run_cardframe(video, *args)
         return code, out.splitlines(), err
+
+    def judged(self, name, **stamped):
+        result = cardstill.measured(cardstill.Filmed(name, 0, stamp(self.clips[name], **stamped)))
+        return result.verdict, result.reason
 
     def test_a_still_card_with_nothing_else_changing_is_one_frame_an_invalid_take_and_reads_still_unknown(self):
         code, out, _ = self.lines("still")
@@ -270,7 +284,7 @@ class CardFrameOnClips(unittest.TestCase):
 
     def test_a_slide_of_160_pt_over_400_ms_reads_its_range_and_duration_by_frame_time(self):
         video = self.clips["slide"]
-        stamp(video, drive="tap --id log-active-set-button", drive_start=0.0, drive_end=0.5)
+        stamp(video, drive="tap --id log-active-set-button", drive_start=0.0, drive_end=0.5, card_pt=SLID)
         m = cardframe.measure(video)
         b = m.card.box
         self.assertEqual((m.frames, len(m.in_window)), (25, 25))
@@ -286,7 +300,7 @@ class CardFrameOnClips(unittest.TestCase):
 
     def test_a_cut_after_the_drive_is_measured_from_the_frame_showing_when_the_drive_began(self):
         video = self.clips["cut"]
-        stamp(video, drive="tap --id log-active-set-button", drive_start=0.3, drive_end=0.5)
+        stamp(video, drive="tap --id log-active-set-button", drive_start=0.3, drive_end=0.5, card_pt=SLID)
         m = cardframe.measure(video)
         self.assertEqual((m.frames, len(m.in_window), m.window.opened), (2, 2, Opened.DRIVE))
         box, look = m.card.box, m.card.look
@@ -295,7 +309,7 @@ class CardFrameOnClips(unittest.TestCase):
 
     def test_the_tsv_has_a_row_per_window_frame_timed_from_the_drive(self):
         video = self.clips["slide"]
-        stamp(video, drive="tap --id log-active-set-button", drive_start=0.5, drive_end=0.6)
+        stamp(video, drive="tap --id log-active-set-button", drive_start=0.5, drive_end=0.6, card_pt=SLID)
         tsv = self.dir / "slide.tsv"
         code, _, err = run_cardframe(video, "--from", "0", "--tsv", tsv)
         self.assertEqual(code, 0, err)
@@ -309,7 +323,7 @@ class CardFrameOnClips(unittest.TestCase):
 
     def test_from_starts_at_the_frame_showing_then_and_rebases_the_card(self):
         video = self.clips["slide"]
-        stamp(video)
+        stamp(video, card_pt=SLID)
         m = cardframe.measure(video, from_s=1.19)
         self.assertEqual((m.window.opened, round(m.card.box.first_seen, 3)), (Opened.FROM, 1.183))
         self.assertEqual((round(m.card.box.ranges["top"][0], 3), m.card.box.ranges["top"][1]), (113.333, 200.0))
@@ -395,7 +409,7 @@ class CardFrameOnClips(unittest.TestCase):
         ])
 
     def test_a_20_pt_jump_in_the_last_two_frames_of_a_launch_reads_20_pt(self):
-        code, out, err = self.lines("launch-jump", drive=LAUNCH_DRIVE, drive_end=1.4)
+        code, out, err = self.lines("launch-jump", drive=LAUNCH_DRIVE, drive_end=1.4, card_pt=around(100, 280, 16, 196))
         self.assertEqual(code, 0, err)
         self.assertEqual(out, [
             "take=VALID animations=on frames=52 window_frames=3",
@@ -411,7 +425,7 @@ class CardFrameOnClips(unittest.TestCase):
 
     def test_a_20_pt_jump_in_a_launch_s_last_frame_that_brightens_x1_34_reads_edges_partial_and_still_unknown(self):
         video = self.clips["launch-jump-last"]
-        filmed = take.parse(stamp(video, drive=LAUNCH_DRIVE, drive_end=1.4).read_text())
+        filmed = take.parse(stamp(video, drive=LAUNCH_DRIVE, drive_end=1.4, card_pt=around(100, 280, 16, 186)).read_text())
         found = cardframe.samples(video, filmed)
         jump = len(found) - 1
         found[jump:] = [dataclasses.replace(s, card=dataclasses.replace(s.card, contrast=s.card.contrast * 1.34))
@@ -499,11 +513,12 @@ class CardFrameOnClips(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertEqual(out, ["take=VALID animations=on frames=10 window_frames=10",
                                "window=start from=0.000 to=2.900 window_s=2.900"])
-        self.assertEqual(err, "no card in any of the 10 frames from 0.000 s\n")
+        self.assertEqual(err, "no card: no card in any of the 10 frames from 0.000 s\n")
 
     def test_a_card_that_jumps_while_faint_and_then_brightens_reads_edges_partial_and_cardstill_calls_it_invalid(self):
         video = self.clips["faint-tap"]
-        stamp(video, drive="tap --id log-active-set-button", drive_start=0.3, drive_end=0.4)
+        stamp(video, drive="tap --id log-active-set-button", drive_start=0.3, drive_end=0.4,
+              card_pt=around(140, 300, 16, 186))
         m = cardframe.measure(video)
         box = m.card.box
         self.assertEqual((box.first_seen, box.faint, box.partial, box.worst_edge_range), (0.8, 2, True, 0.0))
@@ -515,7 +530,35 @@ class CardFrameOnClips(unittest.TestCase):
         code, out, err = self.lines("rule", "--x", "102")
         self.assertEqual((code, out, err), (1, ["take=VALID animations=on frames=10 window_frames=10",
                                                 "window=start from=0.000 to=2.900 window_s=2.900"],
-                                            "no card in any of the 10 frames from 0.000 s\n"))
+                                            "no card: no card in any of the 10 frames from 0.000 s\n"))
+
+    def test_a_take_whose_tree_held_no_active_set_card_is_no_card_and_cardstill_calls_it_invalid(self):
+        code, out, err = self.lines("ticking", card_pt="none")
+        self.assertEqual((code, out, err), (1, ["take=VALID animations=on frames=10 window_frames=10",
+                                                "window=start from=0.000 to=2.900 window_s=2.900"],
+                                            "no card: the accessibility tree held no active-set-card when the recorder "
+                                            "stopped\n"))
+        self.assertEqual(self.judged("ticking", card_pt="none"), (
+            Verdict.INVALID, "no card: the accessibility tree held no active-set-card when the recorder stopped"))
+
+    def test_a_box_more_than_8_pt_from_where_the_tree_put_the_card_is_no_card_and_cardstill_calls_it_invalid(self):
+        why = ("no card: the box read last, 100.0..260.0 16.0..186.0, is not where the accessibility tree put "
+               "active-set-card, @12,105 178x168")
+        self.assertEqual(self.lines("ticking", card_pt="@12,105 178x168")[0::2], (1, why + "\n"))
+        self.assertEqual(self.judged("ticking", card_pt="@12,105 178x168"), (Verdict.INVALID, why))
+        self.assertEqual(self.lines("ticking", card_pt="@20,104 178x168")[0::2], (0, ""), "8 pt off in x and y is where")
+
+    def test_cardstill_calls_a_window_with_no_card_in_any_frame_invalid(self):
+        self.assertEqual(self.judged("rule"), (Verdict.INVALID, "no card: no card in any of the 10 frames from 0.000 s"))
+
+    def test_a_stamp_without_card_pt_exits_2_naming_it(self):
+        video = self.dir / "untreed.mp4"
+        video.write_bytes(self.clips["ticking"].read_bytes())
+        stamped = stamp(video)
+        stamped.write_text(stamped.read_text().replace(f"card_pt={RESTS}\n", ""))
+        code, _, err = run_cardframe(video)
+        self.assertEqual((code, err), (2, f"{stamped} has no card_pt=, so the card's frame in the accessibility tree "
+                                          "is unknown; record it again\n"))
 
     def test_a_video_with_no_take_beside_it_exits_2_naming_the_stamp(self):
         video = self.dir / "unstamped.mp4"
@@ -580,7 +623,12 @@ def frames(*cards, start=0.0):
 TAKE = take.Take(
     name="x", video="x.mp4", drive="", tail=2.0, load_limit=50.0, load_before=1.0, load_after=1.0, started=0.0,
     drive_start=0.0, drive_end=0.0, stopped=3.0, recorder_exit=0, recorder_early=False, frames=2, first_frame=0.0,
-    last_frame=1.0, video_px=(600, 1200), screen_pt=(200, 400), animations="on")
+    last_frame=1.0, video_px=(600, 1200), screen_pt=(200, 400), animations="on", card_pt=take.CardPt(16, 100, 170, 160))
+
+
+def held_at(c, at=TAKE):
+    """The take as record stamps it when the accessibility tree put the card at c."""
+    return dataclasses.replace(at, card_pt=take.CardPt(c.left, c.top, c.right - c.left, c.bottom - c.top))
 LAUNCH = dataclasses.replace(TAKE, drive="launch --animated session", drive_start=0.05, drive_end=1.0, stopped=4.0)
 FADED_IN = [Sample(0.0, None, DARK), Sample(0.5, None, DARK + 100), Sample(0.6, card(100), FLAT),
             Sample(0.7, card(100), lit(64)), Sample(0.8, card(100), FLAT)]
@@ -610,7 +658,7 @@ def launch_frames(from_black=True, dim=False):
 class Summarize(unittest.TestCase):
 
     def test_a_cut_is_one_changed_frame_of_zero_duration(self):
-        m = cardframe.summarize(TAKE, [Sample(0.0, card(100), FLAT), Sample(1.0, card(260), FLAT)], 0.0)
+        m = cardframe.summarize(held_at(card(260)), [Sample(0.0, card(100), FLAT), Sample(1.0, card(260), FLAT)], 0.0)
         b = m.card.box
         self.assertEqual((b.worst_edge_range, b.motion, b.motion_ms, b.changed_frames, m.still),
                          (160.0, (1.0, 1.0), 0, 1, Still.NO))
@@ -628,24 +676,25 @@ class Summarize(unittest.TestCase):
         self.assertEqual((box.first_seen, box.lost, box.partial, m.still), (0.2, 1, True, Still.NO))
 
     def test_motion_skips_a_lost_frame_and_compares_the_cards_either_side(self):
-        m = cardframe.summarize(TAKE, frames(card(100), None, card(110), card(110)), 0.0)
+        m = cardframe.summarize(held_at(card(110)), frames(card(100), None, card(110), card(110)), 0.0)
         self.assertEqual((m.card.box.motion, m.card.box.changed_frames), ((0.2, 0.2), 1))
 
     def test_a_window_with_no_card_has_no_box_and_its_stillness_is_unknown(self):
         m = cardframe.summarize(TAKE, [Sample(0.0, None, FLAT), Sample(1.0, None, FLAT)], 0.5)
-        self.assertEqual((len(m.in_window), m.card, m.still), (2, None, Still.UNKNOWN))
+        self.assertEqual((len(m.in_window), m.card, m.still),
+                         (2, cardframe.NoCard("no card in any of the 2 frames from 0.500 s"), Still.UNKNOWN))
 
     def test_the_frame_showing_at_from_opens_the_window(self):
-        m = cardframe.summarize(TAKE, [Sample(0.0, card(100), FLAT), Sample(0.4, card(120), FLAT),
-                                       Sample(1.0, None, FLAT)], 0.5)
+        m = cardframe.summarize(held_at(card(120)), [Sample(0.0, card(100), FLAT), Sample(0.4, card(120), FLAT),
+                                                     Sample(1.0, None, FLAT)], 0.5)
         self.assertEqual((len(m.in_window), m.card.box.first_seen, m.card.box.lost, m.card.box.ranges["top"]),
                          (2, 0.4, 1, (120.0, 120.0)))
 
     def test_a_slide_after_the_fade_from_black_then_a_full_screen_dim_is_invalid_and_never_still_yes(self):
-        m = cardframe.summarize(LAUNCH, launch_frames(dim=True))
+        m = cardframe.summarize(held_at(card(300), LAUNCH), launch_frames(dim=True))
         self.assertEqual(([r.rule for r in m.invalid], m.card.box.worst_edge_range, m.still),
                          (["screen"], 200.0, Still.UNKNOWN))
-        m = cardframe.summarize(LAUNCH, launch_frames())
+        m = cardframe.summarize(held_at(card(300), LAUNCH), launch_frames())
         self.assertEqual((m.window.at, m.invalid, m.card.box.worst_edge_range, m.still), (1.0, (), 200.0, Still.NO))
 
     def test_a_20_pt_layout_jump_in_the_last_two_frames_of_a_launch_reads_20_pt(self):
@@ -655,7 +704,7 @@ class Summarize(unittest.TestCase):
         found = ([Sample(0.0, None, screen * 0), Sample(0.4, settled, screen)]
                  + [Sample(round(0.5 + 0.1 * k, 3), settled, screen) for k in range(8)]
                  + [Sample(2.0, jumped, screen), Sample(2.02, jumped, screen)])
-        m = cardframe.summarize(LAUNCH, found)
+        m = cardframe.summarize(held_at(jumped, LAUNCH), found)
         self.assertEqual(m.window, Window(Opened.RAMP, 1, 0.4, 3.6))
         self.assertEqual((m.card.box.worst_edge_range, m.card.box.motion, m.still), (20.0, (2.0, 2.0), Still.NO))
 
@@ -673,7 +722,7 @@ class StillOf(unittest.TestCase):
                          [True, True, True, True, False, False, False, False])
 
     def test_the_still_table(self):
-        moved = cardframe.summarize(TAKE, frames(card(100), card(110)), 0.0)
+        moved = cardframe.summarize(held_at(card(110)), frames(card(100), card(110)), 0.0)
         faded = cardframe.summarize(TAKE, looks(200, 210, 220, 230, 240, 240), 0.0)
         held = cardframe.summarize(TAKE, frames(card(100), card(100)), 0.0)
         held_after_a_faint_frame = cardframe.summarize(TAKE, frames(card(100, contrast=5.0), card(100)), 0.0)
@@ -837,11 +886,11 @@ class Detect(unittest.TestCase):
         self.assertEqual(cardframe.detect(lum, 2.0), None)
 
 
-def reading(rules=(), invalid="", animations="on", first_seen=0.0, lost=0, faint=0, partial=False, worst=0.0,
+def reading(rules=(), invalid="", animations="on", no_card=None, lost=0, faint=0, partial=False, worst=0.0,
             look="still"):
     reasons = [Reason(",".join(rules), invalid)] if rules else []
     return Reading(rules=rules, unvouched=cardframe.unvouched(reasons, animations, partial, faint),
-                   first_seen=first_seen, lost=lost, worst_edge_range=worst, look=look, frames=37, load="12.31/14.02")
+                   no_card=no_card, lost=lost, worst_edge_range=worst, look=look, frames=37, load="12.31/14.02")
 
 
 LOAD = "load 63.2 at the end, at or over 50"
@@ -849,6 +898,7 @@ RECORDER = "recorder exit 1 after SIGINT; the video may be cut short"
 EARLY = "the recorder stopped before the take ended"
 UNCOVERED = "the screen never changed after the drive began at +3.50 s, so the take shows nothing the drive did"
 SHORT = "the window watched 0.90 s from +2.500 s, under 1.5 s"
+NO_FRAMES = "no card in any of the 37 frames from 0.000 s"
 NO_FADE = ("no frame after the launch began changed three quarters of the screen, so iOS's fade-in cannot be told "
            "from the app's motion")
 
@@ -987,7 +1037,7 @@ class JudgeTake(unittest.TestCase):
             (1, None, 0.0, (Verdict.INVALID, "record exited 1")),
             (0, None, 0.0, (Verdict.INVALID, "record left no stamp")),
             (3, reading(rules=("load",), invalid=LOAD), 0.0, (Verdict.INVALID, f"take INVALID: {LOAD}")),
-            (3, reading(rules=("load",), invalid=LOAD, first_seen=None), 0.0,
+            (3, reading(rules=("load",), invalid=LOAD, no_card=NO_FRAMES), 0.0,
              (Verdict.INVALID, f"take INVALID: {LOAD}")),
             (3, reading(rules=("load",), invalid=LOAD, worst=412.0), 0.0, (Verdict.FAIL, "an edge moved 412.0 pt")),
             (3, reading(rules=("load",), invalid=LOAD, lost=2), 0.0, (Verdict.FAIL, "lost the card in 2 frames")),
@@ -1008,7 +1058,7 @@ class JudgeTake(unittest.TestCase):
             (0, reading(animations="off", lost=2), 0.0, (Verdict.FAIL, "lost the card in 2 frames")),
             (0, reading(), 3.4, (Verdict.INVALID, "started 3.4 s late")),
             (0, reading(worst=412.0), 3.4, (Verdict.FAIL, "an edge moved 412.0 pt")),
-            (0, reading(first_seen=None), 0.0, (Verdict.INVALID, "no card in any frame")),
+            (0, reading(no_card=NO_FRAMES), 0.0, (Verdict.INVALID, f"no card: {NO_FRAMES}")),
             (0, reading(faint=2, partial=True), 0.0,
              (Verdict.INVALID, "the card was faint for its first 2 frames, so its edges were not read from the "
                                "window's start")),
@@ -1020,7 +1070,7 @@ class JudgeTake(unittest.TestCase):
             (3, reading(rules=("load",), invalid=LOAD, faint=2, partial=True), 0.0,
              (Verdict.INVALID, "the card was faint for its first 2 frames, so its edges were not read from the "
                                "window's start")),
-            (3, reading(first_seen=None), 0.0, (Verdict.INVALID, "no card in any frame")),
+            (3, reading(no_card=NO_FRAMES), 0.0, (Verdict.INVALID, f"no card: {NO_FRAMES}")),
             (0, reading(lost=27), 0.0, (Verdict.FAIL, "lost the card in 27 frames")),
             (0, reading(worst=412.0), 0.0, (Verdict.FAIL, "an edge moved 412.0 pt")),
             (0, reading(worst=0.6), 0.0, (Verdict.FAIL, "an edge moved 0.6 pt")),
@@ -1055,9 +1105,9 @@ class LaneVerdict(unittest.TestCase):
         def judged(readings):
             return [TakeResult(spec.name, *cardstill.judge_take(0, r), r) for spec, r in zip(cardstill.TAKES, readings)]
 
-        control = judged([reading(first_seen=None)] + [reading()] * 7)
+        control = judged([reading(no_card=NO_FRAMES)] + [reading()] * 7)
         self.assertEqual(cardstill.lane_verdict("ea5af074", control, judged([reading()] * 8)),
-                         (Verdict.INVALID, "control single-log-rest-start: no card in any frame"))
+                         (Verdict.INVALID, f"control single-log-rest-start: no card: {NO_FRAMES}"))
 
     def test_a_still_head_over_a_control_that_moved_passes(self):
         control = results(Verdict.FAIL, Verdict.PASS, Verdict.FAIL, *[Verdict.PASS] * 5)

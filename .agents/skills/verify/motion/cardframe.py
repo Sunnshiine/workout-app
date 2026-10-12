@@ -95,17 +95,18 @@ import tempfile
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
+from typing import Dict, Iterable, Iterator, List, Literal, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from take import RULES_THAT_ONLY_HIDE_MOTION, NoTake, Reason, Take, judge, parse, probe  # noqa: E402
+from take import RULES_THAT_ONLY_HIDE_MOTION, CardPt, NoTake, Reason, Take, judge, parse, probe  # noqa: E402
 
 THRESHOLD = 4.0
 MIN_RUN_PT = 120.0
 MERGE_GAP_PT = 8.0
 STILL_PT = 0.5
+MIDDLE_PT = 8.0
 STEP_PT = 0.75
 EDGES = ("top", "bottom", "left", "right")
 
@@ -233,6 +234,11 @@ class Seen:
     look: Look
 
 
+@dataclass(frozen=True)
+class NoCard:
+    why: str
+
+
 class Still(Enum):
     YES = "yes"
     NO = "no"
@@ -244,7 +250,7 @@ class Measure:
     take: Take
     samples: Tuple[Sample, ...]
     window: Window
-    card: Optional[Seen]
+    card: Union[Seen, NoCard]
     invalid: Tuple[Reason, ...]
 
     @property
@@ -257,7 +263,7 @@ class Measure:
 
     @property
     def still(self) -> Still:
-        if self.card is None:
+        if isinstance(self.card, NoCard):
             return Still.UNKNOWN
         box = self.card.box
         if box.changed or self.card.look.kind is LookKind.CHANGED:
@@ -427,11 +433,23 @@ def look_of(window: Sequence[Sample], settled: Card) -> Look:
     return Look(d, frames, (window[depart].t, window[settle].t))
 
 
+def card_of(card_pt: Union[CardPt, Literal["none"]], window: Sequence[Sample], at: float) -> Union[Seen, NoCard]:
+    if card_pt == "none":
+        return NoCard("the accessibility tree held no active-set-card when the recorder stopped")
+    settled = next((s.card for s in reversed(window) if s.card is not None), None)
+    if settled is None:
+        return NoCard(f"no card in any of the {len(window)} frames from {at:.3f} s")
+    x, y = card_pt.middle
+    if (abs((settled.left + settled.right) / 2 - x) > MIDDLE_PT
+            or abs((settled.top + settled.bottom) / 2 - y) > MIDDLE_PT):
+        return NoCard(f"the box read last, {_span(settled.top, settled.bottom)} {_span(settled.left, settled.right)}, "
+                      f"is not where the accessibility tree put active-set-card, {card_pt.text}")
+    return Seen(box_of(window, settled), look_of(window, settled))
+
+
 def summarize(take: Take, samples: Sequence[Sample], from_s: Optional[float] = None) -> Measure:
     window, reasons = open_window(take, samples, from_s)
-    frames = samples[window.start:]
-    settled = next((s.card for s in reversed(frames) if s.card is not None), None)
-    card = None if settled is None else Seen(box_of(frames, settled), look_of(frames, settled))
+    card = card_of(take.card_pt, samples[window.start:], window.at)
     return Measure(take, tuple(samples), window, card, tuple(judge(take)) + reasons)
 
 
@@ -466,7 +484,7 @@ def samples(video: Path, take: Take, x: float = 28, ref: float = 8) -> List[Samp
         raise DecodeFailure(str(error)) from None
     width, height = take.video_px
     px_per_pt = width / take.screen_pt[0]
-    found = [Sample(t, detect(lum, px_per_pt, x, ref), cells_of(lum, px_per_pt))
+    found = [Sample(t, None if take.card_pt == "none" else detect(lum, px_per_pt, x, ref), cells_of(lum, px_per_pt))
              for t, lum in zip(times, decode(video, width, height))]
     if len(found) != len(times):
         raise DecodeFailure(f"ffmpeg decoded {len(found)} frames of {video} and ffprobe timed {len(times)}")
@@ -484,6 +502,8 @@ def measure(video, from_s: Optional[float] = None, x: float = 28, ref: float = 8
         raise Usage(f"{stamp}: {error}") from None
     if take.screen_pt is None:
         raise Usage(f"{stamp} has no screen_pt=, so its pixels cannot be read as points; record it again")
+    if take.card_pt is None:
+        raise Usage(f"{stamp} has no card_pt=, so the card's frame in the accessibility tree is unknown; record it again")
     px_per_pt = take.video_px[0] / take.screen_pt[0]
     if not (CELL_PT * px_per_pt).is_integer():
         raise Usage(f"{stamp}: {px_per_pt:g} px per point does not tile {CELL_PT:g} pt cells")
@@ -504,7 +524,7 @@ def report(m: Measure) -> List[str]:
                  f"window_frames={len(m.in_window)}")
     w = m.window
     lines.append(f"window={w.opened.value} from={w.at:.3f} to={m.take.stopped:.3f} window_s={w.seconds:.3f}")
-    if m.card is None:
+    if isinstance(m.card, NoCard):
         return lines
     b, look = m.card.box, m.card.look
     lines.append(f"first_seen={b.first_seen:.3f} lost={b.lost} faint={b.faint} "
@@ -527,7 +547,7 @@ def report(m: Measure) -> List[str]:
 def write_tsv(path: Path, m: Measure) -> None:
     drive_start = m.take.drive_start if m.take.drive else None
     screen = screen_changes(m.samples)[m.window.start:]
-    looks = m.card.look.from_settled if m.card else [None] * len(m.in_window)
+    looks = m.card.look.from_settled if isinstance(m.card, Seen) else [None] * len(m.in_window)
     rows = ["t\tt_from_drive\ttop\tbottom\tleft\tright\tcontrast\tlook\tscreen"]
     for s, d, changed in zip(m.in_window, looks, screen):
         from_drive = "" if drive_start is None else f"{s.t - drive_start:.3f}"
@@ -557,8 +577,8 @@ def main(argv: Sequence[str]) -> int:
     print("\n".join(report(m)))
     if args.tsv:
         write_tsv(args.tsv, m)
-    if m.card is None:
-        print(f"no card in any of the {len(m.in_window)} frames from {m.window.at:.3f} s", file=sys.stderr)
+    if isinstance(m.card, NoCard):
+        print(f"no card: {m.card.why}", file=sys.stderr)
         return 1
     return 3 if m.invalid or m.take.animations != "on" else 0
 

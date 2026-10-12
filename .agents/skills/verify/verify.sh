@@ -987,17 +987,19 @@ case $cmd in
       rm -f "$pending/$name.mp4" "$pending/$name.take"
       exit $rc
     fi
-    if ! screen=$(describe | python3 "$tree" frame); then
+    if ! ui=$(describe) || ! screen=$(printf '%s\n' "$ui" | python3 "$tree" frame); then
       rm -f "$pending/$name.mp4" "$pending/$name.take"
       echo "could not read the screen's size in points after the take, so $name.take cannot be scaled; run: $0 doctor" >&2
       exit 70
     fi
+    card_pt=$(printf '%s\n' "$ui" | python3 "$tree" find active-set-card 2>/dev/null | awk -F '\t' 'NR == 1 { print $5 }') || card_pt=
     animations=unknown
     if [ -f "$state_dir/args" ]; then
       animations=on
       if grep -q -- -UITEST_DISABLE_ANIMATIONS "$state_dir/args"; then animations=off; fi
     fi
-    printf 'screen_pt=%s\nanimations=%s\napp=%s\n' "${screen/ /x}" "$animations" "$(installed_line)" >> "$pending/$name.take"
+    printf 'screen_pt=%s\ncard_pt=%s\nanimations=%s\napp=%s\n' "${screen/ /x}" "${card_pt:-none}" "$animations" \
+      "$(installed_line)" >> "$pending/$name.take"
     keep_video_then_stamp "$pending" "$dir" "$name"
     echo "$dir/$name.mp4"
     echo "$dir/$name.take"

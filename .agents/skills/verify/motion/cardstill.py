@@ -100,7 +100,7 @@ class Verdict(Enum):
 class Reading:
     rules: Tuple[str, ...]
     unvouched: Optional[str]
-    first_seen: Optional[float]
+    no_card: Optional[str]
     lost: int
     worst_edge_range: float
     look: str
@@ -109,15 +109,16 @@ class Reading:
 
     @staticmethod
     def of(m: cardframe.Measure) -> "Reading":
-        box = m.card.box if m.card else None
+        seen = m.card if isinstance(m.card, cardframe.Seen) else None
+        box = seen.box if seen else None
         return Reading(
             rules=tuple(r.rule for r in m.invalid),
             unvouched=cardframe.unvouched(m.invalid, m.take.animations, box.partial if box else False,
                                           box.faint if box else 0),
-            first_seen=box.first_seen if box else None,
+            no_card=None if seen else m.card.why,
             lost=box.lost if box else 0,
             worst_edge_range=box.worst_edge_range if box else 0.0,
-            look=look_text(m.card.look) if m.card else "",
+            look=look_text(seen.look) if seen else "",
             frames=m.frames,
             load=f"{m.take.load_before:.2f}/{m.take.load_after:.2f}",
         )
@@ -132,7 +133,7 @@ def judge_take(record_exit: int, reading: Optional[Reading], late_s: float = 0.0
         return Verdict.INVALID, f"record exited {record_exit}"
     if reading is None:
         return Verdict.INVALID, "record left no stamp"
-    seen_soundly = reading.first_seen is not None and cardframe.moved_counts(reading.rules)
+    seen_soundly = reading.no_card is None and cardframe.moved_counts(reading.rules)
     if seen_soundly and reading.lost > 0:
         return Verdict.FAIL, f"lost the card in {reading.lost} frames"
     if seen_soundly and reading.worst_edge_range > cardframe.STILL_PT:
@@ -141,8 +142,8 @@ def judge_take(record_exit: int, reading: Optional[Reading], late_s: float = 0.0
         return Verdict.INVALID, reading.unvouched
     if late_s > 0:
         return Verdict.INVALID, f"started {late_s:.1f} s late"
-    if reading.first_seen is None:
-        return Verdict.INVALID, "no card in any frame"
+    if reading.no_card is not None:
+        return Verdict.INVALID, f"no card: {reading.no_card}"
     return Verdict.PASS, ""
 
 
@@ -216,7 +217,7 @@ def cells(r: Optional[TakeResult]) -> List[str]:
     if r is None:
         return [""] * len(COLUMNS)
     g = r.reading
-    measured = g is not None and g.first_seen is not None
+    measured = g is not None and g.no_card is None
     return [
         r.verdict.value,
         f"{g.worst_edge_range:.1f}" if measured else "",
