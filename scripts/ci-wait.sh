@@ -13,8 +13,8 @@ A run created before the PR's latest base change tested the earlier base, so it 
 pass: retargeting a stacked PR, by hand or when its parent merges, needs a run against the new base.
 
 Exits 0 when every workflow succeeded; 1 when one did not, a run predates the latest base change,
-the head moved during the wait, the PR comes from a fork, or a gh call failed; 2 on a missing or non-numeric argument; and 3 when no
-workflow ran.
+the head moved during the wait, the PR comes from a fork, or a gh call failed; 2 on a missing or
+non-numeric argument; and 3 when no workflow ran.
 EOF
 }
 

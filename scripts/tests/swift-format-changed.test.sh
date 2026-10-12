@@ -108,8 +108,11 @@ printf '%s' "$two_space" >Sources/New.swift
 git add -A && git commit -qm change
 run --fix main
 expect "--fix formats the changed file and passes" 0 "1 changed Swift file(s) clean"
-if [ "$(cat Sources/New.swift)" = "$(printf '%s' "$formatted")" ]; then ok "--fix wrote four-space indentation"; else bad "--fix wrote: $(cat Sources/New.swift)"; fi
-if [ "$(cat Sources/OldDebt.swift)" = "$(printf '%s' "$two_space")" ]; then ok "--fix left a file the branch did not change"; else bad "--fix rewrote Sources/OldDebt.swift"; fi
+same_file() {
+    if [ "$(cat "$2")" = "$(printf '%s' "$3")" ]; then ok "$1"; else bad "$1: $2 holds $(cat "$2")"; fi
+}
+same_file "--fix wrote four-space indentation" Sources/New.swift "$formatted"
+same_file "--fix left a file the branch did not change" Sources/OldDebt.swift "$two_space"
 
 echo "arguments"
 
