@@ -169,36 +169,37 @@ struct SessionQueueSheet: View {
     // MARK: - Superset
 
     private func supersetRow(for row: SessionQueue.Row) -> some View {
-        HStack(spacing: 0) {
-            Button {
-                if isPairing {
-                    pick(row)
-                } else {
-                    jump(to: row)
-                }
-            } label: {
-                HStack(spacing: 0) {
-                    SupersetStemGlyph(form: .joined, color: palette.actionInk)
-                        .frame(width: 26, height: 26)
-                        .accessibilityLabel("Superset")
-                        .padding(.leading, 14)
+        Button {
+            if isPairing {
+                pick(row)
+            } else {
+                jump(to: row)
+            }
+        } label: {
+            HStack(spacing: 0) {
+                SupersetStemGlyph(form: .joined, color: palette.actionInk)
+                    .frame(width: 26, height: 26)
+                    .accessibilityLabel("Superset")
+                    .padding(.leading, 14)
 
-                    rowLabel(for: row) {
-                        nowLabel(for: row)
-                    }
+                rowLabel(for: row) {
+                    nowLabel(for: row)
                 }
             }
-            .buttonStyle(.plain)
-            .disabled(row.isComplete)
-            .accessibilityValue(row.pairingRole == .ineligibleTarget ? "Unavailable" : "")
-            .accessibilityIdentifier("stage-queue-row-\(row.id)")
-
+            .padding(.trailing, Self.unlinkButtonSize + 4)
+        }
+        .buttonStyle(.plain)
+        .disabled(row.isComplete)
+        .background(Capsule().fill(palette.surface))
+        .dimmedWhenUnavailable(row.pairingRole)
+        .accessibilityIdentifier("stage-queue-row-\(row.id)")
+        .overlay(alignment: .trailing) {
             Button {
                 coordinator.dismissSuperset(containing: row.pairingExercise, in: session)
             } label: {
                 SupersetStemGlyph(form: .split, color: palette.textSecondary)
                     .frame(width: 26, height: 26)
-                    .frame(width: 46, height: 46)
+                    .frame(width: Self.unlinkButtonSize, height: Self.unlinkButtonSize)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -207,9 +208,9 @@ struct SessionQueueSheet: View {
             .accessibilityIdentifier("stage-queue-unlink-\(row.id)")
             .visibleKeepingFrame(!isPairing)
         }
-        .background(Capsule().fill(palette.surface))
-        .opacity(row.pairingRole == .ineligibleTarget ? Theme.pairingUnavailableOpacity : 1)
     }
+
+    private static let unlinkButtonSize: CGFloat = 46
 
     // MARK: - Pairing
 
@@ -224,8 +225,7 @@ struct SessionQueueSheet: View {
             }
         }
         .buttonStyle(.plain)
-        .opacity(row.pairingRole == .ineligibleTarget ? Theme.pairingUnavailableOpacity : 1)
-        .accessibilityValue(row.pairingRole == .ineligibleTarget ? "Unavailable" : "")
+        .dimmedWhenUnavailable(row.pairingRole)
         .background {
             if row.pairingRole == .source || row.pairingRole == .confirmingTarget {
                 Capsule().fill(palette.actionInk.opacity(0.10))
@@ -287,6 +287,12 @@ struct SessionQueueSheet: View {
 }
 
 extension View {
+    fileprivate func dimmedWhenUnavailable(_ role: QueuePairingRole) -> some View {
+        let isUnavailable = role == .ineligibleTarget
+        return opacity(isUnavailable ? Theme.pairingUnavailableOpacity : 1)
+            .accessibilityValue(isUnavailable ? "Unavailable" : "")
+    }
+
     fileprivate func visibleKeepingFrame(_ isShown: Bool) -> some View {
         hidden().overlay {
             if isShown {
