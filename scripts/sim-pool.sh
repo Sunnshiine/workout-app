@@ -13,13 +13,14 @@ scripts/lane.sh calls it; call it directly to inspect or repair the pool.
   create <lane>  print the UDID of workout-lane-<lane>, cloning it first if it does not exist. Builds the
                  template on first use. Leaves the clone Shutdown, so it holds no slot of the host cap.
   boot <lane>    boot it within the host cap and print its UDID.
-  delete <lane>  shut it down, delete it, and remove /tmp/workout-verify-<UDID>. A missing device is a
-                 note on stderr and exit 0.
+  delete <lane>  shut it down, delete it, and remove /tmp/workout-verify-<UDID>, holding that
+                 directory's lock throughout, so no run can claim the simulator meanwhile. A missing
+                 device is a note on stderr and exit 0.
   list           TSV, header UDID STATE ROLE NAME, one row per workout-* device (role template, building,
                  stale-template, or lane), then `booted: N of cap M` counting every device on the host.
 
 A lane name matches ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$. stdout carries only the output above; progress
-goes to stderr. create and delete hold the pool lock, ${WORKOUT_HOST_LOCK_DIR:-/tmp/workout-host-locks}/
+goes to stderr. create holds the pool lock, ${WORKOUT_HOST_LOCK_DIR:-/tmp/workout-host-locks}/
 sim-pool, and its holder is written in that file.
 
 Environment:
@@ -27,8 +28,8 @@ Environment:
   WORKOUT_ADMIT_WAIT  seconds to wait for the pool lock or a free cap slot before exit 75 (default 540)
 
 Exit codes: 0 done, 1 no such lane device (boot), 2 usage, 69 iOS 27.0 runtime or iPhone 17 Pro device
-type missing, 70 simctl failed or two devices share a name, 75 busy: the pool lock, the host cap, or a
-test-sim or verify run holding the simulator.
+type missing, 70 simctl failed or two devices share a name, 75 busy: the pool lock, the host cap, a
+test-sim or verify run holding the simulator, or a verify run's app still running on it.
 EOF
   exit 2
 }
@@ -48,7 +49,7 @@ case $admit_wait in '' | *[!0-9]*) die 2 "WORKOUT_ADMIT_WAIT must be a whole num
 case $cap in '' | *[!0-9]* | 0) die 2 "WORKOUT_SIM_CAP must be a whole number of at least 1: $cap" ;; esac
 
 # A flock is shared by every process holding the fd, so nothing that may outlive this script gets one.
-simctl() { xcrun simctl "$@" 4>&- 5>&-; }
+simctl() { xcrun simctl "$@" 4>&- 5>&- 9>&-; }
 
 # Waits on the lock that fd $1 holds open, up to $2 seconds; 75 when the time runs out.
 flock_fd() {
@@ -198,8 +199,11 @@ clone_lane() {
   printf '%s\n' "$udid"
 }
 
+# Holds the simulator's verify lock from before the shutdown until its directory is gone, so no
+# test-sim or verify run can claim it in between. Not claim_sim, which boots a Shutdown simulator
+# once #883 lands.
 delete_lane() {
-  local lane=workout-lane-$1 doomed found
+  local lane=workout-lane-$1 doomed found dir pid run stop
   load_devices
   found=$(pick -v n="$lane" '$3 == n { print $1 }')
   if [ -z "$found" ]; then
@@ -207,8 +211,18 @@ delete_lane() {
     return
   fi
   for doomed in $found; do
-    require_sim_free "$doomed"
+    dir=/tmp/workout-verify-$doomed
+    mkdir -p "$dir"
+    exec 9>>"$dir/lock"
+    sim_flock "$doomed" LOCK_EX
+    printf 'sim-pool.sh delete %s (pid %s)\n' "$1" "$$" >"$dir/lock"
+    if pid=$(cat "$dir/pid" 2>/dev/null) && is_fixture_launch "$pid"; then
+      run=$(cat "$dir/run" 2>/dev/null) || true
+      stop="SIM=$doomed ${run:+VERIFY_RUN=$run }$(dirname "$here")/.agents/skills/verify/verify.sh stop"
+      die 75 "a verify run${run:+ $run} owns the app on $doomed (pid $pid); if it is yours, run: $stop, and delete again"
+    fi
     remove_device "$doomed"
+    exec 9>&-
     echo "sim-pool: deleted $doomed ($lane)" >&2
   done
 }
@@ -248,6 +262,6 @@ lane=$2
 case $command in
   create) lock_pool "create $lane"; clone_lane "$lane" ;;
   boot) boot_lane "$lane" ;;
-  delete) lock_pool "delete $lane"; delete_lane "$lane" ;;
+  delete) delete_lane "$lane" ;;
   *) usage ;;
 esac

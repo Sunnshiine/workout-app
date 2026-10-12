@@ -191,6 +191,17 @@ expect "down while a run holds the lane's simulator exits 75 and removes nothing
     "$status $(cat "$root/err") | $([ -d "$wt" ] && echo worktree) $(lane_rows | grep -c workout-lane-lane-a) $(ls "$dd" | tr '\n' ' ')" \
     "75 $lane_udid is held by a test-sim.sh unit (pid 4242); wait for it to finish, or use another simulator (lsof /tmp/workout-verify-$lane_udid/lock lists every process holding it) | worktree 1 WorkoutTracker-aaa WorkoutTracker-bbb "
 
+python3 -c 'import time; time.sleep(60)' -UITEST_FIXTURE &
+fixture=$!
+echo "$fixture" >"/tmp/workout-verify-$lane_udid/pid"
+lane down lane-a
+kill "$fixture"
+wait "$fixture" 2>/dev/null
+rm -f "/tmp/workout-verify-$lane_udid/pid"
+expect "down while a verify run's app is live exits 75 before it saves or removes anything" \
+    "$status $(cat "$root/err") | $([ -d "$wt" ] && echo worktree) $(ls "$evidence/detached-lane-a" | grep -c down-) $(lane_rows | grep -c workout-lane-lane-a) $(ls "$dd" | tr '\n' ' ')" \
+    "75 sim-pool: a verify run owns the app on $lane_udid (pid $fixture); if it is yours, run: SIM=$lane_udid $primary/.agents/skills/verify/verify.sh stop, and delete again | worktree 0 1 WorkoutTracker-aaa WorkoutTracker-bbb "
+
 lane down lane-a
 saved=$(ls -d "$evidence/detached-lane-a"/down-* 2>/dev/null | head -1)
 expect "down saves the head, the diff, untracked and work files, the commit, and the run evidence" \
