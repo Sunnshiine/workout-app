@@ -78,51 +78,70 @@ renew_lease() {
 }
 
 idle_minutes() {
-  python3 -c 'import os, sys, time; print(int((time.time() - os.stat(sys.argv[1]).st_mtime) // 60))' "$1"
+  python3 -c 'import os, sys, time
+try: print(int((time.time() - os.stat(sys.argv[1]).st_mtime) // 60))
+except FileNotFoundError: pass' "$1"
+}
+
+# With the simulator's flock held, decides what this claim may do with the verify run recorded on UDID.
+# A run in use refuses (75). With "take", an abandoned run or the claimer's own (VERIFY_RUN names it)
+# gives its app up; without it, nothing changes, so a claim that later fails admission leaves the run
+# as it found it.
+settle_run() {
+  local dir=/tmp/workout-verify-$1 pid run idle stop
+  pid=$(cat "$dir/pid" 2>/dev/null) && is_fixture_launch "$pid" || return 0
+  idle=$(idle_minutes "$dir/pid")
+  [ -n "$idle" ] || return 0
+  run=$(cat "$dir/run" 2>/dev/null) || true
+  if [ -n "$run" ] && [ "$run" = "${VERIFY_RUN:-}" ]; then
+    [ -n "${2:-}" ] || return 0
+    echo "taking over the app of your own verify run $run on $1 (pid $pid)" >&2
+  elif [ "$idle" -ge "$verify_lease_minutes" ]; then
+    [ -n "${2:-}" ] || return 0
+    echo "reclaimed $1 from verify run${run:+ $run} (pid $pid): no verify.sh call used it for $idle min, and the lease is $verify_lease_minutes min" >&2
+  else
+    stop="SIM=$1 ${run:+VERIFY_RUN=$run }$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.agents/skills/verify/verify.sh stop"
+    echo "a verify run${run:+ $run} owns the app on $1 (pid $pid), last used $idle min ago; a claim takes it once it goes $verify_lease_minutes min unused. If it is yours, ${run:+rerun with VERIFY_RUN=$run or }run: $stop, else use another simulator" >&2
+    exit 75
+  fi
+  # A Live Activity outlives its app's process, so a run launched with them on is uninstalled, as stop does.
+  if [ -f "$dir/args" ] && ! grep -q -- -UITEST_DISABLE_LIVE_ACTIVITIES "$dir/args"; then
+    xcrun simctl uninstall "$1" com.sunnypatel.WorkoutTracker || echo "could not uninstall the app on $1; a Live Activity run $run started may still be on it" >&2
+  fi
+  rm -f "$dir/pid" "$dir/args"
 }
 
 claim_sim() {
-  local dir=/tmp/workout-verify-$1 pid run idle stop
+  local dir=/tmp/workout-verify-$1
   mkdir -p "$dir"
   exec 9>>"$dir/lock"
   sim_flock "$1" LOCK_EX
   printf '%s (pid %s)\n' "$2" "$$" > "$dir/lock"
-  if pid=$(cat "$dir/pid" 2>/dev/null) && is_fixture_launch "$pid"; then
-    run=$(cat "$dir/run" 2>/dev/null) || true
-    idle=$(idle_minutes "$dir/pid")
-    if [ -n "$run" ] && [ "$run" = "${VERIFY_RUN:-}" ]; then
-      echo "taking over the app of your own verify run $run on $1 (pid $pid); launch it again afterwards" >&2
-    elif [ "$idle" -ge "$verify_lease_minutes" ]; then
-      echo "reclaimed $1 from verify run${run:+ $run} (pid $pid): no verify.sh call used it for $idle min, and the lease is $verify_lease_minutes min" >&2
-    else
-      stop="SIM=$1 ${run:+VERIFY_RUN=$run }$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.agents/skills/verify/verify.sh stop"
-      echo "a verify run${run:+ $run} owns the app on $1 (pid $pid), last used $idle min ago; a claim takes it once it goes $verify_lease_minutes min unused. If it is yours, ${run:+rerun with VERIFY_RUN=$run or }run: $stop, else use another simulator" >&2
-      exit 75
-    fi
-    rm -f "$dir/pid" "$dir/args"
-  fi
+  settle_run "$1"
   wait_until_clear "the host before taking $1" host_clear "$1"
+  settle_run "$1" take
 }
 
-# Sets env knob NAME to its value, else DEFAULT; exits 2 when that is not a whole number.
+# Sets env knob NAME to its value, else DEFAULT; exits 2 unless that is a whole number of at least MIN.
 host_knob() {
   local value
   eval "value=\${$1:-$2}"
   case $value in
     ''|*[!0-9]*) echo "$1 must be a whole number: $value" >&6; exit 2 ;;
   esac
+  [ "$value" -ge "$3" ] || { echo "$1 must be at least $3: $value" >&6; exit 2; }
   eval "$1=\$value"
 }
 
 # Runs CHECK ARG... in this shell until it returns 0, so a lock CHECK takes stays held. A failing CHECK
-# sets busy_reason. Says why on the first wait and once a minute, and exits 75 after WORKOUT_ADMIT_WAIT.
+# sets busy_reason. Says why on the first wait and once a minute. Every wait in one script shares one
+# WORKOUT_ADMIT_WAIT, so the 75 arrives inside the Bash tool's ten minutes.
 wait_until_clear() {
-  local what=$1 start waited said=-60
+  local what=$1 waited said=-60
   shift
-  host_knob WORKOUT_ADMIT_WAIT 600
-  start=$(date +%s)
+  : "${host_wait_start:=$(date +%s)}"
   while ! "$@"; do
-    waited=$(($(date +%s) - start))
+    waited=$(($(date +%s) - host_wait_start))
     if [ "$waited" -ge "$WORKOUT_ADMIT_WAIT" ]; then
       echo "gave up after $waited s waiting for $what: $busy_reason" >&6
       exit 75
@@ -133,7 +152,7 @@ wait_until_clear() {
     fi
     sleep 2
   done
-  [ "$said" -lt 0 ] || echo "went ahead after $(($(date +%s) - start)) s" >&6
+  [ "$said" -lt 0 ] || echo "went ahead after $(($(date +%s) - host_wait_start)) s" >&6
 }
 
 load_clear() {
@@ -146,8 +165,6 @@ load_clear() {
 
 host_clear() {
   local others
-  host_knob WORKOUT_LOAD_LIMIT 50
-  host_knob WORKOUT_SIM_CAP 6
   load_clear "$WORKOUT_LOAD_LIMIT" || return 1
   others=$(xcrun simctl list devices available -j 2>/dev/null | UDID="$1" python3 -c '
 import json, os, sys
@@ -155,15 +172,14 @@ try: runtimes = json.load(sys.stdin)["devices"].values()
 except ValueError: runtimes = []
 print(sum(d.get("state") == "Booted" and d.get("udid") != os.environ["UDID"] for ds in runtimes for d in ds))') || true
   [ "${others:-0}" -ge "$WORKOUT_SIM_CAP" ] || return 0
-  busy_reason="$others other simulators are booted, at the cap of $WORKOUT_SIM_CAP (WORKOUT_SIM_CAP); xcrun simctl shutdown <udid> frees one nobody uses"
+  busy_reason="$others other simulators are booted, at the cap of $WORKOUT_SIM_CAP (WORKOUT_SIM_CAP)"
   return 1
 }
 
 take_build_slot() {
-  local dir=${WORKOUT_BUILD_SLOT_DIR:-/tmp/workout-build-slots} i holders=
-  host_knob WORKOUT_BUILD_SLOTS 2
+  local dir=${WORKOUT_BUILD_SLOT_DIR:-/tmp/workout-build-slots} i=0 holders=
   mkdir -p "$dir"
-  for i in $(seq 1 "$WORKOUT_BUILD_SLOTS"); do
+  while [ $((i += 1)) -le "$WORKOUT_BUILD_SLOTS" ]; do
     exec 8>>"$dir/$i"
     if try_flock 8 LOCK_EX 1; then
       printf '%s (pid %s)\n' "${0##*/}" "$$" > "$dir/$i"
@@ -181,7 +197,7 @@ take_build_slot() {
 with_build_slot() {
   local rc=0
   wait_until_clear "a build slot" take_build_slot
-  "$@" || rc=$?
+  "$@" 6>&- || rc=$?
   exec 8>&-
   return $rc
 }
@@ -192,3 +208,8 @@ require_sim_free() {
   [ -f "/tmp/workout-verify-$1/lock" ] || return 0
   sim_flock "$1" LOCK_SH 9<"/tmp/workout-verify-$1/lock"
 }
+
+host_knob WORKOUT_SIM_CAP 6 1
+host_knob WORKOUT_LOAD_LIMIT 50 1
+host_knob WORKOUT_ADMIT_WAIT 600 0
+host_knob WORKOUT_BUILD_SLOTS 2 1

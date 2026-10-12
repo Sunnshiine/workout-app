@@ -37,7 +37,7 @@ exit 1
 STUB
 cat >"$root/bin/xcrun" <<STUB
 #!/bin/sh
-[ "\$*" = "simctl list devices available -j" ] || exit 0
+[ "\$*" = "simctl list devices available -j" ] || { echo "\$*" >> "$root/xcrun-calls"; exit 0; }
 python3 -c 'import json, sys
 others = [{"udid": "OTHER-%d" % i, "state": "Booted"} for i in range(int(sys.argv[1]))]
 print(json.dumps({"devices": {"iOS-27-0": others + [{"udid": "$sim", "state": "Booted", "name": "iPhone 17 Pro"}]}}))' "\${STUB_BOOTED_OTHERS:-0}"
@@ -62,7 +62,7 @@ chmod +x "$root/bin/"*
 export HOME=$root/home PATH="$root/bin:$PATH" WORKOUT_BUILD_SLOT_DIR=$root/slots
 unset VERIFY_RUN SIM WORKOUT_LOAD_LIMIT WORKOUT_SIM_CAP WORKOUT_ADMIT_WAIT WORKOUT_BUILD_SLOTS
 
-reset() { rm -rf "$state" "$root/builds" "$root/sysctl-calls" "$root/holding" "$root/release"; }
+reset() { rm -rf "$state" "$root/builds" "$root/sysctl-calls" "$root/xcrun-calls" "$root/holding" "$root/release"; }
 builds() { cat "$root/builds" 2>/dev/null | tr '\n' ' ' | sed 's/ $//'; }
 test_sim() { "$repo/scripts/test-sim.sh" "$@" --sim "$sim" unit >"$root/out" 2>"$root/err"; }
 age_minutes() { python3 -c 'import os, sys, time; t = time.time() - int(sys.argv[2]) * 60; os.utime(sys.argv[1], (t, t))' "$1" "$2"; }
@@ -75,7 +75,7 @@ own_the_app() {
     mkdir -p "$state"
     echo "$1" > "$state/run"
     echo "$app" > "$state/pid"
-    echo "-UITEST_FIXTURE -UITEST_SESSION -UITEST_DISABLE_LIVE_ACTIVITIES" > "$state/args"
+    echo "-UITEST_FIXTURE -UITEST_SESSION ${3--UITEST_DISABLE_LIVE_ACTIVITIES}" > "$state/args"
     age_minutes "$state/pid" "$2"
 }
 
@@ -86,6 +86,12 @@ expect "a run unused for 61 min is reclaimed and the claim goes on" "$status $(b
 expect "the reclaim names the run and its idle time" "$(head -1 "$root/err")" \
     "reclaimed $sim from verify run abandoned-run (pid $app): no verify.sh call used it for 61 min, and the lease is 60 min"
 expect "the reclaim forgets the app but keeps the run name" "$(ls "$state" | tr '\n' ' ')" "lock run "
+expect "an app launched without Live Activities is left for the next install to replace" "$(cat "$root/xcrun-calls" 2>/dev/null)" ""
+
+reset; own_the_app live-activity-run 61 ""
+test_sim --no-build; status=$?
+expect "a reclaimed run that had Live Activities on is uninstalled, as stop does" "$status $(cat "$root/xcrun-calls")" \
+    "65 simctl uninstall $sim com.sunnypatel.WorkoutTracker"
 
 reset; own_the_app active-run 59
 test_sim --no-build; status=$?
@@ -97,7 +103,15 @@ reset; own_the_app lane-812 5
 VERIFY_RUN=lane-812 test_sim --no-build; status=$?
 expect "the run's own owner takes its live app" "$status $(builds)" "65 test-without-building"
 expect "the takeover says so" "$(head -1 "$root/err")" \
-    "taking over the app of your own verify run lane-812 on $sim (pid $app); launch it again afterwards"
+    "taking over the app of your own verify run lane-812 on $sim (pid $app)"
+
+reset; own_the_app lane-812 5
+VERIFY_RUN=lane-812 STUB_LOAD=212.40 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+expect "a takeover the host refuses leaves the run's app recorded and announces nothing" \
+    "$status $(ls "$state" | tr '\n' ' ')$(grep -c "taking over" "$root/err")" "75 args lock pid run 0"
+reset; own_the_app abandoned-run 61
+STUB_LOAD=212.40 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+expect "a reclaim the host refuses leaves the abandoned run recorded" "$status $(ls "$state" | tr '\n' ' ')" "75 args lock pid run "
 
 reset; own_the_app lane-812 59
 SIM=$sim VERIFY_RUN=lane-813 "$repo/.agents/skills/verify/verify.sh" tree >/dev/null 2>&1
@@ -134,7 +148,7 @@ reset
 STUB_BOOTED_OTHERS=6 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
 expect "six other booted simulators refuse at the default cap" "$status $(builds)" "75 "
 expect "the refusal names the count and how to free one" "$(refusal)" \
-    "gave up after N s waiting for the host before taking $sim: 6 other simulators are booted, at the cap of 6 (WORKOUT_SIM_CAP); xcrun simctl shutdown <udid> frees one nobody uses"
+    "gave up after N s waiting for the host before taking $sim: 6 other simulators are booted, at the cap of 6 (WORKOUT_SIM_CAP)"
 
 reset
 STUB_BOOTED_OTHERS=5 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
@@ -143,6 +157,9 @@ expect "the claimer's own booted simulator does not count against the cap" "$sta
 reset
 WORKOUT_SIM_CAP=six test_sim --no-build; status=$?
 expect "a knob that is not a whole number is a usage error" "$status $(cat "$root/err")" "2 WORKOUT_SIM_CAP must be a whole number: six"
+reset
+WORKOUT_BUILD_SLOTS=0 test_sim; status=$?
+expect "zero build slots is a usage error, before any build" "$status $(builds) $(cat "$root/err")" "2  WORKOUT_BUILD_SLOTS must be at least 1: 0"
 
 echo "build slots"
 verify_build() { SIM=$sim "$repo/.agents/skills/verify/verify.sh" build; }
