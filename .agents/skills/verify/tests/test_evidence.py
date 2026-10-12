@@ -2626,12 +2626,32 @@ class TakeJudge(unittest.TestCase):
         self.assertEqual("\n".join(take.take_lines(take.parse(STAMP))) + "\n", TAKE_LINES)
 
     def test_the_summary_reads_the_whole_stamp(self):
-        self.assertEqual(take.summary(take.parse(STAMP), "on"), (
+        self.assertEqual(take.summary(take.parse(STAMP)), (
             "take appear VALID 4.71 s, drive +0.00..+2.69 s, 37 frames, last +3.40 s, load 12.3 then 14.0 (limit 50), "
             "animations on"))
-        self.assertEqual(take.summary(stamp_with(drive="", frames=1, load_after="63.20"), "off"), (
+        self.assertEqual(take.summary(stamp_with(drive="", frames=1, load_after="63.20", animations="off")), (
             "take appear INVALID 4.71 s, no drive, 1 frame, last +3.40 s, load 12.3 then 63.2 (limit 50), "
             "animations off"))
+
+    def test_parse_reads_the_three_lines_verify_sh_appends_and_defaults_them_when_absent(self):
+        appended = take.parse(STAMP)
+        self.assertEqual((appended.screen_pt, appended.animations, appended.app),
+                         ((402, 874), "on", "app 804e750cad00 commit ea5af074 (this worktree's build)"))
+        bare = take.parse(TAKE_LINES)
+        self.assertEqual((bare.screen_pt, bare.animations, bare.app), (None, "unknown", ""))
+
+    def test_parse_refuses_a_stamp_that_is_not_take_1_naming_what_is_wrong(self):
+        for text, why in [
+            (STAMP.replace("format=take/1", "format=take/2"), "format=take/2, not take/1"),
+            (STAMP.replace("format=take/1\n", ""), "no format=take/1"),
+            (re.sub(r"(?m)^(drive_start|frames)=.*\n", "", STAMP), "no drive_start= frames="),
+            (STAMP.replace("frames=37", "frames=many"), "frames=many does not parse"),
+            (STAMP.replace("screen_pt=402x874", "screen_pt=402"), "screen_pt=402 does not parse"),
+        ]:
+            with self.subTest(why=why):
+                with self.assertRaises(ValueError) as raised:
+                    take.parse(text)
+                self.assertEqual(str(raised.exception), why)
 
     def test_load_at_or_over_the_limit_at_either_end(self):
         self.assertEqual(take.judge(stamp_with(load_after="63.20")), ["load 63.2 at the end, at or over 50"])

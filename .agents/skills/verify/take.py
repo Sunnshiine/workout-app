@@ -26,7 +26,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Dict, List, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 STOP_GRACE = 15.0
 POLL = 0.05
@@ -51,6 +51,9 @@ class Take:
     first_frame: float
     last_frame: float
     video_px: Tuple[int, int]
+    screen_pt: Optional[Tuple[int, int]] = None
+    animations: str = "unknown"
+    app: str = ""
 
 
 def seconds(value: float) -> str:
@@ -81,6 +84,8 @@ FIELDS = {
     "last_frame": (float, seconds),
     "video_px": (pixels, lambda px: "%dx%d" % px),
 }
+# verify.sh appends these after take.py prints the rest, because only it knows the screen and the launch.
+APPENDED = {"screen_pt": pixels, "animations": str, "app": str}
 
 
 def judge(take: Take) -> List[str]:
@@ -111,21 +116,30 @@ def take_lines(take: Take) -> List[str]:
     return lines
 
 
-def fields(text: str) -> Dict[str, str]:
-    return dict(line.split("=", 1) for line in text.splitlines() if "=" in line)
-
-
 def parse(text: str) -> Take:
-    found = fields(text)
-    return Take(**{key: read(found[key]) for key, (read, _) in FIELDS.items()})
+    found = dict(line.split("=", 1) for line in text.splitlines() if "=" in line)
+    if found.get("format") != "take/1":
+        raise ValueError("format=%s, not take/1" % found["format"] if "format" in found else "no format=take/1")
+    missing = [key + "=" for key in FIELDS if key not in found]
+    if missing:
+        raise ValueError("no %s" % " ".join(missing))
+    readers = dict({key: read for key, (read, _) in FIELDS.items()}, **APPENDED)
+    values = {}
+    for key, read in readers.items():
+        if key in found:
+            try:
+                values[key] = read(found[key])
+            except ValueError:
+                raise ValueError("%s=%s does not parse" % (key, found[key])) from None
+    return Take(**values)
 
 
-def summary(take: Take, animations: str) -> str:
+def summary(take: Take) -> str:
     drive = "drive +%.2f..+%.2f s" % (take.drive_start, take.drive_end) if take.drive else "no drive"
     return "take %s %s %.2f s, %s, %d frame%s, last +%.2f s, load %.1f then %.1f (limit %g), animations %s" % (
         take.name, "INVALID" if judge(take) else "VALID", take.stopped, drive, take.frames,
         "" if take.frames == 1 else "s", take.last_frame, take.load_before, take.load_after, take.load_limit,
-        animations)
+        take.animations)
 
 
 class NoTake(Exception):
@@ -273,13 +287,11 @@ def record(argv: List[str]) -> int:
 
 
 def report(path: str) -> int:
-    text = Path(path).read_text()
-    take = parse(text)
-    animations = fields(text).get("animations", "unknown")
-    print(summary(take, animations))
+    take = parse(Path(path).read_text())
+    print(summary(take))
     for reason in judge(take):
         print(reason, file=sys.stderr)
-    if animations == "off":
+    if take.animations == "off":
         print("animations are off in this app (it was launched without --animated), so the take cannot show motion",
               file=sys.stderr)
     return 0

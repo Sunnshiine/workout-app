@@ -15,9 +15,12 @@ from pathlib import Path
 
 import numpy as np
 
-MOTION = Path(__file__).resolve().parent.parent / "motion"
+SKILL = Path(__file__).resolve().parent.parent
+MOTION = SKILL / "motion"
+sys.path.insert(0, str(SKILL))
 sys.path.insert(0, str(MOTION))
 import cardframe  # noqa: E402
+import take  # noqa: E402
 import cardstill  # noqa: E402
 from cardframe import Card, Sample  # noqa: E402
 from cardstill import Reading, TakeResult, Verdict  # noqa: E402
@@ -58,34 +61,22 @@ def encode(path, scene, seconds, lossless=True):
     assert proc.wait() == 0, f"ffmpeg could not encode {path}"
 
 
-def stamp(video, drive="", drive_start="", drive_end="", verdict="VALID", invalid="", animations="on"):
-    take = video.with_suffix(".take")
-    take.write_text("\n".join([
-        "format=take/1",
-        f"name={video.stem}",
-        f"video={video.name}",
-        f"drive={drive}",
-        "tail=2.0",
-        "load_limit=50",
-        "load_before=12.31",
-        "load_after=14.02",
-        "started=1791817306.217",
-        f"drive_start={drive_start}",
-        f"drive_end={drive_end}",
-        "stopped=4.714",
-        "recorder_exit=0",
-        "recorder_early=0",
-        "frames=0",
-        "first_frame=0.000",
-        "last_frame=0.000",
-        f"video_px={SCREEN_PT[0] * VIDEO_PX_PER_PT}x{SCREEN_PT[1] * VIDEO_PX_PER_PT}",
-        f"verdict={verdict}",
-        f"invalid={invalid}",
+def stamp(video, drive="", drive_start=0.0, drive_end=0.0, load_after=14.02, animations="on", like=None):
+    """The stamp `verify.sh record` writes beside video: take.py's lines over the frames ffprobe finds in it
+    (or in like), then the three lines verify.sh appends."""
+    pts, size = take.probe(like or video)
+    filmed = take.Take(
+        name=video.stem, video=video.name, drive=drive, tail=2.0, load_limit=50.0, load_before=12.31,
+        load_after=load_after, started=1791817306.217, drive_start=drive_start, drive_end=drive_end,
+        stopped=round(max(pts[-1], drive_end) + 2.0, 3), recorder_exit=0, recorder_early=False, frames=len(pts),
+        first_frame=round(pts[0], 3), last_frame=round(pts[-1], 3), video_px=size)
+    path = video.with_suffix(".take")
+    path.write_text("\n".join(take.take_lines(filmed) + [
         f"screen_pt={SCREEN_PT[0]}x{SCREEN_PT[1]}",
         f"animations={animations}",
         "app=app 804e750cad00 commit ea5af074 (this worktree's build)",
     ]) + "\n")
-    return take
+    return path
 
 
 def still(i):
@@ -170,6 +161,7 @@ class CardFrameOnClips(unittest.TestCase):
         cls.clips = {}
         for name, scene, seconds in [
             ("still", still, 1.0),
+            ("ticking", ticks_beside, 1.0),
             ("third", a_third_of_a_point_low, 1.0),
             ("slide", slide, 2.0),
             ("cut", cuts, 2.0),
@@ -183,13 +175,29 @@ class CardFrameOnClips(unittest.TestCase):
         cls.clips["lossy"] = cls.dir / "lossy.mp4"
         encode(cls.clips["lossy"], ticks_beside, 1.0, lossless=False)
 
-    def test_a_still_card_is_one_encoded_frame_and_reads_still(self):
+    def test_a_still_card_with_nothing_else_changing_is_one_frame_an_invalid_take_and_reads_still(self):
         video = self.clips["still"]
+        stamp(video)
+        code, out, _ = run_cardframe(video)
+        self.assertEqual(code, 3)
+        self.assertEqual(out.splitlines(), [
+            "INVALID take: one frame: the screen never changed while recording",
+            "take=INVALID animations=on frames=1 window_frames=1",
+            "first_seen=0.000 lost=0",
+            "top=100.0..100.0 bottom=260.0..260.0 left=16.0..16.0 right=186.0..186.0",
+            "worst_edge_range=0.0",
+            "contrast=40.0..40.0",
+            "motion=none",
+            "still=yes",
+        ])
+
+    def test_a_still_card_beside_a_changing_box_reads_still(self):
+        video = self.clips["ticking"]
         stamp(video)
         code, out, err = run_cardframe(video)
         self.assertEqual(code, 0, err)
         self.assertEqual(out.splitlines(), [
-            "take=VALID animations=on frames=1 window_frames=1",
+            "take=VALID animations=on frames=10 window_frames=10",
             "first_seen=0.000 lost=0",
             "top=100.0..100.0 bottom=260.0..260.0 left=16.0..16.0 right=186.0..186.0",
             "worst_edge_range=0.0",
@@ -214,7 +222,7 @@ class CardFrameOnClips(unittest.TestCase):
 
     def test_a_slide_of_160_pt_over_400_ms_reads_its_range_and_duration_by_frame_time(self):
         video = self.clips["slide"]
-        stamp(video, drive="tap --id log-active-set-button", drive_start="0.000", drive_end="0.500")
+        stamp(video, drive="tap --id log-active-set-button", drive_start=0.0, drive_end=0.5)
         m = cardframe.measure(video)
         self.assertEqual((m.frames, len(m.window)), (25, 25))
         self.assertEqual((m.first_seen, m.lost), (0.0, 0))
@@ -226,14 +234,14 @@ class CardFrameOnClips(unittest.TestCase):
 
     def test_a_cut_after_the_drive_is_measured_from_the_frame_showing_when_the_drive_began(self):
         video = self.clips["cut"]
-        stamp(video, drive="tap --id log-active-set-button", drive_start="0.300", drive_end="0.500")
+        stamp(video, drive="tap --id log-active-set-button", drive_start=0.3, drive_end=0.5)
         m = cardframe.measure(video)
         self.assertEqual((m.frames, len(m.window)), (2, 2))
         self.assertEqual((m.first_seen, m.worst_edge_range, m.changed_frames, m.still), (0.0, 160.0, 1, False))
 
     def test_the_tsv_has_a_row_per_window_frame_timed_from_the_drive(self):
         video = self.clips["slide"]
-        stamp(video, drive="tap --id log-active-set-button", drive_start="0.500", drive_end="0.600")
+        stamp(video, drive="tap --id log-active-set-button", drive_start=0.5, drive_end=0.6)
         tsv = self.dir / "slide.tsv"
         code, _, err = run_cardframe(video, "--from", "0", "--tsv", tsv)
         self.assertEqual(code, 0, err)
@@ -255,26 +263,26 @@ class CardFrameOnClips(unittest.TestCase):
 
     def test_a_launch_is_measured_from_the_card_at_full_width_so_the_system_zoom_reads_still(self):
         video = self.clips["launch"]
-        stamp(video, drive="launch --animated session", drive_start="0.000", drive_end="1.400")
+        stamp(video, drive="launch --animated session", drive_start=0.0, drive_end=1.4)
         m = cardframe.measure(video)
         self.assertEqual((round(m.first_seen, 3), m.lost, m.worst_edge_range, m.still), (1.1, 0, 0.0, True))
 
     def test_a_launch_that_fades_in_is_measured_once_the_card_nears_the_median_contrast_of_its_last_frames(self):
         video = self.clips["launch-fade"]
-        stamp(video, drive="launch session", drive_start="0.000", drive_end="1.400")
+        stamp(video, drive="launch session", drive_start=0.0, drive_end=1.4, animations="off")
         m = cardframe.measure(video)
         self.assertEqual((round(m.first_seen, 3), m.worst_edge_range, m.still), (1.083, 0.0, True))
 
     def test_a_card_that_slides_in_after_the_launch_zoom_reads_its_slide(self):
         video = self.clips["launch-slide"]
-        stamp(video, drive="launch --animated session", drive_start="0.000", drive_end="1.400")
+        stamp(video, drive="launch --animated session", drive_start=0.0, drive_end=1.4)
         m = cardframe.measure(video)
         self.assertEqual((round(m.first_seen, 3), m.lost, m.ranges["top"], m.still), (1.1, 0, (100.0, 140.0), False))
         self.assertEqual((round(m.motion[0], 3), round(m.motion[1], 3)), (1.117, 1.4))
 
     def test_from_0_on_a_launch_reads_the_springboard_and_the_zoom_as_motion(self):
         video = self.clips["launch"]
-        stamp(video, drive="launch --animated session", drive_start="0.000", drive_end="1.400")
+        stamp(video, drive="launch --animated session", drive_start=0.0, drive_end=1.4)
         m = cardframe.measure(video, from_s=0)
         self.assertEqual((m.first_seen, m.still), (0.0, False))
 
@@ -288,18 +296,18 @@ class CardFrameOnClips(unittest.TestCase):
         self.assertEqual(out.splitlines()[-1], "still=no")
 
     def test_an_invalid_take_is_measured_under_a_banner_and_exits_3(self):
-        video = self.clips["still"]
-        stamp(video, verdict="INVALID", invalid="load 63.2 at the end, at or over 50")
+        video = self.clips["ticking"]
+        stamp(video, load_after=63.2)
         code, out, _ = run_cardframe(video)
         self.assertEqual(code, 3)
         self.assertEqual(out.splitlines()[:3], [
             "INVALID take: load 63.2 at the end, at or over 50",
-            "take=INVALID animations=on frames=1 window_frames=1",
+            "take=INVALID animations=on frames=10 window_frames=10",
             "first_seen=0.000 lost=0",
         ])
 
     def test_a_take_with_animations_off_exits_3_under_a_banner(self):
-        video = self.clips["still"]
+        video = self.clips["ticking"]
         stamp(video, animations="off")
         code, out, _ = run_cardframe(video)
         self.assertEqual(code, 3)
@@ -307,12 +315,12 @@ class CardFrameOnClips(unittest.TestCase):
         self.assertEqual(out.splitlines()[-1], "still=yes")
 
     def test_no_card_in_the_window_exits_1(self):
-        video = self.clips["still"]
+        video = self.clips["ticking"]
         stamp(video)
         code, out, err = run_cardframe(video, "--x", "190")
         self.assertEqual(code, 1)
-        self.assertEqual(out, "take=VALID animations=on frames=1 window_frames=1\n")
-        self.assertEqual(err, "no card in any of the 1 frames from 0.000 s\n")
+        self.assertEqual(out, "take=VALID animations=on frames=10 window_frames=10\n")
+        self.assertEqual(err, "no card in any of the 10 frames from 0.000 s\n")
 
     def test_a_video_with_no_take_beside_it_exits_2_naming_the_stamp(self):
         video = self.dir / "unstamped.mp4"
@@ -321,10 +329,28 @@ class CardFrameOnClips(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertEqual(err, f"no take stamp {self.dir / 'unstamped.take'}; record the video with verify.sh record\n")
 
+    def test_a_stamp_without_screen_pt_exits_2_naming_it(self):
+        video = self.dir / "unscaled.mp4"
+        video.write_bytes(self.clips["ticking"].read_bytes())
+        stamp(video)
+        stamped = video.with_suffix(".take")
+        stamped.write_text(stamped.read_text().replace("screen_pt=200x400\n", ""))
+        code, _, err = run_cardframe(video)
+        self.assertEqual(code, 2)
+        self.assertEqual(err, f"{stamped} has no screen_pt=, so its pixels cannot be read as points; record it again\n")
+
+    def test_a_stamp_that_is_not_take_1_exits_2_naming_why(self):
+        video = self.dir / "future.mp4"
+        video.write_bytes(self.clips["ticking"].read_bytes())
+        stamped = stamp(video)
+        stamped.write_text(stamped.read_text().replace("format=take/1", "format=take/2"))
+        code, _, err = run_cardframe(video)
+        self.assertEqual((code, err), (2, f"{stamped}: format=take/2, not take/1\n"))
+
     def test_a_file_ffprobe_cannot_read_exits_70(self):
         video = self.dir / "broken.mp4"
         video.write_bytes(b"not a video")
-        stamp(video)
+        stamp(video, like=self.clips["still"])
         code, _, err = run_cardframe(video)
         self.assertEqual(code, 70)
         self.assertTrue(err.startswith(f"ffprobe could not read {video}"), err)
@@ -334,38 +360,42 @@ def card(top, bottom=None, left=16.0, right=186.0, contrast=40.0):
     return Card(top, top + 160 if bottom is None else bottom, left, right, contrast)
 
 
+TAKE = take.Take(
+    name="x", video="x.mp4", drive="", tail=2.0, load_limit=50.0, load_before=1.0, load_after=1.0, started=0.0,
+    drive_start=0.0, drive_end=0.0, stopped=3.0, recorder_exit=0, recorder_early=False, frames=2, first_frame=0.0,
+    last_frame=1.0, video_px=(600, 1200), screen_pt=(200, 400), animations="on")
+
+
 class Summarize(unittest.TestCase):
-    def take(self):
-        return cardframe.Take(Path("x.take"), "VALID", "", "on", "", None, None, "1.0", "1.0", (200, 400), (600, 1200))
 
     def test_a_cut_is_one_changed_frame_of_zero_duration(self):
-        m = cardframe.summarize(self.take(), [Sample(0.0, card(100)), Sample(1.0, card(260))], 0.0)
+        m = cardframe.summarize(TAKE, [Sample(0.0, card(100)), Sample(1.0, card(260))], 0.0)
         self.assertEqual((m.worst_edge_range, m.motion, m.motion_ms, m.changed_frames, m.still),
                          (160.0, (1.0, 1.0), 0, 1, False))
 
     def test_a_move_under_three_quarters_of_a_point_is_not_motion_but_counts_against_still(self):
-        m = cardframe.summarize(self.take(), [Sample(0.0, card(100)), Sample(0.5, card(100.5))], 0.0)
+        m = cardframe.summarize(TAKE, [Sample(0.0, card(100)), Sample(0.5, card(100.5))], 0.0)
         self.assertEqual((m.worst_edge_range, m.motion, m.changed_frames, m.still), (0.5, None, 0, True))
-        m = cardframe.summarize(self.take(), [Sample(0.0, card(100)), Sample(0.5, card(100.6))], 0.0)
+        m = cardframe.summarize(TAKE, [Sample(0.0, card(100)), Sample(0.5, card(100.6))], 0.0)
         self.assertEqual(m.still, False)
 
     def test_frames_without_the_card_before_it_shows_are_not_lost_and_after_it_are(self):
         samples = [Sample(0.0, None), Sample(0.1, None), Sample(0.2, card(100)), Sample(0.3, None),
                    Sample(0.4, card(100))]
-        m = cardframe.summarize(self.take(), samples, 0.0)
+        m = cardframe.summarize(TAKE, samples, 0.0)
         self.assertEqual((m.first_seen, m.lost, m.still), (0.2, 1, False))
 
     def test_motion_skips_a_lost_frame_and_compares_the_cards_either_side(self):
         samples = [Sample(0.0, card(100)), Sample(0.1, None), Sample(0.2, card(110)), Sample(0.3, card(110))]
-        m = cardframe.summarize(self.take(), samples, 0.0)
+        m = cardframe.summarize(TAKE, samples, 0.0)
         self.assertEqual((m.motion, m.changed_frames), ((0.2, 0.2), 1))
 
     def test_a_window_with_no_card_has_no_first_seen_and_is_not_still(self):
-        m = cardframe.summarize(self.take(), [Sample(0.0, None), Sample(1.0, None)], 0.5)
+        m = cardframe.summarize(TAKE, [Sample(0.0, None), Sample(1.0, None)], 0.5)
         self.assertEqual((len(m.window), m.first_seen, m.lost, m.still), (2, None, 0, False))
 
     def test_the_frame_showing_at_from_opens_the_window(self):
-        m = cardframe.summarize(self.take(), [Sample(0.0, card(100)), Sample(0.4, card(120)), Sample(1.0, None)], 0.5)
+        m = cardframe.summarize(TAKE, [Sample(0.0, card(100)), Sample(0.4, card(120)), Sample(1.0, None)], 0.5)
         self.assertEqual((len(m.window), m.first_seen, m.lost, m.ranges["top"]), (2, 0.4, 1, (120.0, 120.0)))
 
 
@@ -381,7 +411,7 @@ class FullSize(unittest.TestCase):
     def test_one_stray_last_frame_keeps_the_window_and_counts_against_still(self):
         found = self.launch(187.0)
         from_s = cardframe.full_size(found, 0.0)
-        m = cardframe.summarize(self.take(), found, from_s)
+        m = cardframe.summarize(TAKE, found, from_s)
         self.assertEqual((from_s, len(m.window), m.worst_edge_range, m.still), (1.033, 9, 1.0, False))
 
     def test_one_dim_frame_among_the_settled_ones_is_skipped(self):
@@ -393,9 +423,6 @@ class FullSize(unittest.TestCase):
         widths = [150.0, 150.0, 160.0, 160.0, 165.0, 165.0, 170.0, 170.0]
         found = [Sample(round(1.0 + 0.017 * k, 3), card(100, left=16.0, right=16.0 + w)) for k, w in enumerate(widths)]
         self.assertEqual(cardframe.full_size(found, 0.0), 1.102)
-
-    def take(self):
-        return Summarize.take(self)
 
 
 class Detect(unittest.TestCase):
