@@ -941,7 +941,6 @@ class VerifyStop(unittest.TestCase):
 
 
 def bundle_hash(code):
-    """verify.sh's app hash of a bundle whose only file is a debug dylib holding code."""
     manifest = "%s  ./WorkoutTracker.debug.dylib\n" % hashlib.sha256(code).hexdigest()
     return hashlib.sha256(manifest.encode()).hexdigest()
 
@@ -1601,9 +1600,6 @@ KEYBOARD = ("AXe keyboard input hides the software keyboard in this app until it
 
 
 class Lane(unittest.TestCase):
-    """A tiny git checkout with verify.sh symlinked in, two commits whose app code is v1 and v2, and stubs
-    that build App/Main.swift into the bundle and install into a container per simulator."""
-
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp()).resolve()
         self.addCleanup(shutil.rmtree, str(self.tmp), True)

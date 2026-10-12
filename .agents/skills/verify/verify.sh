@@ -78,13 +78,12 @@ bundle=com.sunnypatel.WorkoutTracker
 work=$repo/.build/verify
 axe=$work/node_modules/xcodebuildmcp/bundled/axe
 stamp_name=verify-stamp
-# The project's buildable folders, which BuildableFolderContractTests pins to the pbxproj.
 sources=(App Sources/WorkoutTracker WorkoutShared WorkoutWidgets)
-# What the app compiles: build's dirty marker and doctor's sources-newer check both read it.
 inputs=("${sources[@]}" WorkoutTracker.xcodeproj Package.swift Package.resolved)
 sim=
 state_dir=
 built_hash=
+built_loaded=
 
 resolve_sim() {
   [ -n "$sim" ] && return 0
@@ -232,8 +231,6 @@ fixture_args() {
   esac
 }
 
-# Every file in the bundle, so a widget, asset, or Info.plist change is a different app too. simctl
-# install copies the bundle byte for byte (proof/E-3a), so the installed copy hashes the same.
 app_hash() {
   (cd "$1" && find . -type f ! -name "$stamp_name" -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256) \
     | shasum -a 256 | cut -c1-64
@@ -241,17 +238,17 @@ app_hash() {
 
 stamp_field() { sed -n "s/^$2=//p" "$1"; }
 
-write_stamp() {  # <app> <commit> <dirty 0|1> <origin: worktree path or cache>
+write_stamp() {
   local hash
   hash=$(app_hash "$1")
   printf 'commit=%s\ndirty=%s\norigin=%s\ncode_sha256=%s\n' "$2" "$3" "$4" "$hash" > "$1/$stamp_name"
 }
 
-stamp_vouches() {  # <app> <its hash>
-  [ -f "$1/$stamp_name" ] && [ "$(stamp_field "$1/$stamp_name" code_sha256)" = "$2" ]
+stamp_vouches() {
+  local app=$1 hash=$2
+  [ -f "$app/$stamp_name" ] && [ "$(stamp_field "$app/$stamp_name" code_sha256)" = "$hash" ]
 }
 
-# "<hash> <commit> <dirty> <origin>", commit and origin "-" when no stamp vouches for these bytes.
 identity_of() {
   local stamp=$1/$stamp_name hash
   hash=$(app_hash "$1")
@@ -262,20 +259,21 @@ identity_of() {
   fi
 }
 
-short_identity() {  # <hash> <commit> <dirty>
+short_identity() {
   local dirty=
   if [ "$2" = - ]; then printf 'app %s commit unknown\n' "${1:0:12}"; return 0; fi
   [ "$3" != 1 ] || dirty=-dirty
   printf 'app %s commit %s%s\n' "${1:0:12}" "${2:0:8}" "$dirty"
 }
 
-identity_line() {  # <hash> <commit> <dirty> <origin>
+identity_line() {
   local where
   case $4 in
     -) printf '%s (not built by verify.sh)\n' "$(short_identity "$1" "$2" "$3")"; return 0 ;;
     cache) where="cached build" ;;
     "$repo")
       where="this worktree's build"
+      [ -n "$built_loaded" ] || load_worktree_build
       [ -z "$built_hash" ] || [ "$built_hash" = "$1" ] || where="an earlier build of this worktree"
       ;;
     *) where="built in $4" ;;
@@ -283,7 +281,7 @@ identity_line() {  # <hash> <commit> <dirty> <origin>
   printf '%s (%s)\n' "$(short_identity "$1" "$2" "$3")" "$where"
 }
 
-app_line() {  # <app>
+app_line() {
   local hash commit dirty origin
   read -r hash commit dirty origin <<< "$(identity_of "$1")"
   identity_line "$hash" "$commit" "$dirty" "$origin"
@@ -301,9 +299,8 @@ installed_line() {
   fi
 }
 
-# Sets built (empty when this worktree has no build) and its identity in built_hash and friends.
-# identity_line reads built_hash, so every verb that prints an identity runs this first.
 load_worktree_build() {
+  built_loaded=1
   built=$(app_path)
   built_hash=''
   built_commit=-
@@ -320,8 +317,7 @@ worktree_build_note() {
   fi
 }
 
-# The only xcodebuild build verify.sh runs, for this worktree and for the app cache alike.
-xcodebuild_build() {  # <project> <derived data path, empty for Xcode's own> <log>
+xcodebuild_build() {
   local derived=()
   [ -z "$2" ] || derived=(-derivedDataPath "$2")
   mkdir -p "$(dirname "$3")"
@@ -346,22 +342,19 @@ drop_cache_scratch() {
 
 try_lock() { python3 -c 'import fcntl, sys; fcntl.flock(int(sys.argv[1]), fcntl.LOCK_EX | fcntl.LOCK_NB)' "$1" 2>/dev/null; }
 
-# Another commit's scratch whose lock is free belongs to an install that was killed, and nothing else
-# would ever remove it or its registered worktree.
-sweep_cache_scratch() {  # <cache root> <the commit this install holds the lock of>
-  local dir sha
-  for dir in "$1"/*.build "$1"/*.tmp; do
+sweep_cache_scratch() {
+  local root=$1 locked_sha=$2 dir sha
+  for dir in "$root"/*.build "$root"/*.tmp; do
     [ -e "$dir" ] || continue
     sha=${dir##*/}
     sha=${sha%.*}
-    [ "$sha" != "$2" ] || continue
-    (exec 7>>"$1/$sha.lock" && try_lock 7 && rm -rf "$dir") || true
+    [ "$sha" != "$locked_sha" ] || continue
+    (exec 7>>"$root/$sha.lock" && try_lock 7 && rm -rf "$dir") || true
   done
   git -C "$repo" worktree prune
 }
 
-# A killed install leaves its scratch worktree and DerivedData; building on them makes the retry incremental.
-scratch_checkout() {  # <scratch> <sha>
+scratch_checkout() {
   if [ ! -f "$1/src/.git" ] || [ "$(git -C "$1/src" rev-parse HEAD 2>/dev/null)" != "$2" ]; then
     drop_cache_scratch "$1"
     git -C "$repo" worktree add --force --force --quiet --detach "$1/src" "$2" >&2
@@ -369,12 +362,12 @@ scratch_checkout() {  # <scratch> <sha>
   "$repo/scripts/bootstrap-xcode-worktree.sh" "$1/src"
 }
 
-# Sets app to the cached build of <sha>, building it first when the cache has none. One build per
-# commit at a time: the rest wait on its lock, then find the entry it published by one rename.
-cached_app() {
-  local sha=$1 root lock scratch tmp
+cached_app_path() { printf '%s/%s/WorkoutTracker.app\n' "$(cache_root)" "$1"; }
+
+ensure_cached() {
+  local sha=$1 root app lock scratch tmp
   root=$(cache_root)
-  app=$root/$sha/WorkoutTracker.app
+  app=$(cached_app_path "$sha")
   cache_hit "$app" && return 0
   mkdir -p "$root/logs"
   lock=$root/$sha.lock
@@ -389,7 +382,6 @@ except BlockingIOError:
   scratch=$root/$sha.build
   tmp=$root/$sha.tmp
   sweep_cache_scratch "$root" "$sha"
-  # Under the lock no build of this commit is alive, so whatever is here is a killed one's.
   rm -rf "$tmp" "${root:?}/$sha"
   echo "building ${sha:0:8} into the app cache at $root (under a minute to a few; give the call a 10 min timeout)" >&2
   scratch_checkout "$scratch" "$sha"
@@ -405,12 +397,11 @@ except BlockingIOError:
   exec 8>&-
 }
 
-# Sets app, the identity it carries (want_hash and friends), and wanted_line. Builds a missing cache
-# entry, so it runs before any simulator lock is taken.
 target_app() {
   load_worktree_build
   if [ -n "$at" ]; then
-    cached_app "$at"
+    ensure_cached "$at"
+    app=$(cached_app_path "$at")
   else
     [ -n "$built" ] || { echo "no built app for $project; run: $0 build" >&2; exit 65; }
     app=$built
@@ -421,10 +412,7 @@ target_app() {
   [ -z "$at" ] || launched_line="$wanted_line; $(worktree_build_note)"
 }
 
-# A refusal between the claim and the install leaves another app installed. Its run's drive verbs
-# refuse until a launch or install of that run succeeds, in case the caller drops the refusal and
-# drives on, and the run's launches.txt records it.
-mark_refused() {  # <message>
+record_refusal() {
   echo "$1" >&2
   [ -n "${VERIFY_RUN:-}" ] || return 0
   mkdir -p "$state_dir"
@@ -432,19 +420,17 @@ mark_refused() {  # <message>
   printf '%s %s refused: %s\n' "$(date +%Y-%m-%dT%H:%M:%S)" "$cmd" "$1" >> "$(run_dir)/launches.txt"
 }
 
-refuse() {  # <message> <exit code>
+refuse() {
   trap - EXIT
-  mark_refused "$1"
+  record_refusal "$1"
   exit "$2"
 }
 
-# The EXIT trap from the claim to the install, for the refusals claim_sim and wait_for_boot print.
 report_unchanged() {
   [ $? -ne 0 ] || return 0
-  mark_refused "app on $sim unchanged: $(installed_line); this $cmd wanted $wanted_line"
+  record_refusal "app on $sim unchanged: $(installed_line); this $cmd wanted $wanted_line"
 }
 
-# install and launch: resolve the app first, since a cache build may take minutes, then hold the simulator.
 claim_for_install() {
   resolve_sim
   [ -z "$at" ] || at=$(resolve_commit "$at")
@@ -461,7 +447,6 @@ wait_for_boot() {
     || { echo "simulator $sim did not boot" >&2; exit 70; }
 }
 
-# A bare launch over a cached build is the control-then-head slip: it would quietly swap the binary.
 refuse_replacing_cache() {
   local installed hash commit dirty origin
   installed=$(installed_app)
@@ -543,7 +528,6 @@ await_front() {
   exit 70
 }
 
-# A driver that missed its launch's refusal would otherwise drive, or film, another run's app.
 require_own_app() {
   local owner pid
   [ -n "${VERIFY_RUN:-}" ] || return 0
@@ -559,8 +543,6 @@ require_own_app() {
   exit 75
 }
 
-# Any AXe keyboard event hides the software keyboard until the app relaunches, and the first one after
-# a boot sets this preference, which keeps it hidden across relaunches too (issue 700).
 reset_keyboard() {
   if xcrun simctl spawn "$sim" defaults write com.apple.keyboard.preferences AutomaticMinimizationEnabled -bool false; then
     echo "AXe keyboard input hides the software keyboard in this app until its next launch (issue 700); the preference that would keep it hidden after that is reset" >&2
@@ -569,7 +551,7 @@ reset_keyboard() {
   fi
 }
 
-sources_newer() {  # <app>
+sources_newer() {
   local d stale rc=0
   for d in "${inputs[@]}"; do
     [ -e "$repo/$d" ] || { echo "FAIL source $d is gone, so a stale build can hide; fix the list in $0"; rc=1; }
@@ -592,7 +574,7 @@ doctor_app() {
   fi
   read -r hash commit dirty origin <<< "$(identity_of "$installed")"
   if [ "$origin" = cache ]; then
-    cached=$(cache_root)/$commit/WorkoutTracker.app
+    cached=$(cached_app_path "$commit")
     if [ -d "$cached" ] && [ "$(app_hash "$cached")" = "$hash" ]; then
       echo "ok   installed $(identity_line "$hash" "$commit" "$dirty" "$origin"); $(worktree_build_note)"
       return 0
