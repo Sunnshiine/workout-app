@@ -362,5 +362,23 @@ $(tail -2 <<<"$out")" "1
 error        Sources/Gate/Gate.swift:2  compare  >= -> >  error: no space left on device
 1 mutant: 1 error"
 
+(cd "$repo/Sources/Gate" && ../../scripts/mutate.sh --filter GateTests --diff diffbase Gate.swift) >"$root/out" 2>"$root/err"
+expect "a --diff PATH is resolved from the current directory" "$? $(tail -2 "$root/out")" "0 killed       Sources/Gate/Gate.swift:2  compare  >= -> >  GateTests.testOpensAtFour +1
+1 mutant: 1 killed"
+
+mutate --diff diffbase Source/Gate
+expect "a --diff PATH that does not exist exits 2" "$status
+$out
+$err" "2
+
+Source/Gate: no such file or directory"
+
+mutate --diff diffbase .build/mutate
+expect "a --diff PATH that holds no file of the working tree exits 2" "$status
+$out
+$err" "2
+
+.build/mutate matches no file in your working tree (an ignored file cannot be mutated)"
+
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1

@@ -15,8 +15,8 @@ snapshot must pass first; then each mutant runs alone.
                  '67s/failed: /exploded: /'. An expression that changes nothing is an error.
   --diff BASE    generates mutants on the lines changed since merge-base(BASE, HEAD), uncommitted
                  edits included: true/false flips, comparison and &&/|| swaps, if-negation, guard
-                 forced to its early return, a number + 1. PATH limits the files (default every
-                 .swift under Sources/, App/, WorkoutShared/, WorkoutWidgets/).
+                 forced to its early return, a number + 1, in the .swift files under each PATH
+                 (from the current directory; default Sources App WorkoutShared WorkoutWidgets).
   --max N        runs at most N generated mutants (default 40); the summary counts the rest.
   --filter SEL   the tests that judge each mutant; repeatable. Without --sim: swift test --filter
                  SEL (default the whole suite). With --sim: unit, visual, ui, or a test-sim.sh
@@ -66,14 +66,31 @@ case $max in '' | *[!0-9]* | 0) die "--max takes a whole number above 0, not '$m
 [ -n "$base" ] || [ $# -ge 2 ] || { usage >&2; exit 2; }
 
 caller=$(git rev-parse --show-toplevel)
-if [ -z "$base" ]; then
-    caller_physical=$(cd "$caller" && pwd -P)
-    file_dir=$(cd "$(dirname "$1")" 2>/dev/null && pwd -P) || die "$1: no such directory"
-    case $file_dir/ in
-        "$caller_physical"/*) file=${file_dir#"$caller_physical"}/$(basename "$1"); file=${file#/} ;;
+caller_physical=$(cd "$caller" && pwd -P)
+# Sets rel to a path given from the current directory, made relative to the repo root.
+repo_path() {
+    local dir name=""
+    if [ -d "$1" ]; then
+        dir=$(cd "$1" && pwd -P)
+    else
+        dir=$(cd "$(dirname "$1")" 2>/dev/null && pwd -P) || die "$1: no such file or directory"
+        name=/$(basename "$1")
+    fi
+    case $dir/ in
+        "$caller_physical"/*) rel=${dir#"$caller_physical"}$name; rel=${rel#/}; rel=${rel:-.} ;;
         *) die "$1 is outside $caller" ;;
     esac
+}
+paths=()
+if [ -z "$base" ]; then
+    repo_path "$1"
+    file=$rel
     shift
+else
+    for path in "$@"; do
+        repo_path "$path"
+        paths+=("$rel")
+    done
 fi
 cd "$caller"
 
@@ -126,8 +143,12 @@ if [ -z "$base" ]; then
     done
 else
     merge_base=$(git merge-base "$base" HEAD 2>/dev/null) || die "no merge base between $base and HEAD"
-    [ $# -gt 0 ] || set -- Sources App WorkoutShared WorkoutWidgets
-    git diff --name-only --no-renames --diff-filter=AM "$merge_base" "$tree" -- "$@" >"$run/files"
+    for path in ${paths[@]+"${paths[@]}"}; do
+        git ls-tree -r --name-only "$tree" -- "$path" >"$run/files"
+        [ -s "$run/files" ] || die "$path matches no file in your working tree (an ignored file cannot be mutated)"
+    done
+    [ ${#paths[@]} -gt 0 ] || paths=(Sources App WorkoutShared WorkoutWidgets)
+    git diff --name-only --no-renames --diff-filter=AM "$merge_base" "$tree" -- "${paths[@]}" >"$run/files"
     : >"$run/generated.tsv"
     : >"$run/sources.tsv"
     k=0 changed=0
