@@ -258,7 +258,7 @@ identity_of() {
   if stamp_vouches "$1" "$hash"; then
     printf '%s %s %s %s\n' "$hash" "$(stamp_field "$stamp" commit)" "$(stamp_field "$stamp" dirty)" "$(stamp_field "$stamp" origin)"
   else
-    printf '%s - 0 -\n' "${hash:--}"
+    printf '%s - 0 -\n' "$hash"
   fi
 }
 
@@ -308,7 +308,7 @@ load_worktree_build() {
   built_hash=''
   built_commit=-
   built_dirty=0
-  if [ -z "$built" ] || [ ! -d "$built" ]; then built=; return 0; fi
+  [ -d "$built" ] || { built=; return 0; }
   read -r built_hash built_commit built_dirty _ <<< "$(identity_of "$built")"
 }
 
@@ -457,7 +457,7 @@ claim_for_install() {
 
 wait_for_boot() {
   # bootstatus exits 0 when a shutdown ends the boot.
-  without_sim_lock xcrun simctl bootstatus "$sim" -b >/dev/null && xcrun simctl list devices booted | grep -q "$sim" \
+  without_sim_lock xcrun simctl bootstatus "$sim" -b >/dev/null && booted \
     || { echo "simulator $sim did not boot" >&2; exit 70; }
 }
 

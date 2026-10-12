@@ -1482,15 +1482,14 @@ class SimulatorPick(unittest.TestCase):
                 {IOS_27_0["identifier"]: [device("iPhone 17 Pro", unavailable, available=False)]}, no_type),
         }
         for machine, (runtimes, devicetypes, devices, message) in machines.items():
-            for script, run in [("test-sim.sh", self.run_test_sim)]:
-                with self.subTest(machine=machine, script=script):
-                    self.machine(runtimes, devicetypes, devices)
-                    code, out, err, calls = run()
-                    self.assertEqual((code, out, err), (1, "", message))
-                    self.assertEqual(calls, ["xcrun simctl list devices available -j", "xcrun simctl list -j"],
-                                     "nothing is created, booted, locked, or built")
-                    self.assertFalse(Path("/tmp/workout-verify-%s" % unavailable).exists(),
-                                     "the unavailable one is never claimed")
+            with self.subTest(machine=machine):
+                self.machine(runtimes, devicetypes, devices)
+                code, out, err, calls = self.run_test_sim()
+                self.assertEqual((code, out, err), (1, "", message))
+                self.assertEqual(calls, ["xcrun simctl list devices available -j", "xcrun simctl list -j"],
+                                 "nothing is created, booted, locked, or built")
+                self.assertFalse(Path("/tmp/workout-verify-%s" % unavailable).exists(),
+                                 "the unavailable one is never claimed")
 
     def test_an_existing_iphone_17_pro_is_picked_booted_first_then_newest_and_nothing_is_created(self):
         old, new = pick_udid(0x2605), pick_udid(0x2700)
@@ -1830,6 +1829,16 @@ class AppCache(Lane):
     def worktrees(self):
         return [line for line in self.git("worktree", "list", "--porcelain").splitlines() if line.startswith("worktree ")]
 
+    def install_held_in_its_build(self, commit):
+        install = subprocess.Popen([str(self.verify_path), "install", commit], cwd=str(self.checkout),
+                                   env=self.environment({"STUB_BUILD_HOLD": "1"}), start_new_session=True,
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        for _ in range(100):
+            if (self.tmp / "building").exists() or install.poll() is not None:
+                break
+            time.sleep(0.1)
+        return install
+
     def test_install_builds_a_commit_once_and_every_later_install_reuses_it(self):
         self.assertEqual(self.verify("install", self.a[:7]),
                          (0, self.cached_build(b"v1\n", self.a) + "\n", self.building(self.a)))
@@ -1846,13 +1855,7 @@ class AppCache(Lane):
         self.assertEqual([call for call in self.calls() if call.startswith("xcodebuild")], [], "a hit builds nothing")
 
     def test_two_installs_of_one_commit_at_once_build_it_once(self):
-        first = subprocess.Popen([str(self.verify_path), "install", self.a], cwd=str(self.checkout),
-                                 env=self.environment({"STUB_BUILD_HOLD": "1"}), start_new_session=True,
-                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-        for _ in range(100):
-            if (self.tmp / "building").exists() or first.poll() is not None:
-                break
-            time.sleep(0.1)
+        first = self.install_held_in_its_build(self.a)
         self.assertTrue((self.tmp / "building").exists(), "the first install never reached its build")
         waited = self.tmp / "second.err"
         with open(str(waited), "w") as err:
@@ -1882,14 +1885,8 @@ class AppCache(Lane):
         self.assertEqual(self.verify("install", self.a), (0, self.cached_build(b"v1\n", self.a) + "\n", self.building(self.a)))
 
     def killed_build(self, commit):
-        install = subprocess.Popen([str(self.verify_path), "install", commit], cwd=str(self.checkout),
-                                   env=self.environment({"STUB_BUILD_HOLD": "1"}), start_new_session=True,
-                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        install = self.install_held_in_its_build(commit)
         self.addCleanup(install.communicate)
-        for _ in range(100):
-            if (self.tmp / "building").exists() or install.poll() is not None:
-                break
-            time.sleep(0.1)
         self.assertTrue((self.tmp / "building").exists(), "the install never reached its build")
         os.killpg(install.pid, signal.SIGKILL)
         install.wait()
@@ -1907,13 +1904,7 @@ class AppCache(Lane):
         self.killed_build(self.a)
         kept = self.cache / (self.a + ".build") / "src" / "kept"
         kept.touch()
-        install = subprocess.Popen([str(self.verify_path), "install", self.a], cwd=str(self.checkout),
-                                   env=self.environment({"STUB_BUILD_HOLD": "1"}), start_new_session=True,
-                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-        for _ in range(100):
-            if (self.tmp / "building").exists() or install.poll() is not None:
-                break
-            time.sleep(0.1)
+        install = self.install_held_in_its_build(self.a)
         self.assertTrue(kept.exists(), "the killed build's worktree and DerivedData are built on, not recreated")
         (self.tmp / "release").touch()
         out, _ = install.communicate(timeout=30)
