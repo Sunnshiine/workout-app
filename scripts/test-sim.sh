@@ -19,7 +19,7 @@ With no available iPhone 17 Pro it creates one on iOS 27.0 (scripts/ensure-simul
 Refuses (exit 75) while another test-sim.sh run or a verify run's app holds that simulator, and
 refuses (exit 2) a --sim UDID that simctl lists no available simulator for.
 A selection that includes WorkoutTrackerUITests first runs scripts/sim-keyboard.sh ensure, which
-prints one `keyboard:` line and reboots the simulator only when it changed its keyboard preference.
+turns off the keyboard preference that hides the software keyboard and prints one `keyboard:` line.
 Every test run writes a result bundle and prints its path. After a failed visual run,
 scripts/snapshot-diffs.sh <bundle> lists the reference, failure, and difference images.
 The last line, on every exit after this usage text, is
@@ -85,7 +85,7 @@ read -r sim state <<< "$picked"
 [ "$state" != Shutdown ] || xcrun simctl boot "$sim"
 claim_sim "$sim" "test-sim.sh run"
 case " ${targets[*]}" in
-  *" -only-testing:WorkoutTrackerUITests"*) without_sim_lock "$repo/scripts/sim-keyboard.sh" ensure "$sim" ;;
+  *" -only-testing:WorkoutTrackerUITests"*) "$repo/scripts/sim-keyboard.sh" ensure "$sim" ;;
 esac
 destination="platform=iOS Simulator,id=$sim"
 

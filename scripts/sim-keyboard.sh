@@ -4,19 +4,20 @@ set -euo pipefail
 usage() {
   cat >&2 <<'EOF'
 Usage: scripts/sim-keyboard.sh read|ensure <UDID>
-  read    prints the simulator's keyboard preferences as KEY=VALUE pairs (0, 1, or unset) and exits 0
-          when every one is 0, the state the keyboard UI tests need, else 1.
-  ensure  puts the preferences in that state and prints one `keyboard:` line. When they were wrong
-          it shuts the simulator down, writes its preferences plist, and boots it again if it was
-          booted. Exits 70 when the write does not read back.
-The caller holds the simulator (claim_sim in scripts/sim-lock.sh): ensure may reboot it.
-scripts/test-sim.sh runs ensure before every selection that includes WorkoutTrackerUITests (#700).
+  read    prints AutomaticMinimizationEnabled=<0|1|unset> from the simulator's
+          com.apple.keyboard.preferences, and exits 1 when it is 1: the simulator then hides the
+          software keyboard below the window and the keyboard UI tests fail.
+  ensure  sets it to 0 when it reads 1 and prints one `keyboard:` line. The next app launch shows
+          the software keyboard; no reboot is needed. Exits 70 when the write does not read back.
+An AXe key or type event into a focused text field sets it back to 1, so a verify session can leave
+it wrong. scripts/test-sim.sh runs ensure before every selection that includes WorkoutTrackerUITests
+(#700).
 EOF
   exit 2
 }
 
 domain=com.apple.keyboard.preferences
-keys="AutomaticMinimizationEnabled HardwareKeyboardLastSeen"
+key=AutomaticMinimizationEnabled
 
 device_state() {
   xcrun simctl list devices -j | UDID="$1" python3 -c '
@@ -27,65 +28,42 @@ print(next((d["state"] for ds in json.load(sys.stdin)["devices"].values() for d 
 
 plist() { echo "$HOME/Library/Developer/CoreSimulator/Devices/$1/data/Library/Preferences/$domain.plist"; }
 
-# A booted simulator's cfprefsd can hold a value its plist does not show yet, so read inside it.
+# The plist lags a booted simulator's cfprefsd by seconds, so a booted simulator is read inside it.
 read_key() {
   local value
-  if [ "$2" = Booted ]; then
-    value=$(xcrun simctl spawn "$1" defaults read "$domain" "$3" 2>/dev/null) || value="unset"
-  else
-    value=$(plutil -extract "$3" raw "$(plist "$1")" 2>/dev/null) || value="unset"
-  fi
+  case $2 in
+    Booted) value=$(xcrun simctl spawn "$1" defaults read "$domain" "$key" 2>/dev/null) || value="unset" ;;
+    Shutdown) value=$(plutil -extract "$key" raw "$(plist "$1")" 2>/dev/null) || value="unset" ;;
+    *) echo "keyboard: $1 is $2, not Booted or Shutdown" >&2; exit 69 ;;
+  esac
   case $value in true | 1) echo 1 ;; false | 0) echo 0 ;; *) echo unset ;; esac
 }
 
-read_prefs() {
-  local key pairs=
-  for key in $keys; do pairs="$pairs $key=$(read_key "$1" "$2" "$key")"; done
-  echo "${pairs# }"
-}
-
-ready() { case " $1 " in *=1\ * | *=unset\ *) return 1 ;; esac; }
-
-# A defaults write inside a booted simulator does not survive its reboot; the plist written while
-# it is shut down does.
-write_prefs() {
-  local file key
-  file=$(plist "$1")
-  mkdir -p "$(dirname "$file")"
-  [ -f "$file" ] || printf '<?xml version="1.0" encoding="UTF-8"?>\n<plist version="1.0"><dict/></plist>\n' > "$file"
-  for key in $keys; do plutil -replace "$key" -bool false "$file"; done
-}
-
-ensure() {
-  local state before after start note=
-  state=$(device_state "$1")
-  [ "$state" = Booted ] || [ "$state" = Shutdown ] || { echo "keyboard: $1 is $state, not Booted or Shutdown" >&2; exit 69; }
-  before=$(read_prefs "$1" "$state")
-  if ready "$before"; then
-    echo "keyboard: $1 has $before"
-    return
+write_key() {
+  if [ "$2" = Booted ]; then
+    xcrun simctl spawn "$1" defaults write "$domain" "$key" -bool false
+  else
+    plutil -replace "$key" -bool false "$(plist "$1")"
   fi
-  start=$(date +%s)
-  [ "$state" = Shutdown ] || xcrun simctl shutdown "$1"
-  write_prefs "$1"
-  if [ "$state" = Booted ]; then
-    xcrun simctl boot "$1"
-    xcrun simctl bootstatus "$1" -b > /dev/null
-    note=" and rebooted it in $(($(date +%s) - start)) s"
-  fi
-  after=$(read_prefs "$1" "$state")
-  ready "$after" || { echo "keyboard: wrote $(plist "$1") but $1 reads $after; scripts/sim-keyboard.sh no longer sticks (#700)" >&2; exit 70; }
-  echo "keyboard: $1 had $before, set $after$note"
 }
 
-[ $# = 2 ] || usage
+[ $# = 2 ] && { [ "$1" = read ] || [ "$1" = ensure ]; } || usage
 sim=$(printf %s "$2" | tr '[:lower:]' '[:upper:]')
+state=$(device_state "$sim")
+before=$(read_key "$sim" "$state")
 case $1 in
   read)
-    prefs=$(read_prefs "$sim" "$(device_state "$sim")")
-    echo "$prefs"
-    ready "$prefs"
+    echo "$key=$before"
+    [ "$before" != 1 ]
     ;;
-  ensure) ensure "$sim" ;;
-  *) usage ;;
+  ensure)
+    if [ "$before" != 1 ]; then
+      echo "keyboard: $sim has $key=$before"
+      exit
+    fi
+    write_key "$sim" "$state"
+    after=$(read_key "$sim" "$state")
+    [ "$after" = 0 ] || { echo "keyboard: wrote $key=0 on $sim but it reads $after (#700)" >&2; exit 70; }
+    echo "keyboard: $sim had $key=1, set it to 0"
+    ;;
 esac
