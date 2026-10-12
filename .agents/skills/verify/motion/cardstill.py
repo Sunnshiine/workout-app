@@ -233,6 +233,8 @@ class Side:
         return out
 
     def launch(self) -> None:
+        # launch refuses while this run's last app is alive, so a relaunch ends it first.
+        self.verify("stop")
         at = ("--at", self.at) if self.at else ()
         self.evidence = evidence_dir(self.must("launch", *at, "--animated", "session")) or self.evidence
 
