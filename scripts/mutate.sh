@@ -287,23 +287,23 @@ run_check() {
     local log=$1 build_only=${2:-} rc=0 test_log start=$SECONDS
     result="" tests=0 killers="" reason=""
     if [ -n "$sim" ]; then
-        with_timeout "$limit" "$scratch/scripts/test-sim.sh" --sim "$sim" "${selections[@]}" </dev/null >"$run/stdout" 2>"$run/stderr" || rc=$?
-        cat "$run/stdout" "$run/stderr" >"$log"
+        with_timeout "$limit" "$scratch/scripts/test-sim.sh" --sim "$sim" "${selections[@]}" </dev/null >"$log.stdout" 2>"$log.stderr" || rc=$?
+        cat "$log.stdout" "$log.stderr" >"$log"
         if [ $rc = 124 ]; then
             result=timeout reason="timed out after ${limit}s"
             return
         fi
         if [ $rc = 75 ]; then
             result=busy
-            reason=$(cat "$run/stderr")
+            reason=$(cat "$log.stderr")
             return
         fi
-        if [ $rc = 65 ] && grep -q '^build log: ' "$run/stderr"; then
+        if [ $rc = 65 ] && grep -q '^build log: ' "$log.stderr"; then
             result=nocompile
-            reason=$(read_log first-error "$run/stderr")
+            reason=$(read_log first-error "$log.stderr")
             return
         fi
-        test_log=$(sed -n 's/^log: //p' "$run/stdout" | tail -1)
+        test_log=$(sed -n 's/^log: //p' "$log.stdout" | tail -1)
         [ -z "$test_log" ] || [ ! -f "$test_log" ] || cp "$test_log" "$log"
     else
         (cd "$scratch" && with_timeout "$limit" swift build --build-tests) </dev/null >"$log" 2>&1 || rc=$?
@@ -312,8 +312,8 @@ run_check() {
             return
         elif [ $rc = 0 ]; then
             (cd "$scratch" && with_timeout $((limit - (SECONDS - start))) swift test --skip-build ${swift_filters[@]+"${swift_filters[@]}"}) \
-                </dev/null >>"$log" 2>"$run/stderr" || rc=$?
-            cat "$run/stderr" >>"$log"
+                </dev/null >>"$log" 2>"$log.stderr" || rc=$?
+            cat "$log.stderr" >>"$log"
         elif [ $rc != 124 ]; then
             result=nocompile
             reason=$(read_log first-error "$log")
@@ -332,7 +332,7 @@ run_check() {
         result=pass
     else
         result=error
-        reason="exit $rc: $(head -1 "$run/stderr")"
+        reason="exit $rc: $(head -1 "$log.stderr")"
     fi
 }
 
