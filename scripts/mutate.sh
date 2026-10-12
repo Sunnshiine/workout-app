@@ -17,7 +17,7 @@ snapshot must pass first; then each mutant runs alone.
                  edits included: true/false flips, comparison and &&/|| swaps, if-negation, guard
                  forced to its early return, a number + 1, in the .swift files under each PATH
                  (from the current directory; default Sources App WorkoutShared WorkoutWidgets).
-  --max N        runs at most N generated mutants (default 40); the summary counts the rest.
+  --max N        runs at most N generated mutants (default 40); unreachable ones never count.
   --filter SEL   the tests that judge each mutant; repeatable. Without --sim: swift test --filter
                  SEL (default the whole suite). With --sim: unit, visual, ui, or a test-sim.sh
                  TEST-ID; a bare suite name means WorkoutTrackerTests/SUITE (default unit).
@@ -32,10 +32,10 @@ Prints log:, mutants: (--diff), scratch:, and baseline: lines, then a row per mu
   nocompile    the compiler rejects the mutated file
   unreachable  swift test never compiles the file; rerun with --sim
   error        the runner failed without naming a failing test, or the build failed elsewhere
-Exits 0 when every mutant was killed (a generated nocompile does not count), 1 when any SURVIVED,
-was unreachable, hit an error, or was a hand-written nocompile, or none was killed, 2 on usage or
-a failing baseline,
-75 when every scratch tree or the simulator is busy (the rows so far print first).
+Exits 0 when every mutant was killed (a generated nocompile does not count); 1 when any SURVIVED,
+was unreachable, hit an error, or was a hand-written nocompile, when --max left any unrun, or when
+none was killed; 2 on usage or a failing baseline; 75 when every scratch tree or the simulator is
+busy (the rows so far print first).
 EOF
 }
 
@@ -141,6 +141,7 @@ if [ -z "$base" ]; then
         line=$(printf '%s\n' "$expr" | sed -nE 's/^([0-9]+).*/\1/p')
         printf 'm%s\t%s\t%s\tsed\t%s\t\n' "$n" "$file" "${line:--}" "$expr" >>"$run/mutants.tsv"
     done
+    runnable=$n
 else
     merge_base=$(git merge-base "$base" HEAD 2>/dev/null) || die "no merge base between $base and HEAD"
     for path in ${paths[@]+"${paths[@]}"}; do
@@ -149,7 +150,8 @@ else
     done
     [ ${#paths[@]} -gt 0 ] || paths=(Sources App WorkoutShared WorkoutWidgets)
     git diff --name-only --no-renames --diff-filter=AM "$merge_base" "$tree" -- "${paths[@]}" >"$run/files"
-    : >"$run/generated.tsv"
+    : >"$run/runnable.tsv"
+    : >"$run/unreachable.tsv"
     : >"$run/sources.tsv"
     k=0 changed=0
     while IFS= read -r f; do
@@ -160,15 +162,18 @@ else
         git diff -U0 --no-color "$merge_base" "$tree" -- "$f" |
             awk '/^@@/ { n = split(substr($3, 2), r, ","); count = n > 1 ? r[2] : 1; for (i = 0; i < count; i++) print r[1] + i }' >"$run/changed$k"
         changed=$((changed + $(wc -l <"$run/changed$k")))
-        awk -v changed="$run/changed$k" -v path="$f" -f "$script_dir/mutants.awk" "$run/source$k.swift" >>"$run/generated.tsv"
+        rows=$run/unreachable.tsv
+        ! reachable "$f" || rows=$run/runnable.tsv
+        awk -v changed="$run/changed$k" -v path="$f" -f "$script_dir/mutants.awk" "$run/source$k.swift" >>"$rows"
     done <"$run/files"
-    generated=$(($(wc -l <"$run/generated.tsv")))
-    [ "$generated" -le "$max" ] || dropped=$((generated - max))
+    runnable=$(($(wc -l <"$run/runnable.tsv")))
+    generated=$((runnable + $(wc -l <"$run/unreachable.tsv")))
+    [ "$runnable" -le "$max" ] || dropped=$((runnable - max)) runnable=$max
     echo "mutants: $generated on $(plural "$changed" "changed line") in $(plural $k file) since ${merge_base:0:8}"
     [ "$generated" -gt 0 ] || exit 0
     # mutants.awk prints the whole mutated line last, so it is read from the file, never through -v,
     # which would rewrite its backslashes.
-    head -n "$max" "$run/generated.tsv" | awk -F'\t' -v run="$run" '
+    { head -n "$max" "$run/runnable.tsv"; cat "$run/unreachable.tsv"; } | awk -F'\t' -v run="$run" '
         FNR == NR { source[$1] = $2; next }
         {
             id = "m" FNR
@@ -231,11 +236,6 @@ run_check() {
         reason="exit $rc: $(head -1 "$run/stderr")"
     fi
 }
-
-runnable=0
-while IFS=$'\t' read -r _ mfile _; do
-    ! reachable "$mfile" || runnable=$((runnable + 1))
-done <"$run/mutants.tsv"
 
 if [ $runnable -gt 0 ]; then
     scratch_claim "mutate.sh in $caller"
@@ -319,7 +319,7 @@ if [ -n "$busy" ]; then
     echo "$busy" >&2
     exit 75
 fi
-failed=$((survived + unreachable + errors))
+failed=$((survived + unreachable + errors + dropped))
 [ -n "$base" ] || failed=$((failed + nocompile))
 [ $total = 0 ] || [ $killed -gt 0 ] || failed=$((failed + 1))
 [ $failed = 0 ]

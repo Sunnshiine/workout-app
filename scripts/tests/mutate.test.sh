@@ -304,19 +304,19 @@ echo 'let wide = 1 >= 0' >>"$repo/Sources/Gate/Gate.swift"
 diffbase=$(git -C "$repo" rev-parse --short=8 diffbase)
 head8=$(git -C "$repo" rev-parse --short=8 HEAD)
 
-mutate --filter GateTests --max 5 --diff diffbase
-expect "--diff mutates the changed lines, uncommitted ones included, and --max drops the rest" "$status
+mutate --filter GateTests --max 4 --diff diffbase
+expect "--diff mutates the changed lines, uncommitted ones included; --max caps the runnable ones and lists the unreachable after" "$status
 $out" "1
 mutants: 6 on 6 changed lines in 3 files since $diffbase
 scratch: $pool/1 at $head8 + your uncommitted changes
 baseline: passed 2 tests (swift test --filter GateTests)
-unreachable  App/Auth.swift:3             bool     true -> false     swift test never compiles it; rerun with --sim UDID
 nocompile    Sources/Gate/Breaks.swift:1  const    breakme -> BREAK  Sources/Gate/Breaks.swift:1:5: error: cannot find 'BREAK' in scope
 killed       Sources/Gate/Gate.swift:2    compare  >= -> >           GateTests.testOpensAtFour +1
 SURVIVED     Sources/Gate/Gate.swift:6    bool     true -> false
 SURVIVED     Sources/Gate/Gate.swift:7    bool     true -> false
-5 mutants: 1 killed, 2 SURVIVED, 1 nocompile, 1 unreachable; 1 not run (--max 5)"
-expect "a generated mutant's line keeps its backslashes" "$(sed -n 7p "$logdir/m5.swift")" 'let pattern = "a\\d"; let strict = false'
+unreachable  App/Auth.swift:3             bool     true -> false     swift test never compiles it; rerun with --sim UDID
+5 mutants: 1 killed, 2 SURVIVED, 1 nocompile, 1 unreachable; 1 not run (--max 4)"
+expect "a generated mutant's line keeps its backslashes" "$(sed -n 7p "$logdir/m4.swift")" 'let pattern = "a\\d"; let strict = false'
 
 mutate --diff diffbase Sources/Gate/Breaks.swift
 expect "a run whose only mutant does not build killed nothing, so it fails" "$status
@@ -361,6 +361,12 @@ expect "a build that fails outside the mutated file is an error, never nocompile
 $(tail -2 <<<"$out")" "1
 error        Sources/Gate/Gate.swift:2  compare  >= -> >  error: no space left on device
 1 mutant: 1 error"
+
+mutate --filter GateTests --max 1 --diff diffbase
+expect "a run that --max left mutants unrun fails even when it killed every one it ran" "$status
+$(tail -2 <<<"$out")" "1
+killed       Sources/Gate/Gate.swift:2  compare  >= -> >  GateTests.testOpensAtFour +1
+1 mutant: 1 killed; 1 not run (--max 1)"
 
 (cd "$repo/Sources/Gate" && ../../scripts/mutate.sh --filter GateTests --diff diffbase Gate.swift) >"$root/out" 2>"$root/err"
 expect "a --diff PATH is resolved from the current directory" "$? $(tail -2 "$root/out")" "0 killed       Sources/Gate/Gate.swift:2  compare  >= -> >  GateTests.testOpensAtFour +1
