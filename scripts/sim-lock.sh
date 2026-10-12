@@ -83,10 +83,10 @@ try: print(int((time.time() - os.stat(sys.argv[1]).st_mtime) // 60))
 except FileNotFoundError: pass' "$1"
 }
 
-# With the simulator's flock held, decides what this claim may do with the verify run recorded on UDID.
-# A run in use refuses (75). With "take", an abandoned run or the claimer's own (VERIFY_RUN names it)
-# gives its app up; without it, nothing changes, so a claim that later fails admission leaves the run
-# as it found it.
+# With the simulator's flock held, decides whether this claim may have the app of the verify run
+# recorded on UDID: a run in use refuses (75); an abandoned run or the claimer's own (VERIFY_RUN names
+# it) gives its app up. Only "take", after admission, says so and acts. The record stays either way:
+# the next launch overwrites it, and the next install ends the app it names.
 settle_run() {
   local dir=/tmp/workout-verify-$1 pid run idle stop
   pid=$(cat "$dir/pid" 2>/dev/null) && is_fixture_launch "$pid" || return 0
@@ -108,7 +108,6 @@ settle_run() {
   if [ -f "$dir/args" ] && ! grep -q -- -UITEST_DISABLE_LIVE_ACTIVITIES "$dir/args"; then
     xcrun simctl uninstall "$1" com.sunnypatel.WorkoutTracker || echo "could not uninstall the app on $1; a Live Activity run $run started may still be on it" >&2
   fi
-  rm -f "$dir/pid" "$dir/args"
 }
 
 claim_sim() {
@@ -163,10 +162,11 @@ load_clear() {
   return 1
 }
 
-# Admits a claim on UDID while the load and the booted count leave room, and boots UDID if it is shut
-# down. One claim at a time decides and boots, so the next one counts the simulator this one booted.
+# Admits a claim on UDID while the load leaves room, and while the booted count leaves room for UDID
+# when it is shut down; then boots it. One claim at a time decides and boots, so the next one counts the
+# simulator this one booted.
 host_clear() {
-  local listing counts others own rc=1
+  local listing counts others own rc=1 err=$host_lock_dir/admit.err
   load_clear "$WORKOUT_LOAD_LIMIT" || return 1
   exec 7>>"$host_lock_dir/admit"
   if ! try_flock 7 LOCK_EX 20; then
@@ -174,25 +174,36 @@ host_clear() {
     busy_reason="another claim is being admitted (lsof $host_lock_dir/admit lists it)"
     return 1
   fi
-  if ! listing=$(xcrun simctl list devices available -j 2>&1); then
-    busy_reason="xcrun simctl list devices failed: $listing"
+  if ! listing=$(xcrun simctl list devices available -j 2>"$err"); then
+    busy_reason="xcrun simctl list devices failed: $(cat "$err")"
   elif ! counts=$(printf %s "$listing" | UDID="$1" python3 -c '
 import json, os, sys
 devices = [d for ds in json.load(sys.stdin)["devices"].values() for d in ds]
 mine = [d.get("state") for d in devices if d["udid"] == os.environ["UDID"]]
-print(sum(d.get("state") in ("Booted", "Booting") and d["udid"] != os.environ["UDID"] for d in devices), *mine[:1])' 2>&1); then
-    busy_reason="xcrun simctl list devices printed no device list: $counts"
+print(sum(d.get("state") in ("Booted", "Booting") and d["udid"] != os.environ["UDID"] for d in devices), *mine[:1])' 2>"$err"); then
+    busy_reason="xcrun simctl list devices printed no device list: $(tail -1 "$err")"
   else
     read -r others own <<< "$counts"
-    if [ "$others" -ge "$WORKOUT_SIM_CAP" ]; then
+    if [ "${own:-}" != Shutdown ]; then
+      rc=0
+    elif [ "$others" -ge "$WORKOUT_SIM_CAP" ]; then
       busy_reason="$others other simulators are booted, at the cap of $WORKOUT_SIM_CAP (WORKOUT_SIM_CAP)"
     else
-      [ "${own:-}" != Shutdown ] || xcrun simctl boot "$1" 7>&- 9>&- || exit
+      boot_sim "$1"
       rc=0
     fi
   fi
   exec 7>&-
   return $rc
+}
+
+# Boots UDID without passing on the admit or simulator lock, so a killed claimer frees both at once.
+boot_sim() {
+  local err
+  err=$(xcrun simctl boot "$1" 2>&1 7>&- 9>&-) && return
+  xcrun simctl list devices booted | grep -q "$1" && return
+  echo "could not boot $1: $err" >&6
+  exit 70
 }
 
 take_build_slot() {
