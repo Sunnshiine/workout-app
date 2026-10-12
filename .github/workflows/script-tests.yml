@@ -1,9 +1,5 @@
 name: Script tests
 
-# Every test of the repo's own tooling, so a script change cannot land with its test unrun. The bash
-# tests are found by name rather than listed, so a new `*.test.sh` or `*-test.sh` under scripts/
-# runs here without an edit to this file. Some also run in the workflow that owns their subject
-# (lint, workflow-lint, skill-links); this job is the one place they all run.
 on:
   pull_request:
     paths:
@@ -32,7 +28,6 @@ concurrency:
 
 jobs:
   script-tests:
-    # macOS, because the scripts target the bash 3.2 and BSD tools an agent's Mac has.
     runs-on: xcode-27
     timeout-minutes: 15
     steps:
