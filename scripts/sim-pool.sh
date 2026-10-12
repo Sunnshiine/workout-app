@@ -17,7 +17,9 @@ scripts/lane.sh calls it; call it directly to inspect or repair the pool.
                  directory's lock throughout, so no run can claim the simulator meanwhile. A missing
                  device is a note on stderr and exit 0.
   list           TSV, header UDID STATE ROLE NAME, one row per workout-* device (role template, building,
-                 stale-template, or lane), then `booted: N of cap M` counting every device on the host.
+                 newer-template, stale-template, or lane), then `booted: N of cap M` counting every
+                 device on the host. A newer-template belongs to a newer copy of this script, which
+                 this one never deletes.
 
 A lane name matches ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$. stdout carries only the output above; progress
 goes to stderr. create holds the pool lock, ${WORKOUT_HOST_LOCK_DIR:-/tmp/workout-host-locks}/
@@ -37,8 +39,13 @@ EOF
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "$here/sim-lock.sh"
 
-template=workout-template-v1
+version=1
+template=workout-template-v$version
 building=$template-building
+# The recipe version a template's name carries, or -1 for a name that carries none.
+version_of='function version_of(name, n) {
+  if (name !~ /^workout-template-v[0-9]+(-building)?$/) return -1
+  n = substr(name, 19); sub(/-building$/, "", n); return n + 0 }'
 lock_dir=${WORKOUT_HOST_LOCK_DIR:-/tmp/workout-host-locks}
 admit_wait=${WORKOUT_ADMIT_WAIT:-540}
 cap=${WORKOUT_SIM_CAP:-6}
@@ -172,7 +179,8 @@ ensure_template() {
   shut_down "$udid"
   simctl rename "$udid" "$template" >&2 || die 70 "could not rename $udid to $template"
   load_devices
-  for doomed in $(pick -v t="$template" 'index($3, "workout-template-") == 1 && $3 != t && $2 == "Shutdown" { print $1 }'); do
+  for doomed in $(pick -v v="$version" "$version_of"'
+    $2 == "Shutdown" && $3 !~ /-building$/ && version_of($3) >= 0 && version_of($3) < v { print $1 }'); do
     echo "sim-pool: deleting $doomed, a template of an older recipe" >&2
     remove_device "$doomed"
   done
@@ -239,10 +247,10 @@ boot_lane() {
 list_pool() {
   load_devices
   printf 'UDID\tSTATE\tROLE\tNAME\n'
-  pick -v OFS='\t' -v t="$template" -v b="$building" '
+  pick -v OFS='\t' -v t="$template" -v b="$building" -v v="$version" "$version_of"'
     $3 == t { role = "template" }
     $3 == b { role = "building" }
-    $3 != t && $3 != b && index($3, "workout-template-") == 1 { role = "stale-template" }
+    $3 != t && $3 != b && index($3, "workout-template-") == 1 { role = version_of($3) > v ? "newer-template" : "stale-template" }
     index($3, "workout-lane-") == 1 { role = "lane" }
     role != "" { print $1, $2, role, $3 }
     { role = "" }' | sort -t "$(printf '\t')" -k4,4
