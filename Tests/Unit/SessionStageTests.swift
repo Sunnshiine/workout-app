@@ -576,6 +576,17 @@ extension SessionStageTests {
         #expect(queue.rows.map(\.pairingRole) == [.source, .eligibleTarget, .ineligibleTarget])
     }
 
+    @Test func thePairingSourceIsTheSourceRowOnlyWhilePairing() {
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.pending])
+        let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending])
+
+        let selecting = makeStage([squat, bench], pairable: [0, 1], pairingMode: .selecting(sourceOrder: 1)).queue
+        let inactive = makeStage([squat, bench], pairable: [0, 1]).queue
+
+        #expect(selecting.pairingSource?.id == "exercise-1")
+        #expect(inactive.pairingSource == nil)
+    }
+
     @Test func confirmingMarksTheConfirmingTarget() {
         let squat = makeExercise(name: "Squat", order: 0, setStates: [.pending])
         let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending])

@@ -160,6 +160,10 @@ struct SessionQueue: Equatable {
     var supersetSource: Row? {
         rows.first { $0.isOnStage && $0.kind == .pairableExercise }
     }
+
+    var pairingSource: Row? {
+        rows.first { $0.pairingRole == .source }
+    }
 }
 
 enum SessionStageComposition: Equatable, Sendable {

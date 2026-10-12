@@ -256,14 +256,10 @@ struct SessionQueueSheet: View {
                 .accessibilityLabel("Selected for Superset")
         case .eligibleTarget:
             SupersetStemGlyph(form: .bud, color: palette.actionInk)
-                .accessibilityLabel("Superset with \(pairingSourceTitle)")
+                .accessibilityLabel(queue.pairingSource.map { "Superset with \($0.title)" } ?? "Superset")
         case .none, .ineligibleTarget:
             EmptyView()
         }
-    }
-
-    private var pairingSourceTitle: String {
-        queue.rows.first { $0.pairingRole == .source }?.title ?? ""
     }
 
     // MARK: - Row label
