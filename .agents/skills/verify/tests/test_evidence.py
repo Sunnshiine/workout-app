@@ -2934,6 +2934,34 @@ class Record(Lane):
             % (self.sim, other.pid, self.sim, self.verify_path))))
         self.assertEqual(self.calls(), [])
 
+    def test_a_take_of_an_animated_launch_refused_for_another_runs_app_hints_launch_animated(self):
+        app = self.own_the_app("owner-1")
+        for drive, hint in [(["launch", "--animated", "session"], "launch --animated <fixture>"),
+                            (["launch", "--at", "abc123", "--animated", "session"], "launch --animated <fixture>"),
+                            (["launch", "session"], "launch <fixture>")]:
+            with self.subTest(drive=drive):
+                self.assertEqual(self.record("--", *drive), (75, "", (
+                    "the app on {sim} belongs to run owner-1 (pid {pid}), not to lane-1, so this would drive another "
+                    "run's app; launch yours first: SIM={sim} VERIFY_RUN=lane-1 {verify} {hint}\n"
+                ).format(sim=self.sim, pid=app.pid, verify=self.verify_path, hint=hint)))
+                self.assertEqual(self.calls(), [])
+
+    def test_a_take_of_an_animated_launch_refused_after_a_refused_relaunch_hints_launch_animated(self):
+        self.verify("install", self.a)
+        self.own_the_app("ui12")
+        refusal = "app on %s unchanged: %s; this launch wanted %s" % (
+            self.sim, self.cached_build(b"v1\n", self.a), self.worktree_build(b"v2\n", self.b))
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="ui12")[0], 75)
+        for drive, hint in [(["launch", "--animated", "session"], "launch --animated <fixture>"),
+                            (["tap", "-x", "5", "-y", "6"], "launch <fixture>")]:
+            with self.subTest(drive=drive):
+                self.assertEqual(self.record("--", *drive, VERIFY_RUN="ui12"), (75, "", (
+                    "the last launch of run ui12 on {sim} was refused, so this would drive whatever that refusal left "
+                    "running ({refusal}); stop it, then launch again: SIM={sim} VERIFY_RUN=ui12 {verify} stop, then "
+                    "SIM={sim} VERIFY_RUN=ui12 {verify} {hint}\n"
+                ).format(sim=self.sim, refusal=refusal, verify=self.verify_path, hint=hint)))
+                self.assertEqual(self.calls(), [])
+
     def test_a_recorder_that_never_starts_capturing_drives_nothing_and_leaves_nothing(self):
         self.launch()
         self.assertEqual(self.record("--", "tap", "-x", "5", "-y", "6", STUB_NEVER_STARTS="1", VERIFY_RECORD_START="1"),

@@ -604,7 +604,7 @@ refuse_another_runs_app() {
   [ "$owner" != "$VERIFY_RUN" ] || return 0
   pid=$(cat "$state_dir/pid" 2>/dev/null) || return 0
   is_fixture_launch "$pid" || return 0
-  echo "the app on $sim belongs to run $owner (pid $pid), not to $VERIFY_RUN, so this would drive another run's app; launch yours first: SIM=$sim VERIFY_RUN=$VERIFY_RUN $0 launch <fixture>" >&2
+  echo "the app on $sim belongs to run $owner (pid $pid), not to $VERIFY_RUN, so this would drive another run's app; launch yours first: SIM=$sim VERIFY_RUN=$VERIFY_RUN $0 $relaunch" >&2
   exit 75
 }
 
@@ -615,7 +615,7 @@ require_own_app() {
   run=$(current_run)
   [ -n "$run" ] && [ -f "$state_dir/refused.$run" ] || return 0
   again="SIM=$sim${VERIFY_RUN:+ VERIFY_RUN=$run} $0"
-  echo "the last launch of run $run on $sim was refused, so this would drive whatever that refusal left running ($(cat "$state_dir/refused.$run")); stop it, then launch again: $again stop, then $again launch <fixture>" >&2
+  echo "the last launch of run $run on $sim was refused, so this would drive whatever that refusal left running ($(cat "$state_dir/refused.$run")); stop it, then launch again: $again stop, then $again $relaunch" >&2
   exit 75
 }
 
@@ -713,6 +713,7 @@ doctor_app() {
 cmd=${1:-}
 [ -n "$cmd" ] || usage
 shift
+relaunch="launch <fixture>"
 [ -z "${VERIFY_RUN:-}" ] || valid_name "$VERIFY_RUN"
 
 case $cmd in
@@ -975,6 +976,7 @@ case $cmd in
     resolve_sim
     command -v ffprobe >/dev/null || { echo "record reads its video with ffprobe; install it: brew install ffmpeg" >&2; exit 70; }
     load=$(admit_load "$limit" "$load_wait")
+    case " $* " in " launch "*"--animated "*) relaunch="launch --animated <fixture>" ;; esac
     require_sim_free "$sim"; require_own_app; ensure_axe
     dir=$(run_dir)
     pending=$dir/.pending
