@@ -16,16 +16,18 @@ changes, so a still screen is one frame and a window is a span of time: the fram
 every frame after it, and the still screen up to the moment the recorder stopped.
 
 Window. It opens at --from S, else at the drive's start, else at 0. --from on a launch take skips the
-fade rules below, so a --from inside the fade reads the fade as motion. A launch take's window opens where
-iOS's fade-in from black ends; any later frame that changes three quarters of the screen makes the take
-INVALID. The fade is the first run, after the drive began, of frames that each changed at least three
-quarters of the screen from the frame before (24 x 12 tiles, each changed by more than 0.5 of mean
-luminance), whose first frame follows a frame darker than mean luminance 2.0, and it ends at the run's
-last such frame. A frame that changed no tile does not end the run, because recorded fades repeat a frame
-mid-run. Every recorded launch, animations on or off, fades the springboard out over the whole screen,
-holds black, then fades the app in from black, and no app motion recorded changed more than 0.69 of the
-screen. The window is INVALID when:
-  - a launch take has no such run (rule ramp), because then the window holds the system's fade;
+fade rules below, so a --from inside the fade reads the fade as motion. A launch take's window opens at the
+end of iOS's fade-in, the full-screen frames in the 0.5 s after the screen leaves black; any later frame
+that changes three quarters of the screen makes the take INVALID. The fade starts at the first frame after
+the drive began that changed at least three quarters of the screen from the frame before (24 x 12 tiles,
+each changed by more than 0.5 of mean luminance) and follows a frame darker than mean luminance 2.0. The
+window opens at the last frame within 0.5 s of that start that changed three quarters of the screen;
+frames between that changed less, as a repeated frame or the app's own motion does, are part of the fade.
+Every recorded launch, animations on or off, fades the springboard out over the whole screen, holds black,
+then fades the app in from black. Over 22 launch takes every full-screen frame of the fade-in fell within
+0.33 s of its start, and no app motion recorded changed more than 0.74 of the screen. The window is
+INVALID when:
+  - a launch take has no frame where such a fade starts (rule ramp), because then the window holds the system's fade;
   - a frame after a launch's fade changed three quarters of the screen (rule screen), as a dim does,
     because the card cannot be read through it;
   - it watched less than 1.5 s, from opening to the recorder's stop (rule window), as when the fade ended
@@ -94,8 +96,7 @@ It cannot see:
   - a change inside the box under 0.5 of mean luminance, or anything outside the settled box;
   - two cuts, or a one-frame flash, in one window: they read as one look=changed spanning both;
   - a card that pops in with no animation inside the window: it reads look=cut;
-  - a full-screen change after a launch with no frame between it and iOS's fade that changed only part
-    of the screen: it joins the fade's run and reads as its end.
+  - an app change over three quarters of the screen within 0.5 s of the fade's start: it reads as the fade.
 
 Exit 0 measured, 1 no card (`no card: <why>` on stderr), 3 measured but INVALID or animations not on (a
 banner line first), 2 usage, no readable NAME.take with a screen_pt= and a card_pt=, or pixels per point
@@ -130,6 +131,7 @@ GRID = (24, 12)
 TILE_LUM = 0.5
 RAMP_FRAC = 0.75
 BLACK_LUM = 2.0
+FADE_S = 0.5
 SOLID_CONTRAST = 0.75
 LOOK_LUM = 0.5
 MIN_WINDOW_S = 1.5
@@ -361,25 +363,15 @@ def screen_changes(samples: Sequence[Sample]) -> List[Optional[float]]:
     return [None] + [changed_fraction(a.cells, b.cells) for a, b in zip(samples, samples[1:])]
 
 
-def full_screen_runs(changes: Sequence[Optional[float]], first: int) -> Iterator[Tuple[int, int]]:
-    """(first, last) frame of each run of frames that changed three quarters of the screen. A frame that changed
-    no tile does not end a run, because recorded fades repeat a frame mid-run."""
-    start = last = None
-    for i in range(first, len(changes)):
-        if changes[i] >= RAMP_FRAC:
-            start = i if start is None else start
-            last = i
-        elif changes[i] > 0 and start is not None:
-            yield start, last
-            start = None
-    if start is not None:
-        yield start, last
-
-
 def last_ramp_frame(samples: Sequence[Sample], after: float) -> Optional[int]:
+    changes = screen_changes(samples)
     first = next((i for i in range(1, len(samples)) if samples[i].t >= after), len(samples))
-    return next((last for start, last in full_screen_runs(screen_changes(samples), first)
-                 if samples[start - 1].cells.mean() < BLACK_LUM), None)
+    start = next((i for i in range(first, len(samples))
+                  if changes[i] >= RAMP_FRAC and samples[i - 1].cells.mean() < BLACK_LUM), None)
+    if start is None:
+        return None
+    return max(i for i in range(start, len(samples))
+               if changes[i] >= RAMP_FRAC and samples[i].t <= samples[start].t + FADE_S)
 
 
 def _showing(samples: Sequence[Sample], at: float) -> int:

@@ -276,9 +276,10 @@ frame, and the box sits within 8 pt of the `card_pt=` frame `record` stamps from
 `edges=partial`; or something moved on a take INVALID for any other reason, such as a launch with no
 fade from black. A take whose tree held no `active-set-card`, or whose box is not where the tree put it,
 exits 1 with `no card:` and its reason. A label that swaps in one frame reads `look=cut` and stays still.
-A launch take's window opens where iOS's fade-in from black ends; any later frame that changes three
-quarters of the screen makes the take INVALID. So first-appear motion that ends inside that fade is
-invisible to a launch take. From the fade's end the window must watch 1.5 s or the take is INVALID. A launch with the default 2 s `--tail`
+A launch take's window opens at the end of iOS's fade-in, the full-screen frames in the 0.5 s after the
+screen leaves black; any later frame that changes three quarters of the screen makes the take INVALID. So
+first-appear motion that ends inside that fade is invisible to a launch take. From the fade's end the
+window must watch 1.5 s or the take is INVALID. A launch with the default 2 s `--tail`
 watches 2.24 s or more. A build whose card slides up 300 pt on first appear (5e3a0d12) read
 `worst_edge_range=127.7` with `edges=partial`, and `look_ms=443`, `still=no`. Without `--animated` the
 same build read `box=still look=still` and `still=unknown`, because animations off hides motion. A card
