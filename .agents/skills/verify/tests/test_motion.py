@@ -652,6 +652,12 @@ class Detect(unittest.TestCase):
         lum[355, 32:372] = PAPER
         self.assertEqual((cardframe.detect(lum, 2.0).top, cardframe.detect(lum, 2.0).bottom), (178.0, 300.0))
 
+    def test_a_run_whose_middle_row_is_paper_across_the_screen_is_no_card(self):
+        lum = self.paper()
+        lum[200:600, 32:372] = CARD
+        lum[396:404, :] = PAPER
+        self.assertIsNone(cardframe.detect(lum, 2.0))
+
     def test_a_card_over_the_paper_column_is_invisible(self):
         lum = self.paper()
         lum[200:520, 0:372] = CARD

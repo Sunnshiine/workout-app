@@ -27,11 +27,12 @@ A take is also INVALID for the stamp's own reasons (load, recorder, coverage; se
 
 Box. The card is the longest vertical run, at least 120 pt with gaps up to 8 pt merged, where the column
 at --x pt is brighter than the paper column at --ref pt by 4.0; left and right come from a row scan at the
-run's middle. The settled card is the window's last. The box is read from the first solid card: the first
-detection with at least three quarters of the settled card's contrast. Detections before it are faint
-and their edges are not read, because a faint card reads short and narrow. edges=partial when the first
-solid card is not the window's first frame. After it every detection counts, at any contrast, and a frame
-without the card is lost.
+run's middle, and a run whose middle row shows nothing brighter than the paper is no card. The settled
+card is the window's last. The box is read from the first solid card: the first detection with at least
+three quarters of the settled card's contrast. Detections before it are faint and their edges are not
+read, because a faint card reads short and narrow. edges=partial when the first solid card is not the
+window's first frame. After it every detection counts, at any contrast, and a frame without the card is
+lost.
 
 Look. In 4 pt cells wholly inside the settled card's box, d is each window frame's mean luminance
 difference from the window's last frame, so the last frame's d is 0 and look_peak is the largest d. The
@@ -275,13 +276,13 @@ def detect(lum: np.ndarray, px_per_pt: float, x_pt: float = 28, ref_pt: float = 
     middle = (start + end) // 2
     row = lum[max(0, middle - 2):middle + 3].mean(axis=0)
     on = np.where(row - row[paper_band].mean() > THRESHOLD)[0]
-    left = on[0] / px_per_pt if len(on) else math.nan
-    right = (on[-1] + 1) / px_per_pt if len(on) else math.nan
+    if not len(on):
+        return None
     return Card(
         top=start / px_per_pt,
         bottom=(end + 1) / px_per_pt,
-        left=float(left),
-        right=float(right),
+        left=float(on[0] / px_per_pt),
+        right=float((on[-1] + 1) / px_per_pt),
         contrast=float(contrast[start:end + 1].mean()),
     )
 
