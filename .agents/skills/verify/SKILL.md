@@ -15,6 +15,7 @@ and the matching feature file before driving; the map lists every entry point a 
 ## Launch
 
 ```bash
+export SIM=$(xcrun simctl create lane-<name> "iPhone 17 Pro" com.apple.CoreSimulator.SimRuntime.iOS-27-0)   # once
 .agents/skills/verify/verify.sh build              # xcodebuild build, about 10 s warm, 2 min cold
 .agents/skills/verify/verify.sh launch session     # install + launch into a fixture, returns when the tree answers
 ```
@@ -32,11 +33,44 @@ sits over the top of every later shot on the shared simulator.
 `VERIFY_LIVE_ACTIVITIES=1 verify.sh launch session` drops that one flag, so the rest timer and the
 Live Activity Lab work and every shot of that run may carry the activity overlay. `stop` uninstalls
 such a run, which is what ends the activity. Drive it from `features/live-activity.md`. A
-relaunch is `stop` then `launch`, and it resets all state. The simulator is the one
-`SIM=<udid>` names, else the booted iPhone 17 Pro, else the newest one. With no iPhone 17 Pro,
-`build` and `launch` create one on iOS 27.0 with `scripts/ensure-simulator.sh`, and every other
-command that looks one up exits 1. `launch` boots it when it is shut down and waits for the boot to
-finish before it installs the app.
+relaunch is `stop` then `launch`, and it resets all state. Every command that touches a simulator
+needs `SIM`, the UDID of your own simulator. Without it, the command exits 2 and prints the
+`simctl create` line above. There is no default, because the stock iPhone 17 Pro is shared (issue
+660). `launch` boots the simulator when it is shut down and waits for the boot to finish before it
+installs the app.
+
+`launch` prints the app it installed:
+
+```
+launched session as pid 4121 on 25A4832B-C8F9-455B-8439-1E40358BDCC0
+app 804e750cad00 commit ea5af074-dirty (this worktree's build)
+evidence /Users/me/workout-app/.claude/work/evidence/env-verify-identity/issue-536
+```
+
+The hash is the sha256 of `WorkoutTracker.debug.dylib`, the code a Debug build runs. Two apps are
+the same app when their hashes match. `build` stamps the commit into the bundle, with `-dirty` when
+`App/`, `Sources/WorkoutTracker/`, `WorkoutShared/`, `WorkoutWidgets/`, the project, or the package
+files had uncommitted changes. An app whose bytes no stamp describes reads `commit unknown (not
+built by verify.sh)`. When a lock or boot refusal leaves another app installed, the refusal ends
+with `app on <udid> unchanged:`, the app still there, and the app the launch wanted. When the
+installed bytes differ from the build, `launch` exits 70 and names both hashes.
+
+### Control and head on one simulator
+
+```bash
+verify.sh install 9a72f8dc                                     # the control: built once into the app cache, then installed
+VERIFY_RUN=ui12-control verify.sh launch --at 9a72f8dc session  # prints app ... commit 9a72f8dc (cached build)
+verify.sh stop
+verify.sh install                                              # the head: this worktree's build, replacing the control
+VERIFY_RUN=ui12-head verify.sh launch session
+```
+
+`install <commit>` builds that commit in a scratch worktree the first time any worktree asks, and
+every later `install` or `launch --at` of it reuses the build. Two lanes that ask at once build it
+once, and the second says it is waiting. A bare `launch` refuses (exit 65) to replace an installed
+cached build, so a head phase that skipped `install` stops instead of running the control. The cache
+is `<main checkout>/.claude/work/app-cache/<sha>/`. Nothing prunes it; remove an entry by hand, and
+it costs one rebuild.
 
 For the CLI there is no server. Build once, then every drive gets its own home:
 
@@ -53,8 +87,12 @@ export WORKOUT_HOME=$(mktemp -d) && .build/debug/workout init --scenario fresh-b
 
 Read-only. Run it after every `launch`, and again whenever a tap does nothing or the tree looks
 wrong. Every line reads `ok` or `FAIL`, and any `FAIL` exits non-zero, so `doctor && <drive>` is a
-safe chain. The commonest `FAIL` is sources newer than the app, which means build before trusting
-anything. An empty tree on a healthy pid means the simulator's accessibility bridge is wedged;
+safe chain. The installed-app line hashes the app on the simulator. It reads `ok` when that app is
+this worktree's build, or a cached build that still matches its cache entry. Otherwise it names
+both apps, as in `FAIL installed app 804e750cad00 commit ea5af074 (an earlier build of this
+worktree) is not this worktree's build, app 033a3ca3fcdb commit ea5af074-dirty (run: verify.sh
+install)`. For this worktree's build it also fails sources newer than the app, which means build
+before trusting anything. An empty tree on a healthy pid means the simulator's accessibility bridge is wedged;
 `xcrun simctl shutdown <udid>` then relaunch.
 
 ## Drive
@@ -73,6 +111,11 @@ anything. An empty tree on a healthy pid means the simulator's accessibility bri
 
 `tree` prints only named elements and says on stderr how many it hid. An element with neither an
 identifier nor a label still exists; `tree --all` prints it with empty id and label columns.
+
+Any AXe keyboard event, `type` included, hides the software keyboard in the running app until its
+next launch (issue 700). After `type` and after `axe key`, `key-sequence`, `key-combo`, or `type`,
+`verify.sh` resets the simulator preference that would keep it hidden after that launch too, says
+so on stderr, and exits with AXe's status.
 
 Target elements by accessibility identifier (`tap --id`) first, by label second, by coordinates
 only when the element has neither. Alert buttons have labels but no identifiers. `tap --id` polls
@@ -163,7 +206,11 @@ VERIFY_RUN=issue-536 .agents/skills/verify/verify.sh launch session   # names th
 .agents/skills/verify/verify.sh crop 02-after-log rest-pill           # the pill at the shot's own pixels; or crop NAME X Y W H
 ```
 
-Artifacts land in `.build/verify/evidence/<run>/` and survive `stop`. `launch` names the run from
+Artifacts land in `<main checkout>/.claude/work/evidence/<branch>/<run>/`, so they survive `stop`
+and the removal of the worktree. Any character of the branch outside letters, digits, `.`, `_`,
+and `-` becomes `-`, and a detached worktree uses `detached-<directory>`. `VERIFY_EVIDENCE=<dir>`
+puts runs in `<dir>/<run>/` instead. Each `launch` appends its app line to the run's
+`launches.txt`, so the evidence names its binary after the simulator is gone. `launch` names the run from
 `VERIFY_RUN` (default a timestamp), and every later command finds it without being told. A bare
 `launch` starts a new run, so give the same `VERIFY_RUN` to every `launch` of one task. A proof
 captures the action and the resulting state, not just the final screen. Shoot before, drive, shoot
@@ -210,7 +257,7 @@ the app rather than to its process and uninstalling is the only lever on one fro
 the uninstall would remove the app under test. `stop` never shuts down or erases the simulator, which
 other agents and `scripts/test-sim.sh` share. Evidence is
 never removed, and it keeps the run name, so `diff` still answers after the app is gone. A `burst`
-keeps its twelve full-size frames, about 47 MB under the git-ignored `.build/`. Delete a run's
+keeps its twelve full-size frames, about 47 MB under the git-ignored `.claude/work/`. Delete a run's
 directory yourself once its proof is filed.
 
 ## Isolation
@@ -220,10 +267,12 @@ tool launched is alive on the same simulator, yours included; run `stop` or pick
 `stop` refuses the same way when it would act on another run's app, so a
 command that lands on the wrong simulator cannot end another agent's drive (issue 660). It can
 only refuse what it can tell apart, and that cuts both ways. An unset `VERIFY_RUN` gives it
-nothing to compare against, so it steps aside, and an unset `SIM` resolves onto the one shared
-`iPhone 17 Pro` no matter who is driving it. Your drive is protected from a sibling only when the
-sibling names its own run. Set both on every call whenever another agent might be on this
-machine. `launch`, `shot`, and `burst` refuse (exit 75) while a `scripts/test-sim.sh` run holds the
+nothing to compare against, so it steps aside. `SIM` has no default, so no command lands on a
+shared simulator by accident. With `VERIFY_RUN` set, `tap`, `hold`, `type`, `swipe`, `shot`,
+`burst`, and `axe` refuse (exit 75) while another run's app is alive on the simulator, so a driver
+that missed its own launch's refusal cannot drive or film that app. Your drive is protected from a
+sibling only when the sibling names its own run. Set both on every call whenever another agent
+might be on this machine. `launch`, `shot`, and `burst` refuse (exit 75) while a `scripts/test-sim.sh` run holds the
 simulator. `test-sim.sh` refuses the same way while a run's app is alive on it. Each refusal names
 the holder and its pid. The lock sees only `scripts/test-sim.sh`, so an XcodeBuildMCP `test_sim` or
 a raw `xcodebuild test` on the same UDID is invisible to it. Before a `launch` when another agent
