@@ -14,6 +14,7 @@ struct SessionQueueSheet: View {
     let coordinator: SessionCoordinator
     @Environment(\.dismiss) private var dismiss
     @Environment(\.themePalette) private var palette
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var movesOnWhenDismissed = false
     @State private var isScrolled = false
 
@@ -29,7 +30,7 @@ struct SessionQueueSheet: View {
             rows
         }
         .animation(.easeInOut(duration: 0.18), value: queue.pairingMode)
-        .animation(.spring(duration: 0.32, bounce: 0), value: queue.rows.map(\.id))
+        .animation(reduceMotion ? nil : .spring(duration: 0.32, bounce: 0), value: queue.rows.map(\.id))
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
         .presentationCornerRadius(Theme.Radius.soft)
