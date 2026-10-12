@@ -865,12 +865,13 @@ class Ramp(unittest.TestCase):
         self.assertEqual(cardframe.changed_fraction(FLAT, FLAT + 0.5), 0.0)
 
     def test_the_fade_starts_at_the_first_full_screen_frame_from_black_after_the_launch_and_ends_within_0_5_s(self):
-        self.assertEqual(cardframe.last_ramp_frame(FADED_IN, 0.05), 2)
-        self.assertEqual(cardframe.last_ramp_frame(FADED_IN, 0.65), None)
-        self.assertEqual(cardframe.last_ramp_frame(launch_frames(), 0.05), 12,
+        self.assertEqual(cardframe.launch_fade(FADED_IN, 0.05), (2, None))
+        self.assertEqual(cardframe.launch_fade(FADED_IN, 0.65), None)
+        self.assertEqual(cardframe.launch_fade(launch_frames(), 0.05), (12, None),
                          "past the springboard's fade-out, through the repeated frame, and not out to the card's slide")
-        self.assertEqual(cardframe.last_ramp_frame(launch_frames(dim=True), 0.05), 12, "a later dim is not the fade")
-        self.assertEqual(cardframe.last_ramp_frame(launch_frames(from_black=False), 0.05), None)
+        self.assertEqual(cardframe.launch_fade(launch_frames(dim=True), 0.05), (12, 17),
+                         "a later dim is not the fade, and is the first full-screen frame after it")
+        self.assertEqual(cardframe.launch_fade(launch_frames(from_black=False), 0.05), None)
 
 
 class OpenWindow(unittest.TestCase):

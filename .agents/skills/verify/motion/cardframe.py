@@ -115,7 +115,7 @@ import tempfile
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Dict, Iterable, Iterator, List, Literal, Optional, Sequence, Tuple, Union
+from typing import Dict, Iterable, Iterator, List, Literal, NamedTuple, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -366,15 +366,21 @@ def screen_changes(samples: Sequence[Sample]) -> List[Optional[float]]:
     return [None] + [changed_fraction(a.cells, b.cells) for a, b in zip(samples, samples[1:])]
 
 
-def last_ramp_frame(samples: Sequence[Sample], after: float) -> Optional[int]:
+class Fade(NamedTuple):
+    last: int
+    later: Optional[int]
+
+
+def launch_fade(samples: Sequence[Sample], after: float) -> Optional[Fade]:
     changes = screen_changes(samples)
     first = next((i for i in range(1, len(samples)) if samples[i].t >= after), len(samples))
     start = next((i for i in range(first, len(samples))
                   if changes[i] >= RAMP_FRAC and samples[i - 1].cells.mean() < BLACK_LUM), None)
     if start is None:
         return None
-    return max(i for i in range(start, len(samples))
+    last = max(i for i in range(start, len(samples))
                if changes[i] >= RAMP_FRAC and samples[i].t <= samples[start].t + FADE_S)
+    return Fade(last, next((i for i in range(last + 1, len(samples)) if changes[i] >= RAMP_FRAC), None))
 
 
 def _showing(samples: Sequence[Sample], at: float) -> int:
@@ -390,18 +396,16 @@ def open_window(take: Take, samples: Sequence[Sample], from_s: Optional[float]) 
     else:
         opened, start, at = Opened.DRIVE, _showing(samples, take.drive_start), take.drive_start
         if take.drive.split()[:1] == ["launch"]:
-            last = last_ramp_frame(samples, take.drive_start)
-            if last is None:
+            fade = launch_fade(samples, take.drive_start)
+            if fade is None:
                 reasons.append(Reason("ramp", "no frame after the launch began changed three quarters of the screen, "
                                               "so iOS's fade-in cannot be told from the app's motion"))
             else:
-                opened, start, at = Opened.RAMP, last, samples[last].t
-                changes = screen_changes(samples)
-                later = next((i for i in range(last + 1, len(samples)) if changes[i] >= RAMP_FRAC), None)
-                if later is not None:
+                opened, start, at = Opened.RAMP, fade.last, samples[fade.last].t
+                if fade.later is not None:
                     reasons.append(Reason("screen", "a frame at +%.3f s changed three quarters of the screen after "
                                                     "iOS's fade-in ended, so the card cannot be read through it"
-                                          % samples[later].t))
+                                          % samples[fade.later].t))
     seconds = take.stopped - at
     if seconds < MIN_WINDOW_S:
         reasons.append(Reason("window", "the window watched %.2f s from +%.3f s, under %g s"
