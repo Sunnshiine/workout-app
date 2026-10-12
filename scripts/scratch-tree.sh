@@ -2,6 +2,8 @@
 # A pool of detached worktrees under the primary checkout's .build/scratch/, where mutate.sh and
 # check-each-commit.sh build and test, so the caller's worktree is never written. Slot paths never
 # change, so each keeps one warm SwiftPM .build/ and one DerivedData dir, and the pool size bounds disk.
+# The slot locks live under the git dir, where neither git clean -x nor rm -rf .build reaches: a
+# deleted lock file would let a second run take a slot the first still holds.
 
 scratch_pool() {
   if [ -n "${SCRATCH_POOL:-}" ]; then
@@ -17,36 +19,40 @@ scratch_pool() {
 # build it started exits, so no stale-pid logic exists. fd 9 stays free for test-sim.sh's
 # simulator lock, which the slot's test-sim.sh takes and closes for its own children.
 scratch_claim() {
-  local who=$1 pool caller n preferred="" others="" holders=""
-  # A git fsmonitor daemon started from here would inherit fd 8 and hold the slot for as long as it lives.
-  export GIT_CONFIG_COUNT=$((${GIT_CONFIG_COUNT:-0} + 1))
-  export "GIT_CONFIG_KEY_$((GIT_CONFIG_COUNT - 1))=core.fsmonitor" "GIT_CONFIG_VALUE_$((GIT_CONFIG_COUNT - 1))=false"
+  local who=$1 pool locks caller n preferred="" others="" holders=""
+  # A git fsmonitor daemon started from here would inherit fd 8 and hold the slot for as long as it
+  # lives. The repo's post-checkout hook would run on every per-mutant restore, and its exit status
+  # would become checkout's.
+  export GIT_CONFIG_COUNT=$((${GIT_CONFIG_COUNT:-0} + 2))
+  export "GIT_CONFIG_KEY_$((GIT_CONFIG_COUNT - 2))=core.fsmonitor" "GIT_CONFIG_VALUE_$((GIT_CONFIG_COUNT - 2))=false"
+  export "GIT_CONFIG_KEY_$((GIT_CONFIG_COUNT - 1))=core.hooksPath" "GIT_CONFIG_VALUE_$((GIT_CONFIG_COUNT - 1))=/dev/null"
   pool=$(scratch_pool)
+  locks=$(git rev-parse --path-format=absolute --git-common-dir)/scratch-locks
   caller=$(git rev-parse --show-toplevel)
-  mkdir -p "$pool"
+  mkdir -p "$pool" "$locks"
   for n in $(seq 1 "${SCRATCH_SLOTS:-4}"); do
-    if [ "$(cat "$pool/$n.owner" 2>/dev/null)" = "$caller" ]; then
+    if [ "$(cat "$locks/$n.owner" 2>/dev/null)" = "$caller" ]; then
       preferred="$preferred $n"
     else
       others="$others $n"
     fi
   done
   for n in $preferred $others; do
-    exec 8>>"$pool/$n.lock"
+    exec 8>>"$locks/$n.lock"
     if python3 -c 'import fcntl, sys
 try: fcntl.flock(8, fcntl.LOCK_EX | fcntl.LOCK_NB)
 except BlockingIOError: sys.exit(75)'; then
-      printf '%s (pid %s)\n' "$who" "$$" >"$pool/$n.lock"
-      printf '%s\n' "$caller" >"$pool/$n.owner"
+      printf '%s (pid %s)\n' "$who" "$$" >"$locks/$n.lock"
+      printf '%s\n' "$caller" >"$locks/$n.owner"
       scratch=$pool/$n
       _scratch_ensure "$caller"
       return 0
     fi
     exec 8>&-
     holders="$holders
-  $pool/$n: $(cat "$pool/$n.lock")"
+  $pool/$n: $(cat "$locks/$n.lock")"
   done
-  echo "every scratch tree is busy; wait for one to finish (lsof $pool/*.lock lists every holder):$holders" >&2
+  echo "every scratch tree is busy; wait for one to finish (lsof $locks/*.lock lists every holder):$holders" >&2
   exit 75
 }
 

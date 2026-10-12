@@ -9,7 +9,7 @@ trap 'rm -f "$root"/gate*; sleep 0.3; rm -rf "$root"' EXIT
 export LC_ALL=C GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.fsmonitor GIT_CONFIG_VALUE_0=false
 export PATH="$root/bin:$PATH" STUB_WATCH=$root/watch STUB_CALLER=$root/repo STUB_SIM_SEEN=$root/sim-seen
 repo=$root/repo
-pool=$repo/.build/scratch
+pool=$repo/.build/scratch locks=$repo/.git/scratch-locks
 pass=0
 fail=0
 
@@ -203,12 +203,12 @@ expect "a run with every scratch tree busy exits 75 naming the holder" "$status
 $out
 $err" "75
 
-every scratch tree is busy; wait for one to finish (lsof $pool/*.lock lists every holder):
+every scratch tree is busy; wait for one to finish (lsof $locks/*.lock lists every holder):
   $pool/1: mutate.sh in $repo (pid $crashed)"
 kill -9 $crashed
 wait $crashed 2>/dev/null
 rm "$root/gate2"
-while lsof "$pool/1.lock" >/dev/null 2>&1; do sleep 0.05; done
+while lsof "$locks/1.lock" >/dev/null 2>&1; do sleep 0.05; done
 SCRATCH_SLOTS=1 mutate --filter GateTests Sources/Gate/Gate.swift '2s/>= 3/> 3/' '5s/10/11/'
 expect "after a run is killed mid-mutant, the next run reclaims its slot and starts from the snapshot" "$status
 $out" "1

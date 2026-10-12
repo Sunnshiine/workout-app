@@ -7,7 +7,7 @@ root=$(mktemp -d) || exit 3
 root=$(cd "$root" && pwd -P)
 trap 'rm -f "$root"/gate*; sleep 0.3; rm -rf "$root"' EXIT
 repo=$root/repo
-export pool=$repo/.build/scratch
+export pool=$repo/.build/scratch locks=$repo/.git/scratch-locks
 export LC_ALL=C GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.fsmonitor GIT_CONFIG_VALUE_0=false
 pass=0
 fail=0
@@ -48,7 +48,7 @@ echo b-edited >"$root/wt/b.txt"
 echo e >"$root/wt/e.txt"
 echo secret >"$root/wt/Secrets.xcconfig"
 got=$(in_tree "$root/wt" 'scratch_claim t; scratch_sync HEAD "$(scratch_snapshot)"; echo "$scratch"
-    git -C "$scratch" rev-parse --show-toplevel; ls "$scratch"; cat "$scratch/b.txt" "$scratch/Secrets.xcconfig" "$pool/1.owner"')
+    git -C "$scratch" rev-parse --show-toplevel; ls "$scratch"; cat "$scratch/b.txt" "$scratch/Secrets.xcconfig" "$locks/1.owner"')
 expect "a claim from a linked worktree syncs its working state into slot 1 of the primary checkout's pool" "$got" \
 "$pool/1
 $pool/1
@@ -83,11 +83,14 @@ hold() {
 hold 1
 got=$(in_tree "$repo" 'scratch_claim t; echo "$scratch"')
 expect "a claim skips a held slot" "$got" "$pool/2"
+git -C "$repo" clean -fdxq
+got=$(SCRATCH_SLOTS=1 in_tree "$repo" 'scratch_claim t; echo "$scratch"' 2>/dev/null)
+expect "git clean -fdx in the primary checkout never frees a held slot" "$?" 75
 hold 2
 got=$(SCRATCH_SLOTS=2 in_tree "$repo" 'scratch_claim t; echo "$scratch"' 2>&1)
 status=$?
 expect "a claim with every slot held exits 75 naming each holder" "$status $got" \
-"75 every scratch tree is busy; wait for one to finish (lsof $pool/*.lock lists every holder):
+"75 every scratch tree is busy; wait for one to finish (lsof $locks/*.lock lists every holder):
   $pool/1: holder 1 (pid $(cat "$root/pid1"))
   $pool/2: holder 2 (pid $(cat "$root/pid2"))"
 
@@ -104,6 +107,15 @@ rm "$root/gate2"
 got=$(GIT_CONFIG_VALUE_0=true in_tree "$repo" 'scratch_claim t; scratch_sync HEAD; git -C "$scratch" status --porcelain'
     SCRATCH_SLOTS=1 in_tree "$repo" 'scratch_claim t; echo "$scratch"')
 expect "a git fsmonitor daemon started in a slot never holds its lock" "$got" "$pool/1"
+
+mkdir -p "$root/hooks"
+printf '#!/bin/sh\necho ran >>"%s/hook-ran"\nexit 1\n' "$root" >"$root/hooks/post-checkout"
+chmod +x "$root/hooks/post-checkout"
+git -C "$repo" config core.hooksPath "$root/hooks"
+got=$(SCRATCH_SLOTS=1 in_tree "$repo" 'scratch_claim t; scratch_sync HEAD; echo x >"$scratch/a.txt"
+    git -C "$scratch" checkout -q HEAD -- a.txt; cat "$scratch/a.txt"' 2>&1; cat "$root/hook-ran" 2>/dev/null)
+expect "a scratch checkout never runs the repo's post-checkout hook" "$got" "a"
+git -C "$repo" config --unset core.hooksPath
 
 rm -rf "$pool/1"
 got=$(in_tree "$repo" 'scratch_claim t; git -C "$scratch" rev-parse --show-toplevel; ls "$scratch"')
