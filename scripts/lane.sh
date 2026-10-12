@@ -43,7 +43,8 @@ Each later Bash call re-derives them, for example:
 
 Exit codes: 0 done; 1 env: no such lane, or down --if-idle: the lane is not idle (stderr SKIPPED:
 <reason>); 2 usage, a bad name, an unknown commit, a lane at another commit, a worktree on a branch,
-a locked lane or one holding a nested worktree, or down run from the lane's own copy of this script;
+a locked lane, one holding a nested worktree, or one registered but missing (moved or deleted),
+or down run from the lane's own copy of this script;
 69 the simulator runtime is missing; 70 git, simctl, or a save failed (down then leaves the worktree);
 75 a test-sim or verify run holds the lane's simulator, the simulator pool is busy, down found
 another process working inside the lane (stop it or cd out; this script's callers do not count), or
@@ -93,12 +94,11 @@ registration() {
   git -C "$primary" worktree list --porcelain | awk -v w="worktree $wt" '$0 == w { f = 1; next } $0 == "" { f = 0 } f'
 }
 
-# A record whose directory is gone blocks git worktree add. Removes that one record; git worktree
-# prune would drop every other worktree's stale record too, and a moved worktree can be repaired.
-drop_stale_record() {
-  printf '%s\n' "$reg" | grep -q '^prunable' || return 0
-  git -C "$primary" worktree remove --force "$wt" >&2 || die 70 "could not drop the stale record of $wt"
-  reg=$(registration)
+# The record of a moved worktree still holds its reflog and per-worktree refs, and git worktree
+# repair reconnects them, so neither up nor down drops it.
+refuse_missing() {
+  grep -q '^prunable' <<<"$reg" || return 0
+  die 2 "$wt is registered but missing; if you moved it, run git worktree repair <new path>; to discard it and anything only it holds, git worktree remove --force $wt"
 }
 
 # git worktree add locks its record "initializing" until it finishes, so that lock is a crash, not
@@ -220,7 +220,7 @@ lane_up() {
     fi
   fi
   reg=$(registration)
-  drop_stale_record
+  refuse_missing
   if crashed_add; then
     echo "lane.sh: a git worktree add crashed in $wt; adding it again" >&2
     git -C "$primary" worktree unlock "$wt" && git -C "$primary" worktree remove --force "$wt" >&2 \
@@ -329,7 +329,7 @@ lane_down() {
     [ "$verdict" = remove ] || { echo "SKIPPED: $reason" >&2; exit 1; }
   fi
   reg=$(registration)
-  drop_stale_record
+  refuse_missing
   if [ -n "$reg" ]; then
     branch=$(field "$reg" 'branch refs/heads/')
     [ -z "$branch" ] || die 2 "$wt is on branch $branch, not a lane; prune-merged-worktrees.sh decides branch worktrees"

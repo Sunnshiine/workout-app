@@ -313,13 +313,25 @@ g worktree add --detach "$root/moved-away" main
 mv "$root/moved-away" "$root/moved-here"
 lane up m "$c1"
 up_status=$status
-rm -rf "$lanes/m"
-lane up m "$c1"
-again_status=$status
 lane down m
-expect "up and down drop only their own lane's stale record, and keep another worktree's" \
-    "$up_status $again_status $status $(git -C "$primary" worktree list --porcelain | grep -c -e "^worktree $root/moved-away$" -e "^worktree $lanes/m$")" \
-    "0 0 0 1"
+expect "up and down leave another worktree's stale record alone" \
+    "$up_status $status $(git -C "$primary" worktree list --porcelain | grep -c -e "^worktree $root/moved-away$" -e "^worktree $lanes/m$")" \
+    "0 0 1"
+
+lane up moved "$c1"
+moved_sha=$(commit_in moved moved-work)
+mv "$lanes/moved" "$root/moved-lane"
+missing="lane.sh: $lanes/moved is registered but missing; if you moved it, run git worktree repair <new path>; to discard it and anything only it holds, git worktree remove --force $lanes/moved"
+lane down moved
+down_result="$status $(cat "$root/err")"
+lane up moved "$c1"
+expect "down and up refuse a lane whose directory moved, and say how to repair or discard it" \
+    "$down_result | $status $(cat "$root/err")" "2 $missing | 2 $missing"
+git -C "$primary" worktree repair "$root/moved-lane" 2>/dev/null
+expect "the moved lane's commit survives, and git worktree repair brings it back" \
+    "$(git -C "$root/moved-lane" rev-parse HEAD 2>&1) $(git -C "$primary" worktree list --porcelain | grep -c "^worktree $root/moved-lane$")" \
+    "$moved_sha 1"
+git -C "$primary" worktree remove --force "$root/moved-lane"
 
 g worktree add -b feature "$lanes/feature" main
 lane down feature
