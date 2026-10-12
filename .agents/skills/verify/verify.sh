@@ -977,7 +977,7 @@ case $cmd in
     resolve_sim
     command -v ffprobe >/dev/null || { echo "record reads its video with ffprobe; install it: brew install ffmpeg" >&2; exit 70; }
     load=$(admit_load "$limit" "$load_wait")
-    case " $* " in " launch "*"--animated "*) relaunch="launch --animated <fixture>" ;; esac
+    [ "${1:-}" != launch ] || relaunch="$*"
     require_sim_free "$sim"; require_own_app; ensure_axe
     dir=$(run_dir)
     pending=$dir/.pending

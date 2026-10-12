@@ -2957,11 +2957,13 @@ class Record(Lane):
             % (self.sim, other.pid, self.sim, self.verify_path))))
         self.assertEqual(self.calls(), [])
 
-    def test_a_take_of_an_animated_launch_refused_for_another_runs_app_hints_launch_animated(self):
+    def test_a_take_of_a_launch_refused_for_another_runs_app_hints_that_launch_as_given(self):
         app = self.own_the_app("owner-1")
-        for drive, hint in [(["launch", "--animated", "session"], "launch --animated <fixture>"),
-                            (["launch", "--at", "abc123", "--animated", "session"], "launch --animated <fixture>"),
-                            (["launch", "session"], "launch <fixture>")]:
+        for drive, hint in [(["launch", "--animated", "session"], "launch --animated session"),
+                            (["launch", "--at", "abc123", "--animated", "session"],
+                             "launch --at abc123 --animated session"),
+                            (["launch", "session"], "launch session"),
+                            (["tap", "-x", "5", "-y", "6"], "launch <fixture>")]:
             with self.subTest(drive=drive):
                 self.assertEqual(self.record("--", *drive), (75, "", (
                     "the app on {sim} belongs to run owner-1 (pid {pid}), not to lane-1, so this would drive another "
@@ -2969,13 +2971,14 @@ class Record(Lane):
                 ).format(sim=self.sim, pid=app.pid, verify=self.verify_path, hint=hint)))
                 self.assertEqual(self.calls(), [])
 
-    def test_a_take_of_an_animated_launch_refused_after_a_refused_relaunch_hints_launch_animated(self):
+    def test_a_take_of_a_launch_refused_after_a_refused_relaunch_hints_that_launch_as_given(self):
         self.verify("install", self.a)
         self.own_the_app("ui12")
         refusal = "app on %s unchanged: %s; this launch wanted %s" % (
             self.sim, self.cached_build(b"v1\n", self.a), self.worktree_build(b"v2\n", self.b))
         self.assertEqual(self.verify("launch", "session", VERIFY_RUN="ui12")[0], 75)
-        for drive, hint in [(["launch", "--animated", "session"], "launch --animated <fixture>"),
+        for drive, hint in [(["launch", "--at", "abc123", "--animated", "session"],
+                             "launch --at abc123 --animated session"),
                             (["tap", "-x", "5", "-y", "6"], "launch <fixture>")]:
             with self.subTest(drive=drive):
                 self.assertEqual(self.record("--", *drive, VERIFY_RUN="ui12"), (75, "", (
