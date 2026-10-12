@@ -502,7 +502,7 @@ assert_lane CANDIDATES zzz-raced -
 assert_lane KEPT recent "lane active 1d ago, threshold 3d"
 assert_lane KEPT dirty "lane uncommitted changes (1)"
 assert_lane KEPT unref "lane commits no branch or tag holds (1)"
-assert_lane KEPT work "lane ignored files that are work: .claude/work/"
+assert_lane CANDIDATES work -
 assert_lane KEPT oldsha "lane active 0d ago, threshold 3d"
 if kept | grep -F "$root/outside" | grep -qF "detached HEAD: no branch resolves to a PR"; then
     ok "a detached worktree outside .claude/worktrees keeps today's reason"
@@ -537,8 +537,13 @@ if [ ! -e "$lanes/aaa-idle" ] && [ -f "$lane_repo/.claude/work/evidence/detached
 else
     bad "--apply did not remove aaa-idle, or saved nothing"
 fi
-if [ "$devices" = "workout-lane-dirty workout-lane-oldsha workout-lane-recent workout-lane-unref workout-lane-work workout-lane-zzz-raced " ]; then
-    ok "--apply deleted the idle lane's simulator and no other"
+if [ "$(tar -tf "$lane_repo/.claude/work/evidence/detached-work"/down-*/untracked.tar 2>&1 | tr "\n" " ")" = ".claude/work/ .claude/work/plan.md " ]; then
+    ok "--apply removed the idle lane holding only an ignored note, after saving the note"
+else
+    bad "--apply did not save the ignored note of lane work"
+fi
+if [ "$devices" = "workout-lane-dirty workout-lane-oldsha workout-lane-recent workout-lane-unref workout-lane-zzz-raced " ]; then
+    ok "--apply deleted the idle lanes' simulators and no other"
 else
     bad "lane simulators after --apply: $devices"
 fi
@@ -548,7 +553,7 @@ else
     bad "the raced lane was not skipped"
 fi
 if [ "$lane_apply_status" -eq 1 ]; then ok "a skipped lane makes --apply exit 1"; else bad "--apply exited $lane_apply_status"; fi
-for l in recent dirty unref work oldsha; do
+for l in recent dirty unref oldsha; do
     [ -d "$lanes/$l" ] || bad "--apply removed the kept lane $l"
 done
 
