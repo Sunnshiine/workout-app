@@ -30,7 +30,8 @@ cat >"$root/bin/swift" <<'STUB'
 #!/bin/bash
 gate=Sources/Gate/Gate.swift
 if [ "$1" = build ]; then
-    ! grep -q BREAK $gate || { echo "$PWD/$gate:2:5: error: cannot find 'BREAK' in scope" >&2; exit 1; }
+    broken=$(grep -rn BREAK Sources | head -1 | cut -d: -f1,2)
+    [ -z "$broken" ] || { echo "$PWD/$broken:5: error: cannot find 'BREAK' in scope" >&2; exit 1; }
     exit 0
 fi
 { git -C "$STUB_CALLER" status --porcelain; shasum "$STUB_CALLER"/Sources/Gate/*; echo "slot line 5: $(sed -n 5p $gate)"; } >>"$STUB_WATCH"
@@ -70,6 +71,16 @@ git -C "$repo" config user.name t
 printf '.build/\nSecrets.xcconfig\n' >"$repo/.gitignore"
 printf '%s\n' 'func gateOpens(_ count: Int) -> Bool {' '    count >= 3' '}' 'let gateName = "gate"' 'let gateLimit = 10' >"$repo/Sources/Gate/Gate.swift"
 printf '%s\n' 'enum Auth {' '    static func ok() -> Bool { return false }' '}' >"$repo/App/Auth.swift"
+# A stand-in for scripts/mutants.awk with its interface: on each changed line, >= becomes >, true
+# becomes false, and breakme becomes BREAK.
+cat >"$repo/scripts/mutants.awk" <<'STUB'
+BEGIN { while ((getline n < changed) > 0) want[n] = 1 }
+!want[FNR] { next }
+/ >= / { m = $0; sub(/ >= /, " > ", m); print path "\t" FNR "\tcompare\t>=\t>\t" m }
+/true/ { m = $0; sub(/true/, "false", m); print path "\t" FNR "\tbool\ttrue\tfalse\t" m }
+/breakme/ { m = $0; sub(/breakme/, "BREAK", m); print path "\t" FNR "\tconst\tbreakme\tBREAK\t" m }
+STUB
+
 # A committed stand-in for scripts/test-sim.sh: records how it was called, then acts as a simulator
 # suite over App/Auth.swift. testDeniesByDefault pins line 2. STUB_SIM_BUSY_AT=N exits 75 on call N.
 cat >"$repo/scripts/test-sim.sh" <<'STUB'
@@ -251,6 +262,61 @@ baseline: passed 1 test (test-sim.sh --sim $udid unit)
 killed       App/Auth.swift:2  sed      2s/return false/return true/  AuthTests.testDeniesByDefault
 1 mutant: 1 killed; 1 not run (simulator busy)
 $udid is held by a test-sim.sh run (pid 1); wait for it to finish, or use another simulator"
+
+git -C "$repo" checkout -q -b diffbase
+sed -i '' 's/count >= 3/count > 2/' "$repo/Sources/Gate/Gate.swift"
+git -C "$repo" commit -qam "diff base"
+git -C "$repo" checkout -q -b feature
+sed -i '' 's/count > 2/count >= 3/' "$repo/Sources/Gate/Gate.swift"
+printf '%s\n' 'let gateOn = true' 'let pattern = "a\\d"; let strict = true' >>"$repo/Sources/Gate/Gate.swift"
+sed -i '' '3i\
+    static let on = true
+' "$repo/App/Auth.swift"
+echo 'let breakme = 1' >"$repo/Sources/Gate/Breaks.swift"
+git -C "$repo" add -A && git -C "$repo" commit -qm feature
+echo 'let wide = 1 >= 0' >>"$repo/Sources/Gate/Gate.swift"
+diffbase=$(git -C "$repo" rev-parse --short=8 diffbase)
+head8=$(git -C "$repo" rev-parse --short=8 HEAD)
+
+mutate --filter GateTests --max 5 --diff diffbase
+expect "--diff mutates the changed lines, uncommitted ones included, and --max drops the rest" "$status
+$out" "1
+mutants: 6 on 6 changed lines in 3 files since $diffbase
+scratch: $pool/1 at $head8 + your uncommitted changes
+baseline: passed 2 tests (swift test --filter GateTests)
+unreachable  App/Auth.swift:3             bool     true -> false     swift test never compiles it; rerun with --sim UDID
+nocompile    Sources/Gate/Breaks.swift:1  const    breakme -> BREAK  Sources/Gate/Breaks.swift:1:5: error: cannot find 'BREAK' in scope
+killed       Sources/Gate/Gate.swift:2    compare  >= -> >           GateTests.testOpensAtFour +1
+SURVIVED     Sources/Gate/Gate.swift:6    bool     true -> false
+SURVIVED     Sources/Gate/Gate.swift:7    bool     true -> false
+5 mutants: 1 killed, 2 SURVIVED, 1 nocompile, 1 unreachable; 1 not run (--max 5)"
+expect "a generated mutant's line keeps its backslashes" "$(sed -n 7p "$logdir/m5.swift")" 'let pattern = "a\\d"; let strict = false'
+
+mutate --diff diffbase Sources/Gate/Breaks.swift
+expect "a generated mutant that does not build does not fail the run" "$status
+$(tail -2 <<<"$out")" "0
+nocompile    Sources/Gate/Breaks.swift:1  const    breakme -> BREAK  Sources/Gate/Breaks.swift:1:5: error: cannot find 'BREAK' in scope
+1 mutant: 1 nocompile"
+
+rm -f "$STUB_SIM_SEEN"
+mutate --diff diffbase App
+expect "--diff on App/ without --sim lists each mutant as unreachable and claims no scratch tree" "$status
+$out" "1
+mutants: 1 on 1 changed line in 1 file since $diffbase
+unreachable  App/Auth.swift:3  bool     true -> false  swift test never compiles it; rerun with --sim UDID
+1 mutant: 1 unreachable"
+
+mutate --sim $udid --diff diffbase App
+expect "--diff on App/ with --sim runs it through test-sim.sh" "$status
+$(tail -2 <<<"$out")" "1
+SURVIVED     App/Auth.swift:3  bool     true -> false
+1 mutant: 1 SURVIVED"
+
+git -C "$repo" checkout -q -- .
+mutate --diff HEAD
+expect "--diff with no changed lines exits 0 before claiming a scratch tree" "$status
+$out" "0
+mutants: 0 on 0 changed lines in 0 files since $head8"
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1

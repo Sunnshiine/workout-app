@@ -4,6 +4,7 @@ set -euo pipefail
 usage() {
     cat <<'EOF'
 Usage: scripts/mutate.sh [--sim UDID] [--filter SEL]... FILE SED_EXPR [SED_EXPR...]
+       scripts/mutate.sh [--sim UDID] [--filter SEL]... [--max N] --diff BASE [PATH...]
 
 Proves that a test pins a line: each mutant is one change to the code, and some test must fail on it.
 Every mutant builds and runs in a scratch tree under the primary checkout's .build/scratch/, never
@@ -12,22 +13,28 @@ snapshot must pass first; then each mutant runs alone.
 
   FILE SED_EXPR  hand-written mutants, one sed command each with its own address, such as
                  '67s/failed: /exploded: /'. An expression that changes nothing is an error.
+  --diff BASE    generates mutants on the lines changed since merge-base(BASE, HEAD), uncommitted
+                 edits included: true/false flips, comparison and &&/|| swaps, if-negation, guard
+                 forced to its early return, a number + 1. PATH limits the files (default every
+                 .swift under Sources/, App/, WorkoutShared/, WorkoutWidgets/).
+  --max N        runs at most N generated mutants (default 40); the summary counts the rest.
   --filter SEL   the tests that judge each mutant; repeatable. Without --sim: swift test --filter
                  SEL (default the whole suite). With --sim: unit, visual, ui, or a test-sim.sh
                  TEST-ID; a bare suite name means WorkoutTrackerTests/SUITE (default unit).
   --sim UDID     runs every check through the scratch tree's scripts/test-sim.sh --sim UDID.
                  swift test compiles only Sources/, so App/, WorkoutShared/, and WorkoutWidgets/
-                 need --sim. Run Sources/ without --sim (seconds) and those with it.
+                 need --sim. Run Sources/ without --sim (seconds) and those with --sim PATH.
 
-Prints log:, scratch:, and baseline: lines, then one row per mutant as it finishes:
+Prints log:, mutants: (--diff), scratch:, and baseline: lines, then a row per mutant as it ends:
   OUTCOME  FILE:LINE  OP  CHANGE  FIRST-KILLER +N | REASON
   killed       a test failed; results.tsv in the log dir lists every one
   SURVIVED     no test failed, so nothing pins this change (grep '^SURVIVED')
   nocompile    the mutant does not build
+  unreachable  swift test never compiles the file; rerun with --sim
   error        the runner failed without naming a failing test
-Exits 0 when every mutant was killed, 1 when any SURVIVED, did not compile, or hit an error,
-2 on usage or a failing baseline, 75 when every scratch tree or the simulator is busy (the rows
-so far print first).
+Exits 0 when every mutant was killed (a generated nocompile does not count), 1 when any SURVIVED,
+was unreachable, hit an error, or was a hand-written nocompile, 2 on usage or a failing baseline,
+75 when every scratch tree or the simulator is busy (the rows so far print first).
 EOF
 }
 
@@ -40,27 +47,33 @@ die() {
     exit 2
 }
 need_value() { [ "$1" -ge 2 ] || { usage >&2; exit 2; }; }
+plural() { if [ "$1" = 1 ]; then echo "$1 $2"; else echo "$1 ${2}s"; fi; }
 
-sim="" filters=()
+sim="" base="" max=40 filters=()
 while [ $# -gt 0 ]; do
     case $1 in
         --sim) need_value $#; sim=$2; shift 2 ;;
         --filter) need_value $#; filters+=("$2"); shift 2 ;;
+        --diff) need_value $#; base=$2; shift 2 ;;
+        --max) need_value $#; max=$2; shift 2 ;;
         -h | --help) usage; exit 0 ;;
         -*) usage >&2; exit 2 ;;
         *) break ;;
     esac
 done
-[ $# -ge 2 ] || { usage >&2; exit 2; }
+case $max in '' | *[!0-9]* | 0) die "--max takes a whole number above 0, not '$max'" ;; esac
+[ -n "$base" ] || [ $# -ge 2 ] || { usage >&2; exit 2; }
 
 caller=$(git rev-parse --show-toplevel)
-caller_physical=$(cd "$caller" && pwd -P)
-file_dir=$(cd "$(dirname "$1")" 2>/dev/null && pwd -P) || die "$1: no such directory"
-case $file_dir/ in
-    "$caller_physical"/*) file=${file_dir#"$caller_physical"}/$(basename "$1"); file=${file#/} ;;
-    *) die "$1 is outside $caller" ;;
-esac
-shift
+if [ -z "$base" ]; then
+    caller_physical=$(cd "$caller" && pwd -P)
+    file_dir=$(cd "$(dirname "$1")" 2>/dev/null && pwd -P) || die "$1: no such directory"
+    case $file_dir/ in
+        "$caller_physical"/*) file=${file_dir#"$caller_physical"}/$(basename "$1"); file=${file#/} ;;
+        *) die "$1 is outside $caller" ;;
+    esac
+    shift
+fi
 cd "$caller"
 
 # Mirrors Package.swift: the test target compiles Sources/ and Tests/ minus UI, Visual, and GoogleAuthTests.
@@ -71,7 +84,8 @@ swift_compiles() {
         *) return 1 ;;
     esac
 }
-[ -n "$sim" ] || swift_compiles "$file" ||
+reachable() { [ -n "$sim" ] || swift_compiles "$1"; }
+[ -n "$base" ] || reachable "$file" ||
     die "swift test never compiles $file; mutate it with --sim UDID, which runs scripts/test-sim.sh in the scratch tree"
 
 swift_filters=() selections=()
@@ -95,17 +109,57 @@ echo "log: $run"
 
 head=$(git rev-parse HEAD)
 tree=$(scratch_snapshot)
-git cat-file -e "$tree:$file" 2>/dev/null || die "$file is not in your working tree (an ignored file cannot be mutated)"
-git show "$tree:$file" >"$run/orig.swift"
-n=0
-for expr in "$@"; do
-    n=$((n + 1))
-    case $expr in *$'\t'*) die "'$expr' holds a tab; write it as [[:space:]] or \\t" ;; esac
-    sed "$expr" "$run/orig.swift" >"$run/m$n.swift" || die "sed rejected '$expr'"
-    ! cmp -s "$run/orig.swift" "$run/m$n.swift" || die "'$expr' changed nothing in $file; check its address"
-    line=$(printf '%s\n' "$expr" | sed -nE 's/^([0-9]+).*/\1/p')
-    printf 'm%s\t%s\t%s\tsed\t%s\t\n' "$n" "$file" "${line:--}" "$expr" >>"$run/mutants.tsv"
-done
+: >"$run/mutants.tsv"
+dropped=0
+if [ -z "$base" ]; then
+    git cat-file -e "$tree:$file" 2>/dev/null || die "$file is not in your working tree (an ignored file cannot be mutated)"
+    git show "$tree:$file" >"$run/orig.swift"
+    n=0
+    for expr in "$@"; do
+        n=$((n + 1))
+        case $expr in *$'\t'*) die "'$expr' holds a tab; write it as [[:space:]] or \\t" ;; esac
+        sed "$expr" "$run/orig.swift" >"$run/m$n.swift" || die "sed rejected '$expr'"
+        ! cmp -s "$run/orig.swift" "$run/m$n.swift" || die "'$expr' changed nothing in $file; check its address"
+        line=$(printf '%s\n' "$expr" | sed -nE 's/^([0-9]+).*/\1/p')
+        printf 'm%s\t%s\t%s\tsed\t%s\t\n' "$n" "$file" "${line:--}" "$expr" >>"$run/mutants.tsv"
+    done
+else
+    merge_base=$(git merge-base "$base" HEAD 2>/dev/null) || die "no merge base between $base and HEAD"
+    [ $# -gt 0 ] || set -- Sources App WorkoutShared WorkoutWidgets
+    git diff --name-only --no-renames --diff-filter=AM "$merge_base" "$tree" -- "$@" >"$run/files"
+    : >"$run/generated.tsv"
+    : >"$run/sources.tsv"
+    k=0 changed=0
+    while IFS= read -r f; do
+        case $f in Sources/*.swift | App/*.swift | WorkoutShared/*.swift | WorkoutWidgets/*.swift) ;; *) continue ;; esac
+        k=$((k + 1))
+        git show "$tree:$f" >"$run/source$k.swift"
+        printf '%s\t%s\n' "$f" "$run/source$k.swift" >>"$run/sources.tsv"
+        git diff -U0 --no-color "$merge_base" "$tree" -- "$f" |
+            awk '/^@@/ { n = split(substr($3, 2), r, ","); count = n > 1 ? r[2] : 1; for (i = 0; i < count; i++) print r[1] + i }' >"$run/changed$k"
+        changed=$((changed + $(wc -l <"$run/changed$k")))
+        awk -v changed="$run/changed$k" -v path="$f" -f "$script_dir/mutants.awk" "$run/source$k.swift" >>"$run/generated.tsv"
+    done <"$run/files"
+    generated=$(($(wc -l <"$run/generated.tsv")))
+    [ "$generated" -le "$max" ] || dropped=$((generated - max))
+    echo "mutants: $generated on $(plural "$changed" "changed line") in $(plural $k file) since ${merge_base:0:8}"
+    [ "$generated" -gt 0 ] || exit 0
+    # mutants.awk prints the whole mutated line last, so it is read from the file, never through -v,
+    # which would rewrite its backslashes.
+    head -n "$max" "$run/generated.tsv" | awk -F'\t' -v run="$run" '
+        FNR == NR { source[$1] = $2; next }
+        {
+            id = "m" FNR
+            mutated = $0
+            for (i = 1; i <= 5; i++) sub(/^[^\t]*\t/, "", mutated)
+            print id "\t" $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 > (run "/mutants.tsv")
+            out = run "/" id ".swift"
+            n = 0
+            while ((getline text < source[$1]) > 0) print (++n == $2 ? mutated : text) > out
+            close(source[$1])
+            close(out)
+        }' "$run/sources.tsv" -
+fi
 
 strip_color() { sed $'s/\033\\[[0-9;]*m//g' "$1"; }
 first_error() { strip_color "$1" | { grep -m1 'error:' || true; } | sed "s#$scratch/##"; }
@@ -155,33 +209,38 @@ run_check() {
     fi
 }
 
-scratch_claim "mutate.sh in $caller"
-scratch_sync "$head" "$tree"
-if [ "$tree" = "$(git rev-parse "$head^{tree}")" ]; then
-    echo "scratch: $scratch at ${head:0:8}"
-else
-    echo "scratch: $scratch at ${head:0:8} + your uncommitted changes"
-fi
+runnable=0
+while IFS=$'\t' read -r _ mfile _; do
+    ! reachable "$mfile" || runnable=$((runnable + 1))
+done <"$run/mutants.tsv"
 
-run_check "$run/baseline.log"
-if [ "$result" = busy ]; then
-    echo "$reason" >&2
-    exit 75
+if [ $runnable -gt 0 ]; then
+    scratch_claim "mutate.sh in $caller"
+    scratch_sync "$head" "$tree"
+    if [ "$tree" = "$(git rev-parse "$head^{tree}")" ]; then
+        echo "scratch: $scratch at ${head:0:8}"
+    else
+        echo "scratch: $scratch at ${head:0:8} + your uncommitted changes"
+    fi
+
+    run_check "$run/baseline.log"
+    if [ "$result" = busy ]; then
+        echo "$reason" >&2
+        exit 75
+    fi
+    if [ "$result" != pass ] || [ "$tests" = 0 ]; then
+        echo "the untouched snapshot must pass before mutating; $runner reports:" >&2
+        case $result in
+            fail) sed 's/^/  failed: /' <<<"$killers" >&2 ;;
+            nocompile) echo "  did not compile: $reason" >&2 ;;
+            error) echo "  $reason" >&2 ;;
+            pass) echo "  no tests ran; check --filter" >&2 ;;
+        esac
+        echo "  log: $run/baseline.log" >&2
+        exit 2
+    fi
+    echo "baseline: passed $(plural "$tests" test) ($runner)"
 fi
-if [ "$result" != pass ] || [ "$tests" = 0 ]; then
-    echo "the untouched snapshot must pass before mutating; $runner reports:" >&2
-    case $result in
-        fail) sed 's/^/  failed: /' <<<"$killers" >&2 ;;
-        nocompile) echo "  did not compile: $reason" >&2 ;;
-        error) echo "  $reason" >&2 ;;
-        pass) echo "  no tests ran; check --filter" >&2 ;;
-    esac
-    echo "  log: $run/baseline.log" >&2
-    exit 2
-fi
-noun=tests
-[ "$tests" != 1 ] || noun=test
-echo "baseline: passed $tests $noun ($runner)"
 
 loc_width=$(awk -F'\t' '{ w = length($2 ":" $3); if (w > max) max = w } END { print max }' "$run/mutants.tsv")
 change_width=$(awk -F'\t' '{ w = length($5 ($6 == "" ? "" : " -> " $6)); if (w > max) max = w } END { print max }' "$run/mutants.tsv")
@@ -191,11 +250,15 @@ print_row() {
     printf '%s\n' "${row%"${row##*[! ]}"}"
 }
 
-killed=0 survived=0 nocompile=0 errors=0 total=0 busy=""
+killed=0 survived=0 nocompile=0 unreachable=0 errors=0 total=0 busy=""
 while IFS=$'\t' read -r id mfile line op before after <&3; do
-    cp "$run/$id.swift" "$scratch/$mfile"
-    run_check "$run/$id.log"
-    git -C "$scratch" checkout -q "$tree" -- "$mfile"
+    if reachable "$mfile"; then
+        cp "$run/$id.swift" "$scratch/$mfile"
+        run_check "$run/$id.log"
+        git -C "$scratch" checkout -q "$tree" -- "$mfile"
+    else
+        result=unreachable reason="swift test never compiles it; rerun with --sim UDID"
+    fi
     if [ "$result" = busy ]; then
         busy=$reason
         break
@@ -210,6 +273,7 @@ while IFS=$'\t' read -r id mfile line op before after <&3; do
             ;;
         pass) outcome=SURVIVED detail="" survived=$((survived + 1)) ;;
         nocompile) outcome=nocompile detail=$reason nocompile=$((nocompile + 1)) ;;
+        unreachable) outcome=unreachable detail=$reason unreachable=$((unreachable + 1)) ;;
         error) outcome=error detail=$reason errors=$((errors + 1)) ;;
     esac
     [ "$outcome" = killed ] || printf '%s\t%s\t%s\n' "$id" "$outcome" "$detail" >>"$run/results.tsv"
@@ -217,14 +281,17 @@ while IFS=$'\t' read -r id mfile line op before after <&3; do
 done 3<"$run/mutants.tsv"
 
 counts=""
-for pair in "$killed killed" "$survived SURVIVED" "$nocompile nocompile" "$errors error"; do
+for pair in "$killed killed" "$survived SURVIVED" "$nocompile nocompile" "$unreachable unreachable" "$errors error"; do
     [ "${pair%% *}" = 0 ] || counts="$counts, $pair"
 done
-[ "$total" = 1 ] && noun=mutant || noun=mutants
-not_run=$(($(wc -l <"$run/mutants.tsv") - total))
-echo "$total $noun${counts:+: ${counts#, }}${busy:+; $not_run not run (simulator busy)}"
+summary="$(plural $total mutant)${counts:+: ${counts#, }}"
+[ -z "$busy" ] || summary="$summary; $(($(wc -l <"$run/mutants.tsv") - total)) not run (simulator busy)"
+[ "$dropped" = 0 ] || summary="$summary; $dropped not run (--max $max)"
+echo "$summary"
 if [ -n "$busy" ]; then
     echo "$busy" >&2
     exit 75
 fi
-[ $((survived + nocompile + errors)) = 0 ]
+failed=$((survived + unreachable + errors))
+[ -n "$base" ] || failed=$((failed + nocompile))
+[ $failed = 0 ]
