@@ -501,7 +501,7 @@ assert_lane CANDIDATES aaa-idle -
 assert_lane CANDIDATES zzz-raced -
 assert_lane KEPT recent "lane active 1d ago, threshold 3d"
 assert_lane KEPT dirty "lane uncommitted changes (1)"
-assert_lane KEPT unref "lane commits no ref holds"
+assert_lane KEPT unref "lane commits no branch or tag holds (1)"
 assert_lane KEPT work "lane ignored files that are work: .claude/work/"
 assert_lane KEPT oldsha "lane active 0d ago, threshold 3d"
 if kept | grep -F "$root/outside" | grep -qF "detached HEAD: no branch resolves to a PR"; then
@@ -542,7 +542,7 @@ if [ "$devices" = "workout-lane-dirty workout-lane-oldsha workout-lane-recent wo
 else
     bad "lane simulators after --apply: $devices"
 fi
-if grep -qxF "  SKIPPED: commits no ref holds" "$root/lane-apply.txt" && [ -f "$lanes/zzz-raced/raced.txt" ]; then
+if grep -qxF "  SKIPPED: commits no branch or tag holds (1)" "$root/lane-apply.txt" && [ -f "$lanes/zzz-raced/raced.txt" ]; then
     ok "a lane whose HEAD moved after the scan is SKIPPED and survives"
 else
     bad "the raced lane was not skipped"

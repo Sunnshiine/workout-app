@@ -215,6 +215,40 @@ lane down lane-a
 expect "a second down exits 0" "$status $(cat "$root/err")" \
     "0 sim-pool: no device is named workout-lane-lane-a; nothing to delete"
 
+commit_in() {
+    echo "$2" >"$lanes/$1/$2.txt"
+    git -C "$lanes/$1" add "$2.txt"
+    git -C "$lanes/$1" commit -qm "$2"
+    git -C "$lanes/$1" rev-parse HEAD
+}
+
+lane up back "$c1"
+back_sha=$(commit_in back left-behind)
+git -C "$lanes/back" checkout -q "$c1"
+lane assess back 0
+expect "assess keeps a lane whose commit only its reflog holds, after a checkout back to its base" \
+    "$(cat "$root/out")" "keep	commits no branch or tag holds (1)"
+lane down back
+saved=$(ls -d "$evidence/detached-back"/down-* 2>/dev/null | head -1)
+expect "down bundles a commit only the lane's reflog holds" \
+    "$status $(git -C "$primary" bundle list-heads "$saved/commits.bundle" 2>&1)" \
+    "0 $back_sha refs/worktree/lane-save/$back_sha"
+
+lane up gone "$c1"
+gone_sha=$(commit_in gone pushed-then-deleted)
+git -C "$lanes/gone" push -q origin HEAD:refs/heads/gone 2>/dev/null
+git -C "$root/origin.git" branch -q -D gone
+lane assess gone 0
+expect "assess keeps a lane whose pushed branch the server deleted, while a stale remote-tracking ref names it" \
+    "$(cat "$root/out")" "keep	commits no branch or tag holds (1)"
+g fetch --prune origin
+lane assess gone 0
+expect "assess keeps that lane after fetch --prune" "$(cat "$root/out")" "keep	commits no branch or tag holds (1)"
+lane down gone
+saved=$(ls -d "$evidence/detached-gone"/down-* 2>/dev/null | head -1)
+expect "down bundles the commit the deleted branch held" \
+    "$status $(git -C "$primary" bundle list-heads "$saved/commits.bundle" 2>&1)" "0 $gone_sha HEAD"
+
 g worktree add -b feature "$lanes/feature" main
 lane down feature
 expect "down refuses a worktree on a branch with exit 2 and leaves it" \

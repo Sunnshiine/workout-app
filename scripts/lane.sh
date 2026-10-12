@@ -20,14 +20,17 @@ matches ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$. For the checkout this script belongs 
   env     print the env of an existing lane; reads only.
   down    save what removal would lose to <evidence>/down-<YYYYmmdd-HHMMSS>/ (head.txt,
           uncommitted.diff, untracked.tar of untracked and ignored-but-not-regenerable files,
-          commits.bundle of commits no ref holds, copies of .build/test-sim and .build/verify), then
-          remove the worktree, its DerivedData, and its simulator. Each step skips what is already gone,
-          so a second down exits 0. --if-idle removes only when assess says remove.
+          commits.bundle of commits no branch or tag holds, copies of .build/test-sim and
+          .build/verify), then remove the worktree, its DerivedData, and its simulator. Each step
+          skips what is already gone, so a second down exits 0. --if-idle removes only when assess
+          says remove.
   assess  print `keep<TAB><reason>` or `remove<TAB>idle Nd`. scripts/prune-merged-worktrees.sh runs it
           for every detached worktree under .claude/worktrees/. Keeps a lane that is not a registered
           worktree, is on a branch, is locked, holds a nested worktree, has uncommitted changes or
-          ignored files that are work, holds commits no ref holds, is in use (a process cwd inside it or
-          its simulator's verify lock), or was active within <idle-days>.
+          ignored files that are work, holds commits no branch or tag holds, is in use (a process
+          cwd inside it or its simulator's verify lock), or was active within <idle-days>. A commit
+          counts when HEAD or its reflog reaches it; a remote-tracking ref holds nothing, because
+          the server may have deleted the branch.
 
 up and env print exactly three lines, every value single-quoted, so bash, zsh, and fish run them alike:
   export SIM='<udid>'
@@ -88,10 +91,21 @@ ignored_work() {
       { print }'
 }
 
-ref_holds_head() {
-  local holders
-  holders=$(git -C "$wt" for-each-ref --count=1 --contains HEAD refs/heads refs/remotes refs/tags) || return 2
-  [ -n "$holders" ]
+# Sets $created, the commit the lane was made at, and $visited, HEAD and every commit the lane's HEAD
+# has pointed at.
+read_lane_history() {
+  local admin
+  admin=$(git -C "$wt" rev-parse --absolute-git-dir 2>/dev/null) || return 1
+  created=$(head -1 "$admin/logs/HEAD" 2>/dev/null | cut -d ' ' -f2)
+  [ -n "$created" ] || return 1
+  visited=$(git -C "$wt" rev-parse HEAD 2>/dev/null && git -C "$wt" log -g --format=%H HEAD 2>/dev/null) || return 1
+}
+
+# The commits removal would lose. A remote-tracking ref proves only that this machine once saw a branch
+# the server may since have deleted, so it holds nothing here. Call read_lane_history first.
+unique_commits() {
+  # shellcheck disable=SC2086
+  git -C "$wt" rev-list $visited --not --branches --tags "$created"
 }
 
 cwd_holder() {
@@ -118,7 +132,7 @@ if found: print(int(max(found)))' "$@"
 # index is not an activity mark because git status rewrites it, and the HEAD commit date is not one
 # because a fresh lane can sit on an old commit.
 assess() {
-  local days=$1 reg branch porcelain work admin created head udid lock pid newest age
+  local days=$1 reg branch porcelain work admin commits udid lock pid newest age
   verdict=keep
   reg=$(registration)
   if [ -z "$reg" ]; then reason="not a registered worktree"; return; fi
@@ -133,18 +147,11 @@ assess() {
   if [ -n "$porcelain" ]; then reason="uncommitted changes ($(printf '%s\n' "$porcelain" | grep -c .))"; return; fi
   if ! work=$(ignored_work 2>/dev/null); then reason="could not list ignored files"; return; fi
   if [ -n "$work" ]; then reason="ignored files that are work: $(printf '%s\n' "$work" | head -1)"; return; fi
-  if ! admin=$(git -C "$wt" rev-parse --absolute-git-dir 2>/dev/null) \
-    || ! head=$(git -C "$wt" rev-parse HEAD 2>/dev/null); then
-    reason="could not read HEAD"; return
+  if ! read_lane_history || ! commits=$(unique_commits 2>/dev/null) \
+    || ! admin=$(git -C "$wt" rev-parse --absolute-git-dir 2>/dev/null); then
+    reason="could not list the commits no branch or tag holds"; return
   fi
-  created=$(head -1 "$admin/logs/HEAD" 2>/dev/null | cut -d ' ' -f2) || true
-  if [ -z "$created" ]; then reason="could not read the creation commit in $admin/logs/HEAD"; return; fi
-  if [ "$head" != "$created" ]; then
-    if ref_holds_head 2>/dev/null; then :
-    elif [ $? = 1 ]; then reason="commits no ref holds"; return
-    else reason="could not list the refs that hold HEAD"; return
-    fi
-  fi
+  if [ -n "$commits" ]; then reason="commits no branch or tag holds ($(printf '%s\n' "$commits" | grep -c .))"; return; fi
   if ! pid=$(cwd_holder); then reason="could not list process working directories"; return; fi
   if [ -n "$pid" ]; then reason="in use by pid $pid"; return; fi
   if ! udid=$(lane_udids 2>/dev/null); then reason="could not list simulators"; return; fi
@@ -208,9 +215,29 @@ lane_env() {
   print_env "$udid"
 }
 
+# Bundles $commits. A bundle records only refs, so each tip other than HEAD gets a per-worktree ref,
+# which git worktree remove deletes with the lane.
+save_commits() {
+  local head tip tips args=()
+  head=$(git -C "$wt" rev-parse HEAD) || return
+  # shellcheck disable=SC2086
+  tips=$(printf '%s\n' $visited | grep -Fx -f <(printf '%s\n' "$commits") | sort -u) || return
+  # shellcheck disable=SC2086
+  for tip in $(git -C "$wt" merge-base --independent $tips); do
+    if [ "$tip" = "$head" ]; then
+      args+=(HEAD)
+    else
+      git -C "$wt" update-ref "refs/worktree/lane-save/$tip" "$tip" || return
+      args+=("refs/worktree/lane-save/$tip")
+    fi
+  done
+  git -C "$wt" bundle create "$1" "${args[@]}" --not --branches --tags "$created" 2>/dev/null \
+    && git -C "$wt" bundle verify "$1" >/dev/null 2>&1
+}
+
 # Prints the name of each file it saved. Any failure exits 70 before anything is removed.
 save_lane() {
-  local dir=$1 list d
+  local dir=$1 list d commits
   mkdir -p "$dir" || die 70 "could not create $dir"
   git -C "$wt" log -1 --format='%H %s' >"$dir/head.txt" || die 70 "could not save head.txt"
   echo head.txt
@@ -225,10 +252,9 @@ save_lane() {
     echo untracked.tar
   fi
   rm -f "$list"
-  if ! ref_holds_head 2>/dev/null; then
-    git -C "$wt" bundle create "$dir/commits.bundle" HEAD --not --branches --remotes --tags 2>/dev/null \
-      && git -C "$wt" bundle verify "$dir/commits.bundle" >/dev/null 2>&1 \
-      || die 70 "could not save commits.bundle"
+  read_lane_history && commits=$(unique_commits) || die 70 "could not list the commits no branch or tag holds"
+  if [ -n "$commits" ]; then
+    save_commits "$dir/commits.bundle" || die 70 "could not save commits.bundle"
     echo commits.bundle
   fi
   for d in test-sim verify; do
