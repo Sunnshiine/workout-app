@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import contextlib
 import hashlib
 import json
 import os
@@ -13,6 +14,7 @@ import time
 import unittest
 import zlib
 from pathlib import Path
+from unittest import mock
 
 SKILL = Path(__file__).resolve().parent.parent
 REPO = SKILL.parent.parent.parent
@@ -2696,6 +2698,85 @@ class TakeJudge(unittest.TestCase):
             "invalid_rules=load,recorder_early,recorder_exit,coverage",
         ])
 
+
+
+RECORDER_STUB = """#!/bin/sh
+echo $$ > "{dir}/recorder.pid"
+if [ -n "${STUB_STUCK:-}" ]; then trap '' INT; else trap 'echo mp4 > "$8"; exit 0' INT; fi
+[ -n "${STUB_NEVER_STARTS:-}" ] || echo "Recording started" >&2
+while :; do sleep 0.1; done
+"""
+WRAPPED_LAUNCH_STUB = """#!/bin/bash
+trap 'echo "the EXIT trap ran" > "{dir}/drive-exit"' EXIT
+[ "$1" != fail ] || exit 4
+touch "{dir}/driving"
+while :; do sleep 0.1; done
+"""
+
+
+class Film(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp()).resolve()
+        self.addCleanup(shutil.rmtree, str(self.tmp), True)
+        (self.tmp / "bin").mkdir()
+        for path, stub in [(self.tmp / "bin" / "xcrun", RECORDER_STUB), (self.tmp / "verify.sh", WRAPPED_LAUNCH_STUB)]:
+            path.write_text(stub.replace("{dir}", str(self.tmp)))
+            path.chmod(0o755)
+        self.env = dict(os.environ, PATH="%s:%s" % (self.tmp / "bin", os.environ["PATH"]))
+        self.addCleanup(self.kill_recorder)
+        self.saved = take.STOP_GRACE
+        self.addCleanup(setattr, take, "STOP_GRACE", self.saved)
+        take.STOP_GRACE = 0.3
+
+    def kill_recorder(self):
+        pid = self.tmp / "recorder.pid"
+        if pid.exists():
+            try:
+                os.kill(int(pid.read_text()), signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+
+    def film(self, drive, start_timeout=5.0, **env):
+        with mock.patch.dict(os.environ, dict(self.env, **env)), tempfile.TemporaryFile("w+") as stderr, \
+                contextlib.redirect_stderr(stderr):
+            try:
+                take.film("SIM", "lane-1", str(self.tmp / "verify.sh"), self.tmp / "appear.mp4", 0.0, 50.0, 1.0,
+                          drive, start_timeout)
+            except (take.DriveFailed, take.NoTake) as failure:
+                stderr.seek(0)
+                return type(failure).__name__, str(failure), stderr.read()
+        self.fail("film returned a take")
+
+    def stuck(self):
+        pid = int((self.tmp / "recorder.pid").read_text())
+        return "simctl recordVideo (pid %d) is still running 0.3 s after SIGINT; stop it with: kill -INT %d\n" % (pid, pid)
+
+    def test_a_failed_drive_is_the_failure_even_when_the_recorder_will_not_stop(self):
+        failure = self.film(["fail"], STUB_STUCK="1")
+        self.assertEqual(failure, ("DriveFailed", "the drive `fail` exited 4, so the take is not kept", self.stuck()))
+
+    def test_a_recorder_that_never_started_is_the_failure_even_when_it_will_not_stop(self):
+        failure = self.film(["fail"], start_timeout=0.3, STUB_STUCK="1", STUB_NEVER_STARTS="1")
+        self.assertEqual(failure, ("NoTake", "simctl recordVideo did not start capturing within 0.3 s, so nothing "
+                                             "was driven", self.stuck()))
+
+    def test_an_interrupted_take_gives_the_drive_sigint_so_its_exit_trap_runs(self):
+        record = subprocess.Popen(
+            [sys.executable, str(SKILL / "take.py"), "record", "--sim", "SIM", "--run", "lane-1", "--verify",
+             str(self.tmp / "verify.sh"), "--out", str(self.tmp / "appear.mp4"), "--tail", "0", "--limit", "50",
+             "--load-before", "1", "--", "launch", "--animated", "session"],
+            env=self.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        self.addCleanup(record.kill)
+        deadline = time.time() + 10
+        while not (self.tmp / "driving").exists():
+            self.assertLess(time.time(), deadline, "the drive never started")
+            time.sleep(0.05)
+        record.send_signal(signal.SIGINT)
+        self.assertEqual(record.communicate(timeout=10), ("", ""))
+        self.assertEqual(record.returncode, 130)
+        self.assertEqual((self.tmp / "drive-exit").read_text(), "the EXIT trap ran\n")
+        self.assertEqual(sorted(p.name for p in self.tmp.iterdir()),
+                         ["bin", "drive-exit", "driving", "recorder.pid", "verify.sh"])
 
 
 SYSCTL_STUB = """#!/bin/sh
