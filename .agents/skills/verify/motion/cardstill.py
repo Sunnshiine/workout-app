@@ -11,9 +11,10 @@ Films eight takes through `verify.sh record` twice in one session: first on COMM
 <lane>-control (stop, launch --at COMMIT --animated session), then on this worktree's build as run
 <lane>-head (stop, install, launch --animated session). cardframe measures each take.
 
-A take is INVALID when record did not exit 0 or 3 with a stamp, the stamp is INVALID, its animations are
-not on, or it started late; else FAIL when the card was never seen, was lost, or an edge ranged over more
-than 0.5 pt; else PASS. The lane FAILs when any head take FAILs, else is INVALID when any take on either
+A take is INVALID when record did not exit 0 or 3 with a stamp. Else it FAILs when the card was lost or
+an edge ranged over more than 0.5 pt, even on an INVALID take, because load and a flagged launch can hide
+motion but never invent it. Else it is INVALID when the stamp is INVALID, its animations are not on, or it
+started late; else FAIL when the card was never seen; else PASS. The lane FAILs when any head take FAILs, else is INVALID when any take on either
 side is, else is INVALID when no control take FAILed (the host or the metric cannot see motion now), else
 PASSes.
 
@@ -119,6 +120,12 @@ def judge_take(record_exit: int, reading: Optional[Reading], late_s: float = 0.0
         return Verdict.INVALID, f"record exited {record_exit}"
     if reading is None:
         return Verdict.INVALID, "record left no stamp"
+    # Load and a flagged launch turn motion into a cut; they never invent one. So a card seen to move or
+    # vanish fails whatever else is wrong with the take, and only a still reading needs a sound take.
+    if reading.first_seen is not None and reading.lost > 0:
+        return Verdict.FAIL, f"lost the card in {reading.lost} frames"
+    if reading.first_seen is not None and reading.worst_edge_range > cardframe.STILL_PT:
+        return Verdict.FAIL, f"an edge moved {reading.worst_edge_range:.1f} pt"
     if reading.verdict != "VALID":
         return Verdict.INVALID, f"take INVALID: {reading.invalid}"
     if reading.animations != "on":
@@ -127,10 +134,6 @@ def judge_take(record_exit: int, reading: Optional[Reading], late_s: float = 0.0
         return Verdict.INVALID, f"started {late_s:.1f} s late"
     if reading.first_seen is None:
         return Verdict.FAIL, "no card in any frame"
-    if reading.lost > 0:
-        return Verdict.FAIL, f"lost the card in {reading.lost} frames"
-    if reading.worst_edge_range > cardframe.STILL_PT:
-        return Verdict.FAIL, f"an edge moved {reading.worst_edge_range:.1f} pt"
     return Verdict.PASS, ""
 
 
