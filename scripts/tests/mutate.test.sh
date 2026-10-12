@@ -7,7 +7,7 @@ root=$(mktemp -d) || exit 3
 root=$(cd "$root" && pwd -P)
 trap 'rm -f "$root"/gate*; sleep 0.3; rm -rf "$root"' EXIT
 export LC_ALL=C GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.fsmonitor GIT_CONFIG_VALUE_0=false
-export PATH="$root/bin:$PATH" STUB_WATCH=$root/watch STUB_CALLER=$root/repo STUB_SIM_SEEN=$root/sim-seen
+export PATH="$root/bin:$PATH" STUB_HANG_PID=$root/hang.pid STUB_WATCH=$root/watch STUB_CALLER=$root/repo STUB_SIM_SEEN=$root/sim-seen
 repo=$root/repo
 pool=$repo/.build/scratch locks=$repo/.git/scratch-locks
 pass=0
@@ -51,6 +51,7 @@ selected() { [ ${#filters[@]} = 0 ] && return 0; for f in "${filters[@]}"; do ca
 line2_ok() { [ "$(sed -n 2p $gate)" = "    count >= 3" ]; }
 crash() { echo "error: Process '/Applications/Xcode.app/usr/libexec/swift/pm/swiftpm-testing-helper --test-bundle-path $PWD/.build/T.xctest' exited with unexpected signal code 5" >&2; exit 1; }
 case $(sed -n 5p $gate) in
+    *HANG*) sleep 600 & echo $! >"$STUB_HANG_PID"; wait ;;
     *EXPLODE*) echo "error: Process '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/libexec/swift/pm/swiftpm-testing-helper --test-bundle-path $PWD/.build/out/Products/Debug/WorkoutTrackerTests.xctest/Contents/MacOS/WorkoutTrackerTests --testing-library swift-testing' exited with code 3" >&2; exit 1 ;;
     *CRASH_IN_TEST*) printf '%s\n' "◇ Test run started." "◇ Test limitHolds() started."; crash ;;
     *CRASH*) echo "◇ Test run started."; crash ;;
@@ -206,6 +207,14 @@ $(grep -c "/Applications/Xcode.app/Contents/Developer/Toolchains" "$logdir/resul
 error        Sources/Gate/Gate.swift:5  sed      5s/10/EXPLODE/  exit 1: error: Process 'swiftpm-testing-helper --test-bundle-path WorkoutTrackerTests --testing-library swift-testing...
 1 mutant: 1 error
 1"
+
+MUTATE_TIMEOUT=2 mutate --filter GateTests Sources/Gate/Gate.swift '5s/10/HANG/'
+expect "a mutant that runs past MUTATE_TIMEOUT is killed with its whole process group" "$status
+$(tail -2 <<<"$out")
+$(if kill -0 "$(cat "$root/hang.pid")" 2>/dev/null; then echo "the hung test still runs"; else echo "the hung test is gone"; fi)" "0
+killed       Sources/Gate/Gate.swift:5  sed      5s/10/HANG/  timed out after 2s
+1 mutant: 1 killed
+the hung test is gone"
 
 touch "$root/gate1"
 (cd "$repo" && exec env STUB_GATE="$root/gate1" scripts/mutate.sh --filter GateTests Sources/Gate/Gate.swift '2s/>= 3/> 3/' >"$root/out1" 2>&1) &

@@ -24,10 +24,11 @@ snapshot must pass first; then each mutant runs alone.
   --sim UDID     runs every check through the scratch tree's scripts/test-sim.sh --sim UDID.
                  swift test compiles only Sources/, so App/, WorkoutShared/, and WorkoutWidgets/
                  need --sim. Run Sources/ without --sim (seconds) and those with --sim PATH.
+MUTATE_TIMEOUT=N bounds each run in seconds (default 5 x the baseline's time, at least 120).
 
 Prints log:, mutants: (--diff), scratch:, and baseline: lines, then a row per mutant as it ends:
   OUTCOME  FILE:LINE  OP  CHANGE  FIRST-KILLER +N | REASON
-  killed       a test failed; results.tsv in the log dir lists every one
+  killed       a test failed, crashed, or the run timed out; results.tsv lists every killer
   SURVIVED     no test failed, so nothing pins this change (grep '^SURVIVED')
   nocompile    the compiler rejects the mutated file
   unreachable  swift test never compiles the file; rerun with --sim
@@ -197,13 +198,33 @@ one_line() {
 }
 read_log() { awk -v mode="$1" -v root="$scratch/" -f "$script_dir/test-log.awk" "$2"; }
 
-# Sets result (pass, fail, nocompile, error, busy), tests, killers (one per line), and reason.
+# Runs a command in a new session for at most $1 seconds, then kills its whole process group and
+# exits 124. close_fds=False keeps the slot lock on fd 8 in every child. A signal to this script
+# kills the group too, so a hung build never outlives the run and holds its slot.
+limited() {
+    python3 -c 'import os, signal, subprocess, sys
+p = subprocess.Popen(sys.argv[2:], start_new_session=True, close_fds=False)
+def stop(*_):
+    os.killpg(p.pid, signal.SIGKILL)
+    sys.exit(124)
+for s in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP): signal.signal(s, stop)
+try: rc = p.wait(timeout=max(1, int(sys.argv[1])))
+except subprocess.TimeoutExpired: stop()
+sys.exit(128 - rc if rc < 0 else rc)' "$@"
+}
+
+# Sets result (pass, fail, nocompile, error, timeout, busy), tests, killers (one per line), and
+# reason. The whole check gets $limit seconds.
 run_check() {
-    local log=$1 rc=0 test_log
+    local log=$1 rc=0 test_log start=$SECONDS
     result="" tests=0 killers="" reason=""
     if [ -n "$sim" ]; then
-        "$scratch/scripts/test-sim.sh" --sim "$sim" "${selections[@]}" </dev/null >"$run/stdout" 2>"$run/stderr" || rc=$?
+        limited "$limit" "$scratch/scripts/test-sim.sh" --sim "$sim" "${selections[@]}" </dev/null >"$run/stdout" 2>"$run/stderr" || rc=$?
         cat "$run/stdout" "$run/stderr" >"$log"
+        if [ $rc = 124 ]; then
+            result=timeout reason="timed out after ${limit}s"
+            return
+        fi
         if [ $rc = 75 ]; then
             result=busy
             reason=$(cat "$run/stderr")
@@ -217,13 +238,20 @@ run_check() {
         test_log=$(sed -n 's/^log: //p' "$run/stdout" | tail -1)
         [ -z "$test_log" ] || [ ! -f "$test_log" ] || cp "$test_log" "$log"
     else
-        if ! (cd "$scratch" && swift build --build-tests) </dev/null >"$log" 2>&1; then
+        (cd "$scratch" && limited "$limit" swift build --build-tests) </dev/null >"$log" 2>&1 || rc=$?
+        if [ $rc = 0 ]; then
+            (cd "$scratch" && limited $((limit - (SECONDS - start))) swift test --skip-build ${swift_filters[@]+"${swift_filters[@]}"}) \
+                </dev/null >>"$log" 2>"$run/stderr" || rc=$?
+            cat "$run/stderr" >>"$log"
+        elif [ $rc != 124 ]; then
             result=nocompile
             reason=$(read_log first-error "$log")
             return
         fi
-        (cd "$scratch" && swift test --skip-build ${swift_filters[@]+"${swift_filters[@]}"}) </dev/null >>"$log" 2>"$run/stderr" || rc=$?
-        cat "$run/stderr" >>"$log"
+        if [ $rc = 124 ]; then
+            result=timeout reason="timed out after ${limit}s"
+            return
+        fi
     fi
     killers=$(read_log failures "$log")
     tests=$(read_log count "$log")
@@ -246,7 +274,9 @@ if [ $runnable -gt 0 ]; then
         echo "scratch: $scratch at ${head:0:8} + your uncommitted changes"
     fi
 
+    limit=${MUTATE_TIMEOUT:-1800} start=$SECONDS
     run_check "$run/baseline.log"
+    limit=${MUTATE_TIMEOUT:-$((5 * (SECONDS - start) > 120 ? 5 * (SECONDS - start) : 120))}
     if [ "$result" = busy ]; then
         echo "$reason" >&2
         exit 75
@@ -256,7 +286,7 @@ if [ $runnable -gt 0 ]; then
         case $result in
             fail) sed 's/^/  failed: /' <<<"$killers" >&2 ;;
             nocompile) echo "  did not compile: $reason" >&2 ;;
-            error) echo "  $reason" >&2 ;;
+            error | timeout) echo "  $reason" >&2 ;;
             pass) echo "  no tests ran; check --filter" >&2 ;;
         esac
         echo "  log: $run/baseline.log" >&2
@@ -294,6 +324,7 @@ while IFS=$'\t' read -r id mfile line op before after <&3; do
             killed=$((killed + 1))
             printf '%s\tkilled\t%s\n' "$id" "$(tr '\n' ';' <<<"$killers" | sed 's/;$//; s/;/; /g')" >>"$run/results.tsv"
             ;;
+        timeout) outcome=killed detail=$reason killed=$((killed + 1)) ;;
         pass) outcome=SURVIVED detail="" survived=$((survived + 1)) ;;
         # A broken build environment fails every build; only an error in the mutated file is the mutant's.
         nocompile) case $reason in
