@@ -2368,10 +2368,13 @@ class TakeJudge(unittest.TestCase):
         self.assertEqual(take.judge(stamp_with(recorder_exit="1")),
                          ["recorder exit 1 after SIGINT; the video may be cut short"])
 
-    def test_a_drive_needs_a_frame_at_or_after_it_began(self):
+    def test_a_drive_needs_a_frame_after_the_first_at_or_after_it_began(self):
         self.assertEqual(take.judge(stamp_with(drive_start="0.320", last_frame="0.300")), [
-            "no frame at or after the drive began at +0.32 s, so the take shows nothing the drive changed"])
-        self.assertEqual(take.judge(stamp_with(drive_start="0.320", last_frame="0.320", frames="1")), [])
+            "the screen never changed after the drive began at +0.32 s, so the take shows nothing the drive did"])
+        self.assertEqual(take.judge(stamp_with(drive_start="0.000", first_frame="0.000", last_frame="0.000",
+                                               frames="1")), [
+            "the screen never changed after the drive began at +0.00 s, so the take shows nothing the drive did"])
+        self.assertEqual(take.judge(stamp_with(drive_start="0.320", last_frame="0.320", frames="2")), [])
 
     def test_a_take_with_no_drive_needs_two_frames(self):
         self.assertEqual(take.judge(stamp_with(drive="", frames="1", last_frame="0.000")),
@@ -2384,7 +2387,7 @@ class TakeJudge(unittest.TestCase):
             "load 70.0 at the end, at or over 50",
             "the recorder stopped before the take ended",
             "recorder exit 2 after SIGINT; the video may be cut short",
-            "no frame at or after the drive began at +3.50 s, so the take shows nothing the drive changed",
+            "the screen never changed after the drive began at +3.50 s, so the take shows nothing the drive did",
         ])
 
 

@@ -94,9 +94,10 @@ def judge(take: Take) -> List[str]:
         reasons.append("the recorder stopped before the take ended")
     if take.recorder_exit != 0:
         reasons.append("recorder exit %d after SIGINT; the video may be cut short" % take.recorder_exit)
-    if take.drive and take.last_frame < take.drive_start:
-        reasons.append("no frame at or after the drive began at +%.2f s, so the take shows nothing the drive "
-                       "changed" % take.drive_start)
+    # The first frame is the screen as the recorder found it, so only a later one can show the drive.
+    if take.drive and (take.frames < 2 or take.last_frame < take.drive_start):
+        reasons.append("the screen never changed after the drive began at +%.2f s, so the take shows nothing "
+                       "the drive did" % take.drive_start)
     if not take.drive and take.frames < 2:
         reasons.append("one frame: the screen never changed while recording")
     return reasons
