@@ -29,11 +29,12 @@ Prints log:, mutants: (--diff), scratch:, and baseline: lines, then a row per mu
   OUTCOME  FILE:LINE  OP  CHANGE  FIRST-KILLER +N | REASON
   killed       a test failed; results.tsv in the log dir lists every one
   SURVIVED     no test failed, so nothing pins this change (grep '^SURVIVED')
-  nocompile    the mutant does not build
+  nocompile    the compiler rejects the mutated file
   unreachable  swift test never compiles the file; rerun with --sim
-  error        the runner failed without naming a failing test
+  error        the runner failed without naming a failing test, or the build failed elsewhere
 Exits 0 when every mutant was killed (a generated nocompile does not count), 1 when any SURVIVED,
-was unreachable, hit an error, or was a hand-written nocompile, 2 on usage or a failing baseline,
+was unreachable, hit an error, or was a hand-written nocompile, or none was killed, 2 on usage or
+a failing baseline,
 75 when every scratch tree or the simulator is busy (the rows so far print first).
 EOF
 }
@@ -161,6 +162,13 @@ else
         }' "$run/sources.tsv" -
 fi
 
+# One line for a table row: absolute paths shortened to their last component, at most 120 characters.
+one_line() {
+    local s
+    s=$(head -1 <<<"$1" | sed -E "s#(^|[ '\"(])/[^ '\"]*/#\1#g")
+    [ ${#s} -le 120 ] || s="${s:0:117}..."
+    printf '%s\n' "$s"
+}
 read_log() { awk -v mode="$1" -v root="$scratch/" -f "$script_dir/test-log.awk" "$2"; }
 
 # Sets result (pass, fail, nocompile, error, busy), tests, killers (one per line), and reason.
@@ -266,11 +274,15 @@ while IFS=$'\t' read -r id mfile line op before after <&3; do
             printf '%s\tkilled\t%s\n' "$id" "$(tr '\n' ';' <<<"$killers" | sed 's/;$//; s/;/; /g')" >>"$run/results.tsv"
             ;;
         pass) outcome=SURVIVED detail="" survived=$((survived + 1)) ;;
-        nocompile) outcome=nocompile detail=$reason nocompile=$((nocompile + 1)) ;;
+        # A broken build environment fails every build; only an error in the mutated file is the mutant's.
+        nocompile) case $reason in
+                "$mfile":*) outcome=nocompile detail=$reason nocompile=$((nocompile + 1)) ;;
+                *) outcome=error detail=$(one_line "$reason") errors=$((errors + 1)) ;;
+            esac ;;
         unreachable) outcome=unreachable detail=$reason unreachable=$((unreachable + 1)) ;;
-        error) outcome=error detail=$reason errors=$((errors + 1)) ;;
+        error) outcome=error detail=$(one_line "$reason") errors=$((errors + 1)) ;;
     esac
-    [ "$outcome" = killed ] || printf '%s\t%s\t%s\n' "$id" "$outcome" "$detail" >>"$run/results.tsv"
+    [ "$outcome" = killed ] || printf '%s\t%s\t%s\n' "$id" "$outcome" "$reason" >>"$run/results.tsv"
     print_row "$outcome" "$mfile:$line" "$op" "$before${after:+ -> $after}" "$detail"
 done 3<"$run/mutants.tsv"
 
@@ -288,4 +300,5 @@ if [ -n "$busy" ]; then
 fi
 failed=$((survived + unreachable + errors))
 [ -n "$base" ] || failed=$((failed + nocompile))
+[ $total = 0 ] || [ $killed -gt 0 ] || failed=$((failed + 1))
 [ $failed = 0 ]

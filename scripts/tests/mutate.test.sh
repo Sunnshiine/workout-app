@@ -30,6 +30,10 @@ cat >"$root/bin/swift" <<'STUB'
 #!/bin/bash
 gate=Sources/Gate/Gate.swift
 if [ "$1" = build ]; then
+    if [ -n "${STUB_DISK_FULL:-}" ] && [ "$(sed -n 2p $gate)" != "    count >= 3" ]; then
+        echo "error: no space left on device" >&2
+        exit 1
+    fi
     broken=$(grep -rn BREAK Sources | head -1 | cut -d: -f1,2)
     [ -z "$broken" ] || { echo "error: SwiftCompile normal arm64 $PWD/${broken%:*} failed with a nonzero exit code." >&2
         echo "$PWD/$broken:5: error: cannot find 'BREAK' in scope" >&2; exit 1; }
@@ -47,6 +51,7 @@ selected() { [ ${#filters[@]} = 0 ] && return 0; for f in "${filters[@]}"; do ca
 line2_ok() { [ "$(sed -n 2p $gate)" = "    count >= 3" ]; }
 crash() { echo "error: Process '/Applications/Xcode.app/usr/libexec/swift/pm/swiftpm-testing-helper --test-bundle-path $PWD/.build/T.xctest' exited with unexpected signal code 5" >&2; exit 1; }
 case $(sed -n 5p $gate) in
+    *EXPLODE*) echo "error: Process '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/libexec/swift/pm/swiftpm-testing-helper --test-bundle-path $PWD/.build/out/Products/Debug/WorkoutTrackerTests.xctest/Contents/MacOS/WorkoutTrackerTests --testing-library swift-testing' exited with code 3" >&2; exit 1 ;;
     *CRASH_IN_TEST*) printf '%s\n' "◇ Test run started." "◇ Test limitHolds() started."; crash ;;
     *CRASH*) echo "◇ Test run started."; crash ;;
 esac
@@ -194,6 +199,14 @@ killed       Sources/Gate/Gate.swift:5  sed      5s/10/CRASH_IN_TEST/  limitHold
 killed       Sources/Gate/Gate.swift:5  sed      5s/10/CRASH/          (test process crashed)
 2 mutants: 2 killed"
 
+mutate --filter GateTests Sources/Gate/Gate.swift '5s/10/EXPLODE/'
+expect "an error row is one short line without toolchain paths, and results.tsv keeps the whole reason" "$status
+$(tail -2 <<<"$out")
+$(grep -c "/Applications/Xcode.app/Contents/Developer/Toolchains" "$logdir/results.tsv")" "1
+error        Sources/Gate/Gate.swift:5  sed      5s/10/EXPLODE/  exit 1: error: Process 'swiftpm-testing-helper --test-bundle-path WorkoutTrackerTests --testing-library swift-testing...
+1 mutant: 1 error
+1"
+
 touch "$root/gate1"
 (cd "$repo" && exec env STUB_GATE="$root/gate1" scripts/mutate.sh --filter GateTests Sources/Gate/Gate.swift '2s/>= 3/> 3/' >"$root/out1" 2>&1) &
 first=$!
@@ -306,8 +319,8 @@ SURVIVED     Sources/Gate/Gate.swift:7    bool     true -> false
 expect "a generated mutant's line keeps its backslashes" "$(sed -n 7p "$logdir/m5.swift")" 'let pattern = "a\\d"; let strict = false'
 
 mutate --diff diffbase Sources/Gate/Breaks.swift
-expect "a generated mutant that does not build does not fail the run" "$status
-$(tail -2 <<<"$out")" "0
+expect "a run whose only mutant does not build killed nothing, so it fails" "$status
+$(tail -2 <<<"$out")" "1
 nocompile    Sources/Gate/Breaks.swift:1  const    breakme -> BREAK  Sources/Gate/Breaks.swift:1:5: error: cannot find 'BREAK' in scope
 1 mutant: 1 nocompile"
 
@@ -330,6 +343,24 @@ mutate --diff HEAD
 expect "--diff with no changed lines exits 0 before claiming a scratch tree" "$status
 $out" "0
 mutants: 0 on 0 changed lines in 0 files since $head8"
+
+git -C "$repo" checkout -q -b pair diffbase
+sed -i '' 's/count > 2/count >= 3/' "$repo/Sources/Gate/Gate.swift"
+echo 'let breakme = 1' >"$repo/Sources/Gate/Wall.swift"
+git -C "$repo" add -A && git -C "$repo" commit -qm pair
+
+mutate --filter GateTests --diff diffbase
+expect "a generated mutant that does not build does not fail a run that killed one" "$status
+$(tail -3 <<<"$out")" "0
+killed       Sources/Gate/Gate.swift:2  compare  >= -> >           GateTests.testOpensAtFour +1
+nocompile    Sources/Gate/Wall.swift:1  const    breakme -> BREAK  Sources/Gate/Wall.swift:1:5: error: cannot find 'BREAK' in scope
+2 mutants: 1 killed, 1 nocompile"
+
+STUB_DISK_FULL=1 mutate --filter GateTests --diff diffbase Sources/Gate/Gate.swift
+expect "a build that fails outside the mutated file is an error, never nocompile" "$status
+$(tail -2 <<<"$out")" "1
+error        Sources/Gate/Gate.swift:2  compare  >= -> >  error: no space left on device
+1 mutant: 1 error"
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1
