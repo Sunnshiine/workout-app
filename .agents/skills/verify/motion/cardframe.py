@@ -16,11 +16,11 @@ run's middle. Frames before the card first shows are not lost; a frame after it 
 
 Prints key=value lines:
   take=VALID animations=on frames=111 window_frames=110
-  first_seen=0.917 lost=0
-  top=402.5..476.0 bottom=618.5..692.0 left=12.0..12.0 right=402.0..402.0
-  worst_edge_range=73.5
-  contrast=14.8..15.3
-  motion=2.783..3.560 motion_ms=777 changed_frames=24
+  first_seen=0.280 lost=83
+  top=469.5..521.5 bottom=613.5..819.5 left=9.0..16.0 right=364.0..402.0
+  worst_edge_range=206.0
+  contrast=11.5..16.9
+  motion=3.177..3.528 motion_ms=352 changed_frames=22
   still=no
 motion spans the first and last frame whose edges moved more than 0.75 pt from the previous frame with
 the card (motion=none when none did). still=yes when the card was seen, never lost, and no edge ranged
