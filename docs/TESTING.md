@@ -65,11 +65,17 @@ Visual vocabulary:
 
 Visual tests use `swift-snapshot-testing` as a test-only dependency. Recording is disabled by
 default, so a missing or changed Visual Baseline fails instead of silently re-recording. New or
-intentional baseline changes must be recorded deliberately. Ralph does not add a model-review or
-special-authorization layer on top of the programmatic Visual Regression tests.
+intentional baseline changes must be recorded deliberately.
 The shared Visual trait configuration is pinned to iPhone 17 Pro on the iOS 27.0 runtime (the
 CI runner's preinstalled runtime — the pin moves with the runner image, see ADR-0007), light
-mode, `en_US`, fixed default Dynamic Type, and exact precision (`1.0`).
+mode, `en_US`, and fixed default Dynamic Type.
+
+Precision is the fraction of pixels that must match. `WorkoutVisualBaseline.precision` is exact
+(`1.0`). The suites that `grep -l labelAntialiasingPrecision Tests/Visual` lists compare at
+`WorkoutVisualBaseline.labelAntialiasingPrecision` (`0.999`), so up to 0.1% of the image may
+differ and the test still passes. That budget absorbs text anti-aliasing, and it also hid a whole
+missing Settings row from the Block grid baselines. For a change to one of those surfaces, open the
+rendered image and compare it with the baseline yourself; a green run does not prove they match.
 
 Recording recipe (issue #471): the recording switch is the suite trait, not an environment
 variable — `SNAPSHOT_TESTING_RECORD` is overridden by the explicit trait and does nothing here.
@@ -83,15 +89,6 @@ push without recording, then run `scripts/ci-visual-diffs.sh <PR>` to list each 
 with its runner and difference images, and `scripts/ci-visual-diffs.sh <PR> --apply <test>...` to
 copy the runner's render over those baselines, or create a new one. Commit the result; the next
 `visual-tests` run is the proof.
-
-Initial component-test scope:
-
-- `ActiveSetPresentation`: pending, logged/checkmark, bodyweight, and drop-percent suggestion
-  states.
-- `SmartValuePillsForm`: empty/disabled, valid log preview, and selected RPE states.
-- `SessionProgressHeaderPresentation`: mixed Session progress with the Current Session highlighted.
-- `BlockOverview` presentation state: the 4x4 Session grid with representative Session states.
-- `SyncStatusBanner` presentation state: syncing, queued writes, and failed states.
 
 Target directory structure:
 
@@ -124,8 +121,8 @@ UI XCUITest boundary:
   lookup, hittability, route completion, and one representative end-to-end flow per critical app
   surface.
 - The UI Interaction Suite covers higher-flake interaction mechanics such as keyboard focus,
-  overscroll, long scrolling, hold gestures, and frame/visibility behavior. It is a manual,
-  nightly, or pre-release suite, not part of Ralph's autonomous loop.
+  overscroll, long scrolling, hold gestures, and frame/visibility behavior. CI never runs it
+  (#662), so it runs locally before a change that needs it is ready.
 - UI XCUITests may assert that a real user action reaches a visible result. Unit and component tests own
   the detailed state rules, permutations, string construction, persistence semantics, and business
   logic behind that result.
@@ -140,15 +137,10 @@ UI XCUITest boundary:
   confirmation path. Store, sync, reset, diagnostics, and pending-write rules belong to lower-level
   tests unless the app-layer wiring itself is the risk.
 - UI cleanup issues must identify the replacement coverage owner before deleting or narrowing an
-  XCTest. Either cite existing unit, component, visual, or Ralph coverage, or add the missing
+  XCTest. Either cite existing unit, component, or visual coverage, or add the missing
   lower-level coverage first.
-- Pruning UI tests does not authorize agents to skip replacement coverage. UI Integration Smoke may
-  run inside Ralph only when a mechanical selector limits the run to the stable smoke subset.
-  Otherwise, run UI XCUITests by a human, dedicated script, or explicit non-Ralph CI/manual gate when
-  UI confidence is required.
-- Mechanically isolate UI Integration Smoke with dedicated test classes inside the existing
-  `WorkoutTrackerUITests` target. Ralph must invoke those classes by class-level `-only-testing`
-  selectors, not by targeting the whole `WorkoutTrackerUITests` bundle.
+- UI Integration Smoke lives in dedicated test classes inside the `WorkoutTrackerUITests` target,
+  so a class-level selector runs it without the rest of the bundle.
 
 Smoke selector command:
 
@@ -158,7 +150,7 @@ scripts/test-sim.sh \
   WorkoutTrackerUITests/PartiallyUploadedBlockUISmokeTests
 ```
 
-Manual or non-Ralph UI Interaction Suite command, which runs the whole UI target, smoke included:
+The whole UI target, smoke included:
 
 ```bash
 scripts/test-sim.sh ui
@@ -238,29 +230,10 @@ UI-test frame assertions:
 
 Agent gate policy:
 
-- During implementation, agents should run the narrowest relevant tests for the layer being changed.
-- Ralph may run UI Integration Smoke only after it is mechanically isolated from the rest of
-  `WorkoutTrackerUITests`. Ralph must not run the full UI target or the UI Interaction Suite. If no
-  smoke-only selector exists, Ralph's autonomous issue loop is non-UI.
-- Before an issue is complete or merged outside Ralph, it must pass the relevant automated testing framework:
-  `swift test`, `scripts/test-sim.sh unit` for unit/component tests, `scripts/test-sim.sh visual`
-  for Visual Regression tests when applicable, UI Integration Smoke when mechanically selected,
-  explicit UI Interaction Suite runs when higher-flake interaction confidence is required, and
-  `scripts/lint.sh`.
-- Ralph's README, prompts, and gate script must keep this boundary mechanical so autonomous issues
-  cannot silently run the full UI target or the UI Interaction Suite during the loop.
-
-Implementation slices:
-
-1. Mechanical structure migration: move the existing tests, update `Package.swift` and the Xcode
-   project, and verify the current suite still passes.
-2. Component/state-contract expansion: add missing component tests using shared `Tests/Support`
-   builders.
-3. UI integration target: add `Tests/UI` and cover the agreed fixture-driven user flows.
-4. Fixture unification: promote ad hoc fixtures and the launch fixture into named shared scenarios.
-5. Ralph gate update: run the non-UI framework plus mechanically isolated UI Integration Smoke
-   before autonomous issues can publish, and leave the UI Interaction Suite to an explicit
-   human/manual or non-Ralph gate.
+- While you work, run the narrowest tests for the layer you change.
+- Before a PR is ready, run every layer the per-change selection above names, plus `swift test`
+  and `scripts/lint.sh`. A change to navigation or real controls also runs the smoke selector, and
+  one to keyboard focus, gestures, or scrolling runs `scripts/test-sim.sh ui`.
 
 Representative UI Integration Smoke scope:
 
@@ -275,7 +248,7 @@ Representative UI Integration Smoke scope:
 - Open a Partially Uploaded Block, verify one Unavailable Session is inert, and verify one Available
   Session still opens.
 
-Do not promote a broad chained journey into Ralph smoke. Split it into these short named flows first,
+Do not promote a broad chained journey into smoke. Split it into these short named flows first,
 and leave keyboard focus, overscroll, long-session scrolling, hold gestures, exact frame movement,
 and celebration visibility-ratio checks in the UI Interaction Suite.
 
