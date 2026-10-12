@@ -75,7 +75,7 @@ renew_lease() {
     [ -n "$idle" ] || return 0
     if [ "$idle" -ge "$verify_lease_minutes" ]; then
       is_fixture_launch "$(cat "$dir/pid" 2>/dev/null)" \
-        && echo "the lease of verify run${run:+ $run} on $1 lapsed $idle min ago, so a claim may take its app; ${run:+name it with VERIFY_RUN=$run to renew it}" >&2
+        && echo "the lease of verify run${run:+ $run} on $1 expired: last renewed $idle min ago, and the lease is $verify_lease_minutes min, so a claim may take its app${run:+; if the run is yours, name it with VERIFY_RUN=$run to keep it}" >&2
       return 0
     fi
   fi
@@ -150,7 +150,7 @@ wait_until_clear() {
       echo "waiting up to $WORKOUT_ADMIT_WAIT s for $what: $busy_reason" >&6
       said=$waited
     fi
-    sleep 2
+    sleep 2 7>&- 8>&- 9>&-
   done
   [ "$said" -lt 0 ] || echo "went ahead after $(($(date +%s) - host_wait_start)) s" >&6
 }
@@ -164,66 +164,63 @@ load_clear() {
 }
 
 sim_states() {
-  local listing counts err=$host_lock_dir/list-$$.err rc=0
-  if ! listing=$(xcrun simctl list devices available -j 2>"$err"); then
+  local listing=$host_lock_dir/list-$$.json counts err=$host_lock_dir/list-$$.err rc=0
+  if ! xcrun simctl list devices available -j 7>&- 8>&- 9>&- >"$listing" 2>"$err"; then
     busy_reason="xcrun simctl list devices failed: $(cat "$err")"
     rc=1
-  elif ! counts=$(printf %s "$listing" | UDID="$1" python3 -c '
+  elif ! counts=$(UDID="$1" python3 -c '
 import json, os, sys
 devices = [d for ds in json.load(sys.stdin)["devices"].values() for d in ds]
 mine = [d.get("state") for d in devices if d["udid"] == os.environ["UDID"]]
-print(sum(d.get("state") in ("Booted", "Booting") and d["udid"] != os.environ["UDID"] for d in devices), *mine[:1])' 2>"$err"); then
+print(sum(d.get("state") in ("Booted", "Booting") and d["udid"] != os.environ["UDID"] for d in devices), *mine[:1])' <"$listing" 2>"$err"); then
     busy_reason="xcrun simctl list devices printed no device list: $(tail -1 "$err")"
     rc=1
   else
     read -r others own <<< "$counts"
   fi
-  rm -f "$err"
+  rm -f "$listing" "$err"
   return $rc
 }
 
 admit_claim() {
   local udid=$1 build=$2 others own rc=1
   load_clear "$WORKOUT_LOAD_LIMIT" || return 1
-  sim_states "$udid" || return 1
-  case ${own:-} in
-    "Shutting Down") busy_reason="$udid is shutting down"; return 1 ;;
-    Shutdown) cap_room || return 1 ;;
-    *) [ "$build" = 0 ] || take_build_slot; return ;;
-  esac
+  host_room "$udid" || return 1
+  [ "$build" = 0 ] || take_build_slot || return 1
+  [ "$own" = Shutdown ] || return 0
   exec 7>>"$host_lock_dir/admit"
   if ! try_flock 7 LOCK_EX 20; then
-    exec 7>&-
     busy_reason="another claim is booting a simulator (lsof $host_lock_dir/admit lists it)"
-    return 1
-  fi
-  if sim_states "$udid"; then
-    if [ "${own:-}" = Shutdown ] && ! cap_room; then
-      :
-    elif [ "$build" = 0 ] || take_build_slot; then
-      [ "${own:-}" != Shutdown ] || boot_sim "$udid"
-      rc=0
-    fi
+  elif host_room "$udid"; then
+    [ "$own" != Shutdown ] || boot_sim "$udid"
+    rc=0
   fi
   exec 7>&-
+  [ $rc = 0 ] || drop_build_slot
   return $rc
 }
 
-cap_room() {
-  [ "$others" -ge "$WORKOUT_SIM_CAP" ] || return 0
-  busy_reason="$others other simulators are booted, at the cap of $WORKOUT_SIM_CAP (WORKOUT_SIM_CAP)"
+host_room() {
+  sim_states "$1" || return 1
+  case ${own:-} in
+    "Shutting Down") busy_reason="$1 is shutting down" ;;
+    Shutdown) [ "$others" -ge "$WORKOUT_SIM_CAP" ] || return 0
+      busy_reason="$others other simulators are booted, at the cap of $WORKOUT_SIM_CAP (WORKOUT_SIM_CAP)" ;;
+    *) return 0 ;;
+  esac
   return 1
 }
 
 # A flock is held by every process sharing its fd, so simctl gets no lock fd and a killed claimer frees
 # them all at once. simctl boot exits 149 on a device another booter already started.
 boot_sim() {
-  local err=$host_lock_dir/boot.err
-  xcrun simctl boot "$1" 7>&- 8>&- 9>&- 2>"$err" && return
+  local err=$host_lock_dir/boot-$$.err
+  xcrun simctl boot "$1" 7>&- 8>&- 9>&- 2>"$err" && { rm -f "$err"; return; }
   if sim_states "$1"; then
-    case ${own:-} in Booted|Booting) return ;; esac
+    case ${own:-} in Booted|Booting) rm -f "$err"; return ;; esac
   fi
   echo "could not boot $1: $(cat "$err")" >&6
+  rm -f "$err"
   exit 70
 }
 
@@ -244,12 +241,16 @@ take_build_slot() {
   return 1
 }
 
+drop_build_slot() {
+  exec 8>&-
+  build_slot=
+}
+
 with_build_slot() {
   local rc=0
   [ -n "${build_slot:-}" ] || wait_until_clear "a build slot" take_build_slot
   "$@" 6>&- || rc=$?
-  exec 8>&-
-  build_slot=
+  drop_build_slot
   return $rc
 }
 

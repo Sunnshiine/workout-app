@@ -57,6 +57,7 @@ if [ "\$*" != "simctl list devices available -j" ]; then
 fi
 [ -z "\${STUB_LIST_WARNING:-}" ] || echo "objc[4242]: Class SimDeviceSet is implemented in both CoreSimulator and CoreSimulatorUtilities" >&2
 echo call >> "$root/list-calls"
+if [ "\$(wc -l < "$root/list-calls")" -eq "\${STUB_SLOW_LIST_CALL:-0}" ]; then touch "$root/listing-slowly"; sleep 3; fi
 if [ "\$(wc -l < "$root/list-calls")" -gt "\${STUB_LIST_OK_CALLS:-1000}" ]; then
     echo "An error was encountered processing the command (domain=com.apple.CoreSimulator.SimError, code=405)" >&2
     exit 1
@@ -95,7 +96,7 @@ unset VERIFY_RUN SIM WORKOUT_LOAD_LIMIT WORKOUT_SIM_CAP WORKOUT_ADMIT_WAIT WORKO
 
 reset() {
     rm -rf "$state" "/tmp/workout-verify-$sim2" "$root/builds" "$root/sysctl-calls" "$root/xcrun-calls" "$root/list-calls" \
-        "$root/booted" "$root/booting" "$root/holding" "$root/boot-holding" "$root/release"
+        "$root/booted" "$root/booting" "$root/holding" "$root/boot-holding" "$root/release" "$root/listing-slowly"
 }
 builds() { cat "$root/builds" 2>/dev/null | tr '\n' ' ' | sed 's/ $//'; }
 test_sim() { "$repo/scripts/test-sim.sh" "$@" --sim "$sim" unit >"$root/out" 2>"$root/err"; }
@@ -119,8 +120,10 @@ test_sim --no-build; status=$?
 expect "a run unused for 61 min is reclaimed and the claim goes on" "$status $(builds)" "65 test-without-building"
 expect "the reclaim names the run and its idle time" "$(head -1 "$root/err")" \
     "reclaimed $sim from verify run abandoned-run (pid $app): its lease was last renewed 61 min ago, and the lease is 60 min"
-expect "a reclaim drops the abandoned run's record, so no later call renews it" "$(ls "$state" | tr '\n' ' ')" "lock run "
 expect "an app launched without Live Activities is left for the next install to replace" "$(cat "$root/xcrun-calls" 2>/dev/null)" ""
+SIM=$sim VERIFY_RUN=abandoned-run "$repo/.agents/skills/verify/verify.sh" stop >"$root/out" 2>&1; status=$?
+expect "the abandoned run's own stop after a reclaim leaves the reclaimer's app alone" \
+    "$status $(cat "$root/xcrun-calls" 2>/dev/null)$(cat "$root/out")" "0 nothing launched by this tool on $sim"
 
 reset; own_the_app live-activity-run 61 ""
 test_sim --no-build; status=$?
@@ -178,7 +181,7 @@ age_minutes "$state/pid" 61
 SIM=$sim "$repo/.agents/skills/verify/verify.sh" tree >/dev/null 2>"$root/err"
 expect "a verify.sh call that names no run does not revive an expired lease" "$(minutes_old "$state/pid")" "61"
 expect "and says how to renew it" "$(head -1 "$root/err")" \
-    "the lease of verify run lane-812 on $sim lapsed 61 min ago, so a claim may take its app; name it with VERIFY_RUN=lane-812 to renew it"
+    "the lease of verify run lane-812 on $sim expired: last renewed 61 min ago, and the lease is 60 min, so a claim may take its app; if the run is yours, name it with VERIFY_RUN=lane-812 to keep it"
 rm "$state/pid"
 SIM=$sim "$repo/.agents/skills/verify/verify.sh" tree >/dev/null 2>&1
 expect "renewing never recreates a stopped run's pid file" "$(ls "$state" | tr '\n' ' ')" "args run "
@@ -223,12 +226,30 @@ expect "a simulator still shutting down waits, so the cap counts its boot" "$sta
 
 reset
 STUB_SHUTDOWN=$sim2 STUB_BOOTED_OTHERS=6 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=4 \
-    "$repo/scripts/test-sim.sh" --sim "$sim2" unit >/dev/null 2>&1 &
+    "$repo/scripts/test-sim.sh" --sim "$sim2" unit >/dev/null 2>"$root/err2" &
 first=$!
-sleep 1
+for _ in $(seq 1 100); do grep -q "waiting up to" "$root/err2" 2>/dev/null && break; sleep 0.1; done
 STUB_SHUTDOWN=$sim2 STUB_BOOTED_OTHERS=6 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
 wait "$first"
 expect "a build claim waiting at the cap holds no build slot" "$status $(builds)" "65 build-for-testing"
+
+reset
+mkdir -p "$root/locks"
+python3 -c 'import fcntl, sys, time
+slot = open(sys.argv[1], "a")
+fcntl.flock(slot, fcntl.LOCK_EX)
+open(sys.argv[2], "w").close()
+time.sleep(30)' "$root/locks/build-1" "$root/holding" &
+building=$!
+for _ in $(seq 1 100); do [ -f "$root/holding" ] && break; sleep 0.1; done
+STUB_SHUTDOWN="$sim $sim2" STUB_SLOW_LIST_CALL=3 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=4 \
+    "$repo/scripts/test-sim.sh" --sim "$sim2" unit >/dev/null 2>"$root/err2" &
+first=$!
+for _ in $(seq 1 100); do [ -f "$root/listing-slowly" ] && break; sleep 0.1; done
+STUB_SHUTDOWN="$sim $sim2" WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+kill "$building"; wait "$building" "$first" 2>/dev/null
+expect "a build claim waiting for a slot never holds the admit lock against a claim that only boots" \
+    "$status $(grep -c "simctl boot $sim\$" "$root/xcrun-calls")" "65 1"
 
 reset
 STUB_SHUTDOWN=$sim STUB_BOOT_FAILS=raced test_sim --no-build; status=$?
@@ -266,6 +287,29 @@ STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 WORKOUT_ADMIT_WAIT=0 \
     "$repo/scripts/test-sim.sh" --no-build --sim "$sim2" unit >"$root/out" 2>"$root/err"; status=$?
 expect "the next claim counts a simulator the last claim booted" "$status $(refusal)" \
     "75 gave up after N s waiting for the host before taking $sim2: 6 other simulators are booted, at the cap of 6 (WORKOUT_SIM_CAP)"
+
+reset
+mkdir -p "$root/herd"
+cat >"$root/herd/xcrun" <<STUB
+#!/bin/sh
+[ "\$*" = "simctl list devices available -j" ] || exec "$root/bin/xcrun" "\$@"
+echo listed >> "$root/herd-listed"
+[ "\$(wc -l < "$root/herd-listed")" -eq 2 ] || exec "$root/bin/xcrun" "\$@"
+listing=\$("$root/bin/xcrun" "\$@")
+touch "$root/release"
+while [ ! -f "$root/booted" ]; do sleep 0.1; done
+printf '%s\\n' "\$listing"
+STUB
+chmod +x "$root/herd/xcrun"
+rm -f "$root/herd-listed"
+STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 STUB_BOOT_HOLD=1 test_sim --no-build &
+first=$!
+for _ in $(seq 1 100); do [ -f "$root/boot-holding" ] && break; sleep 0.1; done
+PATH="$root/herd:$PATH" STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 WORKOUT_ADMIT_WAIT=0 \
+    "$repo/scripts/test-sim.sh" --no-build --sim "$sim2" unit >/dev/null 2>"$root/err2"; status=$?
+wait "$first"; status="$? $status"
+expect "two claims that both counted 5 booted boot one simulator between them, not two" \
+    "$status $(grep -c 'simctl boot' "$root/xcrun-calls")" "65 75 1"
 
 reset
 mkdir -p "$root/locks"
