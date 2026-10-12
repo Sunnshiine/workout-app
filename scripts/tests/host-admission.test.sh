@@ -10,7 +10,7 @@ apps=()
 cleanup() {
     touch "$root/release"
     [ ${#apps[@]} -eq 0 ] || { kill "${apps[@]}"; wait "${apps[@]}"; } 2>/dev/null
-    rm -rf "$root" "$state" "/tmp/workout-verify-$sim2"
+    rm -rf "$root" "$state" "/tmp/workout-verify-$sim2" "/tmp/workout-verify-$sim-W"*
 }
 trap cleanup EXIT
 repo=$root/repo
@@ -364,6 +364,39 @@ print(held)' "$root/locks/build-1")
 kill "$admitting"; wait "$admitting" "$first" 2>/dev/null
 expect "a build claim waiting for the admit lock holds its build slot for no more than a probe" \
     "$([ "$held" -lt 20 ] && echo "under 20 of 400 samples" || echo "$held of 400 samples")" "under 20 of 400 samples"
+
+reset
+STUB_SHUTDOWN=$sim2 STUB_SLOW_LIST_CALL=3 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 \
+    "$repo/scripts/test-sim.sh" --sim "$sim2" unit >/dev/null 2>"$root/err2" &
+first=$!
+for _ in $(seq 1 100); do [ -f "$root/listing-slowly" ] && break; sleep 0.1; done
+STUB_HOLD=1 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim &
+second=$!
+wait "$first"; status=$?
+touch "$root/release"; wait "$second"; status="$status $?"
+expect "a build claim takes its slot under the admit lock before it boots, so a build that starts meanwhile waits" \
+    "$status $(grep -c 'simctl boot' "$root/xcrun-calls" 2>/dev/null)" "65 75 1"
+
+reset
+mkdir -p "$root/locks"
+python3 -c 'import fcntl, sys, time
+admit, build = open(sys.argv[1], "a"), open(sys.argv[2], "a")
+fcntl.flock(admit, fcntl.LOCK_EX)
+fcntl.flock(build, fcntl.LOCK_EX)
+open(sys.argv[3], "w").close()
+time.sleep(30)' "$root/locks/admit" "$root/locks/build-1" "$root/holding" &
+admitting=$!
+for _ in $(seq 1 100); do [ -f "$root/holding" ] && break; sleep 0.1; done
+waiters=
+for w in 1 2 3 4 5 6 7 8 9 10 11 12; do
+    STUB_SHUTDOWN="$(printf "$sim-W%s " 1 2 3 4 5 6 7 8 9 10 11 12)" WORKOUT_BUILD_SLOTS=2 WORKOUT_ADMIT_WAIT=12 \
+        "$repo/scripts/test-sim.sh" --sim "$sim-W$w" unit >/dev/null 2>"$root/err-w$w" &
+    waiters="$waiters $!"
+done
+wait $waiters
+kill "$admitting"; wait "$admitting" 2>/dev/null
+expect "build claims waiting on a boot blame the boot, never each other's slot probes" \
+    "$(grep -h 'gave up' "$root"/err-w* | grep -c 'another claim is booting') of 12" "12 of 12"
 
 reset
 STUB_SHUTDOWN=$sim STUB_SLOW_LIST_CALL=3 "$repo/scripts/test-sim.sh" --no-build --sim "$sim" unit >/dev/null 2>&1 &

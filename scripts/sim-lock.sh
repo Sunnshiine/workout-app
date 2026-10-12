@@ -190,10 +190,7 @@ admit_claim() {
     [ "$build" = 0 ] || take_build_slot
     return
   fi
-  if [ "$build" != 0 ]; then
-    take_build_slot || return 1
-    drop_build_slot
-  fi
+  [ "$build" = 0 ] || build_slot_free || return 1
   exec 7>>"$host_lock_dir/admit"
   if ! try_flock 7 LOCK_EX 1; then
     busy_reason="another claim is booting a simulator (lsof $host_lock_dir/admit lists it)"
@@ -231,17 +228,36 @@ boot_sim() {
 }
 
 take_build_slot() {
-  local slot i=0 holders=
+  local slot i=0
   while [ $((i += 1)) -le "$WORKOUT_BUILD_SLOTS" ]; do
     slot=$host_lock_dir/build-$i
     exec 8>>"$slot"
-    if try_flock 8 LOCK_EX 1; then
+    if try_flock 8 LOCK_EX 3; then
       printf '%s (pid %s)\n' "${0##*/}" "$$" > "$slot"
       build_slot=$slot
       return 0
     fi
     exec 8>&-
-    holders="$holders${holders:+, }$(cat "$slot")"
+  done
+  slots_taken
+}
+
+# A shared lock fails only against a build holding the slot, never against another claim's probe.
+build_slot_free() {
+  local i=0 free=1
+  while [ $((i += 1)) -le "$WORKOUT_BUILD_SLOTS" ]; do
+    exec 8>>"$host_lock_dir/build-$i"
+    try_flock 8 LOCK_SH 1 && free=0
+    exec 8>&-
+    [ $free = 1 ] || return 0
+  done
+  slots_taken
+}
+
+slots_taken() {
+  local i=0 holders=
+  while [ $((i += 1)) -le "$WORKOUT_BUILD_SLOTS" ]; do
+    holders="$holders${holders:+, }$(cat "$host_lock_dir/build-$i")"
   done
   busy_reason="all $WORKOUT_BUILD_SLOTS build slots are taken (WORKOUT_BUILD_SLOTS): $holders; lsof $host_lock_dir/build-* lists every process holding one"
   return 1
