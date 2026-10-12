@@ -1571,6 +1571,18 @@ case "$tool $1 $2" in
     fi ;;
   "xcrun simctl launch") echo "com.sunnypatel.WorkoutTracker: 4121" ;;
   "xcrun simctl spawn") ;;
+  "xcrun simctl io")
+    out=$8
+    trap 'echo INT >> "{dir}/signals"; touch "{dir}/stopped"; echo "mp4 ${STUB_MARK:-}" > "$out"; exit 0' INT
+    trap 'echo TERM >> "{dir}/signals"; exit 143' TERM
+    sleep 0.2
+    if [ -z "${STUB_NEVER_STARTS:-}" ]; then
+      echo "Recording started" >> "{dir}/calls"
+      echo "Recording started" >&2
+    fi
+    i=0
+    while [ $i -lt 300 ]; do sleep 0.1; i=$((i + 1)); done
+    exit 1 ;;
   "xcodebuild build -project")
     project=$3 derived=$HOME/Library/Developer/Xcode/DerivedData/WorkoutTracker-test
     while [ $# -gt 0 ]; do [ "$1" != -derivedDataPath ] || derived=$2; shift; done
@@ -1647,7 +1659,7 @@ class Lane(unittest.TestCase):
     def link_verify(self, checkout):
         skill = checkout / ".agents" / "skills" / "verify"
         skill.mkdir(parents=True)
-        for name in ["verify.sh", "tree.py"]:
+        for name in ["verify.sh", "tree.py", "take.py"]:
             (skill / name).symlink_to(SKILL / name)
         (checkout / "scripts").mkdir()
         for name in ["sim-lock.sh", "bootstrap-xcode-worktree.sh"]:
@@ -2374,6 +2386,158 @@ class TakeJudge(unittest.TestCase):
             "recorder exit 2 after SIGINT; the video may be cut short",
             "no frame at or after the drive began at +3.50 s, so the take shows nothing the drive changed",
         ])
+
+
+
+SYSCTL_STUB = """#!/bin/sh
+if [ -f "{dir}/stopped" ]; then echo "{ ${STUB_LOAD_AFTER:-14.02} 9.00 8.00 }"; else echo "{ ${STUB_LOAD_BEFORE:-12.31} 9.00 8.00 }"; fi
+"""
+FFPROBE_STUB = """#!/bin/sh
+for video; do :; done
+[ -s "$video" ] || { echo "$video: No such file or directory" >&2; exit 1; }
+frames=
+for t in ${STUB_PTS:-0.000000 3.402000 0.400000}; do frames="$frames${frames:+, }{\\"pts_time\\": \\"$t\\"}"; done
+echo "{\\"frames\\": [$frames], \\"streams\\": [{\\"width\\": 1206, \\"height\\": 2622}]}"
+"""
+TAKE_KEYS = ["format", "name", "video", "drive", "tail", "load_limit", "load_before", "load_after", "started",
+             "drive_start", "drive_end", "stopped", "recorder_exit", "recorder_early", "frames", "first_frame",
+             "last_frame", "video_px", "verdict", "invalid", "screen_pt", "animations", "app"]
+SUMMARY = re.compile(r"^take appear (VALID|INVALID) \d+\.\d\d s, drive \+\d+\.\d\d\.\.\+\d+\.\d\d s, 3 frames, "
+                     r"last \+3\.40 s, load 12\.3 then (\d+\.\d) \(limit 50\), animations on$")
+
+
+class Record(Lane):
+    def setUp(self):
+        super().setUp()
+        for name, stub in [("sysctl", SYSCTL_STUB), ("ffprobe", FFPROBE_STUB)]:
+            (self.tmp / "bin" / name).write_text(stub.replace("{dir}", str(self.tmp)))
+            (self.tmp / "bin" / name).chmod(0o755)
+        self.verify("build")
+        self.run = self.evidence("main", "lane-1")
+
+    def launch(self):
+        self.assertEqual(self.verify("launch", "--animated", "session", VERIFY_RUN="lane-1")[0], 0)
+
+    def record(self, *argv, **env):
+        for marker in ["signals", "stopped"]:
+            (self.tmp / marker).unlink(missing_ok=True)
+        env.setdefault("VERIFY_RUN", "lane-1")
+        return self.verify("record", "appear", "--tail", "0.5", *argv, **env)
+
+    def stamp(self, run=None):
+        return [line.split("=", 1) for line in ((run or self.run) / "appear.take").read_text().splitlines()]
+
+    def signals(self):
+        return (self.tmp / "signals").read_text()
+
+    def listing(self, directory):
+        return sorted(p.name for p in directory.iterdir())
+
+    def test_a_valid_take_stamps_every_key_in_order_and_stops_the_recorder_with_one_sigint(self):
+        self.launch()
+        before = time.time()
+        code, out, err = self.record("--", "tap", "-x", "5", "-y", "6")
+        self.assertEqual((code, err), (0, ""))
+        paths, summary = out.splitlines()[:2], out.splitlines()[2:]
+        self.assertEqual(paths, [str(self.run / "appear.mp4"), str(self.run / "appear.take")])
+        self.assertEqual([SUMMARY.match(line).groups() for line in summary], [("VALID", "14.0")])
+        stamp = self.stamp()
+        self.assertEqual([key for key, _ in stamp], TAKE_KEYS)
+        values = dict(stamp)
+        timed = {key: float(values.pop(key)) for key in ["started", "drive_start", "drive_end", "stopped"]}
+        self.assertEqual(values, {
+            "format": "take/1", "name": "appear", "video": "appear.mp4", "drive": "tap -x 5 -y 6", "tail": "0.5",
+            "load_limit": "50", "load_before": "12.31", "load_after": "14.02", "recorder_exit": "0",
+            "recorder_early": "0", "frames": "3", "first_frame": "0.000", "last_frame": "3.402",
+            "video_px": "1206x2622", "verdict": "VALID", "invalid": "", "screen_pt": "402x874", "animations": "on",
+            "app": self.worktree_build(b"v2\n", self.b)})
+        self.assertTrue(before < timed["started"] < time.time(), timed)
+        self.assertTrue(0 <= timed["drive_start"] <= timed["drive_end"], timed)
+        self.assertGreaterEqual(timed["stopped"] - timed["drive_end"], 0.5, "the tail ran after the drive")
+        self.assertEqual(self.signals(), "INT\n")
+        self.assertEqual((self.run / "appear.mp4").read_text(), "mp4 \n")
+        self.assertEqual(self.listing(self.run / ".pending"), [])
+        self.assertEqual(self.calls()[:3], [
+            "xcrun simctl io %s recordVideo --codec h264 --force %s" % (self.sim, self.run / ".pending" / "appear.mp4"),
+            "Recording started",
+            "axe tap --udid %s --wait-timeout 3 -x 5 -y 6" % self.sim,
+        ], "the drive ran only after the recorder said it was capturing")
+
+    def test_load_over_the_limit_after_the_take_keeps_it_and_exits_3_with_the_reason(self):
+        self.launch()
+        code, out, err = self.record("--", "tap", "-x", "5", "-y", "6", STUB_LOAD_AFTER="63.20")
+        self.assertEqual((code, err), (3, "load 63.2 at the end, at or over 50\n"))
+        self.assertEqual(SUMMARY.match(out.splitlines()[2]).groups(), ("INVALID", "63.2"))
+        values = dict(self.stamp())
+        self.assertEqual((values["verdict"], values["invalid"]), ("INVALID", "load 63.2 at the end, at or over 50"))
+        self.assertEqual(self.listing(self.run), [".pending", "appear.mp4", "appear.take", "launches.txt"])
+
+    def test_load_over_the_limit_before_the_take_refuses_with_no_recorder_and_no_drive(self):
+        self.launch()
+        self.assertEqual(self.record("--", "tap", "-x", "5", "-y", "6", STUB_LOAD_BEFORE="63.20", VERIFY_LOAD_WAIT="0"),
+                         (75, "", "load 63.20 at or over 50 after 0s; nothing recorded or driven\n"))
+        self.assertEqual(self.calls(), [])
+        self.assertEqual(self.listing(self.run), ["launches.txt"])
+
+    def test_load_that_stays_over_the_limit_is_waited_on_then_refused(self):
+        self.launch()
+        self.assertEqual(self.record(STUB_LOAD_BEFORE="50", VERIFY_LOAD_WAIT="1"), (75, "", (
+            "load 50 at or over 50; waiting up to 1s for it to fall\n"
+            "load 50 at or over 50 after 1s; nothing recorded or driven\n")))
+        self.assertEqual(self.calls(), [])
+
+    def test_a_recorder_that_never_starts_capturing_drives_nothing_and_leaves_nothing(self):
+        self.launch()
+        self.assertEqual(self.record("--", "tap", "-x", "5", "-y", "6", STUB_NEVER_STARTS="1", VERIFY_RECORD_START="1"),
+                         (70, "", "simctl recordVideo did not start capturing within 1 s, so nothing was driven\n"))
+        self.assertEqual(self.calls(), [
+            "xcrun simctl io %s recordVideo --codec h264 --force %s" % (self.sim, self.run / ".pending" / "appear.mp4")])
+        self.assertEqual(self.signals(), "INT\n")
+        self.assertEqual(self.listing(self.run), [".pending", "launches.txt"])
+        self.assertEqual(self.listing(self.run / ".pending"), [])
+
+    def test_a_failing_drive_stops_the_recorder_and_leaves_nothing(self):
+        self.launch()
+        self.assertEqual(self.record("--", "tap", "-x", "5", "-y", "6", STUB_AXE_EXIT="4"),
+                         (1, "", "the drive `tap -x 5 -y 6` exited 4, so the take is not kept\n"))
+        self.assertEqual(self.signals(), "INT\n")
+        self.assertEqual(self.listing(self.run), [".pending", "launches.txt"])
+        self.assertEqual(self.listing(self.run / ".pending"), [])
+
+    def test_a_wrapped_launch_lands_in_the_takes_own_run(self):
+        code, out, err = self.record("--", "launch", "--animated", "session", VERIFY_RUN="")
+        self.assertEqual(code, 0, err)
+        run = Path(out.splitlines()[0]).parent
+        head = self.worktree_build(b"v2\n", self.b)
+        self.assertEqual(err, "launched session as pid 4121 on %s (animations on)\n%s\nevidence %s\n" % (
+            self.sim, head, run), "the drive's output goes to stderr, and it launched into the take's run")
+        self.assertEqual(self.listing(run), [".pending", "appear.mp4", "appear.take", "launches.txt"])
+        self.assertRegex((run / "launches.txt").read_text(), r"^\S+ session animated %s on %s from %s\n$" % (
+            re.escape(head), self.sim, re.escape(str(self.checkout))))
+        values = dict(self.stamp(run))
+        self.assertEqual((values["drive"], values["animations"]), ("launch --animated session", "on"))
+
+    def test_a_take_of_an_app_launched_without_animated_says_it_cannot_show_motion(self):
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1")[0], 0)
+        code, out, err = self.record("--", "tap", "-x", "5", "-y", "6")
+        self.assertEqual((code, err), (0, "animations are off in this app (it was launched without --animated), "
+                                          "so the take cannot show motion\n"))
+        self.assertEqual(dict(self.stamp())["animations"], "off")
+
+    def test_a_rerun_replaces_the_pair(self):
+        self.launch()
+        self.assertEqual(self.record("--", "tap", "-x", "5", "-y", "6", STUB_MARK="first")[0], 0)
+        self.assertEqual(self.record("--", "tap", "-x", "5", "-y", "6", STUB_MARK="second",
+                                     STUB_PTS="1.250000 0.000000")[0], 0)
+        self.assertEqual(self.listing(self.run), [".pending", "appear.mp4", "appear.take", "launches.txt"])
+        self.assertEqual((self.run / "appear.mp4").read_text(), "mp4 second\n")
+        values = dict(self.stamp())
+        self.assertEqual((values["frames"], values["last_frame"]), ("2", "1.250"))
+
+    def test_a_tail_that_is_not_a_number_is_usage_before_anything_runs(self):
+        code, out, err = self.verify("record", "appear", "--tail", "2s", VERIFY_RUN="lane-1")
+        self.assertEqual((code, out, err.splitlines()[0]), (2, "", "Usage: .agents/skills/verify/verify.sh <command> [args]"))
+        self.assertEqual(self.calls(), [])
 
 
 if __name__ == "__main__":

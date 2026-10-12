@@ -158,16 +158,18 @@ class Recorder:
     def output(self) -> str:
         return self.log.read_text(errors="replace").strip()
 
+    def failed(self, why: str) -> NoTake:
+        said = self.output()
+        return NoTake("simctl recordVideo %s, so nothing was driven%s" % (why, ":\n" + said if said else ""))
+
     def await_capture(self, timeout: float) -> float:
         deadline = time.time() + timeout
         while "Recording started" not in self.output():
             if self.proc.poll() is not None:
-                raise NoTake("simctl recordVideo exited %d before it started capturing, so nothing was driven:\n%s"
-                             % (self.proc.returncode, self.output()))
+                raise self.failed("exited %d before it started capturing" % self.proc.returncode)
             if time.time() > deadline:
                 self.stop()
-                raise NoTake("simctl recordVideo did not start capturing within %g s, so nothing was driven:\n%s"
-                             % (timeout, self.output()))
+                raise self.failed("did not start capturing within %g s" % timeout)
             time.sleep(POLL)
         return time.time()
 
