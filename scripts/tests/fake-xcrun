@@ -8,11 +8,14 @@ AutomaticMinimizationEnabled=1, the value that hides the keyboard (#700).
 
 Knobs: FAKE_SIM_NO_RUNTIME=1 lists no iOS runtime. FAKE_SIM_CLONE_405_ONCE=<file> fails the first clone
 with 405 and creates <file>, as when the source was booted between a check and the clone.
+FAKE_SIM_SLOW_SHUTDOWN=<file> makes each shutdown create <file>, then take two seconds before it
+touches the store.
 """
 import fcntl
 import json
 import os
 import sys
+import time
 
 RUNTIME = "com.apple.CoreSimulator.SimRuntime.iOS-27-0"
 DEVICE_TYPE = {"name": "iPhone 17 Pro", "identifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro"}
@@ -112,6 +115,10 @@ def main():
         sys.exit(2)
     verb, args = sys.argv[2], sys.argv[3:]
     path = os.environ["FAKE_SIM_STORE"]
+    slow = os.environ.get("FAKE_SIM_SLOW_SHUTDOWN")
+    if verb == "shutdown" and slow:
+        open(slow, "w").close()
+        time.sleep(2)
     with open(path + ".lock", "a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         if verb != "list":
