@@ -17,6 +17,13 @@ on:
       - "scripts/tests/sim-keyboard.test.sh"
       - "scripts/tests/snapshot-diffs.test.sh"
       - "scripts/tests/flake-hunt.test.sh"
+      - "scripts/sim-pool.sh"
+      - "scripts/lane.sh"
+      - "scripts/prune-merged-worktrees.sh"
+      - "scripts/tests/fake-xcrun"
+      - "scripts/tests/sim-pool.test.sh"
+      - "scripts/tests/lane.test.sh"
+      - "scripts/tests/prune-merged-worktrees.test.sh"
       - ".github/workflows/verify-tools.yml"
       - ".github/workflows/ci.yml"
   push:
@@ -36,6 +43,13 @@ on:
       - "scripts/tests/sim-keyboard.test.sh"
       - "scripts/tests/snapshot-diffs.test.sh"
       - "scripts/tests/flake-hunt.test.sh"
+      - "scripts/sim-pool.sh"
+      - "scripts/lane.sh"
+      - "scripts/prune-merged-worktrees.sh"
+      - "scripts/tests/fake-xcrun"
+      - "scripts/tests/sim-pool.test.sh"
+      - "scripts/tests/lane.test.sh"
+      - "scripts/tests/prune-merged-worktrees.test.sh"
       - ".github/workflows/verify-tools.yml"
       - ".github/workflows/ci.yml"
 
@@ -65,5 +79,8 @@ jobs:
       - run: scripts/tests/sim-keyboard.test.sh
       - run: scripts/tests/snapshot-diffs.test.sh
       - run: scripts/tests/flake-hunt.test.sh
+      - run: /bin/bash scripts/tests/sim-pool.test.sh
+      - run: /bin/bash scripts/tests/lane.test.sh
+      - run: /bin/bash scripts/tests/prune-merged-worktrees.test.sh
       - name: test_evidence.py, with the VerifySheet tests that only run on macOS
         run: python3 .agents/skills/verify/tests/test_evidence.py
