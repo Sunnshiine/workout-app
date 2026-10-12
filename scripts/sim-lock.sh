@@ -63,6 +63,16 @@ launched_with_live_activities() {
   [ -f "$1/args" ] && ! grep -q -- -UITEST_DISABLE_LIVE_ACTIVITIES "$1/args"
 }
 
+flock_fd() {
+  python3 -c 'import fcntl, sys, time
+deadline = time.time() + float(sys.argv[2])
+while True:
+    try: fcntl.flock(int(sys.argv[1]), fcntl.LOCK_EX | fcntl.LOCK_NB); break
+    except BlockingIOError:
+        if time.time() >= deadline: sys.exit(75)
+        time.sleep(0.1)' "$1" "$2"
+}
+
 is_fixture_launch() {
   case $(ps -p "$1" -o args= 2>/dev/null) in *-UITEST_FIXTURE*) return 0 ;; esac
   return 1

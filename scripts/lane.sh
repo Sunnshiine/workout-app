@@ -45,13 +45,21 @@ Exit codes: 0 done; 1 env: no such lane, or down --if-idle: the lane is not idle
 <reason>); 2 usage, a bad name, an unknown commit, a lane at another commit, a worktree on a branch,
 a locked lane or one holding a nested worktree, or down run from the lane's own copy of this script;
 69 the simulator runtime is missing; 70 git, simctl, or a save failed (down then leaves the worktree);
-75 a test-sim or verify run holds the lane's simulator, the simulator pool is busy, or down found
-another process working inside the lane (stop it or cd out; this script's callers do not count).
+75 a test-sim or verify run holds the lane's simulator, the simulator pool is busy, down found
+another process working inside the lane (stop it or cd out; this script's callers do not count), or
+another up or down of the same lane held it for WORKOUT_ADMIT_WAIT seconds (default 540).
 EOF
   exit 2
 }
 
 die() { echo "lane.sh: $2" >&2; exit "$1"; }
+
+# The lane lock is fd 6, and a flock is shared by every process holding the fd, so no child that
+# may outlive this script, such as git's background gc, gets it. Not `command git`: bash 3.2 hands
+# a builtin's child its saved copy of fd 6.
+git_bin=$(type -P git) || die 2 "git is not on PATH"
+git() { "$git_bin" "$@" 6>&-; }
+sim_pool() { "$here/sim-pool.sh" "$@" 6>&-; }
 
 unset GIT_DIR GIT_WORK_TREE
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
@@ -66,6 +74,17 @@ set_lane() {
   name=$1
   wt=$primary/.claude/worktrees/$name
   evidence=$primary/.claude/work/evidence/detached-$name
+}
+
+lock_lane() {
+  local lock=${WORKOUT_HOST_LOCK_DIR:-/tmp/workout-host-locks}/lane-$name wait=${WORKOUT_ADMIT_WAIT:-540} rc=0
+  case $wait in '' | *[!0-9]*) die 2 "WORKOUT_ADMIT_WAIT must be a whole number of seconds: $wait" ;; esac
+  mkdir -p "$(dirname "$lock")"
+  exec 6>>"$lock"
+  flock_fd 6 "$wait" || rc=$?
+  [ $rc -ne 75 ] || die 75 "waited $wait s for lane $name, held by $(cat "$lock") (lsof $lock lists it)"
+  [ $rc -eq 0 ] || exit $rc
+  printf 'lane.sh %s %s (pid %s)\n' "$1" "$name" "$$" >"$lock"
 }
 
 whole_days() { case $1 in '' | *[!0-9]*) usage ;; esac; }
@@ -93,7 +112,7 @@ nested_worktree() {
 }
 
 lane_udids() {
-  "$here/sim-pool.sh" list | awk -F '\t' -v n="workout-lane-$name" '$3 == "lane" && $4 == n { print $1 }'
+  sim_pool list | awk -F '\t' -v n="workout-lane-$name" '$3 == "lane" && $4 == n { print $1 }'
 }
 
 files_to_save() {
@@ -191,6 +210,7 @@ resolve() { git -C "$primary" rev-parse --verify -q "$1^{commit}"; }
 lane_up() {
   local commit=$2 sha reg head branch udid
   set_lane "$1"
+  lock_lane up
   if ! sha=$(resolve "$commit"); then
     echo "lane.sh: $commit is not here; fetching origin" >&2
     git -C "$primary" fetch -q origin >&2 || true
@@ -220,9 +240,9 @@ lane_up() {
     || die 2 "lane $name is at $head${branch:+ on branch $branch}, not $sha; lane.sh down $name first"
   git -C "$wt" update-ref refs/worktree/lane-base "$sha" || die 70 "could not record the base of lane $name"
   if [ -f "$wt/.githooks/post-checkout" ]; then
-    (cd "$wt" && sh .githooks/post-checkout) >&2 || die 70 "the post-checkout hook failed in $wt"
+    (cd "$wt" && sh .githooks/post-checkout) >&2 6>&- || die 70 "the post-checkout hook failed in $wt"
   fi
-  udid=$("$here/sim-pool.sh" create "$name")
+  udid=$(sim_pool create "$name")
   mkdir -p "$evidence"
   print_env "$udid"
 }
@@ -303,6 +323,7 @@ lane_down() {
   [ $# -eq 1 ] || usage
   set_lane "$1"
   case "$here/" in "$wt/"*) die 2 "this copy of lane.sh lives in lane $name; run $primary/scripts/lane.sh down $name" ;; esac
+  lock_lane down
   if [ -n "$idle" ]; then
     assess "$idle"
     [ "$verdict" = remove ] || { echo "SKIPPED: $reason" >&2; exit 1; }
@@ -322,7 +343,7 @@ lane_down() {
     holder=$(cwd_holder) || die 70 "could not list process working directories"
     [ -z "$holder" ] || die 75 "pid ${holder%% *} (${holder#* }) works in $wt; stop it or cd out"
   fi
-  "$here/sim-pool.sh" delete "$name" || exit
+  sim_pool delete "$name" || exit
   if [ -n "$reg" ]; then
     dir=$evidence/down-$(date +%Y%m%d-%H%M%S)
     saved=$(save_lane "$dir")
