@@ -181,7 +181,7 @@ timed from the return. In the issue 696 runs the first frame came 1.3 to 8.7 s b
 the return, frames land about 200 ms apart, more than 2 s apart on a busy simulator, and the first
 lands 140 to 750 ms after it. A burst that shows only a before and an after says nothing about a
 state shorter than those gaps, and a 3% change is easy to miss on the tile, so read the full-size
-frames in `<name>.burst/`. Any other path is unproved under the flag. A state an action has not
+frames in `<name>.burst/`. Any other path is unproved under the flag; prove it under Motion below. A state an action has not
 caused within one second will not appear later. `burst` shows frame by frame what an action
 changed.
 
@@ -239,6 +239,32 @@ rest pill counts down once a second, so the changed lines always carry it.
 
 `shot` refuses a PNG byte-identical to the run's newest shot, a retake of the same name included,
 while the tree changed. It saves nothing, prints the changed lines, and exits 70.
+
+## Motion
+
+Under `-UITEST_DISABLE_ANIMATIONS` a slide, a fade, or a fly-in is one cut, so `shot` and `burst`
+cannot show it. Prove a change to anything that moves with a measured take that has motion on.
+
+```bash
+VERIFY_RUN=card-in verify.sh launch --animated session                 # same lock, pid and install path; motion on
+verify.sh record log --tail 3 -- tap --id log-active-set-button          # log.mp4 + log.take in the run
+verify.sh stop && verify.sh record appear -- launch --animated session   # a first appear: the launch is the drive
+uv run .agents/skills/verify/motion/cardframe.py <run dir>/appear.mp4    # the Active Set Card's edges per frame
+uv run .agents/skills/verify/motion/cardstill.py --control <a commit whose card moves>   # 15 min
+```
+
+`record` waits up to `VERIFY_LOAD_WAIT` s (60) for the 1-minute load to fall under
+`WORKOUT_LOAD_LIMIT` (50), because a loaded host films a move as a cut. It drives once the recorder is
+capturing and stops it with SIGINT. Exit 0 is a VALID take. Exit 3 is INVALID, files kept, reasons on
+stderr. Exit 75 means nothing ran. The recorder writes a frame only when the screen changes, so a
+still screen is one frame. `cardframe.py` is the one frame metric, and it times frames by their own
+pts, because ffmpeg's clock puts simctl frames about 0.8 s early. `still=yes` means the card never
+vanished and no edge moved over 0.5 pt. A launch take is measured from when the card reaches its final
+width and contrast, after iOS zooms or fades the app in. On a build whose card slides in on first
+appear, the animated launch read `worst_edge_range=23.5 still=no`, and the same build without
+`--animated` read `still=yes`. `cardstill.py` prints PASS only when the control commit moved the card
+on one of its eight takes and the head held it still on all eight. After an edit to `take.py` or
+`motion/`, also run `uv run .agents/skills/verify/tests/test_motion.py`.
 
 ## Cleanup
 
