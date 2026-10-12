@@ -6,8 +6,9 @@
 #                finished, adds "X (crashed)" when X was its one running test and "(test process
 #                crashed)" otherwise.
 #   count        the tests that ran: Swift Testing's run line plus XCTest's Executed line
-#   first-error  the compiler's first file:line: error, else the first recorded issue, else the
-#                first error: line, else the last line. -v root=DIR/ strips DIR/ from it.
+#   first-error  the compiler's first file:line: error (a parse error rewritten to that form), else
+#                the first recorded issue, else the first error: line, else the last line.
+#                -v root=DIR/ strips DIR/ from it.
 
 BEGIN {
   if (mode != "failures" && mode != "count" && mode != "first-error") {
@@ -37,6 +38,8 @@ function unrooted(s,    p) {
 
 mode == "first-error" {
   if (/^[^ ]+:[0-9]+(:[0-9]+)?: error: / || / Test .* recorded an issue/) { found = $0; exit }
+  # SwiftPM prints a parse error, #error included, as "error: FILE:LINE:COL message".
+  if (/^error: [^ ]+:[0-9]+:[0-9]+ /) { found = $2 ": error:" substr($0, length($1 " " $2) + 1); exit }
   if (first == "" && /error:/) first = $0
   last = $0
   next

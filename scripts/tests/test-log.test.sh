@@ -138,6 +138,11 @@ error: SwiftCompile normal arm64 /slot/Sources/A.swift failed with a nonzero exi
 /slot/Sources/A.swift:12:5: error: cannot find 'BREAK' in scope
 /slot/Sources/B.swift:3:1: error: second" \
 "Sources/A.swift:12:5: error: cannot find 'BREAK' in scope"
+check first-error "first-error reads the driver's parse error as file:line:col: error:" \
+"error: /slot/Sources/A.swift:82:8 expected ')' in expression list
+error: SwiftDriver WorkoutTracker normal arm64 com.apple.xcode.tools.swift.compiler failed with a nonzero exit code.
+error: Build failed" \
+"Sources/A.swift:82:8: error: expected ')' in expression list"
 check first-error "first-error names a test's recorded issue" \
 "◇ Test run started.
 ✘ Test gateOpens() recorded an issue at GateTests.swift:3:5: Expectation failed: 1 == 2
