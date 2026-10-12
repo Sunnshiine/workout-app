@@ -58,6 +58,14 @@ fi
 [ -z "\${STUB_LIST_WARNING:-}" ] || echo "objc[4242]: Class SimDeviceSet is implemented in both CoreSimulator and CoreSimulatorUtilities" >&2
 echo call >> "$root/list-calls"
 if [ "\$(wc -l < "$root/list-calls")" -eq "\${STUB_SLOW_LIST_CALL:-0}" ]; then touch "$root/listing-slowly"; sleep 3; fi
+if [ "\$(wc -l < "$root/list-calls")" -eq "\${STUB_PROBE_ON_LIST_CALL:-0}" ]; then
+    python3 -c 'import fcntl, sys, time
+slot = open(sys.argv[1], "a")
+fcntl.flock(slot, fcntl.LOCK_SH)
+open(sys.argv[2], "w").close()
+time.sleep(0.12)' "$root/locks/build-1" "$root/probing" 7>&- 8>&- 9>&- &
+    while [ ! -f "$root/probing" ]; do sleep 0.01; done
+fi
 if [ "\$(wc -l < "$root/list-calls")" -gt "\${STUB_LIST_OK_CALLS:-1000}" ]; then
     echo "An error was encountered processing the command (domain=com.apple.CoreSimulator.SimError, code=405)" >&2
     exit 1
@@ -96,7 +104,7 @@ unset VERIFY_RUN SIM WORKOUT_LOAD_LIMIT WORKOUT_SIM_CAP WORKOUT_ADMIT_WAIT WORKO
 
 reset() {
     rm -rf "$state" "/tmp/workout-verify-$sim2" "$root/builds" "$root/sysctl-calls" "$root/xcrun-calls" "$root/list-calls" \
-        "$root/booted" "$root/booting" "$root/holding" "$root/boot-holding" "$root/release" "$root/listing-slowly"
+        "$root/booted" "$root/booting" "$root/holding" "$root/boot-holding" "$root/release" "$root/listing-slowly" "$root/probing"
 }
 builds() { cat "$root/builds" 2>/dev/null | tr '\n' ' ' | sed 's/ $//'; }
 test_sim() { "$repo/scripts/test-sim.sh" "$@" --sim "$sim" unit >"$root/out" 2>"$root/err"; }
@@ -397,6 +405,14 @@ wait $waiters
 kill "$admitting"; wait "$admitting" 2>/dev/null
 expect "build claims waiting on a boot blame the boot, never each other's slot probes" \
     "$(grep -h 'gave up' "$root"/err-w* | grep -c 'another claim is booting') of 12" "12 of 12"
+
+went=0
+for _ in 1 2 3 4 5; do
+    reset
+    STUB_PROBE_ON_LIST_CALL=2 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim
+    [ $? != 65 ] || went=$((went + 1))
+done
+expect "a build on a booted simulator outlasts another claim's shared probe of its slot" "$went of 5" "5 of 5"
 
 reset
 STUB_SHUTDOWN=$sim STUB_SLOW_LIST_CALL=3 "$repo/scripts/test-sim.sh" --no-build --sim "$sim" unit >/dev/null 2>&1 &

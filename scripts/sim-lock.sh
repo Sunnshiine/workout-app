@@ -232,6 +232,7 @@ take_build_slot() {
   while [ $((i += 1)) -le "$WORKOUT_BUILD_SLOTS" ]; do
     slot=$host_lock_dir/build-$i
     exec 8>>"$slot"
+    # Three tries outlast another claim's shared probe of the slot.
     if try_flock 8 LOCK_EX 3; then
       printf '%s (pid %s)\n' "${0##*/}" "$$" > "$slot"
       build_slot=$slot
@@ -244,12 +245,11 @@ take_build_slot() {
 
 # A shared lock fails only against a build holding the slot, never against another claim's probe.
 build_slot_free() {
-  local i=0 free=1
+  local i=0
   while [ $((i += 1)) -le "$WORKOUT_BUILD_SLOTS" ]; do
     exec 8>>"$host_lock_dir/build-$i"
-    try_flock 8 LOCK_SH 1 && free=0
+    try_flock 8 LOCK_SH 1 && { exec 8>&-; return 0; }
     exec 8>&-
-    [ $free = 1 ] || return 0
   done
   slots_taken
 }
