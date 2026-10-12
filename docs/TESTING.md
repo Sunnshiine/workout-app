@@ -174,6 +174,20 @@ Reading a `scripts/test-sim.sh` run:
 - After a failed visual run, `scripts/snapshot-diffs.sh <bundle>` exports the reference, failure,
   and difference images and prints their paths.
 
+Running beside other agents (`scripts/lane.sh --help` and `scripts/sim-pool.sh --help` hold the details):
+
+- `scripts/lane.sh up <name> <commit>` makes a lane: a detached worktree at that commit under
+  `.claude/worktrees/<name>` with `Secrets.xcconfig` in place, and its own simulator, cloned from a
+  template `scripts/sim-pool.sh` builds on first use. It prints three `export` lines: `SIM`,
+  `LANE_WORKTREE`, and `VERIFY_EVIDENCE`, an evidence directory in the main checkout that outlives
+  the worktree. The shell forgets them between calls, so start each call with
+  `env=$(scripts/lane.sh env <name>) && eval "$env" && ...`.
+- `scripts/lane.sh down <name>` saves any uncommitted diff, untracked files, commits no branch holds, and
+  the lane's `.build/test-sim` runs into that evidence directory, then removes the worktree, its
+  simulator, and its DerivedData. It refuses with exit 75 while a run holds the simulator.
+- `scripts/prune-merged-worktrees.sh` lists a clean lane idle for `--lane-idle-days` (default 3)
+  as a candidate, and `--apply` removes it through `lane.sh down`.
+
 Shared fixture policy:
 
 - Put shared builders and named scenarios under `Tests/Support`.
