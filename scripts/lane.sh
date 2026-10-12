@@ -110,16 +110,20 @@ for path in sys.stdin.buffer.read().split(b"\0"):
     sys.stdout.buffer.write(path + b"\0")'
 }
 
+# up records the lane's base in refs/worktree/lane-base, because gc expires reflog entries, the
+# creation entry first. A lane up did not make has a base only while that entry survives.
 read_lane_history() {
-  local admin
-  admin=$(git -C "$wt" rev-parse --absolute-git-dir 2>/dev/null) || return 1
-  created=$(head -1 "$admin/logs/HEAD" 2>/dev/null | cut -d ' ' -f2)
-  [ -n "$created" ] || return 1
-  visited=$(git -C "$wt" rev-parse HEAD 2>/dev/null && git -C "$wt" log -g --format=%H HEAD 2>/dev/null) || return 1
+  local reflog
+  reflog=$(git -C "$wt" rev-parse --absolute-git-dir 2>/dev/null)/logs/HEAD || return 1
+  visited=$(git -C "$wt" rev-parse HEAD 2>/dev/null) || return 1
+  [ -f "$reflog" ] || reflog=/dev/null
+  base=$(git -C "$wt" rev-parse -q --verify refs/worktree/lane-base) \
+    || base=$(awk 'NR == 1 && $1 ~ /^0+$/ { print $2 }' "$reflog") || return 1
+  visited=$visited$'\n'$(awk '{ for (i = 1; i <= 2; i++) if ($i !~ /^0+$/) print $i }' "$reflog" | sort -u) || return 1
 }
 
 unique_commits() {
-  git -C "$wt" rev-list $visited --not --branches --tags "$created"
+  git -C "$wt" rev-list $visited --not --branches --tags $base
 }
 
 cwd_holder() {
@@ -214,6 +218,7 @@ lane_up() {
   branch=$(field "$reg" 'branch refs/heads/')
   [ -z "$branch" ] && [ "$head" = "$sha" ] \
     || die 2 "lane $name is at $head${branch:+ on branch $branch}, not $sha; lane.sh down $name first"
+  git -C "$wt" update-ref refs/worktree/lane-base "$sha" || die 70 "could not record the base of lane $name"
   if [ -f "$wt/.githooks/post-checkout" ]; then
     (cd "$wt" && sh .githooks/post-checkout) >&2 || die 70 "the post-checkout hook failed in $wt"
   fi
@@ -246,7 +251,7 @@ save_commits() {
       args+=("refs/worktree/lane-save/$tip")
     fi
   done
-  git -C "$wt" bundle create "$1" "${args[@]}" --not --branches --tags "$created" 2>/dev/null \
+  git -C "$wt" bundle create "$1" "${args[@]}" --not --branches --tags $base 2>/dev/null \
     && git -C "$wt" bundle verify "$1" >/dev/null 2>&1
 }
 
