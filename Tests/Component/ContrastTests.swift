@@ -68,17 +68,22 @@ private func dayFootGround(_ day: Theme.Palette) throws -> Ground {
     Ground(base: day.paper.baseBottom, layers: [try #require(day.paper.washes.last).color])
 }
 
-/// Settings' first section header, a fifth of the way down the left edge, where the sun wash keeps
-/// about two thirds of its centre strength. No Settings text sits higher.
-private func nightSettingsHeaderGround(_ night: Theme.Palette) throws -> Ground {
-    let sun = try #require(night.paper.washes.first)
-    return Ground(base: night.paper.baseTop, layers: [night.paper.baseBottom.opacity(0.2), sun.color.opacity(0.64)])
+/// The living paper at `point` of its frame, as `paperBackground` draws it: the base gradient, then
+/// each wash fading linearly from its centre to its radius.
+private func paperGround(_ palette: Theme.Palette, at point: UnitPoint) -> Ground {
+    let washes = palette.paper.washes.map { wash in
+        let reach = 1 - hypot(point.x - wash.center.x, point.y - wash.center.y) / wash.radiusFraction
+        return wash.color.opacity(max(0, reach))
+    }
+    return Ground(base: palette.paper.baseTop, layers: [palette.paper.baseBottom.opacity(point.y)] + washes)
 }
 
-/// A Settings row's surface over the top stop, lighter than the paper behind any row's value.
-private func nightSettingsRowGround(_ night: Theme.Palette) -> Ground {
-    Ground(base: night.paper.baseTop, layers: [night.surface])
-}
+/// Where Settings draws secondary text when it opens as a sheet over the stage on iPhone 17 Pro,
+/// at rest at the default type size: the glyph tops of the first header where it crosses the sun's
+/// centre column, the leading edge of the first row value, and the build footer's baseline.
+private let settingsSheetHeader = UnitPoint(x: 0.18, y: 0.158)
+private let settingsSheetFirstValue = UnitPoint(x: 0.56, y: 0.363)
+private let settingsSheetFooter = UnitPoint(x: 0.5, y: 0.91)
 
 @Test func paletteTokensResolveToTheirSRGBChannels() {
     let ink = srgbComponents(of: Theme.Paint.ink).rgb
@@ -122,12 +127,16 @@ func actionInkReadsAsTextOnItsHardestFill(appearance: Theme.Appearance, fill: Co
     #expect(contrast(of: actionInk, over: Ground(base: fill, layers: [])) >= 4.5)
 }
 
-@Test func nightSecondaryTextReadsAsTextInASettingsHeader() throws {
-    let night = Theme.palette(for: Theme.Appearance.night)
-    #expect(contrast(of: night.textSecondary, over: try nightSettingsHeaderGround(night)) >= 4.5)
-}
-
-@Test func nightSecondaryTextReadsAsTextOnASettingsRow() {
-    let night = Theme.palette(for: Theme.Appearance.night)
-    #expect(contrast(of: night.textSecondary, over: nightSettingsRowGround(night)) >= 4.5)
+@Test(arguments: Theme.Appearance.allCases)
+func secondaryTextReadsAsTextWhereTheSettingsSheetDrawsIt(appearance: Theme.Appearance) {
+    let palette = Theme.palette(for: appearance)
+    let firstValuePaper = paperGround(palette, at: settingsSheetFirstValue)
+    let grounds = [
+        paperGround(palette, at: settingsSheetHeader),
+        Ground(base: firstValuePaper.base, layers: firstValuePaper.layers + [palette.surface]),
+        paperGround(palette, at: settingsSheetFooter)
+    ]
+    for ground in grounds {
+        #expect(contrast(of: palette.textSecondary, over: ground) >= 4.5)
+    }
 }
