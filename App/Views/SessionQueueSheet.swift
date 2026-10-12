@@ -96,45 +96,44 @@ struct SessionQueueSheet: View {
 
             Spacer(minLength: 12)
 
-            if isPairing {
-                Button(action: coordinator.cancelPairing) {
-                    headerButtonFace {
-                        Image(systemName: "xmark")
-                            .font(Theme.font(.queuePill))
-                            .foregroundStyle(palette.textSecondary)
-                    }
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Cancel Superset")
-                .accessibilityIdentifier("stage-queue-cancel-pairing")
-            } else if let source = queue.supersetSource {
-                Button {
-                    coordinator.beginPairing(from: source.pairingExercise, in: session)
-                } label: {
-                    headerButtonFace {
-                        SupersetStemGlyph(form: .offer, color: palette.actionInk)
-                            .frame(width: 24, height: 24)
-                    }
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Superset")
-                .accessibilityHint("Pick an Exercise to pair with \(source.title)")
-                .accessibilityIdentifier("stage-queue-superset")
+            if isPairing || queue.supersetSource != nil {
+                supersetHeaderButton
             }
         }
         .frame(minHeight: Self.headerButtonSize)
         .padding(.top, 18)
     }
 
-    private static let headerButtonSize: CGFloat = 46
-
-    private func headerButtonFace(@ViewBuilder glyph: () -> some View) -> some View {
-        glyph()
+    private var supersetHeaderButton: some View {
+        Button {
+            if isPairing {
+                coordinator.cancelPairing()
+            } else if let source = queue.supersetSource {
+                coordinator.beginPairing(from: source.pairingExercise, in: session)
+            }
+        } label: {
+            Group {
+                if isPairing {
+                    Image(systemName: "xmark")
+                        .font(Theme.font(.queuePill))
+                        .foregroundStyle(palette.textSecondary)
+                } else {
+                    SupersetStemGlyph(form: .offer, color: palette.actionInk)
+                        .frame(width: 24, height: 24)
+                }
+            }
             .frame(width: Self.headerButtonSize, height: Self.headerButtonSize)
             .background(Circle().fill(palette.pillFill))
             .overlay(Circle().strokeBorder(palette.pillStroke, lineWidth: 1))
             .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isPairing ? "Cancel Superset" : "Superset")
+        .accessibilityHint(isPairing ? "" : queue.supersetSource.map { "Pick an Exercise to pair with \($0.title)" } ?? "")
+        .accessibilityIdentifier(isPairing ? "stage-queue-cancel-pairing" : "stage-queue-superset")
     }
+
+    private static let headerButtonSize: CGFloat = 46
 
     // MARK: - Browsing
 
