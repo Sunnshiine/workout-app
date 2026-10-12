@@ -1,9 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-usage() {
-  cat >&2 <<'EOF'
-Usage: scripts/sim-pool.sh create <lane> | boot <lane> | delete <lane> | list
+help() {
+  cat <<'EOF'
+Usage: scripts/sim-pool.sh create <lane> | boot <lane> | delete <lane> | delete-template | list
 
 Owns the simulators of parallel lanes. A lane's simulator is the one device named workout-lane-<lane>,
 cloned from the template workout-template-v1 (iPhone 17 Pro, iOS 27.0, booted once, keyboard preference
@@ -18,6 +18,10 @@ scripts/lane.sh calls it; call it directly to inspect or repair the pool.
   delete <lane>  shut it down, delete it, and remove /tmp/workout-verify-<UDID>, holding that
                  directory's lock throughout, so no run can claim the simulator meanwhile. A missing
                  device is a note on stderr and exit 0.
+  delete-template
+                 delete workout-template-v1, a workout-template-v1-building a crashed build left,
+                 and older templates, under the pool lock; lanes cloned from them keep working,
+                 and the next create builds the template again. A newer recipe's template stays.
   list           TSV, header UDID STATE ROLE NAME, one row per workout-* device (role template, building,
                  newer-template, stale-template, or lane), then `booted: N of cap M` counting every
                  device on the host. A newer-template belongs to a newer copy of this script, which
@@ -35,8 +39,9 @@ Exit codes: 0 done, 1 no such lane device (boot), 2 usage, 69 iOS 27.0 runtime o
 type missing, 70 simctl failed or two devices share a name, 75 busy: the pool lock, the host cap, a
 test-sim or verify run holding the simulator, or a verify run's app still running on it.
 EOF
-  exit 2
 }
+
+usage() { help >&2; exit 2; }
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "$here/sim-lock.sh"
@@ -226,6 +231,17 @@ delete_lane() {
   done
 }
 
+delete_templates() {
+  local doomed udid
+  load_devices
+  doomed=$(pick -v v="$version" "$version_of"'version_of($3) >= 0 && version_of($3) <= v { print $1 }')
+  [ -n "$doomed" ] || { echo "sim-pool: no $template to delete" >&2; return; }
+  for udid in $doomed; do
+    remove_device "$udid"
+    echo "sim-pool: deleted $udid" >&2
+  done
+}
+
 boot_lane() {
   local udid state
   find_named "workout-lane-$1"
@@ -250,11 +266,14 @@ list_pool() {
 
 [ $# -ge 1 ] || usage
 command=$1
-if [ "$command" = list ]; then
-  [ $# -eq 1 ] || usage
-  list_pool
-  exit
-fi
+case $command in
+  -h | --help) help; exit 0 ;;
+  list | delete-template)
+    [ $# -eq 1 ] || usage
+    if [ "$command" = list ]; then list_pool; else lock_pool delete-template; delete_templates; fi
+    exit
+    ;;
+esac
 [ $# -eq 2 ] || usage
 lane=$2
 [[ $lane =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]] || usage

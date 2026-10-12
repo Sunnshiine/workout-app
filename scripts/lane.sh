@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-usage() {
-  cat >&2 <<'EOF'
+help() {
+  cat <<'EOF'
 Usage: scripts/lane.sh up <name> <commit>
        scripts/lane.sh env <name>
        scripts/lane.sh down [--if-idle <days>] <name>
@@ -15,15 +15,17 @@ matches ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$. For the checkout this script belongs 
   evidence   <primary>/.claude/work/evidence/detached-<name>, verify.sh's default for that worktree
 
   up      create whatever is missing and print the env; a rerun prints the same lines. Fetches origin
-          when <commit> is not here yet. Runs .githooks/post-checkout in the worktree, so it has
+          when <commit> is not here yet. Records <commit> as the lane's base when it adds the
+          worktree; a rerun never moves it, so assess and down still count the lane's own commits. Runs .githooks/post-checkout in the worktree, so it has
           Secrets.xcconfig. Leaves the simulator Shutdown; test-sim.sh and verify.sh boot it. A
           worktree a crashed git worktree add left (locked "initializing") is removed and added again.
   env     print the env of an existing lane; reads only.
   down    delete the simulator first, so a run holding it stops down with exit 75 before anything
           else; then save what removal would lose to <evidence>/down-<YYYYmmdd-HHMMSS>/ (head.txt,
-          uncommitted.diff, untracked.tar of untracked and ignored files except regenerable ones,
-          commits.bundle of commits no branch or tag holds, copies of .build/test-sim and
-          .build/verify); then remove the worktree and its DerivedData. Each step skips what is
+          uncommitted.diff against HEAD, staged.diff of the index against HEAD, untracked.tar of
+          untracked and ignored files except regenerable ones, commits.bundle of commits no branch
+          or tag holds, copies of the results dirs .build/test-sim, .build/verify, .build/crap, and
+          .build/flake-hunt); then remove the worktree and its DerivedData. Each step skips what is
           already gone, so a second down exits 0. --if-idle removes only when assess says remove.
   assess  print `keep<TAB><reason>` or `remove<TAB>idle Nd`. scripts/prune-merged-worktrees.sh runs it
           for every detached worktree under .claude/worktrees/. Keeps a lane that is not a registered
@@ -43,7 +45,8 @@ Each later Bash call re-derives them, for example:
   env=$(scripts/lane.sh env e8) && eval "$env" && "$LANE_WORKTREE/scripts/test-sim.sh" unit
 
 Exit codes: 0 done; 1 env: no such lane, or down --if-idle: the lane is not idle (stderr SKIPPED:
-<reason>); 2 usage, a bad name, an unknown commit, a lane at another commit, a worktree on a branch,
+<reason>); 2 usage, a bad name or one that differs from an existing lane's only by case on a disk that
+ignores case, an unknown commit, a lane at another commit, a worktree on a branch,
 a locked lane, one holding a nested worktree, or one registered but missing (moved or deleted),
 or down run from the lane's own copy of this script;
 69 the simulator runtime is missing; 70 git, simctl, or a save failed (down then leaves the worktree,
@@ -52,8 +55,11 @@ but its simulator is already gone; lane.sh up <name> <commit> makes a new one);
 another process working inside the lane (stop it or cd out; this script's callers do not count), or
 another up or down of the same lane held it for WORKOUT_ADMIT_WAIT seconds (default 540).
 EOF
-  exit 2
 }
+
+usage() { help >&2; exit 2; }
+
+case ${1:-} in -h | --help) help; exit 0 ;; esac
 
 die() { echo "lane.sh: $2" >&2; exit "$1"; }
 
@@ -77,6 +83,10 @@ set_lane() {
   name=$1
   wt=$primary/.claude/worktrees/$name
   evidence=$primary/.claude/work/evidence/detached-$name
+}
+
+case_twin() {
+  ls -1 "$(dirname "$wt")" 2>/dev/null | awk -v n="$name" '!found && tolower($0) == tolower(n) && $0 != n { print; found = 1 }' || true
 }
 
 flock_fd() {
@@ -134,7 +144,7 @@ files_to_save() {
   git -C "$wt" ls-files -z -o -i --exclude-standard --directory --no-empty-directory | python3 -c '
 import sys
 regenerable = {b".build", b".swiftpm", b"Secrets.xcconfig", b"xcuserdata", b".DS_Store", b"__pycache__", b".venv",
-               b"default.profraw", b".xcodebuildmcp", b".workout-cli", b"node_modules", b".codex"}
+               b"default.profraw", b".xcodebuildmcp", b"node_modules", b".codex"}
 for path in sys.stdin.buffer.read().split(b"\0"):
     parts = path.rstrip(b"/").split(b"/")
     if not path or regenerable.intersection(parts) or parts[-1].endswith(b".pyc") \
@@ -227,7 +237,7 @@ print_env() {
 resolve() { git -C "$primary" rev-parse --verify -q "$1^{commit}"; }
 
 lane_up() {
-  local commit=$2 sha reg head branch udid
+  local commit=$2 sha reg head branch udid twin
   set_lane "$1"
   lock_lane up
   if ! sha=$(resolve "$commit"); then
@@ -247,17 +257,19 @@ lane_up() {
     reg=$(registration)
   fi
   if [ -z "$reg" ]; then
+    twin=$(case_twin)
+    [ -z "$twin" ] || die 2 "$wt is the directory of lane $twin, because this disk ignores case; pick a name that differs by more than case"
     [ ! -e "$wt" ] || die 2 "$wt exists but git does not list it as a worktree; move it away first"
     mkdir -p "$(dirname "$wt")"
     git -C "$primary" worktree add --detach "$wt" "$sha" >&2 || true
     reg=$(registration)
     [ -n "$reg" ] || die 70 "git worktree add $wt $sha failed"
+    git -C "$wt" update-ref refs/worktree/lane-base "$sha" || die 70 "could not record the base of lane $name"
   fi
   head=$(field "$reg" 'HEAD ')
   branch=$(field "$reg" 'branch refs/heads/')
   [ -z "$branch" ] && [ "$head" = "$sha" ] \
     || die 2 "lane $name is at $head${branch:+ on branch $branch}, not $sha; lane.sh down $name first"
-  git -C "$wt" update-ref refs/worktree/lane-base "$sha" || die 70 "could not record the base of lane $name"
   if [ -f "$wt/.githooks/post-checkout" ]; then
     (cd "$wt" && sh .githooks/post-checkout) >&2 6>&- || die 70 "the post-checkout hook failed in $wt"
   fi
@@ -301,6 +313,8 @@ save_lane() {
   echo head.txt
   git -C "$wt" diff --binary HEAD >"$dir/uncommitted.diff" || die 70 "could not save uncommitted.diff"
   if [ -s "$dir/uncommitted.diff" ]; then echo uncommitted.diff; else rm -f "$dir/uncommitted.diff"; fi
+  git -C "$wt" diff --binary --cached HEAD >"$dir/staged.diff" || die 70 "could not save staged.diff"
+  if [ -s "$dir/staged.diff" ]; then echo staged.diff; else rm -f "$dir/staged.diff"; fi
   list=$(mktemp)
   files_to_save >"$list" || { rm -f "$list"; die 70 "could not list untracked files"; }
   if [ -s "$list" ]; then
@@ -314,7 +328,7 @@ save_lane() {
     save_commits "$dir/commits.bundle" || die 70 "could not save commits.bundle"
     echo commits.bundle
   fi
-  for d in test-sim verify; do
+  for d in test-sim verify crap flake-hunt; do
     [ -d "$wt/.build/$d" ] || continue
     cp -cR "$wt/.build/$d" "$dir/$d" 2>/dev/null || { rm -rf "${dir:?}/$d" && cp -R "$wt/.build/$d" "$dir/$d"; } \
       || die 70 "could not copy .build/$d"
@@ -332,7 +346,7 @@ for d in sorted(glob.glob(os.path.join(sys.argv[1], "WorkoutTracker-*"))):
 }
 
 lane_down() {
-  local idle= reg branch work holder dir saved removed=0 d
+  local idle= reg branch work holder dir saved removed=0 d twin
   if [ "${1:-}" = --if-idle ]; then
     [ $# -eq 3 ] || usage
     whole_days "$2"
@@ -368,6 +382,8 @@ lane_down() {
     echo "lane.sh: saved $(printf '%s\n' "$saved" | tr '\n' ' ')to $dir" >&2
     git -C "$primary" worktree remove --force "$wt" >&2 || die 70 "git worktree remove $wt failed"
     echo "lane.sh: removed the worktree $wt" >&2
+  elif twin=$(case_twin) && [ -n "$twin" ]; then
+    echo "lane.sh: left $wt alone: it is the directory of lane $twin, because this disk ignores case" >&2
   elif [ -e "$wt" ]; then
     echo "lane.sh: left $wt alone, because git does not list it as a worktree" >&2
   fi

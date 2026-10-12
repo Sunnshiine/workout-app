@@ -44,7 +44,9 @@ lane.sh down --if-idle N <name>, which re-checks, saves its work to the lane's
 evidence dir, and deletes its DerivedData and simulator too. A lane that stopped
 being idle since the scan prints SKIPPED. A directory there whose name is not
 a lane name (lane.sh --help) is kept for removal by hand. Any other detached
-HEAD is kept.
+HEAD is kept. Idle counts days, not whether the work is finished, so a program
+paused past N days loses its clean lanes; lane.sh up <name> <commit> makes one
+again, and what down saved stays in the lane's evidence dir.
 
 An unresolvable fact keeps the worktree. Nothing unknown is ever removed.
 
