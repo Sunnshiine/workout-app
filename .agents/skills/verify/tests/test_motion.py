@@ -605,7 +605,8 @@ class JudgeTake(unittest.TestCase):
             (0, reading(animations="off", lost=2), 0.0, (Verdict.FAIL, "lost the card in 2 frames")),
             (0, reading(), 3.4, (Verdict.INVALID, "started 3.4 s late")),
             (0, reading(worst=412.0), 3.4, (Verdict.FAIL, "an edge moved 412.0 pt")),
-            (0, reading(first_seen=None), 0.0, (Verdict.FAIL, "no card in any frame")),
+            (0, reading(first_seen=None), 0.0, (Verdict.INVALID, "no card in any frame")),
+            (3, reading(first_seen=None), 0.0, (Verdict.INVALID, "no card in any frame")),
             (0, reading(lost=27), 0.0, (Verdict.FAIL, "lost the card in 27 frames")),
             (0, reading(worst=412.0), 0.0, (Verdict.FAIL, "an edge moved 412.0 pt")),
             (0, reading(worst=0.6), 0.0, (Verdict.FAIL, "an edge moved 0.6 pt")),
@@ -635,6 +636,14 @@ class LaneVerdict(unittest.TestCase):
             "the control ea5af074 held the card still on every take, so this host or this metric cannot see "
             "motion now",
         ))
+
+    def test_a_control_whose_only_miss_is_no_card_in_any_frame_makes_the_lane_invalid(self):
+        def judged(readings):
+            return [TakeResult(spec.name, *cardstill.judge_take(0, r), r) for spec, r in zip(cardstill.TAKES, readings)]
+
+        control = judged([reading(first_seen=None)] + [reading()] * 7)
+        self.assertEqual(cardstill.lane_verdict("ea5af074", control, judged([reading()] * 8)),
+                         (Verdict.INVALID, "control single-log-rest-start: no card in any frame"))
 
     def test_a_still_head_over_a_control_that_moved_passes(self):
         control = results(Verdict.FAIL, Verdict.PASS, Verdict.FAIL, *[Verdict.PASS] * 5)

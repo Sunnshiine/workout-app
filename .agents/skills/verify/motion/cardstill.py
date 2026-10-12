@@ -16,9 +16,11 @@ log tap, timed from that take's stamp, and is late when its own stamp started mo
 A take is INVALID when record did not exit 0 or 3 with a stamp. Else it FAILs when the card was lost or
 an edge ranged over more than 0.5 pt, even on a take INVALID only for load at its end or with animations
 off, because those can hide motion but never invent it. Else it is INVALID when the stamp is INVALID, its
-animations are not on, or it started late; else FAIL when the card was never seen; else PASS. The lane FAILs when any head
-take FAILs, else is INVALID when any take on either side is, else is INVALID when no control take FAILed
-(the host or the metric cannot see motion now), else PASSes.
+animations are not on, it started late, or the card is in no frame, because then the metric saw nothing
+and the take proves nothing; else PASS. So only a lost card or a moved edge FAILs a take, on either side,
+and only those satisfy the control. The lane FAILs when any head take FAILs, else is INVALID when any take
+on either side is, else is INVALID when no control take FAILed (the host or the metric cannot see motion
+now), else PASSes.
 
 Prints one row per take, control and head side by side, then `cardstill PASS|FAIL|INVALID: <reason>`, and
 writes the table as cardstill.tsv in the head run's evidence directory. The app must be built
@@ -133,7 +135,7 @@ def judge_take(record_exit: int, reading: Optional[Reading], late_s: float = 0.0
     if late_s > 0:
         return Verdict.INVALID, f"started {late_s:.1f} s late"
     if reading.first_seen is None:
-        return Verdict.FAIL, "no card in any frame"
+        return Verdict.INVALID, "no card in any frame"
     return Verdict.PASS, ""
 
 
