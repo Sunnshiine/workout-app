@@ -1603,10 +1603,12 @@ case "$tool $1 $2" in
   "plutil -extract WorkspacePath") echo "{project}" ;;
   "xcrun simctl install")
     [ -z "${STUB_INSTALL_FAIL:-}" ] || exit 1
+    [ -z "${STUB_STALE_INSTALL:-}" ] || [ ! -d "{dir}/containers/$3/WorkoutTracker.app" ] || exit 0
     rm -rf "{dir}/containers/$3"
     mkdir -p "{dir}/containers/$3"
     cp -R "$4" "{dir}/containers/$3/"
     [ -z "${STUB_TAMPER:-}" ] || printf x >> "{dir}/containers/$3/WorkoutTracker.app/WorkoutTracker.debug.dylib" ;;
+  "xcrun simctl uninstall") rm -rf "{dir}/containers/$3" ;;
   "xcrun simctl get_app_container")
     [ -d "{dir}/containers/$3/WorkoutTracker.app" ] || exit 1
     echo "{dir}/containers/$3/WorkoutTracker.app" ;;
@@ -1791,12 +1793,32 @@ class InstalledIdentity(Lane):
                  wanted=self.worktree_build(b"v2\n", self.b)), "a driver that drops the first line still reads the second")
         self.assertNotIn("xcrun simctl install", " ".join(self.calls()))
 
-    def test_installed_bytes_that_differ_from_the_build_exit_70_naming_both(self):
+    def test_installed_bytes_that_differ_from_the_build_after_a_reinstall_exit_70_naming_both(self):
         self.verify("build")
+        tampered = "app %s commit unknown (not built by verify.sh)" % digest(b"v2\nx")
         self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1", STUB_TAMPER="1"), (70, "", (
-            "after simctl install, %s holds app %s commit unknown (not built by verify.sh), not %s that this launch "
-            "installed from %s\n") % (self.sim, digest(b"v2\nx"), self.worktree_build(b"v2\n", self.b), self.built)))
+            "after simctl install, {sim} holds {tampered}, not {wanted}; uninstalling it and installing once more\n"
+            "after simctl install, {sim} holds {tampered}, not {wanted} that this launch installed from {built}\n"
+        ).format(sim=self.sim, tampered=tampered, wanted=self.worktree_build(b"v2\n", self.b), built=self.built)))
+        self.assertEqual([c for c in self.calls() if c.startswith(("xcrun simctl install", "xcrun simctl uninstall"))], [
+            "xcrun simctl install %s %s" % (self.sim, self.built),
+            "xcrun simctl uninstall %s com.sunnypatel.WorkoutTracker" % self.sim,
+            "xcrun simctl install %s %s" % (self.sim, self.built),
+        ], "one reinstall, then the refusal")
         self.assertNotIn("xcrun simctl launch", " ".join(self.calls()), "the wrong bytes are never launched")
+
+    def test_an_install_that_leaves_the_old_bytes_is_uninstalled_and_installed_once_more(self):
+        self.verify("build")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1")[0], 0)
+        self.edit("v3\n")
+        self.verify("build")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1", STUB_STALE_INSTALL="1"), (
+            0, self.launched(self.worktree_build(b"v3\n", self.b, "-dirty")),
+            "after simctl install, %s holds app %s commit %s (an earlier build of this worktree), not %s; uninstalling it "
+            "and installing once more\n" % (self.sim, digest(b"v2\n"), self.b[:8],
+                                             self.worktree_build(b"v3\n", self.b, "-dirty"))))
+        self.assertEqual(self.verify("doctor")[1].splitlines()[1],
+                         "ok   installed %s" % self.worktree_build(b"v3\n", self.b, "-dirty"))
 
     def test_a_file_outside_the_dylib_is_part_of_the_apps_identity(self):
         self.verify("build")
@@ -2054,7 +2076,8 @@ class DriveGuard(Lane):
             with self.subTest(argv=argv):
                 self.assertEqual(self.verify(*argv, VERIFY_RUN="ui12"), (75, "", (
                     "the last launch of run ui12 on {sim} was refused, so this would drive whatever that refusal left "
-                    "running ({refusal}); launch again: SIM={sim} VERIFY_RUN=ui12 {verify} launch <fixture>\n"
+                    "running ({refusal}); stop it, then launch again: SIM={sim} VERIFY_RUN=ui12 {verify} stop, then "
+                    "SIM={sim} VERIFY_RUN=ui12 {verify} launch <fixture>\n"
                 ).format(sim=self.sim, refusal=refusal, verify=self.verify_path)))
                 self.assertEqual(self.calls(), [], "the control app is neither driven nor filmed as the head")
         self.assertRegex((self.evidence("main", "ui12") / "launches.txt").read_text(),
@@ -2088,6 +2111,30 @@ class DriveGuard(Lane):
         self.assertEqual(self.verify("tap", "-x", "5", "-y", "6", VERIFY_RUN="r1")[0], 75)
         self.assertRegex((self.evidence("main", "r1") / "launches.txt").read_text(),
                          r"\n\S+ launch refused: %s\n$" % re.escape(refusal))
+
+    def test_a_drive_that_names_no_run_is_refused_after_a_launch_that_named_none_was_refused(self):
+        self.verify("build")
+        self.assertEqual(self.verify("launch", "session")[0], 0)
+        refusal = "app on %s unchanged: %s; this launch wanted %s from the app cache, and its build failed" % (
+            self.sim, self.worktree_build(b"v2\n", self.b), self.a[:8])
+        self.assertEqual(self.verify("launch", "--at", self.a, "session", STUB_BUILD_FAIL="1")[0], 65)
+        for argv in [["tap", "-x", "5", "-y", "6"], ["shot", "02-head"]]:
+            with self.subTest(argv=argv):
+                self.assertEqual(self.verify(*argv), (75, "", (
+                    "the last launch with no VERIFY_RUN on {sim} was refused, so this would drive whatever that refusal "
+                    "left running ({refusal}); stop it, then launch again: SIM={sim} {verify} stop, then "
+                    "SIM={sim} {verify} launch <fixture>\n"
+                ).format(sim=self.sim, refusal=refusal, verify=self.verify_path)))
+                self.assertEqual(self.calls(), [], "the app the refusal left is neither driven nor filmed")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="r2")[0], 0)
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6"), (0, "", ""), "any launch that succeeds clears it")
+
+    def test_a_refused_launch_that_named_no_run_does_not_stop_a_named_owner_driving_unnamed(self):
+        self.verify("build")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="owner-1")[0], 0)
+        self.assertEqual(self.verify("launch", "--at", self.a, "session", STUB_BUILD_FAIL="1")[0], 65)
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6", VERIFY_RUN="owner-1"), (0, "", ""))
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6"), (0, "", ""))
 
     def test_another_runs_refused_launch_does_not_stop_the_owner(self):
         self.verify("build")
