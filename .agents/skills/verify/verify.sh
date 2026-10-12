@@ -912,6 +912,7 @@ case $cmd in
     # The video first, so a stamp in the run always has its video beside it.
     mv "$pending/$name.mp4" "$dir/$name.mp4"
     mv "$pending/$name.take" "$dir/$name.take"
+    rmdir "$pending" 2>/dev/null || true
     echo "$dir/$name.mp4"
     echo "$dir/$name.take"
     python3 "$here/take.py" summary "$dir/$name.take"
