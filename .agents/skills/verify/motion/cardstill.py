@@ -9,7 +9,9 @@
 
 Films eight takes through `verify.sh record` twice in one session: first on COMMIT's cached build as run
 <lane>-control (stop, launch --at COMMIT --animated session), then on this worktree's build as run
-<lane>-head (stop, install, launch --animated session). cardframe measures each take.
+<lane>-head (stop, install, launch --animated session). cardframe measures every take once both sides are
+filmed, so measuring never loads the host before a take. The rest-end take starts 26 s after the Superset
+log tap, timed from that take's stamp, and is late when its own stamp started more than 2 s after that.
 
 A take is INVALID when record did not exit 0 or 3 with a stamp. Else it FAILs when the card was lost or
 an edge ranged over more than 0.5 pt, even on a take INVALID only for load or with animations off, because
@@ -35,10 +37,13 @@ from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
-import cardframe
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import cardframe  # noqa: E402
+import take  # noqa: E402
 
 VERIFY = Path(__file__).resolve().parent.parent / "verify.sh"
-REST_END_AFTER_S = 22.0
+REST_END_AFTER_S = 26.0
+LATE_S = 2.0
 
 
 class Setup(Enum):
@@ -145,6 +150,48 @@ class TakeResult:
     verdict: Verdict
     reason: str
     reading: Optional[Reading] = None
+
+
+@dataclass(frozen=True)
+class Filmed:
+    """A take record finished and cardframe has not measured yet."""
+
+    name: str
+    record_exit: int
+    path: Optional[Path]
+    late_s: float = 0.0
+
+
+def rest_end_at(switch: take.Take) -> float:
+    """When the rest-end take starts: REST_END_AFTER_S after the Superset log tap returned."""
+    return switch.started + switch.drive_end + REST_END_AFTER_S
+
+
+def late_by(target: float, rest_end: take.Take) -> float:
+    """How late the rest-end take started, when it is more than LATE_S after target; else 0."""
+    over = rest_end.started - target
+    return over if over > LATE_S else 0.0
+
+
+def parsed_stamp(record_exit: int, path: Optional[Path]) -> Optional[take.Take]:
+    if record_exit not in (0, 3) or path is None:
+        return None
+    try:
+        return take.parse(path.read_text())
+    except (OSError, ValueError):
+        return None
+
+
+def measured(filmed: Union[Filmed, TakeResult]) -> TakeResult:
+    if isinstance(filmed, TakeResult):
+        return filmed
+    reading = None
+    if filmed.record_exit in (0, 3) and filmed.path is not None:
+        try:
+            reading = Reading.of(cardframe.measure(filmed.path.with_suffix(".mp4")))
+        except (cardframe.Usage, cardframe.DecodeFailure) as error:
+            return TakeResult(filmed.name, Verdict.INVALID, str(error))
+    return TakeResult(filmed.name, *judge_take(filmed.record_exit, reading, filmed.late_s), reading)
 
 
 def lane_verdict(control_sha: str, control: Sequence[TakeResult], head: Sequence[TakeResult]) -> Tuple[Verdict, str]:
@@ -259,22 +306,15 @@ class Side:
             argv.append(arg)
         return argv
 
-    def record(self, spec: TakeSpec, drive: Sequence[str], late_s: float) -> TakeResult:
+    def record(self, spec: TakeSpec, drive: Sequence[str]) -> Tuple[int, Optional[Path]]:
         env = {"VERIFY_LOAD_WAIT": "0"} if spec.setup is Setup.AFTER_REST else None
         verb = ["--", *drive] if drive else []
         code, out = self.verify("record", spec.name, "--tail", str(spec.tail), *verb, env=env)
-        take = recorded_take(out)
-        reading = None
-        if code in (0, 3) and take is not None:
-            try:
-                reading = Reading.of(cardframe.measure(take.with_suffix(".mp4")))
-            except (cardframe.Usage, cardframe.DecodeFailure) as error:
-                return TakeResult(spec.name, Verdict.INVALID, str(error))
-        return TakeResult(spec.name, *judge_take(code, reading, late_s), reading)
+        return code, recorded_take(out)
 
-    def film(self) -> List[TakeResult]:
-        results: List[TakeResult] = []
-        superset_logged = None
+    def film(self) -> List[Union[Filmed, TakeResult]]:
+        results: List[Union[Filmed, TakeResult]] = []
+        rest_end_target = None
         prologue = None
         try:
             self.must("stop")
@@ -289,27 +329,28 @@ class Side:
             if broken:
                 results.append(TakeResult(spec.name, Verdict.INVALID, broken))
                 continue
-            late_s = 0.0
             try:
                 if spec.setup in RELAUNCHES:
                     self.launch()
                 if spec.setup is Setup.LAUNCH_AND_PAIR:
                     self.pair()
                 if spec.setup is Setup.AFTER_REST:
-                    if superset_logged is None:
-                        raise SetupFailed("the Superset log take never ran")
-                    wait = superset_logged + REST_END_AFTER_S - time.time()
-                    late_s = max(0.0, -wait)
-                    time.sleep(max(0.0, wait))
+                    if rest_end_target is None:
+                        raise SetupFailed("the Superset log take left no stamp to time the rest end from")
+                    time.sleep(max(0.0, rest_end_target - time.time()))
                 drive = self.drive(spec)
             except SetupFailed as error:
                 broken = str(error)
                 results.append(TakeResult(spec.name, Verdict.INVALID, broken))
                 continue
-            results.append(self.record(spec, drive, late_s))
-            if spec.name == "superset-log-switch":
-                superset_logged = time.time()
-            print(f"{self.run} {spec.name} {results[-1].verdict.value} {results[-1].reason}", file=sys.stderr)
+            code, path = self.record(spec, drive)
+            stamp = parsed_stamp(code, path)
+            late_s = 0.0
+            if spec.name == "superset-log-switch" and stamp is not None:
+                rest_end_target = rest_end_at(stamp)
+            if spec.setup is Setup.AFTER_REST and stamp is not None:
+                late_s = late_by(rest_end_target, stamp)
+            results.append(Filmed(spec.name, code, path, late_s))
         self.verify("stop")
         return results
 
@@ -328,9 +369,11 @@ def main(argv: Sequence[str]) -> int:
         return 2
 
     control_side = Side(f"{lane}-control", args.control)
-    control = control_side.film()
     head_side = Side(f"{lane}-head", None)
-    head = head_side.film()
+    control_filmed = control_side.film()
+    head_filmed = head_side.film()
+    control = [measured(f) for f in control_filmed]
+    head = [measured(f) for f in head_filmed]
 
     rows = table(control, head)
     width = [max(len(row[i]) for row in rows) for i in range(len(rows[0]) - 1)]

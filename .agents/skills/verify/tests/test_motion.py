@@ -7,11 +7,16 @@
 
   uv run .agents/skills/verify/tests/test_motion.py      (needs ffmpeg and ffprobe on PATH)
 """
+import contextlib
+import dataclasses
+import io
+import os
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import numpy as np
 
@@ -518,7 +523,11 @@ case $1 in
   launch) [ ! -e "{dir}/alive" ] || exit 75; touch "{dir}/alive"; echo "evidence {dir}/$VERIFY_RUN" ;;
   stop) rm -f "{dir}/alive" ;;
   tree) printf 'AXButton\\t\\tSet 1, 185 x 5, logged\\t\\t@20,300 40x40\\nAXButton\\t\\tSet 3, 195 x 5\\t\\t@120,300 40x40\\n' ;;
-  record) exit 75 ;;
+  record)
+    [ -e "{dir}/stamp.take" ] || exit 75
+    mkdir -p "{dir}/$VERIFY_RUN"
+    cp "{dir}/stamp.take" "{dir}/$VERIFY_RUN/$2.take"
+    echo "{dir}/$VERIFY_RUN/$2.take" ;;
 esac
 """
 
@@ -547,7 +556,43 @@ class Film(unittest.TestCase):
             "lane-control launch --at 7fefd137 --animated session",
             "lane-control stop",
         ])
-        self.assertEqual([r.reason for r in results], ["record exited 75"] * 8)
+        self.assertEqual([cardstill.measured(r).reason for r in results],
+                         ["record exited 75"] * 7 + ["the Superset log take left no stamp to time the rest end from"])
+
+    def test_every_take_on_both_sides_is_filmed_before_any_is_measured(self):
+        (self.dir / "stamp.take").write_text("\n".join(take.take_lines(dataclasses.replace(TAKE, started=1000.0)) + [
+            "screen_pt=200x400", "animations=on", "app="]) + "\n")
+        calls = self.dir / "calls"
+
+        def measure(video):
+            with calls.open("a") as log:
+                log.write(f"measure {video.parent.name}/{video.stem}\n")
+            return cardframe.summarize(TAKE, [Sample(0.0, card(100))], 0.0)
+
+        self.addCleanup(setattr, cardframe, "measure", cardframe.measure)
+        cardframe.measure = measure
+        with mock.patch.dict(os.environ, {"SIM": "LANE", "VERIFY_RUN": "lane"}), \
+                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            code = cardstill.main(["--control", "7fefd137"])
+        lines = calls.read_text().splitlines()
+        kinds = ["measure" if line.startswith("measure ") else "record" for line in lines
+                 if line.startswith("measure ") or line.split()[1] == "record"]
+        self.assertEqual(kinds, ["record"] * 16 + ["measure"] * 16)
+        self.assertEqual(lines[-1], "measure lane-head/superset-rest-end")
+        self.assertEqual(code, 3)
+
+
+class RestEnd(unittest.TestCase):
+    def test_the_rest_end_take_starts_26_s_after_the_superset_log_tap_returned(self):
+        switch = dataclasses.replace(TAKE, started=1791817306.217, drive_end=2.454)
+        self.assertEqual(round(cardstill.rest_end_at(switch), 3), 1791817334.671)
+
+    def test_it_is_late_only_when_its_stamp_started_more_than_2_s_after_that(self):
+        target = 1791817334.671
+        for started, late in [(1791817335.900, 0.0), (1791817336.671, 0.0), (1791817336.771, 2.1)]:
+            with self.subTest(started=started):
+                rest_end = dataclasses.replace(TAKE, started=started)
+                self.assertEqual(round(cardstill.late_by(target, rest_end), 3), late)
 
 
 class JudgeTake(unittest.TestCase):
