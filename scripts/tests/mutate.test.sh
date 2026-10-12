@@ -1,0 +1,182 @@
+#!/bin/bash
+# shellcheck disable=SC2016  # stub and expected text hold literal $
+set -uo pipefail
+
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+root=$(mktemp -d) || exit 3
+root=$(cd "$root" && pwd -P)
+trap 'rm -f "$root"/gate*; sleep 0.3; rm -rf "$root"' EXIT
+export LC_ALL=C GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.fsmonitor GIT_CONFIG_VALUE_0=false
+export PATH="$root/bin:$PATH" STUB_WATCH=$root/watch STUB_CALLER=$root/repo
+repo=$root/repo
+pool=$repo/.build/scratch
+pass=0
+fail=0
+
+ok()  { pass=$((pass + 1)); printf '  ok   %s\n' "$1"; }
+bad() { fail=$((fail + 1)); printf '  FAIL %s\n' "$1"; }
+expect() {
+    if [ "$2" = "$3" ]; then ok "$1"; else bad "$1"; printf '    got:\n%s\n    want:\n%s\n' "$2" "$3"; fi
+}
+wait_for() { local _; for _ in $(seq 1 200); do [ -e "$1" ] && return; sleep 0.05; done; }
+
+mkdir -p "$root/bin" "$repo/scripts" "$repo/Sources/Gate" "$repo/App"
+cp "$script_dir/../mutate.sh" "$script_dir/../scratch-tree.sh" "$script_dir/../test-failures.awk" "$repo/scripts/"
+
+# A fake suite over the tree it runs in. gateOpensAtThree (Swift Testing) and GateTests.testOpensAtFour
+# (XCTest) pin line 2 of Gate.swift, nameIsGate pins line 4, and nothing pins line 5. swift build fails
+# on BREAK. While $STUB_GATE exists and a mutant sits on line 2, it waits, so a test can act mid-run.
+cat >"$root/bin/swift" <<'STUB'
+#!/bin/bash
+gate=Sources/Gate/Gate.swift
+if [ "$1" = build ]; then
+    ! grep -q BREAK $gate || { echo "$PWD/$gate:2:5: error: cannot find 'BREAK' in scope" >&2; exit 1; }
+    exit 0
+fi
+{ git -C "$STUB_CALLER" status --porcelain; shasum "$STUB_CALLER"/Sources/Gate/*; echo "slot line 5: $(sed -n 5p $gate)"; } >>"$STUB_WATCH"
+if [ -n "${STUB_GATE:-}" ] && [ "$(sed -n 2p $gate)" != "    count >= 3" ]; then
+    touch "$STUB_GATE.reached"
+    while [ -e "$STUB_GATE" ]; do sleep 0.05; done
+fi
+shift
+filters=()
+while [ $# -gt 0 ]; do [ "$1" = --filter ] && filters+=("$2") && shift; shift; done
+selected() { [ ${#filters[@]} = 0 ] && return 0; for f in "${filters[@]}"; do case $1 in *"$f"*) return 0 ;; esac; done; return 1; }
+line2_ok() { [ "$(sed -n 2p $gate)" = "    count >= 3" ]; }
+failed=0 swift_tests=0 xctests=0
+if selected GateTests.testOpensAtFour; then
+    xctests=1
+    if line2_ok; then echo "Test Case '-[GateModuleTests.GateTests testOpensAtFour]' passed (0.001 seconds)."
+    else echo "Test Case '-[GateModuleTests.GateTests testOpensAtFour]' failed (0.001 seconds)."; failed=1; fi
+fi
+echo "	 Executed $xctests tests, with $failed failures (0 unexpected) in 0.001 (0.001) seconds"
+echo "◇ Test run started."
+for t in GateTests.gateOpensAtThree NameTests.nameIsGate; do
+    selected $t || continue
+    swift_tests=$((swift_tests + 1))
+    case $t in
+        GateTests.*) line2_ok ;;
+        NameTests.*) grep -q '^let gateName = "gate"$' $gate ;;
+    esac && echo "✔ Test ${t#*.}() passed after 0.001 seconds." || { echo "✘ Test ${t#*.}() failed after 0.001 seconds with 1 issue."; failed=1; }
+done
+echo "✔ Test run with $swift_tests tests in 2 suites passed after 0.002 seconds."
+exit $failed
+STUB
+chmod +x "$root/bin/swift"
+
+git init -q -b main "$repo"
+git -C "$repo" config user.email t@example.com
+git -C "$repo" config user.name t
+printf '.build/\nSecrets.xcconfig\n' >"$repo/.gitignore"
+printf '%s\n' 'func gateOpens(_ count: Int) -> Bool {' '    count >= 3' '}' 'let gateName = "gate"' 'let gateLimit = 10' >"$repo/Sources/Gate/Gate.swift"
+printf '%s\n' 'enum Auth {' '    static func ok() -> Bool { return false }' '}' >"$repo/App/Auth.swift"
+git -C "$repo" add -A
+git -C "$repo" commit -qm base
+
+# Runs mutate.sh from the caller; sets status, out (stdout without its log: line), err, and logdir.
+mutate() {
+    (cd "$repo" && scripts/mutate.sh "$@") >"$root/out" 2>"$root/err"
+    status=$?
+    logdir=$(sed -n '1s/^log: //p' "$root/out")
+    out=$(sed '1{/^log: /d;}' "$root/out")
+    err=$(cat "$root/err")
+}
+caller_state() { git -C "$repo" status --porcelain; shasum "$repo"/Sources/Gate/*; }
+
+killed_row="killed       Sources/Gate/Gate.swift:2  sed      2s/>= 3/> 3/  GateTests.testOpensAtFour +1"
+survived_row="SURVIVED     Sources/Gate/Gate.swift:5  sed      5s/10/11/"
+
+rm -f "$STUB_WATCH"
+mutate --filter GateTests Sources/Gate/Gate.swift '2s/>= 3/> 3/' '5s/10/11/'
+expect "a killed and a surviving mutant print one row each and exit 1" "$status
+$out" "1
+scratch: $pool/1 at $(git -C "$repo" rev-parse --short=8 HEAD)
+baseline: passed 2 tests (swift test --filter GateTests)
+$killed_row
+$survived_row
+2 mutants: 1 killed, 1 SURVIVED"
+expect "the log dir sits under the caller's .build/mutate and lists every killer" \
+    "${logdir%/*} $(cat "$logdir/results.tsv")" "$repo/.build/mutate m1	killed	GateTests.testOpensAtFour; gateOpensAtThree
+m2	SURVIVED	"
+
+echo 'let extraOn = true' >"$repo/Sources/Gate/Extra.swift"
+sed -i '' 's/gateLimit = 10/gateLimit = 12/' "$repo/Sources/Gate/Gate.swift"
+before=$(caller_state)
+rm -f "$STUB_WATCH"
+mutate Sources/Gate/Extra.swift '1s/true/false/'
+expect "an untracked caller file is mutated in the slot" "$status
+$out" "1
+scratch: $pool/1 at $(git -C "$repo" rev-parse --short=8 HEAD) + your uncommitted changes
+baseline: passed 3 tests (swift test)
+SURVIVED     Sources/Gate/Extra.swift:1  sed      1s/true/false/
+1 mutant: 1 SURVIVED"
+expect "the slot builds the caller's uncommitted edit" "$(grep '^slot line 5' "$STUB_WATCH" | sort -u)" \
+    "slot line 5: let gateLimit = 12"
+expect "the caller's status and bytes never change while mutants run" \
+    "$(grep -v '^slot line 5' "$STUB_WATCH" | sort -u)" "$(printf '%s\n' "$before" "$before" | sort -u)"
+expect "the caller's uncommitted edits are still there after the run" "$(caller_state)" "$before"
+git -C "$repo" checkout -q -- Sources/Gate/Gate.swift && rm "$repo/Sources/Gate/Extra.swift"
+
+sed -i '' 's/count >= 3/count > 3/' "$repo/Sources/Gate/Gate.swift"
+mutate --filter Gate Sources/Gate/Gate.swift '5s/10/11/'
+expect "a failing baseline exits 2 naming each failure and prints no mutant row" "$status
+$out
+$err" "2
+scratch: $pool/1 at $(git -C "$repo" rev-parse --short=8 HEAD) + your uncommitted changes
+the untouched snapshot must pass before mutating; swift test --filter Gate reports:
+  failed: GateTests.testOpensAtFour
+  failed: gateOpensAtThree
+  log: $logdir/baseline.log"
+git -C "$repo" checkout -q -- Sources/Gate/Gate.swift
+
+mutate --filter Gate Sources/Gate/Gate.swift '9s/x/y/'
+expect "an expression that changes nothing exits 2 before any build" "$status
+$out
+$err" "2
+
+'9s/x/y/' changed nothing in Sources/Gate/Gate.swift; check its address"
+
+mutate --filter Gate Sources/Gate/Gate.swift '2s/count/BREAK/'
+expect "a hand-written mutant that does not build is nocompile and exits 1" "$status
+$(tail -2 <<<"$out")" "1
+nocompile    Sources/Gate/Gate.swift:2  sed      2s/count/BREAK/  Sources/Gate/Gate.swift:2:5: error: cannot find 'BREAK' in scope
+1 mutant: 1 nocompile"
+
+touch "$root/gate1"
+(cd "$repo" && exec env STUB_GATE="$root/gate1" scripts/mutate.sh --filter GateTests Sources/Gate/Gate.swift '2s/>= 3/> 3/' >"$root/out1" 2>&1) &
+first=$!
+wait_for "$root/gate1.reached"
+(cd "$repo" && scripts/mutate.sh --filter GateTests Sources/Gate/Gate.swift '2s/>= 3/> 3/' >"$root/out2" 2>&1)
+second=$?
+rm "$root/gate1"
+wait $first
+expect "a run while another holds slot 1 takes slot 2, and both kill the mutant" \
+    "$? $second $(grep -h '^scratch:' "$root/out1" "$root/out2" | cut -d' ' -f2 | tr '\n' ' ')$(grep -c '^killed' "$root/out1" "$root/out2" | tr '\n' ' ')" \
+    "0 0 $pool/1 $pool/2 $root/out1:1 $root/out2:1 "
+
+touch "$root/gate2"
+(cd "$repo" && exec env STUB_GATE="$root/gate2" scripts/mutate.sh --filter GateTests Sources/Gate/Gate.swift '2s/>= 3/> 3/' >/dev/null 2>&1) &
+crashed=$!
+wait_for "$root/gate2.reached"
+SCRATCH_SLOTS=1 mutate --filter GateTests Sources/Gate/Gate.swift '2s/>= 3/> 3/'
+expect "a run with every scratch tree busy exits 75 naming the holder" "$status
+$out
+$err" "75
+
+every scratch tree is busy; wait for one to finish (lsof $pool/*.lock lists every holder):
+  $pool/1: mutate.sh in $repo (pid $crashed)"
+kill -9 $crashed
+wait $crashed 2>/dev/null
+rm "$root/gate2"
+while lsof "$pool/1.lock" >/dev/null 2>&1; do sleep 0.05; done
+SCRATCH_SLOTS=1 mutate --filter GateTests Sources/Gate/Gate.swift '2s/>= 3/> 3/' '5s/10/11/'
+expect "after a run is killed mid-mutant, the next run reclaims its slot and starts from the snapshot" "$status
+$out" "1
+scratch: $pool/1 at $(git -C "$repo" rev-parse --short=8 HEAD)
+baseline: passed 2 tests (swift test --filter GateTests)
+$killed_row
+$survived_row
+2 mutants: 1 killed, 1 SURVIVED"
+
+printf '\npassed %s, failed %s\n' "$pass" "$fail"
+[ "$fail" -eq 0 ] || exit 1
