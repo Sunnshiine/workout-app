@@ -453,19 +453,24 @@ for n in 1 2 3 4 5 6; do
     touch "$logs/20200101-00000$n-test.log"
 done
 rc=0 STUB_SUMMARY='{"passedTests":1,"failedTests":0,"expectedFailures":0}' run --no-build --sim "$sim" unit
-expect "a run keeps the five newest bundles, its own included, and deletes the older ones with their diffs" \
-    "$(ls "$logs" | sed 's/^202[1-9][0-9]\{4\}-[0-9]\{6\}/<run>/' | grep -v '^20200101-00000[1-6]-test.log$')" \
-"20200101-000003-diffs
+expect "a run keeps the five newest bundles, its own included, deletes the older ones with their diffs, and keeps every log" \
+    "$(ls "$logs" | sed 's/^202[1-9][0-9]\{4\}-[0-9]\{6\}/<run>/')" \
+"20200101-000001-test.log
+20200101-000002-test.log
+20200101-000003-diffs
+20200101-000003-test.log
 20200101-000003.xcresult
 20200101-000004-diffs
+20200101-000004-test.log
 20200101-000004.xcresult
 20200101-000005-diffs
+20200101-000005-test.log
 20200101-000005.xcresult
 20200101-000006-diffs
+20200101-000006-test.log
 20200101-000006.xcresult
 <run>-test.log
 <run>.xcresult"
-expect "pruning keeps every test log" "$(ls "$logs" | grep -c '^20200101-00000[1-6]-test.log$')" 6
 
 STUB_SUMMARY='not json' run --no-build --sim "$sim" unit
 expect "an unreadable summary leaves the counts unknown" "$(tail -1 "$root/out")" \
