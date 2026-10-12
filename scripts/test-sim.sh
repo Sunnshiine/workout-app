@@ -20,11 +20,13 @@ Refuses (exit 75) while another test-sim.sh run or a verify run's app holds that
 refuses (exit 2) a --sim UDID that simctl lists no available simulator for.
 A selection that includes WorkoutTrackerUITests first runs scripts/sim-keyboard.sh ensure, which
 turns off the keyboard preference that hides the software keyboard and prints one `keyboard:` line.
-Every test run writes a result bundle and prints its path. When a snapshot does not match its
+Every test run writes a result bundle and prints its path, then deletes all but the five newest
+bundles in .build/test-sim, each with its -diffs folder. When a snapshot does not match its
 reference, scripts/snapshot-diffs.sh <bundle> lists the reference, failure, and difference images.
 The last line, on every exit after this usage text, is
-  test-sim: suite=<s> passed=<n> failed=<m> exit=<e> load1=<start>/<end> bundle=<path>
-where exit= is this script's exit status, `-` means unknown, and load1 is the 1-minute load average.
+  test-sim: suite=<s> passed=<n> failed=<m> expected=<k> exit=<e> load1=<start>/<end> bundle=<path>
+where expected= counts tests whose only issues were known issues, which passed= leaves out, exit= is
+this script's exit status, `-` means unknown, and load1 is the 1-minute load average.
 A pipe such as `| tee` hides the exit status from the caller; read exit= instead.
 EOF
   exit 2
@@ -33,17 +35,17 @@ EOF
 load1() { sysctl -n vm.loadavg 2>/dev/null | awk '{print $2}' || echo -; }
 
 finish() {
-  local rc=$? counts="- -" passed failed shown=-
+  local rc=$? counts="- - -" passed failed expected shown=-
   if [ -n "$bundle" ] && [ -d "$bundle" ]; then
     shown=$bundle
     counts=$(xcrun xcresulttool get test-results summary --path "$bundle" --compact 2>/dev/null | python3 -c '
 import json, sys
 s = json.load(sys.stdin)
-print(s["passedTests"], s["failedTests"])' 2>/dev/null) || counts="- -"
+print(s["passedTests"], s["failedTests"], s["expectedFailures"])' 2>/dev/null) || counts="- - -"
     grep -q 'does not match reference' "$log" 2>/dev/null && echo "snapshot diffs: scripts/snapshot-diffs.sh $bundle"
   fi
-  read -r passed failed <<< "$counts"
-  echo "test-sim: suite=${suite:--} passed=$passed failed=$failed exit=$rc load1=$load_start/$(load1) bundle=$shown"
+  read -r passed failed expected <<< "$counts"
+  echo "test-sim: suite=${suite:--} passed=$passed failed=$failed expected=$expected exit=$rc load1=$load_start/$(load1) bundle=$shown"
   exit "$rc"
 }
 
@@ -113,6 +115,7 @@ set +e
 xcodebuild test-without-building -xctestrun "$xctestrun" -destination "$destination" \
   -collect-test-diagnostics never -resultBundlePath "$bundle" CODE_SIGNING_ALLOWED=NO "${targets[@]}" > "$log" 2>&1
 rc=$?
+ls -d "$logs"/*.xcresult 2>/dev/null | sort -r | tail -n +6 | while IFS= read -r old; do rm -rf "$old" "${old%.xcresult}-diffs"; done
 set -e
 if ! awk -f "$repo/scripts/test-log-summary.awk" "$log" | uniq; then
   [ $rc = 0 ] || { echo "xcodebuild exited $rc before the test run finished; the lines above and the log say why" >&2; exit $rc; }
