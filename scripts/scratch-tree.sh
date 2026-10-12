@@ -7,7 +7,7 @@
 # simulator lock, which the slot's test-sim.sh takes and closes for its children.
 scratch_claim() {
   local who=$1 n preferred="" others="" holders=""
-  _scratch_paths
+  _scratch_env
   for n in $(seq 1 "${SCRATCH_SLOTS:-4}"); do
     if [ "$(cat "$locks/$n.owner" 2>/dev/null)" = "$caller" ]; then
       preferred="$preferred $n"
@@ -32,7 +32,7 @@ scratch_claim() {
 # Removes every slot no live run holds, with the DerivedData its simulator builds left.
 scratch_clean() {
   local dir n plist derived kb
-  _scratch_paths
+  _scratch_env
   for dir in "$pool"/*; do
     n=${dir##*/}
     case $n in '' | *[!0-9]*) continue ;; esac
@@ -57,7 +57,7 @@ scratch_clean() {
 # A git fsmonitor daemon started from a slot would inherit fd 8 and hold the slot for as long as it
 # lives. The repo's post-checkout hook would run on every per-mutant restore, and its exit status
 # would become checkout's.
-_scratch_paths() {
+_scratch_env() {
   local common
   export GIT_CONFIG_COUNT=$((${GIT_CONFIG_COUNT:-0} + 2))
   export "GIT_CONFIG_KEY_$((GIT_CONFIG_COUNT - 2))=core.fsmonitor" "GIT_CONFIG_VALUE_$((GIT_CONFIG_COUNT - 2))=false"
@@ -69,44 +69,42 @@ _scratch_paths() {
   mkdir -p "$pool" "$locks"
 }
 
-# Locks slot N on fd 8 and records WHO and this pid in its lock file. A lock whose recorded pid is dead
-# is held only by processes its run left behind, such as a test orphaned by a SIGKILL to the run's
-# process group; they are killed and the slot taken.
+# fd 7 holds claim.lock while one claim probes one slot, so any other process with a slot's lock file
+# open holds that slot or was started by the run that did. A slot whose recorded pid is dead is held
+# only by such leftovers; they are killed and the slot taken.
 _scratch_lock() {
-  local lock=$locks/$1.lock record pid leftovers
+  local lock=$locks/$1.lock pid status=1
+  exec 7>>"$locks/claim.lock"
+  _scratch_flock 7 60 || { echo "$locks/claim.lock stayed locked for 60 s (lsof lists its holder)" >&2; exit 75; }
   exec 8>>"$lock"
-  if _scratch_flock "$2 (pid $$)" 0; then return 0; fi
-  exec 8>&-
-  record=$(cat "$lock")
-  pid=${record##*(pid }
-  pid=${pid%)}
-  case $pid in '' | *[!0-9]*) return 1 ;; esac
-  ! kill -0 "$pid" 2>/dev/null || return 1
-  leftovers=$(lsof -t "$lock" 2>/dev/null) || true
-  [ "$(cat "$lock")" = "$record" ] || return 1
-  # shellcheck disable=SC2086  # one pid per word
-  [ -z "$leftovers" ] || kill -KILL $leftovers 2>/dev/null || true
-  exec 8>>"$lock"
-  if _scratch_flock "$2 (pid $$)" 5; then return 0; fi
-  exec 8>&-
-  return 1
+  if _scratch_flock 8 0; then
+    status=0
+  else
+    exec 8>&-
+    pid=$(sed -n 's/.*(pid \([0-9]*\))$/\1/p' "$lock")
+    if [ -n "$pid" ] && ! kill -0 "$pid" 2>/dev/null; then
+      lsof -t "$lock" | xargs kill -KILL 2>/dev/null || true
+      exec 8>>"$lock"
+      if _scratch_flock 8 5; then status=0; else exec 8>&-; fi
+    fi
+  fi
+  [ $status != 0 ] || printf '%s (pid %s)\n' "$2" "$$" >"$lock"
+  exec 7>&-
+  return $status
 }
 
-# Takes the lock on fd 8, waiting up to SECONDS, then writes RECORD into the lock file in the same
-# process, so a claim never reads the previous holder's record under a fresh lock.
+# Takes the lock on fd FD, waiting up to SECONDS.
 _scratch_flock() {
-  python3 -c 'import fcntl, os, sys, time
+  python3 -c 'import fcntl, sys, time
 deadline = time.time() + float(sys.argv[2])
 while True:
     try:
-        fcntl.flock(8, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        fcntl.flock(int(sys.argv[1]), fcntl.LOCK_EX | fcntl.LOCK_NB)
         break
     except BlockingIOError:
         if time.time() >= deadline:
             sys.exit(1)
-        time.sleep(0.1)
-os.ftruncate(8, 0)
-os.write(8, (sys.argv[1] + "\n").encode())' "$1" "$2"
+        time.sleep(0.1)' "$1" "$2"
 }
 
 _scratch_ensure() {
