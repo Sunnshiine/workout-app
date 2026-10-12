@@ -6,10 +6,13 @@
     struct LaunchFlag: Hashable, Sendable {
         let argument: String
         let meaning: String
+        /// False for a flag the app reads only on the fixture launch path, so it does nothing without `fixture`.
+        var actsWithoutFixture = false
 
         static let fixture = LaunchFlag(
             argument: "-UITEST_FIXTURE",
-            meaning: "Runs on an in-memory store with a fixture Block, a faked sign-in, and a Sheets client that never reaches Google."
+            meaning: "Runs on an in-memory store with a fixture Block, a faked sign-in, and a Sheets client that never reaches Google.",
+            actsWithoutFixture: true
         )
 
         static let session = LaunchFlag(
@@ -64,7 +67,8 @@
 
         static let disableLiveActivities = LaunchFlag(
             argument: "-UITEST_DISABLE_LIVE_ACTIVITIES",
-            meaning: "Reports Live Activities as disabled, so no Live Activity starts."
+            meaning: "Reports Live Activities as disabled, so no Live Activity starts.",
+            actsWithoutFixture: true
         )
 
         static let pendingWrite = LaunchFlag(
@@ -79,7 +83,8 @@
 
         static let currentSessionOverride = LaunchFlag(
             argument: "-UITEST_CURRENT_SESSION_OVERRIDE",
-            meaning: "Makes Week 1 Day 3 the Current Session."
+            meaning:
+                "Makes Week 1 Day 3 the Current Session when the Scenario gives it Exercises, as Full Block does; otherwise the Current Session stays."
         )
 
         static let moveOnCelebration = LaunchFlag(
@@ -89,12 +94,14 @@
 
         static let appearance = LaunchFlag(
             argument: "-UITEST_APPEARANCE",
-            meaning: "Takes light, dark, or system as the next argument and pins the appearance to it; any other value stops the app."
+            meaning:
+                "Takes one of \(AppearancePreference.allCases.map(\.rawValue).joined(separator: ", ")) as the next argument and pins the appearance to it; any other value stops the app."
         )
 
         static let longCelebrationQuote = LaunchFlag(
             argument: "-UITEST_LONG_CELEBRATION_QUOTE",
-            meaning: "Shows a long fixture quote in the Move On Celebration in place of a random approved one."
+            meaning: "Shows a long fixture quote in the Move On Celebration in place of a random approved one.",
+            actsWithoutFixture: true
         )
 
         static let all: [LaunchFlag] = [

@@ -8,13 +8,18 @@ import Testing
     private let launchFlagTablePath = ".agents/skills/verify/launch-flags.md"
 
     private func launchFlagTable(_ flags: [LaunchFlag]) -> String {
+        let alone = flags.filter { $0.actsWithoutFixture && $0 != .fixture }.map { "`\($0.argument)`" }
+        let fixtureRule =
+            alone.isEmpty
+            ? "Every flag acts only when the launch also passes `\(LaunchFlag.fixture.argument)`."
+            : "Every flag but \(alone.joined(separator: " and ")) acts only when the launch also passes `\(LaunchFlag.fixture.argument)`."
         let header = """
             <!-- Generated from LaunchFlag in Sources/WorkoutTracker/Fixtures/LaunchFlag.swift. Do not edit.
                  Regenerate: RECORD_LAUNCH_FLAGS=1 swift test --filter LaunchFlagTableTests -->
             # Launch flags
 
             With no Scenario flag, the fixture seeds a Partially Uploaded Block. When a launch passes more
-            than one Scenario flag, the lowest Scenario number wins.
+            than one Scenario flag, the lowest Scenario number wins. \(fixtureRule)
 
             | Flag | Kind | Meaning |
             | --- | --- | --- |
@@ -33,7 +38,8 @@ import Testing
     @Test func launchFlagTableMatchesTheRegistry() throws {
         let table = launchFlagTable(LaunchFlag.all)
         if ProcessInfo.processInfo.environment["RECORD_LAUNCH_FLAGS"] == "1" {
-            try table.write(to: RepositoryFiles.existingURL(of: launchFlagTablePath), atomically: true, encoding: .utf8)
+            let url = try RepositoryFiles.existingURL(of: ".agents/skills/verify").appending(path: "launch-flags.md")
+            try table.write(to: url, atomically: true, encoding: .utf8)
         }
         #expect(
             try RepositoryFiles.text(of: launchFlagTablePath) == table,
