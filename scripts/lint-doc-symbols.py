@@ -84,6 +84,13 @@ class Tree:
 
 
 @dataclass(frozen=True)
+class Snippet:
+    line: int
+    text: str
+    fenced: bool
+
+
+@dataclass(frozen=True)
 class Finding:
     doc: str
     line: int
@@ -187,9 +194,8 @@ def message(claim: Claim, missing: tuple[str, ...]) -> str:
     return f"`{named}` is named in no Swift, project, or script file."
 
 
-def code(text: str) -> list[tuple[int, str, bool]]:
-    """Each inline code span outside fenced blocks, joined across a paragraph, and each fenced line."""
-    out: list[tuple[int, str, bool]] = []
+def snippets(text: str) -> list[Snippet]:
+    out: list[Snippet] = []
     paragraph: list[str] = []
     start = 0
     fence = ""
@@ -197,7 +203,8 @@ def code(text: str) -> list[tuple[int, str, bool]]:
     def flush() -> None:
         joined = "\n".join(paragraph)
         for m in SPAN.finditer(joined):
-            out.append((start + joined.count("\n", 0, m.start()), m.group(2).replace("\n", " ").strip(), False))
+            span_line = start + joined.count("\n", 0, m.start())
+            out.append(Snippet(span_line, m.group(2).replace("\n", " ").strip(), fenced=False))
         paragraph.clear()
 
     for number, line in enumerate(text.splitlines(), 1):
@@ -206,7 +213,7 @@ def code(text: str) -> list[tuple[int, str, bool]]:
             if marker and marker.group(1)[0] == fence[0] and len(marker.group(1)) >= len(fence):
                 fence = ""
             else:
-                out.append((number, line, True))
+                out.append(Snippet(number, line, fenced=True))
         elif marker:
             flush()
             fence = marker.group(1)
@@ -222,16 +229,19 @@ def code(text: str) -> list[tuple[int, str, bool]]:
     return out
 
 
+def names_repo_path(claim: Claim, top: frozenset[str]) -> bool:
+    return claim.kind is Kind.PATH and claim.names[0].split("/")[0] in top
+
+
 def claims(doc: str, text: str, top: frozenset[str]) -> Iterator[tuple[int, Claim]]:
-    """A fenced line is shell, Swift, or a tree drawing, so only its repo paths are claims."""
-    for line, snippet, fenced in code(text):
-        for token in snippet.split():
+    for snippet in snippets(text):
+        for token in snippet.text.split():
             claim = classify(token, os.path.dirname(doc), top)
             if claim is None or claim.kind is Kind.FLAG:
                 continue
-            if fenced and not (claim.kind is Kind.PATH and claim.names[0].split("/")[0] in top):
+            if snippet.fenced and not names_repo_path(claim, top):
                 continue
-            yield line, claim
+            yield snippet.line, claim
 
 
 def exemptions(text: str) -> dict[str, int]:
