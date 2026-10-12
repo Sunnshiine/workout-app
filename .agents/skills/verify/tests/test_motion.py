@@ -780,6 +780,22 @@ class StillOf(unittest.TestCase):
                            ("recorder_exit",), ("recorder_early",)]],
                          [True, True, True, True, False, False, False, False])
 
+    def test_a_reading_that_cannot_vouch_says_why_by_its_edges_then_its_rules_then_its_animations(self):
+        held = cardframe.summarize(TAKE, frames(card(100), card(100)), 0.0)
+        faint = cardframe.summarize(TAKE, frames(card(100, contrast=5.0), card(100)), 0.0)
+        missing = cardframe.summarize(TAKE, frames(None, card(100)), 0.0)
+        empty = cardframe.summarize(TAKE, [Sample(0.0, None, FLAT)], 0.0)
+        self.assertEqual([m.unvouched for m in [ruled(held), ruled(held, "load"), ruled(held, animations="off"),
+                                                ruled(faint, "load", animations="off"), ruled(missing),
+                                                ruled(empty, "load")]], [
+            None,
+            "take INVALID: load reason",
+            "animations off",
+            "the card was faint for its first 1 frames, so its edges were not read from the window's start",
+            "the card was missing from the window's first frames, so its edges were not read from the window's start",
+            "take INVALID: load reason",
+        ])
+
     def test_the_still_table(self):
         moved = cardframe.summarize(held_at(card(110)), frames(card(100), card(110)), 0.0)
         faded = cardframe.summarize(TAKE, looks(200, 210, 220, 230, 240, 240), 0.0)
@@ -965,9 +981,11 @@ class Detect(unittest.TestCase):
 
 def reading(rules=(), invalid="", animations="on", no_card=None, lost=0, faint=0, partial=False, worst=0.0,
             look="still"):
-    reasons = [Reason(",".join(rules), invalid)] if rules else []
-    return Reading(rules=rules, unvouched=cardframe.unvouched(reasons, animations, partial, faint),
-                   no_card=no_card, lost=lost, worst_edge_range=worst, look=look, frames=37, load="12.31/14.02")
+    first = [card(100, contrast=5.0)] * faint + ([None] if partial and not faint else [])
+    m = cardframe.summarize(dataclasses.replace(TAKE, animations=animations), frames(*first, card(100)), 0.0)
+    m = dataclasses.replace(m, invalid=(Reason(",".join(rules), invalid),) if rules else ())
+    return dataclasses.replace(Reading.of(m), rules=rules, no_card=no_card, lost=lost, worst_edge_range=worst,
+                               look=look, frames=37, load="12.31/14.02")
 
 
 LOAD = "load 63.2 at the end, at or over 50"

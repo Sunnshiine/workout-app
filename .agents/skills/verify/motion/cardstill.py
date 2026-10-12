@@ -116,8 +116,7 @@ class Reading:
         box = seen.box if seen else None
         return Reading(
             rules=tuple(r.rule for r in m.invalid),
-            unvouched=cardframe.unvouched(m.invalid, m.take.animations, box.partial if box else False,
-                                          box.faint if box else 0),
+            unvouched=m.unvouched,
             no_card=None if seen else m.card.why,
             lost=box.lost if box else 0,
             worst_edge_range=box.worst_edge_range if box else 0.0,

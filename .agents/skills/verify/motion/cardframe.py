@@ -148,18 +148,6 @@ def moved_counts(rules: Iterable[str]) -> bool:
     return set(rules) <= HIDES_MOTION
 
 
-def unvouched(invalid: Sequence[Reason], animations: str, partial: bool, faint: int) -> Optional[str]:
-    if partial:
-        first = (f"was faint for its first {faint} frames" if faint
-                 else "was missing from the window's first frames")
-        return f"the card {first}, so its edges were not read from the window's start"
-    if invalid:
-        return f"take INVALID: {'; '.join(r.text for r in invalid)}"
-    if animations != "on":
-        return f"animations {animations}"
-    return None
-
-
 class Usage(Exception):
     pass
 
@@ -284,14 +272,25 @@ class Measure:
         return self.samples[self.window.start:]
 
     @property
+    def unvouched(self) -> Optional[str]:
+        box = self.card.box if isinstance(self.card, Seen) else None
+        if box is not None and box.partial:
+            first = (f"was faint for its first {box.faint} frames" if box.faint
+                     else "was missing from the window's first frames")
+            return f"the card {first}, so its edges were not read from the window's start"
+        if self.invalid:
+            return f"take INVALID: {'; '.join(r.text for r in self.invalid)}"
+        if self.take.animations != "on":
+            return f"animations {self.take.animations}"
+        return None
+
+    @property
     def still(self) -> Still:
         if isinstance(self.card, NoCard):
             return Still.UNKNOWN
-        box = self.card.box
-        if box.changed or self.card.look.kind is LookKind.CHANGED:
+        if self.card.box.changed or self.card.look.kind is LookKind.CHANGED:
             return Still.NO if moved_counts(r.rule for r in self.invalid) else Still.UNKNOWN
-        why = unvouched(self.invalid, self.take.animations, box.partial, box.faint)
-        return Still.YES if why is None else Still.UNKNOWN
+        return Still.YES if self.unvouched is None else Still.UNKNOWN
 
 
 def _band(pt: float, px_per_pt: float) -> slice:
