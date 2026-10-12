@@ -9,8 +9,10 @@
 
 Reads NAME.take beside the video. Each encoded frame is decoded once and timed by its own presentation
 time, in seconds after the take started. recordVideo writes a frame only when the screen changes, so
-the window is the frame showing at --from and every frame after it. --from is by default the drive's end
-for a launch take (before it the springboard is on screen), else the drive's start, else 0.
+the window is the frame showing at --from and every frame after it. --from is by default the drive's start
+(0 with no drive). For a launch take it is the frame from which the card keeps the width of the take's
+last card: iOS opens an app by scaling its window up from the icon, so until the card reaches its full
+width the system, not the app, moves its edges. An app's own scale-in therefore reads as part of the launch.
 The card is the longest vertical run, at least 120 pt with gaps up to 8 pt merged, where the column at
 --x pt is brighter than the paper column at --ref pt by 4.0; left and right come from a row scan at the
 run's middle. Frames before the card first shows are not lost; a frame after it without the card is.
@@ -79,9 +81,11 @@ class Take:
     video_px: Tuple[int, int]
 
     @property
+    def launches(self) -> bool:
+        return self.drive.split()[:1] == ["launch"]
+
+    @property
     def default_from(self) -> float:
-        if self.drive.split()[:1] == ["launch"] and self.drive_end is not None:
-            return self.drive_end
         if self.drive and self.drive_start is not None:
             return self.drive_start
         return 0.0
@@ -217,8 +221,8 @@ class Measure:
 
 def summarize(take: Take, samples: Sequence[Sample], from_s: float) -> Measure:
     # A frame stands on screen until the next one, so the frame showing at from_s opens the window.
-    showing = [s for s in samples if s.t < from_s][-1:]
-    window = tuple(showing) + tuple(s for s in samples if s.t >= from_s)
+    showing = [s for s in samples if s.t <= from_s][-1:]
+    window = tuple(showing) + tuple(s for s in samples if s.t > from_s)
     seen = next((i for i, s in enumerate(window) if s.card is not None), None)
     after = window[seen:] if seen is not None else ()
     cards = [s for s in after if s.card is not None]
@@ -304,8 +308,26 @@ def take_of(video: Path) -> Path:
 def measure(video, from_s: Optional[float] = None, x: float = 28, ref: float = 8) -> Measure:
     video = Path(video)
     take = read_take(take_of(video))
-    start = take.default_from if from_s is None else from_s
-    return summarize(take, samples(video, take, x, ref), start)
+    found = samples(video, take, x, ref)
+    if from_s is None:
+        from_s = full_size(found, take.default_from) if take.launches else take.default_from
+    return summarize(take, found, from_s)
+
+
+def full_size(found: Sequence[Sample], after: float) -> float:
+    """When a launch's card takes the width it ends the take at, for good. iOS opens an app by scaling its
+    window up from the icon, so until then the system, not the app, moves the card's edges; before the
+    window even opens, the springboard can read as a card of another width."""
+    cards = [s for s in found if s.card is not None and s.t >= after]
+    if not cards:
+        return after
+    final = cards[-1].card.right - cards[-1].card.left
+    start = cards[-1].t
+    for s in reversed(cards):
+        if s.card.right - s.card.left != final:
+            break
+        start = s.t
+    return start
 
 
 def _span(lo: float, hi: float) -> str:
