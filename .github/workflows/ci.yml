@@ -89,19 +89,7 @@ jobs:
         run: scripts/tests/lint.test.sh
       - name: swift-format the Swift files this pull request changes
         if: github.event_name == 'pull_request'
-        run: |
-          changed=$(git diff --name-only --diff-filter=d HEAD^1 HEAD -- '*.swift' \
-            ':(exclude)scripts/tests/swiftlint-custom-rules')
-          files=()
-          while IFS= read -r file; do [ -z "$file" ] || files+=("$file"); done <<<"$changed"
-          if [ "${#files[@]}" -eq 0 ]; then
-            echo "No changed Swift file to check."
-            exit 0
-          fi
-          if ! xcrun swift-format lint --strict "${files[@]}"; then
-            echo "::error::Format these files with: xcrun swift-format format -i ${files[*]}"
-            exit 1
-          fi
+        run: scripts/swift-format-changed.sh HEAD^1
 
   swift-tests:
     runs-on: xcode-27
