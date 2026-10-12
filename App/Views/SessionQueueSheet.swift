@@ -188,6 +188,7 @@ struct SessionQueueSheet: View {
                 }
             }
             .padding(.trailing, Self.unlinkButtonSize + 4)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(row.isComplete)
