@@ -9,10 +9,11 @@ usage: scripts/lint-doc-symbols.py [ROOT]
 
 Reads the inline code spans of AGENTS.md, docs/, and the verify skill, and the repo paths in their
 fenced blocks (a token whose first segment is a top-level entry of this tree, such as
-scripts/flake-hunt.sh). ADRs and research notes are history and stay out. A span that names something outside the tree on purpose is exempted in its
-doc with <!-- doc-symbols: not-in-tree NAME... -->. Every -UITEST_ flag in those docs, fenced
-commands included, and in every file outside Markdown must be a row of the generated launch-flag
-table, and the app's sources may spell one only in LaunchFlag.
+scripts/flake-hunt.sh). ADRs and research notes are history and stay out. A span that names
+something outside the tree on purpose is exempted in its doc with
+<!-- doc-symbols: not-in-tree NAME... -->. Every -UITEST_ flag in those docs, fenced commands
+included, and in every file outside Markdown must be a row of the generated launch-flag table, and
+the app's sources may spell one only in LaunchFlag.
 
 Exits 0 when clean, 1 on findings, 2 on a usage error.
 """
@@ -187,7 +188,7 @@ def message(claim: Claim, missing: tuple[str, ...]) -> str:
 
 
 def code(text: str) -> list[tuple[int, str, bool]]:
-    """Each inline code span outside fenced blocks, joined across a paragraph, then each fenced line."""
+    """Each inline code span outside fenced blocks, joined across a paragraph, and each fenced line."""
     out: list[tuple[int, str, bool]] = []
     paragraph: list[str] = []
     start = 0
