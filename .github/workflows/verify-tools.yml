@@ -50,7 +50,7 @@ concurrency:
 jobs:
   tree:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       # 3.9 is what /usr/bin/python3 is on a stock Xcode machine, and the skill has to run there.
@@ -58,6 +58,9 @@ jobs:
         with:
           python-version: "3.9"
       - run: python3 .agents/skills/verify/tests/test_evidence.py
+      - uses: astral-sh/setup-uv@v10.3.0
+      - run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
+      - run: uv run .agents/skills/verify/tests/test_motion.py
 
   sheet:
     runs-on: xcode-27
