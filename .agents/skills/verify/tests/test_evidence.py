@@ -1908,6 +1908,15 @@ class InstalledIdentity(Lane):
                          "the head phase reinstalls this worktree's build on purpose")
         self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1"), (0, self.launched(head), ""))
 
+    def test_a_refused_animated_launch_hints_the_animated_launch_of_the_cached_build(self):
+        self.verify("build")
+        self.verify("install", self.a[:8])
+        cached, head = self.cached_build(b"v1\n", self.a), self.worktree_build(b"v2\n", self.b)
+        self.assertEqual(self.verify("launch", "--animated", "session", VERIFY_RUN="lane-1"), (65, "", (
+            "{sim} holds {cached}, and this launch would replace it with {head}. To run the cached build: "
+            "launch --at {a8} --animated session. To replace it: install, then launch.\n"
+        ).format(sim=self.sim, cached=cached, head=head, a8=self.a[:8])))
+
 
 class LaunchAnimated(Lane):
     def setUp(self):

@@ -503,7 +503,7 @@ refuse_replacing_cache() {
   [ -n "$installed" ] || return 0
   read -r hash commit dirty origin <<< "$(identity_of "$installed")"
   { [ "$origin" = cache ] && [ "$hash" != "$want_hash" ]; } || return 0
-  refuse "$sim holds $(identity_line "$hash" "$commit" "$dirty" "$origin"), and this launch would replace it with $wanted_line. To run the cached build: launch --at ${commit:0:8} $fixture. To replace it: install, then launch." 65
+  refuse "$sim holds $(identity_line "$hash" "$commit" "$dirty" "$origin"), and this launch would replace it with $wanted_line. To run the cached build: launch --at ${commit:0:8}${animated:+ --animated} $fixture. To replace it: install, then launch." 65
 }
 
 simctl_install() {
