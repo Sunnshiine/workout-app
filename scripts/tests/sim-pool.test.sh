@@ -202,6 +202,17 @@ pool create b
 expect "create after delete-template builds the template again" "$status $(calls | grep -c '^create workout-template-v1-building')" "0 1"
 
 fresh
+mkdir "$root/broken"
+cp "$scripts/sim-pool.sh" "$scripts/sim-lock.sh" "$scripts/ensure-simulator.sh" "$root/broken/"
+printf '#!/bin/bash\necho "keyboard: cannot read it" >&2\nexit 70\n' >"$root/broken/sim-keyboard.sh"
+chmod +x "$root/broken/sim-keyboard.sh"
+"$root/broken/sim-pool.sh" create a >"$root/out" 2>"$root/err"
+expect "a template build that fails after booting exits 70 and deletes the booted half-built device" \
+    "$? $(tail -1 "$root/err") | $(calls | tail -2 | tr '\n' ' ')| $(listing)" \
+    "70 sim-pool: scripts/sim-keyboard.sh ensure $P-1 failed; deleting $P-1, the workout-template-v1-building that failed, so it holds no slot of the cap | shutdown $P-1 delete $P-1 | UDID	STATE	ROLE	NAME
+booted: 0 of cap 6"
+
+fresh
 "$scripts/sim-pool.sh" create a >"$root/out-a" 2>&1 &
 "$scripts/sim-pool.sh" create b >"$root/out-b" 2>&1 &
 wait

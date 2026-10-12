@@ -11,7 +11,8 @@ from scripts/sim-keyboard.sh ensure). The script touches no device whose name la
 scripts/lane.sh calls it; call it directly to inspect or repair the pool.
 
   create <lane>  print the UDID of workout-lane-<lane>, cloning it first if it does not exist. Builds the
-                 template on first use. Leaves the clone Shutdown, so it holds no slot of the host cap.
+                 template on first use, and deletes the half-built device when the build fails after
+                 booting it. Leaves the clone Shutdown, so it holds no slot of the host cap.
   boot <lane>    boot it within the host cap and print its UDID. test-sim.sh and verify.sh boot a
                  lane themselves, outside the cap until #883 lands; run this before a raw
                  xcodebuild or XcodeBuildMCP call on a lane.
@@ -157,6 +158,12 @@ boot_capped() {
   done
 }
 
+abandon_build() {
+  echo "sim-pool: $2; deleting $1, the $building that failed, so it holds no slot of the cap" >&2
+  remove_device "$1"
+  exit 70
+}
+
 ensure_template() {
   local udid state rc=0 doomed
   find_named "$template"
@@ -173,8 +180,8 @@ ensure_template() {
   udid=$("$here/ensure-simulator.sh" 'iPhone 17 Pro' 27.0 "$building" 4>&- 5>&-) || rc=$?
   case $rc in 0) ;; 1) exit 69 ;; *) exit 70 ;; esac
   boot_capped "$udid"
-  simctl bootstatus "$udid" -b >&2 || die 70 "$udid did not finish booting"
-  "$here/sim-keyboard.sh" ensure "$udid" >&2 4>&- 5>&- || exit 70
+  simctl bootstatus "$udid" -b >&2 || abandon_build "$udid" "$udid did not finish booting"
+  "$here/sim-keyboard.sh" ensure "$udid" >&2 4>&- 5>&- || abandon_build "$udid" "scripts/sim-keyboard.sh ensure $udid failed"
   shut_down "$udid"
   simctl rename "$udid" "$template" >&2 || die 70 "could not rename $udid to $template"
   load_devices
