@@ -233,7 +233,7 @@ jobs:
         with:
           path: ${{ runner.temp }}/CompilationCache
           key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
-      # Opt-in, not per PR: four runs on unchanged code went red twice, both on
+      # Opt-in, not per PR: on unchanged code it goes red about half the time on
       # testActiveSetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused (#518, #662).
       - name: Run the UI suite (WorkoutTrackerUITests)
         id: ui
