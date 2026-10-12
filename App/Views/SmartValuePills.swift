@@ -270,9 +270,6 @@ struct SmartValuePills: View {
         onSkip()
     }
 
-    /// A focused field resigns through UIKit first, and the focus change folds it. Removing the field
-    /// while it is still first responder, as a log's remount does, leaves a bottom keyboard inset
-    /// behind that lifts the card 14pt.
     private func dismissFieldUI() {
         guard weightFieldFocused else { return }
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
