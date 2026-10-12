@@ -148,10 +148,33 @@ class Flat(unittest.TestCase):
 
     def test_every_line_has_five_columns(self):
         out = tree_py("flat", "--all", stdin=MINI)[1]
-        self.assertEqual(len(out.splitlines()), 6, "the element with neither id nor label is never printed")
+        self.assertEqual(len(out.splitlines()), 7, "the element with neither id nor label is printed too")
         for line in out.splitlines():
             self.assertEqual(len(line.split("\t")), 5, line)
         self.assertIn("Rest 1:58 remaining", out, "a tab and a newline in a label become spaces")
+
+    def test_all_prints_an_element_with_neither_id_nor_label_by_its_role_value_and_frame(self):
+        nameless = json.loads(MINI)
+        nameless[0]["children"].append(
+            {"role": "AXTextField", "AXValue": "Google Sheet URL", "frame": {"x": 32, "y": 459, "width": 338, "height": 34}})
+        payload = json.dumps(nameless)
+        code, out, err = tree_py("flat", "--all", stdin=payload)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out.splitlines()[-2:], [
+            "AXGroup\t\t\t\t@0,0 402x874",
+            "AXTextField\t\t\tGoogle Sheet URL\t@32,459 338x34",
+        ], "issue 666: a field with no name is still on the screen, so --all shows it")
+        code, out, err = tree_py("flat", stdin=payload)
+        self.assertNotIn("Google Sheet URL", out, "the plain tree stays the named elements a shot saves")
+        self.assertEqual(err, (
+            "2 off-screen elements hidden; `verify.sh tree --all` lists them\n"
+            "2 elements with neither id nor label hidden; `verify.sh tree --all` lists them\n"
+        ), "each kind of drop is counted, so a missing line is never read as a missing element")
+
+    def test_all_on_the_captured_settings_screen_prints_every_node(self):
+        payload = (FIXTURES / "settings.describe-ui.json").read_text()
+        self.assertEqual(len(tree_py("flat", "--all", stdin=payload)[1].splitlines()), 93,
+                         "34 named and 59 unnamed nodes, as axe describe-ui returned them")
 
     def test_the_session_tree_keeps_the_cards_that_run_off_both_edges(self):
         out = tree_py("flat", stdin=as_axe_json("01-before.all.txt"))[1]
